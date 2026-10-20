@@ -87,7 +87,6 @@ Jira 업무·브랜치·MR 규칙은 [루트 AGENTS.md](AGENTS.md)의 `Jira·Git
 - Codex는 `$coco-build`, Claude Code는 `/coco-build`처럼 각 도구의 명령으로 선택합니다.
 - 공통 규칙은 [루트 AGENTS.md](AGENTS.md), 파트별 규칙은 각 폴더의 `AGENTS.md`를 따릅니다. `CLAUDE.md`는 같은 지침을 불러옵니다.
 - 코드 변경이 없는 조사·학습도 팀이 재사용할 결과가 생기면 [기록 기준](docs/README.md)에 따라 지식·실험·결정을 남깁니다.
-- 구성 근거와 적용 확인 방법은 [Codex·Claude 사용 문서](docs/knowledge/tooling/agent-instructions.md)에 있습니다.
 
 ## 환경 변수와 비밀 정보
 
