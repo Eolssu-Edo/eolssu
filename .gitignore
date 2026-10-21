@@ -79,6 +79,13 @@ venv/
 ai/data/
 ai/models/
 
+# ===== Data / Local datasets =====
+data/raw/
+data/processed/
+
 # ===== Infra =====
 infra/**/data/
 infra/**/certs/
+
+# ===== Personal notes =====
+/TIL/
