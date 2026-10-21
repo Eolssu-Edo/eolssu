@@ -87,3 +87,6 @@ data/processed/
 # ===== Infra =====
 infra/**/data/
 infra/**/certs/
+
+# ===== Personal notes =====
+/TIL/
