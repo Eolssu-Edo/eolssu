@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Create Tasks and relate them to existing Stories from a reviewed YAML plan.
-
-Adapted from S15P21E106/scripts/jira/create_issues.py at 7d86dab.
-"""
+"""Create Tasks and relate them to existing Stories from a reviewed YAML plan."""
 
 from __future__ import annotations
 

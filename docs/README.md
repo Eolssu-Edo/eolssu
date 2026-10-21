@@ -22,7 +22,7 @@
 
 ## 도구 조사·검증 기록
 
-- [Jira Task 생성 자동화 이식](knowledge/tooling/jira-task-automation.md)
+- [Jira Task 생성 자동화](knowledge/tooling/jira-task-automation.md)
 
 ## COCO 산출물
 

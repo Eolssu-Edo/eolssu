@@ -108,4 +108,4 @@ python scripts/jira/create_issues.py --help
 
 테스트는 작은 가짜 Jira 응답을 사용하며 실제 Jira에 업무를 생성하지 않습니다. Task만 생성하는 요청, 포인트·상위 항목 미전송, Story 유형 사전 검사, 부분 실패 재개, 응답 유실 복구, 중복 방지, 기존 업무 보존, 페이지네이션을 검증합니다.
 
-이식 출처·프로젝트별 변경 이유와 실제 검증 범위는 [조사·검증 기록](../../docs/knowledge/tooling/jira-task-automation.md)에 정리했습니다.
+설계와 실제 검증 결과는 [검증 기록](../../docs/knowledge/tooling/jira-task-automation.md)에 정리했습니다.
