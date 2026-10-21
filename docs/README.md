@@ -9,7 +9,7 @@
 | 파트별 작업 지침 | [Frontend](../frontend/AGENTS.md) · [Backend](../backend/AGENTS.md) · [Data](../data/AGENTS.md) · [AI](../ai/AGENTS.md) · [Infra](../infra/AGENTS.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
-| Jira Task 생성 도구·실행 방법 | [scripts/jira/README.md](../scripts/jira/README.md) |
+| Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
 | 도메인 지식·기술 조사·실험 | `docs/knowledge/<영역>/<주제>.md` |
 | 용어집 | `docs/knowledge/domain/glossary.md` |
 | 팀의 설계·기술 결정(ADR·기각 포함) | `docs/decisions/<주제>.md` |
@@ -22,7 +22,7 @@
 
 ## 도구 조사·검증 기록
 
-- [Jira Task 생성 자동화](knowledge/tooling/jira-task-automation.md)
+- [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
 ## COCO 산출물
 
