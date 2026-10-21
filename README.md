@@ -23,7 +23,7 @@
 | 분야 | 기술 |
 | --- | --- |
 | Backend | Java, Spring Boot, Gradle |
-| Frontend | Kotlin, Compose Multiplatform (Android · iOS · Web), Gradle |
+| Frontend |  |
 | AI | Python |
 | Infra | Docker, Jenkins, Nginx |
 | Collaboration | GitLab, Jira, Mattermost, Notion |
@@ -33,7 +33,7 @@
 ```
 S15P31E102
 ├── backend/      # Spring Boot 서버
-├── frontend/     # Kotlin Multiplatform 앱 (Android · iOS · Web)
+├── frontend/     # 프론트엔드
 ├── ai/           # AI / 데이터 처리
 ├── infra/        # Docker, Jenkins, Nginx 설정
 ├── docs/         # ERD, API 명세, 회의록 등
@@ -82,15 +82,11 @@ cd backend
 ```
 
 ### Frontend
-Android Studio(또는 IntelliJ IDEA)에서 `frontend/` 폴더를 열면 실행 구성이 자동으로 잡힙니다. 명령어로 실행하려면:
-
 ```bash
 cd frontend
-./gradlew :androidApp:assembleDebug              # Android
-./gradlew :webApp:wasmJsBrowserDevelopmentRun    # Web
+npm install
+npm run dev
 ```
-
-iOS는 Mac에서 `frontend/iosApp`을 Xcode로 열어 실행합니다.
 
 ### AI
 ```bash
