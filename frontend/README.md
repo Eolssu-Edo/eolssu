@@ -21,31 +21,76 @@
 
 ## 🛠 필요한 도구
 
+프론트엔드는 **Android Studio**로 개발합니다. Android · Web · 공통 코드는 Windows의 Android Studio에서, iOS는 Mac에서 작업합니다.
+
 | 대상 | 도구 |
 | --- | --- |
-| 공통 | Android Studio 최신 버전(또는 IntelliJ IDEA + Kotlin Multiplatform 플러그인) |
+| 공통 | **Android Studio** 최신 안정 버전 (2026.2.1에서 확인) + `Kotlin Multiplatform` 플러그인 |
 | 공통 | JDK 21 — 없으면 Gradle이 첫 빌드 때 자동으로 내려받습니다 ([`gradle/gradle-daemon-jvm.properties`](gradle/gradle-daemon-jvm.properties)) |
-| Android | Android SDK (Android Studio 설치 시 함께 설치) |
-| iOS | **Mac + Xcode** — Windows에서는 iOS 빌드·실행이 불가능합니다 |
+| Android | Android SDK API 37, 에뮬레이터 (Android Studio 설치 시 함께 설치) |
 | Web | Chrome, Firefox, Safari, Edge 최신 버전 |
+| iOS | **Mac + Xcode** + Mac용 Android Studio — Windows에서는 iOS 빌드·실행이 불가능합니다 |
 
-## 🚀 처음 열기
+## 🚀 처음 빌드하기 (Android Studio)
 
-1. Android Studio에서 **저장소 루트가 아니라 `frontend/` 폴더**를 엽니다. Gradle 프로젝트의 루트가 `frontend/`입니다.
-2. 첫 Gradle 동기화(Sync)에서 Gradle, JDK, 라이브러리를 내려받으므로 시간이 걸립니다.
-3. `local.properties`(내 PC의 Android SDK 경로)는 Android Studio가 자동으로 만듭니다. 커밋하지 않습니다.
-4. 상단 실행 목록에서 `androidApp`을 골라 에뮬레이터에서 실행합니다. "Click me!" 버튼이 있는 예제 화면이 뜨면 준비 완료입니다.
+> ⚠️ **저장소 경로에 한글이 있으면 안 됩니다.** Windows에서는 경로에 영어가 아닌 글자가 있으면 Android Studio가 Gradle 동기화를 막습니다 (`Your project path contains non-ASCII characters`).
+> 예: `C:\Users\SSAFY\Desktop\자율\S15P31E102` ❌ → `C:\Users\SSAFY\Desktop\jayul\S15P31E102` ✅
 
-## ▶️ 실행 방법
+1. **Android Studio 설치**: [developer.android.com/studio](https://developer.android.com/studio)에서 최신 안정 버전을 받습니다. 처음 실행할 때 설정 마법사는 **Standard**로 진행하고, 라이선스는 항목마다 모두 **Accept**합니다. Android SDK와 에뮬레이터가 함께 설치됩니다.
+2. **플러그인 설치**: **File → Settings → Plugins → Marketplace**에서 `Kotlin Multiplatform`(JetBrains)을 설치하고 재시작합니다.
+3. **프로젝트 열기**: **File → Open**에서 **저장소 루트가 아니라 `frontend/` 폴더**를 고르고 **Trust**를 누릅니다.
+   - 저장소 루트를 열면 Gradle 프로젝트로 인식되지 않아 실행 목록에 `androidApp`이 나오지 않습니다.
+   - 왼쪽 Project 창은 처음에 **Android** 보기(모듈·파일 종류별로 묶음, `iosApp`은 안 보임)로 열립니다. 실제 폴더 구조로 보려면 창 맨 위 드롭다운에서 **Project**를 고릅니다.
+4. **동기화(Sync) 기다리기**: 처음에는 Gradle, JDK, 라이브러리를 내려받아 **7~8분** 정도 걸립니다. 화면 아래 진행 표시줄이 끝날 때까지 기다립니다.
+   - `local.properties`(내 PC의 Android SDK 경로)가 자동으로 생깁니다. 커밋하지 않습니다.
+   - `Failed to find target android-37` 오류가 나면 **Tools → SDK Manager**에서 **Android API 37**을 설치하고 다시 동기화합니다.
+5. **에뮬레이터 만들기**: 오른쪽 **Device Manager → +(Create Virtual Device)** → 폰 기기(예: Medium Phone) → API 37 시스템 이미지 → **Finish**.
+6. **실행**: 상단 실행 목록에서 `androidApp`과 에뮬레이터를 고르고 ▶ **Run**(`Shift+F10`)을 누릅니다. 첫 빌드는 몇 분 걸립니다.
+   - 에뮬레이터만 켜지고 앱이 뜨지 않으면 Run이 실행되지 않은 것입니다. 하단 **Build** 창에서 진행 상황과 오류를 확인합니다.
+7. **성공 확인**: 예제 화면에서 **Click me!**를 누르면 `Compose: Hello, Android 37!`이 보입니다.
 
-IDE 상단의 실행 목록을 쓰거나, `frontend/`에서 아래 명령을 실행합니다.
+## 🌐 Web 실행 (Android Studio)
 
-| 대상 | 명령 |
-| --- | --- |
-| Android | `./gradlew :androidApp:assembleDebug` |
-| Web (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` |
-| Web (JS, 구형 브라우저) | `./gradlew :webApp:jsBrowserDevelopmentRun` |
-| iOS | Mac에서 [`iosApp`](iosApp)을 Xcode로 열고 실행 |
+실행 목록에는 처음에 `androidApp`만 있습니다. 웹은 아래 둘 중 하나로 실행합니다.
+
+- **Gradle 창**: 오른쪽 **Gradle** 창 → `webApp` → `Tasks` → `kotlin browser` → `wasmJsBrowserDevelopmentRun`을 더블클릭합니다. 한 번 실행하면 실행 목록에 추가되어 다음부터 ▶로 실행할 수 있습니다.
+- **Terminal 탭**: 아래 **Terminal**에서 실행합니다 (Android Studio 터미널 기본값은 PowerShell).
+
+  ```powershell
+  .\gradlew.bat :webApp:wasmJsBrowserDevelopmentRun
+  ```
+
+빌드가 끝나면 터미널에 `Loopback: http://localhost:8080/`이 나옵니다. 브라우저에서 이 주소를 열면 앱이 보입니다. 화면이 깨지거나 동작하지 않으면 브라우저 개발자 도구(F12)의 Console을 확인합니다. 멈출 때는 실행 창의 ■(Stop)이나 `Ctrl+C`를 누릅니다.
+
+## 🍎 iOS 실행 (Mac)
+
+Windows에서는 iOS 코드(`iosMain`)를 작성할 수만 있고, 컴파일·실행은 Mac에서 합니다.
+
+1. Mac에 **Xcode**를 설치하고 **한 번 실행**합니다. Xcode를 업데이트한 뒤에도 한 번 실행합니다.
+2. Mac에 **Android Studio**와 `Kotlin Multiplatform` 플러그인을 설치합니다.
+3. 같은 저장소의 `frontend/` 폴더를 엽니다. 동기화가 끝나면 실행 목록에 iOS 실행 구성이 생깁니다.
+4. iOS 시뮬레이터를 고르고 ▶ Run을 누릅니다. Android Studio가 내부에서 Xcode를 불러 빌드합니다.
+5. Swift 파일이나 `Info.plist`(마이크 권한 문구 등)를 고칠 때는 `iosApp`을 Xcode로 엽니다.
+
+iOS 담당은 develop을 주기적으로 받아 iOS 빌드가 깨지지 않았는지 확인합니다. 공통 코드만 바뀌어도 iOS 빌드가 깨질 수 있습니다.
+
+## 🔨 명령어로 빌드·실행
+
+`frontend/`에서 실행합니다. Git Bash는 `./gradlew`, PowerShell·cmd는 `.\gradlew.bat`을 씁니다.
+Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리켜야 합니다 (Gradle 9 요구 사항).
+
+| 하려는 것 | 명령 | 결과 |
+| --- | --- | --- |
+| Android 디버그 APK 빌드 | `./gradlew :androidApp:assembleDebug` | `androidApp/build/outputs/apk/debug/androidApp-debug.apk` |
+| 연결된 기기·에뮬레이터에 설치 | `./gradlew :androidApp:installDebug` | 설치만 합니다. 앱 아이콘을 눌러 실행합니다 |
+| Web 개발 서버 (Wasm, 권장) | `./gradlew :webApp:wasmJsBrowserDevelopmentRun` | `http://localhost:8080/`에 개발 서버를 띄웁니다 |
+| Web 개발 서버 (JS, 구형 브라우저) | `./gradlew :webApp:jsBrowserDevelopmentRun` | 로컬 개발 서버를 띄웁니다 |
+| Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
+| iOS | Mac에서만 가능 — 위의 "iOS 실행 (Mac)" 참고 | — |
+
+- 처음 하는 웹 빌드는 Node.js와 웹 의존성을 내려받아 오래 걸립니다 (확인한 PC에서 약 6분).
+- 첫 웹 빌드가 `An input file was expected to be present but it doesn't exist` 오류로 실패한 적이 있습니다. 같은 명령을 다시 실행하면 성공했습니다.
+- 웹을 처음 빌드하면 `kotlin-js-store/wasm/yarn.lock`이 생깁니다. 모두가 같은 웹 의존성 버전을 쓰도록 **커밋합니다**.
 
 ## ✅ 테스트
 
