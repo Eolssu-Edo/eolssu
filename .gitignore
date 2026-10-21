@@ -17,6 +17,7 @@ out/
 .env
 .env.*
 !.env.example
+.jira/tmp/
 *.pem
 *.key
 *.p12

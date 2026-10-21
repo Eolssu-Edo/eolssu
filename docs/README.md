@@ -9,6 +9,7 @@
 | 파트별 작업 지침 | [Frontend](../frontend/AGENTS.md) · [Backend](../backend/AGENTS.md) · [Data](../data/AGENTS.md) · [AI](../ai/AGENTS.md) · [Infra](../infra/AGENTS.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
+| Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
 | 도메인 지식·기술 조사·실험 | `docs/knowledge/<영역>/<주제>.md` |
 | 용어집 | `docs/knowledge/domain/glossary.md` |
 | 팀의 설계·기술 결정(ADR·기각 포함) | `docs/decisions/<주제>.md` |
@@ -18,6 +19,10 @@
 | 설치·실행·검증 명령과 필수 검사 기준 | 각 구현 폴더의 `README.md` |
 
 영역 이름은 `frontend`, `backend`, `data`, `ai`, `infra`를 사용합니다. 국악 개념처럼 여러 파트가 공유하는 지식은 `domain`, 개발 도구는 `tooling`에 둡니다. 아직 없는 폴더는 첫 문서를 작성할 때 만듭니다.
+
+## 도구 조사·검증 기록
+
+- [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
 ## COCO 산출물
 

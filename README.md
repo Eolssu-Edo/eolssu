@@ -81,6 +81,7 @@ Jira 업무·브랜치·MR 규칙은 [루트 AGENTS.md](AGENTS.md)의 `Jira·Git
 
 ## AI 작업 도구
 
+- Jira 작업은 연결된 MCP로 처리합니다. 팀원별 연결과 요청 예시는 [Jira MCP 사용 안내](docs/knowledge/tooling/jira-mcp.md)를 참고합니다.
 - COCO는 npm 배포본 `@thisis-joe/coco-skills@0.2.0`을 기준으로 사용합니다.
 - 팀 기본은 필요한 스킬을 사용자가 선택해 명령어로 실행하는 방식입니다. 고정된 단계 순서를 강제하지 않습니다.
 - 자연어에 따른 자동 선택은 개인이 명시적으로 허용한 경우에 적용합니다.
