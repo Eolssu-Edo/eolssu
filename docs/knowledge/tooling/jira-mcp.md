@@ -35,6 +35,27 @@
 
 MCP가 연결되지 않았거나 인증·권한 오류가 있으면 Jira 쓰기를 중단하고 필요한 조치를 알린다. 생성 응답이 유실되거나 연결·배정·전환 중 일부만 실패하면 기존 이슈·링크·스프린트·상태를 재조회한다. 기존 Key와 성공한 변경을 보존하고 실패 단계만 이어서 처리한다.
 
+## MR 작성부터 병합 후 완료 확인까지
+
+작업 중인 Task는 활성 스프린트의 `진행 중` 상태에서 시작한다. 구현·검증·Push·MR 생성은 병합 대기 단계이며, Task를 미리 완료하지 않는다. Draft MR이나 병합 없이 닫힌 MR도 완료 근거가 아니다.
+
+### 종료 대상과 본문
+
+1. MR의 소스 브랜치·diff·Task 완료 조건을 대조해 이번 병합으로 완료할 Task를 정한다. Story·Epic·단순 참조 업무는 제외한다.
+2. [MR 템플릿](../../../.gitlab/merge_request_templates/default.md)의 마지막 `병합 시 완료할 Jira Task` 영역에 `Closes`와 실제 전체 Key를 한 줄에 적는다. 여러 Task면 줄을 나누고, 완료 대상이 없으면 자리표시자를 지운다.
+3. GitLab은 브랜치 이름에서 Jira Key를 인식하면 기존 템플릿 끝에 종료 문구를 자동으로 붙일 수 있다. 자동 문구도 1번의 대상과 비교하고, 마지막 영역으로 모아 Key별 한 줄만 남긴다. 이 MR과 무관한 종료 문구는 제거한다. 리뷰 요청 사항에 둘 필요는 없다.
+4. 링크나 리치 텍스트를 복사할 필요 없이 `Closes` 뒤에 전체 Key를 일반 텍스트로 쓴다. 저장 후 본문과 GitLab의 `Closes issue` 표시가 실제 대상과 일치하는지 확인한다. 이 표시는 종료 대상 인식의 증거이며 Jira 전환 성공의 증거는 아니다.
+
+### 자동 전환 조건과 확인
+
+GitLab 내장 Jira issues 연동은 기본 브랜치로 병합되는 MR의 종료 문구와 활성 연동·이벤트·완료 전환 설정에 의존한다. 현재 목표인 `develop`이 GitLab 기본 브랜치인지 확인한다. 설정이 바뀌거나 자동 전환이 실패하면 프로젝트의 Jira 연동에서 MR 이벤트, Jira transitions 설정 및 연동 계정의 전환 권한을 점검한다. Custom transitions를 쓰면 현재 Task 상태에서 가능한 실제 전환 ID와 대조한다. Jira에 Resolution이 남은 이슈는 내장 연동이 전환하지 않으므로, 재개한 Task는 상태와 Resolution을 함께 확인한다.
+
+사람이 병합한 결과를 확인할 때는 GitLab의 MR 상태가 `merged`인지 먼저 확인하고, Jira MCP로 대상 Task 상태를 조회한다. MR만 병합됐으면 “MR 병합 완료, Jira 완료 전환 미확인”으로 구분한다. 이벤트 처리 지연·오류가 의심되면 결과를 제한적으로 재조회하고 설정·전환 오류를 확인한다. 에이전트가 임의로 Task를 완료하거나 MR을 재생성·재병합하지 않는다. 본문 재저장만으로 이미 끝난 merge 이벤트가 재실행된다고 가정하지 않는다.
+
+별도 Jira Automation이나 webhook으로 전환한다면 그 규칙의 실제 merge 이벤트·대상 브랜치·Task Key 조건과 실행 결과를 확인한다. 내장 연동과 별도 자동화의 동작을 혼동하거나, 문서 변경만으로 외부 설정이 활성화됐다고 보고하지 않는다.
+
+출처: [GitLab Jira issues 연동 — 종료 문구·자동 삽입·전환 조건](https://docs.gitlab.com/integration/jira/issues/).
+
 ## 실제 검증 결과
 
 2026-10-21, Atlassian MCP를 `ssafy.atlassian.net` 계정에 연결한 환경에서 MCP 호출만으로 검증했다.
@@ -51,3 +72,10 @@ MCP 생성 요청 자체의 중복 방지·응답 유실 자동 복구와 상태
 - MCP 조회에서 S15P31E102-52는 `진행 중`이었다. `key = S15P31E102-52 AND cf[10020] IS EMPTY` 조회에도 반환되어 스프린트 미배정을 별도로 확인했다.
 - S15P31E102-53은 `해야 할 일`이었다. 가능한 전환 조회에서 `진행 중`으로 도착하는 전환을 확인했다. 이번 점검에서는 테스트 Task 상태를 바꾸지 않았으며 전환 실행 검증으로 기록하지 않는다.
 - 저장소에는 생성 후 상태를 바꾸는 별도 스크립트·hook·CI가 없고, 에이전트가 AGENTS.md의 절차를 MCP로 수행하는 방식이다. 백로그 → 해야 할 일 → 진행 중의 3단계 업무 흐름과 단계별 MCP 처리, COCO 실행 전 시작 절차를 명시했다. 이번 문서 정리로 실제 Task의 배치·상태를 바꾸지는 않았다.
+
+### 2026-10-22 MR 종료 대상과 병합 대기 상태 점검
+
+- 작업: `S15P31E102-13`, [MR !13](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/13). Jira MCP에서 Task는 활성 스프린트 `S15P31E1 1 스프린트 2`의 `진행 중`이었다. MR은 `Open`, 대상 브랜치는 `develop`, GitLab의 종료 대상 표시는 해당 Task였다. MCP 상세 응답에 Resolution 값이 없고, Resolution의 빈 값 여부로 나눈 두 JQL 조회도 모두 결과가 없어 Resolution은 미확인으로 남겼다.
+- `git ls-remote --symref origin HEAD`에서 기본 브랜치가 `develop`임을 확인했다.
+- GitLab 프로젝트의 Settings → Integrations → Jira issues에서 연동은 Active였으나 Trigger의 Commit·Merge request는 모두 해제되어 있었다. 표시된 화면에 완료 전환 설정은 없었다. 설정은 변경하지 않았다. 별도 Jira Automation·webhook의 완료 전환 규칙은 확인하지 않았다.
+- 이번 점검은 병합 전 상태·종료 대상·설정의 조회 검증이다. MR을 병합하거나 Jira 상태를 전환하지 않았으며, 진행 중 Task의 실제 병합 후 자동 완료 성공은 아직 검증하지 않았다.
