@@ -3,34 +3,12 @@
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import Note, pyin_f0, reference_hz, score
-
-SR = 16000
-BPM = 120
-REF_HZ = 311.13  # 합성용 기준음. 실제 기준음은 녹음마다 기본음에서 잰다.
-# 기준음에서의 반음 수로 적은 오르내리는 음계
-SCALE = [Note(s, 1) for s in (0, 2, 5, 7, 9, 12, 9, 7, 5, 2, 0)]
-
-
-def synth(notes, cents=0.0, shift=None, delay=None, drop=(), seconds=None):
-    """음표를 이어 부는 합성음. shift는 반음 변경, delay는 늦게 시작할 초, drop은 비운 음표."""
-    shift, delay = shift or {}, delay or {}
-    beat = 60 / BPM
-    starts = np.concatenate([[0.0], np.cumsum([n.beats * beat for n in notes])])
-    t = np.arange(int(SR * (seconds if seconds is not None else starts[-1]))) / SR
-    k = np.clip(np.searchsorted(starts[:-1] + [delay.get(i, 0.0) for i in range(len(notes))], t, side="right") - 1, 0, None)
-    semis = np.array([n.semitone + shift.get(i, 0) for i, n in enumerate(notes)], dtype=float)
-    freq = REF_HZ * 2 ** ((100 * semis[k] + cents) / 1200)
-    amp = np.ones_like(t)
-    for i in drop:
-        amp[(t >= starts[i]) & (t < starts[i + 1])] = 0.0
-    amp = np.convolve(amp, np.ones(160) / 160, mode="same")  # 10ms 페이드로 끊김 잡음 제거
-    phase = 2 * np.pi * np.cumsum(freq) / SR
-    return 0.3 * amp * (np.sin(phase) + 0.5 * np.sin(2 * phase) + 0.25 * np.sin(3 * phase))
+from ai_service.pipelines.scoring import Note, frame_rms, pyin_f0, reference_hz, score
+from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
 def run(audio):
-    return score(pyin_f0(audio, SR), SCALE, BPM, REF_HZ)
+    return score(pyin_f0(audio, SR), SCALE, BPM, REF_HZ, rms=frame_rms(audio, SR))
 
 
 def verdicts(result):
@@ -59,6 +37,19 @@ def test_late_note_is_timing_error():
 
 def test_skipped_note_is_missed():
     assert verdicts(run(synth(SCALE, drop=(6,)))) == {6: "MISSED"}
+
+
+def test_sigimsae_note_skips_pitch_and_keeps_onset():
+    yoseong = (150, 6, -75)  # 폭 150센트, 6Hz, 중심 75센트 아래로 크게 떨기
+    notes = [Note(n.semitone, n.beats, sigimsae=i in (3, 7)) for i, n in enumerate(SCALE)]
+    audio = synth(notes, vibrato={3: yoseong, 7: yoseong})
+    assert verdicts(score(pyin_f0(audio, SR), notes, BPM, REF_HZ)) == {}
+
+
+def test_late_repeated_note_is_timing_error():
+    notes = [Note(s, 1) for s in (0, 0, 2, 2, 5, 5, 7, 7, 5, 5, 0)]
+    audio = synth(notes, gap=0.04, delay={3: 0.15})  # 같은 높이 두 번째 음이 150ms 늦음
+    assert verdicts(score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))) == {3: "TIMING"}
 
 
 def test_small_tuning_offset_is_corrected():

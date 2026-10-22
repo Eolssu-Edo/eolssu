@@ -25,6 +25,10 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
+## AI 실험 기록
+
+- [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
+
 ## COCO 산출물
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.

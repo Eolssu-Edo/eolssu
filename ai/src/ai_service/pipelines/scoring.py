@@ -64,6 +64,33 @@ def pyin_f0(
     return np.where(voiced, f0, np.nan)
 
 
+def crepe_f0(
+    audio: np.ndarray, sr: int, fmin: float = 100.0, fmax: float = 2000.0, model: str = "full", periodicity: float = 0.21
+) -> np.ndarray:
+    """torchcrepe로 HOP_S 간격의 f0(Hz)를 구한다. 주기성이 낮은 프레임은 NaN. eval 의존성 그룹이 필요하다."""
+    import torch
+    import torchcrepe
+
+    pitch, period = torchcrepe.predict(
+        torch.tensor(audio, dtype=torch.float32)[None],
+        sr,
+        hop_length=round(sr * HOP_S),
+        fmin=fmin,
+        fmax=fmax,
+        model=model,
+        return_periodicity=True,
+        batch_size=512,
+    )
+    period = torchcrepe.filter.median(period, 3)
+    return torchcrepe.threshold.At(periodicity)(pitch, period)[0].numpy()
+
+
+def frame_rms(audio: np.ndarray, sr: int) -> np.ndarray:
+    """HOP_S 간격의 음량(RMS). 같은 높이 음의 경계를 찾는 데 쓴다. 20ms 창이라 짧게 끊은 소리도 보인다."""
+    hop = round(sr * HOP_S)
+    return librosa.feature.rms(y=audio, frame_length=2 * hop, hop_length=hop)[0]
+
+
 def reference_hz(f0: np.ndarray) -> float:
     """기본음 녹음의 f0에서 기준음 주파수를 잰다."""
     voiced = f0[~np.isnan(f0)]
@@ -77,7 +104,15 @@ def _credit(error: float, tol: float) -> float:
     return float(np.clip(2.0 - abs(error) / tol, 0.0, 1.0))
 
 
-def score(f0: np.ndarray, notes: list[Note], bpm: float, ref_hz: float, tol: Tolerance = Tolerance()) -> ScoreResult:
+def score(
+    f0: np.ndarray,
+    notes: list[Note],
+    bpm: float,
+    ref_hz: float,
+    tol: Tolerance = Tolerance(),
+    rms: np.ndarray | None = None,
+) -> ScoreResult:
+    """rms(frame_rms)가 없으면 같은 높이로 이어지는 음의 시작은 정렬 구간의 처음으로 본다."""
     beat_s = 60.0 / bpm
     lengths = np.array([n.beats for n in notes]) * beat_s
     starts = np.concatenate([[0.0], np.cumsum(lengths)[:-1]])
@@ -107,11 +142,11 @@ def score(f0: np.ndarray, notes: list[Note], bpm: float, ref_hz: float, tol: Tol
         frames = np.unique(path[frame_note[path[:, 0]] == k, 1])
         voiced = frames[~np.isnan(detected[frames])]
         middle = voiced[int(len(voiced) * 0.2) : max(int(len(voiced) * 0.8), 1)]
-        measured.append((voiced, middle))
+        measured.append((frames, voiced, middle))
 
     diffs = [
         detected[mid] - 100.0 * n.semitone
-        for n, (_, mid) in zip(notes, measured)
+        for n, (_, _, mid) in zip(notes, measured)
         if not n.sigimsae and mid.size
     ]
     offset = float(np.median(np.concatenate(diffs))) if diffs else 0.0
@@ -120,7 +155,7 @@ def score(f0: np.ndarray, notes: list[Note], bpm: float, ref_hz: float, tol: Tol
 
     results, pitch_c, timing_c, duration_c = [], [], [], []
     onset_tol_s = tol.onset_beat * beat_s
-    for k, (n, (voiced, middle)) in enumerate(zip(notes, measured)):
+    for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
             results.append(NoteResult(k, "MISSED"))
             timing_c.append(0.0)
@@ -131,8 +166,24 @@ def score(f0: np.ndarray, notes: list[Note], bpm: float, ref_hz: float, tol: Tol
 
         raw = float(np.median(detected[middle]))
         err = raw - applied - 100.0 * n.semitone
-        # 음이 바뀐 시점: 정렬 구간에서 이 음의 높이에 처음 들어온 프레임
-        onset_frame = voiced[np.abs(detected[voiced] - raw) <= tol.pitch_cent][0]
+        # 음이 바뀐 시점: 정렬 구간에서 앞 음보다 이 음에 더 가까워진 첫 프레임.
+        # 떨림이 큰 시김새 음도 앞 음과는 반음 이상 떨어져 있어 시작을 잡을 수 있다.
+        onset_frame = voiced[0]
+        if k and notes[k - 1].semitone != n.semitone:
+            here = np.abs(detected[voiced] - applied - 100.0 * n.semitone)
+            before = np.abs(detected[voiced] - applied - 100.0 * notes[k - 1].semitone)
+            closer = voiced[here < before]
+            onset_frame = closer[0] if closer.size else voiced[0]
+        elif k and rms is not None:
+            # 앞 음과 높이가 같으면 높이로는 경계를 알 수 없다. 음높이 도구는 짧은 끊김을 무음으로
+            # 잡지 못하므로, 음량이 크게 줄었다가 다시 올라온 첫 프레임을 시작으로 본다.
+            # ponytail: 끊지 않고 이어 분 같은 음은 구분하지 못한다.
+            seg = rms[frames[frames < len(rms)]]
+            level = np.median(seg)
+            dips = np.flatnonzero(seg < 0.3 * level)
+            if dips.size:
+                rise = np.flatnonzero((np.arange(seg.size) > dips[0]) & (seg >= 0.5 * level))
+                onset_frame = frames[rise[0]] if rise.size else voiced[0]
         onset_err = onset_frame * HOP_S - starts[k]
         dur_err = (voiced[-1] - onset_frame + 1) * HOP_S - lengths[k]
         octave = abs(err) > 600 and abs(err - 1200 * round(err / 1200)) <= tol.pitch_cent
