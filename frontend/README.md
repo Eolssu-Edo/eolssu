@@ -88,6 +88,7 @@ Android Studio 밖에서 실행할 때는 `JAVA_HOME`이 JDK 17 이상을 가리
 | Web 배포용 빌드 (Wasm) | `./gradlew :webApp:wasmJsBrowserDistribution` | `webApp/build/dist/wasmJs/productionExecutable/` (압축 전 약 13MB) |
 | iOS | Mac에서만 가능 — 위의 "iOS 실행 (Mac)" 참고 | — |
 
+- Android Studio 없이 명령줄만으로 빌드하려면 [Android 명령줄 도구](https://developer.android.com/studio#command-line-tools-only)를 `C:\Users\<사용자>\AppData\Local\Android\Sdk\cmdline-tools\latest`에 풀고 `sdkmanager --licenses`로 라이선스를 수락한 뒤, `frontend/local.properties`에 `sdk.dir=C:/Users/<사용자>/AppData/Local/Android/Sdk`처럼 **슬래시(`/`) 경로**로 적습니다. 백슬래시를 그대로 쓰면 경로가 깨져 `파일 이름, 디렉터리 이름 또는 볼륨 레이블 구문이 잘못되었습니다` 오류가 납니다. 플랫폼·빌드 도구는 첫 빌드 때 AGP가 자동으로 내려받습니다 (2026-10-22 Windows에서 확인).
 - 처음 하는 웹 빌드는 Node.js와 웹 의존성을 내려받아 오래 걸립니다 (확인한 PC에서 약 6분).
 - 첫 웹 빌드가 `An input file was expected to be present but it doesn't exist` 오류로 실패한 적이 있습니다. 같은 명령을 다시 실행하면 성공했습니다.
 - 웹을 처음 빌드하면 `kotlin-js-store/wasm/yarn.lock`이 생깁니다. 모두가 같은 웹 의존성 버전을 쓰도록 **커밋합니다**.
@@ -118,10 +119,10 @@ frontend/
 │   ├── build.gradle.kts        # 빌드 대상 플랫폼, 소스 세트별 라이브러리
 │   └── src/
 │       ├── commonMain/
-│       │   ├── kotlin/com/ssafy/eolsu/   # 공통 코드 (화면, 로직)
-│       │   └── composeResources/         # 공통 리소스 (이미지, 폰트, 문구)
-│       ├── androidMain/        # Android 전용 코드
-│       ├── iosMain/            # iOS 전용 코드 (MainViewController.kt: iOS에 화면을 넘겨주는 입구)
+│       │   ├── kotlin/com/ssafy/eolsu/   # 공통 코드. app / feature / data / core 패키지로 고정
+│       │   └── composeResources/         # 공통 리소스 (drawable, font, values)
+│       ├── androidMain/        # Android 전용 코드 (platform/audio·storage·permission)
+│       ├── iosMain/            # iOS 전용 코드 (platform/…, MainViewController.kt: iOS에 화면을 넘겨주는 입구)
 │       ├── jsMain/             # Web(JS) 전용 코드
 │       ├── wasmJsMain/         # Web(Wasm) 전용 코드
 │       ├── commonTest/         # 공통 테스트
@@ -154,12 +155,14 @@ frontend/
             └── styles.css
 ```
 
+공통 코드 안의 패키지 구조(`app / feature / data / core`), 각 영역의 역할, 화면 파일 이름 규칙은 [docs/architecture.md](docs/architecture.md)에, 두 개발자가 담당을 나누고 공동 파일을 조율하는 규칙은 [docs/collaboration.md](docs/collaboration.md)에 있습니다. 새 파일을 만들기 전에 두 문서를 먼저 봅니다.
+
 ## ✍️ 코드는 어디에 쓰나요?
 
 | 하려는 것 | 위치 |
 | --- | --- |
-| 화면, 화면 상태(ViewModel), 비즈니스 로직 | `shared/src/commonMain/kotlin` |
-| 플랫폼 API가 필요한 기능 (마이크, 권한 등) | 인터페이스는 `commonMain`, 구현은 `androidMain` · `iosMain` · `jsMain` · `wasmJsMain` |
+| 화면, 화면 상태(ViewModel), 비즈니스 로직 | `shared/src/commonMain/kotlin`의 `feature/<기능>`, `data/<기능>`, `core` — 세부 기준은 [docs/architecture.md](docs/architecture.md) |
+| 플랫폼 API가 필요한 기능 (마이크, 권한 등) | 인터페이스는 `commonMain`의 `core/audio` 등, 구현은 `androidMain` · `iosMain`의 `platform/` (웹은 `jsMain` · `wasmJsMain`) |
 | JS·Wasm 둘 다 쓰는 웹 공통 코드 | `shared/src/webMain` 폴더를 만들어서 작성 |
 | 이미지, 폰트, 문구 | `shared/src/commonMain/composeResources/` 아래 `drawable/`, `font/`, `values/` |
 | 앱 권한, 아이콘, 앱 이름, 화면 방향 | `androidApp` / `iosApp` / `webApp` |

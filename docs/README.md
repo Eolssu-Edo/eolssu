@@ -7,6 +7,7 @@
 | 제품 범위·기술 현황 | [루트 README](../README.md) |
 | 공통 작업 지침·Jira/Git/커밋/MR 규칙 | [루트 AGENTS.md](../AGENTS.md) |
 | 파트별 작업 지침 | [Frontend](../frontend/AGENTS.md) · [Backend](../backend/AGENTS.md) · [Data](../data/AGENTS.md) · [AI](../ai/AGENTS.md) · [Infra](../infra/AGENTS.md) |
+| 프론트엔드 구조·협업 규칙 | [frontend/docs/architecture.md](../frontend/docs/architecture.md) · [frontend/docs/collaboration.md](../frontend/docs/collaboration.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
 | Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
