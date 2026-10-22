@@ -23,6 +23,10 @@
 
 영역 이름은 `frontend`, `backend`, `data`, `ai`, `infra`를 사용합니다. 국악 개념처럼 여러 파트가 공유하는 지식은 `domain`, 개발 도구는 `tooling`에 둡니다. 아직 없는 폴더는 첫 문서를 작성할 때 만듭니다.
 
+## 공통 계약
+
+- [DB 스키마와 ERD](contracts/db-schema.md)
+
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
