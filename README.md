@@ -5,7 +5,7 @@
 
 프로젝트 범위와 기술 선택은 [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)를 기준으로 합니다. 기획서에서 미정으로 표시한 항목은 아래에서도 미정으로 유지합니다.
 
-현재 저장소는 초기 폴더와 협업 설정만 구성된 상태입니다. 앱·서버·분석 코드와 빌드·테스트·CI 설정은 아직 준비 중입니다.
+각 영역의 구현·실행 현황은 해당 폴더의 README에서 관리합니다. 백엔드의 Docker·Compose·Nginx 실행과 Jenkins 연결 방법은 [인프라 문서](infra/README.md)를 참고합니다.
 
 ## 주요 기능
 
@@ -40,11 +40,11 @@ PoC에서는 모바일 음높이 인식의 정확도·지연, 악보 1곡의 정
 | 영역 | 기획 기준 | 미정 사항 |
 | --- | --- | --- |
 | Frontend | Kotlin Multiplatform 기반 모바일 앱 | 프레임워크·UI 구성 |
-| Backend | Kotlin | 프레임워크 |
+| Backend | Kotlin, Spring Boot | DB·인증·AI 연동 |
 | Data | 데이터 수집·정제·메타데이터·평가 데이터셋 구축 | 구현 도구·라이브러리 |
 | AI | Python, CREPE, pYIN(librosa), music21, DTW | API 프레임워크: FastAPI / Flask |
 | DB | MySQL / PostgreSQL 후보 | 제품 선택 |
-| Infra | Docker, Jenkins, Nginx | 실제 빌드·배포 구성 |
+| Infra | Docker·Compose, Nginx, 백엔드 Jenkinsfile | 서버 배포·Jenkins 잡 연결 |
 | 협업 | GitLab, Jira, Notion, Mattermost | — |
 | 기술 블로그 | Hugo, GitHub Pages, Jenkins 자동 배포 | 실제 구성 |
 
@@ -63,17 +63,17 @@ S15P31E102/
 └── .gitlab/      # MR 템플릿
 ```
 
-각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/`에는 [담당 범위 문서](data/README.md), `docs/`에는 [문서 목록과 기록 기준](docs/README.md)이 있습니다. 앱·서버·분석 구현은 아직 없으며, 위 설명은 각 폴더에 구현할 책임을 나타냅니다.
+각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/`에는 [담당 범위 문서](data/README.md), `docs/`에는 [문서 목록과 기록 기준](docs/README.md)이 있습니다.
 
 데이터셋 구축을 위한 악보 변환·오디오 전처리는 Data, 연주 요청마다 수행하는 전처리·추론·채점은 AI가 담당합니다. `data/raw/`, `data/processed/`, `ai/data/`, `ai/models/`는 Git 제외 대상이며, 소스와 작은 검증용 샘플은 추적 가능한 별도 경로에 둡니다.
 
 ## 실행과 검증
 
-현재 실행 가능한 프로젝트와 검증 명령은 준비 중입니다. 각 영역을 초기화한 뒤 실제로 확인한 설치·실행·테스트 명령과 필수 환경을 해당 디렉터리의 README에 기록합니다.
+실행·검증 명령과 필수 환경은 각 영역의 README에 기록합니다. [백엔드](backend/README.md)의 Gradle 빌드·테스트와 [인프라](infra/README.md)의 컨테이너 실행·구성 검사를 참고합니다.
 
 - 개발 중에는 변경 영역의 관련 테스트를 실행하고, 완료 시 영향받는 영역의 필수 검사와 회귀 검증을 수행합니다.
 - 모델 추론·실제 기기·대용량 음원 검증은 빠른 기본 검사와 실행 조건을 구분합니다. 해당 변경에 필요한 검증은 병합 전에 수행합니다.
-- Jenkins 구성은 실제 빌드·검증 명령이 준비된 뒤 연결합니다.
+- 백엔드 Jenkinsfile은 빌드·검증·이미지 생성을 정의하며, 실제 잡과 배포 트리거 연결은 별도로 진행합니다.
 
 ## 협업 규칙
 
@@ -96,5 +96,6 @@ Jira 업무·브랜치·MR 규칙은 [루트 AGENTS.md](AGENTS.md)의 `Jira·Git
 ## 관련 문서
 
 - [저장소 문서 목록](docs/README.md)
+- [Docker·Compose·Nginx·백엔드 Jenkins 실행](infra/README.md)
 - [프로젝트 기획서](https://app.notion.com/p/3ffa0252aa4580a5a16cc55beadea3ba)
 - [팀 Jira·Git 규칙](https://app.notion.com/p/Jira-Git-af8a0252aa45823e9cbf8131a9ac7734)
