@@ -30,3 +30,18 @@ SSH 별칭 `edo1`의 `/opt/app`과 저장소를 읽기 전용으로 대조했다
 ## 미확인 사항
 
 실제 Jenkins 잡 실행, 외부 공개 주소·TLS, 배포 트리거와 레지스트리, 배포 이력·롤백 대상은 준비되지 않았다. 검증 결과와 환경 한계는 [작업 기록](../../plans/S15P31E102-65.md)에 남긴다. DB 제품·AI API 방식은 이 작업에서 결정하지 않는다.
+
+## 후속 서버 반영 — 2026-10-22
+
+후속 요청 시 서버에는 `/opt/eolsu/config/compose.yml`의 프론트·백엔드·MySQL이 이미 실행 중이었다. 기존의 두 서비스 초기 예시로 덮어쓰지 않고 실제 운영 구성을 `infra/runtime/`에 기록했다. 사용자가 서버 반영·`eolssu` 이름 전환과 edo1의 Jenkins 신규 설치를 승인했다.
+
+설정·릴리스·MySQL 전체 SQL을 먼저 백업하고 `/opt/eolssu`·`eolssu-runtime`으로 전환했다. 기존 `eolsu-runtime_mysql_data` 물리 볼륨을 external volume으로 재사용하며 DB 서버 UUID가 같은지 확인했다. 앱 내부 패키지·JAR·DB 이름은 변경 대상에서 제외했다. 프론트 200·백엔드 프록시 JSON 404·Nginx 설정 검사·DB 상태가 유지됐다.
+
+Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리자 인증·CSRF·가입 차단을 설정했다. 처음 기동할 때 `libfontmanager.so`가 요구하는 `libharfbuzz.so.0`이 누락되어 실패했으며 공식 Java 21 JRE 의존성 설치 후 기동했다. 일반 `ldd`에서 보이는 `libjvm.so`는 Java loader 경로를 반영하지 못한 결과이므로 실제 Jenkins 기동·인증 API를 최종 판정으로 사용했다.
+
+- [Jenkins Ubuntu 설치](https://www.jenkins.io/doc/book/installing/linux/)
+- [Jenkins CLI와 플러그인 설치](https://www.jenkins.io/doc/book/managing/plugins/)
+- [Jenkins CSRF](https://www.jenkins.io/doc/book/security/csrf-protection/)
+- [Compose external volume](https://docs.docker.com/reference/compose-file/volumes/)
+
+현재 운영 절차·백업 위치·Jenkins 접속 방법은 [운영 문서](../../../infra/runtime/README.md), 실제 잡 실행과 최종 검증 결과는 [작업 기록](../../plans/S15P31E102-65.md)을 따른다. 이전 절의 미확인 사항은 최초 작성 당시의 상태다.

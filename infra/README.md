@@ -1,5 +1,7 @@
 # 인프라 실행과 검증
 
+edo1의 실제 프론트·백엔드·MySQL 운영 구성과 `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
+
 현재 구현된 Spring Boot 백엔드를 Nginx 뒤에서 실행하는 구성입니다. 개발·운영은 각각 `eolsu-dev`, `eolsu-prod` Compose 프로젝트이며 DB·AI 서비스는 포함하지 않습니다. Docker Engine과 Compose v2 이상이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
 
 | 파일 | 역할 |
