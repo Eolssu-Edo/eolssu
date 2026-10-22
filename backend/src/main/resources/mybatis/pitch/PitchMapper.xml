@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow">
+        SELECT id, yul, octave, hanja, hangul, semitone
+        FROM pitches
+        WHERE id = #{id}
+    </select>
+</mapper>
