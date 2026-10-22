@@ -41,6 +41,48 @@ sudo docker compose --env-file /opt/eolsu/.env \
   -f /opt/eolsu/config/compose.yml up -d --pull never --wait --wait-timeout 120
 ```
 
+## Let's Encrypt와 HTTPS
+
+`/opt/app/infra`는 서버 소스 체크아웃이며 운영 설정은 `/opt/eolssu/config`에 있습니다. 소스가 오래되었거나 스크립트가 없는 버전에서는 `./scripts/init-letsencrypt.sh`를 실행할 수 없습니다. develop 병합 후 다음과 같이 소스를 갱신하고 실행합니다. 기존 작업 트리가 깨끗한지 먼저 확인합니다.
+
+```sh
+cd /opt/app
+git status --short
+git pull --ff-only origin develop
+sudo apt-get install -y certbot
+cd infra
+./scripts/init-letsencrypt.sh
+```
+
+기본 도메인은 `k15e102.p.ssafy.io`이며 `--domain`으로 DNS 이름을 지정할 수 있습니다. 선택한 연락처는 `--email`로 전달합니다. 생략하면 이메일 없는 ACME 계정으로 등록합니다. DNS가 이 서버를 가리키고 외부에서 TCP 80·443에 접속할 수 있어야 합니다. Certbot은 실행 중인 프론트의 실제 webroot에서 HTTP-01을 수행하므로 발급을 위해 서비스를 내리지 않습니다. 이 방식은 [Certbot webroot 안내](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)를 따릅니다.
+
+스크립트는 필요할 때 sudo로 재실행합니다. 기존 운영 `.env`와 기본 Compose를 보존하고, 인증서 발급·Nginx 설정 검사를 통과한 다음 `compose.tls.yml`로 프론트에 443과 인증서 읽기 전용 mount를 추가합니다. HTTP는 기존 Jenkins 검사와 인증서 갱신용으로 유지합니다. 백엔드·MySQL·DB 볼륨은 재생성하지 않습니다. 교체 중에는 프론트 요청이 잠시 끊길 수 있습니다. 설정·HTTPS 검증에 실패하면 이전 프론트 구성을 복구하며 설정 백업은 `/opt/eolssu/tls-*`에 남습니다. Jenkins 배포와 같은 lock을 사용합니다.
+
+발급한 인증서는 `/etc/letsencrypt`에만 보관합니다. `certbot.timer`가 갱신을 확인하며, 갱신 성공 후 root 소유 `/etc/letsencrypt/renewal-hooks/deploy/eolssu-nginx`가 Nginx 설정 검사·reload를 수행합니다. 재실행은 유효한 인증서를 강제로 재발급하지 않습니다.
+
+```sh
+curl -I https://k15e102.p.ssafy.io/
+curl -i https://k15e102.p.ssafy.io/api/infra-smoke
+sudo certbot renew --dry-run
+sudo systemctl status certbot.timer --no-pager
+python3 -B -m unittest discover -s infra/scripts/tests -v
+```
+
+HTTPS 적용 후 프론트를 수동 재생성할 때는 두 Compose 파일을 함께 사용합니다. 백엔드만 바꾸는 Jenkins 배포에는 기존 명령을 그대로 사용합니다.
+
+```sh
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml -f /opt/eolssu/config/compose.tls.yml \
+  up -d --no-deps --pull never frontend
+```
+
+HTTPS를 되돌릴 때는 기본 Compose만으로 프론트를 재생성합니다. 인증서·원래 HTTP 설정·DB 데이터는 유지됩니다.
+
+```sh
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never frontend
+```
+
 ## Jenkins
 
 서버에 Jenkins LTS `2.580.1`을 설치했습니다. 서비스는 `jenkins.service`, 홈은 `/var/lib/jenkins`이며 `127.0.0.1:8080`에서만 수신합니다. 관리자 인증·CSRF를 사용하고 익명 API 접근·사용자 직접 가입·인바운드 에이전트 포트는 허용하지 않습니다. Java 21 JRE의 글꼴 라이브러리 의존성이 필요합니다.

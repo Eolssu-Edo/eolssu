@@ -63,3 +63,15 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 자동 승인 검토는 Jenkins에 root 배포 도구의 영구 sudo 실행 권한을 추가하는 단계를 별도 승인이 필요한 보안 경계 변경으로 거부했다. 우회하지 않고 검증을 마친 도구와 제한된 권한을 제시해 사용자 승인을 요청했다.
 
 사용자가 배포 도구의 sudo 실행 권한을 명시적으로 승인해 해당 한 줄만 설치하고 `visudo` 검사 후 트리거를 활성화했다.
+
+## Let's Encrypt 실행 파일 누락 — 2026-10-22
+
+`/opt/app/infra/scripts/init-letsencrypt.sh`의 파일 없음은 실행 권한 문제가 아니었다. 서버 develop은 `23e1d26`이었고 피처 브랜치에도 해당 파일이 없었다. 실제 서비스는 별도 `/opt/eolssu/config/compose.yml`로 동작하므로 소스 갱신만으로 운영 TLS가 활성화되지는 않는다.
+
+사용자가 `k15e102.p.ssafy.io`의 HTTPS 적용을 승인했다. 현재 프론트 webroot로 HTTP-01을 처리하고, 발급·Nginx 검사를 통과한 뒤 TLS Compose 추가 구성으로 프론트만 재생성한다. 기본 HTTP와 백엔드·MySQL·외부 데이터 볼륨은 유지한다. 초기화 실패 시 기존 설정을 복구하며 Jenkins 배포 lock과 조율한다. 자동 갱신에는 Ubuntu Certbot timer와 갱신 후 Nginx reload hook을 사용한다.
+
+격리된 TLS 회귀 검사 7개, 실제 서버 Compose·Nginx TLS 검사와 Let's Encrypt staging의 실제 도메인 발급 dry-run을 통과했다. rollback을 제거한 격리 복제본은 회귀 검사에서 실패했다. 운영 인증서 발급·최종 배포 결과는 [작업 기록](../../plans/S15P31E102-65.md)에 이어 기록한다.
+
+- [Certbot webroot와 HTTP-01](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)
+- [Certbot 자동 갱신과 deploy hook](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
+- [실행·검증·복구](../../../infra/runtime/README.md#lets-encrypt와-https)
