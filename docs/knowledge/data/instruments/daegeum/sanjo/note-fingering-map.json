@@ -1,0 +1,849 @@
+{
+  "schemaVersion": 3,
+  "task": "S15P31E102-52",
+  "checkedOn": "2026-10-22",
+  "purpose": "실측 음높이·공개 자료에 기반한 율명 추정과 참고 운지 연결. 녹음 당시 실제 운지·전문가 정답과 구분.",
+  "sampleId": "ngc-sanjo-basic-2550",
+  "sourceSha256": "6EEBBA16C05B3AD9792A5960C8C46F310394894EBC1ACF092E62C32ABAB87332",
+  "analysisVersion": 1,
+  "fingeringReference": "docs/knowledge/data/instruments/daegeum/sanjo/fingering-reference.json",
+  "confirmedCount": 0,
+  "unconfirmedCount": 0,
+  "decisionRule": "교육용 주요 7율명 반복 가설을 같은 국립국악원 요성 녹음의 오름차순 18음군에 적용하고, 기본음 13개를 순서 보존·중복 없는 최근접 실음으로 대응. 모두 inferred, 제작 라벨·실제 녹음 운지는 미확인. 참고 운지표의 제조사·절대Hz를 원음에 전용하지 않음.",
+  "evidence": [
+    {
+      "id": "E1",
+      "type": "source_page",
+      "url": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "finding": "공식 페이지의 공개 메타데이터에서 instrCd=19915, instrName=산조대금, instrDesc=본청 = C 확인. 파일 목록에서 mntnSeq=2550과 원본 파일명이 일치. 개별 음의 율명·취법·순서·지공은 제공 응답에서 찾지 못함.",
+      "metadataRequests": [
+        {
+          "method": "POST",
+          "url": "https://www.gugak.go.kr/digitaleum/front/monotone/getInstrumentList.do",
+          "body": {}
+        },
+        {
+          "method": "POST",
+          "url": "https://www.gugak.go.kr/digitaleum/front/monotone/getFileList.do",
+          "body": {
+            "instrCd": "19915"
+          }
+        }
+      ],
+      "instrumentRecord": {
+        "instrCd": "19915",
+        "instrName": "산조대금",
+        "instrDesc": "<p>본청 = C</p>  "
+      },
+      "fileRecord": {
+        "instrCd": 19915,
+        "mntnSeq": 2550,
+        "division": "기본음계",
+        "subDivision": "기본음",
+        "mp3FileName": "sanjo_deageum_scale_sus_04.wav",
+        "wavFileName": "sanjo_deageum_scale_sus_04.wav"
+      }
+    },
+    {
+      "id": "E2",
+      "type": "local_original_metadata",
+      "sha256": "6EEBBA16C05B3AD9792A5960C8C46F310394894EBC1ACF092E62C32ABAB87332",
+      "finding": "RIFF fmt/data/_PMX/DISP 확인. 음별 cue 라벨 없음. XMP key=C는 녹음의 율명 대응 근거로 채택하지 않음"
+    },
+    {
+      "id": "E3",
+      "type": "manufacturer_reference",
+      "url": "https://m.kukaksa.co.kr/board/free/read.html?board_no=7&no=417",
+      "finding": "율명과 참고 운지의 사실 전사. 브랜드 고유의 율명 체계라는 뜻이 아니며 녹음의 제조사·조율·실제 지공은 확인하지 않음."
+    },
+    {
+      "id": "E4",
+      "type": "unavailable",
+      "url": "https://www.gugak.go.kr/digitaleum/audio/manual/%ED%99%95%EC%9E%A5%EC%9D%8C%EC%9B%90%EC%84%A4%EB%AA%85%EC%84%9C.pdf",
+      "finding": "확장 다운로드의 설명서 링크. 웹·일반 GET은 HTTP 400, 브라우저에서도 본문 확인 실패. 내용 부재로 판단하지 않음. 이 단음 원본과 동일 제작자료인지도 미확인"
+    },
+    {
+      "id": "E5",
+      "type": "primary_technical_description",
+      "author": "이용구",
+      "publication": "KR200282888Y1, 개량산조대금, 2002-07-23",
+      "url": "https://patents.google.com/patent/KR200282888Y1/ko",
+      "scope": "Description의 기존 전통 산조대금 음정 설명. 뒤의 개량악기 음계는 적용하지 않음.",
+      "finding": "전폐음 C, 5번까지 막음 E♭, 3번까지 막음 G♭, 2번까지 막음 A♭ 부근. 전개음은 C에 가깝다고 설명. 평균율의 정확한 고정 음정이 아님을 명시. 녹음의 제작 라벨은 아님."
+    },
+    {
+      "id": "E6",
+      "type": "acoustic_relationship",
+      "method": "octaveDeviationCents = 1200*log2(upperF0/lowerF0)-1200; A4=440 12TET comparison only",
+      "finding": "1~5와 6~10의 순서대로 대응하는 옥타브 편차, 6과 11의 옥타브 편차를 실측. 이것만으로 율명을 결정하지 않고 E1/E3/E5와 결합."
+    },
+    {
+      "id": "E7",
+      "type": "range_chart",
+      "sourceAssetId": "ngc-daegeum-practical-guide",
+      "pdfPage": 6,
+      "printedPage": 146,
+      "finding": "첨부 그림과 같은 악보2 산조대금 음역. 저11·중11·고8=30개 음표, 괄호3개를 빼면27개. PDF5쪽은 초기C관과 현재 일반적인C#관을 구분. 표의저·중·고음역을 자동으로 녹음취법으로 바꾸지 않음."
+    },
+    {
+      "id": "E8",
+      "type": "shared_teaching_convention",
+      "url": "https://d-sce.pusan.ac.kr/kor/CMS/Lecture/stuView.do?cource_gbn=A&lect_no=A20240323&mCode=",
+      "finding": "교육기관 검색 색인에서 기본 율명 임·남·무·황·태·고·중 확인. 공통13음 표준이나 음원 제작 라벨의 근거가 아님. 원문 직접 재열람HTTP503.",
+      "observation": "indexed_primary_source_direct_fetch_unavailable"
+    },
+    {
+      "id": "E9",
+      "type": "same_publisher_recording_comparison",
+      "sourceId": "mntn_seq=2551",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "originalFilename": "sanjo_deageum_scale_vib_39.wav",
+      "sha256": "9475E0486AEF2B25D802E1B1D52B4EDB8FDDAF3839E34249FA5BE0981B9EEC41",
+      "finding": "요성20발음구간에서 0.4초 이내·20cent 이내의 연속 반복2쌍을 묶어18음군을 얻음. 기본7율명 7+7+4 가설에 기본음13개가 모두 순서보존·고유최근접 대응. 최대차43.43cent. 가설과원시구간ID·실측값을별도명세에보존."
+    }
+  ],
+  "segments": [
+    {
+      "segmentId": "tone-01",
+      "startSeconds": 0.9,
+      "endSeconds": 6.1453,
+      "estimatedF0Hz": 264.167,
+      "yulmyeong": "임",
+      "register": "저취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "C4",
+        "centsFromNearest": 16.74,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음.",
+        "rangeChartCaution": "C 부근 임 계열. 교재의 C#관 예시와 명목음 차이. 전체 음에 일괄 반음 보정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-jeochwi-im",
+          "holes": "111111",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "저취 임 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-01",
+        "groupIndex": 1,
+        "referenceRegionIds": [
+          "region-001"
+        ],
+        "referenceF0Hz": 267.276,
+        "differenceCents": -20.26,
+        "runnerUpMarginCents": 309.3,
+        "yulmyeong": "임",
+        "register": "저취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-02",
+      "startSeconds": 9.72,
+      "endSeconds": 16.5853,
+      "estimatedF0Hz": 320.013,
+      "yulmyeong": "남",
+      "register": "저취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "E♭4",
+        "centsFromNearest": 48.75,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음.",
+        "alternative": "E♭4와 E4 경계 부근. 요성 대응과 음형으로 남을 추정."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-jeochwi-nam",
+          "holes": "111110",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "저취 남 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-02",
+        "groupIndex": 2,
+        "referenceRegionIds": [
+          "region-002",
+          "region-003"
+        ],
+        "referenceF0Hz": 319.559,
+        "differenceCents": 2.46,
+        "runnerUpMarginCents": 131.16,
+        "yulmyeong": "남",
+        "register": "저취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-03",
+      "startSeconds": 19.18,
+      "endSeconds": 24.5253,
+      "estimatedF0Hz": 372.309,
+      "yulmyeong": "황",
+      "register": "저취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "G♭4",
+        "centsFromNearest": 10.8,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-jeochwi-hwang",
+          "holes": "111000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "저취 황 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-03",
+        "groupIndex": 4,
+        "referenceRegionIds": [
+          "region-006"
+        ],
+        "referenceF0Hz": 372.138,
+        "differenceCents": 0.8,
+        "runnerUpMarginCents": 127.64,
+        "yulmyeong": "황",
+        "register": "저취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-04",
+      "startSeconds": 27.9,
+      "endSeconds": 34.0253,
+      "estimatedF0Hz": 414.761,
+      "yulmyeong": "태",
+      "register": "저취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "A♭4",
+        "centsFromNearest": -2.27,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-jeochwi-tae",
+          "holes": "110001",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "저취 태 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-04",
+        "groupIndex": 5,
+        "referenceRegionIds": [
+          "region-007"
+        ],
+        "referenceF0Hz": 417.916,
+        "differenceCents": -13.12,
+        "runnerUpMarginCents": 170.13,
+        "yulmyeong": "태",
+        "register": "저취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-05",
+      "startSeconds": 36.22,
+      "endSeconds": 41.4053,
+      "estimatedF0Hz": 500.876,
+      "yulmyeong": "중",
+      "register": "저취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "B4",
+        "centsFromNearest": 24.34,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-jeochwi-jung-alt1",
+          "holes": "011001",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        },
+        {
+          "id": "pirisa-417-jeochwi-jung-alt2",
+          "holes": "010000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "저취 중 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-05",
+        "groupIndex": 7,
+        "referenceRegionIds": [
+          "region-009"
+        ],
+        "referenceF0Hz": 505.216,
+        "differenceCents": -14.94,
+        "runnerUpMarginCents": 93.69,
+        "yulmyeong": "중",
+        "register": "저취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-06",
+      "startSeconds": 45.12,
+      "endSeconds": 50.1453,
+      "estimatedF0Hz": 529.49,
+      "yulmyeong": "임",
+      "register": "평취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "C5",
+        "centsFromNearest": 20.52,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음.",
+        "rangeChartCaution": "C 부근 임 계열. 교재의 C#관 예시와 명목음 차이. 전체 음에 일괄 반음 보정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-pyeongchwi-im",
+          "holes": "011111",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-01",
+        "deviationCents": 3.78
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "평취 임 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-06",
+        "groupIndex": 8,
+        "referenceRegionIds": [
+          "region-010"
+        ],
+        "referenceF0Hz": 533.311,
+        "differenceCents": -12.45,
+        "runnerUpMarginCents": 68.8,
+        "yulmyeong": "임",
+        "register": "평취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-07",
+      "startSeconds": 53.4,
+      "endSeconds": 58.8653,
+      "estimatedF0Hz": 628.573,
+      "yulmyeong": "남",
+      "register": "평취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "E♭5",
+        "centsFromNearest": 17.49,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-pyeongchwi-nam",
+          "holes": "111110",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-02",
+        "deviationCents": -31.26
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "평취 남 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-07",
+        "groupIndex": 9,
+        "referenceRegionIds": [
+          "region-011"
+        ],
+        "referenceF0Hz": 625.57,
+        "differenceCents": 8.29,
+        "runnerUpMarginCents": 144.79,
+        "yulmyeong": "남",
+        "register": "평취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-08",
+      "startSeconds": 61.54,
+      "endSeconds": 67.7853,
+      "estimatedF0Hz": 742.412,
+      "yulmyeong": "황",
+      "register": "평취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "G♭5",
+        "centsFromNearest": 5.66,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-pyeongchwi-hwang",
+          "holes": "111000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-03",
+        "deviationCents": -5.14
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "평취 황 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-08",
+        "groupIndex": 11,
+        "referenceRegionIds": [
+          "region-013"
+        ],
+        "referenceF0Hz": 742.623,
+        "differenceCents": -0.49,
+        "runnerUpMarginCents": 134.59,
+        "yulmyeong": "황",
+        "register": "평취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-09",
+      "startSeconds": 70.94,
+      "endSeconds": 76.6253,
+      "estimatedF0Hz": 824.146,
+      "yulmyeong": "태",
+      "register": "평취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "A♭5",
+        "centsFromNearest": -13.52,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-pyeongchwi-tae",
+          "holes": "110000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-04",
+        "deviationCents": -11.26
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "평취 태 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-09",
+        "groupIndex": 12,
+        "referenceRegionIds": [
+          "region-014"
+        ],
+        "referenceF0Hz": 833.737,
+        "differenceCents": -20.03,
+        "runnerUpMarginCents": 160.29,
+        "yulmyeong": "태",
+        "register": "평취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-10",
+      "startSeconds": 79.68,
+      "endSeconds": 85.4853,
+      "estimatedF0Hz": 996.331,
+      "yulmyeong": "중",
+      "register": "평취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "B5",
+        "centsFromNearest": 14.95,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-pyeongchwi-jung-alt1",
+          "holes": "010000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        },
+        {
+          "id": "pirisa-417-pyeongchwi-jung-alt2",
+          "holes": "000000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-05",
+        "deviationCents": -9.39
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "평취 중 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-10",
+        "groupIndex": 14,
+        "referenceRegionIds": [
+          "region-016"
+        ],
+        "referenceF0Hz": 1021.643,
+        "differenceCents": -43.43,
+        "runnerUpMarginCents": 63.23,
+        "yulmyeong": "중",
+        "register": "평취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-11",
+      "startSeconds": 87.82,
+      "endSeconds": 92.8453,
+      "estimatedF0Hz": 1068.769,
+      "yulmyeong": "임",
+      "register": "역취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "C6",
+        "centsFromNearest": 36.45,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음.",
+        "rangeChartCaution": "C 부근 임 계열. 교재의 C#관 예시와 명목음 차이. 전체 음에 일괄 반음 보정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-yeokchwi-im-alt1",
+          "holes": "011111",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        },
+        {
+          "id": "pirisa-417-yeokchwi-im-alt2",
+          "holes": "111000",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-06",
+        "deviationCents": 15.93
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "역취 임 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-11",
+        "groupIndex": 15,
+        "referenceRegionIds": [
+          "region-017"
+        ],
+        "referenceF0Hz": 1074.916,
+        "differenceCents": -9.93,
+        "runnerUpMarginCents": 68.14,
+        "yulmyeong": "임",
+        "register": "역취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-12",
+      "startSeconds": 95.84,
+      "endSeconds": 99.7453,
+      "estimatedF0Hz": 1201.906,
+      "yulmyeong": "남",
+      "register": "역취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "D6",
+        "centsFromNearest": 39.7,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-yeokchwi-nam",
+          "holes": "110001",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "octaveComparison": {
+        "lowerSegmentId": "tone-07",
+        "deviationCents": -77.79
+      },
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "역취 남 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-12",
+        "groupIndex": 16,
+        "referenceRegionIds": [
+          "region-018"
+        ],
+        "referenceF0Hz": 1206.344,
+        "differenceCents": -6.38,
+        "runnerUpMarginCents": 186.94,
+        "yulmyeong": "남",
+        "register": "역취",
+        "status": "inferred"
+      }
+    },
+    {
+      "segmentId": "tone-13",
+      "startSeconds": 101.24,
+      "endSeconds": 105.4653,
+      "estimatedF0Hz": 1320.046,
+      "yulmyeong": "무",
+      "register": "역취",
+      "fingeringReferenceId": null,
+      "holes": null,
+      "status": "inferred",
+      "candidateLabels": [],
+      "evidenceIds": [
+        "E1",
+        "E5",
+        "E7",
+        "E8",
+        "E9"
+      ],
+      "missingEvidence": [
+        "원음 제작처의 음별 라벨 또는 독립 청취·실연 검수",
+        "녹음 당시 실제 지공·대체 운지"
+      ],
+      "eligibleForNoteScoring": false,
+      "pitchComparison": {
+        "reference": "A4=440Hz, 12TET; not adopted tuning",
+        "nearestNote": "E6",
+        "centsFromNearest": 2.02,
+        "interpretation": "실측 음높이의 A440 평균율 비교. 율명은 이 최근접 음명만으로 정하지 않음."
+      },
+      "referenceFingeringCandidates": [
+        {
+          "id": "pirisa-417-yeokchwi-mu",
+          "holes": "100001",
+          "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+        }
+      ],
+      "inferenceReason": "같은 출처 요성 녹음의 18음군에 교육용 주요7율명 반복 가설을 적용한 뒤 실측으로 대응. 피리사 악기·절대Hz를 원음에 가정하지 않음.",
+      "actualPerformedFingeringStatus": "unconfirmed",
+      "displayLabel": "역취 무 (추정)",
+      "crossRecordingMatch": {
+        "segmentId": "tone-13",
+        "groupIndex": 17,
+        "referenceRegionIds": [
+          "region-019"
+        ],
+        "referenceF0Hz": 1345.428,
+        "differenceCents": -32.97,
+        "runnerUpMarginCents": 122.96,
+        "yulmyeong": "무",
+        "register": "역취",
+        "status": "inferred"
+      }
+    }
+  ],
+  "nextEvidence": "13개 모두 한글 율명 추정과 참고 운지를 연결했으며, 다음 검수는 가설의 독립 실연 대조와 실제 운지 확인. 제조사·공통13음표준을 임의 가정하지 않음.",
+  "inferredCount": 13,
+  "candidateCount": 0,
+  "countsMeaning": "confirmed/inferred/candidate/unconfirmed는 율명 판정의 서로 겹치지 않는 상태. 실제 녹음 운지 확인은 별도이며 전 구간 미확인.",
+  "crossRecordingCorrespondence": "docs/knowledge/data/instruments/daegeum/sanjo/basic-note-correspondence.json"
+}

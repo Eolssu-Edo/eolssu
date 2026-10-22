@@ -32,6 +32,11 @@
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 
+## 데이터 조사·검증 기록
+
+- [산조대금 기본음계·시김새·태평가 자료](knowledge/data/instruments/daegeum/sanjo/README.md)
+- [S15P31E102-52 산조대금 MR 범위·검증](plans/S15P31E102-52.md)
+
 ## AI 실험 기록
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)

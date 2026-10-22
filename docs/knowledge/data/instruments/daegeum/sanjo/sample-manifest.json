@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "localPathBase": "repository_root",
+  "task": "S15P31E102-52",
+  "verifiedOn": "2026-10-21",
+  "purpose": "산조대금 원본 음원 존재 및 파일 형식 검증. 서비스용 정답 음높이·운지·구간 라벨은 아직 없음.",
+  "source": {
+    "publisher": "국립국악원",
+    "collection": "국악기 디지털 음원 > 단음 다운로드 > 산조대금",
+    "url": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+    "licenseObserved": "공공누리 제1유형(출처표시)",
+    "licenseRecheckedOn": "2026-10-22",
+    "access": "페이지에서 관악기 > 산조대금 > 기본음 > 미리듣기/다운로드. 일반 브라우저로 확보.",
+    "verification": "선택 항목의 파일명과 라이선스 문구 확인 후 실제 파일 수신. RIFF/WAVE 헤더·전체 크기·SHA-256 검사.",
+    "attributionDraft": "국립국악원, 국악기 디지털 음원, [원본 파일명], 공공누리 제1유형(출처표시), [원본 URL], [가공 내용].",
+    "redistribution": {
+      "assessedOn": "2026-10-22",
+      "original": "possible_with_conditions",
+      "adapted": "possible_with_conditions",
+      "conditions": [
+        "공공누리 제1유형이 적용되는 해당 원본의 출처표시",
+        "가공한 경우 원본 연결과 변경 내용 표시"
+      ],
+      "evidenceVerifiedOn": "2026-10-22"
+    },
+    "tuningMetadataObservation": {
+      "checkedOn": "2026-10-22",
+      "instrumentCode": "19915",
+      "descriptionLiteral": "본청 = C",
+      "origin": "공식 페이지 getInstrumentList.do 응답",
+      "interpretation": "본청 C는 출처 확인. 같은 출처 요성 녹음의18음군·공통7율명 반복 가설과 대응해13구간 율명 추정. 실제 제조사·지공·독립 정답 검수는 미확인."
+    }
+  },
+  "samples": [
+    {
+      "id": "ngc-sanjo-basic-2550",
+      "instrumentVariant": "sanjo_daegeum",
+      "variantEvidence": "사이트 악기 분류 산조대금",
+      "originalFilename": "sanjo_deageum_scale_sus_04.wav",
+      "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_sus_04.wav",
+      "sourceId": "mntn_seq=2550",
+      "previewUrl": "https://www.gugak.go.kr/digitaleum/front/preSound/monotone/play.do?mntn_seq=2550",
+      "bytes": 40990304,
+      "dataBytes": 40987544,
+      "durationSeconds": 106.73839583333333,
+      "container": "RIFF/WAVE",
+      "waveFormatCode": 3,
+      "sampleEncoding": "IEEE float",
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "bitsPerSample": 32,
+      "sha256": "6EEBBA16C05B3AD9792A5960C8C46F310394894EBC1ACF092E62C32ABAB87332",
+      "downloaded": true,
+      "reacquiredOn": "2026-10-22",
+      "modified": false,
+      "scorePaired": false,
+      "noteLabels": null,
+      "tuningReferenceHz": null
+    }
+  ],
+  "exploratoryAnalysis": {
+    "analyzedOn": "2026-10-22",
+    "version": 1,
+    "status": "automatic_estimate_unreviewed",
+    "report": "docs/knowledge/data/instruments/daegeum/sanjo/basic-tone-analysis.md",
+    "outputDirectory": "data/processed/instruments/daegeum/sanjo/basic-tone-v1",
+    "candidateSegments": 13,
+    "expertLabelsVerified": false
+  },
+  "fingeringReference": {
+    "checkedOn": "2026-10-22",
+    "url": "https://m.kukaksa.co.kr/board/free/read.html?board_no=7&no=417",
+    "publisher": "한양국악사·피리사",
+    "scope": "산조대금 안공표: 가요·창작곡 등 오선악보 연주 시",
+    "report": "docs/knowledge/data/instruments/daegeum/sanjo/fingering.md",
+    "catalog": "docs/knowledge/data/instruments/daegeum/sanjo/fingering-reference.json",
+    "linkedToAudioSegments": false,
+    "imageRedistribution": "permission_unverified",
+    "referenceCandidatesLinkedToAudioSegments": true
+  },
+  "noteFingeringMapping": {
+    "checkedOn": "2026-10-22",
+    "path": "docs/knowledge/data/instruments/daegeum/sanjo/note-fingering-map.json",
+    "confirmedCount": 0,
+    "unconfirmedCount": 0,
+    "eligibleForNoteScoring": false,
+    "inferredCount": 13,
+    "candidateCount": 0,
+    "actualPerformedFingeringVerified": false
+  },
+  "processingRequired": [
+    "음별 구간 분리와 율명·취법·실음 검수",
+    "앱 재생 형식 변환 및 분석용 mono 변환은 파생본에만 적용",
+    "파생본별 sample rate, channel mapping, offsetSeconds, transform version 기록",
+    "출처와 변경사항 표시",
+    "악보·운지·정답 피치와 별도 결합 검증"
+  ],
+  "limitations": [
+    "기본음 파일은 약 107초이며 파일 하나를 단일 음 이벤트로 취급하면 안 됨",
+    "미리듣기 URL의 비브라우저 직접 HEAD는 401이었으므로 영구 정적 다운로드 URL로 의존하지 않음",
+    "바이너리는 Git에서 제외. 저장소에는 이 메타데이터만 포함",
+    "자동 주파수 추정은 exploratoryAnalysis를 참고. 전문가 정답·율명·취법·운지 검수는 미완료",
+    "공개 실음·운지 기준과 녹음 내부 음정으로 율명을 추정하되 실제 녹음 운지와 서비스 정답은 별도 검증"
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 2,
+  "task": "S15P31E102-52",
+  "checkedOn": "2026-10-22",
+  "status": "agent_analysis_inference_not_performer_annotation",
+  "referenceBasis": {
+    "sequence": "저취 임남무황태고중 / 평취 임남무황태고중 / 역취 임남무황",
+    "source": "ngc-sanjo-2551의 18개 오름차순 음군에 교육용 주요 7율명 배열을 적용한 가설",
+    "educationalSourceUrl": "https://d-sce.pusan.ac.kr/kor/CMS/Lecture/stuView.do?cource_gbn=A&lect_no=A20250129&mCode=",
+    "sourceAccess": "2026-10-22 검색 색인의 강의내용에서 임·남·무·황·태·고·중 기본음계 확인; 직접 열람은 HTTP 503. 이 자료는 국립국악원 녹음의 순서표가 아님.",
+    "crossReference": "기본음13개의 순서·음고와 니라14개의 저취7+평취7 배열 대조. 모든 율명은 같은 배열 가설을 공유하며 독립 정답 라벨은 아님.",
+    "referenceDoesNotCover": "산조대금 전체 반음계·모든 운지. 현재 자료의 주요7음 비교 기준이며 응·협 등의 음을 낼 수 없다는 뜻이 아님.",
+    "generalMatch": "cent 최근접 기준. 요성 폭으로 라벨을 거부하지 않고 중심값에 대응. 절대 차이 120cent 초과 또는 유효 F0 없음은 재검토 오류로 중단.",
+    "candidateMargin": "1·2순위 거리 차이 40cent 미만은 경계 후보로 표시. 정확도 확률이 아님. 음렬 검토가 최근접을 바꾼 경우에도 대안 보존."
+  },
+  "sourceHashes": {
+    "ngc-sanjo-2551": "9475E0486AEF2B25D802E1B1D52B4EDB8FDDAF3839E34249FA5BE0981B9EEC41",
+    "ngc-sanjo-2552": "6B7DACE6A9FC5E1C9B14F53EFB439054AC24BDCD63EFB803F8ED9184E1108A96",
+    "ngc-sanjo-2553": "1F50F0BF09312BE5D803F2FF78246752E346CA874E39ECE296244A469F4142A3",
+    "ngc-sanjo-2555": "C83094D13456DE03C13038882BF776569C2B552E5E53DB7977F945E9C220E103",
+    "ngc-sanjo-2566": "1D763CF37242BEF6B1975DFD34B60DF2D6B80D5C657E58A6B4CBBA29B765485F"
+  },
+  "repeatAudit": {
+    "checkedOn": "2026-10-22",
+    "script": "data/src/audit_sanjo_repeated_notes.py",
+    "report": "data/processed/instruments/daegeum/sanjo/repeat-audit-v1/audit.json",
+    "method": "원본 WAV 직접 재분석. 채널 평균·원래48kHz. 40ms/10ms YIN 180–1800Hz·주기성>0.90, RMS gate 없음. Hann FFT 별도 대조. 캐시 pitch로 결론을 재사용하지 않음.",
+    "deepVibrato": "기존 region001·002 사이3.465292–3.740초는 무음이 아님. 28/28프레임에서 F0유효, 주기성 중앙값0.9906, Hz p10/50/90=259.682/268.937/276.663. 전역RMS문턱0.00356248보다 작은 음량 때문에 끊김으로 검출. 6.225292–7.03초의 누락된 끝음도81/81프레임 유효. 원본0.6–7.1초로 합쳐 복구, 중심269.7995Hz=저취 임. 깊은요성16→15파일.",
+    "noniro": "015=110.220–114.045292초,016=117.840–121.305292초.3.794708초 비발음 간격으로 구분. 새F0중앙값1087.8530/1088.9697Hz,1.776cent 차이. 중앙FFT1088.013/1090.210Hz. 별개의 동일음고 발음 두 개를 보존. 다른 운지·재시도·제작 의도는 음향으로 확정하지 않음."
+  },
+  "segmentationDecisions": {
+    "ngc-sanjo-2552": [{
+      "unitId": "group-001", "sourceRegionIds": ["region-001", "region-002"],
+      "startSeconds": 0.6, "endSeconds": 7.1,
+      "reason": "원본상 연속된 저취 임의 깊은요성. 전역RMS문턱으로 생긴 거짓 간격0.274708초와 누락된 끝음을 복구.",
+      "boundaryEvidence": "원본6.225292–7.03초에서도 주기성>0.9로 음 지속.7.09초부터 안정적인 주기음이 사라짐. 후행 소멸부까지7.1초 보존. 시작은기존0.6초 유지.",
+      "reviewStatus": "raw_waveform_and_pitch_analysis_not_performer_annotation"
+    }]
+  },
+  "repeatAssessments": {
+    "ngc-sanjo-2553.region-015": {"kind": "separate_same_pitch_utterances", "peerSourceSegmentId": "region-016", "gapSeconds": 3.794708333333329, "measuredF0Hz": 1087.8530292243358, "pairDifferenceCents": 1.776247699310009, "sourceFrames": [5290560, 5474174], "reason": "원본의 서로 다른 시각에서 같은 음높이를 낸 별도 발음. 분리·옥타브추적 오류 증거 없음."},
+    "ngc-sanjo-2553.region-016": {"kind": "separate_same_pitch_utterances", "peerSourceSegmentId": "region-015", "gapSeconds": 3.794708333333329, "measuredF0Hz": 1088.9697401909655, "pairDifferenceCents": 1.776247699310009, "sourceFrames": [5656320, 5822654], "reason": "원본의 서로 다른 시각에서 같은 음높이를 낸 별도 발음. 다른 운지인지 제작 의도인지는 음원만으로 확정하지 않음."}
+  },
+  "sequenceDecisions": {
+    "ngc-sanjo-2553.region-007": {
+      "groupIndex": 7,
+      "label": "저취 중",
+      "reason": "529.801Hz의 최근접은 평취 임이지만, 앞선 저취 6음의 기준 대비 편차가 증가하는 음렬에 이어지고 008(539.751Hz)부터 평취 음렬이 시작한다. 저취6음의 cent 편차를 순번으로 선형회귀하면 007 예상529.239Hz, 실제와1.84cent 차이. 음렬 해석의 보조 근거이며 독립 정답은 아님.",
+      "alternative": "평취 임",
+      "evidence": {"observedHz": 529.801, "selectedReferenceDistanceCents": 82.26, "nearestAlternativeDistanceCents": -11.43}
+    },
+    "ngc-sanjo-2555.attack-0013": {
+      "groupIndex": 14,
+      "label": "평취 중",
+      "reason": "1050.862Hz는 역취 임에 조금 더 가깝지만, 007저취 중(516.653Hz)과1229.17cent 옥타브 대응이며 012고→013→014임의 순서가 중 해석을 지지한다. 014는1083.897Hz로 독립된 안정음이다.",
+      "alternative": "역취 임",
+      "evidence": {"observedHz": 1050.862, "selectedReferenceDistanceCents": 48.82, "nearestAlternativeDistanceCents": -39.18}
+    }
+  },
+  "daruchigiMethod": {
+    "windowSeconds": 0.04,
+    "hopSeconds": 0.01,
+    "yinRangeHz": [180, 1800],
+    "minimumPeriodicityExclusive": 0.90,
+    "windowBounds": "원본 초 단위 프레임 중심, 양 끝 포함. 40ms 분석창은 각 중심 전후20ms.",
+    "selection": "에이전트가 85ms·40ms 음고 궤적을 대조해 안정 구간 지정. 자동 분할·독립 연주자 검수로 표기하지 않음.",
+    "aggregation": "선택창의 유효 프레임을 모아 원본 모노 RMS 제곱 가중 중앙값. 필터·음높이·옥타브 보정 없음.",
+    "role": "startWindows는 최초 발음이 아니라 반복되는 아래 안정음. destinationWindows는 두 상승 동작의 위 안정음. 구간 중앙값으로 복합음을 단일음 처리하지 않음.",
+    "interpretation": "파일명은 실측 안정음의 직접 대응. 주법상 의도된 율명의 이름은 이 대응과 다를 수 있다. 남→황(002·003·007), 남→태(004·008), 황→임(005)은 상향 음정 변형을 가정한 대안으로 보존하며 제작 라벨로 확정하지 않음."
+  },
+  "daruchigi": {
+    "region-001": {"startWindows": [[0.36, 0.41]], "destinationWindows": [[0.20, 0.33], [0.44, 0.61]], "lowerAnchorScope": "second_repetition", "expectedAcceptedFrames": [4, 31]},
+    "region-002": {"startWindows": [[1.14, 1.22], [1.42, 1.47]], "destinationWindows": [[1.30, 1.39], [1.56, 1.70]], "expectedAcceptedFrames": [14, 24], "intendedLabelAlternative": "저취 남→황; 황을 상향 변형했다는 주법 해석 필요"},
+    "region-003": {"startWindows": [[2.16, 2.22], [2.42, 2.47]], "destinationWindows": [[2.32, 2.39], [2.58, 2.71]], "expectedAcceptedFrames": [12, 22], "intendedLabelAlternative": "저취 남→황; 002·007과 같은 윤곽"},
+    "region-004": {"startWindows": [[3.46, 3.51]], "destinationWindows": [[3.34, 3.39], [3.62, 3.72]], "expectedAcceptedFrames": [5, 17], "lowerAnchorScope": "second_repetition_only", "rejectedWindow": [3.14, 3.28], "reason": "첫 아래음 약300/600Hz 추정이 혼재하고 약600Hz 스펙트럼이 우세. 1/2 옥타브 보정 없이 제외. 두번째 아래음만 대응.", "intendedLabelAlternative": "저취 남→태; 태를 상향 변형했다는 주법 해석 필요"},
+    "region-005": {"startWindows": [[4.22, 4.28], [4.52, 4.57]], "destinationWindows": [[4.36, 4.46], [4.70, 4.82]], "expectedAcceptedFrames": [13, 24], "intendedLabelAlternative": "저취 황→평취 임; 아래음 황의 상향 변형 가정 필요"},
+    "region-006": {"startWindows": [[5.29, 5.32]], "destinationWindows": [[5.38, 5.49], [5.64, 5.78]], "expectedAcceptedFrames": [4, 27], "reason": "도착음은 남/무 경계에 가까움. 직접 대응 남과 대안 무를 함께 보존."},
+    "region-007": {"startWindows": [[6.30, 6.36], [6.54, 6.60]], "destinationWindows": [[6.42, 6.50], [6.70, 6.84]], "expectedAcceptedFrames": [13, 24], "intendedLabelAlternative": "평취 남→황; 002·003의 약2배 음고 윤곽"},
+    "region-008": {"startWindows": [[7.32, 7.36], [7.56, 7.62]], "destinationWindows": [[7.42, 7.50], [7.74, 7.88]], "expectedAcceptedFrames": [12, 23], "reason": "도착음이 태/고 경계에 가까움. 직접 대응 고와 대안 태를 함께 보존.", "intendedLabelAlternative": "평취 남→태; 004의 약2배 음고 윤곽"},
+    "region-009": {"startWindows": [[8.50, 8.56], [8.67, 8.71]], "destinationWindows": [[8.60, 8.64], [8.76, 8.82]], "expectedAcceptedFrames": [11, 10], "reason": "후반약345Hz 추적은 선택된 안정창에서 제외. 고음1340Hz대와 함께 나타나는 부분음 혼재를 저취 무로 해석하지 않음."},
+    "region-010": {"startWindows": [[9.44, 9.46], [9.63, 9.68]], "destinationWindows": [[9.50, 9.60], [9.72, 9.88]], "expectedAcceptedFrames": [8, 27]}
+  }
+}
