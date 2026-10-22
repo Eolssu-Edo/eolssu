@@ -23,6 +23,18 @@ def validate_sha(value):
         raise DeployError('expected a full lowercase commit SHA')
 
 
+def acquire_lock(lock, seconds=120):
+    def expired(signum, frame):
+        raise DeployError('deployment lock wait timed out')
+    previous = signal.signal(signal.SIGALRM, expired)
+    signal.alarm(seconds)
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, previous)
+
+
 def run(*args, timeout=60):
     try:
         result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
@@ -228,10 +240,7 @@ def main():
         raise DeployError('run as root with one commit SHA argument')
     validate_sha(sys.argv[1])
     with open('/run/lock/eolssu-backend-deploy.lock', 'w') as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise DeployError('another deployment owns the lock') from None
+        acquire_lock(lock)
         def interrupted(signum, frame):
             raise DeployError('deployment interrupted')
         signal.signal(signal.SIGTERM, interrupted)
