@@ -8,12 +8,20 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
+    triggers {
+        pollSCM('* * * * *')
+    }
+
     stages {
         stage('Checkout develop') {
             steps {
                 script {
-                    def revision = git branch: 'develop', credentialsId: 'eolssu-gitlab',
-                        url: 'https://lab.ssafy.com/s15-final/S15P31E102.git'
+                    deleteDir()
+                    def revision = checkout scmGit(
+                        branches: [[name: 'refs/heads/develop']],
+                        userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
+                            url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
+                            refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
                     if (!env.GIT_COMMIT?.matches('[0-9a-f]{40}')) {
                         error('Git checkout commit SHA is missing or invalid')
@@ -51,6 +59,7 @@ pipeline {
             steps {
                 sh '''
                     docker build --file /opt/eolssu/config/backend.Dockerfile \
+                        --label "org.opencontainers.image.revision=${GIT_COMMIT}" \
                         --tag "eolssu-backend:ci-${GIT_COMMIT}" backend
                 '''
             }
@@ -58,7 +67,21 @@ pipeline {
 
         stage('Archive package') {
             steps {
-                archiveArtifacts artifacts: 'backend/build/libs/eolsu-*-SNAPSHOT.jar', fingerprint: true
+                archiveArtifacts artifacts: 'backend/build/libs/*.jar', excludes: '**/*-plain.jar', fingerprint: true
+            }
+        }
+
+        stage('Verify candidate and deploy backend') {
+            steps {
+                sh '''
+                    sudo -n /opt/eolssu/bin/deploy-backend "${GIT_COMMIT}" > deployment.jsonl
+                    cat deployment.jsonl
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'deployment.jsonl', allowEmptyArchive: true
+                }
             }
         }
     }

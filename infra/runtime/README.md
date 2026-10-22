@@ -58,9 +58,40 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 현재 MR의 인프라 파일이 아직 develop에 없으므로 잡은 서버의 관리된 Pipeline 정의에서 develop 소스를 명시적으로 checkout합니다. Dockerfile과 Dockerfile 전용 ignore 규칙도 `/opt/eolssu/config`의 관리 파일을 사용합니다. 앱 소스는 수정하지 않습니다. CI 구성 검사는 실제 DB 비밀번호 대신 `ci.env.example`의 고정 데이터만 사용하며 서비스를 기동하지 않습니다.
 
-잡은 수동으로 실행하며 테스트·JUnit 수집·운영 구성 검사·Nginx 검사·`eolssu-backend:ci-<Git SHA>` 이미지 빌드·JAR 보관을 수행합니다. 자동 Polling·webhook·자동 운영 배포는 활성화하지 않았습니다. Jenkins 에이전트의 Docker 접근은 서버 수준 권한이므로 이 잡의 설정·실행 권한은 승인된 관리자만 사용합니다.
+잡은 `develop`을 1분마다 SCM polling으로 확인합니다. 변경이 있을 때만 실행하며 직접 Push로 develop이 바뀌는 경우도 감지합니다. 별도 GitLab webhook이나 Jenkins 공개 포트는 필요하지 않습니다. 정확한 ref `refs/heads/develop`만 checkout하고, 동시 실행을 막으며 20분 제한을 둡니다. 경로 필터는 없습니다.
 
-최종 확인한 실행은 `eolssu-backend #2`의 SUCCESS이며 테스트 1개와 커밋별 이미지·JAR 보관을 확인했습니다. 이 CI 이미지를 운영 앱에 자동 배포하지 않습니다. 운영 전환에서는 기존 프론트·백엔드 릴리스와 DB 데이터를 보존했습니다.
+실행 순서는 Gradle `clean build`·JUnit 수집 → Compose/Nginx 검사 → 커밋 revision label을 포함한 이미지 빌드 → JAR 보관 → 후보 실행·백엔드 배포입니다. 이미지에서 추출한 JAR을 `/opt/eolssu/releases/<40자리 SHA>/app.jar`에 보관하고, 실제 `.env`의 `BACKEND_JAR`만 원자적으로 교체합니다. 기존 JRE+읽기 전용 bind mount 구성을 유지합니다. 프론트와 MySQL은 재생성하지 않고 컨테이너 ID·물리 볼륨이 같은지 검사합니다.
+
+후보 이미지는 포트를 공개하지 않는 임시 internal network에서 실행합니다. 운영 DB 비밀값은 전달하지 않습니다. 호스트가 후보 IP의 `/api/infra-smoke`에서 Spring JSON 404를 확인해야 배포합니다. 현재는 별도 readiness API가 없으므로 이 응답이 서버 기동·프록시 검증 기준입니다. 향후 DB 의존성이나 인증이 추가되면 해당 변경에서 전용 readiness 계약과 격리된 검사 환경을 함께 조정해야 합니다.
+
+배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
+
+```sudoers
+jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-backend *
+```
+
+도구는 인자 하나의 40자리 SHA·이미지 revision·원격 develop의 현재 SHA를 확인합니다. Python isolated mode와 고정 PATH를 사용하고 임의 파일·셸 명령 인자를 받지 않습니다. 배포 직전 develop이 바뀌면 이전 후보를 배포하지 않고 실패시키며 다음 polling이 최신 변경을 실행합니다.
+
+`/run/lock/eolssu-backend-deploy.lock`은 중복 배포를 막고 `/opt/eolssu/deployment.json`에 배포 전 이전 JAR·후보·해시·상태를 원자적으로 기록합니다. 재실행한 동일 이미지가 이미 실행 중이면 재시작하지 않습니다. 교체 또는 HTTP 검증이 실패하면 이전 JAR로 복구합니다. 강제 종료로 상태가 `deploying`에 남거나 `rollback_failed`라면 다음 실행은 복구부터 수행합니다. 실패 후 자동으로 무한 재시도하지 않으며 원인을 수정한 뒤 같은 잡을 수동 실행할 수 있습니다. 임시 후보 컨테이너·네트워크는 정리하고 강제 종료 잔여물은 다음 실행에서 회수합니다.
+
+잡은 `deployment.jsonl`을 보관합니다. 최종 활성화 여부와 실제 자동 실행 번호·배포 SHA는 [작업 기록](../../docs/plans/S15P31E102-65.md)을 따릅니다. root 상태 파일에서 선택된 JAR과 이전 릴리스를 조회할 수 있습니다. 아티팩트·기존 백업은 자동 삭제하지 않습니다.
+
+```sh
+# 비밀값 없는 배포 영수증
+ssh edo1 'sudo cat /opt/eolssu/deployment.json'
+# 로컬 회귀 검사
+python3 -B -m unittest discover -s infra/jenkins/tests -v
+```
+
+운영에서 수동으로 이전 릴리스로 돌아가야 하면 polling을 잠시 끄고 Jenkins 실행이 없는지 먼저 확인합니다. 배포 lock을 잡은 상태에서 `deployment.json`의 `previous_jar`로 `.env`의 `BACKEND_JAR`만 바꾸고 아래 명령으로 백엔드만 재생성합니다. 실제 환경 파일 전체를 로그에 출력하지 않습니다. 자동 복구가 실패한 경우에도 같은 절차를 사용하며 프론트·DB 또는 볼륨을 내리지 않습니다.
+
+```sh
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml up -d --no-deps --force-recreate --pull never backend
+curl -i http://127.0.0.1/api/infra-smoke
+```
+
+서버의 관리된 Pipeline·Dockerfile·배포 도구는 MR 병합만으로 자동 덮어쓰지 않습니다. 이 파일 자체를 바꿀 때는 서버 복사본을 별도 검토·설치하고 linter와 배포 검사 후 잡 정의도 갱신합니다. 앱 소스는 매 실행 develop에서 새로 checkout합니다.
 
 ```sh
 sudo systemctl status jenkins.service

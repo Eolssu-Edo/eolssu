@@ -45,3 +45,21 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 - [Compose external volume](https://docs.docker.com/reference/compose-file/volumes/)
 
 현재 운영 절차·백업 위치·Jenkins 접속 방법은 [운영 문서](../../../infra/runtime/README.md), 실제 잡 실행과 최종 검증 결과는 [작업 기록](../../plans/S15P31E102-65.md)을 따른다. 이전 절의 미확인 사항은 최초 작성 당시의 상태다.
+
+
+## develop 자동 배포 연결 — 2026-10-22
+
+사용자가 develop 변경의 자동 빌드·테스트·서버 배포를 승인했다. Jenkins가 loopback에서만 수신하는 현재 구조를 유지하기 위해 1분 SCM polling을 선택했다. `refs/heads/develop`을 명시하고 변경이 없으면 빌드하지 않는다. 병합과 직접 Push를 구분하는 트리거가 아니라 develop의 커밋 변경을 감지한다.
+
+배포는 현재 런타임에 맞춰 백엔드 JAR만 교체한다. 검증한 커밋별 이미지에 revision label을 넣고, 포트 공개·운영 비밀값 없이 internal network에서 후보를 실행한 뒤 같은 이미지의 `/app/app.jar`을 추출한다. Docker Compose 5.6.1의 internal network에서는 published port가 할당되지 않아 초기 후보 검사가 실패했다. 내부 IP로 호스트에서 검사하도록 수정해 격리를 유지했다.
+
+상태 파일과 `.env`를 원자적으로 교체하고 배포 전 이전 JAR을 기록한다. 실패 시 이전 JAR을 다시 선택하고 백엔드만 재생성한다. 강제 종료는 다음 실행에서 journal을 읽고 먼저 복구한다. 같은 SHA·이미지·JAR이 이미 배포됐다면 실제 응답·bind mount를 확인하고 재시작하지 않는다. 프론트·MySQL 컨테이너 ID와 물리 볼륨은 배포 전후 같아야 한다.
+
+단위 검사 5개에서 성공·동일 아티팩트 재실행·실패 복구·중단 복구·복구 실패 후 재개·잘못된 SHA를 확인했다. 실제 임시 Compose에서도 깨진 JAR을 배포한 뒤 readiness 실패와 이전 JAR 복구를 확인했다. 운영 데이터·서비스와 분리된 fixture는 제거했다. 활성화·실제 자동 실행 증거와 권한 승인 상태는 작업 기록을 따른다.
+
+- [Jenkins polling trigger](https://www.jenkins.io/doc/book/pipeline/syntax/#triggers)
+- [Jenkins SCM checkout와 정확한 branch ref](https://www.jenkins.io/doc/pipeline/steps/params/scmgit/)
+
+자동 승인 검토는 Jenkins에 root 배포 도구의 영구 sudo 실행 권한을 추가하는 단계를 별도 승인이 필요한 보안 경계 변경으로 거부했다. 우회하지 않고 검증을 마친 도구와 제한된 권한을 제시해 사용자 승인을 요청했다.
+
+사용자가 배포 도구의 sudo 실행 권한을 명시적으로 승인해 해당 한 줄만 설치하고 `visudo` 검사 후 트리거를 활성화했다.
