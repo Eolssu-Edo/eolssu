@@ -25,6 +25,10 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
+## AI 실험 기록
+
+- [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
+
 ## COCO 산출물
 
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
