@@ -3,13 +3,13 @@
 ## 프로젝트 구성
 
 - `frontend/`는 독립된 Gradle 프로젝트다. 설치·실행·빌드·테스트 명령은 [README](README.md)를, 폴더 구조와 각 영역의 역할은 [아키텍처 문서](docs/architecture.md)를, 두 개발자의 협업 규칙은 [협업 문서](docs/collaboration.md)를 기준으로 하고 작업 전에 해당 부분을 확인한다.
-- 현재 설정은 Kotlin Multiplatform + Compose Multiplatform 공유 UI이고, 타깃은 Android·iOS·Web(Wasm·JS)이다. 패키지는 `com.ssafy.eolsu`, 버전은 `gradle/libs.versions.toml`에서 관리한다. 악보 엔진 연동 방식처럼 정해지지 않은 사항은 기획과 실제 설정의 확정 상태를 확인한다.
+- 현재 설정은 Kotlin Multiplatform + Compose Multiplatform 공유 UI이고, 타깃은 Android·iOS·Web(Wasm·JS)이다. 패키지는 `com.ssafy.eolssu`, 버전은 `gradle/libs.versions.toml`에서 관리한다. 악보 엔진 연동 방식처럼 정해지지 않은 사항은 기획과 실제 설정의 확정 상태를 확인한다.
 - 모듈 역할: `shared`는 공통 UI·로직·리소스, `androidApp`·`iosApp`·`webApp`은 `App()`을 띄우는 진입점과 앱 설정(권한·아이콘·`Info.plist`·`index.html`)만 둔다. `feature`·`core`·`data`는 `shared` 안의 패키지 구분이며 별도 Gradle 모듈로 만들지 않는다.
 - IDE는 Android Studio에서 저장소 루트가 아닌 `frontend/`를 연다. Windows에서는 저장소 경로에 한글 등 ASCII가 아닌 문자가 있으면 Gradle 동기화가 실패한다.
 
 ## 코드 위치
 
-- 화면·ViewModel·공통 로직은 `shared/src/commonMain/kotlin/com/ssafy/eolsu/` 아래 고정된 최상위 패키지에 둔다. 진입점 모듈에 화면 로직을 넣지 않는다.
+- 화면·ViewModel·공통 로직은 `shared/src/commonMain/kotlin/com/ssafy/eolssu/` 아래 고정된 최상위 패키지에 둔다. 진입점 모듈에 화면 로직을 넣지 않는다.
 
 | 패키지 | 두는 것 | 두지 않는 것 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@
 - 새 파일을 만들기 전에 (1) 어느 기능의 책임인지, (2) 다른 기능도 쓰는지, (3) 플랫폼 API가 필요한지를 순서대로 판단해 위치를 정한다. 판단 기준과 예시는 [아키텍처 문서](docs/architecture.md)를 따른다. 기존 `core`·`data`에 같은 역할의 구현이 있는지 먼저 확인하고 재사용한다.
 - 플랫폼 API(마이크·오디오·저장소·권한)는 `commonMain`의 `core/audio`·`core/storage` 같은 공통 인터페이스와 `androidMain`·`iosMain`의 `platform/audio`·`platform/storage`·`platform/permission` 구현으로 나누고, 작은 값만 `expect`/`actual`을 쓴다. 공통 코드에서 Android·Apple 전용 API를 import하지 않는다. JS·Wasm 공통 웹 코드는 `webMain`에 둔다. 실제 플랫폼 의존성이 없는 코드를 중복 구현하지 않는다.
 - 휴대폰·태블릿은 같은 화면 상태와 로직을 공유하고, 창 크기에 따라 배치만 바꾼다. 배치가 크게 달라질 때만 `feature/<기능>/layout/`에 Compact·Expanded 내용을 나누고, 판정 기준은 `core/ui/adaptive`에 둔다. 기기별 프로젝트·최상위 패키지를 만들지 않는다.
-- 이미지·폰트·문구는 `shared/src/commonMain/composeResources/`에 두고 생성된 `Res`(`eolsu.shared.generated.resources`)로 접근한다.
+- 이미지·폰트·문구는 `shared/src/commonMain/composeResources/`에 두고 생성된 `Res`(`eolssu.shared.generated.resources`)로 접근한다.
 - 라이브러리는 `gradle/libs.versions.toml`에 등록한다. `commonMain`에 넣는 라이브러리는 Android·iOS·JS·Wasm 지원을 먼저 확인하고, 추가 전에 [협업 문서](docs/collaboration.md)의 절차대로 팀에 공유한다. 화면 이동·DI·HTTP 라이브러리는 아직 선택되지 않았으므로 임의로 추가하지 않는다.
 - 마법사 예제(`Greeting`, `Platform`, `compose-multiplatform.xml`, 샘플 테스트)는 실제 기능으로 대체한다. 각 진입점이 `App()`을 호출하므로 이름을 유지한다.
 

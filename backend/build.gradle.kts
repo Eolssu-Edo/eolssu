@@ -5,9 +5,9 @@ plugins {
     alias(libs.plugins.spring.dependency.management)
 }
 
-group = "com.ssafy.eolsu"
+group = "com.ssafy.eolssu"
 version = "0.0.1-SNAPSHOT"
-description = "Eolsu backend application"
+description = "Eolssu backend application"
 
 java {
     toolchain {

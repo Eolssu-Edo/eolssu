@@ -1,4 +1,4 @@
-rootProject.name = "eolsu"
+rootProject.name = "eolssu"
 
 pluginManagement {
     repositories {

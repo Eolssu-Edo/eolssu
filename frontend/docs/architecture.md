@@ -43,10 +43,10 @@ Android 앱 실행부는 `androidApp/`, iOS 앱 실행부는 `iosApp/`이다. `s
 
 ## 3. 적용한 패키지 구조
 
-`shared/src/commonMain/kotlin/com/ssafy/eolsu/` 기준이다. `.gitkeep`만 있는 폴더는 아직 구현이 없고 위치만 고정한 것이다.
+`shared/src/commonMain/kotlin/com/ssafy/eolssu/` 기준이다. `.gitkeep`만 있는 폴더는 아직 구현이 없고 위치만 고정한 것이다.
 
 ```
-com/ssafy/eolsu/
+com/ssafy/eolssu/
   App.kt                      # 공통 UI 진입점. 각 플랫폼이 App()을 호출하므로 이름 유지
   Greeting.kt, GreetingUtil.kt, Platform.kt   # 마법사 샘플. 실제 기능으로 대체 예정
 
@@ -95,14 +95,14 @@ shared/src/commonMain/composeResources/
   font/                       # 폰트 (→ Res.font.<이름>). 첫 폰트를 넣을 때 생성
   values/                     # strings.xml 등 문구 (→ Res.string.<키>). 첫 strings.xml을 넣을 때 생성
 
-shared/src/androidMain/kotlin/com/ssafy/eolsu/platform/
+shared/src/androidMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 Android API로 구현
 
-shared/src/iosMain/kotlin/com/ssafy/eolsu/platform/
+shared/src/iosMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 iOS API로 구현
 ```
 
-`composeResources` 아래 폴더 이름은 Compose Multiplatform이 정한 이름(`drawable`, `font`, `values`, `files`)만 쓴다. 파일명은 소문자·숫자·밑줄만 사용하고, 빌드하면 `eolsu.shared.generated.resources.Res`에 접근자가 생긴다. 리소스 폴더에는 `.gitkeep`을 두지 않는다. 생성기가 `values/.gitkeep`을 리소스로 읽다가 `Unknown resource type: 'values'`로 빌드를 실패시키는 것을 확인했다(2026-10-22, Compose 1.12.1). `font/`·`values/`는 첫 폰트·`strings.xml`을 넣을 때 만든다.
+`composeResources` 아래 폴더 이름은 Compose Multiplatform이 정한 이름(`drawable`, `font`, `values`, `files`)만 쓴다. 파일명은 소문자·숫자·밑줄만 사용하고, 빌드하면 `eolssu.shared.generated.resources.Res`에 접근자가 생긴다. 리소스 폴더에는 `.gitkeep`을 두지 않는다. 생성기가 `values/.gitkeep`을 리소스로 읽다가 `Unknown resource type: 'values'`로 빌드를 실패시키는 것을 확인했다(2026-10-22, Compose 1.12.1). `font/`·`values/`는 첫 폰트·`strings.xml`을 넣을 때 만든다.
 
 ## 4. 각 영역의 책임과 의존 방향
 
@@ -172,7 +172,7 @@ feature/practice/
 | 평가 결과 화면 | `feature/result/ResultRoute.kt`, `ResultScreen.kt`, `ResultViewModel.kt`, `ResultUiState.kt` |
 | 결과 화면에서 "다시 연습" 눌렀을 때 연습 화면으로 이동 | `app/navigation/` (feature 사이 연결) |
 | 연습 기록 목록 | `feature/history/`, 데이터는 `data/practice/` |
-| 모든 화면이 쓰는 기본 버튼 | `core/ui/component/EolsuButton.kt` |
+| 모든 화면이 쓰는 기본 버튼 | `core/ui/component/EolssuButton.kt` |
 | 색·글꼴 | `core/theme/` |
 
 ## 7. React와의 역할 비교
