@@ -41,7 +41,7 @@ pipeline {
             steps {
                 sh '''
                     python3 -B -m unittest discover -s infra/jenkins/tests -v
-                    python3 -B -m unittest discover -s infra/scripts/tests -v
+                    RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -v
                 '''
             }
         }

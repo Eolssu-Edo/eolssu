@@ -72,6 +72,14 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 
 격리된 TLS 회귀 검사 7개, 실제 서버 Compose·Nginx TLS 검사와 Let's Encrypt staging의 실제 도메인 발급 dry-run을 통과했다. rollback을 제거한 격리 복제본은 회귀 검사에서 실패했다. 운영 인증서 발급·최종 배포 결과는 [작업 기록](../../plans/S15P31E102-65.md)에 이어 기록한다.
 
+## HTTP의 HTTPS 자동 전환 — 2026-10-22
+
+HTTPS 응답과 HTTP 자동 전환은 별도 설정이다. Task 65의 TLS 템플릿에는 443 server만 있어 도메인의 HTTP 요청도 기본 HTTP server에서 200으로 응답했다. [Task 75](../../plans/S15P31E102-75.md)는 TLS 템플릿에 도메인 전용 80 server를 추가하고 일반 요청에 `308 https://<인증서 도메인>$request_uri`를 반환한다. 목적지는 요청의 Host 값 대신 검증한 인증서 도메인으로 고정한다.
+
+ACME 경로는 HTTP로 토큰 파일을 제공하고 누락 토큰에는 404를 반환한다. 리다이렉트는 `location /` 안에 두므로 ACME location보다 먼저 실행되지 않는다. 기본 HTTP server는 유지하므로 `http://127.0.0.1/`와 `/api/infra-smoke`를 쓰는 기존 Jenkins 검사와 초기 인증서 발급에 영향이 없다. 프론트 배포에서 webroot를 교체할 때는 Task 73의 고정 ACME 경로와 이 location을 함께 맞춰야 한다.
+
+근거: [Nginx return 지시어](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#return), [Let's Encrypt HTTP-01](https://letsencrypt.org/docs/challenge-types/#http-01-challenge). 실제 이미지의 격리 HTTP 검사에서 수정 전 200·누락 ACME 토큰의 SPA 200을 재현한 뒤, 수정 후 308·ACME 200/404·loopback 200·HTTPS 200과 설정 검사를 통과했다. 명령과 운영 반영 결과는 Task 75 작업 기록을 따른다.
+
 - [Certbot webroot와 HTTP-01](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)
 - [Certbot 자동 갱신과 deploy hook](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
 - [실행·검증·복구](../../../infra/runtime/README.md#lets-encrypt와-https)
