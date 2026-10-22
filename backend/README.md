@@ -1,6 +1,6 @@
 # 얼쑤 Backend
 
-Spring Boot + Kotlin으로 구성한 독립 Gradle 애플리케이션입니다. 프로젝트명과 `spring.application.name`은 `eolsu`, 기본 패키지는 `com.ssafy.eolsu.backend`입니다. IDE에서는 저장소 루트가 아닌 `backend/`를 Gradle 프로젝트로 엽니다.
+Spring Boot + Kotlin으로 구성한 독립 Gradle 애플리케이션입니다. 프로젝트명과 `spring.application.name`은 `eolssu`, 기본 패키지는 `com.ssafy.eolssu.backend`입니다. IDE에서는 저장소 루트가 아닌 `backend/`를 Gradle 프로젝트로 엽니다.
 
 ## 개발 환경
 
@@ -29,7 +29,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 기본 주소는 `http://localhost:8080`입니다. 아직 업무 API가 없으므로 `/` 요청의 `404`는 정상입니다. 시작 로그에서 애플리케이션과 내장 Tomcat의 기동을 확인하며, 개발 서버는 `Ctrl+C`로 종료합니다.
 
-실행 JAR은 `build/libs/eolsu-0.0.1-SNAPSHOT.jar`입니다. `java -jar build/libs/eolsu-0.0.1-SNAPSHOT.jar`로 실행합니다. `*-plain.jar`는 실행용 Spring Boot JAR이 아닙니다.
+실행 JAR은 `build/libs/eolssu-0.0.1-SNAPSHOT.jar`입니다. `java -jar build/libs/eolssu-0.0.1-SNAPSHOT.jar`로 실행합니다. `*-plain.jar`는 실행용 Spring Boot JAR이 아닙니다.
 
 필수 검사는 `clean build`입니다. 시작 테스트는 외부 DB·AI 서버 없이 임의 포트에 실제 HTTP 서버를 띄우고, 서비스명과 미등록 경로의 `404` 응답을 확인합니다. 결과는 `build/reports/tests/test/index.html`에 생성됩니다. DB·AI 통합이나 모델 품질은 이 테스트의 검증 범위가 아닙니다.
 
@@ -49,7 +49,7 @@ macOS / Linux에서는 `SERVER_PORT=8081 ./gradlew bootRun`을 사용합니다. 
 ```text
 backend/
 ├── AGENTS.md / CLAUDE.md
-├── settings.gradle.kts        # 독립 프로젝트 eolsu
+├── settings.gradle.kts        # 독립 프로젝트 eolssu
 ├── build.gradle.kts
 ├── gradle.properties
 ├── gradlew / gradlew.bat
@@ -58,10 +58,10 @@ backend/
 │   └── wrapper/
 ├── .env.example
 ├── src/main/
-│   ├── kotlin/com/ssafy/eolsu/backend/
+│   ├── kotlin/com/ssafy/eolssu/backend/
 │   │   └── BackendApplication.kt
 │   └── resources/application.yml
-├── src/test/kotlin/com/ssafy/eolsu/backend/
+├── src/test/kotlin/com/ssafy/eolssu/backend/
 │   └── BackendApplicationTests.kt
 └── README.md
 ```
@@ -69,7 +69,7 @@ backend/
 실제 기능 코드는 다음 기준으로 추가합니다. 아직 구현이 없는 패키지와 빈 클래스는 생성하지 않습니다.
 
 ```text
-com.ssafy.eolsu.backend/
+com.ssafy.eolssu.backend/
 ├── config/                    # Spring 설정·최종 의존성 조립
 ├── common/error/              # 실제로 공유하는 오류 응답·예외 처리
 └── feature/<기능명>/
