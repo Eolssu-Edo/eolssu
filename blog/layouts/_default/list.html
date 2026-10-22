@@ -1,0 +1,16 @@
+{{ define "main" }}
+<h1>{{ .Title }}</h1>
+{{ if eq .Kind "taxonomy" }}
+  <ul class="term-list">
+    {{ range .Pages }}
+    <li><a href="{{ .RelPermalink }}">{{ .Title }}</a> <span>({{ len .Pages }})</span></li>
+    {{ end }}
+  </ul>
+{{ else }}
+  {{ range .Pages.ByDate.Reverse }}
+    {{ partial "post-card.html" . }}
+  {{ else }}
+    <p>아직 글이 없어요.</p>
+  {{ end }}
+{{ end }}
+{{ end }}
