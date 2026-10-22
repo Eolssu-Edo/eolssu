@@ -75,3 +75,16 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 - [Certbot webroot와 HTTP-01](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)
 - [Certbot 자동 갱신과 deploy hook](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
 - [실행·검증·복구](../../../infra/runtime/README.md#lets-encrypt와-https)
+
+## Jenkins 컨테이너 전환 준비 — 2026-10-22
+
+사용자가 edo1의 기존 설정·빌드·배포를 보존하는 컨테이너 전환을 승인했다. 컨트롤러를 동일 버전 공식 이미지로 옮기고 기존 UID/GID와 홈을 유지한다. 호스트의 Docker·Chrome·sudo 배포 명령은 같은 서버의 WebSocket 에이전트에서 그대로 실행한다. Pipeline의 실행 환경까지 컨테이너로 옮기는 변경은 포함하지 않는다.
+
+격리된 이미지 기동에서는 `JENKINS_HOME`만 바꾸면 이미지의 기존 `COPY_REFERENCE_FILE_LOG` 경로 때문에 쓰기 실패했다. 로그 경로도 기존 홈으로 지정해 UID 111·network none·tmpfs 홈에서 실제 API 응답을 확인했다. 기존 Jenkins의 API에서 WebSocket launcher 생성과 명시적 `setWebSocket(true)`를 검증했으며 운영 노드를 추가하지 않았다. 원본 controller executor를 첫 컨테이너 기동 전에 0으로 바꾸는 것은 재기동 시 quiet-down이 풀려도 호스트 도구가 없는 컨트롤러에서 잡이 실행되지 않게 하기 위함이다.
+
+이 구성은 컨트롤러에 Docker 소켓을 추가하지 않지만, 호스트 에이전트는 기존 `jenkins` 계정의 Docker·sudo 권한과 홈 접근을 유지한다. 호스트 권한을 격리했다고 주장하지 않는다. 다른 서버 작업이 끝난 뒤 전환하도록 사용자가 지시했으므로 실제 전환·보존 대조·빌드·배포 결과는 [Task 76](../../plans/S15P31E102-76.md)에 이어 기록한다.
+
+- [공식 Docker 이미지의 홈과 사용자 설정](https://github.com/jenkinsci/docker/blob/master/README.md)
+- [Jenkins 에이전트와 executor](https://www.jenkins.io/doc/book/using/using-agents/)
+- [WebSocket inbound agent·secret 파일 인자](https://github.com/jenkinsci/remoting/blob/master/docs/inbound-agent.md)
+- [서버 실행·복구 절차](../../../infra/jenkins/controller/README.md)
