@@ -1,6 +1,6 @@
 ## 📌 관련 Jira 이슈
-<!-- 예: S15P31E102-12 -->
-- 
+<!-- <Jira Key>를 이 MR로 완료할 Task의 실제 전체 Key로 바꾼다. 예: Closes S15P31E102-13 -->
+Closes <Jira Key>
 
 ## ✨ 변경 사항
 - 
