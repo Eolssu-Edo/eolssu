@@ -1,0 +1,36 @@
+# Grafana(실시간 모니터링)·Metabase(통계 탐색). 운영 스택 eolssu-runtime의 MySQL에 읽기 계정으로 붙는다.
+# 실행 방법은 README.md
+name: eolssu-monitoring
+
+services:
+  grafana:
+    image: grafana/grafana:11.3.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD를 지정하세요}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000" # 서버 밖에 열지 않는다. 접속은 SSH 터널로
+    networks: [runtime]
+    restart: unless-stopped
+
+  metabase:
+    image: metabase/metabase:v0.52.4
+    environment:
+      # Metabase 자체 설정(대시보드·질문)을 운영 MySQL의 metabase DB에 저장한다.
+      # allowPublicKeyRetrieval: MySQL 8.4 기본 로그인 방식을 쓰려면 필요. 없으면 "RSA public key is not available"
+      MB_DB_CONNECTION_URI: mysql://mysql:3306/metabase?user=metabase&password=${METABASE_DB_PASSWORD:?METABASE_DB_PASSWORD를 지정하세요}&allowPublicKeyRetrieval=true
+      JAVA_OPTS: -Xmx1g
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks: [runtime]
+    restart: unless-stopped
+
+networks:
+  runtime: # 운영 스택의 내부 네트워크. MySQL을 서비스 이름 mysql로 찾는다
+    external: true
+    name: eolssu-runtime_default
+
+volumes:
+  grafana-data:
