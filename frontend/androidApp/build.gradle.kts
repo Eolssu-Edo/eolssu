@@ -20,11 +20,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.ssafy.eolsu"
+    namespace = "com.ssafy.eolssu"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.ssafy.eolsu"
+        applicationId = "com.ssafy.eolssu"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
