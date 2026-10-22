@@ -1,0 +1,5 @@
+<article class="post-card">
+  <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
+  {{ partial "post-meta.html" . }}
+  <p>{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify | truncate 120 }}{{ end }}</p>
+</article>
