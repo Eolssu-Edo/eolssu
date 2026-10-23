@@ -1,0 +1,22 @@
+[Unit]
+Description=Eolssu Jenkins host build and deployment agent
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=jenkins
+Group=jenkins
+SupplementaryGroups=docker
+WorkingDirectory=/var/lib/jenkins-agent
+Environment=HOME=/var/lib/jenkins
+ExecStart=/usr/bin/java -Xmx512m -jar /usr/local/lib/eolssu-jenkins/agent.jar -url http://127.0.0.1:8080/ -name edo1-host -secret @/var/lib/jenkins-agent/secret -webSocket -workDir /var/lib/jenkins-agent
+Restart=always
+RestartSec=10
+TimeoutStopSec=120
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

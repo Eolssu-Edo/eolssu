@@ -1,0 +1,31 @@
+name: eolssu-jenkins
+
+services:
+  controller:
+    # 기존 apt Jenkins와 같은 버전. 업그레이드는 별도 작업으로 수행한다.
+    image: jenkins/jenkins:2.580.1-jdk21@sha256:a660310e39ade10631f774bacd5219de767dfd08947ea5c32a739b5e5bb382c1
+    user: "111:113"
+    restart: unless-stopped
+    stop_grace_period: 2m
+    environment:
+      JENKINS_HOME: /var/lib/jenkins
+      COPY_REFERENCE_FILE_LOG: /var/lib/jenkins/copy_reference_file.log
+      JAVA_OPTS: -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Xmx1g
+      JENKINS_OPTS: --httpPort=8080 --httpListenAddress=0.0.0.0
+      JENKINS_SLAVE_AGENT_PORT: "-1"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - type: bind
+        source: /var/lib/jenkins
+        target: /var/lib/jenkins
+        bind:
+          create_host_path: false
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, "5", http://127.0.0.1:8080/login]
+      interval: 10s
+      timeout: 6s
+      retries: 12
+      start_period: 60s
