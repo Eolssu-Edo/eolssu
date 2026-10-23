@@ -1,0 +1,7 @@
+services:
+  frontend:
+    ports:
+      - "${HTTP_BIND_ADDRESS:-0.0.0.0}:443:443"
+    volumes:
+      - ./nginx.tls.conf:/etc/nginx/conf.d/tls.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro

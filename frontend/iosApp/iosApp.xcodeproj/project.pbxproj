@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		8701BF2B1C0507AD1AEEF768 /* eolsu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = eolsu.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8701BF2B1C0507AD1AEEF768 /* eolssu.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = eolssu.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		2A48000243BF4B41C2168740 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8701BF2B1C0507AD1AEEF768 /* eolsu.app */,
+				8701BF2B1C0507AD1AEEF768 /* eolssu.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = 8701BF2B1C0507AD1AEEF768 /* eolsu.app */;
+			productReference = 8701BF2B1C0507AD1AEEF768 /* eolssu.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

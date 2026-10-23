@@ -10,6 +10,8 @@
 | 프론트엔드 구조·협업 규칙 | [frontend/docs/architecture.md](../frontend/docs/architecture.md) · [frontend/docs/collaboration.md](../frontend/docs/collaboration.md) |
 | 문서 작성 지침 | [docs/AGENTS.md](AGENTS.md) |
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
+| Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
+| edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
 | Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
 | 도메인 지식·기술 조사·실험 | `docs/knowledge/<영역>/<주제>.md` |
 | 용어집 | `docs/knowledge/domain/glossary.md` |
@@ -28,6 +30,14 @@
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
+- [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+
+## 데이터 조사·검증 기록
+
+- [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
+- [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
+- [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 
 ## AI 실험 기록
 
@@ -36,6 +46,11 @@
 ## COCO 산출물
 
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
+- [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
+- [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
+- [S15P31E102-73 프론트 웹 자동 빌드·테스트·배포](plans/S15P31E102-73.md)
+- [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
+- [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

@@ -8,7 +8,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 패키지 | `com.ssafy.eolsu` |
+| 패키지 | `com.ssafy.eolssu` |
 | Kotlin | 2.4.20 |
 | Compose Multiplatform | 1.12.1 |
 | Android Gradle Plugin | 9.1.1 |
@@ -18,6 +18,8 @@
 | Web | Kotlin/Wasm (최신 브라우저), Kotlin/JS (구형 브라우저 대비) |
 
 버전은 모두 [`gradle/libs.versions.toml`](gradle/libs.versions.toml)에서 관리합니다.
+
+Gradle 프로젝트명과 앱 표시명은 `eolssu`입니다. Android applicationId는 `com.ssafy.eolssu`이며, 이전 `com.ssafy.eolsu` 앱과 별개로 설치될 수 있습니다. iOS도 bundle identifier가 변경되므로 Mac에서 개발팀·서명 설정을 확인해야 합니다. 이름 변경으로 기존 앱 데이터가 자동 이전된다고 가정하지 않습니다.
 
 ## 🛠 필요한 도구
 
@@ -119,7 +121,7 @@ frontend/
 │   ├── build.gradle.kts        # 빌드 대상 플랫폼, 소스 세트별 라이브러리
 │   └── src/
 │       ├── commonMain/
-│       │   ├── kotlin/com/ssafy/eolsu/   # 공통 코드. app / feature / data / core 패키지로 고정
+│       │   ├── kotlin/com/ssafy/eolssu/   # 공통 코드. app / feature / data / core 패키지로 고정
 │       │   └── composeResources/         # 공통 리소스 (drawable, font, values)
 │       ├── androidMain/        # Android 전용 코드 (platform/audio·storage·permission)
 │       ├── iosMain/            # iOS 전용 코드 (platform/…, MainViewController.kt: iOS에 화면을 넘겨주는 입구)
@@ -177,8 +179,8 @@ frontend/
 `composeResources/`에 파일을 넣고 빌드하면 접근 코드가 자동으로 생깁니다. 모든 플랫폼에서 같은 방식으로 씁니다.
 
 ```kotlin
-import eolsu.shared.generated.resources.Res
-import eolsu.shared.generated.resources.compose_multiplatform
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.compose_multiplatform
 
 Image(painterResource(Res.drawable.compose_multiplatform), null)
 ```
@@ -208,10 +210,17 @@ Image(painterResource(Res.drawable.compose_multiplatform), null)
 - **`gradlew` 실행 권한**: Windows에서 커밋하면 실행 권한이 빠질 수 있습니다. `gradlew`를 새로 추가하거나 교체할 때는 `git update-index --chmod=+x frontend/gradlew`를 실행한 뒤 커밋합니다.
 - **커밋하지 않는 파일**: `local.properties`, `build/`, `.gradle/`, `.kotlin/`, `.idea/`, `xcuserdata/` ([`.gitignore`](.gitignore)에 등록됨)
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
-- **iOS 번들 ID**: 지금은 마법사 기본값(`com.ssafy.eolsu.eolsu` + 개발팀 ID)입니다. Mac 담당자가 `iosApp/Configuration/Config.xcconfig`에서 개발팀 ID를 넣을 때 함께 정리합니다.
+- **iOS 번들 ID**: 지금은 마법사 기본값(`com.ssafy.eolssu.eolssu` + 개발팀 ID)입니다. Mac 담당자가 `iosApp/Configuration/Config.xcconfig`에서 개발팀 ID를 넣을 때 함께 정리합니다.
 
 ## 📚 참고
 
 - [Kotlin Multiplatform 시작하기](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
 - [Compose Multiplatform](https://kotlinlang.org/compose-multiplatform/)
 - [Kotlin/Wasm](https://kotl.in/wasm/)
+
+
+## 웹 자동 빌드·테스트·배포
+
+운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
+
+동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 초기 샘플 테스트 4개의 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.

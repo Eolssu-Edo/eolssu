@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "danso",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-danso-2340": "fb6698c4f470f366c960c1053c514b174c2820b26aa078ff2491cd9890d6f829"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-danso-2340",
+      "category": "기본음계",
+      "technique": "평취 약",
+      "method": "tool:prepare_danso_assets@ac0e383e5335",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-danso-2340.tone-001",0.23,4.74288,"평취","중",413.678],
+        ["ngc-danso-2340.tone-002",6.54,11.01288,"평취","임",465.221],
+        ["ngc-danso-2340.tone-003",12.93,17.57288,"평취","무",553.149],
+        ["ngc-danso-2340.tone-004",19.34,23.55288,"평취","황",623.226],
+        ["ngc-danso-2340.tone-005",25.73,29.85288,"평취","태",696.955]
+      ],
+      "analysisBasis": "공식 황종=E♭ 메타데이터, 원음의 평취/역취 제목, e국악 발음법의 중임무황태 5음 및 옥타브 대응을 함께 대조. https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-3/index.htm 원본 rate YIN 4096 samples/10ms hop, periodicity≥0.85, 양끝0.2초 제외한 중앙 F0. 선택창 중심 Hann FFT의 F0 주변 피크와 대조. 음계+요성은 평취5음 뒤 역취5음. 12평균율 최근접 확정이나 음고 보정 없음. 상세 측정은 ignored research-v1/prepared-evidence.json."
+    }
+  ]
+}

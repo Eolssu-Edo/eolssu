@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2555": "c83094d13456de03c13038882bf776569c2b552e5e53db7977f945e9c220e103"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2555",
+      "category": "시김새",
+      "technique": "스타카토",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sanjo-2555.attack-0001",0.2,0.52,"저취","임",264.974],
+        ["ngc-sanjo-2555.attack-0002",1.59,1.9,"저취","남",313.912],
+        ["ngc-sanjo-2555.attack-0003",2.96,3.24,"저취","무",354.662],
+        ["ngc-sanjo-2555.attack-0004",4.25,4.52,"저취","황",382.988],
+        ["ngc-sanjo-2555.attack-0005",5.57,5.78,"저취","태",417.425],
+        ["ngc-sanjo-2555.attack-0006",6.78,7.04,"저취","고",468.793],
+        ["ngc-sanjo-2555.attack-0007",8.04,8.37,"저취","중",516.653],
+        ["ngc-sanjo-2555.attack-0008",9.47,9.74,"평취","남",628.089],
+        ["ngc-sanjo-2555.attack-0009",10.74,11.02,"평취","무",692.482],
+        ["ngc-sanjo-2555.attack-0010",12.01,12.27,"평취","황",749.221],
+        ["ngc-sanjo-2555.attack-0011",13.28,13.57,"평취","태",838.9],
+        ["ngc-sanjo-2555.attack-0012",14.63,14.91,"평취","고",941.418],
+        ["ngc-sanjo-2555.attack-0013",15.93,16.25,"평취","중",1050.862],
+        ["ngc-sanjo-2555.attack-0014",17.27,17.57,"역취","임",1083.897],
+        ["ngc-sanjo-2555.attack-0015",18.56,18.87,"역취","남",1206.944],
+        ["ngc-sanjo-2555.attack-0016",19.89,20.17,"역취","무",1355.98],
+        ["ngc-sanjo-2555.attack-0017",21.16,21.5,"역취","황",1565.101]
+      ],
+      "evidence": {
+        "ngc-sanjo-2555.attack-0003": {"alternatives":[{"register":"저취","yulmyeong":"황","hz":372.138,"distanceCents":-83.27},{"register":"저취","yulmyeong":"남","hz":319.491,"distanceCents":180.8}]},
+        "ngc-sanjo-2555.attack-0007": {"alternatives":[{"register":"평취","yulmyeong":"임","hz":533.311,"distanceCents":-54.94},{"register":"저취","yulmyeong":"고","hz":461.07,"distanceCents":197.05}]},
+        "ngc-sanjo-2555.attack-0013": {"sequenceDecision":{"reason":"1050.862Hz는 역취 임에 조금 더 가깝지만, 007저취 중(516.653Hz)과1229.17cent 옥타브 대응이며 012고→013→014임의 순서가 중 해석을 지지한다. 014는1083.897Hz로 독립된 안정음이다.","alternative":"역취 임","evidence":{"observedHz":1050.862,"selectedReferenceDistanceCents":48.82,"nearestAlternativeDistanceCents":-39.18}},"alternatives":[{"register":"역취","yulmyeong":"임","hz":1074.916,"distanceCents":-39.18},{"register":"평취","yulmyeong":"고","hz":936.797,"distanceCents":198.92}],"analysisBasis":"sequence_context_inference"}
+      },
+      "analysisBasis": "measured_pitch_correspondence"
+    }
+  ]
+}

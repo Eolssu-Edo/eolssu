@@ -1,6 +1,9 @@
 spring:
   application:
-    name: eolsu
+    name: eolssu
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
 
 server:
   port: ${SERVER_PORT:8080}

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2664": "f0322af13d8f73e5d92c9c36197b08bf71176738961d17824c5cdbb7df84d087"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2664",
+      "category": "시김새",
+      "technique": "내리떠는농음",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2664.group-001",0.12,5.66,"역취","고",1601.664],
+        ["ngc-sogeum-2664.group-002",6.08,11.28,"역취","고",1620.837]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2664.group-001": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "고",
+                "f0Hz": 1601.664,
+                "windowsSeconds": [
+                  [
+                    0.5,
+                    1.25
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "농음 전 안정음",
+            "validFrames": 76,
+            "originalRegionMedianHz": 1579.727,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2664.group-002": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "고",
+                "f0Hz": 1620.837,
+                "windowsSeconds": [
+                  [
+                    6.5,
+                    7.2
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "농음 전 안정음",
+            "validFrames": 71,
+            "originalRegionMedianHz": 1603.099,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          },
+          "repeatAssessment": {
+            "decision": "retain_separate_articulation",
+            "previousRegion": 1,
+            "gapSeconds": 0.42,
+            "reason": "사이 무음과 별도 어택을 가진 실제 재발음. 동일 율명이어도 중복 제거하지 않음."
+          }
+        }
+      }
+    }
+  ]
+}
