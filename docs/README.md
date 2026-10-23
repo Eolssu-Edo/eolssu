@@ -37,6 +37,7 @@
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
+- [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 
 ## AI 실험 기록
