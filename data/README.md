@@ -45,10 +45,10 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 
 ## 원본 준비와 실행
 
-검증 환경은 Python 3.12.14·NumPy 2.3.5입니다. 저장소 루트에서 실행하며 필요한 외부 패키지는 NumPy 하나입니다.
+검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2입니다. 저장소 루트에서 실행합니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile도 필요합니다. 아래 SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서는 MP3를 지원하는 libsndfile이 필요합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
 
 ```powershell
-python -m pip install numpy==2.3.5
+python -m pip install numpy==2.3.5 soundfile==0.13.1
 ```
 
 [국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개를 받아, ZIP 안 원본을 `sources.json`의 `path`에 둡니다. 태평가 묶음에는 같은 명세의 표준악보집 PDF도 필요합니다. 다운로드 주소·SHA-256·이용 조건은 각 source에 있습니다. 선택한 구간만 저장할 때는 해당 원음만 있으면 됩니다.
@@ -56,7 +56,7 @@ python -m pip install numpy==2.3.5
 전체 내보내기:
 
 ```powershell
-python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --output-dir data/processed/instruments/daegeum/sanjo/prepared-v3
+python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --output-dir data/processed/instruments/daegeum/sanjo/prepared-v4
 ```
 
 저취 황 기본음 하나만 저장:
@@ -84,9 +84,11 @@ python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --perfor
 ## 결과 사용
 
 - 산조 전체: 기본음계 46개·시김새 75개 WAV, 태평가 원음 1개, 원본 악보집 PDF 1개, 결과 목록 `catalog.json`.
-- 개별 구간: 원본 샘플레이트를 유지하고 채널 평균·필요한 경우 피크 감쇠·PCM16 양자화만 적용합니다. 입력은 PCM16 또는 IEEE float32 RIFF/WAVE를 지원합니다. 음높이 보정·리샘플링은 하지 않습니다.
+- 개별 구간: PCM16/IEEE float32 RIFF/WAVE와 MP3 Layer III를 지원합니다. 확장자·서버 MIME 대신 파일 내용을 확인합니다. MP3는 전체 원음을 원래 샘플레이트로 디코딩한 뒤 구간을 자릅니다. 채널 평균·필요한 경우 피크 감쇠·PCM16 양자화를 적용하며 음높이 보정·리샘플링은 하지 않습니다.
 - 연주 음원·악보: **원본 바이트 그대로 복사**합니다. 같은 PDF의 두 쪽을 참조하면 파일은 한 번만 복사합니다.
-- 결과 catalog는 선택된 라벨·프레임 경계·변환·해시, 연주 묶음, 출처·이용 조건을 포함합니다. 편집 입력은 세 JSON이며 결과 catalog를 수정해 재사용하지 않습니다.
+- 결과 catalog는 선택된 라벨·프레임 경계·변환·해시, 연주 묶음, 출처·이용 조건을 포함합니다. `audioDecoders[sourceId]`에는 잘라낸 원음의 포맷·디코더·샘플레이트·채널·전체 디코딩 프레임 수를 기록하고 MP3에는 SoundFile/libsndfile 버전도 남깁니다. 편집 입력은 세 JSON이며 결과 catalog를 수정해 재사용하지 않습니다.
+
+MP3의 시각 0은 이 디코더가 반환한 첫 PCM 프레임입니다. 인코더 지연·패딩을 별도로 더하거나 빼지 않습니다. MP3 라벨을 작성할 때도 위 디코더와 버전의 디코딩 결과를 사용합니다. 다른 플레이어의 시간이나 압축 파일 크기로 샘플 위치를 추정하지 않습니다. 원본 MP3의 해시는 변환 전 바이트 기준이며 연주 묶음에서는 `.mp3` 그대로 복사합니다.
 
 태평가 악보는 성악 오선보와 단소 정간보 일부입니다. 해당 산조 녹음 전곡과 같은 판본으로 확정하지 않았습니다. 출처의 비상업·무변경 조건과 각 악보의 `coverage`, `samePerformanceEditionVerified`를 확인합니다.
 
@@ -116,7 +118,10 @@ python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --perfor
 - `labelF0Hz`는 라벨 대응에 사용한 대표 기본주파수(Hz)입니다. 그룹 `method`와 예외 `evidence[id].method`로 방법을 구분합니다. 깊은요성 복구 음은 재분석 중앙값, 다루치기는 도착 안정창의 가중 중앙값입니다. 모든 값이 산술평균이라는 뜻은 아닙니다.
 - 표시 이름은 `취법 율명`입니다. 복합음은 `evidence[id].gesture.lowerAnchor`의 아래음과 행의 도착음을 연결합니다. 도착음 이름·F0는 행에서 복원하고, 공통 반복 수·해석은 `gestureDefaults`에 둡니다.
 - 파일은 `분류/주법/번호_표시이름.wav`입니다. 공백은 `_`, 화살표는 `-`로 바꿉니다. `filenamePrefix: "none"`이면 번호를 빼고, `"rowNumber3"`이면 원래 그룹 내 행 순번을 최소 세 자리로 붙입니다. **선택 전에 번호를 정하므로 일부만 저장해도 기존 번호를 유지합니다.** 행을 재정렬하거나 중간에 삽입하면 그 뒤의 파일번호가 바뀌므로 기존 순서를 보존합니다. ID는 번호에서 추론하거나 바꾸지 않습니다.
+- 같은 분류·주법에 원본이 여러 개면 해당 주법 전체를 `분류/주법/sourceId/번호_표시이름.wav`로 구분합니다. 선택 전 전체 명세로 결정하므로 한 음만 골라도 같은 경로가 나옵니다. 원본이 하나인 현재 산조 121개 경로는 유지됩니다. 원본 추가로 복수 원본이 되면 기존 원본도 하위 폴더로 이동하므로 결과 catalog의 `file`을 사용합니다. 같은 원본·주법은 한 그룹에 모으고, 같은 음의 반복에는 `rowNumber3`를 사용합니다. 그래도 같은 경로가 나오면 덮어쓰기 대신 오류를 냅니다.
 - 같은 음의 별도 발음은 서로 다른 ID·행으로 유지합니다. `evidence`는 행 ID로 찾는 예외 기록이며 병합·반복·음렬 판단·애매한 후보·복합음 선택창만 남깁니다. 상태가 다른 행은 그 기록에서 `labelStatus`·`eligibleForNoteScoring`을 덮어쓸 수 있습니다.
+- 같은 원본 SHA-256의 동일 시작·끝은 ID·율명·주법이 달라도 중복 오류입니다. 선택한 원음은 미선택 행까지 실제 프레임 경계를 검사해 반올림 후 같은 구간도 거부합니다. 서로 다른 시각의 반복음이나 경계가 다른 구간의 일부 겹침은 자동 삭제하지 않습니다.
+- 복합음의 `lowerAnchor.windowsSeconds`·`destination.windowsSeconds`와 `review.rejectedWindow`는 원본 기준 절대초입니다. 유한 숫자·양의 길이·라벨 내부 범위·창 순서·중복/겹침·반올림 후 빈 창을 검사합니다. 채택창과 제외창도 겹칠 수 없습니다. 반복 중 일부 창을 제외할 수 있으므로 창 개수를 반복 수와 강제로 맞추거나 아래음이 모든 도착음보다 먼저라고 가정하지 않습니다.
 - 실제 운지 확인 상태·참고 운지 필드는 제거했습니다. 주파수·분할·율명 판단의 검토 근거는 유지합니다. `inferred`와 채점 미승인 상태는 그대로이며, 구조 축약이 음악적 정답 검증을 뜻하지 않습니다.
 
 AI에 일부를 검토시킬 때는 공통 열·상태·원본 해시와 해당 그룹만 전달하면 됩니다. 한 행을 한 줄로 저장하되 긴 설명을 매 행에 반복하지 않습니다. 문자·바이트 감소율을 토큰 감소율로 간주하지 않습니다.
@@ -128,7 +133,7 @@ AI에 일부를 검토시킬 때는 공통 열·상태·원본 해시와 해당 
 1. `data/datasets/sogeum/`, `danso/`, `jeongak-daegeum/`처럼 폴더를 만들고 같은 세 파일을 작성합니다. 아직 없는 라벨은 `groups: []`, 연주는 `performances: []`로 둡니다. 공통 열·상태는 유지합니다.
 2. 실제 확보한 원음과 악보의 출처·해시를 sources에 기록합니다. 악기마다 측정·검토한 구간과 율명을 labels에 작성하며, 산조의 음 개수·배열을 복사하지 않습니다.
 3. 연주와 실제 확보한 악보를 performances에 연결합니다. 두 악보가 모두 없더라도 확보 범위와 대응 상태를 정확히 적습니다.
-4. 같은 명령에 `--dataset` 경로만 바꿉니다. 공통 코드를 수정할 필요가 없습니다. 별도 저장 위치를 기준으로 삼을 때는 `--root`로 원본 경로의 기준을 지정합니다.
+4. 지원하는 음원 포맷과 현재 라벨 필드로 표현되는 자료는 같은 명령에 `--dataset` 경로만 바꿉니다. 복합음 표시는 두 기준음 연결이며, 세 단계 이상의 음 이동을 구조화해야 한다면 별도 확장 검토가 필요합니다. 별도 저장 위치를 기준으로 삼을 때는 `--root`로 원본 경로의 기준을 지정합니다.
 
 실제 소금·단소·정악대금 데이터는 이번 변경에 추가하지 않았습니다. 합성 입력으로 악기 ID를 바꾼 경우의 공통 처리만 검증합니다.
 
@@ -138,4 +143,4 @@ AI에 일부를 검토시킬 때는 공통 열·상태·원본 해시와 해당 
 python -m unittest discover -s data/tests -p 'test_*.py' -v
 ```
 
-검사는 외부 다운로드 없이 작은 합성 WAV·임시 악보를 사용합니다. 다른 악기 ID, 열 순서 변경·잘못된 행, 직접 지정한 라벨·구간, 같은 음 반복·선택 후 번호 유지, 복합음·예외 근거, 원음·PDF 무변경 복사, 입력 오류·경로 충돌·출력 보호를 확인합니다. 실제 율명의 음악적 정답 검증과 구분합니다.
+검사는 외부 다운로드 없이 작은 합성 WAV·MP3·임시 악보를 사용합니다. 26개 검사에서 MP3 모노/VBR·스테레오/CBR 디코딩과 CLI 자르기, 원음 무변경 복사, 복수 원본 경로·선택 시 경로 유지, 중복 초/프레임 구간·원본 별칭, 잘못된 분석창을 확인합니다. 기존 열·행 형식·반복음·근거·출력 보호 검사도 포함합니다. 실제 율명의 음악적 정답 검증과 구분합니다.

@@ -10,9 +10,10 @@ import unittest
 import wave
 
 import numpy as np
+import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from export_dataset import export_dataset, read_wave
+from export_dataset import export_dataset, read_audio, read_wave
 
 
 def digest(path):
@@ -309,6 +310,160 @@ class ExportTests(unittest.TestCase):
         result = self.run_export()
         self.assertEqual(result["labels"], [])
         self.assertEqual(len(result["performances"]), 1)
+
+    def test_mp3_decoded_frame_crop_and_unchanged_performance_copy(self):
+        rate = 44100
+        time = np.arange(rate) / rate
+        original = np.column_stack([.2 * np.sin(2 * np.pi * 440 * time),
+                                    .1 * np.sin(2 * np.pi * 660 * time)])
+        path = self.raw / "audio.mp3"
+        sf.write(path, original, rate, format="MP3", bitrate_mode="CONSTANT")
+        decoded, decoded_rate = sf.read(path, always_2d=True)
+        self.assertEqual((decoded_rate, len(decoded)), (rate, rate))
+        source = self.sources["sources"][0]
+        source.update(path="raw/audio.mp3", sha256=digest(path), sampleRateHz=rate, channels=2)
+        self.labels["sourceHashes"]["tone"] = source["sha256"]
+        self.performances["sourceHashes"]["tone"] = source["sha256"]
+        self.performances["performances"][0]["audio"]["file"] = "연주/원음.mp3"
+        self.save()
+        result = self.run_export()
+        label = result["labels"][0]
+        self.assertEqual((label["sourceStartFrame"], label["sourceEndFrameExclusive"]), (4410, 8820))
+        self.assertEqual((label["sampleRateHz"], label["frames"]), (rate, 4410))
+        with wave.open(str(self.root / "export" / label["file"])) as stream:
+            actual = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2")
+        expected = np.rint(decoded[4410:8820].mean(axis=1) * 32767).astype("<i2")
+        np.testing.assert_array_equal(actual, expected)
+        decoder = result["audioDecoders"]["tone"]
+        self.assertEqual(decoder["format"], "MP3")
+        self.assertEqual(decoder["soundfileVersion"], sf.__version__)
+        self.assertEqual(decoder["libsndfileVersion"], sf.__libsndfile_version__)
+        self.assertEqual(digest(self.root / "export/연주/원음.mp3"), source["sha256"])
+        # Exercise the public CLI as well, including the inherited decoder dependency.
+        script = Path(__file__).resolve().parents[1] / "src/export_dataset.py"
+        run = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset),
+                              "--root", str(self.root), "--output-dir", str(self.root / "mp3-cli"),
+                              "--label", "first"], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(digest(self.root / "mp3-cli" / label["file"]), label["sha256"])
+
+    def test_multiple_sources_share_technique_without_filename_collisions(self):
+        source = copy.deepcopy(self.sources["sources"][0])
+        path = self.raw / "second.wav"
+        with wave.open(str(path), "wb") as stream:
+            stream.setparams((2, 2, 8000, 0, "NONE", "not compressed"))
+            stream.writeframes((-self.samples).tobytes())
+        source.update(id="second-source", path="raw/second.wav", sha256=digest(path))
+        self.sources["sources"].append(source)
+        self.labels["sourceHashes"][source["id"]] = source["sha256"]
+        group = copy.deepcopy(self.labels["groups"][0])
+        group["sourceId"] = source["id"]
+        group["rows"][0][0] = "second"
+        self.labels["groups"].append(group)
+        self.save()
+        result = self.run_export()
+        paths = {label["id"]: label["file"] for label in result["labels"]}
+        self.assertEqual(paths["first"], "기본음계/기본음/tone/저취_황.wav")
+        self.assertEqual(paths["second"], "기본음계/기본음/second-source/저취_황.wav")
+        self.assertEqual(len(set(paths.values())), 3)
+        selected = self.run_export("selected", label_ids=["second"])
+        self.assertEqual(selected["labels"][0]["file"], paths["second"])
+        self.assertEqual(selected["labels"][0]["sha256"], result["labels"][2]["sha256"])
+
+    def test_audio_content_detection_hash_check_and_invalid_input(self):
+        # A misleading extension cannot turn WAV into MP3 or vice versa.
+        path = self.raw / "misnamed.mp3"
+        path.write_bytes((self.raw / "audio.wav").read_bytes())
+        samples, rate, info = read_audio(path, digest(path))
+        self.assertEqual((rate, info["format"]), (8000, "WAV"))
+        np.testing.assert_array_equal(samples, self.samples.astype(float) / 32768)
+        path = self.raw / "misnamed.wav"
+        sf.write(path, .2 * np.sin(2 * np.pi * 330 * np.arange(22050) / 22050),
+                 22050, format="MP3", bitrate_mode="VARIABLE")
+        samples, rate, info = read_audio(path, digest(path))
+        self.assertEqual((samples.shape, rate, info["format"]), ((22050, 1), 22050, "MP3"))
+        with self.assertRaisesRegex(ValueError, "Source changed"):
+            read_audio(path, "0" * 64)
+        path.write_bytes(b"ID3not-valid-audio")
+        with self.assertRaisesRegex(ValueError, "Cannot decode MP3"):
+            read_audio(path, digest(path))
+        sf.write(path, np.zeros(100), 8000, format="FLAC")
+        with self.assertRaisesRegex(ValueError, "Supported audio"):
+            read_audio(path, digest(path))
+
+    def test_source_namespace_rejects_unsafe_and_case_colliding_ids(self):
+        for source_id in ("../escape", "CON", "a/b", "TONE"):
+            source = {**self.sources["sources"][0], "id": source_id, "sha256": "1" * 64}
+            self.sources["sources"] = self.sources["sources"][:2] + [source]
+            self.labels["sourceHashes"][source_id] = source["sha256"]
+            group = copy.deepcopy(self.labels["groups"][0])
+            group["sourceId"] = source_id
+            group["rows"][0][0] = "second"
+            self.labels["groups"] = self.labels["groups"][:2] + [group]
+            self.save()
+            with self.subTest(source_id=source_id), self.assertRaises(ValueError):
+                self.run_export(label_ids=["first"])
+            self.assertFalse((self.root / "export").exists())
+
+    def test_source_alias_cannot_hide_duplicate_intervals(self):
+        self.sources["sources"].append({**self.sources["sources"][0], "id": "alias"})
+        self.labels["sourceHashes"]["alias"] = self.labels["sourceHashes"]["tone"]
+        group = self.labels["groups"][1]
+        group["sourceId"] = "alias"
+        self.update_label(1, startSeconds=.1, endSeconds=.2)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Duplicate source interval"):
+            self.run_export()
+
+    def test_duplicate_source_intervals_fail_even_with_conflicting_names_or_selection(self):
+        for yulmyeong in ("황", "태"):
+            self.update_label(1, startSeconds=.1, endSeconds=.2, yulmyeong=yulmyeong)
+            self.save()
+            with self.subTest(yulmyeong=yulmyeong), self.assertRaisesRegex(ValueError, "Duplicate source interval"):
+                self.run_export(label_ids=["first"])
+            self.assertFalse((self.root / "export").exists())
+
+    def test_distinct_seconds_that_round_to_identical_frames_are_rejected(self):
+        self.update_label(1, startSeconds=.100001, endSeconds=.200001, yulmyeong="태")
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Duplicate source frame interval"):
+            self.run_export(label_ids=["first"])
+        self.assertFalse((self.root / "export").exists())
+
+    def test_analysis_windows_are_finite_ordered_and_inside_clip(self):
+        gesture = {
+            "lowerAnchor": {"register": "저취", "yulmyeong": "임", "f0Hz": 250,
+                            "windowsSeconds": [[.11, .13]]},
+            "destination": {"windowsSeconds": [[.15, .19]]},
+            "review": {"rejectedWindow": [.135, .14]}}
+        mutations = [
+            lambda g: g["lowerAnchor"].update(windowsSeconds="not-a-window-list"),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.12]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[True, .12]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.12, float("inf")]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.12, float("nan")]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.13, .12]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.09, .12]]),
+            lambda g: g["destination"].update(windowsSeconds=[[999, 1000]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.12, .13], [.11, .12]]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.11, .125], [.12, .13]]),
+            lambda g: g["destination"].update(windowsSeconds=[[.12, .14]]),
+            lambda g: g["review"].update(rejectedWindow=[.09, .12]),
+            lambda g: g["review"].update(rejectedWindow=[.11, .12]),
+            lambda g: g["lowerAnchor"].update(windowsSeconds=[[.110001, .110002]]),
+        ]
+        for mutate in mutations:
+            invalid = copy.deepcopy(gesture)
+            mutate(invalid)
+            self.labels["groups"][0]["evidence"] = {"first": {"gesture": invalid}}
+            self.save()
+            with self.subTest(mutate=mutate), self.assertRaisesRegex(ValueError, "[Ww]indow"):
+                self.run_export(label_ids=["first"])
+            self.assertFalse((self.root / "export").exists())
+        self.labels["groups"][0]["evidence"] = {"first": {"gesture": gesture}}
+        self.save()
+        self.run_export(label_ids=["first"])
 
 
 if __name__ == "__main__":

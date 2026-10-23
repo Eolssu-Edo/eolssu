@@ -3,6 +3,7 @@
 import argparse
 from copy import deepcopy
 import hashlib
+import io
 import json
 import math
 from pathlib import Path, PurePosixPath
@@ -81,6 +82,46 @@ def name_component(value):
         raise ValueError(f"Expected a single path component: {value}")
     relative_path(value)
     return value
+
+
+def validate_analysis_windows(label, rate=None):
+    """Stable-pitch windows use absolute source seconds, like the clip itself."""
+    gesture = label.get("gesture")
+    if gesture is None:
+        return
+    windows = []
+    for anchor in ("lowerAnchor", "destination"):
+        values = gesture[anchor].get("windowsSeconds")
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"Expected nonempty {anchor} windows: {label['id']}")
+        previous_end = None
+        for pair in values:
+            windows.append(pair)
+            if (not isinstance(pair, list) or len(pair) != 2 or
+                    any(type(n) not in (int, float) or not math.isfinite(n) for n in pair) or
+                    not label["startSeconds"] <= pair[0] < pair[1] <= label["endSeconds"]):
+                raise ValueError(f"Invalid {anchor} window: {label['id']}")
+            if previous_end is not None and pair[0] < previous_end:
+                raise ValueError(f"Unordered or overlapping {anchor} windows: {label['id']}")
+            previous_end = pair[1]
+    review = gesture.get("review", {})
+    if not isinstance(review, dict):
+        raise ValueError(f"Invalid window review: {label['id']}")
+    if "rejectedWindow" in review:
+        pair = review["rejectedWindow"]
+        if (not isinstance(pair, list) or len(pair) != 2 or
+                any(type(n) not in (int, float) or not math.isfinite(n) for n in pair) or
+                not label["startSeconds"] <= pair[0] < pair[1] <= label["endSeconds"]):
+            raise ValueError(f"Invalid rejected window: {label['id']}")
+        windows.append(pair)
+    # Repetitions can interleave anchors; do not require all lower windows first.
+    ordered = sorted(windows)
+    if any(right[0] < left[1] for left, right in zip(ordered, ordered[1:])):
+        raise ValueError(f"Overlapping analysis windows: {label['id']}")
+    if rate is not None:
+        first, last = round(label["startSeconds"] * rate), round(label["endSeconds"] * rate)
+        if any(not first <= round(start * rate) < round(end * rate) <= last for start, end in windows):
+            raise ValueError(f"Empty or out-of-clip window frames: {label['id']}")
 
 
 def expand_labels(document):
@@ -170,8 +211,26 @@ def expand_labels(document):
                          labelStatus=status, eligibleForNoteScoring=scoring,
                          evidence={"labelF0Hz": pitch, "method": method, **details})
             expanded.append(label)
+            validate_analysis_windows(label)
         if set(evidence) - group_ids:
             raise ValueError("Evidence refers to an unknown label ID")
+    # Partition a shared technique by source before selection. Single-source
+    # datasets keep their existing filenames; no new input fields are needed.
+    technique_sources = {}
+    for label in expanded:
+        directory = (label["category"].casefold(), label["technique"].casefold())
+        technique_sources.setdefault(directory, set()).add(label["sourceId"])
+    for source_ids in technique_sources.values():
+        if len(source_ids) > 1:
+            if len({source_id.casefold() for source_id in source_ids}) != len(source_ids):
+                raise ValueError("Case-colliding source directories")
+            for source_id in source_ids:
+                name_component(source_id)
+    for label in expanded:
+        directory = (label["category"].casefold(), label["technique"].casefold())
+        if len(technique_sources[directory]) > 1:
+            parent, filename = label["file"].rsplit("/", 1)
+            label["file"] = f"{parent}/{label['sourceId']}/{filename}"
     return index_rows(expanded, "label")
 
 
@@ -180,6 +239,10 @@ def read_wave(path, expected_hash=None):
     raw = path.read_bytes()
     if expected_hash is not None and hashlib.sha256(raw).hexdigest() != expected_hash.lower():
         raise ValueError("Source changed before decoding")
+    return decode_wave(raw)
+
+
+def decode_wave(raw):
     if len(raw) < 12 or raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
         raise ValueError("Expected a RIFF/WAVE file")
     if struct.unpack_from("<I", raw, 4)[0] + 8 != len(raw):
@@ -216,6 +279,36 @@ def read_wave(path, expected_hash=None):
     if not np.isfinite(samples).all():
         raise ValueError("Nonfinite audio samples")
     return samples, rate
+
+
+def read_audio(path, expected_hash):
+    """Detect content, verify the encoded bytes, then decode at native rate."""
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != expected_hash.lower():
+        raise ValueError("Source changed before decoding")
+    if raw[:4] == b"RIFF":
+        samples, rate = decode_wave(raw)
+        decoder = {"format": "WAV", "decoder": "builtin_pcm16_float32"}
+    else:
+        try:
+            import soundfile as sf
+        except (ImportError, OSError) as error:
+            raise ValueError("MP3 requires soundfile==0.13.1 with MP3-enabled libsndfile; see data/README.md") from error
+        try:
+            with sf.SoundFile(io.BytesIO(raw)) as stream:
+                if stream.format != "MP3" or stream.subtype != "MPEG_LAYER_III":
+                    raise ValueError("Supported audio inputs are PCM16/float32 WAV and MP3 Layer III")
+                rate = stream.samplerate
+                samples = stream.read(dtype="float64", always_2d=True)
+        except sf.SoundFileError as error:
+            raise ValueError(f"Cannot decode MP3: {error}") from error
+        if not len(samples) or not np.isfinite(samples).all():
+            raise ValueError("Empty or nonfinite MP3 audio samples")
+        decoder = {"format": "MP3", "decoder": "libsndfile",
+                   "soundfileVersion": sf.__version__, "libsndfileVersion": sf.__libsndfile_version__}
+    decoder.update(sampleRateHz=rate, channels=samples.shape[1], frames=len(samples),
+                   timeline="decoded_pcm_frames; start=0; no additional delay/padding adjustment")
+    return samples, rate, decoder
 
 
 def write_clip(path, samples, rate):
@@ -276,14 +369,19 @@ def validate_manifests(dataset, root):
             raise ValueError(f"Labels/performance belongs to another source version: {source_id}")
         return sources[source_id]
 
+    intervals = {}
     for label in labels.values():
-        source_reference(label, documents["labels"], "audio")
+        source = source_reference(label, documents["labels"], "audio")
         for field in ("category", "technique", "register", "yulmyeong", "labelStatus", "displayLabel"):
             if not isinstance(label.get(field), str) or not label[field].strip():
                 raise ValueError(f"Missing label {field}: {label['id']}")
         start, end = label.get("startSeconds"), label.get("endSeconds")
         if any(type(n) not in (int, float) or not math.isfinite(n) for n in (start, end)) or not 0 <= start < end:
             raise ValueError(f"Invalid interval: {label['id']}")
+        interval = (source["sha256"].lower(), start, end)
+        if interval in intervals:
+            raise ValueError(f"Duplicate source interval: {intervals[interval]} / {label['id']}")
+        intervals[interval] = label["id"]
         if Path(label["file"]).suffix.lower() != ".wav":
             raise ValueError("Clips must use a .wav filename")
         output_path(label["file"], ("label", label["id"]))
@@ -339,18 +437,24 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
             raise ValueError("Output would contain an input source")
 
     # Decode only selected clips. Keep at most one source recording in memory.
-    bounds = {}
+    bounds, decoders = {}, {}
     for source_id in {label["sourceId"] for label in selected_labels}:
-        samples, rate = read_wave(source_paths[source_id], sources[source_id]["sha256"])
+        samples, rate, decoder = read_audio(source_paths[source_id], sources[source_id]["sha256"])
+        decoders[source_id] = decoder
         metadata = sources[source_id]
         if metadata.get("sampleRateHz", rate) != rate or metadata.get("channels", samples.shape[1]) != samples.shape[1]:
             raise ValueError(f"Source format metadata mismatch: {source_id}")
-        for label in selected_labels:
-            if label["sourceId"] != source_id:
+        frame_intervals = {}
+        for label in labels.values():
+            if sources[label["sourceId"]]["sha256"].lower() != metadata["sha256"].lower():
                 continue
             first, last = round(label["startSeconds"] * rate), round(label["endSeconds"] * rate)
             if not 0 <= first < last <= len(samples):
                 raise ValueError(f"Clip outside source bounds: {label['id']}")
+            if (first, last) in frame_intervals:
+                raise ValueError(f"Duplicate source frame interval: {frame_intervals[first, last]} / {label['id']}")
+            frame_intervals[first, last] = label["id"]
+            validate_analysis_windows(label, rate)
             bounds[label["id"]] = (first, last)
         del samples
 
@@ -358,6 +462,7 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
                "instrument": documents["sources"].get("instrument"),
                "manifestHashes": {name: digest(dataset / f"{name}.json") for name in documents},
                "exporterSha256": digest(Path(__file__)),
+               "audioDecoders": decoders,
                "sources": [source for key, source in sources.items() if key in used_ids],
                "labels": [], "performances": [], "assets": []}
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -366,7 +471,9 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
         stage.mkdir()
         measured = {}
         for source_id in {label["sourceId"] for label in selected_labels}:
-            samples, rate = read_wave(source_paths[source_id], sources[source_id]["sha256"])
+            samples, rate, decoder = read_audio(source_paths[source_id], sources[source_id]["sha256"])
+            if decoder != decoders[source_id]:
+                raise ValueError(f"Source decoder changed during export: {source_id}")
             for label in selected_labels:
                 if label["sourceId"] == source_id:
                     first, last = bounds[label["id"]]
