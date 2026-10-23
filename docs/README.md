@@ -43,9 +43,16 @@
 
 ## AI 실험 기록
 
+- [악보 재생 공통 엔진·악기별 해석 근거](knowledge/ai/score-instrument-playback-pipeline.md)
+
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 
 ## COCO 산출물
+
+- [S15P31E102-105 단소 악보 재생 파이프라인](plans/S15P31E102-105.md)
+- [S15P31E102-106 정악 대금 악보 재생 파이프라인](plans/S15P31E102-106.md)
+- [S15P31E102-107 산조 대금 악보 재생 파이프라인](plans/S15P31E102-107.md)
+- [S15P31E102-108 소금 악보 재생 파이프라인](plans/S15P31E102-108.md)
 
 - [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
 
