@@ -43,6 +43,7 @@
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
 - [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
 - [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
+- [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
