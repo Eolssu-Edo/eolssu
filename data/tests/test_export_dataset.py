@@ -695,6 +695,94 @@ class ExportTests(unittest.TestCase):
         self.save()
         self.run_export(label_ids=["first"])
 
+    def ordered_anchor_sequence(self):
+        return {"orderedAnchors": [
+            {"register": "저취", "yulmyeong": "임", "f0Hz": 250.0, "windowsSeconds": [[.1, .12]]},
+            {"register": "저취", "yulmyeong": "황", "f0Hz": 300.0, "windowsSeconds": [[.12, .15]]},
+            {"register": "저취", "yulmyeong": "태", "f0Hz": 350.0, "windowsSeconds": [[.16, .2]]},
+        ], "labelAnchorIndex": 1}
+
+    def test_ordered_anchor_invalid_windows_reject_export_without_output(self):
+        mutations = [
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=None),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.1]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[True, .12]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.1, float("inf")]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[float("nan"), .12]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.12, .1]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.09, .12]]),
+            lambda s: s["orderedAnchors"][2].update(windowsSeconds=[[.16, .21]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.11, .12], [.1, .11]]),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.1, .115], [.11, .12]]),
+            lambda s: s["orderedAnchors"][1].update(windowsSeconds=[[.11, .15]]),
+            lambda s: s.update(orderedAnchors=list(reversed(s["orderedAnchors"]))),
+            lambda s: s["orderedAnchors"][0].update(windowsSeconds=[[.110001, .110002]]),
+            lambda s: s["orderedAnchors"][2].update(windowsSeconds=[[.199999, .2]]),
+        ]
+        for index, mutate in enumerate(mutations):
+            sequence = self.ordered_anchor_sequence()
+            mutate(sequence)
+            self.labels["groups"][0]["evidence"] = {"first": {"sequenceDecision": sequence}}
+            self.save()
+            name = f"invalid-sequence-window-{index}"
+            with self.subTest(index=index):
+                with self.assertRaisesRegex(ValueError, "[Ww]indow"):
+                    self.run_export(name, label_ids=["first"])
+                self.assertFalse((self.processed / name).exists())
+
+    def test_ordered_anchor_invalid_metadata_reject_export_without_output(self):
+        mutations = [
+            lambda s: s.update(orderedAnchors=None),
+            lambda s: s.update(orderedAnchors=[]),
+            lambda s: s.update(orderedAnchors="anchors"),
+            lambda s: s["orderedAnchors"].__setitem__(0, None),
+            lambda s: s["orderedAnchors"][0].pop("register"),
+            lambda s: s["orderedAnchors"][0].update(register=""),
+            lambda s: s["orderedAnchors"][0].update(yulmyeong="../황"),
+            lambda s: s["orderedAnchors"][0].update(f0Hz=True),
+            lambda s: s["orderedAnchors"][0].update(f0Hz=0),
+            lambda s: s["orderedAnchors"][0].update(f0Hz=-1),
+            lambda s: s["orderedAnchors"][0].update(f0Hz=float("inf")),
+            lambda s: s["orderedAnchors"][0].update(f0Hz=float("nan")),
+            lambda s: s.pop("labelAnchorIndex"),
+            lambda s: s.update(labelAnchorIndex=True),
+            lambda s: s.update(labelAnchorIndex=1.0),
+            lambda s: s.update(labelAnchorIndex=-1),
+            lambda s: s.update(labelAnchorIndex=3),
+            lambda s: s.update(labelAnchorIndex=0),
+            lambda s: s["orderedAnchors"][1].update(register="역취"),
+            lambda s: s["orderedAnchors"][1].update(yulmyeong="태"),
+            lambda s: s["orderedAnchors"][1].update(f0Hz=301.0),
+        ]
+        for index, mutate in enumerate(mutations):
+            sequence = self.ordered_anchor_sequence()
+            mutate(sequence)
+            self.labels["groups"][0]["evidence"] = {"first": {"sequenceDecision": sequence}}
+            self.save()
+            name = f"invalid-sequence-metadata-{index}"
+            with self.subTest(index=index):
+                with self.assertRaises(ValueError):
+                    self.run_export(name, label_ids=["first"])
+                self.assertFalse((self.processed / name).exists())
+
+    def test_ordered_anchors_preserve_clip_and_allow_touching_windows_and_middle_anchor(self):
+        original = self.run_export("without-sequence", label_ids=["first"])["labels"][0]
+        sequence = self.ordered_anchor_sequence()
+        sequence["orderedAnchors"][2]["windowsSeconds"] = [[.16, .18], [.18, .2]]
+        self.labels["groups"][0]["evidence"] = {"first": {"sequenceDecision": sequence}}
+        self.save()
+        label = self.run_export("with-sequence", label_ids=["first"])["labels"][0]
+        self.assertEqual(label["evidence"].pop("sequenceDecision"), sequence)
+        self.assertEqual(label, original)
+
+    def test_freeform_sequence_decision_remains_compatible(self):
+        for index, decision in enumerate(("기존 자유형 분석 기록", {"reason": "기존 객체 기록"})):
+            self.labels["groups"][0]["evidence"] = {"first": {"sequenceDecision": decision}}
+            self.save()
+            label = self.run_export(f"legacy-sequence-{index}", label_ids=["first"])["labels"][0]
+            self.assertEqual(label["evidence"]["sequenceDecision"], decision)
+
 
 if __name__ == "__main__":
     unittest.main()

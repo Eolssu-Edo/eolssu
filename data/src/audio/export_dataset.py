@@ -99,44 +99,70 @@ def name_component(value):
     return value
 
 
+def validate_window_sequence(label, windows, name, rate=None):
+    """Check absolute source windows without sorting away their declared order."""
+    if not isinstance(windows, list) or not windows:
+        raise ValueError(f"Expected nonempty {name} windows: {label['id']}")
+    previous_end = None
+    for pair in windows:
+        if (not isinstance(pair, list) or len(pair) != 2 or
+                any(type(n) not in (int, float) or not math.isfinite(n) for n in pair) or
+                not label["startSeconds"] <= pair[0] < pair[1] <= label["endSeconds"]):
+            raise ValueError(f"Invalid {name} window: {label['id']}")
+        if previous_end is not None and pair[0] < previous_end:
+            raise ValueError(f"Unordered or overlapping {name} windows: {label['id']}")
+        previous_end = pair[1]
+    if rate is not None:
+        first, last = round(label["startSeconds"] * rate), round(label["endSeconds"] * rate)
+        if any(not first <= round(start * rate) < round(end * rate) <= last for start, end in windows):
+            raise ValueError(f"Empty or out-of-clip window frames: {label['id']}")
+
+
 def validate_analysis_windows(label, rate=None):
     """Stable-pitch windows use absolute source seconds, like the clip itself."""
+    sequence = label["evidence"].get("sequenceDecision")
+    if isinstance(sequence, dict) and "orderedAnchors" in sequence:
+        anchors = sequence["orderedAnchors"]
+        if not isinstance(anchors, list) or not anchors:
+            raise ValueError(f"Expected nonempty ordered anchors: {label['id']}")
+        windows = []
+        for anchor in anchors:
+            if not isinstance(anchor, dict):
+                raise ValueError(f"Invalid ordered anchor: {label['id']}")
+            for field in ("register", "yulmyeong"):
+                name_component(anchor.get(field))
+            if (type(anchor.get("f0Hz")) not in (int, float) or
+                    not math.isfinite(anchor["f0Hz"]) or anchor["f0Hz"] <= 0):
+                raise ValueError(f"Invalid ordered-anchor frequency: {label['id']}")
+            values = anchor.get("windowsSeconds")
+            if not isinstance(values, list) or not values:
+                raise ValueError(f"Expected nonempty ordered-anchor windows: {label['id']}")
+            windows.extend(values)
+        validate_window_sequence(label, windows, "ordered-anchor", rate)
+        index = sequence.get("labelAnchorIndex")
+        if type(index) is not int or not 0 <= index < len(anchors):
+            raise ValueError(f"Invalid labelAnchorIndex: {label['id']}")
+        selected = anchors[index]
+        if (any(selected[field] != label[field] for field in ("register", "yulmyeong")) or
+                selected["f0Hz"] != label["evidence"]["labelF0Hz"]):
+            raise ValueError(f"Selected ordered anchor does not match label: {label['id']}")
+
     gesture = label.get("gesture")
     if gesture is None:
         return
     windows = []
     for anchor in ("lowerAnchor", "destination"):
         values = gesture[anchor].get("windowsSeconds")
-        if not isinstance(values, list) or not values:
-            raise ValueError(f"Expected nonempty {anchor} windows: {label['id']}")
-        previous_end = None
-        for pair in values:
-            windows.append(pair)
-            if (not isinstance(pair, list) or len(pair) != 2 or
-                    any(type(n) not in (int, float) or not math.isfinite(n) for n in pair) or
-                    not label["startSeconds"] <= pair[0] < pair[1] <= label["endSeconds"]):
-                raise ValueError(f"Invalid {anchor} window: {label['id']}")
-            if previous_end is not None and pair[0] < previous_end:
-                raise ValueError(f"Unordered or overlapping {anchor} windows: {label['id']}")
-            previous_end = pair[1]
+        validate_window_sequence(label, values, anchor)
+        windows.extend(values)
     review = gesture.get("analysisReview", {})
     if not isinstance(review, dict):
         raise ValueError(f"Invalid window review: {label['id']}")
     if "rejectedWindow" in review:
-        pair = review["rejectedWindow"]
-        if (not isinstance(pair, list) or len(pair) != 2 or
-                any(type(n) not in (int, float) or not math.isfinite(n) for n in pair) or
-                not label["startSeconds"] <= pair[0] < pair[1] <= label["endSeconds"]):
-            raise ValueError(f"Invalid rejected window: {label['id']}")
-        windows.append(pair)
+        validate_window_sequence(label, [review["rejectedWindow"]], "rejected")
+        windows.append(review["rejectedWindow"])
     # Repetitions can interleave anchors; do not require all lower windows first.
-    ordered = sorted(windows)
-    if any(right[0] < left[1] for left, right in zip(ordered, ordered[1:])):
-        raise ValueError(f"Overlapping analysis windows: {label['id']}")
-    if rate is not None:
-        first, last = round(label["startSeconds"] * rate), round(label["endSeconds"] * rate)
-        if any(not first <= round(start * rate) < round(end * rate) <= last for start, end in windows):
-            raise ValueError(f"Empty or out-of-clip window frames: {label['id']}")
+    validate_window_sequence(label, sorted(windows), "analysis", rate)
 
 
 def expand_labels(document):

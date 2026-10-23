@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "danso",
+  "sourceHashes": {
+    "ngc-danso-2369": "96f05973e041bc544d34206b8cce7b8422f3ed839c54a4e43041fab951a900e9",
+    "ngc-textbook-standard-score-2022": "c8bf7a6e113c76d3f2a9154f1605ad36a9b5ad81ac3307f0c4e6f5bed17b7c19"
+  },
+  "performances": [
+    {
+      "id": "ngc-danso-2369",
+      "title": "청성곡",
+      "audio": {
+        "sourceId": "ngc-danso-2369",
+        "file": "연주/청성곡/청성곡_원음.wav"
+      },
+      "scores": [],
+      "noteAlignmentVerified": false,
+      "notes": "국립국악원 단음 목록의 단소 연주 전 항목(1개). 표준악보집 단소 오선보 2단은 비교용이며 같은 녹음 판본과 전곡 대응은 미검증. 단소 정간보 원본은 이번 조사에서 확보하지 못했다."
+    }
+  ],
+  "comparisonScores": [
+    {
+      "id": "ngc-danso-2369.comparison-1",
+      "forPerformanceId": "ngc-danso-2369",
+      "sourceId": "ngc-textbook-standard-score-2022",
+      "notation": "staff",
+      "file": "연주/청성곡/청성곡_비교용_원본악보집.pdf",
+      "pdfPages": [
+        231
+      ],
+      "instrument": "danso",
+      "coverage": "인쇄460쪽 단소 오선보 2단. 김기수 단소율보(1979)를 기준으로 제작한 표준악보. 녹음90.699초 전곡·장식음·반복과의 대응 미검증. 인쇄461쪽은 설명이며 같은 PDF쪽에 있다.",
+      "samePerformanceEditionVerified": false
+    }
+  ]
+}
