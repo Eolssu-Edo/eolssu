@@ -31,69 +31,92 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 - 검증용 샘플은 `data/tests/fixtures/`처럼 제외되지 않는 경로에 둡니다.
 - 공유할 데이터의 저장 위치, 버전, 재현 방법은 문서에 남깁니다. 원본 음원과 대용량 데이터 자체는 커밋하지 않습니다.
 
-## 실행과 검증
+## 데이터 준비
 
-[산조대금 자료 안내](../docs/knowledge/data/instruments/daegeum/sanjo/README.md)에 입력 9개, 율명 연결 근거와 이용 조건을 정리했습니다. [국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)에서 관악기 → 산조대금 전체 9개를 선택하여 다운로드하고 ZIP 안 원본 WAV를 `collection-manifest.json`의 `rawPath`에 배치합니다. 압축 파일·원음·PDF는 커밋하지 않습니다.
+악기마다 `data/datasets/<악기 ID>/` 아래 **세 파일**을 관리합니다. 현재 실제 자료는 산조대금만 들어 있습니다.
 
-Python 환경에 필요한 NumPy를 설치한 뒤 아래 순서로 실행합니다. 예: `python -m pip install numpy==2.3.5`(Python 3.12 검증 환경). 합성 입력 단위 테스트는 원음 다운로드 없이 실행할 수 있습니다.
+| 파일 | 편집할 내용 |
+| --- | --- |
+| [sources.json](datasets/sanjo-daegeum/sources.json) | 원음·악보 파일 위치, 출처, 해시, 이용 조건 |
+| [labels.json](datasets/sanjo-daegeum/labels.json) | 기본음·시김새의 시작·끝, 취법·율명·주법, 저장 파일명 |
+| [performances.json](datasets/sanjo-daegeum/performances.json) | 곡별 원음·오선보·정간보 연결과 대응 상태 |
 
-### 산조대금 기본음 탐색 분석
+공통 [export_dataset.py](src/export_dataset.py)가 세 파일을 읽습니다. 내보낼 때는 `labels.json`에 적힌 구간과 이름을 그대로 사용합니다. 분석 결과·운지표·별도 매핑 파일을 준비하거나 음높이를 다시 추정할 필요가 없습니다. 라벨을 생성·검토한 근거와 미완료 사항은 [산조대금 기록](../docs/knowledge/data/sanjo-daegeum.md)에 둡니다.
 
-`src/analyze_basic_tones.py`는 로컬 WAV의 SHA-256을 manifest와 대조한 뒤 발음 후보 구간과 F0를 자동 추정합니다. Python 3.10 이상과 NumPy가 필요합니다. 이번 실행 환경은 Python 3.12.14·NumPy 2.3.5이며, 프로젝트 전체의 패키지·추론 방식 채택을 뜻하지 않습니다.
+## 원본 준비와 실행
 
-저장소 루트에서 실행합니다. 원본은 Git에 포함되지 않으므로 [산조대금 원본 명세](../docs/knowledge/data/instruments/daegeum/sanjo/collection-manifest.json)의 파일을 manifest의 `rawPath`에 준비합니다. 현재 도구는 단일 샘플 manifest, 48kHz RIFF/WAVE의 float32 또는 PCM16 입력만 처리합니다.
+검증 환경은 Python 3.12.14·NumPy 2.3.5입니다. 저장소 루트에서 실행하며 필요한 외부 패키지는 NumPy 하나입니다.
 
 ```powershell
-python data/src/analyze_basic_tones.py --manifest docs/knowledge/data/instruments/daegeum/sanjo/sample-manifest.json --output-dir data/processed/instruments/daegeum/sanjo/basic-tone-v1
+python -m pip install numpy==2.3.5
+```
+
+[국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개를 받아, ZIP 안 원본을 `sources.json`의 `path`에 둡니다. 태평가 묶음에는 같은 명세의 표준악보집 PDF도 필요합니다. 다운로드 주소·SHA-256·이용 조건은 각 source에 있습니다. 선택한 구간만 저장할 때는 해당 원음만 있으면 됩니다.
+
+전체 내보내기:
+
+```powershell
+python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --output-dir data/processed/instruments/daegeum/sanjo/prepared-v2
+```
+
+저취 황 기본음 하나만 저장:
+
+```powershell
+python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --label sanjo.jeochwi.hwang --output-dir data/processed/instruments/daegeum/sanjo/selected-hwang
+```
+
+주법·취법·율명으로 선택:
+
+```powershell
+python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --technique '기본음+깊은요성' --register 저취 --yulmyeong 임 --output-dir data/processed/instruments/daegeum/sanjo/selected-deep-im
+```
+
+태평가 원음·악보만 묶기:
+
+```powershell
+python data/src/export_dataset.py --dataset data/datasets/sanjo-daegeum --performance ngc-sanjo-2625 --output-dir data/processed/instruments/daegeum/sanjo/selected-taepyeongga
+```
+
+`--label`과 `--performance`는 여러 번 지정할 수 있습니다. `--category`, `--technique`, `--register`, `--yulmyeong`은 정확히 일치하는 라벨을 고르며 여러 조건은 모두 만족해야 합니다. 선택 옵션이 없으면 전체를 생성합니다. 존재하지 않는 ID나 결과가 0개인 선택은 오류입니다.
+
+**출력은 아직 없는 새 폴더를 지정합니다.** 재생성할 때는 다른 출력 이름을 사용합니다. 기존 폴더·원본은 덮어쓰거나 삭제하지 않습니다. 입력·해시·구간 검증과 임시 폴더의 생성이 모두 끝난 뒤 결과 폴더를 공개하므로 실패한 일부 결과가 완성본처럼 남지 않습니다.
+
+## 결과 사용
+
+- 산조 전체: 기본음계 46개·시김새 75개 WAV, 태평가 원음 1개, 원본 악보집 PDF 1개, 결과 목록 `catalog.json`.
+- 개별 구간: 원본 샘플레이트를 유지하고 채널 평균·필요한 경우 피크 감쇠·PCM16 양자화만 적용합니다. 입력은 PCM16 또는 IEEE float32 RIFF/WAVE를 지원합니다. 음높이 보정·리샘플링은 하지 않습니다.
+- 연주 음원·악보: **원본 바이트 그대로 복사**합니다. 같은 PDF의 두 쪽을 참조하면 파일은 한 번만 복사합니다.
+- 결과 catalog는 선택된 라벨·프레임 경계·변환·해시, 연주 묶음, 출처·이용 조건을 포함합니다. 편집 입력은 세 JSON이며 결과 catalog를 수정해 재사용하지 않습니다.
+
+태평가 악보는 성악 오선보와 단소 정간보 일부입니다. 해당 산조 녹음 전곡과 같은 판본으로 확정하지 않았습니다. 출처의 비상업·무변경 조건과 각 악보의 `coverage`, `samePerformanceEditionVerified`를 확인합니다.
+
+## 세 파일의 형식과 악기 추가
+
+세 파일 모두 `schemaVersion: 1`과 같은 `datasetId`를 사용합니다. 악기별 음 개수·율명 배열·취법 이름은 코드에 고정하지 않습니다.
+
+| 파일 | 주요 필드 |
+| --- | --- |
+| `sources.json` | `pathBase: "repository_root"`, `instrument`, `sources` 목록. 각 source의 `id`, `kind`(audio/score), `path`, `sha256`, `title`, `sourceUrl`, `license`, `attribution`. PDF는 `pdfPageCount` |
+| `labels.json` | `sourceHashes`, `labels` 목록. 각 label의 `id`, `sourceId`, `startSeconds`, `endSeconds`, `category`, `technique`, `register`, `yulmyeong`, `displayLabel`, `file`, `labelStatus` |
+| `performances.json` | `sourceHashes`, `performances` 목록. 각 performance의 `id`, `title`, `audio`(sourceId/file), `scores` 목록(sourceId/file/notation/pdfPages/coverage/대응 상태) |
+
+시각은 초 단위, 시작 포함·끝 제외이며 `round(초 × 원본 샘플레이트)`로 프레임을 정합니다. `labels.json`의 시각이 자르는 기준입니다. 같은 음을 두 번 발음하면 서로 다른 ID와 파일명을 유지합니다. 다루치기 같은 복합음은 `displayLabel`·선택 필드 `gesture`에 시작→도착음을 적고 상위 율명의 의미도 남깁니다. 근거·대안·참고 운지는 `evidence`에 선택적으로 기록하며 내보내기에 그대로 전달합니다.
+
+`sourceHashes`는 해당 목록이 참조하는 원본 ID → SHA-256입니다. 원음을 바꾸면 기존 라벨·악보 쪽 참조를 그대로 적용하지 못하도록 버전을 확인합니다. 경로는 `/`로 구분한 상대 경로를 사용합니다. 원본 path는 저장소 루트 기준, 출력 file은 지정한 출력 폴더 기준입니다. 중복 ID·출력 경로, 대소문자 충돌, 상위 폴더 탈출, 잘못된 구간·PDF 쪽을 거부합니다.
+
+새 악기를 추가할 때:
+
+1. `data/datasets/sogeum/`, `danso/`, `jeongak-daegeum/`처럼 폴더를 만들고 같은 세 파일을 작성합니다. 아직 없는 라벨·연주 목록은 빈 배열로 둡니다.
+2. 실제 확보한 원음과 악보의 출처·해시를 sources에 기록합니다. 악기마다 측정·검토한 구간과 율명을 labels에 작성하며, 산조의 음 개수·배열을 복사하지 않습니다.
+3. 연주와 실제 확보한 악보를 performances에 연결합니다. 두 악보가 모두 없더라도 확보 범위와 대응 상태를 정확히 적습니다.
+4. 같은 명령에 `--dataset` 경로만 바꿉니다. 공통 코드를 수정할 필요가 없습니다. 별도 저장 위치를 기준으로 삼을 때는 `--root`로 원본 경로의 기준을 지정합니다.
+
+실제 소금·단소·정악대금 데이터는 이번 변경에 추가하지 않았습니다. 합성 입력으로 악기 ID를 바꾼 경우의 공통 처리만 검증합니다.
+
+## 검증
+
+```powershell
 python -m unittest discover -s data/tests -p 'test_*.py' -v
 ```
 
-`python`이 PATH에 없으면 설치된 Python 실행 파일의 절대 경로로 실행합니다. 이 기본음 분석에는 NumPy 외의 디코더가 필요하지 않습니다.
-
-결과는 `frames.csv`(시간·RMS·F0·주기성), `segments.csv`(후보 구간 요약), `analysis.json`(원본 해시·출처·환경·설정·결과·한계)입니다. 출력 폴더의 동명 결과는 재실행 시 갱신되며 입력 음원은 수정하지 않습니다. 기본 출력 경로는 Git 제외 대상입니다. 공유 결과와 해석은 [산조대금 분석](../docs/knowledge/data/instruments/daegeum/sanjo/basic-tone-analysis.md)에 둡니다.
-
-합성음 검사는 알려진 기본주파수·강한 배음·무음·짧은 잡음 구간과 float WAV 읽기를 확인합니다. 실제 음원의 정확도 검사는 구간 청취와 율명·취법·F0 전문가 검수가 필요하며, 자동 결과를 정답 데이터로 쓰지 않습니다.
-
-정제·변환은 작은 고정 샘플로 먼저 검증하고, 전체 데이터셋 처리는 입력·처리량·실행 시간·결과 버전을 확인할 수 있게 구성합니다.
-
-### 산조대금 전체 9개 분석
-
-[원본 전체 명세](../docs/knowledge/data/instruments/daegeum/sanjo/collection-manifest.json)의 9개 파일을 준비하고 위의 산조 기본음 분석을 먼저 실행합니다. 전체 분석은 그 기본음의 실측 결과를 참조합니다. Python·NumPy로 산조 9개를 처리하며 44.1kHz PCM16도 원래 샘플레이트로 분석합니다.
-
-```powershell
-python data/src/analyze_digital_collection.py --manifest docs/knowledge/data/instruments/daegeum/sanjo/collection-manifest.json --output-dir data/processed/instruments/daegeum/sanjo/probe --only ngc-sanjo-2625
-python data/src/analyze_digital_collection.py --manifest docs/knowledge/data/instruments/daegeum/sanjo/collection-manifest.json --output-dir data/processed/instruments/daegeum/sanjo/collection-v1
-```
-
-첫 명령은 작은 범위 검증용입니다. 전체 실행은 9개 약 899초·310.2MiB 입력에서 이번 환경 기준 약 7.288초였습니다. 원본 해시 불일치·형식 오류를 항목별 실패로 기록하고 한 항목이라도 실패하면 종료 코드 1을 반환합니다. 프레임·발음 구간·짧은 발음·RMS·상세 JSON과 summary.json을 생성합니다. 출력은 재실행 시 갱신됩니다.
-
-MP3를 별도로 분석하는 경우에만 miniaudio 1.71이 필요합니다. 이번 산조 9개에는 쓰지 않습니다. 조사 중 디코더를 시험한 환경은 Git 제외 경로 data/processed/instruments/daegeum/analysis-runtime에 격리했으며 프로젝트·사용자의 공통 Python 설정을 변경하지 않았습니다. 실제 데이터 확보·측정값·방법·한계는 [전체 보고서](../docs/knowledge/data/instruments/daegeum/sanjo/collection-analysis.md)를 따릅니다.
-
-한글 율명 매핑의 근거가 된 기본음↔요성 음군 대응은 아래 명령으로 재생성합니다. 전체 분석 결과를 읽고 대응 JSON만 갱신합니다. 검토된 율명 매핑 파일은 자동 변경하지 않습니다. 한글 라벨은 `note-fingering-map.json`에 기록하며 추정 상태를 유지합니다.
-
-```powershell
-python data/src/link_sanjo_basic_notes.py --reference-analysis data/processed/instruments/daegeum/sanjo/collection-v1/ngc-sanjo-2551/analysis.json --mapping docs/knowledge/data/instruments/daegeum/sanjo/note-fingering-map.json --output docs/knowledge/data/instruments/daegeum/sanjo/basic-note-correspondence.json
-```
-
-### 산조대금 사용 자료 준비
-
-원본 9개와 기존 전체 분석 결과, [악보 명세](../docs/knowledge/data/instruments/daegeum/score-manifest.json)의 `ngc-textbook-standard-score-2022` PDF를 `rawPath`에 준비한 뒤 실행합니다. 입력 악보는 원문 출처에서 받아 SHA-256을 대조합니다. 앱이나 화면을 생성하지 않으며 기본음계·시김새·연주 폴더, 재생용 WAV 122개, 원본 악보집 PDF 1개, 연결 정보 `catalog.json`, 안내 `README.md`를 생성합니다.
-
-```powershell
-python data/src/prepare_sanjo_assets.py
-python -m unittest discover -s data/tests -p 'test_prepare_sanjo_assets.py' -v
-```
-
-기본 출력은 `data/processed/instruments/daegeum/sanjo/ready-v1/`입니다. `--output-dir`과 `--analysis-dir`로 변경할 수 있습니다. 쓰기 전에 입력 9개 원본의 해시, 분석의 원본 ID·해시, 기본음 매핑의 원본 버전, 악보 PDF 해시를 확인합니다. 원본은 수정하지 않습니다. 태평가를 제외한 기본음계·시김새는 원본 프레임 구간을 추출합니다. 요성은 인접한 동일 음높이 구간을 묶은 18음군, 스타카토는 짧은 발음 후보 17개, 나머지는 기존 RMS 발음 구간을 사용합니다. 이전 catalog에 포함된 오래된 생성 파일은 삭제 후보 전체의 경로와 해시를 먼저 확인하고 제거하므로 전체 녹음이 새 패키지에 남지 않습니다. 삭제 후보에 사용자가 수정한 파일이 있으면 후보를 제거하지 않고 오류를 반환합니다. 음원은 채널 평균·필요한 경우 피크 감쇠·PCM16 양자화만 수행하며 원래 샘플레이트를 유지합니다. 감쇠 계수와 변환 전후 해시·프레임 수를 항목에 기록합니다. 기존 출력의 같은 이름은 재실행 시 갱신됩니다.
-
-율명과 분할 경계는 추정이며 채점 정답 검수 전입니다. 태평가 오선보는 성악용, 정간보는 단소용 일부로 확보했으며 해당 녹음 전곡과의 일치 판본은 미확보입니다. PDF는 KOGL4 원본 전체를 무변경 복사하고 페이지 번호를 연결합니다.
-
-기본음계·시김새121개 모두 취법·율명으로 연결합니다. 요성18음 기준으로 기본음13개에 없는 무·고·역취 황을 포함하고, 넓은 요성은 중심음으로 비교합니다. [율명 검토 기록](../docs/knowledge/data/instruments/daegeum/sanjo/ornament-label-review.json)은 음렬 예외2곳과 다루치기10개 안정창, 깊은요성 첫 음의 분할 수정을 명시합니다. 다루치기 원본10.05초를40ms 창·10ms 간격으로 재분석해 아래 안정음→도착음 파일명을 생성합니다. 이름은 실측 음고 대응이며 주법 의도와 다를 수 있어 후보와 근거를 보존합니다. 기록의 원본 해시·유효 프레임 수를 검사하고, 측정값이 없거나 기준에서120cent를 넘으면 임의 이름을 붙이지 않고 재검토 오류로 중단합니다. catalog schema4에는18음 기준·방법·후보·음고 궤적·생성 코드 해시·반복 음의 검토 결과를 포함합니다. 원본은 보존하며 깊은요성 첫 음만 두 조각에서 원본0.6–7.1초의 한 연주로 복구했습니다. 이후 깊은요성 파일 순번은 하나씩 당겨지고 실제원본ID는 보존합니다.
-
-### 중복 율명 원본 재검증
-
-```powershell
-python data/src/audit_sanjo_repeated_notes.py
-```
-
-Python·NumPy만 사용해 원본2개의 해시를 검사하고 깊은요성0–9초·노니로107–124초를 직접 재분석합니다. `data/processed/instruments/daegeum/sanjo/repeat-audit-v1/`에 audit.json과 비교용 원본 문맥 음원2개(채널 평균·PCM16 변환)를 생성합니다. 소리를 합성하거나 음높이를 바꾸지 않습니다.40ms YIN과 별도FFT, 버려진 틈·끝음·두 발음 사이의 RMS를 확인합니다. 원본 연속성이 확인된 깊은요성 첫 두 조각은 준비 단계에서 병합하고, 소음 수준의 간격이 있는 노니로 두 발음은 유지합니다. 전체 분석기에서 임계값을 일괄 낮추거나 같은 율명이라는 이유로 자동 병합하지 않습니다.
+검사는 외부 다운로드 없이 작은 합성 WAV·임시 악보를 사용합니다. 다른 악기 ID, 직접 지정한 라벨·구간, 같은 음 반복, 선택 추출, 원음·PDF 무변경 복사, 입력 오류·경로 충돌·출력 보호를 확인합니다. 실제 율명의 음악적 정답 검증과 구분합니다.

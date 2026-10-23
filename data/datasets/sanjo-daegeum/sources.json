@@ -1,0 +1,250 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "sanjo-daegeum",
+  "instrument": "산조대금",
+  "pathBase": "repository_root",
+  "sources": [
+    {
+      "id": "ngc-sanjo-2550",
+      "kind": "audio",
+      "title": "기본음",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_sus_04.wav",
+      "sha256": "6eebba16c05b3ad9792a5960c8c46f310394894ebc1acf092e62c32abab87332",
+      "bytes": 40990304,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 106.73839583333333,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음, mntn_seq=2550, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551",
+      "kind": "audio",
+      "title": "기본음+요성",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_vib_39.wav",
+      "sha256": "9475e0486aef2b25d802e1b1d52b4edb8fddaf3839e34249fa5be0981b9eec41",
+      "bytes": 75032440,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 195.38979166666667,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음+요성, mntn_seq=2551, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552",
+      "kind": "audio",
+      "title": "기본음+깊은요성",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_deep_vib_48.wav",
+      "sha256": "6b7dace6a9fc5e1c9b14f53efb439054ac24bdcd63efb803f8ed9184e1108a96",
+      "bytes": 48201534,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 125.51764583333333,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음+깊은요성, mntn_seq=2552, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553",
+      "kind": "audio",
+      "title": "노니로",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nina_29.wav",
+      "sha256": "1f50f0bf09312be5d803f2ff78246752e346ca874e39ece296244a469f4142a3",
+      "bytes": 52079448,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 135.616375,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 노니로, mntn_seq=2553, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554",
+      "kind": "audio",
+      "title": "니라",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nira_23.wav",
+      "sha256": "a0353ed2dec7cf33e07ccd42ec11c945cb5cf55752bdb8b28bba94543a0ffbc9",
+      "bytes": 37941336,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 98.798375,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 니라, mntn_seq=2554, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555",
+      "kind": "audio",
+      "title": "스타카토",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_stacatto_60.wav",
+      "sha256": "c83094d13456de03c13038882bf776569c2b552e5e53db7977f945e9c220e103",
+      "bytes": 8407334,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 21.886916666666668,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 스타카토, mntn_seq=2555, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564",
+      "kind": "audio",
+      "title": "크레센도",
+      "path": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_chung_34.wav",
+      "sha256": "0a426df1a3d0f818dda7a0f45502547d5c73f592391398bf3d35da2c0a32c3b4",
+      "bytes": 41743008,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 108.6985625,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 크레센도, mntn_seq=2564, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566",
+      "kind": "audio",
+      "title": "다루치기",
+      "path": "data/raw/instruments/daegeum/sanjo/Sanjo_deageum_1.wav",
+      "sha256": "1d763cf37242bef6b1975dfd34b60df2d6b80d5c657e58a6b4cbba29b765485f",
+      "bytes": 3863102,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 10.052979166666667,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 다루치기, mntn_seq=2566, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2625",
+      "kind": "audio",
+      "title": "태평가",
+      "path": "data/raw/instruments/daegeum/sanjo/Sanjo_deageum_2.wav",
+      "sha256": "4c7202a482c48e15692c077ca117992739ddf56356f5eab7cc02b74d3daf3442",
+      "bytes": 17013810,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 95.68,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 태평가, mntn_seq=2625, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    },
+    {
+      "id": "ngc-textbook-standard-score-2022",
+      "kind": "score",
+      "title": "2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4)",
+      "path": "data/raw/instruments/daegeum/ngc-textbook-standard-score-2022.pdf",
+      "sha256": "c8bf7a6e113c76d3f2a9154f1605ad36a9b5ad81ac3307f0c4e6f5bed17b7c19",
+      "bytes": 25875334,
+      "pdfPageCount": 250,
+      "sourceUrl": "https://www.gugak.go.kr/site/program/board/basicboard/view?boardid=44199&boardtypeid=102&menuid=001003002011&pagesize=10",
+      "downloadUrl": "https://www.gugak.go.kr/userfiles/files/%EA%B5%90%EA%B3%BC%EC%84%9C%ED%91%9C%EC%A4%80%EC%95%85%EB%B3%B4%EC%A7%91%20%EB%82%B4%EC%A7%80%20%EC%88%98%EC%A0%95%20%EC%B5%9C%EC%A2%85%282%29.pdf",
+      "publisher": "국립국악원",
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-22",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "serviceDatasetApproved": false
+    }
+  ]
+}

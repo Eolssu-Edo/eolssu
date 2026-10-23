@@ -1,0 +1,3927 @@
+{
+  "schemaVersion": 1,
+  "datasetId": "sanjo-daegeum",
+  "description": "편집·내보내기의 기준. 율명은 분석 추정이며 독립 연주자 검수 전. 시작 포함·끝 제외, 초×원본 샘플레이트를 반올림해 프레임을 정한다.",
+  "sourceHashes": {
+    "ngc-sanjo-2550": "6eebba16c05b3ad9792a5960c8c46f310394894ebc1acf092e62c32abab87332",
+    "ngc-sanjo-2551": "9475e0486aef2b25d802e1b1d52b4edb8fddaf3839e34249fa5be0981b9eec41",
+    "ngc-sanjo-2552": "6b7dace6a9fc5e1c9b14f53efb439054ac24bdcd63efb803f8ed9184e1108a96",
+    "ngc-sanjo-2553": "1f50f0bf09312be5d803f2ff78246752e346ca874e39ece296244a469f4142a3",
+    "ngc-sanjo-2554": "a0353ed2dec7cf33e07ccd42ec11c945cb5cf55752bdb8b28bba94543a0ffbc9",
+    "ngc-sanjo-2555": "c83094d13456de03c13038882bf776569c2b552e5e53db7977f945e9c220e103",
+    "ngc-sanjo-2564": "0a426df1a3d0f818dda7a0f45502547d5c73f592391398bf3d35da2c0a32c3b4",
+    "ngc-sanjo-2566": "1d763cf37242bef6b1975dfd34b60df2d6b80d5c657e58a6b4cbba29b765485f"
+  },
+  "labels": [
+    {
+      "id": "sanjo.jeochwi.im",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 0.9,
+      "endSeconds": 6.145291666666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "기본음계/기본음/저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-01",
+        "labelF0Hz": 264.167,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-jeochwi-im",
+            "holes": "111111",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.jeochwi.nam",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 9.72,
+      "endSeconds": 16.585291666666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "기본음계/기본음/저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-02",
+        "labelF0Hz": 320.013,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-jeochwi-nam",
+            "holes": "111110",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.jeochwi.hwang",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 19.18,
+      "endSeconds": 24.525291666666668,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "기본음계/기본음/저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-03",
+        "labelF0Hz": 372.309,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-jeochwi-hwang",
+            "holes": "111000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.jeochwi.tae",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 27.9,
+      "endSeconds": 34.02529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "기본음계/기본음/저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-04",
+        "labelF0Hz": 414.761,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-jeochwi-tae",
+            "holes": "110001",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.jeochwi.jung",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 36.22,
+      "endSeconds": 41.40529166666666,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "기본음계/기본음/저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-05",
+        "labelF0Hz": 500.876,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-jeochwi-jung-alt1",
+            "holes": "011001",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          },
+          {
+            "id": "pirisa-417-jeochwi-jung-alt2",
+            "holes": "010000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.pyeongchwi.im",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 45.12,
+      "endSeconds": 50.145291666666665,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "기본음계/기본음/평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-06",
+        "labelF0Hz": 529.49,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-pyeongchwi-im",
+            "holes": "011111",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.pyeongchwi.nam",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 53.4,
+      "endSeconds": 58.865291666666664,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "기본음계/기본음/평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-07",
+        "labelF0Hz": 628.573,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-pyeongchwi-nam",
+            "holes": "111110",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.pyeongchwi.hwang",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 61.54,
+      "endSeconds": 67.78529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "기본음계/기본음/평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-08",
+        "labelF0Hz": 742.412,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-pyeongchwi-hwang",
+            "holes": "111000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.pyeongchwi.tae",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 70.94,
+      "endSeconds": 76.62529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "기본음계/기본음/평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-09",
+        "labelF0Hz": 824.146,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-pyeongchwi-tae",
+            "holes": "110000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.pyeongchwi.jung",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 79.68,
+      "endSeconds": 85.48529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "기본음계/기본음/평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-10",
+        "labelF0Hz": 996.331,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-pyeongchwi-jung-alt1",
+            "holes": "010000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          },
+          {
+            "id": "pirisa-417-pyeongchwi-jung-alt2",
+            "holes": "000000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.yeokchwi.im",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 87.82,
+      "endSeconds": 92.84529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "기본음계/기본음/역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-11",
+        "labelF0Hz": 1068.769,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-yeokchwi-im-alt1",
+            "holes": "011111",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          },
+          {
+            "id": "pirisa-417-yeokchwi-im-alt2",
+            "holes": "111000",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.yeokchwi.nam",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 95.84,
+      "endSeconds": 99.74529166666666,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "기본음계/기본음/역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-12",
+        "labelF0Hz": 1201.906,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-yeokchwi-nam",
+            "holes": "110001",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sanjo.yeokchwi.mu",
+      "sourceId": "ngc-sanjo-2550",
+      "startSeconds": 101.24,
+      "endSeconds": 105.46529166666667,
+      "category": "기본음계",
+      "technique": "기본음",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "기본음계/기본음/역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "tone-13",
+        "labelF0Hz": 1320.046,
+        "method": "same_source_basic_to_vibrato_correspondence",
+        "referenceFingerings": [
+          {
+            "id": "pirisa-417-yeokchwi-mu",
+            "holes": "100001",
+            "meaning": "피리사 표의 참고 운지. 국립국악원 녹음 당시 실제 사용한 지공은 미확인."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-001",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 1.54,
+      "endSeconds": 7.345291666666666,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "기본음계/기본음+요성/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-001",
+        "labelF0Hz": 267.276,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-001"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-002",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 13.3,
+      "endSeconds": 19.16529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "기본음계/기본음+요성/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-002",
+        "labelF0Hz": 319.491,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-002",
+          "region-003"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-003",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 23.86,
+      "endSeconds": 29.565291666666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "기본음계/기본음+요성/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-003",
+        "labelF0Hz": 345.631,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-004",
+          "region-005"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-004",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 35.1,
+      "endSeconds": 40.825291666666665,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "기본음계/기본음+요성/004_저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-004",
+        "labelF0Hz": 372.138,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-006"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-005",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 46.04,
+      "endSeconds": 52.865291666666664,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "기본음계/기본음+요성/005_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-005",
+        "labelF0Hz": 417.916,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-007"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-006",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 58.46,
+      "endSeconds": 65.78529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 고",
+      "file": "기본음계/기본음+요성/006_저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-006",
+        "labelF0Hz": 461.07,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-008"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-007",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 69.34,
+      "endSeconds": 75.68529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "기본음계/기본음+요성/007_저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-007",
+        "labelF0Hz": 505.216,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-008",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 79.38,
+      "endSeconds": 84.94529166666666,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "기본음계/기본음+요성/008_평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-008",
+        "labelF0Hz": 533.311,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-009",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 90.82,
+      "endSeconds": 96.30529166666666,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "기본음계/기본음+요성/009_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-009",
+        "labelF0Hz": 625.57,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-011"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-010",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 101.26,
+      "endSeconds": 108.14529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "기본음계/기본음+요성/010_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-010",
+        "labelF0Hz": 686.686,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-012"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-011",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 112.0,
+      "endSeconds": 119.10529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "기본음계/기본음+요성/011_평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-011",
+        "labelF0Hz": 742.623,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-013"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-012",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 122.94,
+      "endSeconds": 130.84529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "기본음계/기본음+요성/012_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-012",
+        "labelF0Hz": 833.737,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-014"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-013",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 136.2,
+      "endSeconds": 144.88529166666666,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "기본음계/기본음+요성/013_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-013",
+        "labelF0Hz": 936.797,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-015"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-014",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 148.46,
+      "endSeconds": 155.70529166666665,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "기본음계/기본음+요성/014_평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-014",
+        "labelF0Hz": 1021.643,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-016"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-015",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 160.08,
+      "endSeconds": 167.70529166666665,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "기본음계/기본음+요성/015_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-015",
+        "labelF0Hz": 1074.916,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-017"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-016",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 170.4,
+      "endSeconds": 176.00529166666666,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "기본음계/기본음+요성/016_역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-016",
+        "labelF0Hz": 1206.344,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-018"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-017",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 179.48,
+      "endSeconds": 185.06529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "기본음계/기본음+요성/017_역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-017",
+        "labelF0Hz": 1345.428,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-019"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2551.group-018",
+      "sourceId": "ngc-sanjo-2551",
+      "startSeconds": 188.46,
+      "endSeconds": 193.18529166666667,
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "register": "역취",
+      "yulmyeong": "황",
+      "displayLabel": "역취 황",
+      "file": "기본음계/기본음+요성/018_역취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-018",
+        "labelF0Hz": 1527.104,
+        "method": "seven_yul_sequence_hypothesis",
+        "sourceRegionIds": [
+          "region-020"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.group-001",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 0.6,
+      "endSeconds": 7.1,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "기본음계/기본음+깊은요성/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "group-001",
+        "labelF0Hz": 269.8,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-001",
+          "region-002"
+        ],
+        "boundaryReview": {
+          "unitId": "group-001",
+          "sourceRegionIds": [
+            "region-001",
+            "region-002"
+          ],
+          "startSeconds": 0.6,
+          "endSeconds": 7.1,
+          "reason": "원본상 연속된 저취 임의 깊은요성. 전역RMS문턱으로 생긴 거짓 간격0.274708초와 누락된 끝음을 복구.",
+          "boundaryEvidence": "원본6.225292–7.03초에서도 주기성>0.9로 음 지속.7.09초부터 안정적인 주기음이 사라짐. 후행 소멸부까지7.1초 보존. 시작은기존0.6초 유지.",
+          "reviewStatus": "raw_waveform_and_pitch_analysis_not_performer_annotation"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-003",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 8.92,
+      "endSeconds": 16.305291666666665,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "기본음계/기본음+깊은요성/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-003",
+        "labelF0Hz": 323.738,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-003"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-004",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 18.46,
+      "endSeconds": 25.325291666666665,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "기본음계/기본음+깊은요성/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-004",
+        "labelF0Hz": 357.491,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-004"
+        ],
+        "alternatives": [
+          {
+            "register": "저취",
+            "yulmyeong": "황",
+            "hz": 372.138,
+            "distanceCents": -69.52
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "남",
+            "hz": 319.491,
+            "distanceCents": 194.56
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-005",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 27.4,
+      "endSeconds": 34.465291666666666,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "기본음계/기본음+깊은요성/004_저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-005",
+        "labelF0Hz": 386.557,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-005"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-006",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 36.54,
+      "endSeconds": 42.26529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "기본음계/기본음+깊은요성/005_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-006",
+        "labelF0Hz": 425.226,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-006"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-007",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 44.38,
+      "endSeconds": 51.12529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "기본음계/기본음+깊은요성/006_평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-007",
+        "labelF0Hz": 547.421,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-007"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-008",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 52.92,
+      "endSeconds": 59.30529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "기본음계/기본음+깊은요성/007_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-008",
+        "labelF0Hz": 633.967,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-008"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-009",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 61.3,
+      "endSeconds": 66.70529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "기본음계/기본음+깊은요성/008_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-009",
+        "labelF0Hz": 697.856,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-010",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 68.66,
+      "endSeconds": 75.78529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "기본음계/기본음+깊은요성/009_평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-010",
+        "labelF0Hz": 759.28,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-011",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 77.74,
+      "endSeconds": 86.32529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "기본음계/기본음+깊은요성/010_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-011",
+        "labelF0Hz": 851.858,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-011"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-012",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 88.3,
+      "endSeconds": 95.36529166666666,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "기본음계/기본음+깊은요성/011_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-012",
+        "labelF0Hz": 961.611,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-012"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-013",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 97.16,
+      "endSeconds": 104.46529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "기본음계/기본음+깊은요성/012_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-013",
+        "labelF0Hz": 1103.932,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-013"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-014",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 106.52,
+      "endSeconds": 112.80529166666666,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "기본음계/기본음+깊은요성/013_역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-014",
+        "labelF0Hz": 1210.934,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-014"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-015",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 114.88,
+      "endSeconds": 119.12529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "기본음계/기본음+깊은요성/014_역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-015",
+        "labelF0Hz": 1362.551,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-015"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2552.region-016",
+      "sourceId": "ngc-sanjo-2552",
+      "startSeconds": 121.4,
+      "endSeconds": 124.48529166666667,
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "register": "역취",
+      "yulmyeong": "황",
+      "displayLabel": "역취 황",
+      "file": "기본음계/기본음+깊은요성/015_역취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-016",
+        "labelF0Hz": 1533.619,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-016"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-001",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 0.38,
+      "endSeconds": 4.225291666666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "시김새/노니로/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-001",
+        "labelF0Hz": 269.704,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-001"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-002",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 8.1,
+      "endSeconds": 12.945291666666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "시김새/노니로/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-002",
+        "labelF0Hz": 325.415,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-002"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-003",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 16.78,
+      "endSeconds": 20.585291666666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "시김새/노니로/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-003",
+        "labelF0Hz": 356.494,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-003"
+        ],
+        "alternatives": [
+          {
+            "register": "저취",
+            "yulmyeong": "황",
+            "hz": 372.138,
+            "distanceCents": -74.35
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "남",
+            "hz": 319.491,
+            "distanceCents": 189.72
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-004",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 24.46,
+      "endSeconds": 28.325291666666665,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "시김새/노니로/004_저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-004",
+        "labelF0Hz": 390.173,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-004"
+        ],
+        "alternatives": [
+          {
+            "register": "저취",
+            "yulmyeong": "태",
+            "hz": 417.916,
+            "distanceCents": -118.92
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "무",
+            "hz": 345.631,
+            "distanceCents": 209.86
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-005",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 32.22,
+      "endSeconds": 35.365291666666664,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "시김새/노니로/005_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-005",
+        "labelF0Hz": 430.285,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-005"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-006",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 39.18,
+      "endSeconds": 42.605291666666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 고",
+      "file": "시김새/노니로/006_저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-006",
+        "labelF0Hz": 477.701,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-006"
+        ],
+        "alternatives": [
+          {
+            "register": "저취",
+            "yulmyeong": "중",
+            "hz": 505.216,
+            "distanceCents": -96.95
+          },
+          {
+            "register": "평취",
+            "yulmyeong": "임",
+            "hz": 533.311,
+            "distanceCents": -190.64
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-007",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 46.34,
+      "endSeconds": 49.98529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "시김새/노니로/007_저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-007",
+        "labelF0Hz": 529.801,
+        "method": "sequence_context_inference",
+        "sourceRegionIds": [
+          "region-007"
+        ],
+        "sequenceDecision": {
+          "groupIndex": 7,
+          "label": "저취 중",
+          "reason": "529.801Hz의 최근접은 평취 임이지만, 앞선 저취 6음의 기준 대비 편차가 증가하는 음렬에 이어지고 008(539.751Hz)부터 평취 음렬이 시작한다. 저취6음의 cent 편차를 순번으로 선형회귀하면 007 예상529.239Hz, 실제와1.84cent 차이. 음렬 해석의 보조 근거이며 독립 정답은 아님.",
+          "alternative": "평취 임",
+          "evidence": {
+            "observedHz": 529.801,
+            "selectedReferenceDistanceCents": 82.26,
+            "nearestAlternativeDistanceCents": -11.43
+          }
+        },
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "임",
+            "hz": 533.311,
+            "distanceCents": -11.43
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "고",
+            "hz": 461.07,
+            "distanceCents": 240.56
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-008",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 53.86,
+      "endSeconds": 58.34529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "시김새/노니로/008_평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-008",
+        "labelF0Hz": 539.751,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-008"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-009",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 62.6,
+      "endSeconds": 66.70529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "시김새/노니로/009_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-009",
+        "labelF0Hz": 631.923,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-010",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 70.98,
+      "endSeconds": 75.22529166666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "시김새/노니로/010_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-010",
+        "labelF0Hz": 688.962,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-011",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 79.18,
+      "endSeconds": 83.12529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "시김새/노니로/011_평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-011",
+        "labelF0Hz": 753.868,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-011"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-012",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 87.08,
+      "endSeconds": 90.88529166666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "시김새/노니로/012_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-012",
+        "labelF0Hz": 845.755,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-012"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-013",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 95.08,
+      "endSeconds": 98.90529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "시김새/노니로/013_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-013",
+        "labelF0Hz": 938.413,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-013"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-014",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 102.7,
+      "endSeconds": 106.30529166666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "시김새/노니로/014_평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-014",
+        "labelF0Hz": 1028.403,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-014"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-015",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 110.22,
+      "endSeconds": 114.04529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "시김새/노니로/015_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-015",
+        "labelF0Hz": 1087.897,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-015"
+        ],
+        "repeatAssessment": {
+          "kind": "separate_same_pitch_utterances",
+          "peerSourceSegmentId": "region-016",
+          "gapSeconds": 3.794708333333329,
+          "measuredF0Hz": 1087.8530292243358,
+          "pairDifferenceCents": 1.776247699310009,
+          "sourceFrames": [
+            5290560,
+            5474174
+          ],
+          "reason": "원본의 서로 다른 시각에서 같은 음높이를 낸 별도 발음. 분리·옥타브추적 오류 증거 없음."
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-016",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 117.84,
+      "endSeconds": 121.30529166666666,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "시김새/노니로/016_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-016",
+        "labelF0Hz": 1088.9,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-016"
+        ],
+        "repeatAssessment": {
+          "kind": "separate_same_pitch_utterances",
+          "peerSourceSegmentId": "region-015",
+          "gapSeconds": 3.794708333333329,
+          "measuredF0Hz": 1088.9697401909655,
+          "pairDifferenceCents": 1.776247699310009,
+          "sourceFrames": [
+            5656320,
+            5822654
+          ],
+          "reason": "원본의 서로 다른 시각에서 같은 음높이를 낸 별도 발음. 다른 운지인지 제작 의도인지는 음원만으로 확정하지 않음."
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-017",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 125.14,
+      "endSeconds": 127.96529166666667,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "시김새/노니로/017_역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-017",
+        "labelF0Hz": 1221.688,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-017"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2553.region-018",
+      "sourceId": "ngc-sanjo-2553",
+      "startSeconds": 131.7,
+      "endSeconds": 134.92529166666668,
+      "category": "시김새",
+      "technique": "노니로",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "시김새/노니로/018_역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-018",
+        "labelF0Hz": 1356.862,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-018"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-001",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 0.56,
+      "endSeconds": 4.225291666666666,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "시김새/니라/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-001",
+        "labelF0Hz": 265.186,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-001"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-002",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 8.16,
+      "endSeconds": 11.005291666666666,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "시김새/니라/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-002",
+        "labelF0Hz": 320.358,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-002"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-003",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 14.74,
+      "endSeconds": 18.425291666666666,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "시김새/니라/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-003",
+        "labelF0Hz": 351.519,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-003"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-004",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 22.08,
+      "endSeconds": 25.065291666666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "시김새/니라/004_저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-004",
+        "labelF0Hz": 380.312,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-004"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-005",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 28.66,
+      "endSeconds": 31.845291666666668,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "시김새/니라/005_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-005",
+        "labelF0Hz": 418.851,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-005"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-006",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 35.5,
+      "endSeconds": 38.66529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 고",
+      "file": "시김새/니라/006_저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-006",
+        "labelF0Hz": 464.9,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-006"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-007",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 42.26,
+      "endSeconds": 45.98529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "시김새/니라/007_저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-007",
+        "labelF0Hz": 510.961,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-007"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-008",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 49.68,
+      "endSeconds": 53.30529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "시김새/니라/008_평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-008",
+        "labelF0Hz": 534.097,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-008"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-009",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 57.0,
+      "endSeconds": 59.90529166666666,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "시김새/니라/009_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-009",
+        "labelF0Hz": 623.483,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-010",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 63.54,
+      "endSeconds": 67.06529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "시김새/니라/010_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-010",
+        "labelF0Hz": 686.978,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-011",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 70.7,
+      "endSeconds": 74.48529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "시김새/니라/011_평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-011",
+        "labelF0Hz": 734.51,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-011"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-012",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 78.18,
+      "endSeconds": 82.46529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "시김새/니라/012_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-012",
+        "labelF0Hz": 816.804,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-012"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-013",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 86.22,
+      "endSeconds": 89.94529166666666,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "시김새/니라/013_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-013",
+        "labelF0Hz": 921.423,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-013"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2554.region-014",
+      "sourceId": "ngc-sanjo-2554",
+      "startSeconds": 93.7,
+      "endSeconds": 97.60529166666667,
+      "category": "시김새",
+      "technique": "니라",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "시김새/니라/014_평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-014",
+        "labelF0Hz": 1002.252,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-014"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0001",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 0.2,
+      "endSeconds": 0.52,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "시김새/스타카토/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0001",
+        "labelF0Hz": 264.974,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0002",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 1.59,
+      "endSeconds": 1.9,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "시김새/스타카토/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0002",
+        "labelF0Hz": 313.912,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0003",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 2.96,
+      "endSeconds": 3.24,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "시김새/스타카토/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0003",
+        "labelF0Hz": 354.662,
+        "method": "measured_pitch_correspondence",
+        "alternatives": [
+          {
+            "register": "저취",
+            "yulmyeong": "황",
+            "hz": 372.138,
+            "distanceCents": -83.27
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "남",
+            "hz": 319.491,
+            "distanceCents": 180.8
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0004",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 4.25,
+      "endSeconds": 4.52,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "황",
+      "displayLabel": "저취 황",
+      "file": "시김새/스타카토/004_저취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0004",
+        "labelF0Hz": 382.988,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0005",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 5.57,
+      "endSeconds": 5.78,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "시김새/스타카토/005_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0005",
+        "labelF0Hz": 417.425,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0006",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 6.78,
+      "endSeconds": 7.04,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 고",
+      "file": "시김새/스타카토/006_저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0006",
+        "labelF0Hz": 468.793,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0007",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 8.04,
+      "endSeconds": 8.37,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "시김새/스타카토/007_저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0007",
+        "labelF0Hz": 516.653,
+        "method": "measured_pitch_correspondence",
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "임",
+            "hz": 533.311,
+            "distanceCents": -54.94
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "고",
+            "hz": 461.07,
+            "distanceCents": 197.05
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0008",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 9.47,
+      "endSeconds": 9.74,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "시김새/스타카토/008_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0008",
+        "labelF0Hz": 628.089,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0009",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 10.74,
+      "endSeconds": 11.02,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "시김새/스타카토/009_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0009",
+        "labelF0Hz": 692.482,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0010",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 12.01,
+      "endSeconds": 12.27,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "황",
+      "displayLabel": "평취 황",
+      "file": "시김새/스타카토/010_평취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0010",
+        "labelF0Hz": 749.221,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0011",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 13.28,
+      "endSeconds": 13.57,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "시김새/스타카토/011_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0011",
+        "labelF0Hz": 838.9,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0012",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 14.63,
+      "endSeconds": 14.91,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "시김새/스타카토/012_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0012",
+        "labelF0Hz": 941.418,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0013",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 15.93,
+      "endSeconds": 16.25,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "시김새/스타카토/013_평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0013",
+        "labelF0Hz": 1050.862,
+        "method": "sequence_context_inference",
+        "sequenceDecision": {
+          "groupIndex": 14,
+          "label": "평취 중",
+          "reason": "1050.862Hz는 역취 임에 조금 더 가깝지만, 007저취 중(516.653Hz)과1229.17cent 옥타브 대응이며 012고→013→014임의 순서가 중 해석을 지지한다. 014는1083.897Hz로 독립된 안정음이다.",
+          "alternative": "역취 임",
+          "evidence": {
+            "observedHz": 1050.862,
+            "selectedReferenceDistanceCents": 48.82,
+            "nearestAlternativeDistanceCents": -39.18
+          }
+        },
+        "alternatives": [
+          {
+            "register": "역취",
+            "yulmyeong": "임",
+            "hz": 1074.916,
+            "distanceCents": -39.18
+          },
+          {
+            "register": "평취",
+            "yulmyeong": "고",
+            "hz": 936.797,
+            "distanceCents": 198.92
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0014",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 17.27,
+      "endSeconds": 17.57,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "시김새/스타카토/014_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0014",
+        "labelF0Hz": 1083.897,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0015",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 18.56,
+      "endSeconds": 18.87,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "시김새/스타카토/015_역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0015",
+        "labelF0Hz": 1206.944,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0016",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 19.89,
+      "endSeconds": 20.17,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "시김새/스타카토/016_역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0016",
+        "labelF0Hz": 1355.98,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2555.attack-0017",
+      "sourceId": "ngc-sanjo-2555",
+      "startSeconds": 21.16,
+      "endSeconds": 21.5,
+      "category": "시김새",
+      "technique": "스타카토",
+      "register": "역취",
+      "yulmyeong": "황",
+      "displayLabel": "역취 황",
+      "file": "시김새/스타카토/017_역취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "attack-0017",
+        "labelF0Hz": 1565.101,
+        "method": "measured_pitch_correspondence"
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-001",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 0.7,
+      "endSeconds": 4.705291666666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 임",
+      "file": "시김새/크레센도/001_저취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-001",
+        "labelF0Hz": 264.086,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-001"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-002",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 6.56,
+      "endSeconds": 11.385291666666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 남",
+      "file": "시김새/크레센도/002_저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-002",
+        "labelF0Hz": 317.53,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-002"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-003",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 13.68,
+      "endSeconds": 17.865291666666668,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "무",
+      "displayLabel": "저취 무",
+      "file": "시김새/크레센도/003_저취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-003",
+        "labelF0Hz": 351.261,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-003"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-004",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 21.06,
+      "endSeconds": 24.745291666666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 태",
+      "file": "시김새/크레센도/004_저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-004",
+        "labelF0Hz": 418.184,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-004"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-005",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 27.72,
+      "endSeconds": 31.425291666666666,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 고",
+      "file": "시김새/크레센도/005_저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-005",
+        "labelF0Hz": 465.35,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-005"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-006",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 35.2,
+      "endSeconds": 39.105291666666666,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "저취",
+      "yulmyeong": "중",
+      "displayLabel": "저취 중",
+      "file": "시김새/크레센도/006_저취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-006",
+        "labelF0Hz": 514.156,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-006"
+        ],
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "임",
+            "hz": 533.311,
+            "distanceCents": -63.33
+          },
+          {
+            "register": "저취",
+            "yulmyeong": "고",
+            "hz": 461.07,
+            "distanceCents": 188.66
+          }
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-007",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 42.58,
+      "endSeconds": 46.48529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "평취 임",
+      "file": "시김새/크레센도/007_평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-007",
+        "labelF0Hz": 534.106,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-007"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-008",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 49.78,
+      "endSeconds": 53.66529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 남",
+      "file": "시김새/크레센도/008_평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-008",
+        "labelF0Hz": 621.2,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-008"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-009",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 56.7,
+      "endSeconds": 61.06529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "무",
+      "displayLabel": "평취 무",
+      "file": "시김새/크레센도/009_평취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-009",
+        "labelF0Hz": 691.063,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-010",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 65.06,
+      "endSeconds": 68.30529166666666,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 태",
+      "file": "시김새/크레센도/010_평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-010",
+        "labelF0Hz": 829.506,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-011",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 71.58,
+      "endSeconds": 75.30529166666666,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 고",
+      "file": "시김새/크레센도/011_평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-011",
+        "labelF0Hz": 921.919,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-011"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-012",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 78.76,
+      "endSeconds": 82.14529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "평취",
+      "yulmyeong": "중",
+      "displayLabel": "평취 중",
+      "file": "시김새/크레센도/012_평취_중.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-012",
+        "labelF0Hz": 1033.116,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-012"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-013",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 84.32,
+      "endSeconds": 87.48529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "역취",
+      "yulmyeong": "임",
+      "displayLabel": "역취 임",
+      "file": "시김새/크레센도/013_역취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-013",
+        "labelF0Hz": 1083.557,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-013"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-014",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 90.52,
+      "endSeconds": 94.18529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "역취",
+      "yulmyeong": "남",
+      "displayLabel": "역취 남",
+      "file": "시김새/크레센도/014_역취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-014",
+        "labelF0Hz": 1225.02,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-014"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-015",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 97.56,
+      "endSeconds": 101.08529166666666,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 무",
+      "file": "시김새/크레센도/015_역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-015",
+        "labelF0Hz": 1342.415,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-015"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2564.region-016",
+      "sourceId": "ngc-sanjo-2564",
+      "startSeconds": 104.48,
+      "endSeconds": 107.60529166666667,
+      "category": "시김새",
+      "technique": "크레센도",
+      "register": "역취",
+      "yulmyeong": "황",
+      "displayLabel": "역취 황",
+      "file": "시김새/크레센도/016_역취_황.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-016",
+        "labelF0Hz": 1521.43,
+        "method": "measured_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-016"
+        ]
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-001",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 0.08,
+      "endSeconds": 0.6452916666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "저취",
+      "yulmyeong": "남",
+      "displayLabel": "저취 임→저취 남",
+      "file": "시김새/다루치기/001_저취_임-저취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-001",
+        "labelF0Hz": 319.2,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-001"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "저취",
+          "yulmyeong": "임",
+          "f0Hz": 263.069,
+          "windowsSeconds": [
+            [
+              0.36,
+              0.41
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "남",
+              "hz": 319.491,
+              "distanceCents": -336.4
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "무",
+              "hz": 345.631,
+              "distanceCents": -472.55
+            }
+          ]
+        },
+        "destination": {
+          "register": "저취",
+          "yulmyeong": "남",
+          "f0Hz": 319.2,
+          "windowsSeconds": [
+            [
+              0.2,
+              0.33
+            ],
+            [
+              0.44,
+              0.61
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "무",
+              "hz": 345.631,
+              "distanceCents": -137.73
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": -265.65
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              0.36,
+              0.41
+            ]
+          ],
+          "destinationWindows": [
+            [
+              0.2,
+              0.33
+            ],
+            [
+              0.44,
+              0.61
+            ]
+          ],
+          "lowerAnchorScope": "second_repetition",
+          "expectedAcceptedFrames": [
+            4,
+            31
+          ]
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-002",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 1.08,
+      "endSeconds": 1.7252916666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 남→저취 태",
+      "file": "시김새/다루치기/002_저취_남-저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-002",
+        "labelF0Hz": 402.435,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-002"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "저취",
+          "yulmyeong": "남",
+          "f0Hz": 320.554,
+          "windowsSeconds": [
+            [
+              1.14,
+              1.22
+            ],
+            [
+              1.42,
+              1.47
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "무",
+              "hz": 345.631,
+              "distanceCents": -130.4
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": -258.32
+            }
+          ]
+        },
+        "destination": {
+          "register": "저취",
+          "yulmyeong": "태",
+          "f0Hz": 402.435,
+          "windowsSeconds": [
+            [
+              1.3,
+              1.39
+            ],
+            [
+              1.56,
+              1.7
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": 135.5
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "고",
+              "hz": 461.07,
+              "distanceCents": -235.48
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              1.14,
+              1.22
+            ],
+            [
+              1.42,
+              1.47
+            ]
+          ],
+          "destinationWindows": [
+            [
+              1.3,
+              1.39
+            ],
+            [
+              1.56,
+              1.7
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            14,
+            24
+          ],
+          "intendedLabelAlternative": "저취 남→황; 황을 상향 변형했다는 주법 해석 필요"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-003",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 2.1,
+      "endSeconds": 2.7252916666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "저취",
+      "yulmyeong": "태",
+      "displayLabel": "저취 남→저취 태",
+      "file": "시김새/다루치기/003_저취_남-저취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-003",
+        "labelF0Hz": 401.956,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-003"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "저취",
+          "yulmyeong": "남",
+          "f0Hz": 316.724,
+          "windowsSeconds": [
+            [
+              2.16,
+              2.22
+            ],
+            [
+              2.42,
+              2.47
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "무",
+              "hz": 345.631,
+              "distanceCents": -151.21
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": -279.13
+            }
+          ]
+        },
+        "destination": {
+          "register": "저취",
+          "yulmyeong": "태",
+          "f0Hz": 401.956,
+          "windowsSeconds": [
+            [
+              2.32,
+              2.39
+            ],
+            [
+              2.58,
+              2.71
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": 133.44
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "고",
+              "hz": 461.07,
+              "distanceCents": -237.54
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              2.16,
+              2.22
+            ],
+            [
+              2.42,
+              2.47
+            ]
+          ],
+          "destinationWindows": [
+            [
+              2.32,
+              2.39
+            ],
+            [
+              2.58,
+              2.71
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            12,
+            22
+          ],
+          "intendedLabelAlternative": "저취 남→황; 002·007과 같은 윤곽"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-004",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 3.12,
+      "endSeconds": 3.7452916666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "저취",
+      "yulmyeong": "고",
+      "displayLabel": "저취 남→저취 고",
+      "file": "시김새/다루치기/004_저취_남-저취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-004",
+        "labelF0Hz": 445.333,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-004"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "저취",
+          "yulmyeong": "남",
+          "f0Hz": 314.524,
+          "windowsSeconds": [
+            [
+              3.46,
+              3.51
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "무",
+              "hz": 345.631,
+              "distanceCents": -163.28
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "임",
+              "hz": 267.276,
+              "distanceCents": 281.81
+            }
+          ]
+        },
+        "destination": {
+          "register": "저취",
+          "yulmyeong": "고",
+          "f0Hz": 445.333,
+          "windowsSeconds": [
+            [
+              3.34,
+              3.39
+            ],
+            [
+              3.62,
+              3.72
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "태",
+              "hz": 417.916,
+              "distanceCents": 110.01
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "중",
+              "hz": 505.216,
+              "distanceCents": -218.42
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              3.46,
+              3.51
+            ]
+          ],
+          "destinationWindows": [
+            [
+              3.34,
+              3.39
+            ],
+            [
+              3.62,
+              3.72
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            5,
+            17
+          ],
+          "lowerAnchorScope": "second_repetition_only",
+          "rejectedWindow": [
+            3.14,
+            3.28
+          ],
+          "reason": "첫 아래음 약300/600Hz 추정이 혼재하고 약600Hz 스펙트럼이 우세. 1/2 옥타브 보정 없이 제외. 두번째 아래음만 대응.",
+          "intendedLabelAlternative": "저취 남→태; 태를 상향 변형했다는 주법 해석 필요"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-005",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 4.18,
+      "endSeconds": 4.845291666666666,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "평취",
+      "yulmyeong": "임",
+      "displayLabel": "저취 태→평취 임",
+      "file": "시김새/다루치기/005_저취_태-평취_임.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-005",
+        "labelF0Hz": 561.438,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-005"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "저취",
+          "yulmyeong": "태",
+          "f0Hz": 401.08,
+          "windowsSeconds": [
+            [
+              4.22,
+              4.28
+            ],
+            [
+              4.52,
+              4.57
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "황",
+              "hz": 372.138,
+              "distanceCents": 129.66
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "고",
+              "hz": 461.07,
+              "distanceCents": -241.31
+            }
+          ]
+        },
+        "destination": {
+          "register": "평취",
+          "yulmyeong": "임",
+          "f0Hz": 561.438,
+          "windowsSeconds": [
+            [
+              4.36,
+              4.46
+            ],
+            [
+              4.7,
+              4.82
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "중",
+              "hz": 505.216,
+              "distanceCents": 182.67
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "남",
+              "hz": 625.57,
+              "distanceCents": -187.25
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              4.22,
+              4.28
+            ],
+            [
+              4.52,
+              4.57
+            ]
+          ],
+          "destinationWindows": [
+            [
+              4.36,
+              4.46
+            ],
+            [
+              4.7,
+              4.82
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            13,
+            24
+          ],
+          "intendedLabelAlternative": "저취 황→평취 임; 아래음 황의 상향 변형 가정 필요"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-006",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 5.24,
+      "endSeconds": 5.805291666666666,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "평취",
+      "yulmyeong": "남",
+      "displayLabel": "평취 임→평취 남",
+      "file": "시김새/다루치기/006_평취_임-평취_남.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-006",
+        "labelF0Hz": 651.873,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-006"
+        ],
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "무",
+            "hz": 686.686,
+            "distanceCents": -90.07
+          },
+          {
+            "register": "평취",
+            "yulmyeong": "황",
+            "hz": 742.623,
+            "distanceCents": -225.65
+          }
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "평취",
+          "yulmyeong": "임",
+          "f0Hz": 527.041,
+          "windowsSeconds": [
+            [
+              5.29,
+              5.32
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "저취",
+              "yulmyeong": "중",
+              "hz": 505.216,
+              "distanceCents": 73.22
+            },
+            {
+              "register": "저취",
+              "yulmyeong": "고",
+              "hz": 461.07,
+              "distanceCents": 231.52
+            }
+          ]
+        },
+        "destination": {
+          "register": "평취",
+          "yulmyeong": "남",
+          "f0Hz": 651.873,
+          "windowsSeconds": [
+            [
+              5.38,
+              5.49
+            ],
+            [
+              5.64,
+              5.78
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "무",
+              "hz": 686.686,
+              "distanceCents": -90.07
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "황",
+              "hz": 742.623,
+              "distanceCents": -225.65
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              5.29,
+              5.32
+            ]
+          ],
+          "destinationWindows": [
+            [
+              5.38,
+              5.49
+            ],
+            [
+              5.64,
+              5.78
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            4,
+            27
+          ],
+          "reason": "도착음은 남/무 경계에 가까움. 직접 대응 남과 대안 무를 함께 보존."
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-007",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 6.24,
+      "endSeconds": 6.865291666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "평취",
+      "yulmyeong": "태",
+      "displayLabel": "평취 남→평취 태",
+      "file": "시김새/다루치기/007_평취_남-평취_태.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-007",
+        "labelF0Hz": 795.351,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-007"
+        ],
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "황",
+            "hz": 742.623,
+            "distanceCents": 118.75
+          },
+          {
+            "register": "평취",
+            "yulmyeong": "무",
+            "hz": 686.686,
+            "distanceCents": 254.33
+          }
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "평취",
+          "yulmyeong": "남",
+          "f0Hz": 622.636,
+          "windowsSeconds": [
+            [
+              6.3,
+              6.36
+            ],
+            [
+              6.54,
+              6.6
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "무",
+              "hz": 686.686,
+              "distanceCents": -169.51
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "임",
+              "hz": 533.311,
+              "distanceCents": 268.09
+            }
+          ]
+        },
+        "destination": {
+          "register": "평취",
+          "yulmyeong": "태",
+          "f0Hz": 795.351,
+          "windowsSeconds": [
+            [
+              6.42,
+              6.5
+            ],
+            [
+              6.7,
+              6.84
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "황",
+              "hz": 742.623,
+              "distanceCents": 118.75
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "무",
+              "hz": 686.686,
+              "distanceCents": 254.33
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              6.3,
+              6.36
+            ],
+            [
+              6.54,
+              6.6
+            ]
+          ],
+          "destinationWindows": [
+            [
+              6.42,
+              6.5
+            ],
+            [
+              6.7,
+              6.84
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            13,
+            24
+          ],
+          "intendedLabelAlternative": "평취 남→황; 002·003의 약2배 음고 윤곽"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-008",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 7.24,
+      "endSeconds": 7.905291666666667,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "평취",
+      "yulmyeong": "고",
+      "displayLabel": "평취 남→평취 고",
+      "file": "시김새/다루치기/008_평취_남-평취_고.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-008",
+        "labelF0Hz": 886.181,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-008"
+        ],
+        "alternatives": [
+          {
+            "register": "평취",
+            "yulmyeong": "태",
+            "hz": 833.737,
+            "distanceCents": 105.61
+          },
+          {
+            "register": "평취",
+            "yulmyeong": "중",
+            "hz": 1021.643,
+            "distanceCents": -246.26
+          }
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "평취",
+          "yulmyeong": "남",
+          "f0Hz": 615.044,
+          "windowsSeconds": [
+            [
+              7.32,
+              7.36
+            ],
+            [
+              7.56,
+              7.62
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "무",
+              "hz": 686.686,
+              "distanceCents": -190.75
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "임",
+              "hz": 533.311,
+              "distanceCents": 246.86
+            }
+          ]
+        },
+        "destination": {
+          "register": "평취",
+          "yulmyeong": "고",
+          "f0Hz": 886.181,
+          "windowsSeconds": [
+            [
+              7.42,
+              7.5
+            ],
+            [
+              7.74,
+              7.88
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "태",
+              "hz": 833.737,
+              "distanceCents": 105.61
+            },
+            {
+              "register": "평취",
+              "yulmyeong": "중",
+              "hz": 1021.643,
+              "distanceCents": -246.26
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              7.32,
+              7.36
+            ],
+            [
+              7.56,
+              7.62
+            ]
+          ],
+          "destinationWindows": [
+            [
+              7.42,
+              7.5
+            ],
+            [
+              7.74,
+              7.88
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            12,
+            23
+          ],
+          "reason": "도착음이 태/고 경계에 가까움. 직접 대응 고와 대안 태를 함께 보존.",
+          "intendedLabelAlternative": "평취 남→태; 004의 약2배 음고 윤곽"
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-009",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 8.42,
+      "endSeconds": 8.925291666666666,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 임→역취 무",
+      "file": "시김새/다루치기/009_역취_임-역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-009",
+        "labelF0Hz": 1334.641,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-009"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "역취",
+          "yulmyeong": "임",
+          "f0Hz": 1085.69,
+          "windowsSeconds": [
+            [
+              8.5,
+              8.56
+            ],
+            [
+              8.67,
+              8.71
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "중",
+              "hz": 1021.643,
+              "distanceCents": 105.27
+            },
+            {
+              "register": "역취",
+              "yulmyeong": "남",
+              "hz": 1206.344,
+              "distanceCents": -182.43
+            }
+          ]
+        },
+        "destination": {
+          "register": "역취",
+          "yulmyeong": "무",
+          "f0Hz": 1334.641,
+          "windowsSeconds": [
+            [
+              8.6,
+              8.64
+            ],
+            [
+              8.76,
+              8.82
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "역취",
+              "yulmyeong": "남",
+              "hz": 1206.344,
+              "distanceCents": 174.97
+            },
+            {
+              "register": "역취",
+              "yulmyeong": "황",
+              "hz": 1527.104,
+              "distanceCents": -233.22
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              8.5,
+              8.56
+            ],
+            [
+              8.67,
+              8.71
+            ]
+          ],
+          "destinationWindows": [
+            [
+              8.6,
+              8.64
+            ],
+            [
+              8.76,
+              8.82
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            11,
+            10
+          ],
+          "reason": "후반약345Hz 추적은 선택된 안정창에서 제외. 고음1340Hz대와 함께 나타나는 부분음 혼재를 저취 무로 해석하지 않음."
+        }
+      }
+    },
+    {
+      "id": "ngc-sanjo-2566.region-010",
+      "sourceId": "ngc-sanjo-2566",
+      "startSeconds": 9.38,
+      "endSeconds": 9.925291666666666,
+      "category": "시김새",
+      "technique": "다루치기",
+      "register": "역취",
+      "yulmyeong": "무",
+      "displayLabel": "역취 임→역취 무",
+      "file": "시김새/다루치기/010_역취_임-역취_무.wav",
+      "labelStatus": "inferred",
+      "eligibleForNoteScoring": false,
+      "actualFingeringStatus": "unconfirmed",
+      "evidence": {
+        "sourceSegmentId": "region-010",
+        "labelF0Hz": 1353.981,
+        "method": "ornament_anchor_pitch_correspondence",
+        "sourceRegionIds": [
+          "region-010"
+        ]
+      },
+      "gesture": {
+        "lowerAnchor": {
+          "register": "역취",
+          "yulmyeong": "임",
+          "f0Hz": 1082.089,
+          "windowsSeconds": [
+            [
+              9.44,
+              9.46
+            ],
+            [
+              9.63,
+              9.68
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "중",
+              "hz": 1021.643,
+              "distanceCents": 99.51
+            },
+            {
+              "register": "역취",
+              "yulmyeong": "남",
+              "hz": 1206.344,
+              "distanceCents": -188.19
+            }
+          ]
+        },
+        "destination": {
+          "register": "역취",
+          "yulmyeong": "무",
+          "f0Hz": 1353.981,
+          "windowsSeconds": [
+            [
+              9.5,
+              9.6
+            ],
+            [
+              9.72,
+              9.88
+            ]
+          ],
+          "alternatives": [
+            {
+              "register": "역취",
+              "yulmyeong": "남",
+              "hz": 1206.344,
+              "distanceCents": 199.88
+            },
+            {
+              "register": "역취",
+              "yulmyeong": "황",
+              "hz": 1527.104,
+              "distanceCents": -208.31
+            }
+          ]
+        },
+        "repeatedRises": 2,
+        "labelMeaning": "register/yulmyeong은 도착 안정음. displayLabel은 아래 안정음→도착 안정음.",
+        "interpretation": "measured pitch correspondence; the performed/intended yulmyeong is not a producer annotation",
+        "review": {
+          "startWindows": [
+            [
+              9.44,
+              9.46
+            ],
+            [
+              9.63,
+              9.68
+            ]
+          ],
+          "destinationWindows": [
+            [
+              9.5,
+              9.6
+            ],
+            [
+              9.72,
+              9.88
+            ]
+          ],
+          "expectedAcceptedFrames": [
+            8,
+            27
+          ]
+        }
+      }
+    }
+  ]
+}

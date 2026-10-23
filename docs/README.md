@@ -34,7 +34,7 @@
 
 ## 데이터 조사·검증 기록
 
-- [산조대금 기본음계·시김새·태평가 자료](knowledge/data/instruments/daegeum/sanjo/README.md)
+- [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 
 ## AI 실험 기록
 
