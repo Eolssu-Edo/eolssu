@@ -87,6 +87,43 @@ ssh -L 3000:127.0.0.1:3000 -L 3001:127.0.0.1:3001 edo1
 
 Grafana는 **Save & test**에서 `Database Connection OK`가 나오면 연결된 것입니다.
 
+## 4. 대시보드
+
+작업: [S15P31E102-102](https://ssafy.atlassian.net/browse/S15P31E102-102). 시각은 DB에 UTC로 저장되고 두 도구가 브라우저 시각으로 바꿔 보여 줍니다.
+
+### Grafana: 운영 현황과 최근 행
+
+[dashboards/eolssu-overview.json](dashboards/eolssu-overview.json)을 가져옵니다. 10초마다 새로고침합니다.
+
+1. Grafana에서 Dashboards → New → Import를 엽니다.
+2. JSON 파일을 올리고, `eolssu MySQL` 칸에서 3단계에서 만든 MySQL 데이터 소스를 고릅니다.
+3. Import를 누릅니다. 같은 uid(`eolssu-overview`)로 다시 가져오면 덮어씁니다.
+
+| 패널 | 내용 |
+| --- | --- |
+| 현황 | 가입자 수(탈퇴 제외), 선택 기간의 연습 세션·채점 결과 수, 최근 연습 시작 시각 |
+| 일별 막대 | 일별 가입·연습·채점 수. 하루는 UTC 기준이라 한국 시각 오전 9시에 나뉩니다 |
+| 최근 행 | practice_sessions·evaluations·note_results·users의 최근 20행. users는 이메일·닉네임·비밀번호 해시를 뺍니다 |
+
+화면에서 고친 대시보드는 Share → Export → Save to file로 내려받아 이 파일을 바꿔 커밋합니다. 데이터가 없으면 숫자는 0, 표는 `No data`로 보입니다.
+
+### Metabase: 테이블 보기와 곡별 통계
+
+- **테이블 보기**: 왼쪽 메뉴 데이터 둘러보기 → eolssu → 테이블을 엽니다. 열 때마다 DB를 새로 읽습니다. 새 테이블은 스키마 동기화(기본 1시간) 뒤에 보이며, 관리자 설정 → 데이터베이스 → eolssu → 지금 스키마 동기화로 바로 반영합니다.
+- **곡별·악기별 연습**: 새로 만들기 → SQL 쿼리에서 아래를 저장하고, 새 대시보드 `얼쑤 연습 통계`에 넣습니다. 대시보드 자동 새로고침은 최소 1분입니다.
+
+```sql
+SELECT i.name AS 악기, s.title AS 곡, COUNT(ps.id) AS 연습_횟수, ROUND(AVG(e.total_score), 1) AS 평균_점수
+FROM practice_sessions ps
+JOIN songs s ON s.id = ps.song_id
+JOIN instruments i ON i.id = s.instrument_id
+LEFT JOIN evaluations e ON e.session_id = ps.id
+GROUP BY i.name, s.title
+ORDER BY 연습_횟수 DESC
+```
+
+Metabase 대시보드는 MySQL `metabase` DB에 저장되므로 저장소에 파일이 없습니다. 위 SQL이 기준입니다.
+
 ## 문제 해결
 
 | 증상 | 원인 |
@@ -99,4 +136,4 @@ Grafana는 **Save & test**에서 `Database Connection OK`가 나오면 연결된
 ## 끄기와 데이터
 
 - 끄기: `docker compose down`. Grafana 설정은 `grafana-data` 볼륨, Metabase 설정은 MySQL `metabase` DB에 남습니다.
-- 대시보드, 일 배치, 외부 공개 주소·TLS, 알림은 아직 없습니다.
+- 일 배치와 집계 DB, 외부 공개 주소·TLS, 알림은 아직 없습니다.
