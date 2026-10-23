@@ -95,3 +95,23 @@ python data/src/audio/export_dataset.py --dataset data/catalog/sogeum --performa
 전체 146개와 조건 선택 황·두 번째 노니로 임·보완한 요성 꼬리·도드리·평취 임 노니로 2개 선택까지 5건을 확인했다. 원본 15개 SHA/형식/길이, 출력 146개 SHA/프레임 수, 구간 범위·중복·겹침·경로 충돌, 선택/전체 값·파일 바이트, 도드리 원본 바이트 모두 일치했다. Windows 디렉터리 rename 접근 거부가 선택 황·도드리에서 각 1회 있었으며, 완성 출력이 없는 것을 확인한 뒤 해당 단계만 다시 실행해 성공했다. 이번 최종 재생성은 접근 거부 없이 성공했다. 소금 브랜치의 공통 exporter 변경은 없다. `orderedAnchors` 검증은 단소 작업의 exporter SHA-256 `28d5bec57bc65cde0b37aec46ad8d94e56c3ed60e86a318092893d6969efd0cf`를 외부 경로에서 읽어 수행했으며, 해당 공통 코드 변경은 단소 MR에서 관리한다. 이전 결과와 146행의 ID·구간·취법·율명·F0, 출력 경로·WAV 바이트가 같고 12개 안정창 표현과 방법 해시만 바뀌었음을 대조했다.
 
 측정·감사 기록은 같은 연구 폴더의 `analysis-<ID>.json`, `frames-<ID>.npz`, `label-summary.json`, `missing-tone-audit.json`, `boundary-audit-final.json`, `validation.json`, `validation-ordered-anchors.json`이다. 최종 검증 코드는 `verify_ordered_anchors.py`, 변경 전 비교본은 `before-ordered-anchors.json`에 보존했다. 상위 작업의 기존 공통 테스트 39개와 단소 작업의 선택창 검증 추가 후 43개 통과 보고를 확인했고, 이 작업은 실제 소금 입력 검증을 추가했다. 독립 연주자에 의한 율명·취법 검수와 도드리 대응 악보 확보는 남아 있다.
+
+## 출처 공통 항목 축약
+
+단소 MR !30에서 병합된 공통 출처 로더를 `a981ef24`에서 가져와 통합 커밋 `487379dd`로 반영했다. 이어 소금 sources 입력만 v3로 바꿨다. 원음 15개의 값이 모두 같은 `channels`, `kind`, `sourceUrl`, `publisher`, `license`, `verifiedOn`, `redistribution`을 `ngc-sogeum-audio` 프로필에 한 번 기록한다. 원본별 `downloadUrl`·`attribution`과 ID·제목·경로·해시·크기·샘플레이트·길이는 개별 항목에 그대로 둔다. 새로운 출처 값이나 측정값을 추가하지 않았다.
+
+파일을 UTF-8·LF로 통일해 도구로 세면 축약 전 **397줄·16,986 bytes**, 후 **220줄·11,117 bytes**다. 공통 로더가 펼친 15개 원본 객체와 최상위 메타데이터는 입력 `schemaVersion`을 제외하면 이전 v2와 정확히 같다. annotations 14파일과 performances는 바이트 단위로 그대로다.
+
+통합 후 공통 회귀 테스트 51개가 통과했다(5.596초). 같은 로더·exporter로 기존 v2 전체와 v3 전체를 실제 CLI로 다시 생성했다. 기본음계·시김새 146개와 도드리 원음 1개, 총 **147개 파일의 경로와 바이트가 모두 같다**. 결과 catalog도 `manifestHashes["catalog/sogeum/sources.json"]`만 달라졌고 나머지 모든 값은 같았다. 기본음 강·평취 황(`ngc-sogeum-2654.group-004`) 선택 1개도 전체 출력의 라벨·파일 바이트와 같았다. 원본 검증 CLI는 크기·SHA-256 **15/15 일치**로 끝났다.
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sogeum --output-dir data/processed/instruments/sogeum/source-profiles-after-v3
+python data/src/audio/export_dataset.py --dataset data/catalog/sogeum --output-dir data/processed/instruments/sogeum/source-profiles-selected-v3 --technique '기본음 강' --register 평취 --yulmyeong 황
+python data/src/catalog/verify_sources.py --dataset sogeum
+```
+
+검증 당시 CLI 실행의 도구 경과 시간은 기존 v2 전체 2.310초, v3 전체 2.195초, 선택 0.506초, 원본 대조 0.354초였다. 기존 v2 전체의 첫 두 시도는 Windows 폴더 rename 접근 거부로 실패했고 완성 출력이 없음을 확인했다. 같은 경로에서 CLI를 직접 실행한 세 번째 시도와 이후 작업은 성공했다. 잠금 원인은 확인하지 않았으며 코드·원본을 바꾸지 않았다. 성공 출력의 가장 긴 절대 파일 경로는 140자다.
+
+산조대금·AI-Hub 71470·AI-Hub 71955·수집 악보의 기존 v2 목록 4개도 같은 로더로 읽은 객체가 원문 JSON과 같았다. 이 목록들은 변환하지 않았다. 입력 버전별 형식과 우선 적용 규칙은 [공통 README](../../../data/README.md#json-형식과-악기-추가)를 따른다.
+
+변경 전 원문과 검증 결과는 Git 제외 경로 `data/processed/instruments/sogeum/research-v1/source-profiles-v1/`의 `sources-before-v2.json`, `unchanged-input-hashes.json`, `validation.json`, CLI 실행 기록에 보존했다. `compact_sources.py`가 변환·동등성 검증 코드다. 실제 전후 출력은 `data/processed/instruments/sogeum/source-profiles-before-v2/`·`source-profiles-after-v3/`에 있다. 기존 율명 가설과 검수 범위는 이번 출처 축약으로 달라지지 않는다.
