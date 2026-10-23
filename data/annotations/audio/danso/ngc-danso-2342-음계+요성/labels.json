@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "danso",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-danso-2342": "677b43f9d9519f7860be41f57bd4af277b51b9d213616f9a5a9c362a7d577cc4"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-danso-2342",
+      "category": "기본음계",
+      "technique": "음계+요성",
+      "method": "tool:prepare_danso_assets@ac0e383e5335",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-danso-2342.tone-001",0.44,5.77533,"평취","중",416.832],
+        ["ngc-danso-2342.tone-002",6.18,11.58533,"평취","임",469.121],
+        ["ngc-danso-2342.tone-003",11.93,17.38533,"평취","무",555.41],
+        ["ngc-danso-2342.tone-004",17.69,22.35533,"평취","황",624.39],
+        ["ngc-danso-2342.tone-005",22.69,28.01533,"평취","태",695.044],
+        ["ngc-danso-2342.tone-006",28.35,34.57533,"역취","중",827.313],
+        ["ngc-danso-2342.tone-007",34.89,41.36533,"역취","임",930.524],
+        ["ngc-danso-2342.tone-008",41.73,47.83533,"역취","무",1085.391],
+        ["ngc-danso-2342.tone-009",48.16,54.05533,"역취","황",1231.624],
+        ["ngc-danso-2342.tone-010",54.44,60.08533,"역취","태",1379.768]
+      ],
+      "analysisBasis": "공식 황종=E♭ 메타데이터, 원음의 평취/역취 제목, e국악 발음법의 중임무황태 5음 및 옥타브 대응을 함께 대조. https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-3/index.htm 원본 rate YIN 4096 samples/10ms hop, periodicity≥0.85, 양끝0.2초 제외한 중앙 F0. 선택창 중심 Hann FFT의 F0 주변 피크와 대조. 음계+요성은 평취5음 뒤 역취5음. 12평균율 최근접 확정이나 음고 보정 없음. 상세 측정은 ignored research-v1/prepared-evidence.json."
+    }
+  ]
+}
