@@ -82,6 +82,19 @@ python data/src/audio/export_dataset.py --dataset data/catalog/jeongak-daegeum -
 - 실제 전체 추출: 107개 PCM16 WAV, 원본 타령 WAV 1개, 원본 PDF 2개, `catalog.json` 생성.
 - 전체 6원음의 유효 피치 프레임 35,875개가 모두 라벨 구간 안에 있었다. 시작·끝의 원음 프레임 범위, 원본별 구간 비중복, ID·출력 경로 충돌을 확인했다. 이는 검출한 피치의 누락 검사이며 음악적 정답 검수와 구분한다.
 - 실제 기본음 저취 임 선택 및 스타카토 역취 황 선택, 타령 연주 선택을 확인했다. 선택 결과와 전체 결과의 동일 구간 해시, 연주·악보 원본 복사 해시를 대조했다.
-- 공통 exporter의 39개 회귀 검사는 같은 기준 코드에서 상위 작업 담당자가 실행해 통과했다. 이 작업에서는 공통 exporter·schema·tests를 수정하지 않았다.
+- 최초 라벨 작업에서는 같은 기준 코드의 공통 exporter 39개 회귀 검사를 상위 작업 담당자가 실행해 통과했다. 라벨을 준비하면서 공통 exporter·schema·tests를 수정하지 않았다.
+
+## 출처 목록 축약과 v2 호환 검증
+
+공통 로더가 포함된 develop `a981ef2`를 통합한 `e01f271`에서 `sources.json`만 입력 schema v3로 바꿨다. 음원 7개에서 값이 모두 같은 `kind`, `channels`, `sourceUrl`, `publisher`, `license`, `verifiedOn`, `redistribution`을 `ngc-jeongak-audio` 프로필 한 개로 묶었다. ID·제목·SHA-256·크기·샘플레이트·길이·개별 다운로드 주소·출처 표시·수집 경위·원본 및 라벨 경로는 각 원본에 남겼다. 공공누리4 조건의 PDF 2개는 프로필 없이 기존 개별 객체를 그대로 유지했다. 프로필 규칙과 v2·v3 읽기 방법은 [공통 JSON 안내](../../../data/README.md#json-형식과-악기-추가)를 따른다.
+
+UTF-8·LF 개행으로 맞춰 비교하면 **248줄·13,236바이트 → 175줄·10,783바이트**다. 단순 줄바꿈 차이를 절감량에 넣지 않았다. `load_source_catalog`로 펼친 원본 9개의 전체 객체와 목록의 나머지 내용은 입력 `schemaVersion`을 제외하고 v2와 정확히 같다. 라벨·F0·샘플레이트를 다시 분석하거나 바꾸지 않았다.
+
+검증 자료는 Git 제외 경로 `data/processed/instruments/daegeum/jeongak/source-profiles-v1/`에 있다. 기존 입력의 바이트 사본은 `sources-v2.json`, 전후 크기·해시는 `conversion.json`, 파일별 경로·크기·해시 및 비교 결과는 `verification.json`이다. 같은 통합 버전의 exporter로 v2 입력을 먼저 `before-v2/`에, 변환 후 v3 입력을 `after-v3/`에 전체 저장했다.
+
+- 전체 110파일(발음 107 WAV·타령 원음 1 WAV·원본 PDF 2)의 상대경로와 **371,438,623바이트**가 모두 같다. 파일을 직접 바이트 비교하고 SHA-256도 기록했다.
+- 두 출력 `catalog.json`을 재귀 비교한 차이는 `manifestHashes["catalog/jeongak-daegeum/sources.json"]` 한 곳뿐이다. 출력 schema v2, 펼친 원본 9개, 라벨 107개, 연주·비교 악보·디코더·변환 정보는 같다.
+- `--technique 기본음 --register 저취 --yulmyeong 임` 선택을 `selected-basic-im-v3/`에 저장했다. `ngc-jeongak-2557.tone-001` 한 개의 라벨 전체와 WAV 바이트가 전체 출력의 같은 항목과 일치한다.
+- `python data/src/catalog/verify_sources.py --dataset jeongak-daegeum`으로 원본 크기·SHA-256 **9/9 일치**를 확인했다. `python -m unittest discover -s data/tests -p 'test_*.py' -v`는 **51개 통과**했다. 새 로더로 실제 기존 v2 입력과 변환 후 v3 입력을 모두 실행했으며, 공통 코드와 다른 악기 목록은 추가 수정하지 않았다.
 
 남은 검수는 연주자의 취법·율명 독립 확인과 녹음-악보의 판본·음표 대응이다. 라벨 구조와 측정 근거를 갖춘 추정 데이터로 제공하며 채점 정답으로 승격하지 않았다.
