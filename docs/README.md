@@ -34,6 +34,10 @@
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
+## 프론트엔드 조사·검증 기록
+
+- [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
+
 ## 데이터 조사·검증 기록
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
