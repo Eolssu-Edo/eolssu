@@ -2,6 +2,21 @@
 
 edo1의 실제 프론트·백엔드·MySQL 운영 구성과 웹·백엔드 자동 배포, `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
 
+## edo2 점검 중계 서버 준비
+
+2026-10-23 `ssh edo2` 접속과 UFW 활성화를 확인했습니다. IPv4·IPv6 모두 인바운드는 기본 차단하고 TCP 22(SSH), 80(ACME 검증), 443(HTTPS)만 허용합니다. 아웃바운드는 허용합니다. 적용 전 설정은 서버의 root 전용 `/var/backups/edo2-ufw/`에 보관했습니다.
+
+상태를 읽을 때는 다음 명령을 사용합니다. 방화벽 변경 뒤에는 기존 연결을 재사용하지 않는 새 SSH 접속으로 관리 경로를 검증합니다.
+
+```sh
+ssh edo2 'sudo -n ufw status verbose'
+ssh -o BatchMode=yes -o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none edo2 'sudo -n ufw status numbered'
+```
+
+Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기를 배포했습니다. Lightsail에도 TCP 443을 IPv4·IPv6로 허용했고, 외부 HTTPS 접속과 CI/CD 채널의 세 공개 보고를 검증했습니다. 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 합의한 출력·등록 결과·실제 검증·후속 범위는 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 현재 주소는 Lightsail 정적 IP가 아니므로 인스턴스 중지·시작 전 주소 변경 대책이 필요합니다.
+
+## 백엔드·프록시 실행 예시
+
 `/opt/app/infra`에서 실행하는 `./scripts/init-letsencrypt.sh`의 준비·실행·인증서 갱신·복구 방법도 [운영 서버 문서](runtime/README.md#lets-encrypt와-https)를 따릅니다.
 
 현재 구현된 Spring Boot 백엔드를 Nginx 뒤에서 실행하는 구성입니다. 개발·운영은 각각 `eolsu-dev`, `eolsu-prod` Compose 프로젝트이며 DB·AI 서비스는 포함하지 않습니다. Docker Engine과 Compose v2 이상이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
