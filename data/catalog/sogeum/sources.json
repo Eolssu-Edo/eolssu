@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "sogeum",
+  "instrument": "소금",
+  "pathBase": "repository_root",
+  "sources": [
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금 강세별 연주 강.wav",
+      "sha256": "48727cf4348d01b37058727ad3685ee85537873a0f1ae0ef742b26be6f2e8994",
+      "bytes": 18101946,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 101.8,
+      "id": "ngc-sogeum-2654",
+      "kind": "audio",
+      "title": "기본음 강",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2654",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 기본음 강, mntn_seq=2654, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2654-기본음 강/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금 강세별 연주 중.wav",
+      "sha256": "4a8db7d37a3b7b3bf5f13f601f3e08e73ed6df931c64e55928674ff5fc27c7a3",
+      "bytes": 18279738,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 102.8,
+      "id": "ngc-sogeum-2655",
+      "kind": "audio",
+      "title": "기본음 중",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2655",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 기본음 중, mntn_seq=2655, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2655-기본음 중/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금 강세별 연주 약.wav",
+      "sha256": "a6beb59e0c13212cb4b35baec2f88fab307864a98ba7725030da5d46c6b16dbc",
+      "bytes": 17764122,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 99.9,
+      "id": "ngc-sogeum-2656",
+      "kind": "audio",
+      "title": "기본음 약",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2656",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 기본음 약, mntn_seq=2656, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2656-기본음 약/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_강세별농음_강.wav",
+      "sha256": "057d71328215203191d0e18b01e2a212ebaada46142d721676cc95bd4cf44a43",
+      "bytes": 18889786,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 106.2311111111111,
+      "id": "ngc-sogeum-2657",
+      "kind": "audio",
+      "title": "요성 강",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2657",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 요성 강, mntn_seq=2657, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2657-요성 강/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_강세별농음_중.wav",
+      "sha256": "50ed38cadebd540a122fd09c287a2b2d57ef4fc529afea0a16c7f61124560b03",
+      "bytes": 18889786,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 106.2311111111111,
+      "id": "ngc-sogeum-2658",
+      "kind": "audio",
+      "title": "요성 중",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2658",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 요성 중, mntn_seq=2658, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2658-요성 중/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_강세별농음_약.wav",
+      "sha256": "0dcd7fbc7afd5c62892d60b4f09bc15bdde9bfa91d414683dff92216b2afaeb9",
+      "bytes": 19552642,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 109.95918367346938,
+      "id": "ngc-sogeum-2659",
+      "kind": "audio",
+      "title": "요성 약",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2659",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 요성 약, mntn_seq=2659, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2659-요성 약/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_깊은농음.wav",
+      "sha256": "22500590ddd9ca74600c5b2181344cd6de1c0cb1d316675f9ef22d861fa8e29b",
+      "bytes": 2889016,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 16.346167800453514,
+      "id": "ngc-sogeum-2660",
+      "kind": "audio",
+      "title": "깊은요성",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2660",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 깊은요성, mntn_seq=2660, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2660-깊은요성/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_스타카토_강.wav",
+      "sha256": "e985350b2ae28f65be91c6076bac6b52593972042fa759ad587f52409a94eb3c",
+      "bytes": 6260082,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 35.19773242630386,
+      "id": "ngc-sogeum-2661",
+      "kind": "audio",
+      "title": "스타카토 강",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2661",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 스타카토 강, mntn_seq=2661, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2661-스타카토 강/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_스타카토_중.wav",
+      "sha256": "2b3f26b8923aefc0435b76e429e16cf50da09bfdfd722c92caba8fefaa9729c3",
+      "bytes": 7162546,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 40.2734693877551,
+      "id": "ngc-sogeum-2662",
+      "kind": "audio",
+      "title": "스타카토 중",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2662",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 스타카토 중, mntn_seq=2662, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2662-스타카토 중/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_스타카토_약.wav",
+      "sha256": "9f18d0263ee43d81c706aa951f288df984f10e6af188f6457f578aedeb08203b",
+      "bytes": 5230410,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 29.406530612244897,
+      "id": "ngc-sogeum-2663",
+      "kind": "audio",
+      "title": "스타카토 약",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2663",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 스타카토 약, mntn_seq=2663, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2663-스타카토 약/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_내리떠는농음.wav",
+      "sha256": "f0322af13d8f73e5d92c9c36197b08bf71176738961d17824c5cdbb7df84d087",
+      "bytes": 2122352,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 12.0,
+      "id": "ngc-sogeum-2664",
+      "kind": "audio",
+      "title": "내리떠는농음",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2664",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 내리떠는농음, mntn_seq=2664, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2664-내리떠는농음/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_나니르.wav",
+      "sha256": "b3c59cdc41aa944fd21dbf05d3d15287b84e3bcadbbb5df382f80ff00082a577",
+      "bytes": 711152,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 4.0,
+      "id": "ngc-sogeum-2665",
+      "kind": "audio",
+      "title": "나니르",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2665",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 나니르, mntn_seq=2665, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2665-나니르/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_노니로.wav",
+      "sha256": "cdd395dcdf4309a098c7b87ad3922487289a329fb899d030f8ae3ea4abd6c3ea",
+      "bytes": 1063952,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 6.0,
+      "id": "ngc-sogeum-2666",
+      "kind": "audio",
+      "title": "노니로",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2666",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 노니로, mntn_seq=2666, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2666-노니로/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금_노로니르.wav",
+      "sha256": "3368c1f44cb7ee578448425d72566823cf38a8bb12f573886c7895fe80861697",
+      "bytes": 358340,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 2.0,
+      "id": "ngc-sogeum-2667",
+      "kind": "audio",
+      "title": "노로니르",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2667",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 노로니르, mntn_seq=2667, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "annotationPath": "data/annotations/audio/sogeum/ngc-sogeum-2667-노로니르/labels.json"
+    },
+    {
+      "rawPath": "data/raw/instruments/sogeum/소금 연주곡 도드리 wave.wav",
+      "sha256": "4259f482cc3a76f59583a00bc1a371afb15928fb986a821cbc2b2069316034f7",
+      "bytes": 10927472,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 61.946666666666665,
+      "id": "ngc-sogeum-2668",
+      "kind": "audio",
+      "title": "도드리",
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2668",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 소금, 도드리, mntn_seq=2668, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      }
+    }
+  ]
+}
