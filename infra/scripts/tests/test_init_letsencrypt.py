@@ -33,13 +33,13 @@ class InitializationTests(unittest.TestCase):
         self.live = self.certs / 'live/test.example.com'
         self.calls = []
         self.should_fail = lambda args: False
+        self.mounts = [{'Destination': '/usr/share/nginx/html', 'Source': str(self.webroot)}]
         def invoke(*args):
             self.calls.append(args)
             if self.should_fail(args):
                 raise RuntimeError('fixture failure')
             if args[:2] == ('docker', 'inspect'):
-                return tls.json.dumps([{'Mounts': [{'Destination': '/usr/share/nginx/html',
-                    'Source': str(self.webroot)}], 'Config': {'Image': 'nginx:fixture'}}])
+                return tls.json.dumps([{'Mounts': self.mounts, 'Config': {'Image': 'nginx:fixture'}}])
             if args[0] == 'certbot':
                 self.live.mkdir(parents=True, exist_ok=True)
                 for name in ('privkey.pem', 'fullchain.pem'):
@@ -100,6 +100,14 @@ class InitializationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 tls.initialize(value, root=self.root, certificates=self.certs)
         self.assertEqual(self.calls, [])
+
+    def test_certificate_uses_stable_acme_mount_instead_of_release(self):
+        acme = self.root / 'acme'
+        (acme / '.well-known').mkdir(parents=True)
+        self.mounts.append({'Destination': '/usr/share/nginx/html/.well-known', 'Source': str(acme / '.well-known')})
+        self.initialize()
+        command = next(c for c in self.calls if c[0] == 'certbot')
+        self.assertEqual(command[command.index('--webroot-path') + 1], str(acme))
 
 
 if __name__ == '__main__':

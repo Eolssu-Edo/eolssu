@@ -83,3 +83,18 @@ ACME 경로는 HTTP로 토큰 파일을 제공하고 누락 토큰에는 404를 
 - [Certbot webroot와 HTTP-01](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)
 - [Certbot 자동 갱신과 deploy hook](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
 - [실행·검증·복구](../../../infra/runtime/README.md#lets-encrypt와-https)
+
+
+## 프론트 웹 자동 배포 연결 — 2026-10-22
+
+Task S15P31E102-73은 기존 backend SCM polling이 성공한 동일 SHA를 frontend 잡에 전달한다. 서버 executor가 1개이므로 상위 잡이 하위 잡을 기다리면서 executor를 보유하면 하위 잡이 시작하지 못한다. `wait: false`로 예약 후 executor를 반환하며 두 잡의 최종 상태를 각각 확인한다. 배포 도구는 공유 lock을 최대 120초 기다리고 배포 직전 최신 develop SHA를 다시 확인한다.
+
+운영 프론트는 기존 Nginx·HTTPS 구성을 유지하고 검증한 이미지에서 추출한 웹 파일만 불변 릴리스로 선택한다. 모든 파일 해시·Wasm MIME·필수 번들·symlink 차단을 검사하므로 SPA HTML fallback이 파일 누락을 숨기지 못한다. journal·원자적 env 교체·이전 릴리스로 복구하며 backend·MySQL·볼륨을 보존한다. 같은 SHA·이미지·파일이면 재생성하지 않는다.
+
+웹 릴리스 경로를 Certbot webroot로 계속 쓰면 프론트 교체 후 인증서 갱신이 이전 경로에 challenge를 만들 수 있다. 고정 ACME 디렉터리를 `.well-known`에 별도로 mount하고 Certbot의 도메인별 매핑을 옮긴다. Certbot 2.9의 실제 staging 시험에서는 `--webroot-path`만 바꾸면 기존 `webroot_map`이 우선해 404가 발생했다. `--webroot-map`을 함께 지정하면 이 버전은 도메인 변경으로 인식해 reconfigure를 거부했다. 원본을 root 전용 백업하고 ConfigObj로 renewalparams의 webroot 두 항목만 원자적으로 바꾼 뒤 저장된 설정 자체로 staging 갱신·reload를 검증하는 방법을 적용했다. 실패한 설정 변경은 매번 복구 후 HTTPS를 확인했다.
+
+Jenkins 사용자로 기존 Kotlin 웹 빌드·Chrome JS/Wasm 테스트 4개를 실행했고 첫 cold build는 6분 16초였다. 정적 파일 8개 후보 검증, 실제 Nginx의 읽을 수 없는 JS 배포 후 복구와 배포/TLS 회귀 검사를 수행했다. 최종 운영 활성화·실행 결과는 [Task 73](../../plans/S15P31E102-73.md)에 기록한다.
+
+- [Kotlin/JS 브라우저 테스트와 설치된 Chrome](https://kotlinlang.org/docs/js-running-tests.html)
+- [Jenkins 하위 잡 build step의 wait 옵션](https://www.jenkins.io/doc/pipeline/steps/pipeline-build-step/)
+- [Certbot 갱신 설정 변경](https://eff-certbot.readthedocs.io/en/stable/using.html#modifying-the-renewal-configuration-of-existing-certificates)

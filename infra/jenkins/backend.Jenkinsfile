@@ -84,5 +84,12 @@ pipeline {
                 }
             }
         }
+
+        stage('Test and deploy matching frontend') {
+            steps {
+                build job: 'eolssu-frontend', wait: false,
+                    parameters: [string(name: 'REVISION', value: env.GIT_COMMIT)]
+            }
+        }
     }
 }
