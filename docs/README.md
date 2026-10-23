@@ -32,6 +32,14 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+
+## 데이터 조사·검증 기록
+
+- [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
+- [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
+- [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
+- [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 
 ## AI 실험 기록
 
@@ -44,6 +52,9 @@
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
 - [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
+- [S15P31E102-73 프론트 웹 자동 빌드·테스트·배포](plans/S15P31E102-73.md)
+- [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
+- [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

@@ -1,4 +1,18 @@
 server {
+    listen 80;
+    server_name __TLS_DOMAIN__;
+    root /usr/share/nginx/html;
+
+    location ^~ /.well-known/acme-challenge/ {
+        try_files $uri =404;
+    }
+
+    location / {
+        return 308 https://__TLS_DOMAIN__$request_uri;
+    }
+}
+
+server {
     listen 443 ssl;
     server_name __TLS_DOMAIN__;
     ssl_certificate /etc/letsencrypt/live/__TLS_DOMAIN__/fullchain.pem;

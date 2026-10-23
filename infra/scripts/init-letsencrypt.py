@@ -36,6 +36,11 @@ def initialize(domain, email=None, root=Path('/opt/eolssu'),
     details = json.loads(run('docker', 'inspect', 'eolssu-runtime-frontend-1'))[0]
     webroot = Path(next(m['Source'] for m in details['Mounts']
                         if m['Destination'] == '/usr/share/nginx/html'))
+    # 자동 배포가 릴리스를 바꿔도 ACME challenge 경로는 고정한다.
+    acme = next((Path(m['Source']).parent for m in details['Mounts']
+                 if m['Destination'] == '/usr/share/nginx/html/.well-known'), None)
+    if acme is not None:
+        webroot = acme
     if not webroot.is_dir():
         raise RuntimeError('running frontend webroot is unavailable')
     # 웹 서버를 중지하지 않고 기존 80 포트에서 HTTP-01을 처리한다.

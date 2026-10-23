@@ -1,13 +1,40 @@
 """배포 실패·중단 시 실제 env/상태 파일의 복구 계약을 검사한다."""
 import importlib.util
+import fcntl
 import json
 from pathlib import Path
 import tempfile
+import signal
+import subprocess
+import sys
 import unittest
 
 spec = importlib.util.spec_from_file_location('deploy_backend', Path(__file__).parents[1] / 'deploy-backend.py')
 deploy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deploy)
+
+
+class LockTests(unittest.TestCase):
+    def test_free_lock_cancels_timeout(self):
+        previous = signal.getsignal(signal.SIGALRM)
+        with tempfile.TemporaryFile() as lock:
+            deploy.acquire_lock(lock, seconds=1)
+            self.assertEqual(signal.alarm(0), 0)
+            self.assertEqual(signal.getsignal(signal.SIGALRM), previous)
+
+    def test_contended_lock_has_bounded_wait(self):
+        with tempfile.NamedTemporaryFile() as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            program = '''import importlib.util,sys
+spec=importlib.util.spec_from_file_location('deploy',sys.argv[1]);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+with open(sys.argv[2],'a') as lock:
+ try:m.acquire_lock(lock,seconds=1)
+ except m.DeployError:print('LOCK_TIMEOUT');sys.exit(3)
+'''
+            result = subprocess.run([sys.executable, '-B', '-c', program, str(Path(__file__).parents[1] / 'deploy-backend.py'), lock.name],
+                                    capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 3, result.stderr)
+            self.assertEqual(result.stdout.strip(), 'LOCK_TIMEOUT')
 
 
 class TransactionTests(unittest.TestCase):

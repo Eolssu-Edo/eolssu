@@ -8,6 +8,7 @@ services:
     volumes:
       - ${WEB_DIST_DIR:?WEB_DIST_DIR를 지정하세요}:/usr/share/nginx/html:ro
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /opt/eolssu/acme/.well-known:/usr/share/nginx/html/.well-known:ro
     depends_on:
       - backend
     healthcheck:

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2659": "0dcd7fbc7afd5c62892d60b4f09bc15bdde9bfa91d414683dff92216b2afaeb9"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2659",
+      "category": "기본음계",
+      "technique": "요성 약",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2659.group-001",0.12,6.6,"평취","임",484.119],
+        ["ngc-sogeum-2659.group-002",7.27,13.77,"평취","남",541.387],
+        ["ngc-sogeum-2659.group-003",14.63,21.56,"평취","무",582.3],
+        ["ngc-sogeum-2659.group-004",22.58,29.13,"평취","황",644.44],
+        ["ngc-sogeum-2659.group-005",29.78,36.54,"평취","태",728.617],
+        ["ngc-sogeum-2659.group-006",37.51,44.64,"평취","고",823.823],
+        ["ngc-sogeum-2659.group-007",45.61,52.0,"평취","중",870.497],
+        ["ngc-sogeum-2659.group-008",52.9,59.46,"역취","임",971.051],
+        ["ngc-sogeum-2659.group-009",60.47,66.95,"역취","남",1072.55],
+        ["ngc-sogeum-2659.group-010",67.7,74.42,"역취","무",1137.569],
+        ["ngc-sogeum-2659.group-011",75.22,80.93,"역취","황",1271.338],
+        ["ngc-sogeum-2659.group-012",81.85,88.41,"역취","태",1419.606],
+        ["ngc-sogeum-2659.group-013",89.2,95.46,"역취","고",1601.022],
+        ["ngc-sogeum-2659.group-014",97.2,103.2,"역취","중",1746.51],
+        ["ngc-sogeum-2659.group-015",104.36,109.87,"역취","중청임",1924.722]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2659.group-001": {
+          "boundaryReview": {
+            "initialEndSeconds": 6.39,
+            "retainedEndSeconds": 6.6,
+            "reason": "문턱의 0.1배로 재검사한 요성 감쇠 주기음과 무음 전까지의 꼬리를 같은 발음에 포함. 새 발음으로 중복 분리하지 않음.",
+            "audit": "research-v1/boundary-audit.json"
+          }
+        },
+        "ngc-sogeum-2659.group-006": {
+          "boundaryReview": {
+            "initialEndSeconds": 44.4,
+            "retainedEndSeconds": 44.64,
+            "reason": "문턱의 0.1배로 재검사한 요성 감쇠 주기음과 무음 전까지의 꼬리를 같은 발음에 포함. 새 발음으로 중복 분리하지 않음.",
+            "audit": "research-v1/boundary-audit.json"
+          }
+        }
+      }
+    }
+  ]
+}

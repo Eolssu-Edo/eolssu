@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2655": "4a8db7d37a3b7b3bf5f13f601f3e08e73ed6df931c64e55928674ff5fc27c7a3"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2655",
+      "category": "기본음계",
+      "technique": "기본음 중",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2655.group-001",0.12,5.72,"평취","임",484.59],
+        ["ngc-sogeum-2655.group-002",6.95,12.89,"평취","남",539.459],
+        ["ngc-sogeum-2655.group-003",13.98,20.11,"평취","무",581.484],
+        ["ngc-sogeum-2655.group-004",22.0,27.43,"평취","황",644.32],
+        ["ngc-sogeum-2655.group-005",29.14,34.66,"평취","태",726.044],
+        ["ngc-sogeum-2655.group-006",36.05,40.89,"평취","협",800.153],
+        ["ngc-sogeum-2655.group-007",42.04,47.05,"평취","고",823.386],
+        ["ngc-sogeum-2655.group-008",47.93,53.19,"평취","중",864.202],
+        ["ngc-sogeum-2655.group-009",54.04,59.09,"역취","임",976.054],
+        ["ngc-sogeum-2655.group-010",59.93,65.15,"역취","남",1085.55],
+        ["ngc-sogeum-2655.group-011",66.0,71.28,"역취","무",1141.983],
+        ["ngc-sogeum-2655.group-012",71.96,76.95,"역취","황",1286.449],
+        ["ngc-sogeum-2655.group-013",77.94,82.72,"역취","태",1438.998],
+        ["ngc-sogeum-2655.group-014",83.91,88.13,"역취","고",1627.533],
+        ["ngc-sogeum-2655.group-015",88.85,93.59,"역취","중",1775.711],
+        ["ngc-sogeum-2655.group-016",94.88,98.78,"역취","중청임",1942.115]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2655.group-006": {
+          "sequenceDecision": {
+            "selected": "평취 협",
+            "reason": "공식 소금 운지표의 태-협-고-중 순서와 기본음 3강세의 여섯째-일곱째-여덟째 독립 발음에 따른 가설. 요성의 고-중 짝 및 상옥타브 고-중과 비교. 협-고의 실측 간격이 좁으므로 제작처 정답 또는 운지 검수 전 확정 금지.",
+            "toNextGoCents": 49.55,
+            "fftPeakHz": 800.093
+          },
+          "alternatives": [
+            {
+              "register": "평취",
+              "yulmyeong": "고",
+              "reason": "같은 고의 낮은 발음 또는 다른 운지일 가능성. 12평균율 최근접과 상옥타브 고 비교는 이 대안도 지지하나 녹음순서만으로 확정할 수 없음."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

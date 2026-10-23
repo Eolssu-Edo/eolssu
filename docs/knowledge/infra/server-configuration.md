@@ -72,6 +72,14 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 
 격리된 TLS 회귀 검사 7개, 실제 서버 Compose·Nginx TLS 검사와 Let's Encrypt staging의 실제 도메인 발급 dry-run을 통과했다. rollback을 제거한 격리 복제본은 회귀 검사에서 실패했다. 운영 인증서 발급·최종 배포 결과는 [작업 기록](../../plans/S15P31E102-65.md)에 이어 기록한다.
 
+## HTTP의 HTTPS 자동 전환 — 2026-10-22
+
+HTTPS 응답과 HTTP 자동 전환은 별도 설정이다. Task 65의 TLS 템플릿에는 443 server만 있어 도메인의 HTTP 요청도 기본 HTTP server에서 200으로 응답했다. [Task 75](../../plans/S15P31E102-75.md)는 TLS 템플릿에 도메인 전용 80 server를 추가하고 일반 요청에 `308 https://<인증서 도메인>$request_uri`를 반환한다. 목적지는 요청의 Host 값 대신 검증한 인증서 도메인으로 고정한다.
+
+ACME 경로는 HTTP로 토큰 파일을 제공하고 누락 토큰에는 404를 반환한다. 리다이렉트는 `location /` 안에 두므로 ACME location보다 먼저 실행되지 않는다. 기본 HTTP server는 유지하므로 `http://127.0.0.1/`와 `/api/infra-smoke`를 쓰는 기존 Jenkins 검사와 초기 인증서 발급에 영향이 없다. 프론트 배포에서 webroot를 교체할 때는 Task 73의 고정 ACME 경로와 이 location을 함께 맞춰야 한다.
+
+근거: [Nginx return 지시어](https://nginx.org/en/docs/http/ngx_http_rewrite_module.html#return), [Let's Encrypt HTTP-01](https://letsencrypt.org/docs/challenge-types/#http-01-challenge). 실제 이미지의 격리 HTTP 검사에서 수정 전 200·누락 ACME 토큰의 SPA 200을 재현한 뒤, 수정 후 308·ACME 200/404·loopback 200·HTTPS 200과 설정 검사를 통과했다. 명령과 운영 반영 결과는 Task 75 작업 기록을 따른다.
+
 - [Certbot webroot와 HTTP-01](https://eff-certbot.readthedocs.io/en/stable/using.html#webroot)
 - [Certbot 자동 갱신과 deploy hook](https://eff-certbot.readthedocs.io/en/stable/using.html#renewing-certificates)
 - [실행·검증·복구](../../../infra/runtime/README.md#lets-encrypt와-https)
@@ -96,3 +104,25 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 기존 110개 파일의 해시와 executor 외 root 설정이 일치했고, 에이전트 키 생성 후 컨트롤러·에이전트 재기동에서 111개 파일과 노드 재연결을 확인했다. 같은 SHA `5414c84`의 실제 백엔드 #20·자동 연계 프론트 #11이 모두 SUCCESS이며 두 배포 영수증의 `deployed`를 확인했다. 테스트 1+4개와 배포 도구·Nginx 검사 32개가 통과했고, 공개 HTTPS 릴리스와 정적 파일 8개 전체 해시가 일치했다. 설정 보존과 실행 결과를 구분해 기록했고, 단순 컨테이너 기동만으로 완료 판정하지 않았다.
 
 실제 데이터 홈은 계속 `/var/lib/jenkins`다. 이미지의 기본 VOLUME `/var/jenkins_home`에 보이는 별도 볼륨은 사용하지 않는 기본 경로이며, 실제 홈 bind mount와 혼동하지 않는다. 기존 apt 패키지는 남기되 서비스는 inactive/disabled로 유지한다. 최종 백업은 `/opt/backups/eolssu-jenkins76-20261023T080439Z/`, 실행·복구·검증 영수증은 [Task 76](../../plans/S15P31E102-76.md)을 따른다.
+
+## 프론트 웹 자동 배포 연결 — 2026-10-22
+
+Task S15P31E102-73은 기존 backend SCM polling이 성공한 동일 SHA를 frontend 잡에 전달한다. 서버 executor가 1개이므로 상위 잡이 하위 잡을 기다리면서 executor를 보유하면 하위 잡이 시작하지 못한다. `wait: false`로 예약 후 executor를 반환하며 두 잡의 최종 상태를 각각 확인한다. 배포 도구는 공유 lock을 최대 120초 기다리고 배포 직전 최신 develop SHA를 다시 확인한다.
+
+운영 프론트는 기존 Nginx·HTTPS 구성을 유지하고 검증한 이미지에서 추출한 웹 파일만 불변 릴리스로 선택한다. 모든 파일 해시·Wasm MIME·필수 번들·symlink 차단을 검사하므로 SPA HTML fallback이 파일 누락을 숨기지 못한다. journal·원자적 env 교체·이전 릴리스로 복구하며 backend·MySQL·볼륨을 보존한다. 같은 SHA·이미지·파일이면 재생성하지 않는다.
+
+웹 릴리스 경로를 Certbot webroot로 계속 쓰면 프론트 교체 후 인증서 갱신이 이전 경로에 challenge를 만들 수 있다. 고정 ACME 디렉터리를 `.well-known`에 별도로 mount하고 Certbot의 도메인별 매핑을 옮긴다. Certbot 2.9의 실제 staging 시험에서는 `--webroot-path`만 바꾸면 기존 `webroot_map`이 우선해 404가 발생했다. `--webroot-map`을 함께 지정하면 이 버전은 도메인 변경으로 인식해 reconfigure를 거부했다. 원본을 root 전용 백업하고 ConfigObj로 renewalparams의 webroot 두 항목만 원자적으로 바꾼 뒤 저장된 설정 자체로 staging 갱신·reload를 검증하는 방법을 적용했다. 실패한 설정 변경은 매번 복구 후 HTTPS를 확인했다.
+
+Jenkins 사용자로 기존 Kotlin 웹 빌드·Chrome JS/Wasm 테스트 4개를 실행했고 첫 cold build는 6분 16초였다. 정적 파일 8개 후보 검증, 실제 Nginx의 읽을 수 없는 JS 배포 후 복구와 배포/TLS 회귀 검사를 수행했다. 최종 운영 활성화·실행 결과는 [Task 73](../../plans/S15P31E102-73.md)에 기록한다.
+
+### 운영 활성화 검증 — 2026-10-23
+
+사용자가 프론트 도구의 제한 sudo 권한을 승인해 root 소유 설치본·visudo·Jenkins 사용자 권한을 검증한 뒤 두 잡을 연결했다. 호스트 Jenkins의 backend 1분 SCM polling을 유지하며 frontend는 성공한 backend에서 같은 SHA로 시작한다. 병합 소스는 `ce06c5e7`이고 설치된 Pipeline의 SHA-256을 저장소와 대조했다. 운영 비밀 파일의 읽기 권한은 추가하지 않았다.
+
+backend #9를 수동으로 한 번 시작하자 frontend #1이 upstream 원인으로 자동 시작해 양쪽 SUCCESS와 같은 배포 SHA를 확인했다. frontend 실행은 146.046초, 배포/TLS/Nginx 검사 32개와 Chrome 테스트 4개가 통과했다. 공개 HTTPS의 모든 정적 자산 8개·Wasm MIME·앱 버튼 동작과 HTTP 308·실제 ACME HTTP 200을 검증했다. 새 병합을 따로 만들지는 않았으며, 기존 backend #8에서 해당 develop 커밋의 SCM 감지 성공을 확인했다.
+
+프론트 교체 중 backend·MySQL·볼륨, WEB_DIST_DIR 이외 env, 인증서·갱신 설정을 보존했다. 같은 아티팩트 재실행은 실제 도구에서 `already_deployed`와 컨테이너 ID 보존을 확인했다. 운영 증거는 root 전용 `/opt/eolssu/frontend-activation-receipt.json`, 복구용 백업은 `/opt/backups/eolssu-activate73-20261023/before.tgz`에 있다. 생성된 Kotlin/Wasm 번들의 memory deprecation 진단은 남아 있으며 실제 앱 표시 전환은 동작했다.
+
+- [Kotlin/JS 브라우저 테스트와 설치된 Chrome](https://kotlinlang.org/docs/js-running-tests.html)
+- [Jenkins 하위 잡 build step의 wait 옵션](https://www.jenkins.io/doc/pipeline/steps/pipeline-build-step/)
+- [Certbot 갱신 설정 변경](https://eff-certbot.readthedocs.io/en/stable/using.html#modifying-the-renewal-configuration-of-existing-certificates)

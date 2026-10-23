@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2667": "3368c1f44cb7ee578448425d72566823cf38a8bb12f573886c7895fe80861697"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2667",
+      "category": "시김새",
+      "technique": "노로니르",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2667.group-001",0.19,0.8,"역취","남",1107.072],
+        ["ngc-sogeum-2667.group-002",1.21,1.82,"역취","태",1440.237]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2667.group-001": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "남",
+                "f0Hz": 1107.072,
+                "windowsSeconds": [
+                  [
+                    0.6,
+                    0.74
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 15,
+            "originalRegionMedianHz": 1102.78,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2667.group-002": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "태",
+                "f0Hz": 1440.237,
+                "windowsSeconds": [
+                  [
+                    1.61,
+                    1.76
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 16,
+            "originalRegionMedianHz": 1437.395,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        }
+      }
+    }
+  ]
+}
