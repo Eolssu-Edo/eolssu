@@ -1,0 +1,17 @@
+{
+  "label": "정악 대금",
+  "jira": "S15P31E102-106",
+  "variant": "정악대금",
+  "technical_range": [
+    58,
+    92
+  ],
+  "style_range": [
+    58,
+    87
+  ],
+  "range_source": "국립국악원 국악기 이해와 활용 대금 p143–144: 전통 Bb3–Eb6, 현대 확장 E6–Ab6",
+  "interpretation": "오선보는 실음 기준 확인. 향악/아악의 황종 기준을 구분. 농음·퇴성은 곡의 의미를 명시.",
+  "yoseong_mode": null,
+  "preset_name": "DaeGeum (JeongAk) - DEMO_simple.adv"
+}
