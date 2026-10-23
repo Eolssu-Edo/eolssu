@@ -43,11 +43,11 @@ class RequestTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 relay.authorize(dict(self.form, response_url=url), self.config)
 
-    def test_report_has_one_table_and_no_unintended_mentions(self):
+    def test_report_separates_issues_and_prevents_unintended_mentions(self):
         result = {'mode': 'server', 'columns': ['대상', '상태'],
                   'rows': [['edo1|host', '@channel\n주의']], 'issues': ['디스크 사용률 87%']}
         text = relay.build_report(result, 'request123')
-        self.assertIn('| 대상 | 상태 |', text)
+        self.assertIn('| **대상** | **상태** |', text)
         self.assertIn('edo1\\|host', text)
         self.assertNotIn('@channel', text)
         self.assertEqual(text.count('| --- | --- |'), 1)
@@ -63,11 +63,40 @@ class RequestTests(unittest.TestCase):
         result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
                   'rows': [[f'value{i}' for i in range(10)]], 'issues': ['주의 하나', '주의 둘']}
         text = relay.build_report(result, 'req')
-        self.assertIn('**확인 사항**\n- 주의 하나\n- 주의 둘', text)
+        self.assertIn('| **주의 하나** |', text)
+        self.assertIn('| **주의 둘** |', text)
         self.assertIn('| **항목** | **측정값** |', text)
         for i in range(10):
             self.assertIn(f'value{i}', text)
         self.assertNotIn('<br>', text)
+
+    def test_server_details_stay_in_measurement_table(self):
+        result = {'mode': 'server', 'columns': [f'항목{i}' for i in range(10)],
+                  'rows': [[f'값{i}; 추가{i}' for i in range(10)]], 'issues': []}
+        text = relay.build_report(result, 'req')
+        table_lines = [line for line in text.splitlines() if line.startswith('|')]
+        for i in range(10):
+            self.assertTrue(any(f'값{i}' in line and f'추가{i}' in line for line in table_lines))
+        self.assertEqual(text.count('| --- | --- |'), 1)
+
+    def test_container_details_have_a_separate_table(self):
+        result = {'mode': 'containers', 'columns': [f'항목{i}' for i in range(11)],
+                  'rows': [[f'값{i}' for i in range(11)]], 'issues': []}
+        text = relay.build_report(result, 'req')
+        table_lines = [line for line in text.splitlines() if line.startswith('|')]
+        for i in range(11):
+            self.assertTrue(any(f'값{i}' in line for line in table_lines))
+        self.assertEqual(sum(line.startswith('| ---') for line in table_lines), 2)
+        self.assertIn('**저장소·실행 상세**', text)
+        self.assertNotIn('<br>', text)
+
+    def test_capture_time_is_inline_code_to_prevent_emoji_conversion(self):
+        for stamp in ('2026-10-23 16:17:18 KST', '2026-10-23 16:17:18 `KST`'):
+            result = {'mode': 'server', 'columns': ['대상', '상태'],
+                      'rows': [['edo1', '정상']], 'captured_at': stamp}
+            with self.subTest(stamp=stamp):
+                text = relay.build_report(result, 'req')
+                self.assertIn('수집 시각: `2026-10-23 16:17:18 KST`', text)
 
     def test_callback_rejects_private_dns_before_connecting(self):
         connection = relay.PublicHTTPS('meeting.ssafy.com', timeout=1)

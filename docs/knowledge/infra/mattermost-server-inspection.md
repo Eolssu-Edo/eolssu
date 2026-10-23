@@ -23,4 +23,4 @@ Mattermost POST → edo2 Nginx HTTPS → 비특권 Python 중계 → edo1의 전
 
 이 결과는 시점 점검이며 장기 성능 추세·최대 사용량·모든 장애를 검출하는 상시 모니터링을 뜻하지 않는다. 미래 인증서 갱신과 실제 외부 IPv6 연결은 실행 시점의 환경에 영향을 받는다. 판정 임계값과 수집 한계는 운영 안내에 명시했다.
 
-Mattermost는 표 셀의 HTML 줄바꿈을 지원하지 않는다. 핵심 표를 줄이고 상세를 문단·목록으로 분리해 명령마다 표 하나를 유지했다. [서식 공식 안내](https://docs.mattermost.com/messaging/formatting-text)
+Mattermost는 표 셀의 HTML 줄바꿈을 지원하지 않는다. 2026-10-23 후속 사용자 요청에 따라 서버 상세는 같은 2열 표에 포함하고, 컨테이너는 자원·상태와 저장소·실행 상세 표로 나눈다. 확인 사항은 별도 표로 표시한다. 표 수를 줄이려고 의미가 다른 내용을 강제로 합치지 않는다. 수집 시각은 인라인 코드로 감싸 `:숫자:` 조각의 이모지 변환을 피한다. [서식 공식 안내](https://docs.mattermost.com/messaging/formatting-text)

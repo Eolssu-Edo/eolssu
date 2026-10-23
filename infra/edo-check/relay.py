@@ -57,43 +57,48 @@ def build_report(result, request_id):
     issues = list(result.get('issues', []))
     if result['mode'] == 'health':
         issues.extend(f'{row[0]}: {row[2]} ({row[3]})' for row in rows if len(row) >= 4 and row[2] != '정상')
-    summary = '**확인 사항**\n' + '\n'.join('- ' + cell(item) for item in list(dict.fromkeys(issues))[:8]) if issues else '**판정: 수집한 항목에 이상 없음**'
-    details = []
-    bold = False
+    issues = list(dict.fromkeys(issues))
+    tables = []
+    bold = result['mode'] in ('server', 'containers', 'health')
     if result['mode'] == 'server' and len(columns) == 10 and len(rows) == 1:
-        original = rows[0]
-        details = ['**상세 정보**']
-        for index in (0, 4, 5, 9):
-            details.append('**' + cell(columns[index]) + '**\n' + '\n'.join('- ' + cell(part) for part in str(original[index]).split('; ')))
-        rows = [[columns[i], original[i]] for i in (1, 2, 3, 6, 7, 8)]
+        rows = [[label, value] for label, value in zip(columns, rows[0])]
         columns = ['항목', '측정값']
-        bold = True
     elif result['mode'] == 'containers' and len(columns) == 11:
-        for row in rows[:100]:
-            details.append('**' + cell(row[0]) + '**\n\n' + '  \n'.join('**' + cell(columns[i]) + ':** ' + cell(row[i]) for i in (5, 7, 8, 9, 10)))
-        rows = [[re.sub(r'^eolssu-(runtime|monitoring)-', '', str(row[0]))] + [row[i] for i in (1, 2, 3, 4, 6)] for row in rows]
-        columns = ['컨테이너', '실행 / Health', 'CPU 사용 / 제한', 'RAM 사용 / 제한', '쓰기 / 제한 · 로그', '가동 / 재시작']
-        bold = True
-    elif result['mode'] == 'health':
-        bold = True
+        names = [re.sub(r'^eolssu-(runtime|monitoring)-', '', str(row[0])) for row in rows]
+        tables.append(('자원·상태',
+                       ['컨테이너', '실행 / Health', 'CPU 사용 / 제한', 'RAM 사용 / 제한', '쓰기 / 제한 · 로그', '가동 / 재시작'],
+                       [[name] + [row[i] for i in (1, 2, 3, 4, 6)] for name, row in zip(names, rows)]))
+        rows = [[name] + [row[i] for i in (5, 7, 8, 9, 10)] for name, row in zip(names, rows)]
+        columns = [columns[i] for i in (0, 5, 7, 8, 9, 10)]
+    tables.append(('저장소·실행 상세' if tables else '점검 결과', columns, rows))
+    if issues:
+        tables.append(('확인 사항', ['확인 사항'], [[item] for item in issues[:8]]))
+
+    # Mattermost interprets colon-delimited time fragments as emoji outside code.
+    captured_at = cell(result.get('captured_at', '확인 불가')).replace('`', '')
+    summary = f'**판정: 확인 사항 {len(issues)}건**' if issues else '**판정: 수집한 항목에 이상 없음**'
+    parts = [f"### edo1 {cell(result['mode'])} 점검",
+             f"수집 시각: `{captured_at}` · 요청 `{request_id}`", '', summary]
     render = lambda value: '**' + cell(value) + '**' if bold else cell(value)
-    parts = [f"### edo1 {cell(result['mode'])} 점검", f"{cell(result.get('captured_at', ''))} · 요청 `{request_id}`", '',
-             summary, '', '| ' + ' | '.join(map(render, columns)) + ' |',
-             '| ' + ' | '.join('---' for _ in columns) + ' |']
-    for index, row in enumerate(rows[:100]):
-        rendered = '| ' + ' | '.join(render(value) if bold and (index == 0 or column in (0, 1, 2, 3)) else cell(value) for column, value in enumerate(row)) + ' |'
-        if len('\n'.join(parts)) + len(rendered) > 14000:
-            parts.append(f'\n출력 제한: {len(rows) - index}개 행 생략. 운영자에게 상세 확인을 요청하세요.')
+    for title, table_columns, table_rows in tables:
+        header = ['', '**' + title + '**', '',
+                  '| ' + ' | '.join(map(render, table_columns)) + ' |',
+                  '| ' + ' | '.join('---' for _ in table_columns) + ' |']
+        if len('\n'.join(parts + header)) > 14000:
+            parts.append('\n출력 제한: 나머지 표 생략. 운영자 확인이 필요합니다.')
             break
-        parts.append(rendered)
-    else:
-        if len(rows) > 100:
-            parts.append(f'\n출력 제한: {len(rows) - 100}개 행 생략.')
-    for detail in details:
-        if len('\n'.join(parts)) + len(detail) > 14000:
-            parts.append('\n상세 출력 제한: 나머지 항목 생략. 운영자 확인이 필요합니다.')
-            break
-        parts.extend(['', detail])
+        parts.extend(header)
+        for row in table_rows[:100]:
+            rendered = '| ' + ' | '.join(render(value) if bold and column < 4 else cell(value)
+                                        for column, value in enumerate(row)) + ' |'
+            if len('\n'.join(parts)) + len(rendered) + 1 > 14000:
+                parts.append('\n출력 제한: 나머지 행·표 생략. 운영자 확인이 필요합니다.')
+                return '\n'.join(parts)
+            parts.append(rendered)
+        if len(table_rows) > 100:
+            parts.append(f'\n출력 제한: {len(table_rows) - 100}개 행 생략.')
+    if len(issues) > 8:
+        parts.append(f'\n확인 사항 {len(issues) - 8}건 생략. 운영자 확인이 필요합니다.')
     return '\n'.join(parts)
 
 
