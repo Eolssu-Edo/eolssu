@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2666": "cdd395dcdf4309a098c7b87ad3922487289a329fb899d030f8ae3ea4abd6c3ea"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2666",
+      "category": "시김새",
+      "technique": "노니로",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2666.group-001",0.29,0.74,"평취","임",483.774],
+        ["ngc-sogeum-2666.group-002",1.27,1.75,"평취","임",488.363],
+        ["ngc-sogeum-2666.group-003",2.29,2.76,"역취","임",985.148],
+        ["ngc-sogeum-2666.group-004",3.22,3.73,"역취","남",1101.094],
+        ["ngc-sogeum-2666.group-005",4.2,4.68,"역취","황",1297.364],
+        ["ngc-sogeum-2666.group-006",5.23,5.69,"역취","태",1446.202]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2666.group-001": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "평취",
+                "yulmyeong": "임",
+                "f0Hz": 483.774,
+                "windowsSeconds": [
+                  [
+                    0.51,
+                    0.66
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 16,
+            "originalRegionMedianHz": 483.964,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2666.group-002": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "평취",
+                "yulmyeong": "임",
+                "f0Hz": 488.363,
+                "windowsSeconds": [
+                  [
+                    1.49,
+                    1.66
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 18,
+            "originalRegionMedianHz": 488.743,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          },
+          "repeatAssessment": {
+            "decision": "retain_separate_articulation",
+            "previousRegion": 1,
+            "gapSeconds": 0.53,
+            "reason": "사이 무음과 별도 어택을 가진 실제 재발음. 동일 율명이어도 중복 제거하지 않음."
+          }
+        },
+        "ngc-sogeum-2666.group-003": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "임",
+                "f0Hz": 985.148,
+                "windowsSeconds": [
+                  [
+                    2.51,
+                    2.66
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 16,
+            "originalRegionMedianHz": 986.253,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2666.group-004": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "남",
+                "f0Hz": 1101.094,
+                "windowsSeconds": [
+                  [
+                    3.45,
+                    3.63
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 19,
+            "originalRegionMedianHz": 1102.029,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2666.group-005": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "황",
+                "f0Hz": 1297.364,
+                "windowsSeconds": [
+                  [
+                    4.43,
+                    4.6
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 18,
+            "originalRegionMedianHz": 1297.978,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        },
+        "ngc-sogeum-2666.group-006": {
+          "sequenceDecision": {
+            "orderedAnchors": [
+              {
+                "register": "역취",
+                "yulmyeong": "태",
+                "f0Hz": 1446.202,
+                "windowsSeconds": [
+                  [
+                    5.45,
+                    5.63
+                  ]
+                ]
+              }
+            ],
+            "labelAnchorIndex": 0,
+            "anchorMeaning": "장식 동작 뒤의 도착 안정음",
+            "validFrames": 19,
+            "originalRegionMedianHz": 1445.511,
+            "reason": "장식음의 최고음 또는 전체 중앙값을 율명으로 쓰지 않고 같은 원본 기본음의 안정음과 대조."
+          }
+        }
+      }
+    }
+  ]
+}

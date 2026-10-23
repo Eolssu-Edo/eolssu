@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2658": "50ed38cadebd540a122fd09c287a2b2d57ef4fc529afea0a16c7f61124560b03"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2658",
+      "category": "기본음계",
+      "technique": "요성 중",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2658.group-001",0.26,6.33,"평취","임",492.074],
+        ["ngc-sogeum-2658.group-002",7.75,13.99,"평취","남",547.788],
+        ["ngc-sogeum-2658.group-003",15.2,22.13,"평취","무",588.274],
+        ["ngc-sogeum-2658.group-004",23.36,30.36,"평취","황",650.937],
+        ["ngc-sogeum-2658.group-005",31.66,38.36,"평취","태",737.185],
+        ["ngc-sogeum-2658.group-006",39.49,46.82,"평취","고",833.925],
+        ["ngc-sogeum-2658.group-007",48.24,55.09,"평취","중",879.254],
+        ["ngc-sogeum-2658.group-008",56.34,63.13,"역취","임",981.923],
+        ["ngc-sogeum-2658.group-009",64.0,70.21,"역취","남",1085.155],
+        ["ngc-sogeum-2658.group-010",71.2,77.12,"역취","무",1156.068],
+        ["ngc-sogeum-2658.group-011",78.21,84.35,"역취","황",1281.333],
+        ["ngc-sogeum-2658.group-012",85.2,91.05,"역취","고",1613.19],
+        ["ngc-sogeum-2658.group-013",92.94,99.17,"역취","중",1762.449],
+        ["ngc-sogeum-2658.group-014",100.3,105.99,"역취","중청임",1925.168]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2658.group-009": {
+          "sequenceDecision": {
+            "reason": "파일별 실제 음렬 대조. 요성 강은 역취 남을 생략하고 무로, 요성 중은 남을 포함하되 뒤의 역취 태를 생략함. 전체 F0 궤적에서 각 누락후보 ±4%·주기성>0.9 프레임 0개, 저문턱 gap 점검에서도 별도 발음 없음. 다른 파일의 행 번호를 복사하지 않음."
+          }
+        }
+      }
+    }
+  ]
+}
