@@ -39,7 +39,7 @@ data/
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
-├── tests/fixtures/          # 사용 조건을 확인한 작은 고정 샘플.
+├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
 ├── mart/                    # 집계 DB 스키마.
 ├── raw/                     # 받은 원본 그대로. Git 제외.
 └── processed/               # raw·src·annotations로 다시 만드는 결과. Git 제외.
