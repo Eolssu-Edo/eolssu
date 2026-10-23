@@ -16,7 +16,7 @@ import wave
 import numpy as np
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def digest(path):
@@ -55,6 +55,21 @@ def inside(root, relative):
     path = (root / relative_path(relative)).resolve()
     if not path.is_relative_to(root.resolve()):
         raise ValueError(f"Path escapes root: {relative}")
+    return path
+
+
+def managed_root(root, folder):
+    boundary = root.resolve() / "data" / folder
+    if boundary.resolve() != boundary:
+        raise ValueError(f"Managed directory cannot redirect its boundary: data/{folder}")
+    return boundary
+
+
+def managed_path(root, relative, folder):
+    boundary = managed_root(root, folder)
+    path = inside(root, relative)
+    if path == boundary or not path.is_relative_to(boundary):
+        raise ValueError(f"Path escapes data/{folder} boundary: {relative}")
     return path
 
 
@@ -104,7 +119,7 @@ def validate_analysis_windows(label, rate=None):
             if previous_end is not None and pair[0] < previous_end:
                 raise ValueError(f"Unordered or overlapping {anchor} windows: {label['id']}")
             previous_end = pair[1]
-    review = gesture.get("review", {})
+    review = gesture.get("analysisReview", {})
     if not isinstance(review, dict):
         raise ValueError(f"Invalid window review: {label['id']}")
     if "rejectedWindow" in review:
@@ -125,8 +140,8 @@ def validate_analysis_windows(label, rate=None):
 
 
 def expand_labels(document):
-    """Expand schema-2 tables before filtering, preserving source-row numbering."""
-    allowed = {"schemaVersion", "datasetId", "labelStatus", "eligibleForNoteScoring",
+    """Expand schema-3 tables before filtering, preserving source-row numbering."""
+    allowed = {"schemaVersion", "datasetId", "review", "eligibleForNoteScoring",
                "sourceHashes", "columns", "groups"}
     if set(document) - allowed:
         raise ValueError("Unknown labels document field")
@@ -135,7 +150,8 @@ def expand_labels(document):
     if (not isinstance(columns, list) or any(not isinstance(c, str) for c in columns) or
             len(columns) != len(required) or set(columns) != required):
         raise ValueError("Label columns must name each supported column exactly once")
-    nonempty_text(document.get("labelStatus"), "labelStatus")
+    if document.get("review") not in ("inferred", "reviewed", "rejected"):
+        raise ValueError("Invalid annotation review state")
     if type(document.get("eligibleForNoteScoring")) is not bool:
         raise ValueError("eligibleForNoteScoring must be boolean")
     groups = document.get("groups")
@@ -143,7 +159,7 @@ def expand_labels(document):
         raise ValueError("Expected label groups")
     expanded = []
     for group in groups:
-        group_fields = {"sourceId", "category", "technique", "method", "filenamePrefix",
+        group_fields = {"sourceId", "category", "technique", "method", "analysisBasis", "filenamePrefix",
                         "rows", "evidence", "gestureDefaults"}
         if not isinstance(group, dict) or set(group) - group_fields:
             raise ValueError("Invalid label group fields")
@@ -176,20 +192,28 @@ def expand_labels(document):
             details = deepcopy(evidence.get(key, {}))
             if (not isinstance(details, dict) or set(details) - {
                     "sourceRegionIds", "boundaryReview", "repeatAssessment", "sequenceDecision",
-                    "alternatives", "method", "gesture", "labelStatus", "eligibleForNoteScoring"}):
+                    "alternatives", "method", "analysisBasis", "gesture", "review", "eligibleForNoteScoring"}):
                 raise ValueError(f"Invalid evidence fields: {key}")
-            status = details.pop("labelStatus", document["labelStatus"])
+            status = details.pop("review", document["review"])
             scoring = details.pop("eligibleForNoteScoring", document["eligibleForNoteScoring"])
-            nonempty_text(status, "labelStatus")
+            if status not in ("inferred", "reviewed", "rejected"):
+                raise ValueError(f"Invalid annotation review state: {key}")
             if type(scoring) is not bool:
                 raise ValueError("eligibleForNoteScoring must be boolean")
+            if scoring and status != "reviewed":
+                raise ValueError(f"Only reviewed annotations may be scoring references: {key}")
             method = nonempty_text(details.pop("method", group["method"]), "method")
+            if method != "manual" and not re.fullmatch(r"tool:[^\s@]+@[^\s@]+", method):
+                raise ValueError(f"Expected manual or tool:name@version method: {key}")
+            basis = details.get("analysisBasis", group.get("analysisBasis"))
+            if basis is not None:
+                details["analysisBasis"] = nonempty_text(basis, "analysisBasis")
             display = f"{label['register']} {label['yulmyeong']}"
             gesture = details.pop("gesture", None)
             if gestures and gesture is None:
                 raise ValueError(f"Missing gesture anchors: {key}")
             if gesture is not None:
-                if not isinstance(gesture, dict) or set(gesture) - {"lowerAnchor", "destination", "review"}:
+                if not isinstance(gesture, dict) or set(gesture) - {"lowerAnchor", "destination", "analysisReview"}:
                     raise ValueError(f"Invalid gesture: {key}")
                 lower, destination = gesture.get("lowerAnchor"), gesture.get("destination")
                 if (not isinstance(lower, dict) or not isinstance(destination, dict) or
@@ -208,12 +232,16 @@ def expand_labels(document):
             stem = display.replace(" ", "_").replace("→", "-")
             label.update(sourceId=group["sourceId"], category=group["category"], technique=group["technique"],
                          displayLabel=display, file=f"{group['category']}/{group['technique']}/{prefix}{stem}.wav",
-                         labelStatus=status, eligibleForNoteScoring=scoring,
-                         evidence={"labelF0Hz": pitch, "method": method, **details})
+                         method=method, review=status, eligibleForNoteScoring=scoring,
+                         evidence={"labelF0Hz": pitch, **details})
             expanded.append(label)
             validate_analysis_windows(label)
         if set(evidence) - group_ids:
             raise ValueError("Evidence refers to an unknown label ID")
+    return namespace_labels(expanded)
+
+
+def namespace_labels(expanded):
     # Partition a shared technique by source before selection. Single-source
     # datasets keep their existing filenames; no new input fields are needed.
     technique_sources = {}
@@ -328,26 +356,56 @@ def write_clip(path, samples, rate):
 
 
 def validate_manifests(dataset, root):
-    documents = {name: load_json(dataset / f"{name}.json") for name in ("sources", "labels", "performances")}
+    if dataset.parent.name != "catalog" or dataset.parent.parent.name != "data":
+        raise ValueError("Dataset must be a directory under data/catalog")
+    metadata_root = dataset.parent.parent.parent
+    documents = {name: load_json(dataset / f"{name}.json") for name in ("sources", "performances")}
+    manifest_hashes = {f"catalog/{dataset.name}/{name}.json": digest(dataset / f"{name}.json") for name in documents}
     dataset_id = documents["sources"].get("datasetId")
     if not isinstance(dataset_id, str) or not dataset_id:
         raise ValueError("Missing datasetId")
     for name, document in documents.items():
-        version = 2 if name == "labels" else 1
-        if type(document.get("schemaVersion")) is not int or document["schemaVersion"] != version or document.get("datasetId") != dataset_id:
+        if type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 2 or document.get("datasetId") != dataset_id:
             raise ValueError(f"Schema or dataset mismatch: {name}")
     if documents["sources"].get("pathBase") != "repository_root":
         raise ValueError("Source paths must be relative to repository_root")
     sources = index_rows(documents["sources"]["sources"], "source")
-    labels = expand_labels(documents["labels"])
+    if len({source_id.casefold() for source_id in sources}) != len(sources):
+        raise ValueError("Case-colliding source IDs")
     performances = index_rows(documents["performances"]["performances"], "performance")
+    comparisons = index_rows(documents["performances"].get("comparisonScores", []), "comparison score")
+    annotations, expanded = {}, []
     for source in sources.values():
         if source.get("kind") not in ("audio", "score") or not re.fullmatch(r"[0-9a-fA-F]{64}", source.get("sha256", "")):
             raise ValueError(f"Invalid source type/hash: {source['id']}")
-        inside(root, source["path"])
+        raw_path = source.get("rawPath", "")
+        if not isinstance(raw_path, str) or not raw_path.startswith("data/raw/") or "path" in source:
+            raise ValueError(f"Expected rawPath under data/raw: {source['id']}")
+        managed_path(root, raw_path, "raw")
         for field in ("title", "license", "sourceUrl", "attribution"):
             if not isinstance(source.get(field), str) or not source[field].strip():
                 raise ValueError(f"Missing source {field}: {source['id']}")
+        if "annotationPath" not in source:
+            continue
+        expected = f"data/annotations/audio/{name_component(source['id'])}/labels.json"
+        if source["kind"] != "audio" or source["annotationPath"] != expected:
+            raise ValueError(f"Annotation path must match its audio source ID: {source['id']}")
+        path = managed_path(metadata_root, expected, "annotations")
+        document = load_json(path)
+        if (type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 3 or
+                document.get("datasetId") != dataset_id or
+                document.get("sourceHashes") != {source["id"]: source["sha256"]}):
+            raise ValueError(f"Annotation source version or dataset mismatch: {source['id']}")
+        source_labels = expand_labels(document)
+        if any(group["sourceId"] != source["id"] for group in document["groups"]):
+            raise ValueError(f"Annotation refers to another audio source: {source['id']}")
+        annotations[source["id"]] = document
+        expanded.extend(source_labels.values())
+        manifest_hashes[expected.removeprefix("data/")] = digest(path)
+    # The merged view is needed for IDs and filenames shared across input files.
+    labels = namespace_labels(expanded)
+    documents["annotations"] = annotations
+    documents["manifestHashes"] = manifest_hashes
 
     paths = {"catalog.json": ("reserved", None)}
 
@@ -371,8 +429,8 @@ def validate_manifests(dataset, root):
 
     intervals = {}
     for label in labels.values():
-        source = source_reference(label, documents["labels"], "audio")
-        for field in ("category", "technique", "register", "yulmyeong", "labelStatus", "displayLabel"):
+        source = source_reference(label, annotations[label["sourceId"]], "audio")
+        for field in ("category", "technique", "register", "yulmyeong", "review", "displayLabel"):
             if not isinstance(label.get(field), str) or not label[field].strip():
                 raise ValueError(f"Missing label {field}: {label['id']}")
         start, end = label.get("startSeconds"), label.get("endSeconds")
@@ -385,42 +443,58 @@ def validate_manifests(dataset, root):
         if Path(label["file"]).suffix.lower() != ".wav":
             raise ValueError("Clips must use a .wav filename")
         output_path(label["file"], ("label", label["id"]))
+    def validate_score(score, *, comparison=False):
+        source = source_reference(score, documents["performances"], "score")
+        if Path(score["file"]).suffix.lower() != Path(source["rawPath"]).suffix.lower():
+            raise ValueError("Unchanged score copy must preserve the source file extension")
+        if score.get("notation") not in ("staff", "jeongganbo"):
+            raise ValueError("Expected staff or jeongganbo notation")
+        if not comparison and score.get("samePerformanceEditionVerified") is not True:
+            raise ValueError("Unverified score editions belong in comparisonScores")
+        pages, maximum = score.get("pdfPages"), source.get("pdfPageCount")
+        if (not isinstance(pages, list) or not pages or type(maximum) is not int or
+                any(type(page) is not int or not 1 <= page <= maximum for page in pages)):
+            raise ValueError("Invalid PDF page reference")
+        output_path(score["file"], ("source", source["id"]))
+
     for performance in performances.values():
         audio = performance["audio"]
         source = source_reference(audio, documents["performances"], "audio")
-        if Path(audio["file"]).suffix.lower() != Path(source["path"]).suffix.lower():
+        if Path(audio["file"]).suffix.lower() != Path(source["rawPath"]).suffix.lower():
             raise ValueError("Unchanged audio copy must preserve the source file extension")
         output_path(audio["file"], ("source", source["id"]))
         for score in performance["scores"]:
-            source = source_reference(score, documents["performances"], "score")
-            if Path(score["file"]).suffix.lower() != Path(source["path"]).suffix.lower():
-                raise ValueError("Unchanged score copy must preserve the source file extension")
-            if score.get("notation") not in ("staff", "jeongganbo"):
-                raise ValueError("Expected staff or jeongganbo notation")
-            pages, maximum = score.get("pdfPages"), source.get("pdfPageCount")
-            if (not isinstance(pages, list) or not pages or type(maximum) is not int or
-                    any(type(page) is not int or not 1 <= page <= maximum for page in pages)):
-                raise ValueError("Invalid PDF page reference")
-            output_path(score["file"], ("source", source["id"]))
+            validate_score(score)
+    for score in comparisons.values():
+        if score.get("forPerformanceId") not in performances:
+            raise ValueError("Comparison score refers to an unknown performance")
+        validate_score(score, comparison=True)
     return documents, sources, labels, performances
 
 
 def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_ids=None,
                    category=None, technique=None, register=None, yulmyeong=None):
     dataset, output, root = Path(dataset).resolve(), Path(output).resolve(), Path(root).resolve()
+    processed_root = managed_root(root, "processed")
+    if output == processed_root or not output.is_relative_to(processed_root):
+        raise ValueError("Output must be a new directory under data/processed")
     if output.exists():
         raise ValueError(f"Output already exists; choose a new directory: {output}")
     documents, sources, labels, performances = validate_manifests(dataset, root)
     label_ids, performance_ids = set(label_ids or []), set(performance_ids or [])
     if label_ids - labels.keys() or performance_ids - performances.keys():
         raise ValueError("Unknown selected label/performance ID")
+    if any(labels[key]["review"] == "rejected" for key in label_ids):
+        raise ValueError("Rejected annotations cannot be exported")
     filters = {"category": category, "technique": technique, "register": register, "yulmyeong": yulmyeong}
     has_filter = any(v is not None for v in filters.values())
     select_all = not label_ids and not performance_ids and not has_filter
     selected_labels = [label for key, label in labels.items()
-                       if (select_all or key in label_ids or (has_filter and not label_ids))
+                       if label["review"] != "rejected" and (select_all or key in label_ids or (has_filter and not label_ids))
                        and all(v is None or label[k] == v for k, v in filters.items())]
     selected_performances = [p for key, p in performances.items() if select_all or key in performance_ids]
+    selected_comparisons = [s for s in documents["performances"].get("comparisonScores", [])
+                            if s["forPerformanceId"] in {p["id"] for p in selected_performances}]
     if not selected_labels and not selected_performances:
         raise ValueError("Selection matched no labels or performances")
     used_ids = {label["sourceId"] for label in selected_labels}
@@ -429,7 +503,10 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
         for reference in [performance["audio"], *performance["scores"]]:
             copies[reference["file"]] = reference["sourceId"]
             used_ids.add(reference["sourceId"])
-    source_paths = {key: inside(root, sources[key]["path"]) for key in used_ids}
+    for reference in selected_comparisons:
+        copies[reference["file"]] = reference["sourceId"]
+        used_ids.add(reference["sourceId"])
+    source_paths = {key: managed_path(root, sources[key]["rawPath"], "raw") for key in used_ids}
     for key, path in source_paths.items():
         if digest(path) != sources[key]["sha256"].lower():
             raise ValueError(f"Source SHA-256 mismatch: {key}")
@@ -458,13 +535,13 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
             bounds[label["id"]] = (first, last)
         del samples
 
-    catalog = {"schemaVersion": 1, "datasetId": documents["sources"]["datasetId"],
+    catalog = {"schemaVersion": 2, "datasetId": documents["sources"]["datasetId"],
                "instrument": documents["sources"].get("instrument"),
-               "manifestHashes": {name: digest(dataset / f"{name}.json") for name in documents},
+               "manifestHashes": documents["manifestHashes"],
                "exporterSha256": digest(Path(__file__)),
                "audioDecoders": decoders,
                "sources": [source for key, source in sources.items() if key in used_ids],
-               "labels": [], "performances": [], "assets": []}
+               "labels": [], "performances": [], "comparisonScores": selected_comparisons, "assets": []}
     output.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".dataset-export-", dir=output.parent) as temporary:
         stage = Path(temporary) / "result"
@@ -501,9 +578,9 @@ def export_dataset(dataset, output, *, root=ROOT, label_ids=None, performance_id
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, required=True, help="Directory containing sources/labels/performances.json")
+    parser.add_argument("--dataset", type=Path, required=True, help="data/catalog/<dataset-id> containing sources/performances.json")
     parser.add_argument("--output-dir", type=Path, required=True, help="New directory; existing directories are never overwritten")
-    parser.add_argument("--root", type=Path, default=ROOT, help="Base directory for sources.path (default: repository root)")
+    parser.add_argument("--root", type=Path, default=ROOT, help="Base for rawPath and data/processed; use / for server /data/raw. Metadata stays in the checkout.")
     parser.add_argument("--label", dest="label_ids", action="append", help="Export this label ID; repeat to select several")
     parser.add_argument("--performance", dest="performance_ids", action="append", help="Copy this performance bundle; repeat to select several")
     for name in ("category", "technique", "register", "yulmyeong"):

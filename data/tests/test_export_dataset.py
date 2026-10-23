@@ -1,7 +1,9 @@
 import copy
 import hashlib
 import json
+import os
 from pathlib import Path
+import shutil
 import struct
 import subprocess
 import sys
@@ -12,7 +14,7 @@ import wave
 import numpy as np
 import soundfile as sf
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/audio"))
 from export_dataset import export_dataset, read_audio, read_wave
 
 
@@ -20,14 +22,159 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def link_directory(target, link):
+    if sys.platform == "win32":
+        import _winapi
+        _winapi.CreateJunction(str(target), str(link))
+    else:
+        os.symlink(target, link, target_is_directory=True)
+
+
 class ExportTests(unittest.TestCase):
+    def test_processed_directory_cannot_redirect_output_into_raw(self):
+        before = {p.name: digest(p) for p in self.raw.iterdir()}
+        link_directory(self.raw, self.processed)
+        with self.assertRaisesRegex(ValueError, "redirect|boundary"):
+            self.run_export(label_ids=["first"])
+        self.assertEqual(before, {p.name: digest(p) for p in self.raw.iterdir()})
+
+    def test_raw_subdirectory_cannot_redirect_input_into_processed(self):
+        self.processed.mkdir()
+        shutil.copyfile(self.raw / "audio.wav", self.processed / "derived.wav")
+        link_directory(self.processed, self.raw / "redirect")
+        self.sources["sources"][0]["rawPath"] = "data/raw/redirect/derived.wav"
+        self.save()
+        with self.assertRaisesRegex(ValueError, "boundary"):
+            self.run_export(label_ids=["first"])
+        self.assertFalse((self.processed / "export").exists())
+
+    def test_annotations_cannot_redirect_into_raw(self):
+        annotation = self.root / self.sources["sources"][0]["annotationPath"]
+        shutil.copyfile(annotation, self.raw / "labels.json")
+        annotation.unlink()
+        annotation.parent.rmdir()
+        link_directory(self.raw, annotation.parent)
+        with self.assertRaisesRegex(ValueError, "boundary"):
+            self.run_export(label_ids=["first"])
+
+    def test_source_ids_are_case_unique_even_without_shared_techniques(self):
+        self.sources["sources"].append({**self.sources["sources"][1], "id": "SCORE"})
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Case-colliding source"):
+            self.run_export(label_ids=["first"])
+
+    def test_declared_audio_annotations_are_required_inputs(self):
+        annotation = self.root / self.sources["sources"][0]["annotationPath"]
+        annotation.unlink()
+        from export_dataset import validate_manifests
+        with self.assertRaisesRegex(FileNotFoundError, "annotations.*tone.*labels.json"):
+            validate_manifests(self.dataset, self.root)
+
+    def test_annotation_identity_and_raw_paths_are_checked(self):
+        path = self.root / self.sources["sources"][0]["annotationPath"]
+        original = json.loads(path.read_text(encoding="utf-8"))
+        mutations = [
+            lambda doc: doc.update(datasetId="another"),
+            lambda doc: doc.update(sourceHashes={"tone": "0" * 64}),
+            lambda doc: doc["groups"][0].update(sourceId="score"),
+        ]
+        for mutate in mutations:
+            invalid = copy.deepcopy(original)
+            mutate(invalid)
+            path.write_text(json.dumps(invalid), encoding="utf-8")
+            with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                self.run_export()
+        path.write_text(json.dumps(original), encoding="utf-8")
+        source = self.sources["sources"][0]
+        for raw_path in ("raw/audio.wav", "/data/raw/audio.wav", "data/raw/../../audio.wav"):
+            source["rawPath"] = raw_path
+            self.save()
+            with self.subTest(raw_path=raw_path), self.assertRaises(ValueError):
+                self.run_export()
+        source["rawPath"] = "data/raw/audio.wav"
+        self.save()
+        source["annotationPath"] = "data/annotations/audio/another/labels.json"
+        (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "Annotation path"):
+            self.run_export()
+
+    def test_method_review_and_scoring_gate(self):
+        baseline = copy.deepcopy(self.labels)
+        mutations = [
+            lambda: self.labels.update(review="confirmed"),
+            lambda: self.labels.update(eligibleForNoteScoring=True),
+            lambda: self.labels["groups"][0].update(method="tool:fixture"),
+            lambda: self.labels["groups"][0].update(method="old_unversioned_method"),
+            lambda: self.labels["groups"][0].update(evidence={"first": {"review": "inferred", "eligibleForNoteScoring": True}}),
+        ]
+        for mutate in mutations:
+            self.labels = copy.deepcopy(baseline)
+            mutate()
+            self.save()
+            with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                self.run_export(label_ids=["first"])
+        self.labels = copy.deepcopy(baseline)
+        self.labels.update(review="reviewed", eligibleForNoteScoring=True)
+        self.labels["groups"][0]["method"] = "manual"
+        self.save()
+        label = self.run_export("reviewed", label_ids=["first"])["labels"][0]
+        self.assertEqual((label["review"], label["method"], label["eligibleForNoteScoring"]), ("reviewed", "manual", True))
+        self.labels.update(review="rejected", eligibleForNoteScoring=False)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Rejected annotations"):
+            self.run_export(label_ids=["first"])
+        self.assertEqual(self.run_export("rejected-full")["labels"], [])
+
+    def test_unverified_scores_are_comparisons_not_confirmed_performance_scores(self):
+        score = self.performances["comparisonScores"][0]
+        self.performances["performances"][0]["scores"] = [copy.deepcopy(score)]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "comparisonScores"):
+            self.run_export()
+        self.performances["performances"][0]["scores"] = []
+        score["forPerformanceId"] = "absent"
+        self.save()
+        with self.assertRaisesRegex(ValueError, "unknown performance"):
+            self.run_export()
+        score["forPerformanceId"] = "piece"
+        self.save()
+        result = self.run_export()
+        self.assertEqual(result["performances"][0]["scores"], [])
+        self.assertEqual(len(result["comparisonScores"]), 2)
+
+    def test_remote_raw_root_keeps_checkout_metadata_and_processed_output(self):
+        remote = self.root / "server"
+        (remote / "data/raw").mkdir(parents=True)
+        shutil.copyfile(self.raw / "audio.wav", remote / "data/raw/audio.wav")
+        output = remote / "data/processed/clip"
+        result = export_dataset(self.dataset, output, root=remote, label_ids=["first"])
+        self.assertEqual(result["labels"][0]["sourceStartFrame"], 800)
+        self.assertEqual(set(result["manifestHashes"]), {
+            "catalog/example/sources.json", "catalog/example/performances.json",
+            "annotations/audio/tone/labels.json"})
+        for directory in ("raw", "catalog", "annotations"):
+            with self.subTest(directory=directory), self.assertRaisesRegex(ValueError, "data/processed"):
+                export_dataset(self.dataset, remote / f"data/{directory}/bad-output", root=remote, label_ids=["first"])
+
+    def test_duplicate_label_ids_across_annotation_files_are_rejected(self):
+        source = {**self.sources["sources"][0], "id": "second", "sha256": "1" * 64}
+        self.sources["sources"].append(source)
+        self.labels["sourceHashes"]["second"] = source["sha256"]
+        group = copy.deepcopy(self.labels["groups"][0])
+        group["sourceId"] = "second"
+        self.labels["groups"].append(group)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "duplicate label ID"):
+            self.run_export(label_ids=["first"])
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.dataset = self.root / "data/datasets/example"
+        self.dataset = self.root / "data/catalog/example"
         self.dataset.mkdir(parents=True)
-        self.raw = self.root / "raw"
+        self.raw = self.root / "data/raw"
+        self.processed = self.root / "data/processed"
         self.raw.mkdir()
         # Known samples, no pitch inference or fixtures from the instrument under test.
         self.samples = np.column_stack([np.arange(8000) % 1000, -(np.arange(8000) % 400)]).astype("<i2")
@@ -37,23 +184,23 @@ class ExportTests(unittest.TestCase):
             stream.setframerate(8000)
             stream.writeframes(self.samples.tobytes())
         (self.raw / "score.pdf").write_bytes(b"%PDF-1.4\nunchanged score fixture\n%%EOF")
-        self.sources = {"schemaVersion": 1, "datasetId": "example", "instrument": "검증 악기",
+        self.sources = {"schemaVersion": 2, "datasetId": "example", "instrument": "검증 악기",
                         "pathBase": "repository_root", "sources": [
-            {"id": "tone", "kind": "audio", "title": "원음", "path": "raw/audio.wav",
+            {"id": "tone", "kind": "audio", "title": "원음", "rawPath": "data/raw/audio.wav",
              "sha256": digest(self.raw / "audio.wav"), "license": "test", "sourceUrl": "https://example.org/audio", "attribution": "fixture"},
-            {"id": "score", "kind": "score", "title": "악보", "path": "raw/score.pdf",
+            {"id": "score", "kind": "score", "title": "악보", "rawPath": "data/raw/score.pdf",
              "sha256": digest(self.raw / "score.pdf"), "pdfPageCount": 10,
              "license": "test", "sourceUrl": "https://example.org/score", "attribution": "fixture"}]}
-        self.labels = {"schemaVersion": 2, "datasetId": "example", "labelStatus": "inferred",
+        self.labels = {"schemaVersion": 3, "datasetId": "example", "review": "inferred",
                        "eligibleForNoteScoring": False,
                        "sourceHashes": {"tone": self.sources["sources"][0]["sha256"]},
                        "columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"],
                        "groups": [
-            {"sourceId": "tone", "category": "기본음계", "technique": "기본음", "method": "fixture",
+            {"sourceId": "tone", "category": "기본음계", "technique": "기본음", "method": "tool:fixture@1",
              "filenamePrefix": "none", "rows": [["first", .1, .2, "저취", "황", 300.0]]},
-            {"sourceId": "tone", "category": "시김새", "technique": "요성", "method": "fixture",
+            {"sourceId": "tone", "category": "시김새", "technique": "요성", "method": "tool:fixture@1",
              "filenamePrefix": "rowNumber3", "rows": [["repeat", .3, .5, "저취", "황", 301.0]]}]}
-        self.performances = {"schemaVersion": 1, "datasetId": "example",
+        self.performances = {"schemaVersion": 2, "datasetId": "example",
                              "sourceHashes": {s["id"]: s["sha256"] for s in self.sources["sources"]},
                              "performances": [{"id": "piece", "title": "곡",
             "audio": {"sourceId": "tone", "file": "연주/원음.wav"}, "scores": [
@@ -61,14 +208,36 @@ class ExportTests(unittest.TestCase):
                  "coverage": "성악용", "samePerformanceEditionVerified": False},
                 {"sourceId": "score", "file": "연주/악보.pdf", "notation": "jeongganbo", "pdfPages": [3],
                  "coverage": "단소용 일부", "samePerformanceEditionVerified": False}]}]}
+        self.performances["comparisonScores"] = [
+            {"id": f"comparison-{i}", "forPerformanceId": "piece", **score}
+            for i, score in enumerate(self.performances["performances"][0]["scores"])]
+        self.performances["performances"][0]["scores"] = []
         self.save()
 
     def save(self):
-        for name in ("sources", "labels", "performances"):
+        source_ids = {source["id"] for source in self.sources["sources"]}
+        for source in self.sources["sources"]:
+            groups = [group for group in self.labels["groups"]
+                      if group["sourceId"] == source["id"] or
+                      (source["id"] == "tone" and group["sourceId"] not in source_ids)]
+            if not groups:
+                source.pop("annotationPath", None)
+                continue
+            source["annotationPath"] = f"data/annotations/audio/{source['id']}/labels.json"
+            # Keep invalid source IDs in manifests for validation tests without
+            # creating unsafe paths or overwriting a case alias in the fixture.
+            if "/" in source["id"] or source["id"] in ("CON", "TONE"):
+                continue
+            document = {**self.labels, "groups": groups,
+                        "sourceHashes": {source["id"]: self.labels["sourceHashes"].get(source["id"], "")}}
+            path = self.root / source["annotationPath"]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        for name in ("sources", "performances"):
             (self.dataset / f"{name}.json").write_text(json.dumps(getattr(self, name), ensure_ascii=False), encoding="utf-8")
 
     def run_export(self, name="export", **kwargs):
-        return export_dataset(self.dataset, self.root / name, root=self.root, **kwargs)
+        return export_dataset(self.dataset, self.processed / name, root=self.root, **kwargs)
 
     def update_label(self, index, **values):
         row = [row for group in self.labels["groups"] for row in group["rows"]][index]
@@ -77,11 +246,11 @@ class ExportTests(unittest.TestCase):
 
     def test_compact_rows_preserve_original_number_when_selecting_a_repeat(self):
         self.labels = {
-            "schemaVersion": 2, "datasetId": "example", "labelStatus": "inferred",
+            "schemaVersion": 3, "datasetId": "example", "review": "inferred",
             "eligibleForNoteScoring": False, "sourceHashes": self.labels["sourceHashes"],
             "columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"],
             "groups": [{"sourceId": "tone", "category": "시김새", "technique": "요성",
-                        "method": "fixture", "filenamePrefix": "rowNumber3", "rows": [
+                        "method": "tool:fixture@1", "filenamePrefix": "rowNumber3", "rows": [
                             ["first", .1, .2, "저취", "황", 300.0],
                             ["repeat", .3, .5, "저취", "황", 301.0]]}]}
         self.save()
@@ -105,7 +274,7 @@ class ExportTests(unittest.TestCase):
             label = result["labels"][0]
             self.assertEqual((label["register"], label["yulmyeong"]), ("직접 지정한 취법", "직접 지정한 율명"))
             self.assertEqual((label["sourceStartFrame"], label["sourceEndFrameExclusive"]), (800, 1600))
-            with wave.open(str(self.root / f"export-{index}" / label["file"])) as stream:
+            with wave.open(str(self.processed / f"export-{index}" / label["file"])) as stream:
                 actual = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2")
             expected = np.rint(self.samples[800:1600].astype(float).mean(axis=1) / 32768 * 32767).astype("<i2")
             np.testing.assert_array_equal(actual, expected)
@@ -120,20 +289,20 @@ class ExportTests(unittest.TestCase):
     def test_full_export_retains_repeat_and_copies_performance_and_shared_pdf_unchanged(self):
         result = self.run_export()
         self.assertEqual([v["id"] for v in result["labels"]], ["first", "repeat"])
-        self.assertEqual(digest(self.root / "export/연주/원음.wav"), digest(self.raw / "audio.wav"))
-        self.assertEqual(digest(self.root / "export/연주/악보.pdf"), digest(self.raw / "score.pdf"))
-        self.assertEqual(len(list((self.root / "export").rglob("*.pdf"))), 1)
-        self.assertFalse(result["performances"][0]["scores"][1]["samePerformanceEditionVerified"])
-        self.assertEqual(result["performances"][0]["scores"][1]["coverage"], "단소용 일부")
+        self.assertEqual(digest(self.processed / "export/연주/원음.wav"), digest(self.raw / "audio.wav"))
+        self.assertEqual(digest(self.processed / "export/연주/악보.pdf"), digest(self.raw / "score.pdf"))
+        self.assertEqual(len(list((self.processed / "export").rglob("*.pdf"))), 1)
+        self.assertFalse(result["comparisonScores"][1]["samePerformanceEditionVerified"])
+        self.assertEqual(result["comparisonScores"][1]["coverage"], "단소용 일부")
 
     def test_selective_export_does_not_require_unselected_score_or_alter_full_export(self):
         self.run_export("full")
-        before = {p.relative_to(self.root / "full"): digest(p) for p in (self.root / "full").rglob("*") if p.is_file()}
+        before = {p.relative_to(self.processed / "full"): digest(p) for p in (self.processed / "full").rglob("*") if p.is_file()}
         (self.raw / "score.pdf").unlink()
         result = self.run_export("selection", technique="기본음", register="저취", yulmyeong="황")
         self.assertEqual([v["id"] for v in result["labels"]], ["first"])
         self.assertEqual(result["performances"], [])
-        after = {p.relative_to(self.root / "full"): digest(p) for p in (self.root / "full").rglob("*") if p.is_file()}
+        after = {p.relative_to(self.processed / "full"): digest(p) for p in (self.processed / "full").rglob("*") if p.is_file()}
         self.assertEqual(before, after)
         with self.assertRaisesRegex(ValueError, "already exists"):
             self.run_export("full", label_ids=["first"])
@@ -147,7 +316,7 @@ class ExportTests(unittest.TestCase):
         for selector in ({"label_ids": ["absent"]}, {"performance_ids": ["absent"]}, {"yulmyeong": "없는 음"}):
             with self.subTest(selector=selector), self.assertRaises(ValueError):
                 self.run_export(**selector)
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_wrong_hash_and_stale_label_version_are_rejected_before_writes(self):
         original = copy.deepcopy(self.sources)
@@ -160,7 +329,7 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.assertRaises(ValueError):
                 self.run_export(label_ids=["first"])
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_invalid_ids_ranges_pages_and_collisions_fail_before_output(self):
         originals = copy.deepcopy((self.sources, self.labels, self.performances))
@@ -171,7 +340,7 @@ class ExportTests(unittest.TestCase):
             lambda: self.update_label(0, endSeconds=1.1),
             lambda: self.update_label(0, startSeconds=float("nan")),
             lambda: self.update_label(0, endSeconds=.1),
-            lambda: self.performances["performances"][0]["scores"][0].update(pdfPages=[11]),
+            lambda: self.performances["comparisonScores"][0].update(pdfPages=[11]),
             lambda: self.labels["groups"][1].update(category="기본음계", technique="기본음", filenamePrefix="none"),
             lambda: self.performances["performances"][0]["audio"].update(file="기본음계/기본음/저취_황.wav/child.wav"),
             lambda: self.labels.update(datasetId="wrong-dataset"),
@@ -182,7 +351,7 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(mutate=mutate), self.assertRaises((ValueError, OSError)):
                 self.run_export()
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_unsafe_paths_and_reserved_output_names_are_rejected(self):
         for name in ("../outside", "C:/outside", "/outside", "a\\..\\outside",
@@ -191,22 +360,22 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(path=name), self.assertRaises(ValueError):
                 self.run_export()
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_missing_selected_input_leaves_no_partial_output(self):
         (self.raw / "score.pdf").unlink()
         with self.assertRaises((ValueError, OSError)):
             self.run_export()
-        self.assertFalse((self.root / "export").exists())
-        self.assertEqual(list(self.root.glob(".dataset-export-*")), [])
+        self.assertFalse((self.processed / "export").exists())
+        self.assertEqual(list(self.processed.glob(".dataset-export-*")), [])
 
     def test_cli_uses_the_three_manifests_and_selects_one_label(self):
-        script = Path(__file__).resolve().parents[1] / "src/export_dataset.py"
+        script = Path(__file__).resolve().parents[1] / "src/audio/export_dataset.py"
         result = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset), "--root", str(self.root),
-                                 "--output-dir", str(self.root / "cli"), "--label", "repeat"],
+                                 "--output-dir", str(self.processed / "cli"), "--label", "repeat"],
                                 capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(result.returncode, 0, result.stderr)
-        result = json.loads((self.root / "cli/catalog.json").read_text(encoding="utf-8"))
+        result = json.loads((self.processed / "cli/catalog.json").read_text(encoding="utf-8"))
         self.assertEqual([v["id"] for v in result["labels"]], ["repeat"])
 
     def test_float_wave_at_native_rate_supports_headroom_and_odd_chunks(self):
@@ -221,7 +390,7 @@ class ExportTests(unittest.TestCase):
         np.testing.assert_array_equal(samples, values.astype(float))
         self.assertEqual(rate, 44100)
         source = self.sources["sources"][0]
-        source.update(path="raw/float.wav", sha256=digest(path))
+        source.update(rawPath="data/raw/float.wav", sha256=digest(path))
         self.labels["sourceHashes"]["tone"] = digest(path)
         self.performances["sourceHashes"]["tone"] = digest(path)
         self.labels["groups"] = [self.labels["groups"][0]]
@@ -229,7 +398,7 @@ class ExportTests(unittest.TestCase):
         self.save()
         result = self.run_export(label_ids=["first"])
         self.assertLess(result["labels"][0]["gain"], 1)
-        with wave.open(str(self.root / "export/기본음계/기본음/저취_황.wav")) as stream:
+        with wave.open(str(self.processed / "export/기본음계/기본음/저취_황.wav")) as stream:
             self.assertEqual(stream.getframerate(), 44100)
             pcm = np.frombuffer(stream.readframes(4), dtype="<i2")
         self.assertGreater(pcm[0], 32000)
@@ -273,24 +442,24 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(mutation=mutate), self.assertRaises(ValueError):
                 self.run_export()
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_compound_label_uses_anchor_and_keeps_only_explicit_review_overrides(self):
         group = self.labels["groups"][0]
         group["gestureDefaults"] = {"repeatedRises": 2, "labelMeaning": "destination", "interpretation": "fixture"}
-        group["evidence"] = {"first": {"method": "reviewed_windows", "gesture": {
+        group["evidence"] = {"first": {"method": "tool:reviewed_windows@1", "gesture": {
             "lowerAnchor": {"register": "저취", "yulmyeong": "임", "f0Hz": 250.0,
                             "windowsSeconds": [[.11, .13]], "alternatives": []},
             "destination": {"windowsSeconds": [[.15, .19]], "alternatives": []},
-            "review": {"reason": "test review"}}}}
+            "analysisReview": {"reason": "test review"}}}}
         self.save()
         label = self.run_export(label_ids=["first"])["labels"][0]
         self.assertEqual(label["displayLabel"], "저취 임→저취 황")
         self.assertEqual(label["file"], "기본음계/기본음/저취_임-저취_황.wav")
-        self.assertEqual(label["evidence"]["method"], "reviewed_windows")
+        self.assertEqual(label["method"], "tool:reviewed_windows@1")
         self.assertEqual(label["gesture"]["destination"]["f0Hz"], 300.0)
         self.assertEqual(label["gesture"]["repeatedRises"], 2)
-        self.assertEqual(label["gesture"]["review"]["reason"], "test review")
+        self.assertEqual(label["gesture"]["analysisReview"]["reason"], "test review")
         self.assertNotIn("actualFingeringStatus", label)
         self.assertNotIn("referenceFingerings", label["evidence"])
 
@@ -321,7 +490,7 @@ class ExportTests(unittest.TestCase):
         decoded, decoded_rate = sf.read(path, always_2d=True)
         self.assertEqual((decoded_rate, len(decoded)), (rate, rate))
         source = self.sources["sources"][0]
-        source.update(path="raw/audio.mp3", sha256=digest(path), sampleRateHz=rate, channels=2)
+        source.update(rawPath="data/raw/audio.mp3", sha256=digest(path), sampleRateHz=rate, channels=2)
         self.labels["sourceHashes"]["tone"] = source["sha256"]
         self.performances["sourceHashes"]["tone"] = source["sha256"]
         self.performances["performances"][0]["audio"]["file"] = "연주/원음.mp3"
@@ -330,7 +499,7 @@ class ExportTests(unittest.TestCase):
         label = result["labels"][0]
         self.assertEqual((label["sourceStartFrame"], label["sourceEndFrameExclusive"]), (4410, 8820))
         self.assertEqual((label["sampleRateHz"], label["frames"]), (rate, 4410))
-        with wave.open(str(self.root / "export" / label["file"])) as stream:
+        with wave.open(str(self.processed / "export" / label["file"])) as stream:
             actual = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2")
         expected = np.rint(decoded[4410:8820].mean(axis=1) * 32767).astype("<i2")
         np.testing.assert_array_equal(actual, expected)
@@ -338,14 +507,14 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(decoder["format"], "MP3")
         self.assertEqual(decoder["soundfileVersion"], sf.__version__)
         self.assertEqual(decoder["libsndfileVersion"], sf.__libsndfile_version__)
-        self.assertEqual(digest(self.root / "export/연주/원음.mp3"), source["sha256"])
+        self.assertEqual(digest(self.processed / "export/연주/원음.mp3"), source["sha256"])
         # Exercise the public CLI as well, including the inherited decoder dependency.
-        script = Path(__file__).resolve().parents[1] / "src/export_dataset.py"
+        script = Path(__file__).resolve().parents[1] / "src/audio/export_dataset.py"
         run = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset),
-                              "--root", str(self.root), "--output-dir", str(self.root / "mp3-cli"),
+                              "--root", str(self.root), "--output-dir", str(self.processed / "mp3-cli"),
                               "--label", "first"], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(digest(self.root / "mp3-cli" / label["file"]), label["sha256"])
+        self.assertEqual(digest(self.processed / "mp3-cli" / label["file"]), label["sha256"])
 
     def test_multiple_sources_share_technique_without_filename_collisions(self):
         source = copy.deepcopy(self.sources["sources"][0])
@@ -353,7 +522,7 @@ class ExportTests(unittest.TestCase):
         with wave.open(str(path), "wb") as stream:
             stream.setparams((2, 2, 8000, 0, "NONE", "not compressed"))
             stream.writeframes((-self.samples).tobytes())
-        source.update(id="second-source", path="raw/second.wav", sha256=digest(path))
+        source.update(id="second-source", rawPath="data/raw/second.wav", sha256=digest(path))
         self.sources["sources"].append(source)
         self.labels["sourceHashes"][source["id"]] = source["sha256"]
         group = copy.deepcopy(self.labels["groups"][0])
@@ -403,7 +572,7 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(source_id=source_id), self.assertRaises(ValueError):
                 self.run_export(label_ids=["first"])
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_source_alias_cannot_hide_duplicate_intervals(self):
         self.sources["sources"].append({**self.sources["sources"][0], "id": "alias"})
@@ -421,21 +590,21 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(yulmyeong=yulmyeong), self.assertRaisesRegex(ValueError, "Duplicate source interval"):
                 self.run_export(label_ids=["first"])
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
 
     def test_distinct_seconds_that_round_to_identical_frames_are_rejected(self):
         self.update_label(1, startSeconds=.100001, endSeconds=.200001, yulmyeong="태")
         self.save()
         with self.assertRaisesRegex(ValueError, "Duplicate source frame interval"):
             self.run_export(label_ids=["first"])
-        self.assertFalse((self.root / "export").exists())
+        self.assertFalse((self.processed / "export").exists())
 
     def test_analysis_windows_are_finite_ordered_and_inside_clip(self):
         gesture = {
             "lowerAnchor": {"register": "저취", "yulmyeong": "임", "f0Hz": 250,
                             "windowsSeconds": [[.11, .13]]},
             "destination": {"windowsSeconds": [[.15, .19]]},
-            "review": {"rejectedWindow": [.135, .14]}}
+            "analysisReview": {"rejectedWindow": [.135, .14]}}
         mutations = [
             lambda g: g["lowerAnchor"].update(windowsSeconds="not-a-window-list"),
             lambda g: g["lowerAnchor"].update(windowsSeconds=[]),
@@ -449,8 +618,8 @@ class ExportTests(unittest.TestCase):
             lambda g: g["lowerAnchor"].update(windowsSeconds=[[.12, .13], [.11, .12]]),
             lambda g: g["lowerAnchor"].update(windowsSeconds=[[.11, .125], [.12, .13]]),
             lambda g: g["destination"].update(windowsSeconds=[[.12, .14]]),
-            lambda g: g["review"].update(rejectedWindow=[.09, .12]),
-            lambda g: g["review"].update(rejectedWindow=[.11, .12]),
+            lambda g: g["analysisReview"].update(rejectedWindow=[.09, .12]),
+            lambda g: g["analysisReview"].update(rejectedWindow=[.11, .12]),
             lambda g: g["lowerAnchor"].update(windowsSeconds=[[.110001, .110002]]),
         ]
         for mutate in mutations:
@@ -460,7 +629,7 @@ class ExportTests(unittest.TestCase):
             self.save()
             with self.subTest(mutate=mutate), self.assertRaisesRegex(ValueError, "[Ww]indow"):
                 self.run_export(label_ids=["first"])
-            self.assertFalse((self.root / "export").exists())
+            self.assertFalse((self.processed / "export").exists())
         self.labels["groups"][0]["evidence"] = {"first": {"gesture": gesture}}
         self.save()
         self.run_export(label_ids=["first"])

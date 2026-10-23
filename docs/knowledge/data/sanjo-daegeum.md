@@ -1,14 +1,14 @@
 # 산조대금 라벨·연주 자료
 
-작업: [S15P31E102-52](https://ssafy.atlassian.net/browse/S15P31E102-52). 원문·음원 확인일 2026-10-22, 세 파일 구조로 정리한 날 2026-10-23.
+작업: [S15P31E102-52](https://ssafy.atlassian.net/browse/S15P31E102-52). 원문·음원 확인일 2026-10-22, catalog·원음별 annotation 구조 반영일 2026-10-23.
 
 ## 사용할 파일
 
 | 파일 | 내용 |
 | --- | --- |
-| [sources.json](../../../data/datasets/sanjo-daegeum/sources.json) | 국립국악원 원음 9개와 태평가 비교용 악보집 1개의 출처·경로·해시·이용 조건 |
-| [labels.json](../../../data/datasets/sanjo-daegeum/labels.json) | 8개 주법 그룹·121행의 구간·취법·율명·대표 주파수와 필요한 예외 검수 근거 |
-| [performances.json](../../../data/datasets/sanjo-daegeum/performances.json) | 태평가 원음과 오선보·정간보 참조 연결 |
+| [sources.json](../../../data/catalog/sanjo-daegeum/sources.json) | 국립국악원 원음 9개와 태평가 비교용 악보집 1개의 출처·경로·해시·이용 조건 |
+| [원음별 labels.json](../../../data/annotations/audio/) | 8개 원음 파일·8개 주법 그룹·121행의 구간·취법·율명·대표 주파수와 필요한 예외 검수 근거 |
+| [performances.json](../../../data/catalog/sanjo-daegeum/performances.json) | 태평가 원음과 비교용 오선보·정간보 참조 |
 
 [실행 안내](../../../data/README.md)에 따라 전체 또는 선택한 구간을 저장한다. 라벨을 고칠 때는 `labels.json`을 편집한다. 내보내기는 원본 버전·구간·경로를 검사하고 지정된 구간을 잘라내며, 음높이를 다시 추정해 라벨을 바꾸지 않는다. 원음·생성 WAV/PDF는 Git 제외 경로에 둔다.
 
@@ -37,7 +37,7 @@
 | --- | --- |
 | 깊은요성 첫 저취 임 | 약한 요성 때문에 두 조각으로 잘못 나뉜 연속 발음. 틈 3.465292–3.740초에도 28/28 프레임에서 주기음이 유지되고, 6.225292–7.03초의 끝음도 81/81 프레임에서 유지됐다. 원본 0.6–7.1초, 프레임 `[28800, 340800)`로 복구 |
 | 노니로 역취 임 015·016 | 110.220–114.045292초와 117.840–121.305292초의 별도 발음. 사이 약 3.795초의 낮은 소음, F0 중앙값 1087.853/1088.970Hz. 두 구간 유지 |
-| 노니로 007 | 529.801Hz의 최근접 평취 임 대신 음렬·옥타브 대조로 저취 중을 선택. 대안과 판단을 `evidence.sequenceDecision`에 보존 |
+| 노니로 007 | 529.801Hz의 최근접 평취 임 대신 음렬·옥타브 대조로 저취 중을 선택. 대안과 판단을 `evidence[행 ID].sequenceDecision`에 보존 |
 | 스타카토 013 | 1050.862Hz의 최근접 역취 임 대신 음렬·옥타브 대조로 평취 중을 선택. 대안을 보존 |
 | 다루치기 10개 | 한 구간의 두 상승 동작을 유지. `gesture.lowerAnchor`와 `destination`, 복합 `displayLabel`을 보존. 상위 취법·율명은 도착 안정음의 대응 |
 
@@ -86,3 +86,14 @@
 - 분석창 21개 필드(다루치기 10개의 두 anchor 목록과 004의 제외창)에 숫자·길이·구간 내부 범위·창 겹침·빈 샘플 구간 검증을 적용했다. 아래음이 두 도착음 사이에 놓이는 001·004의 반복 구조는 허용한다. 창 수를 반복 수와 강제로 맞추지 않는다.
 - 신규 회귀 테스트에서 네 문제를 재현한 뒤 수정했다. 최종 합성/CLI 검사 **26개 통과**: 실제 MP3 모노/VBR·스테레오/CBR, 내용 기반 판별·원본 복사, 원본별 경로, 동일 초/프레임 중복, 분석창 오류를 포함한다. 독립 읽기 전용 코드 검토에서도 수정이 필요한 P1/P2 결함이 발견되지 않았다.
 - 실제 전체/선택 3건 내보내기와 대조는 3.343초였다. 산조 **121개 전체 라벨·파일명·프레임 경계·WAV SHA-256**, 원본 10개 해시, 태평가 원음·PDF의 복사를 확인했다. 입력 JSON 세 파일도 `11c7064`와 바이트가 같다. 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v4/`, 기록은 같은 상위 폴더의 `extension-validation.json`이다. 실제 다른 악기의 율명 검수나 산조 율명의 재추정을 수행한 결과는 아니다.
+
+## 팀 데이터 폴더 규칙 반영 — 2026-10-23
+
+- 기준은 develop `1f4c783`에 병합된 S15P31E102-81의 data/README다. catalog에는 sources·performances를, annotations/audio/<원본 ID>/에는 원음별 labels를 둔다. 처리 코드는 src/audio로 이동했다.
+- sources의 path를 rawPath로 바꾸고 라벨 대상 8개 원음의 annotationPath를 명시했다. 선언된 파일을 필수로 읽고 원본 ID·해시·데이터셋을 대조하므로 누락 파일을 건너뛰지 않는다. 전체 행을 합쳐 중복·파일명 충돌을 검사한다.
+- sources·performances schema는 v2, 원음별 labels는 v3, 결과 catalog는 v2다. labels의 6열·행을 보존하고 labelStatus를 review로 바꿨다. method는 기존 준비 도구의 Git 버전인 tool:prepare_sanjo_assets@c163f2f로 기록하며, 원래 방법 이름은 analysisBasis에 보존한다. 과거 분석 코드 버전을 현재 내보내기 버전으로 대체하지 않았다.
+- 검수 상태와 혼동하지 않도록 gesture.review는 gesture.analysisReview로 바꿨다. 모든 산조 행은 inferred·채점 미승인 상태다. 판본이 확인되지 않은 태평가 악보 2개 참조는 performances의 scores에서 최상위 comparisonScores로 분리했다. forPerformanceId는 비교 자료를 같이 제공할 대상을 뜻하며 동일 판본·편곡·청의 대응을 주장하지 않는다.
+- 입력 메타데이터는 catalog가 있는 저장소에서 읽고 원본·출력 루트는 별도로 해석한다. 서버 /data/raw는 --root /로 연결하며 출력은 그 루트의 data/processed 하위만 허용한다. 원본 수정·업로드는 이번 작업에 포함하지 않는다.
+- 독립 코드 검토에서 junction으로 raw·processed 경계를 우회하는 문제를 확인했다. 관리 폴더 자체의 재지정과 하위 링크의 경계 이탈을 거부하고 전체 원본 ID의 대소문자 충돌도 검사한다. 실제 Windows junction을 쓴 회귀 테스트 4개가 수정 전 실패하고 수정 후 통과했다. 최종 단위·CLI 검사 **36개 통과**, 독립 재검토에서 해당 문제 해소와 추가 P1/P2 없음이 확인됐다.
+- 기존 `c2aefcf`와 10개 원본의 경로·해시·출처, 8개 주법·121행의 ID·순서·구간·취법·율명·F0·예외 근거를 대조했다. 허용한 필드 이름·배치 변경 외 차이는 없다. 실제 내보내기의 **121개 WAV SHA-256·파일명·프레임 경계가 이전 prepared-v4와 모두 일치**하며 태평가 원음·PDF 바이트와 두 비교 참조도 보존됐다.
+- 전체와 선택 3건(노니로 두 번째 역취 임·깊은요성 저취 임·태평가)의 실행·대조는 3.506초였다. 모든 입력 목록 10파일을 manifestHashes에 기록하며 선택 후 전체 출력도 동일했다. 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v5/`, 기록은 같은 상위 폴더의 `layout-validation.json`이다. 이는 구조 변경의 보존 검증이며 율명을 새로 검수한 결과는 아니다.

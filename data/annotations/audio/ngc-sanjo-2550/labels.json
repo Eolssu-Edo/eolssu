@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2550": "6eebba16c05b3ad9792a5960c8c46f310394894ebc1acf092e62c32abab87332"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2550",
+      "category": "기본음계",
+      "technique": "기본음",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "none",
+      "rows": [
+        ["sanjo.jeochwi.im",0.9,6.145291666666667,"저취","임",264.167],
+        ["sanjo.jeochwi.nam",9.72,16.585291666666667,"저취","남",320.013],
+        ["sanjo.jeochwi.hwang",19.18,24.525291666666668,"저취","황",372.309],
+        ["sanjo.jeochwi.tae",27.9,34.02529166666667,"저취","태",414.761],
+        ["sanjo.jeochwi.jung",36.22,41.40529166666666,"저취","중",500.876],
+        ["sanjo.pyeongchwi.im",45.12,50.145291666666665,"평취","임",529.49],
+        ["sanjo.pyeongchwi.nam",53.4,58.865291666666664,"평취","남",628.573],
+        ["sanjo.pyeongchwi.hwang",61.54,67.78529166666667,"평취","황",742.412],
+        ["sanjo.pyeongchwi.tae",70.94,76.62529166666667,"평취","태",824.146],
+        ["sanjo.pyeongchwi.jung",79.68,85.48529166666667,"평취","중",996.331],
+        ["sanjo.yeokchwi.im",87.82,92.84529166666667,"역취","임",1068.769],
+        ["sanjo.yeokchwi.nam",95.84,99.74529166666666,"역취","남",1201.906],
+        ["sanjo.yeokchwi.mu",101.24,105.46529166666667,"역취","무",1320.046]
+      ],
+      "analysisBasis": "same_source_basic_to_vibrato_correspondence"
+    }
+  ]
+}
