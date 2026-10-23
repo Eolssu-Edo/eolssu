@@ -95,6 +95,14 @@ Task S15P31E102-73은 기존 backend SCM polling이 성공한 동일 SHA를 fron
 
 Jenkins 사용자로 기존 Kotlin 웹 빌드·Chrome JS/Wasm 테스트 4개를 실행했고 첫 cold build는 6분 16초였다. 정적 파일 8개 후보 검증, 실제 Nginx의 읽을 수 없는 JS 배포 후 복구와 배포/TLS 회귀 검사를 수행했다. 최종 운영 활성화·실행 결과는 [Task 73](../../plans/S15P31E102-73.md)에 기록한다.
 
+### 운영 활성화 검증 — 2026-10-23
+
+사용자가 프론트 도구의 제한 sudo 권한을 승인해 root 소유 설치본·visudo·Jenkins 사용자 권한을 검증한 뒤 두 잡을 연결했다. 호스트 Jenkins의 backend 1분 SCM polling을 유지하며 frontend는 성공한 backend에서 같은 SHA로 시작한다. 병합 소스는 `ce06c5e7`이고 설치된 Pipeline의 SHA-256을 저장소와 대조했다. 운영 비밀 파일의 읽기 권한은 추가하지 않았다.
+
+backend #9를 수동으로 한 번 시작하자 frontend #1이 upstream 원인으로 자동 시작해 양쪽 SUCCESS와 같은 배포 SHA를 확인했다. frontend 실행은 146.046초, 배포/TLS/Nginx 검사 32개와 Chrome 테스트 4개가 통과했다. 공개 HTTPS의 모든 정적 자산 8개·Wasm MIME·앱 버튼 동작과 HTTP 308·실제 ACME HTTP 200을 검증했다. 새 병합을 따로 만들지는 않았으며, 기존 backend #8에서 해당 develop 커밋의 SCM 감지 성공을 확인했다.
+
+프론트 교체 중 backend·MySQL·볼륨, WEB_DIST_DIR 이외 env, 인증서·갱신 설정을 보존했다. 같은 아티팩트 재실행은 실제 도구에서 `already_deployed`와 컨테이너 ID 보존을 확인했다. 운영 증거는 root 전용 `/opt/eolssu/frontend-activation-receipt.json`, 복구용 백업은 `/opt/backups/eolssu-activate73-20261023/before.tgz`에 있다. 생성된 Kotlin/Wasm 번들의 memory deprecation 진단은 남아 있으며 실제 앱 표시 전환은 동작했다.
+
 - [Kotlin/JS 브라우저 테스트와 설치된 Chrome](https://kotlinlang.org/docs/js-running-tests.html)
 - [Jenkins 하위 잡 build step의 wait 옵션](https://www.jenkins.io/doc/pipeline/steps/pipeline-build-step/)
 - [Certbot 갱신 설정 변경](https://eff-certbot.readthedocs.io/en/stable/using.html#modifying-the-renewal-configuration-of-existing-certificates)
