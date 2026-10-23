@@ -88,3 +88,11 @@ Jenkins LTS는 공식 apt 저장소에서 설치하고 loopback 수신·관리�
 - [Jenkins 에이전트와 executor](https://www.jenkins.io/doc/book/using/using-agents/)
 - [WebSocket inbound agent·secret 파일 인자](https://github.com/jenkinsci/remoting/blob/master/docs/inbound-agent.md)
 - [서버 실행·복구 절차](../../../infra/jenkins/controller/README.md)
+
+### 2026-10-23 실제 전환·보존 검증
+
+선행 프론트 CI 작업 종료를 확인한 뒤 전환했다. 첫 에이전트 연결은 `secrets/jenkins.slaves.JnlpSlaveAgentProtocol.secret`을 신규 생성한다. 파일 목록까지 완전 일치시키던 검사가 이를 감지해 자동 복구했으며, 실패 시점 홈을 보존하고 기존 홈·apt 서비스·관리자 인증을 실제 복원했다. 기존 파일 변경·삭제는 없었다. 등록 전에는 엄격한 목록 대조를 유지하고 등록 후에만 이 에이전트 키 파일의 생성을 구분해 재시도했다.
+
+기존 110개 파일의 해시와 executor 외 root 설정이 일치했고, 에이전트 키 생성 후 컨트롤러·에이전트 재기동에서 111개 파일과 노드 재연결을 확인했다. 같은 SHA `5414c84`의 실제 백엔드 #20·자동 연계 프론트 #11이 모두 SUCCESS이며 두 배포 영수증의 `deployed`를 확인했다. 테스트 1+4개와 배포 도구·Nginx 검사 32개가 통과했고, 공개 HTTPS 릴리스와 정적 파일 8개 전체 해시가 일치했다. 설정 보존과 실행 결과를 구분해 기록했고, 단순 컨테이너 기동만으로 완료 판정하지 않았다.
+
+실제 데이터 홈은 계속 `/var/lib/jenkins`다. 이미지의 기본 VOLUME `/var/jenkins_home`에 보이는 별도 볼륨은 사용하지 않는 기본 경로이며, 실제 홈 bind mount와 혼동하지 않는다. 기존 apt 패키지는 남기되 서비스는 inactive/disabled로 유지한다. 최종 백업은 `/opt/backups/eolssu-jenkins76-20261023T080439Z/`, 실행·복구·검증 영수증은 [Task 76](../../plans/S15P31E102-76.md)을 따른다.

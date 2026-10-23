@@ -85,9 +85,11 @@ sudo docker compose --env-file /opt/eolssu/.env \
 
 ## Jenkins
 
-컨테이너 전환 구성·경로·호스트 에이전트·백업·복구 절차는 [Jenkins 컨트롤러 운영 문서](../jenkins/controller/README.md)를 따릅니다. 실제 전환 여부와 검증 결과는 [Task 76 작업 기록](../../docs/plans/S15P31E102-76.md)에 남깁니다. 아래 직접 설치 설명은 전환 전 기준입니다.
+컨테이너 구성·경로·호스트 에이전트·백업·복구 절차는 [Jenkins 컨트롤러 운영 문서](../jenkins/controller/README.md)를 따릅니다. 실제 전환·검증 결과는 [Task 76 작업 기록](../../docs/plans/S15P31E102-76.md)에 남깁니다.
 
-서버에 Jenkins LTS `2.580.1`을 설치했습니다. 서비스는 `jenkins.service`, 홈은 `/var/lib/jenkins`이며 `127.0.0.1:8080`에서만 수신합니다. 관리자 인증·CSRF를 사용하고 익명 API 접근·사용자 직접 가입·인바운드 에이전트 포트는 허용하지 않습니다. Java 21 JRE의 글꼴 라이브러리 의존성이 필요합니다.
+Jenkins LTS `2.580.1` 컨트롤러는 `/opt/eolssu/jenkins/compose.yml`의 `eolssu-jenkins-controller-1` 컨테이너로 실행합니다. 기존 홈 `/var/lib/jenkins`와 UID/GID 111:113을 유지하며 `127.0.0.1:8080`에서만 접속할 수 있습니다. 관리자 인증·CSRF·가입 차단·인바운드 TCP 에이전트 포트 차단은 보존했습니다. 기존 apt의 `jenkins.service`는 중단·비활성화했고 패키지는 복구를 위해 남겼습니다.
+
+빌드·배포는 같은 서버의 `eolssu-jenkins-agent.service`가 기존 `jenkins` 계정·호스트 도구·Docker 그룹·sudoers로 실행합니다. `edo1-host` 노드의 executor는 1개이고 컨트롤러는 0개입니다. 현재 workspace는 `/var/lib/jenkins-agent/workspace`이며 과거 workspace와 빌드 이력은 보존합니다. 에이전트는 loopback HTTP 주소로 WebSocket 연결합니다.
 
 관리자 이름은 `eolssu-admin`입니다. 초기 비밀번호는 서버의 `/var/lib/jenkins/secrets/eolssu-admin-password`에 0600으로 보관하며 채팅·저장소에 기록하지 않습니다. 사용자 본인의 SSH 터미널에서 다음과 같이 조회할 수 있습니다.
 
@@ -138,8 +140,10 @@ curl -i http://127.0.0.1/api/infra-smoke
 서버의 관리된 Pipeline·Dockerfile·배포 도구는 MR 병합만으로 자동 덮어쓰지 않습니다. 이 파일 자체를 바꿀 때는 서버 복사본을 별도 검토·설치하고 linter와 배포 검사 후 잡 정의도 갱신합니다. 앱 소스는 매 실행 develop에서 새로 checkout합니다.
 
 ```sh
-sudo systemctl status jenkins.service
-sudo journalctl -u jenkins.service --since today --no-pager
+sudo docker compose -f /opt/eolssu/jenkins/compose.yml ps
+sudo docker compose -f /opt/eolssu/jenkins/compose.yml logs --tail 50 controller
+sudo systemctl status eolssu-jenkins-agent.service
+sudo journalctl -u eolssu-jenkins-agent.service --since today --no-pager
 ```
 
 원시 Jenkins 설정·로그에는 인증 정보가 포함될 수 있으므로 공유 전 비밀값을 확인합니다. 잡 실행 결과·최종 배포 상태는 [작업 기록](../../docs/plans/S15P31E102-65.md)을 따릅니다.

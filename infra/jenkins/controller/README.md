@@ -19,6 +19,8 @@ Jenkins는 기존 2.580.1과 Java 21을 사용한다. 공식 이미지 digest를
 
 컨트롤러는 `127.0.0.1:8080`만 공개하고 인바운드 TCP agent 포트는 끈다. 에이전트는 이 주소에 WebSocket으로 연결한다. 컨테이너에는 Docker 소켓·운영 `.env`·배포 스크립트를 mount하지 않는다. 기존 호스트 에이전트의 Docker 접근과 제한된 sudo는 그대로이므로 이번 변경을 호스트 보안 격리 완료로 간주하지 않는다.
 
+공식 이미지의 VOLUME 선언 때문에 사용하지 않는 기본 `/var/jenkins_home`에는 별도 Docker 볼륨이 보일 수 있다. 실제 데이터는 `JENKINS_HOME=/var/lib/jenkins`와 같은 경로의 bind mount에만 저장하며, 기본 경로를 데이터 백업 대상으로 혼동하지 않는다.
+
 ## 전환 절차
 
 동일 서버에서 설정을 변경하는 다른 작업이 끝난 뒤 수행한다. 모든 관리 명령은 edo1에서 실행하며 비밀값을 출력하지 않는다. `/opt/eolssu/jenkins`에는 기존 root 전용 `admin-cli.auth`와 `jenkins-cli.jar`가 있으므로 디렉터리를 덮어쓰거나 권한을 넓히지 않는다.
@@ -29,6 +31,8 @@ Jenkins는 기존 2.580.1과 Java 21을 사용한다. 공식 이미지 digest를
 4. 이 폴더의 `compose.yml`, `register-agent.groovy`, 서비스 원본을 `/opt/eolssu/jenkins`에 root 소유로 설치한다. 관리 인증 파일은 보존한다. 기존 컨트롤러와 같은 버전의 `/jnlpJars/agent.jar`를 `/usr/local/lib/eolssu-jenkins/agent.jar`에 root 소유 0644로 설치한다.
 5. 중단된 홈의 `config.xml`에서 `numExecutors`만 1에서 0으로 바꾼 뒤 아래 Compose로 기동한다. 재기동 시 quiet-down 유지 여부와 무관하게 호스트 도구가 없는 컨트롤러에서 빌드가 시작되지 않게 한다. 기존 관리자 인증으로 CLI가 연결되면 다시 `quiet-down`을 호출한다. 잡 정의·Credentials·키·사용자·플러그인 해시와 executor 외의 루트 설정을 백업과 비교한다. 자동 업그레이드나 새 플러그인 설치를 하지 않는다.
 6. `register-agent.groovy`를 기존 관리자 CLI의 `groovy =`에 입력해 노드를 등록한다. 기존 노드와 충돌하면 중단하며 임의로 덮어쓰지 않는다. `Jenkins.get().getComputer('edo1-host').getJnlpMac()` 결과는 서버의 Python subprocess 등으로 메모리에서만 받아 `/var/lib/jenkins-agent/secret`에 jenkins 소유 0600으로 저장한다. 터미널·로그·명령 인자에 secret 값을 직접 출력하지 않는다.
+
+   첫 inbound 에이전트 연결은 홈에 `secrets/jenkins.slaves.JnlpSlaveAgentProtocol.secret`을 생성할 수 있다. 등록 전에는 전체 설정 목록을 엄격하게 대조하고, 등록 후에는 기존 모든 파일의 해시·존재를 보존하면서 이 파일 하나의 신규 생성만 허용한다. 기존 Credentials·암호화 키의 변경이나 다른 새 설정 파일을 포괄적으로 허용하지 않는다.
 7. 에이전트 디렉터리를 jenkins 소유로 만들고 서비스 파일을 설치해 `daemon-reload`, `enable --now eolssu-jenkins-agent`를 실행한다. 연결·executor 1개·실제 Java/Docker/Compose·기존 sudo 권한을 확인한다. 기존 `jenkins.service`는 disable하고 패키지와 백업은 복구를 위해 보존한다.
 8. 컨트롤러·에이전트를 재기동하고 인증·노드 재연결·잡·트리거·과거 빌드 조회를 확인한다. `cancel-quiet-down` 후 기존 잡을 실행해 checkout·테스트·이미지·아티팩트·후보 검증·배포 영수증과 외부 HTTP/HTTPS 응답을 확인한다. 같은 SHA가 이미 배포됐으면 `already_deployed` 결과를 기록한다. 자동 연계 잡이 있으면 그 결과도 확인한다.
 
