@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "jeongak-daegeum",
+  "sourceHashes": {
+    "ngc-jeongak-2627": "394ce712c8813392be7c751844f4374a1bdb367f7048bd8b7e4f5dcf9e56f938",
+    "ngc-daegeum-jeongak-score-2021": "e91c7811e1bbc7d26f3f3c83d08fc33e1473eff6bbd142b03de33390b9657117",
+    "ngc-korean-music-vol5-1969": "4c2c2153dc3f1d41d0ce0d8425cd624f44e6098b0143362a0c3b4eb7ed61d535"
+  },
+  "performances": [
+    {
+      "id": "ngc-jeongak-2627",
+      "title": "중광지곡 중 타령",
+      "audio": {
+        "sourceId": "ngc-jeongak-2627",
+        "file": "연주/중광지곡_타령/중광지곡_타령_원음.wav"
+      },
+      "scores": [],
+      "noteAlignmentVerified": false,
+      "notes": "공식 녹음 전체 72.011814초를 보존. 1969 합주 오선보 및 2021 대금 정간보의 타령을 비교 자료로 제공한다. 녹음의 장·반복·장식음과 두 악보의 같은 판본/전체 대응은 미검증."
+    }
+  ],
+  "comparisonScores": [
+    {
+      "id": "ngc-jeongak-2627.staff-comparison",
+      "forPerformanceId": "ngc-jeongak-2627",
+      "sourceId": "ngc-korean-music-vol5-1969",
+      "notation": "staff",
+      "file": "연주/중광지곡_타령/한국음악5집_중광지곡_원본악보집.pdf",
+      "pdfPages": [
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88
+      ],
+      "instrument": "ensemble_with_daegeum",
+      "coverage": "PDF81~88(인쇄82~89)의 타령 1~4장 전체 합주보. 대금 성부 포함. PDF89에서 군악 시작을 확인. 제공 녹음과 판본·반복·장식음·시간 대응은 미검증.",
+      "samePerformanceEditionVerified": false
+    },
+    {
+      "id": "ngc-jeongak-2627.jeongganbo-comparison",
+      "forPerformanceId": "ngc-jeongak-2627",
+      "sourceId": "ngc-daegeum-jeongak-score-2021",
+      "notation": "jeongganbo",
+      "file": "연주/중광지곡_타령/대금정악보_2021수정_원본악보집.pdf",
+      "pdfPages": [
+        62,
+        63
+      ],
+      "instrument": "jeongak-daegeum",
+      "coverage": "PDF62~63(인쇄62~63)의 영산회상 타령 1~4장. PDF62에는 앞 곡 염불도드리의 끝도 함께 있으며 PDF64에서 군악 시작을 확인. 제공 녹음과 같은 판본·전체 시간 대응은 미검증.",
+      "samePerformanceEditionVerified": false
+    }
+  ]
+}

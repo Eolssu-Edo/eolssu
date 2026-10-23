@@ -94,7 +94,7 @@ find data/raw/<하위경로>/<폴더> -type f -exec sha256sum {} +
 
 ## 데이터 준비
 
-현재 실제 자료는 산조대금입니다. 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
+악기별 실제 자료는 `data/catalog/<악기 ID>/`와 `data/annotations/audio/<악기 ID>/`에 둡니다. 확보 범위와 검수 근거는 [데이터 조사 목록](../docs/README.md#데이터-조사검증-기록)에서 확인합니다. 아래 산조대금 예시처럼 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
 
 | 위치 | 편집할 내용 |
 | --- | --- |
@@ -188,7 +188,7 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 - 같은 SHA의 동일 초 구간 또는 반올림 후 동일 프레임 구간은 ID·율명·주법이 달라도 오류입니다. 선택 원음의 미선택 라벨도 검사합니다. 다른 시각의 반복음과 서로 경계가 다른 일부 겹침은 자동 삭제하지 않습니다.
 - lowerAnchor/destination의 windowsSeconds와 analysisReview.rejectedWindow는 원음 기준 절대초입니다. 숫자·길이·라벨 내부 범위·창 순서·겹침·반올림 후 빈 창을 검사합니다. 아래음과 도착음이 반복 중 교차하는 순서는 허용합니다.
 
-새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`으로 추가할 수 있으며 현재 실제 자료는 `sanjo-daegeum`만 있습니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 산조대금은 `sanjo-daegeum`, 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`을 사용합니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
 
 ## 검증
 
@@ -196,4 +196,4 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 python -m unittest discover -s data/tests -p 'test_*.py' -v
 ```
 
-합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 실제 다른 세 악기의 수집·라벨링이나 율명의 음악적 정답 검증을 뜻하지 않습니다.
+합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 이 회귀 검사는 실제 악기 데이터의 수집·라벨링 검증이나 율명의 음악적 정답 검증을 대신하지 않습니다. 실제 원음을 사용한 결과는 각 악기의 검수 기록을 확인합니다.

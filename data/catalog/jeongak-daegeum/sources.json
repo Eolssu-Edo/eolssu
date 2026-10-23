@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "jeongak-daegeum",
+  "instrument": "정악대금",
+  "pathBase": "repository_root",
+  "sources": [
+    {
+      "id": "ngc-jeongak-2557",
+      "kind": "audio",
+      "title": "기본음",
+      "sha256": "a1f6566e85e393109400dda6584f44aa5d825932d92bb05ebc813fc1105f80d0",
+      "bytes": 81811078,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 213.0425,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2557",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 기본음, mntn_seq=2557, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음. 공식 미리듣기 응답과 원본 SHA-256 일치 확인.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_scale_sus_25.wav",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2557-기본음/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2558",
+      "kind": "audio",
+      "title": "기본음+요성",
+      "sha256": "f1f79d0ad6f32acb304d9e992856ae2b99e2466f7bbbd61bc78a6836e0155876",
+      "bytes": 65083086,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 169.48002083333333,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2558",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 기본음+요성, mntn_seq=2558, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_scale_sus_vib_26.wav",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2558-기본음+요성/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2559",
+      "kind": "audio",
+      "title": "기본음+깊은요성",
+      "sha256": "e24ad7a162e17513de05f79d226e7201a4bf5dd6a3d9e29a6ffd6eab023043bf",
+      "bytes": 58772334,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 153.04577083333334,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2559",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 기본음+깊은요성, mntn_seq=2559, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_scale_sus_deep_vib_61.wav",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2559-기본음+깊은요성/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2560",
+      "kind": "audio",
+      "title": "노니로",
+      "sha256": "74f0e4cf0afb328ba800a73120df0eb63811934c4db65c8b301e1e9283cc6641",
+      "bytes": 66712928,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 173.72439583333335,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2560",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 노니로, mntn_seq=2560, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_nina_vib_32.wav",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2560-노니로/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2561",
+      "kind": "audio",
+      "title": "크레센도",
+      "sha256": "973fed9eb47c10689a4a39c427f15f7b7dd426000dce14616c0401ace6b57d11",
+      "bytes": 55003464,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 143.231,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2561",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 크레센도, mntn_seq=2561, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_scale_chung_59.wav",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2561-크레센도/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2565",
+      "kind": "audio",
+      "title": "스타카토",
+      "sha256": "f89843d665a91dd11ead1a6f13500cb98199576c1fd9e219b32202bc1cba3b7a",
+      "bytes": 288790,
+      "sampleRateHz": 48000,
+      "channels": 2,
+      "durationSeconds": 17.856,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2565",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 스타카토, mntn_seq=2565, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음. 공식 미리듣기 응답과 원본 SHA-256 일치 확인.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/jungak_deageum_stacatto_48.mp3",
+      "annotationPath": "data/annotations/audio/jeongak-daegeum/ngc-jeongak-2565-스타카토/labels.json"
+    },
+    {
+      "id": "ngc-jeongak-2627",
+      "kind": "audio",
+      "title": "중광지곡 중 ‘타령’",
+      "sha256": "394ce712c8813392be7c751844f4374a1bdb367f7048bd8b7e4f5dcf9e56f938",
+      "bytes": 12805614,
+      "sampleRateHz": 44100,
+      "channels": 2,
+      "durationSeconds": 72.01181405895692,
+      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
+      "downloadUrl": "https://www.gugak.go.kr/digitaleum/cmmn/file/monotone/download.do?id=2627",
+      "publisher": "국립국악원",
+      "license": "KOGL-1",
+      "attribution": "국립국악원, 국악기 디지털 음원, 정악대금, 중광지곡 중 ‘타령’, mntn_seq=2627, 공공누리 제1유형(출처표시)",
+      "verifiedOn": "2026-10-23",
+      "acquisition": "기존 로컬 확보 원본을 바이트 그대로 복사하고 SHA-256·헤더·전체 길이를 검사. 2026-10-23 공식 목록의 ID·파일명·황종 E♭·공공누리1 및 미리듣기를 재조회. 무인자 다운로드는 빈 응답이어서 재다운로드 성공으로 기록하지 않음.",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "adapted": "possible_with_conditions",
+        "conditions": [
+          "출처표시",
+          "가공한 경우 변경 내용 표시"
+        ]
+      },
+      "rawPath": "data/raw/instruments/daegeum/jeongak/Jeongakdaegeum.wav"
+    },
+    {
+      "id": "ngc-daegeum-jeongak-score-2021",
+      "kind": "score",
+      "title": "대금 정악보 (2021 수정본)",
+      "sha256": "e91c7811e1bbc7d26f3f3c83d08fc33e1473eff6bbd142b03de33390b9657117",
+      "bytes": 266745518,
+      "pdfPageCount": 355,
+      "rawPath": "data/raw/instruments/daegeum/jeongak/ngc-daegeum-jeongak-score-2021.pdf",
+      "sourceUrl": "https://www.gugak.go.kr/site/program/board/basicboard/view?boardid=17409&boardtypeid=88&menuid=001003002002&pagesize=10",
+      "downloadUrl": "https://www.gugak.go.kr/site/inc/file/fileDownload?dirname=%2Fboard%2F17&filename=2021+%EB%8C%80%EA%B8%88%EC%A0%95%EC%95%85%EB%B3%B4.pdf&type=F&boardid=11356",
+      "publisher": "국립국악원",
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 대금 정악보 (2021 수정본), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형 변경금지; 별도 허락 미확보."
+      },
+      "serviceDatasetApproved": false
+    },
+    {
+      "id": "ngc-korean-music-vol5-1969",
+      "kind": "score",
+      "title": "한국음악 제5집: 중광지곡, 천년만세",
+      "sha256": "4c2c2153dc3f1d41d0ce0d8425cd624f44e6098b0143362a0c3b4eb7ed61d535",
+      "bytes": 22672543,
+      "pdfPageCount": 128,
+      "rawPath": "data/raw/instruments/daegeum/jeongak/ngc-korean-music-vol5-1969.pdf",
+      "sourceUrl": "https://www.gugak.go.kr/site/program/board/basicboard/view?boardid=1294&boardtypeid=12&menuid=001003002002&pagesize=10",
+      "downloadUrl": "https://www.gugak.go.kr/site/inc/file/fileDownload?dirname=%2Fboard%2F1&filename=%ED%95%9C%EA%B5%AD%EC%9D%8C%EC%95%85%28%EC%A0%9C5%EC%A7%91%29_%EC%A4%91%EA%B4%91.pdf&type=F&boardid=7191",
+      "publisher": "국립국악원",
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 한국음악 제5집: 중광지곡, 천년만세, 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-23",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형 변경금지; 별도 허락 미확보."
+      },
+      "serviceDatasetApproved": false
+    }
+  ]
+}

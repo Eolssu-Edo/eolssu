@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "jeongak-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-jeongak-2558": "f1f79d0ad6f32acb304d9e992856ae2b99e2466f7bbbd61bc78a6836e0155876"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-jeongak-2558",
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "method": "tool:prepare_jeongak_assets@1.0",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-jeongak-2558.tone-001",0.17,9.34,"저취","임",238.755],
+        ["ngc-jeongak-2558.tone-002",11.57,19.9,"저취","남",272.082],
+        ["ngc-jeongak-2558.tone-003",21.6,30.32,"저취","무",293.648],
+        ["ngc-jeongak-2558.tone-004",31.52,40.13,"저취","황",323.356],
+        ["ngc-jeongak-2558.tone-005",41.59,49.66,"저취","태",359.535],
+        ["ngc-jeongak-2558.tone-006",51.06,59.34,"저취","고",404.003],
+        ["ngc-jeongak-2558.tone-007",60.73,68.95,"저취","중",438.414],
+        ["ngc-jeongak-2558.tone-008",70.49,78.07,"평취","임",480.796],
+        ["ngc-jeongak-2558.tone-009",79.61,88.08,"평취","남",545.083],
+        ["ngc-jeongak-2558.tone-010",89.13,96.66,"평취","무",585.312],
+        ["ngc-jeongak-2558.tone-011",97.82,105.77,"평취","황",649.785],
+        ["ngc-jeongak-2558.tone-012",106.89,115.58,"평취","태",718.025],
+        ["ngc-jeongak-2558.tone-013",116.73,125.55,"평취","고",807.15],
+        ["ngc-jeongak-2558.tone-014",126.97,134.0,"평취","중",877.544],
+        ["ngc-jeongak-2558.tone-015",135.22,142.75,"역취","임",967.746],
+        ["ngc-jeongak-2558.tone-016",144.55,152.2,"역취","남",1060.851],
+        ["ngc-jeongak-2558.tone-017",153.32,160.44,"역취","무",1145.937],
+        ["ngc-jeongak-2558.tone-018",161.48,169.44,"역취","황",1292.244]
+      ],
+      "analysisBasis": "공식 instrCd=19917의 황종 E♭, 국립국악원 취법 음역과 2021 대금정악보 PDF9 안공표를 대조. 원음의 오름차순 임·남·무·황·태·고·중 7음, 저취↔평취 옥타브 대응 및 같은 악기 기본음2557 실측 F0로 추론. 역취는 임·남·무·황(노니로는 무까지). 최근접12평균율 변환이 아님. 20ms RMS/10ms hop·p95×0.025 gate·50ms gap 후 양끝20ms 문맥; native-rate 85.33ms YIN/20ms hop, periodicity≥0.85, 양끝최대0.2초 제외 중앙값. 중앙 Hann FFT로 옥타브 교차확인. 상세측정은 docs/knowledge/data/jeongak-daegeum.md 참조."
+    }
+  ]
+}
