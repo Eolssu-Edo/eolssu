@@ -1,0 +1,212 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_EOLSSU",
+      "label": "eolssu MySQL",
+      "description": "grafana 읽기 계정으로 만든 MySQL 데이터 소스",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "pluginName": "MySQL"
+    }
+  ],
+  "title": "얼쑤 운영 현황",
+  "uid": "eolssu-overview",
+  "tags": ["eolssu"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-7d", "to": "now" },
+  "schemaVersion": 39,
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "현황",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "가입자 수 (탈퇴 제외)",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS users FROM users WHERE deleted_at IS NULL"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "연습 세션 수 (선택 기간)",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 6, "y": 1, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS sessions FROM practice_sessions WHERE $__timeFilter(created_at)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "채점 결과 수 (선택 기간)",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 12, "y": 1, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS evaluations FROM evaluations WHERE $__timeFilter(evaluated_at)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "최근 연습 시작",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 18, "y": 1, "w": 6, "h": 4 },
+      "fieldConfig": { "defaults": { "unit": "dateTimeFromNow" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT UNIX_TIMESTAMP(MAX(started_at)) * 1000 AS last_started FROM practice_sessions"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "일별 가입·연습·채점 (UTC 기준 하루)",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 5, "w": 24, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60 }, "decimals": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(created_at, 1d, 0), COUNT(*) AS 가입 FROM users WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(created_at, 1d, 0), COUNT(*) AS 연습 FROM practice_sessions WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(evaluated_at, 1d, 0), COUNT(*) AS 채점 FROM evaluations WHERE $__timeFilter(evaluated_at) GROUP BY 1 ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "최근 행 (10초마다 새로고침)",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "practice_sessions 최근 20행",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id, user_id, song_id, status, fail_reason, bpm, start_note_idx, end_note_idx, started_at, ended_at, created_at FROM practice_sessions ORDER BY id DESC LIMIT 20"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "evaluations 최근 20행",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id, session_id, total_score, pitch_score, timing_score, duration_score, model_version, evaluated_at FROM evaluations ORDER BY id DESC LIMIT 20"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "note_results 최근 20행",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 23, "w": 12, "h": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id, evaluation_id, note_idx, verdict, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms FROM note_results ORDER BY id DESC LIMIT 20"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "users 최근 20행 (이메일·닉네임·비밀번호 제외)",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 12, "y": 23, "w": 12, "h": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT id, instrument_id, notation_mode, last_login_at, created_at, deleted_at FROM users ORDER BY id DESC LIMIT 20"
+        }
+      ]
+    }
+  ]
+}
