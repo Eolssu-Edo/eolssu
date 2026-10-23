@@ -2,6 +2,8 @@
 
 작업: [S15P31E102-52](https://ssafy.atlassian.net/browse/S15P31E102-52). 원문·음원 확인일 2026-10-22, catalog·원음별 annotation 구조 반영일 2026-10-23.
 
+현재 sources는 schema v3이며 음원 9개의 공통 메타데이터를 `sourceProfiles.ngc-sanjo-audio`로 묶는다. [S15P31E102-98](https://ssafy.atlassian.net/browse/S15P31E102-98)에서 형식을 통일했으며 performances v2·원음별 labels v3·출력 catalog v2는 유지한다.
+
 ## 사용할 파일
 
 | 파일 | 내용 |
@@ -111,3 +113,13 @@
 - 원음별 폴더 8개를 `data/annotations/audio/sanjo-daegeum/` 아래로 옮겼다. 악기 폴더는 catalog의 datasetId와 일치해야 하며 다른 악기 폴더 참조와 악기 폴더를 생략한 이전 경로는 거부한다. 같은 악기 안에서 원본 폴더의 설명은 생략할 수 있다. 숫자 ID·라벨 내용과 원음 위치는 유지했다.
 - 신규 악기 폴더 테스트를 수정 전 실패로 확인하고, 기존 소금·단소·정악대금 ID 검사와 함께 최종 단위·CLI **39개 통과**했다. 실제 annotation 8개와 라벨·WAV 121개, 연주·악보 2개 출력은 prepared-v6와 같고 원본 10개 SHA-256도 일치한다. 상대 링크 11개 검증 포함 2.684초였다.
 - 로컬 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v7/`, 기록은 같은 상위 폴더의 `instrument-folder-validation.json`이다. 실제 데이터는 산조대금만 있으며 다른 세 악기의 폴더·자료는 수집할 때 추가한다.
+
+## 공통 출처 프로필 통일 — 2026-10-23
+
+- `develop 48b22d8`에 병합된 공통 로더를 그대로 사용했다. `ngc-sanjo-audio`에는 음원 9개에 같은 `kind`, `channels`, `sourceUrl`, `publisher`, `license`, `verifiedOn`, `redistribution`을 한 번만 기록한다. 개별 원본의 `profile`이 이를 참조한다.
+- ID·제목·해시·크기·샘플레이트·길이·출처 표시 문구·원음/라벨 경로는 개별 원본에 유지했다. 태평가는 44,100Hz, 기본음·시김새는 48,000Hz다. KOGL-4 악보집은 프로필을 참조하지 않으며 기존 이용 조건과 `serviceDatasetApproved=false`를 보존한다.
+- sources는 **258→159줄**, UTF-8·LF 기준 **10,838→7,515 bytes**로 줄었다. 토큰 수는 측정하지 않았다. 공통 로더로 펼친 원본 10개와 나머지 문서 정보는 schemaVersion 외에 v2 입력과 같고, annotation 8개와 performances 파일은 변경하지 않았다.
+- `python -m unittest discover -s data/tests -p 'test_*.py' -v`: **51개 통과**(6.244초). `python data/src/catalog/verify_sources.py --dataset sanjo-daegeum`: **원본 10/10 크기·SHA-256 일치**.
+- 실제 CLI로 변환 전후 전체를 생성해 **121개 구간 WAV·태평가 원음·악보집 PDF, 총 123파일(88,027,432 bytes)**의 상대 경로와 바이트가 동일함을 확인했다. 출력 catalog v2의 라벨·예외 근거·프레임·출처·연주·비교용 악보는 동일하며, 실제 입력 파일을 나타내는 `manifestHashes["catalog/sanjo-daegeum/sources.json"]`만 달라졌다.
+- 기본음 저취 황(`sanjo.jeochwi.hwang`), 깊은요성 저취 임(`ngc-sanjo-2552.group-001`), 태평가 묶음의 선택 CLI도 통과했다. 선택 결과의 라벨·연주·비교용 악보·파일 내용은 전체 결과와 같고, 저취 황 선택은 v2와도 직접 대조했다.
+- 재현은 [실행 안내](../../../data/README.md)의 전체·선택 명령을 사용하며 출력 폴더만 새 경로로 지정한다. 이번 결과는 로컬 `data/processed/instruments/daegeum/sanjo/source-profiles-v1/`의 `before-v2/`, `after-v3/`, `selected-*/`에 있으며 `conversion.json`과 `verification.json`에 대조 결과를 기록했다. 최초 선택 실행은 Windows 디렉터리 rename의 `WinError 5`로 실패했고 완성 출력이 없는 것을 확인한 뒤 같은 명령을 다시 실행해 성공했다. 코드 변경은 없으며 해당 일시 오류의 원인은 확인하지 못했다.
