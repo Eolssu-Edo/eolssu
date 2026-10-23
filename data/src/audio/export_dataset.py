@@ -10,11 +10,14 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import struct
+import sys
 import tempfile
 import wave
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "catalog"))
+from source_catalog import load_json, load_source_catalog
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -25,17 +28,6 @@ def digest(path):
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             checksum.update(block)
     return checksum.hexdigest()
-
-
-def load_json(path):
-    def unique_keys(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f"Duplicate JSON key: {key}")
-            result[key] = value
-        return result
-    return json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=unique_keys)
 
 
 def relative_path(value):
@@ -385,15 +377,18 @@ def validate_manifests(dataset, root):
     if dataset.parent.name != "catalog" or dataset.parent.parent.name != "data":
         raise ValueError("Dataset must be a directory under data/catalog")
     metadata_root = dataset.parent.parent.parent
-    documents = {name: load_json(dataset / f"{name}.json") for name in ("sources", "performances")}
+    documents = {"sources": load_source_catalog(dataset / "sources.json"),
+                 "performances": load_json(dataset / "performances.json")}
     manifest_hashes = {f"catalog/{dataset.name}/{name}.json": digest(dataset / f"{name}.json") for name in documents}
     dataset_id = documents["sources"].get("datasetId")
     if not isinstance(dataset_id, str) or not dataset_id:
         raise ValueError("Missing datasetId")
     name_component(dataset_id)
-    for name, document in documents.items():
-        if type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 2 or document.get("datasetId") != dataset_id:
-            raise ValueError(f"Schema or dataset mismatch: {name}")
+    performance_document = documents["performances"]
+    if (not isinstance(performance_document, dict) or
+            type(performance_document.get("schemaVersion")) is not int or
+            performance_document["schemaVersion"] != 2 or performance_document.get("datasetId") != dataset_id):
+        raise ValueError("Schema or dataset mismatch: performances")
     if documents["sources"].get("pathBase") != "repository_root":
         raise ValueError("Source paths must be relative to repository_root")
     sources = index_rows(documents["sources"]["sources"], "source")

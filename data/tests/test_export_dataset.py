@@ -695,6 +695,54 @@ class ExportTests(unittest.TestCase):
         self.save()
         self.run_export(label_ids=["first"])
 
+    def test_source_profiles_expand_to_identical_sources_and_exported_bytes(self):
+        audio, score = self.sources["sources"]
+        audio.update(redistribution={"original": "allowed", "conditions": ["credit"]}, publisher=None)
+        score.update(license="score-only", redistribution={"original": "unchanged only"})
+        self.save()
+        before = self.run_export("sources-v2")
+        profile = {field: audio.pop(field) for field in ("kind", "sourceUrl", "license", "redistribution")}
+        # Individual values replace whole objects, and explicit null is not missing.
+        profile.update(attribution="profile credit", publisher="profile publisher")
+        audio.update(profile="audio-common", redistribution={"original": "allowed", "conditions": ["credit"]})
+        profile["redistribution"] = {"original": "forbidden", "adapted": "forbidden"}
+        self.sources.update(schemaVersion=3, sourceProfiles={"audio-common": profile})
+        self.save()
+        after = self.run_export("sources-v3")
+        for field in ("sources", "labels", "performances", "comparisonScores", "assets", "audioDecoders"):
+            self.assertEqual(before[field], after[field], field)
+        self.assertEqual(after["schemaVersion"], 2)
+        self.assertNotEqual(before["manifestHashes"]["catalog/example/sources.json"],
+                            after["manifestHashes"]["catalog/example/sources.json"])
+        for asset in after["labels"] + after["assets"]:
+            self.assertEqual((self.processed / "sources-v2" / asset["file"]).read_bytes(),
+                             (self.processed / "sources-v3" / asset["file"]).read_bytes())
+        script = Path(__file__).resolve().parents[1] / "src/audio/export_dataset.py"
+        run = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset),
+                              "--root", str(self.root), "--output-dir", str(self.processed / "profile-cli")],
+                             capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(json.loads((self.processed / "profile-cli/catalog.json").read_text(encoding="utf-8"))["sources"],
+                         before["sources"])
+
+    def test_source_profile_required_null_and_performance_version_fail_before_output(self):
+        audio = self.sources["sources"][0]
+        self.sources.update(schemaVersion=3, sourceProfiles={"audio": {"license": audio.pop("license")}})
+        audio["profile"] = "audio"
+        for field in ("license", "title", "sourceUrl", "attribution"):
+            baseline = copy.deepcopy(self.sources)
+            self.sources["sources"][0][field] = None
+            self.save()
+            with self.subTest(field=field), self.assertRaisesRegex(ValueError, f"Missing source {field}"):
+                self.run_export()
+            self.assertFalse((self.processed / "export").exists())
+            self.sources = baseline
+        self.performances["schemaVersion"] = 3
+        self.save()
+        with self.assertRaisesRegex(ValueError, "performances"):
+            self.run_export()
+        self.assertFalse((self.processed / "export").exists())
+
     def ordered_anchor_sequence(self):
         return {"orderedAnchors": [
             {"register": "저취", "yulmyeong": "임", "f0Hz": 250.0, "windowsSeconds": [[.1, .12]]},
