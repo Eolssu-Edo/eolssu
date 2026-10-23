@@ -7,10 +7,10 @@
 | 파일 | 내용 |
 | --- | --- |
 | [sources.json](../../../data/catalog/sanjo-daegeum/sources.json) | 국립국악원 원음 9개와 태평가 비교용 악보집 1개의 출처·경로·해시·이용 조건 |
-| [원음별 labels.json](../../../data/annotations/audio/) | 8개 원음 파일·8개 주법 그룹·121행의 구간·취법·율명·대표 주파수와 필요한 예외 검수 근거 |
+| [원음별 labels.json](../../../data/annotations/audio/sanjo-daegeum/) | 8개 원음 파일·8개 주법 그룹·121행의 구간·취법·율명·대표 주파수와 필요한 예외 검수 근거 |
 | [performances.json](../../../data/catalog/sanjo-daegeum/performances.json) | 태평가 원음과 비교용 오선보·정간보 참조 |
 
-원음별 폴더는 `ngc-sanjo-2550-기본음`, `ngc-sanjo-2551-기본음+요성`처럼 원본 ID 뒤에 설명을 붙인다. 실제 위치는 `sources.json`의 `annotationPath`를 따른다. JSON의 원본·라벨 ID와 자른 음원의 파일명은 그대로 유지한다.
+`audio/sanjo-daegeum/` 아래 원음별 폴더를 두고 `ngc-sanjo-2550-기본음`, `ngc-sanjo-2551-기본음+요성`처럼 원본 ID 뒤에 설명을 붙인다. 실제 위치는 `sources.json`의 `annotationPath`를 따른다. JSON의 원본·라벨 ID와 자른 음원의 파일명은 그대로 유지한다.
 
 [실행 안내](../../../data/README.md)에 따라 전체 또는 선택한 구간을 저장한다. 라벨을 고칠 때는 `labels.json`을 편집한다. 내보내기는 원본 버전·구간·경로를 검사하고 지정된 구간을 잘라내며, 음높이를 다시 추정해 라벨을 바꾸지 않는다. 원음·생성 WAV/PDF는 Git 제외 경로에 둔다.
 
@@ -105,3 +105,9 @@
 - 사용자 요청에 따라 원본 ID는 유지하고 8개 annotation 폴더에 기본음·기본음+요성·기본음+깊은요성·노니로·니라·스타카토·크레센도·다루치기 이름을 붙였다. sources의 annotationPath만 해당 위치로 바꿨으며 labels 파일 내용과 sourceId·sourceHashes·라벨 ID는 보존했다.
 - 경로는 `data/annotations/audio/<sourceId>-<설명>/labels.json`이며 기존 ID만 있는 폴더도 읽을 수 있다. 다른 ID·숫자 접두사 혼동·빈 설명·추가 하위 폴더·다른 파일명은 거부한다. manifestHashes에는 실제 참조 경로를 기록한다.
 - 신규 경로의 전체/선택 CLI 테스트를 수정 전 실패로 확인한 뒤 구현했다. 최종 단위·CLI **38개 통과**. 실제 121개 라벨·파일명·프레임·WAV SHA-256과 연주 원음·PDF가 prepared-v5와 일치하고 원본 10개 해시도 확인했다. 실행·대조는 2.714초이며 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v6/`, 기록은 같은 상위 폴더의 `readable-folder-validation.json`이다.
+
+## 악기별 annotation 폴더 — 2026-10-23
+
+- 원음별 폴더 8개를 `data/annotations/audio/sanjo-daegeum/` 아래로 옮겼다. 악기 폴더는 catalog의 datasetId와 일치해야 하며 다른 악기 폴더 참조와 악기 폴더를 생략한 이전 경로는 거부한다. 같은 악기 안에서 원본 폴더의 설명은 생략할 수 있다. 숫자 ID·라벨 내용과 원음 위치는 유지했다.
+- 신규 악기 폴더 테스트를 수정 전 실패로 확인하고, 기존 소금·단소·정악대금 ID 검사와 함께 최종 단위·CLI **39개 통과**했다. 실제 annotation 8개와 라벨·WAV 121개, 연주·악보 2개 출력은 prepared-v6와 같고 원본 10개 SHA-256도 일치한다. 상대 링크 11개 검증 포함 2.684초였다.
+- 로컬 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v7/`, 기록은 같은 상위 폴더의 `instrument-folder-validation.json`이다. 실제 데이터는 산조대금만 있으며 다른 세 악기의 폴더·자료는 수집할 때 추가한다.

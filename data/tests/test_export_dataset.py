@@ -31,12 +31,28 @@ def link_directory(target, link):
 
 
 class ExportTests(unittest.TestCase):
+    def test_annotations_are_grouped_by_catalog_dataset_id(self):
+        source = self.sources["sources"][0]
+        original = self.root / source["annotationPath"]
+        source["annotationPath"] = "data/annotations/audio/example/tone-기본음/labels.json"
+        moved = self.root / source["annotationPath"]
+        moved.parent.mkdir(parents=True)
+        original.rename(moved)
+        (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
+        result = self.run_export(label_ids=["first"])
+        self.assertEqual(result["labels"][0]["sourceId"], "tone")
+        self.assertIn("annotations/audio/example/tone-기본음/labels.json", result["manifestHashes"])
+        source["annotationPath"] = "data/annotations/audio/another-instrument/tone-기본음/labels.json"
+        (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "dataset"):
+            self.run_export("wrong-instrument", label_ids=["first"])
+
     def test_readable_annotation_folder_preserves_ids_and_exports(self):
         before = self.run_export("before-folder-rename")
         source = self.sources["sources"][0]
         original = self.root / source["annotationPath"]
         original_bytes = original.read_bytes()
-        source["annotationPath"] = "data/annotations/audio/tone-기본음+요성/labels.json"
+        source["annotationPath"] = "data/annotations/audio/example/tone-기본음+요성/labels.json"
         renamed = self.root / source["annotationPath"]
         renamed.parent.mkdir()
         original.rename(renamed)
@@ -47,8 +63,8 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(after["sources"][0]["id"], "tone")
         for key in ("labels", "performances", "comparisonScores", "assets", "audioDecoders"):
             self.assertEqual(before[key], after[key], key)
-        self.assertIn("annotations/audio/tone-기본음+요성/labels.json", after["manifestHashes"])
-        self.assertNotIn("annotations/audio/tone/labels.json", after["manifestHashes"])
+        self.assertIn("annotations/audio/example/tone-기본음+요성/labels.json", after["manifestHashes"])
+        self.assertNotIn("annotations/audio/example/tone/labels.json", after["manifestHashes"])
         # The CLI must follow the catalog reference too, without an old folder.
         script = Path(__file__).resolve().parents[1] / "src/audio/export_dataset.py"
         run = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset),
@@ -60,13 +76,15 @@ class ExportTests(unittest.TestCase):
 
     def test_annotation_path_keeps_source_id_and_audio_directory_shape(self):
         for invalid in (
-            "data/annotations/audio/another-기본음/labels.json",
-            "data/annotations/audio/tone2-기본음/labels.json",
-            "data/annotations/audio/tone-/labels.json",
-            "data/annotations/audio/tone-기본음/nested/labels.json",
-            "data/annotations/audio/tone-기본음/other.json",
-            "data/annotations/scores/tone-기본음/labels.json",
-            "data/annotations/audio/tone-기본음/../labels.json",
+            "data/annotations/audio/example/another-기본음/labels.json",
+            "data/annotations/audio/example/tone2-기본음/labels.json",
+            "data/annotations/audio/example/tone-/labels.json",
+            "data/annotations/audio/example/tone-기본음/nested/labels.json",
+            "data/annotations/audio/example/tone-기본음/other.json",
+            "data/annotations/scores/example/tone-기본음/labels.json",
+            "data/annotations/audio/example/tone-기본음/../labels.json",
+            "data/annotations/audio/tone-기본음/labels.json",
+            "data/annotations/audio/tone/labels.json",
         ):
             self.sources["sources"][0]["annotationPath"] = invalid
             (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
@@ -136,7 +154,7 @@ class ExportTests(unittest.TestCase):
                 self.run_export()
         source["rawPath"] = "data/raw/audio.wav"
         self.save()
-        source["annotationPath"] = "data/annotations/audio/another/labels.json"
+        source["annotationPath"] = "data/annotations/audio/example/another/labels.json"
         (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "Annotation path"):
             self.run_export()
@@ -194,7 +212,7 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(result["labels"][0]["sourceStartFrame"], 800)
         self.assertEqual(set(result["manifestHashes"]), {
             "catalog/example/sources.json", "catalog/example/performances.json",
-            "annotations/audio/tone/labels.json"})
+            "annotations/audio/example/tone/labels.json"})
         for directory in ("raw", "catalog", "annotations"):
             with self.subTest(directory=directory), self.assertRaisesRegex(ValueError, "data/processed"):
                 export_dataset(self.dataset, remote / f"data/{directory}/bad-output", root=remote, label_ids=["first"])
@@ -266,7 +284,7 @@ class ExportTests(unittest.TestCase):
             if not groups:
                 source.pop("annotationPath", None)
                 continue
-            source["annotationPath"] = f"data/annotations/audio/{source['id']}/labels.json"
+            source["annotationPath"] = f"data/annotations/audio/{self.sources['datasetId']}/{source['id']}/labels.json"
             # Keep invalid source IDs in manifests for validation tests without
             # creating unsafe paths or overwriting a case alias in the fixture.
             if "/" in source["id"] or source["id"] in ("CON", "TONE"):

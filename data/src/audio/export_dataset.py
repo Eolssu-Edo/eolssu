@@ -364,6 +364,7 @@ def validate_manifests(dataset, root):
     dataset_id = documents["sources"].get("datasetId")
     if not isinstance(dataset_id, str) or not dataset_id:
         raise ValueError("Missing datasetId")
+    name_component(dataset_id)
     for name, document in documents.items():
         if type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 2 or document.get("datasetId") != dataset_id:
             raise ValueError(f"Schema or dataset mismatch: {name}")
@@ -390,10 +391,10 @@ def validate_manifests(dataset, root):
         source_id = name_component(source["id"])
         annotation_path = source["annotationPath"]
         parts = relative_path(annotation_path).parts
-        if (source["kind"] != "audio" or len(parts) != 5 or
-                parts[:3] != ("data", "annotations", "audio") or parts[-1] != "labels.json"):
-            raise ValueError(f"Annotation path must match its audio source ID: {source_id}")
-        folder = parts[3]
+        if (source["kind"] != "audio" or len(parts) != 6 or
+                parts[:4] != ("data", "annotations", "audio", dataset_id) or parts[-1] != "labels.json"):
+            raise ValueError(f"Annotation path must match its dataset and audio source ID: {source_id}")
+        folder = parts[4]
         if folder != source_id and not (folder.startswith(source_id + "-") and len(folder) > len(source_id) + 1):
             raise ValueError(f"Annotation path must match its audio source ID: {source['id']}")
         path = managed_path(metadata_root, annotation_path, "annotations")
