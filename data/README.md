@@ -90,6 +90,12 @@ scp -r edo1:/data/raw/<하위경로>/<폴더> data/raw/<하위경로>/
 find data/raw/<하위경로>/<폴더> -type f -exec sha256sum {} +
 ```
 
+목록 전체를 한 번에 대조할 때는 아래를 실행합니다. 목록에 있는데 없거나 크기·SHA-256이 다른 파일을 알려 주고, 하나라도 있으면 종료 코드 1로 끝납니다.
+
+```bash
+python data/src/catalog/verify_sources.py
+```
+
 `/data/raw`는 웹으로 열지 않고 SSH 키로만 접근합니다.
 
 ## 실행과 검증

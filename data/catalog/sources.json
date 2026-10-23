@@ -1,0 +1,767 @@
+{
+  "schemaVersion": 1,
+  "task": "S15P31E102-82",
+  "verifiedOn": "2026-10-23",
+  "rawPathBase": "repository_root",
+  "serverPath": "앞에 /를 붙인 /data/raw/...",
+  "sources": [
+    {
+      "id": "aihub-71470-train-label-c",
+      "kind": "aihub_bundle",
+      "title": "전통국악 궁중음악 학습용 라벨(JSON)",
+      "originalFilename": "TL_전통국악_C_궁중음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/02.라벨링데이터/TL_전통국악_C_궁중음악.zip",
+      "bytes": 374093,
+      "sha256": "41C4F612A8A4F5D739240AC2F346E98DD0758F0B0EE0EBBAF5328C555588DC2C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 492
+      }
+    },
+    {
+      "id": "aihub-71470-train-label-e",
+      "kind": "aihub_bundle",
+      "title": "전통국악 풍류음악 학습용 라벨(JSON)",
+      "originalFilename": "TL_전통국악_E_풍류음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/02.라벨링데이터/TL_전통국악_E_풍류음악.zip",
+      "bytes": 2093503,
+      "sha256": "902D8AB4D912DC3F96E0F046B6F395B83D5D3D54668D75D004EB551717A5C875",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 2564
+      }
+    },
+    {
+      "id": "aihub-71470-train-label-f",
+      "kind": "aihub_bundle",
+      "title": "전통국악 민속악 학습용 라벨(JSON)",
+      "originalFilename": "TL_전통국악_F_민속악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/02.라벨링데이터/TL_전통국악_F_민속악.zip",
+      "bytes": 3931265,
+      "sha256": "4F7188062FB8223AC870C281F3BA8E28B9C29B315B96E3BD3AEAFE8B471F5FF6",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 3348
+      }
+    },
+    {
+      "id": "aihub-71470-train-label-r",
+      "kind": "aihub_bundle",
+      "title": "유사국악 창작국악 학습용 라벨(JSON)",
+      "originalFilename": "TL_유사국악_R_창작국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/02.라벨링데이터/TL_유사국악_R_창작국악.zip",
+      "bytes": 1404958,
+      "sha256": "DB325C57A746932A3189C0F2643B7057549086DCE28405C3BF7BDC739ED1ABEB",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 1494
+      }
+    },
+    {
+      "id": "aihub-71470-train-label-s",
+      "kind": "aihub_bundle",
+      "title": "유사국악 퓨전국악 학습용 라벨(JSON)",
+      "originalFilename": "TL_유사국악_S_퓨전국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/02.라벨링데이터/TL_유사국악_S_퓨전국악.zip",
+      "bytes": 877844,
+      "sha256": "1ECB5FC875E8344FB314452F2FD2B48DCC70C47845D6CBA9BC1156701DB861AB",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 955
+      }
+    },
+    {
+      "id": "aihub-71470-train-source-c",
+      "kind": "aihub_bundle",
+      "title": "전통국악 궁중음악 학습용 원천(MID·WAV)",
+      "originalFilename": "TS_전통국악_C_궁중음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/01.원천데이터/TS_전통국악_C_궁중음악.zip",
+      "bytes": 777529214,
+      "sha256": "A9751888733FA6A001CD0664A2C7EE488F98900F47FB4123DF53488F37979799",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 492,
+        "wav": 492
+      }
+    },
+    {
+      "id": "aihub-71470-train-source-e",
+      "kind": "aihub_bundle",
+      "title": "전통국악 풍류음악 학습용 원천(MID·WAV)",
+      "originalFilename": "TS_전통국악_E_풍류음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/01.원천데이터/TS_전통국악_E_풍류음악.zip",
+      "bytes": 5187412169,
+      "sha256": "CAF32327A060466A0DC8F7D8E094C978D786B12BF74E56E806310E985B7E35AF",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 2564,
+        "wav": 2564
+      }
+    },
+    {
+      "id": "aihub-71470-train-source-f",
+      "kind": "aihub_bundle",
+      "title": "전통국악 민속악 학습용 원천(MID·WAV)",
+      "originalFilename": "TS_전통국악_F_민속악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/01.원천데이터/TS_전통국악_F_민속악.zip",
+      "bytes": 7276035169,
+      "sha256": "263D60D01818864C7928AA4A973AA1E2DABE3104A8D6DC95A23123A32094420F",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 3348,
+        "wav": 3348
+      }
+    },
+    {
+      "id": "aihub-71470-train-source-r",
+      "kind": "aihub_bundle",
+      "title": "유사국악 창작국악 학습용 원천(MID·WAV)",
+      "originalFilename": "TS_유사국악_R_창작국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/01.원천데이터/TS_유사국악_R_창작국악.zip",
+      "bytes": 2789393252,
+      "sha256": "F96769C13F53B9D2451089FF46646EA59D7E3AD217E1D0E62139626F62D3C4B4",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 1494,
+        "wav": 1494
+      }
+    },
+    {
+      "id": "aihub-71470-train-source-s",
+      "kind": "aihub_bundle",
+      "title": "유사국악 퓨전국악 학습용 원천(MID·WAV)",
+      "originalFilename": "TS_유사국악_S_퓨전국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Training/01.원천데이터/TS_유사국악_S_퓨전국악.zip",
+      "bytes": 2030906624,
+      "sha256": "63E6F52B1EC1DA56AF23C4C499BC47A0E30A3E51DD0BB4DDE13F898ABD4A5DE3",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 955,
+        "wav": 955
+      }
+    },
+    {
+      "id": "aihub-71470-val-label-c",
+      "kind": "aihub_bundle",
+      "title": "전통국악 궁중음악 검증용 라벨(JSON)",
+      "originalFilename": "VL_전통국악_C_궁중음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/02.라벨링데이터/VL_전통국악_C_궁중음악.zip",
+      "bytes": 58723,
+      "sha256": "1B6B573E0CC348C5248E38DE2C00CC2EC86CB6D4EA40F888F984109CA069FC63",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 61
+      }
+    },
+    {
+      "id": "aihub-71470-val-label-e",
+      "kind": "aihub_bundle",
+      "title": "전통국악 풍류음악 검증용 라벨(JSON)",
+      "originalFilename": "VL_전통국악_E_풍류음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/02.라벨링데이터/VL_전통국악_E_풍류음악.zip",
+      "bytes": 247127,
+      "sha256": "4CEDF43BACC08C946C89997B25F445AB5129B25DF3040451563F58D9A2BEF12C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 321
+      }
+    },
+    {
+      "id": "aihub-71470-val-label-f",
+      "kind": "aihub_bundle",
+      "title": "전통국악 민속악 검증용 라벨(JSON)",
+      "originalFilename": "VL_전통국악_F_민속악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/02.라벨링데이터/VL_전통국악_F_민속악.zip",
+      "bytes": 545553,
+      "sha256": "2E5140871224CF709B2BD5DAA48E60DDE30B34ADC5F39DB068335BA819D8BD3C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 419
+      }
+    },
+    {
+      "id": "aihub-71470-val-label-r",
+      "kind": "aihub_bundle",
+      "title": "유사국악 창작국악 검증용 라벨(JSON)",
+      "originalFilename": "VL_유사국악_R_창작국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/02.라벨링데이터/VL_유사국악_R_창작국악.zip",
+      "bytes": 138990,
+      "sha256": "D60BA0D17F3E6260EDB72D7B1DA173792C14C7C6123B93983965EBDC4535530C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 187
+      }
+    },
+    {
+      "id": "aihub-71470-val-label-s",
+      "kind": "aihub_bundle",
+      "title": "유사국악 퓨전국악 검증용 라벨(JSON)",
+      "originalFilename": "VL_유사국악_S_퓨전국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/02.라벨링데이터/VL_유사국악_S_퓨전국악.zip",
+      "bytes": 93633,
+      "sha256": "3DA0F7E8FFA975A104471E6336CBA45FEFE3BEBE180452D6533A933C4B9DC9C5",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "json": 120
+      }
+    },
+    {
+      "id": "aihub-71470-val-source-c",
+      "kind": "aihub_bundle",
+      "title": "전통국악 궁중음악 검증용 원천(MID·WAV)",
+      "originalFilename": "VS_전통국악_C_궁중음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/01.원천데이터/VS_전통국악_C_궁중음악.zip",
+      "bytes": 74862342,
+      "sha256": "A7DC3CA09C4B20E6600906B53C65EDB65F7E2E30E4773357D395E8E5A43A5D0C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 61,
+        "wav": 61
+      }
+    },
+    {
+      "id": "aihub-71470-val-source-e",
+      "kind": "aihub_bundle",
+      "title": "전통국악 풍류음악 검증용 원천(MID·WAV)",
+      "originalFilename": "VS_전통국악_E_풍류음악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/01.원천데이터/VS_전통국악_E_풍류음악.zip",
+      "bytes": 549198162,
+      "sha256": "DD7F204E7ED57B068AB7148ED16099E4AC24B64FB26D8F1DA3FDE84D1AE27AD7",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 321,
+        "wav": 321
+      }
+    },
+    {
+      "id": "aihub-71470-val-source-f",
+      "kind": "aihub_bundle",
+      "title": "전통국악 민속악 검증용 원천(MID·WAV)",
+      "originalFilename": "VS_전통국악_F_민속악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/01.원천데이터/VS_전통국악_F_민속악.zip",
+      "bytes": 1520689560,
+      "sha256": "F5422E4D6951766B34E89A767486ABCB33CAC3A1C9446654D2F78BF18B0DECE2",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 419,
+        "wav": 419
+      }
+    },
+    {
+      "id": "aihub-71470-val-source-r",
+      "kind": "aihub_bundle",
+      "title": "유사국악 창작국악 검증용 원천(MID·WAV)",
+      "originalFilename": "VS_유사국악_R_창작국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/01.원천데이터/VS_유사국악_R_창작국악.zip",
+      "bytes": 223531975,
+      "sha256": "817005672A3C2F1B17FC32850294BF0BC9FA51728C31AF06D57F7D274AA7BE83",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 187,
+        "wav": 187
+      }
+    },
+    {
+      "id": "aihub-71470-val-source-s",
+      "kind": "aihub_bundle",
+      "title": "유사국악 퓨전국악 검증용 원천(MID·WAV)",
+      "originalFilename": "VS_유사국악_S_퓨전국악.zip",
+      "rawPath": "data/raw/aihub/71470/01-1.정식개방데이터/Validation/01.원천데이터/VS_유사국악_S_퓨전국악.zip",
+      "bytes": 177114068,
+      "sha256": "C3F9EB4A54D2B88A3AB9700B2B9A0EB0D02E33100217996E5CDAA8C0D61B016A",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 악보 및 음원 데이터 (71470)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71470",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "contents": {
+        "mid": 120,
+        "wav": 120
+      }
+    },
+    {
+      "id": "aihub-71955-other",
+      "kind": "aihub_bundle",
+      "title": "기타 자료(CSV)",
+      "originalFilename": "Other.zip",
+      "rawPath": "data/raw/aihub/71955/3.개방데이터/1.데이터/Other/Other.zip",
+      "bytes": 87612,
+      "sha256": "FCE376BADED16DE5AE91008D2F33E886B2DAC732A5A36468F957E382B83EC04C",
+      "source": {
+        "publisher": "AI-Hub",
+        "collection": "국악 합주곡 디지털 음원 데이터 (71955)",
+        "url": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71955",
+        "verified": true
+      },
+      "instrument": "mixed",
+      "notes": "같은 데이터셋의 음원 압축 4개는 다운로드가 깨져 제외. 다시 받은 뒤 추가.",
+      "contents": {
+        "csv": 3
+      }
+    },
+    {
+      "id": "jeongganbo-dataset",
+      "kind": "score_dataset",
+      "title": "Jeongganbo and MusicXML Dataset",
+      "originalFilename": "Jeongganbo_dataset.zip",
+      "rawPath": "data/raw/scores/jeongganbo-dataset/Jeongganbo_dataset.zip",
+      "bytes": 3228766,
+      "sha256": "DAAAFBED37F3746233BA97F11602B96B8055EF4BCF7D5BECD5E9EBD661E180FC",
+      "source": {
+        "publisher": "danbinaerin",
+        "collection": "Jeongganbo and MusicXML Dataset",
+        "url": "https://www.danbinaerin.com/Jeongganbo_dataset/",
+        "verified": false
+      },
+      "instrument": "mixed",
+      "notes": "JG-like TXT와 MusicXML 91쌍, 안쪽 압축 1개. 받은 곳과 판본 확인 전.",
+      "contents": {
+        "musicxml": 91,
+        "txt": 91,
+        "zip": 1
+      }
+    },
+    {
+      "id": "musicxml-dataset",
+      "kind": "score_dataset",
+      "title": "MusicXML 묶음",
+      "originalFilename": "musicxml_dataset.zip",
+      "rawPath": "data/raw/scores/musicxml-dataset/musicxml_dataset.zip",
+      "bytes": 47111527,
+      "sha256": "447DA1C7E3C52EADC500D1D057FDC6AA8011C8084FD7FF2EB2D91711095E4EF0",
+      "source": {
+        "publisher": null,
+        "collection": null,
+        "url": null,
+        "verified": false
+      },
+      "instrument": "unknown",
+      "notes": "MusicXML 91개. jeongganbo-dataset과 파일 이름이 달라 별도 자료로 둠. 출처 확인 전.",
+      "contents": {
+        "musicxml": 91
+      }
+    },
+    {
+      "id": "3442a25e",
+      "kind": "score_pdf",
+      "title": "정간보 PDF (원래 이름 3442a25e…)",
+      "originalFilename": "3442a25e121a497b80ba3822ad333125.pdf",
+      "rawPath": "data/raw/scores/3442a25e/3442a25e121a497b80ba3822ad333125.pdf",
+      "bytes": 22134911,
+      "sha256": "EFB0DEC830210FF14CB37AD7A05B02E8BCF609F9571A09A92E9FF5A06564811A",
+      "source": {
+        "publisher": null,
+        "collection": null,
+        "url": null,
+        "verified": false
+      },
+      "instrument": "unknown",
+      "notes": "출처 확인 전."
+    },
+    {
+      "id": "jindo-arirang-textbook",
+      "kind": "score_pdf",
+      "title": "진도아리랑 국악실기교재 정간보",
+      "originalFilename": "[정간보]진도아리랑_국악실기교재.pdf",
+      "rawPath": "data/raw/scores/jindo-arirang-textbook/[정간보]진도아리랑_국악실기교재.pdf",
+      "bytes": 1184464,
+      "sha256": "107177084348DBCBAECB75898F675295CCD22DFE641B1FBAFB6E3E15E9A55E8A",
+      "source": {
+        "publisher": null,
+        "collection": null,
+        "url": null,
+        "verified": false
+      },
+      "instrument": "unknown",
+      "notes": "출처 확인 전."
+    },
+    {
+      "id": "ngc-easy-daegeum-03",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 3차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_03차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-03/[악보](초급)세상에서가장쉬운대금교실_03차시.pdf",
+      "bytes": 78193,
+      "sha256": "9AA155BAED38F47BD34BF2D1B743C81DC1B77AA7A14650F78BBDDE9AA9829506",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-04",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 4차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_04차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-04/[악보](초급)세상에서가장쉬운대금교실_04차시.pdf",
+      "bytes": 128619,
+      "sha256": "783921927C365A1546AF052A88609F117D756545D09E7F6EEB9E8EAB60D08343",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-05",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 5차시 악보",
+      "originalFilename": "[악보]+세상에서가장쉬운대금교실_05차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-05/[악보]+세상에서가장쉬운대금교실_05차시.pdf",
+      "bytes": 347553,
+      "sha256": "AAED2D98FF197BAB74FA1E71F569CD612B900A90341346124FACAB0BA4587F67",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-06",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 6차시 악보",
+      "originalFilename": "[악보]+세상에서가장쉬운대금교실_06차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-06/[악보]+세상에서가장쉬운대금교실_06차시.pdf",
+      "bytes": 419378,
+      "sha256": "73769A20C408FB63B2A01B0F4FFF8ED1C5C1F1BF7418E4CE634A0DD3FA23FB68",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-07",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 7차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_07차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-07/[악보](초급)세상에서가장쉬운대금교실_07차시.pdf",
+      "bytes": 234111,
+      "sha256": "4DAD52DB6DB39AE4BD56B19C28068B7D9A36381DDF985D3E079FF6D98CA0C447",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-08",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 8차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_08차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-08/[악보](초급)세상에서가장쉬운대금교실_08차시.pdf",
+      "bytes": 347287,
+      "sha256": "6114942ED106125CE9F57CB165ABE12BE465C25D91726538E929988D7FC66CF8",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-09",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 9차시 악보",
+      "originalFilename": "[악보]+세상에서가장쉬운대금교실_09차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-09/[악보]+세상에서가장쉬운대금교실_09차시.pdf",
+      "bytes": 289082,
+      "sha256": "83F0C69F4A03156466F9E1B70C71F276DDD1B4B6E738DA0CC115EC054296CC55",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-10",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 10차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_10차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-10/[악보](초급)세상에서가장쉬운대금교실_10차시.pdf",
+      "bytes": 285177,
+      "sha256": "A9DD79C70526ED0EEAAB095B1CE80E02EB2BB7FEFE0FC166359C0095005E577B",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-11",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 11차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_11차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-11/[악보](초급)세상에서가장쉬운대금교실_11차시.pdf",
+      "bytes": 391251,
+      "sha256": "11B7398A6A236DC44A38B61DF07D4D303D8948FAFF04200E1922EDFECA51F0E5",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-12",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 12차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_12차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-12/[악보](초급)세상에서가장쉬운대금교실_12차시.pdf",
+      "bytes": 197907,
+      "sha256": "2EF58DFC937D7F6FB1E95C2A18D18B66869D5F9FCECE1AE8987E8E4253B13022",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-14",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 14차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운대금교실_14차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-14/[악보](초급)세상에서가장쉬운대금교실_14차시.pdf",
+      "bytes": 397448,
+      "sha256": "0C9A4094DD694FF6A0867113CC6673BF8060DE7035BB0FD291F6CF121F40DE00",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-daegeum-15",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 대금 교실 15차시 악보",
+      "originalFilename": "[악보]+세상에서가장쉬운대금교실_15차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-daegeum-15/[악보]+세상에서가장쉬운대금교실_15차시.pdf",
+      "bytes": 314267,
+      "sha256": "C7A5B93D877FAAB5180B1A2016F42C677A0E518C3E2D52B1A5C49A95589A48D3",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 대금 교실",
+        "url": "https://academy.gugak.go.kr/course/active/detail.do?courseActiveSeq=914",
+        "verified": true
+      },
+      "instrument": "daegeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-danso-06",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 단소 교실 6차시 악보",
+      "originalFilename": "[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-danso-06/[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf",
+      "bytes": 845136,
+      "sha256": "289041922719A180D4A0DB63FC1576BA74F48AB4A7C044865914B1E1C79E979A",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 단소 교실",
+        "url": null,
+        "verified": false
+      },
+      "instrument": "danso",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "ngc-easy-sogeum-10",
+      "kind": "score_pdf",
+      "title": "세상에서 가장 쉬운 소금 교실 10차시 악보",
+      "originalFilename": "[악보](초등)세상에서가장쉬운소금교실_10차시.pdf",
+      "rawPath": "data/raw/scores/ngc-easy-sogeum-10/[악보](초등)세상에서가장쉬운소금교실_10차시.pdf",
+      "bytes": 50714,
+      "sha256": "1ACEDBE7E42381FF8F7018635B98498D4A593B29770EEC0B024C8E1039B491E1",
+      "source": {
+        "publisher": "국립국악원",
+        "collection": "국악아카데미 세상에서 가장 쉬운 소금 교실",
+        "url": null,
+        "verified": false
+      },
+      "instrument": "sogeum",
+      "instrumentVariant": "unverified"
+    },
+    {
+      "id": "sanjo-daegeum-minyo-guide",
+      "kind": "score_pdf",
+      "title": "산조대금을 활용한 민요 지도방안",
+      "originalFilename": "산조대금을_활용한_민요_지도방안.pdf",
+      "rawPath": "data/raw/scores/sanjo-daegeum-minyo-guide/산조대금을_활용한_민요_지도방안.pdf",
+      "bytes": 2392665,
+      "sha256": "649D6C3BF198C2D3742EDE6AE1530AB3BEB95E4EAD80E4741206BE0DC262580F",
+      "source": {
+        "publisher": null,
+        "collection": null,
+        "url": null,
+        "verified": false
+      },
+      "instrument": "daegeum",
+      "notes": "출처 확인 전."
+    },
+    {
+      "id": "textbook-final",
+      "kind": "score_pdf",
+      "title": "textbook_final",
+      "originalFilename": "textbook_final.pdf",
+      "rawPath": "data/raw/scores/textbook-final/textbook_final.pdf",
+      "bytes": 46881595,
+      "sha256": "FE0C268D864568B794A462E5B1875C1C9D8742BFF671260FA486E525EC760558",
+      "source": {
+        "publisher": null,
+        "collection": null,
+        "url": null,
+        "verified": false
+      },
+      "instrument": "unknown",
+      "notes": "출처 확인 전."
+    }
+  ]
+}
