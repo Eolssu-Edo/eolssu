@@ -33,7 +33,7 @@ data/
 ├── catalog/                 # 원본 목록: 곡·악보·음원·MIDI의 ID·출처·이용 조건·SHA-256·rawPath.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
-│   └── audio/<audio-id>/    # 구간·취법·율명·대표 F0 라벨.
+│   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
@@ -98,8 +98,108 @@ python data/src/catalog/verify_sources.py
 
 `/data/raw`는 웹으로 열지 않고 SSH 키로만 접근합니다.
 
-## 실행과 검증
+## 데이터 준비
 
-현재는 담당 범위와 파일 관리·서버 공유 규칙만 정리된 상태입니다. 구현 도구와 패키지 구성을 선택한 뒤 실제 설치·실행·검증 명령을 추가합니다.
+현재 실제 자료는 산조대금입니다. 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
 
-정제·변환은 작은 고정 샘플로 먼저 검증하고, 전체 데이터셋 처리는 입력·처리량·실행 시간·결과 버전을 확인할 수 있게 구성합니다.
+| 위치 | 편집할 내용 |
+| --- | --- |
+| [catalog/sanjo-daegeum/sources.json](catalog/sanjo-daegeum/sources.json) | 원음 9개·악보집 1개의 원본 ID, rawPath, 출처·이용 조건·SHA-256, 필요한 annotationPath |
+| [annotations/audio/sanjo-daegeum/](annotations/audio/sanjo-daegeum/) 아래 `<원본 ID>-<설명>/labels.json` | 악기별 원음의 구간·취법·율명·대표 기본주파수(F0)와 판단 근거. 산조는 8파일·121행 |
+| [catalog/sanjo-daegeum/performances.json](catalog/sanjo-daegeum/performances.json) | 연주 원음, 확인된 대응 악보, 별도로 구분한 비교용 악보 참조 |
+
+공통 [export_dataset.py](src/audio/export_dataset.py)는 목록에서 선언한 라벨 파일을 모두 읽고 검증합니다. 파일을 검색해서 발견한 것만 사용하는 방식이 아니므로, 선언된 annotation이 없으면 오류입니다. 라벨의 명시적 구간을 잘라 저장하며 율명을 새로 추정하지 않습니다. [산조대금 기록](../docs/knowledge/data/sanjo-daegeum.md)에 판단 근거와 검수 범위를 남깁니다.
+
+## 원본 준비와 실행
+
+검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
+
+```powershell
+python -m pip install numpy==2.3.5 soundfile==0.13.1
+```
+
+[국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개와 비교용 표준악보집 PDF를 sources의 `rawPath`에 준비합니다. 주소·해시·이용 조건은 목록에 있습니다. 한 구간만 저장할 때는 해당 원음만 있으면 됩니다. 메타데이터는 해당 데이터셋 전체가 필요합니다.
+
+저장소 루트에서 전체 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --output-dir data/processed/instruments/daegeum/sanjo/prepared-v5
+```
+
+저취 황 기본음 하나 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --label sanjo.jeochwi.hwang --output-dir data/processed/instruments/daegeum/sanjo/selected-hwang
+```
+
+주법·취법·율명으로 선택:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --technique '기본음+깊은요성' --register 저취 --yulmyeong 임 --output-dir data/processed/instruments/daegeum/sanjo/selected-deep-im
+```
+
+태평가 원음과 비교용 악보 저장:
+
+```powershell
+python data/src/audio/export_dataset.py --dataset data/catalog/sanjo-daegeum --performance ngc-sanjo-2625 --output-dir data/processed/instruments/daegeum/sanjo/selected-taepyeongga
+```
+
+`--label`과 `--performance`는 반복할 수 있습니다. `--category`, `--technique`, `--register`, `--yulmyeong`은 정확히 일치하는 값을 고르고 여러 조건은 모두 만족해야 합니다. 선택 옵션이 없으면 전체를 생성합니다. 없는 ID나 빈 선택은 오류입니다.
+
+**출력은 `data/processed/` 아래의 아직 없는 폴더로 지정합니다.** 기존 폴더나 원본은 덮어쓰지 않습니다. 검증과 임시 폴더 생성이 끝나면 결과 폴더를 공개하므로 실패한 일부 결과가 완성본처럼 남지 않습니다.
+
+raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지정과 하위 링크를 통한 각 영역 밖 접근은 거부합니다. 다른 위치의 원음은 폴더 링크 대신 `--root`로 지정합니다. 원본 ID는 전체 sources 목록에서 대소문자를 무시해도 유일해야 합니다.
+
+서버 원음 `/data/raw/...`를 사용할 때는 `--root /`를 지정하고 출력도 `/data/processed/...` 아래로 지정합니다. `--dataset`은 저장소의 실제 catalog 폴더를 가리킵니다. annotation은 그 catalog와 같은 저장소에서 읽으므로 서버 원음 루트에 메타데이터를 복제할 필요가 없습니다. `--root /data/raw`는 경로를 중복시키므로 사용하지 않습니다.
+
+## 결과 사용
+
+- 산조 전체: 기본음계 46개·시김새 75개 WAV, 태평가 원음 1개, 비교용 원본 악보집 PDF 1개, 결과 목록 `catalog.json`.
+- 개별 구간: PCM16/IEEE float32 RIFF/WAVE와 MP3 Layer III를 내용으로 판별합니다. 원래 샘플레이트로 디코딩해 채널 평균·필요한 피크 감쇠·PCM16 양자화를 적용합니다. 리샘플링·음높이 보정은 하지 않습니다.
+- 연주 음원·악보: 원본 바이트 그대로 복사합니다. 같은 PDF의 두 쪽을 참조하면 파일은 한 번만 복사합니다.
+- 결과 catalog v2에는 펼친 라벨·method/review·프레임 경계·변환·해시, 출처, 연주와 비교용 악보를 기록합니다. `manifestHashes`는 catalog 2파일과 선언된 모든 annotation 파일을 포함합니다. 결과 catalog를 편집 입력으로 쓰지 않습니다.
+- `audioDecoders[sourceId]`는 포맷·디코더·샘플레이트·채널·전체 프레임 수를 기록하고, MP3에는 SoundFile/libsndfile 버전도 남깁니다. MP3 시각 0은 디코더가 반환한 첫 PCM 프레임이며 별도 지연·패딩 보정은 없습니다. 라벨 분석도 같은 디코더 버전의 PCM을 기준으로 합니다.
+
+태평가의 `scores`는 현재 비어 있습니다. 성악 오선보·단소 정간보 일부는 최상위 `comparisonScores`에 별도로 두고 `forPerformanceId`로 어떤 연주를 비교할 때 함께 제공하는지만 표시합니다. 이 참조는 같은 판본·편곡·청이나 채점 정답의 대응 관계가 아닙니다. PDF의 비상업·무변경 조건과 확보 범위를 확인합니다.
+
+## JSON 형식과 악기 추가
+
+sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `data/datasets/` 3파일 배치와 구형 schema를 읽는 경로는 제거했습니다. 열·행 구조, 라벨 ID·구간·율명·F0·출력 WAV 파일명은 보존합니다.
+
+| 문서 | 주요 필드 |
+| --- | --- |
+| sources | datasetId, instrument, pathBase=repository_root, sources. 원본마다 id/kind/rawPath/sha256/title/sourceUrl/license/attribution. 악보는 pdfPageCount, 라벨 대상 원음은 annotationPath |
+| 원음별 labels | datasetId, 해당 원음 하나의 sourceHashes, 공통 review·eligibleForNoteScoring, columns, groups. 그룹의 sourceId/category/technique/method/analysisBasis/filenamePrefix/rows 및 선택적 evidence·gestureDefaults |
+| performances | datasetId, sourceHashes, performances(id/title/audio/scores), comparisonScores(id/forPerformanceId/sourceId/file/notation/pdfPages/coverage/대응 상태) |
+
+`rawPath`는 `data/raw/...`, `annotationPath`는 `data/annotations/audio/<datasetId>/<sourceId>-<설명>/labels.json` 하나만 기록합니다. 악기 폴더는 catalog JSON의 `datasetId`와 같아야 합니다. 산조 기본음의 전체 경로는 `data/annotations/audio/sanjo-daegeum/ngc-sanjo-2550-기본음/labels.json`입니다. 숫자를 포함한 원본 ID는 그대로 유지하고 폴더에 읽기 쉬운 설명만 붙입니다. 같은 악기 폴더 안에서는 설명 없는 `<sourceId>/labels.json`도 읽을 수 있지만 악기 폴더를 생략한 이전 경로는 허용하지 않습니다. 폴더명을 ID로 쓰거나 제목에서 경로를 다시 만들지 않고 `annotationPath`를 읽습니다. annotation은 자기 데이터셋·원본 ID·해시만 참조할 수 있습니다. `sourceHashes`는 원음이 바뀌었는데 예전 라벨이나 악보 참조가 적용되는 일을 막습니다.
+
+```json
+"columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"]
+```
+
+위 여섯 열은 각각 한 번 포함하며 순서를 바꿀 수 있습니다. 깊은요성 한 행 예시:
+
+```json
+["ngc-sanjo-2552.group-001", 0.6, 7.1, "저취", "임", 269.8]
+```
+
+- 시각은 원음 기준 초, 시작 포함·끝 제외입니다. `round(초 × 원본 샘플레이트)`로 샘플 프레임을 정합니다. 대표 F0의 의미·대응 방법은 `analysisBasis`와 근거에 기록합니다.
+- 각 행은 그룹 `method`와 파일 `review`를 상속하며 `evidence[id]`에서 예외를 덮어쓸 수 있습니다. `method`는 `manual` 또는 `tool:이름@버전`, `review`는 inferred/reviewed/rejected입니다. 같은 값을 매 행에 반복하지 않아도 펼친 결과에는 적용됩니다.
+- 현재 산조의 method는 `tool:prepare_sanjo_assets@c163f2f`이며 기존 분석·준비 코드가 보존된 Git 버전을 가리킵니다. 과거 대응 방법 이름은 `analysisBasis`로 보존했습니다. 이번 이동에서 율명을 다시 추정하거나 reviewed로 승격하지 않았습니다.
+- `eligibleForNoteScoring=true`는 reviewed일 때만 허용합니다. 현재 산조는 전부 inferred·false입니다. rejected 행은 전체/조건 선택에서 제외하고 ID로 직접 요청하면 오류로 알립니다.
+- 복합음은 아래 안정음과 행의 도착음을 연결합니다. `gesture.analysisReview`에는 분석창 선택 이유를 두며 annotation 검수 상태인 `review`와 구분합니다. 기존 창·대안은 보존합니다.
+- 파일은 `분류/주법/번호_표시이름.wav`입니다. filenamePrefix=none이면 번호를 빼고 rowNumber3이면 원래 그룹의 행 순번을 최소 세 자리로 붙입니다. 선택 전에 번호를 정하므로 일부만 저장해도 같습니다. 기존 행 순서를 보존합니다.
+- 같은 분류·주법에 여러 원본이 있으면 해당 주법을 `분류/주법/sourceId/번호_표시이름.wav`로 구분합니다. 서로 다른 annotation 파일의 행도 합쳐 검사합니다. 두 번째 원본을 추가하면 기존 원본도 하위 폴더로 이동하므로 결과 catalog의 file을 사용합니다. 같은 원본·주법은 한 그룹에 모으고 반복음은 rowNumber3로 구분합니다.
+- 같은 SHA의 동일 초 구간 또는 반올림 후 동일 프레임 구간은 ID·율명·주법이 달라도 오류입니다. 선택 원음의 미선택 라벨도 검사합니다. 다른 시각의 반복음과 서로 경계가 다른 일부 겹침은 자동 삭제하지 않습니다.
+- lowerAnchor/destination의 windowsSeconds와 analysisReview.rejectedWindow는 원음 기준 절대초입니다. 숫자·길이·라벨 내부 범위·창 순서·겹침·반올림 후 빈 창을 검사합니다. 아래음과 도착음이 반복 중 교차하는 순서는 허용합니다.
+
+새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`으로 추가할 수 있으며 현재 실제 자료는 `sanjo-daegeum`만 있습니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+
+## 검증
+
+```powershell
+python -m unittest discover -s data/tests -p 'test_*.py' -v
+```
+
+합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 실제 다른 세 악기의 수집·라벨링이나 율명의 음악적 정답 검증을 뜻하지 않습니다.

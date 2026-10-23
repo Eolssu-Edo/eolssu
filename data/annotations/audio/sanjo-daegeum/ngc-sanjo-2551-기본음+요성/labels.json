@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sanjo-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sanjo-2551": "9475e0486aef2b25d802e1b1d52b4edb8fddaf3839e34249fa5be0981b9eec41"
+  },
+  "columns": ["id","startSeconds","endSeconds","register","yulmyeong","labelF0Hz"],
+  "groups": [
+    {
+      "sourceId": "ngc-sanjo-2551",
+      "category": "기본음계",
+      "technique": "기본음+요성",
+      "method": "tool:prepare_sanjo_assets@c163f2f",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sanjo-2551.group-001",1.54,7.345291666666666,"저취","임",267.276],
+        ["ngc-sanjo-2551.group-002",13.3,19.16529166666667,"저취","남",319.491],
+        ["ngc-sanjo-2551.group-003",23.86,29.565291666666667,"저취","무",345.631],
+        ["ngc-sanjo-2551.group-004",35.1,40.825291666666665,"저취","황",372.138],
+        ["ngc-sanjo-2551.group-005",46.04,52.865291666666664,"저취","태",417.916],
+        ["ngc-sanjo-2551.group-006",58.46,65.78529166666667,"저취","고",461.07],
+        ["ngc-sanjo-2551.group-007",69.34,75.68529166666667,"저취","중",505.216],
+        ["ngc-sanjo-2551.group-008",79.38,84.94529166666666,"평취","임",533.311],
+        ["ngc-sanjo-2551.group-009",90.82,96.30529166666666,"평취","남",625.57],
+        ["ngc-sanjo-2551.group-010",101.26,108.14529166666667,"평취","무",686.686],
+        ["ngc-sanjo-2551.group-011",112.0,119.10529166666667,"평취","황",742.623],
+        ["ngc-sanjo-2551.group-012",122.94,130.84529166666667,"평취","태",833.737],
+        ["ngc-sanjo-2551.group-013",136.2,144.88529166666666,"평취","고",936.797],
+        ["ngc-sanjo-2551.group-014",148.46,155.70529166666665,"평취","중",1021.643],
+        ["ngc-sanjo-2551.group-015",160.08,167.70529166666665,"역취","임",1074.916],
+        ["ngc-sanjo-2551.group-016",170.4,176.00529166666666,"역취","남",1206.344],
+        ["ngc-sanjo-2551.group-017",179.48,185.06529166666667,"역취","무",1345.428],
+        ["ngc-sanjo-2551.group-018",188.46,193.18529166666667,"역취","황",1527.104]
+      ],
+      "evidence": {
+        "ngc-sanjo-2551.group-002": {"sourceRegionIds":["region-002","region-003"]},
+        "ngc-sanjo-2551.group-003": {"sourceRegionIds":["region-004","region-005"]}
+      },
+      "analysisBasis": "seven_yul_sequence_hypothesis"
+    }
+  ]
+}

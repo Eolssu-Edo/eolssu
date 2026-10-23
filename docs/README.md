@@ -33,6 +33,10 @@
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
+## 데이터 조사·검증 기록
+
+- [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
+
 ## AI 실험 기록
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
