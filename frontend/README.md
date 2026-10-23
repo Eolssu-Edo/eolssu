@@ -217,3 +217,10 @@ Image(painterResource(Res.drawable.compose_multiplatform), null)
 - [Kotlin Multiplatform 시작하기](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)
 - [Compose Multiplatform](https://kotlinlang.org/compose-multiplatform/)
 - [Kotlin/Wasm](https://kotl.in/wasm/)
+
+
+## 웹 자동 빌드·테스트·배포
+
+운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
+
+동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 초기 샘플 테스트 4개의 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.

@@ -1,6 +1,6 @@
 # 인프라 실행과 검증
 
-edo1의 실제 프론트·백엔드·MySQL 운영 구성과 `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
+edo1의 실제 프론트·백엔드·MySQL 운영 구성과 웹·백엔드 자동 배포, `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
 
 `/opt/app/infra`에서 실행하는 `./scripts/init-letsencrypt.sh`의 준비·실행·인증서 갱신·복구 방법도 [운영 서버 문서](runtime/README.md#lets-encrypt와-https)를 따릅니다.
 
