@@ -13,7 +13,7 @@ ssh edo2 'sudo -n ufw status verbose'
 ssh -o BatchMode=yes -o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none edo2 'sudo -n ufw status numbered'
 ```
 
-Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기를 배포했습니다. Lightsail에도 TCP 443을 IPv4·IPv6로 허용했고, 외부 HTTPS 접속과 CI/CD 채널의 세 공개 보고를 검증했습니다. 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 합의한 출력·등록 결과·실제 검증·후속 범위는 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 현재 주소는 Lightsail 정적 IP가 아니므로 인스턴스 중지·시작 전 주소 변경 대책이 필요합니다.
+Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기를 배포했습니다. Lightsail에도 TCP 443을 IPv4·IPv6로 허용했고, 외부 HTTPS 접속과 CI/CD 채널의 세 공개 보고를 검증했습니다. 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 합의한 출력·등록 결과·실제 검증·후속 범위는 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 정적 IP `15.165.144.7`을 연결했고 인증서·Mattermost URL·SSH 출발지 제한과 관리 SSH 별칭을 함께 전환했습니다.
 
 ## 백엔드·프록시 실행 예시
 

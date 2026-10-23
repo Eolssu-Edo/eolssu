@@ -59,6 +59,16 @@ class RequestTests(unittest.TestCase):
         self.assertIn('API: 실패', text)
         self.assertNotIn('이상 없음', text)
 
+    def test_compact_server_report_keeps_details_and_readable_sections(self):
+        result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
+                  'rows': [[f'value{i}' for i in range(10)]], 'issues': ['주의 하나', '주의 둘']}
+        text = relay.build_report(result, 'req')
+        self.assertIn('**확인 사항**\n- 주의 하나\n- 주의 둘', text)
+        self.assertIn('| **항목** | **측정값** |', text)
+        for i in range(10):
+            self.assertIn(f'value{i}', text)
+        self.assertNotIn('<br>', text)
+
     def test_callback_rejects_private_dns_before_connecting(self):
         connection = relay.PublicHTTPS('meeting.ssafy.com', timeout=1)
         with patch.object(relay.socket, 'getaddrinfo', return_value=[(2, 1, 6, '', ('127.0.0.1', 443))]), \

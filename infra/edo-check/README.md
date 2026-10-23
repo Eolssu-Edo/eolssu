@@ -8,7 +8,7 @@
 | `/edo1-containers` | edo2 → 전용 SSH → edo1 컨테이너별 자원·상태·저장공간 표 |
 | `/edo1-health` | edo1 내부 health와 edo2의 외부 HTTPS·인증서 검사 표 |
 
-세 명령의 Mattermost Request URL은 `https://54.180.251.87/integrations/mattermost/commands`, 메서드는 POST다. Team 이도 (CI/CD), 채널 ID `7pqaof6zkt8rdbqbdjjsfpfscw`만 허용한다. 다른 채널과 잘못된 요청에는 실행자에게만 거부 안내를 반환한다. 성공·수집 실패·시간 초과 보고는 요청의 `response_url`에 `in_channel`로 전송해 같은 채널 전체에 표시한다. 명령 인자는 지원하지 않는다.
+세 명령의 Mattermost Request URL은 `https://15.165.144.7/integrations/mattermost/commands`, 메서드는 POST다. Team 이도 (CI/CD), 채널 ID `7pqaof6zkt8rdbqbdjjsfpfscw`만 허용한다. 다른 채널과 잘못된 요청에는 실행자에게만 거부 안내를 반환한다. 성공·수집 실패·시간 초과 보고는 요청의 `response_url`에 `in_channel`로 전송해 같은 채널 전체에 표시한다. 명령 인자는 지원하지 않는다.
 
 ## 구성과 권한
 
@@ -33,7 +33,7 @@
 - 컨테이너 쓰기 계층, 회전 파일을 포함한 로컬 로그, 볼륨·bind mount를 구분한다. 공유 볼륨은 `공유`라고 표시하며 컨테이너 표의 저장소 값을 서버 전체로 합산하지 않는다. bind mount는 `du` 기준이며 항목당 3초로 제한한다. 원격 볼륨·로컬 파일이 없는 로그 드라이버 등 측정 불가 항목은 명시한다.
 - NET·BLOCK I/O는 누적 전송량이며 디스크 점유량이 아니다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 실패로 표시한다. 이는 이번 기본 기준이며 임계값 변경은 운영 요구에 맞춰 검토한다.
 - frontend·backend·mysql의 실제 컨테이너 이름을 필수 대상으로 확인한다. 실행 중과 Docker healthy, 실제 서비스 응답은 별도다. backend의 `/api/actuator/health`가 404이면 API health는 `미설정`이다. Grafana·Metabase는 loopback `/api/health` 응답 본문까지 확인한다. 외부 검사는 edo2에서 수행한다.
-- 표는 명령마다 하나다. 최대 100개 컨테이너·100행, 약 14,000자 제한을 넘으면 생략을 명시한다. 전체 점검 과정에서 애플리케이션·DB·Docker 구성을 변경하지 않는다.
+- 표는 명령마다 하나다. 서버는 핵심 2열, 컨테이너는 핵심 6열 표로 표시하며 상세는 표 아래 문단·목록·강제 개행으로 구분한다. 제목·판정·핵심 수치를 굵게 표시한다. Mattermost가 표 셀의 HTML 개행을 지원하지 않아 상세를 표 밖으로 분리했다. 최대 100개 컨테이너·100행, 약 14,000자 제한을 넘으면 생략을 명시한다. 전체 점검 과정에서 애플리케이션·DB·Docker 구성을 변경하지 않는다.
 
 ## 확인과 갱신
 
@@ -43,18 +43,18 @@ sh -n infra/edo-check/ssh-dispatch.sh
 ssh edo1 'sudo -n visudo -cf /etc/sudoers.d/edo-check'
 ssh edo2 'sudo -n systemctl status edo-check --no-pager'
 ssh edo2 'sudo -n nginx -t'
-curl --fail --max-time 10 https://54.180.251.87/healthz
+curl --fail --max-time 10 https://15.165.144.7/healthz
 ```
 
 테스트는 loopback 임시 포트만 사용한다. 소켓 생성이 차단된 샌드박스에서는 해당 실행 권한이 필요하다. 실제 Mattermost 흐름은 CI/CD 채널에서 세 명령을 각각 실행하고 표가 공개 메시지로 남는지 확인한다. 토큰 검증·다른 채널 거부·잘못된 callback·중복 요청과 SSH의 `id`·`health; id` 거부도 확인한다. 실제 운영 컨테이너를 중단해 장애를 만들지 않는다.
 
-Let’s Encrypt IPv4 인증서는 `shortlived` 프로필이며 `/etc/letsencrypt/live/edo2-ip/`에 있다. 갱신은 `snap.certbot.renew.timer`가 수행한다. 갱신 후 deploy hook이 `nginx -t` 통과 뒤 Nginx를 reload한다. 아래 모의 검사는 클라이언트의 무작위 갱신 대기 시간이 포함될 수 있다.
+Let’s Encrypt IPv4 인증서는 `shortlived` 프로필이며 `/etc/letsencrypt/live/edo2-static-ip/`에 있다. 갱신은 `snap.certbot.renew.timer`가 수행한다. 갱신 후 deploy hook이 `nginx -t` 통과 뒤 Nginx를 reload한다. 아래 모의 검사는 클라이언트의 무작위 갱신 대기 시간이 포함될 수 있다.
 
-현재 `54.180.251.87`에는 Lightsail 정적 IP가 연결되지 않았다. 중지·시작으로 주소가 바뀌면 인증서 재발급, 세 명령 Request URL, Nginx server_name, edo1 authorized_keys의 `from`을 함께 변경해야 한다. 정적 IP 전환은 별도 합의 후 수행한다. 인증서는 IPv4 SAN만 포함하므로 명령 URL에는 해당 IPv4를 사용한다.
+정적 IPv4 `15.165.144.7`은 Lightsail `edo2-static-ip`로 edo2에 연결돼 있다. 인증서는 이 IPv4 SAN을 포함한다. 주소 변경 시 인증서·명령 URL·Nginx·edo1 키의 from·관리 SSH 별칭을 함께 변경한다. 이전 IP 갱신 설정은 root 백업으로 옮겨 비활성화했다.
 
 ```sh
 ssh edo2 'sudo -n systemctl list-timers --all --no-pager'
-ssh edo2 'sudo -n /snap/bin/certbot renew --cert-name edo2-ip --dry-run --run-deploy-hooks'
+ssh edo2 'sudo -n /snap/bin/certbot renew --cert-name edo2-static-ip --dry-run --run-deploy-hooks'
 ```
 
 ## 코드 반영·복구
