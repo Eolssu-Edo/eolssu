@@ -27,7 +27,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_sus_04.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2550/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2550-기본음/labels.json"
     },
     {
       "id": "ngc-sanjo-2551",
@@ -52,7 +52,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_vib_39.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2551/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2551-기본음+요성/labels.json"
     },
     {
       "id": "ngc-sanjo-2552",
@@ -77,7 +77,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_deep_vib_48.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2552/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2552-기본음+깊은요성/labels.json"
     },
     {
       "id": "ngc-sanjo-2553",
@@ -102,7 +102,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nina_29.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2553/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2553-노니로/labels.json"
     },
     {
       "id": "ngc-sanjo-2554",
@@ -127,7 +127,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nira_23.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2554/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2554-니라/labels.json"
     },
     {
       "id": "ngc-sanjo-2555",
@@ -152,7 +152,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_stacatto_60.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2555/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2555-스타카토/labels.json"
     },
     {
       "id": "ngc-sanjo-2564",
@@ -177,7 +177,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_chung_34.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2564/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2564-크레센도/labels.json"
     },
     {
       "id": "ngc-sanjo-2566",
@@ -202,7 +202,7 @@
         ]
       },
       "rawPath": "data/raw/instruments/daegeum/sanjo/Sanjo_deageum_1.wav",
-      "annotationPath": "data/annotations/audio/ngc-sanjo-2566/labels.json"
+      "annotationPath": "data/annotations/audio/ngc-sanjo-2566-다루치기/labels.json"
     },
     {
       "id": "ngc-sanjo-2625",

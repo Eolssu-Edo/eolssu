@@ -387,10 +387,16 @@ def validate_manifests(dataset, root):
                 raise ValueError(f"Missing source {field}: {source['id']}")
         if "annotationPath" not in source:
             continue
-        expected = f"data/annotations/audio/{name_component(source['id'])}/labels.json"
-        if source["kind"] != "audio" or source["annotationPath"] != expected:
+        source_id = name_component(source["id"])
+        annotation_path = source["annotationPath"]
+        parts = relative_path(annotation_path).parts
+        if (source["kind"] != "audio" or len(parts) != 5 or
+                parts[:3] != ("data", "annotations", "audio") or parts[-1] != "labels.json"):
+            raise ValueError(f"Annotation path must match its audio source ID: {source_id}")
+        folder = parts[3]
+        if folder != source_id and not (folder.startswith(source_id + "-") and len(folder) > len(source_id) + 1):
             raise ValueError(f"Annotation path must match its audio source ID: {source['id']}")
-        path = managed_path(metadata_root, expected, "annotations")
+        path = managed_path(metadata_root, annotation_path, "annotations")
         document = load_json(path)
         if (type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 3 or
                 document.get("datasetId") != dataset_id or
@@ -401,7 +407,7 @@ def validate_manifests(dataset, root):
             raise ValueError(f"Annotation refers to another audio source: {source['id']}")
         annotations[source["id"]] = document
         expanded.extend(source_labels.values())
-        manifest_hashes[expected.removeprefix("data/")] = digest(path)
+        manifest_hashes[annotation_path.removeprefix("data/")] = digest(path)
     # The merged view is needed for IDs and filenames shared across input files.
     labels = namespace_labels(expanded)
     documents["annotations"] = annotations

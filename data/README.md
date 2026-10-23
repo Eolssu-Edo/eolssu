@@ -33,7 +33,7 @@ data/
 ├── catalog/                 # 원본 목록: 곡·악보·음원·MIDI의 ID·출처·이용 조건·SHA-256·rawPath.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
-│   └── audio/<audio-id>/    # 구간·취법·율명·대표 F0 라벨.
+│   └── audio/<audio-id>-<설명>/ # 구간·취법·율명·대표 F0 라벨. 원본 ID는 유지.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
@@ -99,7 +99,7 @@ find data/raw/<하위경로>/<폴더> -type f -exec sha256sum {} +
 | 위치 | 편집할 내용 |
 | --- | --- |
 | [catalog/sanjo-daegeum/sources.json](catalog/sanjo-daegeum/sources.json) | 원음 9개·악보집 1개의 원본 ID, rawPath, 출처·이용 조건·SHA-256, 필요한 annotationPath |
-| [annotations/audio/](annotations/audio/) 아래 `<원본 ID>/labels.json` | 원음별 구간·취법·율명·대표 기본주파수(F0)와 판단 근거. 산조는 8파일·121행 |
+| [annotations/audio/](annotations/audio/) 아래 `<원본 ID>-<설명>/labels.json` | 원음별 구간·취법·율명·대표 기본주파수(F0)와 판단 근거. 산조는 8파일·121행 |
 | [catalog/sanjo-daegeum/performances.json](catalog/sanjo-daegeum/performances.json) | 연주 원음, 확인된 대응 악보, 별도로 구분한 비교용 악보 참조 |
 
 공통 [export_dataset.py](src/audio/export_dataset.py)는 목록에서 선언한 라벨 파일을 모두 읽고 검증합니다. 파일을 검색해서 발견한 것만 사용하는 방식이 아니므로, 선언된 annotation이 없으면 오류입니다. 라벨의 명시적 구간을 잘라 저장하며 율명을 새로 추정하지 않습니다. [산조대금 기록](../docs/knowledge/data/sanjo-daegeum.md)에 판단 근거와 검수 범위를 남깁니다.
@@ -166,7 +166,7 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 | 원음별 labels | datasetId, 해당 원음 하나의 sourceHashes, 공통 review·eligibleForNoteScoring, columns, groups. 그룹의 sourceId/category/technique/method/analysisBasis/filenamePrefix/rows 및 선택적 evidence·gestureDefaults |
 | performances | datasetId, sourceHashes, performances(id/title/audio/scores), comparisonScores(id/forPerformanceId/sourceId/file/notation/pdfPages/coverage/대응 상태) |
 
-`rawPath`는 `data/raw/...`, `annotationPath`는 `data/annotations/audio/<sourceId>/labels.json` 하나만 기록합니다. annotation은 자기 원본 ID·해시만 참조할 수 있습니다. `sourceHashes`는 원음이 바뀌었는데 예전 라벨이나 악보 참조가 적용되는 일을 막습니다.
+`rawPath`는 `data/raw/...`, `annotationPath`는 `data/annotations/audio/<sourceId>-<설명>/labels.json` 하나만 기록합니다. 예를 들어 기본음은 `ngc-sanjo-2550-기본음/labels.json`, 기본음+요성은 `ngc-sanjo-2551-기본음+요성/labels.json`입니다. 숫자를 포함한 원본 ID는 그대로 유지하고 폴더에 읽기 쉬운 설명만 붙입니다. 기존 `<sourceId>/labels.json`도 읽을 수 있습니다. 폴더명을 ID로 쓰거나 제목에서 경로를 다시 만들지 않고 `annotationPath`를 읽습니다. annotation은 자기 원본 ID·해시만 참조할 수 있습니다. `sourceHashes`는 원음이 바뀌었는데 예전 라벨이나 악보 참조가 적용되는 일을 막습니다.
 
 ```json
 "columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"]
@@ -188,7 +188,7 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 - 같은 SHA의 동일 초 구간 또는 반올림 후 동일 프레임 구간은 ID·율명·주법이 달라도 오류입니다. 선택 원음의 미선택 라벨도 검사합니다. 다른 시각의 반복음과 서로 경계가 다른 일부 겹침은 자동 삭제하지 않습니다.
 - lowerAnchor/destination의 windowsSeconds와 analysisReview.rejectedWindow는 원음 기준 절대초입니다. 숫자·길이·라벨 내부 범위·창 순서·겹침·반올림 후 빈 창을 검사합니다. 아래음과 도착음이 반복 중 교차하는 순서는 허용합니다.
 
-새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<원본 ID>/labels.json`을 작성하고 annotationPath로 연결합니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 설명은 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
 
 ## 검증
 

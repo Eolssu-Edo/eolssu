@@ -10,6 +10,8 @@
 | [원음별 labels.json](../../../data/annotations/audio/) | 8개 원음 파일·8개 주법 그룹·121행의 구간·취법·율명·대표 주파수와 필요한 예외 검수 근거 |
 | [performances.json](../../../data/catalog/sanjo-daegeum/performances.json) | 태평가 원음과 비교용 오선보·정간보 참조 |
 
+원음별 폴더는 `ngc-sanjo-2550-기본음`, `ngc-sanjo-2551-기본음+요성`처럼 원본 ID 뒤에 설명을 붙인다. 실제 위치는 `sources.json`의 `annotationPath`를 따른다. JSON의 원본·라벨 ID와 자른 음원의 파일명은 그대로 유지한다.
+
 [실행 안내](../../../data/README.md)에 따라 전체 또는 선택한 구간을 저장한다. 라벨을 고칠 때는 `labels.json`을 편집한다. 내보내기는 원본 버전·구간·경로를 검사하고 지정된 구간을 잘라내며, 음높이를 다시 추정해 라벨을 바꾸지 않는다. 원음·생성 WAV/PDF는 Git 제외 경로에 둔다.
 
 ## 수량과 기본음
@@ -97,3 +99,9 @@
 - 독립 코드 검토에서 junction으로 raw·processed 경계를 우회하는 문제를 확인했다. 관리 폴더 자체의 재지정과 하위 링크의 경계 이탈을 거부하고 전체 원본 ID의 대소문자 충돌도 검사한다. 실제 Windows junction을 쓴 회귀 테스트 4개가 수정 전 실패하고 수정 후 통과했다. 최종 단위·CLI 검사 **36개 통과**, 독립 재검토에서 해당 문제 해소와 추가 P1/P2 없음이 확인됐다.
 - 기존 `c2aefcf`와 10개 원본의 경로·해시·출처, 8개 주법·121행의 ID·순서·구간·취법·율명·F0·예외 근거를 대조했다. 허용한 필드 이름·배치 변경 외 차이는 없다. 실제 내보내기의 **121개 WAV SHA-256·파일명·프레임 경계가 이전 prepared-v4와 모두 일치**하며 태평가 원음·PDF 바이트와 두 비교 참조도 보존됐다.
 - 전체와 선택 3건(노니로 두 번째 역취 임·깊은요성 저취 임·태평가)의 실행·대조는 3.506초였다. 모든 입력 목록 10파일을 manifestHashes에 기록하며 선택 후 전체 출력도 동일했다. 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v5/`, 기록은 같은 상위 폴더의 `layout-validation.json`이다. 이는 구조 변경의 보존 검증이며 율명을 새로 검수한 결과는 아니다.
+
+## 원음별 폴더의 설명 추가 — 2026-10-23
+
+- 사용자 요청에 따라 원본 ID는 유지하고 8개 annotation 폴더에 기본음·기본음+요성·기본음+깊은요성·노니로·니라·스타카토·크레센도·다루치기 이름을 붙였다. sources의 annotationPath만 해당 위치로 바꿨으며 labels 파일 내용과 sourceId·sourceHashes·라벨 ID는 보존했다.
+- 경로는 `data/annotations/audio/<sourceId>-<설명>/labels.json`이며 기존 ID만 있는 폴더도 읽을 수 있다. 다른 ID·숫자 접두사 혼동·빈 설명·추가 하위 폴더·다른 파일명은 거부한다. manifestHashes에는 실제 참조 경로를 기록한다.
+- 신규 경로의 전체/선택 CLI 테스트를 수정 전 실패로 확인한 뒤 구현했다. 최종 단위·CLI **38개 통과**. 실제 121개 라벨·파일명·프레임·WAV SHA-256과 연주 원음·PDF가 prepared-v5와 일치하고 원본 10개 해시도 확인했다. 실행·대조는 2.714초이며 결과는 `data/processed/instruments/daegeum/sanjo/prepared-v6/`, 기록은 같은 상위 폴더의 `readable-folder-validation.json`이다.

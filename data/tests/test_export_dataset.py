@@ -31,6 +31,49 @@ def link_directory(target, link):
 
 
 class ExportTests(unittest.TestCase):
+    def test_readable_annotation_folder_preserves_ids_and_exports(self):
+        before = self.run_export("before-folder-rename")
+        source = self.sources["sources"][0]
+        original = self.root / source["annotationPath"]
+        original_bytes = original.read_bytes()
+        source["annotationPath"] = "data/annotations/audio/tone-기본음+요성/labels.json"
+        renamed = self.root / source["annotationPath"]
+        renamed.parent.mkdir()
+        original.rename(renamed)
+        original.parent.rmdir()
+        (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
+        after = self.run_export("after-folder-rename")
+        self.assertEqual(original_bytes, renamed.read_bytes())
+        self.assertEqual(after["sources"][0]["id"], "tone")
+        for key in ("labels", "performances", "comparisonScores", "assets", "audioDecoders"):
+            self.assertEqual(before[key], after[key], key)
+        self.assertIn("annotations/audio/tone-기본음+요성/labels.json", after["manifestHashes"])
+        self.assertNotIn("annotations/audio/tone/labels.json", after["manifestHashes"])
+        # The CLI must follow the catalog reference too, without an old folder.
+        script = Path(__file__).resolve().parents[1] / "src/audio/export_dataset.py"
+        run = subprocess.run([sys.executable, str(script), "--dataset", str(self.dataset),
+                              "--root", str(self.root), "--output-dir", str(self.processed / "readable-cli"),
+                              "--label", "first"], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(digest(self.processed / "readable-cli" / after["labels"][0]["file"]),
+                         before["labels"][0]["sha256"])
+
+    def test_annotation_path_keeps_source_id_and_audio_directory_shape(self):
+        for invalid in (
+            "data/annotations/audio/another-기본음/labels.json",
+            "data/annotations/audio/tone2-기본음/labels.json",
+            "data/annotations/audio/tone-/labels.json",
+            "data/annotations/audio/tone-기본음/nested/labels.json",
+            "data/annotations/audio/tone-기본음/other.json",
+            "data/annotations/scores/tone-기본음/labels.json",
+            "data/annotations/audio/tone-기본음/../labels.json",
+        ):
+            self.sources["sources"][0]["annotationPath"] = invalid
+            (self.dataset / "sources.json").write_text(json.dumps(self.sources), encoding="utf-8")
+            with self.subTest(path=invalid), self.assertRaises(ValueError):
+                self.run_export(label_ids=["first"])
+        self.assertFalse((self.processed / "export").exists())
+
     def test_processed_directory_cannot_redirect_output_into_raw(self):
         before = {p.name: digest(p) for p in self.raw.iterdir()}
         link_directory(self.raw, self.processed)
