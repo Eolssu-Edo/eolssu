@@ -43,14 +43,15 @@ class ExportTests(unittest.TestCase):
             {"id": "score", "kind": "score", "title": "악보", "path": "raw/score.pdf",
              "sha256": digest(self.raw / "score.pdf"), "pdfPageCount": 10,
              "license": "test", "sourceUrl": "https://example.org/score", "attribution": "fixture"}]}
-        self.labels = {"schemaVersion": 1, "datasetId": "example",
-                       "sourceHashes": {"tone": self.sources["sources"][0]["sha256"]}, "labels": [
-            {"id": "first", "sourceId": "tone", "startSeconds": .1, "endSeconds": .2,
-             "category": "기본음계", "technique": "기본음", "register": "저취", "yulmyeong": "황",
-             "displayLabel": "저취 황", "file": "기본음/first.wav", "labelStatus": "inferred"},
-            {"id": "repeat", "sourceId": "tone", "startSeconds": .3, "endSeconds": .5,
-             "category": "시김새", "technique": "요성", "register": "저취", "yulmyeong": "황",
-             "displayLabel": "저취 황", "file": "시김새/repeat.wav", "labelStatus": "inferred"}]}
+        self.labels = {"schemaVersion": 2, "datasetId": "example", "labelStatus": "inferred",
+                       "eligibleForNoteScoring": False,
+                       "sourceHashes": {"tone": self.sources["sources"][0]["sha256"]},
+                       "columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"],
+                       "groups": [
+            {"sourceId": "tone", "category": "기본음계", "technique": "기본음", "method": "fixture",
+             "filenamePrefix": "none", "rows": [["first", .1, .2, "저취", "황", 300.0]]},
+            {"sourceId": "tone", "category": "시김새", "technique": "요성", "method": "fixture",
+             "filenamePrefix": "rowNumber3", "rows": [["repeat", .3, .5, "저취", "황", 301.0]]}]}
         self.performances = {"schemaVersion": 1, "datasetId": "example",
                              "sourceHashes": {s["id"]: s["sha256"] for s in self.sources["sources"]},
                              "performances": [{"id": "piece", "title": "곡",
@@ -68,12 +69,34 @@ class ExportTests(unittest.TestCase):
     def run_export(self, name="export", **kwargs):
         return export_dataset(self.dataset, self.root / name, root=self.root, **kwargs)
 
+    def update_label(self, index, **values):
+        row = [row for group in self.labels["groups"] for row in group["rows"]][index]
+        for field, value in values.items():
+            row[self.labels["columns"].index(field)] = value
+
+    def test_compact_rows_preserve_original_number_when_selecting_a_repeat(self):
+        self.labels = {
+            "schemaVersion": 2, "datasetId": "example", "labelStatus": "inferred",
+            "eligibleForNoteScoring": False, "sourceHashes": self.labels["sourceHashes"],
+            "columns": ["id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"],
+            "groups": [{"sourceId": "tone", "category": "시김새", "technique": "요성",
+                        "method": "fixture", "filenamePrefix": "rowNumber3", "rows": [
+                            ["first", .1, .2, "저취", "황", 300.0],
+                            ["repeat", .3, .5, "저취", "황", 301.0]]}]}
+        self.save()
+        result = self.run_export(label_ids=["repeat"])
+        label = result["labels"][0]
+        self.assertEqual(label["file"], "시김새/요성/002_저취_황.wav")
+        self.assertEqual(label["displayLabel"], "저취 황")
+        self.assertEqual(label["sourceStartFrame"], 2400)
+        self.assertEqual(label["evidence"]["labelF0Hz"], 301.0)
+        self.assertFalse(label["eligibleForNoteScoring"])
+
     def test_common_format_handles_other_instrument_names_and_literal_labels(self):
         for index, instrument in enumerate(("sogeum", "danso", "jeongak-daegeum")):
             for doc in (self.sources, self.labels, self.performances):
                 doc["datasetId"] = instrument
-            self.labels["labels"][0]["register"] = "직접 지정한 취법"
-            self.labels["labels"][0]["yulmyeong"] = "직접 지정한 율명"
+            self.update_label(0, register="직접 지정한 취법", yulmyeong="직접 지정한 율명")
             self.save()
             result = self.run_export(f"export-{index}", label_ids=["first"])
             self.assertEqual(result["datasetId"], instrument)
@@ -87,7 +110,7 @@ class ExportTests(unittest.TestCase):
             np.testing.assert_array_equal(actual, expected)
 
     def test_editing_label_changes_exact_interval_without_analysis(self):
-        self.labels["labels"][0].update(startSeconds=.123, endSeconds=.456)
+        self.update_label(0, startSeconds=.123, endSeconds=.456)
         self.save()
         result = self.run_export(label_ids=["first"])
         self.assertEqual(result["labels"][0]["frames"], 2664)
@@ -141,15 +164,15 @@ class ExportTests(unittest.TestCase):
     def test_invalid_ids_ranges_pages_and_collisions_fail_before_output(self):
         originals = copy.deepcopy((self.sources, self.labels, self.performances))
         mutations = [
-            lambda: self.labels["labels"][0].update(sourceId="absent"),
-            lambda: self.labels["labels"][1].update(id="first"),
-            lambda: self.labels["labels"][0].update(startSeconds=-.1),
-            lambda: self.labels["labels"][0].update(endSeconds=1.1),
-            lambda: self.labels["labels"][0].update(startSeconds=float("nan")),
-            lambda: self.labels["labels"][0].update(endSeconds=.1),
+            lambda: self.labels["groups"][0].update(sourceId="absent"),
+            lambda: self.update_label(1, id="first"),
+            lambda: self.update_label(0, startSeconds=-.1),
+            lambda: self.update_label(0, endSeconds=1.1),
+            lambda: self.update_label(0, startSeconds=float("nan")),
+            lambda: self.update_label(0, endSeconds=.1),
             lambda: self.performances["performances"][0]["scores"][0].update(pdfPages=[11]),
-            lambda: self.labels["labels"][1].update(file="기본음/FIRST.wav"),
-            lambda: self.labels["labels"][1].update(file="기본음/first.wav/child.wav"),
+            lambda: self.labels["groups"][1].update(category="기본음계", technique="기본음", filenamePrefix="none"),
+            lambda: self.performances["performances"][0]["audio"].update(file="기본음계/기본음/저취_황.wav/child.wav"),
             lambda: self.labels.update(datasetId="wrong-dataset"),
         ]
         for mutate in mutations:
@@ -161,9 +184,9 @@ class ExportTests(unittest.TestCase):
             self.assertFalse((self.root / "export").exists())
 
     def test_unsafe_paths_and_reserved_output_names_are_rejected(self):
-        for name in ("../outside.wav", "C:/outside.wav", "/outside.wav", "a\\..\\outside.wav",
-                     "catalog.json", "CON.wav", "a./b.wav", "a:b.wav"):
-            self.labels["labels"][0]["file"] = name
+        for name in ("../outside", "C:/outside", "/outside", "a\\..\\outside",
+                     "catalog.json", "CON", "a./b", "a:b"):
+            self.labels["groups"][0]["category"] = name
             self.save()
             with self.subTest(path=name), self.assertRaises(ValueError):
                 self.run_export()
@@ -200,17 +223,92 @@ class ExportTests(unittest.TestCase):
         source.update(path="raw/float.wav", sha256=digest(path))
         self.labels["sourceHashes"]["tone"] = digest(path)
         self.performances["sourceHashes"]["tone"] = digest(path)
-        self.labels["labels"] = [self.labels["labels"][0]]
-        self.labels["labels"][0].update(startSeconds=0, endSeconds=4 / 44100)
+        self.labels["groups"] = [self.labels["groups"][0]]
+        self.update_label(0, startSeconds=0, endSeconds=4 / 44100)
         self.save()
         result = self.run_export(label_ids=["first"])
         self.assertLess(result["labels"][0]["gain"], 1)
-        with wave.open(str(self.root / "export/기본음/first.wav")) as stream:
+        with wave.open(str(self.root / "export/기본음계/기본음/저취_황.wav")) as stream:
             self.assertEqual(stream.getframerate(), 44100)
             pcm = np.frombuffer(stream.readframes(4), dtype="<i2")
         self.assertGreater(pcm[0], 32000)
         self.assertLess(pcm[1], -32000)
         self.assertEqual(path.read_bytes(), raw)
+
+    def test_column_order_is_declared_in_header_not_assumed(self):
+        self.labels["columns"].reverse()
+        for group in self.labels["groups"]:
+            for row in group["rows"]:
+                row.reverse()
+        self.save()
+        label = self.run_export(label_ids=["first"])["labels"][0]
+        self.assertEqual((label["sourceStartFrame"], label["sourceEndFrameExclusive"]), (800, 1600))
+        self.assertEqual(label["evidence"]["labelF0Hz"], 300.0)
+
+    def test_invalid_compact_columns_rows_and_evidence_are_rejected(self):
+        original = copy.deepcopy(self.labels)
+        mutations = [
+            lambda: self.labels["columns"].pop(),
+            lambda: self.labels["columns"].__setitem__(1, "id"),
+            lambda: self.labels["columns"].__setitem__(1, "startMillis"),
+            lambda: self.labels["groups"][0]["rows"][0].pop(),
+            lambda: self.labels["groups"][0]["rows"][0].append("surplus"),
+            lambda: self.labels["groups"][0]["rows"].__setitem__(0, {"id": "first"}),
+            lambda: self.update_label(0, startSeconds=True),
+            lambda: self.update_label(0, startSeconds="0.1"),
+            lambda: self.update_label(0, labelF0Hz=float("inf")),
+            lambda: self.update_label(0, labelF0Hz=0),
+            lambda: self.update_label(0, yulmyeong=""),
+            lambda: self.labels.update(eligibleForNoteScoring="false"),
+            lambda: self.labels.update(schemaVersion=1),
+            lambda: self.labels["groups"][0].update(filenamePrefix="automatic"),
+            lambda: self.labels["groups"][0].update(evidence={"missing": {}}),
+            lambda: self.labels["groups"][0].update(evidence={"first": {"file": "override.wav"}}),
+            lambda: self.labels["groups"][0].update(regsiter="typo"),
+        ]
+        for mutate in mutations:
+            self.labels = copy.deepcopy(original)
+            mutate()
+            self.save()
+            with self.subTest(mutation=mutate), self.assertRaises(ValueError):
+                self.run_export()
+            self.assertFalse((self.root / "export").exists())
+
+    def test_compound_label_uses_anchor_and_keeps_only_explicit_review_overrides(self):
+        group = self.labels["groups"][0]
+        group["gestureDefaults"] = {"repeatedRises": 2, "labelMeaning": "destination", "interpretation": "fixture"}
+        group["evidence"] = {"first": {"method": "reviewed_windows", "gesture": {
+            "lowerAnchor": {"register": "저취", "yulmyeong": "임", "f0Hz": 250.0,
+                            "windowsSeconds": [[.11, .13]], "alternatives": []},
+            "destination": {"windowsSeconds": [[.15, .19]], "alternatives": []},
+            "review": {"reason": "test review"}}}}
+        self.save()
+        label = self.run_export(label_ids=["first"])["labels"][0]
+        self.assertEqual(label["displayLabel"], "저취 임→저취 황")
+        self.assertEqual(label["file"], "기본음계/기본음/저취_임-저취_황.wav")
+        self.assertEqual(label["evidence"]["method"], "reviewed_windows")
+        self.assertEqual(label["gesture"]["destination"]["f0Hz"], 300.0)
+        self.assertEqual(label["gesture"]["repeatedRises"], 2)
+        self.assertEqual(label["gesture"]["review"]["reason"], "test review")
+        self.assertNotIn("actualFingeringStatus", label)
+        self.assertNotIn("referenceFingerings", label["evidence"])
+
+    def test_generated_paths_reject_case_collisions(self):
+        self.labels["groups"][0].update(category="tones", technique="plain", filenamePrefix="none")
+        self.labels["groups"][1].update(category="TONES", technique="PLAIN", filenamePrefix="none")
+        self.update_label(0, register="low", yulmyeong="note")
+        self.update_label(1, register="LOW", yulmyeong="NOTE")
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Duplicate output"):
+            self.run_export()
+
+    def test_performance_dataset_can_have_no_label_groups(self):
+        self.labels["groups"] = []
+        self.labels["sourceHashes"] = {}
+        self.save()
+        result = self.run_export()
+        self.assertEqual(result["labels"], [])
+        self.assertEqual(len(result["performances"]), 1)
 
 
 if __name__ == "__main__":

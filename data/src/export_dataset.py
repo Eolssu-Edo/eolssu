@@ -1,6 +1,7 @@
 """Export explicit note intervals and unchanged performance/score bundles."""
 
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -68,6 +69,112 @@ def index_rows(rows, name):
     return result
 
 
+def nonempty_text(value, name):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"Expected nonempty {name}")
+    return value
+
+
+def name_component(value):
+    nonempty_text(value, "path component")
+    if "/" in value:
+        raise ValueError(f"Expected a single path component: {value}")
+    relative_path(value)
+    return value
+
+
+def expand_labels(document):
+    """Expand schema-2 tables before filtering, preserving source-row numbering."""
+    allowed = {"schemaVersion", "datasetId", "labelStatus", "eligibleForNoteScoring",
+               "sourceHashes", "columns", "groups"}
+    if set(document) - allowed:
+        raise ValueError("Unknown labels document field")
+    columns = document.get("columns")
+    required = {"id", "startSeconds", "endSeconds", "register", "yulmyeong", "labelF0Hz"}
+    if (not isinstance(columns, list) or any(not isinstance(c, str) for c in columns) or
+            len(columns) != len(required) or set(columns) != required):
+        raise ValueError("Label columns must name each supported column exactly once")
+    nonempty_text(document.get("labelStatus"), "labelStatus")
+    if type(document.get("eligibleForNoteScoring")) is not bool:
+        raise ValueError("eligibleForNoteScoring must be boolean")
+    groups = document.get("groups")
+    if not isinstance(groups, list):
+        raise ValueError("Expected label groups")
+    expanded = []
+    for group in groups:
+        group_fields = {"sourceId", "category", "technique", "method", "filenamePrefix",
+                        "rows", "evidence", "gestureDefaults"}
+        if not isinstance(group, dict) or set(group) - group_fields:
+            raise ValueError("Invalid label group fields")
+        for field in ("sourceId", "category", "technique", "method"):
+            nonempty_text(group.get(field), field)
+        name_component(group["category"])
+        name_component(group["technique"])
+        if group.get("filenamePrefix") not in ("none", "rowNumber3"):
+            raise ValueError("filenamePrefix must be none or rowNumber3")
+        rows, evidence = group.get("rows"), group.get("evidence", {})
+        if not isinstance(rows, list) or not isinstance(evidence, dict):
+            raise ValueError("Expected rows list and optional evidence object")
+        gestures = group.get("gestureDefaults", {})
+        if (not isinstance(gestures, dict) or
+                set(gestures) - {"repeatedRises", "labelMeaning", "interpretation"}):
+            raise ValueError("Invalid gesture defaults")
+        group_ids = set()
+        for number, row in enumerate(rows, 1):
+            if not isinstance(row, list) or len(row) != len(columns):
+                raise ValueError("Label row length must match columns")
+            label = dict(zip(columns, row))
+            key = nonempty_text(label["id"], "label ID")
+            group_ids.add(key)
+            for field in ("register", "yulmyeong"):
+                name_component(label[field])
+            start, end, pitch = label["startSeconds"], label["endSeconds"], label.pop("labelF0Hz")
+            if (any(type(n) not in (int, float) or not math.isfinite(n) for n in (start, end, pitch)) or
+                    not 0 <= start < end or pitch <= 0):
+                raise ValueError(f"Invalid interval or pitch: {key}")
+            details = deepcopy(evidence.get(key, {}))
+            if (not isinstance(details, dict) or set(details) - {
+                    "sourceRegionIds", "boundaryReview", "repeatAssessment", "sequenceDecision",
+                    "alternatives", "method", "gesture", "labelStatus", "eligibleForNoteScoring"}):
+                raise ValueError(f"Invalid evidence fields: {key}")
+            status = details.pop("labelStatus", document["labelStatus"])
+            scoring = details.pop("eligibleForNoteScoring", document["eligibleForNoteScoring"])
+            nonempty_text(status, "labelStatus")
+            if type(scoring) is not bool:
+                raise ValueError("eligibleForNoteScoring must be boolean")
+            method = nonempty_text(details.pop("method", group["method"]), "method")
+            display = f"{label['register']} {label['yulmyeong']}"
+            gesture = details.pop("gesture", None)
+            if gestures and gesture is None:
+                raise ValueError(f"Missing gesture anchors: {key}")
+            if gesture is not None:
+                if not isinstance(gesture, dict) or set(gesture) - {"lowerAnchor", "destination", "review"}:
+                    raise ValueError(f"Invalid gesture: {key}")
+                lower, destination = gesture.get("lowerAnchor"), gesture.get("destination")
+                if (not isinstance(lower, dict) or not isinstance(destination, dict) or
+                        set(destination) - {"windowsSeconds", "alternatives"}):
+                    raise ValueError(f"Invalid gesture anchors: {key}")
+                for field in ("register", "yulmyeong"):
+                    name_component(lower.get(field))
+                if (type(lower.get("f0Hz")) not in (int, float) or
+                        not math.isfinite(lower["f0Hz"]) or lower["f0Hz"] <= 0):
+                    raise ValueError(f"Invalid lower-anchor frequency: {key}")
+                destination.update(register=label["register"], yulmyeong=label["yulmyeong"], f0Hz=pitch)
+                gesture = {**gestures, **gesture}
+                label["gesture"] = gesture
+                display = f"{lower['register']} {lower['yulmyeong']}→{display}"
+            prefix = f"{number:03d}_" if group["filenamePrefix"] == "rowNumber3" else ""
+            stem = display.replace(" ", "_").replace("→", "-")
+            label.update(sourceId=group["sourceId"], category=group["category"], technique=group["technique"],
+                         displayLabel=display, file=f"{group['category']}/{group['technique']}/{prefix}{stem}.wav",
+                         labelStatus=status, eligibleForNoteScoring=scoring,
+                         evidence={"labelF0Hz": pitch, "method": method, **details})
+            expanded.append(label)
+        if set(evidence) - group_ids:
+            raise ValueError("Evidence refers to an unknown label ID")
+    return index_rows(expanded, "label")
+
+
 def read_wave(path, expected_hash=None):
     """Decode native-rate PCM16 or IEEE float32 WAV without normalization."""
     raw = path.read_bytes()
@@ -133,12 +240,13 @@ def validate_manifests(dataset, root):
     if not isinstance(dataset_id, str) or not dataset_id:
         raise ValueError("Missing datasetId")
     for name, document in documents.items():
-        if document.get("schemaVersion") != 1 or document.get("datasetId") != dataset_id:
+        version = 2 if name == "labels" else 1
+        if type(document.get("schemaVersion")) is not int or document["schemaVersion"] != version or document.get("datasetId") != dataset_id:
             raise ValueError(f"Schema or dataset mismatch: {name}")
     if documents["sources"].get("pathBase") != "repository_root":
         raise ValueError("Source paths must be relative to repository_root")
     sources = index_rows(documents["sources"]["sources"], "source")
-    labels = index_rows(documents["labels"]["labels"], "label")
+    labels = expand_labels(documents["labels"])
     performances = index_rows(documents["performances"]["performances"], "performance")
     for source in sources.values():
         if source.get("kind") not in ("audio", "score") or not re.fullmatch(r"[0-9a-fA-F]{64}", source.get("sha256", "")):
