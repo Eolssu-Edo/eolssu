@@ -27,6 +27,8 @@ data class EolssuSerifTypography(
     val brand: TextStyle,
     /** 곡 상세의 곡 제목. */
     val songTitle: TextStyle,
+    /** 홈 안내 영역의 대표 문구처럼 여러 줄로 쓰는 큰 문구. */
+    val headline: TextStyle,
     /** 정간보의 율명. 크기는 칸에 맞춰 `copy(fontSize = ...)`로 바꾼다. */
     val yul: TextStyle,
 )
@@ -69,5 +71,6 @@ internal fun eolssuTypography(sans: FontFamily): Typography {
 internal fun eolssuSerifTypography(serif: FontFamily) = EolssuSerifTypography(
     brand = TextStyle(fontFamily = serif, fontWeight = FontWeight.Bold, fontSize = 34.sp, letterSpacing = (-0.5).sp),
     songTitle = TextStyle(fontFamily = serif, fontWeight = FontWeight.Bold, fontSize = 30.sp),
+    headline = TextStyle(fontFamily = serif, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 36.sp),
     yul = TextStyle(fontFamily = serif, fontWeight = FontWeight.SemiBold, fontSize = 19.sp),
 )
