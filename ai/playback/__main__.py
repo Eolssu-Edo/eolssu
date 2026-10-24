@@ -8,6 +8,7 @@ import tempfile
 import numpy as np
 import soundfile as sf
 from .score import PROFILES, compile_score, require
+from .expression import apply_expression
 from .midi import write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
 
@@ -41,7 +42,7 @@ def audition_page(reports):
     <script>const players=[...document.querySelectorAll('audio')];players.forEach(p=>p.addEventListener('play',()=>players.forEach(q=>{if(q!==p)q.pause()})));</script></html>'''
 
 
-def run(score_path, assets_path, out, instruments, transpose=0):
+def run(score_path, assets_path, out, instruments, transpose=0, vibrato="none"):
     score = json.loads(Path(score_path).read_text(encoding="utf-8-sig"))
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
     out = Path(out)
@@ -51,7 +52,7 @@ def run(score_path, assets_path, out, instruments, transpose=0):
     with tempfile.TemporaryDirectory(prefix="playback-", dir=out) as tmp:
         stage = Path(tmp)
         for key in instruments:
-            perf = compile_score(score, key, transpose)
+            perf = apply_expression(compile_score(score, key, transpose), vibrato)
             require(key in assets, f"Missing asset mapping for {key}")
             archive = Path(assets[key])
             if not archive.is_absolute():
@@ -90,7 +91,8 @@ def run(score_path, assets_path, out, instruments, transpose=0):
             same_daegeum = by_key["jeongak-daegeum"]["audio"]["wav_sha256"] == by_key["sanjo-daegeum"]["audio"]["wav_sha256"]
         manifest = {"input_sha256":sha(score_path), "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","__main__.py"]},
+                    "vibrato_preset":vibrato,
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","expression.py","__main__.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "same_daegeum_pcm":same_daegeum, "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["Reviewed JSON input only; no automatic image OMR or MusicXML importer.",
@@ -113,8 +115,9 @@ def main():
     p.add_argument("--out", required=True)
     p.add_argument("--instrument", choices=["all", *PROFILES], default="all")
     p.add_argument("--transpose", type=int, default=0, help="Explicit semitone audition transposition; never automatic")
+    p.add_argument("--vibrato", choices=["none","quarter","third"], default="none", help="Additional pitch motion: none, +/-25c, +/-33.333c")
     a = p.parse_args()
-    result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument], a.transpose)
+    result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument], a.transpose, a.vibrato)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

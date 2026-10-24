@@ -31,6 +31,11 @@
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
+
+## AI 실행·검증 기록
+
+- [악보 사진 → 단소 로컬 재생 서비스](knowledge/ai/score-photo-service.md)
+- [S15P31E102-105 작업 계획](plans/S15P31E102-105.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
