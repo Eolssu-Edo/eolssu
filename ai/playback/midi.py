@@ -17,6 +17,11 @@ def write_midi(performance, path):
         add(0, -10, "control_change", control=cc, value=v)
     for e in performance["events"]:
         a, b = e["start_tick"], e["end_tick"]
+        y = e["yoseong"]
+        vibrato = performance.get("playback_vibrato")
+        if vibrato and ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
+                        y and y["mode"] in ("pitch", "mixed")):
+            vibrato = None
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])
         add(b, 0, "note_off", note=e["pitch"], velocity=0)
@@ -24,7 +29,6 @@ def write_midi(performance, path):
             q = (tick-a)/(b-a)
             cc = float(np.interp(q, [0, .45, 1], e["expression"]))
             cents = e["tuning_cents"]
-            y = e["yoseong"]
             if y:
                 t = (tick-a)*sec_tick
                 gate = max(0, min(1, (t-y["delay_seconds"])/.15, (b-tick)*sec_tick/.15))
@@ -33,6 +37,11 @@ def write_midi(performance, path):
                     cc *= 1-y["depth"] * (1-wave)/2 * gate
                 if y["mode"] in ("pitch", "mixed"):
                     cents += y["cents"]*wave
+            if vibrato:
+                elapsed = (tick-a)*sec_tick - vibrato["delay_seconds"]
+                attack = max(0, min(1, elapsed/vibrato["fade_in_seconds"]))
+                release = min(1, (b-tick)*sec_tick/vibrato["fade_out_seconds"])
+                cents += vibrato["cents"] * attack * release * math.sin(2*math.pi*vibrato["hz"]*elapsed)
             bend = round(cents/200*8192)
             require(-8192 <= bend <= 8191, "Pitch bend exceeds explicit +/-2 semitone range")
             add(tick, 2, "pitchwheel", pitch=bend)
