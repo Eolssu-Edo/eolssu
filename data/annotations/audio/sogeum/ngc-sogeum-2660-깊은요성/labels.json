@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2660": "22500590ddd9ca74600c5b2181344cd6de1c0cb1d316675f9ef22d861fa8e29b"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2660",
+      "category": "기본음계",
+      "technique": "깊은요성",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2660.group-001",0.55,7.35,"평취","임",489.197],
+        ["ngc-sogeum-2660.group-002",9.32,15.7,"평취","임",482.996]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2660.group-002": {
+          "repeatAssessment": {
+            "decision": "retain_separate_articulation",
+            "previousRegion": 1,
+            "gapSeconds": 1.97,
+            "reason": "사이 무음과 별도 어택을 가진 실제 재발음. 동일 율명이어도 중복 제거하지 않음."
+          }
+        }
+      }
+    }
+  ]
+}

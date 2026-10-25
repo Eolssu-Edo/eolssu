@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "aihub-71955",
+  "instrument": "혼합",
+  "pathBase": "repository_root",
+  "sources": [
+    {
+      "id": "aihub-71955-other",
+      "kind": "bundle",
+      "title": "기타 자료(CSV)",
+      "sha256": "fce376baded16de5ae91008d2f33e886b2dac732a5a36468f957e382b83ec04c",
+      "bytes": 87612,
+      "sourceUrl": "https://aihub.or.kr/aihubdata/data/view.do?currMenu=115&topMenu=100&dataSetSn=71955",
+      "publisher": "AI-Hub",
+      "collection": "국악 합주곡 디지털 음원 데이터 (71955)",
+      "sourceVerified": true,
+      "license": null,
+      "attribution": null,
+      "verifiedOn": "2026-10-23",
+      "redistribution": null,
+      "rawPath": "data/raw/aihub/71955/3.개방데이터/1.데이터/Other/Other.zip",
+      "originalFilename": "Other.zip",
+      "instrument": "mixed",
+      "contents": {
+        "csv": 3
+      },
+      "notes": "같은 데이터셋의 음원 압축 4개는 다운로드가 깨져 제외. 다시 받은 뒤 추가."
+    }
+  ]
+}

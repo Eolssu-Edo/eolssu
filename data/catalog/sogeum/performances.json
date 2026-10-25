@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "datasetId": "sogeum",
+  "sourceHashes": {
+    "ngc-sogeum-2668": "4259f482cc3a76f59583a00bc1a371afb15928fb986a821cbc2b2069316034f7"
+  },
+  "performances": [
+    {
+      "id": "ngc-sogeum-2668",
+      "title": "도드리",
+      "audio": {
+        "sourceId": "ngc-sogeum-2668",
+        "file": "연주/도드리/도드리_원음.wav"
+      },
+      "scores": [],
+      "noteAlignmentVerified": false,
+      "notes": "공식 단음 목록의 소금 도드리 61.946667초. 대응 소금 오선보·정간보 판본 미확보. 도드리 세부 곡명·연주자·편집범위 메타데이터 없음. 다른 악기의 같은 제목 악보를 대응 판본으로 연결하지 않음."
+    }
+  ],
+  "comparisonScores": []
+}

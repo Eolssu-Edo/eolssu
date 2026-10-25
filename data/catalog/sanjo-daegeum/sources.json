@@ -1,22 +1,15 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "datasetId": "sanjo-daegeum",
   "instrument": "산조대금",
   "pathBase": "repository_root",
-  "sources": [
-    {
-      "id": "ngc-sanjo-2550",
+  "sourceProfiles": {
+    "ngc-sanjo-audio": {
       "kind": "audio",
-      "title": "기본음",
-      "sha256": "6eebba16c05b3ad9792a5960c8c46f310394894ebc1acf092e62c32abab87332",
-      "bytes": 40990304,
-      "sampleRateHz": 48000,
       "channels": 2,
-      "durationSeconds": 106.73839583333333,
       "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
       "publisher": "국립국악원",
       "license": "KOGL-1",
-      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음, mntn_seq=2550, 공공누리 제1유형(출처표시)",
       "verifiedOn": "2026-10-22",
       "redistribution": {
         "original": "possible_with_conditions",
@@ -25,207 +18,115 @@
           "출처표시",
           "가공한 경우 변경 내용 표시"
         ]
-      },
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "ngc-sanjo-2550",
+      "profile": "ngc-sanjo-audio",
+      "title": "기본음",
+      "sha256": "6eebba16c05b3ad9792a5960c8c46f310394894ebc1acf092e62c32abab87332",
+      "bytes": 40990304,
+      "sampleRateHz": 48000,
+      "durationSeconds": 106.73839583333333,
+      "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음, mntn_seq=2550, 공공누리 제1유형(출처표시)",
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_sus_04.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2550-기본음/labels.json"
     },
     {
       "id": "ngc-sanjo-2551",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "기본음+요성",
       "sha256": "9475e0486aef2b25d802e1b1d52b4edb8fddaf3839e34249fa5be0981b9eec41",
       "bytes": 75032440,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 195.38979166666667,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음+요성, mntn_seq=2551, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_vib_39.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2551-기본음+요성/labels.json"
     },
     {
       "id": "ngc-sanjo-2552",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "기본음+깊은요성",
       "sha256": "6b7dace6a9fc5e1c9b14f53efb439054ac24bdcd63efb803f8ed9184e1108a96",
       "bytes": 48201534,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 125.51764583333333,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 기본음+깊은요성, mntn_seq=2552, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_deep_vib_48.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2552-기본음+깊은요성/labels.json"
     },
     {
       "id": "ngc-sanjo-2553",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "노니로",
       "sha256": "1f50f0bf09312be5d803f2ff78246752e346ca874e39ece296244a469f4142a3",
       "bytes": 52079448,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 135.616375,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 노니로, mntn_seq=2553, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nina_29.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2553-노니로/labels.json"
     },
     {
       "id": "ngc-sanjo-2554",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "니라",
       "sha256": "a0353ed2dec7cf33e07ccd42ec11c945cb5cf55752bdb8b28bba94543a0ffbc9",
       "bytes": 37941336,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 98.798375,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 니라, mntn_seq=2554, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_nira_23.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2554-니라/labels.json"
     },
     {
       "id": "ngc-sanjo-2555",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "스타카토",
       "sha256": "c83094d13456de03c13038882bf776569c2b552e5e53db7977f945e9c220e103",
       "bytes": 8407334,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 21.886916666666668,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 스타카토, mntn_seq=2555, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_stacatto_60.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2555-스타카토/labels.json"
     },
     {
       "id": "ngc-sanjo-2564",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "크레센도",
       "sha256": "0a426df1a3d0f818dda7a0f45502547d5c73f592391398bf3d35da2c0a32c3b4",
       "bytes": 41743008,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 108.6985625,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 크레센도, mntn_seq=2564, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/sanjo_deageum_scale_chung_34.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2564-크레센도/labels.json"
     },
     {
       "id": "ngc-sanjo-2566",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "다루치기",
       "sha256": "1d763cf37242bef6b1975dfd34b60df2d6b80d5c657e58a6b4cbba29b765485f",
       "bytes": 3863102,
       "sampleRateHz": 48000,
-      "channels": 2,
       "durationSeconds": 10.052979166666667,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 다루치기, mntn_seq=2566, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/Sanjo_deageum_1.wav",
       "annotationPath": "data/annotations/audio/sanjo-daegeum/ngc-sanjo-2566-다루치기/labels.json"
     },
     {
       "id": "ngc-sanjo-2625",
-      "kind": "audio",
+      "profile": "ngc-sanjo-audio",
       "title": "태평가",
       "sha256": "4c7202a482c48e15692c077ca117992739ddf56356f5eab7cc02b74d3daf3442",
       "bytes": 17013810,
       "sampleRateHz": 44100,
-      "channels": 2,
       "durationSeconds": 95.68,
-      "sourceUrl": "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
-      "publisher": "국립국악원",
-      "license": "KOGL-1",
       "attribution": "국립국악원, 국악기 디지털 음원, sanjo, 태평가, mntn_seq=2625, 공공누리 제1유형(출처표시)",
-      "verifiedOn": "2026-10-22",
-      "redistribution": {
-        "original": "possible_with_conditions",
-        "adapted": "possible_with_conditions",
-        "conditions": [
-          "출처표시",
-          "가공한 경우 변경 내용 표시"
-        ]
-      },
       "rawPath": "data/raw/instruments/daegeum/sanjo/Sanjo_deageum_2.wav"
     },
     {

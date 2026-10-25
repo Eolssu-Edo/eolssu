@@ -31,6 +31,8 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 ```text
 data/
 ├── catalog/                 # 원본 목록: 곡·악보·음원·MIDI의 ID·출처·이용 조건·SHA-256·rawPath.
+│   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
+│   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
@@ -39,13 +41,17 @@ data/
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
-├── tests/fixtures/          # 사용 조건을 확인한 작은 고정 샘플.
+├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
 ├── mart/                    # 집계 DB 스키마.
 ├── raw/                     # 받은 원본 그대로. Git 제외.
+│   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
+│   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.
+│   └── scores/<묶음>/       # 팀원이 모은 정간보 PDF·MusicXML.
 └── processed/               # raw·src·annotations로 다시 만드는 결과. Git 제외.
 ```
 
-- **원본**: `raw/`의 파일은 받은 그대로 두고 수정·덮어쓰기·삭제하지 않습니다. 고친 자료는 새 ID로 추가합니다. 묶음으로 받은 자료(예: AI-Hub)는 받은 폴더 구조를 유지합니다.
+- **원본**: `raw/`의 파일은 받은 그대로 두고 수정·덮어쓰기·삭제하지 않습니다. 고친 자료는 새 ID로 추가합니다. 묶음으로 받은 자료(예: AI-Hub)는 받은 폴더 구조를 유지합니다. MID와 JSON처럼 형식이 달라도 따로 옮기지 않고 파일 이름으로 짝을 맞춥니다. 압축을 푼 결과는 `processed/` 아래에 같은 구조로 둡니다.
+- **곡 묶음**: 데이터셋 안의 연주·악보 짝은 `performances.json`에, 데이터셋이 다른 자료끼리의 묶음은 `catalog/works/`에 둡니다. 묶음도 원본 ID와 SHA-256으로 가리키고, 같은 판본인지 확인했는지 적습니다.
 - **참조 기준**: 목록·판단 값·가공 결과는 원본을 파일 이름이 아니라 원본 ID와 SHA-256으로 가리키고, 구간은 초 단위 시간으로 적습니다. 소수점 자릿수는 저장 형식이며 측정 정확도를 뜻하지 않습니다.
 - **원본 경로**: 목록에는 `rawPath`로 `data/raw/...` 하나만 적습니다. 서버 경로는 앞에 `/`를 붙인 `/data/raw/...`입니다.
 - **annotations와 processed의 경계**: 사람이 적었거나, 도구가 추정했더라도 검수하거나 다른 곳에서 참조하는 값은 `annotations/`에 둡니다. 코드를 다시 실행하면 같게 나오는 큰 결과(프레임별 F0, 분석용 WAV, 잘라 낸 그림)는 `processed/`에 둡니다.
@@ -90,17 +96,28 @@ scp -r edo1:/data/raw/<하위경로>/<폴더> data/raw/<하위경로>/
 find data/raw/<하위경로>/<폴더> -type f -exec sha256sum {} +
 ```
 
+목록 전체를 한 번에 대조할 때는 아래를 실행합니다. 목록에 있는데 없거나 크기·SHA-256이 다른 파일을 알려 주고, 하나라도 있으면 종료 코드 1로 끝납니다. `--dataset`을 생략하면 `data/catalog/` 아래 모든 데이터셋을 대조하므로, 내려받은 데이터셋만 고릅니다.
+
+```bash
+python data/src/catalog/verify_sources.py --dataset aihub-71470 aihub-71955 collected-scores
+```
+
 `/data/raw`는 웹으로 열지 않고 SSH 키로만 접근합니다.
 
 ## 데이터 준비
 
-현재 실제 자료는 산조대금입니다. 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
+악기별 라벨 자료는 `data/catalog/<악기 ID>/`와 `data/annotations/audio/<악기 ID>/`에 둡니다. AI-Hub와 팀이 모은 악보는 원본 목록만 있습니다. 확보 범위와 검수 근거는 [데이터 조사 목록](../docs/README.md#데이터-조사검증-기록)에서 확인합니다. 아래 산조대금 예시처럼 공통 JSON 세 종류를 팀 폴더 규칙에 맞춰 나눕니다.
 
 | 위치 | 편집할 내용 |
 | --- | --- |
 | [catalog/sanjo-daegeum/sources.json](catalog/sanjo-daegeum/sources.json) | 원음 9개·악보집 1개의 원본 ID, rawPath, 출처·이용 조건·SHA-256, 필요한 annotationPath |
 | [annotations/audio/sanjo-daegeum/](annotations/audio/sanjo-daegeum/) 아래 `<원본 ID>-<설명>/labels.json` | 악기별 원음의 구간·취법·율명·대표 기본주파수(F0)와 판단 근거. 산조는 8파일·121행 |
 | [catalog/sanjo-daegeum/performances.json](catalog/sanjo-daegeum/performances.json) | 연주 원음, 확인된 대응 악보, 별도로 구분한 비교용 악보 참조 |
+| [catalog/aihub-71470/sources.json](catalog/aihub-71470/sources.json) | AI-Hub 국악 악보 및 음원 데이터 압축 20개(MID·WAV 원천, JSON 라벨). 압축 안 파일 수는 `contents` |
+| [catalog/aihub-71955/sources.json](catalog/aihub-71955/sources.json) | AI-Hub 국악 합주곡 디지털 음원 데이터 중 받은 1개. 음원 압축은 다시 받은 뒤 추가 |
+| [catalog/collected-scores/sources.json](catalog/collected-scores/sources.json) | 팀원이 모은 정간보 PDF 18개와 정간보·MusicXML 묶음 2개. 출처 확인 여부는 `sourceVerified` |
+
+`aihub-71470`, `aihub-71955`, `collected-scores`는 원본 목록(`sources.json`)만 있어 `export_dataset.py`의 `--dataset` 대상이 아닙니다. 라벨과 연주 묶음을 만들면 그때 `performances.json`과 annotation을 추가합니다.
 
 공통 [export_dataset.py](src/audio/export_dataset.py)는 목록에서 선언한 라벨 파일을 모두 읽고 검증합니다. 파일을 검색해서 발견한 것만 사용하는 방식이 아니므로, 선언된 annotation이 없으면 오류입니다. 라벨의 명시적 구간을 잘라 저장하며 율명을 새로 추정하지 않습니다. [산조대금 기록](../docs/knowledge/data/sanjo-daegeum.md)에 판단 근거와 검수 범위를 남깁니다.
 
@@ -158,13 +175,20 @@ raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지�
 
 ## JSON 형식과 악기 추가
 
-sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `data/datasets/` 3파일 배치와 구형 schema를 읽는 경로는 제거했습니다. 열·행 구조, 라벨 ID·구간·율명·F0·출력 WAV 파일명은 보존합니다.
+sources는 schema v2·v3, performances는 v2, 원음별 labels는 v3입니다. 출력 catalog는 v2를 유지합니다. 이전의 `data/datasets/` 3파일 배치와 구형 schema를 읽는 경로는 제거했습니다. 열·행 구조, 라벨 ID·구간·율명·F0·출력 WAV 파일명은 보존합니다.
 
 | 문서 | 주요 필드 |
 | --- | --- |
-| sources | datasetId, instrument, pathBase=repository_root, sources. 원본마다 id/kind/rawPath/sha256/title/sourceUrl/license/attribution. 악보는 pdfPageCount, 라벨 대상 원음은 annotationPath |
+| sources | datasetId, instrument, pathBase=repository_root, sources. v3는 sourceProfiles와 선택적 sources[].profile. 펼친 원본마다 id/kind/rawPath/sha256/title/sourceUrl/license/attribution. 악보는 pdfPageCount, 라벨 대상 원음은 annotationPath |
 | 원음별 labels | datasetId, 해당 원음 하나의 sourceHashes, 공통 review·eligibleForNoteScoring, columns, groups. 그룹의 sourceId/category/technique/method/analysisBasis/filenamePrefix/rows 및 선택적 evidence·gestureDefaults |
 | performances | datasetId, sourceHashes, performances(id/title/audio/scores), comparisonScores(id/forPerformanceId/sourceId/file/notation/pdfPages/coverage/대응 상태) |
+
+sources v3는 같은 JSON의 `sourceProfiles` 객체에 공통 출처 메타데이터를 두고 원본의 `profile` 문자열로 참조합니다. 단소의 음원 32개는 `ngc-danso-audio`를 공유하며 권리 조건이 다른 PDF는 개별 객체로 둡니다. [공통 로더](src/catalog/source_catalog.py)를 exporter와 원본 검증 CLI가 함께 사용합니다. 읽을 때 프로필을 펼치므로 출력 `catalog.sources`에는 기존 전체 원본 객체만 남고 `profile`은 남지 않습니다. `manifestHashes`는 실제 입력 파일의 해시이므로 입력을 압축하면 바뀝니다.
+
+- 개별 원본에 같은 필드가 있으면 그 값을 우선합니다. 중첩 객체도 통째로 교체하며 명시적 `null`은 프로필 값으로 채우지 않습니다. 원본마다 독립된 객체로 펼칩니다.
+- 프로필 허용 필드는 `kind`, `sourceUrl`, `downloadUrl`, `publisher`, `license`, `attribution`, `verifiedOn`, `redistribution`, `instrument`, `instrumentCode`, `channels`, `category`, `collection`, `sourceVerified`, `serviceDatasetApproved`, `notes`입니다. ID·제목·경로·SHA-256·크기·원본 항목 번호·길이·샘플레이트·PDF 쪽수 등 고유 값은 개별 원본에 둡니다.
+- 프로필 이름과 참조는 비어 있지 않은 문자열이어야 하며 같은 파일에 정의된 객체만 참조합니다. 재귀 상속, 알 수 없는 프로필·필드, 잘못된 객체, v2의 `sourceProfiles`·`profile` 혼용은 오류입니다. v3의 `sourceProfiles`는 필요하며, 빈 객체로 두고 모든 원본을 개별 작성할 수 있습니다.
+- 원본 목록 검증은 기존 AI-Hub·수집 악보의 권리 미확인 `null`을 보존합니다. exporter는 펼친 원본의 필수 `title`·`license`·`sourceUrl`·`attribution`이 비어 있거나 `null`이면 내보내기를 거부합니다.
 
 `rawPath`는 `data/raw/...`, `annotationPath`는 `data/annotations/audio/<datasetId>/<sourceId>-<설명>/labels.json` 하나만 기록합니다. 악기 폴더는 catalog JSON의 `datasetId`와 같아야 합니다. 산조 기본음의 전체 경로는 `data/annotations/audio/sanjo-daegeum/ngc-sanjo-2550-기본음/labels.json`입니다. 숫자를 포함한 원본 ID는 그대로 유지하고 폴더에 읽기 쉬운 설명만 붙입니다. 같은 악기 폴더 안에서는 설명 없는 `<sourceId>/labels.json`도 읽을 수 있지만 악기 폴더를 생략한 이전 경로는 허용하지 않습니다. 폴더명을 ID로 쓰거나 제목에서 경로를 다시 만들지 않고 `annotationPath`를 읽습니다. annotation은 자기 데이터셋·원본 ID·해시만 참조할 수 있습니다. `sourceHashes`는 원음이 바뀌었는데 예전 라벨이나 악보 참조가 적용되는 일을 막습니다.
 
@@ -188,7 +212,9 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 - 같은 SHA의 동일 초 구간 또는 반올림 후 동일 프레임 구간은 ID·율명·주법이 달라도 오류입니다. 선택 원음의 미선택 라벨도 검사합니다. 다른 시각의 반복음과 서로 경계가 다른 일부 겹침은 자동 삭제하지 않습니다.
 - lowerAnchor/destination의 windowsSeconds와 analysisReview.rejectedWindow는 원음 기준 절대초입니다. 숫자·길이·라벨 내부 범위·창 순서·겹침·반올림 후 빈 창을 검사합니다. 아래음과 도착음이 반복 중 교차하는 순서는 허용합니다.
 
-새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`으로 추가할 수 있으며 현재 실제 자료는 `sanjo-daegeum`만 있습니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 산조대금은 `sanjo-daegeum`, 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`을 사용합니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
+
+선택 필드 `evidence[id].sequenceDecision.orderedAnchors`는 한 발음 안의 안정음 전체 순서를 보존합니다. 각 원소에는 `register`, `yulmyeong`, 양의 유한수 `f0Hz`, 원음 기준 절대초 `windowsSeconds`를 기록합니다. 창은 라벨 내부에 있어야 하고, 원소 안과 원소 사이에서 시간순·비겹침·반올림 후 비어 있지 않은 실제 프레임 범위를 만족해야 합니다. `labelAnchorIndex`는 0부터 시작하는 정수로, 선택한 안정음의 취법·율명·F0가 행의 `register`·`yulmyeong`·`labelF0Hz`와 같아야 합니다. 행과 파일 표시는 선택한 안정음으로 유지하며 전체 이동 순서를 두 기준음 `gesture`로 축약하지 않습니다. 기존 자유형 문자열이나 `orderedAnchors`가 없는 `sequenceDecision` 객체는 그대로 허용합니다.
 
 ## 검증
 
@@ -196,4 +222,6 @@ sources·performances는 schema v2, 원음별 labels는 v3입니다. 이전의 `
 python -m unittest discover -s data/tests -p 'test_*.py' -v
 ```
 
-합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 실제 다른 세 악기의 수집·라벨링이나 율명의 음악적 정답 검증을 뜻하지 않습니다.
+합성 WAV·MP3와 임시 악보로 포맷·구간 저장·원본 복사·파일별 라벨 병합·선택 번호·참조 누락·중복·분석창·검수 상태·출력 보호를 검사합니다. 서버 경로도 별도 임시 루트로 시험합니다. 이 회귀 검사는 실제 악기 데이터의 수집·라벨링 검증이나 율명의 음악적 정답 검증을 대신하지 않습니다. 실제 원음을 사용한 결과는 각 악기의 검수 기록을 확인합니다.
+
+sources v2·v3의 펼친 원본 및 출력 바이트 동등성, 프로필 참조·개별 값 우선 적용·명시적 `null`·객체 독립성도 검사합니다. 원본 검증 CLI는 임시 원본으로 기존 목록과 프로필 목록의 성공·파일 누락·크기·해시 오류 처리를 확인합니다.
