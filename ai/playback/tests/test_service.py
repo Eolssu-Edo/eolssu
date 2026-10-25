@@ -5,6 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 import zipfile
+from copy import deepcopy
+from unittest.mock import patch
 
 import numpy as np
 from PIL import Image
@@ -147,6 +149,107 @@ class ServiceTests(unittest.TestCase):
             'revision':job['revision'],'score':job['score'],'regions':[{'note_id':'a','bbox':[.9,.9,.2,.2]}]})
         self.assertEqual(response.status_code,422)
         self.assertEqual(self.client.get(f'/api/scores/{job["id"]}').json()['revision'],job['revision'])
+
+    def machine_result(self, job):
+        score = deepcopy(job['score'])
+        score['source'].update(review_status='machine-transcribed-unverified',image_sha256='model-jpeg-hash')
+        score['notes'] = [{'id':'model-1','pitch':69,'duration':'1'}]
+        return {'score':score,'regions':[{'note_id':'model-1','bbox':[.1,.1,.1,.1]}],
+                'warnings':['unverified model result'],'provider':{'name':'test'}}
+
+    def configured_client(self):
+        self.client.close()
+        self.client = TestClient(create_app(self.root/'jobs',self.root/'assets.json',model='local-test'))
+        self.client.headers['X-Playback-Client'] = 'local'
+
+    def test_photo_automatic_preview_preserves_provenance_and_confirmation_has_separate_cache(self):
+        self.configured_client()
+        job = self.upload()
+        with patch('playback.recognition.recognize',return_value=self.machine_result(job)) as recognize:
+            response = self.client.post(f'/api/scores/{job["id"]}/automatic',json={'revision':0})
+        self.assertEqual(response.status_code,200,response.text)
+        preview = response.json()
+        self.assertEqual(preview['state'],'preview_ready')
+        self.assertNotIn('quarter_bpm',recognize.call_args.args[2])
+        self.assertEqual(recognize.call_args.args[2]['ornament_pitch_classes'],[1,3,5,8,10])
+        self.assertEqual(preview['recognition_context']['ornament_pitch_classes'],[1,3,5,8,10])
+        source = self.client.get(preview['result']['score_url']).json()['source']
+        self.assertEqual(source['review_status'],'machine-transcribed-unverified')
+        self.assertEqual(source['review_mode'],'automatic-preview')
+        self.assertNotIn('reviewed_revision',source)
+        self.assertEqual(source['image_sha256'],'model-jpeg-hash')
+        self.assertEqual(source['original_image_sha256'],job['image_sha256'])
+        checked = self.client.post(f'/api/scores/{job["id"]}/render',json={'revision':1,'approved':True}).json()
+        self.assertNotEqual(checked['audio_url'],preview['result']['audio_url'])
+        self.assertEqual(checked['review_mode'],'user-confirmed')
+        self.assertEqual(self.client.get(checked['score_url']).json()['source']['reviewed_revision'],1)
+
+    def test_automatic_render_failure_preserves_machine_draft_and_error(self):
+        self.configured_client()
+        job = self.upload()
+        candidate = self.machine_result(job)
+        candidate['score']['notes'][0]['pitch'] = 20
+        with patch('playback.recognition.recognize',return_value=candidate):
+            response = self.client.post(f'/api/scores/{job["id"]}/automatic',json={'revision':0})
+        self.assertEqual(response.status_code,422)
+        current = self.client.get(f'/api/scores/{job["id"]}').json()
+        self.assertEqual(current['revision'],1)
+        self.assertEqual(current['score']['notes'][0]['pitch'],20)
+        self.assertEqual(current['state'],'needs_review')
+        self.assertIsNone(current['result'])
+        self.assertTrue(current['error'])
+
+    def test_revision_change_during_inference_is_not_overwritten(self):
+        self.configured_client()
+        job = self.upload()
+        def recognize(*args,**kwargs):
+            self.save(deepcopy(job))
+            return self.machine_result(job)
+        with patch('playback.recognition.recognize',side_effect=recognize):
+            response = self.client.post(f'/api/scores/{job["id"]}/automatic',json={'revision':0})
+        self.assertEqual(response.status_code,409)
+        current = self.client.get(f'/api/scores/{job["id"]}').json()
+        self.assertEqual(current['score']['notes'][0]['id'],'a')
+
+    def test_failed_page_recognition_preserves_reason_and_previous_draft(self):
+        from playback.recognition import RecognitionError
+        self.configured_client()
+        job=self.save(self.upload())
+        with patch('playback.recognition.recognize',side_effect=RecognitionError('Unknown or uncertain glyph')):
+            response=self.client.post(f'/api/scores/{job["id"]}/automatic',json={'revision':job['revision']})
+        self.assertEqual(response.status_code,503)
+        current=self.client.get(f'/api/scores/{job["id"]}').json()
+        self.assertEqual(current['score'],job['score'])
+        self.assertEqual(current['revision'],job['revision'])
+        self.assertEqual(current['error'],response.json()['detail'])
+
+    def test_jeonggan_default_is_an_explicit_preview_assumption(self):
+        self.configured_client()
+        job = self.upload('jeonggan')
+        candidate = self.machine_result(job)
+        candidate['score']['context']['huangjong_midi'] = 63
+        candidate['score']['notes'][0]['pitch'] = {'yul':'蕤','register':0}
+        with patch('playback.recognition.recognize',return_value=candidate) as recognize:
+            response = self.client.post(f'/api/scores/{job["id"]}/automatic',json={'revision':0,'vibrato':'third'})
+        self.assertEqual(response.status_code,200,response.text)
+        self.assertEqual(recognize.call_args.args[2]['huangjong_midi'],63)
+        self.assertEqual(recognize.call_args.args[0].name,'source.png')
+        current = response.json()
+        self.assertEqual(current['result']['vibrato'],'third')
+        self.assertIn('사진에서 확인한 조율값이 아닙니다',' '.join(current['score']['assumptions']))
+
+    def test_page_longer_than_two_minutes_is_accepted_but_ten_minute_bound_remains(self):
+        job = self.upload()
+        score = deepcopy(job['score'])
+        score['notes'] = [{'id':f'n{i}','pitch':69,'duration':'1'} for i in range(130)]
+        response=self.client.put(f'/api/scores/{job["id"]}/draft',json={
+            'revision':0,'score':score,'regions':[]})
+        self.assertEqual(response.status_code,200,response.text)
+        score['notes'] = [{'id':f'n{i}','pitch':69,'duration':'1'} for i in range(601)]
+        rejected=self.client.put(f'/api/scores/{job["id"]}/draft',json={
+            'revision':1,'score':score,'regions':[]})
+        self.assertEqual(rejected.status_code,422)
+        self.assertEqual(self.client.get(f'/api/scores/{job["id"]}').json()['revision'],1)
 
 
 if __name__ == "__main__":

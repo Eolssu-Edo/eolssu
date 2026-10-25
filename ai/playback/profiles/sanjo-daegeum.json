@@ -1,0 +1,11 @@
+{
+  "label": "산조 대금",
+  "jira": "S15P31E102-107",
+  "variant": "산조대금: 관/청 미지정",
+  "technical_range": null,
+  "style_range": null,
+  "range_source": "단일 관종의 보편 음역 미확정. 실행 시 CAT 키존만 검증하며 실제 운지 가능성을 보증하지 않음.",
+  "interpretation": "관의 종류와 청·조율 기준을 별도 기록. 정악의 기호 의미를 산조의 꺾기·떠는음에 일괄 복제하지 않음.",
+  "yoseong_mode": null,
+  "preset_name": "DaeGeum (SanJo) - DEMO_simple.adv"
+}

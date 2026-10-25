@@ -95,7 +95,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, vibrato="none"):
                     "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","expression.py","__main__.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "same_daegeum_pcm":same_daegeum, "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
-                    "limitations":["Reviewed JSON input only; no automatic image OMR or MusicXML importer.",
+                    "limitations":["Renderer consumes validated score JSON; image recognition accuracy is not certified.",
                     "Same sounding melody audition, not instrument-specific arrangement or expert-validated model performance.",
                     "Linear sample interpolation, mono mixdown, held MIDI CC11 and envelope/legato approximations.",
                     "No full Ableton filter/FX/velocity emulation. Sample tuning not exhaustively measured.",

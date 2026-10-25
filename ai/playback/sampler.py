@@ -4,6 +4,7 @@ import hashlib
 import io
 from pathlib import Path
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 import numpy as np
 import soundfile as sf
@@ -18,14 +19,28 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+class CatAssetError(ValueError):
+    """The configured local bank cannot be decoded as a supported preset."""
+
+
 class CatSampler:
     def __init__(self, archive, instrument):
         self.instrument = instrument
         self.archive = Path(archive)
         self.zip = zipfile.ZipFile(archive)
         self.cache = {}
+        try:
+            self._read_preset()
+        except (ValueError, OSError, KeyError, EOFError, zlib.error, ET.ParseError) as exc:
+            self.zip.close()
+            raise CatAssetError(str(exc)) from exc
+        except Exception:
+            self.zip.close()
+            raise
+
+    def _read_preset(self):
         names = self.zip.namelist()
-        wanted = PROFILES[instrument]["preset_name"]
+        wanted = PROFILES[self.instrument]["preset_name"]
         presets = [x for x in names if x.endswith("/"+wanted) and not x.startswith("__MACOSX/")]
         require(len(presets) == 1, f"Expected one {wanted}; pass the v1.3 installer ZIP, not the outer download")
         data = self.zip.read(presets[0])
@@ -45,7 +60,9 @@ class CatSampler:
             require(value(part, "SelectorRange/Min") == 0 and value(part, "SelectorRange/Max") == 127,
                     "Articulation selector requires a separate renderer")
             require(value(part, "TuneScale") == 100, "Nonstandard key tracking unsupported")
-            name = part.find("SampleRef/FileRef/Name").get("Value")
+            sample_name = part.find("SampleRef/FileRef/Name")
+            require(sample_name is not None and sample_name.get("Value"), "Missing preset sample filename")
+            name = sample_name.get("Value")
             matches = [p for p in names if p.endswith("/"+name) and not p.startswith("__MACOSX/")]
             require(len(matches) == 1, f"Missing/ambiguous sample {name}")
             z = {k: value(part, p) for k, p in {

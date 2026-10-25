@@ -1,4 +1,4 @@
-"""Strict, reviewed score IR. Fractions are quarter-note units, not seconds."""
+"""Strict score IR with explicit unverified provenance. Durations are quarter notes."""
 from fractions import Fraction
 import json
 import math
@@ -54,7 +54,9 @@ def compile_score(score, instrument, transpose=0):
     require(score.get("schema") == "gugak-reviewed-score/v1", "Unsupported score schema")
     require(isinstance(score.get("title"), str) and score["title"], "Title required")
     require(isinstance(score.get("source"), dict) and score["source"].get("edition"), "Source edition required")
-    require(score["source"].get("review_status") == "manually-transcribed-unverified", "Declare transcription review status")
+    require(score["source"].get("review_status") in (
+        "manually-transcribed-unverified", "machine-transcribed-unverified"),
+        "Declare transcription review status")
     require(instrument in PROFILES, "Unknown instrument")
     require(type(transpose) is int and -24 <= transpose <= 24, "Explicit transpose must be -24..24")
     profile = PROFILES[instrument]
@@ -74,6 +76,8 @@ def compile_score(score, instrument, transpose=0):
     tuning = 1200 * math.log2(finite(c.get("tuning_a_hz", 440), "tuning_a_hz", 420, 460) / 440)
     require(isinstance(score.get("notes"), list) and 0 < len(score["notes"]) <= 10000, "1..10000 notes required")
     events, warnings, seen = [], [], set()
+    if score["source"]["review_status"] == "machine-transcribed-unverified":
+        warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
     cursor = 0
     tie_open = False
     for n in score["notes"]:

@@ -71,13 +71,21 @@ class RecognitionTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(self.request["messages"][-1]["images"][0]), PNG)
         self.assertFalse(self.request["stream"])
         self.assertEqual(self.request["format"]["type"], "object")
-        self.assertEqual(self.request["options"]["temperature"], 0)
+        self.assertEqual(self.request["options"]["temperature"], .2)
         self.assertEqual(result["score"]["context"], CONTEXT)
         self.assertEqual(result["score"]["notes"][0]["pitch"], 75)
         self.assertEqual(result["score"]["source"]["review_status"], "machine-transcribed-unverified")
         self.assertEqual(len(result["score"]["source"]["image_sha256"]), 64)
         self.assertEqual(result["regions"], CANDIDATE["regions"])
         self.assertTrue(result["warnings"])
+
+    def test_ornament_scale_is_a_validated_hint_not_a_shared_score_field(self):
+        context={**CONTEXT,'ornament_pitch_classes':[1,3,5,8,10]}
+        result=self.run_recognizer(context=context)
+        self.assertNotIn('ornament_pitch_classes',result['score']['context'])
+        for invalid in ([1,1], [True,3], [1,12], [], 'pentatonic'):
+            with self.assertRaises(ValueError):
+                self.run_recognizer(context={**CONTEXT,'ornament_pitch_classes':invalid})
 
     def test_jeonggan_uses_explicit_reference_and_register(self):
         context = {**CONTEXT, "pitch_mode": "yul", "huangjong_midi": 63,
