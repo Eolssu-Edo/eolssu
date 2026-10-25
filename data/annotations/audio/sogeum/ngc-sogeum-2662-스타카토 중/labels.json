@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "sogeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-sogeum-2662": "2b3f26b8923aefc0435b76e429e16cf50da09bfdfd722c92caba8fefaa9729c3"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-sogeum-2662",
+      "category": "시김새",
+      "technique": "스타카토 중",
+      "method": "tool:label_sogeum@sha256-9987bcef6e5c6e7e",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-sogeum-2662.group-001",0.49,0.85,"평취","임",485.096],
+        ["ngc-sogeum-2662.group-002",3.56,3.93,"평취","남",548.701],
+        ["ngc-sogeum-2662.group-003",6.81,7.12,"평취","무",589.827],
+        ["ngc-sogeum-2662.group-004",9.83,10.14,"평취","황",650.152],
+        ["ngc-sogeum-2662.group-005",12.79,13.13,"평취","태",738.012],
+        ["ngc-sogeum-2662.group-006",15.87,16.2,"평취","고",821.783],
+        ["ngc-sogeum-2662.group-007",19.21,19.54,"평취","중",884.047],
+        ["ngc-sogeum-2662.group-008",22.19,22.52,"역취","임",971.493],
+        ["ngc-sogeum-2662.group-009",24.9,25.27,"역취","남",1084.005],
+        ["ngc-sogeum-2662.group-010",27.8,28.13,"역취","무",1149.134],
+        ["ngc-sogeum-2662.group-011",30.55,30.89,"역취","황",1285.71],
+        ["ngc-sogeum-2662.group-012",33.12,33.44,"역취","고",1618.902],
+        ["ngc-sogeum-2662.group-013",36.86,37.15,"역취","중",1781.887],
+        ["ngc-sogeum-2662.group-014",39.73,40.08,"역취","중청임",1933.653]
+      ],
+      "analysisBasis": "official_sogeum_range_and_same_collection_sequence_octave_stable_anchor_hypothesis",
+      "evidence": {
+        "ngc-sogeum-2662.group-012": {
+          "sequenceDecision": {
+            "reason": "역취 황 다음에 태를 거치지 않고 고로 진행. 전 파일 F0 궤적에서 1431Hz ±4%·주기성>0.9 프레임 0개. 낮은 RMS 문턱으로 모든 gap도 점검함. 강 파일은 마지막 중청임도 같은 검사에서 0개이며 13행에서 끝남."
+          }
+        }
+      }
+    }
+  ]
+}

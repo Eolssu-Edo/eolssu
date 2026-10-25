@@ -7,10 +7,10 @@
 
 import argparse
 import hashlib
-import json
 import pathlib
 import sys
 
+from source_catalog import load_source_catalog
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 CATALOG = REPO_ROOT / "data/catalog"
 
@@ -37,7 +37,12 @@ def main() -> int:
 
     total, problems = 0, []
     for dataset in chosen:
-        for s in json.loads((CATALOG / dataset / "sources.json").read_text(encoding="utf-8"))["sources"]:
+        try:
+            sources = load_source_catalog(CATALOG / dataset / "sources.json")["sources"]
+        except (OSError, ValueError) as error:
+            print(f"목록 오류 {dataset}: {error}", file=sys.stderr)
+            return 1
+        for s in sources:
             total += 1
             path = args.root / s["rawPath"]
             if not path.is_file():

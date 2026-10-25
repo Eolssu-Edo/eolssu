@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 3,
+  "datasetId": "jeongak-daegeum",
+  "review": "inferred",
+  "eligibleForNoteScoring": false,
+  "sourceHashes": {
+    "ngc-jeongak-2559": "e24ad7a162e17513de05f79d226e7201a4bf5dd6a3d9e29a6ffd6eab023043bf"
+  },
+  "columns": [
+    "id",
+    "startSeconds",
+    "endSeconds",
+    "register",
+    "yulmyeong",
+    "labelF0Hz"
+  ],
+  "groups": [
+    {
+      "sourceId": "ngc-jeongak-2559",
+      "category": "기본음계",
+      "technique": "기본음+깊은요성",
+      "method": "tool:prepare_jeongak_assets@1.0",
+      "filenamePrefix": "rowNumber3",
+      "rows": [
+        ["ngc-jeongak-2559.tone-001",0.37,9.48,"저취","임",238.366],
+        ["ngc-jeongak-2559.tone-002",10.45,19.42,"저취","남",271.764],
+        ["ngc-jeongak-2559.tone-003",20.21,28.05,"저취","무",293.883],
+        ["ngc-jeongak-2559.tone-004",28.5,36.37,"저취","황",323.855],
+        ["ngc-jeongak-2559.tone-005",36.72,45.86,"저취","태",357.94],
+        ["ngc-jeongak-2559.tone-006",46.72,54.6,"저취","고",401.601],
+        ["ngc-jeongak-2559.tone-007",54.78,62.54,"저취","중",437.263],
+        ["ngc-jeongak-2559.tone-008",62.88,71.52,"평취","임",477.471],
+        ["ngc-jeongak-2559.tone-009",72.01,79.73,"평취","남",543.965],
+        ["ngc-jeongak-2559.tone-010",80.12,87.73,"평취","무",583.382],
+        ["ngc-jeongak-2559.tone-011",88.33,95.32,"평취","황",646.693],
+        ["ngc-jeongak-2559.tone-012",95.65,102.91,"평취","태",717.45],
+        ["ngc-jeongak-2559.tone-013",103.76,110.87,"평취","고",803.291],
+        ["ngc-jeongak-2559.tone-014",111.79,119.37,"평취","중",873.47],
+        ["ngc-jeongak-2559.tone-015",119.88,128.45,"역취","임",955.746],
+        ["ngc-jeongak-2559.tone-016",128.92,137.27,"역취","남",1050.725],
+        ["ngc-jeongak-2559.tone-017",137.94,145.86,"역취","무",1139.466],
+        ["ngc-jeongak-2559.tone-018",145.98,153.01,"역취","황",1284.402]
+      ],
+      "analysisBasis": "공식 instrCd=19917의 황종 E♭, 국립국악원 취법 음역과 2021 대금정악보 PDF9 안공표를 대조. 원음의 오름차순 임·남·무·황·태·고·중 7음, 저취↔평취 옥타브 대응 및 같은 악기 기본음2557 실측 F0로 추론. 역취는 임·남·무·황(노니로는 무까지). 최근접12평균율 변환이 아님. 20ms RMS/10ms hop·p95×0.025 gate·50ms gap 후 양끝20ms 문맥; native-rate 85.33ms YIN/20ms hop, periodicity≥0.85, 양끝최대0.2초 제외 중앙값. 중앙 Hann FFT로 옥타브 교차확인. 상세측정은 docs/knowledge/data/jeongak-daegeum.md 참조.",
+      "evidence": {
+        "ngc-jeongak-2559.tone-010": {
+          "boundaryReview": "다음 87.90~87.94초의 40ms envelope 후보는 85ms 창 RMS가 게이트 아래이고 유효 F0가 없는 잔여 잡음이다. 이 음은 87.73초에 끝내고 다음 황종은 88.33초에 시작해 잡음이나 다음 발음을 이어붙이지 않음."
+        },
+        "ngc-jeongak-2559.tone-017": {
+          "sourceRegionIds": [
+            "region-017"
+          ],
+          "boundaryReview": "85.33ms RMS의 합쳐진 마지막 후보를 20ms RMS/10ms hop으로 재분리. 무역 137.96~145.84초와 황종 146.00~152.99초 사이 0.16초 쉼, 각 F0 1139.47/1284.40Hz. 각 발음에 20ms 문맥만 더함.",
+          "analysisBasis": "short_silence_split_with_envelope_and_distinct_pitch"
+        },
+        "ngc-jeongak-2559.tone-018": {
+          "sourceRegionIds": [
+            "region-017"
+          ],
+          "boundaryReview": "85.33ms RMS의 합쳐진 마지막 후보를 20ms RMS/10ms hop으로 재분리. 무역 137.96~145.84초와 황종 146.00~152.99초 사이 0.16초 쉼, 각 F0 1139.47/1284.40Hz. 각 발음에 20ms 문맥만 더함.",
+          "analysisBasis": "short_silence_split_with_envelope_and_distinct_pitch"
+        }
+      }
+    }
+  ]
+}
