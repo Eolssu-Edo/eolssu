@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -27,9 +28,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.home_brand
+import eolssu.shared.generated.resources.home_hero_body
+import eolssu.shared.generated.resources.home_hero_title
+import eolssu.shared.generated.resources.home_start_evaluation
+import org.jetbrains.compose.resources.stringResource
 
 // 족자(두루마리) 그림에만 쓰는 색이라 테마 토큰으로 올리지 않는다.
 private val Silk = Color(0xFFB9C3BD)
@@ -43,6 +52,8 @@ private val Seal = Color(0xFFB8322A)
 /**
  * HOME-01의 족자 모양 안내 영역. 와이어프레임의 한지 질감·붓질 버튼은 시각 디자인 단계에서 다시 정하고,
  * 지금은 위 막대·비단 테두리·한지 바탕·아래 축과 낙관만 그린다.
+ *
+ * @param large 태블릿 배치용 큰 족자. 와이어프레임 `Tab-Main-Port`·`Tab-Main-Land`의 여백·글자 크기를 따른다.
  */
 @Composable
 internal fun HeroScroll(
@@ -52,8 +63,10 @@ internal fun HeroScroll(
     brand: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    large: Boolean = false,
 ) {
-    Column(modifier = modifier.padding(horizontal = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    val size = if (large) HeroSize.Large else HeroSize.Compact
+    Column(modifier = modifier.padding(horizontal = size.sideMargin), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -68,23 +81,79 @@ internal fun HeroScroll(
                 .padding(start = 9.dp, end = 9.dp, top = 24.dp, bottom = 20.dp),
         ) {
             Box(Modifier.fillMaxWidth().background(Paper).border(1.dp, Rod.copy(alpha = 0.18f))) {
-                SealMark(brand, Modifier.align(Alignment.TopEnd).padding(top = 20.dp, end = 18.dp))
+                SealMark(brand, Modifier.align(Alignment.TopEnd).padding(top = size.sealInset, end = size.sealInset - 2.dp))
                 Column(
-                    Modifier.padding(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier.padding(
+                        start = size.paperPadding,
+                        end = size.paperPadding,
+                        top = size.paperTop,
+                        bottom = size.paperBottom,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(size.textGap),
                 ) {
-                    Text(title, style = EolssuTheme.serif.headline, color = EolssuTheme.colors.text)
-                    Text(body, style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = onAction, modifier = Modifier.fillMaxWidth().height(56.dp), shape = CircleShape) {
+                    val headline = EolssuTheme.serif.headline
+                    Text(
+                        title,
+                        style = if (large) headline.copy(fontSize = 38.sp, lineHeight = 48.sp) else headline,
+                        color = EolssuTheme.colors.text,
+                    )
+                    Text(
+                        body,
+                        style = if (large) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+                        color = EolssuTheme.colors.textMuted,
+                    )
+                    Spacer(Modifier.height(size.actionGap))
+                    Button(
+                        onClick = onAction,
+                        modifier = Modifier.widthIn(max = size.actionMaxWidth).fillMaxWidth().height(size.actionHeight),
+                        shape = CircleShape,
+                    ) {
                         Icon(HomeIcons.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(actionLabel, style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp))
+                        Text(actionLabel, style = MaterialTheme.typography.labelLarge.copy(fontSize = size.actionFontSize))
                     }
                 }
             }
         }
         ScrollAxis()
+    }
+}
+
+/** 홈 문구를 넣은 [HeroScroll]. */
+@Composable
+internal fun HomeHero(onStartEvaluation: () -> Unit, modifier: Modifier = Modifier, large: Boolean = false) {
+    HeroScroll(
+        title = stringResource(Res.string.home_hero_title),
+        body = stringResource(Res.string.home_hero_body),
+        actionLabel = stringResource(Res.string.home_start_evaluation),
+        brand = stringResource(Res.string.home_brand),
+        onAction = onStartEvaluation,
+        modifier = modifier,
+        large = large,
+    )
+}
+
+private class HeroSize(
+    val sideMargin: Dp,
+    val paperPadding: Dp,
+    val paperTop: Dp,
+    val paperBottom: Dp,
+    val sealInset: Dp,
+    val textGap: Dp,
+    val actionGap: Dp,
+    val actionHeight: Dp,
+    val actionMaxWidth: Dp,
+    val actionFontSize: TextUnit,
+) {
+    companion object {
+        val Compact = HeroSize(
+            sideMargin = 10.dp, paperPadding = 20.dp, paperTop = 28.dp, paperBottom = 24.dp, sealInset = 20.dp,
+            textGap = 10.dp, actionGap = 10.dp, actionHeight = 56.dp, actionMaxWidth = Dp.Infinity, actionFontSize = 15.sp,
+        )
+        val Large = HeroSize(
+            sideMargin = 14.dp, paperPadding = 40.dp, paperTop = 44.dp, paperBottom = 40.dp, sealInset = 28.dp,
+            textGap = 14.dp, actionGap = 0.dp, actionHeight = 60.dp, actionMaxWidth = 360.dp, actionFontSize = 16.sp,
+        )
     }
 }
 
