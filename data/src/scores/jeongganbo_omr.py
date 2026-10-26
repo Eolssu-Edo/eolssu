@@ -9,7 +9,7 @@
                    jeongganbo-generator의 tools/import-ngc-omr.mjs가 그대로 읽는다.
   page.png         렌더링한 쪽
   boxes.png        잘라 낸 정간 상자와 읽는 순서
-  cells.json       정간마다 OMR 원문·신뢰도·상자
+  cells.json       정간마다 OMR 원문·JG-like 결과·각 번호·신뢰도·상자. 검토 화면(review_page.py)이 읽는다.
 
 전제
   * 세로쓰기 정간보: 열은 오른쪽에서 왼쪽으로, 열 안은 위에서 아래로 읽는다.
@@ -18,6 +18,7 @@
   * 리더가 각을 나누지 못하는 쪽이 있어 각은 --beats(한 각의 정간 수)로 다시 나눈다.
   * 세로선이 연하고 끊긴 스캔은 --gap-fill 10 --line-threshold 250으로 칸 찾기 그림만 보정한다.
     율명 인식은 보정하지 않은 원래 그림을 잘라서 한다.
+  * 그래도 놓친 정간은 --fill-grid로 옆 열의 줄 위치에서 채운다(먹이 있는 자리만).
 """
 import argparse
 import json
@@ -41,6 +42,7 @@ parser.add_argument("--beats", type=int, required=True, help="한 각의 정간 
 parser.add_argument("--title", default=None, help="출력 파일 이름. 기본은 PDF 이름")
 parser.add_argument("--gap-fill", type=int, default=0, help="칸 찾기 전에 세로로 메울 선 틈(px). 0이면 보정 없음")
 parser.add_argument("--line-threshold", type=int, default=240, help="이보다 어두운 픽셀을 선으로 본다. 리더 기본 240")
+parser.add_argument("--fill-grid", action="store_true", help="옆 열의 줄 위치로 놓친 정간을 채운다")
 args = parser.parse_args()
 
 pdf, out, omr_dir = args.pdf.resolve(), args.out.resolve(), args.omr_dir.resolve()
@@ -93,12 +95,48 @@ for c in cells:
         columns[-1].append(c)
     else:
         columns.append([c])
+
 # 리더가 장단 열을 못 가리는 판형이 있어, 율명이 하나도 없는 열(장단 기호만 있는 열)은 뺀다.
 PITCH = re.compile(r"^(하하배|하배|중청|배|청)?[황대태협고중유임이남무응]$")
 def has_pitch(c):
     return any(PITCH.match(t.rsplit(":", 1)[0].split("_")[0]) for t in c["text"].split())
 columns = [col for col in columns if any(has_pitch(c) for c in col)]
-ordered = [c for col in columns for c in sorted(col, key=lambda c: c["y"])]
+
+if args.fill_grid:
+    # 정간보 격자는 규칙적이라 한 열에서 정간이 잡힌 줄은 옆 열에서도 정간이 있는 줄이다.
+    # 선이 끊겨 리더가 놓친 자리를 옆 열의 줄 위치로 채우고, 안쪽에 먹(글자·획)이 있을 때만 정간으로 보고 읽는다.
+    # 곡이 열 중간에서 끝나 아래가 비어 있으면 먹이 없어 채우지 않는다. 장단 열을 거른 뒤에 채우므로
+    # 장단 열 아래의 '자진모리장단'·'강원도민요' 같은 글씨는 정간이 되지 않는다.
+    page_img = cv2.imread(str(png))
+    gray = cv2.cvtColor(page_img, cv2.COLOR_BGR2GRAY)
+    med = lambda v: sorted(v)[len(v) // 2]
+    w, h = med([c["w"] for c in cells]), med([c["h"] for c in cells])
+    rows = []
+    for y in sorted(c["y"] for c in cells):
+        if rows and y - rows[-1][-1] < h / 2:
+            rows[-1].append(y)
+        else:
+            rows.append([y])
+    rows = [med(r) for r in rows]
+    added = []
+    for col in columns:
+        x = med([c["x"] for c in col])
+        for y in rows:
+            if any(abs(c["y"] - y) < h / 2 for c in col):
+                continue
+            inner = gray[y + h * 15 // 100:y + h * 85 // 100, x + w * 15 // 100:x + w * 85 // 100]
+            if inner.size == 0 or (inner < 160).mean() < 0.005:
+                continue
+            cell = dict(text="", conf=None, x=x, y=y, w=w, h=h, filled=True)
+            col.append(cell)
+            added.append(cell)
+    if added:
+        preds, confs = reader.omr([page_img[c["y"]:c["y"] + c["h"], c["x"]:c["x"] + c["w"]] for c in added])
+        for c, p, k in zip(added, preds, confs):
+            c["text"], c["conf"] = p, round(float(k), 3)
+    print(f"격자로 채운 정간 {len(added)}개")
+
+ordered =[c for col in columns for c in sorted(col, key=lambda c: c["y"])]
 
 def jg_like(text):
     """OMR 원문 '율명:위치 …'를 데이터셋 표기 ':위치 율명 …'로 바꾼다.
@@ -110,11 +148,14 @@ def jg_like(text):
         toks = [[toks[0][0], "0"]]
     return " ".join(f":{pos} {name.replace('_', ' ')}" for name, pos in toks)
 
-lines = [" | ".join(jg_like(c["text"]) for c in ordered[i:i + args.beats])
-         for i in range(0, len(ordered), args.beats)]
+for i, c in enumerate(ordered):
+    c["jg"], c["gak"] = jg_like(c["text"]), i // args.beats
+lines = [" | ".join(c["jg"] for c in ordered[i:i + args.beats]) for i in range(0, len(ordered), args.beats)]
 title = args.title or pdf.stem
 (out / f"{title}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-(out / "cells.json").write_text(json.dumps(ordered, ensure_ascii=False, indent=1), encoding="utf-8")
+# 검토 화면(review_page.py)이 읽는 형식. standard_score_text.py와 같다.
+(out / "cells.json").write_text(json.dumps(dict(title=title, image="page.png", beats=args.beats, cells=ordered),
+                                           ensure_ascii=False, indent=1), encoding="utf-8")
 
 img = cv2.imread(str(png))
 for i, c in enumerate(ordered):

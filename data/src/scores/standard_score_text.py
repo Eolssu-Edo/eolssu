@@ -6,6 +6,7 @@
   <제목>.txt   JG-like 텍스트. 한 줄이 각(악보의 한 열), 정간은 '|', 정간 안은 ':위치 율명'.
                jeongganbo-generator의 tools/import-ngc-omr.mjs가 그대로 읽는다.
   report.json  열·정간 수, 반칸으로 나뉜 정간, 읽지 않은 글자(시김새 등) 목록
+  page.png, cells.json  검토 화면(review_page.py)용 쪽 그림과 정간별 상자·결과
 
 전제
   * 세로쓰기: 열은 오른쪽에서 왼쪽으로, 열 안은 위에서 아래로 읽고, 한 열이 한 각이다.
@@ -30,6 +31,8 @@ OCT = {
 }
 NOTE = {h: y for y, h in BASE.items()} | {h: p + y for p, t in OCT.items() for y, h in t.items()}
 NOTE |= {"-": "-", "－": "-", "△": "쉼표"}
+
+IMAGE_DPI = 150  # 검토 화면용 page.png 해상도
 
 # 정간 안 위치 번호(JG-like). 행 수별로 [행][왼·통째·오른].
 POS = {1: [(None, 0, None)], 2: [(12, 10, 13), (14, 11, 15)], 3: [(1, 2, 3), (4, 5, 6), (7, 8, 9)]}
@@ -117,7 +120,7 @@ def read_page(page):
     notes =[n for n in g if n["c"] in NOTE and any(a < n["x"] < b for a, b in cols)]
     cols.sort(key=lambda c: -c[0])  # 오른쪽 열부터
 
-    gaks, report = [], dict(columns=len(cols), jeonggans=[], split_cells=[], ignored=[])
+    gaks, boxes, report = [], [], dict(columns=len(cols), jeonggans=[], split_cells=[], ignored=[])
     for ci, (a, b) in enumerate(cols):
         # 이 열 안의 가로선: 점선 조각을 합쳐 열 너비의 30% 이상 덮는 y(점선은 약 40%를 덮는다)
         cover = defaultdict(float)
@@ -134,11 +137,12 @@ def read_page(page):
             if split:
                 report["split_cells"].append(f"열{ci + 1} 정간{len(cells) + 1}")
             cells.append(text)
+            boxes.append(dict(jg=text, gak=ci, conf=None, x=a, y=top, w=b - a, h=bottom - top))
         report["ignored"] += [n["c"] for n in g if a < n["x"] < b and bands[0][0] < n["y"] < bands[-1][1]
                               and n not in notes and n["c"] not in "｜|"]
         report["jeonggans"].append(len(cells))
         gaks.append(" | ".join(cells))
-    return gaks, report
+    return gaks, boxes, report
 
 
 if __name__ == "__main__":
@@ -147,10 +151,17 @@ if __name__ == "__main__":
     parser.add_argument("out", type=Path)
     parser.add_argument("--title", default=None)
     args = parser.parse_args()
-    with pymupdf.open(args.pdf) as doc:
-        gaks, report = read_page(doc[0])
     args.out.mkdir(parents=True, exist_ok=True)
     title = args.title or args.pdf.stem
+    with pymupdf.open(args.pdf) as doc:
+        gaks, boxes, report = read_page(doc[0])
+        doc[0].get_pixmap(dpi=IMAGE_DPI).save(str(args.out / "page.png"))
+    scale = IMAGE_DPI / 72  # PDF 좌표(pt) → page.png 픽셀
+    for b in boxes:
+        b.update({k: round(b[k] * scale) for k in ("x", "y", "w", "h")})
     (args.out / f"{title}.txt").write_text("\n".join(gaks) + "\n", encoding="utf-8")
+    # 검토 화면(review_page.py)이 읽는 형식. jeongganbo_omr.py와 같다(conf는 글자 층이라 없음).
+    (args.out / "cells.json").write_text(json.dumps(dict(title=title, image="page.png", beats=None, cells=boxes),
+                                                    ensure_ascii=False, indent=1), encoding="utf-8")
     (args.out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{title}: 열 {report['columns']}, 정간 {report['jeonggans']}, 반칸 {len(report['split_cells'])}, 읽지 않은 글자 {len(report['ignored'])}")
