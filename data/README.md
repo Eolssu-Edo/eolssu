@@ -241,7 +241,31 @@ PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeong
 node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
 ```
 
-처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다.
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 빠진 정간은 `--fill-grid`로 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리만).
+
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 열을 한 각으로 씁니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+
+```bash
+python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
+```
+
+`report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
+
+### 검토 화면
+
+두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
+
+편집은 우물사이와 같습니다.
+- **문법**: 칸 안에서 띄어 쓰면 위→아래로 줄이 나뉘고, 이어 쓰면 한 줄에 왼→오른쪽으로 들어갑니다(`청황 -청무 청태`). `-` 이음, `쉼` 쉼표, 음 뒤 `{흘림표}` 시김새, 음 뒤 `<` 숨표.
+- **팔레트**: 위쪽 **율 | 시김새** 탭. 누르면 입력칸 커서 자리에 들어가고, 선택한 글자가 있으면 바꿉니다. 율 탭은 이 곡에 나온 율명과 5옥타브 × 12율을 한자·한글로, 시김새 탭은 우물사이 기호 그림(`--umulsai` 폴더의 `js/symbols-data.js`, MIT)으로 보여 주어 이름을 몰라도 모양으로 고릅니다.
+- **미리보기**: 율명은 한자와 한글, 시김새는 그림으로 보입니다. 글자를 누르면 입력칸에서 그 글자가 선택되어 팔레트로 바로 바꿉니다.
+- **이동**: `Enter` 확인하고 다음, `Tab`·`↓` 다음, `Shift+Tab`·`↑` 이전, `Ctrl ←`·`Ctrl →` 옆 각의 같은 순번 정간.
+
+```bash
+python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
+```
+
+HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
 
 ## 검증
 
