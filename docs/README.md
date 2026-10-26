@@ -43,6 +43,10 @@
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
 - [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
 
+## 도메인 조사 기록
+
+- [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
+
 ## 데이터 조사·검증 기록
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
