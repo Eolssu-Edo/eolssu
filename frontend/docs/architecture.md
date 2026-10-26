@@ -219,8 +219,30 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 ## 9. 휴대폰·태블릿 대응
 
 - 같은 화면 상태와 ViewModel을 공유한다. 기기별 프로젝트나 `phone/`·`tablet/` 최상위 패키지를 만들지 않는다.
-- 사용 가능한 창 크기에 따라 배치만 바꾼다. 판정 기준(예: 너비 600dp 이상을 Expanded로 본다)은 `core/ui/adaptive/`에 한 곳으로 두고, 각 화면은 그 결과만 받아 `layout/`의 Compact·Expanded 내용을 고른다.
+- 사용 가능한 창 크기에 따라 배치만 바꾼다. 판정 기준은 `core/ui/adaptive/WindowLayout.kt`에 한 곳으로 두고, 각 화면은 `currentWindowLayout()`의 결과만 받아 `layout/`의 Compact·Expanded 내용을 고른다. 기기 종류(휴대폰·태블릿)나 화면 방향으로 판정하지 않는다.
 - 배치 차이가 작으면(열 수, 여백 정도) `layout/` 없이 `Screen` 안에서 처리한다.
+
+### 기준값
+
+창 크기는 앱이 쓰는 창 전체(`LocalWindowInfo.containerSize`)를 dp로 바꿔 판정한다. 근거는 태블릿 와이어프레임 Task [S15P31E102-101](https://ssafy.atlassian.net/browse/S15P31E102-101)의 결정이다.
+
+| 이름 (`WindowBreakpoints`) | 값 | 의미 |
+| --- | --- | --- |
+| 너비 `Compact` | 600dp 미만 | 휴대폰. 와이어프레임의 휴대폰 배치 |
+| 너비 `Medium` (`MediumMinWidth`) | 600dp 이상 840dp 미만 | 태블릿 세로. 와이어프레임 세로 아트보드(800×1280) |
+| 너비 `Expanded` (`ExpandedMinWidth`) | 840dp 이상 | 태블릿 가로·넓은 웹 창. 와이어프레임 가로 아트보드(1280×800) |
+| 내용 최대 너비 (`ContentMaxWidth`) | 1120dp | 넓은 창에서는 내용을 이 너비로 가운데에 둔다 |
+| 낮은 높이 (`LandscapeLayoutMinHeight`, `isShortHeight`) | 650dp 미만 | 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣으려면 약 650dp가 필요하다. 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다 |
+
+- 낮은 높이의 창에서 무엇을 보여줄지(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 지금은 `isShortHeight` 판정 값만 제공하고 화면은 이 값을 쓰지 않는다.
+- 연습·결과 화면도 같은 기준값을 쓴다. 기준값을 바꾸면 이 표와 `WindowBreakpoints`를 함께 고치고 상대 개발자에게 알린다.
+
+### 화면 방향
+
+- 휴대폰은 연습 화면까지 세로로 고정하고, 태블릿은 세로·가로를 모두 지원한다(권영민 결정, 2026-10-23).
+- iOS: `iosApp.xcodeproj`의 `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone`을 세로만 두고, iPad 값은 네 방향을 유지한다.
+- Android: `MainActivity`가 기기 최소 너비(`smallestScreenWidthDp`)가 600dp 미만일 때만 세로로 고정한다. 매니페스트의 `screenOrientation`은 Android 15 이하 태블릿까지 고정하므로 쓰지 않는다. Android 16(API 36)부터는 최소 너비 600dp 이상 화면에서 앱의 방향 고정이 무시되고, API 37을 대상으로 하면 이를 끌 수 없다([Android 16 동작 변경](https://developer.android.com/about/versions/16/behavior-changes-16)). 그래서 태블릿은 처음부터 고정하지 않는다.
+- 방향을 고정해도 창 크기 판정은 그대로 쓴다. 화면 분할·폴더블·웹 창에서는 방향과 관계없이 창 너비가 바뀐다.
 
 ## 10. 코드로 강제되는 것과 사람이 지키는 것
 

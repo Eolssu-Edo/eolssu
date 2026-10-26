@@ -41,6 +41,7 @@
 ## 프론트엔드 조사·검증 기록
 
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
+- [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
 
 ## 데이터 조사·검증 기록
 
