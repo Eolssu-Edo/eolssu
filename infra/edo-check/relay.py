@@ -175,6 +175,8 @@ def build_report(result, request_id):
                 findings.append(['미측정', friendly(name) + ' 상세 수집 실패', 'Docker inspect 연결·권한 확인'])
             elif status == '장애':
                 findings.append(['장애', friendly(name) + ': ' + state, '컨테이너 실행 상태·최근 로그 확인'])
+            elif str(row[7]).endswith('/예'):
+                findings.append(['주의', friendly(name) + ' OOM 강제 종료 기록 있음', '현재 실행 상태와 별도로 메모리 한도·커널 OOM 기록 확인'])
             if status == '실행 · 준비 미검증':
                 findings.append(['미검증', friendly(name) + ' 준비 상태', '/edo1-health에서 실제 준비 상태 검사 확인; 장애 확정 아님'])
             missing = [label for index, label in ((4, '쓰기/로그'), (5, '데이터 용량'), (9, '누적 NET/IO'))

@@ -152,6 +152,13 @@ class RequestTests(unittest.TestCase):
                   'issues': ['demo 로그 미측정 (local 로그 경로 없음)']}
         self.assertIn('미측정 1', relay.build_report(report, 'req'))
 
+    def test_running_row_does_not_erase_collector_oom_finding(self):
+        report = {'mode': 'containers', 'columns': [str(i) for i in range(11)],
+                  'rows': [['demo','running/healthy','0.1%/미설정','100B/미설정','1B/미설정 · 로그 2B','없음','1시간/0회','0/예','1/없음','1B/1B · IO 1B/1B','image']],
+                  'facts': [{'name':'demo','ram_bytes':100,'host_ram':1000,'ram_limit':0,'cpu_percent':0.1}],
+                  'issues': ['demo: running/healthy']}
+        self.assertIn('주의 1', relay.build_report(report, 'req'))
+
 
 class HTTPTests(unittest.TestCase):
     def setUp(self):
