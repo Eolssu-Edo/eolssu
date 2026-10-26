@@ -6,6 +6,14 @@
 
 같은 날 사용자의 후속 요청으로 상태에만 이모지와 굵은 글씨를 적용했다. 정상·검사 통과는 체크, 장애는 X, 주의는 경고, 미검증·미측정은 물음표로 구분하고 판정 글자를 함께 둔다. 숫자·경로 전체를 강조하지 않고 상단 건수도 0보다 큰 항목만 강조한다. 원래의 판정과 집계 후 최종 출력 단계에서 정확한 상태 값만 변환하므로 unhealthy·실행만 확인된 상태에 체크가 붙지 않는다.
 
+추가 화면 피드백으로 흰색 물음표를 제거하고 미검증은 빨간 ❓, 미측정은 🚫, 설정 참고는 ℹ️로 구분했다. 상태 단어가 좁은 표 열에서 한 글자씩 갈라지지 않게 word joiner와 줄바꿈 없는 공백을 사용한다. 모호한 추세 확인 대신 숫자·시간 범위·다음 확인 대상을 표시한다. 80/90% 및 30초 간격 3회는 이 프로젝트의 점검·재확인 기준이며 보편적인 장애 판정 공식이 아니다.
+
+독립 점검에서 최근 24시간 OOM 매칭 로그를 현재 서비스 실패와 합쳐 장애로 분류하는 문제를 확인했다. 둘을 분리하고 과거 OOM은 주의로 표시한다. 매칭 로그는 하나의 사건에서 여러 줄 나올 수 있어 사건 수로 표기하지 않는다. 디스크·inode 90%도 긴급 용량 주의이며 현재 서비스 장애를 확정하지 않는다. API 404는 해당 URL 검증 실패로만 표현하고 실제 health URL·프록시 경로를 대조한다.
+
+현재 세 명령은 인프라 자원·컨테이너·기본 응답의 수시 점검으로 적합하다. 지속적인 서비스 운영 판단에는 요청 지연·요청량·오류율·포화도를 시간별로 관찰해야 하며 현재 명령의 스냅샷은 이를 대신하지 않는다. [Google SRE의 네 가지 신호](https://sre.google/sre-book/monitoring-distributed-systems/)
+
+실행 상태와 healthcheck 통과는 별개이며 Docker healthy는 정의된 검사에 한정된다. HTTP 준비 응답과 실제 사용자 기능 검사도 구분한다. [Docker HEALTHCHECK](https://docs.docker.com/reference/dockerfile/#healthcheck), [준비 상태의 의미](https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe)
+
 기존 로그 집계는 inspect의 LogPath가 비어 있는 local 드라이버를 처리하지 못했다. 실제 `local-logs/container.log*` 파일 크기를 확인해 주·회전 파일 메타데이터만 합산했다. [Docker local 드라이버](https://docs.docker.com/engine/logging/drivers/local/)
 
 Jenkins bind의 전체 사용량은 실제 약 5.3GiB·8.5초로 기존 3초 제한을 넘었다. 요청 내 중복 측정을 제거하고 경로 12초·총 bind 25초를 상한으로 두었다. 무제한 탐색이나 상시 캐시는 추가하지 않았다. 시간 초과 시 부분 용량을 전체로 표시하지 않는다.

@@ -63,7 +63,7 @@ class RequestTests(unittest.TestCase):
     def test_compact_server_report_keeps_details_and_readable_sections(self):
         result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
                   'rows': [[f'value{i}' for i in range(10)]], 'issues': ['주의 하나', '주의 둘']}
-        text = relay.build_report(result, 'req')
+        text = relay.build_report(result, 'req').replace('\u2060', '').replace('\u00a0', ' ')
         self.assertIn('| ⚠️ **주의** | 주의 하나 |', text)
         self.assertIn('| ⚠️ **주의** | 주의 둘 |', text)
         self.assertIn('| **항목** | **이번 요청의 측정값** | **해석** |', text)
@@ -115,7 +115,8 @@ class RequestTests(unittest.TestCase):
         text = relay.build_report(result, 'req')
         self.assertIn('장애 0', text)
         self.assertIn('미검증 1', text)
-        self.assertIn('준비 상태 검사 필요', text)
+        self.assertIn('/edo1-health의 별도 HTTP 준비 검사', text)
+        self.assertIn('healthcheck 구성 필요', text)
         self.assertIn('자동 갱신되지', text)
         self.assertNotIn('**실행 중 · 건강 검사 없음**', text)
 
@@ -166,9 +167,9 @@ class RequestTests(unittest.TestCase):
                            ['인증서', 'TLS', '주의', '만료 임박'],
                            ['터널', 'Docker', '미설정', '실행 중'],
                            ['DB', 'Docker', '확인 불가', '수집 실패']]}
-        text = relay.build_report(result, 'req')
+        text = relay.build_report(result, 'req').replace('\u2060', '').replace('\u00a0', ' ')
         for target, label in (('웹', '✅ **정상**'), ('API', '❌ **장애**'),
-                              ('인증서', '⚠️ **주의**'), ('터널', '❔ **미검증**'), ('DB', '❔ **미측정**')):
+                              ('인증서', '⚠️ **주의**'), ('터널', '❓ **미검증**'), ('DB', '🚫 **미측정**')):
             self.assertIn(f'| {target} | {label} |', text)
         self.assertEqual(text.count('✅'), 1)
         self.assertIn('❌ **장애 1**', text)
@@ -182,15 +183,53 @@ class RequestTests(unittest.TestCase):
                            for i, state in enumerate(states)],
                   'facts': [{'name': f'demo{i}', 'ram_bytes': 100, 'host_ram': 1000,
                              'ram_limit': 0, 'cpu_percent': 0.1} for i in range(len(states))]}
-        text = relay.build_report(result, 'req')
+        text = relay.build_report(result, 'req').replace('\u2060', '').replace('\u00a0', ' ')
         self.assertIn('| demo0 | ✅ **실행 · 검사 통과** |', text)
         for i in (1, 4):
             self.assertIn(f'| demo{i} | ❌ **장애** |', text)
         for i in (2, 3):
-            self.assertIn(f'| demo{i} | ❔ **실행 · 준비 미검증** |', text)
+            self.assertIn(f'| demo{i} | ❓ **실행 · 준비 미검증** |', text)
         self.assertEqual(text.count('✅'), 1)
         self.assertIn('장애 2', text)
         self.assertIn('미검증 2', text)
+
+    def test_server_criteria_name_threshold_scope_and_next_check(self):
+        result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
+                  'rows': [[f'value{i}' for i in range(10)]],
+                  'facts': {'cpu_cores': 4, 'load': [1.0, 4.1, 3.5]}}
+        text = relay.build_report(result, 'req')
+        self.assertNotIn('추세 확인', text)
+        self.assertIn('5분 또는 15분 값이 4코어 수를 넘으면', text)
+        self.assertIn('30초 간격 3회', text)
+        self.assertIn('80% 이상', text)
+        self.assertIn('90% 이상', text)
+        self.assertIn('systemctl --failed', text)
+
+    def test_past_oom_and_full_disk_are_not_current_service_outages(self):
+        for issue in ('최근 24h OOM 매칭 로그 2줄 (과거 기록·주의)',
+                      '/ 공간 91%·inode 80% (주의·긴급 용량 점검)',
+                      '/ 공간 91%·inode 80% (실패)'):
+            with self.subTest(issue=issue):
+                text = relay.build_report({'mode':'server', 'columns':['대상','상태'],
+                                           'rows':[['edo1','참고']], 'issues':[issue]}, 'req')
+                self.assertIn('장애 0', text)
+                self.assertIn('주의 1', text)
+
+    def test_inode_pressure_points_to_file_counts_instead_of_large_files(self):
+        text = relay.build_report({'mode':'server', 'columns':['대상','상태'],
+                                   'rows':[['edo1','참고']],
+                                   'issues':['/ 공간 5%·inode 99% (주의·긴급 용량 점검)']}, 'req')
+        self.assertIn('파일 개수 많은 디렉터리', text)
+        self.assertIn('긴급 확인', text)
+        self.assertNotIn('큰 로그', text)
+
+    def test_tls_failure_and_expiry_warning_have_different_next_checks(self):
+        for status, evidence, expected in (('실패', 'TLS 검증 실패', '서비스 호스트명·인증서 체인'),
+                                            ('주의', '만료까지 3일', '인증서 갱신 작업')):
+            with self.subTest(status=status):
+                report = {'mode':'health', 'columns':['대상','방식','판정','측정'],
+                          'rows':[['서비스 인증서','edo2 외부 TLS',status,evidence]]}
+                self.assertIn(expected, relay.build_report(report, 'req'))
 
 
 class HTTPTests(unittest.TestCase):

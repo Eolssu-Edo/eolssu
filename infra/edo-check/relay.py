@@ -52,16 +52,21 @@ def cell(value):
 
 
 STATUS_ICONS = {
-    '정상': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❔', '미측정': '❔',
-    '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❔',
-    '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❔',
+    '정상': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❓', '미측정': '🚫', '설정 참고': 'ℹ️',
+    '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
+    '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
+    '일부 측정 못 함': '🚫',
 }
 
 
 def display_status(value):
     """Decorate final labels only; health decisions and counts keep raw values."""
     icon = STATUS_ICONS.get(str(value))
-    return f'{icon} **{cell(value)}**' if icon else cell(value)
+    if not icon:
+        return cell(value)
+    # Keep Korean status words intact in narrow Mattermost table columns.
+    label = re.sub(r'[가-힣]{2,}', lambda match: '\u2060'.join(match.group()), cell(value))
+    return f'{icon}\u00a0**{label}**'
 
 
 NAMES = {
@@ -105,13 +110,30 @@ def build_report(result, request_id):
             if any(word in issue for word in ('상세 수집 실패', '통계 미측정', '로그 미측정', '데이터 용량 미측정')) or ': ' in issue:
                 continue  # The container row owns missing measurements and state.
         if '메모리 제한 미설정' in issue:
-            kind, action = '설정 참고', '현재 장애를 뜻하지 않음; 필요 시 메모리 상한 검토'
+            kind, action = '설정 참고', '/edo1-containers의 RAM과 호스트 가용 RAM을 확인한 후 최대 사용량을 근거로 한도 설정'
         elif any(word in issue for word in ('미측정', '확인 불가', '수집 실패', '수집 불가', '시간 초과')):
-            kind, action = '미측정', '다시 점검; 반복되면 수집 경로·권한 확인'
+            kind, action = '미측정', '같은 명령을 1회 재실행; 반복되면 edo2의 edo-check journal에서 해당 요청 ID 확인'
+        elif '(실패)' in issue:
+            kind, action = '주의', '/edo1-containers에서 해당 파일시스템의 로그·쓰기·데이터 용량 확인; 공간 확보·증설 우선'
         elif '주의' in issue or '80%' in issue:
-            kind, action = '주의', '여유 용량·자원 사용이 계속 증가하는지 확인'
+            kind, action = '주의', '/edo1-containers에서 RAM 큰 컨테이너와 한도를 확인; 30초 간격 3회 재점검해 증가 여부 비교'
         else:
             kind, action = '장애', '대상 실행 상태·최근 로그 확인'
+        if '공간 ' in issue and 'inode ' in issue:
+            space = re.search(r'공간\s+(\d+)%', issue)
+            inode = re.search(r'inode\s*(\d+)%', issue)
+            used = int(space[1]) if space else 0
+            files = int(inode[1]) if inode else 0
+            checks = []
+            if used >= 80:
+                checks.append('공간: 해당 mount의 큰 로그·데이터 확인 후 공간 확보·증설')
+            if files >= 80:
+                checks.append('inode: 파일 개수 많은 디렉터리·작은 회전 파일 확인 후 보존 정책에 따라 정리')
+            action = ('90% 이상으로 긴급 확인. ' if max(used, files) >= 90 else '') + '; '.join(checks)
+        elif '실패 서비스' in issue:
+            action = 'edo1에서 systemctl --failed로 서비스명 확인 후 해당 서비스 journal의 실패 원인 확인'
+        elif 'OOM' in issue:
+            action = 'edo1의 최근 24시간 커널 OOM 로그에서 시각·대상 확인 후 /edo1-containers의 RAM·한도와 비교'
         findings.append([kind, friendly(issue), action])
 
     if result['mode'] == 'health':
@@ -130,14 +152,16 @@ def build_report(result, request_id):
             if status == '정상':
                 action = '현재 조치 없음'
             elif status == '미검증':
-                action = ('API 준비 상태는 확인 못 함; 백엔드 health 경로 구성 필요' if name == 'API health'
-                          else '프로세스 실행만 확인; 준비 상태 검사 필요')
+                action = ('실제 백엔드 health URL·Nginx 프록시 경로를 대조; HTTP 200과 status=UP을 반환하는 경로 확정 후 재점검' if name == 'API health'
+                          else '프로세스 실행만 확인; /edo1-health의 별도 HTTP 준비 검사를 확인하고 없으면 대상 healthcheck 구성 필요')
             elif status == '미측정':
-                action = '재점검 후 연결·수집 권한 확인'
+                action = '/edo1-health를 1회 재실행; 반복되면 edo2→edo1 SSH 연결·Docker 조회 권한 확인'
             else:
-                action = ('인증서 유효기간·갱신 타이머 확인' if 'TLS' in location else
-                          '공개 HTTPS 연결·서비스 응답 확인' if '외부 HTTPS' in location else
-                          '서비스 기동·DB 연결 확인' if 'loopback' in location else '서비스 상태·최근 로그 확인')
+                action = (('만료 7일 미만이면 서비스 인증서 갱신 작업·실패 로그 확인 후 /edo1-health 재실행' if status == '주의' else
+                           'edo2에서 TLS 재연결; 서비스 호스트명·인증서 체인·현재 인증서 유효기간 확인 후 /edo1-health 재실행') if 'TLS' in location else
+                          'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
+                          'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
+                          'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
             rendered.append([friendly(name), status, evidence, action, row[4] if len(row) > 4 else '—'])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
@@ -152,24 +176,39 @@ def build_report(result, request_id):
                     '컨테이너 사용량 합계 / Docker가 인식하는 호스트 RAM. 예약량 아님',
                     '저장공간 분류별 점유량. 공유 계층 때문에 단순 합산 금지',
                     'Docker가 회수 가능하다고 계산한 양. 자동 정리하지 않음',
-                    '실패한 systemd 서비스 / 최근 24시간 커널 OOM 기록']
+                    '현재 실패한 systemd 서비스 / 최근 24시간 OOM 매칭 로그 줄 수(사건 수 아님)']
+        criteria = ['예상하지 않은 재부팅이면 edo1에서 last reboot로 발생 시각 확인',
+                    '0.2초 표본만으로 지속 과부하 판정하지 않음; 아래 Load 기준과 함께 확인',
+                    'RAM 80% 이상이면 /edo1-containers에서 RAM 큰 서비스 확인; 30초 간격 3회 값 비교',
+                    'Swap 사용만으로 장애 아님; RAM 80% 이상 또는 OOM 동반 시 큰 서비스의 RAM·한도 확인',
+                    '',
+                    'Docker 응답 실패 또는 웹·API·MySQL 누락이면 /edo1-health로 대상 판정 확인',
+                    '호스트 RAM 80% 이상일 때 서비스별 사용량 확인; 합계는 메모리 예약량이 아님',
+                    '',
+                    '호스트 디스크 80% 이상일 때 미사용 이미지·캐시 목록 확인 후 정리 대상을 결정',
+                    '실패 서비스 1개 이상: systemctl --failed; OOM 로그 1줄 이상: 시각·대상 확인 후 RAM·한도 비교']
         entries = []
         for index, (label, value) in enumerate(zip(columns, values)):
             if index == 1 and facts.get('load'):
                 value = str(value).split(' · Load ')[0]
                 entries.append(['부하(Load 1 / 5 / 15분)', ' / '.join(f'{x:.2f}' for x in facts['load']),
-                                f"CPU {facts['cpu_cores']}코어와 비교. 장기적으로 코어 수를 넘으면 대기 증가", '추세 확인'])
+                                '실행 가능 작업·중단 불가 대기의 1·5·15분 평균. CPU 사용률과 다른 값',
+                                f"5분 또는 15분 값이 {facts['cpu_cores']}코어 수를 넘으면 /edo1-containers CPU 상위 확인; 낮으면 edo1의 I/O 대기 확인(수동 확인 기준)"])
             if index == 2 and facts.get('ram_total'):
                 total, available = facts['ram_total'], facts['ram_available']
                 value = f'{amount(total-available)} / {amount(total)} ({(1-available/total)*100:.0f}%) · 가용 {amount(available)}'
             if index == 4:
                 for part in str(value).split('; '):
-                    entries.append(['파일시스템', part, meanings[index], '공간·inode 80% 주의 / 90% 긴급'])
+                    entries.append(['파일시스템', part, meanings[index], '공간 80% 이상: 큰 로그·데이터 / inode 80% 이상: 파일 개수 많은 디렉터리·회전 파일 확인. 둘 중 90% 이상이면 긴급 처리'])
             elif index == 7 and len(str(value).split(' / ')) == 4:
                 for title, number in zip(('Docker 이미지', '컨테이너 쓰기 계층', 'Docker 볼륨', '빌드 캐시'), str(value).split(' / ')):
-                    entries.append([title, number, meanings[index], '필요 없는 데이터인지 검토 후 정리'])
+                    action = {'Docker 이미지': 'FS 80% 이상이면 사용 중 컨테이너와 연결되지 않은 이미지 목록 확인',
+                              '컨테이너 쓰기 계층': 'FS 80% 이상이면 /edo1-containers의 쓰기 계층 큰 서비스 확인',
+                              'Docker 볼륨': 'FS 80% 이상이면 데이터 저장공간 표에서 큰 mount 확인; DB 데이터 자동 삭제 없음',
+                              '빌드 캐시': 'FS 80% 이상이면 docker builder du로 캐시별 회수 가능량 확인'}[title]
+                    entries.append([title, number, meanings[index], action])
             else:
-                entries.append([label, value, meanings[index], 'RAM 80% 이상이면 여유 확인' if index == 2 else '—'])
+                entries.append([label, value, meanings[index], criteria[index]])
         tables.append(('서버 자원 읽는 법', ['항목', '이번 요청의 측정값', '해석', '확인 기준'], entries))
 
     elif result['mode'] == 'containers' and len(columns) == 11:
@@ -229,7 +268,7 @@ def build_report(result, request_id):
     findings = list({tuple(item): item for item in findings}.values())
     counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고')}
     counts['미측정'] += sum(1 for _, _, data in tables for row in data if any('미측정' in str(x) or '확인 불가' in str(x) for x in row)) if result['mode'] == 'server' else 0
-    status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] or counts['미측정'] else '검사한 범위 정상'
+    status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] else '일부 측정 못 함' if counts['미측정'] else '검사한 범위 정상'
     captured = cell(result.get('captured_at', '확인 불가')).replace('`', '')
     started = cell(result.get('started_at', captured)).replace('`', '')
     parts = [f"### edo1 {result['mode']} 점검 — {display_status(status)}",
@@ -241,9 +280,11 @@ def build_report(result, request_id):
     if actionable:
         tables.insert(0, ('먼저 확인할 항목', ['구분', '대상 / 근거', '다음 조치'], actionable[:12]))
     if counts['설정 참고']:
-        parts.extend(['', f"설정 참고 {counts['설정 참고']}건: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
+        parts.extend(['', f"ℹ️ **설정 참고 {counts['설정 참고']}건**: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
     if result['mode'] == 'containers':
         parts.extend(['', 'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외 사용량. 로그·데이터·쓰기 계층은 별도 공간이며 NET·IO는 누적 전송량입니다. 준비 미검증은 /edo1-health에서 확인하세요.'])
+    if result['mode'] == 'health':
+        parts.extend(['', 'Docker healthy는 설정된 healthcheck 통과입니다. HTTP 준비 응답·업무 기능·장기 오류율은 서로 다른 검사 범위입니다.'])
     for title, table_columns, table_rows in tables:
         header = ['', '**' + title + '**', '', '| ' + ' | '.join('**'+cell(x)+'**' for x in table_columns) + ' |',
                   '| ' + ' | '.join('---' for _ in table_columns) + ' |']
@@ -313,7 +354,7 @@ class App:
             self.last_run[throttle] = now
         request_id = uuid.uuid4().hex[:10]
         self.pool.submit(self.run, request, request_id)
-        return f"edo1 {request['mode']} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
+        return f"⏳ edo1 {request['mode']} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
 
     def run(self, request, request_id):
         started = time.monotonic()
@@ -336,10 +377,10 @@ class App:
             result['elapsed_seconds'] = round(time.monotonic()-started, 2)
             report = build_report(result, request_id)
         except subprocess.TimeoutExpired:
-            report = f'edo1 점검 시간 초과 · 요청 {request_id}. 수집 결과를 확인할 수 없습니다.'
+            report = f'🚫 **edo1 점검 시간 초과** · 요청 {request_id}. 수집 결과 미측정입니다. 같은 명령을 1회 재실행하고 반복되면 edo2의 edo-check journal에서 해당 요청 ID를 확인하세요.'
         except Exception:
             logging.error('collection_failed request=%s mode=%s', request_id, request['mode'])
-            report = f'edo1 점검 실패 · 요청 {request_id}. SSH 연결 또는 수집 상태를 운영자가 확인해야 합니다.'
+            report = f'🚫 **edo1 점검 실패** · 요청 {request_id}. 수집 결과 미측정입니다. 운영자는 edo2→edo1 SSH 연결과 edo-check journal의 해당 요청 ID를 확인하세요.'
         try:
             post_callback(request['response_url'], report)
             logging.info('delivered request=%s mode=%s', request_id, request['mode'])
@@ -362,7 +403,7 @@ def external_health(host):
             status = '정상' if response.status == 200 else '실패'
             if label == 'API health':
                 if response.status == 404:
-                    status, evidence = '미검증', 'HTTP 404 · 준비 상태 점검 경로 없음'
+                    status, evidence = '미검증', 'HTTP 404 · 이 URL에서 준비 상태 확인 못 함'
                 elif response.status == 200:
                     try:
                         health = json.loads(body)

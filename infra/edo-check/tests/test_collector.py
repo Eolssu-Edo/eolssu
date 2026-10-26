@@ -26,6 +26,23 @@ class MetricTests(unittest.TestCase):
         self.assertFalse(metrics['memory_available'])
         self.assertFalse(metrics['cpu_available'])
 
+    def test_current_failed_services_and_past_oom_logs_have_separate_findings(self):
+        issues = []
+        results = [subprocess.CompletedProcess([], 0, '', ''),
+                   subprocess.CompletedProcess([], 0, 'oom-kill: first\nOut of memory: Killed process second\n', '')]
+        with patch.object(collector, 'run', side_effect=results):
+            failures, oom_lines = collector.system_events(issues)
+        self.assertEqual((failures, oom_lines), (0, 2))
+        self.assertEqual(issues, ['최근 24h OOM 매칭 로그 2줄 (과거 기록·주의)'])
+
+    def test_unreadable_system_events_are_unknown_and_never_zero(self):
+        issues = []
+        results = [subprocess.CompletedProcess([], 1, '', 'access denied'),
+                   subprocess.CompletedProcess([], 1, '', 'access denied')]
+        with patch.object(collector, 'run', side_effect=results):
+            self.assertEqual(collector.system_events(issues), ('확인 불가', '확인 불가'))
+        self.assertTrue(all('확인 불가' in issue for issue in issues))
+
     def test_stopped_container_never_passes_using_old_health_result(self):
         data = {'item': {'Names': ['/demo'], 'State': 'exited'},
                 'detail': {'State': {'Status': 'exited', 'Running': False, 'Health': {'Status': 'healthy'}}}, 'stats': {}}

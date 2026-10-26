@@ -119,7 +119,7 @@ def host_disks(issues):
             inode = (1 - stat.f_ffree / stat.f_files) * 100 if stat.f_files else 0
             result.append(f'{mount} {size(used)}/{size(total)} · 여유 {size(available)} · {percent:.0f}% · inode {inode:.0f}%')
             if percent >= 80 or inode >= 80:
-                issues.append(f'{mount} 공간 {percent:.0f}%·inode {inode:.0f}% ({"실패" if max(percent,inode)>=90 else "주의"})')
+                issues.append(f'{mount} 공간 {percent:.0f}%·inode {inode:.0f}% ({"주의·긴급 용량 점검" if max(percent,inode)>=90 else "주의"})')
         except OSError:
             result.append(mount + ' 확인 불가')
             issues.append(mount + ' 파일시스템 미측정')
@@ -136,6 +136,18 @@ def cpu_sample():
     return 100 * (1 - (idle_after - idle_before) / max(1, after - before))
 
 
+def system_events(issues):
+    failed = run(['systemctl', 'list-units', '--state=failed', '--no-legend', '--plain'])
+    failures = len(failed.stdout.strip().splitlines()) if failed.returncode == 0 and failed.stdout.strip() else (0 if failed.returncode == 0 else '확인 불가')
+    oom = run(['journalctl', '-k', '--since=-24h', '--grep=Out of memory: Killed process|oom-kill:', '--no-pager', '--output=cat', '--quiet'])
+    oom_lines = '확인 불가' if oom.returncode not in (0, 1) or oom.stderr else len(oom.stdout.strip().splitlines()) if oom.stdout.strip() else 0
+    if failures:
+        issues.append(f'실패 서비스 {failures}개')
+    if oom_lines:
+        issues.append(f'최근 24h OOM 매칭 로그 {oom_lines}줄 (과거 기록·주의)')
+    return failures, oom_lines
+
+
 def server_report():
     issues = []
     memory = {line.split(':')[0]: int(line.split()[1]) * 1024 for line in Path('/proc/meminfo').read_text().splitlines() if len(line.split()) >= 2}
@@ -143,12 +155,7 @@ def server_report():
     if (total - available) / total >= .8:
         issues.append('서버 RAM 사용률 80% 이상 (주의)')
     disks = host_disks(issues)
-    failed = run(['systemctl', 'list-units', '--state=failed', '--no-legend', '--plain'])
-    failures = len(failed.stdout.strip().splitlines()) if failed.returncode == 0 and failed.stdout.strip() else (0 if failed.returncode == 0 else '확인 불가')
-    oom = run(['journalctl', '-k', '--since=-24h', '--grep=Out of memory: Killed process|oom-kill:', '--no-pager', '--output=cat', '--quiet'])
-    oom_count = len(oom.stdout.strip().splitlines()) if oom.stdout.strip() else ('확인 불가' if oom.stderr else 0)
-    if failures or oom_count:
-        issues.append(f'실패 서비스 {failures}개 / 최근 24h OOM {oom_count}건')
+    failures, oom_lines = system_events(issues)
     try:
         info, containers, storage, docker_issues = snapshot(True)
         issues.extend(docker_issues)
@@ -189,9 +196,9 @@ def server_report():
            f'{cpu_sample():.1f}% / {os.cpu_count()}코어 · Load ' + '/'.join(f'{x:.2f}' for x in os.getloadavg()),
            f'{size(total-available)}/{size(total)} · 가용 {size(available)}',
            f"{size(memory['SwapTotal']-memory['SwapFree'])}/{size(memory['SwapTotal'])}",
-           disks, docker_state, docker_ram, disk, reclaimable, f'{failures}개 / {oom_count}건']
+           disks, docker_state, docker_ram, disk, reclaimable, f'{failures}개 / OOM 매칭 {oom_lines}줄']
     facts = {'ram_total': total, 'ram_available': available, 'cpu_cores': os.cpu_count(),
-             'load': list(os.getloadavg()), 'failed_units': failures, 'oom_events': oom_count}
+             'load': list(os.getloadavg()), 'failed_units': failures, 'oom_log_lines': oom_lines}
     return ['서버·OS·커널·가동', 'CPU 사용/코어·Load 1·5·15분', 'RAM 사용/전체·가용', 'Swap 사용/전체',
             '디스크 사용/전체·여유·inode', 'Docker/컨테이너', 'Docker RAM 합/인식',
             '이미지/쓰기/볼륨/캐시', '회수 가능량(Docker)', '시스템 실패/OOM 24h'], [row], issues, facts
@@ -333,7 +340,7 @@ def health_report():
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
-        rows.append([name, 'Docker 준비 검사', status, evidence, '—', action])
+        rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
     for name, port, path in [('Grafana', 3000, '/api/health'), ('Metabase', 3001, '/api/health'), ('n8n', 5688, '/healthz/readiness')]:
         if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
             continue
