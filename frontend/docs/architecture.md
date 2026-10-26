@@ -47,8 +47,7 @@ Android 앱 실행부는 `androidApp/`, iOS 앱 실행부는 `iosApp/`이다. `s
 
 ```
 com/ssafy/eolssu/
-  App.kt                      # 공통 UI 진입점. 각 플랫폼이 App()을 호출하므로 이름 유지
-  Greeting.kt, GreetingUtil.kt, Platform.kt   # 마법사 샘플. 실제 기능으로 대체 예정
+  App.kt                      # 공통 UI 진입점. Koin 시작 → 테마 → 화면 이동 그래프. 각 플랫폼이 App()을 호출하므로 이름 유지
 
   app/
     navigation/               # 화면 이동 정의. 기능 사이의 연결은 여기서 조정
@@ -71,6 +70,8 @@ com/ssafy/eolssu/
     user/                     # 인증·프로필 API, DTO, Repository
 
   feature/
+    home/                     # 홈 화면(현재 악기 선택, 주요 기능 진입)
+    guide/                    # 운지법 보기·정간보 쉽게 읽기 같은 학습 안내 화면(2차)
     auth/                     # 로그인·회원가입 화면
     song/                     # 곡 목록·상세 화면
     practice/                 # 정간보 표시·녹음·제출 화면
@@ -83,6 +84,7 @@ feature와 data는 1:1이 아니다. 기능마다 같은 이름의 data 폴더�
 
 | feature | 사용하는 data |
 | --- | --- |
+| `home`, `guide` | 아직 없음. 홈의 악기 선택은 화면 상태로만 둔다 |
 | `auth`, `profile` | `data/user` |
 | `song` | `data/song` |
 | `practice`, `result`, `history` | `data/practice` |
@@ -259,6 +261,6 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 
 - 기존 모듈 구성(`shared`, `androidApp`, `webApp`, `iosApp`)으로 목적을 충족하므로 모듈을 분리하거나 이름을 바꾸지 않았다.
 - Compose Multiplatform 공유 UI와 ViewModel(`lifecycle-viewmodel-compose`) 설정은 이미 있었다. 화면 이동·DI·HTTP 라이브러리는 없었고, 이번 작업 범위가 구조 고정이므로 추가하지 않았다. 해당 패키지는 `.gitkeep`으로 위치만 잡았다.
-- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다.
+- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](../../docs/plans/S15P31E102-93.md)에서 홈 화면으로 대체하고 삭제했다.)
 - 웹 타깃(`jsMain`, `wasmJsMain`, `webTest`)과 관련 빌드 설정은 그대로 유지했다.
 - 구조 채우기용 빈 클래스는 만들지 않았다.

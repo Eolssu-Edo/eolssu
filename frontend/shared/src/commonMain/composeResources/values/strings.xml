@@ -1,0 +1,25 @@
+<resources>
+    <string name="common_close">닫기</string>
+    <string name="common_coming_soon">준비 중인 기능이에요.</string>
+
+    <string name="instrument_daegeum">대금</string>
+    <string name="instrument_sogeum">소금</string>
+    <string name="instrument_danso">단소</string>
+    <string name="instrument_piri">피리</string>
+
+    <string name="home_brand">얼쑤</string>
+    <string name="home_current_instrument">현재 악기</string>
+    <string name="home_change_instrument">현재 악기 %1$s, 바꾸기</string>
+    <string name="home_hero_title">내 연주,\n얼마나 정확할까?</string>
+    <string name="home_hero_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
+    <string name="home_start_evaluation">AI 연주 평가 시작</string>
+    <string name="home_section_practice">연습·학습하기</string>
+    <string name="home_feature_song_select">연습곡 선택하기</string>
+    <string name="home_feature_fingering">운지법 보기</string>
+    <string name="home_feature_reading">정간보 쉽게 읽기</string>
+    <string name="home_feature_learn">기초부터 배우기</string>
+
+    <string name="instrument_sheet_title">악기 선택</string>
+    <string name="instrument_sheet_subtitle">연습·운지법·평가에 쓸 악기예요</string>
+    <string name="instrument_sheet_current">현재 악기</string>
+</resources>
