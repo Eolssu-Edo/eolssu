@@ -241,7 +241,15 @@ PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeong
 node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
 ```
 
-처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다.
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다.
+
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 열을 한 각으로 씁니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+
+```bash
+python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
+```
+
+`report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
 
 ## 검증
 
