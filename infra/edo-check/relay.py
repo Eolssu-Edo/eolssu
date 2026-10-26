@@ -9,6 +9,7 @@ import ipaddress
 import json
 import logging
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 import re
 import socket
 import ssl
@@ -50,55 +51,198 @@ def cell(value):
     return text.replace('@', '@\u200b').replace('|', '\\|').replace('<', '&lt;').replace('>', '&gt;')[:1600]
 
 
+NAMES = {
+    'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버',
+    'eolssu-runtime-mysql-1': '서비스 DB(MySQL)',
+    'eolssu-monitoring-grafana-1': '모니터링(Grafana)',
+    'eolssu-monitoring-metabase-1': '분석(Metabase)',
+    'eolssu-jenkins-controller-1': '배포(Jenkins)',
+    'hey-edo1-controller-1': '리뷰 봇 제어', 'hey-edo1-runner-1': '리뷰 실행기',
+    'hey-edo1-n8n-1': '리뷰 워크플로(n8n)', 'hey-edo1-tunnel-1': '리뷰 봇 터널',
+    'hey-edo1-postgres-1': '리뷰 봇 DB(Postgres)',
+}
+
+
+def friendly(value):
+    text = str(value)
+    for original, name in NAMES.items():
+        text = text.replace(original, name)
+    return text
+
+
+def amount(value):
+    if value is None:
+        return '미측정'
+    for unit in ('B', 'KiB', 'MiB', 'GiB', 'TiB'):
+        if value < 1024 or unit == 'TiB':
+            return f'{value:.1f}{unit}'
+        value /= 1024
+
+
 def build_report(result, request_id):
     columns, rows = result['columns'], result['rows']
     if not 1 <= len(columns) <= 20 or any(len(row) != len(columns) for row in rows):
         raise ValueError('잘못된 점검 결과')
-    issues = list(result.get('issues', []))
-    if result['mode'] == 'health':
-        issues.extend(f'{row[0]}: {row[2]} ({row[3]})' for row in rows if len(row) >= 4 and row[2] != '정상')
-    issues = list(dict.fromkeys(issues))
-    tables = []
-    bold = result['mode'] in ('server', 'containers', 'health')
-    if result['mode'] == 'server' and len(columns) == 10 and len(rows) == 1:
-        rows = [[label, value] for label, value in zip(columns, rows[0])]
-        columns = ['항목', '측정값']
-    elif result['mode'] == 'containers' and len(columns) == 11:
-        names = [re.sub(r'^eolssu-(runtime|monitoring)-', '', str(row[0])) for row in rows]
-        tables.append(('자원·상태',
-                       ['컨테이너', '실행 / Health', 'CPU 사용 / 제한', 'RAM 사용 / 제한', '쓰기 / 제한 · 로그', '가동 / 재시작'],
-                       [[name] + [row[i] for i in (1, 2, 3, 4, 6)] for name, row in zip(names, rows)]))
-        rows = [[name] + [row[i] for i in (5, 7, 8, 9, 10)] for name, row in zip(names, rows)]
-        columns = [columns[i] for i in (0, 5, 7, 8, 9, 10)]
-    tables.append(('저장소·실행 상세' if tables else '점검 결과', columns, rows))
-    if issues:
-        tables.append(('확인 사항', ['확인 사항'], [[item] for item in issues[:8]]))
+    findings, tables = [], []
+    # Settings without limits are capacity policy, not evidence of an outage.
+    for issue in dict.fromkeys(result.get('issues', [])):
+        if result['mode'] == 'health' and any(str(row[0]) in issue for row in rows):
+            continue  # The per-service probe below owns this finding.
+        if result['mode'] == 'containers' and any(str(row[0]) in issue for row in rows):
+            if any(word in issue for word in ('상세 수집 실패', '통계 미측정', '로그 미측정', '데이터 용량 미측정')) or ': ' in issue:
+                continue  # The container row owns missing measurements and state.
+        if '메모리 제한 미설정' in issue:
+            kind, action = '설정 참고', '현재 장애를 뜻하지 않음; 필요 시 메모리 상한 검토'
+        elif any(word in issue for word in ('미측정', '확인 불가', '수집 실패', '수집 불가', '시간 초과')):
+            kind, action = '미측정', '다시 점검; 반복되면 수집 경로·권한 확인'
+        elif '주의' in issue or '80%' in issue:
+            kind, action = '주의', '여유 용량·자원 사용이 계속 증가하는지 확인'
+        else:
+            kind, action = '장애', '대상 실행 상태·최근 로그 확인'
+        findings.append([kind, friendly(issue), action])
 
-    # Mattermost interprets colon-delimited time fragments as emoji outside code.
-    captured_at = cell(result.get('captured_at', '확인 불가')).replace('`', '')
-    summary = f'**판정: 확인 사항 {len(issues)}건**' if issues else '**판정: 수집한 항목에 이상 없음**'
-    parts = [f"### edo1 {cell(result['mode'])} 점검",
-             f"수집 시각: `{captured_at}` · 요청 `{request_id}`", '', summary]
-    render = lambda value: '**' + cell(value) + '**' if bold else cell(value)
+    if result['mode'] == 'health':
+        rendered = []
+        # Prefer a successful direct readiness probe over an absent Docker check.
+        ready = {row[0] for row in rows if row[1] == 'edo1 loopback HTTP' and row[2] == '정상'}
+        for row in rows:
+            name, location, status, evidence = row[:4]
+            if name == 'eolssu-monitoring-grafana-1' and 'Grafana' in ready and status in ('미검증', '미설정'):
+                continue
+            if name == 'eolssu-monitoring-metabase-1' and 'Metabase' in ready and status in ('미검증', '미설정'):
+                continue
+            if name == 'hey-edo1-n8n-1' and 'n8n' in ready and status in ('미검증', '미설정'):
+                continue
+            status = {'실패': '장애', '미설정': '미검증', '확인 불가': '미측정'}.get(status, status)
+            if status == '정상':
+                action = '현재 조치 없음'
+            elif status == '미검증':
+                action = ('API 준비 상태는 확인 못 함; 백엔드 health 경로 구성 필요' if name == 'API health'
+                          else '프로세스 실행만 확인; 준비 상태 검사 필요')
+            elif status == '미측정':
+                action = '재점검 후 연결·수집 권한 확인'
+            else:
+                action = ('인증서 유효기간·갱신 타이머 확인' if 'TLS' in location else
+                          '공개 HTTPS 연결·서비스 응답 확인' if '외부 HTTPS' in location else
+                          '서비스 기동·DB 연결 확인' if 'loopback' in location else '서비스 상태·최근 로그 확인')
+            rendered.append([friendly(name), status, evidence, action, row[4] if len(row) > 4 else '—'])
+            if status != '정상':
+                findings.append([status, friendly(name) + ': ' + str(evidence), action])
+        tables.append(('서비스 정상 여부', ['대상', '판정', '실제로 확인한 것', '의미 / 다음 조치', '응답 시간'], rendered))
+
+    elif result['mode'] == 'server' and len(columns) == 10 and len(rows) == 1:
+        values, facts = rows[0], result.get('facts') or {}
+        meanings = ['호스트·OS·커널과 서버 가동 시간', '0.2초 표본. CPU 100%는 서버 전체 사용',
+                    '현재 사용량과 즉시 사용 가능한 메모리', '디스크로 옮겨진 메모리. 사용 중이라는 이유만으로 장애는 아님',
+                    '사용 / 전체, 가용 공간, 사용률과 inode(파일 개수) 사용률',
+                    'Docker 데몬 응답과 실행 수; 컨테이너 준비 상태는 /edo1-health에서 확인',
+                    '컨테이너 사용량 합계 / Docker가 인식하는 호스트 RAM. 예약량 아님',
+                    '저장공간 분류별 점유량. 공유 계층 때문에 단순 합산 금지',
+                    'Docker가 회수 가능하다고 계산한 양. 자동 정리하지 않음',
+                    '실패한 systemd 서비스 / 최근 24시간 커널 OOM 기록']
+        entries = []
+        for index, (label, value) in enumerate(zip(columns, values)):
+            if index == 1 and facts.get('load'):
+                value = str(value).split(' · Load ')[0]
+                entries.append(['부하(Load 1 / 5 / 15분)', ' / '.join(f'{x:.2f}' for x in facts['load']),
+                                f"CPU {facts['cpu_cores']}코어와 비교. 장기적으로 코어 수를 넘으면 대기 증가", '추세 확인'])
+            if index == 2 and facts.get('ram_total'):
+                total, available = facts['ram_total'], facts['ram_available']
+                value = f'{amount(total-available)} / {amount(total)} ({(1-available/total)*100:.0f}%) · 가용 {amount(available)}'
+            if index == 4:
+                for part in str(value).split('; '):
+                    entries.append(['파일시스템', part, meanings[index], '공간·inode 80% 주의 / 90% 긴급'])
+            elif index == 7 and len(str(value).split(' / ')) == 4:
+                for title, number in zip(('Docker 이미지', '컨테이너 쓰기 계층', 'Docker 볼륨', '빌드 캐시'), str(value).split(' / ')):
+                    entries.append([title, number, meanings[index], '필요 없는 데이터인지 검토 후 정리'])
+            else:
+                entries.append([label, value, meanings[index], 'RAM 80% 이상이면 여유 확인' if index == 2 else '—'])
+        tables.append(('서버 자원 읽는 법', ['항목', '이번 요청의 측정값', '해석', '확인 기준'], entries))
+
+    elif result['mode'] == 'containers' and len(columns) == 11:
+        facts = {item['name']: item for item in result.get('facts') or []}
+        resource_rows, storage_rows, runtime_rows = [], [], []
+        for row in rows:
+            name, state = str(row[0]), str(row[1])
+            fact = facts.get(name, {})
+            if '확인 불가' in state:
+                status = '미측정'
+            elif not state.startswith('running/') or 'unhealthy' in state:
+                status = '장애'
+            else:
+                status = '실행 · 검사 통과' if state.endswith('/healthy') else '실행 · 준비 미검증'
+            if status == '미측정':
+                findings.append(['미측정', friendly(name) + ' 상세 수집 실패', 'Docker inspect 연결·권한 확인'])
+            elif status == '장애':
+                findings.append(['장애', friendly(name) + ': ' + state, '컨테이너 실행 상태·최근 로그 확인'])
+            if status == '실행 · 준비 미검증':
+                findings.append(['미검증', friendly(name) + ' 준비 상태', '/edo1-health에서 실제 준비 상태 검사 확인; 장애 확정 아님'])
+            missing = [label for index, label in ((4, '쓰기/로그'), (5, '데이터 용량'), (9, '누적 NET/IO'))
+                       if '미측정' in str(row[index]) or '확인 불가' in str(row[index])]
+            if status != '미측정' and missing:
+                findings.append(['미측정', friendly(name) + ' ' + ', '.join(missing),
+                                 'Docker가 통계를 제공하는지 확인; 기록 없음은 0으로 단정하지 않음' if missing == ['누적 NET/IO'] else '재점검 후 측정 경로·드라이버 지원 확인'])
+            ram = str(row[3]).replace('미설정', '제한 없음').replace(' · —', '')
+            if fact.get('ram_bytes') is not None:
+                used, limit, host = fact['ram_bytes'], fact.get('ram_limit'), fact.get('host_ram')
+                if limit:
+                    ram = f'{amount(used)} / {amount(limit)} ({used/limit*100:.0f}%)'
+                elif host:
+                    ram = f'{amount(used)} · 제한 없음 (호스트의 {used/host*100:.1f}%)'
+            cpu = str(row[2]).replace('/미설정', ' · 제한 없음').replace('/', ' / ')
+            write, _, old_log = str(row[4]).partition(' · 로그 ')
+            log = fact.get('log', old_log or '미측정')
+            resource_rows.append([friendly(name), status, cpu, ram,
+                                  write.replace('/미설정(호스트 공유)', ' · 호스트 공유'), log])
+            for mount in str(row[5]).split('; '):
+                target, separator, usage = mount.rpartition(': ')
+                storage_rows.append([friendly(name), target if separator else '데이터 저장소', usage if separator else mount,
+                                     '다른 컨테이너와 중복 합산 금지' if '(공유)' in mount else
+                                     '12초 또는 전체 25초 측정 예산; 재점검 필요' if '확인 불가' in mount else
+                                     '별도 데이터 mount 없음' if mount == '없음' else '볼륨/bind 값은 쓰기 계층·로그와 별개'])
+            runtime_rows.append([friendly(name) + ' (' + name + ')', row[6], row[7], row[8], row[9], row[10]])
+            if status != '미측정' and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
+                findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
+        tables.extend([
+            ('컨테이너 현재 자원', ['서비스', '실행 / 준비 상태', 'CPU(한도)', 'RAM(설정 한도 또는 호스트 비율)', '쓰기 계층(한도)', '로그 저장량'], resource_rows),
+            ('데이터 저장공간', ['서비스', '저장 대상', '이번 사용량', '해석 / 조치'], storage_rows),
+            ('실행 세부 정보', ['서비스 / 실제 컨테이너', '가동 / 재시작', '종료 코드 / OOM', 'PID / 공개 포트', 'NET·IO 누적 전송량', '이미지'], runtime_rows),
+        ])
+    else:
+        tables.append(('점검 결과', columns, rows))
+
+    findings = list({tuple(item): item for item in findings}.values())
+    counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고')}
+    counts['미측정'] += sum(1 for _, _, data in tables for row in data if any('미측정' in str(x) or '확인 불가' in str(x) for x in row)) if result['mode'] == 'server' else 0
+    status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] or counts['미측정'] else '검사한 범위 정상'
+    captured = cell(result.get('captured_at', '확인 불가')).replace('`', '')
+    started = cell(result.get('started_at', captured)).replace('`', '')
+    parts = [f"### edo1 {result['mode']} 점검 — {status}",
+             f"수집 시각: `{captured}`", f"시작 `{started}` · 소요 {result.get('elapsed_seconds', '미측정')}초 · 요청 `{request_id}`", '',
+             '**' + ' · '.join(f'{kind} {counts[kind]}' for kind in ('장애', '주의', '미검증', '미측정')) + '**',
+             '이번 명령에서 새로 수집한 스냅샷입니다. 이 메시지는 자동 갱신되지 않습니다. 최신 상태는 같은 명령을 다시 실행하세요.']
+    actionable = [item for item in findings if item[0] != '설정 참고']
+    if actionable:
+        tables.insert(0, ('먼저 확인할 항목', ['구분', '대상 / 근거', '다음 조치'], actionable[:12]))
+    if counts['설정 참고']:
+        parts.extend(['', f"설정 참고 {counts['설정 참고']}건: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
+    if result['mode'] == 'containers':
+        parts.extend(['', 'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외 사용량. 로그·데이터·쓰기 계층은 별도 공간이며 NET·IO는 누적 전송량입니다. 준비 미검증은 /edo1-health에서 확인하세요.'])
     for title, table_columns, table_rows in tables:
-        header = ['', '**' + title + '**', '',
-                  '| ' + ' | '.join(map(render, table_columns)) + ' |',
+        header = ['', '**' + title + '**', '', '| ' + ' | '.join('**'+cell(x)+'**' for x in table_columns) + ' |',
                   '| ' + ' | '.join('---' for _ in table_columns) + ' |']
         if len('\n'.join(parts + header)) > 14000:
-            parts.append('\n출력 제한: 나머지 표 생략. 운영자 확인이 필요합니다.')
+            parts.append('\n출력 제한: 남은 표 생략. 운영자 확인이 필요합니다.')
             break
         parts.extend(header)
         for row in table_rows[:100]:
-            rendered = '| ' + ' | '.join(render(value) if bold and column < 4 else cell(value)
-                                        for column, value in enumerate(row)) + ' |'
+            rendered = '| ' + ' | '.join('**'+cell(x)+'**' if str(x) in ('장애', '주의', '미검증', '미측정') else cell(x) for x in row) + ' |'
             if len('\n'.join(parts)) + len(rendered) + 1 > 14000:
                 parts.append('\n출력 제한: 나머지 행·표 생략. 운영자 확인이 필요합니다.')
                 return '\n'.join(parts)
             parts.append(rendered)
         if len(table_rows) > 100:
-            parts.append(f'\n출력 제한: {len(table_rows) - 100}개 행 생략.')
-    if len(issues) > 8:
-        parts.append(f'\n확인 사항 {len(issues) - 8}건 생략. 운영자 확인이 필요합니다.')
+            parts.append(f'\n출력 제한: {len(table_rows)-100}개 행 생략.')
     return '\n'.join(parts)
 
 
@@ -156,6 +300,8 @@ class App:
         return f"edo1 {request['mode']} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
 
     def run(self, request, request_id):
+        started = time.monotonic()
+        started_at = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
         try:
             ssh = ['ssh', '-4', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
                    '-o', 'ConnectTimeout=8', '-o', 'IdentitiesOnly=yes',
@@ -169,6 +315,9 @@ class App:
                 raise ValueError('unexpected mode')
             if request['mode'] == 'health':
                 result['rows'].extend(external_health(self.config['service_host']))
+            result['started_at'] = started_at
+            result['captured_at'] = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
+            result['elapsed_seconds'] = round(time.monotonic()-started, 2)
             report = build_report(result, request_id)
         except subprocess.TimeoutExpired:
             report = f'edo1 점검 시간 초과 · 요청 {request_id}. 수집 결과를 확인할 수 없습니다.'
@@ -192,9 +341,21 @@ def external_health(host):
         try:
             connection.request('GET', path)
             response = connection.getresponse()
-            response.read(4096)
-            status = '정상' if response.status == 200 else ('미설정' if response.status == 404 and label == 'API health' else '실패')
-            rows.append([label, 'edo2 외부 HTTPS', status, f'HTTP {response.status}',
+            body = response.read(4096)
+            evidence = f'HTTP {response.status}'
+            status = '정상' if response.status == 200 else '실패'
+            if label == 'API health':
+                if response.status == 404:
+                    status, evidence = '미검증', 'HTTP 404 · 준비 상태 점검 경로 없음'
+                elif response.status == 200:
+                    try:
+                        health = json.loads(body)
+                        state = health.get('status')
+                        status = '정상' if state == 'UP' else '실패' if state in ('DOWN', 'OUT_OF_SERVICE') else '미검증'
+                        evidence += ' · JSON status=' + str(health.get('status', '없음'))
+                    except (ValueError, AttributeError):
+                        status, evidence = '미검증', 'HTTP 200 · 기대한 health JSON 아님'
+            rows.append([label, 'edo2 외부 HTTPS', status, evidence,
                          f'{(time.monotonic()-started)*1000:.0f}ms', path])
         except Exception:
             rows.append([label, 'edo2 외부 HTTPS', '실패', '연결·TLS·응답 확인 불가', '—', path])

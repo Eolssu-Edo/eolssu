@@ -50,22 +50,23 @@ class RequestTests(unittest.TestCase):
         self.assertIn('| **대상** | **상태** |', text)
         self.assertIn('edo1\\|host', text)
         self.assertNotIn('@channel', text)
-        self.assertEqual(text.count('| --- | --- |'), 1)
+        self.assertIn('다음 조치', text)
 
     def test_health_summary_cannot_claim_success_when_a_probe_failed(self):
         result = {'mode': 'health', 'columns': ['대상', '위치', '판정', '응답'],
                   'rows': [['API', '외부', '실패', 'HTTP 503']], 'issues': []}
         text = relay.build_report(result, 'req')
-        self.assertIn('API: 실패', text)
+        self.assertIn('장애 1', text)
+        self.assertIn('API: HTTP 503', text)
         self.assertNotIn('이상 없음', text)
 
     def test_compact_server_report_keeps_details_and_readable_sections(self):
         result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
                   'rows': [[f'value{i}' for i in range(10)]], 'issues': ['주의 하나', '주의 둘']}
         text = relay.build_report(result, 'req')
-        self.assertIn('| **주의 하나** |', text)
-        self.assertIn('| **주의 둘** |', text)
-        self.assertIn('| **항목** | **측정값** |', text)
+        self.assertIn('| **주의** | 주의 하나 |', text)
+        self.assertIn('| **주의** | 주의 둘 |', text)
+        self.assertIn('| **항목** | **이번 요청의 측정값** | **해석** |', text)
         for i in range(10):
             self.assertIn(f'value{i}', text)
         self.assertNotIn('<br>', text)
@@ -76,8 +77,9 @@ class RequestTests(unittest.TestCase):
         text = relay.build_report(result, 'req')
         table_lines = [line for line in text.splitlines() if line.startswith('|')]
         for i in range(10):
-            self.assertTrue(any(f'값{i}' in line and f'추가{i}' in line for line in table_lines))
-        self.assertEqual(text.count('| --- | --- |'), 1)
+            self.assertTrue(any(f'값{i}' in line for line in table_lines))
+            self.assertTrue(any(f'추가{i}' in line for line in table_lines))
+        self.assertEqual(sum(line.startswith('| ---') for line in table_lines), 1)
 
     def test_container_details_have_a_separate_table(self):
         result = {'mode': 'containers', 'columns': [f'항목{i}' for i in range(11)],
@@ -86,8 +88,8 @@ class RequestTests(unittest.TestCase):
         table_lines = [line for line in text.splitlines() if line.startswith('|')]
         for i in range(11):
             self.assertTrue(any(f'값{i}' in line for line in table_lines))
-        self.assertEqual(sum(line.startswith('| ---') for line in table_lines), 2)
-        self.assertIn('**저장소·실행 상세**', text)
+        self.assertIn('**데이터 저장공간**', text)
+        self.assertIn('**실행 세부 정보**', text)
         self.assertNotIn('<br>', text)
 
     def test_capture_time_is_inline_code_to_prevent_emoji_conversion(self):
@@ -105,6 +107,50 @@ class RequestTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 connection.connect()
             connect.assert_not_called()
+
+    def test_health_gaps_are_not_counted_as_outages_and_have_next_step(self):
+        result = {'mode': 'health', 'columns': ['대상','방식','판정','측정','소요','상세'],
+                  'rows': [['eolssu-runtime-backend-1','Docker','미검증','실행 중 · 건강 검사 없음','—','준비 상태 검사 필요']],
+                  'captured_at': '2026-10-26 14:06:58 KST'}
+        text = relay.build_report(result, 'req')
+        self.assertIn('장애 0', text)
+        self.assertIn('미검증 1', text)
+        self.assertIn('준비 상태 검사 필요', text)
+        self.assertIn('자동 갱신되지', text)
+        self.assertNotIn('**실행 중 · 건강 검사 없음**', text)
+
+    def test_api_html_200_is_not_reported_as_healthy(self):
+        response = Mock(status=200)
+        response.read.return_value = b'<html>SPA fallback</html>'
+        connection = Mock()
+        connection.getresponse.return_value = response
+        with patch.object(relay.http.client, 'HTTPSConnection', return_value=connection), \
+                patch.object(relay.socket, 'create_connection', side_effect=OSError):
+            rows = relay.external_health('service.example')
+        api = next(row for row in rows if row[0] == 'API health')
+        self.assertNotEqual(api[2], '정상')
+        self.assertIn('JSON', api[3])
+
+    def test_missing_service_is_counted_once_and_container_gaps_cannot_look_normal(self):
+        missing = 'eolssu-runtime-backend-1'
+        report = {'mode': 'health', 'columns': ['대상','방식','판정','측정','소요','상세'],
+                  'rows': [[missing,'Docker','실패','필수 컨테이너 누락','—','확인']],
+                  'issues': [missing+' 필수 컨테이너 누락']}
+        self.assertIn('장애 1', relay.build_report(report, 'req'))
+        report = {'mode': 'containers', 'columns': [str(i) for i in range(11)],
+                  'rows': [['demo','running/미설정','0.1%/미설정','100B/미설정','1B/미설정 · 로그 2B','없음','1시간/0회','0/아니오','1/없음','미측정 · IO 미측정','image']],
+                  'facts': [{'name':'demo','ram_bytes':100,'host_ram':1000,'ram_limit':0,'cpu_percent':0.1}]}
+        text = relay.build_report(report, 'req')
+        self.assertIn('미검증 1', text)
+        self.assertIn('미측정 1', text)
+        self.assertNotIn('검사한 범위 정상', text)
+
+    def test_collector_log_gap_has_one_owner_in_summary(self):
+        report = {'mode': 'containers', 'columns': [str(i) for i in range(11)],
+                  'rows': [['demo','running/healthy','0.1%/미설정','100B/미설정','1B/미설정 · 로그 미측정 (local 로그 경로 없음)','없음','1시간/0회','0/아니오','1/없음','1B/1B · IO 1B/1B','image']],
+                  'facts': [{'name':'demo','ram_bytes':100,'host_ram':1000,'ram_limit':0,'cpu_percent':0.1}],
+                  'issues': ['demo 로그 미측정 (local 로그 경로 없음)']}
+        self.assertIn('미측정 1', relay.build_report(report, 'req'))
 
 
 class HTTPTests(unittest.TestCase):

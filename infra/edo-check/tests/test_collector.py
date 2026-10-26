@@ -1,5 +1,9 @@
 from test_relay import load
 import unittest
+from unittest.mock import patch
+import subprocess
+import tempfile
+from pathlib import Path
 
 collector = load('collector')
 
@@ -21,6 +25,39 @@ class MetricTests(unittest.TestCase):
         metrics = collector.resource_stats({})
         self.assertFalse(metrics['memory_available'])
         self.assertFalse(metrics['cpu_available'])
+
+    def test_stopped_container_never_passes_using_old_health_result(self):
+        data = {'item': {'Names': ['/demo'], 'State': 'exited'},
+                'detail': {'State': {'Status': 'exited', 'Running': False, 'Health': {'Status': 'healthy'}}}, 'stats': {}}
+        with patch.object(collector, 'snapshot', return_value=({}, [data], {}, [])):
+            _, rows, _ = collector.health_report()
+        row = next(row for row in rows if row[0] == 'demo')
+        self.assertNotEqual(row[2], '정상')
+        self.assertIn('중지', row[3])
+
+    def test_stats_timeout_preserves_inspect_state_and_reports_partial_measurement(self):
+        detail = {'Name': '/demo', 'State': {'Status': 'running', 'Running': True}}
+        def docker(path, **kwargs):
+            if path == '/info': return {'Containers': 1}
+            if path.startswith('/containers/json'): return [{'Id': 'a'*64, 'Names': ['/demo'], 'State': 'running'}]
+            if path.endswith('/json'): return detail
+            raise TimeoutError()
+        with patch.object(collector, 'docker', side_effect=docker):
+            _, values, _, issues = collector.snapshot()
+        self.assertEqual(values[0]['detail'], detail)
+        self.assertTrue(any('통계' in item for item in issues))
+
+    def test_local_log_measures_primary_and_rotated_file_metadata(self):
+        with tempfile.TemporaryDirectory() as folder:
+            logdir = Path(folder)/'containers'/('a'*64)/'local-logs'
+            logdir.mkdir(parents=True)
+            (logdir/'container.log').write_bytes(b'x'*128)
+            (logdir/'container.log.1.gz').write_bytes(b'x'*64)
+            (logdir/'container.log.link').symlink_to('/etc/passwd')
+            detail = {'Id': 'a'*64, 'HostConfig': {'LogConfig': {'Type': 'local'}}, 'LogPath': ''}
+            value = collector.log_usage(detail, folder)
+        self.assertIn('192.0B', value)
+        self.assertIn('local', value)
 
 
 if __name__ == '__main__':

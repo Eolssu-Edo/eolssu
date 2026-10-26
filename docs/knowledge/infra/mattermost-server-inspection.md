@@ -1,5 +1,17 @@
 # Mattermost 서버 점검 중계의 선택과 제약
 
+## 2026-10-26 후속 관측
+
+실행 중·검사 통과·검사 없음·측정 실패를 같은 판정으로 묶으면 장애가 아닌 설정 참고가 경보로 보인다. 검사 없음은 미검증으로, stats·용량·로그 누락은 미측정으로 구분했다. Docker의 옛 healthy 값보다 현재 실행 상태를 먼저 판단한다. stats가 실패해도 이미 읽은 inspect 정보는 버리지 않는다.
+
+기존 로그 집계는 inspect의 LogPath가 비어 있는 local 드라이버를 처리하지 못했다. 실제 `local-logs/container.log*` 파일 크기를 확인해 주·회전 파일 메타데이터만 합산했다. [Docker local 드라이버](https://docs.docker.com/engine/logging/drivers/local/)
+
+Jenkins bind의 전체 사용량은 실제 약 5.3GiB·8.5초로 기존 3초 제한을 넘었다. 요청 내 중복 측정을 제거하고 경로 12초·총 bind 25초를 상한으로 두었다. 무제한 탐색이나 상시 캐시는 추가하지 않았다. 시간 초과 시 부분 용량을 전체로 표시하지 않는다.
+
+n8n은 Docker healthcheck가 없어도 고정 loopback readiness에서 HTTP 200·status ok를 반환했다. 이를 실제 준비 상태로 확인했다. API health는 HTTP 200만으로 정상이라고 할 수 없고 기대 JSON status까지 검증해야 한다. [n8n 준비 검사 근거](https://github.com/n8n-io/n8n-docs/blob/main/docs/deploy/host-n8n/keep-n8n-running/monitor-n8n.md)
+
+아래는 초기 선택·제약 기록이며 현재 실행·판정 안내는 [운영 안내](../../../infra/edo-check/README.md)를 따른다.
+
 2026-10-23 [S15P31E102-95](../../plans/S15P31E102-95.md)의 실제 edo1·edo2와 Mattermost 11.7.2 화면을 확인한 결과다. 사용자는 이 대화에서 도메인 없이 edo2 중계 배포, CI/CD 채널만 실행, 전용 계정·키·제한 권한을 승인했다. 실행·복구 명령은 [운영 안내](../../../infra/edo-check/README.md)에 있다.
 
 ## 선택한 구조
