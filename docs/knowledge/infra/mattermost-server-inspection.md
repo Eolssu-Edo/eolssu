@@ -14,6 +14,10 @@
 
 실행 상태와 healthcheck 통과는 별개이며 Docker healthy는 정의된 검사에 한정된다. HTTP 준비 응답과 실제 사용자 기능 검사도 구분한다. [Docker HEALTHCHECK](https://docs.docker.com/reference/dockerfile/#healthcheck), [준비 상태의 의미](https://kubernetes.io/docs/concepts/workloads/pods/probes/#readiness-probe)
 
+사용자의 API 미검증 해소 요청으로 404 원인을 실제 운영 응답·소스와 대조했다. Nginx는 `/api/`를 보존해 전달하고 백엔드 JSON 404가 반환됐으며, Actuator 의존성·health 엔드포인트가 없고 DB 프로필도 비활성이었다. Actuator의 readiness 그룹을 `/api/actuator/health/readiness`에 추가하고 운영 `ops`에서 readinessState와 DB를 함께 확인한다. 기존 DB의 자동 DDL 실행을 피하기 위해 Flyway·SQL 초기화를 끄고 기본 개발 모드·마이그레이션용 db 프로필과 구분한다. health만 읽기 전용으로 노출하고 상세·컴포넌트·기타 관리 API·JMX는 공개하지 않는다. [Spring Boot health·probes](https://docs.spring.io/spring-boot/reference/actuator/endpoints.html#actuator.endpoints.kubernetes-probes)
+
+실제 HTTP 격리 검사에서 DB 연결 불가 시 readiness 503/DOWN, liveness 200/UP·Flyway Bean 부재를 확인했다. 운영과 같은 JRE의 임시 후보를 기존 DB 네트워크에 붙여 ops readiness 200/UP과 env·beans·configprops 404를 확인한 후 후보·임시 비밀 파일을 정리했다. 업무 데이터·스키마를 변경하는 테스트는 운영 DB에서 수행하지 않았다.
+
 기존 로그 집계는 inspect의 LogPath가 비어 있는 local 드라이버를 처리하지 못했다. 실제 `local-logs/container.log*` 파일 크기를 확인해 주·회전 파일 메타데이터만 합산했다. [Docker local 드라이버](https://docs.docker.com/engine/logging/drivers/local/)
 
 Jenkins bind의 전체 사용량은 실제 약 5.3GiB·8.5초로 기존 3초 제한을 넘었다. 요청 내 중복 측정을 제거하고 경로 12초·총 bind 25초를 상한으로 두었다. 무제한 탐색이나 상시 캐시는 추가하지 않았다. 시간 초과 시 부분 용량을 전체로 표시하지 않는다.

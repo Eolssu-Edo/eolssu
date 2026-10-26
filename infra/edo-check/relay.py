@@ -136,6 +136,7 @@ def build_report(result, request_id):
             action = 'edo1의 최근 24시간 커널 OOM 로그에서 시각·대상 확인 후 /edo1-containers의 RAM·한도와 비교'
         findings.append([kind, friendly(issue), action])
 
+    inherited_findings = list(findings)
     if result['mode'] == 'health':
         rendered = []
         # Prefer a successful direct readiness probe over an absent Docker check.
@@ -162,10 +163,14 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
-            rendered.append([friendly(name), status, evidence, action, row[4] if len(row) > 4 else '—'])
+            elapsed = row[4] if len(row) > 4 else '—'
+            checked = ('Docker healthcheck · ' if 'Docker' in location else '') + str(evidence)
+            if elapsed != '—':
+                checked += ' · ' + str(elapsed)
+            rendered.append([friendly(name), status, checked, '—' if status == '정상' else action])
             if status != '정상':
                 findings.append([status, friendly(name) + ': ' + str(evidence), action])
-        tables.append(('서비스 정상 여부', ['대상', '판정', '실제로 확인한 것', '의미 / 다음 조치', '응답 시간'], rendered))
+        tables.append(('서비스 검사 결과', ['대상', '판정', '검사 근거 · 소요', '필요한 조치'], rendered))
 
     elif result['mode'] == 'server' and len(columns) == 10 and len(rows) == 1:
         values, facts = rows[0], result.get('facts') or {}
@@ -209,7 +214,8 @@ def build_report(result, request_id):
                     entries.append([title, number, meanings[index], action])
             else:
                 entries.append([label, value, meanings[index], criteria[index]])
-        tables.append(('서버 자원 읽는 법', ['항목', '이번 요청의 측정값', '해석', '확인 기준'], entries))
+        tables.append(('서버 현재 자원', ['항목', '현재값', '확인 기준 · 다음 조치'],
+                       [[label, value, meaning + '. ' + criterion] for label, value, meaning, criterion in entries]))
 
     elif result['mode'] == 'containers' and len(columns) == 11:
         facts = {item['name']: item for item in result.get('facts') or []}
@@ -247,7 +253,7 @@ def build_report(result, request_id):
             write, _, old_log = str(row[4]).partition(' · 로그 ')
             log = fact.get('log', old_log or '미측정')
             resource_rows.append([friendly(name), status, cpu, ram,
-                                  write.replace('/미설정(호스트 공유)', ' · 호스트 공유'), log])
+                                  '쓰기 ' + write.replace('/미설정(호스트 공유)', ' · 호스트 공유') + ' / 로그 ' + str(log)])
             for mount in str(row[5]).split('; '):
                 target, separator, usage = mount.rpartition(': ')
                 storage_rows.append([friendly(name), target if separator else '데이터 저장소', usage if separator else mount,
@@ -258,9 +264,12 @@ def build_report(result, request_id):
             if status != '미측정' and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
                 findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
         tables.extend([
-            ('컨테이너 현재 자원', ['서비스', '실행 / 준비 상태', 'CPU(한도)', 'RAM(설정 한도 또는 호스트 비율)', '쓰기 계층(한도)', '로그 저장량'], resource_rows),
-            ('데이터 저장공간', ['서비스', '저장 대상', '이번 사용량', '해석 / 조치'], storage_rows),
-            ('실행 세부 정보', ['서비스 / 실제 컨테이너', '가동 / 재시작', '종료 코드 / OOM', 'PID / 공개 포트', 'NET·IO 누적 전송량', '이미지'], runtime_rows),
+            ('컨테이너 현재 자원', ['서비스', '상태', 'CPU / 상한', 'RAM / 상한', '쓰기 · 로그'], resource_rows),
+            ('데이터 저장공간', ['서비스', '볼륨 · 마운트', '사용량 · 참고'],
+             [[service, target, usage + (' · ' + note if '확인 불가' in usage else '')] for service, target, usage, note in storage_rows]),
+            ('실행 세부 정보', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트', 'NET·IO 누적', '이미지'],
+             [[service, '가동·재시작 ' + str(uptime) + ' / 종료·OOM ' + str(exit_oom), ports, io, image]
+              for service, uptime, exit_oom, ports, io, image in runtime_rows]),
         ])
     else:
         tables.append(('점검 결과', columns, rows))
@@ -276,13 +285,13 @@ def build_report(result, request_id):
              ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
                         for kind in ('장애', '주의', '미검증', '미측정')),
              '이번 명령에서 새로 수집한 스냅샷입니다. 이 메시지는 자동 갱신되지 않습니다. 최신 상태는 같은 명령을 다시 실행하세요.']
-    actionable = [item for item in findings if item[0] != '설정 참고']
+    actionable = [item for item in (inherited_findings if result['mode'] == 'health' else findings) if item[0] != '설정 참고']
     if actionable:
         tables.insert(0, ('먼저 확인할 항목', ['구분', '대상 / 근거', '다음 조치'], actionable[:12]))
     if counts['설정 참고']:
         parts.extend(['', f"ℹ️ **설정 참고 {counts['설정 참고']}건**: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
     if result['mode'] == 'containers':
-        parts.extend(['', 'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외 사용량. 로그·데이터·쓰기 계층은 별도 공간이며 NET·IO는 누적 전송량입니다. 준비 미검증은 /edo1-health에서 확인하세요.'])
+        parts.extend(['', 'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. 준비 상태는 /edo1-health에서 확인하세요.'])
     if result['mode'] == 'health':
         parts.extend(['', 'Docker healthy는 설정된 healthcheck 통과입니다. HTTP 준비 응답·업무 기능·장기 오류율은 서로 다른 검사 범위입니다.'])
     for title, table_columns, table_rows in tables:
@@ -392,7 +401,7 @@ class App:
 
 def external_health(host):
     rows = []
-    for label, path in [('웹 외부 접속', '/'), ('API health', '/api/actuator/health')]:
+    for label, path in [('웹 외부 접속', '/'), ('API health', '/api/actuator/health/readiness')]:
         started = time.monotonic()
         connection = http.client.HTTPSConnection(host, timeout=8, context=ssl.create_default_context())
         try:

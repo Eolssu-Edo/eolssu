@@ -57,7 +57,8 @@ class RequestTests(unittest.TestCase):
                   'rows': [['API', '외부', '실패', 'HTTP 503']], 'issues': []}
         text = relay.build_report(result, 'req')
         self.assertIn('장애 1', text)
-        self.assertIn('API: HTTP 503', text)
+        self.assertIn('| API |', text)
+        self.assertIn('| HTTP 503 |', text)
         self.assertNotIn('이상 없음', text)
 
     def test_compact_server_report_keeps_details_and_readable_sections(self):
@@ -66,7 +67,7 @@ class RequestTests(unittest.TestCase):
         text = relay.build_report(result, 'req').replace('\u2060', '').replace('\u00a0', ' ')
         self.assertIn('| ⚠️ **주의** | 주의 하나 |', text)
         self.assertIn('| ⚠️ **주의** | 주의 둘 |', text)
-        self.assertIn('| **항목** | **이번 요청의 측정값** | **해석** |', text)
+        self.assertIn('| **항목** | **현재값** | **확인 기준 · 다음 조치** |', text)
         for i in range(10):
             self.assertIn(f'value{i}', text)
         self.assertNotIn('<br>', text)
@@ -132,6 +133,22 @@ class RequestTests(unittest.TestCase):
         self.assertNotEqual(api[2], '정상')
         self.assertIn('JSON', api[3])
 
+    def test_external_api_probes_readiness_and_requires_up_json(self):
+        for code, body, expected in ((200, b'{"status":"UP"}', '정상'),
+                                     (503, b'{"status":"DOWN"}', '실패'),
+                                     (200, b'{"status":"DOWN"}', '실패'),
+                                     (200, b'{"unexpected":true}', '미검증')):
+            with self.subTest(code=code, body=body):
+                connection = Mock()
+                connection.getresponse.return_value = Mock(status=code, read=Mock(return_value=body))
+                with patch.object(relay.http.client, 'HTTPSConnection', return_value=connection), \
+                        patch.object(relay.socket, 'create_connection', side_effect=OSError):
+                    rows = relay.external_health('service.example')
+                api = next(row for row in rows if row[0] == 'API health')
+                self.assertEqual(api[2], expected)
+                self.assertEqual(api[5], '/api/actuator/health/readiness')
+                self.assertIn(unittest.mock.call('GET', '/api/actuator/health/readiness'), connection.request.call_args_list)
+
     def test_missing_service_is_counted_once_and_container_gaps_cannot_look_normal(self):
         missing = 'eolssu-runtime-backend-1'
         report = {'mode': 'health', 'columns': ['대상','방식','판정','측정','소요','상세'],
@@ -173,7 +190,7 @@ class RequestTests(unittest.TestCase):
             self.assertIn(f'| {target} | {label} |', text)
         self.assertEqual(text.count('✅'), 1)
         self.assertIn('❌ **장애 1**', text)
-        self.assertIn('| API | ❌ **장애** | unhealthy |', text)
+        self.assertIn('| API | ❌ **장애** | Docker healthcheck · unhealthy |', text)
 
     def test_container_checkmark_requires_running_and_passed_healthcheck(self):
         states = ('running/healthy', 'running/unhealthy', 'running/미설정', 'running/starting', 'exited/healthy')

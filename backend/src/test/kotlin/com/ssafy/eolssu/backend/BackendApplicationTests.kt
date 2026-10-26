@@ -29,6 +29,23 @@ class BackendApplicationTests {
     private var port: Int = 0
 
     @Test
+    fun `readiness returns only status and management data stays private`() {
+        HttpClient.newHttpClient().use { client ->
+            fun get(path: String) = client.send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
+                    .timeout(Duration.ofSeconds(5)).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            val ready = get("/api/actuator/health/readiness")
+            assertEquals(200, ready.statusCode())
+            assertEquals("{\"status\":\"UP\"}", ready.body())
+            for (path in listOf("/api/actuator/env", "/api/actuator/beans", "/api/actuator/configprops")) {
+                assertEquals(404, get(path).statusCode())
+            }
+        }
+    }
+
+    @Test
     fun `starts eolssu HTTP server without a database or AI service`() {
         assertEquals("eolssu", environment.getProperty("spring.application.name"))
         assertTrue(context.getBeansOfType(DataSource::class.java).isEmpty())
