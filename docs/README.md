@@ -36,6 +36,7 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
 ## 프론트엔드 조사·검증 기록
@@ -73,6 +74,7 @@
 - [S15P31E102-91 프론트 화면 이동·DI 라이브러리 도입](plans/S15P31E102-91.md)
 - [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
 - [S15P31E102-93 앱 화면 이동 골격과 홈 화면](plans/S15P31E102-93.md)
+- [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

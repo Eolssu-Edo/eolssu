@@ -38,7 +38,15 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ## 환경 설정
 
-공통 설정은 `src/main/resources/application.yml`, DB 설정은 `application-db.yml`에 둡니다. 기본 실행은 DB 없이 시작하며, `SERVER_PORT` 기본값은 `8080`입니다. 현재 배포 환경에 앱 DB 접속 정보가 없으므로 `db` 프로필은 명시적으로 활성화합니다.
+공통 설정은 `src/main/resources/application.yml`, 마이그레이션을 포함하는 DB 설정은 `application-db.yml`에 둡니다. 기본 실행은 DB 없이 시작하며, `SERVER_PORT` 기본값은 `8080`입니다. 운영은 기존 DB의 연결 검사만 수행하는 `ops` 프로필을 사용합니다. `db` 프로필의 Flyway 적용은 별도로 명시적으로 활성화합니다.
+
+### 준비 상태 검사
+
+`GET /api/actuator/health/readiness`는 준비되면 HTTP 200과 `{"status":"UP"}`, 준비되지 않으면 HTTP 503을 반환합니다. 기본 개발 모드는 애플리케이션 준비 상태만 확인합니다. 운영 `ops` 프로필은 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`로 기존 MySQL에 연결해 DB health를 함께 확인합니다. DB 접속 실패 시 프로세스가 살아 있어도 readiness는 DOWN이고 `/api/actuator/health/liveness`는 UP일 수 있습니다.
+
+운영 `ops`에서는 Flyway와 SQL 초기화를 끕니다. health 요청은 연결·검증 쿼리만 수행하며 스키마나 업무 데이터를 바꾸지 않습니다. 기존 DB에 마이그레이션을 실행하려고 `db` 프로필을 함께 활성화하지 않습니다. 연결 대기는 2초, 풀은 최대 3개입니다. HTTP에는 health만 공개하고 상세·컴포넌트·JMX를 숨깁니다. `env`·`beans`·`configprops`는 404입니다.
+
+필수 `clean build`에서 실제 HTTP 준비 응답·관리 정보 비공개와 연결할 수 없는 격리 DB 대상의 readiness 503/liveness 200·Flyway Bean 부재를 검사합니다. 운영 후보에서는 기존 DB 연결의 UP 응답도 별도로 확인합니다.
 
 ```powershell
 $env:SERVER_PORT = '8081'
