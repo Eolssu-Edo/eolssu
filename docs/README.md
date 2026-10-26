@@ -28,6 +28,10 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+## 결정 기록
+
+- [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
+
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
@@ -36,6 +40,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
 - [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
 
 ## 데이터 조사·검증 기록
@@ -44,6 +49,7 @@
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
+- [정간보 OMR로 악보 PDF를 JSON으로 바꾸는 시험](knowledge/data/jeongganbo-omr.md)
 
 ## AI 실험 기록
 
@@ -59,6 +65,8 @@
 - [S15P31E102-73 프론트 웹 자동 빌드·테스트·배포](plans/S15P31E102-73.md)
 - [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
+- [S15P31E102-91 프론트 화면 이동·DI 라이브러리 도입](plans/S15P31E102-91.md)
+- [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

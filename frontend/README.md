@@ -185,6 +185,33 @@ import eolssu.shared.generated.resources.compose_multiplatform
 Image(painterResource(Res.drawable.compose_multiplatform), null)
 ```
 
+### 테마와 글꼴
+
+색·글꼴·모서리는 `core/theme`의 `EolssuTheme`에 있습니다. `App()` 전체가 이 테마로 감싸져 있어 Material 컴포넌트는 와이어프레임 색을 씁니다. 재생(파랑)·녹음(빨강)·현재 위치(노랑) 같은 전용 색은 `EolssuTheme.colors`, 율명·곡 제목 세리프 글자는 `EolssuTheme.serif`로 꺼냅니다. 글자로 쓰는 색 조합은 `EolssuColorsContrastTest`가 대비 4.5:1 이상인지 확인합니다.
+
+Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파일을 `composeResources/font/`에 넣었습니다.
+
+| 파일 | 용도 | 글자 범위 |
+| --- | --- | --- |
+| `pretendard_regular·semibold·bold.otf` | 본문·버튼·사용자가 입력한 글자 | Pretendard 1.3.9 원본, 한글 11,172자 |
+| `noto_serif_kr_semibold·bold.otf` | 율명·앱 이름·곡 제목 | Noto Serif KR에서 자주 쓰는 한글 2,350자·율명 한자·영숫자만 남김 |
+
+- 세리프 글꼴에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 세리프로 쓰지 않습니다.** Pretendard에는 한자가 없으므로 **율명은 세리프로 씁니다.**
+- 율명 한자는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자만 들어 있습니다. 새 율명 표기를 쓰려면 여기에 추가하고 다시 만듭니다. Noto Serif KR에 없는 글자(탁황 `僙` 등)는 넣을 수 없습니다.
+- 라이선스는 둘 다 SIL Open Font License 1.1이며 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/)에 있습니다.
+
+글꼴을 다시 만들 때(`frontend/`에서, Python 3.11 이상):
+
+```bash
+python -m pip install --user fonttools==4.60.1
+SRC="${TMPDIR:-/tmp}/eolssu-fonts-src"; mkdir -p "$SRC"
+for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/Pretendard-$w.otf "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/public/static/Pretendard-$w.otf"; done
+for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifKR-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/SubsetOTF/KR/NotoSerifKR-$w.otf"; done
+PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
+```
+
+스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
+
 ### 라이브러리 추가
 
 1. `gradle/libs.versions.toml`에 버전과 라이브러리를 등록합니다.
