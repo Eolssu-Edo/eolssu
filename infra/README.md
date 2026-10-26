@@ -112,7 +112,7 @@ Jenkins 잡의 SCM 브랜치를 `develop`, Script Path를 `backend/Jenkinsfile`�
 
 파이프라인은 경로 필터 없이 checkout → `clean build`·JUnit 결과 수집 → 개발/운영 Compose 검사 → 커밋별 이미지 `eolsu-backend:ci-<Git SHA>` 빌드 → Nginx 검사 → 실행 JAR 보관을 수행합니다. Dockerfile은 `bootJar`만 빌드하므로 테스트는 앞선 Gradle 단계에서 필수로 실행합니다. 이미지가 Jenkins 에이전트에 남으므로 보관 기간과 해당 이미지의 정리 정책은 잡 운영자가 관리합니다.
 
-실제 Jenkins 설치·잡 등록·webhook·이미지 레지스트리·배포 인증은 아직 확인되지 않았습니다. Jenkinsfile은 트리거·레지스트리 Push·서버 배포를 정의하지 않습니다. 팀의 실제 트리거 설정이 정해지면 연결합니다. 기존 `blog/Jenkinsfile`은 별도 블로그 잡에서 계속 사용합니다.
+실제 Jenkins 설치·잡 등록·webhook·이미지 레지스트리·배포 인증은 아직 확인되지 않았습니다. Jenkinsfile은 트리거·레지스트리 Push·서버 배포를 정의하지 않습니다. 팀의 실제 트리거 설정이 정해지면 연결합니다. 기술 블로그는 develop이 아닌 `blog` 브랜치의 `Jenkinsfile`을 별도 잡 `eolssu-blog`가 사용합니다.
 
 ## 검증 기준과 기록
 

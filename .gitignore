@@ -86,12 +86,6 @@ ai/models/
 data/raw/
 data/processed/
 
-# ===== Blog (Hugo) =====
-blog/public/
-blog/resources/_gen/
-.hugo_build.lock
-blog-build/
-
 # ===== Infra =====
 infra/**/data/
 infra/**/certs/
