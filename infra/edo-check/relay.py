@@ -51,6 +51,19 @@ def cell(value):
     return text.replace('@', '@\u200b').replace('|', '\\|').replace('<', '&lt;').replace('>', '&gt;')[:1600]
 
 
+STATUS_ICONS = {
+    '정상': '✅', '장애': '❌', '주의': '⚠️', '미검증': '❔', '미측정': '❔',
+    '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❔',
+    '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❔',
+}
+
+
+def display_status(value):
+    """Decorate final labels only; health decisions and counts keep raw values."""
+    icon = STATUS_ICONS.get(str(value))
+    return f'{icon} **{cell(value)}**' if icon else cell(value)
+
+
 NAMES = {
     'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버',
     'eolssu-runtime-mysql-1': '서비스 DB(MySQL)',
@@ -219,9 +232,10 @@ def build_report(result, request_id):
     status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] or counts['미측정'] else '검사한 범위 정상'
     captured = cell(result.get('captured_at', '확인 불가')).replace('`', '')
     started = cell(result.get('started_at', captured)).replace('`', '')
-    parts = [f"### edo1 {result['mode']} 점검 — {status}",
+    parts = [f"### edo1 {result['mode']} 점검 — {display_status(status)}",
              f"수집 시각: `{captured}`", f"시작 `{started}` · 소요 {result.get('elapsed_seconds', '미측정')}초 · 요청 `{request_id}`", '',
-             '**' + ' · '.join(f'{kind} {counts[kind]}' for kind in ('장애', '주의', '미검증', '미측정')) + '**',
+             ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
+                        for kind in ('장애', '주의', '미검증', '미측정')),
              '이번 명령에서 새로 수집한 스냅샷입니다. 이 메시지는 자동 갱신되지 않습니다. 최신 상태는 같은 명령을 다시 실행하세요.']
     actionable = [item for item in findings if item[0] != '설정 참고']
     if actionable:
@@ -238,7 +252,7 @@ def build_report(result, request_id):
             break
         parts.extend(header)
         for row in table_rows[:100]:
-            rendered = '| ' + ' | '.join('**'+cell(x)+'**' if str(x) in ('장애', '주의', '미검증', '미측정') else cell(x) for x in row) + ' |'
+            rendered = '| ' + ' | '.join(display_status(x) for x in row) + ' |'
             if len('\n'.join(parts)) + len(rendered) + 1 > 14000:
                 parts.append('\n출력 제한: 나머지 행·표 생략. 운영자 확인이 필요합니다.')
                 return '\n'.join(parts)

@@ -64,8 +64,8 @@ class RequestTests(unittest.TestCase):
         result = {'mode': 'server', 'columns': [str(i) for i in range(10)],
                   'rows': [[f'value{i}' for i in range(10)]], 'issues': ['주의 하나', '주의 둘']}
         text = relay.build_report(result, 'req')
-        self.assertIn('| **주의** | 주의 하나 |', text)
-        self.assertIn('| **주의** | 주의 둘 |', text)
+        self.assertIn('| ⚠️ **주의** | 주의 하나 |', text)
+        self.assertIn('| ⚠️ **주의** | 주의 둘 |', text)
         self.assertIn('| **항목** | **이번 요청의 측정값** | **해석** |', text)
         for i in range(10):
             self.assertIn(f'value{i}', text)
@@ -158,6 +158,39 @@ class RequestTests(unittest.TestCase):
                   'facts': [{'name':'demo','ram_bytes':100,'host_ram':1000,'ram_limit':0,'cpu_percent':0.1}],
                   'issues': ['demo: running/healthy']}
         self.assertIn('주의 1', relay.build_report(report, 'req'))
+
+    def test_health_icons_keep_failures_and_unknowns_distinct_from_success(self):
+        result = {'mode': 'health', 'columns': ['대상', '방식', '판정', '측정'],
+                  'rows': [['웹', 'Docker', '정상', 'healthy'],
+                           ['API', 'Docker', '실패', 'unhealthy'],
+                           ['인증서', 'TLS', '주의', '만료 임박'],
+                           ['터널', 'Docker', '미설정', '실행 중'],
+                           ['DB', 'Docker', '확인 불가', '수집 실패']]}
+        text = relay.build_report(result, 'req')
+        for target, label in (('웹', '✅ **정상**'), ('API', '❌ **장애**'),
+                              ('인증서', '⚠️ **주의**'), ('터널', '❔ **미검증**'), ('DB', '❔ **미측정**')):
+            self.assertIn(f'| {target} | {label} |', text)
+        self.assertEqual(text.count('✅'), 1)
+        self.assertIn('❌ **장애 1**', text)
+        self.assertIn('| API | ❌ **장애** | unhealthy |', text)
+
+    def test_container_checkmark_requires_running_and_passed_healthcheck(self):
+        states = ('running/healthy', 'running/unhealthy', 'running/미설정', 'running/starting', 'exited/healthy')
+        result = {'mode': 'containers', 'columns': [str(i) for i in range(11)],
+                  'rows': [[f'demo{i}', state, '0.1%/미설정', '100B/미설정', '1B/미설정 · 로그 2B',
+                            '없음', '1시간/0회', '0/아니오', '1/없음', '1B/1B · IO 1B/1B', 'image']
+                           for i, state in enumerate(states)],
+                  'facts': [{'name': f'demo{i}', 'ram_bytes': 100, 'host_ram': 1000,
+                             'ram_limit': 0, 'cpu_percent': 0.1} for i in range(len(states))]}
+        text = relay.build_report(result, 'req')
+        self.assertIn('| demo0 | ✅ **실행 · 검사 통과** |', text)
+        for i in (1, 4):
+            self.assertIn(f'| demo{i} | ❌ **장애** |', text)
+        for i in (2, 3):
+            self.assertIn(f'| demo{i} | ❔ **실행 · 준비 미검증** |', text)
+        self.assertEqual(text.count('✅'), 1)
+        self.assertIn('장애 2', text)
+        self.assertIn('미검증 2', text)
 
 
 class HTTPTests(unittest.TestCase):
