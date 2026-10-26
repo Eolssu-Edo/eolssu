@@ -76,6 +76,7 @@
 - [S15P31E102-93 앱 화면 이동 골격과 홈 화면](plans/S15P31E102-93.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
+- [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
