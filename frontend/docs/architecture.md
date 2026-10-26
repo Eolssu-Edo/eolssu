@@ -188,8 +188,8 @@ feature/practice/
 | `api/`, `services/` | `data/<기능>/` | DTO와 변환도 함께 둔다 |
 | `styles/`, 테마 | `core/theme/` | CSS 파일 대신 Compose 테마 객체 |
 | `utils/` | 역할에 맞는 `core/<하위>/` | 최상위 `utils`를 만들지 않는다 |
-| `react-router` 라우트 정의 | `app/navigation/` | 화면 이동 라이브러리는 아직 선택 전 |
-| Context/DI | `app/di/` | DI 라이브러리는 아직 선택 전. 선택 전까지는 `App()` 근처에서 직접 생성·전달 |
+| `react-router` 라우트 정의 | `app/navigation/` | `navigation-compose`(JetBrains 멀티플랫폼판)로 경로를 정의한다 |
+| Context/DI | `app/di/` | Koin 모듈에 객체를 등록하고, 화면은 `koinViewModel()`로 ViewModel을 받는다 |
 
 ## 8. 공통 코드와 플랫폼 코드 잇는 방법
 
@@ -210,7 +210,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 ```
 
 - ViewModel은 `AudioRecorder` 인터페이스만 받는다. 테스트에서는 가짜 구현을 넣는다.
-- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. 각 플랫폼 진입점(`MainActivity`, `MainViewController`, `main.kt`)이 플랫폼 구현을 만들어 `App()`에 전달하거나, DI 라이브러리를 도입하면 그 방식으로 등록한다. DI 라이브러리 선택은 팀 합의 항목이다.
+- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)). 각 플랫폼 진입점(`MainActivity`, `MainViewController`, `main.kt`)의 플랫폼 구현을 Koin에 등록하는 방식은 처음 플랫폼 구현을 연결하는 작업에서 정한다.
 - `expect`/`actual`은 "플랫폼 이름 문자열"처럼 작은 값이나, 구현 객체를 만드는 팩토리 함수 하나처럼 **연결 지점 한 곳**에만 쓴다. 모든 클래스에 붙이지 않는다. 기존 `Platform.kt`가 `expect`/`actual` 예시다.
 - 웹 타깃도 `commonMain` 인터페이스를 컴파일하므로, 인터페이스를 추가하면 `jsMain`·`wasmJsMain`에도 구현이나 "지원 안 함" 구현이 필요한지 확인한다.
 
