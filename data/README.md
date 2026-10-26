@@ -216,6 +216,33 @@ sources v3는 같은 JSON의 `sourceProfiles` 객체에 공통 출처 메타데�
 
 선택 필드 `evidence[id].sequenceDecision.orderedAnchors`는 한 발음 안의 안정음 전체 순서를 보존합니다. 각 원소에는 `register`, `yulmyeong`, 양의 유한수 `f0Hz`, 원음 기준 절대초 `windowsSeconds`를 기록합니다. 창은 라벨 내부에 있어야 하고, 원소 안과 원소 사이에서 시간순·비겹침·반올림 후 비어 있지 않은 실제 프레임 범위를 만족해야 합니다. `labelAnchorIndex`는 0부터 시작하는 정수로, 선택한 안정음의 취법·율명·F0가 행의 `register`·`yulmyeong`·`labelF0Hz`와 같아야 합니다. 행과 파일 표시는 선택한 안정음으로 유지하며 전체 이동 순서를 두 기준음 `gesture`로 축약하지 않습니다. 기존 자유형 문자열이나 `orderedAnchors`가 없는 `sequenceDecision` 객체는 그대로 허용합니다.
 
+## 정간보 OMR
+
+정간보 PDF 한 쪽을 [MALerLab/jeongganbo-omr](https://github.com/MALerLab/jeongganbo-omr)로 읽어 JG-like 텍스트로 쓰고, [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator)의 변환 도구로 우물사이 `.jgb.json`을 만듭니다. 시험 결과와 한계는 [정간보 OMR 시험 기록](../docs/knowledge/data/jeongganbo-omr.md)을 확인합니다. 결과는 사람이 `boxes.png`로 잘린 칸을 확인한 뒤 씁니다.
+
+두 저장소는 이 저장소 밖에 받습니다. Windows는 경로가 길면 클론이 실패하므로 짧은 폴더를 씁니다.
+
+```bash
+cd ~/omr
+git clone https://github.com/MALerLab/jeongganbo-omr.git
+git clone https://github.com/danbinaerinHan/jeongganbo-generator.git
+cd jeongganbo-omr
+curl -L -o checkpoints.tar.gz https://github.com/MALerLab/jeongganbo-omr/releases/download/v1.0.0/checkpoints.tar.gz
+tar -xzf checkpoints.tar.gz
+uv venv -p 3.12 .venv
+uv pip install -p .venv/Scripts/python.exe torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install -p .venv/Scripts/python.exe x-transformers==1.30.20 einops omegaconf hydra-core opencv-contrib-python pandas tqdm matplotlib pdfplumber
+```
+
+저장소 루트에서 실행합니다. `--beats`는 한 각의 정간 수, `--dpi`는 정간 너비가 85~110px가 되는 값입니다(e-국악아카데미 교실 악보 150, 국악원 정악보 300). Windows는 `PYTHONUTF8=1`이 있어야 모델 어휘 파일을 읽습니다.
+
+```bash
+PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeongganbo_omr.py "data/raw/scores/ngc-easy-danso-06/[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf" 0 data/processed/scores/omr/ngc-easy-danso-06 --omr-dir ~/omr/jeongganbo-omr --dpi 150 --beats 3 --title 아리랑
+node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
+```
+
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다.
+
 ## 검증
 
 ```powershell
