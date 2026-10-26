@@ -12,6 +12,7 @@
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
 | Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
+| Jenkins 컨테이너·호스트 에이전트·복구 | [Jenkins 컨트롤러 운영 문서](../infra/jenkins/controller/README.md) |
 | Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
 | 도메인 지식·기술 조사·실험 | `docs/knowledge/<영역>/<주제>.md` |
 | 용어집 | `docs/knowledge/domain/glossary.md` |
@@ -27,6 +28,10 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+## 결정 기록
+
+- [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
+
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
@@ -34,11 +39,23 @@
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
+## 프론트엔드 조사·검증 기록
+
+- [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
+- [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
+
+## 도메인 조사 기록
+
+- [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
+
 ## 데이터 조사·검증 기록
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
+- [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
+- [정간보 OMR로 악보 PDF를 JSON으로 바꾸는 시험](knowledge/data/jeongganbo-omr.md)
+- [단소 정간보 PDF의 우물사이 문서 변환](knowledge/data/danso-scores-umulsai.md)
 
 ## AI 실험 기록
 
@@ -46,12 +63,17 @@
 
 ## COCO 산출물
 
+- [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
+
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
 - [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
 - [S15P31E102-73 프론트 웹 자동 빌드·테스트·배포](plans/S15P31E102-73.md)
 - [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
+- [S15P31E102-91 프론트 화면 이동·DI 라이브러리 도입](plans/S15P31E102-91.md)
+- [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
+- [S15P31E102-93 앱 화면 이동 골격과 홈 화면](plans/S15P31E102-93.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.

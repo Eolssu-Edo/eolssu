@@ -391,6 +391,383 @@
       "originalFilename": "textbook_final.pdf",
       "instrument": "unknown",
       "notes": "출처 확인 전."
+    },
+    {
+      "id": "ngc-standard-2022-p179",
+      "kind": "score",
+      "title": "천년만세-계면가락도드리(중급) 단소 정간보",
+      "sha256": "eeef7fa5c3c45e5d3db12115eb7e7bb7de48447cf25a0a6b5c96b5b4f65b78f7",
+      "bytes": 364412,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p179/천년만세-계면가락도드리(중급)_정간보_단소_표준악보집-PDF179.pdf",
+      "originalFilename": "천년만세-계면가락도드리(중급)_정간보_단소_표준악보집-PDF179.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 179쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-standard-2022-p167",
+      "kind": "score",
+      "title": "천년만세-계면가락도드리(초급) 단소 정간보",
+      "sha256": "5590997a3df3050418c9749d2152bebc4ae3f868a75165e170988985ab7b5ab8",
+      "bytes": 363825,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p167/천년만세-계면가락도드리(초급)_정간보_단소_표준악보집-PDF167.pdf",
+      "originalFilename": "천년만세-계면가락도드리(초급)_정간보_단소_표준악보집-PDF167.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 167쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-silgi-2016-cheonan-samgeori",
+      "kind": "score",
+      "title": "천안삼거리 단소 정간보",
+      "sha256": "b107bfc999074805d6919caa0f48f3f00480981d5a01b421a938695adcd11e49",
+      "bytes": 1033709,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-silgi-2016-cheonan-samgeori/천안삼거리_정간보_단소_기존참고악보.pdf",
+      "originalFilename": "천안삼거리_정간보_단소_기존참고악보.pdf",
+      "instrument": "danso",
+      "notes": "파일 이름은 기존참고악보이나 바닥글은 실기교재(2016). 스캔 그림. 이용 조건은 PDF 바닥글 표기 기준."
+    },
+    {
+      "id": "ngc-standard-2022-p231",
+      "kind": "score",
+      "title": "청성곡 단소 오선보",
+      "sha256": "75ec9ef306546cdbd2535e563361b6b7d45342583799ab0a3c76575b64ec0e99",
+      "bytes": 419686,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p231/청성곡_오선보_단소_표준악보집-감상-PDF231.pdf",
+      "originalFilename": "청성곡_오선보_단소_표준악보집-감상-PDF231.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 231쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. 오선보."
+    },
+    {
+      "id": "ngc-silgi-2016-18940",
+      "kind": "score",
+      "title": "청어엮기 단소 정간보",
+      "sha256": "bd954bc9cb209f18607414c1fa7f64875eefa7ab9ebd3d1191ac5501bd3e5e45",
+      "bytes": 1127898,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-silgi-2016-18940/청어엮기_정간보_단소_국악원-18940.pdf",
+      "originalFilename": "청어엮기_정간보_단소_국악원-18940.pdf",
+      "instrument": "danso",
+      "notes": "국악원 자료 번호 18940. 스캔 그림. 이용 조건은 PDF 바닥글 표기 기준."
+    },
+    {
+      "id": "ngc-silgi-2016-18947",
+      "kind": "score",
+      "title": "쾌지나칭칭나네 단소 정간보",
+      "sha256": "7ba6f8fd815e6a6cb719f3e35542f11ec4cb98d0586af0b46bafc834227fdf5a",
+      "bytes": 1040373,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-silgi-2016-18947/쾌지나칭칭나네_정간보_단소_국악원-18947.pdf",
+      "originalFilename": "쾌지나칭칭나네_정간보_단소_국악원-18947.pdf",
+      "instrument": "danso",
+      "notes": "국악원 자료 번호 18947. 스캔 그림. 이용 조건은 PDF 바닥글 표기 기준."
+    },
+    {
+      "id": "ngc-standard-2022-p176",
+      "kind": "score",
+      "title": "태평가 단소 정간보",
+      "sha256": "5836c5988285d4ae984b4c8326d26fefec1148888535ebc420e0bbed977ff02e",
+      "bytes": 343012,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf",
+      "originalFilename": "태평가_정간보_단소_표준악보집-PDF176.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 176쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-silgi-2016-19006",
+      "kind": "score",
+      "title": "풍년가 단소 정간보",
+      "sha256": "732afe704d72d8cadefcda5a382a41e432fd3e0020a2f63b072afcf2f35f6989",
+      "bytes": 928020,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-silgi-2016-19006/풍년가_정간보_단소_국악원-19006.pdf",
+      "originalFilename": "풍년가_정간보_단소_국악원-19006.pdf",
+      "instrument": "danso",
+      "notes": "국악원 자료 번호 19006. 스캔 그림. 이용 조건은 PDF 바닥글 표기 기준."
+    },
+    {
+      "id": "ngc-standard-2022-p166",
+      "kind": "score",
+      "title": "한글뒤풀이 단소 정간보",
+      "sha256": "67613b74578668968676f44266c34f3bd82aa421bea757df1d3f54a624e7da00",
+      "bytes": 348686,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p166/한글뒤풀이_정간보_단소_표준악보집-PDF166.pdf",
+      "originalFilename": "한글뒤풀이_정간보_단소_표준악보집-PDF166.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 166쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-silgi-2016-19013",
+      "kind": "score",
+      "title": "한오백년 단소 정간보",
+      "sha256": "73af9fa47f132c7dfd75ddf0766f07290c6c16cb0ef0fdb7563453387de004f1",
+      "bytes": 1123909,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-silgi-2016-19013/한오백년_정간보_단소_국악원-19013.pdf",
+      "originalFilename": "한오백년_정간보_단소_국악원-19013.pdf",
+      "instrument": "danso",
+      "notes": "국악원 자료 번호 19013. 스캔 그림. 이용 조건은 PDF 바닥글 표기 기준."
+    },
+    {
+      "id": "ngc-standard-2022-p185",
+      "kind": "score",
+      "title": "현악영산회상-타령(고급) 단소 정간보",
+      "sha256": "e94e52dcffd42420aa3b56765f22488e6199fa6ef9e2a5b1487169dc45ebb99d",
+      "bytes": 385256,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p185/현악영산회상-타령(고급)_정간보_단소_표준악보집-PDF185.pdf",
+      "originalFilename": "현악영산회상-타령(고급)_정간보_단소_표준악보집-PDF185.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 185쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-standard-2022-p180",
+      "kind": "score",
+      "title": "현악영산회상-타령(중급) 단소 정간보",
+      "sha256": "d19c98f355404aae4871c3b14115b9cd5153eb3e242edd53c805a6dc550b1c60",
+      "bytes": 376521,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p180/현악영산회상-타령(중급)_정간보_단소_표준악보집-PDF180.pdf",
+      "originalFilename": "현악영산회상-타령(중급)_정간보_단소_표준악보집-PDF180.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 180쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
+    },
+    {
+      "id": "ngc-standard-2022-p168",
+      "kind": "score",
+      "title": "현악영산회상-타령(초급) 단소 정간보",
+      "sha256": "04e9e59e514932b5e504630e91942b44a356662da24976e8c68736244c169095",
+      "bytes": 370519,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-26",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p168/현악영산회상-타령(초급)_정간보_단소_표준악보집-PDF168.pdf",
+      "originalFilename": "현악영산회상-타령(초급)_정간보_단소_표준악보집-PDF168.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 168쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음."
     }
   ]
 }

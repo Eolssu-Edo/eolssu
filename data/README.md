@@ -31,6 +31,8 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 ```text
 data/
 ├── catalog/                 # 원본 목록: 곡·악보·음원·MIDI의 ID·출처·이용 조건·SHA-256·rawPath.
+│   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
+│   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
@@ -39,13 +41,17 @@ data/
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
-├── tests/fixtures/          # 사용 조건을 확인한 작은 고정 샘플.
+├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
 ├── mart/                    # 집계 DB 스키마.
 ├── raw/                     # 받은 원본 그대로. Git 제외.
+│   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
+│   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.
+│   └── scores/<묶음>/       # 팀원이 모은 정간보 PDF·MusicXML.
 └── processed/               # raw·src·annotations로 다시 만드는 결과. Git 제외.
 ```
 
-- **원본**: `raw/`의 파일은 받은 그대로 두고 수정·덮어쓰기·삭제하지 않습니다. 고친 자료는 새 ID로 추가합니다. 묶음으로 받은 자료(예: AI-Hub)는 받은 폴더 구조를 유지합니다.
+- **원본**: `raw/`의 파일은 받은 그대로 두고 수정·덮어쓰기·삭제하지 않습니다. 고친 자료는 새 ID로 추가합니다. 묶음으로 받은 자료(예: AI-Hub)는 받은 폴더 구조를 유지합니다. MID와 JSON처럼 형식이 달라도 따로 옮기지 않고 파일 이름으로 짝을 맞춥니다. 압축을 푼 결과는 `processed/` 아래에 같은 구조로 둡니다.
+- **곡 묶음**: 데이터셋 안의 연주·악보 짝은 `performances.json`에, 데이터셋이 다른 자료끼리의 묶음은 `catalog/works/`에 둡니다. 묶음도 원본 ID와 SHA-256으로 가리키고, 같은 판본인지 확인했는지 적습니다.
 - **참조 기준**: 목록·판단 값·가공 결과는 원본을 파일 이름이 아니라 원본 ID와 SHA-256으로 가리키고, 구간은 초 단위 시간으로 적습니다. 소수점 자릿수는 저장 형식이며 측정 정확도를 뜻하지 않습니다.
 - **원본 경로**: 목록에는 `rawPath`로 `data/raw/...` 하나만 적습니다. 서버 경로는 앞에 `/`를 붙인 `/data/raw/...`입니다.
 - **annotations와 processed의 경계**: 사람이 적었거나, 도구가 추정했더라도 검수하거나 다른 곳에서 참조하는 값은 `annotations/`에 둡니다. 코드를 다시 실행하면 같게 나오는 큰 결과(프레임별 F0, 분석용 WAV, 잘라 낸 그림)는 `processed/`에 둡니다.
@@ -209,6 +215,57 @@ sources v3는 같은 JSON의 `sourceProfiles` 객체에 공통 출처 메타데�
 새 악기는 `data/catalog/<악기 ID>/`에 sources·performances를, 라벨 대상 원음마다 `data/annotations/audio/<악기 ID>/<원본 ID>-<설명>/labels.json`을 작성하고 annotationPath로 연결합니다. 악기 ID는 JSON의 datasetId와 맞춥니다. 산조대금은 `sanjo-daegeum`, 소금은 `sogeum`, 단소는 `danso`, 정악대금은 `jeongak-daegeum`을 사용합니다. 악기 ID와 설명은 각각 폴더 한 칸에 들어가는 이름이며 `/`·`\`와 운영체제 예약 문자는 사용할 수 없습니다. 실제 확보한 자료·측정한 구간·검수 상태를 기록하며 산조의 음 개수와 배열을 복사하지 않습니다. 같은 명령의 `--dataset`만 해당 catalog로 바꿉니다. 복합음 표시는 두 기준음 연결이므로 세 단계 이상의 이동 구조는 추가 검토가 필요합니다.
 
 선택 필드 `evidence[id].sequenceDecision.orderedAnchors`는 한 발음 안의 안정음 전체 순서를 보존합니다. 각 원소에는 `register`, `yulmyeong`, 양의 유한수 `f0Hz`, 원음 기준 절대초 `windowsSeconds`를 기록합니다. 창은 라벨 내부에 있어야 하고, 원소 안과 원소 사이에서 시간순·비겹침·반올림 후 비어 있지 않은 실제 프레임 범위를 만족해야 합니다. `labelAnchorIndex`는 0부터 시작하는 정수로, 선택한 안정음의 취법·율명·F0가 행의 `register`·`yulmyeong`·`labelF0Hz`와 같아야 합니다. 행과 파일 표시는 선택한 안정음으로 유지하며 전체 이동 순서를 두 기준음 `gesture`로 축약하지 않습니다. 기존 자유형 문자열이나 `orderedAnchors`가 없는 `sequenceDecision` 객체는 그대로 허용합니다.
+
+## 정간보 OMR
+
+정간보 PDF 한 쪽을 [MALerLab/jeongganbo-omr](https://github.com/MALerLab/jeongganbo-omr)로 읽어 JG-like 텍스트로 쓰고, [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator)의 변환 도구로 우물사이 `.jgb.json`을 만듭니다. 시험 결과와 한계는 [정간보 OMR 시험 기록](../docs/knowledge/data/jeongganbo-omr.md)을 확인합니다. 결과는 사람이 `boxes.png`로 잘린 칸을 확인한 뒤 씁니다.
+
+두 저장소는 이 저장소 밖에 받습니다. Windows는 경로가 길면 클론이 실패하므로 짧은 폴더를 씁니다.
+
+```bash
+cd ~/omr
+git clone https://github.com/MALerLab/jeongganbo-omr.git
+git clone https://github.com/danbinaerinHan/jeongganbo-generator.git
+cd jeongganbo-omr
+curl -L -o checkpoints.tar.gz https://github.com/MALerLab/jeongganbo-omr/releases/download/v1.0.0/checkpoints.tar.gz
+tar -xzf checkpoints.tar.gz
+uv venv -p 3.12 .venv
+uv pip install -p .venv/Scripts/python.exe torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install -p .venv/Scripts/python.exe x-transformers==1.30.20 einops omegaconf hydra-core opencv-contrib-python pandas tqdm matplotlib pdfplumber
+```
+
+저장소 루트에서 실행합니다. `--beats`는 한 각의 정간 수, `--dpi`는 정간 너비가 85~110px가 되는 값입니다(e-국악아카데미 교실 악보 150, 국악원 정악보 300). Windows는 `PYTHONUTF8=1`이 있어야 모델 어휘 파일을 읽습니다.
+
+```bash
+PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeongganbo_omr.py "data/raw/scores/ngc-easy-danso-06/[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf" 0 data/processed/scores/omr/ngc-easy-danso-06 --omr-dir ~/omr/jeongganbo-omr --dpi 150 --beats 3 --title 아리랑
+node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
+```
+
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 빠진 정간은 `--fill-grid`로 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리만).
+
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 열을 한 각으로 씁니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+
+```bash
+python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
+```
+
+`report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
+
+### 검토 화면
+
+두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
+
+편집은 우물사이와 같습니다.
+- **문법**: 칸 안에서 띄어 쓰면 위→아래로 줄이 나뉘고, 이어 쓰면 한 줄에 왼→오른쪽으로 들어갑니다(`청황 -청무 청태`). `-` 이음, `쉼` 쉼표, 음 뒤 `{흘림표}` 시김새, 음 뒤 `<` 숨표.
+- **팔레트**: 위쪽 **율 | 시김새** 탭. 누르면 입력칸 커서 자리에 들어가고, 선택한 글자가 있으면 바꿉니다. 율 탭은 이 곡에 나온 율명과 5옥타브 × 12율을 한자·한글로, 시김새 탭은 우물사이 기호 그림(`--umulsai` 폴더의 `js/symbols-data.js`, MIT)으로 보여 주어 이름을 몰라도 모양으로 고릅니다.
+- **미리보기**: 율명은 한자와 한글, 시김새는 그림으로 보입니다. 글자를 누르면 입력칸에서 그 글자가 선택되어 팔레트로 바로 바꿉니다.
+- **이동**: `Enter` 확인하고 다음, `Tab`·`↓` 다음, `Shift+Tab`·`↑` 이전, `Ctrl ←`·`Ctrl →` 옆 각의 같은 순번 정간.
+
+```bash
+python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
+```
+
+HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
 
 ## 검증
 

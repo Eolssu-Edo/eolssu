@@ -47,8 +47,7 @@ Android 앱 실행부는 `androidApp/`, iOS 앱 실행부는 `iosApp/`이다. `s
 
 ```
 com/ssafy/eolssu/
-  App.kt                      # 공통 UI 진입점. 각 플랫폼이 App()을 호출하므로 이름 유지
-  Greeting.kt, GreetingUtil.kt, Platform.kt   # 마법사 샘플. 실제 기능으로 대체 예정
+  App.kt                      # 공통 UI 진입점. Koin 시작 → 테마 → 화면 이동 그래프. 각 플랫폼이 App()을 호출하므로 이름 유지
 
   app/
     navigation/               # 화면 이동 정의. 기능 사이의 연결은 여기서 조정
@@ -71,6 +70,8 @@ com/ssafy/eolssu/
     user/                     # 인증·프로필 API, DTO, Repository
 
   feature/
+    home/                     # 홈 화면(현재 악기 선택, 주요 기능 진입)
+    guide/                    # 운지법 보기·정간보 쉽게 읽기 같은 학습 안내 화면(2차)
     auth/                     # 로그인·회원가입 화면
     song/                     # 곡 목록·상세 화면
     practice/                 # 정간보 표시·녹음·제출 화면
@@ -83,6 +84,7 @@ feature와 data는 1:1이 아니다. 기능마다 같은 이름의 data 폴더�
 
 | feature | 사용하는 data |
 | --- | --- |
+| `home`, `guide` | 아직 없음. 홈의 악기 선택은 화면 상태로만 둔다 |
 | `auth`, `profile` | `data/user` |
 | `song` | `data/song` |
 | `practice`, `result`, `history` | `data/practice` |
@@ -188,8 +190,8 @@ feature/practice/
 | `api/`, `services/` | `data/<기능>/` | DTO와 변환도 함께 둔다 |
 | `styles/`, 테마 | `core/theme/` | CSS 파일 대신 Compose 테마 객체 |
 | `utils/` | 역할에 맞는 `core/<하위>/` | 최상위 `utils`를 만들지 않는다 |
-| `react-router` 라우트 정의 | `app/navigation/` | 화면 이동 라이브러리는 아직 선택 전 |
-| Context/DI | `app/di/` | DI 라이브러리는 아직 선택 전. 선택 전까지는 `App()` 근처에서 직접 생성·전달 |
+| `react-router` 라우트 정의 | `app/navigation/` | `navigation-compose`(JetBrains 멀티플랫폼판)로 경로를 정의한다 |
+| Context/DI | `app/di/` | Koin 모듈에 객체를 등록하고, 화면은 `koinViewModel()`로 ViewModel을 받는다 |
 
 ## 8. 공통 코드와 플랫폼 코드 잇는 방법
 
@@ -210,15 +212,37 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 ```
 
 - ViewModel은 `AudioRecorder` 인터페이스만 받는다. 테스트에서는 가짜 구현을 넣는다.
-- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. 각 플랫폼 진입점(`MainActivity`, `MainViewController`, `main.kt`)이 플랫폼 구현을 만들어 `App()`에 전달하거나, DI 라이브러리를 도입하면 그 방식으로 등록한다. DI 라이브러리 선택은 팀 합의 항목이다.
+- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)). 각 플랫폼 진입점(`MainActivity`, `MainViewController`, `main.kt`)의 플랫폼 구현을 Koin에 등록하는 방식은 처음 플랫폼 구현을 연결하는 작업에서 정한다.
 - `expect`/`actual`은 "플랫폼 이름 문자열"처럼 작은 값이나, 구현 객체를 만드는 팩토리 함수 하나처럼 **연결 지점 한 곳**에만 쓴다. 모든 클래스에 붙이지 않는다. 기존 `Platform.kt`가 `expect`/`actual` 예시다.
 - 웹 타깃도 `commonMain` 인터페이스를 컴파일하므로, 인터페이스를 추가하면 `jsMain`·`wasmJsMain`에도 구현이나 "지원 안 함" 구현이 필요한지 확인한다.
 
 ## 9. 휴대폰·태블릿 대응
 
 - 같은 화면 상태와 ViewModel을 공유한다. 기기별 프로젝트나 `phone/`·`tablet/` 최상위 패키지를 만들지 않는다.
-- 사용 가능한 창 크기에 따라 배치만 바꾼다. 판정 기준(예: 너비 600dp 이상을 Expanded로 본다)은 `core/ui/adaptive/`에 한 곳으로 두고, 각 화면은 그 결과만 받아 `layout/`의 Compact·Expanded 내용을 고른다.
+- 사용 가능한 창 크기에 따라 배치만 바꾼다. 판정 기준은 `core/ui/adaptive/WindowLayout.kt`에 한 곳으로 두고, 각 화면은 `currentWindowLayout()`의 결과만 받아 `layout/`의 Compact·Expanded 내용을 고른다. 기기 종류(휴대폰·태블릿)나 화면 방향으로 판정하지 않는다.
 - 배치 차이가 작으면(열 수, 여백 정도) `layout/` 없이 `Screen` 안에서 처리한다.
+
+### 기준값
+
+창 크기는 앱이 쓰는 창 전체(`LocalWindowInfo.containerSize`)를 dp로 바꿔 판정한다. 근거는 태블릿 와이어프레임 Task [S15P31E102-101](https://ssafy.atlassian.net/browse/S15P31E102-101)의 결정이다.
+
+| 이름 (`WindowBreakpoints`) | 값 | 의미 |
+| --- | --- | --- |
+| 너비 `Compact` | 600dp 미만 | 휴대폰. 와이어프레임의 휴대폰 배치 |
+| 너비 `Medium` (`MediumMinWidth`) | 600dp 이상 840dp 미만 | 태블릿 세로. 와이어프레임 세로 아트보드(800×1280) |
+| 너비 `Expanded` (`ExpandedMinWidth`) | 840dp 이상 | 태블릿 가로·넓은 웹 창. 와이어프레임 가로 아트보드(1280×800) |
+| 내용 최대 너비 (`ContentMaxWidth`) | 1120dp | 넓은 창에서는 내용을 이 너비로 가운데에 둔다 |
+| 낮은 높이 (`LandscapeLayoutMinHeight`, `isShortHeight`) | 650dp 미만 | 태블릿 가로 배치에서 12정간 줄을 정간 44dp로 세로 스크롤 없이 넣으려면 약 650dp가 필요하다. 너비는 넓지만 높이가 낮은 창(납작한 웹 창, 태블릿 화면 분할)을 가려낸다 |
+
+- 낮은 높이의 창에서 무엇을 보여줄지(정간을 줄일지, 세로 스크롤을 허용할지, 세로 배치로 돌릴지)는 아직 정하지 않았다. 지금은 `isShortHeight` 판정 값만 제공하고 화면은 이 값을 쓰지 않는다.
+- 연습·결과 화면도 같은 기준값을 쓴다. 기준값을 바꾸면 이 표와 `WindowBreakpoints`를 함께 고치고 상대 개발자에게 알린다.
+
+### 화면 방향
+
+- 휴대폰은 연습 화면까지 세로로 고정하고, 태블릿은 세로·가로를 모두 지원한다(권영민 결정, 2026-10-23).
+- iOS: `iosApp.xcodeproj`의 `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone`을 세로만 두고, iPad 값은 네 방향을 유지한다.
+- Android: `MainActivity`가 기기 최소 너비(`smallestScreenWidthDp`)가 600dp 미만일 때만 세로로 고정한다. 매니페스트의 `screenOrientation`은 Android 15 이하 태블릿까지 고정하므로 쓰지 않는다. Android 16(API 36)부터는 최소 너비 600dp 이상 화면에서 앱의 방향 고정이 무시되고, API 37을 대상으로 하면 이를 끌 수 없다([Android 16 동작 변경](https://developer.android.com/about/versions/16/behavior-changes-16)). 그래서 태블릿은 처음부터 고정하지 않는다.
+- 방향을 고정해도 창 크기 판정은 그대로 쓴다. 화면 분할·폴더블·웹 창에서는 방향과 관계없이 창 너비가 바뀐다.
 
 ## 10. 코드로 강제되는 것과 사람이 지키는 것
 
@@ -237,6 +261,6 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 
 - 기존 모듈 구성(`shared`, `androidApp`, `webApp`, `iosApp`)으로 목적을 충족하므로 모듈을 분리하거나 이름을 바꾸지 않았다.
 - Compose Multiplatform 공유 UI와 ViewModel(`lifecycle-viewmodel-compose`) 설정은 이미 있었다. 화면 이동·DI·HTTP 라이브러리는 없었고, 이번 작업 범위가 구조 고정이므로 추가하지 않았다. 해당 패키지는 `.gitkeep`으로 위치만 잡았다.
-- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다.
+- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](../../docs/plans/S15P31E102-93.md)에서 홈 화면으로 대체하고 삭제했다.)
 - 웹 타깃(`jsMain`, `wasmJsMain`, `webTest`)과 관련 빌드 설정은 그대로 유지했다.
 - 구조 채우기용 빈 클래스는 만들지 않았다.
