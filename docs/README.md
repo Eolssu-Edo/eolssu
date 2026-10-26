@@ -75,6 +75,7 @@
 - [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
 - [S15P31E102-93 앱 화면 이동 골격과 홈 화면](plans/S15P31E102-93.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
+- [S15P31E102-133 edo2 Mattermost 서버 점검](plans/S15P31E102-133.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
