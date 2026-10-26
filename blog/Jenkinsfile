@@ -1,68 +1,84 @@
 // 기술 블로그 배포 파이프라인
-// develop에 blog/ 변경이 머지되면 Hugo로 빌드하고, 결과물만 GitHub Pages 저장소에 push
-// 필요: Jenkins 플러그인 GitLab, Docker Pipeline / Credentials ID 'github-blog-token' (Secret text)
+// develop을 1분마다 polling해서 blog/ 변경이 있으면 Hugo로 빌드하고, 결과물만 GitHub Pages 저장소에 push
+// Jenkins가 loopback에서만 수신하므로 GitLab webhook 대신 다른 develop 잡과 같은 SCM polling을 쓴다.
+// 필요: 호스트 에이전트의 Docker·git / Credentials 'eolssu-gitlab'(GitLab 읽기), 'github-blog-token'(Secret text)
 pipeline {
-  agent none
+    agent any
 
-  options {
-    disableConcurrentBuilds()
-    timeout(time: 10, unit: 'MINUTES')
-  }
-
-  environment {
-    HUGO_IMAGE = 'ghcr.io/gohugoio/hugo:v0.145.0'
-    GH_REPO    = 'team-ido/team-ido.github.io'
-    GH_BRANCH  = 'main'
-    SITE_URL   = 'https://team-ido.github.io/'
-  }
-
-  triggers {
-    gitlab(
-      triggerOnPush: true,
-      triggerOnMergeRequest: false,
-      branchFilterType: 'NameBasedFilter',
-      includeBranchesSpec: 'develop'
-    )
-  }
-
-  stages {
-    stage('Build') {
-      // blog/가 바뀌었거나, 사람이 직접 실행했을 때만
-      when {
-        beforeAgent true
-        anyOf {
-          changeset 'blog/**'
-          triggeredBy 'UserIdCause'
-        }
-      }
-      agent {
-        docker {
-          image "${HUGO_IMAGE}"
-          args '--entrypoint=""'
-          reuseNode false
-        }
-      }
-      steps {
-        sh 'hugo --source blog --minify --cleanDestinationDir --baseURL "$SITE_URL"'
-        stash name: 'site', includes: 'blog/public/**'
-      }
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        timeout(time: 10, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
-    stage('Deploy') {
-      when {
-        beforeAgent true
-        anyOf {
-          changeset 'blog/**'
-          triggeredBy 'UserIdCause'
-        }
-      }
-      agent any
-      steps {
-        unstash 'site'
-        withCredentials([string(credentialsId: 'github-blog-token', variable: 'GH_TOKEN')]) {
-          sh 'bash blog/scripts/deploy.sh'
-        }
-      }
+    triggers {
+        pollSCM('* * * * *')
     }
-  }
+
+    environment {
+        HUGO_IMAGE = 'ghcr.io/gohugoio/hugo:v0.145.0'
+        GH_REPO    = 'team-ido/team-ido.github.io'
+        GH_BRANCH  = 'main'
+        SITE_URL   = 'https://team-ido.github.io/'
+        PUBLIC_DIR = 'blog-build/public'
+    }
+
+    stages {
+        stage('Checkout develop') {
+            steps {
+                script {
+                    deleteDir()
+                    def revision = checkout scmGit(
+                        branches: [[name: 'refs/heads/develop']],
+                        userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
+                            url: 'https://lab.ssafy.com/s15-final/S15P31E102.git',
+                            refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
+                    env.GIT_COMMIT = revision.GIT_COMMIT
+                    if (!env.GIT_COMMIT?.matches('[0-9a-f]{40}')) {
+                        error('Git checkout commit SHA is missing or invalid')
+                    }
+                }
+            }
+        }
+
+        stage('Build') {
+            // 이번 polling에 blog/ 변경이 들어왔거나, 사람이 직접 실행했을 때만
+            when {
+                anyOf {
+                    changeset 'blog/**'
+                    triggeredBy 'UserIdCause'
+                }
+            }
+            steps {
+                // 소스는 읽기 전용으로 연결하고 결과물은 workspace의 별도 폴더에 쓴다 (외부 네트워크 불필요)
+                sh '''
+                    mkdir -p blog-build
+                    docker run --rm --network none \
+                        --user "$(id -u):$(id -g)" \
+                        --env HUGO_CACHEDIR=/tmp/hugo_cache \
+                        --mount "type=bind,src=$WORKSPACE/blog,dst=/project,readonly" \
+                        --mount "type=bind,src=$WORKSPACE/blog-build,dst=/out" \
+                        --entrypoint hugo "$HUGO_IMAGE" \
+                        --source /project --destination /out/public --noBuildLock \
+                        --minify --cleanDestinationDir --baseURL "$SITE_URL"
+                    test -f "$PUBLIC_DIR/index.html"
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                anyOf {
+                    changeset 'blog/**'
+                    triggeredBy 'UserIdCause'
+                }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'github-blog-token', variable: 'GH_TOKEN')]) {
+                    sh 'bash blog/scripts/deploy.sh'
+                }
+            }
+        }
+    }
 }
