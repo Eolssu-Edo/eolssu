@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ fun HomeRoute(viewModel: HomeViewModel = koinViewModel()) {
 
     HomeScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onOpenInstrumentSheet = viewModel::openInstrumentSheet,
         onDismissInstrumentSheet = viewModel::dismissInstrumentSheet,
