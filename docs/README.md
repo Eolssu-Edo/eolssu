@@ -38,6 +38,10 @@
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 
+## 프론트엔드 조사·검증 기록
+
+- [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
+
 ## 데이터 조사·검증 기록
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
@@ -61,6 +65,7 @@
 - [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 - [S15P31E102-91 프론트 화면 이동·DI 라이브러리 도입](plans/S15P31E102-91.md)
+- [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
