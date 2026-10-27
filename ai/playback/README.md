@@ -2,6 +2,8 @@
 
 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 그 MIDI를 CAT 단소 샘플로 WAV에 렌더하는 로컬 CLI입니다. Task [S15P31E102-105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 범위는 이 재생 기반과 단소 표현의 수치·근거입니다.
 
+담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 정석 음원 제작을 위한 재생 기반입니다.
+
 ```text
 JGB → [후속: 기호·시간·원본 위치를 해석하는 변환기]
     → 공통 악보 JSON → 연주 이벤트 → MIDI → CAT 단소 WAV
