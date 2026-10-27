@@ -49,7 +49,16 @@ tasks.withType<Test> {
 }
 
 tasks.test {
-    useJUnitPlatform { excludeTags("database") }
+    useJUnitPlatform { excludeTags("database", "media") }
+}
+
+tasks.register<Test>("mediaTest") {
+    description = "Verifies recording file checks with real ffmpeg/ffprobe on PATH."
+    group = "verification"
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("media") }
+    outputs.upToDateWhen { false }
 }
 
 tasks.register<Test>("databaseTest") {

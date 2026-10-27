@@ -72,6 +72,7 @@
 ## AI 실험 기록
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
+- [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
 
 ## COCO 산출물
 
@@ -91,6 +92,7 @@
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
 - [S15P31E102-143 이메일·소셜 로그인과 회원 정보 API](plans/S15P31E102-143.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
+- [S15P31E102-180 녹음 파일 ffprobe 검사기와 ffmpeg 실행 환경](plans/S15P31E102-180.md)
 - [S15P31E102-182 녹음 업로드 만료 세션 정리 배치](plans/S15P31E102-182.md)
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
