@@ -149,6 +149,8 @@ com.ssafy.eolssu.backend/
 
 현재는 저장소 초기 구조로 PK 조회 `findById`만 제공합니다. 존재하지 않는 ID는 `null`을 반환하며, 삭제·공개 상태 필터는 적용하지 않습니다. Row는 저장 계층 전용이므로 API 응답으로 그대로 노출하지 않습니다. 기능 구현 시 domain 저장소 계약과 infrastructure 구현을 연결합니다.
 
+`db` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md)). 무DB 기본 프로필과 읽기 전용 `ops` 프로필에서는 만들지 않습니다.
+
 | 기능 패키지 | 테이블 |
 | --- | --- |
 | `pitch`, `instrument`, `fingering` | `pitches`, `instruments`, `fingering_charts` |

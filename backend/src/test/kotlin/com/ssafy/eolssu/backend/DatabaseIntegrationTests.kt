@@ -26,6 +26,8 @@ import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.Nota
 import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.NotationSymbolRow
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
+import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
@@ -387,6 +389,43 @@ class DatabaseIntegrationTests {
         assertEquals(2, jdbc.update("DELETE FROM practice_sessions WHERE user_id = 3 ORDER BY id"))
         assertNull(jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 5", Long::class.javaObjectType))
         assertEquals(1L, jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 2", Long::class.java))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `fails only RECORDING sessions started before the upload expiry cutoff`() {
+        val cutoff = LocalDateTime.parse("2026-10-27T09:20:00")
+        for ((id, status, startedAt) in listOf(
+            Triple(11L, "RECORDING", cutoff.minusNanos(1_000)),
+            Triple(12L, "RECORDING", cutoff),
+            Triple(13L, "RECORDING", cutoff.plusMinutes(1)),
+            Triple(14L, "PENDING", cutoff.minusHours(2)),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                    "VALUES (?, 1, 1, 90, 'DOTTED_QUARTER', 0, ?, ?)",
+                id, status, startedAt,
+            )
+        }
+        val repository = mapper<RecordingSessionExpiryRepository>()
+
+        assertEquals(1, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+        assertEquals(0, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+
+        val rows = jdbc.query("SELECT id, status, fail_reason, ended_at FROM practice_sessions ORDER BY id") { rs, _ ->
+            listOf(rs.getLong("id"), rs.getString("status"), rs.getString("fail_reason"), rs.getObject("ended_at"))
+        }
+        assertEquals(
+            listOf(
+                listOf(1L, "DONE", null), listOf(2L, "DONE", null),
+                listOf(11L, "FAILED", "UPLOAD_TIMEOUT"), listOf(12L, "RECORDING", null),
+                listOf(13L, "RECORDING", null), listOf(14L, "PENDING", null),
+            ),
+            rows.map { it.take(3) },
+        )
+        assertNull(rows.single { it[0] == 11L }[3])
+        assertEquals(1, context.getBeansOfType(RecordingUploadExpiryService::class.java).size)
     }
 
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
