@@ -116,7 +116,7 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
                 )
             }
             Text(
-                stringResource(failure?.message() ?: Res.string.analysis_running_body),
+                stringResource(failure?.messageRes() ?: Res.string.analysis_running_body),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
@@ -141,8 +141,8 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
     }
 }
 
-/** 실패 사유별 안내 문구. */
-internal fun AnalysisFailure.message(): StringResource = when (this) {
+/** 실패 사유별 안내 문구 리소스. */
+internal fun AnalysisFailure.messageRes(): StringResource = when (this) {
     AnalysisFailure.NoSound -> Res.string.analysis_failed_no_sound
     AnalysisFailure.TooShort -> Res.string.analysis_failed_too_short
     AnalysisFailure.DecodeError -> Res.string.analysis_failed_decode_error

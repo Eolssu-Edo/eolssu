@@ -48,12 +48,12 @@ class AnalysisFailureTest {
 
     @Test
     fun eachFailureShowsItsOwnMessage() {
-        assertEquals(Res.string.analysis_failed_no_sound, AnalysisFailure.NoSound.message())
-        assertEquals(Res.string.analysis_failed_too_short, AnalysisFailure.TooShort.message())
-        assertEquals(Res.string.analysis_failed_decode_error, AnalysisFailure.DecodeError.message())
-        assertEquals(Res.string.analysis_failed_upload_timeout, AnalysisFailure.UploadTimeout.message())
-        assertEquals(Res.string.analysis_failed_timeout, AnalysisFailure.Timeout.message())
-        assertEquals(Res.string.analysis_failed_server_error, AnalysisFailure.ServerError.message())
+        assertEquals(Res.string.analysis_failed_no_sound, AnalysisFailure.NoSound.messageRes())
+        assertEquals(Res.string.analysis_failed_too_short, AnalysisFailure.TooShort.messageRes())
+        assertEquals(Res.string.analysis_failed_decode_error, AnalysisFailure.DecodeError.messageRes())
+        assertEquals(Res.string.analysis_failed_upload_timeout, AnalysisFailure.UploadTimeout.messageRes())
+        assertEquals(Res.string.analysis_failed_timeout, AnalysisFailure.Timeout.messageRes())
+        assertEquals(Res.string.analysis_failed_server_error, AnalysisFailure.ServerError.messageRes())
     }
 
     @Test
