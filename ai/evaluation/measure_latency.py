@@ -9,7 +9,6 @@
 
 import argparse
 import json
-import resource
 import subprocess
 import sys
 import time
@@ -18,7 +17,7 @@ from ai_service.pipelines.scoring import HOP_S, frame_rms, score
 from evaluation.run_evaluation import METHODS
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
-DTW_BYTES_PER_CELL = 24  # 비용 행렬 8 + 누적 비용 8 + 이동 기록 4 + 누적 비용을 만들 때의 임시 배열
+DTW_BYTES_PER_CELL = 24  # tracemalloc 실측 20(비용 8 + 누적 비용 8 + 이동 기록 4)에 여유를 둔 값
 
 
 def long_notes(seconds):
@@ -33,7 +32,21 @@ def dtw_bytes(seconds):
     return DTW_BYTES_PER_CELL * frames * frames
 
 
+def decide(seconds, memory_gib, last, max_seconds, failed):
+    """(채점할지, 건너뛸 이유)를 정한다. last는 직전 길이의 (길이, 음높이 추정 시간)."""
+    with_score = dtw_bytes(seconds) <= memory_gib * 2**30
+    if failed:
+        return with_score, "건너뜀(앞 길이 실패)"
+    if last and last[1] * seconds / last[0] > max_seconds:
+        return with_score, f"건너뜀(예상 {last[1] * seconds / last[0]:.0f}초)"
+    return with_score, None
+
+
 def peak_mb():
+    try:
+        import resource
+    except ImportError:  # Windows에는 resource가 없다
+        return None
     peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     return peak / 2**20 if sys.platform == "darwin" else peak / 2**10  # macOS는 바이트, Linux는 KB
 
@@ -97,16 +110,19 @@ def main():
     ]
     for method in args.methods:
         last = None  # (길이, 음높이 추정 시간): 다음 길이의 예상 시간을 비례로 잡는다
+        failed = False  # 시간 초과·실패가 나면 더 긴 길이는 더 오래 걸리므로 돌리지 않는다
         for seconds in sorted(args.seconds):
             dtw_mb = dtw_bytes(seconds) / 2**20
-            with_score = dtw_bytes(seconds) <= args.memory_gib * 2**30
+            with_score, skip = decide(seconds, args.memory_gib, last, args.max_seconds, failed)
             note = "" if with_score else f"채점 안 함(DTW 예상 {dtw_mb / 1024:.0f}GiB)"
-            if last and last[1] * seconds / last[0] > args.max_seconds:
-                row = {"status": f"건너뜀(예상 {last[1] * seconds / last[0]:.0f}초)"}
+            if skip:
+                row = {"status": skip}
             else:
                 row = measure(method, seconds, with_score, timeout=args.max_seconds * 2)
                 if row.get("f0_s") is not None:
                     last = (seconds, row["f0_s"])
+                else:
+                    failed = True
             total = None if row.get("score_s") is None else row["f0_s"] + row["score_s"]
             status = row["status"] if row["status"] not in ("DONE", "f0만") else ""
             lines.append(
