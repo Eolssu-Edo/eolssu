@@ -45,7 +45,8 @@ import org.jetbrains.compose.resources.stringResource
 val CompactContentMaxWidth: Dp = 560.dp
 
 /**
- * 와이어프레임 화면 틀(`.screen`): 상단 바 · 본문 · 하단 고정 영역. 넓은 창에서는 [CompactContentMaxWidth]로 가운데에 둔다.
+ * 와이어프레임 화면 틀(`.screen`): 상단 바 · 본문 · 하단 고정 영역. 본문은 [contentMaxWidth]로 가운데에 둔다.
+ * 태블릿 배치는 [com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints.ContentMaxWidth]를 넘긴다.
  * 상태 표시줄·내비게이션 바 영역은 상단 바·하단 영역이 비켜 간다.
  */
 @Composable
@@ -54,6 +55,7 @@ fun EolssuScaffold(
     topBar: @Composable () -> Unit = {},
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    contentMaxWidth: Dp = CompactContentMaxWidth,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
@@ -62,13 +64,13 @@ fun EolssuScaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
         bottomBar = {
-            if (bottomBar != null) EolssuBottomBar(content = bottomBar)
+            if (bottomBar != null) EolssuBottomBar(maxWidth = contentMaxWidth, content = bottomBar)
             else Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars))
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
-            Box(Modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth()) { content() }
+            Box(Modifier.widthIn(max = contentMaxWidth).fillMaxWidth()) { content() }
         }
     }
 }
@@ -83,12 +85,13 @@ fun EolssuTopBar(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     below: (@Composable () -> Unit)? = null,
+    maxWidth: Dp = CompactContentMaxWidth,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Row(
             modifier
-                .widthIn(max = CompactContentMaxWidth)
+                .widthIn(max = maxWidth)
                 .fillMaxWidth()
                 .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -154,13 +157,17 @@ fun EolssuIconButton(
 
 /** 하단 고정 영역(`.bottombar`): 위 구분선, 버튼 사이 10dp. */
 @Composable
-fun EolssuBottomBar(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun EolssuBottomBar(
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = CompactContentMaxWidth,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(modifier.fillMaxWidth()) {
         HorizontalDivider(color = EolssuTheme.colors.line)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier
-                    .widthIn(max = CompactContentMaxWidth)
+                    .widthIn(max = maxWidth)
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 18.dp),
