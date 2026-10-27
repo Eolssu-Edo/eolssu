@@ -110,6 +110,7 @@ object EolssuDestination {
 fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
+    browserBackGuard: BrowserBackGuard? = null,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
@@ -192,6 +193,8 @@ fun EolssuNavHost(
                         }
                     },
                     onEvaluate = { id, bpm -> navController.navigate(EolssuDestination.analysis(id, bpm)) },
+                    // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
+                    onConfirmBackChange = { browserBackGuard?.onBack = it },
                     onMicDenied = {
                         navController.popBackStack()
                         scope.launch {
