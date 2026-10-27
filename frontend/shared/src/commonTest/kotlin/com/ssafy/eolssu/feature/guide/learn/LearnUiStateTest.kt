@@ -72,4 +72,35 @@ class LearnUiStateTest {
         assertFalse(state.selectInstrument(GuideInstrument.DaegeumSanjo).isDropdownOpen)
         assertFalse(state.dismissDropdown().isDropdownOpen)
     }
+
+    @Test
+    fun shownStageFollowsSelectionThenNextStage() {
+        val state = LearnUiState().confirm(1).confirm(2)
+        assertNull(state.selectedStage)
+        assertEquals(3, state.shownStage)
+
+        val selected = state.toggleDropdown().selectStage(6)
+        assertEquals(6, selected.shownStage)
+        assertFalse(selected.isDropdownOpen)
+
+        assertEquals(3, selected.selectStage(null).shownStage)
+        assertNull(state.selectStage(0).selectedStage)
+        assertNull(state.selectStage(10).selectedStage)
+    }
+
+    @Test
+    fun shownStageIsFirstStageWhenAllDone() {
+        val all = LearnStages.fold(LearnUiState()) { s, stage -> s.confirm(stage.number) }
+        assertEquals(1, all.shownStage)
+    }
+
+    @Test
+    fun togglingShownDoneKeepsTheSameStageInView() {
+        val state = LearnUiState().confirm(1)
+        assertEquals(2, state.shownStage)
+
+        val marked = state.toggleShownDone(2)
+        assertTrue(marked.isDone(2))
+        assertEquals(2, marked.shownStage)
+    }
 }

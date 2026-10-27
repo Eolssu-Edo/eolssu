@@ -12,14 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithoutBar
+import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthLead
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_mic_allow
 import eolssu.shared.generated.resources.auth_mic_deny
@@ -32,14 +36,22 @@ import org.jetbrains.compose.resources.stringResource
  * 와이어프레임의 OS 권한 창 예시는 흉내 내지 않고 같은 선택(허용·허용 안 함)을 하단 버튼으로 둔다.
  */
 @Composable
-fun MicPermissionScreen(onAllow: () -> Unit, onDeny: () -> Unit) {
-    EolssuScaffold(
+fun MicPermissionScreen(onAllow: () -> Unit, onDeny: () -> Unit, widthClass: WindowWidthClass = currentWindowLayout().widthClass) {
+    val frame = authFrameOf(widthClass, split = false)
+    AuthScaffold(
+        frame,
         bottomBar = {
             EolssuButton(stringResource(Res.string.auth_mic_allow), onClick = onAllow)
             EolssuButton(stringResource(Res.string.auth_mic_deny), onClick = onDeny, style = EolssuButtonStyle.Secondary)
         },
     ) {
-        AuthBody(topPadding = AuthBodyTopWithoutBar, horizontalAlignment = Alignment.CenterHorizontally) {
+        // 태블릿도 휴대폰처럼 위쪽에 두고, 세로 120dp · 가로 64dp 내린다(`.tabapp.sc-auth-mic`).
+        val top = when (frame) {
+            AuthFrame.Compact -> AuthBodyTopWithoutBar
+            AuthFrame.Portrait -> 120.dp
+            AuthFrame.Landscape, AuthFrame.Split -> 64.dp
+        }
+        AuthBody(topPadding = top, horizontalAlignment = Alignment.CenterHorizontally) {
             Box(
                 Modifier.padding(top = 16.dp).size(88.dp).background(EolssuTheme.colors.surface, CircleShape),
                 contentAlignment = Alignment.Center,

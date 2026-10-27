@@ -25,11 +25,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
+import com.ssafy.eolssu.feature.auth.component.AuthFrame
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
+import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_oauth_existing_account
 import eolssu.shared.generated.resources.auth_oauth_new_account
@@ -43,19 +47,32 @@ import org.jetbrains.compose.resources.stringResource
  * 처음 가입이면 [onNewAccount]로 프로필 설정, 이미 가입한 계정이면 [onExistingAccount]로 홈에 간다.
  */
 @Composable
-fun OAuthScreen(provider: SocialProvider, onBack: () -> Unit, onNewAccount: () -> Unit, onExistingAccount: () -> Unit) {
+fun OAuthScreen(
+    provider: SocialProvider,
+    onBack: () -> Unit,
+    onNewAccount: () -> Unit,
+    onExistingAccount: () -> Unit,
+    widthClass: WindowWidthClass = currentWindowLayout().widthClass,
+) {
     val colors = EolssuTheme.colors
     val name = stringResource(provider.displayName)
-    EolssuScaffold(
-        topBar = { EolssuTopBar(stringResource(Res.string.auth_oauth_title, name), onBack = onBack) },
+    val frame = authFrameOf(widthClass, split = false)
+    AuthScaffold(
+        frame,
+        topBar = { AuthTopBar(stringResource(Res.string.auth_oauth_title, name), onBack = onBack) },
         bottomBar = {
             EolssuButton(stringResource(Res.string.auth_oauth_new_account), onClick = onNewAccount)
             EolssuButton(stringResource(Res.string.auth_oauth_existing_account), onClick = onExistingAccount, style = EolssuButtonStyle.Secondary)
         },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            // 자리 표시는 본문 높이를 채우되 최소 420dp(`.au-placeholder`).
-            val boxHeight = maxOf(420.dp, maxHeight - AuthBodyTopWithBar - 24.dp)
+            // 자리 표시는 본문 높이를 채우되 최소 420dp(`.au-placeholder`), 태블릿 세로 560dp · 가로 440dp.
+            val minHeight = when (frame) {
+                AuthFrame.Compact -> 420.dp
+                AuthFrame.Portrait -> 560.dp
+                AuthFrame.Landscape, AuthFrame.Split -> 440.dp
+            }
+            val boxHeight = maxOf(minHeight, maxHeight - AuthBodyTopWithBar - 24.dp)
             Column(
                 Modifier
                     .fillMaxSize()

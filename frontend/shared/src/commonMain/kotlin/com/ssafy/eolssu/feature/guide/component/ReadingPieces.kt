@@ -312,9 +312,13 @@ private fun SigimsaeImage(image: DrawableResource, height: Dp, maxWidth: Dp) {
     Image(painter, contentDescription = null, modifier = Modifier.size(width, height), contentScale = ContentScale.Fit)
 }
 
-/** 5 시김새의 '처음 배우는 시김새'(`.sig-block`). */
+/**
+ * 5 시김새의 '처음 배우는 시김새'(`.sig-block`).
+ *
+ * @param columns 기호 목록 칸 수. 태블릿은 세로 2칸 · 가로 3칸(`.tabapp .sig-block .sig-list`)이고, 이때는 모든 기호 아래에 선을 긋는다.
+ */
 @Composable
-internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier) {
+internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1) {
     val colors = EolssuTheme.colors
     Column(modifier.fillMaxWidth()) {
         CountTitle(stringResource(Res.string.guide_sigimsae_basic), BasicSigimsaeCount, 15.sp, Modifier.padding(top = 4.dp))
@@ -327,9 +331,15 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier) {
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
                     color = colors.textMuted,
                 )
-                Column(Modifier.padding(top = 6.dp)) {
-                    group.items.forEachIndexed { i, item ->
-                        SigimsaeRow(item, last = i == group.items.lastIndex)
+                if (columns <= 1) {
+                    Column(Modifier.padding(top = 6.dp)) {
+                        group.items.forEachIndexed { i, item ->
+                            SigimsaeRow(item, last = i == group.items.lastIndex)
+                        }
+                    }
+                } else {
+                    GuideGrid(group.items, columns, Modifier.padding(top = 6.dp), horizontalGap = 28.dp, verticalGap = 0.dp) { _, item, cell ->
+                        SigimsaeRow(item, last = false, modifier = cell, stretch = true)
                     }
                 }
             }
@@ -351,10 +361,11 @@ private fun CountTitle(title: String, count: Int, fontSize: androidx.compose.ui.
     )
 }
 
+/** 기호 한 줄. [stretch]이면 격자 한 줄의 높이에 맞춰 늘어나 아래 선을 칸끼리 맞춘다. */
 @Composable
-private fun SigimsaeRow(item: SigimsaeItem, last: Boolean) {
+private fun SigimsaeRow(item: SigimsaeItem, last: Boolean, modifier: Modifier = Modifier, stretch: Boolean = false) {
     val colors = EolssuTheme.colors
-    Column {
+    Column(modifier) {
         Row(
             Modifier.fillMaxWidth().padding(top = 12.dp, bottom = if (last) 0.dp else 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -383,6 +394,7 @@ private fun SigimsaeRow(item: SigimsaeItem, last: Boolean) {
                 if (item.sequence.isNotEmpty()) SigimsaeSequence(item.sequence)
             }
         }
+        if (stretch) Spacer(Modifier.weight(1f))
         if (!last) HorizontalDivider(color = colors.line)
     }
 }
@@ -425,9 +437,13 @@ private fun SigimsaeSequence(steps: List<SigimsaeStep>) {
     }
 }
 
-/** '더 많은 시김새'(`.sig-more`). 처음에는 접어 둔다. */
+/**
+ * '더 많은 시김새'(`.sig-more`). 처음에는 접어 둔다.
+ *
+ * @param columns 기호 격자 칸 수. 휴대폰 4칸, 태블릿 세로 6칸 · 가로 9칸(`.tabapp .sig-grid`).
+ */
 @Composable
-internal fun SigimsaeMoreBlock(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SigimsaeMoreBlock(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, columns: Int = 4) {
     val colors = EolssuTheme.colors
     val toggleLabel = stringResource(if (expanded) Res.string.guide_sigimsae_collapse else Res.string.guide_sigimsae_expand)
     Column(modifier.fillMaxWidth().padding(top = 20.dp)) {
@@ -448,7 +464,7 @@ internal fun SigimsaeMoreBlock(expanded: Boolean, onToggle: () -> Unit, modifier
             MoreSigimsae.forEach { group ->
                 CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = 16.dp))
                 Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    group.symbols.chunked(4).forEach { row ->
+                    group.symbols.chunked(columns).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             row.forEach { symbol ->
                                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -465,7 +481,7 @@ internal fun SigimsaeMoreBlock(expanded: Boolean, onToggle: () -> Unit, modifier
                                     )
                                 }
                             }
-                            repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                         }
                     }
                 }

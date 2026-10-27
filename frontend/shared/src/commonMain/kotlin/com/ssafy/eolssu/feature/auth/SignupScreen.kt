@@ -7,16 +7,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_email
 import eolssu.shared.generated.resources.auth_email_placeholder
@@ -37,23 +39,25 @@ internal const val SignupStepCount = 2
 @Composable
 fun SignupScreen(
     state: SignupUiState,
+    widthClass: WindowWidthClass,
     onBack: () -> Unit,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onPasswordConfirmChange: (String) -> Unit,
     onNext: () -> Unit,
 ) {
-    EolssuScaffold(
+    AuthScaffold(
+        authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = {
             Column {
-                EolssuTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack, right = { AuthStepLabel(1, SignupStepCount) })
+                AuthTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack, right = { AuthStepLabel(1, SignupStepCount) })
                 AuthStepProgress(1, SignupStepCount)
             }
         },
         bottomBar = { EolssuButton(stringResource(Res.string.auth_next), onClick = onNext) },
     ) {
-        AuthBody(topPadding = AuthBodyTopWithBar) {
+        AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(Res.string.auth_signup_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 AuthTextField(

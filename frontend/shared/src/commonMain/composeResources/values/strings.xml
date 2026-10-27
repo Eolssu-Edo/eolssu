@@ -563,4 +563,7 @@
     <string name="result_cell_sample_length">음을 악보보다 짧게 끊었어요. (예시)</string>
     <string name="result_score_hint">정간보에서 보기 · 오른쪽 각부터 읽어요 · 칸을 누르면 왼쪽에 자세히 보여요</string>
     <string name="result_save_short">기록 저장</string>
+    <!-- 첫 실행·로그인·회원가입 태블릿 가로 브랜드 칸 (S15P31E102-163) -->
+    <string name="auth_brand_headline">내 연주,\n얼마나 정확할까?</string>
+    <string name="auth_brand_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
 </resources>

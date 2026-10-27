@@ -23,15 +23,18 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
 import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_instrument
 import eolssu.shared.generated.resources.auth_instrument_help
@@ -51,17 +54,19 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ProfileSetupScreen(
     state: ProfileSetupUiState,
+    widthClass: WindowWidthClass,
     provider: SocialProvider?,
     onBack: () -> Unit,
     onNicknameChange: (String) -> Unit,
     onSelectInstrument: (ProfileInstrument) -> Unit,
     onComplete: () -> Unit,
 ) {
-    EolssuScaffold(
+    AuthScaffold(
+        authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = {
             Column {
-                EolssuTopBar(
+                AuthTopBar(
                     stringResource(Res.string.auth_signup_title),
                     onBack = onBack,
                     subtitle = provider?.let { stringResource(Res.string.auth_profile_via_provider, stringResource(it.displayName)) },
@@ -72,7 +77,8 @@ fun ProfileSetupScreen(
         },
         bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete) },
     ) {
-        AuthBody(topPadding = AuthBodyTopWithBar) {
+        // 소셜 첫 가입은 단계 막대가 없어 상단 바 바로 아래 여백을 쓴다.
+        AuthBody(topPadding = if (provider == null) authBodyTopBelowProgress() else AuthBodyTopWithBar) {
             AuthHeading(stringResource(Res.string.auth_profile_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 AuthTextField(

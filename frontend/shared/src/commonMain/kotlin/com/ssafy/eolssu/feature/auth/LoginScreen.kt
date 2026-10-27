@@ -31,12 +31,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithoutBar
 import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.feature.auth.component.AuthFrame
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_brand
 import eolssu.shared.generated.resources.auth_email
@@ -51,10 +54,14 @@ import eolssu.shared.generated.resources.auth_social_start
 import eolssu.shared.generated.resources.auth_tagline
 import org.jetbrains.compose.resources.stringResource
 
-/** AUTH-04 로그인. 소셜 시작 버튼 3개, 이메일 로그인, 비밀번호 찾기·이메일 회원가입 링크. */
+/**
+ * AUTH-04 로그인. 소셜 시작 버튼 3개, 이메일 로그인, 비밀번호 찾기·이메일 회원가입 링크.
+ * 태블릿은 화면 가운데에 두고, 가로에서는 앱 이름을 왼쪽 브랜드 칸으로 옮긴다.
+ */
 @Composable
 fun LoginScreen(
     state: LoginUiState,
+    widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
@@ -63,9 +70,14 @@ fun LoginScreen(
     onFindPassword: () -> Unit,
     onSignUp: () -> Unit,
 ) {
-    EolssuScaffold(modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
-        AuthBody(topPadding = AuthBodyTopWithoutBar, gap = 24.dp) {
-            Brand()
+    val frame = authFrameOf(widthClass, split = true)
+    AuthScaffold(frame, modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
+        AuthBody(
+            topPadding = authBodyTopWithoutBar(),
+            gap = 24.dp,
+            verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,
+        ) {
+            if (frame != AuthFrame.Split) Brand()
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SocialProvider.entries.forEach { provider -> SocialButton(provider, onClick = { onSocialLogIn(provider) }) }
             }

@@ -31,13 +31,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithoutBar
 import com.ssafy.eolssu.feature.auth.component.AuthCheckBox
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthLead
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
+import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_agree_all
 import eolssu.shared.generated.resources.auth_consent_lead
@@ -52,17 +54,21 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * AUTH-01 약관 동의(첫 실행). 상단 바 없이 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
+ * 태블릿은 제목과 동의 목록을 한 덩어리로 화면 가운데에 두고, 가로에서는 왼쪽에 브랜드 칸을 둔다.
  * 필수 4개를 모두 동의해야 시작 버튼이 켜진다.
  */
 @Composable
 fun ConsentScreen(
     state: ConsentUiState,
+    widthClass: WindowWidthClass,
     onToggle: (Agreement) -> Unit,
     onToggleAll: () -> Unit,
     onOpenTerms: (Agreement) -> Unit,
     onStart: () -> Unit,
 ) {
-    EolssuScaffold(
+    val frame = authFrameOf(widthClass, split = true)
+    AuthScaffold(
+        frame,
         bottomBar = {
             EolssuButton(
                 stringResource(if (state.canStart) Res.string.auth_start else Res.string.auth_start_disabled),
@@ -71,13 +77,18 @@ fun ConsentScreen(
             )
         },
     ) {
-        AuthBody(topPadding = AuthBodyTopWithoutBar, gap = 0.dp) {
+        AuthBody(
+            topPadding = authBodyTopWithoutBar(),
+            gap = 0.dp,
+            verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,
+        ) {
             Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AuthHeading(stringResource(Res.string.auth_consent_title))
                 AuthLead(stringResource(Res.string.auth_consent_lead))
             }
             Spacer(Modifier.height(20.dp))
-            Spacer(Modifier.weight(1f))
+            // 휴대폰은 동의 목록을 아래쪽에 붙이고, 태블릿은 제목 바로 아래 12dp에 둔다(`.tabapp.auth .au-agree`).
+            if (frame.isTablet) Spacer(Modifier.height(12.dp)) else Spacer(Modifier.weight(1f))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 AgreeAllRow(state.allChecked, onToggleAll)
                 Agreement.entries.forEach { agreement ->

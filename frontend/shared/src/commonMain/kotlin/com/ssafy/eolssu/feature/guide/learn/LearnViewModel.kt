@@ -37,6 +37,10 @@ class LearnViewModel(private val songRepository: SongRepository) : ViewModel() {
 
     fun confirm(stage: Int) = _uiState.update { it.confirm(stage) }
 
+    fun selectStage(stage: Int?) = _uiState.update { it.selectStage(stage) }
+
+    fun toggleShownDone(stage: Int) = _uiState.update { it.toggleShownDone(stage) }
+
     fun listen(hanja: String) = _uiState.update { it.listen(hanja) }
 
     fun finishListening(hanja: String) = _uiState.update { it.finishListening(hanja) }

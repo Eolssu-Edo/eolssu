@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_listen_pending
 import kotlinx.coroutines.delay
@@ -42,6 +43,7 @@ fun FingeringRoute(
 
     FingeringScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onToggleDropdown = viewModel::toggleDropdown,

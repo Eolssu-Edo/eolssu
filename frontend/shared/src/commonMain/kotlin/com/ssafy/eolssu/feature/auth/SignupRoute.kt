@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.auth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 
 /** AUTH-06 연결. 입력이 맞으면 [onNext]로 프로필 설정(2/2)에 간다. */
@@ -15,6 +16,7 @@ fun SignupRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SignupScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         onBack = onBack,
         onEmailChange = viewModel::changeEmail,
         onPasswordChange = viewModel::changePassword,

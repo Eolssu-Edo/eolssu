@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth.component
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -28,7 +29,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -51,6 +51,7 @@ val AuthBodyTopWithBar: Dp = 12.dp
 /**
  * 로그인·가입 화면 본문(`.body.au-body`): 좌우 20dp, 세로 스크롤, 항목 사이 [gap], 끝 여백 24dp.
  * 본문은 최소한 화면 높이만큼 늘어나므로 `Modifier.weight`로 남는 높이를 나눌 수 있다(`margin-top: auto`, `flex: 1`).
+ * [verticalAlignment]를 가운데로 주면 내용이 남은 높이의 가운데에 온다(태블릿 상단 바 없는 화면).
  */
 @Composable
 fun AuthBody(
@@ -58,6 +59,7 @@ fun AuthBody(
     modifier: Modifier = Modifier,
     gap: Dp = 20.dp,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    verticalAlignment: Alignment.Vertical = Alignment.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
@@ -68,20 +70,21 @@ fun AuthBody(
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = viewportHeight)
                 .padding(start = 20.dp, end = 20.dp, top = topPadding, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap, verticalAlignment),
             horizontalAlignment = horizontalAlignment,
             content = content,
         )
     }
 }
 
-/** 세리프 큰 제목(`.au-title`, 24sp · 줄 높이 1.4). */
+/** 세리프 큰 제목(`.au-title`, 24sp · 줄 높이 1.4). 태블릿은 28sp(`.tabapp.auth .au-title`). */
 @Composable
 fun AuthHeading(text: String, modifier: Modifier = Modifier, textAlign: TextAlign = TextAlign.Start) {
+    val tablet = LocalAuthFrame.current.isTablet
     Text(
         text,
         modifier = modifier,
-        style = EolssuTheme.serif.headline.copy(fontSize = 24.sp, lineHeight = 33.6.sp),
+        style = EolssuTheme.serif.headline.copy(fontSize = if (tablet) 28.sp else 24.sp, lineHeight = if (tablet) 39.2.sp else 33.6.sp),
         color = EolssuTheme.colors.text,
         textAlign = textAlign,
     )
@@ -109,14 +112,15 @@ fun AuthStepLabel(step: Int, total: Int) {
     )
 }
 
-/** 상단 바 아래 단계 막대(`.au-progress`): 높이 4dp, 좌우 20dp, [step]/[total]만큼 채운다. */
+/** 상단 바 아래 단계 막대(`.au-progress`): 높이 4dp, 좌우 20dp, [step]/[total]만큼 채운다. 태블릿은 입력 칸 너비(560dp)다. */
 @Composable
 fun AuthStepProgress(step: Int, total: Int) {
     val description = stringResource(Res.string.auth_step_description, step, total)
+    val frame = LocalAuthFrame.current
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Box(
             Modifier
-                .widthIn(max = CompactContentMaxWidth)
+                .widthIn(max = if (frame.isTablet) AuthTabletColumnWidth + 40.dp else CompactContentMaxWidth)
                 .fillMaxWidth()
                 .padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
                 .height(4.dp)
@@ -154,4 +158,16 @@ fun AuthCheckBox(checked: Boolean, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** 단계 막대 아래 본문 위 여백. 태블릿은 24dp(`.tabapp.auth .au-progress + .body`). */
+@Composable
+internal fun authBodyTopBelowProgress(): Dp = if (LocalAuthFrame.current.isTablet) 24.dp else AuthBodyTopWithBar
+
+/** 상단 바 없는 화면의 본문 위 여백. 태블릿 세로 40dp, 브랜드 칸 옆 28dp(`.tabapp.auth .screen > .au-body:first-child`). */
+@Composable
+internal fun authBodyTopWithoutBar(): Dp = when (LocalAuthFrame.current) {
+    AuthFrame.Compact -> AuthBodyTopWithoutBar
+    AuthFrame.Split -> 28.dp
+    AuthFrame.Portrait, AuthFrame.Landscape -> 40.dp
 }

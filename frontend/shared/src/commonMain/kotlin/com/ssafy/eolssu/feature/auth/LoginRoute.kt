@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_find_password_notice
@@ -35,6 +36,7 @@ fun LoginRoute(
 
     LoginScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onEmailChange = viewModel::changeEmail,
         onPasswordChange = viewModel::changePassword,

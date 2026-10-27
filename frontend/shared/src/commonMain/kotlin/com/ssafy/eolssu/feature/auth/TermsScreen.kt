@@ -15,10 +15,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.auth.component.AuthBody
+import com.ssafy.eolssu.feature.auth.component.AuthScaffold
+import com.ssafy.eolssu.feature.auth.component.AuthTopBar
+import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_terms_clause_1
 import eolssu.shared.generated.resources.auth_terms_clause_2
@@ -43,11 +46,12 @@ private val clauses = listOf(
  * 뒤로 가기와 확인 모두 [onClose]로 약관 동의 화면에 돌아간다.
  */
 @Composable
-fun TermsScreen(agreement: Agreement, onClose: () -> Unit) {
+fun TermsScreen(agreement: Agreement, onClose: () -> Unit, widthClass: WindowWidthClass = currentWindowLayout().widthClass) {
     val colors = EolssuTheme.colors
     val helpStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp)
-    EolssuScaffold(
-        topBar = { EolssuTopBar(stringResource(agreement.label), onBack = onClose) },
+    AuthScaffold(
+        authFrameOf(widthClass, split = false),
+        topBar = { AuthTopBar(stringResource(agreement.label), onBack = onClose) },
         bottomBar = { EolssuButton(stringResource(Res.string.common_confirm), onClick = onClose) },
     ) {
         AuthBody(topPadding = 8.dp, gap = 18.dp) {

@@ -133,36 +133,33 @@ internal fun MoreLink(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     }
 }
 
-/** 할 일 목록(`.lp-tasks`). */
+/** 할 일 목록(`.lp-tasks`). 태블릿은 [columns] 2칸 격자로 놓고 같은 줄의 높이를 맞춘다. */
 @Composable
-internal fun LearnTaskList(tasks: List<LearnTask>) {
+internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1) {
     val colors = EolssuTheme.colors
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        tasks.forEachIndexed { i, task ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .background(colors.background, RoundedCornerShape(12.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+    GuideGrid(tasks, columns) { i, task, cell ->
+        Row(
+            cell
+                .background(colors.background, RoundedCornerShape(12.dp))
+                .border(1.dp, colors.line, RoundedCornerShape(12.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier.padding(top = 1.dp).size(22.dp).border(1.5.dp, colors.lineStrong, CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier.padding(top = 1.dp).size(22.dp).border(1.5.dp, colors.lineStrong, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("${i + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
-                }
-                Column(Modifier.weight(1f)) {
-                    Text(task.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                    if (task.detail != null) {
-                        GuideText(
-                            task.detail,
-                            Modifier.padding(top = 2.dp),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.5.sp),
-                            color = colors.textMuted,
-                        )
-                    }
+                Text("${i + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(task.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                if (task.detail != null) {
+                    GuideText(
+                        task.detail,
+                        Modifier.padding(top = 2.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.5.sp),
+                        color = colors.textMuted,
+                    )
                 }
             }
         }

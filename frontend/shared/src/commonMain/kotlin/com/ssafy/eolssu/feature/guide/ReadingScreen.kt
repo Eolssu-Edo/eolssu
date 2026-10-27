@@ -29,17 +29,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.guide.component.ComposedGlyph
 import com.ssafy.eolssu.feature.guide.component.GuideCard
+import com.ssafy.eolssu.feature.guide.component.GuideGrid
 import com.ssafy.eolssu.feature.guide.component.GuideLead
 import com.ssafy.eolssu.feature.guide.component.GuideText
+import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
 import com.ssafy.eolssu.feature.guide.component.ReadOrderBoard
 import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
 import com.ssafy.eolssu.feature.guide.component.SigimsaeMoreBlock
 import com.ssafy.eolssu.feature.guide.component.dashedCircle
+import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
+import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_reading_fact_cell
 import eolssu.shared.generated.resources.guide_reading_fact_cell_desc
@@ -69,17 +74,23 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * GUIDE-02 정간보 쉽게 읽기. 정간보란 · 1 읽는 순서 · 2 음의 길이 · 3 음의 높낮이 · 4 기호 · 5 시김새.
  * 상태는 '더 많은 시김새' 펼침 하나뿐이라 ViewModel 없이 화면이 들고 있다.
+ * 태블릿 세로는 1~4번 카드를 두 칸씩, 가로는 네 칸 한 줄로 놓고 같은 줄 카드의 높이를 맞춘다.
  */
 @Composable
-fun ReadingScreen(onBack: () -> Unit) {
+fun ReadingScreen(onBack: () -> Unit, widthClass: WindowWidthClass = currentWindowLayout().widthClass) {
     var moreExpanded by rememberSaveable { mutableStateOf(false) }
-    EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack) }) {
+    val tablet = widthClass != WindowWidthClass.Compact
+    EolssuScaffold(
+        topBar = { GuideTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack, widthClass = widthClass) },
+        contentMaxWidth = widthClass.guidePageMaxWidth,
+    ) {
+        val side = widthClass.guideSidePadding
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(start = side, end = side, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(if (tablet) 16.dp else 12.dp),
         ) {
             GuideCard(intro = true) {
                 GuideLead(stringResource(Res.string.guide_reading_intro))
@@ -88,17 +99,35 @@ fun ReadingScreen(onBack: () -> Unit) {
                     Fact(stringResource(Res.string.guide_reading_fact_yul), stringResource(Res.string.guide_reading_fact_yul_desc), Modifier.weight(1f))
                 }
             }
-            GuideCard(number = 1, title = stringResource(Res.string.guide_reading_order)) { ReadOrderBoard() }
-            GuideCard(number = 2, title = stringResource(Res.string.guide_reading_length)) {
-                GuideLead(stringResource(Res.string.guide_reading_length_lead))
-                LengthRow()
+            val cards: List<@Composable (Modifier) -> Unit> = listOf(
+                { m -> GuideCard(m, number = 1, title = stringResource(Res.string.guide_reading_order)) { ReadOrderBoard() } },
+                { m ->
+                    GuideCard(m, number = 2, title = stringResource(Res.string.guide_reading_length)) {
+                        GuideLead(stringResource(Res.string.guide_reading_length_lead))
+                        LengthRow()
+                    }
+                },
+                { m -> GuideCard(m, number = 3, title = stringResource(Res.string.guide_reading_pitch)) { PitchRow() } },
+                { m -> GuideCard(m, number = 4, title = stringResource(Res.string.guide_reading_symbols)) { SymbolRow() } },
+            )
+            val columns = when (widthClass) {
+                WindowWidthClass.Compact -> 1
+                WindowWidthClass.Medium -> 2
+                WindowWidthClass.Expanded -> 4
             }
-            GuideCard(number = 3, title = stringResource(Res.string.guide_reading_pitch)) { PitchRow() }
-            GuideCard(number = 4, title = stringResource(Res.string.guide_reading_symbols)) { SymbolRow() }
+            GuideGrid(cards, columns, horizontalGap = 16.dp, verticalGap = if (tablet) 16.dp else 12.dp) { _, card, cell -> card(cell) }
             GuideCard(number = 5, title = stringResource(Res.string.guide_reading_sigimsae)) {
                 GuideLead(stringResource(Res.string.guide_reading_sigimsae_lead))
-                SigimsaeBasicBlock()
-                SigimsaeMoreBlock(moreExpanded, onToggle = { moreExpanded = !moreExpanded })
+                SigimsaeBasicBlock(columns = if (widthClass == WindowWidthClass.Expanded) 3 else columns)
+                SigimsaeMoreBlock(
+                    moreExpanded,
+                    onToggle = { moreExpanded = !moreExpanded },
+                    columns = when (widthClass) {
+                        WindowWidthClass.Compact -> 4
+                        WindowWidthClass.Medium -> 6
+                        WindowWidthClass.Expanded -> 9
+                    },
+                )
                 Text(
                     stringResource(Res.string.guide_sigimsae_credit),
                     Modifier.padding(top = 16.dp),
@@ -136,11 +165,13 @@ private fun PitchRow() {
     val colors = EolssuTheme.colors
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
-            Octave(RingKind.Low, stringResource(Res.string.guide_reading_pitch_low), stringResource(Res.string.guide_reading_pitch_low_desc))
+            // 좁은 카드(태블릿 가로 네 칸)에서는 칸이 줄고 설명이 줄바꿈된다. 넓으면 84dp 그대로다.
+            val octave = Modifier.weight(1f, fill = false)
+            Octave(RingKind.Low, stringResource(Res.string.guide_reading_pitch_low), stringResource(Res.string.guide_reading_pitch_low_desc), octave)
             OctaveArrow("←")
-            Octave(RingKind.Base, stringResource(Res.string.guide_reading_pitch_base), stringResource(Res.string.guide_reading_pitch_base_desc))
+            Octave(RingKind.Base, stringResource(Res.string.guide_reading_pitch_base), stringResource(Res.string.guide_reading_pitch_base_desc), octave)
             OctaveArrow("→")
-            Octave(RingKind.High, stringResource(Res.string.guide_reading_pitch_high), stringResource(Res.string.guide_reading_pitch_high_desc))
+            Octave(RingKind.High, stringResource(Res.string.guide_reading_pitch_high), stringResource(Res.string.guide_reading_pitch_high_desc), octave)
         }
         GuideText(
             stringResource(Res.string.guide_reading_pitch_caption),
@@ -154,9 +185,9 @@ private fun PitchRow() {
 }
 
 @Composable
-private fun Octave(kind: RingKind, name: String, description: String) {
+private fun Octave(kind: RingKind, name: String, description: String, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    Column(Modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(modifier.width(84.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val ring = Modifier.size(62.dp).background(colors.background, CircleShape)
         Box(
             when (kind) {
@@ -173,7 +204,7 @@ private fun Octave(kind: RingKind, name: String, description: String) {
             }
         }
         Text(name, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
-        Text(description, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
+        Text(description, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted, textAlign = TextAlign.Center)
     }
 }
 

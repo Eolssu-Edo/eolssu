@@ -20,6 +20,7 @@ import com.ssafy.eolssu.feature.guide.FingeringRoute
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingScreen
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
+import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
@@ -241,11 +242,18 @@ fun EolssuNavHost(
             ReadingScreen(onBack = { navController.popBackStack() })
         }
         navigation(startDestination = EolssuDestination.LEARN_LIST, route = EolssuDestination.LEARN) {
+            val learnNavigation = LearnNavigation(
+                onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
+                onOpenReading = { navController.navigate(EolssuDestination.GUIDE_READING) },
+                onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
+            )
             composable(EolssuDestination.LEARN_LIST) { entry ->
                 LearnListRoute(
                     viewModel = learnViewModel(navController, entry),
                     onBack = { navController.popBackStack() },
                     onOpenStage = { navController.navigate(EolssuDestination.learnStage(it)) },
+                    navigation = learnNavigation,
                 )
             }
             composable(
@@ -260,10 +268,15 @@ fun EolssuNavHost(
                     onOpenStage = { stage ->
                         navController.navigate(EolssuDestination.learnStage(stage)) { popUpTo(EolssuDestination.LEARN_LIST) }
                     },
-                    onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
-                    onOpenReading = { navController.navigate(EolssuDestination.GUIDE_READING) },
-                    onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
-                    onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
+                    // 태블릿 가로가 되면 단계 목록(목록 + 상세 한 화면)으로 돌아간다. 주소로 바로 들어와 목록이 없으면 바꿔 끼운다.
+                    onShowInList = {
+                        if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
+                            navController.navigate(EolssuDestination.LEARN_LIST) {
+                                popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
+                            }
+                        }
+                    },
+                    navigation = learnNavigation,
                 )
             }
         }
