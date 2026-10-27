@@ -9,7 +9,7 @@ import tempfile
 import numpy as np
 import soundfile as sf
 from .score import PROFILES, compile_score, require
-from .midi import PLAYBACK_VIBRATO, write_midi, read_midi
+from .midi import PLAYBACK_VIBRATO, RELEASE_CC, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
 from .jgb import convert_jgb, SCALES
 
@@ -107,6 +107,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                                "midi_sha256":sha(stage/f"{key}.mid"), "wav_sha256":sha(wav)}
             dump(stage/f"{key}.json", report)
         manifest = {"input_sha256":input_hash, "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
+                    "release_controller":dict(RELEASE_CC),
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":dict(PLAYBACK_VIBRATO),
                     "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","__main__.py","jgb.py"]},

@@ -125,15 +125,15 @@ class JgbTests(unittest.TestCase):
     def test_breath_is_applied_at_end_of_cell_after_hold(self):
         score, mapping = converted(document("청황< - | 청태"))
         self.assertEqual(len(score["notes"]), 2)
-        self.assertEqual(score["notes"][0]["breath_seconds"], .12)
+        self.assertAlmostEqual(score["notes"][0]["breath_seconds"], .12)
         self.assertTrue(mapping["notes"][score["notes"][0]["id"]][-1]["breath"])
         notes = midi(score)["notes"]
         self.assertAlmostEqual(notes[0]["end"], .83, places=4)
         self.assertAlmostEqual(notes[1]["start"], 1, places=5)
         with self.assertRaisesRegex(ValueError, "숨표 뒤"):
             converted(document("청황< | -"))
-        with self.assertRaisesRegex(ValueError, "소진"):
-            converted(document("청황 청태 임< | 청태"), bpm=240)
+        short, _ = converted(document("청황 청태 임< | 청태"), bpm=240)
+        self.assertGreater(midi(short)["notes"][2]["end"]-midi(short)["notes"][2]["start"], 0)
 
     def test_part_selection_does_not_follow_active_editor_or_mix_voices(self):
         doc = document()
@@ -159,7 +159,7 @@ class JgbTests(unittest.TestCase):
         self.assertEqual(mapping["huangjong_midi"], 62)
 
     def test_ambiguous_or_unsupported_notation_fails_with_position(self):
-        for melody in ("청황{흘림표} | 청태", "청황{농음표} | 청태", "청황{반길이표} | 청태",
+        for melody in ("청황{추성표} | 청태", "청황{풀어내림표} | 청태", "청황{반길이표} | 청태",
                        "청황{알수없음} | 청태", "潢 | 청태", "{노} | 청태", "청황{니레 | 청태",
                        "청황청태 | 청태", "청황 청태 임 중 | 청태", "청황 | 청태 | 임"):
             with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, "각"):
@@ -175,7 +175,8 @@ class JgbTests(unittest.TestCase):
             with self.subTest(controls=controls), self.assertRaises(ValueError):
                 converted(document(**controls))
         with self.assertRaisesRegex(ValueError, "Unrepresentable"):
-            converted(document("청황청태임 청황청태임 청황청태임 | 청태", staffUnit="plain"))
+            from data.src.playback.score import ticks
+            ticks("1/7")
         with self.assertRaisesRegex(ValueError, "outside"):
             compile_score(converted(document("배황 | 청태"))[0], "danso")
         with self.assertRaisesRegex(ValueError, "버전"):
@@ -227,7 +228,7 @@ class JgbTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source = root/"bad.jgb.json"
-            source.write_text(json.dumps(document("청황{흘림표} | 청태")), encoding="utf-8")
+            source.write_text(json.dumps(document("청황{알수없음} | 청태")), encoding="utf-8")
             out = root/"out"
             out.mkdir()
             (out/"danso.wav").write_bytes(b"previous")

@@ -9,6 +9,7 @@ PLAYBACK_VIBRATO = {
     "cents": 25, "hz": 4.5, "minimum_note_seconds": .65,
     "delay_seconds": .22, "fade_in_seconds": .18, "fade_out_seconds": .16,
 }
+RELEASE_CC = {"controller": 72, "maximum_seconds": .05, "default_value": 127}
 
 
 def write_midi(performance, path):
@@ -21,8 +22,13 @@ def write_midi(performance, path):
 
     for cc, v in [(101, 0), (100, 0), (6, 2), (38, 0), (101, 127), (100, 127)]:
         add(0, -10, "control_change", control=cc, value=v)
+    release_value = 127
     for e in performance["events"]:
         a, b = e["start_tick"], e["end_tick"]
+        value = round(e.get("release_seconds", .05) / .05 * 127)
+        if value != release_value:
+            add(a, 1, "control_change", control=72, value=value)
+            release_value = value
         y = e["yoseong"]
         vibrato = PLAYBACK_VIBRATO
         if ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
@@ -48,6 +54,12 @@ def write_midi(performance, path):
                 attack = max(0, min(1, elapsed/vibrato["fade_in_seconds"]))
                 release = min(1, (b-tick)*sec_tick/vibrato["fade_out_seconds"])
                 cents += vibrato["cents"] * attack * release * math.sin(2*math.pi*vibrato["hz"]*elapsed)
+            curve = e.get("pitch_curve")
+            if curve:
+                length = (b-a)*sec_tick
+                tail = min(length*curve["tail_fraction"], curve["maximum_seconds"])
+                progress = max(0, min(1, ((tick-a)*sec_tick-(length-tail))/tail))
+                cents += curve["end_cents"]*progress
             bend = round(cents/200*8192)
             require(-8192 <= bend <= 8191, "Pitch bend exceeds explicit +/-2 semitone range")
             add(tick, 2, "pitchwheel", pitch=bend)
@@ -73,6 +85,7 @@ def read_midi(path):
     """Read our emitted subset; reject ignored controls or polyphony."""
     wire = mido.MidiFile(path)
     tempo, clock, active, legato = 500000, 0., None, False
+    release_seconds = .05
     notes, cc11, bends, rpn = [], [], [], []
     for msg in mido.merge_tracks(wire.tracks):
         clock += mido.tick2second(msg.time, wire.ticks_per_beat, tempo)
@@ -86,6 +99,8 @@ def read_midi(path):
                 cc11.append((clock, msg.value/127))
             elif msg.control == 68:
                 legato = msg.value >= 64
+            elif msg.control == 72:
+                release_seconds = msg.value / 127 * .05
             elif msg.control in (101, 100, 6, 38):
                 require(clock == 0, "RPN changes after start are unsupported")
                 rpn.append((msg.control, msg.value))
@@ -95,7 +110,8 @@ def read_midi(path):
             bends.append((clock, msg.pitch*200/8192))
         elif msg.type == "note_on" and msg.velocity:
             require(active is None, "Polyphonic input unsupported")
-            active = {"pitch": msg.note, "start": clock, "velocity": msg.velocity, "legato": legato}
+            active = {"pitch": msg.note, "start": clock, "velocity": msg.velocity, "legato": legato,
+                      "release_seconds": release_seconds}
         elif msg.type in ("note_off", "note_on"):
             require(active is not None and active["pitch"] == msg.note, "Unmatched note off")
             active["end"] = clock
