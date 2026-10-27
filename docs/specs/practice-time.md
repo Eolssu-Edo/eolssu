@@ -100,8 +100,8 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 | 같은 키, 다른 본문 | 409. 저장한 칸과 비교한다(V2 주석). |
 | `endedAt < startedAt`, `countedSeconds > visibleSeconds`, 음수 | 400 |
 | `visibleSeconds > (endedAt − startedAt) + 1초` | 400. 반올림 오차로 1초를 허용한다. |
-| `visibleSeconds > (서버 수신 시각 − startedAt)` | 400. 앱 버그나 틀린 기기 시계로 부풀린 값을 막는다(R3). |
-| 없는 곡 | 404 |
+| `visibleSeconds > (서버 수신 시각 − startedAt) + 1초` | 400. 앱 버그나 틀린 기기 시계로 부풀린 값을 막는다(R3). 구간을 닫자마자 보내면 반올림한 보인 시간이 1초 미만 길 수 있어 1초를 허용한다. |
+| 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). |
 
 서버는 10초 미만 구간을 따로 거절하지 않는다. 버리는 일은 앱이 맡는다.
 
