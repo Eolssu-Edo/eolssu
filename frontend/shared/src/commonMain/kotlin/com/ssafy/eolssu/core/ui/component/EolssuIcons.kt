@@ -57,6 +57,8 @@ object EolssuIcons {
         circle(9f, 12f, 2f),
         circle(17f, 18f, 2f),
     )
+    val Bookmark = lineIcon("Bookmark", "M6 3h12v18l-6 -4 -6 4z")
+    val Target = lineIcon("Target", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f))
     val Zoom = lineIcon("Zoom", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M11 8v6M8 11h6")
 
     private fun dot(cx: Float, cy: Float) = circle(cx, cy, 0.9f)

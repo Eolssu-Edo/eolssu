@@ -9,7 +9,6 @@ import eolssu.shared.generated.resources.practice_tempo_normal
 import eolssu.shared.generated.resources.practice_tempo_slow
 import eolssu.shared.generated.resources.practice_tempo_slowest
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.roundToInt
 
 @Composable
 fun tempoLabel(step: TempoStep): String = stringResource(
@@ -21,9 +20,3 @@ fun tempoLabel(step: TempoStep): String = stringResource(
         TempoStep.Fastest -> Res.string.practice_tempo_fastest
     },
 )
-
-/** 초를 '분:초'로. */
-fun formatClock(seconds: Double): String {
-    val total = seconds.coerceAtLeast(0.0).roundToInt()
-    return "${total / 60}:${(total % 60).toString().padStart(2, '0')}"
-}

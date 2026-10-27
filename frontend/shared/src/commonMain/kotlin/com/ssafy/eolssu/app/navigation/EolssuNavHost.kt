@@ -11,6 +11,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
+import com.ssafy.eolssu.feature.result.AnalysisRoute
+import com.ssafy.eolssu.feature.result.ResultRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 
@@ -22,7 +24,14 @@ object EolssuDestination {
 
     const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}"
 
+    const val ANALYSIS = "analysis/{songId}/{bpm}"
+    const val RESULT = "result/{evaluationId}"
+
     fun songDetail(songId: String) = "songs/$songId"
+
+    fun analysis(songId: String, bpm: Int) = "analysis/$songId/$bpm"
+
+    fun result(evaluationId: String) = "result/$evaluationId"
 
     /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. */
     fun practice(songId: String, solo: Boolean = false, switched: Boolean = false) = "practice/$songId?solo=$solo&switched=$switched"
@@ -83,7 +92,35 @@ fun EolssuNavHost(
                         popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
                     }
                 },
-                onEvaluate = null,
+                onEvaluate = { id, bpm -> navController.navigate(EolssuDestination.analysis(id, bpm)) },
+            )
+        }
+        composable(
+            EolssuDestination.ANALYSIS,
+            arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("bpm") { type = NavType.IntType }),
+        ) { entry ->
+            AnalysisRoute(
+                songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
+                bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
+                onResult = { id ->
+                    navController.navigate(EolssuDestination.result(id)) {
+                        popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
+                    }
+                },
+                onBackToPractice = { navController.popBackStack() },
+            )
+        }
+        composable(
+            EolssuDestination.RESULT,
+            arguments = listOf(navArgument("evaluationId") { type = NavType.StringType }),
+        ) { entry ->
+            ResultRoute(
+                evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onPracticeAgain = { navController.popBackStack() },
+                onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
+                onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                onGoRecords = null,
             )
         }
     }

@@ -23,7 +23,7 @@ import org.koin.core.parameter.parametersOf
  * @param solo 연습곡 선택(SONG-03)에서 들어온 연습 모드. 평가 없이 혼자 연습한다.
  * @param showSwitchedNotice 연습 모드에서 평가로 바꿔 들어왔으면 안내를 띄운다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
- * @param onEvaluate 연주를 마치고 '평가하기'. null이면 아직 분석 화면이 없어 준비 상태로 돌아간다.
+ * @param onEvaluate 연주를 마치고 '평가하기'. 연습 화면은 준비 상태로 돌려 두고 분석 화면으로 간다.
  */
 @Composable
 fun PracticeRoute(
@@ -33,7 +33,7 @@ fun PracticeRoute(
     onBack: () -> Unit,
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
-    onEvaluate: ((songId: String) -> Unit)?,
+    onEvaluate: ((songId: String, bpm: Int) -> Unit)?,
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo") { parametersOf(songId, solo) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -91,12 +91,9 @@ fun PracticeRoute(
                 },
                 onResume = viewModel::resumeRecording,
                 onEvaluate = {
-                    if (onEvaluate != null) {
-                        viewModel.stopAll()
-                        onEvaluate(songId)
-                    } else {
-                        viewModel.toReady()
-                    }
+                    val bpm = state.bpm
+                    viewModel.toReady()
+                    onEvaluate?.invoke(songId, bpm)
                 },
                 onRestartNow = viewModel::restartNow,
                 onExit = {
