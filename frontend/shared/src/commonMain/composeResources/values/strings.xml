@@ -27,4 +27,29 @@
     <string name="score_hold">지속 표시</string>
     <string name="score_rest">쉼표</string>
     <string name="score_rest_hangul">쉼</string>
+    <string name="common_back">뒤로가기</string>
+    <string name="common_clear">지우기</string>
+
+    <string name="song_level_all">전체</string>
+    <string name="song_level_intro">입문</string>
+    <string name="song_level_elementary">초급</string>
+    <string name="song_level_intermediate">중급</string>
+    <string name="jangdan_label">%1$s장단</string>
+
+    <string name="song_list_title">평가할 곡 고르기</string>
+    <string name="song_search_placeholder">곡 제목 검색</string>
+    <string name="song_count">%1$d곡</string>
+    <string name="song_empty">조건에 맞는 곡이 없어요.</string>
+    <string name="song_reset_filters">검색 조건 초기화</string>
+
+    <string name="song_detail_title">곡 정보</string>
+    <string name="song_info_instrument">악기</string>
+    <string name="song_info_jangdan">장단</string>
+    <string name="song_info_bpm">기준 속도</string>
+    <string name="song_info_level">난이도</string>
+    <string name="song_bpm_value">%1$d BPM</string>
+    <string name="song_preview_label">악보 일부 미리보기 · 오른쪽 각부터 읽어요</string>
+    <string name="song_preview_sample">예시 악보</string>
+    <string name="song_preview_hint">연습 화면에서 모범 연주와 운지법을 확인할 수 있어요.</string>
+    <string name="song_start_practice">이 곡 연습하기</string>
 </resources>

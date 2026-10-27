@@ -4,14 +4,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.ssafy.eolssu.feature.home.HomeRoute
+import com.ssafy.eolssu.feature.song.SongDetailRoute
+import com.ssafy.eolssu.feature.song.SongListRoute
 
 /** 화면 경로. Web에서는 주소의 `#` 뒤에 그대로 보인다. 화면을 추가할 때 여기에 경로를 더한다. */
 object EolssuDestination {
     const val HOME = "home"
+    const val SONG_LIST = "songs"
+    const val SONG_DETAIL = "songs/{songId}"
+
+    fun songDetail(songId: String) = "songs/$songId"
 }
 
 /**
@@ -24,7 +32,25 @@ fun EolssuNavHost(
     navController: NavHostController = rememberNavController(),
 ) {
     NavHost(navController = navController, startDestination = EolssuDestination.HOME) {
-        composable(EolssuDestination.HOME) { HomeRoute() }
+        composable(EolssuDestination.HOME) {
+            HomeRoute(onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) })
+        }
+        composable(EolssuDestination.SONG_LIST) {
+            SongListRoute(
+                onBack = { navController.popBackStack() },
+                onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+            )
+        }
+        composable(
+            EolssuDestination.SONG_DETAIL,
+            arguments = listOf(navArgument("songId") { type = NavType.StringType }),
+        ) { entry ->
+            SongDetailRoute(
+                songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onStartPractice = null,
+            )
+        }
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }

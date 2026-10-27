@@ -14,11 +14,11 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * 홈 화면 연결. 곡 목록·연습곡 선택·학습 화면이 아직 없어서 해당 버튼은 '준비 중' 안내를 띄운다.
- * 화면이 생기면 `app/navigation`에서 이동 콜백을 넘겨 받도록 바꾼다.
+ * 홈 화면 연결. 'AI 연주 평가 시작'은 [onStartEvaluation]으로 곡 목록에 간다.
+ * 연습곡 선택·학습 화면은 아직 없어서 '준비 중' 안내를 띄운다. 화면이 생기면 이동 콜백을 더한다.
  */
 @Composable
-fun HomeRoute(viewModel: HomeViewModel = koinViewModel()) {
+fun HomeRoute(onStartEvaluation: () -> Unit, viewModel: HomeViewModel = koinViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -37,7 +37,7 @@ fun HomeRoute(viewModel: HomeViewModel = koinViewModel()) {
         onOpenInstrumentSheet = viewModel::openInstrumentSheet,
         onDismissInstrumentSheet = viewModel::dismissInstrumentSheet,
         onSelectInstrument = viewModel::selectInstrument,
-        onStartEvaluation = showComingSoon,
+        onStartEvaluation = onStartEvaluation,
         onFeatureClick = { showComingSoon() },
     )
 }
