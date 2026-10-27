@@ -855,6 +855,35 @@
       "originalFilename": "밀양아리랑_정간보_단소_표준악보집-PDF172.pdf",
       "instrument": "danso",
       "notes": "책 PDF 172쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
+    },
+    {
+      "id": "ngc-standard-2022-p174",
+      "kind": "score",
+      "title": "늴리리야 단소 정간보",
+      "sha256": "5444122177a61d39bc078190b8f565b2ed5c081addf50b612414152420d2408f",
+      "bytes": 346951,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-27",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p174/닐리리야_정간보_단소_표준악보집-PDF174.pdf",
+      "originalFilename": "닐리리야_정간보_단소_표준악보집-PDF174.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 174쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
     }
   ]
 }

@@ -14,7 +14,7 @@
  "answerApproval": {
   "by": "사지한",
   "on": "2026-10-27",
-  "note": "원본 PDF와 84정간 전부 대조, 고친 정간 17개. 숨표 11개를 뺐고(아리랑 정답과 같게 숨표는 정답에 넣지 않음), 원본에서 빈 정간인 8칸의 이음표(-)를 빈 정간으로 바꿈. S15P31E102-154"
+  "note": "원본 PDF와 84정간 전부 대조, 고친 정간 8개. 원본에서 빈 정간인 8칸의 이음표(-)를 빈 정간으로 바꿈(그중 2칸은 숨표만 남김). 숨표 11개는 입력본 자리대로 유지. S15P31E102-154"
  },
  "sourceValues": {
   "jangdan": "세마치",
@@ -66,7 +66,7 @@
   {
    "index": 2,
    "gak": 0,
-   "cell": "청태",
+   "cell": "청태<",
    "original": "청태<",
    "confirmed": true,
    "inserted": false,
@@ -156,7 +156,7 @@
   {
    "index": 8,
    "gak": 2,
-   "cell": "청임 - 청중",
+   "cell": "청임 - 청중<",
    "original": "청임 - 청중<",
    "confirmed": true,
    "inserted": false,
@@ -246,7 +246,7 @@
   {
    "index": 14,
    "gak": 4,
-   "cell": "",
+   "cell": "<",
    "original": "-<",
    "confirmed": true,
    "inserted": false,
@@ -426,7 +426,7 @@
   {
    "index": 26,
    "gak": 8,
-   "cell": "",
+   "cell": "<",
    "original": "-<",
    "confirmed": true,
    "inserted": false,
@@ -516,7 +516,7 @@
   {
    "index": 32,
    "gak": 10,
-   "cell": "청임 - 청중",
+   "cell": "청임 - 청중<",
    "original": "청임 - 청중<",
    "confirmed": true,
    "inserted": false,
@@ -606,7 +606,7 @@
   {
    "index": 38,
    "gak": 12,
-   "cell": "청태",
+   "cell": "청태<",
    "original": "청태<",
    "confirmed": true,
    "inserted": false,
@@ -786,7 +786,7 @@
   {
    "index": 50,
    "gak": 16,
-   "cell": "중",
+   "cell": "중<",
    "original": "중<",
    "confirmed": true,
    "inserted": false,
@@ -876,7 +876,7 @@
   {
    "index": 56,
    "gak": 18,
-   "cell": "- - 청황",
+   "cell": "- - 청황<",
    "original": "- - 청황<",
    "confirmed": true,
    "inserted": false,
@@ -966,7 +966,7 @@
   {
    "index": 62,
    "gak": 20,
-   "cell": "청태",
+   "cell": "청태<",
    "original": "청태<",
    "confirmed": true,
    "inserted": false,
@@ -1056,7 +1056,7 @@
   {
    "index": 68,
    "gak": 22,
-   "cell": "청임 - 청중",
+   "cell": "청임 - 청중<",
    "original": "청임 - 청중<",
    "confirmed": true,
    "inserted": false,
@@ -1146,7 +1146,7 @@
   {
    "index": 74,
    "gak": 24,
-   "cell": "청태",
+   "cell": "청태<",
    "original": "청태<",
    "confirmed": true,
    "inserted": false,
