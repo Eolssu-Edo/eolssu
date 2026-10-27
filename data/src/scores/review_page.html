@@ -64,7 +64,7 @@
   .sbtn span { font-size: 9px; color: var(--muted); line-height: 1.1; margin-top: 2px; word-break: keep-all; }
   #overview { margin-top: 12px; display: grid; gap: 4px; max-height: 32vh; overflow: auto; }
   .gak { display: flex; gap: 4px; align-items: stretch; }
-  .gak b { width: 36px; flex: none; font-size: 11px; color: var(--muted); align-self: center; }
+  .gak b { width: 64px; flex: none; font-size: 11px; color: var(--muted); align-self: center; }
   .chip { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #fff; }
   .chip.low { border-color: var(--low); } .chip.mid { border-color: var(--mid); } .chip.done { background: rgba(46,125,79,.12); border-color: var(--ok); }
   .chip.sel { outline: 2px solid var(--sel); }
@@ -192,12 +192,23 @@ const symImg = n => DATA.symbols[n];
 
 // ── 상태 ───────────────────────────────────────────────────────────────
 const KEY = "jgb-review-um:" + DATA.source + ":" + DATA.title;
-const fresh = () => DATA.cells.map(c => ({ ...c, um: jgToUm(c.jg), orig: jgToUm(c.jg), done: false }));
+// 정간 상자 없이 .jgb.json에서 만든 화면은 문서의 선율(um)이 처음 결과다.
+const first = c => c.um ?? jgToUm(c.jg);
+const fresh = () => DATA.cells.map(c => ({ ...c, um: first(c), orig: first(c), done: false }));
+const HAS_BOX = DATA.cells.some(c => c.x != null);
 // 변환을 다시 해 정간이 늘었으면(예: 놓친 칸을 격자로 채움) 브라우저에 남은 작업과 칸 위치로 합친다.
 // 같은 상자의 정간은 고친 내용·확인 표시를 그대로 쓰고, 새 상자는 처음 결과로 넣는다.
 // 직접 넣은 정간(상자 없음)은 바로 앞에 있던 상자 정간 뒤에 그대로 둔다.
 function merge(saved) {
   const base = fresh(), key = c => `${c.x},${c.y}`;
+  if (!HAS_BOX) return saved;  // 상자가 없으면 칸 위치로 합칠 수 없다
+  if (!saved.some(c => c.x != null)) {
+    // 상자 없이 만든 화면에서 고친 내용: 직접 넣은 정간을 빼고 정간 수가 같으면 순서대로 상자를 붙인다.
+    // 지운 정간이 있어 수가 다르면 순서를 맞출 수 없어 상자 없이 그대로 둔다.
+    let k = 0;
+    return saved.filter(c => !c.inserted).length !== base.length ? saved
+      : saved.map(c => c.inserted ? c : { ...base[k++], um: c.um, done: c.done });
+  }
   if (saved.length === base.length && saved.every((c, i) => key(c) === key(base[i]) || c.x == null)) return saved;
   const old = new Map(saved.filter(c => c.x != null).map(c => [key(c), c]));
   const out = base.map(b => old.has(key(b)) ? { ...b, um: old.get(key(b)).um, done: old.get(key(b)).done } : b);
@@ -217,6 +228,10 @@ function load() { try { const s = localStorage.getItem(KEY); return s ? JSON.par
 function save() { try { localStorage.setItem(KEY, JSON.stringify(cells)); } catch {} }
 const level = c => c.done ? "done" : c.conf == null ? "" : c.conf < 0.2 ? "low" : c.conf < 0.5 ? "mid" : "";
 const gakOf = i => DATA.beats ? Math.floor(i / DATA.beats) : cells[i].gak;
+function gakName(g) {  // 성부가 여럿이면 각 번호를 성부 안에서 센다
+  for (const p of DATA.parts || []) { if (g < p.gaks) return `${p.name} ${g + 1}각`; g -= p.gaks; }
+  return `${g + 1}각`;
+}
 
 // ── 그리기 ─────────────────────────────────────────────────────────────
 function renderPreview(rows) {
@@ -249,7 +264,7 @@ function renderOverview() {
   for (const [g, idx] of byGak) {
     const row = document.createElement("div");
     row.className = "gak";
-    row.innerHTML = `<b>${g + 1}각</b>`;
+    row.innerHTML = `<b>${gakName(g)}</b>`;
     for (const i of idx) {
       const c = cells[i], chip = document.createElement("div");
       chip.className = `chip ${level(c)} ${i === cur ? "sel" : ""} ${c.um !== c.orig ? "changed" : ""}`;
@@ -311,8 +326,9 @@ function go(i, keepSel) {
   cur = Math.max(0, Math.min(cells.length - 1, i));
   const c = cells[cur];
   $("edit").value = c.um;
-  $("info").textContent = `${cur + 1}번째 정간 · ${gakOf(cur) + 1}각` +
-    (c.conf != null ? ` · 신뢰도 ${c.conf.toFixed(2)}` : " · 글자 층에서 읽음") +
+  $("info").textContent = `${cur + 1}번째 정간 · ${gakName(gakOf(cur))}` +
+    (c.conf != null ? ` · 신뢰도 ${c.conf.toFixed(2)}` : c.jg && c.x != null ? " · 글자 층에서 읽음" : "") +
+    (c.lyric ? ` · 가사 ${c.lyric}` : "") +
     (c.um !== c.orig ? ` · 처음 결과 ${c.orig || "(빈칸)"}` : "");
   onEdit(); renderCrop(); renderBoxes(); renderOverview();
   document.querySelector(".box.sel")?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -381,13 +397,17 @@ $("saveJgb").onclick = () => {
   if (bad >= 0) { go(bad); alert(`${bad + 1}번째 정간을 읽을 수 없어 저장하지 않았습니다.`); return; }
   const gaks = [];
   cells.forEach((c, i) => { (gaks[gakOf(i)] ||= []).push(c.um); });
-  const rows = gaks.filter(Boolean);
+  // 성부가 여럿이면 이어 붙인 각을 성부별로 나눈다. 각 수·각 길이는 첫 성부 기준이다.
+  let start = 0;
+  const groups = (DATA.parts || [{ gaks: gaks.length }]).map(p => gaks.slice(start, start += p.gaks).filter(Boolean));
+  const rows = groups[0];
   // 각 길이: 가장 흔한 길이가 기본, 다른 각은 '각번호:정간수'(import-ngc-omr.mjs gakLengths와 같다)
   const freq = {};
   for (const r of rows) freq[r.length] = (freq[r.length] || 0) + 1;
   const beats = +Object.entries(freq).sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
   const doc = structuredClone(DATA.doc);
-  doc.parts[0].melody = rows.map(r => r.join(" | ")).join("\n");
+  // 성부가 하나인 옛 문서는 선율이 문서 바로 아래(melody)에 있다
+  groups.forEach((g, k) => { (doc.parts ? doc.parts[k] : doc).melody = g.map(r => r.join(" | ")).join("\n"); });
   Object.assign(doc.controls, { beats: String(beats), gakCount: String(rows.length),
     gakBeats: rows.map((r, i) => r.length === beats ? null : `${i + 1}:${r.length}`).filter(Boolean).join(", ") });
   download(`${DATA.title}.jgb.json`, JSON.stringify(doc), "application/json");
@@ -402,6 +422,8 @@ $("saveJson").onclick = () => {
 };
 
 renderPalette("yul");
+if (!HAS_BOX) $("crop").parentElement.hidden = true;
+if (!DATA.cells.some(c => c.conf != null)) $("onlyLow").parentElement.hidden = true;
 img.onload = () => go(0);
 if (img.complete) go(0);
 </script>
