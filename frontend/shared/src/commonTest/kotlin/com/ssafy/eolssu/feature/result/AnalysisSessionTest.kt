@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
@@ -119,6 +120,30 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun aStatusRequestThatNeverAnswersEndsInTimeoutAtSeventySeconds() {
+        repository.hangs = true
+        start()
+        time.advanceBy(69_999)
+        assertNull(state.failure)
+        time.advanceBy(1)
+        assertEquals(AnalysisFailure.Timeout, state.failure)
+        assertEquals(1, repository.queries)
+    }
+
+    @Test
+    fun returningAfterTimeoutKeepsTheFailureAndDoesNotPollAgain() {
+        repository.status = { error("network") }
+        start()
+        time.advanceBy(70_000)
+        val before = repository.queries
+        session.pause()
+        session.resume()
+        time.advanceBy(10_000)
+        assertEquals(before, repository.queries)
+        assertEquals(AnalysisFailure.Timeout, state.failure)
+    }
+
+    @Test
     fun cancelledRequestIsServerErrorAndCanBeRetried() {
         repository.requestError = CancellationException("요청 취소")
         start()
@@ -152,6 +177,7 @@ private class FakeEvaluations : EvaluationRepository {
     var status: () -> AnalysisStatus = { AnalysisStatus.Pending }
     var requestGate: CompletableDeferred<Unit>? = null
     var requestError: Exception? = null
+    var hangs = false
     var queries = 0
     var retries = 0
 
@@ -163,6 +189,7 @@ private class FakeEvaluations : EvaluationRepository {
 
     override suspend fun analysisStatus(analysisId: String): AnalysisStatus {
         queries++
+        if (hangs) awaitCancellation()
         return status()
     }
 

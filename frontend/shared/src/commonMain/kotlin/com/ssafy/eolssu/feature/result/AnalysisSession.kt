@@ -7,6 +7,8 @@ import com.ssafy.eolssu.data.practice.EvaluationRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * 분석 하나의 요청·상태 조회·재시도와 화면의 백그라운드 전환(PRA-03 상태 조회와 시간 초과).
@@ -121,13 +122,32 @@ internal class AnalysisSession(
     }
 
     /**
-     * 남은 시간 안에 받은 상태. 연결 오류·서버 오류·저장소가 던진 취소는 모두 응답 없음(null)으로 보고,
-     * 70초 동안 이어지면 [AnalysisFailure.Timeout]이 된다. 상태 조회 API가 정해지면 오류별 처리를 나눈다.
+     * 남은 시간 안에 받은 상태. 연결 오류·서버 오류·저장소가 던진 취소와 남은 시간 안에 오지 않은 응답은 모두
+     * 응답 없음(null)으로 보고, 70초 동안 이어지면 [AnalysisFailure.Timeout]이 된다. 상태 조회 API가 정해지면 오류별 처리를 나눈다.
+     * 남은 시간은 [sleep]으로 재서 테스트의 가짜 시계로도 끝난다.
      */
-    private suspend fun queryStatus(id: String): AnalysisStatus? = try {
-        withTimeoutOrNull(polling.remainingMillis()) { repository.analysisStatus(id) }
-    } catch (e: Exception) {
-        if (e is CancellationException) currentCoroutineContext().ensureActive()
-        null
+    private suspend fun queryStatus(id: String): AnalysisStatus? = coroutineScope {
+        val remaining = polling.remainingMillis()
+        if (remaining == 0L) return@coroutineScope null
+        val query = async {
+            try {
+                repository.analysisStatus(id)
+            } catch (e: Exception) {
+                if (e is CancellationException) currentCoroutineContext().ensureActive()
+                null
+            }
+        }
+        val limit = launch {
+            sleep(remaining)
+            query.cancel()
+        }
+        try {
+            query.await()
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            null
+        } finally {
+            limit.cancel()
+        }
     }
 }
