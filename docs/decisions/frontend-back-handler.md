@@ -21,4 +21,4 @@
 ## 영향과 남은 일
 
 - `BackHandler`는 1.12에서 `@Deprecated("Use NavigationEventHandler instead")`, `@ExperimentalComposeUiApi`다. 쓰는 곳(`PracticeRoute`)에서 경고를 막고 이유를 적었다. `navigationevent`를 들일 때 바꾼다.
-- Web에서 브라우저 뒤로 가기와의 관계는 확인하지 않았다(Web은 `App(onNavHostReady)`로 브라우저 주소·뒤로 가기를 화면 이동 그래프에 잇는다).
+- Web에서 `BackHandler`는 Escape 키를 받지만, 브라우저 뒤로 가기는 화면 이동 그래프의 브라우저 연결(`bindToBrowserNavigation`)로 바로 가서 거치지 않는다. 그래서 연주 중에는 `BrowserBackGuard`가 브라우저 `popstate`를 먼저 받아 막고 같은 확인 창을 띄운다(2026-10-27 Web에서 확인).
