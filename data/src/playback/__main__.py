@@ -1,4 +1,4 @@
-"""python -m playback --score ... --assets ... --out ..."""
+"""python -m data.src.playback --score ... --assets ... --out ..."""
 import argparse
 import html
 import json

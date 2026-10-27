@@ -10,7 +10,7 @@
 
 JGB 연결부는 악보 버전·성부·각·정간·음 위치를 입력 음표 ID와 연결하고, 주박/정간의 시가를4분음표 단위로 변환해야 한다. 코어는 장식 확장·붙임줄 병합 후 JSON의 `parent_ids`를 보존하지만 MIDI 파일 자체에 원본 ID를 넣지는 않는다. 같은 음의 반복 발음·붙임·쉼을 구분하고 다성부 합주는 지원하지 않는다.
 
-실행·입력 규격·검사: [playback README](../../../ai/playback/README.md). develop의 Data JGB 검토 도구와 기존 채점 코드는 변경하지 않는다.
+실행·입력 규격·검사: [playback README](../../../data/src/playback/README.md). develop의 Data JGB 검토 도구와 기존 채점 코드는 변경하지 않는다.
 
 ## 단소의 실음·표현 근거
 
@@ -37,7 +37,7 @@ Task105 마무리 범위는 악보 표현을 수치로 해석해 소리에 적�
 | 이음·붙임 | 연결 attack/release20ms, 일반 release50ms, 단소 연결 샘플 시작점100ms. 동일음 연결은 샘플 위치를 이어가고 붙임줄은 한 이벤트로 합침 | 기존값 유지. 이전 단소 연결 실험을 재현 | 자연스러움·샘플 길이 한계. 다른 악기에100ms를 일반화하지 않음 |
 | 강약 | 기본 본음 velocity90·앞꾸밈80, CC11 `[127,127,127]`, 제어점0%·45%·100% | 기본값 유지, 악보별 명시값 보존. 표현 비교의 변수를 줄임 | 악센트·점점 세게/여리게 기호의 수치화. upper-return 각 음은 본음 velocity 사용 |
 
-구현 근거: [score.py](../../../ai/playback/score.py), [midi.py](../../../ai/playback/midi.py), [sampler.py](../../../ai/playback/sampler.py), [단소 프로필](../../../ai/playback/profiles/danso.json). 숨120ms는 엔진의 자동 기본값이 아니라 [세령산 입력](../../../ai/playback/examples/seryeongsan-first-jangdan.json)의 명시값이다.
+구현 근거: [score.py](../../../data/src/playback/score.py), [midi.py](../../../data/src/playback/midi.py), [sampler.py](../../../data/src/playback/sampler.py), [단소 프로필](../../../data/src/playback/profiles/danso.json). 숨120ms는 엔진의 자동 기본값이 아니라 [세령산 입력](../../../data/src/playback/examples/seryeongsan-first-jangdan.json)의 명시값이다.
 
 ### 단위와 적용 순서
 
@@ -60,6 +60,6 @@ Task105 마무리 범위는 악보 표현을 수치로 해석해 소리에 적�
 
 세령산 첫 장단 예제는 원본37음, 위음 후 복귀3곳·앞꾸밈1곳·숨120ms1곳이며 MIDI44음으로 펼쳐진다. 명시 요성은0곳이다. 기존 ±25cent 음원은44,100Hz·mono·PCM16·612,255프레임·13.883333초이며 SHA-256은 `628020cb8d7b99b9fc5c688cf13d04ed6c778d593ed9f3e554b08001bb2e70c9`다.
 
-실행 명령과 CAT 경로 JSON 예시는 [playback README](../../../ai/playback/README.md)를 따른다. 생성 manifest와 악기별 JSON에 소스·입력·프리셋·샘플 해시를 보존한다. 고정25cent 전환 뒤의 실제 생성 결과는 [Task105 검증 기록](../../plans/S15P31E102-105.md)에 남긴다. 이전 none/third 비교와 사진 서비스 실험은 기존 커밋 이력에 보존하고 현행 기능으로 안내하지 않는다.
+실행 명령과 CAT 경로 JSON 예시는 [playback README](../../../data/src/playback/README.md)를 따른다. 생성 manifest와 악기별 JSON에 소스·입력·프리셋·샘플 해시를 보존한다. 고정25cent 전환 뒤의 실제 생성 결과는 [Task105 검증 기록](../../plans/S15P31E102-105.md)에 남긴다. 이전 none/third 비교와 사진 서비스 실험은 기존 커밋 이력에 보존하고 현행 기능으로 안내하지 않는다.
 
 원본 악보·CAT ZIP·생성 WAV는 Git에 넣지 않는다. 음원 출처는 서울예술과학센터 CAT 국악 가상악기 라이브러리다. 생성 성공을 전문가의 원보·연주 품질 검수로 확대하지 않는다.

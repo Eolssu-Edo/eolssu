@@ -6,12 +6,12 @@ import tempfile
 import unittest
 import mido
 import numpy as np
-from playback.score import compile_score, PPQN, PROFILES
-from playback.midi import write_midi, read_midi
-from playback.sampler import CatSampler, FS
-from playback.__main__ import run
+from data.src.playback.score import compile_score, PPQN, PROFILES
+from data.src.playback.midi import write_midi, read_midi
+from data.src.playback.sampler import CatSampler, FS
+from data.src.playback.__main__ import run
 
-EXAMPLE = Path(__file__).parents[2]/"playback/examples/seryeongsan-first-jangdan.json"
+EXAMPLE = Path(__file__).parents[1]/"examples/seryeongsan-first-jangdan.json"
 
 
 def score(notes=None):

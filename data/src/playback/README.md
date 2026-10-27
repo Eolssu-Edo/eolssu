@@ -13,12 +13,12 @@ JGB → [후속: 기호·시간·원본 위치를 해석하는 변환기]
 
 ## 설치와 빠른 검사
 
-소스 checkout의 `ai/`에서 Python 3.10 이상으로 별도 가상환경을 만듭니다. 이 CLI는 채점 서비스의 wheel/기본 의존성에 포함되지 않습니다. 아래 명령은 PowerShell 기준입니다.
+저장소 루트에서 Python 3.10 이상으로 별도 가상환경을 만듭니다. 아래 명령은 PowerShell 기준입니다.
 
 ```powershell
-python -m venv .venv-playback
-.\.venv-playback\Scripts\python -m pip install -r playback/requirements.txt
-.\.venv-playback\Scripts\python -m unittest discover -s playback/tests -p "test_*.py" -v
+python -m venv data/.venv
+.\data\.venv\Scripts\python -m pip install -r data/src/playback/requirements.txt
+.\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
 작은 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 음표/쉼표/붙임줄/이음줄·원본 ID·음역·실제 무음·CC11·Pitch Bend·추가 떨림과 실패 시 기존 산출물 보존을 확인합니다.
@@ -32,7 +32,7 @@ python -m venv .venv-playback
 ```
 
 ```powershell
-.\.venv-playback\Scripts\python -m playback --score playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --out C:/local-gugak/danso-quarter
+.\data\.venv\Scripts\python -m data.src.playback --score data/src/playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --out data/processed/playback/seryeongsan-fixed25
 ```
 
 추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 현재 등록 프로필은 단소 하나이며 `--instrument all`은 등록된 프로필 전체를 뜻합니다.
@@ -70,8 +70,8 @@ JGB 변환기에서는 문서 버전·성부·각·정간·음 위치를 입력 
 - 연결 attack/release20ms, 일반 release50ms, 단소 연결 시 새 샘플의100ms 지점부터 재생합니다. 동일음 연결은 샘플 위치를 이어갑니다.
 - 속도 변경 시 꾸밈은 박 비율을 따르고 숨·떨림 주기·지연·fade는 고정 초입니다. 곡별 빠르기와 음가 단위를 먼저 확인해야 합니다.
 
-이 값은 교재의 표준이나 채점 허용치가 아닌 조절 가능한 실험값입니다. 기호별 적용·근거·남은 검수는 [단소 표현 조사 기록](../../docs/knowledge/ai/score-instrument-playback-pipeline.md)에 있습니다. 추성·퇴성의 곡선, 물리적 호흡·음색 변화, 긴 음의 자동 샘플 반복은 구현하지 않았습니다. 알 수 없는 기호·조율 문맥 누락·불완전 붙임줄·장식 시간 초과·음역 이탈·샘플 소진은 실패합니다.
+이 값은 교재의 표준이나 채점 허용치가 아닌 조절 가능한 실험값입니다. 기호별 적용·근거·남은 검수는 [단소 표현 조사 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md)에 있습니다. 추성·퇴성의 곡선, 물리적 호흡·음색 변화, 긴 음의 자동 샘플 반복은 구현하지 않았습니다. 알 수 없는 기호·조율 문맥 누락·불완전 붙임줄·장식 시간 초과·음역 이탈·샘플 소진은 실패합니다.
 
 ## 실제 CAT 검증
 
-CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, WAV 길이·피크·무음을 확인합니다. 재현할 때는 같은 입력·ZIP·속도를 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 현재 검증 결과와 재현 환경은 [Task105 계획](../../docs/plans/S15P31E102-105.md)에 기록합니다.
+CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, WAV 길이·피크·무음을 확인합니다. 재현할 때는 같은 입력·ZIP·속도를 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 현재 검증 결과와 재현 환경은 [Task105 계획](../../../docs/plans/S15P31E102-105.md)에 기록합니다.

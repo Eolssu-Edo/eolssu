@@ -2,8 +2,6 @@
 
 녹음의 음높이를 추정해 정답 음표와 DTW로 맞추고, 음표마다 음정·박자·길이를 판정합니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
-JGB 연계를 위한 [단소 MIDI·CAT 재생 기반](playback/README.md)은 공통 악보 JSON을 MIDI와 CAT 단소 WAV로 생성합니다. JGB 직접 입력은 후속 변환기로 연결할 범위이며, 현재는 악보 표현·음표 추적·재생 경계를 제공합니다. 채점 서비스의 기본 실행·의존성과 분리된 로컬 CLI입니다.
-
 ## 설치와 검사
 
 Python 3.12와 [uv](https://docs.astral.sh/uv/)가 필요합니다.
