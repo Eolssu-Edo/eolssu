@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend
 
+import jakarta.servlet.MultipartConfigElement
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -43,6 +44,15 @@ class BackendApplicationTests {
                 assertEquals(404, get(path).statusCode())
             }
         }
+    }
+
+    @Test
+    fun `multipart limits leave room above the 20 MiB recording limit`() {
+        val multipart = context.getBean(MultipartConfigElement::class.java)
+
+        // 413 경계(20MiB)는 녹음 검사기가 정한다. 컨테이너 한도는 그보다 조금 크게 둔다.
+        assertEquals(21L * 1024 * 1024, multipart.maxFileSize)
+        assertEquals(22L * 1024 * 1024, multipart.maxRequestSize)
     }
 
     @Test

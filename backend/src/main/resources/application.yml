@@ -4,6 +4,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  servlet:
+    multipart:
+      # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다. 여기는 그보다 조금 크게 둔다.
+      max-file-size: 21MB
+      max-request-size: 22MB
 
 server:
   port: ${SERVER_PORT:8080}
