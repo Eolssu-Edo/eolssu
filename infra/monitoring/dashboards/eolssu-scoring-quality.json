@@ -1,0 +1,123 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_EOLSSU",
+      "label": "eolssu MySQL",
+      "description": "grafana 읽기 계정으로 만든 MySQL 데이터 소스",
+      "type": "datasource",
+      "pluginId": "mysql",
+      "pluginName": "MySQL"
+    }
+  ],
+  "title": "얼쑤 채점 품질",
+  "uid": "eolssu-scoring-quality",
+  "tags": ["eolssu"],
+  "timezone": "browser",
+  "time": { "from": "now-30d", "to": "now" },
+  "schemaVersion": 39,
+  "editable": true,
+  "templating": {
+    "list": [
+      {
+        "name": "instrument",
+        "label": "악기",
+        "type": "query",
+        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "query": "SELECT name FROM instruments ORDER BY id",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "song",
+        "label": "곡",
+        "type": "query",
+        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "query": "SELECT s.title FROM songs s JOIN instruments i ON i.id = s.instrument_id WHERE i.name IN (${instrument:sqlstring}) ORDER BY s.title",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "model",
+        "label": "모델 버전",
+        "type": "query",
+        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "query": "SELECT DISTINCT model_version FROM evaluations ORDER BY 1",
+        "refresh": 2,
+        "multi": true,
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "음표별 오차 (음을 못 잡은 MISSED는 빠짐. +는 높게·늦게·길게)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "barchart",
+      "title": "음높이 오차 분포 (cent, ±200 넘으면 끝 칸)",
+      "description": "10 cent 구간별 음 수. 시김새 음은 판정에서 빠지지만 DB에 시김새 여부가 없어 여기에는 섞여 있다.",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 1, "w": 8, "h": 8 },
+      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_cent, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.pitch_error_cent, -200), 200) / 10) * 10 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.pitch_error_cent IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "박자 오차 분포 (ms, ±400 넘으면 끝 칸)",
+      "description": "음 시작 시각 오차의 20 ms 구간별 음 수. 한쪽으로 쏠리면 시작 시각 계산이 밀려 있다.",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 8, "y": 1, "w": 8, "h": 8 },
+      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.onset_error_ms, -400), 400) / 20) * 20 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.onset_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "길이 오차 분포 (ms, ±1000 넘으면 끝 칸)",
+      "description": "음 길이 오차의 50 ms 구간별 음 수. 판정 값에는 없고 길이 점수에만 들어가는 축이다.",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 16, "y": 1, "w": 8, "h": 8 },
+      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.duration_error_ms, -1000), 1000) / 50) * 50 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.duration_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    }
+  ]
+}
