@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.feature.home.component.HomeIcons
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.component.InstrumentSheet
 import com.ssafy.eolssu.feature.home.layout.HomeCompactLayout
 import com.ssafy.eolssu.feature.home.layout.HomeExpandedLayout
@@ -21,12 +21,12 @@ import eolssu.shared.generated.resources.home_feature_reading
 import eolssu.shared.generated.resources.home_feature_song_select
 import org.jetbrains.compose.resources.StringResource
 
-/** 홈의 연습·학습 카드. 연결된 화면이 생기기 전까지는 모두 '준비 중' 안내를 띄운다. */
+/** 홈의 연습·학습 카드. 연결된 화면이 없는 카드는 '준비 중' 안내를 띄운다([HomeRoute]). */
 enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
-    SongSelect(Res.string.home_feature_song_select, HomeIcons.Flute),
-    Fingering(Res.string.home_feature_fingering, HomeIcons.Hand),
-    Reading(Res.string.home_feature_reading, HomeIcons.Grid),
-    Learn(Res.string.home_feature_learn, HomeIcons.Book),
+    SongSelect(Res.string.home_feature_song_select, EolssuIcons.Flute),
+    Fingering(Res.string.home_feature_fingering, EolssuIcons.Hand),
+    Reading(Res.string.home_feature_reading, EolssuIcons.Grid),
+    Learn(Res.string.home_feature_learn, EolssuIcons.Book),
 }
 
 /**

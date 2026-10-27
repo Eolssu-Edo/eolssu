@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow">
+        SELECT id, user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds, created_at
+        FROM score_views
+        WHERE id = #{id}
+    </select>
+</mapper>

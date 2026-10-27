@@ -7,13 +7,13 @@ import kotlin.test.assertTrue
 
 class HomeViewModelTest {
     @Test
-    fun startsWithDaegeumAndClosedSheet() {
+    fun startsWithDansoAndClosedSheet() {
         val state = HomeViewModel().uiState.value
 
-        assertEquals(Instrument.Daegeum, state.selectedInstrument)
+        assertEquals(Instrument.Danso, state.selectedInstrument)
         assertFalse(state.isInstrumentSheetOpen)
         assertEquals(
-            listOf(Instrument.Daegeum, Instrument.Sogeum, Instrument.Danso, Instrument.Piri),
+            listOf(Instrument.Daegeum, Instrument.Sogeum, Instrument.Danso),
             state.instruments,
         )
     }
@@ -25,21 +25,21 @@ class HomeViewModelTest {
         viewModel.openInstrumentSheet()
         assertTrue(viewModel.uiState.value.isInstrumentSheetOpen)
 
-        viewModel.selectInstrument(Instrument.Danso)
+        viewModel.selectInstrument(Instrument.Daegeum)
 
-        assertEquals(Instrument.Danso, viewModel.uiState.value.selectedInstrument)
+        assertEquals(Instrument.Daegeum, viewModel.uiState.value.selectedInstrument)
         assertFalse(viewModel.uiState.value.isInstrumentSheetOpen)
     }
 
     @Test
     fun dismissingTheSheetKeepsTheCurrentInstrument() {
         val viewModel = HomeViewModel()
-        viewModel.selectInstrument(Instrument.Piri)
+        viewModel.selectInstrument(Instrument.Sogeum)
 
         viewModel.openInstrumentSheet()
         viewModel.dismissInstrumentSheet()
 
-        assertEquals(Instrument.Piri, viewModel.uiState.value.selectedInstrument)
+        assertEquals(Instrument.Sogeum, viewModel.uiState.value.selectedInstrument)
         assertFalse(viewModel.uiState.value.isInstrumentSheetOpen)
     }
 }

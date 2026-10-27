@@ -33,7 +33,7 @@ frontend/
 | `commonMain` | 공통 화면, 화면 상태, 사용자 행동 처리, 공통 데이터 처리, 플랫폼 기능의 공통 인터페이스 | Android·Apple 전용 API import |
 | `androidMain` | Android 전용 API를 쓰는 구현과 연결 (`platform/`) | 화면 로직 |
 | `iosMain` | iOS 전용 API를 쓰는 구현과 연결 (`platform/`), `MainViewController` | 화면 로직 |
-| `jsMain` / `wasmJsMain` | 웹 전용 구현. 둘 다 쓰는 코드는 `webMain`을 만들어 둔다 | 화면 로직 |
+| `jsMain` / `wasmJsMain` / `webMain` | 웹 전용 구현. JS·Wasm이 함께 쓰는 코드는 `webMain`(`platform/`, Web `App` 입구)에 둔다 | 화면 로직 |
 | `commonTest` | 공통 로직 테스트 | 플랫폼 API가 필요한 테스트 |
 | `androidHostTest` / `iosTest` / `webTest` | 플랫폼별 테스트. 기존 설정 유지 | — |
 
@@ -99,9 +99,15 @@ shared/src/commonMain/composeResources/
 
 shared/src/androidMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 Android API로 구현
+  PlatformModule.kt                 # Android 구현을 Koin에 등록(8절)
 
 shared/src/iosMain/kotlin/com/ssafy/eolssu/platform/
   audio/  storage/  permission/     # core의 인터페이스를 iOS API로 구현
+  PlatformModule.kt
+
+shared/src/webMain/kotlin/com/ssafy/eolssu/platform/
+  storage/                          # core의 인터페이스를 브라우저 API로 구현(JS·Wasm 공용)
+  PlatformModule.kt
 ```
 
 `composeResources` 아래 폴더 이름은 Compose Multiplatform이 정한 이름(`drawable`, `font`, `values`, `files`)만 쓴다. 파일명은 소문자·숫자·밑줄만 사용하고, 빌드하면 `eolssu.shared.generated.resources.Res`에 접근자가 생긴다. 리소스 폴더에는 `.gitkeep`을 두지 않는다. 생성기가 `values/.gitkeep`을 리소스로 읽다가 `Unknown resource type: 'values'`로 빌드를 실패시키는 것을 확인했다(2026-10-22, Compose 1.12.1). `font/`·`values/`는 첫 폰트·`strings.xml`을 넣을 때 만든다.
@@ -212,7 +218,17 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 ```
 
 - ViewModel은 `AudioRecorder` 인터페이스만 받는다. 테스트에서는 가짜 구현을 넣는다.
-- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)). 각 플랫폼 진입점(`MainActivity`, `MainViewController`, `main.kt`)의 플랫폼 구현을 Koin에 등록하는 방식은 처음 플랫폼 구현을 연결하는 작업에서 정한다.
+- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)).
+- 플랫폼 구현은 소스 세트마다 `platform/PlatformModule.kt`의 Koin 모듈(`androidPlatformModule(context)`, `iosPlatformModule()`, `webPlatformModule()`, 모두 `internal`)에 등록하고, 진입점이 이 모듈을 공통 `App(platformModule)`에 넘긴다. 공통 `App`은 플랫폼 모듈과 `appModule`을 함께 시작하고, `appModule`은 `get()`으로 플랫폼 구현을 받는다([S15P31E102-151](https://ssafy.atlassian.net/browse/S15P31E102-151)에서 정함).
+
+| 플랫폼 | 진입점이 부르는 것 | 플랫폼 모듈을 넘기는 곳 |
+| --- | --- | --- |
+| Android | `MainActivity` → `App(context = applicationContext)` | `androidMain`의 `App.android.kt` |
+| iOS | `ContentView` → `MainViewController()` | `iosMain`의 `MainViewController.kt` |
+| Web | `main.kt` → `App(onNavHostReady)` | `webMain`의 `App.web.kt` |
+
+- 이렇게 하면 Koin 타입이 `shared` 밖에 드러나지 않아 진입점 모듈에 Koin 의존성을 더하지 않아도 되고, Android Context는 전역 변수나 별도 초기화 라이브러리 없이 생성자로 전달된다. `koin-android`의 `androidContext()`는 쓰지 않는다.
+- 플랫폼 구현을 더할 때는 같은 소스 세트의 `PlatformModule.kt`에 한 줄을 더한다. 한 플랫폼이라도 빠지면 그 플랫폼에서는 컴파일은 되지만 객체를 만들 때 실행 오류가 나므로 세 곳 모두 등록하고, 지원하지 않는 플랫폼은 "지원 안 함" 구현을 등록한다.
 - `expect`/`actual`은 "플랫폼 이름 문자열"처럼 작은 값이나, 구현 객체를 만드는 팩토리 함수 하나처럼 **연결 지점 한 곳**에만 쓴다. 모든 클래스에 붙이지 않는다. 기존 `Platform.kt`가 `expect`/`actual` 예시다.
 - 웹 타깃도 `commonMain` 인터페이스를 컴파일하므로, 인터페이스를 추가하면 `jsMain`·`wasmJsMain`에도 구현이나 "지원 안 함" 구현이 필요한지 확인한다.
 
@@ -261,6 +277,6 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 
 - 기존 모듈 구성(`shared`, `androidApp`, `webApp`, `iosApp`)으로 목적을 충족하므로 모듈을 분리하거나 이름을 바꾸지 않았다.
 - Compose Multiplatform 공유 UI와 ViewModel(`lifecycle-viewmodel-compose`) 설정은 이미 있었다. 화면 이동·DI·HTTP 라이브러리는 없었고, 이번 작업 범위가 구조 고정이므로 추가하지 않았다. 해당 패키지는 `.gitkeep`으로 위치만 잡았다.
-- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](../../docs/plans/S15P31E102-93.md)에서 홈 화면으로 대체하고 삭제했다.)
+- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](https://ssafy.atlassian.net/browse/S15P31E102-93)에서 홈 화면으로 대체하고 삭제했다.)
 - 웹 타깃(`jsMain`, `wasmJsMain`, `webTest`)과 관련 빌드 설정은 그대로 유지했다.
 - 구조 채우기용 빈 클래스는 만들지 않았다.
