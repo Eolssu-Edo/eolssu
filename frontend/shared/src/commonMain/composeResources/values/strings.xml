@@ -5,7 +5,6 @@
     <string name="instrument_daegeum">대금</string>
     <string name="instrument_sogeum">소금</string>
     <string name="instrument_danso">단소</string>
-    <string name="instrument_piri">피리</string>
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
@@ -151,6 +150,7 @@
     <string name="practice_popup_permission_body">마이크로 들어온 소리로 연주를 평가해요.</string>
     <string name="practice_popup_continue">계속</string>
     <string name="practice_popup_later">나중에</string>
+    <string name="practice_mic_required">마이크를 허용해야 연주 평가를 할 수 있어요.</string>
     <string name="practice_popup_abort_title">연주를 마칠까요?</string>
     <string name="practice_popup_abort_body">연주를 중단하면 지금까지 연주한 내용이 저장되지 않아요.</string>
     <string name="practice_popup_go_home">홈으로 가기</string>

@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,7 +27,9 @@ import org.koin.core.parameter.parametersOf
  * @param showSwitchedNotice 연습 모드에서 평가로 바꿔 들어왔으면 안내를 띄운다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 연습 화면은 준비 상태로 돌려 두고 분석 화면으로 간다.
+ * @param onMicDenied 마이크 안내에서 '나중에'. 평가는 마이크 없이 할 수 없어 이전 화면으로 돌아가며 안내를 띄운다.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PracticeRoute(
     songId: String,
@@ -35,6 +39,7 @@ fun PracticeRoute(
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int) -> Unit)?,
+    onMicDenied: () -> Unit,
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo") { parametersOf(songId, solo) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -45,8 +50,13 @@ fun PracticeRoute(
     // 앱을 벗어나면(전화·다른 앱) 연주를 끊긴 것으로 처리한다.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onLeaveScreen() }
 
-    // 기기 뒤로 가기 버튼은 아직 화면 이동 그래프가 바로 처리한다. 연주 중 확인 창은 화면의 뒤로 가기 버튼에서만 뜬다.
     val back = { if (viewModel.onBack()) onBack() }
+    // 기기 뒤로 가기도 화면의 뒤로 가기와 같게: 연주 중이면 확인 창을 띄운다. 태블릿 가로처럼 패널이 화면 안에 열려 있으면 패널부터 닫는다.
+    // 휴대폰의 하단 시트·확인 창은 자기 창에서 뒤로 가기를 먼저 받는다.
+    @Suppress("DEPRECATION") // ui-backhandler 1.12의 BackHandler. 대신할 NavigationEventHandler는 아직 의존성에 없다.
+    BackHandler {
+        if (state.panel != null) viewModel.closePanel() else back()
+    }
 
     PracticeScreen(
         state = state,
@@ -86,6 +96,11 @@ fun PracticeRoute(
             ),
             dialog = PracticeDialogActions(
                 onGrantMic = viewModel::grantMicAndStart,
+                onDenyMic = {
+                    viewModel.stopAll()
+                    viewModel.closePopup()
+                    onMicDenied()
+                },
                 onClose = viewModel::closePopup,
                 onGoHome = {
                     viewModel.stopAll()

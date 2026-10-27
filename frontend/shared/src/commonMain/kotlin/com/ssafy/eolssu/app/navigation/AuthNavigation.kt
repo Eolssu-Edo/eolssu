@@ -80,8 +80,13 @@ fun NavController.finishFirstRun(firstRunRepository: FirstRunRepository, welcome
 /**
  * AUTH-01~07 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → (소셜 첫 가입 · 이메일 가입) → 프로필 설정 → 홈.
  * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
+ * 마이크 안내에서 '허용'하면 [onMicAllowed]로 남겨 연습 화면에서 다시 묻지 않는다.
  */
-fun NavGraphBuilder.authGraph(navController: NavController, onFinished: (welcome: Boolean) -> Unit) {
+fun NavGraphBuilder.authGraph(
+    navController: NavController,
+    onMicAllowed: () -> Unit,
+    onFinished: (welcome: Boolean) -> Unit,
+) {
     val toLogin: (StartNotice?) -> Unit = { notice ->
         navController.navigateWithNotice(AuthDestination.LOGIN, notice) {
             popUpTo(AuthDestination.CONSENT) { inclusive = true }
@@ -104,7 +109,13 @@ fun NavGraphBuilder.authGraph(navController: NavController, onFinished: (welcome
         )
     }
     composable(AuthDestination.MIC) {
-        MicPermissionScreen(onAllow = { toLogin(null) }, onDeny = { toLogin(StartNotice.MicDenied) })
+        MicPermissionScreen(
+            onAllow = {
+                onMicAllowed()
+                toLogin(null)
+            },
+            onDeny = { toLogin(StartNotice.MicDenied) },
+        )
     }
     composable(AuthDestination.LOGIN) { entry ->
         LoginRoute(

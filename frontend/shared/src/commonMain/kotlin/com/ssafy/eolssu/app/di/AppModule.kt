@@ -43,7 +43,7 @@ import kotlin.time.Clock
 val appModule = module {
     // API가 생기면 예시 구현을 API 구현으로 바꾼다.
     single<SongRepository> { SampleSongRepository() }
-    single { PracticeSettingsStore() }
+    single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
     single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }

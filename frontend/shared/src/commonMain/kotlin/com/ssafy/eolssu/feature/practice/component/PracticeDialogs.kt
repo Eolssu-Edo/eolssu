@@ -32,6 +32,7 @@ import org.jetbrains.compose.resources.stringResource
 /** 확인 창에서 부르는 동작. */
 class PracticeDialogActions(
     val onGrantMic: () -> Unit,
+    val onDenyMic: () -> Unit,
     val onClose: () -> Unit,
     val onGoHome: () -> Unit,
     val onResume: () -> Unit,
@@ -50,7 +51,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
             icon = EolssuIcons.Mic,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic)
-            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onClose, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Text)
         }
         PracticePopup.Abort -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_abort_title),

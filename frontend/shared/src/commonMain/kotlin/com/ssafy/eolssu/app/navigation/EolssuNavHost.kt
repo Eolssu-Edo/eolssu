@@ -1,8 +1,18 @@
 package com.ssafy.eolssu.app.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -26,6 +36,7 @@ import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
+import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
@@ -36,6 +47,10 @@ import com.ssafy.eolssu.feature.song.PdfPreviewRoute
 import com.ssafy.eolssu.feature.song.PdfUploadRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_mic_required
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.compose.koinInject
 
@@ -99,238 +114,256 @@ fun EolssuNavHost(
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
     val start = remember { startDestination(firstRunRepository.isCompleted()) }
-    NavHost(navController = navController, startDestination = start) {
-        composable(EolssuDestination.HOME) { entry ->
-            HomeRoute(
-                onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
-                onOpenFeature = { feature ->
-                    val route = when (feature) {
-                        HomeFeature.Fingering -> EolssuDestination.guideFingering()
-                        HomeFeature.Reading -> EolssuDestination.GUIDE_READING
-                        HomeFeature.Learn -> EolssuDestination.LEARN
-                        HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
-                    }
-                    route?.let(navController::navigate)
-                    route != null
-                },
-                startMessage = entry.startNotice()?.message,
-                onStartMessageShown = entry::clearStartNotice,
-            )
-        }
-        composable(EolssuDestination.SONG_LIST) {
-            SongListRoute(
-                onBack = { navController.popBackStack() },
-                onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
-                onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-            )
-        }
-        composable(
-            EolssuDestination.SONG_DETAIL,
-            arguments = listOf(navArgument("songId") { type = NavType.StringType }),
-        ) { entry ->
-            val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
-            // 태블릿 가로·넓은 창은 곡 목록 + 곡 상세 두 칸으로 보이고 이 곡을 고른다(세로·휴대폰은 곡 상세 한 화면).
-            if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
+    val practiceSettings = koinInject<PracticeSettingsStore>()
+    // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
+    val appSnackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    Box(Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = start) {
+            composable(EolssuDestination.HOME) { entry ->
+                HomeRoute(
+                    onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
+                    onOpenFeature = { feature ->
+                        val route = when (feature) {
+                            HomeFeature.Fingering -> EolssuDestination.guideFingering()
+                            HomeFeature.Reading -> EolssuDestination.GUIDE_READING
+                            HomeFeature.Learn -> EolssuDestination.LEARN
+                            HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
+                        }
+                        route?.let(navController::navigate)
+                        route != null
+                    },
+                    startMessage = entry.startNotice()?.message,
+                    onStartMessageShown = entry::clearStartNotice,
+                )
+            }
+            composable(EolssuDestination.SONG_LIST) {
                 SongListRoute(
                     onBack = { navController.popBackStack() },
                     onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
                     onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-                    initialSongId = songId,
-                )
-            } else {
-                SongDetailRoute(
-                    songId = songId,
-                    onBack = { navController.popBackStack() },
-                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-                )
-            }
-        }
-        composable(
-            EolssuDestination.PRACTICE,
-            arguments = listOf(
-                navArgument("songId") { type = NavType.StringType },
-                navArgument("solo") {
-                    type = NavType.BoolType
-                    defaultValue = false
-                },
-                navArgument("switched") {
-                    type = NavType.BoolType
-                    defaultValue = false
-                },
-            ),
-        ) { entry ->
-            val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
-            PracticeRoute(
-                songId = songId,
-                solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
-                showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
-                onBack = { navController.popBackStack() },
-                onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                onSwitchToEval = {
-                    navController.navigate(EolssuDestination.practice(songId, switched = true)) {
-                        popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
-                    }
-                },
-                onEvaluate = { id, bpm -> navController.navigate(EolssuDestination.analysis(id, bpm)) },
-            )
-        }
-        composable(
-            EolssuDestination.ANALYSIS,
-            arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("bpm") { type = NavType.IntType }),
-        ) { entry ->
-            AnalysisRoute(
-                songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
-                bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
-                onResult = { id ->
-                    navController.navigate(EolssuDestination.result(id)) {
-                        popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
-                    }
-                },
-                onBackToPractice = { navController.popBackStack() },
-            )
-        }
-        composable(
-            EolssuDestination.RESULT,
-            arguments = listOf(navArgument("evaluationId") { type = NavType.StringType }),
-        ) { entry ->
-            ResultRoute(
-                evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onPracticeAgain = { navController.popBackStack() },
-                onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
-                onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
-            )
-        }
-        composable(
-            EolssuDestination.RECORDS,
-            arguments = listOf(
-                navArgument("saved") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-            ),
-        ) { entry ->
-            RecordListRoute(
-                justSavedId = entry.savedStateHandle.get<String>("saved"),
-                onBack = { navController.popBackStack() },
-                onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
-                onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
-            )
-        }
-        composable(
-            EolssuDestination.RECORD_DETAIL,
-            arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
-        ) { entry ->
-            val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
-            // 태블릿 가로·넓은 창은 연습 기록 + 기록 상세 두 칸으로 보이고 이 기록을 고른다.
-            if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
-                RecordListRoute(
-                    justSavedId = null,
-                    onBack = { navController.popBackStack() },
-                    onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
-                    onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
-                    initialRecordId = recordId,
-                )
-            } else {
-                RecordDetailRoute(
-                    recordId = recordId,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-        }
-        composable(EolssuDestination.GROWTH) {
-            GrowthRoute(
-                onBack = { navController.popBackStack() },
-                onOpenRecords = { navController.popBackStack() },
-                onOpenMissions = { navController.navigate(EolssuDestination.LEARN) },
-            )
-        }
-
-        // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기 (S15P31E102-150)
-        composable(
-            EolssuDestination.GUIDE_FINGERING,
-            arguments = listOf(
-                navArgument("instrument") { type = NavType.StringType; defaultValue = "" },
-                navArgument("blow") { type = NavType.StringType; defaultValue = "" },
-            ),
-        ) { entry ->
-            val blowName = entry.savedStateHandle.get<String>("blow")
-            FingeringRoute(
-                onBack = { navController.popBackStack() },
-                instrument = GuideInstrument.fromId(entry.savedStateHandle.get<String>("instrument")) ?: GuideInstrument.Default,
-                blow = Blow.entries.firstOrNull { it.name == blowName } ?: Blow.Mid,
-            )
-        }
-        composable(EolssuDestination.GUIDE_READING) {
-            ReadingScreen(onBack = { navController.popBackStack() })
-        }
-        navigation(startDestination = EolssuDestination.LEARN_LIST, route = EolssuDestination.LEARN) {
-            val learnNavigation = LearnNavigation(
-                onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
-                onOpenReading = { navController.navigate(EolssuDestination.GUIDE_READING) },
-                onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
-                onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
-            )
-            composable(EolssuDestination.LEARN_LIST) { entry ->
-                LearnListRoute(
-                    viewModel = learnViewModel(navController, entry),
-                    onBack = { navController.popBackStack() },
-                    onOpenStage = { navController.navigate(EolssuDestination.learnStage(it)) },
-                    navigation = learnNavigation,
                 )
             }
             composable(
-                EolssuDestination.LEARN_STAGE,
-                arguments = listOf(navArgument("stage") { type = NavType.IntType }),
+                EolssuDestination.SONG_DETAIL,
+                arguments = listOf(navArgument("songId") { type = NavType.StringType }),
             ) { entry ->
-                LearnStageRoute(
-                    stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
-                    viewModel = learnViewModel(navController, entry),
-                    onBack = { navController.popBackStack() },
-                    // 이전·다음 단계는 단계 상세를 바꿔 끼워, 뒤로 가기가 항상 단계 목록으로 간다.
-                    onOpenStage = { stage ->
-                        navController.navigate(EolssuDestination.learnStage(stage)) { popUpTo(EolssuDestination.LEARN_LIST) }
+                val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+                // 태블릿 가로·넓은 창은 곡 목록 + 곡 상세 두 칸으로 보이고 이 곡을 고른다(세로·휴대폰은 곡 상세 한 화면).
+                if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
+                    SongListRoute(
+                        onBack = { navController.popBackStack() },
+                        onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                        onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                        initialSongId = songId,
+                    )
+                } else {
+                    SongDetailRoute(
+                        songId = songId,
+                        onBack = { navController.popBackStack() },
+                        onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                    )
+                }
+            }
+            composable(
+                EolssuDestination.PRACTICE,
+                arguments = listOf(
+                    navArgument("songId") { type = NavType.StringType },
+                    navArgument("solo") {
+                        type = NavType.BoolType
+                        defaultValue = false
                     },
-                    // 태블릿 가로가 되면 단계 목록(목록 + 상세 한 화면)으로 돌아간다. 주소로 바로 들어와 목록이 없으면 바꿔 끼운다.
-                    onShowInList = {
-                        if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
-                            navController.navigate(EolssuDestination.LEARN_LIST) {
-                                popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
-                            }
+                    navArgument("switched") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
+                ),
+            ) { entry ->
+                val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+                PracticeRoute(
+                    songId = songId,
+                    solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
+                    showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
+                    onBack = { navController.popBackStack() },
+                    onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                    onSwitchToEval = {
+                        navController.navigate(EolssuDestination.practice(songId, switched = true)) {
+                            popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
                         }
                     },
-                    navigation = learnNavigation,
+                    onEvaluate = { id, bpm -> navController.navigate(EolssuDestination.analysis(id, bpm)) },
+                    onMicDenied = {
+                        navController.popBackStack()
+                        scope.launch {
+                            appSnackbar.currentSnackbarData?.dismiss()
+                            appSnackbar.showSnackbar(getString(Res.string.practice_mic_required))
+                        }
+                    },
+                )
+            }
+            composable(
+                EolssuDestination.ANALYSIS,
+                arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("bpm") { type = NavType.IntType }),
+            ) { entry ->
+                AnalysisRoute(
+                    songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
+                    bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
+                    onResult = { id ->
+                        navController.navigate(EolssuDestination.result(id)) {
+                            popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
+                        }
+                    },
+                    onBackToPractice = { navController.popBackStack() },
+                )
+            }
+            composable(
+                EolssuDestination.RESULT,
+                arguments = listOf(navArgument("evaluationId") { type = NavType.StringType }),
+            ) { entry ->
+                ResultRoute(
+                    evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onPracticeAgain = { navController.popBackStack() },
+                    onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
+                    onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                    onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
+                )
+            }
+            composable(
+                EolssuDestination.RECORDS,
+                arguments = listOf(
+                    navArgument("saved") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+            ) { entry ->
+                RecordListRoute(
+                    justSavedId = entry.savedStateHandle.get<String>("saved"),
+                    onBack = { navController.popBackStack() },
+                    onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
+                    onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
+                )
+            }
+            composable(
+                EolssuDestination.RECORD_DETAIL,
+                arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
+            ) { entry ->
+                val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
+                // 태블릿 가로·넓은 창은 연습 기록 + 기록 상세 두 칸으로 보이고 이 기록을 고른다.
+                if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
+                    RecordListRoute(
+                        justSavedId = null,
+                        onBack = { navController.popBackStack() },
+                        onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
+                        onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
+                        initialRecordId = recordId,
+                    )
+                } else {
+                    RecordDetailRoute(
+                        recordId = recordId,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+            }
+            composable(EolssuDestination.GROWTH) {
+                GrowthRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenRecords = { navController.popBackStack() },
+                    onOpenMissions = { navController.navigate(EolssuDestination.LEARN) },
+                )
+            }
+
+            // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기 (S15P31E102-150)
+            composable(
+                EolssuDestination.GUIDE_FINGERING,
+                arguments = listOf(
+                    navArgument("instrument") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("blow") { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                val blowName = entry.savedStateHandle.get<String>("blow")
+                FingeringRoute(
+                    onBack = { navController.popBackStack() },
+                    instrument = GuideInstrument.fromId(entry.savedStateHandle.get<String>("instrument")) ?: GuideInstrument.Default,
+                    blow = Blow.entries.firstOrNull { it.name == blowName } ?: Blow.Mid,
+                )
+            }
+            composable(EolssuDestination.GUIDE_READING) {
+                ReadingScreen(onBack = { navController.popBackStack() })
+            }
+            navigation(startDestination = EolssuDestination.LEARN_LIST, route = EolssuDestination.LEARN) {
+                val learnNavigation = LearnNavigation(
+                    onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
+                    onOpenReading = { navController.navigate(EolssuDestination.GUIDE_READING) },
+                    onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                    onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
+                )
+                composable(EolssuDestination.LEARN_LIST) { entry ->
+                    LearnListRoute(
+                        viewModel = learnViewModel(navController, entry),
+                        onBack = { navController.popBackStack() },
+                        onOpenStage = { navController.navigate(EolssuDestination.learnStage(it)) },
+                        navigation = learnNavigation,
+                    )
+                }
+                composable(
+                    EolssuDestination.LEARN_STAGE,
+                    arguments = listOf(navArgument("stage") { type = NavType.IntType }),
+                ) { entry ->
+                    LearnStageRoute(
+                        stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
+                        viewModel = learnViewModel(navController, entry),
+                        onBack = { navController.popBackStack() },
+                        // 이전·다음 단계는 단계 상세를 바꿔 끼워, 뒤로 가기가 항상 단계 목록으로 간다.
+                        onOpenStage = { stage ->
+                            navController.navigate(EolssuDestination.learnStage(stage)) { popUpTo(EolssuDestination.LEARN_LIST) }
+                        },
+                        // 태블릿 가로가 되면 단계 목록(목록 + 상세 한 화면)으로 돌아간다. 주소로 바로 들어와 목록이 없으면 바꿔 끼운다.
+                        onShowInList = {
+                            if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
+                                navController.navigate(EolssuDestination.LEARN_LIST) {
+                                    popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
+                                }
+                            }
+                        },
+                        navigation = learnNavigation,
+                    )
+                }
+            }
+            authGraph(
+                navController,
+                onMicAllowed = practiceSettings::grantMic,
+                onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) },
+            )
+
+            // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
+            composable(EolssuDestination.MY_SONGS) {
+                MySongsRoute(
+                    onBack = { navController.popBackStack() },
+                    onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
+                    onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
+                )
+            }
+            composable(EolssuDestination.PDF_UPLOAD) {
+                PdfUploadRoute(
+                    onBack = { navController.popBackStack() },
+                    onNext = { navController.navigate(EolssuDestination.pdfPreview(it)) },
+                )
+            }
+            composable(
+                EolssuDestination.PDF_PREVIEW,
+                arguments = listOf(navArgument("uploadId") { type = NavType.StringType }),
+            ) { entry ->
+                PdfPreviewRoute(
+                    uploadId = entry.savedStateHandle.get<String>("uploadId").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) },
                 )
             }
         }
-        authGraph(navController, onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) })
-
-        // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
-        composable(EolssuDestination.MY_SONGS) {
-            MySongsRoute(
-                onBack = { navController.popBackStack() },
-                onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
-                onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
-            )
-        }
-        composable(EolssuDestination.PDF_UPLOAD) {
-            PdfUploadRoute(
-                onBack = { navController.popBackStack() },
-                onNext = { navController.navigate(EolssuDestination.pdfPreview(it)) },
-            )
-        }
-        composable(
-            EolssuDestination.PDF_PREVIEW,
-            arguments = listOf(navArgument("uploadId") { type = NavType.StringType }),
-        ) { entry ->
-            PdfPreviewRoute(
-                uploadId = entry.savedStateHandle.get<String>("uploadId").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onSaved = { navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) },
-            )
-        }
+        SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }
