@@ -14,7 +14,12 @@
  "answerApproval": {
   "by": "사지한",
   "on": "2026-10-27",
-  "note": "원본 PDF와 48정간 전부 대조, 고친 정간 0개. S15P31E102-154"
+  "note": "원본 PDF와 48정간 전부 대조, 고친 정간 0개. S15P31E102-154",
+  "breathMarks": {
+   "by": "사지한",
+   "on": "2026-10-27",
+   "note": "원본의 숨표(<) 4개가 받은 입력본에 없어 3·15·27·39번째 정간 뒤에 넣고 원본과 대조해 확인함"
+  }
  },
  "sourceValues": {
   "jangdan": "세마치",
@@ -66,7 +71,7 @@
   {
    "index": 2,
    "gak": 0,
-   "cell": "중 - 임",
+   "cell": "중 - 임<",
    "original": "중 - 임",
    "confirmed": true,
    "inserted": false,
@@ -246,7 +251,7 @@
   {
    "index": 14,
    "gak": 1,
-   "cell": "무 - 청황",
+   "cell": "무 - 청황<",
    "original": "무 - 청황",
    "confirmed": true,
    "inserted": false,
@@ -426,7 +431,7 @@
   {
    "index": 26,
    "gak": 2,
-   "cell": "청중",
+   "cell": "청중<",
    "original": "청중",
    "confirmed": true,
    "inserted": false,
@@ -606,7 +611,7 @@
   {
    "index": 38,
    "gak": 3,
-   "cell": "무 - 청황",
+   "cell": "무 - 청황<",
    "original": "무 - 청황",
    "confirmed": true,
    "inserted": false,
