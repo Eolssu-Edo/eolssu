@@ -219,7 +219,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 
 - ViewModel은 `AudioRecorder` 인터페이스만 받는다. 테스트에서는 가짜 구현을 넣는다.
 - 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)).
-- 플랫폼 구현은 소스 세트마다 `platform/PlatformModule.kt`의 Koin 모듈(`androidPlatformModule(context)`, `iosPlatformModule()`, `webPlatformModule()`, 모두 `internal`)에 등록하고, 진입점이 이 모듈을 공통 `App(platformModule)`에 넘긴다. 공통 `App`은 플랫폼 모듈과 `appModule`을 함께 시작하고, `appModule`은 `get()`으로 플랫폼 구현을 받는다([S15P31E102-151](../../docs/plans/S15P31E102-151.md)에서 정함).
+- 플랫폼 구현은 소스 세트마다 `platform/PlatformModule.kt`의 Koin 모듈(`androidPlatformModule(context)`, `iosPlatformModule()`, `webPlatformModule()`, 모두 `internal`)에 등록하고, 진입점이 이 모듈을 공통 `App(platformModule)`에 넘긴다. 공통 `App`은 플랫폼 모듈과 `appModule`을 함께 시작하고, `appModule`은 `get()`으로 플랫폼 구현을 받는다([S15P31E102-151](https://ssafy.atlassian.net/browse/S15P31E102-151)에서 정함).
 
 | 플랫폼 | 진입점이 부르는 것 | 플랫폼 모듈을 넘기는 곳 |
 | --- | --- | --- |
@@ -277,6 +277,6 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 
 - 기존 모듈 구성(`shared`, `androidApp`, `webApp`, `iosApp`)으로 목적을 충족하므로 모듈을 분리하거나 이름을 바꾸지 않았다.
 - Compose Multiplatform 공유 UI와 ViewModel(`lifecycle-viewmodel-compose`) 설정은 이미 있었다. 화면 이동·DI·HTTP 라이브러리는 없었고, 이번 작업 범위가 구조 고정이므로 추가하지 않았다. 해당 패키지는 `.gitkeep`으로 위치만 잡았다.
-- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](../../docs/plans/S15P31E102-93.md)에서 홈 화면으로 대체하고 삭제했다.)
+- 마법사 샘플(`Greeting`, `Platform`, 샘플 테스트)은 제시된 구조에 대응하는 자리가 없고 기존 지침이 "실제 기능으로 대체"로 정하고 있어 루트 패키지에 그대로 두었다. 실행 동작 보존을 위해 삭제하지 않았다. (이후 [S15P31E102-93](https://ssafy.atlassian.net/browse/S15P31E102-93)에서 홈 화면으로 대체하고 삭제했다.)
 - 웹 타깃(`jsMain`, `wasmJsMain`, `webTest`)과 관련 빌드 설정은 그대로 유지했다.
 - 구조 채우기용 빈 클래스는 만들지 않았다.
