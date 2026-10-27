@@ -55,6 +55,20 @@ $env:SERVER_PORT = '8081'
 
 macOS / Linux에서는 `SERVER_PORT=8081 ./gradlew bootRun`을 사용합니다. `.env.example`은 변수 설명용이며 `.env` 파일을 자동으로 읽지 않습니다. 실제 비밀값은 터미널·IDE·배포 환경에서 주입하고 커밋하지 않습니다.
 
+### 보안과 공통 오류 응답
+
+Spring Security로 API 경로를 나눕니다. 로그인 토큰 발급·확인은 아직 없어 회원 전용 API는 모두 401입니다(S15P31E102-143 작업 순서 4·5에서 추가).
+
+- 공개: 로그인 전 API(`/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/**`·`email-verifications/**`, POST), 카탈로그·약관 조회(`/api/terms`·`songs`·`instruments`·`pitches`·`jangdans`·`notation-symbols`, GET), `/api/actuator/**`(health만 노출).
+- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 415 `UNSUPPORTED_MEDIA_TYPE`).
+- CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. `/api/**`의 POST·PUT·PATCH·DELETE는 `Origin` 헤더가 있으면 같은 사이트(요청 `Host`와 같은 호스트)이거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`)만 `multipart/form-data`를 받습니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
+- CORS: 운영은 웹과 API가 같은 주소라 열지 않습니다. FE 개발 서버처럼 다른 주소에서 쿠키를 포함해 부를 때만 `SECURITY_ALLOWED_ORIGINS`에 그 주소를 쉼표로 구분해 넣습니다.
+
+```powershell
+$env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:5173'
+.\gradlew.bat bootRun
+```
+
 ### MySQL 연결과 Flyway
 
 비어 있는 MySQL 8.4 DB와 접속 계정을 먼저 준비한 뒤 아래 환경변수를 설정합니다. URL에는 실제 DB 이름을 지정합니다. 기존 서버의 `eolsu`를 `eolssu`로 변경하는 작업은 포함하지 않습니다.
@@ -118,6 +132,9 @@ backend/
 ├── src/main/
 │   ├── kotlin/com/ssafy/eolssu/backend/
 │   │   ├── BackendApplication.kt
+│   │   ├── config/SecurityConfig.kt, SecurityProperties.kt
+│   │   ├── common/error/       # 공통 오류 응답·예외 처리
+│   │   ├── common/security/    # CSRF 필터
 │   │   └── feature/<기능>/infrastructure/persistence/
 │   │       ├── <테이블명>Row.kt
 │   │       └── <테이블명>Mapper.kt
@@ -138,6 +155,7 @@ backend/
 com.ssafy.eolssu.backend/
 ├── config/                    # Spring 설정·최종 의존성 조립
 ├── common/error/              # 실제로 공유하는 오류 응답·예외 처리
+├── common/security/           # 여러 기능이 함께 쓰는 보안 필터
 └── feature/<기능명>/
     ├── api/                   # Controller·공개 요청/응답 DTO
     ├── application/           # 서비스·처리 흐름
@@ -162,7 +180,7 @@ Mapper는 `@Mapper`로 검색하고 XML namespace는 인터페이스 전체 이�
 
 Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실행 방법은 [인프라 실행 문서](../infra/README.md)를 따릅니다. Docker 빌드는 `docker build --tag eolsu-backend:check backend`를 저장소 루트에서 실행합니다. 실제 Jenkins 잡 등록·서버 배포는 별도 작업입니다.
 
-인증·업무 API·AI 호출·운영 DB 적용은 포함하지 않습니다. 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
+인증 토큰 발급·업무 API·AI 호출·운영 DB 적용은 아직 포함하지 않습니다(인증·회원은 S15P31E102-143에서 구현 중). 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
 
 ## 작업 기준
 

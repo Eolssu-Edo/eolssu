@@ -9,6 +9,7 @@ spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-we
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-security = { module = "org.springframework.boot:spring-boot-starter-security" }
 mybatis-spring-boot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
 flyway-mysql = { module = "org.flywaydb:flyway-mysql" }
 mysql-connector = { module = "com.mysql:mysql-connector-j" }

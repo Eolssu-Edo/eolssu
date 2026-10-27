@@ -1,0 +1,11 @@
+package com.ssafy.eolssu.backend.common.error
+
+import org.springframework.http.HttpStatus
+
+/** API 명세의 오류 result.errorCode. 클라이언트는 message가 아니라 이 값으로 분기한다. */
+enum class ErrorCode(val status: HttpStatus, val message: String) {
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요해요"),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "허용되지 않은 요청이에요"),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없어요"),
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 요청 형식이에요"),
+}
