@@ -39,7 +39,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS users FROM users WHERE deleted_at IS NULL"
+          "rawSql": "SELECT COUNT(*) AS users FROM users WHERE status = 'ACTIVE'"
         }
       ]
     },
@@ -204,7 +204,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id, instrument_id, notation_mode, last_login_at, created_at, deleted_at FROM users ORDER BY id DESC LIMIT 20"
+          "rawSql": "SELECT id, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, deleted_at FROM users ORDER BY id DESC LIMIT 20"
         }
       ]
     }
