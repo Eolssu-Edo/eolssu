@@ -1,0 +1,171 @@
+package com.ssafy.eolssu.feature.auth
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.feature.auth.component.AuthBody
+import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithoutBar
+import com.ssafy.eolssu.feature.auth.component.AuthCheckBox
+import com.ssafy.eolssu.feature.auth.component.AuthHeading
+import com.ssafy.eolssu.feature.auth.component.AuthLead
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.auth_agree_all
+import eolssu.shared.generated.resources.auth_consent_lead
+import eolssu.shared.generated.resources.auth_consent_title
+import eolssu.shared.generated.resources.auth_optional
+import eolssu.shared.generated.resources.auth_required
+import eolssu.shared.generated.resources.auth_start
+import eolssu.shared.generated.resources.auth_start_disabled
+import eolssu.shared.generated.resources.auth_view_terms
+import eolssu.shared.generated.resources.auth_view_terms_description
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * AUTH-01 약관 동의(첫 실행). 상단 바 없이 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
+ * 필수 4개를 모두 동의해야 시작 버튼이 켜진다.
+ */
+@Composable
+fun ConsentScreen(
+    state: ConsentUiState,
+    onToggle: (Agreement) -> Unit,
+    onToggleAll: () -> Unit,
+    onOpenTerms: (Agreement) -> Unit,
+    onStart: () -> Unit,
+) {
+    EolssuScaffold(
+        bottomBar = {
+            EolssuButton(
+                stringResource(if (state.canStart) Res.string.auth_start else Res.string.auth_start_disabled),
+                onClick = onStart,
+                enabled = state.canStart,
+            )
+        },
+    ) {
+        AuthBody(topPadding = AuthBodyTopWithoutBar, gap = 0.dp) {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AuthHeading(stringResource(Res.string.auth_consent_title))
+                AuthLead(stringResource(Res.string.auth_consent_lead))
+            }
+            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.weight(1f))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                AgreeAllRow(state.allChecked, onToggleAll)
+                Agreement.entries.forEach { agreement ->
+                    AgreementRow(agreement, agreement in state.checked, { onToggle(agreement) }, { onOpenTerms(agreement) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(EolssuTheme.colors.surface)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        AuthCheckBox(checked)
+        Text(
+            stringResource(Res.string.auth_agree_all),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+            color = EolssuTheme.colors.text,
+        )
+    }
+}
+
+@Composable
+private fun AgreementRow(agreement: Agreement, checked: Boolean, onToggle: () -> Unit, onOpenTerms: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val prefix = stringResource(if (agreement.required) Res.string.auth_required else Res.string.auth_optional)
+    val label = stringResource(agreement.label)
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp)
+                .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AuthCheckBox(checked)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(
+                            if (agreement.required) SpanStyle(fontWeight = FontWeight.Bold)
+                            else SpanStyle(fontWeight = FontWeight.Medium, color = colors.textMuted),
+                        ) { append(prefix) }
+                        append(" ")
+                        append(label)
+                    },
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.75.sp),
+                    color = colors.text,
+                )
+                agreement.detail?.let {
+                    Text(stringResource(it), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = colors.textMuted)
+                }
+            }
+        }
+        if (agreement.hasTerms) {
+            val description = stringResource(Res.string.auth_view_terms_description, label)
+            Box(
+                Modifier
+                    .heightIn(min = 44.dp)
+                    .clickable(onClick = onOpenTerms)
+                    .semantics {
+                        contentDescription = description
+                        role = Role.Button
+                    }
+                    .padding(start = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(Res.string.auth_view_terms),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, textDecoration = TextDecoration.Underline),
+                    color = colors.textMuted,
+                )
+            }
+        }
+    }
+}

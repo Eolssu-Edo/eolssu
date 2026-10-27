@@ -123,10 +123,11 @@ frontend/
 │       ├── commonMain/
 │       │   ├── kotlin/com/ssafy/eolssu/   # 공통 코드. app / feature / data / core 패키지로 고정
 │       │   └── composeResources/         # 공통 리소스 (drawable, font, values)
-│       ├── androidMain/        # Android 전용 코드 (platform/audio·storage·permission)
+│       ├── androidMain/        # Android 전용 코드 (platform/audio·storage·permission, App(context): MainActivity가 부르는 입구)
 │       ├── iosMain/            # iOS 전용 코드 (platform/…, MainViewController.kt: iOS에 화면을 넘겨주는 입구)
 │       ├── jsMain/             # Web(JS) 전용 코드
 │       ├── wasmJsMain/         # Web(Wasm) 전용 코드
+│       ├── webMain/            # Web(JS·Wasm) 공통 코드 (platform/storage, App(onNavHostReady): main.kt가 부르는 입구)
 │       ├── commonTest/         # 공통 테스트
 │       ├── androidHostTest/    # Android 테스트 (PC에서 실행)
 │       ├── iosTest/            # iOS 테스트
@@ -136,7 +137,7 @@ frontend/
 │   ├── build.gradle.kts        # 앱 ID, minSdk, 버전 번호
 │   └── src/main/
 │       ├── AndroidManifest.xml # 권한, 화면 방향, 앱 아이콘
-│       ├── kotlin/.../MainActivity.kt  # App()을 띄움
+│       ├── kotlin/.../MainActivity.kt  # App(context)를 띄움
 │       └── res/                # 앱 아이콘, 앱 이름
 │
 ├── iosApp/                     # iOS 껍데기 (Xcode 프로젝트, Mac 전용)
@@ -164,15 +165,15 @@ frontend/
 | 하려는 것 | 위치 |
 | --- | --- |
 | 화면, 화면 상태(ViewModel), 비즈니스 로직 | `shared/src/commonMain/kotlin`의 `feature/<기능>`, `data/<기능>`, `core` — 세부 기준은 [docs/architecture.md](docs/architecture.md) |
-| 플랫폼 API가 필요한 기능 (마이크, 권한 등) | 인터페이스는 `commonMain`의 `core/audio` 등, 구현은 `androidMain` · `iosMain`의 `platform/` (웹은 `jsMain` · `wasmJsMain`) |
-| JS·Wasm 둘 다 쓰는 웹 공통 코드 | `shared/src/webMain` 폴더를 만들어서 작성 |
+| 플랫폼 API가 필요한 기능 (마이크, 저장소, 권한 등) | 인터페이스는 `commonMain`의 `core/audio`·`core/storage` 등, 구현은 `androidMain` · `iosMain` · `webMain`의 `platform/`, 등록은 각 소스 세트의 `platform/PlatformModule.kt` |
+| JS·Wasm 둘 다 쓰는 웹 공통 코드 | `shared/src/webMain` |
 | 이미지, 폰트, 문구 | `shared/src/commonMain/composeResources/` 아래 `drawable/`, `font/`, `values/` |
 | 앱 권한, 아이콘, 앱 이름, 화면 방향 | `androidApp` / `iosApp` / `webApp` |
 
 ### 공통 코드와 플랫폼 코드 잇기
 
 - **작은 기능**: `expect` / `actual`을 씁니다. 공통 코드에 `expect`로 선언하고 `androidMain` · `iosMain` · `jsMain` · `wasmJsMain`(또는 `webMain`)에 `actual` 구현을 둡니다.
-- **큰 기능**(마이크 입력 등): `commonMain`에 인터페이스를 두고, 플랫폼별 클래스가 구현합니다. 테스트할 때 가짜 구현으로 바꾸기 쉽습니다.
+- **큰 기능**(마이크 입력, 저장소 등): `commonMain`에 인터페이스를 두고, 플랫폼별 클래스가 구현합니다. 구현은 각 소스 세트의 `platform/PlatformModule.kt`(Koin 모듈)에 등록합니다. 테스트할 때 가짜 구현으로 바꾸기 쉽습니다. 연결 방법은 [docs/architecture.md](docs/architecture.md) 8절을 봅니다.
 
 ### 리소스 사용
 

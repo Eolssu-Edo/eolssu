@@ -23,6 +23,7 @@ import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
+import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisRoute
@@ -30,6 +31,7 @@ import com.ssafy.eolssu.feature.result.ResultRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.compose.koinInject
 
 /** 화면 경로. Web에서는 주소의 `#` 뒤에 그대로 보인다. 화면을 추가할 때 여기에 경로를 더한다. */
 object EolssuDestination {
@@ -73,6 +75,7 @@ object EolssuDestination {
 
 /**
  * 앱의 화면 이동 그래프. 기능 사이의 이동은 이곳에서 콜백으로 연결한다.
+ * 첫 실행을 마치지 않았으면 약관 동의([AuthDestination.CONSENT])에서 시작한다.
  * [onNavHostReady]는 Web 진입점이 브라우저 뒤로 가기·주소를 연결할 때 쓴다.
  */
 @Composable
@@ -80,8 +83,11 @@ fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
 ) {
-    NavHost(navController = navController, startDestination = EolssuDestination.HOME) {
-        composable(EolssuDestination.HOME) {
+    // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
+    val firstRunRepository = koinInject<FirstRunRepository>()
+    val start = remember { startDestination(firstRunRepository.isCompleted()) }
+    NavHost(navController = navController, startDestination = start) {
+        composable(EolssuDestination.HOME) { entry ->
             HomeRoute(
                 onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
                 onOpenFeature = { feature ->
@@ -94,6 +100,8 @@ fun EolssuNavHost(
                     route?.let(navController::navigate)
                     route != null
                 },
+                startMessage = entry.startNotice()?.message,
+                onStartMessageShown = entry::clearStartNotice,
             )
         }
         composable(EolssuDestination.SONG_LIST) {
@@ -248,6 +256,7 @@ fun EolssuNavHost(
                 )
             }
         }
+        authGraph(navController, onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) })
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }
