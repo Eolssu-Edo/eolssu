@@ -2,7 +2,7 @@
 # Hugo 빌드 결과물(blog/public)만 GitHub Pages 저장소에 push
 # 필요 환경 변수:
 #   GH_TOKEN   GitHub 토큰 (Pages 저장소 Contents 쓰기 권한만)
-#   GH_REPO    예: team-ido/team-ido.github.io
+#   GH_REPO    예: team-edo/team-edo.github.io
 #   GH_BRANCH  배포 브랜치 (기본 main)
 #   PUBLIC_DIR 빌드 결과물 경로 (기본 blog/public)
 set -euo pipefail
@@ -35,8 +35,8 @@ find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp -a "$PUBLIC_DIR"/. "$WORK"/
 
 cd "$WORK"
-git config user.name "ido-blog-bot"
-git config user.email "ido-blog-bot@users.noreply.github.com"
+git config user.name "edo-blog-bot"
+git config user.email "edo-blog-bot@users.noreply.github.com"
 git add -A
 
 if git diff --cached --quiet; then

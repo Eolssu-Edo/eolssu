@@ -1,10 +1,12 @@
 <header class="site-header">
-  <div class="container header-inner">
-    <a class="site-title" href="{{ "/" | relURL }}">{{ site.Title }}</a>
-    <nav aria-label="주 메뉴">
-      {{ range site.Menus.main }}
-      <a href="{{ .URL }}">{{ .Name }}</a>
-      {{ end }}
+  <div class="header-inner">
+    <a class="brand" href="{{ "/" | relURL }}" aria-label="{{ site.Data.brand.name }} · {{ site.Data.project.name }} 홈">
+      {{ if site.Data.brand.logo }}{{ partial "brand-image.html" (dict "kind" "logo" "class" "brand-logo" "size" "320x160 webp q90") }}{{ else }}<span class="brand-wordmark">{{ site.Data.project.name }}</span>{{ end }}
+    </a>
+    <nav class="header-nav" aria-label="주 메뉴">
+      <a href="{{ "/" | relURL }}"{{ if .IsHome }} class="active" aria-current="page"{{ end }}>프로젝트</a>
+      <a href="{{ "posts/" | relURL }}"{{ if or (eq .Section "posts") (in (slice "tags" "categories") .Section) }} class="active"{{ end }}{{ if and .IsSection (eq .Section "posts") }} aria-current="page"{{ end }}>블로그</a>
+      <a href="{{ "about/" | relURL }}"{{ if eq .RelPermalink ("about/" | relURL) }} class="active" aria-current="page"{{ end }}>팀 소개</a>
     </nav>
   </div>
 </header>

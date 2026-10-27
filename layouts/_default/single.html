@@ -1,16 +1,11 @@
 {{ define "main" }}
-<article class="post">
-  <header>
-    <h1>{{ .Title }}</h1>
-    {{ if eq .Section "posts" }}{{ partial "post-meta.html" . }}{{ end }}
-  </header>
-  <div class="post-body">
-    {{ .Content }}
-  </div>
-  {{ with .Params.tags }}
-  <footer class="post-tags">
-    {{ range . }}<a href="{{ "tags/" | relURL }}{{ . | urlize }}/">#{{ . }}</a>{{ end }}
-  </footer>
-  {{ end }}
-</article>
+{{ if eq .Section "posts" }}
+<a class="back-link" href="{{ "posts/" | relURL }}"><span aria-hidden="true">←</span> 전체 글로 돌아가기</a>
+<div class="reader-grid"><article class="post"><header class="post-heading"><div class="post-categories">{{ range .GetTerms "categories" }}<a href="{{ .RelPermalink }}">{{ .Title }}</a>{{ end }}</div><h1>{{ .Title }}</h1>{{ with .Description }}<p class="post-deck">{{ . }}</p>{{ end }}{{ partial "post-meta.html" . }}</header><div class="post-body">{{ .Content }}</div>
+  {{ with .GetTerms "tags" }}<footer class="post-tags">{{ range . }}<a href="{{ .RelPermalink }}">#{{ .Title }}</a>{{ end }}</footer>{{ end }}
+  {{ if or .PrevInSection .NextInSection }}<nav class="adjacent-posts" aria-label="다른 글 읽기">{{ with .PrevInSection }}<a href="{{ .RelPermalink }}"><span>← 이전 글</span><strong>{{ .Title }}</strong></a>{{ end }}{{ with .NextInSection }}<a href="{{ .RelPermalink }}"><span>다음 글 →</span><strong>{{ .Title }}</strong></a>{{ end }}</nav>{{ end }}
+</article>{{ if .Fragments.Headings }}<aside class="article-toc" aria-label="이 글의 목차"><h2>이 글의 목차</h2>{{ .TableOfContents }}</aside>{{ end }}</div>
+{{ else }}
+<article class="post prose-page"><header class="post-heading"><p class="eyebrow">{{ site.Data.brand.name }}</p><h1>{{ .Title }}</h1></header><div class="post-body">{{ .Content }}</div></article>
+{{ end }}
 {{ end }}

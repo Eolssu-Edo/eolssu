@@ -1,0 +1,14 @@
+# 공개에 동의한 팀원 정보만 추가합니다.
+# 예: name, role, description, photo(선택)
+members: []
+areas:
+  - name: "Frontend"
+    description: "앱과 악보 화면"
+  - name: "Backend"
+    description: "API와 서비스 흐름"
+  - name: "AI"
+    description: "음높이 분석과 연주 평가"
+  - name: "Data"
+    description: "악보·음원 데이터"
+  - name: "Infra"
+    description: "빌드와 배포 환경"

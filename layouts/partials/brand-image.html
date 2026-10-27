@@ -1,0 +1,12 @@
+{{ $source := index site.Data.brand .kind }}
+{{ $alt := cond (eq .kind "character") "Team Edo의 백호 캐릭터: 갓과 한복을 입고 국악기와 정간보를 든 모습" "얼쑤 로고" }}
+{{ with resources.Get $source }}
+  {{ $image := . }}
+  {{ if eq $.kind "character" }}
+    {{ range site.Data.brand.characterCrop }}{{ $image = $image.Crop . }}{{ end }}
+  {{ end }}
+  {{ $image = $image.Fit ($.size | default "640x640 webp q90") }}
+  <img{{ with $.class }} class="{{ . }}"{{ end }} src="{{ $image.RelPermalink }}" alt="{{ $alt }}" width="{{ $image.Width }}" height="{{ $image.Height }}" decoding="async"{{ if $.lazy }} loading="lazy"{{ end }}>
+{{ else }}
+  {{ with $source }}<img{{ with $.class }} class="{{ . }}"{{ end }} src="{{ . | relURL }}" alt="{{ $alt }}"{{ if $.lazy }} loading="lazy"{{ end }}>{{ end }}
+{{ end }}

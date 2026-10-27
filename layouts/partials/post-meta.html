@@ -1,5 +1,1 @@
-<p class="post-meta">
-  <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
-  {{ with .Params.author }} · {{ . }}{{ end }}
-  {{ with .Params.categories }} · {{ range $i, $c := . }}{{ if $i }}, {{ end }}<a href="{{ "categories/" | relURL }}{{ $c | urlize }}/">{{ $c }}</a>{{ end }}{{ end }}
-</p>
+<div class="post-meta"><span class="author-avatar" aria-hidden="true">{{ with .Params.author }}{{ substr . 0 1 }}{{ else }}{{ substr site.Params.team 0 1 }}{{ end }}</span><span>{{ .Params.author | default site.Params.team }}</span><span aria-hidden="true">·</span><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time><span aria-hidden="true">·</span><span>{{ .ReadingTime }}분 읽기</span></div>

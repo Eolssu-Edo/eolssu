@@ -1,16 +1,10 @@
 {{ define "main" }}
-<h1>{{ .Title }}</h1>
-{{ if eq .Kind "taxonomy" }}
-  <ul class="term-list">
-    {{ range .Pages }}
-    <li><a href="{{ .RelPermalink }}">{{ .Title }}</a> <span>({{ len .Pages }})</span></li>
-    {{ end }}
-  </ul>
-{{ else }}
-  {{ range .Pages.ByDate.Reverse }}
-    {{ partial "post-card.html" . }}
+<div class="archive-page">
+  <header class="page-intro"><h1>{{ .Title }}</h1><p>{{ if eq .Kind "taxonomy" }}분류별로 글을 찾아보세요.{{ else }}이 주제로 남긴 기록 {{ len .Pages }}편{{ end }}</p></header>
+  {{ if eq .Kind "taxonomy" }}
+  <div class="term-grid">{{ range .Pages }}<a class="term-card" href="{{ .RelPermalink }}"><span>{{ if eq .Section "tags" }}#{{ end }}{{ .Title }}</span><span>{{ len .Pages }}편</span></a>{{ else }}<p class="empty-state">아직 등록된 분류가 없어요.</p>{{ end }}</div>
   {{ else }}
-    <p>아직 글이 없어요.</p>
+  <div class="post-grid">{{ range .Pages.ByDate.Reverse }}{{ partial "post-card.html" . }}{{ else }}<p class="empty-state">아직 글이 없어요.</p>{{ end }}</div>
   {{ end }}
-{{ end }}
+</div>
 {{ end }}
