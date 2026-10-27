@@ -75,14 +75,15 @@ $env:DB_PASSWORD = '<로컬 DB 비밀번호>'
 
 macOS / Linux에서는 같은 값을 터미널에서 `export`한 뒤 `./gradlew bootRun`을 실행합니다. JAR도 같은 환경변수로 실행합니다. `db` 프로필에서 연결·마이그레이션 검증이 실패하면 기동에 실패합니다.
 
-- Flyway가 `src/main/resources/db/migration/V1__initial_schema.sql`을 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
-- 적용한 V1은 수정하지 않고 `V2__설명.sql`처럼 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
+- Flyway가 `src/main/resources/db/migration/`의 `V1__initial_schema.sql`, `V2__auth_user_practice_extensions.sql`을 순서대로 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
+- 적용한 버전 파일은 수정하지 않고 `V3__설명.sql`처럼 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
+- V2는 `jangdans`·`practice_sessions`에 기본값 없는 `bpm_unit`을 추가합니다. 두 테이블에 행이 있는 DB에서는 V2가 CHECK 제약으로 실패하며, MySQL DDL은 되돌려지지 않아 앞부분 변경이 남습니다. 빈 DB에 적용합니다.
 - 자동 baseline과 Flyway clean은 비활성화했습니다. 이미 테이블이 있는 DB에 이력 없이 연결하면 자동 편입하지 않고 실패합니다. 기존 DB 도입은 스키마 일치 확인과 별도 적용 계획이 필요합니다.
 - 연결마다 MySQL 세션 시간대를 `+00:00`으로 맞춥니다. `DATETIME(6)` 저장 모델의 `LocalDateTime`은 UTC 값으로 취급하고 API 시간대 변환은 기능 구현에서 정합니다.
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1·V2 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -93,7 +94,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1 적용·재실행·검증, 12개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1·V2 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ## 폴더와 코드 배치
 
@@ -116,7 +117,7 @@ backend/
 │   │       └── <테이블명>Mapper.kt
 │   └── resources/
 │       ├── application.yml / application-db.yml
-│       ├── db/migration/V1__initial_schema.sql
+│       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql
 │       └── mybatis/<기능>/<테이블명>Mapper.xml
 ├── src/test/kotlin/com/ssafy/eolssu/backend/
 │   ├── BackendApplicationTests.kt
@@ -146,7 +147,8 @@ com.ssafy.eolssu.backend/
 | --- | --- |
 | `pitch`, `instrument`, `fingering` | `pitches`, `instruments`, `fingering_charts` |
 | `jangdan`, `song`, `notation` | `jangdans`, `songs`, `notation_symbols` |
-| `user`, `practice` | `users`, `practice_sessions` |
+| `user`, `practice` | `users`, `user_song_settings`, `practice_sessions` |
+| `auth`, `term`, `growth` | `user_social_accounts`, `email_verifications`, `refresh_tokens`, `terms`, `user_term_agreements`, `score_views` |
 | `evaluation` | `evaluations`, `note_results` |
 | `lesson` | `lessons`, `lesson_progress` |
 
@@ -160,5 +162,6 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 
 - Jira: [S15P31E102-60](https://ssafy.atlassian.net/browse/S15P31E102-60)
 - 저장 계층: [S15P31E102-74](https://ssafy.atlassian.net/browse/S15P31E102-74) · [MyBatis·Flyway 구성 근거](../docs/knowledge/backend/mybatis-flyway-bootstrap.md)
+- V2 ERD 보완: [S15P31E102-142](https://ssafy.atlassian.net/browse/S15P31E102-142) · [보완안·검증 기록](../docs/plans/S15P31E102-142.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)

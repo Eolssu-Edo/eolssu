@@ -1,11 +1,19 @@
 package com.ssafy.eolssu.backend
 
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenRow
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.UserSocialAccountMapper
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.UserSocialAccountRow
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationMapper
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationRow
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultMapper
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow
 import com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentMapper
 import com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentRow
 import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanMapper
@@ -22,8 +30,14 @@ import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.Prac
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow
+import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermMapper
+import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermRow
+import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.UserTermAgreementMapper
+import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.UserTermAgreementRow
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow
+import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingMapper
+import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow
 import java.sql.SQLException
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
@@ -61,9 +75,9 @@ class DatabaseIntegrationTests {
     private lateinit var context: ApplicationContext
 
     @Test
-    fun `applies V1 on MySQL 8_4 and does not apply it again`() {
+    fun `applies V1 and V2 on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("1", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("2", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -72,7 +86,8 @@ class DatabaseIntegrationTests {
             setOf(
                 "pitches", "instruments", "fingering_charts", "jangdans", "songs", "notation_symbols",
                 "users", "practice_sessions", "evaluations", "note_results", "lessons", "lesson_progress",
-                "flyway_schema_history",
+                "user_social_accounts", "terms", "user_term_agreements", "email_verifications", "refresh_tokens",
+                "user_song_settings", "score_views", "flyway_schema_history",
             ),
             tables,
         )
@@ -86,7 +101,7 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
-    fun `maps all twelve tables including nullable JSON Unicode and microsecond values`() {
+    fun `maps all nineteen tables including nullable JSON Unicode and microsecond values`() {
         val time = LocalDateTime.parse("2026-10-22T01:02:03.123456")
         assertEquals(PitchRow(1, "황", -1, "僙", "배황", -12), mapper<PitchMapper>().findById(1))
         assertNull(mapper<PitchMapper>().findById(999))
@@ -100,13 +115,13 @@ class DatabaseIntegrationTests {
         )
         val jangdan = assertNotNull(mapper<JangdanMapper>().findById(1))
         assertEquals(
-            JangdanRow(1, "세마치", "", 90, "테스트", time, time),
+            JangdanRow(1, "세마치", "", 90, "DOTTED_QUARTER", "테스트", time, time),
             jangdan.copy(pattern = ""),
         )
         assertJson("""{"beats":["덩","덕"],"group":[2]}""", jangdan.pattern)
         val song = assertNotNull(mapper<SongMapper>().findById(1))
         assertEquals(
-            SongRow(1, 1, 1, "아리랑", 2, 90, "", "황", 1, null, true, "PUBLISHED", time, time, null),
+            SongRow(1, 1, 1, "아리랑", "경기 민요", 2, 90, "", 3, "황", 1, null, true, "PUBLISHED", time, time, null),
             song.copy(scoreJson = ""),
         )
         assertJson("""{"notes":[{"yul":"황"}]}""", song.scoreJson)
@@ -116,16 +131,30 @@ class DatabaseIntegrationTests {
         )
         assertEquals("-", assertNotNull(mapper<NotationSymbolMapper>().findById(2)).symbol)
         assertEquals(
-            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", null, time, time, null),
+            UserRow(1, "test@example.test", "test-fixture-hash", "연습자", 1, "HANGUL", "ACTIVE", null, null, null, time, time, null),
             mapper<UserMapper>().findById(1),
         )
         assertEquals(
-            UserRow(2, null, null, null, 1, "HANJA", time, time, time, time),
+            UserRow(2, null, null, null, 1, "HANJA", "DELETED", time, null, null, time, time, time),
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            PracticeSessionRow(1, 1, 1, 90, 0, 0, "https://example.test/recording.wav", "DONE", null, time, time.plusSeconds(1), time),
+            UserRow(3, null, null, null, 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            mapper<UserMapper>().findById(3),
+        )
+        assertEquals(
+            PracticeSessionRow(
+                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav", "DONE", null,
+                time, time.plusSeconds(1), null, null, null, null, time,
+            ),
             mapper<PracticeSessionMapper>().findById(1),
+        )
+        assertEquals(
+            PracticeSessionRow(
+                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null, "DONE", null,
+                time, time.plusSeconds(1), time, "다시 연습", time, time, time,
+            ),
+            mapper<PracticeSessionMapper>().findById(2),
         )
         assertEquals(
             EvaluationRow(1, 1, 85, 80, 90, 85, "test-v1", time),
@@ -145,6 +174,36 @@ class DatabaseIntegrationTests {
             LessonProgressRow(1, 1, 1, null, null, time, time),
             mapper<LessonProgressMapper>().findById(1),
         )
+        assertEquals(
+            UserSocialAccountRow(1, 3, "NAVER", "AbC-네이버", time),
+            mapper<UserSocialAccountMapper>().findById(1),
+        )
+        assertEquals(
+            TermRow(1, "SERVICE_TERMS", "2026-10", "서비스 이용약관", "https://example.test/terms", true, 1, time, time),
+            mapper<TermMapper>().findById(1),
+        )
+        assertEquals(UserTermAgreementRow(1, 1, 1, false, time), mapper<UserTermAgreementMapper>().findById(1))
+        assertEquals(
+            EmailVerificationRow(1, "test@example.test", "SIGN_UP", "code-hash", 2, time, null, null, null, null, time, time),
+            mapper<EmailVerificationMapper>().findById(1),
+        )
+        assertEquals(
+            EmailVerificationRow(2, "test@example.test", "SIGN_UP", "code-hash", 0, time, time, "b".repeat(64), time, time, null, time),
+            mapper<EmailVerificationMapper>().findById(2),
+        )
+        assertEquals(
+            RefreshTokenRow(1, 1, "00000000-0000-0000-0000-000000000001", "c".repeat(64), time, time, "ROTATED", time),
+            mapper<RefreshTokenMapper>().findById(1),
+        )
+        assertEquals(
+            RefreshTokenRow(2, 1, "00000000-0000-0000-0000-000000000001", "d".repeat(64), time, null, null, time),
+            mapper<RefreshTokenMapper>().findById(2),
+        )
+        assertEquals(UserSongSettingRow(1, 1, 1, 72, time, time), mapper<UserSongSettingMapper>().findById(1))
+        assertEquals(
+            ScoreViewRow(1, 1, 1, "view-key", time, time.plusMinutes(12), 690, 600, time),
+            mapper<ScoreViewMapper>().findById(1),
+        )
     }
 
     @Test
@@ -159,6 +218,71 @@ class DatabaseIntegrationTests {
         }
         assertMysqlError(1062) {
             jdbc.update("INSERT INTO lessons (kind, instrument_id, seq, title, content_json, status) VALUES ('YUL', NULL, 1, '중복', '{}', 'DRAFT')")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `keeps V2 account token and practice record constraints`() {
+        jdbc.update("INSERT INTO users (instrument_id) VALUES (1)")
+        assertMysqlError(3819) {
+            jdbc.update("INSERT INTO users (password_hash, instrument_id) VALUES ('hash', 1)")
+        }
+        assertMysqlError(3819) {
+            jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING' WHERE id = 1")
+        }
+        assertMysqlError(3819) {
+            jdbc.update("UPDATE users SET deleted_at = CURRENT_TIMESTAMP(6) WHERE id = 1")
+        }
+        assertMysqlError(1062) {
+            jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'AbC-네이버')")
+        }
+        jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'abc-네이버')")
+        assertMysqlError(1062) {
+            jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'other')")
+        }
+        assertMysqlError(1062) {
+            jdbc.update(
+                "INSERT INTO terms (code, version, title, content_url, is_required, seq, effective_at) " +
+                    "VALUES ('SERVICE_TERMS', '2026-10', '중복', 'x', TRUE, 1, CURRENT_TIMESTAMP(6))",
+            )
+        }
+        assertMysqlError(3819) {
+            jdbc.update("UPDATE email_verifications SET token_hash = NULL WHERE id = 2")
+        }
+        assertMysqlError(3819) {
+            jdbc.update("UPDATE refresh_tokens SET revoke_reason = NULL WHERE id = 1")
+        }
+        assertMysqlError(1062) {
+            jdbc.update("INSERT INTO user_song_settings (user_id, song_id, bpm) VALUES (1, 1, 80)")
+        }
+        assertMysqlError(1364) {
+            jdbc.update("INSERT INTO jangdans (name, pattern, default_bpm) VALUES ('굿거리', '{}', 66)")
+        }
+        assertMysqlError(1062) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (user_id, song_id, bpm, bpm_unit, idempotency_key, request_hash, end_note_idx, started_at) " +
+                    "VALUES (1, 1, 90, 'DOTTED_QUARTER', 'practice-key', REPEAT('e', 64), 0, CURRENT_TIMESTAMP(6))",
+            )
+        }
+        assertMysqlError(3819) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (user_id, song_id, bpm, bpm_unit, idempotency_key, end_note_idx, started_at) " +
+                    "VALUES (1, 1, 90, 'DOTTED_QUARTER', 'other-key', 0, CURRENT_TIMESTAMP(6))",
+            )
+        }
+        assertMysqlError(1452) {
+            jdbc.update("UPDATE practice_sessions SET parent_session_id = 999 WHERE id = 2")
+        }
+        assertMysqlError(1062) {
+            jdbc.update(
+                "INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) " +
+                    "VALUES (1, 1, 'view-key', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 0, 0)",
+            )
+        }
+        assertMysqlError(3819) {
+            jdbc.update("UPDATE score_views SET counted_seconds = 691 WHERE id = 1")
         }
     }
 
