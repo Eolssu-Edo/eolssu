@@ -1,5 +1,11 @@
-<article class="post-card">
-  <h3><a href="{{ .RelPermalink }}">{{ .Title }}</a></h3>
-  {{ partial "post-meta.html" . }}
-  <p>{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify | truncate 120 }}{{ end }}</p>
+<article class="post-card" data-post-card data-categories="|{{ with .Params.categories }}{{ delimit . "|" | lower }}{{ end }}|" data-search="{{ printf "%s %s %s %s" .Title (.Description | default (.Summary | plainify)) (delimit (.Params.categories | default slice) " ") (delimit (.Params.tags | default slice) " ") | lower }}">
+  <a class="post-card-link" href="{{ .RelPermalink }}">
+    {{ partial "post-visual.html" (dict "page" .) }}
+    <div class="card-body">
+      <h3>{{ .Title }}</h3>
+      <p class="card-description">{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify | truncate 120 }}{{ end }}</p>
+      <div class="card-footer"><span>{{ .Params.author | default site.Params.team }}</span><span aria-hidden="true">·</span><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time></div>
+      {{ with .Params.categories }}<div class="card-categories">{{ range . }}<span>{{ . }}</span>{{ end }}</div>{{ end }}
+    </div>
+  </a>
 </article>

@@ -1,0 +1,9 @@
+{{ define "main" }}
+<div class="team-page">
+  <header class="team-page-heading"><p class="section-kicker">{{ site.Data.brand.name }}</p><h1>얼쑤를 만드는 사람들</h1></header>
+  <section class="team-intro" aria-label="팀 소개"><div class="team-intro-copy">{{ .Content }}<a class="text-link" href="{{ "/" | relURL }}">프로젝트 알아보기 <span aria-hidden="true">↗</span></a></div>{{ partial "brand-slot.html" (dict "kind" "character") }}</section>
+  <section class="team-areas" aria-labelledby="areas-title"><h2 id="areas-title">각자의 분야에서, 함께.</h2><div class="area-grid">{{ range site.Data.team.areas }}<div><h3>{{ .name }}</h3><p>{{ .description }}</p></div>{{ end }}</div></section>
+  <section class="team-members" aria-labelledby="members-title"><h2 id="members-title">함께 만드는 팀원들</h2>{{ with site.Data.team.members }}<div class="member-grid">{{ range . }}<article class="member-card">{{ with .photo }}<img src="{{ . | relURL }}" alt="" width="160" height="160" loading="lazy">{{ end }}<h3>{{ .name }}</h3><span>{{ .role }}</span>{{ with .description }}<p>{{ . }}</p>{{ end }}</article>{{ end }}</div>{{ else }}<p class="preparing-note">팀원 소개를 준비하고 있어요.</p>{{ end }}</section>
+  <section class="team-identity" aria-labelledby="identity-title"><div><p class="section-kicker">얼쑤의 얼굴</p><h2 id="identity-title">먹빛 로고와<br>국악기를 든 백호.</h2><p>붓글씨 로고와 갓·한복 차림의 백호가 우리 팀의 얼굴입니다. 국악기와 정간보를 든 모습으로 얼쑤를 소개합니다.</p></div>{{ partial "brand-slot.html" (dict "kind" "logo") }}</section>
+</div>
+{{ end }}

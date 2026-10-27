@@ -19,9 +19,9 @@ pipeline {
 
     environment {
         HUGO_IMAGE = 'ghcr.io/gohugoio/hugo:v0.145.0'
-        GH_REPO    = 'team-ido/team-ido.github.io'
+        GH_REPO    = 'team-edo/team-edo.github.io'
         GH_BRANCH  = 'main'
-        SITE_URL   = 'https://team-ido.github.io/'
+        SITE_URL   = 'https://team-edo.github.io/'
         PUBLIC_DIR = 'blog-build/public'
     }
 
