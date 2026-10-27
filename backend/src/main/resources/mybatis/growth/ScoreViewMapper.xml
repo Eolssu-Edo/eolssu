@@ -6,4 +6,16 @@
         FROM score_views
         WHERE id = #{id}
     </select>
+    <select id="findByUserIdAndIdempotencyKey" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow">
+        SELECT id, user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds, created_at
+        FROM score_views
+        WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
+    </select>
+    <select id="songExists" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM songs WHERE id = #{songId})
+    </select>
+    <insert id="insert">
+        INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds)
+        VALUES (#{userId}, #{songId}, #{idempotencyKey}, #{startedAt}, #{endedAt}, #{visibleSeconds}, #{countedSeconds})
+    </insert>
 </mapper>
