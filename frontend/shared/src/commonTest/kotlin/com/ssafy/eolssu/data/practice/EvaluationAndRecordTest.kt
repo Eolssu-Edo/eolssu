@@ -20,15 +20,13 @@ class EvaluationAndRecordTest {
     }
 
     @Test
-    fun sampleAnalysisIsPendingUntilItsTimePassesAndRetryStartsOver() = runImmediately {
+    fun sampleAnalysisIsPendingUntilItsTimePassesAndRetryLeavesItAlone() = runImmediately {
         var now = oct20
         val evaluations = SampleEvaluationRepository(now = { now }, analysisMillis = 2_600)
         val id = evaluations.requestAnalysis("arirang", 60, 48)
         now += 2_599
         assertEquals(AnalysisStatus.Pending, evaluations.analysisStatus(id))
-        evaluations.retryAnalysis(id)
-        now += 2_599
-        assertEquals(AnalysisStatus.Pending, evaluations.analysisStatus(id))
+        evaluations.retryAnalysis(id) // 아직 분석 중이면 새로 시작하지 않는다
         now += 1
         val done = assertIs<AnalysisStatus.Done>(evaluations.analysisStatus(id))
         assertEquals(done, evaluations.analysisStatus(id))

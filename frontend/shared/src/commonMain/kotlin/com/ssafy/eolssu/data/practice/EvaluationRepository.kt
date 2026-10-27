@@ -40,7 +40,7 @@ class SampleEvaluationRepository(
     private val now: () -> Long,
     private val analysisMillis: Long = 2600,
 ) : EvaluationRepository {
-    private class Analysis(val songId: String, val bpm: Int, val recordedSeconds: Int, var startedAt: Long, var evaluationId: String? = null)
+    private class Analysis(val songId: String, val bpm: Int, val recordedSeconds: Int, val startedAt: Long, var evaluationId: String? = null)
 
     private val analyses = mutableMapOf<String, Analysis>()
     private val results = mutableMapOf<String, EvaluationResult>()
@@ -62,9 +62,9 @@ class SampleEvaluationRepository(
         return AnalysisStatus.Done(result.id)
     }
 
+    /** 예시 분석은 실패하지 않으므로 다시 시도할 일은 늘 '아직 분석 중'이고, 그대로 둔다. */
     override suspend fun retryAnalysis(analysisId: String) {
-        val analysis = analyses.getValue(analysisId)
-        if (analysis.evaluationId == null) analysis.startedAt = now()
+        analyses.getValue(analysisId)
     }
 
     private fun sampleResult(analysis: Analysis): EvaluationResult =

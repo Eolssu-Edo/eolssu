@@ -57,7 +57,7 @@ class AnalysisPollingTest {
         now = 300_000 // 백그라운드에 5분 있다가 돌아옴
         polling.resume()
         assertEquals(PollStep.Wait(2_000), polling.onNoResponse())
-        assertEquals(370_000, timeoutAtWithoutResponse() )
+        assertEquals(370_000, timeoutAtWithoutResponse())
     }
 
     @Test
