@@ -139,7 +139,7 @@ class DatabaseIntegrationTests {
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            UserRow(3, "pending@example.test", null, "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            UserRow(3, "pending@example.test", "test-fixture-hash-3", "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
             mapper<UserMapper>().findById(3),
         )
         assertEquals(
@@ -225,9 +225,15 @@ class DatabaseIntegrationTests {
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
     fun `keeps V2 account and withdrawal constraints`() {
-        jdbc.update("INSERT INTO users (instrument_id) VALUES (1)")
-        assertMysqlError(3819, "chk_users_password_email") {
-            jdbc.update("INSERT INTO users (password_hash, instrument_id) VALUES ('hash', 1)")
+        assertEquals(
+            1,
+            jdbc.update("INSERT INTO users (email, password_hash, nickname, instrument_id) VALUES ('new@example.test', 'hash', '새 회원', 1)"),
+        )
+        assertMysqlError(3819, "users_chk_2") {
+            jdbc.update("INSERT INTO users (instrument_id) VALUES (1)")
+        }
+        assertMysqlError(3819, "users_chk_2") {
+            jdbc.update("INSERT INTO users (email, nickname, instrument_id) VALUES ('social@example.test', '간편 회원', 1)")
         }
         assertMysqlError(3819, "chk_users_status") {
             jdbc.update("UPDATE users SET status = 'UNKNOWN' WHERE id = 1")

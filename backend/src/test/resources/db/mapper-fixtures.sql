@@ -20,7 +20,7 @@ VALUES (1, '－', '뻗는표', '음을 이어 연주', NULL, '2026-10-22 01:02:0
 INSERT INTO users (id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at)
 VALUES (1, 'test@example.test', 'test-fixture-hash', '연습자', 1, 'HANGUL', 'ACTIVE', NULL, NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL),
        (2, NULL, NULL, NULL, 1, 'HANJA', 'DELETED', '2026-10-22 01:02:03.123456', NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456'),
-       (3, 'pending@example.test', NULL, '대기 회원', 1, 'HANJA', 'WITHDRAWAL_PENDING', NULL, '2026-10-22 01:02:03.123456', '2026-11-21 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL);
+       (3, 'pending@example.test', 'test-fixture-hash-3', '대기 회원', 1, 'HANJA', 'WITHDRAWAL_PENDING', NULL, '2026-10-22 01:02:03.123456', '2026-11-21 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL);
 
 INSERT INTO practice_sessions (id, user_id, song_id, mission_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, recording_url, status, fail_reason, started_at, ended_at, saved_at, memo, viewed_at, record_deleted_at, created_at)
 VALUES (1, 1, 1, NULL, NULL, 1, 90, 'DOTTED_QUARTER', NULL, NULL, 0, 0, 'https://example.test/recording.wav', 'DONE', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:04.123456', NULL, NULL, NULL, NULL, '2026-10-22 01:02:03.123456'),

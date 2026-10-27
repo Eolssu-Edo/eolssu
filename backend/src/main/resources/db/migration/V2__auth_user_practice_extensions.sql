@@ -21,14 +21,14 @@ SELECT 'practice_sessions.bpm', bpm BETWEEN 20 AND 240 FROM practice_sessions;  
 DROP TEMPORARY TABLE v2_preconditions;
 
 -- ---------- 사용자 ----------
--- 간편 로그인 회원은 비밀번호가 없고, 계정 통합을 거절한 회원은 이메일도 없다. 비밀번호가 있으면 이메일은 있어야 한다.
-ALTER TABLE users DROP CHECK users_chk_2;
-
+-- 가입은 이메일·비밀번호로만 하고 간편 로그인은 기존 회원에 연결해 로그인할 때만 쓴다(2026-10-27 결정).
+-- 그래서 V1의 users_chk_2(deleted_at이 없으면 이메일·비밀번호·닉네임 필수)를 그대로 둔다.
+-- V2에서 deleted_at은 일괄 삭제를 마친 시각이므로, 탈퇴 대기 회원도 세 칸을 유지한다.
 ALTER TABLE users
   ALTER COLUMN notation_mode SET DEFAULT 'HANJA',                                 -- AUTH-02: 기본 표기 HANJA
   ADD COLUMN status                  VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' AFTER notation_mode,
   ADD COLUMN withdrawal_requested_at DATETIME(6) AFTER last_login_at,              -- USR-05 탈퇴 요청 시각
-  ADD COLUMN purge_scheduled_at      DATETIME(6) AFTER withdrawal_requested_at;    -- 일괄 삭제 예정 시각(요청 + 30일). 그 전에 로그인하면 취소
+  ADD COLUMN purge_scheduled_at      DATETIME(6) AFTER withdrawal_requested_at;    -- 일괄 삭제 예정 시각(요청 + 30일 뒤 첫 04:00 KST 일괄 처리). 그 전에 로그인하면 취소
 
 UPDATE users SET status = 'DELETED' WHERE deleted_at IS NOT NULL;
 
@@ -36,7 +36,6 @@ UPDATE users SET status = 'DELETED' WHERE deleted_at IS NOT NULL;
 -- 탈퇴를 취소하거나 일괄 삭제를 마치면 withdrawal_requested_at·purge_scheduled_at을 함께 비운다.
 ALTER TABLE users
   ADD CONSTRAINT chk_users_status CHECK (status IN ('ACTIVE', 'WITHDRAWAL_PENDING', 'DELETED')),
-  ADD CONSTRAINT chk_users_password_email CHECK (password_hash IS NULL OR email IS NOT NULL),
   ADD CONSTRAINT chk_users_withdrawal CHECK ((status = 'WITHDRAWAL_PENDING') = (withdrawal_requested_at IS NOT NULL)),
   ADD CONSTRAINT chk_users_withdrawal_times CHECK ((withdrawal_requested_at IS NULL) = (purge_scheduled_at IS NULL)),
   ADD CONSTRAINT chk_users_deleted CHECK ((status = 'DELETED') = (deleted_at IS NOT NULL)),
