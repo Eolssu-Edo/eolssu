@@ -5,7 +5,6 @@ import java.time.LocalDateTime
 data class RefreshTokenRow(
     val id: Long,
     val userId: Long,
-    val familyId: String,
     val tokenHash: String,
     val expiresAt: LocalDateTime,
     val revokedAt: LocalDateTime?,

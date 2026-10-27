@@ -139,7 +139,7 @@ class DatabaseIntegrationTests {
             mapper<UserMapper>().findById(2),
         )
         assertEquals(
-            UserRow(3, null, null, null, 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
+            UserRow(3, "pending@example.test", null, "대기 회원", 1, "HANJA", "WITHDRAWAL_PENDING", null, time, time.plusDays(30), time, time, null),
             mapper<UserMapper>().findById(3),
         )
         assertEquals(
@@ -192,11 +192,11 @@ class DatabaseIntegrationTests {
             mapper<EmailVerificationMapper>().findById(2),
         )
         assertEquals(
-            RefreshTokenRow(1, 1, "00000000-0000-0000-0000-000000000001", "c".repeat(64), time, time, "ROTATED", time),
+            RefreshTokenRow(1, 1, "c".repeat(64), time, time, "ROTATED", time),
             mapper<RefreshTokenMapper>().findById(1),
         )
         assertEquals(
-            RefreshTokenRow(2, 1, "00000000-0000-0000-0000-000000000001", "d".repeat(64), time, null, null, time),
+            RefreshTokenRow(2, 1, "d".repeat(64), time, null, null, time),
             mapper<RefreshTokenMapper>().findById(2),
         )
         assertEquals(UserSongSettingRow(1, 1, 1, 72, time, time), mapper<UserSongSettingMapper>().findById(1))
@@ -224,16 +224,28 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
-    fun `keeps V2 account token and practice record constraints`() {
+    fun `keeps V2 account and withdrawal constraints`() {
         jdbc.update("INSERT INTO users (instrument_id) VALUES (1)")
-        assertMysqlError(3819) {
+        assertMysqlError(3819, "chk_users_password_email") {
             jdbc.update("INSERT INTO users (password_hash, instrument_id) VALUES ('hash', 1)")
         }
-        assertMysqlError(3819) {
+        assertMysqlError(3819, "chk_users_status") {
+            jdbc.update("UPDATE users SET status = 'UNKNOWN' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_users_withdrawal") {
             jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING' WHERE id = 1")
         }
-        assertMysqlError(3819) {
+        assertMysqlError(3819, "chk_users_withdrawal_times") {
+            jdbc.update("UPDATE users SET purge_scheduled_at = NULL WHERE id = 3")
+        }
+        assertMysqlError(3819, "chk_users_deleted") {
             jdbc.update("UPDATE users SET deleted_at = CURRENT_TIMESTAMP(6) WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_users_deleted_personal") {
+            jdbc.update(
+                "UPDATE users SET status = 'DELETED', withdrawal_requested_at = NULL, purge_scheduled_at = NULL, " +
+                    "deleted_at = CURRENT_TIMESTAMP(6) WHERE id = 3",
+            )
         }
         assertMysqlError(1062) {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'AbC-네이버')")
@@ -242,23 +254,68 @@ class DatabaseIntegrationTests {
         assertMysqlError(1062) {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'other')")
         }
+        assertMysqlError(3819, "chk_user_social_accounts_provider") {
+            jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'APPLE', 'apple-id')")
+        }
         assertMysqlError(1062) {
             jdbc.update(
                 "INSERT INTO terms (code, version, title, content_url, is_required, seq, effective_at) " +
                     "VALUES ('SERVICE_TERMS', '2026-10', '중복', 'x', TRUE, 1, CURRENT_TIMESTAMP(6))",
             )
         }
-        assertMysqlError(3819) {
-            jdbc.update("UPDATE email_verifications SET token_hash = NULL WHERE id = 2")
+        assertMysqlError(1062) {
+            jdbc.update("INSERT INTO user_term_agreements (user_id, term_id, agreed) VALUES (1, 1, TRUE)")
         }
-        assertMysqlError(3819) {
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `keeps V2 verification and token constraints`() {
+        assertMysqlError(3819, "chk_email_verifications_purpose") {
+            jdbc.update("UPDATE email_verifications SET purpose = 'LOGIN' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_email_verifications_token") {
+            jdbc.update("UPDATE email_verifications SET verified_at = NULL WHERE id = 2")
+        }
+        assertMysqlError(3819, "chk_email_verifications_consumed") {
+            jdbc.update("UPDATE email_verifications SET consumed_at = CURRENT_TIMESTAMP(6) WHERE id = 1")
+        }
+        assertMysqlError(1062) {
+            jdbc.update("UPDATE email_verifications SET token_hash = REPEAT('b', 64), verified_at = expires_at, token_expires_at = expires_at WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_refresh_tokens_revoked") {
             jdbc.update("UPDATE refresh_tokens SET revoke_reason = NULL WHERE id = 1")
         }
+        assertMysqlError(3819, "chk_refresh_tokens_revoke_reason") {
+            jdbc.update("UPDATE refresh_tokens SET revoke_reason = 'EXPIRED' WHERE id = 1")
+        }
+        assertMysqlError(1062) {
+            jdbc.update("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (1, REPEAT('d', 64), CURRENT_TIMESTAMP(6))")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `keeps V2 catalog practice record and score view constraints`() {
         assertMysqlError(1062) {
             jdbc.update("INSERT INTO user_song_settings (user_id, song_id, bpm) VALUES (1, 1, 80)")
         }
+        assertMysqlError(3819, "chk_user_song_settings_bpm") {
+            jdbc.update("UPDATE user_song_settings SET bpm = 10 WHERE id = 1")
+        }
         assertMysqlError(1364) {
             jdbc.update("INSERT INTO jangdans (name, pattern, default_bpm) VALUES ('굿거리', '{}', 66)")
+        }
+        assertMysqlError(3819, "chk_jangdans_bpm_unit") {
+            jdbc.update("UPDATE jangdans SET bpm_unit = 'HALF' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_songs_score_version") {
+            jdbc.update("UPDATE songs SET score_version = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_bpm_unit") {
+            jdbc.update("UPDATE practice_sessions SET bpm_unit = 'HALF' WHERE id = 1")
         }
         assertMysqlError(1062) {
             jdbc.update(
@@ -266,7 +323,7 @@ class DatabaseIntegrationTests {
                     "VALUES (1, 1, 90, 'DOTTED_QUARTER', 'practice-key', REPEAT('e', 64), 0, CURRENT_TIMESTAMP(6))",
             )
         }
-        assertMysqlError(3819) {
+        assertMysqlError(3819, "chk_practice_sessions_idempotency") {
             jdbc.update(
                 "INSERT INTO practice_sessions (user_id, song_id, bpm, bpm_unit, idempotency_key, end_note_idx, started_at) " +
                     "VALUES (1, 1, 90, 'DOTTED_QUARTER', 'other-key', 0, CURRENT_TIMESTAMP(6))",
@@ -281,9 +338,27 @@ class DatabaseIntegrationTests {
                     "VALUES (1, 1, 'view-key', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 0, 0)",
             )
         }
-        assertMysqlError(3819) {
+        assertMysqlError(3819, "chk_score_views_counted") {
             jdbc.update("UPDATE score_views SET counted_seconds = 691 WHERE id = 1")
         }
+        assertMysqlError(3819, "chk_score_views_period") {
+            jdbc.update("UPDATE score_views SET ended_at = started_at - INTERVAL 1 SECOND WHERE id = 1")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `deletes a member's practice records in one statement during withdrawal purge`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, parent_session_id, bpm, bpm_unit, end_note_idx, started_at) " +
+                "VALUES (3, 3, 1, NULL, 90, 'DOTTED_QUARTER', 0, CURRENT_TIMESTAMP(6)), " +
+                "(4, 3, 1, 3, 90, 'DOTTED_QUARTER', 0, CURRENT_TIMESTAMP(6)), " +
+                "(5, 1, 1, 3, 90, 'DOTTED_QUARTER', 0, CURRENT_TIMESTAMP(6))",
+        )
+        assertEquals(2, jdbc.update("DELETE FROM practice_sessions WHERE user_id = 3 ORDER BY id"))
+        assertNull(jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 5", Long::class.javaObjectType))
+        assertEquals(1L, jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 2", Long::class.java))
     }
 
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
@@ -293,10 +368,13 @@ class DatabaseIntegrationTests {
         assertEquals(json.readTree(expected), json.readTree(actual))
     }
 
-    private fun assertMysqlError(code: Int, action: () -> Unit) {
+    private fun assertMysqlError(code: Int, constraint: String? = null, action: () -> Unit) {
         val error = assertFailsWith<DataAccessException>(block = action)
         val sqlError = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<SQLException>().first()
         assertEquals(code, sqlError.errorCode)
+        if (constraint != null) {
+            assertEquals("Check constraint '$constraint' is violated.", sqlError.message)
+        }
     }
 
     companion object {
