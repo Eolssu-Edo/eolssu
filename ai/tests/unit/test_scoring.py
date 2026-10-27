@@ -91,11 +91,11 @@ def test_one_played_note_is_not_a_failure():
     assert verdicts(result) == {k: "MISSED" for k in range(len(SCALE)) if k != 5}
 
 
-def test_all_wrong_notes_are_errors_not_failure():
-    # 모든 음을 3반음 높게 불면 DTW가 다른 음표에 맞추기도 해 판정이 섞인다. 실패가 아니라 오류로 남는지만 본다.
-    result = score(f0_frames(SCALE, shift=3), SCALE, BPM, REF_HZ)
+def test_all_wrong_notes_are_pitch_errors_not_failure():
+    # 한 옥타브 높게 불면 조율 보정 범위(±100센트)를 넘어 보정 없이 모든 음표가 음정 오류로 남는다.
+    result = score(f0_frames(SCALE, shift=12), SCALE, BPM, REF_HZ)
     assert (result.status, result.fail_reason) == ("DONE", None)
-    assert "PITCH" in verdicts(result).values()
+    assert verdicts(result) == {k: "PITCH" for k in range(len(SCALE))}
 
 
 def test_short_input_fails():
