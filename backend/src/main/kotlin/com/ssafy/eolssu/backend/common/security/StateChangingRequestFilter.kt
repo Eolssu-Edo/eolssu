@@ -16,8 +16,6 @@ import org.springframework.web.filter.OncePerRequestFilter
  * 1. Origin 헤더가 있으면 같은 호스트이거나 설정한 개발 주소여야 한다(403). 앱은 Origin을 보내지 않으므로 없으면 통과한다.
  * 2. 본문은 JSON만 받는다(415). 다른 사이트의 HTML 폼은 JSON을 보낼 수 없다. 녹음 업로드만 multipart를 받는다.
  * 경로와 관계없이 모든 상태 변경 요청에 적용한다. 인코딩된 경로(/%61pi/...)로 건너뛰지 못하게 하려는 것이다.
- *
- * @param recordingUpload 녹음 업로드 요청 판정. 로그인 규칙과 같은 경로 기준(서블릿 경로 포함)이 되도록 SecurityConfig가 만든다.
  */
 class StateChangingRequestFilter(
     private val allowedOrigins: Set<String>,
