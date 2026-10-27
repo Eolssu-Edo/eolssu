@@ -21,8 +21,8 @@
 
 | 계정·DB | 권한 | 용도 |
 | --- | --- | --- |
-| `grafana` | `eolssu` 읽기 | Grafana 데이터 소스 |
-| `metabase` | `eolssu` 읽기, `metabase` 전체 | Metabase 데이터 탐색과 자체 설정 저장 |
+| `grafana` | `eolssu`의 대시보드가 읽는 테이블과 `users`의 개인정보 제외 열 | Grafana 데이터 소스 |
+| `metabase` | `eolssu`의 통계 테이블과 `users`의 개인정보 제외 열, `metabase` 전체 | Metabase 데이터 탐색과 자체 설정 저장 |
 | `metabase` DB | - | Metabase 대시보드·질문 저장소. MySQL 백업에 함께 포함됨 |
 
 비밀번호는 서버에서 `openssl rand -hex 16`으로 두 개 만듭니다. Metabase 비밀번호는 접속 주소에 들어가므로 영문·숫자만 씁니다.
@@ -35,16 +35,33 @@ root 비밀번호는 `sudo grep MYSQL_ROOT_PASSWORD /opt/eolssu/.env`로 확인�
 
 ```sql
 CREATE USER 'grafana'@'%' IDENTIFIED BY '<grafana 비밀번호>';
-GRANT SELECT ON eolssu.* TO 'grafana'@'%';
-
 CREATE DATABASE metabase CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 CREATE USER 'metabase'@'%' IDENTIFIED BY '<metabase 비밀번호>';
-GRANT SELECT ON eolssu.* TO 'metabase'@'%';
 GRANT ALL PRIVILEGES ON metabase.* TO 'metabase'@'%';
+
+-- 두 계정 공통: users는 개인정보(email·password_hash·nickname)를 뺀 열만
+GRANT SELECT (id, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, deleted_at)
+  ON eolssu.users TO 'grafana'@'%', 'metabase'@'%';
+
+-- Grafana: 운영 현황·채점 품질 대시보드가 읽는 테이블
+GRANT SELECT ON eolssu.practice_sessions TO 'grafana'@'%';
+GRANT SELECT ON eolssu.evaluations       TO 'grafana'@'%';
+GRANT SELECT ON eolssu.note_results      TO 'grafana'@'%';
+GRANT SELECT ON eolssu.songs             TO 'grafana'@'%';
+GRANT SELECT ON eolssu.instruments       TO 'grafana'@'%';
+GRANT SELECT ON eolssu.pitches           TO 'grafana'@'%';
+
+-- Metabase: 곡별 통계가 읽는 테이블(테이블 보기에도 이 테이블만 보임)
+GRANT SELECT ON eolssu.practice_sessions TO 'metabase'@'%';
+GRANT SELECT ON eolssu.evaluations       TO 'metabase'@'%';
+GRANT SELECT ON eolssu.songs             TO 'metabase'@'%';
+GRANT SELECT ON eolssu.instruments       TO 'metabase'@'%';
 
 SHOW GRANTS FOR 'grafana'@'%';
 SHOW GRANTS FOR 'metabase'@'%';
 ```
+
+인증 테이블(`email_verifications`·`refresh_tokens`·`user_social_accounts`)과 `users`의 개인정보 열은 두 계정 모두 읽지 못합니다. 권한은 더해지므로 `users`에 테이블 단위 SELECT를 함께 주면 열 제한이 효과가 없습니다. 대시보드나 Metabase에서 다른 테이블이 필요하면 그 테이블만 더합니다.
 
 `'%'`는 모든 주소에서 접속을 허용한다는 뜻이지만, 이 MySQL은 서버 밖에 포트를 열지 않아 같은 Docker 네트워크 안에서만 접속됩니다.
 
