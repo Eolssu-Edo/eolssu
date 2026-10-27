@@ -77,7 +77,7 @@ macOS / Linux에서는 같은 값을 터미널에서 `export`한 뒤 `./gradlew 
 
 - Flyway가 `src/main/resources/db/migration/`의 `V1__initial_schema.sql`, `V2__auth_user_practice_extensions.sql`을 순서대로 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
 - 적용한 버전 파일은 수정하지 않고 `V3__설명.sql`처럼 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
-- V2는 `jangdans`·`practice_sessions`에 기본값 없는 `bpm_unit`을 추가합니다. 두 테이블에 행이 있는 DB에서는 V2가 CHECK 제약으로 실패하며, MySQL DDL은 되돌려지지 않아 앞부분 변경이 남습니다. 빈 DB에 적용합니다.
+- MySQL DDL은 실패해도 되돌려지지 않습니다. V2는 DDL 전에 기존 데이터를 확인해, 세마치·굿거리·중모리·타령 밖의 장단이나 개인정보가 남은 탈퇴 회원이 있으면 `chk_v2_preconditions` 위반으로 아무것도 바꾸지 않고 멈춥니다. 해당 행을 고친 뒤 `flyway repair`로 실패 기록을 지우고 다시 적용합니다. 기존 장단·세션의 `bpm_unit`은 장단 이름으로 채웁니다.
 - 자동 baseline과 Flyway clean은 비활성화했습니다. 이미 테이블이 있는 DB에 이력 없이 연결하면 자동 편입하지 않고 실패합니다. 기존 DB 도입은 스키마 일치 확인과 별도 적용 계획이 필요합니다.
 - 연결마다 MySQL 세션 시간대를 `+00:00`으로 맞춥니다. `DATETIME(6)` 저장 모델의 `LocalDateTime`은 UTC 값으로 취급하고 API 시간대 변환은 기능 구현에서 정합니다.
 
@@ -94,7 +94,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1·V2 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1·V2 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ## 폴더와 코드 배치
 

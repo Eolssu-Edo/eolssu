@@ -38,6 +38,7 @@
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+- [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 
 ## 프론트엔드 조사·검증 기록
 
