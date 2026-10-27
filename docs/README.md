@@ -31,15 +31,12 @@
 ## 기능 스펙
 
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
+- [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 
 ## 결정 기록
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
-
-## 기능 스펙
-
-- [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 
 ## 도구 조사·검증 기록
 
