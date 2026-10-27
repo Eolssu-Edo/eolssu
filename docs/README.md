@@ -28,6 +28,10 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+## 기능 스펙
+
+- [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
+
 ## 결정 기록
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
@@ -81,6 +85,7 @@
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
+- [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
