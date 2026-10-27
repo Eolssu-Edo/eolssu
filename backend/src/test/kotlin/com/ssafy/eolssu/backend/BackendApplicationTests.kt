@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend
 
+import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
 import jakarta.servlet.MultipartConfigElement
 import java.net.URI
 import java.net.http.HttpClient
@@ -61,6 +62,7 @@ class BackendApplicationTests {
         assertTrue(context.getBeansOfType(DataSource::class.java).isEmpty())
         assertTrue(context.getBeansOfType(SqlSessionFactory::class.java).isEmpty())
         assertTrue(context.getBeansOfType(Flyway::class.java).isEmpty())
+        assertTrue(context.getBeansOfType(RecordingUploadExpiryService::class.java).isEmpty())
 
         HttpClient.newHttpClient().use { client ->
             val request = HttpRequest.newBuilder()

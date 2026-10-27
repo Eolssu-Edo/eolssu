@@ -28,6 +28,10 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+## 기능 스펙
+
+- [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
+
 ## 결정 기록
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
@@ -61,6 +65,7 @@
 - [단소 정간보 PDF의 우물사이 문서 변환](knowledge/data/danso-scores-umulsai.md)
 - [정간보 OMR 대조 결과와 율명 인식 개선](knowledge/data/jeongganbo-omr-accuracy.md)
 - [소금 정간보 우물사이 문서의 검토 화면과 대조 결과](knowledge/data/sogeum-scores-review.md)
+- [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
 
 ## AI 실험 기록
@@ -69,6 +74,7 @@
 
 ## COCO 산출물
 
+- [S15P31E102-196 채점 품질 통계 대시보드 스펙](specs/scoring-quality-dashboard.md)
 - [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
 
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
@@ -79,9 +85,13 @@
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
+- [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
+- [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-180 녹음 파일 ffprobe 검사기와 ffmpeg 실행 환경](plans/S15P31E102-180.md)
+- [S15P31E102-182 녹음 업로드 만료 세션 정리 배치](plans/S15P31E102-182.md)
+- [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

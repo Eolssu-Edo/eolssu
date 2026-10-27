@@ -107,6 +107,25 @@ Grafana는 **Save & test**에서 `Database Connection OK`가 나오면 연결된
 
 화면에서 고친 대시보드는 Share → Export → Save to file로 내려받아 이 파일을 바꿔 커밋합니다. 데이터가 없으면 숫자는 0, 표는 `No data`로 보입니다.
 
+### Grafana: 채점 품질
+
+작업: [S15P31E102-196](https://ssafy.atlassian.net/browse/S15P31E102-196). 기준: [스펙](../../docs/specs/scoring-quality-dashboard.md).
+
+[dashboards/eolssu-scoring-quality.json](dashboards/eolssu-scoring-quality.json)을 위와 같은 순서로 가져옵니다. uid는 `eolssu-scoring-quality`입니다. 자동 새로고침은 없고 기본 기간은 최근 30일입니다.
+
+위쪽 선택상자로 악기·곡·모델 버전을 거릅니다. 곡 목록은 고른 악기의 곡만 보입니다. 오차는 +가 높게·늦게·길게 분 쪽입니다.
+
+| 패널 | 내용 |
+| --- | --- |
+| 오차 분포 | 음높이(10 cent)·박자(20 ms)·길이(50 ms) 구간별 음 수. 범위를 넘는 값은 끝 칸에 넣고, 음을 못 잡은 MISSED는 뺍니다 |
+| 음별 판정 | 정답 음별 맞음·음높이·박자·못 잡음 비율 |
+| 곡별 판정 비율 | 곡별 음 수와 판정 비율(%) |
+| 모델 버전별 평균 점수 | 버전별 채점 수와 총점·음높이·박자·길이 평균 |
+| 실패 세션 원인 | FAILED 세션의 `fail_reason`별 수. 채점 전에 끝난 세션이라 모델 버전 거르기는 적용되지 않습니다 |
+| 채점 처리 시간 | 녹음 종료(`ended_at`)부터 채점 저장(`evaluated_at`)까지의 중앙값과 5초 구간 분포 |
+
+시김새 음은 음높이 판정에서 빠지지만 DB에 시김새 여부가 없어 음높이 오차 분포에는 섞여 있습니다.
+
 ### Metabase: 테이블 보기와 곡별 통계
 
 - **테이블 보기**: 왼쪽 메뉴 데이터 둘러보기 → eolssu → 테이블을 엽니다. 열 때마다 DB를 새로 읽습니다. 새 테이블은 스키마 동기화(기본 1시간) 뒤에 보이며, 관리자 설정 → 데이터베이스 → eolssu → 지금 스키마 동기화로 바로 반영합니다.

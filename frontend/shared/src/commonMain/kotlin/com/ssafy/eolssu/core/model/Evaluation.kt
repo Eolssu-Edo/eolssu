@@ -40,3 +40,22 @@ data class EvaluationResult(
             .maxBy { it.second }
     }
 }
+
+/**
+ * 분석 실패 사유. 서버 `fail_reason` 코드와 같다(PRA-03 스펙).
+ *
+ * @property retryable 같은 녹음으로 '분석 다시 시도'할 수 있는지. 아니면 '다시 연주하기'로 새로 녹음한다.
+ */
+enum class AnalysisFailure(val code: String, val retryable: Boolean) {
+    NoSound("NO_SOUND", false),
+    TooShort("TOO_SHORT", false),
+    DecodeError("DECODE_ERROR", false),
+    UploadTimeout("UPLOAD_TIMEOUT", false),
+    Timeout("TIMEOUT", true),
+    ServerError("SERVER_ERROR", true);
+
+    companion object {
+        /** 서버 코드에 맞는 사유. 모르는 코드나 빈 값은 [ServerError]로 본다. */
+        fun fromCode(code: String?): AnalysisFailure = entries.firstOrNull { it.code == code } ?: ServerError
+    }
+}

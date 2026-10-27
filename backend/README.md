@@ -134,9 +134,13 @@ backend/
 ├── src/main/
 │   ├── kotlin/com/ssafy/eolssu/backend/
 │   │   ├── BackendApplication.kt
-│   │   └── feature/<기능>/infrastructure/persistence/
-│   │       ├── <테이블명>Row.kt
-│   │       └── <테이블명>Mapper.kt
+│   │   ├── config/                # 구현 연결·스케줄링 설정
+│   │   └── feature/<기능>/
+│   │       ├── application/       # 구현이 있는 기능만 (예: practice)
+│   │       ├── domain/
+│   │       └── infrastructure/persistence/
+│   │           ├── <테이블명>Row.kt
+│   │           └── <테이블명>Mapper.kt
 │   └── resources/
 │       ├── application.yml / application-db.yml
 │       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql
@@ -163,7 +167,9 @@ com.ssafy.eolssu.backend/
 
 의존 방향은 `api → application → domain`, `infrastructure → domain`으로 두며 `config`에서 구현을 연결합니다. `domain`은 Spring/MyBatis/HTTP 구현에, `application`은 구체적인 `infrastructure` 구현에 의존하지 않습니다. 기능 간 협력은 application의 공개 계약으로 한정하고 순환 참조를 피합니다. 같은 폴더 안의 패키지 경계는 Gradle이 자동 강제하지 않으므로 실제 기능 추가 시 필요한 검증을 함께 구성합니다.
 
-현재는 저장소 초기 구조로 PK 조회 `findById`만 제공합니다. 존재하지 않는 ID는 `null`을 반환하며, 삭제·공개 상태 필터는 적용하지 않습니다. Row는 저장 계층 전용이므로 API 응답으로 그대로 노출하지 않습니다. 기능 구현 시 domain 저장소 계약과 infrastructure 구현을 연결합니다.
+Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에 필요한 조회·갱신을 더합니다(예: `PracticeSessionMapper.failRecordingStartedBefore`). `findById`는 존재하지 않는 ID에 `null`을 반환하며, 삭제·공개 상태 필터는 적용하지 않습니다. Row는 저장 계층 전용이므로 API 응답으로 그대로 노출하지 않습니다. 기능 구현 시 domain 저장소 계약과 infrastructure 구현을 연결합니다.
+
+`db` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필과 읽기 전용 `ops` 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
 
 | 기능 패키지 | 테이블 |
 | --- | --- |

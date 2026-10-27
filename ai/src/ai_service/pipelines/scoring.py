@@ -200,6 +200,10 @@ def score(
         timing_c.append(_credit(onset_err, onset_tol_s))
         duration_c.append(_credit(dur_err, tol.duration_ratio * lengths[k]))
 
+    # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.
+    if all(r.verdict == "MISSED" for r in results):
+        return ScoreResult("FAILED", "NO_SOUND")
+
     pitch, timing, duration = (round(100 * float(np.mean(c))) if c else 100 for c in (pitch_c, timing_c, duration_c))
     return ScoreResult(
         "DONE",
