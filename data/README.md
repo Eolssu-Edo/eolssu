@@ -251,6 +251,26 @@ python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022
 
 `report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
 
+### 대조 결과 집계
+
+검토 화면에서 내려받은 `<제목>.review.json`(과 같은 폴더의 `<제목>.jgb.json`)으로 곡별 정간·칸 모양·율명·시김새 정확도와 자주 틀린 율명을 셉니다. 결과는 [대조 결과 문서](../docs/knowledge/data/jeongganbo-omr-accuracy.md)에 있습니다.
+
+```bash
+python data/src/scores/review_stats.py <검토 기록 폴더> --json <결과.json>
+```
+
+OMR 옵션의 효과는 같은 정답으로 잽니다. `jeongganbo_omr.py`에 `--yul <악기 또는 율명 목록>`(고를 수 있는 율명 제한, 악기는 `danso`·`sogeum`·`jeongak-daegeum`)이나 `--read-dpi 300`(율명은 고해상도 그림에서 잘라 읽기)을 더해 곡마다 돌린 뒤, 조합별 출력 폴더를 비교합니다. 정간은 칸 상자 위치로 짝지으므로 칸을 찾는 `--dpi`와 보정 옵션은 정답을 만들 때와 같아야 합니다.
+
+```bash
+python data/src/scores/omr_eval.py <검토 기록 폴더> 기준=<출력 폴더> 단소제한=<출력 폴더>
+```
+
+`--octave-check <평균 모양.json>`은 모델이 낸 청태·청황을 글자 모양으로 다시 가려 중청태·중청황으로 고칩니다. 평균 모양은 정답과 `--read-dpi 300`으로 돌린 출력 폴더(`page-read.png` 포함)로 만들고 `data/processed/`에 둡니다(원본 악보 그림에서 나온 값이라 커밋하지 않습니다).
+
+```bash
+python data/src/scores/octave_check.py <검토 기록 폴더> <출력 폴더> --out data/processed/scores/danso-115/octave-templates.json
+```
+
 ### 검토 화면
 
 두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
@@ -264,6 +284,14 @@ python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022
 ```bash
 python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
 ```
+
+변환 결과 폴더 없이 `.jgb.json`만 있으면 파일을 직접 줍니다. 같은 폴더에서 이름 앞부분이 맞는 원본 PDF의 첫 쪽을 그림으로 붙이고, 문서의 선율을 처음 결과로 씁니다. 정간 상자는 [grid_boxes.py](src/scores/grid_boxes.py)가 그림의 선만 보고 찾습니다. 가로선이 있는 율명 열과 그 오른쪽 가사 열의 짝으로 정간 열을 고르고, 칸 수가 문서와 같은 악보에만 상자를 붙입니다. 칸 수가 같은 악보가 나란하면(소금보·단소보, 연습곡 1·2) 오른쪽 제목 글자에 `소금`이나 문서 이름 끝의 곡 이름이 든 쪽을 고릅니다. 맞는 악보가 하나가 아니면 상자 없이 만들고 그 사실을 출력합니다. 정간마다 가사가 있으면 함께 보입니다. 성부가 여럿인 문서는 각을 성부 순서로 이어 한 화면에서 검토하고 저장할 때 성부별로 나눕니다. 각 수·각 길이 설정은 첫 성부 기준입니다.
+
+```bash
+python data/src/scores/review_page.py <폴더>/*.jgb.json --umulsai ~/omr/jeongganbo-generator --out <폴더>/review
+```
+
+소금 정간보 14개 문서(`sogeum_dataset`, PDF 13개)는 이 방식으로 만들었습니다. 이 판형은 두 쪽 펼침에 가사·설명 글이 섞여 있어 `standard_score_text.py`는 13개 PDF 중 1개만 읽었고, OMR 리더의 칸 찾기는 dpi 100~300에서 1개만 일부 찾았습니다. `grid_boxes.py`로는 14개 모두 칸 수가 문서와 같았고, 상자 위에 문서 선율을 겹쳐 그려 순서·위치가 맞는 것을 확인했습니다. 북천이맑다커늘은 두 성부의 열을 각각 찾습니다.
 
 HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
 

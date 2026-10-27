@@ -19,6 +19,10 @@
   * 세로선이 연하고 끊긴 스캔은 --gap-fill 10 --line-threshold 250으로 칸 찾기 그림만 보정한다.
     율명 인식은 보정하지 않은 원래 그림을 잘라서 한다.
   * 그래도 놓친 정간은 --fill-grid로 옆 열의 줄 위치에서 채운다(먹이 있는 자리만).
+  * --yul은 모델이 고를 수 있는 율명을 악기 음역이나 곡의 율명으로 좁힌다. --read-dpi는 칸은 --dpi에서 찾고
+    율명은 더 높은 해상도로 다시 그린 쪽에서 잘라 읽는다. 둘 중 하나라도 주면 모든 정간을 다시 읽는다.
+  * --octave-check는 모델이 낸 청태·청황·중청황을 300dpi 그림의 글자 모양으로 다시 가려 중청태·중청황을 고친다
+    (octave_check.py, 평균 모양 파일은 그 스크립트로 만든다).
 """
 import argparse
 import json
@@ -43,10 +47,18 @@ parser.add_argument("--title", default=None, help="출력 파일 이름. 기본�
 parser.add_argument("--gap-fill", type=int, default=0, help="칸 찾기 전에 세로로 메울 선 틈(px). 0이면 보정 없음")
 parser.add_argument("--line-threshold", type=int, default=240, help="이보다 어두운 픽셀을 선으로 본다. 리더 기본 240")
 parser.add_argument("--fill-grid", action="store_true", help="옆 열의 줄 위치로 놓친 정간을 채운다")
+parser.add_argument("--yul", default=None,
+                    help="고를 수 있는 율명: 악기 이름(" + ", ".join("danso sogeum jeongak-daegeum".split()) + ") 또는 '중,임,무'처럼 쉼표 목록")
+parser.add_argument("--read-dpi", type=int, default=None, help="율명은 이 해상도로 다시 그린 쪽에서 칸을 잘라 읽는다(예: 300)")
+parser.add_argument("--octave-check", type=Path, default=None, help="청성·중청 글자 평균 모양 파일(octave_check.py로 만든 JSON)")
 args = parser.parse_args()
 
 pdf, out, omr_dir = args.pdf.resolve(), args.out.resolve(), args.omr_dir.resolve()
 out.mkdir(parents=True, exist_ok=True)
+if args.octave_check:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))  # 아래 chdir 전에 같은 폴더의 octave_check를 찾게
+    from octave_check import fix_cells
+    templates = json.loads(args.octave_check.read_text(encoding="utf-8"))
 sys.path.insert(0, str(omr_dir))
 os.chdir(omr_dir)  # OMR 기본 경로(checkpoints/best/...)가 저장소 기준 상대 경로라서
 from jngbomr import JeongganboReader, INFERENCER_DEFAULT_KWARGS
@@ -79,6 +91,49 @@ if args.gap_fill or args.line_threshold != 240:
             gray = cv2.erode(gray, np.ones((args.gap_fill, 1), np.uint8))
         return 255 - cv2.threshold(gray, args.line_threshold, 255, cv2.THRESH_BINARY)[1]
     reader._process_img = process_img
+
+# 악기별 율명 후보. 근거는 docs/knowledge/data/jeongganbo-omr-accuracy.md "악기별 율명 후보".
+YUL_PRESETS = {
+    # 2022 교과서 표준악보집 단소 쪽(160~185쪽)에 나오는 율명 전부
+    "danso": "중 임 무 청황 청태 청중 청임 청무 중청황 중청태",
+    # 같은 책 소금 쪽(186~203쪽)에 나오는 율명 전부
+    "sogeum": "임 남 청황 청태 청고 청중 청임 청남 청무 중청황 중청태 중청고",
+    # 국악원 정악보 91곡 대금 파트(OMR 데이터셋)에서 40번 넘게 나온 율명
+    "jeongak-daegeum": "배임 배남 배무 황 태 고 중 임 남 무 이 청황 청태 청협 청고 청중 청임 청남 청무 중청황",
+}
+if args.yul:
+    allowed = set(YUL_PRESETS[args.yul].split() if args.yul in YUL_PRESETS else args.yul.split(","))
+    tok = reader.omr.tokenizer
+    yul_re = re.compile(r"^(하하배|하배|중청|배|청)?[황대태협고중유임이남무응]$")
+    missing = sorted(allowed - set(tok.vocab))
+    if missing:
+        # 모델 어휘에 중청 계열은 중청황만 있다. 없는 율명은 모델이 고를 수 없으니 알리고 넘어간다.
+        print(f"모델 어휘에 없는 율명(제한과 상관없이 읽지 못함): {', '.join(missing)}")
+    banned = torch.tensor([i for i, t in enumerate(tok.vocab) if yul_re.match(t) and t not in allowed])
+    model = reader.omr.model
+
+    def constrained_inference(x, max_len=None, batch=True, return_confidence=False):
+        """jngbomr TransformerOMR.inference와 같은 탐욕 해독인데, 허용하지 않은 율명 토큰은 고르지 못하게 한다."""
+        x = model.run_img_cnn(x)
+        x += model.encoder_pos_enc(x)
+        x = model.encoder(x)
+        dec = torch.ones((x.shape[0], 1), dtype=torch.long)
+        ended = torch.zeros((x.shape[0]), dtype=torch.bool)
+        conf = torch.ones((x.shape[0]))
+        for _ in range(max_len or 50):
+            y = model.decoder(model.dec_embedder(dec) + model.decoder_pos_enc(dec), x)[:, -1:]
+            logit = model.proj(y)
+            logit[..., banned] = float("-inf")
+            new = torch.argmax(logit, dim=-1)
+            ended = ended | (new[:, 0] == 2)
+            dec = torch.cat([dec, new], dim=1)
+            prob = torch.softmax(logit, dim=-1)[:, 0].max(dim=1)[0]
+            conf = torch.where(ended, conf, conf * prob)  # 원래 코드처럼 끝 토큰을 고른 단계부터는 곱하지 않는다
+            if ended.all():
+                break
+        return (dec, conf) if return_confidence else dec
+    model.inference = constrained_inference
+
 result = reader(str(png))
 # 정간을 못 찾으면 (빈 쪽, False), 제목 칸 오른쪽에도 정간이 있으면 (왼쪽, 오른쪽)을 돌려준다.
 if isinstance(result, tuple) and isinstance(result[1], bool):
@@ -136,7 +191,21 @@ if args.fill_grid:
             c["text"], c["conf"] = p, round(float(k), 3)
     print(f"격자로 채운 정간 {len(added)}개")
 
-ordered =[c for col in columns for c in sorted(col, key=lambda c: c["y"])]
+if args.read_dpi:
+    # 칸은 정간 크기 기준에 맞춘 --dpi 그림에서 찾았고, 율명은 같은 칸을 고해상도 그림에서 잘라 다시 읽는다.
+    # 모델은 칸 그림을 160×140으로 줄여 읽으므로, 작은 그림을 늘리는 것보다 큰 그림을 줄이는 편이 획이 또렷하다.
+    hi_png = out / "page-read.png"
+    with pdfplumber.open(pdf) as doc:
+        doc.pages[args.page].to_image(resolution=args.read_dpi).save(str(hi_png))
+    hi = cv2.imread(str(hi_png))
+    k = args.read_dpi / args.dpi
+    keep = [c for col in columns for c in col]
+    crops = [hi[round(c["y"] * k):round((c["y"] + c["h"]) * k), round(c["x"] * k):round((c["x"] + c["w"]) * k)] for c in keep]
+    preds, confs = reader.omr(crops)
+    for c, p, q in zip(keep, preds, confs):
+        c["text"], c["conf"] = p, round(float(q), 3)
+
+ordered = [c for col in columns for c in sorted(col, key=lambda c: c["y"])]
 
 def jg_like(text):
     """OMR 원문 '율명:위치 …'를 데이터셋 표기 ':위치 율명 …'로 바꾼다.
@@ -150,6 +219,13 @@ def jg_like(text):
 
 for i, c in enumerate(ordered):
     c["jg"], c["gak"] = jg_like(c["text"]), i // args.beats
+if args.octave_check:
+    oct_png = out / "page-read.png"
+    if args.read_dpi != 300:
+        with pdfplumber.open(pdf) as doc:
+            doc.pages[args.page].to_image(resolution=300).save(str(oct_png))
+    oct_img = cv2.imread(str(oct_png), cv2.IMREAD_GRAYSCALE)
+    print(f"청성·중청 다시 가린 율명 {fix_cells(ordered, oct_img, 300 / args.dpi, templates)}개")
 lines = [" | ".join(c["jg"] for c in ordered[i:i + args.beats]) for i in range(0, len(ordered), args.beats)]
 title = args.title or pdf.stem
 (out / f"{title}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
