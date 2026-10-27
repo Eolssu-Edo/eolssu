@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.firewall.RequestRejectedHandler
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -47,6 +48,12 @@ class SecurityConfig(
         }
         .build()
 
+    // //api·/./·;x 같은 비정상 경로는 방화벽이 거절한다. 그 응답도 공통 오류 형식으로 맞춘다.
+    @Bean
+    fun requestRejectedHandler() = RequestRejectedHandler { _, response, _ ->
+        errorWriter.write(response, ErrorCode.INVALID_REQUEST)
+    }
+
     // 설정한 개발 주소만 쿠키를 포함한 요청을 허용한다.
     private fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
@@ -60,13 +67,15 @@ class SecurityConfig(
 
     private companion object {
         // 로그인 전에 쓰는 API(명세 Request Header '공개'). 재발급은 리프레시 토큰 쿠키로 확인한다.
+        // 와일드카드를 쓰지 않고 명세 경로만 연다. 그 아래에 회원 전용 API가 생겨도 공개되지 않게 하려는 것이다.
         val PUBLIC_POST = arrayOf(
             "/api/auth/sign-in", "/api/auth/sign-up", "/api/auth/refresh", "/api/auth/password-reset",
-            "/api/auth/oauth/**", "/api/auth/email-verifications", "/api/auth/email-verifications/**",
+            "/api/auth/oauth/{provider}", "/api/auth/email-verifications", "/api/auth/email-verifications/{verificationId}/confirm",
         )
         val PUBLIC_GET = arrayOf(
-            "/api/terms", "/api/songs", "/api/songs/**", "/api/instruments", "/api/instruments/**",
-            "/api/pitches", "/api/jangdans", "/api/jangdans/**", "/api/notation-symbols",
+            "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
+            "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
+            "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols",
         )
     }
 }

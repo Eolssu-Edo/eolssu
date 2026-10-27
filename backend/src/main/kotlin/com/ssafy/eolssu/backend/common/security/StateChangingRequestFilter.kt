@@ -28,6 +28,12 @@ class StateChangingRequestFilter(
             return errorWriter.write(response, ErrorCode.FORBIDDEN)
         }
         if (!hasAcceptedBody(request)) {
+            // CORS 필터보다 먼저 응답하므로, 설정한 개발 주소라면 FE가 오류를 읽을 수 있게 CORS 헤더를 직접 붙인다.
+            if (origin != null && origin.trimEnd('/').lowercase() in allowedOrigins) {
+                response.setHeader("Access-Control-Allow-Origin", origin)
+                response.setHeader("Access-Control-Allow-Credentials", "true")
+                response.addHeader("Vary", "Origin")
+            }
             return errorWriter.write(response, ErrorCode.UNSUPPORTED_MEDIA_TYPE)
         }
         chain.doFilter(request, response)
@@ -39,7 +45,7 @@ class StateChangingRequestFilter(
         val host = uri.host?.lowercase() ?: return false
         val port = if (uri.port >= 0) uri.port else defaultPort(uri.scheme) ?: return false
         // Nginx는 HTTPS를 끝내고 Host를 포트 없이 넘긴다(proxy_set_header Host $host). 이때는 호스트 이름만 비교한다.
-        // 같은 호스트의 다른 포트·scheme은 SameSite 기준으로도 같은 사이트다.
+        // 같은 호스트의 다른 포트는 SameSite 기준으로도 같은 사이트다. scheme은 비교하지 않는다(운영 Nginx가 HTTP를 HTTPS로 넘긴다).
         val requestHost = request.getHeader("Host")?.lowercase() ?: return false
         val requestPort = requestHost.substringAfterLast(':', "").toIntOrNull()
         val requestName = if (requestPort != null) requestHost.substringBeforeLast(':') else requestHost

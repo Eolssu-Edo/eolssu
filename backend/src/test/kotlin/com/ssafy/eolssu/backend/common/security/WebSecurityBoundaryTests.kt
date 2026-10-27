@@ -33,7 +33,7 @@ class WebSecurityBoundaryTests {
 
     @Test
     fun `returns not found for an unknown public path using the common error body`() {
-        val response = send("GET", "/api/songs/999/no-such-resource")
+        val response = send("GET", "/api/songs/999")
 
         assertError(response, 404, "NOT_FOUND", "RESOURCE_NOT_FOUND")
     }
@@ -106,6 +106,25 @@ class WebSecurityBoundaryTests {
 
         val development = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://localhost:5173", body = "{}")
         assertError(development, 404, "NOT_FOUND", "RESOURCE_NOT_FOUND")
+    }
+
+    @Test
+    fun `lets a configured development origin read the rejection`() {
+        val response = send("POST", "/api/auth/sign-in", "Content-Type" to "text/plain", "Origin" to "http://localhost:5173", body = "x")
+
+        assertError(response, 415, "UNSUPPORTED_MEDIA_TYPE", "UNSUPPORTED_MEDIA_TYPE")
+        assertEquals("http://localhost:5173", response.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
+        assertEquals("true", response.headers().firstValue("Access-Control-Allow-Credentials").orElse(null))
+
+        val other = send("POST", "/api/auth/sign-in", "Content-Type" to "text/plain", "Origin" to "https://evil.example", body = "x")
+        assertNull(other.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
+    }
+
+    @Test
+    fun `answers paths rejected by the firewall with the common error body`() {
+        for (path in listOf("//api/auth/sign-in", "/api/./auth/sign-in", "/api/auth/sign-in;x=1")) {
+            assertError(send("GET", path), 400, "BAD_REQUEST", "INVALID_REQUEST")
+        }
     }
 
     @Test

@@ -59,10 +59,12 @@ macOS / Linux에서는 `SERVER_PORT=8081 ./gradlew bootRun`을 사용합니다. 
 
 Spring Security로 API 경로를 나눕니다. 로그인 토큰 발급·확인은 아직 없어 회원 전용 API는 모두 401입니다(S15P31E102-143 작업 순서 4·5에서 추가).
 
-- 공개: 로그인 전 API(`/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/**`·`email-verifications/**`, POST), 카탈로그·약관 조회(`/api/terms`·`songs`·`instruments`·`pitches`·`jangdans`·`notation-symbols`, GET), `/api/actuator/**`(health만 노출).
-- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 415 `UNSUPPORTED_MEDIA_TYPE`).
-- CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. `/api/**`의 POST·PUT·PATCH·DELETE는 `Origin` 헤더가 있으면 같은 사이트(요청 `Host`와 같은 호스트)이거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`)만 `multipart/form-data`를 받습니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
-- CORS: 운영은 웹과 API가 같은 주소라 열지 않습니다. FE 개발 서버처럼 다른 주소에서 쿠키를 포함해 부를 때만 `SECURITY_ALLOWED_ORIGINS`에 그 주소를 쉼표로 구분해 넣습니다.
+- 공개(명세 Request Header '공개' 경로만, 와일드카드 없음): POST `/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/{provider}`·`email-verifications`·`email-verifications/{verificationId}/confirm`, GET `/api/terms`·`songs`·`songs/{songId}`·`songs/{songId}/score`·`songs/{songId}/model-audio`·`instruments`·`instruments/{instrumentId}/fingerings`·`pitches`·`jangdans`·`jangdans/{jangdanId}`·`notation-symbols`, `/api/actuator/**`(health만 노출). 전체 표는 `ApiAccessRulesTests`에 있습니다.
+- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 415 `UNSUPPORTED_MEDIA_TYPE`). `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
+- CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. 경로와 관계없이 모든 POST·PUT·PATCH·DELETE에 적용합니다.
+  - `Origin` 헤더가 있으면 요청 `Host`와 호스트 이름이 같거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). Nginx는 HTTPS를 끝내고 `Host`를 포트 없이 넘기므로, `Host`에 포트가 없으면 호스트 이름만 비교하고 포트가 있으면 포트도 비교합니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
+  - 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`, 디코딩된 경로 기준)만 `multipart/form-data`를 받습니다.
+- CORS: `SECURITY_ALLOWED_ORIGINS`가 비어 있으면 켜지 않습니다. 운영·compose는 웹과 API가 같은 주소이고, Nginx 뒤 백엔드는 http로 받아 Spring CORS가 https `Origin`을 다른 출처로 잘못 판단하기 때문입니다. FE 개발 서버처럼 다른 주소에서 쿠키를 포함해 **백엔드를 직접** 부를 때만 그 주소를 쉼표로 구분해 넣습니다. `*`는 쿠키 허용 설정과 함께 쓸 수 없어 쓰지 않습니다. Nginx 뒤 서버에 이 값을 넣으면 같은 사이트 요청도 CORS 검사를 받아 막힐 수 있습니다.
 
 ```powershell
 $env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:5173'
