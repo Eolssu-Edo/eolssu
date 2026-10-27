@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,6 +38,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_back
 import org.jetbrains.compose.resources.stringResource
@@ -76,7 +79,15 @@ fun EolssuScaffold(
 }
 
 /**
+ * 태블릿 와이어프레임에서 화면 맨 위부터 상단 바까지의 거리(세로 40px · 가로 28px). 상태 표시줄 높이를 포함한다.
+ */
+private val TabletPortraitTopBarTop: Dp = 40.dp
+private val TabletLandscapeTopBarTop: Dp = 28.dp
+
+/**
  * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리.
+ * 휴대폰은 상태 표시줄 아래 12dp, 태블릿은 와이어프레임처럼 화면 맨 위에서 세로 40dp · 가로 28dp에 두고 제목을 17sp로 키운다.
+ * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
 @Composable
 fun EolssuTopBar(
@@ -88,12 +99,19 @@ fun EolssuTopBar(
     maxWidth: Dp = CompactContentMaxWidth,
     right: @Composable RowScope.() -> Unit = {},
 ) {
+    val widthClass = currentWindowLayout().widthClass
+    val statusBarTop = with(LocalDensity.current) { WindowInsets.statusBars.getTop(this).toDp() }
+    val topPadding = when (widthClass) {
+        WindowWidthClass.Compact -> 12.dp
+        WindowWidthClass.Medium -> (TabletPortraitTopBarTop - statusBarTop).coerceAtLeast(0.dp)
+        WindowWidthClass.Expanded -> (TabletLandscapeTopBarTop - statusBarTop).coerceAtLeast(0.dp)
+    }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Row(
             modifier
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 12.dp),
+                .padding(start = 20.dp, end = 20.dp, top = topPadding, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -105,7 +123,7 @@ fun EolssuTopBar(
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = if (widthClass == WindowWidthClass.Compact) 16.sp else 17.sp),
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

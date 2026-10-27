@@ -40,6 +40,13 @@ data class RecordListUiState(
 
     fun select(recordId: String): RecordListUiState = copy(selectedId = recordId)
 
+    /** 기록 상세 경로로 바로 들어왔을 때: 그 기록을 고르고 그 곡 묶음을 펼친다. 기록을 아직 받지 않았으면 고르기만 한다. */
+    fun show(recordId: String): RecordListUiState {
+        val songId = records.firstOrNull { it.id == recordId }?.songId ?: return select(recordId)
+        val selected = select(recordId)
+        return if (selected.isOpen(songId)) selected else selected.toggle(songId)
+    }
+
     /** 곡마다 한 묶음. 곡 순서는 최근에 연습한 곡이 위, 묶음 안은 [sort]를 따른다. */
     val groups: List<RecordGroup>
         get() = records.groupBy { it.songId }.map { (songId, list) ->

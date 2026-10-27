@@ -10,7 +10,9 @@ import com.ssafy.eolssu.feature.history.component.stripSlots
 import com.ssafy.eolssu.feature.history.component.wrapColumns
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class HistoryTabletStateTest {
 
@@ -29,6 +31,19 @@ class HistoryTabletStateTest {
     fun twoPaneFallsBackWhenSelectionIsMissing() {
         assertEquals(records.first().id, RecordListUiState(records = records, justSavedId = "gone").select("gone-too").selectedRecordId)
         assertNull(RecordListUiState().select("anything").selectedRecordId)
+    }
+
+    @Test
+    fun showingRecordFromDetailRouteSelectsItAndOpensItsSong() {
+        val doraji = records.first { it.songId == "doraji" }
+        val state = RecordListUiState(records = records)
+        assertFalse(state.isOpen("doraji"))
+
+        val shown = state.show(doraji.id)
+        assertEquals(doraji.id, shown.selectedRecordId)
+        assertTrue(shown.isOpen("doraji") && shown.isOpen("arirang"))
+        // 기록을 받기 전이면 고르기만 해 두고, 받으면 그 기록이 오른쪽에 보인다.
+        assertEquals(doraji.id, RecordListUiState().show(doraji.id).copy(records = records).selectedRecordId)
     }
 
     @Test

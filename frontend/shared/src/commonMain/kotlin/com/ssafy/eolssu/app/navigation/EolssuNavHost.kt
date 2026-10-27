@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.history.GrowthRoute
 import com.ssafy.eolssu.feature.history.RecordDetailRoute
 import com.ssafy.eolssu.feature.history.RecordListRoute
@@ -126,11 +128,22 @@ fun EolssuNavHost(
             EolssuDestination.SONG_DETAIL,
             arguments = listOf(navArgument("songId") { type = NavType.StringType }),
         ) { entry ->
-            SongDetailRoute(
-                songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-            )
+            val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+            // 태블릿 가로·넓은 창은 곡 목록 + 곡 상세 두 칸으로 보이고 이 곡을 고른다(세로·휴대폰은 곡 상세 한 화면).
+            if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
+                SongListRoute(
+                    onBack = { navController.popBackStack() },
+                    onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                    initialSongId = songId,
+                )
+            } else {
+                SongDetailRoute(
+                    songId = songId,
+                    onBack = { navController.popBackStack() },
+                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                )
+            }
         }
         composable(
             EolssuDestination.PRACTICE,
@@ -210,10 +223,22 @@ fun EolssuNavHost(
             EolssuDestination.RECORD_DETAIL,
             arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
         ) { entry ->
-            RecordDetailRoute(
-                recordId = entry.savedStateHandle.get<String>("recordId").orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
+            val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
+            // 태블릿 가로·넓은 창은 연습 기록 + 기록 상세 두 칸으로 보이고 이 기록을 고른다.
+            if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
+                RecordListRoute(
+                    justSavedId = null,
+                    onBack = { navController.popBackStack() },
+                    onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
+                    onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
+                    initialRecordId = recordId,
+                )
+            } else {
+                RecordDetailRoute(
+                    recordId = recordId,
+                    onBack = { navController.popBackStack() },
+                )
+            }
         }
         composable(EolssuDestination.GROWTH) {
             GrowthRoute(

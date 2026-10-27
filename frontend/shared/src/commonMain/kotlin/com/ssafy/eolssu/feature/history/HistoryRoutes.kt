@@ -5,9 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -29,6 +32,7 @@ import org.koin.core.parameter.parametersOf
 /**
  * RECORD-01 연결. [justSavedId]는 결과 화면에서 방금 저장한 기록.
  * 태블릿 가로·넓은 웹 창에서는 같은 화면 오른쪽에 기록 상세를 두고, 녹음을 누르면 화면 이동 없이 오른쪽만 바꾼다.
+ * [initialRecordId]는 가로 창에서 기록 상세 경로로 들어왔을 때 처음 고를 기록이다.
  */
 @Composable
 fun RecordListRoute(
@@ -36,9 +40,18 @@ fun RecordListRoute(
     onBack: () -> Unit,
     onOpenGrowth: () -> Unit,
     onOpenRecord: (String) -> Unit,
+    initialRecordId: String? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    // 처음 한 번만 고른다. 화면을 다시 그려도(회전 등) 사용자가 그 뒤에 고른 기록을 덮지 않는다.
+    var initialShown by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(initialRecordId) {
+        if (initialRecordId != null && !initialShown) {
+            viewModel.show(initialRecordId)
+            initialShown = true
+        }
+    }
     val widthClass = currentWindowLayout().widthClass
     if (widthClass == WindowWidthClass.Expanded) {
         RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel)
