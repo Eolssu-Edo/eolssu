@@ -5,7 +5,7 @@
 
 | 대상 | DB | 파일 | 적용 방식 |
 | --- | --- | --- | --- |
-| 운영 DB | `eolssu` | [V1__initial_schema.sql](../../backend/src/main/resources/db/migration/V1__initial_schema.sql), [V2__auth_user_practice_extensions.sql](../../backend/src/main/resources/db/migration/V2__auth_user_practice_extensions.sql) | Flyway 마이그레이션. 버전 순서대로 모두 적용한 결과가 정본 |
+| 운영 DB | `eolssu` | [V1__initial_schema.sql](../../backend/src/main/resources/db/migration/V1__initial_schema.sql), [V2__auth_user_practice_extensions.sql](../../backend/src/main/resources/db/migration/V2__auth_user_practice_extensions.sql), [V4__practice_session_analysis_attempt.sql](../../backend/src/main/resources/db/migration/V4__practice_session_analysis_attempt.sql) | Flyway 마이그레이션. 버전 순서대로 모두 적용한 결과가 정본 |
 | 집계 DB | `eolssu_mart` | [data/mart/schema.sql](../../data/mart/schema.sql) | 일 배치 계정으로 직접 실행. 이미 만든 마트는 같은 폴더의 `alter_*.sql`을 한 번 실행 |
 
 ## ERD
@@ -22,12 +22,27 @@
 | 기준 데이터 | `pitches`, `instruments`, `fingering_charts`, `jangdans`, `songs`, `notation_symbols` | 율명·악기·운지표·장단·곡·기호처럼 운영자가 넣는 데이터 |
 | 사용자 | `users`, `user_song_settings` | 가입은 이메일·비밀번호로만 하며, 탈퇴 완료 전까지 이메일·비밀번호·닉네임이 있어야 합니다(`users_chk_2`). 탈퇴를 요청하면 `WITHDRAWAL_PENDING`으로 30일 보관하고, 그 안에 로그인하면 취소합니다. 30일 뒤 일괄 처리에서 개인정보 칸을 비우고 `DELETED`로 바꾸며 행은 남깁니다. 재가입은 새 행입니다. 곡별 BPM만 서버에 둡니다. |
 | 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 기존 회원에 붙이는 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
-| 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. |
+| 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
 | 학습 | `lessons`, `lesson_progress` | 율명·단계·시김새 학습과 사용자별 진도 |
 | 집계 | `mart_daily_practice`, `mart_song_accuracy`, `mart_pitch_error` | 일 배치가 운영 DB를 읽어 만드는 통계. 외래키 없음. `mart_daily_practice.total_practice_seconds`는 그날(KST) 시작한 체류 구간의 인정 시간 합 |
 
 공통 규칙은 운영 DB SQL 파일 머리말에 있습니다. 시각은 UTC로 저장하고, 상태 칸은 ENUM 대신 문자열과 CHECK 제약을 씁니다.
+
+## 분석 실패 코드
+
+`practice_sessions.fail_reason`은 `status = 'FAILED'`일 때만 있고 아래 값만 받습니다(`chk_practice_sessions_fail_reason`, V4). 기준은 [분석 실패 사유 스펙](../specs/practice-analysis-failure.md)입니다.
+
+| 코드 | 원인 | 다음 행동 |
+| --- | --- | --- |
+| `NO_SOUND` | 녹음에서 연주 소리를 찾지 못함 | 다시 연주 |
+| `TOO_SHORT` | 녹음이 너무 짧음 | 다시 연주 |
+| `DECODE_ERROR` | 녹음 변환·디코딩 실패 | 다시 연주 |
+| `UPLOAD_TIMEOUT` | 업로드 만료(녹음 시작 40분 뒤 배치) | 화면에 보이지 않음 |
+| `TIMEOUT` | 분석 시도 제한 시간 초과 | 분석 다시 시도 |
+| `SERVER_ERROR` | AI 연결 실패·처리 오류·결과 저장 실패 | 분석 다시 시도 |
+
+V4는 V3(S15P31E102-179 녹음 메타데이터) 다음 번호입니다. V3가 아직 develop에 없으며, V4를 먼저 적용한 DB에는 V3를 나중에 적용할 수 없으므로 V3를 먼저 병합합니다.
 
 ## 탈퇴 일괄 삭제 대상
 
