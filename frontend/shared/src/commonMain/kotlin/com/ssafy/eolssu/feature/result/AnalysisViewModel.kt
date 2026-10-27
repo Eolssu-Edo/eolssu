@@ -27,6 +27,9 @@ data class AnalysisUiState(
 internal fun Exception.toAnalysisFailure(): AnalysisFailure =
     (this as? AnalysisFailedException)?.reason ?: AnalysisFailure.ServerError
 
+/** 같은 녹음으로 다시 분석할 수 있는 실패이고, 다시 시도하는 중이 아닌지. */
+internal fun AnalysisUiState.canRetry(): Boolean = !retrying && failure?.retryable == true
+
 class AnalysisViewModel(
     private val songId: String,
     private val bpm: Int,
@@ -46,8 +49,7 @@ class AnalysisViewModel(
 
     /** 분석 다시 시도. 같은 녹음으로 다시 분석할 수 있는 실패에서만 하며, 시도 중에는 버튼이 돈다. */
     fun retry() {
-        val state = _uiState.value
-        if (state.retrying || state.failure?.retryable != true) return
+        if (!_uiState.value.canRetry()) return
         _uiState.update { it.copy(retrying = true) }
         viewModelScope.launch { analyze() }
     }

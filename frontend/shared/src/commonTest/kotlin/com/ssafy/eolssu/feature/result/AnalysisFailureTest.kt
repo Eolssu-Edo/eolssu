@@ -2,6 +2,13 @@ package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.data.practice.AnalysisFailedException
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.analysis_failed_decode_error
+import eolssu.shared.generated.resources.analysis_failed_no_sound
+import eolssu.shared.generated.resources.analysis_failed_server_error
+import eolssu.shared.generated.resources.analysis_failed_timeout
+import eolssu.shared.generated.resources.analysis_failed_too_short
+import eolssu.shared.generated.resources.analysis_failed_upload_timeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -37,5 +44,25 @@ class AnalysisFailureTest {
     fun analysisErrorKeepsItsReasonAndOtherErrorsAreServerError() {
         assertEquals(AnalysisFailure.NoSound, AnalysisFailedException(AnalysisFailure.NoSound).toAnalysisFailure())
         assertEquals(AnalysisFailure.ServerError, IllegalStateException("network").toAnalysisFailure())
+    }
+
+    @Test
+    fun eachFailureShowsItsOwnMessage() {
+        assertEquals(Res.string.analysis_failed_no_sound, AnalysisFailure.NoSound.message())
+        assertEquals(Res.string.analysis_failed_too_short, AnalysisFailure.TooShort.message())
+        assertEquals(Res.string.analysis_failed_decode_error, AnalysisFailure.DecodeError.message())
+        assertEquals(Res.string.analysis_failed_upload_timeout, AnalysisFailure.UploadTimeout.message())
+        assertEquals(Res.string.analysis_failed_timeout, AnalysisFailure.Timeout.message())
+        assertEquals(Res.string.analysis_failed_server_error, AnalysisFailure.ServerError.message())
+    }
+
+    @Test
+    fun retryIsAllowedOnlyAfterRetryableFailureAndNotWhileRetrying() {
+        assertTrue(AnalysisUiState(failure = AnalysisFailure.Timeout).canRetry())
+        assertTrue(AnalysisUiState(failure = AnalysisFailure.ServerError).canRetry())
+        assertFalse(AnalysisUiState(failure = AnalysisFailure.ServerError, retrying = true).canRetry())
+        assertFalse(AnalysisUiState(failure = AnalysisFailure.NoSound).canRetry())
+        assertFalse(AnalysisUiState(failure = AnalysisFailure.UploadTimeout).canRetry())
+        assertFalse(AnalysisUiState().canRetry())
     }
 }

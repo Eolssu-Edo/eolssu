@@ -142,7 +142,7 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
 }
 
 /** 실패 사유별 안내 문구. */
-private fun AnalysisFailure.message(): StringResource = when (this) {
+internal fun AnalysisFailure.message(): StringResource = when (this) {
     AnalysisFailure.NoSound -> Res.string.analysis_failed_no_sound
     AnalysisFailure.TooShort -> Res.string.analysis_failed_too_short
     AnalysisFailure.DecodeError -> Res.string.analysis_failed_decode_error
