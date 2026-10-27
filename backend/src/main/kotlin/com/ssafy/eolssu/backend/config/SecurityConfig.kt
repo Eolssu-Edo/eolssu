@@ -11,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.firewall.RequestRejectedHandler
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -23,7 +24,7 @@ class SecurityConfig(
     private val errorWriter: ErrorResponseWriter,
 ) {
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http
+    fun securityFilterChain(http: HttpSecurity, paths: PathPatternRequestMatcher.Builder): SecurityFilterChain = http
         // CSRF 토큰 대신 SameSite=Lax 쿠키와 StateChangingRequestFilter로 막는다.
         .csrf { it.disable() }
         // 운영·compose는 웹과 API가 같은 주소이고 Nginx가 HTTPS를 끝내 백엔드는 http로 받는다. 이때 Spring CORS는
@@ -34,7 +35,15 @@ class SecurityConfig(
         .logout { it.disable() }
         .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
         // CORS 필터보다 먼저 두어, 다른 사이트의 상태 변경 요청도 공통 오류 형식(403)으로 응답한다.
-        .addFilterBefore(StateChangingRequestFilter(properties.normalizedAllowedOrigins, errorWriter), CorsFilter::class.java)
+        // 업로드 판정은 requestMatchers(String)와 같은 Boot 제공 Builder로 만들어 서블릿 경로 기준을 맞춘다. 인코딩된 경로도 디코딩해 비교한다.
+        .addFilterBefore(
+            StateChangingRequestFilter(
+                properties.normalizedAllowedOrigins,
+                paths.matcher(HttpMethod.POST, RECORDING_UPLOAD),
+                errorWriter,
+            ),
+            CorsFilter::class.java,
+        )
         .authorizeHttpRequests {
             it.requestMatchers(HttpMethod.POST, *PUBLIC_POST).permitAll()
             it.requestMatchers(HttpMethod.GET, *PUBLIC_GET).permitAll()
@@ -66,6 +75,9 @@ class SecurityConfig(
     }
 
     private companion object {
+        // multipart 본문을 받는 유일한 상태 변경 요청.
+        const val RECORDING_UPLOAD = "/api/practice-sessions/{sessionId}/recording"
+
         // 로그인 전에 쓰는 API(명세 Request Header '공개'). 재발급은 리프레시 토큰 쿠키로 확인한다.
         // 와일드카드를 쓰지 않고 명세 경로만 연다. 그 아래에 회원 전용 API가 생겨도 공개되지 않게 하려는 것이다.
         val PUBLIC_POST = arrayOf(
