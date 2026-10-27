@@ -2,7 +2,7 @@ import importlib
 import sys
 
 import evaluation.measure_latency as ml
-from evaluation.measure_latency import decide, dtw_bytes, long_notes
+from evaluation.measure_latency import decide, dtw_bytes, long_notes, measure_lengths
 from evaluation.synthetic import BPM
 
 GIB = 2**30
@@ -38,6 +38,20 @@ def test_skips_longer_lengths_after_failure_or_slow_estimate():
     _, skip = decide(30, 6.0, last=(15, 400.0), max_seconds=600, failed=False)
     assert skip and "800" in skip
     assert decide(30, 6.0, last=(15, 100.0), max_seconds=600, failed=False)[1] is None
+
+
+def test_stops_running_longer_lengths_after_a_failure():
+    calls = []
+
+    def fake_run(method, seconds, with_score, timeout):
+        calls.append(seconds)
+        if seconds == 30:
+            return {"status": "1.0초 넘어 중단"}
+        return {"warmup_s": 0.1, "f0_s": 0.1, "score_s": 0.1, "status": "DONE"}
+
+    rows = list(measure_lengths("pYIN", [15, 30, 60, 120], 6.0, 600, run=fake_run))
+    assert calls == [15, 30]
+    assert [row["status"] for _, _, row in rows] == ["DONE", "1.0초 넘어 중단", "건너뜀(앞 길이 실패)", "건너뜀(앞 길이 실패)"]
 
 
 def test_imports_without_resource_module(monkeypatch):
