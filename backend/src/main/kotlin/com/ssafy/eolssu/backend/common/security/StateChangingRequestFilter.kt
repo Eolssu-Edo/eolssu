@@ -6,8 +6,10 @@ import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import java.net.URI
+import org.springframework.http.HttpMethod
 import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.MediaType
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
@@ -61,8 +63,7 @@ class StateChangingRequestFilter(
             return false
         }
         if (mediaType.equalsTypeAndSubtype(MediaType.APPLICATION_JSON)) return true
-        return mediaType.equalsTypeAndSubtype(MediaType.MULTIPART_FORM_DATA) &&
-            request.method == "POST" && RECORDING_UPLOAD.matches(request.servletPath)
+        return mediaType.equalsTypeAndSubtype(MediaType.MULTIPART_FORM_DATA) && RECORDING_UPLOAD.matches(request)
     }
 
     private fun defaultPort(scheme: String?) = when (scheme?.lowercase()) {
@@ -73,7 +74,8 @@ class StateChangingRequestFilter(
 
     private companion object {
         val STATE_CHANGING_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
-        // servletPath는 디코딩·정규화된 경로다(requestURI는 인코딩된 원문).
-        val RECORDING_UPLOAD = Regex("^/api/practice-sessions/[^/]+/recording$")
+        // 로그인 규칙(SecurityConfig)과 같은 경로 기준으로 판정한다. 인코딩된 경로도 디코딩해 비교한다.
+        val RECORDING_UPLOAD = PathPatternRequestMatcher.withDefaults()
+            .matcher(HttpMethod.POST, "/api/practice-sessions/{sessionId}/recording")
     }
 }

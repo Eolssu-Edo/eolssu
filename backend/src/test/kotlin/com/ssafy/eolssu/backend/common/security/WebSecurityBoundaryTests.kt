@@ -16,7 +16,7 @@ import tools.jackson.databind.json.JsonMapper
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = ["eolssu.security.allowed-origins=http://localhost:5173"],
+    properties = ["eolssu.security.allowed-origins=http://localhost:8080"],
 )
 class WebSecurityBoundaryTests {
     @Value("\${local.server.port}")
@@ -89,6 +89,9 @@ class WebSecurityBoundaryTests {
         val crossSite = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "https://evil.example", body = "{}")
         assertError(crossSite, 403, "FORBIDDEN", "FORBIDDEN")
 
+        val otherPort = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://127.0.0.1:1", body = "{}")
+        assertError(otherPort, 403, "FORBIDDEN", "FORBIDDEN")
+
         val opaque = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "null", body = "{}")
         assertError(opaque, 403, "FORBIDDEN", "FORBIDDEN")
 
@@ -104,16 +107,16 @@ class WebSecurityBoundaryTests {
         val sameSite = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://127.0.0.1:$port", body = "{}")
         assertError(sameSite, 404, "NOT_FOUND", "RESOURCE_NOT_FOUND")
 
-        val development = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://localhost:5173", body = "{}")
+        val development = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://localhost:8080", body = "{}")
         assertError(development, 404, "NOT_FOUND", "RESOURCE_NOT_FOUND")
     }
 
     @Test
     fun `lets a configured development origin read the rejection`() {
-        val response = send("POST", "/api/auth/sign-in", "Content-Type" to "text/plain", "Origin" to "http://localhost:5173", body = "x")
+        val response = send("POST", "/api/auth/sign-in", "Content-Type" to "text/plain", "Origin" to "http://localhost:8080", body = "x")
 
         assertError(response, 415, "UNSUPPORTED_MEDIA_TYPE", "UNSUPPORTED_MEDIA_TYPE")
-        assertEquals("http://localhost:5173", response.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
+        assertEquals("http://localhost:8080", response.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
         assertEquals("true", response.headers().firstValue("Access-Control-Allow-Credentials").orElse(null))
 
         val other = send("POST", "/api/auth/sign-in", "Content-Type" to "text/plain", "Origin" to "https://evil.example", body = "x")
@@ -134,8 +137,8 @@ class WebSecurityBoundaryTests {
             "Origin" to origin, "Access-Control-Request-Method" to "POST", "Access-Control-Request-Headers" to "content-type",
         )
 
-        val allowed = preflight("http://localhost:5173")
-        assertEquals("http://localhost:5173", allowed.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
+        val allowed = preflight("http://localhost:8080")
+        assertEquals("http://localhost:8080", allowed.headers().firstValue("Access-Control-Allow-Origin").orElse(null))
         assertEquals("true", allowed.headers().firstValue("Access-Control-Allow-Credentials").orElse(null))
 
         val denied = preflight("https://evil.example")

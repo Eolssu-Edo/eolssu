@@ -62,12 +62,15 @@ Spring Security로 API 경로를 나눕니다. 로그인 토큰 발급·확인�
 - 공개(명세 Request Header '공개' 경로만, 와일드카드 없음): POST `/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/{provider}`·`email-verifications`·`email-verifications/{verificationId}/confirm`, GET `/api/terms`·`songs`·`songs/{songId}`·`songs/{songId}/score`·`songs/{songId}/model-audio`·`instruments`·`instruments/{instrumentId}/fingerings`·`pitches`·`jangdans`·`jangdans/{jangdanId}`·`notation-symbols`, `/api/actuator/**`(health만 노출). 전체 표는 `ApiAccessRulesTests`에 있습니다.
 - 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 415 `UNSUPPORTED_MEDIA_TYPE`). `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
 - CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. 경로와 관계없이 모든 POST·PUT·PATCH·DELETE에 적용합니다.
-  - `Origin` 헤더가 있으면 요청 `Host`와 호스트 이름이 같거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). Nginx는 HTTPS를 끝내고 `Host`를 포트 없이 넘기므로, `Host`에 포트가 없으면 호스트 이름만 비교하고 포트가 있으면 포트도 비교합니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
+  - `Origin` 헤더가 있으면 요청 `Host`와 호스트 이름이 같거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). Nginx는 HTTPS를 끝내고 `Host`를 포트 없이 넘기므로, `Host`에 포트가 없으면 호스트 이름만 비교하고 포트가 있으면 포트도 비교합니다. 그래서 Nginx 뒤에서는 같은 호스트의 다른 포트에서 온 요청도 통과합니다. 지금 서버는 Nginx의 80·443만 공개하므로 문제가 없지만, 같은 도메인의 다른 포트에 서비스를 올리면 이 판단을 다시 확인합니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
   - 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`, 디코딩된 경로 기준)만 `multipart/form-data`를 받습니다.
 - CORS: `SECURITY_ALLOWED_ORIGINS`가 비어 있으면 켜지 않습니다. 운영·compose는 웹과 API가 같은 주소이고, Nginx 뒤 백엔드는 http로 받아 Spring CORS가 https `Origin`을 다른 출처로 잘못 판단하기 때문입니다. FE 개발 서버처럼 다른 주소에서 쿠키를 포함해 **백엔드를 직접** 부를 때만 그 주소를 쉼표로 구분해 넣습니다. `*`는 쿠키 허용 설정과 함께 쓸 수 없어 쓰지 않습니다. Nginx 뒤 서버에 이 값을 넣으면 같은 사이트 요청도 CORS 검사를 받아 막힐 수 있습니다.
 
+FE 웹 개발 서버(`:webApp:wasmJsBrowserDevelopmentRun`)는 `http://localhost:8080`을 쓰므로, 함께 개발할 때는 백엔드를 다른 포트로 띄우고 FE 주소를 허용합니다.
+
 ```powershell
-$env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:5173'
+$env:SERVER_PORT = '8081'
+$env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:8080'
 .\gradlew.bat bootRun
 ```
 

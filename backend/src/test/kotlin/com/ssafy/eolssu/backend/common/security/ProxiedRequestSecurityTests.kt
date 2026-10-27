@@ -46,6 +46,16 @@ class ProxiedRequestSecurityTests {
     }
 
     @Test
+    fun `accepts multipart only for the recording upload regardless of the servlet path`() {
+        // MockMvc는 servletPath를 비워 둔다. 업로드 판정이 servletPath에 기대면 여기서 415가 난다.
+        val multipart = MediaType.parseMediaType("multipart/form-data; boundary=test-boundary")
+        mockMvc.perform(post("/api/practice-sessions/1/recording").contentType(multipart).content("--test-boundary--"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(post("/api/auth/sign-in").contentType(multipart).content("--test-boundary--"))
+            .andExpect(status().isUnsupportedMediaType)
+    }
+
+    @Test
     fun `keeps CORS closed without configured development origins`() {
         val response = mockMvc.perform(
             options("/api/auth/sign-in").behindProxy("k15e102.p.ssafy.io")
