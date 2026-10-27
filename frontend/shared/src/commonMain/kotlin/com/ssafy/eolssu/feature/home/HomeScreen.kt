@@ -21,7 +21,7 @@ import eolssu.shared.generated.resources.home_feature_reading
 import eolssu.shared.generated.resources.home_feature_song_select
 import org.jetbrains.compose.resources.StringResource
 
-/** 홈의 연습·학습 카드. 연결된 화면이 생기기 전까지는 모두 '준비 중' 안내를 띄운다. */
+/** 홈의 연습·학습 카드. 연결된 화면이 없는 카드는 '준비 중' 안내를 띄운다([HomeRoute]). */
 enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
     SongSelect(Res.string.home_feature_song_select, EolssuIcons.Flute),
     Fingering(Res.string.home_feature_fingering, EolssuIcons.Hand),

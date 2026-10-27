@@ -10,6 +10,10 @@ import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
 import com.ssafy.eolssu.feature.history.RecordListViewModel
+import com.ssafy.eolssu.feature.guide.Blow
+import com.ssafy.eolssu.feature.guide.FingeringViewModel
+import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
@@ -40,4 +44,8 @@ val appModule = module {
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get()) }
     viewModel { GrowthViewModel(get(), get()) }
+
+    // 운지법 보기·기초부터 배우기
+    viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow) }
+    viewModelOf(::LearnViewModel)
 }

@@ -15,10 +15,14 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * 홈 화면 연결. 'AI 연주 평가 시작'은 [onStartEvaluation]으로 곡 목록에 간다.
- * 연습곡 선택·학습 화면은 아직 없어서 '준비 중' 안내를 띄운다. 화면이 생기면 이동 콜백을 더한다.
+ * 연습·학습 카드는 [onOpenFeature]가 화면을 열면 true를 돌려주고, 아직 연결된 화면이 없으면 false라 '준비 중' 안내를 띄운다.
  */
 @Composable
-fun HomeRoute(onStartEvaluation: () -> Unit, viewModel: HomeViewModel = koinViewModel()) {
+fun HomeRoute(
+    onStartEvaluation: () -> Unit,
+    onOpenFeature: (HomeFeature) -> Boolean,
+    viewModel: HomeViewModel = koinViewModel(),
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -38,6 +42,6 @@ fun HomeRoute(onStartEvaluation: () -> Unit, viewModel: HomeViewModel = koinView
         onDismissInstrumentSheet = viewModel::dismissInstrumentSheet,
         onSelectInstrument = viewModel::selectInstrument,
         onStartEvaluation = onStartEvaluation,
-        onFeatureClick = { showComingSoon() },
+        onFeatureClick = { feature -> if (!onOpenFeature(feature)) showComingSoon() },
     )
 }

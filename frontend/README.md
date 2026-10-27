@@ -198,6 +198,7 @@ Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파�
 
 - 세리프 글꼴에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 세리프로 쓰지 않습니다.** Pretendard에는 한자가 없으므로 **율명은 세리프로 씁니다.**
 - 율명 한자는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자만 들어 있습니다. 새 율명 표기를 쓰려면 여기에 추가하고 다시 만듭니다. Noto Serif KR에 없는 글자(탁황 `僙` 등)는 넣을 수 없습니다.
+- 운지표의 청성·탁성·중청 글자 21자(`㑣㑥㑲㒇㒣㴌㳞㶋潕㶐㶂㶃㶄㴩㶌㶍㶝`는 Noto Serif KR(Windows 가변 글꼴로 확인)에 없고, `汏浹洟湳`은 원본에만 있음)는 글꼴에 넣지 않고 `feature/guide`의 `HanjaGlyph`가 변(氵·亻) + 율명으로 나눠 그립니다. 두 글꼴 모두 `♭`가 없어 계이름의 내림표는 그림으로 넣습니다.
 - 라이선스는 둘 다 SIL Open Font License 1.1이며 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/)에 있습니다.
 
 글꼴을 다시 만들 때(`frontend/`에서, Python 3.11 이상):
