@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_brand
 import eolssu.shared.generated.resources.home_hero_body
@@ -108,7 +109,7 @@ internal fun HeroScroll(
                         modifier = Modifier.widthIn(max = size.actionMaxWidth).fillMaxWidth().height(size.actionHeight),
                         shape = CircleShape,
                     ) {
-                        Icon(HomeIcons.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(EolssuIcons.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(actionLabel, style = MaterialTheme.typography.labelLarge.copy(fontSize = size.actionFontSize))
                     }
