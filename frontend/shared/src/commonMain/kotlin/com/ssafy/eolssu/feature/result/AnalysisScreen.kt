@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -36,12 +37,19 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.analysis_back_to_practice
-import eolssu.shared.generated.resources.analysis_failed_body
+import eolssu.shared.generated.resources.analysis_failed_decode_error
+import eolssu.shared.generated.resources.analysis_failed_no_sound
+import eolssu.shared.generated.resources.analysis_failed_server_error
+import eolssu.shared.generated.resources.analysis_failed_timeout
+import eolssu.shared.generated.resources.analysis_failed_too_short
+import eolssu.shared.generated.resources.analysis_failed_upload_timeout
 import eolssu.shared.generated.resources.analysis_failed_title
+import eolssu.shared.generated.resources.analysis_play_again
 import eolssu.shared.generated.resources.analysis_retry
 import eolssu.shared.generated.resources.analysis_running_body
 import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -67,10 +75,12 @@ fun AnalysisRoute(
 
 /**
  * ANALYSIS-01 분석 대기·실패. 가운데 내용 하나라 태블릿([wide])도 배치는 같고 화면만 넓으며, 버튼 최대 너비가 360dp다.
+ * 실패하면 사유별 안내를 보이고, 같은 녹음으로 다시 분석할 수 있으면 '분석 다시 시도', 아니면 '다시 연주하기'를 준다.
  */
 @Composable
 fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, onBackToPractice: () -> Unit) {
     val colors = EolssuTheme.colors
+    val failure = state.failure
     val maxWidth = if (wide) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
     EolssuScaffold(
         contentMaxWidth = maxWidth,
@@ -81,7 +91,7 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
         ) {
-            if (state.failed) {
+            if (failure != null) {
                 Box(Modifier.padding(bottom = 10.dp).size(56.dp).background(colors.recSoft, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.rec)
                 }
@@ -94,7 +104,7 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
                 )
             }
             Text(
-                stringResource(if (state.failed) Res.string.analysis_failed_title else Res.string.analysis_running_title),
+                stringResource(if (failure != null) Res.string.analysis_failed_title else Res.string.analysis_running_title),
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
             )
@@ -106,23 +116,37 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
                 )
             }
             Text(
-                stringResource(if (state.failed) Res.string.analysis_failed_body else Res.string.analysis_running_body),
+                stringResource(failure?.message() ?: Res.string.analysis_running_body),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
-            if (state.failed) {
+            if (failure != null) {
                 Column(
                     Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else 320.dp).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
-                    EolssuButton(
-                        stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
-                        style = EolssuButtonStyle.Secondary, enabled = !state.retrying,
-                    )
+                    if (failure.retryable) {
+                        EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
+                        EolssuButton(
+                            stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
+                            style = EolssuButtonStyle.Secondary, enabled = !state.retrying,
+                        )
+                    } else {
+                        EolssuButton(stringResource(Res.string.analysis_play_again), onBackToPractice)
+                    }
                 }
             }
         }
     }
+}
+
+/** 실패 사유별 안내 문구. */
+private fun AnalysisFailure.message(): StringResource = when (this) {
+    AnalysisFailure.NoSound -> Res.string.analysis_failed_no_sound
+    AnalysisFailure.TooShort -> Res.string.analysis_failed_too_short
+    AnalysisFailure.DecodeError -> Res.string.analysis_failed_decode_error
+    AnalysisFailure.UploadTimeout -> Res.string.analysis_failed_upload_timeout
+    AnalysisFailure.Timeout -> Res.string.analysis_failed_timeout
+    AnalysisFailure.ServerError -> Res.string.analysis_failed_server_error
 }
