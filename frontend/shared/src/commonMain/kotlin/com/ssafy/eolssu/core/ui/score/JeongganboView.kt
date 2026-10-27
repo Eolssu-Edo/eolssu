@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -99,7 +100,9 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
  * @param onEventClick 있으면 음을 누를 수 있다.
  * @param maxColumns 앞에서부터 이 수의 각만 그린다.
  * @param maxRows 각마다 첫 정간부터 이 수만 한 줄로 그린다.
- * @param columns 이 범위의 각만 그린다. 악보를 여러 줄로 접어 그릴 때 쓴다.
+ * @param columns 이 범위의 각만 그린다. 악보를 여러 단으로 나눠 그릴 때 쓴다.
+ * @param dimUnmarked [errors]에 없는 정간을 흐리게 해 틀린 정간을 돋보이게 한다.
+ * @param highlightColumns 이 범위의 각을 노란 테두리로 강조한다(틀린 칸이 몰린 각).
  */
 @Composable
 fun JeongganboView(
@@ -119,6 +122,8 @@ fun JeongganboView(
     maxColumns: Int? = null,
     maxRows: Int? = null,
     columns: IntRange? = null,
+    dimUnmarked: Boolean = false,
+    highlightColumns: IntRange? = null,
 ) {
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val eventsByCell = remember(song) { song.timeline.groupBy { it.column to it.row } }
@@ -157,7 +162,7 @@ fun JeongganboView(
             verticalAlignment = Alignment.Top,
         ) {
             for (strip in strips.asReversed()) {
-                ScoreStripColumn(strip, metrics) { row ->
+                ScoreStripColumn(strip, metrics, highlighted = highlightColumns != null && strip.column in highlightColumns) { row ->
                     ScoreCellBox(
                         events = eventsByCell[strip.column to row].orEmpty(),
                         metrics = metrics,
@@ -170,6 +175,7 @@ fun JeongganboView(
                         live = playback != null,
                         fraction = { fraction.floatValue },
                         error = errors[strip.column to row],
+                        dimmed = dimUnmarked && (strip.column to row) !in errors,
                         selectedIndex = selectedIndex,
                         onEventClick = onEventClick,
                     )
@@ -218,36 +224,52 @@ private fun FollowCurrentStrip(
 private fun ScoreStripColumn(
     strip: ScoreStrip,
     metrics: JeongganboMetrics,
+    highlighted: Boolean = false,
     cell: @Composable (row: Int) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
+    // 강조한 각은 바깥에 연한 노란 띠를 두르되, 각 너비와 정간 위치는 그대로 둔다.
+    val ring = if (highlighted) {
+        Modifier.drawBehind {
+            val spread = 3.dp.toPx()
+            drawRoundRect(
+                colors.accentSoft,
+                topLeft = Offset(-spread, -spread),
+                size = Size(size.width + spread * 2, size.height + spread * 2),
+                cornerRadius = CornerRadius(9.dp.toPx()),
+            )
+        }
+    } else {
+        Modifier
+    }
     Column(
         Modifier
             .padding(top = if (strip.strip > 0) metrics.headHeight else 0.dp)
             .width(metrics.columnWidth)
+            .then(ring)
             .clip(shape)
             .background(colors.background)
-            .border(1.dp, colors.line, shape),
+            .border(1.dp, if (highlighted) colors.accent else colors.line, shape),
     ) {
-        if (strip.strip == 0) ColumnHead(strip.column, metrics)
+        if (strip.strip == 0) ColumnHead(strip.column, metrics, highlighted)
         for (row in strip.rows) cell(row)
     }
 }
 
 @Composable
-private fun ColumnHead(column: Int, metrics: JeongganboMetrics) {
+private fun ColumnHead(column: Int, metrics: JeongganboMetrics, highlighted: Boolean = false) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp)
     Row(
-        Modifier.fillMaxWidth().height(metrics.headHeight).background(colors.surface),
+        Modifier.fillMaxWidth().height(metrics.headHeight).background(if (highlighted) colors.accentSoft else colors.surface),
         horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (column == 0) {
             Text(stringResource(Res.string.score_column_start), style = style, color = colors.accentText, fontWeight = FontWeight.Bold)
         }
-        Text("${column + 1}", style = style, color = colors.textMuted, fontWeight = FontWeight.SemiBold)
+        Text("${column + 1}", style = style, color = if (highlighted) colors.text else colors.textMuted, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -266,6 +288,7 @@ private fun ScoreCellBox(
     error: EvaluationMetric?,
     selectedIndex: Int?,
     onEventClick: ((ScoreEvent) -> Unit)?,
+    dimmed: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val errorStyle = error?.let { errorStyle(it) }
@@ -281,6 +304,7 @@ private fun ScoreCellBox(
     val current = events.firstOrNull { it.index == currentIndex }
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
+    if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
     cellModifier = when {
         live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
         live -> cellModifier

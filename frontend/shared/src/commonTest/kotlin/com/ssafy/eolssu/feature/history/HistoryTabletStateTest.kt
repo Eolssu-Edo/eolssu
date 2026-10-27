@@ -50,8 +50,8 @@ class HistoryTabletStateTest {
     @Test
     fun scoreStripsCanDrawOnlyAColumnRange() {
         val song = SampleSongs.first { it.id == "arirang" }
-        val strips = scoreStrips(song.score, song.jangdan, columns = 8..15)
+        val strips = scoreStrips(song.score, song.jangdan, columnRange = 8..15)
         assertEquals((8..minOf(15, song.score.columns.lastIndex)).toList(), strips.map { it.column }.distinct())
-        assertEquals(scoreStrips(song.score, song.jangdan), scoreStrips(song.score, song.jangdan, columns = 0..999))
+        assertEquals(scoreStrips(song.score, song.jangdan), scoreStrips(song.score, song.jangdan, columnRange = 0..999))
     }
 }

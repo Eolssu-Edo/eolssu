@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -134,25 +136,58 @@ class PracticePanelActions(
     val onTogglePreview: () -> Unit,
 )
 
-/** 휴대폰에서는 아래에서 올라오는 시트로 보여 준다. */
+/**
+ * 휴대폰·태블릿 세로에서는 아래에서 올라오는 시트로 보여 준다.
+ * 시트 너비는 Material 기본값(최대 640dp, 가운데)이고, 태블릿 세로([tablet])는 창 높이의 45%(설정)·60%까지만 올라온다.
+ */
 @Composable
-fun PracticePanelSheet(state: PracticeUiState, actions: PracticePanelActions) {
+fun PracticePanelSheet(state: PracticeUiState, actions: PracticePanelActions, tablet: Boolean = false) {
     val panel = state.panel ?: return
     val song = state.song ?: return
-    val apply: (() -> Unit)? = when (panel) {
-        PracticePanel.Notation -> actions.onApplyNotation
-        PracticePanel.Jangdan -> actions.onApplyJangdan
-        PracticePanel.Tempo -> actions.onApplyTempo
-        else -> null
-    }
+    val apply = panelApply(panel, actions)
+    val settings = panel == PracticePanel.Settings
     EolssuBottomSheet(
         onDismiss = actions.onClose,
-        maxHeightFraction = if (panel == PracticePanel.Settings) 0.6f else 0.78f,
+        maxHeightFraction = when {
+            tablet -> if (settings) 0.45f else 0.6f
+            settings -> 0.6f
+            else -> 0.78f
+        },
         header = { PanelHeader(panel, actions.onClose) },
         footer = apply?.let { { EolssuButton(stringResource(Res.string.practice_apply), it) } },
     ) {
         PanelBody(panel, state, song, actions)
     }
+}
+
+/**
+ * 태블릿 가로에서는 화면을 덮지 않고 오른쪽 상태 패널 자리에 연다. 머리·적용 버튼은 고정하고 본문만 스크롤한다.
+ */
+@Composable
+fun PracticePanelInline(state: PracticeUiState, actions: PracticePanelActions, modifier: Modifier = Modifier) {
+    val panel = state.panel ?: return
+    val song = state.song ?: return
+    val apply = panelApply(panel, actions)
+    Column(modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp)) {
+        PanelHeader(panel, actions.onClose)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            PanelBody(panel, state, song, actions)
+        }
+        if (apply != null) {
+            EolssuButton(stringResource(Res.string.practice_apply), apply, Modifier.padding(top = 14.dp))
+        }
+    }
+}
+
+/** 고친 값을 반영하는 '적용' 동작. 바로 바뀌는 패널(설정 메뉴·운지법)은 없다. */
+private fun panelApply(panel: PracticePanel, actions: PracticePanelActions): (() -> Unit)? = when (panel) {
+    PracticePanel.Notation -> actions.onApplyNotation
+    PracticePanel.Jangdan -> actions.onApplyJangdan
+    PracticePanel.Tempo -> actions.onApplyTempo
+    else -> null
 }
 
 @Composable

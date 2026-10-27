@@ -25,6 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -53,14 +57,25 @@ fun AnalysisRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
-    AnalysisScreen(state, onRetry = viewModel::retry, onBackToPractice = onBackToPractice)
+    AnalysisScreen(
+        state,
+        wide = currentWindowLayout().widthClass != WindowWidthClass.Compact,
+        onRetry = viewModel::retry,
+        onBackToPractice = onBackToPractice,
+    )
 }
 
-/** ANALYSIS-01 분석 대기·실패. */
+/**
+ * ANALYSIS-01 분석 대기·실패. 가운데 내용 하나라 태블릿([wide])도 배치는 같고 화면만 넓으며, 버튼 최대 너비가 360dp다.
+ */
 @Composable
-fun AnalysisScreen(state: AnalysisUiState, onRetry: () -> Unit, onBackToPractice: () -> Unit) {
+fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, onBackToPractice: () -> Unit) {
     val colors = EolssuTheme.colors
-    EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.analysis_title), onBack = null) }) {
+    val maxWidth = if (wide) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
+    EolssuScaffold(
+        contentMaxWidth = maxWidth,
+        topBar = { EolssuTopBar(stringResource(Res.string.analysis_title), onBack = null, maxWidth = maxWidth) },
+    ) {
         Column(
             Modifier.fillMaxSize().padding(start = 28.dp, end = 28.dp, bottom = 60.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -98,7 +113,7 @@ fun AnalysisScreen(state: AnalysisUiState, onRetry: () -> Unit, onBackToPractice
             )
             if (state.failed) {
                 Column(
-                    Modifier.padding(top = 10.dp).widthIn(max = 320.dp).fillMaxWidth(),
+                    Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else 320.dp).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)

@@ -35,8 +35,10 @@ data class JeongganboMetrics(
         /**
          * 연습 화면 크기. 한 줄의 정간이 [availableHeight]에 세로 스크롤 없이 들어가도록 정간 높이를 맞춘다.
          * 한 줄이 11정간 이상인 장단은 글자를 줄이고([dense]), 크게 보기([big])는 각·글자를 키운다(와이어프레임 `fitCellsIn`).
+         * [tablet]이면 각·글자를 태블릿 크기(각 72dp, 크게 보기 92dp)로 그리고 정간은 [practiceMinCellHeight] 이상이다.
          */
         fun practice(jangdan: Jangdan, availableHeight: Dp, big: Boolean, tablet: Boolean = false): JeongganboMetrics {
+            if (tablet) return tabletPractice(jangdan, availableHeight, big)
             val rows = jangdan.strips.max()
             val dense = rows >= 11
             val minHeight = when {
@@ -50,6 +52,24 @@ data class JeongganboMetrics(
                 dense -> JeongganboMetrics(columnWidth = if (tablet) 64.dp else 50.dp, cellHeight = fitted, yulSize = 16.sp, auxSize = 8.5.sp)
                 else -> JeongganboMetrics(columnWidth = if (tablet) 64.dp else 56.dp, cellHeight = fitted, yulSize = 19.sp, auxSize = 9.5.sp)
             }
+        }
+
+        /** 태블릿 연습 화면의 정간 최소 높이. 와이어프레임 `cellMinH`. */
+        fun practiceMinCellHeight(big: Boolean): Dp = if (big) 60.dp else 44.dp
+
+        /** 태블릿 연습 화면의 각 너비. 와이어프레임 `colW`. */
+        fun tabletPracticeColumnWidth(big: Boolean): Dp = if (big) 92.dp else 72.dp
+
+        private fun tabletPractice(jangdan: Jangdan, availableHeight: Dp, big: Boolean): JeongganboMetrics {
+            val rows = jangdan.strips.max()
+            val minHeight = practiceMinCellHeight(big)
+            val fitted = ((availableHeight - 20.dp - 12.dp) / rows).let { if (it < minHeight) minHeight else it }
+            return JeongganboMetrics(
+                columnWidth = tabletPracticeColumnWidth(big),
+                cellHeight = fitted,
+                yulSize = if (big) 30.sp else 24.sp,
+                auxSize = if (big) 12.sp else 11.sp,
+            )
         }
 
         private fun splitScale(noteCount: Int): Float = when {

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.core.ui.score
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -17,18 +19,18 @@ internal data class ScoreStrip(val column: Int, val strip: Int, val rows: IntRan
  *
  * @param maxColumns 앞에서부터 이 수의 각만 그린다. 미리보기용.
  * @param maxRows 각마다 첫 정간부터 이 수만 한 줄로 그린다. 표기 설정 예시 칸용.
- * @param columns 이 범위의 각만 그린다. 악보를 여러 줄로 접어 그릴 때 쓴다.
+ * @param columnRange 이 범위의 각만 그린다. 악보를 여러 단으로 나눠 그릴 때 쓴다.
  */
 internal fun scoreStrips(
     score: Score,
     jangdan: Jangdan,
     maxColumns: Int? = null,
     maxRows: Int? = null,
-    columns: IntRange? = null,
+    columnRange: IntRange? = null,
 ): List<ScoreStrip> {
     val columnCount = minOf(maxColumns ?: score.columns.size, score.columns.size)
-    val range = columns?.let { maxOf(it.first, 0)..minOf(it.last, columnCount - 1) } ?: (0 until columnCount)
-    return range.flatMap { column ->
+    val columns = (0 until columnCount).let { all -> if (columnRange == null) all.toList() else all.filter { it in columnRange } }
+    return columns.flatMap { column ->
         val size = score.columns[column].size
         if (maxRows != null) {
             listOf(ScoreStrip(column, 0, 0 until minOf(maxRows, size)))
@@ -44,6 +46,38 @@ internal fun scoreStrips(
         }
     }
 }
+
+/**
+ * 태블릿 세로 연습 화면에서 악보를 위·아래 두 단으로 나눌 때 한 단에 넣을 각 수. 두 단이 필요 없거나 들어가지 않으면 null(한 단, 가로 스크롤).
+ * 가장 긴 줄이 두 단 모두에 정간 [minCellHeight] 이상으로 들어가야 두 단으로 나눈다(와이어프레임 `twoBands`·`gakPerBand`).
+ *
+ * @param stripsPerColumn 한 각을 나눈 줄 수([Jangdan.strips]의 크기).
+ * @param longestStrip 가장 긴 줄의 정간 수.
+ */
+fun twoBandColumnCount(
+    columnCount: Int,
+    stripsPerColumn: Int,
+    longestStrip: Int,
+    availableWidth: Dp,
+    availableHeight: Dp,
+    metrics: JeongganboMetrics,
+    minCellHeight: Dp,
+): Int? {
+    val bandHeight = metrics.headHeight + ScoreVerticalPadding + minCellHeight * longestStrip
+    if (bandHeight * 2 + BandGap > availableHeight) return null
+    val stripsFit = ((availableWidth - ScoreHorizontalPadding + metrics.columnGap) / (metrics.columnWidth + metrics.columnGap)).toInt()
+    val perBand = maxOf(1, stripsFit / stripsPerColumn)
+    return if (perBand >= columnCount) null else perBand
+}
+
+/** 단과 단 사이 간격. */
+val BandGap: Dp = 16.dp
+
+/** [JeongganboView]가 줄 위·아래에 두는 여백 합(위 2dp, 아래 10dp). */
+internal val ScoreVerticalPadding: Dp = 12.dp
+
+/** [JeongganboView]가 줄 양옆에 두는 여백 합(2dp씩). */
+internal val ScoreHorizontalPadding: Dp = 4.dp
 
 /** 정간이 현재 연주 위치와 어떤 관계인지. */
 internal enum class CellProgress { Upcoming, Current, Past }

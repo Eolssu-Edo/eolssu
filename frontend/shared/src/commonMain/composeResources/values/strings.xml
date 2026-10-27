@@ -545,4 +545,22 @@
     <string name="tab_song_pick_title">곡을 골라주세요</string>
     <string name="tab_song_pick_body">왼쪽 목록에서 곡을 누르면 여기에 곡 정보가 보여요.</string>
     <string name="mysongs_tab_solo_hint">곡을 누르면 점수 없이 혼자 연습하는 연습 모드로 열려요. AI 평가 곡은 연습 화면에서 평가로 바꿀 수 있어요.</string>
+    <!-- 연습·분석 대기·평가 결과 태블릿 배치 -->
+    <string name="practice_dock_song_info">곡 정보</string>
+    <string name="practice_dock_info">%1$s · %2$d BPM · %3$s</string>
+    <string name="practice_dock_hint">악보의 음을 누르면 그 음의 운지법이 이 자리에 열려요.</string>
+    <string name="practice_dock_locked">연주 중에는 설정을 바꿀 수 없어요.</string>
+    <string name="result_filter_all">전체 %1$d</string>
+    <string name="result_filter_pitch">음정 %1$d</string>
+    <string name="result_filter_rhythm">박자 %1$d</string>
+    <string name="result_filter_length">길이 %1$d</string>
+    <string name="result_cell_where">%1$d각 %2$d칸 · %3$s</string>
+    <string name="result_cell_error">%1$s 오류</string>
+    <string name="result_cell_ok_title">틀리지 않은 칸</string>
+    <string name="result_cell_ok_body">이 칸은 악보대로 연주했어요.</string>
+    <string name="result_cell_sample_pitch">목표 음보다 조금 낮게 불었어요. (예시)</string>
+    <string name="result_cell_sample_rhythm">박보다 늦게 소리를 시작했어요. (예시)</string>
+    <string name="result_cell_sample_length">음을 악보보다 짧게 끊었어요. (예시)</string>
+    <string name="result_score_hint">정간보에서 보기 · 오른쪽 각부터 읽어요 · 칸을 누르면 왼쪽에 자세히 보여요</string>
+    <string name="result_save_short">기록 저장</string>
 </resources>

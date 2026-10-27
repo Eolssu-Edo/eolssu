@@ -72,9 +72,12 @@ class PracticeBottomActions(
     val onAskAbort: () -> Unit,
 )
 
-/** PRACTICE-01 하단: 준비(·혼자 연습) / 모범 연주 / 연주 중 모습. */
+/**
+ * PRACTICE-01 하단: 준비(·혼자 연습) / 모범 연주 / 연주 중 모습.
+ * [stacked]이면 나란히 두던 두 버튼을 위아래로 쌓는다(태블릿 가로의 오른쪽 상태 패널).
+ */
 @Composable
-fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions) {
+fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
     val song = state.song ?: return
     when {
         state.mode == PracticeMode.Model -> {
@@ -91,42 +94,79 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
             ProgressBar(state.progressPercent, EolssuTheme.colors.rec)
             if (state.settings.beatVisual) BeatBars(song.jangdan.daegang.size, if (state.finished) -1 else state.beatIndex)
             val locked = state.mode != PracticeMode.Recording
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(
-                    stringResource(Res.string.practice_restart), actions.onAskRestart, Modifier.weight(1f), compact = true,
-                    style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart, enabled = !locked,
-                )
-                EolssuButton(
-                    stringResource(Res.string.practice_abort), actions.onAskAbort, Modifier.weight(1.4f), compact = true,
-                    style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop, enabled = !locked,
-                )
-            }
+            PairedButtons(
+                stacked,
+                first = { m ->
+                    EolssuButton(
+                        stringResource(Res.string.practice_restart), actions.onAskRestart, m, compact = true,
+                        style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart, enabled = !locked,
+                    )
+                },
+                second = { m ->
+                    EolssuButton(
+                        stringResource(Res.string.practice_abort), actions.onAskAbort, m, compact = true,
+                        style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop, enabled = !locked,
+                    )
+                },
+            )
         }
         state.solo -> {
             Hint(stringResource(if (song.evaluable) Res.string.practice_hint_solo else Res.string.practice_hint_solo_only))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(
-                    stringResource(Res.string.practice_listen_model), actions.onStartModel, Modifier.weight(1f), compact = true,
-                    style = if (song.evaluable) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, icon = EolssuIcons.Ear,
-                )
-                if (song.evaluable) {
-                    EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, Modifier.weight(1.25f), icon = EolssuIcons.Mic, compact = true)
-                }
-            }
+            PairedButtons(
+                stacked,
+                secondWeight = 1.25f,
+                first = { m ->
+                    EolssuButton(
+                        stringResource(Res.string.practice_listen_model), actions.onStartModel, m, compact = true,
+                        style = if (song.evaluable) EolssuButtonStyle.Secondary else EolssuButtonStyle.Primary, icon = EolssuIcons.Ear,
+                    )
+                },
+                second = if (song.evaluable) {
+                    { m -> EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, m, icon = EolssuIcons.Mic, compact = true) }
+                } else {
+                    null
+                },
+            )
         }
         else -> {
             val countingDown = state.mode == PracticeMode.Countdown
             Hint(stringResource(Res.string.practice_hint_ready))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(
-                    stringResource(Res.string.practice_listen_model), actions.onStartModel, Modifier.weight(1f), compact = true,
-                    style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Ear, enabled = !countingDown,
-                )
-                EolssuButton(
-                    stringResource(Res.string.practice_start_eval), actions.onStartEval, Modifier.weight(1.4f), compact = true,
-                    icon = EolssuIcons.Mic, enabled = !countingDown,
-                )
-            }
+            PairedButtons(
+                stacked,
+                first = { m ->
+                    EolssuButton(
+                        stringResource(Res.string.practice_listen_model), actions.onStartModel, m, compact = true,
+                        style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Ear, enabled = !countingDown,
+                    )
+                },
+                second = { m ->
+                    EolssuButton(
+                        stringResource(Res.string.practice_start_eval), actions.onStartEval, m, compact = true,
+                        icon = EolssuIcons.Mic, enabled = !countingDown,
+                    )
+                },
+            )
+        }
+    }
+}
+
+/** 두 버튼을 나란히(첫 버튼 1 : 둘째 [secondWeight]) 두거나, [stacked]이면 위아래로 쌓는다. */
+@Composable
+private fun PairedButtons(
+    stacked: Boolean,
+    first: @Composable (Modifier) -> Unit,
+    second: (@Composable (Modifier) -> Unit)?,
+    secondWeight: Float = 1.4f,
+) {
+    if (stacked) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            first(Modifier.fillMaxWidth())
+            second?.invoke(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            first(Modifier.weight(1f))
+            second?.invoke(Modifier.weight(secondWeight))
         }
     }
 }

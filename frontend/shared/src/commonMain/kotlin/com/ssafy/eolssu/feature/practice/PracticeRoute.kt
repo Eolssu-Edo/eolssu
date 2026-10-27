@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
@@ -49,6 +50,7 @@ fun PracticeRoute(
 
     PracticeScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         actions = PracticeScreenActions(
             onBack = back,

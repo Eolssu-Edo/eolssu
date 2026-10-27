@@ -32,12 +32,16 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuBadge
 import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -52,6 +56,8 @@ import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.ErrorLegend
 import com.ssafy.eolssu.core.ui.score.ErrorScorePreview
+import com.ssafy.eolssu.feature.result.layout.ResultExpandedLayout
+import com.ssafy.eolssu.feature.result.layout.ResultMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.instrument_daegeum
@@ -95,25 +101,61 @@ class ResultActions(
     val onMemoChange: (String) -> Unit,
     val onCloseSheet: () -> Unit,
     val onGoRecords: () -> Unit,
+    val onSelectFilter: (ErrorFilter) -> Unit,
+    val onSelectCell: (ScoreCellPosition) -> Unit,
 )
 
-/** RESULT-02 평가 결과. */
+/**
+ * RESULT-02 평가 결과. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
+ * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 태블릿은 오류 위치 정간보를 같은 화면에 함께 둔다.
+ */
 @Composable
-fun ResultScreen(state: ResultUiState, snackbarHostState: SnackbarHostState, actions: ResultActions) {
+fun ResultScreen(
+    state: ResultUiState,
+    widthClass: WindowWidthClass,
+    snackbarHostState: SnackbarHostState,
+    actions: ResultActions,
+) {
+    when (widthClass) {
+        WindowWidthClass.Compact -> ResultCompactLayout(state, snackbarHostState, actions)
+        WindowWidthClass.Medium -> ResultMediumLayout(state, snackbarHostState, actions)
+        WindowWidthClass.Expanded -> ResultExpandedLayout(state, snackbarHostState, actions)
+    }
+    val result = state.result
+    val song = state.song
+    if (state.sheetOpen && result != null && song != null) {
+        SavedSheet(state, result, song, actions, tablet = widthClass != WindowWidthClass.Compact)
+    }
+}
+
+/** 상단 바: 뒤로 · 제목(곡 · 악기 · 난이도) · 연습 기록 저장. */
+@Composable
+internal fun ResultTopBar(
+    song: Song?,
+    actions: ResultActions,
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = CompactContentMaxWidth,
+) {
+    EolssuTopBar(
+        title = stringResource(Res.string.result_title),
+        onBack = actions.onBack,
+        modifier = modifier,
+        subtitle = song?.let {
+            stringResource(Res.string.result_subtitle, it.title, stringResource(Res.string.instrument_daegeum), songLevelLabel(it.level))
+        },
+        maxWidth = maxWidth,
+        right = { EolssuIconButton(EolssuIcons.Bookmark, stringResource(Res.string.result_save), actions.onSave) },
+    )
+}
+
+/** 휴대폰 배치. 오류 위치는 미리보기만 두고 '악보 전체에서 보기'로 넘어간다. */
+@Composable
+private fun ResultCompactLayout(state: ResultUiState, snackbarHostState: SnackbarHostState, actions: ResultActions) {
     val result = state.result
     val song = state.song
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = {
-            EolssuTopBar(
-                title = stringResource(Res.string.result_title),
-                onBack = actions.onBack,
-                subtitle = song?.let {
-                    stringResource(Res.string.result_subtitle, it.title, stringResource(Res.string.instrument_daegeum), songLevelLabel(it.level))
-                },
-                right = { EolssuIconButton(EolssuIcons.Bookmark, stringResource(Res.string.result_save), actions.onSave) },
-            )
-        },
+        topBar = { ResultTopBar(song, actions) },
         bottomBar = {
             EolssuButton(stringResource(Res.string.result_practice_again), actions.onPracticeAgain, icon = EolssuIcons.Restart)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -135,13 +177,21 @@ fun ResultScreen(state: ResultUiState, snackbarHostState: SnackbarHostState, act
             }
         }
     }
-    if (state.sheetOpen && result != null && song != null) SavedSheet(state, result, song, actions)
 }
 
+/** 총점·총평. 휴대폰은 가운데 정렬, 태블릿은 [alignStart]로 왼쪽에 붙이고 [scoreSize]로 글자 크기를 정한다. */
 @Composable
-private fun TotalScore(result: EvaluationResult) {
+internal fun TotalScore(
+    result: EvaluationResult,
+    modifier: Modifier = Modifier,
+    alignStart: Boolean = false,
+    scoreSize: TextUnit = 60.sp,
+) {
     val colors = EolssuTheme.colors
-    Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        if (alignStart) modifier else modifier.fillMaxWidth().padding(top = 4.dp),
+        horizontalAlignment = if (alignStart) Alignment.Start else Alignment.CenterHorizontally,
+    ) {
         Text(
             buildAnnotatedString {
                 append("${result.total}")
@@ -149,7 +199,7 @@ private fun TotalScore(result: EvaluationResult) {
                     append(stringResource(Res.string.result_total_unit))
                 }
             },
-            style = EolssuTheme.serif.brand.copy(fontSize = 60.sp, lineHeight = 60.sp),
+            style = EolssuTheme.serif.brand.copy(fontSize = scoreSize, lineHeight = scoreSize),
         )
         Text(
             result.feedback,
@@ -160,13 +210,17 @@ private fun TotalScore(result: EvaluationResult) {
     }
 }
 
+/** 항목 점수 세 칸. [large]이면 태블릿 크기(여백·점수 글자)로 그린다. */
 @Composable
-private fun MetricGrid(result: EvaluationResult, modifier: Modifier = Modifier) {
+internal fun MetricGrid(result: EvaluationResult, modifier: Modifier = Modifier, large: Boolean = false) {
     val colors = EolssuTheme.colors
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         result.metrics.forEach { metric ->
             Column(
-                Modifier.weight(1f).background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+                Modifier
+                    .weight(1f)
+                    .background(colors.surface, RoundedCornerShape(12.dp))
+                    .padding(horizontal = if (large) 14.dp else 12.dp, vertical = if (large) 12.dp else 10.dp),
             ) {
                 Text(metricLabel(metric.metric), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
                 Text(
@@ -177,7 +231,7 @@ private fun MetricGrid(result: EvaluationResult, modifier: Modifier = Modifier) 
                         }
                     },
                     modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = if (large) 20.sp else 18.sp, fontWeight = FontWeight.Bold),
                 )
                 Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(4.dp).background(colors.background, RoundedCornerShape(2.dp))) {
                     Box(Modifier.fillMaxWidth(metric.score / 100f).height(4.dp).background(colors.text, RoundedCornerShape(2.dp)))
@@ -188,7 +242,7 @@ private fun MetricGrid(result: EvaluationResult, modifier: Modifier = Modifier) 
 }
 
 @Composable
-private fun metricLabel(metric: EvaluationMetric): String = stringResource(
+internal fun metricLabel(metric: EvaluationMetric): String = stringResource(
     when (metric) {
         EvaluationMetric.Pitch -> Res.string.result_metric_pitch
         EvaluationMetric.Rhythm -> Res.string.result_metric_rhythm
@@ -253,23 +307,35 @@ private fun ActionTile(icon: ImageVector, label: String, onClick: () -> Unit, mo
     }
 }
 
+/** 테두리만 있는 알약 버튼(44dp). [filled]이면 회색 바탕, [icon]이 있으면 글자 앞에 둔다. */
 @Composable
-private fun SmallOutlineButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SmallOutlineButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 44.dp,
+    filled: Boolean = false,
+    icon: ImageVector? = null,
+) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(44.dp),
+        modifier = modifier.height(height),
         shape = CircleShape,
-        color = EolssuTheme.colors.background,
+        color = if (filled) EolssuTheme.colors.surface else EolssuTheme.colors.background,
         border = BorderStroke(1.dp, EolssuTheme.colors.line),
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+            }
         }
     }
 }
 
+/** 저장 확인 시트. 태블릿([tablet])은 '닫기'와 '기록 보러 가기'를 한 줄에 둔다(시트 너비는 Material 기본값 최대 640dp). */
 @Composable
-private fun SavedSheet(state: ResultUiState, result: EvaluationResult, song: Song, actions: ResultActions) {
+private fun SavedSheet(state: ResultUiState, result: EvaluationResult, song: Song, actions: ResultActions, tablet: Boolean) {
     val colors = EolssuTheme.colors
     EolssuBottomSheet(
         onDismiss = actions.onCloseSheet,
@@ -282,8 +348,15 @@ private fun SavedSheet(state: ResultUiState, result: EvaluationResult, song: Son
             }
         },
         footer = {
-            EolssuButton(stringResource(Res.string.result_go_records), actions.onGoRecords)
-            EolssuButton(stringResource(Res.string.common_close), actions.onCloseSheet, style = EolssuButtonStyle.Text)
+            if (tablet) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    EolssuButton(stringResource(Res.string.common_close), actions.onCloseSheet, Modifier.weight(1f), style = EolssuButtonStyle.Secondary)
+                    EolssuButton(stringResource(Res.string.result_go_records), actions.onGoRecords, Modifier.weight(1.6f))
+                }
+            } else {
+                EolssuButton(stringResource(Res.string.result_go_records), actions.onGoRecords)
+                EolssuButton(stringResource(Res.string.common_close), actions.onCloseSheet, style = EolssuButtonStyle.Text)
+            }
         },
     ) {
         Column(Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {

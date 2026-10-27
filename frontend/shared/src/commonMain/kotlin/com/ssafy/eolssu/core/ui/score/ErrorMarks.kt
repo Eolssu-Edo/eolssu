@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,11 +23,13 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationMetric
@@ -88,6 +91,37 @@ fun ErrorLegend(modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/**
+ * 오류 종류 색으로 칠한 상자(필터 견본·고른 칸 표시). [metric]이 null이면 [fallback] 바탕만 칠한다.
+ */
+@Composable
+fun ErrorMarkBox(
+    metric: EvaluationMetric?,
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 3.dp,
+    fallback: Color = EolssuTheme.colors.surface,
+    content: @Composable BoxScope.() -> Unit = {},
+) {
+    val style = metric?.let { errorStyle(it) }
+    Box(
+        modifier
+            .background(style?.fill ?: fallback, RoundedCornerShape(cornerRadius))
+            .drawBehind {
+                if (style == null) return@drawBehind
+                val stroke = 1.5.dp.toPx()
+                drawRoundRect(
+                    style.ring,
+                    topLeft = Offset(stroke / 2, stroke / 2),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(cornerRadius.toPx()),
+                    style = Stroke(stroke, pathEffect = if (style.dashed) PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 1.5.dp.toPx())) else null),
+                )
+            },
+        contentAlignment = Alignment.Center,
+        content = content,
+    )
 }
 
 /**
