@@ -84,7 +84,7 @@ class FfprobeAudioProbeMediaTests {
     @Test
     fun `missing ffprobe binary is a tool failure, not a format rejection`() {
         val file = sine("ok.m4a", 44_100, 1)
-        val broken = RecordingFileValidator(FfprobeAudioProbe(command = dir.resolve("no-ffprobe").toString()))
+        val broken = RecordingFileValidator(FfprobeAudioProbe(command = listOf(dir.resolve("no-ffprobe").toString())))
 
         assertFailsWith<AudioProbeException> { broken.validate(file, file.fileSize()) }
     }

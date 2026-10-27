@@ -50,9 +50,9 @@ class BackendApplicationTests {
     fun `multipart limits leave room above the 20 MiB recording limit`() {
         val multipart = context.getBean(MultipartConfigElement::class.java)
 
-        // 413 경계(20MiB)는 녹음 검사기가 정한다. 컨테이너 한도는 그보다 조금 크게 둔다.
-        assertEquals(21L * 1024 * 1024, multipart.maxFileSize)
-        assertEquals(22L * 1024 * 1024, multipart.maxRequestSize)
+        // 413 경계(20MiB)는 녹음 검사기가 정한다. multipart는 스펙(PRA-02 요청 크기 한도)대로 파일·요청 25MiB.
+        assertEquals(25L * 1024 * 1024, multipart.maxFileSize)
+        assertEquals(25L * 1024 * 1024, multipart.maxRequestSize)
     }
 
     @Test
