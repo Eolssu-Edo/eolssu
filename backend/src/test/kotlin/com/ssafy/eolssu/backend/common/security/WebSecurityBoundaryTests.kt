@@ -88,9 +88,8 @@ class WebSecurityBoundaryTests {
     fun `rejects state changing requests from another site`() {
         val crossSite = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "https://evil.example", body = "{}")
         assertError(crossSite, 403, "FORBIDDEN", "FORBIDDEN")
-
-        val otherPort = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "http://127.0.0.1:1", body = "{}")
-        assertError(otherPort, 403, "FORBIDDEN", "FORBIDDEN")
+        // 같은 호스트·다른 포트는 여기(개발 주소 설정으로 Spring CORS가 켜짐)서 CORS가 평문 403으로 먼저 막아
+        // 포트 비교를 가려내지 못한다. CORS가 꺼진 ProxiedRequestSecurityTests에서 검사한다.
 
         val opaque = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json", "Origin" to "null", body = "{}")
         assertError(opaque, 403, "FORBIDDEN", "FORBIDDEN")
