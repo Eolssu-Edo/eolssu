@@ -378,8 +378,8 @@ class DatabaseIntegrationTests {
     }
 
     private fun assertMysqlError(code: Int, constraint: String? = null, action: () -> Unit) {
-        val error = assertFailsWith<DataAccessException>(block = action)
-        val sqlError = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<SQLException>().first()
+        val failure = assertFailsWith<DataAccessException>(block = action)
+        val sqlError = generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<SQLException>().first()
         assertEquals(code, sqlError.errorCode)
         when {
             constraint == null -> Unit
