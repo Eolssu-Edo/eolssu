@@ -49,7 +49,7 @@ Gradle 프로젝트명과 앱 표시명은 `eolssu`입니다. Android applicatio
 5. **에뮬레이터 만들기**: 오른쪽 **Device Manager → +(Create Virtual Device)** → 폰 기기(예: Medium Phone) → API 37 시스템 이미지 → **Finish**.
 6. **실행**: 상단 실행 목록에서 `androidApp`과 에뮬레이터를 고르고 ▶ **Run**(`Shift+F10`)을 누릅니다. 첫 빌드는 몇 분 걸립니다.
    - 에뮬레이터만 켜지고 앱이 뜨지 않으면 Run이 실행되지 않은 것입니다. 하단 **Build** 창에서 진행 상황과 오류를 확인합니다.
-7. **성공 확인**: 예제 화면에서 **Click me!**를 누르면 `Compose: Hello, Android 37!`이 보입니다.
+7. **성공 확인**: 홈 화면(얼쑤, 현재 악기, **AI 연주 평가 시작**)이 보입니다.
 
 ## 🌐 Web 실행 (Android Studio)
 
@@ -171,7 +171,7 @@ frontend/
 
 ### 공통 코드와 플랫폼 코드 잇기
 
-- **작은 기능**: `expect` / `actual`을 씁니다. 예제의 `Platform.kt`(공통 선언)와 `Platform.android.kt` · `Platform.ios.kt` 등(플랫폼별 구현)이 이 방식입니다.
+- **작은 기능**: `expect` / `actual`을 씁니다. 공통 코드에 `expect`로 선언하고 `androidMain` · `iosMain` · `jsMain` · `wasmJsMain`(또는 `webMain`)에 `actual` 구현을 둡니다.
 - **큰 기능**(마이크 입력 등): `commonMain`에 인터페이스를 두고, 플랫폼별 클래스가 구현합니다. 테스트할 때 가짜 구현으로 바꾸기 쉽습니다.
 
 ### 리소스 사용
@@ -180,10 +180,37 @@ frontend/
 
 ```kotlin
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.compose_multiplatform
+import eolssu.shared.generated.resources.home_brand
 
-Image(painterResource(Res.drawable.compose_multiplatform), null)
+Text(stringResource(Res.string.home_brand))   // composeResources/values/strings.xml의 문구
 ```
+
+### 테마와 글꼴
+
+색·글꼴·모서리는 `core/theme`의 `EolssuTheme`에 있습니다. `App()` 전체가 이 테마로 감싸져 있어 Material 컴포넌트는 와이어프레임 색을 씁니다. 재생(파랑)·녹음(빨강)·현재 위치(노랑) 같은 전용 색은 `EolssuTheme.colors`, 율명·곡 제목 세리프 글자는 `EolssuTheme.serif`로 꺼냅니다. 글자로 쓰는 색 조합은 `EolssuColorsContrastTest`가 대비 4.5:1 이상인지 확인합니다.
+
+Web은 기기 글꼴로 한글·한자를 그리지 않기 때문에 글꼴 파일을 `composeResources/font/`에 넣었습니다.
+
+| 파일 | 용도 | 글자 범위 |
+| --- | --- | --- |
+| `pretendard_regular·semibold·bold.otf` | 본문·버튼·사용자가 입력한 글자 | Pretendard 1.3.9 원본, 한글 11,172자 |
+| `noto_serif_kr_semibold·bold.otf` | 율명·앱 이름·곡 제목 | Noto Serif KR에서 자주 쓰는 한글 2,350자·율명 한자·영숫자만 남김 |
+
+- 세리프 글꼴에는 한글이 2,350자만 있으므로 **사용자가 입력한 글자는 세리프로 쓰지 않습니다.** Pretendard에는 한자가 없으므로 **율명은 세리프로 씁니다.**
+- 율명 한자는 [`tools/fonts/build_fonts.py`](tools/fonts/build_fonts.py)의 `SERIF_HANJA`에 있는 글자만 들어 있습니다. 새 율명 표기를 쓰려면 여기에 추가하고 다시 만듭니다. Noto Serif KR에 없는 글자(탁황 `僙` 등)는 넣을 수 없습니다.
+- 라이선스는 둘 다 SIL Open Font License 1.1이며 원문은 [`tools/fonts/licenses/`](tools/fonts/licenses/)에 있습니다.
+
+글꼴을 다시 만들 때(`frontend/`에서, Python 3.11 이상):
+
+```bash
+python -m pip install --user fonttools==4.60.1
+SRC="${TMPDIR:-/tmp}/eolssu-fonts-src"; mkdir -p "$SRC"
+for w in Regular SemiBold Bold; do curl -fL -o "$SRC"/Pretendard-$w.otf "https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/public/static/Pretendard-$w.otf"; done
+for w in SemiBold Bold; do curl -fL -o "$SRC"/NotoSerifKR-$w.otf "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Serif/SubsetOTF/KR/NotoSerifKR-$w.otf"; done
+PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
+```
+
+스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
 
 ### 라이브러리 추가
 
@@ -191,18 +218,6 @@ Image(painterResource(Res.drawable.compose_multiplatform), null)
 2. `shared/build.gradle.kts`의 해당 소스 세트(`commonMain.dependencies` 등)에 추가합니다.
 3. `commonMain`에 넣는 라이브러리는 **Android · iOS · JS · Wasm을 모두 지원**해야 빌드됩니다. 지원 여부는 [klibs.io](https://klibs.io)에서 확인합니다.
 4. `libs.versions.toml`은 모두가 건드리는 파일이므로, 라이브러리를 추가하기 전에 팀에 공유합니다.
-
-## 🧹 지금 들어 있는 예제 파일
-
-마법사가 만든 샘플입니다. 실제 화면을 만들면서 지우거나 바꿉니다.
-
-| 파일 | 내용 |
-| --- | --- |
-| `shared/src/commonMain/.../App.kt` | 버튼 하나 있는 샘플 화면 (함수 `App()`은 각 플랫폼이 부르므로 이름은 유지) |
-| `Greeting.kt`, `GreetingUtil.kt` | 인사 문구 샘플 |
-| `Platform.kt`, `Platform.*.kt` | `expect` / `actual` 샘플 |
-| `composeResources/drawable/compose-multiplatform.xml` | 샘플 이미지 |
-| `Shared*Test.kt`, `SharedLogic*Test.kt` | 샘플 테스트 |
 
 ## ⚠️ 주의할 점
 
@@ -223,4 +238,4 @@ Image(painterResource(Res.drawable.compose_multiplatform), null)
 
 운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
 
-동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 초기 샘플 테스트 4개의 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
+동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 이 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.

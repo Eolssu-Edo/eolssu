@@ -70,7 +70,7 @@
 - 시작 절차와 변경 결과 확인 후에는 Jira를 반복 조회하지 않고 저장소의 스펙·계획 문서를 따른다.
 - MR이 열려 있으면 Task는 `진행 중`으로 유지하고, `develop` 병합 후 완료 전환은 기존 Jira 연동에 맡긴다. 에이전트가 미리 완료하지 않는다.
 - `develop`을 기본·개발 통합 및 CI/CD 기준으로 사용한다. `main` 병합은 MVP 필수 UI·기능 완성 시와 고도화 후 최종 발표 직전, 총 2회의 팀 일정에 맞춰 준비한다.
-- 새 작업 브랜치는 최신 `origin/develop`에서 만든다.
+- 새 작업 브랜치는 최신 `origin/develop`에서 만든다. 기술 블로그 글·설정만 예외로 develop과 기록을 공유하지 않는 `origin/blog`에서 만들고 `blog`로 MR한다(파트 자리는 `blog`).
 - 브랜치는 `타입(파트)/JiraKey-Task제목`으로 만든다. 타입은 아래 커밋 타입, 파트는 `be|fe|data|ai|infra`를 쓰며 `codex/`를 붙이지 않는다.
 - Jira Key는 `S15P31E102-번호` 전체를 사용하고 Task제목에서는 머리말과 뒤 공백을 제외한다. `[INF]`는 브랜치·커밋에서 `infra`에 대응한다.
 - 작업 브랜치에서 `develop`으로 MR을 만든다. [템플릿](.gitlab/merge_request_templates/default.md)에 전체 Jira Key, 변경 결과, 실제 검증 결과와 필요한 리뷰 요청을 간결하게 쓴다.

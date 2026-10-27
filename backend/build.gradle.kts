@@ -21,6 +21,7 @@ repositories {
 
 dependencies {
     implementation(libs.spring.boot.webmvc)
+    implementation(libs.spring.boot.actuator)
     implementation(libs.spring.boot.validation)
     implementation(libs.mybatis.spring.boot)
     implementation(libs.spring.boot.flyway)

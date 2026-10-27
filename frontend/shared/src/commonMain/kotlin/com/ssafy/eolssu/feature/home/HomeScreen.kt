@@ -1,0 +1,71 @@
+package com.ssafy.eolssu.feature.home
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.feature.home.component.HomeIcons
+import com.ssafy.eolssu.feature.home.component.InstrumentSheet
+import com.ssafy.eolssu.feature.home.layout.HomeCompactLayout
+import com.ssafy.eolssu.feature.home.layout.HomeExpandedLayout
+import com.ssafy.eolssu.feature.home.layout.HomeMediumLayout
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.home_feature_fingering
+import eolssu.shared.generated.resources.home_feature_learn
+import eolssu.shared.generated.resources.home_feature_reading
+import eolssu.shared.generated.resources.home_feature_song_select
+import org.jetbrains.compose.resources.StringResource
+
+/** 홈의 연습·학습 카드. 연결된 화면이 생기기 전까지는 모두 '준비 중' 안내를 띄운다. */
+enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
+    SongSelect(Res.string.home_feature_song_select, HomeIcons.Flute),
+    Fingering(Res.string.home_feature_fingering, HomeIcons.Hand),
+    Reading(Res.string.home_feature_reading, HomeIcons.Grid),
+    Learn(Res.string.home_feature_learn, HomeIcons.Book),
+}
+
+/**
+ * HOME-01. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
+ * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다.
+ */
+@Composable
+fun HomeScreen(
+    state: HomeUiState,
+    widthClass: WindowWidthClass,
+    snackbarHostState: SnackbarHostState,
+    onOpenInstrumentSheet: () -> Unit,
+    onDismissInstrumentSheet: () -> Unit,
+    onSelectInstrument: (Instrument) -> Unit,
+    onStartEvaluation: () -> Unit,
+    onFeatureClick: (HomeFeature) -> Unit,
+) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = EolssuTheme.colors.background,
+    ) { innerPadding ->
+        val modifier = Modifier.padding(innerPadding)
+        val instrument = state.selectedInstrument
+        when (widthClass) {
+            WindowWidthClass.Compact ->
+                HomeCompactLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+            WindowWidthClass.Medium ->
+                HomeMediumLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+            WindowWidthClass.Expanded ->
+                HomeExpandedLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+        }
+    }
+    // 시트 너비는 Material 기본값(최대 640dp, 가운데)이라 태블릿 와이어프레임과 같다.
+    if (state.isInstrumentSheetOpen) {
+        InstrumentSheet(
+            instruments = state.instruments,
+            selected = state.selectedInstrument,
+            onSelect = onSelectInstrument,
+            onDismiss = onDismissInstrumentSheet,
+        )
+    }
+}

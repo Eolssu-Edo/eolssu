@@ -216,6 +216,85 @@ sources v3는 같은 JSON의 `sourceProfiles` 객체에 공통 출처 메타데�
 
 선택 필드 `evidence[id].sequenceDecision.orderedAnchors`는 한 발음 안의 안정음 전체 순서를 보존합니다. 각 원소에는 `register`, `yulmyeong`, 양의 유한수 `f0Hz`, 원음 기준 절대초 `windowsSeconds`를 기록합니다. 창은 라벨 내부에 있어야 하고, 원소 안과 원소 사이에서 시간순·비겹침·반올림 후 비어 있지 않은 실제 프레임 범위를 만족해야 합니다. `labelAnchorIndex`는 0부터 시작하는 정수로, 선택한 안정음의 취법·율명·F0가 행의 `register`·`yulmyeong`·`labelF0Hz`와 같아야 합니다. 행과 파일 표시는 선택한 안정음으로 유지하며 전체 이동 순서를 두 기준음 `gesture`로 축약하지 않습니다. 기존 자유형 문자열이나 `orderedAnchors`가 없는 `sequenceDecision` 객체는 그대로 허용합니다.
 
+## 정간보 OMR
+
+정간보 PDF 한 쪽을 [MALerLab/jeongganbo-omr](https://github.com/MALerLab/jeongganbo-omr)로 읽어 JG-like 텍스트로 쓰고, [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator)의 변환 도구로 우물사이 `.jgb.json`을 만듭니다. 시험 결과와 한계는 [정간보 OMR 시험 기록](../docs/knowledge/data/jeongganbo-omr.md)을 확인합니다. 결과는 사람이 `boxes.png`로 잘린 칸을 확인한 뒤 씁니다.
+
+두 저장소는 이 저장소 밖에 받습니다. Windows는 경로가 길면 클론이 실패하므로 짧은 폴더를 씁니다.
+
+```bash
+cd ~/omr
+git clone https://github.com/MALerLab/jeongganbo-omr.git
+git clone https://github.com/danbinaerinHan/jeongganbo-generator.git
+cd jeongganbo-omr
+curl -L -o checkpoints.tar.gz https://github.com/MALerLab/jeongganbo-omr/releases/download/v1.0.0/checkpoints.tar.gz
+tar -xzf checkpoints.tar.gz
+uv venv -p 3.12 .venv
+uv pip install -p .venv/Scripts/python.exe torch torchvision --index-url https://download.pytorch.org/whl/cpu
+uv pip install -p .venv/Scripts/python.exe x-transformers==1.30.20 einops omegaconf hydra-core opencv-contrib-python pandas tqdm matplotlib pdfplumber
+```
+
+저장소 루트에서 실행합니다. `--beats`는 한 각의 정간 수, `--dpi`는 정간 너비가 85~110px가 되는 값입니다(e-국악아카데미 교실 악보 150, 국악원 정악보 300). Windows는 `PYTHONUTF8=1`이 있어야 모델 어휘 파일을 읽습니다.
+
+```bash
+PYTHONUTF8=1 ~/omr/jeongganbo-omr/.venv/Scripts/python.exe data/src/scores/jeongganbo_omr.py "data/raw/scores/ngc-easy-danso-06/[악보](초급)세상에서가장쉬운단소교실_06차시_아리랑.pdf" 0 data/processed/scores/omr/ngc-easy-danso-06 --omr-dir ~/omr/jeongganbo-omr --dpi 150 --beats 3 --title 아리랑
+node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/omr/ngc-easy-danso-06 data/processed/scores/omr/ngc-easy-danso-06/jgb --verify
+```
+
+처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 빠진 정간은 `--fill-grid`로 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리만).
+
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 열을 한 각으로 씁니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+
+```bash
+python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
+```
+
+`report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
+
+### 대조 결과 집계
+
+검토 화면에서 내려받은 `<제목>.review.json`(과 같은 폴더의 `<제목>.jgb.json`)으로 곡별 정간·칸 모양·율명·시김새 정확도와 자주 틀린 율명을 셉니다. 결과는 [대조 결과 문서](../docs/knowledge/data/jeongganbo-omr-accuracy.md)에 있습니다.
+
+```bash
+python data/src/scores/review_stats.py <검토 기록 폴더> --json <결과.json>
+```
+
+OMR 옵션의 효과는 같은 정답으로 잽니다. `jeongganbo_omr.py`에 `--yul <악기 또는 율명 목록>`(고를 수 있는 율명 제한, 악기는 `danso`·`sogeum`·`jeongak-daegeum`)이나 `--read-dpi 300`(율명은 고해상도 그림에서 잘라 읽기)을 더해 곡마다 돌린 뒤, 조합별 출력 폴더를 비교합니다. 정간은 칸 상자 위치로 짝지으므로 칸을 찾는 `--dpi`와 보정 옵션은 정답을 만들 때와 같아야 합니다.
+
+```bash
+python data/src/scores/omr_eval.py <검토 기록 폴더> 기준=<출력 폴더> 단소제한=<출력 폴더>
+```
+
+`--octave-check <평균 모양.json>`은 모델이 낸 청태·청황을 글자 모양으로 다시 가려 중청태·중청황으로 고칩니다. 평균 모양은 정답과 `--read-dpi 300`으로 돌린 출력 폴더(`page-read.png` 포함)로 만들고 `data/processed/`에 둡니다(원본 악보 그림에서 나온 값이라 커밋하지 않습니다).
+
+```bash
+python data/src/scores/octave_check.py <검토 기록 폴더> <출력 폴더> --out data/processed/scores/danso-115/octave-templates.json
+```
+
+### 검토 화면
+
+두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
+
+편집은 우물사이와 같습니다.
+- **문법**: 칸 안에서 띄어 쓰면 위→아래로 줄이 나뉘고, 이어 쓰면 한 줄에 왼→오른쪽으로 들어갑니다(`청황 -청무 청태`). `-` 이음, `쉼` 쉼표, 음 뒤 `{흘림표}` 시김새, 음 뒤 `<` 숨표.
+- **팔레트**: 위쪽 **율 | 시김새** 탭. 누르면 입력칸 커서 자리에 들어가고, 선택한 글자가 있으면 바꿉니다. 율 탭은 이 곡에 나온 율명과 5옥타브 × 12율을 한자·한글로, 시김새 탭은 우물사이 기호 그림(`--umulsai` 폴더의 `js/symbols-data.js`, MIT)으로 보여 주어 이름을 몰라도 모양으로 고릅니다.
+- **미리보기**: 율명은 한자와 한글, 시김새는 그림으로 보입니다. 글자를 누르면 입력칸에서 그 글자가 선택되어 팔레트로 바로 바꿉니다.
+- **이동**: `Enter` 확인하고 다음, `Tab`·`↓` 다음, `Shift+Tab`·`↑` 이전, `Ctrl ←`·`Ctrl →` 옆 각의 같은 순번 정간.
+
+```bash
+python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
+```
+
+변환 결과 폴더 없이 `.jgb.json`만 있으면 파일을 직접 줍니다. 같은 폴더에서 이름 앞부분이 맞는 원본 PDF의 첫 쪽을 그림으로 붙이고, 문서의 선율을 처음 결과로 씁니다. 정간 상자는 [grid_boxes.py](src/scores/grid_boxes.py)가 그림의 선만 보고 찾습니다. 가로선이 있는 율명 열과 그 오른쪽 가사 열의 짝으로 정간 열을 고르고, 칸 수가 문서와 같은 악보에만 상자를 붙입니다. 칸 수가 같은 악보가 나란하면(소금보·단소보, 연습곡 1·2) 오른쪽 제목 글자에 `소금`이나 문서 이름 끝의 곡 이름이 든 쪽을 고릅니다. 맞는 악보가 하나가 아니면 상자 없이 만들고 그 사실을 출력합니다. 정간마다 가사가 있으면 함께 보입니다. 성부가 여럿인 문서는 각을 성부 순서로 이어 한 화면에서 검토하고 저장할 때 성부별로 나눕니다. 각 수·각 길이 설정은 첫 성부 기준입니다.
+
+```bash
+python data/src/scores/review_page.py <폴더>/*.jgb.json --umulsai ~/omr/jeongganbo-generator --out <폴더>/review
+```
+
+소금 정간보 14개 문서(`sogeum_dataset`, PDF 13개)는 이 방식으로 만들었습니다. 이 판형은 두 쪽 펼침에 가사·설명 글이 섞여 있어 `standard_score_text.py`는 13개 PDF 중 1개만 읽었고, OMR 리더의 칸 찾기는 dpi 100~300에서 1개만 일부 찾았습니다. `grid_boxes.py`로는 14개 모두 칸 수가 문서와 같았고, 상자 위에 문서 선율을 겹쳐 그려 순서·위치가 맞는 것을 확인했습니다. 북천이맑다커늘은 두 성부의 열을 각각 찾습니다.
+
+HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
+
 ## 검증
 
 ```powershell
