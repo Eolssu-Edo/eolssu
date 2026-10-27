@@ -2,7 +2,7 @@
 
 얼쑤의 음원·악보 데이터를 수집·정제하고, 분석과 검증에 사용할 데이터셋을 구축합니다.
 
-AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
+Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
 
 ## 담당 범위
 
@@ -24,6 +24,16 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 
 데이터를 전달할 때 필요한 악보·음표 식별자, 시간·음높이 단위, 데이터 버전은 사용하는 파트와 맞춥니다. 구체적인 스키마와 전달 방식은 실제 구현에서 정합니다.
 
+## 정석 음원 제작
+
+[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 공통 악보 JSON을 MIDI와 WAV로 만듭니다. 설치·CAT 파일 준비·생성 명령은 해당 README를 따릅니다. JGB 직접 입력은 후속 변환기로 연결할 범위입니다.
+
+의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
+```
+
 ## 파일 관리
 
 팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.
@@ -37,6 +47,7 @@ data/
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
+│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
