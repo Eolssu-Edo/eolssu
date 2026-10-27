@@ -1,5 +1,6 @@
 """python -m data.src.playback --score ... --assets ... --out ..."""
 import argparse
+import hashlib
 import html
 import json
 from pathlib import Path
@@ -10,6 +11,7 @@ import soundfile as sf
 from .score import PROFILES, compile_score, require
 from .midi import PLAYBACK_VIBRATO, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
+from .jgb import convert_jgb, SCALES
 
 
 def dump(path, value):
@@ -36,10 +38,34 @@ def audition_page(reports):
     <script>const players=[...document.querySelectorAll('audio')];players.forEach(p=>p.addEventListener('play',()=>players.forEach(q=>{if(q!==p)q.pause()})));</script></html>'''
 
 
-def run(score_path, assets_path, out, instruments, transpose=0):
-    score = json.loads(Path(score_path).read_text(encoding="utf-8-sig"))
+def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bpm=None,
+        speed=1, hwang_midi=None, jo=None):
+    input_bytes = Path(score_path).read_bytes()
+    input_hash = hashlib.sha256(input_bytes).hexdigest()
+    source = json.loads(input_bytes.decode("utf-8-sig"))
+    source_map = None
+    is_jgb = Path(score_path).name.endswith(".jgb.json") or isinstance(source, dict) and "v" in source
+    if is_jgb:
+        require(instruments == ["danso"], "JGB 입력은 단소 한 성부만 지원합니다")
+        score, source_map = convert_jgb(source, source_name=Path(score_path).name, part=part,
+                                       bpm=bpm, speed=speed, hwang_midi=hwang_midi, jo=jo)
+        source_map["input_sha256"] = input_hash
+        score["source"]["jgb_sha256"] = source_map["input_sha256"]
+    else:
+        require(part is None and bpm is None and speed == 1 and hwang_midi is None and jo is None,
+                "--part/--bpm/--speed/--hwang-midi/--jo는 JGB 입력용입니다")
+        score = source
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
     out = Path(out)
+    outputs = ["score.json", "manifest.json", "comparison.html"]
+    outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", "wav", "json")]
+    if is_jgb:
+        outputs += ["source.jgb.json", "source-map.json"]
+    targets = {(out / name).resolve() for name in outputs}
+    require(Path(score_path).resolve() not in targets and Path(assets_path).resolve() not in targets,
+            "출력 파일이 원본 입력 또는 assets 파일과 겹칩니다. 다른 --out 폴더를 사용하세요")
+    require(is_jgb or not any((out / name).exists() for name in ("source.jgb.json", "source-map.json")),
+            "이 폴더에 이전 JGB 원본·대응표가 있습니다. 일반 악보 JSON은 다른 --out 폴더에 생성하세요")
     out.mkdir(parents=True, exist_ok=True)
     reports, renders = [], []
     # Stage everything first: failure must not leave a new partial audition page.
@@ -80,19 +106,25 @@ def run(score_path, assets_path, out, instruments, transpose=0):
                                "peak":float(np.max(np.abs(pcm))), "rms":float(np.sqrt(np.mean(pcm**2))),
                                "midi_sha256":sha(stage/f"{key}.mid"), "wav_sha256":sha(wav)}
             dump(stage/f"{key}.json", report)
-        manifest = {"input_sha256":sha(score_path), "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
+        manifest = {"input_sha256":input_hash, "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":dict(PLAYBACK_VIBRATO),
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","__main__.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","__main__.py","jgb.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
-                    "limitations":["Renderer consumes gugak-reviewed-score/v1 JSON; direct JGB import is not included.",
+                    "limitations":["JGB v1/v2 import supports one selected danso part and the documented notation subset.",
                     "Same sounding melody audition, not instrument-specific arrangement or expert-validated model performance.",
                     "Linear sample interpolation, mono mixdown, held MIDI CC11 and envelope/legato approximations.",
                     "No full Ableton filter/FX/velocity emulation. Sample tuning not exhaustively measured.",
                     "CAT raw samples stay local; check applicable distribution/service terms separately."]}
-        dump(stage/"manifest.json", manifest)
         dump(stage/"score.json", score)
+        if source_map is not None:
+            (stage/"source.jgb.json").write_bytes(input_bytes)
+            dump(stage/"source-map.json", source_map)
+            manifest["jgb"] = {k:v for k,v in source_map.items() if k != "notes"}
+            manifest["normalized_score_sha256"] = sha(stage/"score.json")
+            manifest["source_map_sha256"] = sha(stage/"source-map.json")
+        dump(stage/"manifest.json", manifest)
         (stage/"comparison.html").write_text(audition_page(reports), encoding="utf-8")
         for path in stage.iterdir():
             path.replace(out/path.name)
@@ -106,8 +138,17 @@ def main():
     p.add_argument("--out", required=True)
     p.add_argument("--instrument", choices=["all", *PROFILES], default="all")
     p.add_argument("--transpose", type=int, default=0, help="Explicit semitone audition transposition; never automatic")
+    p.add_argument("--part", type=int, help="JGB part number, starting at 1; required for multiple parts")
+    p.add_argument("--bpm", type=float, help="JGB tempo override in jeonggan cells per minute")
+    p.add_argument("--speed", type=float, default=1, help="JGB tempo multiplier (0.25..4), default 1")
+    p.add_argument("--hwang-midi", type=int, help="JGB huangjong MIDI override; otherwise use hwangPitch")
+    p.add_argument("--jo", choices=list(SCALES), help="Explicit JGB scale for relative ornaments")
     a = p.parse_args()
-    result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument], a.transpose)
+    try:
+        result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument],
+                     a.transpose, part=a.part, bpm=a.bpm, speed=a.speed, hwang_midi=a.hwang_midi, jo=a.jo)
+    except ValueError as exc:
+        p.error(str(exc))
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

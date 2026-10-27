@@ -55,7 +55,7 @@ def compile_score(score, instrument, transpose=0):
     require(isinstance(score.get("title"), str) and score["title"], "Title required")
     require(isinstance(score.get("source"), dict) and score["source"].get("edition"), "Source edition required")
     require(score["source"].get("review_status") in (
-        "manually-transcribed-unverified", "machine-transcribed-unverified"),
+        "manually-transcribed-unverified", "machine-transcribed-unverified", "source-review-unverified"),
         "Declare transcription review status")
     require(instrument in PROFILES, "Unknown instrument")
     require(type(transpose) is int and -24 <= transpose <= 24, "Explicit transpose must be -24..24")
@@ -78,6 +78,8 @@ def compile_score(score, instrument, transpose=0):
     events, warnings, seen = [], [], set()
     if score["source"]["review_status"] == "machine-transcribed-unverified":
         warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
+    elif score["source"]["review_status"] == "source-review-unverified":
+        warnings.append("입력 악보의 검수 상태를 확인하지 않은 합성 미리듣기입니다. 원보 대조가 필요합니다.")
     cursor = 0
     tie_open = False
     for n in score["notes"]:

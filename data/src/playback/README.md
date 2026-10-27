@@ -1,15 +1,14 @@
-# JGB 연계를 위한 단소 MIDI·CAT 재생 기반
+# JGB·공통 악보 JSON의 단소 MIDI·CAT 음원 생성
 
-공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 그 MIDI를 CAT 단소 샘플로 WAV에 렌더하는 로컬 CLI입니다. Task [S15P31E102-105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 범위는 이 재생 기반과 단소 표현의 수치·근거입니다.
+JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 그 MIDI를 CAT 단소 샘플로 WAV에 렌더하는 로컬 CLI입니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력 연결을 더했습니다.
 
 담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 정석 음원 제작을 위한 재생 기반입니다.
 
 ```text
-JGB → [후속: 기호·시간·원본 위치를 해석하는 변환기]
-    → 공통 악보 JSON → 연주 이벤트 → MIDI → CAT 단소 WAV
+JGB v1·v2 → 선택한 단소 성부의 공통 악보 JSON → 연주 이벤트 → MIDI → CAT 단소 WAV
 ```
 
-**`.jgb.json`을 `--score`에 직접 넣는 기능은 없습니다.** 사진 인식·웹 API·검수 화면·다른 악기 프로필·연주 녹음 채점도 이 MR에 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
+`.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 단소 한 성부를 생성하며 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
 
 ## 설치와 빠른 검사
 
@@ -39,14 +38,32 @@ python -m venv data/.venv
 
 출력 폴더에는 `danso.mid`, `danso.wav`, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. WAV는44.1kHz·mono·PCM16이며 렌더 실패 시 이전 출력 파일을 보존합니다.
 
-## 입력과 JGB 연결 경계
+## JGB 파일에서 생성
+
+같은 설치·CAT 준비를 마친 뒤 저장소 루트에서 실행합니다. 원본과 다른 출력 폴더를 사용합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.playback --score C:/local-gugak/song.jgb.json --assets C:/local-gugak/assets.json --instrument danso --out data/processed/playback/song
+```
+
+- v1의 `melody`, v2의 `parts[].melody`를 읽습니다. 여러 성부면 `--part 1`처럼 1부터 번호를 지정해야 합니다. `activePart`는 편집 위치라 자동 선택에 쓰지 않습니다.
+- `tempoBpm`은 **정간/분**입니다. `--bpm 60`으로 덮어쓰거나 `--speed 0.75`로 속도를 바꿉니다. 정간을 4분음표로 환산할 때 길이와 BPM에 같은 비율을 적용합니다. `dotted=3/2`, `plain=1`, `eighth=1/2`; `auto`·누락은 기본각이12정간이면 `eighth`, 나머지는 `dotted`입니다.
+- 황종은 `hwangPitch`를 사용하며 `--hwang-midi 63`으로 지정할 수 있습니다. BPM·황종이 없으면 자동으로 추측하지 않습니다. `tempoBpmGak`은 표시용이므로 재생 속도로 쓰지 않습니다.
+- 한글 율명·청/중청/배/하배, 같은 각 안의 빈칸·`-` 연장, 쉼·쉼표, 숨표`<`를 지원합니다. 같은 율명을 다시 적으면 새로 발음합니다. 각 첫 연장은 쉼이며 각 정간 수·분박 분할이 잘못되면 실패합니다.
+- 앞꾸밈: 니레·니라·니로·노네·너녜·노니로·노리노·네로네. 본음 음열: 나니나·나느나. 독립 상대음: 노·니·로·리·니나·느나·노라·느니·같은음표. `{한글 이름}`과 대응 registry ID를 받습니다. 상대음에는 명시한 `joPreset` 또는 `--jo jung-pyeong` 등이 필요하며 음계를 추정하지 않습니다.
+- 앞꾸밈은 각각 `1/16 quarter`·velocity80, 음열은 본음 자리를 균등 분할하고 연결합니다. `<`는 그 정간 끝에120ms 숨을 넣습니다. 우물사이 웹 재생의 최대90ms/30% 꾸밈·숨표 무음 미적용과는 다른 프로젝트 재생값입니다.
+- **농음·흘림·추성·퇴성·길이 변경·반복 기호의 JGB 해석, 한자 율명, 장구 반주·합주는 미지원**입니다. 기호를 버리거나 옥타브를 자동 보정하지 않고 성부·각·정간 위치를 알려 실패합니다. 고정25cent 떨림이 이 기호들을 해석한 결과는 아닙니다.
+
+JGB 입력에서는 원본 바이트 사본 `source.jgb.json`과 `source-map.json`이 추가됩니다. `score.json`은 변환된 공통 악보이며 원본과 구분합니다. `danso.json`의 `events[].parent_ids`를 대응표의 `notes` 키로 찾으면 성부 원본 ID·각·정간·분박·문자 범위와 연장된 칸을 확인할 수 있습니다. 대응표의 시간은 원본 자리의 시간이고 실제 발음 시간은 `events`에 있습니다. 문자 범위는 **0부터 세는 Unicode 문자 위치·끝 제외**이며 JavaScript UTF-16 위치와 구분합니다. manifest에 원본·변환본·대응표·소스 해시와 선택한 템포·배율을 기록합니다. JGB 결과 폴더를 공통 악보 JSON 입력에 재사용하면 이전 대응표가 남지 않도록 거부합니다.
+
+## 공통 악보 JSON 입력
 
 입력은 단선율 음표·쉼표를 순서대로 나열합니다. 예제는 세령산 첫 장단37개 입력을 꾸밈 확장 후44개 MIDI 음으로 만듭니다. 이 숫자는 인식 정확도가 아닙니다.
 
 | 필드 | 현재 코어의 의미 |
 | --- | --- |
 | `schema` | `gugak-reviewed-score/v1`. 이름과 별개로 원보 검수 상태를 명시 |
-| `source` | 판본 `edition`, `manually-transcribed-unverified` 또는 `machine-transcribed-unverified` 상태 |
+| `source` | 판본 `edition`, `manually-transcribed-unverified`·`machine-transcribed-unverified`·`source-review-unverified` 상태. JGB 입력의 원보 검수 상태는 추정하지 않음 |
 | `context` | `sounding` 실음 MIDI, `written` 명시 옥타브 이동, 또는 `yul`의 황종 MIDI+율명/register. 스타일·조율 설명 필수 |
 | `quarter_bpm` | 4분음표 기준 BPM. JGB의 주박·정간 단위와 구분 |
 | `notes[].id` | 중복 없는 문자열. 장식/붙임줄 처리 후 JSON의 `parent_ids`로 보존 |
@@ -57,7 +74,7 @@ python -m venv data/.venv
 | `expression` | 시작·45%지점·끝의 CC11 값0~127. 기본 `[127,127,127]` |
 | `yoseong` | 명시된 음의 amplitude/pitch/mixed 요성. 단소 정악의 기본은 amplitude |
 
-JGB 변환기에서는 문서 버전·성부·각·정간·음 위치를 입력 ID와 연결하는 대응표를 보존해야 합니다. **MIDI 파일 자체에는 원본 음표 ID를 저장하지 않습니다.** 현재 대응 정보는 악기별 JSON에 있습니다. 여러 성부 합주·JGB 반복 전개·임의 시김새를 자동 처리하는 기능은 없습니다.
+**MIDI 파일 자체에는 원본 음표 ID를 저장하지 않습니다.** 악기별 JSON의 `parent_ids`와 JGB 입력의 `source-map.json`을 함께 보관합니다. 여러 성부 합주·JGB 반복 전개·임의 시김새를 자동 처리하는 기능은 없습니다.
 
 실음 MIDI를 쓰거나 `황종 MIDI + 율명 반음 간격 + register×12`로 음높이를 정합니다. 단소 프로필의 교재 기준 음역은 MIDI66~92입니다. 黃=63이라는 환산 기준과 실제 연주할 옥타브를 구분하며, 범위 밖 음을 자동으로 올리지 않습니다. `tuning_a_hz`는 비교 기준 이동이고 CAT 샘플의 잔여 조율 편차를 자동 교정하지 않습니다.
 
