@@ -18,7 +18,7 @@
   "breathMarks": {
    "by": "사지한",
    "on": "2026-10-27",
-   "note": "원본의 숨표(<) 4개가 받은 입력본에 없어 3·15·27·39번째 정간 뒤에 넣고 원본과 대조해 확인함"
+   "note": "원본의 숨표(<) 4개를 6·18·30·42번째 정간 뒤에 넣음. 기호가 놓인 열(음 칸과 그 오른쪽 가사 줄)의 마지막 정간. 원본과 대조해 확인함"
   }
  },
  "sourceValues": {
@@ -71,7 +71,7 @@
   {
    "index": 2,
    "gak": 0,
-   "cell": "중 - 임<",
+   "cell": "중 - 임",
    "original": "중 - 임",
    "confirmed": true,
    "inserted": false,
@@ -116,7 +116,7 @@
   {
    "index": 5,
    "gak": 0,
-   "cell": "무 - 청황",
+   "cell": "무 - 청황<",
    "original": "무 - 청황",
    "confirmed": true,
    "inserted": false,
@@ -251,7 +251,7 @@
   {
    "index": 14,
    "gak": 1,
-   "cell": "무 - 청황<",
+   "cell": "무 - 청황",
    "original": "무 - 청황",
    "confirmed": true,
    "inserted": false,
@@ -296,7 +296,7 @@
   {
    "index": 17,
    "gak": 1,
-   "cell": "중 - 임",
+   "cell": "중 - 임<",
    "original": "중 - 임",
    "confirmed": true,
    "inserted": false,
@@ -431,7 +431,7 @@
   {
    "index": 26,
    "gak": 2,
-   "cell": "청중<",
+   "cell": "청중",
    "original": "청중",
    "confirmed": true,
    "inserted": false,
@@ -476,7 +476,7 @@
   {
    "index": 29,
    "gak": 2,
-   "cell": "청황",
+   "cell": "청황<",
    "original": "청황",
    "confirmed": true,
    "inserted": false,
@@ -611,7 +611,7 @@
   {
    "index": 38,
    "gak": 3,
-   "cell": "무 - 청황<",
+   "cell": "무 - 청황",
    "original": "무 - 청황",
    "confirmed": true,
    "inserted": false,
@@ -656,7 +656,7 @@
   {
    "index": 41,
    "gak": 3,
-   "cell": "중 - 임",
+   "cell": "중 - 임<",
    "original": "중 - 임",
    "confirmed": true,
    "inserted": false,
