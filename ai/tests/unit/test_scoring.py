@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import Note, frame_rms, pyin_f0, reference_hz, score
+from ai_service.pipelines.scoring import HOP_S, Note, frame_rms, pyin_f0, reference_hz, score
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -67,6 +67,35 @@ def test_large_tuning_offset_is_not_corrected():
 def test_silence_fails_instead_of_zero():
     result = run(np.zeros(SR * 6))
     assert (result.status, result.fail_reason) == ("FAILED", "NO_SOUND")
+
+
+def f0_frames(notes, shift=0, played=None):
+    """음표마다 정확한 높이를 HOP_S 간격으로 채운 f0. played에 없는 음표 구간은 무음(NaN)."""
+    frames = []
+    for k, n in enumerate(notes):
+        hz = REF_HZ * 2 ** ((n.semitone + shift) / 12) if played is None or k in played else np.nan
+        frames += [hz] * round(n.beats * 60 / BPM / HOP_S)
+    return np.array(frames)
+
+
+def test_few_noise_frames_fail_as_no_sound():
+    f0 = f0_frames(SCALE, played=())
+    f0[[40, 41, 42, 300, 301]] = REF_HZ * 1.5  # 잡음이 음높이로 잡힌 몇 프레임
+    result = score(f0, SCALE, BPM, REF_HZ)
+    assert (result.status, result.fail_reason) == ("FAILED", "NO_SOUND")
+
+
+def test_one_played_note_is_not_a_failure():
+    result = score(f0_frames(SCALE, played={5}), SCALE, BPM, REF_HZ)
+    assert result.status == "DONE"
+    assert verdicts(result) == {k: "MISSED" for k in range(len(SCALE)) if k != 5}
+
+
+def test_all_wrong_notes_are_pitch_errors_not_failure():
+    # 한 옥타브 높게 불면 조율 보정 범위(±100센트)를 넘어 보정 없이 모든 음표가 음정 오류로 남는다.
+    result = score(f0_frames(SCALE, shift=12), SCALE, BPM, REF_HZ)
+    assert (result.status, result.fail_reason) == ("DONE", None)
+    assert verdicts(result) == {k: "PITCH" for k in range(len(SCALE))}
 
 
 def test_short_input_fails():
