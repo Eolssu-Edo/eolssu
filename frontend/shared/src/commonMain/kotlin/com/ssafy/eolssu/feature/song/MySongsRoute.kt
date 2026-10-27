@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.MySheetKind
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.song.component.AddSheetOption
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
@@ -48,6 +49,7 @@ fun MySongsRoute(
 
     MySongsScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         actions = MySongsActions(
             onBack = onBack,

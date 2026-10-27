@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.launch
@@ -30,6 +31,7 @@ fun SongDetailRoute(
     val comingSoon = stringResource(Res.string.common_coming_soon)
     SongDetailScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onStartPractice = {

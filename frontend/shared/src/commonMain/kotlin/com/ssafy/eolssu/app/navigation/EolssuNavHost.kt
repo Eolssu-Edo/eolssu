@@ -118,6 +118,7 @@ fun EolssuNavHost(
             SongListRoute(
                 onBack = { navController.popBackStack() },
                 onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
             )
         }
         composable(

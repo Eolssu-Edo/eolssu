@@ -1,66 +1,67 @@
 package com.ssafy.eolssu.feature.song
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.ChipRow
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuChip
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
-import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.component.SongCard
+import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLevelChips
+import com.ssafy.eolssu.feature.song.component.SongSearchField
+import com.ssafy.eolssu.feature.song.layout.SongListExpandedLayout
+import com.ssafy.eolssu.feature.song.layout.SongListMediumLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_count
-import eolssu.shared.generated.resources.song_empty
-import eolssu.shared.generated.resources.song_level_all
 import eolssu.shared.generated.resources.song_list_title
-import eolssu.shared.generated.resources.song_reset_filters
-import eolssu.shared.generated.resources.song_search_placeholder
 import org.jetbrains.compose.resources.stringResource
 
-/** SONG-01 곡 목록. 검색·난이도 필터, 결과가 없으면 조건 초기화 안내. */
+/** SONG-01 화면의 사용자 행동. [onOpenSong]은 휴대폰·태블릿 세로에서 곡 상세로 가고, 태블릿 가로에서는 오른쪽 칸의 곡을 바꾼다. */
+class SongListActions(
+    val onBack: () -> Unit,
+    val onQueryChange: (String) -> Unit,
+    val onClearQuery: () -> Unit,
+    val onSelectFilter: (SongLevelFilter) -> Unit,
+    val onResetFilters: () -> Unit,
+    val onOpenSong: (songId: String) -> Unit,
+    val onStartPractice: () -> Unit,
+)
+
+/**
+ * SONG-01 곡 목록. 검색·난이도 필터, 결과가 없으면 조건 초기화 안내.
+ * 태블릿 세로([WindowWidthClass.Medium])는 카드 2열, 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded])은
+ * 왼쪽 목록과 오른쪽 곡 정보([detail], 고른 곡이 없으면 null) 두 칸을 한 화면에 보인다.
+ */
 @Composable
 fun SongListScreen(
     state: SongListUiState,
-    onBack: () -> Unit,
-    onQueryChange: (String) -> Unit,
-    onClearQuery: () -> Unit,
-    onSelectFilter: (SongLevelFilter) -> Unit,
-    onResetFilters: () -> Unit,
-    onOpenSong: (songId: String) -> Unit,
+    widthClass: WindowWidthClass,
+    detail: SongDetailUiState?,
+    actions: SongListActions,
 ) {
-    EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.song_list_title), onBack = onBack) }) {
+    when (widthClass) {
+        WindowWidthClass.Compact -> SongListCompact(state, actions)
+        WindowWidthClass.Medium -> SongListMediumLayout(state, actions)
+        WindowWidthClass.Expanded -> SongListExpandedLayout(state, detail, actions)
+    }
+}
+
+@Composable
+private fun SongListCompact(state: SongListUiState, actions: SongListActions) {
+    EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack) }) {
         val songs = state.visibleSongs
         LazyColumn(
             Modifier.fillMaxSize(),
@@ -69,16 +70,12 @@ fun SongListScreen(
         ) {
             item {
                 Column {
-                    SearchField(state.query, onQueryChange, onClearQuery)
-                    ChipRow(Modifier.padding(top = 12.dp, bottom = 6.dp)) {
-                        SongLevelFilter.entries.forEach { filter ->
-                            EolssuChip(songLevelFilterLabel(filter), selected = state.filter == filter, onClick = { onSelectFilter(filter) })
-                        }
-                    }
+                    SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
+                    SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(top = 12.dp, bottom = 6.dp))
                 }
             }
             if (songs.isEmpty() && state.songs.isNotEmpty()) {
-                item { EmptyResult(onResetFilters) }
+                item { SongEmptyResult(actions.onResetFilters) }
             } else if (songs.isNotEmpty()) {
                 item {
                     Text(
@@ -87,62 +84,10 @@ fun SongListScreen(
                         color = EolssuTheme.colors.textMuted,
                     )
                 }
-                items(songs, key = { it.id }) { song -> SongCard(song, jangdanLabel(song.jangdan), onClick = { onOpenSong(song.id) }) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun songLevelFilterLabel(filter: SongLevelFilter): String =
-    filter.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_level_all)
-
-@Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit, onClear: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .background(colors.surface, RoundedCornerShape(14.dp))
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(EolssuIcons.Search, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
-            if (query.isEmpty()) {
-                Text(stringResource(Res.string.song_search_placeholder), style = textStyle, color = colors.textMuted)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = textStyle,
-                cursorBrush = SolidColor(colors.text),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        if (query.isNotEmpty()) {
-            Surface(onClick = onClear, shape = CircleShape, color = colors.surfaceStrong, modifier = Modifier.size(24.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(12.dp), tint = colors.text)
+                items(songs, key = { it.id }) { song ->
+                    SongCard(song, jangdanLabel(song.jangdan), onClick = { actions.onOpenSong(song.id) })
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyResult(onReset: () -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 56.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(stringResource(Res.string.song_empty), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp))
-        EolssuButton(stringResource(Res.string.song_reset_filters), onReset, style = EolssuButtonStyle.Secondary, small = true)
     }
 }

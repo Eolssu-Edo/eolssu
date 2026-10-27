@@ -540,4 +540,9 @@
     <!-- 연습 기록·기록 상세 태블릿 배치 (S15P31E102-163) -->
     <string name="record_detail_hint_wrapped">오른쪽 각부터 위→아래로 읽고, 줄이 바뀌면 아래 줄 오른쪽부터 이어요 · 칸을 누르면 그 위치부터 들어요</string>
     <string name="records_pane_empty">왼쪽에서 녹음을 고르면 여기에서 다시 들을 수 있어요</string>
+    <!-- 곡 목록·내 악보 태블릿 배치 (S15P31E102-163) -->
+    <string name="tab_song_meta_bpm">%1$s · %2$d BPM</string>
+    <string name="tab_song_pick_title">곡을 골라주세요</string>
+    <string name="tab_song_pick_body">왼쪽 목록에서 곡을 누르면 여기에 곡 정보가 보여요.</string>
+    <string name="mysongs_tab_solo_hint">곡을 누르면 점수 없이 혼자 연습하는 연습 모드로 열려요. AI 평가 곡은 연습 화면에서 평가로 바꿀 수 있어요.</string>
 </resources>

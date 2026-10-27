@@ -16,7 +16,7 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
     init {
         viewModelScope.launch {
             val songs = songRepository.getSongs()
-            _uiState.update { it.copy(songs = songs) }
+            _uiState.update { it.receiveSongs(songs) }
         }
     }
 
@@ -25,6 +25,9 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
     fun clearQuery() = changeQuery("")
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
+
+    /** 태블릿 가로 두 칸 배치에서 오른쪽에 보일 곡을 고른다. */
+    fun selectSong(songId: String) = _uiState.update { it.selectSong(songId) }
 
     fun resetFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
 }

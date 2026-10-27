@@ -49,19 +49,29 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * 내 악보 카드: 종류 칸 · 제목 · 보조 문구 · 화살표(누르면 [onOpen]), 아래 줄에 상태 배지와 편집 버튼([onEdit]).
+ * [large]는 태블릿 카드 격자(여백 16dp, 줄 사이 14dp)이고, 같은 줄 카드에 높이를 맞추면 아래 줄을 카드 바닥에 붙인다.
  */
 @Composable
-fun MySheetCard(sheet: MySheet, onOpen: () -> Unit, onEdit: () -> Unit, modifier: Modifier = Modifier) {
+fun MySheetCard(sheet: MySheet, onOpen: () -> Unit, onEdit: () -> Unit, modifier: Modifier = Modifier, large: Boolean = false) {
     val colors = EolssuTheme.colors
     Column(
         modifier
             .fillMaxWidth()
             .border(1.dp, colors.line, MaterialTheme.shapes.medium)
-            .padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .then(
+                if (large) {
+                    Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 14.dp)
+                } else {
+                    Modifier.padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 12.dp)
+                },
+            ),
+        verticalArrangement = if (large) Arrangement.SpaceBetween else Arrangement.spacedBy(10.dp),
     ) {
         Row(
-            Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen),
+            Modifier
+                .fillMaxWidth()
+                .then(if (large) Modifier.padding(bottom = 14.dp) else Modifier)
+                .clickable(role = Role.Button, onClick = onOpen),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -24,6 +25,7 @@ fun PdfPreviewRoute(
     }
     PdfPreviewScreen(
         state = state,
+        widthClass = currentWindowLayout().widthClass,
         actions = PdfPreviewActions(
             onBack = onBack,
             onSelectPage = viewModel::selectPage,
