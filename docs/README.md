@@ -66,7 +66,7 @@
 
 ## AI 실험 기록
 
-- [악보 재생 공통 엔진·악기별 해석 근거](knowledge/ai/score-instrument-playback-pipeline.md)
+- [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/ai/score-instrument-playback-pipeline.md)
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 
