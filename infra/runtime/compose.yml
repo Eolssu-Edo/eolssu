@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: eclipse-temurin:21-jre
+    image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
     user: "10001:10001"
     working_dir: /app
     command: ["java", "-jar", "/app/app.jar"]
