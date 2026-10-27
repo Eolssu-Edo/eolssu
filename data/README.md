@@ -34,7 +34,7 @@ data/
 │   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
 │   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
-│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
+│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표. 사람이 원본과 대조해 확정한 정답 .jgb.json과 검토 기록.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
