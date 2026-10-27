@@ -32,6 +32,10 @@
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 
+## 기능 스펙
+
+- [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
+
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
@@ -83,6 +87,7 @@
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
+- [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
