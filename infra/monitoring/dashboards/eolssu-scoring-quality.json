@@ -38,7 +38,8 @@
         "current": {
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "allValue": "'__all'"
       },
       {
         "name": "song",
@@ -48,14 +49,15 @@
           "type": "mysql",
           "uid": "${DS_EOLSSU}"
         },
-        "query": "SELECT s.title FROM songs s JOIN instruments i ON i.id = s.instrument_id WHERE i.name IN (${instrument:sqlstring}) ORDER BY s.title",
+        "query": "SELECT s.title FROM songs s JOIN instruments i ON i.id = s.instrument_id WHERE ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) ORDER BY s.title",
         "refresh": 1,
         "multi": true,
         "includeAll": true,
         "current": {
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "allValue": "'__all'"
       },
       {
         "name": "model",
@@ -72,7 +74,8 @@
         "current": {
           "text": "All",
           "value": "$__all"
-        }
+        },
+        "allValue": "'__all'"
       }
     ]
   },
@@ -121,7 +124,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_cent, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.pitch_error_cent, -200), 200) / 10) * 10 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.pitch_error_cent IS NOT NULL GROUP BY b) t ORDER BY b"
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_cent, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.pitch_error_cent, -200), 200) / 10) * 10 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND nr.pitch_error_cent IS NOT NULL GROUP BY b) t ORDER BY b"
         }
       ]
     },
@@ -156,7 +159,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.onset_error_ms, -400), 400) / 20) * 20 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.onset_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.onset_error_ms, -400), 400) / 20) * 20 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND nr.onset_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
         }
       ]
     },
@@ -191,7 +194,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.duration_error_ms, -1000), 1000) / 50) * 50 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.duration_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.duration_error_ms, -1000), 1000) / 50) * 50 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND nr.duration_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
         }
       ]
     },
@@ -249,7 +252,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT p.hangul AS 음, SUM(nr.verdict = 'CORRECT') AS 맞음, SUM(nr.verdict = 'PITCH') AS 음높이, SUM(nr.verdict = 'TIMING') AS 박자, SUM(nr.verdict = 'MISSED') AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id JOIN pitches p ON p.id = nr.expected_pitch_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY p.id, p.hangul, p.semitone ORDER BY p.semitone"
+          "rawSql": "SELECT p.hangul AS 음, SUM(nr.verdict = 'CORRECT') AS 맞음, SUM(nr.verdict = 'PITCH') AS 음높이, SUM(nr.verdict = 'TIMING') AS 박자, SUM(nr.verdict = 'MISSED') AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id JOIN pitches p ON p.id = nr.expected_pitch_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY p.id, p.hangul, p.semitone ORDER BY p.semitone"
         }
       ]
     },
@@ -278,7 +281,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT s.title AS 곡, COUNT(*) AS 음_수, ROUND(100 * SUM(nr.verdict = 'CORRECT') / COUNT(*), 1) AS 맞음, ROUND(100 * SUM(nr.verdict = 'PITCH') / COUNT(*), 1) AS 음높이, ROUND(100 * SUM(nr.verdict = 'TIMING') / COUNT(*), 1) AS 박자, ROUND(100 * SUM(nr.verdict = 'MISSED') / COUNT(*), 1) AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY s.id, s.title ORDER BY 음_수 DESC, s.title"
+          "rawSql": "SELECT s.title AS 곡, COUNT(*) AS 음_수, ROUND(100 * SUM(nr.verdict = 'CORRECT') / COUNT(*), 1) AS 맞음, ROUND(100 * SUM(nr.verdict = 'PITCH') / COUNT(*), 1) AS 음높이, ROUND(100 * SUM(nr.verdict = 'TIMING') / COUNT(*), 1) AS 박자, ROUND(100 * SUM(nr.verdict = 'MISSED') / COUNT(*), 1) AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY s.id, s.title ORDER BY 음_수 DESC, s.title"
         }
       ]
     },
@@ -307,7 +310,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT e.model_version AS 모델_버전, COUNT(*) AS 채점_수, ROUND(AVG(e.total_score), 1) AS 총점, ROUND(AVG(e.pitch_score), 1) AS 음높이, ROUND(AVG(e.timing_score), 1) AS 박자, ROUND(AVG(e.duration_score), 1) AS 길이 FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY e.model_version ORDER BY e.model_version"
+          "rawSql": "SELECT e.model_version AS 모델_버전, COUNT(*) AS 채점_수, ROUND(AVG(e.total_score), 1) AS 총점, ROUND(AVG(e.pitch_score), 1) AS 음높이, ROUND(AVG(e.timing_score), 1) AS 박자, ROUND(AVG(e.duration_score), 1) AS 길이 FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) GROUP BY e.model_version ORDER BY e.model_version"
         }
       ]
     },
@@ -354,7 +357,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(ps.fail_reason, '(원인 없음)') AS 원인, COUNT(*) AS 세션_수 FROM practice_sessions ps JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(ps.created_at) AND ps.status = 'FAILED' AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) GROUP BY 원인 ORDER BY 세션_수 DESC, 원인"
+          "rawSql": "SELECT COALESCE(ps.fail_reason, '(원인 없음)') AS 원인, COUNT(*) AS 세션_수 FROM practice_sessions ps JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(ps.created_at) AND ps.status = 'FAILED' AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) GROUP BY 원인 ORDER BY 세션_수 DESC, 원인"
         }
       ]
     },
@@ -391,7 +394,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH t AS (SELECT TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at) / 1000000 AS sec, ROW_NUMBER() OVER (ORDER BY TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at)) AS rn, COUNT(*) OVER () AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND ps.ended_at IS NOT NULL) SELECT ROUND(AVG(sec), 1) AS 중앙값_초, MAX(n) AS 세션_수 FROM t WHERE rn IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2)) HAVING COUNT(*) > 0"
+          "rawSql": "WITH t AS (SELECT TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at) / 1000000 AS sec, ROW_NUMBER() OVER (ORDER BY TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at)) AS rn, COUNT(*) OVER () AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND ps.ended_at IS NOT NULL) SELECT ROUND(AVG(sec), 1) AS 중앙값_초, MAX(n) AS 세션_수 FROM t WHERE rn IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2)) HAVING COUNT(*) > 0"
         }
       ]
     },
@@ -425,7 +428,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT CAST(b AS CHAR) AS 처리_초, n AS 세션_수 FROM (SELECT FLOOR(LEAST(TIMESTAMPDIFF(SECOND, ps.ended_at, e.evaluated_at), 120) / 5) * 5 AS b, COUNT(*) AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND ps.ended_at IS NOT NULL GROUP BY b) t ORDER BY b"
+          "rawSql": "SELECT CAST(b AS CHAR) AS 처리_초, n AS 세션_수 FROM (SELECT FLOOR(LEAST(TIMESTAMPDIFF(SECOND, ps.ended_at, e.evaluated_at), 120) / 5) * 5 AS b, COUNT(*) AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND ps.ended_at IS NOT NULL GROUP BY b) t ORDER BY b"
         }
       ]
     }
