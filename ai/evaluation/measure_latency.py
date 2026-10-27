@@ -88,15 +88,19 @@ def measure(method, seconds, with_score, timeout):
 def measure_lengths(method, lengths, memory_gib, max_seconds, run=measure):
     """짧은 길이부터 재며 (길이, 채점 여부, 결과)를 낸다."""
     last = None  # (길이, 음높이 추정 시간): 다음 길이의 예상 시간을 비례로 잡는다
-    failed = False  # 시간 초과·실패가 나면 더 긴 길이는 더 오래 걸리므로 돌리지 않는다
+    pitch_only = False  # 채점까지 하다 실패하면 채점 탓일 수 있어 더 긴 길이는 음높이 추정만 잰다
+    failed = False  # 음높이 추정만 재다 실패하면 더 긴 길이는 더 오래 걸리므로 돌리지 않는다
     for seconds in sorted(lengths):
         with_score, skip = decide(seconds, memory_gib, last, max_seconds, failed)
+        with_score = with_score and not pitch_only
         if skip:
             row = {"status": skip}
         else:
             row = run(method, seconds, with_score, timeout=max_seconds * 2)
             if row.get("f0_s") is not None:
                 last = (seconds, row["f0_s"])
+            elif with_score:
+                pitch_only = True
             else:
                 failed = True
         yield seconds, with_score, row
@@ -128,7 +132,7 @@ def main():
     for method in args.methods:
         for seconds, with_score, row in measure_lengths(method, args.seconds, args.memory_gib, args.max_seconds):
             dtw_mb = dtw_bytes(seconds) / 2**20
-            note = "" if with_score else f"채점 안 함(DTW 예상 {dtw_mb / 1024:.0f}GiB)"
+            note = "" if with_score else f"채점 안 함(DTW 예상 {dtw_mb / 1024:.1f}GiB)"
             total = None if row.get("score_s") is None else row["f0_s"] + row["score_s"]
             status = row["status"] if row["status"] not in ("DONE", "f0만") else ""
             lines.append(
