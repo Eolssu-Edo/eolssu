@@ -305,8 +305,13 @@ class DatabaseIntegrationTests {
         assertMysqlError(1062, "user_song_settings.uq_user_song_settings_user_song") {
             jdbc.update("INSERT INTO user_song_settings (user_id, song_id, bpm) VALUES (1, 1, 80)")
         }
+        assertEquals(1, jdbc.update("UPDATE user_song_settings SET bpm = 20 WHERE id = 1"))
+        assertEquals(1, jdbc.update("UPDATE user_song_settings SET bpm = 240 WHERE id = 1"))
         assertMysqlError(3819, "chk_user_song_settings_bpm") {
-            jdbc.update("UPDATE user_song_settings SET bpm = 10 WHERE id = 1")
+            jdbc.update("UPDATE user_song_settings SET bpm = 19 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_user_song_settings_bpm") {
+            jdbc.update("UPDATE user_song_settings SET bpm = 241 WHERE id = 1")
         }
         assertMysqlError(1364) {
             jdbc.update("INSERT INTO jangdans (name, pattern, default_bpm) VALUES ('굿거리', '{}', 66)")
@@ -319,6 +324,14 @@ class DatabaseIntegrationTests {
         }
         assertMysqlError(3819, "chk_practice_sessions_score_version") {
             jdbc.update("UPDATE practice_sessions SET score_version = 0 WHERE id = 1")
+        }
+        assertEquals(1, jdbc.update("UPDATE practice_sessions SET bpm = 20 WHERE id = 1"))
+        assertEquals(1, jdbc.update("UPDATE practice_sessions SET bpm = 240 WHERE id = 1"))
+        assertMysqlError(3819, "chk_practice_sessions_bpm") {
+            jdbc.update("UPDATE practice_sessions SET bpm = 19 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_bpm") {
+            jdbc.update("UPDATE practice_sessions SET bpm = 241 WHERE id = 1")
         }
         assertMysqlError(3819, "chk_practice_sessions_bpm_unit") {
             jdbc.update("UPDATE practice_sessions SET bpm_unit = 'HALF' WHERE id = 1")

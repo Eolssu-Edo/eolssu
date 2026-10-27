@@ -15,7 +15,9 @@ INSERT INTO v2_preconditions (item, ok)
 SELECT 'jangdans.name', name IN ('세마치', '굿거리', '중모리', '타령') FROM jangdans        -- bpm_unit을 정할 수 있는 장단(회의 1-2)
 UNION ALL
 SELECT 'users.deleted_personal', email IS NULL AND password_hash IS NULL AND nickname IS NULL
-FROM users WHERE deleted_at IS NOT NULL;                                            -- 탈퇴 완료 회원은 개인정보가 비어 있어야 함
+FROM users WHERE deleted_at IS NOT NULL                                             -- 탈퇴 완료 회원은 개인정보가 비어 있어야 함
+UNION ALL
+SELECT 'practice_sessions.bpm', bpm BETWEEN 20 AND 240 FROM practice_sessions;     -- PRA-01 BPM 범위(초안)
 DROP TEMPORARY TABLE v2_preconditions;
 
 -- ---------- 사용자 ----------
@@ -133,7 +135,7 @@ CREATE TABLE user_song_settings (
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   CONSTRAINT uq_user_song_settings_user_song UNIQUE (user_id, song_id),
-  CONSTRAINT chk_user_song_settings_bpm CHECK (bpm BETWEEN 30 AND 400),
+  CONSTRAINT chk_user_song_settings_bpm CHECK (bpm BETWEEN 20 AND 240),            -- 세션 BPM과 같은 범위(PRA-01 초안)
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (song_id) REFERENCES songs(id)
 );
@@ -162,6 +164,9 @@ ALTER TABLE songs
 -- ---------- 연습 기록 ----------
 -- saved_at·memo·viewed_at·record_deleted_at은 사용자가 나중에 바꾼다. 데이터 파이프라인은 이 칸을 읽지 않는다.
 -- 부모 세션이 지워지면(탈퇴 일괄 삭제) 자식의 parent_session_id를 비운다. 한 문장으로 회원의 세션을 지울 수 있어야 한다.
+-- BPM 범위는 V1의 30~400(practice_sessions_chk_1)에서 PRA-01의 20~240(bpmUnit 단위로 센 값, 초안)으로 바꾼다.
+ALTER TABLE practice_sessions DROP CHECK practice_sessions_chk_1;
+
 ALTER TABLE practice_sessions
   ADD COLUMN mission_id        BIGINT AFTER song_id,                               -- 미션 연습이면 미션 ID. missions 테이블 추가 시 외래키 연결
   ADD COLUMN parent_session_id BIGINT AFTER mission_id,                            -- 비교·재도전의 기준이 된 이전 세션(본인·DONE·같은 곡은 앱이 확인)
@@ -173,6 +178,7 @@ ALTER TABLE practice_sessions
   ADD COLUMN memo              VARCHAR(500) AFTER saved_at,
   ADD COLUMN viewed_at         DATETIME(6) AFTER memo,                             -- 기록 상세를 처음 연 시각. NULL이면 REC-02 isNew
   ADD COLUMN record_deleted_at DATETIME(6) AFTER viewed_at,                        -- REC-04로 기록을 지운 시각. 점수 집계는 남기고 목록·재생에서 뺀다
+  ADD CONSTRAINT chk_practice_sessions_bpm CHECK (bpm BETWEEN 20 AND 240),
   ADD CONSTRAINT chk_practice_sessions_score_version CHECK (score_version >= 1),
   ADD CONSTRAINT chk_practice_sessions_idempotency CHECK ((idempotency_key IS NULL) = (request_hash IS NULL)),
   ADD CONSTRAINT fk_practice_sessions_parent FOREIGN KEY (parent_session_id) REFERENCES practice_sessions(id) ON DELETE SET NULL,
