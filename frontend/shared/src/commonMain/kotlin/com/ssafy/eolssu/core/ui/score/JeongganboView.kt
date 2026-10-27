@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
@@ -92,6 +94,7 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
  * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
+ * @param errors 틀린 정간(각, 정간) → 틀린 항목. 정간을 색칠하고 오른쪽 위에 종류 글자(음·박·길)를 붙인다.
  * @param selectedIndex 사용자가 고른 음의 연주 순서. 정간에 검은 테두리를 그린다.
  * @param onEventClick 있으면 음을 누를 수 있다.
  * @param maxColumns 앞에서부터 이 수의 각만 그린다.
@@ -109,6 +112,7 @@ fun JeongganboView(
     playback: ScorePlayback? = null,
     follow: Boolean = false,
     onUserScroll: () -> Unit = {},
+    errors: Map<Pair<Int, Int>, EvaluationMetric> = emptyMap(),
     selectedIndex: Int? = null,
     onEventClick: ((ScoreEvent) -> Unit)? = null,
     maxColumns: Int? = null,
@@ -163,6 +167,7 @@ fun JeongganboView(
                         highlight = highlight,
                         live = playback != null,
                         fraction = { fraction.floatValue },
+                        error = errors[strip.column to row],
                         selectedIndex = selectedIndex,
                         onEventClick = onEventClick,
                     )
@@ -256,10 +261,12 @@ private fun ScoreCellBox(
     highlight: ScoreHighlight,
     live: Boolean,
     fraction: () -> Float,
+    error: EvaluationMetric?,
     selectedIndex: Int?,
     onEventClick: ((ScoreEvent) -> Unit)?,
 ) {
     val colors = EolssuTheme.colors
+    val errorStyle = error?.let { errorStyle(it) }
     val progress = cellProgress(events, currentIndex)
     val (fill, ring) = when (highlight) {
         ScoreHighlight.Position -> colors.accentSoft to colors.accent
@@ -302,9 +309,25 @@ private fun ScoreCellBox(
             drawPath(tri, headColor)
         }
     }
+    if (errorStyle != null) cellModifier = cellModifier.background(errorStyle.fill)
     if (drawTopLine) {
         cellModifier = cellModifier.drawBehind {
             drawRect(lineColor, size = size.copy(height = lineWidth.toPx()))
+        }
+    }
+    if (errorStyle != null) {
+        cellModifier = cellModifier.drawWithContent {
+            drawContent()
+            val inset = if (errorStyle.dashed) 3.dp.toPx() else 0.75.dp.toPx()
+            drawRect(
+                errorStyle.ring,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - inset * 2, size.height - inset * 2),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    1.5.dp.toPx(),
+                    pathEffect = if (errorStyle.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
+                ),
+            )
         }
     }
     when {
@@ -312,7 +335,8 @@ private fun ScoreCellBox(
         isSelected -> cellModifier = cellModifier.border(2.dp, colors.text)
     }
 
-    Column(cellModifier) {
+    Box(cellModifier) {
+    Column(Modifier.fillMaxSize()) {
         events.forEachIndexed { k, event ->
             ScoreNoteBox(
                 event = event,
@@ -324,6 +348,15 @@ private fun ScoreCellBox(
                 onClick = onEventClick?.let { { it(event) } },
                 isSelected = event.index == selectedIndex,
                 modifier = Modifier.weight(1f),
+            )
+        }
+    }
+        if (error != null && errorStyle != null) {
+            Text(
+                errorTag(error),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 2.dp).clearAndSetSemantics {},
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 9.sp, fontWeight = FontWeight.Bold),
+                color = errorStyle.tag,
             )
         }
     }

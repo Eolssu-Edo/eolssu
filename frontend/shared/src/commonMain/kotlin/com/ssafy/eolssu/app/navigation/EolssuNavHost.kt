@@ -9,6 +9,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.feature.history.GrowthRoute
+import com.ssafy.eolssu.feature.history.RecordDetailRoute
+import com.ssafy.eolssu.feature.history.RecordListRoute
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisRoute
@@ -27,7 +30,15 @@ object EolssuDestination {
     const val ANALYSIS = "analysis/{songId}/{bpm}"
     const val RESULT = "result/{evaluationId}"
 
+    const val RECORDS = "records?saved={saved}"
+    const val RECORD_DETAIL = "records/{recordId}"
+    const val GROWTH = "growth"
+
     fun songDetail(songId: String) = "songs/$songId"
+
+    fun records(savedId: String? = null) = if (savedId == null) "records" else "records?saved=$savedId"
+
+    fun recordDetail(recordId: String) = "records/$recordId"
 
     fun analysis(songId: String, bpm: Int) = "analysis/$songId/$bpm"
 
@@ -120,7 +131,40 @@ fun EolssuNavHost(
                 onPracticeAgain = { navController.popBackStack() },
                 onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                 onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
-                onGoRecords = null,
+                onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
+            )
+        }
+        composable(
+            EolssuDestination.RECORDS,
+            arguments = listOf(
+                navArgument("saved") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { entry ->
+            RecordListRoute(
+                justSavedId = entry.savedStateHandle.get<String>("saved"),
+                onBack = { navController.popBackStack() },
+                onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
+                onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
+            )
+        }
+        composable(
+            EolssuDestination.RECORD_DETAIL,
+            arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
+        ) { entry ->
+            RecordDetailRoute(
+                recordId = entry.savedStateHandle.get<String>("recordId").orEmpty(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(EolssuDestination.GROWTH) {
+            GrowthRoute(
+                onBack = { navController.popBackStack() },
+                onOpenRecords = { navController.popBackStack() },
+                onOpenMissions = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
             )
         }
     }

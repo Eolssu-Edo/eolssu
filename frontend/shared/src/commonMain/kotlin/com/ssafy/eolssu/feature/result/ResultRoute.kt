@@ -25,7 +25,7 @@ fun ResultRoute(
     onPracticeAgain: () -> Unit,
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
-    onGoRecords: (() -> Unit)?,
+    onGoRecords: ((recordId: String) -> Unit)?,
     viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -52,9 +52,10 @@ fun ResultRoute(
             onMemoChange = viewModel::changeMemo,
             onCloseSheet = viewModel::closeSheet,
             onGoRecords = {
-                if (onGoRecords != null) {
+                val recordId = state.savedRecord?.id
+                if (onGoRecords != null && recordId != null) {
                     viewModel.closeSheet()
-                    onGoRecords()
+                    onGoRecords(recordId)
                 } else {
                     viewModel.closeSheet()
                     showComingSoon()

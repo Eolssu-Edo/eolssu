@@ -17,6 +17,7 @@ data class PracticeRecord(
     val recordedSeconds: Int,
     val bpm: Int,
     val score: Int,
+    val metrics: List<MetricScore>,
     val memo: String,
     val errors: List<ScoreError>,
 )

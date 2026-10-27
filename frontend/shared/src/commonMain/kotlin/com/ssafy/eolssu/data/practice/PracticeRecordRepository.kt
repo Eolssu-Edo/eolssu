@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.PracticeRecord
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +42,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
             recordedSeconds = result.recordedSeconds,
             bpm = result.bpm,
             score = result.total,
+            metrics = result.metrics,
             memo = "",
             errors = result.errors,
         )
@@ -55,18 +58,24 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
 private val SampleRecords = listOf(
     PracticeRecord(
         "sample-1", "arirang", "아리랑", section = "3–4각", repeats = 4, recordedAt = KoreanDateTime(2026, 10, 18, 20, 5),
-        recordedSeconds = 6, bpm = 48, score = 79, memo = "", errors = emptyList(),
+        recordedSeconds = 6, bpm = 48, score = 79, metrics = metrics(82, 76, 80), memo = "", errors = emptyList(),
     ),
     PracticeRecord(
         "sample-2", "arirang", "아리랑", section = null, repeats = null, recordedAt = KoreanDateTime(2026, 10, 18, 19, 52),
-        recordedSeconds = 48, bpm = 60, score = 76, memo = "", errors = SampleErrors,
+        recordedSeconds = 48, bpm = 60, score = 76, metrics = metrics(84, 70, 78), memo = "", errors = SampleErrors,
     ),
     PracticeRecord(
         "sample-3", "doraji", "도라지타령", section = null, repeats = null, recordedAt = KoreanDateTime(2026, 10, 15, 21, 10),
-        recordedSeconds = 22, bpm = 66, score = 71, memo = "청황 음이 낮게 나옴", errors = emptyList(),
+        recordedSeconds = 22, bpm = 66, score = 71, metrics = metrics(68, 74, 72), memo = "청황 음이 낮게 나옴", errors = emptyList(),
     ),
     PracticeRecord(
         "sample-4", "arirang", "아리랑", section = null, repeats = null, recordedAt = KoreanDateTime(2026, 10, 12, 18, 40),
-        recordedSeconds = 48, bpm = 54, score = 68, memo = "", errors = SampleErrors,
+        recordedSeconds = 48, bpm = 54, score = 68, metrics = metrics(80, 70, 78), memo = "", errors = SampleErrors,
     ),
+)
+
+private fun metrics(pitch: Int, rhythm: Int, length: Int) = listOf(
+    MetricScore(EvaluationMetric.Pitch, pitch),
+    MetricScore(EvaluationMetric.Rhythm, rhythm),
+    MetricScore(EvaluationMetric.Length, length),
 )

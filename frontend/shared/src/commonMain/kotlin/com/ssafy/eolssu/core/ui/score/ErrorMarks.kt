@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.result.component
+package com.ssafy.eolssu.core.ui.score
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,10 +44,10 @@ import eolssu.shared.generated.resources.result_tag_rhythm
 import org.jetbrains.compose.resources.stringResource
 
 /** 오류 종류의 테두리·바탕·글자 색. 음 길이는 점선 테두리. */
-private data class ErrorStyle(val ring: androidx.compose.ui.graphics.Color, val fill: androidx.compose.ui.graphics.Color, val tag: androidx.compose.ui.graphics.Color, val dashed: Boolean)
+internal data class ErrorStyle(val ring: androidx.compose.ui.graphics.Color, val fill: androidx.compose.ui.graphics.Color, val tag: androidx.compose.ui.graphics.Color, val dashed: Boolean)
 
 @Composable
-private fun errorStyle(metric: EvaluationMetric): ErrorStyle {
+internal fun errorStyle(metric: EvaluationMetric): ErrorStyle {
     val c = EolssuTheme.colors
     return when (metric) {
         EvaluationMetric.Pitch -> ErrorStyle(c.pitchError, c.pitchErrorSoft, c.pitchErrorText, dashed = false)

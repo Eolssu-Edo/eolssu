@@ -50,8 +50,8 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.feature.result.component.ErrorLegend
-import com.ssafy.eolssu.feature.result.component.ErrorScorePreview
+import com.ssafy.eolssu.core.ui.score.ErrorLegend
+import com.ssafy.eolssu.core.ui.score.ErrorScorePreview
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.instrument_daegeum

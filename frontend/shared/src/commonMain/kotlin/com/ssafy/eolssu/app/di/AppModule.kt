@@ -7,6 +7,9 @@ import com.ssafy.eolssu.data.practice.SampleEvaluationRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.feature.history.GrowthViewModel
+import com.ssafy.eolssu.feature.history.RecordDetailViewModel
+import com.ssafy.eolssu.feature.history.RecordListViewModel
 import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
@@ -23,7 +26,9 @@ val appModule = module {
     // API가 생기면 예시 구현을 API 구현으로 바꾼다.
     single<SongRepository> { SampleSongRepository() }
     single { PracticeSettingsStore() }
-    single<EvaluationRepository> { SampleEvaluationRepository(now = { Clock.System.now().toEpochMilliseconds() }) }
+    // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
+    single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
+    single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
 
     viewModelOf(::HomeViewModel)
@@ -32,4 +37,7 @@ val appModule = module {
     viewModel { (songId: String, solo: Boolean) -> PracticeViewModel(songId, solo, get(), get()) }
     viewModel { (songId: String, bpm: Int) -> AnalysisViewModel(songId, bpm, get(), get()) }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
+    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get()) }
+    viewModel { GrowthViewModel(get(), get()) }
 }

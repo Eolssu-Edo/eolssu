@@ -8,6 +8,15 @@ data class KoreanDateTime(val year: Int, val month: Int, val day: Int, val hour:
 
     fun isSameDay(other: KoreanDateTime): Boolean = year == other.year && month == other.month && day == other.day
 
+    /** 1970-01-01부터의 날 수. */
+    val epochDay: Long get() = daysFromCivil(year, month, day)
+
+    /** 요일(월요일 0 … 일요일 6). */
+    val dayOfWeek: Int get() = ((epochDay + 3).mod(7L)).toInt()
+
+    /** 같은 주(월~일)인지. */
+    fun isSameWeek(other: KoreanDateTime): Boolean = epochDay - dayOfWeek == other.epochDay - other.dayOfWeek
+
     companion object {
         private const val OFFSET_MILLIS = 9 * 60 * 60 * 1000L
 
@@ -18,6 +27,17 @@ data class KoreanDateTime(val year: Int, val month: Int, val day: Int, val hour:
             val millisOfDay = local.mod(86_400_000L)
             val (y, m, d) = civilFromDays(days)
             return KoreanDateTime(y, m, d, (millisOfDay / 3_600_000L).toInt(), ((millisOfDay / 60_000L) % 60).toInt())
+        }
+
+        /** (연, 월, 일) → 1970-01-01부터의 날 수. Howard Hinnant의 days_from_civil. */
+        private fun daysFromCivil(year: Int, month: Int, day: Int): Long {
+            val y = (if (month <= 2) year - 1 else year).toLong()
+            val era = y.floorDiv(400L)
+            val yoe = y - era * 400
+            val mp = (month + 9) % 12
+            val doy = (153 * mp + 2) / 5 + day - 1
+            val doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+            return era * 146_097 + doe - 719_468
         }
 
         /** 1970-01-01부터의 날 수 → (연, 월, 일). Howard Hinnant의 civil_from_days. */
