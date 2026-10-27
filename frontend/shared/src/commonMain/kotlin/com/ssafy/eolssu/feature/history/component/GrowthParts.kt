@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
@@ -105,6 +106,9 @@ private fun GrowthOutlinedCard(
     )
 }
 
+/** 고른 탭의 옅은 그림자(와이어프레임 `.seg .on` box-shadow). 기본 그림자색은 너무 진하다. */
+private val SelectedTabShadow = Color.Black.copy(alpha = 0.12f)
+
 @Composable
 internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
     val colors = EolssuTheme.colors
@@ -116,7 +120,7 @@ internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
             val on = r == range
             Surface(
                 onClick = { onRange(r) },
-                modifier = Modifier.weight(1f).height(36.dp).then(if (on) Modifier.shadow(1.dp, RoundedCornerShape(9.dp)) else Modifier).semantics {
+                modifier = Modifier.weight(1f).height(36.dp).then(if (on) Modifier.shadow(2.dp, RoundedCornerShape(9.dp), ambientColor = SelectedTabShadow, spotColor = SelectedTabShadow) else Modifier).semantics {
                     role = Role.Tab
                     selected = on
                 },
