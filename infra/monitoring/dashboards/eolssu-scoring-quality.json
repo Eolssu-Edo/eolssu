@@ -11,9 +11,14 @@
   ],
   "title": "얼쑤 채점 품질",
   "uid": "eolssu-scoring-quality",
-  "tags": ["eolssu"],
+  "tags": [
+    "eolssu"
+  ],
   "timezone": "browser",
-  "time": { "from": "now-30d", "to": "now" },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
   "schemaVersion": 39,
   "editable": true,
   "templating": {
@@ -22,34 +27,52 @@
         "name": "instrument",
         "label": "악기",
         "type": "query",
-        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_EOLSSU}"
+        },
         "query": "SELECT name FROM instruments ORDER BY id",
         "refresh": 1,
         "multi": true,
         "includeAll": true,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "song",
         "label": "곡",
         "type": "query",
-        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_EOLSSU}"
+        },
         "query": "SELECT s.title FROM songs s JOIN instruments i ON i.id = s.instrument_id WHERE i.name IN (${instrument:sqlstring}) ORDER BY s.title",
         "refresh": 1,
         "multi": true,
         "includeAll": true,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "model",
         "label": "모델 버전",
         "type": "query",
-        "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_EOLSSU}"
+        },
         "query": "SELECT DISTINCT model_version FROM evaluations ORDER BY 1",
         "refresh": 2,
         "multi": true,
         "includeAll": true,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -58,7 +81,12 @@
       "id": 1,
       "type": "row",
       "title": "음표별 오차 (음을 못 잡은 MISSED는 빠짐. +는 높게·늦게·길게)",
-      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "panels": []
     },
@@ -67,13 +95,29 @@
       "type": "barchart",
       "title": "음높이 오차 분포 (cent, ±200 넘으면 끝 칸)",
       "description": "10 cent 구간별 음 수. 시김새 음은 판정에서 빠지지만 DB에 시김새 여부가 없어 여기에는 섞여 있다.",
-      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
-      "gridPos": { "x": 0, "y": 1, "w": 8, "h": 8 },
-      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "options": {
+        "xTickLabelRotation": -45,
+        "legend": {
+          "showLegend": false
+        }
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -86,13 +130,29 @@
       "type": "barchart",
       "title": "박자 오차 분포 (ms, ±400 넘으면 끝 칸)",
       "description": "음 시작 시각 오차의 20 ms 구간별 음 수. 한쪽으로 쏠리면 시작 시각 계산이 밀려 있다.",
-      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
-      "gridPos": { "x": 8, "y": 1, "w": 8, "h": 8 },
-      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "options": {
+        "xTickLabelRotation": -45,
+        "legend": {
+          "showLegend": false
+        }
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -105,17 +165,267 @@
       "type": "barchart",
       "title": "길이 오차 분포 (ms, ±1000 넘으면 끝 칸)",
       "description": "음 길이 오차의 50 ms 구간별 음 수. 판정 값에는 없고 길이 점수에만 들어가는 축이다.",
-      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
-      "gridPos": { "x": 16, "y": 1, "w": 8, "h": 8 },
-      "options": { "xTickLabelRotation": -45, "legend": { "showLegend": false } },
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 8
+      },
+      "options": {
+        "xTickLabelRotation": -45,
+        "legend": {
+          "showLegend": false
+        }
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(nr.duration_error_ms, -1000), 1000) / 50) * 50 AS b, COUNT(*) AS n FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND nr.duration_error_ms IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "판정과 점수",
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "음별 판정 (음 수, 율명은 낮은 음부터)",
+      "description": "정답 음별 판정 수. 막대는 100%로 쌓아 비율을 보인다. 특정 음만 못 잡음·음높이가 많으면 그 음의 인식 문제다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 8,
+        "h": 9
+      },
+      "options": {
+        "stacking": "percent",
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 80
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT p.hangul AS 음, SUM(nr.verdict = 'CORRECT') AS 맞음, SUM(nr.verdict = 'PITCH') AS 음높이, SUM(nr.verdict = 'TIMING') AS 박자, SUM(nr.verdict = 'MISSED') AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id JOIN pitches p ON p.id = nr.expected_pitch_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY p.id, p.hangul, p.semitone ORDER BY p.semitone"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "곡별 판정 비율 (%)",
+      "description": "곡별 음 수와 판정 비율. 음 수가 적은 곡의 비율은 흔들리기 쉽다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 10,
+        "w": 16,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT s.title AS 곡, COUNT(*) AS 음_수, ROUND(100 * SUM(nr.verdict = 'CORRECT') / COUNT(*), 1) AS 맞음, ROUND(100 * SUM(nr.verdict = 'PITCH') / COUNT(*), 1) AS 음높이, ROUND(100 * SUM(nr.verdict = 'TIMING') / COUNT(*), 1) AS 박자, ROUND(100 * SUM(nr.verdict = 'MISSED') / COUNT(*), 1) AS 못_잡음 FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY s.id, s.title ORDER BY 음_수 DESC, s.title"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "모델 버전별 평균 점수",
+      "description": "버전별 채점 수와 0~100 점수의 평균. 새 모델이 점수를 바꿨는지 본다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT e.model_version AS 모델_버전, COUNT(*) AS 채점_수, ROUND(AVG(e.total_score), 1) AS 총점, ROUND(AVG(e.pitch_score), 1) AS 음높이, ROUND(AVG(e.timing_score), 1) AS 박자, ROUND(AVG(e.duration_score), 1) AS 길이 FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) GROUP BY e.model_version ORDER BY e.model_version"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "연습 세션",
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "실패 세션 원인 (모델 버전 거르기 미적용)",
+      "description": "FAILED 세션의 fail_reason별 건수. 채점 전에 끝나 모델 버전이 없으므로 그 거르기는 적용하지 않는다. 기간은 세션 생성 시각 기준.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(ps.fail_reason, '(원인 없음)') AS 원인, COUNT(*) AS 세션_수 FROM practice_sessions ps JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(ps.created_at) AND ps.status = 'FAILED' AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) GROUP BY 원인 ORDER BY 세션_수 DESC, 원인"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "채점 처리 시간 중앙값 (초)",
+      "description": "녹음이 끝난 시각(ended_at)부터 채점 저장(evaluated_at)까지. ended_at이 빈 세션은 뺀다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 4,
+        "h": 8
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^중앙값_초$/"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH t AS (SELECT TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at) / 1000000 AS sec, ROW_NUMBER() OVER (ORDER BY TIMESTAMPDIFF(MICROSECOND, ps.ended_at, e.evaluated_at)) AS rn, COUNT(*) OVER () AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND ps.ended_at IS NOT NULL) SELECT ROUND(AVG(sec), 1) AS 중앙값_초, MAX(n) AS 세션_수 FROM t WHERE rn IN (FLOOR((n + 1) / 2), CEIL((n + 1) / 2)) HAVING COUNT(*) > 0"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "barchart",
+      "title": "채점 처리 시간 분포 (초, 5초 구간, 120초 넘으면 끝 칸)",
+      "description": "5초 구간별 세션 수. ended_at이 빈 세션은 뺀다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 26,
+        "w": 8,
+        "h": 8
+      },
+      "options": {
+        "legend": {
+          "showLegend": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CAST(b AS CHAR) AS 처리_초, n AS 세션_수 FROM (SELECT FLOOR(LEAST(TIMESTAMPDIFF(SECOND, ps.ended_at, e.evaluated_at), 120) / 5) * 5 AS b, COUNT(*) AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND i.name IN (${instrument:sqlstring}) AND s.title IN (${song:sqlstring}) AND e.model_version IN (${model:sqlstring}) AND ps.ended_at IS NOT NULL GROUP BY b) t ORDER BY b"
         }
       ]
     }
