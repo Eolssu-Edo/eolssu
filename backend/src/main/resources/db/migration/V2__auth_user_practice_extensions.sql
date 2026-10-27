@@ -5,7 +5,7 @@
 -- ---------- 적용 전 확인 ----------
 -- MySQL DDL은 되돌려지지 않는다. 아래 변경 도중 실패하면 앞부분만 남아 다시 실행할 수 없으므로,
 -- 기존 데이터가 V2 제약을 만족하는지 DDL 전에 확인한다. 실패하면 아무것도 바뀌지 않는다.
--- 실패 시: 해당 행을 고치고 flyway repair 후 다시 적용한다.
+-- 실패 시: 해당 행을 고치고 flyway_schema_history의 실패 행(version 2, success 0)을 지운 뒤 다시 적용한다(backend README).
 CREATE TEMPORARY TABLE v2_preconditions (
   item VARCHAR(40) NOT NULL,
   ok   BOOLEAN     NOT NULL,
