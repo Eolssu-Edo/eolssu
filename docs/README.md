@@ -32,6 +32,7 @@
 
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
+- [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
 
 ## 결정 기록
 
@@ -96,6 +97,7 @@
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
+- [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
