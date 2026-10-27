@@ -247,23 +247,23 @@ class DatabaseIntegrationTests {
                     "deleted_at = CURRENT_TIMESTAMP(6) WHERE id = 3",
             )
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "user_social_accounts.uq_user_social_accounts_provider_user") {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'AbC-네이버')")
         }
         jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'abc-네이버')")
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "user_social_accounts.uq_user_social_accounts_user_provider") {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'other')")
         }
         assertMysqlError(3819, "chk_user_social_accounts_provider") {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'APPLE', 'apple-id')")
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "terms.uq_terms_code_version") {
             jdbc.update(
                 "INSERT INTO terms (code, version, title, content_url, is_required, seq, effective_at) " +
                     "VALUES ('SERVICE_TERMS', '2026-10', '중복', 'x', TRUE, 1, CURRENT_TIMESTAMP(6))",
             )
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "user_term_agreements.uq_user_term_agreements_user_term") {
             jdbc.update("INSERT INTO user_term_agreements (user_id, term_id, agreed) VALUES (1, 1, TRUE)")
         }
     }
@@ -278,10 +278,13 @@ class DatabaseIntegrationTests {
         assertMysqlError(3819, "chk_email_verifications_token") {
             jdbc.update("UPDATE email_verifications SET verified_at = NULL WHERE id = 2")
         }
+        assertMysqlError(3819, "chk_email_verifications_attempts") {
+            jdbc.update("UPDATE email_verifications SET attempt_count = -1 WHERE id = 1")
+        }
         assertMysqlError(3819, "chk_email_verifications_consumed") {
             jdbc.update("UPDATE email_verifications SET consumed_at = CURRENT_TIMESTAMP(6) WHERE id = 1")
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "email_verifications.uq_email_verifications_token") {
             jdbc.update("UPDATE email_verifications SET token_hash = REPEAT('b', 64), verified_at = expires_at, token_expires_at = expires_at WHERE id = 1")
         }
         assertMysqlError(3819, "chk_refresh_tokens_revoked") {
@@ -290,7 +293,7 @@ class DatabaseIntegrationTests {
         assertMysqlError(3819, "chk_refresh_tokens_revoke_reason") {
             jdbc.update("UPDATE refresh_tokens SET revoke_reason = 'EXPIRED' WHERE id = 1")
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "refresh_tokens.uq_refresh_tokens_token") {
             jdbc.update("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (1, REPEAT('d', 64), CURRENT_TIMESTAMP(6))")
         }
     }
@@ -299,7 +302,7 @@ class DatabaseIntegrationTests {
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
     fun `keeps V2 catalog practice record and score view constraints`() {
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "user_song_settings.uq_user_song_settings_user_song") {
             jdbc.update("INSERT INTO user_song_settings (user_id, song_id, bpm) VALUES (1, 1, 80)")
         }
         assertMysqlError(3819, "chk_user_song_settings_bpm") {
@@ -314,10 +317,13 @@ class DatabaseIntegrationTests {
         assertMysqlError(3819, "chk_songs_score_version") {
             jdbc.update("UPDATE songs SET score_version = 0 WHERE id = 1")
         }
+        assertMysqlError(3819, "chk_practice_sessions_score_version") {
+            jdbc.update("UPDATE practice_sessions SET score_version = 0 WHERE id = 1")
+        }
         assertMysqlError(3819, "chk_practice_sessions_bpm_unit") {
             jdbc.update("UPDATE practice_sessions SET bpm_unit = 'HALF' WHERE id = 1")
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "practice_sessions.uq_sessions_user_idempotency") {
             jdbc.update(
                 "INSERT INTO practice_sessions (user_id, song_id, bpm, bpm_unit, idempotency_key, request_hash, end_note_idx, started_at) " +
                     "VALUES (1, 1, 90, 'DOTTED_QUARTER', 'practice-key', REPEAT('e', 64), 0, CURRENT_TIMESTAMP(6))",
@@ -332,7 +338,7 @@ class DatabaseIntegrationTests {
         assertMysqlError(1452) {
             jdbc.update("UPDATE practice_sessions SET parent_session_id = 999 WHERE id = 2")
         }
-        assertMysqlError(1062) {
+        assertMysqlError(1062, "score_views.uq_score_views_user_idempotency") {
             jdbc.update(
                 "INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) " +
                     "VALUES (1, 1, 'view-key', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), 0, 0)",
@@ -340,6 +346,9 @@ class DatabaseIntegrationTests {
         }
         assertMysqlError(3819, "chk_score_views_counted") {
             jdbc.update("UPDATE score_views SET counted_seconds = 691 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_score_views_counted") {
+            jdbc.update("UPDATE score_views SET visible_seconds = -1, counted_seconds = 0 WHERE id = 1")
         }
         assertMysqlError(3819, "chk_score_views_period") {
             jdbc.update("UPDATE score_views SET ended_at = started_at - INTERVAL 1 SECOND WHERE id = 1")
@@ -372,8 +381,11 @@ class DatabaseIntegrationTests {
         val error = assertFailsWith<DataAccessException>(block = action)
         val sqlError = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<SQLException>().first()
         assertEquals(code, sqlError.errorCode)
-        if (constraint != null) {
-            assertEquals("Check constraint '$constraint' is violated.", sqlError.message)
+        when {
+            constraint == null -> Unit
+            code == 3819 -> assertEquals("Check constraint '$constraint' is violated.", sqlError.message)
+            code == 1062 -> assertTrue(assertNotNull(sqlError.message).endsWith("for key '$constraint'"), sqlError.message)
+            else -> error("constraint name check is only defined for 3819 and 1062")
         }
     }
 

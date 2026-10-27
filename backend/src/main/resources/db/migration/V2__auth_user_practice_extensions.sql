@@ -1,6 +1,6 @@
 -- 1차 MVP API 명세 보완 (S15P31E102-142). 규칙은 V1 머리말을 따른다.
 -- 인증·회원(AUTH·USR), 곡·장단(CAT), 연습 기록(PRA·REC), 악보 화면 체류(GRO-04)에 필요한 저장 구조
--- 제약 이름은 모두 붙인다. 앱 검사가 위반한 제약을 이름으로 구분한다.
+-- CHECK·UNIQUE 제약에는 이름을 붙인다. 앱과 검사가 위반한 제약을 이름으로 구분한다(3819·1062 메시지).
 
 -- ---------- 적용 전 확인 ----------
 -- MySQL DDL은 되돌려지지 않는다. 아래 변경 도중 실패하면 앞부분만 남아 다시 실행할 수 없으므로,
@@ -49,8 +49,8 @@ CREATE TABLE user_social_accounts (
   provider         VARCHAR(20)  NOT NULL,
   provider_user_id VARCHAR(255) COLLATE utf8mb4_bin NOT NULL,                    -- 제공자 사용자 ID. 대소문자 구분
   created_at       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (provider, provider_user_id),                                             -- 회원은 이 쌍으로 찾는다. 이메일로 찾지 않음. 일괄 삭제 때 행을 지워 재가입 가능
-  UNIQUE (user_id, provider),                                                      -- 한 회원에 제공자별 1개(AUTH-09 PROVIDER_ALREADY_LINKED)
+  CONSTRAINT uq_user_social_accounts_provider_user UNIQUE (provider, provider_user_id), -- 회원은 이 쌍으로 찾는다. 이메일로 찾지 않음. 일괄 삭제 때 행을 지워 재가입 가능
+  CONSTRAINT uq_user_social_accounts_user_provider UNIQUE (user_id, provider),          -- 한 회원에 제공자별 1개(AUTH-09 PROVIDER_ALREADY_LINKED)
   CONSTRAINT chk_user_social_accounts_provider CHECK (provider IN ('KAKAO', 'GOOGLE', 'NAVER')),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
@@ -66,7 +66,7 @@ CREATE TABLE terms (
   seq          SMALLINT     NOT NULL,                                              -- 화면 표시 순서
   effective_at DATETIME(6)  NOT NULL,                                              -- 시행 시각. 같은 code에서 시행된 가장 최신 버전이 현재 약관
   created_at   DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (code, version)
+  CONSTRAINT uq_terms_code_version UNIQUE (code, version)
 );
 
 CREATE TABLE user_term_agreements (
@@ -75,7 +75,7 @@ CREATE TABLE user_term_agreements (
   term_id   BIGINT      NOT NULL,                                                  -- 동의한 버전의 terms 행
   agreed    BOOLEAN     NOT NULL,                                                  -- 선택 약관은 FALSE 허용
   agreed_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (user_id, term_id),
+  CONSTRAINT uq_user_term_agreements_user_term UNIQUE (user_id, term_id),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (term_id) REFERENCES terms(id)
 );
@@ -95,7 +95,7 @@ CREATE TABLE email_verifications (
   consumed_at      DATETIME(6),                                                    -- 가입·통합에 토큰을 쓴 시각. 한 번만 사용
   invalidated_at   DATETIME(6),                                                    -- 재발송으로 무효가 된 시각
   created_at       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (token_hash),
+  CONSTRAINT uq_email_verifications_token UNIQUE (token_hash),
   CONSTRAINT chk_email_verifications_purpose CHECK (purpose IN ('SIGN_UP', 'ACCOUNT_MERGE', 'PASSWORD_RESET')),
   CONSTRAINT chk_email_verifications_attempts CHECK (attempt_count >= 0),
   CONSTRAINT chk_email_verifications_token CHECK (
@@ -115,7 +115,7 @@ CREATE TABLE refresh_tokens (
   revoked_at    DATETIME(6),
   revoke_reason VARCHAR(20),
   created_at    DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (token_hash),
+  CONSTRAINT uq_refresh_tokens_token UNIQUE (token_hash),
   CONSTRAINT chk_refresh_tokens_revoke_reason CHECK (
     revoke_reason IN ('ROTATED', 'SIGN_OUT', 'PASSWORD_CHANGED', 'WITHDRAWN', 'REUSE_DETECTED')
   ),
@@ -132,7 +132,7 @@ CREATE TABLE user_song_settings (
   bpm        SMALLINT    NOT NULL,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  UNIQUE (user_id, song_id),
+  CONSTRAINT uq_user_song_settings_user_song UNIQUE (user_id, song_id),
   CONSTRAINT chk_user_song_settings_bpm CHECK (bpm BETWEEN 30 AND 400),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (song_id) REFERENCES songs(id)
@@ -176,7 +176,7 @@ ALTER TABLE practice_sessions
   ADD CONSTRAINT chk_practice_sessions_score_version CHECK (score_version >= 1),
   ADD CONSTRAINT chk_practice_sessions_idempotency CHECK ((idempotency_key IS NULL) = (request_hash IS NULL)),
   ADD CONSTRAINT fk_practice_sessions_parent FOREIGN KEY (parent_session_id) REFERENCES practice_sessions(id) ON DELETE SET NULL,
-  ADD UNIQUE INDEX uq_sessions_user_idempotency (user_id, idempotency_key);        -- REC-02 목록은 기존 idx_sessions_user_started를 쓴다
+  ADD CONSTRAINT uq_sessions_user_idempotency UNIQUE (user_id, idempotency_key);        -- REC-02 목록은 기존 idx_sessions_user_started를 쓴다
 
 UPDATE practice_sessions ps
 JOIN songs s ON s.id = ps.song_id
@@ -198,10 +198,9 @@ CREATE TABLE score_views (
   visible_seconds  INT         NOT NULL,                                           -- FE가 보낸 실제 보인 시간
   counted_seconds  INT         NOT NULL,                                           -- 최대 인정 시간을 적용해 연습 시간으로 센 값
   created_at       DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  UNIQUE (user_id, idempotency_key),
+  CONSTRAINT uq_score_views_user_idempotency UNIQUE (user_id, idempotency_key),
   CONSTRAINT chk_score_views_period CHECK (ended_at >= started_at),
-  CONSTRAINT chk_score_views_visible CHECK (visible_seconds >= 0),
-  CONSTRAINT chk_score_views_counted CHECK (counted_seconds BETWEEN 0 AND visible_seconds),
+  CONSTRAINT chk_score_views_counted CHECK (counted_seconds BETWEEN 0 AND visible_seconds),          -- 보인 초가 0 이상인 것도 함께 강제
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (song_id) REFERENCES songs(id),
   INDEX idx_score_views_user_started (user_id, started_at)                         -- 날짜별 연습 시간 집계
