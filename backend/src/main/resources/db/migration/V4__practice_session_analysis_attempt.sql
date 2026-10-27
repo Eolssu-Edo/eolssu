@@ -13,13 +13,14 @@ CREATE TEMPORARY TABLE v4_preconditions (
 INSERT INTO v4_preconditions (item, ok)
 SELECT 'practice_sessions.fail_reason',
        (status = 'FAILED') = (fail_reason IS NOT NULL)
-       AND (fail_reason IS NULL OR fail_reason IN ('NO_SOUND', 'TOO_SHORT', 'DECODE_ERROR', 'UPLOAD_TIMEOUT', 'TIMEOUT', 'SERVER_ERROR'))
+       AND (fail_reason IS NULL OR fail_reason COLLATE utf8mb4_bin IN ('NO_SOUND', 'TOO_SHORT', 'DECODE_ERROR', 'UPLOAD_TIMEOUT', 'TIMEOUT', 'SERVER_ERROR'))
 FROM practice_sessions;
 DROP TEMPORARY TABLE v4_preconditions;
 
 -- ---------- 연습 기록 ----------
 -- 분석 시도는 세션마다 현재 시도 하나만 둔다. 0은 아직 분석을 시작하지 않은 세션이다.
 -- 시도를 시작(업로드 직후·다시 시도)할 때 번호를 1 올리고 시작 시각을 함께 바꾼다. 결과는 같은 번호일 때만 저장한다.
+-- 실패 코드는 대소문자까지 같아야 한다(utf8mb4_bin 비교). 앱은 모르는 코드를 SERVER_ERROR로 보여 준다.
 -- 실패 코드: NO_SOUND·TOO_SHORT·DECODE_ERROR는 다시 연주, TIMEOUT·SERVER_ERROR는 분석 다시 시도, UPLOAD_TIMEOUT은 업로드 만료(화면에 보이지 않음).
 ALTER TABLE practice_sessions
   ADD COLUMN analysis_attempt    INT         NOT NULL DEFAULT 0 AFTER fail_reason, -- 현재 분석 시도 번호
@@ -28,5 +29,5 @@ ALTER TABLE practice_sessions
   ADD CONSTRAINT chk_practice_sessions_analysis_started CHECK ((analysis_attempt = 0) = (analysis_started_at IS NULL)),
   ADD CONSTRAINT chk_practice_sessions_fail_reason CHECK (
     (status = 'FAILED') = (fail_reason IS NOT NULL)
-    AND (fail_reason IS NULL OR fail_reason IN ('NO_SOUND', 'TOO_SHORT', 'DECODE_ERROR', 'UPLOAD_TIMEOUT', 'TIMEOUT', 'SERVER_ERROR'))
+    AND (fail_reason IS NULL OR fail_reason COLLATE utf8mb4_bin IN ('NO_SOUND', 'TOO_SHORT', 'DECODE_ERROR', 'UPLOAD_TIMEOUT', 'TIMEOUT', 'SERVER_ERROR'))
   );

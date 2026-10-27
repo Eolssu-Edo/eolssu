@@ -401,8 +401,9 @@ class DatabaseIntegrationTests {
     fun `keeps the analysis attempt and failure code consistent with the session state`() {
         // 고정 데이터의 세션 1·2는 DONE, 실패 코드 없음, 분석 시도 전(0번). 같은 트랜잭션의 MyBatis 캐시를 피하려고
         // 바꾸지 않을 세션 2로 기본값을 보고, 세션 1은 바꾼 뒤 한 번만 읽는다.
-        assertEquals(0, mapper<PracticeSessionMapper>().findById(2)?.analysisAttempt)
-        assertNull(mapper<PracticeSessionMapper>().findById(2)?.analysisStartedAt)
+        val untouched = assertNotNull(mapper<PracticeSessionMapper>().findById(2))
+        assertEquals(0, untouched.analysisAttempt)
+        assertNull(untouched.analysisStartedAt)
 
         val startedAt = LocalDateTime.parse("2026-10-27T09:00:00.123456")
         jdbc.update("UPDATE practice_sessions SET status = 'PENDING', analysis_attempt = 1, analysis_started_at = ? WHERE id = 1", startedAt)
@@ -417,13 +418,16 @@ class DatabaseIntegrationTests {
             jdbc.update("UPDATE practice_sessions SET fail_reason = 'INTERRUPTED' WHERE id = 1")
         }
         assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = 'no_sound' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
             jdbc.update("UPDATE practice_sessions SET fail_reason = NULL WHERE id = 1")
         }
         assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
             jdbc.update("UPDATE practice_sessions SET status = 'DONE' WHERE id = 1")
         }
         assertMysqlError(3819, "chk_practice_sessions_analysis_attempt") {
-            jdbc.update("UPDATE practice_sessions SET analysis_attempt = -1, analysis_started_at = NULL WHERE id = 2")
+            jdbc.update("UPDATE practice_sessions SET analysis_attempt = -1, analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
         }
         assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
             jdbc.update("UPDATE practice_sessions SET analysis_attempt = 2 WHERE id = 2")

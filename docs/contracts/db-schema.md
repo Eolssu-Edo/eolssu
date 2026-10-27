@@ -31,7 +31,7 @@
 
 ## 분석 실패 코드
 
-`practice_sessions.fail_reason`은 `status = 'FAILED'`일 때만 있고 아래 값만 받습니다(`chk_practice_sessions_fail_reason`, V4). 기준은 [분석 실패 사유 스펙](../specs/practice-analysis-failure.md)입니다.
+`practice_sessions.fail_reason`은 `status = 'FAILED'`일 때만 있고 아래 값만 대소문자까지 같게 받습니다(`chk_practice_sessions_fail_reason`, V4). 기준은 [분석 실패 사유 스펙](../specs/practice-analysis-failure.md)입니다.
 
 | 코드 | 원인 | 다음 행동 |
 | --- | --- | --- |
