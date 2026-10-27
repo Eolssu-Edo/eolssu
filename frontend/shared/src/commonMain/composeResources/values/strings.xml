@@ -170,9 +170,16 @@
     <string name="analysis_running_title">연주를 확인하고 있어요.</string>
     <string name="analysis_running_body">음정, 박자, 음 길이를 살펴보고 있어요.</string>
     <string name="analysis_failed_title">분석을 완료하지 못했어요.</string>
-    <string name="analysis_failed_body">네트워크나 서버 문제로 결과를 받지 못했어요. 녹음한 연주는 그대로 있어요.</string>
+    <!-- 분석 실패 사유별 안내(PRA-03 스펙 문구 초안). 사용자 잘못이 아닌 실패는 연주를 탓하지 않는다. -->
+    <string name="analysis_failed_no_sound">소리가 들리지 않았어요. 마이크 가까이에서 다시 불어 주세요.</string>
+    <string name="analysis_failed_too_short">녹음이 끝까지 저장되지 않았어요. 다시 연주해 주세요.</string>
+    <string name="analysis_failed_decode_error">녹음 파일을 읽지 못했어요. 다시 연주해 주세요.</string>
+    <string name="analysis_failed_upload_timeout">시간이 지나 이 녹음을 보낼 수 없게 됐어요. 불편을 드려 죄송해요.</string>
+    <string name="analysis_failed_timeout">분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="analysis_failed_server_error">분석 중 문제가 생겼어요. 다시 시도해 주세요.</string>
     <string name="analysis_retry">분석 다시 시도</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
+    <string name="analysis_play_again">다시 연주하기</string>
 
     <string name="result_title">연주 결과</string>
     <string name="result_subtitle">%1$s · %2$s · %3$s</string>
