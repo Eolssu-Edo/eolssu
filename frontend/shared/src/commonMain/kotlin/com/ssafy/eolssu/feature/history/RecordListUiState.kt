@@ -21,6 +21,7 @@ data class RecordGroup(
  * @property records 최신순 기록.
  * @property opened 펼친 곡. null이면 처음 상태로, 가장 최근에 연습한 곡만 펼친다.
  * @property justSavedId 이번에 결과 화면에서 저장해 '방금 저장'을 붙일 기록.
+ * @property selectedId 두 칸 배치(태블릿 가로)에서 사용자가 고른 기록. 고르기 전에는 null.
  */
 data class RecordListUiState(
     val records: List<PracticeRecord> = emptyList(),
@@ -28,7 +29,17 @@ data class RecordListUiState(
     val sort: RecordSort = RecordSort.Newest,
     val opened: Set<String>? = null,
     val justSavedId: String? = null,
+    val selectedId: String? = null,
 ) {
+    /**
+     * 두 칸 배치에서 오른쪽에 상세를 보여 줄 기록. 고른 기록 → 방금 저장한 기록 → 가장 최근 기록 순으로,
+     * 지금 목록에 있는 것을 쓴다. 기록이 없으면 null.
+     */
+    val selectedRecordId: String?
+        get() = listOfNotNull(selectedId, justSavedId).firstOrNull { id -> records.any { it.id == id } } ?: records.firstOrNull()?.id
+
+    fun select(recordId: String): RecordListUiState = copy(selectedId = recordId)
+
     /** 곡마다 한 묶음. 곡 순서는 최근에 연습한 곡이 위, 묶음 안은 [sort]를 따른다. */
     val groups: List<RecordGroup>
         get() = records.groupBy { it.songId }.map { (songId, list) ->

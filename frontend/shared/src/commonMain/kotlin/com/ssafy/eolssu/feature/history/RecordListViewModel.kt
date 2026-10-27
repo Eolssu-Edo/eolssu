@@ -27,4 +27,7 @@ class RecordListViewModel(
     fun toggle(songId: String) = _uiState.update { it.toggle(songId) }
 
     fun changeSort(sort: RecordSort) = _uiState.update { it.copy(sort = sort) }
+
+    /** 두 칸 배치에서 오른쪽에 볼 기록을 고른다. */
+    fun select(recordId: String) = _uiState.update { it.select(recordId) }
 }

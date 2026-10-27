@@ -99,6 +99,7 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
  * @param onEventClick 있으면 음을 누를 수 있다.
  * @param maxColumns 앞에서부터 이 수의 각만 그린다.
  * @param maxRows 각마다 첫 정간부터 이 수만 한 줄로 그린다.
+ * @param columns 이 범위의 각만 그린다. 악보를 여러 줄로 접어 그릴 때 쓴다.
  */
 @Composable
 fun JeongganboView(
@@ -117,8 +118,9 @@ fun JeongganboView(
     onEventClick: ((ScoreEvent) -> Unit)? = null,
     maxColumns: Int? = null,
     maxRows: Int? = null,
+    columns: IntRange? = null,
 ) {
-    val strips = remember(song, maxColumns, maxRows) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows) }
+    val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val eventsByCell = remember(song) { song.timeline.groupBy { it.column to it.row } }
     val daegangStarts = song.jangdan.daegangStarts
     val solfege = song.solfege.takeIf { notation.showSolfege }

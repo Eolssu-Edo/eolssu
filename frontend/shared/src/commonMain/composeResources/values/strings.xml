@@ -536,4 +536,8 @@
     <string name="upload_view_only_badge">보기 전용</string>
     <string name="upload_view_only_hint">AI 평가는 되지 않아요 · 음표 입력 후 평가 가능</string>
     <string name="upload_save">저장하고 악보 보기</string>
+
+    <!-- 연습 기록·기록 상세 태블릿 배치 (S15P31E102-163) -->
+    <string name="record_detail_hint_wrapped">오른쪽 각부터 위→아래로 읽고, 줄이 바뀌면 아래 줄 오른쪽부터 이어요 · 칸을 누르면 그 위치부터 들어요</string>
+    <string name="records_pane_empty">왼쪽에서 녹음을 고르면 여기에서 다시 들을 수 있어요</string>
 </resources>

@@ -1,70 +1,46 @@
 package com.ssafy.eolssu.feature.history
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.EvaluationMetric
+import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
-import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
+import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
+import com.ssafy.eolssu.feature.history.component.RecordScoreText
+import com.ssafy.eolssu.feature.history.component.SwitchBox
+import com.ssafy.eolssu.feature.history.component.historyFrame
+import com.ssafy.eolssu.feature.history.component.recordMetricsLabel
+import com.ssafy.eolssu.feature.history.layout.RecordDetailTabletLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.practice_pause
-import eolssu.shared.generated.resources.practice_play
-import eolssu.shared.generated.resources.record_detail_back5
-import eolssu.shared.generated.resources.record_detail_back5_label
 import eolssu.shared.generated.resources.record_detail_follow
-import eolssu.shared.generated.resources.record_detail_fwd5
-import eolssu.shared.generated.resources.record_detail_fwd5_label
 import eolssu.shared.generated.resources.record_detail_hint
-import eolssu.shared.generated.resources.record_detail_metrics
-import eolssu.shared.generated.resources.record_detail_position
-import eolssu.shared.generated.resources.record_detail_seek
 import eolssu.shared.generated.resources.record_detail_show_errors
 import eolssu.shared.generated.resources.record_detail_subtitle
 import eolssu.shared.generated.resources.record_detail_title
-import eolssu.shared.generated.resources.record_detail_weak
 import eolssu.shared.generated.resources.record_detail_whole
 import eolssu.shared.generated.resources.records_memo
-import eolssu.shared.generated.resources.records_score_unit
 import org.jetbrains.compose.resources.stringResource
 
 /** 기록 상세에서 부르는 동작. */
@@ -78,28 +54,45 @@ class RecordDetailActions(
     val onWeakSection: () -> Unit,
 )
 
-/** RECORD-02 기록 상세: 점수 요약, 오류 위치를 표시한 정간보, 녹음 재생 위치. */
+/**
+ * RECORD-02 기록 상세: 점수 요약, 오류 위치를 표시한 정간보, 녹음 재생 위치.
+ * 태블릿([WindowWidthClass.Medium] 이상)은 정간보를 여러 줄로 접는 세로 배치를 쓴다. 태블릿 가로에서는 보통
+ * 기록 목록 오른쪽 칸([com.ssafy.eolssu.feature.history.component.RecordDetailPane])으로 보고, 이 화면은 세로에서 연 상세를 돌렸을 때 보인다.
+ */
 @Composable
-fun RecordDetailScreen(state: RecordDetailUiState, snackbarHostState: SnackbarHostState, actions: RecordDetailActions) {
+fun RecordDetailScreen(
+    state: RecordDetailUiState,
+    widthClass: WindowWidthClass,
+    snackbarHostState: SnackbarHostState,
+    actions: RecordDetailActions,
+) {
+    if (widthClass == WindowWidthClass.Compact) {
+        RecordDetailCompact(state, snackbarHostState, actions)
+    } else {
+        RecordDetailTabletLayout(state, historyFrame(widthClass), snackbarHostState, actions)
+    }
+}
+
+/** 상단 바 보조 문구: '10월 20일 오후 3:20 · 아리랑 전체'. */
+@Composable
+internal fun recordDetailSubtitle(record: PracticeRecord?): String? = record?.let {
+    stringResource(
+        Res.string.record_detail_subtitle,
+        "${monthDayLabel(it.recordedAt)} ${timeLabel(it.recordedAt)}",
+        it.songTitle,
+        it.section ?: stringResource(Res.string.record_detail_whole),
+    )
+}
+
+@Composable
+private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: SnackbarHostState, actions: RecordDetailActions) {
     val record = state.record
     val song = state.song
     val colors = EolssuTheme.colors
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = {
-            EolssuTopBar(
-                stringResource(Res.string.record_detail_title), onBack = actions.onBack,
-                subtitle = record?.let {
-                    stringResource(
-                        Res.string.record_detail_subtitle,
-                        "${monthDayLabel(it.recordedAt)} ${timeLabel(it.recordedAt)}",
-                        it.songTitle,
-                        it.section ?: stringResource(Res.string.record_detail_whole),
-                    )
-                },
-            )
-        },
-        bottomBar = { if (song != null && record != null) PlaybackBar(state, actions) },
+        topBar = { EolssuTopBar(stringResource(Res.string.record_detail_title), onBack = actions.onBack, subtitle = recordDetailSubtitle(record)) },
+        bottomBar = { if (song != null && record != null) PlaybackBarContent(state, actions, gap = 12.dp) },
     ) {
         if (record == null || song == null) return@EolssuScaffold
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
@@ -108,23 +101,9 @@ fun RecordDetailScreen(state: RecordDetailUiState, snackbarHostState: SnackbarHo
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text(
-                    buildAnnotatedString {
-                        append("${record.score}")
-                        withStyle(SpanStyle(fontSize = 12.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.records_score_unit)) }
-                    },
-                    style = EolssuTheme.serif.brand.copy(fontSize = 32.sp, lineHeight = 32.sp),
-                )
+                RecordScoreText(record, 32.sp)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val m = record.metrics.associate { it.metric to it.score }
-                    Text(
-                        stringResource(
-                            Res.string.record_detail_metrics,
-                            m[EvaluationMetric.Pitch] ?: 0, m[EvaluationMetric.Rhythm] ?: 0, m[EvaluationMetric.Length] ?: 0, record.bpm,
-                        ),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                        color = colors.textMuted,
-                    )
+                    Text(recordMetricsLabel(record), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
                     if (record.memo.isNotEmpty()) {
                         Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
                     }
@@ -149,87 +128,6 @@ fun RecordDetailScreen(state: RecordDetailUiState, snackbarHostState: SnackbarHo
                 errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.metric } else emptyMap(),
                 onEventClick = { actions.onSeek(it.index) },
             )
-        }
-    }
-}
-
-@Composable
-private fun SwitchBox(label: String, checked: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        modifier.border(1.dp, EolssuTheme.colors.line, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
-        EolssuSwitch(checked, onToggle, label)
-    }
-}
-
-@Composable
-private fun PlaybackBar(state: RecordDetailUiState, actions: RecordDetailActions) {
-    val colors = EolssuTheme.colors
-    val song = state.song ?: return
-    val event = song.timeline.getOrNull(state.position)
-    val seekLabel = stringResource(Res.string.record_detail_seek)
-    Row(Modifier.fillMaxWidth()) {
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = colors.text, fontWeight = FontWeight.SemiBold)) { append(formatClock(state.elapsedSeconds)) }
-                if (event != null) append(" · " + stringResource(Res.string.record_detail_position, event.column + 1, event.row + 1))
-            },
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-            color = colors.textMuted,
-        )
-        Text(formatClock((state.record?.recordedSeconds ?: 0).toDouble()), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-    }
-    Slider(
-        value = state.position.toFloat(),
-        onValueChange = { actions.onSeek(it.toInt()) },
-        valueRange = 0f..(state.eventCount - 1).coerceAtLeast(1).toFloat(),
-        modifier = Modifier.height(24.dp).semantics { contentDescription = seekLabel },
-        colors = SliderDefaults.colors(thumbColor = colors.text, activeTrackColor = colors.text, inactiveTrackColor = colors.surfaceStrong),
-    )
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        SkipButton(stringResource(Res.string.record_detail_back5), stringResource(Res.string.record_detail_back5_label)) { actions.onSkip(-5) }
-        Surface(onClick = actions.onTogglePlay, modifier = Modifier.size(64.dp), shape = CircleShape, color = colors.primary, contentColor = colors.onPrimary) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    if (state.playing) EolssuIcons.Pause else EolssuIcons.Play,
-                    contentDescription = stringResource(if (state.playing) Res.string.practice_pause else Res.string.practice_play),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
-        SkipButton(stringResource(Res.string.record_detail_fwd5), stringResource(Res.string.record_detail_fwd5_label)) { actions.onSkip(5) }
-        Surface(
-            onClick = actions.onWeakSection,
-            modifier = Modifier.weight(1f).height(48.dp),
-            shape = CircleShape,
-            color = colors.background,
-            border = BorderStroke(1.dp, colors.line),
-        ) {
-            Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    stringResource(Res.string.record_detail_weak),
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 16.sp),
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SkipButton(text: String, label: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(48.dp).semantics { contentDescription = label },
-        shape = CircleShape,
-        color = EolssuTheme.colors.background,
-        border = BorderStroke(1.dp, EolssuTheme.colors.line),
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
         }
     }
 }

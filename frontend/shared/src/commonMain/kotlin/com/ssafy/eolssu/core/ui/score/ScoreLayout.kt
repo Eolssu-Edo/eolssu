@@ -17,10 +17,18 @@ internal data class ScoreStrip(val column: Int, val strip: Int, val rows: IntRan
  *
  * @param maxColumns 앞에서부터 이 수의 각만 그린다. 미리보기용.
  * @param maxRows 각마다 첫 정간부터 이 수만 한 줄로 그린다. 표기 설정 예시 칸용.
+ * @param columns 이 범위의 각만 그린다. 악보를 여러 줄로 접어 그릴 때 쓴다.
  */
-internal fun scoreStrips(score: Score, jangdan: Jangdan, maxColumns: Int? = null, maxRows: Int? = null): List<ScoreStrip> {
+internal fun scoreStrips(
+    score: Score,
+    jangdan: Jangdan,
+    maxColumns: Int? = null,
+    maxRows: Int? = null,
+    columns: IntRange? = null,
+): List<ScoreStrip> {
     val columnCount = minOf(maxColumns ?: score.columns.size, score.columns.size)
-    return (0 until columnCount).flatMap { column ->
+    val range = columns?.let { maxOf(it.first, 0)..minOf(it.last, columnCount - 1) } ?: (0 until columnCount)
+    return range.flatMap { column ->
         val size = score.columns[column].size
         if (maxRows != null) {
             listOf(ScoreStrip(column, 0, 0 until minOf(maxRows, size)))

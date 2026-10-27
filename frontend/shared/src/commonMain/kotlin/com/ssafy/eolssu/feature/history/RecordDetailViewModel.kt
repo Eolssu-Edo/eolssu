@@ -46,18 +46,39 @@ data class RecordDetailUiState(
     }
 }
 
+/** RECORD-02. 태블릿 가로의 두 칸 배치에서는 한 ViewModel이 [show]로 오른쪽 상세의 기록을 바꾼다. */
 class RecordDetailViewModel(
     recordId: String,
-    recordRepository: PracticeRecordRepository,
-    songRepository: SongRepository,
+    private val recordRepository: PracticeRecordRepository,
+    private val songRepository: SongRepository,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(RecordDetailUiState(record = recordRepository.records.value.firstOrNull { it.id == recordId }))
+    private val _uiState = MutableStateFlow(RecordDetailUiState())
     val uiState: StateFlow<RecordDetailUiState> = _uiState.asStateFlow()
     private var playJob: Job? = null
+    private var songJob: Job? = null
 
     init {
-        val songId = _uiState.value.record?.songId
-        if (songId != null) viewModelScope.launch { _uiState.update { it.copy(song = songRepository.getSong(songId)) } }
+        show(recordId)
+    }
+
+    /**
+     * [recordId] 기록을 보여준다. 다른 기록으로 바꾸면 재생을 멈추고 처음 위치로 돌린다.
+     * 오류 표시·악보 따라가기 설정은 그대로 둔다(와이어프레임 `Tab-Records-Land`).
+     */
+    fun show(recordId: String) {
+        if (_uiState.value.record?.id == recordId) return
+        playJob?.cancel()
+        songJob?.cancel()
+        val record = recordRepository.records.value.firstOrNull { it.id == recordId }
+        _uiState.update { state ->
+            state.copy(record = record, song = state.song?.takeIf { it.id == record?.songId }, position = 0, playing = false)
+        }
+        val songId = record?.songId ?: return
+        if (_uiState.value.song != null) return
+        songJob = viewModelScope.launch {
+            val song = songRepository.getSong(songId)
+            _uiState.update { if (it.record?.songId == songId) it.copy(song = song) else it }
+        }
     }
 
     /** 재생·일시정지. 끝에서 재생하면 처음부터. */
@@ -97,5 +118,6 @@ class RecordDetailViewModel(
 
     override fun onCleared() {
         playJob?.cancel()
+        songJob?.cancel()
     }
 }
