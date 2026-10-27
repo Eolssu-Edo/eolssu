@@ -65,7 +65,7 @@ class RecordScoreViewTests {
 
         val racing = InMemoryScoreViewRepository(songIds = setOf(2)).apply { storeBeforeNextInsert = segment.copy(countedSeconds = 1) }
         assertEquals(RecordScoreViewResult.Conflict, RecordScoreView(racing, Clock.fixed(startedAt.plusSeconds(301), ZoneOffset.UTC)).record(segment))
-        assertEquals(1, racing.rows.size)
+        assertEquals(0, racing.rows.size)
     }
 
     private class InMemoryScoreViewRepository(private val songIds: Set<Long>) : ScoreViewRepository {
@@ -83,10 +83,18 @@ class RecordScoreViewTests {
             return rows.find { it.userId == userId && it.idempotencyKey == idempotencyKey }
         }
 
+        // 다른 요청이 커밋한 행. 일반 조회(트랜잭션 스냅샷일 수 있음)에는 보이지 않고 최신 조회에만 보인다.
+        private val committedByOthers = mutableListOf<ScoreViewSegment>()
+
+        override fun findLatestByKey(userId: Long, idempotencyKey: String): ScoreViewSegment? {
+            calls++
+            return (rows + committedByOthers).find { it.userId == userId && it.idempotencyKey == idempotencyKey }
+        }
+
         override fun insertIfAbsent(segment: ScoreViewSegment): Boolean {
             calls++
-            storeBeforeNextInsert?.let { rows += it; storeBeforeNextInsert = null }
-            if (findByKey(segment.userId, segment.idempotencyKey) != null) return false
+            storeBeforeNextInsert?.let { committedByOthers += it; storeBeforeNextInsert = null }
+            if ((rows + committedByOthers).any { it.userId == segment.userId && it.idempotencyKey == segment.idempotencyKey }) return false
             rows += segment
             return true
         }

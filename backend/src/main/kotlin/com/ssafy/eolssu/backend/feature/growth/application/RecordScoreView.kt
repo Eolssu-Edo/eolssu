@@ -18,8 +18,8 @@ class RecordScoreView(
         if (!repository.songExists(requested.songId)) return RecordScoreViewResult.SongNotFound
         if (repository.insertIfAbsent(requested)) return RecordScoreViewResult.Created(requested)
 
-        // 같은 키의 다른 요청이 조회와 저장 사이에 먼저 저장했다.
-        val stored = checkNotNull(repository.findByKey(requested.userId, requested.idempotencyKey)) {
+        // 같은 키의 다른 요청이 조회와 저장 사이에 먼저 저장했다. 트랜잭션 안에서도 그 행이 보이도록 최신 조회를 쓴다.
+        val stored = checkNotNull(repository.findLatestByKey(requested.userId, requested.idempotencyKey)) {
             "score view key was reported as duplicate but no row was found"
         }
         return compare(requested, stored)

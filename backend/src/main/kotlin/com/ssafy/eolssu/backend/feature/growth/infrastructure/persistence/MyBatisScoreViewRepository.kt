@@ -14,6 +14,9 @@ class MyBatisScoreViewRepository(private val mapper: ScoreViewMapper) : ScoreVie
     override fun findByKey(userId: Long, idempotencyKey: String) =
         mapper.findByUserIdAndIdempotencyKey(userId, idempotencyKey)?.toSegment()
 
+    override fun findLatestByKey(userId: Long, idempotencyKey: String) =
+        mapper.findByUserIdAndIdempotencyKeyForShare(userId, idempotencyKey)?.toSegment()
+
     override fun insertIfAbsent(segment: ScoreViewSegment): Boolean = try {
         mapper.insert(
             segment.userId,

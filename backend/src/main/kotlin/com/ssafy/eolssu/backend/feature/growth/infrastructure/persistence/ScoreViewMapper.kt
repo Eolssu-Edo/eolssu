@@ -13,6 +13,11 @@ interface ScoreViewMapper {
         @Param("idempotencyKey") idempotencyKey: String,
     ): ScoreViewRow?
 
+    fun findByUserIdAndIdempotencyKeyForShare(
+        @Param("userId") userId: Long,
+        @Param("idempotencyKey") idempotencyKey: String,
+    ): ScoreViewRow?
+
     fun songExists(@Param("songId") songId: Long): Boolean
 
     fun insert(

@@ -11,6 +11,13 @@
         FROM score_views
         WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
     </select>
+    <!-- 잠금 읽기는 트랜잭션 스냅샷이 아닌 커밋된 최신 행을 읽는다 -->
+    <select id="findByUserIdAndIdempotencyKeyForShare" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow">
+        SELECT id, user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds, created_at
+        FROM score_views
+        WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
+        FOR SHARE
+    </select>
     <select id="songExists" resultType="boolean">
         SELECT EXISTS(SELECT 1 FROM songs WHERE id = #{songId})
     </select>

@@ -58,6 +58,24 @@ class ScoreViewSegmentTests {
     }
 
     @Test
+    fun `rejects times outside the DATETIME range before doing duration arithmetic`() {
+        assertEquals(
+            ScoreViewViolation.TIME_OUT_OF_RANGE,
+            segment.copy(endedAt = Instant.parse("+10000-01-01T00:00:00Z")).violation(receivedAt),
+        )
+        assertEquals(
+            ScoreViewViolation.TIME_OUT_OF_RANGE,
+            segment.copy(startedAt = Instant.parse("0999-12-31T23:59:59Z")).violation(receivedAt),
+        )
+        assertEquals(ScoreViewViolation.TIME_OUT_OF_RANGE, segment.copy(endedAt = Instant.MAX).violation(receivedAt))
+        val lastStorable = Instant.parse("9999-12-31T23:59:59.999999Z")
+        assertNull(
+            segment.copy(startedAt = lastStorable, endedAt = lastStorable, visibleSeconds = 0, countedSeconds = 0)
+                .violation(lastStorable),
+        )
+    }
+
+    @Test
     fun `requires a printable ASCII key of at most 100 characters`() {
         assertNull(segment.copy(idempotencyKey = "k".repeat(100)).violation(receivedAt))
         listOf("", " ", "k".repeat(101), "키", "a b").forEach {

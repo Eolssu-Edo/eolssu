@@ -409,6 +409,7 @@ class DatabaseIntegrationTests {
         assertNull(repository.findByKey(1, "segment-key"))
         assertTrue(repository.insertIfAbsent(segment))
         assertEquals(segment, repository.findByKey(1, "segment-key"))
+        assertEquals(segment, repository.findLatestByKey(1, "segment-key"))
         assertEquals(
             "2026-10-27 14:50:00.123456",
             jdbc.queryForObject(

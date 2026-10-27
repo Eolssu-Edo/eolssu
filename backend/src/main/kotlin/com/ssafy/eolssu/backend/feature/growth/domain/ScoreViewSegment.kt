@@ -35,6 +35,7 @@ data class ScoreViewSegment(
         !isValidKey(idempotencyKey) -> ScoreViewViolation.INVALID_KEY
         visibleSeconds < 0 || countedSeconds < 0 -> ScoreViewViolation.NEGATIVE_SECONDS
         countedSeconds > visibleSeconds -> ScoreViewViolation.COUNTED_EXCEEDS_VISIBLE
+        startedAt !in STORABLE_TIMES || endedAt !in STORABLE_TIMES -> ScoreViewViolation.TIME_OUT_OF_RANGE
         endedAt < startedAt -> ScoreViewViolation.ENDED_BEFORE_STARTED
         visibleLongerThan(Duration.between(startedAt, endedAt)) -> ScoreViewViolation.VISIBLE_EXCEEDS_PERIOD
         visibleLongerThan(Duration.between(startedAt, receivedAt)) -> ScoreViewViolation.VISIBLE_EXCEEDS_ELAPSED
@@ -48,6 +49,9 @@ data class ScoreViewSegment(
         const val ROUNDING_ALLOWANCE_MILLIS = 1000L
         const val MAX_KEY_LENGTH = 100
 
+        // MySQL DATETIME이 저장하는 범위. 밖의 값은 저장 오류(5xx)가 되어 앱이 끝없이 다시 보내므로 400으로 막는다.
+        val STORABLE_TIMES = Instant.parse("1000-01-01T00:00:00Z")..Instant.parse("9999-12-31T23:59:59.999999Z")
+
         // idempotency_key 열은 ascii_bin이다. 공백·제어 문자는 받지 않는다.
         fun isValidKey(key: String) = key.length in 1..MAX_KEY_LENGTH && key.all { it in '!'..'~' }
     }
@@ -57,6 +61,7 @@ enum class ScoreViewViolation {
     INVALID_KEY,
     NEGATIVE_SECONDS,
     COUNTED_EXCEEDS_VISIBLE,
+    TIME_OUT_OF_RANGE,
     ENDED_BEFORE_STARTED,
     VISIBLE_EXCEEDS_PERIOD,
     VISIBLE_EXCEEDS_ELAPSED,
