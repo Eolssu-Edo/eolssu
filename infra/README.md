@@ -27,7 +27,7 @@ Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수
 | --- | --- |
 | `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영의 백엔드와 Nginx 구성 |
 | `.env.dev.example` / `.env.prod.example` | Compose 치환용 환경변수 예시 |
-| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행, 소스·Wrapper만 포함하는 빌드 컨텍스트 |
+| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper만 포함하는 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
 | `infra/nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
 | `backend/Jenkinsfile` | 백엔드 검증·이미지 빌드·JAR 보관 |
 

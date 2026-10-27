@@ -38,7 +38,7 @@ Maven Central의 Gradle 모듈 메타데이터에서 각 라이브러리가 이 
 | `navigation-compose` `2.10.0-rc01` | 있음 | 있음 | 있음 | 있음 |
 | `koin-core`·`koin-compose`·`koin-compose-viewmodel` `4.2.2` | 있음 | 있음 | 있음 | 있음 |
 
-실제 빌드·테스트 결과는 [작업 기록](../plans/S15P31E102-91.md)에 남긴다.
+실제 빌드·테스트 결과는 [S15P31E102-91](https://ssafy.atlassian.net/browse/S15P31E102-91)에 남긴다.
 
 ## 검토한 대안
 
