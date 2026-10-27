@@ -25,7 +25,9 @@ class SecurityConfig(
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain = http
         // CSRF 토큰 대신 SameSite=Lax 쿠키와 StateChangingRequestFilter로 막는다.
         .csrf { it.disable() }
-        .cors { it.configurationSource(corsConfigurationSource()) }
+        // 운영·compose는 웹과 API가 같은 주소이고 Nginx가 HTTPS를 끝내 백엔드는 http로 받는다. 이때 Spring CORS는
+        // https Origin을 다른 출처로 보고 막으므로, 개발 주소를 설정했을 때만 켠다(같은 사이트 판단은 아래 필터가 한다).
+        .cors { if (properties.normalizedAllowedOrigins.isEmpty()) it.disable() else it.configurationSource(corsConfigurationSource()) }
         .httpBasic { it.disable() }
         .formLogin { it.disable() }
         .logout { it.disable() }
@@ -45,7 +47,7 @@ class SecurityConfig(
         }
         .build()
 
-    // 운영은 웹과 API가 같은 주소라 CORS가 필요 없다. 설정한 개발 주소만 쿠키를 포함한 요청을 허용한다.
+    // 설정한 개발 주소만 쿠키를 포함한 요청을 허용한다.
     private fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
             allowedOrigins = properties.normalizedAllowedOrigins.toList()

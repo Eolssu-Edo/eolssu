@@ -11,16 +11,16 @@ import org.springframework.http.MediaType
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
- * CSRF 방어(S15P31E102-143 확정안). 로그인 쿠키는 SameSite=Lax이고, 상태를 바꾸는 API 요청은 여기서 한 번 더 막는다.
- * 1. Origin 헤더가 있으면 같은 사이트이거나 설정한 개발 주소여야 한다(403). 앱은 Origin을 보내지 않으므로 없으면 통과한다.
+ * CSRF 방어(S15P31E102-143 확정안). 로그인 쿠키는 SameSite=Lax이고, 상태를 바꾸는 요청은 여기서 한 번 더 막는다.
+ * 1. Origin 헤더가 있으면 같은 호스트이거나 설정한 개발 주소여야 한다(403). 앱은 Origin을 보내지 않으므로 없으면 통과한다.
  * 2. 본문은 JSON만 받는다(415). 다른 사이트의 HTML 폼은 JSON을 보낼 수 없다. 녹음 업로드만 multipart를 받는다.
+ * 경로와 관계없이 모든 상태 변경 요청에 적용한다. 인코딩된 경로(/%61pi/...)로 건너뛰지 못하게 하려는 것이다.
  */
 class StateChangingRequestFilter(
     private val allowedOrigins: Set<String>,
     private val errorWriter: ErrorResponseWriter,
 ) : OncePerRequestFilter() {
-    override fun shouldNotFilter(request: HttpServletRequest) =
-        request.method !in STATE_CHANGING_METHODS || !request.requestURI.startsWith("/api/")
+    override fun shouldNotFilter(request: HttpServletRequest) = request.method !in STATE_CHANGING_METHODS
 
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, chain: FilterChain) {
         val origin = request.getHeader("Origin")
@@ -38,11 +38,12 @@ class StateChangingRequestFilter(
         val uri = runCatching { URI(origin) }.getOrNull() ?: return false
         val host = uri.host?.lowercase() ?: return false
         val port = if (uri.port >= 0) uri.port else defaultPort(uri.scheme) ?: return false
-        // Nginx는 Host를 포트 없이 넘긴다. 이때는 기본 포트로 들어온 같은 호스트만 같은 사이트로 본다.
+        // Nginx는 HTTPS를 끝내고 Host를 포트 없이 넘긴다(proxy_set_header Host $host). 이때는 호스트 이름만 비교한다.
+        // 같은 호스트의 다른 포트·scheme은 SameSite 기준으로도 같은 사이트다.
         val requestHost = request.getHeader("Host")?.lowercase() ?: return false
         val requestPort = requestHost.substringAfterLast(':', "").toIntOrNull()
         val requestName = if (requestPort != null) requestHost.substringBeforeLast(':') else requestHost
-        return host == requestName && (if (requestPort != null) port == requestPort else port == 80 || port == 443)
+        return host == requestName && (requestPort == null || port == requestPort)
     }
 
     private fun hasAcceptedBody(request: HttpServletRequest): Boolean {
@@ -55,7 +56,7 @@ class StateChangingRequestFilter(
         }
         if (mediaType.equalsTypeAndSubtype(MediaType.APPLICATION_JSON)) return true
         return mediaType.equalsTypeAndSubtype(MediaType.MULTIPART_FORM_DATA) &&
-            request.method == "POST" && RECORDING_UPLOAD.matches(request.requestURI)
+            request.method == "POST" && RECORDING_UPLOAD.matches(request.servletPath)
     }
 
     private fun defaultPort(scheme: String?) = when (scheme?.lowercase()) {
@@ -66,6 +67,7 @@ class StateChangingRequestFilter(
 
     private companion object {
         val STATE_CHANGING_METHODS = setOf("POST", "PUT", "PATCH", "DELETE")
+        // servletPath는 디코딩·정규화된 경로다(requestURI는 인코딩된 원문).
         val RECORDING_UPLOAD = Regex("^/api/practice-sessions/[^/]+/recording$")
     }
 }

@@ -54,6 +54,18 @@ class WebSecurityBoundaryTests {
     }
 
     @Test
+    fun `checks percent-encoded paths the same way as their decoded form`() {
+        val encodedApi = send("POST", "/%61pi/auth/sign-in", "Content-Type" to "application/x-www-form-urlencoded", body = "email=a")
+        assertError(encodedApi, 415, "UNSUPPORTED_MEDIA_TYPE", "UNSUPPORTED_MEDIA_TYPE")
+
+        val encodedUpload = send(
+            "POST", "/api/practice-sessions/1/rec%6Frding",
+            "Content-Type" to "multipart/form-data; boundary=test-boundary", body = "--test-boundary--",
+        )
+        assertError(encodedUpload, 401, "UNAUTHORIZED", "UNAUTHENTICATED")
+    }
+
+    @Test
     fun `lets JSON and bodiless requests through to routing`() {
         val jsonBody = send("POST", "/api/auth/sign-in", "Content-Type" to "application/json; charset=UTF-8", body = "{}")
         assertError(jsonBody, 404, "NOT_FOUND", "RESOURCE_NOT_FOUND")
