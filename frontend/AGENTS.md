@@ -27,7 +27,7 @@
 - 휴대폰·태블릿은 같은 화면 상태와 로직을 공유하고, 창 크기에 따라 배치만 바꾼다. 배치가 크게 달라질 때만 `feature/<기능>/layout/`에 Compact·Expanded 내용을 나누고, 판정 기준은 `core/ui/adaptive`에 둔다. 기기별 프로젝트·최상위 패키지를 만들지 않는다.
 - 이미지·폰트·문구는 `shared/src/commonMain/composeResources/`에 두고 생성된 `Res`(`eolssu.shared.generated.resources`)로 접근한다.
 - 라이브러리는 `gradle/libs.versions.toml`에 등록한다. `commonMain`에 넣는 라이브러리는 Android·iOS·JS·Wasm 지원을 먼저 확인하고, 추가 전에 [협업 문서](docs/collaboration.md)의 절차대로 팀에 공유한다. 화면 이동은 `navigation-compose`, DI는 Koin을 쓴다([결정 문서](../docs/decisions/frontend-navigation-di.md)). HTTP 라이브러리는 아직 선택되지 않았으므로 임의로 추가하지 않는다.
-- 각 진입점이 `App()`을 호출하므로 이름을 유지한다. `App()`은 Koin을 시작하고 테마 안에서 `app/navigation`의 화면 이동 그래프를 그린다. Web 진입점은 `App(onNavHostReady)`로 브라우저 뒤로 가기·주소를 연결한다.
+- 각 진입점이 `App`을 호출하므로 이름을 유지한다. Android는 `App(context)`, Web은 `App(onNavHostReady)`(브라우저 뒤로 가기·주소 연결), iOS는 `MainViewController()`를 부르고, 이들이 플랫폼 구현 Koin 모듈(`platform/PlatformModule.kt`)을 공통 `App`에 넘긴다. 공통 `App`은 Koin을 시작하고 테마 안에서 `app/navigation`의 화면 이동 그래프를 그린다.
 
 ## 구조와 문서의 정합성
 

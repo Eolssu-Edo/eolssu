@@ -31,6 +31,7 @@
 ## 결정 기록
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
+- [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 
 ## 도구 조사·검증 기록
 
@@ -76,9 +77,6 @@
 - [S15P31E102-73 프론트 웹 자동 빌드·테스트·배포](plans/S15P31E102-73.md)
 - [S15P31E102-74 ERD 기반 MyBatis·Flyway 초기 구조](plans/S15P31E102-74.md)
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
-- [S15P31E102-91 프론트 화면 이동·DI 라이브러리 도입](plans/S15P31E102-91.md)
-- [S15P31E102-92 와이어프레임 기준 테마 토큰](plans/S15P31E102-92.md)
-- [S15P31E102-93 앱 화면 이동 골격과 홈 화면](plans/S15P31E102-93.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)

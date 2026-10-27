@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         lockPortraitOnPhone()
 
         setContent {
-            App()
+            App(context = applicationContext)
         }
     }
 
