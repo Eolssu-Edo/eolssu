@@ -55,6 +55,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import org.springframework.dao.DataAccessException
+import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -426,6 +427,8 @@ class DatabaseIntegrationTests {
         )
         assertNull(rows.single { it[0] == 11L }[3])
         assertEquals(1, context.getBeansOfType(RecordingUploadExpiryService::class.java).size)
+        // 공유 테스트 DB에서 실제 시계의 주기 작업이 고정 데이터와 겹치지 않도록 이 테스트 컨텍스트는 스케줄링을 끈다.
+        assertTrue(context.getBeansOfType(ScheduledAnnotationBeanPostProcessor::class.java).isEmpty())
     }
 
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
@@ -451,6 +454,7 @@ class DatabaseIntegrationTests {
         @JvmStatic
         @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
+            registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }
             registry.add("spring.datasource.username") { requiredEnvironment("TEST_DB_USERNAME") }
             registry.add("spring.datasource.password") { requiredEnvironment("TEST_DB_PASSWORD") }
