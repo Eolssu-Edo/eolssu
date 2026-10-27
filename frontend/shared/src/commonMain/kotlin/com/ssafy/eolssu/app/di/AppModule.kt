@@ -18,6 +18,7 @@ import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.data.user.FirstRunRepository
+import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
@@ -65,6 +66,7 @@ val appModule = module {
 
     // 첫 실행·로그인·회원가입
     single { FirstRunRepository(get()) }
+    single { LearnProgressRepository(get()) }
     viewModelOf(::ConsentViewModel)
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignupViewModel)
