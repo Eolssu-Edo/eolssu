@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
@@ -12,12 +13,15 @@ import kotlinx.coroutines.delay
  * 지금은 [SampleEvaluationRepository]가 녹음 없이 예시 결과를 돌려준다.
  */
 interface EvaluationRepository {
-    /** 연주를 평가한다. 분석이 실패하면 예외를 던진다. */
+    /** 연주를 평가한다. 서버가 분석 실패를 알리면 [AnalysisFailedException]을, 그 밖의 실패는 다른 예외를 던진다. */
     suspend fun evaluate(songId: String, bpm: Int, recordedSeconds: Int): EvaluationResult
 
     /** 이미 받은 평가 결과. */
     fun result(evaluationId: String): EvaluationResult?
 }
+
+/** 서버가 [reason]으로 분석에 실패했다. */
+class AnalysisFailedException(val reason: AnalysisFailure) : Exception(reason.code)
 
 /** 와이어프레임 예시 결과(84점, 틀린 칸 14개). 분석 시간처럼 잠깐 기다린 뒤 돌려준다. */
 class SampleEvaluationRepository(
