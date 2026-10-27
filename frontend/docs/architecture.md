@@ -218,7 +218,7 @@ class IosAudioRecorder : AudioRecorder { /* AVAudioRecorder 사용 */ }
 ```
 
 - ViewModel은 `AudioRecorder` 인터페이스만 받는다. 테스트에서는 가짜 구현을 넣는다.
-- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다([결정 문서](../../docs/decisions/frontend-navigation-di.md)).
+- 구현 객체를 만들어 넘기는 곳은 `app/di/`다. DI는 Koin을 쓴다.
 - 플랫폼 구현은 소스 세트마다 `platform/PlatformModule.kt`의 Koin 모듈(`androidPlatformModule(context)`, `iosPlatformModule()`, `webPlatformModule()`, 모두 `internal`)에 등록하고, 진입점이 이 모듈을 공통 `App(platformModule)`에 넘긴다. 공통 `App`은 플랫폼 모듈과 `appModule`을 함께 시작하고, `appModule`은 `get()`으로 플랫폼 구현을 받는다([S15P31E102-151](https://ssafy.atlassian.net/browse/S15P31E102-151)에서 정함).
 
 | 플랫폼 | 진입점이 부르는 것 | 플랫폼 모듈을 넘기는 곳 |
