@@ -39,6 +39,7 @@
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+- [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 
 ## 프론트엔드 조사·검증 기록
 
@@ -81,6 +82,7 @@
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
+- [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
