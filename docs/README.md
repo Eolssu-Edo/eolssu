@@ -28,6 +28,11 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+## 결정 기록
+
+- [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
+- [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
+
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
