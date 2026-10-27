@@ -71,6 +71,15 @@ class GetPracticeStatsTests {
     }
 
     @Test
+    fun `reports the score change as the difference of the shown rounded averages`() {
+        repository.sessions[d("2026-10-26")] = SessionTotals(doneCount = 2, scoredCount = 2, scoreSum = 171) // 85.5 → 86
+        repository.sessions[d("2026-10-19")] = SessionTotals(doneCount = 3, scoredCount = 3, scoreSum = 211) // 70.33 → 70
+
+        // 반올림한 값끼리는 86 − 70 = 16. 원래 평균의 차이 15.17을 반올림하면 15라 둘을 가린다.
+        assertEquals(16, stats.stats(USER, StatsPeriod.WEEK).averageScoreChange)
+    }
+
+    @Test
     fun `omits the average and its change when a period has no scored session`() {
         repository.sessions[d("2026-10-26")] = SessionTotals(doneCount = 1, scoredCount = 1, scoreSum = 80)
         val withoutPrevious = stats.stats(USER, StatsPeriod.WEEK)
