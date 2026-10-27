@@ -53,7 +53,7 @@ data/
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
 ├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
-├── mart/                    # 집계 DB 스키마.
+├── mart/                    # 집계 DB 스키마(schema.sql)와 이미 만든 마트용 변경(alter_*.sql).
 ├── raw/                     # 받은 원본 그대로. Git 제외.
 │   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
 │   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.
