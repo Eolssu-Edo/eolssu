@@ -797,6 +797,64 @@
       "originalFilename": "아리랑_정간보_단소_표준악보집-PDF173.pdf",
       "instrument": "danso",
       "notes": "책 PDF 173쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
+    },
+    {
+      "id": "ngc-standard-2022-p171",
+      "kind": "score",
+      "title": "도라지타령 단소 정간보",
+      "sha256": "63785972506c0e784be5f27bdf66e48cc9eb3c938640f03080805ae82b60d5f6",
+      "bytes": 351275,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-27",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p171/도라지타령_정간보_단소_표준악보집-PDF171.pdf",
+      "originalFilename": "도라지타령_정간보_단소_표준악보집-PDF171.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 171쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
+    },
+    {
+      "id": "ngc-standard-2022-p172",
+      "kind": "score",
+      "title": "밀양아리랑 단소 정간보",
+      "sha256": "5fd0a91cd628a7e8ac41afa43f403ceec4e81759178ef54194ef3b37ed9bd6a5",
+      "bytes": 422830,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-10-27",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p172/밀양아리랑_정간보_단소_표준악보집-PDF172.pdf",
+      "originalFilename": "밀양아리랑_정간보_단소_표준악보집-PDF172.pdf",
+      "instrument": "danso",
+      "notes": "책 PDF 172쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
     }
   ]
 }
