@@ -166,9 +166,9 @@ def compile_score(score, instrument, transpose=0):
         event["legato"] = bool(prev and prev["end_tick"] == event["start_tick"] and
                                (prev["parent_ids"] == event["parent_ids"] or
                                 event["slur"] and prev["slur"] == event["slur"]))
-    warnings.append("음색 비교용 렌더입니다. 다른 악기의 실제 운지·호흡·편곡 가능성을 검증한 결과가 아닙니다.")
+    warnings.append("악보 재생용 합성음입니다. 실제 운지·호흡·연주 품질을 검증한 결과가 아닙니다.")
     if profile["technical_range"] is None:
-        warnings.append("산조대금 관종별 실연 음역이 미확정입니다. CAT 프리셋 범위만 검사합니다.")
+        warnings.append("이 악기의 실연 음역이 미확정입니다. CAT 프리셋 범위만 검사합니다.")
     return {"instrument": instrument, "title": score["title"], "source": score["source"], "context": c,
             "transpose_semitones": transpose, "tempo_us": tempo, "ppqn": PPQN, "end_tick": cursor,
             "events": events, "source_notes": score["notes"], "warnings": sorted(set(warnings)), "assumptions": score.get("assumptions", [])}

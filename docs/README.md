@@ -36,10 +36,6 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
-## AI 실행·검증 기록
-
-- [악보 사진 → 4종 국악기 로컬 재생 서비스](knowledge/ai/score-photo-service.md)
-- [S15P31E102-105 작업 계획](plans/S15P31E102-105.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
@@ -73,9 +69,6 @@
 ## COCO 산출물
 
 - [S15P31E102-105 단소 악보 재생 파이프라인](plans/S15P31E102-105.md)
-- [S15P31E102-106 정악 대금 악보 재생 파이프라인](plans/S15P31E102-106.md)
-- [S15P31E102-107 산조 대금 악보 재생 파이프라인](plans/S15P31E102-107.md)
-- [S15P31E102-108 소금 악보 재생 파이프라인](plans/S15P31E102-108.md)
 
 - [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
 
