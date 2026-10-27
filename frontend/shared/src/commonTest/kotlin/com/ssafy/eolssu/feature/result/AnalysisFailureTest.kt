@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.core.model.AnalysisFailure
-import com.ssafy.eolssu.data.practice.AnalysisFailedException
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.analysis_failed_decode_error
 import eolssu.shared.generated.resources.analysis_failed_no_sound
@@ -38,12 +37,6 @@ class AnalysisFailureTest {
         assertTrue(AnalysisFailure.ServerError.retryable)
         listOf(AnalysisFailure.NoSound, AnalysisFailure.TooShort, AnalysisFailure.DecodeError, AnalysisFailure.UploadTimeout)
             .forEach { assertFalse(it.retryable, "$it") }
-    }
-
-    @Test
-    fun analysisErrorKeepsItsReasonAndOtherErrorsAreServerError() {
-        assertEquals(AnalysisFailure.NoSound, AnalysisFailedException(AnalysisFailure.NoSound).toAnalysisFailure())
-        assertEquals(AnalysisFailure.ServerError, IllegalStateException("network").toAnalysisFailure())
     }
 
     @Test

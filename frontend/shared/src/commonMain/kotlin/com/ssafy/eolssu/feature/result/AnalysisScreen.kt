@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -65,6 +67,8 @@ fun AnalysisRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
     AnalysisScreen(
         state,
         wide = currentWindowLayout().widthClass != WindowWidthClass.Compact,
