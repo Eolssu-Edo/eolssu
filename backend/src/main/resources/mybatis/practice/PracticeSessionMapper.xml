@@ -6,4 +6,10 @@
         FROM practice_sessions
         WHERE id = #{id}
     </select>
+
+    <update id="failRecordingStartedBefore">
+        UPDATE practice_sessions
+        SET status = 'FAILED', fail_reason = #{failReason}
+        WHERE status = 'RECORDING' AND started_at &lt; #{cutoff}
+    </update>
 </mapper>

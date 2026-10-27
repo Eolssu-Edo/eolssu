@@ -1,37 +1,76 @@
 package com.ssafy.eolssu.data.practice
 
+import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
-import kotlinx.coroutines.delay
 
 /**
- * 연주 평가. 와이어프레임 API 정리의 `POST /evaluations`·`GET /evaluations/{id}/result`에 대응한다.
- * 지금은 [SampleEvaluationRepository]가 녹음 없이 예시 결과를 돌려준다.
+ * 연주 평가. 녹음을 분석에 맡긴 뒤 상태를 물어 결과를 받는다(PRA-03 상태 조회).
+ * 상태 조회·재시도 API 모양은 아직 정해지지 않았다. 지금은 [SampleEvaluationRepository]가 녹음 없이 예시 결과를 돌려준다.
  */
 interface EvaluationRepository {
-    /** 연주를 평가한다. 분석이 실패하면 예외를 던진다. */
-    suspend fun evaluate(songId: String, bpm: Int, recordedSeconds: Int): EvaluationResult
+    /** 연주를 분석에 맡기고 분석 ID를 돌려준다. */
+    suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String
+
+    /** 분석 상태. 연결 오류는 예외로 던진다. */
+    suspend fun analysisStatus(analysisId: String): AnalysisStatus
+
+    /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. */
+    suspend fun retryAnalysis(analysisId: String)
 
     /** 이미 받은 평가 결과. */
     fun result(evaluationId: String): EvaluationResult?
 }
 
-/** 와이어프레임 예시 결과(84점, 틀린 칸 14개). 분석 시간처럼 잠깐 기다린 뒤 돌려준다. */
+/** 서버의 분석 상태(`PENDING`·`DONE`·`FAILED`). */
+sealed interface AnalysisStatus {
+    data object Pending : AnalysisStatus
+
+    data class Done(val evaluationId: String) : AnalysisStatus
+
+    /** [reason]은 서버 `fail_reason` 코드에 맞는 사유다. */
+    data class Failed(val reason: AnalysisFailure) : AnalysisStatus
+}
+
+/** 와이어프레임 예시 결과(84점, 틀린 칸 14개). 분석을 맡긴 뒤 [analysisMillis]가 지나면 끝난다. */
 class SampleEvaluationRepository(
     private val now: () -> Long,
     private val analysisMillis: Long = 2600,
 ) : EvaluationRepository {
+    private class Analysis(val songId: String, val bpm: Int, val recordedSeconds: Int, val startedAt: Long, var evaluationId: String? = null)
+
+    private val analyses = mutableMapOf<String, Analysis>()
     private val results = mutableMapOf<String, EvaluationResult>()
     private var nextId = 1
 
-    override suspend fun evaluate(songId: String, bpm: Int, recordedSeconds: Int): EvaluationResult {
-        delay(analysisMillis)
-        val result = EvaluationResult(
+    override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String {
+        val id = "analysis-${nextId++}"
+        analyses[id] = Analysis(songId, bpm, recordedSeconds, startedAt = now())
+        return id
+    }
+
+    override suspend fun analysisStatus(analysisId: String): AnalysisStatus {
+        val analysis = analyses.getValue(analysisId)
+        analysis.evaluationId?.let { return AnalysisStatus.Done(it) }
+        if (now() - analysis.startedAt < analysisMillis) return AnalysisStatus.Pending
+        val result = sampleResult(analysis)
+        results[result.id] = result
+        analysis.evaluationId = result.id
+        return AnalysisStatus.Done(result.id)
+    }
+
+    /** 예시 분석은 실패하지 않으므로 다시 시도할 일은 늘 '아직 분석 중'이고, 그대로 둔다. */
+    override suspend fun retryAnalysis(analysisId: String) {
+        analyses.getValue(analysisId)
+    }
+
+    private fun sampleResult(analysis: Analysis): EvaluationResult =
+        EvaluationResult(
             id = "evaluation-${nextId++}",
-            songId = songId,
+            songId = analysis.songId,
             total = 84,
             feedback = "좋아요! 박자를 조금 더 맞춰볼까요?",
             metrics = listOf(
@@ -40,14 +79,11 @@ class SampleEvaluationRepository(
                 MetricScore(EvaluationMetric.Length, 84),
             ),
             errors = SampleErrors,
-            bpm = bpm,
-            recordedSeconds = recordedSeconds,
+            bpm = analysis.bpm,
+            recordedSeconds = analysis.recordedSeconds,
             recordedAt = KoreanDateTime.fromEpochMillis(now()),
             sample = true,
         )
-        results[result.id] = result
-        return result
-    }
 
     override fun result(evaluationId: String): EvaluationResult? = results[evaluationId]
 }

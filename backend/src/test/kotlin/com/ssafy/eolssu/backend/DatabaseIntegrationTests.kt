@@ -12,6 +12,8 @@ import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.No
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow
+import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow
 import com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentMapper
@@ -26,6 +28,8 @@ import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.Nota
 import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.NotationSymbolRow
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
+import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
@@ -39,6 +43,7 @@ import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingMapper
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow
 import java.sql.SQLException
+import java.time.Instant
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -53,6 +58,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import org.springframework.dao.DataAccessException
+import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -429,6 +435,78 @@ class DatabaseIntegrationTests {
         assertEquals(1L, jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 2", Long::class.java))
     }
 
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `fails only RECORDING sessions started before the upload expiry cutoff`() {
+        val cutoff = LocalDateTime.parse("2026-10-27T09:20:00")
+        for ((id, status, startedAt) in listOf(
+            Triple(11L, "RECORDING", cutoff.minusNanos(1_000)),
+            Triple(12L, "RECORDING", cutoff),
+            Triple(13L, "RECORDING", cutoff.plusMinutes(1)),
+            Triple(14L, "PENDING", cutoff.minusHours(2)),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                    "VALUES (?, 1, 1, 90, 'DOTTED_QUARTER', 0, ?, ?)",
+                id, status, startedAt,
+            )
+        }
+        val repository = mapper<RecordingSessionExpiryRepository>()
+
+        assertEquals(1, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+        assertEquals(0, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+
+        val rows = jdbc.query("SELECT id, status, fail_reason, ended_at FROM practice_sessions ORDER BY id") { rs, _ ->
+            listOf(rs.getLong("id"), rs.getString("status"), rs.getString("fail_reason"), rs.getObject("ended_at"))
+        }
+        assertEquals(
+            listOf(
+                listOf(1L, "DONE", null), listOf(2L, "DONE", null),
+                listOf(11L, "FAILED", "UPLOAD_TIMEOUT"), listOf(12L, "RECORDING", null),
+                listOf(13L, "RECORDING", null), listOf(14L, "PENDING", null),
+            ),
+            rows.map { it.take(3) },
+        )
+        assertNull(rows.single { it[0] == 11L }[3])
+        assertEquals(1, context.getBeansOfType(RecordingUploadExpiryService::class.java).size)
+        // 공유 테스트 DB에서 실제 시계의 주기 작업이 고정 데이터와 겹치지 않도록 이 테스트 컨텍스트는 스케줄링을 끈다.
+        assertTrue(context.getBeansOfType(ScheduledAnnotationBeanPostProcessor::class.java).isEmpty())
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `stores a score view segment once per member and key at microsecond precision`() {
+        val repository = MyBatisScoreViewRepository(mapper())
+        val segment = ScoreViewSegment(
+            userId = 1,
+            songId = 1,
+            idempotencyKey = "segment-key",
+            startedAt = Instant.parse("2026-10-27T14:50:00.123456Z"),
+            endedAt = Instant.parse("2026-10-27T15:20:00.654321Z"),
+            visibleSeconds = 1800,
+            countedSeconds = 1500,
+        )
+        assertNull(repository.findByKey(1, "segment-key"))
+        assertTrue(repository.insertIfAbsent(segment))
+        assertEquals(segment, repository.findByKey(1, "segment-key"))
+        assertEquals(segment, repository.findLatestByKey(1, "segment-key"))
+        assertEquals(
+            "2026-10-27 14:50:00.123456",
+            jdbc.queryForObject(
+                "SELECT DATE_FORMAT(started_at, '%Y-%m-%d %H:%i:%s.%f') FROM score_views WHERE idempotency_key = 'segment-key'",
+                String::class.java,
+            ),
+        )
+
+        assertFalse(repository.insertIfAbsent(segment.copy(countedSeconds = 1)))
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM score_views WHERE idempotency_key = 'segment-key'", Int::class.java))
+        assertNull(repository.findByKey(3, "segment-key"))
+        assertTrue(repository.songExists(1))
+        assertFalse(repository.songExists(999))
+    }
+
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
 
     private fun assertJson(expected: String, actual: String) {
@@ -452,6 +530,7 @@ class DatabaseIntegrationTests {
         @JvmStatic
         @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
+            registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }
             registry.add("spring.datasource.username") { requiredEnvironment("TEST_DB_USERNAME") }
             registry.add("spring.datasource.password") { requiredEnvironment("TEST_DB_PASSWORD") }
