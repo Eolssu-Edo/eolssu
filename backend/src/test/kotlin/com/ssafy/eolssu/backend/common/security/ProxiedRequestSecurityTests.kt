@@ -37,6 +37,16 @@ class ProxiedRequestSecurityTests {
     }
 
     @Test
+    fun `compares ports when the Host header carries one`() {
+        // 개발 주소가 없어 Spring CORS가 꺼진 상태라, 403은 StateChangingRequestFilter의 포트 비교에서만 나온다.
+        mockMvc.perform(jsonPost(host = "localhost:8081", origin = "http://localhost:9999"))
+            .andExpect(status().isForbidden)
+            .andExpect(jsonPath("$.result.errorCode").value("FORBIDDEN"))
+        mockMvc.perform(jsonPost(host = "localhost:8081", origin = "http://localhost:8081"))
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
     fun `rejects other sites including look-alike hosts`() {
         for (origin in listOf("https://evil.example", "https://k15e102.p.ssafy.io.evil.example", "https://p.ssafy.io")) {
             mockMvc.perform(jsonPost(host = "k15e102.p.ssafy.io", origin = origin))
