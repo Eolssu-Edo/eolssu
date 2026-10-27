@@ -22,9 +22,9 @@ VALUES (1, 'test@example.test', 'test-fixture-hash', '연습자', 1, 'HANGUL', '
        (2, NULL, NULL, NULL, 1, 'HANJA', 'DELETED', '2026-10-22 01:02:03.123456', NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456'),
        (3, 'pending@example.test', 'test-fixture-hash-3', '대기 회원', 1, 'HANJA', 'WITHDRAWAL_PENDING', NULL, '2026-10-22 01:02:03.123456', '2026-11-21 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL);
 
-INSERT INTO practice_sessions (id, user_id, song_id, mission_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, recording_url, status, fail_reason, started_at, ended_at, saved_at, memo, viewed_at, record_deleted_at, created_at)
-VALUES (1, 1, 1, NULL, NULL, 1, 90, 'DOTTED_QUARTER', NULL, NULL, 0, 0, 'https://example.test/recording.wav', 'DONE', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:04.123456', NULL, NULL, NULL, NULL, '2026-10-22 01:02:03.123456'),
-       (2, 1, 1, 7, 1, 3, 90, 'DOTTED_QUARTER', 'practice-key', REPEAT('a', 64), 0, 0, NULL, 'DONE', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:04.123456', '2026-10-22 01:02:03.123456', '다시 연습', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+INSERT INTO practice_sessions (id, user_id, song_id, mission_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, recording_url, recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels, status, fail_reason, started_at, ended_at, saved_at, memo, viewed_at, record_deleted_at, created_at)
+VALUES (1, 1, 1, NULL, NULL, 1, 90, 'DOTTED_QUARTER', NULL, NULL, 0, 0, 'https://example.test/recording.wav', 20971520, 600500, 48000, 2, 'DONE', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:04.123456', NULL, NULL, NULL, NULL, '2026-10-22 01:02:03.123456'),
+       (2, 1, 1, 7, 1, 3, 90, 'DOTTED_QUARTER', 'practice-key', REPEAT('a', 64), 0, 0, NULL, NULL, NULL, NULL, NULL, 'DONE', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:04.123456', '2026-10-22 01:02:03.123456', '다시 연습', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 
 INSERT INTO evaluations (id, session_id, total_score, pitch_score, timing_score, duration_score, model_version, evaluated_at)
 VALUES (1, 1, 85, 80, 90, 85, 'test-v1', '2026-10-22 01:02:03.123456');
