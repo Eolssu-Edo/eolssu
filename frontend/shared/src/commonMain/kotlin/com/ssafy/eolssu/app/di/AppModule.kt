@@ -5,6 +5,9 @@ import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.SampleEvaluationRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
+import com.ssafy.eolssu.data.song.MySheetRepository
+import com.ssafy.eolssu.data.song.SampleMySheetRepository
+import com.ssafy.eolssu.data.song.SamplePdfFile
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
@@ -23,6 +26,9 @@ import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
 import com.ssafy.eolssu.feature.result.ResultViewModel
+import com.ssafy.eolssu.feature.song.MySongsViewModel
+import com.ssafy.eolssu.feature.song.PdfPreviewViewModel
+import com.ssafy.eolssu.feature.song.PdfUploadViewModel
 import com.ssafy.eolssu.feature.song.SongDetailViewModel
 import com.ssafy.eolssu.feature.song.SongListViewModel
 import org.koin.core.module.dsl.viewModel
@@ -63,4 +69,10 @@ val appModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::SignupViewModel)
     viewModelOf(::ProfileSetupViewModel)
+
+    // 내 악보 · PDF 올리기. 기기 파일 선택기를 붙이기 전까지 '파일에서 선택'은 예시 파일을 고른다.
+    single<MySheetRepository> { SampleMySheetRepository(now = get()) }
+    viewModelOf(::MySongsViewModel)
+    viewModel { PdfUploadViewModel(get(), filePicker = { SamplePdfFile }) }
+    viewModel { (uploadId: String) -> PdfPreviewViewModel(uploadId, get()) }
 }

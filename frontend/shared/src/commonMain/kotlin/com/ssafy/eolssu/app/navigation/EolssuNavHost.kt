@@ -28,6 +28,9 @@ import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
+import com.ssafy.eolssu.feature.song.MySongsRoute
+import com.ssafy.eolssu.feature.song.PdfPreviewRoute
+import com.ssafy.eolssu.feature.song.PdfUploadRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 import org.koin.compose.viewmodel.koinViewModel
@@ -71,6 +74,13 @@ object EolssuDestination {
         "guide/fingering?instrument=${instrument?.id.orEmpty()}&blow=${blow?.name.orEmpty()}"
 
     fun learnStage(stage: Int) = "learn/stages/$stage"
+
+    // 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02)
+    const val MY_SONGS = "my-songs"
+    const val PDF_UPLOAD = "my-songs/pdf"
+    const val PDF_PREVIEW = "my-songs/pdf/{uploadId}"
+
+    fun pdfPreview(uploadId: String) = "my-songs/pdf/$uploadId"
 }
 
 /**
@@ -95,7 +105,7 @@ fun EolssuNavHost(
                         HomeFeature.Fingering -> EolssuDestination.guideFingering()
                         HomeFeature.Reading -> EolssuDestination.GUIDE_READING
                         HomeFeature.Learn -> EolssuDestination.LEARN
-                        HomeFeature.SongSelect -> null
+                        HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
                     }
                     route?.let(navController::navigate)
                     route != null
@@ -257,6 +267,31 @@ fun EolssuNavHost(
             }
         }
         authGraph(navController, onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) })
+
+        // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
+        composable(EolssuDestination.MY_SONGS) {
+            MySongsRoute(
+                onBack = { navController.popBackStack() },
+                onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
+                onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
+            )
+        }
+        composable(EolssuDestination.PDF_UPLOAD) {
+            PdfUploadRoute(
+                onBack = { navController.popBackStack() },
+                onNext = { navController.navigate(EolssuDestination.pdfPreview(it)) },
+            )
+        }
+        composable(
+            EolssuDestination.PDF_PREVIEW,
+            arguments = listOf(navArgument("uploadId") { type = NavType.StringType }),
+        ) { entry ->
+            PdfPreviewRoute(
+                uploadId = entry.savedStateHandle.get<String>("uploadId").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) },
+            )
+        }
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }

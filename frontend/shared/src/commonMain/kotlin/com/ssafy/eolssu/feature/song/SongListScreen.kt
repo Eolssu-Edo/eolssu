@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.song
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,14 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.ChipRow
-import com.ssafy.eolssu.core.ui.component.EolssuBadge
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuChip
@@ -42,6 +38,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
+import com.ssafy.eolssu.feature.song.component.SongCard
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_count
@@ -90,7 +87,7 @@ fun SongListScreen(
                         color = EolssuTheme.colors.textMuted,
                     )
                 }
-                items(songs, key = { it.id }) { song -> SongCard(song, onClick = { onOpenSong(song.id) }) }
+                items(songs, key = { it.id }) { song -> SongCard(song, jangdanLabel(song.jangdan), onClick = { onOpenSong(song.id) }) }
             }
         }
     }
@@ -134,33 +131,6 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, onClear:
                     Icon(EolssuIcons.Close, stringResource(Res.string.common_clear), Modifier.size(12.dp), tint = colors.text)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SongCard(song: Song, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = colors.background,
-        border = BorderStroke(1.dp, colors.line),
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(song.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
-                    EolssuBadge(songLevelLabel(song.level))
-                }
-                Text(
-                    jangdanLabel(song.jangdan),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                    color = colors.textMuted,
-                )
-            }
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 12.dp).size(18.dp), tint = colors.lineStrong)
         }
     }
 }
