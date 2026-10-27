@@ -22,6 +22,8 @@ data class PracticeSessionRow(
     val recordingChannels: Short?,
     val status: String,
     val failReason: String?,
+    val analysisAttempt: Int,
+    val analysisStartedAt: LocalDateTime?,
     val startedAt: LocalDateTime,
     val endedAt: LocalDateTime?,
     val savedAt: LocalDateTime?,
