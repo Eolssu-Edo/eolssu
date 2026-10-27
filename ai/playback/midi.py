@@ -4,6 +4,12 @@ import mido
 import numpy as np
 from .score import PPQN, require
 
+# Fixed audition motion, separate from notation and the CAT sample's own vibrato.
+PLAYBACK_VIBRATO = {
+    "cents": 25, "hz": 4.5, "minimum_note_seconds": .65,
+    "delay_seconds": .22, "fade_in_seconds": .18, "fade_out_seconds": .16,
+}
+
 
 def write_midi(performance, path):
     tempo = performance["tempo_us"]
@@ -18,9 +24,9 @@ def write_midi(performance, path):
     for e in performance["events"]:
         a, b = e["start_tick"], e["end_tick"]
         y = e["yoseong"]
-        vibrato = performance.get("playback_vibrato")
-        if vibrato and ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
-                        y and y["mode"] in ("pitch", "mixed")):
+        vibrato = PLAYBACK_VIBRATO
+        if ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
+                y and y["mode"] in ("pitch", "mixed")):
             vibrato = None
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])

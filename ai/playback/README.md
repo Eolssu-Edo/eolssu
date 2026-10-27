@@ -23,13 +23,17 @@ python -m venv .venv-playback
 
 ## 실제 단소 음원 생성
 
-[CAT 국악 라이브러리](https://www.catseoul.com/gugak-library/)의 단소 Live Sampler v1.3 ZIP을 로컬에 준비합니다. `examples/assets.template.json`을 Git 밖에 복사하고 `danso` 값을 실제 ZIP 경로로 바꿉니다. 상대 경로는 assets JSON의 폴더 기준입니다. ZIP·원본 악보·생성 음원은 저장소에 넣지 않습니다.
+[CAT 국악 라이브러리](https://www.catseoul.com/gugak-library/)의 단소 Live Sampler v1.3 ZIP을 로컬에 준비합니다. 아래 내용을 Git 밖의 `assets.json`으로 저장하고 `danso` 값을 실제 ZIP 경로로 바꿉니다. 상대 경로는 assets JSON의 폴더 기준입니다. ZIP·원본 악보·생성 음원은 저장소에 넣지 않습니다.
 
-```powershell
-.\.venv-playback\Scripts\python -m playback --score playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --vibrato quarter --out C:/local-gugak/danso-quarter
+```json
+{"danso": "C:/local-gugak/GUgAK-DEMO DanSo Live Installer v.1.3.zip"}
 ```
 
-`--vibrato`는 `none`(CLI 기본), `quarter`(추가 ±25cent), `third`(추가 ±33⅓cent)입니다. 미리듣기 비교에는 quarter를 초기 후보로 사용하며 원본 CAT 샘플의 흔들림까지 이 폭으로 제한하는 것은 아닙니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 현재 등록 프로필은 단소 하나이며 `--instrument all`은 등록된 프로필 전체를 뜻합니다.
+```powershell
+.\.venv-playback\Scripts\python -m playback --score playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --out C:/local-gugak/danso-quarter
+```
+
+추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 현재 등록 프로필은 단소 하나이며 `--instrument all`은 등록된 프로필 전체를 뜻합니다.
 
 출력 폴더에는 `danso.mid`, `danso.wav`, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. WAV는44.1kHz·mono·PCM16이며 렌더 실패 시 이전 출력 파일을 보존합니다.
 
@@ -59,7 +63,7 @@ JGB 변환기에서는 문서 버전·성부·각·정간·음 위치를 입력 
 
 - 꾸밈 `1/16 quarter`는 4분음표의1/16입니다. quarter BPM60에서62.5ms이며 일반적인16분음표(`1/4 quarter`)와 다릅니다.
 - 명시 요성: 4Hz, ±25cent(pitch/mixed), amplitude depth0.08, 지연250ms, 시작/끝 fade150ms. depth0.08은 충분히 적용된 구간의 CC11 배율92~100%를 뜻합니다.
-- 추가 떨림: 650ms 이상 음에4.5Hz·지연220ms·fade-in/out180/160ms. pitch/mixed 요성과는 중복되지 않으며 amplitude 요성에는 겹칠 수 있습니다.
+- 추가 떨림: ±25cent, 650ms 이상 음에4.5Hz·지연220ms·fade-in/out180/160ms. pitch/mixed 요성과는 중복되지 않으며 amplitude 요성에는 겹칠 수 있습니다.
 - 숨은 미지정0초, 예제 숨표는120ms입니다. note-off를170ms 앞당겨 release50ms 뒤에 공백을 남깁니다. 짧은 음을 모두 소모하면 오류입니다.
 - 연결 attack/release20ms, 일반 release50ms, 단소 연결 시 새 샘플의100ms 지점부터 재생합니다. 동일음 연결은 샘플 위치를 이어갑니다.
 - 속도 변경 시 꾸밈은 박 비율을 따르고 숨·떨림 주기·지연·fade는 고정 초입니다. 곡별 빠르기와 음가 단위를 먼저 확인해야 합니다.
@@ -68,4 +72,4 @@ JGB 변환기에서는 문서 버전·성부·각·정간·음 위치를 입력 
 
 ## 실제 CAT 검증
 
-CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, WAV 길이·피크·무음을 확인합니다. 비교 프리셋은 같은 입력·ZIP·속도로 생성합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 현재 검증 결과와 재현 환경은 [Task105 계획](../../docs/plans/S15P31E102-105.md)에 기록합니다.
+CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, WAV 길이·피크·무음을 확인합니다. 재현할 때는 같은 입력·ZIP·속도를 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 현재 검증 결과와 재현 환경은 [Task105 계획](../../docs/plans/S15P31E102-105.md)에 기록합니다.

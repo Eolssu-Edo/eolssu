@@ -127,10 +127,11 @@ class RenderTests(unittest.TestCase):
         self.assertAlmostEqual(float(np.linalg.norm(soft[a:b])/np.linalg.norm(loud[a:b])),64/127,places=10)
 
     def test_pitch_bend_changes_actual_frequency_and_resets(self):
-        value=score();value["context"]["tuning_a_hz"]=452
+        value=score([{"id":"a","pitch":69,"duration":"1/2"}])
+        value["context"]["tuning_a_hz"]=452
         _, midi=wire(value)
         audio,_=synthetic_sampler().render(midi)
-        signal=audio[round(.2*FS):round(.8*FS)]
+        signal=audio[round(.1*FS):round(.4*FS)]
         crossings=np.where((signal[:-1] <= 0)&(signal[1:]>0))[0]
         crossing_times=crossings-signal[crossings]/(signal[crossings+1]-signal[crossings])
         frequency=FS/np.mean(np.diff(crossing_times))
@@ -149,9 +150,9 @@ class RenderTests(unittest.TestCase):
         self.assertLess(abs(quiet[index]/loud[index]),.03)
 
     def test_same_pitch_slur_preserves_phase(self):
-        _, whole=wire(score([{"id":"a","pitch":69,"duration":2}]))
-        _, split=wire(score([{"id":"a","pitch":69,"duration":1,"slur":"s"},
-                            {"id":"b","pitch":69,"duration":1,"slur":"s"}]))
+        _, whole=wire(score([{"id":"a","pitch":69,"duration":"1/2"}]))
+        _, split=wire(score([{"id":"a","pitch":69,"duration":"1/4","slur":"s"},
+                            {"id":"b","pitch":69,"duration":"1/4","slur":"s"}]))
         a,_=synthetic_sampler().render(whole)
         b,trace=synthetic_sampler().render(split)
         self.assertTrue(trace[1]["same_pitch_continuation"])
@@ -191,6 +192,62 @@ class RenderTests(unittest.TestCase):
                 run(root/"score.json",root/"assets.json",out,["danso"])
             self.assertEqual((out/"comparison.html").read_text(),"previous")
             self.assertEqual(len(list(out.iterdir())),1)
+
+
+class VibratoTests(unittest.TestCase):
+    def test_fixed_25_cent_vibrato_keeps_short_notes_and_timing(self):
+        source=score([{"id":"short","pitch":69,"duration":"1/2"},
+                      {"id":"long","pitch":69,"duration":2},
+                      {"id":"last","pitch":69,"duration":"1/2"}])
+        original=deepcopy(source)
+        _, midi=wire(source)
+        self.assertEqual(source,original)
+        self.assertEqual(len(midi["notes"]),3)
+        for note,(start,end) in zip(midi["notes"],[(0,.5),(.5,2.5),(2.5,3)]):
+            self.assertAlmostEqual(note["start"],start)
+            self.assertAlmostEqual(note["end"],end)
+        self.assertTrue(all(c==0 for t,c in midi["bends"] if t<=.5))
+        self.assertTrue(all(c==0 for t,c in midi["bends"] if t>=2.5))
+        bends=[c for t,c in midi["bends"] if .5<t<2.5]
+        self.assertAlmostEqual(max(bends),25,delta=.08)
+        self.assertAlmostEqual(min(bends),-25,delta=.08)
+        self.assertEqual(midi["bends"][-1][1],0)
+        for duration,enabled in (("0.64",False),("0.65",True)):
+            with self.subTest(duration=duration):
+                _, boundary=wire(score([{"id":"a","pitch":69,"duration":duration}]))
+                self.assertEqual(any(c!=0 for _,c in boundary["bends"]),enabled)
+
+    def test_authored_pitch_and_mixed_yoseong_are_not_added_twice(self):
+        for mode in ("pitch","mixed"):
+            with self.subTest(mode=mode):
+                _, midi=wire(score([{"id":"a","pitch":69,"duration":2,
+                                     "yoseong":{"mode":mode,"cents":8,"hz":3}}]))
+                bends=[c for _,c in midi["bends"]]
+                self.assertAlmostEqual(max(bends),8,delta=.08)
+                self.assertAlmostEqual(min(bends),-8,delta=.08)
+
+    def test_amplitude_yoseong_remains_with_fixed_pitch_vibrato(self):
+        source=score([{"id":"a","pitch":69,"duration":2}])
+        _, baseline=wire(source)
+        source["notes"][0]["yoseong"]={"mode":"amplitude","depth":.2}
+        _, midi=wire(source)
+        self.assertEqual(midi["bends"],baseline["bends"])
+        self.assertTrue(all(c==1 for _,c in baseline["cc11"]))
+        self.assertLess(min(c for _,c in midi["cc11"]),.82)
+        self.assertGreater(max(c for _,c in midi["bends"]),24.9)
+
+    def test_rendered_pcm_has_25_cent_width_and_delayed_start(self):
+        _, short=wire(score([{"id":"a","pitch":69,"duration":"1/2"}]))
+        _, long=wire(score([{"id":"a","pitch":69,"duration":2}]))
+        plain,_=synthetic_sampler().render(short)
+        audio,_=synthetic_sampler().render(long)
+        np.testing.assert_array_equal(audio[:round(.22*FS)],plain[:round(.22*FS)])
+        signal=audio[round(.45*FS):round(1.7*FS)]
+        crossings=np.where((signal[:-1]<=0)&(signal[1:]>0))[0]
+        times=crossings-signal[crossings]/(signal[crossings+1]-signal[crossings])
+        cents=1200*np.log2(FS/np.diff(times)/440)
+        self.assertAlmostEqual(float(max(cents)),25,delta=.2)
+        self.assertAlmostEqual(float(min(cents)),-25,delta=.2)
 
 
 if __name__ == "__main__":
