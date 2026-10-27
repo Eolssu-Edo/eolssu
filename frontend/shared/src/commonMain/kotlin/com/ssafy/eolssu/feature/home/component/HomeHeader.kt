@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.Instrument
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_change_instrument
@@ -45,9 +46,9 @@ internal fun InstrumentChip(instrument: Instrument, onClick: () -> Unit, modifie
             border = BorderStroke(1.dp, EolssuTheme.colors.line),
             modifier = Modifier.heightIn(min = 44.dp).semantics { contentDescription = description },
         ) {
-            Icon(HomeIcons.Flute, contentDescription = null, modifier = Modifier.size(14.dp))
+            Icon(EolssuIcons.Flute, contentDescription = null, modifier = Modifier.size(14.dp))
             Text(name, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(start = 6.dp, end = 4.dp))
-            Icon(HomeIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(12.dp), tint = EolssuTheme.colors.textMuted)
+            Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(12.dp), tint = EolssuTheme.colors.textMuted)
         }
     }
 }

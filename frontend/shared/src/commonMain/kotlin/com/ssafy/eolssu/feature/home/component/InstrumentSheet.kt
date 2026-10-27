@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.Instrument
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.instrument_sheet_current
@@ -86,12 +87,12 @@ private fun InstrumentRow(instrument: Instrument, isSelected: Boolean, onClick: 
             Modifier.size(36.dp).background(EolssuTheme.colors.surface, MaterialTheme.shapes.small),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(HomeIcons.Flute, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(EolssuIcons.Flute, contentDescription = null, modifier = Modifier.size(18.dp))
         }
         Text(stringResource(instrument.label), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
         if (isSelected) {
             Text(stringResource(Res.string.instrument_sheet_current), style = MaterialTheme.typography.labelMedium)
-            Icon(HomeIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp))
         } else {
             Spacer(Modifier.size(18.dp))
         }
