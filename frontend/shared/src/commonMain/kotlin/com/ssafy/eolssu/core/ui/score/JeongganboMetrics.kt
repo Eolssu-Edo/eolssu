@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.core.ui.score
 
 import androidx.compose.runtime.Immutable
+import com.ssafy.eolssu.core.model.Jangdan
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,26 @@ data class JeongganboMetrics(
 
         /** 태블릿 기본 크기. */
         val Tablet = JeongganboMetrics(columnWidth = 50.dp, cellHeight = 54.dp, yulSize = 18.sp, auxSize = 10.sp)
+
+        /**
+         * 연습 화면 크기. 한 줄의 정간이 [availableHeight]에 세로 스크롤 없이 들어가도록 정간 높이를 맞춘다.
+         * 한 줄이 11정간 이상인 장단은 글자를 줄이고([dense]), 크게 보기([big])는 각·글자를 키운다(와이어프레임 `fitCellsIn`).
+         */
+        fun practice(jangdan: Jangdan, availableHeight: Dp, big: Boolean, tablet: Boolean = false): JeongganboMetrics {
+            val rows = jangdan.strips.max()
+            val dense = rows >= 11
+            val minHeight = when {
+                big -> 60.dp
+                dense -> 28.dp
+                else -> 40.dp
+            }
+            val fitted = ((availableHeight - 20.dp - 14.dp) / rows).let { if (it < minHeight) minHeight else it }
+            return when {
+                big -> JeongganboMetrics(columnWidth = 72.dp, cellHeight = fitted, yulSize = 26.sp, auxSize = 11.sp)
+                dense -> JeongganboMetrics(columnWidth = if (tablet) 64.dp else 50.dp, cellHeight = fitted, yulSize = 16.sp, auxSize = 8.5.sp)
+                else -> JeongganboMetrics(columnWidth = if (tablet) 64.dp else 56.dp, cellHeight = fitted, yulSize = 19.sp, auxSize = 9.5.sp)
+            }
+        }
 
         private fun splitScale(noteCount: Int): Float = when {
             noteCount <= 1 -> 1f

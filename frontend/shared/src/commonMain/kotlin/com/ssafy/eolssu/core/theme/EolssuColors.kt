@@ -31,6 +31,8 @@ data class EolssuColors(
     val rec: Color,
     val recSoft: Color,
     val recText: Color,
+    /** 재생·연주 중 지나간 정간의 바탕(옅은 회색). 글자는 [text]. */
+    val doneSoft: Color,
 )
 
 val LightEolssuColors = EolssuColors(
@@ -52,4 +54,5 @@ val LightEolssuColors = EolssuColors(
     rec = Color(0xFFC23A30),
     recSoft = Color(0xFFFBE6E4),
     recText = Color(0xFFB3352B),
+    doneSoft = Color(0xFFE3E3E0),
 )

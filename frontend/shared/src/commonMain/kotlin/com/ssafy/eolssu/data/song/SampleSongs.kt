@@ -23,9 +23,9 @@ internal object SampleJangdans {
         gueum = listOf("덩", "", "기덕", "쿵", "", "더러러러", "쿵", "", "기덕", "쿵", "", "더러러러"),
     )
     val Jungmori = Jangdan("중모리", listOf(3, 3, 3, 3), beats = 12, subdivision = 1)
-    val Taryeong = Jangdan("타령", listOf(3, 3, 3, 3), beats = 4, subdivision = 3)
-    val Dodeuri = Jangdan("도드리", listOf(6), beats = 6, subdivision = 1)
-    val Seryeongsan = Jangdan("세령산", listOf(3, 2, 2, 3), beats = 10, subdivision = 1)
+    val Taryeong = Jangdan("타령", listOf(3, 3, 3, 3), beats = 4, subdivision = 3, aliases = "타령 · 군악 · 계면가락도드리")
+    val Dodeuri = Jangdan("도드리", listOf(6), beats = 6, subdivision = 1, aliases = "상현도드리 · 하현도드리 · 염불도드리 · 도드리(밑·웃)")
+    val Seryeongsan = Jangdan("세령산", listOf(3, 2, 2, 3), beats = 10, subdivision = 1, aliases = "세령산 · 가락덜이")
     val Gagok16 = Jangdan("가곡 16박", listOf(11, 5), beats = 16, subdivision = 1)
     val Yeominrak = Jangdan("여민락", listOf(6, 4, 4, 6), beats = 20, subdivision = 1)
 }

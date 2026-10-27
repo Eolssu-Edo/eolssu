@@ -9,6 +9,7 @@ import kotlin.math.ceil
  * @property beats 한 주기의 박 수. 속도(BPM)는 박 기준이다.
  * @property subdivision 한 박의 정간 수. 대강이 고르지 않은 장단은 1(BPM = 분당 정간 수)이다.
  * @property gueum 정간별 구음. 데이터가 없으면 null.
+ * @property aliases 같은 장단을 쓰는 다른 곡·장단 이름(예: '타령 · 군악 · 계면가락도드리'). 없으면 null.
  */
 data class Jangdan(
     val name: String,
@@ -16,6 +17,7 @@ data class Jangdan(
     val beats: Int,
     val subdivision: Int,
     val gueum: List<String>? = null,
+    val aliases: String? = null,
 ) {
     init {
         require(daegang.isNotEmpty() && daegang.all { it > 0 }) { "대강은 1정간 이상이어야 한다: $daegang" }

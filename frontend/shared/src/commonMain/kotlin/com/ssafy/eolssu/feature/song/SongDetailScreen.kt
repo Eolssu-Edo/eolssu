@@ -29,8 +29,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.InfoHint
 import com.ssafy.eolssu.core.ui.component.fadeOutBottom
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.feature.song.component.jangdanLabel
-import com.ssafy.eolssu.feature.song.component.songLevelLabel
+import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.instrument_daegeum
 import eolssu.shared.generated.resources.song_bpm_value

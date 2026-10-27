@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.feature.home.HomeRoute
+import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 
@@ -19,7 +20,12 @@ object EolssuDestination {
     const val SONG_LIST = "songs"
     const val SONG_DETAIL = "songs/{songId}"
 
+    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}"
+
     fun songDetail(songId: String) = "songs/$songId"
+
+    /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. */
+    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false) = "practice/$songId?solo=$solo&switched=$switched"
 }
 
 /**
@@ -48,7 +54,36 @@ fun EolssuNavHost(
             SongDetailRoute(
                 songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                 onBack = { navController.popBackStack() },
-                onStartPractice = null,
+                onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+            )
+        }
+        composable(
+            EolssuDestination.PRACTICE,
+            arguments = listOf(
+                navArgument("songId") { type = NavType.StringType },
+                navArgument("solo") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+                navArgument("switched") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
+        ) { entry ->
+            val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
+            PracticeRoute(
+                songId = songId,
+                solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
+                showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
+                onBack = { navController.popBackStack() },
+                onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
+                onSwitchToEval = {
+                    navController.navigate(EolssuDestination.practice(songId, switched = true)) {
+                        popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
+                    }
+                },
+                onEvaluate = null,
             )
         }
     }

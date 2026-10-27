@@ -32,7 +32,7 @@ enum class EolssuButtonStyle { Primary, Secondary, Text, Danger }
 
 /**
  * 알약 모양 버튼(높이 52dp, [small]이면 40dp). 기본은 가로를 꽉 채우고, [small]이면 내용 너비만큼만 차지한다.
- * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다.
+ * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
  */
 @Composable
 fun EolssuButton(
@@ -44,6 +44,7 @@ fun EolssuButton(
     enabled: Boolean = true,
     small: Boolean = false,
     busy: Boolean = false,
+    compact: Boolean = false,
     contentColor: Color? = null,
     borderColor: Color? = null,
 ) {
@@ -71,7 +72,7 @@ fun EolssuButton(
         contentColor = contentColor ?: content,
         border = BorderStroke(1.dp, borderColor ?: border),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(PaddingValues(horizontal = if (small) 14.dp else 20.dp))) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(PaddingValues(horizontal = if (small) 14.dp else if (compact) 10.dp else 20.dp))) {
             if (busy) {
                 CircularProgressIndicator(Modifier.size(18.dp), color = contentColor ?: content, strokeWidth = 2.dp)
             } else {

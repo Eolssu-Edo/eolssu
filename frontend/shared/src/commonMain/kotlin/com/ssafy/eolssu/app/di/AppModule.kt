@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.app.di
 
+import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.home.HomeViewModel
+import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.song.SongDetailViewModel
 import com.ssafy.eolssu.feature.song.SongListViewModel
 import org.koin.core.module.dsl.viewModel
@@ -13,8 +15,10 @@ import org.koin.dsl.module
 val appModule = module {
     // API가 생기면 예시 구현을 API 구현으로 바꾼다.
     single<SongRepository> { SampleSongRepository() }
+    single { PracticeSettingsStore() }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
+    viewModel { (songId: String, solo: Boolean) -> PracticeViewModel(songId, solo, get(), get()) }
 }

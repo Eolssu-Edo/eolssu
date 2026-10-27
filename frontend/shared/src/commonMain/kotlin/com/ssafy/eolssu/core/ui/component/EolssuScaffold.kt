@@ -74,7 +74,7 @@ fun EolssuScaffold(
 }
 
 /**
- * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구) · 오른쪽 자리.
+ * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리.
  */
 @Composable
 fun EolssuTopBar(
@@ -82,6 +82,7 @@ fun EolssuTopBar(
     onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    below: (@Composable () -> Unit)? = null,
     right: @Composable RowScope.() -> Unit = {},
 ) {
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
@@ -115,6 +116,7 @@ fun EolssuTopBar(
                         textAlign = TextAlign.Center,
                     )
                 }
+                if (below != null) Box(Modifier.padding(top = 6.dp)) { below() }
             }
             Row(Modifier.widthIn(min = 40.dp), horizontalArrangement = Arrangement.End, content = right)
         }

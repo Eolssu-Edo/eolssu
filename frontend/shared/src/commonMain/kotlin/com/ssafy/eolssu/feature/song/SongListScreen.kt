@@ -40,13 +40,13 @@ import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
-import com.ssafy.eolssu.feature.song.component.jangdanLabel
-import com.ssafy.eolssu.feature.song.component.songLevelFilterLabel
-import com.ssafy.eolssu.feature.song.component.songLevelLabel
+import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_count
 import eolssu.shared.generated.resources.song_empty
+import eolssu.shared.generated.resources.song_level_all
 import eolssu.shared.generated.resources.song_list_title
 import eolssu.shared.generated.resources.song_reset_filters
 import eolssu.shared.generated.resources.song_search_placeholder
@@ -95,6 +95,10 @@ fun SongListScreen(
         }
     }
 }
+
+@Composable
+private fun songLevelFilterLabel(filter: SongLevelFilter): String =
+    filter.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_level_all)
 
 @Composable
 private fun SearchField(query: String, onQueryChange: (String) -> Unit, onClear: () -> Unit) {

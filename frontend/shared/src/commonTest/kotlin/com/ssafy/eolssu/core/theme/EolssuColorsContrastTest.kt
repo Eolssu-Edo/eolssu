@@ -32,6 +32,7 @@ class EolssuColorsContrastTest {
         assertReadable("recText / recSoft", colors.recText, colors.recSoft)
         assertReadable("text / accentSoft", colors.text, colors.accentSoft)
         assertReadable("accentText / surface", colors.accentText, colors.surface)
+        assertReadable("text / doneSoft", colors.text, colors.doneSoft)
     }
 
     private fun assertReadable(name: String, foreground: Color, background: Color) {
