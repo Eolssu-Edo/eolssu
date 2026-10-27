@@ -22,4 +22,9 @@
     <string name="instrument_sheet_title">악기 선택</string>
     <string name="instrument_sheet_subtitle">연습·운지법·평가에 쓸 악기예요</string>
     <string name="instrument_sheet_current">현재 악기</string>
+
+    <string name="score_column_start">시작</string>
+    <string name="score_hold">지속 표시</string>
+    <string name="score_rest">쉼표</string>
+    <string name="score_rest_hangul">쉼</string>
 </resources>
