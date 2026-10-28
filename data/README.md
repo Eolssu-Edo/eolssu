@@ -2,7 +2,7 @@
 
 얼쑤의 음원·악보 데이터를 수집·정제하고, 분석과 검증에 사용할 데이터셋을 구축합니다.
 
-AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
+Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
 
 ## 담당 범위
 
@@ -24,6 +24,16 @@ AI 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과�
 
 데이터를 전달할 때 필요한 악보·음표 식별자, 시간·음높이 단위, 데이터 버전은 사용하는 파트와 맞춥니다. 구체적인 스키마와 전달 방식은 실제 구현에서 정합니다.
 
+## 정석 음원 제작
+
+[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 공통 악보 JSON을 MIDI와 WAV로 만듭니다. 설치·CAT 파일 준비·생성 명령은 해당 README를 따릅니다. JGB 직접 입력은 후속 변환기로 연결할 범위입니다.
+
+의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
+```
+
 ## 파일 관리
 
 팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.
@@ -34,15 +44,16 @@ data/
 │   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
 │   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
-│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
+│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표. 사람이 원본과 대조해 확정한 정답 .jgb.json과 검토 기록.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
+│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
 ├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
-├── mart/                    # 집계 DB 스키마.
+├── mart/                    # 집계 DB 스키마(schema.sql)와 이미 만든 마트용 변경(alter_*.sql).
 ├── raw/                     # 받은 원본 그대로. Git 제외.
 │   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
 │   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.
@@ -251,6 +262,26 @@ python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022
 
 `report.json`의 `jeonggans`가 열마다 같은 수인지, `ignored`에 시김새 외의 글자가 없는지 확인합니다. 오선보처럼 정간보가 아닌 PDF는 오류로 끝납니다.
 
+### 대조 결과 집계
+
+검토 화면에서 내려받은 `<제목>.review.json`(과 같은 폴더의 `<제목>.jgb.json`)으로 곡별 정간·칸 모양·율명·시김새 정확도와 자주 틀린 율명을 셉니다. 결과는 [대조 결과 문서](../docs/knowledge/data/jeongganbo-omr-accuracy.md)에 있습니다.
+
+```bash
+python data/src/scores/review_stats.py <검토 기록 폴더> --json <결과.json>
+```
+
+OMR 옵션의 효과는 같은 정답으로 잽니다. `jeongganbo_omr.py`에 `--yul <악기 또는 율명 목록>`(고를 수 있는 율명 제한, 악기는 `danso`·`sogeum`·`jeongak-daegeum`)이나 `--read-dpi 300`(율명은 고해상도 그림에서 잘라 읽기)을 더해 곡마다 돌린 뒤, 조합별 출력 폴더를 비교합니다. 정간은 칸 상자 위치로 짝지으므로 칸을 찾는 `--dpi`와 보정 옵션은 정답을 만들 때와 같아야 합니다.
+
+```bash
+python data/src/scores/omr_eval.py <검토 기록 폴더> 기준=<출력 폴더> 단소제한=<출력 폴더>
+```
+
+`--octave-check <평균 모양.json>`은 모델이 낸 청태·청황을 글자 모양으로 다시 가려 중청태·중청황으로 고칩니다. 평균 모양은 정답과 `--read-dpi 300`으로 돌린 출력 폴더(`page-read.png` 포함)로 만들고 `data/processed/`에 둡니다(원본 악보 그림에서 나온 값이라 커밋하지 않습니다).
+
+```bash
+python data/src/scores/octave_check.py <검토 기록 폴더> <출력 폴더> --out data/processed/scores/danso-115/octave-templates.json
+```
+
 ### 검토 화면
 
 두 스크립트의 출력 폴더(`page.png`·`cells.json`)와 처음 변환한 `.jgb.json`을 곡마다 HTML 한 장으로 묶습니다. 브라우저로 열면 악보 그림 위의 정간 상자, 고르는 정간의 확대 그림, 결과 입력칸과 미리보기, 곡 전체 각 목록이 한 화면에 있습니다. OMR 신뢰도 0.2 미만은 빨강, 0.5 미만은 주황 테두리입니다. 고친 내용은 브라우저에 자동 저장되고, **.jgb.json 저장**으로 우물사이 문서를, **검토 기록 저장**으로 정간별 처음 결과·고친 결과·확인 여부를 내려받습니다. 빠진 정간은 **뒤에 빈 정간 넣기**로 채웁니다.
@@ -264,6 +295,14 @@ python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022
 ```bash
 python data/src/scores/review_page.py data/processed/scores/danso-115/omr/* data/processed/scores/danso-115/std/* --jgb data/processed/scores/danso-115/jgb --umulsai ~/omr/jeongganbo-generator --out data/processed/scores/danso-115/review
 ```
+
+변환 결과 폴더 없이 `.jgb.json`만 있으면 파일을 직접 줍니다. 같은 폴더에서 이름 앞부분이 맞는 원본 PDF의 첫 쪽을 그림으로 붙이고, 문서의 선율을 처음 결과로 씁니다. 정간 상자는 [grid_boxes.py](src/scores/grid_boxes.py)가 그림의 선만 보고 찾습니다. 가로선이 있는 율명 열과 그 오른쪽 가사 열의 짝으로 정간 열을 고르고, 칸 수가 문서와 같은 악보에만 상자를 붙입니다. 칸 수가 같은 악보가 나란하면(소금보·단소보, 연습곡 1·2) 오른쪽 제목 글자에 `소금`이나 문서 이름 끝의 곡 이름이 든 쪽을 고릅니다. 맞는 악보가 하나가 아니면 상자 없이 만들고 그 사실을 출력합니다. 정간마다 가사가 있으면 함께 보입니다. 성부가 여럿인 문서는 각을 성부 순서로 이어 한 화면에서 검토하고 저장할 때 성부별로 나눕니다. 각 수·각 길이 설정은 첫 성부 기준입니다.
+
+```bash
+python data/src/scores/review_page.py <폴더>/*.jgb.json --umulsai ~/omr/jeongganbo-generator --out <폴더>/review
+```
+
+소금 정간보 14개 문서(`sogeum_dataset`, PDF 13개)는 이 방식으로 만들었습니다. 이 판형은 두 쪽 펼침에 가사·설명 글이 섞여 있어 `standard_score_text.py`는 13개 PDF 중 1개만 읽었고, OMR 리더의 칸 찾기는 dpi 100~300에서 1개만 일부 찾았습니다. `grid_boxes.py`로는 14개 모두 칸 수가 문서와 같았고, 상자 위에 문서 선율을 겹쳐 그려 순서·위치가 맞는 것을 확인했습니다. 북천이맑다커늘은 두 성부의 열을 각각 찾습니다.
 
 HTML에 원본 악보 그림이 들어가므로 공유 위치에 올리지 않습니다. 문서의 레이아웃·대강은 처음 변환한 `.jgb.json`을 그대로 쓰고 선율·각 수·각별 정간 수만 바꿉니다.
 

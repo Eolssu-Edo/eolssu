@@ -1,0 +1,71 @@
+package com.ssafy.eolssu.feature.song
+
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.model.MySheetKind
+import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.feature.song.component.AddSheetOption
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.mysongs_saved
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * SONG-03 연결. 제공 곡과 정간보 내 악보는 [onPractice]로 평가 없는 연습 모드에 가고, 'PDF 악보 올리기'는 [onUploadPdf]로 간다.
+ * PDF 보기·MIDI 변환 결과·편집기·음원 변환은 2차 확장 화면이라 '준비 중' 안내를 띄운다.
+ */
+@Composable
+fun MySongsRoute(
+    onBack: () -> Unit,
+    onPractice: (songId: String) -> Unit,
+    onUploadPdf: () -> Unit,
+    viewModel: MySongsViewModel = koinViewModel(),
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val comingSoon = stringResource(Res.string.common_coming_soon)
+    val savedMessage = stringResource(Res.string.mysongs_saved)
+    val showMessage: (String) -> Unit = { message ->
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(state.savedSheet) {
+        if (state.savedSheet != null) {
+            showMessage(savedMessage)
+            viewModel.consumeSavedNotice()
+        }
+    }
+
+    MySongsScreen(
+        state = state,
+        widthClass = currentWindowLayout().widthClass,
+        snackbarHostState = snackbarHostState,
+        actions = MySongsActions(
+            onBack = onBack,
+            onSelectTab = viewModel::selectTab,
+            onOpenSong = onPractice,
+            onOpenSheet = { sheet ->
+                val songId = sheet.songId
+                if (sheet.kind == MySheetKind.Jeongganbo && songId != null) onPractice(songId) else showMessage(comingSoon)
+            },
+            onEditSheet = { showMessage(comingSoon) },
+            onOpenAddSheet = viewModel::openAddSheet,
+            onCloseAddSheet = viewModel::closeAddSheet,
+            onSelectAddOption = { option ->
+                viewModel.closeAddSheet()
+                if (option == AddSheetOption.Pdf) onUploadPdf() else showMessage(comingSoon)
+            },
+        ),
+    )
+}

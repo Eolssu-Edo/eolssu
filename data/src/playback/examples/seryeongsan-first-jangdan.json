@@ -1,0 +1,272 @@
+{
+  "schema": "gugak-reviewed-score/v1",
+  "title": "세령산 단소 첫 장단: 실음 유지 미리듣기",
+  "source": {
+    "edition": "국립국악원 창작을 위한 국악기 이해와 활용2 단소 p36 세령산 첫 장단",
+    "url": "https://www.gugak.go.kr/site/inc/file/fileDownloadLog?dirname=/board/138&filename=kor_danso.pdf&type=F&sistype=D&boardseq=41189&boardid=10928",
+    "review_status": "manually-transcribed-unverified",
+    "scope": "원보 대조 수동 입력. 국악 전문가 미검수. 악보 위 8va를 이미 적용한 실음."
+  },
+  "context": {
+    "pitch_mode": "sounding",
+    "notation_octave_shift": 0,
+    "tuning_a_hz": 440,
+    "style": "향악 정악 · 단소 세령산",
+    "tuning_description": "기존 실음 MIDI를 유지한 12평균율 A440 비교 기준. CAT preset detune 별도 적용. 실제 연주 조율을 검증한 값이 아님."
+  },
+  "quarter_bpm": 67.5,
+  "assumptions": [
+    "점4분음표=45; 4분음표=67.5",
+    "짧은 꾸밈/앞꾸밈 각각 1/16 quarter(4분음표 길이의 1/16)를 본음에서 차감",
+    "숨표 120ms+release50ms를 직전음에서 차감",
+    "이음줄은 샘플 교차페이드20ms 근사. 단소만100ms sustain offset",
+    "명시 요성 표기는 없음. 추가 떨림 ±25cent는 공통 재생 설정의 길이·중복 방지 조건에 따라 적용",
+    "기존 실험의 음량·강세 수치는 청취용 선택값"
+  ],
+  "notes": [
+    {
+      "id": "1",
+      "pitch": 82,
+      "duration": "3/2",
+      "slur": "p1"
+    },
+    {
+      "id": "2",
+      "pitch": 85,
+      "duration": "1",
+      "slur": "p1"
+    },
+    {
+      "id": "3",
+      "pitch": 82,
+      "duration": "1/4",
+      "slur": "p1"
+    },
+    {
+      "id": "4",
+      "pitch": 80,
+      "duration": "1/4",
+      "slur": "p1"
+    },
+    {
+      "id": "5",
+      "pitch": 87,
+      "duration": "1",
+      "slur": "p1"
+    },
+    {
+      "id": "6",
+      "pitch": 89,
+      "duration": "1/2",
+      "slur": "p1"
+    },
+    {
+      "id": "7",
+      "pitch": 80,
+      "duration": "3/2",
+      "slur": "p1",
+      "breath_seconds": 0.12
+    },
+    {
+      "id": "8",
+      "pitch": 80,
+      "duration": "3/4",
+      "slur": "p2",
+      "ornament": {
+        "kind": "upper-return",
+        "pitch": 82,
+        "duration": "1/16"
+      }
+    },
+    {
+      "id": "9",
+      "pitch": 82,
+      "duration": "1/8",
+      "slur": "p2"
+    },
+    {
+      "id": "10",
+      "pitch": 85,
+      "duration": "1/8",
+      "slur": "p2"
+    },
+    {
+      "id": "11",
+      "pitch": 82,
+      "duration": "1/6",
+      "slur": "p2"
+    },
+    {
+      "id": "12",
+      "pitch": 80,
+      "duration": "1/6",
+      "slur": "p2"
+    },
+    {
+      "id": "13",
+      "pitch": 85,
+      "duration": "1/6",
+      "slur": "p2"
+    },
+    {
+      "id": "14",
+      "pitch": 82,
+      "duration": "1",
+      "slur": "p3",
+      "ornament": {
+        "kind": "upper-return",
+        "pitch": 85,
+        "duration": "1/16"
+      },
+      "velocity": 106
+    },
+    {
+      "id": "15",
+      "pitch": 82,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "16",
+      "pitch": 85,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "17",
+      "pitch": 82,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "18",
+      "pitch": 80,
+      "duration": "3/4",
+      "slur": "p3"
+    },
+    {
+      "id": "19",
+      "pitch": 82,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "20",
+      "pitch": 80,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "21",
+      "pitch": 77,
+      "duration": "1/10",
+      "slur": "p3"
+    },
+    {
+      "id": "22",
+      "pitch": 75,
+      "duration": "1/10",
+      "slur": "p3"
+    },
+    {
+      "id": "23",
+      "pitch": 80,
+      "duration": "1/10",
+      "slur": "p3"
+    },
+    {
+      "id": "24",
+      "pitch": 82,
+      "duration": "1/10",
+      "slur": "p3"
+    },
+    {
+      "id": "25",
+      "pitch": 80,
+      "duration": "1/10",
+      "slur": "p3"
+    },
+    {
+      "id": "26",
+      "pitch": 75,
+      "duration": "3/4",
+      "slur": "p3",
+      "ornament": {
+        "kind": "grace-before",
+        "pitch": 77,
+        "duration": "1/16"
+      }
+    },
+    {
+      "id": "27",
+      "pitch": 70,
+      "duration": "1/4",
+      "slur": "p3",
+      "ornament": {
+        "kind": "upper-return",
+        "pitch": 73,
+        "duration": "1/16"
+      }
+    },
+    {
+      "id": "28",
+      "pitch": 75,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "29",
+      "pitch": 77,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "30",
+      "pitch": 75,
+      "duration": "1/6",
+      "slur": "p3"
+    },
+    {
+      "id": "31",
+      "pitch": 80,
+      "duration": "3/4",
+      "slur": "p3"
+    },
+    {
+      "id": "32",
+      "pitch": 82,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "33",
+      "pitch": 80,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "34",
+      "pitch": 77,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "35",
+      "pitch": 75,
+      "duration": "1/4",
+      "slur": "p3"
+    },
+    {
+      "id": "36",
+      "pitch": 77,
+      "duration": "1/8",
+      "slur": "p3"
+    },
+    {
+      "id": "37",
+      "pitch": 80,
+      "duration": "3/2",
+      "slur": "p3"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.backend
 
+import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import jakarta.servlet.MultipartConfigElement
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -46,11 +48,21 @@ class BackendApplicationTests {
     }
 
     @Test
+    fun `multipart limits leave room above the 20 MiB recording limit`() {
+        val multipart = context.getBean(MultipartConfigElement::class.java)
+
+        // 413 경계(20MiB)는 녹음 검사기가 정한다. multipart는 스펙(PRA-02 요청 크기 한도)대로 파일·요청 25MiB.
+        assertEquals(25L * 1024 * 1024, multipart.maxFileSize)
+        assertEquals(25L * 1024 * 1024, multipart.maxRequestSize)
+    }
+
+    @Test
     fun `starts eolssu HTTP server without a database or AI service`() {
         assertEquals("eolssu", environment.getProperty("spring.application.name"))
         assertTrue(context.getBeansOfType(DataSource::class.java).isEmpty())
         assertTrue(context.getBeansOfType(SqlSessionFactory::class.java).isEmpty())
         assertTrue(context.getBeansOfType(Flyway::class.java).isEmpty())
+        assertTrue(context.getBeansOfType(RecordingUploadExpiryService::class.java).isEmpty())
 
         HttpClient.newHttpClient().use { client ->
             val request = HttpRequest.newBuilder()

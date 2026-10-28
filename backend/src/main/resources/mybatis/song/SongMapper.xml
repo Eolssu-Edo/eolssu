@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper">
     <select id="findById" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow">
-        SELECT id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
+        SELECT id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at
         FROM songs
         WHERE id = #{id}
     </select>
