@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 import re
 import unittest
@@ -53,6 +54,28 @@ class PitchTableTests(unittest.TestCase):
         for path in answers:
             melody = json.loads(path.read_text(encoding="utf-8"))["parts"][0]["melody"]
             self.assertLessEqual(set(re.findall(yul, melody)), names, path.name)
+
+
+class PitchFrequencyTests(unittest.TestCase):
+    def test_target_frequency_is_within_50_cents_of_danso_recordings(self):
+        """황=E♭4(311.13Hz) 기준 목표 주파수와 단소 기본음계 녹음의 대표 F0를 비교한다.
+        녹음 라벨의 율명에는 옥타브가 없다. 평취는 중이 가장 낮으므로 황·태가 한 옥타브 위(청)이고,
+        역취는 평취보다 한 옥타브 위다."""
+        pitches = {(r["yul"], r["octave"]): r["semitone"] for r in load("pitches.json")["rows"]}
+        measured = []
+        for path in (DATA / "annotations/audio/danso").glob("*/labels.json"):
+            labels = json.loads(path.read_text(encoding="utf-8"))
+            column = {name: i for i, name in enumerate(labels["columns"])}
+            for group in labels["groups"]:
+                if group["category"] == "기본음계":
+                    measured += [(r[column["register"]], r[column["yulmyeong"]], r[column["labelF0Hz"]])
+                                 for r in group["rows"]]
+        self.assertEqual(len(measured), 30)
+        for register, yul, hz in measured:
+            octave = (yul in "황태") + (register == "역취")
+            target = 311.13 * 2 ** (pitches[(yul, octave)] / 12)
+            cents = 1200 * math.log2(hz / target)
+            self.assertLessEqual(abs(cents), 50, f"{register} {yul} {hz}Hz: {cents:+.1f}센트")
 
 
 class InstrumentTableTests(unittest.TestCase):
