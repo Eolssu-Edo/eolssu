@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.firewall.RequestRejectedHandler
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
@@ -22,6 +24,8 @@ import org.springframework.web.filter.CorsFilter
 class SecurityConfig(
     private val properties: SecurityProperties,
     private val errorWriter: ErrorResponseWriter,
+    private val accessTokenDecoder: JwtDecoder,
+    private val accessTokenResolver: BearerTokenResolver,
 ) {
     @Bean
     fun securityFilterChain(http: HttpSecurity, paths: PathPatternRequestMatcher.Builder): SecurityFilterChain = http
@@ -34,6 +38,12 @@ class SecurityConfig(
         .formLogin { it.disable() }
         .logout { it.disable() }
         .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+        .oauth2ResourceServer {
+            it.bearerTokenResolver(accessTokenResolver)
+            it.jwt { jwt -> jwt.decoder(accessTokenDecoder) }
+            it.authenticationEntryPoint { _, response, _ -> errorWriter.write(response, ErrorCode.UNAUTHENTICATED) }
+            it.accessDeniedHandler { _, response, _ -> errorWriter.write(response, ErrorCode.FORBIDDEN) }
+        }
         // CORS 필터보다 먼저 두어, 다른 사이트의 상태 변경 요청도 공통 오류 형식(403)으로 응답한다.
         // 업로드 판정은 requestMatchers(String)와 같은 Boot 제공 Builder로 만들어 서블릿 경로 기준을 맞춘다. 인코딩된 경로도 디코딩해 비교한다.
         .addFilterBefore(

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties("eolssu.security")
 data class SecurityProperties(
     val allowedOrigins: List<String> = emptyList(),
+    val jwtSecret: String = "",
 ) {
     val normalizedAllowedOrigins: Set<String>
         get() = allowedOrigins.map { it.trim().trimEnd('/').lowercase() }.filter { it.isNotEmpty() }.toSet()

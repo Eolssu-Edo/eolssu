@@ -5,6 +5,8 @@ spring-dependency-management = "1.1.7"
 mybatis-spring-boot = "4.0.0"
 
 [libraries]
+spring-boot-security-oauth2-resource-server = { module = "org.springframework.boot:spring-boot-starter-security-oauth2-resource-server" }
+spring-security-test = { module = "org.springframework.security:spring-security-test" }
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
 spring-boot-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }

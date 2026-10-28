@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.spring.boot.actuator)
     implementation(libs.spring.boot.validation)
     implementation(libs.spring.boot.security)
+    implementation(libs.spring.boot.security.oauth2.resource.server)
     implementation(libs.mybatis.spring.boot)
     implementation(libs.spring.boot.flyway)
     runtimeOnly(libs.flyway.mysql)
@@ -32,6 +33,7 @@ dependencies {
     implementation(libs.jackson.kotlin)
 
     testImplementation(libs.spring.boot.webmvc.test)
+    testImplementation(libs.spring.security.test)
     testImplementation(libs.spring.boot.validation.test)
     testImplementation(libs.kotlin.test.junit5)
     testRuntimeOnly(libs.junit.platform.launcher)
