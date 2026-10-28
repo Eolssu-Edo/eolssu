@@ -25,7 +25,9 @@
   "jangdan": "세마치",
   "meter": "3소박 3박자",
   "tempo": null,
-  "note": "악보에 빠르기 표기 없음"
+  "note": "악보에 빠르기 표기 없음",
+  "beatsPerJeonggan": "1",
+  "beatsPerJeongganBasis": "원본 장구 기호 칸에서 세마치 한 장단(9소박, 3박)이 정간 3개에 걸침 → 정간 하나 = 1박(점4분음표)"
  },
  "serviceSettings": {
   "hwang": "E♭4 (311.13Hz)",
