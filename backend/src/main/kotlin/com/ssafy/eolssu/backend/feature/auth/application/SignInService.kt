@@ -25,12 +25,19 @@ class SignInService(
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
         // 잠금은 DB가 찾은 회원 기준이다. users.email은 악센트·대소문자를 구분하지 않는 콜레이션이라,
         // 입력 문자열 기준이면 kím@처럼 같은 회원을 가리키는 변형으로 잠금을 피할 수 있다.
-        val lockKey = repository.findMember(normalized)?.let { "member:${it.id}" } ?: "email:$normalized"
+        val member = repository.findMember(normalized)
+        val lockKey = member?.let { "member:${it.id}" } ?: "email:$normalized"
         attempts.lockedUntil(lockKey, now)?.let { return SignInResult.TooManyAttempts(it) }
-        val result = try {
-            repository.inTransaction { authenticate(normalized, password, now) }
-        } catch (_: TokenIssuingUnavailable) {
-            return SignInResult.Unavailable
+        // Argon2 계산(요청당 16MB)은 DB 연결·행 잠금 밖에서 끝낸다. 없는 이메일도 같은 계산을 거친다.
+        val passwordMatches = passwordEncoder.matches(password, member?.passwordHash ?: absentMemberHash)
+        val result = if (member == null || !passwordMatches) {
+            SignInResult.InvalidCredentials
+        } else {
+            try {
+                repository.inTransaction { complete(member, normalized, now) }
+            } catch (_: TokenIssuingUnavailable) {
+                return SignInResult.Unavailable
+            }
         }
         if (result == SignInResult.InvalidCredentials) {
             attempts.recordFailure(lockKey, now)?.let { return SignInResult.TooManyAttempts(it) }
@@ -40,13 +47,10 @@ class SignInService(
         return result
     }
 
-    private fun authenticate(email: String, password: String, now: Instant): SignInResult {
+    /** 확인한 뒤 비밀번호가 바뀌었거나 다른 회원이 되었으면 로그인하지 않는다. */
+    private fun complete(verified: SignInMember, email: String, now: Instant): SignInResult {
         val member = repository.findMemberForUpdate(email)
-        if (member == null) {
-            passwordEncoder.matches(password, absentMemberHash)
-            return SignInResult.InvalidCredentials
-        }
-        if (!passwordEncoder.matches(password, member.passwordHash)) return SignInResult.InvalidCredentials
+        if (member == null || member.id != verified.id || member.passwordHash != verified.passwordHash) return SignInResult.InvalidCredentials
         val withdrawalCancelled = member.status == MemberStatus.WITHDRAWAL_PENDING
         if (withdrawalCancelled) repository.cancelWithdrawal(member.id, now)
         repository.recordLogin(member.id, now)

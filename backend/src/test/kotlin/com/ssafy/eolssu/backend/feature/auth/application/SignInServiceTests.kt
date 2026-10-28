@@ -23,8 +23,12 @@ class SignInServiceTests {
     private val repository = MemorySignInRepository()
     private val encoder = object : PasswordEncoder {
         override fun encode(rawPassword: CharSequence?) = "hashed:$rawPassword"
-        override fun matches(rawPassword: CharSequence?, encodedPassword: String?) = encodedPassword == "hashed:$rawPassword"
+        override fun matches(rawPassword: CharSequence?, encodedPassword: String?): Boolean {
+            if (repository.inTransaction) matchedInsideTransaction = true
+            return encodedPassword == "hashed:$rawPassword"
+        }
     }
+    private var matchedInsideTransaction = false
     private var signingAvailable = true
     private val issuer = AuthTokenIssuer(
         object : AccessTokenSigner {
@@ -91,6 +95,23 @@ class SignInServiceTests {
     }
 
     @Test
+    fun `password hashing runs outside the database transaction`() {
+        assertIs<SignInResult.SignedIn>(service.signIn("learner@example.com", "Example!234"))
+        assertEquals(SignInResult.InvalidCredentials, service.signIn("learner@example.com", "Wrong!234"))
+        assertEquals(SignInResult.InvalidCredentials, service.signIn("absent@example.com", "Example!234"))
+        assertFalse(matchedInsideTransaction)
+    }
+
+    @Test
+    fun `a password changed after verification does not sign in`() {
+        repository.beforeLockedRead = {
+            repository.members["learner@example.com"] = SignInMember(7, "hashed:Changed!234", "연습자", 3, "HANJA", MemberStatus.ACTIVE)
+        }
+        assertEquals(SignInResult.InvalidCredentials, service.signIn("learner@example.com", "Example!234"))
+        assertTrue(repository.lastLogins.isEmpty())
+    }
+
+    @Test
     fun `missing signing key is unavailable and keeps the login unrecorded`() {
         signingAvailable = false
         assertEquals(SignInResult.Unavailable, service.signIn("learner@example.com", "Example!234"))
@@ -104,9 +125,18 @@ internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository
     val lastLogins = mutableMapOf<Long, Instant>()
     val cancelled = mutableSetOf<Long>()
 
-    override fun <T : Any> inTransaction(action: () -> T): T = action()
+    var inTransaction = false
+    var beforeLockedRead: () -> Unit = {}
+
+    override fun <T : Any> inTransaction(action: () -> T): T {
+        inTransaction = true
+        try { return action() } finally { inTransaction = false }
+    }
     override fun findMember(email: String) = members[aliases[email] ?: email]
-    override fun findMemberForUpdate(email: String) = members[aliases[email] ?: email]
+    override fun findMemberForUpdate(email: String): SignInMember? {
+        beforeLockedRead()
+        return members[aliases[email] ?: email]
+    }
     override fun cancelWithdrawal(userId: Long, now: Instant) { cancelled.add(userId) }
     override fun recordLogin(userId: Long, now: Instant) { lastLogins[userId] = now }
     override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant) = 1L
