@@ -102,3 +102,20 @@ interface PracticeAnalysisRepository {
     /** 시도가 `startedAfter`보다 먼저 시작한 `PENDING`이면 `FAILED`·`TIMEOUT`으로 바꾼다. 바꿨으면 true. */
     fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean
 }
+
+/** 연습 세션의 분석 상태. `failReason`은 `FAILED`일 때만 있고 `attempt`는 현재 분석 시도 번호다(0은 시작 전). */
+data class AnalysisState(val status: String, val failReason: String?, val attempt: Int)
+
+/** 같은 녹음으로 다시 분석할 수 있는 실패 코드(PRA-03 '분석 다시 시도'). 나머지는 새로 녹음해야 하거나 이미 끝났다. */
+val RETRYABLE_FAIL_REASONS = setOf(TIMEOUT, SERVER_ERROR)
+
+/** 분석 다시 시도(S15P31E102-175). 세션은 본인 것일 때만 찾는다. 시각은 UTC `LocalDateTime`이다. */
+interface AnalysisRetryRepository {
+    fun findState(sessionId: Long, userId: Long): AnalysisState?
+
+    /**
+     * 본인 세션이 녹음이 있는 `FAILED`이고 실패 코드가 [RETRYABLE_FAIL_REASONS]이면 시도 번호를 1 올리고
+     * `startedAt`에 시작한 `PENDING`으로 바꾼다. 조건부 갱신이라 동시 요청 중 하나만 true다.
+     */
+    fun startRetry(sessionId: Long, userId: Long, startedAt: LocalDateTime): Boolean
+}
