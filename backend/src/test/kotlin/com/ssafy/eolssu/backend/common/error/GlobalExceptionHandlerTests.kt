@@ -54,6 +54,13 @@ class GlobalExceptionHandlerTests {
             .andExpect(status().isUnsupportedMediaType)
         mvc.perform(get("/fixture?id=1").accept(MediaType.IMAGE_PNG))
             .andExpect(status().isNotAcceptable)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.httpStatus").value("NOT_ACCEPTABLE"))
+            .andExpect(jsonPath("$.isSuccess").value(false))
+            .andExpect(jsonPath("$.code").value(406))
+            .andExpect(jsonPath("$.result.errorCode").value("NOT_ACCEPTABLE"))
+            .andExpect(jsonPath("$.result.details").doesNotExist())
+            .andExpect(jsonPath("$.type").doesNotExist())
     }
 
     @Test
