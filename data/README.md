@@ -44,7 +44,7 @@ data/
 │   ├── <datasetId>/         # 데이터셋별 sources.json과 데이터셋 안의 연주·악보 짝(performances.json).
 │   └── works/               # 데이터셋이 다른 악보·음원·MIDI를 같은 곡으로 묶는 목록. 형식은 첫 묶음 때 정합니다.
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
-│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표.
+│   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표. 사람이 원본과 대조해 확정한 정답 .jgb.json과 검토 기록.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
 │   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
@@ -53,7 +53,7 @@ data/
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
 │   └── catalog/             # 목록과 실제 파일의 SHA-256 대조.
 ├── tests/fixtures/          # 테스트에 쓰는 작은 고정 샘플.
-├── mart/                    # 집계 DB 스키마.
+├── mart/                    # 집계 DB 스키마(schema.sql)와 이미 만든 마트용 변경(alter_*.sql).
 ├── raw/                     # 받은 원본 그대로. Git 제외.
 │   ├── aihub/<데이터셋 번호>/ # AI-Hub에서 받은 구조 그대로. MID·WAV는 01.원천데이터, JSON은 02.라벨링데이터.
 │   ├── instruments/<악기>/  # 악기별 원음과 함께 받은 악보 PDF.

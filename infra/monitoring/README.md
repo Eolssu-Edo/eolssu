@@ -21,8 +21,8 @@
 
 | 계정·DB | 권한 | 용도 |
 | --- | --- | --- |
-| `grafana` | `eolssu` 읽기 | Grafana 데이터 소스 |
-| `metabase` | `eolssu` 읽기, `metabase` 전체 | Metabase 데이터 탐색과 자체 설정 저장 |
+| `grafana` | `eolssu`의 대시보드가 읽는 테이블과 `users`의 개인정보 제외 열 | Grafana 데이터 소스 |
+| `metabase` | `eolssu`의 통계 테이블과 `users`의 개인정보 제외 열, `metabase` 전체 | Metabase 데이터 탐색과 자체 설정 저장 |
 | `metabase` DB | - | Metabase 대시보드·질문 저장소. MySQL 백업에 함께 포함됨 |
 
 비밀번호는 서버에서 `openssl rand -hex 16`으로 두 개 만듭니다. Metabase 비밀번호는 접속 주소에 들어가므로 영문·숫자만 씁니다.
@@ -35,16 +35,33 @@ root 비밀번호는 `sudo grep MYSQL_ROOT_PASSWORD /opt/eolssu/.env`로 확인�
 
 ```sql
 CREATE USER 'grafana'@'%' IDENTIFIED BY '<grafana 비밀번호>';
-GRANT SELECT ON eolssu.* TO 'grafana'@'%';
-
 CREATE DATABASE metabase CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 CREATE USER 'metabase'@'%' IDENTIFIED BY '<metabase 비밀번호>';
-GRANT SELECT ON eolssu.* TO 'metabase'@'%';
 GRANT ALL PRIVILEGES ON metabase.* TO 'metabase'@'%';
+
+-- 두 계정 공통: users는 개인정보(email·password_hash·nickname)를 뺀 열만
+GRANT SELECT (id, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, deleted_at)
+  ON eolssu.users TO 'grafana'@'%', 'metabase'@'%';
+
+-- Grafana: 운영 현황·채점 품질 대시보드가 읽는 테이블
+GRANT SELECT ON eolssu.practice_sessions TO 'grafana'@'%';
+GRANT SELECT ON eolssu.evaluations       TO 'grafana'@'%';
+GRANT SELECT ON eolssu.note_results      TO 'grafana'@'%';
+GRANT SELECT ON eolssu.songs             TO 'grafana'@'%';
+GRANT SELECT ON eolssu.instruments       TO 'grafana'@'%';
+GRANT SELECT ON eolssu.pitches           TO 'grafana'@'%';
+
+-- Metabase: 곡별 통계가 읽는 테이블(테이블 보기에도 이 테이블만 보임)
+GRANT SELECT ON eolssu.practice_sessions TO 'metabase'@'%';
+GRANT SELECT ON eolssu.evaluations       TO 'metabase'@'%';
+GRANT SELECT ON eolssu.songs             TO 'metabase'@'%';
+GRANT SELECT ON eolssu.instruments       TO 'metabase'@'%';
 
 SHOW GRANTS FOR 'grafana'@'%';
 SHOW GRANTS FOR 'metabase'@'%';
 ```
+
+인증 테이블(`email_verifications`·`refresh_tokens`·`user_social_accounts`)과 `users`의 개인정보 열은 두 계정 모두 읽지 못합니다. 권한은 더해지므로 `users`에 테이블 단위 SELECT를 함께 주면 열 제한이 효과가 없습니다. 대시보드나 Metabase에서 다른 테이블이 필요하면 그 테이블만 더합니다.
 
 `'%'`는 모든 주소에서 접속을 허용한다는 뜻이지만, 이 MySQL은 서버 밖에 포트를 열지 않아 같은 Docker 네트워크 안에서만 접속됩니다.
 
@@ -106,6 +123,25 @@ Grafana는 **Save & test**에서 `Database Connection OK`가 나오면 연결된
 | 최근 행 | practice_sessions·evaluations·note_results·users의 최근 20행. users는 이메일·닉네임·비밀번호 해시를 뺍니다 |
 
 화면에서 고친 대시보드는 Share → Export → Save to file로 내려받아 이 파일을 바꿔 커밋합니다. 데이터가 없으면 숫자는 0, 표는 `No data`로 보입니다.
+
+### Grafana: 채점 품질
+
+작업: [S15P31E102-196](https://ssafy.atlassian.net/browse/S15P31E102-196). 기준: [스펙](../../docs/specs/scoring-quality-dashboard.md).
+
+[dashboards/eolssu-scoring-quality.json](dashboards/eolssu-scoring-quality.json)을 위와 같은 순서로 가져옵니다. uid는 `eolssu-scoring-quality`입니다. 자동 새로고침은 없고 기본 기간은 최근 30일입니다.
+
+위쪽 선택상자로 악기·곡·모델 버전을 거릅니다. 곡 목록은 고른 악기의 곡만 보입니다. 오차는 +가 높게·늦게·길게 분 쪽입니다.
+
+| 패널 | 내용 |
+| --- | --- |
+| 오차 분포 | 음높이(10 cent)·박자(20 ms)·길이(50 ms) 구간별 음 수. 범위를 넘는 값은 끝 칸에 넣고, 음을 못 잡은 MISSED는 뺍니다 |
+| 음별 판정 | 정답 음별 맞음·음높이·박자·못 잡음 비율 |
+| 곡별 판정 비율 | 곡별 음 수와 판정 비율(%) |
+| 모델 버전별 평균 점수 | 버전별 채점 수와 총점·음높이·박자·길이 평균 |
+| 실패 세션 원인 | FAILED 세션의 `fail_reason`별 수. 채점 전에 끝난 세션이라 모델 버전 거르기는 적용되지 않습니다 |
+| 채점 처리 시간 | 녹음 종료(`ended_at`)부터 채점 저장(`evaluated_at`)까지의 중앙값과 5초 구간 분포 |
+
+시김새 음은 음높이 판정에서 빠지지만 DB에 시김새 여부가 없어 음높이 오차 분포에는 섞여 있습니다.
 
 ### Metabase: 테이블 보기와 곡별 통계
 

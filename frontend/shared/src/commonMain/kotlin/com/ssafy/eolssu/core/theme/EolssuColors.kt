@@ -31,6 +31,16 @@ data class EolssuColors(
     val rec: Color,
     val recSoft: Color,
     val recText: Color,
+    /** 재생·연주 중 지나간 정간의 바탕(옅은 회색). 글자는 [text]. */
+    val doneSoft: Color,
+    /** 평가 오류 위치: 음정(주황) — 테두리·바탕·글자. */
+    val pitchError: Color,
+    val pitchErrorSoft: Color,
+    val pitchErrorText: Color,
+    /** 평가 오류 위치: 박자(파랑) — 테두리·바탕·글자. 음 길이 오류는 [text] 점선과 [surfaceStrong] 바탕. */
+    val rhythmError: Color,
+    val rhythmErrorSoft: Color,
+    val rhythmErrorText: Color,
 )
 
 val LightEolssuColors = EolssuColors(
@@ -52,4 +62,11 @@ val LightEolssuColors = EolssuColors(
     rec = Color(0xFFC23A30),
     recSoft = Color(0xFFFBE6E4),
     recText = Color(0xFFB3352B),
+    doneSoft = Color(0xFFE3E3E0),
+    pitchError = Color(0xFFC9671A),
+    pitchErrorSoft = Color(0xFFFDE7CF),
+    pitchErrorText = Color(0xFF9A4A0C),
+    rhythmError = Color(0xFF2A62D6),
+    rhythmErrorSoft = Color(0xFFDFE9FB),
+    rhythmErrorText = Color(0xFF1F4FB3),
 )

@@ -1,5 +1,7 @@
 # 인프라 실행과 검증
 
+edo1의 DB·설정을 edo2에 암호화 보관하는 자동 백업과 격리 실제 복원은 [백업 운영 안내](backup/README.md)를 따릅니다.
+
 edo1의 실제 프론트·백엔드·MySQL 운영 구성과 웹·백엔드 자동 배포, `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
 
 ## edo2 점검 중계 서버 준비
@@ -27,7 +29,7 @@ Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수
 | --- | --- |
 | `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영의 백엔드와 Nginx 구성 |
 | `.env.dev.example` / `.env.prod.example` | Compose 치환용 환경변수 예시 |
-| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행, 소스·Wrapper만 포함하는 빌드 컨텍스트 |
+| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper만 포함하는 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
 | `infra/nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
 | `backend/Jenkinsfile` | 백엔드 검증·이미지 빌드·JAR 보관 |
 

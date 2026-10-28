@@ -12,6 +12,8 @@ import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.No
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow
+import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow
 import com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentMapper
@@ -26,6 +28,8 @@ import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.Nota
 import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.NotationSymbolRow
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
+import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
@@ -39,6 +43,7 @@ import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingMapper
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow
 import java.sql.SQLException
+import java.time.Instant
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -53,6 +58,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 import org.springframework.dao.DataAccessException
+import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
@@ -75,9 +81,9 @@ class DatabaseIntegrationTests {
     private lateinit var context: ApplicationContext
 
     @Test
-    fun `applies V1 and V2 on MySQL 8_4 and does not apply them again`() {
+    fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("2", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("4", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -144,14 +150,16 @@ class DatabaseIntegrationTests {
         )
         assertEquals(
             PracticeSessionRow(
-                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav", "DONE", null,
+                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav",
+                20_971_520, 600_500, 48_000, 2, "DONE", null, 0, null,
                 time, time.plusSeconds(1), null, null, null, null, time,
             ),
             mapper<PracticeSessionMapper>().findById(1),
         )
         assertEquals(
             PracticeSessionRow(
-                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null, "DONE", null,
+                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null,
+                null, null, null, null, "DONE", null, 0, null,
                 time, time.plusSeconds(1), time, "다시 연습", time, time, time,
             ),
             mapper<PracticeSessionMapper>().findById(2),
@@ -377,6 +385,44 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `keeps V3 recording metadata empty until upload and all-or-nothing positive`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, started_at) " +
+                "VALUES (3, 1, 1, 90, 'DOTTED_QUARTER', 0, CURRENT_TIMESTAMP(6))",
+        )
+        assertEquals(
+            listOf(null, null, null, null),
+            jdbc.queryForList(
+                "SELECT recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels FROM practice_sessions WHERE id = 3",
+            ).single().values.toList(),
+        )
+        assertEquals(
+            1,
+            jdbc.update(
+                "UPDATE practice_sessions SET recording_bytes = 1, recording_duration_ms = 1, " +
+                    "recording_sample_rate = 8000, recording_channels = 1 WHERE id = 3",
+            ),
+        )
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_channels = NULL WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_bytes = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_duration_ms = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_sample_rate = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_channels = 0 WHERE id = 1")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `deletes a member's practice records in one statement during withdrawal purge`() {
         jdbc.update(
             "INSERT INTO practice_sessions (id, user_id, song_id, parent_session_id, bpm, bpm_unit, end_note_idx, started_at) " +
@@ -387,6 +433,120 @@ class DatabaseIntegrationTests {
         assertEquals(2, jdbc.update("DELETE FROM practice_sessions WHERE user_id = 3 ORDER BY id"))
         assertNull(jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 5", Long::class.javaObjectType))
         assertEquals(1L, jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 2", Long::class.java))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `keeps the analysis attempt and failure code consistent with the session state`() {
+        // 고정 데이터의 세션 1·2는 DONE, 실패 코드 없음, 분석 시도 전(0번). 같은 트랜잭션의 MyBatis 캐시를 피하려고
+        // 바꾸지 않을 세션 2로 기본값을 보고, 세션 1은 바꾼 뒤 한 번만 읽는다.
+        val untouched = assertNotNull(mapper<PracticeSessionMapper>().findById(2))
+        assertEquals(0, untouched.analysisAttempt)
+        assertNull(untouched.analysisStartedAt)
+
+        val startedAt = LocalDateTime.parse("2026-10-27T09:00:00.123456")
+        jdbc.update("UPDATE practice_sessions SET status = 'PENDING', analysis_attempt = 1, analysis_started_at = ? WHERE id = 1", startedAt)
+        val pending = assertNotNull(mapper<PracticeSessionMapper>().findById(1))
+        assertEquals(1, pending.analysisAttempt)
+        assertEquals(startedAt, pending.analysisStartedAt)
+
+        listOf("NO_SOUND", "TOO_SHORT", "DECODE_ERROR", "UPLOAD_TIMEOUT", "TIMEOUT", "SERVER_ERROR").forEach {
+            assertEquals(1, jdbc.update("UPDATE practice_sessions SET status = 'FAILED', fail_reason = ? WHERE id = 1", it), it)
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = 'INTERRUPTED' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = 'no_sound' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = NULL WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET status = 'DONE' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_attempt") {
+            jdbc.update("UPDATE practice_sessions SET analysis_attempt = -1, analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
+            jdbc.update("UPDATE practice_sessions SET analysis_attempt = 2 WHERE id = 2")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
+            jdbc.update("UPDATE practice_sessions SET analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `fails only RECORDING sessions started before the upload expiry cutoff`() {
+        val cutoff = LocalDateTime.parse("2026-10-27T09:20:00")
+        for ((id, status, startedAt) in listOf(
+            Triple(11L, "RECORDING", cutoff.minusNanos(1_000)),
+            Triple(12L, "RECORDING", cutoff),
+            Triple(13L, "RECORDING", cutoff.plusMinutes(1)),
+            Triple(14L, "PENDING", cutoff.minusHours(2)),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                    "VALUES (?, 1, 1, 90, 'DOTTED_QUARTER', 0, ?, ?)",
+                id, status, startedAt,
+            )
+        }
+        val repository = mapper<RecordingSessionExpiryRepository>()
+
+        assertEquals(1, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+        assertEquals(0, repository.failRecordingStartedBefore(cutoff, "UPLOAD_TIMEOUT"))
+
+        val rows = jdbc.query("SELECT id, status, fail_reason, ended_at FROM practice_sessions ORDER BY id") { rs, _ ->
+            listOf(rs.getLong("id"), rs.getString("status"), rs.getString("fail_reason"), rs.getObject("ended_at"))
+        }
+        assertEquals(
+            listOf(
+                listOf(1L, "DONE", null), listOf(2L, "DONE", null),
+                listOf(11L, "FAILED", "UPLOAD_TIMEOUT"), listOf(12L, "RECORDING", null),
+                listOf(13L, "RECORDING", null), listOf(14L, "PENDING", null),
+            ),
+            rows.map { it.take(3) },
+        )
+        assertNull(rows.single { it[0] == 11L }[3])
+        assertEquals(1, context.getBeansOfType(RecordingUploadExpiryService::class.java).size)
+        // 공유 테스트 DB에서 실제 시계의 주기 작업이 고정 데이터와 겹치지 않도록 이 테스트 컨텍스트는 스케줄링을 끈다.
+        assertTrue(context.getBeansOfType(ScheduledAnnotationBeanPostProcessor::class.java).isEmpty())
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `stores a score view segment once per member and key at microsecond precision`() {
+        val repository = MyBatisScoreViewRepository(mapper())
+        val segment = ScoreViewSegment(
+            userId = 1,
+            songId = 1,
+            idempotencyKey = "segment-key",
+            startedAt = Instant.parse("2026-10-27T14:50:00.123456Z"),
+            endedAt = Instant.parse("2026-10-27T15:20:00.654321Z"),
+            visibleSeconds = 1800,
+            countedSeconds = 1500,
+        )
+        assertNull(repository.findByKey(1, "segment-key"))
+        assertTrue(repository.insertIfAbsent(segment))
+        assertEquals(segment, repository.findByKey(1, "segment-key"))
+        assertEquals(segment, repository.findLatestByKey(1, "segment-key"))
+        assertEquals(
+            "2026-10-27 14:50:00.123456",
+            jdbc.queryForObject(
+                "SELECT DATE_FORMAT(started_at, '%Y-%m-%d %H:%i:%s.%f') FROM score_views WHERE idempotency_key = 'segment-key'",
+                String::class.java,
+            ),
+        )
+
+        assertFalse(repository.insertIfAbsent(segment.copy(countedSeconds = 1)))
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM score_views WHERE idempotency_key = 'segment-key'", Int::class.java))
+        assertNull(repository.findByKey(3, "segment-key"))
+        assertTrue(repository.songExists(1))
+        assertFalse(repository.songExists(999))
     }
 
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
@@ -412,6 +572,7 @@ class DatabaseIntegrationTests {
         @JvmStatic
         @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
+            registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }
             registry.add("spring.datasource.username") { requiredEnvironment("TEST_DB_USERNAME") }
             registry.add("spring.datasource.password") { requiredEnvironment("TEST_DB_PASSWORD") }
