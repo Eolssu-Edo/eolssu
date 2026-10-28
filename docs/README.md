@@ -79,6 +79,7 @@
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
+- [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
 
 ## COCO 산출물
 
@@ -99,6 +100,7 @@
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
 - [S15P31E102-155 단소 기준 데이터 표 작성](plans/S15P31E102-155.md)
 - [S15P31E102-156 정간보 jgb를 공통 악보 데이터로 바꾸는 변환기](plans/S15P31E102-156.md)
+- [S15P31E102-157 채점 입력을 공통 악보 데이터와 기준음 E♭4로 변경](plans/S15P31E102-157.md)
 - [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
