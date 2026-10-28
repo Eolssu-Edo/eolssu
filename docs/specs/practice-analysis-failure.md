@@ -88,6 +88,7 @@ POST {AI}/v1/analyses
 ```
 
 - `notes`는 백엔드가 세션의 곡·연습 구간을 음표로 풀어 보낸다. AI는 DB를 읽지 않는다. `idx`는 `songs.score_json` 기준 순번이고 결과의 `idx`도 같다.
+- **음표 번호(제안, 데이터·FE 확인 대기).** `songs.score_json`(공통 악보 데이터)의 `events` 중 `kind = NOTE`만 연주 순서대로 0부터 센 번호다. 쉼표(`REST`)는 세지 않는다. 쉼표에는 정답 음이 없어 `note_results.expected_pitch_id`(NOT NULL)를 채울 수 없기 때문이다. 이음표는 변환기가 앞 음의 `durationTick`에 합쳐 따로 세지 않는다. 따라서 `songs.note_count`는 `NOTE` 이벤트 수이고, 연습 구간 `start_note_idx`~`end_note_idx`(양 끝 포함, 전체 곡이면 0 ~ `note_count` − 1)도 이 번호다. 백엔드는 구간의 `NOTE`만 `notes`로 보낸다.
 - `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
 - `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
 - `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
@@ -201,7 +202,8 @@ S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새
 | --- | --- | --- |
 | 기록을 지운 세션(REC-04)을 상태 조회에서 404로 할지 | PRA API 명세 담당. 지금은 200으로 상세·메모를 주고 `recordingAvailable`만 false다(V2 주석은 목록·재생에서 뺀다고만 적음) | 상태 조회 API의 지운 기록 처리 |
 | 재시도 API의 거절 응답 형식 | PRA API 명세 담당. 경로는 명세의 `POST /api/practice-sessions/{sessionId}/retry` | 다시 시도 API 구현 |
-| `songs.score_json`을 음표(반음·박·시김새·음 ID)로 푸는 방법 | 공통 악보 데이터 형식(S15P31E102-156·157) | 분석 요청의 `notes`와 `expected_pitch_id` 채우기 |
+| 음표 번호 규칙(`NOTE`만 0부터 셈) 확인 | 데이터(곡 적재의 `note_count`, AI 채점 입력 S15P31E102-157)·FE(연습 구간 선택). 위 '음표 번호' 제안 | `PracticeScoreNotes` 구현 |
+| `songs.score_json`을 반음·박·시김새·음 ID로 푸는 방법 | 반음 기준음은 S15P31E102-157(기준음 E♭4), 율명·옥타브 → `pitches.id` 대응은 데이터 담당 | 분석 요청의 `notes`와 `expected_pitch_id` 채우기 |
 | 녹음 길이 상한(PRA-02 600초)을 낮출지, DTW 폭 제한을 넣을지 | 팀(PRA-02·PRA-03). 서비스 곡의 최대 연습 구간 길이 확인 필요. [측정 기록](../knowledge/ai/analysis-latency.md)은 상한을 연습 구간 길이로 낮추고 120초를 넘으면 DTW 폭 제한을 먼저 넣자고 제안한다 | 120초를 넘는 녹음의 분석. 정하기 전 긴 녹음은 메모리 부족으로 실패한다 |
 | 제한 시간 60초와 앱 대기 70초의 최종 값 | 운영 서버에서 같은 명령으로 다시 잰 결과 | 값 조정(구현은 막지 않음) |
 | 연습 기록 목록이 저장한 세션만 보이는지 | REC-02 목록 명세. 저장한 세션만 보이면 `UPLOAD_TIMEOUT`은 따로 처리할 필요 없다 | 목록 API 구현 |
