@@ -88,6 +88,7 @@
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-112 운영 DB·설정 백업과 복구 검증](plans/S15P31E102-112.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
+- [S15P31E102-133 edo2 Mattermost 서버 점검](plans/S15P31E102-133.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)

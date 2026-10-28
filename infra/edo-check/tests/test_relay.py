@@ -179,8 +179,8 @@ class RequestTests(unittest.TestCase):
 
     def test_health_icons_keep_failures_and_unknowns_distinct_from_success(self):
         result = {'mode': 'health', 'columns': ['대상', '방식', '판정', '측정'],
-                  'rows': [['웹', 'Docker', '정상', 'healthy'],
-                           ['API', 'Docker', '실패', 'unhealthy'],
+                  'rows': [['웹', 'Docker healthcheck', '정상', 'healthy'],
+                           ['API', 'Docker healthcheck', '실패', 'unhealthy'],
                            ['인증서', 'TLS', '주의', '만료 임박'],
                            ['터널', 'Docker', '미설정', '실행 중'],
                            ['DB', 'Docker', '확인 불가', '수집 실패']]}
