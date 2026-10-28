@@ -24,7 +24,7 @@ class PracticeTimeMeterTest {
         newKey = { "key-${++keys}" },
     )
 
-    private fun show() = meter.show(userId = "user-1", songId = "12")
+    private fun show() = meter.show(songId = "12")
 
     @Test
     fun fiveMinutesOnScreenCountsFiveMinutes() {
@@ -35,7 +35,6 @@ class PracticeTimeMeterTest {
         assertEquals(300, segment.countedSeconds)
         assertEquals(WALL_START, segment.startedAtMillis)
         assertEquals(WALL_START + 300_000, segment.endedAtMillis)
-        assertEquals("user-1", segment.userId)
         assertEquals("12", segment.songId)
     }
 

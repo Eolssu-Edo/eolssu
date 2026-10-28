@@ -12,6 +12,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.backhandler.BackHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
@@ -62,6 +63,12 @@ fun PracticeRoute(
     }
     // 앱을 벗어나면(전화·다른 앱) 연주를 끊긴 것으로 처리한다.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onLeaveScreen() }
+    // 연습 시간은 화면이 앞에 보이는 동안만 잰다. 다른 화면으로 가거나 백그라운드·화면 잠금, 웹 탭 숨김이면 멈춘다
+    // (Compose 웹도 탭이 가려지면 ON_STOP을 보낸다).
+    LifecycleStartEffect(viewModel) {
+        viewModel.onScreenShown()
+        onStopOrDispose { viewModel.onScreenHidden() }
+    }
 
     val back = { if (viewModel.onBack()) onBack() }
     // 기기 뒤로 가기도 화면의 뒤로 가기와 같게: 연주 중이면 확인 창을 띄운다. 태블릿 가로처럼 패널이 화면 안에 열려 있으면 패널부터 닫는다.
@@ -89,6 +96,8 @@ fun PracticeRoute(
             onUserScroll = viewModel::stopFollowing,
             onFollowNow = viewModel::followNow,
             onCancelCountdown = viewModel::cancelCountdown,
+            onUserActivity = viewModel::onUserActivity,
+            onKeepPracticing = viewModel::keepPracticing,
             bottom = PracticeBottomActions(
                 onStartModel = viewModel::startModel,
                 onToggleModel = viewModel::toggleModel,
