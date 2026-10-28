@@ -39,7 +39,7 @@ private const val BPM_UNIT_PATTERN = "QUARTER|DOTTED_QUARTER|JEONGGAN|JANGDAN_BE
 
 @RestController
 @RequestMapping("/api/practice-sessions")
-@Profile("db")
+@Profile("db | ops")
 class PracticeSessionController(
     private val createPracticeSession: CreatePracticeSession,
     private val getPracticeSession: GetPracticeSession,

@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Profile
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class AuthTokenConfig {
     @Bean
     fun accessTokenSigner(properties: SecurityProperties): AccessTokenSigner = JwtAccessTokenSigner(properties.jwtSecret)

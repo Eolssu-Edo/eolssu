@@ -23,7 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate
 
 // 녹음 업로드(PRA-02)는 세션을 바꾸는 쓰기 작업이라 db 프로필에서만 만든다.
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class RecordingUploadConfig {
     @Bean
     fun recordingUploadRepository(

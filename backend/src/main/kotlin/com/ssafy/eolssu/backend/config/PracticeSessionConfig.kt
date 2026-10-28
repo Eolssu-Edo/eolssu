@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Profile
 
 // 세션 생성과, 제한 시간을 넘긴 PENDING을 TIMEOUT으로 바꾸는 상태 조회가 모두 쓰기 작업이라 db 프로필에서만 만든다.
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class PracticeSessionConfig {
     @Bean
     fun practiceSessionDetails(mapper: PracticeSessionMapper): PracticeSessionDetails = MyBatisPracticeSessionDetails(mapper)

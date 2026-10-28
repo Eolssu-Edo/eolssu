@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Profile
 
 // 체류 구간 기록(GRO-04). 서버 수신 시각 검사는 앱 공통 UTC 시계(TermConfig)를 쓴다.
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class ScoreViewConfig {
     @Bean
     fun scoreViewRepository(mapper: ScoreViewMapper): ScoreViewRepository = MyBatisScoreViewRepository(mapper)
