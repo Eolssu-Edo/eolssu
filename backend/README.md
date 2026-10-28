@@ -41,13 +41,13 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db` 프로필과 V2 이상 스키마에서 `GET /api/terms`를 로그인 없이 호출합니다(`Accept: application/json`). 응답은 `{httpStatus,isSuccess,message,code,result:{items:[...]}}`이며 항목은 문자열 `termId`, `code`, `title`, `required`, `version`, `contentUrl`입니다. UTC 조회 시각까지 시행된 버전 중 code별 가장 늦은 `effective_at`을 고르고, 같은 시각이면 큰 ID 한 개를 반환합니다. `seq`·ID 오름차순으로 표시하며 현재 약관이 없으면 200과 빈 목록입니다. 문구·URL·초기 데이터는 자동 생성하지 않습니다.
 
-무DB 기본 프로필과 읽기 전용 점검용 `ops` 프로필에는 약관 컨트롤러·조회 Bean을 만들지 않습니다. 배포 프로필 전환과 운영 DB 적용은 별도 작업입니다. `databaseTest`의 `TermsApiDatabaseTests`는 폐기 가능한 MySQL 8.4에 고정 약관 데이터를 넣고 실제 HTTP 응답까지 확인한 뒤 약관 데이터를 지웁니다.
+무DB 기본 프로필에는 약관 컨트롤러·조회 Bean을 만들지 않습니다. 업무 Bean은 `@Profile("db | ops")`라 운영 `ops`에서도 만듭니다. `databaseTest`의 `TermsApiDatabaseTests`는 폐기 가능한 MySQL 8.4에 고정 약관 데이터를 넣고 실제 HTTP 응답까지 확인한 뒤 약관 데이터를 지웁니다.
 
 400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. ProblemDetail은 쓰지 않습니다(2026-10-28 확정, S15P31E102-168 녹음 업로드 오류도 같은 형식). 위 목록에 없는 프레임워크 상태(예: 409·410)도 같은 형식이며 `result.errorCode`는 HTTP 상태 이름입니다.
 
 ## 환경 설정
 
-공통 설정은 `src/main/resources/application.yml`, 마이그레이션을 포함하는 DB 설정은 `application-db.yml`에 둡니다. 기본 실행은 DB 없이 시작하며, `SERVER_PORT` 기본값은 `8080`입니다. 운영은 기존 DB의 연결 검사만 수행하는 `ops` 프로필을 사용합니다. `db` 프로필의 Flyway 적용은 별도로 명시적으로 활성화합니다.
+공통 설정은 `src/main/resources/application.yml`, 마이그레이션을 포함하는 DB 설정은 `application-db.yml`에 둡니다. 기본 실행은 DB 없이 시작하며, `SERVER_PORT` 기본값은 `8080`입니다. 운영은 `ops` 프로필을 사용합니다. `ops`는 `db`와 같은 업무 API·Mapper를 켜되 Flyway를 끄고 기존 DB를 그대로 씁니다. 운영 DB의 마이그레이션은 `db` 프로필로 따로 적용합니다.
 
 ### 이메일 인증(AUTH-06·07)
 
@@ -76,7 +76,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `GET /api/actuator/health/readiness`는 준비되면 HTTP 200과 `{"status":"UP"}`, 준비되지 않으면 HTTP 503을 반환합니다. 기본 개발 모드는 애플리케이션 준비 상태만 확인합니다. 운영 `ops` 프로필은 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`로 기존 MySQL에 연결해 DB health를 함께 확인합니다. DB 접속 실패 시 프로세스가 살아 있어도 readiness는 DOWN이고 `/api/actuator/health/liveness`는 UP일 수 있습니다.
 
-운영 `ops`에서는 Flyway와 SQL 초기화를 끕니다. health 요청은 연결·검증 쿼리만 수행하며 스키마나 업무 데이터를 바꾸지 않습니다. 기존 DB에 마이그레이션을 실행하려고 `db` 프로필을 함께 활성화하지 않습니다. 연결 대기는 2초, 풀은 최대 3개입니다. HTTP에는 health만 공개하고 상세·컴포넌트·JMX를 숨깁니다. `env`·`beans`·`configprops`는 404입니다.
+운영 `ops`에서는 Flyway와 SQL 초기화를 끕니다. 업무 API는 기존 스키마를 읽고 쓰지만 스키마를 바꾸지 않습니다. 기존 DB에 마이그레이션을 실행하려고 `db` 프로필을 함께 활성화하지 않습니다(`db,ops`처럼 함께 켜면 나중 프로필의 Flyway 설정이 이겨 순서에 따라 Flyway가 켜집니다). 세션 시간대는 UTC(`SET time_zone = '+00:00'`), 연결 대기는 2초, 풀은 최대 10개입니다. `AUTH_CODE_HMAC_SECRET`이 비어 있어도 기동하고 이메일 인증번호 발송·확인만 503입니다. HTTP에는 health만 공개하고 상세·컴포넌트·JMX를 숨깁니다. `env`·`beans`·`configprops`는 404입니다.
 
 필수 `clean build`에서 실제 HTTP 준비 응답·관리 정보 비공개와 연결할 수 없는 격리 DB 대상의 readiness 503/liveness 200·Flyway Bean 부재를 검사합니다. 운영 후보에서는 기존 DB 연결의 UP 응답도 별도로 확인합니다.
 
@@ -159,7 +159,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V4 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V5 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -170,7 +170,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V5 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드와 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -269,7 +269,7 @@ com.ssafy.eolssu.backend/
 
 Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에 필요한 조회·갱신을 더합니다(예: `PracticeSessionMapper.failRecordingStartedBefore`). `findById`는 존재하지 않는 ID에 `null`을 반환하며, 삭제·공개 상태 필터는 적용하지 않습니다. Row는 저장 계층 전용이므로 API 응답으로 그대로 노출하지 않습니다. 기능 구현 시 domain 저장소 계약과 infrastructure 구현을 연결합니다.
 
-`db` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필과 읽기 전용 `ops` 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
+`db`·`ops` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
 
 `growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다. 요약의 곡별 최고점·항목별 성장은 기간과 관계없이 회원의 전체 곡 연주(첫 음~끝 음)로 냅니다.
 
@@ -277,7 +277,7 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `practice`의 `GET /api/practice-sessions/{sessionId}`(`PracticeSessionController`)는 API 명세의 연습 세션·분석 상태 조회입니다. 회원 본인의 세션만 돌려주고(없거나 남의 세션은 404 `RESOURCE_NOT_FOUND`), 제한 시간을 넘긴 `PENDING`은 응답 전에 `TIMEOUT`으로 바꿉니다(`GetPracticeSession`).
 
-업로드 뒤 분석은 `AnalysisOnUpload`가 시작합니다. 업로드는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행하고, 커밋 뒤에 `analysisExecutor`(기본 2개 동시·대기 50개)에서 `AnalyzePracticeSession`이 돕니다. 롤백된 업로드나 트랜잭션 밖 발행은 분석하지 않습니다. 이 연결은 `PracticeScoreNotes`·`RecordingReadUrls` 구현 Bean과 `ANALYSIS_AI_BASE_URL`이 모두 있을 때만 켜지며, 없으면 경고 로그만 남기고 세션은 제한 시간 뒤 `TIMEOUT`이 됩니다. 설정은 `eolssu.analysis.*`(`time-limit` 기본 60초, `ai-response-timeout` 기본은 제한 시간 + 5초이며 제한 시간보다 길어야 함, `workers`, `queue-capacity`)입니다. 두 시간은 숫자만 쓰면 초로 읽습니다.
+업로드 뒤 분석은 `AnalysisOnUpload`가 시작합니다. 업로드는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행하고, 커밋 뒤에 `analysisExecutor`(기본 2개 동시·대기 50개)에서 `AnalyzePracticeSession`이 돕니다. 롤백된 업로드나 트랜잭션 밖 발행은 분석하지 않습니다. 음표는 `MyBatisPracticeScoreNotes`가 곡 악보(공통 악보 데이터)의 `NOTE`만 0부터 세어 연습 구간을 고르고, `pitches`로 반음·음 ID를 채웁니다. 이 연결은 `PracticeScoreNotes`·`RecordingReadUrls` 구현 Bean과 `ANALYSIS_AI_BASE_URL`이 모두 있을 때만 켜지며, 없으면 경고 로그만 남기고 세션은 제한 시간 뒤 `TIMEOUT`이 됩니다. 설정은 `eolssu.analysis.*`(`time-limit` 기본 60초, `ai-response-timeout` 기본은 제한 시간 + 5초이며 제한 시간보다 길어야 함, `workers`, `queue-capacity`)입니다. 두 시간은 숫자만 쓰면 초로 읽습니다.
 
 | 기능 패키지 | 테이블 |
 | --- | --- |
@@ -302,6 +302,7 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - V2 ERD 보완: [S15P31E102-142](https://ssafy.atlassian.net/browse/S15P31E102-142) · [보완안·검증 기록](../docs/plans/S15P31E102-142.md)
 - V3 녹음 원본 메타데이터: [S15P31E102-179](https://ssafy.atlassian.net/browse/S15P31E102-179) (PRA-02 녹음 파일 규격, S15P31E102-168)
 - V4 분석 시도·실패 코드 제약: [S15P31E102-173](https://ssafy.atlassian.net/browse/S15P31E102-173) · [작업 기록](../docs/plans/S15P31E102-173.md)
+- V5 단소 율명(`pitches`) 시드: [S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186) · [PRA-03 스펙](../docs/specs/practice-analysis-failure.md)
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)

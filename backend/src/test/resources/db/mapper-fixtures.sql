@@ -1,6 +1,4 @@
-INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone)
-VALUES (1, '황', -1, '僙', '배황', -12), (2, '황', 0, '黃', '황', 0);
-
+-- pitches는 V5 시드(단소 율명, id 1 = 중, 2 = 임)를 쓴다.
 INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at)
 VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 

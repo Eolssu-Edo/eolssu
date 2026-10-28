@@ -7,8 +7,10 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScoreNotesException
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper
@@ -114,7 +116,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("4", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("5", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -140,7 +142,8 @@ class DatabaseIntegrationTests {
     @Sql("/db/mapper-fixtures.sql")
     fun `maps all nineteen tables including nullable JSON Unicode and microsecond values`() {
         val time = LocalDateTime.parse("2026-10-22T01:02:03.123456")
-        assertEquals(PitchRow(1, "황", -1, "僙", "배황", -12), mapper<PitchMapper>().findById(1))
+        assertEquals(PitchRow(1, "중", 0, "仲", "중", 5), mapper<PitchMapper>().findById(1))
+        assertEquals(PitchRow(11, "중", 2, "㴢", "중청중", 29), mapper<PitchMapper>().findById(11))
         assertNull(mapper<PitchMapper>().findById(999))
         assertEquals(
             InstrumentRow(1, "DANSO", "단소", 1, 2, 50, false, time, time),
@@ -616,6 +619,7 @@ class DatabaseIntegrationTests {
         assertTrue(context.getBean(RecordingStorage::class.java) is UnavailableRecordingStorage)
         assertEquals(1, context.getBeansOfType(UploadRecording::class.java).size)
         assertEquals(1, context.getBeansOfType(RecordingReadUrls::class.java).size)
+        assertEquals(1, context.getBeansOfType(PracticeScoreNotes::class.java).size)
     }
 
     @Test
@@ -702,6 +706,29 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `turns the song score into practice notes with the seeded pitches`() {
+        // 박당 2틱. 청황 · 쉼 · 임(시김새) · 중청중. 고정 데이터의 곡 1은 score_version 3이다.
+        jdbc.update(
+            "UPDATE songs SET score_json = ? WHERE id = 1",
+            """{"schemaVersion":1,"music":{"ticksPerBeat":2},"events":[
+              {"kind":"NOTE","yul":"황","octave":1,"startTick":0,"durationTick":2,"sigimsae":[]},
+              {"kind":"REST","yul":null,"octave":null,"startTick":2,"durationTick":2,"sigimsae":[]},
+              {"kind":"NOTE","yul":"임","octave":0,"startTick":4,"durationTick":1,"sigimsae":["추성"]},
+              {"kind":"NOTE","yul":"중","octave":2,"startTick":5,"durationTick":3,"sigimsae":[]}]}""",
+        )
+        val notes = context.getBean(PracticeScoreNotes::class.java)
+        val pending = PendingAnalysis(1, 1, 1, 3, 1, 2, 60, "JEONGGAN", "recordings/1/a.m4a")
+
+        assertEquals(listOf(ScoreNote(1, 7, 2.0, 0.5, true, 2), ScoreNote(2, 29, 2.5, 1.5, false, 11)), notes.notesFor(pending))
+        assertEquals(ScoreNote(0, 12, 0.0, 1.0, false, 4), notes.notesFor(pending.copy(startNoteIdx = 0, endNoteIdx = 0)).single())
+        // 세션을 만든 뒤 악보가 바뀌었거나 곡이 없으면 음표를 만들지 않는다.
+        assertFailsWith<ScoreNotesException> { notes.notesFor(pending.copy(scoreVersion = 2)) }
+        assertFailsWith<ScoreNotesException> { notes.notesFor(pending.copy(songId = 999)) }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `stores an analysis result only while the session is pending on the same attempt`() {
         val startedAt = LocalDateTime.parse("2026-10-28T01:00:00")
         for ((id, attempt) in listOf(21L to 2, 22L to 1)) {
@@ -721,7 +748,7 @@ class DatabaseIntegrationTests {
         assertNull(repository.findPending(21, overdue))
         assertNull(repository.findPending(1, inTime.minusYears(1))) // 고정 데이터의 DONE 세션
 
-        val notes = listOf(ScoreNote(3, 0, 1.0, false, 2), ScoreNote(4, -12, 2.0, true, 1))
+        val notes = listOf(ScoreNote(3, 0, 0.0, 1.0, false, 2), ScoreNote(4, -12, 1.0, 2.0, true, 1))
         val done = AnalysisResult.Done(
             "pyin-1", 87, 90, 85, 86,
             listOf(NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15), NoteJudgement(4, NoteVerdict.MISSED, null, null, null)),
@@ -826,7 +853,7 @@ class DatabaseIntegrationTests {
             val pending = assertNotNull(repository.findPending(901, LocalDateTime.parse("2000-01-01T00:00:00")))
             val done = AnalysisResult.Done("pyin-1", 50, 50, 50, 50, listOf(NoteJudgement(0, NoteVerdict.CORRECT, 0.0, 0, 0)))
 
-            assertFailsWith<DataAccessException> { repository.saveDone(pending, done, listOf(ScoreNote(0, 0, 1.0, false, 999_999)), LocalDateTime.parse("2000-01-01T00:00:00")) }
+            assertFailsWith<DataAccessException> { repository.saveDone(pending, done, listOf(ScoreNote(0, 0, 0.0, 1.0, false, 999_999)), LocalDateTime.parse("2000-01-01T00:00:00")) }
 
             assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 901", String::class.java))
             assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 901", Int::class.java))

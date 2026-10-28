@@ -52,7 +52,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             },
             onLink = { navController.navigate(ProfileDestination.link(it)) },
             onLoggedOut = { toLogin(StartNotice.LoggedOut) },
-            startMessage = entry.startNotice()?.message,
+            startMessage = entry.startNotice(),
             onStartMessageShown = entry::clearStartNotice,
         )
     }
@@ -85,7 +85,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             onBack = { navController.popBackStack() },
             onLinked = {
                 userRepository.link(provider)
-                navController.popWithNotice(StartNotice.AccountLinked)
+                navController.popWithNotice(StartNotice.MyAccountLinked, provider)
             },
         )
     }

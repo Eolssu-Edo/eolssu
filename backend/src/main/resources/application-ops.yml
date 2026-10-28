@@ -1,4 +1,4 @@
-# Read-only health checks against the existing database; schema changes use the db profile.
+# 운영 프로필: 업무 API를 기존 DB로 제공하되 Flyway는 끈다. 스키마 변경은 db 프로필로 따로 적용한다(backend README).
 spring:
   autoconfigure:
     exclude: []
@@ -12,12 +12,21 @@ spring:
       validation-timeout: 1000
       initialization-fail-timeout: -1
       minimum-idle: 0
-      maximum-pool-size: 3
+      # 업무 API와 업로드 만료 작업이 함께 쓴다. 헬스체크 전용일 때의 3개에서 Hikari 기본값으로 올렸다.
+      maximum-pool-size: 10
+      # 시각은 UTC로 저장·비교한다(db 프로필과 같음).
+      connection-init-sql: "SET time_zone = '+00:00'"
   flyway:
     enabled: false
   sql:
     init:
       mode: never
+
+mybatis:
+  mapper-locations: classpath*:mybatis/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    arg-name-based-constructor-auto-mapping: true
 
 management:
   endpoint:

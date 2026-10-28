@@ -422,11 +422,13 @@
     <string name="auth_required">[필수]</string>
     <string name="auth_optional">[선택]</string>
     <string name="auth_agreement_age">만 14세 이상이에요</string>
+    <string name="auth_agreement_age_title">만 14세 이상 확인</string>
     <string name="auth_agreement_terms">서비스 이용약관</string>
     <string name="auth_agreement_privacy">개인정보 수집·이용</string>
     <string name="auth_agreement_recording">연주 녹음과 평가</string>
     <string name="auth_agreement_recording_detail">연주를 녹음해 음정과 박자를 평가해요.</string>
     <string name="auth_agreement_news">소식·이벤트 알림 받기</string>
+    <string name="auth_agreement_news_title">소식·이벤트 알림</string>
     <string name="auth_view_terms">보기</string>
     <string name="auth_view_terms_description">%1$s 보기</string>
     <string name="auth_start">동의하고 시작하기</string>
@@ -437,7 +439,7 @@
     <string name="auth_terms_clause_3">제3조 (회원 가입과 탈퇴)</string>
     <string name="auth_terms_clause_4">제4조 (연주 녹음의 이용)</string>
     <string name="auth_terms_clause_5">제5조 (서비스의 변경과 중단)</string>
-    <string name="auth_terms_pending">[약관 본문은 법무 검토 후 채워요]</string>
+    <string name="auth_terms_pending">[약관 본문은 서버 약관 목록의 문서 주소(contentUrl)로 보여 줘요]</string>
     <string name="auth_mic_title">연주를 들으려면\n마이크가 필요해요</string>
     <string name="auth_mic_lead">녹음은 연습 화면에서 시작 버튼을 눌렀을 때만 해요.</string>
     <string name="auth_mic_allow">허용</string>
@@ -478,7 +480,7 @@
     <string name="auth_error_email_empty">이메일을 입력해 주세요.</string>
     <string name="auth_error_email_invalid">이메일 형식이 맞지 않아요.</string>
     <string name="auth_error_password_empty">비밀번호를 입력해 주세요.</string>
-    <string name="auth_error_password_mismatch">비밀번호가 일치하지 않아요.</string>
+    <string name="auth_error_password_mismatch">비밀번호가 서로 달라요.</string>
     <string name="auth_error_nickname_empty">닉네임을 입력해 주세요.</string>
     <string name="auth_social_login">%1$s로 로그인</string>
     <string name="auth_social_members_only">간편 로그인은 얼쑤에 가입한 회원만 쓸 수 있어요.</string>
@@ -492,6 +494,7 @@
     <string name="auth_oauth_result_linked">연결된 계정이 있어요 · 홈으로</string>
     <string name="auth_oauth_result_link">같은 이메일로 가입한 계정이 있어요</string>
     <string name="auth_oauth_result_none">가입된 계정이 없어요</string>
+    <string name="auth_oauth_result_withdrawn">탈퇴를 신청한 계정이에요</string>
     <string name="auth_no_account_title">가입된 계정이 없어요</string>
     <string name="auth_no_account_message">%1$s 계정과 연결된 얼쑤 계정이 없어요. 간편 로그인은 가입한 회원만 쓸 수 있으니 이메일로 가입해 주세요.</string>
     <string name="auth_no_account_signup">이메일로 가입하기</string>
@@ -503,7 +506,7 @@
     <string name="auth_link_password_help">본인인지 확인하려고 이 계정의 비밀번호를 한 번 입력해요.</string>
     <string name="auth_link_confirm">연결하고 로그인</string>
     <string name="auth_link_cancel">연결하지 않기</string>
-    <string name="auth_link_done">간편 로그인 계정을 연결했어요. 다음부터 간편 로그인으로 들어올 수 있어요.</string>
+    <string name="auth_link_done">%1$s 계정을 연결했어요. 다음부터 %1$s로 로그인할 수 있어요.</string>
     <string name="auth_signup_verify_heading">로그인에 쓸\n이메일을 확인해요</string>
     <string name="auth_reset_title">비밀번호 찾기</string>
     <string name="auth_reset_verify_heading">가입한 이메일로\n인증번호를 보내요</string>
@@ -629,7 +632,7 @@
     <string name="my_save">저장</string>
     <string name="my_instrument">연습 악기</string>
     <string name="my_instrument_help">홈과 연습·평가 화면이 고른 악기로 바뀌어요.</string>
-    <string name="my_instrument_changed">연습 악기를 바꿨어요.</string>
+    <string name="my_instrument_changed">연습 악기를 %1$s(으)로 바꿨어요.</string>
     <string name="my_social">간편 로그인</string>
     <string name="my_social_help">이메일·비밀번호 로그인은 항상 남아 있어서 연결을 해제해도 로그인할 수 있어요.</string>
     <string name="my_linked">연결됨</string>
@@ -667,11 +670,13 @@
     <string name="my_link_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>
     <string name="my_link_result_done">연결했어요 · 마이페이지로</string>
     <string name="my_link_result_taken">다른 얼쑤 계정에 연결된 계정이에요</string>
+    <string name="my_link_done">%1$s 계정을 연결했어요.</string>
     <string name="my_link_taken_title">다른 계정에 연결된 %1$s 계정이에요</string>
     <string name="my_link_taken_message">이 %1$s 계정은 이미 다른 얼쑤 계정에 연결돼 있어요. 그 계정에서 연결을 해제한 뒤 다시 시도해 주세요.</string>
     <string name="my_error_nickname_empty">닉네임을 입력해 주세요.</string>
     <string name="my_error_password_empty">비밀번호를 입력해 주세요.</string>
     <string name="my_error_password_wrong">비밀번호가 맞지 않아요.</string>
+    <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
 </resources>

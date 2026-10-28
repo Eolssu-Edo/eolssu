@@ -152,6 +152,16 @@ class EmailVerificationServiceTests {
     }
 
     @Test
+    fun `missing code key makes every purpose unavailable without storing a row`() {
+        val withoutKey = EmailVerificationService(repository, mail, EmailVerificationSecrets(null), clock)
+        for (purpose in VerificationPurpose.entries) {
+            assertEquals(SendVerificationResult.Unavailable, withoutKey.send("learner@example.com", purpose))
+        }
+        assertTrue(repository.records.isEmpty())
+        assertTrue(deliveries.isEmpty())
+    }
+
+    @Test
     fun `unknown verification ID is missing`() {
         assertEquals(ConfirmVerificationResult.Missing, service().confirm(999, "123456"))
     }

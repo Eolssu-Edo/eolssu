@@ -25,6 +25,12 @@ interface PracticeAnalysisMapper {
 
     fun insertNoteResults(@Param("evaluationId") evaluationId: Long, @Param("notes") notes: List<NewNoteResult>): Int
 
+    /** 분석 음표를 만들 곡 악보. 곡이 없으면 null. */
+    fun findScore(@Param("songId") songId: Long): SongScoreRow?
+
+    /** 율명·옥타브를 반음·음 ID로 바꾸는 기준 데이터(V5 시드). */
+    fun findPitches(): List<ScorePitchRow>
+
     /** 본인 세션의 분석 상태. 다른 회원의 세션이면 null. */
     fun findState(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): AnalysisStateRow?
 
@@ -36,6 +42,18 @@ interface PracticeAnalysisMapper {
         @Param("startedAt") startedAt: LocalDateTime,
     ): Int
 }
+
+data class SongScoreRow(
+    val scoreJson: String,
+    val scoreVersion: Int,
+)
+
+data class ScorePitchRow(
+    val id: Long,
+    val yul: String,
+    val octave: Short,
+    val semitone: Short,
+)
 
 data class AnalysisStateRow(
     val status: String,

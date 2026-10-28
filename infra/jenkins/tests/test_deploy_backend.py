@@ -1,9 +1,11 @@
 """배포 실패·중단 시 실제 env/상태 파일의 복구 계약을 검사한다."""
 import importlib.util
 import fcntl
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import tempfile
+import threading
 import signal
 import subprocess
 import sys
@@ -12,6 +14,47 @@ import unittest
 spec = importlib.util.spec_from_file_location('deploy_backend', Path(__file__).parents[1] / 'deploy-backend.py')
 deploy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deploy)
+
+
+class ProbeTests(unittest.TestCase):
+    """배포 검사는 인증과 무관한 공개 health 경로의 상태 본문으로 판단한다."""
+
+    def serve(self, status, body):
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(status)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(body.encode())
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return f'http://127.0.0.1:{server.server_port}/api/actuator/health/liveness'
+
+    def test_accepts_only_status_up(self):
+        deploy.probe(self.serve(200, '{"status":"UP"}'), 200, {'status': 'UP'}, seconds=1)
+        for status, body in [(200, '{"status":"DOWN"}'), (401, '{"result":{"errorCode":"UNAUTHENTICATED"}}'), (200, 'not json')]:
+            with self.assertRaises(deploy.DeployError):
+                deploy.probe(self.serve(status, body), 200, {'status': 'UP'}, seconds=1)
+
+    def test_runtime_check_uses_public_readiness_not_an_unregistered_api_path(self):
+        urls = []
+        original = deploy.probe
+        deploy.probe = lambda url, *args, **kwargs: urls.append(url)
+        self.addCleanup(setattr, deploy, 'probe', original)
+        d = deploy.Deployer(Path('/nonexistent'))
+        with self.assertRaises(Exception):
+            d.healthy()  # docker inspect는 이 환경에 없다. 그 전에 부른 검사 주소만 본다.
+        self.assertIn('http://127.0.0.1/api/actuator/health/readiness', urls)
+        self.assertFalse([u for u in urls if 'infra-smoke' in u])
+
+    def test_candidate_check_uses_liveness(self):
+        self.assertEqual('http://10.0.0.2:8080/api/actuator/health/liveness', deploy.candidate_health_url('10.0.0.2'))
 
 
 class LockTests(unittest.TestCase):

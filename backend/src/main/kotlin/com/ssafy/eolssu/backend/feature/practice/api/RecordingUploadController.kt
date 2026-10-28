@@ -22,7 +22,7 @@ import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/practice-sessions")
-@Profile("db")
+@Profile("db | ops")
 class RecordingUploadController(private val uploadRecording: UploadRecording) {
     /**
      * API 명세 `POST /practice-sessions/{sessionId}/recording`(PRA-02 녹음 업로드). 파일 파트 이름은 `audio`.
