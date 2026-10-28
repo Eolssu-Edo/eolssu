@@ -38,4 +38,10 @@ interface AudioRecorder {
 
     /** 마지막으로 부른 뒤 들어온 소리의 크기(0~1). 아주 작은 소리는 0이다. */
     fun level(): Float
+
+    /**
+     * [level]이 실제 마이크 입력 크기인지. false면 부르는 쪽은 '입력 없음'을 판정하지 않고 녹음을 그대로 보내
+     * 서버의 `NO_SOUND` 판정에 맡긴다(S15P31E102-233).
+     */
+    val measuresLevel: Boolean
 }

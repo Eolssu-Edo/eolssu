@@ -73,6 +73,7 @@
     <string name="practice_rec_time_detail">/ %1$s · %2$s</string>
     <string name="practice_mic_on">입력 감지</string>
     <string name="practice_mic_off">입력 없음</string>
+    <string name="practice_no_input_hint">소리가 잘 들리지 않아요. 마이크를 확인해주세요.</string>
     <string name="practice_restart">처음부터 다시</string>
     <string name="practice_abort">연주 중단</string>
     <string name="practice_countdown_soon">곧 연주가 시작돼요</string>
@@ -154,6 +155,10 @@
     <string name="practice_popup_end_title">연주를 마쳤어요</string>
     <string name="practice_popup_end_body">지금까지 연주한 내용으로 음정, 박자, 음 길이를 평가해요.</string>
     <string name="practice_popup_evaluate">평가하기</string>
+    <string name="practice_popup_no_input_title">소리가 입력되지 않았어요</string>
+    <string name="practice_popup_no_input_body">마이크로 들어온 소리가 없어서 평가할 수 없어요. 마이크를 확인하고 다시 연주해주세요. 0점 결과는 만들지 않아요.</string>
+    <string name="practice_popup_play_again">다시 연주하기</string>
+    <string name="practice_popup_go_back">돌아가기</string>
     <string name="practice_popup_restart_title">지금 연주를 버리고 처음부터 시작할까요?</string>
     <string name="practice_popup_restart_confirm">처음부터 시작</string>
     <string name="practice_popup_exit_title">나가면 이번 연주는 저장되지 않아요.</string>
