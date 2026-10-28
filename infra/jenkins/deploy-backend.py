@@ -66,7 +66,18 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else hashlib.sha256(stream.read()).hexdigest()
 
 
-def probe(url, status, path=None, seconds=90):
+# 공개 health 경로로 검사한다. 등록 안 된 /api 경로의 404는 인증이 생기면 401이 되어 쓸 수 없다.
+RUNTIME_READINESS = 'http://127.0.0.1/api/actuator/health/readiness'
+UP = {'status': 'UP'}
+
+
+def candidate_health_url(address):
+    # 후보는 운영 DB 없이 뜨므로 readiness가 아니라 liveness를 본다.
+    return 'http://' + address + ':8080/api/actuator/health/liveness'
+
+
+def probe(url, status, expect=None, seconds=90):
+    """status와, 주어지면 JSON 본문에 expect의 키·값이 모두 있을 때까지 기다린다."""
     deadline = time.monotonic() + seconds
     while True:
         try:
@@ -76,9 +87,9 @@ def probe(url, status, path=None, seconds=90):
                 response = response_error
             with response:
                 body = response.read(65536)
-                if response.status == status and (path is None or json.loads(body).get('path') == path):
+                if response.status == status and (expect is None or expect.items() <= json.loads(body).items()):
                     return
-        except (OSError, ValueError):
+        except (OSError, ValueError, AttributeError):
             pass
         if time.monotonic() >= deadline:
             raise DeployError('HTTP readiness failed')
@@ -117,7 +128,7 @@ class Deployer:
             'up', '-d', '--no-deps', '--force-recreate', '--pull', 'never', 'backend', timeout=90)
 
     def healthy(self):
-        probe('http://127.0.0.1/api/infra-smoke', 404, '/api/infra-smoke')
+        probe(RUNTIME_READINESS, 200, UP)
         probe('http://127.0.0.1/', 200, seconds=10)
         details = json.loads(run('docker', 'inspect', 'eolssu-runtime-backend-1'))[0]
         mounts = [m['Source'] for m in details['Mounts'] if m['Destination'] == '/app/app.jar']
@@ -212,7 +223,7 @@ class Deployer:
             run('docker', 'run', '-d', '--name', name, '--label', 'com.eolssu.stage=backend',
                 '--network', name, '--env', 'SERVER_PORT=8080', image['Id'])
             address = json.loads(run('docker', 'inspect', name))[0]['NetworkSettings']['Networks'][name]['IPAddress']
-            probe('http://' + address + ':8080/api/infra-smoke', 404, '/api/infra-smoke')
+            probe(candidate_health_url(address), 200, UP)
             release = self.root / 'releases' / sha
             release.mkdir(mode=0o755, exist_ok=True)
             candidate = release / 'app.jar.new'
