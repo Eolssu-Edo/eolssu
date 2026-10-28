@@ -18,7 +18,10 @@ import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.No
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow
+import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
+import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisPracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow
@@ -51,6 +54,7 @@ import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSong
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow
 import java.sql.SQLException
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -587,6 +591,54 @@ class DatabaseIntegrationTests {
         assertNull(repository.findByKey(3, "segment-key"))
         assertTrue(repository.songExists(1))
         assertFalse(repository.songExists(999))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `sums practice time and done sessions per KST day of their start`() {
+        // 고정 데이터: 회원 1의 체류 구간 600초와 DONE 세션 2개(점수는 1번만 85)가 모두 2026-10-22 10:02 KST에 시작
+        jdbc.update(
+            "INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) VALUES " +
+                "(1, 1, 'before-midnight', '2026-10-25 14:59:59.999999', '2026-10-25 15:30:00', 1800, 100), " + // KST 25일 23:59:59
+                "(1, 1, 'at-midnight', '2026-10-25 15:00:00', '2026-10-25 15:10:00', 600, 200), " + // KST 26일 00:00
+                "(1, 1, 'same-day', '2026-10-26 03:00:00', '2026-10-26 03:01:00', 60, 30), " +
+                "(3, 1, 'other-member', '2026-10-26 03:00:00', '2026-10-26 04:00:00', 3600, 999)",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(3, 1, 1, 90, 'DOTTED_QUARTER', 0, 'FAILED', 'NO_SOUND', '2026-10-26 03:00:00'), " +
+                "(4, 1, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', NULL, '2026-10-25 15:00:00'), " +
+                "(5, 3, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', NULL, '2026-10-26 03:00:00')",
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(3, 10, 10, 10, 10, 'test'), (4, 70, 70, 70, 70, 'test'), (5, 99, 99, 99, 99, 'test')",
+        )
+        val repository = MyBatisPracticeStatsRepository(mapper())
+        fun day(text: String) = LocalDate.parse(text)
+
+        assertEquals(
+            mapOf(day("2026-10-22") to 600L, day("2026-10-25") to 100L, day("2026-10-26") to 230L),
+            repository.dailyPracticeSeconds(1, DateRange(day("2026-10-22"), day("2026-10-26"))),
+        )
+        assertEquals(mapOf(day("2026-10-26") to 230L), repository.dailyPracticeSeconds(1, DateRange(day("2026-10-26"), day("2026-10-26"))))
+        assertEquals(
+            mapOf(day("2026-10-22") to SessionTotals(2, 1, 85), day("2026-10-26") to SessionTotals(1, 1, 70)),
+            repository.dailyDoneSessions(1, DateRange(day("2026-10-22"), day("2026-10-26"))),
+        )
+        assertEquals(listOf(day("2026-10-26"), day("2026-10-25"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-26"), 60))
+        assertEquals(listOf(day("2026-10-26"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-26"), 150))
+        assertEquals(listOf(day("2026-10-25"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-25"), 60))
+
+        val plan = jdbc.queryForList(
+            // PracticeStatsMapper.sumCountedSecondsByDay와 같은 형태
+            "EXPLAIN SELECT DATE(DATE_ADD(started_at, INTERVAL 9 HOUR)) AS day, SUM(counted_seconds) AS total FROM score_views " +
+                "WHERE user_id = 1 AND started_at >= '2026-10-21 15:00:00' AND started_at < '2026-10-26 15:00:00' GROUP BY day",
+        ).single()
+        // 행이 몇 개뿐인 고정 데이터에서는 옵티마이저가 다른 인덱스를 고를 수 있어 쓸 수 있는지만 본다.
+        // 회원 50명·구간 2만 개에서는 이 인덱스로 범위 조회하는 것을 확인했다(docs/plans/S15P31E102-193.md).
+        assertTrue("idx_score_views_user_started" in plan["possible_keys"].toString().split(","))
     }
 
     @Test
