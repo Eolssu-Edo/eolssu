@@ -422,6 +422,7 @@
     <string name="auth_required">[필수]</string>
     <string name="auth_optional">[선택]</string>
     <string name="auth_agreement_age">만 14세 이상이에요</string>
+    <string name="auth_agreement_age_title">만 14세 이상 확인</string>
     <string name="auth_agreement_terms">서비스 이용약관</string>
     <string name="auth_agreement_privacy">개인정보 수집·이용</string>
     <string name="auth_agreement_recording">연주 녹음과 평가</string>

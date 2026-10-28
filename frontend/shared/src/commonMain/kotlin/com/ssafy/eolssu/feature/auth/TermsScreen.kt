@@ -51,7 +51,7 @@ fun TermsScreen(agreement: Agreement, onClose: () -> Unit, widthClass: WindowWid
     val helpStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp)
     AuthScaffold(
         authFrameOf(widthClass, split = false),
-        topBar = { AuthTopBar(stringResource(agreement.label), onBack = onClose) },
+        topBar = { AuthTopBar(stringResource(agreement.title), onBack = onClose) },
         bottomBar = { EolssuButton(stringResource(Res.string.common_confirm), onClick = onClose) },
     ) {
         AuthBody(topPadding = 8.dp, gap = 18.dp) {
