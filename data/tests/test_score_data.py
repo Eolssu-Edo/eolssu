@@ -74,12 +74,23 @@ class ReadUnitsTests(unittest.TestCase):
         # 우물사이 parseMelodyOffsets: '||'도 각 구분(예전 형식), 빈 줄은 빈 정간 하나짜리 각
         units = read_units("임||무\n\n태", beats_per_jeonggan=F(1))
         self.assertEqual([(u.cell_id, u.symbol) for u in units], [("c0-j0", "임"), ("c1-j0", "무"), ("c2-j0", ""), ("c3-j0", "태")])
+        # '||' 바로 뒤 줄바꿈은 각 경계 하나로만 센다
+        self.assertEqual([u.cell_id for u in read_units("임||\n무", beats_per_jeonggan=F(1))], ["c0-j0", "c1-j0"])
 
     def test_breath_belongs_to_the_last_sound_of_its_cell_and_takes_no_space(self):
         # 우물사이: 숨표는 자리를 차지하지 않고 정간의 마지막 자리에 붙는다
         units = read_units("청황< 임 | <무", beats_per_jeonggan=F(1))
         self.assertEqual([(u.symbol, u.duration, u.breath) for u in units],
                          [("청황", F(1, 2), False), ("임", F(1, 2), True), ("무", F(1), True)])
+
+    def test_a_row_with_only_a_breath_still_takes_its_row(self):
+        # 우물사이 realizeMelody: 줄을 먼저 나누고, 숨표만 남은 줄은 앞 소리를 잇는 자리(hold)다
+        units = read_units("임 < 무", beats_per_jeonggan=F(1))
+        self.assertEqual([(u.row, u.symbol, u.duration) for u in units],
+                         [(0, "임", F(1, 3)), (1, "", F(1, 3)), (2, "무", F(1, 3))])
+        self.assertTrue(units[-1].breath)
+        events, _ = build_events(read_units("< 임", beats_per_jeonggan=F(1)))
+        self.assertEqual([(e.kind, e.duration) for e in events], [("REST", F(1, 2)), ("NOTE", F(1, 2))])
 
     def test_sigimsae_without_a_pitch_is_not_supported_yet(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):

@@ -95,7 +95,8 @@ def read_units(melody, beats_per_jeonggan):
         for index, cell in enumerate(cells):
             cell_id = f"c{column}-j{index}"
             breath = "<" in cell  # 숨표는 자리를 차지하지 않고 정간의 마지막 글자에 붙는다
-            words = cell.replace("<", "").split() or [""]  # 빈 정간은 줄 하나짜리 빈 글자
+            # 줄을 먼저 나누고 줄마다 숨표를 뺀다. 숨표만 있던 줄은 빈 글자(앞 소리를 잇는 자리)로 남는다.
+            words = [w.replace("<", "") for w in cell.split()] or [""]  # 빈 정간은 줄 하나짜리 빈 글자
             first = len(units)
             for row, word in enumerate(words):
                 parsed = _parse_word(word, cell_id)
