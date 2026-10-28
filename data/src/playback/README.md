@@ -167,3 +167,5 @@ CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본
 상대음 장식에 기존 `joPreset`을 쓸 수 없으면 `playback.relative_scale`에 황종 기준 반음 음급의 오름차순 배열 `pitch_classes`와 선택 근거 `basis`를 기록합니다. `joPreset`/`--jo`와 중복 지정할 수 없습니다. 다른 악기에서는 출현 음급만 보고 단소의 상대음 음계를 자동 보충하지 않습니다.
 
 일괄 변환은 기존 batch 명령을 사용합니다. 카탈로그 최상위 `instrument`, `instrument_basis`를 명시하고 각 항목에 `tempo`, 필요 시 `expression_policy`·`relative_scale`를 넣습니다. 카탈로그 하나에 악기 하나만 사용하며 다른 악기의 빠르기 누락을 연습용60으로 자동 대체하지 않습니다. 단소 외 배치 결과는 `gugak-batch/v1`입니다. 원본은 보존하고 판본·정책은 prepared JSON과 source-map에 남깁니다.
+
+비단소 JGB의 편집기 기본 템포(`tempoBpmUserSet` 미확정)는 재생 속도로 채택하지 않습니다. 판본 근거를 확인한 준비 JSON 또는 명시적인 `--bpm`이 필요합니다. 기존 원본의 `playback.instrument`와 다른 기종을 카탈로그로 덮어쓸 수 없습니다. 비단소 공통 IR의 직접 작성 숨표·감쇠는 배치에서도 보존합니다. 배치는 한 악기로 이루어진 JGB만 지원하며, 혼합 악기 성부 선택은 단일 CLI에서 수행합니다.
