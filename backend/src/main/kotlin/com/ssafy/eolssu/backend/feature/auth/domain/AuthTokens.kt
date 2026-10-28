@@ -31,8 +31,11 @@ class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant,
 /** 재발급·로그아웃용 리프레시 토큰 저장소. */
 interface TokenRefreshRepository {
     fun <T : Any> inTransaction(action: () -> T): T
+    /** 잠그지 않고 찾는다. 회원 행을 먼저 잠그려고 회원 ID만 얻을 때 쓴다. */
+    fun find(tokenHash: String): StoredRefreshToken?
     fun findForUpdate(tokenHash: String): StoredRefreshToken?
     fun revoke(id: Long, reason: RevokeReason, now: Instant)
     fun revokeAll(userId: Long, reason: RevokeReason, now: Instant)
-    fun memberStatus(userId: Long): MemberStatus?
+    /** 회원 행을 잠그고 상태를 읽는다. 로그인·비밀번호 변경처럼 users → refresh_tokens 순서로 잠가 교착을 막는다. */
+    fun memberStatusForUpdate(userId: Long): MemberStatus?
 }

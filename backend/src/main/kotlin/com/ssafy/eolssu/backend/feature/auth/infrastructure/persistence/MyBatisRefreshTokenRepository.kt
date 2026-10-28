@@ -24,13 +24,15 @@ class MyBatisRefreshTokenRepository(
         return row.id
     }
 
-    override fun findForUpdate(tokenHash: String) = mapper.findByTokenHashForUpdate(tokenHash)?.let {
-        StoredRefreshToken(it.id, it.userId, it.expiresAt.toInstant(ZoneOffset.UTC), it.revokeReason?.let(RevokeReason::valueOf))
-    }
+    override fun find(tokenHash: String) = mapper.findByTokenHash(tokenHash)?.toStored()
+    override fun findForUpdate(tokenHash: String) = mapper.findByTokenHashForUpdate(tokenHash)?.toStored()
+
+    private fun RefreshTokenRow.toStored() =
+        StoredRefreshToken(id, userId, expiresAt.toInstant(ZoneOffset.UTC), revokeReason?.let(RevokeReason::valueOf))
 
     override fun revoke(id: Long, reason: RevokeReason, now: Instant) { check(mapper.revoke(id, reason.name, now.utc()) == 1) }
     override fun revokeAll(userId: Long, reason: RevokeReason, now: Instant) { mapper.revokeAllActive(userId, reason.name, now.utc()) }
-    override fun memberStatus(userId: Long) = users.findById(userId)?.let { MemberStatus.valueOf(it.status) }
+    override fun memberStatusForUpdate(userId: Long) = users.findStatusForUpdate(userId)?.let(MemberStatus::valueOf)
 
     private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 }

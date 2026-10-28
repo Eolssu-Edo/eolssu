@@ -98,6 +98,7 @@ internal class MemoryTokenRefreshRepository : TokenRefreshRepository, RefreshTok
         tokens[id] = Stored(id, userId, tokenHash, expiresAt)
         return id
     }
+    override fun find(tokenHash: String) = findForUpdate(tokenHash)
     override fun findForUpdate(tokenHash: String) = tokens.values.firstOrNull { it.hash == tokenHash }?.let {
         StoredRefreshToken(it.id, it.userId, it.expiresAt, it.revokeReason?.let(RevokeReason::valueOf))
     }
@@ -105,5 +106,5 @@ internal class MemoryTokenRefreshRepository : TokenRefreshRepository, RefreshTok
     override fun revokeAll(userId: Long, reason: RevokeReason, now: Instant) {
         tokens.values.filter { it.userId == userId && it.revokeReason == null }.forEach { it.revokeReason = reason.name }
     }
-    override fun memberStatus(userId: Long) = statuses[userId]
+    override fun memberStatusForUpdate(userId: Long) = statuses[userId]
 }

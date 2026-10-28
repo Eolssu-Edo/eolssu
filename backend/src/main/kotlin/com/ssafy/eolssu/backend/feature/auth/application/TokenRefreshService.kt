@@ -26,13 +26,17 @@ class TokenRefreshService(
 
     private fun rotate(refreshToken: String): TokenRefreshResult {
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
-        val stored = repository.findForUpdate(secrets.hashToken(refreshToken)) ?: return TokenRefreshResult.Unauthenticated
+        val tokenHash = secrets.hashToken(refreshToken)
+        val owner = repository.find(tokenHash) ?: return TokenRefreshResult.Unauthenticated
+        // 새 토큰 INSERT가 외래 키로 users 행을 잠그므로, 비밀번호 변경과 반대 순서가 되지 않게 회원 행부터 잠근다.
+        val memberStatus = repository.memberStatusForUpdate(owner.userId)
+        val stored = repository.findForUpdate(tokenHash) ?: return TokenRefreshResult.Unauthenticated
         if (stored.revokeReason == RevokeReason.ROTATED) {
             repository.revokeAll(stored.userId, RevokeReason.REUSE_DETECTED, now)
             return TokenRefreshResult.Unauthenticated
         }
         if (stored.revoked) return TokenRefreshResult.Unauthenticated
-        if (!stored.expiresAt.isAfter(now) || repository.memberStatus(stored.userId) != MemberStatus.ACTIVE) {
+        if (!stored.expiresAt.isAfter(now) || memberStatus != MemberStatus.ACTIVE) {
             return TokenRefreshResult.Unauthenticated
         }
         repository.revoke(stored.id, RevokeReason.ROTATED, now)

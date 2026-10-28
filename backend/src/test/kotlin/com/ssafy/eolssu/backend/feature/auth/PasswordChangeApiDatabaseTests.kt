@@ -104,6 +104,23 @@ class PasswordChangeApiDatabaseTests {
         assertEquals(200, signInResponse("Current!234").statusCode())
     }
 
+    @Test
+    fun `password change and another device refresh at the same time never fail with a server error`() {
+        val passwords = listOf("Current!234", "NewPassword!567")
+        val statuses = mutableListOf<Pair<Int, Int>>()
+        repeat(20) { round ->
+            val thisDevice = signIn(passwords[round % 2])
+            val otherDevice = signIn(passwords[round % 2])
+            val body = """{"currentPassword":"${passwords[round % 2]}","newPassword":"${passwords[(round + 1) % 2]}"}"""
+            // 비밀번호 확인(Argon2)이 끝나 트랜잭션에 들어가는 시점과 재발급이 겹치도록 재발급을 조금씩 늦춘다.
+            val change = java.util.concurrent.CompletableFuture.supplyAsync { patch(thisDevice.cookieHeader(), body).statusCode() }
+            Thread.sleep((round % 10) * 10L)
+            val refreshed = refresh(otherDevice.refresh).statusCode()
+            statuses += change.get() to refreshed
+            assertTrue(statuses.last().first == 200 && statuses.last().second in setOf(200, 401), statuses.toString())
+        }
+    }
+
     private class Device(val access: String, val refresh: String) {
         fun cookieHeader() = "access_token=$access; refresh_token=$refresh"
     }
