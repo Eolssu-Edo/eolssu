@@ -30,9 +30,12 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import tools.jackson.databind.annotation.JsonDeserialize
 
 // DB ID는 양의 bigint 문자열(명세 공통 타입). Long 범위를 넘는 19자리는 받지 않는다.
 private const val ID_PATTERN = "[1-9][0-9]{0,17}"
+// BpmUnit 이름과 같게 유지한다.
+private const val BPM_UNIT_PATTERN = "QUARTER|DOTTED_QUARTER|JEONGGAN|JANGDAN_BEAT"
 
 @RestController
 @RequestMapping("/api/practice-sessions")
@@ -54,7 +57,7 @@ class PracticeSessionController(
             idempotencyKey = idempotencyKey,
             songId = request.songId!!.toLong(),
             bpm = request.bpm!!,
-            bpmUnit = request.bpmUnit,
+            bpmUnit = request.bpmUnit?.let(BpmUnit::valueOf),
             startNoteIdx = request.startNoteIdx,
             endNoteIdx = request.endNoteIdx,
             parentSessionId = request.parentSessionId?.toLong(),
@@ -89,15 +92,17 @@ class PracticeSessionController(
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
 }
 
+// 명세 타입(STRING·INT·BOOLEAN)과 다른 JSON 값은 자동 변환하지 않고 400으로 거절한다(StrictJsonDeserializers).
 data class CreatePracticeSessionRequest(
-    @field:NotNull @field:Pattern(regexp = ID_PATTERN) val songId: String? = null,
-    @field:NotNull @field:Min(20) @field:Max(240) val bpm: Int? = null,
-    val bpmUnit: BpmUnit? = null,
-    @field:Min(0) val startNoteIdx: Int? = null,
-    @field:Min(0) val endNoteIdx: Int? = null,
-    @field:Pattern(regexp = ID_PATTERN) val parentSessionId: String? = null,
-    @field:Pattern(regexp = ID_PATTERN) val missionId: String? = null,
-    val jangdanSoundOn: Boolean? = null,
+    @field:NotNull @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val songId: String? = null,
+    @field:NotNull @field:Min(20) @field:Max(240) @param:JsonDeserialize(using = StrictIntDeserializer::class) val bpm: Int? = null,
+    // enum으로 받으면 숫자 0이 첫 값으로 바뀌어 문자열로 받아 이름을 확인한다.
+    @field:Pattern(regexp = BPM_UNIT_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val bpmUnit: String? = null,
+    @field:Min(0) @param:JsonDeserialize(using = StrictIntDeserializer::class) val startNoteIdx: Int? = null,
+    @field:Min(0) @param:JsonDeserialize(using = StrictIntDeserializer::class) val endNoteIdx: Int? = null,
+    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val parentSessionId: String? = null,
+    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val missionId: String? = null,
+    @param:JsonDeserialize(using = StrictBooleanDeserializer::class) val jangdanSoundOn: Boolean? = null,
 )
 
 data class CreatedPracticeSessionResponse(

@@ -89,13 +89,21 @@ class CreatePracticeSessionTests {
         assertEquals(3, repository.inserted.size)
     }
 
+    private val winner = PracticeSession(77, 101, "RECORDING", 96, BpmUnit.DOTTED_QUARTER, 0, 71, now, CreatePracticeSession.requestHash(command()))
+
     @Test
-    fun `losing a concurrent insert answers from the stored winner`() {
-        val winner = PracticeSession(77, 101, "RECORDING", 96, BpmUnit.DOTTED_QUARTER, 0, 71, now, CreatePracticeSession.requestHash(command()))
+    fun `losing a concurrent insert with the same body answers the stored winner`() {
         repository.raceWinner = winner
         assertEquals(winner, created(service.execute(command())))
+        assertTrue(repository.lostRace)
+    }
+
+    @Test
+    fun `losing a concurrent insert with a different body conflicts`() {
         repository.raceWinner = winner.copy(requestHash = "other")
         assertEquals(CreatePracticeSessionResult.IdempotencyConflict, service.execute(command()))
+        // 시작 조회에서는 없던 키라 경합에 진 뒤 다시 읽은 결과로 판정했다.
+        assertTrue(repository.lostRace)
     }
 }
 
@@ -111,7 +119,8 @@ class MemoryPracticeSessionRepository : PracticeSessionCreationRepository {
     override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): PracticeSession? =
         byKey[userId to idempotencyKey] ?: raceWinner.takeIf { lostRace }
 
-    private var lostRace = false
+    var lostRace = false
+        private set
 
     override fun findPlayableSong(songId: Long) = songs[songId]
     override fun findSession(sessionId: Long) = sessions[sessionId]
