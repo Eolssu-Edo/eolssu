@@ -4,23 +4,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.data.user.VerificationPurpose
 import org.koin.compose.viewmodel.koinViewModel
 
-/** AUTH-06 연결. 입력이 맞으면 [onNext]로 프로필 설정(2/2)에 간다. */
+/**
+ * AUTH-08·AUTH-11 연결. [email]은 앞 단계에서 인증한 이메일이다.
+ * 가입이면 [onDone]으로 프로필 설정(3/3), 비밀번호 찾기면 [onDone]으로 로그인 화면에 간다(자동 로그인하지 않음).
+ */
 @Composable
-fun SignupRoute(
+fun PasswordSetupRoute(
+    purpose: VerificationPurpose,
+    email: String,
     onBack: () -> Unit,
-    onNext: () -> Unit,
-    viewModel: SignupViewModel = koinViewModel(),
+    onDone: () -> Unit,
+    viewModel: PasswordSetupViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    SignupScreen(
+    PasswordSetupScreen(
+        purpose = purpose,
+        email = email,
         state = state,
         widthClass = currentWindowLayout().widthClass,
         onBack = onBack,
-        onEmailChange = viewModel::changeEmail,
         onPasswordChange = viewModel::changePassword,
         onPasswordConfirmChange = viewModel::changePasswordConfirm,
-        onNext = { if (viewModel.next()) onNext() },
+        onSubmit = { if (viewModel.submit()) onDone() },
     )
 }
