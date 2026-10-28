@@ -13,11 +13,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.content
 import org.springframework.test.web.client.match.MockRestRequestMatchers.method
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
 import tools.jackson.module.kotlin.jacksonMapperBuilder
@@ -89,6 +91,9 @@ class HttpAnalysisClientTests {
             """{"status":"FAILED"}""",
             """{"status":"RUNNING"}""",
             """{"status":"DONE","modelVersion":"pyin-1","total":101,"pitch":90,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED"}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":-1,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED"}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":101,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED"}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED"}]}""",
             """{"status":"DONE","modelVersion":"","total":87,"pitch":90,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED"}]}""",
             """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"}]}""",
             """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":6,"verdict":"MISSED"}]}""",
@@ -100,6 +105,16 @@ class HttpAnalysisClientTests {
         respond(body)
 
         assertFailsWith<AnalysisResponseException> { client.analyze(request) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [422, 500])
+    fun `reports an AI error status without its body which may echo the read url`(status: Int) {
+        server.expect(requestTo("http://ai.test/v1/analyses"))
+            .andRespond(withStatus(HttpStatus.valueOf(status)).body("""{"detail":"bad","audioUrl":"https://storage.example/a.m4a?sig=x"}"""))
+
+        val failure = assertFailsWith<AnalysisResponseException> { client.analyze(request) }
+        assertEquals("AI responded $status", failure.message)
     }
 
     @Test

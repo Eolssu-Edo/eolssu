@@ -25,6 +25,8 @@ class HttpAnalysisClient(
             .contentType(MediaType.APPLICATION_JSON)
             .body(jsonMapper.writeValueAsString(request.toBody()))
             .retrieve()
+            // 오류 본문은 요청(서명 URL)을 되돌려 줄 수 있어 예외에 넣지 않는다.
+            .onStatus({ it.isError }) { _, response -> throw AnalysisResponseException("AI responded ${response.statusCode.value()}") }
             .body(String::class.java)
             ?: throw AnalysisResponseException("empty analysis response")
 

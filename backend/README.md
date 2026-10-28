@@ -173,6 +173,8 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `growth`에는 악보 화면 체류 구간(GRO-04)의 검증·중복 처리(`domain`·`application`)와 MyBatis 저장소가 있으며, API와 Spring Bean 연결은 인증(S15P31E102-143) 뒤에 추가합니다.
 
+`analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 `PENDING` 세션에만 결과를 저장합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필에서는 저장소만 Bean으로 만들고, 분석 실행·AI 클라이언트 연결과 상태 조회 API는 악보 음표 변환·녹음 서명 URL(S15P31E102-181)·인증 뒤에 추가합니다.
+
 | 기능 패키지 | 테이블 |
 | --- | --- |
 | `pitch`, `instrument`, `fingering` | `pitches`, `instruments`, `fingering_charts` |
@@ -180,13 +182,14 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 | `user`, `practice` | `users`, `user_song_settings`, `practice_sessions` |
 | `auth`, `term`, `growth` | `user_social_accounts`, `email_verifications`, `refresh_tokens`, `terms`, `user_term_agreements`, `score_views` |
 | `evaluation` | `evaluations`, `note_results` |
+| `analysis` | 분석 결과 저장(`practice_sessions` 상태, `evaluations`, `note_results`) |
 | `lesson` | `lessons`, `lesson_progress` |
 
 Mapper는 `@Mapper`로 검색하고 XML namespace는 인터페이스 전체 이름, statement ID는 메서드 이름과 맞춥니다. Kotlin 생성자 매핑을 위해 `javaParameters`, `arg-name-based-constructor-auto-mapping`, `map-underscore-to-camel-case`를 사용합니다. XML은 조회 열을 명시합니다. JSON 열은 원문 `String`, 상태 열은 `String`, nullable 열은 Kotlin nullable로 보존하며 도메인 정책은 추가하지 않습니다.
 
 Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실행 방법은 [인프라 실행 문서](../infra/README.md)를 따릅니다. Docker 빌드는 `docker build --tag eolsu-backend:check backend`를 저장소 루트에서 실행합니다. 실제 Jenkins 잡 등록·서버 배포는 별도 작업입니다.
 
-인증·업무 API·AI 호출·운영 DB 적용은 포함하지 않습니다. 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
+인증·업무 API·운영 DB 적용은 포함하지 않습니다. AI 호출은 클라이언트만 있고 앱에 연결하지 않았습니다. 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
 
 ## 작업 기준
 
