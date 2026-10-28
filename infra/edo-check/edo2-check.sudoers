@@ -1,0 +1,1 @@
+edo2-check ALL=(root) NOPASSWD: /usr/bin/timeout --signal=TERM --kill-after=5s 80s /usr/bin/python3 -I /opt/edo-check/collector.py server edo2, /usr/bin/timeout --signal=TERM --kill-after=5s 80s /usr/bin/python3 -I /opt/edo-check/collector.py containers edo2, /usr/bin/timeout --signal=TERM --kill-after=5s 80s /usr/bin/python3 -I /opt/edo-check/collector.py health edo2
