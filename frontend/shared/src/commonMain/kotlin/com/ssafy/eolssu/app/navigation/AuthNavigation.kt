@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.app.navigation
 
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -7,6 +8,7 @@ import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.auth.Agreement
 import com.ssafy.eolssu.feature.auth.ConsentRoute
@@ -20,7 +22,9 @@ import com.ssafy.eolssu.feature.auth.TermsScreen
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_mic_denied_notice
 import eolssu.shared.generated.resources.auth_welcome
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
+import org.koin.compose.getKoin
 
 /** 첫 실행·로그인·회원가입 화면 경로. */
 object AuthDestination {
@@ -80,7 +84,8 @@ fun NavController.finishFirstRun(firstRunRepository: FirstRunRepository, welcome
 /**
  * AUTH-01~07 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → (소셜 첫 가입 · 이메일 가입) → 프로필 설정 → 홈.
  * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
- * 마이크 안내에서 '허용'하면 [onMicAllowed]로 남겨 연습 화면에서 다시 묻지 않는다.
+ * 마이크 안내에서 '허용'하면 OS 권한 창을 띄우고, 거기서도 허용하면 [onMicAllowed]로 남겨 연습 화면에서 다시 묻지 않는다.
+ * OS 권한 창에서 거부하면 '허용 안 함'과 같게 처리한다.
  */
 fun NavGraphBuilder.authGraph(
     navController: NavController,
@@ -109,10 +114,18 @@ fun NavGraphBuilder.authGraph(
         )
     }
     composable(AuthDestination.MIC) {
+        val micPermission = getKoin().getOrNull<MicPermission>()
+        val scope = rememberCoroutineScope()
         MicPermissionScreen(
             onAllow = {
-                onMicAllowed()
-                toLogin(null)
+                scope.launch {
+                    if (micPermission?.request() != false) {
+                        onMicAllowed()
+                        toLogin(null)
+                    } else {
+                        toLogin(StartNotice.MicDenied)
+                    }
+                }
             },
             onDeny = { toLogin(StartNotice.MicDenied) },
         )
