@@ -91,12 +91,23 @@ def test_tuning_limit_stays_100_for_pentatonic_song():
     assert result.total == 100
 
 
+NEIGHBORS = [Note(s, 1) for s in (0, 1, 3, 5, 7, 5, 3, 1, 0)]  # 반음 이웃이 있어 상한이 100 - 50 - 10 = 40센트
+
+
+def score_neighbors(audio):
+    return score(pyin_f0(audio, SR), NEIGHBORS, BPM, REF_HZ, rms=frame_rms(audio, SR))
+
+
 def test_tuning_limit_shrinks_with_semitone_neighbors():
-    # 반음 이웃이 있으면 상한은 100 - 50 - 10 = 40센트. 60센트 어긋남을 보정하면 이웃 음을 잘못 분 것도 맞게 된다.
-    notes = [Note(s, 1) for s in (0, 1, 3, 5, 7, 5, 3, 1, 0)]
-    audio = synth(notes, cents=-60)
-    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    # 상한을 넘는 어긋남은 보정하지 않고 조율 범위 초과로 알린다.
+    assert score_neighbors(synth(NEIGHBORS, cents=-60)).tuning_out_of_range
+
+
+def test_whole_song_a_semitone_off_is_not_corrected_to_correct():
+    # 곡 전체를 반음 높게(5센트 낮게) 불면 보정량이 95센트로 잡힌다. 상한이 100이면 이를 빼 주어 모든 음이 맞게 된다.
+    result = score_neighbors(synth(NEIGHBORS, shift={i: 1 for i in range(len(NEIGHBORS))}, cents=-5))
     assert result.tuning_out_of_range
+    assert all(n.verdict == "PITCH" for n in result.notes)
 
 
 def test_silence_fails_instead_of_zero():
