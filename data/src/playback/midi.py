@@ -12,6 +12,11 @@ PLAYBACK_VIBRATO = {
 RELEASE_CC = {"controller": 72, "maximum_seconds": .05, "default_value": 127}
 
 
+def playback_vibrato(instrument):
+    """Only the Danso experiment selected unnotated additional pitch motion."""
+    return dict(PLAYBACK_VIBRATO) if instrument == "danso" else None
+
+
 def write_midi(performance, path):
     tempo = performance["tempo_us"]
     sec_tick = tempo / 1_000_000 / PPQN
@@ -30,9 +35,9 @@ def write_midi(performance, path):
             add(a, 1, "control_change", control=72, value=value)
             release_value = value
         y = e["yoseong"]
-        vibrato = PLAYBACK_VIBRATO
-        if ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
-                y and y["mode"] in ("pitch", "mixed")):
+        vibrato = playback_vibrato(performance["instrument"])
+        if vibrato and ((b-a)*sec_tick < vibrato["minimum_note_seconds"] or
+                        y and y["mode"] in ("pitch", "mixed")):
             vibrato = None
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])

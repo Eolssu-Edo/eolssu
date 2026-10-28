@@ -27,7 +27,8 @@ SOFTWARE.
 from fractions import Fraction
 import re
 
-from .score import PPQN, finite, require, ticks
+from .score import PPQN, PROFILES, finite, require, ticks
+from .policy import declared_instrument, expression_policy, relative_scale
 
 YUL = "황대태협고중유임이남무응"
 PREFIX = {"": 0, "청": 1, "중청": 2, "겹청": 2,
@@ -158,7 +159,8 @@ def row_groups(text, label):
     return groups, breath
 
 
-def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_midi=None, jo=None):
+def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_midi=None, jo=None,
+                instrument="danso"):
     """Return the existing score IR and a map from IR note IDs to JGB locations."""
     require(isinstance(document, dict) and type(document.get("v")) is int
             and document["v"] in (1, 2), "지원하는 JGB 버전은 v1·v2입니다")
@@ -166,7 +168,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     require(isinstance(controls, dict), "JGB controls가 필요합니다")
     if document["v"] == 1:
         require("parts" not in document, "JGB v1에 parts가 함께 있습니다")
-        parts = [{"id": None, "name": "단소", "instrument": document.get("ornInstrument", "danso"),
+        parts = [{"id": None, "name": None, "instrument": document.get("ornInstrument"),
                   "melody": document.get("melody")}]
     else:
         parts = document.get("parts")
@@ -175,7 +177,14 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     require(part is not None or len(parts) == 1, "여러 성부가 있습니다. --part로 1부터 성부 번호를 선택하세요")
     selected = integer(1 if part is None else part, "part", 1, len(parts))
     voice = parts[selected - 1]
-    require(voice.get("instrument", "danso") == "danso", "선택한 성부는 단소(danso)가 아닙니다")
+    instrument_basis = declared_instrument(document, voice, instrument)
+    policy = expression_policy(document, instrument, EXPRESSION_POLICY)
+    custom_scale = relative_scale(document)
+
+    def effect(name, label):
+        require(policy is not None and name in policy,
+                f"{label}: {instrument}의 {name} 해석에 playback.expression_policy가 필요합니다")
+        return dict(policy[name])
     require(voice.get("muted", False) is False, "선택한 성부가 음소거되어 있습니다")
     for name, default in (("wantJangdan", False), ("playJanggu", True), ("playSigimsae", True)):
         require(type(controls.get(name, default)) is bool, f"controls.{name}: true/false가 필요합니다")
@@ -200,6 +209,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     scale_name = controls.get("joPreset", "") if jo is None else jo
     require(isinstance(scale_name, str), "joPreset은 문자열이어야 합니다")
     scale = SCALES.get(scale_name)
+    if custom_scale is not None:
+        require(jo is None and scale_name in ("", "all"), "상대음 음계와 joPreset/--jo가 중복 지정되었습니다")
+        scale = tuple(custom_scale["pitch_classes"])
     overrides = {}
     gak_beats = controls.get("gakBeats", "")
     require(isinstance(gak_beats, str), "gakBeats는 '각:정간 수' 문자열이어야 합니다")
@@ -289,10 +301,11 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         if group.get("vibrato") or group.get("fall"):
                             require(controls.get("playSigimsae", True) is True, f"{label}: 시김새 재생이 꺼져 있습니다")
                         if group.get("vibrato") and "yoseong" not in notes[-1]:
-                            notes[-1]["yoseong"] = dict(EXPRESSION_POLICY["vibrato"],
-                                delay_seconds=float(Fraction(notes[-1]["duration"])) * 60 / quarter_bpm)
+                            marked = effect("vibrato", label)
+                            marked["delay_seconds"] += float(Fraction(notes[-1]["duration"])) * 60 / quarter_bpm
+                            notes[-1]["yoseong"] = marked
                         if group.get("fall"):
-                            notes[-1]["pitch_curve"] = dict(EXPRESSION_POLICY["fall"])
+                            notes[-1]["pitch_curve"] = effect("fall", label)
                         notes[-1]["duration"] = str(Fraction(notes[-1]["duration"]) + duration)
                         locations[notes[-1]["id"]].append(loc)
                     elif kind in ("rest", "hold"):
@@ -317,9 +330,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         for k, pitch in enumerate(sequence, 1):
                             append(nid if not slur else f"{nid}.main{k}", body / len(sequence), loc, pitch, slur=slur)
                             if group.get("vibrato"):
-                                notes[-1]["yoseong"] = dict(EXPRESSION_POLICY["vibrato"])
+                                notes[-1]["yoseong"] = effect("vibrato", label)
                             if group.get("fall") and k == len(sequence):
-                                notes[-1]["pitch_curve"] = dict(EXPRESSION_POLICY["fall"])
+                                notes[-1]["pitch_curve"] = effect("fall", label)
                         for k, pitch in enumerate(post, 1):
                             append(f"{nid}.postgrace{k}", GRACE_QUARTERS, loc, pitch, True, slur)
                         previous_pitch, previous_gak = sequence[-1], g
@@ -336,8 +349,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     assumptions = ["JGB 재생 템포는 정간/분. tempoBpmGak은 표시용이며 사용하지 않음.",
                    "빈칸·-는 같은 각 안에서만 앞 음을 연장. 각 첫 연장은 쉼.",
                    "앞꾸밈 각각 1/16 quarter·velocity80, 음열은 해당 자리를 균등 분할. 숨+감쇠는 본음 절반 이내.",
-                   "추가 떨림 ±25cent 고정. 미지원 표현은 생략하지 않고 실패.",
-                   "농음은 기존 단소 음량 요성, 흘림은 말미 최대50cent 하강의 청취용 근사. 원문점은 효과 미확정 표시로 보존.",
+                   ("추가 떨림 ±25cent 고정." if instrument == "danso" else "악보에 없는 추가 떨림을 자동 적용하지 않음.") + " 미지원 표현은 생략하지 않고 실패.",
+                   "농음·흘림은 기록한 청취용 정책으로 근사. 원문점은 효과 미확정 표시로 보존.",
                    "JGB를 읽었다는 것은 원보·연주 품질 검수 완료를 뜻하지 않음."]
     if requested_unit in ("auto", ""):
         assumptions.append(f"staffUnit 없는 구형 JGB 또는 auto: 기본각 {beats}정간에 따라 {unit}(정간={ratio} quarter) 적용.")
@@ -345,14 +358,16 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
              "source": {"edition": source_name, "review_status": "source-review-unverified",
                         "method": "JGB playback adapter; source review status not inferred"},
              "context": {"pitch_mode": "sounding", "notation_octave_shift": 0, "tuning_a_hz": 440,
-                         "style": "JGB 단소", "tuning_description": f"황종 MIDI {hwang}, A440; no automatic octave correction"},
+                         "style": f"JGB {PROFILES[instrument]['label']}", "tuning_description": f"황종 MIDI {hwang}, A440; no automatic octave correction"},
              "quarter_bpm": quarter_bpm, "notes": notes, "assumptions": assumptions}
     source_map = {"schema": "jgb-playback-map/v1", "jgb_version": document["v"],
                   "part_index": selected, "part_id": part_id, "part_name": voice.get("name"),
+                  "instrument": instrument, "instrument_basis": instrument_basis,
                   "offset_unit": "Unicode code points, zero-based, end-exclusive",
                   "jeonggan_bpm": base_bpm, "speed": speed, "staff_unit": unit, "quarter_ratio": str(ratio),
                   "quarter_bpm": quarter_bpm, "huangjong_midi": hwang, "jo_preset": scale_name,
                   "gaks": len(starts), "cells": total_cells, "total_quarters": str(cursor),
-                  "breath_policy": dict(BREATH_POLICY), "expression_policy": dict(EXPRESSION_POLICY),
+                  "breath_policy": dict(BREATH_POLICY), "expression_policy": policy,
+                  "relative_scale": custom_scale,
                   "notes": locations}
     return score, source_map
