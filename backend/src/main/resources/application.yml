@@ -15,6 +15,9 @@ server:
   port: ${SERVER_PORT:8080}
 
 eolssu:
+  auth:
+    code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
+    mail-mode: ${AUTH_MAIL_MODE:unavailable}
   security:
     # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.
     allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}

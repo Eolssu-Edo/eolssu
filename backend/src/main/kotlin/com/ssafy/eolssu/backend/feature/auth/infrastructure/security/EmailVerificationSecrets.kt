@@ -11,11 +11,11 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 class EmailVerificationSecrets(secret: ByteArray, private val random: SecureRandom = SecureRandom()) : VerificationSecrets {
-    private val key = SecretKeySpec(secret.copyOf(), "HmacSHA256")
-
     init {
         require(secret.size >= 32) { "AUTH_CODE_HMAC_SECRET must contain at least 32 decoded bytes" }
     }
+
+    private val key = SecretKeySpec(secret.copyOf(), "HmacSHA256")
 
     override fun generateCode(): String = String.format(Locale.ROOT, "%06d", random.nextInt(1_000_000))
 

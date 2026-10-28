@@ -50,5 +50,7 @@ class EmailVerificationSecretsTests {
     @Test
     fun `rejects HMAC secrets shorter than 256 bits`() {
         assertFailsWith<IllegalArgumentException> { EmailVerificationSecrets(ByteArray(31)) }
+        val failure = assertFailsWith<IllegalArgumentException> { EmailVerificationSecrets(ByteArray(0)) }
+        assertTrue(failure.message.orEmpty().contains("AUTH_CODE_HMAC_SECRET"))
     }
 }
