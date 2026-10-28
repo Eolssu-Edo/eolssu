@@ -185,12 +185,12 @@ class RenderTests(unittest.TestCase):
     def test_failed_cli_preserves_previous_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); out=root/"out";out.mkdir()
-            (out/"comparison.html").write_text("previous",encoding="utf-8")
+            (out/"manifest.json").write_text("previous",encoding="utf-8")
             (root/"score.json").write_text(json.dumps(score()),encoding="utf-8")
             (root/"assets.json").write_text("{}",encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"asset mapping"):
                 run(root/"score.json",root/"assets.json",out,["danso"],audio_format="wav")
-            self.assertEqual((out/"comparison.html").read_text(),"previous")
+            self.assertEqual((out/"manifest.json").read_text(),"previous")
             self.assertEqual(len(list(out.iterdir())),1)
 
 

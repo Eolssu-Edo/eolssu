@@ -38,7 +38,7 @@ S15P31E102-107 · 2026-10-28. 기존 산조 프로필을 최신 Data 공통 엔�
 python -m data.src.playback --score data/src/playback/examples/sanjo-authored.jgb.json --assets C:/local-gugak/assets.json --instrument sanjo-daegeum --out data/processed/playback/sanjo-authored
 ```
 
-`assets.json`에 `sanjo-daegeum`의 로컬 v1.3 ZIP 경로가 필요하며 M4A는 FFmpeg·ffprobe 경로도 필요하다. 공통 [실행 안내](../../../data/src/playback/README.md)를 따른다. 출력에는 원본 JGB·정규화 score·source-map·MIDI·M4A·프리셋 및 샘플 해시가 포함된다. WAV가 필요하면 별도 출력 폴더와 `--audio-format wav`를 사용한다.
+`assets.json`에 `sanjo-daegeum`의 로컬 v1.3 ZIP 경로가 필요하며 M4A는 FFmpeg·ffprobe 경로도 필요하다. 공통 [실행 안내](../../../data/src/playback/README.md)를 따른다. 입력 하나의 변환에 필요한 원본 JGB·정규화 score·source-map·MIDI·M4A·프리셋 및 샘플 해시를 출력한다. 배치 처리와 HTML 생성은 포함하지 않는다. WAV가 필요하면 별도 출력 폴더와 `--audio-format wav`를 사용한다.
 
 기존 목록의 산조대금 「늴리리야」는 악기 대분류 근거가 있지만 `all` 성부·`joPreset=all`과 상대음 기호가 함께 있다. 상대음 음계·빠르기·표현을 확인하지 않은 채 모범 연주로 생성하지 않는다. 이번 검사용 60정간/분과 사용자에게 승인받은 단소 연습용 속도를 이 곡의 확정 빠르기로 간주하지 않는다.
 
@@ -46,9 +46,9 @@ CAT 원본 ZIP·WAV와 생성 음원은 Git에 넣지 않는다. 출처 표시�
 
 ## 검증 결과 · 2026-10-28
 
-- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: **82개 통과**. 산조 전용 8개와 실제 FFmpeg 통합 검사를 포함한다. 기종 모호·상대음 음급 누락·명시 표현 정책 누락을 거부하고, 표시 없는 산조 음에는 단소 추가 떨림이 없음을 확인했다. 배치가 원본 악기 선언·IR 숨 시간을 덮어쓰지 않는 검사와 비단소의 미확정 빠르기 차단을 포함한다.
-- Python3.12 환경에서 위 4정간 JGB를 실제 CAT simple 프리셋과 FFmpeg9.0.2로 변환했다. 최종 실행0.721초, MIDI5음, 44,100Hz mono AAC-LC M4A **4.55초·200,655프레임·76,116 bytes**다. 입력 음가 합계는4초이며 공통 출력의 잔향 여백이 포함된다. 요청 비트레이트192kbps, 실제 약130kbps, 디코드 peak0.850016, 끝 패딩0프레임을 확인했다. 중간 WAV는 생성하지 않았다.
+- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: **71개 통과**. 산조 전용 8개와 실제 FFmpeg 통합 검사를 포함한다. 기종 모호·상대음 음급 누락·명시 표현 정책 누락·비단소의 미확정 빠르기를 거부하고, 표시 없는 산조 음에는 단소 추가 떨림이 없음을 확인했다. 제거한 배치 기능의 검사는 현재 검사 수에 포함하지 않는다.
+- Python3.12 환경에서 위 4정간 JGB를 단일 CLI로 실제 CAT simple 프리셋과 FFmpeg9.0.2에 연결했다. 최종 프로세스 실행1.086초, MIDI5음, 44,100Hz mono AAC-LC M4A **4.55초·200,655프레임·76,116 bytes**다. 입력 음가 합계는4초이며 공통 출력의 잔향 여백이 포함된다. 요청 비트레이트192kbps, 실제 약130kbps, 디코드 peak0.850016, 끝 패딩0프레임을 확인했다. 중간 WAV·HTML은 생성하지 않았다.
 - 원본 JGB 바이트·입력/코드/프로필 해시, 명시 expression/relative-scale 정책의 source-map 보존, CAT 공통 샘플 경고를 확인했다. M4A SHA-256은 `096c510da0be4e300939fab85f951f43a7d6aea53f7e56b51871d053b6fc6ae1`이다.
 - 실제 「늴리리야」 입력에 Notion의 산조대금 연결 근거만 추가하면 **빠르기 미확정으로 먼저 차단**된다. 렌더링 없이 진단용 BPM60만 넘겨도 1각12정간의 상대음 시김새에 명시 음계가 없어 차단된다. 이 진단값을 실제 곡의 속도로 승인하거나 음원으로 생성하지 않았다. 원본 SHA-256 `35be3d83d898fc4ba91f8851fcf6c010eecaa97890071c8dba0fb2fa5da986be`를 보존했다. 기호를 제거하거나 임의 음계를 붙여 성공으로 바꾸지 않았다.
 
-로컬 결과는 이 worktree의 `data/processed/playback/107-authored-m4a/`에 있으며 `verification.json`에 해시·오디오 검사·실제 곡의 차단 이유를 남겼다. 검사용 입력은 통과했지만, 실제 산조 악보의 유파·관종별 주법 수치와 전곡 청감 검증은 미완료다.
+최종 로컬 결과는 이 worktree의 새 폴더 `data/processed/playback/107-single-m4a/`에 있으며 `verification.json`에 해시·오디오 검사·실제 곡의 차단 이유를 남겼다. 이전 `107-authored-m4a/`의 음원·페이지는 보존했고 새 음원의 SHA-256이 이전과 같음을 확인했다. 검사용 입력은 통과했지만, 실제 산조 악보의 유파·관종별 주법 수치와 전곡 청감 검증은 미완료다.

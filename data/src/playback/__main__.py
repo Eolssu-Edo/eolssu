@@ -1,7 +1,6 @@
 """python -m data.src.playback --score ... --assets ... --out ..."""
 import argparse
 import hashlib
-import html
 import json
 from pathlib import Path
 import platform
@@ -17,26 +16,6 @@ from .audio import FORMATS, AAC_BIT_RATE, add_audio_arguments, resolve_encoder, 
 
 def dump(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
-
-
-def audition_page(reports):
-    cards = []
-    for report in reports:
-        key = report["instrument"]
-        warnings = " ".join(report["warnings"])
-        cards.append(f'''<section><h2>{html.escape(PROFILES[key]['label'])}</h2>
-        <p>{report['notes']}음 · {report['seconds']:.2f}초</p>
-        <audio controls preload="metadata" src="{html.escape(report['audio']['file'])}"></audio>
-        <p>{html.escape(warnings)}</p><a href="{key}.mid" download>MIDI</a> ·
-        <a href="{key}.json">해석·샘플 기록</a></section>''')
-    title = html.escape(reports[0]["title"])
-    return '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>악보에서 국악기로</title><style>body{background:#f4f6f2;color:#203832;font:16px/1.7 'Malgun Gothic',sans-serif;margin:0}main{max-width:1000px;margin:auto;padding:32px 24px}h1{font-size:32px;line-height:1.3}.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}section{background:white;padding:24px;border:1px solid #ccd9cf;border-radius:16px}audio{width:100%}h2{margin-top:0}p{color:#425b51}a{color:#176b50}.notice{background:#fff1d1;padding:18px;border-radius:12px}footer{font-size:13px;margin-top:24px}@media(max-width:700px){.cards{grid-template-columns:1fr}}</style>
-    <main><h1>악보에서 국악기 소리로</h1><p>''' + title + '''</p><p>입력한 실음·박자·장식음을 선택한 CAT 프리셋으로 재생했습니다. 다른 악기로 편곡한 결과는 아닙니다.</p>
-    <p>악보 입력 → 기보음/실음 구분 → 장식과 숨표 적용 → MIDI → CAT 샘플 합성 → M4A 또는 WAV</p><div class="cards">''' + "".join(cards) + '''</div>
-    <p>전문가 검수 전 청취 실험입니다. 악보의 이음줄은 샘플 연결로 근사하며, 농음·호흡의 음색 변화를 물리적으로 재현하지 않습니다. 수치가 없는 장식 길이·음량은 작성한 설정값입니다.</p>
-    <p><a href="score.json">입력 악보 데이터</a> · <a href="manifest.json">전체 재현 기록</a></p><footer>''' + CREDIT + '''</footer></main>
-    <script>const players=[...document.querySelectorAll('audio')];players.forEach(p=>p.addEventListener('play',()=>players.forEach(q=>{if(q!==p)q.pause()})));</script></html>'''
 
 
 def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bpm=None,
@@ -61,7 +40,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
         score = source
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
     out = Path(out)
-    outputs = ["score.json", "manifest.json", "comparison.html"]
+    outputs = ["score.json", "manifest.json"]
     outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", audio_format, "json")]
     if is_jgb:
         outputs += ["source.jgb.json", "source-map.json"]
@@ -76,7 +55,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
     encoder = (encoder or resolve_encoder(ffmpeg, ffprobe)) if audio_format == "m4a" else None
     out.mkdir(parents=True, exist_ok=True)
     reports, renders = [], []
-    # Stage everything first: failure must not leave a new partial audition page.
+    # Validate staged artifacts before replacing previous conversion outputs.
     with tempfile.TemporaryDirectory(prefix="playback-", dir=out) as tmp:
         stage = Path(tmp)
         for key in instruments:
@@ -135,7 +114,6 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
             manifest["normalized_score_sha256"] = sha(stage/"score.json")
             manifest["source_map_sha256"] = sha(stage/"source-map.json")
         dump(stage/"manifest.json", manifest)
-        (stage/"comparison.html").write_text(audition_page(reports), encoding="utf-8")
         for path in stage.iterdir():
             path.replace(out/path.name)
     return manifest
