@@ -123,7 +123,7 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount` |
 | GRO-02 날짜별 | `GET /users/me/growth/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | `items[]{date, practiceSeconds, practiceCount}`. `from`~`to`의 모든 날짜를 기록 없는 날도 0으로 채워 날짜 순서로 준다 |
 
-- **기간:** `from`·`to`는 KST 날짜이고 양 끝을 포함한다. 둘 다 필요하고 `from` ≤ `to`, 최대 366일이다. 어기면 400 `INVALID_REQUEST`.
+- **기간:** `from`·`to`는 KST 날짜이고 양 끝을 포함한다. 둘 다 필요하고 `from` ≤ `to`, 최대 366일이다. 연도는 1001~9998년이다(DB 시각 범위). 어기면 400 `INVALID_REQUEST`.
 - **날짜 소속:** 구간과 연주 세션은 시작 시각의 KST 날짜에 속한다.
 - **지난 기간(`previousPeriod`):** `from` 바로 앞의 같은 일수 구간. 주 보기면 지난주다. 월 보기에서는 지난달과 날짜 수가 다를 수 있다(예: 10월 31일치의 지난 기간은 8/31~9/30).
 - **미션 수:** 미션이 구현되기 전에는 `null`이다(Notion 규칙 5).
@@ -157,12 +157,12 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | 같은 키·같은 본문 200, 다른 본문 409, 기록은 한 행 | BE 테스트 |
 | 기간보다 긴 보인 시간, 수신 시각을 넘는 보인 시간, 인정 > 보인 → 400 | BE 단위 테스트(시계 고정) |
 | 23:50 KST 시작·00:20 끝난 30분 구간이 시작한 날 30분으로 합산 | BE DB 통합 테스트 |
-| `from`=2026-10-26·`to`=11-01: 일요일 23:50 KST 시작 30분 구간이 11-01 날짜 값과 요약 합계에 들어감 | BE DB 통합 테스트 |
+| 월~일 범위(예: `from`=2026-09-07·`to`=09-13): 일요일 23:50 KST 시작 30분 구간이 그 일요일 날짜 값과 요약 합계에 들어감 | BE DB 통합 테스트 |
 | 10월 탭 막대 5개, 첫 막대는 10/1(목)~10/4(일)만 포함 | FE 단위 테스트 |
 | `calendar`는 기록 없는 날도 0으로 채움. `to` < `from`, 367일, 날짜 형식 오류는 400 | BE 테스트 |
 | 그날 인정 합 50초는 연습한 날이 아니고 60초는 연습한 날 | BE 단위 테스트 |
 | 오늘 안 하고 어제·그제 했으면 연속 2, 어제도 안 했으면 0 | BE 단위 테스트(시계 고정) |
-| `DONE` 3건·`FAILED` 1건이면 연습 횟수 3, 평균은 3건 평균. 지난 기간 세션이 없으면 `previousPeriod.averageTotalScore`는 `null` | BE 테스트 |
+| `DONE` 3건(평가 있는 2건)·`FAILED` 1건이면 연습 횟수 3, 평균은 평가 있는 2건 평균. 지난 기간 세션이 없으면 `previousPeriod.averageTotalScore`는 `null` | BE 테스트 |
 | 합계 299초, 막대 119초·180초면 요약 4분, 막대 1분·3분 | FE 단위 테스트 |
 | 마트 `total_practice_seconds`가 악기·KST 날짜별 합과 같음 | Data 배치 테스트(작은 고정 데이터) |
 | 실제 Android·iOS·웹에서 백그라운드·화면 잠금·탭 숨김 시 구간이 닫힘 | 실행 검증. 단위 테스트로 대신하지 않는다 |

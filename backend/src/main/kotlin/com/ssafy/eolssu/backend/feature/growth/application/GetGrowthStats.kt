@@ -48,8 +48,8 @@ class GetGrowthStats(
         val days = repository.practiceDaysUpTo(userId, today, PRACTICE_DAY_MIN_SECONDS)
         var expected = if (days.firstOrNull() == today) today else today.minusDays(1)
         var streak = 0
+        // days는 오늘 이하의 날을 최근 순으로 담는다.
         for (day in days) {
-            if (day > expected) continue
             if (day < expected) break
             streak++
             expected = expected.minusDays(1)

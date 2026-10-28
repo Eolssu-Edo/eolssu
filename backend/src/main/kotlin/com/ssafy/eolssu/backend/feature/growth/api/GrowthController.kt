@@ -62,14 +62,20 @@ class GrowthController(private val stats: GetGrowthStats) {
         )
     }
 
-    // 양 끝 포함, 최대 366일.
+    // 양 끝 포함, 최대 366일. 연도는 DB DATETIME 범위(1000~9999년) 안에서 지난 기간까지 계산할 수 있게 제한한다.
     private fun rangeOf(from: LocalDate, to: LocalDate): DateRange? =
-        if (from > to) null else DateRange(from, to).takeIf { it.length <= GetGrowthStats.MAX_RANGE_DAYS }
+        if (from > to || from.year < MIN_YEAR || to.year > MAX_YEAR) null
+        else DateRange(from, to).takeIf { it.length <= GetGrowthStats.MAX_RANGE_DAYS }
 
     // 토큰 검증에서 subject가 양의 정수인지 확인한다(AccessTokenConfig).
     private fun Jwt.userId() = requireNotNull(subject).toLong()
 
     private fun <T> ok(message: String, result: T) = ResponseEntity.ok(GrowthResponse("OK", true, message, 200, result))
+
+    private companion object {
+        const val MIN_YEAR = 1001
+        const val MAX_YEAR = 9998
+    }
 
     private fun invalidRequest() = ResponseEntity.status(ErrorCode.INVALID_REQUEST.status).body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
 }

@@ -56,6 +56,7 @@ class GrowthControllerTests {
                 ),
             )
         assertEquals(setOf(7L), repository.users)
+        assertEquals(1, repository.calls)
     }
 
     @Test
@@ -78,6 +79,8 @@ class GrowthControllerTests {
         val queries = listOf(
             "from=2026-10-26", "from=2026-10-26&to=2026/11/01", "from=2026-11-01&to=2026-10-31",
             "from=2026-01-01&to=2027-01-02", // 367일
+            // DB DATETIME 범위(1000~9999년)와 지난 기간 계산을 넘는 날짜
+            "from=-999999999-01-01&to=-999999999-01-01", "from=1000-12-31&to=1000-12-31", "from=9999-01-01&to=9999-01-01",
         )
         for (path in listOf("summary", "calendar")) {
             for (query in queries) {
@@ -88,16 +91,17 @@ class GrowthControllerTests {
         }
         // 366일(2028년 윤년)은 허용한다.
         mvc.perform(get("/api/users/me/growth/calendar?from=2028-01-01&to=2028-12-31")).andExpect(status().isOk)
-        assertEquals(1, repository.users.size)
+        assertEquals(1, repository.calls)
     }
 
     private class RecordingRepository : PracticeStatsRepository {
         val seconds = mutableMapOf<LocalDate, Long>()
         val sessions = mutableMapOf<LocalDate, SessionTotals>()
         val users = mutableSetOf<Long>()
+        var calls = 0
 
         override fun dailyPracticeSeconds(userId: Long, range: DateRange) =
-            seconds.filterKeys { it in range }.also { users += userId }
+            seconds.filterKeys { it in range }.also { users += userId; calls++ }
 
         override fun dailyDoneSessions(userId: Long, range: DateRange) = sessions.filterKeys { it in range }
 
