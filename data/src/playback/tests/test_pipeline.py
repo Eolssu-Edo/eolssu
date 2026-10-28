@@ -189,7 +189,7 @@ class RenderTests(unittest.TestCase):
             (root/"score.json").write_text(json.dumps(score()),encoding="utf-8")
             (root/"assets.json").write_text("{}",encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"asset mapping"):
-                run(root/"score.json",root/"assets.json",out,["danso"])
+                run(root/"score.json",root/"assets.json",out,["danso"],audio_format="wav")
             self.assertEqual((out/"comparison.html").read_text(),"previous")
             self.assertEqual(len(list(out.iterdir())),1)
 

@@ -126,7 +126,7 @@ class CatSampler:
             # Only the earlier Danso experiment tested a 100ms sustain offset.
             offset = .1 if connected and self.instrument == "danso" else 0
             cursor = previous_cursor if same else offset*rate
-            release = round((.02 if legato_out else self.release)*FS)
+            release = round((.02 if legato_out else note.get("release_seconds", self.release))*FS)
             attack = min(end-at, round((.02 if connected else self.attack)*FS))
             stop = end+release
             require(0 <= at < end and stop <= size, "MIDI render bounds invalid")
