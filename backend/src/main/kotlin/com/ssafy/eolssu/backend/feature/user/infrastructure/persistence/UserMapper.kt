@@ -16,7 +16,13 @@ interface UserMapper {
     fun findActivePasswordHash(@Param("id") id: Long): String?
     fun findActivePasswordHashForUpdate(@Param("id") id: Long): String?
     fun updatePasswordHash(@Param("id") id: Long, @Param("passwordHash") passwordHash: String): Int
+    fun findStatus(@Param("id") id: Long): String?
     fun findStatusForUpdate(@Param("id") id: Long): String?
+    fun markWithdrawalPending(
+        @Param("id") id: Long,
+        @Param("requestedAt") requestedAt: LocalDateTime,
+        @Param("purgeAt") purgeAt: LocalDateTime,
+    ): Int
     fun findSignInMember(@Param("email") email: String): UserRow?
     fun findSignInMemberForUpdate(@Param("email") email: String): UserRow?
     fun cancelWithdrawal(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int

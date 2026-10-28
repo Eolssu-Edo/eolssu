@@ -27,6 +27,10 @@
     <update id="updatePasswordHash">
         UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id} AND status = 'ACTIVE'
     </update>
+    <!-- 인증 필터가 요청마다 부른다. 상태 칸만 읽는다. -->
+    <select id="findStatus" resultType="string">
+        SELECT status FROM users WHERE id = #{id}
+    </select>
     <select id="findStatusForUpdate" resultType="string">
         SELECT status FROM users WHERE id = #{id} FOR UPDATE
     </select>
@@ -45,6 +49,11 @@
         WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
         FOR UPDATE
     </select>
+    <update id="markWithdrawalPending">
+        UPDATE users
+        SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = #{requestedAt}, purge_scheduled_at = #{purgeAt}, updated_at = #{requestedAt}
+        WHERE id = #{id} AND status = 'ACTIVE'
+    </update>
     <update id="cancelWithdrawal">
         UPDATE users SET status = 'ACTIVE', withdrawal_requested_at = NULL, purge_scheduled_at = NULL, updated_at = #{now}
         WHERE id = #{id} AND status = 'WITHDRAWAL_PENDING'
