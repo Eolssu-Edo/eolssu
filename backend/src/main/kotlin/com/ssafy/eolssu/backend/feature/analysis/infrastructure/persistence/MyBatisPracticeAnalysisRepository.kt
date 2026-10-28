@@ -1,10 +1,10 @@
 package com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence
 
-import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import java.time.LocalDateTime
 import kotlin.math.roundToInt
 import org.springframework.transaction.support.TransactionOperations
 
@@ -16,11 +16,11 @@ class MyBatisPracticeAnalysisRepository(
     private val mapper: PracticeAnalysisMapper,
     private val transactions: TransactionOperations,
 ) : PracticeAnalysisRepository {
-    override fun findPending(sessionId: Long) = mapper.findPending(sessionId)?.run {
+    override fun findPending(sessionId: Long, startedAfter: LocalDateTime) = mapper.findPending(sessionId, startedAfter)?.run {
         PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl)
     }
 
-    override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>): Boolean {
+    override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>, startedAfter: LocalDateTime): Boolean {
         val pitchIds = notes.associate { it.idx to it.pitchId }
         val rows = result.notes.map {
             NewNoteResult(
@@ -33,7 +33,7 @@ class MyBatisPracticeAnalysisRepository(
             )
         }
         return transactions.execute {
-            if (mapper.markDone(analysis.sessionId, analysis.attempt) == 0) return@execute false
+            if (mapper.markDone(analysis.sessionId, analysis.attempt, startedAfter) == 0) return@execute false
             val evaluation = NewEvaluation(analysis.sessionId, result.total, result.pitch, result.timing, result.duration, result.modelVersion)
             mapper.insertEvaluation(evaluation)
             if (rows.isNotEmpty()) mapper.insertNoteResults(checkNotNull(evaluation.id), rows)
@@ -41,6 +41,8 @@ class MyBatisPracticeAnalysisRepository(
         } == true
     }
 
-    override fun saveFailed(analysis: PendingAnalysis, reason: AnalysisFailReason) =
-        mapper.markFailed(analysis.sessionId, analysis.attempt, reason.name) == 1
+    override fun saveFailed(analysis: PendingAnalysis, failReason: String, startedAfter: LocalDateTime) =
+        mapper.markFailed(analysis.sessionId, analysis.attempt, failReason, startedAfter) == 1
+
+    override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime) = mapper.expireOverdue(sessionId, startedAfter) == 1
 }
