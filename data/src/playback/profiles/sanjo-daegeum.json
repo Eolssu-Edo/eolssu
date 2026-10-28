@@ -7,5 +7,17 @@
   "range_source": "단일 관종의 보편 음역 미확정. 실행 시 CAT 키존만 검증하며 실제 운지 가능성을 보증하지 않음.",
   "interpretation": "관의 종류와 청·조율 기준을 별도 기록. 정악의 기호 의미를 산조의 꺾기·떠는음에 일괄 복제하지 않음.",
   "yoseong_mode": null,
-  "preset_name": "DaeGeum (SanJo) - DEMO_simple.adv"
+  "sample_bank_note": "CAT Live Sampler v1.3 산조·정악 대금 ZIP은 WAV 67개를 공유하며 공통 MIDI 60~89의 simple 재생 설정도 같습니다. 산조대금 고유 음색·관종별 실연 범위를 검증한 결과가 아닙니다.",
+  "preset_name": "DaeGeum (SanJo) - DEMO_simple.adv",
+  "cat_provenance": {
+    "source_url": "https://www.catseoul.com/gugak-library/",
+    "verified_on": "2026-10-28",
+    "format": "Live Sampler v1.3 simple",
+    "archive_sha256": "b27d2247543a019a45f8aba593e3aece425d66a59cbb14d156eca294d36d65b4",
+    "preset_xml_sha256": "c226c32df09d470cc74ef5ae9b5b9d7c8f1c354a40982fd400f2180d97756d33",
+    "sample_range_midi": [60, 91],
+    "shared_sample_bank": "CAT DaeGeum-DEMO",
+    "independent_sanjo_timbre_verified": false,
+    "limitation": "정악대금 ZIP과 WAV 67개의 파일명·SHA-256이 모두 같음. 공통 MIDI 60~89의 simple 샘플·root·detune·volume·trim·loop도 같아 고유 산조 음색을 구분한 결과가 아님. CAT 키존은 실제 관종의 실연 음역이 아님."
+  }
 }
