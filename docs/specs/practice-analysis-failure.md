@@ -97,11 +97,14 @@ POST {AI}/v1/analyses
 - 악보 음표를 만들지 못하거나 결과 저장이 실패해도(예: 칸 범위를 넘는 값) `SERVER_ERROR`다. 시도마다 결과 코드와 처리 시간(ms)을 로그에 남기고, 예외 메시지는 남기지 않는다. `TIMEOUT`으로 바꿀 때는 분석 중이든 상태 조회 때든 따로 한 줄 남겨 시간 초과 횟수를 센다.
 - 업로드(S15P31E102-181)는 `PENDING`으로 바꾸는 같은 갱신에서 `analysis_attempt`를 1 올리고 `analysis_started_at`을 채운다. 시작 시각은 DB `NOW()`가 아니라 마감 판정과 같은 서버의 UTC 시계로 넣는다(분석 다시 시도도 같다). 시도 번호가 0인 `PENDING`은 분석 대기로 보지 않는다.
 
-**앱의 상태 조회.** `GET /api/practice-sessions/{id}/analysis` → `{ "status", "failReason", "attempt" }`. 오류 응답은 API 명세 공통 형식을 따른다. 점수·음표별 결과는 결과 조회 API가 정해지면 그것을 쓰고, 없으면 `DONE`일 때 이 응답에 함께 넣는다. 노션 API 명세에 다른 정의가 있으면 그것을 따른다.
+**앱의 상태 조회.** 노션 API 명세의 `GET /api/practice-sessions/{sessionId}`(PRA-03 연습 세션·분석 상태 조회)를 쓴다. 처음 적은 `GET /api/practice-sessions/{id}/analysis`·`{status, failReason, attempt}`는 명세와 맞춰 2026-10-28 대체했다(`attempt`는 응답에 없다).
 
-**구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 상태 조회용 시간 초과 전환(`expireIfOverdue`)까지 구현했다. 다음은 아직 없으며 S15P31E102-186을 이것들까지 마친 뒤 완료한다.
+- `result`: `sessionId`·`songId`(문자열), `bpm`·`bpmUnit`, `startNoteIdx`·`endNoteIdx`, `status`, `evaluationId`(문자열, 없으면 null), `failReason`, `recordingAvailable`(녹음 원본이 있고 기록을 지우지 않음), `startedAt`·`endedAt`(UTC ISO8601), `retryable`(`FAILED`이고 `TIMEOUT`·`SERVER_ERROR`), `savedAt`, `memo`.
+- 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
+- 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
-- 상태 조회 API: 인증(S15P31E102-143)과 API 명세 공통 오류 형식이 develop에 들어온 뒤 붙인다.
+**구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 상태 조회용 시간 초과 전환(`expireIfOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였다. 남은 일은 아래이며 S15P31E102-186을 이것까지 마친 뒤 완료한다.
+
 - 분석 실행·AI 클라이언트의 Bean 연결과 업로드 뒤 호출: 악보 음표 변환(아래 미결 사항)과 녹음 서명 URL(S15P31E102-181)이 생긴 뒤 붙인다. 이때 제한 시간 설정값(기본 60초)과 AI HTTP 응답 대기 시간을 함께 정한다. 대기 시간은 제한 시간보다 조금 길게 둔다. 짧으면 느린 응답이 마감 전에 끊겨 `TIMEOUT` 대신 `SERVER_ERROR`가 된다.
 
 ## 다음 행동
@@ -187,7 +190,7 @@ POST {AI}/v1/analyses
 
 | 항목 | 정할 사람·필요한 것 | 막는 작업 |
 | --- | --- | --- |
-| 재시도 API 모양과 거절 응답 형식, 상태 조회 API의 노션 명세 대조 | PRA API 명세 담당. 상태 조회는 위 '분석 요청과 상태 조회 계약'을 우선 쓴다 | BE·FE 연동. 상태 조회 API는 인증·공통 오류 형식도 기다린다 |
+| 재시도 API의 거절 응답 형식 | PRA API 명세 담당. 경로는 명세의 `POST /api/practice-sessions/{sessionId}/retry` | 다시 시도 API 구현 |
 | `songs.score_json`을 음표(반음·박·시김새·음 ID)로 푸는 방법 | 공통 악보 데이터 형식(S15P31E102-156·157) | 분석 요청의 `notes`와 `expected_pitch_id` 채우기 |
 | 녹음 길이 상한(PRA-02 600초)을 낮출지, DTW 폭 제한을 넣을지 | 팀(PRA-02·PRA-03). 서비스 곡의 최대 연습 구간 길이 확인 필요. [측정 기록](../knowledge/ai/analysis-latency.md)은 상한을 연습 구간 길이로 낮추고 120초를 넘으면 DTW 폭 제한을 먼저 넣자고 제안한다 | 120초를 넘는 녹음의 분석. 정하기 전 긴 녹음은 메모리 부족으로 실패한다 |
 | 제한 시간 60초와 앱 대기 70초의 최종 값 | 운영 서버에서 같은 명령으로 다시 잰 결과 | 값 조정(구현은 막지 않음) |
