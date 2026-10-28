@@ -21,3 +21,16 @@ class TokenIssuingUnavailable : RuntimeException("Access token signing unavailab
 interface RefreshTokenRepository {
     fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long
 }
+
+enum class RevokeReason { ROTATED, SIGN_OUT, PASSWORD_CHANGED, WITHDRAWN, REUSE_DETECTED }
+
+class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant, val revoked: Boolean)
+
+/** 재발급·로그아웃용 리프레시 토큰 저장소. */
+interface TokenRefreshRepository {
+    fun <T : Any> inTransaction(action: () -> T): T
+    fun findForUpdate(tokenHash: String): StoredRefreshToken?
+    fun revoke(id: Long, reason: RevokeReason, now: Instant)
+    fun revokeAll(userId: Long, reason: RevokeReason, now: Instant)
+    fun memberStatus(userId: Long): MemberStatus?
+}
