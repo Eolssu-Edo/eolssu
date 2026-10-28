@@ -32,6 +32,11 @@ class MelodyTests(unittest.TestCase):
             melody_of(doc)
         self.assertEqual(melody_of(doc, part=1), "임")
 
+    def test_part_number_must_exist(self):
+        for doc, part in ((load("v2-minimal.jgb.json"), 1), (load("v2-minimal.jgb.json"), -1), (load("v1-minimal.jgb.json"), 1)):
+            with self.assertRaises(ValueError):
+                melody_of(doc, part=part)
+
 
 class ReadUnitsTests(unittest.TestCase):
     def test_rows_split_a_cell_evenly_and_times_are_exact_fractions(self):
@@ -65,6 +70,21 @@ class ReadUnitsTests(unittest.TestCase):
         self.assertEqual((a.symbol, a.sigimsae), ("임", ("니나",)))
         self.assertEqual(b.symbol, "쉼")
 
+    def test_gak_breaks_follow_umulsai(self):
+        # 우물사이 parseMelodyOffsets: '||'도 각 구분(예전 형식), 빈 줄은 빈 정간 하나짜리 각
+        units = read_units("임||무\n\n태", beats_per_jeonggan=F(1))
+        self.assertEqual([(u.cell_id, u.symbol) for u in units], [("c0-j0", "임"), ("c1-j0", "무"), ("c2-j0", ""), ("c3-j0", "태")])
+
+    def test_breath_belongs_to_the_last_sound_of_its_cell_and_takes_no_space(self):
+        # 우물사이: 숨표는 자리를 차지하지 않고 정간의 마지막 자리에 붙는다
+        units = read_units("청황< 임 | <무", beats_per_jeonggan=F(1))
+        self.assertEqual([(u.symbol, u.duration, u.breath) for u in units],
+                         [("청황", F(1, 2), False), ("임", F(1, 2), True), ("무", F(1), True)])
+
+    def test_sigimsae_without_a_pitch_is_not_supported_yet(self):
+        with self.assertRaisesRegex(ValueError, "c0-j1"):
+            read_units("임 | - {니나}", beats_per_jeonggan=F(1))
+
     def test_unreadable_text_stops_with_its_cell(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | 도레미", beats_per_jeonggan=F(1))
@@ -94,9 +114,20 @@ class BuildEventsTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual((events[0].sigimsae, events[0].breath_after, events[0].duration), (("니나",), True, F(2)))
 
-    def test_hold_without_a_previous_sound_stops(self):
-        with self.assertRaisesRegex(ValueError, "c0-j0"):
-            build_events(read_units("- | 임", beats_per_jeonggan=F(1)))
+    def test_holds_do_not_cross_a_gak_and_become_rests(self):
+        # 우물사이 realizeMelody: 지속은 제 각 안에서만, 각 첫머리의 이음·빈 정간은 쉼(2026-08-14 확정)
+        events, _ = build_events(read_units("임 | -\n- |  | 무\n- | 쉼 | -", beats_per_jeonggan=F(1)))
+        self.assertEqual([(e.kind, e.yul, e.start, e.duration) for e in events], [
+            ("NOTE", "임", F(0), F(2)),
+            ("REST", None, F(2), F(2)),   # 새 각의 이음 + 빈 정간
+            ("NOTE", "무", F(4), F(1)),
+            ("REST", None, F(5), F(1)),   # 새 각의 이음
+            ("REST", None, F(6), F(2)),   # 적힌 쉼 + 쉼을 잇는 이음
+        ])
+
+    def test_hold_at_the_very_start_is_a_rest(self):
+        events, _ = build_events(read_units("- | 임", beats_per_jeonggan=F(1)))
+        self.assertEqual([(e.kind, e.duration) for e in events], [("REST", F(1)), ("NOTE", F(1))])
 
 
 META = dict(title="시험곡", instrument="DANSO", source_id="example-p1", jangdan="세마치", bpm_unit="DOTTED_QUARTER",
@@ -128,6 +159,17 @@ class ConvertTests(unittest.TestCase):
         self.assertEqual([c["id"] for c in cells], ["c0-j0", "c0-j1", "c0-j2", "c1-j0", "c1-j1", "c1-j2"])
         self.assertEqual([u["eventId"] for u in cells[1]["units"]], ["c0-j0-r0-u0", "c0-j0-r0-u0", "c0-j1-r2-u0"])
         self.assertTrue(all(e["cellId"] in {c["id"] for c in cells} for e in events.values()))
+
+    def test_gak_longer_than_beats_or_per_gak_beats_stop(self):
+        # 우물사이는 beats를 넘는 정간을 잘라 쓰고 gakBeats로 각마다 길이를 바꾼다. 아직 지원하지 않으므로 멈춘다.
+        doc = load("v2-minimal.jgb.json")
+        doc["parts"][0]["melody"] = "중 | 임 | 무 | 황"
+        with self.assertRaisesRegex(ValueError, "beats"):
+            convert(doc, beats_per_jeonggan=F(1), **META)
+        doc = load("v2-minimal.jgb.json")
+        doc["controls"]["gakBeats"] = "2:4"
+        with self.assertRaisesRegex(ValueError, "gakBeats"):
+            convert(doc, beats_per_jeonggan=F(1), **META)
 
     def test_schema_rejects_a_missing_field_or_wrong_kind(self):
         for broken in (lambda r: r["events"][0].pop("durationTick"), lambda r: r["events"][0].update(kind="SOUND"),

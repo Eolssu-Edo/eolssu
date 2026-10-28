@@ -4,12 +4,14 @@
 채점 정답(data/annotations/scores/<원본 ID>/)을 변환해 <out>/<원본 ID>/score.json에 쓴다.
 스키마나 불변식 검사가 실패하면 쓰지 않고 멈춘다.
 
-정간 읽기: 선율의 한 줄이 각, `|`가 정간 경계다. 정간 안에서 띄어 쓴 낱말이 위→아래 줄이고,
-한 줄에 이어 쓴 음 단위는 그 줄을 왼→오른쪽으로 똑같이 나눈다(우물사이·검토 화면과 같은 문법).
+정간 읽기: 줄바꿈과 `||`가 각 경계, `|`가 정간 경계다(우물사이 parseMelodyOffsets와 같다).
+정간 안에서 띄어 쓴 낱말이 위→아래 줄이고, 한 줄에 이어 쓴 음 단위는 그 줄을 왼→오른쪽으로
+똑같이 나눈다. 숨표(<)는 자리를 차지하지 않고 그 정간의 마지막 글자에 붙는다.
 시간은 곡 장단의 bpm_unit 박으로 세며, 계산 중에는 반올림이 없도록 Fraction으로 둔다.
 
 이벤트 만들기: 율명·쉼표가 새 이벤트를 열고, 이음(-)과 빈 정간은 앞 이벤트의 길이에 더한다.
-숨표·시김새는 그 글자가 속한 이벤트에 붙는다.
+단 지속은 제 각 안에서만이라, 마지막 음과 다른 각의 이음·빈 정간은 쉼이 된다(우물사이 realizeMelody,
+2026-08-14 확정). 숨표·시김새는 그 글자가 속한 이벤트에 붙는다.
 
 결과: 화면 배치용 columns → cells와 재생·채점용 events를 함께 담고 cellId·eventId로 잇는다(노션 B2).
 시간은 박을 ticksPerBeat 칸으로 나눈 정수 틱이다. ticksPerBeat는 모든 시작·길이·정간 길이 분모의
@@ -71,42 +73,56 @@ def melody_of(doc, part=None):
     파트가 여럿이면 어느 파트인지 받아야 한다."""
     parts = doc.get("parts")
     if not (isinstance(parts, list) and parts):
-        return doc["melody"]
+        parts = [{"melody": doc["melody"]}]
     if part is None:
         if len(parts) > 1:
             raise ValueError(f"파트가 {len(parts)}개라 변환할 파트 번호가 필요하다")
         part = 0
+    if not 0 <= part < len(parts):
+        raise ValueError(f"파트 {part}가 없다(파트 {len(parts)}개)")
     return parts[part]["melody"]
+
+
+def gaks_of(melody):
+    """선율을 각별 정간 글자 목록으로 나눈다. '||'(예전 형식)도 각 경계이고 빈 줄은 빈 정간 하나짜리 각이다."""
+    return [[c.strip() for c in line.split("|")] for line in melody.replace("||\n", "\n").replace("||", "\n").split("\n")]
 
 
 def read_units(melody, beats_per_jeonggan):
     """선율을 연주 순서의 글자 목록으로 펼치고 시작·길이(박)를 붙인다."""
     units, start = [], Fraction(0)
-    for column, line in enumerate(l for l in melody.split("\n") if l.strip()):
-        for index, cell in enumerate(c.strip() for c in line.split("|")):
+    for column, cells in enumerate(gaks_of(melody)):
+        for index, cell in enumerate(cells):
             cell_id = f"c{column}-j{index}"
-            words = cell.split() or [""]  # 빈 정간은 줄 하나짜리 빈 글자
+            breath = "<" in cell  # 숨표는 자리를 차지하지 않고 정간의 마지막 글자에 붙는다
+            words = cell.replace("<", "").split() or [""]  # 빈 정간은 줄 하나짜리 빈 글자
+            first = len(units)
             for row, word in enumerate(words):
                 parsed = _parse_word(word, cell_id)
-                for col, (symbol, breath, sigimsae) in enumerate(parsed):
+                for col, (symbol, sigimsae) in enumerate(parsed):
                     duration = beats_per_jeonggan / len(words) / len(parsed)
-                    units.append(Unit(cell_id, column, index, row, col, symbol, breath, sigimsae, start, duration))
+                    units.append(Unit(cell_id, column, index, row, col, symbol, False, sigimsae, start, duration))
                     start += duration
+            if breath and len(units) > first:
+                units[-1] = replace(units[-1], breath=True)
     return units
 
 
 def build_events(units):
     """글자 목록을 이벤트 목록으로 묶는다. 글자마다 속한 이벤트 id 목록도 같은 순서로 돌려준다."""
     events, unit_events = [], []
+    note_column = None  # 마지막 음이 난 각. 지속은 제 각 안에서만 잇는다
     for u in units:
+        if u.symbol in ("-", "") and (not events or events[-1].kind == "NOTE" and note_column != u.column):
+            u = replace(u, symbol="쉼")  # 앞 음이 없거나 다른 각이면 쉼으로 끊는다
         if u.symbol in ("-", ""):
-            if not events:
-                raise ValueError(f"{u.cell_id}: 이을 앞 소리가 없다")
             last = events[-1]
             events[-1] = replace(last, duration=last.duration + u.duration,
                                  breath_after=last.breath_after or u.breath, sigimsae=last.sigimsae + u.sigimsae)
         else:
             prefix, yul = (u.symbol[:-1], u.symbol[-1]) if u.symbol != "쉼" else (None, None)
+            if yul is not None:
+                note_column = u.column
             events.append(Event(f"{u.cell_id}-r{u.row}-u{u.col}", "REST" if yul is None else "NOTE",
                                 yul, None if yul is None else OCTAVE[prefix],
                                 u.start, u.duration, u.cell_id, u.breath, u.sigimsae))
@@ -117,7 +133,15 @@ def build_events(units):
 def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, bpm_unit, review, jgb_sha256,
             part=None, score_version=1):
     """우물사이 문서 하나를 공통 악보 데이터(dict)로 바꾼다. beats_per_jeonggan은 사람이 원본에서 정한 값이다."""
-    units = read_units(melody_of(doc, part), Fraction(beats_per_jeonggan))
+    melody, controls = melody_of(doc, part), doc.get("controls", {})
+    # 우물사이는 beats를 넘는 정간을 잘라 쓰고 gakBeats로 각마다 길이를 바꾼다. 옮기기 전까지는 멈춘다.
+    if controls.get("gakBeats"):
+        raise ValueError(f"각별 정간 수(gakBeats={controls['gakBeats']!r})는 아직 지원하지 않는다")
+    beats = int(controls.get("beats") or 0)
+    long = [g for g, cells in enumerate(gaks_of(melody)) if beats and len(cells) > beats]
+    if long:
+        raise ValueError(f"각 {long}의 정간 수가 beats={beats}보다 많다")
+    units = read_units(melody, Fraction(beats_per_jeonggan))
     events, unit_events = build_events(units)
     tpb = math.lcm(Fraction(beats_per_jeonggan).denominator,
                    *(t.denominator for e in events for t in (e.start, e.duration)))
@@ -195,14 +219,17 @@ def _rows(data, name):
 
 def _parse_word(word, cell_id):
     if not word:
-        return [("", False, ())]
+        return [("", ())]
     out, i = [], 0
     while i < len(word):
         m = UNIT.match(word, i)
         if not m or not m.group(0):
             raise ValueError(f"{cell_id}: '{word[i:]}'를 읽을 수 없다")
-        symbol = "쉼" if m.group(1) == "쉼표" else (m.group(1) or "")
-        out.append((symbol, bool(m.group(2)), tuple(SIGIMSAE.findall(m.group(3)))))
+        if not m.group(1):
+            # 우물사이는 율명 없는 시김새를 앞 음 기준의 소리로 푼다. 그 규칙을 옮기기 전까지는 멈춘다.
+            raise ValueError(f"{cell_id}: 율명 없는 시김새 '{m.group(0)}'는 아직 지원하지 않는다")
+        symbol = "쉼" if m.group(1) == "쉼표" else m.group(1)
+        out.append((symbol, tuple(SIGIMSAE.findall(m.group(3)))))
         i = m.end()
     return out
 
