@@ -6,4 +6,8 @@
         FROM users
         WHERE id = #{id}
     </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at)
+        VALUES (#{email}, #{passwordHash}, #{nickname}, #{instrumentId}, #{notationMode}, 'ACTIVE', #{createdAt}, #{createdAt})
+    </insert>
 </mapper>
