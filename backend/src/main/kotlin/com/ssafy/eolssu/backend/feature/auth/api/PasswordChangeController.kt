@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /** USR-04. 로그인이 필요한 경로라 access_token이 없거나 만료되면 보안 필터가 401로 막는다. */
 @RestController
-@Profile("db")
+@Profile("db | ops")
 class PasswordChangeController(private val service: PasswordChangeService, private val cookies: AuthCookies) {
     @PatchMapping("/api/users/me/password")
     fun change(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: PasswordChangeRequest): ResponseEntity<*> =

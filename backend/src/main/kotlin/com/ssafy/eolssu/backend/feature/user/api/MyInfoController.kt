@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController
 /** 내 정보(USR-01~03). 로그인이 필요한 경로라 access_token이 없거나 만료되면 보안 필터가 401로 막는다. */
 @RestController
 @RequestMapping("/api/users/me")
-@Profile("db")
+@Profile("db | ops")
 class MyInfoController(private val service: MyInfoService) {
     @GetMapping
     fun find(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<*> {

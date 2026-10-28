@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class PasswordChangeConfig {
     @Bean
     fun passwordChangeRepository(users: UserMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager): PasswordChangeRepository =
