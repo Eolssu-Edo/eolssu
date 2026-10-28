@@ -405,7 +405,7 @@ def health_report(target='edo1'):
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
         rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
-    probes = [('Grafana', 3000, '/api/health'), ('Metabase', 3001, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
+    probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
     for name, port, path in probes:
         if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
             continue

@@ -13,8 +13,11 @@ enum class PracticeMode { Ready, Model, Countdown, Recording, Interrupted }
 /** 아래에서 올라오는 보조 패널. */
 enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
 
-/** 연습 화면 위에 뜨는 확인 창. */
-enum class PracticePopup { Permission, Abort, End, Restart, Exit, Interrupted }
+/**
+ * 연습 화면 위에 뜨는 확인 창.
+ * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
+ */
+enum class PracticePopup { Permission, Abort, End, Restart, Exit, Interrupted, RecordFailed, TooLarge }
 
 /** 연습 속도 5단계 — 곡 기준 속도에 대한 비율. 정해진 칸으로만 움직인다. */
 enum class TempoStep(val ratio: Double) {
@@ -52,7 +55,7 @@ data class PracticeDraft(
  * @property position 현재 음의 연주 순서(재생·연주 중 위치).
  * @property eventStartedAt 현재 음이 시작된 시각. 멈춰 있으면 null이고 [pausedFraction]만큼 지난 상태다.
  * @property selected 준비 상태에서 고른 음의 연주 순서.
- * @property micLevel 연주 중 마이크 입력 크기(0~1). 실제 녹음이 붙기 전에는 입력이 있는 것처럼 흉내 낸다.
+ * @property micLevel 연주 중 마이크 입력 크기(0~1). 녹음 구현이 없는 플랫폼(iOS·Web)은 입력이 있는 것처럼 흉내 낸다.
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
  */
 data class PracticeUiState(
@@ -183,10 +186,30 @@ fun PracticeUiState.advance(doneMs: Double, micLevel: Float): PracticeUiState {
     }
     return when (mode) {
         PracticeMode.Model -> copy(playing = false, position = eventCount - 1, elapsedMs = totalSeconds * 1000.0, eventStartedAt = null)
-        PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed, finished = true, micLevel = 0f, popup = PracticePopup.End, eventStartedAt = null)
+        PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed).endRecording()
         else -> this
     }
 }
+
+/** 연주를 마침: 곡 끝에 닿았거나 녹음이 최대 길이(10분)에 닿음. '연주를 마쳤어요' 창을 띄운다. */
+fun PracticeUiState.endRecording(): PracticeUiState =
+    copy(finished = true, micLevel = 0f, popup = PracticePopup.End, eventStartedAt = null)
+
+/**
+ * 마친 녹음을 확인한다. 저장하지 못했으면 녹음 실패, 보낼 수 있는 크기를 넘으면 크기 초과 창으로 바꾼다.
+ * [saved]는 저장된 파일이 있는지, [tooLarge]는 그 파일이 20MiB를 넘는지.
+ */
+fun PracticeUiState.checkRecording(saved: Boolean, tooLarge: Boolean): PracticeUiState = when {
+    !saved -> failRecording()
+    tooLarge -> copy(popup = PracticePopup.TooLarge)
+    else -> this
+}
+
+/** 녹음을 시작하거나 저장하지 못함. 끊긴 연주처럼 평가하지 않는다. */
+fun PracticeUiState.failRecording(): PracticeUiState = copy(
+    mode = PracticeMode.Interrupted, popup = PracticePopup.RecordFailed, eventStartedAt = null, resume = false, micLevel = 0f,
+    finished = false,
+)
 
 /** 연주 중단을 누르면 진행을 그 자리에서 멈추고 확인 창을 띄운다. */
 fun PracticeUiState.askAbort(fraction: Float): PracticeUiState = copy(popup = PracticePopup.Abort, eventStartedAt = null, pausedFraction = fraction)

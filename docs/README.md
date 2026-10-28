@@ -34,6 +34,7 @@
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
+- [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
 
 ## 결정 기록
 
@@ -94,6 +95,7 @@
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
 - [S15P31E102-143 이메일·소셜 로그인과 회원 정보 API](plans/S15P31E102-143.md)
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
+- [S15P31E102-155 단소 기준 데이터 표 작성](plans/S15P31E102-155.md)
 - [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
@@ -103,6 +105,7 @@
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
 - [S15P31E102-197 edo1 Jenkins·운영 이미지에 녹음 검사용 ffmpeg 반영](plans/S15P31E102-197.md)
+- [S15P31E102-206 Android 연주 녹음·마이크 권한과 10분 자동 정지](plans/S15P31E102-206.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

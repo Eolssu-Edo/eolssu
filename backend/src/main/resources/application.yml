@@ -30,11 +30,14 @@ management:
     web:
       base-path: /api/actuator
       exposure:
-        include: health
+        include: health, prometheus
     jmx:
       exposure:
         exclude: "*"
   endpoint:
+    # prometheus는 서버 안 Prometheus만 읽는다. 인터넷 쪽은 Nginx가 readiness 외 점검 주소를 막는다.
+    prometheus:
+      access: read-only
     health:
       access: read-only
       show-details: never

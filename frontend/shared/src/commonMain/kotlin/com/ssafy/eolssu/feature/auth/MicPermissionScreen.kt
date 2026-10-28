@@ -32,7 +32,7 @@ import eolssu.shared.generated.resources.auth_mic_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AUTH-03 마이크 안내(첫 실행). 실제 권한 요청은 녹음 기능을 붙일 때 연습 화면에서 한다.
+ * AUTH-03 마이크 안내(첫 실행). '허용'을 누르면 화면 이동 쪽(`authGraph`)이 OS 권한 창을 띄운다.
  * 와이어프레임의 OS 권한 창 예시는 흉내 내지 않고 같은 선택(허용·허용 안 함)을 하단 버튼으로 둔다.
  */
 @Composable

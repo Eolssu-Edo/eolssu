@@ -22,6 +22,7 @@ repositories {
 dependencies {
     implementation(libs.spring.boot.webmvc)
     implementation(libs.spring.boot.actuator)
+    runtimeOnly(libs.micrometer.prometheus)
     implementation(libs.spring.boot.validation)
     implementation(libs.spring.boot.security)
     implementation(libs.spring.boot.security.oauth2.resource.server)

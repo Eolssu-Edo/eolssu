@@ -70,6 +70,40 @@
 6. 앱이 70초 동안 상태 응답을 하나도 받지 못하면(네트워크 단절) 앱만 `TIMEOUT` 화면을 보여 준다. 서버 상태는 바꾸지 않는다.
 7. 앱이 백그라운드로 가거나 대기 화면을 벗어나도 분석은 서버에서 계속한다. 돌아오면 상태를 한 번 조회하고, `PENDING`이면 2초 조회를 다시 시작한다.
 
+## 분석 요청과 상태 조회 계약 (S15P31E102-186)
+
+2026-10-28 사용자가 추천안으로 확정했다. 호출 방식(업로드 커밋 뒤 백그라운드 HTTP, 큐 없음)은 [PRA-02](recording-file.md)를 따른다.
+
+**백엔드 → AI 분석 요청.** AI가 같은 HTTP 응답으로 결과를 돌려준다. 백엔드는 백그라운드에서 응답을 기다린다.
+
+```text
+POST {AI}/v1/analyses
+{ "sessionId": 1, "attempt": 1, "audioUrl": "<15분 읽기 전용 서명 URL>", "bpm": 60, "bpmUnit": "JEONGGAN",
+  "notes": [{ "idx": 0, "semitone": 0, "beats": 1.0, "sigimsae": false }] }
+
+200 { "status": "DONE", "modelVersion": "pyin-1", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
+      "tuningOffsetCent": -12.5, "tuningOutOfRange": false,
+      "notes": [{ "idx": 0, "verdict": "CORRECT", "pitchErrorCent": 3.1, "onsetErrorMs": 20, "durationErrorMs": -15 }] }
+200 { "status": "FAILED", "failReason": "NO_SOUND" | "TOO_SHORT" | "DECODE_ERROR" }
+```
+
+- `notes`는 백엔드가 세션의 곡·연습 구간을 음표로 풀어 보낸다. AI는 DB를 읽지 않는다. `idx`는 `songs.score_json` 기준 순번이고 결과의 `idx`도 같다.
+- `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
+- `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
+- `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
+- 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`는 AI가 주지 않으므로 비운다. `pitchErrorCent`는 정수로 반올림해 저장하고 `tuningOffsetCent`·`tuningOutOfRange`는 저장할 칸이 없어 아직 쓰지 않는다.
+- 응답 형식이 맞지 않거나 연결이 실패하면 `SERVER_ERROR`, 제한 시간을 넘으면 `TIMEOUT`이다(S15P31E102-174). AI 오류 응답의 본문은 요청을 되돌려 줄 수 있어 예외·로그에 남기지 않고 상태 코드만 남긴다.
+- 결과·실패 코드 저장은 같은 시도이고 마감 전(`analysis_started_at` ≥ 지금 − 제한 시간)일 때만 한다. 마감을 넘겨 거절되면 그 시도를 `TIMEOUT`으로 바꾼다. 분석을 시작할 때 이미 마감을 넘겼으면 AI를 부르지 않고 `TIMEOUT`이다. 마감과 같은 시각은 아직 제한 시간 안이다.
+- 악보 음표를 만들지 못하거나 결과 저장이 실패해도(예: 칸 범위를 넘는 값) `SERVER_ERROR`다. 시도마다 결과 코드와 처리 시간(ms)을 로그에 남기고, 예외 메시지는 남기지 않는다. `TIMEOUT`으로 바꿀 때는 분석 중이든 상태 조회 때든 따로 한 줄 남겨 시간 초과 횟수를 센다.
+- 업로드(S15P31E102-181)는 `PENDING`으로 바꾸는 같은 갱신에서 `analysis_attempt`를 1 올리고 `analysis_started_at`을 채운다. 시작 시각은 DB `NOW()`가 아니라 마감 판정과 같은 서버의 UTC 시계로 넣는다(분석 다시 시도도 같다). 시도 번호가 0인 `PENDING`은 분석 대기로 보지 않는다.
+
+**앱의 상태 조회.** `GET /api/practice-sessions/{id}/analysis` → `{ "status", "failReason", "attempt" }`. 오류 응답은 API 명세 공통 형식을 따른다. 점수·음표별 결과는 결과 조회 API가 정해지면 그것을 쓰고, 없으면 `DONE`일 때 이 응답에 함께 넣는다. 노션 API 명세에 다른 정의가 있으면 그것을 따른다.
+
+**구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 상태 조회용 시간 초과 전환(`expireIfOverdue`)까지 구현했다. 다음은 아직 없으며 S15P31E102-186을 이것들까지 마친 뒤 완료한다.
+
+- 상태 조회 API: 인증(S15P31E102-143)과 API 명세 공통 오류 형식이 develop에 들어온 뒤 붙인다.
+- 분석 실행·AI 클라이언트의 Bean 연결과 업로드 뒤 호출: 악보 음표 변환(아래 미결 사항)과 녹음 서명 URL(S15P31E102-181)이 생긴 뒤 붙인다. 이때 제한 시간 설정값(기본 60초)과 AI HTTP 응답 대기 시간을 함께 정한다. 대기 시간은 제한 시간보다 조금 길게 둔다. 짧으면 느린 응답이 마감 전에 끊겨 `TIMEOUT` 대신 `SERVER_ERROR`가 된다.
+
 ## 다음 행동
 
 **녹음 다시 보내기** (업로드 실패, 실패 코드 아님)
@@ -153,7 +187,8 @@
 
 | 항목 | 정할 사람·필요한 것 | 막는 작업 |
 | --- | --- | --- |
-| 상태 조회·재시도 API 모양과 거절 응답 형식 | PRA API 명세 담당 | BE·FE 연동 |
+| 재시도 API 모양과 거절 응답 형식, 상태 조회 API의 노션 명세 대조 | PRA API 명세 담당. 상태 조회는 위 '분석 요청과 상태 조회 계약'을 우선 쓴다 | BE·FE 연동. 상태 조회 API는 인증·공통 오류 형식도 기다린다 |
+| `songs.score_json`을 음표(반음·박·시김새·음 ID)로 푸는 방법 | 공통 악보 데이터 형식(S15P31E102-156·157) | 분석 요청의 `notes`와 `expected_pitch_id` 채우기 |
 | 녹음 길이 상한(PRA-02 600초)을 낮출지, DTW 폭 제한을 넣을지 | 팀(PRA-02·PRA-03). 서비스 곡의 최대 연습 구간 길이 확인 필요. [측정 기록](../knowledge/ai/analysis-latency.md)은 상한을 연습 구간 길이로 낮추고 120초를 넘으면 DTW 폭 제한을 먼저 넣자고 제안한다 | 120초를 넘는 녹음의 분석. 정하기 전 긴 녹음은 메모리 부족으로 실패한다 |
 | 제한 시간 60초와 앱 대기 70초의 최종 값 | 운영 서버에서 같은 명령으로 다시 잰 결과 | 값 조정(구현은 막지 않음) |
 | 연습 기록 목록이 저장한 세션만 보이는지 | REC-02 목록 명세. 저장한 세션만 보이면 `UPLOAD_TIMEOUT`은 따로 처리할 필요 없다 | 목록 API 구현 |

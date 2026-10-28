@@ -9,6 +9,7 @@ spring-boot-security-oauth2-resource-server = { module = "org.springframework.bo
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 spring-boot-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 spring-boot-security = { module = "org.springframework.boot:spring-boot-starter-security" }
