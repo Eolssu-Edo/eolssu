@@ -103,6 +103,8 @@ AAC는 손실 압축이며 목표와 실제 비트레이트는 다를 수 있다
 
 ## 자동 테스트와 수동 검수의 구분 (2026-10-28)
 
-사용자 요청으로 5개 테스트 파일의 72개 메서드와 실제 assertion을 대조하고 [테스트별 확인 범위](../../../data/src/playback/tests/README.md)에 정리했다. Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 전체 72개가 통과했으며 AAC 통합 2개도 건너뛰지 않았다. 명령은 `python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v`이며 코드 변경 없이 재실행했다.
+사용자 요청으로 72개 메서드와 실제 assertion을 대조하고 [테스트별 확인 범위](../../../data/src/playback/tests/README.md)에 정리했다. 기능 주제로 나뉘어 있던 테스트를 구현 모듈별 5개 파일(`test_jgb`, `test_score`, `test_midi`, `test_sampler`, `test_audio`)과 통합 검사 `test_pipeline`으로 재구성했다. 공통 헬퍼는 `_helpers.py`로 옮겨 테스트 파일 간 import를 제거했다. 재구성 전후 72개 테스트 메서드의 AST가 같음을 확인했으며 재생 코드는 바꾸지 않았다.
+
+Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 재구성 후에도 전체 72개가 통과했다. 실제 AAC 통합은 `test_audio.py`의 코덱 1개와 `test_pipeline.py`의 CLI 1개이며 둘 다 건너뛰지 않았다. 명령은 `python -m unittest discover -s data/src/playback/tests -p "test_*.py" -q`이다.
 
 자동 검사는 고정 악보·합성 사인파로 선택한 변환 규칙, MIDI 제어, PCM 시간·무음, 출력 보존을 검증한다. 실제 CAT 뱅크 생성은 위 수동 실행 기록과 구분한다. 풀어내림의 곡선이 정책대로 나오는 것과 원보의 기호를 풀어내림으로 판독한 것이 맞는지는 별도 문제다. 이번 72개에 PDF 판독·21개 교정의 정오 판정·동일 판본 실연 대조는 없으며, 빠르기 선택 검사도 BPM의 음악적 근거 인증이 아니다.
