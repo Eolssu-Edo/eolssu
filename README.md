@@ -13,6 +13,12 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
 - 글 이미지는 GitHub `team-edo/blog-images`에 따로 둬요 (아래 [이미지](#이미지)).
 - Jenkins는 서버 안(loopback)에서만 접속을 받아서 GitLab webhook 대신 SCM polling으로 변경을 감지해요.
 
+## 팀원이 블로그를 사용하는 방식
+
+**작성자가 TIL 기록·요청 → Codex가 초안 정리 → 작성자가 확인 → 사람이 MR 생성·병합 → Jenkins가 게시**하는 흐름입니다. 요청은 저장소를 연결한 Codex 채팅에 직접 전달하며, GitLab 댓글·메신저를 감지하는 자동 작성 봇은 없습니다.
+
+누가 어디에서 무엇을 하는지, TIL 머리말과 요청 문구, 검토·commit·push·MR·게시 확인 절차는 [블로그 사용 방식](docs/blog-workflow.md)을 따라 주세요. TIL 원본 MR의 대상은 `develop`, 공개 글 MR의 대상은 `blog`입니다.
+
 ## 글 쓰기
 
 1. `blog` 브랜치에서 글 브랜치를 만들어요. **develop에서 만들지 않아요.**
