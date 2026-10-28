@@ -712,14 +712,18 @@ class DatabaseIntegrationTests {
             Retry(41, "FAILED", "TIMEOUT", 1, true),
             Retry(42, "FAILED", "SERVER_ERROR", 2, true),
             Retry(43, "FAILED", "NO_SOUND", 1, true),
-            Retry(44, "PENDING", null, 1, true),
-            Retry(45, "FAILED", "TIMEOUT", 1, false),
-            Retry(46, "DONE", null, 1, true),
+            Retry(44, "FAILED", "TOO_SHORT", 1, true),
+            Retry(45, "FAILED", "DECODE_ERROR", 1, true),
+            Retry(46, "FAILED", "UPLOAD_TIMEOUT", 0, false),
+            Retry(47, "PENDING", null, 1, true),
+            Retry(48, "FAILED", "TIMEOUT", 1, false),
+            Retry(49, "DONE", null, 1, true),
         )) {
             jdbc.update(
                 "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
                     "analysis_attempt, analysis_started_at, started_at, ended_at) VALUES (?, 1, 1, 60, 'JEONGGAN', 0, ?, ?, ?, ?, ?, ?, ?)",
-                id, if (recording) "recordings/$id/a.m4a" else null, status, failReason, attempt, failedAt, failedAt.minusMinutes(1), failedAt,
+                id, if (recording) "recordings/$id/a.m4a" else null, status, failReason, attempt,
+                if (attempt == 0) null else failedAt, failedAt.minusMinutes(1), failedAt,
             )
         }
         val repository = mapper<AnalysisRetryRepository>()
@@ -727,17 +731,26 @@ class DatabaseIntegrationTests {
 
         assertEquals(AnalysisState("FAILED", "TIMEOUT", 1), repository.findState(41, 1))
         assertNull(repository.findState(41, 2)) // 다른 회원의 세션
-        assertFalse(repository.startRetry(41, 2, retriedAt))
-        assertTrue(repository.startRetry(41, 1, retriedAt))
+        assertFalse(repository.startRetry(41, 2, 1, retriedAt))
+        assertFalse(repository.startRetry(41, 1, 0, retriedAt)) // 읽은 뒤 다른 시도가 시작·실패했다
+        assertTrue(repository.startRetry(41, 1, 1, retriedAt))
         assertEquals(AnalysisState("PENDING", null, 2), repository.findState(41, 1))
         assertEquals(retriedAt, jdbc.queryForObject("SELECT analysis_started_at FROM practice_sessions WHERE id = 41", LocalDateTime::class.java))
-        assertFalse(repository.startRetry(41, 1, retriedAt)) // 이미 PENDING
-        assertTrue(repository.startRetry(42, 1, retriedAt))
+        assertFalse(repository.startRetry(41, 1, 2, retriedAt)) // 이미 PENDING
+
+        // 분석에 넘기지 못한 시도는 SERVER_ERROR로 끝내 다시 시도할 수 있게 한다. 다른 시도·시작 시각이면 바꾸지 않는다.
+        assertFalse(repository.failStart(41, 1, retriedAt))
+        assertFalse(repository.failStart(41, 2, retriedAt.plusNanos(1_000)))
+        assertTrue(repository.failStart(41, 2, retriedAt))
+        assertEquals(AnalysisState("FAILED", "SERVER_ERROR", 2), repository.findState(41, 1))
+        assertFalse(repository.failStart(41, 2, retriedAt)) // 이미 끝났다
+
+        assertTrue(repository.startRetry(42, 1, 2, retriedAt))
         assertEquals(AnalysisState("PENDING", null, 3), repository.findState(42, 1))
 
-        for (id in 43L..46L) {
-            val before = repository.findState(id, 1)
-            assertFalse(repository.startRetry(id, 1, retriedAt), "session $id")
+        for (id in 43L..49L) {
+            val before = assertNotNull(repository.findState(id, 1))
+            assertFalse(repository.startRetry(id, 1, before.attempt, retriedAt), "session $id")
             assertEquals(before, repository.findState(id, 1), "session $id")
         }
     }
@@ -779,7 +792,7 @@ class DatabaseIntegrationTests {
                 pool.submit<Boolean> {
                     ready.countDown()
                     go.await()
-                    repository.startRetry(902, 902, retriedAt)
+                    repository.startRetry(902, 902, 1, retriedAt)
                 }
             }
             assertTrue(ready.await(10, TimeUnit.SECONDS))

@@ -47,11 +47,12 @@
         WHERE id = #{sessionId} AND user_id = #{userId}
     </select>
 
-    <!-- 다시 시도(S15P31E102-175): TIMEOUT·SERVER_ERROR만 같은 녹음으로 새 시도를 시작한다. 조건부라 동시 요청 중 하나만 바뀐다 -->
+    <!-- 다시 시도(S15P31E102-175): TIMEOUT·SERVER_ERROR만 같은 녹음으로 새 시도를 시작한다.
+         읽은 시도 번호를 조건에 넣어 그 사이 다른 시도가 시작·실패했으면 바꾸지 않는다. 조건부라 동시 요청 중 하나만 바뀐다 -->
     <update id="startRetry">
         UPDATE practice_sessions
         SET status = 'PENDING', fail_reason = NULL, analysis_attempt = analysis_attempt + 1, analysis_started_at = #{startedAt}
-        WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'FAILED' AND fail_reason IN ('TIMEOUT', 'SERVER_ERROR')
-          AND recording_url IS NOT NULL
+        WHERE id = #{sessionId} AND user_id = #{userId} AND analysis_attempt = #{attempt}
+          AND status = 'FAILED' AND fail_reason IN ('TIMEOUT', 'SERVER_ERROR') AND recording_url IS NOT NULL
     </update>
 </mapper>

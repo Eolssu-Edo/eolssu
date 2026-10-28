@@ -28,8 +28,13 @@ interface PracticeAnalysisMapper {
     /** 본인 세션의 분석 상태. 다른 회원의 세션이면 null. */
     fun findState(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): AnalysisStateRow?
 
-    /** 다시 시도할 수 있는 `FAILED`일 때만 새 시도의 `PENDING`으로 바꾼다. 바뀐 행 수(0 또는 1)를 돌려준다. */
-    fun startRetry(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long, @Param("startedAt") startedAt: LocalDateTime): Int
+    /** 아직 `attempt`번째 시도이고 다시 시도할 수 있는 `FAILED`일 때만 새 시도의 `PENDING`으로 바꾼다. 바뀐 행 수(0 또는 1)를 돌려준다. */
+    fun startRetry(
+        @Param("sessionId") sessionId: Long,
+        @Param("userId") userId: Long,
+        @Param("attempt") attempt: Int,
+        @Param("startedAt") startedAt: LocalDateTime,
+    ): Int
 }
 
 data class AnalysisStateRow(

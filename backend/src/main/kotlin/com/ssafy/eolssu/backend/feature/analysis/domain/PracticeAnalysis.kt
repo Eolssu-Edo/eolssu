@@ -114,8 +114,11 @@ interface AnalysisRetryRepository {
     fun findState(sessionId: Long, userId: Long): AnalysisState?
 
     /**
-     * 본인 세션이 녹음이 있는 `FAILED`이고 실패 코드가 [RETRYABLE_FAIL_REASONS]이면 시도 번호를 1 올리고
-     * `startedAt`에 시작한 `PENDING`으로 바꾼다. 조건부 갱신이라 동시 요청 중 하나만 true다.
+     * 본인 세션이 아직 `attempt`번째 시도이고 녹음이 있는 `FAILED`이며 실패 코드가 [RETRYABLE_FAIL_REASONS]이면
+     * 시도 번호를 `attempt + 1`로 올리고 `startedAt`에 시작한 `PENDING`으로 바꾼다. 조건부 갱신이라 동시 요청 중 하나만 true다.
      */
-    fun startRetry(sessionId: Long, userId: Long, startedAt: LocalDateTime): Boolean
+    fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean
+
+    /** 방금 시작한 `attempt`번째 시도(`startedAt`)를 분석에 넘기지 못했을 때 `SERVER_ERROR`로 끝낸다. 이미 끝났으면 false. */
+    fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime): Boolean
 }
