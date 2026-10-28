@@ -34,11 +34,12 @@ pipeline {
             steps {
                 dir('backend') {
                     sh './gradlew --no-daemon clean build'
+                    sh './gradlew --no-daemon mediaTest'
                 }
             }
             post {
                 always {
-                    junit testResults: 'backend/build/test-results/test/*.xml', allowEmptyResults: false
+                    junit testResults: 'backend/build/test-results/test/*.xml, backend/build/test-results/mediaTest/*.xml', allowEmptyResults: false
                 }
             }
         }

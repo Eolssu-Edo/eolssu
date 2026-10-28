@@ -39,7 +39,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS users FROM users WHERE deleted_at IS NULL"
+          "rawSql": "SELECT COUNT(*) AS users FROM users WHERE status = 'ACTIVE'"
         }
       ]
     },
@@ -204,7 +204,32 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT id, instrument_id, notation_mode, last_login_at, created_at, deleted_at FROM users ORDER BY id DESC LIMIT 20"
+          "rawSql": "SELECT id, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, deleted_at FROM users ORDER BY id DESC LIMIT 20"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "곡별 연습 (Metabase에서 옮김)",
+      "gridPos": { "x": 0, "y": 32, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "곡별·악기별 연습 (선택 기간, 연습 시작 기준)",
+      "description": "선택 기간에 시작한 연습 세션 수와 채점 평균 점수. 채점이 없는 세션도 연습 횟수에 센다.",
+      "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+      "gridPos": { "x": 0, "y": 33, "w": 24, "h": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT s.title AS 곡, i.name AS 악기, COUNT(ps.id) AS 연습_횟수, ROUND(AVG(e.total_score), 1) AS 평균_점수 FROM practice_sessions ps JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id LEFT JOIN evaluations e ON e.session_id = ps.id WHERE $__timeFilter(ps.created_at) GROUP BY s.id, s.title, i.name ORDER BY 연습_횟수 DESC, s.title"
         }
       ]
     }

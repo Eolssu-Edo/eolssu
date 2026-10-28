@@ -20,7 +20,7 @@
 - `data/practice`·`data/user`처럼 여러 기능이 함께 쓰는 데이터 패키지는 먼저 만드는 사람이 주 담당이 되고, 다른 기능이 필요한 API를 추가할 때는 주 담당에게 알린 뒤 추가한다.
 - 기능 안에서 끝나는 변경(그 기능의 화면·상태·DTO·Repository)은 담당자가 혼자 결정한다. 아래 2절의 공동 파일을 건드리면 조율한다.
 
-현재 기능 목록: `auth`, `song`, `practice`, `result`, `history`, `profile`. 담당 배정은 Jira Task로 관리하고 이 문서에는 적지 않는다.
+현재 기능 목록: `home`, `guide`, `auth`, `song`, `practice`, `result`, `history`, `profile`. 담당 배정은 Jira Task로 관리하고 이 문서에는 적지 않는다.
 
 ## 2. 공동 파일은 수정 전에 조율한다
 

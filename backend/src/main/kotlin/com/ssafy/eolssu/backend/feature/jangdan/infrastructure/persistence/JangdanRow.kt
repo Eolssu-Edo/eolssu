@@ -7,6 +7,7 @@ data class JangdanRow(
     val name: String,
     val pattern: String,
     val defaultBpm: Short,
+    val bpmUnit: String,
     val source: String?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,

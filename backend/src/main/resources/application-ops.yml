@@ -1,0 +1,27 @@
+# Read-only health checks against the existing database; schema changes use the db profile.
+spring:
+  autoconfigure:
+    exclude: []
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      connection-timeout: 2000
+      validation-timeout: 1000
+      initialization-fail-timeout: -1
+      minimum-idle: 0
+      maximum-pool-size: 3
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: never
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db

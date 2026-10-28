@@ -245,7 +245,9 @@ def main():
             raise DeployError('deployment interrupted')
         signal.signal(signal.SIGTERM, interrupted)
         signal.signal(signal.SIGINT, interrupted)
+        run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
         Deployer().deploy(sys.argv[1])
+        run('/opt/eolssu-backup/backup.py', 'send', 'postchange', timeout=600)
 
 
 if __name__ == '__main__':
