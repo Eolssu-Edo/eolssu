@@ -10,9 +10,31 @@ interface PracticeSessionMapper {
 
     fun failRecordingStartedBefore(@Param("cutoff") cutoff: LocalDateTime, @Param("failReason") failReason: String): Int
 
+    /** 회원 본인의 세션과 평가 ID. 다른 회원의 세션이면 null. */
+    fun findDetail(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): PracticeSessionDetailRow?
+
     fun findByIdempotencyKey(@Param("userId") userId: Long, @Param("idempotencyKey") idempotencyKey: String): PracticeSessionRow?
 
     fun findPlayableSong(@Param("songId") songId: Long): PlayableSongRow?
 
     fun insert(session: PracticeSessionInsert): Int
 }
+
+data class PracticeSessionDetailRow(
+    val sessionId: Long,
+    val userId: Long,
+    val songId: Long,
+    val bpm: Int,
+    val bpmUnit: String,
+    val startNoteIdx: Int,
+    val endNoteIdx: Int,
+    val status: String,
+    val evaluationId: Long?,
+    val failReason: String?,
+    val recordingAvailable: Boolean,
+    val startedAt: LocalDateTime,
+    val endedAt: LocalDateTime?,
+    val analysisStartedAt: LocalDateTime?,
+    val savedAt: LocalDateTime?,
+    val memo: String?,
+)

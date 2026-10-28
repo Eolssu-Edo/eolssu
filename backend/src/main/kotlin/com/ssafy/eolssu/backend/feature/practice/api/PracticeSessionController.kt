@@ -6,18 +6,25 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSession
 import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSessionCommand
 import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSessionResult
+import com.ssafy.eolssu.backend.feature.practice.application.GetPracticeSession
 import com.ssafy.eolssu.backend.feature.practice.domain.BpmUnit
+import com.ssafy.eolssu.backend.feature.practice.domain.PracticeSessionDetail
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Positive
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -30,7 +37,11 @@ private const val ID_PATTERN = "[1-9][0-9]{0,17}"
 @RestController
 @RequestMapping("/api/practice-sessions")
 @Profile("db")
-class PracticeSessionController(private val createPracticeSession: CreatePracticeSession) {
+class PracticeSessionController(
+    private val createPracticeSession: CreatePracticeSession,
+    private val getPracticeSession: GetPracticeSession,
+) {
+    /** API 명세 `POST /practice-sessions`(PRA-01 연습 세션 생성). */
     @PostMapping
     fun create(
         @AuthenticationPrincipal jwt: Jwt,
@@ -53,7 +64,7 @@ class PracticeSessionController(private val createPracticeSession: CreatePractic
         return when (val result = createPracticeSession.execute(command)) {
             is CreatePracticeSessionResult.Created -> ResponseEntity.status(HttpStatus.CREATED).body(
                 result.session.let {
-                    PracticeSessionResponse(
+                    CreatedPracticeSessionResponse(
                         result = CreatedSession(
                             it.id.toString(), it.songId.toString(), it.status, it.bpm, it.bpmUnit.name, it.startNoteIdx, it.endNoteIdx, it.startedAt,
                         ),
@@ -65,6 +76,14 @@ class PracticeSessionController(private val createPracticeSession: CreatePractic
             CreatePracticeSessionResult.StateConflict -> error(ErrorCode.STATE_CONFLICT)
             CreatePracticeSessionResult.IdempotencyConflict -> error(ErrorCode.IDEMPOTENCY_CONFLICT)
         }
+    }
+
+    /** API 명세 `GET /practice-sessions/{sessionId}`(PRA-03 연습 세션·분석 상태 조회). 없거나 다른 회원의 세션은 404. */
+    @GetMapping("/{sessionId}")
+    fun get(@AuthenticationPrincipal jwt: Jwt, @PathVariable @Positive sessionId: Long): ResponseEntity<*> {
+        val detail = getPracticeSession.execute(requireNotNull(jwt.subject).toLong(), sessionId)
+            ?: return error(ErrorCode.RESOURCE_NOT_FOUND)
+        return ResponseEntity.ok(PracticeSessionResponse(result = PracticeSessionResult.of(detail)))
     }
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
@@ -81,7 +100,7 @@ data class CreatePracticeSessionRequest(
     val jangdanSoundOn: Boolean? = null,
 )
 
-data class PracticeSessionResponse(
+data class CreatedPracticeSessionResponse(
     val httpStatus: String = "CREATED",
     @get:JsonProperty("isSuccess") val isSuccess: Boolean = true,
     val message: String = "전체·구간·미션 연습 세션 생성 성공",
@@ -99,3 +118,41 @@ data class CreatedSession(
     val endNoteIdx: Int,
     val startedAt: Instant,
 )
+
+data class PracticeSessionResponse(
+    val httpStatus: String = "OK",
+    @get:JsonProperty("isSuccess") val isSuccess: Boolean = true,
+    val message: String = "연습 세션·분석 상태 조회 성공",
+    val code: Int = 200,
+    val result: PracticeSessionResult,
+)
+
+/** DB ID는 문자열, 시각은 UTC ISO8601(API 명세 공통 타입). */
+data class PracticeSessionResult(
+    val sessionId: String,
+    val songId: String,
+    val bpm: Int,
+    val bpmUnit: String,
+    val startNoteIdx: Int,
+    val endNoteIdx: Int,
+    val status: String,
+    val evaluationId: String?,
+    val failReason: String?,
+    val recordingAvailable: Boolean,
+    val startedAt: Instant,
+    val endedAt: Instant?,
+    val retryable: Boolean,
+    val savedAt: Instant?,
+    val memo: String?,
+) {
+    companion object {
+        fun of(detail: PracticeSessionDetail) = with(detail) {
+            PracticeSessionResult(
+                sessionId.toString(), songId.toString(), bpm, bpmUnit, startNoteIdx, endNoteIdx, status, evaluationId?.toString(),
+                failReason, recordingAvailable, startedAt.utc(), endedAt?.utc(), retryable, savedAt?.utc(), memo,
+            )
+        }
+
+        private fun LocalDateTime.utc() = toInstant(ZoneOffset.UTC)
+    }
+}
