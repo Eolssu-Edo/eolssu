@@ -3,7 +3,7 @@ kotlin = "2.3.21"
 spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
 mybatis-spring-boot = "4.0.0"
-bouncycastle = "1.79"
+bouncycastle = "1.84"
 
 [libraries]
 spring-boot-security-oauth2-resource-server = { module = "org.springframework.boot:spring-boot-starter-security-oauth2-resource-server" }
