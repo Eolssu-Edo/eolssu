@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import HOP_S, Note, frame_rms, pyin_f0, reference_hz, score
+from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, frame_rms, pyin_f0, reference_hz, score
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -18,6 +18,26 @@ def verdicts(result):
 def test_reference_from_basic_tone():
     tone = synth([Note(0, 4)])
     assert reference_hz(pyin_f0(tone, SR)) == pytest.approx(REF_HZ, rel=0.003)
+
+
+def test_semitone_0_is_hwang_e_flat_4():
+    assert HWANG_HZ == pytest.approx(440 * 2 ** (-6 / 12), abs=0.01)  # E♭4는 A4에서 6반음 아래
+    # 합성 도구를 거치지 않은 415.30Hz(A♭4) 순음은 율명 표의 중(반음 5)이다.
+    tone = 0.3 * np.sin(2 * np.pi * 415.30 * np.arange(SR * 2) / SR)
+    result = score(pyin_f0(tone, SR), [Note(5, 4)], BPM, HWANG_HZ)
+    assert result.notes[0].verdict == "CORRECT"
+    assert abs(result.notes[0].pitch_error_cent) < 5
+
+
+def test_beat_unit_only_rescales_bpm():
+    # beats와 bpm은 같은 박 단위면 된다. 한 박을 셋으로 나눠 적고 bpm을 세 배로 해도 기대 시각은 같다.
+    # 허용 범위 onset_beat는 박 단위라 박을 쪼개면 좁아진다(판정은 같지 않을 수 있다).
+    audio = synth(SCALE, delay={4: 0.05})
+    f0, rms = pyin_f0(audio, SR), frame_rms(audio, SR)
+    thirds = [Note(n.semitone, n.beats * 3) for n in SCALE]
+    a, b = score(f0, SCALE, BPM, REF_HZ, rms=rms), score(f0, thirds, BPM * 3, REF_HZ, rms=rms)
+    assert [n.onset_error_ms for n in a.notes] == [n.onset_error_ms for n in b.notes]
+    assert (a.notes[4].verdict, b.notes[4].verdict) == ("CORRECT", "TIMING")
 
 
 def test_perfect_scale_scores_100():

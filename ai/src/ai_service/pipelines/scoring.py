@@ -1,7 +1,7 @@
 """악보 기반 대금 연주 채점.
 
 녹음의 음높이 곡선(f0)과 정답 음표를 DTW로 맞춘 뒤 음표마다 음정·박자·길이를 판정한다.
-음높이 단위는 기본음 녹음에서 잰 기준음 대비 센트다.
+음높이 단위는 기준음 대비 센트이고, 서비스 기준음은 HWANG_HZ다.
 """
 
 from dataclasses import dataclass, field
@@ -10,6 +10,7 @@ import librosa
 import numpy as np
 
 HOP_S = 0.01  # f0 프레임 간격(초)
+HWANG_HZ = 311.13  # 반음 0인 황 = E♭4. 반음 번호는 pitches.semitone(옥타브 × 12 + 율 순서)
 _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센트)
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
 

@@ -2,11 +2,11 @@
 
 import numpy as np
 
-from ai_service.pipelines.scoring import Note
+from ai_service.pipelines.scoring import HWANG_HZ, Note
 
 SR = 16000
 BPM = 120
-REF_HZ = 311.13  # 합성용 기준음. 실제 기준음은 녹음마다 기본음에서 잰다.
+REF_HZ = HWANG_HZ
 # 기준음에서의 반음 수로 적은 오르내리는 음계
 SCALE = [Note(s, 1) for s in (0, 2, 5, 7, 9, 12, 9, 7, 5, 2, 0)]
 
