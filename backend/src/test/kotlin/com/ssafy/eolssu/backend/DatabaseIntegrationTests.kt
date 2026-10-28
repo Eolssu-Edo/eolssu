@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
@@ -38,7 +39,14 @@ import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.Nota
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
 import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import com.ssafy.eolssu.backend.feature.practice.application.UploadRecording
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingMetadata
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
+import com.ssafy.eolssu.backend.feature.practice.domain.UploadedRecording
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisPracticeSessionDetails
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
@@ -558,6 +566,42 @@ class DatabaseIntegrationTests {
         assertEquals(1, context.getBeansOfType(RecordingUploadExpiryService::class.java).size)
         // 공유 테스트 DB에서 실제 시계의 주기 작업이 고정 데이터와 겹치지 않도록 이 테스트 컨텍스트는 스케줄링을 끈다.
         assertTrue(context.getBeansOfType(ScheduledAnnotationBeanPostProcessor::class.java).isEmpty())
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `records an upload and starts the analysis attempt only while the member's session is recording`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'RECORDING', '2026-10-28 02:59:00.000000')",
+        )
+        val repository = mapper<RecordingUploadRepository>()
+        val uploadedAt = LocalDateTime.parse("2026-10-28T03:00:00.123456")
+        val recording = UploadedRecording("recordings/21/a.m4a", RecordingMetadata(20_971_520, 600_500, 48_000, 2), uploadedAt)
+
+        assertEquals(RecordingUploadTarget("RECORDING", null, LocalDateTime.parse("2026-10-28T02:59:00")), repository.findOwned(21, 1))
+        assertNull(repository.findOwned(21, 2))
+        assertFalse(repository.markUploaded(21, 2, recording))
+        assertTrue(repository.markUploaded(21, 1, recording))
+        assertFalse(repository.markUploaded(21, 1, recording.copy(key = "recordings/21/b.m4a")))
+
+        // MyBatis 로컬 캐시를 피해 JDBC로 읽는다.
+        val row = jdbc.queryForMap(
+            "SELECT status, recording_url, recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels, " +
+                "ended_at, analysis_attempt, analysis_started_at, fail_reason FROM practice_sessions WHERE id = 21",
+        )
+        assertEquals(
+            listOf("PENDING", "recordings/21/a.m4a", 20_971_520, 600_500, 48_000, 2, uploadedAt, 1, uploadedAt, null),
+            listOf(
+                row["status"], row["recording_url"], row["recording_bytes"], row["recording_duration_ms"], row["recording_sample_rate"],
+                (row["recording_channels"] as Number).toInt(), row["ended_at"], row["analysis_attempt"], row["analysis_started_at"], row["fail_reason"],
+            ),
+        )
+        // 저장소 연결값이 없는 테스트 서버는 업로드를 503으로 답하는 저장소로 기동한다.
+        assertTrue(context.getBean(RecordingStorage::class.java) is UnavailableRecordingStorage)
+        assertEquals(1, context.getBeansOfType(UploadRecording::class.java).size)
+        assertEquals(1, context.getBeansOfType(RecordingReadUrls::class.java).size)
     }
 
     @Test

@@ -87,7 +87,7 @@ JWT `sub`는 `users.id`입니다. 컨트롤러에서 `@AuthenticationPrincipal j
 컨트롤러 테스트는 `spring-security-test`의 `post("/api/...").with(jwt().jwt { it.subject("1") })`로 인증할 수 있습니다(`SecurityMockMvcRequestPostProcessors.jwt`). 이는 서명 검증을 대체하는 테스트 대역이며, `AccessTokenSecurityTests`는 실제 HS256 서명 쿠키·위조·만료도 별도로 검사합니다. 테스트 고정 키는 테스트 코드에만 둡니다.
 
 - 공개(명세 Request Header '공개' 경로만, 와일드카드 없음): POST `/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/{provider}`·`email-verifications`·`email-verifications/{verificationId}/confirm`, GET `/api/terms`·`songs`·`songs/{songId}`·`songs/{songId}/score`·`songs/{songId}/model-audio`·`instruments`·`instruments/{instrumentId}/fingerings`·`pitches`·`jangdans`·`jangdans/{jangdanId}`·`notation-symbols`, `/api/actuator/**`(health만 노출). 전체 표는 `ApiAccessRulesTests`에 있습니다.
-- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 406 `NOT_ACCEPTABLE`, 413 `RECORDING_TOO_LARGE`, 415 `UNSUPPORTED_MEDIA_TYPE`, 500 `INTERNAL_SERVER_ERROR`). Spring multipart 한도 초과도 같은 413 형식으로 처리합니다. 지원하지 않는 Accept의 406도 공통 JSON 본문으로 반환합니다. 오류 추가 정보는 필요할 때만 `result.details`에 담고 민감값은 제외합니다. ProblemDetail 형식은 쓰지 않기로 확정했습니다. `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
+- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 406 `NOT_ACCEPTABLE`, 413 `RECORDING_TOO_LARGE`, 415 `UNSUPPORTED_MEDIA_TYPE`, 500 `INTERNAL_SERVER_ERROR`, 녹음 업로드 코드는 아래 '녹음 업로드와 원본 저장소'). Spring multipart 한도 초과도 같은 413 형식으로 처리합니다. 지원하지 않는 Accept의 406도 공통 JSON 본문으로 반환합니다. 오류 추가 정보는 필요할 때만 `result.details`에 담고 민감값은 제외합니다. ProblemDetail 형식은 쓰지 않기로 확정했습니다. `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
 - CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. 경로와 관계없이 모든 POST·PUT·PATCH·DELETE에 적용합니다.
   - `Origin` 헤더가 있으면 요청 `Host`와 호스트 이름이 같거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). Nginx는 HTTPS를 끝내고 `Host`를 포트 없이 넘기므로, `Host`에 포트가 없으면 호스트 이름만 비교하고 포트가 있으면 포트도 비교합니다. 그래서 Nginx 뒤에서는 같은 호스트의 다른 포트에서 온 요청도 통과합니다. 지금 서버는 Nginx의 80·443만 공개하므로 문제가 없지만, 같은 도메인의 다른 포트에 서비스를 올리면 이 판단을 다시 확인합니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
   - 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`, 디코딩된 경로 기준)만 `multipart/form-data`를 받습니다.
@@ -149,7 +149,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회입니다. 되돌림 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회입니다. 되돌림 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -165,6 +165,32 @@ macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 
 | 실행 이미지 | `Dockerfile` 실행 단계에서 `ffmpeg=7:8.0.1-3ubuntu2`(베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)를 고정 설치 |
 
 고정 버전은 베이스 이미지의 Ubuntu 버전이 바뀌면 설치에 실패하므로 함께 갱신합니다. ffmpeg 설치로 실행 이미지가 약 410MB 커집니다. CI는 아직 `mediaTest`를 실행하지 않습니다. edo1 Jenkins 에이전트에 ffmpeg를 설치한 뒤 Jenkinsfile에 추가하고, 운영 이미지를 만드는 서버의 `/opt/eolssu/config/backend.Dockerfile`도 이 파일과 맞춥니다.
+
+### 녹음 업로드와 원본 저장소(PRA-02)
+
+`POST /api/practice-sessions/{sessionId}/recording`(`db` 프로필, 로그인 필요)은 multipart의 `audio` 파트 하나를 받아 [녹음 파일 규격](../docs/specs/recording-file.md)의 순서(404→410→409→413→415→422→503→500)로 판정합니다. 통과하면 원본을 `recordings/{sessionId}/{UUID}.m4a`에 저장하고, 세션이 아직 `RECORDING`일 때만 한 번의 조건부 갱신으로 원본 키·메타데이터 4칸·`ended_at`(서버 UTC)을 기록하고 `PENDING`으로 바꾸며 분석 시도를 시작합니다(`analysis_attempt` + 1, `analysis_started_at`). 응답은 202이고 본문은 `{sessionId, status: "PENDING", evaluationId: null, pollAfterMs: 2000}`입니다. 앱이 보내는 `endedAt`과 `Idempotency-Key`는 읽지 않습니다. 저장에 성공한 세션에 다시 올리면 409이며, 응답을 받지 못한 앱은 상태 조회로 결과를 확인합니다.
+
+거부 코드(`result.errorCode`)는 404 `SESSION_NOT_FOUND`, 410 `SESSION_EXPIRED`, 409 `SESSION_NOT_RECORDING`, 413 `RECORDING_TOO_LARGE`, 415 `RECORDING_UNSUPPORTED_FORMAT`, 422 `RECORDING_INVALID_DURATION`, 503 `RECORDING_STORAGE_UNAVAILABLE`, 500 `INTERNAL_SERVER_ERROR`입니다. DB 갱신이 실패하거나 동시 업로드에서 지면 자기 요청이 만든 객체만 지웁니다. 업로드 뒤 분석 시작은 `RecordingUploaded` 빈으로 연결하며, 빈이 없으면 아무것도 부르지 않습니다. AI가 원본을 읽는 15분짜리 서명 URL은 `RecordingReadUrls` 빈이 만듭니다. 서명 URL은 녹음 접근 토큰이라 로그에 남기지 않습니다.
+
+원본 저장소는 S3 호환 API로 연결하고 처음 쓰는 업체는 Cloudflare R2입니다. 아래 다섯 값이 모두 있어야 연결하며, 하나라도 비면 기동은 하되 업로드를 503으로 답합니다. 키는 서버 `.env`에만 두고 커밋하지 않습니다.
+
+| 변수 | 값 |
+| --- | --- |
+| `RECORDING_STORAGE_ENDPOINT` | R2 S3 API 주소 `https://<account_id>.r2.cloudflarestorage.com` |
+| `RECORDING_STORAGE_BUCKET` | 녹음 버킷 이름 |
+| `RECORDING_STORAGE_ACCESS_KEY_ID`·`RECORDING_STORAGE_SECRET_ACCESS_KEY` | 이 버킷 하나에 객체 읽기·쓰기만 허용한 R2 API 토큰의 S3 키 |
+| `RECORDING_STORAGE_REGION` | `auto`(기본값) |
+
+R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
+
+1. R2 > 버킷 만들기: 위치 힌트 `Asia-Pacific(apac)`, 기본 저장 등급 `Standard`.
+2. 버킷 설정 > 공개 접근: `r2.dev` 주소와 사용자 도메인을 모두 끈 상태로 둡니다.
+3. 버킷 설정 > 객체 수명 주기 규칙: 접두사 `recordings/`, 객체 생성 30일 뒤 삭제를 추가합니다. R2는 만료 뒤 보통 24시간 안에 지웁니다.
+4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
+
+S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다.
+
+Nginx(`infra/runtime/nginx.conf`·`nginx.tls.conf.template`)는 `/api/`의 본문 한도를 25MiB(`client_max_body_size 25m`)로 둡니다. 25MiB를 넘으면 Nginx가 자체 HTML 413을, 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413을 돌려줍니다.
 
 ## 폴더와 코드 배치
 
