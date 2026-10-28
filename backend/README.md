@@ -74,7 +74,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 내 정보와 비밀번호 변경(USR-01~04)
 
-`db` 프로필에서 제공하며 모두 로그인(access_token 쿠키)이 필요합니다. 토큰의 회원이 없거나 ACTIVE가 아니면 404 `RESOURCE_NOT_FOUND`입니다.
+`db`·`ops` 프로필에서 제공하며 모두 로그인(access_token 쿠키)이 필요합니다. 토큰은 유효하지만 회원이 없거나 ACTIVE가 아니면 401 `UNAUTHENTICATED`입니다(GRO-04와 같음).
 
 - `GET /api/users/me`: 닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 이메일·제공자 사용자 ID는 내보내지 않습니다.
 - `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 60자 이하).

@@ -64,10 +64,10 @@ class MyInfoControllerTests {
     }
 
     @Test
-    fun `a member that is not active is not found`() {
+    fun `a member that is not active is unauthenticated`() {
         mvc.perform(get("/api/users/me"))
-            .andExpect(status().isNotFound)
-            .andExpect(content().json("""{"isSuccess":false,"code":404,"result":{"errorCode":"RESOURCE_NOT_FOUND"}}"""))
+            .andExpect(status().isUnauthorized)
+            .andExpect(content().json("""{"isSuccess":false,"code":401,"result":{"errorCode":"UNAUTHENTICATED"}}"""))
     }
 
     @Test
@@ -100,10 +100,10 @@ class MyInfoControllerTests {
     }
 
     @Test
-    fun `nickname of a member that is not active is not found`() {
+    fun `nickname of a member that is not active is unauthenticated`() {
         mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"새 닉네임"}"""))
-            .andExpect(status().isNotFound)
-            .andExpect(content().json("""{"result":{"errorCode":"RESOURCE_NOT_FOUND"}}"""))
+            .andExpect(status().isUnauthorized)
+            .andExpect(content().json("""{"result":{"errorCode":"UNAUTHENTICATED"}}"""))
     }
 
     @Test
@@ -146,10 +146,10 @@ class MyInfoControllerTests {
     }
 
     @Test
-    fun `preferences of a member that is not active are not found`() {
+    fun `preferences of a member that is not active are unauthenticated`() {
         mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"notationMode":"HANGUL"}"""))
-            .andExpect(status().isNotFound)
-            .andExpect(content().json("""{"result":{"errorCode":"RESOURCE_NOT_FOUND"}}"""))
+            .andExpect(status().isUnauthorized)
+            .andExpect(content().json("""{"result":{"errorCode":"UNAUTHENTICATED"}}"""))
     }
 }
 

@@ -82,11 +82,11 @@ class MyInfoApiDatabaseTests {
     }
 
     @Test
-    fun `my info needs the access cookie and a withdrawal pending member is not found`() {
+    fun `my info needs the access cookie and a withdrawal pending member is unauthenticated`() {
         assertEquals(401, get("/api/users/me", null).statusCode())
         val access = signIn()
         jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
-        assertError(get("/api/users/me", access), 404, "RESOURCE_NOT_FOUND")
+        assertError(get("/api/users/me", access), 401, "UNAUTHENTICATED")
     }
 
     @Test
@@ -99,7 +99,7 @@ class MyInfoApiDatabaseTests {
         assertEquals(200, patch("/api/users/me", access, """{"nickname":"새 닉네임"}""").statusCode())
         assertError(patch("/api/users/me", access, """{"nickname":""}"""), 400, "INVALID_REQUEST")
         jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
-        assertError(patch("/api/users/me", access, """{"nickname":"다른 이름"}"""), 404, "RESOURCE_NOT_FOUND")
+        assertError(patch("/api/users/me", access, """{"nickname":"다른 이름"}"""), 401, "UNAUTHENTICATED")
         assertEquals("새 닉네임", jdbc.queryForObject("SELECT nickname FROM users WHERE id = ?", String::class.java, userId))
     }
 

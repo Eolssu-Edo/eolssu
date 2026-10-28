@@ -91,7 +91,7 @@ class PasswordChangeApiDatabaseTests {
     }
 
     @Test
-    fun `invalid new passwords and missing fields are 400 and the access cookie is required`() {
+    fun `invalid new passwords and missing fields are 400 and an active member with the access cookie is required`() {
         val device = signIn("Current!234")
         for (body in listOf(
             """{"currentPassword":"Current!234","newPassword":"Current!234"}""",
@@ -101,6 +101,9 @@ class PasswordChangeApiDatabaseTests {
             assertError(patch(device.cookieHeader(), body), 400, "INVALID_REQUEST")
         }
         assertEquals(401, patch(null, """{"currentPassword":"Current!234","newPassword":"NewPassword!567"}""").statusCode())
+        jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
+        assertError(patch(device.cookieHeader(), """{"currentPassword":"Current!234","newPassword":"NewPassword!567"}"""), 401, "UNAUTHENTICATED")
+        jdbc.update("UPDATE users SET status = 'ACTIVE', withdrawal_requested_at = NULL, purge_scheduled_at = NULL WHERE id = ?", userId)
         assertEquals(200, signInResponse("Current!234").statusCode())
     }
 

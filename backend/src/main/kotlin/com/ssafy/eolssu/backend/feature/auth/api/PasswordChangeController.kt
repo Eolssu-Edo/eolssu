@@ -31,7 +31,8 @@ class PasswordChangeController(private val service: PasswordChangeService, priva
             PasswordChangeResult.InvalidRequest -> error(ErrorCode.INVALID_REQUEST)
             PasswordChangeResult.CurrentPasswordMismatch -> error(ErrorCode.CURRENT_PASSWORD_MISMATCH)
             is PasswordChangeResult.TooManyAttempts -> error(ErrorCode.TOO_MANY_REQUESTS, RetryDetails(result.retryAvailableAt))
-            PasswordChangeResult.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
+            // 토큰은 유효하지만 회원 행이 없거나 ACTIVE가 아니면 다시 로그인하게 한다(GRO-04와 같음).
+            PasswordChangeResult.NotFound -> error(ErrorCode.UNAUTHENTICATED)
             PasswordChangeResult.Unavailable -> error(ErrorCode.SERVICE_UNAVAILABLE)
         }
 

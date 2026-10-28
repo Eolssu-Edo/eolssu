@@ -30,13 +30,13 @@ import org.springframework.web.bind.annotation.RestController
 class MyInfoController(private val service: MyInfoService) {
     @GetMapping
     fun find(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<*> {
-        val found = service.find(jwt.userId()) ?: return notFound()
+        val found = service.find(jwt.userId()) ?: return memberUnavailable()
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "내 정보·학습 설정 조회 성공", MyInfoResult(found)))
     }
 
     @PatchMapping
     fun changeNickname(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: NicknameRequest): ResponseEntity<*> {
-        val changed = service.changeNickname(jwt.userId(), request.nickname) ?: return notFound()
+        val changed = service.changeNickname(jwt.userId(), request.nickname) ?: return memberUnavailable()
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "회원정보 수정 성공", MyProfileResult(changed)))
     }
 
@@ -48,13 +48,14 @@ class MyInfoController(private val service: MyInfoService) {
                 SuccessResponse.of(HttpStatus.OK, "선택 악기·기본 악보 표기 저장 성공", PreferencesSaved(result.info)),
             )
             PreferencesResult.InactiveInstrument -> error(ErrorCode.UNPROCESSABLE_INPUT)
-            PreferencesResult.NotFound -> notFound()
+            PreferencesResult.NotFound -> memberUnavailable()
         }
     }
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
 
-    private fun notFound() = error(ErrorCode.RESOURCE_NOT_FOUND)
+    // 토큰은 유효하지만 회원 행이 없거나 ACTIVE가 아니면 다시 로그인하게 401이다(GRO-04와 같음).
+    private fun memberUnavailable() = error(ErrorCode.UNAUTHENTICATED)
 
     private fun Jwt.userId() = requireNotNull(subject).toLong()
 }
