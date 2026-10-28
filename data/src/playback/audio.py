@@ -32,7 +32,7 @@ def command(args, payload=None, timeout=180):
 
 
 def resolve_encoder(ffmpeg=None, ffprobe=None):
-    """Resolve once per batch; never download or change the user's PATH."""
+    """Resolve the external encoder without downloading or changing PATH."""
     encoder = {}
     for name, requested in (("ffmpeg", ffmpeg), ("ffprobe", ffprobe)):
         requested = requested or os.environ.get(f"{name.upper()}_BINARY") or name

@@ -20,9 +20,9 @@ flowchart TD
     aac -.-> trace
 ```
 
-`__main__.py`가 단일 생성 전체를 연결하고 `batch.py`가 카탈로그의 빠르기·교정 근거를 적용해 같은 경로를 반복합니다. 기본 출력과 검증용 출력은 각각 다른 폴더에 생성합니다.
+`__main__.py`가 입력 악보 하나의 변환 전체를 연결합니다. 기본 출력과 검증용 출력은 각각 다른 폴더에 생성합니다.
 
-`.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 악기 하나와 한 성부를 선택합니다. 등록된 `profiles/*.json`이 지원 악기를 정하며 `--help`에서 확인합니다. 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
+`.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 악기 하나와 한 성부를 선택합니다. 등록된 `profiles/*.json`이 지원 악기를 정하며 `--help`에서 확인합니다. 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다.
 
 ## 설치와 빠른 검사
 
@@ -36,7 +36,7 @@ python -m venv data/.venv
 
 작은 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 음표/쉼표/붙임줄/이음줄·원본 ID·음역·실제 무음·CC11·Pitch Bend·추가 떨림과 실패 시 기존 산출물 보존을 확인합니다.
 
-M4A 생성과 실제 코덱 검사에는 **FFmpeg와 ffprobe**가 필요합니다. [공식 다운로드 안내](https://ffmpeg.org/download.html)의 OS별 배포본을 준비합니다. 프로그램이 자동 설치하거나 PATH를 바꾸지는 않습니다. PATH에 있으면 바로 사용하고, 경로를 직접 지정하려면 단일/배치 명령에 `--ffmpeg C:/tools/ffmpeg/bin/ffmpeg.exe --ffprobe C:/tools/ffmpeg/bin/ffprobe.exe`를 붙입니다. 검사와 실행에 공통으로 사용할 환경변수도 지원합니다.
+M4A 생성과 실제 코덱 검사에는 **FFmpeg와 ffprobe**가 필요합니다. [공식 다운로드 안내](https://ffmpeg.org/download.html)의 OS별 배포본을 준비합니다. 프로그램이 자동 설치하거나 PATH를 바꾸지는 않습니다. PATH에 있으면 바로 사용하고, 경로를 직접 지정하려면 단일 명령에 `--ffmpeg C:/tools/ffmpeg/bin/ffmpeg.exe --ffprobe C:/tools/ffmpeg/bin/ffprobe.exe`를 붙입니다. 검사와 실행에 공통으로 사용할 환경변수도 지원합니다.
 
 ```powershell
 $env:FFMPEG_BINARY = 'C:/tools/ffmpeg/bin/ffmpeg.exe'
@@ -44,7 +44,7 @@ $env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
-실제 설치 위치로 바꿉니다. 두 실행 파일이 없으면 M4A 통합 검사 3개는 건너뛰고 나머지 검사는 실행합니다. M4A 변경을 병합하기 전에는 이 검사도 실행해야 합니다. WAV 선택 출력은 FFmpeg가 필요하지 않습니다.
+실제 설치 위치로 바꿉니다. 두 실행 파일이 없으면 M4A 통합 검사 2개는 건너뛰고 나머지 검사는 실행합니다. M4A 변경을 병합하기 전에는 이 검사도 실행해야 합니다. WAV 선택 출력은 FFmpeg가 필요하지 않습니다.
 
 ## 실제 단소 음원 생성
 
@@ -60,7 +60,7 @@ $env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
 
 단소의 추가 떨림은 **±25cent로 고정**하며 다른 악기에는 자동 추가하지 않습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. `--instrument all`은 공통 IR의 등록 프로필 전체 청취용이며 JGB에는 악기 하나를 지정해야 합니다.
 
-출력 폴더에는 `danso.mid`, **`danso.m4a`**, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. M4A는44.1kHz·mono·AAC-LC이며 목표 비트레이트는192kbps입니다. 실제 비트레이트는 인코더와 음원에 따라 달라지며 결과에 따로 기록합니다. PCM을 메모리에서 인코더 stdin으로 전달하므로 중간 WAV를 저장하지 않습니다.
+출력 폴더에는 `danso.mid`, **`danso.m4a`**, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`이 생성됩니다. M4A는44.1kHz·mono·AAC-LC이며 목표 비트레이트는192kbps입니다. 실제 비트레이트는 인코더와 음원에 따라 달라지며 결과에 따로 기록합니다. PCM을 메모리에서 인코더 stdin으로 전달하므로 중간 WAV를 저장하지 않습니다.
 
 WAV가 필요한 경우 같은 명령에 `--audio-format wav`를 추가하고 새 `--out`을 지정합니다. WAV는 기존44.1kHz·mono·PCM16입니다. 출력 폴더에 반대 형식의 음원이 있으면 이전 파일을 삭제하지 않고 작업을 거부합니다. 인코딩·디코딩 검사까지 임시 폴더에서 성공한 뒤 결과를 공개하므로 인코더 실패 시 이전 산출물을 보존합니다.
 
@@ -118,25 +118,11 @@ JGB 입력에서는 원본 바이트 사본 `source.jgb.json`과 `source-map.jso
 - 연결 attack/release20ms, 일반 release50ms, 단소 연결 시 새 샘플의100ms 지점부터 재생합니다. 동일음 연결은 샘플 위치를 이어갑니다.
 - 속도 변경 시 꾸밈은 박 비율을 따르고 JGB 숨은 길이에 맞춰 줄어듭니다. 떨림 주기·지연·fade는 초 단위입니다. 곡별 빠르기와 음가 단위를 먼저 확인해야 합니다.
 
-이 값은 교재의 표준이나 채점 허용치가 아닌 실험값입니다. 기호별 적용·근거·남은 검수는 [기존 표현 조사](../../../docs/knowledge/data/score-instrument-playback-pipeline.md)와 [단소41항목 보완 기록](../../../docs/knowledge/data/danso-expanded-auditions.md)에 있습니다. 물리적 호흡·음색 변화, 긴 음의 자동 샘플 반복은 구현하지 않았습니다. 알 수 없는 기호·조율 문맥 누락·불완전 붙임줄·장식 시간 초과·음역 이탈·샘플 소진은 실패합니다.
-
-## 근거를 기록한 단소 일괄 변환
-
-```powershell
-.\data\.venv\Scripts\python -m data.src.playback.batch --catalog C:/local-gugak/catalog.json --assets C:/local-gugak/assets.json --out data/processed/playback/danso-batch
-```
-
-catalog의 `items`에 `title`, `edition`, `input`, `tempo`를 넣습니다. JGB의 tempo에는 `jeonggan_bpm`, 표시 기준 `bpm`·`beat_unit`, `evidence_type`, 근거 URL·판본·확인일을 기록합니다. IR에는 `quarter_bpm`이 필요합니다. 빠르기를 검색하거나 임의 기본값을 채우는 CLI는 아닙니다.
-
-명시된 단소 목록의 `all` 악기는 단소로 정규화하고 변경 전후를 남깁니다. 상대음이 있으면서 율명에 정확히 `[0,2,5,7,10]` 다섯 음급이 모두 있을 때만 그 집합을 상대음 계산에 사용합니다. 전통적인 조의 판정으로 간주하지 않습니다. 원보 교정은 SHA256과 정확한 `before_cell` 또는 제한된 필드의 `before`가 일치할 때만 적용합니다. 출력 안에 입력이 있으면 덮어쓰기를 거부합니다.
-
-원본은 `originals`, 빠르기·교정·선택 근거를 넣은 JSON은 `prepared`, 음원과 대응표는 `tracks`에 저장합니다. `tempo-decisions.json`·`manifest.json`·`inventory.csv`·`index.html`로 전체 결과를 확인합니다. 배치 결과 스키마는 `danso-batch/v2`이며 `outputs[].audio_file`이 실제 M4A/WAV 경로입니다(이전 `outputs[].wav` 대체). HTML도 이 경로를 사용합니다. 미지원 입력은 오류를 남기며 성공한 성부를 숨기지 않습니다.
-
-손상된 JSON·잘못된 UTF-8·객체가 아닌 JSON·읽을 수 없는 개별 입력은 해당 항목을 보류하고 다음 곡을 계속 처리합니다. 읽을 수 있었던 원본 바이트는 오류가 있어도 별도로 보존합니다. 카탈로그 자체가 잘못됐거나 입력이 출력 폴더 안에 있는 경우에는 작업 시작 전에 실패합니다.
-
-FFmpeg·ffprobe 누락과 이전 형식의 음원이 남은 출력 폴더는 배치 전체 시작 전에 거부합니다. M4A로 다시 생성할 때는 기존 WAV 폴더와 다른 출력 폴더를 사용합니다.
+이 값은 교재의 표준이나 채점 허용치가 아닌 실험값입니다. 기호별 적용·근거·남은 검수는 [기존 표현 조사](../../../docs/knowledge/data/score-instrument-playback-pipeline.md)와 [단소 표현·출력 근거](../../../docs/knowledge/data/danso-expanded-auditions.md)에 있습니다. 물리적 호흡·음색 변화, 긴 음의 자동 샘플 반복은 구현하지 않았습니다. 알 수 없는 기호·조율 문맥 누락·불완전 붙임줄·장식 시간 초과·음역 이탈·샘플 소진은 실패합니다.
 
 ## 실제 CAT 검증
+
+이 CLI의 출력은 음원·MIDI·변환/추적 JSON입니다. 목록 일괄 처리·원보 교정·빠르기 조사·HTML 페이지 생성은 포함하지 않습니다. 필요한 빠르기·조·악기와 원보 교정은 입력을 준비할 때 확인합니다.
 
 CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, M4A 코덱·길이·피크를 확인합니다. 무음·파형의 정확한 비교가 필요할 때는 WAV 선택 출력을 사용합니다. 재현할 때는 같은 입력·ZIP·속도·코드·인코더 버전을 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 최신 M4A 검증은 [단소 변환 기록](../../../docs/knowledge/data/danso-expanded-auditions.md), 이전 WAV 검증은 [음원과 재현 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md#음원과-재현)에 있습니다.
 
@@ -166,6 +152,4 @@ CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본
 
 상대음 장식에 기존 `joPreset`을 쓸 수 없으면 `playback.relative_scale`에 황종 기준 반음 음급의 오름차순 배열 `pitch_classes`와 선택 근거 `basis`를 기록합니다. `joPreset`/`--jo`와 중복 지정할 수 없습니다. 다른 악기에서는 출현 음급만 보고 단소의 상대음 음계를 자동 보충하지 않습니다.
 
-일괄 변환은 기존 batch 명령을 사용합니다. 카탈로그 최상위 `instrument`, `instrument_basis`를 명시하고 각 항목에 `tempo`, 필요 시 `expression_policy`·`relative_scale`를 넣습니다. 카탈로그 하나에 악기 하나만 사용하며 다른 악기의 빠르기 누락을 연습용60으로 자동 대체하지 않습니다. 단소 외 배치 결과는 `gugak-batch/v1`입니다. 원본은 보존하고 판본·정책은 prepared JSON과 source-map에 남깁니다.
-
-비단소 JGB의 편집기 기본 템포(`tempoBpmUserSet` 미확정)는 재생 속도로 채택하지 않습니다. 판본 근거를 확인한 준비 JSON 또는 명시적인 `--bpm`이 필요합니다. 기존 원본의 `playback.instrument`와 다른 기종을 카탈로그로 덮어쓸 수 없습니다. 비단소 공통 IR의 직접 작성 숨표·감쇠는 배치에서도 보존합니다. 배치는 한 악기로 이루어진 JGB만 지원하며, 혼합 악기 성부 선택은 단일 CLI에서 수행합니다.
+비단소 JGB의 편집기 기본 템포(`tempoBpmUserSet` 미확정)는 재생 속도로 채택하지 않습니다. 판본 근거를 확인한 준비 JSON 또는 명시적인 `--bpm`이 필요합니다. 직접 작성한 공통 IR의 숨표·감쇠는 입력값을 보존하며, 여러 성부가 있으면 단일 CLI에서 `--part`로 선택합니다.

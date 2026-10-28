@@ -21,26 +21,28 @@
 
 ```powershell
 python -m data.src.playback --score data/src/playback/examples/sogeum-jgb.json --instrument sogeum --assets assets.json --out data/processed/playback/sogeum-example
-python -m data.src.playback.batch --catalog sogeum-m4a-catalog.json --assets assets.json --out data/processed/playback/sogeum-batch
+python -m data.src.playback --score data/processed/playback/166-listen/notion-audio-sogeum-m4a/prepared/001.jgb.json --instrument sogeum --assets assets.json --out data/processed/playback/sogeum-single
 python -m unittest discover -s data/src/playback/tests -p 'test_*.py'
 ```
 
-고정 예제는 청황·청태·쉼·청중 4정간을 직접 작성한 검사 자료다. 예제의 60정간/분은 테스트 입력이며 실제 소금 곡의 기본 빠르기나 다른 악기용 연습값 승인을 뜻하지 않는다. `tempoBpmUserSet: true`로 빠르기 선택을 명시하며, 이 값이 없는 비단소 JGB는 명시적 `--bpm`이 필요하다. 실곡 배치 카탈로그는 최상위 `instrument: "sogeum"`과 `instrument_basis`, 곡마다 `input`·`tempo`·`parts`를 가진다. 원본의 악기 선언과 충돌하면 실패하며, 원본과 준비본을 분리해 빠르기·악기 근거 및 변경 이력을 준비 JSON에 저장한다.
+고정 예제는 청황·청태·쉼·청중 4정간을 직접 작성한 검사 자료다. 예제의 60정간/분은 테스트 입력이며 실제 소금 곡의 기본 빠르기나 다른 악기용 연습값 승인을 뜻하지 않는다. `tempoBpmUserSet: true`로 빠르기 선택을 명시하며, 이 값이 없는 비단소 JGB는 명시적 `--bpm`이 필요하다. 원본의 악기 선언과 충돌하면 실패한다. JGB에 악기가 없으면 입력을 준비할 때 판본을 확인해 `playback.instrument: "sogeum"`과 `playback.instrument_basis`를 기록한다.
 
-## 실제 입력과 보류
+두 번째 명령은 로컬에 이미 준비한 「개구리소리」 JSON을 사용하는 예다. 해당 파일·CAT ZIP은 저장소에 포함되지 않으므로 실제 준비 경로를 지정한다. 현재 기능은 입력 하나의 음원·MIDI·변환/추적 JSON 생성까지다. 목록 처리, 빠르기 조사·보충, 원보 교정과 HTML 생성은 포함하지 않는다.
 
-기존 Notion DATA 소금 목록 22파일 중 빠르기와 변환 근거가 있던 13파일을 선택한다. 원본 JGB·연결 PDF의 SHA-256을 이전 기록과 다시 대조했다. 빠르기 미확정 8파일과 상대음계가 미확정인 「오나라」 1파일은 보류한다. 단소에서 승인된 연습용 60정간/분을 소금 전체에 자동 확대하지 않는다.
+## 기존 실곡 검증 기록
+
+목록 처리 기능을 제외하기 전에 Notion DATA 소금 목록 22파일 중 빠르기와 변환 근거가 있던 13파일을 검증했다. 원본 JGB·연결 PDF의 SHA-256을 당시 기록과 대조했고, 빠르기 미확정 8파일과 상대음계가 미확정인 「오나라」 1파일은 보류했다. 단소에서 승인된 연습용 60정간/분을 소금 전체에 자동 확대하지 않았다. 이 결과는 과거 검증 기록이며 현재 CLI의 목록 처리 기능을 뜻하지 않는다.
 
 「개구리 소리」는 표준악보집 PDF188(인쇄374–375쪽)의 소금 편이다. 이번에 해당 PDF를 직접 렌더링하고 본문을 추출해 소금 명시·굿거리장단·사용 율명 임·남·청황·청태·청고(㴌)를 확인했다. 사용자 빠르기 표의 굿거리 점4분음표66회/분과 한 번에3정간인 표기를 연결해 198정간/분으로 준비한다. 이는 사용자가 선택한 빠르기이며 해당 PDF가 숫자66을 제시한 것은 아니다. 다른12파일의 판본 연결과 빠르기는 기존 검토 기록을 재사용하며 새 전문가 전수 검수로 보고하지 않는다.
 
-로컬 입력은 `data/processed/playback/166-listen/notion-export/`, 실행 카탈로그는 같은 상위 폴더의 `sogeum-m4a-catalog.json`, 보류 사유는 `sogeum-m4a-deferred.json`에 보존한다. 원본 PDF·CAT ZIP·생성 음원은 Git에 포함하지 않는다. 생성 성공은 실제 운지·편곡·연주 해석의 전문가 승인을 의미하지 않는다.
+기존 로컬 입력은 `data/processed/playback/166-listen/notion-export/`, 이전 목록은 같은 상위 폴더의 `sogeum-m4a-catalog.json`, 보류 사유는 `sogeum-m4a-deferred.json`에 보존했다. 목록 파일은 현재 단일 CLI의 필수 입력이 아니다. 원본 PDF·CAT ZIP·생성 음원은 Git에 포함하지 않는다. 생성 성공은 실제 운지·편곡·연주 해석의 전문가 승인을 의미하지 않는다.
 
 ## 검증 결과
 
-공통74개·소금4개, 총 **78개 테스트 통과**. 소금 전용 검사는 기보/실음의 옥타브 중복 방지, 명시된 IR 요성의 mixed 처리, 전통 관행 밖 경고와 기술 음역 밖 실패, JGB의 실음·쉼 시각·원본 ID 보존 및 자동 피치 떨림 미적용을 확인한다. 실제 FFmpeg 인코딩 검사, 원본 악기 선언 충돌 거부, 비단소 IR 숨표 보존, JGB 빠르기 명시 검사도 포함했다.
+단일 변환 범위로 정리한 뒤 공통63개·소금4개, 총 **67개 테스트가 통과**했다. 소금 전용 검사는 기보/실음의 옥타브 중복 방지, 명시된 IR 요성의 mixed 처리, 전통 관행 밖 경고와 기술 음역 밖 실패, JGB의 실음·쉼 시각·원본 ID 보존 및 자동 피치 떨림 미적용을 확인한다. 실제 FFmpeg 인코딩 검사, 악기 선언 충돌 거부, JGB 빠르기 명시 검사도 포함한다.
 
-Python3.12·FFmpeg9.0.2에서 CAT Live Sampler v1.3 소금 simple 프리셋으로 실제 **13파일·810음·371.675초**를 생성했다. 최종 생성 소요는 **18.406초**, M4A 합계 **6,936,570bytes**, 배치 내부 실패0개다. 선택 전 보류9파일은 이 성공 수에 포함하지 않는다. 출력은44,100Hz·mono·AAC-LC(요청192kbps)이며 WAV 중간 파일은0개다.
+Python3.12·FFmpeg9.0.2에서 CAT Live Sampler v1.3 소금 simple 프리셋으로 「개구리소리」 준비 JSON을 새 폴더에 단일 CLI로 다시 생성했다. **40음·18.731837초·358,259bytes**, 명령 실행1.209초였다. M4A·MIDI·악기 추적 JSON·score·manifest·원본 JGB 사본·source-map의7파일만 생성되었고 HTML·중간 WAV는0개다. 출력은44,100Hz·mono·AAC-LC(요청192kbps)다.
 
-「개구리소리」는40음·18.731837초, 실음 MIDI70–79, M4A358,259bytes이며 SHA-256은 `107648fe8bef580593bf2bbe5996f52cebc7ba4887a51d57fa8f210634899f86`이다. 별도 고정 예제도 실제 CAT으로3음·4.55초·66,718bytes M4A를 생성했다.
+실음은 MIDI70–79이며 M4A SHA-256 `107648fe8bef580593bf2bbe5996f52cebc7ba4887a51d57fa8f210634899f86`은 기존 생성본과 같다. 원본 준비 JSON 사본, 현재 코드·프로필 해시, MIDI40음·추가 피치 변조0을 확인했다. 결과와 검증 기록은 `data/processed/playback/166-listen/sogeum-single-pipeline-final/`에 보존했다.
 
-13파일 모두 원본 사본·JGB 선율·황종 값 불변, 원본·코드·프로필·MIDI·M4A 해시, 모든 전개음의 원본 위치, 추가 피치 변조0, 음역, AAC 형식과 디코딩 peak<0.99를 확인했다. 악기 선언·빠르기 검증을 강화한 공통 수정 뒤에도13파일과 고정 예제의 M4A 해시는 이전 생성본과 모두 같다. 공통 인코더는 컨테이너 길이와 원본 PCM 길이·패딩도 검사한다. 결과는 `notion-audio-sogeum-m4a/`, 세부 대조 기록은 그 안의 `verification.json`, 고정 예제는 `sogeum-fixed-example-m4a/`다. 브라우저 실제 재생과 전문가 청감·원보 전수 대조는 이번 검증에 포함하지 않는다.
+이전 목록 검증의13파일·810음·371.675초·6,936,570bytes(18.406초)와 고정 예제3음·4.55초는 각각 `notion-audio-sogeum-m4a/`·`sogeum-fixed-example-m4a/`에 그대로 보존했다. 당시13파일의 원본·선율·황종·원본 ID·음역·해시를 확인했으며, 목록 기능 삭제 후13파일 전체를 다시 생성한 것은 아니다. 공통 인코더는 컨테이너 길이와 원본 PCM 길이·패딩, AAC 디코딩 peak<0.99도 검사한다. 브라우저 실제 재생과 전문가 청감·원보 전수 대조는 이번 검증에 포함하지 않는다.
