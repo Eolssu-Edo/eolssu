@@ -116,17 +116,27 @@ class CatSampler:
         output = np.zeros(size)
         trace, previous_cursor = [], 0.
         notes = midi["notes"]
+        natural_stops = []
+        for i, note in enumerate(notes):
+            connected_next = bool(i + 1 < len(notes) and notes[i + 1]["legato"]
+                                  and abs(note["end"] - notes[i + 1]["start"]) < 1e-6)
+            release = .02 if connected_next else note.get("release_seconds", self.release)
+            natural_stops.append(round(note["end"] * FS) + round(release * FS))
+        # Only protect an actual gap, retaining existing crossfades where the
+        # next note already sounds. Include every tail spanning that gap.
+        silence_bounds = [stop if i + 1 == len(notes) or stop < round(notes[i + 1]["start"] * FS)
+                          else size for i, stop in enumerate(natural_stops)]
+        stops = np.minimum(natural_stops, np.minimum.accumulate(np.array(silence_bounds)[::-1])[::-1])
         for i, note in enumerate(notes):
             zone = self.zone(note["pitch"])
             samples, rate, digest = self.samples(zone)
             at, end = round(note["start"]*FS), round(note["end"]*FS)
             connected = bool(i and note["legato"] and abs(notes[i-1]["end"]-note["start"]) < 1e-6)
-            legato_out = bool(i+1 < len(notes) and notes[i+1]["legato"] and abs(note["end"]-notes[i+1]["start"]) < 1e-6)
             same = connected and notes[i-1]["pitch"] == note["pitch"]
             # Only the earlier Danso experiment tested a 100ms sustain offset.
             offset = .1 if connected and self.instrument == "danso" else 0
             cursor = previous_cursor if same else offset*rate
-            release = round((.02 if legato_out else note.get("release_seconds", self.release))*FS)
+            release = int(stops[i]) - end
             attack = min(end-at, round((.02 if connected else self.attack)*FS))
             stop = end+release
             require(0 <= at < end and stop <= size, "MIDI render bounds invalid")
@@ -140,6 +150,7 @@ class CatSampler:
             output[at:stop] += sound
             previous_cursor = cursor + base_ratio*(integral[end]-integral[at])
             trace.append({**note, "sample": zone["file"], "sample_sha256": digest,
+                          "rendered_release_seconds": release / FS,
                           "root": zone["root"], "detune_cents": zone["detune"], "ratio": base_ratio,
                           "same_pitch_continuation": same, "sample_cursor": cursor,
                           "sample_last_position": float(positions[-1]), "sample_length": len(samples)})

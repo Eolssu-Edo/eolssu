@@ -57,7 +57,8 @@ def write_midi(performance, path):
             curve = e.get("pitch_curve")
             if curve:
                 length = (b-a)*sec_tick
-                tail = min(length*curve["tail_fraction"], curve["maximum_seconds"])
+                tail = min(length*curve["tail_fraction"], curve["maximum_seconds"],
+                           length - curve.get("delay_seconds", 0))
                 progress = max(0, min(1, ((tick-a)*sec_tick-(length-tail))/tail))
                 cents += curve["end_cents"]*progress
             bend = round(cents/200*8192)

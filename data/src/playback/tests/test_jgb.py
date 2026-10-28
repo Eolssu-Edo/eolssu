@@ -16,7 +16,7 @@ from data.src.playback.tests.test_pipeline import synthetic_sampler
 
 
 def document(melody="청황 | 청태", version=2, **controls):
-    doc = {"v": version, "controls": {"title": "고정 검사", "beats": "2", "gakBeats": "",
+    doc = {"v": version, "tempoBpmUserSet": True, "controls": {"title": "고정 검사", "beats": "2", "gakBeats": "",
            "tempoBpm": "60", "hwangPitch": "63", "staffUnit": "dotted",
            "joPreset": "jung-pyeong", **controls}}
     if version == 1:
@@ -159,7 +159,7 @@ class JgbTests(unittest.TestCase):
         self.assertEqual(mapping["huangjong_midi"], 62)
 
     def test_ambiguous_or_unsupported_notation_fails_with_position(self):
-        for melody in ("청황{추성표} | 청태", "청황{풀어내림표} | 청태", "청황{반길이표} | 청태",
+        for melody in ("청황{추성표} | 청태", "청황{겹흘림표} | 청태", "청황{반길이표} | 청태",
                        "청황{알수없음} | 청태", "潢 | 청태", "{노} | 청태", "청황{니레 | 청태",
                        "청황청태 | 청태", "청황 청태 임 중 | 청태", "청황 | 청태 | 임"):
             with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, "각"):
