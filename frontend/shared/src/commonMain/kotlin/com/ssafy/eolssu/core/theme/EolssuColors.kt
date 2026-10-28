@@ -41,6 +41,12 @@ data class EolssuColors(
     val rhythmError: Color,
     val rhythmErrorSoft: Color,
     val rhythmErrorText: Color,
+    /** 학습 화면의 녹색: 다음 단추 · 지금 쪽 표시. 글자는 [onPrimary]. */
+    val green: Color,
+    /** 율명 부수(氵·亻) 강조(이끼). 흰 바탕 대비가 3:1대라 24sp 이상 큰 글자에만 쓴다. */
+    val radical: Color,
+    /** 지금 자리의 빛(연두). 정간보 읽는 순서 그림에서 지나는 칸 글자의 번짐에만 쓰고 글자색으로 쓰지 않는다. */
+    val glow: Color,
 )
 
 val LightEolssuColors = EolssuColors(
@@ -69,4 +75,7 @@ val LightEolssuColors = EolssuColors(
     rhythmError = Color(0xFF2A62D6),
     rhythmErrorSoft = Color(0xFFDFE9FB),
     rhythmErrorText = Color(0xFF1F4FB3),
+    green = Color(0xFF2F5A3C),
+    radical = Color(0xFF7A984A),
+    glow = Color(0xFF9DBF4C),
 )

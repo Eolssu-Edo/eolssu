@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,7 +40,8 @@ internal fun FingeringCompactLayout(state: FingeringUiState, actions: FingeringA
                     modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
                 )
                 BlowTabs(instrument, state.shownBlow, actions.onSelectBlow, Modifier.padding(bottom = 10.dp))
-                HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
+                // 와이어프레임 휴대폰 화면처럼 범례를 가운데에 둔다
+                HoleLegend(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp))
                 FingeringInstrumentNote(instrument)
             }
         }

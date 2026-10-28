@@ -12,6 +12,7 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.LISTEN_HIGHLIGHT_MILLIS
+import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
 import eolssu.shared.generated.resources.Res
@@ -34,7 +35,8 @@ import org.jetbrains.compose.resources.getString
 /** 단계 상세에서 다른 화면으로 가는 이동. 목록·상세 경로가 함께 받는다. */
 class LearnNavigation(
     val onOpenFingering: (GuideInstrument, Blow) -> Unit,
-    val onOpenReading: () -> Unit,
+    /** 정간보 쉽게 읽기를 그 단계에 맞는 쪽으로 펼쳐 연다. */
+    val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSongList: () -> Unit,
 )
