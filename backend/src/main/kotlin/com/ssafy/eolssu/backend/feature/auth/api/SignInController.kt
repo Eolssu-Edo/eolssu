@@ -36,7 +36,8 @@ class SignInController(private val service: SignInService, private val cookies: 
 
 class SignInRequest(
     @field:NotBlank @field:Email @field:Size(max = 320) val email: String,
-    @field:NotBlank @field:Size(max = 128) val password: String,
+    // 가입 규칙은 글자(코드 포인트) 128자다. 보충 문자는 UTF-16으로 2칸이라 여기서는 두 배까지 받고 판정은 비밀번호 비교에 맡긴다.
+    @field:NotBlank @field:Size(max = 256) val password: String,
 )
 
 data class SignedIn(val userId: String, val nickname: String, val instrumentId: String, val notationMode: String, val withdrawalCancelled: Boolean) {
