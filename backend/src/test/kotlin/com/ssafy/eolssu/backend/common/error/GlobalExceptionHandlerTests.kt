@@ -56,6 +56,18 @@ class GlobalExceptionHandlerTests {
             .andExpect(status().isNotAcceptable)
     }
 
+    @Test
+    fun `multipart size exception uses common 413 without ProblemDetail`() {
+        mvc.perform(get("/fixture/too-large"))
+            .andExpect(status().isContentTooLarge)
+            .andExpect(jsonPath("$.httpStatus").value("CONTENT_TOO_LARGE"))
+            .andExpect(jsonPath("$.isSuccess").value(false))
+            .andExpect(jsonPath("$.code").value(413))
+            .andExpect(jsonPath("$.result.errorCode").value("RECORDING_TOO_LARGE"))
+            .andExpect(jsonPath("$.result.details").doesNotExist())
+            .andExpect(jsonPath("$.type").doesNotExist())
+    }
+
     private fun error(code: Int, status: String, errorCode: String, message: String) =
         """{"httpStatus":"$status","isSuccess":false,"message":"$message","code":$code,"result":{"errorCode":"$errorCode"}}"""
 }
@@ -73,4 +85,7 @@ internal class ErrorFixtureController {
 
     @GetMapping("/fixture/failure")
     fun failure(): Nothing = throw IllegalStateException("private SQL password=secret")
+
+    @GetMapping("/fixture/too-large")
+    fun tooLarge(): Nothing = throw org.springframework.web.multipart.MaxUploadSizeExceededException(1024)
 }

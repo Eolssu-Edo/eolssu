@@ -22,6 +22,7 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
             400 -> ErrorCode.INVALID_REQUEST
             404 -> ErrorCode.RESOURCE_NOT_FOUND
             405 -> ErrorCode.METHOD_NOT_ALLOWED
+            413 -> ErrorCode.RECORDING_TOO_LARGE
             415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE
             500 -> ErrorCode.INTERNAL_SERVER_ERROR
             else -> return super.handleExceptionInternal(ex, body, headers, statusCode, request)

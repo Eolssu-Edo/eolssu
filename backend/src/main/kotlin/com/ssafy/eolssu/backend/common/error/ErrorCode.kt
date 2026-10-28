@@ -9,6 +9,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     FORBIDDEN(HttpStatus.FORBIDDEN, "허용되지 않은 요청이에요"),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없어요"),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 메서드예요"),
+    RECORDING_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "녹음 파일 크기가 너무 커요"),
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 요청 형식이에요"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했어요"),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일이에요. 로그인해 주세요. 탈퇴 대기 중이면 로그인 시 탈퇴가 취소돼요"),
