@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper">
+    <select id="findPending" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PendingAnalysisRow">
+        SELECT id AS session_id, analysis_attempt AS attempt, song_id, score_version, start_note_idx, end_note_idx, bpm, bpm_unit, recording_url
+        FROM practice_sessions
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt &gt; 0 AND recording_url IS NOT NULL
+    </select>
+
+    <update id="markDone">
+        UPDATE practice_sessions
+        SET status = 'DONE'
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt}
+    </update>
+
+    <update id="markFailed">
+        UPDATE practice_sessions
+        SET status = 'FAILED', fail_reason = #{failReason}
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt}
+    </update>
+
+    <insert id="insertEvaluation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version)
+        VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion})
+    </insert>
+
+    <!-- AI는 인식한 음을 주지 않아 detected_pitch_id는 비운다 -->
+    <insert id="insertNoteResults">
+        INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict)
+        VALUES
+        <foreach collection="notes" item="n" separator=",">
+            (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, NULL, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict})
+        </foreach>
+    </insert>
+</mapper>

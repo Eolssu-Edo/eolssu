@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.backend
 
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
+import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
+import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
+import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper
@@ -547,6 +554,112 @@ class DatabaseIntegrationTests {
         assertNull(repository.findByKey(3, "segment-key"))
         assertTrue(repository.songExists(1))
         assertFalse(repository.songExists(999))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `stores an analysis result only while the session is pending on the same attempt`() {
+        val startedAt = LocalDateTime.parse("2026-10-28T01:00:00")
+        for ((id, attempt) in listOf(21L to 2, 22L to 1)) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, start_note_idx, end_note_idx, recording_url, " +
+                    "recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels, status, analysis_attempt, " +
+                    "analysis_started_at, started_at, ended_at) " +
+                    "VALUES (?, 1, 1, 60, 'JEONGGAN', 3, 4, ?, 1000, 2000, 48000, 1, 'PENDING', ?, ?, ?, ?)",
+                id, "recordings/$id/a.m4a", attempt, startedAt, startedAt.minusMinutes(1), startedAt,
+            )
+        }
+        val repository = mapper<PracticeAnalysisRepository>()
+        val pending = assertNotNull(repository.findPending(21))
+        assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a"), pending)
+        assertNull(repository.findPending(1)) // 고정 데이터의 DONE 세션
+
+        val notes = listOf(ScoreNote(3, 0, 1.0, false, 2), ScoreNote(4, -12, 2.0, true, 1))
+        val done = AnalysisResult.Done(
+            "pyin-1", 87, 90, 85, 86,
+            listOf(NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15), NoteJudgement(4, NoteVerdict.MISSED, null, null, null)),
+        )
+        assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes)) // 이전 시도의 늦은 결과
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 21", Int::class.java))
+
+        assertTrue(repository.saveDone(pending, done, notes))
+        assertEquals(
+            listOf(87, 90, 85, 86, "pyin-1"),
+            jdbc.queryForList("SELECT total_score, pitch_score, timing_score, duration_score, model_version FROM evaluations WHERE session_id = 21")
+                .single().values.map { (it as? Number)?.toInt() ?: it },
+        )
+        assertEquals(
+            listOf(listOf(3, 2L, null, -62, 20, -15, "PITCH"), listOf(4, 1L, null, null, null, null, "MISSED")),
+            jdbc.query(
+                "SELECT n.note_idx, n.expected_pitch_id, n.detected_pitch_id, n.pitch_error_cent, n.onset_error_ms, n.duration_error_ms, n.verdict " +
+                    "FROM note_results n JOIN evaluations e ON e.id = n.evaluation_id WHERE e.session_id = 21 ORDER BY n.note_idx",
+            ) { rs, _ ->
+                listOf(
+                    rs.getInt(1), rs.getLong(2), rs.getObject(3), rs.getObject(4)?.let { (it as Number).toInt() },
+                    rs.getObject(5)?.let { (it as Number).toInt() }, rs.getObject(6)?.let { (it as Number).toInt() }, rs.getString(7),
+                )
+            },
+        )
+        assertEquals("DONE", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 21", String::class.java))
+        assertFalse(repository.saveDone(pending, done, notes)) // 이미 DONE
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 21", Int::class.java))
+
+        val failing = assertNotNull(repository.findPending(22))
+        assertFalse(repository.saveFailed(failing.copy(attempt = 2), AnalysisFailReason.NO_SOUND))
+        assertTrue(repository.saveFailed(failing, AnalysisFailReason.NO_SOUND))
+        assertFalse(repository.saveFailed(failing, AnalysisFailReason.TOO_SHORT))
+        assertEquals(
+            mapOf("status" to "FAILED", "fail_reason" to "NO_SOUND"),
+            jdbc.queryForMap("SELECT status, fail_reason FROM practice_sessions WHERE id = 22"),
+        )
+        assertNull(repository.findPending(22))
+    }
+
+    // 저장 중 실패가 상태 변경까지 되돌리는지 보려면 테스트 트랜잭션 밖에서 커밋해야 한다. 넣은 행은 끝에서 지운다.
+    @Test
+    fun `keeps the session pending when storing the note results fails`() {
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (901, '황', 0, '黃', '황', 0)")
+        jdbc.update(
+            "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
+                "VALUES (901, 'ROLLBACK_TEST', '시험', 901, 901, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO jangdans (id, name, pattern, default_bpm, bpm_unit, source, created_at, updated_at) " +
+                "VALUES (901, '시험', '{}', 60, 'JEONGGAN', '시험', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO users (id, email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at) " +
+                "VALUES (901, 'rollback@example.test', 'hash', '시험', 901, 'HANJA', 'ACTIVE', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
+                "VALUES (901, 901, 901, '시험', 1, 60, '{}', 1, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, recording_bytes, recording_duration_ms, " +
+                "recording_sample_rate, recording_channels, status, analysis_attempt, analysis_started_at, started_at, ended_at) " +
+                "VALUES (901, 901, 901, 60, 'JEONGGAN', 0, 'recordings/901/a.m4a', 1000, 2000, 48000, 1, 'PENDING', 1, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        try {
+            val repository = mapper<PracticeAnalysisRepository>()
+            val pending = assertNotNull(repository.findPending(901))
+            val done = AnalysisResult.Done("pyin-1", 50, 50, 50, 50, listOf(NoteJudgement(0, NoteVerdict.CORRECT, 0.0, 0, 0)))
+
+            assertFailsWith<DataAccessException> { repository.saveDone(pending, done, listOf(ScoreNote(0, 0, 1.0, false, 999_999))) }
+
+            assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 901", String::class.java))
+            assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 901", Int::class.java))
+        } finally {
+            jdbc.update("DELETE n FROM note_results n JOIN evaluations e ON e.id = n.evaluation_id WHERE e.session_id = 901")
+            jdbc.update("DELETE FROM evaluations WHERE session_id = 901")
+            jdbc.update("DELETE FROM practice_sessions WHERE id = 901")
+            jdbc.update("DELETE FROM songs WHERE id = 901")
+            jdbc.update("DELETE FROM users WHERE id = 901")
+            jdbc.update("DELETE FROM jangdans WHERE id = 901")
+            jdbc.update("DELETE FROM instruments WHERE id = 901")
+            jdbc.update("DELETE FROM pitches WHERE id = 901")
+        }
     }
 
     private inline fun <reified T : Any> mapper(): T = context.getBean(T::class.java)
