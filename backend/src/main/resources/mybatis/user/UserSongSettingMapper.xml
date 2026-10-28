@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow">
+        SELECT id, user_id, song_id, bpm, created_at, updated_at
+        FROM user_song_settings
+        WHERE id = #{id}
+    </select>
+</mapper>

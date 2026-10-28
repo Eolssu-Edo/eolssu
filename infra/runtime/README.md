@@ -30,6 +30,22 @@ curl -i http://127.0.0.1/api/infra-smoke
 
 프론트 `/`는 200, 아직 등록되지 않은 `/api/infra-smoke`는 백엔드 JSON 404가 정상입니다. Nginx HTML 404나 502와 구분합니다. 배포 변경 후에는 이 응답, Nginx 설정 검사, MySQL health·물리 볼륨을 함께 확인합니다.
 
+API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호를 참조해 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 기존 DB·물리 볼륨을 변경하지 않습니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
+
+### backend 실행 이미지
+
+backend는 `eclipse-temurin:21-jre`에 녹음 검사용 `ffmpeg=7:8.0.1-3ubuntu2`만 더한 `eolssu-backend-runtime:21-jre-ffmpeg8.0.1`로 실행하고, Jenkins가 만든 JAR을 `/app/app.jar`에 읽기 전용으로 붙입니다. Jenkins가 서버 `backend.Dockerfile`로 만드는 `eolssu-backend:ci-<SHA>`는 후보 검증과 JAR 추출에만 쓰이고 운영 컨테이너 이미지가 되지 않으므로, 운영 실행에 필요한 도구는 이 실행 이미지에 넣어야 합니다. 배포는 `--pull never`로 재생성하므로 이 이미지는 edo1에서 직접 빌드해 둡니다.
+
+```sh
+D=$(mktemp -d) && cp /opt/eolssu/config/backend-runtime.Dockerfile "$D/Dockerfile"
+sudo docker build --tag eolssu-backend-runtime:21-jre-ffmpeg8.0.1 "$D" && rm -rf "$D"
+sudo docker exec eolssu-runtime-backend-1 ffprobe -version
+```
+
+원본은 저장소 `infra/runtime/backend-runtime.Dockerfile`이며 서버 `/opt/eolssu/config/backend-runtime.Dockerfile`과 같게 유지합니다. 베이스 JRE 보안 업데이트를 반영하려면 같은 태그로 다시 빌드한 뒤 backend만 재생성하고 readiness·ffprobe를 확인합니다. 베이스의 Ubuntu가 바뀌어 고정 ffmpeg 버전 설치가 실패하면 `backend/Dockerfile`과 함께 버전을 갱신합니다.
+
+운영 설정을 바꿀 때는 기존 Compose를 root 전용으로 백업하고 `config --quiet`를 통과한 뒤 backend만 재생성합니다. Jenkins는 관리 파일 `/opt/eolssu/config/compose.yml`을 사용하므로 저장소 변경만으로 서버 파일이 바뀌지는 않습니다. 배포 후 readiness HTTP 200·UP, Docker healthy, 프론트·MySQL ID와 물리 볼륨 보존을 확인합니다.
+
 이름 전환 전 설정·릴리스와 SQL 전체 백업은 서버의 `/opt/backups/eolssu-S15P31E102-65-20261022T072645Z/`에 root 전용으로 보관했습니다. `receipt.json`에는 아티팩트 SHA-256·DB 서버 UUID·물리 볼륨·검증 결과가 있습니다. SQL과 실제 `.env`는 저장소나 로그로 복사하지 않습니다. `/opt/eolsu`도 변경 전 복귀 경로로 보존합니다.
 
 전체 이름 전환을 되돌려야 하면 배포 담당자가 현재 작업·접속을 확인하고 새 프로젝트를 중지한 뒤 기존 프로젝트를 실행합니다. 볼륨을 삭제하지 않습니다.
@@ -110,7 +126,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 잡은 `develop`을 1분마다 SCM polling으로 확인합니다. 변경이 있을 때만 실행하며 직접 Push로 develop이 바뀌는 경우도 감지합니다. 별도 GitLab webhook이나 Jenkins 공개 포트는 필요하지 않습니다. 정확한 ref `refs/heads/develop`만 checkout하고, 동시 실행을 막으며 20분 제한을 둡니다. 경로 필터는 없습니다.
 
-실행 순서는 Gradle `clean build`·JUnit 수집 → Compose/Nginx 검사 → 커밋 revision label을 포함한 이미지 빌드 → JAR 보관 → 후보 실행·백엔드 배포입니다. 이미지에서 추출한 JAR을 `/opt/eolssu/releases/<40자리 SHA>/app.jar`에 보관하고, 실제 `.env`의 `BACKEND_JAR`만 원자적으로 교체합니다. 기존 JRE+읽기 전용 bind mount 구성을 유지합니다. 프론트와 MySQL은 재생성하지 않고 컨테이너 ID·물리 볼륨이 같은지 검사합니다.
+실행 순서는 Gradle `clean build`·`mediaTest`(edo1 호스트 ffmpeg로 실제 녹음 파일 검사)·JUnit 수집 → Compose/Nginx 검사 → 커밋 revision label을 포함한 이미지 빌드 → JAR 보관 → 후보 실행·백엔드 배포입니다. 이미지에서 추출한 JAR을 `/opt/eolssu/releases/<40자리 SHA>/app.jar`에 보관하고, 실제 `.env`의 `BACKEND_JAR`만 원자적으로 교체합니다. 기존 JRE+읽기 전용 bind mount 구성을 유지합니다. 프론트와 MySQL은 재생성하지 않고 컨테이너 ID·물리 볼륨이 같은지 검사합니다.
 
 후보 이미지는 포트를 공개하지 않는 임시 internal network에서 실행합니다. 운영 DB 비밀값은 전달하지 않습니다. 호스트가 후보 IP의 `/api/infra-smoke`에서 Spring JSON 404를 확인해야 배포합니다. 현재는 별도 readiness API가 없으므로 이 응답이 서버 기동·프록시 검증 기준입니다. 향후 DB 의존성이나 인증이 추가되면 해당 변경에서 전용 readiness 계약과 격리된 검사 환경을 함께 조정해야 합니다.
 
