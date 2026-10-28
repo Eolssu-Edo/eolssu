@@ -148,10 +148,10 @@ python data/src/catalog/verify_sources.py --dataset aihub-71470 aihub-71955 coll
 
 ## 원본 준비와 실행
 
-검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
+검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2·jsonschema 4.26.0입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile, 공통 악보 데이터 형식 검사에는 jsonschema도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
 
 ```powershell
-python -m pip install numpy==2.3.5 soundfile==0.13.1
+python -m pip install numpy==2.3.5 soundfile==0.13.1 jsonschema==4.26.0
 ```
 
 [국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개와 비교용 표준악보집 PDF를 sources의 `rawPath`에 준비합니다. 주소·해시·이용 조건은 목록에 있습니다. 한 구간만 저장할 때는 해당 원음만 있으면 됩니다. 메타데이터는 해당 데이터셋 전체가 필요합니다.

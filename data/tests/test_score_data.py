@@ -1,12 +1,15 @@
+import copy
 from fractions import Fraction as F
 import json
 from pathlib import Path
 import sys
 import unittest
 
+import jsonschema
+
 DATA = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DATA / "src/scores"))
-from score_data import build_events, melody_of, read_units
+from score_data import SCHEMA_PATH, build_events, convert, melody_of, read_units
 
 FIXTURES = DATA / "tests/fixtures/jgb"
 # 두 고정 파일의 선율: 1각 = 중 | - - 임 | 쉼, 2각 = 청황< | (빈 정간) | 무
@@ -94,6 +97,45 @@ class BuildEventsTests(unittest.TestCase):
     def test_hold_without_a_previous_sound_stops(self):
         with self.assertRaisesRegex(ValueError, "c0-j0"):
             build_events(read_units("- | 임", beats_per_jeonggan=F(1)))
+
+
+META = dict(title="시험곡", instrument="DANSO", source_id="example-p1", jangdan="세마치", bpm_unit="DOTTED_QUARTER",
+            review="reviewed", jgb_sha256="0" * 64)
+
+
+class ConvertTests(unittest.TestCase):
+    def setUp(self):
+        self.schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    def convert(self, bpj=F(1)):
+        return convert(load("v2-minimal.jgb.json"), beats_per_jeonggan=bpj, **META)
+
+    def test_result_follows_the_schema(self):
+        jsonschema.validate(self.convert(), self.schema)
+
+    def test_times_become_integer_ticks_with_lcm_ticks_per_beat(self):
+        result = self.convert()
+        self.assertEqual((result["music"]["ticksPerBeat"], result["music"]["ticksPerJeonggan"]), (3, 3))
+        self.assertEqual([(e["startTick"], e["durationTick"]) for e in result["events"]],
+                         [(0, 5), (5, 1), (6, 3), (9, 6), (15, 3)])
+        result = self.convert(F(1, 3))  # 정간 1/3박 → 이음 한 줄 1/9박
+        self.assertEqual((result["music"]["ticksPerBeat"], result["music"]["ticksPerJeonggan"]), (9, 3))
+
+    def test_cells_point_at_events_and_events_point_at_cells(self):
+        result = self.convert()
+        cells = [cell for column in result["columns"] for cell in column["cells"]]
+        events = {e["id"]: e for e in result["events"]}
+        self.assertEqual([c["id"] for c in cells], ["c0-j0", "c0-j1", "c0-j2", "c1-j0", "c1-j1", "c1-j2"])
+        self.assertEqual([u["eventId"] for u in cells[1]["units"]], ["c0-j0-r0-u0", "c0-j0-r0-u0", "c0-j1-r2-u0"])
+        self.assertTrue(all(e["cellId"] in {c["id"] for c in cells} for e in events.values()))
+
+    def test_schema_rejects_a_missing_field_or_wrong_kind(self):
+        for broken in (lambda r: r["events"][0].pop("durationTick"), lambda r: r["events"][0].update(kind="SOUND"),
+                       lambda r: r["events"][2].update(yul="임"), lambda r: r["music"].pop("ticksPerBeat")):
+            result = copy.deepcopy(self.convert())
+            broken(result)
+            with self.assertRaises(jsonschema.ValidationError):
+                jsonschema.validate(result, self.schema)
 
 
 if __name__ == "__main__":
