@@ -1,9 +1,10 @@
 """sampler.py rendering with synthetic samples, without a CAT bank."""
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
-from data.src.playback.sampler import FS
+from data.src.playback.sampler import FS, find_sustain_loop
 from data.src.playback.tests._helpers import score, synthetic_sampler, wire
 
 
@@ -75,6 +76,64 @@ class SamplerTests(unittest.TestCase):
         cents=1200*np.log2(FS/np.diff(times)/440)
         self.assertAlmostEqual(float(max(cents)),25,delta=.2)
         self.assertAlmostEqual(float(min(cents)),-25,delta=.2)
+
+    def test_long_tone_uses_validated_loop_without_pitch_or_boundary_jumps(self):
+        _, playback = wire(score([{"id": "a", "pitch": 69, "duration": 4}]))
+        playback["bends"] = [(0, 0)]
+        sampler = synthetic_sampler(1.5)
+        sampler.manifest = {}
+        audio, trace = sampler.render(playback)
+        loop = trace[0]["sustain_loop"]
+        self.assertGreaterEqual(loop["correlation"], .98)
+        self.assertGreaterEqual(loop["period_frames"], .5 * FS)
+        self.assertEqual(loop["sample_sha256"], "synthetic")
+        self.assertEqual(loop["policy"]["status"], "synthetic-extension-not-performance-standard")
+        self.assertEqual(sampler.manifest["sustain_extension"]["loops"], [loop])
+        steady = audio[2 * FS:round(3.9 * FS)]
+        self.assertLess(float(np.max(np.abs(np.diff(steady)))), .02)
+        crossings = np.where((steady[:-1] <= 0) & (steady[1:] > 0))[0]
+        times = crossings - steady[crossings] / (steady[crossings + 1] - steady[crossings])
+        self.assertAlmostEqual(FS / np.mean(np.diff(times)), 440, delta=.02)
+
+    def test_same_pitch_long_slur_uses_one_continuous_loop(self):
+        _, whole = wire(score([{"id": "a", "pitch": 69, "duration": 4}]))
+        _, split = wire(score([{"id": "a", "pitch": 69, "duration": 2, "slur": "s"},
+                               {"id": "b", "pitch": 69, "duration": 2, "slur": "s"}]))
+        whole["bends"] = split["bends"] = [(0, 0)]
+        a, _ = synthetic_sampler(1.5).render(whole)
+        b, trace = synthetic_sampler(1.5).render(split)
+        self.assertEqual(trace[0]["sustain_loop"], trace[1]["sustain_loop"])
+        self.assertTrue(trace[1]["same_pitch_continuation"])
+        self.assertLess(float(np.max(np.abs(a - b))), 1e-10)
+
+    def test_extended_tone_still_leaves_breath_silence(self):
+        _, playback = wire(score([{"id": "a", "pitch": 69, "duration": 4, "breath_seconds": .12},
+                                  {"id": "b", "pitch": 69, "duration": 1}]))
+        audio, trace = synthetic_sampler(1.5).render(playback)
+        self.assertIsNotNone(trace[0]["sustain_loop"])
+        self.assertIsNone(trace[1]["sustain_loop"])
+        self.assertEqual(np.count_nonzero(audio[round(3.881 * FS):4 * FS]), 0)
+
+    def test_short_tone_does_not_search_or_apply_sustain_loop(self):
+        _, playback = wire(score())
+        with patch("data.src.playback.sampler.find_sustain_loop", side_effect=AssertionError("unneeded loop")):
+            audio, trace = synthetic_sampler(1.5).render(playback)
+        self.assertIsNone(trace[0]["sustain_loop"])
+        self.assertGreater(np.max(np.abs(audio)), 0)
+
+    def test_unstable_noise_glide_and_silence_have_no_sustain_loop(self):
+        clock = np.arange(2 * FS) / FS
+        fixtures = [np.random.default_rng(7).normal(0, .1, len(clock)),
+                    .2 * np.sin(2 * np.pi * (300 * clock + 75 * clock ** 2)),
+                    np.zeros(len(clock))]
+        for index, samples in enumerate(fixtures):
+            with self.subTest(index=index):
+                self.assertIsNone(find_sustain_loop(samples, FS, 69))
+                sampler = synthetic_sampler(2)
+                sampler.samples = lambda zone: (samples, FS, f"fixture-{index}")
+                _, playback = wire(score([{"id": "a", "pitch": 69, "duration": 4}]))
+                with self.assertRaisesRegex(ValueError, "no validated stable sustain loop"):
+                    sampler.render(playback)
 
 
 if __name__ == "__main__":
