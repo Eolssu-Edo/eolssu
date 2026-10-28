@@ -195,6 +195,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     require(isinstance(melody, str) and melody.strip(), "선택한 성부의 melody가 비어 있습니다")
     title = controls.get("title")
     require(isinstance(title, str) and title.strip(), "JGB controls.title이 필요합니다")
+    require(instrument == "danso" or bpm is not None or document.get("tempoBpmUserSet") is True,
+            "빠르기 확정이 필요합니다. 편집기의 기본 BPM을 사용하지 않습니다 (--bpm 또는 tempoBpmUserSet)")
     base_bpm = number(controls.get("tempoBpm") if bpm is None else bpm, "정간 BPM (--bpm)", 1, 800)
     speed = number(speed, "speed", .25, 4)
     hwang = integer(controls.get("hwangPitch") if hwang_midi is None else hwang_midi,

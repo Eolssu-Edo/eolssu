@@ -16,7 +16,8 @@ def declared_instrument(document, voice, instrument):
     if declared is None and instrument == "danso" and override is None:
         return "Legacy Danso input; instrument omitted."
     if declared == instrument:
-        return f"JGB part instrument: {declared}"
+        basis = metadata.get("instrument_basis")
+        return basis if isinstance(basis, str) and basis.strip() else f"JGB part instrument: {declared}"
     require(declared in (None, "all", "daegeum"), "선택한 성부의 악기와 요청한 악기가 다릅니다")
     require(declared != "daegeum" or instrument in ("jeongak-daegeum", "sanjo-daegeum"),
             "대금 성부를 다른 악기로 바꿀 수 없습니다")
