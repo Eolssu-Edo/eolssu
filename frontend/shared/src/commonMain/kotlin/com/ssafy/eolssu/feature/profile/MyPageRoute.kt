@@ -8,12 +8,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.my_instrument_changed
 import eolssu.shared.generated.resources.my_unlinked
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -27,7 +27,7 @@ fun MyPageRoute(
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
-    startMessage: StringResource? = null,
+    startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     viewModel: MyPageViewModel = koinViewModel(),
 ) {
@@ -53,7 +53,9 @@ fun MyPageRoute(
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onOpen = onOpen,
-        onSelectInstrument = { if (viewModel.selectInstrument(it)) show { getString(Res.string.my_instrument_changed) } },
+        onSelectInstrument = { instrument ->
+            if (viewModel.selectInstrument(instrument)) show { getString(Res.string.my_instrument_changed, getString(instrument.label)) }
+        },
         onLink = onLink,
         onUnlink = viewModel::askUnlink,
         onConfirmUnlink = {

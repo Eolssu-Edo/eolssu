@@ -4,6 +4,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_agreement_age
 import eolssu.shared.generated.resources.auth_agreement_age_title
 import eolssu.shared.generated.resources.auth_agreement_news
+import eolssu.shared.generated.resources.auth_agreement_news_title
 import eolssu.shared.generated.resources.auth_agreement_privacy
 import eolssu.shared.generated.resources.auth_agreement_recording
 import eolssu.shared.generated.resources.auth_agreement_recording_detail
@@ -27,5 +28,5 @@ enum class Agreement(
     Terms(Res.string.auth_agreement_terms, required = true, hasTerms = true),
     Privacy(Res.string.auth_agreement_privacy, required = true, hasTerms = true),
     Recording(Res.string.auth_agreement_recording, required = true, hasTerms = true, detail = Res.string.auth_agreement_recording_detail),
-    News(Res.string.auth_agreement_news, required = false, hasTerms = true),
+    News(Res.string.auth_agreement_news, required = false, hasTerms = true, title = Res.string.auth_agreement_news_title),
 }
