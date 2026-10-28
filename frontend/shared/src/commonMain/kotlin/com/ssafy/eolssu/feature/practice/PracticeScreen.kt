@@ -33,6 +33,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
+import com.ssafy.eolssu.feature.practice.component.IdleReminderDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomContent
 import com.ssafy.eolssu.feature.practice.component.PracticeDialog
@@ -41,6 +42,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
+import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
@@ -70,6 +72,8 @@ class PracticeScreenActions(
     val onUserScroll: () -> Unit,
     val onFollowNow: () -> Unit,
     val onCancelCountdown: () -> Unit,
+    val onUserActivity: () -> Unit,
+    val onKeepPracticing: () -> Unit,
     val bottom: PracticeBottomActions,
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
@@ -78,6 +82,7 @@ class PracticeScreenActions(
 /**
  * PRACTICE-01 연습. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
  * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 카운트다운·확인 창은 배치와 관계없이 같다.
+ * 화면과 보조 패널 시트의 입력은 연습 시간의 활동으로 알린다.
  */
 @Composable
 fun PracticeScreen(
@@ -86,7 +91,7 @@ fun PracticeScreen(
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
 ) {
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().reportUserActivity(actions.onUserActivity)) {
         when (widthClass) {
             WindowWidthClass.Compact -> PracticeCompactLayout(state, snackbarHostState, actions)
             WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions)
@@ -96,9 +101,15 @@ fun PracticeScreen(
     }
     // 태블릿 가로는 보조 패널을 오른쪽 상태 패널 자리에 연다(PracticeExpandedLayout).
     if (state.panel != null && widthClass != WindowWidthClass.Expanded) {
-        PracticePanelSheet(state, actions.panel, tablet = widthClass == WindowWidthClass.Medium)
+        PracticePanelSheet(
+            state,
+            actions.panel,
+            tablet = widthClass == WindowWidthClass.Medium,
+            modifier = Modifier.reportUserActivity(actions.onUserActivity),
+        )
     }
     state.popup?.let { PracticeDialog(it, actions.dialog) }
+    if (state.idleReminder) IdleReminderDialog(actions.onKeepPracticing)
 }
 
 /** 휴대폰 배치: 악보가 화면 대부분을 차지하고, 상태별 버튼은 아래에 고정한다. */

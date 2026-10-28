@@ -36,6 +36,7 @@ import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
 import com.ssafy.eolssu.feature.profile.WithdrawViewModel
+import com.ssafy.eolssu.feature.practice.PracticeTimeMeter
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
 import com.ssafy.eolssu.feature.result.ResultViewModel
@@ -66,7 +67,9 @@ val appModule = module {
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
-    viewModel { (songId: String, solo: Boolean) -> PracticeViewModel(songId, solo, get(), get(), getOrNull(), getOrNull()) }
+    viewModel { (songId: String, solo: Boolean) ->
+        PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), getOrNull(), getOrNull())
+    }
     viewModel { (songId: String, bpm: Int) -> AnalysisViewModel(songId, bpm, get(), get()) }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }

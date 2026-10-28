@@ -65,6 +65,7 @@ data class PracticeDraft(
  * @property hadInput 이번 연주에서 입력이 한 번이라도 있었는지.
  * @property noInputMs 마지막 입력 뒤로 입력 없이 녹음한 시간(ms). 일시정지한 동안은 세지 않는다.
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
+ * @property idleReminder 마지막 활동 뒤 9분 30초가 지나 "계속 연습 중인가요?"를 묻는 중.
  */
 data class PracticeUiState(
     val song: Song? = null,
@@ -89,6 +90,7 @@ data class PracticeUiState(
     val finished: Boolean = false,
     val follow: Boolean = true,
     val listening: Yul? = null,
+    val idleReminder: Boolean = false,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
@@ -106,6 +108,19 @@ data class PracticeUiState(
     /** 연주 중 입력이 [NO_INPUT_HINT_MS]보다 오래 없어 마이크를 확인하라고 안내하는 상태. */
     val noInputHint: Boolean
         get() = inputMeasured && mode == PracticeMode.Recording && !finished && noInputMs > NO_INPUT_HINT_MS
+
+    /**
+     * 입력이 없어도 연습 시간으로 세는 활동. 모범 연주·음 듣기는 재생, 카운트다운과 멈추지 않은 연주는 녹음,
+     * 장단 미리듣기는 메트로놈으로 본다. 연주 중단 확인 창이 떠 있는 동안은 녹음이 멈춰 있다.
+     */
+    val runningActivities: Set<ContinuousActivity>
+        get() = buildSet {
+            if ((mode == PracticeMode.Model && playing) || listening != null) add(ContinuousActivity.PLAYBACK)
+            if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
+                add(ContinuousActivity.RECORDING)
+            }
+            if (draft.previewing) add(ContinuousActivity.METRONOME)
+        }
 
     /** 진행 선을 그리는 상태(모범 연주·연주 중). */
     val live: Boolean get() = mode == PracticeMode.Model || mode == PracticeMode.Recording || resuming
