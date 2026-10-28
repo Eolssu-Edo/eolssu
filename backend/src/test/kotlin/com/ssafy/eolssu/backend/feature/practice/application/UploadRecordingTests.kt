@@ -34,11 +34,10 @@ class UploadRecordingTests {
     private val clock = Clock.fixed(now.toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
     private val repository = InMemoryRecordingUploadRepository()
     private val storage = InMemoryRecordingStorage()
-    private val uploaded = mutableListOf<Long>()
     private val ids = ArrayDeque(listOf(UUID.fromString("00000000-0000-0000-0000-000000000001"), UUID.fromString("00000000-0000-0000-0000-000000000002")))
     private var probeResult: AudioProbeResult? = aac(seconds = 48.0)
     private val validator = RecordingFileValidator(AudioProbe { probeResult })
-    private val service = UploadRecording(repository, validator, storage, clock, { uploaded += it }, { ids.removeFirst() })
+    private val service = UploadRecording(repository, validator, storage, clock, { ids.removeFirst() })
     private val file: Path = Files.createTempFile("recording-", ".m4a").also { Files.write(it, byteArrayOf(1, 2, 3)) }
 
     @AfterEach
@@ -66,7 +65,7 @@ class UploadRecordingTests {
         assertEquals(key, stored.recording?.key)
         assertEquals(RecordingMetadata(bytes = 3, durationMs = 48_000, sampleRate = 48_000, channels = 1), stored.recording?.metadata)
         assertEquals(now, stored.recording?.uploadedAt)
-        assertEquals(listOf(SESSION), uploaded)
+        assertEquals(listOf(SESSION), repository.published)
     }
 
     @Test
@@ -138,7 +137,7 @@ class UploadRecordingTests {
 
         assertEquals(emptyMap(), storage.objects)
         assertEquals("RECORDING", repository.sessions.getValue(SESSION).target.status)
-        assertEquals(emptyList(), uploaded)
+        assertEquals(emptyList(), repository.published)
         repository.failUpdates = false
         assertEquals(ACCEPTED, upload())
     }
@@ -156,7 +155,7 @@ class UploadRecordingTests {
         assertEquals(SESSION_NOT_RECORDING, upload())
 
         assertEquals(setOf(winner), storage.objects.keys)
-        assertEquals(emptyList(), uploaded)
+        assertEquals(emptyList(), repository.published)
     }
 
     @Test
@@ -177,15 +176,6 @@ class UploadRecordingTests {
 
         assertEquals(SESSION_NOT_FOUND, upload())
         assertEquals(emptyMap(), storage.objects)
-    }
-
-    @Test
-    fun `keeps the 202 when starting the analysis fails`() {
-        session()
-        val failing = UploadRecording(repository, validator, storage, clock, { error("analysis start failed") }, { ids.removeFirst() })
-
-        assertEquals(ACCEPTED, failing.upload(USER, SESSION, file, 3))
-        assertEquals("PENDING", repository.sessions.getValue(SESSION).target.status)
     }
 
     private fun assertNothingStored() {

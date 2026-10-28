@@ -6,7 +6,6 @@ import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorageException
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
-import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploaded
 import com.ssafy.eolssu.backend.feature.practice.domain.UploadedRecording
 import java.nio.file.Path
 import java.time.Clock
@@ -21,7 +20,6 @@ class UploadRecording(
     private val validator: RecordingFileValidator,
     private val storage: RecordingStorage,
     private val clock: Clock,
-    private val onUploaded: RecordingUploaded,
     private val newObjectId: () -> UUID = UUID::randomUUID,
 ) {
     fun upload(userId: Long, sessionId: Long, file: Path, sizeBytes: Long): RecordingUploadResult {
@@ -57,13 +55,6 @@ class UploadRecording(
             deleteOwnObject(sessionId, key)
             val current = repository.findOwned(sessionId, userId) ?: return RecordingUploadResult.SESSION_NOT_FOUND
             return if (current.isTimedOut()) RecordingUploadResult.SESSION_EXPIRED else RecordingUploadResult.SESSION_NOT_RECORDING
-        }
-
-        try {
-            onUploaded.uploaded(sessionId)
-        } catch (e: RuntimeException) {
-            // 저장은 끝났다. 분석을 시작하지 못한 세션은 상태 조회의 제한 시간 판정이 TIMEOUT으로 끝낸다.
-            log.warn("Analysis start failed after upload session={} error={}", sessionId, e.javaClass.simpleName)
         }
         return RecordingUploadResult.ACCEPTED
     }

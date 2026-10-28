@@ -47,6 +47,16 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 `songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
 
+## 공통 악보 데이터
+
+[score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
+
+```powershell
+python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p172 ngc-standard-2022-p173 ngc-standard-2022-p174
+```
+
+결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+
 ## 파일 관리
 
 팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.
@@ -148,10 +158,10 @@ python data/src/catalog/verify_sources.py --dataset aihub-71470 aihub-71955 coll
 
 ## 원본 준비와 실행
 
-검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
+검증 환경은 Python 3.12.14·NumPy 2.3.5·SoundFile 0.13.1·libsndfile 1.2.2·jsonschema 4.26.0입니다. WAV 처리에는 NumPy, MP3 처리와 전체 테스트에는 SoundFile, 공통 악보 데이터 형식 검사에는 jsonschema도 필요합니다. SoundFile Windows wheel에는 libsndfile이 포함됩니다. 다른 플랫폼에서도 MP3를 지원하는 libsndfile을 사용합니다([공식 설치 안내](https://python-soundfile.readthedocs.io/en/latest/#installation)).
 
 ```powershell
-python -m pip install numpy==2.3.5 soundfile==0.13.1
+python -m pip install numpy==2.3.5 soundfile==0.13.1 jsonschema==4.26.0
 ```
 
 [국립국악원 단음 다운로드](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)의 관악기 → 산조대금 전체 9개와 비교용 표준악보집 PDF를 sources의 `rawPath`에 준비합니다. 주소·해시·이용 조건은 목록에 있습니다. 한 구간만 저장할 때는 해당 원음만 있으면 됩니다. 메타데이터는 해당 데이터셋 전체가 필요합니다.

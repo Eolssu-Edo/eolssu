@@ -33,6 +33,9 @@ class InMemoryRecordingUploadRepository : RecordingUploadRepository {
     val sessions = mutableMapOf<Long, Session>()
     var failUpdates = false
 
+    /** 조건부 갱신이 성공해 발행한 RecordingUploaded의 세션 ID. */
+    val published = mutableListOf<Long>()
+
     /** 조건부 갱신 직전에 끼어드는 다른 요청·배치. */
     var beforeUpdate: (Long) -> Unit = {}
 
@@ -45,6 +48,7 @@ class InMemoryRecordingUploadRepository : RecordingUploadRepository {
         session.target = session.target.copy(status = "PENDING")
         session.recording = recording
         session.attempt++
+        published += sessionId
         return true
     }
 }

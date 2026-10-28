@@ -64,7 +64,8 @@ class GrowthApiDatabaseTests {
         }
         jdbc.update(
             "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
-                "VALUES (951, 951, 951, '시험', 1, 60, '{}', 1, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+                "VALUES (951, 951, 951, '시험', 1, 60, '{}', 4, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)), " +
+                "(952, 951, 951, '둘째', 1, 60, '{}', 2, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))", // 음표 4개·2개
         )
     }
 
@@ -107,7 +108,9 @@ class GrowthApiDatabaseTests {
                 """{"httpStatus":"OK","isSuccess":true,"message":"연습 기록지 요약 조회 성공","code":200,"result":{
                 "from":"2026-09-07","to":"2026-09-13","practiceCount":3,"practiceSeconds":2059,"practiceDays":2,"currentStreakDays":0,
                 "averageTotalScore":86,"previousPeriod":{"practiceSeconds":100,"practiceCount":1,"averageTotalScore":70},
-                "completedMissionCount":null,"totalMissionCount":null}}""",
+                "completedMissionCount":null,"totalMissionCount":null,"bestBySong":[],
+                "metricGrowth":{"songId":null,"title":null,"bpm":null,"pitch":{"first":null,"last":null},
+                "timing":{"first":null,"last":null},"duration":{"first":null,"last":null}}}}""",
             ),
             json.readTree(summary.body()),
         )
@@ -121,6 +124,52 @@ class GrowthApiDatabaseTests {
             ),
             json.readTree(calendar.body()).path("result").path("items"),
         )
+    }
+
+    @Test
+    fun `reports best scores and metric growth from full song plays of all time`() {
+        // 곡 951은 음표 4개(0~3), 곡 952는 2개(0~1). 전체 곡 연주는 첫 음부터 끝 음까지다.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, score_version, bpm, bpm_unit, start_note_idx, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(961, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-01 03:00:00'), " + // 기준 조건의 첫 연주
+                "(962, 951, 951, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-02 03:00:00'), " + // 구간 연습
+                "(963, 951, 951, 1, 90, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-07-31 03:00:00'), " + // 조건이 다른 더 이른 연주: BPM
+                "(969, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-07-30 03:00:00'), " + // 채점 모델
+                "(970, 951, 951, 2, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-07-29 03:00:00'), " + // 악보 버전
+                "(960, 951, 951, 1, 60, 'DOTTED_QUARTER', 0, 3, 'DONE', NULL, '2026-07-28 03:00:00'), " + // BPM 단위
+                "(964, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-04 03:00:00'), " +
+                "(965, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-05 03:00:00'), " + // 가장 최근 평가된 전체 곡 연주
+                "(966, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'FAILED', 'NO_SOUND', '2026-08-06 03:00:00'), " + // 평가 행이 있어도 FAILED는 빠진다
+                "(959, 951, 951, 1, 60, 'JEONGGAN', 1, 3, 'DONE', NULL, '2026-08-09 03:00:00'), " + // 끝 음까지 간 구간 연습
+                "(967, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-07 03:00:00'), " + // 평가 없음
+                "(968, 952, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-08 03:00:00')", // 다른 회원
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(961, 70, 60, 61, 62, 'pyin-1'), (962, 99, 99, 99, 99, 'pyin-1'), (963, 75, 10, 10, 10, 'pyin-1'), " +
+                "(964, 88, 50, 50, 50, 'pyin-1'), (965, 80, 70, 71, 72, 'pyin-1'), (968, 100, 100, 100, 100, 'pyin-1'), " +
+                "(969, 20, 20, 20, 20, 'pyin-0'), (970, 30, 30, 30, 30, 'pyin-1'), (960, 40, 40, 40, 40, 'pyin-1'), " +
+                "(966, 100, 100, 100, 100, 'pyin-1'), (959, 98, 98, 98, 98, 'pyin-1')",
+        )
+        // 회원이 지운 기록도 성취도에 남는다.
+        jdbc.update("UPDATE practice_sessions SET record_deleted_at = '2026-08-10 00:00:00' WHERE id = 965")
+
+        // 성취도는 from·to와 관계없다.
+        val response = get("/api/users/me/growth/summary?from=2026-10-01&to=2026-10-31", subject = "951")
+        assertEquals(200, response.statusCode(), response.body())
+        val result = json.readTree(response.body()).path("result")
+        assertEquals(
+            json.readTree("""[{"songId":"951","title":"시험","bestTotalScore":80},{"songId":"952","title":"둘째","bestTotalScore":88}]"""),
+            result.path("bestBySong"),
+        )
+        assertEquals(
+            json.readTree(
+                """{"songId":"951","title":"시험","bpm":60,"pitch":{"first":60,"last":70},"timing":{"first":61,"last":71},
+                "duration":{"first":62,"last":72}}""",
+            ),
+            result.path("metricGrowth"),
+        )
+        assertEquals(0, result.path("practiceCount").asInt()) // 10월 기간 값은 그대로
     }
 
     @Test
@@ -144,10 +193,10 @@ class GrowthApiDatabaseTests {
     ).apply { sign(MACSigner(TEST_SECRET.toByteArray(Charsets.UTF_8))) }.serialize()
 
     private fun deleteRows() {
-        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 951 AND 956")
-        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 951 AND 956")
+        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 951 AND 970")
+        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 951 AND 970")
         jdbc.update("DELETE FROM score_views WHERE user_id IN (951, 952)")
-        jdbc.update("DELETE FROM songs WHERE id = 951")
+        jdbc.update("DELETE FROM songs WHERE id IN (951, 952)")
         jdbc.update("DELETE FROM users WHERE id IN (951, 952)")
         jdbc.update("DELETE FROM jangdans WHERE id = 951")
         jdbc.update("DELETE FROM instruments WHERE id = 951")

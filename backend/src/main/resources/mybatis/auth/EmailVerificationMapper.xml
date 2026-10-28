@@ -10,6 +10,13 @@
         SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
         FROM email_verifications WHERE id = #{id} FOR UPDATE
     </select>
+    <select id="findByTokenHashForUpdate" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications WHERE token_hash = #{tokenHash} FOR UPDATE
+    </select>
+    <update id="markConsumed">
+        UPDATE email_verifications SET consumed_at = #{now} WHERE id = #{id} AND consumed_at IS NULL
+    </update>
     <select id="memberExists" resultType="boolean">
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING'))
     </select>

@@ -36,6 +36,7 @@ interface RecordingUploadRepository {
     /**
      * 세션이 아직 `RECORDING`이면 원본 키·메타데이터·`ended_at`을 기록하고 `PENDING`으로 바꾸며 분석 시도를 시작한다
      * (`analysis_attempt` + 1, `analysis_started_at`). 한 번의 조건부 갱신이다. 바꿨으면 true.
+     * 바꿨으면 같은 트랜잭션 안에서 [RecordingUploaded]를 발행한다. 분석(PRA-03)은 커밋 뒤에만 시작한다.
      */
     fun markUploaded(sessionId: Long, userId: Long, recording: UploadedRecording): Boolean
 }
@@ -57,15 +58,6 @@ interface RecordingStorage {
 
 /** 저장소에 연결할 수 없거나 쓰기가 거부됐다. 업로드는 503으로 답하고 같은 세션으로 다시 올릴 수 있다. */
 class RecordingStorageException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
-
-/**
- * 업로드 저장을 커밋한 뒤 202 응답 전에 요청 스레드에서 부른다. 분석 시작(PRA-03)을 여기에 연결한다.
- * 구현은 분석을 백그라운드 실행기에 넘기고 바로 돌아와야 한다. 여기서 AI를 기다리면 업로드 응답이 그만큼 늦어지고
- * Nginx `proxy_read_timeout`(60초)에 걸린다. 던진 `RuntimeException`은 기록만 하고 업로드는 202로 끝난다.
- */
-fun interface RecordingUploaded {
-    fun uploaded(sessionId: Long)
-}
 
 /** AI가 원본을 읽는 서명 URL의 유효 시간(PRA-02 원본 저장소). */
 val RECORDING_READ_URL_TTL: Duration = Duration.ofMinutes(15)

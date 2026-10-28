@@ -11,3 +11,7 @@ data class RefreshTokenRow(
     val revokeReason: String?,
     val createdAt: LocalDateTime,
 )
+
+class RefreshTokenInsert(val userId: Long, val tokenHash: String, val expiresAt: LocalDateTime, val createdAt: LocalDateTime) {
+    var id: Long = 0
+}

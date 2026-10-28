@@ -39,7 +39,7 @@ class RecordingUploadControllerTests {
     private val probedFiles = mutableListOf<Path>()
     private var probeResult: AudioProbeResult? = AudioProbeResult(setOf("mov", "mp4", "m4a"), "aac", 44_100, 2, 3.0)
     private val validator = RecordingFileValidator(AudioProbe { file -> probedFiles.add(file); probeResult })
-    private val upload = UploadRecording(repository, validator, storage, Clock.fixed(now, ZoneOffset.UTC), {})
+    private val upload = UploadRecording(repository, validator, storage, Clock.fixed(now, ZoneOffset.UTC))
     private val mockMvc = MockMvcBuilders.standaloneSetup(RecordingUploadController(upload))
         .setControllerAdvice(GlobalExceptionHandler())
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver())

@@ -75,6 +75,24 @@ class GlobalExceptionHandlerTests {
             .andExpect(jsonPath("$.type").doesNotExist())
     }
 
+    @Test
+    fun `other framework statuses use the common body without reasons or ProblemDetail`() {
+        mvc.perform(get("/fixture/conflict"))
+            .andExpect(status().isConflict)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath("$.httpStatus").value("CONFLICT"))
+            .andExpect(jsonPath("$.isSuccess").value(false))
+            .andExpect(jsonPath("$.code").value(409))
+            .andExpect(jsonPath("$.result.errorCode").value("CONFLICT"))
+            .andExpect(jsonPath("$.type").doesNotExist())
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("dup secret"))))
+        mvc.perform(get("/fixture/timeout"))
+            .andExpect(status().isServiceUnavailable)
+            .andExpect(jsonPath("$.result.errorCode").value("SERVICE_UNAVAILABLE"))
+            .andExpect(jsonPath("$.message").value("일시적으로 처리할 수 없어요. 잠시 후 다시 시도해 주세요"))
+            .andExpect(jsonPath("$.type").doesNotExist())
+    }
+
     private fun error(code: Int, status: String, errorCode: String, message: String) =
         """{"httpStatus":"$status","isSuccess":false,"message":"$message","code":$code,"result":{"errorCode":"$errorCode"}}"""
 }
@@ -95,4 +113,10 @@ internal class ErrorFixtureController {
 
     @GetMapping("/fixture/too-large")
     fun tooLarge(): Nothing = throw org.springframework.web.multipart.MaxUploadSizeExceededException(1024)
+
+    @GetMapping("/fixture/conflict")
+    fun conflict(): Nothing = throw org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "dup secret")
+
+    @GetMapping("/fixture/timeout")
+    fun timeout(): Nothing = throw org.springframework.web.context.request.async.AsyncRequestTimeoutException()
 }

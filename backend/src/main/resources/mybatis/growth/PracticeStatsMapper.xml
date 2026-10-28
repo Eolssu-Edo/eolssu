@@ -27,4 +27,36 @@
         HAVING SUM(counted_seconds) &gt;= #{minSeconds}
         ORDER BY day DESC
     </select>
+    <!-- 전체 곡 연주: 첫 음부터 끝 음까지(음표 번호는 0부터, 양 끝 포함) 연주해 분석이 끝나고 평가가 있는 세션. 회원 전체 기록이다. -->
+    <sql id="fullSongPlays">
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.status = 'DONE' AND ps.start_note_idx = 0 AND ps.end_note_idx = s.note_count - 1
+    </sql>
+    <sql id="fullSongPlayColumns">
+        ps.id AS session_id, s.id AS song_id, s.title, ps.score_version, e.model_version, ps.bpm, ps.bpm_unit,
+        e.pitch_score, e.timing_score, e.duration_score
+    </sql>
+    <select id="findBestFullSongScores" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.SongBestRow">
+        SELECT s.id AS song_id, s.title, MAX(e.total_score) AS best_total_score
+        <include refid="fullSongPlays"/>
+        GROUP BY s.id, s.title
+        ORDER BY MAX(ps.started_at) DESC, s.id DESC
+    </select>
+    <select id="findLatestFullSongPlay" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.FullSongPlayRow">
+        SELECT <include refid="fullSongPlayColumns"/>
+        <include refid="fullSongPlays"/>
+        ORDER BY ps.started_at DESC, ps.id DESC
+        LIMIT 1
+    </select>
+    <!-- 항목 성장의 비교 조건: 곡·악보 버전·채점 모델·BPM(단위 포함). -->
+    <select id="findFirstFullSongPlayLike" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.FullSongPlayRow">
+        SELECT <include refid="fullSongPlayColumns"/>
+        <include refid="fullSongPlays"/>
+          AND ps.song_id = #{songId} AND ps.score_version = #{scoreVersion} AND e.model_version = #{modelVersion}
+          AND ps.bpm = #{bpm} AND ps.bpm_unit = #{bpmUnit}
+        ORDER BY ps.started_at ASC, ps.id ASC
+        LIMIT 1
+    </select>
 </mapper>
