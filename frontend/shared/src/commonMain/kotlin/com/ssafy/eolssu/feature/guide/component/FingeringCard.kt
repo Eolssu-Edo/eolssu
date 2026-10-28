@@ -173,11 +173,11 @@ internal fun FingeringFigure(
     }
 }
 
-/** 구멍 표시 범례(`.legend`): 막는 구멍 · 여는 구멍 · 반 막음. */
+/** 구멍 표시 범례(`.legend`): 막는 구멍 · 여는 구멍 · 반 막음. 너비를 넓혀 주면 가운데에 놓는다. */
 @Composable
 internal fun HoleLegend(modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
         LegendItem(stringResource(Res.string.guide_legend_closed)) { drawCircle(colors.text) }
         LegendItem(stringResource(Res.string.guide_legend_open)) {}
         LegendItem(stringResource(Res.string.guide_legend_half)) {

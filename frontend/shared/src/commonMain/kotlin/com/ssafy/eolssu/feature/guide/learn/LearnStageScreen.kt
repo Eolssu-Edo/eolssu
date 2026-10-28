@@ -51,6 +51,7 @@ import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.FingeringNote
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.MoreSigimsaeCount
+import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.BorrowCard
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideGrid
@@ -150,7 +151,7 @@ class LearnStageActions(
     val onListenModel: () -> Unit,
     val onListen: (FingeringNote) -> Unit,
     val onOpenFingering: (Blow) -> Unit,
-    val onOpenReading: () -> Unit,
+    val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (LearnSong) -> Unit,
 )
 
@@ -277,7 +278,7 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
         MoreLink(stringResource(label), onClick = { actions.onOpenFingering(blow) })
     }
-    val readingMore: @Composable () -> Unit = { MoreLink(stringResource(Res.string.learn_more_reading), onClick = actions.onOpenReading) }
+    val readingMore: (ReadingPage) -> @Composable () -> Unit = { page -> { MoreLink(stringResource(Res.string.learn_more_reading), onClick = { actions.onOpenReading(page) }) } }
     val grid = columns.grid
 
     when (stage.number) {
@@ -369,12 +370,12 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
         }
         7 -> {
             LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
-            LearnSection(stringResource(Res.string.learn_section_beat), more = readingMore) {
+            LearnSection(stringResource(Res.string.learn_section_beat), more = readingMore(ReadingPage.Length)) {
                 BorrowCard(stringResource(Res.string.learn_borrow_length)) { LengthRow() }
             }
         }
         8 -> {
-            LearnSection(stringResource(Res.string.learn_section_read_order), more = readingMore) {
+            LearnSection(stringResource(Res.string.learn_section_read_order), more = readingMore(ReadingPage.Order)) {
                 BorrowCard(stringResource(Res.string.learn_borrow_order)) { ReadOrderBoard() }
             }
             LearnSection(stringResource(Res.string.learn_section_scale), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
@@ -393,7 +394,7 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
         }
         9 -> {
             LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
-            LearnSection(stringResource(Res.string.learn_section_sigimsae), more = readingMore) {
+            LearnSection(stringResource(Res.string.learn_section_sigimsae), more = readingMore(ReadingPage.Sigimsae)) {
                 BorrowCard(stringResource(Res.string.learn_borrow_sigimsae, MoreSigimsaeCount)) { SigimsaeBasicBlock(columns = columns.sigimsae) }
             }
             LearnSection(stringResource(Res.string.learn_section_listen)) {

@@ -24,6 +24,14 @@ class EolssuColorsContrastTest {
         assertReadable("onPrimary / primary", colors.onPrimary, colors.primary)
         assertReadable("onPrimary / play", colors.onPrimary, colors.play)
         assertReadable("onPrimary / rec", colors.onPrimary, colors.rec)
+        assertReadable("onPrimary / green", colors.onPrimary, colors.green)
+    }
+
+    /** 부수 강조색은 24sp 이상 큰 글자에만 쓰므로 큰 글자 기준(3:1)을 본다. 검은 율명과도 구분돼야 한다. */
+    @Test
+    fun radicalTintIsReadableAsLargeText() {
+        assertReadable("radical / background", colors.radical, colors.background, minimum = 3f)
+        assertReadable("radical / text", colors.radical, colors.text, minimum = 3f)
     }
 
     @Test
@@ -37,9 +45,9 @@ class EolssuColorsContrastTest {
         assertReadable("rhythmErrorText / rhythmErrorSoft", colors.rhythmErrorText, colors.rhythmErrorSoft)
     }
 
-    private fun assertReadable(name: String, foreground: Color, background: Color) {
+    private fun assertReadable(name: String, foreground: Color, background: Color, minimum: Float = 4.5f) {
         val ratio = contrastRatio(foreground, background)
-        assertTrue(ratio >= 4.5f, "$name 대비 ${(ratio * 100).toInt() / 100f} < 4.5")
+        assertTrue(ratio >= minimum, "$name 대비 ${(ratio * 100).toInt() / 100f} < $minimum")
     }
 
     private fun contrastRatio(a: Color, b: Color): Float {
