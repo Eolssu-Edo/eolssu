@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus
 enum class ErrorCode(val status: HttpStatus, val message: String) {
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "요청 형식이 올바르지 않아요"),
     UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "로그인이 필요해요"),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "이메일 또는 비밀번호가 올바르지 않아요"),
     EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "이메일 인증이 필요해요. 다시 인증해 주세요"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "허용되지 않은 요청이에요"),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 정보를 찾을 수 없어요"),
