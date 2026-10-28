@@ -27,6 +27,12 @@ interface PracticeSessionMapper {
         @Param("channels") channels: Int,
         @Param("uploadedAt") uploadedAt: LocalDateTime,
     ): Int
+
+    fun findByIdempotencyKey(@Param("userId") userId: Long, @Param("idempotencyKey") idempotencyKey: String): PracticeSessionRow?
+
+    fun findPlayableSong(@Param("songId") songId: Long): PlayableSongRow?
+
+    fun insert(session: PracticeSessionInsert): Int
 }
 
 data class RecordingUploadTargetRow(

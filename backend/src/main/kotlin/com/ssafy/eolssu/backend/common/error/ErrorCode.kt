@@ -29,4 +29,5 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 처리할 수 없어요. 잠시 후 다시 시도해 주세요"),
     VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않아요"),
     VERIFICATION_EXPIRED(HttpStatus.GONE, "인증번호가 만료됐어요. 새 번호를 받아 주세요"),
+    STATE_CONFLICT(HttpStatus.CONFLICT, "지금 상태에서는 처리할 수 없어요. 상태를 다시 확인해 주세요"),
 }
