@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.common.error
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.junit.jupiter.api.Test
+import org.springframework.boot.test.context.TestComponent
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -60,7 +61,8 @@ class GlobalExceptionHandlerTests {
 }
 
 @RestController
-private class ErrorFixtureController {
+@TestComponent
+internal class ErrorFixtureController {
     data class Input(@field:NotBlank val name: String)
 
     @PostMapping("/fixture", consumes = [MediaType.APPLICATION_JSON_VALUE])

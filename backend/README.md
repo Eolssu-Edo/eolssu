@@ -31,11 +31,19 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 | 실제 녹음 파일 검사(ffmpeg) | `.\gradlew.bat mediaTest` | `./gradlew mediaTest` |
 | 실행 JAR 생성 | `.\gradlew.bat bootJar` | `./gradlew bootJar` |
 
-기본 주소는 `http://localhost:8080`입니다. 아직 업무 API가 없으므로 `/` 요청의 `404`는 정상입니다. 시작 로그에서 애플리케이션과 내장 Tomcat의 기동을 확인하며, 개발 서버는 `Ctrl+C`로 종료합니다.
+기본 주소는 `http://localhost:8080`입니다. `/` 요청의 `404`는 정상입니다. 약관 조회는 아래의 `db` 프로필에서 제공합니다. 시작 로그에서 애플리케이션과 내장 Tomcat의 기동을 확인하며, 개발 서버는 `Ctrl+C`로 종료합니다.
 
 실행 JAR은 `build/libs/eolssu-0.0.1-SNAPSHOT.jar`입니다. `java -jar build/libs/eolssu-0.0.1-SNAPSHOT.jar`로 실행합니다. `*-plain.jar`는 실행용 Spring Boot JAR이 아닙니다.
 
 기본 필수 검사는 `clean build`입니다. 시작 테스트는 외부 DB·AI 서버 없이 임의 포트에 실제 HTTP 서버를 띄우고, DB 관련 Bean 미생성과 미등록 경로의 `404` 응답을 확인합니다. 결과는 `build/reports/tests/test/index.html`에 생성됩니다. 저장 모델·쿼리·마이그레이션 변경에서는 아래의 `databaseTest`, 녹음 파일 검사 변경에서는 `mediaTest`도 병합 전에 수행합니다. AI 통합과 모델 품질은 두 검사 범위에 포함하지 않습니다.
+
+### 약관 목록(AUTH-08)
+
+`db` 프로필과 V2 이상 스키마에서 `GET /api/terms`를 로그인 없이 호출합니다(`Accept: application/json`). 응답은 `{httpStatus,isSuccess,message,code,result:{items:[...]}}`이며 항목은 문자열 `termId`, `code`, `title`, `required`, `version`, `contentUrl`입니다. UTC 조회 시각까지 시행된 버전 중 code별 가장 늦은 `effective_at`을 고르고, 같은 시각이면 큰 ID 한 개를 반환합니다. `seq`·ID 오름차순으로 표시하며 현재 약관이 없으면 200과 빈 목록입니다. 문구·URL·초기 데이터는 자동 생성하지 않습니다.
+
+무DB 기본 프로필과 읽기 전용 점검용 `ops` 프로필에는 약관 컨트롤러·조회 Bean을 만들지 않습니다. 배포 프로필 전환과 운영 DB 적용은 별도 작업입니다. `databaseTest`의 `TermsApiDatabaseTests`는 폐기 가능한 MySQL 8.4에 고정 약관 데이터를 넣고 실제 HTTP 응답까지 확인한 뒤 약관 데이터를 지웁니다.
+
+400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. S15P31E102-168의 ProblemDetail 형식과의 통합은 팀 합의 대기입니다([작업 기록](../docs/plans/S15P31E102-143.md#2단계-작업-기록2026-10-27)).
 
 ## 환경 설정
 
@@ -208,7 +216,7 @@ Mapper는 `@Mapper`로 검색하고 XML namespace는 인터페이스 전체 이�
 
 Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실행 방법은 [인프라 실행 문서](../infra/README.md)를 따릅니다. Docker 빌드는 `docker build --tag eolsu-backend:check backend`를 저장소 루트에서 실행합니다. 실제 Jenkins 잡 등록·서버 배포는 별도 작업입니다.
 
-인증 토큰 발급·업무 API·AI 호출·운영 DB 적용은 아직 포함하지 않습니다(인증·회원은 S15P31E102-143에서 구현 중). 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
+인증 토큰 발급·약관 목록 외 업무 API·AI 호출·운영 DB 적용은 아직 포함하지 않습니다(인증·회원은 S15P31E102-143에서 구현 중). 실행·검증 방법은 이 README, 조사 결과는 루트 `docs/knowledge/backend/`, 공통 계약은 `docs/contracts/`, 기술 결정은 `docs/decisions/`에 기록합니다.
 
 ## 작업 기준
 
