@@ -103,9 +103,9 @@ $env:DB_PASSWORD = '<로컬 DB 비밀번호>'
 
 macOS / Linux에서는 같은 값을 터미널에서 `export`한 뒤 `./gradlew bootRun`을 실행합니다. JAR도 같은 환경변수로 실행합니다. `db` 프로필에서 연결·마이그레이션 검증이 실패하면 기동에 실패합니다.
 
-- Flyway가 `src/main/resources/db/migration/`의 `V1__initial_schema.sql`, `V2__auth_user_practice_extensions.sql`을 순서대로 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
-- 적용한 버전 파일은 수정하지 않고 `V3__설명.sql`처럼 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
-- MySQL DDL은 실패해도 되돌려지지 않습니다. V2는 DDL 전에 기존 데이터를 확인해, 세마치·굿거리·중모리·타령 밖의 장단, 개인정보가 남은 탈퇴 회원, 20~240 밖의 세션 BPM이 있으면 `chk_v2_preconditions` 위반으로 스키마를 바꾸지 않고 기동에 실패합니다. 기존 장단·세션의 `bpm_unit`은 장단 이름으로 채웁니다.
+- Flyway가 `src/main/resources/db/migration/`의 `V1__initial_schema.sql`, `V2__auth_user_practice_extensions.sql`, `V3__practice_session_recording_metadata.sql`, `V4__practice_session_analysis_attempt.sql`을 버전 순서대로 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
+- 적용한 버전 파일은 수정하지 않고 `V5__설명.sql`처럼 다음 번호로 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
+- MySQL DDL은 실패해도 되돌려지지 않습니다. V2는 DDL 전에 기존 데이터를 확인해, 세마치·굿거리·중모리·타령 밖의 장단, 개인정보가 남은 탈퇴 회원, 20~240 밖의 세션 BPM이 있으면 `chk_v2_preconditions` 위반으로 스키마를 바꾸지 않고 기동에 실패합니다. 기존 장단·세션의 `bpm_unit`은 장단 이름으로 채웁니다. V4도 같은 방식으로, 실패 코드(`fail_reason`)가 6종 밖이거나 `FAILED` 여부와 실패 코드가 맞지 않는 세션이 있으면 `chk_v4_preconditions` 위반으로 멈춥니다(실패 행은 `version = '4'`).
 - 이때 `flyway_schema_history`에는 실패 행(`version = '2'`, `success = 0`)이 남아, 데이터만 고쳐 다시 시작하면 `Detected failed migration to version 2`로 다시 실패합니다. 이 프로젝트에는 Flyway CLI·Gradle 작업이 없으므로 같은 DB에 MySQL 클라이언트로 접속해 해당 행을 고친 뒤 실패 행을 지우고 `db` 프로필로 다시 시작합니다.
 
 ```sql
@@ -117,7 +117,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1·V2 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V4 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -128,7 +128,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1·V2 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복입니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -172,7 +172,7 @@ backend/
 │   │           └── <테이블명>Mapper.kt
 │   └── resources/
 │       ├── application.yml / application-db.yml
-│       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql
+│       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql, V3__practice_session_recording_metadata.sql, V4__practice_session_analysis_attempt.sql
 │       └── mybatis/<기능>/<테이블명>Mapper.xml
 ├── src/test/kotlin/com/ssafy/eolssu/backend/
 │   ├── BackendApplicationTests.kt
@@ -223,6 +223,8 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - Jira: [S15P31E102-60](https://ssafy.atlassian.net/browse/S15P31E102-60)
 - 저장 계층: [S15P31E102-74](https://ssafy.atlassian.net/browse/S15P31E102-74) · [MyBatis·Flyway 구성 근거](../docs/knowledge/backend/mybatis-flyway-bootstrap.md)
 - V2 ERD 보완: [S15P31E102-142](https://ssafy.atlassian.net/browse/S15P31E102-142) · [보완안·검증 기록](../docs/plans/S15P31E102-142.md)
+- V3 녹음 원본 메타데이터: [S15P31E102-179](https://ssafy.atlassian.net/browse/S15P31E102-179) (PRA-02 녹음 파일 규격, S15P31E102-168)
+- V4 분석 시도·실패 코드 제약: [S15P31E102-173](https://ssafy.atlassian.net/browse/S15P31E102-173) · [작업 기록](../docs/plans/S15P31E102-173.md)
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)

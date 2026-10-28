@@ -81,9 +81,9 @@ class DatabaseIntegrationTests {
     private lateinit var context: ApplicationContext
 
     @Test
-    fun `applies V1 and V2 on MySQL 8_4 and does not apply them again`() {
+    fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("2", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("4", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -150,14 +150,16 @@ class DatabaseIntegrationTests {
         )
         assertEquals(
             PracticeSessionRow(
-                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav", "DONE", null,
+                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav",
+                20_971_520, 600_500, 48_000, 2, "DONE", null, 0, null,
                 time, time.plusSeconds(1), null, null, null, null, time,
             ),
             mapper<PracticeSessionMapper>().findById(1),
         )
         assertEquals(
             PracticeSessionRow(
-                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null, "DONE", null,
+                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null,
+                null, null, null, null, "DONE", null, 0, null,
                 time, time.plusSeconds(1), time, "다시 연습", time, time, time,
             ),
             mapper<PracticeSessionMapper>().findById(2),
@@ -383,6 +385,44 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `keeps V3 recording metadata empty until upload and all-or-nothing positive`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, started_at) " +
+                "VALUES (3, 1, 1, 90, 'DOTTED_QUARTER', 0, CURRENT_TIMESTAMP(6))",
+        )
+        assertEquals(
+            listOf(null, null, null, null),
+            jdbc.queryForList(
+                "SELECT recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels FROM practice_sessions WHERE id = 3",
+            ).single().values.toList(),
+        )
+        assertEquals(
+            1,
+            jdbc.update(
+                "UPDATE practice_sessions SET recording_bytes = 1, recording_duration_ms = 1, " +
+                    "recording_sample_rate = 8000, recording_channels = 1 WHERE id = 3",
+            ),
+        )
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_channels = NULL WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_bytes = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_duration_ms = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_sample_rate = 0 WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_recording_meta") {
+            jdbc.update("UPDATE practice_sessions SET recording_channels = 0 WHERE id = 1")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `deletes a member's practice records in one statement during withdrawal purge`() {
         jdbc.update(
             "INSERT INTO practice_sessions (id, user_id, song_id, parent_session_id, bpm, bpm_unit, end_note_idx, started_at) " +
@@ -393,6 +433,48 @@ class DatabaseIntegrationTests {
         assertEquals(2, jdbc.update("DELETE FROM practice_sessions WHERE user_id = 3 ORDER BY id"))
         assertNull(jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 5", Long::class.javaObjectType))
         assertEquals(1L, jdbc.queryForObject("SELECT parent_session_id FROM practice_sessions WHERE id = 2", Long::class.java))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `keeps the analysis attempt and failure code consistent with the session state`() {
+        // 고정 데이터의 세션 1·2는 DONE, 실패 코드 없음, 분석 시도 전(0번). 같은 트랜잭션의 MyBatis 캐시를 피하려고
+        // 바꾸지 않을 세션 2로 기본값을 보고, 세션 1은 바꾼 뒤 한 번만 읽는다.
+        val untouched = assertNotNull(mapper<PracticeSessionMapper>().findById(2))
+        assertEquals(0, untouched.analysisAttempt)
+        assertNull(untouched.analysisStartedAt)
+
+        val startedAt = LocalDateTime.parse("2026-10-27T09:00:00.123456")
+        jdbc.update("UPDATE practice_sessions SET status = 'PENDING', analysis_attempt = 1, analysis_started_at = ? WHERE id = 1", startedAt)
+        val pending = assertNotNull(mapper<PracticeSessionMapper>().findById(1))
+        assertEquals(1, pending.analysisAttempt)
+        assertEquals(startedAt, pending.analysisStartedAt)
+
+        listOf("NO_SOUND", "TOO_SHORT", "DECODE_ERROR", "UPLOAD_TIMEOUT", "TIMEOUT", "SERVER_ERROR").forEach {
+            assertEquals(1, jdbc.update("UPDATE practice_sessions SET status = 'FAILED', fail_reason = ? WHERE id = 1", it), it)
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = 'INTERRUPTED' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = 'no_sound' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET fail_reason = NULL WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_fail_reason") {
+            jdbc.update("UPDATE practice_sessions SET status = 'DONE' WHERE id = 1")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_attempt") {
+            jdbc.update("UPDATE practice_sessions SET analysis_attempt = -1, analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
+            jdbc.update("UPDATE practice_sessions SET analysis_attempt = 2 WHERE id = 2")
+        }
+        assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
+            jdbc.update("UPDATE practice_sessions SET analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
+        }
     }
 
     @Test
