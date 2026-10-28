@@ -1,4 +1,4 @@
-# JGB·공통 악보 JSON의 단소 MIDI·CAT 음원 생성
+# JGB·공통 악보 JSON의 국악기 MIDI·CAT 음원 생성
 
 JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, CAT 단소 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력·M4A 출력을 더했습니다.
 
@@ -22,7 +22,7 @@ flowchart TD
 
 `__main__.py`가 단일 생성 전체를 연결하고 `batch.py`가 카탈로그의 빠르기·교정 근거를 적용해 같은 경로를 반복합니다. 기본 출력과 검증용 출력은 각각 다른 폴더에 생성합니다.
 
-`.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 단소 한 성부를 생성하며 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
+`.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 악기 하나와 한 성부를 선택합니다. 등록된 `profiles/*.json`이 지원 악기를 정하며 `--help`에서 확인합니다. 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
 
 ## 설치와 빠른 검사
 
@@ -58,7 +58,7 @@ $env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
 .\data\.venv\Scripts\python -m data.src.playback --score data/src/playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --out data/processed/playback/seryeongsan-fixed25
 ```
 
-추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 현재 등록 프로필은 단소 하나이며 `--instrument all`은 등록된 프로필 전체를 뜻합니다.
+단소의 추가 떨림은 **±25cent로 고정**하며 다른 악기에는 자동 추가하지 않습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. `--instrument all`은 공통 IR의 등록 프로필 전체 청취용이며 JGB에는 악기 하나를 지정해야 합니다.
 
 출력 폴더에는 `danso.mid`, **`danso.m4a`**, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. M4A는44.1kHz·mono·AAC-LC이며 목표 비트레이트는192kbps입니다. 실제 비트레이트는 인코더와 음원에 따라 달라지며 결과에 따로 기록합니다. PCM을 메모리에서 인코더 stdin으로 전달하므로 중간 WAV를 저장하지 않습니다.
 
@@ -113,7 +113,7 @@ JGB 입력에서는 원본 바이트 사본 `source.jgb.json`과 `source-map.jso
 
 - 꾸밈 `1/16 quarter`는 4분음표의1/16입니다. quarter BPM60에서62.5ms이며 일반적인16분음표(`1/4 quarter`)와 다릅니다.
 - 명시 요성: 4Hz, ±25cent(pitch/mixed), amplitude depth0.08, 지연250ms, 시작/끝 fade150ms. depth0.08은 충분히 적용된 구간의 CC11 배율92~100%를 뜻합니다.
-- 추가 떨림: ±25cent, 650ms 이상 음에4.5Hz·지연220ms·fade-in/out180/160ms. pitch/mixed 요성과는 중복되지 않으며 amplitude 요성에는 겹칠 수 있습니다.
+- 단소만 추가 떨림: ±25cent, 650ms 이상 음에4.5Hz·지연220ms·fade-in/out180/160ms. pitch/mixed 요성과는 중복되지 않으며 amplitude 요성에는 겹칠 수 있습니다.
 - 직접 작성한 IR의 숨은 미지정0초, 예제는120ms입니다. JGB 숨표는 무음+release를 음 길이의 절반 이내로 조정합니다. 긴 음에서는 기존120ms+50ms를 유지합니다.
 - 연결 attack/release20ms, 일반 release50ms, 단소 연결 시 새 샘플의100ms 지점부터 재생합니다. 동일음 연결은 샘플 위치를 이어갑니다.
 - 속도 변경 시 꾸밈은 박 비율을 따르고 JGB 숨은 길이에 맞춰 줄어듭니다. 떨림 주기·지연·fade는 초 단위입니다. 곡별 빠르기와 음가 단위를 먼저 확인해야 합니다.
@@ -139,3 +139,31 @@ FFmpeg·ffprobe 누락과 이전 형식의 음원이 남은 출력 폴더는 배
 ## 실제 CAT 검증
 
 CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, M4A 코덱·길이·피크를 확인합니다. 무음·파형의 정확한 비교가 필요할 때는 WAV 선택 출력을 사용합니다. 재현할 때는 같은 입력·ZIP·속도·코드·인코더 버전을 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 최신 M4A 검증은 [단소 변환 기록](../../../docs/knowledge/data/danso-expanded-auditions.md), 이전 WAV 검증은 [음원과 재현 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md#음원과-재현)에 있습니다.
+
+## 단소 이외 악기의 JGB 입력
+
+각 프로필이 포함된 브랜치에서 `--instrument jeongak-daegeum`, `sanjo-daegeum`, `sogeum`을 선택합니다. assets JSON도 해당 키로 실제 CAT ZIP을 연결합니다. 출력 파일명은 `<악기키>.mid/.m4a/.json`입니다.
+
+성부의 `instrument`가 선택 악기와 같아야 합니다. 원본의 값이 `all`·누락·일반 `daegeum`이면 판본에서 악기/대금 기종을 확인한 뒤 `playback.instrument`와 `playback.instrument_basis`에 기록합니다. CLI 악기 선택만으로 원본의 기종을 확정하지 않습니다. 이미 다른 악기로 지정된 성부는 거부합니다. 소금에 자동 +12반음, 대금에 자동 청/관종 조율을 적용하지 않습니다.
+
+단소 이외 JGB의 농음·흘림 기호는 `playback.expression_policy`가 있어야 합니다. `name`, 선택 근거 `basis`, `status: "audition-policy-not-performance-standard"`를 넣고, 필요한 효과를 다음처럼 명시합니다. 이 수치는 예제 청취용이며 악기의 표준값이 아닙니다.
+
+```json
+{
+  "playback": {
+    "instrument": "jeongak-daegeum",
+    "instrument_basis": "직접 확인한 판본·페이지·악기 표기를 기록",
+    "expression_policy": {
+      "name": "authored-audition-example",
+      "basis": "정책 입력 검사용으로 작성한 수치. 실제 곡에 사용하려면 곡별 검토 필요",
+      "status": "audition-policy-not-performance-standard",
+      "vibrato": {"mode":"pitch", "hz":3, "cents":40, "depth":0, "delay_seconds":0.1},
+      "fall": {"end_cents":-75, "tail_fraction":0.4, "maximum_seconds":0.15}
+    }
+  }
+}
+```
+
+상대음 장식에 기존 `joPreset`을 쓸 수 없으면 `playback.relative_scale`에 황종 기준 반음 음급의 오름차순 배열 `pitch_classes`와 선택 근거 `basis`를 기록합니다. `joPreset`/`--jo`와 중복 지정할 수 없습니다. 다른 악기에서는 출현 음급만 보고 단소의 상대음 음계를 자동 보충하지 않습니다.
+
+일괄 변환은 기존 batch 명령을 사용합니다. 카탈로그 최상위 `instrument`, `instrument_basis`를 명시하고 각 항목에 `tempo`, 필요 시 `expression_policy`·`relative_scale`를 넣습니다. 카탈로그 하나에 악기 하나만 사용하며 다른 악기의 빠르기 누락을 연습용60으로 자동 대체하지 않습니다. 단소 외 배치 결과는 `gugak-batch/v1`입니다. 원본은 보존하고 판본·정책은 prepared JSON과 source-map에 남깁니다.

@@ -77,6 +77,8 @@ def compile_score(score, instrument, transpose=0):
     tuning = 1200 * math.log2(finite(c.get("tuning_a_hz", 440), "tuning_a_hz", 420, 460) / 440)
     require(isinstance(score.get("notes"), list) and 0 < len(score["notes"]) <= 10000, "1..10000 notes required")
     events, warnings, seen = [], [], set()
+    if profile.get("sample_bank_note"):
+        warnings.append(profile["sample_bank_note"])
     if score["source"]["review_status"] == "machine-transcribed-unverified":
         warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
     elif score["source"]["review_status"] == "source-review-unverified":

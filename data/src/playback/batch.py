@@ -1,4 +1,4 @@
-"""Prepare source-preserving Danso auditions from a reviewed local catalog.
+"""Prepare source-preserving instrument auditions from a reviewed local catalog.
 
 python -m data.src.playback.batch --catalog catalog.json --assets assets.json --out output
 The catalog carries per-edition evidence and decisions; this module does not search
@@ -16,12 +16,16 @@ import shutil
 import time
 from .__main__ import dump, run
 from .jgb import NOTE, SYMBOLS, YUL, adaptive_breath
-from .score import require
+from .score import PROFILES, require
 from .audio import FORMATS, add_audio_arguments, resolve_encoder
 
 
-def prepare_jgb(source, tempo, corrections):
+def prepare_jgb(source, tempo, corrections, *, instrument='danso', instrument_basis=None,
+                expression_policy=None, relative_scale=None):
     document=deepcopy(source)
+    require(instrument in PROFILES, '지원하지 않는 악기 프로필입니다')
+    require(instrument == 'danso' or isinstance(instrument_basis,str) and instrument_basis.strip(),
+            '단소 이외 카탈로그에는 악기/대금 기종의 instrument_basis가 필요합니다')
     controls=document['controls']
     bpm=tempo['jeonggan_bpm']
     require(isinstance(bpm,(int,float)) and not isinstance(bpm,bool) and 1<=bpm<=800,
@@ -32,15 +36,16 @@ def prepare_jgb(source, tempo, corrections):
         if previous!=value:
             changes.append({'field':path,'before':previous,'after':value})
             obj[key]=value
+    allowed=(None,'all',instrument)+(('daegeum',) if instrument in ('jeongak-daegeum','sanjo-daegeum') else ())
     if document['v']==1:
-        require(document.get('ornInstrument') in (None,'all','danso'),'원본의 악기가 단소 분류와 다릅니다')
-        assign(document,'ornInstrument','danso','ornInstrument')
+        require(document.get('ornInstrument') in allowed,'원본의 악기가 카탈로그 분류와 다릅니다')
+        if instrument=='danso':assign(document,'ornInstrument','danso','ornInstrument')
         parts=[document]
     else:
         parts=document['parts']
         for i,part in enumerate(parts):
-            require(part.get('instrument') in (None,'all','danso'),'원본의 악기가 단소 분류와 다릅니다')
-            assign(part,'instrument','danso',f'parts[{i}].instrument')
+            require(part.get('instrument') in allowed,'원본의 악기가 카탈로그 분류와 다릅니다')
+            if instrument=='danso':assign(part,'instrument','danso',f'parts[{i}].instrument')
     seen=set()
     for correction in corrections:
         if 'field' in correction:
@@ -79,15 +84,20 @@ def prepare_jgb(source, tempo, corrections):
     clean=re.sub(r'\{[^}]+\}','',melody)
     observed=sorted({YUL.index(match[2]) for match in NOTE.finditer(clean)})
     inferred=False
-    if relative and controls.get('joPreset') in (None,'','all') and observed==[0,2,5,7,10]:
+    if instrument=='danso' and relative and controls.get('joPreset') in (None,'','all') and observed==[0,2,5,7,10]:
         assign(controls,'joPreset','jung-pyeong','controls.joPreset')
         inferred=True
-    document['playback']={
-        'schema':'danso-preparation/v1','tempo':deepcopy(tempo),'metadata_changes':changes,
+    metadata=document.get('playback',{})
+    require(isinstance(metadata,dict),'playback은 객체여야 합니다')
+    document['playback']={**metadata,
+        'schema':'danso-preparation/v1' if instrument=='danso' else 'gugak-preparation/v1',
+        'instrument':instrument,'tempo':deepcopy(tempo),'metadata_changes':changes,
         'source_corrections':deepcopy(corrections),'observed_scale':observed if inferred else None,
         'scale_policy':'Exact five written pitch classes for relative-step playback; not a traditional mode classification.' if inferred else 'Use source declaration; no partial-scale inference.',
-        'instrument_basis':'Explicit Danso catalog category; no automatic pitch transposition.',
+        'instrument_basis':instrument_basis or 'Explicit Danso catalog category; no automatic pitch transposition.',
     }
+    for key,value in [('expression_policy',expression_policy),('relative_scale',relative_scale)]:
+        if value is not None:document['playback'][key]=deepcopy(value)
     return document,changes
 
 
@@ -111,13 +121,18 @@ def audition_html(records):
     failures=''.join(f'<tr><td>{html.escape(r["title"])}</td><td>{html.escape(r.get("error",""))}</td></tr>' for r in records if r['status']!='generated')
     count=sum(len(r.get('outputs',[])) for r in records)
     items=len({r['title'] for r in records if r['status']=='generated'})
-    return '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>단소 악보 미리듣기 — 표현·빠르기 반영</title><style>body{background:#f5f5ef;color:#233d32;font:16px/1.65 'Malgun Gothic',sans-serif;margin:0}main{max-width:1120px;margin:auto;padding:30px}h1{font-size:30px}h2{font-size:20px;margin:0}p{overflow-wrap:anywhere}input{font:inherit;padding:12px;border:1px solid #b8cabc;border-radius:8px;width:min(90%,480px)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:22px}section{border:1px solid #cfdbd0;border-radius:12px;background:white;padding:20px}section p{font-size:13px;color:#526a5c}audio{width:100%}a{color:#11694b}.notice{padding:18px;background:#e6ede3;border-radius:10px}td{padding:8px;border-bottom:1px solid #bbb}summary{cursor:pointer;padding:20px 0}</style><main><h1>단소 악보 미리듣기</h1>'''+f'<p>{items}개 목록 항목 · {count}개 음원 · {sum(r["status"]!="generated" for r in records)}개 파일 보류</p>'+'''<p class="notice">숨표·농음·흘림을 적용한 합성 미리듣기입니다. 공식 수치가 없는 빠르기는 승인된 연습용 선택값으로 표시합니다. 청성곡은 원보에 수록된 단소 오선보 2줄입니다. 원본과 전사·표현의 전문가 검수는 별도입니다.</p><p><a href="tempo-decisions.json">전체 빠르기 JSON</a> · <a href="inventory.csv">처리 목록</a> · <a href="manifest.json">전체 재현 기록</a></p><input id="search" aria-label="곡 검색" placeholder="곡 검색"><div class="cards">'''+''.join(cards)+'</div><details><summary>보류 상세</summary><table>'+failures+'</table></details><footer><p>이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)</p></footer></main><script>const ps=[...document.querySelectorAll("audio")];ps.forEach(p=>p.addEventListener("play",()=>ps.forEach(q=>{if(q!==p)q.pause()})));document.querySelector("#search").addEventListener("input",e=>document.querySelectorAll("section").forEach(s=>s.hidden=!s.dataset.search.includes(e.target.value)));</script></html>'
+    title=' · '.join(PROFILES[k]['label'] for k in sorted({r.get('instrument','danso') for r in records}))+' 악보 미리듣기'
+    return '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'''+html.escape(title)+'''</title><style>body{background:#f5f5ef;color:#233d32;font:16px/1.65 'Malgun Gothic',sans-serif;margin:0}main{max-width:1120px;margin:auto;padding:30px}h1{font-size:30px}h2{font-size:20px;margin:0}p{overflow-wrap:anywhere}input{font:inherit;padding:12px;border:1px solid #b8cabc;border-radius:8px;width:min(90%,480px)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:22px}section{border:1px solid #cfdbd0;border-radius:12px;background:white;padding:20px}section p{font-size:13px;color:#526a5c}audio{width:100%}a{color:#11694b}.notice{padding:18px;background:#e6ede3;border-radius:10px}td{padding:8px;border-bottom:1px solid #bbb}summary{cursor:pointer;padding:20px 0}</style><main><h1>'''+html.escape(title)+f'</h1><p>{items}개 목록 항목 · {count}개 음원 · {sum(r["status"]!="generated" for r in records)}개 파일 보류</p>'+'''<p class="notice">악기·빠르기·표현의 근거를 기록한 합성 미리듣기입니다. 농음·흘림·호흡 수치는 청취용 근사이며 연주 표준이나 전문가 검수 결과가 아닙니다. 악보에 없는 편곡·옥타브 이동은 자동 적용하지 않습니다.</p><p><a href="tempo-decisions.json">전체 빠르기 JSON</a> · <a href="inventory.csv">처리 목록</a> · <a href="manifest.json">전체 재현 기록</a></p><input id="search" aria-label="곡 검색" placeholder="곡 검색"><div class="cards">'''+''.join(cards)+'</div><details><summary>보류 상세</summary><table>'+failures+'</table></details><footer><p>이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)</p></footer></main><script>const ps=[...document.querySelectorAll("audio")];ps.forEach(p=>p.addEventListener("play",()=>ps.forEach(q=>{if(q!==p)q.pause()})));document.querySelector("#search").addEventListener("input",e=>document.querySelectorAll("section").forEach(s=>s.hidden=!s.dataset.search.includes(e.target.value)));</script></html>'
 
 
 def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=None):
     require(audio_format in FORMATS,'오디오 출력 형식은 m4a 또는 wav여야 합니다')
     catalog_path=Path(catalog_path).resolve();out=Path(out).resolve()
     catalog=json.loads(catalog_path.read_text(encoding='utf-8-sig'))
+    instrument=catalog.get('instrument','danso')
+    require(instrument in PROFILES,'카탈로그의 instrument를 확인하세요')
+    require(all(item.get('instrument',instrument)==instrument for item in catalog['items']),
+            '카탈로그 하나에는 악기 하나만 지정하세요')
     inputs=[catalog_path,Path(assets).resolve()]
     for item in catalog['items']:
         inputs.append((catalog_path.parent/item['input']).resolve())
@@ -125,13 +140,14 @@ def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=N
             inputs.append((catalog_path.parent/item['transcription_map']).resolve())
     require(not any(path.is_relative_to(out) for path in inputs), '출력 폴더 안의 원본 입력을 덮어쓸 수 없습니다')
     other_format='wav' if audio_format=='m4a' else 'm4a'
-    require(not any((out/'tracks').glob(f'*/danso.{other_format}')),
+    require(not any((out/'tracks').glob(f'*/{instrument}.{other_format}')),
             '출력 폴더에 이전 형식의 음원이 있습니다. 새 --out 폴더를 사용하세요')
     encoder=resolve_encoder(ffmpeg,ffprobe) if audio_format=='m4a' else None
     out.mkdir(parents=True,exist_ok=True)
     records=[];started=time.monotonic()
     for i,item in enumerate(catalog['items'],1):
         record=deepcopy(item);record['id']=f'{i:03d}';record['outputs']=[]
+        record['instrument']=instrument
         path=(catalog_path.parent/item['input']).resolve()
         try:
             payload=path.read_bytes()
@@ -143,7 +159,9 @@ def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=N
             if is_jgb:
                 require(all(not c.get('source_sha256') or c['source_sha256']==record['original_sha256']
                             for c in item.get('corrections',[])), '교정 대상의 원본 SHA256이 다릅니다')
-                prepared,changes=prepare_jgb(source,item['tempo'],item.get('corrections',[]))
+                prepared,changes=prepare_jgb(source,item['tempo'],item.get('corrections',[]),
+                    instrument=instrument,instrument_basis=item.get('instrument_basis',catalog.get('instrument_basis')),
+                    expression_policy=item.get('expression_policy'),relative_scale=item.get('relative_scale'))
                 parts=item.get('parts',list(range(1,len(prepared.get('parts',[{}]))+1)))
             else:
                 prepared=deepcopy(source);changes=[];parts=[None]
@@ -162,7 +180,7 @@ def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=N
             dump(target,prepared);record['prepared']=target.relative_to(out).as_posix()
             for part in parts:
                 track=out/'tracks'/f'{i:03d}-p{part or 1}'
-                result=run(target,assets,track,['danso'],part=part,audio_format=audio_format,encoder=encoder)
+                result=run(target,assets,track,[instrument],part=part,audio_format=audio_format,encoder=encoder)
                 result['catalog_source']={k:v for k,v in record.items() if k!='outputs'}
                 result['original_input_sha256']=record['original_sha256']
                 result['prepared_input_sha256']=digest(target)
@@ -174,14 +192,15 @@ def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=N
                 a=result['results'][0]
                 record['outputs'].append({'part':part or 1,'notes':a['notes'],'seconds':a['seconds'],
                     'audio_file':(track/a['audio']['file']).relative_to(out).as_posix(),
-                    'midi':(track/'danso.mid').relative_to(out).as_posix(),
+                    'midi':(track/f'{instrument}.mid').relative_to(out).as_posix(),
                     'report':(track/'manifest.json').relative_to(out).as_posix(),'audio':a['audio']})
             record['status']='generated'
         except (OSError,ValueError,IndexError,KeyError) as exc:
             record.update(status='blocked',error=str(exc))
         print(record['id'],record['status'],record['title'],record.get('error',''),flush=True)
         records.append(record);dump(out/'progress.json',records)
-    dump(out/'manifest.json',{'schema':'danso-batch/v2','audio_format':audio_format,'catalog_sha256':digest(catalog_path),
+    dump(out/'manifest.json',{'schema':'danso-batch/v2' if instrument=='danso' else 'gugak-batch/v1',
+                              'instrument':instrument,'audio_format':audio_format,'catalog_sha256':digest(catalog_path),
                               'catalog_metadata':{k:v for k,v in catalog.items() if k!='items'},
                               'batch_source_sha256':digest(__file__),
                               'elapsed_seconds':time.monotonic()-started,'records':records})
