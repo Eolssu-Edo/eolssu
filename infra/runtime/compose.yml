@@ -19,24 +19,35 @@ services:
     restart: unless-stopped
 
   backend:
-    image: eclipse-temurin:21-jre
+    image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
     user: "10001:10001"
     working_dir: /app
     command: ["java", "-jar", "/app/app.jar"]
     environment:
       SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: ops
+      DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
+      DB_USERNAME: ${MYSQL_USER:-eolssu}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
     volumes:
       - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
     depends_on:
       mysql:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(curl --fail --silent --max-time 3 http://127.0.0.1:8080/api/actuator/health/readiness)\" = '{\"status\":\"UP\"}'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
 
   mysql:
     image: mysql:8.4.13
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-eolsu}
-      MYSQL_USER: ${MYSQL_USER:-eolsu}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eolssu}
+      MYSQL_USER: ${MYSQL_USER:-eolssu}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD를 지정하세요}
     volumes:

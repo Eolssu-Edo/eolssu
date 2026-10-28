@@ -1,5 +1,0 @@
-<p class="post-meta">
-  <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006.01.02" }}</time>
-  {{ with .Params.author }} · {{ . }}{{ end }}
-  {{ with .Params.categories }} · {{ range $i, $c := . }}{{ if $i }}, {{ end }}<a href="{{ "categories/" | relURL }}{{ $c | urlize }}/">{{ $c }}</a>{{ end }}{{ end }}
-</p>

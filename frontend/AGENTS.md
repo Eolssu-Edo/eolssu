@@ -18,7 +18,7 @@
 | `data/<영역>/` (`song`·`practice`·`user`) | API 요청, 응답 DTO, 변환, Repository, 로컬 데이터 처리. feature와 1:1이 아니며 대응은 아키텍처 문서의 표를 따른다 | Compose 화면·ViewModel 의존 |
 | `core/` | 여러 기능이 공유하는 UI(`ui/component`·`ui/score`·`ui/adaptive`), `theme`, `network`, `audio`, `storage`, 공유 모델(`model`) | 특정 feature·data·app 의존 |
 
-- 기능 폴더명은 `auth`, `song`, `practice`, `result`, `history`, `profile`을 사용하고, 기능 내부 UI 폴더명은 `component`로 통일한다. `pages`, `hooks`, `store`, `styles`, `utils`, `shared` 같은 최상위 패키지를 추가하지 않는다.
+- 기능 폴더명은 `home`, `guide`, `auth`, `song`, `practice`, `result`, `history`, `profile`을 사용하고, 기능 내부 UI 폴더명은 `component`로 통일한다. `pages`, `hooks`, `store`, `styles`, `utils`, `shared` 같은 최상위 패키지를 추가하지 않는다.
 - 의존 방향은 `app → feature, data, core`, `feature → data, core`, `data → core`만 허용한다. `core`는 `feature`·`data`·`app`을 참조하지 않고, feature끼리의 연결은 `app`에서 조정한다. `domain` 계층·UseCase는 만들지 않으며 필요해지면 구조 변경 절차로 다룬다.
 - 상태와 동작이 있는 화면은 `<기능>Route.kt`(ViewModel 연결·상태 수집·화면 이동), `<기능>Screen.kt`(상태·콜백으로 UI 표시), `<기능>ViewModel.kt`, `<기능>UiState.kt`로 나눈다. Screen은 ViewModel 대신 상태와 콜백을 받는다. 정적 화면까지 모든 파일을 의무적으로 만들지 않고 책임이 생길 때 분리한다.
 - 모델 위치: 여러 기능이 쓰는 앱 모델은 `core/model`, 서버 요청·응답 DTO는 해당 `data` 내부, 한 화면만 쓰는 모델은 해당 `feature` 내부에 둔다.
@@ -26,8 +26,8 @@
 - 플랫폼 API(마이크·오디오·저장소·권한)는 `commonMain`의 `core/audio`·`core/storage` 같은 공통 인터페이스와 `androidMain`·`iosMain`의 `platform/audio`·`platform/storage`·`platform/permission` 구현으로 나누고, 작은 값만 `expect`/`actual`을 쓴다. 공통 코드에서 Android·Apple 전용 API를 import하지 않는다. JS·Wasm 공통 웹 코드는 `webMain`에 둔다. 실제 플랫폼 의존성이 없는 코드를 중복 구현하지 않는다.
 - 휴대폰·태블릿은 같은 화면 상태와 로직을 공유하고, 창 크기에 따라 배치만 바꾼다. 배치가 크게 달라질 때만 `feature/<기능>/layout/`에 Compact·Expanded 내용을 나누고, 판정 기준은 `core/ui/adaptive`에 둔다. 기기별 프로젝트·최상위 패키지를 만들지 않는다.
 - 이미지·폰트·문구는 `shared/src/commonMain/composeResources/`에 두고 생성된 `Res`(`eolssu.shared.generated.resources`)로 접근한다.
-- 라이브러리는 `gradle/libs.versions.toml`에 등록한다. `commonMain`에 넣는 라이브러리는 Android·iOS·JS·Wasm 지원을 먼저 확인하고, 추가 전에 [협업 문서](docs/collaboration.md)의 절차대로 팀에 공유한다. 화면 이동·DI·HTTP 라이브러리는 아직 선택되지 않았으므로 임의로 추가하지 않는다.
-- 마법사 예제(`Greeting`, `Platform`, `compose-multiplatform.xml`, 샘플 테스트)는 실제 기능으로 대체한다. 각 진입점이 `App()`을 호출하므로 이름을 유지한다.
+- 라이브러리는 `gradle/libs.versions.toml`에 등록한다. `commonMain`에 넣는 라이브러리는 Android·iOS·JS·Wasm 지원을 먼저 확인하고, 추가 전에 [협업 문서](docs/collaboration.md)의 절차대로 팀에 공유한다. 화면 이동은 `navigation-compose`, DI는 Koin을 쓴다([결정 문서](../docs/decisions/frontend-navigation-di.md)). HTTP 라이브러리는 아직 선택되지 않았으므로 임의로 추가하지 않는다.
+- 각 진입점이 `App`을 호출하므로 이름을 유지한다. Android는 `App(context)`, Web은 `App(onNavHostReady)`(브라우저 뒤로 가기·주소 연결), iOS는 `MainViewController()`를 부르고, 이들이 플랫폼 구현 Koin 모듈(`platform/PlatformModule.kt`)을 공통 `App`에 넘긴다. 공통 `App`은 Koin을 시작하고 테마 안에서 `app/navigation`의 화면 이동 그래프를 그린다.
 
 ## 구조와 문서의 정합성
 

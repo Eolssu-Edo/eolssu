@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper">
+    <select id="findById" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenRow">
+        SELECT id, user_id, token_hash, expires_at, revoked_at, revoke_reason, created_at
+        FROM refresh_tokens
+        WHERE id = #{id}
+    </select>
+</mapper>

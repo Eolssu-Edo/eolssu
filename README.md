@@ -46,7 +46,7 @@ PoC에서는 모바일 음높이 인식의 정확도·지연, 악보 1곡의 정
 | DB | MySQL / PostgreSQL 후보 | 제품 선택 |
 | Infra | Docker·Compose, Nginx, 백엔드 Jenkinsfile | 서버 배포·Jenkins 잡 연결 |
 | 협업 | GitLab, Jira, Notion, Mattermost | — |
-| 기술 블로그 | Hugo, GitHub Pages, Jenkins 자동 배포 | 실제 구성 |
+| 기술 블로그 | Hugo, GitHub Pages, Jenkins 자동 배포 (develop과 분리된 `blog` 브랜치) | — |
 
 ## 저장소 구조
 
@@ -62,6 +62,8 @@ S15P31E102/
 ├── docs/         # 도메인 지식·실험·결정·공통 계약
 └── .gitlab/      # MR 템플릿
 ```
+
+기술 블로그(https://team-ido.github.io)는 서비스 코드가 아니어서 develop에 두지 않고, develop과 기록을 공유하지 않는 `blog` 브랜치에서 관리합니다. 글 쓰는 방법은 `blog` 브랜치의 README를 따릅니다.
 
 각 작업 폴더에는 파트별 `AGENTS.md`와 이를 불러오는 `CLAUDE.md`가 있습니다. `data/`에는 [담당 범위 문서](data/README.md), `docs/`에는 [문서 목록과 기록 기준](docs/README.md)이 있습니다.
 

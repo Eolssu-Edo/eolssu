@@ -1,10 +1,27 @@
 # 인프라 실행과 검증
 
+edo1의 DB·설정을 edo2에 암호화 보관하는 자동 백업과 격리 실제 복원은 [백업 운영 안내](backup/README.md)를 따릅니다.
+
 edo1의 실제 프론트·백엔드·MySQL 운영 구성과 웹·백엔드 자동 배포, `eolssu` 이름 전환·Jenkins 접속은 [운영 서버 문서](runtime/README.md)를 따릅니다. 아래 내용은 앞서 만든 백엔드·프록시 두 서비스 실행 예시입니다.
+
+## edo2 점검 중계 서버 준비
+
+2026-10-23 `ssh edo2` 접속과 UFW 활성화를 확인했습니다. IPv4·IPv6 모두 인바운드는 기본 차단하고 TCP 22(SSH), 80(ACME 검증), 443(HTTPS)만 허용합니다. 아웃바운드는 허용합니다. 적용 전 설정은 서버의 root 전용 `/var/backups/edo2-ufw/`에 보관했습니다.
+
+상태를 읽을 때는 다음 명령을 사용합니다. 방화벽 변경 뒤에는 기존 연결을 재사용하지 않는 새 SSH 접속으로 관리 경로를 검증합니다.
+
+```sh
+ssh edo2 'sudo -n ufw status verbose'
+ssh -o BatchMode=yes -o ConnectTimeout=10 -o ControlMaster=no -o ControlPath=none edo2 'sudo -n ufw status numbered'
+```
+
+Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수집기를 배포했습니다. Lightsail에도 TCP 443을 IPv4·IPv6로 허용했고, 외부 HTTPS 접속과 CI/CD 채널의 세 공개 보고를 검증했습니다. 실행·권한·지표·갱신·복구는 [점검 중계 안내](edo-check/README.md), 합의한 출력·등록 결과·실제 검증·후속 범위는 [S15P31E102-95 작업 기록](../docs/plans/S15P31E102-95.md)을 따릅니다. 정적 IP `15.165.144.7`을 연결했고 인증서·Mattermost URL·SSH 출발지 제한과 관리 SSH 별칭을 함께 전환했습니다.
+
+## 백엔드·프록시 실행 예시
 
 `/opt/app/infra`에서 실행하는 `./scripts/init-letsencrypt.sh`의 준비·실행·인증서 갱신·복구 방법도 [운영 서버 문서](runtime/README.md#lets-encrypt와-https)를 따릅니다.
 
-운영 MySQL에 읽기 계정으로 붙는 Grafana·Metabase의 계정 준비·실행·SSH 터널 접속은 [모니터링 문서](monitoring/README.md)를 따릅니다.
+운영 MySQL과 백엔드 수치를 읽는 Grafana·Prometheus의 계정 준비·실행·SSH 터널 접속은 [모니터링 문서](monitoring/README.md)를 따릅니다.
 
 현재 구현된 Spring Boot 백엔드를 Nginx 뒤에서 실행하는 구성입니다. 개발·운영은 각각 `eolsu-dev`, `eolsu-prod` Compose 프로젝트이며 DB·AI 서비스는 포함하지 않습니다. Docker Engine과 Compose v2 이상이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
 
@@ -12,7 +29,7 @@ edo1의 실제 프론트·백엔드·MySQL 운영 구성과 웹·백엔드 자�
 | --- | --- |
 | `docker-compose.dev.yml` / `docker-compose.prod.yml` | 개발·운영의 백엔드와 Nginx 구성 |
 | `.env.dev.example` / `.env.prod.example` | Compose 치환용 환경변수 예시 |
-| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행, 소스·Wrapper만 포함하는 빌드 컨텍스트 |
+| `backend/Dockerfile` / `backend/.dockerignore` | JDK 21 빌드, JRE 21 실행(녹음 검사용 ffmpeg 버전 고정 설치), 소스·Wrapper만 포함하는 빌드 컨텍스트. 서버의 `/opt/eolssu/config/backend.Dockerfile`과 맞춘다 |
 | `infra/nginx/default.conf` | URI를 유지해 `backend:8080`으로 전달하는 HTTP 프록시 |
 | `backend/Jenkinsfile` | 백엔드 검증·이미지 빌드·JAR 보관 |
 
@@ -97,7 +114,7 @@ Jenkins 잡의 SCM 브랜치를 `develop`, Script Path를 `backend/Jenkinsfile`�
 
 파이프라인은 경로 필터 없이 checkout → `clean build`·JUnit 결과 수집 → 개발/운영 Compose 검사 → 커밋별 이미지 `eolsu-backend:ci-<Git SHA>` 빌드 → Nginx 검사 → 실행 JAR 보관을 수행합니다. Dockerfile은 `bootJar`만 빌드하므로 테스트는 앞선 Gradle 단계에서 필수로 실행합니다. 이미지가 Jenkins 에이전트에 남으므로 보관 기간과 해당 이미지의 정리 정책은 잡 운영자가 관리합니다.
 
-실제 Jenkins 설치·잡 등록·webhook·이미지 레지스트리·배포 인증은 아직 확인되지 않았습니다. Jenkinsfile은 트리거·레지스트리 Push·서버 배포를 정의하지 않습니다. 팀의 실제 트리거 설정이 정해지면 연결합니다. 기존 `blog/Jenkinsfile`은 별도 블로그 잡에서 계속 사용합니다.
+실제 Jenkins 설치·잡 등록·webhook·이미지 레지스트리·배포 인증은 아직 확인되지 않았습니다. Jenkinsfile은 트리거·레지스트리 Push·서버 배포를 정의하지 않습니다. 팀의 실제 트리거 설정이 정해지면 연결합니다. 기술 블로그는 develop이 아닌 `blog` 브랜치의 `Jenkinsfile`을 별도 잡 `eolssu-blog`가 사용합니다.
 
 ## 검증 기준과 기록
 
