@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.analysis.application
 
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
+import java.io.IOException
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -24,6 +25,7 @@ class RetryPracticeAnalysisTests {
         var startedAt: LocalDateTime? = null
         var startRetryCalls = 0
         var beforeStart: () -> Unit = {}
+        var failStartError: RuntimeException? = null
 
         override fun findState(sessionId: Long, userId: Long) = state.takeIf { sessionId == 7L && userId == owner }
 
@@ -38,6 +40,7 @@ class RetryPracticeAnalysisTests {
         }
 
         override fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
+            failStartError?.let { throw it }
             if (state.status != "PENDING" || state.attempt != attempt || this.startedAt != startedAt) return false
             state = AnalysisState("FAILED", "SERVER_ERROR", attempt)
             return true
@@ -168,6 +171,35 @@ class RetryPracticeAnalysisTests {
 
         assertEquals("queue full", failure.message)
         assertEquals(AnalysisState("FAILED", "SERVER_ERROR", 3), repository.state)
+    }
+
+    @Test
+    fun `asks to try again later when other attempts keep starting and failing in between`() {
+        // 분석을 넘기지 못해 매번 곧바로 SERVER_ERROR로 끝나는 다른 시도가 끼어든다. 다시 시도할 수 있는 상태지만 시작하지 못했다.
+        repository.beforeStart = { repository.state = AnalysisState("FAILED", "SERVER_ERROR", repository.state.attempt + 1) }
+
+        assertEquals(RetryOutcome.Busy, service().retry(userId = 1, sessionId = 7))
+        assertEquals(3, repository.startRetryCalls)
+        assertEquals(emptyList(), launched)
+    }
+
+    @Test
+    fun `records SERVER_ERROR for checked exceptions from starting the analysis too`() {
+        assertFailsWith<IOException> { service(startAnalysis = { throw IOException("executor closed") }).retry(userId = 1, sessionId = 7) }
+
+        assertEquals(AnalysisState("FAILED", "SERVER_ERROR", 3), repository.state)
+    }
+
+    @Test
+    fun `keeps the start failure when recording SERVER_ERROR fails as well`() {
+        repository.failStartError = IllegalStateException("database down")
+
+        val failure = assertFailsWith<RejectedExecutionException> {
+            service(startAnalysis = { throw RejectedExecutionException("queue full") }).retry(userId = 1, sessionId = 7)
+        }
+
+        assertEquals("queue full", failure.message)
+        assertEquals(listOf("database down"), failure.suppressed.map { it.message })
     }
 
     @Test

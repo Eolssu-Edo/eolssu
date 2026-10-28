@@ -40,7 +40,9 @@ class RetryPracticeAnalysis(
                 return RetryOutcome.Started(attempt)
             }
         }
-        return currentState(userId, sessionId)?.unchangedOutcome() ?: RetryOutcome.NotFound
+        val state = currentState(userId, sessionId) ?: return RetryOutcome.NotFound
+        // 아직 다시 시도할 수 있는데 시작하지 못했으면 거절이 아니다. 잠시 후 다시 요청하게 한다.
+        return if (state.retryable()) RetryOutcome.Busy else state.unchangedOutcome()
     }
 
     // 서버가 재시작돼 마감이 지나도 PENDING으로 남은 시도는 TIMEOUT으로 끝낸 뒤 다시 시도한다.
@@ -55,9 +57,10 @@ class RetryPracticeAnalysis(
     private fun launch(sessionId: Long, attempt: Int, startedAt: LocalDateTime) {
         try {
             startAnalysis(sessionId)
-        } catch (e: RuntimeException) {
+        } catch (e: Exception) {
             log.warn("Analysis retry could not be started session={} attempt={} error={}", sessionId, attempt, e.javaClass.simpleName)
-            repository.failStart(sessionId, attempt, startedAt)
+            // 실패 기록마저 실패해도(DB 장애 등) 원래 원인을 잃지 않는다. 그 시도는 마감 뒤 TIMEOUT으로 끝난다.
+            runCatching { repository.failStart(sessionId, attempt, startedAt) }.onFailure(e::addSuppressed)
             throw e
         }
     }
@@ -86,4 +89,7 @@ sealed interface RetryOutcome {
 
     /** 세션이 없거나 다른 회원의 것이다. */
     data object NotFound : RetryOutcome
+
+    /** 다시 시도할 수 있지만 다른 시도가 계속 끼어들어(시작 직후 실패 등) 새 시도를 시작하지 못했다. 잠시 후 다시 요청한다. */
+    data object Busy : RetryOutcome
 }

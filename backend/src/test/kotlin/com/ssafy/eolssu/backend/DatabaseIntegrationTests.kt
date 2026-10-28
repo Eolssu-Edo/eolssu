@@ -718,6 +718,8 @@ class DatabaseIntegrationTests {
             Retry(47, "PENDING", null, 1, true),
             Retry(48, "FAILED", "TIMEOUT", 1, false),
             Retry(49, "DONE", null, 1, true),
+            // 실제로는 녹음이 없지만, 녹음 조건과 상관없이 실패 코드만으로 거절하는지 보려고 녹음이 있는 행을 둔다
+            Retry(50, "FAILED", "UPLOAD_TIMEOUT", 1, true),
         )) {
             jdbc.update(
                 "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
@@ -748,7 +750,7 @@ class DatabaseIntegrationTests {
         assertTrue(repository.startRetry(42, 1, 2, retriedAt))
         assertEquals(AnalysisState("PENDING", null, 3), repository.findState(42, 1))
 
-        for (id in 43L..49L) {
+        for (id in 43L..50L) {
             val before = assertNotNull(repository.findState(id, 1))
             assertFalse(repository.startRetry(id, 1, before.attempt, retriedAt), "session $id")
             assertEquals(before, repository.findState(id, 1), "session $id")
