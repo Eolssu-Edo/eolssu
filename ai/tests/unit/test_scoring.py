@@ -64,6 +64,21 @@ def test_large_tuning_offset_is_not_corrected():
     assert result.total < 100
 
 
+def test_tuning_limit_stays_100_for_pentatonic_song():
+    # 다섯 음 음계는 가장 가까운 두 음이 200센트라 상한이 100 그대로다.
+    result = run(synth(SCALE, cents=-80))
+    assert not result.tuning_out_of_range
+    assert result.total == 100
+
+
+def test_tuning_limit_shrinks_with_semitone_neighbors():
+    # 반음 이웃이 있으면 상한은 100 - 50 - 10 = 40센트. 60센트 어긋남을 보정하면 이웃 음을 잘못 분 것도 맞게 된다.
+    notes = [Note(s, 1) for s in (0, 1, 3, 5, 7, 5, 3, 1, 0)]
+    audio = synth(notes, cents=-60)
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert result.tuning_out_of_range
+
+
 def test_silence_fails_instead_of_zero():
     result = run(np.zeros(SR * 6))
     assert (result.status, result.fail_reason) == ("FAILED", "NO_SOUND")

@@ -30,7 +30,7 @@ class Tolerance:
     pitch_cent: float = 50.0
     onset_beat: float = 0.125
     duration_ratio: float = 0.25
-    max_tuning_cent: float = 100.0
+    max_tuning_cent: float = 100.0  # 곡에 반음 이웃이 있으면 score가 더 낮춘다
 
 
 @dataclass
@@ -164,7 +164,11 @@ def score(
         if not n.sigimsae and mid.size
     ]
     offset = float(np.median(np.concatenate(diffs))) if diffs else 0.0
-    out_of_range = abs(offset) > tol.max_tuning_cent
+    # 보정 상한 + 음정 허용 범위가 곡에서 가장 가까운 두 음 간격보다 작아야 틀린 음을 이웃 음으로 맞춰 주지 않는다.
+    # ponytail: 임시 식(여유 10센트). S15P31E102-158 정상 녹음의 보정량 분포로 다시 정한다.
+    gaps = np.diff(np.unique([n.semitone for n in notes])) * 100.0
+    max_tuning = min(tol.max_tuning_cent, gaps.min() - tol.pitch_cent - 10.0) if gaps.size else tol.max_tuning_cent
+    out_of_range = abs(offset) > max_tuning
     applied = 0.0 if out_of_range else offset
 
     results, pitch_c, timing_c, duration_c = [], [], [], []
