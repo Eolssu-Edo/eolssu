@@ -22,7 +22,10 @@ class ScoreJsonNotes(private val jsonMapper: JsonMapper) {
         if (score.path("schemaVersion").asInt() != SCHEMA_VERSION) throw ScoreNotesException("score_json schemaVersion is not $SCHEMA_VERSION")
         val ticksPerBeat = score.path("music").int("ticksPerBeat").takeIf { it > 0 }
             ?: throw ScoreNotesException("music.ticksPerBeat must be positive")
-        val notes = score.path("events").filter { it.path("kind").asString() == "NOTE" }
+        val events = score.path("events").takeIf { it.isArray } ?: throw ScoreNotesException("events is not an array")
+        // 모르는 kind를 그냥 건너뛰면 뒤 음표 번호가 모두 밀려 엉뚱한 음으로 채점된다.
+        if (events.any { it.path("kind").asString() !in EVENT_KINDS }) throw ScoreNotesException("events has an unknown kind")
+        val notes = events.filter { it.path("kind").asString() == "NOTE" }
         if (startIdx < 0 || endIdx < startIdx || endIdx >= notes.size) {
             throw ScoreNotesException("practice range $startIdx..$endIdx is outside ${notes.size} notes")
         }
@@ -46,5 +49,6 @@ class ScoreJsonNotes(private val jsonMapper: JsonMapper) {
 
     private companion object {
         const val SCHEMA_VERSION = 1
+        val EVENT_KINDS = setOf("NOTE", "REST")
     }
 }

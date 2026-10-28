@@ -48,6 +48,7 @@ class ScoreJsonNotesTests {
     fun `rejects scores it cannot read`() {
         assertFailsWith<ScoreNotesException> { scoreNotes.notes(score(thirdYul = "응"), 0, 2, pitches) } // pitches에 없는 율명
         assertFailsWith<ScoreNotesException> { scoreNotes.notes(score(schemaVersion = 2), 0, 2, pitches) }
+        assertFailsWith<ScoreNotesException> { scoreNotes.notes(score().replace("\"REST\"", "\"Rest\""), 0, 2, pitches) } // 번호가 밀리지 않게 거절
         assertFailsWith<ScoreNotesException> { scoreNotes.notes("""{"notes":[{"yul":"황"}]}""", 0, 0, pitches) }
         assertFailsWith<ScoreNotesException> { scoreNotes.notes("not json", 0, 0, pitches) }
     }
