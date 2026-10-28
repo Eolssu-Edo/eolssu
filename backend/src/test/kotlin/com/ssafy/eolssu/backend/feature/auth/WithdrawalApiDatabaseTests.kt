@@ -113,6 +113,23 @@ class WithdrawalApiDatabaseTests {
         assertEquals("ACTIVE", jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String::class.java, userId))
     }
 
+    @Test
+    fun `a member that is not active is rejected on every member API with cleared cookies`() {
+        val device = signIn()
+        assertEquals(200, send("GET", "/api/users/me/growth/calendar?from=2026-10-01&to=2026-10-31", device.cookieHeader(), "").statusCode())
+        jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
+
+        for ((method, path) in listOf("GET" to "/api/users/me/growth/calendar?from=2026-10-01&to=2026-10-31", "GET" to "/api/users/me", "POST" to "/api/auth/sign-out")) {
+            val rejected = send(method, path, device.cookieHeader(), "")
+            assertError(rejected, 401, "UNAUTHENTICATED")
+            val cleared = rejected.headers().allValues("Set-Cookie")
+            assertEquals(setOf("access_token", "refresh_token"), cleared.map { it.substringBefore('=') }.toSet(), path)
+            assertTrue(cleared.all { it.contains("Max-Age=0") }, path)
+        }
+        // 공개 API는 그대로 쓸 수 있다.
+        assertEquals(200, send("GET", "/api/terms", device.cookieHeader(), "").statusCode())
+    }
+
     private class Device(val access: String, val refresh: String) {
         fun cookieHeader() = "access_token=$access; refresh_token=$refresh"
     }

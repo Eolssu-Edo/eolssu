@@ -2,7 +2,11 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
+import com.ssafy.eolssu.backend.common.security.ActiveMemberCheck
+import com.ssafy.eolssu.backend.common.security.ActiveMemberFilter
 import com.ssafy.eolssu.backend.common.security.StateChangingRequestFilter
+import com.ssafy.eolssu.backend.feature.auth.api.AuthCookies
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -11,6 +15,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.util.matcher.OrRequestMatcher
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.firewall.RequestRejectedHandler
@@ -27,6 +32,8 @@ class SecurityConfig(
     private val errorWriter: ErrorResponseWriter,
     private val accessTokenDecoder: JwtDecoder,
     private val accessTokenResolver: BearerTokenResolver,
+    private val activeMembers: ObjectProvider<ActiveMemberCheck>,
+    private val authCookies: ObjectProvider<AuthCookies>,
 ) {
     @Bean
     fun securityFilterChain(http: HttpSecurity, paths: PathPatternRequestMatcher.Builder): SecurityFilterChain {
@@ -65,6 +72,14 @@ class SecurityConfig(
                 ),
                 CorsFilter::class.java,
             )
+            // DB가 있는 프로필(db·ops)에서만 토큰 검증 뒤 회원 상태를 확인한다. DB 없는 기본 프로필은 토큰 검증만 한다.
+            .apply {
+                val members = activeMembers.ifAvailable
+                val cookies = authCookies.ifAvailable
+                if (members != null && cookies != null) {
+                    addFilterAfter(ActiveMemberFilter(members, cookies::clear, errorWriter), BearerTokenAuthenticationFilter::class.java)
+                }
+            }
             .authorizeHttpRequests {
                 it.requestMatchers(publicRequests).permitAll()
                 it.requestMatchers("/api/**").authenticated()
