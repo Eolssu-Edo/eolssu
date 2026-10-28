@@ -79,7 +79,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 - `GET /api/users/me`: 닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 이메일·제공자 사용자 ID는 내보내지 않습니다.
 - `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 60자 이하).
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
-- `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다.
+- `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
 
 ### 준비 상태 검사
 
