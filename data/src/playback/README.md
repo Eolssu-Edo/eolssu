@@ -1,12 +1,26 @@
 # JGB·공통 악보 JSON의 단소 MIDI·CAT 음원 생성
 
-JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 그 MIDI를 CAT 단소 샘플로 WAV에 렌더하는 로컬 CLI입니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력 연결을 더했습니다.
+JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, CAT 단소 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력·M4A 출력을 더했습니다.
 
 담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 정석 음원 제작을 위한 재생 기반입니다.
 
-```text
-JGB v1·v2 → 선택한 단소 성부의 공통 악보 JSON → 연주 이벤트 → MIDI → CAT 단소 WAV
+```mermaid
+flowchart TD
+    jgb["JGB v1/v2"] --> parse["jgb.py: 성부·율명·분박·기호 해석"]
+    settings["빠르기·황종·조·표현 정책"] --> parse
+    parse --> score["score.json: 공통 악보"]
+    score --> events["score.py: 음높이·시각·숨·표현 계산"]
+    events --> midi["midi.py: MIDI 저장·다시 읽기"]
+    midi --> pcm["sampler.py: 메모리 PCM 합성"]
+    samples["CAT 단소 녹음 샘플"] --> pcm
+    pcm --> aac["audio.py: AAC 인코딩·디코딩 검증"]
+    aac --> m4a["danso.m4a: 기본 출력"]
+    pcm -. "--audio-format wav" .-> wav["danso.wav: 검증용 선택 출력"]
+    parse -.-> trace["원본·대응표·해시·생성 설정"]
+    aac -.-> trace
 ```
+
+`__main__.py`가 단일 생성 전체를 연결하고 `batch.py`가 카탈로그의 빠르기·교정 근거를 적용해 같은 경로를 반복합니다. 기본 출력과 검증용 출력은 각각 다른 폴더에 생성합니다.
 
 `.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 단소 한 성부를 생성하며 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다. 출력 HTML은 생성된 음원을 듣는 정적 파일입니다.
 
@@ -22,6 +36,16 @@ python -m venv data/.venv
 
 작은 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 음표/쉼표/붙임줄/이음줄·원본 ID·음역·실제 무음·CC11·Pitch Bend·추가 떨림과 실패 시 기존 산출물 보존을 확인합니다.
 
+M4A 생성과 실제 코덱 검사에는 **FFmpeg와 ffprobe**가 필요합니다. [공식 다운로드 안내](https://ffmpeg.org/download.html)의 OS별 배포본을 준비합니다. 프로그램이 자동 설치하거나 PATH를 바꾸지는 않습니다. PATH에 있으면 바로 사용하고, 경로를 직접 지정하려면 단일/배치 명령에 `--ffmpeg C:/tools/ffmpeg/bin/ffmpeg.exe --ffprobe C:/tools/ffmpeg/bin/ffprobe.exe`를 붙입니다. 검사와 실행에 공통으로 사용할 환경변수도 지원합니다.
+
+```powershell
+$env:FFMPEG_BINARY = 'C:/tools/ffmpeg/bin/ffmpeg.exe'
+$env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
+.\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
+```
+
+실제 설치 위치로 바꿉니다. 두 실행 파일이 없으면 M4A 통합 검사 3개는 건너뛰고 나머지 검사는 실행합니다. M4A 변경을 병합하기 전에는 이 검사도 실행해야 합니다. WAV 선택 출력은 FFmpeg가 필요하지 않습니다.
+
 ## 실제 단소 음원 생성
 
 [CAT 국악 라이브러리](https://www.catseoul.com/gugak-library/)의 단소 Live Sampler v1.3 ZIP을 로컬에 준비합니다. 아래 내용을 Git 밖의 `assets.json`으로 저장하고 `danso` 값을 실제 ZIP 경로로 바꿉니다. 상대 경로는 assets JSON의 폴더 기준입니다. ZIP·원본 악보·생성 음원은 저장소에 넣지 않습니다.
@@ -36,7 +60,11 @@ python -m venv data/.venv
 
 추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 현재 등록 프로필은 단소 하나이며 `--instrument all`은 등록된 프로필 전체를 뜻합니다.
 
-출력 폴더에는 `danso.mid`, `danso.wav`, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. WAV는44.1kHz·mono·PCM16이며 렌더 실패 시 이전 출력 파일을 보존합니다.
+출력 폴더에는 `danso.mid`, **`danso.m4a`**, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`, 정적 미리듣기 `comparison.html`이 생성됩니다. M4A는44.1kHz·mono·AAC-LC이며 목표 비트레이트는192kbps입니다. 실제 비트레이트는 인코더와 음원에 따라 달라지며 결과에 따로 기록합니다. PCM을 메모리에서 인코더 stdin으로 전달하므로 중간 WAV를 저장하지 않습니다.
+
+WAV가 필요한 경우 같은 명령에 `--audio-format wav`를 추가하고 새 `--out`을 지정합니다. WAV는 기존44.1kHz·mono·PCM16입니다. 출력 폴더에 반대 형식의 음원이 있으면 이전 파일을 삭제하지 않고 작업을 거부합니다. 인코딩·디코딩 검사까지 임시 폴더에서 성공한 뒤 결과를 공개하므로 인코더 실패 시 이전 산출물을 보존합니다.
+
+`danso.json`의 `audio.file/format/codec/sha256/bytes`는 실제 생성 파일을 가리킵니다. `frames/seconds`는 합성 PCM 기준이고 `container_seconds`는 M4A 재생 길이, `decoded_frames/end_padding_frames`는 다시 디코딩한 길이와 AAC 끝 패딩입니다. 재생 시작0·표시 길이 오차2샘플 이내·디코딩 끝 패딩1024샘플 미만·유한값·피크를 검사합니다. `manifest.audio_output`에는 FFmpeg·ffprobe 버전을 남깁니다. 이 검사는 청감상 원본과 동일하다는 판정이 아닙니다.
 
 ## JGB 파일에서 생성
 
@@ -102,10 +130,12 @@ catalog의 `items`에 `title`, `edition`, `input`, `tempo`를 넣습니다. JGB�
 
 명시된 단소 목록의 `all` 악기는 단소로 정규화하고 변경 전후를 남깁니다. 상대음이 있으면서 율명에 정확히 `[0,2,5,7,10]` 다섯 음급이 모두 있을 때만 그 집합을 상대음 계산에 사용합니다. 전통적인 조의 판정으로 간주하지 않습니다. 원보 교정은 SHA256과 정확한 `before_cell` 또는 제한된 필드의 `before`가 일치할 때만 적용합니다. 출력 안에 입력이 있으면 덮어쓰기를 거부합니다.
 
-원본은 `originals`, 빠르기·교정·선택 근거를 넣은 JSON은 `prepared`, 음원과 대응표는 `tracks`에 저장합니다. `tempo-decisions.json`·`manifest.json`·`inventory.csv`·`index.html`로 전체 결과를 확인합니다. 미지원 입력은 오류를 남기며 성공한 성부를 숨기지 않습니다.
+원본은 `originals`, 빠르기·교정·선택 근거를 넣은 JSON은 `prepared`, 음원과 대응표는 `tracks`에 저장합니다. `tempo-decisions.json`·`manifest.json`·`inventory.csv`·`index.html`로 전체 결과를 확인합니다. 배치 결과 스키마는 `danso-batch/v2`이며 `outputs[].audio_file`이 실제 M4A/WAV 경로입니다(이전 `outputs[].wav` 대체). HTML도 이 경로를 사용합니다. 미지원 입력은 오류를 남기며 성공한 성부를 숨기지 않습니다.
 
 손상된 JSON·잘못된 UTF-8·객체가 아닌 JSON·읽을 수 없는 개별 입력은 해당 항목을 보류하고 다음 곡을 계속 처리합니다. 읽을 수 있었던 원본 바이트는 오류가 있어도 별도로 보존합니다. 카탈로그 자체가 잘못됐거나 입력이 출력 폴더 안에 있는 경우에는 작업 시작 전에 실패합니다.
 
+FFmpeg·ffprobe 누락과 이전 형식의 음원이 남은 출력 폴더는 배치 전체 시작 전에 거부합니다. M4A로 다시 생성할 때는 기존 WAV 폴더와 다른 출력 폴더를 사용합니다.
+
 ## 실제 CAT 검증
 
-CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, WAV 길이·피크·무음을 확인합니다. 재현할 때는 같은 입력·ZIP·속도를 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 현재 검증 결과와 재현 환경은 [음원과 재현 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md#음원과-재현)에 있습니다.
+CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, M4A 코덱·길이·피크를 확인합니다. 무음·파형의 정확한 비교가 필요할 때는 WAV 선택 출력을 사용합니다. 재현할 때는 같은 입력·ZIP·속도·코드·인코더 버전을 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 최신 M4A 검증은 [단소 변환 기록](../../../docs/knowledge/data/danso-expanded-auditions.md), 이전 WAV 검증은 [음원과 재현 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md#음원과-재현)에 있습니다.

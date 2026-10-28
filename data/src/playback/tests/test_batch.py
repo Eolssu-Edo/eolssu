@@ -23,11 +23,11 @@ class PreparationTests(unittest.TestCase):
                 items=[{'title':'bad','input':'bad.json','tempo':tempo},
                        {'title':'good','input':'good.json','tempo':tempo}]
                 catalog=root/'catalog.json';catalog.write_text(json.dumps({'items':items}),encoding='utf-8')
-                def render_stub(source,assets,track,instruments,*,part):
+                def render_stub(source,assets,track,instruments,*,part,audio_format,encoder):
                     track.mkdir(parents=True)
-                    return {'results':[{'notes':2,'seconds':2,'audio':{}}]}
+                    return {'results':[{'notes':2,'seconds':2,'audio':{'file':f'danso.{audio_format}'}}]}
                 with patch('data.src.playback.batch.run',side_effect=render_stub) as render,redirect_stdout(io.StringIO()):
-                    records=run_batch(catalog,root/'assets.json',out)
+                    records=run_batch(catalog,root/'assets.json',out,audio_format='wav')
                 self.assertEqual([r['status'] for r in records],['blocked','generated'])
                 self.assertEqual(records[0]['input'],'bad.json')
                 self.assertTrue(records[0]['error'])

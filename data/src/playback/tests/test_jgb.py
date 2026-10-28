@@ -215,7 +215,7 @@ class JgbTests(unittest.TestCase):
             fake = synthetic_sampler()
             fake.manifest, fake.close = {"fixture": "synthetic"}, lambda: None
             with patch("data.src.playback.__main__.CatSampler", return_value=fake):
-                result = run(source, assets, root/"out", ["danso"])
+                result = run(source, assets, root/"out", ["danso"], audio_format="wav")
             self.assertEqual(source.read_bytes(), payload)
             self.assertEqual((root/"out/source.jgb.json").read_bytes(), payload)
             self.assertEqual(result["input_sha256"], hashlib.sha256(payload).hexdigest())
@@ -252,7 +252,7 @@ class JgbTests(unittest.TestCase):
             fake.render = render_with_external_edit
             fake.manifest, fake.close = {"fixture": "synthetic"}, lambda: None
             with patch("data.src.playback.__main__.CatSampler", return_value=fake):
-                result = run(source, assets, root/"out", ["danso"])
+                result = run(source, assets, root/"out", ["danso"], audio_format="wav")
             self.assertEqual((root/"out/source.jgb.json").read_bytes(), payload)
             self.assertEqual(result["input_sha256"], hashlib.sha256(payload).hexdigest())
             self.assertEqual(result["jgb"]["input_sha256"], result["input_sha256"])

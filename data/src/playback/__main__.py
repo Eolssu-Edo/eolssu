@@ -12,6 +12,7 @@ from .score import PROFILES, compile_score, require
 from .midi import PLAYBACK_VIBRATO, RELEASE_CC, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
 from .jgb import convert_jgb, SCALES
+from .audio import FORMATS, AAC_BIT_RATE, add_audio_arguments, resolve_encoder, write_audio
 
 
 def dump(path, value):
@@ -25,21 +26,23 @@ def audition_page(reports):
         warnings = " ".join(report["warnings"])
         cards.append(f'''<section><h2>{html.escape(PROFILES[key]['label'])}</h2>
         <p>{report['notes']}음 · {report['seconds']:.2f}초</p>
-        <audio controls preload="metadata" src="{key}.wav"></audio>
+        <audio controls preload="metadata" src="{html.escape(report['audio']['file'])}"></audio>
         <p>{html.escape(warnings)}</p><a href="{key}.mid" download>MIDI</a> ·
         <a href="{key}.json">해석·샘플 기록</a></section>''')
     title = html.escape(reports[0]["title"])
     return '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>악보에서 국악기로</title><style>body{background:#f4f6f2;color:#203832;font:16px/1.7 'Malgun Gothic',sans-serif;margin:0}main{max-width:1000px;margin:auto;padding:32px 24px}h1{font-size:32px;line-height:1.3}.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}section{background:white;padding:24px;border:1px solid #ccd9cf;border-radius:16px}audio{width:100%}h2{margin-top:0}p{color:#425b51}a{color:#176b50}.notice{background:#fff1d1;padding:18px;border-radius:12px}footer{font-size:13px;margin-top:24px}@media(max-width:700px){.cards{grid-template-columns:1fr}}</style>
     <main><h1>악보에서 국악기 소리로</h1><p>''' + title + '''</p><p>입력한 실음·박자·장식음을 선택한 CAT 프리셋으로 재생했습니다. 다른 악기로 편곡한 결과는 아닙니다.</p>
-    <p>악보 입력 → 기보음/실음 구분 → 장식과 숨표 적용 → MIDI → CAT 샘플 WAV</p><div class="cards">''' + "".join(cards) + '''</div>
+    <p>악보 입력 → 기보음/실음 구분 → 장식과 숨표 적용 → MIDI → CAT 샘플 합성 → M4A 또는 WAV</p><div class="cards">''' + "".join(cards) + '''</div>
     <p>전문가 검수 전 청취 실험입니다. 악보의 이음줄은 샘플 연결로 근사하며, 농음·호흡의 음색 변화를 물리적으로 재현하지 않습니다. 수치가 없는 장식 길이·음량은 작성한 설정값입니다.</p>
     <p><a href="score.json">입력 악보 데이터</a> · <a href="manifest.json">전체 재현 기록</a></p><footer>''' + CREDIT + '''</footer></main>
     <script>const players=[...document.querySelectorAll('audio')];players.forEach(p=>p.addEventListener('play',()=>players.forEach(q=>{if(q!==p)q.pause()})));</script></html>'''
 
 
 def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bpm=None,
-        speed=1, hwang_midi=None, jo=None):
+        speed=1, hwang_midi=None, jo=None, audio_format="m4a", ffmpeg=None, ffprobe=None,
+        encoder=None):
+    require(audio_format in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     input_bytes = Path(score_path).read_bytes()
     input_hash = hashlib.sha256(input_bytes).hexdigest()
     source = json.loads(input_bytes.decode("utf-8-sig"))
@@ -58,7 +61,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
     out = Path(out)
     outputs = ["score.json", "manifest.json", "comparison.html"]
-    outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", "wav", "json")]
+    outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", audio_format, "json")]
     if is_jgb:
         outputs += ["source.jgb.json", "source-map.json"]
     targets = {(out / name).resolve() for name in outputs}
@@ -66,6 +69,10 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
             "출력 파일이 원본 입력 또는 assets 파일과 겹칩니다. 다른 --out 폴더를 사용하세요")
     require(is_jgb or not any((out / name).exists() for name in ("source.jgb.json", "source-map.json")),
             "이 폴더에 이전 JGB 원본·대응표가 있습니다. 일반 악보 JSON은 다른 --out 폴더에 생성하세요")
+    other_format = "wav" if audio_format == "m4a" else "m4a"
+    require(not any((out / f"{key}.{other_format}").exists() for key in instruments),
+            "출력 폴더에 이전 형식의 음원이 있습니다. 새 --out 폴더를 사용하세요")
+    encoder = (encoder or resolve_encoder(ffmpeg, ffprobe)) if audio_format == "m4a" else None
     out.mkdir(parents=True, exist_ok=True)
     reports, renders = [], []
     # Stage everything first: failure must not leave a new partial audition page.
@@ -98,19 +105,19 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
         gain = .85/peak
         for report, audio in zip(reports, renders):
             key = report["instrument"]
-            wav = stage/f"{key}.wav"
-            sf.write(wav, audio*gain, FS, subtype="PCM_16")
-            pcm, fs = sf.read(wav, dtype="float64")
-            require(fs == FS and len(pcm) == len(audio) and np.isfinite(pcm).all() and np.max(np.abs(pcm)) < .99, "WAV validation failed")
-            report["audio"] = {"sample_rate": FS, "frames":len(pcm), "shared_gain":gain,
-                               "peak":float(np.max(np.abs(pcm))), "rms":float(np.sqrt(np.mean(pcm**2))),
-                               "midi_sha256":sha(stage/f"{key}.mid"), "wav_sha256":sha(wav)}
+            audio_path = stage/f"{key}.{audio_format}"
+            report["audio"] = {**write_audio(audio*gain, audio_path, encoder), "shared_gain":gain,
+                               "midi_sha256":sha(stage/f"{key}.mid"),
+                               f"{audio_format}_sha256":sha(audio_path)}
             dump(stage/f"{key}.json", report)
         manifest = {"input_sha256":input_hash, "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
                     "release_controller":dict(RELEASE_CC),
+                    "audio_output":{"format":audio_format,
+                                    "requested_bit_rate":AAC_BIT_RATE if encoder else None,
+                                    "encoder":{k:v for k,v in encoder.items() if k.endswith("_version")} if encoder else None},
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":dict(PLAYBACK_VIBRATO),
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","__main__.py","jgb.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["JGB v1/v2 import supports one selected danso part and the documented notation subset.",
@@ -144,10 +151,12 @@ def main():
     p.add_argument("--speed", type=float, default=1, help="JGB tempo multiplier (0.25..4), default 1")
     p.add_argument("--hwang-midi", type=int, help="JGB huangjong MIDI override; otherwise use hwangPitch")
     p.add_argument("--jo", choices=list(SCALES), help="Explicit JGB scale for relative ornaments")
+    add_audio_arguments(p)
     a = p.parse_args()
     try:
         result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument],
-                     a.transpose, part=a.part, bpm=a.bpm, speed=a.speed, hwang_midi=a.hwang_midi, jo=a.jo)
+                     a.transpose, part=a.part, bpm=a.bpm, speed=a.speed, hwang_midi=a.hwang_midi, jo=a.jo,
+                     audio_format=a.audio_format, ffmpeg=a.ffmpeg, ffprobe=a.ffprobe)
     except ValueError as exc:
         p.error(str(exc))
     print(json.dumps(result, ensure_ascii=False, indent=2))

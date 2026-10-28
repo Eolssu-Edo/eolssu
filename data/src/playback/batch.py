@@ -17,6 +17,7 @@ import time
 from .__main__ import dump, run
 from .jgb import NOTE, SYMBOLS, YUL, adaptive_breath
 from .score import require
+from .audio import FORMATS, add_audio_arguments, resolve_encoder
 
 
 def prepare_jgb(source, tempo, corrections):
@@ -105,14 +106,16 @@ def audition_html(records):
             if tempo.get('jeonggan_bpm') and unit!='정간':text+=f" · {tempo['jeonggan_bpm']}정간/분"
             text+=f" · {output['seconds']:.1f}초 · {output['notes']}음"
             evidence=html.escape(tempo.get('label',tempo.get('evidence_type','')))
-            cards.append(f'<section data-search="{name}"><h2>{name}</h2><p>{html.escape(record.get("edition",""))} · 성부 {output["part"]}</p><p>{html.escape(text)}<br>{evidence}</p><audio controls preload="none" src="{output["wav"]}"></audio><p><a href="{output["midi"]}">MIDI</a> · <a href="{record["prepared"]}">빠르기·근거 포함 JSON</a> · <a href="{output["report"]}">변환 기록</a></p></section>')
+            audio_file=html.escape(output['audio_file'])
+            cards.append(f'<section data-search="{name}"><h2>{name}</h2><p>{html.escape(record.get("edition",""))} · 성부 {output["part"]}</p><p>{html.escape(text)}<br>{evidence}</p><audio controls preload="none" src="{audio_file}"></audio><p><a href="{audio_file}" download>음원</a> · <a href="{output["midi"]}">MIDI</a> · <a href="{record["prepared"]}">빠르기·근거 포함 JSON</a> · <a href="{output["report"]}">변환 기록</a></p></section>')
     failures=''.join(f'<tr><td>{html.escape(r["title"])}</td><td>{html.escape(r.get("error",""))}</td></tr>' for r in records if r['status']!='generated')
     count=sum(len(r.get('outputs',[])) for r in records)
     items=len({r['title'] for r in records if r['status']=='generated'})
     return '''<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>단소 악보 미리듣기 — 표현·빠르기 반영</title><style>body{background:#f5f5ef;color:#233d32;font:16px/1.65 'Malgun Gothic',sans-serif;margin:0}main{max-width:1120px;margin:auto;padding:30px}h1{font-size:30px}h2{font-size:20px;margin:0}p{overflow-wrap:anywhere}input{font:inherit;padding:12px;border:1px solid #b8cabc;border-radius:8px;width:min(90%,480px)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:22px}section{border:1px solid #cfdbd0;border-radius:12px;background:white;padding:20px}section p{font-size:13px;color:#526a5c}audio{width:100%}a{color:#11694b}.notice{padding:18px;background:#e6ede3;border-radius:10px}td{padding:8px;border-bottom:1px solid #bbb}summary{cursor:pointer;padding:20px 0}</style><main><h1>단소 악보 미리듣기</h1>'''+f'<p>{items}개 목록 항목 · {count}개 음원 · {sum(r["status"]!="generated" for r in records)}개 파일 보류</p>'+'''<p class="notice">숨표·농음·흘림을 적용한 합성 미리듣기입니다. 공식 수치가 없는 빠르기는 승인된 연습용 선택값으로 표시합니다. 청성곡은 원보에 수록된 단소 오선보 2줄입니다. 원본과 전사·표현의 전문가 검수는 별도입니다.</p><p><a href="tempo-decisions.json">전체 빠르기 JSON</a> · <a href="inventory.csv">처리 목록</a> · <a href="manifest.json">전체 재현 기록</a></p><input id="search" aria-label="곡 검색" placeholder="곡 검색"><div class="cards">'''+''.join(cards)+'</div><details><summary>보류 상세</summary><table>'+failures+'</table></details><footer><p>이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)</p></footer></main><script>const ps=[...document.querySelectorAll("audio")];ps.forEach(p=>p.addEventListener("play",()=>ps.forEach(q=>{if(q!==p)q.pause()})));document.querySelector("#search").addEventListener("input",e=>document.querySelectorAll("section").forEach(s=>s.hidden=!s.dataset.search.includes(e.target.value)));</script></html>'
 
 
-def run_batch(catalog_path,assets,out):
+def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=None):
+    require(audio_format in FORMATS,'오디오 출력 형식은 m4a 또는 wav여야 합니다')
     catalog_path=Path(catalog_path).resolve();out=Path(out).resolve()
     catalog=json.loads(catalog_path.read_text(encoding='utf-8-sig'))
     inputs=[catalog_path,Path(assets).resolve()]
@@ -121,6 +124,10 @@ def run_batch(catalog_path,assets,out):
         if item.get('transcription_map'):
             inputs.append((catalog_path.parent/item['transcription_map']).resolve())
     require(not any(path.is_relative_to(out) for path in inputs), '출력 폴더 안의 원본 입력을 덮어쓸 수 없습니다')
+    other_format='wav' if audio_format=='m4a' else 'm4a'
+    require(not any((out/'tracks').glob(f'*/danso.{other_format}')),
+            '출력 폴더에 이전 형식의 음원이 있습니다. 새 --out 폴더를 사용하세요')
+    encoder=resolve_encoder(ffmpeg,ffprobe) if audio_format=='m4a' else None
     out.mkdir(parents=True,exist_ok=True)
     records=[];started=time.monotonic()
     for i,item in enumerate(catalog['items'],1):
@@ -155,7 +162,7 @@ def run_batch(catalog_path,assets,out):
             dump(target,prepared);record['prepared']=target.relative_to(out).as_posix()
             for part in parts:
                 track=out/'tracks'/f'{i:03d}-p{part or 1}'
-                result=run(target,assets,track,['danso'],part=part)
+                result=run(target,assets,track,['danso'],part=part,audio_format=audio_format,encoder=encoder)
                 result['catalog_source']={k:v for k,v in record.items() if k!='outputs'}
                 result['original_input_sha256']=record['original_sha256']
                 result['prepared_input_sha256']=digest(target)
@@ -166,7 +173,7 @@ def run_batch(catalog_path,assets,out):
                 dump(track/'manifest.json',result)
                 a=result['results'][0]
                 record['outputs'].append({'part':part or 1,'notes':a['notes'],'seconds':a['seconds'],
-                    'wav':(track/'danso.wav').relative_to(out).as_posix(),
+                    'audio_file':(track/a['audio']['file']).relative_to(out).as_posix(),
                     'midi':(track/'danso.mid').relative_to(out).as_posix(),
                     'report':(track/'manifest.json').relative_to(out).as_posix(),'audio':a['audio']})
             record['status']='generated'
@@ -174,7 +181,7 @@ def run_batch(catalog_path,assets,out):
             record.update(status='blocked',error=str(exc))
         print(record['id'],record['status'],record['title'],record.get('error',''),flush=True)
         records.append(record);dump(out/'progress.json',records)
-    dump(out/'manifest.json',{'schema':'danso-batch/v1','catalog_sha256':digest(catalog_path),
+    dump(out/'manifest.json',{'schema':'danso-batch/v2','audio_format':audio_format,'catalog_sha256':digest(catalog_path),
                               'catalog_metadata':{k:v for k,v in catalog.items() if k!='items'},
                               'batch_source_sha256':digest(__file__),
                               'elapsed_seconds':time.monotonic()-started,'records':records})
@@ -189,4 +196,9 @@ def run_batch(catalog_path,assets,out):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--catalog',required=True);parser.add_argument('--assets',required=True);parser.add_argument('--out',required=True)
-    args=parser.parse_args();run_batch(args.catalog,args.assets,args.out)
+    add_audio_arguments(parser)
+    args=parser.parse_args()
+    try:
+        run_batch(args.catalog,args.assets,args.out,audio_format=args.audio_format,ffmpeg=args.ffmpeg,ffprobe=args.ffprobe)
+    except ValueError as exc:
+        parser.error(str(exc))

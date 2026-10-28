@@ -61,3 +61,19 @@ Python3.12의 격리 검사54개가 통과했다. 숨의 실제 WAV 무음, 다�
 기존17음원과 비교해1004음의 음높이열·velocity·BPM·시작 위치와 WAV 샘플 수가 일치했다.28곳의 종료 차이는 PPQN 양자화로 최대0.0331ms다.6곳은 새 숨 정책에 따라 공백을 줄였다(개구리4/12, 구아리랑10/3, 도라지3/3·11/3·19/3·23/3). 다음 음 시작·전체길이는 유지했다. 합성 성공·전사 대조를 국악 전문가의 연주 품질 승인으로 확대하지 않는다.
 
 2026-10-28 추가 점검에서는 파일 읽기·UTF-8 디코딩·JSON 파싱을 항목별 오류 처리에 포함했다. 잘린 JSON, 잘못된 인코딩, 객체가 아닌 JSON, 없는 파일은 해당 항목만 보류하고 다음 곡을 처리한다. 읽을 수 있었던 원본 바이트는 오류가 있어도 보존한다. 네 실패 사례 뒤의 정상 곡 처리·최종manifest/index 생성·원본 불변을 확인하는 회귀 검사를 추가해 총55개 검사가 통과했다. 카탈로그 자체와 입력/출력 경로 충돌은 개별 곡 처리 전에 검증한다.
+
+## M4A 생성과 보관 정책 (2026-10-28)
+
+사용자가 AAC와 ALAC를 비교한 뒤 생성 WAV의 상시 보관 용도가 없음을 설명하고 M4A까지 파이프라인과 MR을 정리하도록 요청했다. 기본 출력은 **44.1kHz·mono·AAC-LC, 목표192kbps의 M4A**다. WAV는 `--audio-format wav`로 선택한다. 합성 PCM을 float32 little-endian으로 FFmpeg stdin에 직접 전달하고 중간 WAV 파일을 쓰지 않는다. WAV를 선택하면 이전 PCM16 저장 방식과 동일하다. JGB·표현·템포·조율·CAT·MIDI 해석은 출력 코덱 때문에 바꾸지 않는다.
+
+AAC는 손실 압축이며 목표 비트레이트와 실제 비트레이트는 다를 수 있다. ALAC는 원본 PCM을 보존하지만 범용 웹 재생 호환성이 제한적이므로 이번 기본 출력으로 채택하지 않았다. 채점이 JGB를 사용할 수 있다는 사용자 설명은 출력 보관 결정의 배경이며 다른 파트의 확정 계약으로 취급하지 않는다. 재생성에는 같은 JGB·설정·코드·CAT 샘플·인코더 버전이 필요하다. 자료: [MDN 오디오 코덱](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs), [Android 오디오 지원](https://developer.android.com/media/platform/supported-formats#audio-support), [FFmpeg AAC 인코더](https://ffmpeg.org/ffmpeg-codecs.html#aac). 모두2026-10-28 확인.
+
+`audio.py`가 인코딩과 ffprobe/FFmpeg 재디코딩을 맡는다. `__main__.py`는 모든 결과를 임시 폴더에서 검증한 뒤 공개하고, `batch.py`는 인코더 누락과 반대 형식의 기존 출력 폴더를 파일 쓰기 전에 거부한다. 배치 출력은 `danso-batch/v2`, 음원 경로는 `outputs[].audio_file`이다. HTML은 이 경로를 사용한다. `audio.frames/seconds`는 합성 PCM 길이, `container_seconds`는 표시 길이, `decoded_frames/end_padding_frames`는 디코딩과 AAC 끝 패딩이다. FFmpeg·ffprobe 버전과 실제 파일 크기·코덱·해시를 함께 남긴다. 파일 형식 변화는 이 로컬 생성 도구의 출력에 한정한다.
+
+검증 환경은 Windows·Python3.12·FFmpeg/ffprobe9.0.2-essentials_build-www.gyan.dev다. [FFmpeg 공식 다운로드 안내](https://ffmpeg.org/download.html)가 연결한 Gyan release essentials ZIP을 별도 로컬 도구 폴더에 준비하고 배포 SHA256 `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`와 일치함을 확인했다. 저장소나 시스템 PATH에 바이너리를 추가하지 않았다. 다른 인코더 버전·OS에서의 재생과 청감 동일성은 이 검사로 보장하지 않는다.
+
+최종 코드에서 합성 기반65개 검사(실제 AAC 통합3개 포함)가 통과했다. 입력 불변, M4A 기본 생성과 WAV 미생성, 인코더 오류·시간 초과, 형식 전환 시 기존 단일/배치 결과 보존, AAC priming 보정과 끝 패딩, 배치 오류 격리를 포함한다. 실제 강원도아리랑의 선택 WAV는 기존 파일의 SHA256 `962d41469567733fdbd6ed6de150f62986050a5491eff2076a087f4fc0365662`와 동일했다.
+
+같은 카탈로그41항목·47입력을 CAT 샘플에서 다시 합성해 M4A47개·3057음·보류0개를63.53초에 생성했다. 출력은 로컬 `data/processed/playback/166-listen/notion-audio-danso-m4a/`이며 생성 WAV는0개다. 원본 해시·MIDI 해시·합성 PCM 프레임 수는 기존47음원과 모두 일치했다. 총 음원 크기는 기존 WAV144,899,720바이트에서 M4A36,017,120바이트가 됐다. 표시 길이와 PCM 길이의 최대 차이는0.000000468초이며 이번 FFmpeg 결과의 잔여 끝 패딩은0프레임이었다. 모든 곡의 코덱·샘플레이트·채널·유한값·피크 검사를 통과했다.
+
+기본 미리듣기 페이지의47개 음원 경로·파일 존재와 비교 영상 기능 부재를 확인했다. 로컬 HTTP로 연 페이지에서 강원도아리랑 M4A의 재생 시간이10.97초까지 진행하고, 표시 길이25.813129초·readyState4·미디어 오류없음을 확인했다. 강원도아리랑 M4A는570,468바이트이며 SHA256은 `2ed169a00ad87e3b542389a55d4fcde45e10334053291e48991d572be0c56bf3`다. 전체 검증 결과는 출력의 `verification.json`에 기록했다. 이는 생성·디코딩·재생 경로 검증이며 전문가의 연주 품질 승인 또는 AAC 청감 무차이 판정은 아니다.
