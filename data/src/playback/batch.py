@@ -162,10 +162,12 @@ def run_batch(catalog_path,assets,out):
     for i,item in enumerate(catalog['items'],1):
         record=deepcopy(item);record['id']=f'{i:03d}';record['outputs']=[]
         path=(catalog_path.parent/item['input']).resolve()
-        payload=path.read_bytes();source=json.loads(payload.decode('utf-8-sig'))
-        record['original_sha256']=hashlib.sha256(payload).hexdigest()
-        original=out/'originals'/f'{i:03d}.json';original.parent.mkdir(exist_ok=True);original.write_bytes(payload)
         try:
+            payload=path.read_bytes()
+            record['original_sha256']=hashlib.sha256(payload).hexdigest()
+            original=out/'originals'/f'{i:03d}.json';original.parent.mkdir(exist_ok=True);original.write_bytes(payload)
+            source=json.loads(payload.decode('utf-8-sig'))
+            require(isinstance(source,dict), '악보 JSON의 최상위 값은 객체여야 합니다')
             is_jgb='v' in source
             if is_jgb:
                 require(all(not c.get('source_sha256') or c['source_sha256']==record['original_sha256']
@@ -204,7 +206,7 @@ def run_batch(catalog_path,assets,out):
                     'midi':(track/'danso.mid').relative_to(out).as_posix(),
                     'report':(track/'manifest.json').relative_to(out).as_posix(),'audio':a['audio']})
             record['status']='generated'
-        except (ValueError,IndexError,KeyError) as exc:
+        except (OSError,ValueError,IndexError,KeyError) as exc:
             record.update(status='blocked',error=str(exc))
         print(record['id'],record['status'],record['title'],record.get('error',''),flush=True)
         records.append(record);dump(out/'progress.json',records)

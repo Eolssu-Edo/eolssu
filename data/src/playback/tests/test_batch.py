@@ -1,13 +1,46 @@
 from copy import deepcopy
+from contextlib import redirect_stdout
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 from data.src.playback.tests.test_jgb import document
 from data.src.playback.batch import prepare_jgb, run_batch
 
 
 class PreparationTests(unittest.TestCase):
+    def test_bad_input_is_reported_and_later_tracks_are_still_processed(self):
+        cases={'truncated':b'{"v":', 'encoding':b'\xff', 'non_object':b'[]', 'missing':None}
+        for name,payload in cases.items():
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as folder:
+                root=Path(folder);out=root/'out';bad=root/'bad.json';good=root/'good.json'
+                if payload is not None:bad.write_bytes(payload)
+                good.write_text(json.dumps(document('황 | 태')),encoding='utf-8')
+                before=good.read_bytes()
+                tempo={'jeonggan_bpm':60,'bpm':60,'beat_unit':'jeonggan','evidence_type':'test'}
+                items=[{'title':'bad','input':'bad.json','tempo':tempo},
+                       {'title':'good','input':'good.json','tempo':tempo}]
+                catalog=root/'catalog.json';catalog.write_text(json.dumps({'items':items}),encoding='utf-8')
+                def render_stub(source,assets,track,instruments,*,part):
+                    track.mkdir(parents=True)
+                    return {'results':[{'notes':2,'seconds':2,'audio':{}}]}
+                with patch('data.src.playback.batch.run',side_effect=render_stub) as render,redirect_stdout(io.StringIO()):
+                    records=run_batch(catalog,root/'assets.json',out)
+                self.assertEqual([r['status'] for r in records],['blocked','generated'])
+                self.assertEqual(records[0]['input'],'bad.json')
+                self.assertTrue(records[0]['error'])
+                self.assertEqual(len(records[1]['outputs']),1)
+                render.assert_called_once()
+                saved=json.loads((out/'manifest.json').read_text(encoding='utf-8'))
+                self.assertEqual(saved['records'],records)
+                self.assertIn('<audio controls',(out/'index.html').read_text(encoding='utf-8'))
+                self.assertEqual(good.read_bytes(),before)
+                if payload is not None:
+                    self.assertEqual(bad.read_bytes(),payload)
+                    self.assertEqual((out/'originals'/'001.json').read_bytes(),payload)
+
     def test_batch_rejects_input_within_output_before_overwriting_it(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);out=root/'out';out.mkdir()
