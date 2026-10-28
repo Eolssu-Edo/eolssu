@@ -81,6 +81,58 @@ class ImportTests(unittest.TestCase):
         result = self.call("import", self.source, "--date", "2026-01-01")
         return self.repo / result["output"]
 
+    def public_manuscript(self):
+        path = self.repo / "reviewed.md"
+        meta = {k: v for k, v in self.metadata["blog"].items() if k != "candidate"}
+        meta["draft"] = False
+        path.write_text("---\n" + yaml.safe_dump(meta, allow_unicode=True) + "---\n\n" + self.body, encoding="utf-8")
+        return path
+
+    def test_local_without_develop_or_candidate_keeps_source_and_head(self):
+        source = self.public_manuscript()
+        original = source.read_bytes()
+        head = self.git("rev-parse", "HEAD")
+        self.git("update-ref", "-d", "refs/remotes/origin/develop")
+        result = self.call("prepare-local", str(source), "--reviewed")
+        post = self.repo / result["output"]
+        meta, body = tool.split_document(post.read_bytes())
+        self.assertIs(meta["draft"], True)
+        self.assertEqual(body.strip(), self.body.strip())
+        self.assertEqual(original, source.read_bytes())
+        self.assertEqual(head, self.git("rev-parse", "HEAD"))
+        self.assertFalse((self.repo / tool.STATE).exists())
+        self.assertNotIn(str(source), post.read_text(encoding="utf-8"))
+        self.call("check", result["output"])
+
+    def test_local_requires_review_and_rejects_raw_note_metadata(self):
+        source = self.public_manuscript()
+        self.call("prepare-local", str(source), code=1)
+        source.write_text("---\nblog:\n  candidate: true\n---\nprivate", encoding="utf-8")
+        self.call("prepare-local", str(source), "--reviewed", code=1)
+        self.assertFalse((self.repo / "content/posts").exists())
+
+    def test_local_dry_run_duplicate_and_author_edits(self):
+        source = self.public_manuscript()
+        result = self.call("prepare-local", str(source), "--reviewed", "--dry-run")
+        self.assertFalse((self.repo / result["output"]).exists())
+        result = self.call("prepare-local", str(source), "--reviewed")
+        output = self.repo / result["output"]
+        output.write_text(output.read_text(encoding="utf-8") + "author edit\n", encoding="utf-8")
+        original = output.read_bytes()
+        self.call("prepare-local", str(source), "--reviewed", code=1)
+        self.assertEqual(output.read_bytes(), original)
+
+    def test_local_rejects_unsafe_content_empty_body_and_protected_branch(self):
+        source = self.public_manuscript()
+        original = source.read_text(encoding="utf-8")
+        source.write_text(original + "http://localhost/internal\n", encoding="utf-8")
+        self.call("prepare-local", str(source), "--reviewed", code=1)
+        source.write_text(original.split("---\n\n")[0] + "---\n\n", encoding="utf-8")
+        self.call("prepare-local", str(source), "--reviewed", code=1)
+        source.write_text(original, encoding="utf-8")
+        self.git("switch", "blog")
+        self.call("prepare-local", str(source), "--reviewed", code=1)
+
     def test_only_explicit_candidates_are_listed_and_imported(self):
         head = self.git("rev-parse", "HEAD")
         listed = self.call("list")

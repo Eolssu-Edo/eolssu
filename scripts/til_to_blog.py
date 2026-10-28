@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read selected TIL blobs from Git and prepare reviewed Hugo drafts. No network or Git writes."""
+"""Prepare reviewed local manuscripts or selected Git TIL blobs as Hugo drafts. No network or Git writes."""
 from __future__ import annotations
 
 import argparse
@@ -253,6 +253,43 @@ def status(repo, entry, blob):
     return "unchanged" if entry["source_blob"] == blob else "updated"
 
 
+def prepare_local(repo, args):
+    """Accept an author-approved public manuscript, never a raw private TIL."""
+    if not args.reviewed:
+        raise ImportError_("대화로 공개 범위를 검토한 원고만 --reviewed로 지정하세요")
+    source = args.public_file
+    if source.is_symlink() or not source.is_file() or source.suffix.lower() != ".md":
+        raise ImportError_("검토한 공개 원고의 일반 Markdown 파일을 지정하세요")
+    if source.stat().st_size > 1_000_000:
+        raise ImportError_("공개 원고는 1MB 이하여야 합니다")
+    meta, body = split_document(source.read_bytes())
+    allowed = {"title", "slug", "author", "description", "categories", "tags", "date", "draft", "thumbnail"}
+    if set(meta) - allowed or "<!-- blog:" in body:
+        raise ImportError_("원본 TIL이 아닌 공개 머리말과 본문만 지정하세요")
+    if not body.strip():
+        raise ImportError_("공개 본문이 비어 있습니다")
+    branch = git(repo, "branch", "--show-current").decode().strip()
+    if not branch or branch in {"blog", "develop", "main", "master"}:
+        raise ImportError_("blog에서 분기한 작업 브랜치에서 실행하세요")
+    git(repo, "merge-base", "--is-ancestor", "refs/remotes/origin/blog", "HEAD")
+    day = publication_date(args.date or meta.get("date"))
+    raw = render({"meta": meta, "body": body.strip() + "\n"}, day)
+    filename = f"content/posts/{day[:10]}-{meta['slug']}.md"
+    output = local_path(repo, filename, post=True)
+    for existing in (repo / "content/posts").rglob("*.md"):
+        existing = local_path(repo, existing.relative_to(repo).as_posix(), post=True)
+        previous, _ = split_document(existing.read_bytes())
+        if previous.get("slug") == meta["slug"]:
+            raise ImportError_("같은 slug의 게시글이 이미 있습니다. 기존 글을 검토해 수정하세요")
+    if output.exists():
+        raise ImportError_("출력 파일이 이미 있습니다")
+    if not args.dry_run:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with output.open("xb") as stream:
+            stream.write(raw)
+    return {"status": "dry-run" if args.dry_run else "prepared", "output": filename, "draft": True}
+
+
 def import_one(repo, commit, files, path, args):
     source_path(path)
     if path not in files:
@@ -332,6 +369,11 @@ def main(argv=None):
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--ref", default="origin/develop", help="사전에 fetch한 브랜치 또는 SHA")
     commands = parser.add_subparsers(dest="command", required=True)
+    command = commands.add_parser("prepare-local", help="대화로 검토한 로컬 공개 원고를 draft로 준비 (원본 TIL 입력 금지)")
+    command.add_argument("public_file", type=Path)
+    command.add_argument("--reviewed", action="store_true", help="작성자와 공개 범위를 검토한 원고")
+    command.add_argument("--date")
+    command.add_argument("--dry-run", action="store_true")
     commands.add_parser("list", help="공개 후보와 원본 변경·로컬 편집 상태 조회")
     command = commands.add_parser("import", help="선택한 TIL 한 편을 draft로 가져오기")
     command.add_argument("path")
@@ -350,7 +392,11 @@ def main(argv=None):
         top = Path(git(repo, "rev-parse", "--show-toplevel").decode("utf-8").strip())
         if top.resolve() != repo:
             raise ImportError_("--repo에는 Git 저장소 루트를 지정하세요")
-        if args.command == "check":
+        if args.command == "prepare-local":
+            lock_path = local_path(repo, ".til-import.lock")
+            lock = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            result = prepare_local(repo, args)
+        elif args.command == "check":
             path = local_path(repo, args.path, post=True)
             original = path.read_bytes()
             meta, body = split_document(original)

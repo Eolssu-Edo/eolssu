@@ -1,5 +1,13 @@
 # TIL을 골라 블로그 초안으로 가져오기
 
+## 기본 흐름: 로컬 TIL → 대화 → 공개 원고
+
+신규 작성은 로컬 TIL에서 시작합니다. 원본을 커밋하거나 candidate 표시하지 않고, coco-blog와 공개 내용을 검토한 별도 원고를 `prepare-local <공개원고.md> --reviewed`로 준비합니다. `--dry-run`으로 경로와 검사를 먼저 확인할 수 있습니다. `--repo`는 명령 앞에 지정하며, 목적지는 coco-blog가 최신 origin/blog에서 직접 준비한 별도 worktree·작업 브랜치입니다. 개발자는 개발 브랜치에 그대로 머무릅니다. Git 반영을 요청하면 선택한 공개 글 Markdown만 올립니다. 원고에는 title, slug, author, description, categories가 필요하고 tags, thumbnail, date를 선택할 수 있습니다. draft는 항상 true로 생성하며 같은 slug는 덮어쓰지 않습니다. 로컬 경로나 원본 추적 기록을 게시글에 넣지 않습니다.
+
+자세한 대화·검토·공개 절차는 [블로그 사용 방식](blog-workflow.md)을 따릅니다. 아래 내용은 이미 Git에 커밋한 TIL을 위한 기존 호환 모드이며 로컬 흐름의 필수 단계가 아닙니다.
+
+## 기존 Git 스냅샷 가져오기
+
 `develop`의 TIL 원본은 유지하고, 작성자가 공개 후보로 표시한 글만 `blog` 작업 브랜치의 Hugo 초안으로 복사합니다. 두 브랜치를 합치지 않으며, 앱 코드나 develop의 다른 문서를 가져오지 않습니다.
 
 이 도구는 목록 조회·초안 생성·변경 확인만 합니다. Git fetch·브랜치 생성·커밋·push·MR 생성·병합·게시를 실행하지 않습니다. Jenkins의 기존 `blog` 배포 파이프라인도 바꾸지 않습니다.
