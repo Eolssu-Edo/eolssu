@@ -23,6 +23,7 @@
 - Metabase의 곡별·악기별 연습 통계 SQL(곡, 악기, 연습 횟수, 평균 점수)을 운영 현황 대시보드의 표 패널로 옮긴다. 기간은 연습 시작 시각(`practice_sessions.created_at`) 기준이고 거르기는 없다. 처음에는 채점 품질 대시보드처럼 거르기를 두려 했으나, 운영 현황 대시보드에는 거르기가 없어 그대로 두었다.
 - `infra/monitoring/compose.yml`, `.env.example`, README에서 Metabase를 뺀다. 테이블 보기는 Grafana Explore와 표 패널로 한다고 README에 적는다.
 - 운영 서버에서 Metabase 컨테이너를 내리고, 운영 MySQL의 `metabase` 계정과 `metabase` DB를 백업 없이 지운다. 실행 직전에 사지한의 허락을 받는다.
+- 매시 백업(`infra/backup`)이 `metabase` DB를 덤프하고 서버 점검(`infra/edo-check`)이 Metabase 포트를 확인하므로 둘 다에서 Metabase를 뺀다. 구현 중에 찾은 의존이며, 2026-10-28 사지한이 이 Task에 넣기로 했다(원래 작성자 우동균은 MR에서 리뷰). DB는 새 백업 스크립트를 서버에 설치한 뒤에 지운다.
 - Grafana 계정 권한은 바꾸지 않는다. 곡별 통계가 읽는 `practice_sessions`·`evaluations`·`songs`·`instruments`는 S15P31E102-199에서 이미 부여됐다.
 
 ## M2. 수치 주소
@@ -42,7 +43,7 @@
 
 ## M3. Prometheus와 대시보드
 
-- `infra/monitoring/compose.yml`에 Prometheus를 더한다. 운영 스택 내부 네트워크에서 `backend:8080/api/actuator/prometheus`를 읽고, 데이터는 15일 보관한다. 포트는 서버 밖에 열지 않는다.
+- `infra/monitoring/compose.yml`에 Prometheus를 더한다. 운영 스택 내부 네트워크에서 `backend:8080/api/actuator/prometheus`를 읽고, 데이터는 15일 보관한다. 포트는 Grafana처럼 서버 loopback(`127.0.0.1:9090`)에만 연다. 서버 점검이 상태를 볼 수 있게 Docker healthcheck(`/-/ready`)를 둔다.
 - Grafana에 Prometheus 데이터 소스를 더하고, 백엔드 성능 대시보드 JSON을 저장소에 둔다. 패널은 API 응답 시간, 상태 코드별 요청 수(오류율), JVM 메모리, DB 연결 풀 사용량이다.
 - 서버에 컨테이너를 띄우는 일은 사지한의 허락을 받고 한다.
 
