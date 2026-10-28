@@ -15,13 +15,17 @@ import eolssu.shared.generated.resources.practice_popup_end_title
 import eolssu.shared.generated.resources.practice_popup_evaluate
 import eolssu.shared.generated.resources.practice_popup_exit_confirm
 import eolssu.shared.generated.resources.practice_popup_exit_title
+import eolssu.shared.generated.resources.practice_popup_go_back
 import eolssu.shared.generated.resources.practice_popup_go_home
 import eolssu.shared.generated.resources.practice_popup_interrupted_body
 import eolssu.shared.generated.resources.practice_popup_interrupted_title
 import eolssu.shared.generated.resources.practice_popup_keep_playing
 import eolssu.shared.generated.resources.practice_popup_later
+import eolssu.shared.generated.resources.practice_popup_no_input_body
+import eolssu.shared.generated.resources.practice_popup_no_input_title
 import eolssu.shared.generated.resources.practice_popup_permission_body
 import eolssu.shared.generated.resources.practice_popup_permission_title
+import eolssu.shared.generated.resources.practice_popup_play_again
 import eolssu.shared.generated.resources.practice_popup_record_failed_body
 import eolssu.shared.generated.resources.practice_popup_record_failed_title
 import eolssu.shared.generated.resources.practice_popup_restart_confirm
@@ -70,6 +74,14 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate)
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, style = EolssuButtonStyle.Secondary)
+        }
+        PracticePopup.EndNoInput -> EolssuDialog(
+            title = stringResource(Res.string.practice_popup_no_input_title),
+            message = stringResource(Res.string.practice_popup_no_input_body),
+            icon = EolssuIcons.Mic,
+        ) {
+            EolssuButton(stringResource(Res.string.practice_popup_play_again), actions.onRestartNow)
+            EolssuButton(stringResource(Res.string.practice_popup_go_back), actions.onToReady, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.Restart -> EolssuDialog(title = stringResource(Res.string.practice_popup_restart_title)) {
             EolssuButton(stringResource(Res.string.practice_popup_restart_confirm), actions.onRestartNow)

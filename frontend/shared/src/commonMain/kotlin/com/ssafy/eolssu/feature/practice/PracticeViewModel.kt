@@ -26,6 +26,7 @@ import kotlin.time.TimeSource
  *
  * 평가 연주는 [recorder]로 녹음한다. 연주 중단 확인 창·이어 연주 카운트다운 동안은 일시정지하고,
  * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼(iOS·Web)은 녹음 없이 진행만 한다.
+ * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
  * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
  */
 class PracticeViewModel(
@@ -36,7 +37,9 @@ class PracticeViewModel(
     private val recorder: AudioRecorder? = null,
     private val micPermission: MicPermission? = null,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(PracticeUiState(solo = solo, settings = settingsStore.settings.value))
+    private val _uiState = MutableStateFlow(
+        PracticeUiState(solo = solo, settings = settingsStore.settings.value, inputMeasured = recorder?.measuresLevel == true),
+    )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
     private var stepJob: Job? = null
@@ -306,19 +309,24 @@ class PracticeViewModel(
         _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
     }
 
-    /** 녹음하는 동안 입력 크기를 보여 주고, 최대 길이(10분)에 닿으면 연주를 마친다. */
+    /** 녹음하는 동안 입력 크기와 무입력 시간을 반영하고, 최대 길이(10분)에 닿으면 연주를 마친다. */
     private fun watchRecording() {
         val recorder = recorder ?: return
         levelJob?.cancel()
         levelJob = viewModelScope.launch {
+            var measuredAt = recordingClock.elapsed()
             while (isActive) {
-                if (recordingClock.elapsed() >= RecordingSpec.MaxDuration) {
+                val elapsed = recordingClock.elapsed()
+                if (elapsed >= RecordingSpec.MaxDuration) {
                     stepJob?.cancel()
                     _uiState.update { it.endRecording() }
                     finishRecorder()
                     break
                 }
-                _uiState.update { it.copy(micLevel = recorder.level()) }
+                val level = recorder.level()
+                val sinceMs = (elapsed - measuredAt).inWholeMilliseconds.toDouble()
+                measuredAt = elapsed
+                _uiState.update { it.recordLevel(level, sinceMs) }
                 delay(LEVEL_INTERVAL_MS)
             }
         }
