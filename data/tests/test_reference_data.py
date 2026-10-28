@@ -112,7 +112,7 @@ class SongTableTests(unittest.TestCase):
             self.assertEqual(row["instrument"], "DANSO")
             self.assertEqual(row["default_bpm"], jangdans[row["jangdan"]]["default_bpm"], row["title"])
             self.assertIn(row["status"], {"DRAFT", "PUBLISHED", "HIDDEN"})
-            self.assertTrue(row["difficulty"] is None or 1 <= row["difficulty"] <= 5)
+            self.assertIn(row["difficulty"], range(1, 6), row["title"])  # songs.difficulty NOT NULL, 1~5
             # 채점 가능 곡은 사람이 확정한 정답 jgb가 annotations에 있어야 한다
             answers = list((DATA / "annotations/scores" / row["source"]).glob("*.jgb.json"))
             self.assertEqual(len(answers) == 1, row["is_scorable"], row["title"])
