@@ -81,7 +81,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     result = response.json()
     assert set(result) == DONE_KEYS
     assert result["status"] == "DONE"
-    assert result["modelVersion"] == "pyin-1"
+    assert result["modelVersion"] == "pyin-2"
     assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + 2 * i for i in range(len(NOTES))]
     assert all(set(n) == NOTE_KEYS for n in result["notes"])
     assert [n["verdict"] for n in result["notes"]] == ["CORRECT"] * len(NOTES)
@@ -160,18 +160,44 @@ def with_start_beats(*beats):
         with_start_beats(-1.0, 0.0, 1.0, 2.0),
         with_start_beats(0.0, 2.0, 1.0, 3.0),  # 음표 순서대로 늘지 않음
         with_start_beats(0.0, 1.0, 1.0, 2.0),  # 같은 시작 박
+        with_start_beats(0.0, 0.5, 1.5, 2.5),  # 앞 음(1박)이 끝나기 전에 시작
         {**body(), "notes": [{k: v for k, v in n.items() if k != "startBeat"} for n in body()["notes"]]},
     ],
-    ids=["no-notes", "unknown-unit", "file-url", "negative-start", "decreasing-start", "same-start", "missing-start"],
+    ids=["no-notes", "unknown-unit", "file-url", "negative-start", "decreasing-start", "same-start", "overlapping",
+         "missing-start"],
 )
 def test_rejects_requests_outside_contract(serve, request_body):
     assert serve(b"").post("/v1/analyses", json=request_body).status_code == 422
 
 
-def test_accepts_rest_gap_between_start_beats(serve, tmp_path):
-    """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 받기는 하되 채점은 아직 beats만 쓴다(S15P31E102-157)."""
-    response = serve(m4a(synth(NOTES), tmp_path)).post("/v1/analyses", json=with_start_beats(0.0, 1.0, 3.0, 4.0))
-    assert response.status_code == 200 and response.json()["status"] == "DONE"
+REST_STARTS = (0.0, 1.0, 3.0, 4.0)  # 2박째에 한 박 쉰다
+RESTED = [Note(n.semitone, n.beats, start_beat=b) for n, b in zip(NOTES, REST_STARTS)]
+
+
+def decoded(monkeypatch, audio):
+    """디코딩(test_audio.py에서 검사)을 건너뛰고 합성음을 녹음으로 쓴다. ffmpeg 없이 돈다."""
+    monkeypatch.setattr(api, "decode_recording", lambda _: (np.clip(audio, -1, 1) * 32767).astype(np.int16))
+    return b"recording"
+
+
+def test_rest_gap_is_scored_with_start_beats(serve, monkeypatch):
+    """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 쉼을 지켜 분 연주는 모두 맞고, idx는 요청 그대로다."""
+    response = serve(decoded(monkeypatch, synth(RESTED))).post("/v1/analyses", json=with_start_beats(*REST_STARTS))
+    result = response.json()
+    assert result["modelVersion"] == "pyin-2"
+    assert [(n["idx"], n["verdict"]) for n in result["notes"]] == [(FIRST_IDX + 2 * i, "CORRECT") for i in range(4)]
+
+
+def test_dtw_estimate_counts_rests(serve, monkeypatch):
+    """정답 길이는 beats 합(4박)이 아니라 첫 음부터 마지막 음 끝(5박)까지다."""
+    audio = synth(RESTED)
+    beat_frames, recording_frames = 60.0 / BPM / HOP_S, len(audio) / SR / HOP_S
+    monkeypatch.setattr(api, "MAX_DTW_BYTES", 4.5 * beat_frames * recording_frames * api.DTW_BYTES_PER_CELL)
+    called = []
+    monkeypatch.setattr(api, "pyin_f0", lambda *a, **k: called.append(1))
+    response = serve(decoded(monkeypatch, audio)).post("/v1/analyses", json=with_start_beats(*REST_STARTS))
+    assert response.status_code == 500
+    assert called == []
 
 
 def test_signed_url_is_not_logged(serve, caplog, tmp_path, monkeypatch):

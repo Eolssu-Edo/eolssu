@@ -6,4 +6,10 @@
         FROM user_social_accounts
         WHERE id = #{id}
     </select>
+    <select id="findByUserId" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.UserSocialAccountRow">
+        SELECT id, user_id, provider, provider_user_id, created_at
+        FROM user_social_accounts
+        WHERE user_id = #{userId}
+        ORDER BY created_at, id
+    </select>
 </mapper>

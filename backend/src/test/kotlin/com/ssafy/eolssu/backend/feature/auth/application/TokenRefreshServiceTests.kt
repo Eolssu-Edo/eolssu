@@ -67,6 +67,17 @@ class TokenRefreshServiceTests {
     }
 
     @Test
+    fun `a token revoked by password change sign out or withdrawal is only unauthenticated`() {
+        repository.statuses[7] = MemberStatus.ACTIVE
+        val active = stored("this-device")
+        for (reason in listOf("PASSWORD_CHANGED", "SIGN_OUT", "WITHDRAWN", "REUSE_DETECTED")) {
+            stored("old-$reason", revoked = reason)
+            assertEquals(TokenRefreshResult.Unauthenticated, service.refresh("old-$reason"))
+        }
+        assertNull(repository.tokens.getValue(active).revokeReason)
+    }
+
+    @Test
     fun `missing signing key is unavailable`() {
         repository.statuses[7] = MemberStatus.ACTIVE
         stored("old-token")
@@ -87,12 +98,13 @@ internal class MemoryTokenRefreshRepository : TokenRefreshRepository, RefreshTok
         tokens[id] = Stored(id, userId, tokenHash, expiresAt)
         return id
     }
+    override fun find(tokenHash: String) = findForUpdate(tokenHash)
     override fun findForUpdate(tokenHash: String) = tokens.values.firstOrNull { it.hash == tokenHash }?.let {
-        StoredRefreshToken(it.id, it.userId, it.expiresAt, it.revokeReason != null)
+        StoredRefreshToken(it.id, it.userId, it.expiresAt, it.revokeReason?.let(RevokeReason::valueOf))
     }
     override fun revoke(id: Long, reason: RevokeReason, now: Instant) { tokens.getValue(id).revokeReason = reason.name }
     override fun revokeAll(userId: Long, reason: RevokeReason, now: Instant) {
         tokens.values.filter { it.userId == userId && it.revokeReason == null }.forEach { it.revokeReason = reason.name }
     }
-    override fun memberStatus(userId: Long) = statuses[userId]
+    override fun memberStatusForUpdate(userId: Long) = statuses[userId]
 }
