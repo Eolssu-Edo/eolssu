@@ -26,7 +26,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 ## 정석 음원 제작
 
-[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 공통 악보 JSON을 MIDI와 WAV로 만듭니다. 설치·CAT 파일 준비·생성 명령은 해당 README를 따릅니다. JGB 직접 입력은 후속 변환기로 연결할 범위입니다.
+[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 JGB v1·v2의 선택한 단소 성부 또는 공통 악보 JSON을 MIDI와 AAC-LC M4A로 만듭니다. WAV는 검증용 선택 출력입니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
 
 의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
 
