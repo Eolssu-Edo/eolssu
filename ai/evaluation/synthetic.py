@@ -29,6 +29,7 @@ def synth(
 ):
     """음표를 이어 부는 합성음.
 
+    음표에 start_beat가 있으면 그 박에서 시작하고 음 사이는 비운다(쉼).
     shift: 음표별 반음 변경. delay: 음표별 늦게 시작할 초(음수면 일찍). drop: 비운 음표.
     noise_db: 전체 잡음의 신호 대비 크기(dB). vibrato: 음표별 (폭 센트, 빠르기 Hz[, 중심 이동 센트]).
     harmonics: 기본음부터의 배음 크기. gap: 음표마다 끝을 비우는 초(끊어 불기).
@@ -38,9 +39,13 @@ def synth(
     shift, delay, vibrato = shift or {}, delay or {}, vibrato or {}
     rng = np.random.default_rng(seed)
     beat = 60 / BPM
-    starts = np.concatenate([[0.0], np.cumsum([n.beats * beat for n in notes])])
-    t = np.arange(int(SR * (seconds if seconds is not None else starts[-1]))) / SR
-    onsets = starts[:-1] + [delay.get(i, 0.0) for i in range(len(notes))]
+    lengths = np.array([n.beats * beat for n in notes])
+    begins = np.concatenate([[0.0], np.cumsum(lengths)[:-1]])
+    if notes[0].start_beat is not None:  # 쉼이 있는 악보. 첫 음을 0초로 둔다
+        begins = np.array([(n.start_beat - notes[0].start_beat) * beat for n in notes])
+    ends = begins + lengths
+    t = np.arange(int(SR * (seconds if seconds is not None else ends[-1]))) / SR
+    onsets = begins + [delay.get(i, 0.0) for i in range(len(notes))]
     k = np.clip(np.searchsorted(onsets, t, side="right") - 1, 0, None)
 
     semis = np.array([n.semitone + shift.get(i, 0) for i, n in enumerate(notes)], dtype=float)
@@ -51,9 +56,11 @@ def synth(
     amp = np.ones_like(t)
     for i in range(len(notes)):
         if i in drop:
-            amp[(t >= starts[i]) & (t < starts[i + 1])] = 0.0
+            amp[(t >= begins[i]) & (t < ends[i])] = 0.0
         elif gap and i + 1 < len(notes):  # 다음 음이 실제로 시작하기 직전을 비운다
             amp[(t >= onsets[i + 1] - gap) & (t < onsets[i + 1])] = 0.0
+        if i + 1 < len(notes) and ends[i] < begins[i + 1]:  # 쉼: 이 음이 끝나고 다음 음이 실제로 시작할 때까지
+            amp[(t >= ends[i]) & (t < onsets[i + 1])] = 0.0
     amp = np.convolve(amp, np.ones(160) / 160, mode="same")  # 10ms 페이드로 끊김 잡음 제거
 
     phase = 2 * np.pi * np.cumsum(REF_HZ * 2 ** (pitch / 1200)) / SR

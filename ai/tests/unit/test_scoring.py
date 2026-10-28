@@ -101,3 +101,45 @@ def test_all_wrong_notes_are_pitch_errors_not_failure():
 def test_short_input_fails():
     result = run(synth(SCALE, seconds=1.0))
     assert (result.status, result.fail_reason) == ("FAILED", "TOO_SHORT")
+
+
+# 12박째와 15박째에 한 박씩 쉬는 연습 구간. 곡 중간에서 시작해 음 번호는 5부터다.
+RESTED = [
+    Note(s, 1, idx=5 + i, start_beat=b)
+    for i, (s, b) in enumerate(zip((0, 2, 5, 7, 5, 2), (10, 11, 13, 14, 16, 17)))
+]
+
+
+def score_rested(audio, notes=RESTED):
+    return score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+
+
+def test_rests_keep_expected_onsets_and_request_idx():
+    result = score_rested(synth(RESTED))
+    assert verdicts(result) == {}
+    assert [n.idx for n in result.notes] == [5, 6, 7, 8, 9, 10]
+
+
+def test_without_start_beat_notes_after_rest_look_early():
+    # 쉼을 빼고 이어 붙이면 쉼 뒤 음의 기대 시각이 한 박(0.5초) 이상 앞당겨진다.
+    plain = [Note(n.semitone, n.beats) for n in RESTED]
+    assert verdicts(score_rested(synth(RESTED), plain)) == {k: "TIMING" for k in (2, 3, 4, 5)}
+
+
+def test_late_note_after_rest_is_timing_error_with_request_idx():
+    assert verdicts(score_rested(synth(RESTED, delay={2: 0.15}))) == {7: "TIMING"}
+
+
+@pytest.mark.parametrize("delay", [-0.4, 0.2])
+def test_early_or_late_note_after_long_rest_is_timing_error(delay):
+    # 네 박 쉰 뒤의 음. 쉼에 소리가 없는 것을 맞다고 보지 않으면 일찍 분 음은 정답, 늦게 분 음은 누락이 된다.
+    notes = [Note(s, 1, start_beat=b) for s, b in zip((0, 2, 5, 7), (0, 1, 6, 7))]
+    assert verdicts(score_rested(synth(notes, delay={2: delay}), notes)) == {2: "TIMING"}
+
+
+def test_mixed_or_overlapping_start_beats_are_rejected():
+    f0 = f0_frames(SCALE)
+    with pytest.raises(ValueError):
+        score(f0, [Note(0, 1, start_beat=0), Note(2, 1)], BPM, REF_HZ)
+    with pytest.raises(ValueError):
+        score(f0, [Note(0, 2, start_beat=0), Note(2, 1, start_beat=1)], BPM, REF_HZ)

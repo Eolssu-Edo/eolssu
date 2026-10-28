@@ -19,6 +19,8 @@ class Note:
     semitone: int  # 기준음에서 몇 반음 위인지
     beats: float
     sigimsae: bool = False  # True면 음정 판정에서 제외
+    idx: int | None = None  # 요청의 음 번호. 없으면 목록 순번
+    start_beat: float | None = None  # 곡 처음부터 센 시작 박. 없으면 앞 음에 바로 이어 붙인다
 
 
 @dataclass(frozen=True)
@@ -33,7 +35,7 @@ class Tolerance:
 
 @dataclass
 class NoteResult:
-    idx: int  # 정답 음표 순번
+    idx: int  # 요청의 음 번호(Note.idx). 없으면 정답 음표 순번
     verdict: str  # CORRECT, PITCH, TIMING, MISSED
     pitch_error_cent: float | None = None
     onset_error_ms: float | None = None
@@ -116,6 +118,14 @@ def score(
     beat_s = 60.0 / bpm
     lengths = np.array([n.beats for n in notes]) * beat_s
     starts = np.concatenate([[0.0], np.cumsum(lengths)[:-1]])
+    given = [n.start_beat is not None for n in notes]
+    if any(given):
+        if not all(given):
+            raise ValueError("start_beat는 모든 음표에 있거나 모두 없어야 한다")
+        # 녹음은 첫 음에서 시작하므로 첫 음 시작 박을 0으로 본다. 음 사이 빈 시간은 쉼이다.
+        starts = (np.array([n.start_beat for n in notes]) - notes[0].start_beat) * beat_s
+        if np.any(starts[1:] < starts[:-1] + lengths[:-1] - 1e-9):
+            raise ValueError("음표가 앞 음표와 겹치거나 순서가 거꾸로다")
     expected_s = starts[-1] + lengths[-1]
 
     if np.all(np.isnan(f0)):
@@ -124,12 +134,16 @@ def score(
         return ScoreResult("FAILED", "TOO_SHORT")
 
     detected = 1200.0 * np.log2(f0 / ref_hz)
-    frame_note = np.searchsorted(starts, np.arange(round(expected_s / HOP_S)) * HOP_S, side="right") - 1
-    expected = 100.0 * np.array([n.semitone for n in notes])[frame_note]
+    frame_t = np.arange(round(expected_s / HOP_S)) * HOP_S
+    frame_note = np.searchsorted(starts, frame_t, side="right") - 1
+    rest = frame_t >= starts[frame_note] + lengths[frame_note] - 1e-9
+    frame_note[rest] = -1  # 쉼 프레임은 어느 음표에도 속하지 않는다
+    expected = np.where(rest, np.nan, 100.0 * np.array([n.semitone for n in notes])[frame_note])
 
     # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 1분을 넘는 녹음은 band 제약을 넣는다.
     cost = np.abs(expected[:, None] - detected[None, :])
     cost[np.isnan(cost)] = _UNVOICED_COST
+    cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0  # 쉼에 소리 없음은 맞음
     _, path = librosa.sequence.dtw(
         C=cost,
         step_sizes_sigma=np.array([[1, 1], [0, 1], [1, 0]]),
@@ -157,7 +171,7 @@ def score(
     onset_tol_s = tol.onset_beat * beat_s
     for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
-            results.append(NoteResult(k, "MISSED"))
+            results.append(NoteResult(k if n.idx is None else n.idx, "MISSED"))
             timing_c.append(0.0)
             duration_c.append(0.0)
             if not n.sigimsae:
@@ -194,7 +208,7 @@ def score(
             verdict = "TIMING"
         else:
             verdict = "CORRECT"
-        results.append(NoteResult(k, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
+        results.append(NoteResult(k if n.idx is None else n.idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
         timing_c.append(_credit(onset_err, onset_tol_s))
