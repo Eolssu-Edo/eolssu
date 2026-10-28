@@ -9,7 +9,7 @@ import jsonschema
 
 DATA = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DATA / "src/scores"))
-from score_data import SCHEMA_PATH, build_events, check, convert, convert_answer, melody_of, read_units
+from score_data import SCHEMA_PATH, build_events, check, convert, convert_answer, dumps, melody_of, read_units
 
 FIXTURES = DATA / "tests/fixtures/jgb"
 # 두 고정 파일의 선율: 1각 = 중 | - - 임 | 쉼, 2각 = 청황< | (빈 정간) | 무
@@ -165,6 +165,11 @@ class AnswerTests(unittest.TestCase):
         for source_id in ANSWERS:
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
+
+    def test_arirang_sample_matches_the_current_conversion(self):
+        # FE·AI·BE 검증용 샘플. 정답·기준 데이터·변환기를 바꾸면 이 샘플도 다시 만들어 함께 올린다.
+        sample = DATA / "tests/fixtures/scores/ngc-standard-2022-p173.score.json"
+        self.assertEqual(dumps(convert_answer("ngc-standard-2022-p173")), sample.read_text(encoding="utf-8"))
 
     def test_check_reports_each_broken_invariant(self):
         broken = {

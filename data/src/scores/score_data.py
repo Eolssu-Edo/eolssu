@@ -1,5 +1,9 @@
 """사람이 확정한 우물사이 문서(.jgb.json)를 공통 악보 데이터로 바꾼다.
 
+실행: python data/src/scores/score_data.py <원본 ID> [...] [--out data/processed/scores]
+채점 정답(data/annotations/scores/<원본 ID>/)을 변환해 <out>/<원본 ID>/score.json에 쓴다.
+스키마나 불변식 검사가 실패하면 쓰지 않고 멈춘다.
+
 정간 읽기: 선율의 한 줄이 각, `|`가 정간 경계다. 정간 안에서 띄어 쓴 낱말이 위→아래 줄이고,
 한 줄에 이어 쓴 음 단위는 그 줄을 왼→오른쪽으로 똑같이 나눈다(우물사이·검토 화면과 같은 문법).
 시간은 곡 장단의 bpm_unit 박으로 세며, 계산 중에는 반올림이 없도록 Fraction으로 둔다.
@@ -180,6 +184,11 @@ def check(result, data=DATA):
     return problems
 
 
+def dumps(result):
+    """결과를 쓰는 유일한 방법. 같은 결과는 항상 같은 글자열이 된다."""
+    return json.dumps(result, ensure_ascii=False, indent=1) + "\n"
+
+
 def _rows(data, name):
     return json.loads((data / "reference" / name).read_text(encoding="utf-8"))["rows"]
 
@@ -196,3 +205,27 @@ def _parse_word(word, cell_id):
         out.append((symbol, bool(m.group(2)), tuple(SIGIMSAE.findall(m.group(3)))))
         i = m.end()
     return out
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    import jsonschema
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("source_ids", nargs="+", help="채점 정답의 원본 ID(data/annotations/scores/<원본 ID>)")
+    parser.add_argument("--out", type=Path, default=DATA / "processed/scores")
+    args = parser.parse_args()
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    for source_id in args.source_ids:
+        result = convert_answer(source_id)
+        jsonschema.validate(result, schema)
+        problems = check(result)
+        if problems:
+            sys.exit(f"{source_id}: " + "; ".join(problems))
+        path = args.out / source_id / "score.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(dumps(result), encoding="utf-8", newline="\n")
+        notes = sum(e["kind"] == "NOTE" for e in result["events"])
+        print(f"{path}  이벤트 {len(result['events'])}개(음 {notes}), 박당 {result['music']['ticksPerBeat']}틱")
