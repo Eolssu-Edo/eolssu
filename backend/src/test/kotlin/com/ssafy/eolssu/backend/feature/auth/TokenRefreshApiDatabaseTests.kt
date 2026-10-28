@@ -88,6 +88,25 @@ class TokenRefreshApiDatabaseTests {
         assertEquals(listOf<String?>(null), reasons())
     }
 
+    @Test
+    fun `sign out requires the access cookie revokes this device and clears cookies`() {
+        // access_token 만료는 실제 시각으로 검증하므로 발급도 실제 시각으로 한다.
+        clock.set(Instant.now())
+        val login = signIn()
+        val access = cookie(login, "access_token")
+        val refresh = cookie(login, "refresh_token")
+        assertError(post("/api/auth/sign-out", "refresh_token=$refresh"), 401, "UNAUTHENTICATED")
+
+        val signedOut = post("/api/auth/sign-out", "access_token=$access; refresh_token=$refresh")
+        assertEquals(200, signedOut.statusCode(), signedOut.body())
+        assertTrue(tree(signedOut).path("result").path("signedOut").asBoolean())
+        val cleared = signedOut.headers().allValues("Set-Cookie")
+        assertEquals(setOf("access_token", "refresh_token"), cleared.map { it.substringBefore('=') }.toSet())
+        assertTrue(cleared.all { it.contains("Max-Age=0") })
+        assertEquals(listOf("SIGN_OUT"), reasons())
+        assertError(refresh(refresh), 401, "UNAUTHENTICATED")
+    }
+
     private fun reasons(): List<String?> = jdbc.query("SELECT revoke_reason FROM refresh_tokens WHERE user_id = ? ORDER BY id", { rs, _ -> rs.getString(1) }, userId)
 
     private fun signIn(): HttpResponse<String> {

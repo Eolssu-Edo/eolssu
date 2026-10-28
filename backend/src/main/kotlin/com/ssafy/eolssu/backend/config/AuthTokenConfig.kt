@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.auth.api.AuthCookies
 import com.ssafy.eolssu.backend.feature.auth.application.AuthTokenIssuer
+import com.ssafy.eolssu.backend.feature.auth.application.SignOutService
 import com.ssafy.eolssu.backend.feature.auth.application.TokenRefreshService
 import com.ssafy.eolssu.backend.feature.auth.domain.*
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.MyBatisRefreshTokenRepository
@@ -33,6 +34,9 @@ class AuthTokenConfig {
     @Bean
     fun tokenRefreshService(repository: TokenRefreshRepository, tokenIssuer: AuthTokenIssuer, secrets: VerificationSecrets, clock: Clock) =
         TokenRefreshService(repository, tokenIssuer, secrets, clock)
+
+    @Bean
+    fun signOutService(repository: TokenRefreshRepository, secrets: VerificationSecrets, clock: Clock) = SignOutService(repository, secrets, clock)
 
     // 로컬 HTTP 개발에서만 AUTH_COOKIE_SECURE=false로 끈다.
     @Bean
