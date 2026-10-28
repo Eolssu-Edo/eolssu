@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.auth
 
 import com.ssafy.eolssu.backend.feature.auth.domain.*
+import com.zaxxer.hikari.HikariDataSource
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -180,6 +181,29 @@ class EmailVerificationApiDatabaseTests {
             confirmGate.countDown()
             assertEquals(listOf(200, 410), confirmations.map { it.get(20, TimeUnit.SECONDS).statusCode() }.sorted())
         }
+    }
+
+    @Test
+    fun `requests waiting for the verification lock do not hold pooled connections`() {
+        val pool = jdbc.dataSource as HikariDataSource
+        val lock = "SHA2(CONCAT(DATABASE(), ':auth-email-verifications'), 256)"
+        var peak = 0
+        pool.connection.use { holder ->
+            holder.createStatement().use { it.executeQuery("SELECT GET_LOCK($lock, 0)") }
+            Executors.newFixedThreadPool(12).use { requests ->
+                val sends = (1..12).map { n -> requests.submit(Callable { send("waiting$n@auth143.test") }) }
+                try {
+                    // 모든 요청이 잠금 앞에 도착할 시간 동안 풀 사용량의 최댓값을 본다. 잠금을 잡은 연결 1개는 뺀다.
+                    val deadline = System.nanoTime() + Duration.ofMillis(1500).toNanos()
+                    while (System.nanoTime() < deadline) peak = maxOf(peak, pool.hikariPoolMXBean.activeConnections - 1)
+                } finally {
+                    // 이름 잠금은 연결 세션에 남는다. 풀로 돌려보내기 전에 반드시 푼다.
+                    holder.createStatement().use { it.executeQuery("SELECT RELEASE_LOCK($lock)") }
+                    sends.forEach { it.get(30, TimeUnit.SECONDS) }
+                }
+            }
+        }
+        assertTrue(peak <= 2, "waiting requests held $peak pooled connections")
     }
 
     @Test

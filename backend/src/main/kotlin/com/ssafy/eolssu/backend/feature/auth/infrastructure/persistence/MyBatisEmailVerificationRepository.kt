@@ -4,6 +4,8 @@ import com.ssafy.eolssu.backend.feature.auth.domain.*
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DataSourceUtils
 import org.springframework.transaction.PlatformTransactionManager
@@ -21,7 +23,20 @@ class MyBatisEmailVerificationRepository(
         propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
     }
 
-    override fun <T : Any> withVerificationTransaction(action: () -> T): T = checkNotNull(transaction.execute {
+    // 같은 서버 안에서는 DB 연결을 잡기 전에 먼저 줄 세운다. 기다리는 요청이 연결 풀을 차지하면 다른 DB API까지 멈춘다.
+    // 아래 DB 이름 잠금은 서버가 여러 대일 때의 직렬화를 맡는다.
+    private val localQueue = ReentrantLock(true)
+
+    override fun <T : Any> withVerificationTransaction(action: () -> T): T {
+        if (!localQueue.tryLock(5, TimeUnit.SECONDS)) throw VerificationStorageBusy()
+        try {
+            return inLockedTransaction(action)
+        } finally {
+            localQueue.unlock()
+        }
+    }
+
+    private fun <T : Any> inLockedTransaction(action: () -> T): T = checkNotNull(transaction.execute {
         // 하루 100통 안쪽의 1차 규모: DB별 한 잠금으로 빈 이메일의 첫 발송도 직렬화한다.
         // 이메일 collation과 잠금 키가 달라 같은 DB 식별자의 제한을 우회하는 경우도 막는다.
         val lock = checkNotNull(jdbc.queryForObject("SELECT SHA2(CONCAT(DATABASE(), ':auth-email-verifications'), 256)", String::class.java))
