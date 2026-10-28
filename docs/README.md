@@ -93,7 +93,6 @@
 - [S15P31E102-75 HTTP 요청의 HTTPS 자동 전환](plans/S15P31E102-75.md)
 - [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
-- [S15P31E102-108 소금 악보 해석·음원 생성 파이프라인 구축](plans/S15P31E102-108.md)
 - [S15P31E102-112 운영 DB·설정 백업과 복구 검증](plans/S15P31E102-112.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-133 edo2 Mattermost 서버 점검](plans/S15P31E102-133.md)
