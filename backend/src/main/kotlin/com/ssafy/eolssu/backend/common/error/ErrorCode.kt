@@ -18,6 +18,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "같은 요청 키로 다른 내용이 이미 저장됐어요"),
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일이에요. 로그인해 주세요. 탈퇴 대기 중이면 로그인 시 탈퇴가 취소돼요"),
     TERMS_AGREEMENT_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "필수 약관에 동의해 주세요"),
+    CURRENT_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "현재 비밀번호가 맞지 않아요"),
     UNPROCESSABLE_INPUT(HttpStatus.UNPROCESSABLE_CONTENT, "요청한 내용으로는 처리할 수 없어요"),
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "요청 횟수를 초과했어요. 잠시 후 다시 시도해 주세요"),
     SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 처리할 수 없어요. 잠시 후 다시 시도해 주세요"),
