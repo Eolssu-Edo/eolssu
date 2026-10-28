@@ -26,7 +26,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 ## 정석 음원 제작
 
-[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 공통 악보 JSON을 MIDI와 WAV로 만듭니다. 설치·CAT 파일 준비·생성 명령은 해당 README를 따릅니다. JGB 직접 입력은 후속 변환기로 연결할 범위입니다.
+[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 JGB v1·v2의 선택한 단소 성부 또는 공통 악보 JSON을 MIDI와 AAC-LC M4A로 만듭니다. WAV는 검증용 선택 출력입니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
 
 의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
 
@@ -71,7 +71,7 @@ data/
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── reference/               # 서비스 기준 데이터: 율명·악기 음역·장단·곡 정보. 백엔드가 DB에 넣는다.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
-│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
+│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT PCM → M4A(기본)/WAV(선택).
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.
