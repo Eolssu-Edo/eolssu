@@ -34,6 +34,15 @@ services:
     networks: [runtime]
     restart: unless-stopped
 
+  node-exporter: # 서버 CPU·메모리·디스크. 서버 루트를 읽기 전용으로만 보고 포트는 열지 않는다
+    image: prom/node-exporter:v1.9.1
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
+    networks: [runtime]
+    restart: unless-stopped
+
 networks:
   runtime: # 운영 스택의 내부 네트워크. MySQL을 서비스 이름 mysql로 찾는다
     external: true
