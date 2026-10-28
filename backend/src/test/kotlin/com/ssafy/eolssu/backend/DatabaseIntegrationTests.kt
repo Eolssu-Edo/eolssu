@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.backend
 
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
@@ -56,6 +58,9 @@ import java.sql.SQLException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -781,6 +786,116 @@ class DatabaseIntegrationTests {
             jdbc.update("DELETE FROM jangdans WHERE id = 901")
             jdbc.update("DELETE FROM instruments WHERE id = 901")
             jdbc.update("DELETE FROM pitches WHERE id = 901")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `starts a retry only for the owner's TIMEOUT or SERVER_ERROR session with a recording`() {
+        val failedAt = LocalDateTime.parse("2026-10-28T01:00:00")
+        for ((id, status, failReason, attempt, recording) in listOf(
+            Retry(41, "FAILED", "TIMEOUT", 1, true),
+            Retry(42, "FAILED", "SERVER_ERROR", 2, true),
+            Retry(43, "FAILED", "NO_SOUND", 1, true),
+            Retry(44, "FAILED", "TOO_SHORT", 1, true),
+            Retry(45, "FAILED", "DECODE_ERROR", 1, true),
+            Retry(46, "FAILED", "UPLOAD_TIMEOUT", 0, false),
+            Retry(47, "PENDING", null, 1, true),
+            Retry(48, "FAILED", "TIMEOUT", 1, false),
+            Retry(49, "DONE", null, 1, true),
+            // 실제로는 녹음이 없지만, 녹음 조건과 상관없이 실패 코드만으로 거절하는지 보려고 녹음이 있는 행을 둔다
+            Retry(50, "FAILED", "UPLOAD_TIMEOUT", 1, true),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
+                    "analysis_attempt, analysis_started_at, started_at, ended_at) VALUES (?, 1, 1, 60, 'JEONGGAN', 0, ?, ?, ?, ?, ?, ?, ?)",
+                id, if (recording) "recordings/$id/a.m4a" else null, status, failReason, attempt,
+                if (attempt == 0) null else failedAt, failedAt.minusMinutes(1), failedAt,
+            )
+        }
+        val repository = mapper<AnalysisRetryRepository>()
+        val retriedAt = LocalDateTime.parse("2026-10-28T02:00:00.123456")
+
+        assertEquals(AnalysisState("FAILED", "TIMEOUT", 1), repository.findState(41, 1))
+        assertNull(repository.findState(41, 2)) // 다른 회원의 세션
+        assertFalse(repository.startRetry(41, 2, 1, retriedAt))
+        assertFalse(repository.startRetry(41, 1, 0, retriedAt)) // 읽은 뒤 다른 시도가 시작·실패했다
+        assertTrue(repository.startRetry(41, 1, 1, retriedAt))
+        assertEquals(AnalysisState("PENDING", null, 2), repository.findState(41, 1))
+        assertEquals(retriedAt, jdbc.queryForObject("SELECT analysis_started_at FROM practice_sessions WHERE id = 41", LocalDateTime::class.java))
+        assertFalse(repository.startRetry(41, 1, 2, retriedAt)) // 이미 PENDING
+
+        // 분석에 넘기지 못한 시도는 SERVER_ERROR로 끝내 다시 시도할 수 있게 한다. 다른 시도·시작 시각이면 바꾸지 않는다.
+        assertFalse(repository.failStart(41, 1, retriedAt))
+        assertFalse(repository.failStart(41, 2, retriedAt.plusNanos(1_000)))
+        assertTrue(repository.failStart(41, 2, retriedAt))
+        assertEquals(AnalysisState("FAILED", "SERVER_ERROR", 2), repository.findState(41, 1))
+        assertFalse(repository.failStart(41, 2, retriedAt)) // 이미 끝났다
+
+        assertTrue(repository.startRetry(42, 1, 2, retriedAt))
+        assertEquals(AnalysisState("PENDING", null, 3), repository.findState(42, 1))
+
+        for (id in 43L..50L) {
+            val before = assertNotNull(repository.findState(id, 1))
+            assertFalse(repository.startRetry(id, 1, before.attempt, retriedAt), "session $id")
+            assertEquals(before, repository.findState(id, 1), "session $id")
+        }
+    }
+
+    private data class Retry(val id: Long, val status: String, val failReason: String?, val attempt: Int, val recording: Boolean)
+
+    // 동시 요청은 서로 다른 연결이 보도록 테스트 트랜잭션 밖에서 커밋한다. 넣은 행은 끝에서 지운다.
+    @Test
+    fun `starts only one retry when two requests arrive together`() {
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, '황', 0, '黃', '황', 0)")
+        jdbc.update(
+            "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
+                "VALUES (902, 'RETRY_TEST', '시험', 902, 902, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO jangdans (id, name, pattern, default_bpm, bpm_unit, source, created_at, updated_at) " +
+                "VALUES (902, '시험', '{}', 60, 'JEONGGAN', '시험', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO users (id, email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at) " +
+                "VALUES (902, 'retry@example.test', 'hash', '시험', 902, 'HANJA', 'ACTIVE', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
+                "VALUES (902, 902, 902, '시험', 1, 60, '{}', 1, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
+                "analysis_attempt, analysis_started_at, started_at, ended_at) " +
+                "VALUES (902, 902, 902, 60, 'JEONGGAN', 0, 'recordings/902/a.m4a', 'FAILED', 'TIMEOUT', 1, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val repository = mapper<AnalysisRetryRepository>()
+            val ready = CountDownLatch(2)
+            val go = CountDownLatch(1)
+            val retriedAt = LocalDateTime.parse("2026-10-28T02:00:00")
+            val results = List(2) {
+                pool.submit<Boolean> {
+                    ready.countDown()
+                    go.await()
+                    repository.startRetry(902, 902, 1, retriedAt)
+                }
+            }
+            assertTrue(ready.await(10, TimeUnit.SECONDS))
+            go.countDown()
+
+            assertEquals(listOf(false, true), results.map { it.get(10, TimeUnit.SECONDS) }.sorted())
+            assertEquals(AnalysisState("PENDING", null, 2), repository.findState(902, 902))
+        } finally {
+            pool.shutdownNow()
+            jdbc.update("DELETE FROM practice_sessions WHERE id = 902")
+            jdbc.update("DELETE FROM songs WHERE id = 902")
+            jdbc.update("DELETE FROM users WHERE id = 902")
+            jdbc.update("DELETE FROM jangdans WHERE id = 902")
+            jdbc.update("DELETE FROM instruments WHERE id = 902")
+            jdbc.update("DELETE FROM pitches WHERE id = 902")
         }
     }
 

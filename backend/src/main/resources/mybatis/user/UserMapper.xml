@@ -6,4 +6,30 @@
         FROM users
         WHERE id = #{id}
     </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at)
+        VALUES (#{email}, #{passwordHash}, #{nickname}, #{instrumentId}, #{notationMode}, 'ACTIVE', #{createdAt}, #{createdAt})
+    </insert>
+    <!-- users.email 콜레이션(utf8mb4_0900_ai_ci)의 정렬 키. 이 콜레이션이 같다고 보는 이메일은 같은 값이다. -->
+    <select id="emailSortKey" resultType="string">
+        SELECT HEX(WEIGHT_STRING(CONVERT(#{email} USING utf8mb4) COLLATE utf8mb4_0900_ai_ci))
+    </select>
+    <select id="findSignInMember" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        FROM users
+        WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
+    </select>
+    <select id="findSignInMemberForUpdate" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        FROM users
+        WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
+        FOR UPDATE
+    </select>
+    <update id="cancelWithdrawal">
+        UPDATE users SET status = 'ACTIVE', withdrawal_requested_at = NULL, purge_scheduled_at = NULL, updated_at = #{now}
+        WHERE id = #{id} AND status = 'WITHDRAWAL_PENDING'
+    </update>
+    <update id="recordLogin">
+        UPDATE users SET last_login_at = #{now}, updated_at = #{now} WHERE id = #{id}
+    </update>
 </mapper>

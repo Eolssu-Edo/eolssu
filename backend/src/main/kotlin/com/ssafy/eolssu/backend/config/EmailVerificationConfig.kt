@@ -3,6 +3,9 @@ package com.ssafy.eolssu.backend.config
 import com.ssafy.eolssu.backend.feature.auth.application.EmailVerificationService
 import com.ssafy.eolssu.backend.feature.auth.domain.*
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.mail.InMemoryVerificationMailSender
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.mail.SmtpMailTransport
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.mail.SmtpVerificationMailSender
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.mail.VerificationMailProperties
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.MyBatisEmailVerificationRepository
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.EmailVerificationSecrets
@@ -26,13 +29,21 @@ class EmailVerificationConfig {
         return EmailVerificationSecrets(key)
     }
 
+    // smtp(기본): AUTH_MAIL_HOST·USERNAME·PASSWORD가 모두 있으면 실제 발송, 하나라도 없으면 발송만 거절한다.
+    // memory: 로컬 개발용 메모리 대역. unavailable: 항상 발송 거절.
     @Bean
-    fun verificationMailSender(@Value("\${eolssu.auth.mail-mode:unavailable}") mode: String): VerificationMailSender = when (mode) {
+    fun verificationMailSender(
+        @Value("\${eolssu.auth.mail-mode:smtp}") mode: String,
+        mail: VerificationMailProperties,
+    ): VerificationMailSender = when (mode) {
+        "smtp" -> SmtpMailTransport.create(mail)?.let { SmtpVerificationMailSender(it, SmtpMailTransport.sender(mail)) } ?: refusingMailSender()
         "memory" -> InMemoryVerificationMailSender()
-        "unavailable" -> object : VerificationMailSender {
-            override fun send(email: String, purpose: VerificationPurpose, code: String): Unit = throw VerificationMailUnavailable()
-        }
-        else -> throw IllegalArgumentException("AUTH_MAIL_MODE must be unavailable or memory")
+        "unavailable" -> refusingMailSender()
+        else -> throw IllegalArgumentException("AUTH_MAIL_MODE must be smtp, memory or unavailable")
+    }
+
+    private fun refusingMailSender() = object : VerificationMailSender {
+        override fun send(email: String, purpose: VerificationPurpose, code: String): Unit = throw VerificationMailUnavailable()
     }
 
     @Bean
