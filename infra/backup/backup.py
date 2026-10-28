@@ -184,9 +184,9 @@ def dump_db(container=MYSQL, password=None, data_only=False):
     if password is None:
         return command(['docker', 'exec', container, 'sh', '-c',
                         'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -uroot "$@"', 'sh',
-                        *flags, '--databases', 'eolssu', 'metabase'])
+                        *flags, '--databases', 'eolssu'])
     return command(['docker', 'exec', '-e', 'MYSQL_PWD', container, 'mysqldump', '-uroot', *flags,
-                    '--databases', 'eolssu', 'metabase'], env=dict(os.environ, MYSQL_PWD=password))
+                    '--databases', 'eolssu'], env=dict(os.environ, MYSQL_PWD=password))
 
 def environment(path):
     return dict(line.split('=', 1) for line in path.read_text().splitlines()
@@ -208,7 +208,7 @@ def pack_bundle(kind, directory):
         sql = dump_db(); p = generated / 'dump.sql'; p.write_bytes(sql); add(p, 'dump.sql')
         manifest['data'] = data_fingerprint(sql.decode())
         manifest['mysql_version'] = mysql_query('SELECT @@version').strip()
-        manifest['schema_objects'] = mysql_query("SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN ('eolssu','metabase') ORDER BY 1,2").splitlines()
+        manifest['schema_objects'] = mysql_query("SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'eolssu' ORDER BY 1,2").splitlines()
         accounts = []
         for row in mysql_query("SELECT User,Host FROM mysql.user WHERE User NOT IN ('root') AND User NOT LIKE 'mysql.%' ORDER BY 1,2").splitlines():
             user, host = row.split('\t'); ident = "'" + user.replace("'", "''") + "'@'" + host.replace("'", "''") + "'"
@@ -416,7 +416,7 @@ def restore_test():
             import_sql(sql)
             report['phase'] = 'data-comparison'
             truth(mysql_query('SELECT @@version', db, password).strip() == manifests['db']['mysql_version'])
-            objects = mysql_query("SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA IN ('eolssu','metabase') ORDER BY 1,2", db, password).splitlines()
+            objects = mysql_query("SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'eolssu' ORDER BY 1,2", db, password).splitlines()
             truth(objects == manifests['db']['schema_objects'])
             tables = [row.split('\t')[0] + '.' + row.split('\t')[1] for row in objects if row.endswith('BASE TABLE')]
             actual = data_fingerprint(dump_db(db, password, True).decode(), tables)
