@@ -58,6 +58,7 @@
 ## 도메인 조사 기록
 
 - [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
+- [논문·공식 자료와 설계 결정의 근거 표](knowledge/domain/design-evidence-map.md)
 
 ## 데이터 조사·검증 기록
 
