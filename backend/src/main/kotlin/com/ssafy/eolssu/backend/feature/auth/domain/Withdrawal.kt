@@ -27,3 +27,13 @@ interface WithdrawalRepository {
     /** 이 회원의 쓸 수 있는 리프레시 토큰을 모두 WITHDRAWN으로 폐기한다. */
     fun revokeAllRefreshTokens(userId: Long, now: Instant)
 }
+
+/** 탈퇴 일괄 삭제 저장소. 삭제 순서는 저장소 DB 스키마 계약 '탈퇴 일괄 삭제 대상'을 따른다. */
+interface WithdrawalPurgeRepository {
+    /** 삭제 예정 시각이 지난 탈퇴 대기 회원 ID를 afterUserId 다음부터 오름차순으로 limit개. */
+    fun dueMembers(now: Instant, afterUserId: Long, limit: Int): List<Long>
+    /** 이 회원 연습 세션의 녹음 원본 키. */
+    fun recordingKeys(userId: Long): List<String>
+    /** 한 트랜잭션으로 회원 데이터를 지우고 개인정보를 비운다. 그 사이 탈퇴를 취소했거나 이미 지웠으면 false. */
+    fun purge(userId: Long, now: Instant): Boolean
+}
