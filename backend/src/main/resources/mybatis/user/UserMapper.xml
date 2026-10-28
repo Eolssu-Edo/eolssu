@@ -45,6 +45,11 @@
         WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
         FOR UPDATE
     </select>
+    <update id="markWithdrawalPending">
+        UPDATE users
+        SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = #{requestedAt}, purge_scheduled_at = #{purgeAt}, updated_at = #{requestedAt}
+        WHERE id = #{id} AND status = 'ACTIVE'
+    </update>
     <update id="cancelWithdrawal">
         UPDATE users SET status = 'ACTIVE', withdrawal_requested_at = NULL, purge_scheduled_at = NULL, updated_at = #{now}
         WHERE id = #{id} AND status = 'WITHDRAWAL_PENDING'
