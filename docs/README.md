@@ -44,6 +44,7 @@
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
@@ -76,6 +77,8 @@
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
 
 ## COCO 산출물
+
+- [S15P31E102-112 운영 DB·설정 백업과 복구 검증](plans/S15P31E102-112.md)
 
 - [S15P31E102-196 채점 품질 통계 대시보드 스펙](specs/scoring-quality-dashboard.md)
 - [S15P31E102-76 Jenkins 컨테이너 전환과 기존 빌드·배포 보존 검증](plans/S15P31E102-76.md)
