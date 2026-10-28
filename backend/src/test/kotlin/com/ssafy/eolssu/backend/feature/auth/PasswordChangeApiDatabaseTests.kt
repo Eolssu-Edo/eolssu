@@ -116,6 +116,7 @@ class PasswordChangeApiDatabaseTests {
             val otherDevice = signIn(passwords[round % 2])
             val body = """{"currentPassword":"${passwords[round % 2]}","newPassword":"${passwords[(round + 1) % 2]}"}"""
             // 비밀번호 확인(Argon2)이 끝나 트랜잭션에 들어가는 시점과 재발급이 겹치도록 재발급을 조금씩 늦춘다.
+            // 겹침은 기계 속도에 달린 확률적 재현이다(고치기 전 코드에서 8회차에 교착 500 재현). 고친 뒤에는 users 잠금으로 줄을 서 거짓 실패가 없다.
             val change = java.util.concurrent.CompletableFuture.supplyAsync { patch(thisDevice.cookieHeader(), body).statusCode() }
             Thread.sleep((round % 10) * 10L)
             val refreshed = refresh(otherDevice.refresh).statusCode()

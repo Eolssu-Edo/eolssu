@@ -54,7 +54,7 @@ class MyInfoController(private val service: MyInfoService) {
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
 
-    // 토큰은 유효하지만 회원 행이 없거나 ACTIVE가 아니면 다시 로그인하게 401이다(GRO-04와 같음).
+    // 토큰은 유효하지만 회원 행이 없거나 ACTIVE가 아니면 다시 로그인하게 401이다(회원 행이 없을 때 401은 GRO-04와 같음).
     private fun memberUnavailable() = error(ErrorCode.UNAUTHENTICATED)
 
     private fun Jwt.userId() = requireNotNull(subject).toLong()
