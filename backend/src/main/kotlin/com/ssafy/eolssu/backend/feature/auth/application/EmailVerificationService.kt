@@ -73,7 +73,8 @@ class EmailVerificationService(
                     try {
                         mail.send(normalized, purpose, code)
                     } catch (failure: VerificationMailUnavailable) {
-                        if (purpose != VerificationPurpose.PASSWORD_RESET) throw failure
+                        // 가입만 발송 장애를 알린다. 재설정·계정 연결은 장애에서도 같은 응답으로 등록 여부를 숨긴다.
+                        if (purpose == VerificationPurpose.SIGN_UP) throw failure
                         repository.replaceUndeliveredCodeHash(id, secrets.hashCode(normalized, purpose, secrets.generateToken()))
                         deliveryFailed = true
                     }

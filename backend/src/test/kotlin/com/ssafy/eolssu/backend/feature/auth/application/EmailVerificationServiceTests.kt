@@ -96,6 +96,16 @@ class EmailVerificationServiceTests {
     }
 
     @Test
+    fun `account merge hides account existence even when mail delivery fails`() {
+        val failing = object : VerificationMailSender {
+            override fun send(email: String, purpose: VerificationPurpose, code: String): Unit = throw VerificationMailUnavailable()
+        }
+        repository.members.add("member@example.com")
+        assertIs<SendVerificationResult.Accepted>(service(failing).send("member@example.com", VerificationPurpose.ACCOUNT_MERGE))
+        assertIs<SendVerificationResult.Accepted>(service(failing).send("absent@example.com", VerificationPurpose.ACCOUNT_MERGE))
+    }
+
+    @Test
     fun `successful confirmation issues one 30 minute token and stores only its hash`() {
         val sent = assertIs<SendVerificationResult.Accepted>(service().send("learner@example.com", VerificationPurpose.SIGN_UP))
         clock = Clock.fixed(now.plusSeconds(20), ZoneOffset.UTC)

@@ -22,7 +22,7 @@ class EmailVerificationController(private val service: EmailVerificationService)
     @PostMapping
     fun send(@Valid @RequestBody request: SendVerificationRequest): ResponseEntity<*> = when (val result = service.send(request.email, request.purpose)) {
         is SendVerificationResult.Accepted -> {
-            if (result.deliveryFailed) LoggerFactory.getLogger(javaClass).warn("Password reset mail delivery unavailable")
+            if (result.deliveryFailed) LoggerFactory.getLogger(javaClass).warn("Verification mail delivery unavailable")
             ResponseEntity.status(HttpStatus.ACCEPTED).body(
                 VerificationResponse("ACCEPTED", true, "인증번호를 보냈어요", 202, SentVerification(result.verificationId.toString(), result.expiresAt, result.resendAvailableAt)),
             )
