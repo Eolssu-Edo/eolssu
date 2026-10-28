@@ -176,6 +176,28 @@ class AnalyzePracticeSessionTests {
     }
 
     @Test
+    fun `turns a storage failure after the time limit into TIMEOUT`() {
+        repository.saveDoneFails = true
+
+        assertEquals(AnalysisOutcome.TimedOut, service({ clock.now = startedAt.plusSeconds(61); done }).analyze(7))
+        assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
+    }
+
+    @Test
+    fun `discards a late result after the status lookup already expired the attempt`() {
+        lateinit var service: AnalyzePracticeSession
+        service = service({
+            clock.now = startedAt.plusSeconds(61)
+            assertTrue(service.expireIfOverdue(7))
+            done
+        })
+
+        assertEquals(AnalysisOutcome.Discarded, service.analyze(7))
+        assertEquals("FAILED" to "TIMEOUT", repository.status to repository.failReason)
+        assertEquals(emptyList(), repository.stored)
+    }
+
+    @Test
     fun `keeps a result that arrives exactly at the time limit`() {
         assertEquals(AnalysisOutcome.Saved(done), service({ clock.now = startedAt.plusSeconds(60); done }).analyze(7))
     }

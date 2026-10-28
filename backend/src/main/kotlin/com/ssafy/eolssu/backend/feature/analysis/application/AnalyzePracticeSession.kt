@@ -52,8 +52,15 @@ class AnalyzePracticeSession(
         return outcome
     }
 
-    /** 상태 조회 때 부른다. 제한 시간을 넘긴 `PENDING`을 `TIMEOUT`으로 바꿨으면 true. */
-    fun expireIfOverdue(sessionId: Long): Boolean = repository.expireOverdue(sessionId, startedAfter())
+    /**
+     * 상태 조회 때 부른다. 제한 시간을 넘긴 `PENDING`을 `TIMEOUT`으로 바꿨으면 true.
+     * 누가 바꿨든 전환마다 한 줄 남겨 시간 초과 횟수를 셀 수 있게 한다.
+     */
+    fun expireIfOverdue(sessionId: Long): Boolean {
+        val expired = repository.expireOverdue(sessionId, startedAfter())
+        if (expired) log.info("Analysis timed out session={}", sessionId)
+        return expired
+    }
 
     private fun finish(pending: PendingAnalysis, requested: Requested?): AnalysisOutcome {
         val saved = try {
@@ -113,7 +120,7 @@ sealed interface AnalysisOutcome {
         override val code = "NOT_PENDING"
     }
 
-    /** 결과가 오는 사이 세션이 다른 시도나 상태로 바뀌어 버렸다. */
+    /** 결과가 오는 사이 세션이 다른 시도로 바뀌었거나 상태 조회가 먼저 `TIMEOUT`으로 끝내 버렸다. */
     data object Discarded : AnalysisOutcome {
         override val code = "DISCARDED"
     }
