@@ -27,153 +27,15 @@ SOFTWARE.
 from fractions import Fraction
 import re
 
-from .score import PPQN, finite, midi_tempo, require, ticks
-from .expressions import resolve_expression_profile, expression_for
+from .score import finite, midi_tempo, require, ticks
+from . import expressions
+from .tempo_repeat import TEMPO_CUES, apply_tempo_repeat
 
 YUL = "황대태협고중유임이남무응"
 PREFIX = {"": 0, "청": 1, "중청": 2, "겹청": 2,
           "배": -1, "탁": -1, "하배": -2, "배탁": -2, "하하배": -3}
 NOTE = re.compile(r"(하하배|중청|겹청|하배|배탁|청|배|탁)?([황대태협고중유임이남무응])")
 RATIOS = {"dotted": Fraction(3, 2), "plain": Fraction(1), "eighth": Fraction(1, 2)}
-SCALES = {"hwang-pyeong": (0, 2, 5, 7, 9), "hwang-gyemyeon": (0, 3, 5, 7, 10),
-          "jung-pyeong": (0, 2, 5, 7, 10)}
-# (Korean name, registry ID, scale steps). Grace timing is bounded by its slot.
-GRACES = [("니레", "nire", (1,)), ("니라", "nina", (2,)), ("니로", "niro", (3,)),
-          ("노네", "none", (-1,)), ("너녜", "neonye", (-2,)),
-          ("노니로", "noniro", (0, 1)), ("노리노", "norino", (0, 2)),
-          ("네로네", "nerone", (0, -1)), ("떠이어표", "roll", (0, 1)),
-          ("느네느", "neuneneu", (0, 3)), ("나니로", "naniro", (-1, 1)),
-          ("느로니르", "neuronireu", (0, -1, 1))]
-ATTACHED = [("나니나", "nanina", (0, 1, 0)), ("나느나", "naneuna", (0, -1, 0))]
-INDEPENDENT = [("노", "no", (-1,)), ("니", "ni", (1,)), ("로", "ro", (-2,)),
-               ("리", "ri", (2,)), ("니나", "nina-dur", (1, 0)),
-               ("느나", "neuna", (-1, 0)), ("노라", "nora", (-1, -2)),
-               ("느니", "neuni", (1, 2)), ("니로나", "nirona", (1, 0, -1)),
-               ("니레나", "nirena", (2, 1, 0)), ("네로나", "nerona", (-1, -2, 0)),
-               ("니느라니", "nineurani", (1, 0, 1, 0)),
-               ("느나니나", "neunanina", (-1, 0, 1, 0)),
-               ("느나르나니", "neunareunani", (1, 2, 1, 0, 2)),
-               ("같은음표", "repeat", (0,))]
-SYMBOLS = {alias: (kind, steps) for kind, table in
-           (("grace", GRACES), ("attached", ATTACHED), ("independent", INDEPENDENT))
-           for korean, registry, steps in table for alias in (korean, registry)}
-SYMBOLS.update({name: ("surround", (-1,)) for name in ("느니르", "neunireu")})
-SYMBOLS.update({name: ("surround", (1,)) for name in ("니루니", "니루-니", "niruni")})
-SYMBOLS.update({"너네": SYMBOLS["너녜"], "나니르": SYMBOLS["나니로"],
-                "로니로": ("grace", (-2, 1)), "느니-르": SYMBOLS["느니르"],
-                "느니르나니": SYMBOLS["느나르나니"]})
-# These two previously unsupported figures follow official Danso teaching,
-# not the conflicting sequences in the pinned editor registry.
-SYMBOL_POLICY = {"name": "danso-official-figures-2024-v1",
-                 "upstream_differences": {"nineurani": [1, 0, 1, 0],
-                                          "neunareunani": [1, 2, 1, 0, 2]},
-                 "surround_anchor": "2020 Korean music braille commentary: long middle is the written note"}
-GRACE_QUARTERS = Fraction(1, 16)
-GRACE_POLICY = {"name": "bounded-half-slot-v1", "maximum_quarters": "1/16",
-                "maximum_slot_fraction": "1/2", "equal_grace_lengths": True,
-                "quantization": "whole MIDI ticks; main sequence remains divisible",
-                "status": "playback-choice-not-performance-standard"}
-BREATH_SECONDS = .12
-BREATH_POLICY = {"name": "bounded-half-note-v1", "target_silence_seconds": .12,
-                 "maximum_release_seconds": .05, "minimum_gate_fraction": .5}
-EXPRESSION_POLICY = {
-    "name": "danso-notated-expression-v2", "status": "audition-policy-not-performance-standard",
-    "vibrato": {"mode": "amplitude", "hz": 4, "depth": .08, "delay_seconds": 0},
-    "fall": {"end_cents": -50, "tail_fraction": .3, "maximum_seconds": .2},
-    "push": {"end_cents": 50, "tail_fraction": .3, "maximum_seconds": .2},
-    "unwind": {"yoseong": {"mode": "pitch", "hz": 4, "cents": 25, "delay_seconds": 0},
-               "pitch_curve": {"end_cents": -50, "tail_fraction": .6, "maximum_seconds": .6}},
-    "staccato": {"gate_fraction": .5, "release_in_gate": True},
-    "fermata": {"duration_multiplier": 2, "scope": "marked slot; following onsets shift"},
-    "unresolved_display_annotations": ["원문점"],
-}
-LENGTH_MARKS = {"덧길이표": Fraction(3, 2), "len-double": Fraction(3, 2),
-                "반길이표": Fraction(1, 2), "len-half": Fraction(1, 2)}
-EFFECT_MARKS = {"농음표": "vibrato", "떠는표": "vibrato", "vib": "vibrato",
-                "흘림표": "fall", "flow": "fall", "미는표": "push", "push": "push",
-                "풀어내림표": "unwind", "풀어내리는표": "unwind", "vib-long": "unwind",
-                "끊는표": "staccato", "staccato": "staccato", "늘임표": "fermata", "fermata": "fermata"}
-PROFILE_MARKS = {alias: kind for kind, aliases in {
-    "accent": ("특강표", "accent"), "shake": ("요성표", "shake"),
-    "shake-rep": ("겹요성표", "shake-rep"), "flow-rep": ("겹흘림표", "flow-rep"),
-    "push-rep": ("겹미는표", "push-rep"), "bend-down": ("퇴성", "퇴성표", "bend-down"),
-    "bend-up": ("추성", "추성표", "bend-up"),
-}.items() for alias in aliases}
-TEMPO_MARKS = {"본래속도로", "점점느리게", "점점속하게", "조금느리게", "조금속하게"}
-UNRESOLVED = {"느니라", "neunira", "나니르노니르", "nanireunonireu", "노라느니", "noraneuni",
-              "반복표", "도돌이표", "격음표", "격음", "내림표", "하성", "꺾는음", "깊은요성", "얕은요성"}
-UNRESOLVED_REASONS = {
-    "격음표": "지공 조작에 따른 음색의 합성이 미확정입니다. 격음 전용 샘플·운지 정책이 필요하며 특강표로 대체하지 않습니다",
-    "격음": "지공 조작에 따른 음색의 합성이 미확정입니다. 격음 전용 샘플·운지 정책이 필요합니다",
-    "내림표": "하성의 JGB ID·합성 대응이 미확정입니다. 퇴성으로 치환하지 않습니다",
-    "하성": "하성의 JGB ID·합성 대응이 미확정입니다. 퇴성으로 치환하지 않습니다",
-    "꺾는음": "으뜸음·음계 문맥과 기호 대응이 미확정입니다. 도착음·복귀 구간을 확인해야 합니다",
-    "깊은요성": "글리프 연결이 미확정입니다. 깊이 수치는 표현 프로필에 명시할 수 있으나 요성표의 별칭으로 추정하지 않습니다",
-    "얕은요성": "글리프 연결이 미확정입니다. 깊이 수치는 표현 프로필에 명시할 수 있으나 요성표의 별칭으로 추정하지 않습니다",
-    "반복표": "원문 반복 범위가 미확정입니다. --performance-plan에 각 범위와 횟수를 명시하세요",
-    "도돌이표": "원문 반복 범위가 미확정입니다. --performance-plan에 각 범위와 횟수를 명시하세요",
-}
-
-
-def apply_effects(note, group, label, delay=0, profile=None):
-    """Keep ambiguous superimposed curves explicit instead of overwriting them."""
-    if group.get("vibrato") or group.get("unwind"):
-        require(not (group.get("vibrato") and group.get("unwind")), f"{label}: 농음과 풀어내림을 겹쳐 지정할 수 없습니다")
-        require("yoseong" not in note, f"{label}: 겹친 농음/풀어내림의 범위를 분리하세요")
-        policy = EXPRESSION_POLICY["unwind"]["yoseong"] if group.get("unwind") else EXPRESSION_POLICY["vibrato"]
-        note["yoseong"] = dict(policy, delay_seconds=delay)
-    curves = [effect for effect in ("fall", "push", "unwind") if group.get(effect)]
-    require(len(curves) <= 1, f"{label}: 하행·상행·풀어내림을 겹쳐 지정할 수 없습니다")
-    if curves:
-        require("pitch_curve" not in note, f"{label}: 지속에 겹친 음높이 곡선의 범위를 분리하세요")
-        effect = curves[0]
-        note["pitch_curve"] = dict(EXPRESSION_POLICY[effect]["pitch_curve"] if effect == "unwind" else EXPRESSION_POLICY[effect])
-        if delay:
-            note["pitch_curve"]["delay_seconds"] = delay
-    if group.get("staccato"):
-        note["gate_fraction"] = EXPRESSION_POLICY["staccato"]["gate_fraction"]
-    for kind in group.get("profile_effects", []):
-        try:
-            overrides = expression_for(profile, kind)
-        except ValueError as exc:
-            raise ValueError(f"{label}: {exc}") from None
-        for key, value in overrides.items():
-            require(key not in note or key == "velocity", f"{label}: 겹친 {key} 표현의 범위를 분리하세요")
-            if delay:
-                require(key in ("yoseong", "pitch_curve"),
-                        f"{label}: 지속 중 {kind}의 강세 적용에는 명시한 새 음이 필요합니다")
-                value["delay_seconds"] = value.get("delay_seconds", 0) + delay
-            note[key] = value
-
-
-def adaptive_grace(duration, count, main_count, label):
-    """Retain the existing cap while reserving at least half the slot for main notes."""
-    if not count:
-        return Fraction()
-    slot_ticks = ticks(duration)
-    grace_ticks = min(ticks(GRACE_QUARTERS), slot_ticks // (2 * count))
-    # Equal front/back graces and an evenly split main figure must both fit the
-    # exact MIDI grid. At most main_count candidates cover every residue class.
-    for _ in range(main_count):
-        if (slot_ticks - count * grace_ticks) % main_count == 0:
-            break
-        grace_ticks -= 1
-    require(grace_ticks > 0 and (slot_ticks - count * grace_ticks) % main_count == 0,
-            f"{label}: 꾸밈과 본음을 보존할 MIDI 시간 해상도가 부족합니다")
-    return Fraction(grace_ticks, PPQN)
-
-
-def adaptive_breath(duration, quarter_bpm):
-    """Budget breath and release together; retain at least half the MIDI ticks."""
-    sec_tick = round(60_000_000 / quarter_bpm) / 1_000_000 / PPQN
-    if round((BREATH_SECONDS + .05) / sec_tick) <= ticks(duration) // 2:
-        return {"breath_seconds": BREATH_SECONDS, "release_seconds": .05}
-    cut = min(round((BREATH_SECONDS + .05) / sec_tick), ticks(duration) // 2) * sec_tick
-    require(cut > 0, "숨표를 표현할 MIDI 시간 해상도가 부족합니다")
-    # CC72 uses a project-local linear 0..50ms release scale. Round down so the
-    # quantized release cannot consume the reserved silence of a very short note.
-    release = int(min(.05, cut / 2) / .05 * 127 + 1e-9) / 127 * .05
-    return {"breath_seconds": cut - release, "release_seconds": release}
 
 
 def number(value, label, low, high):
@@ -206,18 +68,18 @@ def row_groups(text, label, tempo_cues=None):
             require(end != -1, f"{label}: 닫히지 않은 기호")
             raw = text[i + 1:end]
             name, _, adjustment = raw.partition("@")
-            require(name not in UNRESOLVED,
-                    f"{label}: {{{name}}}: " + UNRESOLVED_REASONS.get(name, "공식 음열 의미가 미확정입니다; 생략하지 않고 중단합니다"))
+            require(name not in expressions.UNRESOLVED,
+                    f"{label}: {{{name}}}: " + expressions.UNRESOLVED_REASONS.get(name, "공식 음열 의미가 미확정입니다; 생략하지 않고 중단합니다"))
             if adjustment:
                 require(all(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", v)
                             for v in adjustment.split(",")), f"{label}: 잘못된 기호 배치값")
-            if name in TEMPO_MARKS:
+            if name in TEMPO_CUES:
                 require(tempo_cues is not None, f"{label}: {{{name}}}는 --performance-plan에 BPM·적용 구간을 지정하세요")
                 tempo_cues.append(name)
-            elif name in PROFILE_MARKS:
-                kind = PROFILE_MARKS[name]
-                if kind in ("shake", "shake-rep") or not groups:
-                    require(kind in ("shake", "shake-rep", "bend-down", "bend-up"),
+            elif name in expressions.PROFILE_MARKS:
+                kind = expressions.PROFILE_MARKS[name]
+                if kind in expressions.INDEPENDENT_PROFILE_EFFECTS or not groups:
+                    require(kind in expressions.HOLD_PROFILE_EFFECTS,
                             f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
                     groups.append({"kind": "hold", "symbols": []})
                 group = groups[-1]
@@ -230,22 +92,22 @@ def row_groups(text, label, tempo_cues=None):
                 groups.append({"kind": "rest", "symbols": [name]})
             elif name in ("이음표", "-", "빈지속"):
                 groups.append({"kind": "hold", "symbols": [name]})
-            elif name in LENGTH_MARKS or name in EFFECT_MARKS or name == "원문점":
+            elif name in expressions.LENGTH_MARKS or name in expressions.EFFECT_MARKS or name in expressions.EXPRESSION_POLICY["unresolved_display_annotations"]:
                 require(groups, f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
                 group = groups[-1]
-                if name in LENGTH_MARKS:
+                if name in expressions.LENGTH_MARKS:
                     require("weight" not in group, f"{label}: 겹친 길이 기호")
-                    group["weight"] = LENGTH_MARKS[name]
-                elif name in EFFECT_MARKS:
-                    effect = EFFECT_MARKS[name]
+                    group["weight"] = expressions.LENGTH_MARKS[name]
+                elif name in expressions.EFFECT_MARKS:
+                    effect = expressions.EFFECT_MARKS[name]
                     require(effect == "fermata" or group["kind"] in ("note", "relative", "hold"),
                             f"{label}: {{{name}}}의 본음이 필요합니다")
                     require(effect not in group, f"{label}: 겹친 {name}")
                     group[effect] = True
                 group["symbols"].append(name)
             else:
-                require(name in SYMBOLS, f"{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다")
-                kind, steps = SYMBOLS[name]
+                require(name in expressions.SYMBOLS, f"{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다")
+                kind, steps = expressions.SYMBOLS[name]
                 if kind == "independent":
                     groups.append({"kind": "relative", "sequence": steps, "symbols": [name]})
                 else:
@@ -295,7 +157,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     require(type(assume_danso) is bool, "assume_danso는 true/false여야 합니다")
     require(instrument == "danso" or instrument == "all" and assume_danso,
             "선택한 성부는 단소(danso)가 아닙니다. all은 단소 자료임을 확인한 뒤 --assume-danso로 선택하세요")
-    profile = resolve_expression_profile(expression_profile)
+    profile = expressions.resolve_expression_profile(expression_profile)
     require(voice.get("muted", False) is False, "선택한 성부가 음소거되어 있습니다")
     for name, default in (("wantJangdan", False), ("playJanggu", True), ("playSigimsae", True)):
         require(type(controls.get(name, default)) is bool, f"controls.{name}: true/false가 필요합니다")
@@ -324,7 +186,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     tempo_us = midi_tempo(quarter_bpm)
     scale_name = controls.get("joPreset", "") if jo is None else jo
     require(isinstance(scale_name, str), "joPreset은 문자열이어야 합니다")
-    scale = SCALES.get(scale_name)
+    scale = expressions.SCALES.get(scale_name)
     overrides = {}
     gak_beats = controls.get("gakBeats", "")
     require(isinstance(gak_beats, str), "gakBeats는 '각:정간 수' 문자열이어야 합니다")
@@ -343,17 +205,6 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     part_id = voice.get("id")
     require(part_id is None or type(part_id) in (str, int), "성부 ID는 문자열 또는 정수여야 합니다")
 
-    def step(pitch, degree, label):
-        if degree == 0:
-            return pitch
-        require(scale is not None, f"{label}: 상대음 시김새에는 명시한 조가 필요합니다 (--jo)")
-        direction = 1 if degree > 0 else -1
-        for _ in range(abs(degree)):
-            pitch += direction
-            while (pitch - hwang) % 12 not in scale:
-                pitch += direction
-        return pitch
-
     def append(nid, duration, location, pitch=None, grace=False, slur=None):
         require(duration > 0, f"{nid}: 꾸밈이 본음 길이를 소진합니다")
         ticks(duration)
@@ -363,7 +214,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
         else:
             n["pitch"] = pitch
             if grace:
-                n["velocity"] = 80
+                n["velocity"] = expressions.GRACE_VELOCITY
             if slur:
                 n["slur"] = slur
         notes.append(n)
@@ -409,7 +260,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                 groups = groups or [{"kind": "hold", "symbols": []}]
                 for u, group in enumerate(groups, 1):
                     written_duration = ratio / len(rows) / len(groups) * group.get("weight", 1)
-                    duration = written_duration * (2 if group.get("fermata") else 1)
+                    duration = expressions.performed_duration(written_duration, group)
                     nid = f"p{selected}.g{g}.c{c}.r{r}.u{u}"
                     loc = {"part_index": selected, "part_id": part_id, "gak": g, "cell": c,
                            "row": r, "unit": u, "cell_start": cell_start,
@@ -420,21 +271,20 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                            "written_duration_quarters": str(written_duration)}
                     written_cursor += written_duration
                     cursor += duration
-                    effects = group.get("profile_effects") or any(group.get(e) for e in set(EFFECT_MARKS.values()))
+                    effects = expressions.has_effects(group)
                     require(not effects or controls.get("playSigimsae", True) is True,
                             f"{label}: 시김새 재생이 꺼져 있습니다")
                     kind = group["kind"]
                     if kind == "hold" and previous_gak == g and notes and not notes[-1].get("rest"):
                         require(not breath_applied, f"{label}: 숨표 뒤의 연장은 명시한 새 음이 필요합니다")
                         target = notes[sustain_index]
-                        require("gate_fraction" not in target and not group.get("staccato"),
-                                f"{label}: 끊는표와 지속을 함께 지정하려면 새 음으로 분리하세요")
+                        expressions.validate_sustain_effects(target, group, label)
                         target["duration"] = str(Fraction(target["duration"]) + duration)
                         delay = float(Fraction(loc["start_quarters"]) - sustain_start) * 60 / quarter_bpm
-                        apply_effects(target, group, label, delay, profile)
+                        expressions.apply_effects(target, group, label, delay, profile)
                         locations[target["id"]].append(loc)
                     elif kind in ("rest", "hold"):
-                        require(not group.get("profile_effects") and not any(group.get(e) for e in set(EFFECT_MARKS.values()) - {"fermata"}),
+                        require(not expressions.has_effects(group, include_fermata=False),
                                 f"{label}: 표현을 적용할 앞 본음이 없습니다")
                         append(nid, duration, loc)
                     else:
@@ -445,32 +295,23 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                             reference = previous_pitch
                         else:
                             reference = hwang + group["offset"]
-                        is_roll = any(s in ("떠이어표", "roll") for s in group["symbols"])
-                        if is_roll:
-                            require((reference - hwang) % 12 == 7, f"{label}: 떠이어표는 임→무→임 교육 예시만 확인됐습니다")
-                        sequence = [step(reference, d, label) for d in group.get("sequence", (0,))]
-                        # The official example names Im/Mu explicitly; Mu is
-                        # three semitones above Im, not every scale's next step.
-                        grace = ([reference, reference + 3] if is_roll else
-                                 [step(reference, d, label) for d in group.get("grace", ())])
-                        post = [step(reference, d, label) for d in group.get("post_grace", ())]
-                        require(not group.get("staccato") or not (grace or post or len(sequence) > 1),
-                                f"{label}: 장식음열과 끊는표의 적용 범위를 새 음으로 분리하세요")
+                        sequence, grace, post = expressions.resolve_ornament_pitches(
+                            group, reference, hwang, scale, label)
                         grace_count = len(grace) + len(post)
-                        grace_quarters = adaptive_grace(duration, grace_count, len(sequence), label)
+                        grace_quarters = expressions.adaptive_grace(duration, grace_count, len(sequence), label)
                         body = duration - grace_count * grace_quarters
                         require(body > 0, f"{label}: 꾸밈이 본음 길이를 소진합니다")
                         if grace_count:
                             loc["grace_timing"] = {"each_quarters": str(grace_quarters),
                                                    "count": grace_count, "main_quarters": str(body),
-                                                   "reduced": grace_quarters < GRACE_QUARTERS}
+                                                   "reduced": grace_quarters < expressions.GRACE_QUARTERS}
                         slur = nid if len(grace) + len(sequence) + len(post) > 1 else None
                         for k, pitch in enumerate(grace, 1):
                             append(f"{nid}.grace{k}", grace_quarters, loc, pitch, True, slur)
                         for k, pitch in enumerate(sequence, 1):
                             append(nid if not slur else f"{nid}.main{k}", body / len(sequence), loc, pitch, slur=slur)
-                            body_effects = group if k == len(sequence) else {"vibrato": group.get("vibrato")}
-                            apply_effects(notes[-1], body_effects, label, profile=profile)
+                            body_effects = expressions.main_note_effects(group, k, len(sequence))
+                            expressions.apply_effects(notes[-1], body_effects, label, profile=profile)
                         sustain_index = len(notes) - 1
                         sustain_start = cursor - duration + len(grace) * grace_quarters + body * (len(sequence) - 1) / len(sequence)
                         for k, pitch in enumerate(post, 1):
@@ -480,7 +321,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
             if cell_breath:
                 require(notes and not notes[-1].get("rest") and previous_gak == g,
                         f"{label}: 숨표를 적용할 본음이 없습니다")
-                notes[-1].update(adaptive_breath(notes[-1]["duration"], quarter_bpm))
+                notes[-1].update(expressions.adaptive_breath(notes[-1]["duration"], quarter_bpm))
                 breath_applied = True
                 locations[notes[-1]["id"]][-1]["breath"] = True
                 locations[notes[-1]["id"]][-1]["breath_timing"] = {
@@ -513,15 +354,14 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                   "quarter_bpm": quarter_bpm, "midi_tempo_us": tempo_us,
                   "huangjong_midi": hwang, "jo_preset": scale_name,
                   "gaks": len(starts), "cells": total_cells, "total_quarters": str(cursor),
-                  "written_total_quarters": str(written_cursor), "symbol_policy": dict(SYMBOL_POLICY),
-                  "grace_policy": dict(GRACE_POLICY), "breath_policy": dict(BREATH_POLICY),
-                  "expression_policy": dict(EXPRESSION_POLICY),
+                  "written_total_quarters": str(written_cursor), "symbol_policy": dict(expressions.SYMBOL_POLICY),
+                  "grace_policy": dict(expressions.GRACE_POLICY), "breath_policy": dict(expressions.BREATH_POLICY),
+                  "expression_policy": dict(expressions.EXPRESSION_POLICY),
                   "expression_profile": profile,
                   "instrument_selection": {"original": instrument, "selected": "danso",
                                            "kind": "explicit-all-as-danso" if instrument == "all" else "jgb"},
                   "tempo_cues": tempo_cues,
                   "notes": locations}
     if performance_plan is not None:
-        from .performance import apply_performance
-        score, source_map = apply_performance(score, source_map, performance_plan, input_sha256)
+        score, source_map = apply_tempo_repeat(score, source_map, performance_plan, input_sha256)
     return score, source_map

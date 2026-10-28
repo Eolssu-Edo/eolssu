@@ -4,7 +4,7 @@
 
 ## 결과를 읽는 기준
 
-2026-10-28, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **109개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
+2026-10-28, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **112개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
 
 - 고정 JSON과 합성 사인파를 사용한다. 음원 검사는 실제 샘플러의 렌더링 로직을 거치지만, 실제 CAT 뱅크를 읽거나 단소 음색을 평가하지 않는다.
 - `test_audio.py`의 코덱 검사 1개와 `test_pipeline.py`의 CLI 검사 1개만 실제 FFmpeg/ffprobe 인코딩·디코딩 통합 검사다. 입력 소리는 합성 신호이며, 인코더를 찾지 못하면 이 2개는 건너뛴다.
@@ -13,7 +13,7 @@
 
 ## 파일을 나누는 기준
 
-파일 이름은 주된 검증 대상 모듈에 맞춘다. JGB 해석 검사는 `test_jgb.py`에 모으고, 여러 단계를 함께 확인하는 검사는 `test_pipeline.py`에 둔다. JGB 변환 결과의 MIDI 시간 확인처럼 보조 모듈을 사용하는 회귀 검사도 있으므로 모든 검사를 엄격한 단위 테스트라고 부르지는 않는다.
+파일 이름은 주된 검증 대상 모듈에 맞춘다. JGB 해석 검사는 `test_jgb.py`에 모으고, 여러 단계를 함께 확인하는 검사는 `test_pipeline.py`에 둔다. JGB 변환 결과의 MIDI 시간 확인처럼 보조 모듈을 사용하는 회귀 검사도 있으므로 모든 검사를 엄격한 단위 테스트라고 부르지는 않는다. `test_jgb.py`의 기호 검사는 문자열 입력·배치·원문 연결까지 확인하므로 유지하고, 표현 정책 함수만 직접 호출하는 검사는 `test_expressions.py`에 둔다.
 
 | 테스트 파일 | 대응 구현·범위 | 개수 |
 | --- | --- | ---: |
@@ -23,10 +23,10 @@
 | `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·샘플 부족 | 12 |
 | `test_audio.py` | `audio.py`: 파일 출력·프로세스 오류·AAC 시간 정렬 | 4 |
 | `test_pipeline.py` | `__main__.py`와 모듈 연결: score→MIDI, JGB→PCM, CLI 전체 실행 | 20 |
-| `test_expressions.py` | `expressions.py`: 기호별 명시 수치·근거·곡선 검증 | 4 |
-| `test_performance.py` | `performance.py`: 빠르기 적분·반복·원문 시간 보존 | 11 |
+| `test_expressions.py` | `expressions.py`: 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 7 |
+| `test_tempo_repeat.py` | `tempo_repeat.py`: 빠르기 적분·반복·원문 시간 보존 | 11 |
 
-`_helpers.py`는 고정 악보·합성 샘플·MIDI 왕복 헬퍼만 제공하며 테스트를 정의하지 않는다. 테스트 파일끼리는 import하지 않는다. 자동 ±25cent 떨림의 구현은 `midi.py`에 있으므로 해당 제어 검사는 `test_midi.py`에 둔다.
+`_helpers.py`는 고정 악보·합성 샘플·MIDI 왕복 헬퍼만 제공하며 테스트를 정의하지 않는다. 테스트 파일끼리는 import하지 않는다. 자동 ±25cent 떨림의 설정값은 `expressions.py`, MIDI 제어 생성은 `midi.py`에 있다. 실제 제어 메시지 검사는 `test_midi.py`에 둔다.
 
 아래 표의 이름은 각 파일에 정의된 메서드 이름이다.
 
@@ -48,7 +48,7 @@
 | --- | --- |
 | `test_aac_priming_is_removed_and_only_tail_padding_remains` | **실제 AAC 통합:** 합성 신호의 인코딩/디코딩 후 시작 정렬 오차 1샘플 이내, 끝 패딩 1024샘플 미만, 컨테이너 길이 오차 2샘플 이내 |
 
-## test_expressions.py — 4개
+## test_expressions.py — 7개
 
 [코드](test_expressions.py).
 
@@ -56,6 +56,9 @@
 
 | 테스트 | 확인 내용 |
 | --- | --- |
+| `test_builtin_effects_keep_delay_scope_conflicts_and_policy_isolation` | 기존 효과의 지연·음열 적용 범위·충돌 거부·정책 객체 독립성 확인 |
+| `test_ornament_pitches_and_short_timing_preserve_main_and_special_roll` | 떠이어 특례·앞뒤 꾸밈 음높이·짧은 꾸밈 본음 절반·늘임 정책 직접 검사 |
+| `test_breath_policy_and_retiming_reserve_sound_and_silence` | 긴/짧은 숨과 빠르기 변경 후 발음·무음 예산 직접 검사 |
 | `test_builtin_accent_is_declared_and_other_gestures_require_a_profile` | 기본 강세 선택값 표시와 다른 기호의 명시 프로필 요구 |
 | `test_explicit_deep_yoseong_keeps_input_and_returned_policies_independent` | 명시한 깊은 요성 값 보존과 원본/반환 객체 독립성 확인 |
 | `test_direction_and_repetition_match_explicit_curve_shape` | 추성·퇴성 방향과 겹흘림·겹미는 반복 곡선 검사 |
@@ -124,11 +127,11 @@
 | `test_authored_pitch_and_mixed_yoseong_are_not_added_twice` | 명시된 음높이 요성에 자동 떨림을 중복 추가하지 않음 |
 | `test_amplitude_yoseong_remains_with_fixed_pitch_vibrato` | 명시한 음량 요성과 자동 음높이 떨림이 함께 유지됨 |
 
-## test_performance.py — 11개
+## test_tempo_repeat.py — 11개
 
-[코드](test_performance.py).
+[코드](test_tempo_repeat.py).
 
-### PerformanceTests
+### TempoRepeatTests
 
 | 테스트 | 확인 내용 |
 | --- | --- |

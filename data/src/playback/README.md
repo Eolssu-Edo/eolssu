@@ -22,6 +22,18 @@ flowchart TD
 
 `__main__.py`가 입력 악보 하나의 변환 전체를 연결합니다. 기본 출력과 검증용 출력은 각각 다른 폴더에 생성합니다.
 
+`expressions.py`와 `tempo_repeat.py`는 **JGB → score 내부의 보조 모듈**입니다. 최종 `score.json`에는 표현·빠르기·반복이 이미 반영되며 이후 MIDI → CAT PCM → M4A 흐름은 같습니다.
+
+| 모듈 | 책임 |
+| --- | --- |
+| `jgb.py` | JGB 문자열·성부·각/정간/분박 해석, 원문 위치·음표 ID·지속 대상 연결 |
+| `expressions.py` | 음형·별칭·미지원 사유, 농음/흘림/풀어내림 등의 효과, 꾸밈·숨·늘임 정책, 표현 프로필 검증과 적용, 자동 떨림 설정값 |
+| `tempo_repeat.py` | 명시한 빠르기 계획 적분·반복 전개·시간/반복 ID 계산. 짧아진 숨의 예산은 표현 모듈 호출 |
+| `score.py` / `midi.py` | 범용 score 검증·이벤트 계산 / MIDI 제어 메시지 생성과 재읽기 |
+
+호출은 `convert_jgb()` → 표현 정책 적용 → 계획이 있을 때 `apply_tempo_repeat()` → 최종 score 반환 순서입니다. 코드·테스트 파일은 `tempo_repeat`로 통일합니다. 기존 입력을 계속 읽도록 CLI 옵션 `--performance-plan`, JSON schema `danso-performance/v1`, 출력 파일 `performance-plan.json`과 대응표의 `performance` 키는 유지합니다.
+
+
 `.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 단소 한 성부를 생성하며 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다.
 
 ## 설치와 빠른 검사
@@ -34,7 +46,7 @@ python -m venv data/.venv
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
-작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 109개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
+작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 112개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
 
 | 파일 | 대응 구현 | 개수 | 확인 범위 |
 | --- | --- | ---: | --- |
@@ -44,8 +56,8 @@ python -m venv data/.venv
 | `test_sampler.py` | `sampler.py` | 12 | 합성 PCM의 주파수·위상·무음·샘플 부족 |
 | `test_audio.py` | `audio.py` | 4 | PCM 출력·프로세스 오류·실제 AAC 시간 정렬 1개 |
 | `test_pipeline.py` | `__main__.py` 및 모듈 연결 | 20 | score→MIDI·JGB→PCM·CLI의 출처/실패 보존·실제 M4A 전체 변환 1개 |
-| `test_expressions.py` | `expressions.py` | 4 | 명시 표현·근거·방향·반복곡선 검증 |
-| `test_performance.py` | `performance.py` | 11 | 빠르기 적분·반복·원문 위치·숨표 예산 |
+| `test_expressions.py` | `expressions.py` | 7 | 표현 정책·음형·꾸밈/숨 시간·프로필 검증 |
+| `test_tempo_repeat.py` | `tempo_repeat.py` | 11 | 빠르기 적분·반복·원문 위치·숨표 예산 |
 
 파일은 주된 검증 대상 모듈을 기준으로 나눕니다. 여러 단계의 연결은 `test_pipeline.py`에서 검사하며, 고정 입력·합성 샘플 헬퍼는 `_helpers.py`에서 공유합니다. 테스트 파일끼리는 import하지 않습니다.
 

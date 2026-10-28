@@ -10,9 +10,10 @@ import uuid
 import numpy as np
 import soundfile as sf
 from .score import PROFILES, compile_score, require
-from .midi import PLAYBACK_VIBRATO, RELEASE_CC, write_midi, read_midi
+from .midi import RELEASE_CC, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
-from .jgb import convert_jgb, SCALES
+from .jgb import convert_jgb
+from .expressions import SCALES, PLAYBACK_VIBRATO
 from .audio import FORMATS, AAC_BIT_RATE, add_audio_arguments, resolve_encoder, write_audio
 
 
@@ -139,7 +140,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                                     "encoder":{k:v for k,v in encoder.items() if k.endswith("_version")} if encoder else None},
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":dict(PLAYBACK_VIBRATO),
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","expressions.py","performance.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","expressions.py","tempo_repeat.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["JGB v1/v2 import supports one selected danso part and the documented notation subset.",

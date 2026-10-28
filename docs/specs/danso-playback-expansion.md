@@ -38,3 +38,10 @@ MR !87은 단소 JGB 또는 공통 악보 JSON 하나를 MIDI·CAT 음원으로 
 - 출력은 변환 전용 폴더를 묶음으로 교체하고 일반 rename 실패 시 이전 결과를 복구한다. 기존 개인 파일은 삭제하지 않으며 강제 종료·전원 손실 복구까지 보장하지 않는다.
 
 명령·설정 예시는 [CLI README](../../data/src/playback/README.md#명시적-연주-계획과-표현-프로필), 근거와 남은 범위는 [확장 기록](../knowledge/data/danso-expanded-auditions.md#단소-범위-확장-2026-10-28)을 따른다.
+
+
+## 표현 정책과 빠르기·반복 모듈 책임
+
+2026-10-28 사용자 요청으로 JGB 표현 규칙을 `expressions.py`에 모으고 빠르기·반복 모듈은 `tempo_repeat.py`로 이름을 맞춘다. 음형·별칭·효과 수치·꾸밈/숨/늘임·떠이어 예외·미지원 사유·프로필 검증은 표현 모듈이 소유한다. `jgb.py`는 입력 문법과 원문/음표 연결, `tempo_repeat.py`는 시간 적분·반복 순서를 소유한다. 두 모듈은 최종 score를 만들 때 호출하며 MIDI 이후 음원 처리 단계가 추가된 것은 아니다.
+
+테스트는 `test_expressions.py`, `test_tempo_repeat.py`로 구현 이름을 따른다. 문자열과 원문 위치를 함께 검사하는 JGB 회귀 검사는 `test_jgb.py`에 유지한다. 기존 CLI·설정 JSON·출력 metadata는 호환성을 유지하며 음악적 수치나 합성 알고리즘을 바꾸지 않는다.

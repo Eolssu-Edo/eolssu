@@ -3,12 +3,8 @@ import math
 import mido
 import numpy as np
 from .score import PPQN, require
+from .expressions import PLAYBACK_VIBRATO
 
-# Fixed audition motion, separate from notation and the CAT sample's own vibrato.
-PLAYBACK_VIBRATO = {
-    "cents": 25, "hz": 4.5, "minimum_note_seconds": .65,
-    "delay_seconds": .22, "fade_in_seconds": .18, "fade_out_seconds": .16,
-}
 RELEASE_CC = {"controller": 72, "maximum_seconds": .05, "default_value": 127}
 
 

@@ -155,10 +155,23 @@ S15P31E102-166 / MR !87의 `f86fe0f`에서 단소 공식 자료, 고정 우물�
 
 실제 CAT의16영역 모두 안정 구간 검사를 통과했다. 최소 상관도0.98877, 최대 구간 음높이 편차9.29346cent였다.12정간 청황은12.55초 출력으로 생성·디코딩했고,6정간은 이전 float PCM과 바이트가 같았다. 이 값은 반복 경계와 주파수 안정성의 기계적 검사이며 실제 단소 연주 청감과 같다는 판정은 아니다.
 
-통합 후 Windows / Python3.12 / FFmpeg·ffprobe9.0.2에서 자동 검사 **109개 통과, 건너뜀0개**. 파일별 jgb37·score13·midi8·sampler12·audio4·pipeline20·expressions4·performance11이다. [테스트 문서](../../../data/src/playback/tests/README.md)에 모든 메서드와 확인 대상을 유지했다. 새 범위·출력 오류 주입 외에 기존 회귀 검사도 포함한다.
+58d391b 통합 시점의 Windows / Python3.12 / FFmpeg·ffprobe9.0.2 자동 검사는 **109개 통과, 건너뜀0개**였다. 당시 파일별 jgb37·score13·midi8·sampler12·audio4·pipeline20·expressions4·빠르기·반복11이며, 이후 모듈 이름·검사 수는 아래 책임 정리 기록을 따른다. [테스트 문서](../../../data/src/playback/tests/README.md)에 모든 메서드와 확인 대상을 유지했다. 새 범위·출력 오류 주입 외에 기존 회귀 검사도 포함한다.
 
 실제 CAT 통합 입력은 직접 작성한3각36정간이다. 특강·요성/겹요성·퇴성/추성·겹흘림/겹미는·풀어내림·짧은9분할 꾸밈·숨/끊기·늘임·12초 지속음과 점진 빠르기·첫각2회 반복을 함께 실행했다.40음·45.757075초 M4A의 생성과 디코딩 검사에 성공했고 입력 원본해시를 보존했다. M4A SHA256은 `556587d4261f0272c0510b171d1f2f8679ff24c9f08200d65789efd0f22461a7`, MIDI SHA256은 `4a8ad4828bd53a8f67d4d02779757358cae5d78a1f8674bce1cb83c2d9b06518`이다.
 
 기존 강원도 아리랑001은81음·25.813129초이고 위 기존 MIDI·M4A·WAV SHA256이 모두 유지됐다. 준비 JGB46개도 수정 없이 해석·score 검사46/46 통과했다. 재현 입력·설정·결과·검증 JSON은 주 작업 폴더 `data/processed/playback/166-listen/mr87-coverage-check/`에 보존하고 MR에서 제외했다. 이 검사로 과거 원보21곳 교정의 정오나 전곡 음악적 정확성을 확정하지 않는다.
 
 남은 범위는 격음의 지공 조작/음색과 전용 샘플, 하성/내림 및 깊은/얕은 요성 글리프의 확실한 입력 대응, 산조 꺾는음의 으뜸음·음계 문맥이다. 느니라·나니르노니르·노라느니의 공식 음열도 미확정이다. 물리적 음색과 산조 문맥을 임의 수치로 메우지 않고 필요한 정보를 오류로 알린다. 코드의 지원 범위를 확장한 것이 단소 전체를 완벽히 재현했다는 뜻은 아니다.
+
+
+## 표현·빠르기·반복 모듈 책임 정리 (2026-10-28)
+
+사용자 요청으로 JGB 표현 규칙을 `expressions.py`에 모으고 빠르기·반복 모듈을 `tempo_repeat.py`로 정리했다. 음형/별칭·효과 수치·꾸밈·숨·늘임·떠이어 특례·조별 상대음 전개·미지원 표현 사유·표현 프로필·자동 떨림 설정값을 표현 모듈이 소유한다. 빠르기 변경 뒤 숨표를 줄이는 정책도 같은 모듈을 호출한다. `jgb.py`는 입력 문법·각/정간/분박·원문 위치·지속 대상·음표 순서를 연결하며 `tempo_repeat.py`는 명시된 시간 변화와 반복 순서를 계산한다.
+
+둘은 JGB → score 내부의 보조 모듈이다. 최종 score에 결과가 반영된 뒤 score → MIDI → CAT PCM → M4A의 기존 경로를 따른다. MIDI 제어 생성과 범용 score 검증은 각각 기존 모듈에 둔다. 외부 옵션 `--performance-plan`, 설정 schema `danso-performance/v1`, 설정 사본 `performance-plan.json`, 대응표 `performance` 키는 기존 입력과 출력의 호환성을 위해 유지한다. 소스 해시 목록은 새 구현 파일명으로 기록한다.
+
+`test_tempo_repeat.py`와 `TempoRepeatTests`로 이름을 맞췄다. `test_expressions.py`는 기존4개에 효과 적용 범위/충돌/정책 독립성, 음형·꾸밈·늘임, 숨표 재예산 직접 검사3개를 더해7개다. 입력 문자열·위치·지속 연결을 포함하는 JGB 검사37개는 `test_jgb.py`에 유지한다. 전체112개(실제 AAC 통합2개 포함)가 Windows / Python3.12 / FFmpeg·ffprobe9.0.2에서 통과했고 생략은0개다.
+
+변경 전58d391b에서 준비 JGB46개와 표현·빠르기·반복 결합 입력1개의 score·source-map·MIDI 기준값을 캡처했다. 변경 후47개 모두 score/대응표 내용과 MIDI SHA256이 같다. 실제 CAT로 강원도 아리랑 MIDI/WAV/M4A와 결합 입력 MIDI/M4A를 다시 생성했고 위 기존 해시와 모두 같았다. 원본 설정·표현 수치·재생 알고리즘을 바꾸는 작업이 아니며 manifest의 구현 파일명·코드 해시는 변경된다.
+
+수동 검증 결과는 주 작업 폴더 `data/processed/playback/166-listen/mr87-module-refactor-check/verification.json`에 보존한다. 테스트·문서의 현재 책임표는 [CLI README](../../../data/src/playback/README.md)와 [테스트별 설명](../../../data/src/playback/tests/README.md)을 따른다. 기존 원보 교정과 미지원 표현의 검수 상태는 이 구조 변경으로 달라지지 않는다.

@@ -11,6 +11,7 @@ import math
 import re
 
 from .score import PPQN, finite, reject_unknown, require
+from .expressions import fit_breath_to_duration
 
 
 TEMPO_CUES = {"본래속도로", "점점느리게", "점점속하게", "조금느리게", "조금속하게"}
@@ -21,7 +22,7 @@ def _positive_int(value, label, high):
     return value
 
 
-def apply_performance(score, mapping, plan, input_sha256):
+def apply_tempo_repeat(score, mapping, plan, input_sha256):
     """Return copied score/map after a hash-bound tempo and repeat plan.
 
     A tempo entry's ``bpm`` is jeonggan/minute, before the existing global speed
@@ -225,12 +226,7 @@ def apply_performance(score, mapping, plan, input_sha256):
                     delay = effect["delay_seconds"]
                     require(delay <= old_seconds, f"{original_id}: 표현 시작이 음 끝을 넘습니다")
                     effect["delay_seconds"] = (warp(float(a) + delay / quarter_seconds) - warp(a)) * quarter_seconds
-            if note.get("breath_seconds"):
-                breath, release = note["breath_seconds"], note.get("release_seconds", .05)
-                budget = min(breath + release, new_seconds / 2)
-                if budget < breath + release:
-                    new_release = math.floor(release * budget / (breath + release) / .05 * 127) / 127 * .05
-                    note["release_seconds"], note["breath_seconds"] = new_release, budget - new_release
+            fit_breath_to_duration(note, new_seconds)
             notes.append(note)
             copied = deepcopy(mapping["notes"][original_id])
             for loc in copied:
@@ -245,9 +241,6 @@ def apply_performance(score, mapping, plan, input_sha256):
                 loc["duration_quarters"] = str(Fraction(round((offset + warp(old_start + old_length)) * PPQN) -
                                                         round((offset + warp(old_start)) * PPQN), PPQN))
                 loc["repeat_pass"] = number
-                if "breath_timing" in loc and "breath_seconds" in note:
-                    loc["source_breath_timing"] = loc["breath_timing"]
-                    loc["breath_timing"] = {key: note[key] for key in ("breath_seconds", "release_seconds")}
             locations[note["id"]] = copied
             note_times.append({"id": note["id"], "source_id": original_id, "repeat_pass": number,
                                "source_start_quarters": str(a), "source_end_quarters": str(b),
