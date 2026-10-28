@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence
 
 import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
+import com.ssafy.eolssu.backend.feature.growth.domain.FullSongPlay
 import com.ssafy.eolssu.backend.feature.growth.domain.PracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.domain.SongBest
 import java.time.LocalDate
 import java.time.LocalDateTime
 
@@ -18,6 +20,14 @@ class MyBatisPracticeStatsRepository(private val mapper: PracticeStatsMapper) : 
 
     override fun practiceDaysUpTo(userId: Long, lastDay: LocalDate, minSeconds: Long) =
         mapper.findPracticeDays(userId, startOf(lastDay.plusDays(1)), minSeconds)
+
+    override fun bestFullSongScores(userId: Long) =
+        mapper.findBestFullSongScores(userId).map { SongBest(it.songId, it.title, it.bestTotalScore) }
+
+    override fun latestFullSongPlay(userId: Long) = mapper.findLatestFullSongPlay(userId)?.toPlay()
+
+    override fun firstFullSongPlayLike(userId: Long, play: FullSongPlay) =
+        mapper.findFirstFullSongPlayLike(userId, play.songId, play.scoreVersion, play.modelVersion, play.bpm, play.bpmUnit)?.toPlay()
 
     private fun startOf(kstDay: LocalDate): LocalDateTime = kstDay.atStartOfDay().minusHours(KST_OFFSET_HOURS)
 

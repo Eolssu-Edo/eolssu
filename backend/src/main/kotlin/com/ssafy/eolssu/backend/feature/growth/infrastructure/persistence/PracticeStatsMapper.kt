@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence
 
+import com.ssafy.eolssu.backend.feature.growth.domain.FullSongPlay
 import java.time.LocalDate
 import java.time.LocalDateTime
 import org.apache.ibatis.annotations.Mapper
@@ -25,8 +26,38 @@ interface PracticeStatsMapper {
         @Param("to") to: LocalDateTime,
         @Param("minSeconds") minSeconds: Long,
     ): List<LocalDate>
+
+    fun findBestFullSongScores(@Param("userId") userId: Long): List<SongBestRow>
+
+    fun findLatestFullSongPlay(@Param("userId") userId: Long): FullSongPlayRow?
+
+    fun findFirstFullSongPlayLike(
+        @Param("userId") userId: Long,
+        @Param("songId") songId: Long,
+        @Param("scoreVersion") scoreVersion: Int,
+        @Param("modelVersion") modelVersion: String,
+        @Param("bpm") bpm: Int,
+        @Param("bpmUnit") bpmUnit: String,
+    ): FullSongPlayRow?
 }
 
 data class DailySecondsRow(val day: LocalDate, val total: Long)
+
+data class SongBestRow(val songId: Long, val title: String, val bestTotalScore: Int)
+
+data class FullSongPlayRow(
+    val sessionId: Long,
+    val songId: Long,
+    val title: String,
+    val scoreVersion: Int,
+    val modelVersion: String,
+    val bpm: Int,
+    val bpmUnit: String,
+    val pitchScore: Int,
+    val timingScore: Int,
+    val durationScore: Int,
+) {
+    fun toPlay() = FullSongPlay(sessionId, songId, title, scoreVersion, modelVersion, bpm, bpmUnit, pitchScore, timingScore, durationScore)
+}
 
 data class DailySessionsRow(val day: LocalDate, val doneCount: Long, val scoredCount: Long, val scoreSum: Long)

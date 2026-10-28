@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.backend.feature.growth.application
 
 import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
+import com.ssafy.eolssu.backend.feature.growth.domain.FullSongPlay
 import com.ssafy.eolssu.backend.feature.growth.domain.PracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.domain.SongBest
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -20,10 +22,14 @@ class GetGrowthStatsTests {
     private val week = DateRange(d("2026-10-26"), d("2026-11-01"))
 
     @Test
-    fun `compares with the same number of days right before the range`() {
+    fun `compares a whole month with the previous month and other ranges with the same number of days`() {
         assertEquals(DateRange(d("2026-10-19"), d("2026-10-25")), week.previous())
-        // 10월(31일)의 지난 기간은 9월이 아니라 직전 31일이다.
-        assertEquals(DateRange(d("2026-08-31"), d("2026-09-30")), DateRange(d("2026-10-01"), d("2026-10-31")).previous())
+        assertEquals(DateRange(d("2027-02-01"), d("2027-02-28")), DateRange(d("2027-03-01"), d("2027-03-31")).previous())
+        assertEquals(DateRange(d("2028-02-01"), d("2028-02-29")), DateRange(d("2028-03-01"), d("2028-03-31")).previous()) // 윤년
+        assertEquals(DateRange(d("2026-12-01"), d("2026-12-31")), DateRange(d("2027-01-01"), d("2027-01-31")).previous()) // 해 넘김
+        // 한 달 전체가 아니면 직전 같은 일수
+        assertEquals(DateRange(d("2027-01-31"), d("2027-03-01")), DateRange(d("2027-03-02"), d("2027-03-31")).previous())
+        assertEquals(DateRange(d("2027-01-30"), d("2027-02-28")), DateRange(d("2027-03-01"), d("2027-03-30")).previous())
         assertEquals(DateRange(d("2026-10-27"), d("2026-10-27")), DateRange(d("2026-10-28"), d("2026-10-28")).previous())
     }
 
@@ -109,11 +115,52 @@ class GetGrowthStatsTests {
         )
     }
 
+    @Test
+    fun `passes the best score of each song through`() {
+        repository.best += SongBest(2, "도라지", 91)
+        repository.best += SongBest(1, "아리랑", 85)
+
+        assertEquals(listOf(SongBest(2, "도라지", 91), SongBest(1, "아리랑", 85)), stats.summary(USER, week).bestBySong)
+    }
+
+    @Test
+    fun `compares the first and latest play under the latest play's conditions`() {
+        val latest = play(sessionId = 9, pitch = 88, timing = 79, duration = 85)
+        repository.plays += play(sessionId = 3, bpm = 120, pitch = 10, timing = 10, duration = 10) // 다른 BPM
+        repository.plays += play(sessionId = 4, pitch = 70, timing = 68, duration = 71)
+        repository.plays += play(sessionId = 6, pitch = 75, timing = 75, duration = 75)
+        repository.plays += latest
+
+        assertEquals(
+            MetricGrowth(1, "아리랑", 90, ScoreChange(70, 88), ScoreChange(68, 79), ScoreChange(71, 85)),
+            stats.summary(USER, week).metricGrowth,
+        )
+    }
+
+    @Test
+    fun `leaves the scores empty with fewer than two comparable plays`() {
+        assertEquals(MetricGrowth.EMPTY, stats.summary(USER, week).metricGrowth)
+
+        repository.plays += play(sessionId = 3, bpm = 120)
+        repository.plays += play(sessionId = 9)
+        assertEquals(
+            MetricGrowth(1, "아리랑", 90, ScoreChange.NONE, ScoreChange.NONE, ScoreChange.NONE),
+            stats.summary(USER, week).metricGrowth,
+        )
+    }
+
+    private fun play(sessionId: Long, bpm: Int = 90, pitch: Int = 80, timing: Int = 80, duration: Int = 80) =
+        FullSongPlay(sessionId, 1, "아리랑", 1, "pyin-1", bpm, "DOTTED_QUARTER", pitch, timing, duration)
+
     private fun d(text: String) = LocalDate.parse(text)
 
     private class InMemoryPracticeStatsRepository : PracticeStatsRepository {
         val seconds = mutableMapOf<LocalDate, Long>()
         val sessions = mutableMapOf<LocalDate, SessionTotals>()
+        val best = mutableListOf<SongBest>()
+
+        /** 오래된 것부터. */
+        val plays = mutableListOf<FullSongPlay>()
 
         override fun dailyPracticeSeconds(userId: Long, range: DateRange) =
             seconds.filterKeys { it in range && userId == USER }
@@ -123,6 +170,15 @@ class GetGrowthStatsTests {
 
         override fun practiceDaysUpTo(userId: Long, lastDay: LocalDate, minSeconds: Long) =
             seconds.filter { (day, total) -> day <= lastDay && total >= minSeconds }.keys.sortedDescending()
+
+        override fun bestFullSongScores(userId: Long) = best
+
+        override fun latestFullSongPlay(userId: Long) = plays.lastOrNull()
+
+        override fun firstFullSongPlayLike(userId: Long, play: FullSongPlay) = plays.firstOrNull {
+            it.songId == play.songId && it.scoreVersion == play.scoreVersion && it.modelVersion == play.modelVersion &&
+                it.bpm == play.bpm && it.bpmUnit == play.bpmUnit
+        }
     }
 
     private companion object {

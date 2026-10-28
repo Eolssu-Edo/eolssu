@@ -222,7 +222,7 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `db` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필과 읽기 전용 `ops` 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
 
-`growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다.
+`growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다. 요약의 곡별 최고점·항목별 성장은 기간과 관계없이 회원의 전체 곡 연주(첫 음~끝 음)로 냅니다.
 
 `analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 마감 전 `PENDING` 세션에만 결과를 저장합니다. `AnalyzePracticeSession`은 실패를 `SERVER_ERROR`, 제한 시간(기본 60초)을 넘긴 시도를 `TIMEOUT`으로 기록합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필에서는 저장소만 Bean으로 만들고, 분석 실행·AI 클라이언트 연결은 악보 음표 변환·녹음 서명 URL(S15P31E102-181) 뒤에 추가합니다.
 
