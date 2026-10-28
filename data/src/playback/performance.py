@@ -235,6 +235,11 @@ def apply_performance(score, mapping, plan, input_sha256):
             copied = deepcopy(mapping["notes"][original_id])
             for loc in copied:
                 old_start, old_length = Fraction(loc["start_quarters"]), Fraction(loc["duration_quarters"])
+                # These describe the pre-plan notation expansion. Actual note
+                # timing is recorded below and actual breath lives on score.
+                for field in ("grace_timing", "breath_timing"):
+                    if field in loc:
+                        loc[f"source_{field}"] = loc.pop(field)
                 loc["source_start_quarters"], loc["source_duration_quarters"] = str(old_start), str(old_length)
                 loc["start_quarters"] = str(Fraction(round((offset + warp(old_start)) * PPQN), PPQN))
                 loc["duration_quarters"] = str(Fraction(round((offset + warp(old_start + old_length)) * PPQN) -

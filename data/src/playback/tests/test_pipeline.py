@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from data.src.playback.__main__ import run
+from data.src.playback.__main__ import run, publish
 from data.src.playback.audio import resolve_encoder
 from data.src.playback.sampler import FS
 from data.src.playback.score import PROFILES
@@ -97,6 +97,60 @@ class JgbRenderIntegrationTests(unittest.TestCase):
 
 
 class CliPipelineTests(unittest.TestCase):
+    def test_publish_rename_failure_restores_complete_previous_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            out, stage = root / "out", root / "stage"
+            out.mkdir(); stage.mkdir()
+            names = ["manifest.json", "score.json", "danso.wav"]
+            for name in names:
+                (out / name).write_bytes(b"previous")
+                (stage / name).write_bytes(b"new")
+            original = Path.replace
+            def fail_stage(path, target):
+                if path == stage:
+                    raise OSError("injected publish failure")
+                return original(path, target)
+            with patch.object(Path, "replace", fail_stage):
+                with self.assertRaisesRegex(OSError, "publish failure"):
+                    publish(stage, out, names)
+            self.assertEqual({p.name: p.read_bytes() for p in out.iterdir()},
+                             {name: b"previous" for name in names})
+            self.assertFalse(list(root.glob(".*-previous-*")))
+
+    def test_publish_refuses_unrelated_files_and_replaces_valid_bundle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            out, stage = root / "out", root / "stage"
+            out.mkdir(); stage.mkdir()
+            (out / "personal.txt").write_bytes(b"keep")
+            (stage / "manifest.json").write_bytes(b"new")
+            with self.assertRaisesRegex(ValueError, "다른 파일"):
+                publish(stage, out, ["manifest.json"])
+            self.assertEqual((out / "personal.txt").read_bytes(), b"keep")
+            (out / "personal.txt").rename(out / "manifest.json")
+            publish(stage, out, ["manifest.json"])
+            self.assertEqual((out / "manifest.json").read_bytes(), b"new")
+
+    def test_cli_preserves_explicit_configs_and_resource_limit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, assets = inputs(root)
+            plan, profile = root / "plan.json", root / "profile.json"
+            plan.write_text(json.dumps({"schema": "danso-performance/v1",
+                "input_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "tempos": [{"gak": 1, "cell": 2, "bpm": 120}]}), encoding="utf-8")
+            profile.write_text(json.dumps({"schema": "danso-expression-profile/v1", "policies": {}}), encoding="utf-8")
+            with patch("data.src.playback.__main__.CatSampler", return_value=sampler()):
+                result = run(source, assets, root / "out", ["danso"], audio_format="wav",
+                    performance_plan=plan, expression_profile=profile, max_duration_seconds=1200)
+            self.assertEqual(result["resource_limits"]["max_duration_seconds"], 1200)
+            for filename, original in (("performance-plan.json", plan), ("expression-profile.json", profile)):
+                self.assertEqual((root / "out" / filename).read_bytes(), original.read_bytes())
+                self.assertEqual(result["configuration_sha256"][filename], hashlib.sha256(original.read_bytes()).hexdigest())
+            rendered = json.loads((root / "out/score.json").read_text(encoding="utf-8"))
+            self.assertAlmostEqual(midi(rendered)["notes"][-1]["end"], 1.5, places=4)
+
     def test_failed_cli_preserves_previous_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); out=root/"out";out.mkdir()

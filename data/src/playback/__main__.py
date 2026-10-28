@@ -4,7 +4,9 @@ import hashlib
 import json
 from pathlib import Path
 import platform
+import shutil
 import tempfile
+import uuid
 import numpy as np
 import soundfile as sf
 from .score import PROFILES, compile_score, require
@@ -18,33 +20,73 @@ def dump(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8")
 
 
+def publish(stage, out, outputs):
+    """Replace a result directory as a bundle; restore it on a rename failure."""
+    require(not out.is_symlink(), "출력 폴더의 심볼릭 링크는 지원하지 않습니다")
+    require(not out.exists() or out.is_dir(), "출력 경로는 폴더여야 합니다")
+    if out.exists():
+        require(all(p.is_file() and p.name in outputs for p in out.iterdir()),
+                "출력 폴더에 다른 파일/폴더가 있습니다. 변환 전용 --out 폴더를 사용하세요")
+    backup = out.with_name(f".{out.name}-previous-{uuid.uuid4().hex}")
+    had_previous = out.exists()
+    if had_previous:
+        out.replace(backup)
+    try:
+        stage.replace(out)
+    except OSError:
+        if had_previous:
+            backup.replace(out)
+        raise
+    if had_previous:
+        # Only the validated previous conversion bundle is removed. If a reader
+        # still holds a file on Windows, leave its backup for manual cleanup.
+        shutil.rmtree(backup, ignore_errors=True)
+
+
 def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bpm=None,
         speed=1, hwang_midi=None, jo=None, audio_format="m4a", ffmpeg=None, ffprobe=None,
-        encoder=None):
+        encoder=None, max_duration_seconds=600, performance_plan=None, expression_profile=None,
+        assume_danso=False):
     require(audio_format in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     input_bytes = Path(score_path).read_bytes()
     input_hash = hashlib.sha256(input_bytes).hexdigest()
     source = json.loads(input_bytes.decode("utf-8-sig"))
+    configs = {}
+    for name, path in (("performance-plan.json", performance_plan), ("expression-profile.json", expression_profile)):
+        if path is not None:
+            payload = Path(path).read_bytes()
+            value = json.loads(payload.decode("utf-8-sig"))
+            require(isinstance(value, dict), f"{name}: JSON 객체가 필요합니다")
+            configs[name] = {"path": Path(path).resolve(), "bytes": payload,
+                             "value": value,
+                             "sha256": hashlib.sha256(payload).hexdigest()}
     source_map = None
     is_jgb = Path(score_path).name.endswith(".jgb.json") or isinstance(source, dict) and "v" in source
     if is_jgb:
         require(instruments == ["danso"], "JGB 입력은 단소 한 성부만 지원합니다")
         score, source_map = convert_jgb(source, source_name=Path(score_path).name, part=part,
-                                       bpm=bpm, speed=speed, hwang_midi=hwang_midi, jo=jo)
+                                       bpm=bpm, speed=speed, hwang_midi=hwang_midi, jo=jo,
+                                       performance_plan=configs.get("performance-plan.json", {}).get("value"),
+                                       input_sha256=input_hash,
+                                       expression_profile=configs.get("expression-profile.json", {}).get("value"),
+                                       assume_danso=assume_danso)
         source_map["input_sha256"] = input_hash
         score["source"]["jgb_sha256"] = source_map["input_sha256"]
     else:
-        require(part is None and bpm is None and speed == 1 and hwang_midi is None and jo is None,
-                "--part/--bpm/--speed/--hwang-midi/--jo는 JGB 입력용입니다")
+        require(part is None and bpm is None and speed == 1 and hwang_midi is None and jo is None
+                and not configs and not assume_danso,
+                "성부·빠르기·황종·조·연주 계획·표현 프로필·단소 선택 옵션은 JGB 입력용입니다")
         score = source
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
-    out = Path(out)
+    out = Path(out).absolute()
     outputs = ["score.json", "manifest.json"]
     outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", audio_format, "json")]
     if is_jgb:
         outputs += ["source.jgb.json", "source-map.json"]
+    outputs += list(configs)
     targets = {(out / name).resolve() for name in outputs}
-    require(Path(score_path).resolve() not in targets and Path(assets_path).resolve() not in targets,
+    require(Path(score_path).resolve() not in targets and Path(assets_path).resolve() not in targets
+            and not any(config["path"] in targets for config in configs.values()),
             "출력 파일이 원본 입력 또는 assets 파일과 겹칩니다. 다른 --out 폴더를 사용하세요")
     require(is_jgb or not any((out / name).exists() for name in ("source.jgb.json", "source-map.json")),
             "이 폴더에 이전 JGB 원본·대응표가 있습니다. 일반 악보 JSON은 다른 --out 폴더에 생성하세요")
@@ -52,13 +94,13 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
     require(not any((out / f"{key}.{other_format}").exists() for key in instruments),
             "출력 폴더에 이전 형식의 음원이 있습니다. 새 --out 폴더를 사용하세요")
     encoder = (encoder or resolve_encoder(ffmpeg, ffprobe)) if audio_format == "m4a" else None
-    out.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     reports, renders = [], []
     # Validate staged artifacts before replacing previous conversion outputs.
-    with tempfile.TemporaryDirectory(prefix="playback-", dir=out) as tmp:
+    with tempfile.TemporaryDirectory(prefix=f".{out.name}-playback-", dir=out.parent) as tmp:
         stage = Path(tmp)
         for key in instruments:
-            perf = compile_score(score, key, transpose)
+            perf = compile_score(score, key, transpose, max_duration_seconds=max_duration_seconds)
             require(key in assets, f"Missing asset mapping for {key}")
             archive = Path(assets[key])
             if not archive.is_absolute():
@@ -90,13 +132,14 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                                f"{audio_format}_sha256":sha(audio_path)}
             dump(stage/f"{key}.json", report)
         manifest = {"input_sha256":input_hash, "credit":CREDIT, "engine":"custom CAT sample player, not Ableton/Kontakt/Sori",
+                    "resource_limits":{"max_duration_seconds":max_duration_seconds},
                     "release_controller":dict(RELEASE_CC),
                     "audio_output":{"format":audio_format,
                                     "requested_bit_rate":AAC_BIT_RATE if encoder else None,
                                     "encoder":{k:v for k,v in encoder.items() if k.endswith("_version")} if encoder else None},
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":dict(PLAYBACK_VIBRATO),
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","expressions.py","performance.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["JGB v1/v2 import supports one selected danso part and the documented notation subset.",
@@ -105,6 +148,9 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                     "No full Ableton filter/FX/velocity emulation. Sample tuning not exhaustively measured.",
                     "CAT raw samples stay local; check applicable distribution/service terms separately."]}
         dump(stage/"score.json", score)
+        for name, config in configs.items():
+            (stage/name).write_bytes(config["bytes"])
+        manifest["configuration_sha256"] = {name: config["sha256"] for name, config in configs.items()}
         if source_map is not None:
             (stage/"source.jgb.json").write_bytes(input_bytes)
             dump(stage/"source-map.json", source_map)
@@ -112,8 +158,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
             manifest["normalized_score_sha256"] = sha(stage/"score.json")
             manifest["source_map_sha256"] = sha(stage/"source-map.json")
         dump(stage/"manifest.json", manifest)
-        for path in stage.iterdir():
-            path.replace(out/path.name)
+        publish(stage, out, outputs)
     return manifest
 
 
@@ -129,12 +174,19 @@ def main():
     p.add_argument("--speed", type=float, default=1, help="JGB tempo multiplier (0.25..4), default 1")
     p.add_argument("--hwang-midi", type=int, help="JGB huangjong MIDI override; otherwise use hwangPitch")
     p.add_argument("--jo", choices=list(SCALES), help="Explicit JGB scale for relative ornaments")
+    p.add_argument("--max-duration-seconds", type=float, default=600,
+                   help="Memory/resource limit, not a musical duration rule; default 600")
+    p.add_argument("--performance-plan", help="Local tempo/repeat plan JSON bound to the source SHA256")
+    p.add_argument("--expression-profile", help="Local explicit expression parameters and their basis")
+    p.add_argument("--assume-danso", action="store_true", help="Explicitly select danso for an instrument=all part")
     add_audio_arguments(p)
     a = p.parse_args()
     try:
         result = run(a.score, a.assets, a.out, list(PROFILES) if a.instrument == "all" else [a.instrument],
                      a.transpose, part=a.part, bpm=a.bpm, speed=a.speed, hwang_midi=a.hwang_midi, jo=a.jo,
-                     audio_format=a.audio_format, ffmpeg=a.ffmpeg, ffprobe=a.ffprobe)
+                     audio_format=a.audio_format, ffmpeg=a.ffmpeg, ffprobe=a.ffprobe,
+                     max_duration_seconds=a.max_duration_seconds, performance_plan=a.performance_plan,
+                     expression_profile=a.expression_profile, assume_danso=a.assume_danso)
     except ValueError as exc:
         p.error(str(exc))
     print(json.dumps(result, ensure_ascii=False, indent=2))

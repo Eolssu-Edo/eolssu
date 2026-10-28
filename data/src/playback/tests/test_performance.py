@@ -95,9 +95,12 @@ class PerformanceTests(unittest.TestCase):
     def test_shortened_breath_remains_bounded_and_curve_points_are_preserved(self):
         value, mapping = converted(document("청황< | 청태"))
         value["notes"][1]["pitch_curve"] = {"points": [[0, 0], [.5, -100], [1, 0]], "delay_seconds": .1}
-        result, _ = apply_performance(value, mapping, plan(tempos=[{"gak": 1, "cell": 1, "bpm": 1200}]), HASH)
+        result, positions = apply_performance(value, mapping, plan(tempos=[{"gak": 1, "cell": 1, "bpm": 1200}]), HASH)
         note = result["notes"][0]
         self.assertLessEqual(note["breath_seconds"] + note["release_seconds"], .0250001)
+        loc = positions["notes"][note["id"]][0]
+        self.assertEqual(loc["source_breath_timing"]["breath_seconds"], .12)
+        self.assertNotIn("breath_timing", loc)
         self.assertEqual(result["notes"][1]["pitch_curve"]["points"], [[0, 0], [.5, -100], [1, 0]])
         self.assertAlmostEqual(result["notes"][1]["pitch_curve"]["delay_seconds"], .005)
 

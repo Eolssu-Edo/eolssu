@@ -8,6 +8,52 @@ from data.src.playback.tests._helpers import converted, document, midi
 
 
 class JgbTests(unittest.TestCase):
+    def test_all_instrument_needs_explicit_danso_selection_without_source_edit(self):
+        source = document()
+        source["parts"][0]["instrument"] = "all"
+        before = deepcopy(source)
+        with self.assertRaisesRegex(ValueError, "assume-danso"):
+            converted(source)
+        value, mapping = converted(source, assume_danso=True)
+        self.assertEqual(source, before)
+        self.assertEqual(mapping["instrument_selection"]["kind"], "explicit-all-as-danso")
+        self.assertEqual(value["notes"][0]["pitch"], 75)
+        source["parts"][0]["instrument"] = "daegeum"
+        with self.assertRaisesRegex(ValueError, "단소"):
+            converted(source, assume_danso=True)
+
+    def test_tempo_annotations_do_not_take_subdivision_or_change_source_offsets(self):
+        source = document("청황 | {조금속하게@100,0,0} 청태")
+        before = deepcopy(source)
+        with self.assertRaisesRegex(ValueError, "performance-plan"):
+            converted(source)
+        plan = {"schema": "danso-performance/v1", "input_sha256": "a" * 64,
+                "tempos": [{"gak": 1, "cell": 2, "bpm": 120}]}
+        value, mapping = converted(source, performance_plan=plan, input_sha256="a" * 64)
+        self.assertEqual(source, before)
+        self.assertEqual(len(value["notes"]), 2)
+        self.assertAlmostEqual(midi(value)["notes"][-1]["end"], 1.5, places=4)
+        self.assertEqual(mapping["tempo_cues"], [{"gak": 1, "cell": 2, "symbol": "조금속하게"}])
+        locations = [loc for group in mapping["notes"].values() for loc in group]
+        self.assertTrue(any("조금속하게@100,0,0" in loc["text"] for loc in locations))
+
+    def test_accent_is_not_geokeum_and_profile_shake_is_not_wavy_vibrato(self):
+        value, _ = converted(document("청황{특강표} | 청태"))
+        self.assertGreater(value["notes"][0]["velocity"], 96)
+        with self.assertRaisesRegex(ValueError, "미확정"):
+            converted(document("청황{격음표} | 청태"))
+        with self.assertRaisesRegex(ValueError, "profile|프로필"):
+            converted(document("청황 | {요성표}"))
+        profile = {"schema": "danso-expression-profile/v1", "policies": {
+            "shake": {"basis": "explicit synthetic test choice", "yoseong": {"mode": "pitch", "hz": 4, "cents": 80, "delay_seconds": 0}}}}
+        value, mapping = converted(document("청황 | {요성표}"), expression_profile=profile)
+        self.assertEqual(len(value["notes"]), 1)
+        self.assertEqual(value["notes"][0]["yoseong"]["cents"], 80)
+        self.assertAlmostEqual(value["notes"][0]["yoseong"]["delay_seconds"], 1)
+        self.assertEqual(len(mapping["notes"][value["notes"][0]["id"]]), 2)
+        with self.assertRaisesRegex(ValueError, "미확정"):
+            converted(document("청황{하성} | 청태"), expression_profile=profile)
+
     def test_short_subdivided_graces_keep_main_half_and_exact_timing(self):
         cases = (("eighth", "니레", 1, 1), ("dotted", "느로니르", 3, 1),
                  ("eighth", "느니르", 2, 1), ("eighth", "느니르}{나니나", 2, 3))
@@ -377,7 +423,7 @@ class JgbTests(unittest.TestCase):
         self.assertEqual(midi(score)["notes"], midi(plain)["notes"])
 
     def test_known_unresolved_figures_are_not_silently_skipped(self):
-        for mark in ("격음표", "겹흘림표", "겹미는표", "요성표", "겹요성표", "하성", "느니라", "노라느니", "반복표"):
+        for mark in ("격음표", "하성", "느니라", "노라느니", "반복표"):
             with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "1각 · 1정간.*미확정"):
                 converted(document(f"청황{{{mark}}} | 청태"))
         for jo in ("hwang-pyeong", "jung-pyeong", "hwang-gyemyeon", ""):
