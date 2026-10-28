@@ -43,7 +43,7 @@ class WithdrawalPurgeDatabaseTests {
         val deleted = mutableListOf<String>()
         val summary = WithdrawalPurgeService(repository, { deleted += it }, Clock.fixed(now, ZoneOffset.UTC)).purgeDue()
 
-        assertEquals(PurgeSummary(purged = 1, deferred = 0, skipped = 0), summary)
+        assertEquals(PurgeSummary(purged = 1, deferred = 0, skipped = 0, failed = 0), summary)
         assertEquals(listOf("https://example.test/recording.wav"), deleted)
         for (table in listOf("practice_sessions", "score_views", "user_term_agreements", "user_song_settings", "lesson_progress", "refresh_tokens", "user_social_accounts")) {
             assertEquals(0, count("SELECT COUNT(*) FROM $table WHERE user_id = 1"), table)

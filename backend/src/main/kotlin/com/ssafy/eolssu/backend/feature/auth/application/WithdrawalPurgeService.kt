@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.auth.application
 import com.ssafy.eolssu.backend.feature.auth.domain.WithdrawalPurgeRepository
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.temporal.ChronoUnit
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -23,6 +24,7 @@ class WithdrawalPurgeService(
         var purged = 0
         var deferred = 0
         var skipped = 0
+        var failed = 0
         var afterUserId = 0L
         while (true) {
             val userIds = repository.dueMembers(now, afterUserId, batchSize)
@@ -30,13 +32,24 @@ class WithdrawalPurgeService(
             for (userId in userIds) {
                 when {
                     !deleteRecordings(userId) -> deferred++
-                    repository.purge(userId, now) -> purged++
-                    else -> skipped++
+                    else -> when (purge(userId, now)) {
+                        true -> purged++
+                        false -> skipped++
+                        null -> failed++
+                    }
                 }
             }
             afterUserId = userIds.last()
         }
-        return PurgeSummary(purged, deferred, skipped)
+        return PurgeSummary(purged, deferred, skipped, failed)
+    }
+
+    // 한 회원의 DB 오류(잠금 대기 초과 등)로 그날 나머지 회원이 멈추지 않게 회원 단위로 격리한다. 그 회원은 다음 날 다시 대상이 된다.
+    private fun purge(userId: Long, now: Instant): Boolean? = try {
+        repository.purge(userId, now)
+    } catch (e: Exception) {
+        log.error("Withdrawal purge of user {} failed ({})", userId, e.javaClass.simpleName, e)
+        null
     }
 
     private fun deleteRecordings(userId: Long): Boolean = try {
@@ -51,9 +64,21 @@ class WithdrawalPurgeService(
     @Scheduled(cron = "0 0 4 * * *", zone = "Asia/Seoul")
     fun runScheduled() {
         val started = System.nanoTime()
-        val summary = purgeDue()
-        val elapsed = Duration.ofNanos(System.nanoTime() - started).toMillis()
-        log.info("Withdrawal purge finished in {} ms: purged={}, deferred={}, skipped={}", elapsed, summary.purged, summary.deferred, summary.skipped)
+        var summary: PurgeSummary? = null
+        try {
+            summary = purgeDue()
+        } finally {
+            // 대상 조회처럼 회원 밖에서 실패해도 걸린 시간은 남긴다.
+            val elapsed = Duration.ofNanos(System.nanoTime() - started).toMillis()
+            if (summary == null) {
+                log.error("Withdrawal purge stopped after {} ms", elapsed)
+            } else {
+                log.info(
+                    "Withdrawal purge finished in {} ms: purged={}, deferred={}, skipped={}, failed={}",
+                    elapsed, summary.purged, summary.deferred, summary.skipped, summary.failed,
+                )
+            }
+        }
     }
 
     private companion object {
@@ -61,5 +86,5 @@ class WithdrawalPurgeService(
     }
 }
 
-/** purged: 지움, deferred: 녹음 삭제 실패로 다음 날로, skipped: 그 사이 탈퇴를 취소해 지우지 않음. */
-data class PurgeSummary(val purged: Int, val deferred: Int, val skipped: Int)
+/** purged: 지움, deferred: 녹음 삭제 실패로 다음 날로, skipped: 그 사이 탈퇴를 취소해 지우지 않음, failed: DB 오류로 다음 날로. */
+data class PurgeSummary(val purged: Int, val deferred: Int, val skipped: Int, val failed: Int)
