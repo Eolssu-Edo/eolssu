@@ -16,6 +16,8 @@ class SignInMember(
 
 interface SignInRepository {
     fun <T : Any> inTransaction(action: () -> T): T
+    /** users.email 콜레이션이 같다고 보는 이메일끼리 같은 값. 회원 여부와 무관하다. */
+    fun lockKey(email: String): String
     fun findMember(email: String): SignInMember?
     fun findMemberForUpdate(email: String): SignInMember?
     fun cancelWithdrawal(userId: Long, now: Instant)

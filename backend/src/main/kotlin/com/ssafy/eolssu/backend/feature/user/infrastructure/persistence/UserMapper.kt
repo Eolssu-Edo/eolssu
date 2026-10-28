@@ -10,6 +10,7 @@ interface UserMapper {
     fun findById(@Param("id") id: Long): UserRow?
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(user: UserInsert): Int
+    fun emailSortKey(@Param("email") email: String): String
     fun findSignInMember(@Param("email") email: String): UserRow?
     fun findSignInMemberForUpdate(@Param("email") email: String): UserRow?
     fun cancelWithdrawal(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int

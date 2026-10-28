@@ -16,6 +16,7 @@ class MyBatisSignInRepository(private val users: UserMapper, transactionManager:
 
     override fun <T : Any> inTransaction(action: () -> T): T = checkNotNull(transaction.execute { action() })
 
+    override fun lockKey(email: String) = users.emailSortKey(email)
     override fun findMember(email: String) = users.findSignInMember(email)?.toMember()
     override fun findMemberForUpdate(email: String) = users.findSignInMemberForUpdate(email)?.toMember()
 

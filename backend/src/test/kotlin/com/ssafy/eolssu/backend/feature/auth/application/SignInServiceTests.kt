@@ -86,6 +86,13 @@ class SignInServiceTests {
     }
 
     @Test
+    fun `variants of an unknown email share one lock so the lock does not reveal membership`() {
+        repository.aliases["kím@example.com"] = "kim@example.com"
+        repeat(5) { service.signIn("kim@example.com", "Wrong!234") }
+        assertIs<SignInResult.TooManyAttempts>(service.signIn("kím@example.com", "Wrong!234"))
+    }
+
+    @Test
     fun `failures older than 15 minutes do not count and success resets the count`() {
         repeat(4) { service.signIn("learner@example.com", "Wrong!234") }
         now = now.plusSeconds(901)
@@ -132,6 +139,7 @@ internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository
         inTransaction = true
         try { return action() } finally { inTransaction = false }
     }
+    override fun lockKey(email: String) = aliases[email] ?: email
     override fun findMember(email: String) = members[aliases[email] ?: email]
     override fun findMemberForUpdate(email: String): SignInMember? {
         beforeLockedRead()

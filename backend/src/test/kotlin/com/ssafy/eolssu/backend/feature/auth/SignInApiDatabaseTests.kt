@@ -117,6 +117,19 @@ class SignInApiDatabaseTests {
         assertError(signIn("kím@auth207in.test", "Example!234"), 429, "TOO_MANY_REQUESTS")
     }
 
+    @Test
+    fun `an accent variant of an unknown email is locked the same way so the lock does not reveal membership`() {
+        repeat(4) { assertError(signIn("nobody@auth207in.test", "Wrong!234"), 401, "INVALID_CREDENTIALS") }
+        assertError(signIn("nobody@auth207in.test", "Wrong!234"), 429, "TOO_MANY_REQUESTS")
+        assertError(signIn("nóbody@auth207in.test", "Wrong!234"), 429, "TOO_MANY_REQUESTS")
+    }
+
+    @Test
+    fun `users email uses the collation that the lock key follows`() {
+        assertEquals("utf8mb4_0900_ai_ci", jdbc.queryForObject(
+            "SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'email'", String::class.java))
+    }
+
     private fun response429HasNoCookies(response: HttpResponse<String>) = response.headers().allValues("Set-Cookie").isEmpty()
 
     private fun signIn(email: String, password: String) = post("/api/auth/sign-in", """{"email":"$email","password":"$password"}""")
