@@ -6,10 +6,13 @@
 | --- | --- | --- |
 | Grafana | 127.0.0.1:3000 | grafana/grafana:11.3.0 |
 | Prometheus | 127.0.0.1:9090 | prom/prometheus:v3.5.0 |
+| node exporter | 포트 없음(Docker 내부 `node-exporter:9100`) | prom/node-exporter:v1.9.1 |
 
 서비스는 서버 밖에 열지 않고 SSH 터널로만 접속합니다. 운영 스택(`eolssu-runtime`)의 Compose·Nginx 설정은 바꾸지 않고, 그 스택의 내부 네트워크 `eolssu-runtime_default`에 붙어 MySQL을 `mysql:3306`, 백엔드를 `backend:8080`으로 찾습니다.
 
-Prometheus는 15초마다 `backend:8080/api/actuator/prometheus`를 읽고 15일 보관합니다([prometheus.yml](prometheus.yml)). 이 주소는 인터넷 쪽에서 Nginx가 404로 막습니다([infra/runtime](../runtime/README.md)).
+Prometheus는 15초마다 `backend:8080/api/actuator/prometheus`와 서버 수집기 `node-exporter:9100`을 읽고 15일 보관합니다([prometheus.yml](prometheus.yml)). 백엔드 수치 주소 `/api/actuator/prometheus`는 인터넷 쪽에서 Nginx가 404로 막습니다([infra/runtime](../runtime/README.md)).
+
+서버 수집기는 서버 루트를 읽기 전용으로만 보고 포트를 열지 않습니다(`/:/host:ro,rslave`). `rslave`는 서버 루트가 shared 마운트여야 하며 edo1은 shared입니다. Docker Desktop에서는 이 옵션으로 뜨지 않습니다.
 
 ## 준비 조건
 
@@ -84,7 +87,7 @@ cd ~/eolssu-monitoring && cp .env.example .env && chmod 600 .env && nano .env
 docker compose up -d
 ```
 
-`docker compose ps`에서 grafana가 `Up`, prometheus가 `Up (healthy)`이면 됩니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다. 수집 대상 상태는 서버에서 `curl -s 127.0.0.1:9090/api/v1/targets`의 `"health":"up"`으로 확인합니다.
+`docker compose ps`에서 grafana·node-exporter가 `Up`, prometheus가 `Up (healthy)`이면 됩니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다. 수집 대상 상태는 서버에서 `curl -s 127.0.0.1:9090/api/v1/targets`의 `"health":"up"`으로 확인합니다.
 
 ## 3. 접속과 DB 연결
 
@@ -147,10 +150,11 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 
 | 패널 | 내용 |
 | --- | --- |
-| API 응답 시간 | 주소 패턴별 5분 평균과 최근 최대. 수집 요청(`/api/actuator`)은 뺍니다. 등록되지 않은 주소는 `/**`로 묶입니다 |
-| 상태 코드별 요청 수·5xx 오류율 | 상태 코드별 초당 요청 수와 서버 오류 비율 |
+| API 응답 시간 | 주소 패턴별 5분 평균·p95(상위 5%)와 최근 최대. 수집 요청(`/api/actuator`)은 뺍니다. p95는 5ms~10s 범위에서 계산해서, 약 4.75ms면 "5ms 미만", 10s면 "10s 이상"으로 읽습니다 |
+| 상태 코드별 요청 수·5xx 오류율 | 상태 코드별 초당 요청 수와 서버 오류 비율. 요청이 없으면 0입니다 |
 | JVM | 힙 영역별 사용량과 최대, GC 멈춤 시간, 스레드 수 |
-| DB 연결 풀 | 사용 중·쉬는 중·대기 연결 수. MySQL에 붙는 `ops` 프로필에서만 나옵니다 |
+| DB 연결 풀 | 사용 중·쉬는 중·대기 연결 수와 연결 대기 시간 p95. MySQL에 붙는 `ops` 프로필에서만 나옵니다. 대기 p95는 1ms~5s 범위라 약 0.95ms면 "1ms 미만"입니다 |
+| 서버 | edo1 CPU 사용률, 캐시를 뺀 메모리 사용률, 루트(`/`) 디스크 사용률 |
 
 새로 생긴 주소의 요청 수와 응답 시간은 수집이 두 번 이상 된 뒤(30초 안팎)부터 보입니다.
 

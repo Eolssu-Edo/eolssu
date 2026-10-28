@@ -37,11 +37,11 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 
 /** 입력칸 종류. 키보드와 가림 표시가 달라진다. */
-enum class AuthFieldType { Text, Email, Password }
+enum class AuthFieldType { Text, Email, Password, Number }
 
 /**
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
- * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다.
+ * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
  * 지금은 로그인·가입에서만 쓰므로 이 기능에 둔다. 다른 기능이 같은 칸을 쓰면 `core/ui/component`로 옮긴다.
  */
 @Composable
@@ -56,6 +56,7 @@ fun AuthTextField(
     error: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: (() -> Unit)? = null,
+    trailing: String? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
@@ -74,6 +75,7 @@ fun AuthTextField(
                     AuthFieldType.Text -> KeyboardType.Text
                     AuthFieldType.Email -> KeyboardType.Email
                     AuthFieldType.Password -> KeyboardType.Password
+                    AuthFieldType.Number -> KeyboardType.NumberPassword
                 },
                 autoCorrectEnabled = type == AuthFieldType.Text,
                 imeAction = imeAction,
@@ -98,9 +100,19 @@ fun AuthTextField(
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
-                    // 자리 글자는 대비 기준(4.5:1)을 지키도록 회색 글자색을 쓴다(와이어프레임은 더 옅은 회색).
-                    if (value.isEmpty()) Text(placeholder, style = textStyle, color = colors.textMuted)
-                    innerTextField()
+                    Box(Modifier.padding(end = if (trailing != null) 48.dp else 0.dp)) {
+                        // 자리 글자는 대비 기준(4.5:1)을 지키도록 회색 글자색을 쓴다(와이어프레임은 더 옅은 회색).
+                        if (value.isEmpty()) Text(placeholder, style = textStyle, color = colors.textMuted)
+                        innerTextField()
+                    }
+                    if (trailing != null) {
+                        Text(
+                            trailing,
+                            modifier = Modifier.align(Alignment.CenterEnd),
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                            color = colors.text,
+                        )
+                    }
                 }
             },
         )
