@@ -23,4 +23,19 @@
         LEFT JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.id = #{sessionId} AND ps.user_id = #{userId}
     </select>
+
+    <select id="findUploadTarget" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.RecordingUploadTargetRow">
+        SELECT status, fail_reason, started_at
+        FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId}
+    </select>
+
+    <!-- 다른 업로드·만료 배치와 겨루는 조건부 갱신. 분석 시도 시작 시각은 마감 판정과 같은 서버 시계 값(uploadedAt)이다 -->
+    <update id="markRecordingUploaded">
+        UPDATE practice_sessions
+        SET recording_url = #{recordingUrl}, recording_bytes = #{bytes}, recording_duration_ms = #{durationMs},
+            recording_sample_rate = #{sampleRate}, recording_channels = #{channels}, ended_at = #{uploadedAt},
+            status = 'PENDING', analysis_attempt = analysis_attempt + 1, analysis_started_at = #{uploadedAt}
+        WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'RECORDING'
+    </update>
 </mapper>

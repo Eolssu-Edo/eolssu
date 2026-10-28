@@ -3,6 +3,7 @@ kotlin = "2.3.21"
 spring-boot = "4.1.1"
 spring-dependency-management = "1.1.7"
 mybatis-spring-boot = "4.0.0"
+aws-sdk = "2.56.0"
 bouncycastle = "1.84"
 
 [libraries]
@@ -16,6 +17,8 @@ spring-boot-flyway = { module = "org.springframework.boot:spring-boot-starter-fl
 spring-boot-mail = { module = "org.springframework.boot:spring-boot-starter-mail" }
 spring-boot-security = { module = "org.springframework.boot:spring-boot-starter-security" }
 mybatis-spring-boot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
+aws-sdk-bom = { module = "software.amazon.awssdk:bom", version.ref = "aws-sdk" }
+aws-sdk-s3 = { module = "software.amazon.awssdk:s3" }
 flyway-mysql = { module = "org.flywaydb:flyway-mysql" }
 mysql-connector = { module = "com.mysql:mysql-connector-j" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
