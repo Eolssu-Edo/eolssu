@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.growth.application.RecordScoreView
 import com.ssafy.eolssu.backend.feature.growth.application.RecordScoreViewResult
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
+import java.time.DateTimeException
 import java.time.Instant
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
@@ -45,6 +46,8 @@ class ScoreViewController(private val recordScoreView: RecordScoreView) {
             RecordScoreViewResult.Conflict -> error(ErrorCode.IDEMPOTENCY_KEY_CONFLICT)
             is RecordScoreViewResult.Invalid -> error(ErrorCode.INVALID_REQUEST, RejectionDetails(result.violation.name))
             RecordScoreViewResult.SongNotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
+            // 토큰은 유효하지만 회원 행이 없다. 앱은 토큰 갱신에 실패하고 로그아웃 때 남은 기록을 지운다.
+            RecordScoreViewResult.MemberNotFound -> error(ErrorCode.UNAUTHENTICATED)
         }
     }
 
@@ -58,12 +61,13 @@ class ScoreViewController(private val recordScoreView: RecordScoreView) {
     private fun error(code: ErrorCode, details: Any? = null) = ResponseEntity.status(code.status).body(ErrorResponse.of(code, details))
 }
 
+// 기본 변환은 epoch 숫자 시각·소수·문자열 숫자도 받아 값을 바꿔 저장하므로, 칸마다 계약의 JSON 형식만 받는다.
 data class RecordScoreViewRequest(
     @param:JsonDeserialize(using = SongIdDeserializer::class) val songId: Long,
-    val startedAt: Instant,
-    val endedAt: Instant,
-    val visibleSeconds: Int,
-    val countedSeconds: Int,
+    @param:JsonDeserialize(using = IsoInstantDeserializer::class) val startedAt: Instant,
+    @param:JsonDeserialize(using = IsoInstantDeserializer::class) val endedAt: Instant,
+    @param:JsonDeserialize(using = JsonIntDeserializer::class) val visibleSeconds: Int,
+    @param:JsonDeserialize(using = JsonIntDeserializer::class) val countedSeconds: Int,
 )
 
 data class ScoreViewResponse(
@@ -91,4 +95,19 @@ class SongIdDeserializer : ValueDeserializer<Long>() {
         parser.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string
             ?.takeIf { text -> text.all { it in '0'..'9' } }?.toLongOrNull()?.takeIf { it > 0 }
             ?: context.reportInputMismatch(Long::class.java, "songId must be a positive integer JSON string")
+}
+
+/** ISO-8601 문자열만 받는다. 오프셋이 붙은 시각(`+09:00`)은 UTC로 바꾼다. */
+class IsoInstantDeserializer : ValueDeserializer<Instant>() {
+    override fun deserialize(parser: JsonParser, context: DeserializationContext): Instant =
+        parser.takeIf { it.currentToken() == JsonToken.VALUE_STRING }?.string
+            ?.let { text -> try { Instant.parse(text) } catch (_: DateTimeException) { null } }
+            ?: context.reportInputMismatch(Instant::class.java, "time must be an ISO-8601 JSON string")
+}
+
+/** 소수·문자열·범위 밖 정수를 잘라 저장하지 않도록 Int 범위의 JSON 정수만 받는다. */
+class JsonIntDeserializer : ValueDeserializer<Int>() {
+    override fun deserialize(parser: JsonParser, context: DeserializationContext): Int =
+        parser.takeIf { it.currentToken() == JsonToken.VALUE_NUMBER_INT && it.numberType == JsonParser.NumberType.INT }?.intValue
+            ?: context.reportInputMismatch(Int::class.java, "seconds must be a JSON integer")
 }

@@ -109,6 +109,14 @@ class ScoreViewApiDatabaseTests {
     }
 
     @Test
+    fun `returns 401 instead of 500 when the token member has no row`() {
+        val response = post(body(), cookie = "access_token=${token(subject = "990188")}")
+        assertEquals(401, response.statusCode(), response.body())
+        assertEquals("UNAUTHENTICATED", json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM score_views WHERE user_id IN (990188, 990189)", Int::class.java))
+    }
+
+    @Test
     fun `returns 404 for a song without a row`() {
         val response = post(body(songId = "990188"))
         assertEquals(404, response.statusCode(), response.body())
@@ -126,9 +134,9 @@ class ScoreViewApiDatabaseTests {
         HttpResponse.BodyHandlers.ofString(),
     )
 
-    private fun token(): String = SignedJWT(
+    private fun token(subject: String = "990189"): String = SignedJWT(
         JWSHeader(JWSAlgorithm.HS256),
-        JWTClaimsSet.Builder().subject("990189").expirationTime(Date.from(Instant.now().plusSeconds(300))).build(),
+        JWTClaimsSet.Builder().subject(subject).expirationTime(Date.from(Instant.now().plusSeconds(300))).build(),
     ).apply { sign(MACSigner(TEST_SECRET.toByteArray(Charsets.UTF_8))) }.serialize()
 
     @TestConfiguration(proxyBeanMethods = false)

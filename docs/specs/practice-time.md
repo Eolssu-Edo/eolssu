@@ -70,7 +70,7 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 | 응답 | 앱 처리 |
 | --- | --- |
 | 201, 200 | 대기열에서 지운다. |
-| 409, 400, 404 | 다시 보내도 결과가 같으므로 지우고 오류 로그를 남긴다. |
+| 409, 400, 404, 그 밖의 4xx(403·406·415 등) | 다시 보내도 결과가 같으므로 지우고 오류 로그를 남긴다. |
 | 401 | 토큰을 갱신한 뒤 다시 보낸다. 갱신에 실패하면 대기열에 남겨 둔다. |
 | 네트워크 오류, 5xx | 대기열에 남겨 두고 다음 전송 시점(구간 닫힘·앱 시작·앞으로 돌아옴)에 다시 보낸다. |
 
@@ -88,10 +88,10 @@ Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정�
 
 | 항목 | 위치 | 뜻 |
 | --- | --- | --- |
-| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. 출력 가능한 ASCII 1~100자(앱은 UUID). 없으면 400 |
+| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. 공백을 뺀 출력 가능한 ASCII(`!`~`~`) 1~100자(앱은 UUID). 없으면 400 |
 | `songId` | 본문 | 곡 ID. 곡 목록 응답처럼 JSON 문자열(`"12"`)이고 양의 정수여야 한다 |
-| `startedAt`, `endedAt` | 본문 | 구간 시작·끝. ISO-8601 UTC(`2026-10-28T05:00:00Z`). 서버는 마이크로초까지 저장하고 그 정밀도로 본문을 비교한다 |
-| `visibleSeconds`, `countedSeconds` | 본문 | 보인 시간, 인정 시간(초, 정수) |
+| `startedAt`, `endedAt` | 본문 | 구간 시작·끝. ISO-8601 JSON 문자열(`2026-10-28T05:00:00Z`). 오프셋이 붙은 시각(`+09:00`)은 UTC로 바꿔 저장하고, 숫자(epoch)는 받지 않는다. 서버는 마이크로초까지 저장하고 그 정밀도로 본문을 비교한다 |
+| `visibleSeconds`, `countedSeconds` | 본문 | 보인 시간, 인정 시간(초). JSON 정수만 받는다. 소수·문자열·int 범위 밖은 400 |
 
 서버 처리:
 
@@ -103,7 +103,8 @@ Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정�
 | `endedAt < startedAt`, `countedSeconds > visibleSeconds`, 음수 | 400 |
 | `visibleSeconds > (endedAt − startedAt) + 1초` | 400. 반올림 오차로 1초를 허용한다. |
 | `visibleSeconds > (서버 수신 시각 − startedAt) + 1초` | 400. 앱 버그나 틀린 기기 시계로 부풀린 값을 막는다(R3). 구간을 닫자마자 보내면 반올림한 보인 시간이 1초 미만 길 수 있어 1초를 허용한다. |
-| 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). |
+| 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). 확인 뒤 저장 전에 곡 행이 지워져도 404 |
+| 토큰은 유효하지만 회원 행이 없음 | 401. 500이면 앱이 끝없이 다시 보낸다. 앱은 토큰 갱신에 실패하고 로그아웃 때 남은 기록을 지운다 |
 
 서버는 10초 미만 구간을 따로 거절하지 않는다. 버리는 일은 앱이 맡는다.
 
@@ -112,7 +113,7 @@ Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정�
 | 응답 | `result` |
 | --- | --- |
 | 201 `체류 기록 저장 성공`, 200 `이미 저장된 체류 기록` | 저장된 구간 `{songId, startedAt, endedAt, visibleSeconds, countedSeconds}`. 200이면 처음 저장한 값이다 |
-| 400 | `errorCode: INVALID_REQUEST`. 구간 검사에 걸리면 `details.reason`에 이유(`INVALID_KEY`, `NEGATIVE_SECONDS`, `COUNTED_EXCEEDS_VISIBLE`, `TIME_OUT_OF_RANGE`, `ENDED_BEFORE_STARTED`, `VISIBLE_EXCEEDS_PERIOD`, `VISIBLE_EXCEEDS_ELAPSED`). 헤더 없음·JSON 형식 오류·`songId` 형식 오류는 `details` 없음. 입력값은 싣지 않는다 |
+| 400 | `errorCode: INVALID_REQUEST`. 구간 검사에 걸리면 `details.reason`에 이유(`INVALID_KEY`, `NEGATIVE_SECONDS`, `COUNTED_EXCEEDS_VISIBLE`, `TIME_OUT_OF_RANGE`, `ENDED_BEFORE_STARTED`, `VISIBLE_EXCEEDS_PERIOD`, `VISIBLE_EXCEEDS_ELAPSED`). 헤더 없음·JSON 형식 오류·칸 형식 오류(`songId`·시각·초)는 `details` 없음. 입력값은 싣지 않는다 |
 | 409 | `errorCode: IDEMPOTENCY_KEY_CONFLICT` |
 | 404 | `errorCode: RESOURCE_NOT_FOUND` |
 | 401 | `errorCode: UNAUTHENTICATED` |
