@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.common.security
 
+import jakarta.servlet.http.Cookie
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -21,12 +22,15 @@ class ApiAccessRulesTests {
 
     @Test
     fun `opens only the public APIs listed in the spec`() {
-        val failures = (PUBLIC.map { it to 404 } + PROTECTED.map { it to 401 } + HEALTH).mapNotNull { (endpoint, expected) ->
-            val (method, path) = endpoint
-            val builder = request(HttpMethod.valueOf(method), path)
-            if (method != "GET") builder.contentType(MediaType.APPLICATION_JSON).content("{}")
-            val actual = mockMvc.perform(builder).andReturn().response.status
-            if (actual == expected) null else "$method $path: expected $expected, was $actual"
+        val failures = (PUBLIC.map { it to 404 } + PROTECTED.map { it to 401 } + HEALTH).flatMap { (endpoint, expected) ->
+            listOf(false, true).mapNotNull { withInvalidCookie ->
+                val (method, path) = endpoint
+                val builder = request(HttpMethod.valueOf(method), path)
+                if (method != "GET") builder.contentType(MediaType.APPLICATION_JSON).content("{}")
+                if (withInvalidCookie) builder.cookie(Cookie("access_token", "invalid.jwt"))
+                val actual = mockMvc.perform(builder).andReturn().response.status
+                if (actual == expected) null else "$method $path: expected $expected, was $actual (invalid cookie=$withInvalidCookie)"
+            }
         }
 
         assertTrue(failures.isEmpty(), failures.joinToString("\n"))

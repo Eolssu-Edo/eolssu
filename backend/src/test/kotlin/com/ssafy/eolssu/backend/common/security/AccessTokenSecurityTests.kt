@@ -59,6 +59,33 @@ class AccessTokenSecurityTests {
         }
     }
 
+    @Test fun `public endpoints ignore expired and malformed access cookies`() {
+        for (value in listOf(token(expires = Instant.now().minusSeconds(300)), "broken.jwt")) {
+            mvc.perform(get("/api/terms").cookie(Cookie("access_token", value)))
+                .andExpect(status().isOk).andExpect(jsonPath("$.items").isArray)
+            mvc.perform(post("/api/auth/refresh").cookie(Cookie("access_token", value), Cookie("refresh_token", "fixture-refresh")))
+                .andExpect(status().isOk).andExpect(jsonPath("$.refreshReached").value(true))
+        }
+    }
+
+    @Test fun `real HTTP keeps public routes open and returns common 406`() {
+        HttpClient.newHttpClient().use { client ->
+            for (path in listOf("/api/terms", "/api/auth/refresh")) {
+                val builder = HttpRequest.newBuilder(URI("http://127.0.0.1:$port$path"))
+                    .header("Cookie", "access_token=${token(expires = Instant.now().minusSeconds(300))}; refresh_token=fixture-refresh")
+                if (path.endsWith("refresh")) builder.POST(HttpRequest.BodyPublishers.noBody())
+                val response = client.send(builder.build(), HttpResponse.BodyHandlers.ofString())
+                assertEquals(200, response.statusCode())
+            }
+            val response = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/actuator/health"))
+                .header("Accept", "image/png").build(), HttpResponse.BodyHandlers.ofString())
+            assertEquals(406, response.statusCode())
+            assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("application/json"))
+            assertTrue(response.body().contains("\"errorCode\":\"NOT_ACCEPTABLE\""))
+            assertFalse(response.body().contains("\"type\""))
+        }
+    }
+
     @Test fun `accepts a signed cookie and exposes users id`() {
         mvc.perform(get("/api/security-test/principal").cookie(Cookie("access_token", token())))
             .andExpect(status().isOk).andExpect(jsonPath("$.userId").value(1))
@@ -146,6 +173,13 @@ class UploadLimitFixture {
 @TestComponent
 @RestController
 class PrincipalFixture {
+    @org.springframework.web.bind.annotation.GetMapping("/api/terms")
+    fun terms() = mapOf("items" to emptyList<String>())
+
+    @PostMapping("/api/auth/refresh")
+    fun refresh(@org.springframework.web.bind.annotation.CookieValue("refresh_token") refresh: String) =
+        mapOf("refreshReached" to (refresh == "fixture-refresh"))
+
     @RequestMapping("/api/security-test/principal")
     fun principal(@AuthenticationPrincipal jwt: Jwt) = mapOf("userId" to requireNotNull(jwt.subject).toLong())
 }

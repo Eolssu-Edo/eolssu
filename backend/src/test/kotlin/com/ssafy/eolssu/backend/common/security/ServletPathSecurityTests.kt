@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.common.security
 
+import jakarta.servlet.http.Cookie
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -7,6 +8,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 /** 서블릿 경로를 바꿔도 업로드 판정이 로그인 규칙(SecurityConfig)과 같은 경로를 기준으로 하는지 확인한다. */
@@ -15,6 +17,14 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 class ServletPathSecurityTests {
     @Autowired
     private lateinit var mockMvc: MockMvc
+
+    @Test
+    fun `public matcher ignores invalid access cookies with servlet prefix`() {
+        mockMvc.perform(get("/app/api/terms").servletPath("/app").cookie(Cookie("access_token", "invalid.jwt")))
+            .andExpect(status().isNotFound)
+        mockMvc.perform(get("/app/api/users/me").servletPath("/app").cookie(Cookie("access_token", "invalid.jwt")))
+            .andExpect(status().isUnauthorized)
+    }
 
     @Test
     fun `follows the servlet path when accepting the recording upload`() {
