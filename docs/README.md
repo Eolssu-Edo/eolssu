@@ -35,6 +35,7 @@
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
 - [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
+- [백엔드 성능 대시보드 p95와 서버 자원](specs/monitoring-p95-node.md)
 
 ## 결정 기록
 
@@ -104,6 +105,7 @@
 - [S15P31E102-182 녹음 업로드 만료 세션 정리 배치](plans/S15P31E102-182.md)
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
+- [S15P31E102-193 기간별 연습 시간 합산 조회(GRO-01·02)](plans/S15P31E102-193.md)
 - [S15P31E102-197 edo1 Jenkins·운영 이미지에 녹음 검사용 ffmpeg 반영](plans/S15P31E102-197.md)
 - [S15P31E102-206 Android 연주 녹음·마이크 권한과 10분 자동 정지](plans/S15P31E102-206.md)
 - [S15P31E102-207 이메일 가입·로그인과 토큰 재발급·로그아웃 API](plans/S15P31E102-207.md)
