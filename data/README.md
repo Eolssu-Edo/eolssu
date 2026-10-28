@@ -61,7 +61,7 @@ data/
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
 ├── reference/               # 서비스 기준 데이터: 율명·악기 음역·장단·곡 정보. 백엔드가 DB에 넣는다.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
-│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
+│   ├── playback/            # 해석한 악보 JSON → MIDI → CAT PCM → M4A(기본)/WAV(선택).
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
 │   ├── audio/               # 분석용 변환 → 구간 자르기 → 악보와 시각 맞추기.
 │   ├── midi/                # MIDI → 음표 이벤트 목록.

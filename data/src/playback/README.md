@@ -2,7 +2,7 @@
 
 JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, CAT 단소 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력·M4A 출력을 더했습니다.
 
-담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 정석 음원 제작을 위한 재생 기반입니다.
+담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 그 제작을 위한 재생 기반이며, 생성 성공이나 자동 테스트 통과만으로 원보 판독·정석 연주 품질의 검수가 끝난 것은 아닙니다.
 
 ```mermaid
 flowchart TD
@@ -34,7 +34,17 @@ python -m venv data/.venv
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
-작은 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 음표/쉼표/붙임줄/이음줄·원본 ID·음역·실제 무음·CC11·Pitch Bend·추가 떨림과 실패 시 기존 산출물 보존을 확인합니다.
+작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 72개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
+
+| 파일 | 개수 | 확인 범위 |
+| --- | ---: | --- |
+| `test_pipeline.py` | 22 | 공통 악보의 음높이·시간·ID, MIDI 제어에 따른 합성 PCM 변화, 실패 시 보존 |
+| `test_jgb.py` | 19 | JGB v1/v2 해석·분박·성부 선택, 원본 바이트·해시·위치 대응, 잘못된 입력 거부 |
+| `test_expression_policy.py` | 8 | 숨표·빈지속·농음·흘림·길이 기호에 정한 시간·표현 정책 |
+| `test_danso_notation.py` | 15 | 장식·대용 기호의 기대 음열, 풀어내림·끊기·늘임, 빠르기 선택 검증 |
+| `test_audio.py` | 8 | WAV/M4A 출력·실패 시 보존 6개, 실제 AAC 인코딩·시간 정렬 통합 2개 |
+
+PDF에서 농음표와 풀어내림표를 구별하거나, 수정한 JGB를 원보·동일 판본의 실연과 대조하는 검사는 없습니다. 예를 들어 풀어내림 테스트는 **구현한 농음+하행 곡선**을 확인하고, 빠르기 테스트는 **값을 명시적으로 선택했는지** 확인합니다. 선택한 곡선·BPM 자체의 음악적 정답 여부를 인증하지 않습니다. 실제 CAT 뱅크를 사용한 수동 생성 결과와 원보 재대조의 한계는 [근거 문서](../../../docs/knowledge/data/danso-expanded-auditions.md)에 따로 기록합니다.
 
 M4A 생성과 실제 코덱 검사에는 **FFmpeg와 ffprobe**가 필요합니다. [공식 다운로드 안내](https://ffmpeg.org/download.html)의 OS별 배포본을 준비합니다. 프로그램이 자동 설치하거나 PATH를 바꾸지는 않습니다. PATH에 있으면 바로 사용하고, 경로를 직접 지정하려면 단일 명령에 `--ffmpeg C:/tools/ffmpeg/bin/ffmpeg.exe --ffprobe C:/tools/ffmpeg/bin/ffprobe.exe`를 붙입니다. 검사와 실행에 공통으로 사용할 환경변수도 지원합니다.
 
