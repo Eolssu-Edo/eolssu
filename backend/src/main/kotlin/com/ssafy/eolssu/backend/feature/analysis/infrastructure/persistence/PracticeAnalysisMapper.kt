@@ -1,16 +1,25 @@
 package com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence
 
+import java.time.LocalDateTime
 import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface PracticeAnalysisMapper {
-    fun findPending(@Param("sessionId") sessionId: Long): PendingAnalysisRow?
+    fun findPending(@Param("sessionId") sessionId: Long, @Param("startedAfter") startedAfter: LocalDateTime): PendingAnalysisRow?
 
-    /** 같은 시도의 `PENDING`일 때만 바꾼다. 바뀐 행 수(0 또는 1)를 돌려준다. */
-    fun markDone(@Param("sessionId") sessionId: Long, @Param("attempt") attempt: Int): Int
+    /** 같은 시도의 마감 전 `PENDING`일 때만 바꾼다. 바뀐 행 수(0 또는 1)를 돌려준다. */
+    fun markDone(@Param("sessionId") sessionId: Long, @Param("attempt") attempt: Int, @Param("startedAfter") startedAfter: LocalDateTime): Int
 
-    fun markFailed(@Param("sessionId") sessionId: Long, @Param("attempt") attempt: Int, @Param("failReason") failReason: String): Int
+    fun markFailed(
+        @Param("sessionId") sessionId: Long,
+        @Param("attempt") attempt: Int,
+        @Param("failReason") failReason: String,
+        @Param("startedAfter") startedAfter: LocalDateTime,
+    ): Int
+
+    /** 마감을 넘긴(시작 시각이 startedAfter보다 이른) `PENDING`을 `TIMEOUT`으로 바꾼다. */
+    fun expireOverdue(@Param("sessionId") sessionId: Long, @Param("startedAfter") startedAfter: LocalDateTime): Int
 
     fun insertEvaluation(evaluation: NewEvaluation): Int
 
