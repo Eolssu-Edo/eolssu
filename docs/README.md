@@ -64,6 +64,7 @@
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
+- [정악대금 JGB·M4A 연결과 CAT 대금 샘플 비교](knowledge/data/jeongak-playback.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 - [정간보 OMR로 악보 PDF를 JSON으로 바꾸는 시험](knowledge/data/jeongganbo-omr.md)

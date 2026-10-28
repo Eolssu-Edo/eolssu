@@ -1,10 +1,25 @@
 """Instrument interpretation regression cases; raw CAT stays outside Git."""
 import unittest
-from test_pipeline import score
-from playback.score import compile_score
+import json
+from pathlib import Path
+from data.src.playback.tests.test_pipeline import score
+from data.src.playback.score import compile_score
+from data.src.playback.jgb import convert_jgb
 
 
 class InstrumentTests(unittest.TestCase):
+    def test_authored_jgb_preserves_notes_breath_and_bank_caveat(self):
+        path=Path(__file__).parents[1]/'examples/jeongak-daegeum-jgb.json'
+        source=json.loads(path.read_text(encoding='utf-8'))
+        normalized,mapping=convert_jgb(source,source_name=path.name,instrument='jeongak-daegeum')
+        result=compile_score(normalized,'jeongak-daegeum')
+        self.assertEqual([e['pitch'] for e in result['events']],[63,65,68])
+        self.assertEqual(mapping['total_quarters'],'4')
+        self.assertEqual(result['events'][0]['yoseong']['mode'],'pitch')
+        self.assertEqual(result['events'][1]['pitch_curve']['end_cents'],-75)
+        self.assertLess(result['events'][2]['end_tick'],result['ppqn']*3)
+        self.assertTrue(any('67개' in w for w in result['warnings']))
+
     def test_yoseong_requires_contextual_mode(self):
         value = score()
         self.assertIsNone(compile_score(value,"jeongak-daegeum")["events"][0]["yoseong"])

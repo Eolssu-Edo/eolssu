@@ -13,5 +13,14 @@
   "range_source": "국립국악원 국악기 이해와 활용 대금 p143–144: 전통 Bb3–Eb6, 현대 확장 E6–Ab6",
   "interpretation": "오선보는 실음 기준 확인. 향악/아악의 황종 기준을 구분. 농음·퇴성은 곡의 의미를 명시.",
   "yoseong_mode": null,
-  "preset_name": "DaeGeum (JeongAk) - DEMO_simple.adv"
+  "preset_name": "DaeGeum (JeongAk) - DEMO_simple.adv",
+  "sample_bank_note": "확보한 CAT Live Sampler v1.3 정악/산조 ZIP은 WAV 67개와 공통 MIDI60–89의 설정이 같습니다. 정악대금 고유 음색을 별도로 검증한 결과가 아닙니다.",
+  "cat_provenance": {
+    "source_url": "https://www.catseoul.com/gugak-library/",
+    "archive_sha256": "ca1f9388e55611e3766611409ca293bee4352a3960f367bb9c718aee5659f540",
+    "preset_xml_sha256": "95904fa129e4b15805c72861716c59d78d46fe5126fa11283af9acb952b1ee2b",
+    "simple_key_range": [58, 89],
+    "audit_date": "2026-10-28",
+    "scope": "Local acquired Live Sampler v1.3 only; not all CAT versions or formats."
+  }
 }
