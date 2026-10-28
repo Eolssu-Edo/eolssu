@@ -34,6 +34,19 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
+## 서비스 기준 데이터
+
+[reference/](reference/)는 백엔드 기준 데이터 테이블에 넣을 값입니다. 파일마다 `table`(대상 테이블), `description`, `sources`(근거), `rows`가 있고, 행의 칸 이름은 `backend/src/main/resources/db/migration/`의 V1·V2와 같습니다. `id`는 백엔드가 정하므로 행끼리는 자연 키로 가리킵니다.
+
+| 파일 | 테이블 | 행 | 다른 표를 가리키는 칸 |
+| --- | --- | --- | --- |
+| `pitches.json` | `pitches` | 단소 다섯 율을 단소 실제 음역(중~중청중) 안에서 | 없음 |
+| `instruments.json` | `instruments` | 단소 | `range_low`·`range_high` = pitches의 `(yul, octave)` |
+| `jangdans.json` | `jangdans` | 세마치·굿거리·중모리 | 없음 |
+| `songs.json` | `songs` | 1차 AI 평가 4곡 | `instrument` = instruments의 `code`, `jangdan` = jangdans의 `name`, `source` = 원본 ID |
+
+`songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
+
 ## 파일 관리
 
 팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.
@@ -46,6 +59,7 @@ data/
 ├── annotations/             # 원본에 덧붙인 판단 값: 사람 입력과 도구 추정, 검수 상태.
 │   ├── scores/<score-id>/   # 쪽별 악보·설명 영역 좌표. 사람이 원본과 대조해 확정한 정답 .jgb.json과 검토 기록.
 │   └── audio/<악기 ID>/<audio-id>-<설명>/ # 악기별 원음의 구간·취법·율명·대표 F0 라벨.
+├── reference/               # 서비스 기준 데이터: 율명·악기 음역·장단·곡 정보. 백엔드가 DB에 넣는다.
 ├── src/                     # 가공 코드. 결과는 processed/에만 씁니다.
 │   ├── playback/            # 해석한 악보 JSON → MIDI → CAT 단소 WAV.
 │   ├── scores/              # PDF → 쪽 그림 → 영역 자르기 → 음표 데이터.
