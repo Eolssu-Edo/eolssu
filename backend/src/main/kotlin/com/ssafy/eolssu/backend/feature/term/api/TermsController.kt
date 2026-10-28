@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @RestController
 @RequestMapping("/api/terms")
-@Profile("db")
+@Profile("db | ops")
 class TermsController(private val listTerms: ListTerms) {
     @GetMapping
     fun list() = TermsResponse(

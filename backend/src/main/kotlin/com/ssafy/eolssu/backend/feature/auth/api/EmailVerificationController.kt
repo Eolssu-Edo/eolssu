@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory
 
 @RestController
 @RequestMapping("/api/auth/email-verifications")
-@Profile("db")
+@Profile("db | ops")
 class EmailVerificationController(private val service: EmailVerificationService) {
     @PostMapping
     fun send(@Valid @RequestBody request: SendVerificationRequest): ResponseEntity<*> = when (val result = service.send(request.email, request.purpose)) {

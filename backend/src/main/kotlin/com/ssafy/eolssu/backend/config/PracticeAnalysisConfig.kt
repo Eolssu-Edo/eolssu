@@ -27,7 +27,7 @@ import tools.jackson.databind.json.JsonMapper
 // 분석 결과 저장은 쓰기 작업이라 db 프로필에서만 만든다. 업로드 뒤 분석 시작은 악보 음표 변환(PracticeScoreNotes, 공통 악보 데이터)과
 // 녹음 서명 URL(RecordingReadUrls, 업로드 Task) 구현이 Bean으로 있고 AI 주소가 설정됐을 때만 켜진다. 없으면 업로드된 세션은 시간 초과로 끝난다.
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class PracticeAnalysisConfig {
     @Bean
     fun practiceAnalysisRepository(mapper: PracticeAnalysisMapper, transactionManager: PlatformTransactionManager): PracticeAnalysisRepository =

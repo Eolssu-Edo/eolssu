@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@Profile("db")
+@Profile("db | ops")
 class SignInController(private val service: SignInService, private val cookies: AuthCookies) {
     @PostMapping("/api/auth/sign-in")
     fun signIn(@Valid @RequestBody request: SignInRequest): ResponseEntity<*> = when (val result = service.signIn(request.email, request.password)) {

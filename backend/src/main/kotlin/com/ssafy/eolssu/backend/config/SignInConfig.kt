@@ -14,7 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class SignInConfig {
     @Bean
     fun signInRepository(users: UserMapper, manager: PlatformTransactionManager): SignInRepository = MyBatisSignInRepository(users, manager)
