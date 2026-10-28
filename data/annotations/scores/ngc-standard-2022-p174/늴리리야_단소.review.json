@@ -20,7 +20,9 @@
   "jangdan": "굿거리",
   "meter": "3소박 4박자",
   "tempo": null,
-  "note": "악보에 빠르기 표기 없음"
+  "note": "악보에 빠르기 표기 없음",
+  "beatsPerJeonggan": "1/3",
+  "beatsPerJeongganBasis": "원본 장구 기호 칸에서 굿거리 한 장단(12소박, 4박)이 정간 12개, 구음 떵·기덕·쿵·더러러러가 정간 1·3·4·5에 하나씩 → 정간 하나 = 1소박 = 1/3박(점4분음표)"
  },
  "serviceSettings": {
   "hwang": "E♭4 (311.13Hz)",

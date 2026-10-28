@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.feature.growth.application.GetGrowthStats
+import com.ssafy.eolssu.backend.feature.growth.application.ScoreChange
 import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
 import java.time.LocalDate
 import org.springframework.context.annotation.Profile
@@ -45,6 +46,13 @@ class GrowthController(private val stats: GetGrowthStats) {
                 // 미션 미구현: 0으로 꾸미지 않고 null(명세 규칙 5).
                 completedMissionCount = null,
                 totalMissionCount = null,
+                bestBySong = summary.bestBySong.map { BestSong(it.songId.toString(), it.title, it.bestTotalScore) },
+                metricGrowth = summary.metricGrowth.let { growth ->
+                    MetricGrowthResult(
+                        growth.songId?.toString(), growth.title, growth.bpm,
+                        growth.pitch.toResult(), growth.timing.toResult(), growth.duration.toResult(),
+                    )
+                },
             ),
         )
     }
@@ -61,6 +69,8 @@ class GrowthController(private val stats: GetGrowthStats) {
             CalendarResult(stats.calendar(jwt.userId(), range).map { CalendarItem(it.date.toString(), it.practiceSeconds, it.practiceCount) }),
         )
     }
+
+    private fun ScoreChange.toResult() = ScoreChangeResult(first, last)
 
     // 양 끝 포함, 최대 366일. 연도는 DB DATETIME 범위(1000~9999년) 안에서 지난 기간까지 계산할 수 있게 제한한다.
     private fun rangeOf(from: LocalDate, to: LocalDate): DateRange? =
@@ -93,7 +103,22 @@ data class SummaryResult(
     val previousPeriod: PreviousPeriod,
     val completedMissionCount: Int?,
     val totalMissionCount: Int?,
+    val bestBySong: List<BestSong>,
+    val metricGrowth: MetricGrowthResult,
 )
+
+data class BestSong(val songId: String, val title: String, val bestTotalScore: Int)
+
+data class MetricGrowthResult(
+    val songId: String?,
+    val title: String?,
+    val bpm: Int?,
+    val pitch: ScoreChangeResult,
+    val timing: ScoreChangeResult,
+    val duration: ScoreChangeResult,
+)
+
+data class ScoreChangeResult(val first: Int?, val last: Int?)
 
 data class PreviousPeriod(val practiceSeconds: Long, val practiceCount: Long, val averageTotalScore: Int?)
 

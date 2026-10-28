@@ -3,8 +3,10 @@ package com.ssafy.eolssu.backend.feature.growth.api
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.growth.application.GetGrowthStats
 import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
+import com.ssafy.eolssu.backend.feature.growth.domain.FullSongPlay
 import com.ssafy.eolssu.backend.feature.growth.domain.PracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.domain.SongBest
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -52,7 +54,9 @@ class GrowthControllerTests {
                     """{"httpStatus":"OK","isSuccess":true,"code":200,"result":{"from":"2026-10-26","to":"2026-11-01",
                     "practiceCount":0,"practiceSeconds":144,"practiceDays":1,"currentStreakDays":1,"averageTotalScore":null,
                     "previousPeriod":{"practiceSeconds":0,"practiceCount":2,"averageTotalScore":73},
-                    "completedMissionCount":null,"totalMissionCount":null}}""",
+                    "completedMissionCount":null,"totalMissionCount":null,"bestBySong":[],
+                    "metricGrowth":{"songId":null,"title":null,"bpm":null,"pitch":{"first":null,"last":null},
+                    "timing":{"first":null,"last":null},"duration":{"first":null,"last":null}}}}""",
                 ),
             )
         assertEquals(setOf(7L), repository.users)
@@ -107,5 +111,11 @@ class GrowthControllerTests {
 
         override fun practiceDaysUpTo(userId: Long, lastDay: LocalDate, minSeconds: Long) =
             seconds.filter { (day, total) -> day <= lastDay && total >= minSeconds }.keys.sortedDescending()
+
+        override fun bestFullSongScores(userId: Long) = emptyList<SongBest>()
+
+        override fun latestFullSongPlay(userId: Long): FullSongPlay? = null
+
+        override fun firstFullSongPlayLike(userId: Long, play: FullSongPlay): FullSongPlay? = null
     }
 }
