@@ -44,6 +44,20 @@ sudo docker exec eolssu-runtime-backend-1 ffprobe -version
 
 원본은 저장소 `infra/runtime/backend-runtime.Dockerfile`이며 서버 `/opt/eolssu/config/backend-runtime.Dockerfile`과 같게 유지합니다. 베이스 JRE 보안 업데이트를 반영하려면 같은 태그로 다시 빌드한 뒤 backend만 재생성하고 readiness·ffprobe를 확인합니다. 베이스의 Ubuntu가 바뀌어 고정 ffmpeg 버전 설치가 실패하면 `backend/Dockerfile`과 함께 버전을 갱신합니다.
 
+### backend 비밀값
+
+인증 비밀값은 `/opt/eolssu/.env`에만 두고 Compose의 backend `environment`에 필요한 변수만 연결합니다. 값은 저장소·채팅·로그·빌드 인자에 넣지 않습니다.
+
+| 변수 | 용도 | 값이 없을 때 |
+| --- | --- | --- |
+| `AUTH_JWT_SECRET` | 로그인 토큰 서명 키. 32바이트 이상 무작위 값 | backend는 기동하고 로그인 토큰만 모두 거절 |
+
+인증번호 해시 키·SMTP·간편 로그인 값은 백엔드가 변수 이름을 확정하면 같은 방식으로 더합니다. 값을 넣거나 바꿀 때는 `.env`를 root 전용으로 백업한 뒤 `sudoedit`로 고치고, 아래 절차대로 backend만 재생성합니다. 서명 키를 바꾸면 기존 로그인 토큰은 모두 무효가 됩니다.
+
+```sh
+openssl rand -base64 48
+```
+
 운영 설정을 바꿀 때는 기존 Compose를 root 전용으로 백업하고 `config --quiet`를 통과한 뒤 backend만 재생성합니다. Jenkins는 관리 파일 `/opt/eolssu/config/compose.yml`을 사용하므로 저장소 변경만으로 서버 파일이 바뀌지는 않습니다. 배포 후 readiness HTTP 200·UP, Docker healthy, 프론트·MySQL ID와 물리 볼륨 보존을 확인합니다.
 
 이름 전환 전 설정·릴리스와 SQL 전체 백업은 서버의 `/opt/backups/eolssu-S15P31E102-65-20261022T072645Z/`에 root 전용으로 보관했습니다. `receipt.json`에는 아티팩트 SHA-256·DB 서버 UUID·물리 볼륨·검증 결과가 있습니다. SQL과 실제 `.env`는 저장소나 로그로 복사하지 않습니다. `/opt/eolsu`도 변경 전 복귀 경로로 보존합니다.
