@@ -1,7 +1,5 @@
 """Small codec integration checks; CAT samples and network are not required."""
-from contextlib import redirect_stdout
 import hashlib
-import io
 import json
 import os
 from pathlib import Path
@@ -16,7 +14,6 @@ import soundfile as sf
 
 from data.src.playback.__main__ import run
 from data.src.playback.audio import command, resolve_encoder, write_audio
-from data.src.playback.batch import run_batch
 from data.src.playback.sampler import FS
 from data.src.playback.tests.test_jgb import document
 from data.src.playback.tests.test_pipeline import synthetic_sampler
@@ -74,7 +71,7 @@ class AudioOutputTests(unittest.TestCase):
             source, assets = inputs(root)
             out = root / "out"
             out.mkdir()
-            for name in ("danso.m4a", "danso.mid", "manifest.json", "comparison.html"):
+            for name in ("danso.m4a", "danso.mid", "manifest.json", "source-map.json"):
                 (out / name).write_bytes(b"previous output")
             before = {p.name: p.read_bytes() for p in out.iterdir()}
             with patch("data.src.playback.__main__.CatSampler", return_value=sampler()), \
@@ -83,35 +80,7 @@ class AudioOutputTests(unittest.TestCase):
                     run(source, assets, out, ["danso"], encoder={"ffmpeg": "unused"})
             self.assertEqual({p.name: p.read_bytes() for p in out.iterdir()}, before)
 
-    def test_missing_encoder_fails_batch_before_writing_any_output(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            source, assets = inputs(root)
-            catalog = root / "catalog.json"
-            catalog.write_text(json.dumps({"items": [{"input": source.name}]}))
-            with self.assertRaisesRegex(ValueError, "ffmpeg"):
-                run_batch(catalog, assets, root / "out", ffmpeg=str(root / "missing-ffmpeg"))
-            self.assertFalse((root / "out").exists())
-
-    def test_batch_format_switch_preserves_previous_manifest_and_prepared_sources(self):
-        for kind, old in (("m4a", "wav"), ("wav", "m4a")):
-            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as tmp:
-                root = Path(tmp)
-                source, assets = inputs(root)
-                catalog = root / "catalog.json"
-                catalog.write_text(json.dumps({"items": [{"input": source.name}]}))
-                out = root / "out"
-                for name in (f"tracks/001-p1/danso.{old}", "manifest.json", "index.html",
-                             "prepared/001.jgb.json", "originals/001.json"):
-                    path = out / name
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_bytes(b"previous output")
-                before = {p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}
-                with self.assertRaisesRegex(ValueError, "이전 형식"):
-                    run_batch(catalog, assets, out, audio_format=kind)
-                self.assertEqual({p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}, before)
-
-    def test_process_failure_and_timeout_become_batch_catchable_errors(self):
+    def test_process_failure_and_timeout_become_value_errors(self):
         failures = [subprocess.CompletedProcess(["ffmpeg"], 1, b"", b"bad codec"),
                     subprocess.TimeoutExpired(["ffmpeg"], 1)]
         for failure in failures:
@@ -120,6 +89,14 @@ class AudioOutputTests(unittest.TestCase):
                 with patch("data.src.playback.audio.subprocess.run", **kwargs):
                     with self.assertRaises(ValueError):
                         command(["ffmpeg"])
+
+    def test_missing_encoder_fails_before_writing_any_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, assets = inputs(root)
+            with self.assertRaisesRegex(ValueError, "ffmpeg"):
+                run(source, assets, root / "out", ["danso"], ffmpeg=str(root / "missing-ffmpeg"))
+            self.assertFalse((root / "out").exists())
 
 
 HAVE_ENCODER = all(shutil.which(os.environ.get(f"{name.upper()}_BINARY", name))
@@ -143,7 +120,7 @@ class M4aIntegrationTests(unittest.TestCase):
             self.assertEqual((audio["file"], audio["codec"], audio["profile"]), ("danso.m4a", "aac", "LC"))
             self.assertEqual(audio["sha256"], hashlib.sha256((root / "out/danso.m4a").read_bytes()).hexdigest())
             self.assertFalse(list((root / "out").rglob("*.wav")))
-            self.assertIn('src="danso.m4a"', (root / "out/comparison.html").read_text(encoding="utf-8"))
+            self.assertFalse(list((root / "out").rglob("*.html")))
             self.assertIn("ffmpeg_version", result["audio_output"]["encoder"])
             self.assertIn("audio.py", result["source_sha256"])
 
@@ -166,29 +143,6 @@ class M4aIntegrationTests(unittest.TestCase):
             self.assertLess(report["end_padding_frames"], 1024)
             self.assertAlmostEqual(report["container_seconds"], frames / FS, delta=2 / FS)
             self.assertLess(np.max(np.abs(decoded[:2000])), .001)
-
-    def test_batch_continues_bad_score_and_links_actual_m4a(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            source, assets = inputs(root)
-            bad = root / "bad.jgb.json"
-            bad.write_text(json.dumps(document("청황{미지원} | 청태")), encoding="utf-8")
-            tempo = {"jeonggan_bpm": 60, "bpm": 60, "beat_unit": "jeonggan", "evidence_type": "test"}
-            catalog = root / "catalog.json"
-            catalog.write_text(json.dumps({"items": [
-                {"title": "bad", "input": bad.name, "tempo": tempo},
-                {"title": "good", "input": source.name, "tempo": tempo},
-            ]}), encoding="utf-8")
-            with patch("data.src.playback.__main__.CatSampler", side_effect=lambda *args: sampler()), \
-                 redirect_stdout(io.StringIO()):
-                records = run_batch(catalog, assets, root / "out",
-                                    ffmpeg=self.encoder["ffmpeg"], ffprobe=self.encoder["ffprobe"])
-            self.assertEqual([r["status"] for r in records], ["blocked", "generated"])
-            relative = records[1]["outputs"][0]["audio_file"]
-            self.assertTrue((root / "out" / relative).is_file())
-            self.assertIn(f'src="{relative}"', (root / "out/index.html").read_text(encoding="utf-8"))
-            self.assertFalse(list((root / "out").rglob("*.wav")))
-
 
 if __name__ == "__main__":
     unittest.main()

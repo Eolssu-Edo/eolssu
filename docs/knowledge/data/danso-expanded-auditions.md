@@ -1,12 +1,6 @@
-# 단소41항목의 표현·빠르기·원보 교정과 변환
+# 단소 JGB 표현과 M4A 출력 근거
 
-작업: [S15P31E102-166](https://ssafy.atlassian.net/browse/S15P31E102-166), Story30, 2026-10-27. 사용자가 숨표·빈지속·농음·흘림의 조사와 적용, 빠르기 JSON 저장, 진도아리랑·청성곡 포함을 요청했다. 숫자 빠르기를 확인하지 못한 곡은 **연습용60정간/분**으로 생성하도록 승인했다. 이 결정은 연주 표준·채점 계약을 확정한 것이 아니다.
-
-## 입력과 결과
-
-Notion DATA 단소41항목에 JGB46파일이 연결되어 있었다. 진도아리랑의 연결 파일은 다른 산조 악보였고 청성곡에는 JGB가 없었다. 단소 PDF를 전사해 진도아리랑 입력을 대체하고 청성곡 입력을 추가했다. 최종 입력은 **JGB46개+공통 악보 IR1개**, 결과는 **41항목·47개 MIDI/WAV, 보류0개**다. 여러 판본이 있는 항목을 각각 생성했기 때문에 목록 수와 파일 수가 다르다.
-
-브라우저에서 받은 DATA export SHA256은 `1b527f581da515b7c5e86427cded800bedab4e62eee9068c0ab9e384f91ebfd3`, 사용자가 제공한 `장단별 빠르기 및 근거.html`은 `d2c0c131372b598b5c1b64df9d041d2c67034eda6b8445dcf18817464841660d`다. 원본은 변경하지 않고 해시·수정 전후·PDF 위치를 파생 JSON에 기록했다. Git 제외 결과는 `data/processed/playback/166-listen/notion-audio-danso-v2/`에 있다.
+작업: [S15P31E102-166](https://ssafy.atlassian.net/browse/S15P31E102-166), Story S15P31E102-30. 현행 MR 범위는 입력 악보 하나의 JGB→score→MIDI→CAT PCM→M4A/WAV 변환이다. 목록 일괄 처리·HTML·개별 판본 교정 도구는 제외한다. 기존에 생성한 로컬 음원과 조사 자료는 그대로 보존한다.
 
 ## 표현 의미와 재생 선택값
 
@@ -30,50 +24,24 @@ Notion DATA 단소41항목에 JGB46파일이 연결되어 있었다. 진도아�
 - [MIDI 공식 Control Change 표](https://midi.org/midi-1-0-control-change-messages): CC72의 정의.
 - [Dorico의 숨표 재생](https://www.steinberg.help/r/dorico-pro/6.1/en/dorico/topics/notation_reference/notation_reference_holds_pauses/notation_reference_holds_pauses_playback_r.html): 앞 음에서 호흡 시간을 확보하는 구현 비교 자료. 국악 연주 표준으로 인용하지 않는다.
 
-## 빠르기 근거와 기준 단위
+## 빠르기와 입력 경계
 
-47입력 중29개는 사용자 빠르기 표와 같은 판본의 정간 구조를 결합했다. 3개는 공식 자료가 허용하는 장단 중 사용자 표에 있는 값을 선택했고, 1개는 공식 장단 범위에서 선택했다. 나머지14개는 사용자 승인 연습값이다. 선택값에는 `evidence_type`, `bpm`, `beat_unit`, `jeonggan_bpm`, 근거·확인일을 저장했다. 공식 장단 범위나 사용자 표를 해당 곡의 직접 메트로놈 지시로 표시하지 않는다.
+JGB의 `tempoBpm`은 정간/분이다. `staffUnit`의 quarter 비율을 음가와 `quarter_bpm`에 함께 곱하므로 정간 길이는 `60/tempoBpm`초로 유지된다. source-map에 원본 정간 BPM·quarter 비율·실제 quarter BPM을 기록한다. 1/18 quarter 분박을 표현하기 위해 PPQN14400을 사용한다.
 
-- 강원도아리랑: 엇모리의 [공식 ♪180~200](https://www.gugak.go.kr/ency/topic/view/1323)에서190 선택.10정간=10소박인 판본에190정간/분 적용.
-- 쾌지나칭칭나네·청어엮기: [쾌지나 교육자료](https://academy.gugak.go.kr/dp/pds/HTML5-2-2-3/HTML5-2-2-3-8/index.htm)와 [청어엮기 교육자료](https://academy.gugak.go.kr/dp/pds/HTML5-2-2-4/HTML5-2-2-4-2/HTML5-2-2-4-2-7/index.htm)가 중중모리/자진모리를 허용한다. 이번에는 중중모리84를 선택했고 자진모리108은 대안으로 기록했다.
-- 진도아리랑: 단소 PDF의3정간 주박에 세마치96을 선택했다. 사용자 표에 따른 선택이며 다른 중모리 판본의 속도와 섞지 않는다.
-- 숫자가 없는 경복궁타령·기초연습·바람개비·북천·새야·싸름·어이·이거리·참새·정선은60정간/분. 북천의 기준은4분음표, 어이의6/2 판본은2분음표다. [표준악보집](https://www.gugak.go.kr/userfiles/files/textbook_final.pdf)과 같은 판본의 기보 구조를 보존했다.
-- 청성곡은 정간이 없는 오선보이므로 연습용 **4분음표60**을 별도로 기록한다. [공식 청성곡 설명](https://www.gugak.go.kr/ency/topic/view/251)의 유연한 박·연주 관행을 일정 속도로 재현했다고 주장하지 않는다.
+곡별 빠르기 조사·원보 교정·악기 분류·조 추정은 변환 엔진에서 하지 않는다. 입력의 확정된 값이나 `--bpm`, `--hwang-midi`, `--jo`를 사용한다. 이전 단소 목록에서 사용자가 승인한 연습용60정간/분은 그 자료 준비의 선택값이며, 모든 입력에 자동 적용하는 규칙이 아니다.
 
-JGB 엔진의 `staffUnit`은 내부 quarter 환산값이다. 동일 비율을 음가와 `quarter_bpm`에 곱하므로 정간의 실제 초 길이는 `60/jeonggan_bpm`으로 유지된다. 원보 메트로놈 기준과 내부 quarter 단위를 혼동하지 않도록 source-map에도 둘을 기록한다.
+## M4A 출력과 재현
 
-## 확인한 원보 차이와 전사
+기본 출력은 **44.1kHz·mono·AAC-LC, 목표192kbps M4A**다. 합성 PCM을 float32 little-endian으로 FFmpeg stdin에 전달하며 중간 WAV를 저장하지 않는다. `--audio-format wav`를 선택하면 기존 PCM16 WAV를 쓴다. 출력 코덱에 따라 JGB·템포·조율·표현·MIDI 해석을 바꾸지 않는다.
 
-고사리·싸름·쾌지나·한오백년·청어·정선의 `{풀어내림표}`21개는 연결 PDF에서 농음 글리프였다. 실제 풀어내림을 농음으로 일반 치환한 것이 아니라, 각 칸의 원본 해시·전후 문자열·PDF를 확인한 교정이다. 청어4각1정간의 청협→청태, 한오백년6각3정간의 중청황청중→청임청중도 원보와 대조했다. 한오백년의 prefix 노니로4곳은 첫 본음에 연결했다.
+`audio.py`는 인코딩과 ffprobe/FFmpeg 재디코딩 검사를 맡는다. 시작 시각0·표시 길이 오차2샘플 이내·디코딩 끝 패딩1024샘플 미만·유한값·피크를 검사한다. `audio.frames/seconds`는 합성 PCM, `container_seconds`는 컨테이너 표시 길이, `decoded_frames/end_padding_frames`는 디코딩 길이와 끝 패딩이다. FFmpeg·ffprobe 버전, 실제 비트레이트·파일 크기·해시를 기록한다.
 
-싸름의 긴 농음선2개는 정간의3분박 전체에 걸쳐 있어 같은 범위의 본음에 효과를 전개했다. 천안삼거리의 너녜2곳은 다음 청황에 연결하고, 한 쪽 PDF의24정간 뒤에 JSON에만 추가된 마지막1정간을 파생본에서 제거했다. 원본의 추가칸과 `gakBeats=7:1`은 교정 기록에 남겼다.
+`__main__.py`는 임시 폴더에서 검증한 산출물을 저장한다. 인코더 누락·이전 형식 출력 충돌은 사전 거부하고 인코딩 실패 시 기존 음원·JSON을 보존한다. 원본 JGB 사본·source-map·score·MIDI·해석 결과·manifest가 재현과 오류 추적에 사용된다.
 
-진도아리랑은 연결된 단소 PDF의16각48정간을 직접 전사했다. 황종63과 기존105의 조율 기준에서 MIDI77~85이며 자동 이조하지 않았다. 청성곡은 PDF에 수록된 **단소 오선보2줄**만 전사했다. 하단 대금보는 포함하지 않았고8va를 한 번 반영해 MIDI68~85를 사용했다. 전곡이라는 주장을 하지 않는다. 전사 위치·음가·붙임줄·꾸밈은 별도 `transcription-map.json`에 있다.
+AAC는 손실 압축이며 목표와 실제 비트레이트는 다를 수 있다. 자료: [MDN 오디오 코덱](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs), [Android 지원 형식](https://developer.android.com/media/platform/supported-formats#audio-support), [FFmpeg AAC 인코더](https://ffmpeg.org/ffmpeg-codecs.html#aac). 기존 조사일2026-10-28. 채점이 JGB를 사용할 수 있다는 사용자 설명은 출력 선택의 배경이며 다른 파트의 확정 계약으로 취급하지 않는다.
 
-단소 대분류에 속한 `instrument=all`은 파생본에서 단소로 명시했다. 상대음이 필요한 `joPreset=all` 입력 중 원음에 다섯 음급 `[0,2,5,7,10]`이 모두 나타난10파일만 이 음급 집합을 계산에 사용했다. 이는 원보의 조를 확정하는 판정이 아니다. 입력 악기가 다르거나 음계 근거가 부족하면 자동 이조·생략하지 않는다.
+## 검증
 
-## 검증과 재현
+실행법과 검사 명령은 [CLI 안내](../../../data/src/playback/README.md)를 따른다. 검증 환경은 Windows·Python3.12·FFmpeg/ffprobe9.0.2다. 작은 합성 신호로 음높이·분박 시간·숨의 실제 무음·지속 위 농음·흘림·원본 대응·AAC 시간과 실패 시 기존 산출물 보존을 검사한다.
 
-실행은 [CLI 안내](../../../data/src/playback/README.md#근거를-기록한-단소-일괄-변환)를 따른다. 41항목47파일을 실제 CAT 단소 샘플로 생성했다. 기존4800 PPQN으로 표현할 수 없던 정선의1/18 quarter를 정확히 기록하도록14400 PPQN을 사용한다. 예전 그리드도 모두 표현할 수 있으며 BPM과 정간 길이는 유지한다.
-
-Python3.12의 격리 검사54개가 통과했다. 숨의 실제 WAV 무음, 다음 시작시각, CC72 복구, 지속 위 농음 시작, 농음·흘림의 음높이/시간 보존, 길이 기호의 합, nested triplet, 원본 교정의 정확 일치와 출력 경로 충돌을 포함한다. 실제47음원의3057음, 숨69곳·농음37음·흘림32음을 생성하고 원본·파생·MIDI·WAV 해시, 대응표, PCM 유한값·무클리핑을 검증했다. 결과는 출력의 `verification.json`에 있다.
-
-기존17음원과 비교해1004음의 음높이열·velocity·BPM·시작 위치와 WAV 샘플 수가 일치했다.28곳의 종료 차이는 PPQN 양자화로 최대0.0331ms다.6곳은 새 숨 정책에 따라 공백을 줄였다(개구리4/12, 구아리랑10/3, 도라지3/3·11/3·19/3·23/3). 다음 음 시작·전체길이는 유지했다. 합성 성공·전사 대조를 국악 전문가의 연주 품질 승인으로 확대하지 않는다.
-
-2026-10-28 추가 점검에서는 파일 읽기·UTF-8 디코딩·JSON 파싱을 항목별 오류 처리에 포함했다. 잘린 JSON, 잘못된 인코딩, 객체가 아닌 JSON, 없는 파일은 해당 항목만 보류하고 다음 곡을 처리한다. 읽을 수 있었던 원본 바이트는 오류가 있어도 보존한다. 네 실패 사례 뒤의 정상 곡 처리·최종manifest/index 생성·원본 불변을 확인하는 회귀 검사를 추가해 총55개 검사가 통과했다. 카탈로그 자체와 입력/출력 경로 충돌은 개별 곡 처리 전에 검증한다.
-
-## M4A 생성과 보관 정책 (2026-10-28)
-
-사용자가 AAC와 ALAC를 비교한 뒤 생성 WAV의 상시 보관 용도가 없음을 설명하고 M4A까지 파이프라인과 MR을 정리하도록 요청했다. 기본 출력은 **44.1kHz·mono·AAC-LC, 목표192kbps의 M4A**다. WAV는 `--audio-format wav`로 선택한다. 합성 PCM을 float32 little-endian으로 FFmpeg stdin에 직접 전달하고 중간 WAV 파일을 쓰지 않는다. WAV를 선택하면 이전 PCM16 저장 방식과 동일하다. JGB·표현·템포·조율·CAT·MIDI 해석은 출력 코덱 때문에 바꾸지 않는다.
-
-AAC는 손실 압축이며 목표 비트레이트와 실제 비트레이트는 다를 수 있다. ALAC는 원본 PCM을 보존하지만 범용 웹 재생 호환성이 제한적이므로 이번 기본 출력으로 채택하지 않았다. 채점이 JGB를 사용할 수 있다는 사용자 설명은 출력 보관 결정의 배경이며 다른 파트의 확정 계약으로 취급하지 않는다. 재생성에는 같은 JGB·설정·코드·CAT 샘플·인코더 버전이 필요하다. 자료: [MDN 오디오 코덱](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs), [Android 오디오 지원](https://developer.android.com/media/platform/supported-formats#audio-support), [FFmpeg AAC 인코더](https://ffmpeg.org/ffmpeg-codecs.html#aac). 모두2026-10-28 확인.
-
-`audio.py`가 인코딩과 ffprobe/FFmpeg 재디코딩을 맡는다. `__main__.py`는 모든 결과를 임시 폴더에서 검증한 뒤 공개하고, `batch.py`는 인코더 누락과 반대 형식의 기존 출력 폴더를 파일 쓰기 전에 거부한다. 배치 출력은 `danso-batch/v2`, 음원 경로는 `outputs[].audio_file`이다. HTML은 이 경로를 사용한다. `audio.frames/seconds`는 합성 PCM 길이, `container_seconds`는 표시 길이, `decoded_frames/end_padding_frames`는 디코딩과 AAC 끝 패딩이다. FFmpeg·ffprobe 버전과 실제 파일 크기·코덱·해시를 함께 남긴다. 파일 형식 변화는 이 로컬 생성 도구의 출력에 한정한다.
-
-검증 환경은 Windows·Python3.12·FFmpeg/ffprobe9.0.2-essentials_build-www.gyan.dev다. [FFmpeg 공식 다운로드 안내](https://ffmpeg.org/download.html)가 연결한 Gyan release essentials ZIP을 별도 로컬 도구 폴더에 준비하고 배포 SHA256 `60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba`와 일치함을 확인했다. 저장소나 시스템 PATH에 바이너리를 추가하지 않았다. 다른 인코더 버전·OS에서의 재생과 청감 동일성은 이 검사로 보장하지 않는다.
-
-최종 코드에서 합성 기반65개 검사(실제 AAC 통합3개 포함)가 통과했다. 입력 불변, M4A 기본 생성과 WAV 미생성, 인코더 오류·시간 초과, 형식 전환 시 기존 단일/배치 결과 보존, AAC priming 보정과 끝 패딩, 배치 오류 격리를 포함한다. 실제 강원도아리랑의 선택 WAV는 기존 파일의 SHA256 `962d41469567733fdbd6ed6de150f62986050a5491eff2076a087f4fc0365662`와 동일했다.
-
-같은 카탈로그41항목·47입력을 CAT 샘플에서 다시 합성해 M4A47개·3057음·보류0개를63.53초에 생성했다. 출력은 로컬 `data/processed/playback/166-listen/notion-audio-danso-m4a/`이며 생성 WAV는0개다. 원본 해시·MIDI 해시·합성 PCM 프레임 수는 기존47음원과 모두 일치했다. 총 음원 크기는 기존 WAV144,899,720바이트에서 M4A36,017,120바이트가 됐다. 표시 길이와 PCM 길이의 최대 차이는0.000000468초이며 이번 FFmpeg 결과의 잔여 끝 패딩은0프레임이었다. 모든 곡의 코덱·샘플레이트·채널·유한값·피크 검사를 통과했다.
-
-기본 미리듣기 페이지의47개 음원 경로·파일 존재와 비교 영상 기능 부재를 확인했다. 로컬 HTTP로 연 페이지에서 강원도아리랑 M4A의 재생 시간이10.97초까지 진행하고, 표시 길이25.813129초·readyState4·미디어 오류없음을 확인했다. 강원도아리랑 M4A는570,468바이트이며 SHA256은 `2ed169a00ad87e3b542389a55d4fcde45e10334053291e48991d572be0c56bf3`다. 전체 검증 결과는 출력의 `verification.json`에 기록했다. 이는 생성·디코딩·재생 경로 검증이며 전문가의 연주 품질 승인 또는 AAC 청감 무차이 판정은 아니다.
+목록 도구를 제외하기 전 단소47입력의 MIDI·PCM 길이와 M4A 인코딩을 검증했다. 이 기록은 실제 자료 검증 이력이며 일괄 처리 기능의 제공을 뜻하지 않는다. 범위를 줄인 뒤 단일 변환 검사57개(실제 AAC 통합2개 포함)가 통과했다. 같은 준비 JGB로 단일 CLI를 실행해 강원도아리랑 M4A와 선택 WAV가 기존 SHA256과 같음을 확인했다. 두 출력 폴더에는 각각 음원·MIDI·JSON 7개만 생성됐고 HTML은 생성되지 않았다. 합성 성공은 전문가의 연주 품질 승인이나 AAC 청감 무차이 판정이 아니다.

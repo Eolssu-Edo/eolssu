@@ -71,7 +71,7 @@
 - [소금 정간보 우물사이 문서의 검토 화면과 대조 결과](knowledge/data/sogeum-scores-review.md)
 - [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
-- [단소41항목의 표현·빠르기·원보 교정과 M4A 생성](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md)
+- [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md)
 
 ## AI 실험 기록
 
