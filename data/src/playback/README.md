@@ -1,6 +1,6 @@
 # JGB·공통 악보 JSON의 국악기 MIDI·CAT 음원 생성
 
-JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, CAT 단소 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력·M4A 출력을 더했습니다.
+JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 선택한 CAT 악기 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 JGB 입력·M4A 출력을 더했습니다.
 
 담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 정석 음원 제작을 위한 재생 기반입니다.
 
@@ -12,10 +12,10 @@ flowchart TD
     score --> events["score.py: 음높이·시각·숨·표현 계산"]
     events --> midi["midi.py: MIDI 저장·다시 읽기"]
     midi --> pcm["sampler.py: 메모리 PCM 합성"]
-    samples["CAT 단소 녹음 샘플"] --> pcm
+    samples["선택한 CAT 악기 녹음 샘플"] --> pcm
     pcm --> aac["audio.py: AAC 인코딩·디코딩 검증"]
-    aac --> m4a["danso.m4a: 기본 출력"]
-    pcm -. "--audio-format wav" .-> wav["danso.wav: 검증용 선택 출력"]
+    aac --> m4a["악기키.m4a: 기본 출력"]
+    pcm -. "--audio-format wav" .-> wav["악기키.wav: 검증용 선택 출력"]
     parse -.-> trace["원본·대응표·해시·생성 설정"]
     aac -.-> trace
 ```
@@ -152,4 +152,4 @@ CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본
 
 상대음 장식에 기존 `joPreset`을 쓸 수 없으면 `playback.relative_scale`에 황종 기준 반음 음급의 오름차순 배열 `pitch_classes`와 선택 근거 `basis`를 기록합니다. `joPreset`/`--jo`와 중복 지정할 수 없습니다. 다른 악기에서는 출현 음급만 보고 단소의 상대음 음계를 자동 보충하지 않습니다.
 
-비단소 JGB의 편집기 기본 템포(`tempoBpmUserSet` 미확정)는 재생 속도로 채택하지 않습니다. 판본 근거를 확인한 준비 JSON 또는 명시적인 `--bpm`이 필요합니다. 직접 작성한 공통 IR의 숨표·감쇠는 입력값을 보존하며, 여러 성부가 있으면 단일 CLI에서 `--part`로 선택합니다.
+비단소 JGB의 편집기 기본 템포(`tempoBpmUserSet` 미확정)는 재생 속도로 채택하지 않습니다. 판본 근거를 확인한 준비 JSON 또는 명시적인 `--bpm`이 필요합니다. 원본의 `playback.instrument`와 선택한 기종이 다르면 거부합니다. 직접 작성한 공통 IR의 숨표·감쇠는 보존하며, 혼합 악기 문서는 `--part`로 생성할 성부를 선택합니다.

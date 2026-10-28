@@ -15,6 +15,7 @@ POLICY = {'name':'authored-test', 'basis':'Synthetic regression case, not a perf
           'vibrato':{'mode':'pitch','hz':3,'cents':40,'depth':0,'delay_seconds':.1},
           'fall':{'end_cents':-75,'tail_fraction':.4,'maximum_seconds':.15}}
 
+
 class InstrumentPolicyTests(unittest.TestCase):
     def setUp(self):
         # Each separate instrument MR can run the common regression suite.
@@ -90,6 +91,8 @@ class InstrumentPolicyTests(unittest.TestCase):
         self.assertEqual(mapping['relative_scale'],doc['playback']['relative_scale'])
         with self.assertRaisesRegex(ValueError,'중복'):
             convert_jgb(doc,source_name='test',instrument='sanjo-daegeum',jo='jung-pyeong')
+
+
 
     def test_editor_default_tempo_is_not_an_explicit_other_instrument_tempo(self):
         doc=document();doc['parts'][0]['instrument']='sogeum'
