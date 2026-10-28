@@ -18,7 +18,10 @@ BLOCKED = ['/api/actuator', '/api/actuator/', '/api/actuator/health', '/api/actu
            '/api/actuator/prometheus', '/api/actuator/env',
            # 우회 시도: Nginx가 경로를 정규화한 뒤 고르므로 모두 막혀야 한다
            '/api//actuator/prometheus', '/api/%61ctuator/prometheus',
-           '/api/actuator/health/readiness/../../prometheus', '/api/actuator/health/readiness/']
+           '/api/actuator/health/readiness/../../prometheus', '/api/actuator/health/readiness/',
+           # Spring은 경로 조각의 ';' 뒤를 떼어 내므로 Nginx가 다른 경로로 보는 요청이 백엔드에서 actuator가 된다
+           '/api;x/actuator/prometheus', '/api;/actuator/health', '/ap%69;x/actuator/prometheus',
+           '/api/;x/actuator/prometheus', '/api/actuator/health/readiness;x', '/api/%3B/actuator/prometheus']
 
 
 @unittest.skipUnless(os.environ.get('RUN_NGINX_TESTS') == '1', 'requires Docker and OpenSSL')
@@ -46,9 +49,9 @@ class NginxActuatorTests(unittest.TestCase):
                         '-keyout', str(live / 'privkey.pem'), '-out', str(cls.certificate)],
                        check=True, capture_output=True)
         configs = {
-            'runtime': (ROOT / 'infra/runtime/nginx.conf').read_text(),
-            'runtime-tls': (ROOT / 'infra/runtime/nginx.tls.conf.template').read_text().replace('__TLS_DOMAIN__', DOMAIN),
-            'dev': (ROOT / 'infra/nginx/default.conf').read_text(),
+            'runtime': (ROOT / 'infra/runtime/nginx.conf').read_text(encoding='utf-8'),
+            'runtime-tls': (ROOT / 'infra/runtime/nginx.tls.conf.template').read_text(encoding='utf-8').replace('__TLS_DOMAIN__', DOMAIN),
+            'dev': (ROOT / 'infra/nginx/default.conf').read_text(encoding='utf-8'),
         }
         cls.ports = {}
         for name, text in configs.items():
