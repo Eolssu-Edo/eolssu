@@ -20,13 +20,17 @@ import com.ssafy.eolssu.feature.auth.MicPermissionScreen
 import com.ssafy.eolssu.feature.auth.OAuthScreen
 import com.ssafy.eolssu.feature.auth.PasswordSetupRoute
 import com.ssafy.eolssu.feature.auth.ProfileSetupRoute
-import com.ssafy.eolssu.feature.auth.SocialProvider
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.feature.auth.TermsScreen
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_link_done
 import eolssu.shared.generated.resources.auth_mic_denied_notice
 import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
+import eolssu.shared.generated.resources.my_logged_out
+import eolssu.shared.generated.resources.my_nickname_changed
+import eolssu.shared.generated.resources.my_password_changed
+import eolssu.shared.generated.resources.my_withdrawn
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.getKoin
@@ -62,6 +66,10 @@ enum class StartNotice(val message: StringResource) {
     Welcome(Res.string.auth_welcome),
     AccountLinked(Res.string.auth_link_done),
     PasswordChanged(Res.string.auth_reset_done_notice),
+    NicknameChanged(Res.string.my_nickname_changed),
+    MyPasswordChanged(Res.string.my_password_changed),
+    LoggedOut(Res.string.my_logged_out),
+    Withdrawn(Res.string.my_withdrawn),
 }
 
 private const val START_NOTICE_KEY = "start_notice"
@@ -74,6 +82,12 @@ private const val ExampleLinkEmail = "user@example.com"
 fun NavController.navigateWithNotice(route: String, notice: StartNotice?, builder: NavOptionsBuilder.() -> Unit = {}) {
     navigate(route, builder)
     if (notice != null) currentBackStackEntry?.savedStateHandle?.set(START_NOTICE_KEY, notice.name)
+}
+
+/** 앞 화면으로 돌아가며 그 화면에 [notice]를 남긴다(마이페이지에서 닉네임·비밀번호를 바꾼 뒤 등). */
+fun NavController.popWithNotice(notice: StartNotice) {
+    previousBackStackEntry?.savedStateHandle?.set(START_NOTICE_KEY, notice.name)
+    popBackStack()
 }
 
 /** 이 화면에 남은 안내. 띄운 뒤에는 [clearStartNotice]로 지운다. */

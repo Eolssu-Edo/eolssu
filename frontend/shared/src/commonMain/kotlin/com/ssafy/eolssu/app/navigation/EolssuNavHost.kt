@@ -134,6 +134,7 @@ fun EolssuNavHost(
                         route?.let(navController::navigate)
                         route != null
                     },
+                    onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
                     startMessage = entry.startNotice()?.message,
                     onStartMessageShown = entry::clearStartNotice,
                 )
@@ -335,6 +336,7 @@ fun EolssuNavHost(
                     )
                 }
             }
+            profileGraph(navController)
             authGraph(
                 navController,
                 onMicAllowed = practiceSettings::grantMic,

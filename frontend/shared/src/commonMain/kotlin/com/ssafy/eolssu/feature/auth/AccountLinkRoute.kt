@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.auth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.PasswordRule
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_error_email_empty
 import eolssu.shared.generated.resources.auth_error_email_exists
@@ -30,7 +31,6 @@ enum class FieldError(val message: StringResource) {
 object AuthValidation {
     private val emailPattern = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
     private val codePattern = Regex("""^\d{6}$""")
-    private val passwordLength = 8..128
 
     fun isEmail(value: String): Boolean = emailPattern.matches(value.trim())
 
@@ -45,10 +45,7 @@ object AuthValidation {
 
     fun passwordError(password: String): FieldError? = when {
         password.isEmpty() -> FieldError.PasswordEmpty
-        password.length !in passwordLength -> FieldError.PasswordRule
-        password.none { it in 'a'..'z' || it in 'A'..'Z' } -> FieldError.PasswordRule
-        password.none { it in '0'..'9' } -> FieldError.PasswordRule
-        password.none { !it.isLetterOrDigit() && !it.isWhitespace() } -> FieldError.PasswordRule
+        !PasswordRule.isValid(password) -> FieldError.PasswordRule
         else -> null
     }
 
