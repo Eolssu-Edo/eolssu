@@ -21,18 +21,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recording
-from ai_service.pipelines.scoring import Note, ScoreResult, frame_rms, pyin_f0, score
+from ai_service.pipelines.scoring import HOP_S, Note, ScoreResult, frame_rms, pyin_f0, score
 
 MODEL_VERSION = "pyin-1"  # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다
 # 요청에 기준음이 없어 E♭4로 둔다. 기기 차이는 채점의 조율 보정(±100센트)이 흡수한다.
 # ponytail: 기본음 녹음·공통 악보 기준음 반영은 S15P31E102-157.
 REFERENCE_HZ = 311.13
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
-DOWNLOAD_TIMEOUT_S = 30.0
+DOWNLOAD_TIMEOUT_S = 30.0  # 연결부터 다 받을 때까지 전체 시간
+# DTW는 정답 프레임 수 × 녹음 프레임 수만큼 메모리를 쓴다(칸당 실측 20바이트에 여유를 둔 24바이트,
+# docs/knowledge/ai/analysis-latency.md). 넘으면 프로세스가 메모리 부족으로 죽으므로 채점 전에 거절한다.
+# 4GiB는 120초 녹음 × 120초 악보까지 받는 임시 값이다. 녹음 길이 상한은 PRA-03 미결 사항이다.
+DTW_BYTES_PER_CELL = 24
+MAX_DTW_BYTES = 4 * 1024**3
 
 log = logging.getLogger(__name__)
 # uvicorn은 자기 로거만 설정하므로 시도별 한 줄이 보이게 따로 출력한다.
 log.setLevel(logging.INFO)
+log.propagate = False  # 루트 로그 설정이 있어도 한 번만 찍는다
 if not log.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
@@ -41,7 +47,11 @@ if not log.handlers:
 for _name in ("httpx", "httpcore"):
     logging.getLogger(_name).setLevel(logging.WARNING)
 
-app =FastAPI(title="얼쑤 연주 분석", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="얼쑤 연주 분석", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+class RecordingTooLong(Exception):
+    """DTW 메모리 한도를 넘는 녹음이다. 녹음 탓으로 정한 실패 코드가 없어 500이다."""
 
 
 class DownloadError(Exception):
@@ -80,6 +90,7 @@ class AnalysisIn(_Camel):
 
 def download(url: str, dest: Path) -> None:
     """URL의 녹음을 dest에 받는다. 실패·크기 초과는 URL 없는 DownloadError다."""
+    deadline = time.monotonic() + DOWNLOAD_TIMEOUT_S  # httpx timeout은 읽기 한 번마다라 전체 시간은 따로 본다
     try:
         with httpx.stream("GET", url, timeout=DOWNLOAD_TIMEOUT_S) as response, dest.open("wb") as out:
             if response.status_code != 200:
@@ -89,6 +100,8 @@ def download(url: str, dest: Path) -> None:
                 size += len(chunk)
                 if size > MAX_DOWNLOAD_BYTES:
                     raise DownloadError("recording exceeds download limit")
+                if time.monotonic() > deadline:
+                    raise DownloadError("download exceeded time limit")
                 out.write(chunk)
     except httpx.HTTPError as e:
         raise DownloadError(type(e).__name__) from None  # httpx 메시지에는 URL이 들어 있다
@@ -138,6 +151,9 @@ def _invalid_request(_: Request, error: RequestValidationError) -> JSONResponse:
 def _score_recording(path: Path, request: AnalysisIn) -> ScoreResult:
     audio = decode_recording(path).astype(np.float32) / 32768.0
     notes = [Note(n.semitone, n.beats, n.sigimsae) for n in request.notes]
+    expected_frames = sum(n.beats for n in notes) * 60.0 / request.bpm / HOP_S
+    if expected_frames * (len(audio) / SAMPLE_RATE / HOP_S) * DTW_BYTES_PER_CELL > MAX_DTW_BYTES:
+        raise RecordingTooLong()
     f0 = pyin_f0(audio, SAMPLE_RATE)
     return score(f0, notes, request.bpm, REFERENCE_HZ, rms=frame_rms(audio, SAMPLE_RATE))
 

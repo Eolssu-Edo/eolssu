@@ -28,7 +28,7 @@ uv run pytest
 uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 ```
 
-1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 30초 안에 25MiB까지 받고, 응답을 마치면 지웁니다.
+1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
 3. `DONE`(`modelVersion` `pyin-1`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
@@ -37,8 +37,10 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 | 채점 완료·녹음 탓 실패 | 200 `DONE`·`FAILED` | 결과·실패 코드 저장 |
 | 요청이 계약에 맞지 않음 | 422 `{"errors":[{loc, type}]}`. 입력값은 돌려주지 않음 | `SERVER_ERROR` |
 | 녹음을 내려받지 못함(만료·네트워크·크기 초과) | 502 `{"error":"DOWNLOAD_FAILED"}` | `SERVER_ERROR` |
-| 그 밖의 예외(디코딩 시간 초과 등) | 500 `{"error":"ANALYSIS_ERROR"}` | `SERVER_ERROR` |
+| 채점 메모리 한도 초과·그 밖의 예외(디코딩 시간 초과 등) | 500 `{"error":"ANALYSIS_ERROR"}` | `SERVER_ERROR` |
 
+- 정답 길이 × 녹음 길이로 계산한 DTW 메모리(칸당 24바이트)가 4GiB를 넘으면 음높이 추정 전에 500으로 거절합니다. 120초 × 120초까지 받습니다. 넘으면 프로세스가 메모리 부족으로 죽기 때문이며, 녹음 길이 상한은 [PRA-03 미결 사항](../docs/specs/practice-analysis-failure.md#미결-사항)입니다.
+- 인증이 없고 `audioUrl`의 호스트를 가리지 않습니다. 백엔드만 닿는 내부 네트워크에 두고 포트를 외부에 열지 않습니다.
 - 기준음은 요청에 없어 E♭4(311.13Hz)로 둡니다. 기기 차이는 조율 보정(±100센트)이 흡수합니다. 기본음 녹음·공통 악보 기준음 반영은 [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)에서 바꿉니다.
 - 박 길이는 `60 / bpm`초이고 `beats`는 백엔드가 `bpmUnit` 단위로 센 값으로 봅니다. `bpmUnit`은 DB의 4종만 받습니다.
 - `notes[].startBeat`(곡 처음부터 센 시작 박, 0 이상이고 음표 순서대로 늘어야 함)를 받습니다. 채점은 아직 `beats`를 이어 붙인 시각을 써서 쉼 뒤 음의 기대 시각이 앞당겨집니다. `startBeat`로 바꾸는 일은 [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)이 맡습니다.

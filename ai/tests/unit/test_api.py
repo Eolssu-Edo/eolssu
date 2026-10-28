@@ -14,12 +14,12 @@ from fastapi.testclient import TestClient
 
 from ai_service import api
 from ai_service.api import DownloadError, app, get_fetcher
-from ai_service.pipelines.scoring import Note
+from ai_service.pipelines.scoring import HOP_S, Note
 from evaluation.synthetic import BPM, SR, synth
 
 SIGNED_URL = "https://r2.example/recordings/1.m4a?X-Amz-Signature=secret-token"
 NOTES = [Note(0, 1), Note(2, 1), Note(4, 1), Note(5, 1)]
-FIRST_IDX = 7  # 연습 구간이 곡 중간에서 시작해도 idx를 그대로 돌려줘야 한다
+FIRST_IDX = 7  # 곡 중간에서 시작하고 간격이 있어도 요청 idx를 그대로 돌려줘야 한다
 START_BEAT = 12.0  # 곡 처음부터 센 첫 음의 시작 박
 
 DONE_KEYS = {
@@ -48,7 +48,7 @@ def body(notes=NOTES, **override):
         "bpm": BPM,
         "bpmUnit": "JEONGGAN",
         "notes": [
-            {"idx": FIRST_IDX + i, "semitone": n.semitone, "startBeat": START_BEAT + i * n.beats, "beats": n.beats,
+            {"idx": FIRST_IDX + 2 * i, "semitone": n.semitone, "startBeat": START_BEAT + i * n.beats, "beats": n.beats,
              "sigimsae": n.sigimsae}
             for i, n in enumerate(notes)
         ],
@@ -82,7 +82,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     assert set(result) == DONE_KEYS
     assert result["status"] == "DONE"
     assert result["modelVersion"] == "pyin-1"
-    assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + i for i in range(len(NOTES))]
+    assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + 2 * i for i in range(len(NOTES))]
     assert all(set(n) == NOTE_KEYS for n in result["notes"])
     assert [n["verdict"] for n in result["notes"]] == ["CORRECT"] * len(NOTES)
     for key in ("total", "pitch", "timing", "duration"):
@@ -102,7 +102,7 @@ def test_wrong_note_is_pitch_not_failure(serve, tmp_path):
 def test_missed_note_has_null_errors(serve, tmp_path):
     result = serve(m4a(synth(NOTES, drop=(1,)), tmp_path)).post("/v1/analyses", json=body()).json()
     missed = result["notes"][1]
-    assert missed == {"idx": FIRST_IDX + 1, "verdict": "MISSED", "pitchErrorCent": None, "onsetErrorMs": None,
+    assert missed == {"idx": FIRST_IDX + 2, "verdict": "MISSED", "pitchErrorCent": None, "onsetErrorMs": None,
                       "durationErrorMs": None}
 
 
@@ -174,8 +174,9 @@ def test_accepts_rest_gap_between_start_beats(serve, tmp_path):
     assert response.status_code == 200 and response.json()["status"] == "DONE"
 
 
-def test_signed_url_is_not_logged(serve, caplog, tmp_path):
+def test_signed_url_is_not_logged(serve, caplog, tmp_path, monkeypatch):
     caplog.set_level(logging.DEBUG)
+    monkeypatch.setattr(api.log, "handlers", [caplog.handler])  # 모듈 로거는 루트로 넘기지 않는다
     client = serve(m4a(np.zeros(SR * 2), tmp_path))
     client.post("/v1/analyses", json=body())
     client.post("/v1/analyses", json=body(bpm=-1))
@@ -213,3 +214,31 @@ def test_download_failure_hides_url(monkeypatch, tmp_path, handler):
     with pytest.raises(DownloadError) as error:
         api.download(SIGNED_URL, tmp_path / "r")
     assert "secret-token" not in "".join(traceback.format_exception(error.value))  # 연결된 httpx 예외까지
+
+
+def test_log_line_is_not_duplicated_through_root():
+    assert api.log.propagate is False  # 루트 로그 설정이 있으면 같은 줄이 두 번 찍힌다
+
+
+def test_recording_too_long_for_dtw_is_500_before_scoring(serve, tmp_path, monkeypatch):
+    def must_not_run(*_, **__):
+        raise AssertionError("음높이 추정 전에 거절해야 한다")
+
+    monkeypatch.setattr(api, "pyin_f0", must_not_run)
+    monkeypatch.setattr(api, "MAX_DTW_BYTES", 1)
+    response = serve(m4a(synth(NOTES), tmp_path)).post("/v1/analyses", json=body())
+    assert response.status_code == 500
+    assert response.json() == {"error": "ANALYSIS_ERROR"}
+
+
+def test_dtw_limit_allows_two_minutes_against_two_minutes():
+    """측정 기록(analysis-latency): 120초 녹음은 제한 시간 안에 든다. 칸당 24바이트로 이 크기는 받아야 한다."""
+    frames = 120 / HOP_S
+    assert frames * frames * api.DTW_BYTES_PER_CELL <= api.MAX_DTW_BYTES
+
+
+def test_download_has_overall_deadline(monkeypatch, tmp_path):
+    fake_storage(monkeypatch, lambda request: httpx.Response(200, content=b"x" * 10))
+    monkeypatch.setattr(api, "DOWNLOAD_TIMEOUT_S", -1.0)  # 이미 지난 마감: 받는 중에 끊어야 한다
+    with pytest.raises(DownloadError):
+        api.download(SIGNED_URL, tmp_path / "r")
