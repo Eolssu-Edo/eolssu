@@ -45,6 +45,34 @@ sudo docker exec eolssu-runtime-backend-1 ffprobe -version
 
 원본은 저장소 `infra/runtime/backend-runtime.Dockerfile`이며 서버 `/opt/eolssu/config/backend-runtime.Dockerfile`과 같게 유지합니다. 베이스 JRE 보안 업데이트를 반영하려면 같은 태그로 다시 빌드한 뒤 backend만 재생성하고 readiness·ffprobe를 확인합니다. 베이스의 Ubuntu가 바뀌어 고정 ffmpeg 버전 설치가 실패하면 `backend/Dockerfile`과 함께 버전을 갱신합니다.
 
+### ai 분석 서비스
+
+연주 분석 API([ai README](../../ai/README.md#분석-api))는 `ai` 서비스로 실행합니다. 인증이 없으므로 호스트 포트를 열지 않고, backend가 Compose 내부망의 `http://ai:8000`으로만 부릅니다(`ANALYSIS_AI_BASE_URL`). 주소는 비밀값이 아니라 Compose에 직접 적습니다. AI가 없거나 응답하지 않으면 업로드한 세션은 `SERVER_ERROR` 또는 제한 시간(60초) 뒤 `TIMEOUT`이 되고, 다른 API에는 영향이 없습니다.
+
+이미지는 저장소 `ai/Dockerfile`로 edo1에서 직접 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`이고 Jenkins는 이 서비스를 다시 만들지 않으므로, `ai/` 변경을 반영할 때는 같은 태그로 다시 빌드한 뒤 `ai`만 재생성합니다. 빌드한 develop 커밋을 아래 작업 기록에 남깁니다.
+
+```sh
+# 로컬 저장소에서: 반영할 커밋의 ai/만 서버 임시 폴더로 보내 빌드한다.
+D=$(ssh edo1 mktemp -d)
+git archive origin/develop ai | ssh edo1 "tar -x -C $D"
+ssh edo1 "sudo docker build --tag eolssu-ai:runtime $D/ai && rm -rf $D"
+# edo1에서: ai만 (재)생성하고 backend에서 연결을 확인한다.
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never ai
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml ps ai
+sudo docker exec eolssu-runtime-backend-1 \
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://ai:8000/v1/analyses
+```
+
+마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). 연결 거부·이름 풀이 실패는 `ai`가 없거나 내부망이 다른 것입니다.
+
+- 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
+- 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.
+- 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-ai-1`에서 `X-Amz`·`audioUrl`이 없는지 확인합니다.
+
+backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs eolssu-runtime-backend-1 2>&1 | grep -i wiring`이 비어 있어야 합니다.
+
 ### backend 비밀값
 
 인증 비밀값은 `/opt/eolssu/.env`에만 두고 Compose의 backend `environment`에 필요한 변수만 연결합니다. 값은 저장소·채팅·로그·빌드 인자에 넣지 않습니다.
