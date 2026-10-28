@@ -81,6 +81,12 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
 - `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
 
+### 회원 탈퇴와 일괄 삭제(USR-05)
+
+- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 대기 중 로그인하면 탈퇴가 취소됩니다.
+- 인증 필터: `db`·`ops` 프로필에서 로그인이 필요한 요청마다 토큰의 회원 상태를 조회해 ACTIVE가 아니면 401 `UNAUTHENTICATED`와 두 쿠키 삭제로 응답합니다. 공개 API는 그대로입니다.
+- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 원본을 먼저 지우고, [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 지운 뒤 개인정보를 비우고 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
+
 ### 준비 상태 검사
 
 `GET /api/actuator/health/readiness`는 준비되면 HTTP 200과 `{"status":"UP"}`, 준비되지 않으면 HTTP 503을 반환합니다. 기본 개발 모드는 애플리케이션 준비 상태만 확인합니다. 운영 `ops` 프로필은 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`로 기존 MySQL에 연결해 DB health를 함께 확인합니다. DB 접속 실패 시 프로세스가 살아 있어도 readiness는 DOWN이고 `/api/actuator/health/liveness`는 UP일 수 있습니다.
