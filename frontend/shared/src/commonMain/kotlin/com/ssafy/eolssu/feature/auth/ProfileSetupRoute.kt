@@ -6,13 +6,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
 
-/**
- * AUTH-07 연결. [provider]가 있으면 소셜 첫 가입, 없으면 이메일 가입 2/2다.
- * 뒤로 가기는 들어온 화면(AUTH-05 또는 AUTH-06)으로, 가입을 마치면 [onDone]으로 홈에 간다.
- */
+/** AUTH-07 연결(이메일 가입 3/3). 뒤로 가기는 비밀번호 설정(AUTH-08)으로, 가입을 마치면 [onDone]으로 홈에 간다. */
 @Composable
 fun ProfileSetupRoute(
-    provider: SocialProvider?,
     onBack: () -> Unit,
     onDone: () -> Unit,
     viewModel: ProfileSetupViewModel = koinViewModel(),
@@ -21,7 +17,6 @@ fun ProfileSetupRoute(
     ProfileSetupScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
-        provider = provider,
         onBack = onBack,
         onNicknameChange = viewModel::changeNickname,
         onSelectInstrument = viewModel::selectInstrument,

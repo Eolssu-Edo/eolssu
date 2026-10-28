@@ -111,7 +111,7 @@ class FrontendDeployer:
         run('curl', '--fail', '--silent', '--show-error', '--max-time', '10',
             '--resolve', 'k15e102.p.ssafy.io:443:127.0.0.1', '--output', '/dev/null',
             'https://k15e102.p.ssafy.io/')
-        support.probe('http://127.0.0.1/api/infra-smoke', 404, '/api/infra-smoke', seconds=10)
+        support.probe(support.RUNTIME_READINESS, 200, support.UP, seconds=10)
 
     def protected(self):
         values = json.loads(run('docker', 'inspect', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1'))

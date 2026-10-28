@@ -7,10 +7,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.feature.home.component.InstrumentSheet
 import com.ssafy.eolssu.feature.home.layout.HomeCompactLayout
 import com.ssafy.eolssu.feature.home.layout.HomeExpandedLayout
 import com.ssafy.eolssu.feature.home.layout.HomeMediumLayout
@@ -30,17 +30,15 @@ enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
 }
 
 /**
- * HOME-01. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
+ * HOME-01. 현재 악기는 보여 주기만 하고 오른쪽 위 아이콘으로 마이페이지에 간다. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
  * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다.
  */
 @Composable
 fun HomeScreen(
-    state: HomeUiState,
+    instrument: Instrument,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
-    onOpenInstrumentSheet: () -> Unit,
-    onDismissInstrumentSheet: () -> Unit,
-    onSelectInstrument: (Instrument) -> Unit,
+    onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
 ) {
@@ -49,23 +47,13 @@ fun HomeScreen(
         containerColor = EolssuTheme.colors.background,
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        val instrument = state.selectedInstrument
         when (widthClass) {
             WindowWidthClass.Compact ->
-                HomeCompactLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+                HomeCompactLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
             WindowWidthClass.Medium ->
-                HomeMediumLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+                HomeMediumLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
             WindowWidthClass.Expanded ->
-                HomeExpandedLayout(instrument, onOpenInstrumentSheet, onStartEvaluation, onFeatureClick, modifier)
+                HomeExpandedLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
         }
-    }
-    // 시트 너비는 Material 기본값(최대 640dp, 가운데)이라 태블릿 와이어프레임과 같다.
-    if (state.isInstrumentSheetOpen) {
-        InstrumentSheet(
-            instruments = state.instruments,
-            selected = state.selectedInstrument,
-            onSelect = onSelectInstrument,
-            onDismiss = onDismissInstrumentSheet,
-        )
     }
 }

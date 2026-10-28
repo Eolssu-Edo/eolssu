@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "공통 악보 데이터",
+  "description": "우물사이 정답 문서를 FE 표시·AI 채점·BE 저장이 함께 쓰는 형식으로 바꾼 결과(노션 B2·5-1). 필드 이름·타입은 아리랑 한 곡 검증 뒤 확정하며, 바뀌면 schemaVersion을 올린다. 시간은 정수 틱이고 박 = 틱 / music.ticksPerBeat, 박의 단위는 music.bpmUnit이다.",
+  "type": "object",
+  "required": ["schemaVersion", "score", "music", "columns", "events", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "score": {
+      "type": "object",
+      "required": ["title", "instrument", "part", "sourceId", "scoreVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "instrument": {"type": "string", "description": "data/reference/instruments.json의 code"},
+        "part": {"type": "integer", "minimum": 0, "description": "우물사이 문서 안 파트 순번"},
+        "sourceId": {"type": "string", "description": "원본 악보 ID(data/catalog)"},
+        "scoreVersion": {"type": "integer", "minimum": 1, "description": "songs.score_version. 결과가 바뀌면 올린다"}
+      }
+    },
+    "music": {
+      "type": "object",
+      "required": ["hwangHz", "jangdan", "bpmUnit", "ticksPerBeat", "ticksPerJeonggan"],
+      "additionalProperties": false,
+      "properties": {
+        "hwangHz": {"type": "number", "exclusiveMinimum": 0, "description": "조율 기준. 율명 목표 Hz = hwangHz × 2^(반음/12)"},
+        "jangdan": {"type": "string", "description": "data/reference/jangdans.json의 name"},
+        "bpmUnit": {"enum": ["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"]},
+        "ticksPerBeat": {"type": "integer", "minimum": 1},
+        "ticksPerJeonggan": {"type": "integer", "minimum": 1, "description": "정간 하나의 틱. 정간당 박 = ticksPerJeonggan / ticksPerBeat"}
+      }
+    },
+    "columns": {
+      "type": "array",
+      "description": "화면 배치. 각 하나(우물사이 선율의 한 줄)가 column 하나다",
+      "items": {
+        "type": "object",
+        "required": ["index", "cells"],
+        "additionalProperties": false,
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "cells": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "index", "units"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {"type": "string", "pattern": "^c[0-9]+-j[0-9]+$"},
+                "index": {"type": "integer", "minimum": 0, "description": "각 안 정간 순번"},
+                "units": {
+                  "type": "array",
+                  "minItems": 1,
+                  "description": "정간에 적힌 글자. row는 위→아래 줄, col은 줄 안 왼→오른쪽",
+                  "items": {
+                    "type": "object",
+                    "required": ["row", "col", "symbol", "eventId"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "row": {"type": "integer", "minimum": 0},
+                      "col": {"type": "integer", "minimum": 0},
+                      "symbol": {"type": "string", "description": "율명, '-'(이음), '쉼', ''(빈 정간)"},
+                      "eventId": {"type": "string", "description": "이 글자가 속한 이벤트. 이음·빈 정간은 앞 이벤트"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "description": "재생·채점용. 연주 순서이며 빈틈·겹침 없이 이어진다",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "yul", "octave", "startTick", "durationTick", "cellId", "breathAfter", "sigimsae"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string", "pattern": "^c[0-9]+-j[0-9]+-r[0-9]+-u[0-9]+$"},
+          "kind": {"enum": ["NOTE", "REST"]},
+          "yul": {"type": ["string", "null"]},
+          "octave": {"type": ["integer", "null"], "minimum": -2, "maximum": 2},
+          "startTick": {"type": "integer", "minimum": 0},
+          "durationTick": {"type": "integer", "minimum": 1},
+          "cellId": {"type": "string", "description": "시작 정간"},
+          "breathAfter": {"type": "boolean", "description": "이 소리 뒤 숨표"},
+          "sigimsae": {"type": "array", "items": {"type": "string"}}
+        },
+        "if": {"properties": {"kind": {"const": "NOTE"}}},
+        "then": {"properties": {"yul": {"enum": ["황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응"]}, "octave": {"type": "integer"}}},
+        "else": {"properties": {"yul": {"type": "null"}, "octave": {"type": "null"}}}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["sourceId", "jgbSha256", "review", "converter"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceId": {"type": "string"},
+        "jgbSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "변환한 정답 .jgb.json의 SHA-256"},
+        "review": {"enum": ["reviewed", "inferred", "rejected"]},
+        "converter": {"type": "string", "description": "변환 규칙 버전"}
+      }
+    }
+  }
+}

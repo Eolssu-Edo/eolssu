@@ -7,3 +7,7 @@ scrape_configs:
     metrics_path: /api/actuator/prometheus
     static_configs:
       - targets: ["backend:8080"]
+
+  - job_name: node # 서버 자원. node-exporter는 Docker 내부 네트워크에서만 읽힌다
+    static_configs:
+      - targets: ["node-exporter:9100"]

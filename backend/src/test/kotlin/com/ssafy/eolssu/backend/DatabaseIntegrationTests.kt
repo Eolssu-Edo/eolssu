@@ -1,12 +1,16 @@
 package com.ssafy.eolssu.backend
 
-import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
+import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScoreNotesException
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshTokenMapper
@@ -19,7 +23,10 @@ import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.No
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartMapper
 import com.ssafy.eolssu.backend.feature.fingering.infrastructure.persistence.FingeringChartRow
+import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
+import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisPracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewMapper
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoreViewRow
@@ -36,9 +43,18 @@ import com.ssafy.eolssu.backend.feature.notation.infrastructure.persistence.Nota
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMapper
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
 import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
+import com.ssafy.eolssu.backend.feature.practice.application.UploadRecording
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingMetadata
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploaded
+import com.ssafy.eolssu.backend.feature.practice.domain.UploadedRecording
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisPracticeSessionDetails
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow
 import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermMapper
@@ -51,7 +67,11 @@ import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSong
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserSongSettingRow
 import java.sql.SQLException
 import java.time.Instant
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -68,6 +88,8 @@ import org.springframework.dao.DataAccessException
 import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.event.ApplicationEvents
+import org.springframework.test.context.event.RecordApplicationEvents
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.jdbc.Sql
@@ -77,7 +99,11 @@ import tools.jackson.databind.json.JsonMapper
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@RecordApplicationEvents
 class DatabaseIntegrationTests {
+    @Autowired
+    private lateinit var events: ApplicationEvents
+
     @Autowired
     private lateinit var flyway: Flyway
 
@@ -90,7 +116,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("4", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("5", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -116,7 +142,8 @@ class DatabaseIntegrationTests {
     @Sql("/db/mapper-fixtures.sql")
     fun `maps all nineteen tables including nullable JSON Unicode and microsecond values`() {
         val time = LocalDateTime.parse("2026-10-22T01:02:03.123456")
-        assertEquals(PitchRow(1, "황", -1, "僙", "배황", -12), mapper<PitchMapper>().findById(1))
+        assertEquals(PitchRow(1, "중", 0, "仲", "중", 5), mapper<PitchMapper>().findById(1))
+        assertEquals(PitchRow(11, "중", 2, "㴢", "중청중", 29), mapper<PitchMapper>().findById(11))
         assertNull(mapper<PitchMapper>().findById(999))
         assertEquals(
             InstrumentRow(1, "DANSO", "단소", 1, 2, 50, false, time, time),
@@ -487,6 +514,39 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `reads only a member's own session with its evaluation and recording availability`() {
+        // 고정 데이터: 세션 1은 평가 1과 녹음이 있고, 세션 2는 녹음이 없고 기록을 지웠다. 둘 다 회원 1의 세션이다.
+        val details = MyBatisPracticeSessionDetails(mapper<PracticeSessionMapper>())
+
+        val withEvaluation = assertNotNull(details.findOwned(1, 1))
+        assertEquals(1L, withEvaluation.evaluationId)
+        assertTrue(withEvaluation.recordingAvailable)
+        assertEquals("DONE", withEvaluation.status)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), withEvaluation.startedAt)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:04.123456"), withEvaluation.endedAt)
+
+        val deletedRecord = assertNotNull(details.findOwned(2, 1))
+        assertNull(deletedRecord.evaluationId)
+        assertFalse(deletedRecord.recordingAvailable)
+        assertEquals("다시 연습", deletedRecord.memo)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), deletedRecord.savedAt)
+
+        // 녹음 재생 가능은 두 조건이 모두 맞아야 한다: 녹음이 있어도 기록을 지웠으면, 지우지 않았어도 녹음이 없으면 false.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, started_at, record_deleted_at) " +
+                "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'recordings/21/a.m4a', 'DONE', '2026-10-22 01:02:03', '2026-10-23 01:02:03')," +
+                " (22, 1, 1, 90, 'DOTTED_QUARTER', 0, NULL, 'RECORDING', '2026-10-22 01:02:03', NULL)",
+        )
+        assertFalse(assertNotNull(details.findOwned(21, 1)).recordingAvailable)
+        assertFalse(assertNotNull(details.findOwned(22, 1)).recordingAvailable)
+
+        assertNull(details.findOwned(1, 2))
+        assertNull(details.findOwned(999, 1))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `fails only RECORDING sessions started before the upload expiry cutoff`() {
         val cutoff = LocalDateTime.parse("2026-10-27T09:20:00")
         for ((id, status, startedAt) in listOf(
@@ -526,6 +586,45 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `records an upload and starts the analysis attempt only while the member's session is recording`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'RECORDING', '2026-10-28 02:59:00.000000')",
+        )
+        val repository = mapper<RecordingUploadRepository>()
+        val uploadedAt = LocalDateTime.parse("2026-10-28T03:00:00.123456")
+        val recording = UploadedRecording("recordings/21/a.m4a", RecordingMetadata(20_971_520, 600_500, 48_000, 2), uploadedAt)
+
+        assertEquals(RecordingUploadTarget("RECORDING", null, LocalDateTime.parse("2026-10-28T02:59:00")), repository.findOwned(21, 1))
+        assertNull(repository.findOwned(21, 2))
+        assertFalse(repository.markUploaded(21, 2, recording))
+        assertTrue(repository.markUploaded(21, 1, recording))
+        assertFalse(repository.markUploaded(21, 1, recording.copy(key = "recordings/21/b.m4a")))
+        // 갱신에 성공한 한 번만 발행한다. 분석은 이 이벤트를 커밋 뒤에 받는다.
+        assertEquals(listOf(RecordingUploaded(21)), events.stream(RecordingUploaded::class.java).toList())
+
+        // MyBatis 로컬 캐시를 피해 JDBC로 읽는다.
+        val row = jdbc.queryForMap(
+            "SELECT status, recording_url, recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels, " +
+                "ended_at, analysis_attempt, analysis_started_at, fail_reason FROM practice_sessions WHERE id = 21",
+        )
+        assertEquals(
+            listOf("PENDING", "recordings/21/a.m4a", 20_971_520, 600_500, 48_000, 2, uploadedAt, 1, uploadedAt, null),
+            listOf(
+                row["status"], row["recording_url"], row["recording_bytes"], row["recording_duration_ms"], row["recording_sample_rate"],
+                (row["recording_channels"] as Number).toInt(), row["ended_at"], row["analysis_attempt"], row["analysis_started_at"], row["fail_reason"],
+            ),
+        )
+        // 저장소 연결값이 없는 테스트 서버는 업로드를 503으로 답하는 저장소로 기동한다.
+        assertTrue(context.getBean(RecordingStorage::class.java) is UnavailableRecordingStorage)
+        assertEquals(1, context.getBeansOfType(UploadRecording::class.java).size)
+        assertEquals(1, context.getBeansOfType(RecordingReadUrls::class.java).size)
+        assertEquals(1, context.getBeansOfType(PracticeScoreNotes::class.java).size)
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `stores a score view segment once per member and key at microsecond precision`() {
         val repository = MyBatisScoreViewRepository(mapper())
         val segment = ScoreViewSegment(
@@ -559,6 +658,77 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
+    fun `sums practice time and done sessions per KST day of their start`() {
+        // 고정 데이터: 회원 1의 체류 구간 600초와 DONE 세션 2개(점수는 1번만 85)가 모두 2026-10-22 10:02 KST에 시작
+        jdbc.update(
+            "INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) VALUES " +
+                "(1, 1, 'before-midnight', '2026-10-25 14:59:59.999999', '2026-10-25 15:30:00', 1800, 100), " + // KST 25일 23:59:59
+                "(1, 1, 'at-midnight', '2026-10-25 15:00:00', '2026-10-25 15:10:00', 600, 200), " + // KST 26일 00:00
+                "(1, 1, 'same-day', '2026-10-26 03:00:00', '2026-10-26 03:01:00', 60, 30), " +
+                "(3, 1, 'other-member', '2026-10-26 03:00:00', '2026-10-26 04:00:00', 3600, 999)",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(3, 1, 1, 90, 'DOTTED_QUARTER', 0, 'FAILED', 'NO_SOUND', '2026-10-26 03:00:00'), " +
+                "(4, 1, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', NULL, '2026-10-25 15:00:00'), " +
+                "(5, 3, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', NULL, '2026-10-26 03:00:00')",
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(3, 10, 10, 10, 10, 'test'), (4, 70, 70, 70, 70, 'test'), (5, 99, 99, 99, 99, 'test')",
+        )
+        val repository = MyBatisPracticeStatsRepository(mapper())
+        fun day(text: String) = LocalDate.parse(text)
+
+        assertEquals(
+            mapOf(day("2026-10-22") to 600L, day("2026-10-25") to 100L, day("2026-10-26") to 230L),
+            repository.dailyPracticeSeconds(1, DateRange(day("2026-10-22"), day("2026-10-26"))),
+        )
+        assertEquals(mapOf(day("2026-10-26") to 230L), repository.dailyPracticeSeconds(1, DateRange(day("2026-10-26"), day("2026-10-26"))))
+        assertEquals(
+            mapOf(day("2026-10-22") to SessionTotals(2, 1, 85), day("2026-10-26") to SessionTotals(1, 1, 70)),
+            repository.dailyDoneSessions(1, DateRange(day("2026-10-22"), day("2026-10-26"))),
+        )
+        assertEquals(listOf(day("2026-10-26"), day("2026-10-25"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-26"), 60))
+        assertEquals(listOf(day("2026-10-26"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-26"), 150))
+        assertEquals(listOf(day("2026-10-25"), day("2026-10-22")), repository.practiceDaysUpTo(1, day("2026-10-25"), 60))
+
+        val plan = jdbc.queryForList(
+            // PracticeStatsMapper.sumCountedSecondsByDay와 같은 형태
+            "EXPLAIN SELECT DATE(DATE_ADD(started_at, INTERVAL 9 HOUR)) AS day, SUM(counted_seconds) AS total FROM score_views " +
+                "WHERE user_id = 1 AND started_at >= '2026-10-21 15:00:00' AND started_at < '2026-10-26 15:00:00' GROUP BY day",
+        ).single()
+        // 행이 몇 개뿐인 고정 데이터에서는 옵티마이저가 다른 인덱스를 고를 수 있어 쓸 수 있는지만 본다.
+        // 회원 50명·구간 2만 개에서는 이 인덱스로 범위 조회하는 것을 확인했다(docs/plans/S15P31E102-193.md).
+        assertTrue("idx_score_views_user_started" in plan["possible_keys"].toString().split(","))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `turns the song score into practice notes with the seeded pitches`() {
+        // 박당 2틱. 청황 · 쉼 · 임(시김새) · 중청중. 고정 데이터의 곡 1은 score_version 3이다.
+        jdbc.update(
+            "UPDATE songs SET score_json = ? WHERE id = 1",
+            """{"schemaVersion":1,"music":{"ticksPerBeat":2},"events":[
+              {"kind":"NOTE","yul":"황","octave":1,"startTick":0,"durationTick":2,"sigimsae":[]},
+              {"kind":"REST","yul":null,"octave":null,"startTick":2,"durationTick":2,"sigimsae":[]},
+              {"kind":"NOTE","yul":"임","octave":0,"startTick":4,"durationTick":1,"sigimsae":["추성"]},
+              {"kind":"NOTE","yul":"중","octave":2,"startTick":5,"durationTick":3,"sigimsae":[]}]}""",
+        )
+        val notes = context.getBean(PracticeScoreNotes::class.java)
+        val pending = PendingAnalysis(1, 1, 1, 3, 1, 2, 60, "JEONGGAN", "recordings/1/a.m4a")
+
+        assertEquals(listOf(ScoreNote(1, 7, 2.0, 0.5, true, 2), ScoreNote(2, 29, 2.5, 1.5, false, 11)), notes.notesFor(pending))
+        assertEquals(ScoreNote(0, 12, 0.0, 1.0, false, 4), notes.notesFor(pending.copy(startNoteIdx = 0, endNoteIdx = 0)).single())
+        // 세션을 만든 뒤 악보가 바뀌었거나 곡이 없으면 음표를 만들지 않는다.
+        assertFailsWith<ScoreNotesException> { notes.notesFor(pending.copy(scoreVersion = 2)) }
+        assertFailsWith<ScoreNotesException> { notes.notesFor(pending.copy(songId = 999)) }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
     fun `stores an analysis result only while the session is pending on the same attempt`() {
         val startedAt = LocalDateTime.parse("2026-10-28T01:00:00")
         for ((id, attempt) in listOf(21L to 2, 22L to 1)) {
@@ -571,19 +741,26 @@ class DatabaseIntegrationTests {
             )
         }
         val repository = mapper<PracticeAnalysisRepository>()
-        val pending = assertNotNull(repository.findPending(21))
+        val inTime = startedAt // 마감 기준이 시작 시각과 같으면 아직 제한 시간 안이다
+        val overdue = startedAt.plusNanos(1_000) // 시작 시각이 마감 기준보다 1마이크로초 이르면 넘겼다
+        val pending = assertNotNull(repository.findPending(21, inTime))
         assertEquals(PendingAnalysis(21, 2, 1, 1, 3, 4, 60, "JEONGGAN", "recordings/21/a.m4a"), pending)
-        assertNull(repository.findPending(1)) // 고정 데이터의 DONE 세션
+        assertNull(repository.findPending(21, overdue))
+        assertNull(repository.findPending(1, inTime.minusYears(1))) // 고정 데이터의 DONE 세션
 
-        val notes = listOf(ScoreNote(3, 0, 1.0, false, 2), ScoreNote(4, -12, 2.0, true, 1))
+        val notes = listOf(ScoreNote(3, 0, 0.0, 1.0, false, 2), ScoreNote(4, -12, 1.0, 2.0, true, 1))
         val done = AnalysisResult.Done(
             "pyin-1", 87, 90, 85, 86,
             listOf(NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15), NoteJudgement(4, NoteVerdict.MISSED, null, null, null)),
         )
-        assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes)) // 이전 시도의 늦은 결과
+        assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes, inTime)) // 이전 시도의 늦은 결과
+        assertFalse(repository.saveDone(pending, done, notes, overdue)) // 마감 뒤에 온 결과
+        assertFalse(repository.saveFailed(pending, "SERVER_ERROR", overdue))
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 21", Int::class.java))
+        assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 21", String::class.java))
+        assertFalse(repository.expireOverdue(21, inTime)) // 아직 제한 시간 안
 
-        assertTrue(repository.saveDone(pending, done, notes))
+        assertTrue(repository.saveDone(pending, done, notes, inTime))
         assertEquals(
             listOf(87, 90, 85, 86, "pyin-1"),
             jdbc.queryForList("SELECT total_score, pitch_score, timing_score, duration_score, model_version FROM evaluations WHERE session_id = 21")
@@ -602,18 +779,48 @@ class DatabaseIntegrationTests {
             },
         )
         assertEquals("DONE", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 21", String::class.java))
-        assertFalse(repository.saveDone(pending, done, notes)) // 이미 DONE
+        assertFalse(repository.saveDone(pending, done, notes, inTime)) // 이미 DONE
+        assertFalse(repository.expireOverdue(21, overdue)) // DONE은 시간 초과로 바꾸지 않는다
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 21", Int::class.java))
 
-        val failing = assertNotNull(repository.findPending(22))
-        assertFalse(repository.saveFailed(failing.copy(attempt = 2), AnalysisFailReason.NO_SOUND))
-        assertTrue(repository.saveFailed(failing, AnalysisFailReason.NO_SOUND))
-        assertFalse(repository.saveFailed(failing, AnalysisFailReason.TOO_SHORT))
+        val failing = assertNotNull(repository.findPending(22, inTime))
+        assertFalse(repository.saveFailed(failing.copy(attempt = 2), "NO_SOUND", inTime))
+        assertTrue(repository.saveFailed(failing, "NO_SOUND", inTime))
+        assertFalse(repository.saveFailed(failing, "TOO_SHORT", inTime))
         assertEquals(
             mapOf("status" to "FAILED", "fail_reason" to "NO_SOUND"),
             jdbc.queryForMap("SELECT status, fail_reason FROM practice_sessions WHERE id = 22"),
         )
-        assertNull(repository.findPending(22))
+        assertNull(repository.findPending(22, inTime))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `expires only pending analysis attempts started before the deadline`() {
+        val cutoff = LocalDateTime.parse("2026-10-28T01:00:00")
+        for ((id, status, startedAt) in listOf(
+            Triple(31L, "PENDING", cutoff.minusNanos(1_000)),
+            Triple(32L, "PENDING", cutoff),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, recording_bytes, " +
+                    "recording_duration_ms, recording_sample_rate, recording_channels, status, analysis_attempt, analysis_started_at, started_at, ended_at) " +
+                    "VALUES (?, 1, 1, 60, 'JEONGGAN', 0, 'recordings/a.m4a', 1000, 2000, 48000, 1, ?, 1, ?, ?, ?)",
+                id, status, startedAt, startedAt.minusMinutes(1), startedAt,
+            )
+        }
+        val repository = mapper<PracticeAnalysisRepository>()
+
+        assertTrue(repository.expireOverdue(31, cutoff))
+        assertFalse(repository.expireOverdue(31, cutoff)) // 이미 TIMEOUT
+        assertFalse(repository.expireOverdue(32, cutoff)) // 마감 기준과 같으면 아직 제한 시간 안
+        assertEquals(
+            listOf(listOf("FAILED", "TIMEOUT"), listOf("PENDING", null)),
+            jdbc.query("SELECT status, fail_reason FROM practice_sessions WHERE id IN (31, 32) ORDER BY id") { rs, _ ->
+                listOf(rs.getString(1), rs.getString(2))
+            },
+        )
     }
 
     // 저장 중 실패가 상태 변경까지 되돌리는지 보려면 테스트 트랜잭션 밖에서 커밋해야 한다. 넣은 행은 끝에서 지운다.
@@ -643,10 +850,10 @@ class DatabaseIntegrationTests {
         )
         try {
             val repository = mapper<PracticeAnalysisRepository>()
-            val pending = assertNotNull(repository.findPending(901))
+            val pending = assertNotNull(repository.findPending(901, LocalDateTime.parse("2000-01-01T00:00:00")))
             val done = AnalysisResult.Done("pyin-1", 50, 50, 50, 50, listOf(NoteJudgement(0, NoteVerdict.CORRECT, 0.0, 0, 0)))
 
-            assertFailsWith<DataAccessException> { repository.saveDone(pending, done, listOf(ScoreNote(0, 0, 1.0, false, 999_999))) }
+            assertFailsWith<DataAccessException> { repository.saveDone(pending, done, listOf(ScoreNote(0, 0, 0.0, 1.0, false, 999_999)), LocalDateTime.parse("2000-01-01T00:00:00")) }
 
             assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM practice_sessions WHERE id = 901", String::class.java))
             assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id = 901", Int::class.java))
@@ -659,6 +866,116 @@ class DatabaseIntegrationTests {
             jdbc.update("DELETE FROM jangdans WHERE id = 901")
             jdbc.update("DELETE FROM instruments WHERE id = 901")
             jdbc.update("DELETE FROM pitches WHERE id = 901")
+        }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `starts a retry only for the owner's TIMEOUT or SERVER_ERROR session with a recording`() {
+        val failedAt = LocalDateTime.parse("2026-10-28T01:00:00")
+        for ((id, status, failReason, attempt, recording) in listOf(
+            Retry(41, "FAILED", "TIMEOUT", 1, true),
+            Retry(42, "FAILED", "SERVER_ERROR", 2, true),
+            Retry(43, "FAILED", "NO_SOUND", 1, true),
+            Retry(44, "FAILED", "TOO_SHORT", 1, true),
+            Retry(45, "FAILED", "DECODE_ERROR", 1, true),
+            Retry(46, "FAILED", "UPLOAD_TIMEOUT", 0, false),
+            Retry(47, "PENDING", null, 1, true),
+            Retry(48, "FAILED", "TIMEOUT", 1, false),
+            Retry(49, "DONE", null, 1, true),
+            // 실제로는 녹음이 없지만, 녹음 조건과 상관없이 실패 코드만으로 거절하는지 보려고 녹음이 있는 행을 둔다
+            Retry(50, "FAILED", "UPLOAD_TIMEOUT", 1, true),
+        )) {
+            jdbc.update(
+                "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
+                    "analysis_attempt, analysis_started_at, started_at, ended_at) VALUES (?, 1, 1, 60, 'JEONGGAN', 0, ?, ?, ?, ?, ?, ?, ?)",
+                id, if (recording) "recordings/$id/a.m4a" else null, status, failReason, attempt,
+                if (attempt == 0) null else failedAt, failedAt.minusMinutes(1), failedAt,
+            )
+        }
+        val repository = mapper<AnalysisRetryRepository>()
+        val retriedAt = LocalDateTime.parse("2026-10-28T02:00:00.123456")
+
+        assertEquals(AnalysisState("FAILED", "TIMEOUT", 1), repository.findState(41, 1))
+        assertNull(repository.findState(41, 2)) // 다른 회원의 세션
+        assertFalse(repository.startRetry(41, 2, 1, retriedAt))
+        assertFalse(repository.startRetry(41, 1, 0, retriedAt)) // 읽은 뒤 다른 시도가 시작·실패했다
+        assertTrue(repository.startRetry(41, 1, 1, retriedAt))
+        assertEquals(AnalysisState("PENDING", null, 2), repository.findState(41, 1))
+        assertEquals(retriedAt, jdbc.queryForObject("SELECT analysis_started_at FROM practice_sessions WHERE id = 41", LocalDateTime::class.java))
+        assertFalse(repository.startRetry(41, 1, 2, retriedAt)) // 이미 PENDING
+
+        // 분석에 넘기지 못한 시도는 SERVER_ERROR로 끝내 다시 시도할 수 있게 한다. 다른 시도·시작 시각이면 바꾸지 않는다.
+        assertFalse(repository.failStart(41, 1, retriedAt))
+        assertFalse(repository.failStart(41, 2, retriedAt.plusNanos(1_000)))
+        assertTrue(repository.failStart(41, 2, retriedAt))
+        assertEquals(AnalysisState("FAILED", "SERVER_ERROR", 2), repository.findState(41, 1))
+        assertFalse(repository.failStart(41, 2, retriedAt)) // 이미 끝났다
+
+        assertTrue(repository.startRetry(42, 1, 2, retriedAt))
+        assertEquals(AnalysisState("PENDING", null, 3), repository.findState(42, 1))
+
+        for (id in 43L..50L) {
+            val before = assertNotNull(repository.findState(id, 1))
+            assertFalse(repository.startRetry(id, 1, before.attempt, retriedAt), "session $id")
+            assertEquals(before, repository.findState(id, 1), "session $id")
+        }
+    }
+
+    private data class Retry(val id: Long, val status: String, val failReason: String?, val attempt: Int, val recording: Boolean)
+
+    // 동시 요청은 서로 다른 연결이 보도록 테스트 트랜잭션 밖에서 커밋한다. 넣은 행은 끝에서 지운다.
+    @Test
+    fun `starts only one retry when two requests arrive together`() {
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, '황', 0, '黃', '황', 0)")
+        jdbc.update(
+            "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
+                "VALUES (902, 'RETRY_TEST', '시험', 902, 902, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO jangdans (id, name, pattern, default_bpm, bpm_unit, source, created_at, updated_at) " +
+                "VALUES (902, '시험', '{}', 60, 'JEONGGAN', '시험', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO users (id, email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at) " +
+                "VALUES (902, 'retry@example.test', 'hash', '시험', 902, 'HANJA', 'ACTIVE', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
+                "VALUES (902, 902, 902, '시험', 1, 60, '{}', 1, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, fail_reason, " +
+                "analysis_attempt, analysis_started_at, started_at, ended_at) " +
+                "VALUES (902, 902, 902, 60, 'JEONGGAN', 0, 'recordings/902/a.m4a', 'FAILED', 'TIMEOUT', 1, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        val pool = Executors.newFixedThreadPool(2)
+        try {
+            val repository = mapper<AnalysisRetryRepository>()
+            val ready = CountDownLatch(2)
+            val go = CountDownLatch(1)
+            val retriedAt = LocalDateTime.parse("2026-10-28T02:00:00")
+            val results = List(2) {
+                pool.submit<Boolean> {
+                    ready.countDown()
+                    go.await()
+                    repository.startRetry(902, 902, 1, retriedAt)
+                }
+            }
+            assertTrue(ready.await(10, TimeUnit.SECONDS))
+            go.countDown()
+
+            assertEquals(listOf(false, true), results.map { it.get(10, TimeUnit.SECONDS) }.sorted())
+            assertEquals(AnalysisState("PENDING", null, 2), repository.findState(902, 902))
+        } finally {
+            pool.shutdownNow()
+            jdbc.update("DELETE FROM practice_sessions WHERE id = 902")
+            jdbc.update("DELETE FROM songs WHERE id = 902")
+            jdbc.update("DELETE FROM users WHERE id = 902")
+            jdbc.update("DELETE FROM jangdans WHERE id = 902")
+            jdbc.update("DELETE FROM instruments WHERE id = 902")
+            jdbc.update("DELETE FROM pitches WHERE id = 902")
         }
     }
 

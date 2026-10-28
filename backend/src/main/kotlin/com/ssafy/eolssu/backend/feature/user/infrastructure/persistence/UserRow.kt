@@ -17,3 +17,14 @@ data class UserRow(
     val updatedAt: LocalDateTime,
     val deletedAt: LocalDateTime?,
 )
+
+class UserInsert(
+    val email: String,
+    val passwordHash: String,
+    val nickname: String,
+    val instrumentId: Long,
+    val notationMode: String,
+    val createdAt: LocalDateTime,
+) {
+    var id: Long = 0
+}

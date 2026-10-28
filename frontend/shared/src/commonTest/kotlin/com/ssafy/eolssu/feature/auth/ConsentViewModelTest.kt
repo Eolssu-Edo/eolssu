@@ -12,7 +12,8 @@ class ConsentViewModelTest {
     fun agreementsFollowWireframeOrderAndRequiredFlags() {
         assertEquals(required + Agreement.News, Agreement.entries)
         assertEquals(required, Agreement.entries.filter { it.required })
-        assertEquals(listOf(Agreement.Terms, Agreement.Privacy, Agreement.Recording), Agreement.entries.filter { it.hasTerms })
+        // 만 14세 이상(AGE_OVER_14)도 문서가 있는 필수 약관이라 모든 항목에 '보기'가 있다. 소식·이벤트 알림은 선택 약관이다.
+        assertEquals(Agreement.entries, Agreement.entries.filter { it.hasTerms })
     }
 
     @Test

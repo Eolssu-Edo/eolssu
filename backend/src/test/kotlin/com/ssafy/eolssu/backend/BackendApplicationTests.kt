@@ -60,6 +60,8 @@ class BackendApplicationTests {
             assertEquals(200, scrape.statusCode())
             assertTrue(scrape.body().contains("jvm_memory_used_bytes"), scrape.body().take(300))
             assertTrue(scrape.body().contains("http_server_requests_seconds_count"), scrape.body().take(300))
+            // p95를 계산하려면 응답 시간 분포 구간이 있어야 한다(S15P31E102-218)
+            assertTrue(scrape.body().contains("http_server_requests_seconds_bucket"), scrape.body().take(300))
         }
     }
 
