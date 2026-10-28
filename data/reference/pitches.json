@@ -1,10 +1,11 @@
 {
   "table": "pitches",
-  "description": "단소 1차 율명 표. 단소가 내는 다섯 율(중·임·무·황·태)을 녹음으로 확인한 음역(중~중청태) 안에서 나열한다. 칸은 backend V1 pitches와 같고 id는 백엔드가 정한다.",
+  "description": "단소 1차 율명 표. 단소가 내는 다섯 율(중·임·무·황·태)을 단소 실제 음역(중~중청중) 안에서 나열한다. 칸은 backend V1 pitches와 같고 id는 백엔드가 정한다.",
   "sources": [
     "octave·semitone 규칙: backend/src/main/resources/db/migration/V1__initial_schema.sql pitches",
     "한자: 우물사이 옥타브 한자표(data/src/scores/review_page.html HANJA)",
-    "음역: docs/knowledge/data/danso.md 평취·역취 녹음 측정값"
+    "음역: e-국악아카데미 단소 안공법 https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-4/index.htm (실제로는 仲에서 중청중까지 쓰인다)",
+    "주파수 확인: docs/knowledge/data/danso.md 평취·역취 녹음 측정값(중~중청태). 중청중은 녹음이 없어 확인하지 않음"
   ],
   "rows": [
     {"yul": "중", "octave": 0, "hanja": "仲", "hangul": "중", "semitone": 5},
@@ -16,6 +17,7 @@
     {"yul": "임", "octave": 1, "hanja": "淋", "hangul": "청임", "semitone": 19},
     {"yul": "무", "octave": 1, "hanja": "潕", "hangul": "청무", "semitone": 22},
     {"yul": "황", "octave": 2, "hanja": "㶂", "hangul": "중청황", "semitone": 24},
-    {"yul": "태", "octave": 2, "hanja": "㳲", "hangul": "중청태", "semitone": 26}
+    {"yul": "태", "octave": 2, "hanja": "㳲", "hangul": "중청태", "semitone": 26},
+    {"yul": "중", "octave": 2, "hanja": "㴢", "hangul": "중청중", "semitone": 29}
   ]
 }

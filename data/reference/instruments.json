@@ -2,7 +2,7 @@
   "table": "instruments",
   "description": "단소 악기 행. 음역 하한·상한은 pitches.json 행을 (yul, octave)로 가리킨다. 백엔드가 range_low_pitch_id·range_high_pitch_id로 바꿔 넣는다.",
   "sources": [
-    "음역: docs/knowledge/data/danso.md 평취 중(약 415Hz)~역취 태(약 1377Hz) 녹음 측정값. 교육자료의 더 넓은 음역은 녹음이 없어 넣지 않음",
+    "음역: e-국악아카데미 단소 안공법 https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-4/index.htm (악기 음역은 협~중청중이나 실제로는 仲에서 중청중까지 쓰인다). 녹음으로는 중~중청태까지 확인(docs/knowledge/data/danso.md)",
     "pitch_tolerance_cent: 노션 1차 MVP 논의사항 D1 시작값 ±50센트"
   ],
   "rows": [
@@ -10,7 +10,7 @@
       "code": "DANSO",
       "name": "단소",
       "range_low": {"yul": "중", "octave": 0},
-      "range_high": {"yul": "태", "octave": 2},
+      "range_high": {"yul": "중", "octave": 2},
       "pitch_tolerance_cent": 50,
       "is_active": true
     }
