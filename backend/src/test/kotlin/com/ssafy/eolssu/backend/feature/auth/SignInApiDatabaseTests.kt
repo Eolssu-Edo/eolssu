@@ -109,6 +109,14 @@ class SignInApiDatabaseTests {
         assertTrue(response429HasNoCookies(signIn("wrong@auth207in.test", "Example!234")))
     }
 
+    @Test
+    fun `an accent variant that MySQL matches to the same member stays locked`() {
+        member("kim@auth207in.test")
+        repeat(4) { assertError(signIn("kim@auth207in.test", "Wrong!234"), 401, "INVALID_CREDENTIALS") }
+        assertError(signIn("kim@auth207in.test", "Wrong!234"), 429, "TOO_MANY_REQUESTS")
+        assertError(signIn("kím@auth207in.test", "Example!234"), 429, "TOO_MANY_REQUESTS")
+    }
+
     private fun response429HasNoCookies(response: HttpResponse<String>) = response.headers().allValues("Set-Cookie").isEmpty()
 
     private fun signIn(email: String, password: String) = post("/api/auth/sign-in", """{"email":"$email","password":"$password"}""")

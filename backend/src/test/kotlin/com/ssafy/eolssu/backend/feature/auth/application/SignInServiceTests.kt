@@ -75,6 +75,13 @@ class SignInServiceTests {
     }
 
     @Test
+    fun `accent and case variants that the database treats as the same member share one lock`() {
+        repository.aliases["léarner@example.com"] = "learner@example.com"
+        repeat(5) { service.signIn("learner@example.com", "Wrong!234") }
+        assertIs<SignInResult.TooManyAttempts>(service.signIn("Léarner@example.com", "Example!234"))
+    }
+
+    @Test
     fun `failures older than 15 minutes do not count and success resets the count`() {
         repeat(4) { service.signIn("learner@example.com", "Wrong!234") }
         now = now.plusSeconds(901)
@@ -92,11 +99,14 @@ class SignInServiceTests {
 
 internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository {
     val members = mutableMapOf<String, SignInMember>()
+    // MySQL 기본 콜레이션처럼 악센트·대소문자가 다른 이메일을 같은 행으로 찾는다.
+    val aliases = mutableMapOf<String, String>()
     val lastLogins = mutableMapOf<Long, Instant>()
     val cancelled = mutableSetOf<Long>()
 
     override fun <T : Any> inTransaction(action: () -> T): T = action()
-    override fun findMemberForUpdate(email: String) = members[email]
+    override fun findMember(email: String) = members[aliases[email] ?: email]
+    override fun findMemberForUpdate(email: String) = members[aliases[email] ?: email]
     override fun cancelWithdrawal(userId: Long, now: Instant) { cancelled.add(userId) }
     override fun recordLogin(userId: Long, now: Instant) { lastLogins[userId] = now }
     override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant) = 1L

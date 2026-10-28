@@ -16,6 +16,7 @@ class SignInMember(
 
 interface SignInRepository {
     fun <T : Any> inTransaction(action: () -> T): T
+    fun findMember(email: String): SignInMember?
     fun findMemberForUpdate(email: String): SignInMember?
     fun cancelWithdrawal(userId: Long, now: Instant)
     fun recordLogin(userId: Long, now: Instant)

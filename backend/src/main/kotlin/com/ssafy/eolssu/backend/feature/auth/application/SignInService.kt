@@ -23,16 +23,19 @@ class SignInService(
     fun signIn(email: String, password: String): SignInResult {
         val normalized = email.lowercase(Locale.ROOT)
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
-        attempts.lockedUntil(normalized, now)?.let { return SignInResult.TooManyAttempts(it) }
+        // 잠금은 DB가 찾은 회원 기준이다. users.email은 악센트·대소문자를 구분하지 않는 콜레이션이라,
+        // 입력 문자열 기준이면 kím@처럼 같은 회원을 가리키는 변형으로 잠금을 피할 수 있다.
+        val lockKey = repository.findMember(normalized)?.let { "member:${it.id}" } ?: "email:$normalized"
+        attempts.lockedUntil(lockKey, now)?.let { return SignInResult.TooManyAttempts(it) }
         val result = try {
             repository.inTransaction { authenticate(normalized, password, now) }
         } catch (_: TokenIssuingUnavailable) {
             return SignInResult.Unavailable
         }
         if (result == SignInResult.InvalidCredentials) {
-            attempts.recordFailure(normalized, now)?.let { return SignInResult.TooManyAttempts(it) }
+            attempts.recordFailure(lockKey, now)?.let { return SignInResult.TooManyAttempts(it) }
         } else {
-            attempts.reset(normalized)
+            attempts.reset(lockKey)
         }
         return result
     }
