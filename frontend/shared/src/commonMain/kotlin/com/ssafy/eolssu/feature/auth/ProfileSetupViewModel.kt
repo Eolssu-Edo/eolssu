@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** AUTH-07. 이메일 가입과 소셜 첫 가입이 함께 쓴다. */
+/** AUTH-07 이메일 가입 마지막 단계. */
 class ProfileSetupViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileSetupUiState())
     val uiState: StateFlow<ProfileSetupUiState> = _uiState.asStateFlow()

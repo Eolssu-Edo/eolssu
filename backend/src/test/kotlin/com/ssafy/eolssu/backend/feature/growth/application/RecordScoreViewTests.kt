@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.growth.application
 
+import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewReferenceMissing
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewViolation
@@ -59,6 +60,20 @@ class RecordScoreViewTests {
     }
 
     @Test
+    fun `reports a member without a row instead of failing`() {
+        repository.missingUserIds += 1
+        assertEquals(RecordScoreViewResult.MemberNotFound, service.record(segment))
+        assertEquals(emptyList(), repository.rows)
+    }
+
+    @Test
+    fun `reports a song deleted between the check and the insert`() {
+        repository.deleteSongBeforeNextInsert = true
+        assertEquals(RecordScoreViewResult.SongNotFound, service.record(segment))
+        assertEquals(emptyList(), repository.rows)
+    }
+
+    @Test
     fun `compares with the row a concurrent request stored first`() {
         repository.storeBeforeNextInsert = segment
         assertEquals(RecordScoreViewResult.AlreadyRecorded(segment), service.record(segment))
@@ -68,7 +83,10 @@ class RecordScoreViewTests {
         assertEquals(0, racing.rows.size)
     }
 
-    private class InMemoryScoreViewRepository(private val songIds: Set<Long>) : ScoreViewRepository {
+    private class InMemoryScoreViewRepository(songIds: Set<Long>) : ScoreViewRepository {
+        private val songIds = songIds.toMutableSet()
+        val missingUserIds = mutableSetOf<Long>()
+        var deleteSongBeforeNextInsert = false
         val rows = mutableListOf<ScoreViewSegment>()
         var calls = 0
         var storeBeforeNextInsert: ScoreViewSegment? = null
@@ -94,6 +112,9 @@ class RecordScoreViewTests {
         override fun insertIfAbsent(segment: ScoreViewSegment): Boolean {
             calls++
             storeBeforeNextInsert?.let { committedByOthers += it; storeBeforeNextInsert = null }
+            if (deleteSongBeforeNextInsert) songIds -= segment.songId
+            // 실제 DB의 외래 키처럼 회원·곡 행이 없으면 저장하지 못한다.
+            if (segment.userId in missingUserIds || segment.songId !in songIds) throw ScoreViewReferenceMissing()
             if ((rows + committedByOthers).any { it.userId == segment.userId && it.idempotencyKey == segment.idempotencyKey }) return false
             rows += segment
             return true

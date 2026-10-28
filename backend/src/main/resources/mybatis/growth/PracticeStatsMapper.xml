@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.PracticeStatsMapper">
+    <!-- 기간은 UTC 경계(from 이상, to 미만)로 걸러 (user_id, started_at) 인덱스를 쓰고, 묶을 때만 KST 날짜로 바꾼다. -->
+    <select id="sumCountedSecondsByDay" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.DailySecondsRow">
+        SELECT DATE(DATE_ADD(started_at, INTERVAL 9 HOUR)) AS day, SUM(counted_seconds) AS total
+        FROM score_views
+        WHERE user_id = #{userId} AND started_at &gt;= #{from} AND started_at &lt; #{to}
+        GROUP BY day
+    </select>
+    <!-- 분석이 끝난 세션만 센다. 평균은 평가 행이 있는 세션의 total_score로 낸다. -->
+    <select id="sumDoneSessionsByDay" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.DailySessionsRow">
+        SELECT DATE(DATE_ADD(ps.started_at, INTERVAL 9 HOUR)) AS day,
+               COUNT(*) AS done_count,
+               COUNT(e.id) AS scored_count,
+               COALESCE(SUM(e.total_score), 0) AS score_sum
+        FROM practice_sessions ps
+        LEFT JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.status = 'DONE' AND ps.started_at &gt;= #{from} AND ps.started_at &lt; #{to}
+        GROUP BY day
+    </select>
+    <select id="findPracticeDays" resultType="java.time.LocalDate">
+        SELECT DATE(DATE_ADD(started_at, INTERVAL 9 HOUR)) AS day
+        FROM score_views
+        WHERE user_id = #{userId} AND started_at &lt; #{to}
+        GROUP BY day
+        HAVING SUM(counted_seconds) &gt;= #{minSeconds}
+        ORDER BY day DESC
+    </select>
+</mapper>
