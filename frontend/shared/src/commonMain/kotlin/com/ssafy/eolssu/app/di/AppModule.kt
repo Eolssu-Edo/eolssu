@@ -17,13 +17,25 @@ import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
+import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
+import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.SampleAuthRepository
+import com.ssafy.eolssu.data.user.SampleUserRepository
+import com.ssafy.eolssu.data.user.UserRepository
+import com.ssafy.eolssu.data.user.VerificationPurpose
+import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
+import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
+import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
-import com.ssafy.eolssu.feature.auth.SignupViewModel
 import com.ssafy.eolssu.feature.home.HomeViewModel
+import com.ssafy.eolssu.feature.profile.MyPageViewModel
+import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
+import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
+import com.ssafy.eolssu.feature.profile.WithdrawViewModel
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
 import com.ssafy.eolssu.feature.result.ResultViewModel
@@ -65,13 +77,24 @@ val appModule = module {
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow) }
     viewModelOf(::LearnViewModel)
 
-    // 첫 실행·로그인·회원가입
+    // 첫 실행·로그인·회원가입·비밀번호 찾기. 인증 API를 붙이기 전까지 예시 저장소가 로그인·인증번호 결과를 돌려준다.
     single { FirstRunRepository(get()) }
     single { LearnProgressRepository(get()) }
+    single<AuthRepository> { SampleAuthRepository(now = get()) }
     viewModelOf(::ConsentViewModel)
     viewModelOf(::LoginViewModel)
-    viewModelOf(::SignupViewModel)
+    viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get()) }
+    viewModelOf(::PasswordSetupViewModel)
     viewModelOf(::ProfileSetupViewModel)
+    viewModelOf(::AccountLinkViewModel)
+
+    // 연습 악기(가입·홈·마이페이지가 함께 씀)와 마이페이지. 회원 정보 API를 붙이기 전까지 예시 계정을 쓴다.
+    single { InstrumentRepository(get()) }
+    single<UserRepository> { SampleUserRepository() }
+    viewModelOf(::MyPageViewModel)
+    viewModelOf(::NicknameEditViewModel)
+    viewModelOf(::PasswordChangeViewModel)
+    viewModelOf(::WithdrawViewModel)
 
     // 내 악보 · PDF 올리기. 기기 파일 선택기를 붙이기 전까지 '파일에서 선택'은 예시 파일을 고른다.
     single<MySheetRepository> { SampleMySheetRepository(now = get()) }

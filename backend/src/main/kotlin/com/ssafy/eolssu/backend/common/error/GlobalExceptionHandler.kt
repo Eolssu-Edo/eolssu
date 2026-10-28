@@ -21,13 +21,17 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
     ): ResponseEntity<Any>? {
         val errorCode = when (statusCode.value()) {
             400 -> ErrorCode.INVALID_REQUEST
+            401 -> ErrorCode.UNAUTHENTICATED
+            403 -> ErrorCode.FORBIDDEN
             404 -> ErrorCode.RESOURCE_NOT_FOUND
             405 -> ErrorCode.METHOD_NOT_ALLOWED
             406 -> ErrorCode.NOT_ACCEPTABLE
             413 -> ErrorCode.RECORDING_TOO_LARGE
             415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE
+            429 -> ErrorCode.TOO_MANY_REQUESTS
             500 -> ErrorCode.INTERNAL_SERVER_ERROR
-            else -> return super.handleExceptionInternal(ex, body, headers, statusCode, request)
+            503 -> ErrorCode.SERVICE_UNAVAILABLE
+            else -> null
         }
         // Allow 등 프레임워크가 제공한 응답 헤더를 보존한다. 입력·예외 메시지는 본문에 싣지 않는다.
         // 지원하지 않는 Accept에도 오류 계약의 JSON을 쓴다. 재협상하면 본문이 사라질 수 있다.
@@ -35,7 +39,9 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
             putAll(headers)
             contentType = MediaType.APPLICATION_JSON
         } else headers
-        return super.handleExceptionInternal(ex, ErrorResponse.of(errorCode), responseHeaders, statusCode, request)
+        // 표에 없는 상태도 ProblemDetail·이유 문구 대신 공통 형식으로 응답한다.
+        val errorBody = errorCode?.let { ErrorResponse.of(it) } ?: ErrorResponse.ofStatus(statusCode)
+        return super.handleExceptionInternal(ex, errorBody, responseHeaders, statusCode, request)
     }
 
     @ExceptionHandler(Exception::class)

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.growth.application
 
+import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewReferenceMissing
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewSegment
 import com.ssafy.eolssu.backend.feature.growth.domain.ScoreViewViolation
@@ -16,7 +17,13 @@ class RecordScoreView(
 
         repository.findByKey(requested.userId, requested.idempotencyKey)?.let { return compare(requested, it) }
         if (!repository.songExists(requested.songId)) return RecordScoreViewResult.SongNotFound
-        if (repository.insertIfAbsent(requested)) return RecordScoreViewResult.Created(requested)
+        val inserted = try {
+            repository.insertIfAbsent(requested)
+        } catch (_: ScoreViewReferenceMissing) {
+            // 500이면 앱이 끝없이 다시 보내므로 어느 행이 없는지 가려 4xx로 돌려준다.
+            return if (repository.songExists(requested.songId)) RecordScoreViewResult.MemberNotFound else RecordScoreViewResult.SongNotFound
+        }
+        if (inserted) return RecordScoreViewResult.Created(requested)
 
         // 같은 키의 다른 요청이 조회와 저장 사이에 먼저 저장했다. 트랜잭션 안에서도 그 행이 보이도록 최신 조회를 쓴다.
         val stored = checkNotNull(repository.findLatestByKey(requested.userId, requested.idempotencyKey)) {
@@ -39,4 +46,7 @@ sealed interface RecordScoreViewResult {
     data class Invalid(val violation: ScoreViewViolation) : RecordScoreViewResult
 
     data object SongNotFound : RecordScoreViewResult
+
+    /** 토큰의 회원 행이 없다. */
+    data object MemberNotFound : RecordScoreViewResult
 }

@@ -56,6 +56,7 @@ sudo docker exec eolssu-runtime-backend-1 ffprobe -version
 | `AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD` | 발송 계정 `eolssu.mailservice@gmail.com`과 Gmail 앱 비밀번호(계정 비밀번호 아님) | 메일 발송만 거절 |
 | `AUTH_MAIL_FROM`·`AUTH_MAIL_FROM_NAME` | 발신 주소·이름(`얼쑤`) | 주소는 Compose가 `AUTH_MAIL_USERNAME`으로 채움. 이름이 없으면 주소만 표시 |
 | `AUTH_OAUTH_{KAKAO,GOOGLE,NAVER}_CLIENT_ID`·`_CLIENT_SECRET` | 간편 로그인 제공자별 앱 키. 백엔드가 개발자 콘솔에서 발급해 별도 경로로 전달 | 그 제공자의 로그인만 거절 |
+| `RECORDING_STORAGE_ENDPOINT`·`_BUCKET`·`_ACCESS_KEY_ID`·`_SECRET_ACCESS_KEY`·`_REGION` | 녹음 원본 저장소(Cloudflare R2) S3 API 주소·버킷과 버킷 전용 R2 API 토큰의 S3 키. 지역은 `auto`. 준비 방법은 [backend README](../../backend/README.md#녹음-업로드와-원본-저장소pra-02) | 녹음 업로드만 503으로 거절 |
 
 Compose는 값이 없는 변수를 빈 문자열로 넘기므로 백엔드는 빈 값을 미설정과 같게 처리합니다. `AUTH_COOKIE_SECURE`는 연결하지 않습니다. 백엔드 기본값이 `true`이고 운영은 HTTPS라 넣을 필요가 없습니다. 값을 넣거나 바꿀 때는 `.env`를 root 전용으로 백업한 뒤 `sudoedit`로 고치고, 아래 절차대로 backend만 재생성합니다. 서명 키를 바꾸면 기존 로그인 토큰은 모두 무효가 되고, 인증번호 해시 키를 바꾸면 발송 중인 인증번호가 모두 무효가 됩니다. Gmail 앱 비밀번호는 Google 계정 보안 설정에서 발급·폐기하며, 교체하면 이전 값은 바로 쓸 수 없습니다.
 
@@ -105,7 +106,7 @@ python3 -B -m unittest discover -s infra/scripts/tests -v
 RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -v
 ```
 
-HTTP 검사는 `308`과 원래 경로·쿼리가 포함된 HTTPS `Location`을 확인합니다. 기본 Python 검사는 외부 도구 없이 TLS 초기화의 복구 계약을 확인합니다. `RUN_NGINX_TESTS=1` 검사는 Docker·OpenSSL이 필요하며, 임시 인증서와 loopback 임의 포트의 격리 Nginx로 실제 HTTP 전환·ACME·내부 검사·HTTPS를 확인한 뒤 컨테이너와 fixture를 정리합니다. 같은 조건에서 `test_nginx_actuator.py`는 가짜 백엔드를 붙인 Nginx 설정 3개가 readiness와 일반 API만 넘기고 다른 점검 주소와 우회 경로(이중 슬래시·URL 인코딩·`../`·`;`)는 404로 막는지 확인합니다.
+HTTP 검사는 `308`과 원래 경로·쿼리가 포함된 HTTPS `Location`을 확인합니다. 기본 Python 검사는 외부 도구 없이 TLS 초기화의 복구 계약을 확인합니다. `RUN_NGINX_TESTS=1` 검사는 Docker·OpenSSL이 필요하며, 임시 인증서와 loopback 임의 포트의 격리 Nginx로 실제 HTTP 전환·ACME·내부 검사·HTTPS를 확인한 뒤 컨테이너와 fixture를 정리합니다. 같은 조건에서 `test_nginx_actuator.py`는 가짜 백엔드를 붙인 Nginx 설정 3개가 readiness와 일반 API만 넘기고 다른 점검 주소와 우회 경로(이중 슬래시·URL 인코딩·`../`·`;`)는 404로 막는지, `/api/` 본문을 25MiB까지 넘기고(녹음 업로드의 20MiB 판정은 백엔드) 그보다 크면 413으로 막는지 확인합니다.
 
 HTTPS 적용 후 프론트를 수동 재생성할 때는 두 Compose 파일을 함께 사용합니다. 백엔드만 바꾸는 Jenkins 배포에는 기존 명령을 그대로 사용합니다.
 

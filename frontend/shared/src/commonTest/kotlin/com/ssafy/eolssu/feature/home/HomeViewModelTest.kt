@@ -1,45 +1,25 @@
 package com.ssafy.eolssu.feature.home
 
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.user.InstrumentRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
+/** HOME-01은 현재 악기를 보여 주기만 하고, 바꾸기는 마이페이지에서 한다. */
 class HomeViewModelTest {
     @Test
-    fun startsWithDansoAndClosedSheet() {
-        val state = HomeViewModel().uiState.value
-
-        assertEquals(Instrument.Danso, state.selectedInstrument)
-        assertFalse(state.isInstrumentSheetOpen)
-        assertEquals(
-            listOf(Instrument.Daegeum, Instrument.Sogeum, Instrument.Danso),
-            state.instruments,
-        )
+    fun startsWithDanso() {
+        assertEquals(Instrument.Danso, HomeViewModel(InstrumentRepository(FakeKeyValueStore())).instrument.value)
     }
 
     @Test
-    fun selectingAnInstrumentChangesItAndClosesTheSheet() {
-        val viewModel = HomeViewModel()
+    fun showsInstrumentChosenElsewhere() {
+        val repository = InstrumentRepository(FakeKeyValueStore())
+        val viewModel = HomeViewModel(repository)
 
-        viewModel.openInstrumentSheet()
-        assertTrue(viewModel.uiState.value.isInstrumentSheetOpen)
+        repository.select(Instrument.Sogeum)
 
-        viewModel.selectInstrument(Instrument.Daegeum)
-
-        assertEquals(Instrument.Daegeum, viewModel.uiState.value.selectedInstrument)
-        assertFalse(viewModel.uiState.value.isInstrumentSheetOpen)
-    }
-
-    @Test
-    fun dismissingTheSheetKeepsTheCurrentInstrument() {
-        val viewModel = HomeViewModel()
-        viewModel.selectInstrument(Instrument.Sogeum)
-
-        viewModel.openInstrumentSheet()
-        viewModel.dismissInstrumentSheet()
-
-        assertEquals(Instrument.Sogeum, viewModel.uiState.value.selectedInstrument)
-        assertFalse(viewModel.uiState.value.isInstrumentSheetOpen)
+        assertEquals(Instrument.Sogeum, viewModel.instrument.value)
     }
 }

@@ -1,4 +1,4 @@
-"""백엔드로 넘기는 Nginx 설정 3개가 점검 주소(actuator) 중 readiness만 넘기는지 확인한다. RUN_NGINX_TESTS=1로 실행한다."""
+"""백엔드로 넘기는 Nginx 설정 3개가 점검 주소(actuator) 중 readiness만 넘기고, API 본문은 25MiB까지 넘기는지 확인한다. RUN_NGINX_TESTS=1로 실행한다."""
 import http.client
 import json
 import os
@@ -12,7 +12,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[3]
 DOMAIN = 'actuator.example.test'
-FAKE_BACKEND = 'server { listen 8080; location / { return 200 "backend $request_uri"; } }\n'
+FAKE_BACKEND = 'server { listen 8080; client_max_body_size 0; location / { return 200 "backend $request_uri"; } }\n'
 PASSED = ['/api/actuator/health/readiness', '/api/infra-smoke']
 BLOCKED = ['/api/actuator', '/api/actuator/', '/api/actuator/health', '/api/actuator/health/liveness',
            '/api/actuator/prometheus', '/api/actuator/env',
@@ -104,6 +104,29 @@ class NginxActuatorTests(unittest.TestCase):
             return response.status, response.read().decode()
         finally:
             connection.close()
+
+    # 25MiB를 넘는 본문은 Nginx가 다 받기 전에 413으로 끊으므로, 연결 종료를 다루는 curl로 보낸다.
+    @classmethod
+    def post_status(cls, name, path, body):
+        scheme, port = ('https', cls.ports[name][443]) if name == 'runtime-tls' else ('http', cls.ports[name][80])
+        command = ['curl', '--silent', '--output', os.devnull, '--write-out', '%{http_code}', '--max-time', '20',
+                   '--resolve', f'{DOMAIN}:{port}:127.0.0.1', '--data-binary', f'@{body}',
+                   '--header', 'Content-Type: application/octet-stream', f'{scheme}://{DOMAIN}:{port}{path}']
+        if name == 'runtime-tls':
+            command += ['--cacert', str(cls.certificate)]
+        return int(subprocess.run(command, capture_output=True, text=True).stdout)
+
+    def test_api_body_limit_leaves_the_recording_check_to_the_backend(self):
+        with tempfile.TemporaryDirectory() as temp:
+            bodies = {size: Path(temp) / f'{size}.bin' for size in (21, 26)}
+            for size, body in bodies.items():
+                with open(body, 'wb') as file:
+                    file.truncate(size * 1024 * 1024)
+            for name in self.ports:
+                with self.subTest(config=name):
+                    # 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413으로 판정하도록 넘기고, 25MiB를 넘으면 Nginx가 막는다
+                    self.assertEqual(self.post_status(name, '/api/practice-sessions/1/recording', bodies[21]), 200)
+                    self.assertEqual(self.post_status(name, '/api/practice-sessions/1/recording', bodies[26]), 413)
 
     def test_readiness_and_ordinary_api_reach_backend(self):
         for name in self.ports:

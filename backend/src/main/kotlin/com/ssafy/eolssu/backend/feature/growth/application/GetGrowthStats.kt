@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.backend.feature.growth.application
 
 import com.ssafy.eolssu.backend.feature.growth.domain.DateRange
+import com.ssafy.eolssu.backend.feature.growth.domain.FullSongPlay
 import com.ssafy.eolssu.backend.feature.growth.domain.PracticeStatsRepository
 import com.ssafy.eolssu.backend.feature.growth.domain.SessionTotals
+import com.ssafy.eolssu.backend.feature.growth.domain.SongBest
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Clock
@@ -34,6 +36,8 @@ class GetGrowthStats(
             practiceDays = seconds.count { (day, total) -> day in range && total >= PRACTICE_DAY_MIN_SECONDS },
             currentStreakDays = streakDays(userId, LocalDate.now(clock.withZone(KST))),
             previous = totalsIn(previous),
+            bestBySong = repository.bestFullSongScores(userId),
+            metricGrowth = metricGrowth(userId),
         )
     }
 
@@ -41,6 +45,17 @@ class GetGrowthStats(
         val seconds = repository.dailyPracticeSeconds(userId, range)
         val sessions = repository.dailyDoneSessions(userId, range)
         return range.days().map { DailyPractice(it, seconds[it] ?: 0, sessions[it]?.doneCount ?: 0) }
+    }
+
+    // 성취도는 from·to와 관계없이 회원의 전체 기록으로 낸다.
+    private fun metricGrowth(userId: Long): MetricGrowth {
+        val latest = repository.latestFullSongPlay(userId) ?: return MetricGrowth.EMPTY
+        val first = repository.firstFullSongPlayLike(userId, latest)?.takeIf { it.sessionId != latest.sessionId }
+        fun change(score: (FullSongPlay) -> Int) = if (first == null) ScoreChange.NONE else ScoreChange(score(first), score(latest))
+        return MetricGrowth(
+            latest.songId, latest.title, latest.bpm,
+            change { it.pitchScore }, change { it.timingScore }, change { it.durationScore },
+        )
     }
 
     // 오늘부터 거꾸로 이어진 연습한 날. 오늘 아직 연습하지 않았으면 어제부터 센다.
@@ -81,8 +96,30 @@ data class GrowthSummary(
     val practiceDays: Int,
     val currentStreakDays: Int,
     val previous: PeriodTotals,
+    val bestBySong: List<SongBest>,
+    val metricGrowth: MetricGrowth,
 )
 
 data class PeriodTotals(val practiceSeconds: Long, val practiceCount: Long, val averageTotalScore: Int?)
+
+/** 기준 연주(가장 최근 전체 곡 연주)와 같은 조건 연주의 첫 번째 → 최근 항목 점수. 같은 조건이 2회 미만이면 점수는 null. */
+data class MetricGrowth(
+    val songId: Long?,
+    val title: String?,
+    val bpm: Int?,
+    val pitch: ScoreChange,
+    val timing: ScoreChange,
+    val duration: ScoreChange,
+) {
+    companion object {
+        val EMPTY = MetricGrowth(null, null, null, ScoreChange.NONE, ScoreChange.NONE, ScoreChange.NONE)
+    }
+}
+
+data class ScoreChange(val first: Int?, val last: Int?) {
+    companion object {
+        val NONE = ScoreChange(null, null)
+    }
+}
 
 data class DailyPractice(val date: LocalDate, val practiceSeconds: Long, val practiceCount: Long)

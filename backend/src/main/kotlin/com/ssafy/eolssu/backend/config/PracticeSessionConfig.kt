@@ -21,8 +21,8 @@ class PracticeSessionConfig {
     fun practiceSessionDetails(mapper: PracticeSessionMapper): PracticeSessionDetails = MyBatisPracticeSessionDetails(mapper)
 
     @Bean
-    fun getPracticeSession(details: PracticeSessionDetails, analyses: PracticeAnalysisRepository) =
-        GetPracticeSession(details, analyses::expireOverdue, Clock.systemUTC())
+    fun getPracticeSession(details: PracticeSessionDetails, analyses: PracticeAnalysisRepository, properties: AnalysisProperties) =
+        GetPracticeSession(details, analyses::expireOverdue, Clock.systemUTC(), properties.timeLimit)
 
     @Bean
     fun practiceSessionCreationRepository(mapper: PracticeSessionMapper): PracticeSessionCreationRepository =

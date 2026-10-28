@@ -1,7 +1,7 @@
 # 연습 시간 집계 기준 (GRO-01·02·04)
 
 - Jira: [S15P31E102-169](https://ssafy.atlassian.net/browse/S15P31E102-169), Story S15P31E102-23, Epic S15P31E102-14
-- 상태: 사용자 합의(2026-10-27, 회의 안건 E1과 성장 화면 통계 기준). FE·BE·Data 담당자 검토 전이다. BE-1 검증·저장 계층만 구현 중이다.
+- 상태: 사용자 합의(2026-10-27, 회의 안건 E1과 성장 화면 통계 기준). FE·BE·Data 담당자 검토 전이다. 체류 기록 API(GRO-04)는 아래 계약대로 구현됐다.
 - 구현 계획: [S15P31E102-169 계획](../plans/S15P31E102-169.md)
 - 기준 코드: `origin/develop` `d60d8e0`. 저장 구조는 V2의 `score_views`([DB 스키마](../contracts/db-schema.md))를 그대로 쓴다.
 
@@ -70,7 +70,7 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 | 응답 | 앱 처리 |
 | --- | --- |
 | 201, 200 | 대기열에서 지운다. |
-| 409, 400, 404 | 다시 보내도 결과가 같으므로 지우고 오류 로그를 남긴다. |
+| 409, 400, 404, 그 밖의 4xx(403·406·415 등) | 다시 보내도 결과가 같으므로 지우고 오류 로그를 남긴다. |
 | 401 | 토큰을 갱신한 뒤 다시 보낸다. 갱신에 실패하면 대기열에 남겨 둔다. |
 | 네트워크 오류, 5xx | 대기열에 남겨 두고 다음 전송 시점(구간 닫힘·앱 시작·앞으로 돌아옴)에 다시 보낸다. |
 
@@ -80,16 +80,18 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 
 ## 체류 기록 API (GRO-04)
 
-경로와 오류 응답 형식은 Notion API 명세서의 GRO-04와 공통 오류 형식을 따른다. 이 스펙은 의미만 정한다.
+Notion API 명세서의 GRO-04는 E1 결정 전 초안이어서 이 스펙이 계약을 정하고 Notion 페이지를 이 계약으로 고쳤다(2026-10-28 사용자 확정). 경로는 API 명세의 인증 표(`ApiAccessRulesTests`)에 있는 것을 쓰고, 응답은 공통 형식 `{httpStatus, isSuccess, message, code, result}`를 따른다.
+
+`POST /api/users/me/score-views`. 로그인(`access_token` 쿠키)이 필요하고 본문은 JSON이다. 회원은 토큰에서 정하며 본문으로 받지 않는다.
 
 요청:
 
 | 항목 | 위치 | 뜻 |
 | --- | --- | --- |
-| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. |
-| `songId` | 본문 | 곡 |
-| `startedAt`, `endedAt` | 본문 | 구간 시작·끝(UTC) |
-| `visibleSeconds`, `countedSeconds` | 본문 | 보인 시간, 인정 시간(초, 정수) |
+| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. 공백을 뺀 출력 가능한 ASCII(`!`~`~`) 1~100자(앱은 UUID). 없으면 400 |
+| `songId` | 본문 | 곡 ID. 곡 목록 응답처럼 JSON 문자열(`"12"`)이고 양의 정수여야 한다 |
+| `startedAt`, `endedAt` | 본문 | 구간 시작·끝. ISO-8601 JSON 문자열(`2026-10-28T05:00:00Z`). 오프셋이 붙은 시각(`+09:00`)은 UTC로 바꿔 저장하고, 숫자(epoch)는 받지 않는다. 서버는 마이크로초까지 저장하고 그 정밀도로 본문을 비교한다 |
+| `visibleSeconds`, `countedSeconds` | 본문 | 보인 시간, 인정 시간(초). JSON 정수만 받는다. 소수·문자열·int 범위 밖은 400 |
 
 서버 처리:
 
@@ -101,9 +103,22 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 | `endedAt < startedAt`, `countedSeconds > visibleSeconds`, 음수 | 400 |
 | `visibleSeconds > (endedAt − startedAt) + 1초` | 400. 반올림 오차로 1초를 허용한다. |
 | `visibleSeconds > (서버 수신 시각 − startedAt) + 1초` | 400. 앱 버그나 틀린 기기 시계로 부풀린 값을 막는다(R3). 구간을 닫자마자 보내면 반올림한 보인 시간이 1초 미만 길 수 있어 1초를 허용한다. |
-| 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). |
+| 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). 확인 뒤 저장 전에 곡 행이 지워져도 404 |
+| 토큰은 유효하지만 회원 행이 없음 | 401. 500이면 앱이 끝없이 다시 보낸다. 앱은 토큰 갱신에 실패하고 로그아웃 때 남은 기록을 지운다 |
 
 서버는 10초 미만 구간을 따로 거절하지 않는다. 버리는 일은 앱이 맡는다.
+
+응답 본문:
+
+| 응답 | `result` |
+| --- | --- |
+| 201 `체류 기록 저장 성공`, 200 `이미 저장된 체류 기록` | 저장된 구간 `{songId, startedAt, endedAt, visibleSeconds, countedSeconds}`. 200이면 처음 저장한 값이다 |
+| 400 | `errorCode: INVALID_REQUEST`. 구간 검사에 걸리면 `details.reason`에 이유(`INVALID_KEY`, `NEGATIVE_SECONDS`, `COUNTED_EXCEEDS_VISIBLE`, `TIME_OUT_OF_RANGE`, `ENDED_BEFORE_STARTED`, `VISIBLE_EXCEEDS_PERIOD`, `VISIBLE_EXCEEDS_ELAPSED`). 헤더 없음·JSON 형식 오류·칸 형식 오류(`songId`·시각·초)는 `details` 없음. 입력값은 싣지 않는다 |
+| 409 | `errorCode: IDEMPOTENCY_CONFLICT` |
+| 404 | `errorCode: RESOURCE_NOT_FOUND` |
+| 401 | `errorCode: UNAUTHENTICATED` |
+
+`TIME_OUT_OF_RANGE`는 DB가 저장할 수 없는 시각(1000~9999년 밖)이다. 저장 오류(5xx)가 되면 앱이 끝없이 다시 보내므로 400으로 막는다.
 
 ## 조회와 집계
 
@@ -120,14 +135,14 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 
 | 요구사항 | 요청 | 응답 `result` |
 | --- | --- | --- |
-| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount` |
+| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount`, `bestBySong[]{songId, title, bestTotalScore}`, `metricGrowth{songId, title, bpm, pitch, timing, duration}`(각 항목 `{first, last}`) |
 | GRO-02 날짜별 | `GET /users/me/growth/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | `items[]{date, practiceSeconds, practiceCount}`. `from`~`to`의 모든 날짜를 기록 없는 날도 0으로 채워 날짜 순서로 준다 |
 
 - **기간:** `from`·`to`는 KST 날짜이고 양 끝을 포함한다. 둘 다 필요하고 `from` ≤ `to`, 최대 366일이다. 연도는 1001~9998년이다(DB 시각 범위). 어기면 400 `INVALID_REQUEST`.
 - **날짜 소속:** 구간과 연주 세션은 시작 시각의 KST 날짜에 속한다.
-- **지난 기간(`previousPeriod`):** `from` 바로 앞의 같은 일수 구간. 주 보기면 지난주다. 월 보기에서는 지난달과 날짜 수가 다를 수 있다(예: 10월 31일치의 지난 기간은 8/31~9/30).
+- **지난 기간(`previousPeriod`):** `from`이 1일이고 `to`가 같은 달 말일이면(한 달 범위) 지난 달력 월 전체다(예: 3월 → 2/1~2/28). 그 밖에는 `from` 바로 앞의 같은 일수 구간이다(주 보기면 지난주). 화면 문구 "지난달보다"와 맞추려는 것이다(2026-10-28 사용자 결정).
 - **미션 수:** 미션이 구현되기 전에는 `null`이다(Notion 규칙 5).
-- **곡별 최고점(`bestBySong`)·항목별 성장(`metricGrowth`):** 비교 집단 규칙이 정해지지 않아 별도 Task에서 구현한다. 그 전에는 응답에 없다.
+- **곡별 최고점(`bestBySong`)·항목별 성장(`metricGrowth`):** 아래 '성취도'를 따른다.
 
 값:
 
@@ -143,6 +158,14 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 - **앱의 주·월 탭:** 주는 KST 월요일~일요일이고 막대는 요일별 7개다. 월은 달력 월이고 막대는 그 달의 날짜를 월~일 단위로 묶은 주차별 4~6개다(1일이 든 주가 1주차, 앞뒤 달 날짜는 뺀다). 앱은 요약을 `summary`로, 막대를 `calendar`의 날짜별 값을 더해 그린다. 변화 표시(지난 기간과의 차이)는 앱이 `previousPeriod`로 계산한다. 평균 변화는 두 쪽 평균이 모두 있을 때만 보여 준다.
 - **분 표시:** 요약 칸은 합계를 내림하고 막대는 각각 내림하므로, 요약 칸과 막대 합이 1~2분 다를 수 있다. 막대를 먼저 내림해 더하면 합계가 실제보다 작아져서 고르지 않았다.
 - 고르지 않은 것: 서버가 주·월 기간과 막대를 정하는 `GET /me/stats`(2026-10-27 초안. Notion 명세의 `from`·`to` 방식에 맞췄다), "지난주 같은 요일까지"와 비교, 10초 이상 체류를 연습한 날로 보기(잠깐 열어 본 날이 연속 기록에 들어간다).
+
+성취도(`bestBySong`·`metricGrowth`, 2026-10-28 사용자 결정):
+
+- **기간:** `from`·`to`와 관계없이 회원의 전체 기록이다. 주·월 탭을 바꿔도 값이 같다. 회원이 지운 기록(`record_deleted_at`)도 들어간다.
+- **전체 곡 연주:** 첫 음부터 끝 음까지 연주해 분석이 끝나고(`DONE`) 평가가 있는 세션. 음표 번호는 0부터이고 양 끝을 포함하므로 `start_note_idx` = 0, `end_note_idx` = `songs.note_count - 1`이다. 구간 연습은 넣지 않는다. 판정에 곡의 지금 `note_count`를 쓰므로, 악보를 고쳐 음표 수가 바뀌면 이전 악보로 한 전체 곡 연주는 빠질 수 있다.
+- **곡별 최고점:** 곡마다 전체 곡 연주의 최고 총점. BPM·악보 버전(`score_version`)·채점 모델(`model_version`)은 구분하지 않는다. 가장 최근 전체 곡 연주가 늦은 곡 먼저(구간 연습만 최근에 한 곡은 앞당기지 않는다).
+- **항목별 성장:** 가장 최근 전체 곡 연주와 곡·악보 버전·채점 모델·BPM(단위 포함)이 모두 같은 연주들 중 첫 번째와 최근의 음정·박자·음 길이 점수. 그런 연주가 2회 미만이면 `first`·`last`는 `null`이다. 어느 곡 기준인지 알 수 있게 `metricGrowth`에 `songId`·`title`·`bpm`을 더한다(Notion 계약 확장). 전체 곡 연주가 없으면 세 칸도 `null`이다.
+- 고르지 않은 것: 곡별 최고점을 조건별로 나누기(한 곡이 여러 줄이 됨), 곡이 달라도 회원의 첫 연주와 최근 연주를 비교하기(쉬운 곡→어려운 곡이면 하락처럼 보임), 곡마다 항목 성장 배열(화면·계약 변경이 큼).
 
 ## 완료 확인
 
@@ -161,6 +184,8 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | 10월 탭 막대 5개, 첫 막대는 10/1(목)~10/4(일)만 포함 | FE 단위 테스트 |
 | `calendar`는 기록 없는 날도 0으로 채움. `to` < `from`, 367일, 날짜 형식 오류는 400 | BE 테스트 |
 | 그날 인정 합 50초는 연습한 날이 아니고 60초는 연습한 날 | BE 단위 테스트 |
+| `from`=2027-03-01·`to`=03-31의 지난 기간은 2/1~2/28, `from`=03-02·`to`=03-31은 직전 30일 | BE 단위 테스트 |
+| 같은 곡이라도 BPM·BPM 단위·채점 모델·악보 버전이 다른 더 이른 연주는 항목 성장 비교에서 빠지고, 같은 조건이 1회뿐이면 `null`. 구간 연습·`FAILED`의 고득점은 곡별 최고점에 들지 않고, 지운 기록은 들어감 | BE 단위·DB 통합 테스트 |
 | 오늘 안 하고 어제·그제 했으면 연속 2, 어제도 안 했으면 0 | BE 단위 테스트(시계 고정) |
 | `DONE` 3건(평가 있는 2건)·`FAILED` 1건이면 연습 횟수 3, 평균은 평가 있는 2건 평균. 지난 기간 세션이 없으면 `previousPeriod.averageTotalScore`는 `null` | BE 테스트 |
 | 합계 299초, 막대 119초·180초면 요약 4분, 막대 1분·3분 | FE 단위 테스트 |
@@ -175,14 +200,12 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 - V2 `score_views` 주석의 "최대 인정 시간": 고치지 않고 이 스펙의 정의를 따른다.
 - `data/mart/schema.sql`: `mart_daily_practice`에 `total_practice_seconds` 추가. 이미 만든 마트 테이블에는 `ALTER`가 필요하다.
 - [S15P31E102-148](https://ssafy.atlassian.net/browse/S15P31E102-148) 연습 기록·성취도 화면: 예시 데이터의 연습 시간을 이 기준에 맞춘다.
-- Notion API 명세서 GRO-04: 이 스펙과 다르면 API 명세 담당([S15P31E102-139](https://ssafy.atlassian.net/browse/S15P31E102-139))에게 전달한다.
+- Notion API 명세서 GRO-04(`/users/me/score-views`): 위 계약으로 고쳤다(2026-10-28).
 
 ## 미결 사항
 
 | 항목 | 정할 사람·필요한 것 | 막는 작업 |
 | --- | --- | --- |
-| GRO-04 경로·오류 코드 이름과 이 스펙의 일치 여부 | API 명세 담당. 이 Task에서는 Notion 원문을 읽지 않았다 | BE·FE 연동 |
-| 월 보기의 지난 기간을 '직전 같은 일수'(Notion 규칙 8, 논의 필요)로 둘지 '지난달'로 둘지 | 기획·FE. 지금은 Notion대로 직전 같은 일수 | 월 탭 변화 표시 |
-| 곡별 최고점·항목별 성장의 비교 집단 규칙(Notion summary 규칙 3·4) | 기획·AI | `bestBySong`·`metricGrowth` 구현(별도 Task) |
 | 악보 화면에 곡 상세의 악보 미리보기도 포함할지 | FE·기획. 기본안은 연습 화면만 | FE 측정 범위 |
 | 알림 문구와 웹에서 보여 줄 방식 | 기획·디자인 | FE 문구 확정(구현은 초안으로 진행 가능) |
+| 삭제(`deleted_at`)·비공개(`HIDDEN`) 곡을 성취도에서 뺄지. 지금은 넣는다 | 기획·FE. 앱에서 그 곡으로 가면 404가 날 수 있다 | 성취도 표시 |

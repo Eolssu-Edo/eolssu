@@ -43,7 +43,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 무DB 기본 프로필과 읽기 전용 점검용 `ops` 프로필에는 약관 컨트롤러·조회 Bean을 만들지 않습니다. 배포 프로필 전환과 운영 DB 적용은 별도 작업입니다. `databaseTest`의 `TermsApiDatabaseTests`는 폐기 가능한 MySQL 8.4에 고정 약관 데이터를 넣고 실제 HTTP 응답까지 확인한 뒤 약관 데이터를 지웁니다.
 
-400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. ProblemDetail은 쓰지 않습니다(2026-10-28 확정, S15P31E102-168 녹음 업로드 오류도 같은 형식).
+400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. ProblemDetail은 쓰지 않습니다(2026-10-28 확정, S15P31E102-168 녹음 업로드 오류도 같은 형식). 위 목록에 없는 프레임워크 상태(예: 409·410)도 같은 형식이며 `result.errorCode`는 HTTP 상태 이름입니다.
 
 ## 환경 설정
 
@@ -53,13 +53,24 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db` 프로필은 `AUTH_CODE_HMAC_SECRET`이 필수입니다. 임의 32바이트 이상을 Base64로 인코딩한 값을 한 번 발급해 비밀값 저장소에 보관하고 실행 환경에 주입합니다. 비어 있거나 형식·길이가 잘못되면 시작에 실패합니다. 키를 바꾸면 기존 인증번호 확인이 실패하므로 매 실행 때 새로 만들지 않습니다. 테스트는 `src/test/resources/application.properties`의 공개 고정 키를 쓰며 실행 JAR에는 포함하지 않습니다.
 
-`AUTH_MAIL_MODE` 기본값은 `unavailable`입니다. 메일 수단 미정 상태에서 가입 인증 발송은 503이며, 비밀번호 재설정은 가입 여부를 숨기기 위해 메일 장애도 202를 반환합니다. 실제 발송은 아직 구현하지 않았습니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
+`AUTH_MAIL_MODE` 기본값은 `smtp`입니다. `AUTH_MAIL_HOST`·`AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD`가 모두 있으면 STARTTLS(설정 고정)로 실제 발송하고, 하나라도 없으면 서버는 기동하되 발송만 거절합니다. 발송 거절·실패 때 가입 인증 발송은 503이며, 비밀번호 재설정·계정 연결은 가입 여부를 숨기기 위해 202를 반환합니다. SMTP 시간 제한은 연결 3초·읽기/쓰기 5초입니다. `unavailable`은 항상 발송을 거절합니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
 
 - `POST /api/auth/email-verifications`: JSON `email`(최대 320자·소문자 정규화)과 `purpose`(`SIGN_UP`, `PASSWORD_RESET`, `ACCOUNT_MERGE`). 202에 문자열 `verificationId`, UTC `expiresAt`, `resendAvailableAt`을 반환합니다. 같은 이메일의 모든 목적을 합산해 60초 간격·KST 날짜별 10회이며 재발송하면 같은 목적의 이전 번호·미사용 완료 토큰을 무효화합니다.
 - `POST /api/auth/email-verifications/{verificationId}/confirm`: JSON `code`는 숫자 6자리 **문자열**입니다. 3분 경과·재발송·확인 성공 뒤에는 410, 없는 ID는 404입니다. 처음 네 오답은 400과 `result.details.remainingAttempts`, 다섯 번째 오답부터는 429입니다. 네 번 틀린 뒤 다섯 번째에 맞히면 성공합니다.
-- 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 완료 토큰을 실제 가입·계정 연결·비밀번호 재설정에서 1회 소비하는 API는 후속 단계에서 구현합니다.
+- 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 가입(AUTH-02)이 완료 토큰을 1회 소비합니다. 계정 연결·비밀번호 재설정의 소비는 후속 Task(S15P31E102-211·210)입니다.
 - 활성·탈퇴 대기 회원의 SIGN_UP은 409 `EMAIL_ALREADY_EXISTS`입니다. PASSWORD_RESET은 미가입자에게도 동일한 202와 제한을 적용하고 실제 메일은 가입된 이메일에만 보냅니다. 미가입·메일 장애 요청에는 6자리 코드로 확인할 수 없는 해시를 저장합니다. 재설정 메일 장애는 개인정보 없는 경고 로그만 남기며 응답에 드러내지 않습니다.
 - 발송 간격·일일 제한의 429는 `result.details.resendAvailableAt`을 제공합니다. 가입 메일 장애 503은 신규 행·이전 번호 무효화를 롤백합니다. 재설정·계정 연결의 숨긴 발송 실패는 요청 행·횟수·이전 번호 무효화를 유지합니다. 서버 안에서 DB 연결을 잡기 전에 먼저 줄을 세운 뒤 단일 MySQL의 DB별 잠금으로 최초 동시 발송과 번호 재확인을 직렬화하며, 5초 내 차례를 얻지 못하면 공통 503입니다([선택과 제약](../docs/knowledge/backend/auth-token-storage.md#이메일-인증-구현의-동시성2026-10-28)).
+
+### 가입·로그인·재발급·로그아웃(AUTH-01~04)
+
+`db` 프로필에서 제공합니다. 로그인 토큰은 응답 본문에 넣지 않고 쿠키로만 내려갑니다.
+
+- 쿠키: 모두 HttpOnly·SameSite=Lax이고 Secure는 `AUTH_COOKIE_SECURE`(기본 `true`, 로컬 HTTP 개발에서만 `false`)를 따릅니다. `access_token`은 HS256 JWT(`sub`=users.id, 30분, Path `/api`), `refresh_token`은 임의 256비트(14일, Path `/api/auth`, DB에는 SHA-256만)입니다.
+- `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
+- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 로그인하면 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다.
+- `POST /api/auth/refresh`: `refresh_token` 쿠키만 봅니다. 성공하면 이전 토큰을 폐기(ROTATED)하고 두 쿠키를 새로 줍니다. 폐기된 토큰이 다시 오면 그 회원의 토큰을 모두 폐기(REUSE_DETECTED)합니다. 401이면 두 쿠키를 지웁니다. 두 탭이 동시에 재발급하면 한쪽이 재사용으로 판정돼 로그아웃될 수 있습니다.
+- `POST /api/auth/sign-out`: 로그인 필요. 쿠키의 refresh_token이 그 회원의 것일 때만 폐기(SIGN_OUT)하고 두 쿠키를 지웁니다.
+- `AUTH_JWT_SECRET`이 없으면 서버는 기동하고 가입·로그인·재발급만 503입니다. 가입 기본 악기(`DANSO`)가 없어도 503입니다.
 
 ### 준비 상태 검사
 
@@ -87,7 +98,7 @@ JWT `sub`는 `users.id`입니다. 컨트롤러에서 `@AuthenticationPrincipal j
 컨트롤러 테스트는 `spring-security-test`의 `post("/api/...").with(jwt().jwt { it.subject("1") })`로 인증할 수 있습니다(`SecurityMockMvcRequestPostProcessors.jwt`). 이는 서명 검증을 대체하는 테스트 대역이며, `AccessTokenSecurityTests`는 실제 HS256 서명 쿠키·위조·만료도 별도로 검사합니다. 테스트 고정 키는 테스트 코드에만 둡니다.
 
 - 공개(명세 Request Header '공개' 경로만, 와일드카드 없음): POST `/api/auth/sign-in`·`sign-up`·`refresh`·`password-reset`·`oauth/{provider}`·`email-verifications`·`email-verifications/{verificationId}/confirm`, GET `/api/terms`·`songs`·`songs/{songId}`·`songs/{songId}/score`·`songs/{songId}/model-audio`·`instruments`·`instruments/{instrumentId}/fingerings`·`pitches`·`jangdans`·`jangdans/{jangdanId}`·`notation-symbols`, `/api/actuator/**`(health만 노출). 전체 표는 `ApiAccessRulesTests`에 있습니다.
-- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 406 `NOT_ACCEPTABLE`, 413 `RECORDING_TOO_LARGE`, 415 `UNSUPPORTED_MEDIA_TYPE`, 500 `INTERNAL_SERVER_ERROR`). Spring multipart 한도 초과도 같은 413 형식으로 처리합니다. 지원하지 않는 Accept의 406도 공통 JSON 본문으로 반환합니다. 오류 추가 정보는 필요할 때만 `result.details`에 담고 민감값은 제외합니다. ProblemDetail 형식은 쓰지 않기로 확정했습니다. `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
+- 그 밖의 `/api/**`는 로그인이 필요합니다. 오류는 API 명세 공통 형식 `{httpStatus, isSuccess:false, message, code, result{errorCode}}`로 응답합니다(400 `INVALID_REQUEST`, 401 `UNAUTHENTICATED`, 403 `FORBIDDEN`, 404 `RESOURCE_NOT_FOUND`, 405 `METHOD_NOT_ALLOWED`, 406 `NOT_ACCEPTABLE`, 413 `RECORDING_TOO_LARGE`, 415 `UNSUPPORTED_MEDIA_TYPE`, 500 `INTERNAL_SERVER_ERROR`, 녹음 업로드 코드는 아래 '녹음 업로드와 원본 저장소'). Spring multipart 한도 초과도 같은 413 형식으로 처리합니다. 지원하지 않는 Accept의 406도 공통 JSON 본문으로 반환합니다. 오류 추가 정보는 필요할 때만 `result.details`에 담고 민감값은 제외합니다. ProblemDetail 형식은 쓰지 않기로 확정했습니다. `//api`·`/./`·`;x`처럼 비정상 경로는 Spring Security 방화벽이 400 `INVALID_REQUEST`로 거절합니다. 인코딩된 `/` 등 Tomcat이 먼저 거절하는 경로는 Tomcat 기본 응답입니다.
 - CSRF: CSRF 토큰 대신 SameSite=Lax 쿠키와 `StateChangingRequestFilter`로 막습니다. 경로와 관계없이 모든 POST·PUT·PATCH·DELETE에 적용합니다.
   - `Origin` 헤더가 있으면 요청 `Host`와 호스트 이름이 같거나 `SECURITY_ALLOWED_ORIGINS`의 주소여야 합니다(403). Nginx는 HTTPS를 끝내고 `Host`를 포트 없이 넘기므로, `Host`에 포트가 없으면 호스트 이름만 비교하고 포트가 있으면 포트도 비교합니다. 그래서 Nginx 뒤에서는 같은 호스트의 다른 포트에서 온 요청도 통과합니다. 지금 서버는 Nginx의 80·443만 공개하므로 문제가 없지만, 같은 도메인의 다른 포트에 서비스를 올리면 이 판단을 다시 확인합니다. 앱처럼 `Origin`을 보내지 않는 요청은 Origin 확인을 건너뜁니다.
   - 본문은 `application/json`만 받고, `Content-Type`이 없으면 본문도 없어야 합니다(415). 녹음 업로드(`POST /api/practice-sessions/{id}/recording`, 디코딩된 경로 기준)만 `multipart/form-data`를 받습니다.
@@ -112,6 +123,7 @@ $env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:8080'
 | `DB_USERNAME`, `DB_PASSWORD` | 해당 DB의 접속 정보. 기본값 없음 |
 | `AUTH_CODE_HMAC_SECRET` | 인증번호 HMAC 비밀키(Base64, 디코딩 후 32바이트 이상). `db`에서 필수 |
 | `AUTH_MAIL_MODE` | 기본 `unavailable`, 로컬 메일 대역은 `memory` |
+| `ANALYSIS_AI_BASE_URL` | 연주 분석 AI 서비스 주소. 비우면 업로드 뒤 분석을 시작하지 않음 |
 
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = 'db'
@@ -158,7 +170,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
 
-검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회입니다. 되돌림 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V4 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -174,6 +186,34 @@ macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 
 | 실행 이미지 | `Dockerfile` 실행 단계에서 `ffmpeg=7:8.0.1-3ubuntu2`(베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)를 고정 설치 |
 
 고정 버전은 베이스 이미지의 Ubuntu 버전이 바뀌면 설치에 실패하므로 함께 갱신합니다. ffmpeg 설치로 실행 이미지가 약 410MB 커집니다. CI는 아직 `mediaTest`를 실행하지 않습니다. edo1 Jenkins 에이전트에 ffmpeg를 설치한 뒤 Jenkinsfile에 추가하고, 운영 이미지를 만드는 서버의 `/opt/eolssu/config/backend.Dockerfile`도 이 파일과 맞춥니다.
+
+### 녹음 업로드와 원본 저장소(PRA-02)
+
+`POST /api/practice-sessions/{sessionId}/recording`(`db` 프로필, 로그인 필요)은 multipart의 `audio` 파트 하나를 받아 [녹음 파일 규격](../docs/specs/recording-file.md)의 순서(404→410→409→413→415→422→503→500)로 판정합니다. 통과하면 원본을 `recordings/{sessionId}/{UUID}.m4a`에 저장하고, 세션이 아직 `RECORDING`일 때만 한 번의 조건부 갱신으로 원본 키·메타데이터 4칸·`ended_at`(서버 UTC)을 기록하고 `PENDING`으로 바꾸며 분석 시도를 시작합니다(`analysis_attempt` + 1, `analysis_started_at`). 응답은 202이고 본문은 `{sessionId, status: "PENDING", evaluationId: null, pollAfterMs: 2000}`입니다. 앱이 보내는 `endedAt`과 `Idempotency-Key`는 읽지 않습니다. 저장에 성공한 세션에 다시 올리면 409이며, 응답을 받지 못한 앱은 상태 조회로 결과를 확인합니다.
+
+거부 코드(`result.errorCode`)는 404 `SESSION_NOT_FOUND`, 410 `SESSION_EXPIRED`, 409 `SESSION_NOT_RECORDING`, 413 `RECORDING_TOO_LARGE`, 415 `RECORDING_UNSUPPORTED_FORMAT`, 422 `RECORDING_INVALID_DURATION`, 503 `RECORDING_STORAGE_UNAVAILABLE`, 500 `INTERNAL_SERVER_ERROR`입니다. DB 갱신이 실패하거나 동시 업로드에서 지면 자기 요청이 만든 객체만 지웁니다. 조건부 갱신과 같은 트랜잭션에서 `RecordingUploaded(sessionId)`를 발행하고, 분석은 아래 `AnalysisOnUpload`가 커밋 뒤 백그라운드에서 시작합니다. AI가 원본을 읽는 15분짜리 서명 URL은 `RecordingReadUrls` 빈이 만듭니다. 서명 URL은 녹음 접근 토큰이라 로그에 남기지 않습니다.
+
+원본 저장소는 S3 호환 API로 연결하고 처음 쓰는 업체는 Cloudflare R2입니다. 아래 다섯 값이 모두 있어야 연결하며, 하나라도 비면 기동은 하되 업로드를 503으로 답합니다. 키는 서버 `.env`에만 두고 커밋하지 않습니다.
+
+| 변수 | 값 |
+| --- | --- |
+| `RECORDING_STORAGE_ENDPOINT` | R2 S3 API 주소 `https://<account_id>.r2.cloudflarestorage.com` |
+| `RECORDING_STORAGE_BUCKET` | 녹음 버킷 이름 |
+| `RECORDING_STORAGE_ACCESS_KEY_ID`·`RECORDING_STORAGE_SECRET_ACCESS_KEY` | 이 버킷 하나에 객체 읽기·쓰기만 허용한 R2 API 토큰의 S3 키 |
+| `RECORDING_STORAGE_REGION` | `auto`(기본값) |
+
+R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
+
+1. R2 > 버킷 만들기: 위치 힌트 `Asia-Pacific(apac)`, 기본 저장 등급 `Standard`.
+2. 버킷 설정 > 공개 접근: `r2.dev` 주소와 사용자 도메인을 모두 끈 상태로 둡니다.
+3. 버킷 설정 > 객체 수명 주기 규칙: 접두사 `recordings/`, 객체 생성 30일 뒤 삭제를 추가합니다. R2는 만료 뒤 보통 24시간 안에 지웁니다.
+4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
+
+샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
+
+S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다.
+
+Nginx(`infra/runtime/nginx.conf`·`nginx.tls.conf.template`)는 `/api/`의 본문 한도를 25MiB(`client_max_body_size 25m`)로 둡니다. 25MiB를 넘으면 Nginx가 자체 HTML 413을, 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413을 돌려줍니다.
 
 ## 폴더와 코드 배치
 
@@ -197,9 +237,9 @@ backend/
 │   │   └── feature/<기능>/
 │   │       ├── application/       # 구현이 있는 기능만 (예: practice)
 │   │       ├── domain/
-│   │       └── infrastructure/persistence/
-│   │           ├── <테이블명>Row.kt
-│   │           └── <테이블명>Mapper.kt
+│   │       └── infrastructure/
+│   │           ├── persistence/   # <테이블명>Row.kt, <테이블명>Mapper.kt
+│   │           └── media/·storage/ 등  # 외부 도구·저장소 구현 (예: practice의 ffprobe, S3 호환 원본 저장소)
 │   └── resources/
 │       ├── application.yml / application-db.yml
 │       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql, V3__practice_session_recording_metadata.sql, V4__practice_session_analysis_attempt.sql
@@ -231,11 +271,13 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `db` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필과 읽기 전용 `ops` 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
 
-`growth`에는 악보 화면 체류 구간(GRO-04)의 검증·중복 처리와 저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. 두 조회 API는 `db` 프로필에서 `GrowthStatsConfig`로 연결하고 access_token의 회원으로 집계합니다. 체류 기록 저장 API는 아직 연결하지 않았습니다.
+`growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다. 요약의 곡별 최고점·항목별 성장은 기간과 관계없이 회원의 전체 곡 연주(첫 음~끝 음)로 냅니다.
 
-`analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 마감 전 `PENDING` 세션에만 결과를 저장합니다. `AnalyzePracticeSession`은 실패를 `SERVER_ERROR`, 제한 시간(기본 60초)을 넘긴 시도를 `TIMEOUT`으로 기록합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필에서는 저장소만 Bean으로 만들고, 분석 실행·AI 클라이언트 연결은 악보 음표 변환·녹음 서명 URL(S15P31E102-181) 뒤에 추가합니다.
+`analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 마감 전 `PENDING` 세션에만 결과를 저장합니다. `AnalyzePracticeSession`은 실패를 `SERVER_ERROR`, 제한 시간(기본 60초)을 넘긴 시도를 `TIMEOUT`으로 기록합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필의 분석 실행·AI 클라이언트 연결은 아래 `AnalysisOnUpload` 설명을 따릅니다.
 
 `practice`의 `GET /api/practice-sessions/{sessionId}`(`PracticeSessionController`)는 API 명세의 연습 세션·분석 상태 조회입니다. 회원 본인의 세션만 돌려주고(없거나 남의 세션은 404 `RESOURCE_NOT_FOUND`), 제한 시간을 넘긴 `PENDING`은 응답 전에 `TIMEOUT`으로 바꿉니다(`GetPracticeSession`).
+
+업로드 뒤 분석은 `AnalysisOnUpload`가 시작합니다. 업로드는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행하고, 커밋 뒤에 `analysisExecutor`(기본 2개 동시·대기 50개)에서 `AnalyzePracticeSession`이 돕니다. 롤백된 업로드나 트랜잭션 밖 발행은 분석하지 않습니다. 이 연결은 `PracticeScoreNotes`·`RecordingReadUrls` 구현 Bean과 `ANALYSIS_AI_BASE_URL`이 모두 있을 때만 켜지며, 없으면 경고 로그만 남기고 세션은 제한 시간 뒤 `TIMEOUT`이 됩니다. 설정은 `eolssu.analysis.*`(`time-limit` 기본 60초, `ai-response-timeout` 기본은 제한 시간 + 5초이며 제한 시간보다 길어야 함, `workers`, `queue-capacity`)입니다. 두 시간은 숫자만 쓰면 초로 읽습니다.
 
 | 기능 패키지 | 테이블 |
 | --- | --- |

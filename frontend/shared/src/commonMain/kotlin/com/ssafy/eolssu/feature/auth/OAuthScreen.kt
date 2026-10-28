@@ -12,6 +12,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -24,51 +28,72 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.auth_oauth_existing_account
-import eolssu.shared.generated.resources.auth_oauth_new_account
+import eolssu.shared.generated.resources.auth_close
+import eolssu.shared.generated.resources.auth_no_account_message
+import eolssu.shared.generated.resources.auth_no_account_signup
+import eolssu.shared.generated.resources.auth_no_account_title
+import eolssu.shared.generated.resources.auth_oauth_result_hint
+import eolssu.shared.generated.resources.auth_oauth_result_link
+import eolssu.shared.generated.resources.auth_oauth_result_linked
+import eolssu.shared.generated.resources.auth_oauth_result_none
 import eolssu.shared.generated.resources.auth_oauth_placeholder_body
 import eolssu.shared.generated.resources.auth_oauth_placeholder_title
 import eolssu.shared.generated.resources.auth_oauth_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AUTH-05 소셜 로그인. 실제로는 제공사 화면이 뜨는 자리라 와이어프레임처럼 점선 자리 표시만 둔다.
- * 처음 가입이면 [onNewAccount]로 프로필 설정, 이미 가입한 계정이면 [onExistingAccount]로 홈에 간다.
+ * AUTH-05 간편 로그인(로그인 전용). 실제로는 제공자 화면이 뜨는 자리라 와이어프레임처럼 점선 자리 표시만 두고,
+ * 제공자 로그인 뒤 서버 결과는 아래 버튼 셋으로 고른다(예시).
+ * 연결된 계정이 있으면 [onLinked]로 홈, 같은 이메일로 가입한 계정이 있으면(409 `ACCOUNT_MERGE_AVAILABLE`) [onLinkAvailable]로 계정 연결 확인,
+ * 둘 다 없으면 '가입된 계정이 없어요' 창을 띄우고 [onSignUp]으로 이메일 가입에 간다.
  */
 @Composable
 fun OAuthScreen(
     provider: SocialProvider,
     onBack: () -> Unit,
-    onNewAccount: () -> Unit,
-    onExistingAccount: () -> Unit,
+    onLinked: () -> Unit,
+    onLinkAvailable: () -> Unit,
+    onSignUp: () -> Unit,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
 ) {
     val colors = EolssuTheme.colors
     val name = stringResource(provider.displayName)
     val frame = authFrameOf(widthClass, split = false)
+    var noAccount by rememberSaveable { mutableStateOf(false) }
     AuthScaffold(
         frame,
         topBar = { AuthTopBar(stringResource(Res.string.auth_oauth_title, name), onBack = onBack) },
         bottomBar = {
-            EolssuButton(stringResource(Res.string.auth_oauth_new_account), onClick = onNewAccount)
-            EolssuButton(stringResource(Res.string.auth_oauth_existing_account), onClick = onExistingAccount, style = EolssuButtonStyle.Secondary)
+            Text(
+                stringResource(Res.string.auth_oauth_result_hint),
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = colors.textMuted,
+                textAlign = TextAlign.Center,
+            )
+            EolssuButton(stringResource(Res.string.auth_oauth_result_linked), onClick = onLinked)
+            EolssuButton(stringResource(Res.string.auth_oauth_result_link), onClick = onLinkAvailable, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.auth_oauth_result_none), onClick = { noAccount = true }, style = EolssuButtonStyle.Secondary)
         },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            // 자리 표시는 본문 높이를 채우되 최소 420dp(`.au-placeholder`), 태블릿 세로 560dp · 가로 440dp.
+            // 자리 표시는 본문 높이를 채우되 최소 360dp(`.au-placeholder`), 태블릿 세로 560dp · 가로 440dp.
             val minHeight = when (frame) {
-                AuthFrame.Compact -> 420.dp
+                AuthFrame.Compact -> 360.dp
                 AuthFrame.Portrait -> 560.dp
                 AuthFrame.Landscape, AuthFrame.Split -> 440.dp
             }
@@ -110,6 +135,16 @@ fun OAuthScreen(
                     )
                 }
             }
+        }
+    }
+    if (noAccount) {
+        EolssuDialog(
+            title = stringResource(Res.string.auth_no_account_title),
+            message = stringResource(Res.string.auth_no_account_message, name),
+            icon = EolssuIcons.Info,
+        ) {
+            EolssuButton(stringResource(Res.string.auth_no_account_signup), onClick = onSignUp)
+            EolssuButton(stringResource(Res.string.auth_close), onClick = onBack, style = EolssuButtonStyle.Text)
         }
     }
 }

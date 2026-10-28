@@ -55,6 +55,18 @@ class RecordingFileValidatorTests {
     }
 
     @Test
+    fun `AAC without a readable positive sample rate and channel count is unsupported`() {
+        fun check(result: AudioProbeResult) = RecordingFileValidator(FakeProbe(result)).validate(file, sizeBytes = 1_000)
+
+        // 메타데이터 4칸은 전부 양수여야 저장된다(V3 CHECK). 못 읽은 값은 저장 단계의 500이 아니라 415로 거부한다.
+        for (broken in listOf(aac.copy(sampleRate = null), aac.copy(sampleRate = 0), aac.copy(channels = null), aac.copy(channels = 0))) {
+            assertEquals(RecordingCheck.UnsupportedFormat, check(broken), broken.toString())
+        }
+        // 형식 판정이 길이 판정보다 먼저다.
+        assertEquals(RecordingCheck.UnsupportedFormat, check(aac.copy(channels = null, durationSeconds = null)))
+    }
+
+    @Test
     fun `duration must be at least 1 ms and below 601 seconds`() {
         fun check(seconds: Double?) =
             RecordingFileValidator(FakeProbe(aac.copy(durationSeconds = seconds))).validate(file, sizeBytes = 1_000)

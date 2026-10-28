@@ -134,6 +134,7 @@ fun EolssuNavHost(
                         route?.let(navController::navigate)
                         route != null
                     },
+                    onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
                     startMessage = entry.startNotice()?.message,
                     onStartMessageShown = entry::clearStartNotice,
                 )
@@ -335,10 +336,11 @@ fun EolssuNavHost(
                     )
                 }
             }
+            profileGraph(navController)
             authGraph(
                 navController,
                 onMicAllowed = practiceSettings::grantMic,
-                onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) },
+                onFinished = { notice -> navController.finishFirstRun(firstRunRepository, notice) },
             )
 
             // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
