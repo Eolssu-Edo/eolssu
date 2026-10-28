@@ -185,7 +185,7 @@ class JgbTests(unittest.TestCase):
     def test_source_and_asset_mismatch_do_not_silently_drop_sound(self):
         doc = document()
         doc["parts"][0]["instrument"] = "sogeum"
-        with self.assertRaisesRegex(ValueError, "단소"):
+        with self.assertRaisesRegex(ValueError, "악기"):
             converted(doc)
         doc = document()
         doc["parts"][0]["muted"] = True

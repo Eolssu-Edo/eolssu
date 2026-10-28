@@ -9,7 +9,7 @@ import tempfile
 import numpy as np
 import soundfile as sf
 from .score import PROFILES, compile_score, require
-from .midi import PLAYBACK_VIBRATO, RELEASE_CC, write_midi, read_midi
+from .midi import playback_vibrato, RELEASE_CC, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
 from .jgb import convert_jgb, SCALES
 from .audio import FORMATS, AAC_BIT_RATE, add_audio_arguments, resolve_encoder, write_audio
@@ -49,9 +49,10 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
     source_map = None
     is_jgb = Path(score_path).name.endswith(".jgb.json") or isinstance(source, dict) and "v" in source
     if is_jgb:
-        require(instruments == ["danso"], "JGB 입력은 단소 한 성부만 지원합니다")
+        require(len(instruments) == 1, "JGB 입력은 악기 하나와 한 성부를 선택해야 합니다")
         score, source_map = convert_jgb(source, source_name=Path(score_path).name, part=part,
-                                       bpm=bpm, speed=speed, hwang_midi=hwang_midi, jo=jo)
+                                       bpm=bpm, speed=speed, hwang_midi=hwang_midi, jo=jo,
+                                       instrument=instruments[0])
         source_map["input_sha256"] = input_hash
         score["source"]["jgb_sha256"] = source_map["input_sha256"]
     else:
@@ -94,7 +95,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                     require(n["pitch"] == e["pitch"] and n["velocity"] == e["velocity"], "MIDI event changed")
                     require(abs(n["start"]-e["start_tick"]*perf["tempo_us"]/1e6/perf["ppqn"]) < 1e-8, "MIDI onset changed")
                 audio, trace = sampler.render(playback)
-                reports.append({**perf, "playback_vibrato":dict(PLAYBACK_VIBRATO),
+                reports.append({**perf, "playback_vibrato":playback_vibrato(key),
                                 "notes":len(trace), "seconds":len(audio)/FS,
                                 "sampler":sampler.manifest, "render_trace":trace})
                 renders.append(audio)
@@ -116,11 +117,12 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                                     "requested_bit_rate":AAC_BIT_RATE if encoder else None,
                                     "encoder":{k:v for k,v in encoder.items() if k.endswith("_version")} if encoder else None},
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
-                    "playback_vibrato":dict(PLAYBACK_VIBRATO),
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py"]},
+                    "playback_vibrato":playback_vibrato(instruments[0]) if len(instruments) == 1 else None,
+                    "playback_vibrato_by_instrument":{key:playback_vibrato(key) for key in instruments},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","policy.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
-                    "limitations":["JGB v1/v2 import supports one selected danso part and the documented notation subset.",
+                    "limitations":["JGB v1/v2 import supports one explicitly identified instrument part and the documented notation subset.",
                     "Same sounding melody audition, not instrument-specific arrangement or expert-validated model performance.",
                     "Linear sample interpolation, mono mixdown, held MIDI CC11 and envelope/legato approximations.",
                     "No full Ableton filter/FX/velocity emulation. Sample tuning not exhaustively measured.",
