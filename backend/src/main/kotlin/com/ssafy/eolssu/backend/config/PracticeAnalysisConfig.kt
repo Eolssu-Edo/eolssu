@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisAnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisPracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper
 import org.springframework.context.annotation.Bean
@@ -17,4 +19,8 @@ class PracticeAnalysisConfig {
     @Bean
     fun practiceAnalysisRepository(mapper: PracticeAnalysisMapper, transactionManager: PlatformTransactionManager): PracticeAnalysisRepository =
         MyBatisPracticeAnalysisRepository(mapper, TransactionTemplate(transactionManager))
+
+    // 다시 시도 유스케이스(RetryPracticeAnalysis)는 분석 실행과 같은 시점에, API는 PRA API 명세가 정해지면 연결한다.
+    @Bean
+    fun analysisRetryRepository(mapper: PracticeAnalysisMapper): AnalysisRetryRepository = MyBatisAnalysisRetryRepository(mapper)
 }
