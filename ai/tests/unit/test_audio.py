@@ -89,6 +89,27 @@ def test_cut_off_end_is_decode_error(tmp_path):
         decode_recording(cut)
 
 
+def test_cut_off_exactly_at_packet_end_is_decode_error(tmp_path):
+    # 패킷 경계에서 잘리면 ffmpeg는 오류 없이 일찍 끝난다. 앞쪽 메타데이터가 말하는 길이보다 짧으면 실패다.
+    src = make_m4a(tmp_path / "w.m4a", [sine(440, 44100)])
+    packets = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "packet=pos,size", "-of", "csv=p=0",
+         str(src)],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    pos, size = map(int, packets[len(packets) // 2].split(","))
+    cut = tmp_path / "aligned.m4a"
+    cut.write_bytes(src.read_bytes()[: pos + size])
+    with pytest.raises(DecodeError):
+        decode_recording(cut)
+
+
+def test_relative_path_with_colon_decodes(tmp_path, monkeypatch):
+    make_m4a(tmp_path / "take:1.m4a", [sine(440, 44100)])
+    monkeypatch.chdir(tmp_path)
+    assert abs(len(decode_recording("take:1.m4a")) / SAMPLE_RATE - SECONDS) < 1.0
+
+
 def test_decode_error_message_hides_input_path(tmp_path):
     folder = tmp_path / "SECRET-TOKEN"
     folder.mkdir()
@@ -120,6 +141,8 @@ def test_timeout_hides_input_path(tmp_path):
     with pytest.raises(TimeoutError) as error:
         decode_recording(src, timeout_s=0.001)
     assert "SECRET-TOKEN" not in str(error.value)
+    # 명령줄(입력 경로 포함)을 담은 TimeoutExpired가 예외 연결로도 남지 않아야 한다
+    assert error.value.__context__ is None and error.value.__cause__ is None
 
 
 def test_non_audio_bytes_are_decode_error(tmp_path):
