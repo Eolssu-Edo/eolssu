@@ -11,7 +11,13 @@
     92
   ],
   "range_source": "국립국악원 창작을 위한 국악기 이해와 활용2 소금 p61 운지표, p78 정악 상한",
-  "interpretation": "대금 음역으로 기보한 자료는 실음이 +12. 이미 실음인 입력에는 더하지 않음. 농음은 강약·음높이·시작 시점을 함께 검토.",
+  "interpretation": "대금 음역으로 기보했다고 명시한 자료만 실음 +12. JGB의 실음 율명에는 자동 이조하지 않음. 농음은 강약·음높이·시작 시점을 함께 검토.",
   "yoseong_mode": "mixed",
+  "yoseong_policy_status": "IR에서 명시한 요성의 재생 근사 기본값. JGB 농음·흘림은 근거를 적은 expression_policy를 별도 요구하며 악기의 공인 수치가 아님.",
+  "sources": [
+    "https://www.gugak.go.kr/ency/topic/view/109",
+    "https://www.gugak.go.kr/ency/topic/view/2105",
+    "https://www.gugak.go.kr/site/inc/file/fileDownloadLog?boardid=10929&boardseq=41191&dirname=%2Fboard%2F138&filename=kor_sogeum.pdf&sistype=D&type=F"
+  ],
   "preset_name": "SoGeum - DEMO_simple.adv"
 }
