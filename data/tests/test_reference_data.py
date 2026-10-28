@@ -81,9 +81,9 @@ class PitchFrequencyTests(unittest.TestCase):
 class JangdanTableTests(unittest.TestCase):
     # 기획 S15P31E102-141 "장단별 빠르기 및 근거"의 기본 BPM·클릭 단위와 backend V2 bpm_unit
     EXPECTED = {"세마치": (96, "DOTTED_QUARTER", 9), "굿거리": (66, "DOTTED_QUARTER", 12),
-                "중모리": (88, "QUARTER", 12), "타령": (96, "JEONGGAN", 12)}
+                "중모리": (88, "QUARTER", 12)}
 
-    def test_four_jangdans_match_planning_tempo_and_unit(self):
+    def test_jangdans_match_planning_tempo_and_unit(self):
         rows = {r["name"]: r for r in load("jangdans.json")["rows"]}
         self.assertEqual(set(rows), set(self.EXPECTED))
         for name, (bpm, unit, _) in self.EXPECTED.items():
@@ -95,8 +95,6 @@ class JangdanTableTests(unittest.TestCase):
     def test_pattern_length_and_groups_cover_one_cycle(self):
         for row in load("jangdans.json")["rows"]:
             pattern = row["pattern"]
-            if pattern is None:  # 공식 구음 근거를 못 찾은 장단
-                continue
             length = self.EXPECTED[row["name"]][2]
             self.assertEqual(len(pattern["beats"]), length, row["name"])
             self.assertEqual(sum(pattern["group"]), length, row["name"])
