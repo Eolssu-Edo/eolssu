@@ -1,7 +1,7 @@
 # 녹음 파일 규격 (PRA-02)
 
 - Jira: [S15P31E102-168](https://ssafy.atlassian.net/browse/S15P31E102-168), Story S15P31E102-33, Epic S15P31E102-20
-- 상태: 사용자 합의(2026-10-27, `coco-clarify`). BE·FE·AI·Infra 담당자 검토 전이며 구현되지 않았다. 크기·길이 숫자는 실측 전 시작값이다. 공유 계약인 백엔드 공통 오류 형식, 새 외부 저장소(GCS)와 서비스 계정 키 운영은 팀 검토 뒤 확정한다.
+- 상태: 사용자 합의(2026-10-27, `coco-clarify`). BE·FE·AI·Infra 담당자 검토 전이며 구현되지 않았다. 크기·길이 숫자는 실측 전 시작값이다. 오류 응답은 API 명세 공통 형식을 따른다(2026-10-28 오은서 제안, 우동균 수락). 새 외부 저장소(GCS)와 서비스 계정 키 운영은 팀 검토 뒤 확정한다.
 - 관련 계약: [DB 스키마](../contracts/db-schema.md)의 `practice_sessions`. 원본 저장소는 GCS(Google Cloud Storage)이며 이 작업 범위에서 연결한다([GCS 저장](#gcs-저장)).
 - 클라이언트 범위: Android·iOS 앱. 웹 녹음은 이번 구현 범위가 아니다.
 
@@ -47,16 +47,16 @@
 | 계층 | 한도 | 넘었을 때 |
 | --- | --- | --- |
 | Nginx `/api/` | `client_max_body_size 25m` | Nginx가 413을 반환한다. 본문 형식은 보장하지 않으며 1~3번 검사도 하지 않는다 |
-| Spring multipart | 파일·요청 25MiB | 413, `RECORDING_TOO_LARGE`(ProblemDetail). 1~3번 검사는 하지 않는다 |
+| Spring multipart | 파일·요청 25MiB | 413, `RECORDING_TOO_LARGE`(공통 오류 형식). 1~3번 검사는 하지 않는다 |
 | 업로드 검사(4번) | 20MiB | 위 표의 순서대로 413 |
 
 앱은 본문 형식과 관계없이 413을 `RECORDING_TOO_LARGE`로 처리한다. 20MiB 이하 파일은 항상 위 표의 순서대로 판정된다.
 
 ### 오류 응답
 
-거부 응답 본문은 Spring의 ProblemDetail(RFC 9457, `application/problem+json`)이며, 앱이 안내를 고를 `code` 문자열을 추가한다. 이 형식은 백엔드 공통 오류 형식으로 `common/error`에 둔다.
+거부 응답 본문은 API 명세의 공통 오류 형식(`application/json`)이다. `{httpStatus, isSuccess: false, message, code, result: {errorCode}}`이며 `code`는 HTTP 상태 숫자, 앱이 안내를 고를 값은 `result.errorCode` 문자열이다. 구현은 S15P31E102-143의 `common/error`를 쓰고, 아래 코드를 그 `ErrorCode`에 추가한다. 다른 API와 같은 형식이어서 앱은 오류 파싱을 하나로 처리한다.
 
-| 상태 | `code` |
+| 상태 | `result.errorCode` |
 | --- | --- |
 | 404 | `SESSION_NOT_FOUND` |
 | 409 | `SESSION_NOT_RECORDING` |
@@ -64,11 +64,11 @@
 | 413 | `RECORDING_TOO_LARGE` |
 | 415 | `RECORDING_UNSUPPORTED_FORMAT` |
 | 422 | `RECORDING_INVALID_DURATION` |
-| 500 | `INTERNAL_ERROR` |
+| 500 | `INTERNAL_SERVER_ERROR`(공통 코드) |
 | 503 | `RECORDING_STORAGE_UNAVAILABLE` |
 
 ```json
-{"type": "about:blank", "title": "Payload Too Large", "status": 413, "detail": "녹음 파일이 20MiB를 넘습니다.", "code": "RECORDING_TOO_LARGE"}
+{"httpStatus": "PAYLOAD_TOO_LARGE", "isSuccess": false, "message": "녹음 파일이 20MiB를 넘어요", "code": 413, "result": {"errorCode": "RECORDING_TOO_LARGE"}}
 ```
 
 ### 원본 메타데이터 (DB 칼럼)
@@ -131,7 +131,7 @@
 | GCS 원본 저장 연결(버킷·인증·수명 주기 규칙·서명 URL) | 웹 녹음 |
 | Nginx `/api/` 본문 한도(25MiB)와 Spring multipart 한도 | 업로드 중단·재개(이어 올리기) |
 | 만료 판정과 `UPLOAD_TIMEOUT` 정리 배치 | 삭제 후 `recording_url` 처리 |
-| ProblemDetail + `code` 공통 오류 형식 | 분석 연동 구현(S15P31E102-186)과 분석 실패 처리(PRA-03) |
+| 업로드 오류 코드를 공통 오류 형식(`result.errorCode`)에 추가 | 분석 연동 구현(S15P31E102-186)과 분석 실패 처리(PRA-03) |
 | 16kHz 모노 WAV 변환과 `DECODE_ERROR` | 1분 넘는 녹음의 채점(AI 쪽 미지원), 채점 허용치 |
 | Android·iOS 앱의 10분 자동 정지·크기 사전 안내 | 녹음 길이와 연습 구간 길이 비교 |
 | 크기·길이 한도 실측과 숫자 조정 | 재채점 정책 |
@@ -152,7 +152,7 @@
 
 - [ ] 44.1kHz 스테레오와 48kHz 모노 AAC m4a가 202를 받고 저장되며, `recording_url`과 메타데이터 칼럼 4개·`ended_at`이 채워지고, 상태가 `PENDING`이 된다.
 - [ ] 20,971,521바이트 파일은 413, MP3를 `.m4a`로 이름만 바꾼 파일과 오디오 스트림이 없는 m4a는 415, AAC 스트림은 있으나 길이를 읽지 못하거나 1ms 미만인 파일과 601초 이상 파일은 422를 받고 저장되지 않는다.
-- [ ] 백엔드가 만든 거부 응답(Nginx 413 제외)이 `application/problem+json`이며 위 표의 `code`를 담는다.
+- [ ] 백엔드가 만든 거부 응답(Nginx 413 제외)이 공통 오류 형식(`application/json`)이며 `result.errorCode`에 위 표의 값을 담는다.
 - [ ] 21MiB 업로드가 Nginx를 지나 백엔드의 413 `RECORDING_TOO_LARGE`를 받는다(실제 Nginx 경유 확인).
 - [ ] 600.5초 AAC 파일은 통과한다.
 - [ ] 저장된 세션에 다시 올리면 409, 다른 사용자의 세션이면 404를 받는다.
@@ -170,9 +170,9 @@
 - **픽스처:** ffmpeg로 몇 초짜리 사인파 AAC(44.1kHz 스테레오·48kHz 모노), 이름만 바꾼 MP3, 오디오 스트림이 없는 m4a, 저비트레이트 무음 AAC(600.5초·601초 이상), 손상 파일을 만들어 테스트 자원으로 둔다. AAC는 프레임 하나가 수십 ms라 1ms 미만 파일은 만들기 어려우므로, 1ms 경계(0.999ms 거부·1ms 통과)는 ffprobe 결과를 입력으로 받는 길이 판정 단위 테스트로 확인한다. 큰 파일은 커밋하지 않고 테스트 중에 생성한다.
 - **백엔드:** 검사 순서·오류 코드·저장 키·상태 변경을 저장소 대역으로 단위 테스트한다. 메타데이터 칼럼과 상태 변경은 DB 통합 테스트로 확인한다. ffprobe가 없는 환경에서는 해당 테스트가 실패해야 하며 건너뛰지 않는다.
 - **변환:** AI 쪽 테스트에서 픽스처의 변환 결과(16kHz·1채널·PCM16)와 길이를 검사한다. AI 대역을 사용한 테스트를 실제 채점 검증으로 보고하지 않는다.
-- **ffmpeg 버전:** 로컬·CI·운영의 ffprobe 판정이 같도록 백엔드 실행 이미지의 패키지 버전을 고정한다. 고정 버전은 `ffmpeg=7:8.0.1-3ubuntu2`(실행 베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)이며 S15P31E102-180에서 이미지의 `ffprobe`로 확인했다. 베이스의 Ubuntu가 바뀌면 이 버전도 함께 갱신한다. Jenkins 에이전트와 서버 운영 Dockerfile 반영은 S15P31E102-197에서 한다.
+- **ffmpeg 버전:** 로컬·CI·운영의 ffprobe 판정이 같도록 백엔드 실행 이미지의 패키지 버전을 고정한다. 고정 버전은 `ffmpeg=7:8.0.1-3ubuntu2`(실행 베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)이며 S15P31E102-180에서 이미지의 `ffprobe`로 확인했다. 베이스의 Ubuntu가 바뀌면 이 버전도 함께 갱신한다. 운영 backend는 이 버전을 설치한 실행 이미지 `eolssu-backend-runtime:21-jre-ffmpeg8.0.1`로 실행한다. Jenkins `mediaTest`는 edo1 호스트(Ubuntu 24.04)의 `ffmpeg=7:6.1.1-3ubuntu5`로 실행하며, 같은 실제 파일 검사 5개가 6.1.1과 8.0.1에서 같은 결과임을 확인했다(S15P31E102-197).
 - **GCS:** 단위 테스트는 저장소 대역을 쓰고, GCS 연결은 테스트 전용 버킷에 실제로 올리고 읽어 확인한다. 동시 업로드는 객체 키가 요청마다 다르고 진 쪽이 자기 객체만 지우는지를 대역과 실제 버킷에서 확인한다. 인증 정보는 저장소에 커밋하지 않는다.
-- **Nginx:** 21MiB·26MiB 요청을 실제 Nginx 설정으로 보내 각각 백엔드 413(ProblemDetail)과 Nginx 413이 나오는지 확인한다.
+- **Nginx:** 21MiB·26MiB 요청을 실제 Nginx 설정으로 보내 각각 백엔드 413(공통 오류 형식)과 Nginx 413이 나오는지 확인한다.
 - **앱:** 자동 정지는 Android·iOS에서 직접 실행해 확인한다. 단위 테스트만으로 완료로 보고하지 않는다.
 
 ## 미결 사항
@@ -182,4 +182,4 @@
 | 분석 연동 세부 | AI 요청·응답 본문은 S15P31E102-186에서 정한다. |
 | GCS 크레딧 이후 | 무료 크레딧 종료 뒤 유료 전환 여부와 예산 알림 금액. 팀이 정한다. |
 | 한도 숫자 | 20MiB·600초는 실측 전 시작값이다. 바꾸면 Nginx·multipart 한도(25MiB)도 함께 맞춘다. |
-| 팀 검토 | 공통 오류 형식(`common/error`), GCS 도입·서비스 계정 키 운영, Nginx 한도 변경은 BE·Infra 검토가 필요하다. |
+| 팀 검토 | GCS 도입·서비스 계정 키 운영, Nginx 한도 변경은 BE·Infra 검토가 필요하다. |
