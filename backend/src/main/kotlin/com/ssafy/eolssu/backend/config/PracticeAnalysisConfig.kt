@@ -9,6 +9,7 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.ai.HttpAnalysisClient
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisAnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisPracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBatisPracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper
 import java.time.Clock
 import java.time.Duration
@@ -35,6 +36,9 @@ class PracticeAnalysisConfig {
     // 다시 시도 유스케이스(RetryPracticeAnalysis)는 분석 실행과 같은 시점에, API는 PRA API 명세가 정해지면 연결한다.
     @Bean
     fun analysisRetryRepository(mapper: PracticeAnalysisMapper): AnalysisRetryRepository = MyBatisAnalysisRetryRepository(mapper)
+
+    @Bean
+    fun practiceScoreNotes(mapper: PracticeAnalysisMapper, jsonMapper: JsonMapper): PracticeScoreNotes = MyBatisPracticeScoreNotes(mapper, jsonMapper)
 
     @Bean
     fun analysisOnUpload(

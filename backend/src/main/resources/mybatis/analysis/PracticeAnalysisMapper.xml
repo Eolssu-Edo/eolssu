@@ -8,6 +8,14 @@
           AND analysis_started_at &gt;= #{startedAfter}
     </select>
 
+    <select id="findScore" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
+        SELECT score_json, score_version FROM songs WHERE id = #{songId}
+    </select>
+
+    <select id="findPitches" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScorePitchRow">
+        SELECT id, yul, octave, semitone FROM pitches
+    </select>
+
     <!-- 같은 시도이고 마감 전(시작 시각이 startedAfter 이상)일 때만 바꾼다 -->
     <update id="markDone">
         UPDATE practice_sessions
