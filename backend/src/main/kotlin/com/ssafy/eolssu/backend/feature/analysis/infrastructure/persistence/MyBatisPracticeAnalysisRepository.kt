@@ -1,0 +1,46 @@
+package com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence
+
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisFailReason
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
+import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import kotlin.math.roundToInt
+import org.springframework.transaction.support.TransactionOperations
+
+/**
+ * 세션 상태를 먼저 조건부로 바꾸고, 바뀐 경우에만 평가를 저장한다. 같은 트랜잭션이라 상태와 평가가 함께 남거나 함께 빠진다.
+ * 조건부 갱신의 행 잠금 덕분에 같은 세션의 결과가 두 번 저장되지 않는다.
+ */
+class MyBatisPracticeAnalysisRepository(
+    private val mapper: PracticeAnalysisMapper,
+    private val transactions: TransactionOperations,
+) : PracticeAnalysisRepository {
+    override fun findPending(sessionId: Long) = mapper.findPending(sessionId)?.run {
+        PendingAnalysis(sessionId, attempt, songId, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, recordingUrl)
+    }
+
+    override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>): Boolean {
+        val pitchIds = notes.associate { it.idx to it.pitchId }
+        val rows = result.notes.map {
+            NewNoteResult(
+                it.idx,
+                checkNotNull(pitchIds[it.idx]) { "note ${it.idx} is not in the requested score notes" },
+                it.pitchErrorCent?.roundToInt(),
+                it.onsetErrorMs,
+                it.durationErrorMs,
+                it.verdict.name,
+            )
+        }
+        return transactions.execute {
+            if (mapper.markDone(analysis.sessionId, analysis.attempt) == 0) return@execute false
+            val evaluation = NewEvaluation(analysis.sessionId, result.total, result.pitch, result.timing, result.duration, result.modelVersion)
+            mapper.insertEvaluation(evaluation)
+            if (rows.isNotEmpty()) mapper.insertNoteResults(checkNotNull(evaluation.id), rows)
+            true
+        } == true
+    }
+
+    override fun saveFailed(analysis: PendingAnalysis, reason: AnalysisFailReason) =
+        mapper.markFailed(analysis.sessionId, analysis.attempt, reason.name) == 1
+}

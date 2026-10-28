@@ -4,6 +4,37 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  servlet:
+    multipart:
+      # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다.
+      # 앞 계층 한도는 스펙대로 multipart 파일·요청 25MiB, Nginx 25m(Nginx는 S15P31E102-181)이다.
+      max-file-size: 25MB
+      max-request-size: 25MB
 
 server:
   port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    access:
+      default: none
+    web:
+      base-path: /api/actuator
+      exposure:
+        include: health, prometheus
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    # prometheus는 서버 안 Prometheus만 읽는다. 인터넷 쪽은 Nginx가 readiness 외 점검 주소를 막는다.
+    prometheus:
+      access: read-only
+    health:
+      access: read-only
+      show-details: never
+      show-components: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState

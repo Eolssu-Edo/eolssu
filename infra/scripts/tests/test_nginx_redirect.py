@@ -31,7 +31,7 @@ class NginxRedirectTests(unittest.TestCase):
         (challenge / 'fixture-token').write_text('fixture authorization')
         runtime = Path(__file__).resolve().parents[2] / 'runtime'
         (conf / 'default.conf').write_bytes((runtime / 'nginx.conf').read_bytes())
-        (conf / 'tls.conf').write_text((runtime / 'nginx.tls.conf.template').read_text()
+        (conf / 'tls.conf').write_text((runtime / 'nginx.tls.conf.template').read_text(encoding='utf-8')
                                      .replace('__TLS_DOMAIN__', cls.domain))
         cls.certificate = live / 'fullchain.pem'
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1',
