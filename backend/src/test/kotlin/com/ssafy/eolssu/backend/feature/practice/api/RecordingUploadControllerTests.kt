@@ -115,6 +115,16 @@ class RecordingUploadControllerTests {
     }
 
     @Test
+    fun `deletes the temporary file when the upload fails with an exception`() {
+        session()
+        repository.failUpdates = true
+
+        post().andExpectError(500, "INTERNAL_SERVER_ERROR")
+
+        assertFalse(Files.exists(probedFiles.single()))
+    }
+
+    @Test
     fun `answers 400 without the audio part`() {
         session()
         post(part = "file").andExpectError(400, "INVALID_REQUEST")

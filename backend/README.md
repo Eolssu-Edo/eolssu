@@ -188,6 +188,8 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 3. 버킷 설정 > 객체 수명 주기 규칙: 접두사 `recordings/`, 객체 생성 30일 뒤 삭제를 추가합니다. R2는 만료 뒤 보통 24시간 안에 지웁니다.
 4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
 
+샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다. 업로드 뒤 분석 시작 빈(`RecordingUploaded`)은 요청 스레드에서 불리므로 분석을 백그라운드로 넘기고 바로 돌아와야 합니다.
+
 S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다.
 
 Nginx(`infra/runtime/nginx.conf`·`nginx.tls.conf.template`)는 `/api/`의 본문 한도를 25MiB(`client_max_body_size 25m`)로 둡니다. 25MiB를 넘으면 Nginx가 자체 HTML 413을, 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413을 돌려줍니다.
@@ -214,9 +216,9 @@ backend/
 │   │   └── feature/<기능>/
 │   │       ├── application/       # 구현이 있는 기능만 (예: practice)
 │   │       ├── domain/
-│   │       └── infrastructure/persistence/
-│   │           ├── <테이블명>Row.kt
-│   │           └── <테이블명>Mapper.kt
+│   │       └── infrastructure/
+│   │           ├── persistence/   # <테이블명>Row.kt, <테이블명>Mapper.kt
+│   │           └── media/·storage/ 등  # 외부 도구·저장소 구현 (예: practice의 ffprobe, S3 호환 원본 저장소)
 │   └── resources/
 │       ├── application.yml / application-db.yml
 │       ├── db/migration/V1__initial_schema.sql, V2__auth_user_practice_extensions.sql, V3__practice_session_recording_metadata.sql, V4__practice_session_analysis_attempt.sql

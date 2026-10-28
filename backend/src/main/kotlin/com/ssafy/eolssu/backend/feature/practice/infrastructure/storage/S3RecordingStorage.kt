@@ -25,7 +25,7 @@ class S3RecordingStorage(
     private val client: S3Client,
     private val presigner: S3Presigner,
     private val bucket: String,
-) : RecordingStorage {
+) : RecordingStorage, AutoCloseable {
     override fun put(key: String, file: Path) {
         storageCall("put") {
             client.putObject({ it.bucket(bucket).key(key).contentType(CONTENT_TYPE) }, RequestBody.fromFile(file))
@@ -41,6 +41,12 @@ class S3RecordingStorage(
         presigner.presignGetObject { it.signatureDuration(ttl).getObjectRequest { request -> request.bucket(bucket).key(key) } }
             .url().toString()
 
+    // Spring이 빈을 내릴 때 부른다. 연결 풀 스레드를 정리한다.
+    override fun close() {
+        client.close()
+        presigner.close()
+    }
+
     private fun storageCall(operation: String, call: () -> Unit) {
         try {
             call()
@@ -52,7 +58,13 @@ class S3RecordingStorage(
     companion object {
         private const val CONTENT_TYPE = "audio/mp4"
 
-        fun create(properties: RecordingStorageProperties, maxAttempts: Int = 3): S3RecordingStorage {
+        /**
+         * 재시도를 포함한 저장소 호출 하나의 상한. ffprobe 상한(10초)과 더해도 Nginx `proxy_read_timeout` 기본값(60초)보다
+         * 짧아야 느린 저장소가 Nginx 504가 아니라 503(`RECORDING_STORAGE_UNAVAILABLE`)으로 끝난다.
+         */
+        val CALL_TIMEOUT: Duration = Duration.ofSeconds(40)
+
+        fun create(properties: RecordingStorageProperties, maxAttempts: Int = 3, callTimeout: Duration = CALL_TIMEOUT): S3RecordingStorage {
             val endpoint = URI(properties.endpoint)
             val region = Region.of(properties.region)
             val credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(properties.accessKeyId, properties.secretAccessKey))
@@ -68,7 +80,7 @@ class S3RecordingStorage(
                 .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
                 .overrideConfiguration {
                     it.retryStrategy { retry -> retry.maxAttempts(maxAttempts) }
-                    it.apiCallTimeout(Duration.ofMinutes(2))
+                    it.apiCallTimeout(callTimeout)
                 }
                 .build()
             val presigner = S3Presigner.builder()

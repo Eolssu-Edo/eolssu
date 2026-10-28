@@ -58,7 +58,11 @@ interface RecordingStorage {
 /** 저장소에 연결할 수 없거나 쓰기가 거부됐다. 업로드는 503으로 답하고 같은 세션으로 다시 올릴 수 있다. */
 class RecordingStorageException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
-/** 업로드 저장을 커밋한 뒤 부른다. 분석 시작(PRA-03)을 여기에 연결한다. */
+/**
+ * 업로드 저장을 커밋한 뒤 202 응답 전에 요청 스레드에서 부른다. 분석 시작(PRA-03)을 여기에 연결한다.
+ * 구현은 분석을 백그라운드 실행기에 넘기고 바로 돌아와야 한다. 여기서 AI를 기다리면 업로드 응답이 그만큼 늦어지고
+ * Nginx `proxy_read_timeout`(60초)에 걸린다. 던진 `RuntimeException`은 기록만 하고 업로드는 202로 끝난다.
+ */
 fun interface RecordingUploaded {
     fun uploaded(sessionId: Long)
 }

@@ -171,6 +171,15 @@ class UploadRecordingTests {
     }
 
     @Test
+    fun `answers 404 when the session disappears during the upload`() {
+        session()
+        repository.beforeUpdate = { repository.sessions.remove(it) } // 탈퇴 일괄 삭제 등
+
+        assertEquals(SESSION_NOT_FOUND, upload())
+        assertEquals(emptyMap(), storage.objects)
+    }
+
+    @Test
     fun `keeps the 202 when starting the analysis fails`() {
         session()
         val failing = UploadRecording(repository, validator, storage, clock, { error("analysis start failed") }, { ids.removeFirst() })

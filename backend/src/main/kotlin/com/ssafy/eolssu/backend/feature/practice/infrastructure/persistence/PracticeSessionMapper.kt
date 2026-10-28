@@ -23,8 +23,8 @@ interface PracticeSessionMapper {
         @Param("recordingUrl") recordingUrl: String,
         @Param("bytes") bytes: Long,
         @Param("durationMs") durationMs: Long,
-        @Param("sampleRate") sampleRate: Int?,
-        @Param("channels") channels: Int?,
+        @Param("sampleRate") sampleRate: Int,
+        @Param("channels") channels: Int,
         @Param("uploadedAt") uploadedAt: LocalDateTime,
     ): Int
 }

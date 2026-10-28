@@ -42,7 +42,6 @@ import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpi
 import com.ssafy.eolssu.backend.feature.practice.application.UploadRecording
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingMetadata
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
-import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadRepository
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploadTarget
@@ -50,6 +49,7 @@ import com.ssafy.eolssu.backend.feature.practice.domain.UploadedRecording
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisPracticeSessionDetails
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongRow
 import com.ssafy.eolssu.backend.feature.term.infrastructure.persistence.TermMapper

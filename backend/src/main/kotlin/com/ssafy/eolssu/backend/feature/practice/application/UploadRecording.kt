@@ -55,8 +55,8 @@ class UploadRecording(
         if (!updated) {
             // 다른 요청이 먼저 저장했거나 배치가 만료시켰다. 먼저 성공한 요청의 객체는 건드리지 않는다.
             deleteOwnObject(sessionId, key)
-            val current = repository.findOwned(sessionId, userId)
-            return if (current?.isTimedOut() == true) RecordingUploadResult.SESSION_EXPIRED else RecordingUploadResult.SESSION_NOT_RECORDING
+            val current = repository.findOwned(sessionId, userId) ?: return RecordingUploadResult.SESSION_NOT_FOUND
+            return if (current.isTimedOut()) RecordingUploadResult.SESSION_EXPIRED else RecordingUploadResult.SESSION_NOT_RECORDING
         }
 
         try {

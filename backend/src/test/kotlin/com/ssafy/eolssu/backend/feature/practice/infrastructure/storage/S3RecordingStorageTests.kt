@@ -22,8 +22,10 @@ class S3RecordingStorageTests {
 
     private val received = CopyOnWriteArrayList<Received>()
     private var status = 200
+    @Volatile private var delayMillis = 0L
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
+            Thread.sleep(delayMillis)
             val raw = exchange.requestBody.readAllBytes()
             // http 엔드포인트에서는 SDK가 본문을 서명 청크(aws-chunked)로 보낸다. https(R2)에서는 그대로 보낸다.
             val body = if (exchange.requestHeaders.getFirst("x-amz-content-sha256").orEmpty().startsWith("STREAMING-")) decodeChunks(raw) else raw
@@ -81,6 +83,23 @@ class S3RecordingStorageTests {
 
         server.stop(0)
         assertFailsWith<RecordingStorageException> { storage.put("recordings/501/a.m4a", file) }
+    }
+
+    @Test
+    fun `gives up on a slow storage within the call timeout`() {
+        delayMillis = 1_000
+        val quick = S3RecordingStorage.create(properties, maxAttempts = 3, callTimeout = Duration.ofMillis(200))
+
+        val started = System.nanoTime()
+        assertFailsWith<RecordingStorageException> { quick.put("recordings/501/a.m4a", file) }
+        assertTrue(Duration.ofNanos(System.nanoTime() - started) < Duration.ofMillis(800))
+    }
+
+    @Test
+    fun `the upload finishes before the 60 second proxy read timeout`() {
+        // Nginx /api/의 proxy_read_timeout 기본값은 60초다. 저장소 상한 + ffprobe 상한(10초)이 그 안에 들어야
+        // 느린 저장소가 Nginx HTML 504가 아니라 공통 오류 형식 503으로 끝난다.
+        assertTrue(S3RecordingStorage.CALL_TIMEOUT + Duration.ofSeconds(10) < Duration.ofSeconds(60))
     }
 
     @Test
