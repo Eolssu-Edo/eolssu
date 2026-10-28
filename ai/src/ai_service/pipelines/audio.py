@@ -18,16 +18,25 @@ class DecodeError(Exception):
 
 
 def decode_recording(path: str | Path, timeout_s: float = 60.0) -> np.ndarray:
-    """원본 파일을 16kHz·모노·PCM16(int16) 배열로 디코딩한다. 스테레오는 두 채널 평균이다.
+    """로컬 원본 파일을 16kHz·모노·PCM16(int16) 배열로 디코딩한다. 스테레오는 두 채널 평균이다.
 
-    손상됐거나 오디오가 없는 파일은 DecodeError. ffmpeg가 없거나 시간 안에 끝나지 않으면
-    파일 문제가 아니므로 FileNotFoundError·subprocess.TimeoutExpired를 그대로 올린다.
+    중간이 손상됐거나 끝이 잘린 파일, 오디오가 없는 파일은 DecodeError다. 손상 구간을 건너뛰면 뒤의
+    소리가 앞당겨져 박자가 틀어지므로 디코딩 오류가 하나라도 나면 실패로 본다(-xerror).
+    파일이 없거나 ffmpeg가 없거나 시간 안에 끝나지 않는 것은 녹음 문제가 아니므로 FileNotFoundError·
+    TimeoutError다. 서명 URL 같은 입력 위치는 오류 메시지에 남기지 않는다.
     """
+    source = Path(path)
+    if not source.is_file():  # URL 문자열도 여기서 걸러 ffmpeg가 네트워크로 받지 않게 한다
+        raise FileNotFoundError("녹음 원본 파일이 없다")
     cmd = [
-        "ffmpeg", "-nostdin", "-v", "error", "-i", str(path),
-        "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-acodec", "pcm_s16le", "-",
+        "ffmpeg", "-nostdin", "-v", "error", "-xerror", "-protocol_whitelist", "file", "-i", str(source),
+        "-vn", "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "s16le", "-",
     ]
-    result = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=False)
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=False)
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"녹음 디코딩이 {timeout_s}초 안에 끝나지 않았다") from None
     if result.returncode != 0 or not result.stdout:
-        raise DecodeError(result.stderr.decode(errors="replace").strip()[-500:] or "디코딩 결과가 비었다")
+        detail = result.stderr.decode(errors="replace").replace(str(source), "<input>").strip()[-500:]
+        raise DecodeError(detail or "디코딩 결과가 비었다")
     return np.frombuffer(result.stdout, dtype="<i2").astype(np.int16)
