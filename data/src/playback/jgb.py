@@ -27,7 +27,7 @@ SOFTWARE.
 from fractions import Fraction
 import re
 
-from .score import PPQN, finite, require, ticks
+from .score import PPQN, finite, midi_tempo, require, ticks
 
 YUL = "황대태협고중유임이남무응"
 PREFIX = {"": 0, "청": 1, "중청": 2, "겹청": 2,
@@ -36,7 +36,7 @@ NOTE = re.compile(r"(하하배|중청|겹청|하배|배탁|청|배|탁)?([황대
 RATIOS = {"dotted": Fraction(3, 2), "plain": Fraction(1), "eighth": Fraction(1, 2)}
 SCALES = {"hwang-pyeong": (0, 2, 5, 7, 9), "hwang-gyemyeon": (0, 3, 5, 7, 10),
           "jung-pyeong": (0, 2, 5, 7, 10)}
-# (Korean name, registry ID, scale steps). Each grace takes 1/16 quarter.
+# (Korean name, registry ID, scale steps). Grace timing is bounded by its slot.
 GRACES = [("니레", "nire", (1,)), ("니라", "nina", (2,)), ("니로", "niro", (3,)),
           ("노네", "none", (-1,)), ("너녜", "neonye", (-2,)),
           ("노니로", "noniro", (0, 1)), ("노리노", "norino", (0, 2)),
@@ -68,6 +68,10 @@ SYMBOL_POLICY = {"name": "danso-official-figures-2024-v1",
                                           "neunareunani": [1, 2, 1, 0, 2]},
                  "surround_anchor": "2020 Korean music braille commentary: long middle is the written note"}
 GRACE_QUARTERS = Fraction(1, 16)
+GRACE_POLICY = {"name": "bounded-half-slot-v1", "maximum_quarters": "1/16",
+                "maximum_slot_fraction": "1/2", "equal_grace_lengths": True,
+                "quantization": "whole MIDI ticks; main sequence remains divisible",
+                "status": "playback-choice-not-performance-standard"}
 BREATH_SECONDS = .12
 BREATH_POLICY = {"name": "bounded-half-note-v1", "target_silence_seconds": .12,
                  "maximum_release_seconds": .05, "minimum_gate_fraction": .5}
@@ -111,6 +115,23 @@ def apply_effects(note, group, label, delay=0):
             note["pitch_curve"]["delay_seconds"] = delay
     if group.get("staccato"):
         note["gate_fraction"] = EXPRESSION_POLICY["staccato"]["gate_fraction"]
+
+
+def adaptive_grace(duration, count, main_count, label):
+    """Retain the existing cap while reserving at least half the slot for main notes."""
+    if not count:
+        return Fraction()
+    slot_ticks = ticks(duration)
+    grace_ticks = min(ticks(GRACE_QUARTERS), slot_ticks // (2 * count))
+    # Equal front/back graces and an evenly split main figure must both fit the
+    # exact MIDI grid. At most main_count candidates cover every residue class.
+    for _ in range(main_count):
+        if (slot_ticks - count * grace_ticks) % main_count == 0:
+            break
+        grace_ticks -= 1
+    require(grace_ticks > 0 and (slot_ticks - count * grace_ticks) % main_count == 0,
+            f"{label}: 꾸밈과 본음을 보존할 MIDI 시간 해상도가 부족합니다")
+    return Fraction(grace_ticks, PPQN)
 
 
 def adaptive_breath(duration, quarter_bpm):
@@ -250,7 +271,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     unit = ("eighth" if beats == 12 else "dotted") if requested_unit in ("auto", "") else requested_unit
     require(unit in RATIOS, f"미지원 staffUnit: {unit}")
     ratio = RATIOS[unit]
-    quarter_bpm = finite(base_bpm * speed * float(ratio), "quarter_bpm", 10, 400)
+    quarter_bpm = base_bpm * speed * float(ratio)
+    tempo_us = midi_tempo(quarter_bpm)
     scale_name = controls.get("joPreset", "") if jo is None else jo
     require(isinstance(scale_name, str), "joPreset은 문자열이어야 합니다")
     scale = SCALES.get(scale_name)
@@ -378,19 +400,25 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         post = [step(reference, d, label) for d in group.get("post_grace", ())]
                         require(not group.get("staccato") or not (grace or post or len(sequence) > 1),
                                 f"{label}: 장식음열과 끊는표의 적용 범위를 새 음으로 분리하세요")
-                        body = duration - (len(grace) + len(post)) * GRACE_QUARTERS
+                        grace_count = len(grace) + len(post)
+                        grace_quarters = adaptive_grace(duration, grace_count, len(sequence), label)
+                        body = duration - grace_count * grace_quarters
                         require(body > 0, f"{label}: 꾸밈이 본음 길이를 소진합니다")
+                        if grace_count:
+                            loc["grace_timing"] = {"each_quarters": str(grace_quarters),
+                                                   "count": grace_count, "main_quarters": str(body),
+                                                   "reduced": grace_quarters < GRACE_QUARTERS}
                         slur = nid if len(grace) + len(sequence) + len(post) > 1 else None
                         for k, pitch in enumerate(grace, 1):
-                            append(f"{nid}.grace{k}", GRACE_QUARTERS, loc, pitch, True, slur)
+                            append(f"{nid}.grace{k}", grace_quarters, loc, pitch, True, slur)
                         for k, pitch in enumerate(sequence, 1):
                             append(nid if not slur else f"{nid}.main{k}", body / len(sequence), loc, pitch, slur=slur)
                             body_effects = group if k == len(sequence) else {"vibrato": group.get("vibrato")}
                             apply_effects(notes[-1], body_effects, label)
                         sustain_index = len(notes) - 1
-                        sustain_start = cursor - duration + len(grace) * GRACE_QUARTERS + body * (len(sequence) - 1) / len(sequence)
+                        sustain_start = cursor - duration + len(grace) * grace_quarters + body * (len(sequence) - 1) / len(sequence)
                         for k, pitch in enumerate(post, 1):
-                            append(f"{nid}.postgrace{k}", GRACE_QUARTERS, loc, pitch, True, slur)
+                            append(f"{nid}.postgrace{k}", grace_quarters, loc, pitch, True, slur)
                         previous_pitch, previous_gak = sequence[-1], g
                         breath_applied = False
             if cell_breath:
@@ -406,7 +434,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
             "JGB 변환 중 전체 길이가 바뀌었습니다")
     assumptions = ["JGB 재생 템포는 정간/분. tempoBpmGak은 표시용이며 사용하지 않음.",
                    "빈칸·-는 같은 각 안에서만 앞 음을 연장. 각 첫 연장은 쉼.",
-                   "앞꾸밈 각각 1/16 quarter·velocity80, 음열은 해당 자리를 균등 분할. 숨+감쇠는 본음 절반 이내.",
+                   "꾸밈은 각각 최대1/16 quarter·velocity80. 짧은 분박은 같은 tick 길이로 줄여 본음에 자리 절반 이상을 남김. 음열은 본음 자리를 균등 분할.",
                    "추가 떨림 ±25cent 고정. 미지원 표현은 생략하지 않고 실패.",
                    "농음·흘림·미는·풀어내림 수치는 명시된 청취용 근사. 풀어내림은 음높이 농음+하행. 원문점은 효과 미확정 표시로 보존.",
                    "끊는표는 release 포함 반길이 발음. 늘임표는 표시된 자리의 연주시간을 2배로 늘리는 선택값.",
@@ -426,9 +454,11 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                   "jeonggan_bpm": base_bpm, "speed": speed, "staff_unit": unit, "quarter_ratio": str(ratio),
                   "tempo_selection": {"kind": "cli-override" if bpm is not None else "jgb-user-set",
                                       "unit": "jeonggan/minute", "musicological_basis": "not-verified"},
-                  "quarter_bpm": quarter_bpm, "huangjong_midi": hwang, "jo_preset": scale_name,
+                  "quarter_bpm": quarter_bpm, "midi_tempo_us": tempo_us,
+                  "huangjong_midi": hwang, "jo_preset": scale_name,
                   "gaks": len(starts), "cells": total_cells, "total_quarters": str(cursor),
                   "written_total_quarters": str(written_cursor), "symbol_policy": dict(SYMBOL_POLICY),
-                  "breath_policy": dict(BREATH_POLICY), "expression_policy": dict(EXPRESSION_POLICY),
+                  "grace_policy": dict(GRACE_POLICY), "breath_policy": dict(BREATH_POLICY),
+                  "expression_policy": dict(EXPRESSION_POLICY),
                   "notes": locations}
     return score, source_map

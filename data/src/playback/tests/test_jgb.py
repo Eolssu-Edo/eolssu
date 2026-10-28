@@ -3,11 +3,58 @@ from copy import deepcopy
 from fractions import Fraction
 import unittest
 
-from data.src.playback.score import compile_score
+from data.src.playback.score import PPQN, compile_score
 from data.src.playback.tests._helpers import converted, document, midi
 
 
 class JgbTests(unittest.TestCase):
+    def test_short_subdivided_graces_keep_main_half_and_exact_timing(self):
+        cases = (("eighth", "니레", 1, 1), ("dotted", "느로니르", 3, 1),
+                 ("eighth", "느니르", 2, 1), ("eighth", "느니르}{나니나", 2, 3))
+        for unit, symbol, grace_count, main_count in cases:
+            with self.subTest(unit=unit, symbol=symbol):
+                source = document(f"청황{{{symbol}}}청태청임 청황청태청임 청황청태청임 | 청태", staffUnit=unit)
+                before = deepcopy(source)
+                value, mapping = converted(source)
+                notes = value["notes"][:grace_count + main_count]
+                slot = Fraction(mapping["quarter_ratio"]) / 9
+                self.assertEqual(sum(Fraction(n["duration"]) for n in notes), slot)
+                self.assertTrue(all((Fraction(n["duration"]) * PPQN).denominator == 1 for n in notes))
+                main = [n for n in notes if ".main" in n["id"]]
+                grace = [n for n in notes if ".grace" in n["id"] or ".postgrace" in n["id"]]
+                self.assertGreaterEqual(sum(Fraction(n["duration"]) for n in main), slot / 2)
+                self.assertEqual(len({n["duration"] for n in grace}), 1)
+                self.assertAlmostEqual(midi(value)["notes"][-1]["start"], 1, places=5)
+                self.assertEqual(mapping["grace_policy"]["maximum_slot_fraction"], "1/2")
+                timing = mapping["notes"][notes[0]["id"]][0]["grace_timing"]
+                self.assertTrue(timing["reduced"])
+                self.assertEqual(Fraction(timing["each_quarters"]), Fraction(grace[0]["duration"]))
+                self.assertEqual(source, before)
+
+    def test_reduced_surround_graces_remain_symmetric_after_hold(self):
+        value, mapping = converted(document(
+            "청황청태청임 청황청태청임 청황청태청임{느니르} | - | 청태",
+            staffUnit="eighth", beats=3))
+        front, main, post = value["notes"][8:11]
+        self.assertEqual(Fraction(front["duration"]), Fraction(1, 72))
+        self.assertEqual(front["duration"], post["duration"])
+        self.assertEqual(Fraction(main["duration"]), Fraction(1, 36) + Fraction(1, 2))
+        self.assertEqual(len(mapping["notes"][main["id"]]), 2)
+        self.assertAlmostEqual(midi(value)["notes"][-1]["start"], 2, places=5)
+        self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"]), Fraction(3, 2))
+
+    def test_jeonggan_tempo_is_not_rejected_by_quarter_conversion(self):
+        for unit, bpm, expected in (("eighth", 19, 9.5), ("dotted", 270, 405),
+                                    ("dotted", 800, 4800)):
+            speed = 4 if bpm == 800 else 1
+            with self.subTest(unit=unit, bpm=bpm):
+                value, mapping = converted(document(staffUnit=unit, tempoBpm=bpm), speed=speed)
+                self.assertEqual(value["quarter_bpm"], expected)
+                self.assertEqual(mapping["midi_tempo_us"], round(60_000_000 / expected))
+                self.assertAlmostEqual(midi(value)["notes"][-1]["start"], 60 / bpm / speed, places=5)
+        with self.assertRaisesRegex(ValueError, "MIDI Set Tempo"):
+            converted(document(staffUnit="eighth", tempoBpm=1), speed=.25)
+
     def test_versions_have_the_same_midi_and_keep_source_untouched(self):
         docs = [document(version=v) for v in (1, 2)]
         before = deepcopy(docs)

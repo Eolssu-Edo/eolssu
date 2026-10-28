@@ -6,6 +6,7 @@ from pathlib import Path
 
 # Exact ninth/eighteenth-quarter subdivisions, while retaining the previous grid.
 PPQN = 14400
+MIDI_TEMPO_MAX = 0xFFFFFF
 PROFILES = {path.stem: json.loads(path.read_text(encoding="utf-8"))
             for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))}
 YUL = dict(zip("黃大太夾姑仲蕤林夷南無應", range(12)))
@@ -28,6 +29,16 @@ def ticks(value):
     return int(q)
 
 
+def midi_tempo(bpm):
+    """Validate the encoded Set Tempo value, not an arbitrary musical BPM band."""
+    bpm = finite(bpm, "quarter_bpm", 0, 60_000_000)
+    require(bpm > 0, "quarter_bpm must be positive")
+    require(bpm >= 60_000_000 / MIDI_TEMPO_MAX,
+            "quarter_bpm exceeds MIDI Set Tempo range (1..16777215 microseconds per quarter); "
+            "choose a different staffUnit or an explicit faster playback tempo")
+    return round(60_000_000 / bpm)
+
+
 def reject_unknown(obj, allowed, label):
     require(isinstance(obj, dict), f"{label}: expected object")
     require(not (obj.keys() - set(allowed)), f"{label}: unsupported fields {obj.keys() - set(allowed)}")
@@ -46,11 +57,13 @@ def resolve_pitch(value, context):
     return pitch
 
 
-def compile_score(score, instrument, transpose=0):
+def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
     """Resolve pitch once, expand authored decorations, preserve source IDs.
 
     Transposition is an explicit audition choice; no automatic octave folding.
     """
+    duration_limit = finite(max_duration_seconds, "max_duration_seconds", 0, math.inf)
+    require(duration_limit > 0, "max_duration_seconds must be positive")
     reject_unknown(score, ["schema", "title", "source", "context", "quarter_bpm", "notes", "assumptions"], "score")
     require(score.get("schema") == "gugak-reviewed-score/v1", "Unsupported score schema")
     require(isinstance(score.get("title"), str) and score["title"], "Title required")
@@ -72,8 +85,7 @@ def compile_score(score, instrument, transpose=0):
         require(type(c.get("notation_octave_shift")) is int and -2 <= c["notation_octave_shift"] <= 2, "Explicit notation octave shift required")
         require(c["pitch_mode"] != "sounding" or c["notation_octave_shift"] == 0, "Sounding input cannot be transposed again by notation")
         require("huangjong_midi" not in c, "Huangjong mapping only applies to yul input")
-    bpm = finite(score["quarter_bpm"], "quarter_bpm", 10, 400)
-    tempo = round(60_000_000 / bpm)
+    tempo = midi_tempo(score["quarter_bpm"])
     tuning = 1200 * math.log2(finite(c.get("tuning_a_hz", 440), "tuning_a_hz", 420, 460) / 440)
     require(isinstance(score.get("notes"), list) and 0 < len(score["notes"]) <= 10000, "1..10000 notes required")
     events, warnings, seen = [], [], set()
@@ -92,7 +104,9 @@ def compile_score(score, instrument, transpose=0):
         require(duration > 0, f"{nid}: duration must be positive")
         start, end = cursor, cursor + duration
         cursor = end
-        require(cursor*tempo/1e6/PPQN <= 600, "Local audition is limited to 10 minutes")
+        require(cursor*tempo/1e6/PPQN <= duration_limit,
+                f"Score exceeds the configured resource limit of {duration_limit:g} seconds; "
+                "increase max_duration_seconds explicitly after checking render memory")
         require(type(n.get("rest", False)) is bool, f"{nid}: rest must be boolean")
         require(n.get("slur") is None or isinstance(n["slur"], str) and n["slur"], f"{nid}: slur must be an ID")
         if n.get("rest", False):

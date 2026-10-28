@@ -1,11 +1,34 @@
 """score.py validation and event compilation from the common score format."""
 import unittest
 
-from data.src.playback.score import compile_score
+from data.src.playback.score import MIDI_TEMPO_MAX, compile_score, midi_tempo
 from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_tempo_checks_encoded_midi_limit_instead_of_musical_band(self):
+        for bpm in (9.5, 405, 4800, 60_000_000 / MIDI_TEMPO_MAX):
+            with self.subTest(bpm=bpm):
+                value = score()
+                value["quarter_bpm"] = bpm
+                self.assertEqual(compile_score(value, "danso")["tempo_us"], round(60_000_000 / bpm))
+        for bpm in (0, -1, True, float("nan"), float("inf"), 60_000_001):
+            with self.subTest(bpm=bpm), self.assertRaises(ValueError):
+                midi_tempo(bpm)
+        for bpm in (3, 5e-324):
+            with self.subTest(bpm=bpm), self.assertRaisesRegex(ValueError, "MIDI Set Tempo"):
+                midi_tempo(bpm)
+
+    def test_duration_resource_limit_is_explicit_and_configurable(self):
+        value = score([{"id": "a", "pitch": 69, "duration": 602}])
+        with self.assertRaisesRegex(ValueError, "resource limit of 600"):
+            compile_score(value, "danso")
+        perf = compile_score(value, "danso", max_duration_seconds=1200)
+        self.assertEqual(perf["end_tick"] / perf["ppqn"], 602)
+        for limit in (0, -1, True, float("nan"), float("inf")):
+            with self.subTest(limit=limit), self.assertRaises(ValueError):
+                compile_score(value, "danso", max_duration_seconds=limit)
+
     def test_written_octave_applied_once(self):
         value = score([{"id":"a","pitch":60,"duration":1}])
         value["context"].update(pitch_mode="written", notation_octave_shift=1)
