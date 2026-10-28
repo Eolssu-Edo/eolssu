@@ -5,7 +5,7 @@ import subprocess
 import numpy as np
 import pytest
 
-from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recording
+from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, _container_seconds, decode_recording
 
 SECONDS = 2.0
 
@@ -102,6 +102,27 @@ def test_cut_off_exactly_at_packet_end_is_decode_error(tmp_path):
     cut.write_bytes(src.read_bytes()[: pos + size])
     with pytest.raises(DecodeError):
         decode_recording(cut)
+
+
+def test_cut_off_last_packets_is_decode_error(tmp_path):
+    # 마지막 6패킷(약 0.14초)만 잘려도 끝이 잘린 파일이다. AAC 패킷 하나는 1024샘플(44.1kHz에서 약 23ms)이다.
+    src = make_m4a(tmp_path / "w.m4a", [sine(440, 44100)])
+    packets = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "packet=pos,size", "-of", "csv=p=0",
+         str(src)],
+        capture_output=True, text=True, check=True,
+    ).stdout.split()
+    pos, size = map(int, packets[-7].split(","))
+    cut = tmp_path / "tail.m4a"
+    cut.write_bytes(src.read_bytes()[: pos + size])
+    with pytest.raises(DecodeError):
+        decode_recording(cut)
+
+
+def test_unreadable_probe_output_skips_length_check():
+    assert _container_seconds(b"not json") is None
+    assert _container_seconds(b"") is None
+    assert _container_seconds(b'{"streams": [{"duration": "N/A"}], "format": {"duration": "2.5"}}') == 2.5
 
 
 def test_relative_path_with_colon_decodes(tmp_path, monkeypatch):
