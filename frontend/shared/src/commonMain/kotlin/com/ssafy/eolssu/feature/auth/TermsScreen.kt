@@ -42,7 +42,7 @@ private val clauses = listOf(
 )
 
 /**
- * AUTH-02 약관 보기. 약관 본문은 법무 검토 전이라 와이어프레임처럼 조항 제목과 본문 자리만 보인다.
+ * AUTH-02 약관 보기. 본문은 서버 약관 목록(`GET /api/terms`)의 `contentUrl`로 보여 줄 예정이라 지금은 와이어프레임처럼 조항 제목과 본문 자리만 보인다.
  * 뒤로 가기와 확인 모두 [onClose]로 약관 동의 화면에 돌아간다.
  */
 @Composable

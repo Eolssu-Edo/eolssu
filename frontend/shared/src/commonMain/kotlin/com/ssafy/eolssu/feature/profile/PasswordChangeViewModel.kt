@@ -35,7 +35,7 @@ class PasswordChangeViewModel(private val userRepository: UserRepository) : View
         if (currentError != null || newError != null || confirmError != null) return false
         return when (userRepository.changePassword(state.current, state.new)) {
             PasswordCheckResult.Done -> true
-            PasswordCheckResult.WrongPassword -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.PasswordWrong) } }
+            PasswordCheckResult.WrongPassword -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.CurrentPasswordWrong) } }
         }
     }
 }

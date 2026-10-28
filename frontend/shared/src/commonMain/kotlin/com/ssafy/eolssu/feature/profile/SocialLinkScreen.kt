@@ -78,7 +78,14 @@ fun SocialLinkScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = if (widthClass == WindowWidthClass.Compact) 360.dp else 560.dp)
+                // 자리 표시 최소 높이(`.au-placeholder`): 휴대폰 360dp, 태블릿 세로 560dp · 가로 440dp.
+                .heightIn(
+                    min = when (widthClass) {
+                        WindowWidthClass.Compact -> 360.dp
+                        WindowWidthClass.Medium -> 560.dp
+                        WindowWidthClass.Expanded -> 440.dp
+                    },
+                )
                 .drawBehind {
                     val stroke = 1.5.dp.toPx()
                     drawRoundRect(
