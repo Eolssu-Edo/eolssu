@@ -36,6 +36,7 @@ import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchMa
 import com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow
 import com.ssafy.eolssu.backend.feature.practice.application.RecordingUploadExpiryService
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingSessionExpiryRepository
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisPracticeSessionDetails
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
@@ -481,6 +482,39 @@ class DatabaseIntegrationTests {
         assertMysqlError(3819, "chk_practice_sessions_analysis_started") {
             jdbc.update("UPDATE practice_sessions SET analysis_started_at = CURRENT_TIMESTAMP(6) WHERE id = 2")
         }
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `reads only a member's own session with its evaluation and recording availability`() {
+        // 고정 데이터: 세션 1은 평가 1과 녹음이 있고, 세션 2는 녹음이 없고 기록을 지웠다. 둘 다 회원 1의 세션이다.
+        val details = MyBatisPracticeSessionDetails(mapper<PracticeSessionMapper>())
+
+        val withEvaluation = assertNotNull(details.findOwned(1, 1))
+        assertEquals(1L, withEvaluation.evaluationId)
+        assertTrue(withEvaluation.recordingAvailable)
+        assertEquals("DONE", withEvaluation.status)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), withEvaluation.startedAt)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:04.123456"), withEvaluation.endedAt)
+
+        val deletedRecord = assertNotNull(details.findOwned(2, 1))
+        assertNull(deletedRecord.evaluationId)
+        assertFalse(deletedRecord.recordingAvailable)
+        assertEquals("다시 연습", deletedRecord.memo)
+        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), deletedRecord.savedAt)
+
+        // 녹음 재생 가능은 두 조건이 모두 맞아야 한다: 녹음이 있어도 기록을 지웠으면, 지우지 않았어도 녹음이 없으면 false.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, started_at, record_deleted_at) " +
+                "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'recordings/21/a.m4a', 'DONE', '2026-10-22 01:02:03', '2026-10-23 01:02:03')," +
+                " (22, 1, 1, 90, 'DOTTED_QUARTER', 0, NULL, 'RECORDING', '2026-10-22 01:02:03', NULL)",
+        )
+        assertFalse(assertNotNull(details.findOwned(21, 1)).recordingAvailable)
+        assertFalse(assertNotNull(details.findOwned(22, 1)).recordingAvailable)
+
+        assertNull(details.findOwned(1, 2))
+        assertNull(details.findOwned(999, 1))
     }
 
     @Test
