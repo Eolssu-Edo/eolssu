@@ -51,6 +51,7 @@ class SmtpVerificationMailSenderTests {
         assertEquals(587, transport.port)
         assertEquals("true", transport.javaMailProperties["mail.smtp.starttls.required"])
         assertEquals("true", transport.javaMailProperties["mail.smtp.auth"])
+        assertEquals("true", transport.javaMailProperties["mail.smtp.ssl.checkserveridentity"])
         assertEquals("3000", transport.javaMailProperties["mail.smtp.connectiontimeout"])
         val from = SmtpMailTransport.sender(VerificationMailProperties(username = "eolssu@example.com"))
         assertEquals("eolssu@example.com", from.address)

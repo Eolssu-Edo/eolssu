@@ -71,6 +71,8 @@ object SmtpMailTransport {
                     "mail.smtp.auth" to "true",
                     "mail.smtp.starttls.enable" to "true",
                     "mail.smtp.starttls.required" to "true",
+                    // STARTTLS 인증서가 접속한 호스트의 것인지 확인한다. 라이브러리 기본값에 기대지 않는다.
+                    "mail.smtp.ssl.checkserveridentity" to "true",
                     "mail.smtp.connectiontimeout" to "3000",
                     "mail.smtp.timeout" to "5000",
                     "mail.smtp.writetimeout" to "5000",
