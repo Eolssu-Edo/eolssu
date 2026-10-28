@@ -6,4 +6,5 @@ import org.apache.ibatis.annotations.Param
 @Mapper
 interface UserSocialAccountMapper {
     fun findById(@Param("id") id: Long): UserSocialAccountRow?
+    fun findByUserId(@Param("userId") userId: Long): List<UserSocialAccountRow>
 }

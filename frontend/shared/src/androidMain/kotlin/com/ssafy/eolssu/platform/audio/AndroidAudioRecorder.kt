@@ -18,6 +18,8 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
     private var recorder: MediaRecorder? = null
     private var output: File? = null
 
+    override val measuresLevel: Boolean = true
+
     override fun start() {
         cancel()
         directory.mkdirs()

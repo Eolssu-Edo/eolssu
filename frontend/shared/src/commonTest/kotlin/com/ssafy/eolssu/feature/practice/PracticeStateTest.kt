@@ -126,6 +126,63 @@ class PracticeStateTest {
     }
 
     @Test
+    fun silenceLongerThanThresholdShowsNoInputHint() {
+        val recording = ready.copy(inputMeasured = true).beginRecording()
+        val quiet = recording.recordLevel(0f, 1000.0).recordLevel(0f, 500.0)
+        assertEquals(1500.0, quiet.noInputMs)
+        assertFalse(quiet.noInputHint)
+
+        val longer = quiet.recordLevel(0f, 100.0)
+        assertTrue(longer.noInputHint)
+
+        val heard = longer.recordLevel(0.4f, 100.0)
+        assertTrue(heard.hadInput)
+        assertEquals(0.0, heard.noInputMs)
+        assertFalse(heard.noInputHint)
+        assertTrue(heard.recordLevel(0f, 2000.0).noInputHint)
+    }
+
+    @Test
+    fun noInputHintNeedsMeasuredInputAndRunningRecording() {
+        val silent = ready.beginRecording().recordLevel(0f, 4000.0)
+        assertFalse(silent.noInputHint)
+
+        val measured = ready.copy(inputMeasured = true).beginRecording().recordLevel(0f, 4000.0)
+        assertTrue(measured.noInputHint)
+        assertFalse(measured.endRecording().noInputHint)
+        assertEquals(0.0, measured.toReady().noInputMs)
+        assertEquals(0.0, measured.endRecording().beginCountdown().beginRecording().noInputMs)
+        // 연주 중이 아니면 측정 값을 반영하지 않는다.
+        assertEquals(ready, ready.recordLevel(0f, 4000.0))
+    }
+
+    @Test
+    fun endingWithoutAnyInputShowsNoInputPopupInsteadOfEvaluation() {
+        val measured = ready.copy(inputMeasured = true).beginRecording()
+        var silent = measured
+        repeat(silent.eventCount) { silent = silent.recordLevel(0f, 100.0).advance(doneMs = 100.0, micLevel = 0f) }
+        assertTrue(silent.finished)
+        assertEquals(PracticePopup.EndNoInput, silent.popup)
+        // 입력이 없는 녹음은 크기 초과로 바꾸지 않는다. 저장 실패는 그대로 알린다.
+        assertEquals(silent, silent.checkRecording(saved = true, tooLarge = true))
+        assertEquals(PracticePopup.RecordFailed, silent.checkRecording(saved = false, tooLarge = false).popup)
+
+        // 중간에 한 번이라도 입력이 있었으면 평가한다.
+        val played = measured.recordLevel(0.5f, 100.0).recordLevel(0f, 5000.0).endRecording()
+        assertEquals(PracticePopup.End, played.popup)
+    }
+
+    @Test
+    fun platformsWithoutMeasuredInputAlwaysEvaluate() {
+        // iOS·Web: 입력 크기를 흉내만 내므로 팝업 없이 평가로 넘기고 서버 NO_SOUND 판정에 맡긴다.
+        var state = ready.beginRecording()
+        repeat(state.eventCount) { state = state.advance(doneMs = 100.0, micLevel = 0f) }
+        assertFalse(state.inputMeasured)
+        assertFalse(state.hadInput)
+        assertEquals(PracticePopup.End, state.popup)
+    }
+
+    @Test
     fun selectingPitchOpensFingeringButMarksOnlySelectForHold() {
         // 아리랑 첫 각: 黃 ㅡ 太 …
         val pitch = ready.selectEvent(2)

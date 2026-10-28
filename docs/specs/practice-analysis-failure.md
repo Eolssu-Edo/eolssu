@@ -81,7 +81,7 @@ POST {AI}/v1/analyses
 { "sessionId": 1, "attempt": 1, "audioUrl": "<15분 읽기 전용 서명 URL>", "bpm": 60, "bpmUnit": "JEONGGAN",
   "notes": [{ "idx": 0, "semitone": 5, "startBeat": 0.0, "beats": 1.0, "sigimsae": false }] }
 
-200 { "status": "DONE", "modelVersion": "pyin-1", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
+200 { "status": "DONE", "modelVersion": "pyin-2", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
       "tuningOffsetCent": -12.5, "tuningOutOfRange": false,
       "notes": [{ "idx": 0, "verdict": "CORRECT", "pitchErrorCent": 3.1, "onsetErrorMs": 20, "durationErrorMs": -15 }] }
 200 { "status": "FAILED", "failReason": "NO_SOUND" | "TOO_SHORT" | "DECODE_ERROR" }
@@ -115,7 +115,7 @@ POST {AI}/v1/analyses
 
 S15P31E102-186의 코드는 여기까지다. 배포 환경에 AI 서비스를 띄우고 `ANALYSIS_AI_BASE_URL`을 넣는 일, V5 적용 전 운영·공유 DB의 `pitches` 기존 행 확인은 S15P31E102-228이 맡는다. 주소가 없으면 업로드마다 경고 로그만 남고 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 
-- AI 쪽 `POST /v1/analyses`는 S15P31E102-212에서 구현했다([실행 방법](../../ai/README.md#분석-api)). 기준음은 S15P31E102-157 전까지 E♭4 고정이고, 채점이 `startBeat`로 기대 시각을 정하는 것도 157이 맡는다.
+- AI 쪽 `POST /v1/analyses`는 S15P31E102-212에서 구현했다([실행 방법](../../ai/README.md#분석-api)). 기준음은 E♭4 고정이고, 채점은 `startBeat`로 기대 시각을 정한다(S15P31E102-157). 앞 음이 끝나기 전에 시작하는 음표는 422로 거절한다.
 
 S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새 시도를 시작하는 조건부 갱신까지 구현했다. 마감을 넘긴 `PENDING`은 먼저 `TIMEOUT`으로 끝낸 뒤 다시 시도하고, 업로드 전(`RECORDING`) 세션도 거절한다. 새 시도는 읽은 시도 번호를 조건으로 시작하고, 분석을 백그라운드 작업으로 넘기지 못하면 그 시도를 `SERVER_ERROR`로 끝낸다. 다른 시도가 계속 끼어들어 몇 번 다시 읽어도 시작하지 못하면 거절이 아니라 '잠시 후 다시'(`Busy`)로 답한다. API에서는 이 결과도 거절 응답과 구분해야 한다. 유스케이스는 트랜잭션 밖에서 불러야 한다(새 시도가 커밋된 뒤 분석이 세션을 읽는다). 다시 시도 API(경로·응답 코드·거절 오류 형식)와 유스케이스의 Bean 연결은 아래 미결 사항의 API 명세가 정해진 뒤 붙인다. 이때 새 시도를 위의 분석 실행기로 넘긴다.
 
