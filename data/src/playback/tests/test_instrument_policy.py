@@ -30,6 +30,7 @@ class InstrumentPolicyTests(unittest.TestCase):
 
     def convert(self, key, melody='청황 | 청태', **metadata):
         doc=document(melody)
+        doc['tempoBpmUserSet']=True
         doc['parts'][0]['instrument']=key
         doc['playback']=metadata
         return convert_jgb(doc,source_name='authored.jgb.json',instrument=key)
@@ -46,6 +47,7 @@ class InstrumentPolicyTests(unittest.TestCase):
 
     def test_ambiguous_daegeum_needs_subtype_provenance_and_conflicts_fail(self):
         doc=document();doc['parts'][0]['instrument']='daegeum'
+        doc['tempoBpmUserSet']=True
         with self.assertRaisesRegex(ValueError,'기종'):
             convert_jgb(doc,source_name='test',instrument='jeongak-daegeum')
         doc['playback']={'instrument':'jeongak-daegeum','instrument_basis':'Authored source explicitly identifies subtype.'}
@@ -80,6 +82,7 @@ class InstrumentPolicyTests(unittest.TestCase):
 
     def test_custom_relative_scale_is_explicit_and_conflict_checked(self):
         doc=document('청태{니레} | 청임',joPreset='all')
+        doc['tempoBpmUserSet']=True
         doc['parts'][0]['instrument']='sanjo-daegeum'
         before=deepcopy(doc)
         with self.assertRaisesRegex(ValueError,'명시한 조'):
@@ -118,3 +121,36 @@ class InstrumentPolicyTests(unittest.TestCase):
             self.assertEqual(rows[0]['status'],'generated',rows[0].get('error'))
             self.assertTrue(rows[0]['outputs'][0]['midi'].endswith('/sogeum.mid'))
             self.assertTrue(rows[0]['outputs'][0]['audio_file'].endswith('/sogeum.wav'))
+
+    def test_batch_cannot_replace_explicit_source_subtype(self):
+        doc=document();doc['parts'][0]['instrument']='all'
+        doc['playback']={'instrument':'sanjo-daegeum','instrument_basis':'Original source subtype.'}
+        original=deepcopy(doc)
+        with self.assertRaisesRegex(ValueError,'기종'):
+            prepare_jgb(doc,{'jeonggan_bpm':60},[],instrument='jeongak-daegeum',instrument_basis='Conflicting catalog.')
+        self.assertEqual(doc,original)
+
+    def test_editor_default_tempo_is_not_an_explicit_other_instrument_tempo(self):
+        doc=document();doc['parts'][0]['instrument']='sogeum'
+        with self.assertRaisesRegex(ValueError,'빠르기'):
+            convert_jgb(doc,source_name='test',instrument='sogeum')
+        _,mapping=convert_jgb(doc,source_name='test',instrument='sogeum',bpm=80)
+        self.assertEqual(mapping['jeonggan_bpm'],80)
+
+    def test_non_danso_ir_batch_preserves_authored_breath(self):
+        from data.src.playback.tests.test_pipeline import score
+        value=score([{'id':'long-breath','pitch':75,'duration':2,'breath_seconds':.4,'release_seconds':.02}])
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp)
+            (folder/'score.json').write_text(json.dumps(value),encoding='utf-8')
+            catalog={'instrument':'sogeum','items':[{'title':'IR','input':'score.json',
+                     'tempo':{'quarter_bpm':60,'beat_unit':'quarter_note','evidence_type':'authored-test'}}]}
+            (folder/'catalog.json').write_text(json.dumps(catalog),encoding='utf-8')
+            def capture(source,assets,track,instruments,**options):
+                prepared=json.loads(Path(source).read_text(encoding='utf-8'))
+                self.assertEqual(prepared['notes'],value['notes'])
+                track.mkdir(parents=True)
+                return {'results':[{'notes':1,'seconds':2,'audio':{'file':'sogeum.wav'}}]}
+            with patch('data.src.playback.batch.run',side_effect=capture):
+                records=run_batch(folder/'catalog.json',folder/'assets.json',folder/'out',audio_format='wav')
+            self.assertEqual(records[0]['status'],'generated')

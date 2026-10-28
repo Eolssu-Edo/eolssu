@@ -24,6 +24,10 @@ def prepare_jgb(source, tempo, corrections, *, instrument='danso', instrument_ba
                 expression_policy=None, relative_scale=None):
     document=deepcopy(source)
     require(instrument in PROFILES, '지원하지 않는 악기 프로필입니다')
+    metadata=document.get('playback',{})
+    require(isinstance(metadata,dict),'playback은 객체여야 합니다')
+    require(metadata.get('instrument',instrument)==instrument,
+            '원본 playback.instrument와 카탈로그의 악기/기종이 다릅니다')
     require(instrument == 'danso' or isinstance(instrument_basis,str) and instrument_basis.strip(),
             '단소 이외 카탈로그에는 악기/대금 기종의 instrument_basis가 필요합니다')
     controls=document['controls']
@@ -84,20 +88,21 @@ def prepare_jgb(source, tempo, corrections, *, instrument='danso', instrument_ba
     clean=re.sub(r'\{[^}]+\}','',melody)
     observed=sorted({YUL.index(match[2]) for match in NOTE.finditer(clean)})
     inferred=False
-    if instrument=='danso' and relative and controls.get('joPreset') in (None,'','all') and observed==[0,2,5,7,10]:
+    if (instrument=='danso' and relative and relative_scale is None and not metadata.get('relative_scale')
+            and controls.get('joPreset') in (None,'','all') and observed==[0,2,5,7,10]):
         assign(controls,'joPreset','jung-pyeong','controls.joPreset')
         inferred=True
-    metadata=document.get('playback',{})
-    require(isinstance(metadata,dict),'playback은 객체여야 합니다')
+    assign(metadata,'instrument',instrument,'playback.instrument')
+    assign(metadata,'instrument_basis',instrument_basis or metadata.get('instrument_basis') or
+           'Explicit Danso catalog category; no automatic pitch transposition.','playback.instrument_basis')
+    for key,value in [('expression_policy',expression_policy),('relative_scale',relative_scale)]:
+        if value is not None:assign(metadata,key,deepcopy(value),f'playback.{key}')
     document['playback']={**metadata,
         'schema':'danso-preparation/v1' if instrument=='danso' else 'gugak-preparation/v1',
         'instrument':instrument,'tempo':deepcopy(tempo),'metadata_changes':changes,
         'source_corrections':deepcopy(corrections),'observed_scale':observed if inferred else None,
         'scale_policy':'Exact five written pitch classes for relative-step playback; not a traditional mode classification.' if inferred else 'Use source declaration; no partial-scale inference.',
-        'instrument_basis':instrument_basis or 'Explicit Danso catalog category; no automatic pitch transposition.',
     }
-    for key,value in [('expression_policy',expression_policy),('relative_scale',relative_scale)]:
-        if value is not None:document['playback'][key]=deepcopy(value)
     return document,changes
 
 
@@ -167,13 +172,14 @@ def run_batch(catalog_path,assets,out,*,audio_format='m4a',ffmpeg=None,ffprobe=N
                 prepared=deepcopy(source);changes=[];parts=[None]
                 prepared['quarter_bpm']=item['tempo']['quarter_bpm']
                 prepared['source']['tempo_decision']=item['tempo']
-                for note in prepared['notes']:
+                for note in prepared['notes'] if instrument=='danso' else []:
                     if note.get('breath_seconds'):
                         before={k:note.get(k) for k in ('breath_seconds','release_seconds')}
                         note.update(adaptive_breath(note['duration'],prepared['quarter_bpm']))
                         changes.append({'note':note['id'],'breath_before':before,'breath_after':{k:note[k] for k in ('breath_seconds','release_seconds')}})
-                prepared['assumptions']=[a for a in prepared.get('assumptions',[]) if '120ms' not in a]
-                prepared['assumptions'].append('Breath+release bounded to half the preceding note; this is a documented audition policy.')
+                if instrument=='danso':
+                    prepared['assumptions']=[a for a in prepared.get('assumptions',[]) if '120ms' not in a]
+                    prepared['assumptions'].append('Breath+release bounded to half the preceding note; this is a documented audition policy.')
             record['metadata_changes']=changes
             folder=out/'prepared';folder.mkdir(exist_ok=True)
             target=folder/f'{i:03d}{".jgb" if is_jgb else ".score"}.json'
