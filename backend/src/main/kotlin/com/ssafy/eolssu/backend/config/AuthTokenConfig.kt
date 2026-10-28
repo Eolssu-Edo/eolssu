@@ -41,7 +41,7 @@ class AuthTokenConfig {
 
     // 보안 필터가 요청마다 토큰의 회원이 ACTIVE인지 확인한다(USR-05 규칙 2).
     @Bean
-    fun activeMemberCheck(users: UserMapper) = ActiveMemberCheck { userId -> users.findById(userId)?.status == "ACTIVE" }
+    fun activeMemberCheck(users: UserMapper) = ActiveMemberCheck { userId -> users.findStatus(userId) == "ACTIVE" }
 
     // 로컬 HTTP 개발에서만 AUTH_COOKIE_SECURE=false로 끈다.
     @Bean

@@ -72,10 +72,12 @@ class SecurityConfig(
                 ),
                 CorsFilter::class.java,
             )
-            // DB가 있는 프로필(db·ops)에서만 토큰 검증 뒤 회원 상태를 확인한다. DB 없는 기본 프로필은 토큰 검증만 한다.
+            // DB가 있는 프로필(db·ops)에서만 토큰 검증 뒤 회원 상태를 확인한다. DB 없는 기본 프로필은 둘 다 없어 토큰 검증만 한다.
+            // 하나만 있으면 설정이 어긋난 것이라 회원 확인이 조용히 빠지지 않게 기동을 멈춘다.
             .apply {
                 val members = activeMembers.ifAvailable
                 val cookies = authCookies.ifAvailable
+                check((members == null) == (cookies == null)) { "ActiveMemberCheck and AuthCookies must be configured together" }
                 if (members != null && cookies != null) {
                     addFilterAfter(ActiveMemberFilter(members, cookies::clear, errorWriter), BearerTokenAuthenticationFilter::class.java)
                 }

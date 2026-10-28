@@ -27,6 +27,10 @@
     <update id="updatePasswordHash">
         UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id} AND status = 'ACTIVE'
     </update>
+    <!-- 인증 필터가 요청마다 부른다. 상태 칸만 읽는다. -->
+    <select id="findStatus" resultType="string">
+        SELECT status FROM users WHERE id = #{id}
+    </select>
     <select id="findStatusForUpdate" resultType="string">
         SELECT status FROM users WHERE id = #{id} FOR UPDATE
     </select>
