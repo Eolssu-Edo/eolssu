@@ -53,10 +53,10 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 | 항목 | 고정 값 | 이유 |
 | --- | --- | --- |
-| 기반 | `ubuntu:26.04` | 백엔드 이미지(`eclipse-temurin:21`, Ubuntu 26.04)와 같은 ffmpeg 패키지를 쓰기 위해 |
-| ffmpeg·ffprobe | 패키지 `7:8.0.1-3ubuntu2`(ffmpeg 8.0.1) | 백엔드 업로드 검사와 AI 디코딩의 판정을 맞춘다(PRA-02) |
+| 기반 | `ubuntu:26.04`(다이제스트 고정) | 백엔드 이미지(`eclipse-temurin:21`, Ubuntu 26.04)와 같은 ffmpeg 패키지를 쓰기 위해 |
+| ffmpeg·ffprobe | `ffmpeg`와 디코딩 라이브러리 7개(`libavcodec62` 등) 모두 `7:8.0.1-3ubuntu2`(ffmpeg 8.0.1) | 백엔드 업로드 검사와 AI 디코딩의 판정을 맞춘다(PRA-02). `ffmpeg` 패키지는 라이브러리를 '이 버전 이상'으로만 요구해서, 라이브러리를 따로 고정하지 않으면 보안 업데이트 뒤 다시 빌드할 때 디코딩 라이브러리만 바뀐다 |
 | Python | 3.12(`.python-version`, uv가 받는 관리형 Python) | Ubuntu 26.04의 시스템 Python은 3.14 |
-| uv | `ghcr.io/astral-sh/uv:0.13.6` | 의존성은 `uv.lock` 그대로(`--locked`), dev·eval 그룹은 넣지 않음 |
+| uv | `ghcr.io/astral-sh/uv:0.13.6`(다이제스트 고정) | 의존성은 `uv.lock` 그대로(`--locked`), dev·eval 그룹은 넣지 않음 |
 
 ```bash
 docker build -t eolssu-ai:check .
@@ -64,7 +64,7 @@ docker build -t eolssu-ai:check .
 
 기본 명령은 `uvicorn ai_service.api:app --host 0.0.0.0 --port 8000`입니다. 인증이 없으므로 백엔드와 같은 내부 Docker 네트워크에만 붙이고 `-p`로 호스트에 공개하지 않습니다. 백엔드는 `ANALYSIS_AI_BASE_URL=http://<AI 컨테이너 이름>:8000`으로 부릅니다.
 
-- librosa가 쓰는 numba는 첫 호출 때 컴파일 결과를 파일로 저장합니다. 실행 사용자는 `/app`에 쓸 수 없어 `NUMBA_CACHE_DIR=/tmp/numba-cache`로 둡니다. 이 값이 없으면 채점 첫 호출이 `RuntimeError`(500)로 실패합니다.
+- librosa가 쓰는 numba는 첫 호출 때 컴파일 결과를 파일로 저장합니다. 실행 사용자는 `/app`에 쓸 수 없어 `NUMBA_CACHE_DIR=/tmp/numba-cache`로 둡니다. 이 값이 없으면 채점 첫 호출이 `RuntimeError`(500)로 실패합니다. 컨테이너 파일 시스템을 읽기 전용(`read_only`)으로 띄우면 `/tmp`에 tmpfs를 붙입니다.
 - 이미지는 약 1.65GB입니다(numba·scipy·ffmpeg). 빌드에 Docker 디스크 여유가 2GB 넘게 필요합니다.
 
 이미지 안에서 테스트를 돌리려면 일회용 컨테이너에 dev 의존성(pytest)을 넣고 테스트 폴더를 읽기 전용으로 붙입니다. 실행 이미지에는 테스트를 넣지 않습니다.
@@ -73,7 +73,7 @@ docker build -t eolssu-ai:check .
 docker run --rm --user 0 --tmpfs /tmp:rw,exec,size=512m --mount "type=bind,src=$(pwd)/tests,dst=/app/tests,readonly" --mount "type=bind,src=$(pwd)/evaluation,dst=/app/evaluation,readonly" eolssu-ai:check sh -c 'uv sync --locked --no-editable && uv run --locked --no-editable pytest -p no:cacheprovider'
 ```
 
-이 검사는 root로 돌아 실행 사용자 권한 문제를 잡지 못합니다. 기본 명령으로 띄운 컨테이너에 요청 1건을 보내는 확인을 함께 합니다([S15P31E102-213 작업 기록](../docs/plans/S15P31E102-213.md#검증)).
+pytest를 받으므로 인터넷이 닿는 네트워크가 필요합니다. 이 검사는 root로 돌아 실행 사용자 권한 문제를 잡지 못합니다. 기본 명령으로 띄운 컨테이너에 요청 1건을 보내는 확인을 함께 합니다([S15P31E102-213 작업 기록](../docs/plans/S15P31E102-213.md#검증)).
 
 ## 음높이 추정 비교
 
