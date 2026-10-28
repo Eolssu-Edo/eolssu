@@ -25,12 +25,12 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
-import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
@@ -115,12 +115,12 @@ fun EmailVerificationScreen(
         AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_verify_heading else Res.string.auth_reset_verify_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AuthTextField(
+                EolssuTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
-                    type = AuthFieldType.Email,
+                    type = TextFieldType.Email,
                     help = when {
                         !state.codeSent -> null
                         signUp -> stringResource(Res.string.auth_code_sent, state.email)
@@ -131,12 +131,12 @@ fun EmailVerificationScreen(
                     onImeAction = if (state.codeSent) null else onSendCode,
                 )
                 if (state.codeSent) {
-                    AuthTextField(
+                    EolssuTextField(
                         value = state.code,
                         onValueChange = onCodeChange,
                         label = stringResource(Res.string.auth_code),
                         placeholder = stringResource(Res.string.auth_code_placeholder),
-                        type = AuthFieldType.Number,
+                        type = TextFieldType.Number,
                         help = stringResource(Res.string.auth_code_help),
                         error = state.codeErrorAt(now)?.let { codeErrorText(it) },
                         imeAction = ImeAction.Done,

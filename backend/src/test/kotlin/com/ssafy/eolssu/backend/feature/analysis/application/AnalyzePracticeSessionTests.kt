@@ -26,7 +26,7 @@ import org.springframework.web.client.ResourceAccessException
 class AnalyzePracticeSessionTests {
     private val startedAt = Instant.parse("2026-10-28T01:00:00Z")
     private val pending = PendingAnalysis(7, 2, 3, 1, 4, 5, 60, "JEONGGAN", "recordings/7/a.m4a")
-    private val notes = listOf(ScoreNote(4, 0, 1.0, false, 11), ScoreNote(5, 2, 2.0, true, 12))
+    private val notes = listOf(ScoreNote(4, 0, 4.0, 1.0, false, 11), ScoreNote(5, 2, 6.0, 2.0, true, 12))
     private val done = AnalysisResult.Done(
         "pyin-1", 87, 90, 85, 86,
         listOf(NoteJudgement(4, NoteVerdict.CORRECT, 3.1, 20, -15), NoteJudgement(5, NoteVerdict.MISSED, null, null, null)),

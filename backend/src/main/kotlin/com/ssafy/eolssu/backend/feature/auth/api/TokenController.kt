@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@Profile("db")
+@Profile("db | ops")
 class TokenController(
     private val refreshService: TokenRefreshService,
     private val signOutService: SignOutService,

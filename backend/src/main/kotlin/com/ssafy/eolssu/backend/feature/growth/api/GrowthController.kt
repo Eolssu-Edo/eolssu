@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController
 /** 연습 기록지(GROWTH-01) API. Notion API 명세 GRO-01 summary, GRO-02 calendar. */
 @RestController
 @RequestMapping("/api/users/me/growth")
-@Profile("db")
+@Profile("db | ops")
 class GrowthController(private val stats: GetGrowthStats) {
     @GetMapping("/summary")
     fun summary(

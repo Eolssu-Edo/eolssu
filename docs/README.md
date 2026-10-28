@@ -60,6 +60,7 @@
 
 - [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
 - [논문·공식 자료와 설계 결정의 근거 표](knowledge/domain/design-evidence-map.md)
+- [정간보 시김새 기호의 뜻과 출처](knowledge/domain/sigimsae-symbols.md)
 
 ## 데이터 조사·검증 기록
 
@@ -103,6 +104,7 @@
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
 - [S15P31E102-173 분석 시도 저장 방식과 V4 마이그레이션](plans/S15P31E102-173.md)
 - [S15P31E102-180 녹음 파일 ffprobe 검사기와 ffmpeg 실행 환경](plans/S15P31E102-180.md)
+- [S15P31E102-181 연습 녹음 업로드 API](plans/S15P31E102-181.md)
 - [S15P31E102-182 녹음 업로드 만료 세션 정리 배치](plans/S15P31E102-182.md)
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
@@ -112,6 +114,8 @@
 - [S15P31E102-207 이메일 가입·로그인과 토큰 재발급·로그아웃 API](plans/S15P31E102-207.md)
 - [S15P31E102-208 내 정보 조회·수정과 비밀번호 변경 API](plans/S15P31E102-208.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
+- [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
+- [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

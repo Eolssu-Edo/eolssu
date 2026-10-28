@@ -41,6 +41,9 @@ class EmailVerificationService(
             }
         } catch (_: VerificationStorageBusy) {
             ConfirmVerificationResult.Unavailable
+        } catch (_: VerificationMailUnavailable) {
+            // 인증번호 키가 없으면 비교할 수 없다(AUTH_CODE_HMAC_SECRET 미설정).
+            ConfirmVerificationResult.Unavailable
         }
     }
 

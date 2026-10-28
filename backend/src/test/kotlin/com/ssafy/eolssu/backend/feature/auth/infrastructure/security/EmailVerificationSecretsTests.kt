@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.auth.infrastructure.security
 
+import com.ssafy.eolssu.backend.feature.auth.domain.VerificationMailUnavailable
 import com.ssafy.eolssu.backend.feature.auth.domain.VerificationPurpose
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -45,6 +46,15 @@ class EmailVerificationSecretsTests {
         val expected = "32c4068e0c200f59b9fd7d230c509bfec606d1ec322964e57b57338c904468f9"
         assertTrue(secrets.matchesCode("learner@example.com", VerificationPurpose.SIGN_UP, "012345", expected))
         assertFalse(secrets.matchesCode("learner@example.com", VerificationPurpose.SIGN_UP, "112345", expected))
+    }
+
+    @Test
+    fun `without a code key only code hashing is unavailable`() {
+        val secrets = EmailVerificationSecrets(null)
+        assertFailsWith<VerificationMailUnavailable> { secrets.hashCode("learner@example.com", VerificationPurpose.SIGN_UP, "012345") }
+        assertFailsWith<VerificationMailUnavailable> { secrets.matchesCode("learner@example.com", VerificationPurpose.SIGN_UP, "012345", "00") }
+        assertEquals("38d9790f517c7fa46073aca90821d1cc5b5bebc05b815eba92bda097051ee8c9", secrets.hashToken("test-verification-token"))
+        assertTrue(secrets.generateCode().matches(Regex("[0-9]{6}")))
     }
 
     @Test

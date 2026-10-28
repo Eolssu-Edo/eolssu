@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -37,10 +38,10 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -101,19 +102,19 @@ fun LoginScreen(
             }
             OrDivider()
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AuthTextField(
+                EolssuTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
-                    type = AuthFieldType.Email,
+                    type = TextFieldType.Email,
                 )
-                AuthTextField(
+                EolssuTextField(
                     value = state.password,
                     onValueChange = onPasswordChange,
                     label = stringResource(Res.string.auth_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
-                    type = AuthFieldType.Password,
+                    type = TextFieldType.Password,
                     error = state.error?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onLogIn,

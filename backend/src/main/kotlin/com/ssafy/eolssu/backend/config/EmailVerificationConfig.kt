@@ -11,6 +11,7 @@ import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.MyBatisE
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.EmailVerificationSecrets
 import java.time.Clock
 import java.util.Base64
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -19,10 +20,15 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.PlatformTransactionManager
 
 @Configuration(proxyBeanMethods = false)
-@Profile("db")
+@Profile("db | ops")
 class EmailVerificationConfig {
     @Bean
     fun verificationSecrets(@Value("\${eolssu.auth.code-hmac-secret:}") encoded: String): VerificationSecrets {
+        // 비어 있으면 앱은 기동하고 인증번호 발송·확인만 503이다(운영 .env에 아직 없을 수 있다). 형식이 틀린 값은 기동을 막는다.
+        if (encoded.isBlank()) {
+            LoggerFactory.getLogger(javaClass).warn("AUTH_CODE_HMAC_SECRET is not set; email verification is unavailable")
+            return EmailVerificationSecrets(null)
+        }
         val key = try { Base64.getDecoder().decode(encoded) } catch (_: IllegalArgumentException) {
             throw IllegalArgumentException("AUTH_CODE_HMAC_SECRET must be Base64 encoded")
         }

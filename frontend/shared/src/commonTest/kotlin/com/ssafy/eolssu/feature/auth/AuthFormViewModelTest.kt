@@ -1,6 +1,10 @@
 package com.ssafy.eolssu.feature.auth
 
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.SampleAuthRepository
+import com.ssafy.eolssu.data.user.SampleUserRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -73,25 +77,31 @@ class AuthFormViewModelTest {
 
     @Test
     fun profileStartsWithDansoAndOffersOnlyThreeInstruments() {
-        val state = ProfileSetupViewModel().uiState.value
+        val state = profileSetup().uiState.value
 
-        assertEquals(ProfileInstrument.Danso, state.instrument)
-        assertEquals(listOf(ProfileInstrument.Daegeum, ProfileInstrument.Sogeum, ProfileInstrument.Danso), state.instruments)
+        assertEquals(Instrument.Danso, state.instrument)
+        assertEquals(listOf(Instrument.Daegeum, Instrument.Sogeum, Instrument.Danso), state.instruments)
     }
 
     @Test
-    fun profileNeedsNicknameAndKeepsChosenInstrument() {
-        val viewModel = ProfileSetupViewModel()
-        viewModel.selectInstrument(ProfileInstrument.Daegeum)
+    fun profileNeedsNicknameAndSavesInstrumentAndNicknameOnComplete() {
+        val instruments = InstrumentRepository(FakeKeyValueStore())
+        val users = SampleUserRepository()
+        val viewModel = ProfileSetupViewModel(instruments, users)
+        viewModel.selectInstrument(Instrument.Daegeum)
 
         assertFalse(viewModel.complete())
         assertEquals(FieldError.NicknameEmpty, viewModel.uiState.value.nicknameError)
+        assertEquals(Instrument.Danso, instruments.instrument.value)
 
-        viewModel.changeNickname("얼쑤")
+        viewModel.changeNickname(" 얼쑤 ")
         assertNull(viewModel.uiState.value.nicknameError)
         assertTrue(viewModel.complete())
-        assertEquals(ProfileInstrument.Daegeum, viewModel.uiState.value.instrument)
+        assertEquals(Instrument.Daegeum, instruments.instrument.value)
+        assertEquals("얼쑤", users.profile.value.nickname)
     }
+
+    private fun profileSetup() = ProfileSetupViewModel(InstrumentRepository(FakeKeyValueStore()), SampleUserRepository())
 
     @Test
     fun accountLinkAsksPasswordOnlyWhenNeeded() {

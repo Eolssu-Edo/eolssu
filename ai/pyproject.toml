@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "얼쑤 연주 평가: 음높이 추정·정렬·채점"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.115",
+    "httpx>=0.28",
     "librosa>=0.11",
     "numpy>=2",
+    "uvicorn>=0.32",
 ]
 
 [dependency-groups]

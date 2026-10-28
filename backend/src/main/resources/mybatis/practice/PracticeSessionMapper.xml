@@ -7,6 +7,25 @@
         WHERE id = #{id}
     </select>
 
+    <select id="findByIdempotencyKey" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionRow">
+        SELECT id, user_id, song_id, mission_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, recording_url, recording_bytes, recording_duration_ms, recording_sample_rate, recording_channels, status, fail_reason, analysis_attempt, analysis_started_at, started_at, ended_at, saved_at, memo, viewed_at, record_deleted_at, created_at
+        FROM practice_sessions
+        WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
+    </select>
+
+    <!-- 세션을 만들 수 있는 곡만: 공개·채점 가능·삭제 안 됨. bpm 단위 기본값은 곡 장단의 값 -->
+    <select id="findPlayableSong" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PlayableSongRow">
+        SELECT s.id, j.bpm_unit, s.note_count, s.score_version
+        FROM songs s
+        JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.is_scorable AND s.deleted_at IS NULL
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO practice_sessions (user_id, song_id, parent_session_id, score_version, bpm, bpm_unit, idempotency_key, request_hash, start_note_idx, end_note_idx, status, started_at)
+        VALUES (#{userId}, #{songId}, #{parentSessionId}, #{scoreVersion}, #{bpm}, #{bpmUnit}, #{idempotencyKey}, #{requestHash}, #{startNoteIdx}, #{endNoteIdx}, 'RECORDING', #{startedAt})
+    </insert>
+
     <update id="failRecordingStartedBefore">
         UPDATE practice_sessions
         SET status = 'FAILED', fail_reason = #{failReason}
@@ -23,4 +42,19 @@
         LEFT JOIN evaluations e ON e.session_id = ps.id
         WHERE ps.id = #{sessionId} AND ps.user_id = #{userId}
     </select>
+
+    <select id="findUploadTarget" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.RecordingUploadTargetRow">
+        SELECT status, fail_reason, started_at
+        FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId}
+    </select>
+
+    <!-- 다른 업로드·만료 배치와 겨루는 조건부 갱신. 분석 시도 시작 시각은 마감 판정과 같은 서버 시계 값(uploadedAt)이다 -->
+    <update id="markRecordingUploaded">
+        UPDATE practice_sessions
+        SET recording_url = #{recordingUrl}, recording_bytes = #{bytes}, recording_duration_ms = #{durationMs},
+            recording_sample_rate = #{sampleRate}, recording_channels = #{channels}, ended_at = #{uploadedAt},
+            status = 'PENDING', analysis_attempt = analysis_attempt + 1, analysis_started_at = #{uploadedAt}
+        WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'RECORDING'
+    </update>
 </mapper>

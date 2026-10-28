@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@Profile("db")
+@Profile("db | ops")
 class SignUpController(private val service: SignUpService, private val cookies: AuthCookies) {
     @PostMapping("/api/auth/sign-up")
     fun signUp(@Valid @RequestBody request: SignUpRequest): ResponseEntity<*> = when (val result = service.signUp(request.toCommand())) {

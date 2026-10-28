@@ -16,10 +16,14 @@ data class PendingAnalysis(
     val recordingUrl: String,
 )
 
-/** 연습 구간의 정답 음표 하나. `idx`는 `songs.score_json` 기준 순번이고 `pitchId`는 `note_results.expected_pitch_id`로 저장한다. */
+/**
+ * 연습 구간의 정답 음표 하나. `idx`는 `songs.score_json`에서 `NOTE`만 센 순번이고 `pitchId`는 `note_results.expected_pitch_id`로 저장한다.
+ * `startBeat`는 곡 처음부터 센 시작 박이다. 쉼은 음표로 보내지 않으므로 AI는 `beats`가 아니라 이 값으로 기대 시각을 정한다.
+ */
 data class ScoreNote(
     val idx: Int,
     val semitone: Int,
+    val startBeat: Double,
     val beats: Double,
     val sigimsae: Boolean,
     val pitchId: Long,
@@ -77,7 +81,7 @@ val DEFAULT_ANALYSIS_TIME_LIMIT: Duration = Duration.ofSeconds(60)
 const val SERVER_ERROR = "SERVER_ERROR"
 const val TIMEOUT = "TIMEOUT"
 
-/** 세션의 곡·연습 구간을 음표로 푼다. `songs.score_json` 형식(공통 악보 데이터)이 정해지면 구현한다. */
+/** 세션의 곡·연습 구간을 음표로 푼다. 풀 수 없으면 예외를 던지고 분석은 `SERVER_ERROR`로 끝난다. */
 fun interface PracticeScoreNotes {
     fun notesFor(analysis: PendingAnalysis): List<ScoreNote>
 }

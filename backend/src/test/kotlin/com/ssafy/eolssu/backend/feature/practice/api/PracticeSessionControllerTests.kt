@@ -1,7 +1,12 @@
 package com.ssafy.eolssu.backend.feature.practice.api
 
+import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSession
 import com.ssafy.eolssu.backend.feature.practice.application.GetPracticeSession
+import com.ssafy.eolssu.backend.feature.practice.application.MemoryPracticeSessionRepository
+import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
+import com.ssafy.eolssu.backend.feature.practice.domain.BpmUnit
 import com.ssafy.eolssu.backend.feature.practice.domain.PracticeSessionDetail
+import com.ssafy.eolssu.backend.feature.practice.domain.PracticeSong
 import com.ssafy.eolssu.backend.feature.practice.domain.PracticeSessionDetails
 import java.time.Clock
 import java.time.Instant
@@ -13,7 +18,9 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -26,9 +33,13 @@ class PracticeSessionControllerTests {
         analysisStartedAt = LocalDateTime.parse("2026-10-22T03:00:49"), savedAt = null, memo = null,
     )
     private val details = PracticeSessionDetails { sessionId, userId -> detail.takeIf { it.sessionId == sessionId && it.userId == userId } }
+    private val sessions = MemoryPracticeSessionRepository().apply { songs[101] = PracticeSong(101, BpmUnit.DOTTED_QUARTER, 72, 1) }
     private val mockMvc = MockMvcBuilders.standaloneSetup(
-        PracticeSessionController(GetPracticeSession(details, { _, _ -> false }, Clock.fixed(Instant.parse("2026-10-22T03:01:00Z"), ZoneOffset.UTC))),
-    ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).build()
+        PracticeSessionController(
+            CreatePracticeSession(sessions, Clock.systemUTC()),
+            GetPracticeSession(details, { _, _ -> false }, Clock.fixed(Instant.parse("2026-10-22T03:01:00Z"), ZoneOffset.UTC)),
+        ),
+    ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
 
     @AfterEach
     fun clearSecurityContext() = SecurityContextHolder.clearContext()
@@ -74,5 +85,26 @@ class PracticeSessionControllerTests {
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.result.errorCode").value("RESOURCE_NOT_FOUND"))
         }
+    }
+
+    @Test
+    fun `create rejects JSON values whose type differs from the spec instead of coercing them`() {
+        signIn("1")
+        val bodies = listOf(
+            """{"songId":"101","bpm":96.7}""", """{"songId":"101","bpm":"96"}""", """{"songId":"101","bpm":2147483648}""",
+            """{"songId":101,"bpm":96}""", """{"songId":"101","bpm":96,"jangdanSoundOn":1}""", """{"songId":"101","bpm":96,"jangdanSoundOn":"true"}""",
+            """{"songId":"101","bpm":96,"bpmUnit":0}""", """{"songId":"101","bpm":96,"bpmUnit":"quarter"}""",
+            """{"songId":"101","bpm":96,"startNoteIdx":"2"}""", """{"songId":"101","bpm":96,"parentSessionId":7}""",
+        )
+        for ((index, body) in bodies.withIndex()) {
+            mockMvc.perform(post("/api/practice-sessions").header("Idempotency-Key", "k$index").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
+        }
+        kotlin.test.assertTrue(sessions.inserted.isEmpty())
+        mockMvc.perform(
+            post("/api/practice-sessions").header("Idempotency-Key", "ok").contentType(MediaType.APPLICATION_JSON)
+                .content("""{"songId":"101","bpm":96,"bpmUnit":"QUARTER","startNoteIdx":0,"jangdanSoundOn":true,"parentSessionId":null}"""),
+        ).andExpect(status().isCreated).andExpect(jsonPath("$.result.bpmUnit").value("QUARTER"))
     }
 }

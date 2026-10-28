@@ -27,7 +27,7 @@ import tools.jackson.databind.annotation.JsonDeserialize
 /** 악보 화면 체류 구간 기록(GRO-04). 계약은 docs/specs/practice-time.md '체류 기록 API'. */
 @RestController
 @RequestMapping("/api/users/me/score-views")
-@Profile("db")
+@Profile("db | ops")
 class ScoreViewController(private val recordScoreView: RecordScoreView) {
     @PostMapping
     fun record(

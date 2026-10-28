@@ -1,24 +1,11 @@
 package com.ssafy.eolssu.feature.home
 
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.data.user.InstrumentRepository
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
-class HomeViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-
-    fun openInstrumentSheet() {
-        _uiState.update { it.copy(isInstrumentSheetOpen = true) }
-    }
-
-    fun dismissInstrumentSheet() {
-        _uiState.update { it.copy(isInstrumentSheetOpen = false) }
-    }
-
-    fun selectInstrument(instrument: Instrument) {
-        _uiState.update { it.copy(selectedInstrument = instrument, isInstrumentSheetOpen = false) }
-    }
+/** HOME-01. 현재 악기는 보여 주기만 하고, 바꾸기는 마이페이지(MY-01)에서 한다. */
+class HomeViewModel(instrumentRepository: InstrumentRepository) : ViewModel() {
+    val instrument: StateFlow<Instrument> = instrumentRepository.instrument
 }
