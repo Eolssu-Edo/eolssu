@@ -25,10 +25,11 @@ sudo docker compose --env-file /opt/eolssu/.env \
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml ps
 curl -i http://127.0.0.1/
-curl -i http://127.0.0.1/api/infra-smoke
+curl -i http://127.0.0.1/api/actuator/health/readiness
+curl -i http://127.0.0.1/api/terms
 ```
 
-프론트 `/`는 200, 아직 등록되지 않은 `/api/infra-smoke`는 백엔드 JSON 404가 정상입니다. Nginx HTML 404나 502와 구분합니다. 배포 변경 후에는 이 응답, Nginx 설정 검사, MySQL health·물리 볼륨을 함께 확인합니다.
+프론트 `/`는 200, readiness는 200과 `{"status":"UP"}`, 공개 업무 API `/api/terms`는 200 JSON이 정상입니다. Nginx HTML 404나 502와 구분합니다. 등록 안 된 `/api/...` 경로는 인증 때문에 401이라 확인 기준으로 쓰지 않습니다. 배포 변경 후에는 이 응답, Nginx 설정 검사, MySQL health·물리 볼륨을 함께 확인합니다.
 
 API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. 단, 점검 주소(`/api/actuator`)는 readiness만 백엔드로 넘기고 나머지는 Nginx가 404로 막습니다. Prometheus 수치(`/api/actuator/prometheus`)는 서버 안에서 `backend:8080`으로만 읽습니다. 저장소의 Nginx 설정 3개(`nginx.conf`, `nginx.tls.conf.template`, `infra/nginx/default.conf`)를 바꿔도 서버의 `/opt/eolssu/config/` 파일은 따로 고쳐야 하므로, 이 규칙은 백엔드 배포보다 먼저 서버에 반영합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호로 업무 API를 제공하고, 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 스키마·물리 볼륨을 변경하지 않습니다. 스키마 변경은 마이그레이션 Task에서 따로 적용합니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
 
@@ -99,7 +100,7 @@ cd infra
 ```sh
 curl -I 'http://k15e102.p.ssafy.io/nested?check=redirect'
 curl -I https://k15e102.p.ssafy.io/
-curl -i https://k15e102.p.ssafy.io/api/infra-smoke
+curl -i https://k15e102.p.ssafy.io/api/actuator/health/readiness
 sudo certbot renew --dry-run
 sudo systemctl status certbot.timer --no-pager
 python3 -B -m unittest discover -s infra/scripts/tests -v
@@ -148,7 +149,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 실행 순서는 Gradle `clean build`·`mediaTest`(edo1 호스트 ffmpeg로 실제 녹음 파일 검사)·JUnit 수집 → Compose/Nginx 검사 → 커밋 revision label을 포함한 이미지 빌드 → JAR 보관 → 후보 실행·백엔드 배포입니다. 이미지에서 추출한 JAR을 `/opt/eolssu/releases/<40자리 SHA>/app.jar`에 보관하고, 실제 `.env`의 `BACKEND_JAR`만 원자적으로 교체합니다. 기존 JRE+읽기 전용 bind mount 구성을 유지합니다. 프론트와 MySQL은 재생성하지 않고 컨테이너 ID·물리 볼륨이 같은지 검사합니다.
 
-후보 이미지는 포트를 공개하지 않는 임시 internal network에서 실행합니다. 운영 DB 비밀값은 전달하지 않습니다. 호스트가 후보 IP의 `/api/infra-smoke`에서 Spring JSON 404를 확인해야 배포합니다. 현재는 별도 readiness API가 없으므로 이 응답이 서버 기동·프록시 검증 기준입니다. 향후 DB 의존성이나 인증이 추가되면 해당 변경에서 전용 readiness 계약과 격리된 검사 환경을 함께 조정해야 합니다.
+후보 이미지는 포트를 공개하지 않는 임시 internal network에서 실행합니다. 운영 DB 비밀값은 전달하지 않습니다. 호스트가 후보 IP의 `/api/actuator/health/liveness`에서 200과 `{"status":"UP"}`를 확인해야 배포합니다(후보는 DB 없이 뜨므로 readiness가 아니라 liveness). 운영 교체 뒤에는 Nginx를 거친 `/api/actuator/health/readiness`가 `UP`이어야 합니다. 예전 기준이던 `/api/infra-smoke`의 404는 인증(`/api/**` 로그인 필요)이 생긴 뒤 401이 되어 배포가 모두 실패했습니다(S15P31E102-229).
 
 배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
 
@@ -217,7 +218,8 @@ python3 -B -m unittest discover -s infra/jenkins/tests -v
 ```sh
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml up -d --no-deps --force-recreate --pull never backend
-curl -i http://127.0.0.1/api/infra-smoke
+curl -i http://127.0.0.1/api/actuator/health/readiness
+curl -i http://127.0.0.1/api/terms
 ```
 
 서버의 관리된 Pipeline·Dockerfile·배포 도구는 MR 병합만으로 자동 덮어쓰지 않습니다. 이 파일 자체를 바꿀 때는 서버 복사본을 별도 검토·설치하고 linter와 배포 검사 후 잡 정의도 갱신합니다. 앱 소스는 매 실행 develop에서 새로 checkout합니다.
