@@ -39,6 +39,13 @@ class WithdrawalPurgeDatabaseTests {
         jdbc.update("INSERT INTO email_verifications (email, purpose, code_hash, attempt_count, expires_at) VALUES ('tést@example.test', 'SIGN_UP', 'code-hash', 0, '2026-10-22 01:02:03')")
         jdbc.update("INSERT INTO users (id, email, password_hash, nickname, instrument_id, status) VALUES (4, 'other@example.test', 'hash', '다른 회원', 1, 'ACTIVE')")
         jdbc.update("INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) VALUES (4, 1, 'other-key', '2026-10-22 01:00:00', '2026-10-22 01:10:00', 600, 600)")
+        // 다른 회원의 세션·평가·채점 결과는 조인 범위가 틀리면 함께 지워진다.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, score_version, bpm, bpm_unit, start_note_idx, end_note_idx, recording_url, status, started_at) " +
+                "VALUES (40, 4, 1, 1, 90, 'DOTTED_QUARTER', 0, 0, 'recordings/40/other.m4a', 'DONE', '2026-10-22 01:00:00')",
+        )
+        jdbc.update("INSERT INTO evaluations (id, session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES (40, 40, 70, 70, 70, 70, 'test-v1')")
+        jdbc.update("INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, verdict) VALUES (40, 0, 2, 'MISSED')")
 
         val deleted = mutableListOf<String>()
         val summary = WithdrawalPurgeService(repository, { deleted += it }, Clock.fixed(now, ZoneOffset.UTC)).purgeDue()
@@ -48,8 +55,10 @@ class WithdrawalPurgeDatabaseTests {
         for (table in listOf("practice_sessions", "score_views", "user_term_agreements", "user_song_settings", "lesson_progress", "refresh_tokens", "user_social_accounts")) {
             assertEquals(0, count("SELECT COUNT(*) FROM $table WHERE user_id = 1"), table)
         }
-        assertEquals(0, count("SELECT COUNT(*) FROM evaluations"))
-        assertEquals(0, count("SELECT COUNT(*) FROM note_results"))
+        assertEquals(listOf(40L), jdbc.queryForList("SELECT id FROM practice_sessions", Long::class.java))
+        assertEquals(listOf(40L), jdbc.queryForList("SELECT id FROM evaluations", Long::class.java))
+        assertEquals(1, count("SELECT COUNT(*) FROM note_results WHERE evaluation_id = 40"))
+        assertEquals(1, count("SELECT COUNT(*) FROM note_results"))
         assertEquals(0, count("SELECT COUNT(*) FROM email_verifications WHERE email = 'test@example.test' COLLATE utf8mb4_bin"))
         assertEquals(1, count("SELECT COUNT(*) FROM email_verifications WHERE email = 'tést@example.test' COLLATE utf8mb4_bin"))
         val row = jdbc.queryForMap("SELECT email, password_hash, nickname, status, deleted_at, withdrawal_requested_at, purge_scheduled_at FROM users WHERE id = 1")
