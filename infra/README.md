@@ -21,7 +21,7 @@ Mattermost 명령 3개와 HTTPS 인증서·중계 서비스·edo1 전용 SSH 수
 
 `/opt/app/infra`에서 실행하는 `./scripts/init-letsencrypt.sh`의 준비·실행·인증서 갱신·복구 방법도 [운영 서버 문서](runtime/README.md#lets-encrypt와-https)를 따릅니다.
 
-운영 MySQL에 읽기 계정으로 붙는 Grafana·Metabase의 계정 준비·실행·SSH 터널 접속은 [모니터링 문서](monitoring/README.md)를 따릅니다.
+운영 MySQL과 백엔드 수치를 읽는 Grafana·Prometheus의 계정 준비·실행·SSH 터널 접속은 [모니터링 문서](monitoring/README.md)를 따릅니다.
 
 현재 구현된 Spring Boot 백엔드를 Nginx 뒤에서 실행하는 구성입니다. 개발·운영은 각각 `eolsu-dev`, `eolsu-prod` Compose 프로젝트이며 DB·AI 서비스는 포함하지 않습니다. Docker Engine과 Compose v2 이상이 필요합니다. 아래 명령은 저장소 루트에서 실행합니다.
 

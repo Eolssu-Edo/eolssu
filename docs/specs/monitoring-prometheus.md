@@ -30,6 +30,7 @@
 
 - 백엔드가 8080에서 `/api/actuator/prometheus`를 Prometheus 형식으로 응답한다. 수치는 Spring 기본만 쓴다(HTTP 요청 응답 시간·상태 코드, JVM 메모리·GC·스레드, DB 연결 풀). 코드에 수치를 따로 넣지 않는다.
 - 백엔드로 넘기는 모든 Nginx 설정에서 `/api/actuator/` 아래는 `/api/actuator/health/readiness`만 통과시키고 나머지는 404를 돌려준다. 대상은 `infra/runtime/nginx.conf`, `infra/runtime/nginx.tls.conf.template`, `infra/nginx/default.conf`다.
+- 경로에 `;`가 든 요청은 모두 404다. Spring은 경로 조각의 `;` 뒤를 떼어 내서 `/api;x/actuator/prometheus`를 actuator로 처리하기 때문이다(보안 리뷰에서 발견).
 
 인터넷에서 보이는 결과:
 
@@ -56,7 +57,9 @@
 ## 완료 조건
 
 - M1: Grafana에서 곡별·악기별 연습 통계를 볼 수 있다. 저장소와 운영 서버에 Metabase 컨테이너·계정·DB가 없다.
-- M2: 인터넷에서 위 표대로 응답한다. 백엔드 테스트가 prometheus 주소의 응답과 다른 점검 주소의 404를 확인한다.
+- M2: 인터넷에서 위 표대로 응답한다. 백엔드 테스트가 prometheus 주소의 응답과 다른 점검 주소의 404를 확인한다. Nginx 테스트가 `;`·인코딩·`../` 우회를 확인한다.
+- 운영 순서: 서버 `/opt/eolssu/config/`의 Nginx에 차단 규칙을 반영한 **뒤에** MR을 병합한다. 병합하면 Jenkins가 백엔드를 바로 배포하고, 서버 Nginx는 저장소 병합으로 바뀌지 않아서 순서가 바뀌면 그 사이 수치 주소가 인터넷에 열린다.
+- 운영 순서: 새 백업 스크립트를 설치하고 백업을 한 번 돌린 **뒤에** `metabase` DB를 지운다. 복원 검사는 가장 최근 백업을 쓰므로, 새 백업 전에 돌면 예전 백업의 `metabase` 항목 때문에 실패로 잘못 보고된다.
 - M3: Grafana에서 API 응답 시간·오류율·JVM 메모리·DB 연결 풀 그래프를 볼 수 있다. Prometheus가 서버 밖에서 접속되지 않는다.
 
 ## 검증
