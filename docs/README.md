@@ -57,6 +57,7 @@
 ## 도메인 조사 기록
 
 - [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
+- [논문·공식 자료와 설계 결정의 근거 표](knowledge/domain/design-evidence-map.md)
 
 ## 데이터 조사·검증 기록
 
@@ -93,6 +94,7 @@
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
+- [S15P31E102-155 단소 기준 데이터 표 작성](plans/S15P31E102-155.md)
 - [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
