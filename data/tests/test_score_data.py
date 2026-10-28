@@ -9,7 +9,7 @@ import jsonschema
 
 DATA = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DATA / "src/scores"))
-from score_data import SCHEMA_PATH, build_events, convert, melody_of, read_units
+from score_data import SCHEMA_PATH, build_events, check, convert, convert_answer, melody_of, read_units
 
 FIXTURES = DATA / "tests/fixtures/jgb"
 # 두 고정 파일의 선율: 1각 = 중 | - - 임 | 쉼, 2각 = 청황< | (빈 정간) | 무
@@ -136,6 +136,50 @@ class ConvertTests(unittest.TestCase):
             broken(result)
             with self.assertRaises(jsonschema.ValidationError):
                 jsonschema.validate(result, self.schema)
+
+
+ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
+YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
+
+
+class AnswerTests(unittest.TestCase):
+    """저장소의 채점 정답 4곡을 실제로 변환해 형식·불변식·계보를 확인한다."""
+
+    def test_answers_pass_schema_and_invariants(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id in ANSWERS:
+            result = convert_answer(source_id)
+            jsonschema.validate(result, schema)
+            self.assertEqual(check(result), [], source_id)
+
+    def test_event_counts_match_an_independent_count_of_the_answer(self):
+        import re
+        for source_id in ANSWERS:
+            jgb = next((DATA / "annotations/scores" / source_id).glob("*.jgb.json"))
+            melody = melody_of(json.loads(jgb.read_text(encoding="utf-8")))
+            kinds = [e["kind"] for e in convert_answer(source_id)["events"]]
+            self.assertEqual(kinds.count("NOTE"), len(re.findall(YUL, melody)), source_id)
+            self.assertEqual(kinds.count("REST"), len(re.findall("쉼", melody)), source_id)
+
+    def test_conversion_is_deterministic(self):
+        for source_id in ANSWERS:
+            first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
+            self.assertEqual(first, second, source_id)
+
+    def test_check_reports_each_broken_invariant(self):
+        broken = {
+            "길이 합": lambda r: r["events"][0].update(durationTick=r["events"][0]["durationTick"] + 1),
+            "이어짐": lambda r: r["events"][1].update(startTick=r["events"][1]["startTick"] + 1),
+            "eventId": lambda r: r["columns"][0]["cells"][0]["units"][0].update(eventId="c9-j9-r0-u0"),
+            "cellId": lambda r: r["events"][0].update(cellId="c9-j9"),
+            "율명": lambda r: r["events"][0].update(yul="협"),
+        }
+        base = convert_answer(ANSWERS[2])
+        for name, breaker in broken.items():
+            result = copy.deepcopy(base)
+            breaker(result)
+            problems = check(result)
+            self.assertTrue(any(name in p for p in problems), (name, problems))
 
 
 if __name__ == "__main__":

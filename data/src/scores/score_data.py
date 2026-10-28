@@ -13,10 +13,13 @@
 """
 from dataclasses import dataclass, replace
 from fractions import Fraction
+import hashlib
+import json
 import math
 from pathlib import Path
 import re
 
+DATA = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = Path(__file__).with_name("score_data.schema.json")
 SCHEMA_VERSION = 1
 CONVERTER = "score_data@1"  # 변환 규칙을 바꾸면 올린다
@@ -136,6 +139,49 @@ def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, b
                     "sigimsae": list(e.sigimsae)} for e in events],
         "provenance": {"sourceId": source_id, "jgbSha256": jgb_sha256, "review": review, "converter": CONVERTER},
     }
+
+
+def convert_answer(source_id, data=DATA):
+    """저장소의 채점 정답 하나를 변환한다. 정간당 박·검수 상태는 정답 검토 기록에서,
+    곡 제목·악기·장단은 data/reference의 기준 데이터에서 읽는다."""
+    folder = data / "annotations/scores" / source_id
+    (jgb,) = folder.glob("*.jgb.json")
+    (review_path,) = folder.glob("*.review.json")
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    (song,) = [s for s in _rows(data, "songs.json") if s["source"] == source_id]
+    (jangdan,) = [j for j in _rows(data, "jangdans.json") if j["name"] == song["jangdan"]]
+    return convert(json.loads(jgb.read_text(encoding="utf-8")),
+                   beats_per_jeonggan=Fraction(review["sourceValues"]["beatsPerJeonggan"]),
+                   title=song["title"], instrument=song["instrument"], source_id=source_id,
+                   jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review=review["review"],
+                   jgb_sha256=hashlib.sha256(jgb.read_bytes()).hexdigest())
+
+
+def check(result, data=DATA):
+    """스키마가 못 보는 불변식을 검사해 어긋난 것을 문장 목록으로 돌려준다. 빈 목록이면 통과다."""
+    problems = []
+    cells = [c for column in result["columns"] for c in column["cells"]]
+    events = result["events"]
+    expected = len(cells) * result["music"]["ticksPerJeonggan"]
+    total = sum(e["durationTick"] for e in events)
+    if total != expected:
+        problems.append(f"길이 합 {total}틱 ≠ 정간 {len(cells)} × {result['music']['ticksPerJeonggan']}틱")
+    ends = [0] + [e["startTick"] + e["durationTick"] for e in events]
+    for e, end in zip(events, ends):
+        if e["startTick"] != end:
+            problems.append(f"이어짐: {e['id']} 시작 {e['startTick']} ≠ 앞 이벤트 끝 {end}")
+    event_ids, cell_ids = {e["id"] for e in events}, {c["id"] for c in cells}
+    problems += [f"eventId {u['eventId']}가 events에 없다 ({c['id']})"
+                 for c in cells for u in c["units"] if u["eventId"] not in event_ids]
+    problems += [f"cellId {e['cellId']}가 cells에 없다 ({e['id']})" for e in events if e["cellId"] not in cell_ids]
+    pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")}
+    problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
+                 for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
+    return problems
+
+
+def _rows(data, name):
+    return json.loads((data / "reference" / name).read_text(encoding="utf-8"))["rows"]
 
 
 def _parse_word(word, cell_id):
