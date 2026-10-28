@@ -5,6 +5,10 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoService
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoWithProviders
+import com.ssafy.eolssu.backend.feature.user.domain.MyInfo
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import java.time.Instant
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
@@ -12,6 +16,8 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -24,6 +30,12 @@ class MyInfoController(private val service: MyInfoService) {
     fun find(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<*> {
         val found = service.find(jwt.userId()) ?: return notFound()
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "내 정보·학습 설정 조회 성공", MyInfoResult(found)))
+    }
+
+    @PatchMapping
+    fun changeNickname(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: NicknameRequest): ResponseEntity<*> {
+        val changed = service.changeNickname(jwt.userId(), request.nickname) ?: return notFound()
+        return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "회원정보 수정 성공", MyProfileResult(changed)))
     }
 
     private fun notFound() = ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
@@ -42,6 +54,13 @@ data class MyInfoResult(
         found.info.userId.toString(), found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
         found.linkedProviders.map { LinkedProviderResult(it.provider, it.linkedAt) },
     )
+}
+
+/** 닉네임은 가입(AUTH-02)과 같은 규칙이다. */
+class NicknameRequest(@field:NotBlank @field:Size(max = 60) val nickname: String)
+
+data class MyProfileResult(val userId: String, val nickname: String, val instrumentId: String, val notationMode: String) {
+    constructor(info: MyInfo) : this(info.userId.toString(), info.nickname, info.instrumentId.toString(), info.notationMode)
 }
 
 data class LinkedProviderResult(val provider: String, val linkedAt: Instant)

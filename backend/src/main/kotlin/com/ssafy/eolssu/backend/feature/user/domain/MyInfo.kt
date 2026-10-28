@@ -12,4 +12,6 @@ interface MyInfoRepository {
     /** ACTIVE 회원만 찾는다. */
     fun findActive(userId: Long): MyInfo?
     fun linkedProviders(userId: Long): List<LinkedProvider>
+    /** ACTIVE 회원의 닉네임을 바꾼다. 바꿨으면 true. */
+    fun updateNickname(userId: Long, nickname: String): Boolean
 }

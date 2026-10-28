@@ -89,6 +89,20 @@ class MyInfoApiDatabaseTests {
         assertError(get("/api/users/me", access), 404, "RESOURCE_NOT_FOUND")
     }
 
+    @Test
+    fun `nickname is saved and setting the same nickname again still succeeds`() {
+        val access = signIn()
+        val changed = patch("/api/users/me", access, """{"nickname":"새 닉네임"}""")
+        assertEquals(200, changed.statusCode(), changed.body())
+        assertEquals("새 닉네임", tree(changed).path("result").path("nickname").asString())
+        assertEquals("새 닉네임", jdbc.queryForObject("SELECT nickname FROM users WHERE id = ?", String::class.java, userId))
+        assertEquals(200, patch("/api/users/me", access, """{"nickname":"새 닉네임"}""").statusCode())
+        assertError(patch("/api/users/me", access, """{"nickname":""}"""), 400, "INVALID_REQUEST")
+        jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
+        assertError(patch("/api/users/me", access, """{"nickname":"다른 이름"}"""), 404, "RESOURCE_NOT_FOUND")
+        assertEquals("새 닉네임", jdbc.queryForObject("SELECT nickname FROM users WHERE id = ?", String::class.java, userId))
+    }
+
     private fun signIn(): String {
         val response = client.send(
             HttpRequest.newBuilder(URI("http://localhost:$port/api/auth/sign-in")).header("Content-Type", "application/json")
@@ -104,6 +118,12 @@ class MyInfoApiDatabaseTests {
         cookie?.let { builder.header("Cookie", it) }
         return client.send(builder.GET().build(), HttpResponse.BodyHandlers.ofString())
     }
+    private fun patch(path: String, cookie: String, body: String): HttpResponse<String> = client.send(
+        HttpRequest.newBuilder(URI("http://localhost:$port$path")).timeout(Duration.ofSeconds(15))
+            .header("Content-Type", "application/json").header("Accept", "application/json").header("Cookie", cookie)
+            .method("PATCH", HttpRequest.BodyPublishers.ofString(body)).build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
     private fun tree(response: HttpResponse<String>): JsonNode = json.readTree(response.body())
     private fun assertError(response: HttpResponse<String>, status: Int, code: String) {
         assertEquals(status, response.statusCode(), response.body())

@@ -10,6 +10,9 @@
         INSERT INTO users (email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at)
         VALUES (#{email}, #{passwordHash}, #{nickname}, #{instrumentId}, #{notationMode}, 'ACTIVE', #{createdAt}, #{createdAt})
     </insert>
+    <update id="updateNickname">
+        UPDATE users SET nickname = #{nickname} WHERE id = #{id} AND status = 'ACTIVE'
+    </update>
     <!-- users.email 콜레이션(utf8mb4_0900_ai_ci)의 정렬 키. 이 콜레이션이 같다고 보는 이메일은 같은 값이다. -->
     <select id="emailSortKey" resultType="string">
         SELECT HEX(WEIGHT_STRING(CONVERT(#{email} USING utf8mb4) COLLATE utf8mb4_0900_ai_ci))

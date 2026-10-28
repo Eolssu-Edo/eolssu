@@ -13,4 +13,6 @@ class MyBatisMyInfoRepository(private val users: UserMapper, private val socialA
 
     override fun linkedProviders(userId: Long) =
         socialAccounts.findByUserId(userId).map { LinkedProvider(it.provider, it.createdAt.toInstant(ZoneOffset.UTC)) }
+
+    override fun updateNickname(userId: Long, nickname: String) = users.updateNickname(userId, nickname) == 1
 }
