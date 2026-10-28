@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.auth.component
+package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,24 +34,23 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 
 /** 입력칸 종류. 키보드와 가림 표시가 달라진다. */
-enum class AuthFieldType { Text, Email, Password, Number }
+enum class TextFieldType { Text, Email, Password, Number }
 
 /**
  * 이름표가 붙은 입력칸(`.au-field`): 이름표 13sp · 칸 높이 48dp · 아래 도움말 또는 오류.
  * [error]가 있으면 테두리를 굵은 검정으로 바꾸고 도움말 대신 오류를 보인다. [trailing]은 칸 오른쪽 끝 글자(인증번호 남은 시간)다.
- * 지금은 로그인·가입에서만 쓰므로 이 기능에 둔다. 다른 기능이 같은 칸을 쓰면 `core/ui/component`로 옮긴다.
+ * 로그인·가입과 마이페이지가 함께 쓴다.
  */
 @Composable
-fun AuthTextField(
+fun EolssuTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
     placeholder: String,
     modifier: Modifier = Modifier,
-    type: AuthFieldType = AuthFieldType.Text,
+    type: TextFieldType = TextFieldType.Text,
     help: String? = null,
     error: String? = null,
     imeAction: ImeAction = ImeAction.Next,
@@ -69,15 +68,15 @@ fun AuthTextField(
             singleLine = true,
             textStyle = textStyle,
             cursorBrush = SolidColor(colors.text),
-            visualTransformation = if (type == AuthFieldType.Password) PasswordVisualTransformation() else VisualTransformation.None,
+            visualTransformation = if (type == TextFieldType.Password) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
                 keyboardType = when (type) {
-                    AuthFieldType.Text -> KeyboardType.Text
-                    AuthFieldType.Email -> KeyboardType.Email
-                    AuthFieldType.Password -> KeyboardType.Password
-                    AuthFieldType.Number -> KeyboardType.NumberPassword
+                    TextFieldType.Text -> KeyboardType.Text
+                    TextFieldType.Email -> KeyboardType.Email
+                    TextFieldType.Password -> KeyboardType.Password
+                    TextFieldType.Number -> KeyboardType.NumberPassword
                 },
-                autoCorrectEnabled = type == AuthFieldType.Text,
+                autoCorrectEnabled = type == TextFieldType.Text,
                 imeAction = imeAction,
             ),
             keyboardActions = KeyboardActions(onAny = {

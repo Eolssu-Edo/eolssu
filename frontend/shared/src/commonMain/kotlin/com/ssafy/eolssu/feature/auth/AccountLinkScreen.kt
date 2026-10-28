@@ -24,17 +24,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
-import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthLead
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -84,12 +85,12 @@ fun AccountLinkScreen(
             AccountCard(provider, email)
             if (needsPassword) {
                 Column {
-                    AuthTextField(
+                    EolssuTextField(
                         value = state.password,
                         onValueChange = onPasswordChange,
                         label = stringResource(Res.string.auth_link_password),
                         placeholder = stringResource(Res.string.auth_password_placeholder),
-                        type = AuthFieldType.Password,
+                        type = TextFieldType.Password,
                         help = stringResource(Res.string.auth_link_password_help),
                         error = state.passwordError?.let { stringResource(it.message) },
                         imeAction = ImeAction.Done,

@@ -28,12 +28,12 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
 import com.ssafy.eolssu.feature.auth.component.AuthStepProgress
-import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
@@ -85,21 +85,21 @@ fun PasswordSetupScreen(
             AuthHeading(stringResource(if (signUp) Res.string.auth_signup_password_heading else Res.string.auth_reset_password_heading))
             VerifiedEmail(email)
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AuthTextField(
+                EolssuTextField(
                     value = state.password,
                     onValueChange = onPasswordChange,
                     label = stringResource(if (signUp) Res.string.auth_password else Res.string.auth_new_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
-                    type = AuthFieldType.Password,
+                    type = TextFieldType.Password,
                     help = stringResource(Res.string.auth_password_help),
                     error = state.passwordError?.let { stringResource(it.message) },
                 )
-                AuthTextField(
+                EolssuTextField(
                     value = state.passwordConfirm,
                     onValueChange = onPasswordConfirmChange,
                     label = stringResource(Res.string.auth_password_confirm),
                     placeholder = stringResource(Res.string.auth_password_confirm_placeholder),
-                    type = AuthFieldType.Password,
+                    type = TextFieldType.Password,
                     error = state.passwordConfirmError?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onSubmit,

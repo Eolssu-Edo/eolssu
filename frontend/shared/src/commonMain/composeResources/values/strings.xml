@@ -8,7 +8,6 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_change_instrument">현재 악기 %1$s, 바꾸기</string>
     <string name="home_hero_title">내 연주,\n얼마나 정확할까?</string>
     <string name="home_hero_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
@@ -18,9 +17,6 @@
     <string name="home_feature_reading">정간보 쉽게 읽기</string>
     <string name="home_feature_learn">기초부터 배우기</string>
 
-    <string name="instrument_sheet_title">악기 선택</string>
-    <string name="instrument_sheet_subtitle">연습·운지법·평가에 쓸 악기예요</string>
-    <string name="instrument_sheet_current">현재 악기</string>
 
     <string name="score_column_start">시작</string>
     <string name="score_hold">지속 표시</string>
@@ -475,7 +471,7 @@
     <string name="auth_nickname_placeholder">닉네임</string>
     <string name="auth_nickname_help">[닉네임 규칙 안내]</string>
     <string name="auth_instrument">악기</string>
-    <string name="auth_instrument_help">홈에서 언제든 바꿀 수 있어요.</string>
+    <string name="auth_instrument_help">마이페이지에서 언제든 바꿀 수 있어요.</string>
     <string name="auth_signup_done">가입 완료</string>
     <string name="auth_welcome">가입을 마쳤어요. 얼쑤에 오신 걸 환영해요.</string>
     <string name="auth_error_login_failed">이메일 또는 비밀번호가 맞지 않아요.</string>
@@ -622,4 +618,60 @@
     <!-- 첫 실행·로그인·회원가입 태블릿 가로 브랜드 칸 (S15P31E102-163) -->
     <string name="auth_brand_headline">내 연주,\n얼마나 정확할까?</string>
     <string name="auth_brand_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
+    <!-- 마이페이지(MY-01~05) -->
+    <string name="common_cancel">취소</string>
+    <string name="home_my_page">마이페이지</string>
+    <string name="my_title">마이페이지</string>
+    <string name="my_nickname_edit">닉네임 수정</string>
+    <string name="my_nickname">닉네임</string>
+    <string name="my_nickname_help">[닉네임 규칙 안내]</string>
+    <string name="my_nickname_changed">닉네임을 바꿨어요.</string>
+    <string name="my_save">저장</string>
+    <string name="my_instrument">연습 악기</string>
+    <string name="my_instrument_help">홈과 연습·평가 화면이 고른 악기로 바뀌어요.</string>
+    <string name="my_instrument_changed">연습 악기를 바꿨어요.</string>
+    <string name="my_social">간편 로그인</string>
+    <string name="my_social_help">이메일·비밀번호 로그인은 항상 남아 있어서 연결을 해제해도 로그인할 수 있어요.</string>
+    <string name="my_linked">연결됨</string>
+    <string name="my_not_linked">연결 안 됨</string>
+    <string name="my_link">연결</string>
+    <string name="my_unlink">해제</string>
+    <string name="my_unlink_confirm_title">%1$s 연결을 해제할까요?</string>
+    <string name="my_unlink_confirm_message">다음부터 %1$s로 로그인할 수 없어요. 이메일과 비밀번호로는 계속 로그인할 수 있어요.</string>
+    <string name="my_unlink_confirm">해제하기</string>
+    <string name="my_unlinked">%1$s 연결을 해제했어요.</string>
+    <string name="my_account">계정</string>
+    <string name="my_password_change">비밀번호 변경</string>
+    <string name="my_password_current">현재 비밀번호</string>
+    <string name="my_password_new">새 비밀번호</string>
+    <string name="my_password_confirm">새 비밀번호 확인</string>
+    <string name="my_password_confirm_placeholder">새 비밀번호를 한 번 더 입력</string>
+    <string name="my_password_help">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
+    <string name="my_password_change_done">비밀번호 바꾸기</string>
+    <string name="my_password_changed">비밀번호를 바꿨어요.</string>
+    <string name="my_logout">로그아웃</string>
+    <string name="my_logout_confirm_title">로그아웃할까요?</string>
+    <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>
+    <string name="my_logged_out">로그아웃했어요.</string>
+    <string name="my_withdraw">회원 탈퇴</string>
+    <string name="my_withdraw_heading">탈퇴하기 전에\n확인해 주세요</string>
+    <string name="my_withdraw_notice_1">탈퇴를 신청하면 바로 로그아웃돼요.</string>
+    <string name="my_withdraw_notice_2">30일이 지나면 계정과 연습 기록이 삭제돼요.</string>
+    <string name="my_withdraw_notice_3">30일 안에 다시 로그인하면 탈퇴가 취소돼요.</string>
+    <string name="my_withdraw_password_help">본인인지 확인하려고 비밀번호를 한 번 더 입력해요.</string>
+    <string name="my_withdraw_done">탈퇴하기</string>
+    <string name="my_withdrawn">탈퇴를 신청했어요. 30일 안에 로그인하면 취소돼요.</string>
+    <string name="my_link_title">%1$s 계정 연결</string>
+    <string name="my_link_placeholder_title">[%1$s 로그인·동의 화면]</string>
+    <string name="my_link_placeholder_body">연결할 계정 선택과 정보 제공 동의는\n제공자 화면에서 진행돼요.</string>
+    <string name="my_link_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>
+    <string name="my_link_result_done">연결했어요 · 마이페이지로</string>
+    <string name="my_link_result_taken">다른 얼쑤 계정에 연결된 계정이에요</string>
+    <string name="my_link_taken_title">다른 계정에 연결된 %1$s 계정이에요</string>
+    <string name="my_link_taken_message">이 %1$s 계정은 이미 다른 얼쑤 계정에 연결돼 있어요. 그 계정에서 연결을 해제한 뒤 다시 시도해 주세요.</string>
+    <string name="my_error_nickname_empty">닉네임을 입력해 주세요.</string>
+    <string name="my_error_password_empty">비밀번호를 입력해 주세요.</string>
+    <string name="my_error_password_wrong">비밀번호가 맞지 않아요.</string>
+    <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
+    <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
 </resources>
