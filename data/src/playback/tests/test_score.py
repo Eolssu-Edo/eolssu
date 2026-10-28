@@ -6,6 +6,27 @@ from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_piecewise_pitch_curves_require_ordered_bounded_complete_points(self):
+        curves = [
+            {"points": []}, {"points": [[0, 0], [0, -100], [1, 0]]},
+            {"points": [[.1, 0], [1, -100]]}, {"points": [[0, 0], [.9, -100]]},
+            {"points": [[0, 0], [1, -1201]]}, {"points": [[0, 0], [1, float("nan")]]},
+            {"points": [[0, 0], [1, -100]], "end_cents": -100},
+            {"points": [[0, 100], [1, 0]], "delay_seconds": .1},
+            {"points": [[0, 0], [1, -100]], "delay_seconds": 1},
+        ]
+        for curve in curves:
+            with self.subTest(curve=curve), self.assertRaises(ValueError):
+                compile_score(score([{"id": "a", "pitch": 75, "duration": 1, "pitch_curve": curve}]), "danso")
+
+    def test_explicit_wide_yoseong_and_curve_survive_compilation(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2,
+                        "yoseong": {"mode": "pitch", "hz": 3, "cents": 300},
+                        "pitch_curve": {"points": [[0, 0], [.5, -300], [1, 0]]}}])
+        event = compile_score(value, "danso")["events"][0]
+        self.assertEqual(event["yoseong"]["cents"], 300)
+        self.assertEqual(event["pitch_curve"]["points"], [[0, 0], [.5, -300], [1, 0]])
+
     def test_tempo_checks_encoded_midi_limit_instead_of_musical_band(self):
         for bpm in (9.5, 405, 4800, 60_000_000 / MIDI_TEMPO_MAX):
             with self.subTest(bpm=bpm):

@@ -12,6 +12,88 @@ from data.src.playback.tests._helpers import score, wire
 
 
 class MidiTests(unittest.TestCase):
+    def test_wide_and_piecewise_curves_roundtrip_with_automatic_rpn_range(self):
+        source = score([{"id": "a", "pitch": 75, "duration": 2,
+                         "yoseong": {"mode": "pitch", "cents": 0},
+                         "pitch_curve": {"points": [[0, 0], [.5, -300], [1, 0]]}}])
+        _, result = wire(source)
+        self.assertEqual(result["pitch_bend_range_cents"], 300)
+        def at(second):
+            time, cents = min(result["bends"], key=lambda pair: abs(pair[0]-second))
+            self.assertAlmostEqual(time, second)
+            return cents
+        self.assertAlmostEqual(at(1), -300, delta=.05)
+        self.assertAlmostEqual(at(.5), -150, delta=.05)
+        self.assertAlmostEqual(at(1.5), -150, delta=.05)
+        self.assertAlmostEqual(at(2), 0, delta=.05)
+        source["notes"][0]["pitch_curve"] = {"points": [[0, 0], [1, 300]]}
+        _, result = wire(source)
+        self.assertAlmostEqual(max(v for _, v in result["bends"]), 300, delta=.05)
+
+    def test_delayed_piecewise_curve_keeps_held_prefix_at_original_pitch(self):
+        source = score([{"id": "a", "pitch": 75, "duration": 2,
+                         "yoseong": {"mode": "pitch", "cents": 0},
+                         "pitch_curve": {"points": [[0, 0], [.5, -300], [1, 0]], "delay_seconds": 1}}])
+        _, result = wire(source)
+        self.assertTrue(all(v == 0 for t, v in result["bends"] if t <= 1))
+        time, cents = min(result["bends"], key=lambda pair: abs(pair[0]-1.5))
+        self.assertAlmostEqual(time, 1.5)
+        self.assertAlmostEqual(cents, -300, delta=.05)
+
+    def test_explicit_deep_yoseong_and_combined_controls_do_not_clip(self):
+        source = score([{"id": "a", "pitch": 75, "duration": 2,
+                         "yoseong": {"mode": "pitch", "hz": 3, "cents": 300, "delay_seconds": 0}}])
+        _, result = wire(source)
+        self.assertEqual(result["pitch_bend_range_cents"], 300)
+        values = [v for _, v in result["bends"]]
+        self.assertAlmostEqual(max(values), 300, delta=.2)
+        self.assertAlmostEqual(min(values), -300, delta=.2)
+        source["context"]["tuning_a_hz"] = 450
+        source["notes"][0]["pitch_curve"] = {"points": [[0, 0], [1, -300]]}
+        _, result = wire(source)
+        self.assertEqual(result["pitch_bend_range_cents"], 600)
+        source["notes"][0]["yoseong"]["cents"] = 1200
+        with self.assertRaisesRegex(ValueError, "Combined pitch controls"):
+            wire(source)
+
+    def test_rpn_fractional_cents_are_decoded_and_malformed_order_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)/"test.mid"
+            write_midi(compile_score(score(), "danso"), path)
+            original = mido.MidiFile(path)
+            ordered = [(m.control, m.value) for m in original.tracks[0]
+                       if m.type == "control_change" and m.control in (101, 100, 6, 38)]
+            self.assertEqual(ordered, [(101, 0), (100, 0), (6, 2), (38, 0), (101, 127), (100, 127)])
+            baseline = read_midi(path)
+            changed = deepcopy(original)
+            for msg in changed.tracks[0]:
+                if msg.type == "control_change" and msg.control == 6:
+                    msg.value = 3
+                if msg.type == "control_change" and msg.control == 38:
+                    msg.value = 50
+            changed.save(path)
+            decoded = read_midi(path)
+            self.assertEqual(decoded["pitch_bend_range_cents"], 350)
+            for (t, cents), (original_t, original_cents) in zip(decoded["bends"], baseline["bends"]):
+                self.assertEqual(t, original_t)
+                self.assertAlmostEqual(cents, original_cents*350/200)
+            for mode in ("order", "wide", "cents", "early-note"):
+                changed = deepcopy(original)
+                indices = [i for i, m in enumerate(changed.tracks[0])
+                           if m.type == "control_change" and m.control in (101, 100, 6, 38)]
+                if mode == "order":
+                    a, b = indices[:2]
+                    changed.tracks[0][a], changed.tracks[0][b] = changed.tracks[0][b], changed.tracks[0][a]
+                elif mode == "wide":
+                    changed.tracks[0][indices[2]].value = 13
+                elif mode == "cents":
+                    changed.tracks[0][indices[3]].value = 100
+                else:
+                    changed.tracks[0].insert(0, mido.Message("note_on", note=75, velocity=90))
+                changed.save(path)
+                with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, "RPN"):
+                    read_midi(path)
+
     def test_unsupported_midi_cc_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"test.mid"

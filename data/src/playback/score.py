@@ -44,6 +44,46 @@ def reject_unknown(obj, allowed, label):
     require(not (obj.keys() - set(allowed)), f"{label}: unsupported fields {obj.keys() - set(allowed)}")
 
 
+def validate_pitch_curve(curve):
+    """Normalize either a legacy tail bend or explicit piecewise linear points."""
+    reject_unknown(curve, ["end_cents", "tail_fraction", "maximum_seconds", "delay_seconds", "points"], "pitch_curve")
+    delay = finite(curve.get("delay_seconds", 0), "curve delay_seconds", 0, math.inf)
+    if "points" in curve:
+        require(not (curve.keys() & {"end_cents", "tail_fraction", "maximum_seconds"}),
+                "pitch_curve points cannot be combined with legacy tail fields")
+        points = curve["points"]
+        require(isinstance(points, list) and 2 <= len(points) <= 128,
+                "pitch_curve points needs 2..128 [fraction, cents] pairs")
+        normalized = []
+        for point in points:
+            require(isinstance(point, list) and len(point) == 2,
+                    "pitch_curve point must be [fraction, cents]")
+            x = finite(point[0], "curve point fraction", 0, 1)
+            y = finite(point[1], "curve point cents", -1200, 1200)
+            require(not normalized or x > normalized[-1][0], "pitch_curve fractions must increase strictly")
+            normalized.append([x, y])
+        require(normalized[0][0] == 0 and normalized[-1][0] == 1,
+                "pitch_curve points must include fractions 0 and 1")
+        # Before a delayed effect the note remains at its current pitch.
+        require(not delay or normalized[0][1] == 0,
+                "delayed pitch_curve must start at zero cents")
+        return {"points": normalized, "delay_seconds": delay}
+    return {"end_cents": finite(curve.get("end_cents"), "curve end_cents", -1200, 1200),
+            "tail_fraction": finite(curve.get("tail_fraction"), "curve tail_fraction", .01, 1),
+            "maximum_seconds": finite(curve.get("maximum_seconds"), "curve maximum_seconds", .005, 1),
+            "delay_seconds": delay}
+
+
+def validate_yoseong(yoseong, default_mode=None):
+    reject_unknown(yoseong, ["mode", "hz", "cents", "depth", "delay_seconds"], "yoseong")
+    mode = yoseong.get("mode", default_mode)
+    require(mode in ("amplitude", "pitch", "mixed"), "choose yoseong mode from source context")
+    return {"mode": mode, "hz": finite(yoseong.get("hz", 4), "yoseong hz", .1, 10),
+            "cents": finite(yoseong.get("cents", 25), "yoseong cents", 0, 1200),
+            "depth": finite(yoseong.get("depth", .08), "yoseong depth", 0, .5),
+            "delay_seconds": finite(yoseong.get("delay_seconds", .25), "yoseong delay", 0, math.inf)}
+
+
 def resolve_pitch(value, context):
     mode = context["pitch_mode"]
     if mode == "yul":
@@ -155,22 +195,13 @@ def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
             finite(v, "expression", 0, 127)
         yoseong = n.get("yoseong")
         if yoseong is not None:
-            reject_unknown(yoseong, ["mode", "hz", "cents", "depth", "delay_seconds"], "yoseong")
+            require(isinstance(yoseong, dict), "yoseong: expected object")
             require("정악" in c["style"] or "mode" in yoseong, "Yoseong outside jeongak requires explicit mode")
-            mode = yoseong.get("mode", profile["yoseong_mode"])
-            require(mode in ("amplitude", "pitch", "mixed"), f"{nid}: choose yoseong mode from source context")
-            yoseong = {"mode": mode, "hz": finite(yoseong.get("hz", 4), "yoseong hz", .1, 10),
-                       "cents": finite(yoseong.get("cents", 25), "yoseong cents", 0, 100),
-                       "depth": finite(yoseong.get("depth", .08), "yoseong depth", 0, .5),
-                       "delay_seconds": finite(yoseong.get("delay_seconds", .25), "yoseong delay", 0, 20)}
+            yoseong = validate_yoseong(yoseong, profile["yoseong_mode"])
             warnings.append(f"{nid}: 요성 수치는 청취용 설정값이며 전문가 검증 전입니다.")
         curve = n.get("pitch_curve")
         if curve is not None:
-            reject_unknown(curve, ["end_cents", "tail_fraction", "maximum_seconds", "delay_seconds"], "pitch_curve")
-            curve = {"end_cents": finite(curve.get("end_cents"), "curve end_cents", -150, 150),
-                     "tail_fraction": finite(curve.get("tail_fraction"), "curve tail_fraction", .01, 1),
-                     "maximum_seconds": finite(curve.get("maximum_seconds"), "curve maximum_seconds", .005, 1),
-                     "delay_seconds": finite(curve.get("delay_seconds", 0), "curve delay_seconds", 0, 600)}
+            curve = validate_pitch_curve(curve)
             require(curve["delay_seconds"] < (end - start) * tempo / 1_000_000 / PPQN,
                     f"{nid}: pitch curve starts after sounding note")
             require(not (curve["delay_seconds"] and "ornament" in n),
