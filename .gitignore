@@ -11,3 +11,8 @@ blog-build/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local TIL importer transient files (keep .til-imports.json with imported posts)
+/.til-import.lock
+/.til-imports.json.tmp
+__pycache__/

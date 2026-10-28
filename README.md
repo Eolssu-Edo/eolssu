@@ -13,6 +13,12 @@ Hugo로 만든 프로젝트 소개·기술 블로그·팀 소개 사이트예요
 - 글 이미지는 GitHub `team-edo/blog-images`에 따로 둬요 (아래 [이미지](#이미지)).
 - Jenkins는 서버 안(loopback)에서만 접속을 받아서 GitLab webhook 대신 SCM polling으로 변경을 감지해요.
 
+## 팀원이 블로그를 사용하는 방식
+
+**coco-blog 실행 → 로컬 TIL 목록에서 하나 또는 여러 글감 선택 → 대화로 정리 → 공개용 draft 작성 → 요청한 Git 반영 → 작성자의 draft 해제 → blog 병합 후 자동 게시** 흐름입니다. 원본 TIL과 대화는 Git에 올리지 않습니다. 요청은 저장소를 연결한 Codex 채팅에 직접 전달하며, GitLab 댓글·메신저를 감지하는 자동 작성 봇은 없습니다.
+
+누가 어디에서 무엇을 하는지, TIL 머리말과 요청 문구, 검토·commit·push·MR·게시 확인 절차는 [블로그 사용 방식](docs/blog-workflow.md)을 따라 주세요. 개발 브랜치에서 실행하면 스킬이 `origin/blog` 기반의 별도 worktree·글 작업 브랜치를 준비합니다. Git 반영 시 선택한 공개 Markdown만 올리고, 로컬 TIL과 앱 변경은 포함하지 않습니다. 공개 글 MR의 대상은 `blog`입니다. GitLab MR의 Draft 표시와 Hugo의 `draft`는 별개입니다.
+
 ## 글 쓰기
 
 1. `blog` 브랜치에서 글 브랜치를 만들어요. **develop에서 만들지 않아요.**
@@ -43,6 +49,16 @@ draft: false              # true면 배포되지 않아요
 ```
 
 - `date`는 **오늘이나 지난 날짜**로 써요. 미래 날짜 글은 Hugo가 건너뛰어서, 머지해도 그 날짜가 지난 뒤 다음 배포 때까지 안 보여요.
+
+## 블로그 글감과 게시 기준
+
+후보는 넓게 모으고, 게시 전에는 직접 한 일·선택한 이유·결과의 근거를 확인합니다. 성과·설계·문제 예방·자동화도 글감이며, 숫자는 여러 근거 중 하나입니다. 구체적인 기준은 [Team Edo 블로그 작성 기준](docs/blog-editorial-guidelines.md)을 따릅니다.
+
+## 기존 develop TIL 가져오기 (호환 기능)
+
+`blog.candidate: true`로 표시한 TIL만 목록에서 선택해 `draft: true` 초안으로 가져올 수 있습니다. 원본은 develop에 유지하며 중복 생성과 편집한 글 덮어쓰기를 막습니다. 도구는 커밋·push·MR 생성·게시를 하지 않습니다.
+
+설치·TIL 표시 예시·가져오기·갱신·검토 절차는 [TIL 가져오기 안내](docs/til-import.md)를 따릅니다.
 
 ## 이미지
 
