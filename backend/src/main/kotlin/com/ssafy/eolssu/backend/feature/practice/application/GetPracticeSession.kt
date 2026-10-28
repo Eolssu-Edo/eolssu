@@ -25,6 +25,10 @@ class GetPracticeSession(
         val detail = details.findOwned(sessionId, userId) ?: return null
         if (detail.status != "PENDING") return detail
         val startedAfter = LocalDateTime.ofInstant(clock.instant().minus(timeLimit), ZoneOffset.UTC)
+        // 2초마다 오는 조회마다 쓰기를 보내지 않도록, 읽은 시작 시각이 마감 전이거나 시작 전이면 갱신을 건너뛴다.
+        // 마감을 넘겼을 때의 최종 판정은 DB의 조건부 갱신이 한다.
+        val analysisStartedAt = detail.analysisStartedAt ?: return detail
+        if (!analysisStartedAt.isBefore(startedAfter)) return detail
         if (!expireOverdue(sessionId, startedAfter)) return detail
         // 분석 흐름의 시간 초과 기록과 같은 문구로 남겨 시간 초과 횟수를 함께 센다.
         log.info("Analysis timed out session={}", sessionId)

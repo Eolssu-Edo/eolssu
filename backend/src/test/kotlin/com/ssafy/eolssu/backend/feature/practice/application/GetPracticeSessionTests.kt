@@ -41,12 +41,20 @@ class GetPracticeSessionTests {
     private fun service(store: Store) = GetPracticeSession(store, store::expireOverdue, clock, Duration.ofSeconds(60))
 
     @Test
-    fun `returns the owner's pending session within the time limit unchanged`() {
+    fun `returns the owner's pending session within the time limit without writing`() {
+        // 앱이 2초마다 부르므로 마감 전에는 시간 초과 갱신을 보내지 않는다.
         val store = Store(base)
         val detail = service(store).execute(userId = 1, sessionId = 501)
         assertEquals("PENDING", detail?.status)
         assertFalse(detail!!.retryable)
-        assertEquals(listOf(501L), store.expired)
+        assertEquals(emptyList(), store.expired)
+    }
+
+    @Test
+    fun `does not write for a pending session whose analysis has not started`() {
+        val store = Store(base.copy(analysisStartedAt = null))
+        assertEquals("PENDING", service(store).execute(userId = 1, sessionId = 501)?.status)
+        assertEquals(emptyList(), store.expired)
     }
 
     @Test

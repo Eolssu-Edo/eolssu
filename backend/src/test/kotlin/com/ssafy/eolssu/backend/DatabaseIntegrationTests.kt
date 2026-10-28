@@ -504,6 +504,15 @@ class DatabaseIntegrationTests {
         assertEquals("다시 연습", deletedRecord.memo)
         assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), deletedRecord.savedAt)
 
+        // 녹음 재생 가능은 두 조건이 모두 맞아야 한다: 녹음이 있어도 기록을 지웠으면, 지우지 않았어도 녹음이 없으면 false.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, started_at, record_deleted_at) " +
+                "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'recordings/21/a.m4a', 'DONE', '2026-10-22 01:02:03', '2026-10-23 01:02:03')," +
+                " (22, 1, 1, 90, 'DOTTED_QUARTER', 0, NULL, 'RECORDING', '2026-10-22 01:02:03', NULL)",
+        )
+        assertFalse(assertNotNull(details.findOwned(21, 1)).recordingAvailable)
+        assertFalse(assertNotNull(details.findOwned(22, 1)).recordingAvailable)
+
         assertNull(details.findOwned(1, 2))
         assertNull(details.findOwned(999, 1))
     }
