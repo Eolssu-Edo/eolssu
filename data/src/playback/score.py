@@ -4,7 +4,8 @@ import json
 import math
 from pathlib import Path
 
-PPQN = 4800
+# Exact ninth/eighteenth-quarter subdivisions, while retaining the previous grid.
+PPQN = 14400
 PROFILES = {path.stem: json.loads(path.read_text(encoding="utf-8"))
             for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))}
 YUL = dict(zip("黃大太夾姑仲蕤林夷南無應", range(12)))
@@ -55,7 +56,7 @@ def compile_score(score, instrument, transpose=0):
     require(isinstance(score.get("title"), str) and score["title"], "Title required")
     require(isinstance(score.get("source"), dict) and score["source"].get("edition"), "Source edition required")
     require(score["source"].get("review_status") in (
-        "manually-transcribed-unverified", "machine-transcribed-unverified"),
+        "manually-transcribed-unverified", "machine-transcribed-unverified", "source-review-unverified"),
         "Declare transcription review status")
     require(instrument in PROFILES, "Unknown instrument")
     require(type(transpose) is int and -24 <= transpose <= 24, "Explicit transpose must be -24..24")
@@ -78,10 +79,12 @@ def compile_score(score, instrument, transpose=0):
     events, warnings, seen = [], [], set()
     if score["source"]["review_status"] == "machine-transcribed-unverified":
         warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
+    elif score["source"]["review_status"] == "source-review-unverified":
+        warnings.append("입력 악보의 검수 상태를 확인하지 않은 합성 미리듣기입니다. 원보 대조가 필요합니다.")
     cursor = 0
     tie_open = False
     for n in score["notes"]:
-        reject_unknown(n, ["id", "duration", "pitch", "rest", "ornament", "slur", "tie", "velocity", "breath_seconds", "expression", "yoseong"], "note")
+        reject_unknown(n, ["id", "duration", "pitch", "rest", "ornament", "slur", "tie", "velocity", "breath_seconds", "release_seconds", "expression", "yoseong", "pitch_curve"], "note")
         nid = n.get("id")
         require(isinstance(nid, str) and nid and nid not in seen, "Unique nonempty note IDs required")
         seen.add(nid)
@@ -104,7 +107,7 @@ def compile_score(score, instrument, transpose=0):
         if tie_open:
             require(tie in ("continue", "stop") and events[-1]["pitch"] == pitch and events[-1]["end_tick"] == start,
                     f"{nid}: tie must continue the same adjacent pitch")
-            require(not (set(n) & {"ornament", "breath_seconds", "yoseong", "expression"}), f"{nid}: split tie has independent expression")
+            require(not (set(n) & {"ornament", "breath_seconds", "release_seconds", "yoseong", "expression", "pitch_curve"}), f"{nid}: split tie has independent expression")
             require("slur" not in n or n["slur"] == events[-1]["slur"], f"{nid}: slur changes inside a tie are unsupported")
             require("velocity" not in n or n["velocity"] == events[-1]["velocity"], f"{nid}: velocity changes inside a tie are unsupported")
             events[-1]["end_tick"] = end
@@ -115,9 +118,11 @@ def compile_score(score, instrument, transpose=0):
         tie_open = tie == "start"
         require(not tie_open or not (set(n) & {"ornament", "breath_seconds"}), f"{nid}: unsupported ornament/breath on tie")
         breath = finite(n.get("breath_seconds", 0), "breath_seconds", 0, 1)
+        release = finite(n.get("release_seconds", .05), "release_seconds", 0, .05)
+        release = round(release / .05 * 127) / 127 * .05
         if breath:
-            # Leave a real gap after the fixed 50ms release, without extending score time.
-            end -= round((breath + .05) * 1_000_000 / tempo * PPQN)
+            # Leave the requested gap after the actual, MIDI-encoded release.
+            end -= round((breath + release) * 1_000_000 / tempo * PPQN)
         require(end > start, f"{nid}: breath consumes note")
         expression = n.get("expression", [127, 127, 127])
         require(isinstance(expression, list) and len(expression) == 3, "expression needs start/middle/end")
@@ -134,6 +139,13 @@ def compile_score(score, instrument, transpose=0):
                        "depth": finite(yoseong.get("depth", .08), "yoseong depth", 0, .5),
                        "delay_seconds": finite(yoseong.get("delay_seconds", .25), "yoseong delay", 0, 20)}
             warnings.append(f"{nid}: 요성 수치는 청취용 설정값이며 전문가 검증 전입니다.")
+        curve = n.get("pitch_curve")
+        if curve is not None:
+            reject_unknown(curve, ["end_cents", "tail_fraction", "maximum_seconds"], "pitch_curve")
+            curve = {"end_cents": finite(curve.get("end_cents"), "curve end_cents", -150, 150),
+                     "tail_fraction": finite(curve.get("tail_fraction"), "curve tail_fraction", .01, 1),
+                     "maximum_seconds": finite(curve.get("maximum_seconds"), "curve maximum_seconds", .005, 1)}
+            warnings.append(f"{nid}: 흘림의 하강 폭·시점은 청취용 근사값입니다.")
         steps = [(pitch, start, end, "main")]
         ornament = n.get("ornament")
         if ornament is not None:
@@ -158,7 +170,8 @@ def compile_score(score, instrument, transpose=0):
                 warnings.append(f"{nid}: MIDI {p}는 {profile['label']} 전통 관행 음역 밖입니다. 실제 편곡 검토가 필요합니다.")
             events.append({"id": f"{nid}.{role}", "parent_ids": [nid], "pitch": p, "start_tick": a, "end_tick": b,
                            "velocity": 80 if role == "grace" else velocity, "slur": n.get("slur"),
-                           "expression": expression, "yoseong": yoseong, "tuning_cents": tuning})
+                           "expression": expression, "yoseong": yoseong, "tuning_cents": tuning,
+                           "release_seconds": release, "pitch_curve": curve})
     require(not tie_open, "Unclosed tie")
     require(events, "Score contains no sounding notes")
     for i, event in enumerate(events):
