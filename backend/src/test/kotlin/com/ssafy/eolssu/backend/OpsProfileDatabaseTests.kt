@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.backend
 
+import com.ssafy.eolssu.backend.feature.auth.api.PasswordChangeController
+import com.ssafy.eolssu.backend.feature.user.api.MyInfoController
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -41,6 +43,12 @@ class OpsProfileDatabaseTests {
             assertEquals(200, response.statusCode(), response.body())
             assertTrue(response.body().contains("\"isSuccess\":true"), response.body())
         }
+    }
+
+    @Test
+    fun `ops serves my info and password change`() {
+        assertEquals(1, context.getBeansOfType(MyInfoController::class.java).size)
+        assertEquals(1, context.getBeansOfType(PasswordChangeController::class.java).size)
     }
 
     companion object {
