@@ -20,6 +20,7 @@ from evaluation.synthetic import BPM, SR, synth
 SIGNED_URL = "https://r2.example/recordings/1.m4a?X-Amz-Signature=secret-token"
 NOTES = [Note(0, 1), Note(2, 1), Note(4, 1), Note(5, 1)]
 FIRST_IDX = 7  # 연습 구간이 곡 중간에서 시작해도 idx를 그대로 돌려줘야 한다
+START_BEAT = 12.0  # 곡 처음부터 센 첫 음의 시작 박
 
 DONE_KEYS = {
     "status", "modelVersion", "total", "pitch", "timing", "duration", "tuningOffsetCent", "tuningOutOfRange", "notes"
@@ -47,7 +48,8 @@ def body(notes=NOTES, **override):
         "bpm": BPM,
         "bpmUnit": "JEONGGAN",
         "notes": [
-            {"idx": FIRST_IDX + i, "semitone": n.semitone, "beats": n.beats, "sigimsae": n.sigimsae}
+            {"idx": FIRST_IDX + i, "semitone": n.semitone, "startBeat": START_BEAT + i * n.beats, "beats": n.beats,
+             "sigimsae": n.sigimsae}
             for i, n in enumerate(notes)
         ],
     } | override
@@ -142,9 +144,34 @@ def test_invalid_request_does_not_echo_signed_url(serve):
     assert serve.asked == []
 
 
-@pytest.mark.parametrize("override", [{"notes": []}, {"bpmUnit": "MINUTE"}, {"audioUrl": "file:///etc/passwd"}])
-def test_rejects_requests_outside_contract(serve, override):
-    assert serve(b"").post("/v1/analyses", json=body(**override)).status_code == 422
+def with_start_beats(*beats):
+    request = body()
+    for note, start in zip(request["notes"], beats):
+        note["startBeat"] = start
+    return request
+
+
+@pytest.mark.parametrize(
+    "request_body",
+    [
+        body(notes=[]),
+        body(bpmUnit="MINUTE"),
+        body(audioUrl="file:///etc/passwd"),
+        with_start_beats(-1.0, 0.0, 1.0, 2.0),
+        with_start_beats(0.0, 2.0, 1.0, 3.0),  # 음표 순서대로 늘지 않음
+        with_start_beats(0.0, 1.0, 1.0, 2.0),  # 같은 시작 박
+        {**body(), "notes": [{k: v for k, v in n.items() if k != "startBeat"} for n in body()["notes"]]},
+    ],
+    ids=["no-notes", "unknown-unit", "file-url", "negative-start", "decreasing-start", "same-start", "missing-start"],
+)
+def test_rejects_requests_outside_contract(serve, request_body):
+    assert serve(b"").post("/v1/analyses", json=request_body).status_code == 422
+
+
+def test_accepts_rest_gap_between_start_beats(serve, tmp_path):
+    """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 받기는 하되 채점은 아직 beats만 쓴다(S15P31E102-157)."""
+    response = serve(m4a(synth(NOTES), tmp_path)).post("/v1/analyses", json=with_start_beats(0.0, 1.0, 3.0, 4.0))
+    assert response.status_code == 200 and response.json()["status"] == "DONE"
 
 
 def test_signed_url_is_not_logged(serve, caplog, tmp_path):

@@ -41,6 +41,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 - 기준음은 요청에 없어 E♭4(311.13Hz)로 둡니다. 기기 차이는 조율 보정(±100센트)이 흡수합니다. 기본음 녹음·공통 악보 기준음 반영은 [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)에서 바꿉니다.
 - 박 길이는 `60 / bpm`초이고 `beats`는 백엔드가 `bpmUnit` 단위로 센 값으로 봅니다. `bpmUnit`은 DB의 4종만 받습니다.
+- `notes[].startBeat`(곡 처음부터 센 시작 박, 0 이상이고 음표 순서대로 늘어야 함)를 받습니다. 채점은 아직 `beats`를 이어 붙인 시각을 써서 쉼 뒤 음의 기대 시각이 앞당겨집니다. `startBeat`로 바꾸는 일은 [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)이 맡습니다.
 - 시도마다 `analysis session=… attempt=… result=… ms=…` 한 줄을 남깁니다. `audioUrl`과 예외 메시지는 남기지 않고, httpx·httpcore 로그는 WARNING 미만을 막습니다(httpx는 INFO에서 URL 전체를 남깁니다).
 - `tests/unit/test_api.py`는 합성음을 m4a로 만들어 가짜 다운로드로 넘깁니다. 응답 모양과 실패 처리 검사이며 채점 품질 검증이 아닙니다. 실행 이미지와 ffmpeg 버전 고정은 아직 없습니다.
 

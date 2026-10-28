@@ -17,7 +17,7 @@ import numpy as np
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recording
@@ -54,7 +54,10 @@ class _Camel(BaseModel):
 
 class NoteIn(_Camel):
     idx: int = Field(ge=0)
-    semitone: int
+    semitone: int  # pitches.semitone. 0 = 옥타브 0의 황(E♭4)
+    # 곡 처음부터 센 시작 박(startTick ÷ ticksPerBeat). 쉼이 있으면 앞 음의 beats보다 더 벌어진다.
+    # 채점은 아직 beats를 이어 붙인 시각을 쓴다. startBeat로 기대 시각을 계산하는 일은 S15P31E102-157.
+    start_beat: float = Field(ge=0)
     beats: float = Field(gt=0)
     sigimsae: bool
 
@@ -66,6 +69,13 @@ class AnalysisIn(_Camel):
     bpm: int = Field(gt=0)
     bpm_unit: Literal["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"]  # 채점은 beats·bpm만 쓴다
     notes: list[NoteIn] = Field(min_length=1)
+
+    @field_validator("notes")
+    @classmethod
+    def _start_beats_increase(cls, notes: list[NoteIn]) -> list[NoteIn]:
+        if any(b.start_beat <= a.start_beat for a, b in zip(notes, notes[1:])):
+            raise ValueError("startBeat must increase in note order")
+        return notes
 
 
 def download(url: str, dest: Path) -> None:
