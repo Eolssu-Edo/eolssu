@@ -119,6 +119,7 @@
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
 - [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
+- [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
