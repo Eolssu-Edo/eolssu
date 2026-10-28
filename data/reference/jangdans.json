@@ -1,0 +1,38 @@
+{
+  "table": "jangdans",
+  "description": "1차 장단 4개. 칸은 backend V1·V2 jangdans와 같고 id는 백엔드가 정한다. pattern.beats는 한 장단을 가장 작은 칸으로 나눈 구음이고 빈 문자열은 앞 소리를 잇는 칸이다. 세마치·굿거리는 8분음표(소박), 중모리는 4분음표(박) 한 칸이다. pattern.group은 칸을 큰 박으로 묶은 수다. 타령은 공식 구음을 찾지 못해 pattern을 비워 두었다.",
+  "sources": [
+    "default_bpm·bpm_unit: 기획 S15P31E102-141 장단별 빠르기 및 근거(2026-10-27), backend V2 bpm_unit",
+    "구음·박 구조: 국립국악원 e-국악아카데미 장단 교수 자료 https://academy.gugak.go.kr/dp/pds/HTML5-1-7-3/HTML5-1-7-3-3/index.htm (세마치), -2/ (굿거리), -5/ (중모리) 의 기본 장단 악보"
+  ],
+  "rows": [
+    {
+      "name": "세마치",
+      "pattern": {"beats": ["떵", "", "", "떵", "", "덕", "쿵", "덕", ""], "group": [3, 3, 3]},
+      "default_bpm": 96,
+      "bpm_unit": "DOTTED_QUARTER",
+      "source": "구음: e-국악아카데미 세마치 장단(9/8, 떵 떵 덕 쿵 덕, ♩.=90~110). BPM: 기획 S15P31E102-141"
+    },
+    {
+      "name": "굿거리",
+      "pattern": {"beats": ["떵", "", "기덕", "쿵", "더러러러", "", "쿵", "", "기덕", "쿵", "더러러러", ""], "group": [3, 3, 3, 3]},
+      "default_bpm": 66,
+      "bpm_unit": "DOTTED_QUARTER",
+      "source": "구음: e-국악아카데미 굿거리 장단(12/8, 떵기덕 쿵 더러러러 쿵기덕 쿵 더러러러, ♩.=66~90). BPM: 기획 S15P31E102-141"
+    },
+    {
+      "name": "중모리",
+      "pattern": {"beats": ["떵", "", "덕", "쿵", "덕기", "덕덕", "쿵", "쿵", "덕", "쿵", "덕기", "덕덕"], "group": [6, 6]},
+      "default_bpm": 88,
+      "bpm_unit": "QUARTER",
+      "source": "구음: e-국악아카데미 중모리 장단(12/4, 앞 6박·뒤 6박, ♩=72~84). BPM: 기획 S15P31E102-141. 88은 이 자료의 범위보다 빠름"
+    },
+    {
+      "name": "타령",
+      "pattern": null,
+      "default_bpm": 96,
+      "bpm_unit": "JEONGGAN",
+      "source": "BPM: 기획 S15P31E102-141(12정간, 정간마다 클릭). 구음은 공식 자료를 찾지 못해 비움"
+    }
+  ]
+}
