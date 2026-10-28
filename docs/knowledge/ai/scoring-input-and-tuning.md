@@ -1,7 +1,7 @@
 # 채점 입력과 기준음·조율 보정 상한
 
 - 작업: [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)
-- 상태: 구현·합성 입력 검증 완료. 음 번호 규칙은 BE 제안과 같고, `startBeat`는 BE·API 담당 동의 대기, 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
+- 상태: 구현·합성 입력 검증 완료. 음 번호와 `startBeat`는 [PRA-03](../../specs/practice-analysis-failure.md)에 반영됐다(변경 기록 2026-10-28). 분석 API(S15P31E102-212)가 이 값을 채점에 넘기고 `modelVersion`은 `pyin-2`다. 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
 - 재현: `ai/`에서 `uv run pytest tests/unit/test_scoring.py tests/unit/test_arirang_score.py`
 - 코드: [채점](../../../ai/src/ai_service/pipelines/scoring.py), [합성 입력](../../../ai/evaluation/synthetic.py), [아리랑 끝까지 검사](../../../ai/tests/unit/test_arirang_score.py)
 
@@ -14,12 +14,12 @@
 | `idx` | `events` 중 `kind = NOTE`만 연주 순서대로 0부터 센 번호. 연습 구간도 곡 기준 번호를 그대로 쓴다. 결과는 같은 번호로 돌려준다 | BE 제안([PRA-03](../../specs/practice-analysis-failure.md))과 같다 |
 | `semitone` | `pitches.semitone` = 옥타브 × 12 + 율 순서(황 0 … 응 11). 반음 0은 황 = E♭4, `HWANG_HZ` = 311.13Hz | 155 기준 데이터 표와 같다 |
 | `beats` | `durationTick ÷ ticksPerBeat` | |
-| `startBeat` | `startTick ÷ ticksPerBeat`. 곡 처음부터 센 시작 박 | **동의 대기.** 없으면 음을 이어 붙인다 |
+| `startBeat` | `startTick ÷ ticksPerBeat`. 곡 처음부터 센 시작 박 | PRA-03 반영. 채점 함수는 값이 없으면 음을 이어 붙인다 |
 | `sigimsae` | 이벤트의 `sigimsae` 목록이 비어 있지 않으면 true | |
 
 `startBeat`가 필요한 이유: 쉼은 결과 행을 만들 수 없어 보내지 않는데(`expected_pitch_id` NOT NULL), 쉼을 빼고 `beats`만 이으면 쉼 뒤 음의 기대 시각이 앞당겨진다. 아리랑은 음 61개 중 45개가 앞당겨지고, 가장 큰 차이는 1.67박(96BPM에서 약 1.04초)이다.
 
-채점은 첫 음의 `startBeat`를 0초로 본다. 음 사이 빈 시간은 쉼으로, 그 구간에 소리가 없으면 비용 0, 소리가 있으면 `_UNVOICED_COST`로 정렬한다. 쉼을 빼고 비용을 똑같이 두면 네 박 쉰 뒤 0.4초 일찍 분 음이 정답이 된다(테스트로 확인). `startBeat`가 일부 음표에만 있거나 음표가 겹치면 오류로 멈춘다.
+채점은 첫 음의 `startBeat`를 0초로 본다. 음 사이 빈 시간은 쉼으로, 그 구간에 소리가 없으면 비용 0, 소리가 있으면 `_UNVOICED_COST`로 정렬한다. 쉼을 빼고 비용을 똑같이 두면 네 박 쉰 뒤 0.4초 일찍 분 음이 정답이 된다(테스트로 확인). `startBeat`가 일부 음표에만 있거나 음표가 겹치면 오류로 멈추고, API는 겹치는 요청을 422로 거절한다.
 
 ## 조율 보정 상한
 
