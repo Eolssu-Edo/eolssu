@@ -139,7 +139,8 @@ class GrowthApiDatabaseTests {
                 "(960, 951, 951, 1, 60, 'DOTTED_QUARTER', 0, 3, 'DONE', NULL, '2026-07-28 03:00:00'), " + // BPM 단위
                 "(964, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-04 03:00:00'), " +
                 "(965, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-05 03:00:00'), " + // 가장 최근 평가된 전체 곡 연주
-                "(966, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'FAILED', 'NO_SOUND', '2026-08-06 03:00:00'), " +
+                "(966, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'FAILED', 'NO_SOUND', '2026-08-06 03:00:00'), " + // 평가 행이 있어도 FAILED는 빠진다
+                "(959, 951, 951, 1, 60, 'JEONGGAN', 1, 3, 'DONE', NULL, '2026-08-09 03:00:00'), " + // 끝 음까지 간 구간 연습
                 "(967, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-07 03:00:00'), " + // 평가 없음
                 "(968, 952, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-08 03:00:00')", // 다른 회원
         )
@@ -147,8 +148,11 @@ class GrowthApiDatabaseTests {
             "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
                 "(961, 70, 60, 61, 62, 'pyin-1'), (962, 99, 99, 99, 99, 'pyin-1'), (963, 75, 10, 10, 10, 'pyin-1'), " +
                 "(964, 88, 50, 50, 50, 'pyin-1'), (965, 80, 70, 71, 72, 'pyin-1'), (968, 100, 100, 100, 100, 'pyin-1'), " +
-                "(969, 20, 20, 20, 20, 'pyin-0'), (970, 30, 30, 30, 30, 'pyin-1'), (960, 40, 40, 40, 40, 'pyin-1')",
+                "(969, 20, 20, 20, 20, 'pyin-0'), (970, 30, 30, 30, 30, 'pyin-1'), (960, 40, 40, 40, 40, 'pyin-1'), " +
+                "(966, 100, 100, 100, 100, 'pyin-1'), (959, 98, 98, 98, 98, 'pyin-1')",
         )
+        // 회원이 지운 기록도 성취도에 남는다.
+        jdbc.update("UPDATE practice_sessions SET record_deleted_at = '2026-08-10 00:00:00' WHERE id = 965")
 
         // 성취도는 from·to와 관계없다.
         val response = get("/api/users/me/growth/summary?from=2026-10-01&to=2026-10-31", subject = "951")

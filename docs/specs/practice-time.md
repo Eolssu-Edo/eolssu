@@ -135,14 +135,14 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 
 | 요구사항 | 요청 | 응답 `result` |
 | --- | --- | --- |
-| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount` |
+| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount`, `bestBySong[]{songId, title, bestTotalScore}`, `metricGrowth{songId, title, bpm, pitch, timing, duration}`(각 항목 `{first, last}`) |
 | GRO-02 날짜별 | `GET /users/me/growth/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | `items[]{date, practiceSeconds, practiceCount}`. `from`~`to`의 모든 날짜를 기록 없는 날도 0으로 채워 날짜 순서로 준다 |
 
 - **기간:** `from`·`to`는 KST 날짜이고 양 끝을 포함한다. 둘 다 필요하고 `from` ≤ `to`, 최대 366일이다. 연도는 1001~9998년이다(DB 시각 범위). 어기면 400 `INVALID_REQUEST`.
 - **날짜 소속:** 구간과 연주 세션은 시작 시각의 KST 날짜에 속한다.
 - **지난 기간(`previousPeriod`):** `from`이 1일이고 `to`가 같은 달 말일이면(한 달 범위) 지난 달력 월 전체다(예: 3월 → 2/1~2/28). 그 밖에는 `from` 바로 앞의 같은 일수 구간이다(주 보기면 지난주). 화면 문구 "지난달보다"와 맞추려는 것이다(2026-10-28 사용자 결정).
 - **미션 수:** 미션이 구현되기 전에는 `null`이다(Notion 규칙 5).
-- **곡별 최고점(`bestBySong`)·항목별 성장(`metricGrowth`):** 아래 '성취도' 기준으로 별도 Task에서 구현한다. 구현 전에는 응답에 없다.
+- **곡별 최고점(`bestBySong`)·항목별 성장(`metricGrowth`):** 아래 '성취도'를 따른다.
 
 값:
 
@@ -155,17 +155,17 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | `currentStreakDays` | 오늘(KST)부터 거꾸로 이어진 연습한 날 수. 오늘 아직 연습하지 않았으면 어제부터 센다. 어제도 하지 않았으면 0이다. `from`·`to`와 관계없다 |
 
 - **연습한 날:** 그날(KST) 시작한 구간의 인정 시간 합이 1분 이상인 날. 녹음 여부는 따로 보지 않는다(녹음도 악보 화면에서 하므로 시간에 들어 있다). Notion 원안의 'DONE 세션이 있는 날'은 녹음 없이 연습한 날을 빼고 연습 시간과 기준이 달라 고르지 않았다(2026-10-28 사용자 결정).
-성취도(`bestBySong`·`metricGrowth`, 2026-10-28 사용자 결정):
-
-- **기간:** `from`·`to`와 관계없이 회원의 전체 기록이다. 주·월 탭을 바꿔도 값이 같다.
-- **전체 곡 연주:** 첫 음부터 끝 음까지 연주한 `DONE` 세션(`start_note_idx` = 0, `end_note_idx` = 곡의 마지막 음). 구간 연습은 넣지 않는다. 마지막 음 번호가 `songs.note_count - 1`인지는 구현 때 확인한다.
-- **곡별 최고점:** 곡마다 전체 곡 연주의 최고 총점. BPM·악보 버전(`score_version`)·채점 모델(`model_version`)은 구분하지 않는다. 최근에 연습한 곡 먼저.
-- **항목별 성장:** 가장 최근 전체 곡 연주와 곡·악보 버전·채점 모델·BPM이 모두 같은 연주들 중 첫 번째와 최근의 음정·박자·음 길이 점수. 그런 연주가 2회 미만이면 `first`·`last`는 `null`이다. 어느 곡 기준인지 알 수 있게 `metricGrowth`에 `songId`·`title`·`bpm`을 더한다(Notion 계약 확장).
-- 고르지 않은 것: 곡별 최고점을 조건별로 나누기(한 곡이 여러 줄이 됨), 곡이 달라도 회원의 첫 연주와 최근 연주를 비교하기(쉬운 곡→어려운 곡이면 하락처럼 보임), 곡마다 항목 성장 배열(화면·계약 변경이 큼).
-
 - **앱의 주·월 탭:** 주는 KST 월요일~일요일이고 막대는 요일별 7개다. 월은 달력 월이고 막대는 그 달의 날짜를 월~일 단위로 묶은 주차별 4~6개다(1일이 든 주가 1주차, 앞뒤 달 날짜는 뺀다). 앱은 요약을 `summary`로, 막대를 `calendar`의 날짜별 값을 더해 그린다. 변화 표시(지난 기간과의 차이)는 앱이 `previousPeriod`로 계산한다. 평균 변화는 두 쪽 평균이 모두 있을 때만 보여 준다.
 - **분 표시:** 요약 칸은 합계를 내림하고 막대는 각각 내림하므로, 요약 칸과 막대 합이 1~2분 다를 수 있다. 막대를 먼저 내림해 더하면 합계가 실제보다 작아져서 고르지 않았다.
 - 고르지 않은 것: 서버가 주·월 기간과 막대를 정하는 `GET /me/stats`(2026-10-27 초안. Notion 명세의 `from`·`to` 방식에 맞췄다), "지난주 같은 요일까지"와 비교, 10초 이상 체류를 연습한 날로 보기(잠깐 열어 본 날이 연속 기록에 들어간다).
+
+성취도(`bestBySong`·`metricGrowth`, 2026-10-28 사용자 결정):
+
+- **기간:** `from`·`to`와 관계없이 회원의 전체 기록이다. 주·월 탭을 바꿔도 값이 같다. 회원이 지운 기록(`record_deleted_at`)도 들어간다.
+- **전체 곡 연주:** 첫 음부터 끝 음까지 연주해 분석이 끝나고(`DONE`) 평가가 있는 세션. 음표 번호는 0부터이고 양 끝을 포함하므로 `start_note_idx` = 0, `end_note_idx` = `songs.note_count - 1`이다. 구간 연습은 넣지 않는다. 판정에 곡의 지금 `note_count`를 쓰므로, 악보를 고쳐 음표 수가 바뀌면 이전 악보로 한 전체 곡 연주는 빠질 수 있다.
+- **곡별 최고점:** 곡마다 전체 곡 연주의 최고 총점. BPM·악보 버전(`score_version`)·채점 모델(`model_version`)은 구분하지 않는다. 가장 최근 전체 곡 연주가 늦은 곡 먼저(구간 연습만 최근에 한 곡은 앞당기지 않는다).
+- **항목별 성장:** 가장 최근 전체 곡 연주와 곡·악보 버전·채점 모델·BPM(단위 포함)이 모두 같은 연주들 중 첫 번째와 최근의 음정·박자·음 길이 점수. 그런 연주가 2회 미만이면 `first`·`last`는 `null`이다. 어느 곡 기준인지 알 수 있게 `metricGrowth`에 `songId`·`title`·`bpm`을 더한다(Notion 계약 확장). 전체 곡 연주가 없으면 세 칸도 `null`이다.
+- 고르지 않은 것: 곡별 최고점을 조건별로 나누기(한 곡이 여러 줄이 됨), 곡이 달라도 회원의 첫 연주와 최근 연주를 비교하기(쉬운 곡→어려운 곡이면 하락처럼 보임), 곡마다 항목 성장 배열(화면·계약 변경이 큼).
 
 ## 완료 확인
 
@@ -185,7 +185,7 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | `calendar`는 기록 없는 날도 0으로 채움. `to` < `from`, 367일, 날짜 형식 오류는 400 | BE 테스트 |
 | 그날 인정 합 50초는 연습한 날이 아니고 60초는 연습한 날 | BE 단위 테스트 |
 | `from`=2027-03-01·`to`=03-31의 지난 기간은 2/1~2/28, `from`=03-02·`to`=03-31은 직전 30일 | BE 단위 테스트 |
-| 같은 곡을 90·120 BPM으로 번갈아 연주하면 항목 성장은 최근 BPM 연주끼리만 비교, 1회뿐이면 `null`. 구간 연습 고득점은 곡별 최고점에 들지 않음 | BE DB 통합 테스트 |
+| 같은 곡이라도 BPM·BPM 단위·채점 모델·악보 버전이 다른 더 이른 연주는 항목 성장 비교에서 빠지고, 같은 조건이 1회뿐이면 `null`. 구간 연습·`FAILED`의 고득점은 곡별 최고점에 들지 않고, 지운 기록은 들어감 | BE 단위·DB 통합 테스트 |
 | 오늘 안 하고 어제·그제 했으면 연속 2, 어제도 안 했으면 0 | BE 단위 테스트(시계 고정) |
 | `DONE` 3건(평가 있는 2건)·`FAILED` 1건이면 연습 횟수 3, 평균은 평가 있는 2건 평균. 지난 기간 세션이 없으면 `previousPeriod.averageTotalScore`는 `null` | BE 테스트 |
 | 합계 299초, 막대 119초·180초면 요약 4분, 막대 1분·3분 | FE 단위 테스트 |
@@ -208,3 +208,4 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 | --- | --- | --- |
 | 악보 화면에 곡 상세의 악보 미리보기도 포함할지 | FE·기획. 기본안은 연습 화면만 | FE 측정 범위 |
 | 알림 문구와 웹에서 보여 줄 방식 | 기획·디자인 | FE 문구 확정(구현은 초안으로 진행 가능) |
+| 삭제(`deleted_at`)·비공개(`HIDDEN`) 곡을 성취도에서 뺄지. 지금은 넣는다 | 기획·FE. 앱에서 그 곡으로 가면 404가 날 수 있다 | 성취도 표시 |
