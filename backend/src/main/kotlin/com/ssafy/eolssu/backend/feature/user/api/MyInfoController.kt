@@ -5,9 +5,11 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoService
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoWithProviders
+import com.ssafy.eolssu.backend.feature.user.application.PreferencesResult
 import com.ssafy.eolssu.backend.feature.user.domain.MyInfo
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
 import java.time.Instant
 import org.springframework.context.annotation.Profile
@@ -38,7 +40,21 @@ class MyInfoController(private val service: MyInfoService) {
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "회원정보 수정 성공", MyProfileResult(changed)))
     }
 
-    private fun notFound() = ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
+    @PatchMapping("/preferences")
+    fun changePreferences(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody request: PreferencesRequest): ResponseEntity<*> {
+        if (request.instrumentId == null && request.notationMode == null) return error(ErrorCode.INVALID_REQUEST)
+        return when (val result = service.changePreferences(jwt.userId(), request.instrumentId?.toLong(), request.notationMode)) {
+            is PreferencesResult.Changed -> ResponseEntity.ok(
+                SuccessResponse.of(HttpStatus.OK, "선택 악기·기본 악보 표기 저장 성공", PreferencesSaved(result.info)),
+            )
+            PreferencesResult.InactiveInstrument -> error(ErrorCode.UNPROCESSABLE_INPUT)
+            PreferencesResult.NotFound -> notFound()
+        }
+    }
+
+    private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
+
+    private fun notFound() = error(ErrorCode.RESOURCE_NOT_FOUND)
 
     private fun Jwt.userId() = requireNotNull(subject).toLong()
 }
@@ -61,6 +77,16 @@ class NicknameRequest(@field:NotBlank @field:Size(max = 60) val nickname: String
 
 data class MyProfileResult(val userId: String, val nickname: String, val instrumentId: String, val notationMode: String) {
     constructor(info: MyInfo) : this(info.userId.toString(), info.nickname, info.instrumentId.toString(), info.notationMode)
+}
+
+/** 한 필드 이상. 악기는 활성 악기여야 한다. */
+class PreferencesRequest(
+    @field:Pattern(regexp = "[1-9][0-9]{0,17}") val instrumentId: String? = null,
+    @field:Pattern(regexp = "HANJA|HANGUL|SOLFEGE") val notationMode: String? = null,
+)
+
+data class PreferencesSaved(val userId: String, val instrumentId: String, val notationMode: String) {
+    constructor(info: MyInfo) : this(info.userId.toString(), info.instrumentId.toString(), info.notationMode)
 }
 
 data class LinkedProviderResult(val provider: String, val linkedAt: Instant)

@@ -105,17 +105,70 @@ class MyInfoControllerTests {
             .andExpect(status().isNotFound)
             .andExpect(content().json("""{"result":{"errorCode":"RESOURCE_NOT_FOUND"}}"""))
     }
+
+    @Test
+    fun `preferences change only the given fields`() {
+        repository.members[7] = MyInfo(7, "연습자", 3, "HANJA")
+        repository.activeInstruments += setOf(3L, 4L)
+
+        mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"notationMode":"HANGUL"}"""))
+            .andExpect(status().isOk)
+            .andExpect(
+                content().json(
+                    """{"httpStatus":"OK","isSuccess":true,"code":200,"message":"선택 악기·기본 악보 표기 저장 성공",
+                    "result":{"userId":"7","instrumentId":"3","notationMode":"HANGUL"}}""",
+                    true,
+                ),
+            )
+        mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"instrumentId":"4"}"""))
+            .andExpect(status().isOk)
+            .andExpect(content().json("""{"result":{"userId":"7","instrumentId":"4","notationMode":"HANGUL"}}"""))
+    }
+
+    @Test
+    fun `an instrument that is missing or inactive cannot be chosen`() {
+        repository.members[7] = MyInfo(7, "연습자", 3, "HANJA")
+
+        mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"instrumentId":"9","notationMode":"HANGUL"}"""))
+            .andExpect(status().isUnprocessableContent)
+            .andExpect(content().json("""{"code":422,"result":{"errorCode":"UNPROCESSABLE_INPUT"}}"""))
+        kotlin.test.assertEquals("HANJA", repository.members.getValue(7).notationMode)
+    }
+
+    @Test
+    fun `empty or malformed preferences are an invalid request`() {
+        repository.members[7] = MyInfo(7, "연습자", 3, "HANJA")
+        for (body in listOf("{}", """{"notationMode":"KOREAN"}""", """{"instrumentId":"0"}""", """{"instrumentId":"abc"}""")) {
+            mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest)
+                .andExpect(content().json("""{"result":{"errorCode":"INVALID_REQUEST"}}"""))
+        }
+    }
+
+    @Test
+    fun `preferences of a member that is not active are not found`() {
+        mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"notationMode":"HANGUL"}"""))
+            .andExpect(status().isNotFound)
+            .andExpect(content().json("""{"result":{"errorCode":"RESOURCE_NOT_FOUND"}}"""))
+    }
 }
 
 internal class MemoryMyInfoRepository : MyInfoRepository {
     val members = mutableMapOf<Long, MyInfo>()
     val providers = mutableMapOf<Long, List<LinkedProvider>>()
+    val activeInstruments = mutableSetOf<Long>()
 
     override fun findActive(userId: Long) = members[userId]
     override fun linkedProviders(userId: Long) = providers[userId].orEmpty()
     override fun updateNickname(userId: Long, nickname: String): Boolean {
         val member = members[userId] ?: return false
         members[userId] = MyInfo(member.userId, nickname, member.instrumentId, member.notationMode)
+        return true
+    }
+    override fun activeInstrumentExists(instrumentId: Long) = instrumentId in activeInstruments
+    override fun updatePreferences(userId: Long, instrumentId: Long?, notationMode: String?): Boolean {
+        val member = members[userId] ?: return false
+        members[userId] = MyInfo(member.userId, member.nickname, instrumentId ?: member.instrumentId, notationMode ?: member.notationMode)
         return true
     }
 }

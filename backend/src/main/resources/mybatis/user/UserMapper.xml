@@ -13,6 +13,11 @@
     <update id="updateNickname">
         UPDATE users SET nickname = #{nickname} WHERE id = #{id} AND status = 'ACTIVE'
     </update>
+    <update id="updatePreferences">
+        UPDATE users
+        SET instrument_id = COALESCE(#{instrumentId}, instrument_id), notation_mode = COALESCE(#{notationMode}, notation_mode)
+        WHERE id = #{id} AND status = 'ACTIVE'
+    </update>
     <!-- users.email 콜레이션(utf8mb4_0900_ai_ci)의 정렬 키. 이 콜레이션이 같다고 보는 이메일은 같은 값이다. -->
     <select id="emailSortKey" resultType="string">
         SELECT HEX(WEIGHT_STRING(CONVERT(#{email} USING utf8mb4) COLLATE utf8mb4_0900_ai_ci))

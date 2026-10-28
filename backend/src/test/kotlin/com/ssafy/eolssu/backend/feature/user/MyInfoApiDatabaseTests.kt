@@ -55,10 +55,10 @@ class MyInfoApiDatabaseTests {
     fun after() { client.close(); cleanup() }
 
     private fun cleanup() {
-        jdbc.update("DELETE FROM user_social_accounts WHERE user_id IN (SELECT id FROM users WHERE instrument_id = 990501)")
-        jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE instrument_id = 990501)")
-        jdbc.update("DELETE FROM users WHERE instrument_id = 990501")
-        jdbc.update("DELETE FROM instruments WHERE id = 990501")
+        jdbc.update("DELETE FROM user_social_accounts WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@usr208.test')")
+        jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%@usr208.test')")
+        jdbc.update("DELETE FROM users WHERE email LIKE '%@usr208.test'")
+        jdbc.update("DELETE FROM instruments WHERE id IN (990501, 990502, 990503)")
         jdbc.update("DELETE FROM pitches WHERE id = 990501")
     }
 
@@ -101,6 +101,26 @@ class MyInfoApiDatabaseTests {
         jdbc.update("UPDATE users SET status = 'WITHDRAWAL_PENDING', withdrawal_requested_at = '2026-10-28', purge_scheduled_at = '2026-11-27' WHERE id = ?", userId)
         assertError(patch("/api/users/me", access, """{"nickname":"다른 이름"}"""), 404, "RESOURCE_NOT_FOUND")
         assertEquals("새 닉네임", jdbc.queryForObject("SELECT nickname FROM users WHERE id = ?", String::class.java, userId))
+    }
+
+    @Test
+    fun `preferences save the active instrument and notation and reject an inactive instrument`() {
+        jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent) VALUES (990502,'USR208_B','검증2',990501,990501,50)")
+        jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent,is_active) VALUES (990503,'USR208_C','검증3',990501,990501,50,FALSE)")
+        val access = signIn()
+
+        val saved = patch("/api/users/me/preferences", access, """{"instrumentId":"990502","notationMode":"SOLFEGE"}""")
+        assertEquals(200, saved.statusCode(), saved.body())
+        assertEquals("990502", tree(saved).path("result").path("instrumentId").asString())
+        val notationOnly = patch("/api/users/me/preferences", access, """{"notationMode":"HANJA"}""")
+        assertEquals("990502", tree(notationOnly).path("result").path("instrumentId").asString())
+        assertEquals("HANJA", tree(notationOnly).path("result").path("notationMode").asString())
+
+        assertError(patch("/api/users/me/preferences", access, """{"instrumentId":"990503"}"""), 422, "UNPROCESSABLE_INPUT")
+        assertError(patch("/api/users/me/preferences", access, """{"instrumentId":"990599"}"""), 422, "UNPROCESSABLE_INPUT")
+        assertError(patch("/api/users/me/preferences", access, "{}"), 400, "INVALID_REQUEST")
+        assertEquals(mapOf("instrument_id" to 990502L, "notation_mode" to "HANJA"),
+            jdbc.queryForMap("SELECT instrument_id, notation_mode FROM users WHERE id = ?", userId))
     }
 
     private fun signIn(): String {

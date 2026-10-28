@@ -12,6 +12,7 @@ interface UserMapper {
     fun insert(user: UserInsert): Int
     fun emailSortKey(@Param("email") email: String): String
     fun updateNickname(@Param("id") id: Long, @Param("nickname") nickname: String): Int
+    fun updatePreferences(@Param("id") id: Long, @Param("instrumentId") instrumentId: Long?, @Param("notationMode") notationMode: String?): Int
     fun findSignInMember(@Param("email") email: String): UserRow?
     fun findSignInMemberForUpdate(@Param("email") email: String): UserRow?
     fun cancelWithdrawal(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int

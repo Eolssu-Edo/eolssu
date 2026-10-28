@@ -14,4 +14,7 @@ interface MyInfoRepository {
     fun linkedProviders(userId: Long): List<LinkedProvider>
     /** ACTIVE 회원의 닉네임을 바꾼다. 바꿨으면 true. */
     fun updateNickname(userId: Long, nickname: String): Boolean
+    fun activeInstrumentExists(instrumentId: Long): Boolean
+    /** ACTIVE 회원의 악기·표기 중 null이 아닌 것만 바꾼다. 바꿨으면 true. */
+    fun updatePreferences(userId: Long, instrumentId: Long?, notationMode: String?): Boolean
 }
