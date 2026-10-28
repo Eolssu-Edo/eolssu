@@ -99,7 +99,8 @@ class AccessTokenSecurityTests {
     @Test fun `rejects forged expired malformed and invalid subject cookies with common error`() {
         for (value in listOf(token(secret = "other-test-signing-key-32-bytes-123456789"),
             token(expires = Instant.now().minusSeconds(300)), "broken.jwt.value",
-            token(subject = "not-a-user"), token(subject = "0"), token(subject = "9223372036854775808"))) {
+            token(subject = "not-a-user"), token(subject = "0"), token(subject = "9223372036854775808"),
+            token(expires = null), token(notBefore = Instant.now().plusSeconds(300)))) {
             mvc.perform(get("/api/security-test/principal").cookie(Cookie("access_token", value)))
                 .andExpect(status().isUnauthorized)
                 .andExpect(jsonPath("$.httpStatus").value("UNAUTHORIZED"))
@@ -187,9 +188,10 @@ class PrincipalFixture {
 private fun token(
     secret: String = TEST_SECRET,
     subject: String = "1",
-    expires: Instant = Instant.now().plusSeconds(300),
+    expires: Instant? = Instant.now().plusSeconds(300),
+    notBefore: Instant? = null,
 ): String = SignedJWT(
     JWSHeader(JWSAlgorithm.HS256),
     JWTClaimsSet.Builder().subject(subject).issueTime(Date.from(Instant.now().minusSeconds(600)))
-        .expirationTime(Date.from(expires)).build(),
+        .expirationTime(expires?.let(Date::from)).notBeforeTime(notBefore?.let(Date::from)).build(),
 ).apply { sign(MACSigner(secret.toByteArray(Charsets.UTF_8))) }.serialize()
