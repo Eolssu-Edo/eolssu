@@ -92,6 +92,8 @@ class InstrumentPolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'중복'):
             convert_jgb(doc,source_name='test',instrument='sanjo-daegeum',jo='jung-pyeong')
 
+
+
     def test_editor_default_tempo_is_not_an_explicit_other_instrument_tempo(self):
         doc=document();doc['parts'][0]['instrument']='sogeum'
         with self.assertRaisesRegex(ValueError,'빠르기'):
