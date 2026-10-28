@@ -79,7 +79,7 @@
 ```text
 POST {AI}/v1/analyses
 { "sessionId": 1, "attempt": 1, "audioUrl": "<15분 읽기 전용 서명 URL>", "bpm": 60, "bpmUnit": "JEONGGAN",
-  "notes": [{ "idx": 0, "semitone": 0, "beats": 1.0, "sigimsae": false }] }
+  "notes": [{ "idx": 0, "semitone": 5, "startBeat": 0.0, "beats": 1.0, "sigimsae": false }] }
 
 200 { "status": "DONE", "modelVersion": "pyin-1", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
       "tuningOffsetCent": -12.5, "tuningOutOfRange": false,
@@ -88,7 +88,9 @@ POST {AI}/v1/analyses
 ```
 
 - `notes`는 백엔드가 세션의 곡·연습 구간을 음표로 풀어 보낸다. AI는 DB를 읽지 않는다. `idx`는 `songs.score_json` 기준 순번이고 결과의 `idx`도 같다.
-- **음표 번호(제안, 데이터·FE 확인 대기).** `songs.score_json`(공통 악보 데이터)의 `events` 중 `kind = NOTE`만 연주 순서대로 0부터 센 번호다. 쉼표(`REST`)는 세지 않는다. 쉼표에는 정답 음이 없어 `note_results.expected_pitch_id`(NOT NULL)를 채울 수 없기 때문이다. 이음표는 변환기가 앞 음의 `durationTick`에 합쳐 따로 세지 않는다. 따라서 `songs.note_count`는 `NOTE` 이벤트 수이고, 연습 구간 `start_note_idx`~`end_note_idx`(양 끝 포함, 전체 곡이면 0 ~ `note_count` − 1)도 이 번호다. 백엔드는 구간의 `NOTE`만 `notes`로 보낸다.
+- **음표 번호.** `songs.score_json`(공통 악보 데이터)의 `events` 중 `kind = NOTE`만 연주 순서대로 0부터 센 번호다. 쉼표(`REST`)는 세지 않는다. 쉼표에는 정답 음이 없어 `note_results.expected_pitch_id`(NOT NULL)를 채울 수 없기 때문이다. 이음표는 변환기가 앞 음의 `durationTick`에 합쳐 따로 세지 않는다. 따라서 `songs.note_count`는 `NOTE` 이벤트 수이고, 연습 구간 `start_note_idx`~`end_note_idx`(양 끝 포함, 전체 곡이면 0 ~ `note_count` − 1)도 이 번호다. 백엔드는 구간의 `NOTE`만 `notes`로 보낸다. 데이터(곡 적재의 `note_count`)·AI 채점(S15P31E102-157)은 이 번호로 맞추기로 했고, FE 연습 구간 선택은 확인 대기다.
+- **음표 값.** 악보 `music.ticksPerBeat`로 나눠 박으로 바꾼다. `startBeat` = `startTick` ÷ `ticksPerBeat`(곡 처음부터 센 시작 박), `beats` = `durationTick` ÷ `ticksPerBeat`, `sigimsae`는 이벤트의 `sigimsae` 목록이 비어 있지 않으면 true다. 쉼을 빼고 보내므로 `beats`만으로는 쉼 뒤 음의 시각이 앞당겨진다. AI는 `startBeat`로 기대 시각을 정하고, 연습 구간이면 첫 음을 0초로 본다. `semitone`은 `pitches.semitone`(옥타브 × 12 + 율 순서, 황 0 … 응 11. 0은 옥타브 0의 황 = E♭4 311.13Hz)이고 `expected_pitch_id`는 같은 `pitches` 행의 `id`다. 이벤트의 `yul`·`octave`로 찾는다(`UNIQUE (yul, octave)`).
+- 악보를 음표로 풀 수 없으면(곡이 없거나 세션의 `score_version`과 다름, 구간이 `NOTE` 수를 넘음, `pitches`에 없는 율명·옥타브) AI를 부르지 않고 `SERVER_ERROR`다.
 - `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
 - `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
 - `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
@@ -108,12 +110,12 @@ POST {AI}/v1/analyses
 
 - 업로드 저장소(`MyBatisRecordingUploadRepository`)는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행한다. 트랜잭션 밖에서 발행하면 오류 없이 버려지므로 발행 위치를 옮기지 않는다. 커밋 뒤 `AnalysisOnUpload`가 백그라운드 실행기(기본 2개 동시·대기 50개)에서 분석한다. 롤백된 업로드는 분석하지 않는다. 대기열이 가득 차면 시작하지 않고 그 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 - AI에 넘기는 녹음 주소는 업로드 설정의 `RecordingReadUrls` Bean(15분 읽기 전용 서명 URL) 하나를 쓴다. 같은 타입 Bean을 따로 만들지 않는다.
+- 음표는 `MyBatisPracticeScoreNotes`가 세션의 곡 악보와 `pitches`로 만든다(위 '음표 번호'·'음표 값'). `pitches`는 V5 마이그레이션이 `data/reference/pitches.json`의 단소 율명 11개를 넣는다.
 - 설정 `eolssu.analysis.time-limit`(기본 60초)은 분석과 상태 조회가 함께 쓴다. AI HTTP 응답 대기 `ai-response-timeout`(기본은 제한 시간 + 5초)은 제한 시간보다 길어야 기동한다. 두 시간은 숫자만 쓰면 초로 읽는다. 짧으면 느린 응답이 마감 전에 끊겨 `TIMEOUT` 대신 `SERVER_ERROR`가 된다.
 
-남은 일은 아래이며 S15P31E102-186을 이것까지 마친 뒤 완료한다. 둘 다 있어야 이 연결이 켜지고, 하나라도 없으면 업로드마다 경고 로그만 남고 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
+남은 일은 아래이며 S15P31E102-186을 이것까지 마친 뒤 완료한다. 주소가 없으면 업로드마다 경고 로그만 남고 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 
-- 공통 악보 데이터(156·157)로 `PracticeScoreNotes`를 구현한다(아래 미결 사항).
-- 배포 환경에 AI 서비스 주소 `ANALYSIS_AI_BASE_URL`을 넣는다. AI 쪽 `POST /v1/analyses`는 S15P31E102-212에서 구현했다([실행 방법](../../ai/README.md#분석-api)). 기준음은 S15P31E102-157 전까지 E♭4 고정이다.
+- 배포 환경에 AI 서비스 주소 `ANALYSIS_AI_BASE_URL`을 넣는다. AI 쪽 `POST /v1/analyses`는 S15P31E102-212에서 구현했다([실행 방법](../../ai/README.md#분석-api)). 기준음은 S15P31E102-157 전까지 E♭4 고정이고, 채점이 `startBeat`로 기대 시각을 정하는 것도 157이 맡는다.
 
 S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새 시도를 시작하는 조건부 갱신까지 구현했다. 마감을 넘긴 `PENDING`은 먼저 `TIMEOUT`으로 끝낸 뒤 다시 시도하고, 업로드 전(`RECORDING`) 세션도 거절한다. 새 시도는 읽은 시도 번호를 조건으로 시작하고, 분석을 백그라운드 작업으로 넘기지 못하면 그 시도를 `SERVER_ERROR`로 끝낸다. 다른 시도가 계속 끼어들어 몇 번 다시 읽어도 시작하지 못하면 거절이 아니라 '잠시 후 다시'(`Busy`)로 답한다. API에서는 이 결과도 거절 응답과 구분해야 한다. 유스케이스는 트랜잭션 밖에서 불러야 한다(새 시도가 커밋된 뒤 분석이 세션을 읽는다). 다시 시도 API(경로·응답 코드·거절 오류 형식)와 유스케이스의 Bean 연결은 아래 미결 사항의 API 명세가 정해진 뒤 붙인다. 이때 새 시도를 위의 분석 실행기로 넘긴다.
 
@@ -202,8 +204,7 @@ S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새
 | --- | --- | --- |
 | 기록을 지운 세션(REC-04)을 상태 조회에서 404로 할지 | PRA API 명세 담당. 지금은 200으로 상세·메모를 주고 `recordingAvailable`만 false다(V2 주석은 목록·재생에서 뺀다고만 적음) | 상태 조회 API의 지운 기록 처리 |
 | 재시도 API의 거절 응답 형식 | PRA API 명세 담당. 경로는 명세의 `POST /api/practice-sessions/{sessionId}/retry` | 다시 시도 API 구현 |
-| 음표 번호 규칙(`NOTE`만 0부터 셈) 확인 | 데이터(곡 적재의 `note_count`, AI 채점 입력 S15P31E102-157)·FE(연습 구간 선택). 위 '음표 번호' 제안 | `PracticeScoreNotes` 구현 |
-| `songs.score_json`을 반음·박·시김새·음 ID로 푸는 방법 | 반음 기준음은 S15P31E102-157(기준음 E♭4), 율명·옥타브 → `pitches.id` 대응은 데이터 담당 | 분석 요청의 `notes`와 `expected_pitch_id` 채우기 |
+| FE 연습 구간 선택이 음표 번호(`NOTE`만 0부터)로 `startNoteIdx`·`endNoteIdx`를 보내는지 | FE 담당 확인 | 구간 연습의 올바른 채점(전체 곡 연주는 막지 않음) |
 | 녹음 길이 상한(PRA-02 600초)을 낮출지, DTW 폭 제한을 넣을지 | 팀(PRA-02·PRA-03). 서비스 곡의 최대 연습 구간 길이 확인 필요. [측정 기록](../knowledge/ai/analysis-latency.md)은 상한을 연습 구간 길이로 낮추고 120초를 넘으면 DTW 폭 제한을 먼저 넣자고 제안한다 | 120초를 넘는 녹음의 분석. 정하기 전 긴 녹음은 메모리 부족으로 실패한다 |
 | 제한 시간 60초와 앱 대기 70초의 최종 값 | 운영 서버에서 같은 명령으로 다시 잰 결과 | 값 조정(구현은 막지 않음) |
 | 연습 기록 목록이 저장한 세션만 보이는지 | REC-02 목록 명세. 저장한 세션만 보이면 `UPLOAD_TIMEOUT`은 따로 처리할 필요 없다 | 목록 API 구현 |
@@ -217,3 +218,4 @@ S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새
 | 2026-10-27 | 업로드 실패는 범위 밖 | 앱이 녹음을 보관하고 '녹음 다시 보내기'를 제공하며, `UPLOAD_TIMEOUT`은 화면에 보이지 않음 | 사용자 잘못이 아닌 실패에 다시 연주를 요구하지 않기 위해. FE Task S15P31E102-187 추가 |
 | 2026-10-27 | `TOO_SHORT` 문구 "녹음이 너무 짧아요" 계열 | "녹음이 끝까지 저장되지 않았어요" | 중단한 연주는 보내지 않으므로 짧은 녹음은 대개 사용자 잘못이 아니다 |
 | 2026-10-28 | 업로드 잘림으로 짧아진 녹음은 `TOO_SHORT` | 끝이 잘리거나 중간이 손상된 파일은 `DECODE_ERROR`. `TOO_SHORT`는 끝까지 읽히는 짧은 녹음만 | 사용자 결정(S15P31E102-183 리뷰). ffmpeg는 손상 구간을 건너뛰고 정상 종료해 뒤의 소리가 앞당겨지므로 디코딩 오류가 하나라도 나면 실패로 본다. 두 경우 모두 '다시 연주하기'라 사용자 행동은 같다 |
+| 2026-10-28 | 분석 요청 음표는 `idx`·`semitone`·`beats`·`sigimsae` | 음표마다 `startBeat` 추가 | 쉼을 빼고 `beats`만 보내면 쉼 뒤 음이 앞당겨진다(아리랑 61음 중 45음, 최대 약 1초). 데이터 담당 지적. 백엔드(S15P31E102-186)·AI 엔드포인트(S15P31E102-212)·채점(S15P31E102-157)이 함께 바꾼다 |
