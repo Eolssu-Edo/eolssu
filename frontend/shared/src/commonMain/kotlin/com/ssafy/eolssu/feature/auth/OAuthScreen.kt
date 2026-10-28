@@ -43,6 +43,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_close
+import eolssu.shared.generated.resources.auth_confirm
 import eolssu.shared.generated.resources.auth_no_account_message
 import eolssu.shared.generated.resources.auth_no_account_signup
 import eolssu.shared.generated.resources.auth_no_account_title
@@ -50,9 +51,12 @@ import eolssu.shared.generated.resources.auth_oauth_result_hint
 import eolssu.shared.generated.resources.auth_oauth_result_link
 import eolssu.shared.generated.resources.auth_oauth_result_linked
 import eolssu.shared.generated.resources.auth_oauth_result_none
+import eolssu.shared.generated.resources.auth_oauth_result_withdrawn
 import eolssu.shared.generated.resources.auth_oauth_placeholder_body
 import eolssu.shared.generated.resources.auth_oauth_placeholder_title
 import eolssu.shared.generated.resources.auth_oauth_title
+import eolssu.shared.generated.resources.auth_withdrawal_cancelled_message
+import eolssu.shared.generated.resources.auth_withdrawal_cancelled_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -60,6 +64,8 @@ import org.jetbrains.compose.resources.stringResource
  * 제공자 로그인 뒤 서버 결과는 아래 버튼 셋으로 고른다(예시).
  * 연결된 계정이 있으면 [onLinked]로 홈, 같은 이메일로 가입한 계정이 있으면(409 `ACCOUNT_MERGE_AVAILABLE`) [onLinkAvailable]로 계정 연결 확인,
  * 둘 다 없으면 '가입된 계정이 없어요' 창을 띄우고 [onSignUp]으로 이메일 가입에 간다.
+ * 탈퇴 대기 계정이면(로그인 응답의 `withdrawalCancelled`) 이메일 로그인처럼 '탈퇴 신청이 취소됐어요' 창의 확인 뒤 [onLinked]로 간다.
+ * 와이어프레임은 이 결과를 도구 막대의 예시 결과로 고르지만 앱에는 도구 막대가 없어 네 번째 예시 버튼으로 둔다.
  */
 @Composable
 fun OAuthScreen(
@@ -74,6 +80,7 @@ fun OAuthScreen(
     val name = stringResource(provider.displayName)
     val frame = authFrameOf(widthClass, split = false)
     var noAccount by rememberSaveable { mutableStateOf(false) }
+    var withdrawalCancelled by rememberSaveable { mutableStateOf(false) }
     AuthScaffold(
         frame,
         topBar = { AuthTopBar(stringResource(Res.string.auth_oauth_title, name), onBack = onBack) },
@@ -88,6 +95,11 @@ fun OAuthScreen(
             EolssuButton(stringResource(Res.string.auth_oauth_result_linked), onClick = onLinked)
             EolssuButton(stringResource(Res.string.auth_oauth_result_link), onClick = onLinkAvailable, style = EolssuButtonStyle.Secondary)
             EolssuButton(stringResource(Res.string.auth_oauth_result_none), onClick = { noAccount = true }, style = EolssuButtonStyle.Secondary)
+            EolssuButton(
+                stringResource(Res.string.auth_oauth_result_withdrawn),
+                onClick = { withdrawalCancelled = true },
+                style = EolssuButtonStyle.Secondary,
+            )
         },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -145,6 +157,15 @@ fun OAuthScreen(
         ) {
             EolssuButton(stringResource(Res.string.auth_no_account_signup), onClick = onSignUp)
             EolssuButton(stringResource(Res.string.auth_close), onClick = onBack, style = EolssuButtonStyle.Text)
+        }
+    }
+    if (withdrawalCancelled) {
+        EolssuDialog(
+            title = stringResource(Res.string.auth_withdrawal_cancelled_title),
+            message = stringResource(Res.string.auth_withdrawal_cancelled_message),
+            icon = EolssuIcons.Check,
+        ) {
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onLinked)
         }
     }
 }

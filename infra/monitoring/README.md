@@ -5,7 +5,7 @@
 | 서비스 | 서버 안 주소 | 이미지 |
 | --- | --- | --- |
 | Grafana | 127.0.0.1:3000 | grafana/grafana:11.3.0 |
-| Prometheus | 127.0.0.1:9090 | prom/prometheus:v3.5.0 |
+| Prometheus | 127.0.0.1:3001 | prom/prometheus:v3.5.0 |
 | node exporter | 포트 없음(Docker 내부 `node-exporter:9100`) | prom/node-exporter:v1.9.1 |
 
 서비스는 서버 밖에 열지 않고 SSH 터널로만 접속합니다. 운영 스택(`eolssu-runtime`)의 Compose·Nginx 설정은 바꾸지 않고, 그 스택의 내부 네트워크 `eolssu-runtime_default`에 붙어 MySQL을 `mysql:3306`, 백엔드를 `backend:8080`으로 찾습니다.
@@ -87,7 +87,7 @@ cd ~/eolssu-monitoring && cp .env.example .env && chmod 600 .env && nano .env
 docker compose up -d
 ```
 
-`docker compose ps`에서 grafana·node-exporter가 `Up`, prometheus가 `Up (healthy)`이면 됩니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다. 수집 대상 상태는 서버에서 `curl -s 127.0.0.1:9090/api/v1/targets`의 `"health":"up"`으로 확인합니다.
+`docker compose ps`에서 grafana·node-exporter가 `Up`, prometheus가 `Up (healthy)`이면 됩니다. 예전 Compose에 있던 metabase 컨테이너는 `docker compose up -d --remove-orphans`로 함께 지웁니다. 수집 대상 상태는 서버에서 `curl -s 127.0.0.1:3001/api/v1/targets`의 `"health":"up"`으로 확인합니다.
 
 ## 3. 접속과 DB 연결
 
@@ -102,7 +102,7 @@ ssh -L 3000:127.0.0.1:3000 edo1
 | Grafana | http://localhost:3000, `admin` / `GRAFANA_ADMIN_PASSWORD` | Connections → Data sources → MySQL. Host `mysql:3306`, Database `eolssu`, User `grafana` |
 | Grafana | 같음 | Connections → Data sources → Prometheus. Prometheus server URL `http://prometheus:9090` |
 
-MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successfully queried the Prometheus API`가 나오면 연결된 것입니다. Prometheus 자체 화면이 필요하면 터널에 `-L 9090:127.0.0.1:9090`을 더합니다.
+MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successfully queried the Prometheus API`가 나오면 연결된 것입니다. Prometheus 자체 화면이 필요하면 터널에 `-L 13001:127.0.0.1:3001`을 더하고 http://localhost:13001 로 엽니다.
 
 ## 4. 대시보드
 
