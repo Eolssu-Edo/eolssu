@@ -43,7 +43,7 @@ class ScoreViewController(private val recordScoreView: RecordScoreView) {
         return when (val result = recordScoreView.record(segment)) {
             is RecordScoreViewResult.Created -> success(HttpStatus.CREATED, "체류 기록 저장 성공", result.segment)
             is RecordScoreViewResult.AlreadyRecorded -> success(HttpStatus.OK, "이미 저장된 체류 기록", result.segment)
-            RecordScoreViewResult.Conflict -> error(ErrorCode.IDEMPOTENCY_KEY_CONFLICT)
+            RecordScoreViewResult.Conflict -> error(ErrorCode.IDEMPOTENCY_CONFLICT)
             is RecordScoreViewResult.Invalid -> error(ErrorCode.INVALID_REQUEST, RejectionDetails(result.violation.name))
             RecordScoreViewResult.SongNotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             // 토큰은 유효하지만 회원 행이 없다. 앱은 토큰 갱신에 실패하고 로그아웃 때 남은 기록을 지운다.

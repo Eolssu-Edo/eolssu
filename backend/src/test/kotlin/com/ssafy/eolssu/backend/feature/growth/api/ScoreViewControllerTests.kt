@@ -71,7 +71,7 @@ class ScoreViewControllerTests {
         send()
         send(body(countedSeconds = 200)).andExpect(status().isConflict)
             .andExpect(jsonPath("$.isSuccess").value(false))
-            .andExpect(jsonPath("$.result.errorCode").value("IDEMPOTENCY_KEY_CONFLICT"))
+            .andExpect(jsonPath("$.result.errorCode").value("IDEMPOTENCY_CONFLICT"))
     }
 
     @Test

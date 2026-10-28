@@ -80,7 +80,7 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 
 ## 체류 기록 API (GRO-04)
 
-Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정한다(2026-10-28 사용자 확정). 경로는 API 명세의 인증 표(`ApiAccessRulesTests`)에 있는 것을 쓰고, 응답은 공통 형식 `{httpStatus, isSuccess, message, code, result}`를 따른다.
+Notion API 명세서의 GRO-04는 E1 결정 전 초안이어서 이 스펙이 계약을 정하고 Notion 페이지를 이 계약으로 고쳤다(2026-10-28 사용자 확정). 경로는 API 명세의 인증 표(`ApiAccessRulesTests`)에 있는 것을 쓰고, 응답은 공통 형식 `{httpStatus, isSuccess, message, code, result}`를 따른다.
 
 `POST /api/users/me/score-views`. 로그인(`access_token` 쿠키)이 필요하고 본문은 JSON이다. 회원은 토큰에서 정하며 본문으로 받지 않는다.
 
@@ -114,7 +114,7 @@ Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정�
 | --- | --- |
 | 201 `체류 기록 저장 성공`, 200 `이미 저장된 체류 기록` | 저장된 구간 `{songId, startedAt, endedAt, visibleSeconds, countedSeconds}`. 200이면 처음 저장한 값이다 |
 | 400 | `errorCode: INVALID_REQUEST`. 구간 검사에 걸리면 `details.reason`에 이유(`INVALID_KEY`, `NEGATIVE_SECONDS`, `COUNTED_EXCEEDS_VISIBLE`, `TIME_OUT_OF_RANGE`, `ENDED_BEFORE_STARTED`, `VISIBLE_EXCEEDS_PERIOD`, `VISIBLE_EXCEEDS_ELAPSED`). 헤더 없음·JSON 형식 오류·칸 형식 오류(`songId`·시각·초)는 `details` 없음. 입력값은 싣지 않는다 |
-| 409 | `errorCode: IDEMPOTENCY_KEY_CONFLICT` |
+| 409 | `errorCode: IDEMPOTENCY_CONFLICT` |
 | 404 | `errorCode: RESOURCE_NOT_FOUND` |
 | 401 | `errorCode: UNAUTHENTICATED` |
 
@@ -190,7 +190,7 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 - V2 `score_views` 주석의 "최대 인정 시간": 고치지 않고 이 스펙의 정의를 따른다.
 - `data/mart/schema.sql`: `mart_daily_practice`에 `total_practice_seconds` 추가. 이미 만든 마트 테이블에는 `ALTER`가 필요하다.
 - [S15P31E102-148](https://ssafy.atlassian.net/browse/S15P31E102-148) 연습 기록·성취도 화면: 예시 데이터의 연습 시간을 이 기준에 맞춘다.
-- Notion API 명세서 GRO-04: 상세가 없다. 위 계약을 API 명세 담당([S15P31E102-139](https://ssafy.atlassian.net/browse/S15P31E102-139))에게 전달해 명세에 옮긴다.
+- Notion API 명세서 GRO-04(`/users/me/score-views`): 위 계약으로 고쳤다(2026-10-28).
 
 ## 미결 사항
 

@@ -96,7 +96,7 @@ class ScoreViewApiDatabaseTests {
 
         val conflict = post(body(countedSeconds = 200))
         assertEquals(409, conflict.statusCode(), conflict.body())
-        assertEquals("IDEMPOTENCY_KEY_CONFLICT", json.readTree(conflict.body()).path("result").path("errorCode").asString())
+        assertEquals("IDEMPOTENCY_CONFLICT", json.readTree(conflict.body()).path("result").path("errorCode").asString())
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM score_views WHERE user_id = 990189", Int::class.java))
     }
 
