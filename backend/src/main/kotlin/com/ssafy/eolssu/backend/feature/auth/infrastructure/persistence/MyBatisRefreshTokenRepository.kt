@@ -25,7 +25,7 @@ class MyBatisRefreshTokenRepository(
     }
 
     override fun findForUpdate(tokenHash: String) = mapper.findByTokenHashForUpdate(tokenHash)?.let {
-        StoredRefreshToken(it.id, it.userId, it.expiresAt.toInstant(ZoneOffset.UTC), it.revokedAt != null)
+        StoredRefreshToken(it.id, it.userId, it.expiresAt.toInstant(ZoneOffset.UTC), it.revokeReason?.let(RevokeReason::valueOf))
     }
 
     override fun revoke(id: Long, reason: RevokeReason, now: Instant) { check(mapper.revoke(id, reason.name, now.utc()) == 1) }

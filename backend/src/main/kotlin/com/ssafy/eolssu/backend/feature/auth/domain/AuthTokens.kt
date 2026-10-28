@@ -24,7 +24,9 @@ interface RefreshTokenRepository {
 
 enum class RevokeReason { ROTATED, SIGN_OUT, PASSWORD_CHANGED, WITHDRAWN, REUSE_DETECTED }
 
-class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant, val revoked: Boolean)
+class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant, val revokeReason: RevokeReason?) {
+    val revoked get() = revokeReason != null
+}
 
 /** 재발급·로그아웃용 리프레시 토큰 저장소. */
 interface TokenRefreshRepository {
