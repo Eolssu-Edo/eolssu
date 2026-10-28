@@ -3,12 +3,17 @@
 정간 읽기: 선율의 한 줄이 각, `|`가 정간 경계다. 정간 안에서 띄어 쓴 낱말이 위→아래 줄이고,
 한 줄에 이어 쓴 음 단위는 그 줄을 왼→오른쪽으로 똑같이 나눈다(우물사이·검토 화면과 같은 문법).
 시간은 곡 장단의 bpm_unit 박으로 세며, 계산 중에는 반올림이 없도록 Fraction으로 둔다.
+
+이벤트 만들기: 율명·쉼표가 새 이벤트를 열고, 이음(-)과 빈 정간은 앞 이벤트의 길이에 더한다.
+숨표·시김새는 그 글자가 속한 이벤트에 붙는다.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 import re
 
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
+# 율명 앞말 → 옥타브 번호(backend V1 pitches.octave: -1 배, 0 중, 1 청, 2 중청)
+OCTAVE = {"하하배": -3, "하배": -2, "배": -1, "": 0, "청": 1, "중청": 2}
 # 음 단위 = 율명·이음·쉼표 + 숨표 + 시김새({…}·(…)·[…]). review_page.html의 UNIT과 같다.
 UNIT = re.compile(rf"({YUL}|-|쉼표|쉼)?(<)?((?:[{{(\[][^{{}}()\[\]]+[}})\]])*)")
 SIGIMSAE = re.compile(r"[{(\[]([^{}()\[\]]+)[})\]]")
@@ -27,6 +32,20 @@ class Unit:
     sigimsae: tuple
     start: Fraction
     duration: Fraction
+
+
+@dataclass(frozen=True)
+class Event:
+    """소리 하나 또는 쉼 하나. id는 시작 글자의 위치이고 cell_id는 시작 정간이다."""
+    id: str
+    kind: str  # NOTE, REST
+    yul: str | None
+    octave: int | None
+    start: Fraction
+    duration: Fraction
+    cell_id: str
+    breath_after: bool
+    sigimsae: tuple
 
 
 def melody_of(doc, part=None):
@@ -56,6 +75,25 @@ def read_units(melody, beats_per_jeonggan):
                     units.append(Unit(cell_id, column, index, row, col, symbol, breath, sigimsae, start, duration))
                     start += duration
     return units
+
+
+def build_events(units):
+    """글자 목록을 이벤트 목록으로 묶는다. 글자마다 속한 이벤트 id 목록도 같은 순서로 돌려준다."""
+    events, unit_events = [], []
+    for u in units:
+        if u.symbol in ("-", ""):
+            if not events:
+                raise ValueError(f"{u.cell_id}: 이을 앞 소리가 없다")
+            last = events[-1]
+            events[-1] = replace(last, duration=last.duration + u.duration,
+                                 breath_after=last.breath_after or u.breath, sigimsae=last.sigimsae + u.sigimsae)
+        else:
+            prefix, yul = (u.symbol[:-1], u.symbol[-1]) if u.symbol != "쉼" else (None, None)
+            events.append(Event(f"{u.cell_id}-r{u.row}-u{u.col}", "REST" if yul is None else "NOTE",
+                                yul, None if yul is None else OCTAVE[prefix],
+                                u.start, u.duration, u.cell_id, u.breath, u.sigimsae))
+        unit_events.append(events[-1].id)
+    return events, unit_events
 
 
 def _parse_word(word, cell_id):

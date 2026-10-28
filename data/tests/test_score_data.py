@@ -6,7 +6,7 @@ import unittest
 
 DATA = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(DATA / "src/scores"))
-from score_data import melody_of, read_units
+from score_data import build_events, melody_of, read_units
 
 FIXTURES = DATA / "tests/fixtures/jgb"
 # 두 고정 파일의 선율: 1각 = 중 | - - 임 | 쉼, 2각 = 청황< | (빈 정간) | 무
@@ -65,6 +65,35 @@ class ReadUnitsTests(unittest.TestCase):
     def test_unreadable_text_stops_with_its_cell(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | 도레미", beats_per_jeonggan=F(1))
+
+
+class BuildEventsTests(unittest.TestCase):
+    def test_holds_and_blank_cells_extend_the_previous_event(self):
+        events, unit_events = build_events(read_units(MELODY, beats_per_jeonggan=F(1)))
+        got = [(e.id, e.kind, e.yul, e.octave, e.start, e.duration, e.cell_id, e.breath_after) for e in events]
+        self.assertEqual(got, [
+            ("c0-j0-r0-u0", "NOTE", "중", 0, F(0), F(5, 3), "c0-j0", False),   # 중 + 다음 정간의 이음 두 줄
+            ("c0-j1-r2-u0", "NOTE", "임", 0, F(5, 3), F(1, 3), "c0-j1", False),
+            ("c0-j2-r0-u0", "REST", None, None, F(2), F(1), "c0-j2", False),
+            ("c1-j0-r0-u0", "NOTE", "황", 1, F(3), F(2), "c1-j0", True),        # 청황 + 빈 정간, 숨표
+            ("c1-j2-r0-u0", "NOTE", "무", 0, F(5), F(1), "c1-j2", False),
+        ])
+        # 정간 글자마다 자기가 속한 이벤트를 가리킨다(이음·빈 정간은 앞 이벤트)
+        ids = [e.id for e in events]
+        self.assertEqual(unit_events, [ids[0], ids[0], ids[0], ids[1], ids[2], ids[3], ids[3], ids[4]])
+
+    def test_octave_prefix_becomes_number(self):
+        events, _ = build_events(read_units("배임 | 중청태 | 하배황", beats_per_jeonggan=F(1)))
+        self.assertEqual([(e.yul, e.octave) for e in events], [("임", -1), ("태", 2), ("황", -2)])
+
+    def test_sigimsae_and_breath_on_a_hold_belong_to_the_held_event(self):
+        events, _ = build_events(read_units("임{니나} | -<", beats_per_jeonggan=F(1)))
+        self.assertEqual(len(events), 1)
+        self.assertEqual((events[0].sigimsae, events[0].breath_after, events[0].duration), (("니나",), True, F(2)))
+
+    def test_hold_without_a_previous_sound_stops(self):
+        with self.assertRaisesRegex(ValueError, "c0-j0"):
+            build_events(read_units("- | 임", beats_per_jeonggan=F(1)))
 
 
 if __name__ == "__main__":
