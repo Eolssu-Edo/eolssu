@@ -81,6 +81,18 @@ class BackupTests(unittest.TestCase):
                 backup.commit_backup(p / 'store', 'db', '20261025T010000Z-012345abcdef', incoming, '0' * 64)
             self.assertFalse(list((p / 'store').rglob('*.cms')))
 
+    def test_dump_covers_only_service_database_after_metabase_removal(self):
+        # metabase DB는 S15P31E102-202에서 지웠다. 없는 DB를 덤프하면 백업 전체가 실패한다.
+        calls = []
+        previous = backup.command; backup.command = lambda args, **kw: calls.append(args) or b''
+        try:
+            backup.dump_db()
+            backup.dump_db('fixture-mysql', 'fixture-password')
+        finally:
+            backup.command = previous
+        for args in calls:
+            self.assertEqual(args[args.index('--databases') + 1:], ['eolssu'])
+
     def test_retention_resumes_after_cipher_deleted_before_receipt(self):
         with tempfile.TemporaryDirectory() as d:
             previous = backup.STORE; backup.STORE = Path(d)

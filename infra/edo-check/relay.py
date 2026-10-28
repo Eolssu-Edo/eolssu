@@ -103,7 +103,7 @@ NAMES = {
     'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버',
     'eolssu-runtime-mysql-1': '서비스 DB(MySQL)',
     'eolssu-monitoring-grafana-1': '모니터링(Grafana)',
-    'eolssu-monitoring-metabase-1': '분석(Metabase)',
+    'eolssu-monitoring-prometheus-1': '수치 수집(Prometheus)',
     'eolssu-jenkins-controller-1': '배포(Jenkins)',
     'hey-edo1-controller-1': '리뷰 봇 제어', 'hey-edo1-runner-1': '리뷰 실행기',
     'hey-edo1-n8n-1': '리뷰 워크플로(n8n)', 'hey-edo1-tunnel-1': '리뷰 봇 터널',
@@ -182,8 +182,6 @@ def build_report(result, request_id):
         for row in rows:
             name, location, status, evidence = row[:4]
             if name == 'eolssu-monitoring-grafana-1' and 'Grafana' in ready and status in ('미검증', '미설정'):
-                continue
-            if name == 'eolssu-monitoring-metabase-1' and 'Metabase' in ready and status in ('미검증', '미설정'):
                 continue
             if name == 'hey-edo1-n8n-1' and 'n8n' in ready and status in ('미검증', '미설정'):
                 continue

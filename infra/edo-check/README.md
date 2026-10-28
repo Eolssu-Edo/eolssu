@@ -38,7 +38,7 @@
 | --- | --- | --- |
 | `/edo1-server` | RAM 가용량·파일시스템 공간과 inode, 시스템 실패·OOM | 서버 자원 압박과 시스템 오류 확인. Docker 데몬 응답과 서비스 준비 상태는 별도다. |
 | `/edo1-containers` | 실행 상태·CPU·RAM·쓰기 계층·로그 | CPU 100%는 1코어. 메모리 상한이 있으면 상한 대비 비율, 없으면 호스트 RAM 대비 비율을 표시한다. |
-| `/edo1-health` | 장애·미검증 항목의 근거와 다음 조치 | healthcheck 없음은 장애 확정이 아니다. Grafana·Metabase·n8n은 별도 HTTP 준비 응답으로 확인한다. |
+| `/edo1-health` | 장애·미검증 항목의 근거와 다음 조치 | healthcheck 없음은 장애 확정이 아니다. Grafana·n8n은 별도 HTTP 준비 응답으로, Prometheus는 Docker healthcheck로 확인한다. |
 
 표 본문의 값 전체를 굵게 하지 않고 제목·구분·상태 판정을 강조한다. 상태는 ✅ 정상·검사 통과, ❌ 장애, ⚠️ 주의, ❓ 미검증, 🚫 미측정, ℹ️ 설정 참고로 구분하며 텍스트를 함께 표시한다. 접수 중은 ⏳, 수집 실패도 🚫로 표시해 서비스 장애와 구분한다. 단순 실행 중·검사 시작 중·과거 healthy에는 체크를 붙이지 않는다. 상단 건수는 0보다 큰 항목만 이모지와 굵은 글씨로 강조한다. 좁은 상태 열에서 한글이 한 글자씩 갈라지지 않도록 상태 단어에 word joiner, 아이콘 뒤에 줄바꿈 없는 공백을 사용한다. 컨테이너 이름은 웹·API·배포 등 역할로 표시하고 실행 상세에 원래 식별자를 보존한다. 로그·볼륨·bind·쓰기 계층을 구분하고 저장소마다 한 행을 사용한다. 누락은 0으로 치환하지 않으며 같은 원인을 중복 집계하지 않는다.
 
@@ -49,13 +49,13 @@
 - NET·BLOCK I/O는 누적 전송량이며 디스크 점유량이 아니다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 긴급 용량 점검이 필요한 주의로 표시한다. 용량만으로 서비스 장애를 확정하지 않는다. 이는 이 프로젝트의 기본 기준이며 보편적인 장애 임계값은 아니다.
 - Load는 CPU 사용률과 다르며 실행 가능 작업과 중단 불가 대기의 평균이다. 5분 또는 15분 값이 코어 수를 넘으면 컨테이너 CPU 상위부터 보고, CPU가 낮으면 호스트 I/O 대기를 확인한다. 이는 수동 확인 기준으로 자동 장애 건수에 넣지 않는다. CPU는 0.2초 표본이므로 한 번의 값만으로 지속성을 판정하지 않는다. RAM 80% 이상 등 자원 주의 시 사용자가 30초 간격 3회 재실행해 값을 비교하도록 안내하며 명령이 자동 대기·반복하지 않는다.
 - 실패 서비스는 현재 systemd 실패 상태이며 1개 이상이면 `systemctl --failed`로 대상을 확인한다. OOM은 최근 24시간 커널에서 매칭된 로그 줄 수이며 사건 건수가 아니다. 과거 기록은 주의로 구분해 시각·대상을 현재 RAM·한도와 비교한다. Docker OOM 플래그와 재시작 횟수도 최근 24시간 발생 횟수를 뜻하지 않는다.
-- frontend·backend·mysql의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana·Metabase는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
+- frontend·backend·mysql의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
 
 서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능, 백업 복구 성공 여부는 수집하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
 
 ### edo2의 기대 구성
 
-edo2는 Docker가 설치·활성화된 서버이며 현재 등록 컨테이너는 0개다. 엔진 조회 성공과 빈 목록은 `해당 없음`으로, 엔진·socket 조회 실패는 `미측정`으로 구분한다. edo1의 웹·API·MySQL 필수 컨테이너와 Grafana·Metabase·n8n 검사를 edo2에 적용하지 않는다.
+edo2는 Docker가 설치·활성화된 서버이며 현재 등록 컨테이너는 0개다. 엔진 조회 성공과 빈 목록은 `해당 없음`으로, 엔진·socket 조회 실패는 `미측정`으로 구분한다. edo1의 웹·API·MySQL 필수 컨테이너와 Grafana·Prometheus·n8n 검사를 edo2에 적용하지 않는다.
 
 health는 nginx·edo-check·docker·ssh daemon, Certbot 갱신·백업 status/prune/restore-test timer, backup status/restore-test oneshot 이력과 Nginx 구성·UFW·127.0.0.1:8765 `/healthz`를 검사한다. timer는 active와 다음 실행 예약, oneshot은 실행 시각·결과·종료 코드를 확인한다. inactive는 oneshot 성공 후 정상 대기일 수 있다. 실행 이력이 없거나 이번 실행 중이면 `미검증`이며 작업을 자동 실행하지 않는다. systemd 실행 성공은 백업 파일의 무결성·복구 성공을 보증하지 않는다.
 

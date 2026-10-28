@@ -63,7 +63,7 @@ ssh -o ClearAllForwardings=yes edo2 'sudo systemctl start eolssu-backup-restore-
 
 복원 컨테이너는 무작위 실행 ID의 internal network, 자원 제한, 외부 공개 포트 없음으로 실행한다. Jenkins executor는 0이며 운영 에이전트를 연결하지 않는다. 종료 시 소유 라벨을 확인한 컨테이너·익명 볼륨·네트워크와 자체 임시 디렉터리만 정리한다. 실패 시에도 같은 정리를 수행하며 정리 실패는 성공으로 보고하지 않는다. `restore-last.json`은 임시 디렉터리 밖에 보존된다.
 
-이 검사는 업무 API의 완성도나 서버 프로비저닝 시간까지 검증하지 않는다. Metabase는 자체 DB의 데이터·뷰·계정 복원을 검증하며 Metabase 프로세스는 기동하지 않는다. 원본과 무관한 `hey-*` 서비스의 PostgreSQL·n8n 데이터는 백업 범위에 포함하지 않았다.
+이 검사는 업무 API의 완성도나 서버 프로비저닝 시간까지 검증하지 않는다. DB 백업은 `eolssu`만 담는다. Metabase와 `metabase` DB는 S15P31E102-202에서 없앴다. 복원 검사는 가장 최근 백업을 쓰므로, 이 버전을 설치한 직후에는 백업을 한 번 돌린 뒤 복원 검사를 한다. 예전 백업으로 돌리면 `metabase` 항목이 남아 있어 실패로 잘못 보고된다. 원본과 무관한 `hey-*` 서비스의 PostgreSQL·n8n 데이터는 백업 범위에 포함하지 않았다.
 
 ## 설치·활성화·복구
 

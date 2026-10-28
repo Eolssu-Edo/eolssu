@@ -7,6 +7,7 @@ mybatis-spring-boot = "4.0.0"
 [libraries]
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 spring-boot-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
 mybatis-spring-boot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
