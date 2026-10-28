@@ -18,7 +18,31 @@ uv run pytest
 
 ## 녹음 디코딩
 
-`src/ai_service/pipelines/audio.py`의 `decode_recording()`이 원본(m4a·AAC) 파일을 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)대로 16kHz·모노·PCM16(`int16`) 배열로 바꿉니다. 스테레오는 두 채널 평균이고, 결과는 메모리에만 둡니다. 중간이 손상됐거나 끝이 잘린 파일, 오디오가 없는 파일은 `DecodeError`(`fail_reason` `DECODE_ERROR`)입니다. ffmpeg는 손상 구간을 건너뛰고 정상 종료해 뒤의 소리를 앞당기므로 `-xerror`로 디코딩 오류가 하나라도 나면 실패로 봅니다. 패킷 경계에서 잘린 파일은 오류 없이 일찍 끝나므로, 디코딩 길이가 `ffprobe`로 읽은 컨테이너 길이보다 0.1초 넘게 짧아도 실패로 봅니다. 정상 파일의 차이는 -0.001~+0.043초로 실측했습니다. 길이를 적지 않은 형식이거나 `ffprobe` 출력을 읽지 못하면 이 비교를 건너뜁니다. 조각(fragmented) mp4는 남은 조각으로 길이를 계산하므로 잘려도 짧은 녹음으로 통과할 수 있습니다. 앱 녹음(Android MediaRecorder·iOS)은 조각 mp4가 아니라서 지금은 막지 않습니다. 파일이 없거나 `ffmpeg`가 없으면 `FileNotFoundError`, 시간 안에 끝나지 않으면 `TimeoutError`로, 녹음 문제가 아니라서 `DecodeError`와 구분합니다. 제한 시간(`timeout_s`, 기본 60초)은 `ffprobe`와 `ffmpeg`에 각각 적용합니다. 로컬 파일만 받고(URL은 `FileNotFoundError`, ffmpeg도 `file` 프로토콜만 허용) 오류 메시지에 입력 위치를 남기지 않습니다. 서명 URL 내려받기와 HTTP 진입점은 [S15P31E102-213](https://ssafy.atlassian.net/browse/S15P31E102-213)에서 붙입니다.
+`src/ai_service/pipelines/audio.py`의 `decode_recording()`이 원본(m4a·AAC) 파일을 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)대로 16kHz·모노·PCM16(`int16`) 배열로 바꿉니다. 스테레오는 두 채널 평균이고, 결과는 메모리에만 둡니다. 중간이 손상됐거나 끝이 잘린 파일, 오디오가 없는 파일은 `DecodeError`(`fail_reason` `DECODE_ERROR`)입니다. ffmpeg는 손상 구간을 건너뛰고 정상 종료해 뒤의 소리를 앞당기므로 `-xerror`로 디코딩 오류가 하나라도 나면 실패로 봅니다. 패킷 경계에서 잘린 파일은 오류 없이 일찍 끝나므로, 디코딩 길이가 `ffprobe`로 읽은 컨테이너 길이보다 0.1초 넘게 짧아도 실패로 봅니다. 정상 파일의 차이는 -0.001~+0.043초로 실측했습니다. 길이를 적지 않은 형식이거나 `ffprobe` 출력을 읽지 못하면 이 비교를 건너뜁니다. 조각(fragmented) mp4는 남은 조각으로 길이를 계산하므로 잘려도 짧은 녹음으로 통과할 수 있습니다. 앱 녹음(Android MediaRecorder·iOS)은 조각 mp4가 아니라서 지금은 막지 않습니다. 파일이 없거나 `ffmpeg`가 없으면 `FileNotFoundError`, 시간 안에 끝나지 않으면 `TimeoutError`로, 녹음 문제가 아니라서 `DecodeError`와 구분합니다. 제한 시간(`timeout_s`, 기본 60초)은 `ffprobe`와 `ffmpeg`에 각각 적용합니다. 로컬 파일만 받고(URL은 `FileNotFoundError`, ffmpeg도 `file` 프로토콜만 허용) 오류 메시지에 입력 위치를 남기지 않습니다. 서명 URL 내려받기와 HTTP 진입점은 아래 '분석 API'입니다.
+
+## 분석 API
+
+백엔드가 부르는 `POST /v1/analyses`(`src/ai_service/api.py`)입니다. 요청·응답은 [PRA-03 '분석 요청과 상태 조회 계약'](../docs/specs/practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)을 따르고, 백엔드는 `ANALYSIS_AI_BASE_URL`에 이 서버 주소를 넣습니다.
+
+```bash
+uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
+```
+
+1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 30초 안에 25MiB까지 받고, 응답을 마치면 지웁니다.
+2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
+3. `DONE`(`modelVersion` `pyin-1`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+
+| 상황 | 응답 | 백엔드 처리 |
+| --- | --- | --- |
+| 채점 완료·녹음 탓 실패 | 200 `DONE`·`FAILED` | 결과·실패 코드 저장 |
+| 요청이 계약에 맞지 않음 | 422 `{"errors":[{loc, type}]}`. 입력값은 돌려주지 않음 | `SERVER_ERROR` |
+| 녹음을 내려받지 못함(만료·네트워크·크기 초과) | 502 `{"error":"DOWNLOAD_FAILED"}` | `SERVER_ERROR` |
+| 그 밖의 예외(디코딩 시간 초과 등) | 500 `{"error":"ANALYSIS_ERROR"}` | `SERVER_ERROR` |
+
+- 기준음은 요청에 없어 E♭4(311.13Hz)로 둡니다. 기기 차이는 조율 보정(±100센트)이 흡수합니다. 기본음 녹음·공통 악보 기준음 반영은 [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)에서 바꿉니다.
+- 박 길이는 `60 / bpm`초이고 `beats`는 백엔드가 `bpmUnit` 단위로 센 값으로 봅니다. `bpmUnit`은 DB의 4종만 받습니다.
+- 시도마다 `analysis session=… attempt=… result=… ms=…` 한 줄을 남깁니다. `audioUrl`과 예외 메시지는 남기지 않고, httpx·httpcore 로그는 WARNING 미만을 막습니다(httpx는 INFO에서 URL 전체를 남깁니다).
+- `tests/unit/test_api.py`는 합성음을 m4a로 만들어 가짜 다운로드로 넘깁니다. 응답 모양과 실패 처리 검사이며 채점 품질 검증이 아닙니다. 실행 이미지와 ffmpeg 버전 고정은 아직 없습니다.
 
 ## 음높이 추정 비교
 
