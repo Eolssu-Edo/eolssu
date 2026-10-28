@@ -34,6 +34,7 @@
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
+- [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
 
 ## 결정 기록
 
