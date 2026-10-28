@@ -5,10 +5,14 @@ spring-dependency-management = "1.1.7"
 mybatis-spring-boot = "4.0.0"
 
 [libraries]
+spring-boot-security-oauth2-resource-server = { module = "org.springframework.boot:spring-boot-starter-security-oauth2-resource-server" }
+spring-security-test = { module = "org.springframework.security:spring-security-test" }
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus" }
 spring-boot-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-flyway = { module = "org.springframework.boot:spring-boot-starter-flyway" }
+spring-boot-security = { module = "org.springframework.boot:spring-boot-starter-security" }
 mybatis-spring-boot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
 flyway-mysql = { module = "org.flywaydb:flyway-mysql" }
 mysql-connector = { module = "com.mysql:mysql-connector-j" }

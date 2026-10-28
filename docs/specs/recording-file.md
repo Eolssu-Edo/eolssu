@@ -1,8 +1,8 @@
 # 녹음 파일 규격 (PRA-02)
 
 - Jira: [S15P31E102-168](https://ssafy.atlassian.net/browse/S15P31E102-168), Story S15P31E102-33, Epic S15P31E102-20
-- 상태: 사용자 합의(2026-10-27, `coco-clarify`). BE·FE·AI·Infra 담당자 검토 전이며 구현되지 않았다. 크기·길이 숫자는 실측 전 시작값이다. 공유 계약인 백엔드 공통 오류 형식, 새 외부 저장소(GCS)와 서비스 계정 키 운영은 팀 검토 뒤 확정한다.
-- 관련 계약: [DB 스키마](../contracts/db-schema.md)의 `practice_sessions`. 원본 저장소는 GCS(Google Cloud Storage)이며 이 작업 범위에서 연결한다([GCS 저장](#gcs-저장)).
+- 상태: 사용자 합의(2026-10-27, `coco-clarify`). BE·FE·AI·Infra 담당자 검토 전이며 구현되지 않았다. 크기·길이 숫자는 실측 전 시작값이다. 오류 응답은 API 명세 공통 형식을 따른다(2026-10-28 오은서 제안, 우동균 수락). 원본 저장소는 2026-10-28 GCS에서 S3 호환 저장소 + Cloudflare R2로 바꿨다(우동균 결정). 새 외부 저장소와 접근 키 운영은 팀 검토 뒤 확정한다.
+- 관련 계약: [DB 스키마](../contracts/db-schema.md)의 `practice_sessions`. 원본 저장소는 S3 호환 객체 저장소이며 처음 쓰는 업체는 Cloudflare R2다. 이 작업 범위에서 연결한다([원본 저장소](#원본-저장소)).
 - 클라이언트 범위: Android·iOS 앱. 웹 녹음은 이번 구현 범위가 아니다.
 
 ## 목표
@@ -47,16 +47,16 @@
 | 계층 | 한도 | 넘었을 때 |
 | --- | --- | --- |
 | Nginx `/api/` | `client_max_body_size 25m` | Nginx가 413을 반환한다. 본문 형식은 보장하지 않으며 1~3번 검사도 하지 않는다 |
-| Spring multipart | 파일·요청 25MiB | 413, `RECORDING_TOO_LARGE`(ProblemDetail). 1~3번 검사는 하지 않는다 |
+| Spring multipart | 파일·요청 25MiB | 413, `RECORDING_TOO_LARGE`(공통 오류 형식). 1~3번 검사는 하지 않는다 |
 | 업로드 검사(4번) | 20MiB | 위 표의 순서대로 413 |
 
 앱은 본문 형식과 관계없이 413을 `RECORDING_TOO_LARGE`로 처리한다. 20MiB 이하 파일은 항상 위 표의 순서대로 판정된다.
 
 ### 오류 응답
 
-거부 응답 본문은 Spring의 ProblemDetail(RFC 9457, `application/problem+json`)이며, 앱이 안내를 고를 `code` 문자열을 추가한다. 이 형식은 백엔드 공통 오류 형식으로 `common/error`에 둔다.
+거부 응답 본문은 API 명세의 공통 오류 형식(`application/json`)이다. `{httpStatus, isSuccess: false, message, code, result: {errorCode}}`이며 `code`는 HTTP 상태 숫자, 앱이 안내를 고를 값은 `result.errorCode` 문자열이다. 구현은 S15P31E102-143의 `common/error`를 쓰고, 아래 코드를 그 `ErrorCode`에 추가한다. 다른 API와 같은 형식이어서 앱은 오류 파싱을 하나로 처리한다.
 
-| 상태 | `code` |
+| 상태 | `result.errorCode` |
 | --- | --- |
 | 404 | `SESSION_NOT_FOUND` |
 | 409 | `SESSION_NOT_RECORDING` |
@@ -64,11 +64,11 @@
 | 413 | `RECORDING_TOO_LARGE` |
 | 415 | `RECORDING_UNSUPPORTED_FORMAT` |
 | 422 | `RECORDING_INVALID_DURATION` |
-| 500 | `INTERNAL_ERROR` |
+| 500 | `INTERNAL_SERVER_ERROR`(공통 코드) |
 | 503 | `RECORDING_STORAGE_UNAVAILABLE` |
 
 ```json
-{"type": "about:blank", "title": "Payload Too Large", "status": 413, "detail": "녹음 파일이 20MiB를 넘습니다.", "code": "RECORDING_TOO_LARGE"}
+{"httpStatus": "PAYLOAD_TOO_LARGE", "isSuccess": false, "message": "녹음 파일이 20MiB를 넘어요", "code": 413, "result": {"errorCode": "RECORDING_TOO_LARGE"}}
 ```
 
 ### 원본 메타데이터 (DB 칼럼)
@@ -94,7 +94,7 @@
 
 ### 분석 요청과 결과 조회
 
-- 저장 성공을 커밋한 뒤 백엔드가 백그라운드에서 AI 서비스에 HTTP로 분석을 요청한다. 요청에는 세션 ID, 곡·연습 구간·BPM, 원본을 15분 동안 읽을 수 있는 GCS 서명 URL이 들어간다.
+- 저장 성공을 커밋한 뒤 백엔드가 백그라운드에서 AI 서비스에 HTTP로 분석을 요청한다. 요청에는 세션 ID, 곡·연습 구간·BPM, 원본을 15분 동안 읽을 수 있는 서명 URL(presigned URL)이 들어간다.
 - AI가 결과를 돌려주면 백엔드가 평가 결과를 저장하고 `DONE`으로, 실패 사유(`DECODE_ERROR`·`NO_SOUND`·`TOO_SHORT`)를 돌려주면 `FAILED`로 바꾼다. 시간 초과(`TIMEOUT`)·연결 실패(`SERVER_ERROR`)를 포함한 실패 코드 전체, 늦은 결과 무시, 분석 다시 시도는 PRA-03 [연주 분석 실패 사유와 화면 안내](https://ssafy.atlassian.net/browse/S15P31E102-167)를 따른다.
 - 앱은 업로드 202를 받으면 분석 대기 화면에서 세션 상태를 2초 간격으로 조회하고 `DONE`·`FAILED`가 되면 멈춘다.
 - 큐·별도 작업 서비스는 두지 않는다. AI 요청·응답 본문은 분석 연동 작업([S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186))에서, 시간 초과 값과 `PENDING`에 남은 세션 처리는 PRA-03에서 정한다.
@@ -105,20 +105,23 @@
 - 변환 결과는 메모리 배열 또는 임시 WAV 파일로만 쓰고 분석 뒤 버린다. 저장소에 두지 않으며, 재분석 때는 원본에서 다시 만든다.
 - 변환·디코딩이 실패하면 세션을 `FAILED`, `fail_reason = 'DECODE_ERROR'`로 바꾼다.
 
-### GCS 저장
+### 원본 저장소
+
+백엔드는 S3 API로만 저장소를 다룬다. 업체 전용 SDK·기능을 쓰지 않으므로 엔드포인트·키 설정만 바꿔 AWS S3, Oracle Object Storage, 네이버 클라우드 Object Storage, 자체 설치 저장소로 옮길 수 있다.
 
 | 항목 | 결정 |
 | --- | --- |
-| 지역 | 서울(`asia-northeast3`), Standard. GCP 신규 계정 무료 크레딧으로 운영하며 예산 알림을 설정한다. 크레딧 기간·금액은 GCP 공식 안내로 확인하고, 종료 후 유료 전환 여부는 팀이 정한다 |
-| 접근 | 공개 접근 차단, 균일한 버킷 수준 접근 |
-| 인증 | 백엔드 전용 서비스 계정에 이 버킷의 객체 쓰기·읽기·삭제 권한만 준다. JSON 키는 서버의 비밀 파일로 두고 컨테이너에 읽기 전용으로 마운트해 `GOOGLE_APPLICATION_CREDENTIALS`로 지정한다. 저장소에는 커밋하지 않는다 |
-| AI 읽기 | 백엔드가 분석 요청마다 15분 유효한 읽기 전용 V4 서명 URL을 만든다. AI 서비스에는 GCP 자격 증명을 두지 않는다. 서명 URL은 녹음 접근 토큰이므로 백엔드·AI 로그에 남기지 않는다 |
+| 업체 | Cloudflare R2, Standard 저장 등급. 무료 범위(월 10GB-month 저장, Class A 100만·Class B 1,000만 요청)와 다운로드(egress) 무료로 운영한다. 2026-10-28 [R2 가격 안내](https://developers.cloudflare.com/r2/pricing/) 기준이며, 무료 범위 초과 여부는 대시보드에서 확인한다 |
+| 위치 | 버킷 위치 힌트 `apac`. 힌트는 최선 노력일 뿐 보장이 아니며 서울 리전은 없다([데이터 위치](https://developers.cloudflare.com/r2/reference/data-location/)). 국외 저장에 따른 개인정보 고지 필요 여부는 미결 사항이다 |
+| 접근 | 버킷 공개 접근(r2.dev·사용자 도메인) 끔 |
+| 인증 | 이 버킷 하나에 객체 읽기·쓰기만 허용한 R2 API 토큰의 S3 접근 키를 백엔드에만 둔다. 엔드포인트 `https://<account_id>.r2.cloudflarestorage.com`, 리전 `auto`. 키는 서버 `.env`의 비밀값으로 주입하고 저장소에는 커밋하지 않는다. 변수 이름은 S15P31E102-181에서 정해 README와 `.env.example`에 적는다 |
+| AI 읽기 | 백엔드가 분석 요청마다 15분 유효한 읽기 전용(GET) presigned URL을 SigV4로 만든다(R2 허용 범위 1초~7일). presigned URL은 S3 API 도메인에서만 동작한다. AI 서비스에는 저장소 키를 두지 않는다. 서명 URL은 녹음 접근 토큰이므로 백엔드·AI 로그에 남기지 않는다 |
 | `recording_url` | 버킷 안 객체 키(`recordings/{id}/{UUID}.m4a`)를 저장한다. 접근 가능한 URL은 필요할 때 서명해 만든다 |
 
 ### 보관
 
-- 30일 보관은 버킷 수명 주기 규칙(`recordings/` 접두사, Age 30일 삭제)으로 한다. 기존 스키마 주석의 `created_at` 기준 30일 삭제 배치는 파일을 지우지 않는다.
-- Age는 객체 생성(업로드) 시각 기준의 일 단위 조건이고 실제 삭제는 GCS가 비동기로 하므로, 30일이 지난 뒤 최대 약 하루 늦게 지워질 수 있다.
+- 30일 보관은 버킷 수명 주기 규칙(`recordings/` 접두사, 30일 뒤 삭제)으로 한다([R2 수명 주기](https://developers.cloudflare.com/r2/buckets/object-lifecycles/)). 기존 스키마 주석의 `created_at` 기준 30일 삭제 배치는 파일을 지우지 않는다.
+- 기준은 객체 생성(업로드) 시각이고 R2는 만료 뒤 보통 24시간 안에 지우므로, 30일이 지난 뒤 최대 약 하루 늦게 지워질 수 있다.
 - 회원 탈퇴 일괄 처리(USR-05)와 기록 삭제(REC-04)는 이 규칙과 별개로 해당 녹음을 바로 지운다. 저장소 계약에 객체 삭제가 있어야 한다.
 - 수명 주기로 지워진 뒤 `recording_url`이 가리키는 파일이 없는 문제는 이 스펙에서 다루지 않는다(별도 Task).
 
@@ -127,11 +130,11 @@
 | 포함 | 제외 |
 | --- | --- |
 | 업로드 API의 검사·저장·상태 변경과 오류 코드 | webm·ogg(Opus) 등 다른 녹음 형식 |
-| 메타데이터 칼럼 4개 추가(새 Flyway 버전)와 DB 스키마 문서 갱신 | 앱에서 GCS로 직접 올리는 presigned URL 업로드 |
-| GCS 원본 저장 연결(버킷·인증·수명 주기 규칙·서명 URL) | 웹 녹음 |
+| 메타데이터 칼럼 4개 추가(새 Flyway 버전)와 DB 스키마 문서 갱신 | 앱에서 저장소로 직접 올리는 presigned URL 업로드 |
+| S3 호환 원본 저장 연결과 R2 설정(버킷·접근 키·수명 주기 규칙·서명 URL) | 웹 녹음 |
 | Nginx `/api/` 본문 한도(25MiB)와 Spring multipart 한도 | 업로드 중단·재개(이어 올리기) |
 | 만료 판정과 `UPLOAD_TIMEOUT` 정리 배치 | 삭제 후 `recording_url` 처리 |
-| ProblemDetail + `code` 공통 오류 형식 | 분석 연동 구현(S15P31E102-186)과 분석 실패 처리(PRA-03) |
+| 업로드 오류 코드를 공통 오류 형식(`result.errorCode`)에 추가 | 분석 연동 구현(S15P31E102-186)과 분석 실패 처리(PRA-03) |
 | 16kHz 모노 WAV 변환과 `DECODE_ERROR` | 1분 넘는 녹음의 채점(AI 쪽 미지원), 채점 허용치 |
 | Android·iOS 앱의 10분 자동 정지·크기 사전 안내 | 녹음 길이와 연습 구간 길이 비교 |
 | 크기·길이 한도 실측과 숫자 조정 | 재채점 정책 |
@@ -152,16 +155,16 @@
 
 - [ ] 44.1kHz 스테레오와 48kHz 모노 AAC m4a가 202를 받고 저장되며, `recording_url`과 메타데이터 칼럼 4개·`ended_at`이 채워지고, 상태가 `PENDING`이 된다.
 - [ ] 20,971,521바이트 파일은 413, MP3를 `.m4a`로 이름만 바꾼 파일과 오디오 스트림이 없는 m4a는 415, AAC 스트림은 있으나 길이를 읽지 못하거나 1ms 미만인 파일과 601초 이상 파일은 422를 받고 저장되지 않는다.
-- [ ] 백엔드가 만든 거부 응답(Nginx 413 제외)이 `application/problem+json`이며 위 표의 `code`를 담는다.
+- [ ] 백엔드가 만든 거부 응답(Nginx 413 제외)이 공통 오류 형식(`application/json`)이며 `result.errorCode`에 위 표의 값을 담는다.
 - [ ] 21MiB 업로드가 Nginx를 지나 백엔드의 413 `RECORDING_TOO_LARGE`를 받는다(실제 Nginx 경유 확인).
 - [ ] 600.5초 AAC 파일은 통과한다.
 - [ ] 저장된 세션에 다시 올리면 409, 다른 사용자의 세션이면 404를 받는다.
 - [ ] `started_at` + 40분이 지난 `RECORDING` 세션은 업로드 410을 받고, 배치 뒤 `FAILED`·`UPLOAD_TIMEOUT`이 되며 다시 올려도 410이다.
-- [ ] 같은 세션에 동시에 두 번 올리면 하나만 202이고, 남은 GCS 객체는 `recording_url`이 가리키는 하나뿐이며 그 파일이 성공한 요청의 내용이다.
+- [ ] 같은 세션에 동시에 두 번 올리면 하나만 202이고, 남은 저장소 객체는 `recording_url`이 가리키는 하나뿐이며 그 파일이 성공한 요청의 내용이다.
 - [ ] 저장소 쓰기 실패를 흉내 내면 503을, DB 갱신 실패를 흉내 내면 500을 받고 저장한 객체가 지워지며 세션은 `RECORDING`으로 남아 재업로드가 성공한다.
 - [ ] 변환 결과는 16kHz·1채널·PCM16 WAV이며 길이가 원본과 1초 미만 차이다. 깨진 원본은 `FAILED`·`DECODE_ERROR`가 된다.
 - [ ] Android·iOS 앱이 10:00에 녹음을 멈추고, 만든 파일이 AAC m4a다.
-- [ ] 저장에 성공한 원본이 서울 GCS 버킷의 `recordings/{id}/{UUID}.m4a`에 있고, 백엔드가 만든 서명 URL로 자격 증명 없이 15분 안에 읽히며 만료 후에는 거부된다.
+- [ ] 저장에 성공한 원본이 R2 버킷의 `recordings/{id}/{UUID}.m4a`에 있고, 백엔드가 만든 서명 URL로 자격 증명 없이 15분 안에 읽히며 만료 후에는 거부된다.
 - [ ] 버킷이 공개 접근 차단 상태이고 `recordings/` 30일 삭제 수명 주기 규칙이 설정돼 있다.
 - [ ] 한도 실측 결과가 기록되고 스펙의 숫자가 갱신된다.
 
@@ -170,9 +173,9 @@
 - **픽스처:** ffmpeg로 몇 초짜리 사인파 AAC(44.1kHz 스테레오·48kHz 모노), 이름만 바꾼 MP3, 오디오 스트림이 없는 m4a, 저비트레이트 무음 AAC(600.5초·601초 이상), 손상 파일을 만들어 테스트 자원으로 둔다. AAC는 프레임 하나가 수십 ms라 1ms 미만 파일은 만들기 어려우므로, 1ms 경계(0.999ms 거부·1ms 통과)는 ffprobe 결과를 입력으로 받는 길이 판정 단위 테스트로 확인한다. 큰 파일은 커밋하지 않고 테스트 중에 생성한다.
 - **백엔드:** 검사 순서·오류 코드·저장 키·상태 변경을 저장소 대역으로 단위 테스트한다. 메타데이터 칼럼과 상태 변경은 DB 통합 테스트로 확인한다. ffprobe가 없는 환경에서는 해당 테스트가 실패해야 하며 건너뛰지 않는다.
 - **변환:** AI 쪽 테스트에서 픽스처의 변환 결과(16kHz·1채널·PCM16)와 길이를 검사한다. AI 대역을 사용한 테스트를 실제 채점 검증으로 보고하지 않는다.
-- **ffmpeg 버전:** 로컬·CI·운영의 ffprobe 판정이 같도록 백엔드 실행 이미지의 패키지 버전을 고정한다. 고정 버전은 `ffmpeg=7:8.0.1-3ubuntu2`(실행 베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)이며 S15P31E102-180에서 이미지의 `ffprobe`로 확인했다. 베이스의 Ubuntu가 바뀌면 이 버전도 함께 갱신한다. Jenkins 에이전트와 서버 운영 Dockerfile 반영은 S15P31E102-197에서 한다.
-- **GCS:** 단위 테스트는 저장소 대역을 쓰고, GCS 연결은 테스트 전용 버킷에 실제로 올리고 읽어 확인한다. 동시 업로드는 객체 키가 요청마다 다르고 진 쪽이 자기 객체만 지우는지를 대역과 실제 버킷에서 확인한다. 인증 정보는 저장소에 커밋하지 않는다.
-- **Nginx:** 21MiB·26MiB 요청을 실제 Nginx 설정으로 보내 각각 백엔드 413(ProblemDetail)과 Nginx 413이 나오는지 확인한다.
+- **ffmpeg 버전:** 로컬·CI·운영의 ffprobe 판정이 같도록 백엔드 실행 이미지의 패키지 버전을 고정한다. 고정 버전은 `ffmpeg=7:8.0.1-3ubuntu2`(실행 베이스 `eclipse-temurin:21-jre`의 Ubuntu 26.04 패키지)이며 S15P31E102-180에서 이미지의 `ffprobe`로 확인했다. 베이스의 Ubuntu가 바뀌면 이 버전도 함께 갱신한다. 운영 backend는 이 버전을 설치한 실행 이미지 `eolssu-backend-runtime:21-jre-ffmpeg8.0.1`로 실행한다. Jenkins `mediaTest`는 edo1 호스트(Ubuntu 24.04)의 `ffmpeg=7:6.1.1-3ubuntu5`로 실행하며, 같은 실제 파일 검사 5개가 6.1.1과 8.0.1에서 같은 결과임을 확인했다(S15P31E102-197).
+- **저장소:** 단위 테스트는 저장소 대역을 쓰고, R2 연결은 테스트 전용 버킷에 실제로 올리고 읽어 확인한다. 동시 업로드는 객체 키가 요청마다 다르고 진 쪽이 자기 객체만 지우는지를 대역과 실제 버킷에서 확인한다. 인증 정보는 저장소에 커밋하지 않는다.
+- **Nginx:** 21MiB·26MiB 요청을 실제 Nginx 설정으로 보내 각각 백엔드 413(공통 오류 형식)과 Nginx 413이 나오는지 확인한다.
 - **앱:** 자동 정지는 Android·iOS에서 직접 실행해 확인한다. 단위 테스트만으로 완료로 보고하지 않는다.
 
 ## 미결 사항
@@ -180,6 +183,6 @@
 | 항목 | 내용 |
 | --- | --- |
 | 분석 연동 세부 | AI 요청·응답 본문은 S15P31E102-186에서 정한다. |
-| GCS 크레딧 이후 | 무료 크레딧 종료 뒤 유료 전환 여부와 예산 알림 금액. 팀이 정한다. |
+| 저장소 비용·위치 | R2 무료 범위를 넘을 때의 대응(유료 사용 또는 다른 S3 호환 업체로 이전)과, `apac` 국외 저장에 대한 개인정보 고지 필요 여부. 팀이 정한다. R2 무료 범위 사용에도 결제 수단 등록이 필요한지는 확인하지 않았다. |
 | 한도 숫자 | 20MiB·600초는 실측 전 시작값이다. 바꾸면 Nginx·multipart 한도(25MiB)도 함께 맞춘다. |
-| 팀 검토 | 공통 오류 형식(`common/error`), GCS 도입·서비스 계정 키 운영, Nginx 한도 변경은 BE·Infra 검토가 필요하다. |
+| 팀 검토 | R2 도입·접근 키 운영, Nginx 한도 변경은 BE·Infra 검토가 필요하다. |

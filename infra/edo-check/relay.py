@@ -20,7 +20,9 @@ import time
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
-MODES = {'/edo1-server': 'server', '/edo1-containers': 'containers', '/edo1-health': 'health'}
+TARGETS = ('edo1', 'edo2')
+MODES = {f'/{target}-{mode}': mode for target in TARGETS for mode in ('server', 'containers', 'health')}
+COMMAND_TARGETS = {command: command.split('-')[0][1:] for command in MODES}
 ENDPOINT = '/integrations/mattermost/commands'
 
 
@@ -33,7 +35,7 @@ def authorize(form, config):
         raise ValueError('허용되지 않은 팀')
     if form.get('channel_id') not in config['channel_ids']:
         raise ValueError('Team 이도 (CI/CD) 채널에서만 실행할 수 있습니다.')
-    if form.get('text', '').strip() or not form.get('user_id'):
+    if form.get('text', '').strip() or not form.get('user_id') or 'target' in form or 'mode' in form:
         raise ValueError('명령 인자를 지원하지 않습니다.')
     callback = form.get('response_url', '')
     url = urlsplit(callback)
@@ -43,7 +45,34 @@ def authorize(form, config):
             or url.query or url.fragment
             or not re.fullmatch(r'/hooks/commands/[a-z0-9]{26}', url.path)):
         raise ValueError('잘못된 응답 주소')
-    return dict(form, mode=MODES[command])
+    return dict(form, target=COMMAND_TARGETS[command], mode=MODES[command])
+
+
+def target_settings(config, target):
+    if config.get('targets') is not None:
+        if target not in config['targets']:
+            raise ValueError('missing target configuration')
+        return config['targets'][target]
+    if target == 'edo1':
+        return config  # Existing three-command deployment remains compatible during rollout.
+    raise ValueError('missing target configuration')
+
+
+def validate_config(config):
+    commands = set(config['tokens'])
+    if not commands or not commands.issubset(MODES):
+        raise ValueError('invalid command configuration')
+    tokens = list(config['tokens'].values())
+    if any(not isinstance(value, str) or len(value) < 20 for value in tokens) or len(set(tokens)) != len(tokens):
+        raise ValueError('invalid token configuration')
+    for target in TARGETS:
+        group = {command for command in MODES if COMMAND_TARGETS[command] == target}
+        if commands & group:
+            if not group.issubset(commands):
+                raise ValueError('incomplete target command group')
+            settings = target_settings(config, target)
+            if any(not settings.get(key) for key in ('ssh_target', 'known_hosts', 'identity_file', 'service_host')):
+                raise ValueError('incomplete target configuration')
 
 
 def cell(value):
@@ -56,6 +85,7 @@ STATUS_ICONS = {
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
     '일부 측정 못 함': '🚫',
+    '해당 없음': '➖', '컨테이너 없음': '➖',
 }
 
 
@@ -73,7 +103,7 @@ NAMES = {
     'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버',
     'eolssu-runtime-mysql-1': '서비스 DB(MySQL)',
     'eolssu-monitoring-grafana-1': '모니터링(Grafana)',
-    'eolssu-monitoring-metabase-1': '분석(Metabase)',
+    'eolssu-monitoring-prometheus-1': '수치 수집(Prometheus)',
     'eolssu-jenkins-controller-1': '배포(Jenkins)',
     'hey-edo1-controller-1': '리뷰 봇 제어', 'hey-edo1-runner-1': '리뷰 실행기',
     'hey-edo1-n8n-1': '리뷰 워크플로(n8n)', 'hey-edo1-tunnel-1': '리뷰 봇 터널',
@@ -97,7 +127,15 @@ def amount(value):
         value /= 1024
 
 
+def host_instructions(value, target):
+    return (value.replace('/edo1-', f'/{target}-').replace('edo1에서', target + '에서')
+            .replace('edo1의', target + '의').replace('edo2→edo1', 'edo2→' + target))
+
+
 def build_report(result, request_id):
+    target = result.get('target', 'edo1')
+    if target not in TARGETS:
+        raise ValueError('unexpected report target')
     columns, rows = result['columns'], result['rows']
     if not 1 <= len(columns) <= 20 or any(len(row) != len(columns) for row in rows):
         raise ValueError('잘못된 점검 결과')
@@ -140,12 +178,10 @@ def build_report(result, request_id):
     if result['mode'] == 'health':
         rendered = []
         # Prefer a successful direct readiness probe over an absent Docker check.
-        ready = {row[0] for row in rows if row[1] == 'edo1 loopback HTTP' and row[2] == '정상'}
+        ready = {row[0] for row in rows if row[1] == target + ' loopback HTTP' and row[2] == '정상'}
         for row in rows:
             name, location, status, evidence = row[:4]
             if name == 'eolssu-monitoring-grafana-1' and 'Grafana' in ready and status in ('미검증', '미설정'):
-                continue
-            if name == 'eolssu-monitoring-metabase-1' and 'Metabase' in ready and status in ('미검증', '미설정'):
                 continue
             if name == 'hey-edo1-n8n-1' and 'n8n' in ready and status in ('미검증', '미설정'):
                 continue
@@ -163,8 +199,21 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
+            if target == 'edo2' and location in ('edo2 systemd', 'edo2 구성 검사'):
+                action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
+            elif target == 'edo2' and 'TLS' in location:
+                action = ('만료 24시간 미만: snap.certbot.renew.timer와 최근 갱신 로그 확인; 인증서 갱신 뒤 /edo2-health 재실행'
+                          if status == '주의' else 'edo2에서 자체 HTTPS TLS 연결·IP SAN·인증서 체인·유효기간 확인')
+            elif target == 'edo2' and location == 'edo2 자체 HTTPS':
+                action = 'nginx -t와 /healthz proxy_pass, edo-check.service의 내부 HTTP 응답 확인'
+            elif target == 'edo2' and 'loopback' in location:
+                action = 'edo-check.service와 127.0.0.1:8765/healthz의 JSON status=ok 응답 확인'
+            action = host_instructions(action, target)
             elapsed = row[4] if len(row) > 4 else '—'
-            checked = ('Docker healthcheck · ' if 'Docker' in location else '') + str(evidence)
+            checked = ('Docker healthcheck · ' if location == 'Docker healthcheck' else 'Docker · ' if 'Docker' in location else '') + str(evidence)
+            if location == 'edo2 systemd':
+                # Mattermost can turn :00: inside systemd timestamps into emoji.
+                checked = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', r'`\g<0>`', checked)
             if elapsed != '—':
                 checked += ' · ' + str(elapsed)
             rendered.append([friendly(name), status, checked, '—' if status == '정상' else action])
@@ -192,6 +241,8 @@ def build_report(result, request_id):
                     '',
                     '호스트 디스크 80% 이상일 때 미사용 이미지·캐시 목록 확인 후 정리 대상을 결정',
                     '실패 서비스 1개 이상: systemctl --failed; OOM 로그 1줄 이상: 시각·대상 확인 후 RAM·한도 비교']
+        if target == 'edo2':
+            criteria[5] = 'Docker 응답 실패 시 docker.service·socket 권한 확인; 등록 0개는 컨테이너를 실행하지 않는 현재 구성'
         entries = []
         for index, (label, value) in enumerate(zip(columns, values)):
             if index == 1 and facts.get('load'):
@@ -215,8 +266,11 @@ def build_report(result, request_id):
             else:
                 entries.append([label, value, meanings[index], criteria[index]])
         tables.append(('서버 현재 자원', ['항목', '현재값', '확인 기준 · 다음 조치'],
-                       [[label, value, meaning + '. ' + criterion] for label, value, meaning, criterion in entries]))
+                       [[label, value, host_instructions(meaning + '. ' + criterion, target)] for label, value, meaning, criterion in entries]))
 
+    elif result['mode'] == 'containers' and len(columns) == 11 and not rows:
+        tables.append(('컨테이너 현황', ['대상', '판정', '확인한 내용'],
+                       [[target + ' Docker', '해당 없음', '엔진 조회 성공 · 등록된 컨테이너 0개. 이미지·캐시는 /' + target + '-server에서 확인']]))
     elif result['mode'] == 'containers' and len(columns) == 11:
         facts = {item['name']: item for item in result.get('facts') or []}
         resource_rows, storage_rows, runtime_rows = [], [], []
@@ -255,8 +309,8 @@ def build_report(result, request_id):
             resource_rows.append([friendly(name), status, cpu, ram,
                                   '쓰기 ' + write.replace('/미설정(호스트 공유)', ' · 호스트 공유') + ' / 로그 ' + str(log)])
             for mount in str(row[5]).split('; '):
-                target, separator, usage = mount.rpartition(': ')
-                storage_rows.append([friendly(name), target if separator else '데이터 저장소', usage if separator else mount,
+                mount_target, separator, usage = mount.rpartition(': ')
+                storage_rows.append([friendly(name), mount_target if separator else '데이터 저장소', usage if separator else mount,
                                      '다른 컨테이너와 중복 합산 금지' if '(공유)' in mount else
                                      '12초 또는 전체 25초 측정 예산; 재점검 필요' if '확인 불가' in mount else
                                      '별도 데이터 mount 없음' if mount == '없음' else '볼륨/bind 값은 쓰기 계층·로그와 별개'])
@@ -274,13 +328,17 @@ def build_report(result, request_id):
     else:
         tables.append(('점검 결과', columns, rows))
 
+    findings = [[kind, evidence, host_instructions(action, target)] for kind, evidence, action in findings]
+    inherited_findings = [[kind, evidence, host_instructions(action, target)] for kind, evidence, action in inherited_findings]
     findings = list({tuple(item): item for item in findings}.values())
     counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고')}
     counts['미측정'] += sum(1 for _, _, data in tables for row in data if any('미측정' in str(x) or '확인 불가' in str(x) for x in row)) if result['mode'] == 'server' else 0
     status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] else '일부 측정 못 함' if counts['미측정'] else '검사한 범위 정상'
+    if result['mode'] == 'containers' and len(columns) == 11 and not rows and not findings:
+        status = '컨테이너 없음'
     captured = cell(result.get('captured_at', '확인 불가')).replace('`', '')
     started = cell(result.get('started_at', captured)).replace('`', '')
-    parts = [f"### edo1 {result['mode']} 점검 — {display_status(status)}",
+    parts = [f"### {target} {result['mode']} 점검 — {display_status(status)}",
              f"수집 시각: `{captured}`", f"시작 `{started}` · 소요 {result.get('elapsed_seconds', '미측정')}초 · 요청 `{request_id}`", '',
              ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
                         for kind in ('장애', '주의', '미검증', '미측정')),
@@ -291,9 +349,11 @@ def build_report(result, request_id):
     if counts['설정 참고']:
         parts.extend(['', f"ℹ️ **설정 참고 {counts['설정 참고']}건**: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
     if result['mode'] == 'containers':
-        parts.extend(['', 'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. 준비 상태는 /edo1-health에서 확인하세요.'])
+        parts.extend(['', f'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. 준비 상태는 /{target}-health에서 확인하세요.'])
     if result['mode'] == 'health':
         parts.extend(['', 'Docker healthy는 설정된 healthcheck 통과입니다. HTTP 준비 응답·업무 기능·장기 오류율은 서로 다른 검사 범위입니다.'])
+        if target == 'edo2':
+            parts.extend(['자체 HTTPS는 edo2에서 자기 공인 IP를 검사한 결과입니다. IP 인증서는 만료 24시간 미만에 주의로 표시합니다. 백업 timer와 oneshot 이력은 실제 백업 무결성 검증을 대신하지 않습니다.'])
     for title, table_columns, table_rows in tables:
         header = ['', '**' + title + '**', '', '| ' + ' | '.join('**'+cell(x)+'**' for x in table_columns) + ' |',
                   '| ' + ' | '.join('---' for _ in table_columns) + ' |']
@@ -349,7 +409,7 @@ class App:
     def submit(self, form):
         request = authorize(form, self.config)
         key = hashlib.sha256(request['response_url'].encode()).hexdigest()
-        throttle = (request['channel_id'], request['mode'])
+        throttle = (request['channel_id'], request['target'], request['mode'])
         now = time.monotonic()
         with self.lock:
             self.seen = {k: v for k, v in self.seen.items() if now - v < 1800}
@@ -363,45 +423,50 @@ class App:
             self.last_run[throttle] = now
         request_id = uuid.uuid4().hex[:10]
         self.pool.submit(self.run, request, request_id)
-        return f"⏳ edo1 {request['mode']} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
+        return f"⏳ {request['target']} {request['mode']} 점검을 시작했습니다. 완료 후 이 채널에 공개합니다. 요청 {request_id}"
 
     def run(self, request, request_id):
+        target = request.get('target', 'edo1')
         started = time.monotonic()
         started_at = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
         try:
+            settings = target_settings(self.config, target)
             ssh = ['ssh', '-4', '-T', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
                    '-o', 'ConnectTimeout=8', '-o', 'IdentitiesOnly=yes',
-                   '-o', 'UserKnownHostsFile=' + self.config['known_hosts'],
-                   '-i', self.config['identity_file'], self.config['ssh_target'], request['mode']]
+                   '-o', 'UserKnownHostsFile=' + settings['known_hosts'],
+                   '-i', settings['identity_file'], settings['ssh_target'], request['mode']]
             completed = subprocess.run(ssh, capture_output=True, timeout=90, check=True)
             if len(completed.stdout) > 250000:
                 raise ValueError('oversize result')
             result = json.loads(completed.stdout)
-            if result.get('mode') != request['mode']:
-                raise ValueError('unexpected mode')
+            if result.get('mode') != request['mode'] or result.get('target', 'edo1') != target:
+                raise ValueError('unexpected collection target or mode')
+            result['target'] = target
             if request['mode'] == 'health':
-                result['rows'].extend(external_health(self.config['service_host']))
+                result['rows'].extend(external_health(settings['service_host'], target=target))
             result['started_at'] = started_at
             result['captured_at'] = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
             result['elapsed_seconds'] = round(time.monotonic()-started, 2)
             report = build_report(result, request_id)
         except subprocess.TimeoutExpired:
-            report = f'🚫 **edo1 점검 시간 초과** · 요청 {request_id}. 수집 결과 미측정입니다. 같은 명령을 1회 재실행하고 반복되면 edo2의 edo-check journal에서 해당 요청 ID를 확인하세요.'
+            report = f'🚫 **{target} 점검 시간 초과** · 요청 {request_id}. 수집 결과 미측정입니다. 같은 명령을 1회 재실행하고 반복되면 edo2의 edo-check journal에서 해당 요청 ID를 확인하세요.'
         except Exception:
-            logging.error('collection_failed request=%s mode=%s', request_id, request['mode'])
-            report = f'🚫 **edo1 점검 실패** · 요청 {request_id}. 수집 결과 미측정입니다. 운영자는 edo2→edo1 SSH 연결과 edo-check journal의 해당 요청 ID를 확인하세요.'
+            logging.error('collection_failed request=%s target=%s mode=%s', request_id, target, request['mode'])
+            report = f'🚫 **{target} 점검 실패** · 요청 {request_id}. 수집 결과 미측정입니다. 운영자는 edo2→{target} SSH 연결과 edo-check journal의 해당 요청 ID를 확인하세요.'
         try:
             post_callback(request['response_url'], report)
-            logging.info('delivered request=%s mode=%s', request_id, request['mode'])
+            logging.info('delivered request=%s target=%s mode=%s', request_id, target, request['mode'])
         except Exception:
-            logging.error('delivery_failed request=%s mode=%s', request_id, request['mode'])
+            logging.error('delivery_failed request=%s target=%s mode=%s', request_id, target, request['mode'])
         finally:
             self.slots.release()
 
 
-def external_health(host):
+def external_health(host, target='edo1'):
     rows = []
-    for label, path in [('웹 외부 접속', '/'), ('API health', '/api/actuator/health/readiness')]:
+    probes = [('웹 외부 접속', '/'), ('API health', '/api/actuator/health/readiness')] if target == 'edo1' else [('중계 HTTPS', '/healthz')]
+    location = 'edo2 외부 HTTPS' if target == 'edo1' else 'edo2 자체 HTTPS'
+    for label, path in probes:
         started = time.monotonic()
         connection = http.client.HTTPSConnection(host, timeout=8, context=ssl.create_default_context())
         try:
@@ -410,21 +475,22 @@ def external_health(host):
             body = response.read(4096)
             evidence = f'HTTP {response.status}'
             status = '정상' if response.status == 200 else '실패'
-            if label == 'API health':
+            if label in ('API health', '중계 HTTPS'):
                 if response.status == 404:
                     status, evidence = '미검증', 'HTTP 404 · 이 URL에서 준비 상태 확인 못 함'
                 elif response.status == 200:
                     try:
                         health = json.loads(body)
                         state = health.get('status')
-                        status = '정상' if state == 'UP' else '실패' if state in ('DOWN', 'OUT_OF_SERVICE') else '미검증'
+                        expected = 'UP' if target == 'edo1' else 'ok'
+                        status = '정상' if state == expected else '실패' if state in ('DOWN', 'OUT_OF_SERVICE') else '미검증'
                         evidence += ' · JSON status=' + str(health.get('status', '없음'))
                     except (ValueError, AttributeError):
                         status, evidence = '미검증', 'HTTP 200 · 기대한 health JSON 아님'
-            rows.append([label, 'edo2 외부 HTTPS', status, evidence,
+            rows.append([label, location, status, evidence,
                          f'{(time.monotonic()-started)*1000:.0f}ms', path])
         except Exception:
-            rows.append([label, 'edo2 외부 HTTPS', '실패', '연결·TLS·응답 확인 불가', '—', path])
+            rows.append([label, location, '실패', '연결·TLS·응답 확인 불가', '—', path])
         finally:
             connection.close()
     try:
@@ -432,10 +498,12 @@ def external_health(host):
             with ssl.create_default_context().wrap_socket(raw, server_hostname=host) as secured:
                 expires = ssl.cert_time_to_seconds(secured.getpeercert()['notAfter'])
         days = (expires - time.time()) / 86400
-        rows.append(['서비스 인증서', 'edo2 외부 TLS', '정상' if days >= 7 else '주의',
+        threshold = 7 if target == 'edo1' else 1
+        rows.append(['서비스 인증서' if target == 'edo1' else '중계 IP 인증서', 'edo2 외부 TLS' if target == 'edo1' else 'edo2 자체 TLS', '정상' if days >= threshold else '주의',
                      f'만료까지 {days:.1f}일', '—', host])
     except Exception:
-        rows.append(['서비스 인증서', 'edo2 외부 TLS', '실패', '인증서 검증 실패', '—', host])
+        rows.append(['서비스 인증서' if target == 'edo1' else '중계 IP 인증서',
+                     'edo2 외부 TLS' if target == 'edo1' else 'edo2 자체 TLS', '실패', '인증서 검증 실패', '—', host])
     return rows
 
 
@@ -479,8 +547,7 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     config = json.loads(Path(sys.argv[1]).read_text())
-    if set(config['tokens']) != set(MODES) or any(len(v) < 20 for v in config['tokens'].values()):
-        raise SystemExit('invalid token configuration')
+    validate_config(config)
     server = ThreadingHTTPServer(('127.0.0.1', 8765), Handler)
     server.daemon_threads = True
     server.app = App(config)

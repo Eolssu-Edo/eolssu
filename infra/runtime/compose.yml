@@ -19,16 +19,30 @@ services:
     restart: unless-stopped
 
   backend:
-    image: eclipse-temurin:21-jre
+    image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
     user: "10001:10001"
     working_dir: /app
     command: ["java", "-jar", "/app/app.jar"]
     environment:
       SERVER_PORT: "8080"
       SPRING_PROFILES_ACTIVE: ops
-      DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolsu}?connectTimeout=2000&socketTimeout=2000"
-      DB_USERNAME: ${MYSQL_USER:-eolsu}
+      DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
+      DB_USERNAME: ${MYSQL_USER:-eolssu}
       DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_CODE_HMAC_SECRET: ${AUTH_CODE_HMAC_SECRET:-}
+      AUTH_MAIL_HOST: ${AUTH_MAIL_HOST:-}
+      AUTH_MAIL_PORT: ${AUTH_MAIL_PORT:-587}
+      AUTH_MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+      AUTH_MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-${AUTH_MAIL_USERNAME:-}}
+      AUTH_MAIL_FROM_NAME: ${AUTH_MAIL_FROM_NAME:-}
+      AUTH_OAUTH_KAKAO_CLIENT_ID: ${AUTH_OAUTH_KAKAO_CLIENT_ID:-}
+      AUTH_OAUTH_KAKAO_CLIENT_SECRET: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_ID: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_SECRET: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      AUTH_OAUTH_NAVER_CLIENT_ID: ${AUTH_OAUTH_NAVER_CLIENT_ID:-}
+      AUTH_OAUTH_NAVER_CLIENT_SECRET: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:-}
     volumes:
       - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
     depends_on:
@@ -45,8 +59,8 @@ services:
   mysql:
     image: mysql:8.4.13
     environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-eolsu}
-      MYSQL_USER: ${MYSQL_USER:-eolsu}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eolssu}
+      MYSQL_USER: ${MYSQL_USER:-eolssu}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD를 지정하세요}
     volumes:

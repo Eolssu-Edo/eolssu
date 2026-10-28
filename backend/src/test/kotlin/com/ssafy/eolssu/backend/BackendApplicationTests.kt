@@ -48,6 +48,22 @@ class BackendApplicationTests {
     }
 
     @Test
+    fun `prometheus scrape returns jvm and http request metrics`() {
+        HttpClient.newHttpClient().use { client ->
+            fun get(path: String) = client.send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
+                    .timeout(Duration.ofSeconds(5)).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            get("/api/actuator/health/readiness") // 요청 수치가 한 건 이상 생기게 한다
+            val scrape = get("/api/actuator/prometheus")
+            assertEquals(200, scrape.statusCode())
+            assertTrue(scrape.body().contains("jvm_memory_used_bytes"), scrape.body().take(300))
+            assertTrue(scrape.body().contains("http_server_requests_seconds_count"), scrape.body().take(300))
+        }
+    }
+
+    @Test
     fun `multipart limits leave room above the 20 MiB recording limit`() {
         val multipart = context.getBean(MultipartConfigElement::class.java)
 

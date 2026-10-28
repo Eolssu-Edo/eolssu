@@ -105,6 +105,27 @@ class PracticeStateTest {
     }
 
     @Test
+    fun recordingLimitEndsLikeReachingSongEnd() {
+        val ended = ready.beginRecording().copy(position = 5, micLevel = 0.7f).endRecording()
+        assertTrue(ended.finished)
+        assertEquals(PracticePopup.End, ended.popup)
+        assertEquals(5, ended.position)
+        assertEquals(0f, ended.micLevel)
+    }
+
+    @Test
+    fun finishedRecordingIsCheckedBeforeEvaluation() {
+        val ended = ready.beginRecording().endRecording()
+        assertEquals(ended, ended.checkRecording(saved = true, tooLarge = false))
+        assertEquals(PracticePopup.TooLarge, ended.checkRecording(saved = true, tooLarge = true).popup)
+
+        val failed = ended.checkRecording(saved = false, tooLarge = false)
+        assertEquals(PracticeMode.Interrupted, failed.mode)
+        assertEquals(PracticePopup.RecordFailed, failed.popup)
+        assertFalse(failed.finished)
+    }
+
+    @Test
     fun selectingPitchOpensFingeringButMarksOnlySelectForHold() {
         // 아리랑 첫 각: 黃 ㅡ 太 …
         val pitch = ready.selectEvent(2)

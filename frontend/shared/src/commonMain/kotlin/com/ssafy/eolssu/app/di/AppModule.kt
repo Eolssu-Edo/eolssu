@@ -53,7 +53,8 @@ val appModule = module {
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
-    viewModel { (songId: String, solo: Boolean) -> PracticeViewModel(songId, solo, get(), get()) }
+    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
+    viewModel { (songId: String, solo: Boolean) -> PracticeViewModel(songId, solo, get(), get(), getOrNull(), getOrNull()) }
     viewModel { (songId: String, bpm: Int) -> AnalysisViewModel(songId, bpm, get(), get()) }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }

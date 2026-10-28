@@ -1,4 +1,4 @@
-# Grafana(실시간 모니터링)·Metabase(통계 탐색). 운영 스택 eolssu-runtime의 MySQL에 읽기 계정으로 붙는다.
+# Grafana·Prometheus. Grafana는 운영 MySQL(읽기 계정)과 Prometheus를 읽고, Prometheus는 백엔드 수치를 모은다.
 # 실행 방법은 README.md
 name: eolssu-monitoring
 
@@ -15,15 +15,22 @@ services:
     networks: [runtime]
     restart: unless-stopped
 
-  metabase:
-    image: metabase/metabase:v0.52.4
-    environment:
-      # Metabase 자체 설정(대시보드·질문)을 운영 MySQL의 metabase DB에 저장한다.
-      # allowPublicKeyRetrieval: MySQL 8.4 기본 로그인 방식을 쓰려면 필요. 없으면 "RSA public key is not available"
-      MB_DB_CONNECTION_URI: mysql://mysql:3306/metabase?user=metabase&password=${METABASE_DB_PASSWORD:?METABASE_DB_PASSWORD를 지정하세요}&allowPublicKeyRetrieval=true
-      JAVA_OPTS: -Xmx1g
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:9090:9090" # 서버 밖에 열지 않는다. Grafana는 prometheus:9090으로 읽는다
+    healthcheck: # 서버 점검(edo-check)이 Docker healthcheck로 준비 상태를 본다
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:9090/-/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks: [runtime]
     restart: unless-stopped
 
@@ -34,3 +41,4 @@ networks:
 
 volumes:
   grafana-data:
+  prometheus-data:

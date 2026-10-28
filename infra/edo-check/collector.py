@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Root-owned, read-only edo1 collector; only three fixed modes are accepted."""
+"""Root-owned, read-only collector; only fixed host profiles and modes are accepted."""
 import concurrent.futures
 from datetime import datetime, timedelta, timezone
 import http.client
@@ -13,6 +13,7 @@ import sys
 import time
 
 REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1'}
+REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
 
 
 def resource_stats(stats):
@@ -70,14 +71,14 @@ def docker(path, timeout=15):
         connection.close()
 
 
-def snapshot(with_storage=False, collect_stats=True):
+def snapshot(with_storage=False, collect_stats=True, target='edo1'):
     info = docker('/info')
     containers = docker('/containers/json?all=1&size=1')
     issues = []
     if len(containers) > 100:
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
     names = {name.lstrip('/') for item in containers for name in item.get('Names', [])}
-    issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(REQUIRED_CONTAINERS - names))
+    issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(REQUIRED_BY_TARGET[target] - names))
     def one(item):
         try:
             detail = docker('/containers/' + item['Id'] + '/json', timeout=5)
@@ -148,7 +149,7 @@ def system_events(issues):
     return failures, oom_lines
 
 
-def server_report():
+def server_report(target='edo1'):
     issues = []
     memory = {line.split(':')[0]: int(line.split()[1]) * 1024 for line in Path('/proc/meminfo').read_text().splitlines() if len(line.split()) >= 2}
     total, available = memory['MemTotal'], memory['MemAvailable']
@@ -157,7 +158,7 @@ def server_report():
     disks = host_disks(issues)
     failures, oom_lines = system_events(issues)
     try:
-        info, containers, storage, docker_issues = snapshot(True)
+        info, containers, storage, docker_issues = snapshot(True, target=target)
         issues.extend(docker_issues)
         running = sum(c['item']['State'] == 'running' for c in containers)
         docker_root = info.get('DockerRootDir')
@@ -258,8 +259,8 @@ def log_usage(detail, docker_root):
         return f'미측정 ({driver} 파일 접근 실패)'
 
 
-def container_report():
-    info, containers, storage, issues = snapshot(True)
+def container_report(target='edo1'):
+    info, containers, storage, issues = snapshot(True, target=target)
     volumes = {v['Name']: v for v in storage.get('Volumes') or []}
     rows, facts, measurements = [], [], {'deadline': time.monotonic() + 25}
     for value in containers:
@@ -322,11 +323,74 @@ def container_report():
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
 
-def health_report():
-    _, containers, _, issues = snapshot(collect_stats=False)
+def systemd_health(unit, kind='service'):
+    properties = 'LoadState,ActiveState,SubState,Result,ExecMainStatus,ExecMainStartTimestamp,LastTriggerUSec,NextElapseUSecRealtime'
+    try:
+        result = run(['systemctl', 'show', unit, '--property=' + properties])
+        state = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+        if result.returncode:
+            return '미측정', 'systemd 상태 조회 실패', f'edo2에서 systemctl show {unit} 재확인'
+        if state.get('LoadState') != 'loaded':
+            return '실패', '필수 unit 미등록', f'edo2에서 systemctl cat {unit}와 설치 상태 확인'
+        active = state.get('ActiveState', '?')
+        if kind == 'oneshot':
+            started = state.get('ExecMainStartTimestamp')
+            if active in ('activating', 'active'):
+                return '미검증', '이번 작업 실행 중', f'완료 후 /edo2-health 재실행; journalctl -u {unit}에서 이번 결과 확인'
+            if not started:
+                return '미검증', 'systemd 실행 이력 없음', f'{unit}의 수동/예약 실행 완료 기록을 확인; 이 점검은 작업을 실행하지 않음'
+            good = state.get('Result') == 'success' and state.get('ExecMainStatus') == '0'
+            return ('정상' if good else '실패', f"최근 시작 {started} · 결과 {state.get('Result', '?')} · 종료 {state.get('ExecMainStatus', '?')}",
+                    f'journalctl -u {unit}에서 최근 실행의 실패 원인 확인')
+        good = active == 'active' and (kind == 'timer' or state.get('SubState') == 'running')
+        evidence = active + '/' + state.get('SubState', '?')
+        if kind == 'timer':
+            evidence += ' · 다음 ' + (state.get('NextElapseUSecRealtime') or '확인 불가')
+            good = good and bool(state.get('NextElapseUSecRealtime'))
+        return '정상' if good else '실패', evidence, f'systemctl status {unit}와 journalctl -u {unit}에서 비활성/실패 원인 확인'
+    except (OSError, subprocess.TimeoutExpired, ValueError):
+        return '미측정', 'systemd 수집 실패·시간 초과', f'edo2에서 systemctl show {unit} 재확인'
+
+
+def edo2_host_health():
     rows = []
+    units = [('Nginx', 'nginx.service', 'service'), ('점검 중계', 'edo-check.service', 'service'),
+             ('Docker 엔진 서비스', 'docker.service', 'service'), ('SSH', 'ssh.service', 'service'),
+             ('인증서 갱신 예약', 'snap.certbot.renew.timer', 'timer'),
+             ('백업 상태 확인 예약', 'eolssu-backup-status.timer', 'timer'),
+             ('백업 보관 정리 예약', 'eolssu-backup-prune.timer', 'timer'),
+             ('백업 복구 검증 예약', 'eolssu-backup-restore-test.timer', 'timer'),
+             ('백업 상태 최근 실행', 'eolssu-backup-status.service', 'oneshot'),
+             ('백업 복구 검증 최근 실행', 'eolssu-backup-restore-test.service', 'oneshot')]
+    for name, unit, kind in units:
+        status, evidence, action = systemd_health(unit, kind)
+        rows.append([name, 'edo2 systemd', status, evidence, '—', action])
+    for name, command, good_text, action in (
+            ('Nginx 구성', ['nginx', '-t'], None, 'edo2에서 nginx -t의 실패 위치·인증서 경로 확인'),
+            ('UFW', ['ufw', 'status'], 'Status: active', 'edo2에서 ufw status verbose로 방화벽 활성 상태 확인')):
+        try:
+            result = run(command)
+            good = result.returncode == 0 and (good_text is None or good_text in result.stdout)
+            rows.append([name, 'edo2 구성 검사', '정상' if good else '실패',
+                         '구성 검사 통과' if name == 'Nginx 구성' and good else '방화벽 active' if good else '검사 실패 또는 비활성', '—', action])
+        except (OSError, subprocess.TimeoutExpired):
+            rows.append([name, 'edo2 구성 검사', '미측정', '검사 실행 실패·시간 초과', '—', action])
+    return rows
+
+
+def health_report(target='edo1'):
+    rows = edo2_host_health() if target == 'edo2' else []
+    try:
+        info, containers, _, issues = snapshot(collect_stats=False, target=target)
+        if target == 'edo2':
+            rows.append(['Docker 조회', 'edo2 Docker', '정상', f"엔진 응답 · 등록 {len(containers)}개 · {info.get('ServerVersion', '?')}", '—', '현재 조치 없음'])
+    except Exception:
+        if target == 'edo1':
+            raise
+        containers, issues = [], []
+        rows.append(['Docker 조회', 'edo2 Docker', '확인 불가', '기대한 Docker 엔진에 연결하지 못함', '—', 'docker.service와 Docker socket 조회 권한 확인'])
     names = {name.lstrip('/') for value in containers for name in value['item'].get('Names', [])}
-    rows.extend([name, 'edo1 Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(REQUIRED_CONTAINERS - names))
+    rows.extend([name, target + ' Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(REQUIRED_BY_TARGET[target] - names))
     for value in containers:
         item, state = value['item'], value['detail'].get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
@@ -341,7 +405,8 @@ def health_report():
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
         rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
-    for name, port, path in [('Grafana', 3000, '/api/health'), ('Metabase', 3001, '/api/health'), ('n8n', 5688, '/healthz/readiness')]:
+    probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
+    for name, port, path in probes:
         if name == 'n8n' and 'hey-edo1-n8n-1' not in names:
             continue
         started = time.monotonic()
@@ -351,38 +416,41 @@ def health_report():
             response = connection.getresponse()
             body = json.loads(response.read(4096))
             good = response.status == 200 and (body.get('database') == 'ok' if name == 'Grafana' else body.get('status') == 'ok')
-            rows.append([name, 'edo1 loopback HTTP', '정상' if good else '실패', f'HTTP {response.status} · 준비 상태·DB 응답 확인',
-                         f'{(time.monotonic()-started)*1000:.0f}ms', '준비 상태·DB 응답 확인'])
+            checked = '준비 상태·DB 응답 확인' if target == 'edo1' else 'JSON status=ok · 중계 프로세스 응답'
+            rows.append([name, target + ' loopback HTTP', '정상' if good else '실패', f'HTTP {response.status} · {checked if good else "기대한 상태 불일치"}',
+                         f'{(time.monotonic()-started)*1000:.0f}ms', '준비 상태·DB 응답 확인' if target == 'edo1' else 'edo-check.service와 127.0.0.1:8765/healthz 응답 확인'])
         except Exception:
-            rows.append([name, 'edo1 loopback HTTP', '실패', '응답 확인 불가', '—', path])
+            rows.append([name, target + ' loopback HTTP', '실패', '응답 확인 불가', '—', path])
         finally:
             connection.close()
     return ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'], rows, issues
 
 
-def main(mode):
+def main(mode, target='edo1'):
+    if target not in REQUIRED_BY_TARGET:
+        raise SystemExit('unsupported target')
     started_at = datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')
     started = time.monotonic()
     function = {'server': server_report, 'containers': container_report, 'health': health_report}.get(mode)
     if function is None:
         raise SystemExit('unsupported mode')
     try:
-        report = function()
+        report = function(target=target)
         columns, rows, issues = report[:3]
         facts = report[3] if len(report) > 3 else None
     except Exception:
         if mode == 'health':
-            columns, rows = ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'], [['edo1', 'SSH 수집', '확인 불가', '수집 실패·시간 초과', '—', '운영자 확인 필요']]
+            columns, rows = ['대상', '위치/방식', '판정', '응답/측정값', '소요', '상세'], [[target, 'SSH 수집', '확인 불가', '수집 실패·시간 초과', '—', '운영자 확인 필요']]
         else:
-            columns, rows = ['대상', '결과'], [['edo1', '수집 실패·확인 불가']]
+            columns, rows = ['대상', '결과'], [[target, '수집 실패·확인 불가']]
         issues = ['수집 실패·시간 초과; 운영자 확인 필요']
         facts = None
-    return {'mode': mode, 'columns': columns, 'rows': rows, 'issues': issues, 'facts': facts,
+    return {'target': target, 'mode': mode, 'columns': columns, 'rows': rows, 'issues': issues, 'facts': facts,
             'started_at': started_at, 'elapsed_seconds': round(time.monotonic()-started, 2),
             'captured_at': datetime.now(timezone(timedelta(hours=9))).strftime('%Y-%m-%d %H:%M:%S KST')}
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) not in (2, 3):
         raise SystemExit('one fixed mode required')
-    print(json.dumps(main(sys.argv[1]), ensure_ascii=False))
+    print(json.dumps(main(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else 'edo1'), ensure_ascii=False))
