@@ -26,7 +26,6 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
@@ -42,20 +41,15 @@ import eolssu.shared.generated.resources.auth_nickname
 import eolssu.shared.generated.resources.auth_nickname_help
 import eolssu.shared.generated.resources.auth_nickname_placeholder
 import eolssu.shared.generated.resources.auth_profile_heading
-import eolssu.shared.generated.resources.auth_profile_via_provider
 import eolssu.shared.generated.resources.auth_signup_done
 import eolssu.shared.generated.resources.auth_signup_title
 import org.jetbrains.compose.resources.stringResource
 
-/**
- * AUTH-07 프로필 설정. 이메일 가입이면 2/2 단계 표시, 소셜 첫 가입([provider]가 있음)이면 단계 대신
- * 'OO 계정으로 가입' 보조 문구를 보인다.
- */
+/** AUTH-07 프로필 설정(이메일 가입 3/3). 간편 로그인은 로그인 전용이라 소셜 첫 가입용 화면은 없다. */
 @Composable
 fun ProfileSetupScreen(
     state: ProfileSetupUiState,
     widthClass: WindowWidthClass,
-    provider: SocialProvider?,
     onBack: () -> Unit,
     onNicknameChange: (String) -> Unit,
     onSelectInstrument: (ProfileInstrument) -> Unit,
@@ -66,19 +60,13 @@ fun ProfileSetupScreen(
         modifier = Modifier.imePadding(),
         topBar = {
             Column {
-                AuthTopBar(
-                    stringResource(Res.string.auth_signup_title),
-                    onBack = onBack,
-                    subtitle = provider?.let { stringResource(Res.string.auth_profile_via_provider, stringResource(it.displayName)) },
-                    right = { if (provider == null) AuthStepLabel(2, SignupStepCount) },
-                )
-                if (provider == null) AuthStepProgress(2, SignupStepCount)
+                AuthTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack, right = { AuthStepLabel(3, SignupStepCount) })
+                AuthStepProgress(3, SignupStepCount)
             }
         },
         bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete) },
     ) {
-        // 소셜 첫 가입은 단계 막대가 없어 상단 바 바로 아래 여백을 쓴다.
-        AuthBody(topPadding = if (provider == null) authBodyTopBelowProgress() else AuthBodyTopWithBar) {
+        AuthBody(topPadding = authBodyTopBelowProgress()) {
             AuthHeading(stringResource(Res.string.auth_profile_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 AuthTextField(
