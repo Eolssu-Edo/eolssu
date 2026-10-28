@@ -101,6 +101,23 @@ class JangdanTableTests(unittest.TestCase):
             self.assertTrue(pattern["beats"][0], row["name"])  # 첫 박은 합장단으로 시작한다
 
 
+class SongTableTests(unittest.TestCase):
+    def test_songs_point_at_jangdans_and_reviewed_answers(self):
+        jangdans = {r["name"]: r for r in load("jangdans.json")["rows"]}
+        rows = load("songs.json")["rows"]
+        self.assertEqual({r["title"] for r in rows}, {"아리랑", "도라지타령", "밀양아리랑", "늴리리야"})
+        for row in rows:
+            self.assertEqual(set(row), {"title", "instrument", "jangdan", "difficulty", "default_bpm",
+                                        "description", "source", "is_scorable", "status"})
+            self.assertEqual(row["instrument"], "DANSO")
+            self.assertEqual(row["default_bpm"], jangdans[row["jangdan"]]["default_bpm"], row["title"])
+            self.assertIn(row["status"], {"DRAFT", "PUBLISHED", "HIDDEN"})
+            self.assertTrue(row["difficulty"] is None or 1 <= row["difficulty"] <= 5)
+            # 채점 가능 곡은 사람이 확정한 정답 jgb가 annotations에 있어야 한다
+            answers = list((DATA / "annotations/scores" / row["source"]).glob("*.jgb.json"))
+            self.assertEqual(len(answers) == 1, row["is_scorable"], row["title"])
+
+
 class InstrumentTableTests(unittest.TestCase):
     def test_danso_range_points_at_listed_pitches(self):
         pitches = {(r["yul"], r["octave"]): r for r in load("pitches.json")["rows"]}
