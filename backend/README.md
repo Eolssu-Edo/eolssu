@@ -43,7 +43,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 무DB 기본 프로필과 읽기 전용 점검용 `ops` 프로필에는 약관 컨트롤러·조회 Bean을 만들지 않습니다. 배포 프로필 전환과 운영 DB 적용은 별도 작업입니다. `databaseTest`의 `TermsApiDatabaseTests`는 폐기 가능한 MySQL 8.4에 고정 약관 데이터를 넣고 실제 HTTP 응답까지 확인한 뒤 약관 데이터를 지웁니다.
 
-400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. ProblemDetail은 쓰지 않습니다(2026-10-28 확정, S15P31E102-168 녹음 업로드 오류도 같은 형식).
+400(JSON·검증·파라미터 오류), 405(메서드 오류, `Allow` 보존), 500(예상하지 못한 예외)은 기존 공통 오류 본문을 사용하며 요청값·예외 메시지는 응답에 넣지 않습니다. ProblemDetail은 쓰지 않습니다(2026-10-28 확정, S15P31E102-168 녹음 업로드 오류도 같은 형식). 위 목록에 없는 프레임워크 상태(예: 409·410)도 같은 형식이며 `result.errorCode`는 HTTP 상태 이름입니다.
 
 ## 환경 설정
 
@@ -53,13 +53,24 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db` 프로필은 `AUTH_CODE_HMAC_SECRET`이 필수입니다. 임의 32바이트 이상을 Base64로 인코딩한 값을 한 번 발급해 비밀값 저장소에 보관하고 실행 환경에 주입합니다. 비어 있거나 형식·길이가 잘못되면 시작에 실패합니다. 키를 바꾸면 기존 인증번호 확인이 실패하므로 매 실행 때 새로 만들지 않습니다. 테스트는 `src/test/resources/application.properties`의 공개 고정 키를 쓰며 실행 JAR에는 포함하지 않습니다.
 
-`AUTH_MAIL_MODE` 기본값은 `unavailable`입니다. 메일 수단 미정 상태에서 가입 인증 발송은 503이며, 비밀번호 재설정은 가입 여부를 숨기기 위해 메일 장애도 202를 반환합니다. 실제 발송은 아직 구현하지 않았습니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
+`AUTH_MAIL_MODE` 기본값은 `smtp`입니다. `AUTH_MAIL_HOST`·`AUTH_MAIL_USERNAME`·`AUTH_MAIL_PASSWORD`가 모두 있으면 STARTTLS(설정 고정)로 실제 발송하고, 하나라도 없으면 서버는 기동하되 발송만 거절합니다. 발송 거절·실패 때 가입 인증 발송은 503이며, 비밀번호 재설정·계정 연결은 가입 여부를 숨기기 위해 202를 반환합니다. SMTP 시간 제한은 연결 3초·읽기/쓰기 5초입니다. `unavailable`은 항상 발송을 거절합니다. 로컬에서는 `AUTH_MAIL_MODE=memory`로 메모리 대역을 명시할 수 있습니다. 최근 100건을 프로세스 안에서만 보관하고 로그·HTTP 조회·파일 저장을 제공하지 않습니다. 번호 확인은 IDE에서 `InMemoryVerificationMailSender.messages()`로 할 수 있습니다.
 
 - `POST /api/auth/email-verifications`: JSON `email`(최대 320자·소문자 정규화)과 `purpose`(`SIGN_UP`, `PASSWORD_RESET`, `ACCOUNT_MERGE`). 202에 문자열 `verificationId`, UTC `expiresAt`, `resendAvailableAt`을 반환합니다. 같은 이메일의 모든 목적을 합산해 60초 간격·KST 날짜별 10회이며 재발송하면 같은 목적의 이전 번호·미사용 완료 토큰을 무효화합니다.
 - `POST /api/auth/email-verifications/{verificationId}/confirm`: JSON `code`는 숫자 6자리 **문자열**입니다. 3분 경과·재발송·확인 성공 뒤에는 410, 없는 ID는 404입니다. 처음 네 오답은 400과 `result.details.remainingAttempts`, 다섯 번째 오답부터는 429입니다. 네 번 틀린 뒤 다섯 번째에 맞히면 성공합니다.
-- 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 완료 토큰을 실제 가입·계정 연결·비밀번호 재설정에서 1회 소비하는 API는 후속 단계에서 구현합니다.
+- 확인 성공 시 임의 256비트 `verificationToken`, 정규화 이메일, 성공 시각부터 30분 뒤의 `expiresAt`을 반환합니다. DB에는 번호 HMAC-SHA256과 완료 토큰 SHA-256만 저장합니다. 가입(AUTH-02)이 완료 토큰을 1회 소비합니다. 계정 연결·비밀번호 재설정의 소비는 후속 Task(S15P31E102-211·210)입니다.
 - 활성·탈퇴 대기 회원의 SIGN_UP은 409 `EMAIL_ALREADY_EXISTS`입니다. PASSWORD_RESET은 미가입자에게도 동일한 202와 제한을 적용하고 실제 메일은 가입된 이메일에만 보냅니다. 미가입·메일 장애 요청에는 6자리 코드로 확인할 수 없는 해시를 저장합니다. 재설정 메일 장애는 개인정보 없는 경고 로그만 남기며 응답에 드러내지 않습니다.
 - 발송 간격·일일 제한의 429는 `result.details.resendAvailableAt`을 제공합니다. 가입 메일 장애 503은 신규 행·이전 번호 무효화를 롤백합니다. 재설정·계정 연결의 숨긴 발송 실패는 요청 행·횟수·이전 번호 무효화를 유지합니다. 서버 안에서 DB 연결을 잡기 전에 먼저 줄을 세운 뒤 단일 MySQL의 DB별 잠금으로 최초 동시 발송과 번호 재확인을 직렬화하며, 5초 내 차례를 얻지 못하면 공통 503입니다([선택과 제약](../docs/knowledge/backend/auth-token-storage.md#이메일-인증-구현의-동시성2026-10-28)).
+
+### 가입·로그인·재발급·로그아웃(AUTH-01~04)
+
+`db` 프로필에서 제공합니다. 로그인 토큰은 응답 본문에 넣지 않고 쿠키로만 내려갑니다.
+
+- 쿠키: 모두 HttpOnly·SameSite=Lax이고 Secure는 `AUTH_COOKIE_SECURE`(기본 `true`, 로컬 HTTP 개발에서만 `false`)를 따릅니다. `access_token`은 HS256 JWT(`sub`=users.id, 30분, Path `/api`), `refresh_token`은 임의 256비트(14일, Path `/api/auth`, DB에는 SHA-256만)입니다.
+- `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
+- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 로그인하면 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다.
+- `POST /api/auth/refresh`: `refresh_token` 쿠키만 봅니다. 성공하면 이전 토큰을 폐기(ROTATED)하고 두 쿠키를 새로 줍니다. 폐기된 토큰이 다시 오면 그 회원의 토큰을 모두 폐기(REUSE_DETECTED)합니다. 401이면 두 쿠키를 지웁니다. 두 탭이 동시에 재발급하면 한쪽이 재사용으로 판정돼 로그아웃될 수 있습니다.
+- `POST /api/auth/sign-out`: 로그인 필요. 쿠키의 refresh_token이 그 회원의 것일 때만 폐기(SIGN_OUT)하고 두 쿠키를 지웁니다.
+- `AUTH_JWT_SECRET`이 없으면 서버는 기동하고 가입·로그인·재발급만 503입니다. 가입 기본 악기(`DANSO`)가 없어도 503입니다.
 
 ### 준비 상태 검사
 

@@ -25,7 +25,10 @@ dependencies {
     runtimeOnly(libs.micrometer.prometheus)
     implementation(libs.spring.boot.validation)
     implementation(libs.spring.boot.security)
+    implementation(libs.spring.boot.mail)
     implementation(libs.spring.boot.security.oauth2.resource.server)
+    // Argon2PasswordEncoder가 쓰는 Argon2 구현
+    implementation(libs.bouncycastle.bcprov)
     implementation(libs.mybatis.spring.boot)
     implementation(libs.spring.boot.flyway)
     runtimeOnly(libs.flyway.mysql)

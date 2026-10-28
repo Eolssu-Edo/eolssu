@@ -17,7 +17,15 @@ server:
 eolssu:
   auth:
     code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
-    mail-mode: ${AUTH_MAIL_MODE:unavailable}
+    mail-mode: ${AUTH_MAIL_MODE:smtp}
+    mail:
+      host: ${AUTH_MAIL_HOST:}
+      port: ${AUTH_MAIL_PORT:587}
+      username: ${AUTH_MAIL_USERNAME:}
+      password: ${AUTH_MAIL_PASSWORD:}
+      from: ${AUTH_MAIL_FROM:}
+      from-name: ${AUTH_MAIL_FROM_NAME:}
+    cookie-secure: ${AUTH_COOKIE_SECURE:true}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
     # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.

@@ -6,4 +6,10 @@
         FROM user_term_agreements
         WHERE id = #{id}
     </select>
+    <insert id="insertAll">
+        INSERT INTO user_term_agreements (user_id, term_id, agreed, agreed_at) VALUES
+        <foreach collection="agreements" item="agreement" separator=",">
+            (#{userId}, #{agreement.termId}, #{agreement.agreed}, #{agreedAt})
+        </foreach>
+    </insert>
 </mapper>
