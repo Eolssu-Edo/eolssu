@@ -86,7 +86,8 @@ class MyPageViewModelTest {
         viewModel.changeNew("eolssu1!")
         viewModel.changeConfirm("eolssu1!")
         assertFalse(viewModel.submit())
-        assertEquals(ProfileFieldError.PasswordWrong, viewModel.uiState.value.currentError)
+        // 비밀번호 변경은 '현재 비밀번호'라고 짚어 말하고, 칸이 하나인 탈퇴는 그냥 '비밀번호'라고 한다.
+        assertEquals(ProfileFieldError.CurrentPasswordWrong, viewModel.uiState.value.currentError)
 
         val ok = PasswordChangeViewModel(users)
         ok.changeCurrent("old-password")

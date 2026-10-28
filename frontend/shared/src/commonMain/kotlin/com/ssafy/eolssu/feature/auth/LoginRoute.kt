@@ -7,8 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
-import org.jetbrains.compose.resources.StringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -18,7 +18,7 @@ import org.koin.compose.viewmodel.koinViewModel
  */
 @Composable
 fun LoginRoute(
-    startMessage: StringResource?,
+    startMessage: StartMessage?,
     onStartMessageShown: () -> Unit,
     onLoggedIn: () -> Unit,
     onSocialLogIn: (SocialProvider) -> Unit,

@@ -7,11 +7,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
+import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -25,7 +25,7 @@ fun HomeRoute(
     onStartEvaluation: () -> Unit,
     onOpenFeature: (HomeFeature) -> Boolean,
     onOpenMyPage: () -> Unit,
-    startMessage: StringResource? = null,
+    startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     viewModel: HomeViewModel = koinViewModel(),
 ) {

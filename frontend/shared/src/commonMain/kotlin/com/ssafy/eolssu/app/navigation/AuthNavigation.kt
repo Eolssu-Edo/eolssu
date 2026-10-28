@@ -9,6 +9,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.feature.auth.AccountLinkRoute
@@ -27,6 +28,7 @@ import eolssu.shared.generated.resources.auth_link_done
 import eolssu.shared.generated.resources.auth_mic_denied_notice
 import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
+import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_password_changed
@@ -60,51 +62,74 @@ object AuthDestination {
 fun startDestination(firstRunCompleted: Boolean): String =
     if (firstRunCompleted) EolssuDestination.HOME else AuthDestination.CONSENT
 
-/** 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다. */
+/**
+ * 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다.
+ * 계정 연결 안내는 문구에 간편 로그인 제공자 이름을 넣으므로 제공자도 함께 남긴다.
+ */
 enum class StartNotice(val message: StringResource) {
     MicDenied(Res.string.auth_mic_denied_notice),
     Welcome(Res.string.auth_welcome),
+
+    /** 로그인 중 계정 연결(AUTH-09) 뒤 홈. */
     AccountLinked(Res.string.auth_link_done),
     PasswordChanged(Res.string.auth_reset_done_notice),
     NicknameChanged(Res.string.my_nickname_changed),
     MyPasswordChanged(Res.string.my_password_changed),
+
+    /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */
+    MyAccountLinked(Res.string.my_link_done),
     LoggedOut(Res.string.my_logged_out),
     Withdrawn(Res.string.my_withdrawn),
 }
 
 private const val START_NOTICE_KEY = "start_notice"
+private const val START_NOTICE_PROVIDER_KEY = "start_notice_provider"
 private const val VERIFIED_EMAIL_KEY = "verified_email"
 
 /** 간편 로그인 409 응답이 알려 줄 얼쑤 계정 이메일 자리. 제공자 연동 전이라 AUTH-05의 예시 결과에서 쓴다. */
 private const val ExampleLinkEmail = "user@example.com"
 
-/** [route]로 이동하고, 새 화면에 [notice]를 남긴다. */
-fun NavController.navigateWithNotice(route: String, notice: StartNotice?, builder: NavOptionsBuilder.() -> Unit = {}) {
+private fun NavBackStackEntry.putStartNotice(notice: StartNotice, provider: SocialProvider?) {
+    savedStateHandle[START_NOTICE_KEY] = notice.name
+    if (provider != null) savedStateHandle[START_NOTICE_PROVIDER_KEY] = provider.name
+}
+
+/** [route]로 이동하고, 새 화면에 [notice]를 남긴다. [provider]는 안내 문구에 넣을 간편 로그인 제공자다. */
+fun NavController.navigateWithNotice(
+    route: String,
+    notice: StartNotice?,
+    provider: SocialProvider? = null,
+    builder: NavOptionsBuilder.() -> Unit = {},
+) {
     navigate(route, builder)
-    if (notice != null) currentBackStackEntry?.savedStateHandle?.set(START_NOTICE_KEY, notice.name)
+    if (notice != null) currentBackStackEntry?.putStartNotice(notice, provider)
 }
 
 /** 앞 화면으로 돌아가며 그 화면에 [notice]를 남긴다(마이페이지에서 닉네임·비밀번호를 바꾼 뒤 등). */
-fun NavController.popWithNotice(notice: StartNotice) {
-    previousBackStackEntry?.savedStateHandle?.set(START_NOTICE_KEY, notice.name)
+fun NavController.popWithNotice(notice: StartNotice, provider: SocialProvider? = null) {
+    previousBackStackEntry?.putStartNotice(notice, provider)
     popBackStack()
 }
 
 /** 이 화면에 남은 안내. 띄운 뒤에는 [clearStartNotice]로 지운다. */
-fun NavBackStackEntry.startNotice(): StartNotice? =
-    savedStateHandle.get<String>(START_NOTICE_KEY)?.let { name -> StartNotice.entries.firstOrNull { it.name == name } }
+fun NavBackStackEntry.startNotice(): StartMessage? {
+    val notice = savedStateHandle.get<String>(START_NOTICE_KEY)?.let { name -> StartNotice.entries.firstOrNull { it.name == name } } ?: return null
+    val provider = savedStateHandle.get<String>(START_NOTICE_PROVIDER_KEY)?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
+    return StartMessage(notice.message, provider?.displayName)
+}
 
 fun NavBackStackEntry.clearStartNotice() {
     savedStateHandle.remove<String>(START_NOTICE_KEY)
+    savedStateHandle.remove<String>(START_NOTICE_PROVIDER_KEY)
 }
 
 /**
  * 첫 실행을 마쳤다고 기기에 남기고 홈으로 간다. 뒤로 가기로 로그인·가입 화면에 돌아오지 않도록 쌓인 화면을 모두 비운다.
- * 홈에서 띄울 안내(가입 환영·계정 연결)는 [notice]로 넘긴다.
+ * 홈에서 띄울 안내(가입 환영·계정 연결)는 [notice]로, 계정 연결 안내에 넣을 제공자는 [provider]로 넘긴다.
  */
-fun NavController.finishFirstRun(firstRunRepository: FirstRunRepository, notice: StartNotice?) {
+fun NavController.finishFirstRun(firstRunRepository: FirstRunRepository, notice: StartNotice?, provider: SocialProvider? = null) {
     firstRunRepository.markCompleted()
-    navigateWithNotice(EolssuDestination.HOME, notice) {
+    navigateWithNotice(EolssuDestination.HOME, notice, provider) {
         popUpTo(graph.id) { inclusive = true }
     }
 }
@@ -129,7 +154,7 @@ private fun NavBackStackEntry.verifiedEmail(): String = savedStateHandle.get<Str
 fun NavGraphBuilder.authGraph(
     navController: NavController,
     onMicAllowed: () -> Unit,
-    onFinished: (notice: StartNotice?) -> Unit,
+    onFinished: (notice: StartNotice?, provider: SocialProvider?) -> Unit,
 ) {
     val toLogin: (StartNotice?) -> Unit = { notice ->
         navController.navigateWithNotice(AuthDestination.LOGIN, notice) {
@@ -173,9 +198,9 @@ fun NavGraphBuilder.authGraph(
     }
     composable(AuthDestination.LOGIN) { entry ->
         LoginRoute(
-            startMessage = entry.startNotice()?.message,
+            startMessage = entry.startNotice(),
             onStartMessageShown = entry::clearStartNotice,
-            onLoggedIn = { onFinished(null) },
+            onLoggedIn = { onFinished(null, null) },
             onSocialLogIn = { navController.navigate(AuthDestination.oauth(it)) },
             onFindPassword = { navController.navigate(AuthDestination.PASSWORD_RESET) },
             onSignUp = { navController.navigate(AuthDestination.SIGNUP) },
@@ -189,7 +214,7 @@ fun NavGraphBuilder.authGraph(
         OAuthScreen(
             provider = provider,
             onBack = { navController.popBackStack() },
-            onLinked = { onFinished(null) },
+            onLinked = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
             onSignUp = { fromLogin(AuthDestination.SIGNUP) },
         )
@@ -206,7 +231,7 @@ fun NavGraphBuilder.authGraph(
             needsPassword = provider == SocialProvider.Naver,
             onCancel = { navController.popBackStack() },
             onFindPassword = { fromLogin(AuthDestination.PASSWORD_RESET) },
-            onLinked = { onFinished(StartNotice.AccountLinked) },
+            onLinked = { onFinished(StartNotice.AccountLinked, provider) },
         )
     }
     composable(AuthDestination.SIGNUP) {
@@ -227,7 +252,7 @@ fun NavGraphBuilder.authGraph(
     composable(AuthDestination.PROFILE) {
         ProfileSetupRoute(
             onBack = { navController.popBackStack() },
-            onDone = { onFinished(StartNotice.Welcome) },
+            onDone = { onFinished(StartNotice.Welcome, null) },
         )
     }
     composable(AuthDestination.PASSWORD_RESET) {
