@@ -59,7 +59,7 @@ def synth(
             amp[(t >= begins[i]) & (t < ends[i])] = 0.0
         elif gap and i + 1 < len(notes):  # 다음 음이 실제로 시작하기 직전을 비운다
             amp[(t >= onsets[i + 1] - gap) & (t < onsets[i + 1])] = 0.0
-        if i + 1 < len(notes) and ends[i] < begins[i + 1]:  # 쉼: 이 음이 끝나고 다음 음이 실제로 시작할 때까지
+        if i + 1 < len(notes) and ends[i] < begins[i + 1] - 1e-9:  # 쉼(소수점 오차는 무시): 이 음이 끝나고 다음 음이 실제로 시작할 때까지
             amp[(t >= ends[i]) & (t < onsets[i + 1])] = 0.0
     amp = np.convolve(amp, np.ones(160) / 160, mode="same")  # 10ms 페이드로 끊김 잡음 제거
 

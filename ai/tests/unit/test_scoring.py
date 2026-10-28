@@ -183,6 +183,15 @@ def test_early_or_late_note_after_long_rest_is_timing_error(delay):
     assert verdicts(score_rested(synth(notes, delay={2: delay}), notes)) == {2: "TIMING"}
 
 
+def test_synth_makes_no_rest_from_rounding_of_thirds():
+    # 1/3박 음을 이어 적으면 시작 박과 앞 음 끝이 소수점 오차만큼 다르다. 이것을 쉼으로 보면 늦게 분 음 앞이 끊긴다.
+    plain = [Note((0, 2, 5)[i % 3], 1 / 3) for i in range(24)]
+    timed = [Note(n.semitone, n.beats, start_beat=i / 3) for i, n in enumerate(plain)]
+    a, b = synth(timed, delay={5: 0.1}), synth(plain, delay={5: 0.1})
+    n = min(a.size, b.size)  # 길이와 끝 페이드는 반올림으로 한 표본쯤 다를 수 있다
+    assert np.abs(a[:n] - b[:n]).max() < 0.01  # 가짜 쉼이 생기면 소리 크기(0.3)만큼 차이 난다
+
+
 def test_mixed_or_overlapping_start_beats_are_rejected():
     f0 = f0_frames(SCALE)
     with pytest.raises(ValueError):
