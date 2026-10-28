@@ -4,7 +4,7 @@
 
 ## 설치와 검사
 
-Python 3.12와 [uv](https://docs.astral.sh/uv/)가 필요합니다.
+Python 3.12와 [uv](https://docs.astral.sh/uv/)가 필요합니다. 녹음 디코딩과 그 테스트는 `ffmpeg`가 `PATH`에 있어야 하며, 없으면 건너뛰지 않고 실패합니다.
 
 ```bash
 uv sync
@@ -14,7 +14,11 @@ uv sync
 uv run pytest
 ```
 
-`tests/unit/test_scoring.py`는 합성 음계로 만점, 음 바꿈, 늦은 시작, 빠진 음, 조율 보정, 무음·잡음 몇 프레임·짧은 입력 실패를 검사합니다. 실제 대금 녹음이나 모델 검증이 아닙니다.
+`tests/unit/test_scoring.py`는 합성 음계로 만점, 음 바꿈, 늦은 시작, 빠진 음, 조율 보정, 무음·잡음 몇 프레임·짧은 입력 실패를 검사합니다. 실제 대금 녹음이나 모델 검증이 아닙니다. `tests/unit/test_audio.py`는 테스트 중 `ffmpeg`로 만든 2초짜리 사인파 AAC(44.1kHz 스테레오·48kHz 모노)와 잘린 파일·오디오가 아닌 파일·오디오 없는 파일로 디코딩을 검사합니다. 파일은 커밋하지 않습니다.
+
+## 녹음 디코딩
+
+`src/ai_service/pipelines/audio.py`의 `decode_recording()`이 원본(m4a·AAC) 파일을 [녹음 파일 규격(PRA-02)](../docs/specs/recording-file.md)대로 16kHz·모노·PCM16(`int16`) 배열로 바꿉니다. 스테레오는 두 채널 평균이고, 결과는 메모리에만 둡니다. 손상됐거나 오디오가 없는 파일은 `DecodeError`(`fail_reason` `DECODE_ERROR`)입니다. `ffmpeg`가 없거나 시간 안에 끝나지 않는 것은 파일 문제가 아니라서 `DecodeError`가 아닌 원래 예외를 올립니다. 로컬 파일 경로만 받으며, 서명 URL 내려받기와 HTTP 진입점은 [S15P31E102-213](https://ssafy.atlassian.net/browse/S15P31E102-213)에서 붙입니다.
 
 ## 음높이 추정 비교
 
