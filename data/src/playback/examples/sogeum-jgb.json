@@ -1,5 +1,6 @@
 {
   "v": 2,
+  "tempoBpmUserSet": true,
   "controls": {
     "title": "소금 파이프라인 고정 예제",
     "beats": "4",
