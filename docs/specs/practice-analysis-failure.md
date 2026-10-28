@@ -106,11 +106,11 @@ POST {AI}/v1/analyses
 **구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작도 연결해 두었다.
 
 - 업로드는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행한다. 커밋 뒤 `AnalysisOnUpload`가 백그라운드 실행기(기본 2개 동시·대기 50개)에서 분석한다. 롤백된 업로드는 분석하지 않는다. 대기열이 가득 차면 시작하지 않고 그 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
-- 설정 `eolssu.analysis.time-limit`(기본 60초)은 분석과 상태 조회가 함께 쓴다. AI HTTP 응답 대기 `ai-response-timeout`(기본 65초)은 제한 시간보다 길어야 기동한다. 짧으면 느린 응답이 마감 전에 끊겨 `TIMEOUT` 대신 `SERVER_ERROR`가 된다.
+- 설정 `eolssu.analysis.time-limit`(기본 60초)은 분석과 상태 조회가 함께 쓴다. AI HTTP 응답 대기 `ai-response-timeout`(기본은 제한 시간 + 5초)은 제한 시간보다 길어야 기동한다. 두 시간은 숫자만 쓰면 초로 읽는다. 짧으면 느린 응답이 마감 전에 끊겨 `TIMEOUT` 대신 `SERVER_ERROR`가 된다.
 
 남은 일은 아래이며 S15P31E102-186을 이것까지 마친 뒤 완료한다. 세 가지가 모두 있어야 이 연결이 켜지고, 하나라도 없으면 경고 로그만 남는다.
 
-- 업로드 Task(181)가 `RecordingUploaded`를 발행하고 `RecordingReadUrls`(15분 읽기 전용 서명 URL)를 구현한다.
+- 업로드 Task(181)가 `RecordingUploaded`를 발행하고 `RecordingReadUrls`(15분 읽기 전용 서명 URL)를 구현한다. 발행은 반드시 `PENDING`으로 바꾸는 트랜잭션 안에서 한다. 트랜잭션 밖에서 발행하면 오류 없이 버려져 분석이 돌지 않고, 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 - 공통 악보 데이터(156·157)로 `PracticeScoreNotes`를 구현한다(아래 미결 사항).
 - 배포 환경에 AI 서비스 주소 `ANALYSIS_AI_BASE_URL`을 넣는다. AI 쪽 `POST /v1/analyses`는 AI Task(212)가 만든다.
 

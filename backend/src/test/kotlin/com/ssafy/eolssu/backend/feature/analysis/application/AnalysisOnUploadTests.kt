@@ -4,12 +4,14 @@ import com.ssafy.eolssu.backend.feature.practice.domain.RecordingUploaded
 import java.util.concurrent.Executor
 import java.util.concurrent.RejectedExecutionException
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.TransactionSystemException
 import org.springframework.transaction.annotation.EnableTransactionManagement
 import org.springframework.transaction.support.AbstractPlatformTransactionManager
 import org.springframework.transaction.support.DefaultTransactionStatus
@@ -37,11 +39,19 @@ class AnalysisOnUploadTests {
         assertEquals(emptyList(), started)
     }
 
-    /** 트랜잭션만 흉내 내는 관리자. DB 없이 커밋·롤백 뒤 이벤트 처리를 본다. */
-    private class NoResourceTransactionManager : AbstractPlatformTransactionManager() {
+    @Test
+    fun `a failing analysis does not escape the background task`() {
+        AnalysisOnUpload({ throw IllegalStateException("db down") }, direct).onUploaded(RecordingUploaded(7))
+    }
+
+    /** 트랜잭션만 흉내 내는 관리자. DB 없이 커밋·롤백·커밋 실패 뒤 이벤트 처리를 본다. */
+    class NoResourceTransactionManager : AbstractPlatformTransactionManager() {
+        var failCommit = false
         override fun doGetTransaction() = Any()
         override fun doBegin(transaction: Any, definition: TransactionDefinition) {}
-        override fun doCommit(status: DefaultTransactionStatus) {}
+        override fun doCommit(status: DefaultTransactionStatus) {
+            if (failCommit) throw TransactionSystemException("commit failed")
+        }
         override fun doRollback(status: DefaultTransactionStatus) {}
     }
 
@@ -74,6 +84,13 @@ class AnalysisOnUploadTests {
                 it.setRollbackOnly()
             }
             assertEquals(listOf(7L), recorded, "a rolled back upload must not start an analysis")
+
+            // 커밋 직전(BEFORE_COMMIT)에 시작하면 이 경우를 놓친다: 업로드는 실패했는데 분석이 돈다.
+            context.getBean(NoResourceTransactionManager::class.java).failCommit = true
+            assertFailsWith<TransactionSystemException> {
+                transactions.executeWithoutResult { context.publishEvent(RecordingUploaded(9)) }
+            }
+            assertEquals(listOf(7L), recorded, "an upload whose commit failed must not start an analysis")
         }
     }
 }

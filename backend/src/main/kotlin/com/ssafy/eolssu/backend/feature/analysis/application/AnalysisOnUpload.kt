@@ -28,7 +28,14 @@ class AnalysisOnUpload(
     fun onUploaded(event: RecordingUploaded) {
         val start = start ?: return log.warn("Analysis not started: wiring missing {} session={}", missing, event.sessionId)
         try {
-            executor.execute { start(event.sessionId) }
+            executor.execute {
+                // 실행기 밖으로 나간 예외는 앱 로그에 남지 않는다. 세션은 PENDING으로 남아 제한 시간 뒤 TIMEOUT이 된다.
+                try {
+                    start(event.sessionId)
+                } catch (e: Exception) {
+                    log.warn("Analysis failed unexpectedly session={} error={}", event.sessionId, e.javaClass.simpleName)
+                }
+            }
         } catch (e: RejectedExecutionException) {
             log.warn("Analysis not started: queue full session={}", event.sessionId)
         }
