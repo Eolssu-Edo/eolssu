@@ -21,12 +21,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recording
-from ai_service.pipelines.scoring import HOP_S, Note, ScoreResult, frame_rms, pyin_f0, score
+from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, ScoreResult, frame_rms, pyin_f0, score
 
-MODEL_VERSION = "pyin-1"  # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다
-# 요청에 기준음이 없어 E♭4로 둔다. 기기 차이는 채점의 조율 보정(±100센트)이 흡수한다.
-# ponytail: 기본음 녹음·공통 악보 기준음 반영은 S15P31E102-157.
-REFERENCE_HZ = 311.13
+# evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한
+MODEL_VERSION = "pyin-2"
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
 DOWNLOAD_TIMEOUT_S = 30.0  # 연결부터 다 받을 때까지 전체 시간
 # DTW는 정답 프레임 수 × 녹음 프레임 수만큼 메모리를 쓴다(칸당 실측 20바이트에 여유를 둔 24바이트,
@@ -66,7 +64,6 @@ class NoteIn(_Camel):
     idx: int = Field(ge=0)
     semitone: int  # pitches.semitone. 0 = 옥타브 0의 황(E♭4)
     # 곡 처음부터 센 시작 박(startTick ÷ ticksPerBeat). 쉼이 있으면 앞 음의 beats보다 더 벌어진다.
-    # 채점은 아직 beats를 이어 붙인 시각을 쓴다. startBeat로 기대 시각을 계산하는 일은 S15P31E102-157.
     start_beat: float = Field(ge=0)
     beats: float = Field(gt=0)
     sigimsae: bool
@@ -83,8 +80,8 @@ class AnalysisIn(_Camel):
     @field_validator("notes")
     @classmethod
     def _start_beats_increase(cls, notes: list[NoteIn]) -> list[NoteIn]:
-        if any(b.start_beat <= a.start_beat for a, b in zip(notes, notes[1:])):
-            raise ValueError("startBeat must increase in note order")
+        if any(b.start_beat < a.start_beat + a.beats - 1e-9 for a, b in zip(notes, notes[1:])):
+            raise ValueError("startBeat must not start before the previous note ends")
         return notes
 
 
@@ -131,7 +128,7 @@ def analyze(
             except DecodeError:
                 result = ScoreResult("FAILED", DecodeError.fail_reason)
         outcome = result.fail_reason or result.status
-        return _response(result, [n.idx for n in request.notes])
+        return _response(result)
     except Exception as e:
         outcome = f"ERROR:{type(e).__name__}"
         return JSONResponse({"error": "ANALYSIS_ERROR"}, status_code=500)
@@ -150,15 +147,16 @@ def _invalid_request(_: Request, error: RequestValidationError) -> JSONResponse:
 
 def _score_recording(path: Path, request: AnalysisIn) -> ScoreResult:
     audio = decode_recording(path).astype(np.float32) / 32768.0
-    notes = [Note(n.semitone, n.beats, n.sigimsae) for n in request.notes]
-    expected_frames = sum(n.beats for n in notes) * 60.0 / request.bpm / HOP_S
+    notes = [Note(n.semitone, n.beats, n.sigimsae, n.idx, n.start_beat) for n in request.notes]
+    span_beats = notes[-1].start_beat + notes[-1].beats - notes[0].start_beat  # 쉼 포함
+    expected_frames = span_beats * 60.0 / request.bpm / HOP_S
     if expected_frames * (len(audio) / SAMPLE_RATE / HOP_S) * DTW_BYTES_PER_CELL > MAX_DTW_BYTES:
         raise RecordingTooLong()
     f0 = pyin_f0(audio, SAMPLE_RATE)
-    return score(f0, notes, request.bpm, REFERENCE_HZ, rms=frame_rms(audio, SAMPLE_RATE))
+    return score(f0, notes, request.bpm, HWANG_HZ, rms=frame_rms(audio, SAMPLE_RATE))
 
 
-def _response(result: ScoreResult, idx: list[int]) -> dict:
+def _response(result: ScoreResult) -> dict:
     if result.status == "FAILED":
         return {"status": "FAILED", "failReason": result.fail_reason}
     return {
@@ -170,10 +168,9 @@ def _response(result: ScoreResult, idx: list[int]) -> dict:
         "duration": result.duration,
         "tuningOffsetCent": result.tuning_offset_cent,
         "tuningOutOfRange": bool(result.tuning_out_of_range),
-        # score()의 idx는 요청 음표의 순번이다. 요청이 보낸 악보 기준 idx로 돌려준다.
         "notes": [
             {
-                "idx": idx[n.idx],
+                "idx": n.idx,  # 요청 음표의 idx 그대로(score가 Note.idx를 돌려준다)
                 "verdict": n.verdict,
                 "pitchErrorCent": n.pitch_error_cent,
                 "onsetErrorMs": n.onset_error_ms,

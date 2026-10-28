@@ -81,6 +81,7 @@
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
+- [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
 
 ## COCO 산출물
 
@@ -102,6 +103,7 @@
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
 - [S15P31E102-155 단소 기준 데이터 표 작성](plans/S15P31E102-155.md)
 - [S15P31E102-156 정간보 jgb를 공통 악보 데이터로 바꾸는 변환기](plans/S15P31E102-156.md)
+- [S15P31E102-157 채점 입력을 공통 악보 데이터와 기준음 E♭4로 변경](plans/S15P31E102-157.md)
 - [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
@@ -115,10 +117,12 @@
 - [S15P31E102-197 edo1 Jenkins·운영 이미지에 녹음 검사용 ffmpeg 반영](plans/S15P31E102-197.md)
 - [S15P31E102-206 Android 연주 녹음·마이크 권한과 10분 자동 정지](plans/S15P31E102-206.md)
 - [S15P31E102-207 이메일 가입·로그인과 토큰 재발급·로그아웃 API](plans/S15P31E102-207.md)
+- [S15P31E102-208 내 정보 조회·수정과 비밀번호 변경 API](plans/S15P31E102-208.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
 - [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
+- [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
