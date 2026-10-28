@@ -1,7 +1,7 @@
 # 연습 시간 집계 기준 (GRO-01·02·04)
 
 - Jira: [S15P31E102-169](https://ssafy.atlassian.net/browse/S15P31E102-169), Story S15P31E102-23, Epic S15P31E102-14
-- 상태: 사용자 합의(2026-10-27, 회의 안건 E1과 성장 화면 통계 기준). FE·BE·Data 담당자 검토 전이다. BE-1 검증·저장 계층만 구현 중이다.
+- 상태: 사용자 합의(2026-10-27, 회의 안건 E1과 성장 화면 통계 기준). FE·BE·Data 담당자 검토 전이다. 체류 기록 API(GRO-04)는 아래 계약대로 구현됐다.
 - 구현 계획: [S15P31E102-169 계획](../plans/S15P31E102-169.md)
 - 기준 코드: `origin/develop` `d60d8e0`. 저장 구조는 V2의 `score_views`([DB 스키마](../contracts/db-schema.md))를 그대로 쓴다.
 
@@ -80,15 +80,17 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 
 ## 체류 기록 API (GRO-04)
 
-경로와 오류 응답 형식은 Notion API 명세서의 GRO-04와 공통 오류 형식을 따른다. 이 스펙은 의미만 정한다.
+Notion API 명세서에는 GRO-04 상세가 없어 이 스펙이 계약을 정한다(2026-10-28 사용자 확정). 경로는 API 명세의 인증 표(`ApiAccessRulesTests`)에 있는 것을 쓰고, 응답은 공통 형식 `{httpStatus, isSuccess, message, code, result}`를 따른다.
+
+`POST /api/users/me/score-views`. 로그인(`access_token` 쿠키)이 필요하고 본문은 JSON이다. 회원은 토큰에서 정하며 본문으로 받지 않는다.
 
 요청:
 
 | 항목 | 위치 | 뜻 |
 | --- | --- | --- |
-| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. |
-| `songId` | 본문 | 곡 |
-| `startedAt`, `endedAt` | 본문 | 구간 시작·끝(UTC) |
+| `Idempotency-Key` | 헤더 | 구간 키. 회원별로 유일하다. 출력 가능한 ASCII 1~100자(앱은 UUID). 없으면 400 |
+| `songId` | 본문 | 곡 ID. 곡 목록 응답처럼 JSON 문자열(`"12"`)이고 양의 정수여야 한다 |
+| `startedAt`, `endedAt` | 본문 | 구간 시작·끝. ISO-8601 UTC(`2026-10-28T05:00:00Z`). 서버는 마이크로초까지 저장하고 그 정밀도로 본문을 비교한다 |
 | `visibleSeconds`, `countedSeconds` | 본문 | 보인 시간, 인정 시간(초, 정수) |
 
 서버 처리:
@@ -104,6 +106,18 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 | 없는 곡(`songs` 행 없음) | 404. 숨김·삭제 표시된 곡의 기록은 받는다(오프라인 연습 뒤 곡이 숨겨진 경우). |
 
 서버는 10초 미만 구간을 따로 거절하지 않는다. 버리는 일은 앱이 맡는다.
+
+응답 본문:
+
+| 응답 | `result` |
+| --- | --- |
+| 201 `체류 기록 저장 성공`, 200 `이미 저장된 체류 기록` | 저장된 구간 `{songId, startedAt, endedAt, visibleSeconds, countedSeconds}`. 200이면 처음 저장한 값이다 |
+| 400 | `errorCode: INVALID_REQUEST`. 구간 검사에 걸리면 `details.reason`에 이유(`INVALID_KEY`, `NEGATIVE_SECONDS`, `COUNTED_EXCEEDS_VISIBLE`, `TIME_OUT_OF_RANGE`, `ENDED_BEFORE_STARTED`, `VISIBLE_EXCEEDS_PERIOD`, `VISIBLE_EXCEEDS_ELAPSED`). 헤더 없음·JSON 형식 오류·`songId` 형식 오류는 `details` 없음. 입력값은 싣지 않는다 |
+| 409 | `errorCode: IDEMPOTENCY_KEY_CONFLICT` |
+| 404 | `errorCode: RESOURCE_NOT_FOUND` |
+| 401 | `errorCode: UNAUTHENTICATED` |
+
+`TIME_OUT_OF_RANGE`는 DB가 저장할 수 없는 시각(1000~9999년 밖)이다. 저장 오류(5xx)가 되면 앱이 끝없이 다시 보내므로 400으로 막는다.
 
 ## 조회와 집계
 
@@ -167,13 +181,12 @@ V2 SQL 주석은 `counted_seconds`를 "최대 인정 시간을 적용한 값"으
 - V2 `score_views` 주석의 "최대 인정 시간": 고치지 않고 이 스펙의 정의를 따른다.
 - `data/mart/schema.sql`: `mart_daily_practice`에 `total_practice_seconds` 추가. 이미 만든 마트 테이블에는 `ALTER`가 필요하다.
 - [S15P31E102-148](https://ssafy.atlassian.net/browse/S15P31E102-148) 연습 기록·성취도 화면: 예시 데이터의 연습 시간을 이 기준에 맞춘다.
-- Notion API 명세서 GRO-04: 이 스펙과 다르면 API 명세 담당([S15P31E102-139](https://ssafy.atlassian.net/browse/S15P31E102-139))에게 전달한다.
+- Notion API 명세서 GRO-04: 상세가 없다. 위 계약을 API 명세 담당([S15P31E102-139](https://ssafy.atlassian.net/browse/S15P31E102-139))에게 전달해 명세에 옮긴다.
 
 ## 미결 사항
 
 | 항목 | 정할 사람·필요한 것 | 막는 작업 |
 | --- | --- | --- |
-| GRO-04 경로·오류 코드 이름과 이 스펙의 일치 여부 | API 명세 담당. 이 Task에서는 Notion 원문을 읽지 않았다 | BE·FE 연동 |
 | GRO-02의 범위. 성장 화면 통계 기준은 `GROWTH-01`에만 적용했다 | Notion API 명세 대조. 이 Task에서는 원문을 읽지 않았다 | GRO-02가 다른 화면이면 따로 정한다 |
 | 통계 API(`GET /me/stats`) 요청·응답 형식 | Notion API 명세 대조, BE-2 구현 때 확정 | BE-2·FE 연동 |
 | 악보 화면에 곡 상세의 악보 미리보기도 포함할지 | FE·기획. 기본안은 연습 화면만 | FE 측정 범위 |
