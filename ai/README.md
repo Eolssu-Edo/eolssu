@@ -101,6 +101,8 @@ uv run --group eval python -m evaluation.measure_latency
 
 ## 채점 방식
 
+작은 고정 f0의 DTW 기준은 `uv run python -m evaluation.dtw_baseline --out ../data/processed/dtw-286/u1-baseline.json`으로 기록합니다. 경로·비용·판정과 메모리의 측정 범위는 [U1 기준 관찰](../docs/knowledge/ai/dtw-memory-comparison.md)을 따릅니다. 서비스의 채점 알고리즘을 바꾸거나 긴 녹음을 실행하는 도구는 아닙니다.
+
 `src/ai_service/pipelines/scoring.py`
 
 | 항목 | 현재 기준 |
