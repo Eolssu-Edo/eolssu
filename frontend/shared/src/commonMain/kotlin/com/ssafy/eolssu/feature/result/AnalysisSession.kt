@@ -46,6 +46,7 @@ internal class AnalysisSession(
     private var analysisId: String? = null
     private var pollJob: Job? = null
     private var paused = false
+    private var recording: PendingRecording? = null
 
     /** 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다. */
     suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null) {
@@ -54,19 +55,24 @@ internal class AnalysisSession(
         request = Request(song.id, bpm, song.durationSeconds(bpm))
         val uploads = uploads
         if (recording != null && uploads != null) {
+            this.recording = recording
             afterSend(uploads.send(recording))
         } else {
             requestAnalysis()
         }
     }
 
-    /** 녹음 다시 보내기. 연결 실패로 보내지 못한 녹음이 기기에 남아 있을 때만 하며, 보내는 중에는 버튼이 돈다. */
+    /**
+     * 녹음 다시 보내기. 연결 실패로 보내지 못한 이 연습 세션의 녹음이 기기에 남아 있을 때만 하며, 보내는 중에는 버튼이 돈다.
+     * 그 사이 다른 녹음이 기다리게 됐으면 그 녹음을 보내지 않고 다시 연주를 안내한다.
+     */
     fun resend() {
         val uploads = uploads ?: return
+        val recording = recording ?: return
         val state = _state.value
         if (state.upload != UploadProblem.CanResend || state.resending) return
         _state.update { it.copy(resending = true) }
-        scope.launch { afterSend(uploads.resend()) }
+        scope.launch { afterSend(uploads.resend(recording)) }
     }
 
     private suspend fun afterSend(result: SendResult) {

@@ -42,7 +42,7 @@ class RecordingUploadsTest {
         assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
         assertEquals(recording.copy(path = "kept/practice-1.m4a"), uploads.pending())
 
-        assertEquals(SendResult.Sent, uploads.resend())
+        assertEquals(SendResult.Sent, uploads.resend(recording))
         assertEquals(listOf("41", "41"), uploader.calls.map { it.first })
         assertEquals(setOf("rec/practice-2.m4a"), files.existing)
         assertNull(uploads.pending())
@@ -62,7 +62,7 @@ class RecordingUploadsTest {
 
         val reopened = uploads()
         assertEquals("41", reopened.pending()?.sessionId)
-        assertEquals(SendResult.Sent, reopened.resend())
+        assertEquals(SendResult.Sent, reopened.resend(recording))
         assertNull(uploads().pending())
     }
 
@@ -103,7 +103,7 @@ class RecordingUploadsTest {
         val reopened = uploads()
         assertNull(reopened.pending())
         assertEquals(true, "kept/practice-1.m4a" in files.existing)
-        assertEquals(SendResult.Sent, reopened.resend())
+        assertEquals(SendResult.Sent, reopened.resend(recording))
         assertEquals(2, uploader.calls.size)
     }
 
@@ -116,7 +116,7 @@ class RecordingUploadsTest {
         val reopened = uploads()
         assertNull(reopened.pending())
         assertEquals(false, "kept/practice-1.m4a" in files.existing)
-        assertEquals(SendResult.Expired, reopened.resend())
+        assertEquals(SendResult.Expired, reopened.resend(recording))
         assertEquals(1, uploader.calls.size)
     }
 
@@ -131,10 +131,16 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun missingRecordingIsNotSent() = immediate {
-        files.existing -= "rec/practice-1.m4a"
-        assertEquals(SendResult.Missing, uploads().send(recording))
-        assertEquals(listOf<Pair<String, String>>(), uploader.calls)
+    fun missingRecordingIsNotSentAndKeepsTheWaitingOne() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        val uploads = uploads()
+        uploads.send(recording)
+        files.existing -= "rec/practice-2.m4a"
+
+        assertEquals(SendResult.Missing, uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now)))
+        assertEquals(1, uploader.calls.size)
+        assertEquals("41", uploads.pending()?.sessionId)
+        assertEquals(true, "kept/practice-1.m4a" in files.existing)
     }
 
     @Test
@@ -144,7 +150,7 @@ class RecordingUploadsTest {
         uploads.send(recording)
         files.existing -= "kept/practice-1.m4a"
 
-        assertEquals(SendResult.Missing, uploads.resend())
+        assertEquals(SendResult.Missing, uploads.resend(recording))
         assertEquals(1, uploader.calls.size)
         assertNull(uploads.pending())
     }
@@ -204,8 +210,41 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun resendWithoutPendingRecordingIsExpired() = immediate {
-        assertEquals(SendResult.Expired, uploads().resend())
+    fun resendWithoutWaitingRecordingIsMissing() = immediate {
+        assertEquals(SendResult.Missing, uploads().resend(recording))
+        assertEquals(listOf<Pair<String, String>>(), uploader.calls)
+    }
+
+    @Test
+    fun resendForAnotherSessionDoesNotSendTheNewerRecording() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        val uploads = uploads()
+        uploads.send(recording)
+        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now))
+
+        assertEquals(SendResult.Missing, uploads.resend(recording))
+        assertEquals(2, uploader.calls.size)
+        assertEquals("42", uploads.pending()?.sessionId)
+        assertEquals(true, "kept/practice-2.m4a" in files.existing)
+    }
+
+    @Test
+    fun exactlyAtTheEndOfTheLocalClockMarginTheFileIsStillKept() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+
+        now += window + LocalClockMargin.inWholeMilliseconds
+        uploads().pending()
+        assertEquals(true, "kept/practice-1.m4a" in files.existing)
+    }
+
+    @Test
+    fun leftoverFilesAreRemovedWhenNothingIsWaiting() {
+        store.values["pending_recording_upload"] = ""
+        files.existing += "kept/orphan.m4a"
+        assertNull(uploads().pending())
+        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
     }
 }
 

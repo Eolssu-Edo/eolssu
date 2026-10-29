@@ -11,6 +11,7 @@ interface RecordingFiles {
      */
     fun keep(path: String): String?
 
+    /** [path]에 녹음 파일이 있는지. 녹음기 위치든 보관 위치든 묻는다. */
     fun exists(path: String): Boolean
 
     /** 녹음 파일을 지운다. 없으면 아무것도 하지 않는다. */

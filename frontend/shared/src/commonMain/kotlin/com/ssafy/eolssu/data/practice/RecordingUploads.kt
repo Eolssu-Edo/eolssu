@@ -16,6 +16,7 @@ data class PendingRecording(val sessionId: String, val path: String, val started
  * 업로드 API(PRA-02 `docs/specs/recording-file.md`) 응답을 앱이 다룰 결과로 나눈 것.
  * 202와, 응답을 놓친 재전송이 받는 409(이미 저장됨)는 [Uploaded]다. 연결 실패·503·500은 같은 세션에 다시 올릴 수 있어 [Unreachable],
  * 410은 [Expired], 413·415·422와 404(세션 없음)는 같은 파일·세션으로 다시 보내도 안 되므로 [Rejected]다.
+ * [Rejected]의 화면 문구는 파일과 세션 어느 쪽 탓으로도 읽히지 않게 쓴다.
  */
 sealed interface UploadOutcome {
     /** 저장됨(202, 409). 서버가 분석을 시작했거나 이미 시작했다. 상태 조회로 결과를 확인한다. */
@@ -70,23 +71,28 @@ class RecordingUploads(
         return upload(pending)
     }
 
-    /** 기다리는 녹음을 다시 보낸다. 없거나 지울 때가 지났으면 [SendResult.Expired], 파일이 사라졌으면 [SendResult.Missing]. */
-    suspend fun resend(): SendResult {
-        val pending = current() ?: return SendResult.Expired
+    /**
+     * [recording]과 같은 세션의 기다리는 녹음을 다시 보낸다. 다른 세션의 녹음은 보내지 않는다.
+     * 그 세션의 녹음이 없을 때 업로드 시간이 지났으면 [SendResult.Expired], 아니면(새 녹음으로 바뀜, 파일 사라짐) [SendResult.Missing]이다.
+     */
+    suspend fun resend(recording: PendingRecording): SendResult {
+        val pending = current()?.takeIf { it.sessionId == recording.sessionId }
+            ?: return if (age(recording) > RecordingSpec.UploadWindow.inWholeMilliseconds) SendResult.Expired else SendResult.Missing
         return upload(pending)
     }
 
     /** 다시 보내기를 권할 녹음. 업로드 시간이 지난 녹음은 숨기고, 지울 때가 지난 녹음은 지운다. */
     fun pending(): PendingRecording? = current()?.takeIf { age(it) <= RecordingSpec.UploadWindow.inWholeMilliseconds }
 
-    /** 저장된 녹음. 기록이 깨졌으면 남은 파일을 치우고, 지울 때가 지났으면 지운다. */
+    /**
+     * 저장된 녹음. 기다리는 녹음이 없으면(기록이 비었거나 깨짐) 보관 위치에 남은 파일을 치우고, 지울 때가 지났으면 지운다.
+     * 보관과 기록 저장 사이에 앱이 꺼져 남은 파일도 여기서 치운다.
+     */
     private fun current(): PendingRecording? {
         val pending = load()
         if (pending == null) {
-            if (!store.getString(KEY).isNullOrEmpty()) {
-                store.putString(KEY, "")
-                files.deleteKeptExcept(null)
-            }
+            if (!store.getString(KEY).isNullOrEmpty()) store.putString(KEY, "")
+            files.deleteKeptExcept(null)
             return null
         }
         if (age(pending) > (RecordingSpec.UploadWindow + LocalClockMargin).inWholeMilliseconds) {
