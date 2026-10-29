@@ -8,6 +8,7 @@ import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
+import com.ssafy.eolssu.backend.feature.song.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 
 /** ResponseEntity<*>의 응답 타입 소실을 보완하는 문서 계약. 요청 DTO/매핑은 springdoc이 실제 컨트롤러에서 읽는다. */
@@ -26,6 +27,8 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.POST,"/api/auth/sign-in","signIn","인증","이메일 로그인",
         "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 대기는 로그인 성공 시에만 취소합니다.",
         SignedIn::class.java,errors=listOf(INVALID_CREDENTIALS,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
