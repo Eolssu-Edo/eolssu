@@ -57,6 +57,7 @@
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
+- [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
 
 ## 프론트엔드 조사·검증 기록
 
@@ -93,6 +94,8 @@
 - [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
 
 ## COCO 산출물
+
+- [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
 
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
