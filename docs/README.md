@@ -30,6 +30,7 @@
 
 ## 기능 스펙
 
+- [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
 - [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
 
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)

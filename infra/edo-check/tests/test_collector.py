@@ -46,7 +46,9 @@ class MetricTests(unittest.TestCase):
     def test_stopped_container_never_passes_using_old_health_result(self):
         data = {'item': {'Names': ['/demo'], 'State': 'exited'},
                 'detail': {'State': {'Status': 'exited', 'Running': False, 'Health': {'Status': 'healthy'}}}, 'stats': {}}
-        with patch.object(collector, 'snapshot', return_value=({}, [data], {}, [])):
+        with patch.object(collector, 'snapshot', return_value=({}, [data], {}, [])), \
+                patch.object(collector, 'edo1_host_health', return_value=[]), \
+                patch.object(collector, 'prometheus_health', return_value=[]):
             _, rows, _ = collector.health_report()
         row = next(row for row in rows if row[0] == 'demo')
         self.assertNotEqual(row[2], '정상')
