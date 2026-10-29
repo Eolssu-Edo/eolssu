@@ -216,6 +216,18 @@ PYTHONUTF8=1 python -P tools/fonts/build_fonts.py "$SRC"
 
 스크립트는 원본 파일의 SHA-256을 확인한 뒤 만들고, 같은 원본이면 항상 같은 파일을 만듭니다. 원본 폴더(`$SRC`)는 저장소 밖 임시 폴더라 커밋되지 않습니다. Noto CJK 원본이 바뀌어 해시가 다르면 스크립트가 멈추니, 새 원본을 확인한 뒤 해시를 갱신합니다.
 
+### 시김새 소리
+
+시김새 창(처음 배우는 시김새 11개)의 단소 소리는 `composeResources/files/sigimsae/*.mp3`(모노 44.1kHz 96kbps, 각 2.56초)에 미리 넣어 두고, 모든 플랫폼이 `core/audio`의 `SoundPlayer`로 그대로 틉니다. 녹음이 아니라 와이어프레임의 Web Audio 합성(`playSig`: 단소 녹음에서 잰 배음·숨 세기, 붓끝 높이를 따라가는 음높이)을 브라우저 없이 다시 계산해 만든 파일입니다. 파일 처음이 붓질 처음(0초)이고 붓질은 2.16초입니다.
+
+`feature/guide/Sigimsae.kt`의 그림(`BasicSigimsae`)을 바꾸면 [`tools/sigimsae-sound/build_sigimsae_sounds.mjs`](tools/sigimsae-sound/build_sigimsae_sounds.mjs)의 `SIGIMSAE` 값도 고치고 다시 만듭니다(`frontend/`에서, Node 18 이상과 libmp3lame이 든 ffmpeg 필요).
+
+```bash
+node tools/sigimsae-sound/build_sigimsae_sounds.mjs
+```
+
+잡음은 고정된 씨앗을 써서 같은 입력이면 같은 소리가 납니다. MP3 바이트는 ffmpeg 판에 따라 조금 다를 수 있습니다(2026-10-29 ffmpeg 9.0.1로 만듦).
+
 ### 라이브러리 추가
 
 1. `gradle/libs.versions.toml`에 버전과 라이브러리를 등록합니다.

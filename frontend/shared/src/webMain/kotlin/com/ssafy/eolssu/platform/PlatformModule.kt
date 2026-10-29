@@ -3,8 +3,10 @@ package com.ssafy.eolssu.platform
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 
+import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
+import com.ssafy.eolssu.platform.audio.WebSoundPlayer
 import com.ssafy.eolssu.platform.storage.WebKeyValueStore
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.js.Js
@@ -21,4 +23,5 @@ internal fun webPlatformModule(): Module = module {
     single<KeyValueStore> { WebKeyValueStore() }
     single<HttpClientEngine> { Js.create() }
     single { ServerAddress(window.location.origin) }
+    single<SoundPlayer> { WebSoundPlayer() }
 }

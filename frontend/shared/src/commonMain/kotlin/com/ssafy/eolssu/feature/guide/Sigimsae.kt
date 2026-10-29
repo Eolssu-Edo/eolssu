@@ -55,14 +55,21 @@ import org.jetbrains.compose.resources.DrawableResource
  * 기호 그림: 우물사이(umulsai.com) jeongganbo-generator, MIT 라이선스(composeResources/files/licenses).
  */
 
-/** 처음 배우는 시김새 하나. 목록에는 기호 · 이름 · 짧은 설명만 두고, 누르면 [figure]를 창에서 그린다. [chip]은 정악·민속악 구분. */
+/**
+ * 처음 배우는 시김새 하나. 목록에는 기호 · 이름 · 짧은 설명만 두고, 누르면 [figure]를 창에서 그리며 [sound]를 함께 튼다. [chip]은 정악·민속악 구분.
+ * [sound]는 `composeResources/files/sigimsae/`의 파일 이름(확장자 없음)이다. 소리는 그림 값으로 미리 만든다(`frontend/tools/sigimsae-sound`).
+ */
 data class SigimsaeItem(
     val images: List<DrawableResource>,
     val name: String,
     val description: String,
     val figure: SigimsaeFigure,
+    val sound: String,
     val chip: String? = null,
-)
+) {
+    /** `Res.readBytes`에 넘기는 소리 파일 경로. */
+    val soundPath: String get() = "files/sigimsae/$sound.mp3"
+}
 
 /** [hint]는 무리 전체에 붙는 그림 읽는 법이다(창의 범례 끝에 단다). */
 data class SigimsaeGroup(val title: String, val items: List<SigimsaeItem>, val hint: String? = null)
@@ -125,16 +132,17 @@ val BasicSigimsae: List<SigimsaeGroup> = listOf(
     SigimsaeGroup(
         "음을 올리고 내려요",
         listOf(
-            SigimsaeItem(listOf(Res.drawable.sig_bend_up), "추성", "끝을 올려요", SigimsaeFigure.Curve("M4 24H44C54 24 60 22 68 12"), chip = "정악"),
-            SigimsaeItem(listOf(Res.drawable.sig_push), "미는표", "밑에서 밀어 올려요", SigimsaeFigure.Curve("M4 34C10 34 14 24 22 24H68"), chip = "민속악"),
+            SigimsaeItem(listOf(Res.drawable.sig_bend_up), "추성", "끝을 올려요", SigimsaeFigure.Curve("M4 24H44C54 24 60 22 68 12"), sound = "chuseong", chip = "정악"),
+            SigimsaeItem(listOf(Res.drawable.sig_push), "미는표", "밑에서 밀어 올려요", SigimsaeFigure.Curve("M4 34C10 34 14 24 22 24H68"), sound = "mineunpyo", chip = "민속악"),
             // 퇴성은 음높이 변화라 아래 음으로 짧고 분명하게 꺾이는 계단, 흘림표는 소리 끝 처리라 가늘어지다 사라지는 꼬리로 나눠 보인다
             // (교육용 구분이며 원기호를 재현한 것은 아니다). 퇴성 그림은 8만큼 또렷하게 꺾되 소리는 딱 한 음 아래다(unit 8)
-            SigimsaeItem(listOf(Res.drawable.sig_bend_down), "퇴성", "아래 음으로 꺾어 내려요", SigimsaeFigure.Curve("M4 24H46L51 32H68", unit = 8f), chip = "정악"),
+            SigimsaeItem(listOf(Res.drawable.sig_bend_down), "퇴성", "아래 음으로 꺾어 내려요", SigimsaeFigure.Curve("M4 24H46L51 32H68", unit = 8f), sound = "toeseong", chip = "정악"),
             SigimsaeItem(
                 listOf(Res.drawable.sig_flow),
                 "흘림표",
                 "끝을 흐리며 흘려 내려요",
                 SigimsaeFigure.Curve("M4 24H30", tail = "M30 23.4C44 23.4 56 28.6 68 36C56 29.4 44 24.6 30 24.6Z"),
+                sound = "heullimpyo",
                 chip = "민속악",
             ),
         ),
@@ -147,24 +155,25 @@ val BasicSigimsae: List<SigimsaeGroup> = listOf(
                 "요성·농음",
                 "위아래로 떨어요",
                 SigimsaeFigure.Curve("M4 24H14Q19 16 24 24T34 24T44 24T54 24T64 24H68", vibrato = true),
+                sound = "yoseong",
             ),
         ),
     ),
     SigimsaeGroup(
         "앞에서 스쳐요",
         listOf(
-            SigimsaeItem(listOf(Res.drawable.sig_nire), "니레", "한 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(1))),
-            SigimsaeItem(listOf(Res.drawable.sig_nina), "니라", "두 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(2))),
-            SigimsaeItem(listOf(Res.drawable.sig_niro), "니로", "세 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(3))),
-            SigimsaeItem(listOf(Res.drawable.sig_noniro), "노니로", "본음·위 음을 굴려요", SigimsaeFigure.Grace(listOf(0, 1))),
+            SigimsaeItem(listOf(Res.drawable.sig_nire), "니레", "한 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(1)), sound = "nire"),
+            SigimsaeItem(listOf(Res.drawable.sig_nina), "니라", "두 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(2)), sound = "nira"),
+            SigimsaeItem(listOf(Res.drawable.sig_niro), "니로", "세 음 위를 스쳐요", SigimsaeFigure.Grace(listOf(3)), sound = "niro"),
+            SigimsaeItem(listOf(Res.drawable.sig_noniro), "노니로", "본음·위 음을 굴려요", SigimsaeFigure.Grace(listOf(0, 1)), sound = "noniro"),
         ),
         hint = "가는 줄 한 칸 = 한 음",
     ),
     SigimsaeGroup(
         "끊고 늘여요",
         listOf(
-            SigimsaeItem(listOf(Res.drawable.sig_staccato), "끊는표", "짧게 끊어요", SigimsaeFigure.Curve("M4 24H16", end = 40f)),
-            SigimsaeItem(listOf(Res.drawable.sig_fermata), "늘임표", "2~3배 늘여요", SigimsaeFigure.Curve("M4 24H68", end = 26f)),
+            SigimsaeItem(listOf(Res.drawable.sig_staccato), "끊는표", "짧게 끊어요", SigimsaeFigure.Curve("M4 24H16", end = 40f), sound = "kkeunneunpyo"),
+            SigimsaeItem(listOf(Res.drawable.sig_fermata), "늘임표", "2~3배 늘여요", SigimsaeFigure.Curve("M4 24H68", end = 26f), sound = "neurimpyo"),
         ),
     ),
 )

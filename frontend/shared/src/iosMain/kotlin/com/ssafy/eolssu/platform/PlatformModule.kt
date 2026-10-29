@@ -3,9 +3,11 @@ package com.ssafy.eolssu.platform
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 
+import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
+import com.ssafy.eolssu.platform.audio.IosSoundPlayer
 import com.ssafy.eolssu.platform.storage.IosKeyValueStore
 import com.ssafy.eolssu.platform.storage.IosSecureStore
 import io.ktor.client.engine.HttpClientEngine
@@ -20,4 +22,5 @@ internal fun iosPlatformModule(): Module = module {
     single<HttpClientEngine> { Darwin.create() }
     single { ServerAddress.Production }
     single { SecureCookiesStorage(IosSecureStore(), now = get()) }
+    single<SoundPlayer> { IosSoundPlayer() }
 }
