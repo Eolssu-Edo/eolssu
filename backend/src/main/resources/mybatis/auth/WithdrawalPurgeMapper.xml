@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.WithdrawalPurgeMapper">
+    <!-- idx_users_purge(status, purge_scheduled_at)를 쓴다. -->
+    <select id="findDueMembers" resultType="long">
+        SELECT id FROM users
+        WHERE status = 'WITHDRAWAL_PENDING' AND purge_scheduled_at &lt;= #{now} AND id &gt; #{afterUserId}
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+    <select id="findRecordingKeys" resultType="string">
+        SELECT recording_url FROM practice_sessions WHERE user_id = #{userId} AND recording_url IS NOT NULL
+    </select>
+    <!-- 회원 행을 먼저 잠근다(users → 나머지 순서). 그 사이 로그인으로 탈퇴를 취소했으면 행이 나오지 않는다. -->
+    <select id="lockDueMemberEmail" resultType="string">
+        SELECT email FROM users
+        WHERE id = #{userId} AND status = 'WITHDRAWAL_PENDING' AND purge_scheduled_at &lt;= #{now}
+        FOR UPDATE
+    </select>
+    <!-- 진행 중 분석 결과 저장(세션 조건부 갱신)과 겹치지 않게 세션을 잠근다. -->
+    <select id="lockSessions" resultType="long">
+        SELECT id FROM practice_sessions WHERE user_id = #{userId} FOR UPDATE
+    </select>
+    <delete id="deleteNoteResults">
+        DELETE nr FROM note_results nr
+        JOIN evaluations e ON e.id = nr.evaluation_id
+        JOIN practice_sessions s ON s.id = e.session_id
+        WHERE s.user_id = #{userId}
+    </delete>
+    <delete id="deleteEvaluations">
+        DELETE e FROM evaluations e
+        JOIN practice_sessions s ON s.id = e.session_id
+        WHERE s.user_id = #{userId}
+    </delete>
+    <!-- 다른 세션의 parent_session_id는 외래 키 ON DELETE SET NULL로 비워진다. -->
+    <delete id="deleteSessions">
+        DELETE FROM practice_sessions WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteScoreViews">
+        DELETE FROM score_views WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteTermAgreements">
+        DELETE FROM user_term_agreements WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteSongSettings">
+        DELETE FROM user_song_settings WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteLessonProgress">
+        DELETE FROM lesson_progress WHERE user_id = #{userId}
+    </delete>
+    <delete id="deleteRefreshTokens">
+        DELETE FROM refresh_tokens WHERE user_id = #{userId}
+    </delete>
+    <!-- 소셜 연결을 지워야 같은 간편 로그인 계정으로 새 회원을 만들 수 있다. -->
+    <delete id="deleteSocialAccounts">
+        DELETE FROM user_social_accounts WHERE user_id = #{userId}
+    </delete>
+    <!-- 기본 콜레이션은 악센트·대소문자가 다른 남의 주소도 같다고 보므로, 저장된 주소와 정확히 같은 행만 지운다. -->
+    <delete id="deleteEmailVerifications">
+        DELETE FROM email_verifications WHERE email = #{email} COLLATE utf8mb4_bin
+    </delete>
+    <update id="anonymize">
+        UPDATE users
+        SET email = NULL, password_hash = NULL, nickname = NULL, status = 'DELETED', deleted_at = #{now},
+            withdrawal_requested_at = NULL, purge_scheduled_at = NULL, updated_at = #{now}
+        WHERE id = #{userId} AND status = 'WITHDRAWAL_PENDING'
+    </update>
+</mapper>

@@ -30,6 +30,7 @@ import com.ssafy.eolssu.feature.history.RecordListRoute
 import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.FingeringRoute
 import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.ReadingScreen
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
@@ -81,15 +82,17 @@ object EolssuDestination {
 
     /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. */
     fun practice(songId: String, solo: Boolean = false, switched: Boolean = false) = "practice/$songId?solo=$solo&switched=$switched"
-    // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을 넘겨받는다.
+    // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
-    const val GUIDE_READING = "guide/reading"
+    const val GUIDE_READING = "guide/reading?page={page}"
     const val LEARN = "learn"
     const val LEARN_LIST = "learn/stages"
     const val LEARN_STAGE = "learn/stages/{stage}"
 
     fun guideFingering(instrument: GuideInstrument? = null, blow: Blow? = null) =
         "guide/fingering?instrument=${instrument?.id.orEmpty()}&blow=${blow?.name.orEmpty()}"
+
+    fun guideReading(page: ReadingPage? = null) = "guide/reading?page=${page?.id.orEmpty()}"
 
     fun learnStage(stage: Int) = "learn/stages/$stage"
 
@@ -127,14 +130,15 @@ fun EolssuNavHost(
                     onOpenFeature = { feature ->
                         val route = when (feature) {
                             HomeFeature.Fingering -> EolssuDestination.guideFingering()
-                            HomeFeature.Reading -> EolssuDestination.GUIDE_READING
+                            HomeFeature.Reading -> EolssuDestination.guideReading()
                             HomeFeature.Learn -> EolssuDestination.LEARN
                             HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
                         }
                         route?.let(navController::navigate)
                         route != null
                     },
-                    startMessage = entry.startNotice()?.message,
+                    onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
+                    startMessage = entry.startNotice(),
                     onStartMessageShown = entry::clearStartNotice,
                 )
             }
@@ -293,13 +297,19 @@ fun EolssuNavHost(
                     blow = Blow.entries.firstOrNull { it.name == blowName } ?: Blow.Mid,
                 )
             }
-            composable(EolssuDestination.GUIDE_READING) {
-                ReadingScreen(onBack = { navController.popBackStack() })
+            composable(
+                EolssuDestination.GUIDE_READING,
+                arguments = listOf(navArgument("page") { type = NavType.StringType; defaultValue = "" }),
+            ) { entry ->
+                ReadingScreen(
+                    onBack = { navController.popBackStack() },
+                    initialPage = ReadingPage.fromId(entry.savedStateHandle.get<String>("page")),
+                )
             }
             navigation(startDestination = EolssuDestination.LEARN_LIST, route = EolssuDestination.LEARN) {
                 val learnNavigation = LearnNavigation(
                     onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
-                    onOpenReading = { navController.navigate(EolssuDestination.GUIDE_READING) },
+                    onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
                     onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
                     onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
                 )
@@ -335,10 +345,11 @@ fun EolssuNavHost(
                     )
                 }
             }
+            profileGraph(navController)
             authGraph(
                 navController,
                 onMicAllowed = practiceSettings::grantMic,
-                onFinished = { welcome -> navController.finishFirstRun(firstRunRepository, welcome) },
+                onFinished = { notice, provider -> navController.finishFirstRun(firstRunRepository, notice, provider) },
             )
 
             // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기

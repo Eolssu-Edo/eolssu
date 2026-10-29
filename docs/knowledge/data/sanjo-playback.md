@@ -1,6 +1,6 @@
-# 산조대금 JGB·MIDI·CAT 음원 변환의 범위
+# 산조대금 JGB·MIDI·CAT·M4A 변환
 
-S15P31E102-107 · 2026-10-28. 기존 산조 프로필을 최신 Data 공통 엔진과 단소 M4A 출력 기반에 연결한다. 악기 종류·황종 기준·빠르기·필요한 상대음 음급과 표현 정책을 명시한 단선율 JGB를 처리한다. 관종·유파별 모범 연주나 실제 운지 가능성을 검증한 결과는 아니다.
+[S15P31E102-107](https://ssafy.atlassian.net/browse/S15P31E102-107) · Story30 · Epic18 · 2026-10-29. 단소 !87·소금 !44가 병합된 공통 엔진에 산조 프로필을 연결한다. 악기 종류·황종 기준·빠르기·필요한 상대음 음급과 표현 정책을 명시한 단선율 JGB를 처리한다. 관종·유파별 모범 연주나 실제 운지 가능성을 검증한 결과는 아니다.
 
 ## CAT에서 구분되는 것
 
@@ -28,14 +28,30 @@ S15P31E102-107 · 2026-10-28. 기존 산조 프로필을 최신 Data 공통 엔�
 - 황종 MIDI와 정간/분·기준 음가를 입력한다. 빠르기는 `tempoBpmUserSet=true` 또는 명시적 `--bpm`이 필요하며 편집기 기본값을 확정값으로 사용하지 않는다. 악기 이름만 보고 전체 음높이를 이동하거나 조율을 선택하지 않는다. 원본에 저장된 수치라도 실제 판본 근거가 확인됐는지는 별도로 기록한다.
 - 상대음 시김새에는 `joPreset` 또는 근거가 붙은 `playback.relative_scale`이 필요하다. 등장한 음 몇 개만으로 산조의 음계·조를 자동 판정하지 않는다.
 - 농음·흘림은 `playback.expression_policy`로 mode·속도·폭·시점을 명시한다. 정악단소의 amplitude 농음이나 단소용 흘림 수치를 산조 기본값으로 복제하지 않는다. 표기가 없는 음에는 단소 실험의 추가 ±25cent 떨림을 적용하지 않는다.
-- 프로필의 `technical_range`·`style_range`와 기본 `yoseong_mode`는 미확정 상태를 유지한다. 실제 렌더링에서는 CAT 키존·샘플 길이를 검사하며 범위 이탈이나 소진을 임의 옥타브 이동·반복으로 메우지 않는다.
+- 프로필의 `technical_range`·`style_range`와 기본 `yoseong_mode`는 미확정 상태를 유지한다. 실제 렌더링에서는 CAT 키존·샘플 길이를 검사한다. 긴 음은 상관도·음높이·음량 검사를 통과한 안정 구간만 연장하고 실패하면 중단한다. 범위 밖 음을 임의로 옥타브 이동하지 않는다.
+
+## 산조 기호의 지원 범위
+
+[국립국악원 『창작을 위한 국악기 이해와 활용』](https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=116&menuid=001003003006002&lang=ko) 대금 장의 p162–164 도표를 기준으로 한다. p165는 정악·산조 예시를 함께 안내한다. 확보 PDF SHA-256은 `11957f76378c94c96d5e2f51a977d3bd4a5465cbebe76b833367398a8b4fcc32`다. `expressions.py`의 산조표는 확인한 일반 대금 기호만 명시적으로 등록하며, 단소나 소금 전체 표를 자동 선택하지 않는다.
+
+아래 단계0은 본음이고 ±1은 작성자가 명시한 음계의 이웃음이다. 앞꾸밈은 뒤에 본음0이 이어진다. 같은 도형의 한글 이름·상류 ID 연결과 시김새의 실제 유파별 표현을 구분한다.
+
+| 종류 | 입력과 음열 |
+| --- | --- |
+| 독립 음열 | 노[-1], 로[-2], 니[1], 리[2], 니나[1,0], 느나[-1,0], 느니[1,2], 노라[-1,-2], 니레나[2,1,0], 니로나[1,0,-1] |
+| 붙임 음열 | 나니나[0,1,0] |
+| 앞꾸밈 | 니레[1], 니라[2], 노네[-1], 너녜/너네[-2], 노니로[0,1], 네로네[0,-1], 나니로/나니르[-1,1], 느로니르[0,-1,1] |
+| 공통 같은음 반복 | 같은음표/repeat는 앞 음높이를 새 음으로 다시 발음. 지속으로 합치지 않음 |
+| 자동 적용 제외 | 네로나·니느라니·느나르나니·떠이어표·느니르·니루니 등 위 도표로 산조 대응을 확인하지 않은 기호. 정악·소금의 복합음열을 복제하지 않음 |
+
+교재 p158은 같은 닫는 괄호형 기호가 정악에서는 퇴성, 민속악에서는 음 시작에 반음 아래로 꺾는 의미로 쓰임을 설명한다. 원본 글리프만으로 끝부분 하행 곡선에 대응시키지 않는다. JGB의 명시적 `흘림표`·`퇴성`·`풀어내림표`는 작성자가 선택한 의미와 수치를 합성하는 경로다. 특히 풀어내림의 농음+하행 결합을 산조 원보의 특정 글리프와 검증된 일대일 대응이라고 보고하지 않는다. 시작 부분의 꺾음 같은 실제 곡선은 근거가 붙은 표현 프로필의 `pitch_curve.points`로 직접 지정할 수 있다.
 
 ## 실행과 확인
 
 [검사용 JGB](../../../data/src/playback/examples/sanjo-authored.jgb.json)는 직접 작성한 4정간이다. 60정간/분, 황종 MIDI63, 상대음 음급, pitch 농음과 흘림 수치는 모두 작성자가 선택한 검사값이다. 실제 산조 악보·관종·유파의 정답을 나타내지 않는다. 검사용 명시 정책을 실제 곡의 검증된 주법으로 복사하지 않는다.
 
 ```powershell
-python -m data.src.playback --score data/src/playback/examples/sanjo-authored.jgb.json --assets C:/local-gugak/assets.json --instrument sanjo-daegeum --out data/processed/playback/sanjo-authored
+python -X utf8 -m data.src.playback --score data/src/playback/examples/sanjo-authored.jgb.json --assets C:/local-gugak/assets.json --instrument sanjo-daegeum --out data/processed/playback/sanjo-authored
 ```
 
 `assets.json`에 `sanjo-daegeum`의 로컬 v1.3 ZIP 경로가 필요하며 M4A는 FFmpeg·ffprobe 경로도 필요하다. 공통 [실행 안내](../../../data/src/playback/README.md)를 따른다. 입력 하나의 변환에 필요한 원본 JGB·정규화 score·source-map·MIDI·M4A·프리셋 및 샘플 해시를 출력한다. 배치 처리와 HTML 생성은 포함하지 않는다. WAV가 필요하면 별도 출력 폴더와 `--audio-format wav`를 사용한다.
@@ -44,11 +60,15 @@ python -m data.src.playback --score data/src/playback/examples/sanjo-authored.jg
 
 CAT 원본 ZIP·WAV와 생성 음원은 Git에 넣지 않는다. 출처 표시는 생성 결과에 보존한다. 실제 샘플 생성 성공은 전문가 청감·원보 검수를 뜻하지 않는다.
 
-## 검증 결과 · 2026-10-28
+빠르기·반복 계획은 `sanjo-daegeum-performance/v1`, 별도 표현 프로필은 `sanjo-daegeum-expression-profile/v1`이다. 원본 바이트 해시가 다르거나 다른 악기의 schema이면 거부한다. 단소 전용100ms 연결 시작점과 추가25cent 떨림은 산조에 적용하지 않는다.
 
-- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: **71개 통과**. 산조 전용 8개와 실제 FFmpeg 통합 검사를 포함한다. 기종 모호·상대음 음급 누락·명시 표현 정책 누락·비단소의 미확정 빠르기를 거부하고, 표시 없는 산조 음에는 단소 추가 떨림이 없음을 확인했다. 제거한 배치 기능의 검사는 현재 검사 수에 포함하지 않는다.
-- Python3.12 환경에서 위 4정간 JGB를 단일 CLI로 실제 CAT simple 프리셋과 FFmpeg9.0.2에 연결했다. 최종 프로세스 실행1.086초, MIDI5음, 44,100Hz mono AAC-LC M4A **4.55초·200,655프레임·76,116 bytes**다. 입력 음가 합계는4초이며 공통 출력의 잔향 여백이 포함된다. 요청 비트레이트192kbps, 실제 약130kbps, 디코드 peak0.850016, 끝 패딩0프레임을 확인했다. 중간 WAV·HTML은 생성하지 않았다.
+## 검증 결과 · 2026-10-29
+
+- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: **135개 통과·건너뜀0개**. 최신 단소·소금126개에 산조9개를 추가했으며 실제 FFmpeg 통합2개를 포함한다. 이전 `test_sanjo_daegeum.py`·`test_instrument_policy.py`는 없애고 대응하는 `test_jgb.py`·`test_score.py` 등으로 통합했다. 기종·빠르기·확인한19개 음형·미확정 복합기호·명시적 표현·원본·계획 hash/schema·지속음·MIDI를 검사한다. [검사별 범위](../../../data/src/playback/tests/README.md)를 따른다.
+- Python3.12·실제 CAT simple·FFmpeg9.0.2로 기존 4정간 JGB를 다시 생성했다. MIDI5음, 44,100Hz mono AAC-LC M4A **4.55초·200,655프레임·76,116bytes**로 기존 음원과 해시가 같다. 입력 음가 합계는4초이며 공통 출력의 잔향 여백이 포함된다. 요청192kbps, 실제130,362bps, 디코드 peak0.850016, 끝 패딩0프레임을 확인했다. 중간 WAV·HTML은 생성하지 않았다.
 - 원본 JGB 바이트·입력/코드/프로필 해시, 명시 expression/relative-scale 정책의 source-map 보존, CAT 공통 샘플 경고를 확인했다. M4A SHA-256은 `096c510da0be4e300939fab85f951f43a7d6aea53f7e56b51871d053b6fc6ae1`이다.
-- 실제 「늴리리야」 입력에 Notion의 산조대금 연결 근거만 추가하면 **빠르기 미확정으로 먼저 차단**된다. 렌더링 없이 진단용 BPM60만 넘겨도 1각12정간의 상대음 시김새에 명시 음계가 없어 차단된다. 이 진단값을 실제 곡의 속도로 승인하거나 음원으로 생성하지 않았다. 원본 SHA-256 `35be3d83d898fc4ba91f8851fcf6c010eecaa97890071c8dba0fb2fa5da986be`를 보존했다. 기호를 제거하거나 임의 음계를 붙여 성공으로 바꾸지 않았다.
+- 실제 CAT32개 키존의15초 지속을 확인했다. MIDI60–91 중 **31개**에서 검증된 루프·동일음7.5+7.5초 이음·숨표의 무음을 확인했고, **MIDI86**의 안정 구간 탐색은 실패하여 원래 샘플 길이를 넘기면 오류를 유지한다. 검증 통과 구간만 합성 연장하며 실제 긴 호흡 녹음을 얻은 것이 아니다.
+- 별도 고정 입력에 확인된 꾸밈·농음·흘림·풀어내림·시작 부분 하행/상행 곡선·빠르기 변경·2회 반복·18초 지속·숨표를 넣어 **18음·52.55초·1,038,074bytes** M4A를 생성했다. SHA-256 `151865e7b5d6f5632dc630d88e61ea55021ce73d0a2bac21c5188d39c97c0aa6`, 끝 패딩0프레임이다. 모든 수치는 기능 검사 선택값이며 실제 산조 해석으로 승인된 값이 아니다.
+- 로컬 대금 목록31행 중 파일명 또는 단일 연결 PDF에서 산조 기종이 명시된 JGB10개를 검사했다. 기종 근거만 메모리의 준비 사본에 넣었을 때 **10개 모두 빠르기 미확정으로 차단**됐다. 단소용60정간/분 승인을 확대하거나 원본을 수정하지 않았다. 이 검사는 악보·시김새의 전수 판독 완료를 뜻하지 않는다.
 
-최종 로컬 결과는 이 worktree의 새 폴더 `data/processed/playback/107-single-m4a/`에 있으며 `verification.json`에 해시·오디오 검사·실제 곡의 차단 이유를 남겼다. 이전 `107-authored-m4a/`의 음원·페이지는 보존했고 새 음원의 SHA-256이 이전과 같음을 확인했다. 검사용 입력은 통과했지만, 실제 산조 악보의 유파·관종별 주법 수치와 전곡 청감 검증은 미완료다.
+최종 로컬 결과는 메인 체크아웃의 `data/processed/playback/166-listen/mr43-sanjo-integrated-check/`에 보존한다. `verification.json`에 전음역 지속·이음·무음 검사와 실제 입력의 차단 이유를 남겼다. 기존 출력도 보존한다. 검사용 입력은 통과했지만 실제 산조 악보의 유파·관종별 주법 수치와 전곡 청감 검증은 미완료다. 코드·테스트·실행 근거 외의 HTML·개별 곡 빠르기 조사·로컬 계획·원본·생성 음원은 MR에 포함하지 않는다.

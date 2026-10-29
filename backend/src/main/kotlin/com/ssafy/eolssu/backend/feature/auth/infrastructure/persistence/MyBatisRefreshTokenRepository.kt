@@ -1,0 +1,38 @@
+package com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence
+
+import com.ssafy.eolssu.backend.feature.auth.domain.*
+import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
+
+class MyBatisRefreshTokenRepository(
+    private val mapper: RefreshTokenMapper,
+    private val users: UserMapper,
+    transactionManager: PlatformTransactionManager,
+) : RefreshTokenRepository, TokenRefreshRepository {
+    private val transaction = TransactionTemplate(transactionManager)
+
+    override fun <T : Any> inTransaction(action: () -> T): T = checkNotNull(transaction.execute { action() })
+
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long {
+        val row = RefreshTokenInsert(userId, tokenHash, expiresAt.utc(), now.utc())
+        check(mapper.insert(row) == 1)
+        check(row.id > 0)
+        return row.id
+    }
+
+    override fun find(tokenHash: String) = mapper.findByTokenHash(tokenHash)?.toStored()
+    override fun findForUpdate(tokenHash: String) = mapper.findByTokenHashForUpdate(tokenHash)?.toStored()
+
+    private fun RefreshTokenRow.toStored() =
+        StoredRefreshToken(id, userId, expiresAt.toInstant(ZoneOffset.UTC), revokeReason?.let(RevokeReason::valueOf))
+
+    override fun revoke(id: Long, reason: RevokeReason, now: Instant) { check(mapper.revoke(id, reason.name, now.utc()) == 1) }
+    override fun revokeAll(userId: Long, reason: RevokeReason, now: Instant) { mapper.revokeAllActive(userId, reason.name, now.utc()) }
+    override fun memberStatusForUpdate(userId: Long) = users.findStatusForUpdate(userId)?.let(MemberStatus::valueOf)
+
+    private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
+}

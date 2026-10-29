@@ -30,14 +30,18 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBody
-import com.ssafy.eolssu.feature.auth.component.AuthFieldType
+import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
-import com.ssafy.eolssu.feature.auth.component.AuthTextField
+import com.ssafy.eolssu.core.ui.component.EolssuTextField
 import com.ssafy.eolssu.feature.auth.component.authBodyTopWithoutBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
@@ -45,18 +49,24 @@ import eolssu.shared.generated.resources.auth_brand
 import eolssu.shared.generated.resources.auth_email
 import eolssu.shared.generated.resources.auth_email_placeholder
 import eolssu.shared.generated.resources.auth_find_password
+import eolssu.shared.generated.resources.auth_confirm
+import eolssu.shared.generated.resources.auth_locked_message
+import eolssu.shared.generated.resources.auth_locked_title
 import eolssu.shared.generated.resources.auth_login
 import eolssu.shared.generated.resources.auth_or_email
 import eolssu.shared.generated.resources.auth_password
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_signup_with_email
-import eolssu.shared.generated.resources.auth_social_start
+import eolssu.shared.generated.resources.auth_social_login
+import eolssu.shared.generated.resources.auth_social_members_only
 import eolssu.shared.generated.resources.auth_tagline
+import eolssu.shared.generated.resources.auth_withdrawal_cancelled_message
+import eolssu.shared.generated.resources.auth_withdrawal_cancelled_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AUTH-04 로그인. 소셜 시작 버튼 3개, 이메일 로그인, 비밀번호 찾기·이메일 회원가입 링크.
- * 태블릿은 화면 가운데에 두고, 가로에서는 앱 이름을 왼쪽 브랜드 칸으로 옮긴다.
+ * AUTH-04 로그인. 간편 로그인 버튼 3개(가입한 회원 전용), 이메일 로그인, 비밀번호 찾기·이메일 회원가입 링크.
+ * 로그인 잠김·탈퇴 취소는 안내 창으로 알린다. 태블릿은 화면 가운데에 두고, 가로에서는 앱 이름을 왼쪽 브랜드 칸으로 옮긴다.
  */
 @Composable
 fun LoginScreen(
@@ -69,6 +79,8 @@ fun LoginScreen(
     onSocialLogIn: (SocialProvider) -> Unit,
     onFindPassword: () -> Unit,
     onSignUp: () -> Unit,
+    onDismissNotice: () -> Unit,
+    onWithdrawalCancelledConfirmed: () -> Unit,
 ) {
     val frame = authFrameOf(widthClass, split = true)
     AuthScaffold(frame, modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
@@ -80,22 +92,29 @@ fun LoginScreen(
             if (frame != AuthFrame.Split) Brand()
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SocialProvider.entries.forEach { provider -> SocialButton(provider, onClick = { onSocialLogIn(provider) }) }
+                Text(
+                    stringResource(Res.string.auth_social_members_only),
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
+                    color = EolssuTheme.colors.textMuted,
+                    textAlign = TextAlign.Center,
+                )
             }
             OrDivider()
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                AuthTextField(
+                EolssuTextField(
                     value = state.email,
                     onValueChange = onEmailChange,
                     label = stringResource(Res.string.auth_email),
                     placeholder = stringResource(Res.string.auth_email_placeholder),
-                    type = AuthFieldType.Email,
+                    type = TextFieldType.Email,
                 )
-                AuthTextField(
+                EolssuTextField(
                     value = state.password,
                     onValueChange = onPasswordChange,
                     label = stringResource(Res.string.auth_password),
                     placeholder = stringResource(Res.string.auth_password_placeholder),
-                    type = AuthFieldType.Password,
+                    type = TextFieldType.Password,
                     error = state.error?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                     onImeAction = onLogIn,
@@ -104,6 +123,24 @@ fun LoginScreen(
             }
             Links(onFindPassword, onSignUp)
         }
+    }
+    when (state.notice) {
+        LoginNotice.Locked -> EolssuDialog(
+            title = stringResource(Res.string.auth_locked_title),
+            message = stringResource(Res.string.auth_locked_message),
+            icon = EolssuIcons.Lock,
+        ) {
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
+            EolssuButton(stringResource(Res.string.auth_find_password), onClick = onFindPassword, style = EolssuButtonStyle.Text)
+        }
+        LoginNotice.WithdrawalCancelled -> EolssuDialog(
+            title = stringResource(Res.string.auth_withdrawal_cancelled_title),
+            message = stringResource(Res.string.auth_withdrawal_cancelled_message),
+            icon = EolssuIcons.Check,
+        ) {
+            EolssuButton(stringResource(Res.string.auth_confirm), onClick = onWithdrawalCancelledConfirmed)
+        }
+        null -> Unit
     }
 }
 
@@ -128,7 +165,7 @@ private fun Brand() {
     }
 }
 
-/** 소셜 시작 버튼(`.au-social-btn`): 왼쪽 52dp 칸에 제공사 표시, 가운데 문구. 공식 버튼 가이드는 실제 연동 때 따른다. */
+/** 간편 로그인 버튼(`.au-social-btn`): 왼쪽 52dp 칸에 제공사 표시, 가운데 문구. 공식 버튼 가이드는 실제 연동 때 따른다. */
 @Composable
 private fun SocialButton(provider: SocialProvider, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -150,7 +187,7 @@ private fun SocialButton(provider: SocialProvider, onClick: () -> Unit) {
                 }
             }
             Text(
-                stringResource(Res.string.auth_social_start, stringResource(provider.displayName)),
+                stringResource(Res.string.auth_social_login, stringResource(provider.displayName)),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
                 textAlign = TextAlign.Center,

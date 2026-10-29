@@ -7,14 +7,54 @@ spring:
   servlet:
     multipart:
       # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다.
-      # 앞 계층 한도는 스펙대로 multipart 파일·요청 25MiB, Nginx 25m(Nginx는 S15P31E102-181)이다.
+      # 앞 계층 한도는 스펙대로 multipart 파일·요청 25MiB, Nginx /api/ 25m이다.
       max-file-size: 25MB
       max-request-size: 25MB
 
 server:
   port: ${SERVER_PORT:8080}
 
+eolssu:
+  auth:
+    code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
+    mail-mode: ${AUTH_MAIL_MODE:smtp}
+    mail:
+      host: ${AUTH_MAIL_HOST:}
+      port: ${AUTH_MAIL_PORT:587}
+      username: ${AUTH_MAIL_USERNAME:}
+      password: ${AUTH_MAIL_PASSWORD:}
+      from: ${AUTH_MAIL_FROM:}
+      from-name: ${AUTH_MAIL_FROM_NAME:}
+    cookie-secure: ${AUTH_COOKIE_SECURE:true}
+  security:
+    jwt-secret: ${AUTH_JWT_SECRET:}
+    # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.
+    allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}
+  # 녹음 원본 저장소(S3 호환, Cloudflare R2). 하나라도 비면 업로드는 503이다. 키는 서버 .env에만 둔다.
+  recording-storage:
+    endpoint: ${RECORDING_STORAGE_ENDPOINT:}
+    bucket: ${RECORDING_STORAGE_BUCKET:}
+    access-key-id: ${RECORDING_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${RECORDING_STORAGE_REGION:auto}
+  analysis:
+    # AI 서비스 주소(예: http://ai:8000). 비어 있으면 업로드 뒤 분석을 시작하지 않는다(PRA-03).
+    ai-base-url: ${ANALYSIS_AI_BASE_URL:}
+
 management:
+  metrics:
+    distribution:
+      # p95를 계산할 응답 시간 분포 구간. 수치가 늘어나므로 API 요청과 DB 연결 대기에만 켠다.
+      percentiles-histogram:
+        "[http.server.requests]": true
+        "[hikaricp.connections.acquire]": true
+      # 기본 구간은 1ms 미만부터 수십 초까지 69개라, 쓸 범위로 잘라 구간 수를 줄인다.
+      minimum-expected-value:
+        "[http.server.requests]": 5ms
+        "[hikaricp.connections.acquire]": 1ms
+      maximum-expected-value:
+        "[http.server.requests]": 10s
+        "[hikaricp.connections.acquire]": 5s
   endpoints:
     access:
       default: none

@@ -137,7 +137,7 @@ internal fun HanjaGlyph(
 
 /**
  * 변 + 율명을 나란히 그린다. 변 글자는 왼쪽에만 획이 있어 [overlap] 비율만큼 다음 글자를 당겨 붙인다.
- * 정간보 쉽게 읽기의 탁황(亻黃)·청황(氵黃)도 이 모양이다.
+ * 정간보 쉽게 읽기의 탁황(亻黃)·청황(氵黃)도 이 모양이고, 부수만 [radicalColor]로 칠한다.
  */
 @Composable
 internal fun ComposedGlyph(
@@ -150,12 +150,13 @@ internal fun ComposedGlyph(
     color: Color = EolssuTheme.colors.text,
     fontWeight: FontWeight = FontWeight.SemiBold,
     radicalWeight: FontWeight = fontWeight,
+    radicalColor: Color = color,
 ) {
     val style = EolssuTheme.serif.yul.copy(fontWeight = fontWeight)
     Layout(
         content = {
             radicals.forEach { r ->
-                Text(r.toString(), color = color, style = style.copy(fontSize = radicalSize, lineHeight = radicalSize, fontWeight = radicalWeight))
+                Text(r.toString(), color = radicalColor, style = style.copy(fontSize = radicalSize, lineHeight = radicalSize, fontWeight = radicalWeight))
             }
             Text(base, color = color, style = style.copy(fontSize = baseSize, lineHeight = baseSize))
         },

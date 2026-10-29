@@ -39,7 +39,7 @@ class HttpAnalysisClient(
     }
 
     private fun AnalysisRequest.toBody() =
-        RequestBody(sessionId, attempt, audioUrl, bpm, bpmUnit, notes.map { RequestNote(it.idx, it.semitone, it.beats, it.sigimsae) })
+        RequestBody(sessionId, attempt, audioUrl, bpm, bpmUnit, notes.map { RequestNote(it.idx, it.semitone, it.startBeat, it.beats, it.sigimsae) })
 
     private fun ResponseBody.toResult(requestedIdx: List<Int>): AnalysisResult = when (status) {
         "DONE" -> {
@@ -75,7 +75,7 @@ class HttpAnalysisClient(
         val notes: List<RequestNote>,
     )
 
-    internal data class RequestNote(val idx: Int, val semitone: Int, val beats: Double, val sigimsae: Boolean)
+    internal data class RequestNote(val idx: Int, val semitone: Int, val startBeat: Double, val beats: Double, val sigimsae: Boolean)
 
     // tuningOffsetCent·tuningOutOfRange는 저장할 칸이 없어 읽지 않는다.
     @JsonIgnoreProperties(ignoreUnknown = true)

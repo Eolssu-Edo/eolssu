@@ -21,10 +21,11 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.feature.home.HomeFeature
-import com.ssafy.eolssu.feature.home.Instrument
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeHero
-import com.ssafy.eolssu.feature.home.component.InstrumentChip
+import com.ssafy.eolssu.feature.home.component.InstrumentLabel
+import com.ssafy.eolssu.feature.home.component.MyPageButton
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_brand
 import org.jetbrains.compose.resources.stringResource
@@ -36,7 +37,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun HomeExpandedLayout(
     instrument: Instrument,
-    onOpenInstrumentSheet: () -> Unit,
+    onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
     modifier: Modifier = Modifier,
@@ -58,7 +59,8 @@ internal fun HomeExpandedLayout(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                     Text(stringResource(Res.string.home_brand), style = EolssuTheme.serif.brand)
-                    InstrumentChip(instrument, onOpenInstrumentSheet)
+                    InstrumentLabel(instrument, Modifier.weight(1f))
+                    MyPageButton(onOpenMyPage)
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                     // 와이어프레임은 1120dp 너비에서 카드 열 440dp. 좁은 가로 창에서는 족자가 너무 좁아지지 않게 줄인다.

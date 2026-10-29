@@ -19,11 +19,22 @@ class AuthValidationTest {
     }
 
     @Test
-    fun loginFailsUnlessEmailIsValidAndPasswordIsPresent() {
-        assertNull(AuthValidation.loginError("user@example.com", "password"))
-        assertEquals(FieldError.LoginFailed, AuthValidation.loginError("", ""))
-        assertEquals(FieldError.LoginFailed, AuthValidation.loginError("user", "password"))
-        assertEquals(FieldError.LoginFailed, AuthValidation.loginError("user@example.com", ""))
+    fun codeIsExactlySixDigitsKeepingLeadingZero() {
+        assertTrue(AuthValidation.isCode("012345"))
+        assertFalse(AuthValidation.isCode("12345"))
+        assertFalse(AuthValidation.isCode("1234567"))
+        assertFalse(AuthValidation.isCode("12a456"))
+    }
+
+    @Test
+    fun passwordNeedsLetterDigitAndSymbolWithin8To128() {
+        assertNull(AuthValidation.passwordError("eolssu1!"))
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eols1!"))
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eolssu12"))
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("eolssu!!"))
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("12345678!"))
+        assertNull(AuthValidation.passwordError("a1!" + "x".repeat(125)))
+        assertEquals(FieldError.PasswordRule, AuthValidation.passwordError("a1!" + "x".repeat(126)))
     }
 
     @Test

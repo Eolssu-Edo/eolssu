@@ -30,7 +30,7 @@ class HttpAnalysisClientTests {
     private val client = HttpAnalysisClient(builder.build(), jacksonMapperBuilder().build())
     private val request = AnalysisRequest(
         7, 2, "https://storage.example/a.m4a?sig=x", 60, "JEONGGAN",
-        listOf(ScoreNote(4, 0, 1.0, false, 11), ScoreNote(5, 2, 2.5, true, 12)),
+        listOf(ScoreNote(4, 0, 4.0, 1.0, false, 11), ScoreNote(5, 2, 6.0, 2.5, true, 12)),
     )
 
     private fun respond(body: String) {
@@ -52,7 +52,7 @@ class HttpAnalysisClientTests {
                 content().json(
                     """
                     {"sessionId":7,"attempt":2,"audioUrl":"https://storage.example/a.m4a?sig=x","bpm":60,"bpmUnit":"JEONGGAN",
-                     "notes":[{"idx":4,"semitone":0,"beats":1.0,"sigimsae":false},{"idx":5,"semitone":2,"beats":2.5,"sigimsae":true}]}
+                     "notes":[{"idx":4,"semitone":0,"startBeat":4.0,"beats":1.0,"sigimsae":false},{"idx":5,"semitone":2,"startBeat":6.0,"beats":2.5,"sigimsae":true}]}
                     """,
                     true,
                 ),

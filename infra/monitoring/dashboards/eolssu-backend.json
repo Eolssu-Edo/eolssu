@@ -39,8 +39,8 @@
     {
       "id": 2,
       "type": "timeseries",
-      "title": "API 평균 응답 시간",
-      "description": "주소 패턴(uri)별 평균 응답 시간. 등록되지 않은 주소는 /**로 묶인다.",
+      "title": "API 응답 시간 (평균·p95)",
+      "description": "주소 패턴(uri)별 5분 평균과 상위 5%(p95) 응답 시간. 두 선의 차이가 크면 일부 요청만 느린 것이다. 등록되지 않은 주소는 /**로 묶인다.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -66,7 +66,18 @@
           },
           "editorMode": "code",
           "expr": "sum by (uri) (rate(http_server_requests_seconds_sum{job=\"eolssu-backend\",uri!~\"/api/actuator.*\"}[5m])) / sum by (uri) (rate(http_server_requests_seconds_count{job=\"eolssu-backend\",uri!~\"/api/actuator.*\"}[5m]))",
-          "legendFormat": "{{uri}}",
+          "legendFormat": "{{uri}} 평균",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (uri, le) (rate(http_server_requests_seconds_bucket{job=\"eolssu-backend\",uri!~\"/api/actuator.*\"}[5m])))",
+          "legendFormat": "{{uri}} p95",
           "range": true
         }
       ]
@@ -145,7 +156,7 @@
       "id": 5,
       "type": "stat",
       "title": "5xx 오류율",
-      "description": "전체 요청 중 서버 오류(5xx) 비율. 오류가 없으면 0이다.",
+      "description": "전체 요청 중 서버 오류(5xx) 비율. 오류나 요청이 없으면 0이다.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -170,7 +181,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"eolssu-backend\",uri!~\"/api/actuator.*\",status=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{job=\"eolssu-backend\",uri!~\"/api/actuator.*\"}[5m]))",
+          "expr": "(sum(rate(http_server_requests_seconds_count{job=\"eolssu-backend\",uri!~\"/api/actuator.*\",status=~\"5..\"}[5m])) or vector(0)) / (sum(rate(http_server_requests_seconds_count{job=\"eolssu-backend\",uri!~\"/api/actuator.*\"}[5m])) > 0) or vector(0)",
           "legendFormat": "5xx",
           "range": true
         }
@@ -324,7 +335,7 @@
       "gridPos": {
         "x": 0,
         "y": 27,
-        "w": 24,
+        "w": 12,
         "h": 8
       },
       "targets": [
@@ -359,6 +370,165 @@
           "editorMode": "code",
           "expr": "hikaricp_connections_pending{job=\"eolssu-backend\"}",
           "legendFormat": "대기",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "DB 연결 대기 시간 (p95)",
+      "description": "요청이 DB 연결을 얻기까지 기다린 시간의 상위 5%. 길어지면 연결 풀이 모자라거나 DB가 느린 것이다. ops 프로필에서만 나온다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(hikaricp_connections_acquire_seconds_bucket{job=\"eolssu-backend\"}[5m])))",
+          "legendFormat": "p95",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "서버 (edo1)",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "서버 CPU 사용률",
+      "description": "코어 전체 평균 사용률(5분).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{job=\"node\",mode=\"idle\"}[5m])))",
+          "legendFormat": "edo1",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "timeseries",
+      "title": "서버 메모리 사용률 (캐시 제외)",
+      "description": "파일 캐시처럼 바로 돌려받을 수 있는 메모리는 사용으로 치지 않는다(MemAvailable 기준).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes{job=\"node\"} / node_memory_MemTotal_bytes{job=\"node\"})",
+          "legendFormat": "edo1",
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "루트(/) 디스크 사용률",
+      "description": "edo1은 디스크가 루트 하나이고 Docker 저장 공간도 그 안에 있다. df의 사용률과 비슷하다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "editorMode": "code",
+          "expr": "100 * (1 - node_filesystem_avail_bytes{job=\"node\",mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"node\",mountpoint=\"/\"})",
+          "legendFormat": "edo1",
           "range": true
         }
       ]

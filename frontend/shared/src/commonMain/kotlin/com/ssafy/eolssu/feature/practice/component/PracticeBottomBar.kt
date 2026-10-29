@@ -50,6 +50,7 @@ import eolssu.shared.generated.resources.practice_listen_model
 import eolssu.shared.generated.resources.practice_mic_off
 import eolssu.shared.generated.resources.practice_mic_on
 import eolssu.shared.generated.resources.practice_model_badge
+import eolssu.shared.generated.resources.practice_no_input_hint
 import eolssu.shared.generated.resources.practice_pause
 import eolssu.shared.generated.resources.practice_play
 import eolssu.shared.generated.resources.practice_rec_time_detail
@@ -93,6 +94,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
             RecordingStatus(state)
             ProgressBar(state.progressPercent, EolssuTheme.colors.rec)
             if (state.settings.beatVisual) BeatBars(song.jangdan.daegang.size, if (state.finished) -1 else state.beatIndex)
+            if (state.noInputHint) NoInputHint()
             val locked = state.mode != PracticeMode.Recording
             PairedButtons(
                 stacked,
@@ -280,6 +282,23 @@ private fun MicLevel(level: Float) {
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
             color = colors.textMuted,
         )
+    }
+}
+
+/** 연주 중 입력이 한동안 없을 때 마이크를 확인하라는 안내. */
+@Composable
+private fun NoInputHint() {
+    val colors = EolssuTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(colors.recSoft, RoundedCornerShape(10.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.rec)
+        Text(stringResource(Res.string.practice_no_input_hint), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.rec)
     }
 }
 

@@ -1,7 +1,7 @@
 """악보 기반 대금 연주 채점.
 
 녹음의 음높이 곡선(f0)과 정답 음표를 DTW로 맞춘 뒤 음표마다 음정·박자·길이를 판정한다.
-음높이 단위는 기본음 녹음에서 잰 기준음 대비 센트다.
+음높이 단위는 기준음 대비 센트이고, 서비스 기준음은 HWANG_HZ다.
 """
 
 from dataclasses import dataclass, field
@@ -10,6 +10,7 @@ import librosa
 import numpy as np
 
 HOP_S = 0.01  # f0 프레임 간격(초)
+HWANG_HZ = 311.13  # 반음 0인 황 = E♭4. 반음 번호는 pitches.semitone(옥타브 × 12 + 율 순서)
 _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센트)
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
 
@@ -19,6 +20,8 @@ class Note:
     semitone: int  # 기준음에서 몇 반음 위인지
     beats: float
     sigimsae: bool = False  # True면 음정 판정에서 제외
+    idx: int | None = None  # 요청의 음 번호. 없으면 목록 순번
+    start_beat: float | None = None  # 곡 처음부터 센 시작 박. 없으면 앞 음에 바로 이어 붙인다
 
 
 @dataclass(frozen=True)
@@ -28,12 +31,12 @@ class Tolerance:
     pitch_cent: float = 50.0
     onset_beat: float = 0.125
     duration_ratio: float = 0.25
-    max_tuning_cent: float = 100.0
+    max_tuning_cent: float = 100.0  # 곡에 반음 이웃이 있으면 score가 더 낮춘다
 
 
 @dataclass
 class NoteResult:
-    idx: int  # 정답 음표 순번
+    idx: int  # 요청의 음 번호(Note.idx). 없으면 정답 음표 순번
     verdict: str  # CORRECT, PITCH, TIMING, MISSED
     pitch_error_cent: float | None = None
     onset_error_ms: float | None = None
@@ -116,6 +119,14 @@ def score(
     beat_s = 60.0 / bpm
     lengths = np.array([n.beats for n in notes]) * beat_s
     starts = np.concatenate([[0.0], np.cumsum(lengths)[:-1]])
+    given = [n.start_beat is not None for n in notes]
+    if any(given):
+        if not all(given):
+            raise ValueError("start_beat는 모든 음표에 있거나 모두 없어야 한다")
+        # 녹음은 첫 음에서 시작하므로 첫 음 시작 박을 0으로 본다. 음 사이 빈 시간은 쉼이다.
+        starts = (np.array([n.start_beat for n in notes]) - notes[0].start_beat) * beat_s
+        if np.any(starts[1:] < starts[:-1] + lengths[:-1] - 1e-9):
+            raise ValueError("음표가 앞 음표와 겹치거나 순서가 거꾸로다")
     expected_s = starts[-1] + lengths[-1]
 
     if np.all(np.isnan(f0)):
@@ -124,12 +135,16 @@ def score(
         return ScoreResult("FAILED", "TOO_SHORT")
 
     detected = 1200.0 * np.log2(f0 / ref_hz)
-    frame_note = np.searchsorted(starts, np.arange(round(expected_s / HOP_S)) * HOP_S, side="right") - 1
-    expected = 100.0 * np.array([n.semitone for n in notes])[frame_note]
+    frame_t = np.arange(round(expected_s / HOP_S)) * HOP_S
+    frame_note = np.searchsorted(starts, frame_t, side="right") - 1
+    rest = frame_t >= starts[frame_note] + lengths[frame_note] - 1e-9
+    frame_note[rest] = -1  # 쉼 프레임은 어느 음표에도 속하지 않는다
+    expected = np.where(rest, np.nan, 100.0 * np.array([n.semitone for n in notes])[frame_note])
 
     # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 1분을 넘는 녹음은 band 제약을 넣는다.
     cost = np.abs(expected[:, None] - detected[None, :])
     cost[np.isnan(cost)] = _UNVOICED_COST
+    cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0  # 쉼에 소리 없음은 맞음
     _, path = librosa.sequence.dtw(
         C=cost,
         step_sizes_sigma=np.array([[1, 1], [0, 1], [1, 0]]),
@@ -150,14 +165,18 @@ def score(
         if not n.sigimsae and mid.size
     ]
     offset = float(np.median(np.concatenate(diffs))) if diffs else 0.0
-    out_of_range = abs(offset) > tol.max_tuning_cent
+    # 보정 상한 + 음정 허용 범위가 곡에서 가장 가까운 두 음 간격보다 작아야 틀린 음을 이웃 음으로 맞춰 주지 않는다.
+    # ponytail: 임시 식(여유 10센트). S15P31E102-158 정상 녹음의 보정량 분포로 다시 정한다.
+    gaps = np.diff(np.unique([n.semitone for n in notes])) * 100.0
+    max_tuning = min(tol.max_tuning_cent, gaps.min() - tol.pitch_cent - 10.0) if gaps.size else tol.max_tuning_cent
+    out_of_range = abs(offset) > max_tuning
     applied = 0.0 if out_of_range else offset
 
     results, pitch_c, timing_c, duration_c = [], [], [], []
     onset_tol_s = tol.onset_beat * beat_s
     for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
-            results.append(NoteResult(k, "MISSED"))
+            results.append(NoteResult(k if n.idx is None else n.idx, "MISSED"))
             timing_c.append(0.0)
             duration_c.append(0.0)
             if not n.sigimsae:
@@ -194,7 +213,7 @@ def score(
             verdict = "TIMING"
         else:
             verdict = "CORRECT"
-        results.append(NoteResult(k, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
+        results.append(NoteResult(k if n.idx is None else n.idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
         timing_c.append(_credit(onset_err, onset_tol_s))
