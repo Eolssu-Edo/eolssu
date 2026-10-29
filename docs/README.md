@@ -30,6 +30,8 @@
 
 ## 기능 스펙
 
+- [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
+
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
@@ -125,6 +127,7 @@
 - [S15P31E102-209 회원 탈퇴와 30일 뒤 일괄 삭제](plans/S15P31E102-209.md)
 - [S15P31E102-210 비밀번호 재설정 API 구현](plans/S15P31E102-210.md)
 - [S15P31E102-253 구현된 API Swagger 문서화와 운영 조회](plans/S15P31E102-253.md)
+- [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)

@@ -147,5 +147,5 @@ internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository
     }
     override fun cancelWithdrawal(userId: Long, now: Instant) { cancelled.add(userId) }
     override fun recordLogin(userId: Long, now: Instant) { lastLogins[userId] = now }
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant) = 1L
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant) = 1L
 }

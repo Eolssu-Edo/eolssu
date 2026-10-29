@@ -273,3 +273,9 @@ Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`�
 블로그 잡은 별도 blog 브랜치의 `Jenkinsfile`·`scripts/deploy.sh`를 사용합니다. 작업 S15P31E102-262의 blog 브랜치 변경은 정리·checkout·Hugo 준비/빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push의 9단계로 나눕니다. blog 변경은 blog 대상 MR로 전달하고 기존 SCM 정의와 polling을 보존합니다. 원격 반영/병합 전에는 운영 blog 잡에 새 stage가 적용되지 않습니다.
 
 검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -v`, `python3 -B -m unittest discover -s infra/backup/tests -p test_deploy_hooks.py -v`로 수행합니다. 별도 임시 Jenkins 잡에서 성공·phase 실패/롤백·프로세스 중단·로그 없는 실패를 주입해 실제 stage 결과와 후속 단계 차단을 검증했습니다. 앱 배포나 공개 Pages 게시를 이 검증에 사용하지 않습니다.
+
+## 테스트 회원의 인증 만료 예외
+
+`AUTH_NON_EXPIRING_USER_IDS`는 기본 빈 목록이며, 검토한 테스트 회원 ID에만 설정합니다. 이 설정을 전달하는 관리된 Compose와 V7이 적용된 백엔드 릴리스가 필요합니다. 운영 `ops`는 Flyway를 실행하지 않으므로 마이그레이션은 먼저 `db` 프로필로 별도 수행합니다. 실제 계정 생성·배포 순서와 검증은 [S15P31E102-260](../../docs/plans/S15P31E102-260.md)을 따릅니다. 설정을 비우고 백엔드에 다시 주입하면 예외 토큰을 거부합니다. 기존 비밀값을 출력하거나 전체 `.env`를 덮어쓰지 않습니다.
+
+구버전 JAR로 롤백할 때는 허용 목록을 끄는 것만으로 충분하지 않습니다. NULL 만료 세션을 먼저 만료·폐기해 구버전의 non-null 매핑과 호환시킨 뒤 JAR을 바꿉니다. 검증한 SQL과 순서는 [Task 260의 복구 절차](../../docs/plans/S15P31E102-260.md#예외-중단과-바이너리-롤백)를 따릅니다.
