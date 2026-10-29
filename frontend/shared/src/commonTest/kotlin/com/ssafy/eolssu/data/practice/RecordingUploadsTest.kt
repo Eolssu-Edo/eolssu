@@ -194,11 +194,35 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun malformedRecordIsClearedAndLeftoverFilesRemoved() {
+    fun malformedRecordIsClearedAndLeftoverFilesRemovedAtStart() {
         store.values["pending_recording_upload"] = "broken"
         files.existing += "kept/orphan.m4a"
-        assertNull(uploads().pending())
+        val uploads = uploads()
+        uploads.cleanUp()
+        assertNull(uploads.pending())
+        assertEquals("", store.values["pending_recording_upload"])
         assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+    }
+
+    @Test
+    fun cleanUpAtStartKeepsTheWaitingRecording() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+        files.existing += "kept/orphan.m4a"
+
+        uploads().cleanUp()
+        assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+    }
+
+    @Test
+    fun readingWhileSendingDoesNotDeleteTheJustKeptRecording() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        val uploads = uploads()
+        files.onKeep = { uploads.pending() }
+
+        assertEquals(SendResult.CanResend, uploads.send(recording))
+        assertEquals(true, "kept/practice-1.m4a" in files.existing)
+        assertEquals("kept/practice-1.m4a", uploads.pending()?.path)
     }
 
     @Test
@@ -213,6 +237,26 @@ class RecordingUploadsTest {
     fun resendWithoutWaitingRecordingIsMissing() = immediate {
         assertEquals(SendResult.Missing, uploads().resend(recording))
         assertEquals(listOf<Pair<String, String>>(), uploader.calls)
+    }
+
+    @Test
+    fun resendWithoutWaitingRecordingAtExactlyFortyMinutesIsMissing() = immediate {
+        now += window
+        assertEquals(SendResult.Missing, uploads().resend(recording))
+    }
+
+    @Test
+    fun resendAfterANewerRecordingPastTheWindowIsExpired() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        val uploads = uploads()
+        uploads.send(recording)
+        now += window + 1
+        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now))
+
+        assertEquals(SendResult.Expired, uploads.resend(recording))
+        assertEquals(2, uploader.calls.size)
+        assertEquals("42", uploads.pending()?.sessionId)
     }
 
     @Test
@@ -240,18 +284,26 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun leftoverFilesAreRemovedWhenNothingIsWaiting() {
+    fun leftoverFilesAreRemovedAtStartWhenNothingIsWaiting() {
         store.values["pending_recording_upload"] = ""
         files.existing += "kept/orphan.m4a"
-        assertNull(uploads().pending())
+        val uploads = uploads()
+        assertNull(uploads.pending())
+        assertEquals(true, "kept/orphan.m4a" in files.existing)
+
+        uploads.cleanUp()
         assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
     }
 }
 
-/** 녹음기 파일은 `rec/`, 보관한 파일은 `kept/`에 있는 것처럼 기록한다. [existing]에 없는 파일은 없는 파일이다. */
+/**
+ * 녹음기 파일은 `rec/`, 보관한 파일은 `kept/`에 있는 것처럼 기록한다. [existing]에 없는 파일은 없는 파일이다.
+ * [onKeep]은 파일을 옮긴 직후에 불러, 보관과 기록 저장 사이에 끼어드는 일을 흉내 낸다.
+ */
 internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     val existing = recorded.toMutableSet()
     var keepFails = false
+    var onKeep: () -> Unit = {}
 
     override fun keep(path: String): String? {
         if (keepFails || path !in existing) return null
@@ -259,6 +311,7 @@ internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
         val kept = path.replace("rec/", "kept/")
         existing -= path
         existing += kept
+        onKeep()
         return kept
     }
 

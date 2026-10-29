@@ -85,14 +85,18 @@ class RecordingUploads(
     fun pending(): PendingRecording? = current()?.takeIf { age(it) <= RecordingSpec.UploadWindow.inWholeMilliseconds }
 
     /**
-     * 저장된 녹음. 기다리는 녹음이 없으면(기록이 비었거나 깨짐) 보관 위치에 남은 파일을 치우고, 지울 때가 지났으면 지운다.
-     * 보관과 기록 저장 사이에 앱이 꺼져 남은 파일도 여기서 치운다.
+     * 앱을 켤 때 보내기 전에 한 번 부른다. 기다리는 녹음이 아닌 보관 파일(보관과 기록 저장 사이에 앱이 꺼져 남은 파일)을 치운다.
+     * 읽기에서는 치우지 않는다. [send]가 보관한 뒤 기록을 저장하기 전에 읽으면 방금 보관한 파일을 지우게 된다.
      */
+    fun cleanUp() {
+        files.deleteKeptExcept(current()?.path)
+    }
+
+    /** 저장된 녹음. 기록이 깨졌으면 비우고, 지울 때가 지났으면 지운다. */
     private fun current(): PendingRecording? {
         val pending = load()
         if (pending == null) {
             if (!store.getString(KEY).isNullOrEmpty()) store.putString(KEY, "")
-            files.deleteKeptExcept(null)
             return null
         }
         if (age(pending) > (RecordingSpec.UploadWindow + LocalClockMargin).inWholeMilliseconds) {

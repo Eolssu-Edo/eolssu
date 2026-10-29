@@ -26,7 +26,7 @@ data class AnalysisUiState(
 
 /** 녹음을 보내지 못한 사유. 세션 업로드 시간이 지난 410은 [AnalysisFailure.UploadTimeout]으로 보인다. */
 enum class UploadProblem {
-    /** 연결 실패나 503. 녹음이 기기에 남아 있어 '녹음 다시 보내기'를 준다. */
+    /** 연결 실패나 503·500. 녹음이 기기에 남아 있어 '녹음 다시 보내기'를 준다. */
     CanResend,
 
     /** 413·415·422·404. 같은 파일은 다시 보내도 거부되므로 '다시 연주하기'만 준다. */

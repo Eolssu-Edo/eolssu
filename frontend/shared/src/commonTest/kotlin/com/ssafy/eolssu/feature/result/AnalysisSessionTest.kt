@@ -23,6 +23,7 @@ import kotlin.coroutines.resume
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * 분석 대기 화면의 조회·멈춤·시간 초과·복귀를 가짜 시계와 가짜 저장소로 검사한다(PRA-03 상태 조회와 시간 초과).
@@ -158,15 +159,25 @@ class AnalysisSessionTest {
     }
 
     private val uploader = FakeUploader()
-    private val uploadSession = AnalysisSession(
-        scope, repository, clock = { time.now }, sleep = time::sleep,
-        uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles("rec/practice-1.m4a"), clock = { 0L }),
+    private var uploadNow = 0L
+    private val uploads = RecordingUploads(
+        uploader, FakeKeyValueStore(), FakeRecordingFiles("rec/practice-1.m4a", "rec/practice-2.m4a"), clock = { uploadNow },
     )
+    private val uploadSession = AnalysisSession(scope, repository, clock = { time.now }, sleep = time::sleep, uploads = uploads)
     private val uploadState get() = uploadSession.state.value
 
     private fun startWithRecording() {
         val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
         scope.launch { uploadSession.start(SampleSongs.first(), bpm = 60, recording = recording) }
+    }
+
+    /** 이 화면의 녹음을 보내지 못한 뒤 다른 연습의 녹음이 그 자리를 차지한다. */
+    private fun replaceWithNewerRecording() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        val newer = PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = uploadNow)
+        scope.launch { uploads.send(newer) }
     }
 
     @Test
@@ -234,6 +245,25 @@ class AnalysisSessionTest {
         gate.complete(Unit)
         assertNull(uploadState.upload)
         assertEquals(false, uploadState.resending)
+    }
+
+    @Test
+    fun resendAfterANewerRecordingReplacedThisOneOnlyOffersPlayingAgain() {
+        replaceWithNewerRecording()
+        uploadSession.resend()
+        assertEquals(UploadProblem.Missing, uploadState.upload)
+        assertEquals(listOf("41", "42"), uploader.calls.map { it.first })
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun resendAfterReplacementPastTheUploadWindowShowsUploadTimeout() {
+        uploadNow = 40.minutes.inWholeMilliseconds + 1
+        replaceWithNewerRecording()
+        uploadSession.resend()
+        assertNull(uploadState.upload)
+        assertEquals(AnalysisFailure.UploadTimeout, uploadState.failure)
+        assertEquals(listOf("41", "42"), uploader.calls.map { it.first })
     }
 
     @Test
