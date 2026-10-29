@@ -78,6 +78,8 @@
 
 ## AI 실험 기록
 
+- [단소 채점 오류 검출 평가: 실행과 결과 해석](knowledge/ai/scoring-error-evaluation.md)
+
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
 - [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
