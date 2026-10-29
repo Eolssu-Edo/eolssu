@@ -36,10 +36,10 @@ class AnalysisOnUpload(
 
     /**
      * 세션 분석을 실행기에 넘기기만 하고 돌아온다. 분석 다시 시도([RetryPracticeAnalysis])도 같은 실행기를 쓴다.
-     * 넘기지 못하면(연결 전, 대기열 가득 참) 예외를 던져 다시 시도가 그 시도를 끝낼 수 있게 한다.
+     * 넘기지 못하면(연결 전, 대기열 가득 참) [RejectedExecutionException]을 던져 다시 시도가 그 시도를 끝낼 수 있게 한다.
      */
     fun submit(sessionId: Long) {
-        val start = checkNotNull(start) { "analysis wiring missing $missing" }
+        val start = start ?: throw RejectedExecutionException("analysis wiring missing $missing")
         executor.execute {
             // 실행기 밖으로 나간 예외는 앱 로그에 남지 않는다. 세션은 PENDING으로 남아 제한 시간 뒤 TIMEOUT이 된다.
             try {

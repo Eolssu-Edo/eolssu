@@ -52,7 +52,7 @@ class AnalysisOnUploadTests {
 
     @Test
     fun `submit fails while the analysis is not wired so the retry can end the attempt`() {
-        assertFailsWith<IllegalStateException> { AnalysisOnUpload(null, direct, missing = listOf("RecordingReadUrls")).submit(9) }
+        assertFailsWith<RejectedExecutionException> { AnalysisOnUpload(null, direct, missing = listOf("RecordingReadUrls")).submit(9) }
     }
 
     @Test
