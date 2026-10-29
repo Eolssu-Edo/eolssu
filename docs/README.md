@@ -30,6 +30,8 @@
 
 ## 기능 스펙
 
+- [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
+
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
@@ -44,6 +46,8 @@
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
+
+- [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 
 ## 도구 조사·검증 기록
 

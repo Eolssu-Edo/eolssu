@@ -342,3 +342,7 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 브라우저 Cookie 인증의 제약은 [Swagger 공식 안내](https://swagger.io/docs/specification/v3_0/authentication/cookie-authentication/)를 참고합니다. 외부 온라인 validator는 끄고 생성 문서는 로컬 테스트로 검증합니다.
 
 재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.
+
+### 공개 곡 조회
+
+`GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.
