@@ -17,6 +17,22 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ApiUserRepositoryTest {
+    @Test fun serverEmailWinsAndWithdrawalClearsMemberOwnership() = runTest {
+        val member = com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore())
+        member.changing { member.set("42") }
+        val client = createHttpClient(MockEngine { request ->
+            val payload = if (request.method == HttpMethod.Get)
+                """{"nickname":"회원","email":"actual@example.test","instrumentId":"1","notationMode":"HANJA"}"""
+            else """{"withdrawn":true}"""
+            respond("""{"isSuccess":true,"result":$payload}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        val repo = ApiUserRepository(client, null, member = member)
+        assertEquals(MemberResult.Done, repo.refresh("old@example.test"))
+        assertEquals("actual@example.test", repo.profile.value.email)
+        assertEquals(PasswordCheckResult.Done, repo.withdraw("test-password"))
+        assertEquals(null, member.id)
+        client.close()
+    }
     @Test
     fun profileAndPasswordChangesUseAcceptedServerValues() = runTest {
         var passwordAccepted = false

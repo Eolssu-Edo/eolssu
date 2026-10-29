@@ -63,12 +63,13 @@ class MyPageViewModel(
         _dialog.value = MyPageDialog.LogOut
     }
 
-    fun confirmLogOut() {
-        practiceTimeQueue.logOut {
+    fun confirmLogOut(): kotlinx.coroutines.Job {
+        val job = practiceTimeQueue.logOut {
             authRepository.logOut()
             userRepository.logOut()
         }
         _dialog.value = null
+        return job
     }
 
     fun dismissDialog() {

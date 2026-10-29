@@ -58,6 +58,7 @@ import eolssu.shared.generated.resources.practice_countdown_with_jangdan
 import eolssu.shared.generated.resources.practice_mode_countdown
 import eolssu.shared.generated.resources.practice_mode_interrupted
 import eolssu.shared.generated.resources.practice_mode_model
+import eolssu.shared.generated.resources.practice_model_badge
 import eolssu.shared.generated.resources.practice_mode_ready
 import eolssu.shared.generated.resources.practice_mode_recording
 import eolssu.shared.generated.resources.practice_mode_solo
@@ -202,7 +203,8 @@ internal fun PracticeTopBar(
 private fun ModeBadge(state: PracticeUiState) {
     val (text, style) = when (state.mode) {
         PracticeMode.Ready -> stringResource(if (state.solo) Res.string.practice_mode_solo else Res.string.practice_mode_ready) to EolssuBadgeStyle.Soft
-        PracticeMode.Model -> stringResource(Res.string.practice_mode_model) to EolssuBadgeStyle.Play
+        PracticeMode.Model -> stringResource(if (state.playing) Res.string.practice_mode_model else Res.string.practice_model_badge) to
+            if (state.playing) EolssuBadgeStyle.Play else EolssuBadgeStyle.Soft
         PracticeMode.Countdown -> stringResource(Res.string.practice_mode_countdown) to EolssuBadgeStyle.Soft
         PracticeMode.Recording -> stringResource(Res.string.practice_mode_recording) to EolssuBadgeStyle.Recording
         PracticeMode.Interrupted -> stringResource(Res.string.practice_mode_interrupted) to EolssuBadgeStyle.Recording

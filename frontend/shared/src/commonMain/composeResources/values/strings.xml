@@ -216,9 +216,11 @@
     <string name="result_legend_pitch">음정 (음)</string>
     <string name="result_legend_rhythm">박자 (박)</string>
     <string name="result_legend_length">음 길이 (길)</string>
+    <string name="result_legend_missed">음 미검출 (미)</string>
     <string name="result_tag_pitch">음</string>
     <string name="result_tag_rhythm">박</string>
     <string name="result_tag_length">길</string>
+    <string name="result_tag_missed">미</string>
     <string name="result_errors_cluster">틀린 칸 %1$d개 중 %2$d개가 %3$d–%4$d각에 몰려 있어요.</string>
     <string name="result_errors_preview">정간보 %1$d–%2$d각 미리보기</string>
     <string name="result_view_all_errors">악보 전체에서 보기</string>
@@ -658,8 +660,11 @@
     <string name="result_filter_pitch">음정 %1$d</string>
     <string name="result_filter_rhythm">박자 %1$d</string>
     <string name="result_filter_length">길이 %1$d</string>
+    <string name="result_filter_missed">미검출 %1$d</string>
     <string name="result_cell_where">%1$d각 %2$d칸 · %3$s</string>
     <string name="result_cell_error">%1$s 오류</string>
+    <string name="result_cell_missed_title">음이 감지되지 않은 칸</string>
+    <string name="result_cell_missed_body">이 음에서는 연주 소리가 감지되지 않았어요.</string>
     <string name="result_cell_ok_title">틀리지 않은 칸</string>
     <string name="result_cell_ok_body">이 칸은 악보대로 연주했어요.</string>
     <string name="result_cell_sample_pitch">목표 음보다 조금 낮게 불었어요. (예시)</string>

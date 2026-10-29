@@ -72,8 +72,10 @@ fun MyPageRoute(
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {
-            viewModel.confirmLogOut()
-            onLoggedOut()
+            scope.launch {
+                viewModel.confirmLogOut().join()
+                onLoggedOut()
+            }
         },
         onDismissDialog = viewModel::dismissDialog,
     )

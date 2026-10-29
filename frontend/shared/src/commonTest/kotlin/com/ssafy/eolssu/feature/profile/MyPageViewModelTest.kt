@@ -14,6 +14,7 @@ import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,6 +23,28 @@ import kotlin.test.assertTrue
 
 /** 마이페이지(MY-01~04): 연습 악기·간편 로그인 해제·로그아웃과 입력 화면 검사. */
 class MyPageViewModelTest {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun logoutCompletionWaitsForQueueAndRegistersAuthLogoutBeforeNavigation() = runTest {
+        val member = SignedInMember(store)
+        member.changing { member.set("42") }
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val queue = PracticeTimeQueue(store, object : com.ssafy.eolssu.data.practice.ScoreViewApi {
+            override suspend fun post(segment: PracticeTimeSegment): Int { gate.await(); return 201 }
+        }, member, backgroundScope)
+        queue.close(PracticeTimeSegment("pending", "1", 0, 60_000, 60, 60))
+        var authLogoutRegistered = false
+        val auth = object : com.ssafy.eolssu.data.user.AuthRepository by SampleAuthRepository({ 0L }) {
+            override fun logOut() { authLogoutRegistered = true }
+        }
+        val completion = MyPageViewModel(users, instruments, queue, auth).confirmLogOut()
+        runCurrent()
+        assertFalse(completion.isCompleted)
+        assertFalse(authLogoutRegistered)
+        gate.complete(Unit)
+        completion.join()
+        assertTrue(authLogoutRegistered)
+        assertTrue(queue.pending.isEmpty())
+    }
     private val store = FakeKeyValueStore()
     private val instruments = InstrumentRepository(store)
     private val users = SampleUserRepository()

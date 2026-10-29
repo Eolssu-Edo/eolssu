@@ -21,6 +21,9 @@ import eolssu.shared.generated.resources.catalog_consumer_failed
 import eolssu.shared.generated.resources.catalog_consumer_loading
 import eolssu.shared.generated.resources.catalog_consumer_missing
 import eolssu.shared.generated.resources.catalog_consumer_result_missing
+import eolssu.shared.generated.resources.catalog_result_loading
+import eolssu.shared.generated.resources.catalog_result_failed
+import eolssu.shared.generated.resources.catalog_result_retry
 import eolssu.shared.generated.resources.catalog_consumer_retry
 import org.jetbrains.compose.resources.stringResource
 
@@ -32,25 +35,27 @@ internal fun SongLookupContent(
     lookup: SongLookup,
     onRetry: () -> Unit,
     onBack: () -> Unit,
-    resultMissing: Boolean = false,
+    resultLookup: Boolean = false,
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (!resultMissing && lookup == SongLookup.Loading) CircularProgressIndicator()
+        if (lookup == SongLookup.Loading) CircularProgressIndicator()
         Text(
             stringResource(when {
-                resultMissing -> Res.string.catalog_consumer_result_missing
+                resultLookup && lookup == SongLookup.Loading -> Res.string.catalog_result_loading
+                resultLookup && lookup == SongLookup.Failed -> Res.string.catalog_result_failed
+                resultLookup -> Res.string.catalog_consumer_result_missing
                 lookup == SongLookup.Loading -> Res.string.catalog_consumer_loading
                 lookup == SongLookup.Missing -> Res.string.catalog_consumer_missing
                 else -> Res.string.catalog_consumer_failed
             }),
             textAlign = TextAlign.Center,
         )
-        if (!resultMissing && lookup != SongLookup.Loading) {
-            EolssuButton(stringResource(Res.string.catalog_consumer_retry), onRetry)
+        if (lookup != SongLookup.Loading) {
+            EolssuButton(stringResource(if (resultLookup) Res.string.catalog_result_retry else Res.string.catalog_consumer_retry), onRetry)
         }
         EolssuButton(stringResource(Res.string.catalog_consumer_back), onBack, style = EolssuButtonStyle.Secondary)
     }

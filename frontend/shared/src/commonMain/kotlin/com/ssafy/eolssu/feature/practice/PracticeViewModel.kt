@@ -3,6 +3,8 @@ package com.ssafy.eolssu.feature.practice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
@@ -10,6 +12,7 @@ import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -51,6 +54,8 @@ class PracticeViewModel(
     private val micPermission: MicPermission? = null,
     private val playbackTimeSource: TimeSource = TimeSource.Monotonic,
     private val newKey: () -> String = { Uuid.random().toString() },
+    modelAudioRepository: ModelAudioRepository? = null,
+    audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, settings = settingsStore.settings.value, inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
@@ -70,9 +75,15 @@ class PracticeViewModel(
     private val recordingClock = RecordingClock()
     private var takeKey = ""
     private var take: RecordedTake? = null
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, viewModelScope)
 
     init {
         retryLoadSong()
+        viewModelScope.launch {
+            modelAudio.state.collect { playback ->
+                _uiState.update { if (it.mode == PracticeMode.Model) it.withModelAudio(playback) else it }
+            }
+        }
         viewModelScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
         viewModelScope.launch {
             _uiState.map { it.runningActivities }.distinctUntilChanged().collect { running ->
@@ -130,6 +141,7 @@ class PracticeViewModel(
     /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
     fun onScreenHidden() {
         screenShown = false
+        modelAudio.suspendAndRelease()
         idleJob?.cancel()
         snapshotJob?.cancel()
         timeQueue.close(timeMeter.hide())
@@ -199,6 +211,14 @@ class PracticeViewModel(
 
     /** 모범 연주 중에 속도를 바꾸면 현재 음의 남은 몫부터 새 속도로 이어 간다. */
     fun applyTempo() {
+        if (_uiState.value.mode == PracticeMode.Model) {
+            val song = _uiState.value.song ?: return
+            settingsStore.update { it.applyTempo(_uiState.value.draft, song) }
+            _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
+            modelAudio.setBpm(_uiState.value.bpm)
+            closePanel()
+            return
+        }
         captureStepProgress()
         val state = _uiState.value
         val song = state.song ?: return
@@ -245,34 +265,34 @@ class PracticeViewModel(
     // 모범 연주
 
     fun startModel() {
-        _uiState.update { it.startModel() }
-        startStepping(_uiState.value.eventElapsedMs)
+        val state = _uiState.value
+        val song = state.song ?: return
+        if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model)) return
+        stepJob?.cancel()
+        stepClock = null
+        _uiState.update { it.startModel().copy(playing = false, eventStartedAt = null) }
+        modelAudio.play(song, state.bpm)
     }
 
     fun toggleModel() {
-        val wasPlaying = _uiState.value.playing
-        if (wasPlaying) {
-            captureStepProgress()
-            stepJob?.cancel()
-        }
-        _uiState.update { it.toggleModel() }
-        if (!wasPlaying) startStepping(_uiState.value.eventElapsedMs)
+        if (_uiState.value.playing) modelAudio.pause() else startModel()
     }
 
     fun restartModel() {
-        _uiState.update { it.restartModel() }
-        if (_uiState.value.playing) startStepping()
+        val song = _uiState.value.song ?: return
+        _uiState.update { it.restartModel().copy(playing = false, eventStartedAt = null) }
+        modelAudio.restart(song, _uiState.value.bpm)
     }
 
     fun stopModel() {
-        captureStepProgress()
-        stepJob?.cancel()
-        _uiState.update { it.stopModel() }
+        modelAudio.stop()
+        _uiState.update { it.stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle) }
     }
 
     // 평가 연주
 
     fun requestEvaluation() {
+        modelAudio.stop()
         stepJob?.cancel()
         val granted = settingsStore.micGranted.value && micPermission?.isGranted() != false
         _uiState.update { it.requestEvaluation(granted) }
@@ -343,13 +363,14 @@ class PracticeViewModel(
                 stopAll()
                 _uiState.update { it.interrupt() }
             }
-            PracticeMode.Model -> if (state.playing) toggleModel()
+            PracticeMode.Model -> modelAudio.suspendAndRelease()
             else -> Unit
         }
     }
 
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
+        modelAudio.stop()
         captureStepProgress()
         stepJob?.cancel()
         stepClock = null
@@ -501,6 +522,7 @@ class PracticeViewModel(
 
     override fun onCleared() {
         stopAll()
+        modelAudio.release()
     }
 
     private companion object {

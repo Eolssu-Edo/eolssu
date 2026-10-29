@@ -17,7 +17,12 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.serialization.Serializable
 
 /** /me의 사용자 식별자는 서버 쿠키에서 결정한다. 이메일은 로그인한 세션의 메모리에만 둔다. */
-class ApiUserRepository(private val client: HttpClient, private val cookies: SecureCookiesStorage?, private val instruments: InstrumentRepository? = null) : UserRepository {
+class ApiUserRepository(
+    private val client: HttpClient,
+    private val cookies: SecureCookiesStorage?,
+    private val instruments: InstrumentRepository? = null,
+    private val member: com.ssafy.eolssu.core.network.SignedInMember? = null,
+) : UserRepository {
     private val state = MutableStateFlow(UserProfile("", "", emptySet()))
     override val profile = state.asStateFlow()
     private val sessionGeneration = MutableStateFlow(0L)
@@ -31,7 +36,7 @@ class ApiUserRepository(private val client: HttpClient, private val cookies: Sec
         val result = response.apiResponse<MyInfo>()?.takeIf { it.isSuccess }?.result ?: return MemberResult.Unavailable
         if (sessionGeneration.value != generation) return MemberResult.Unauthenticated
         if (profileRevision.value != revision) return MemberResult.Unavailable
-        state.value = UserProfile(result.nickname, email ?: state.value.email, result.linkedProviders.mapNotNull { provider ->
+        state.value = UserProfile(result.nickname, result.email ?: email ?: state.value.email, result.linkedProviders.mapNotNull { provider ->
             SocialProvider.entries.firstOrNull { it.name.equals(provider.provider, ignoreCase = true) }
         }.toSet(), result.instrumentId, result.notationMode)
         if (instruments != null && !instruments.applyServerId(result.instrumentId)) return MemberResult.Unavailable
@@ -73,11 +78,16 @@ class ApiUserRepository(private val client: HttpClient, private val cookies: Sec
     }
 
     override suspend fun withdraw(password: String): PasswordCheckResult {
+        return member?.changing { withdrawCurrentMember(password) } ?: withdrawCurrentMember(password)
+    }
+
+    private suspend fun withdrawCurrentMember(password: String): PasswordCheckResult {
         val response = client.sendOrNull {
             delete("/api/users/me") { contentType(ContentType.Application.Json); setBody(CurrentPassword(password)) }
         } ?: return PasswordCheckResult.Unavailable
         if (response.status.value == 200 && response.apiResponse<Withdrawn>()?.takeIf { it.isSuccess }?.result?.withdrawn == true) {
             cookies?.clear()
+            member?.set(null)
             logOut()
             return PasswordCheckResult.Done
         }
@@ -89,7 +99,7 @@ class ApiUserRepository(private val client: HttpClient, private val cookies: Sec
     override fun unlink(provider: SocialProvider): Boolean = false
     override fun logOut() { sessionGeneration.updateAndGet { it + 1 }; state.value = UserProfile("", "", emptySet()); instruments?.clear() }
 
-    @Serializable private class MyInfo(val nickname: String, val instrumentId: String, val notationMode: String, val linkedProviders: List<Provider> = emptyList())
+    @Serializable private class MyInfo(val nickname: String, val instrumentId: String, val notationMode: String, val linkedProviders: List<Provider> = emptyList(), val email: String? = null)
     @Serializable private class InstrumentPreference(val instrumentId: String)
     @Serializable private class Preferences(val instrumentId: String, val notationMode: String)
     @Serializable private class Provider(val provider: String)

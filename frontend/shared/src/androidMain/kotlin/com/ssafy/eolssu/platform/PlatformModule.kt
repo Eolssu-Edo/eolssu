@@ -2,6 +2,8 @@ package com.ssafy.eolssu.platform
 
 import android.content.Context
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.platform.audio.AndroidAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
@@ -28,6 +30,7 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         single<MicPermission> { AndroidMicPermission.of(appContext) }
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
+        factory<AudioPlayer> { AndroidAudioPlayer(appContext) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
     }

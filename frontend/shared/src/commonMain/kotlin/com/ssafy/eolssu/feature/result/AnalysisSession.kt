@@ -114,7 +114,7 @@ internal class AnalysisSession(
         val request = request ?: return
         when (val created = sessions.create(request.songId, request.bpm, take.key)) {
             is SessionStart.Created -> {
-                val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm)
+                val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending
                 afterSend(uploads.send(pending))
             }
@@ -152,6 +152,7 @@ internal class AnalysisSession(
             SendResult.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
             SendResult.Missing -> _state.update { it.copy(upload = UploadProblem.Missing, resending = false) }
             SendResult.Expired -> _state.update { it.copy(upload = null, resending = false, failure = AnalysisFailure.UploadTimeout) }
+            SendResult.NotOwner -> _state.update { it.copy(resending = false, exit = AnalysisExit.NeedsLogin) }
         }
     }
 

@@ -104,6 +104,7 @@ class ResultActions(
     val onSelectFilter: (ErrorFilter) -> Unit,
     val onSelectCell: (ScoreCellPosition) -> Unit,
     val onRetrySong: () -> Unit = {},
+    val onRetryResult: () -> Unit = {},
 )
 
 /**
@@ -119,7 +120,11 @@ fun ResultScreen(
 ) {
     if (state.result == null || state.song == null) {
         EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.result_title), onBack = actions.onBack) }) {
-            SongLookupContent(state.songLookup, actions.onRetrySong, actions.onBack, resultMissing = state.result == null)
+            SongLookupContent(
+                if (state.result == null) state.resultLookup else state.songLookup,
+                if (state.result == null) actions.onRetryResult else actions.onRetrySong,
+                actions.onBack, resultLookup = state.result == null,
+            )
         }
         return
     }

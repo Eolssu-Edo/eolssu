@@ -18,6 +18,32 @@ import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class CatalogLookupTest : CatalogViewModelTest() {
+    @Test fun resultCannotDisplayCoordinatesOnChangedScoreVersion() = runTest {
+        val evaluations = CatalogEvaluations().apply { cached = cached!!.copy(sample = false, scoreVersion = 1) }
+        val songs = CatalogSongs().apply { song = { SampleSongs.first().copy(scoreVersion = 2) } }
+        val model = keep(ResultViewModel("41", evaluations, songs, SamplePracticeRecordRepository()))
+        runCurrent()
+        assertEquals(SongLookup.Failed, model.uiState.value.songLookup)
+        assertNull(model.uiState.value.song)
+        songs.song = { SampleSongs.first().copy(scoreVersion = 1) }
+        model.retrySong()
+        runCurrent()
+        assertEquals(SongLookup.Ready, model.uiState.value.songLookup)
+    }
+
+    @Test fun resultLookupFailureDoesNotEscapeAndRetriesWithoutInventingScores() = runTest {
+        val evaluations = CatalogEvaluations().apply { resultFailure = com.ssafy.eolssu.data.song.CatalogUnavailable() }
+        val model = keep(ResultViewModel("41", evaluations, CatalogSongs(), SamplePracticeRecordRepository()))
+        runCurrent()
+        assertEquals(SongLookup.Failed, model.uiState.value.resultLookup)
+        assertNull(model.uiState.value.result)
+        evaluations.resultFailure = null
+        model.retryResult()
+        runCurrent()
+        assertEquals(SongLookup.Ready, model.uiState.value.resultLookup)
+        assertEquals(evaluations.cached, model.uiState.value.result)
+    }
+
     @Test fun analysisLookupFailureAndMissingNeverRequestAnalysisAndCanRetry() = runTest {
         val songs = CatalogSongs().apply { song = { error("offline") } }
         val evaluations = CatalogEvaluations()

@@ -79,6 +79,7 @@ data class PracticeUiState(
     val settings: PracticeSettings = PracticeSettings(),
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
+    val modelAudioStatus: ModelAudioStatus = ModelAudioStatus.Idle,
     val position: Int = 0,
     val elapsedMs: Double = 0.0,
     val eventStartedAt: TimeMark? = null,

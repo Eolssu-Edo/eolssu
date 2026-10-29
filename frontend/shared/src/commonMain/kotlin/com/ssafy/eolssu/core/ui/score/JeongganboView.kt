@@ -57,7 +57,7 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.EvaluationMetric
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreNote
@@ -124,7 +124,7 @@ fun JeongganboView(
     playback: ScorePlayback? = null,
     follow: Boolean = false,
     onUserScroll: () -> Unit = {},
-    errors: Map<Pair<Int, Int>, EvaluationMetric> = emptyMap(),
+    errors: Map<Pair<Int, Int>, ScoreErrorKind> = emptyMap(),
     selectedIndex: Int? = null,
     onEventClick: ((ScoreEvent) -> Unit)? = null,
     maxColumns: Int? = null,
@@ -311,7 +311,7 @@ private fun ScoreCellBox(
     highlight: ScoreHighlight,
     live: Boolean,
     fraction: () -> Float,
-    error: EvaluationMetric?,
+    error: ScoreErrorKind?,
     selectedIndex: Int?,
     selectedCell: Boolean?,
     onEventClick: ((ScoreEvent) -> Unit)?,

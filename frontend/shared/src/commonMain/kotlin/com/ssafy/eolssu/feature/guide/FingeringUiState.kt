@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.data.song.CatalogPitch
+import com.ssafy.eolssu.data.song.CatalogFingerings
+
 /**
  * GUIDE-01 상태.
  *
@@ -12,10 +15,15 @@ data class FingeringUiState(
     val blow: Blow = Blow.Mid,
     val isDropdownOpen: Boolean = false,
     val playing: String? = null,
+    val catalogState: ReferenceLoadState = ReferenceLoadState.NotRegistered,
+    val catalogPitches: List<CatalogPitch> = emptyList(),
+    val catalogFingerings: CatalogFingerings = CatalogFingerings(emptyList()),
 ) {
     val shownBlow: Blow get() = instrument.resolveBlow(blow)
 
     val notes: List<FingeringNote> get() = instrument.notesByPitch(blow)
+
+    fun pitchFor(hanja: String): CatalogPitch? = catalogPitches.singleOrNull { it.hanja == hanja }
 }
 
 internal fun FingeringUiState.toggleDropdown() = copy(isDropdownOpen = !isDropdownOpen)

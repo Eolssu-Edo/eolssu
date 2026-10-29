@@ -1,4 +1,7 @@
 <resources>
+    <string name="catalog_result_loading">분석 결과를 불러오고 있어요.</string>
+    <string name="catalog_result_failed">분석 결과와 악보를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
+    <string name="catalog_result_retry">분석 결과 다시 불러오기</string>
     <string name="catalog_consumer_loading">곡 정보를 불러오고 있어요.</string>
     <string name="catalog_consumer_failed">곡 정보를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
     <string name="catalog_consumer_missing">이 곡은 현재 제공되지 않아요. 이전 화면으로 돌아가 다른 곡을 선택할 수 있어요.</string>

@@ -16,13 +16,18 @@ import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.practice.RecordingUploader
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
-import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
+import com.ssafy.eolssu.data.practice.UnavailablePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
 import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
+import com.ssafy.eolssu.data.song.ApiReferenceCatalogRepository
+import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
+import com.ssafy.eolssu.feature.guide.ReadingCatalogViewModel
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.ModelAudioRepository
+import com.ssafy.eolssu.data.song.ApiModelAudioRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
 import com.ssafy.eolssu.feature.history.RecordListViewModel
@@ -81,17 +86,19 @@ val appModule = module {
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
     single { SignedInMember(get()) }
     single<SongRepository> { ApiSongRepository(get()) }
+    single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
     single { InstrumentCatalog(get()) }
+    single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
     // 실제 세션과 결과만 사용한다. 테스트 대역은 테스트에서 직접 주입한다.
     single<EvaluationRepository> { ApiEvaluationRepository(get(), get()) }
-    single<PracticeSessionRepository> { HttpPracticeSessionRepository(get()) }
+    single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
     single<RecordingUploader> { HttpRecordingUploader(get()) }
     // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
-    single { RecordingUploads(get(), get(), get(), get()) }
-    single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
+    single { RecordingUploads(get(), get(), get(), get(), get()) }
+    single<PracticeRecordRepository> { UnavailablePracticeRecordRepository() }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get()) }
@@ -101,7 +108,8 @@ val appModule = module {
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
     viewModel { (songId: String, solo: Boolean) ->
-        PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull())
+        PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
+            modelAudioRepository = get(), audioPlayer = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
@@ -113,7 +121,8 @@ val appModule = module {
     viewModel { GrowthViewModel(get(), get()) }
 
     // 운지법 보기·기초부터 배우기
-    viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow) }
+    viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
+    viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
@@ -131,7 +140,7 @@ val appModule = module {
 
     // 활성 악기 목록의 실제 ID와 회원 설정을 연결한다.
     single { InstrumentRepository(get(), get()) }
-    single<UserRepository> { ApiUserRepository(get(), getOrNull(), get()) }
+    single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get()) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)

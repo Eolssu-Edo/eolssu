@@ -21,6 +21,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -34,7 +35,7 @@ import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.FingeringRoute
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingPage
-import com.ssafy.eolssu.feature.guide.ReadingScreen
+import com.ssafy.eolssu.feature.guide.ReadingRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
@@ -333,7 +334,7 @@ fun EolssuNavHost(
                 EolssuDestination.GUIDE_READING,
                 arguments = listOf(navArgument("page") { type = NavType.StringType; defaultValue = "" }),
             ) { entry ->
-                ReadingScreen(
+                ReadingRoute(
                     onBack = { navController.popBackStack() },
                     initialPage = ReadingPage.fromId(entry.savedStateHandle.get<String>("page")),
                 )
@@ -411,6 +412,7 @@ fun EolssuNavHost(
         }
         SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
         PendingRecordingNotice(
+            routeId = navController.currentBackStackEntryAsState().value?.id,
             onSend = { navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId)) },
         )
     }

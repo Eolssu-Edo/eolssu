@@ -32,6 +32,7 @@ internal class CatalogSongs : SongRepository {
 
 internal class CatalogEvaluations : EvaluationRepository {
     var requests = 0
+    var resultFailure: Exception? = null
     var cached: EvaluationResult? = EvaluationResult(
         id = "result", songId = "arirang", total = 70, feedback = "test", metrics = emptyList(), errors = emptyList(),
         bpm = 60, recordedSeconds = 10, recordedAt = KoreanDateTime(2026, 10, 29, 12, 0), sample = true,
@@ -39,7 +40,7 @@ internal class CatalogEvaluations : EvaluationRepository {
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String { requests++; return "analysis" }
     override suspend fun analysisStatus(analysisId: String): AnalysisStatus = AnalysisStatus.Failed(AnalysisFailure.NoSound)
     override suspend fun retryAnalysis(analysisId: String) = com.ssafy.eolssu.data.practice.RetryOutcome.Started
-    override suspend fun result(evaluationId: String): EvaluationResult? = cached
+    override suspend fun result(evaluationId: String): EvaluationResult? { resultFailure?.let { throw it }; return cached }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

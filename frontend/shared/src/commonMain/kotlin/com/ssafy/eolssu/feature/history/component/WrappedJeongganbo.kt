@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.model.EvaluationMetric
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
@@ -55,7 +55,7 @@ internal fun WrappedJeongganbo(
     metrics: JeongganboMetrics,
     currentIndex: Int,
     follow: Boolean,
-    errors: Map<Pair<Int, Int>, EvaluationMetric>,
+    errors: Map<Pair<Int, Int>, ScoreErrorKind>,
     onEventClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {

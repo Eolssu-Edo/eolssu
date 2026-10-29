@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.practice
 
 import androidx.lifecycle.ViewModelStore
+import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
+import com.ssafy.eolssu.data.song.audioFixture
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -28,13 +30,11 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeLiveProgressTest {
-    @Test fun firstArirangTieMovesToSecondBeatBeforeTheEventEnds() = progressTest { vm ->
-        vm.startModel() // 실제 오디오가 아닌 기존 위치 재생 시뮬레이션이다.
+    @Test fun decodedPositionMovesTheBeatWithoutGeneratingAnotherNote() = progressTest { vm, player ->
+        vm.startModel()
         runCurrent()
-        advanceTimeBy(624)
-        runCurrent()
-        assertEquals(0, vm.uiState.value.beatIndex)
-        advanceTimeBy(1)
+        assertFalse(vm.uiState.value.playing)
+        player.emit(AudioPlaybackStatus.Playing, 625)
         runCurrent()
         val state = vm.uiState.value
         assertEquals(1, state.beatIndex)
@@ -47,74 +47,70 @@ class PracticeLiveProgressTest {
         assertEquals(50f, state.progressPercent, 0.0001f)
     }
 
-    @Test fun pausingInsideATiePreservesFractionAndExcludesPausedTime() = progressTest { vm ->
+    @Test fun pausingDoesNotAdvanceWithoutANewDecodedPosition() = progressTest { vm, player ->
         vm.startModel()
         runCurrent()
-        advanceTimeBy(700)
+        player.emit(AudioPlaybackStatus.Playing, 700)
         runCurrent()
         vm.toggleModel()
+        runCurrent()
         val paused = vm.uiState.value
         assertFalse(paused.playing)
         assertEquals(700.0, paused.elapsedMs, 0.0001)
-        assertEquals(3.36, requireNotNull(paused.currentTick), 0.0001)
         advanceTimeBy(2000)
         runCurrent()
-        assertEquals(paused.elapsedMs, vm.uiState.value.elapsedMs)
         assertEquals(paused.currentTick, vm.uiState.value.currentTick)
         vm.toggleModel()
         runCurrent()
-        advanceTimeBy(342)
+        player.emit(AudioPlaybackStatus.Playing, 1042)
         runCurrent()
-        val next = vm.uiState.value
-        assertEquals(1, next.position)
-        assertEquals("c0-j1-r2-u0", next.song?.timeline?.get(next.position)?.id)
-        assertEquals(1, next.song?.timeline?.get(next.position)?.noteIndex)
-        assertEquals(1042.0, next.elapsedMs, 0.0001)
-        advanceTimeBy(208)
+        assertEquals(1, vm.uiState.value.position)
+        assertEquals("c0-j1-r2-u0", vm.uiState.value.song?.timeline?.get(1)?.id)
+        player.emit(AudioPlaybackStatus.Completed, 1250)
         runCurrent()
         assertFalse(vm.uiState.value.playing)
         assertEquals(1250.0, vm.uiState.value.elapsedMs, 0.0001)
         assertEquals(100f, vm.uiState.value.progressPercent)
     }
 
-    @Test fun pausingDuringLastEventResumesItInsteadOfRestartingTheSong() = progressTest { vm ->
+    @Test fun hiddenScreenReleasesAudioAndPreservesTheLastEventPosition() = progressTest { vm, player ->
         vm.startModel()
         runCurrent()
-        advanceTimeBy(1100)
+        player.emit(AudioPlaybackStatus.Playing, 1100)
         runCurrent()
-        vm.toggleModel()
-        assertEquals(1, vm.uiState.value.position)
+        vm.onScreenHidden()
+        runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(AudioPlaybackStatus.Idle, player.state.value.status)
         advanceTimeBy(2000)
         vm.toggleModel()
         runCurrent()
+        assertEquals(1100L, player.requestedPosition)
+        player.emit(AudioPlaybackStatus.Playing, 1100)
+        runCurrent()
         assertEquals(1, vm.uiState.value.position)
         assertTrue(vm.uiState.value.playing)
-        advanceTimeBy(150)
-        runCurrent()
-        assertFalse(vm.uiState.value.playing)
-        assertEquals(1250.0, vm.uiState.value.elapsedMs, 0.0001)
     }
 
-    @Test fun tempoChangePreservesMusicalPositionAndKeepsElapsedActiveTime() = progressTest { vm ->
+    @Test fun tempoChangeUpdatesPlayerRateAndKeepsOriginalTickPosition() = progressTest { vm, player ->
         vm.startModel()
         runCurrent()
-        advanceTimeBy(625)
+        player.emit(AudioPlaybackStatus.Playing, 625)
         runCurrent()
         vm.openPanel(PracticePanel.Tempo)
         vm.updateDraft { it.copy(step = TempoStep.Slow) }
         vm.applyTempo()
         runCurrent()
         assertEquals(77, vm.uiState.value.bpm)
+        assertEquals(77f / 96f, player.requestedSpeed)
         assertEquals(3.0, requireNotNull(vm.uiState.value.currentTick), 0.0001)
-        assertEquals(625.0, vm.uiState.value.elapsedMs, 0.0001)
-        advanceTimeBy(780)
+        player.emit(AudioPlaybackStatus.Completed, 1250)
         runCurrent()
         assertFalse(vm.uiState.value.playing)
-        assertEquals(625.0 + 60_000.0 / 77, vm.uiState.value.elapsedMs, 0.0001)
         assertEquals(100f, vm.uiState.value.progressPercent)
     }
 
-    @Test fun recordingAbortAndResumeCountdownDoNotAdvanceTheScoreClock() = progressTest { vm ->
+    @Test fun recordingAbortAndResumeCountdownDoNotAdvanceTheScoreClock() = progressTest { vm, _ ->
         // 마이크 입력 검사가 아닌 녹음 화면의 시계/상태 검사다. 이 테스트에는 AudioRecorder가 없다.
         vm.grantMicAndStart()
         runCurrent()
@@ -148,20 +144,22 @@ class PracticeLiveProgressTest {
         assertEquals(250.0, clock.eventStartedAt.elapsedNow().inWholeNanoseconds / 1_000_000.0)
     }
 
-    private fun progressTest(block: suspend TestScope.(PracticeViewModel) -> Unit) = runTest {
+    private fun progressTest(block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
         try {
-            val song = arirangOpening()
+            val song = arirangOpening().copy(id = "42", scoreVersion = 1)
+            val player = FakeAudioPlayer()
             val repository = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String): Song = song
             }
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel(song.id, false, repository, PracticeSettingsStore(settings),
-                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), playbackTimeSource = testScheduler.timeSource)
+                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), playbackTimeSource = testScheduler.timeSource,
+                modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player)
             store.put("practice", vm)
             runCurrent()
-            block(vm)
+            block(vm, player)
         } finally {
             store.clear()
             Dispatchers.resetMain()
