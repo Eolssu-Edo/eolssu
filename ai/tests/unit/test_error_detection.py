@@ -6,7 +6,16 @@ import numpy as np
 import pytest
 
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, NoteResult, Tolerance
-from evaluation.error_detection import Trial, classify, evaluate, expected_letters, score_notes, variables, wilson
+from evaluation.error_detection import (
+    Trial,
+    classify,
+    code_hash,
+    evaluate,
+    expected_letters,
+    score_notes,
+    variables,
+    wilson,
+)
 from evaluation.labels import REPO
 
 SCORE = json.loads((REPO / "data/tests/fixtures/scores/ngc-standard-2022-p173.score.json").read_text(encoding="utf-8"))
@@ -78,6 +87,18 @@ def test_expected_letters_mark_intended_errors_from_first_note():
 def test_clean_recordings_report_normal_score():
     report = evaluate([trial({})], [Tolerance()])
     assert report[0]["normal"] == {"recordings": 1, "meanTotal": 100.0}
+
+
+def test_code_hash_follows_content_not_line_endings(tmp_path):
+    (tmp_path / "pkg").mkdir()
+    (tmp_path / "pkg/a.py").write_bytes(b"x = 1\n")
+    (tmp_path / "notes.md").write_bytes(b"not code")
+    first = code_hash(tmp_path)
+    (tmp_path / "pkg/a.py").write_bytes(b"x = 1\r\n")
+    (tmp_path / "notes.md").write_bytes(b"changed")  # .py가 아니면 무시
+    assert code_hash(tmp_path) == first
+    (tmp_path / "pkg/a.py").write_bytes(b"x = 2\n")
+    assert code_hash(tmp_path) != first
 
 
 def test_variables_name_every_group_and_hash_the_labels(tmp_path):

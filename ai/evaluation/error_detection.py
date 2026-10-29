@@ -240,6 +240,14 @@ def _command(*args: str) -> str | None:
         return None
 
 
+def code_hash(folder: Path) -> str:
+    """폴더 아래 .py 파일의 상대 경로와 내용을 모은 SHA-256. 줄바꿈 차이(CRLF)는 무시한다."""
+    h = hashlib.sha256()
+    for path in sorted(folder.rglob("*.py")):
+        h.update(path.relative_to(folder).as_posix().encode() + b"\0" + path.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    return h.hexdigest()
+
+
 def variables(label_paths: list[Path], labels: list[dict]) -> dict:
     """결과를 바꿀 수 있는 변인 다섯 묶음. 전후 비교는 바꾸겠다고 선언한 묶음 말고는 같아야 한다."""
     hashes = {Path(p).name: _sha256(Path(p)) for p in label_paths}
@@ -252,11 +260,9 @@ def variables(label_paths: list[Path], labels: list[dict]) -> dict:
         },
         "scoring": {
             "modelVersion": MODEL_VERSION,
-            "commit": _command("git", "rev-parse", "HEAD"),
-            # 기준 결과(baselines)는 채점 코드가 아니라서 뺀다. 넣으면 결과를 저장하는 것만으로 변인이 바뀐다.
-            "uncommittedChanges": bool(
-                _command("git", "status", "--porcelain", "--", "ai/src", "ai/evaluation", ":!ai/evaluation/baselines")
-            ),
+            # 커밋이 아니라 코드 내용의 해시다. 문서·기준 결과만 바뀐 커밋에서는 그대로이고, 커밋 전 수정도 잡는다.
+            "scoringCode": code_hash(REPO / "ai/src"),
+            "evaluationCode": code_hash(REPO / "ai/evaluation"),
             "toleranceDefaults": asdict(Tolerance()),
             "pitchEstimator": {"name": "pyin", **pyin_defaults},
             "hopSeconds": HOP_S,
@@ -328,6 +334,7 @@ def main() -> None:
         "schemaVersion": 1,
         "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "command": " ".join(sys.argv),
+        "commit": _command("git", "rev-parse", "HEAD"),  # 출처 정보. 비교에는 쓰지 않는다
         "variables": variables(args.labels, labels),
         "expected": expected_letters(trials),
         "results": report,
