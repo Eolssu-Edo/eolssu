@@ -54,6 +54,7 @@ class MyBatisEmailVerificationRepository(
         action()
     })
 
+    override fun registeredEmail(email: String) = mapper.registeredEmail(email)
     override fun memberExists(email: String) = mapper.memberExists(email)
     override fun sendHistory(email: String, dayStart: Instant): VerificationSendHistory = mapper.sendHistory(email, dayStart.utc()).let {
         VerificationSendHistory(it.lastSentAt?.toInstant(ZoneOffset.UTC), it.dailyCount.toInt())

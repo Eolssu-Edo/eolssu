@@ -75,6 +75,21 @@ class EmailVerificationServiceTests {
     }
 
     @Test
+    fun `password reset delivers to the stored email instead of a collation alias`() {
+        val storedEmail = "member@example.com"
+        val alias = "mémber@example.com"
+        repository.members.add(storedEmail)
+        repository.memberAliases[alias] = storedEmail
+        var recipient = ""
+        val capture = object : VerificationMailSender {
+            override fun send(email: String, purpose: VerificationPurpose, code: String) { recipient = email }
+        }
+        val sent = assertIs<SendVerificationResult.Accepted>(service(capture).send(alias, VerificationPurpose.PASSWORD_RESET))
+        assertEquals(storedEmail, recipient)
+        assertEquals(storedEmail, repository.records.getValue(sent.verificationId).email)
+    }
+
+    @Test
     fun `mail failure is reported as unavailable`() {
         val failing = object : VerificationMailSender {
             override fun send(email: String, purpose: VerificationPurpose, code: String): Unit = throw VerificationMailUnavailable()
@@ -171,9 +186,11 @@ internal class MemoryVerificationRepository : EmailVerificationRepository {
     val records = linkedMapOf<Long, EmailVerification>()
     val createdAt = mutableMapOf<Long, Instant>()
     val members = mutableSetOf<String>()
+    val memberAliases = mutableMapOf<String, String>()
     val tokens = mutableMapOf<Long, Pair<String, Instant>>()
     override fun <T : Any> withVerificationTransaction(action: () -> T): T = action()
-    override fun memberExists(email: String) = email in members
+    override fun registeredEmail(email: String) = (memberAliases[email] ?: email).takeIf { it in members }
+    override fun memberExists(email: String) = (memberAliases[email] ?: email) in members
     override fun sendHistory(email: String, dayStart: Instant): VerificationSendHistory {
         val dates = records.values.filter { it.email == email }.map { createdAt.getValue(it.id) }
         return VerificationSendHistory(dates.maxOrNull(), dates.count { !it.isBefore(dayStart) })
