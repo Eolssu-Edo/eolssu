@@ -185,7 +185,7 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-backend *
 ```
 
-도구는 인자 하나의 40자리 SHA·이미지 revision·원격 develop의 현재 SHA를 확인합니다. Python isolated mode와 고정 PATH를 사용하고 임의 파일·셸 명령 인자를 받지 않습니다. 배포 직전 develop이 바뀌면 이전 후보를 배포하지 않고 실패시키며 다음 polling이 최신 변경을 실행합니다.
+도구는 인자 하나의 40자리 SHA·이미지 revision·원격 develop 이력 소속을 확인합니다. Python isolated mode와 고정 PATH를 사용하고 임의 파일·셸 명령 인자를 받지 않습니다. 빌드 중 develop이 전진해도 선택한 SHA를 유지합니다. 공유 lock 안에서 중단된 배포를 먼저 복구한 후 현재 활성 JAR 릴리스 SHA와 Git 조상 관계를 비교하고, 이미 배포된 후속 버전을 이전 후보가 덮어쓰는 경우를 차단합니다. 같은 SHA는 기존 불변 파일·건강 검사를 유지합니다. 실패 journal의 후보 SHA는 배포 기준으로 쓰지 않습니다. Git 이력을 확인할 수 없거나 이력이 분기되면 순서를 증명할 수 없어 실패합니다. SHA 도입 전 초기 릴리스에는 비교 기준이 없으므로 첫 관리 배포를 허용합니다.
 
 ## 프론트 웹 자동 배포
 
@@ -207,7 +207,7 @@ JUnit 결과와 `webApp/build/dist/wasmJs/productionExecutable/`를 보관하고
 jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-frontend *
 ```
 
-도구는 SHA·이미지 label·최신 원격 develop을 확인하고, 비공개 internal network의 후보 Nginx에서 **모든 정적 파일의 SHA-256과 Wasm MIME**을 검사합니다. HTML fallback이 JS 누락을 가리는 경우도 실패합니다. symlink·특수 파일·필수 번들 누락·256MiB/5,000개 초과 산출물은 거부합니다. 통과한 이미지에서 추출한 파일만 `/opt/eolssu/releases/<SHA>/web`에 보관하며 다른 내용으로 덮어쓰지 않습니다.
+도구는 SHA·이미지 label·원격 develop 이력 소속과 현재 활성 웹 릴리스 대비 배포 순서를 확인하고, 비공개 internal network의 후보 Nginx에서 **모든 정적 파일의 SHA-256과 Wasm MIME**을 검사합니다. HTML fallback이 JS 누락을 가리는 경우도 실패합니다. symlink·특수 파일·필수 번들 누락·256MiB/5,000개 초과 산출물은 거부합니다. 통과한 이미지에서 추출한 파일만 `/opt/eolssu/releases/<SHA>/web`에 보관하며 다른 내용으로 덮어쓰지 않습니다.
 
 배포 journal에 이전 웹 경로를 기록한 다음 실제 `.env`의 `WEB_DIST_DIR`만 원자적으로 교체하고, HTTP+TLS Compose로 프론트만 재생성합니다. HTTP 정적 자산·HTTPS 인증서·API 프록시·실제 bind mount와 백엔드/MySQL ID·DB 볼륨을 확인합니다. 새 릴리스의 `/__eolssu_release.json`에서 SHA·manifest 해시를 조회할 수 있습니다. 프론트 교체 중에는 짧은 연결 중단이 있을 수 있습니다.
 
@@ -260,3 +260,16 @@ sudo journalctl -u eolssu-jenkins-agent.service --since today --no-pager
 ```
 
 원시 Jenkins 설정·로그에는 인증 정보가 포함될 수 있으므로 공유 전 비밀값을 확인합니다. 잡 실행 결과·최종 배포 상태는 [작업 기록](../../docs/plans/S15P31E102-65.md)을 따릅니다.
+
+
+### 단계별 실패 표시 (S15P31E102-262)
+
+운영 backend는 15개, frontend는 20개 상위 stage로 나눠 컴파일·테스트·최적화·번들·구성 검사·이미지·보관·후속 잡 예약을 구분합니다. frontend의 JS/Wasm JUnit은 각 browser test 단계에서 따로 보관합니다. Gradle 명령 분리에 따라 JVM 시작 비용이 추가되며 기존 20분 제한은 유지합니다. 전체 앱 빌드는 다음 정상 CI 실행의 소요 시간과 결과로 확인합니다.
+
+배포 stage는 [deployment-stages.groovy](../jenkins/deployment-stages.groovy)를 `/opt/eolssu/config/deployment-stages.groovy`에서 읽습니다. 이 파일도 root 소유 0644로 관리합니다. 실제 배포 프로세스가 출력하는 phase 이벤트를 동시에 관찰해 잠금·백업·순서 검사·후보 기동·산출물·서비스 재생성·상태 검사·롤백·정리를 개별 하위 stage로 표시합니다. 별도 배포 명령으로 쪼개지 않아 공유 lock·복구 journal의 일관성을 유지합니다. 실패한 첫 phase는 빌드 설명에 남으며, 실패·강제 종료로 완료 이벤트가 없거나 phase가 전혀 없어도 후속 잡 예약을 막습니다. stdout/stderr는 실패하더라도 `deployment.jsonl`/`frontend-deployment.jsonl`로 보관합니다.
+
+Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`과 phases 분기를 펼쳐 세부 실패 stage를 확인합니다. stage 실행 시간은 관찰 시점 기준이고 정확한 프로세스 프로파일링 수치는 아닙니다. 기존 실행 이력에는 과거 stage 구조가 남으며 새 실행부터 적용됩니다.
+
+블로그 잡은 별도 blog 브랜치의 `Jenkinsfile`·`scripts/deploy.sh`를 사용합니다. 작업 S15P31E102-262의 blog 브랜치 변경은 정리·checkout·Hugo 준비/빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push의 9단계로 나눕니다. blog 변경은 blog 대상 MR로 전달하고 기존 SCM 정의와 polling을 보존합니다. 원격 반영/병합 전에는 운영 blog 잡에 새 stage가 적용되지 않습니다.
+
+검증은 `python3 -B -m unittest discover -s infra/jenkins/tests -v`, `python3 -B -m unittest discover -s infra/backup/tests -p test_deploy_hooks.py -v`로 수행합니다. 별도 임시 Jenkins 잡에서 성공·phase 실패/롤백·프로세스 중단·로그 없는 실패를 주입해 실제 stage 결과와 후속 단계 차단을 검증했습니다. 앱 배포나 공개 Pages 게시를 이 검증에 사용하지 않습니다.
