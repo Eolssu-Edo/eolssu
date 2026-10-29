@@ -18,11 +18,14 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
+import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.LearnProgressRepository
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -139,13 +142,25 @@ private fun rememberRecordDetailActions(
     }
 }
 
-/** GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다. */
-class GrowthViewModel(private val repository: GrowthRepository, now: () -> Long) : ViewModel() {
+/**
+ * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
+ * '완료한 단계'는 연습 악기가 바뀌거나 학습 화면에서 완료 표시를 바꾸면 다시 센다.
+ */
+class GrowthViewModel(
+    private val repository: GrowthRepository,
+    private val learnProgress: LearnProgressRepository,
+    instruments: InstrumentRepository,
+    now: () -> Long,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(GrowthUiState(today = KoreanDateTime.fromEpochMillis(now())))
     val uiState: StateFlow<GrowthUiState> = _uiState.asStateFlow()
 
     init {
         load(GrowthRange.Week)
+        viewModelScope.launch {
+            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> learnProgress.doneStageCount(instrument) }
+                .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
+        }
     }
 
     fun changeRange(range: GrowthRange) {
@@ -165,12 +180,12 @@ class GrowthViewModel(private val repository: GrowthRepository, now: () -> Long)
     }
 }
 
-/** GROWTH-01 연결. [onOpenMissions]는 '완료한 미션'(학습 화면) 이동. */
+/** GROWTH-01 연결. [onOpenSteps]는 '완료한 단계'(기초부터 배우기) 이동. */
 @Composable
 fun GrowthRoute(
     onBack: () -> Unit,
     onOpenRecords: () -> Unit,
-    onOpenMissions: () -> Unit,
+    onOpenSteps: () -> Unit,
     viewModel: GrowthViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -180,7 +195,7 @@ fun GrowthRoute(
         onBack = onBack,
         onRange = viewModel::changeRange,
         onRetry = viewModel::retry,
-        onOpenMissions = onOpenMissions,
+        onOpenSteps = onOpenSteps,
         onOpenRecords = onOpenRecords,
     )
 }

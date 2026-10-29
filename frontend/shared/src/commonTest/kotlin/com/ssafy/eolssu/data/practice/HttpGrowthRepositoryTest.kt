@@ -57,7 +57,6 @@ class HttpGrowthRepositoryTest {
         assertEquals(PeriodTotals(120, 1, null), summary.previous)
         assertEquals(2, summary.practiceDays)
         assertEquals(2, summary.currentStreakDays)
-        assertNull(summary.completedMissionCount)
         assertEquals(listOf("도라지타령" to 81, "아리랑" to 79), summary.bestBySong.map { it.title to it.bestTotalScore })
     }
 

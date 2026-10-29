@@ -297,9 +297,9 @@
     <string name="growth_best_none">아직 없어요</string>
     <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
     <string name="growth_retry">다시 시도</string>
-    <string name="growth_missions">완료한 미션</string>
-    <string name="growth_missions_value">%1$d개</string>
-    <string name="growth_missions_total">/ %1$d</string>
+    <string name="growth_steps">완료한 단계</string>
+    <string name="growth_steps_value">%1$d개</string>
+    <string name="growth_steps_total">/ %1$d</string>
     <string name="growth_best_by_song">곡별 최고 점수</string>
 
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->

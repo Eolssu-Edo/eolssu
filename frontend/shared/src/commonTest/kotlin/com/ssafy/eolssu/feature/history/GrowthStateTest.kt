@@ -30,7 +30,7 @@ class GrowthStateTest {
         previous: PeriodTotals = PeriodTotals(0, 0, null),
         best: List<SongBestScore> = emptyList(),
         growth: MetricGrowth? = null,
-    ) = GrowthSummary(PeriodTotals(seconds, count, average), previous, 0, 0, null, null, best, growth)
+    ) = GrowthSummary(PeriodTotals(seconds, count, average), previous, 0, 0, best, growth)
 
     @Test
     fun weekIsMondayToSundayContainingToday() {
@@ -127,7 +127,6 @@ class GrowthStateTest {
         assertEquals(List(5) { 0L }, stats.bars.map { it.minutes })
         assertEquals(emptyList(), stats.bestBySong)
         assertNull(stats.metricGrowth)
-        assertNull(stats.completedMissions)
     }
 
     @Test
