@@ -117,7 +117,7 @@ hugo server -D
 3. Pipeline 잡 `eolssu-blog`: **Pipeline script from SCM**, 저장소 `https://lab.ssafy.com/s15-final/S15P31E102.git`, Credentials `eolssu-gitlab`, 브랜치 `*/blog`, Script Path `Jenkinsfile`
 4. 잡을 **한 번 직접 실행**하면 polling 트리거가 등록돼요. 다음부터는 `blog` 브랜치 변경을 1분 안에 감지해요
 
-빌드는 호스트 에이전트에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 잡 로그의 `Build`·`Deploy` 단계를 보세요.
+빌드는 호스트 에이전트에서 `docker run`으로 Hugo 이미지를 실행하고, 배포는 에이전트의 `git`으로 해요. 실패하면 Stages에서 정리·checkout·Hugo 출력 준비·Hugo 빌드·산출물 검사·Pages 원격 준비·파일 복사·커밋·Push 중 실패한 단계를 확인하세요. S15P31E102-262 변경은 `blog` 병합 후 적용됩니다. `scripts/deploy.sh`는 인자 없이 기존 일괄 게시를 유지하며 Jenkins는 `prepare`, `sync`, `commit`, `push`를 분리 호출합니다. `PAGES_WORK_DIR`은 workspace의 전용 임시 디렉터리이고 성공·실패 모두 Pipeline의 `post/always`에서 정리합니다.
 
 ### Team Edo 주소로 전환하기
 
@@ -227,3 +227,8 @@ hugo server -D
 - 첫 글은 Team Edo·얼쑤 표기로 정리하되 기존 글 URL을 유지한다. Jenkins는 `blog` 브랜치 polling과 기존 자격증명 ID를 유지하고 GitHub 배포 대상·사이트 주소를 `team-edo`로 변경한다. 디자인의 운영 반영과 Jenkins 토큰 검증은 `blog` 병합 후 확인한다.
 
 재확인할 때는 `hugo server -D`로 미리보기를 열어 위 주소와 화면 너비를 확인한다. 배포와 같은 빌드는 `Jenkinsfile`의 Build 단계 옵션을 기준으로 실행한다. 산출물과 임시 검증 데이터는 소스 worktree 밖에 둔다.
+
+
+### Jenkins 단계 검증 (S15P31E102-262)
+
+`python -m pip install -r requirements-blog.txt` 후 `python -B -m unittest discover -s tests -v`로 확인합니다. 게시 단계 검사는 외부 GitHub 대신 로컬 bare Git 원격을 사용합니다. 원격 준비·파일 복사·커밋까지 게시가 일어나지 않고 마지막 Push에서만 반영되며, 동일 내용은 추가 커밋을 만들지 않습니다. Git 토큰은 단계 사이 `.git/config`에 남기지 않습니다. Jenkins 선언형 문법은 실제 컨트롤러 linter를 통과했고 실제 Pages 게시는 수행하지 않았습니다. 이 변경은 `blog`를 대상으로 전달하며 서비스 develop 이력과 합치지 않습니다.
