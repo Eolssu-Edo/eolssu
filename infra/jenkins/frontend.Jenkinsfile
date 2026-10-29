@@ -19,7 +19,13 @@ pipeline {
     stages {
         stage('Clean workspace') {
             steps {
-                deleteDir()
+                script {
+                    if (fileExists('.git')) {
+                        sh '/opt/eolssu/config/prepare-frontend-workspace.sh'
+                    } else {
+                        deleteDir()
+                    }
+                }
             }
         }
 

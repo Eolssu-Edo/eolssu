@@ -201,6 +201,10 @@ CHROME_BIN=/usr/bin/google-chrome ./gradlew --no-daemon \
 
 JUnit 결과와 `webApp/build/dist/wasmJs/productionExecutable/`를 보관하고 [frontend.Dockerfile](../jenkins/frontend.Dockerfile)로 커밋 revision label을 붙인 `eolssu-frontend:ci-<SHA>`를 만듭니다. 관리된 Pipeline 원본은 [frontend.Jenkinsfile](../jenkins/frontend.Jenkinsfile)입니다. 초기 샘플 테스트는 JS·Wasm 합계 4개이며 업무 기능 검증 범위는 앱 테스트가 추가되는 대로 넓혀야 합니다.
 
+프론트 `Clean workspace`는 기존 Git 작업공간에서 추적 파일을 복원하고, Git이 무시하지 않는 미추적 파일만 정리합니다. `.gradle`, `.kotlin`, `build`, `node_modules`의 캐시·산출물은 유지하며 Gradle의 입력/출력 검증으로 재사용 여부를 결정합니다. 소스는 매번 전달받은 전체 `REVISION`으로 checkout합니다. 처음 실행하거나 Git 작업공간이 없으면 전체 정리 후 checkout합니다. 단계 이름, 테스트 명령, `--no-daemon`, production 최적화와 20분 제한은 유지합니다.
+
+[prepare-frontend-workspace.sh](../jenkins/prepare-frontend-workspace.sh)를 root 소유 0755의 `/opt/eolssu/config/prepare-frontend-workspace.sh`에 **먼저** 설치한 뒤 관리된 `frontend.Jenkinsfile`을 갱신합니다. 스크립트는 저장소 루트에서만 실행됩니다. 캐시 손상이 의심될 때는 실행 중인 잡이 없는지 확인하고 해당 프론트 작업공간의 캐시만 수동 초기화합니다. Jenkins 사용자 홈 전체의 Gradle 캐시는 삭제하지 않습니다.
+
 [deploy-frontend.py](../jenkins/deploy-frontend.py)를 root 소유 `/opt/eolssu/bin/deploy-frontend`에 설치하고 Jenkins에는 이 도구의 실행만 추가로 허용합니다. SHA 검증·원자적 파일 교체·HTTP 검사·공유 lock은 인접한 root 소유 `deploy-backend`의 검증된 공통 함수를 사용하므로 두 도구를 함께 관리합니다. Jenkins에는 운영 `.env` 읽기 권한을 주지 않습니다.
 
 ```sudoers
