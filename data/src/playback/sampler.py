@@ -16,13 +16,14 @@ CREDIT = "이 2차 저작물은 서울예술과학센터에서 개발한 국악 
 
 # Rendering choices, not an assertion about an acoustic player's breathing.
 SUSTAIN_POLICY = {
-    "name": "validated-sustain-crossfade-v1",
+    "name": "validated-sustain-crossfade-v2",
     "status": "synthetic-extension-not-performance-standard",
     "minimum_sample_seconds": 1.25, "skip_attack_seconds": .4,
     "minimum_period_seconds": .5, "crossfade_seconds": .05,
     "minimum_correlation": .98, "maximum_boundary_rms_ratio": 1.18,
     "maximum_sustain_rms_ratio": 1.5, "maximum_pitch_spread_cents": 35,
     "candidate_end_fractions": [.45, .6, .75, .85],
+    "fallback_end_fractions": [step / 100 for step in range(10, 96, 2)],
 }
 
 
@@ -52,17 +53,29 @@ def find_sustain_loop(samples, rate, root):
     """Select matching, steady sustain windows; reject noise and short samples.
 
     A cosine crossfade joins the end window to its correlated start window.
-    FFT correlation keeps the bounded four-candidate search practical without
-    a new dependency. Thresholds are conservative audition policy choices.
+    Preserve the original four-candidate result when it passes. Otherwise a
+    bounded, finer grid can find an earlier steady passage in a changing tone.
+    Both searches use the same quality limits; no sample substitution or tuning.
     """
     policy = SUSTAIN_POLICY
     if len(samples) < rate * policy["minimum_sample_seconds"]:
         return None
+    for strategy, fractions in (("primary-fractions", policy["candidate_end_fractions"]),
+                                ("fallback-grid", policy["fallback_end_fractions"])):
+        candidates = _sustain_candidates(samples, rate, root, fractions)
+        if candidates:
+            return {**max(candidates, key=lambda item: item["correlation"]), "search": strategy}
+    return None
+
+
+def _sustain_candidates(samples, rate, root, fractions):
+    """Apply identical phase, level and pitch checks to each candidate seam."""
+    policy = SUSTAIN_POLICY
     width = round(rate * policy["crossfade_seconds"])
     minimum_start = round(rate * policy["skip_attack_seconds"])
     minimum_period = round(rate * policy["minimum_period_seconds"])
     candidates = []
-    for fraction in policy["candidate_end_fractions"]:
+    for fraction in fractions:
         seam = round(len(samples) * fraction)
         last_start = seam - minimum_period
         if last_start <= minimum_start or seam + width >= len(samples):
@@ -103,7 +116,7 @@ def find_sustain_loop(samples, rate, root):
                            "period_frames": seam - start, "source_sample_rate": rate,
                            "correlation": float(correlation[start]), "boundary_rms_ratio": float(ratio[start]),
                            "sustain_rms_ratio": level_ratio, "pitch_spread_cents": spread})
-    return max(candidates, key=lambda item: item["correlation"]) if candidates else None
+    return candidates
 
 
 def looped_samples(samples, positions, loop):
@@ -192,8 +205,57 @@ class CatSampler:
 
     def zone(self, pitch):
         matches = [z for z in self.zones if z["low"] <= pitch <= z["high"]]
+        if not matches:
+            extension = PROFILES[self.instrument].get("sample_zone_extensions")
+            if extension and any(item["zone"]["low"] <= pitch <= item["zone"]["high"]
+                                 for item in extension["zones"]):
+                matches = [z for z in self._extended_zones(extension) if z["low"] <= pitch <= z["high"]]
+                used = self.manifest["sample_zone_extensions"]["used_pitches"]
+                if pitch not in used:
+                    used.append(pitch)
+                    used.sort()
         require(len(matches) == 1, f"{self.instrument}: pitch {pitch} has {len(matches)} matching sample zones")
         return matches[0]
+
+    def _extended_zones(self, extension):
+        """Use only the audited same-archive samples; keep original zones intact."""
+        if hasattr(self, "_extension_zones"):
+            return self._extension_zones
+        target = PROFILES[self.instrument]["cat_provenance"]
+        source = PROFILES[extension["source_instrument"]]
+        origin = extension["source_preset"]
+        require(self.manifest["sha256"] == target["archive_sha256"]
+                and self.manifest["preset_xml_sha256"] == target["preset_xml_sha256"],
+                "Sample zone extension requires the audited target archive and preset")
+        require(origin["archive_sha256"] == source["cat_provenance"]["archive_sha256"]
+                and origin["xml_sha256"] == source["cat_provenance"]["preset_xml_sha256"]
+                and origin["member"].endswith("/" + source["preset_name"]),
+                "Sample zone extension source preset provenance mismatch")
+        zones = []
+        for item in extension["zones"]:
+            zone = dict(item["zone"])
+            require(zone["low"] == zone["high"] == zone["root"] and zone["loop"] == 0,
+                    "Sample zone extension must preserve one source root without a preset loop")
+            require(not any(z["low"] <= zone["root"] <= z["high"] for z in self.zones + zones),
+                    "Sample zone extension overlaps an existing zone")
+            matches = [name for name in self.zip.namelist() if name.endswith("/" + zone["file"])
+                       and not name.startswith("__MACOSX/")]
+            require(len(matches) == 1, f"Missing/ambiguous extension sample {zone['file']}")
+            zone.update(member=matches[0], origin="explicit-shared-bank-extension")
+            samples, rate, digest = self.samples(zone)
+            require(digest == item["sample_sha256"] and rate == item["sample_rate"]
+                    and len(samples) == item["frames"], "Sample zone extension SHA/rate/trim mismatch")
+            zones.append(zone)
+        self._extension_zones = zones
+        self.manifest["sample_zone_extensions"] = {
+            "status": extension["status"], "basis": extension["basis"], "source_preset": dict(origin),
+            "original_key_range": [min(z["low"] for z in self.zones), max(z["high"] for z in self.zones)],
+            "effective_key_range": [min(z["low"] for z in self.zones + zones),
+                                    max(z["high"] for z in self.zones + zones)],
+            "zones": [{**z, "sample_sha256": item["sample_sha256"]}
+                      for z, item in zip(zones, extension["zones"])], "used_pitches": [],
+        }
+        return zones
 
     def samples(self, zone):
         # Each sampler owns its cache. No cross-preset root/detune assumptions.
@@ -268,7 +330,7 @@ class CatSampler:
                     self._sustain_loops = cache
                     key = (digest, rate, zone["root"], zone.get("start", 0), zone.get("end", len(samples) - 1))
                     if key not in cache:
-                        loop = find_sustain_loop(samples, rate, zone["root"]) if self.instrument in ("danso", "sogeum") else None
+                        loop = find_sustain_loop(samples, rate, zone["root"]) if self.instrument in ("danso", "sogeum", "jeongak-daegeum", "sanjo-daegeum") else None
                         cache[key] = ({**loop, "sample": zone["file"], "sample_sha256": digest,
                                        "policy": dict(SUSTAIN_POLICY)} if loop else None)
                     selected_loop = cache[key]
@@ -289,6 +351,7 @@ class CatSampler:
             output[at:stop] += sound
             previous_cursor = cursor + base_ratio*(integral[end]-integral[at])
             trace.append({**note, "sample": zone["file"], "sample_sha256": digest,
+                          "sample_zone_origin": zone.get("origin", "preset"),
                           "rendered_release_seconds": release / FS,
                           "root": zone["root"], "detune_cents": zone["detune"], "ratio": base_ratio,
                           "same_pitch_continuation": same, "sample_cursor": cursor,

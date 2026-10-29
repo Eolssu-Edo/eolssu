@@ -226,7 +226,7 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 
 샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
 
-S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다.
+S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다. 2026-10-29에는 사용자 승인으로 운영 버킷의 전용 합성 객체를 사용해 연결·정책을 검증하고 버킷명 오류·누락된 보관 규칙을 수정했습니다([검증 기록](../docs/knowledge/infra/r2-storage-verification.md)).
 
 Nginx(`infra/runtime/nginx.conf`·`nginx.tls.conf.template`)는 `/api/`의 본문 한도를 25MiB(`client_max_body_size 25m`)로 둡니다. 25MiB를 넘으면 Nginx가 자체 HTML 413을, 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413을 돌려줍니다.
 
@@ -346,3 +346,7 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 ### 연주 평가 결과 조회
 
 인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
+
+### 계정 한정 인증 만료 예외
+
+`AUTH_NON_EXPIRING_USER_IDS`에 지정한 회원 ID만 서버 토큰의 시간 만료를 없앱니다(기본 빈 목록). access는 exp 없이 서명하지만 DB의 활성 refresh 세션과 ACTIVE 회원 검증을 매 요청 수행합니다. 로그아웃·비밀번호 변경·탈퇴·회전·예외 해제 후에는 기존 토큰을 거부합니다. 일반 계정은 access 30분·refresh 14일을 유지합니다. 예외 계정의 재발급 응답 accessTokenExpiresAt은 null이며 쿠키는 브라우저 제한을 고려해 400일입니다. 배포·검증 순서는 [Task 260](../docs/plans/S15P31E102-260.md)을 따릅니다. V7은 기존 데이터의 시각을 바꾸지 않고 refresh_tokens.expires_at을 nullable로 확장합니다.

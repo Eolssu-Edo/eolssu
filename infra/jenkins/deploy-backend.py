@@ -1,5 +1,6 @@
 #!/usr/bin/python3 -I
 """edo1 전용: 검증한 develop 이미지의 JAR을 배포하고 실패/중단 시 복구한다."""
+from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
@@ -16,6 +17,18 @@ import urllib.request
 
 class DeployError(Exception):
     pass
+
+
+@contextmanager
+def phase(name):
+    print(json.dumps({'event': 'phase_started', 'phase': name}), flush=True)
+    try:
+        yield
+    except Exception:
+        print(json.dumps({'event': 'phase_failed', 'phase': name}), flush=True)
+        raise
+    else:
+        print(json.dumps({'event': 'phase_completed', 'phase': name}), flush=True)
 
 
 def validate_sha(value):
@@ -44,6 +57,34 @@ def run(*args, timeout=60):
         # Git/Compose errors can contain credentials or expanded environment values.
         raise DeployError('command failed: ' + args[0])
     return result.stdout.strip()
+
+
+def check_release_order(sha, deployed_sha, repository=Path('/opt/app'), git_prefix=('sudo', '-u', 'ubuntu')):
+    """Call under the shared deployment lock, after recovery, using the active release."""
+    validate_sha(sha)
+    command = (*git_prefix, 'git', '-C', str(repository))
+    run(*command, 'fetch', '--no-tags', 'origin',
+        '+refs/heads/develop:refs/remotes/origin/develop', timeout=60)
+
+    def ancestor(older, newer):
+        try:
+            result = subprocess.run((*command, 'merge-base', '--is-ancestor', older, newer),
+                                    capture_output=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            raise DeployError('cannot determine deployment commit order') from None
+        if result.returncode not in (0, 1):
+            raise DeployError('cannot determine deployment commit order')
+        return result.returncode == 0
+
+    if not ancestor(sha, 'refs/remotes/origin/develop'):
+        raise DeployError('candidate is not in develop history')
+    # Bootstrap releases predate SHA-based release directories.
+    if not re.fullmatch('[0-9a-f]{40}', deployed_sha) or deployed_sha == sha:
+        return
+    if ancestor(sha, deployed_sha):
+        raise DeployError('candidate is older than the deployed release')
+    if not ancestor(deployed_sha, sha):
+        raise DeployError('candidate and deployed release histories have diverged')
 
 
 def atomic(path, text):
@@ -185,62 +226,74 @@ class Deployer:
         self.save({'status': 'deploying', 'sha': sha, 'previous_jar': str(self.current_jar()),
                    'jar': str(jar), 'jar_sha256': digest(jar), 'image_id': image_id, 'protected': protected})
         try:
-            self.select(jar)
-            self.activate()
-            self.healthy()
-            self.unchanged(protected)
+            with phase('Select release'):
+                self.select(jar)
+            with phase('Recreate runtime service'):
+                self.activate()
+            with phase('Verify runtime health and mounted release'):
+                self.healthy()
+            with phase('Verify protected services unchanged'):
+                self.unchanged(protected)
         except Exception:
-            self.recover()
+            with phase('Rollback previous release'):
+                self.recover()
             raise DeployError('deployment failed; previous release restored') from None
         saved = json.loads(self.state.read_text())
         saved['status'] = 'deployed'
         self.save(saved)
 
-    def latest(self, sha):
-        result = run('sudo', '-u', 'ubuntu', 'git', '-C', '/opt/app', 'ls-remote',
-                     'origin', 'refs/heads/develop', timeout=30)
-        if not result or result.split()[0] != sha:
-            raise DeployError('candidate is no longer the current develop commit')
+    def check_order(self, sha):
+        check_release_order(sha, self.current_jar().parent.name)
 
     def deploy(self, sha):
         validate_sha(sha)
-        self.recover()
-        self.latest(sha)
-        image = json.loads(run('docker', 'image', 'inspect', 'eolssu-backend:ci-' + sha))[0]
-        if image['Config'].get('Labels', {}).get('org.opencontainers.image.revision') != sha:
-            raise DeployError('image revision label does not match candidate')
-        if self.already_deployed(sha, image['Id']):
-            return
-        protected = self.protected()
+        with phase('Recover interrupted deployment'):
+            self.recover()
+        with phase('Check deployment order'):
+            self.check_order(sha)
+        with phase('Validate candidate image'):
+            image = json.loads(run('docker', 'image', 'inspect', 'eolssu-backend:ci-' + sha))[0]
+            if image['Config'].get('Labels', {}).get('org.opencontainers.image.revision') != sha:
+                raise DeployError('image revision label does not match candidate')
+        with phase('Check identical release'):
+            if self.already_deployed(sha, image['Id']):
+                return
+        with phase('Snapshot protected services'):
+            protected = self.protected()
         name = 'eolssu-stage-' + sha[:12]
         # Fixed label + deployment lock make leftovers from a killed process safe to reclaim.
-        for old in run('docker', 'ps', '-aq', '--filter', 'label=com.eolssu.stage=backend').split():
-            run('docker', 'rm', '-f', old)
-        for old in run('docker', 'network', 'ls', '-q', '--filter', 'label=com.eolssu.stage=backend').split():
-            run('docker', 'network', 'rm', old)
-        run('docker', 'network', 'create', '--internal', '--label', 'com.eolssu.stage=backend', name)
+        with phase('Prepare candidate network'):
+            for old in run('docker', 'ps', '-aq', '--filter', 'label=com.eolssu.stage=backend').split():
+                run('docker', 'rm', '-f', old)
+            for old in run('docker', 'network', 'ls', '-q', '--filter', 'label=com.eolssu.stage=backend').split():
+                run('docker', 'network', 'rm', old)
+            run('docker', 'network', 'create', '--internal', '--label', 'com.eolssu.stage=backend', name)
         try:
-            run('docker', 'run', '-d', '--name', name, '--label', 'com.eolssu.stage=backend',
-                '--network', name, '--env', 'SERVER_PORT=8080', image['Id'])
-            address = json.loads(run('docker', 'inspect', name))[0]['NetworkSettings']['Networks'][name]['IPAddress']
-            probe(candidate_health_url(address), 200, UP)
-            release = self.root / 'releases' / sha
-            release.mkdir(mode=0o755, exist_ok=True)
-            candidate = release / 'app.jar.new'
-            run('docker', 'cp', name + ':/app/app.jar', str(candidate))
-            candidate.chmod(0o644)
-            jar = release / 'app.jar'
-            if jar.exists() and digest(jar) != digest(candidate):
-                candidate.unlink()
-                raise DeployError('immutable release already exists with different content')
-            os.replace(candidate, jar)
-            self.unchanged(protected)
-            self.latest(sha)
+            with phase('Start candidate and check liveness'):
+                run('docker', 'run', '-d', '--name', name, '--label', 'com.eolssu.stage=backend',
+                    '--network', name, '--env', 'SERVER_PORT=8080', image['Id'])
+                address = json.loads(run('docker', 'inspect', name))[0]['NetworkSettings']['Networks'][name]['IPAddress']
+                probe(candidate_health_url(address), 200, UP)
+            with phase('Extract immutable JAR'):
+                release = self.root / 'releases' / sha
+                release.mkdir(mode=0o755, exist_ok=True)
+                candidate = release / 'app.jar.new'
+                run('docker', 'cp', name + ':/app/app.jar', str(candidate))
+                candidate.chmod(0o644)
+                jar = release / 'app.jar'
+                if jar.exists() and digest(jar) != digest(candidate):
+                    candidate.unlink()
+                    raise DeployError('immutable release already exists with different content')
+                os.replace(candidate, jar)
+            with phase('Recheck protected services and order'):
+                self.unchanged(protected)
+                self.check_order(sha)
             self.promote(sha, jar, image['Id'], protected)
         finally:
             # Cleanup failure is a failed build; the deployment journal remains authoritative.
-            run('docker', 'rm', '-f', name)
-            run('docker', 'network', 'rm', name)
+            with phase('Clean candidate resources'):
+                run('docker', 'rm', '-f', name)
+                run('docker', 'network', 'rm', name)
 
 
 def main():
@@ -251,14 +304,17 @@ def main():
         raise DeployError('run as root with one commit SHA argument')
     validate_sha(sys.argv[1])
     with open('/run/lock/eolssu-backend-deploy.lock', 'w') as lock:
-        acquire_lock(lock)
+        with phase('Wait for shared deployment lock'):
+            acquire_lock(lock)
         def interrupted(signum, frame):
             raise DeployError('deployment interrupted')
         signal.signal(signal.SIGTERM, interrupted)
         signal.signal(signal.SIGINT, interrupted)
-        run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
+        with phase('Pre-deployment backup'):
+            run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
         Deployer().deploy(sys.argv[1])
-        run('/opt/eolssu-backup/backup.py', 'send', 'postchange', timeout=600)
+        with phase('Post-deployment backup'):
+            run('/opt/eolssu-backup/backup.py', 'send', 'postchange', timeout=600)
 
 
 if __name__ == '__main__':

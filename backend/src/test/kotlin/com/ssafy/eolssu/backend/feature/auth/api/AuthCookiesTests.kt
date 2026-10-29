@@ -21,6 +21,16 @@ class AuthCookiesTests {
     }
 
     @Test
+    fun `non expiring server tokens use persistent secure cookies within browser limits`() {
+        val cookies = AuthCookies(true).issue(IssuedTokens("access.jwt", null, "refresh-token", null))
+        cookies.forEach {
+            assertTrue(it.contains("Max-Age=34560000;"), it)
+            assertTrue(it.contains("HttpOnly; SameSite=Lax"), it)
+            assertTrue(it.contains("Secure;"), it)
+        }
+    }
+
+    @Test
     fun `clears both cookies on the same paths and omits Secure only when configured`() {
         val cleared = AuthCookies(secure = false).clear()
         assertEquals(listOf("access_token=; Path=/api; Max-Age=0;", "refresh_token=; Path=/api/auth; Max-Age=0;"), cleared.map { it.substringBefore(" Expires") })

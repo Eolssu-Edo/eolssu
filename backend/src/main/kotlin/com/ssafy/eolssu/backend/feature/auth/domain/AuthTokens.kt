@@ -9,22 +9,28 @@ object AuthTokenPolicy {
 }
 
 /** 로그인 쿠키로만 내려보낸다. 토큰 원문이 로그에 남지 않게 data class로 두지 않는다. */
-class IssuedTokens(val accessToken: String, val accessTokenExpiresAt: Instant, val refreshToken: String, val refreshTokenExpiresAt: Instant)
+class IssuedTokens(val accessToken: String, val accessTokenExpiresAt: Instant?, val refreshToken: String, val refreshTokenExpiresAt: Instant?)
 
 interface AccessTokenSigner {
     fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant): String
+    fun signNonExpiring(userId: Long, issuedAt: Instant, sessionHash: String): String = throw TokenIssuingUnavailable()
 }
 
 /** 서명 키가 없어 로그인 토큰을 발급할 수 없다(공통 503). */
 class TokenIssuingUnavailable : RuntimeException("Access token signing unavailable")
 
 interface RefreshTokenRepository {
-    fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long
+    fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long
+}
+
+/** 만료 없는 access token도 서버의 활성 리프레시 세션에 묶어 폐기할 수 있어야 한다. */
+fun interface NonExpiringSessionCheck {
+    fun isActive(userId: Long, sessionHash: String): Boolean
 }
 
 enum class RevokeReason { ROTATED, SIGN_OUT, PASSWORD_CHANGED, WITHDRAWN, REUSE_DETECTED }
 
-class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant, val revokeReason: RevokeReason?) {
+class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant?, val revokeReason: RevokeReason?) {
     val revoked get() = revokeReason != null
 }
 

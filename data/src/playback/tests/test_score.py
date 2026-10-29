@@ -6,6 +6,38 @@ from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_jeongak_range_and_explicit_yoseong_mode_keep_bank_limit_distinct(self):
+        value = score()
+        for pitch in (58, 87, 88, 89, 90, 92):
+            value["notes"][0]["pitch"] = pitch
+            perf = compile_score(value, "jeongak-daegeum")
+            self.assertEqual(perf["events"][0]["pitch"], pitch)
+            self.assertEqual(any("전통 관행 음역 밖" in w for w in perf["warnings"]), pitch > 87)
+            self.assertTrue(any("WAV 67개" in w for w in perf["warnings"]))
+        for pitch in (57, 93):
+            value["notes"][0]["pitch"] = pitch
+            with self.assertRaisesRegex(ValueError, "outside"):
+                compile_score(value, "jeongak-daegeum")
+        value["notes"][0].update(pitch=75, yoseong={"hz": 3, "cents": 40})
+        with self.assertRaises(ValueError):
+            compile_score(value, "jeongak-daegeum")
+        value["notes"][0]["yoseong"]["mode"] = "pitch"
+        self.assertEqual(compile_score(value, "jeongak-daegeum")["events"][0]["yoseong"]["mode"], "pitch")
+
+
+    def test_sanjo_unknown_tube_range_and_shared_bank_are_exposed_without_transposition(self):
+        value = score([{"id": "a", "pitch": 95, "duration": 1}])
+        result = compile_score(value, "sanjo-daegeum")
+        self.assertEqual(result["events"][0]["pitch"], 95)
+        self.assertTrue(any("실연 음역이 미확정" in message for message in result["warnings"]))
+        self.assertTrue(any("WAV 67개" in message for message in result["warnings"]))
+        self.assertIsNone(result["events"][0]["yoseong"])
+        value["notes"][0]["yoseong"] = {}
+        with self.assertRaisesRegex(ValueError, "mode"):
+            compile_score(value, "sanjo-daegeum")
+        value["notes"][0]["yoseong"] = {"mode": "pitch", "cents": 33}
+        self.assertEqual(compile_score(value, "sanjo-daegeum")["events"][0]["yoseong"]["cents"], 33)
+
     def test_yoseong_delay_must_reach_sounding_note_after_tie_and_ornament_expansion(self):
         effect = {"mode": "pitch", "hz": 3, "cents": 60, "delay_seconds": 2}
         value = score([{"id": "a", "pitch": 75, "duration": 1, "yoseong": effect}])
@@ -40,11 +72,21 @@ class ScoreTests(unittest.TestCase):
             {"points": [[0, 0], [1, -1201]]}, {"points": [[0, 0], [1, float("nan")]]},
             {"points": [[0, 0], [1, -100]], "end_cents": -100},
             {"points": [[0, 100], [1, 0]], "delay_seconds": .1},
+            {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": False},
+            {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": 1},
+            {"points": [[0, 100], [1, 0]], "step_at_delay": True},
+            {"end_cents": -100, "tail_fraction": .2, "maximum_seconds": .1,
+             "delay_seconds": .1, "step_at_delay": True},
+            {"end_cents": -100, "tail_fraction": .2, "maximum_seconds": .1,
+             "delay_seconds": .1, "step_at_delay": False},
             {"points": [[0, 0], [1, -100]], "delay_seconds": 1},
         ]
         for curve in curves:
             with self.subTest(curve=curve), self.assertRaises(ValueError):
                 compile_score(score([{"id": "a", "pitch": 75, "duration": 1, "pitch_curve": curve}]), "danso")
+        curve = {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": True}
+        event = compile_score(score([{"id": "a", "pitch": 75, "duration": 1, "pitch_curve": curve}]), "sanjo-daegeum")["events"][0]
+        self.assertTrue(event["pitch_curve"]["step_at_delay"])
 
     def test_explicit_wide_yoseong_and_curve_survive_compilation(self):
         value = score([{"id": "a", "pitch": 75, "duration": 2,

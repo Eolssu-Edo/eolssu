@@ -1,0 +1,47 @@
+{
+  "label": "산조 대금",
+  "jira": "S15P31E102-107",
+  "variant": "산조대금: 관/청 미지정",
+  "technical_range": null,
+  "style_range": null,
+  "range_source": "단일 관종의 보편 음역 미확정. 실행 시 CAT 키존만 검증하며 실제 운지 가능성을 보증하지 않음.",
+  "interpretation": "관의 종류와 청·조율 기준을 별도 기록. 정악의 기호 의미를 산조의 꺾기·떠는음에 일괄 복제하지 않음.",
+  "yoseong_mode": null,
+  "sample_bank_note": "CAT Live Sampler v1.3 산조·정악 대금 ZIP은 WAV 67개를 공유하며 공통 MIDI 60~89의 simple 재생 설정도 같습니다. 원 산조 프리셋은60~91이며,58/59는 같은 ZIP의 검증된 공유 WAV에 정악 프리셋 설정을 명시 적용합니다. 산조대금 고유 음색·관종별 실연 범위를 검증한 결과가 아닙니다.",
+  "preset_name": "DaeGeum (SanJo) - DEMO_simple.adv",
+  "sample_zone_extensions": {
+    "status": "authored-shared-bank-mapping-not-original-sanjo-preset",
+    "basis": "실제 산조 연습곡의 배임(MIDI58)을 원래 음높이로 재생하기 위한 명시 확장. 두 ZIP의 동일 WAV SHA를 확인하고 정악 simple의58/59 root·detune·volume·trim을 보존함. 실제 산조 관종의 연주 음역을 확정하지 않음.",
+    "source_instrument": "jeongak-daegeum",
+    "source_preset": {
+      "archive_sha256": "ca1f9388e55611e3766611409ca293bee4352a3960f367bb9c718aee5659f540",
+      "member": "GUgAK-DEMO DaeGeum_JeongAk Live Installer/Data/Sampler/GUgAK-DEMO/Winds/DaeGeum (JeongAk) - DEMO_simple.adv",
+      "xml_sha256": "95904fa129e4b15805c72861716c59d78d46fe5126fa11283af9acb952b1ee2b"
+    },
+    "zones": [
+      {
+        "zone": {"low": 58, "high": 58, "root": 58, "detune": 0, "volume": 0.5011872053, "start": 0, "end": 478648, "loop": 0, "file": "DG_Ord_Bb2_Py_mf_2_24441.wav"},
+        "sample_sha256": "da7c5cc2a0c0f99ea99acb1d37de42b9fd4759d2e0a20a03a282b5cdcd829a41",
+        "sample_rate": 44100,
+        "frames": 478649
+      },
+      {
+        "zone": {"low": 59, "high": 59, "root": 59, "detune": 20, "volume": 0.5011872053, "start": 0, "end": 488182, "loop": 0, "file": "DG_Ord_B2_Py_mf_2_24441.wav"},
+        "sample_sha256": "c7232357da529abf43a1860bf40f2650569946760d46158eff92afb0a7eb9235",
+        "sample_rate": 44100,
+        "frames": 488183
+      }
+    ]
+  },
+  "cat_provenance": {
+    "source_url": "https://www.catseoul.com/gugak-library/",
+    "verified_on": "2026-10-28",
+    "format": "Live Sampler v1.3 simple",
+    "archive_sha256": "b27d2247543a019a45f8aba593e3aece425d66a59cbb14d156eca294d36d65b4",
+    "preset_xml_sha256": "c226c32df09d470cc74ef5ae9b5b9d7c8f1c354a40982fd400f2180d97756d33",
+    "sample_range_midi": [60, 91],
+    "shared_sample_bank": "CAT DaeGeum-DEMO",
+    "independent_sanjo_timbre_verified": false,
+    "limitation": "정악대금 ZIP과 WAV 67개의 파일명·SHA-256이 모두 같음. 공통 MIDI 60~89의 simple 샘플·root·detune·volume·trim·loop도 같아 고유 산조 음색을 구분한 결과가 아님. CAT 키존은 실제 관종의 실연 음역이 아님."
+  }
+}

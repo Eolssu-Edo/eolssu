@@ -56,7 +56,14 @@ def write_midi(performance, path):
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])
         add(b, 0, "note_off", note=e["pitch"], velocity=0)
-        for tick in sorted(set(range(a, b, max(1, round(.005/sec_tick)))) | {a, b}):
+        controls = set(range(a, b, max(1, round(.005/sec_tick)))) | {a, b}
+        curve = e.get("pitch_curve")
+        step_tick = None
+        if curve and curve.get("step_at_delay"):
+            step_tick = a + round(curve["delay_seconds"] / sec_tick)
+            require(a < step_tick < b, "pitch curve step delay must resolve inside the note")
+            controls.update((step_tick - 1, step_tick))
+        for tick in sorted(controls):
             q = (tick-a)/(b-a)
             cc = float(np.interp(q, [0, .45, 1], e["expression"]))
             cents = e["tuning_cents"]
@@ -78,9 +85,10 @@ def write_midi(performance, path):
                 length = (b-a)*sec_tick
                 delay = curve.get("delay_seconds", 0)
                 if "points" in curve:
-                    elapsed = (tick-a)*sec_tick - delay
+                    elapsed = (tick - step_tick) * sec_tick if step_tick is not None else (tick-a)*sec_tick - delay
                     if elapsed >= 0:
-                        progress = min(1, elapsed/(length-delay))
+                        span = (b - step_tick) * sec_tick if step_tick is not None else length - delay
+                        progress = min(1, elapsed/span)
                         cents += float(np.interp(progress, [p[0] for p in curve["points"]],
                                                 [p[1] for p in curve["points"]]))
                 else:
