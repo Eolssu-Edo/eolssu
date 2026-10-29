@@ -35,6 +35,8 @@
     <string name="song_search_placeholder">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
     <string name="song_empty">조건에 맞는 곡이 없어요.</string>
+    <string name="song_load_failed">곡 목록을 불러오지 못했어요.</string>
+    <string name="song_load_retry">다시 시도</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>

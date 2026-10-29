@@ -21,7 +21,7 @@ import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
-import com.ssafy.eolssu.data.song.SampleSongRepository
+import com.ssafy.eolssu.data.song.HttpSongRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
@@ -79,8 +79,8 @@ val appModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
     single { SignedInMember(get()) }
-    // API가 생기면 예시 구현을 API 구현으로 바꾼다.
-    single<SongRepository> { SampleSongRepository() }
+    // 예시 연습 기록·내 악보가 가리키는 예시 곡은 HttpSongRepository가 예시 데이터로 찾는다.
+    single<SongRepository> { HttpSongRepository(get()) }
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }

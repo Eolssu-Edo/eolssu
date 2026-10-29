@@ -61,6 +61,7 @@ import com.ssafy.eolssu.core.ui.component.ToggleRow
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
+import com.ssafy.eolssu.core.ui.score.YulGlyph
 import com.ssafy.eolssu.feature.practice.FingeringOrder
 import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
@@ -329,7 +330,7 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_fingering_prev), { actions.onMoveFingering(-1) }, enabled = index > 0)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(yul.symbol, style = EolssuTheme.serif.yul.copy(fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold))
+            YulGlyph(yul, 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 stringResource(Res.string.practice_fingering_name, yul.fullName, yul.hangul),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),

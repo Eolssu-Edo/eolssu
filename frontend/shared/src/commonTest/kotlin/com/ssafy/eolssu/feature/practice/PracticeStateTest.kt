@@ -205,8 +205,9 @@ class PracticeStateTest {
         val first = ready.copy(draft = PracticeDraft(note = Yul.Hwangjong))
         assertEquals(Yul.Hwangjong, first.moveFingering(-1).draft.note)
         assertEquals(Yul.Taeju, first.moveFingering(1).draft.note)
-        val last = ready.copy(draft = PracticeDraft(note = Yul.CheongTaeju))
-        assertEquals(Yul.CheongTaeju, last.moveFingering(1).draft.note)
+        val last = ready.copy(draft = PracticeDraft(note = Yul.CheongMuyeok))
+        assertEquals(Yul.CheongMuyeok, last.moveFingering(1).draft.note)
+        assertEquals(Yul.CheongJungnyeo, ready.copy(draft = PracticeDraft(note = Yul.CheongTaeju)).moveFingering(1).draft.note)
     }
 
     @Test

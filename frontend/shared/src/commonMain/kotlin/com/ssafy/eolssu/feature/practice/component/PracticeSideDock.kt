@@ -129,7 +129,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             stringResource(Res.string.practice_menu_tempo),
             tempoLabel(TempoStep.nearest(song.baseBpm, state.bpm)), state.bpm != song.baseBpm, locked,
         ) { actions.onOpen(PracticePanel.Tempo) }
-        QuickRow(stringResource(Res.string.practice_fingering_title), "${note.symbol} ${note.fullName}", on = false, locked) {
+        QuickRow(stringResource(Res.string.practice_fingering_title), if (note.drawnAs == null) "${note.symbol} ${note.fullName}" else note.fullName, on = false, locked) {
             actions.onOpen(PracticePanel.Fingering)
         }
         val bigLabel = stringResource(Res.string.practice_big_score)

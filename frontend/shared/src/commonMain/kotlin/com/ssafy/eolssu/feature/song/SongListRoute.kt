@@ -64,6 +64,7 @@ fun SongListRoute(
                 }
             },
             onStartPractice = { selectedId?.let(onStartPractice) },
+            onRetryLoad = viewModel::load,
         ),
     )
 }
