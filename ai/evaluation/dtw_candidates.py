@@ -116,6 +116,19 @@ def _band_steps(expected, detected, starts, stops, offsets):
     return previous[previous_count - 1], directions
 
 
+def band_bounds(n, m, half_width_frames):
+    """B가 계산하는 행별 열 범위 [start, stop). |j*(N-1) - i*(M-1)| <= width*(N-1)를 정수로 계산한다.
+    N 또는 M이 1이면 유일한 경로의 칸 전체다."""
+    if n == 1 or m == 1:
+        return np.zeros(n, dtype=np.int64), np.full(n, m, dtype=np.int64)
+    denominator = n - 1
+    centers = np.arange(n, dtype=np.int64) * (m - 1)
+    radius = half_width_frames * denominator
+    starts = np.maximum(0, (centers - radius + denominator - 1) // denominator)
+    stops = np.minimum(m, (centers + radius) // denominator + 1)
+    return starts, stops
+
+
 def band_path(expected, detected, half_width_frames=50):
     """B: 길이를 맞춘 중심선 주변의 칸만 계산하고 이동 방향을 저장한다."""
     expected, detected = _arrays(expected, detected)
@@ -126,12 +139,7 @@ def band_path(expected, detected, half_width_frames=50):
         return np.array([(0, j) for j in range(m - 1, -1, -1)], dtype=np.int64)
     if m == 1:
         return np.array([(i, 0) for i in range(n - 1, -1, -1)], dtype=np.int64)
-    # |j*(N-1) - i*(M-1)| <= width*(N-1)를 정수로 계산한다.
-    denominator = n - 1
-    centers = np.arange(n, dtype=np.int64) * (m - 1)
-    radius = half_width_frames * denominator
-    starts = np.maximum(0, (centers - radius + denominator - 1) // denominator)
-    stops = np.minimum(m, (centers + radius) // denominator + 1)
+    starts, stops = band_bounds(n, m, half_width_frames)
     if np.any(stops <= starts):
         raise NoPath("band has an empty row")
     offsets = np.concatenate((np.array([0]), np.cumsum(stops - starts)))

@@ -40,6 +40,10 @@ def test_checkpoint_preserves_float_operation_order():
     detected = np.array([50., 0., np.nan, 600.2500000000001])
     np.testing.assert_array_equal(checkpoint_path(expected, detected, block_rows=2),
                                   scoring._align(expected, detected))
+    # D+(C+50)과 (D+C)+50의 반올림 차이로 경로가 갈리는 입력(리뷰에서 찾은 반례)
+    expected = np.array([-52.6, -83.4])
+    detected = np.array([246.2387694666, -31.3804052489, -85.4505489302, -45.821677433, 299.7233729787])
+    np.testing.assert_array_equal(checkpoint_path(expected, detected), scoring._align(expected, detected))
 
 
 def test_full_band_matches_dense_for_rests_ties_and_unequal_lengths():
@@ -83,6 +87,13 @@ def test_candidate_score_matches_all_u1_snapshots(method):
             assert after["path"] == before["alignment"]["path"]
             assert after["totalCost"] == before["alignment"]["totalCost"]
         assert scoring._align is original
+
+
+def test_candidate_records_computed_cells_for_band_width():
+    full = check_case("normal-8s", "A")["computedCells"]
+    narrow = check_case("normal-8s", "B", half_width_seconds=0.5)["computedCells"]
+    wide = check_case("normal-8s", "B", half_width_seconds=2)["computedCells"]
+    assert narrow < wide < full
 
 
 def test_candidate_no_path_is_separate_failure_and_restores_default():

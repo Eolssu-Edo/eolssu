@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from ai_service.pipelines import scoring
 from evaluation.dtw_baseline import CASES, inputs
-from evaluation.dtw_candidates import NoPath, _distance, band_path, checkpoint_path
+from evaluation.dtw_candidates import NoPath, _distance, band_bounds, band_path, checkpoint_path
 
 
 def check_case(name, method, half_width_seconds=0.5):
@@ -21,10 +21,14 @@ def check_case(name, method, half_width_seconds=0.5):
     frames = round(half_width_seconds / scoring.HOP_S)
     target = {"reference": scoring._align, "A": checkpoint_path,
               "B": partial(band_path, half_width_frames=frames)}[method]
-    path, total = None, None
+    path, total, cells = None, None, None
 
     def align(expected, detected):
-        nonlocal path, total
+        nonlocal path, total, cells
+        cells = len(expected) * len(detected)  # 기준·A가 비용을 계산하는 칸 수
+        if method == "B":  # B는 band 안의 칸만 계산하고 그 칸마다 uint8 방향 하나를 저장한다
+            starts, stops = band_bounds(len(expected), len(detected), frames)
+            cells = int((stops - starts).clip(min=0).sum())
         path = target(expected, detected)
         total, previous = 0., None
         for i, j in path[::-1]:
@@ -39,10 +43,11 @@ def check_case(name, method, half_width_seconds=0.5):
             result = scoring.score(f0, notes, bpm, scoring.HWANG_HZ)
     except NoPath as error:
         return {"case": name, "method": method, "halfWidthFrames": frames if method == "B" else None,
-                "status": "NO_PATH", "reason": str(error), "score": None, "path": None, "totalCost": None}
+                "computedCells": cells, "status": "NO_PATH", "reason": str(error), "score": None, "path": None,
+                "totalCost": None}
     return {"case": name, "method": method, "halfWidthFrames": frames if method == "B" else None,
-            "status": result.status, "score": asdict(result), "path": None if path is None else path.tolist(),
-            "totalCost": total}
+            "computedCells": cells, "status": result.status, "score": asdict(result),
+            "path": None if path is None else path.tolist(), "totalCost": total}
 
 
 def main():

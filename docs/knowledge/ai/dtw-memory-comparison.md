@@ -45,7 +45,7 @@
 
 ## 재현
 
-저장소 루트에서 PowerShell로 실행한다. Python·ffmpeg와 `ai/uv.lock`의 환경이 필요하다. 이 도구는 f0를 직접 사용하므로 실행 중 디코딩·pYIN 추론은 하지 않는다.
+저장소 루트에서 PowerShell로 실행한다. Python과 `ai/uv.lock`의 환경이 필요하다. 이 도구는 f0를 직접 사용하므로 실행 중 디코딩·pYIN 추론은 하지 않는다.
 
 ```powershell
 Set-Location ai
@@ -102,9 +102,11 @@ uv run pytest tests/unit/test_dtw_baseline.py
 
 추적 할당은 감소했지만 B의 프로세스 최대 RSS는 이 1회 측정에서 오히려 컸다. 모듈·JIT 준비까지 포함한 생애 최대 RSS이므로 정렬 배열의 크기와 같은 값이 아니다. 이 표로 운영 메모리 절감률·속도 우열·장시간 지원을 확정하지 않는다. U4에서 조건별 반복과 전체 처리 측정을 해야 한다.
 
-원시 결과 `data/processed/dtw-286/u2-small-memory.json`에는 실행한 자식 프로세스 코드인 probeSource와 소스·잠금 해시를 함께 남겼다. Python·numpy·librosa와 스레드 설정은 U1과 같으며 서로 다른 실행 구간의 시간·메모리를 직접 전후 개선율로 계산하지 않는다.
+원시 결과 `data/processed/dtw-286/u2-small-memory.json`에는 실행한 자식 프로세스 코드인 probeSource와 소스·잠금 해시를 함께 남겼다. 이 측정 코드는 저장소에 없어 위 표는 명령으로 다시 만들 수 없다. U4의 측정 도구를 저장소에 둔 뒤 같은 조건을 다시 잰다. Python·numpy·librosa와 스레드 설정은 U1과 같으며 서로 다른 실행 구간의 시간·메모리를 직접 전후 개선율로 계산하지 않는다.
 
 ### 후보 CLI 재현
+
+결과 JSON의 `computedCells`는 비용을 계산한 칸 수다. 기준·A는 N×M이고, B는 band 안의 칸 수이며 칸마다 uint8 방향 하나를 저장한다. 8초 정상 사례(800×800)에서 기준·A는 640,000칸, B의 반폭 0.5·1·2초는 각각 78,250·150,700·280,600칸이었다.
 
 U1의 잠금 환경·짧은 Numba 캐시를 준비한 뒤 ai 폴더에서 실행한다. 임의 길이의 외부 입력을 받지 않고 U1의 작은 고정 사례만 사용한다.
 

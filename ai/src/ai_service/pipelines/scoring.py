@@ -17,7 +17,8 @@ _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다
 
 def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
     """기본 정렬은 기존 전체 DTW다. 평가에서는 비용 표 생성 전에 이 부분만 교체한다."""
-    cost = np.abs(expected[:, None] - detected[None, :])
+    # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 긴 녹음 대안은 S15P31E102-286에서 비교 중이다.
+    cost =np.abs(expected[:, None] - detected[None, :])
     cost[np.isnan(cost)] = _UNVOICED_COST
     cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0
     _, path = librosa.sequence.dtw(
