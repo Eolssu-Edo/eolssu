@@ -12,7 +12,17 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[3]
 DOMAIN = 'actuator.example.test'
-FAKE_BACKEND = 'server { listen 8080; client_max_body_size 0; location / { return 200 "backend $request_uri"; } }\n'
+FAKE_BACKEND = '''server {
+    listen 8080;
+    client_max_body_size 0;
+    location = /.well-known/assetlinks.json {
+        default_type application/json;
+        if ($arg_unconfigured = 1) { return 404; }
+        return 200 '[{"relation":["fixture-backend"]}]';
+    }
+    location / { return 200 "backend $request_uri"; }
+}
+'''
 PASSED = ['/api/actuator/health/readiness', '/api/infra-smoke']
 BLOCKED = ['/api/actuator', '/api/actuator/', '/api/actuator/health', '/api/actuator/health/liveness',
            '/api/actuator/prometheus', '/api/actuator/env',
@@ -92,7 +102,7 @@ class NginxActuatorTests(unittest.TestCase):
                 time.sleep(0.05)
 
     @classmethod
-    def request(cls, name, path):
+    def request(cls, name, path, with_headers=False):
         if name == 'runtime-tls':
             connection = http.client.HTTPSConnection('127.0.0.1', cls.ports[name][443], timeout=2,
                                                      context=ssl.create_default_context(cafile=str(cls.certificate)))
@@ -101,6 +111,8 @@ class NginxActuatorTests(unittest.TestCase):
         try:
             connection.request('GET', path, headers={'Host': DOMAIN})
             response = connection.getresponse()
+            if with_headers:
+                return response.status, response.read().decode(), response.getheader('Content-Type')
             return response.status, response.read().decode()
         finally:
             connection.close()
@@ -127,6 +139,16 @@ class NginxActuatorTests(unittest.TestCase):
                     # 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413으로 판정하도록 넘기고, 25MiB를 넘으면 Nginx가 막는다
                     self.assertEqual(self.post_status(name, '/api/practice-sessions/1/recording', bodies[21]), 200)
                     self.assertEqual(self.post_status(name, '/api/practice-sessions/1/recording', bodies[26]), 413)
+
+    def test_app_links_uses_backend_json_and_preserves_unconfigured_404(self):
+        for name in ('runtime', 'runtime-tls'):
+            with self.subTest(config=name):
+                status, body, content_type = self.request(name, '/.well-known/assetlinks.json', with_headers=True)
+                self.assertEqual(status, 200)
+                self.assertEqual(content_type, 'application/json')
+                self.assertEqual(json.loads(body), [{'relation': ['fixture-backend']}])
+                status, _ = self.request(name, '/.well-known/assetlinks.json?unconfigured=1')
+                self.assertEqual(status, 404)
 
     def test_readiness_and_ordinary_api_reach_backend(self):
         for name in self.ports:
