@@ -7,24 +7,59 @@ pipeline {
     }
 
     stages {
-        stage('Test and package') {
+        stage('Clean backend outputs') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon clean build'
-                }
-            }
-            post {
-                always {
-                    junit testResults: 'backend/build/test-results/test/*.xml', allowEmptyResults: false
+                    sh './gradlew --no-daemon clean'
                 }
             }
         }
 
-        stage('Validate Compose') {
+        stage('Compile backend') {
+            steps {
+                dir('backend') {
+                    sh './gradlew --no-daemon compileKotlin'
+                }
+            }
+        }
+
+        stage('Compile backend tests') {
+            steps {
+                dir('backend') {
+                    sh './gradlew --no-daemon compileTestKotlin'
+                }
+            }
+        }
+
+        stage('Backend unit tests') {
+            steps {
+                dir('backend') {
+                    sh './gradlew --no-daemon test'
+                }
+            }
+            post { always { junit testResults: 'backend/build/test-results/test/*.xml', allowEmptyResults: false } }
+        }
+
+        stage('Package backend') {
+            steps {
+                dir('backend') {
+                    sh './gradlew --no-daemon build'
+                }
+            }
+        }
+
+        stage('Validate development Compose') {
             steps {
                 sh '''
-                    docker compose --env-file .env.dev.example -f docker-compose.dev.yml config --quiet
-                    docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet
+                docker compose --env-file .env.dev.example -f docker-compose.dev.yml config --quiet
+                '''
+            }
+        }
+
+        stage('Validate production Compose') {
+            steps {
+                sh '''
+                docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet
                 '''
             }
         }

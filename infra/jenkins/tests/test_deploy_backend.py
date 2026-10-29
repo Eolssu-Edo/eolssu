@@ -1,5 +1,8 @@
 """배포 실패·중단 시 실제 env/상태 파일의 복구 계약을 검사한다."""
 import importlib.util
+import contextlib
+import io
+from unittest.mock import patch
 import fcntl
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -14,6 +17,93 @@ import unittest
 spec = importlib.util.spec_from_file_location('deploy_backend', Path(__file__).parents[1] / 'deploy-backend.py')
 deploy = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(deploy)
+
+
+class ReleaseOrderTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.repo = self.root / 'repo'
+        self.remote = self.root / 'remote.git'
+        self.git('init', '--bare', str(self.remote))
+        self.git('clone', str(self.remote), str(self.repo))
+        self.git('-C', str(self.repo), 'checkout', '-b', 'develop')
+        self.first = self.commit('first')
+        self.second = self.commit('second')
+        self.third = self.commit('third')
+        self.git('-C', str(self.repo), 'push', 'origin', 'develop')
+
+    def git(self, *args):
+        return subprocess.run(['git', *args], check=True, text=True, capture_output=True).stdout.strip()
+
+    def commit(self, value):
+        (self.repo / 'file').write_text(value)
+        self.git('-C', str(self.repo), 'add', 'file')
+        self.git('-C', str(self.repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.test',
+                 'commit', '-m', value)
+        return self.git('-C', str(self.repo), 'rev-parse', 'HEAD')
+
+    def check(self, candidate, current):
+        deploy.check_release_order(candidate, current, repository=self.repo, git_prefix=())
+
+    def test_build_revision_can_lag_develop_head(self):
+        self.check(self.second, self.first)
+
+    def test_older_candidate_cannot_replace_deployed_revision(self):
+        with self.assertRaisesRegex(deploy.DeployError, 'older than'):
+            self.check(self.first, self.second)
+
+    def test_same_revision_and_initial_release_are_allowed(self):
+        self.check(self.second, self.second)
+        self.check(self.first, 'bootstrap')
+
+    def test_candidate_outside_develop_is_rejected(self):
+        self.git('-C', str(self.repo), 'checkout', '-b', 'other', self.first)
+        other = self.commit('other')
+        with self.assertRaisesRegex(deploy.DeployError, 'develop history'):
+            self.check(other, self.first)
+
+    def test_unknown_commit_does_not_change_runtime(self):
+        with self.assertRaises(deploy.DeployError):
+            self.check('f' * 40, self.first)
+
+    def test_diverged_deployed_history_is_not_silently_overwritten(self):
+        self.git('-C', str(self.repo), 'checkout', '-b', 'other', self.first)
+        other = self.commit('other')
+        with self.assertRaisesRegex(deploy.DeployError, 'diverged'):
+            self.check(self.second, other)
+
+    def test_backend_uses_active_release_after_rollback_not_failed_journal_sha(self):
+        active = self.root / 'releases' / self.first / 'app.jar'
+        active.parent.mkdir(parents=True)
+        active.write_bytes(b'active')
+        (self.root / '.env').write_text(f'BACKEND_JAR={active}\n')
+        d = deploy.Deployer(self.root)
+        d.state.write_text(json.dumps({'status': 'rolled_back', 'sha': self.third}))
+        original = deploy.check_release_order
+        with patch.object(deploy, 'check_release_order',
+                          side_effect=lambda sha, current: original(sha, current, self.repo, ())):
+            d.check_order(self.second)
+            active_next = active.parent.parent / self.second / 'app.jar'
+            active_next.parent.mkdir()
+            active_next.write_bytes(b'next')
+            (self.root / '.env').write_text(f'BACKEND_JAR={active_next}\n')
+            with self.assertRaisesRegex(deploy.DeployError, 'older than'):
+                d.check_order(self.first)
+
+
+class PhaseTests(unittest.TestCase):
+    def test_failed_phase_is_reported_without_exception_secrets(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            with self.assertRaises(ValueError):
+                with deploy.phase('Candidate health'):
+                    raise ValueError('secret-value')
+        events = [json.loads(line) for line in output.getvalue().splitlines()]
+        self.assertEqual([e['event'] for e in events], ['phase_started', 'phase_failed'])
+        self.assertEqual(events[-1]['phase'], 'Candidate health')
+        self.assertNotIn('secret-value', output.getvalue())
 
 
 class ProbeTests(unittest.TestCase):
