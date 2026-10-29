@@ -66,7 +66,7 @@ import com.ssafy.eolssu.feature.guide.component.ReadingBookNav
 import com.ssafy.eolssu.feature.guide.component.ReadingTocButton
 import com.ssafy.eolssu.feature.guide.component.ReadingTocMenu
 import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
-import com.ssafy.eolssu.feature.guide.component.SigimsaeMoreBlock
+import com.ssafy.eolssu.feature.guide.component.SigimsaeMorePage
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.title
@@ -80,10 +80,10 @@ import kotlin.math.abs
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * GUIDE-02 정간보 쉽게 읽기. 정간보란 · 1 읽는 순서 · 2 음의 길이 · 3 음의 높낮이 · 4 시김새를 한 쪽씩 둔 책이다.
+ * GUIDE-02 정간보 쉽게 읽기. 정간보란 · 1 읽는 순서 · 2 음의 길이 · 3 음의 높낮이 · 4 시김새 · 더 많은 시김새를 한 쪽씩 둔 책이다.
  * 휴대폰은 쪽 목차 토글 · 가로로 넘기는 쪽 · 이전/점/다음으로 한 쪽씩 보고(키보드 ←·→ · PageUp·PageDown, 목차는 Esc로 닫음),
  * 태블릿은 넘기지 않고 모든 쪽을 격자로 펼친다([readingTabletRows]).
- * 상태는 지금 쪽 · 목차 열림 · '더 많은 시김새' 펼침뿐이라 ViewModel 없이 화면이 들고 있다.
+ * 상태는 지금 쪽 · 목차 열림 · 시김새 창 · '더 많은 시김새'에서 설명을 펼친 칸뿐이라 ViewModel 없이 화면이 들고 있다.
  *
  * @param initialPage 처음 펼칠 쪽. 기초부터 배우기 7·8·9단계가 해당 쪽을 넘긴다.
  */
@@ -93,15 +93,15 @@ fun ReadingScreen(
     initialPage: ReadingPage = ReadingPage.Intro,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
 ) {
-    var moreExpanded by rememberSaveable { mutableStateOf(false) }
+    var moreTip by rememberSaveable { mutableStateOf<Int?>(null) }
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack, widthClass = widthClass) },
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
         if (widthClass == WindowWidthClass.Compact) {
-            ReadingBook(initialPage, moreExpanded, onToggleMore = { moreExpanded = !moreExpanded })
+            ReadingBook(initialPage, moreTip, onMoreTip = { moreTip = it })
         } else {
-            ReadingTabletGrid(widthClass, moreExpanded, onToggleMore = { moreExpanded = !moreExpanded })
+            ReadingTabletGrid(widthClass, moreTip, onMoreTip = { moreTip = it })
         }
     }
 }
@@ -109,7 +109,7 @@ fun ReadingScreen(
 /** 휴대폰: 한 쪽씩 넘기는 책. 보이지 않는 쪽은 화면 읽기·누르기에서 뺀다. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun ReadingBook(initialPage: ReadingPage, moreExpanded: Boolean, onToggleMore: () -> Unit) {
+private fun ReadingBook(initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int?) -> Unit) {
     val pages = ReadingPage.entries
     val pagerState = rememberPagerState(initialPage = initialPage.ordinal) { pages.size }
     var tocOpen by rememberSaveable { mutableStateOf(false) }
@@ -162,8 +162,8 @@ private fun ReadingBook(initialPage: ReadingPage, moreExpanded: Boolean, onToggl
                                 sigimsaeColumns = 1,
                                 moreColumns = 4,
                                 animate = visible && page == ReadingPage.Order,
-                                moreExpanded = moreExpanded,
-                                onToggleMore = onToggleMore,
+                                moreTip = moreTip,
+                                onMoreTip = onMoreTip,
                                 interactive = visible,
                             )
                         }
@@ -222,7 +222,7 @@ private fun Modifier.mouseDragPaging(state: PagerState): Modifier = pointerInput
 
 /** 태블릿: 넘기지 않고 모든 쪽을 격자로 펼친다. 세로 2열 · 가로 3열이고 같은 줄 카드의 높이를 맞춘다. 읽는 순서 그림은 늘 움직인다. */
 @Composable
-private fun ReadingTabletGrid(widthClass: WindowWidthClass, moreExpanded: Boolean, onToggleMore: () -> Unit) {
+private fun ReadingTabletGrid(widthClass: WindowWidthClass, moreTip: Int?, onMoreTip: (Int?) -> Unit) {
     val expanded = widthClass == WindowWidthClass.Expanded
     val side = widthClass.guideSidePadding
     Column(
@@ -244,8 +244,8 @@ private fun ReadingTabletGrid(widthClass: WindowWidthClass, moreExpanded: Boolea
                         sigimsaeColumns = if (expanded) 3 else 2,
                         moreColumns = if (expanded) 9 else 6,
                         animate = true,
-                        moreExpanded = moreExpanded,
-                        onToggleMore = onToggleMore,
+                        moreTip = moreTip,
+                        onMoreTip = onMoreTip,
                     )
                 }
             }
@@ -261,8 +261,8 @@ private fun ReadingPageCard(
     sigimsaeColumns: Int,
     moreColumns: Int,
     animate: Boolean,
-    moreExpanded: Boolean,
-    onToggleMore: () -> Unit,
+    moreTip: Int?,
+    onMoreTip: (Int?) -> Unit,
     interactive: Boolean = true,
 ) {
     when (page) {
@@ -271,14 +271,23 @@ private fun ReadingPageCard(
         ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = page.title()) { LengthRow() }
         ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = page.title()) { PitchSteps() }
         ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = page.title(), small = stringResource(Res.string.guide_reading_sigimsae_small)) {
-            SigimsaeBasicBlock(columns = sigimsaeColumns)
-            SigimsaeMoreBlock(moreExpanded, onToggle = onToggleMore, columns = moreColumns, enabled = interactive)
-            Text(
-                stringResource(Res.string.guide_sigimsae_credit),
-                Modifier.padding(top = 16.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = EolssuTheme.colors.textMuted,
-            )
+            SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive)
+            SigimsaeCredit()
+        }
+        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = page.title(), small = "$MoreSigimsaeCount", subMark = true) {
+            SigimsaeMorePage(moreTip, onMoreTip, columns = moreColumns, enabled = interactive)
+            SigimsaeCredit()
         }
     }
+}
+
+/** 기호 그림 출처(`.sig-credit`). */
+@Composable
+private fun SigimsaeCredit() {
+    Text(
+        stringResource(Res.string.guide_sigimsae_credit),
+        Modifier.padding(top = 16.dp),
+        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+        color = EolssuTheme.colors.textMuted,
+    )
 }

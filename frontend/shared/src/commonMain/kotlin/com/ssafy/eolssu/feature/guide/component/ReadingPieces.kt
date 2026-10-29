@@ -26,14 +26,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -74,11 +82,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.guide.BasicSigimsae
 import com.ssafy.eolssu.feature.guide.BasicSigimsaeCount
 import com.ssafy.eolssu.feature.guide.MoreSigimsae
-import com.ssafy.eolssu.feature.guide.MoreSigimsaeCount
 import com.ssafy.eolssu.feature.guide.SigimsaeItem
+import com.ssafy.eolssu.feature.guide.SigimsaeSymbol
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_reading_intro_cell
 import eolssu.shared.generated.resources.guide_reading_intro_cell_desc
@@ -106,9 +115,10 @@ import eolssu.shared.generated.resources.guide_reading_pitch_low
 import eolssu.shared.generated.resources.guide_reading_pitch_low_gloss
 import eolssu.shared.generated.resources.guide_reading_pitch_low_term
 import eolssu.shared.generated.resources.guide_sigimsae_basic
-import eolssu.shared.generated.resources.guide_sigimsae_collapse
-import eolssu.shared.generated.resources.guide_sigimsae_expand
-import eolssu.shared.generated.resources.guide_sigimsae_more
+import eolssu.shared.generated.resources.guide_sigimsae_tap_basic
+import eolssu.shared.generated.resources.guide_sigimsae_tap_more
+import eolssu.shared.generated.resources.guide_sigimsae_tip_closed
+import eolssu.shared.generated.resources.guide_sigimsae_tip_open
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -120,7 +130,7 @@ import kotlin.math.roundToInt
  */
 
 /**
- * 설명 카드(`.gcard`). [mark]가 있으면 검은 원 표시와 [title]을, [small]이 있으면 그 옆에 작은 회색 글을 단다.
+ * 설명 카드(`.gcard`). [mark]가 있으면 검은 원 표시(딸린 쪽이면 [subMark]로 흰 원)와 [title]을, [small]이 있으면 그 옆에 작은 회색 글을 단다.
  * [intro]이면 회색 바탕에 테두리 없이 그린다(정간보란).
  */
 @Composable
@@ -130,6 +140,7 @@ internal fun GuideCard(
     title: String? = null,
     small: String? = null,
     intro: Boolean = false,
+    subMark: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
@@ -139,7 +150,7 @@ internal fun GuideCard(
     Column(m.padding(horizontal = 14.dp, vertical = 16.dp)) {
         if (title != null) {
             Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (mark != null) PageMark(mark)
+                if (mark != null) PageMark(mark, sub = subMark)
                 Text(
                     buildAnnotatedString {
                         append(title)
@@ -156,12 +167,17 @@ internal fun GuideCard(
     }
 }
 
-/** 쪽 표시(`.rb-mark`): 검은 원 안의 번호. 정간보란의 井은 세리프로 쓴다. */
+/** 쪽 표시(`.rb-mark`): 검은 원 안의 번호. 정간보란의 井은 세리프로 쓴다. 앞 쪽에 딸린 쪽([sub])은 검은 테두리의 흰 원이다. */
 @Composable
-internal fun PageMark(mark: String, modifier: Modifier = Modifier) {
+internal fun PageMark(mark: String, modifier: Modifier = Modifier, sub: Boolean = false) {
     val colors = EolssuTheme.colors
     val han = mark.firstOrNull()?.isDigit() == false
-    Box(modifier.size(24.dp).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
+    val circle = if (sub) {
+        modifier.size(24.dp).background(colors.background, CircleShape).border(1.5.dp, colors.text, CircleShape)
+    } else {
+        modifier.size(24.dp).background(colors.primary, CircleShape)
+    }
+    Box(circle, contentAlignment = Alignment.Center) {
         Text(
             mark,
             style = if (han) {
@@ -169,7 +185,7 @@ internal fun PageMark(mark: String, modifier: Modifier = Modifier) {
             } else {
                 MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold)
             },
-            color = colors.onPrimary,
+            color = if (sub) colors.text else colors.onPrimary,
         )
     }
 }
@@ -638,37 +654,62 @@ private fun PitchStepCell(step: PitchStep) {
  * (`.sig-glyph img`의 `height` · `max-width` · `object-fit: contain`).
  */
 @Composable
-private fun SigimsaeImage(image: DrawableResource, height: Dp, maxWidth: Dp) {
+internal fun SigimsaeImage(image: DrawableResource, height: Dp, maxWidth: Dp) {
     val painter = painterResource(image)
     val ratio = painter.intrinsicSize.let { if (it.height > 0f) it.width / it.height else 1f }
     val width = minOf(height * ratio, maxWidth)
     Image(painter, contentDescription = null, modifier = Modifier.size(width, height), contentScale = ContentScale.Fit)
 }
 
+/** 창에서 꺼내 쓰도록 처음 배우는 시김새를 무리의 범례 문구와 함께 한 줄로 편다. 목록의 줄 번호가 이 순서를 가리킨다. */
+private val BasicSigimsaeEntries: List<Pair<SigimsaeItem, String?>> = BasicSigimsae.flatMap { group -> group.items.map { it to group.hint } }
+
 /**
- * 4 시김새의 '처음 배우는 시김새'(`.sig-block`): 무리마다 기호 · 이름 · 짧은 설명 한 줄.
+ * 4 시김새의 '처음 배우는 시김새'(`.sig-block`): 무리마다 기호 · 이름 · 짧은 설명 한 줄. 줄 전체가 단추이고,
+ * 누르면 부는 모양을 그리는 창([SigimsaeDialog])을 연다. 닫으면 초점을 누른 줄로 돌려놓는다.
  *
  * @param columns 기호 목록 칸 수. 태블릿은 세로 2칸 · 가로 3칸(`.tabapp .sig-block .sig-list`)이고, 이때는 모든 기호 아래에 선을 긋는다.
+ * @param enabled 넘기는 책에서 보이지 않는 쪽이면 거짓이라 누를 수 없다.
  */
 @Composable
-internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1) {
+internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
+    var open by rememberSaveable { mutableStateOf<Int?>(null) }
+    var refocus by remember { mutableStateOf<Int?>(null) }
+    val rows = remember { List(BasicSigimsaeEntries.size) { FocusRequester() } }
     Column(modifier.fillMaxWidth()) {
         CountTitle(stringResource(Res.string.guide_sigimsae_basic), BasicSigimsaeCount, 15.sp)
+        TapHint(stringResource(Res.string.guide_sigimsae_tap_basic), Modifier.padding(top = 4.dp))
+        var start = 0
         BasicSigimsae.forEach { group ->
+            val first = start
+            start += group.items.size
             Column(Modifier.padding(top = 16.dp)) {
                 Text(group.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
                 if (columns <= 1) {
                     Column(Modifier.padding(top = 4.dp)) {
-                        group.items.forEachIndexed { i, item -> SigimsaeRow(item, last = i == group.items.lastIndex) }
+                        group.items.forEachIndexed { i, item ->
+                            SigimsaeRow(item, last = i == group.items.lastIndex, rows[first + i], enabled) { open = first + i }
+                        }
                     }
                 } else {
-                    GuideGrid(group.items, columns, Modifier.padding(top = 4.dp), horizontalGap = 28.dp, verticalGap = 0.dp) { _, item, cell ->
-                        SigimsaeRow(item, last = false, modifier = cell, stretch = true)
+                    GuideGrid(group.items, columns, Modifier.padding(top = 4.dp), horizontalGap = 28.dp, verticalGap = 0.dp) { i, item, cell ->
+                        SigimsaeRow(item, last = false, rows[first + i], enabled, modifier = cell, stretch = true) { open = first + i }
                     }
                 }
             }
         }
+    }
+    open?.let { index ->
+        val (item, hint) = BasicSigimsaeEntries[index]
+        SigimsaeDialog(item, hint) {
+            open = null
+            refocus = index
+        }
+    }
+    LaunchedEffect(refocus) {
+        refocus?.let { runCatching { rows[it].requestFocus() } }
+        refocus = null
     }
 }
 
@@ -686,23 +727,38 @@ private fun CountTitle(title: String, count: Int, fontSize: TextUnit, modifier: 
     )
 }
 
-/** 기호 한 줄(`.sig-item`): 기호 44 · 이름 66 · 설명. 이름 칸 너비를 고정해 설명이 모두 같은 세로줄에서 시작한다. [stretch]이면 격자 한 줄의 높이에 맞춰 아래 선을 칸끼리 맞춘다. */
+/** 누르는 법 안내(`.sig-tap`). */
 @Composable
-private fun SigimsaeRow(item: SigimsaeItem, last: Boolean, modifier: Modifier = Modifier, stretch: Boolean = false) {
+private fun TapHint(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = EolssuTheme.colors.textMuted)
+}
+
+/**
+ * 기호 한 줄(`.sig-item`): 기호 44 · 이름 66 · 설명 · 화살표 18. 이름 칸 너비를 고정해 설명이 모두 같은 세로줄에서 시작한다.
+ * 줄 전체가 창을 여는 단추다. [stretch]이면 격자 한 줄의 높이에 맞춰 아래 선을 칸끼리 맞춘다.
+ */
+@Composable
+private fun SigimsaeRow(
+    item: SigimsaeItem,
+    last: Boolean,
+    focusRequester: FocusRequester,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    stretch: Boolean = false,
+    onClick: () -> Unit,
+) {
     val colors = EolssuTheme.colors
     Column(modifier) {
         Row(
-            Modifier.fillMaxWidth().padding(top = 10.dp, bottom = if (last) 0.dp else if (stretch) 12.dp else 10.dp),
+            Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .padding(top = 10.dp, bottom = if (last) 0.dp else if (stretch) 12.dp else 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                Modifier.size(44.dp).background(colors.surface, RoundedCornerShape(12.dp)),
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                item.images.forEach { SigimsaeImage(it, 26.dp, if (item.images.size > 1) 18.dp else 34.dp) }
-            }
+            SigimsaeGlyph(item, box = 44.dp, imageHeight = 26.dp, imageMaxWidth = if (item.images.size > 1) 18.dp else 34.dp)
             Text(item.name, Modifier.width(66.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
             FlowRow(
                 Modifier.weight(1f),
@@ -711,15 +767,9 @@ private fun SigimsaeRow(item: SigimsaeItem, last: Boolean, modifier: Modifier = 
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(item.description, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 19.6.sp), color = colors.textMuted)
-                if (item.chip != null) {
-                    Box(
-                        Modifier.height(20.dp).border(1.dp, colors.line, RoundedCornerShape(10.dp)).padding(horizontal = 7.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(item.chip, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 11.sp), color = colors.textMuted)
-                    }
-                }
+                if (item.chip != null) SigimsaeChip(item.chip)
             }
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
         }
         if (stretch) Spacer(Modifier.weight(1f))
         if (!last) HorizontalDivider(color = colors.line)
@@ -727,56 +777,96 @@ private fun SigimsaeRow(item: SigimsaeItem, last: Boolean, modifier: Modifier = 
 }
 
 /**
- * '더 많은 시김새'(`.sig-more`). 처음에는 접어 둔다.
- * 와이어프레임은 시김새 다음 쪽으로 펼쳐 두지만, 그 쪽은 S15P31E102-236에서 옮기므로 그때까지 시김새 쪽 아래에 접어 둔다.
+ * '더 많은 시김새' 쪽(`.sig-more`): 35개를 늘 펼쳐 둔다. 칸을 누르면 그 칸이 있는 줄 바로 아래에 이름 · 한 줄 설명 말풍선이 나오고,
+ * 같은 칸을 다시 누르면 접힌다. 말풍선 꼬리는 누른 칸의 가운데를 가리킨다.
  *
+ * @param selected 설명을 펼친 칸. 두 무리를 이어 센 번호다.
  * @param columns 기호 격자 칸 수. 휴대폰 4칸, 태블릿 세로 6칸 · 가로 9칸(`.tabapp .sig-grid`).
  * @param enabled 넘기는 책에서 보이지 않는 쪽이면 거짓이라 누를 수 없다.
  */
 @Composable
-internal fun SigimsaeMoreBlock(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier, columns: Int = 4, enabled: Boolean = true) {
-    val colors = EolssuTheme.colors
-    val toggleLabel = stringResource(if (expanded) Res.string.guide_sigimsae_collapse else Res.string.guide_sigimsae_expand)
-    Column(modifier.fillMaxWidth().padding(top = 20.dp)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.surface)
-                .clickable(enabled = enabled, role = Role.Button, onClick = onToggle)
-                .semantics { stateDescription = toggleLabel }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CountTitle(stringResource(Res.string.guide_sigimsae_more), MoreSigimsaeCount, 14.sp, Modifier.weight(1f))
-            Text(toggleLabel, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium), color = colors.textMuted)
-        }
-        if (expanded) {
-            MoreSigimsae.forEach { group ->
-                CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = 16.dp))
-                Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    group.symbols.chunked(columns).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            row.forEach { symbol ->
-                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Box(
-                                        Modifier.fillMaxWidth().height(48.dp).background(colors.surface, RoundedCornerShape(12.dp)),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        SigimsaeImage(symbol.image, 24.dp, 34.dp)
-                                    }
-                                    Text(
-                                        symbol.name,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = FontWeight.Medium),
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
-                            }
-                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+internal fun SigimsaeMorePage(selected: Int?, onSelect: (Int?) -> Unit, columns: Int, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Column(modifier.fillMaxWidth()) {
+        TapHint(stringResource(Res.string.guide_sigimsae_tap_more))
+        var start = 0
+        MoreSigimsae.forEachIndexed { g, group ->
+            val first = start
+            start += group.symbols.size
+            CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = if (g == 0) 12.dp else 16.dp))
+            Column(Modifier.padding(top = 8.dp)) {
+                group.symbols.chunked(columns).forEachIndexed { r, row ->
+                    if (r > 0) Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEachIndexed { k, symbol ->
+                            val index = first + r * columns + k
+                            SigimsaeTile(symbol, on = index == selected, enabled, Modifier.weight(1f)) { onSelect(if (index == selected) null else index) }
                         }
+                        repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    val at = selected?.minus(first + r * columns)
+                    if (at != null && at in row.indices) SigimsaeTip(row[at], (at + 0.5f) / columns)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val state = stringResource(if (on) Res.string.guide_sigimsae_tip_open else Res.string.guide_sigimsae_tip_closed)
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { stateDescription = state },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        // 녹색 테두리 = 고른 칸
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .background(if (on) colors.background else colors.surface, shape)
+                .border(1.5.dp, if (on) colors.green else Color.Transparent, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            SigimsaeImage(symbol.image, 24.dp, 34.dp)
+        }
+        Text(
+            symbol.name,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.5.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium),
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * 한 줄 전체의 설명 말풍선(`.sig-tip`). 꼬리는 너비의 [at] 비율 자리를 가리킨다.
+ * 꼬리(12dp 네모를 45° 돌린 위 절반)는 칸 줄과 말풍선 사이 8dp에 그린다.
+ */
+@Composable
+private fun SigimsaeTip(symbol: SigimsaeSymbol, at: Float) {
+    val colors = EolssuTheme.colors
+    Column(Modifier.fillMaxWidth()) {
+        Canvas(Modifier.fillMaxWidth().height(8.dp)) {
+            val half = 6.dp.toPx() * 1.4142f
+            val x = size.width * at
+            drawPath(Path().apply { moveTo(x - half, size.height); lineTo(x, size.height - half); lineTo(x + half, size.height); close() }, colors.surface)
+        }
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(symbol.name) }
+                append("  ")
+                append(symbol.description)
+            },
+            Modifier
+                .fillMaxWidth()
+                .background(colors.surface, RoundedCornerShape(10.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, lineHeight = 19.6.sp),
+            color = colors.text,
+        )
     }
 }

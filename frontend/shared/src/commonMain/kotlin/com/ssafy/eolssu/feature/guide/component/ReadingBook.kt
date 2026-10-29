@@ -52,6 +52,7 @@ import eolssu.shared.generated.resources.guide_reading_length
 import eolssu.shared.generated.resources.guide_reading_order
 import eolssu.shared.generated.resources.guide_reading_pitch
 import eolssu.shared.generated.resources.guide_reading_sigimsae
+import eolssu.shared.generated.resources.guide_sigimsae_more
 import org.jetbrains.compose.resources.stringResource
 
 /*
@@ -67,6 +68,7 @@ internal fun ReadingPage.title(): String = stringResource(
         ReadingPage.Length -> Res.string.guide_reading_length
         ReadingPage.Pitch -> Res.string.guide_reading_pitch
         ReadingPage.Sigimsae -> Res.string.guide_reading_sigimsae
+        ReadingPage.SigimsaeMore -> Res.string.guide_sigimsae_more
     },
 )
 
@@ -90,7 +92,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        PageMark(page.mark)
+        PageMark(page.mark, sub = page.sub)
         Text(
             page.title(),
             Modifier.weight(1f),
@@ -129,7 +131,7 @@ internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Uni
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                PageMark(page.mark)
+                PageMark(page.mark, sub = page.sub)
                 Text(page.title(), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal))
             }
         }
