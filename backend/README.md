@@ -76,7 +76,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db`·`ops` 프로필에서 제공하며 모두 로그인(access_token 쿠키)이 필요합니다. 토큰은 유효하지만 회원이 없거나 ACTIVE가 아니면 401 `UNAUTHENTICATED`입니다(회원 행이 없을 때 401은 GRO-04와 같음).
 
-- `GET /api/users/me`: 닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 이메일·제공자 사용자 ID는 내보내지 않습니다.
+- `GET /api/users/me`: 본인 이메일·닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 비밀번호 해시와 간편 로그인 제공자의 사용자 ID·이메일은 내보내지 않습니다. 닉네임·악기·표기 저장 응답에는 이메일을 넣지 않습니다.
 - `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 60자 이하).
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
 - `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
