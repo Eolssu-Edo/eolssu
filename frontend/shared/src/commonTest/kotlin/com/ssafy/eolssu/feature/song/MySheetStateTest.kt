@@ -38,6 +38,29 @@ class MySheetStateTest {
     }
 
     @Test
+    fun addSheetReopensWhenBackFromPdfUploadWithoutSaving() {
+        val left = MySongsUiState(addSheetOpen = true).receiveSheets(listOf(sheet("a"))).leaveForPdfUpload()
+        assertFalse(left.addSheetOpen, "다른 화면 위에 겹치지 않게 떠날 때 닫는다")
+
+        val back = left.returnToScreen()
+        assertTrue(back.addSheetOpen)
+        assertFalse(back.copy(addSheetOpen = false).returnToScreen().addSheetOpen, "한 번만 다시 연다")
+    }
+
+    @Test
+    fun addSheetStaysClosedWhenBackAfterSaving() {
+        val left = MySongsUiState().receiveSheets(listOf(sheet("a"))).leaveForPdfUpload()
+        val back = left.receiveSheets(listOf(sheet("new"), sheet("a"))).returnToScreen()
+        assertFalse(back.addSheetOpen)
+        assertEquals("new", back.savedSheet?.id)
+    }
+
+    @Test
+    fun returningFromOtherScreensKeepsAddSheetClosed() {
+        assertFalse(MySongsUiState().returnToScreen().addSheetOpen)
+    }
+
+    @Test
     fun sameSheetsAgainShowNoNotice() {
         val loaded = MySongsUiState().receiveSheets(listOf(sheet("a")))
         assertNull(loaded.receiveSheets(listOf(sheet("a"))).savedSheet)

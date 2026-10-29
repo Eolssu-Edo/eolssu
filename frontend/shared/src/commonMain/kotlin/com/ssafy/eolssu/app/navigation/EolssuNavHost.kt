@@ -9,10 +9,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -142,11 +144,14 @@ fun EolssuNavHost(
                     onStartMessageShown = entry::clearStartNotice,
                 )
             }
-            composable(EolssuDestination.SONG_LIST) {
+            composable(EolssuDestination.SONG_LIST) { entry ->
+                val pickSongId by entry.savedStateHandle.getStateFlow<String?>(PICK_SONG_KEY, null).collectAsStateWithLifecycle()
                 SongListRoute(
                     onBack = { navController.popBackStack() },
                     onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
                     onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                    pickSongId = pickSongId,
+                    onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
                 )
             }
             composable(
@@ -154,21 +159,15 @@ fun EolssuNavHost(
                 arguments = listOf(navArgument("songId") { type = NavType.StringType }),
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
-                // 태블릿 가로·넓은 창은 곡 목록 + 곡 상세 두 칸으로 보이고 이 곡을 고른다(세로·휴대폰은 곡 상세 한 화면).
+                // 태블릿 가로·넓은 창은 곡 목록 + 곡 상세 두 칸(곡 목록 경로)으로 이 곡을 골라 보인다(세로·휴대폰은 곡 상세 한 화면).
                 if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
-                    SongListRoute(
-                        onBack = { navController.popBackStack() },
-                        onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
-                        onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-                        initialSongId = songId,
-                    )
-                } else {
-                    SongDetailRoute(
-                        songId = songId,
-                        onBack = { navController.popBackStack() },
-                        onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
-                    )
+                    LaunchedEffect(Unit) { navController.showSongInList(songId) }
                 }
+                SongDetailRoute(
+                    songId = songId,
+                    onBack = { navController.popBackStack() },
+                    onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
+                )
             }
             composable(
                 EolssuDestination.PRACTICE,
@@ -380,6 +379,24 @@ fun EolssuNavHost(
         SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
+}
+
+/** 곡 목록 경로에 두 칸 화면에서 직접 고른 것으로 둘 곡을 넘기는 키. */
+private const val PICK_SONG_KEY = "pickSong"
+
+/**
+ * 곡 상세를 곡 목록 두 칸 화면으로 바꿔 [songId]를 고른다. 아래가 곡 목록이면 그리로 돌아가고,
+ * 아니면(배우기 등에서 곡 상세를 바로 열었으면) 곡 상세를 곡 목록으로 바꿔 끼운다. 어느 쪽이든 뒤로 가기 한 번에 곡 목록을 연 화면으로 간다.
+ */
+private fun NavController.showSongInList(songId: String) {
+    val previous = previousBackStackEntry
+    if (previous?.destination?.route == EolssuDestination.SONG_LIST) {
+        previous.savedStateHandle[PICK_SONG_KEY] = songId
+        popBackStack()
+    } else {
+        navigate(EolssuDestination.SONG_LIST) { popUpTo(EolssuDestination.SONG_DETAIL) { inclusive = true } }
+        currentBackStackEntry?.savedStateHandle?.set(PICK_SONG_KEY, songId)
+    }
 }
 
 /** 기초부터 배우기의 단계 목록·상세가 함께 쓰는 ViewModel. 그래프 `learn`을 벗어나면 사라진다. */
