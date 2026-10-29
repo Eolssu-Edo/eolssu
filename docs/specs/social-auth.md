@@ -1,6 +1,6 @@
 # 간편 로그인과 계정 연결
 
-- 작업 S15P31E102-211, [계획·확정 사항](../plans/S15P31E102-211.md). 상태: 전체 기능 미완료. 서버 코드의 리뷰 지적 수정·로컬 검증을 마쳤으며 정식 재검토·제공자 키 발급·앱 등록/콜백 합의·실제 통합 확인이 남았다. 설정이 없으면 해당 제공자 인증은503이다.
+- 작업 S15P31E102-211, [계획·확정 사항](../plans/S15P31E102-211.md). 상태: 전체 기능 미완료. 서버 코드의 리뷰 지적 수정·정식 재검토·로컬 검증을 마쳤으며 제공자 키 주입·콜백 합의·실제 통합 확인이 남았다. 설정이 없으면 해당 제공자 인증은503이다.
 - 제공자: kakao·google·naver. 가입은 이메일/비밀번호만 허용하고 소셜 신규 회원은 만들지 않는다.
 - POST /api/auth/oauth/{provider}: authorizationCode·redirectUri·state. 연결된 제공자 사용자 ID로 로그인(기존 쿠키 정책), 미연결이며 제공자 이메일과 같은 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE와 mergeTicket·maskedEmail·providerEmailVerified·expiresAt. 나머지는401 SOCIAL_ACCOUNT_NOT_REGISTERED. mergeTicket 유효기간10분.
 - POST /api/auth/oauth/merge: mergeTicket. 제공자 확인 이메일이 아니면 password 또는 ACCOUNT_MERGE verificationToken 필요. 증명 없으면422 IDENTITY_CONFIRMATION_REQUIRED, 본인 확인 실패401 INVALID_CREDENTIALS, 만료/사용 티켓410 MERGE_TICKET_EXPIRED. 성공은 기존 회원으로 로그인하고 연결 제공자 목록을 반환한다.
@@ -46,6 +46,8 @@
 
 준비 상태: 카카오 얼쑤 앱1628175 생성·로그인 ON 확인. OIDC는 OFF이며 추가 개인정보 동의항목·허용 콜백·서버 키 주입·실제 인증 검증은 미완료다. Google/Naver 콘솔 상태는 아직 확인하지 않았다. App Links는 서버 제공 코드만 준비됐고 실제 설치 APK의 공개 서명 지문·환경 주입·도메인 검증은 대기다.
 
+카카오 이메일 준비 제약(2026-10-29 콘솔 확인): account_email은 권한 없음이며 추가 기능 신청은 비즈 앱 전환 전 차단된다. 일반 설정은 비즈 앱 전환 시 이메일 필수 동의 설정 가능, 사업자 번호 없는 개인 개발자는 본인인증·카카오비즈니스 통합 서비스 약관 동의 후 전환 가능하다고 안내한다. 본인 계정의 인증·약관 절차는 사용자가 수행하고 전환 후 이메일 설정 가능 상태를 다시 확인한다. 닉네임·프로필 사진 등 불필요한 동의항목은 활성화하지 않는다. 이메일이 없어도 이미 연결된 제공자 ID는 로그인할 수 있고, 미연결 계정은401 SOCIAL_ACCOUNT_NOT_REGISTERED로 이메일 가입을 안내한다.
+
 ### 서버 App Links 제공 계약
 
 BE 준비 범위를 먼저 마친 뒤 FE에 전달한다는 사용자 지시에 따라, GET /.well-known/assetlinks.json의 서버/Nginx 제공 경로를 준비한다. AUTH_ANDROID_APP_SHA256_FINGERPRINTS에 실제 설치 APK의 공개 SHA-256 지문(쉼표 구분)을 설정했을 때만200 application/json 배열을 반환하며, 대상 패키지는 저장소의 com.ssafy.eolssu로 한정한다. 지문은64자리16진수 또는32바이트 콜론 표기를 받아 표준 콜론 대문자 형태로 정규화한다. 잘못된 지문은 기동 시 거절하고, 미설정은 기동을 허용하되404로 제공한다. 임의의 지문·기본 인증서는 두지 않는다. 인증 쿠키 없이 조회하며 API의5필드 성공 envelope는 Android의 Digital Asset Links 형식에 덧씌우지 않는다. 회원 API 인증은 유지한다. Nginx는 이 정확한 경로만 백엔드로 보내고 SPA fallback/리다이렉트를 피한다. 실제 지문 등록·도메인 검증·배포 완료는 별도다.
@@ -69,7 +71,7 @@ BE 준비 범위를 먼저 마친 뒤 FE에 전달한다는 사용자 지시에 
 - 새 시작과 onNewIntent 복귀 모두 다루고, URI의 https·정확한 호스트·허용된 경로·provider·state를 확인한다. 재생·중복 복귀와 취소를 처리하며 완료 요청은1회만 보낸다. 로그인과 마이페이지 연결의 start·완료를 섞지 않는다.
 - 현재 Android HttpClient는 SecureCookiesStorage를 공유해 서버 쿠키를 암호화 저장하며 OAuth 결속 쿠키도 이름 제한 없이 저장할 수 있다. 브라우저 대신 이 HTTP 클라이언트로 완료 API를 호출한다.
 - 현재 HttpClients.kt의401 자동 refresh/재전송 예외는 refresh·sign-in·sign-up뿐이다. 새 OAuth start/완료/merge·소셜 연결 완료는1회용 state 또는 비밀번호 시도 카운터를 소비하므로, 담당 FE가 자동 재전송 예외/명시적 요청 정책을 먼저 추가해야 한다.
-- /.well-known/assetlinks.json에는 실제 APK의 package_name과 SHA-256 공개 인증서 지문이 필요하다. 현재 Nginx에는 전용 JSON 제공 설정이 없고 SPA fallback뿐이므로 검증 파일200·application/json·리다이렉트 없음도 확인해야 한다. 서명값을 추측하거나 임의 키를 만들지 않는다.
+- /.well-known/assetlinks.json에는 실제 APK의 package_name과 SHA-256 공개 인증서 지문이 필요하다. 서버와 Nginx 전용 경로는 준비됐으며 실제 지문 주입·배포 후 검증 파일200·application/json·리다이렉트 없음을 운영 HTTPS에서 확인해야 한다. 서명값을 추측하거나 임의 키를 만들지 않는다.
 - 실기기 완료 조건: 설치 APK 링크 검증, 앱이 살아 있을 때/종료됐을 때 복귀, 쿠키 유지, 제공자 취소, 잘못된/만료/중복 state 거절, 신규 소셜 가입 거절, 동의/비밀번호/이메일 증명 연결, 연결 해제, 로그 비밀값 미노출이다. 현재는 모두 실연동 대기다.
 
 ### 권영민 인계 체크리스트
