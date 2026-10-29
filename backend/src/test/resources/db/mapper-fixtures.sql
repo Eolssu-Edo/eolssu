@@ -1,4 +1,8 @@
 -- pitches는 V5 시드(단소 율명, id 1 = 중, 2 = 임)를 쓴다.
+-- V6 시드의 악기·장단·곡은 아래 고정 데이터와 id·이름이 겹쳐 지운다. 이 파일을 쓰는 검사는 트랜잭션이 끝나면 되돌린다.
+DELETE FROM songs WHERE id BETWEEN 1 AND 4;
+DELETE FROM jangdans WHERE id BETWEEN 1 AND 3;
+DELETE FROM instruments WHERE id = 1;
 INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at)
 VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 

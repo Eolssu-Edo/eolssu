@@ -41,8 +41,8 @@ class SignUpApiDatabaseTests {
         cleanup()
         clock.set(Instant.parse("2026-10-28T03:00:00Z"))
         mail.messages.clear(); mail.fail = false
+        // 기본 악기는 V6 시드의 DANSO(id 1)를 쓴다. code가 유일해 같은 code를 따로 넣을 수 없다.
         jdbc.update("INSERT INTO pitches (id,yul,octave,hanja,hangul,semitone) VALUES (990201,'검증',0,'黃','검증',50)")
-        jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent) VALUES (990201,'DANSO','단소',990201,990201,50)")
         jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent,is_active) VALUES (990202,'AUTH207_OFF','중지',990201,990201,50,FALSE)")
         for ((id, code, required) in listOf(Triple(990211, "AGE_OVER_14", true), Triple(990212, "SERVICE_TERMS", true), Triple(990215, "MARKETING_NOTICE", false))) {
             jdbc.update(
@@ -61,7 +61,7 @@ class SignUpApiDatabaseTests {
         jdbc.update("DELETE FROM users WHERE email LIKE '%@auth207.test'")
         jdbc.update("DELETE FROM email_verifications WHERE email LIKE '%@auth207.test'")
         jdbc.update("DELETE FROM terms WHERE id BETWEEN 990211 AND 990215")
-        jdbc.update("DELETE FROM instruments WHERE id IN (990201, 990202)")
+        jdbc.update("DELETE FROM instruments WHERE id = 990202")
         jdbc.update("DELETE FROM pitches WHERE id = 990201")
     }
 
@@ -72,7 +72,7 @@ class SignUpApiDatabaseTests {
         assertEquals(201, response.statusCode(), response.body())
         val result = tree(response).path("result")
         assertEquals("CREATED", tree(response).path("httpStatus").asString())
-        assertEquals("990201", result.path("instrumentId").asString())
+        assertEquals("1", result.path("instrumentId").asString())
         assertEquals("HANJA", result.path("notationMode").asString())
         assertEquals("2026-10-28T03:00:00Z", result.path("createdAt").asString())
         val userId = result.path("userId").asString().toLong()
@@ -106,7 +106,7 @@ class SignUpApiDatabaseTests {
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = 'terms@auth207.test'", Int::class.java))
         assertNull(jdbc.queryForObject("SELECT consumed_at FROM email_verifications WHERE email = 'terms@auth207.test' AND token_hash IS NOT NULL", Any::class.java))
 
-        jdbc.update("INSERT INTO users (email,password_hash,nickname,instrument_id,status) VALUES ('terms@auth207.test','test-hash','먼저',990201,'ACTIVE')")
+        jdbc.update("INSERT INTO users (email,password_hash,nickname,instrument_id,status) VALUES ('terms@auth207.test','test-hash','먼저',1,'ACTIVE')")
         assertError(signUp("terms@auth207.test", token), 409, "EMAIL_ALREADY_EXISTS")
     }
 
