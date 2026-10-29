@@ -16,9 +16,9 @@ class AuthTokenIssuerTests {
     private val now = Instant.parse("2026-10-28T03:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val secrets = EmailVerificationSecrets(ByteArray(32) { it.toByte() })
-    private val stored = mutableListOf<Triple<Long, String, Instant>>()
+    private val stored = mutableListOf<Triple<Long, String, Instant?>>()
     private val repository = object : RefreshTokenRepository {
-        override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long {
+        override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long {
             stored.add(Triple(userId, tokenHash, expiresAt)); return stored.size.toLong()
         }
     }
@@ -37,6 +37,24 @@ class AuthTokenIssuerTests {
         assertEquals(secrets.hashToken(tokens.refreshToken), hash)
         assertNotEquals(tokens.refreshToken, hash)
         assertEquals(now.plus(Duration.ofDays(14)), expiresAt)
+    }
+
+    @Test
+    fun `only explicitly selected users receive tokens without expiration`() {
+        val issuer = AuthTokenIssuer(
+            com.ssafy.eolssu.backend.feature.auth.infrastructure.security.JwtAccessTokenSigner("test-signing-key-at-least-32-bytes-long!!"),
+            repository, secrets, clock, setOf(42),
+        )
+        val permanent = issuer.issue(42)
+        kotlin.test.assertNull(permanent.accessTokenExpiresAt)
+        kotlin.test.assertNull(permanent.refreshTokenExpiresAt)
+        kotlin.test.assertNull(stored.single().third)
+        val claims = com.nimbusds.jwt.SignedJWT.parse(permanent.accessToken).jwtClaimsSet
+        kotlin.test.assertNull(claims.expirationTime)
+        assertEquals(secrets.hashToken(permanent.refreshToken), claims.getStringClaim("session_hash"))
+        val ordinary = issuer.issue(43)
+        assertEquals(now.plusSeconds(1800), ordinary.accessTokenExpiresAt)
+        assertEquals(now.plusSeconds(1209600), ordinary.refreshTokenExpiresAt)
     }
 
     @Test

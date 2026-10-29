@@ -148,5 +148,5 @@ internal class MemorySignUpRepository : SignUpRepository, RefreshTokenRepository
     override fun activeInstrumentIdByCode(code: String) = instruments[code]
     override fun insertUser(user: NewUser, now: Instant): Long { users.add(user); return users.size.toLong() }
     override fun insertAgreements(userId: Long, agreements: List<TermAgreement>, now: Instant) { this.agreements.addAll(agreements) }
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long { refreshTokens.add(tokenHash); return refreshTokens.size.toLong() }
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long { refreshTokens.add(tokenHash); return refreshTokens.size.toLong() }
 }
