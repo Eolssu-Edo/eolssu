@@ -33,7 +33,10 @@ object OAuthIdentityParser {
             val email = profile.path("email").text()?.takeIf { it.isNotBlank() && it.length <= 320 }
             val verified = email != null && when (provider) {
                 SocialProvider.KAKAO -> profile.path("is_email_valid").trueBoolean() && profile.path("is_email_verified").trueBoolean()
-                SocialProvider.GOOGLE -> profile.path("email_verified").trueBoolean()
+                // 외부 이메일은 최초 Google 가입 때 확인했어도 현재 소유가 바뀔 수 있다.
+                // Google이 관리하는 Gmail/Workspace만 추가 본인 확인 생략의 근거로 쓴다.
+                SocialProvider.GOOGLE -> profile.path("email_verified").trueBoolean() &&
+                    (email.endsWith("@gmail.com", ignoreCase = true) || !profile.path("hd").text().isNullOrBlank())
                 SocialProvider.NAVER -> false // 이메일 확인 여부를 제공하지 않으므로 별도 본인 확인이 필요하다.
             }
             return OAuthIdentity(subject, email, verified)

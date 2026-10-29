@@ -325,6 +325,8 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 
 ### 간편 로그인·계정 연결 (S15P31E102-211)
 
+현재는 서버 코드와 대역 기반 검증 단계입니다. 사용자 확인(2026-10-29): 제공자 키는 아직 발급하지 않았습니다. 실제 사용 완료 조건은 제공자별 앱 등록·키 발급, FE 콜백 URI 합의/콘솔 등록, 서버 환경변수 주입, 실제 계정으로 로그인·연결·해제 확인입니다. 자동 테스트의 가짜 인가 코드·사용자 응답·토큰은 실제 제공자 인증 성공을 뜻하지 않습니다.
+
 카카오·구글·네이버별 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URIS`를 설정합니다. 콜백 목록은 앱 콘솔·FE와 합의한 정확한 URI를 쉼표로 구분하며 기본 주소는 없습니다. 하나라도 비어 있으면 서버는 기동하되 해당 제공자 시작·완료만503입니다. 외부 호출은 고정 제공자 엔드포인트만 사용하고 연결3초·읽기5초 제한을 둡니다. HTTP 리다이렉트는 따라가지 않습니다.
 
 로그인은 `POST /api/auth/oauth/{provider}/start`, 로그인 회원의 연결은 `POST /api/users/me/social-accounts/{provider}/start`에 `{ "redirectUri": "등록한 정확한 주소" }`를 보냅니다. `provider`는 소문자 kakao/google/naver입니다. 응답 `authorizationUrl`을 브라우저로 열고, FE 콜백에서 받은 code·state와 같은 redirectUri를 기존 완료 API에 전달합니다. start 응답의 `oauth_flow_{provider}` HttpOnly·SameSite=Lax·Path=/api 쿠키를 유지해야 합니다. Android도 시작·완료에 같은 쿠키 저장소를 써야 합니다. state는10분·1회용이고 제공자·목적·회원·브라우저·콜백에 결속합니다. Google에는 S256 PKCE도 적용합니다. 같은 제공자의 시작을 다시 호출하면 브라우저 쿠키가 교체되어 이전 흐름은 완료할 수 없습니다.

@@ -6,6 +6,8 @@ import com.ssafy.eolssu.backend.feature.auth.infrastructure.oauth.*
 import java.time.*
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.dao.DuplicateKeyException
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class SocialAuthFailure(val code:ErrorCode,val details:Any?=null):RuntimeException(code.name)
 data class SocialRetryDetails(val retryAvailableAt:Instant)
@@ -18,6 +20,9 @@ class SocialAuthService(
     private val gateway:OAuthGateway,private val secrets:VerificationSecrets,private val issuer:AuthTokenIssuer,
     private val verification:PasswordResetRepository,private val passwords:PasswordEncoder,private val attempts:LoginAttemptLimiter,private val clock:Clock,
 ) {
+    // 유한한 stripe로 메모리를 제한한다. Argon2는 DB 연결/행 잠금 밖에서 계산하되
+    // 같은 회원의 잠금 확인·비밀번호 비교·실패 기록·성공 reset은 직렬화한다.
+    private val mergeGuards=Array(256){ReentrantLock()}
     fun provider(value:String)=SocialProvider.entries.firstOrNull{it.name.lowercase()==value}?:fail(ErrorCode.INVALID_REQUEST)
 
     fun start(provider:SocialProvider,redirectUri:String,userId:Long?):SocialStartResult {
@@ -45,6 +50,13 @@ class SocialAuthService(
     }
 
     fun merge(ticket:String,bindings:Map<String,String>,password:String?,verificationToken:String?):SocialLoginResult {
+        val owner=proofs.find(secrets.hashToken(ticket))?.takeIf{it.kind=="MERGE"}?.userId?:fail(ErrorCode.MERGE_TICKET_EXPIRED)
+        return mergeGuards[(owner xor (owner ushr 32)).toInt() and 255].withLock {
+            mergeLocked(ticket,bindings,password,verificationToken)
+        }
+    }
+
+    private fun mergeLocked(ticket:String,bindings:Map<String,String>,password:String?,verificationToken:String?):SocialLoginResult {
         val hash=secrets.hashToken(ticket)
         val proof=proofs.find(hash)?:fail(ErrorCode.MERGE_TICKET_EXPIRED)
         val binding=bindings[proof.provider]?:fail(ErrorCode.MERGE_TICKET_EXPIRED)
@@ -62,15 +74,17 @@ class SocialAuthService(
             }
         }
         val result=repository.inTransaction {
-            val now=clock.instant()
             // 회원을 먼저 잠근 뒤 이메일 증명·티켓·소셜 연결·refresh 순서로 진행한다.
             val member=repository.member(snapshot.member.id,true)?:fail(ErrorCode.INVALID_CREDENTIALS)
             if(member.email!=proof.email || member.member.passwordHash!=snapshot.member.passwordHash) fail(ErrorCode.INVALID_CREDENTIALS)
             if(!proof.emailVerified && useEmail) {
                 val verified=verification.findVerificationForUpdate(secrets.hashToken(checkNotNull(verificationToken)))?:fail(ErrorCode.INVALID_CREDENTIALS)
+                val now=clock.instant() // 이메일 행 잠금 대기 중에도 만료될 수 있다.
                 if(verified.purpose!=VerificationPurpose.ACCOUNT_MERGE || !verified.email.equals(member.email,true) || verified.consumedAt!=null || verified.invalidatedAt!=null || verified.tokenExpiresAt?.let{now.isBefore(it)}!=true) fail(ErrorCode.INVALID_CREDENTIALS)
                 verification.markConsumed(verified.id,now)
             }
+            val now=clock.instant() // 회원·이메일 잠금을 모두 얻은 뒤 최신 시각으로 소비한다.
+            if(!now.isBefore(proof.expiresAt)) fail(ErrorCode.MERGE_TICKET_EXPIRED)
             if(!proofs.consume(hash,now)) fail(ErrorCode.MERGE_TICKET_EXPIRED)
             addLink(member.member.id,proof.provider,checkNotNull(proof.subject),now)
             complete(member)

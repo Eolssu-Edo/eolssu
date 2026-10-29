@@ -18,7 +18,7 @@ import org.springframework.web.client.RestClient
 @Configuration(proxyBeanMethods=false)
 @Profile("db | ops")
 class SocialAuthConfig {
-    @Bean fun oauthProofRepository(jdbc:JdbcTemplate):OAuthProofRepository=JdbcOAuthProofRepository(jdbc)
+    @Bean fun oauthProofRepository(jdbc:JdbcTemplate,manager:PlatformTransactionManager):OAuthProofRepository=JdbcOAuthProofRepository(jdbc,manager)
     @Bean fun oauthProofService(proofs:OAuthProofRepository,secrets:VerificationSecrets,clock:Clock)=OAuthProofService(proofs,secrets,clock)
     @Bean fun oauthGateway(properties:OAuthProviderProperties):OAuthGateway {
         val http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).followRedirects(HttpClient.Redirect.NEVER).build()

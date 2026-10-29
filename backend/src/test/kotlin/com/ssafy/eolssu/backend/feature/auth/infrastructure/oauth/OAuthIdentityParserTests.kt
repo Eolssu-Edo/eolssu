@@ -21,7 +21,7 @@ class OAuthIdentityParserTests {
 
     @Test fun `google keeps case sensitive subject and requires boolean verified flag`() {
         val identity = OAuthIdentityParser.parse(SocialProvider.GOOGLE,
-            """{"sub":"AbC-123","email":"a@example.test","email_verified":true}""")
+            """{"sub":"AbC-123","email":"a@gmail.com","email_verified":true}""")
         assertEquals("AbC-123", identity.subject)
         assertTrue(identity.emailVerified)
         assertFalse(OAuthIdentityParser.parse(SocialProvider.GOOGLE,
@@ -29,6 +29,17 @@ class OAuthIdentityParserTests {
         val absent = OAuthIdentityParser.parse(SocialProvider.GOOGLE, """{"sub":"123","email_verified":true}""")
         assertNull(absent.email)
         assertFalse(absent.emailVerified)
+    }
+
+    @Test fun `google third party verified email requires fresh identity proof unless workspace is authoritative`() {
+        assertFalse(OAuthIdentityParser.parse(SocialProvider.GOOGLE,
+            """{"sub":"old-owner","email":"recycled@example.test","email_verified":true}""").emailVerified)
+        assertFalse(OAuthIdentityParser.parse(SocialProvider.GOOGLE,
+            """{"sub":"old-owner","email":"recycled@example.test","email_verified":true,"hd":""}""").emailVerified)
+        assertTrue(OAuthIdentityParser.parse(SocialProvider.GOOGLE,
+            """{"sub":"workspace-owner","email":"member@example.test","email_verified":true,"hd":"example.test"}""").emailVerified)
+        assertFalse(OAuthIdentityParser.parse(SocialProvider.GOOGLE,
+            """{"sub":"workspace-owner","email":"member@example.test","email_verified":false,"hd":"example.test"}""").emailVerified)
     }
 
     @Test fun `naver email alone is not evidence of verified email`() {
