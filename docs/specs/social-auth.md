@@ -65,3 +65,41 @@
 - 현재 HttpClients.kt의401 자동 refresh/재전송 예외는 refresh·sign-in·sign-up뿐이다. 새 OAuth start/완료/merge·소셜 연결 완료는1회용 state 또는 비밀번호 시도 카운터를 소비하므로, 담당 FE가 자동 재전송 예외/명시적 요청 정책을 먼저 추가해야 한다.
 - /.well-known/assetlinks.json에는 실제 APK의 package_name과 SHA-256 공개 인증서 지문이 필요하다. 현재 Nginx에는 전용 JSON 제공 설정이 없고 SPA fallback뿐이므로 검증 파일200·application/json·리다이렉트 없음도 확인해야 한다. 서명값을 추측하거나 임의 키를 만들지 않는다.
 - 실기기 완료 조건: 설치 APK 링크 검증, 앱이 살아 있을 때/종료됐을 때 복귀, 쿠키 유지, 제공자 취소, 잘못된/만료/중복 state 거절, 신규 소셜 가입 거절, 동의/비밀번호/이메일 증명 연결, 연결 해제, 로그 비밀값 미노출이다. 현재는 모두 실연동 대기다.
+
+### 권영민 인계 체크리스트
+
+사용자 결정: FE 코드는 이211 브랜치에서 수정하지 않고 권영민에게 인계할 자료만 준비한다. 테스트는 Android Studio에서 만든 APK로 진행한다. 다음은 전달용 계약안이며, 실제 전달·FE 착수·콜백 합의 완료를 의미하지 않는다.
+
+| 구분 | 인계할 작업·회신 |
+| --- | --- |
+| FE | 외부 브라우저/App Links 안과 후보3개 URI의 사용 여부 확인. 다른 SDK 방식을 선택하면 서버 코드 교환 계약부터 재협의 |
+| FE | 로그인/마이페이지 연결 start → 브라우저 → 앱 복귀 → 목적별 완료 API. onCreate/onNewIntent, 프로세스 복구, 중복 완료 방지 구현 |
+| FE | 기존 SecureCookiesStorage·HttpClient 유지. OAuth 관련1회용 요청은401 refresh/재전송 대상에서 제외하고 원래 오류 응답을 표시 |
+| FE | 409 연결 동의·미확인 이메일의 비밀번호/이메일 증명·401 미가입 안내·410 재시작·503 장애 처리와 기존 로그인 상태 갱신 |
+| APK 제작자 | 실제 설치할 APK의 빌드 variant·파일명·패키지명·공개 인증서 SHA-256 지문·테스트 Android 버전을 회신 |
+| BE/인프라 | FE와 합의한 정확한 URI만 제공자 콘솔/서버 허용 목록에 등록. 실제 APK 서명으로 assetlinks.json 제공·검증. 키는 서버 비밀값으로 주입 |
+| 공동 검증 | 앱 실행/종료 상태 복귀, 링크 검증·쿠키 유지, 취소·만료·중복·새 시작, 로그인/연결/해제·탈퇴 대기 복원을 실제 제공자 계정으로 확인 |
+
+#### APK 공개 서명 확인
+
+Android Studio에서 테스트 APK를 만든 뒤 그 APK 자체의 인증서를 확인한다. 이 저장소의 디버그 빌드 작업은 frontend에서 `./gradlew :androidApp:assembleDebug`이며 산출물은 `androidApp/build/outputs/apk/debug/androidApp-debug.apk`다. 실제로 다른 variant를 설치하면 그 파일을 기준으로 한다. 각 개발자의 debug 서명은 다를 수 있으므로 다른 PC의 지문을 그대로 쓰지 않는다.
+
+Android SDK Build Tools의 apksigner를 사용할 수 있는 터미널에서 다음 형식으로 공개 인증서를 출력한다. `<실제 설치할 APK 경로>`는 제작자가 선택한 파일로 바꾼다. 키스토어 파일이나 비밀번호를 전달할 필요는 없다.
+
+```text
+apksigner verify --print-certs <실제 설치할 APK 경로>
+```
+
+App Links 검증에는 출력 중 SHA-256 지문을 사용한다. [apksigner 공식 명령](https://developer.android.com/tools/apksigner)을 근거로 제시한 절차이며, 이 작업에서는 APK 생성·서명 추출을 실행하지 않았다.
+
+#### 실기기 링크 검증
+
+Manifest·assetlinks.json 배포와 APK 설치를 마친 뒤 Android12 이상 연결 기기에서, Android SDK Platform Tools의 adb를 사용할 수 있는 터미널에서 확인한다. 먼저 Android 공식 절차에 따라 기기의 기존 도메인 검증 상태를 초기화한 뒤 재검증한다.
+
+```text
+adb shell pm set-app-links --package com.ssafy.eolssu 0 all
+adb shell pm verify-app-links --re-verify com.ssafy.eolssu
+adb shell pm get-app-links com.ssafy.eolssu
+```
+
+재검증은 비동기다. verify-app-links 뒤 검증 에이전트가 완료할 시간을 둔 다음 get-app-links를 조회한다. none이면 대기 중일 수 있으므로 완료 시간을 두고 다시 조회하며, 계속 검증되지 않으면 설정/네트워크를 점검한다. 대상 도메인의 verified 상태를 확인하고 실제 제공자 브라우저 왕복을 시험한다. 단순히 인텐트를 해당 패키지로 강제 실행한 결과만으로 App Links 검증을 통과 처리하지 않는다. [Android 공식 검증 절차](https://developer.android.com/training/app-links/verify-applinks)를 근거로 하며 아직 기기에서 실행하지 않았다.
