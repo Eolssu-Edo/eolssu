@@ -26,8 +26,13 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 
-    /** 태블릿 가로 두 칸 배치에서 오른쪽에 보일 곡을 고른다. */
+    /** 세로 목록에서 곡 상세로 가는 곡을 고른다. 가로로 바뀌면 오른쪽에 보인다. */
     fun selectSong(songId: String) = _uiState.update { it.selectSong(songId) }
+
+    /** 태블릿 가로 두 칸 배치에서 오른쪽에 보일 곡을 직접 고른다. */
+    fun pickSong(songId: String) = _uiState.update { it.pickSong(songId) }
+
+    fun openPickedSong() = _uiState.update { it.openPickedSong() }
 
     fun resetFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
 }

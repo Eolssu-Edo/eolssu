@@ -70,6 +70,8 @@ edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는
 
 ## 확인과 갱신
 
+이미지 열은 이름·태그만 표시하고 태그와 함께 지정된 `@sha256:<64자리>`는 생략한다. 태그 없는 digest 참조·이미지 ID는 앞 12자리와 `…`를 남긴다. 표 표시만 축약하며 수집 원본·배포 pin은 보존한다. 전체 참조는 대상 서버에서 `docker inspect --format '{{.Config.Image}}' <컨테이너명>`으로 확인한다.
+
 ```sh
 python3 -B -m unittest discover -s infra/edo-check/tests -v
 sh -n infra/edo-check/ssh-dispatch.sh

@@ -23,3 +23,10 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
     arg-name-based-constructor-auto-mapping: true
+
+# /api/** 문서 경로도 기존 access_token·ACTIVE 회원 검증을 받는다.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

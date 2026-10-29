@@ -31,7 +31,11 @@ object FakeFfprobe {
 
     fun command(vararg mode: String): List<String> = listOf(
         Path.of(System.getProperty("java.home"), "bin", "java").toString(),
-        "-cp", System.getProperty("java.class.path"),
+        // 가짜 프로세스에는 테스트 클래스와 Kotlin 런타임만 필요하다.
+        // 전체 앱 classpath를 넘기면 의존성 증가 시 Windows 명령행 한도(CreateProcess 206)를 넘는다.
+        "-cp", listOf(FakeFfprobe::class.java, Unit::class.java)
+            .map { Path.of(it.protectionDomain.codeSource.location.toURI()).toString() }
+            .distinct().joinToString(java.io.File.pathSeparator),
         FakeFfprobe::class.java.name,
         *mode,
     )

@@ -1,12 +1,15 @@
 package com.ssafy.eolssu.data.user
 
 /**
- * 이메일 로그인과 이메일 인증번호(`/api/auth/email-verifications`).
- * HTTP 라이브러리가 정해지기 전이라 지금은 [SampleAuthRepository]가 예시 결과를 돌려준다.
- * 가입·비밀번호 재설정·계정 연결 요청은 가입 API가 생기면 여기에 더한다.
+ * 이메일 로그인·로그아웃과 이메일 인증번호(`/api/auth/email-verifications`).
+ * 로그인·로그아웃은 [ApiAuthRepository]가 서버로 하고, 인증번호는 아직 [SampleAuthRepository]가 예시 결과를 돌려준다.
+ * 가입·비밀번호 재설정·계정 연결 요청은 가입 API를 붙일 때 여기에 더한다.
  */
 interface AuthRepository {
-    fun logIn(email: String, password: String): LoginResult
+    suspend fun logIn(email: String, password: String): LoginResult
+
+    /** 서버 로그아웃을 요청하고 기기의 로그인 쿠키를 지운다. 화면이 바로 넘어가도 끝까지 하도록 기다리지 않는다. */
+    fun logOut()
 
     fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult
 
@@ -24,6 +27,9 @@ sealed interface LoginResult {
 
     /** 같은 이메일로 15분 안에 5번 실패해 15분 동안 로그인할 수 없다(429). */
     data object Locked : LoginResult
+
+    /** 서버에 닿지 못했거나 서버가 처리하지 못했다(연결 실패·시간 초과·5xx). */
+    data object Unavailable : LoginResult
 }
 
 sealed interface SendCodeResult {
@@ -59,7 +65,7 @@ const val VerificationResendMillis = 60 * 1000L
 class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
     private val expiries = mutableMapOf<String, Long>()
 
-    override fun logIn(email: String, password: String): LoginResult {
+    override suspend fun logIn(email: String, password: String): LoginResult {
         val address = email.trim().lowercase()
         return when {
             !emailPattern.matches(address) || password.isEmpty() -> LoginResult.WrongCredentials
@@ -67,6 +73,8 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
             else -> LoginResult.Success(withdrawalCancelled = address == WithdrawnEmail)
         }
     }
+
+    override fun logOut() = Unit
 
     override fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
         if (purpose == VerificationPurpose.SignUp && email.trim().lowercase() in registeredEmails) return SendCodeResult.EmailAlreadyExists

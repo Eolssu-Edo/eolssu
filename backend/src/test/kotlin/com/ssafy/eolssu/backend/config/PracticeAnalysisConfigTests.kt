@@ -94,6 +94,7 @@ class PracticeAnalysisConfigTests {
         override fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime) = true
     }
 
+    // 벽시계 범위로 본다. 같은 시계인지 직접 증명하지는 못하지만, 고정 시각으로 바꾼 공용 Clock이나 지역 시각(KST, 9시간 차이)을 쓰면 범위를 벗어난다.
     private fun utcNow() = LocalDateTime.now(ZoneOffset.UTC)
 
     // 업로드·분석·상태 조회처럼 서버의 UTC 시계를 쓴다. 공용 Clock Bean(테스트가 고정 시각으로 바꾸는 것)을 쓰면
@@ -111,7 +112,7 @@ class PracticeAnalysisConfigTests {
     }
 
     @Test
-    fun `a pending retry is checked against the analysis time limit on the same clock`() {
+    fun `a pending retry expires attempts started more than the time limit before UTC now`() {
         val expiredBefore = mutableListOf<LocalDateTime>()
         val analyses = object : PracticeAnalysisRepository by repository {
             override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean {

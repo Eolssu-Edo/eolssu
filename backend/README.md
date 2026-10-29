@@ -174,7 +174,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V5 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V6 DDL·시드와 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -183,9 +183,9 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 .\gradlew.bat databaseTest
 ```
 
-macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
+macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다. 재설정·탈퇴 일괄 삭제 동시성 검사는 고정 지연 대신 실제 잠금 대기를 관측하므로, 테스트 계정은 `performance_schema.data_lock_waits`와 `performance_schema.data_locks`의 SELECT 권한도 필요합니다. 이 권한은 테스트 DB 계정용이며 운영 앱 계정에 추가하지 않습니다.
 
-검사 범위는 MySQL 8.4 V1~V5 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드와 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V6 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -318,6 +318,27 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - V3 녹음 원본 메타데이터: [S15P31E102-179](https://ssafy.atlassian.net/browse/S15P31E102-179) (PRA-02 녹음 파일 규격, S15P31E102-168)
 - V4 분석 시도·실패 코드 제약: [S15P31E102-173](https://ssafy.atlassian.net/browse/S15P31E102-173) · [작업 기록](../docs/plans/S15P31E102-173.md)
 - V5 단소 율명(`pitches`) 시드: [S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186) · [PRA-03 스펙](../docs/specs/practice-analysis-failure.md)
+- V6 단소 악기·장단·1차 4곡 시드: [S15P31E102-249](https://ssafy.atlassian.net/browse/S15P31E102-249) · [작업 기록](../docs/plans/S15P31E102-249.md)
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)
+
+### Swagger UI와 OpenAPI
+
+`db`·`ops` 프로필에서 현재 구현된 업무 API 전체를 문서화합니다. 무DB 기본 프로필에서는 꺼져 있습니다.
+
+- UI: `/api/swagger-ui.html` → `/api/swagger-ui/index.html`
+- JSON: `/api/v3/api-docs`
+- 배포 후 주소: https://k15e102.p.ssafy.io/api/swagger-ui.html
+
+문서·UI 정적 파일·설정 JSON도 기존 access_token 쿠키와 ACTIVE 회원 검증을 받습니다. 먼저 같은 출처의 앱 로그인 화면 또는 `POST /api/auth/sign-in`을 브라우저에서 호출해 로그인한 다음 문서를 엽니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다. 만료되면 다시 로그인합니다.
+
+Swagger UI의 Try it out은 브라우저가 보관한 HttpOnly 쿠키를 전송합니다. OpenAPI에는 accessCookie·refreshCookie를 표시하지만 Authorize 입력으로 브라우저의 Cookie 헤더/HttpOnly 쿠키를 설정할 수는 없습니다. Bearer 헤더 인증을 추가하지 않았으며 비밀번호·실제 토큰을 문서에 저장하지 않습니다. 운영 HTTPS에서는 Secure 쿠키를 사용합니다.
+
+Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공하므로 별도 루트 경로를 열지 않습니다. 사용자 ID 등 내부 Jwt principal은 요청 파라미터가 아닙니다. 인증·Origin·multipart 한도와 실제 업무 응답은 그대로입니다.
+
+요청 DTO와 매핑은 springdoc으로 읽고, `OpenApiContracts`/`OpenApiConfig`가 `ResponseEntity<*>`로 소실되는 실제 결과 DTO·공통 오류·응답 상태를 보완합니다. API를 추가/변경할 때 이 계약도 갱신합니다. `OpenApiDatabaseTests`/`OpenApiOpsDatabaseTests`는 업무 컨트롤러의 실제 매핑과 생성된 문서 전체가 일치하는지, 쿠키 인증·UI 자산·nullable/204·multipart 스키마를 검증합니다. 실행은 위의 `databaseTest`를 사용합니다.
+
+브라우저 Cookie 인증의 제약은 [Swagger 공식 안내](https://swagger.io/docs/specification/v3_0/authentication/cookie-authentication/)를 참고합니다. 외부 온라인 validator는 끄고 생성 문서는 로컬 테스트로 검증합니다.
+
+재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.

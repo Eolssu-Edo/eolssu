@@ -47,10 +47,15 @@ import eolssu.shared.generated.resources.analysis_failed_too_short
 import eolssu.shared.generated.resources.analysis_failed_upload_timeout
 import eolssu.shared.generated.resources.analysis_failed_title
 import eolssu.shared.generated.resources.analysis_play_again
+import eolssu.shared.generated.resources.analysis_resend
 import eolssu.shared.generated.resources.analysis_retry
 import eolssu.shared.generated.resources.analysis_running_body
 import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
+import eolssu.shared.generated.resources.analysis_upload_failed_title
+import eolssu.shared.generated.resources.analysis_upload_kept
+import eolssu.shared.generated.resources.analysis_upload_missing
+import eolssu.shared.generated.resources.analysis_upload_rejected
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -73,6 +78,7 @@ fun AnalysisRoute(
         state,
         wide = currentWindowLayout().widthClass != WindowWidthClass.Compact,
         onRetry = viewModel::retry,
+        onResend = viewModel::resend,
         onBackToPractice = onBackToPractice,
     )
 }
@@ -80,11 +86,20 @@ fun AnalysisRoute(
 /**
  * ANALYSIS-01 분석 대기·실패. 가운데 내용 하나라 태블릿([wide])도 배치는 같고 화면만 넓으며, 버튼 최대 너비가 360dp다.
  * 실패하면 사유별 안내를 보이고, 같은 녹음으로 다시 분석할 수 있으면 '분석 다시 시도', 아니면 '다시 연주하기'를 준다.
+ * 녹음을 보내지 못했으면 기기에 남은 녹음을 '녹음 다시 보내기'로 보내게 하고, 보낼 수 없는 파일이면 '다시 연주하기'만 준다.
  */
 @Composable
-fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, onBackToPractice: () -> Unit) {
+fun AnalysisScreen(
+    state: AnalysisUiState,
+    wide: Boolean,
+    onRetry: () -> Unit,
+    onBackToPractice: () -> Unit,
+    onResend: () -> Unit = {},
+) {
     val colors = EolssuTheme.colors
     val failure = state.failure
+    val upload = state.upload
+    val stopped = failure != null || upload != null
     val maxWidth = if (wide) WindowBreakpoints.ContentMaxWidth else CompactContentMaxWidth
     EolssuScaffold(
         contentMaxWidth = maxWidth,
@@ -95,7 +110,7 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
         ) {
-            if (failure != null) {
+            if (stopped) {
                 Box(Modifier.padding(bottom = 10.dp).size(56.dp).background(colors.recSoft, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.rec)
                 }
@@ -108,7 +123,13 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
                 )
             }
             Text(
-                stringResource(if (failure != null) Res.string.analysis_failed_title else Res.string.analysis_running_title),
+                stringResource(
+                    when {
+                        upload != null -> Res.string.analysis_upload_failed_title
+                        failure != null -> Res.string.analysis_failed_title
+                        else -> Res.string.analysis_running_title
+                    },
+                ),
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
             )
@@ -120,17 +141,23 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
                 )
             }
             Text(
-                stringResource(failure?.messageRes() ?: Res.string.analysis_running_body),
+                stringResource(upload?.messageRes() ?: failure?.messageRes() ?: Res.string.analysis_running_body),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
-            if (failure != null) {
+            if (stopped) {
                 Column(
                     Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else 320.dp).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (failure.retryable) {
+                    if (upload == UploadProblem.CanResend) {
+                        EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending)
+                        EolssuButton(
+                            stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
+                            style = EolssuButtonStyle.Secondary, enabled = !state.resending,
+                        )
+                    } else if (upload == null && failure?.retryable == true) {
                         EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
                         EolssuButton(
                             stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
@@ -143,6 +170,13 @@ fun AnalysisScreen(state: AnalysisUiState, wide: Boolean, onRetry: () -> Unit, o
             }
         }
     }
+}
+
+/** 녹음을 보내지 못한 사유별 안내 문구 리소스. */
+internal fun UploadProblem.messageRes(): StringResource = when (this) {
+    UploadProblem.CanResend -> Res.string.analysis_upload_kept
+    UploadProblem.Rejected -> Res.string.analysis_upload_rejected
+    UploadProblem.Missing -> Res.string.analysis_upload_missing
 }
 
 /** 실패 사유별 안내 문구 리소스. */
