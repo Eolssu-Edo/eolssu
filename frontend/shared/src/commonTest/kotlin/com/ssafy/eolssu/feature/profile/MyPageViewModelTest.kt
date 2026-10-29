@@ -3,10 +3,13 @@ package com.ssafy.eolssu.feature.profile
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.PasswordCheckResult
 import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,10 +21,11 @@ class MyPageViewModelTest {
     private val store = FakeKeyValueStore()
     private val instruments = InstrumentRepository(store)
     private val users = SampleUserRepository()
+    private val timeQueue = PracticeTimeQueue(store, api = null, scope = CoroutineScope(Dispatchers.Unconfined))
 
     @Test
     fun instrumentChangeIsSharedAndSurvivesRelaunch() {
-        val viewModel = MyPageViewModel(users, instruments)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue)
 
         assertFalse(viewModel.selectInstrument(Instrument.Danso))
         assertTrue(viewModel.selectInstrument(Instrument.Daegeum))
@@ -32,7 +36,7 @@ class MyPageViewModelTest {
 
     @Test
     fun unlinkNeedsConfirmationAndCanRemoveTheLastProvider() {
-        val viewModel = MyPageViewModel(users, instruments)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue)
         assertEquals(setOf(SocialProvider.Kakao), viewModel.profile.value.linkedProviders)
 
         viewModel.askUnlink(SocialProvider.Kakao)
@@ -48,7 +52,7 @@ class MyPageViewModelTest {
 
     @Test
     fun logOutAsksFirst() {
-        val viewModel = MyPageViewModel(users, instruments)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue)
         viewModel.askLogOut()
         assertEquals(MyPageDialog.LogOut, viewModel.dialog.value)
         viewModel.confirmLogOut()
