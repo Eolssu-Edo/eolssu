@@ -16,7 +16,11 @@ class RecordListViewModel(
     now: () -> Long,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        RecordListUiState(today = KoreanDateTime.fromEpochMillis(now()), justSavedId = justSavedId),
+        RecordListUiState(
+            today = KoreanDateTime.fromEpochMillis(now()),
+            justSavedId = justSavedId,
+            recordsAvailable = recordRepository.available,
+        ),
     )
     val uiState: StateFlow<RecordListUiState> = _uiState.asStateFlow()
 

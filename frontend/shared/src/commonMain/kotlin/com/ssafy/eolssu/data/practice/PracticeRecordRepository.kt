@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.update
  * [SamplePracticeRecordRepository]는 격리된 테스트용이며 사용자 계정의 기록으로 표시하지 않는다.
  */
 interface PracticeRecordRepository {
+    /** 기록 조회 구현을 사용할 수 있는지. 기록 수나 개별 네트워크 요청의 성공 여부가 아니다. */
+    val available: Boolean get() = true
+
     /** 최신순 기록. */
     val records: StateFlow<List<PracticeRecord>>
 

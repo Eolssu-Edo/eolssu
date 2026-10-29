@@ -11,6 +11,7 @@ class PracticeRecordUnavailable : IllegalStateException("Practice history API is
 
 /** 기록 API 연결 전의 운영 경로. 예시 데이터나 메모리 저장으로 성공을 대신하지 않는다. */
 class UnavailablePracticeRecordRepository : PracticeRecordRepository {
+    override val available: Boolean = false
     override val records: StateFlow<List<PracticeRecord>> = MutableStateFlow(emptyList<PracticeRecord>()).asStateFlow()
 
     override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord =

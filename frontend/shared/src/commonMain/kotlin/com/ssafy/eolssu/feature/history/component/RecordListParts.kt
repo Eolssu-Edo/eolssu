@@ -60,6 +60,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.records_best
 import eolssu.shared.generated.resources.records_collapsed
 import eolssu.shared.generated.resources.records_empty
+import eolssu.shared.generated.resources.records_unavailable
 import eolssu.shared.generated.resources.records_expanded
 import eolssu.shared.generated.resources.records_group_meta
 import eolssu.shared.generated.resources.records_growth_link
@@ -126,11 +127,11 @@ internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOp
     }
 }
 
-/** 기록이 없을 때의 안내. */
+/** 빈 기록과 조회 기능을 아직 사용할 수 없는 상태를 구분한다. */
 @Composable
-internal fun RecordsEmpty(modifier: Modifier = Modifier) {
+internal fun RecordsEmpty(available: Boolean, modifier: Modifier = Modifier) {
     Text(
-        stringResource(Res.string.records_empty),
+        stringResource(if (available) Res.string.records_empty else Res.string.records_unavailable),
         modifier = modifier.fillMaxWidth().padding(vertical = 56.dp),
         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
         textAlign = TextAlign.Center,
