@@ -103,6 +103,8 @@ uv run --group eval python -m evaluation.measure_latency
 
 작은 고정 f0의 DTW 기준은 `uv run python -m evaluation.dtw_baseline --out ../data/processed/dtw-286/u1-baseline.json`으로 기록합니다. 경로·비용·판정과 메모리의 측정 범위는 [U1 기준 관찰](../docs/knowledge/ai/dtw-memory-comparison.md)을 따릅니다. 서비스의 채점 알고리즘을 바꾸거나 긴 녹음을 실행하는 도구는 아닙니다.
 
+연구용 후보는 `uv run python -m evaluation.dtw_candidate_check --method A --out ../data/processed/dtw-286/u2-A.json`으로 같은 작은 입력에 연결합니다. `--method B --half-width-seconds 0.5`로 제한 범위 후보도 확인합니다. 기본 서비스는 기존 전체 DTW를 사용하며, 자세한 비교 범위와 한계는 [후보 구현 기록](../docs/knowledge/ai/dtw-memory-comparison.md#u2-후보-구현과-작은-입력-검증)을 따릅니다.
+
 `src/ai_service/pipelines/scoring.py`
 
 | 항목 | 현재 기준 |
