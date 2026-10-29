@@ -235,6 +235,19 @@ def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
                            "release_seconds": release, "pitch_curve": curve})
     require(not tie_open, "Unclosed tie")
     require(events, "Score contains no sounding notes")
+    # Check after ties and ornaments have their final sounding lengths. A short
+    # grace may end before the delay; at least one event of its source note must
+    # actually reach an explicitly requested, nonzero modulation.
+    audible_yoseong = {}
+    for event in events:
+        y = event["yoseong"]
+        if y and ((y["mode"] in ("pitch", "mixed") and y["cents"] > 0) or
+                  (y["mode"] in ("amplitude", "mixed") and y["depth"] > 0)):
+            nid = event["parent_ids"][0]
+            seconds = (event["end_tick"] - event["start_tick"]) * tempo / 1_000_000 / PPQN
+            audible_yoseong[nid] = audible_yoseong.get(nid, False) or y["delay_seconds"] < seconds
+    for nid, audible in audible_yoseong.items():
+        require(audible, f"{nid}: yoseong starts after sounding note")
     for i, event in enumerate(events):
         prev = events[i-1] if i else None
         event["legato"] = bool(prev and prev["end_tick"] == event["start_tick"] and

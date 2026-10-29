@@ -1,4 +1,4 @@
-"""Danso notation semantics and expression policies used while building score.
+"""Instrument notation semantics and expression policies used while building score.
 
 Numeric choices are not notation standards. Parsing and source positions live
 in jgb.py; this module owns ornament pitches, timing, effects and profiles.
@@ -63,6 +63,52 @@ SYMBOL_POLICY = {"name": "danso-official-figures-2024-v1",
                  "upstream_differences": {"nineurani": [1, 0, 1, 0],
                                           "neunareunani": [1, 2, 1, 0, 2]},
                  "surround_anchor": "2020 Korean music braille commentary: long middle is the written note"}
+SOGEUM_SYMBOLS = dict(SYMBOLS)
+SOGEUM_SYMBOLS.update({name: ("independent", (-1, -2, -3)) for name in ("네로나", "nerona")})
+SOGEUM_SYMBOLS.update({name: ("independent", (1, 0, -1, 0)) for name in ("니르나니", "니느라니", "nineurani")})
+SOGEUM_SYMBOLS.update({"노니노": SYMBOLS["norino"], "느라": SYMBOLS["nora"]})
+SOGEUM_SYMBOLS.update({name: ("grace", (-1, 1, 0, -1, 1))
+                       for name in ("나니르노니르", "nanireunonireu")})
+SOGEUM_SYMBOLS.update({"느너느": ("grace", (0, -2)), "나너나": ("attached", (0, 2, 0)),
+                       "나노나": ("attached", (0, -2, 0)), "너나": ("independent", (2, 0)),
+                       "노나": ("independent", (-2, 0))})
+SOGEUM_UNRESOLVED = {
+    **{name: "소금 교재의 느너느와 글리프 대응이 미확정입니다. 단소 음열을 대신 적용하지 않습니다"
+       for name in ("느네느", "neuneneu")},
+    **{name: "소금 교재의 느니-르는 설명과 예시의 기준음이 다릅니다. 판본의 실제 음열을 확인하세요"
+       for name in ("느니르", "느니-르", "neunireu")},
+}
+SOGEUM_SYMBOL_POLICY = {
+    "name": "sogeum-official-figures-v1",
+    "source": "국립국악원 창작을 위한 국악기 이해와 활용2 소금 pp65–69",
+    "instrument_sequences": {"nerona": [-1, -2, -3], "nineurani": [1, 0, -1, 0],
+                             "nanireunonireu": {"grace": [-1, 1, 0, -1, 1], "main": [0]}},
+    "example_choices": {"neunareunani": {"steps": [1, 2, 1, 0, 2], "alternative_last_step": 1,
+                                          "status": "textbook-example-not-only-interpretation"}},
+    "roll": "소금 교재 p66 임→무→임 예시만 적용",
+    "glyph_limitations": ["neonye는 이름·registry 설명에 따른 -2. 교재 너녜와 SVG의 글리프 일치를 검증한 것은 아님"],
+    "local_text_extensions": ["느너느", "나너나", "나노나", "너나", "노나", "니르나니", "노니노", "느라"],
+    "unresolved": SOGEUM_UNRESOLVED,
+}
+
+
+def symbol_policy(instrument):
+    return deepcopy(SYMBOL_POLICY if instrument == "danso" else SOGEUM_SYMBOL_POLICY)
+
+
+def symbols_for(instrument):
+    return SYMBOLS if instrument == "danso" else SOGEUM_SYMBOLS
+
+
+def validate_symbol(name, instrument, label):
+    if instrument == "sogeum":
+        require(name not in SOGEUM_UNRESOLVED, f"{label}: {{{name}}}: {SOGEUM_UNRESOLVED.get(name)}")
+        if name in ("나니르노니르", "nanireunonireu"):
+            return
+    require(name not in UNRESOLVED,
+            f"{label}: {{{name}}}: " + UNRESOLVED_REASONS.get(name, "공식 음열 의미가 미확정입니다; 생략하지 않고 중단합니다"))
+
+
 GRACE_QUARTERS = Fraction(1, 16)
 GRACE_VELOCITY = 80
 GRACE_POLICY = {"name": "bounded-half-slot-v1", "maximum_quarters": "1/16",
@@ -110,23 +156,90 @@ UNRESOLVED_REASONS = {
 }
 
 
-def apply_effects(note, group, label, delay=0, profile=None):
+def expression_policy(document, instrument):
+    """Preserve explicit Sogeum choices without importing Danso's numeric defaults."""
+    policy = document.get("playback", {}).get("expression_policy")
+    if policy is None:
+        return deepcopy(EXPRESSION_POLICY) if instrument == "danso" else {
+            "name": "sogeum-explicit-effects-v1", "status": EXPRESSION_POLICY["status"],
+            "staccato": deepcopy(EXPRESSION_POLICY["staccato"]),
+            "fermata": deepcopy(EXPRESSION_POLICY["fermata"]),
+            "unresolved_display_annotations": ["원문점"],
+        }
+    reject_unknown(policy, ["name", "basis", "status", "vibrato", "fall", "push", "unwind"], "expression_policy")
+    require(all(isinstance(policy.get(k), str) and policy[k].strip() for k in ("name", "basis")),
+            "표현 정책의 name·basis가 필요합니다")
+    require(policy.get("status") == EXPRESSION_POLICY["status"],
+            "표현 수치는 연주 표준이 아닌 청취용 정책으로 명시해야 합니다")
+    for kind in ("vibrato", "unwind"):
+        if kind not in policy:
+            continue
+        value = policy[kind]
+        if kind == "unwind":
+            reject_unknown(value, ["yoseong", "pitch_curve"], "unwind")
+            require(set(value) == {"yoseong", "pitch_curve"}, "풀어내림에는 yoseong·pitch_curve가 필요합니다")
+            value = value["yoseong"]
+        require(isinstance(value, dict) and {"mode", "hz", "delay_seconds"} <= value.keys(),
+                f"{kind}: mode·hz·delay_seconds를 모두 명시하세요")
+        require(value.get("mode") not in ("pitch", "mixed") or "cents" in value,
+                f"{kind}: cents를 명시하세요")
+        require(value.get("mode") not in ("amplitude", "mixed") or "depth" in value,
+                f"{kind}: depth를 명시하세요")
+        validate_yoseong(value)
+        require((value["mode"] in ("pitch", "mixed") and value.get("cents", 0) > 0) or
+                (value["mode"] in ("amplitude", "mixed") and value.get("depth", 0) > 0),
+                f"{kind}: yoseong must contain nonzero modulation")
+        if kind == "unwind":
+            require(value["mode"] in ("pitch", "mixed") and value.get("cents", 0) > 0,
+                    "풀어내림에는 음높이 농음이 필요합니다")
+    for kind in ("fall", "push", "unwind"):
+        if kind not in policy:
+            continue
+        curve = validate_pitch_curve(policy[kind]["pitch_curve"] if kind == "unwind" else policy[kind])
+        values = [p[1] for p in curve["points"]] if "points" in curve else [curve["end_cents"]]
+        sign = 1 if kind == "push" else -1
+        require(all(sign*v >= 0 for v in values) and any(sign*v > 0 for v in values),
+                f"{kind}: pitch curve direction contradicts the selected symbol")
+    result = deepcopy(policy)
+    for name in ("staccato", "fermata", "unresolved_display_annotations"):
+        result[name] = deepcopy(EXPRESSION_POLICY[name])
+    return result
+
+
+def relative_scale(document):
+    value = document.get("playback", {}).get("relative_scale")
+    if value is None:
+        return None
+    reject_unknown(value, ["pitch_classes", "basis"], "relative_scale")
+    classes = value.get("pitch_classes")
+    require(isinstance(classes, list) and 2 <= len(classes) <= 12 and
+            all(type(c) is int and 0 <= c < 12 for c in classes) and classes == sorted(set(classes)),
+            "relative_scale.pitch_classes는 황종 기준 0..11의 오름차순 중복 없는 배열이어야 합니다")
+    require(isinstance(value.get("basis"), str) and value["basis"].strip(), "상대음 음계의 basis가 필요합니다")
+    return deepcopy(value)
+
+
+def apply_effects(note, group, label, delay=0, profile=None, policy=None):
     """Keep ambiguous superimposed curves explicit instead of overwriting them."""
+    policy = EXPRESSION_POLICY if policy is None else policy
+    for effect in set(EFFECT_MARKS.values()):
+        require(not group.get(effect) or effect in policy,
+                f"{label}: {effect} 해석에 playback.expression_policy의 명시적 수치가 필요합니다")
     if group.get("vibrato") or group.get("unwind"):
         require(not (group.get("vibrato") and group.get("unwind")), f"{label}: 농음과 풀어내림을 겹쳐 지정할 수 없습니다")
         require("yoseong" not in note, f"{label}: 겹친 농음/풀어내림의 범위를 분리하세요")
-        policy = EXPRESSION_POLICY["unwind"]["yoseong"] if group.get("unwind") else EXPRESSION_POLICY["vibrato"]
-        note["yoseong"] = dict(policy, delay_seconds=delay)
+        value = policy["unwind"]["yoseong"] if group.get("unwind") else policy["vibrato"]
+        note["yoseong"] = dict(value, delay_seconds=value.get("delay_seconds", 0) + delay)
     curves = [effect for effect in ("fall", "push", "unwind") if group.get(effect)]
     require(len(curves) <= 1, f"{label}: 하행·상행·풀어내림을 겹쳐 지정할 수 없습니다")
     if curves:
         require("pitch_curve" not in note, f"{label}: 지속에 겹친 음높이 곡선의 범위를 분리하세요")
         effect = curves[0]
-        note["pitch_curve"] = dict(EXPRESSION_POLICY[effect]["pitch_curve"] if effect == "unwind" else EXPRESSION_POLICY[effect])
+        note["pitch_curve"] = deepcopy(policy[effect]["pitch_curve"] if effect == "unwind" else policy[effect])
         if delay:
-            note["pitch_curve"]["delay_seconds"] = delay
+            note["pitch_curve"]["delay_seconds"] = note["pitch_curve"].get("delay_seconds", 0) + delay
     if group.get("staccato"):
-        note["gate_fraction"] = EXPRESSION_POLICY["staccato"]["gate_fraction"]
+        note["gate_fraction"] = policy["staccato"]["gate_fraction"]
     for kind in group.get("profile_effects", []):
         try:
             overrides = expression_for(profile, kind)
@@ -176,6 +289,13 @@ PLAYBACK_VIBRATO = {
     "cents": 25, "hz": 4.5, "minimum_note_seconds": .65,
     "delay_seconds": .22, "fade_in_seconds": .18, "fade_out_seconds": .16,
 }
+
+
+def playback_vibrato(instrument):
+    """Unnotated pitch motion was selected only for the Danso experiment."""
+    return dict(PLAYBACK_VIBRATO) if instrument == "danso" else None
+
+
 SCHEMA = "danso-expression-profile/v1"
 KINDS = {"accent", "shake", "shake-rep", "bend-down", "bend-up", "flow-rep", "push-rep"}
 STATUS = "playback-choice-not-performance-standard"
@@ -186,18 +306,19 @@ DEFAULT_ACCENT = {
 }
 
 
-def resolve_expression_profile(profile=None):
+def resolve_expression_profile(profile=None, instrument="danso"):
     """Return validated policies. Missing pitch gestures have no invented defaults.
 
     Input policies contain ``basis`` and score note fields at the same level.
     Resolved policies contain ``basis``, ``status`` and normalized ``note`` fields.
     This file is a CLI rendering option, not a change to the JGB data contract.
     """
-    result = {"schema": SCHEMA, "policies": {"accent": deepcopy(DEFAULT_ACCENT)}}
+    schema = f"{instrument}-expression-profile/v1"
+    result = {"schema": schema, "policies": {"accent": deepcopy(DEFAULT_ACCENT)}}
     if profile is None:
         return result
     reject_unknown(profile, ["schema", "policies"], "expression profile")
-    require(profile.get("schema") == SCHEMA, "Unsupported expression profile schema")
+    require(profile.get("schema") == schema, f"Unsupported expression profile schema; expected {schema}")
     policies = profile.get("policies")
     reject_unknown(policies, KINDS, "expression policies")
     for kind, policy in policies.items():
