@@ -19,7 +19,7 @@ from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, pyin_f0
 REPO = Path(__file__).resolve().parents[2]
 SR = 16000
 SOURCES = ["ngc-danso-2338", "ngc-danso-2339", "ngc-danso-2340", "ngc-danso-2341", "ngc-danso-2342"]
-_PITCHES = {
+PITCHES = {
     (r["yul"], r["octave"]): r["semitone"]
     for r in json.loads((REPO / "data/reference/pitches.json").read_text(encoding="utf-8"))["rows"]
 }
@@ -27,7 +27,7 @@ _PITCHES = {
 
 def semitone_of(register: str, yul: str) -> int:
     """평취 중·임·무는 옥타브 0, 황·태는 청(1). 역취는 한 옥타브 위(data/tests/test_reference_data.py와 같은 규칙)."""
-    return _PITCHES[yul, (yul in "황태") + (register == "역취")]
+    return PITCHES[yul, (yul in "황태") + (register == "역취")]
 
 
 def summarize(notes: list[tuple[int, np.ndarray]]) -> dict:
