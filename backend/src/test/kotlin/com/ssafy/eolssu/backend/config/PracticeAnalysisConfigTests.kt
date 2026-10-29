@@ -1,6 +1,10 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.feature.analysis.application.AnalysisOnUpload
+import com.ssafy.eolssu.backend.feature.analysis.application.RetryOutcome
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
@@ -8,6 +12,7 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -76,5 +81,50 @@ class PracticeAnalysisConfigTests {
     fun `explains which values are invalid`() {
         val error = assertFailsWith<IllegalArgumentException> { AnalysisProperties(queueCapacity = -1) }
         assertTrue(error.message!!.contains("queue-capacity"), error.message)
+    }
+
+    private class Retries(var state: AnalysisState) : AnalysisRetryRepository {
+        val startedAt = mutableListOf<LocalDateTime>()
+        override fun findState(sessionId: Long, userId: Long) = state
+        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
+            this.startedAt += startedAt
+            state = AnalysisState("PENDING", null, attempt + 1)
+            return true
+        }
+        override fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime) = true
+    }
+
+    private fun utcNow() = LocalDateTime.now(ZoneOffset.UTC)
+
+    // 업로드·분석·상태 조회처럼 서버의 UTC 시계를 쓴다. 공용 Clock Bean(테스트가 고정 시각으로 바꾸는 것)을 쓰면
+    // 시도 시작 시각과 분석의 마감 판정이 다른 시계가 되어 새 시도가 곧바로 TIMEOUT이 될 수 있다.
+    @Test
+    fun `a retried attempt starts on the server UTC clock and goes to the upload analysis executor`() {
+        val started = mutableListOf<Long>()
+        val retries = Retries(AnalysisState("FAILED", "TIMEOUT", 1))
+        val retry = config.retryPracticeAnalysis(retries, repository, AnalysisOnUpload({ started += it }, { it.run() }), AnalysisProperties())
+        val before = utcNow()
+        assertEquals(RetryOutcome.Started(2), retry.retry(userId = 1, sessionId = 7))
+        val after = utcNow()
+        assertEquals(listOf(7L), started)
+        assertTrue(retries.startedAt.single() in before..after, "${retries.startedAt} not within $before..$after")
+    }
+
+    @Test
+    fun `a pending retry is checked against the analysis time limit on the same clock`() {
+        val expiredBefore = mutableListOf<LocalDateTime>()
+        val analyses = object : PracticeAnalysisRepository by repository {
+            override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean {
+                expiredBefore += startedAfter
+                return false
+            }
+        }
+        val retry = config.retryPracticeAnalysis(
+            Retries(AnalysisState("PENDING", null, 1)), analyses, AnalysisOnUpload(null, { it.run() }), AnalysisProperties(timeLimit = Duration.ofSeconds(90)),
+        )
+        val before = utcNow()
+        assertEquals(RetryOutcome.AlreadyPending(1), retry.retry(userId = 1, sessionId = 7))
+        val after = utcNow()
+        assertTrue(expiredBefore.single() in before.minusSeconds(90)..after.minusSeconds(90), "$expiredBefore not 90 seconds before $before..$after")
     }
 }
