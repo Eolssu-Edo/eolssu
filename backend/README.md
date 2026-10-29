@@ -323,7 +323,17 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)
 
-### Swagger UI와 OpenAPI
+### 간편 로그인·계정 연결 (S15P31E102-211)
+
+카카오·구글·네이버별 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URIS`를 설정합니다. 콜백 목록은 앱 콘솔·FE와 합의한 정확한 URI를 쉼표로 구분하며 기본 주소는 없습니다. 하나라도 비어 있으면 서버는 기동하되 해당 제공자 시작·완료만503입니다. 외부 호출은 고정 제공자 엔드포인트만 사용하고 연결3초·읽기5초 제한을 둡니다. HTTP 리다이렉트는 따라가지 않습니다.
+
+로그인은 `POST /api/auth/oauth/{provider}/start`, 로그인 회원의 연결은 `POST /api/users/me/social-accounts/{provider}/start`에 `{ "redirectUri": "등록한 정확한 주소" }`를 보냅니다. `provider`는 소문자 kakao/google/naver입니다. 응답 `authorizationUrl`을 브라우저로 열고, FE 콜백에서 받은 code·state와 같은 redirectUri를 기존 완료 API에 전달합니다. start 응답의 `oauth_flow_{provider}` HttpOnly·SameSite=Lax·Path=/api 쿠키를 유지해야 합니다. Android도 시작·완료에 같은 쿠키 저장소를 써야 합니다. state는10분·1회용이고 제공자·목적·회원·브라우저·콜백에 결속합니다. Google에는 S256 PKCE도 적용합니다. 같은 제공자의 시작을 다시 호출하면 브라우저 쿠키가 교체되어 이전 흐름은 완료할 수 없습니다.
+
+연결된 소셜 ID는 기존 회원으로 로그인하고 탈퇴 대기를 취소합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
+
+V8 `oauth_proofs`에는 토큰·쿠키 원문 대신 SHA-256과 소비 여부를 저장합니다. 실패한 병합 트랜잭션은 티켓·이메일 토큰 소비·연결·로그인 발급을 함께 되돌립니다. 코드·제공자 토큰·mergeTicket·결속 쿠키·비밀키는 로그나 문서에 복사하지 마세요. 만료 행은 매분500개 이내로 삭제합니다. 실제 앱 등록·콜백 URI 합의·실제 제공자 통합 확인은 별도이며, 자동 검사는 외부 네트워크 대신 RestClient 대역과 전용 MySQL을 사용합니다.
+
+### Swagger UI와 OpenAPI 조회
 
 `db`·`ops` 프로필에서 현재 구현된 업무 API 전체를 문서화합니다. 무DB 기본 프로필에서는 꺼져 있습니다.
 

@@ -28,6 +28,23 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/{provider}/start","startSocialLogin","인증","소셜 로그인 시작",
+        "kakao/google/naver. 등록된 redirectUri만 허용하며 10분·1회용 state와 HttpOnly 브라우저 쿠키를 결속합니다. authorizationUrl을 브라우저로 연 뒤 완료 API에 code/state를 보냅니다.",
+        OAuthStartResult::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SERVICE_UNAVAILABLE),security=null),
+    ApiContract(HttpMethod.POST,"/api/users/me/social-accounts/{provider}/start","startSocialLink","회원","소셜 계정 연결 시작",
+        "로그인 회원·브라우저·제공자·연결 목적·redirectUri에 결속한10분 state를 발급합니다. 로그인용 state로 대신할 수 없습니다.",
+        OAuthStartResult::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/{provider}","socialLogin","인증","소셜 로그인 완료",
+        "연결된 제공자 ID로 로그인합니다. 미연결 기존 이메일은409 ACCOUNT_MERGE_AVAILABLE와10분 mergeTicket을 돌려줍니다. 신규 회원은 만들지 않습니다. state·브라우저 쿠키가 필요합니다.",
+        SignedIn::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SOCIAL_ACCOUNT_NOT_REGISTERED,ACCOUNT_MERGE_AVAILABLE,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/merge","mergeSocialAccount","인증","소셜 계정 연결 동의",
+        "10분 mergeTicket과 동일 브라우저 쿠키 필요. 확인되지 않은 이메일은 password 또는 ACCOUNT_MERGE verificationToken 필요. 비밀번호 확인은 회원별 독립15분 내5회·15분 잠금이고 이메일 인증은 잠금 중에도 허용합니다.",
+        MergedMemberResult::class.java,errors=listOf(INVALID_CREDENTIALS,MERGE_TICKET_EXPIRED,IDENTITY_CONFIRMATION_REQUIRED,PROVIDER_ALREADY_LINKED,SOCIAL_ACCOUNT_IN_USE,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
+    ApiContract(HttpMethod.POST,"/api/users/me/social-accounts/{provider}","linkSocialAccount","회원","소셜 계정 연결 완료",
+        "연결용 state·같은 회원의 access_token·같은 브라우저 쿠키 필요. 제공자 이메일이 회원 이메일과 달라도 소유 확인 후 연결합니다.",
+        LinkedProviderResult::class.java,statuses=listOf(201),errors=listOf(OAUTH_VERIFICATION_FAILED,PROVIDER_ALREADY_LINKED,SOCIAL_ACCOUNT_IN_USE,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.DELETE,"/api/users/me/social-accounts/{provider}","unlinkSocialAccount","회원","소셜 계정 연결 해제",
+        "로그인한 ACTIVE 회원의 연결만 해제합니다. 이메일·비밀번호 로그인은 남습니다.",null,statuses=listOf(204),errors=listOf(RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
