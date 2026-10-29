@@ -7,44 +7,70 @@
 #   PUBLIC_DIR 빌드 결과물 경로 (기본 blog/public)
 set -euo pipefail
 
-: "${GH_TOKEN:?GH_TOKEN이 없어요}"
-: "${GH_REPO:?GH_REPO가 없어요}"
+# No argument keeps the existing one-shot entrypoint. Named phases use the
+# private workspace supplied by Jenkins and are cleaned by its post/always.
+PHASE="${1:-all}"
 GH_BRANCH="${GH_BRANCH:-main}"
 PUBLIC_DIR="${PUBLIC_DIR:-blog/public}"
-
-if [ ! -f "$PUBLIC_DIR/index.html" ]; then
-  echo "빌드 결과물이 없어요: $PUBLIC_DIR/index.html" >&2
-  exit 1
-fi
-
-REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
-WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
-
-# 첫 배포라 브랜치가 없으면 새로 만듦
-if git ls-remote --exit-code --heads "$REMOTE" "$GH_BRANCH" >/dev/null 2>&1; then
-  git clone --quiet --depth 1 --branch "$GH_BRANCH" "$REMOTE" "$WORK"
+if [ "$PHASE" = all ]; then
+  WORK="$(mktemp -d)"
+  trap 'rm -rf "$WORK"' EXIT
 else
-  git init --quiet "$WORK"
-  git -C "$WORK" checkout --quiet -b "$GH_BRANCH"
-  git -C "$WORK" remote add origin "$REMOTE"
+  WORK="${PAGES_WORK_DIR:?PAGES_WORK_DIR is required for named phases}"
 fi
 
-# 이전 결과물을 지우고 새 결과물로 교체 (.git은 유지)
-find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-cp -a "$PUBLIC_DIR"/. "$WORK"/
+prepare() {
+  : "${GH_TOKEN:?GH_TOKEN is required}"
+  : "${GH_REPO:?GH_REPO is required}"
+  local remote="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+  mkdir -p "$WORK"
+  chmod 700 "$WORK"
+  if git ls-remote --exit-code --heads "$remote" "$GH_BRANCH" >/dev/null 2>&1; then
+    git clone --quiet --depth 1 --branch "$GH_BRANCH" "$remote" "$WORK"
+    # Do not retain credentials between Jenkins stages.
+    git -C "$WORK" remote remove origin
+  else
+    git init --quiet "$WORK"
+    git -C "$WORK" checkout --quiet -b "$GH_BRANCH"
+  fi
+}
 
-cd "$WORK"
-git config user.name "edo-blog-bot"
-git config user.email "edo-blog-bot@users.noreply.github.com"
-git add -A
+sync_files() {
+  test -f "$PUBLIC_DIR/index.html"
+  test -d "$WORK/.git"
+  find "$WORK" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+  cp -a "$PUBLIC_DIR"/. "$WORK/"
+}
 
-if git diff --cached --quiet; then
-  echo "바뀐 내용이 없어서 배포하지 않아요."
-  exit 0
-fi
+commit_files() {
+  git -C "$WORK" config user.name "edo-blog-bot"
+  git -C "$WORK" config user.email "edo-blog-bot@users.noreply.github.com"
+  git -C "$WORK" add -A
+  if git -C "$WORK" diff --cached --quiet; then
+    echo "바뀐 내용이 없어서 배포하지 않아요."
+    return
+  fi
+  git -C "$WORK" commit --quiet -m "deploy: $(date -u +%Y-%m-%dT%H:%MZ)"
+  touch "$WORK/.git/publish-needed"
+}
 
-# 커밋 메시지에는 GitLab 커밋 정보를 넣지 않음 (공개 저장소)
-git commit --quiet -m "deploy: $(date -u +%Y-%m-%dT%H:%MZ)"
-git push --quiet origin "HEAD:${GH_BRANCH}"
-echo "배포 완료: https://github.com/${GH_REPO}"
+push_files() {
+  if [ ! -f "$WORK/.git/publish-needed" ]; then
+    echo "No changed content to publish"
+    return
+  fi
+  : "${GH_TOKEN:?GH_TOKEN is required}"
+  : "${GH_REPO:?GH_REPO is required}"
+  git -C "$WORK" push --quiet "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git" "HEAD:${GH_BRANCH}"
+  rm "$WORK/.git/publish-needed"
+  echo "배포 완료: https://github.com/${GH_REPO}"
+}
+
+case "$PHASE" in
+  all) prepare; sync_files; commit_files; push_files ;;
+  prepare) prepare ;;
+  sync) sync_files ;;
+  commit) commit_files ;;
+  push) push_files ;;
+  *) echo "Unknown deploy phase" >&2; exit 2 ;;
+esac

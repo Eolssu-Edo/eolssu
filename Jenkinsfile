@@ -23,13 +23,17 @@ pipeline {
         GH_BRANCH  = 'main'
         SITE_URL   = 'https://team-edo.github.io/'
         PUBLIC_DIR = 'blog-build/public'
+        PAGES_WORK_DIR = "${WORKSPACE}/blog-build/pages"
     }
 
     stages {
+        stage('Clean workspace') {
+            steps { deleteDir() }
+        }
+
         stage('Checkout blog') {
             steps {
                 script {
-                    deleteDir()
                     // 소스는 site/에, 빌드 결과물은 blog-build/에 둔다
                     dir('site') {
                         def revision = checkout scmGit(
@@ -46,11 +50,14 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Prepare Hugo output directory') {
+            steps { sh 'mkdir -p blog-build' }
+        }
+
+        stage('Build Hugo site') {
             steps {
                 // 소스는 읽기 전용으로 연결하고 결과물은 workspace의 별도 폴더에 쓴다 (외부 네트워크 불필요)
                 sh '''
-                    mkdir -p blog-build
                     docker run --rm --network none \
                         --user "$(id -u):$(id -g)" \
                         --env HUGO_CACHEDIR=/tmp/hugo_cache \
@@ -59,17 +66,41 @@ pipeline {
                         --entrypoint hugo "$HUGO_IMAGE" \
                         --source /project --destination /out/public --noBuildLock \
                         --minify --cleanDestinationDir --baseURL "$SITE_URL"
-                    test -f "$PUBLIC_DIR/index.html"
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Validate generated site') {
+            steps { sh 'test -s "$PUBLIC_DIR/index.html"' }
+        }
+
+        stage('Prepare Pages repository') {
             steps {
                 withCredentials([string(credentialsId: 'github-blog-token', variable: 'GH_TOKEN')]) {
-                    sh 'bash site/scripts/deploy.sh'
+                    sh 'bash site/scripts/deploy.sh prepare'
                 }
             }
+        }
+
+        stage('Copy generated Pages files') {
+            steps { sh 'bash site/scripts/deploy.sh sync' }
+        }
+
+        stage('Commit changed Pages files') {
+            steps { sh 'bash site/scripts/deploy.sh commit' }
+        }
+
+        stage('Push Pages publication') {
+            steps {
+                withCredentials([string(credentialsId: 'github-blog-token', variable: 'GH_TOKEN')]) {
+                    sh 'bash site/scripts/deploy.sh push'
+                }
+            }
+        }
+    }
+    post {
+        always {
+            sh 'rm -rf -- "$PAGES_WORK_DIR"'
         }
     }
 }
