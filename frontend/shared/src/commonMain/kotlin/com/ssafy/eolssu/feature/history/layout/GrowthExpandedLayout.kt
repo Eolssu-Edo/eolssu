@@ -34,7 +34,7 @@ private val GrowthTwoColumnMinHeight = 560.dp
 @Composable
 internal fun GrowthExpandedLayout(
     stats: GrowthStats,
-    completedSteps: Int,
+    completedSteps: Int?,
     frame: HistoryFrame,
     spacing: GrowthSpacing,
     onRange: (GrowthRange) -> Unit,
