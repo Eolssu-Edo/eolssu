@@ -33,5 +33,9 @@ class MySongsViewModel(
 
     fun closeAddSheet() = _uiState.update { it.copy(addSheetOpen = false) }
 
+    fun leaveForPdfUpload() = _uiState.update { it.leaveForPdfUpload() }
+
+    fun returnToScreen() = _uiState.update { it.returnToScreen() }
+
     fun consumeSavedNotice() = _uiState.update { it.copy(savedSheet = null) }
 }
