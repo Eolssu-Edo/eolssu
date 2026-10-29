@@ -14,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
@@ -31,7 +32,7 @@ import org.koin.core.parameter.parametersOf
  * @param solo 연습곡 선택(SONG-03)에서 들어온 연습 모드. 평가 없이 혼자 연습한다.
  * @param showSwitchedNotice 연습 모드에서 평가로 바꿔 들어왔으면 안내를 띄운다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
- * @param onEvaluate 연주를 마치고 '평가하기'. 연습 화면은 준비 상태로 돌려 두고 분석 화면으로 간다.
+ * @param onEvaluate 연주를 마치고 '평가하기'. 연습 화면은 준비 상태로 돌려 두고 마친 녹음(녹음기가 없으면 null)과 함께 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
  *   Web 브라우저 뒤로 가기처럼 [BackHandler]를 거치지 않는 뒤로 가기를 화면 밖에서 가로챌 때 쓴다.
  * @param onMicDenied 마이크 안내에서 '나중에'를 누르거나 OS 권한 창에서 허용하지 않음. 평가는 마이크 없이 할 수 없어 이전 화면으로 돌아가며 안내를 띄운다.
@@ -45,7 +46,7 @@ fun PracticeRoute(
     onBack: () -> Unit,
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
-    onEvaluate: ((songId: String, bpm: Int) -> Unit)?,
+    onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
     onMicDenied: () -> Unit,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo") { parametersOf(songId, solo) },
@@ -136,8 +137,9 @@ fun PracticeRoute(
                 onResume = viewModel::resumeRecording,
                 onEvaluate = {
                     val bpm = state.bpm
+                    val take = viewModel.recordedTake()
                     viewModel.toReady()
-                    onEvaluate?.invoke(songId, bpm)
+                    onEvaluate?.invoke(songId, bpm, take)
                 },
                 onRestartNow = viewModel::restartNow,
                 onExit = {

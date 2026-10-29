@@ -192,6 +192,10 @@
     <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
     <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
     <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
+    <string name="pending_recording_title">보내지 못한 녹음이 있어요</string>
+    <string name="pending_recording_body">지난 연주 녹음이 기기에 남아 있어요. 지금 보내서 평가를 받을까요?</string>
+    <string name="pending_recording_send">녹음 보내기</string>
+    <string name="pending_recording_later">나중에</string>
     <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>

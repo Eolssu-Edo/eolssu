@@ -9,10 +9,10 @@ import com.ssafy.eolssu.core.model.ScoreError
 
 /**
  * 연주 평가. 녹음을 분석에 맡긴 뒤 상태를 물어 결과를 받는다(PRA-03 상태 조회).
- * 상태 조회·재시도 API 모양은 아직 정해지지 않았다. 지금은 [SampleEvaluationRepository]가 녹음 없이 예시 결과를 돌려준다.
+ * 서버 분석은 [ApiEvaluationRepository]가, 녹음 없이 진행하는 플랫폼의 예시 분석은 [SampleEvaluationRepository]가 맡는다.
  */
 interface EvaluationRepository {
-    /** 연주를 분석에 맡기고 분석 ID를 돌려준다. */
+    /** 녹음 없이 연주를 분석에 맡기고 분석 ID를 돌려준다(예시 분석). 녹음은 업로드가 분석을 시작한다. */
     suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String
 
     /** 분석 상태. 연결 오류는 예외로 던진다. */
@@ -21,14 +21,15 @@ interface EvaluationRepository {
     /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. */
     suspend fun retryAnalysis(analysisId: String)
 
-    /** 이미 받은 평가 결과. */
-    fun result(evaluationId: String): EvaluationResult?
+    /** 평가 결과. 찾지 못하면 null. */
+    suspend fun result(evaluationId: String): EvaluationResult?
 }
 
 /** 서버의 분석 상태(`PENDING`·`DONE`·`FAILED`). */
 sealed interface AnalysisStatus {
     data object Pending : AnalysisStatus
 
+    /** [evaluationId]는 결과 화면이 [EvaluationRepository.result]로 찾는 키다. 서버 결과는 세션 ID로 찾는다. */
     data class Done(val evaluationId: String) : AnalysisStatus
 
     /** [reason]은 서버 `fail_reason` 코드에 맞는 사유다. */
@@ -85,7 +86,7 @@ class SampleEvaluationRepository(
             sample = true,
         )
 
-    override fun result(evaluationId: String): EvaluationResult? = results[evaluationId]
+    override suspend fun result(evaluationId: String): EvaluationResult? = results[evaluationId]
 }
 
 /** 와이어프레임 예시 오류 위치(9정간 각 기준 칸 번호 → 각·정간). 3–4각에 9개가 몰려 있다. */
