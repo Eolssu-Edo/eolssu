@@ -44,7 +44,7 @@
 
 ## Android 앱 우선 준비 (2026-10-29)
 
-준비 상태: 카카오 얼쑤 앱1628175의 개인 개발자 비즈 앱 전환·로그인 ON·이메일 필수 동의·Android 콜백 등록을 확인했다. OIDC는 OFF이며 서버 키 주입·실제 인증 검증은 미완료다. Google/Naver 콘솔 상태는 아직 확인하지 않았다. App Links는 서버 제공 코드만 준비됐고 실제 설치 APK의 공개 서명 지문·환경 주입·도메인 검증은 대기다.
+준비 상태: 카카오 얼쑤 앱1628175의 개인 개발자 비즈 앱 전환·로그인 ON·이메일 필수 동의·Android 콜백 등록을 확인했다. REST API 키·로그인 Client secret·콜백은 edo1의 /opt/eolssu/.env(root:root 0600)에 저장했다. OIDC는 OFF이며 운영 Compose 전달 설정·211 배포·컨테이너 환경 반영·실제 인증 검증은 미완료다. Google/Naver 콘솔 상태는 아직 확인하지 않았다. App Links는 서버 제공 코드만 준비됐고 실제 설치 APK의 공개 서명 지문·환경 주입·도메인 검증은 대기다.
 
 카카오 이메일 설정(2026-10-29 콘솔 확인): 사용자가 본인 계정 절차를 수행한 뒤 개인 개발자 비즈 앱 전환을 확인했고, account_email은 필수 동의로 저장됐다. 동의 목적 안내는 '기존 회원 계정 확인 및 카카오 로그인 계정 연결'이다. 닉네임·프로필 사진은 사용 안 함을 유지한다. 이메일이 없어도 이미 연결된 제공자 ID는 로그인할 수 있고, 미연결 계정은401 SOCIAL_ACCOUNT_NOT_REGISTERED로 이메일 가입을 안내한다.
 
@@ -66,7 +66,7 @@ BE 준비 범위를 먼저 마친 뒤 FE에 전달한다는 사용자 지시에 
 
 ### Android 계약안
 
-- 카카오 App Links: https://k15e102.p.ssafy.io/auth/android/oauth/kakao/callback . 사용자가 BE 기준 주소로 확정했으며 카카오 앱1628175의 REST API 키 설정에 등록 후 재조회했다. 로그인·연결 모두 같은 URI를 사용한다. AUTH_OAUTH_KAKAO_REDIRECT_URIS에 같은 값을 서버 환경으로 주입해야 한다. FE 담당 합의·앱 복귀 구현·운영 주입·실기기 검증 완료를 뜻하지 않는다.
+- 카카오 App Links: https://k15e102.p.ssafy.io/auth/android/oauth/kakao/callback . 사용자가 BE 기준 주소로 확정했으며 카카오 앱1628175의 REST API 키 설정에 등록 후 재조회했다. 로그인·연결 모두 같은 URI를 사용한다. AUTH_OAUTH_KAKAO_REDIRECT_URIS에 같은 값을 서버 환경 파일로 저장했다. 운영 Compose의 콜백·APK 지문 전달 설정과 새 코드 배포 후 컨테이너에 반영해야 한다. FE 담당 합의·앱 복귀 구현·실기기 검증 완료를 뜻하지 않는다.
 - Google/Naver 후보 App Links: https://k15e102.p.ssafy.io/auth/android/oauth/google/callback, https://k15e102.p.ssafy.io/auth/android/oauth/naver/callback. 두 주소는 아직 미확정이며 콘솔 등록·서버 환경 주입 전이다.
 - 앱은 제공자·LOGIN/LINK 목적·정확한 redirectUri·요청 state·만료를 인증 시도 상태로 보관한다. 외부 브라우저로 갔다가 프로세스가 종료돼도 잘못된 목적/사용자의 흐름으로 복구하지 않아야 한다. 코드·state·쿠키를 로그에 쓰거나 인가 코드를 영구 저장하지 않는다.
 - 새 시작과 onNewIntent 복귀 모두 다루고, URI의 https·정확한 호스트·허용된 경로·provider·state를 확인한다. 재생·중복 복귀와 취소를 처리하며 완료 요청은1회만 보낸다. 로그인과 마이페이지 연결의 start·완료를 섞지 않는다.
