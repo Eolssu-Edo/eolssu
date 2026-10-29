@@ -40,12 +40,16 @@ class ResultViewModel(
     songRepository: SongRepository,
     private val recordRepository: PracticeRecordRepository,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ResultUiState(result = evaluationRepository.result(evaluationId)))
+    private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
 
     init {
-        val songId = _uiState.value.result?.songId
-        if (songId != null) viewModelScope.launch { _uiState.update { it.copy(song = songRepository.getSong(songId)) } }
+        viewModelScope.launch {
+            val result = evaluationRepository.result(evaluationId) ?: return@launch
+            _uiState.update { it.copy(result = result) }
+            val song = songRepository.getSong(result.songId)
+            _uiState.update { it.copy(song = song) }
+        }
     }
 
     /** 연습 기록에 저장하고 확인 시트를 연다. 같은 결과는 다시 저장하지 않는다. */

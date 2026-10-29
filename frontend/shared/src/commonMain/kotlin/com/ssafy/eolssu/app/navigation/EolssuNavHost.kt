@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.history.GrowthRoute
@@ -52,6 +53,7 @@ import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_mic_required
+import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
@@ -65,7 +67,8 @@ object EolssuDestination {
 
     const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}"
 
-    const val ANALYSIS = "analysis/{songId}/{bpm}"
+    /** [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다. */
+    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}"
     const val RESULT = "result/{evaluationId}"
 
     const val RECORDS = "records?saved={saved}"
@@ -78,7 +81,9 @@ object EolssuDestination {
 
     fun recordDetail(recordId: String) = "records/$recordId"
 
-    fun analysis(songId: String, bpm: Int) = "analysis/$songId/$bpm"
+    fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null) =
+        "analysis/$songId/$bpm?recording=${take?.path.orEmpty().encodeURLParameter()}&key=${take?.key.orEmpty()}" +
+            "&session=${pendingSessionId.orEmpty()}"
 
     fun result(evaluationId: String) = "result/$evaluationId"
 
@@ -195,7 +200,7 @@ fun EolssuNavHost(
                             popUpTo(EolssuDestination.PRACTICE) { inclusive = true }
                         }
                     },
-                    onEvaluate = { id, bpm -> navController.navigate(EolssuDestination.analysis(id, bpm)) },
+                    onEvaluate = { id, bpm, take -> navController.navigate(EolssuDestination.analysis(id, bpm, take)) },
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     onMicDenied = {
@@ -209,11 +214,30 @@ fun EolssuNavHost(
             }
             composable(
                 EolssuDestination.ANALYSIS,
-                arguments = listOf(navArgument("songId") { type = NavType.StringType }, navArgument("bpm") { type = NavType.IntType }),
+                arguments = listOf(
+                    navArgument("songId") { type = NavType.StringType },
+                    navArgument("bpm") { type = NavType.IntType },
+                    navArgument("recording") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("key") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument("session") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
             ) { entry ->
+                val recording = entry.savedStateHandle.get<String>("recording").orEmpty()
+                val key = entry.savedStateHandle.get<String>("key").orEmpty()
                 AnalysisRoute(
                     songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                     bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
+                    take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
+                    pendingSessionId = entry.savedStateHandle.get<String>("session")?.takeIf { it.isNotEmpty() },
                     onResult = { id ->
                         navController.navigate(EolssuDestination.result(id)) {
                             popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
@@ -377,6 +401,9 @@ fun EolssuNavHost(
             }
         }
         SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
+        PendingRecordingNotice(
+            onSend = { navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId)) },
+        )
     }
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }

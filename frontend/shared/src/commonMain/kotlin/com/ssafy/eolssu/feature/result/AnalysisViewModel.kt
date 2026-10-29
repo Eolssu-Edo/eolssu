@@ -2,9 +2,12 @@ package com.ssafy.eolssu.feature.result
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.PracticeSessionRepository
+import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
@@ -39,23 +42,40 @@ enum class UploadProblem {
 /** 같은 녹음으로 다시 분석할 수 있는 실패이고, 다시 시도하는 중이 아닌지. */
 internal fun AnalysisUiState.canRetry(): Boolean = !retrying && failure?.retryable == true
 
-/** 녹음을 분석에 맡기고 2초마다 상태를 묻는다. 동작은 [AnalysisSession]에 있다. */
+/**
+ * 녹음을 분석에 맡기고 2초마다 상태를 묻는다. 동작은 [AnalysisSession]에 있다.
+ *
+ * @param take 연습 화면에서 마친 녹음. 세션을 만들어 올린다. 없으면(녹음기가 없는 플랫폼) 예시 분석이다.
+ * @param pendingSessionId 앱을 다시 켜고 보내는, 기기에 남은 녹음의 세션.
+ * @param uploads·sessions 녹음을 보관할 수 있는 플랫폼(현재 Android)에만 있다.
+ */
 class AnalysisViewModel(
     songId: String,
     bpm: Int,
+    take: RecordedTake?,
+    pendingSessionId: String?,
     songRepository: SongRepository,
     evaluationRepository: EvaluationRepository,
+    uploads: RecordingUploads? = null,
+    sessions: PracticeSessionRepository? = null,
 ) : ViewModel() {
     private val session = AnalysisSession(
         viewModelScope,
         evaluationRepository,
         clock = TimeSource.Monotonic.markNow().let { start -> { start.elapsedNow().inWholeMilliseconds } },
         sleep = { delay(it) },
+        uploads = uploads,
+        sessions = sessions,
     )
     val uiState: StateFlow<AnalysisUiState> = session.state
 
     init {
-        viewModelScope.launch { session.start(songRepository.getSong(songId), bpm) }
+        viewModelScope.launch {
+            val song = songRepository.getSong(songId)
+            // 서버 곡(숫자 ID)이 아닌 예시 곡은 서버에 세션을 만들 수 없어 녹음을 보내지 않고 예시 분석을 쓴다.
+            val serverTake = take?.takeIf { songId.isNotEmpty() && songId.all { it in '0'..'9' } }
+            if (pendingSessionId != null) session.startPending(song, bpm, pendingSessionId) else session.start(song, bpm, take = serverTake)
+        }
     }
 
     /** 분석 다시 시도. */

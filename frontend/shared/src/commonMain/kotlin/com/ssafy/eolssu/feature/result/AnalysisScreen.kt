@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
@@ -66,9 +67,13 @@ import org.koin.core.parameter.parametersOf
 fun AnalysisRoute(
     songId: String,
     bpm: Int,
+    take: RecordedTake?,
+    pendingSessionId: String?,
     onResult: (evaluationId: String) -> Unit,
     onBackToPractice: () -> Unit,
-    viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm") { parametersOf(songId, bpm) },
+    viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
+        parametersOf(songId, bpm, take, pendingSessionId)
+    },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
