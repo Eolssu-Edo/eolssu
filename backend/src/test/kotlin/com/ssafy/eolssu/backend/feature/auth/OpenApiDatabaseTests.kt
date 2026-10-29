@@ -68,7 +68,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(20,expected.size)
+        assertEquals(21,expected.size)
         assertEquals(expected,actual)
         for (entry in actual) {
             val (method,path)=entry.split(' ',limit=2)

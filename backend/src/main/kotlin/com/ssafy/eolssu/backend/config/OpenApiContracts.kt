@@ -8,6 +8,7 @@ import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 
 /** ResponseEntity<*>의 응답 타입 소실을 보완하는 문서 계약. 요청 DTO/매핑은 springdoc이 실제 컨트롤러에서 읽는다. */
@@ -26,6 +27,7 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.POST,"/api/auth/sign-in","signIn","인증","이메일 로그인",
         "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 대기는 로그인 성공 시에만 취소합니다.",
         SignedIn::class.java,errors=listOf(INVALID_CREDENTIALS,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
