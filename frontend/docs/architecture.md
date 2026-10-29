@@ -70,7 +70,7 @@ com/ssafy/eolssu/
     user/                     # 인증·프로필 API, DTO, Repository
 
   feature/
-    home/                     # 홈 화면(현재 악기 선택, 주요 기능 진입)
+    home/                     # 홈 화면(현재 악기 표시, 주요 기능 진입)
     guide/                    # 운지법 보기·정간보 쉽게 읽기 같은 학습 안내 화면(2차)
     auth/                     # 로그인·회원가입 화면
     song/                     # 곡 목록·상세 화면
@@ -84,7 +84,8 @@ feature와 data는 1:1이 아니다. 기능마다 같은 이름의 data 폴더�
 
 | feature | 사용하는 data |
 | --- | --- |
-| `home`, `guide` | 아직 없음. 홈의 악기 선택은 화면 상태로만 둔다 |
+| `home` | `data/user`. 홈은 현재 악기를 보여 주기만 하고, 악기 바꾸기는 마이페이지(`profile`)에서 한다 |
+| `guide` | 기초부터 배우기만 `data/song`(곡 열기)·`data/user`(진행 기록) |
 | `auth`, `profile` | `data/user` |
 | `song` | `data/song` |
 | `practice`, `result`, `history` | `data/practice` |

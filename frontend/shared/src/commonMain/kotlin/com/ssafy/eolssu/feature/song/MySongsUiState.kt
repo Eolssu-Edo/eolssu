@@ -11,6 +11,8 @@ enum class MySongsTab { Songs, Sheets }
  *
  * @property sheets 내 악보. 아직 받지 않았으면 null.
  * @property savedSheet 이 화면을 떠나 있는 동안 새로 저장된 악보. 저장 안내를 띄운 뒤 비운다.
+ * @property addSheetOnReturn 악보 추가 시트에서 PDF 올리기로 갔다. 저장하지 않고 돌아오면 시트를 다시 연다.
+ *   시트는 다른 화면 위에 겹쳐 그려지므로 떠날 때 닫아 두고 돌아올 때 연다.
  */
 data class MySongsUiState(
     val tab: MySongsTab = MySongsTab.Songs,
@@ -18,6 +20,7 @@ data class MySongsUiState(
     val sheets: List<MySheet>? = null,
     val addSheetOpen: Boolean = false,
     val savedSheet: MySheet? = null,
+    val addSheetOnReturn: Boolean = false,
 ) {
     val sheetCount: Int get() = sheets?.size ?: 0
 
@@ -26,6 +29,12 @@ data class MySongsUiState(
         val before = sheets ?: return copy(sheets = received)
         val known = before.mapTo(HashSet()) { it.id }
         val added = received.firstOrNull { it.id !in known } ?: return copy(sheets = received)
-        return copy(sheets = received, savedSheet = added, tab = MySongsTab.Sheets, addSheetOpen = false)
+        return copy(sheets = received, savedSheet = added, tab = MySongsTab.Sheets, addSheetOpen = false, addSheetOnReturn = false)
     }
+
+    /** 악보 추가 시트에서 PDF 올리기로 간다. */
+    fun leaveForPdfUpload(): MySongsUiState = copy(addSheetOpen = false, addSheetOnReturn = true)
+
+    /** 이 화면으로 돌아왔다. PDF 올리기에서 저장하지 않고 돌아왔으면 악보 추가 시트를 다시 연다. */
+    fun returnToScreen(): MySongsUiState = if (addSheetOnReturn) copy(addSheetOpen = true, addSheetOnReturn = false) else this
 }

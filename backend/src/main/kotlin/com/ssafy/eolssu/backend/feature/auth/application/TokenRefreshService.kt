@@ -36,7 +36,8 @@ class TokenRefreshService(
             return TokenRefreshResult.Unauthenticated
         }
         if (stored.revoked) return TokenRefreshResult.Unauthenticated
-        if (!stored.expiresAt.isAfter(now) || memberStatus != MemberStatus.ACTIVE) {
+        val validLifetime = stored.expiresAt?.isAfter(now) ?: tokenIssuer.isNonExpiringUser(stored.userId)
+        if (!validLifetime || memberStatus != MemberStatus.ACTIVE) {
             return TokenRefreshResult.Unauthenticated
         }
         repository.revoke(stored.id, RevokeReason.ROTATED, now)

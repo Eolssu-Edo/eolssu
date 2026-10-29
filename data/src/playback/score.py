@@ -46,8 +46,12 @@ def reject_unknown(obj, allowed, label):
 
 def validate_pitch_curve(curve):
     """Normalize either a legacy tail bend or explicit piecewise linear points."""
-    reject_unknown(curve, ["end_cents", "tail_fraction", "maximum_seconds", "delay_seconds", "points"], "pitch_curve")
+    reject_unknown(curve, ["end_cents", "tail_fraction", "maximum_seconds", "delay_seconds", "points", "step_at_delay"], "pitch_curve")
     delay = finite(curve.get("delay_seconds", 0), "curve delay_seconds", 0, math.inf)
+    step = curve.get("step_at_delay", False)
+    require(type(step) is bool and ("step_at_delay" not in curve or "points" in curve)
+            and (not step or delay > 0),
+            "step_at_delay requires explicit points and a positive delay")
     if "points" in curve:
         require(not (curve.keys() & {"end_cents", "tail_fraction", "maximum_seconds"}),
                 "pitch_curve points cannot be combined with legacy tail fields")
@@ -65,9 +69,9 @@ def validate_pitch_curve(curve):
         require(normalized[0][0] == 0 and normalized[-1][0] == 1,
                 "pitch_curve points must include fractions 0 and 1")
         # Before a delayed effect the note remains at its current pitch.
-        require(not delay or normalized[0][1] == 0,
+        require(not delay or normalized[0][1] == 0 or step,
                 "delayed pitch_curve must start at zero cents")
-        return {"points": normalized, "delay_seconds": delay}
+        return {"points": normalized, "delay_seconds": delay, **({"step_at_delay": True} if step else {})}
     return {"end_cents": finite(curve.get("end_cents"), "curve end_cents", -1200, 1200),
             "tail_fraction": finite(curve.get("tail_fraction"), "curve tail_fraction", .01, 1),
             "maximum_seconds": finite(curve.get("maximum_seconds"), "curve maximum_seconds", .005, 1),
@@ -129,6 +133,8 @@ def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
     tuning = 1200 * math.log2(finite(c.get("tuning_a_hz", 440), "tuning_a_hz", 420, 460) / 440)
     require(isinstance(score.get("notes"), list) and 0 < len(score["notes"]) <= 10000, "1..10000 notes required")
     events, warnings, seen = [], [], set()
+    if profile.get("sample_bank_note"):
+        warnings.append(profile["sample_bank_note"])
     if score["source"]["review_status"] == "machine-transcribed-unverified":
         warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
     elif score["source"]["review_status"] == "source-review-unverified":

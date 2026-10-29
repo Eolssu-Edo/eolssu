@@ -29,8 +29,13 @@ class AuthTokenConfig {
         MyBatisRefreshTokenRepository(mapper, users, manager)
 
     @Bean
-    fun authTokenIssuer(signer: AccessTokenSigner, refreshTokens: RefreshTokenRepository, secrets: VerificationSecrets, clock: Clock) =
-        AuthTokenIssuer(signer, refreshTokens, secrets, clock)
+    fun authTokenIssuer(signer: AccessTokenSigner, refreshTokens: RefreshTokenRepository, secrets: VerificationSecrets, clock: Clock, properties: SecurityProperties) =
+        AuthTokenIssuer(signer, refreshTokens, secrets, clock, properties.nonExpiringUserIds)
+
+    @Bean
+    fun nonExpiringSessionCheck(mapper: RefreshTokenMapper) = NonExpiringSessionCheck { userId, hash ->
+        mapper.hasActiveNonExpiringSession(userId, hash)
+    }
 
     @Bean
     fun tokenRefreshService(repository: TokenRefreshRepository, tokenIssuer: AuthTokenIssuer, secrets: VerificationSecrets, clock: Clock) =

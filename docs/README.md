@@ -32,6 +32,9 @@
 
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
+- [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
+- [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
+
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
@@ -53,6 +56,7 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [R2 서명 URL·비공개 접근·30일 삭제 규칙 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
@@ -72,7 +76,9 @@
 ## 데이터 조사·검증 기록
 
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
+- [산조대금 JGB·MIDI·M4A 변환과 CAT 공통 샘플 확인](knowledge/data/sanjo-playback.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
+- [정악대금 JGB·M4A 연결과 CAT 대금 샘플 비교](knowledge/data/jeongak-playback.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [소금 JGB·MIDI·M4A 생성과 실음·표현 정책](knowledge/data/sogeum-playback.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
@@ -127,6 +133,7 @@
 - [S15P31E102-209 회원 탈퇴와 30일 뒤 일괄 삭제](plans/S15P31E102-209.md)
 - [S15P31E102-210 비밀번호 재설정 API 구현](plans/S15P31E102-210.md)
 - [S15P31E102-253 구현된 API Swagger 문서화와 운영 조회](plans/S15P31E102-253.md)
+- [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
@@ -134,6 +141,8 @@
 - [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 - [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
 - [S15P31E102-249 단소 4곡과 악기·장단 기준 데이터 DB 적재](plans/S15P31E102-249.md)
+
+- [S15P31E102-272 R2 접근·보관 정책 검증](plans/S15P31E102-272.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
@@ -163,3 +172,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 결정 문서는 상태(`제안`·`확정`·`대체됨`·`기각`), 선택, 근거, 영향 범위를 남깁니다. `확정`에는 누가 언제 합의했는지 확인할 수 있는 근거를 붙입니다. 검토만 끝난 문서를 팀의 확정 사항으로 표시하지 않습니다. 사소한 구현 선택마다 별도 결정 문서를 만들 필요는 없습니다.
 
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
+
+- [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)

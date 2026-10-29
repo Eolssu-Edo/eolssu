@@ -49,7 +49,7 @@ class TargetTests(unittest.TestCase):
             return [] if path.startswith('/containers/json') else {}
         with patch.object(collector, 'docker', side_effect=docker):
             self.assertEqual(collector.snapshot(target='edo2')[3], [])
-            self.assertEqual(len(collector.snapshot(target='edo1')[3]), 3)
+            self.assertEqual(len(collector.snapshot(target='edo1')[3]), 7)
 
     def test_empty_container_report_identifies_edo2_without_fabricating_measurements(self):
         report = {'target':'edo2','mode':'containers','columns':[str(i) for i in range(11)],'rows':[], 'facts':[]}
