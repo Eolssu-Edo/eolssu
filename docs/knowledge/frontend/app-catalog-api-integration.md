@@ -33,10 +33,10 @@ CAT04의 원본 악보와 projection을 모두 검사한다. CAT02와 곡·버�
 | 기준 ID·출처 | 성격 | 적용·시나리오 | 환경·입력 | 기대 결과 | 실제 결과·증거 |
 | --- | --- | --- | --- | --- | --- |
 | TEAM-CAT03~10 | 팀 확정 API 계약 | 앱 Repository→실제 Spring HTTP | MySQL8.4 전용DB, server eb32519, 127.0.0.1:18088 | 4곡·원본 ID/tick/버전, 음계11·장단3·빈 선택 콘텐츠 | 통과, CatalogLocalServerTest 포함 |
-| TEAM-REGRESSION | 팀 검사 | host tests·JS/Wasm 컴파일 | JDK21, Gradle9.5.1, Kotlin2.4.20, Compose1.12.1 | 성공·skip 여부 명시 | 473개/71suite 통과, 실패·오류·skip0; JS/Wasm 컴파일 성공 |
+| TEAM-REGRESSION | 팀 검사 | host tests·JS/Wasm 컴파일 | JDK21, Gradle9.5.1, Kotlin2.4.20, Compose1.12.1 | 성공·skip 여부 명시 | 최종474개/72suite 통과, 실패·오류·skip0; JS/Wasm 컴파일 성공 |
 | Audio_Focus_Request/Change | Android 품질 권고 | 실제 native 재생·정지·포커스 | API37 x86_64, getconf16384, p172 생성 M4A | 위치 증가·pause 고정·focus loss 중단·release | 통과: audio-probe.json. 동일 UID 두 번째 OS focus client이며 타앱/통화 검증 아님 |
 | TEAM-PUBLIC-UI | 팀 통합 검사 | 홈→4곡→CAT04악보→CAT05 미등록 | API37 16KB 전용 AVD, debug loopback | 실제 공개 조회·정직한 빈 상태 | 통과, screenshots/debug-*; 로그인/동의/분석 성공 아님 |
-| TEAM-ARTIFACT | 팀 완료조건 | 동일 버전 APK/AAB·서명·AAB 파생 설치 | versionCode4, 로컬 검증키 | 서명·bundletool·ELF/ZIP·설치 | 최종 빌드 대기 |
+| TEAM-ARTIFACT | 팀 완료조건 | 동일 버전 APK/AAB·서명·AAB 파생 설치 | versionCode4, 로컬 검증키 | 서명·bundletool·ELF/ZIP·설치 | 통과: 서명·bundletool validate·4 ABI ELF/ZIP16KB·API37 파생 설치/시작. 공식 키는 미확인 |
 | Touch_Target_Size / Visual_Contrast / T-Config_State / T-Multi-Window_Resources | Android 품질 권고·팀 필수 검사 | 큰 글꼴·태블릿·창 변경·오디오 경합 | 이전 v3 범위와 이번 v4 delta 구분 | 잘림·상태 유실·마이크 경합 없음 | 이번 delta 전체 미검증. 이전117보드/111태블릿 대응표를 전체 통과로 확대하지 않음 |
 | DEVICE01~18 | 프로젝트 실기기 품질 조건 | 실제 마이크·음질/지연·타앱/통화·장시간 | 실제 Android 폰·정상 서버·개발계정 | 기존 인계표 기대 결과 | 미검증: 이번 PC에 기기 없음, 담당 미정 |
 
@@ -49,3 +49,24 @@ debug 공개 조회는 전용 AVD에 `first_run_completed=true`만 주입했다.
 운영 비인증 GET(2026-10-29T07:29Z): songs200/4개, instruments404, terms200/빈 목록. 서버 MR 병합·배포와 승인 콘텐츠 등록이 필요하다. 공식 업로드 키, Play app signing 인증서, Console 최고 versionCode/계정 조건, 공개 개인정보 URL·웹 삭제 경로·대상 연령·권리·심사 계정은 미확인이다. 기존 스토어 문구/Data safety/영어 접근 설명 초안과 실기기 인계표는 version3 자료를 유지하며 실제 앱 전체 흐름 검증 후 확정해야 한다.
 
 개발 환경·로컬 산출물 검사와 Play 제출 가능 여부는 다르다. A 개발 환경은 최종 검사로 판정하고, B 로컬 서명 산출물 검증은 공식 upload key 미확인과 구별한다. C 제출 준비는 P0/P1·필수 미검증 때문에 미완료, D Google 심사 승인은 제출하지 않아 미검증이다. 실기기 부재만 남은 상태로 보고하지 않는다.
+
+## 최종 산출물과 검토
+
+빌드 소스 `4819538b698f41aca0ca3ae97a66e786932412fa`, 당시 tracked/untracked dirty 없음. `source-at-build.json`과 Git 커밋에 보존했다. 이후 검증 결과·MR 링크 문서는 런타임 코드 변경 없이 추가한다. versionName1.0.0 / versionCode4 / min24 / target37 / applicationId `com.ssafy.eolssu`.
+
+| 파일 (증거 루트 packages/) | SHA-256 |
+| --- | --- |
+| eolssu-1.0.0-4-local-validation.apk | f175242b10d673a5d156bf132d78debdf898ff6748ba02315dce7e45d15d4e08 |
+| eolssu-1.0.0-4-local-validation.aab | e70e51803022ab47fd1602c44443f39fb5af7a8a3f191b17181e29cd6c3d43f4 |
+
+공개 인증서 SHA-256 `e2c8cd51f6680207d58331f20df64961d17bcd89c7525d543bec32a14ecfcf13`. 이는 로컬 검증키이며 공식 upload key·Play app signing key가 아니다. `frontend/tools/build-android-release.ps1 -VersionCode 4 -VersionName 1.0.0`에 승인된 키를 환경변수로 주입해 재현한다. Console 사용 버전을 확인하지 않았으므로 배포 버전 번호를 확정하지 않는다.
+
+최종 Gradle debug/release 빌드·lint 성공. lint error0, debug warning18/release warning20: 라이브러리 업데이트 권고, API26 adaptive/XML와 이전 OS PNG 공존, monochrome icon 누락이다. 업데이트/아이콘 P2는 후속 FE 담당이며 이번 API 연결을 위해 의존성을 올리지 않았다. jarsigner는 검증 성공과 함께 self-signed/타임스탬프 없음·ZIP manifest 열거 방식 관련 경고를 출력했으므로 원본 로그를 보존했다. bundletool validate 및 파생 패키지의 인증서 검사·설치도 성공했다.
+
+전용 AVD Eolssu_API37_16KB, API37/x86_64, getconf PAGE_SIZE16384, 1080×2400/420dpi. release APK와 AAB 파생 APK 모두 설치·시작했고 debuggable 플래그 없음, 운영 약관 오류에 도달했다. 로그인·녹음·업로드·분석 완료가 아니다. 이번 v4의 API24/태블릿/TalkBack/호스트 마이크·타앱 경합은 미검증이며 이전 v3 검사와 구별한다. PC가 ARM 실기기나 iOS 검증을 대체하지 않는다.
+
+독립 검토에서 결과 버전 재조회, MISSED 누락, 계정 공유 캐시/기록과 대기 녹음 문제를 수정했다. 마지막 읽기 전용 재검토에서 해당 변경의 추가 P0/P1은 없었다. 별도 native probe는 실제 HTTPS M4A 디코드/재생 위치·pause/resume·속도·포커스 중단·잘못된 입력·해제를 검증했다. 실제 사용자 청취 음질·통화 중단 시험은 아니다.
+
+최종 manifest에서 기존 `allowBackup=true`와 백업 제외 규칙 부재를 확인했다. 내부 `files/pending-recordings` 및 회원 메타데이터의 OS 백업 포함 여부는 개인정보 처리·보관 정책 결정이 필요하다. 사용자에게 제외 여부를 질문했으며 답변 전 정책을 임의 변경하지 않았다. 이 항목은 P0 출시 검토 차단으로 유지한다. 앱·서버 계정 삭제와 OS 백업 삭제가 같은 범위라고 가정하지 않는다.
+
+판정: A 개발 환경 **완료**. B **로컬 서명 산출물 검증 완료 / 공식 제출 키 미확인**. C 제출 준비 **미완료**(위 P0/P1·필수 미검증), D 심사 승인 **미검증**(미제출). 전체 실기기 절차·기존 정책 감사/스토어 초안은 이전 release-catalog 묶음과 이 delta 문서를 함께 인계한다.

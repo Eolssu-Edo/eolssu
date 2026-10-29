@@ -27,6 +27,7 @@ CAT-05의 게시 음원 메타데이터를 기존 연습 화면의 모범 연주
 - 연습 화면의 긴 NOTE/tick·박 표시, 일시정지, 화면 이탈·재개, 실제 player 속도 전달: `PracticeLiveProgressTest`. 녹음 시계 테스트는 보존한다.
 - 재현: frontend에서 `./gradlew :shared:testAndroidHostTest :androidApp:assembleDebug :androidApp:lintDebug`, 웹 공통 코드 `:shared:compileKotlinJs :shared:compileKotlinWasmJs`.
 - 로컬 서버 설정이 없는 `CatalogLocalServerTest`는 skip이며 실제 서버 검사 통과로 기록하지 않는다.
+- 통합 후 실제 HTTPS M4A native probe: API37/x86_64/16KB에서 준비·위치 증가·pause/resume·속도·같은 UID의 두 번째 OS focus client 중단·오류·자원 해제가 통과했다. 별도 debug package/로컬 CA만 사용하고 삭제했으며 OS CA나 release 설정은 변경하지 않았다. 결과는 `model-audio-native-probe/audio-probe.json`, 전체 통합 검사는 [최종 기록](app-catalog-api-integration.md)을 따른다.
 - 실제 HTTPS 파일의 Android 디코딩·스피커 출력·포커스 경합·통화·헤드폰·화면 회전/분할 크기 변경 관찰은 통합 에뮬레이터 또는 후속 실기기 검사다. 자동 상태 검사만으로 이 검사가 통과했다고 하지 않는다.
 
 ## Android skills 적용

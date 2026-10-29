@@ -35,3 +35,5 @@
 - 미검증: 이 분리 worktree의 앱 DI·탐색 연결, 에뮬레이터 실제 화면/확대 글꼴/TalkBack/외부 링크 실행, 운영 서버·음원·이미지, iOS 컴파일과 실기기. 통합 브랜치에서 최종 확인한다.
 
 통합할 등록은 `ReferenceCatalogRepository → ApiReferenceCatalogRepository`, `ReadingCatalogViewModel`, `FingeringViewModel(instrument, blow, InstrumentCatalog, ReferenceCatalogRepository)`이며, 기존 읽기 화면 목적지는 `ReadingRoute`를 호출한다. 라이브러리·탐색 경로 이름을 추가할 필요는 없다.
+
+통합 브랜치에서 위 DI·탐색 연결을 완료했다. 실제 Spring HTTP로 음계11개·장단3개와 각 상세·빈 운지/기호를 확인했고, API37 에뮬레이터에서 등록된 율명·운지 자료 창의 11율명/미등록 운지 안내를 관찰했다. 최종 자동 검사 및 적용 소스는 [앱 통합 기록](app-catalog-api-integration.md)을 따른다. 운영 자료·외부 링크 미디어의 실제 품질·전체 화면 접근성 검증은 이 결과에 포함되지 않는다.
