@@ -279,3 +279,11 @@ Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`�
 `AUTH_NON_EXPIRING_USER_IDS`는 기본 빈 목록이며, 검토한 테스트 회원 ID에만 설정합니다. 이 설정을 전달하는 관리된 Compose와 V7이 적용된 백엔드 릴리스가 필요합니다. 운영 `ops`는 Flyway를 실행하지 않으므로 마이그레이션은 먼저 `db` 프로필로 별도 수행합니다. 실제 계정 생성·배포 순서와 검증은 [S15P31E102-260](../../docs/plans/S15P31E102-260.md)을 따릅니다. 설정을 비우고 백엔드에 다시 주입하면 예외 토큰을 거부합니다. 기존 비밀값을 출력하거나 전체 `.env`를 덮어쓰지 않습니다.
 
 구버전 JAR로 롤백할 때는 허용 목록을 끄는 것만으로 충분하지 않습니다. NULL 만료 세션을 먼저 만료·폐기해 구버전의 non-null 매핑과 호환시킨 뒤 JAR을 바꿉니다. 검증한 SQL과 순서는 [Task 260의 복구 절차](../../docs/plans/S15P31E102-260.md#예외-중단과-바이너리-롤백)를 따릅니다.
+
+## R2 버킷명·보관 규칙 점검
+
+`RECORDING_STORAGE_BUCKET`에는 R2 버킷 이름을 지정합니다. API 토큰의 표시 이름과 구분합니다. 현재 버킷은 `eolssu-recordings`이며 토큰 이름 `eolssu-backend-recordings`를 넣으면 객체 PUT·DELETE가 403 AccessDenied가 됩니다. readiness는 R2 객체 접근을 검사하지 않으므로 변수 존재·기동 성공만으로 저장소 연결을 판정하지 않습니다.
+
+Cloudflare 버킷 Settings에서 사용자 도메인 없음·Public Development URL disabled, `recordings-expire-after-30-days`의 접두사 `recordings/`·객체 생성 후 30일 삭제·Enabled를 확인합니다. 기본 미완료 multipart 7일 중단 규칙은 별도로 보존합니다. 새 검증 객체의 `x-amz-expiration`에서 30일 만료 시각과 규칙명을 확인하며, 실제 자동 삭제 실행과 구분합니다. 저장소 접근 키·서명 URL은 출력하지 않습니다.
+
+2026-10-29의 버킷명 정정·backend 재생성·서명 읽기·만료·삭제 검증과 복구 위치는 [Task 272](../../docs/plans/S15P31E102-272.md)·[R2 검증 기록](../../docs/knowledge/infra/r2-storage-verification.md)을 따릅니다. 일반 재현은 테스트 전용 버킷을 쓰며 운영 객체 검사는 범위·정리 대상을 먼저 승인받습니다.

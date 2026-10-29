@@ -52,6 +52,7 @@
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [R2 서명 URL·비공개 접근·30일 삭제 규칙 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
@@ -136,6 +137,8 @@
 - [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 - [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
 - [S15P31E102-249 단소 4곡과 악기·장단 기준 데이터 DB 적재](plans/S15P31E102-249.md)
+
+- [S15P31E102-272 R2 접근·보관 정책 검증](plans/S15P31E102-272.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
