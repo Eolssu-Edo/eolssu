@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.profile
 import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.UserRepository
@@ -12,11 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * MY-01. 내 정보·간편 로그인 연결은 [UserRepository], 연습 악기는 [InstrumentRepository]에서 바로 받아 보여 준다.
- * 연결 해제와 로그아웃은 확인 창([dialog])을 거친다.
+ * 연결 해제와 로그아웃은 확인 창([dialog])을 거친다. 로그아웃하면 남은 연습 시간 기록을 한 번 보내 보고 지운 뒤 로그아웃한다.
  */
 class MyPageViewModel(
     private val userRepository: UserRepository,
     private val instrumentRepository: InstrumentRepository,
+    private val practiceTimeQueue: PracticeTimeQueue,
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userRepository.profile
     val instrument: StateFlow<Instrument> = instrumentRepository.instrument
@@ -48,7 +50,7 @@ class MyPageViewModel(
     }
 
     fun confirmLogOut() {
-        userRepository.logOut()
+        practiceTimeQueue.logOut(then = userRepository::logOut)
         _dialog.value = null
     }
 
