@@ -74,6 +74,10 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
             )
             return@BoxWithConstraints
         }
+        if (state.song == null) {
+            RecordSongLookupContent(state, actions)
+            return@BoxWithConstraints
+        }
         val wide = maxWidth >= PaneWideMinWidth
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             PaneHeader(state, record, actions, wide)

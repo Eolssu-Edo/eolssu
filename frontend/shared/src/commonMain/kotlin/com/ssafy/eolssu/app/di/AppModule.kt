@@ -11,7 +11,8 @@ import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
-import com.ssafy.eolssu.data.song.SampleSongRepository
+import com.ssafy.eolssu.data.song.ApiSongRepository
+import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
@@ -27,12 +28,13 @@ import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.data.user.SampleAuthRepository
-import com.ssafy.eolssu.data.user.SampleUserRepository
+import com.ssafy.eolssu.data.user.AccountDraft
+import com.ssafy.eolssu.data.user.TermsRepository
+import com.ssafy.eolssu.data.user.ApiUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.data.user.VerificationPurpose
-import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
+import com.ssafy.eolssu.feature.auth.TermsViewModel
 import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
@@ -67,8 +69,8 @@ val appModule = module {
     // 화면이 사라져도 끝내야 하는 일(로그아웃 요청 등)을 하는 앱 전체의 범위.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
-    // API가 생기면 예시 구현을 API 구현으로 바꾼다.
-    single<SongRepository> { SampleSongRepository() }
+    single<SongRepository> { ApiSongRepository(get()) }
+    single { InstrumentCatalog(get()) }
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
@@ -94,20 +96,22 @@ val appModule = module {
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow) }
     viewModelOf(::LearnViewModel)
 
-    // 첫 실행·로그인·회원가입·비밀번호 찾기. 인증 API를 붙이기 전까지 예시 저장소가 로그인·인증번호 결과를 돌려준다.
+    // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }
     single { LearnProgressRepository(get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), fallback = SampleAuthRepository(now = get())) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get()) }
+    single { AccountDraft() }
+    single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
+    viewModel { (termId: String) -> TermsViewModel(termId, get()) }
     viewModelOf(::LoginViewModel)
-    viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get()) }
-    viewModelOf(::PasswordSetupViewModel)
+    viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
+    viewModel { PasswordSetupViewModel(get(), get()) }
     viewModelOf(::ProfileSetupViewModel)
-    viewModelOf(::AccountLinkViewModel)
 
-    // 연습 악기(가입·홈·마이페이지가 함께 씀)와 마이페이지. 회원 정보 API를 붙이기 전까지 예시 계정을 쓴다.
-    single { InstrumentRepository(get()) }
-    single<UserRepository> { SampleUserRepository() }
+    // 활성 악기 목록의 실제 ID와 회원 설정을 연결한다.
+    single { InstrumentRepository(get(), get()) }
+    single<UserRepository> { ApiUserRepository(get(), getOrNull(), get()) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)

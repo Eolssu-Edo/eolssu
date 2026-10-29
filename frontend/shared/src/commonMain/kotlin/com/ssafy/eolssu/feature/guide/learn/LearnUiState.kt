@@ -5,7 +5,7 @@ import com.ssafy.eolssu.feature.guide.GuideInstrument
 /**
  * LEARN-02 상태. 단계 목록과 단계 상세가 함께 쓴다.
  *
- * @property done 악기별 완료 표시한 단계 번호. 잠금 없이 아무 단계나 표시할 수 있고, 시연용이라 앱을 다시 켜면 지워진다.
+ * @property done 악기별 완료 표시한 단계 번호. 잠금 없이 아무 단계나 표시할 수 있고, 기기에 저장해 다음 실행에도 이어진다.
  * @property playing '음 듣기'를 누른 율명. 음원이 없어 버튼만 잠시 강조한다.
  * @property songIds 8단계 곡 후보 제목 → 같은 제목의 평가 가능한 곡 식별자.
  * @property selectedStage 태블릿 가로 배치(단계 목록 + 단계 상세 한 화면)에서 고른 단계. 고르지 않았으면 null.
@@ -17,6 +17,8 @@ data class LearnUiState(
     val playing: String? = null,
     val songIds: Map<String, String> = emptyMap(),
     val selectedStage: Int? = null,
+    val songsLoading: Boolean = true,
+    val songsFailed: Boolean = false,
 ) {
     /** 지금 악기에서 완료 표시한 단계. */
     val doneStages: Set<Int> get() = done[instrument].orEmpty()

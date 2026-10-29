@@ -75,6 +75,9 @@ import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.image
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.catalog_consumer_loading
+import eolssu.shared.generated.resources.catalog_consumer_failed
+import eolssu.shared.generated.resources.catalog_consumer_retry
 import eolssu.shared.generated.resources.learn_borrow_length
 import eolssu.shared.generated.resources.learn_borrow_order
 import eolssu.shared.generated.resources.learn_borrow_sigimsae
@@ -153,6 +156,7 @@ class LearnStageActions(
     val onOpenFingering: (Blow) -> Unit,
     val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (LearnSong) -> Unit,
+    val onRetrySongs: () -> Unit = {},
 )
 
 /**
@@ -385,8 +389,15 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
                 }
             }
             LearnSection(stringResource(Res.string.learn_section_songs)) {
-                GuideGrid(LearnSongs, columns.songs, horizontalGap = 8.dp, verticalGap = if (columns.wide) 8.dp else 6.dp) { _, song, cell ->
-                    SongRow(song, cell) { actions.onOpenSong(song) }
+                when {
+                    state.songsLoading -> Text(stringResource(Res.string.catalog_consumer_loading))
+                    state.songsFailed -> {
+                        Text(stringResource(Res.string.catalog_consumer_failed))
+                        EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySongs)
+                    }
+                    else -> GuideGrid(LearnSongs, columns.songs, horizontalGap = 8.dp, verticalGap = if (columns.wide) 8.dp else 6.dp) { _, song, cell ->
+                        SongRow(song, cell) { actions.onOpenSong(song) }
+                    }
                 }
                 LearnSmallNote(stringResource(Res.string.learn_songs_note), Modifier.padding(top = 8.dp))
             }

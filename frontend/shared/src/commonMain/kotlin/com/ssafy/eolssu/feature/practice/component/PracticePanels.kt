@@ -89,6 +89,7 @@ import eolssu.shared.generated.resources.practice_jangdan_beat_desc
 import eolssu.shared.generated.resources.practice_jangdan_gueum_note
 import eolssu.shared.generated.resources.practice_jangdan_gueum_placeholder
 import eolssu.shared.generated.resources.practice_jangdan_meta
+import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
 import eolssu.shared.generated.resources.practice_jangdan_mic_notice
 import eolssu.shared.generated.resources.practice_jangdan_no_gueum
 import eolssu.shared.generated.resources.practice_jangdan_preview_start
@@ -302,7 +303,7 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
     ) {
         JeongganboView(
             song = song,
-            modifier = Modifier.width(60.dp),
+            modifier = Modifier.width(60.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
             metrics = JeongganboMetrics(columnWidth = 56.dp, cellHeight = 40.dp, yulSize = 19.sp, auxSize = 9.5.sp),
             notation = ScoreNotation(draft.showHangul, hasSolfege && draft.showSolfege),
             scrollState = null,
@@ -436,7 +437,8 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             val sub = if (jangdan.subdivision > 1) " " + stringResource(Res.string.practice_jangdan_sub, jangdan.subdivision) else ""
             Text(
-                stringResource(Res.string.practice_jangdan_meta, jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
+                stringResource(if (song.score.timing == null) Res.string.practice_jangdan_meta else Res.string.practice_jangdan_pattern_meta,
+                    jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.End,

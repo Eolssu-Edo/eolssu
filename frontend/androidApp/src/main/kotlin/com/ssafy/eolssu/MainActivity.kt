@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.ssafy.eolssu.core.network.ServerAddress
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -13,7 +14,7 @@ class MainActivity : ComponentActivity() {
         lockPortraitOnPhone()
 
         setContent {
-            App(context = applicationContext)
+            App(context = applicationContext, serverAddress = ServerAddress(BuildConfig.API_BASE_URL))
         }
     }
 

@@ -37,7 +37,7 @@ class PracticeStateTest {
 
     @Test
     fun replayAfterEndRestartsFromBeginning() {
-        val ended = ready.startModel().copy(playing = false, position = ready.eventCount - 1)
+        val ended = ready.startModel().copy(playing = false, position = ready.eventCount - 1, eventElapsedMs = ready.eventDurationMs(ready.eventCount - 1))
         val replay = ended.toggleModel()
         assertTrue(replay.playing)
         assertEquals(0, replay.position)
@@ -67,10 +67,10 @@ class PracticeStateTest {
     @Test
     fun modelEndStopsAtLastEventWithFullTime() {
         var state = ready.startModel()
-        repeat(state.eventCount) { state = state.advance(doneMs = 100.0, micLevel = 0f) }
+        repeat(state.eventCount) { state = state.advance(doneMs = state.eventDurationMs(), micLevel = 0f) }
         assertFalse(state.playing)
         assertEquals(state.eventCount - 1, state.position)
-        assertEquals(state.totalSeconds * 1000.0, state.elapsedMs)
+        assertEquals(arirang.durationMs(), state.elapsedMs, 0.000001)
     }
 
     @Test

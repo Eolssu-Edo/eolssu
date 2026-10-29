@@ -8,6 +8,10 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +33,7 @@ data class ResultUiState(
     val memo: String = "",
     val errorFilter: ErrorFilter = ErrorFilter.All,
     val selectedCell: ScoreCellPosition? = null,
+    val songLookup: SongLookup = SongLookup.Loading,
 ) {
     /** 설명을 보여 줄 칸. 고른 칸이 없으면 틀린 칸이 몰린 곳의 첫 오류. */
     val shownCell: ScoreCellPosition? get() = selectedCell ?: result?.defaultSelectedCell()
@@ -37,15 +42,34 @@ data class ResultUiState(
 class ResultViewModel(
     evaluationId: String,
     evaluationRepository: EvaluationRepository,
-    songRepository: SongRepository,
+    private val songRepository: SongRepository,
     private val recordRepository: PracticeRecordRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultUiState(result = evaluationRepository.result(evaluationId)))
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
+    private var songJob: Job? = null
 
     init {
-        val songId = _uiState.value.result?.songId
-        if (songId != null) viewModelScope.launch { _uiState.update { it.copy(song = songRepository.getSong(songId)) } }
+        retrySong()
+    }
+
+    fun retrySong() {
+        val songId = _uiState.value.result?.songId ?: return
+        if (songJob?.isActive == true || _uiState.value.song != null) return
+        _uiState.update { it.copy(songLookup = SongLookup.Loading) }
+        songJob = viewModelScope.launch {
+            val song = try {
+                songRepository.getSong(songId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                currentCoroutineContext().ensureActive()
+                _uiState.update { it.copy(songLookup = SongLookup.Failed) }
+                return@launch
+            }
+            currentCoroutineContext().ensureActive()
+            _uiState.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
+        }
     }
 
     /** 연습 기록에 저장하고 확인 시트를 연다. 같은 결과는 다시 저장하지 않는다. */

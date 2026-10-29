@@ -1,15 +1,33 @@
 package com.ssafy.eolssu.feature.auth
 
 import androidx.lifecycle.ViewModel
+import com.ssafy.eolssu.data.user.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** AUTH-08·AUTH-11. 프로필 설정(AUTH-07)에서 뒤로 오면 이 화면이 뒤에 남아 있어 입력값이 유지된다. */
-class PasswordSetupViewModel : ViewModel() {
+class PasswordSetupViewModel(private val auth: AuthRepository? = null, private val draft: AccountDraft = AccountDraft()) : ViewModel() {
     private val _uiState = MutableStateFlow(PasswordSetupUiState())
     val uiState: StateFlow<PasswordSetupUiState> = _uiState.asStateFlow()
+
+    private var submitting = false
+    suspend fun submitToServer(purpose: VerificationPurpose, email: String): Boolean {
+        if (submitting || !submit()) return false
+        if (draft.purpose != purpose || draft.email != email || draft.token.isBlank()) {
+            _uiState.update { it.copy(passwordError = FieldError.VerifyAgain) }
+            return false
+        }
+        val password = _uiState.value.password
+        if (purpose == VerificationPurpose.SignUp) { draft.password = password; return true }
+        submitting = true
+        return try {
+            val result = auth?.resetPassword(draft.token, password) ?: MemberResult.Unavailable
+            if (result == MemberResult.Done) { draft.clearVerification(); _uiState.value = PasswordSetupUiState(); true }
+            else { _uiState.update { it.copy(passwordError = result.fieldError()) }; false }
+        } finally { submitting = false }
+    }
 
     /** 비밀번호를 고치면 확인칸 오류도 다시 판단해야 하므로 함께 지운다. */
     fun changePassword(password: String) =

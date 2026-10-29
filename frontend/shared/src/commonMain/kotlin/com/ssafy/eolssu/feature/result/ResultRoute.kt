@@ -65,6 +65,7 @@ fun ResultRoute(
             },
             onSelectFilter = viewModel::selectErrorFilter,
             onSelectCell = viewModel::selectCell,
+            onRetrySong = viewModel::retrySong,
         ),
     )
 }

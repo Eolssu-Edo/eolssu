@@ -8,8 +8,8 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_hero_title">내 연주,\n얼마나 정확할까?</string>
-    <string name="home_hero_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
+    <string name="home_hero_title">얼쑤,\n나도 이제 국악인</string>
+    <string name="home_hero_body">우리 소리와 가까워지는 시간</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
     <string name="home_section_practice">연습·학습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
@@ -709,4 +709,8 @@
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
+    <string name="home_feature_song_desc">나에게 맞는 곡을 찾아요</string>
+    <string name="home_feature_fingering_desc">손끝으로 익히는 우리 소리</string>
+    <string name="home_feature_reading_desc">한 칸씩, 차근차근 읽어요</string>
+    <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
 </resources>

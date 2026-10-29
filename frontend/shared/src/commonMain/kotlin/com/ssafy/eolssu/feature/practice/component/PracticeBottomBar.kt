@@ -193,7 +193,7 @@ private fun ModelTransport(state: PracticeUiState, actions: PracticeBottomAction
             stringResource(if (state.playing) Res.string.practice_pause else Res.string.practice_play),
             actions.onToggleModel,
             container = colors.play,
-            content = colors.onPrimary,
+            content = colors.onPlay,
         )
         RoundButton(EolssuIcons.Restart, stringResource(Res.string.practice_from_start), actions.onRestartModel)
         Column(Modifier.weight(1f)) {

@@ -1,7 +1,7 @@
 package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.MySheet
-import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongSummary
 
 /** SONG-03 탭. 홈 '연습곡 선택하기'로 들어오면 제공 곡부터 보인다. */
 enum class MySongsTab { Songs, Sheets }
@@ -16,7 +16,8 @@ enum class MySongsTab { Songs, Sheets }
  */
 data class MySongsUiState(
     val tab: MySongsTab = MySongsTab.Songs,
-    val songs: List<Song> = emptyList(),
+    val loadState: SongLoadState = SongLoadState.Loading,
+    val songs: List<SongSummary> = emptyList(),
     val sheets: List<MySheet>? = null,
     val addSheetOpen: Boolean = false,
     val savedSheet: MySheet? = null,

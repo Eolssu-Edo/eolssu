@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.TimeSource
@@ -22,6 +23,7 @@ data class AnalysisUiState(
     val evaluationId: String? = null,
     val upload: UploadProblem? = null,
     val resending: Boolean = false,
+    val songLookup: SongLookup = SongLookup.Loading,
 )
 
 /** 녹음을 보내지 못한 사유. 세션 업로드 시간이 지난 410은 [AnalysisFailure.UploadTimeout]으로 보인다. */
@@ -41,9 +43,9 @@ internal fun AnalysisUiState.canRetry(): Boolean = !retrying && failure?.retryab
 
 /** 녹음을 분석에 맡기고 2초마다 상태를 묻는다. 동작은 [AnalysisSession]에 있다. */
 class AnalysisViewModel(
-    songId: String,
-    bpm: Int,
-    songRepository: SongRepository,
+    private val songId: String,
+    private val bpm: Int,
+    private val songRepository: SongRepository,
     evaluationRepository: EvaluationRepository,
 ) : ViewModel() {
     private val session = AnalysisSession(
@@ -53,9 +55,19 @@ class AnalysisViewModel(
         sleep = { delay(it) },
     )
     val uiState: StateFlow<AnalysisUiState> = session.state
+    private var songJob: Job? = null
 
     init {
-        viewModelScope.launch { session.start(songRepository.getSong(songId), bpm) }
+        loadSong()
+    }
+
+    fun retrySong() {
+        if (uiState.value.songLookup in setOf(SongLookup.Missing, SongLookup.Failed)) loadSong()
+    }
+
+    private fun loadSong() {
+        if (songJob?.isActive == true) return
+        songJob = viewModelScope.launch { session.loadSong(songId, bpm, songRepository) }
     }
 
     /** 분석 다시 시도. */

@@ -4,6 +4,8 @@ import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.ScoreTiming
+import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.timeline
 import kotlin.test.Test
@@ -61,5 +63,21 @@ class ScoreLayoutTest {
         val events = split.timeline("s")
         assertEquals(CellProgress.Current, cellProgress(events, currentIndex = 1))
         assertEquals(CellProgress.Past, cellProgress(events, currentIndex = 2))
+    }
+
+    @Test
+    fun sourceColumnsHaveIndependentLengthsAndNeverLoseTrailingCells() {
+        val source = Score(listOf(List(14) { hwang }, List(5) { hwang }),
+            timing = ScoreTiming(311.13, "세마치", ScoreBpmUnit.DOTTED_QUARTER, 3, 3))
+        assertEquals(listOf(ScoreStrip(0, 0, 0..11), ScoreStrip(0, 1, 12..13), ScoreStrip(1, 0, 0..4)), scoreStrips(source, semachi))
+        assertEquals(19, scoreStrips(source, semachi).sumOf { it.rows.count() })
+    }
+
+    @Test
+    fun tiedEventProgressMovesToTheNextCellInsteadOfHighlightingEveryLinkedCell() {
+        assertEquals(CellProgress.Upcoming, cellProgressAt(1.0, 0.75))
+        assertEquals(CellProgress.Past, cellProgressAt(0.0, 1.25))
+        assertEquals(CellProgress.Current, cellProgressAt(1.0, 1.25))
+        assertEquals(CellProgress.Upcoming, cellProgressAt(1.0, null))
     }
 }

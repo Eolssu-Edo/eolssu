@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +37,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.ErrorMarkBox
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.ScoreCellPosition
 import com.ssafy.eolssu.feature.result.errorAt
@@ -108,7 +111,7 @@ private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: ()
         shape = CircleShape,
         color = if (on) colors.primary else colors.background,
         contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.primary else colors.line),
+        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp),
@@ -133,22 +136,31 @@ private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: ()
 @Composable
 fun SelectedCellCard(song: Song, result: EvaluationResult, cell: ScoreCellPosition, modifier: Modifier = Modifier, markFallback: Color) {
     val colors = EolssuTheme.colors
-    val notes = song.score.columns.getOrNull(cell.column)?.getOrNull(cell.row)?.notes.orEmpty()
+    val units = song.displayUnits.filter { it.column == cell.column && it.row == cell.row }
+    val notes = units.map { it.note }
     val metric = result.errorAt(cell)
-    val names = notes.map { note ->
-        when (note) {
+    val names = units.map { unit ->
+        when (val note = unit.note) {
             is ScoreNote.Pitch -> note.yul.fullName
+            is ScoreNote.SourcePitch -> note.fullName
             ScoreNote.Hold -> stringResource(Res.string.score_hold)
+            ScoreNote.Blank -> stringResource(if (unit.event.note == ScoreNote.Rest) Res.string.score_rest else Res.string.score_hold)
             ScoreNote.Rest -> stringResource(Res.string.score_rest)
         }
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         ErrorMarkBox(metric, Modifier.size(44.dp), cornerRadius = 10.dp, fallback = markFallback) {
             val size = if (notes.size > 1) 16.sp else 22.sp
-            Text(
-                notes.joinToString("") { it.symbol },
-                style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
-            )
+            Column(Modifier.fillMaxSize()) {
+                val rows = units.groupBy { it.unitRow }.values
+                rows.forEach { units ->
+                    Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        units.forEach { unit ->
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { ScoreNoteGlyph(unit.note, size) }
+                        }
+                    }
+                }
+            }
         }
         Column(Modifier.weight(1f)) {
             Text(
@@ -197,23 +209,25 @@ fun ErrorScore(
 ) {
     val errors = result.visibleErrors(filter)
     val cluster = result.densestColumnPair()?.let { it.first..it.first + 1 }
-    val selectedIndex = selected?.let { cell -> song.timeline.firstOrNull { it.column == cell.column && it.row == cell.row }?.index }
-    val longest = song.jangdan.strips.max()
+    val selectedCell = selected?.let { it.column to it.row }
+    val strips = scoreStrips(song.score, song.jangdan)
+    val longest = strips.maxOf { it.rows.count() }
+    val stripsPerColumn = strips.groupBy { it.column }.maxOf { it.value.size }
     val columnCount = song.score.columns.size
     BoxWithConstraints(modifier) {
         if (wrap) {
             val metrics = ErrorScoreMetrics.copy(cellHeight = WrapCellHeight)
-            val stripsFit = ((maxWidth - 4.dp + metrics.columnGap) / (metrics.columnWidth + metrics.columnGap)).toInt()
-            val perRow = maxOf(1, stripsFit / song.jangdan.strips.size)
+            val rendered = metrics.forFontScale(androidx.compose.ui.platform.LocalDensity.current.fontScale)
+            val stripsFit = ((maxWidth - 4.dp + rendered.columnGap) / (rendered.columnWidth + rendered.columnGap)).toInt()
+            val perRow = maxOf(1, stripsFit / stripsPerColumn)
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 for (first in 0 until columnCount step perRow) {
                     JeongganboView(
                         song = song,
                         metrics = metrics,
-                        scrollState = null,
                         errors = errors,
-                        selectedIndex = selectedIndex,
-                        onEventClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
+                        selectedCell = selectedCell,
+                        onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
                         columns = first until minOf(first + perRow, columnCount),
                         dimUnmarked = true,
                         highlightColumns = cluster,
@@ -228,8 +242,8 @@ fun ErrorScore(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 metrics = metrics,
                 errors = errors,
-                selectedIndex = selectedIndex,
-                onEventClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
+                selectedCell = selectedCell,
+                onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
                 dimUnmarked = true,
                 highlightColumns = cluster,
             )

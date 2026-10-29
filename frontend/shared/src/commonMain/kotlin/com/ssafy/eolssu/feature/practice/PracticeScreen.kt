@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.practice
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,7 +49,7 @@ import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.instrument_daegeum
+import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import eolssu.shared.generated.resources.practice_countdown_cancel
 import eolssu.shared.generated.resources.practice_countdown_cancel_resume
 import eolssu.shared.generated.resources.practice_countdown_resume
@@ -62,6 +65,11 @@ import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_settings_locked
 import eolssu.shared.generated.resources.practice_subtitle
 import eolssu.shared.generated.resources.practice_subtitle_solo
+import eolssu.shared.generated.resources.practice_score_title
+import eolssu.shared.generated.resources.practice_score_loading
+import eolssu.shared.generated.resources.practice_score_missing
+import eolssu.shared.generated.resources.practice_score_failed
+import eolssu.shared.generated.resources.practice_score_retry
 import org.jetbrains.compose.resources.stringResource
 
 /** PRACTICE-01 화면에서 부르는 동작. */
@@ -77,6 +85,7 @@ class PracticeScreenActions(
     val bottom: PracticeBottomActions,
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
+    val onRetrySong: () -> Unit = {},
 )
 
 /**
@@ -91,6 +100,10 @@ fun PracticeScreen(
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
 ) {
+    if (state.song == null) {
+        PracticeSongLoadScreen(state, actions, snackbarHostState)
+        return
+    }
     Box(Modifier.fillMaxSize().reportUserActivity(actions.onUserActivity)) {
         when (widthClass) {
             WindowWidthClass.Compact -> PracticeCompactLayout(state, snackbarHostState, actions)
@@ -110,6 +123,28 @@ fun PracticeScreen(
     }
     state.popup?.let { PracticeDialog(it, actions.dialog) }
     if (state.idleReminder) IdleReminderDialog(actions.onKeepPracticing)
+}
+
+/** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */
+@Composable
+private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScreenActions, snackbarHostState: SnackbarHostState) {
+    EolssuScaffold(
+        snackbarHostState = snackbarHostState,
+        topBar = { EolssuTopBar(title = stringResource(Res.string.practice_score_title), onBack = actions.onBack) },
+    ) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
+            if (state.isSongLoading) CircularProgressIndicator(color = EolssuTheme.colors.accentText)
+            Text(stringResource(when (state.songError) {
+                PracticeSongError.NotFound -> Res.string.practice_score_missing
+                PracticeSongError.Failed -> Res.string.practice_score_failed
+                null -> Res.string.practice_score_loading
+            }), style = MaterialTheme.typography.bodyLarge)
+            if (!state.isSongLoading && state.songError != null) {
+                EolssuButton(stringResource(Res.string.practice_score_retry), actions.onRetrySong)
+            }
+        }
+    }
 }
 
 /** 휴대폰 배치: 악보가 화면 대부분을 차지하고, 상태별 버튼은 아래에 고정한다. */
@@ -140,7 +175,7 @@ internal fun PracticeTopBar(
     val song = state.song ?: return
     val subtitle = stringResource(
         if (state.solo) Res.string.practice_subtitle_solo else Res.string.practice_subtitle,
-        stringResource(Res.string.instrument_daegeum),
+        songInstrumentLabel(song),
         songLevelLabel(song.level),
     )
     EolssuTopBar(

@@ -63,6 +63,19 @@ class HistoryTabletStateTest {
     }
 
     @Test
+    fun enlargedTextKeepsEveryColumnInReachableRows() {
+        for (width in listOf(320, 720, 1000)) for (scale in listOf(1f, 1.3f, 2f)) {
+            val metrics = RecordScorePortrait.forFontScale(scale)
+            val rows = wrapColumns(List(28) { 1 }, stripSlots(width.dp, metrics))
+            assertEquals((0 until 28).toList(), rows.flatMap { it.toList() })
+            for (row in rows) {
+                val used = metrics.columnWidth * row.count() + metrics.columnGap * (row.count() - 1) + 4.dp
+                assertTrue(used <= width.dp, "$width dp / $scale: $row exceeds available width")
+            }
+        }
+    }
+
+    @Test
     fun scoreStripsCanDrawOnlyAColumnRange() {
         val song = SampleSongs.first { it.id == "arirang" }
         val strips = scoreStrips(song.score, song.jangdan, columnRange = 8..15)

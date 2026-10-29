@@ -6,7 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -31,7 +31,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 /** 배지 색(`.badge` · `.dark` · `.play` · `.rec` · 회색 바탕). */
 enum class EolssuBadgeStyle { Outline, Dark, Play, Recording, Soft }
 
-/** 22dp 알약 배지. [Play]·[Recording]은 앞에 점을 찍는다. */
+/** 최소 22dp 알약 배지. 글꼴 확대에 따라 높이가 늘어난다. */
 @Composable
 fun EolssuBadge(text: String, modifier: Modifier = Modifier, style: EolssuBadgeStyle = EolssuBadgeStyle.Outline, icon: ImageVector? = null) {
     val colors = EolssuTheme.colors
@@ -44,10 +44,10 @@ fun EolssuBadge(text: String, modifier: Modifier = Modifier, style: EolssuBadgeS
     }
     Row(
         modifier
-            .height(22.dp)
+            .heightIn(min = 22.dp)
             .background(bg, CircleShape)
             .border(1.dp, line, CircleShape)
-            .padding(horizontal = 9.dp),
+            .padding(horizontal = 9.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (style == EolssuBadgeStyle.Play || style == EolssuBadgeStyle.Recording) {
@@ -58,22 +58,22 @@ fun EolssuBadge(text: String, modifier: Modifier = Modifier, style: EolssuBadgeS
     }
 }
 
-/** 고르기 칩(`.chip`, 높이 34dp). 고르면 검은 바탕. */
+/** 고르기 칩. 최소 48dp 터치 영역과 확대 글꼴을 수용한다. */
 @Composable
 fun EolssuChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = modifier.height(34.dp).semantics {
+        modifier = modifier.heightIn(min = 48.dp).semantics {
             this.selected = selected
             role = Role.Tab
         },
         shape = CircleShape,
         color = if (selected) colors.primary else colors.background,
         contentColor = if (selected) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.line),
+        border = BorderStroke(1.dp, if (selected) colors.accentText else colors.line),
     ) {
-        Box(Modifier.padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.padding(horizontal = 14.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
             Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium))
         }
     }

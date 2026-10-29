@@ -7,6 +7,7 @@ import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.PendingRecording
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.SendResult
+import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -48,9 +49,25 @@ internal class AnalysisSession(
     private var paused = false
     private var recording: PendingRecording? = null
 
+    /** 곡 조회 실패는 분석 요청 전의 실패이며, 분석 상태나 결과로 바꾸지 않는다. */
+    suspend fun loadSong(songId: String, bpm: Int, songs: SongRepository) {
+        _state.update { it.copy(songLookup = SongLookup.Loading) }
+        val song = try {
+            songs.getSong(songId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
+            _state.update { it.copy(songLookup = SongLookup.Failed) }
+            return
+        }
+        currentCoroutineContext().ensureActive()
+        start(song, bpm)
+    }
+
     /** 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다. */
     suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null) {
-        _state.update { it.copy(song = song) }
+        _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
         if (song == null) return
         request = Request(song.id, bpm, song.durationSeconds(bpm))
         val uploads = uploads

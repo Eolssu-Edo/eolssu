@@ -32,7 +32,7 @@ class ApiAuthRepositoryTest {
             val (status, body) = respond(request.url.encodedPath) ?: error("연결 실패")
             respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
         }
-        return ApiAuthRepository(createHttpClient(engine, ServerAddress.Production, cookies), cookies, this, SampleAuthRepository { 0L })
+        return ApiAuthRepository(createHttpClient(engine, ServerAddress.Production, cookies), cookies, this)
     }
 
     @Test

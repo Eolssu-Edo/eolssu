@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
@@ -62,7 +67,7 @@ fun EolssuScaffold(
     content: @Composable () -> Unit,
 ) {
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.imePadding().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         containerColor = EolssuTheme.colors.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
@@ -72,7 +77,7 @@ fun EolssuScaffold(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding), contentAlignment = Alignment.TopCenter) {
             Box(Modifier.widthIn(max = contentMaxWidth).fillMaxWidth()) { content() }
         }
     }
@@ -115,7 +120,7 @@ fun EolssuTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Box(Modifier.size(40.dp)) {
+            Box(Modifier.size(48.dp)) {
                 if (onBack != null) {
                     EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.common_back), onBack)
                 }
@@ -139,12 +144,12 @@ fun EolssuTopBar(
                 }
                 if (below != null) Box(Modifier.padding(top = 6.dp)) { below() }
             }
-            Row(Modifier.widthIn(min = 40.dp), horizontalArrangement = Arrangement.End, content = right)
+            Row(Modifier.widthIn(min = 48.dp), horizontalArrangement = Arrangement.End, content = right)
         }
     }
 }
 
-/** 40dp 원형 테두리 아이콘 버튼(`.icon-btn`). */
+/** 최소 48dp 터치 영역을 가진 아이콘 버튼. */
 @Composable
 fun EolssuIconButton(
     icon: ImageVector,
@@ -157,7 +162,7 @@ fun EolssuIconButton(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.size(40.dp),
+        modifier = modifier.size(48.dp),
         shape = CircleShape,
         color = EolssuTheme.colors.background,
         border = if (bordered) androidx.compose.foundation.BorderStroke(1.dp, EolssuTheme.colors.line) else null,

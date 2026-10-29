@@ -135,6 +135,7 @@ private fun rememberRecordDetailActions(
             onToggleErrors = viewModel::toggleErrors,
             onToggleFollow = viewModel::toggleFollow,
             onWeakSection = { scope.launch { snackbarHostState.showSnackbar(comingSoon) } },
+            onRetrySong = viewModel::retrySong,
         )
     }
 }

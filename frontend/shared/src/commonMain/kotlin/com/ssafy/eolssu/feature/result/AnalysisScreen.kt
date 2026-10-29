@@ -80,6 +80,7 @@ fun AnalysisRoute(
         onRetry = viewModel::retry,
         onResend = viewModel::resend,
         onBackToPractice = onBackToPractice,
+        onRetrySong = viewModel::retrySong,
     )
 }
 
@@ -95,7 +96,14 @@ fun AnalysisScreen(
     onRetry: () -> Unit,
     onBackToPractice: () -> Unit,
     onResend: () -> Unit = {},
+    onRetrySong: () -> Unit = {},
 ) {
+    if (state.songLookup != SongLookup.Ready) {
+        EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.analysis_title), onBack = onBackToPractice) }) {
+            SongLookupContent(state.songLookup, onRetrySong, onBackToPractice)
+        }
+        return
+    }
     val colors = EolssuTheme.colors
     val failure = state.failure
     val upload = state.upload

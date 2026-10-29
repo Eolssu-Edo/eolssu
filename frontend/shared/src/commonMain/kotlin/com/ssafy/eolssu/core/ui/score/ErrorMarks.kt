@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -139,7 +140,8 @@ fun ErrorScorePreview(
 ) {
     val colors = EolssuTheme.colors
     val byCell = errors.associateBy { it.column to it.row }
-    val starts = song.jangdan.daegangStarts
+    val starts = if (song.score.timing == null) song.jangdan.daegangStarts else emptyList()
+    val displayByCell = song.displayUnits.groupBy { it.column to it.row }
     Row(
         modifier.clearAndSetSemantics { contentDescription = description },
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -184,17 +186,18 @@ fun ErrorScorePreview(
                                 }
                             },
                     ) {
-                        Column(Modifier.fillMaxWidth()) {
-                            cell.notes.forEach { note ->
-                                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                                    val pitch = note is ScoreNote.Pitch
-                                    val size = if (cell.notes.size > 1) 9.sp else 12.sp
-                                    Text(
-                                        note.symbol,
-                                        style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size),
-                                        fontWeight = if (pitch) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (pitch) colors.text else colors.textMuted,
-                                    )
+                        Column(Modifier.fillMaxSize()) {
+                            val rows = displayByCell[c to r].orEmpty().groupBy { it.unitRow }.values
+                            rows.forEach { units ->
+                                Row(Modifier.fillMaxWidth().weight(1f)) {
+                                    units.forEach { unit ->
+                                        Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            val pitch = unit.note is ScoreNote.Pitch || unit.note is ScoreNote.SourcePitch
+                                            ScoreNoteGlyph(unit.note, if (cell.notes.size > 1) 9.sp else 12.sp,
+                                                fontWeight = if (pitch) FontWeight.SemiBold else FontWeight.Normal,
+                                                color = if (pitch) colors.text else colors.textMuted)
+                                        }
+                                    }
                                 }
                             }
                         }

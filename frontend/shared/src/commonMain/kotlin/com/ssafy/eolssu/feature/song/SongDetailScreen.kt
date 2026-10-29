@@ -20,6 +20,7 @@ import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.feature.song.component.SongInfoGrid
 import com.ssafy.eolssu.feature.song.component.SongPreviewHeader
 import com.ssafy.eolssu.feature.song.component.SongTitleRow
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.layout.SongDetailTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.song_detail_title
@@ -39,9 +40,10 @@ fun SongDetailScreen(
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onStartPractice: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     if (widthClass != WindowWidthClass.Compact) {
-        SongDetailTabletLayout(state, snackbarHostState, onBack, onStartPractice)
+        SongDetailTabletLayout(state, snackbarHostState, onBack, onStartPractice, onRetry)
         return
     }
     EolssuScaffold(
@@ -49,7 +51,11 @@ fun SongDetailScreen(
         topBar = { EolssuTopBar(stringResource(Res.string.song_detail_title), onBack = onBack) },
         bottomBar = { EolssuButton(stringResource(Res.string.song_start_practice), onStartPractice, enabled = state.song != null) },
     ) {
-        val song = state.song ?: return@EolssuScaffold
+        val song = state.song
+        if (song == null) {
+            SongLoadNotice(state.loadState, onRetry)
+            return@EolssuScaffold
+        }
         Column(
             Modifier
                 .fillMaxSize()
@@ -58,7 +64,7 @@ fun SongDetailScreen(
         ) {
             SongTitleRow(song)
             SongInfoGrid(song, Modifier.padding(top = 18.dp))
-            SongPreviewHeader(Modifier.padding(top = 20.dp, bottom = 8.dp))
+            SongPreviewHeader(Modifier.padding(top = 20.dp, bottom = 8.dp), sample = song.score.source == null)
             JeongganboView(
                 song = song,
                 modifier = Modifier.heightIn(max = 250.dp).fadeOutBottom(fadeStart = 0.78f),

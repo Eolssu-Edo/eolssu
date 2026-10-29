@@ -11,6 +11,7 @@ import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,18 +26,18 @@ class MyPageViewModelTest {
     private val timeQueue = PracticeTimeQueue(store, api = null, scope = CoroutineScope(Dispatchers.Unconfined))
 
     @Test
-    fun instrumentChangeIsSharedAndSurvivesRelaunch() {
+    fun instrumentChangeDoesNotClaimSuccessWithoutServerMapping() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
 
         assertFalse(viewModel.selectInstrument(Instrument.Danso))
-        assertTrue(viewModel.selectInstrument(Instrument.Daegeum))
-        assertEquals(Instrument.Daegeum, viewModel.instrument.value)
+        assertFalse(viewModel.selectInstrument(Instrument.Daegeum))
+        assertEquals(Instrument.Danso, viewModel.instrument.value)
         // 앱을 다시 켜면 저장소는 남고 Repository는 새로 만들어진다.
-        assertEquals(Instrument.Daegeum, InstrumentRepository(store).instrument.value)
+        assertEquals(Instrument.Danso, InstrumentRepository(store).instrument.value)
     }
 
     @Test
-    fun unlinkNeedsConfirmationAndCanRemoveTheLastProvider() {
+    fun unlinkNeedsConfirmationAndCanRemoveTheLastProvider() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
         assertEquals(setOf(SocialProvider.Kakao), viewModel.profile.value.linkedProviders)
 
@@ -52,7 +53,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun logOutAsksFirst() {
+    fun logOutAsksFirst() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
         viewModel.askLogOut()
         assertEquals(MyPageDialog.LogOut, viewModel.dialog.value)
@@ -61,7 +62,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun nicknameStartsWithCurrentAndMustNotBeBlank() {
+    fun nicknameStartsWithCurrentAndMustNotBeBlank() = runTest {
         val viewModel = NicknameEditViewModel(users)
         assertEquals("얼쑤연주자", viewModel.uiState.value.nickname)
 
@@ -76,7 +77,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun passwordChangeChecksRuleMismatchAndCurrentPassword() {
+    fun passwordChangeChecksRuleMismatchAndCurrentPassword() = runTest {
         val viewModel = PasswordChangeViewModel(wrongPasswordRepository())
         viewModel.changeNew("secret")
 
@@ -102,7 +103,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun withdrawNeedsCorrectPassword() {
+    fun withdrawNeedsCorrectPassword() = runTest {
         val viewModel = WithdrawViewModel(wrongPasswordRepository())
         assertFalse(viewModel.submit())
         assertEquals(ProfileFieldError.PasswordEmpty, viewModel.uiState.value.error)
@@ -119,8 +120,8 @@ class MyPageViewModelTest {
 
     /** 현재 비밀번호를 늘 틀린 것으로 보는 저장소(서버 오류 응답 대신). */
     private fun wrongPasswordRepository(): UserRepository = object : UserRepository by SampleUserRepository() {
-        override fun changePassword(current: String, new: String) = PasswordCheckResult.WrongPassword
+        override suspend fun changePassword(current: String, new: String) = PasswordCheckResult.WrongPassword
 
-        override fun withdraw(password: String) = PasswordCheckResult.WrongPassword
+        override suspend fun withdraw(password: String) = PasswordCheckResult.WrongPassword
     }
 }

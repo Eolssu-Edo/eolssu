@@ -32,6 +32,8 @@ import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.feature.song.SongDetailUiState
 import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
+import com.ssafy.eolssu.feature.song.SongLoadState
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongInfoGrid
@@ -78,7 +80,7 @@ internal fun SongListExpandedLayout(state: SongListUiState, detail: SongDetailUi
             val listWidth = (maxWidth * 0.36f).coerceIn(320.dp, 400.dp)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 SongListPane(state, actions, Modifier.width(listWidth).fillMaxHeight())
-                SongDetailPane(detail, actions.onStartPractice, Modifier.weight(1f).fillMaxHeight())
+                SongDetailPane(detail, actions.onStartPractice, actions.onRetryDetail, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
@@ -96,7 +98,9 @@ private fun SongListPane(state: SongListUiState, actions: SongListActions, modif
             contentPadding = PaddingValues(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                item { SongLoadNotice(state.loadState, actions.onRetry) }
+            } else if (songs.isEmpty()) {
                 item { SongEmptyResult(actions.onResetFilters) }
             } else if (songs.isNotEmpty()) {
                 item {
@@ -109,7 +113,7 @@ private fun SongListPane(state: SongListUiState, actions: SongListActions, modif
                 items(songs, key = { it.id }) { song ->
                     SongCard(
                         song,
-                        jangdanLabel(song.jangdan),
+                        jangdanLabel(song.jangdanName),
                         onClick = { actions.onOpenSong(song.id) },
                         selected = song.id == selectedId,
                     )
@@ -121,7 +125,7 @@ private fun SongListPane(state: SongListUiState, actions: SongListActions, modif
 
 /** 오른쪽 곡 정보 칸. [detail]이 null이면 곡을 고르라는 안내, 곡을 불러오는 중이면 빈 칸이다. */
 @Composable
-private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, modifier: Modifier) {
+private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Unit, onRetry: () -> Unit, modifier: Modifier) {
     val colors = EolssuTheme.colors
     Column(
         modifier
@@ -133,11 +137,15 @@ private fun SongDetailPane(detail: SongDetailUiState?, onStartPractice: () -> Un
             PickSongHint(Modifier.fillMaxSize())
             return@Column
         }
-        val song = detail.song ?: return@Column
+        val song = detail.song
+        if (song == null) {
+            SongLoadNotice(detail.loadState, onRetry)
+            return@Column
+        }
         SongTitleRow(song)
         SongInfoGrid(song, columns = 4)
         Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SongPreviewHeader()
+            SongPreviewHeader(sample = song.score.source == null)
             JeongganboView(
                 song = song,
                 modifier = Modifier.weight(1f),

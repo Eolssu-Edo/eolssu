@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.ConfirmCodeResult
 import com.ssafy.eolssu.data.user.SendCodeResult
 import com.ssafy.eolssu.data.user.VerificationPurpose
@@ -18,14 +19,19 @@ class EmailVerificationViewModel(
     val purpose: VerificationPurpose,
     private val authRepository: AuthRepository,
     private val now: () -> Long,
+    private val draft: AccountDraft = AccountDraft(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(EmailVerificationUiState())
     val uiState: StateFlow<EmailVerificationUiState> = _uiState.asStateFlow()
 
     fun currentTime(): Long = now()
 
-    fun changeEmail(email: String) = _uiState.update {
-        if (it.codeSent) EmailVerificationUiState(email = email) else it.copy(email = email, emailError = null)
+    private var busy = false
+    private var revision = 0
+    fun changeEmail(email: String) {
+        revision++
+        draft.clearVerification()
+        _uiState.update { if (it.codeSent) EmailVerificationUiState(email = email) else it.copy(email = email, emailError = null) }
     }
 
     /** 숫자만 6자리까지 받는다. 새 번호가 필요한 오류는 새로 받을 때까지 남긴다. */
@@ -35,13 +41,21 @@ class EmailVerificationViewModel(
     }
 
     /** 인증번호를 보냈으면 true. 이메일이 틀렸거나 이미 가입된 이메일이면 오류를 남긴다. */
-    fun sendCode(): Boolean {
+    suspend fun sendCode(): Boolean {
+        if (busy) return false
         val email = _uiState.value.email.trim()
         AuthValidation.emailError(email)?.let { error ->
             _uiState.update { it.copy(emailError = error) }
             return false
         }
-        return when (val result = authRepository.sendCode(email, purpose)) {
+        busy = true
+        val requestRevision = revision
+        draft.clearVerification()
+        val result = try { authRepository.sendCode(email, purpose) } finally { busy = false }
+        if (requestRevision != revision) return false
+        return when (result) {
+            SendCodeResult.Unavailable -> false.also { _uiState.update { it.copy(emailError = FieldError.Unavailable) } }
+            is SendCodeResult.RateLimited -> false.also { _uiState.update { it.copy(emailError = FieldError.RateLimited, resendAvailableAtMillis = result.resendAvailableAtMillis ?: it.resendAvailableAtMillis) } }
             SendCodeResult.EmailAlreadyExists -> false.also { _uiState.update { it.copy(emailError = FieldError.EmailAlreadyExists) } }
             is SendCodeResult.Sent -> true.also {
                 _uiState.update {
@@ -60,10 +74,11 @@ class EmailVerificationViewModel(
     }
 
     /** 재발송 간격(60초)이 지났을 때만 다시 보낸다. */
-    fun resendCode(): Boolean = if (_uiState.value.resendSecondsLeft(now()) > 0) false else sendCode()
+    suspend fun resendCode(): Boolean = if (_uiState.value.resendSecondsLeft(now()) > 0) false else sendCode()
 
     /** 인증번호가 맞으면 true. 받은 인증 토큰은 가입·재설정 요청에 쓴다. */
-    fun confirmCode(): Boolean {
+    suspend fun confirmCode(): Boolean {
+        if (busy) return false
         val state = _uiState.value
         val verificationId = state.verificationId ?: return false
         val current = now()
@@ -75,14 +90,26 @@ class EmailVerificationViewModel(
             _uiState.update { it.copy(codeError = CodeError.Invalid) }
             return false
         }
-        val error = when (val result = authRepository.confirmCode(verificationId, state.code)) {
+        busy = true
+        val requestRevision = revision
+        val result = try { authRepository.confirmCode(verificationId, state.code) } finally { busy = false }
+        if (requestRevision != revision) return false
+        val error = when (result) {
             is ConfirmCodeResult.Confirmed -> {
-                _uiState.update { it.copy(codeError = null, verificationToken = result.verificationToken) }
+                val email = result.email ?: state.email
+                if (!email.equals(state.email, ignoreCase = true)) {
+                    _uiState.update { it.copy(codeError = CodeError.Unavailable) }; return false
+                }
+                draft.email = email
+                draft.token = result.verificationToken
+                draft.purpose = purpose
+                _uiState.update { it.copy(email = email, code = "", codeError = null, verificationToken = result.verificationToken) }
                 return true
             }
             is ConfirmCodeResult.Mismatch -> CodeError.Mismatch(result.remainingAttempts)
             ConfirmCodeResult.TooManyAttempts -> CodeError.TooManyAttempts
             ConfirmCodeResult.Expired -> CodeError.Expired
+            ConfirmCodeResult.Unavailable -> CodeError.Unavailable
         }
         _uiState.update { it.copy(codeError = error) }
         return false
