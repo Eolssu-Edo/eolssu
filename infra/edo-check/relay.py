@@ -132,6 +132,16 @@ def host_instructions(value, target):
             .replace('edo1의', target + '의').replace('edo2→edo1', 'edo2→' + target))
 
 
+def compact_image_reference(value):
+    """Keep deployment pins in collected data, not in the narrow image column."""
+    text = str(value)
+    pinned = re.fullmatch(r'(.+)@sha256:([0-9a-fA-F]{64})', text)
+    if pinned:
+        name, digest = pinned.groups()
+        return name if ':' in name.rsplit('/', 1)[-1] else name + '@sha256:' + digest[:12] + '…'
+    return re.sub(r'^sha256:([0-9a-fA-F]{12})[0-9a-fA-F]{52}$', r'sha256:\1…', text)
+
+
 def build_report(result, request_id):
     target = result.get('target', 'edo1')
     if target not in TARGETS:
@@ -322,7 +332,7 @@ def build_report(result, request_id):
             ('데이터 저장공간', ['서비스', '볼륨 · 마운트', '사용량 · 참고'],
              [[service, target, usage + (' · ' + note if '확인 불가' in usage else '')] for service, target, usage, note in storage_rows]),
             ('실행 세부 정보', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트', 'NET·IO 누적', '이미지'],
-             [[service, '가동·재시작 ' + str(uptime) + ' / 종료·OOM ' + str(exit_oom), ports, io, image]
+             [[service, '가동·재시작 ' + str(uptime) + ' / 종료·OOM ' + str(exit_oom), ports, io, compact_image_reference(image)]
               for service, uptime, exit_oom, ports, io, image in runtime_rows]),
         ])
     else:
