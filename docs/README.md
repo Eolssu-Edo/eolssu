@@ -30,6 +30,8 @@
 
 ## 기능 스펙
 
+- [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
+
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)

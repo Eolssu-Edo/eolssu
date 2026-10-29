@@ -12,7 +12,9 @@ import subprocess
 import sys
 import time
 
-REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1'}
+REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1', 'eolssu-runtime-ai-1',
+                       'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
+                       'eolssu-monitoring-node-exporter-1'}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
 
 
@@ -323,20 +325,20 @@ def container_report(target='edo1'):
             '데이터 저장소/사용량', '가동/재시작', '종료 코드/OOM', 'PID/공개 포트', 'NET 수신/송신·IO 읽기/쓰기(누적)', '이미지'], rows, issues, facts
 
 
-def systemd_health(unit, kind='service'):
+def systemd_health(unit, kind='service', target='edo2'):
     properties = 'LoadState,ActiveState,SubState,Result,ExecMainStatus,ExecMainStartTimestamp,LastTriggerUSec,NextElapseUSecRealtime'
     try:
         result = run(['systemctl', 'show', unit, '--property=' + properties])
         state = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
         if result.returncode:
-            return '미측정', 'systemd 상태 조회 실패', f'edo2에서 systemctl show {unit} 재확인'
+            return '미측정', 'systemd 상태 조회 실패', f'{target}에서 systemctl show {unit} 재확인'
         if state.get('LoadState') != 'loaded':
-            return '실패', '필수 unit 미등록', f'edo2에서 systemctl cat {unit}와 설치 상태 확인'
+            return '실패', '필수 unit 미등록', f'{target}에서 systemctl cat {unit}와 설치 상태 확인'
         active = state.get('ActiveState', '?')
         if kind == 'oneshot':
             started = state.get('ExecMainStartTimestamp')
             if active in ('activating', 'active'):
-                return '미검증', '이번 작업 실행 중', f'완료 후 /edo2-health 재실행; journalctl -u {unit}에서 이번 결과 확인'
+                return '미검증', '이번 작업 실행 중', f'완료 후 /{target}-health 재실행; journalctl -u {unit}에서 이번 결과 확인'
             if not started:
                 return '미검증', 'systemd 실행 이력 없음', f'{unit}의 수동/예약 실행 완료 기록을 확인; 이 점검은 작업을 실행하지 않음'
             good = state.get('Result') == 'success' and state.get('ExecMainStatus') == '0'
@@ -349,7 +351,7 @@ def systemd_health(unit, kind='service'):
             good = good and bool(state.get('NextElapseUSecRealtime'))
         return '정상' if good else '실패', evidence, f'systemctl status {unit}와 journalctl -u {unit}에서 비활성/실패 원인 확인'
     except (OSError, subprocess.TimeoutExpired, ValueError):
-        return '미측정', 'systemd 수집 실패·시간 초과', f'edo2에서 systemctl show {unit} 재확인'
+        return '미측정', 'systemd 수집 실패·시간 초과', f'{target}에서 systemctl show {unit} 재확인'
 
 
 def edo2_host_health():
@@ -378,8 +380,122 @@ def edo2_host_health():
     return rows
 
 
+BACKUP_KINDS = ('db', 'config', 'jenkins', 'grafana', 'controller-key')
+
+
+def age_seconds(value):
+    timestamp = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if timestamp.tzinfo is None:
+        raise ValueError('timezone required')
+    age = (datetime.now(timezone.utc) - timestamp).total_seconds()
+    if age < -60:
+        raise ValueError('future timestamp')
+    return max(0, age)
+
+
+def scrape_state(targets, job):
+    matched = [item for item in targets if item.get('labels', {}).get('job') == job]
+    if not matched:
+        return '실패', '필수 수집 대상 누락'
+    if any(item.get('health') != 'up' for item in matched):
+        return '실패', '수집 대상 down · Prometheus 수집 오류 확인'
+    try:
+        age = max(age_seconds(item['lastScrape']) for item in matched)
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return '미측정', '최근 수집 시각 확인 불가'
+    return ('주의' if age > 90 else '정상'), f'up · 최근 수집 {age:.0f}초 전 · 기준 90초 이내'
+
+
+def prometheus_health():
+    rows = []
+    for name, path in [('Prometheus 준비', '/-/ready'), ('수집 대상', '/api/v1/targets')]:
+        connection = http.client.HTTPConnection('127.0.0.1', 3001, timeout=4)
+        action = 'edo1의 127.0.0.1:3001' + path + ' 응답과 Prometheus 수집 설정·대상 서비스 상태 확인'
+        try:
+            connection.request('GET', path)
+            response = connection.getresponse()
+            body = response.read(65537)
+            if response.status != 200:
+                raise OSError('HTTP failed')
+            if len(body) > 65536:
+                raise ValueError('response too large')
+            if name == 'Prometheus 준비':
+                good = body.strip() == b'Prometheus Server is Ready.'
+                rows.append([name, 'edo1 모니터링 HTTP', '정상' if good else '미검증', 'HTTP 200 · 준비 응답 확인' if good else 'HTTP 200 · 기대한 준비 응답 아님', '—', action])
+            else:
+                data = json.loads(body)
+                if data.get('status') != 'success' or not isinstance(data.get('data', {}).get('activeTargets'), list):
+                    raise ValueError('unexpected targets')
+                for job in ('node', 'eolssu-backend'):
+                    status, evidence = scrape_state(data['data']['activeTargets'], job)
+                    rows.append([job + ' 지표 수집', 'edo1 모니터링 HTTP', status, evidence, '—', action])
+        except (ValueError, TypeError, KeyError, AttributeError):
+            rows.append([name, 'edo1 모니터링 HTTP', '미측정', '기대한 응답 형식·수집 시각 확인 불가', '—', action])
+        except (OSError, http.client.HTTPException):
+            rows.append([name, 'edo1 모니터링 HTTP', '실패', 'HTTP 준비·수집 응답 실패', '—', action])
+        finally:
+            connection.close()
+    return rows
+
+
+def read_record(path):
+    if path.is_symlink() or path.stat().st_size > 65536:
+        raise ValueError('invalid metadata file')
+    data = json.loads(path.read_text())
+    if not isinstance(data, dict):
+        raise ValueError('invalid metadata object')
+    return data
+
+
+def backup_health(store=Path('/var/lib/eolssu-backups'), keys=Path('/var/lib/eolssu-backup-keys'), state=Path('/var/lib/eolssu-backup')):
+    rows = []
+    for kind in BACKUP_KINDS:
+        directory = keys/'controller'/kind if kind == 'controller-key' else store/kind
+        action = 'edo1 해당 백업 timer·최근 전송 결과 확인; edo2 백업 메타데이터와 암호문 존재 확인 (무결성·복원 검사는 별도)'
+        try:
+            records = sorted(path for path in directory.glob('*.json') if re.fullmatch(r'\d{8}T\d{6}Z-[a-f0-9]{12}\.json', path.name))
+            if not records:
+                raise FileNotFoundError()
+            path = records[-1]
+            age = age_seconds(read_record(path)['snapshot_at'])
+            encrypted = path.with_suffix('.cms')
+            if encrypted.is_symlink() or not encrypted.is_file() or encrypted.stat().st_size == 0:
+                status, evidence = '실패', '완료 메타데이터의 암호문 없음·빈 파일'
+            else:
+                limit = 5400 if kind == 'db' else 27*3600
+                status = '주의' if age > limit else '정상'
+                evidence = f'스냅샷 {age/3600:.1f}시간 전 / 기준 {limit/3600:g}시간 · 암호문 존재 (무결성 미검증)'
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            status, evidence = '미측정', '완료 백업 메타데이터·시각 확인 불가'
+        rows.append([kind + ' 백업 최신성', 'edo2 백업 메타데이터', status, evidence, '—', action])
+    action = 'edo2 journalctl -u eolssu-backup-restore-test.service와 restore-last.json의 실패 단계 확인; 이 점검은 복구 작업을 실행하지 않음'
+    try:
+        record = read_record(state/'restore-last.json')
+        age = age_seconds(record['finished_at'])
+        status = ('실패' if record.get('status') == 'failed' or record.get('cleanup_errors') else
+                  '주의' if record.get('status') == 'passed' and age > 8*86400 else
+                  '정상' if record.get('status') == 'passed' else '미검증')
+        evidence = f'최근 완료 {age/3600:.1f}시간 전 · ' + ('복구 검증 통과' if record.get('status') == 'passed' else '복구 검증 실패' if record.get('status') == 'failed' else '결과 미확정')
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        status, evidence = '미측정', '복구 검증 결과·완료 시각 확인 불가'
+    rows.append(['실제 복구 검증 결과', 'edo2 백업 메타데이터', status, evidence, '—', action])
+    return rows
+
+
+def edo1_host_health():
+    rows = []
+    units = [('Docker 엔진 서비스', 'docker.service', 'service'), ('SSH', 'ssh.service', 'service'), ('인증서 갱신 예약', 'certbot.timer', 'timer')]
+    for kind in BACKUP_KINDS:
+        units.extend([(kind + ' 백업 예약', 'eolssu-backup-' + kind + '.timer', 'timer'),
+                      (kind + ' 백업 최근 실행', 'eolssu-backup@' + kind + '.service', 'oneshot')])
+    for name, unit, kind in units:
+        status, evidence, action = systemd_health(unit, kind, target='edo1')
+        rows.append([name, 'edo1 systemd', status, evidence, '—', action])
+    return rows
+
+
 def health_report(target='edo1'):
-    rows = edo2_host_health() if target == 'edo2' else []
+    rows = edo2_host_health() + backup_health() if target == 'edo2' else edo1_host_health() + prometheus_health()
     try:
         info, containers, _, issues = snapshot(collect_stats=False, target=target)
         if target == 'edo2':
@@ -404,6 +520,9 @@ def health_report(target='edo1'):
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
+        if name == 'eolssu-runtime-ai-1' and status == '정상':
+            status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
+            action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
         rows.append([name, 'Docker healthcheck', status, evidence, '—', action])
     probes = [('Grafana', 3000, '/api/health'), ('n8n', 5688, '/healthz/readiness')] if target == 'edo1' else [('중계 내부 HTTP', 8765, '/healthz')]
     for name, port, path in probes:
