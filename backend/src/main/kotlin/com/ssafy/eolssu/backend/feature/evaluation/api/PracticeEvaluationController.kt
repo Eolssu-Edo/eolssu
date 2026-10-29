@@ -27,11 +27,11 @@ class PracticeEvaluationController(private val evaluations: EvaluationReadMapper
         val notes = evaluations.notes(id).map { EvaluationNote(it.noteIdx,it.verdict,it.pitchErrorCent?.toInt(),it.onsetErrorMs,it.durationErrorMs) }
         val result = PracticeEvaluationResult(row.sessionId.toString(),id.toString(),row.songId.toString(),row.scoreVersion,row.bpm,row.bpmUnit,
             row.startedAt.toInstant(ZoneOffset.UTC),row.endedAt?.toInstant(ZoneOffset.UTC),requireNotNull(row.evaluatedAt).toInstant(ZoneOffset.UTC),
-            requireNotNull(row.totalScore),requireNotNull(row.pitchScore),requireNotNull(row.timingScore),requireNotNull(row.durationScore),notes)
+            requireNotNull(row.totalScore),requireNotNull(row.pitchScore),requireNotNull(row.timingScore),requireNotNull(row.durationScore),notes,row.recordingDurationMs)
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK,"연주 평가 결과 조회 성공",result))
     }
 }
 
 data class PracticeEvaluationResult(val sessionId: String,val evaluationId: String,val songId: String,val scoreVersion: Int,val bpm: Int,val bpmUnit: String,
-    val startedAt: Instant,val endedAt: Instant?,val evaluatedAt: Instant,val totalScore: Int,val pitchScore: Int,val timingScore: Int,val durationScore: Int,val notes: List<EvaluationNote>)
+    val startedAt: Instant,val endedAt: Instant?,val evaluatedAt: Instant,val totalScore: Int,val pitchScore: Int,val timingScore: Int,val durationScore: Int,val notes: List<EvaluationNote>, val recordingDurationMs: Int? = null)
 data class EvaluationNote(val noteIdx: Int,val verdict: String,val pitchErrorCent: Int?,val onsetErrorMs: Int?,val durationErrorMs: Int?)

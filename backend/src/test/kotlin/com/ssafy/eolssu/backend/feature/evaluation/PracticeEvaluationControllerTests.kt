@@ -18,7 +18,7 @@ class PracticeEvaluationControllerTests {
     private var state = "DONE"
     private val mapper = object : EvaluationReadMapper {
         override fun findOwned(sessionId: Long,userId: Long) = if (sessionId == 11L && userId == 2L)
-            EvaluationReadRow(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time) else null
+            EvaluationReadRow(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time,2876) else null
         override fun notes(evaluationId: Long) = listOf(NoteResultRow(8,5,0,1,null,null,150,0,"TIMING"))
     }
     private val mvc = MockMvcBuilders.standaloneSetup(PracticeEvaluationController(mapper))
