@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.guide.learn
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.SongsUnavailableException
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,13 @@ class LearnViewModel(
     init {
         viewModelScope.launch {
             val titles = LearnSongs.map { it.title }.toSet()
-            val ids = songRepository.getSongs()
+            // 곡 목록을 받지 못하면 곡 바로가기 없이 둔다.
+            val songs = try {
+                songRepository.getSongs()
+            } catch (e: SongsUnavailableException) {
+                emptyList()
+            }
+            val ids = songs
                 .filter { it.evaluable && it.title in titles }
                 .associate { it.title to it.id }
             _uiState.update { it.copy(songIds = ids) }

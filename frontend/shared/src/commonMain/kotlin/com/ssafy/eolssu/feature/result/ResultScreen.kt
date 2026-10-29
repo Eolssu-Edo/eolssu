@@ -201,11 +201,14 @@ internal fun TotalScore(
             },
             style = EolssuTheme.serif.brand.copy(fontSize = scoreSize, lineHeight = scoreSize),
         )
-        Text(
-            result.feedback,
-            modifier = Modifier.padding(top = 10.dp),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-        )
+        // 서버 결과는 총평이 없다.
+        if (result.feedback.isNotEmpty()) {
+            Text(
+                result.feedback,
+                modifier = Modifier.padding(top = 10.dp),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+            )
+        }
         if (result.sample) EolssuBadge(stringResource(Res.string.result_sample_badge), Modifier.padding(top = 8.dp))
     }
 }

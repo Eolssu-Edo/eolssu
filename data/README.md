@@ -57,6 +57,15 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
 
+## 녹음 정답 기록
+
+채점 평가용 녹음마다 정답 기록 하나를 `annotations/recordings/<악기 ID>/<recordingId>.json`에 둡니다. 녹음 원본은 `raw/`, 합성 녹음은 `processed/`(둘 다 Git 제외)에 두고 기록에 경로와 SHA-256을 적습니다. 형식은 [recording_label.schema.json](src/recordings/recording_label.schema.json)이 정합니다.
+
+- 악보 구간과 의도한 오류(`idx`·종류·크기). `idx`는 공통 악보 데이터 `events` 중 NOTE만 0부터 센 번호입니다.
+- 녹음 조건. 합성은 합성 방법·난수 시드·잡음·끊어 분 길이, 실제 녹음은 연주자 ID(`P01`처럼, 이름은 넣지 않음)·숙련도·악기 ID·기기·앱·마이크 거리·장소·잡음·날짜·온도·테이크·오류를 낸 방법을 모두 적습니다. 빈 칸이 있으면 평가에 쓰지 않습니다.
+- 실제 녹음 정답은 `reviewed`만 평가에 사용합니다. 자동 생성한 합성 시험 입력은 `inferred`도 허용하고, `rejected`는 항상 거절합니다.
+- 검사는 AI 평가 도구의 [labels.py](../ai/evaluation/labels.py)가 합니다. 형식, 파일 해시, 구간이 곡의 음 수 안인지, 오류가 구간 안에 한 번씩만 있는지를 봅니다.
+
 ## 파일 관리
 
 팀원이 모은 악보 PDF·음원·MIDI는 원본 한 벌을 서버 `/data/raw`에 모으고, Git에는 목록·판단 값·코드·작은 샘플만 둡니다.

@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.SongsUnavailableException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,9 +15,19 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
     val uiState: StateFlow<SongListUiState> = _uiState.asStateFlow()
 
     init {
+        load()
+    }
+
+    /** 곡 목록을 받는다. 받지 못하면 다시 시도를 보인다. */
+    fun load() {
+        _uiState.update { it.copy(loadFailed = false) }
         viewModelScope.launch {
-            val songs = songRepository.getSongs()
-            _uiState.update { it.receiveSongs(songs) }
+            try {
+                val songs = songRepository.getSongs()
+                _uiState.update { it.receiveSongs(songs) }
+            } catch (e: SongsUnavailableException) {
+                _uiState.update { it.copy(loadFailed = true) }
+            }
         }
     }
 

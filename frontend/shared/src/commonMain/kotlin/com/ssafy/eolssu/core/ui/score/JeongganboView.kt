@@ -443,10 +443,10 @@ private fun ScoreNoteBox(
         horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = note.symbol,
+        ScoreNoteGlyph(
+            note,
+            yulSize,
             modifier = Modifier.clearAndSetSemantics {},
-            style = EolssuTheme.serif.yul.copy(fontSize = yulSize, lineHeight = yulSize),
             color = if (pitch != null) colors.text else colors.textMuted,
             fontWeight = if (pitch != null) FontWeight.SemiBold else FontWeight.Normal,
         )

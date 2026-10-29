@@ -12,7 +12,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "jsonschema==4.26.0",
+    "pytest>=8",
+]
 # 음높이 추정 비교용. 서비스 기본 의존성에는 넣지 않는다.
 eval = ["torchcrepe>=0.0.23"]
 

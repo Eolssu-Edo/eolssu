@@ -1,17 +1,27 @@
 package com.ssafy.eolssu.app.di
 
+import com.ssafy.eolssu.core.audio.RecordedTake
+import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.GrowthRepository
+import com.ssafy.eolssu.data.practice.HttpGrowthRepository
+import com.ssafy.eolssu.data.practice.HttpPracticeSessionRepository
+import com.ssafy.eolssu.data.practice.HttpRecordingUploader
+import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.HttpScoreViewApi
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.practice.RecordingUploader
+import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.SampleEvaluationRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
-import com.ssafy.eolssu.data.song.SampleSongRepository
+import com.ssafy.eolssu.data.song.HttpSongRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
@@ -21,6 +31,7 @@ import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.user.ApiAuthRepository
 import com.ssafy.eolssu.data.user.AuthRepository
@@ -67,15 +78,22 @@ val appModule = module {
     // 화면이 사라져도 끝내야 하는 일(로그아웃 요청 등)을 하는 앱 전체의 범위.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
-    // API가 생기면 예시 구현을 API 구현으로 바꾼다.
-    single<SongRepository> { SampleSongRepository() }
+    single { SignedInMember(get()) }
+    // 예시 연습 기록·내 악보가 가리키는 예시 곡은 HttpSongRepository가 예시 데이터로 찾는다.
+    single<SongRepository> { HttpSongRepository(get()) }
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
-    single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }
+    // 녹음 없이 진행하는 플랫폼(현재 iOS·Web)의 분석은 예시 결과를 그대로 쓴다.
+    single<EvaluationRepository> { ApiEvaluationRepository(get(), get(), fallback = SampleEvaluationRepository(now = get())) }
+    single<PracticeSessionRepository> { HttpPracticeSessionRepository(get()) }
+    single<RecordingUploader> { HttpRecordingUploader(get()) }
+    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
+    single { RecordingUploads(get(), get(), get(), get()) }
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
-    single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get()) }
+    single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
+    single<GrowthRepository> { HttpGrowthRepository(get()) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
@@ -84,7 +102,10 @@ val appModule = module {
     viewModel { (songId: String, solo: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull())
     }
-    viewModel { (songId: String, bpm: Int) -> AnalysisViewModel(songId, bpm, get(), get()) }
+    viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
+        val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
+        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get())
+    }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get()) }
@@ -97,7 +118,7 @@ val appModule = module {
     // 첫 실행·로그인·회원가입·비밀번호 찾기. 인증 API를 붙이기 전까지 예시 저장소가 로그인·인증번호 결과를 돌려준다.
     single { FirstRunRepository(get()) }
     single { LearnProgressRepository(get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), fallback = SampleAuthRepository(now = get())) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), fallback = SampleAuthRepository(now = get())) }
     viewModelOf(::ConsentViewModel)
     viewModelOf(::LoginViewModel)
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get()) }

@@ -9,8 +9,15 @@ import kotlin.time.Duration.Companion.minutes
 
 /**
  * 연습 세션 하나에 올릴 녹음. [startedAtMillis]는 세션을 시작한 시각(epoch ms, 서버 `started_at`)이고 업로드 만료 판정에 쓴다.
+ * [songId]·[bpm]은 앱을 다시 켜고 남은 녹음을 보낼 때 분석 대기 화면이 곡을 보이는 데 쓴다.
  */
-data class PendingRecording(val sessionId: String, val path: String, val startedAtMillis: Long)
+data class PendingRecording(
+    val sessionId: String,
+    val path: String,
+    val startedAtMillis: Long,
+    val songId: String = "",
+    val bpm: Int = 0,
+)
 
 /**
  * 업로드 API(PRA-02 `docs/specs/recording-file.md`) 응답을 앱이 다룰 결과로 나눈 것.
@@ -32,7 +39,7 @@ sealed interface UploadOutcome {
     data object Rejected : UploadOutcome
 }
 
-/** 녹음 업로드. 실제 HTTP 구현은 FE 업로드 API 연결 Task(S15P31E102-245)에서 [UploadOutcome]의 대응대로 붙인다. */
+/** 녹음 업로드. HTTP 구현은 [HttpRecordingUploader]다. */
 interface RecordingUploader {
     /** [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.Unreachable]로 돌려주거나 예외로 던진다. */
     suspend fun upload(sessionId: String, path: String): UploadOutcome
@@ -135,14 +142,17 @@ class RecordingUploads(
     }
 
     private fun save(pending: PendingRecording) {
-        store.putString(KEY, listOf(pending.sessionId, pending.startedAtMillis.toString(), pending.path).joinToString(SEPARATOR))
+        val parts = listOf(pending.sessionId, pending.startedAtMillis.toString(), pending.songId, pending.bpm.toString(), pending.path)
+        store.putString(KEY, parts.joinToString(SEPARATOR))
     }
 
+    /** 경로를 마지막에 둬 경로에 무엇이 있어도 나머지를 읽는다. 곡·BPM이 없던 이전 형식은 깨진 기록으로 본다. */
     private fun load(): PendingRecording? {
-        val parts = store.getString(KEY)?.split(SEPARATOR, limit = 3) ?: return null
-        if (parts.size != 3) return null
+        val parts = store.getString(KEY)?.split(SEPARATOR, limit = 5) ?: return null
+        if (parts.size != 5) return null
         val startedAt = parts[1].toLongOrNull() ?: return null
-        return PendingRecording(sessionId = parts[0], path = parts[2], startedAtMillis = startedAt)
+        val bpm = parts[3].toIntOrNull() ?: return null
+        return PendingRecording(sessionId = parts[0], path = parts[4], startedAtMillis = startedAt, songId = parts[2], bpm = bpm)
     }
 
     private companion object {
