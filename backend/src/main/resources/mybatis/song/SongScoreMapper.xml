@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongScoreMapper">
+    <select id="findPublished" resultType="com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.PublishedScoreRow">
+        SELECT s.id AS song_id, s.score_version, s.note_count, s.default_bpm, j.bpm_unit, s.score_json
+        FROM songs s JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
+    </select>
+    <select id="findPitches" resultType="com.ssafy.eolssu.backend.feature.pitch.infrastructure.persistence.PitchRow">
+        SELECT id, yul, octave, hanja, hangul, semitone FROM pitches ORDER BY id
+    </select>
+</mapper>

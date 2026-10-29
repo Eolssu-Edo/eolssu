@@ -32,6 +32,9 @@
 
 ## 기능 스펙
 
+- [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
+- [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
+
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 

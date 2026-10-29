@@ -20,6 +20,7 @@ class SongControllerTests {
         override fun listPublished() = listOf(song)
     }
     private val jangdans = object : JangdanMapper {
+        override fun listAll() = emptyList<JangdanRow>()
         override fun findById(id: Long) = JangdanRow(2, "세마치", "{\"group\":[3,3,3]}", 96, "DOTTED_QUARTER", null, time, time)
     }
     private val mvc = MockMvcBuilders.standaloneSetup(SongController(mapper, jangdans, JsonMapper.builder().build()))
