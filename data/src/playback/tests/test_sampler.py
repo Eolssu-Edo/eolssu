@@ -9,6 +9,31 @@ from data.src.playback.tests._helpers import score, synthetic_sampler, wire
 
 
 class SamplerTests(unittest.TestCase):
+    def test_sogeum_loop_preserves_slur_phase_breath_and_short_note_path(self):
+        def fake():
+            value = synthetic_sampler(1.5)
+            value.instrument = "sogeum"
+            return value
+        _, whole = wire(score([{"id": "a", "pitch": 75, "duration": 4}]), "sogeum")
+        _, split = wire(score([{"id": "a", "pitch": 75, "duration": 2, "slur": "s"},
+                               {"id": "b", "pitch": 75, "duration": 2, "slur": "s"}]), "sogeum")
+        a, trace = fake().render(whole)
+        b, split_trace = fake().render(split)
+        self.assertIsNotNone(trace[0]["sustain_loop"])
+        self.assertEqual(split_trace[0]["sustain_loop"], split_trace[1]["sustain_loop"])
+        np.testing.assert_allclose(a, b, rtol=0, atol=1e-10)
+        _, short = wire(score([{"id": "a", "pitch": 75, "duration": .4}]), "sogeum")
+        with patch("data.src.playback.sampler.find_sustain_loop", side_effect=AssertionError("unneeded loop")):
+            _, trace = fake().render(short)
+        self.assertIsNone(trace[0]["sustain_loop"])
+        _, breath = wire(score([{"id": "a", "pitch": 75, "duration": 4, "breath_seconds": .12},
+                                {"id": "b", "pitch": 75, "duration": 1}]), "sogeum")
+        audio, _ = fake().render(breath)
+        self.assertEqual(np.count_nonzero(audio[round(3.881 * FS):4 * FS]), 0)
+        with patch("data.src.playback.sampler.find_sustain_loop", return_value=None):
+            with self.assertRaisesRegex(ValueError, "no validated stable sustain loop"):
+                fake().render(whole)
+
     def test_cc11_changes_actual_pcm(self):
         value=score();_, baseline=wire(value)
         value["notes"][0]["expression"]=[64,64,64]

@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,7 +34,7 @@ import kotlin.time.TimeSource
  * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
  *
  * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
- * 입력·화면 보임은 Route가 알린다.
+ * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
  */
 class PracticeViewModel(
     private val songId: String,
@@ -41,6 +42,7 @@ class PracticeViewModel(
     songRepository: SongRepository,
     private val settingsStore: PracticeSettingsStore,
     private val timeMeter: PracticeTimeMeter,
+    private val timeQueue: PracticeTimeQueue,
     private val recorder: AudioRecorder? = null,
     private val micPermission: MicPermission? = null,
 ) : ViewModel() {
@@ -55,6 +57,7 @@ class PracticeViewModel(
     private var listenJob: Job? = null
     private var levelJob: Job? = null
     private var idleJob: Job? = null
+    private var snapshotJob: Job? = null
     private val recordingClock = RecordingClock()
 
     init {
@@ -73,15 +76,20 @@ class PracticeViewModel(
     fun onScreenShown() {
         timeMeter.show(songId)
         watchIdle()
+        snapshotJob?.cancel()
+        snapshotJob = viewModelScope.launch {
+            while (true) {
+                delay(PracticeTimeMeter.SnapshotInterval)
+                timeMeter.snapshot()?.let(timeQueue::saveOpen)
+            }
+        }
     }
 
-    /**
-     * 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫고 떠 있던 알림을 내린다.
-     * 닫힌 구간을 기기에 저장해 서버로 보내는 일은 기기 저장·전송 대기열이 맡는다.
-     */
+    /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
     fun onScreenHidden() {
         idleJob?.cancel()
-        timeMeter.hide()
+        snapshotJob?.cancel()
+        timeQueue.close(timeMeter.hide())
         _uiState.update { it.copy(idleReminder = false) }
     }
 

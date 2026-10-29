@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from data.src.playback.__main__ import run, publish
+from data.src.playback.__main__ import run, publish, replace_directory
 from data.src.playback.audio import resolve_encoder
 from data.src.playback.sampler import FS
 from data.src.playback.score import PROFILES
@@ -43,6 +43,50 @@ class ScoreMidiIntegrationTests(unittest.TestCase):
 
 
 class JgbRenderIntegrationTests(unittest.TestCase):
+    def test_windows_directory_lock_is_retried_but_permanent_error_stops(self):
+        locked = PermissionError("temporary lock")
+        locked.winerror = 5
+        with patch.object(Path, "replace", side_effect=[locked, None]) as replace, \
+             patch("data.src.playback.__main__.time.sleep") as sleep:
+            replace_directory(Path("stage"), Path("out"))
+            self.assertEqual(replace.call_count, 2)
+            sleep.assert_called_once_with(.1)
+        with patch.object(Path, "replace", side_effect=locked) as replace, \
+             patch("data.src.playback.__main__.time.sleep") as sleep:
+            with self.assertRaises(PermissionError):
+                replace_directory(Path("stage"), Path("out"))
+            self.assertEqual(replace.call_count, 5)
+            self.assertEqual(sleep.call_count, 4)
+        with patch.object(Path, "replace", side_effect=OSError("not a lock")) as replace, \
+             patch("data.src.playback.__main__.time.sleep") as sleep:
+            with self.assertRaises(OSError):
+                replace_directory(Path("stage"), Path("out"))
+            replace.assert_called_once()
+            sleep.assert_not_called()
+
+    def test_sogeum_single_input_keeps_source_ids_and_instrument_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "input.jgb.json"
+            source.write_bytes((Path(__file__).parents[1] / "examples/sogeum-jgb.json").read_bytes())
+            assets = root / "assets.json"
+            assets.write_text('{"sogeum":"unused.zip"}', encoding="utf-8")
+            fake = sampler()
+            fake.instrument = "sogeum"
+            with patch("data.src.playback.__main__.CatSampler", return_value=fake) as constructor:
+                manifest = run(source, assets, root / "out", ["sogeum"], audio_format="wav")
+            constructor.assert_called_once_with(root / "unused.zip", "sogeum")
+            self.assertEqual((root / "out/source.jgb.json").read_bytes(), source.read_bytes())
+            self.assertIsNone(manifest["playback_vibrato"])
+            self.assertIsNone(manifest["playback_vibrato_by_instrument"]["sogeum"])
+            report = json.loads((root / "out/sogeum.json").read_text(encoding="utf-8"))
+            mapping = json.loads((root / "out/source-map.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["notes"], 3)
+            self.assertEqual([n["pitch"] for n in report["events"]], [75, 77, 80])
+            self.assertEqual(mapping["part_id"], "sogeum-example")
+            self.assertTrue(all(parent in mapping["notes"] for event in report["events"] for parent in event["parent_ids"]))
+            self.assertEqual(len(list((root / "out").iterdir())), 7)
+
     def test_short_breath_preserves_half_note_next_onset_and_audible_gap(self):
         for bpm in (60, 198, 400):
             with self.subTest(bpm=bpm):

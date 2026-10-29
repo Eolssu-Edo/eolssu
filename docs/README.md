@@ -43,6 +43,7 @@
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
+- [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 
 ## 도구 조사·검증 기록
 
@@ -69,6 +70,7 @@
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
+- [소금 JGB·MIDI·M4A 생성과 실음·표현 정책](knowledge/data/sogeum-playback.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 - [정간보 OMR로 악보 PDF를 JSON으로 바꾸는 시험](knowledge/data/jeongganbo-omr.md)
 - [단소 정간보 PDF의 우물사이 문서 변환](knowledge/data/danso-scores-umulsai.md)
@@ -127,6 +129,7 @@
 - [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
 - [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 - [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
+- [S15P31E102-249 단소 4곡과 악기·장단 기준 데이터 DB 적재](plans/S15P31E102-249.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

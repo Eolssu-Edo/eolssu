@@ -83,7 +83,9 @@ class EmailVerificationViewModelTest {
     fun mismatchShowsRemainingAttemptsAndTooManyKeepsBlocking() {
         var answer: ConfirmCodeResult = ConfirmCodeResult.Mismatch(remainingAttempts = 4)
         val repository = object : AuthRepository {
-            override fun logIn(email: String, password: String) = LoginResult.WrongCredentials
+            override suspend fun logIn(email: String, password: String) = LoginResult.WrongCredentials
+
+            override fun logOut() = Unit
             override fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
             override fun confirmCode(verificationId: String, code: String) = answer
         }

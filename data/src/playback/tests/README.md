@@ -1,10 +1,10 @@
-# 단소 재생 테스트별 확인 범위
+# 단소·소금 재생 테스트별 확인 범위
 
-[S15P31E102-166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 단일 JGB/score → MIDI → CAT PCM → M4A/WAV 파이프라인 검사다. 실행 명령·의존성·FFmpeg 설정은 [상위 README](../README.md#설치와-빠른-검사)를 따른다.
+[S15P31E102-166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 단소와 [S15P31E102-108](https://ssafy.atlassian.net/browse/S15P31E102-108)의 소금을 위한 단일 JGB/score → MIDI → CAT PCM → M4A/WAV 검사다. 실행 명령·의존성·FFmpeg 설정은 [상위 README](../README.md#설치와-빠른-검사)를 따른다.
 
 ## 결과를 읽는 기준
 
-2026-10-28, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **112개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
+2026-10-28, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **126개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
 
 - 고정 JSON과 합성 사인파를 사용한다. 음원 검사는 실제 샘플러의 렌더링 로직을 거치지만, 실제 CAT 뱅크를 읽거나 단소 음색을 평가하지 않는다.
 - `test_audio.py`의 코덱 검사 1개와 `test_pipeline.py`의 CLI 검사 1개만 실제 FFmpeg/ffprobe 인코딩·디코딩 통합 검사다. 입력 소리는 합성 신호이며, 인코더를 찾지 못하면 이 2개는 건너뛴다.
@@ -17,14 +17,14 @@
 
 | 테스트 파일 | 대응 구현·범위 | 개수 |
 | --- | --- | ---: |
-| `test_jgb.py` | `jgb.py`: 구문·기호·시간·빠르기 선택·원문 대응 | 37 |
-| `test_score.py` | `score.py`: 공통 악보 검증·이벤트 생성 | 13 |
-| `test_midi.py` | `midi.py`: 제어 메시지·자동 떨림·직렬화 | 8 |
-| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·샘플 부족 | 12 |
+| `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 42 |
+| `test_score.py` | `score.py`: 공통 악보 검증·음역·이벤트 생성 | 15 |
+| `test_midi.py` | `midi.py`: 제어 메시지·악기별 자동 떨림·직렬화 | 9 |
+| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·단소/소금 지속 | 13 |
 | `test_audio.py` | `audio.py`: 파일 출력·프로세스 오류·AAC 시간 정렬 | 4 |
-| `test_pipeline.py` | `__main__.py`와 모듈 연결: score→MIDI, JGB→PCM, CLI 전체 실행 | 20 |
-| `test_expressions.py` | `expressions.py`: 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 7 |
-| `test_tempo_repeat.py` | `tempo_repeat.py`: 빠르기 적분·반복·원문 시간 보존 | 11 |
+| `test_pipeline.py` | `__main__.py`와 모듈 연결: score→MIDI, JGB→PCM, CLI 전체 실행 | 22 |
+| `test_expressions.py` | `expressions.py`: 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 9 |
+| `test_tempo_repeat.py` | `tempo_repeat.py`: 악기별 계획·빠르기 적분·반복·원문 시간 보존 | 12 |
 
 `_helpers.py`는 고정 악보·합성 샘플·MIDI 왕복 헬퍼만 제공하며 테스트를 정의하지 않는다. 테스트 파일끼리는 import하지 않는다. 자동 ±25cent 떨림의 설정값은 `expressions.py`, MIDI 제어 생성은 `midi.py`에 있다. 실제 제어 메시지 검사는 `test_midi.py`에 둔다.
 
@@ -48,11 +48,13 @@
 | --- | --- |
 | `test_aac_priming_is_removed_and_only_tail_padding_remains` | **실제 AAC 통합:** 합성 신호의 인코딩/디코딩 후 시작 정렬 오차 1샘플 이내, 끝 패딩 1024샘플 미만, 컨테이너 길이 오차 2샘플 이내 |
 
-## test_expressions.py — 7개
+## test_expressions.py — 9개
 
 [코드](test_expressions.py).
 
 ### ExpressionTests
+
+추가 소금 검사: `test_sogeum_explicit_effects_keep_directions_delay_and_input_independent`는 풀어내림의 방향·기호 위치와 정책 지연의 합산·입력 불변성을 검사한다. `test_sogeum_profile_rejects_wrong_instrument_and_scale_missing_basis`는 다른 악기의 프로필과 근거 없는 상대음계를 거부한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -64,11 +66,19 @@
 | `test_direction_and_repetition_match_explicit_curve_shape` | 추성·퇴성 방향과 겹흘림·겹미는 반복 곡선 검사 |
 | `test_unverified_aliases_and_incomplete_or_unknown_fields_are_rejected` | 근거 누락·알 수 없는 기호·필드·불완전 표현 설정 거부 |
 
-## test_jgb.py — 37개
+## test_jgb.py — 42개
 
 [코드](test_jgb.py).
 
 ### JgbTests
+
+| 소금 추가 테스트 | 확인 내용 |
+| --- | --- |
+| `test_sogeum_ornaments_follow_its_textbook_and_keep_danso_sequences` | 소금 네로나·니르나니와 단소의 다른 음열, 한글 입력 확장, 모호한 기호 거부 |
+| `test_sogeum_five_graces_and_roll_keep_pitches_and_short_main_budget` | 나니르노니르의 앞꾸밈5음·떠이어표 실음, 짧은 자리의 본음 길이와 ID 보존 |
+| `test_sogeum_requires_identification_without_changing_original_or_octave` | v1/v2 악기 선택 근거·원본 불변·+12 미적용·악기 충돌 거부 |
+| `test_sogeum_tempo_still_requires_selection_and_scale_needs_basis` | 미확정 빠르기 거부·CLI 선택 기록·명시 음계 충돌·판본 근거 보존 |
+| `test_sogeum_effects_require_explicit_values_and_hold_adds_location_delay` | 농음/흘림/미는/풀어내림 수치 누락 거부·지속 위치와 정책 지연 합산 |
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -110,11 +120,13 @@
 | `test_ambiguous_combinations_and_disabled_effects_fail` | 표현 충돌·쉼에 붙은 효과·잘못된 발음 비율·효과 비활성화를 거부 |
 | `test_tempo_requires_explicit_playback_selection_not_a_number_or_jangdan` | BPM·장단만으로 허용하지 않고 명시 선택 표시 또는 CLI BPM을 요구하며 선택 경로를 기록 |
 
-## test_midi.py — 8개
+## test_midi.py — 9개
 
 [코드](test_midi.py).
 
 ### MidiTests
+
+소금 추가 `test_sogeum_has_no_unnotated_motion_but_explicit_pitch_motion_roundtrips`는 무표기 PB=0, 단소 기본 떨림 유지, 소금의 명시 곡선·요성 및 동적 RPN 범위를 확인한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -127,11 +139,13 @@
 | `test_authored_pitch_and_mixed_yoseong_are_not_added_twice` | 명시된 음높이 요성에 자동 떨림을 중복 추가하지 않음 |
 | `test_amplitude_yoseong_remains_with_fixed_pitch_vibrato` | 명시한 음량 요성과 자동 음높이 떨림이 함께 유지됨 |
 
-## test_tempo_repeat.py — 11개
+## test_tempo_repeat.py — 12개
 
 [코드](test_tempo_repeat.py).
 
 ### TempoRepeatTests
+
+소금 추가 `test_sogeum_plan_retimes_repeats_and_rejects_danso_schema`는 소금 계획의 빠르기 변경·반복 후 시간/고유 ID와 다른 악기 스키마 거부를 확인한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -147,7 +161,7 @@
 | `test_gradual_cue_requires_endpoint_and_plan_is_not_applied_twice` | 점진 기호의 끝 위치와 계획 중복 적용 거부 |
 | `test_empty_plan_preserves_timing_and_quantization_rejects_lost_notes` | 빈 계획은 시간을 유지하고 지나친 속도로 tick이 사라지는 음은 거부 |
 
-## test_pipeline.py — 20개
+## test_pipeline.py — 22개
 
 [코드](test_pipeline.py).
 
@@ -159,6 +173,8 @@
 | `test_rest_tie_and_rearticulation_are_different` | 붙임줄은 음을 합치고 쉼은 침묵을 만들며 같은 음을 다시 적으면 재발음 |
 
 ### JgbRenderIntegrationTests
+
+추가 `test_sogeum_single_input_keeps_source_ids_and_instrument_manifest`는 소금 선택이 샘플러까지 전달되는지, 실음·ID·원본 바이트·7개 산출물을 확인한다. `test_windows_directory_lock_is_retried_but_permanent_error_stops`는 Windows 잠금 오류만 제한 재시도하며 영구 오류와 다른 오류는 중단하는지 확인한다. 기존 출력 복구 검사는 아래 CLI 검사에서 유지한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -191,11 +207,13 @@
 | --- | --- |
 | `test_default_pipeline_emits_m4a_without_intermediate_wav` | **실제 AAC 통합:** 기본 CLI가 중간 WAV 없이 AAC-LC M4A를 만들고 SHA·인코더·소스 버전을 기록하며 HTML도 생성하지 않음 |
 
-## test_sampler.py — 12개
+## test_sampler.py — 13개
 
 [코드](test_sampler.py).
 
 ### SamplerTests
+
+소금 추가 `test_sogeum_loop_preserves_slur_phase_breath_and_short_note_path`는 합성 사인파의 지속 연장·같은 음 연결 위상·숨표 무음, 짧은 음에 루프를 찾지 않는 동작과 안정 구간 검사 실패를 확인한다. 실제 소금 CAT의 18개 존·27개 음높이 검증은 [소금 근거 문서](../../../../docs/knowledge/data/sogeum-playback.md)에 별도로 기록한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |
@@ -212,11 +230,13 @@
 | `test_short_tone_does_not_search_or_apply_sustain_loop` | 충분히 짧은 음은 루프 탐색·적용 없이 기존 파형 사용 |
 | `test_unstable_noise_glide_and_silence_have_no_sustain_loop` | 소음·급격한 음높이 변화·무음을 안정 지속 구간으로 승인하지 않음 |
 
-## test_score.py — 13개
+## test_score.py — 15개
 
 [코드](test_score.py).
 
 ### ScoreTests
+
+추가 `test_sogeum_written_octave_and_range_do_not_fold_sounding_notes`는 명시 기보 이조·실음 유지·관행 밖 경고·기술 음역 밖 실패를 확인한다. `test_yoseong_delay_must_reach_sounding_note_after_tie_and_ornament_expansion`는 음 끝 이후에 시작해 사라지는 요성을 거부하고, 타이/꾸밈 전개 후 실제 발음 길이로 판단한다.
 
 | 테스트 | 확인 내용 |
 | --- | --- |

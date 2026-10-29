@@ -22,7 +22,7 @@ def _positive_int(value, label, high):
     return value
 
 
-def apply_tempo_repeat(score, mapping, plan, input_sha256):
+def apply_tempo_repeat(score, mapping, plan, input_sha256, *, instrument="danso"):
     """Return copied score/map after a hash-bound tempo and repeat plan.
 
     A tempo entry's ``bpm`` is jeonggan/minute, before the existing global speed
@@ -31,7 +31,8 @@ def apply_tempo_repeat(score, mapping, plan, input_sha256):
     reuse their written-position tempo plan on every pass.
     """
     reject_unknown(plan, ["schema", "input_sha256", "tempos", "repeats"], "performance plan")
-    require(plan.get("schema") == "danso-performance/v1", "performance plan schema는 danso-performance/v1이어야 합니다")
+    schema = f"{instrument}-performance/v1"
+    require(plan.get("schema") == schema, f"performance plan schema는 {schema}이어야 합니다")
     require(isinstance(input_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", input_sha256),
             "원본 input_sha256이 필요합니다")
     require(plan.get("input_sha256") == input_sha256, "performance plan의 input_sha256이 원본 JGB와 다릅니다")
