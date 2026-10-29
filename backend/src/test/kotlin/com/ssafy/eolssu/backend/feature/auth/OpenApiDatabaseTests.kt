@@ -68,6 +68,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
+        assertEquals(37,expected.size)
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans")
@@ -116,7 +117,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(4,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(5,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())

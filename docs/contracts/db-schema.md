@@ -10,6 +10,8 @@
 
 ## ERD
 
+V9 [OAuth 일회용 증명값](../../backend/src/main/resources/db/migration/V9__oauth_one_time_proofs.sql)은 `oauth_proofs`를 추가합니다. state·mergeTicket 원문 대신 SHA-256, 브라우저 결속 해시·제공자·목적·연결 대상·만료·소비 시각을 저장합니다. state와 mergeTicket은10분이며 원자적 조건 갱신으로1회만 소비합니다. 회원을 잠근 후 증명값·연결·refresh를 처리합니다. 회원 삭제를 막는 FK는 두지 않고 완료 처리에서 현재 회원을 재확인합니다. 만료 행은 매분 최대500개 삭제하며 서버 장기 중단 시 재기동 후 정리합니다. 제공자 subject·이메일은 그때까지 서버 내부에만 남습니다. 사용자 승인과 변경 이유는 [211 계획](../plans/S15P31E102-211.md)에 있습니다.
+
 - 원본: [ERDCloud](https://www.erdcloud.com/d/aB9vM5edsqHqmedcE)
 - 2026-10-22 기준 내보내기(V1). V2~V5 변경은 아직 그림에 반영하지 않았습니다:
 

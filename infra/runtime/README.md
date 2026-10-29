@@ -1,5 +1,9 @@
 # edo1의 eolssu 운영 구성
 
+## Android App Links 준비 (S15P31E102-211)
+
+정확한 경로 `/.well-known/assetlinks.json`은 Nginx가 백엔드로 프록시합니다. SPA나 리다이렉트가 아닙니다. `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`에는 실제 설치할 Android Studio APK의 공개 SHA-256 인증서 지문만 쉼표로 구분해 설정합니다. 비어 있으면 서버는 기동하지만 검증 문서는404이며, 잘못된 지문은 기동 시 거절됩니다. 정상 설정은 com.ssafy.eolssu 대상의200 JSON 배열을 제공합니다. 이 값은 비밀키가 아니며, 키스토어·키 비밀번호는 필요하지 않습니다. 지문은 추측하지 않고 APK 제작자에게 받습니다. 환경 주입·Nginx/백엔드 배포·실기기 verified 확인은 별도이며, 준비 코드만으로 도메인 검증 완료로 보지 않습니다. [현재 계약·인계](../../docs/specs/social-auth.md)를 참고합니다.
+
 운영 Compose 원본은 `/opt/eolssu/config/compose.yml`, 실제 환경변수는 `/opt/eolssu/.env`입니다. 이 폴더의 `compose.yml`·`nginx.conf`는 서버에서 확인한 프론트·백엔드·MySQL 구성을 관리합니다. 루트의 개발/운영 Compose 두 서비스 예시와 구분합니다.
 
 ## 이름과 데이터 보존
