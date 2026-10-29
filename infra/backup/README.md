@@ -59,7 +59,9 @@ ssh -o ClearAllForwardings=yes edo2 'sudo systemctl list-units --failed "eolssu-
 ssh -o ClearAllForwardings=yes edo2 'sudo systemctl start eolssu-backup-restore-test.service'
 ```
 
-완료 사본을 다시 해시·복호화 검증한 후 root 전용 임시 디렉터리에만 복원한다. MySQL 8.4.13 새 데이터 디렉터리, 복원한 JAR·웹, Grafana DB·설정, Jenkins 핵심 홈·별도 키를 사용한다. MySQL 계정·권한 SQL을 복원하고, 테이블/뷰 목록·전체 테이블의 행 수와 데이터 해시를 비교한다. 웹 응답·API의 기존 JSON 404·Grafana DB 상태·Jenkins 인증·Credentials 복호화를 검사한다. 계정별 grants를 원본에 다시 조회해 대조하는 검사는 포함하지 않는다. MySQL 초기화 중 임시 서버와 구분하기 위해 최종 TCP 준비 상태를 확인한다.
+완료 사본을 다시 해시·복호화 검증한 후 root 전용 임시 디렉터리에만 복원한다. MySQL 8.4.13 새 데이터 디렉터리, 복원한 JAR·웹, Grafana DB·설정, Jenkins 핵심 홈·별도 키를 사용한다. MySQL은 계정 생성 → 스키마·데이터 → 권한 적용 순서로 복원한다. DEFINER 계정은 스키마보다 먼저, 테이블 단위 GRANT는 테이블보다 나중에 있어야 한다. 각 단계의 SQL 실패는 검증 실패로 처리한다. 테이블/뷰 목록·전체 테이블의 행 수와 데이터 해시, 웹 원문·Nginx 경유 API readiness의 HTTP 200/JSON `status=UP`, Grafana DB 상태·Jenkins 인증·Credentials 복호화를 검사한다. 계정별 grants를 원본에 다시 조회해 대조하는 검사는 포함하지 않는다. MySQL 초기화 중 임시 서버와 구분하기 위해 최종 TCP 준비 상태를 확인한다.
+
+2026-10-29의 SQL 1146 장애는 테이블 생성 전에 테이블 단위 권한을 적용한 순서 문제였다. 실패 재현·수정 후 실제 복원 결과와 원본 코드 복구 위치는 [Task 293 기록](../../docs/plans/S15P31E102-293.md)을 따른다. 실패 이력을 초기화해서 정상화하지 않고 실제 복원 통과 후 상태 검사를 다시 실행한다.
 
 복원 컨테이너는 무작위 실행 ID의 internal network, 자원 제한, 외부 공개 포트 없음으로 실행한다. Jenkins executor는 0이며 운영 에이전트를 연결하지 않는다. 종료 시 소유 라벨을 확인한 컨테이너·익명 볼륨·네트워크와 자체 임시 디렉터리만 정리한다. 실패 시에도 같은 정리를 수행하며 정리 실패는 성공으로 보고하지 않는다. `restore-last.json`은 임시 디렉터리 밖에 보존된다.
 

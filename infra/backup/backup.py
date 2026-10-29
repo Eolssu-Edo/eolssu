@@ -372,6 +372,20 @@ def prune():
                     p.unlink()
     print(json.dumps({'retention_checked_at': now()}))
 
+def restore_database(import_sql, accounts, sql, report):
+    # SHOW CREATE USER/SHOW GRANTS are stored as one statement per line.
+    # Definers must exist for schema import; table grants need the schema first.
+    lines = accounts.splitlines(keepends=True)
+    users = b''.join(line for line in lines if line.startswith(b'CREATE USER '))
+    grants = b''.join(line for line in lines if not line.startswith(b'CREATE USER '))
+    report['phase'] = 'accounts-create'
+    import_sql(users)
+    report['phase'] = 'database-import'
+    import_sql(sql)
+    report['phase'] = 'accounts-grants'
+    import_sql(grants)
+
+
 def restore_test():
     started = time.monotonic(); report = {'started_at': now(), 'status': 'running', 'backups': {}}
     run_id = secrets.token_hex(8); containers = []; network = None
@@ -410,10 +424,7 @@ def restore_test():
             def import_sql(data):
                 command(['docker', 'exec', '-i', '-e', 'MYSQL_PWD', db, 'mysql', '-uroot', '--protocol=TCP', '--host=127.0.0.1'],
                         data=data, env=dict(os.environ, MYSQL_PWD=password))
-            report['phase'] = 'accounts-import'
-            import_sql((d / 'db/accounts.sql').read_bytes())
-            report['phase'] = 'database-import'
-            import_sql(sql)
+            restore_database(import_sql, (d / 'db/accounts.sql').read_bytes(), sql, report)
             report['phase'] = 'data-comparison'
             truth(mysql_query('SELECT @@version', db, password).strip() == manifests['db']['mysql_version'])
             objects = mysql_query("SELECT TABLE_SCHEMA,TABLE_NAME,TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'eolssu' ORDER BY 1,2", db, password).splitlines()
