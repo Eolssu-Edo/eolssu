@@ -32,6 +32,8 @@
 
 ## 기능 스펙
 
+- [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
+
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)

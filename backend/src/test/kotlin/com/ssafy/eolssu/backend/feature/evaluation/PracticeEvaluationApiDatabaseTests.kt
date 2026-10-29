@@ -8,6 +8,7 @@ import java.net.http.*
 import java.time.Instant
 import java.util.Date
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.AfterEach
@@ -40,15 +41,31 @@ class PracticeEvaluationApiDatabaseTests {
         assertEquals(401,get(null).statusCode())
         assertEquals(404,get(991258).statusCode())
         assertEquals(409,get(991257).statusCode())
-        jdbc.update("UPDATE practice_sessions SET status='DONE',ended_at=CURRENT_TIMESTAMP,recording_bytes=1024,recording_duration_ms=2876,recording_sample_rate=44100,recording_channels=1 WHERE id=991257")
-        jdbc.update("INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(991257,991257,84,88,80,84,'test',CURRENT_TIMESTAMP)")
+        jdbc.update("UPDATE practice_sessions SET status='DONE',ended_at='2026-10-29 00:01:02',recording_bytes=1024,recording_duration_ms=2876,recording_sample_rate=44100,recording_channels=1 WHERE id=991257")
+        jdbc.update("INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(991257,991257,84,88,80,84,'test','2026-10-29 00:02:03')")
         for (idx in listOf(1,0)) jdbc.update("INSERT INTO note_results(evaluation_id,note_idx,expected_pitch_id,verdict) VALUES(991257,?,1,'CORRECT')",idx)
+        jdbc.update("UPDATE note_results SET verdict='TIMING',pitch_error_cent=-12,onset_error_ms=150,duration_error_ms=20 WHERE evaluation_id=991257 AND note_idx=1")
         val response=get(991257);assertEquals(200,response.statusCode(),response.body())
         val result=json.readTree(response.body()).path("result")
         assertEquals(84,result.path("totalScore").asInt())
+        assertEquals(88,result.path("pitchScore").asInt())
+        assertEquals(80,result.path("timingScore").asInt())
+        assertEquals(84,result.path("durationScore").asInt())
+        assertEquals("991257",result.path("sessionId").asText())
+        assertEquals("991257",result.path("evaluationId").asText())
+        assertEquals("1",result.path("songId").asText())
+        assertEquals(1,result.path("scoreVersion").asInt())
+        assertEquals("2026-10-29T00:01:02Z",result.path("endedAt").asText())
+        assertEquals("2026-10-29T00:02:03Z",result.path("evaluatedAt").asText())
         assertEquals(2876,result.path("recordingDurationMs").asInt())
+        assertFalse(result.has("recordingUrl"))
+        assertFalse(result.has("feedback"))
         assertEquals(0,result.path("notes").path(0).path("noteIdx").asInt())
         assertEquals(1,result.path("notes").path(1).path("noteIdx").asInt())
+        assertEquals("TIMING",result.path("notes").path(1).path("verdict").asText())
+        assertEquals(-12,result.path("notes").path(1).path("pitchErrorCent").asInt())
+        assertEquals(150,result.path("notes").path(1).path("onsetErrorMs").asInt())
+        assertEquals(20,result.path("notes").path(1).path("durationErrorMs").asInt())
         jdbc.update("UPDATE practice_sessions SET record_deleted_at=CURRENT_TIMESTAMP WHERE id=991257")
         assertEquals(404,get(991257).statusCode())
     }

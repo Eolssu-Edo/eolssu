@@ -1,8 +1,9 @@
 package com.ssafy.eolssu.backend.feature.evaluation
 
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationController
-import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.*
-import java.time.LocalDateTime
+import com.ssafy.eolssu.backend.feature.evaluation.domain.*
+import com.ssafy.eolssu.backend.feature.evaluation.application.GetPracticeEvaluation
+import java.time.Instant
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.security.core.context.SecurityContextHolder
@@ -14,14 +15,14 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class PracticeEvaluationControllerTests {
-    private val time = LocalDateTime.parse("2026-10-29T00:00:00")
+    private val time = Instant.parse("2026-10-29T00:00:00Z")
     private var state = "DONE"
-    private val mapper = object : EvaluationReadMapper {
+    private val repository = object : PracticeEvaluations {
         override fun findOwned(sessionId: Long,userId: Long) = if (sessionId == 11L && userId == 2L)
-            EvaluationReadRow(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time,2876) else null
-        override fun notes(evaluationId: Long) = listOf(NoteResultRow(8,5,0,1,null,null,150,0,"TIMING"))
+            PracticeEvaluationSnapshot(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time,2876) else null
+        override fun notes(evaluationId: Long) = listOf(PracticeEvaluationNote(0,"TIMING",null,150,0))
     }
-    private val mvc = MockMvcBuilders.standaloneSetup(PracticeEvaluationController(mapper))
+    private val mvc = MockMvcBuilders.standaloneSetup(PracticeEvaluationController(GetPracticeEvaluation(repository)))
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).build()
     private fun login(id: String) { SecurityContextHolder.getContext().authentication=JwtAuthenticationToken(Jwt.withTokenValue("test").header("alg","HS256").subject(id).build()) }
     @AfterEach fun clear()=SecurityContextHolder.clearContext()
