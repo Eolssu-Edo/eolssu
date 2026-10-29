@@ -310,7 +310,7 @@ fun EolssuNavHost(
                 GrowthRoute(
                     onBack = { navController.popBackStack() },
                     onOpenRecords = { navController.popBackStack() },
-                    onOpenMissions = { navController.navigate(EolssuDestination.LEARN) },
+                    onOpenSteps = { navController.navigate(EolssuDestination.LEARN) },
                 )
             }
 

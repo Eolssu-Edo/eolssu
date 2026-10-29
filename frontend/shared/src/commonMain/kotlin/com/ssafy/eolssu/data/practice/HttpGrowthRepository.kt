@@ -40,8 +40,6 @@ class HttpGrowthRepository(private val client: HttpClient) : GrowthRepository {
         val currentStreakDays: Int,
         val averageTotalScore: Int? = null,
         val previousPeriod: PreviousPeriodDto,
-        val completedMissionCount: Int? = null,
-        val totalMissionCount: Int? = null,
         val bestBySong: List<BestSongDto> = emptyList(),
         val metricGrowth: MetricGrowthDto? = null,
     ) {
@@ -50,8 +48,6 @@ class HttpGrowthRepository(private val client: HttpClient) : GrowthRepository {
             previous = PeriodTotals(previousPeriod.practiceSeconds, previousPeriod.practiceCount, previousPeriod.averageTotalScore),
             practiceDays = practiceDays,
             currentStreakDays = currentStreakDays,
-            completedMissionCount = completedMissionCount,
-            totalMissionCount = totalMissionCount,
             bestBySong = bestBySong.map { SongBestScore(it.songId, it.title, it.bestTotalScore) },
             metricGrowth = metricGrowth?.toModel(),
         )
