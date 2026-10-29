@@ -36,9 +36,10 @@ enum class TempoStep(val ratio: Double) {
     }
 }
 
-/** 운지법 패널의 이전·다음 음 순서(낮은 음 → 높은 음). 와이어프레임 예시 곡에 쓰인 율명만 둔다. */
+/** 운지법 패널의 이전·다음 음 순서(낮은 음 → 높은 음). 예시 곡과 서버 단소 곡에 쓰인 율명만 둔다. */
 val FingeringOrder: List<Yul> = listOf(
     Yul.Hwangjong, Yul.Taeju, Yul.Jungnyeo, Yul.Imjong, Yul.Namnyeo, Yul.Muyeok, Yul.CheongHwangjong, Yul.CheongTaeju,
+    Yul.CheongJungnyeo, Yul.CheongImjong, Yul.CheongMuyeok,
 )
 
 /** 패널에서 고치는 중인 값. '적용'을 눌러야 [PracticeSettings]에 반영된다. */

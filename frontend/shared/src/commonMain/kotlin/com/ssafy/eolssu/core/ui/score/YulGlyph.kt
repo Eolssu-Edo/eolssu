@@ -1,0 +1,90 @@
+package com.ssafy.eolssu.core.ui.score
+
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import kotlin.math.roundToInt
+
+/**
+ * 율명 글자 하나. 세리프 글꼴에 없는 율명([Yul.drawnAs])은 작은 변을 기본 율명 왼쪽에 겹쳐 그린다.
+ * 화면 읽기 이름은 호출하는 쪽에서 율명 이름으로 붙인다.
+ */
+@Composable
+fun YulGlyph(
+    yul: Yul,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    color: Color = EolssuTheme.colors.text,
+    fontWeight: FontWeight = FontWeight.SemiBold,
+) {
+    val parts = yul.drawnAs
+    if (parts == null) {
+        Text(yul.symbol, modifier, color = color, style = EolssuTheme.serif.yul.copy(fontSize = fontSize, lineHeight = fontSize, fontWeight = fontWeight))
+    } else {
+        ComposedGlyph(parts.first, parts.second, fontSize * 0.62f, fontSize * 0.8f, overlap = 0.45f, modifier, color, fontWeight)
+    }
+}
+
+/** 정간 글자 하나(율명·지속·쉼). 율명은 [YulGlyph]로, 기호는 그대로 그린다. */
+@Composable
+fun ScoreNoteGlyph(
+    note: ScoreNote,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
+    color: Color = EolssuTheme.colors.text,
+    fontWeight: FontWeight = FontWeight.SemiBold,
+) {
+    if (note is ScoreNote.Pitch) {
+        YulGlyph(note.yul, fontSize, modifier, color, fontWeight)
+    } else {
+        Text(note.symbol, modifier, color = color, style = EolssuTheme.serif.yul.copy(fontSize = fontSize, lineHeight = fontSize, fontWeight = fontWeight))
+    }
+}
+
+/**
+ * 변 + 율명을 나란히 그린다. 변 글자는 왼쪽에만 획이 있어 [overlap] 비율만큼 다음 글자를 당겨 붙인다.
+ * 정간보 쉽게 읽기의 탁황(亻黃)·청황(氵黃)도 이 모양이고, 부수만 [radicalColor]로 칠한다.
+ */
+@Composable
+fun ComposedGlyph(
+    radicals: String,
+    base: String,
+    radicalSize: TextUnit,
+    baseSize: TextUnit,
+    overlap: Float,
+    modifier: Modifier = Modifier,
+    color: Color = EolssuTheme.colors.text,
+    fontWeight: FontWeight = FontWeight.SemiBold,
+    radicalWeight: FontWeight = fontWeight,
+    radicalColor: Color = color,
+) {
+    val style = EolssuTheme.serif.yul.copy(fontWeight = fontWeight)
+    Layout(
+        content = {
+            radicals.forEach { r ->
+                Text(r.toString(), color = radicalColor, style = style.copy(fontSize = radicalSize, lineHeight = radicalSize, fontWeight = radicalWeight))
+            }
+            Text(base, color = color, style = style.copy(fontSize = baseSize, lineHeight = baseSize))
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val height = placeables.maxOf { it.height }
+        val xs = mutableListOf<Int>()
+        var x = 0
+        placeables.forEachIndexed { i, p ->
+            xs += x
+            x += if (i < placeables.lastIndex) (p.width * (1 - overlap)).roundToInt() else p.width
+        }
+        layout(x, height) {
+            placeables.forEachIndexed { i, p -> p.place(xs[i], (height - p.height) / 2) }
+        }
+    }
+}

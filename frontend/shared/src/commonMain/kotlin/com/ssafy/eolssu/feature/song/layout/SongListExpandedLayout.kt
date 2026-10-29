@@ -34,6 +34,7 @@ import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLoadFailed
 import com.ssafy.eolssu.feature.song.component.SongInfoGrid
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.component.SongPreviewHeader
@@ -96,7 +97,9 @@ private fun SongListPane(state: SongListUiState, actions: SongListActions, modif
             contentPadding = PaddingValues(bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadFailed) {
+                item { SongLoadFailed(actions.onRetryLoad) }
+            } else if (songs.isEmpty() && state.songs.isNotEmpty()) {
                 item { SongEmptyResult(actions.onResetFilters) }
             } else if (songs.isNotEmpty()) {
                 item {

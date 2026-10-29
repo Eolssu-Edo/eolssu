@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.data.song.SongsUnavailableException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,12 @@ class MySongsViewModel(
 
     init {
         viewModelScope.launch {
-            val songs = songRepository.getSongs()
+            // 곡 목록을 받지 못하면 내 악보만 보인다.
+            val songs = try {
+                songRepository.getSongs()
+            } catch (e: SongsUnavailableException) {
+                emptyList()
+            }
             _uiState.update { it.copy(songs = songs) }
         }
         viewModelScope.launch {
