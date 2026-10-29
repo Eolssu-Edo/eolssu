@@ -346,9 +346,15 @@
     <string name="guide_reading_sigimsae">시김새</string>
     <string name="guide_reading_sigimsae_small">음을 꾸미는 표시</string>
     <string name="guide_sigimsae_basic">처음 배우는 시김새</string>
+    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 그려 보여 줘요</string>
+    <string name="guide_sigimsae_figure">%1$s 부는 모양: %2$s. 점선은 적힌 음, 굵은 선은 부는 소리예요</string>
+    <string name="guide_sigimsae_legend_written">적힌 음</string>
+    <string name="guide_sigimsae_legend_blown">부는 소리</string>
+    <string name="guide_sigimsae_replay">다시 보기</string>
     <string name="guide_sigimsae_more">더 많은 시김새</string>
-    <string name="guide_sigimsae_expand">펼치기</string>
-    <string name="guide_sigimsae_collapse">접기</string>
+    <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
+    <string name="guide_sigimsae_tip_open">설명 펼침</string>
+    <string name="guide_sigimsae_tip_closed">설명 접힘</string>
     <string name="guide_sigimsae_credit">기호 그림: 우물사이(umulsai.com) · MIT 라이선스</string>
 
     <string name="learn_title">기초부터 배우기</string>
@@ -411,7 +417,7 @@
     <string name="learn_songs_note">단소 지도서 통합단계의 곡 목록이에요. 악보·음원 이용 조건은 곡마다 확인 중이에요.</string>
     <string name="learn_song_missing">‘%1$s’는 아직 곡 데이터가 없어요.</string>
     <string name="learn_section_sigimsae">시김새 기호</string>
-    <string name="learn_borrow_sigimsae">‘정간보 쉽게 읽기’ 4번 시김새와 같은 그림이에요. 더 많은 시김새 %1$d개는 그 화면에서 펼쳐 볼 수 있어요.</string>
+    <string name="learn_borrow_sigimsae">‘정간보 쉽게 읽기’ 4번 시김새와 같은 그림이에요. 더 많은 시김새 %1$d개는 그 화면의 다음 쪽에서 볼 수 있어요.</string>
     <string name="learn_section_listen">듣고 따라 하기</string>
     <string name="learn_listen_note">요성·퇴성은 아직 앱이 채점하지 않아요. 모범 연주를 듣고 비슷하게 흉내 내는 것으로 충분해요.</string>
     <string name="learn_section_pass">통과 기준</string>
