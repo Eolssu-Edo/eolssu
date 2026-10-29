@@ -7,6 +7,7 @@ aws-sdk = "2.56.0"
 bouncycastle = "1.84"
 
 [libraries]
+springdoc-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version = "3.2.0" }
 spring-boot-security-oauth2-resource-server = { module = "org.springframework.boot:spring-boot-starter-security-oauth2-resource-server" }
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
 spring-boot-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
