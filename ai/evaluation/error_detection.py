@@ -253,7 +253,10 @@ def variables(label_paths: list[Path], labels: list[dict]) -> dict:
         "scoring": {
             "modelVersion": MODEL_VERSION,
             "commit": _command("git", "rev-parse", "HEAD"),
-            "uncommittedChanges": bool(_command("git", "status", "--porcelain", "--", "ai/src", "ai/evaluation")),
+            # 기준 결과(baselines)는 채점 코드가 아니라서 뺀다. 넣으면 결과를 저장하는 것만으로 변인이 바뀐다.
+            "uncommittedChanges": bool(
+                _command("git", "status", "--porcelain", "--", "ai/src", "ai/evaluation", ":!ai/evaluation/baselines")
+            ),
             "toleranceDefaults": asdict(Tolerance()),
             "pitchEstimator": {"name": "pyin", **pyin_defaults},
             "hopSeconds": HOP_S,
