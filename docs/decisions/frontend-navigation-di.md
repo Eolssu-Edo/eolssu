@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | 화면 이동 | `org.jetbrains.androidx.navigation:navigation-compose` | `2.10.0-rc01` | `commonMain` |
 | DI | `io.insert-koin:koin-core`, `koin-compose`, `koin-compose-viewmodel` | `4.2.2` | `commonMain` |
-| HTTP | 보류 | — | 서버 API 연동 작업에서 정한다 |
+| HTTP | Ktor | — | [HTTP 클라이언트 결정](frontend-http-client.md)(2026-10-29) |
 
 버전은 `frontend/gradle/libs.versions.toml`의 `androidx-navigation`, `koin`에서 관리한다. 두 라이브러리 모두 Apache License 2.0이다(Maven Central POM 확인).
 

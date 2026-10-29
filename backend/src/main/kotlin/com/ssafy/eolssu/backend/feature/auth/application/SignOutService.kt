@@ -12,10 +12,10 @@ class SignOutService(
     private val secrets: VerificationSecrets,
     private val clock: Clock,
 ) {
-    fun signOut(userId: Long, refreshToken: String?) {
-        if (refreshToken.isNullOrBlank()) return
+    fun signOut(userId: Long, refreshToken: String?, sessionHash: String? = null) {
+        val tokenHash = sessionHash ?: refreshToken?.takeIf { it.isNotBlank() }?.let(secrets::hashToken) ?: return
         repository.inTransaction {
-            val stored = repository.findForUpdate(secrets.hashToken(refreshToken))
+            val stored = repository.findForUpdate(tokenHash)
             if (stored != null && stored.userId == userId && !stored.revoked) {
                 repository.revoke(stored.id, RevokeReason.SIGN_OUT, clock.instant().truncatedTo(ChronoUnit.MICROS))
             }

@@ -38,7 +38,7 @@
 | --- | --- | --- |
 | `/edo1-server` | RAM 가용량·파일시스템 공간과 inode, 시스템 실패·OOM | 서버 자원 압박과 시스템 오류 확인. Docker 데몬 응답과 서비스 준비 상태는 별도다. |
 | `/edo1-containers` | 실행 상태·CPU·RAM·쓰기 계층·로그 | CPU 100%는 1코어. 메모리 상한이 있으면 상한 대비 비율, 없으면 호스트 RAM 대비 비율을 표시한다. |
-| `/edo1-health` | 장애·미검증 항목의 근거와 다음 조치 | healthcheck 없음은 장애 확정이 아니다. Grafana·n8n은 별도 HTTP 준비 응답으로, Prometheus는 Docker healthcheck로 확인한다. |
+| `/edo1-health` | 장애·미검증 항목의 근거와 다음 조치 | healthcheck 없음은 장애 확정이 아니다. Grafana·n8n은 별도 HTTP 준비 응답으로, Prometheus는 준비 HTTP와 실제 수집 대상 상태도 확인한다. |
 
 표 본문의 값 전체를 굵게 하지 않고 제목·구분·상태 판정을 강조한다. 상태는 ✅ 정상·검사 통과, ❌ 장애, ⚠️ 주의, ❓ 미검증, 🚫 미측정, ℹ️ 설정 참고로 구분하며 텍스트를 함께 표시한다. 접수 중은 ⏳, 수집 실패도 🚫로 표시해 서비스 장애와 구분한다. 단순 실행 중·검사 시작 중·과거 healthy에는 체크를 붙이지 않는다. 상단 건수는 0보다 큰 항목만 이모지와 굵은 글씨로 강조한다. 좁은 상태 열에서 한글이 한 글자씩 갈라지지 않도록 상태 단어에 word joiner, 아이콘 뒤에 줄바꿈 없는 공백을 사용한다. 컨테이너 이름은 웹·API·배포 등 역할로 표시하고 실행 상세에 원래 식별자를 보존한다. 로그·볼륨·bind·쓰기 계층을 구분하고 저장소마다 한 행을 사용한다. 누락은 0으로 치환하지 않으며 같은 원인을 중복 집계하지 않는다.
 
@@ -49,9 +49,9 @@
 - NET·BLOCK I/O는 누적 전송량이며 디스크 점유량이 아니다. 메모리·디스크·inode 80% 이상은 주의 항목으로 알리고, 디스크·inode 90% 이상은 긴급 용량 점검이 필요한 주의로 표시한다. 용량만으로 서비스 장애를 확정하지 않는다. 이는 이 프로젝트의 기본 기준이며 보편적인 장애 임계값은 아니다.
 - Load는 CPU 사용률과 다르며 실행 가능 작업과 중단 불가 대기의 평균이다. 5분 또는 15분 값이 코어 수를 넘으면 컨테이너 CPU 상위부터 보고, CPU가 낮으면 호스트 I/O 대기를 확인한다. 이는 수동 확인 기준으로 자동 장애 건수에 넣지 않는다. CPU는 0.2초 표본이므로 한 번의 값만으로 지속성을 판정하지 않는다. RAM 80% 이상 등 자원 주의 시 사용자가 30초 간격 3회 재실행해 값을 비교하도록 안내하며 명령이 자동 대기·반복하지 않는다.
 - 실패 서비스는 현재 systemd 실패 상태이며 1개 이상이면 `systemctl --failed`로 대상을 확인한다. OOM은 최근 24시간 커널에서 매칭된 로그 줄 수이며 사건 건수가 아니다. 과거 기록은 주의로 구분해 시각·대상을 현재 RAM·한도와 비교한다. Docker OOM 플래그와 재시작 횟수도 최근 24시간 발생 횟수를 뜻하지 않는다.
-- frontend·backend·mysql의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
+- frontend·backend·mysql·ai와 Grafana·Prometheus·node-exporter의 실제 컨테이너 이름을 필수 대상으로 확인한다. 중지·일시정지를 예전 healthy 값으로 정상 판정하지 않는다. health 모드에서는 inspect만 수집하며 stats 실패가 실행 정보까지 지우지 않도록 분리한다. API `/api/actuator/health/readiness`의 404·HTML 200·예상하지 않은 JSON은 미검증이며 `status=UP`만 정상, 명시적 `DOWN/OUT_OF_SERVICE`는 장애다. 운영 API readiness는 애플리케이션 준비 상태와 기존 MySQL 연결을 함께 검사하며 자세한 DB 정보는 공개하지 않는다. Grafana는 loopback `/api/health`, n8n은 `127.0.0.1:5688/healthz/readiness`의 상태·본문을 확인한다. Docker 검사가 없어도 해당 HTTP 준비 검사가 통과하면 중복된 미검증 행을 표시하지 않는다. Docker healthy 자체는 설정된 healthcheck의 통과이며 별도 준비 검사의 범위를 보장하지 않는다. 외부 검사는 edo2에서 수행한다.
 
-서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능, 백업 복구 성공 여부는 수집하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
+서버별 세 명령은 수시 인프라 점검이다. 장기 요청량·오류율·p95/p99 지연·I/O 지연, 실제 사용자 업무 기능은 실행하지 않는다. 백업 복구는 마지막 검증 결과 파일만 읽으며 이 점검에서 복구를 실행하지 않는다. 자원과 기본 응답이 정상이어도 이를 전체 서비스 정상으로 확대 해석하지 않는다. 상시 지표와 업무 기능 검증의 추가 여부는 별도 요구 범위로 정한다.
 
 ### edo2의 기대 구성
 
@@ -69,6 +69,8 @@ edo2 HTTPS는 자기 공인 IP의 `/healthz`와 JSON `status=ok`를 확인하는
 - 표는 의미가 같은 정보끼리 묶는다. 서버는 항목·현재값·기준/조치 3열, 컨테이너는 자원 5열·저장공간 3열·실행 상세 5열, health는 대상·판정·근거/소요·조치 4열이다. health의 조치는 같은 행에 한 번만 표시하며 수집 전체의 별도 문제가 있을 때만 앞에 요약 표를 추가한다. 표 셀에 HTML 개행을 넣지 않는다. 상단 수집 시각은 인라인 코드로 감싸 콜론 사이 숫자가 이모지로 해석되지 않게 한다. 표마다 최대 100행, 전체 약 14,000자 제한을 넘으면 생략을 명시한다. 점검 명령 자체는 애플리케이션·DB·Docker 구성을 변경하지 않는다.
 
 ## 확인과 갱신
+
+이미지 열은 이름·태그만 표시하고 태그와 함께 지정된 `@sha256:<64자리>`는 생략한다. 태그 없는 digest 참조·이미지 ID는 앞 12자리와 `…`를 남긴다. 표 표시만 축약하며 수집 원본·배포 pin은 보존한다. 전체 참조는 대상 서버에서 `docker inspect --format '{{.Config.Image}}' <컨테이너명>`으로 확인한다.
 
 ```sh
 python3 -B -m unittest discover -s infra/edo-check/tests -v
@@ -99,3 +101,11 @@ ssh edo2 'sudo -n /snap/bin/certbot renew --cert-name edo2-static-ip --dry-run -
 sudoers 후보를 `visudo -cf`, Nginx 후보를 `nginx -t`, unit을 `systemd-analyze verify`로 검증한다. sudoers·dispatch의 고정 명령은 함께 맞춘다. unit 교체·복구 후 systemctl daemon-reload를 수행하고 edo2 중계 서비스만 재시작한다. Nginx 설정을 변경한 경우에만 검사 후 reload한다. edo1 앱 컨테이너 재시작은 필요하지 않다. 부팅 시 edo-check·Nginx·UFW·인증서 갱신 타이머가 활성화됐는지 확인한다.
 
 실패하면 백업한 같은 Task의 파일을 복구하고 같은 검사·재시작·reload를 수행한다. 초기 배포 전 Nginx 원본은 edo2의 `/var/backups/edo2-ufw/nginx.default.before-check`, HTTP 전용 설정은 `nginx.http.before-tls`다. HTTPS를 제거하는 초기 복구에서는 먼저 중계를 중지해 명령 수신을 차단한다. UFW를 꺼서 우회하지 않는다. 임의 sudo 실행은 [sudoers](edo-check.sudoers)로 거부되며, 필요 시 해당 전용 키를 회수해 점검 접근만 중단할 수 있다.
+
+## 최신 운영 구성 점검 (S15P31E102-271)
+
+edo1 필수 컨테이너는 runtime frontend·backend·mysql·ai 및 monitoring grafana·prometheus·node-exporter다. AI Docker healthy는 현재 TCP 연결 검사 통과만 의미하므로 health 보고에서는 분석 HTTP 준비·추론 기능을 `미검증`으로 명시한다. Prometheus는 127.0.0.1:3001 `/-/ready`와 `/api/v1/targets`를 확인하며 node·eolssu-backend job의 up 및 마지막 수집 90초 이내를 검사한다. node 수집이 정상인 경우 중복된 node-exporter healthcheck 미설정 행을 생략한다. edo1 Docker·SSH·Certbot timer와 종류별 백업 timer·oneshot도 검사한다.
+
+edo2는 db·config·jenkins·grafana·controller-key 백업의 최신 메타데이터와 암호문 존재를 검사한다. db 90분, 나머지 27시간 기준이며 암호문 무결성을 다시 계산하거나 복호화하지 않는다. `/var/lib/eolssu-backup/restore-last.json`의 완료 상태·8일 이내 여부를 별도로 검사한다. systemd 성공, 백업 최신성, 실제 복구 검증은 서로 다른 근거로 표시한다. 실제 실패 상태는 지우지 않는다.
+
+[갱신 스펙](../../docs/specs/server-inspection-current-runtime.md)과 [실행 기록](../../docs/plans/S15P31E102-271.md)을 따른다. 등록된 명령 이름·URL·토큰·채널 권한 변경은 필요하지 않다. 두 서버 수집기를 공통 최신 코드로 맞추고 edo2 중계만 재시작하면 다음 명령부터 적용된다.

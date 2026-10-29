@@ -1,6 +1,12 @@
 -- pitches는 V5 시드(단소 율명, id 1 = 중, 2 = 임)를 쓴다.
+-- V6 시드의 장단·곡은 아래 고정 데이터와 id·이름이 겹쳐 지운다. 이 파일을 쓰는 검사는 트랜잭션이 끝나면 되돌린다.
+-- 악기 1은 가입 검사가 커밋한 회원이 남아 가리킬 수 있어 지우지 않고 고정 값으로 덮어쓴다(지우면 외래 키 오류로 모든 검사가 실패).
+DELETE FROM songs WHERE id BETWEEN 1 AND 4;
+DELETE FROM jangdans WHERE id BETWEEN 1 AND 3;
 INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at)
-VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456') AS f
+ON DUPLICATE KEY UPDATE code = f.code, name = f.name, range_low_pitch_id = f.range_low_pitch_id, range_high_pitch_id = f.range_high_pitch_id,
+  pitch_tolerance_cent = f.pitch_tolerance_cent, is_active = f.is_active, created_at = f.created_at, updated_at = f.updated_at;
 
 INSERT INTO fingering_charts (id, instrument_id, pitch_id, image_url, description, created_at, updated_at)
 VALUES (1, 1, 2, 'https://example.test/fingering.png', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');

@@ -7,6 +7,7 @@ import java.time.LocalDateTime
 
 @Mapper
 interface RefreshTokenMapper {
+    fun hasActiveNonExpiringSession(@Param("userId") userId: Long, @Param("tokenHash") tokenHash: String): Boolean
     fun findById(@Param("id") id: Long): RefreshTokenRow?
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(token: RefreshTokenInsert): Int

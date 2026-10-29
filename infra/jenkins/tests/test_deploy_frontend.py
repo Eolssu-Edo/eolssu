@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('deploy_frontend', Path(__file__).parents[1] / 'deploy-frontend.py')
 deploy = importlib.util.module_from_spec(spec)
@@ -87,6 +88,12 @@ class FrontendTransactionTests(unittest.TestCase):
         (self.new / 'webApp.js').unlink()
         with self.assertRaises(deploy.DeployError):
             deploy.manifest(self.new)
+
+    def test_order_check_uses_frontend_active_release_not_backend_or_failed_journal(self):
+        self.d.state.write_text(json.dumps({'status': 'rolled_back', 'sha': 'f' * 40}))
+        with patch.object(deploy.support, 'check_release_order') as check:
+            self.d.check_order('b' * 40)
+        check.assert_called_once_with('b' * 40, 'old')
 
     def test_wrong_sha_rejected_before_external_effect(self):
         for value in ['develop', '../escape', 'a' * 39, 'a' * 40 + ';id']:

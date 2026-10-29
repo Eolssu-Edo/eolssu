@@ -222,4 +222,26 @@ class PracticeStateTest {
         assertEquals(36, PracticeUiState(song = arirang, settings = settings).bpm)
         assertEquals(milyang.baseBpm, PracticeUiState(song = milyang, settings = settings).bpm)
     }
+
+    @Test
+    fun playbackRecordingAndJangdanPreviewCountWithoutInput() {
+        assertEquals(emptySet(), ready.runningActivities)
+        assertEquals(setOf(ContinuousActivity.PLAYBACK), ready.startModel().runningActivities)
+        assertEquals(emptySet(), ready.startModel().toggleModel().runningActivities) // 일시정지
+        assertEquals(setOf(ContinuousActivity.PLAYBACK), ready.copy(listening = Yul.Hwangjong).runningActivities)
+        assertEquals(setOf(ContinuousActivity.RECORDING), ready.beginCountdown().runningActivities)
+        assertEquals(setOf(ContinuousActivity.RECORDING), ready.beginRecording().runningActivities)
+        val previewing = ready.openPanel(PracticePanel.Jangdan).let { it.copy(draft = it.draft.copy(previewing = true)) }
+        assertEquals(setOf(ContinuousActivity.METRONOME), previewing.runningActivities)
+        assertEquals(emptySet(), previewing.closePanel().runningActivities)
+    }
+
+    @Test
+    fun recordingIsNotRunningWhilePausedOrDone() {
+        val recording = ready.beginRecording()
+        assertEquals(emptySet(), recording.askAbort(fraction = 0.4f).runningActivities)
+        assertEquals(emptySet(), recording.endRecording().runningActivities)
+        assertEquals(emptySet(), recording.interrupt().runningActivities)
+        assertEquals(setOf(ContinuousActivity.RECORDING), recording.askAbort(0f).beginCountdown(resume = true).runningActivities)
+    }
 }

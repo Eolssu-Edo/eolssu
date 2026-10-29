@@ -23,6 +23,7 @@ spec = importlib.util.spec_from_loader(loader.name, loader)
 support = importlib.util.module_from_spec(spec)
 loader.exec_module(support)
 DeployError, run, atomic, digest = support.DeployError, support.run, support.atomic, support.digest
+phase = support.phase
 MARKER = '__eolssu_release.json'
 
 
@@ -163,65 +164,82 @@ class FrontendDeployer:
                    'web': str(web), 'manifest_sha256': manifest_digest(manifest(web)),
                    'image_id': image_id, 'protected': protected})
         try:
-            self.select(web)
-            self.activate()
-            self.healthy()
-            self.unchanged(protected)
+            with phase('Select release'):
+                self.select(web)
+            with phase('Recreate runtime service'):
+                self.activate()
+            with phase('Verify runtime health and mounted release'):
+                self.healthy()
+            with phase('Verify protected services unchanged'):
+                self.unchanged(protected)
         except Exception:
-            self.recover()
+            with phase('Rollback previous release'):
+                self.recover()
             raise DeployError('frontend deployment failed; previous release restored') from None
         saved = json.loads(self.state.read_text())
         saved['status'] = 'deployed'
         self.save(saved)
 
-    def latest(self, sha):
-        support.Deployer().latest(sha)
+    def check_order(self, sha):
+        support.check_release_order(sha, self.current_web().parent.name)
 
     def deploy(self, sha):
         support.validate_sha(sha)
-        self.recover()
-        self.latest(sha)
-        image = json.loads(run('docker', 'image', 'inspect', 'eolssu-frontend:ci-' + sha))[0]
-        if image['Config'].get('Labels', {}).get('org.opencontainers.image.revision') != sha:
-            raise DeployError('frontend image revision does not match candidate')
-        if self.already_deployed(sha, image['Id']):
-            return
-        protected = self.protected()
+        with phase('Recover interrupted deployment'):
+            self.recover()
+        with phase('Check deployment order'):
+            self.check_order(sha)
+        with phase('Validate candidate image'):
+            image = json.loads(run('docker', 'image', 'inspect', 'eolssu-frontend:ci-' + sha))[0]
+            if image['Config'].get('Labels', {}).get('org.opencontainers.image.revision') != sha:
+                raise DeployError('frontend image revision does not match candidate')
+        with phase('Check identical release'):
+            if self.already_deployed(sha, image['Id']):
+                return
+        with phase('Snapshot protected services'):
+            protected = self.protected()
         name = 'eolssu-web-stage-' + sha[:12]
-        for old in run('docker', 'ps', '-aq', '--filter', 'label=com.eolssu.stage=frontend').split():
-            run('docker', 'rm', '-f', old)
-        for old in run('docker', 'network', 'ls', '-q', '--filter', 'label=com.eolssu.stage=frontend').split():
-            run('docker', 'network', 'rm', old)
-        run('docker', 'network', 'create', '--internal', '--label', 'com.eolssu.stage=frontend', name)
+        with phase('Prepare candidate network'):
+            for old in run('docker', 'ps', '-aq', '--filter', 'label=com.eolssu.stage=frontend').split():
+                run('docker', 'rm', '-f', old)
+            for old in run('docker', 'network', 'ls', '-q', '--filter', 'label=com.eolssu.stage=frontend').split():
+                run('docker', 'network', 'rm', old)
+            run('docker', 'network', 'create', '--internal', '--label', 'com.eolssu.stage=frontend', name)
         try:
-            run('docker', 'run', '-d', '--name', name, '--label', 'com.eolssu.stage=frontend', '--network', name, image['Id'])
-            address = json.loads(run('docker', 'inspect', name))[0]['NetworkSettings']['Networks'][name]['IPAddress']
-            support.probe('http://' + address, 200, seconds=20)
-            release = self.root / 'releases' / sha
-            release.mkdir(mode=0o755, exist_ok=True)
-            candidate = release / 'web.new'
-            if candidate.exists():
-                shutil.rmtree(candidate)
-            candidate.mkdir(mode=0o755)
-            run('docker', 'cp', name + ':/usr/share/nginx/html/.', str(candidate))
-            files = manifest(candidate)
-            verify_assets('http://' + address, files)
-            web = release / 'web'
-            if web.exists():
-                if manifest(web) != files:
-                    raise DeployError('immutable web release exists with different content')
-                shutil.rmtree(candidate)
-            else:
-                os.replace(candidate, web)
-            (web / '.well-known').mkdir(mode=0o755, exist_ok=True)
-            (web / MARKER).write_text(json.dumps({'sha': sha, 'manifest_sha256': manifest_digest(files)}) + '\n')
-            (web / MARKER).chmod(0o644)
-            self.unchanged(protected)
-            self.latest(sha)
+            with phase('Start candidate Nginx'):
+                run('docker', 'run', '-d', '--name', name, '--label', 'com.eolssu.stage=frontend', '--network', name, image['Id'])
+                address = json.loads(run('docker', 'inspect', name))[0]['NetworkSettings']['Networks'][name]['IPAddress']
+                support.probe('http://' + address, 200, seconds=20)
+            with phase('Extract web files'):
+                release = self.root / 'releases' / sha
+                release.mkdir(mode=0o755, exist_ok=True)
+                candidate = release / 'web.new'
+                if candidate.exists():
+                    shutil.rmtree(candidate)
+                candidate.mkdir(mode=0o755)
+                run('docker', 'cp', name + ':/usr/share/nginx/html/.', str(candidate))
+            with phase('Verify assets and Wasm MIME'):
+                files = manifest(candidate)
+                verify_assets('http://' + address, files)
+            with phase('Store immutable web release'):
+                web = release / 'web'
+                if web.exists():
+                    if manifest(web) != files:
+                        raise DeployError('immutable web release exists with different content')
+                    shutil.rmtree(candidate)
+                else:
+                    os.replace(candidate, web)
+                (web / '.well-known').mkdir(mode=0o755, exist_ok=True)
+                (web / MARKER).write_text(json.dumps({'sha': sha, 'manifest_sha256': manifest_digest(files)}) + '\n')
+                (web / MARKER).chmod(0o644)
+            with phase('Recheck protected services and order'):
+                self.unchanged(protected)
+                self.check_order(sha)
             self.promote(sha, web, image['Id'], protected)
         finally:
-            run('docker', 'rm', '-f', name)
-            run('docker', 'network', 'rm', name)
+            with phase('Clean candidate resources'):
+                run('docker', 'rm', '-f', name)
+                run('docker', 'network', 'rm', name)
 
 
 def main():
@@ -232,14 +250,17 @@ def main():
         raise DeployError('run as root with one commit SHA argument')
     support.validate_sha(sys.argv[1])
     with open('/run/lock/eolssu-backend-deploy.lock', 'a') as lock:
-        support.acquire_lock(lock)
+        with phase('Wait for shared deployment lock'):
+            support.acquire_lock(lock)
         def interrupted(signum, frame):
             raise DeployError('frontend deployment interrupted')
         signal.signal(signal.SIGTERM, interrupted)
         signal.signal(signal.SIGINT, interrupted)
-        run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
+        with phase('Pre-deployment backup'):
+            run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
         FrontendDeployer().deploy(sys.argv[1])
-        run('/opt/eolssu-backup/backup.py', 'send', 'postchange', timeout=600)
+        with phase('Post-deployment backup'):
+            run('/opt/eolssu-backup/backup.py', 'send', 'postchange', timeout=600)
 
 
 if __name__ == '__main__':

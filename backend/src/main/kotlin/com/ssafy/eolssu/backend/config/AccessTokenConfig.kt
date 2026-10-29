@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.feature.auth.domain.NonExpiringSessionCheck
+import org.springframework.beans.factory.ObjectProvider
 import java.time.Duration
 import javax.crypto.spec.SecretKeySpec
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -26,7 +28,7 @@ class AccessTokenConfig {
     }
 
     @Bean
-    fun accessTokenDecoder(properties: SecurityProperties): JwtDecoder {
+    fun accessTokenDecoder(properties: SecurityProperties, sessions: ObjectProvider<NonExpiringSessionCheck>? = null): JwtDecoder {
         // 배포 환경의 비밀값 연결 전에도 기동한다. 검증을 우회하거나 기본 키를 사용하지 않는다.
         if (properties.jwtSecret.isBlank()) return JwtDecoder { throw BadJwtException("Access token verification unavailable") }
         val key = properties.jwtSecret.toByteArray(Charsets.UTF_8)
@@ -37,7 +39,12 @@ class AccessTokenConfig {
                     JwtTimestampValidator(Duration.ZERO),
                     OAuth2TokenValidator<Jwt> { jwt ->
                         // principal을 받는 컨트롤러가 users.id로 안전하게 변환할 수 있어야 한다.
-                        if (jwt.expiresAt != null && (jwt.subject?.toLongOrNull() ?: 0) > 0) {
+                        val userId = jwt.subject?.toLongOrNull() ?: 0
+                        val sessionHash = jwt.claims["session_hash"] as? String
+                        val nonExpiring = jwt.expiresAt == null && userId in properties.nonExpiringUserIds &&
+                            sessionHash != null && sessionHash.matches(Regex("[a-f0-9]{64}")) &&
+                            sessions?.ifAvailable?.isActive(userId, sessionHash) == true
+                        if (userId > 0 && (jwt.expiresAt != null || nonExpiring)) {
                             OAuth2TokenValidatorResult.success()
                         } else {
                             OAuth2TokenValidatorResult.failure(OAuth2Error("invalid_token", "Invalid access token claims", null))

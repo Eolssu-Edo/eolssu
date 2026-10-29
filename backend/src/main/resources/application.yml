@@ -28,6 +28,7 @@ eolssu:
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
+    non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}
     # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.
     allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}
   # 녹음 원본 저장소(S3 호환, Cloudflare R2). 하나라도 비면 업로드는 503이다. 키는 서버 .env에만 둔다.
@@ -78,3 +79,19 @@ management:
       group:
         readiness:
           include: readinessState
+
+springdoc:
+  api-docs:
+    enabled: false
+    path: /api/v3/api-docs
+    version: OPENAPI_3_0
+  swagger-ui:
+    enabled: false
+    path: /api/swagger-ui.html
+    disable-swagger-default-url: true
+    persist-authorization: false
+    validator-url: ""
+    with-credentials: true
+  packages-to-scan: com.ssafy.eolssu.backend.feature
+  paths-to-match: /api/**
+  show-actuator: false

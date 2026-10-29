@@ -19,9 +19,14 @@ class JwtAccessTokenSigner(secret: String) : AccessTokenSigner {
         NimbusJwtEncoder(ImmutableSecret(SecretKeySpec(key, "HmacSHA256")))
     }
 
-    override fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant): String {
+    override fun signNonExpiring(userId: Long, issuedAt: Instant, sessionHash: String): String =
+        encode(JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).claim("session_hash", sessionHash).build())
+
+    override fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant): String =
+        encode(JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).expiresAt(expiresAt).build())
+
+    private fun encode(claims: JwtClaimsSet): String {
         val jwtEncoder = encoder ?: throw TokenIssuingUnavailable()
-        val claims = JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).expiresAt(expiresAt).build()
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).tokenValue
     }
 }

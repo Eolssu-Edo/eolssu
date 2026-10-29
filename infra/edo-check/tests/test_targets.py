@@ -9,6 +9,30 @@ collector = load('collector')
 
 
 class TargetTests(unittest.TestCase):
+    def test_runtime_image_column_keeps_tags_and_compacts_digests_without_changing_source(self):
+        digest = 'a660310e39ade10631f774bacd5219de767dfd08947ea5c32a739b5e5bb382c1'
+        cases = [
+            ('jenkins/jenkins:2.580.1-jdk21@sha256:' + digest, 'jenkins/jenkins:2.580.1-jdk21'),
+            ('registry:5000/team/demo:v1@sha256:' + digest, 'registry:5000/team/demo:v1'),
+            ('registry:5000/team/demo@sha256:' + digest, 'registry:5000/team/demo@sha256:a660310e39ad…'),
+            ('sha256:' + digest, 'sha256:a660310e39ad…'),
+            ('nginx:alpine', 'nginx:alpine'),
+        ]
+        for target in ('edo1', 'edo2'):
+            for original, expected in cases:
+                with self.subTest(target=target, image=original):
+                    report = {'target':target, 'mode':'containers', 'columns':list(range(11)),
+                              'rows':[['eolssu-jenkins-controller-1','running/healthy','0%/미설정',
+                                       '100B/미설정','1B/미설정 · 로그 2B','없음','1시간/0회',
+                                       '0/아니오','1/없음','1B/1B · IO 1B/1B',original]],
+                              'facts':[{'name':'eolssu-jenkins-controller-1','ram_bytes':100,
+                                        'host_ram':1000,'ram_limit':0,'cpu_percent':0}]}
+                    text = relay.build_report(report, 'image-test').replace('\u200b', '')
+                    runtime = text.split('**실행 세부 정보**')[1]
+                    self.assertIn(' | ' + expected + ' |', runtime)
+                    self.assertNotIn(digest, runtime)
+                    self.assertEqual(report['rows'][0][10], original)
+
     def test_command_token_binds_target_and_rejects_client_target_override(self):
         config = {'tokens': {'/edo1-server': 'one', '/edo2-server': 'two'},
                   'channel_ids': ['cicd'], 'mattermost_origin': 'https://meeting.ssafy.com'}
@@ -25,7 +49,7 @@ class TargetTests(unittest.TestCase):
             return [] if path.startswith('/containers/json') else {}
         with patch.object(collector, 'docker', side_effect=docker):
             self.assertEqual(collector.snapshot(target='edo2')[3], [])
-            self.assertEqual(len(collector.snapshot(target='edo1')[3]), 3)
+            self.assertEqual(len(collector.snapshot(target='edo1')[3]), 7)
 
     def test_empty_container_report_identifies_edo2_without_fabricating_measurements(self):
         report = {'target':'edo2','mode':'containers','columns':[str(i) for i in range(11)],'rows':[], 'facts':[]}

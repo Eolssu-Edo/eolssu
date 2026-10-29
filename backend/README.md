@@ -81,6 +81,12 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
 - `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
 
+### 회원 탈퇴와 일괄 삭제(USR-05)
+
+- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 대기 중 로그인하면 탈퇴가 취소됩니다.
+- 인증 필터: `db`·`ops` 프로필에서 로그인이 필요한 요청마다 토큰의 회원 상태를 조회해 ACTIVE가 아니면 401 `UNAUTHENTICATED`와 두 쿠키 삭제로 응답합니다. 공개 API는 그대로입니다.
+- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 원본을 먼저 지우고, [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 지운 뒤 개인정보를 비우고 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
+
 ### 준비 상태 검사
 
 `GET /api/actuator/health/readiness`는 준비되면 HTTP 200과 `{"status":"UP"}`, 준비되지 않으면 HTTP 503을 반환합니다. 기본 개발 모드는 애플리케이션 준비 상태만 확인합니다. 운영 `ops` 프로필은 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`로 기존 MySQL에 연결해 DB health를 함께 확인합니다. DB 접속 실패 시 프로세스가 살아 있어도 readiness는 DOWN이고 `/api/actuator/health/liveness`는 UP일 수 있습니다.
@@ -168,7 +174,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V5 DDL과 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V6 DDL·시드와 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -177,9 +183,9 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 .\gradlew.bat databaseTest
 ```
 
-macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다.
+macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다. 재설정·탈퇴 일괄 삭제 동시성 검사는 고정 지연 대신 실제 잠금 대기를 관측하므로, 테스트 계정은 `performance_schema.data_lock_waits`와 `performance_schema.data_locks`의 SELECT 권한도 필요합니다. 이 권한은 테스트 DB 계정용이며 운영 앱 계정에 추가하지 않습니다.
 
-검사 범위는 MySQL 8.4 V1~V5 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드와 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V6 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -220,7 +226,7 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 
 샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
 
-S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다.
+S3 클라이언트는 AWS SDK for Java v2를 경로 방식(`엔드포인트/버킷/키`)으로 쓰고, SDK 기본값인 요청마다의 CRC 체크섬은 업체마다 지원이 달라 필요한 요청에만 붙입니다(`WHEN_REQUIRED`). `http://` 엔드포인트에서는 SDK가 본문을 서명 청크(`aws-chunked`)로 보내므로, 로컬 대역 서버를 만들 때 이를 풀어야 합니다. 자동 검사(`S3RecordingStorageTests`)는 로컬 HTTP 서버를 S3 엔드포인트로 두고 요청 경로·서명·서명 URL 형식을 확인하며 실제 R2에 연결하지 않습니다. 실제 R2 확인(쓰기, 서명 URL로 자격 증명 없이 읽기, 15분 뒤 거부, 삭제)은 테스트 전용 버킷을 만든 뒤 수동으로 합니다. 2026-10-29에는 사용자 승인으로 운영 버킷의 전용 합성 객체를 사용해 연결·정책을 검증하고 버킷명 오류·누락된 보관 규칙을 수정했습니다([검증 기록](../docs/knowledge/infra/r2-storage-verification.md)).
 
 Nginx(`infra/runtime/nginx.conf`·`nginx.tls.conf.template`)는 `/api/`의 본문 한도를 25MiB(`client_max_body_size 25m`)로 둡니다. 25MiB를 넘으면 Nginx가 자체 HTML 413을, 20MiB 초과~25MiB는 백엔드가 공통 오류 형식 413을 돌려줍니다.
 
@@ -312,6 +318,38 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - V3 녹음 원본 메타데이터: [S15P31E102-179](https://ssafy.atlassian.net/browse/S15P31E102-179) (PRA-02 녹음 파일 규격, S15P31E102-168)
 - V4 분석 시도·실패 코드 제약: [S15P31E102-173](https://ssafy.atlassian.net/browse/S15P31E102-173) · [작업 기록](../docs/plans/S15P31E102-173.md)
 - V5 단소 율명(`pitches`) 시드: [S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186) · [PRA-03 스펙](../docs/specs/practice-analysis-failure.md)
+- V6 단소 악기·장단·1차 4곡 시드: [S15P31E102-249](https://ssafy.atlassian.net/browse/S15P31E102-249) · [작업 기록](../docs/plans/S15P31E102-249.md)
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)
+
+### Swagger UI와 OpenAPI
+
+`db`·`ops` 프로필에서 현재 구현된 업무 API 전체를 문서화합니다. 무DB 기본 프로필에서는 꺼져 있습니다.
+
+- UI: `/api/swagger-ui.html` → `/api/swagger-ui/index.html`
+- JSON: `/api/v3/api-docs`
+- 배포 후 주소: https://k15e102.p.ssafy.io/api/swagger-ui.html
+
+문서·UI 정적 파일·설정 JSON도 기존 access_token 쿠키와 ACTIVE 회원 검증을 받습니다. 먼저 같은 출처의 앱 로그인 화면 또는 `POST /api/auth/sign-in`을 브라우저에서 호출해 로그인한 다음 문서를 엽니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다. 만료되면 다시 로그인합니다.
+
+Swagger UI의 Try it out은 브라우저가 보관한 HttpOnly 쿠키를 전송합니다. OpenAPI에는 accessCookie·refreshCookie를 표시하지만 Authorize 입력으로 브라우저의 Cookie 헤더/HttpOnly 쿠키를 설정할 수는 없습니다. Bearer 헤더 인증을 추가하지 않았으며 비밀번호·실제 토큰을 문서에 저장하지 않습니다. 운영 HTTPS에서는 Secure 쿠키를 사용합니다.
+
+Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공하므로 별도 루트 경로를 열지 않습니다. 사용자 ID 등 내부 Jwt principal은 요청 파라미터가 아닙니다. 인증·Origin·multipart 한도와 실제 업무 응답은 그대로입니다.
+
+요청 DTO와 매핑은 springdoc으로 읽고, `OpenApiContracts`/`OpenApiConfig`가 `ResponseEntity<*>`로 소실되는 실제 결과 DTO·공통 오류·응답 상태를 보완합니다. API를 추가/변경할 때 이 계약도 갱신합니다. `OpenApiDatabaseTests`/`OpenApiOpsDatabaseTests`는 업무 컨트롤러의 실제 매핑과 생성된 문서 전체가 일치하는지, 쿠키 인증·UI 자산·nullable/204·multipart 스키마를 검증합니다. 실행은 위의 `databaseTest`를 사용합니다.
+
+브라우저 Cookie 인증의 제약은 [Swagger 공식 안내](https://swagger.io/docs/specification/v3_0/authentication/cookie-authentication/)를 참고합니다. 외부 온라인 validator는 끄고 생성 문서는 로컬 테스트로 검증합니다.
+
+재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.
+
+### 연주 평가 결과 조회
+
+인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
+### 공개 곡 조회
+
+`GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.
+
+### 계정 한정 인증 만료 예외
+
+`AUTH_NON_EXPIRING_USER_IDS`에 지정한 회원 ID만 서버 토큰의 시간 만료를 없앱니다(기본 빈 목록). access는 exp 없이 서명하지만 DB의 활성 refresh 세션과 ACTIVE 회원 검증을 매 요청 수행합니다. 로그아웃·비밀번호 변경·탈퇴·회전·예외 해제 후에는 기존 토큰을 거부합니다. 일반 계정은 access 30분·refresh 14일을 유지합니다. 예외 계정의 재발급 응답 accessTokenExpiresAt은 null이며 쿠키는 브라우저 제한을 고려해 400일입니다. 배포·검증 순서는 [Task 260](../docs/plans/S15P31E102-260.md)을 따릅니다. V7은 기존 데이터의 시각을 바꾸지 않고 refresh_tokens.expires_at을 nullable로 확장합니다.

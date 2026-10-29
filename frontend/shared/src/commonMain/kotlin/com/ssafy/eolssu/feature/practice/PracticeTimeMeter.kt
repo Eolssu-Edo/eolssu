@@ -34,9 +34,9 @@ class PracticeTimeMeter(
     val isOpen: Boolean get() = open != null
 
     /** 새 구간을 연다. 이미 열려 있으면 그대로 둔다. 화면이 보이기 시작한 때를 활동으로 본다. */
-    fun show(userId: String, songId: String) {
+    fun show(songId: String) {
         if (open != null) return
-        open = OpenSegment(newKey(), userId, songId, now(), timeSource.markNow())
+        open = OpenSegment(newKey(), songId, now(), timeSource.markNow())
     }
 
     /** 구간을 닫는다. 인정 시간이 10초 미만이거나 열린 구간이 없으면 null. */
@@ -79,7 +79,6 @@ class PracticeTimeMeter(
         val visibleMillis = segment.settle().inWholeMilliseconds
         return PracticeTimeSnapshot(
             key = segment.key,
-            userId = segment.userId,
             songId = segment.songId,
             startedAtMillis = segment.startedAtMillis,
             visibleMillis = visibleMillis,
@@ -91,7 +90,6 @@ class PracticeTimeMeter(
     /** 구간 시작부터 [settledAt]까지 인정한 시간을 [counted]에 쌓아 두고, 그 뒤만 새로 계산한다. */
     private inner class OpenSegment(
         val key: String,
-        val userId: String,
         val songId: String,
         val startedAtMillis: Long,
         val start: TimeMark,

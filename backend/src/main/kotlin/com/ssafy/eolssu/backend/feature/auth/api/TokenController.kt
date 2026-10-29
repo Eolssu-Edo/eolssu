@@ -40,13 +40,13 @@ class TokenController(
     /** AUTH-03. 로그인이 필요한 경로라 access_token이 없거나 만료되면 보안 필터가 401로 막는다. */
     @PostMapping("/api/auth/sign-out")
     fun signOut(@AuthenticationPrincipal jwt: Jwt, @CookieValue(AuthCookies.REFRESH, required = false) refreshToken: String?): ResponseEntity<*> {
-        signOutService.signOut(requireNotNull(jwt.subject).toLong(), refreshToken)
+        signOutService.signOut(requireNotNull(jwt.subject).toLong(), refreshToken, jwt.claims["session_hash"] as? String)
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, *cookies.clear().toTypedArray())
             .body(SuccessResponse.of(HttpStatus.OK, "로그아웃 성공", SignedOut(true)))
     }
 }
 
-data class Refreshed(val accessTokenExpiresAt: Instant)
+data class Refreshed(val accessTokenExpiresAt: Instant?)
 
 data class SignedOut(val signedOut: Boolean)

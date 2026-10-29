@@ -171,6 +171,9 @@
     <string name="practice_popup_record_failed_body">다른 앱이 마이크를 쓰고 있거나 저장 공간이 부족할 수 있어요. 다시 시작해 주세요.</string>
     <string name="practice_popup_too_large_title">녹음 파일이 너무 커요</string>
     <string name="practice_popup_too_large_body">20MB를 넘는 녹음은 평가할 수 없어요. 다시 연주해 주세요.</string>
+    <string name="practice_idle_title">계속 연습 중인가요?</string>
+    <string name="practice_idle_body">한동안 움직임이 없어요. 10분 동안 아무것도 하지 않으면 그동안은 연습 시간에 넣지 않아요.</string>
+    <string name="practice_idle_continue">계속 연습하기</string>
     <string name="analysis_title">연주 분석</string>
     <string name="analysis_running_title">연주를 확인하고 있어요.</string>
     <string name="analysis_running_body">음정, 박자, 음 길이를 살펴보고 있어요.</string>
@@ -185,6 +188,11 @@
     <string name="analysis_retry">분석 다시 시도</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
+    <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
+    <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
+    <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
+    <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
+    <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>
     <string name="result_subtitle">%1$s · %2$s · %3$s</string>
@@ -338,9 +346,15 @@
     <string name="guide_reading_sigimsae">시김새</string>
     <string name="guide_reading_sigimsae_small">음을 꾸미는 표시</string>
     <string name="guide_sigimsae_basic">처음 배우는 시김새</string>
+    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 그려 보여 줘요</string>
+    <string name="guide_sigimsae_figure">%1$s 부는 모양: %2$s. 점선은 적힌 음, 굵은 선은 부는 소리예요</string>
+    <string name="guide_sigimsae_legend_written">적힌 음</string>
+    <string name="guide_sigimsae_legend_blown">부는 소리</string>
+    <string name="guide_sigimsae_replay">다시 보기</string>
     <string name="guide_sigimsae_more">더 많은 시김새</string>
-    <string name="guide_sigimsae_expand">펼치기</string>
-    <string name="guide_sigimsae_collapse">접기</string>
+    <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
+    <string name="guide_sigimsae_tip_open">설명 펼침</string>
+    <string name="guide_sigimsae_tip_closed">설명 접힘</string>
     <string name="guide_sigimsae_credit">기호 그림: 우물사이(umulsai.com) · MIT 라이선스</string>
 
     <string name="learn_title">기초부터 배우기</string>
@@ -403,7 +417,7 @@
     <string name="learn_songs_note">단소 지도서 통합단계의 곡 목록이에요. 악보·음원 이용 조건은 곡마다 확인 중이에요.</string>
     <string name="learn_song_missing">‘%1$s’는 아직 곡 데이터가 없어요.</string>
     <string name="learn_section_sigimsae">시김새 기호</string>
-    <string name="learn_borrow_sigimsae">‘정간보 쉽게 읽기’ 4번 시김새와 같은 그림이에요. 더 많은 시김새 %1$d개는 그 화면에서 펼쳐 볼 수 있어요.</string>
+    <string name="learn_borrow_sigimsae">‘정간보 쉽게 읽기’ 4번 시김새와 같은 그림이에요. 더 많은 시김새 %1$d개는 그 화면의 다음 쪽에서 볼 수 있어요.</string>
     <string name="learn_section_listen">듣고 따라 하기</string>
     <string name="learn_listen_note">요성·퇴성은 아직 앱이 채점하지 않아요. 모범 연주를 듣고 비슷하게 흉내 내는 것으로 충분해요.</string>
     <string name="learn_section_pass">통과 기준</string>
@@ -492,6 +506,7 @@
     <string name="auth_signup_done">가입 완료</string>
     <string name="auth_welcome">가입을 마쳤어요. 얼쑤에 오신 걸 환영해요.</string>
     <string name="auth_error_login_failed">이메일 또는 비밀번호가 맞지 않아요.</string>
+    <string name="auth_error_login_unavailable">서버와 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.</string>
     <string name="auth_error_email_empty">이메일을 입력해 주세요.</string>
     <string name="auth_error_email_invalid">이메일 형식이 맞지 않아요.</string>
     <string name="auth_error_password_empty">비밀번호를 입력해 주세요.</string>

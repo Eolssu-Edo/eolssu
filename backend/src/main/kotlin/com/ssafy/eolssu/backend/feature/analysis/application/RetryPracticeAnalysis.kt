@@ -76,7 +76,7 @@ class RetryPracticeAnalysis(
     }
 }
 
-/** API 응답 형식(경로·HTTP 상태·오류 코드)은 PRA API 명세가 정해지면 컨트롤러에서 붙인다. */
+/** HTTP 응답으로 바꾸는 것은 `PracticeAnalysisRetryController`가 한다(S15P31E102-222). */
 sealed interface RetryOutcome {
     /** 새 시도를 시작했다. 세션은 이 번호의 `PENDING`이다. */
     data class Started(val attempt: Int) : RetryOutcome

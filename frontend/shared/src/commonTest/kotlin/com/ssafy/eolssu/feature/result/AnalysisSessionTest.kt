@@ -2,8 +2,14 @@ package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.FakeRecordingFiles
+import com.ssafy.eolssu.data.practice.FakeUploader
+import com.ssafy.eolssu.data.practice.PendingRecording
+import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.UploadOutcome
 import com.ssafy.eolssu.data.song.SampleSongs
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
@@ -17,6 +23,7 @@ import kotlin.coroutines.resume
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * 분석 대기 화면의 조회·멈춤·시간 초과·복귀를 가짜 시계와 가짜 저장소로 검사한다(PRA-03 상태 조회와 시간 초과).
@@ -149,6 +156,127 @@ class AnalysisSessionTest {
         start()
         assertEquals(AnalysisFailure.ServerError, state.failure)
         assertEquals(false, state.retrying)
+    }
+
+    private val uploader = FakeUploader()
+    private var uploadNow = 0L
+    private val uploads = RecordingUploads(
+        uploader, FakeKeyValueStore(), FakeRecordingFiles("rec/practice-1.m4a", "rec/practice-2.m4a"), clock = { uploadNow },
+    )
+    private val uploadSession = AnalysisSession(scope, repository, clock = { time.now }, sleep = time::sleep, uploads = uploads)
+    private val uploadState get() = uploadSession.state.value
+
+    private fun startWithRecording() {
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        scope.launch { uploadSession.start(SampleSongs.first(), bpm = 60, recording = recording) }
+    }
+
+    /** 이 화면의 녹음을 보내지 못한 뒤 다른 연습의 녹음이 그 자리를 차지한다. */
+    private fun replaceWithNewerRecording() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        val newer = PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = uploadNow)
+        scope.launch { uploads.send(newer) }
+    }
+
+    @Test
+    fun failedUploadOffersResendAndAnalyzesAfterSending() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        assertEquals(UploadProblem.CanResend, uploadState.upload)
+        assertEquals(0, repository.queries)
+
+        uploadSession.resend()
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(1, repository.queries)
+        assertEquals(2, uploader.calls.size)
+    }
+
+    @Test
+    fun resendThatFailsAgainStillOffersResend() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        uploadSession.resend()
+        assertEquals(UploadProblem.CanResend, uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun expiredUploadShowsUploadTimeout() {
+        uploader.outcomes += UploadOutcome.Expired
+        startWithRecording()
+        assertNull(uploadState.upload)
+        assertEquals(AnalysisFailure.UploadTimeout, uploadState.failure)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun rejectedUploadOnlyOffersPlayingAgain() {
+        uploader.outcomes += UploadOutcome.Rejected
+        startWithRecording()
+        assertEquals(UploadProblem.Rejected, uploadState.upload)
+        uploadSession.resend()
+        assertEquals(1, uploader.calls.size)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun sentRecordingGoesStraightToAnalysis() {
+        startWithRecording()
+        assertNull(uploadState.upload)
+        assertEquals(1, repository.queries)
+    }
+
+    @Test
+    fun resendIsIgnoredWhileOneIsInFlight() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        val gate = CompletableDeferred<Unit>()
+        uploader.gate = gate
+        uploadSession.resend()
+        assertEquals(true, uploadState.resending)
+        uploadSession.resend()
+        assertEquals(2, uploader.calls.size)
+
+        gate.complete(Unit)
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+    }
+
+    @Test
+    fun resendAfterANewerRecordingReplacedThisOneOnlyOffersPlayingAgain() {
+        replaceWithNewerRecording()
+        uploadSession.resend()
+        assertEquals(UploadProblem.Missing, uploadState.upload)
+        assertEquals(listOf("41", "42"), uploader.calls.map { it.first })
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun resendAfterReplacementPastTheUploadWindowShowsUploadTimeout() {
+        uploadNow = 40.minutes.inWholeMilliseconds + 1
+        replaceWithNewerRecording()
+        uploadSession.resend()
+        assertNull(uploadState.upload)
+        assertEquals(AnalysisFailure.UploadTimeout, uploadState.failure)
+        assertEquals(listOf("41", "42"), uploader.calls.map { it.first })
+    }
+
+    @Test
+    fun missingRecordingOnlyOffersPlayingAgain() {
+        val session = AnalysisSession(
+            scope, repository, clock = { time.now }, sleep = time::sleep,
+            uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }),
+        )
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        scope.launch { session.start(SampleSongs.first(), bpm = 60, recording = recording) }
+        assertEquals(UploadProblem.Missing, session.state.value.upload)
+        assertEquals(0, uploader.calls.size)
+        assertEquals(0, repository.queries)
     }
 }
 

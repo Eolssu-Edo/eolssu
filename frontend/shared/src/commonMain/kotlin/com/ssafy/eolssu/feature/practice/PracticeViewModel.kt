@@ -7,17 +7,21 @@ import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
@@ -28,12 +32,17 @@ import kotlin.time.TimeSource
  * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼(iOS·Web)은 녹음 없이 진행만 한다.
  * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
  * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
+ *
+ * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
+ * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
  */
 class PracticeViewModel(
-    songId: String,
+    private val songId: String,
     solo: Boolean,
     songRepository: SongRepository,
     private val settingsStore: PracticeSettingsStore,
+    private val timeMeter: PracticeTimeMeter,
+    private val timeQueue: PracticeTimeQueue,
     private val recorder: AudioRecorder? = null,
     private val micPermission: MicPermission? = null,
 ) : ViewModel() {
@@ -47,11 +56,61 @@ class PracticeViewModel(
     private var previewJob: Job? = null
     private var listenJob: Job? = null
     private var levelJob: Job? = null
+    private var idleJob: Job? = null
+    private var snapshotJob: Job? = null
     private val recordingClock = RecordingClock()
 
     init {
         viewModelScope.launch { _uiState.update { it.copy(song = songRepository.getSong(songId)) } }
         viewModelScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
+        viewModelScope.launch {
+            _uiState.map { it.runningActivities }.distinctUntilChanged().collect { running ->
+                ContinuousActivity.entries.forEach { timeMeter.setRunning(it, it in running) }
+            }
+        }
+    }
+
+    // 연습 시간
+
+    /** 화면이 앞에 보임(들어옴·앱으로 돌아옴·탭이 다시 보임). 새 구간을 열고 알림 때를 기다린다. */
+    fun onScreenShown() {
+        timeMeter.show(songId)
+        watchIdle()
+        snapshotJob?.cancel()
+        snapshotJob = viewModelScope.launch {
+            while (true) {
+                delay(PracticeTimeMeter.SnapshotInterval)
+                timeMeter.snapshot()?.let(timeQueue::saveOpen)
+            }
+        }
+    }
+
+    /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
+    fun onScreenHidden() {
+        idleJob?.cancel()
+        snapshotJob?.cancel()
+        timeQueue.close(timeMeter.hide())
+        _uiState.update { it.copy(idleReminder = false) }
+    }
+
+    /** 터치·스크롤·키 입력. */
+    fun onUserActivity() = timeMeter.onActivity()
+
+    /** "계속 연습 중인가요?"에 응답. 활동으로 보고 자리 비움 시간을 다시 센다. */
+    fun keepPracticing() {
+        timeMeter.onActivity()
+        _uiState.update { it.copy(idleReminder = false) }
+    }
+
+    /** 알림 때까지 기다렸다가 띄운다. 그사이 활동이 있었으면 남은 시간이 늘어 있으므로 다시 기다린다. */
+    private fun watchIdle() {
+        idleJob?.cancel()
+        idleJob = viewModelScope.launch {
+            while (true) {
+                delay(timeMeter.untilReminder() ?: IDLE_RECHECK)
+                if (timeMeter.takeReminder()) _uiState.update { it.copy(idleReminder = true) }
+            }
+        }
     }
 
     // 악보·패널
@@ -369,5 +428,8 @@ class PracticeViewModel(
 
     private companion object {
         const val LEVEL_INTERVAL_MS = 100L
+
+        /** 알림을 기다리지 않는 동안(재생 중·이미 알림을 냄) 다시 확인하는 간격. */
+        val IDLE_RECHECK = 30.seconds
     }
 }

@@ -116,7 +116,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("5", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("7", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -701,6 +701,42 @@ class DatabaseIntegrationTests {
         // 행이 몇 개뿐인 고정 데이터에서는 옵티마이저가 다른 인덱스를 고를 수 있어 쓸 수 있는지만 본다.
         // 회원 50명·구간 2만 개에서는 이 인덱스로 범위 조회하는 것을 확인했다(docs/plans/S15P31E102-193.md).
         assertTrue("idx_score_views_user_started" in plan["possible_keys"].toString().split(","))
+    }
+
+    // V6 시드만 읽는다. 고정 데이터를 쓰지 않으므로 다른 검사가 지운 행이 있으면 실패한다.
+    @Test
+    fun `seeds the danso songs that open practice sessions and turn into practice notes`() {
+        assertEquals(
+            mapOf("code" to "DANSO", "range_low_pitch_id" to 1L, "range_high_pitch_id" to 11L, "pitch_tolerance_cent" to 50, "is_active" to true),
+            jdbc.queryForMap("SELECT code, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active FROM instruments WHERE id = 1"),
+        )
+        assertEquals(
+            listOf("세마치 96 DOTTED_QUARTER", "굿거리 66 DOTTED_QUARTER", "중모리 88 QUARTER"),
+            jdbc.queryForList("SELECT CONCAT(name, ' ', default_bpm, ' ', bpm_unit) FROM jangdans WHERE id BETWEEN 1 AND 3 ORDER BY id", String::class.java),
+        )
+        val songs = jdbc.queryForList(
+            "SELECT id, title, jangdan_id, note_count, source FROM songs " +
+                "WHERE status = 'PUBLISHED' AND is_scorable AND deleted_at IS NULL AND instrument_id = 1 AND score_version = 1 ORDER BY id",
+        )
+        assertEquals(
+            listOf(
+                "1 아리랑 1 61 ngc-standard-2022-p173", "2 도라지타령 1 91 ngc-standard-2022-p171",
+                "3 밀양아리랑 1 85 ngc-standard-2022-p172", "4 늴리리야 2 68 ngc-standard-2022-p174",
+            ),
+            songs.map { "${it["id"]} ${it["title"]} ${it["jangdan_id"]} ${it["note_count"]} ${it["source"]}" },
+        )
+        val notes = context.getBean(PracticeScoreNotes::class.java)
+        for (song in songs) {
+            val last = (song["note_count"] as Int) - 1
+            val all = notes.notesFor(PendingAnalysis(1, 1, song["id"] as Long, 1, 0, last, 96, "DOTTED_QUARTER", "recordings/1/a.m4a"))
+            assertEquals((0..last).toList(), all.map { it.idx })
+            assertTrue(all.all { it.pitchId in 1L..11L && it.beats > 0 })
+        }
+        // 아리랑 첫 음: 중(옥타브 0, V5 id 1, 반음 5), 0박에서 5/3박.
+        assertEquals(
+            ScoreNote(0, 5, 0.0, 5.0 / 3, false, 1),
+            notes.notesFor(PendingAnalysis(1, 1, 1, 1, 0, 0, 96, "DOTTED_QUARTER", "recordings/1/a.m4a")).single(),
+        )
     }
 
     @Test

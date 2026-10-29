@@ -12,6 +12,57 @@ from data.src.playback.tests._helpers import score, wire
 
 
 class MidiTests(unittest.TestCase):
+    def test_explicit_step_at_delay_keeps_prefix_and_starts_at_quantized_tick(self):
+        source = score([{"id": "a", "pitch": 72, "duration": 2,
+                         "pitch_curve": {"points": [[0, 100], [.15, 0], [1, 0]],
+                                         "delay_seconds": .33333, "step_at_delay": True}}])
+        _, result = wire(source, "sanjo-daegeum")
+        boundary = 1 / 3
+        self.assertTrue(all(v == 0 for t, v in result["bends"] if t < boundary - 1e-8))
+        time, cents = min(result["bends"], key=lambda pair: abs(pair[0] - boundary))
+        self.assertAlmostEqual(time, boundary, places=8)
+        self.assertAlmostEqual(cents, 100, delta=.05)
+        self.assertEqual(result["bends"][-1][1], 0)
+
+    def test_jeongak_has_no_automatic_motion_and_authored_unwind_reaches_midi(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2}])
+        _, plain = wire(value, "jeongak-daegeum")
+        self.assertTrue(all(cents == 0 for _, cents in plain["bends"]))
+        value["notes"][0].update(
+            yoseong={"mode": "pitch", "hz": 3, "cents": 80, "delay_seconds": .5},
+            pitch_curve={"points": [[0, 0], [1, -200]], "delay_seconds": .5})
+        _, marked = wire(value, "jeongak-daegeum")
+        self.assertTrue(all(cents == 0 for t, cents in marked["bends"] if t < .5))
+        self.assertLess(min(cents for _, cents in marked["bends"]), -200)
+        self.assertEqual(marked["bends"][-1][1], 0)
+
+
+    def test_sanjo_has_no_unmarked_bend_and_keeps_authored_onset_curve(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2}])
+        _, plain = wire(value, "sanjo-daegeum")
+        self.assertTrue(all(cents == 0 for _, cents in plain["bends"]))
+        value["notes"][0]["pitch_curve"] = {"points": [[0, 0], [.1, -100], [.2, 0], [1, 0]]}
+        _, marked = wire(value, "sanjo-daegeum")
+        low_time, low_cents = min(marked["bends"], key=lambda pair: pair[1])
+        self.assertAlmostEqual(low_time, .2, delta=.02)
+        self.assertAlmostEqual(low_cents, -100, delta=.1)
+        self.assertEqual(marked["bends"][-1][1], 0)
+
+    def test_sogeum_has_no_unnotated_motion_but_explicit_pitch_motion_roundtrips(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2}])
+        _, plain = wire(value, "sogeum")
+        self.assertTrue(all(cents == 0 for _, cents in plain["bends"]))
+        _, danso = wire(value, "danso")
+        self.assertGreater(max(abs(v) for _, v in danso["bends"]), 20)
+        value["notes"][0]["pitch_curve"] = {"points": [[0, 0], [1, -200]]}
+        _, curve = wire(value, "sogeum")
+        self.assertEqual(curve["pitch_bend_range_cents"], 200)
+        self.assertAlmostEqual(min(v for _, v in curve["bends"]), -200, delta=.05)
+        value["notes"][0]["yoseong"] = {"mode": "pitch", "hz": 3, "cents": 300, "delay_seconds": 0}
+        _, marked = wire(value, "sogeum")
+        self.assertEqual(marked["pitch_bend_range_cents"], 500)
+        self.assertLess(min(v for _, v in marked["bends"]), -400)
+
     def test_wide_and_piecewise_curves_roundtrip_with_automatic_rpn_range(self):
         source = score([{"id": "a", "pitch": 75, "duration": 2,
                          "yoseong": {"mode": "pitch", "cents": 0},

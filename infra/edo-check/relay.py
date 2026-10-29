@@ -132,6 +132,16 @@ def host_instructions(value, target):
             .replace('edo1의', target + '의').replace('edo2→edo1', 'edo2→' + target))
 
 
+def compact_image_reference(value):
+    """Keep deployment pins in collected data, not in the narrow image column."""
+    text = str(value)
+    pinned = re.fullmatch(r'(.+)@sha256:([0-9a-fA-F]{64})', text)
+    if pinned:
+        name, digest = pinned.groups()
+        return name if ':' in name.rsplit('/', 1)[-1] else name + '@sha256:' + digest[:12] + '…'
+    return re.sub(r'^sha256:([0-9a-fA-F]{12})[0-9a-fA-F]{52}$', r'sha256:\1…', text)
+
+
 def build_report(result, request_id):
     target = result.get('target', 'edo1')
     if target not in TARGETS:
@@ -185,6 +195,8 @@ def build_report(result, request_id):
                 continue
             if name == 'hey-edo1-n8n-1' and 'n8n' in ready and status in ('미검증', '미설정'):
                 continue
+            if name == 'eolssu-monitoring-node-exporter-1' and status in ('미검증', '미설정') and any(r[0] == 'node 지표 수집' and r[2] == '정상' for r in rows):
+                continue
             status = {'실패': '장애', '미설정': '미검증', '확인 불가': '미측정'}.get(status, status)
             if status == '정상':
                 action = '현재 조치 없음'
@@ -199,7 +211,7 @@ def build_report(result, request_id):
                           'edo2에서 공개 HTTPS 재요청; /edo1-containers의 웹·API 실행 상태와 Nginx upstream 확인' if '외부 HTTPS' in location else
                           'edo1에서 해당 loopback 준비 경로 재요청; 서비스 로그의 DB 연결 오류 확인' if 'loopback' in location else
                           'edo1에서 대상 docker inspect의 State·Health와 docker logs --tail 50 확인')
-            if target == 'edo2' and location in ('edo2 systemd', 'edo2 구성 검사'):
+            if location in ('edo1 systemd', 'edo2 systemd', 'edo2 구성 검사', 'edo2 백업 메타데이터', 'edo1 모니터링 HTTP') or name == 'eolssu-runtime-ai-1':
                 action = str(row[5]) if len(row) > 5 else 'edo2의 해당 unit·설정 확인'
             elif target == 'edo2' and 'TLS' in location:
                 action = ('만료 24시간 미만: snap.certbot.renew.timer와 최근 갱신 로그 확인; 인증서 갱신 뒤 /edo2-health 재실행'
@@ -208,10 +220,11 @@ def build_report(result, request_id):
                 action = 'nginx -t와 /healthz proxy_pass, edo-check.service의 내부 HTTP 응답 확인'
             elif target == 'edo2' and 'loopback' in location:
                 action = 'edo-check.service와 127.0.0.1:8765/healthz의 JSON status=ok 응답 확인'
-            action = host_instructions(action, target)
+            if location != 'edo2 백업 메타데이터':
+                action = host_instructions(action, target)
             elapsed = row[4] if len(row) > 4 else '—'
             checked = ('Docker healthcheck · ' if location == 'Docker healthcheck' else 'Docker · ' if 'Docker' in location else '') + str(evidence)
-            if location == 'edo2 systemd':
+            if location in ('edo1 systemd', 'edo2 systemd'):
                 # Mattermost can turn :00: inside systemd timestamps into emoji.
                 checked = re.sub(r'\b\d{2}:\d{2}:\d{2}\b', r'`\g<0>`', checked)
             if elapsed != '—':
@@ -322,7 +335,7 @@ def build_report(result, request_id):
             ('데이터 저장공간', ['서비스', '볼륨 · 마운트', '사용량 · 참고'],
              [[service, target, usage + (' · ' + note if '확인 불가' in usage else '')] for service, target, usage, note in storage_rows]),
             ('실행 세부 정보', ['서비스 / 실제 이름', '가동·재시작 / 종료·OOM', 'PID · 공개 포트', 'NET·IO 누적', '이미지'],
-             [[service, '가동·재시작 ' + str(uptime) + ' / 종료·OOM ' + str(exit_oom), ports, io, image]
+             [[service, '가동·재시작 ' + str(uptime) + ' / 종료·OOM ' + str(exit_oom), ports, io, compact_image_reference(image)]
               for service, uptime, exit_oom, ports, io, image in runtime_rows]),
         ])
     else:

@@ -10,10 +10,19 @@ enum class ReadingPage(val id: String) {
     Length("length"),
     Pitch("pitch"),
     Sigimsae("sig"),
+    SigimsaeMore("sig-more"),
     ;
 
-    /** 쪽 머리의 표시. 정간보란은 井, 나머지는 번호다. */
-    val mark: String get() = if (this == Intro) "井" else "$ordinal"
+    /** 쪽 머리의 표시. 정간보란은 井, 나머지는 번호이고 딸린 쪽은 앞 쪽 번호를 쓴다. */
+    val mark: String
+        get() = when (this) {
+            Intro -> "井"
+            SigimsaeMore -> Sigimsae.mark
+            else -> "$ordinal"
+        }
+
+    /** 앞 쪽에 딸린 쪽인지(더 많은 시김새). 쪽 표시를 흰 원으로 그린다. */
+    val sub: Boolean get() = this == SigimsaeMore
 
     companion object {
         /** 경로 인자의 쪽. 비었거나 모르는 값이면 첫 쪽이다. */
@@ -22,10 +31,12 @@ enum class ReadingPage(val id: String) {
 }
 
 /**
- * 태블릿 격자의 줄. 세로 2열은 정간보란·1 / 2·3, 가로 3열은 정간보란 한 줄 · 1·2·3 한 줄이고, 시김새는 늘 한 줄 전체다.
+ * 태블릿 격자의 줄. 세로 2열은 정간보란·1 / 2·3, 가로 3열은 정간보란 한 줄 · 1·2·3 한 줄이고, 시김새와 더 많은 시김새는 늘 한 줄 전체다.
  */
 fun readingTabletRows(columns: Int): List<List<ReadingPage>> {
-    val fullRow = { page: ReadingPage -> page == ReadingPage.Sigimsae || (page == ReadingPage.Intro && columns >= 3) }
+    val fullRow = { page: ReadingPage ->
+        page == ReadingPage.Sigimsae || page == ReadingPage.SigimsaeMore || (page == ReadingPage.Intro && columns >= 3)
+    }
     val rows = mutableListOf<List<ReadingPage>>()
     var row = mutableListOf<ReadingPage>()
     ReadingPage.entries.forEach { page ->
