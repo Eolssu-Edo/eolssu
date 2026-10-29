@@ -55,15 +55,11 @@
 
 ### edo2의 기대 구성
 
-edo2는 Docker가 설치·활성화된 서버다. 2026-10-29에는 KVM 없는 환경에서 시도한 `eolssu-android-remote`를 관리자가 의도적으로 중지했고 이미지·두 볼륨·로그를 보존했다. 엔진 조회 성공과 빈 목록은 `해당 없음`으로, 엔진·socket 조회 실패는 `미측정`으로 구분한다. edo1의 웹·API·MySQL 필수 컨테이너와 Grafana·Prometheus·n8n 검사를 edo2에 적용하지 않는다.
+edo2는 Docker가 설치·활성화된 서버이며 현재 등록 컨테이너·볼륨은 0개다. KVM이 없는 edo2의 Android 실행 실험은 폐기했고, 2026-10-29 사용자 요청으로 컨테이너·Android 이미지 2개·볼륨 2개·컨테이너 로그 및 293의 점검 예외를 제거했다. 삭제·보존·검증 증거는 [294 기록](../../docs/plans/S15P31E102-294.md)을 따른다. 293 문서는 당시 상태의 이력으로 보존한다.
 
-#### 의도한 실험 중지 기록
+엔진 조회 성공과 빈 목록은 `해당 없음`/`컨테이너 없음`으로, 엔진·socket 조회 실패는 `미측정`으로 구분한다. 컨테이너 이름·종료 코드에 따른 중지 예외는 없다. edo1의 필수 컨테이너를 edo2에 적용하지 않는다. MySQL·Jenkins·Grafana·Nginx·JRE 이미지 5개는 주기적 격리 백업 복원에 필요하므로 현재 실행 컨테이너가 없다는 이유로 삭제하지 않는다.
 
-`/etc/edo-check/expected-stops.json`은 관리자가 승인한 **특정 종료 사건**만 기록하는 root 소유 일반 JSON 파일이다. 0600을 권장하고 그룹·기타 쓰기 권한, 심볼릭 링크, 16KiB 초과 파일은 인정하지 않는다. 읽기·파싱·필드 확인에 실패하면 기존 장애 판정을 유지한다. `relay.json`·SSH 권한·토큰과는 별도이며 점검 명령이 자동 생성하거나 갱신하지 않는다.
-
-배열의 각 항목은 `target`(`edo2`), `name`, 전체 64자리 `id`, Docker `State.FinishedAt` 그대로의 `finished_at`, `exit_code`(`143`), 중지 근거 `reason`을 가진다. 현재 inspect의 ID·이름·종료 시각·코드가 모두 같고 `Status=exited`, `Running=false`, `OOMKilled=false`일 때만 `실험 중지`로 표시한다. 계정·시각을 확인하지 않은 컨테이너 이름만으로 등록하지 않는다. 실행·준비 정상으로 바꾸지 않으며 CPU·RAM·NET·IO 미측정도 유지한다. 재실행·재생성 후의 새 종료, OOM·다른 종료 코드는 기존 장애 판정을 받는다.
-
-기록할 때는 관리자 SSH에서 `sudo docker inspect --format '{{.Id}} {{.Name}} {{.State.Status}} {{.State.Running}} {{.State.ExitCode}} {{.State.OOMKilled}} {{.State.FinishedAt}}' eolssu-android-remote`로 사건을 먼저 대조한다. 비밀 환경변수를 포함한 inspect 전체를 출력하지 않는다. root 전용 후보 파일에 위 항목을 작성하고 `python3 -m json.tool`로 문법만 확인한 뒤 root:root 0600으로 설치한다. **새 종료 사건의 등록은 관리자의 의도 확인 후 수동으로 수행**한다. 현재 Task의 실제 기록·검증·복구 위치는 [293 기록](../../docs/plans/S15P31E102-293.md)을 따른다. 기록 제거는 실험 컨테이너·이미지·볼륨 삭제를 의미하지 않는다.
+공간을 정리할 때는 정확한 자원 ID·Compose 소유·다른 컨테이너 참조를 먼저 확인한다. `docker system prune -a --volumes`처럼 범위가 넓은 정리를 사용하지 않는다. 백업 암호문·키·운영/복구 설정은 보존한다. APT 캐시·과거 작업 설정은 용도·다음 실행 영향을 확인해 별도 승인된 대상만 정리한다.
 
 health는 nginx·edo-check·docker·ssh daemon, Certbot 갱신·백업 status/prune/restore-test timer, backup status/restore-test oneshot 이력과 Nginx 구성·UFW·127.0.0.1:8765 `/healthz`를 검사한다. timer는 active와 다음 실행 예약, oneshot은 실행 시각·결과·종료 코드를 확인한다. inactive는 oneshot 성공 후 정상 대기일 수 있다. 실행 이력이 없거나 이번 실행 중이면 `미검증`이며 작업을 자동 실행하지 않는다. systemd 실행 성공은 백업 파일의 무결성·복구 성공을 보증하지 않는다.
 

@@ -85,7 +85,7 @@ STATUS_ICONS = {
     '실행 · 검사 통과': '✅', '실행 · 준비 미검증': '❓',
     '검사한 범위 정상': '✅', '장애 확인': '❌', '주의 필요': '⚠️', '일부 확인 못 함': '❓',
     '일부 측정 못 함': '🚫',
-    '해당 없음': '➖', '컨테이너 없음': '➖', '실험 중지': 'ℹ️',
+    '해당 없음': '➖', '컨테이너 없음': '➖',
 }
 
 
@@ -205,8 +205,6 @@ def build_report(result, request_id):
                           else '프로세스 실행만 확인; /edo1-health의 별도 HTTP 준비 검사를 확인하고 없으면 대상 healthcheck 구성 필요')
             elif status == '미측정':
                 action = '/edo1-health를 1회 재실행; 반복되면 edo2→edo1 SSH 연결·Docker 조회 권한 확인'
-            elif status == '실험 중지':
-                action = str(row[5])
             else:
                 action = (('만료 7일 미만이면 서비스 인증서 갱신 작업·실패 로그 확인 후 /edo1-health 재실행' if status == '주의' else
                            'edo2에서 TLS 재연결; 서비스 호스트명·인증서 체인·현재 인증서 유효기간 확인 후 /edo1-health 재실행') if 'TLS' in location else
@@ -294,8 +292,6 @@ def build_report(result, request_id):
             fact = facts.get(name, {})
             if '확인 불가' in state:
                 status = '미측정'
-            elif target == 'edo2' and fact.get('expected_stop') and state.startswith('exited/') and str(row[7]) == '143/아니오':
-                status = '실험 중지'
             elif not state.startswith('running/') or 'unhealthy' in state:
                 status = '장애'
             else:
@@ -304,8 +300,6 @@ def build_report(result, request_id):
                 findings.append(['미측정', friendly(name) + ' 상세 수집 실패', 'Docker inspect 연결·권한 확인'])
             elif status == '장애':
                 findings.append(['장애', friendly(name) + ': ' + state, '컨테이너 실행 상태·최근 로그 확인'])
-            elif status == '실험 중지':
-                findings.append(['실험 중지', friendly(name) + ': ' + str(fact['expected_stop']), '의도한 중지 유지; 이미지·볼륨·로그 보존'])
             elif str(row[7]).endswith('/예'):
                 findings.append(['주의', friendly(name) + ' OOM 강제 종료 기록 있음', '현재 실행 상태와 별도로 메모리 한도·커널 OOM 기록 확인'])
             if status == '실행 · 준비 미검증':
@@ -333,8 +327,7 @@ def build_report(result, request_id):
                                      '다른 컨테이너와 중복 합산 금지' if '(공유)' in mount else
                                      '12초 또는 전체 25초 측정 예산; 재점검 필요' if '확인 불가' in mount else
                                      '별도 데이터 mount 없음' if mount == '없음' else '볼륨/bind 값은 쓰기 계층·로그와 별개'])
-            uptime = str(row[6]) + (' · ' + str(fact['expected_stop']) if status == '실험 중지' else '')
-            runtime_rows.append([friendly(name) + ' (' + name + ')', uptime, row[7], row[8], row[9], row[10]])
+            runtime_rows.append([friendly(name) + ' (' + name + ')', row[6], row[7], row[8], row[9], row[10]])
             if status != '미측정' and (fact.get('ram_bytes') is None or fact.get('cpu_percent') is None):
                 findings.append(['미측정', friendly(name) + ' CPU 또는 RAM', '다시 점검; 실행 상태와 통계 수집은 별개'])
         tables.extend([
@@ -351,7 +344,7 @@ def build_report(result, request_id):
     findings = [[kind, evidence, host_instructions(action, target)] for kind, evidence, action in findings]
     inherited_findings = [[kind, evidence, host_instructions(action, target)] for kind, evidence, action in inherited_findings]
     findings = list({tuple(item): item for item in findings}.values())
-    counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고', '실험 중지')}
+    counts = {kind: sum(item[0] == kind for item in findings) for kind in ('장애', '주의', '미검증', '미측정', '설정 참고')}
     counts['미측정'] += sum(1 for _, _, data in tables for row in data if any('미측정' in str(x) or '확인 불가' in str(x) for x in row)) if result['mode'] == 'server' else 0
     status = '장애 확인' if counts['장애'] else '주의 필요' if counts['주의'] else '일부 확인 못 함' if counts['미검증'] else '일부 측정 못 함' if counts['미측정'] else '검사한 범위 정상'
     if result['mode'] == 'containers' and len(columns) == 11 and not rows and not findings:
@@ -363,13 +356,11 @@ def build_report(result, request_id):
              ' · '.join(f'{STATUS_ICONS[kind]} **{kind} {counts[kind]}**' if counts[kind] else f'{kind} 0'
                         for kind in ('장애', '주의', '미검증', '미측정')),
              '이번 명령에서 새로 수집한 스냅샷입니다. 이 메시지는 자동 갱신되지 않습니다. 최신 상태는 같은 명령을 다시 실행하세요.']
-    actionable = [item for item in (inherited_findings if result['mode'] == 'health' else findings) if item[0] not in ('설정 참고', '실험 중지')]
+    actionable = [item for item in (inherited_findings if result['mode'] == 'health' else findings) if item[0] != '설정 참고']
     if actionable:
         tables.insert(0, ('먼저 확인할 항목', ['구분', '대상 / 근거', '다음 조치'], actionable[:12]))
     if counts['설정 참고']:
         parts.extend(['', f"ℹ️ **설정 참고 {counts['설정 참고']}건**: 메모리 제한 없음은 현재 장애라는 뜻이 아닙니다. 해당 컨테이너는 호스트 메모리를 공유합니다."])
-    if counts['실험 중지']:
-        parts.extend(['', f"ℹ️ **실험 중지 {counts['실험 중지']}건**: 기록된 종료 사건과 일치합니다. 실행·준비 상태가 정상이라는 뜻은 아니며 자원 미측정은 그대로 표시합니다."])
     if result['mode'] == 'containers':
         parts.extend(['', f'CPU 100%=1코어 사용(2코어 한도는 200%). RAM은 cache 제외. 쓰기·로그·데이터는 별도 공간이며 공유 볼륨은 중복 합산하지 않습니다. 별도 mount 없음은 데이터가 없다는 뜻이 아닙니다. NET·IO는 누적 전송량입니다. 준비 상태는 /{target}-health에서 확인하세요.'])
     if result['mode'] == 'health':

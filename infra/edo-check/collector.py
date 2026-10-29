@@ -8,7 +8,6 @@ import os
 import re
 from pathlib import Path
 import socket
-import stat
 import subprocess
 import sys
 import time
@@ -17,31 +16,6 @@ REQUIRED_CONTAINERS = {'eolssu-runtime-frontend-1', 'eolssu-runtime-backend-1', 
                        'eolssu-monitoring-grafana-1', 'eolssu-monitoring-prometheus-1',
                        'eolssu-monitoring-node-exporter-1'}
 REQUIRED_BY_TARGET = {'edo1': REQUIRED_CONTAINERS, 'edo2': set()}
-EXPECTED_STOPS = Path('/etc/edo-check/expected-stops.json')
-
-
-def expected_stop(detail, target):
-    """Match a root-recorded stop event, never a name-wide maintenance exemption."""
-    if target != 'edo2':
-        return ''
-    state = detail.get('State', {})
-    if state.get('Status') != 'exited' or state.get('Running') is not False or state.get('OOMKilled') is not False:
-        return ''
-    try:
-        st = EXPECTED_STOPS.lstat()
-        if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_mode & 0o022 or st.st_size > 16384:
-            return ''
-        records = json.loads(EXPECTED_STOPS.read_text())
-        for record in records:
-            if (record['target'] == target and re.fullmatch('[a-f0-9]{64}', str(record['id'])) and
-                    record['id'] == detail.get('Id') and isinstance(record['reason'], str) and record['reason'] and
-                    record['name'] == detail.get('Name', '').lstrip('/') and
-                    record['finished_at'] == state.get('FinishedAt') and record['finished_at'] and
-                    record['exit_code'] == state.get('ExitCode') == 143):
-                return str(record['reason'])[:200]
-    except (OSError, ValueError, KeyError, TypeError):
-        pass
-    return ''
 
 
 def resource_stats(stats):
@@ -299,9 +273,8 @@ def container_report(target='edo1'):
             issues.append(name + ' 상세 수집 실패')
             continue
         state, host, config = detail['State'], detail['HostConfig'], detail['Config']
-        stopped = expected_stop(detail, target)
         health = state.get('Health', {}).get('Status', '미설정')
-        if not stopped and (health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled')):
+        if health == 'unhealthy' or not state.get('Running') or state.get('OOMKilled'):
             issues.append(name + ': ' + state['Status'] + '/' + health)
         metrics = resource_stats(stats)
         limit = host.get('Memory', 0)
@@ -338,7 +311,6 @@ def container_report(target='edo1'):
         if '확인 불가' in mounted:
             issues.append(name + ' 데이터 용량 미측정: 12초 한도 또는 저장소 접근 실패')
         facts.append({'name': name, 'running': state.get('Running'), 'health': health,
-                      'expected_stop': stopped,
                       'ram_bytes': metrics['memory'] if metrics['memory_available'] else None,
                       'ram_limit': limit, 'host_ram': info.get('MemTotal'), 'cpu_limit': cpus,
                       'cpu_percent': metrics['cpu'] if metrics['cpu_available'] else None,
@@ -548,10 +520,6 @@ def health_report(target='edo1'):
         evidence = ('중지·일시정지: ' + observed_state) if not running else (health or '실행 중 · 건강 검사 없음')
         action = ('실행 상태·서비스 로그 확인' if status == '실패' else
                   '현재 조치 없음' if status == '정상' else '실행만 확인됨; 서비스 준비 상태 검사 필요')
-        stopped = expected_stop(value['detail'], target) if not value.get('unavailable') else ''
-        if stopped:
-            status, evidence = '실험 중지', stopped + ' · 종료 143 · OOM 아님 · 서비스 준비 미검증'
-            action = '의도한 중지 유지; 이미지·볼륨·로그 보존. 재실행 후에는 새 상태를 검사'
         if name == 'eolssu-runtime-ai-1' and status == '정상':
             status, evidence = '미검증', 'TCP 연결 검사 통과 · 분석 HTTP 준비·추론 기능 미검증'
             action = 'AI 서비스의 분석 준비 검증 경로·검증 절차 확인; TCP 통과만으로 추론 성공을 확정하지 않음'
