@@ -8,9 +8,10 @@ from .expressions import PLAYBACK_VIBRATO
 RELEASE_CC = {"controller": 72, "maximum_seconds": .05, "default_value": 127}
 
 
-def automatic_vibrato(event, sec_tick):
+def automatic_vibrato(event, sec_tick, instrument):
     y = event["yoseong"]
-    return ((event["end_tick"] - event["start_tick"]) * sec_tick >= PLAYBACK_VIBRATO["minimum_note_seconds"]
+    return (instrument == "danso" and
+            (event["end_tick"] - event["start_tick"]) * sec_tick >= PLAYBACK_VIBRATO["minimum_note_seconds"]
             and not (y and y["mode"] in ("pitch", "mixed")))
 
 
@@ -20,7 +21,7 @@ def pitch_bend_range(performance, sec_tick):
     for e in performance["events"]:
         y, curve = e["yoseong"], e.get("pitch_curve")
         motion = y["cents"] if y and y["mode"] in ("pitch", "mixed") else 0
-        if automatic_vibrato(e, sec_tick):
+        if automatic_vibrato(e, sec_tick, performance["instrument"]):
             motion += PLAYBACK_VIBRATO["cents"]
         values = [0]
         if curve:
@@ -51,7 +52,7 @@ def write_midi(performance, path):
             add(a, 1, "control_change", control=72, value=value)
             release_value = value
         y = e["yoseong"]
-        vibrato = PLAYBACK_VIBRATO if automatic_vibrato(e, sec_tick) else None
+        vibrato = PLAYBACK_VIBRATO if automatic_vibrato(e, sec_tick, performance["instrument"]) else None
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])
         add(b, 0, "note_off", note=e["pitch"], velocity=0)

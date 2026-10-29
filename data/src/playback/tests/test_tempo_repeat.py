@@ -17,6 +17,21 @@ def plan(**values):
 
 
 class TempoRepeatTests(unittest.TestCase):
+    def test_sogeum_plan_retimes_repeats_and_rejects_danso_schema(self):
+        source = document("청황 | {조금속하게} 청태")
+        source["parts"][0]["instrument"] = "sogeum"
+        selected = {"schema": "sogeum-performance/v1", "input_sha256": HASH,
+                    "tempos": [{"gak": 1, "cell": 2, "bpm": 120}],
+                    "repeats": [{"start_gak": 1, "end_gak": 1, "times": 2}]}
+        value, mapping = converted(source, instrument="sogeum", performance_plan=selected, input_sha256=HASH)
+        self.assertEqual(len(value["notes"]), 4)
+        self.assertEqual(mapping["performance"]["schema"], "sogeum-performance/v1")
+        self.assertAlmostEqual(float(sum(Fraction(n["duration"]) for n in value["notes"])) * 60 / value["quarter_bpm"], 3)
+        self.assertEqual(len({n["id"] for n in value["notes"]}), 4)
+        selected["schema"] = "danso-performance/v1"
+        with self.assertRaisesRegex(ValueError, "schema"):
+            converted(source, instrument="sogeum", performance_plan=selected, input_sha256=HASH)
+
     def test_immediate_tempo_changes_note_time_and_preserves_inputs(self):
         value, mapping = converted(document())
         selected = plan(tempos=[{"gak": 1, "cell": 2, "bpm": 120}])

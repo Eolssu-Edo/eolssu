@@ -1,0 +1,31 @@
+{
+  "v": 2,
+  "tempoBpmUserSet": true,
+  "controls": {
+    "title": "소금 파이프라인 고정 예제",
+    "beats": "4",
+    "gakBeats": "",
+    "tempoBpm": "60",
+    "hwangPitch": "63",
+    "staffUnit": "plain",
+    "joPreset": "all"
+  },
+  "parts": [
+    {
+      "id": "sogeum-example",
+      "name": "소금",
+      "instrument": "sogeum",
+      "melody": "청황 | 청태 | 쉼 | 청중"
+    }
+  ],
+  "playback": {
+    "instrument": "sogeum",
+    "instrument_basis": "파이프라인 검사용으로 직접 작성한 소금 실음 예제. 기존 악곡이나 공식 연주 악보가 아님.",
+    "tempo": {
+      "jeonggan_bpm": 60,
+      "beat_unit": "jeonggan",
+      "evidence_type": "authored-test-fixture",
+      "label": "검사용 60정간/분. 실제 악곡의 빠르기 기준으로 일반화하지 않음."
+    }
+  }
+}

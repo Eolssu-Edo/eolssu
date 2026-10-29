@@ -6,7 +6,7 @@ import unittest
 from data.src.playback.expressions import (
     SCHEMA, SCALES, adaptive_breath, adaptive_grace, apply_effects, expression_for,
     fit_breath_to_duration, main_note_effects, performed_duration,
-    resolve_expression_profile, resolve_ornament_pitches,
+    resolve_expression_profile, resolve_ornament_pitches, expression_policy, relative_scale,
 )
 
 
@@ -15,6 +15,42 @@ def profile(kind, **policy):
 
 
 class ExpressionTests(unittest.TestCase):
+    def test_sogeum_explicit_effects_keep_directions_delay_and_input_independent(self):
+        authored = {"playback": {"expression_policy": {
+            "name": "test", "basis": "고정 검사 선택값", "status": "audition-policy-not-performance-standard",
+            "unwind": {"yoseong": {"mode": "pitch", "hz": 3, "cents": 60, "delay_seconds": .2},
+                       "pitch_curve": {"points": [[0, 0], [1, -150]], "delay_seconds": .1}}}}}
+        before = deepcopy(authored)
+        chosen = expression_policy(authored, "sogeum")
+        note = {}
+        apply_effects(note, {"unwind": True}, "검사", delay=1, policy=chosen)
+        self.assertAlmostEqual(note["yoseong"]["delay_seconds"], 1.2)
+        self.assertAlmostEqual(note["pitch_curve"]["delay_seconds"], 1.1)
+        note["pitch_curve"]["points"][1][1] = 999
+        self.assertEqual(authored, before)
+        self.assertEqual(chosen["unwind"]["pitch_curve"]["points"][1][1], -150)
+        for invalid in ({"fall": {"end_cents": 50, "tail_fraction": .3, "maximum_seconds": .2}},
+                        {"vibrato": {"mode": "pitch", "hz": 4, "delay_seconds": 0}},
+                        {"vibrato": {"mode": "pitch", "hz": 4, "cents": 0, "delay_seconds": 0}},
+                        {"unwind": {"yoseong": {}, "pitch_curve": {"points": [[0, 0], [1, -50]]}}}):
+            doc = deepcopy(before)
+            doc["playback"]["expression_policy"].update(invalid)
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                expression_policy(doc, "sogeum")
+
+    def test_sogeum_profile_rejects_wrong_instrument_and_scale_missing_basis(self):
+        source = {"schema": "sogeum-expression-profile/v1", "policies": {
+            "shake": {"basis": "연습용", "yoseong": {"mode": "mixed", "hz": 3, "cents": 40,
+                                                     "depth": .1, "delay_seconds": .2}}}}
+        chosen = resolve_expression_profile(source, "sogeum")
+        self.assertEqual(expression_for(chosen, "shake")["yoseong"]["cents"], 40)
+        with self.assertRaisesRegex(ValueError, "schema"):
+            resolve_expression_profile(source)
+        for value in ({"pitch_classes": [0, 2]}, {"pitch_classes": [2, 0], "basis": "검사"},
+                      {"pitch_classes": [0, 2, 2], "basis": "검사"}):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                relative_scale({"playback": {"relative_scale": value}})
+
     def test_builtin_effects_keep_delay_scope_conflicts_and_policy_isolation(self):
         selected = resolve_expression_profile()
         source = deepcopy(selected)

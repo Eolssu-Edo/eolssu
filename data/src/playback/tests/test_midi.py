@@ -12,6 +12,21 @@ from data.src.playback.tests._helpers import score, wire
 
 
 class MidiTests(unittest.TestCase):
+    def test_sogeum_has_no_unnotated_motion_but_explicit_pitch_motion_roundtrips(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2}])
+        _, plain = wire(value, "sogeum")
+        self.assertTrue(all(cents == 0 for _, cents in plain["bends"]))
+        _, danso = wire(value, "danso")
+        self.assertGreater(max(abs(v) for _, v in danso["bends"]), 20)
+        value["notes"][0]["pitch_curve"] = {"points": [[0, 0], [1, -200]]}
+        _, curve = wire(value, "sogeum")
+        self.assertEqual(curve["pitch_bend_range_cents"], 200)
+        self.assertAlmostEqual(min(v for _, v in curve["bends"]), -200, delta=.05)
+        value["notes"][0]["yoseong"] = {"mode": "pitch", "hz": 3, "cents": 300, "delay_seconds": 0}
+        _, marked = wire(value, "sogeum")
+        self.assertEqual(marked["pitch_bend_range_cents"], 500)
+        self.assertLess(min(v for _, v in marked["bends"]), -400)
+
     def test_wide_and_piecewise_curves_roundtrip_with_automatic_rpn_range(self):
         source = score([{"id": "a", "pitch": 75, "duration": 2,
                          "yoseong": {"mode": "pitch", "cents": 0},
