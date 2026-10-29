@@ -30,6 +30,8 @@
 
 ## 기능 스펙
 
+- [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
+
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
 - [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
 
@@ -47,6 +49,8 @@
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
+
+- [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 
 ## 도구 조사·검증 기록
 
