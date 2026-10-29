@@ -2,7 +2,9 @@ package com.ssafy.eolssu.data.user
 
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.core.storage.FakeSecureStore
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -14,6 +16,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 이메일 로그인·로그아웃 API 연결(AUTH-03·04). 서버는 MockEngine으로 대신한다. */
@@ -21,6 +24,7 @@ class ApiAuthRepositoryTest {
 
     private val requests = mutableListOf<String>()
     private val bodies = mutableListOf<String>()
+    private val member = SignedInMember(FakeKeyValueStore())
 
     private fun TestScope.repository(
         cookies: SecureCookiesStorage? = null,
@@ -32,7 +36,7 @@ class ApiAuthRepositoryTest {
             val (status, body) = respond(request.url.encodedPath) ?: error("연결 실패")
             respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
         }
-        return ApiAuthRepository(createHttpClient(engine, ServerAddress.Production, cookies), cookies, this, SampleAuthRepository { 0L })
+        return ApiAuthRepository(createHttpClient(engine, ServerAddress.Production, cookies), cookies, member, this, SampleAuthRepository { 0L })
     }
 
     @Test
@@ -43,12 +47,14 @@ class ApiAuthRepositoryTest {
         }
 
         assertEquals(LoginResult.Success(withdrawalCancelled = true), repository.logIn(" user@example.com ", "eolssu1!"))
+        assertEquals("1", member.id)
         assertEquals(listOf("/api/auth/sign-in"), requests)
         assertEquals("""{"email":"user@example.com","password":"eolssu1!"}""", bodies.single())
     }
 
     @Test
     fun errorResponsesMapToLoginResults() = runTest {
+        member.set("1") // 실패하면 쿠키가 바뀌지 않으므로 이전 회원이 남는다
         val cases = mapOf(
             HttpStatusCode.Unauthorized to LoginResult.WrongCredentials,
             HttpStatusCode.BadRequest to LoginResult.WrongCredentials,
@@ -60,10 +66,12 @@ class ApiAuthRepositoryTest {
             assertEquals(expected, repository.logIn("user@example.com", "eolssu1!"), "$status")
         }
         assertEquals(LoginResult.Unavailable, repository { null }.logIn("user@example.com", "eolssu1!"))
+        assertEquals("1", member.id)
     }
 
     @Test
     fun logOutTellsServerAndClearsAppCookiesBeforeNextLogIn() = runTest {
+        member.set("1")
         val store = FakeSecureStore().apply { putString("auth.cookies", "[]") }
         val cookies = SecureCookiesStorage(store) { 0L }
         val repository = repository(cookies) { path ->
@@ -75,6 +83,7 @@ class ApiAuthRepositoryTest {
 
         assertEquals(listOf("/api/auth/sign-out", "/api/auth/sign-in"), requests)
         assertTrue(store.values.isEmpty())
+        assertNull(member.id)
     }
 
     @Test

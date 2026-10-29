@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
 import androidx.lifecycle.ViewModel
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.PasswordCheckResult
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,8 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** MY-04. 현재 비밀번호로 본인인지 다시 확인한 뒤 탈퇴를 신청한다. */
-class WithdrawViewModel(private val userRepository: UserRepository) : ViewModel() {
+/** MY-04. 현재 비밀번호로 본인인지 다시 확인한 뒤 탈퇴를 신청한다. 신청하면 남은 연습 시간 기록을 보내지 않고 지운다. */
+class WithdrawViewModel(
+    private val userRepository: UserRepository,
+    private val practiceTimeQueue: PracticeTimeQueue,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(WithdrawUiState())
     val uiState: StateFlow<WithdrawUiState> = _uiState.asStateFlow()
 
@@ -23,7 +27,7 @@ class WithdrawViewModel(private val userRepository: UserRepository) : ViewModel(
             return false
         }
         return when (userRepository.withdraw(password)) {
-            PasswordCheckResult.Done -> true
+            PasswordCheckResult.Done -> true.also { practiceTimeQueue.discard() }
             PasswordCheckResult.WrongPassword -> false.also { _uiState.update { it.copy(error = ProfileFieldError.PasswordWrong) } }
         }
     }

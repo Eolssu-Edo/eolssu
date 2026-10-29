@@ -23,6 +23,7 @@ import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.user.ApiAuthRepository
 import com.ssafy.eolssu.data.user.AuthRepository
@@ -69,6 +70,7 @@ val appModule = module {
     // 화면이 사라져도 끝내야 하는 일(로그아웃 요청 등)을 하는 앱 전체의 범위.
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { createHttpClient(get(), get(), getOrNull<SecureCookiesStorage>()) }
+    single { SignedInMember(get()) }
     // API가 생기면 예시 구현을 API 구현으로 바꾼다.
     single<SongRepository> { SampleSongRepository() }
     single { PracticeSettingsStore(get()) }
@@ -77,7 +79,7 @@ val appModule = module {
     single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
-    single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get()) }
+    single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get()) }
 
     viewModelOf(::HomeViewModel)
@@ -100,7 +102,7 @@ val appModule = module {
     // 첫 실행·로그인·회원가입·비밀번호 찾기. 인증 API를 붙이기 전까지 예시 저장소가 로그인·인증번호 결과를 돌려준다.
     single { FirstRunRepository(get()) }
     single { LearnProgressRepository(get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), fallback = SampleAuthRepository(now = get())) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), fallback = SampleAuthRepository(now = get())) }
     viewModelOf(::ConsentViewModel)
     viewModelOf(::LoginViewModel)
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get()) }
