@@ -4,9 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -17,27 +14,34 @@ import org.koin.core.parameter.parametersOf
  * SONG-01 연결. 곡을 고르면 [onOpenSong]으로 곡 상세로 간다.
  * 태블릿 가로·넓은 웹 창에서는 화면을 옮기지 않고 오른쪽 칸에 고른 곡의 정보를 보이며(곡 상세와 같은 [SongDetailViewModel]),
  * 그 칸의 '이 곡 연습하기'가 [onStartPractice]로 연습 화면에 간다. 고른 곡은 목록 ViewModel이 들고 있어 창 크기가 바뀌어도 남는다.
- * [initialSongId]는 가로 창에서 곡 상세 경로로 들어왔을 때(배우기의 곡 열기 등) 처음 고를 곡이다.
+ * 가로에서 곡을 직접 고른 채 세로로 바뀌면 [onOpenSong]으로 그 곡의 상세를 연다. 처음에 자동으로 고른 첫 곡이면 목록 그대로 둔다.
+ * [pickSongId]는 곡 상세가 가로로 바뀌어 이 화면으로 넘어올 때(배우기의 곡 열기 등) 직접 고른 것으로 둘 곡이고, 고른 뒤 [onPickTaken]으로 비운다.
  */
 @Composable
 fun SongListRoute(
     onBack: () -> Unit,
     onOpenSong: (songId: String) -> Unit,
     onStartPractice: (songId: String) -> Unit,
-    initialSongId: String? = null,
+    pickSongId: String? = null,
+    onPickTaken: () -> Unit = {},
     viewModel: SongListViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    // 처음 한 번만 고른다. 화면을 다시 그려도(회전 등) 사용자가 그 뒤에 고른 곡을 덮지 않는다.
-    var initialSelected by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(initialSongId) {
-        if (initialSongId != null && !initialSelected) {
-            viewModel.selectSong(initialSongId)
-            initialSelected = true
+    LaunchedEffect(pickSongId) {
+        if (pickSongId != null) {
+            viewModel.pickSong(pickSongId)
+            onPickTaken()
         }
     }
     val widthClass = currentWindowLayout().widthClass
     val twoPane = widthClass == WindowWidthClass.Expanded
+    val pickedId = state.pickedSong?.id
+    LaunchedEffect(twoPane, pickedId) {
+        if (!twoPane && pickedId != null) {
+            viewModel.openPickedSong()
+            onOpenSong(pickedId)
+        }
+    }
     val selectedId = state.selectedSong?.id
     val detail = if (twoPane && selectedId != null) songDetailState(selectedId) else null
 
@@ -52,8 +56,12 @@ fun SongListRoute(
             onSelectFilter = viewModel::selectFilter,
             onResetFilters = viewModel::resetFilters,
             onOpenSong = { songId ->
-                viewModel.selectSong(songId)
-                if (!twoPane) onOpenSong(songId)
+                if (twoPane) {
+                    viewModel.pickSong(songId)
+                } else {
+                    viewModel.selectSong(songId)
+                    onOpenSong(songId)
+                }
             },
             onStartPractice = { selectedId?.let(onStartPractice) },
         ),

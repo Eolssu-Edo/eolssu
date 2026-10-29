@@ -188,6 +188,11 @@
     <string name="analysis_retry">분석 다시 시도</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
+    <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
+    <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
+    <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
+    <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
+    <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>
     <string name="result_subtitle">%1$s · %2$s · %3$s</string>

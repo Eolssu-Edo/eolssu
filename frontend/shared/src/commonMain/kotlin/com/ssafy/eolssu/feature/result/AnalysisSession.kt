@@ -4,6 +4,9 @@ import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.PendingRecording
+import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.SendResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -24,12 +27,15 @@ import kotlinx.coroutines.launch
  * 남은 일: 대기 화면을 떠났다(뒤로 가기) 돌아오면 새 분석을 맡긴다. 이미 맡긴 분석을 다시 묻는 것은 상태 조회 API가 정해진 뒤 다룬다.
  *
  * @param sleep 조회 사이의 기다림. 테스트는 가짜 시계를 넘기는 함수를 넣는다.
+ * @param uploads 녹음 업로드. [start]에 녹음을 넘기면 먼저 보내고, 보내지 못하면 '녹음 다시 보내기'를 준다(PRA-03).
+ *   실제 업로드가 붙기 전에는 화면이 녹음을 넘기지 않아 이 단계를 건너뛴다.
  */
 internal class AnalysisSession(
     private val scope: CoroutineScope,
     private val repository: EvaluationRepository,
     clock: () -> Long,
     private val sleep: suspend (Long) -> Unit,
+    private val uploads: RecordingUploads? = null,
 ) {
     private class Request(val songId: String, val bpm: Int, val recordedSeconds: Int)
 
@@ -40,13 +46,46 @@ internal class AnalysisSession(
     private var analysisId: String? = null
     private var pollJob: Job? = null
     private var paused = false
+    private var recording: PendingRecording? = null
 
-    /** 곡을 보이고 녹음을 분석에 맡긴다. */
-    suspend fun start(song: Song?, bpm: Int) {
+    /** 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다. */
+    suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null) {
         _state.update { it.copy(song = song) }
         if (song == null) return
         request = Request(song.id, bpm, song.durationSeconds(bpm))
-        requestAnalysis()
+        val uploads = uploads
+        if (recording != null && uploads != null) {
+            this.recording = recording
+            afterSend(uploads.send(recording))
+        } else {
+            requestAnalysis()
+        }
+    }
+
+    /**
+     * 녹음 다시 보내기. 연결 실패로 보내지 못한 이 연습 세션의 녹음이 기기에 남아 있을 때만 하며, 보내는 중에는 버튼이 돈다.
+     * 그 사이 다른 녹음이 기다리게 됐으면 그 녹음을 보내지 않고 다시 연주를 안내한다.
+     */
+    fun resend() {
+        val uploads = uploads ?: return
+        val recording = recording ?: return
+        val state = _state.value
+        if (state.upload != UploadProblem.CanResend || state.resending) return
+        _state.update { it.copy(resending = true) }
+        scope.launch { afterSend(uploads.resend(recording)) }
+    }
+
+    private suspend fun afterSend(result: SendResult) {
+        when (result) {
+            SendResult.Sent -> {
+                _state.update { it.copy(upload = null, resending = false) }
+                requestAnalysis()
+            }
+            SendResult.CanResend -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
+            SendResult.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
+            SendResult.Missing -> _state.update { it.copy(upload = UploadProblem.Missing, resending = false) }
+            SendResult.Expired -> _state.update { it.copy(upload = null, resending = false, failure = AnalysisFailure.UploadTimeout) }
+        }
     }
 
     /** 분석 다시 시도. 같은 녹음으로 다시 분석할 수 있는 실패에서만 하며, 시도 중에는 버튼이 돈다. */

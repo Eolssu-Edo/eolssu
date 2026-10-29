@@ -10,6 +10,9 @@ object RecordingSpec {
 
     /** 업로드 전에 이 크기를 넘으면 먼저 알린다. 서버는 넘는 파일을 413으로 거부한다. */
     const val MAX_BYTES: Long = 20L * 1024 * 1024
+
+    /** 세션 시작 뒤 이 시간이 지나면 서버가 업로드를 410으로 거부한다(최대 녹음 10분 + 업로드·재시도 여유 30분). */
+    val UploadWindow: Duration = 40.minutes
 }
 
 /** 녹음을 마친 m4a 파일. */

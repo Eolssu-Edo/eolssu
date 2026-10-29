@@ -322,3 +322,23 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)
+
+### Swagger UI와 OpenAPI
+
+`db`·`ops` 프로필에서 현재 구현된 업무 API 전체를 문서화합니다. 무DB 기본 프로필에서는 꺼져 있습니다.
+
+- UI: `/api/swagger-ui.html` → `/api/swagger-ui/index.html`
+- JSON: `/api/v3/api-docs`
+- 배포 후 주소: https://k15e102.p.ssafy.io/api/swagger-ui.html
+
+문서·UI 정적 파일·설정 JSON도 기존 access_token 쿠키와 ACTIVE 회원 검증을 받습니다. 먼저 같은 출처의 앱 로그인 화면 또는 `POST /api/auth/sign-in`을 브라우저에서 호출해 로그인한 다음 문서를 엽니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다. 만료되면 다시 로그인합니다.
+
+Swagger UI의 Try it out은 브라우저가 보관한 HttpOnly 쿠키를 전송합니다. OpenAPI에는 accessCookie·refreshCookie를 표시하지만 Authorize 입력으로 브라우저의 Cookie 헤더/HttpOnly 쿠키를 설정할 수는 없습니다. Bearer 헤더 인증을 추가하지 않았으며 비밀번호·실제 토큰을 문서에 저장하지 않습니다. 운영 HTTPS에서는 Secure 쿠키를 사용합니다.
+
+Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공하므로 별도 루트 경로를 열지 않습니다. 사용자 ID 등 내부 Jwt principal은 요청 파라미터가 아닙니다. 인증·Origin·multipart 한도와 실제 업무 응답은 그대로입니다.
+
+요청 DTO와 매핑은 springdoc으로 읽고, `OpenApiContracts`/`OpenApiConfig`가 `ResponseEntity<*>`로 소실되는 실제 결과 DTO·공통 오류·응답 상태를 보완합니다. API를 추가/변경할 때 이 계약도 갱신합니다. `OpenApiDatabaseTests`/`OpenApiOpsDatabaseTests`는 업무 컨트롤러의 실제 매핑과 생성된 문서 전체가 일치하는지, 쿠키 인증·UI 자산·nullable/204·multipart 스키마를 검증합니다. 실행은 위의 `databaseTest`를 사용합니다.
+
+브라우저 Cookie 인증의 제약은 [Swagger 공식 안내](https://swagger.io/docs/specification/v3_0/authentication/cookie-authentication/)를 참고합니다. 외부 온라인 validator는 끄고 생성 문서는 로컬 테스트로 검증합니다.
+
+재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.

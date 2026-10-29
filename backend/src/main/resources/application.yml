@@ -78,3 +78,19 @@ management:
       group:
         readiness:
           include: readinessState
+
+springdoc:
+  api-docs:
+    enabled: false
+    path: /api/v3/api-docs
+    version: OPENAPI_3_0
+  swagger-ui:
+    enabled: false
+    path: /api/swagger-ui.html
+    disable-swagger-default-url: true
+    persist-authorization: false
+    validator-url: ""
+    with-credentials: true
+  packages-to-scan: com.ssafy.eolssu.backend.feature
+  paths-to-match: /api/**
+  show-actuator: false
