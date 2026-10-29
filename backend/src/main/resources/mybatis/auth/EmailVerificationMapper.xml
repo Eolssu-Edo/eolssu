@@ -10,6 +10,10 @@
         SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
         FROM email_verifications WHERE id = #{id} FOR UPDATE
     </select>
+    <select id="findByTokenHash" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
+        SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
+        FROM email_verifications WHERE token_hash = #{tokenHash}
+    </select>
     <select id="findByTokenHashForUpdate" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow">
         SELECT id, email, purpose, code_hash, attempt_count, expires_at, verified_at, token_hash, token_expires_at, consumed_at, invalidated_at, created_at
         FROM email_verifications WHERE token_hash = #{tokenHash} FOR UPDATE

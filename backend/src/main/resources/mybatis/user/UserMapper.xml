@@ -24,6 +24,9 @@
     <select id="findActivePasswordHashForUpdate" resultType="string">
         SELECT password_hash FROM users WHERE id = #{id} AND status = 'ACTIVE' FOR UPDATE
     </select>
+    <update id="resetPasswordHash">
+        UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
+    </update>
     <update id="updatePasswordHash">
         UPDATE users SET password_hash = #{passwordHash} WHERE id = #{id} AND status = 'ACTIVE'
     </update>

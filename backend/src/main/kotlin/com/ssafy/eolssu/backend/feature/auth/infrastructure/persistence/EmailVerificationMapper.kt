@@ -9,6 +9,7 @@ import java.time.LocalDateTime
 interface EmailVerificationMapper {
     fun findById(@Param("id") id: Long): EmailVerificationRow?
     fun findByIdForUpdate(@Param("id") id: Long): EmailVerificationRow?
+    fun findByTokenHash(@Param("tokenHash") tokenHash: String): EmailVerificationRow?
     fun findByTokenHashForUpdate(@Param("tokenHash") tokenHash: String): EmailVerificationRow?
     fun markConsumed(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int
     fun registeredEmail(@Param("email") email: String): String?
