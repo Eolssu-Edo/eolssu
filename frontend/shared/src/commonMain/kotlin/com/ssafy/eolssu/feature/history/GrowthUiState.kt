@@ -76,7 +76,6 @@ data class GrowthPeriod(
  * @property minutesChange 지난 기간(지난주·지난달)보다 늘어난 분. 두 쪽을 각각 내림한 값의 차이다.
  * @property averageChange 평균 점수 변화. 두 기간 평균이 모두 있을 때만 있다.
  * @property metricGrowth 같은 조건 연주끼리 비교한 항목 성장. 비교할 항목이 없으면 null.
- * @property completedMissions 완료한 미션 수. 미션이 구현되기 전에는 서버가 주지 않아 null이다.
  */
 data class GrowthStats(
     val range: GrowthRange,
@@ -91,8 +90,6 @@ data class GrowthStats(
     val highlightBar: Int,
     val bestBySong: List<SongBestScore>,
     val metricGrowth: MetricGrowth?,
-    val completedMissions: Int?,
-    val totalMissions: Int?,
 ) {
     companion object {
         fun of(period: GrowthPeriod, summary: GrowthSummary, days: List<DailyPractice>): GrowthStats {
@@ -116,8 +113,6 @@ data class GrowthStats(
                 highlightBar = period.todayBar,
                 bestBySong = summary.bestBySong,
                 metricGrowth = summary.metricGrowth?.takeIf { it.changes.isNotEmpty() },
-                completedMissions = summary.completedMissionCount,
-                totalMissions = summary.totalMissionCount,
             )
         }
     }
@@ -136,11 +131,13 @@ sealed interface GrowthLoad {
  * GROWTH-01 상태. 주·월 통계를 서버(GRO-01·02)에서 받아 기간마다 따로 들고 있어, 탭을 바꿔도 받은 값을 다시 받지 않는다.
  *
  * @property today 화면을 연 때의 KST 날짜. 기간은 이 날을 기준으로 정한다.
+ * @property completedSteps 연습 악기로 기초부터 배우기에서 완료한 단계 수. 기간과 관계없이 기기의 학습 완료 기록으로 센다.
  */
 data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
     val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
+    val completedSteps: Int = 0,
 ) {
     val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
 

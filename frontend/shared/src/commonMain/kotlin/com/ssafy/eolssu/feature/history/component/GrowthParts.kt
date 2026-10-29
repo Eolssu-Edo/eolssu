@@ -45,6 +45,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.data.practice.MetricGrowth
+import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.feature.history.GrowthLoad
 import com.ssafy.eolssu.feature.history.GrowthRange
 import com.ssafy.eolssu.feature.history.GrowthStats
@@ -60,14 +61,14 @@ import eolssu.shared.generated.resources.growth_items
 import eolssu.shared.generated.resources.growth_items_basis
 import eolssu.shared.generated.resources.growth_load_failed
 import eolssu.shared.generated.resources.growth_minutes
-import eolssu.shared.generated.resources.growth_missions
-import eolssu.shared.generated.resources.growth_missions_total
-import eolssu.shared.generated.resources.growth_missions_value
 import eolssu.shared.generated.resources.growth_month
 import eolssu.shared.generated.resources.growth_practice_days
 import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.growth_score_change
 import eolssu.shared.generated.resources.growth_score_value
+import eolssu.shared.generated.resources.growth_steps
+import eolssu.shared.generated.resources.growth_steps_total
+import eolssu.shared.generated.resources.growth_steps_value
 import eolssu.shared.generated.resources.growth_streak
 import eolssu.shared.generated.resources.growth_tile_count
 import eolssu.shared.generated.resources.growth_tile_score
@@ -276,26 +277,22 @@ internal fun MetricGrowthCard(growth: MetricGrowth, spacing: GrowthSpacing) {
     }
 }
 
-/** 완료한 미션 · 곡별 최고 점수 두 칸. 미션 수를 서버가 주지 않으면(미션 미구현) '–'다. */
+/** 완료한 단계(기초부터 배우기 9단계 중) · 곡별 최고 점수 두 칸. */
 @Composable
-internal fun GrowthLinks(stats: GrowthStats, spacing: GrowthSpacing, onOpenMissions: () -> Unit, onOpenRecords: () -> Unit) {
+internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int, spacing: GrowthSpacing, onOpenSteps: () -> Unit, onOpenRecords: () -> Unit) {
     val colors = EolssuTheme.colors
     val padding = Modifier.padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV)
     val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Surface(onClick = onOpenMissions, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
+        Surface(onClick = onOpenSteps, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
             Column(padding) {
-                Text(stringResource(Res.string.growth_missions), style = labelStyle, color = colors.textMuted)
-                val completed = stats.completedMissions
-                val total = stats.totalMissions
+                Text(stringResource(Res.string.growth_steps), style = labelStyle, color = colors.textMuted)
+                val value = stringResource(Res.string.growth_steps_value, completedSteps)
+                val total = stringResource(Res.string.growth_steps_total, LearnProgressRepository.STAGE_COUNT)
                 Text(
-                    if (completed != null && total != null) {
-                        buildAnnotatedString {
-                            append(stringResource(Res.string.growth_missions_value, completed) + " ")
-                            withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.growth_missions_total, total)) }
-                        }
-                    } else {
-                        buildAnnotatedString { append("–") }
+                    buildAnnotatedString {
+                        append("$value ")
+                        withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)) { append(total) }
                     },
                     modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),

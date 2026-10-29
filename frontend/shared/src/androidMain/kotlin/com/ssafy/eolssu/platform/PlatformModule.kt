@@ -4,11 +4,13 @@ import android.content.Context
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.platform.audio.AndroidAudioRecorder
 import com.ssafy.eolssu.platform.audio.AndroidRecordingFiles
+import com.ssafy.eolssu.platform.audio.AndroidSoundPlayer
 import com.ssafy.eolssu.platform.permission.AndroidMicPermission
 import com.ssafy.eolssu.platform.storage.AndroidKeyValueStore
 import com.ssafy.eolssu.platform.storage.AndroidSecureStore
@@ -28,7 +30,8 @@ internal fun androidPlatformModule(context: Context): Module {
         single<MicPermission> { AndroidMicPermission.of(appContext) }
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
-        // 업로드를 기다리는 녹음. 실제 업로드가 붙으면 RecordingUploads가 쓴다(S15P31E102-187).
+        // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
+        single<SoundPlayer> { AndroidSoundPlayer() }
     }
 }

@@ -27,6 +27,14 @@ class SigimsaeTest {
     }
 
     @Test
+    fun everyBasicSigimsaeHasItsOwnSoundFile() {
+        val items = BasicSigimsae.flatMap { it.items }
+        assertEquals(items.size, items.map { it.sound }.toSet().size)
+        assertTrue(items.all { it.sound.matches(Regex("[a-z]+")) })
+        assertEquals("files/sigimsae/chuseong.mp3", items.first().soundPath)
+    }
+
+    @Test
     fun graceSlidesFromTheDotDownToTheWrittenNote() {
         val (d, dots) = gracePath(listOf(1))
         assertEquals("M9 31C16 31 16 42 23 42H68", d)

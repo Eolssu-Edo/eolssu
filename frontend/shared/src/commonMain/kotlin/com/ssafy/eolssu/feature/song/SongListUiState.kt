@@ -21,6 +21,7 @@ enum class SongLevelFilter(val level: SongLevel?) {
  */
 data class SongListUiState(
     val songs: List<Song> = emptyList(),
+    val loadFailed: Boolean = false,
     val query: String = "",
     val filter: SongLevelFilter = SongLevelFilter.All,
     val selectedSongId: String? = null,

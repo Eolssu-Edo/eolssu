@@ -67,6 +67,26 @@ class RecordingUploadsTest {
     }
 
     @Test
+    fun pendingRecordingKeepsSongAndBpmForTheNextRun() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording.copy(songId = "2", bpm = 66))
+
+        val reopened = uploads().pending()
+        assertEquals("2", reopened?.songId)
+        assertEquals(66, reopened?.bpm)
+    }
+
+    @Test
+    fun recordFromBeforeSongAndBpmWereKeptIsDiscarded() = immediate {
+        store.putString("pending_recording_upload", listOf("41", "$now", "kept/practice-1.m4a").joinToString("\n"))
+        files.existing += "kept/practice-1.m4a"
+        val uploads = uploads()
+        assertNull(uploads.pending())
+        uploads.cleanUp()
+        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+    }
+
+    @Test
     fun expiredSessionDeletesRecording() = immediate {
         uploader.outcomes += UploadOutcome.Expired
         val uploads = uploads()

@@ -15,7 +15,7 @@ interface GrowthRepository {
 }
 
 /**
- * GRO-01 요약. 미션 수는 미션이 구현되기 전까지 null이다.
+ * GRO-01 요약. 응답의 미션 수는 쓰지 않는다(기록지의 '완료한 단계'는 기기의 학습 완료 기록으로 센다).
  * [bestBySong]·[metricGrowth]는 기간과 관계없이 회원의 전체 기록으로 낸다.
  */
 data class GrowthSummary(
@@ -23,8 +23,6 @@ data class GrowthSummary(
     val previous: PeriodTotals,
     val practiceDays: Int,
     val currentStreakDays: Int,
-    val completedMissionCount: Int?,
-    val totalMissionCount: Int?,
     val bestBySong: List<SongBestScore>,
     val metricGrowth: MetricGrowth?,
 )

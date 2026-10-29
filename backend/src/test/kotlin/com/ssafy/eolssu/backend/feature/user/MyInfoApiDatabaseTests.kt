@@ -63,7 +63,7 @@ class MyInfoApiDatabaseTests {
     }
 
     @Test
-    fun `my info has linked providers in link order and no email or provider ids`() {
+    fun `my info has my email and linked providers in link order without provider ids`() {
         jdbc.update("INSERT INTO user_social_accounts (user_id,provider,provider_user_id,created_at) VALUES (?,'NAVER','naver-208','2026-10-28 01:00:00')", userId)
         jdbc.update("INSERT INTO user_social_accounts (user_id,provider,provider_user_id,created_at) VALUES (?,'KAKAO','kakao-208','2026-10-27 00:00:00')", userId)
 
@@ -77,7 +77,7 @@ class MyInfoApiDatabaseTests {
         val linked = (0 until result.path("linkedProviders").size()).map { result.path("linkedProviders").path(it) }
             .map { it.path("provider").asString() to it.path("linkedAt").asString() }
         assertEquals(listOf("KAKAO" to "2026-10-27T00:00:00Z", "NAVER" to "2026-10-28T01:00:00Z"), linked)
-        assertFalse(response.body().contains("usr208.test"))
+        assertEquals("me@usr208.test", result.path("email").asString())
         assertFalse(response.body().contains("kakao-208"))
     }
 

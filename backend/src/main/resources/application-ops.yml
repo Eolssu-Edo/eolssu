@@ -35,7 +35,7 @@ management:
         readiness:
           include: readinessState,db
 
-# /api/** 문서 경로도 기존 access_token·ACTIVE 회원 검증을 받는다.
+# Swagger 문서 GET 조회는 공개하고 실제 회원 API 인증은 유지한다.
 springdoc:
   api-docs:
     enabled: true

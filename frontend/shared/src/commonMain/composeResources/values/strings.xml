@@ -35,6 +35,8 @@
     <string name="song_search_placeholder">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
     <string name="song_empty">조건에 맞는 곡이 없어요.</string>
+    <string name="song_load_failed">곡 목록을 불러오지 못했어요.</string>
+    <string name="song_load_retry">다시 시도</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>
@@ -186,12 +188,17 @@
     <string name="analysis_failed_timeout">분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_failed_server_error">분석 중 문제가 생겼어요. 다시 시도해 주세요.</string>
     <string name="analysis_retry">분석 다시 시도</string>
+    <string name="analysis_retry_busy">지금은 분석을 다시 시작하지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
     <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
     <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
     <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
+    <string name="pending_recording_title">보내지 못한 녹음이 있어요</string>
+    <string name="pending_recording_body">지난 연주 녹음이 기기에 남아 있어요. 지금 보내서 평가를 받을까요?</string>
+    <string name="pending_recording_send">녹음 보내기</string>
+    <string name="pending_recording_later">나중에</string>
     <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>
@@ -290,9 +297,9 @@
     <string name="growth_best_none">아직 없어요</string>
     <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
     <string name="growth_retry">다시 시도</string>
-    <string name="growth_missions">완료한 미션</string>
-    <string name="growth_missions_value">%1$d개</string>
-    <string name="growth_missions_total">/ %1$d</string>
+    <string name="growth_steps">완료한 단계</string>
+    <string name="growth_steps_value">%1$d개</string>
+    <string name="growth_steps_total">/ %1$d</string>
     <string name="growth_best_by_song">곡별 최고 점수</string>
 
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
@@ -358,11 +365,11 @@
     <string name="guide_reading_sigimsae">시김새</string>
     <string name="guide_reading_sigimsae_small">음을 꾸미는 표시</string>
     <string name="guide_sigimsae_basic">처음 배우는 시김새</string>
-    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 그려 보여 줘요</string>
+    <string name="guide_sigimsae_tap_basic">누르면 부는 모양을 소리와 함께 보여 줘요</string>
     <string name="guide_sigimsae_figure">%1$s 부는 모양: %2$s. 점선은 적힌 음, 굵은 선은 부는 소리예요</string>
     <string name="guide_sigimsae_legend_written">적힌 음</string>
     <string name="guide_sigimsae_legend_blown">부는 소리</string>
-    <string name="guide_sigimsae_replay">다시 보기</string>
+    <string name="guide_sigimsae_replay">다시 듣기</string>
     <string name="guide_sigimsae_more">더 많은 시김새</string>
     <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
     <string name="guide_sigimsae_tip_open">설명 펼침</string>
