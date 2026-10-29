@@ -4,7 +4,7 @@
 
 ## 결과를 읽는 기준
 
-2026-10-29, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **144개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
+2026-10-29, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **153개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
 
 - 고정 JSON과 합성 사인파를 사용한다. 음원 검사는 실제 샘플러의 렌더링 로직을 거치지만, 실제 CAT 뱅크를 읽거나 단소 음색을 평가하지 않는다.
 - `test_audio.py`의 코덱 검사 1개와 `test_pipeline.py`의 CLI 검사 1개만 실제 FFmpeg/ffprobe 인코딩·디코딩 통합 검사다. 입력 소리는 합성 신호이며, 인코더를 찾지 못하면 이 2개는 건너뛴다.
@@ -17,13 +17,13 @@
 
 | 테스트 파일 | 대응 구현·범위 | 개수 |
 | --- | --- | ---: |
-| `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 48 |
+| `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 52 |
 | `test_score.py` | `score.py`: 공통 악보 검증·음역·이벤트 생성 | 17 |
-| `test_midi.py` | `midi.py`: 제어 메시지·악기별 자동 떨림·직렬화 | 11 |
-| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·단소/소금 지속 | 15 |
+| `test_midi.py` | `midi.py`: 제어 메시지·악기별 자동 떨림·직렬화 | 12 |
+| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·악기별 지속·샘플 확장 | 18 |
 | `test_audio.py` | `audio.py`: 파일 출력·프로세스 오류·AAC 시간 정렬 | 4 |
 | `test_pipeline.py` | `__main__.py`와 모듈 연결: score→MIDI, JGB→PCM, CLI 전체 실행 | 24 |
-| `test_expressions.py` | `expressions.py`: 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 11 |
+| `test_expressions.py` | `expressions.py`: 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 12 |
 | `test_tempo_repeat.py` | `tempo_repeat.py`: 악기별 계획·빠르기 적분·반복·원문 시간 보존 | 14 |
 
 `_helpers.py`는 고정 악보·합성 샘플·MIDI 왕복 헬퍼만 제공하며 테스트를 정의하지 않는다. 테스트 파일끼리는 import하지 않는다. 자동 ±25cent 떨림의 설정값은 `expressions.py`, MIDI 제어 생성은 `midi.py`에 있다. 실제 제어 메시지 검사는 `test_midi.py`에 둔다.
@@ -35,6 +35,10 @@
 | 대응 파일·테스트 | 확인 내용 |
 | --- | --- |
 | `test_jgb.py`: `test_sanjo_verified_general_figures_and_unverified_complex_figures_are_separate` | 확인한19개 음형의 음높이·총 길이·원문 보존, 미확정 복합기호와 누락 음계 거부 |
+| `test_jgb.py`: `test_sanjo_naneuna_uses_equal_wind_figure_and_preserves_scale_and_source` | 나느나의 관악기 공통3음 균등 시가·상대음계·원문 보존 |
+| `test_jgb.py`: `test_sanjo_tonguing_is_one_main_note_attack_and_not_a_jachul_alias` | 붙임 혀치기의 본음1개·재발음·총길이 보존, 자출/단독/복합기호 오용 거부 |
+| `test_jgb.py`: `test_sanjo_semitone_mark_raises_only_written_note_and_sustain_without_scale` | 본음+1반음과 지속의 길이 보존·다음 본음 복귀·음계 추정 없음, s02/단독/중복 거부 |
+| `test_jgb.py`: `test_sanjo_kkeok_uses_written_pitch_on_marked_and_unmarked_holds` | 올림/미올림 본음의 지속 위치에서 기보음 기준 꺾기·기호 이전 PB0·길이 보존, 흘림 자동 치환 없음 |
 | `test_jgb.py`: `test_sanjo_subtype_requires_provenance_and_preserves_original` | v1/v2 일반 대금의 기종 근거 요구, 다른 악기·정악 선언 충돌 거부 |
 | `test_jgb.py`: `test_sanjo_tempo_selection_and_marked_effects_are_explicit` | 빠르기 선택 확인, 표현 수치 누락 거부, 지속 위치에 따른 농음 시작 지연 |
 | `test_expressions.py`: `test_sanjo_policy_does_not_supply_default_motion_and_rejects_other_schema` | 산조 기본 효과 없음, 명시적 시작 곡선 보존, 다른 악기 schema 거부 |
@@ -62,7 +66,7 @@
 | --- | --- |
 | `test_aac_priming_is_removed_and_only_tail_padding_remains` | **실제 AAC 통합:** 합성 신호의 인코딩/디코딩 후 시작 정렬 오차 1샘플 이내, 끝 패딩 1024샘플 미만, 컨테이너 길이 오차 2샘플 이내 |
 
-## test_expressions.py — 11개
+## test_expressions.py — 12개
 
 [코드](test_expressions.py).
 
@@ -72,6 +76,7 @@
 
 | 테스트 | 확인 내용 |
 | --- | --- |
+| `test_sanjo_kkeok_requires_points_and_converts_written_pitch_reference` | 산조의 필수 수치·기보음/MIDI음 기준 변환·지연 step과 원본 보존, 다른 악기/방향/지연 정책 거부 |
 | `test_builtin_effects_keep_delay_scope_conflicts_and_policy_isolation` | 기존 효과의 지연·음열 적용 범위·충돌 거부·정책 객체 독립성 확인 |
 | `test_ornament_pitches_and_short_timing_preserve_main_and_special_roll` | 떠이어 특례·앞뒤 꾸밈 음높이·짧은 꾸밈 본음 절반·늘임 정책 직접 검사 |
 | `test_breath_policy_and_retiming_reserve_sound_and_silence` | 긴/짧은 숨과 빠르기 변경 후 발음·무음 예산 직접 검사 |
@@ -80,7 +85,7 @@
 | `test_direction_and_repetition_match_explicit_curve_shape` | 추성·퇴성 방향과 겹흘림·겹미는 반복 곡선 검사 |
 | `test_unverified_aliases_and_incomplete_or_unknown_fields_are_rejected` | 근거 누락·알 수 없는 기호·필드·불완전 표현 설정 거부 |
 
-## test_jgb.py — 48개
+## test_jgb.py — 52개
 
 [코드](test_jgb.py).
 
@@ -134,7 +139,7 @@
 | `test_ambiguous_combinations_and_disabled_effects_fail` | 표현 충돌·쉼에 붙은 효과·잘못된 발음 비율·효과 비활성화를 거부 |
 | `test_tempo_requires_explicit_playback_selection_not_a_number_or_jangdan` | BPM·장단만으로 허용하지 않고 명시 선택 표시 또는 CLI BPM을 요구하며 선택 경로를 기록 |
 
-## test_midi.py — 11개
+## test_midi.py — 12개
 
 [코드](test_midi.py).
 
@@ -144,6 +149,7 @@
 
 | 테스트 | 확인 내용 |
 | --- | --- |
+| `test_explicit_step_at_delay_keeps_prefix_and_starts_at_quantized_tick` | 명시한 지연step 이전 PB0, 해당 MIDI tick에서+100cent, 종료 초기화 |
 | `test_wide_and_piecewise_curves_roundtrip_with_automatic_rpn_range` | 300cent와 분할 곡선을 충분한 RPN 범위로 왕복 |
 | `test_delayed_piecewise_curve_keeps_held_prefix_at_original_pitch` | 지연 곡선 이전의 지속음 높이를 보존 |
 | `test_explicit_deep_yoseong_and_combined_controls_do_not_clip` | 깊은 요성과 복합 곡선을 clipping 없이 처리하고12반음 초과 거부 |
@@ -221,7 +227,7 @@
 | --- | --- |
 | `test_default_pipeline_emits_m4a_without_intermediate_wav` | **실제 AAC 통합:** 기본 CLI가 중간 WAV 없이 AAC-LC M4A를 만들고 SHA·인코더·소스 버전을 기록하며 HTML도 생성하지 않음 |
 
-## test_sampler.py — 15개
+## test_sampler.py — 18개
 
 [코드](test_sampler.py).
 
@@ -231,6 +237,9 @@
 
 | 테스트 | 확인 내용 |
 | --- | --- |
+| `test_early_stable_passage_extends_without_changing_short_notes_or_slur_phase` | 앞부분의 안정 구간만 있는 합성 샘플의 추가 탐색·15초 발음·이음 위상·짧은 음 보존 |
+| `test_sanjo_shared_samples_extend_only_missing_keys_and_record_provenance` | 합성 ZIP의58/59 확장·원 키존 보존·59의+20cent·출처 기록·57거부 |
+| `test_sample_extension_rejects_mismatched_bank_source_hash_rate_trim_and_root` | 다른 ZIP/프리셋/출처·샘플 해시·레이트·trim·root 불일치를 거부 |
 | `test_cc11_changes_actual_pcm` | MIDI 음량 제어 CC11에 따라 생성 PCM의 크기가 감소 |
 | `test_pitch_bend_changes_actual_frequency_and_resets` | 피치벤드가 실제 합성 주파수를 바꾸고 이후 기준값으로 초기화 |
 | `test_next_note_expression_does_not_leak_backwards` | 다음 음의 음량 제어가 이전 음의 감쇠 구간에 적용되지 않음 |
@@ -254,7 +263,7 @@
 
 | 테스트 | 확인 내용 |
 | --- | --- |
-| `test_piecewise_pitch_curves_require_ordered_bounded_complete_points` | 곡선 점의 순서·끝점·값·필드 충돌과 지연 검증 |
+| `test_piecewise_pitch_curves_require_ordered_bounded_complete_points` | 곡선 점의 순서·끝점·값·필드 충돌과 지연, step_at_delay의 bool·points·양수 지연 검증 |
 | `test_explicit_wide_yoseong_and_curve_survive_compilation` | 명시한 넓은 음높이 요성과 곡선을 이벤트에 보존 |
 | `test_tempo_checks_encoded_midi_limit_instead_of_musical_band` | 실제24bit MIDI Set Tempo 표현 범위 검사 |
 | `test_duration_resource_limit_is_explicit_and_configurable` | 기본600초 초과 거부와 명시한1200초 자원 한도 허용 |

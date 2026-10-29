@@ -83,7 +83,7 @@ class JgbRenderIntegrationTests(unittest.TestCase):
             mapping = json.loads((root / "out/source-map.json").read_text(encoding="utf-8"))
             self.assertEqual([e["pitch"] for e in report["events"]], [63, 65, 70, 68, 70])
             self.assertEqual(mapping["expression_policy"]["name"], "sanjo-authored-fixture-v1")
-            self.assertEqual(mapping["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v1")
+            self.assertEqual(mapping["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v2")
             self.assertEqual(len(list((root / "out").iterdir())), 7)
             self.assertTrue(any("WAV 67개" in message for message in report["warnings"]))
 

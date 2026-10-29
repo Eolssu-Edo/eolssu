@@ -72,11 +72,21 @@ class ScoreTests(unittest.TestCase):
             {"points": [[0, 0], [1, -1201]]}, {"points": [[0, 0], [1, float("nan")]]},
             {"points": [[0, 0], [1, -100]], "end_cents": -100},
             {"points": [[0, 100], [1, 0]], "delay_seconds": .1},
+            {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": False},
+            {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": 1},
+            {"points": [[0, 100], [1, 0]], "step_at_delay": True},
+            {"end_cents": -100, "tail_fraction": .2, "maximum_seconds": .1,
+             "delay_seconds": .1, "step_at_delay": True},
+            {"end_cents": -100, "tail_fraction": .2, "maximum_seconds": .1,
+             "delay_seconds": .1, "step_at_delay": False},
             {"points": [[0, 0], [1, -100]], "delay_seconds": 1},
         ]
         for curve in curves:
             with self.subTest(curve=curve), self.assertRaises(ValueError):
                 compile_score(score([{"id": "a", "pitch": 75, "duration": 1, "pitch_curve": curve}]), "danso")
+        curve = {"points": [[0, 100], [1, 0]], "delay_seconds": .1, "step_at_delay": True}
+        event = compile_score(score([{"id": "a", "pitch": 75, "duration": 1, "pitch_curve": curve}]), "sanjo-daegeum")["events"][0]
+        self.assertTrue(event["pitch_curve"]["step_at_delay"])
 
     def test_explicit_wide_yoseong_and_curve_survive_compilation(self):
         value = score([{"id": "a", "pitch": 75, "duration": 2,

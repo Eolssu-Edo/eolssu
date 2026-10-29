@@ -4,10 +4,99 @@ from fractions import Fraction
 import unittest
 
 from data.src.playback.score import PPQN, compile_score
-from data.src.playback.tests._helpers import converted, document, midi
+from data.src.playback.tests._helpers import converted, document, midi, wire
 
 
 class JgbTests(unittest.TestCase):
+    def test_sanjo_kkeok_uses_written_pitch_on_marked_and_unmarked_holds(self):
+        for mark, pitch, points, stepped in (("{반음올림표}", 73, [0, -100, -100], False),
+                                            ("", 72, [100, 0, 0], True)):
+            source = document(f"남{mark} | -{{꺾는음}}", joPreset="all")
+            source["parts"][0]["instrument"] = "sanjo-daegeum"
+            source["playback"] = {"expression_policy": {
+                "name": "fixed-test", "basis": "기보음 기준의 검사용 꺾기", "status": "audition-policy-not-performance-standard",
+                "kkeok": {"reference": "written-pitch", "points": [[0, 100], [.15, 0], [1, 0]]}}}
+            before = deepcopy(source)
+            value, mapping = converted(source, instrument="sanjo-daegeum")
+            self.assertEqual(source, before)
+            self.assertEqual(len(value["notes"]), 1)
+            note = value["notes"][0]
+            self.assertEqual((note["pitch"], Fraction(note["duration"])), (pitch, 3))
+            self.assertEqual([y for _, y in note["pitch_curve"]["points"]], points)
+            self.assertEqual(note["pitch_curve"].get("step_at_delay", False), stepped)
+            self.assertEqual(note["pitch_curve"]["delay_seconds"], 1)
+            self.assertEqual(mapping["notes"][note["id"]][0].get("written_pitch_shift_semitones", 0), bool(mark))
+            _, playback = wire(value, "sanjo-daegeum")
+            self.assertTrue(all(cents == 0 for t, cents in playback["bends"] if t < 1 - 1e-8))
+            at = min(playback["bends"], key=lambda pair: abs(pair[0] - 1))
+            self.assertAlmostEqual(at[1], points[0], delta=.05)
+            source["parts"][0]["melody"] = "남{흘림표} | -"
+            with self.assertRaisesRegex(ValueError, "fall"):
+                converted(source, instrument="sanjo-daegeum")
+
+    def test_sanjo_semitone_mark_raises_only_written_note_and_sustain_without_scale(self):
+        source = document("청황{반음올림표} | - | 청황", joPreset="all", beats="3")
+        source["parts"][0]["instrument"] = "sanjo-daegeum"
+        before = deepcopy(source)
+        value, mapping = converted(source, instrument="sanjo-daegeum")
+        self.assertEqual(source, before)
+        self.assertEqual([n["pitch"] for n in value["notes"]], [76, 75])
+        self.assertEqual([Fraction(n["duration"]) for n in value["notes"]], [Fraction(3), Fraction(3, 2)])
+        self.assertEqual(len(mapping["notes"][value["notes"][0]["id"]]), 2)
+        self.assertEqual(mapping["symbol_policy"]["semitone_up"]["semitones"], 1)
+        _, playback = wire(value, "sanjo-daegeum")
+        self.assertEqual([n["pitch"] for n in playback["notes"]], [76, 75])
+        for melody in ("청황{s02} | - | 청황", "청황 | {반음올림표} | 청황",
+                       "청황{반음올림표}{반음올림표} | - | 청황"):
+            source["parts"][0]["melody"] = melody
+            with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, "반음올림표|미지원"):
+                converted(source, instrument="sanjo-daegeum")
+        compound = document("남{니레}{반음올림표} | 남", joPreset="all")
+        compound["parts"][0]["instrument"] = "sanjo-daegeum"
+        compound["playback"] = {"relative_scale": {"pitch_classes": [2, 7, 9, 10], "basis": "진도 검사용 명시 음급"}}
+        value, _ = converted(compound, instrument="sanjo-daegeum")
+        self.assertEqual([n["pitch"] for n in value["notes"]], [77, 73, 72])
+        self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"]), 3)
+        compound["parts"][0]["melody"] = "남{반음올림표}{나느나} | 남"
+        with self.assertRaisesRegex(ValueError, "미확정"):
+            converted(compound, instrument="sanjo-daegeum")
+
+
+    def test_sanjo_tonguing_is_one_main_note_attack_and_not_a_jachul_alias(self):
+        source = document("청황 | 청황{혀치기}", joPreset="all")
+        source["parts"][0]["instrument"] = "sanjo-daegeum"
+        before = deepcopy(source)
+        value, mapping = converted(source, instrument="sanjo-daegeum")
+        _, playback = wire(value, "sanjo-daegeum")
+        self.assertEqual(source, before)
+        self.assertEqual([n["pitch"] for n in value["notes"]], [75, 75])
+        self.assertEqual([Fraction(n["duration"]) for n in value["notes"]], [Fraction(3, 2)] * 2)
+        self.assertEqual(len(playback["notes"]), 2)
+        self.assertFalse(playback["notes"][1]["legato"])
+        self.assertIn("sample-attack-approximation", mapping["symbol_policy"]["tongue_reattack"]["status"])
+        for melody in ("청황 | {혀치기}", "청황 | -{혀치기}", "청황{혀치기}{혀치기} | 청태",
+                       "청황{혀치기}{나느나} | 청태", "청황{자출} | 청태"):
+            source["controls"]["joPreset"] = "jung-pyeong"
+            source["parts"][0]["melody"] = melody
+            with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, "혀치기|미지원"):
+                converted(source, instrument="sanjo-daegeum")
+
+    def test_sanjo_naneuna_uses_equal_wind_figure_and_preserves_scale_and_source(self):
+        for mark in ("나느나", "naneuna"):
+            source = document(f"청황{{{mark}}} | 청태")
+            source["parts"][0]["instrument"] = "sanjo-daegeum"
+            before = deepcopy(source)
+            value, mapping = converted(source, instrument="sanjo-daegeum")
+            self.assertEqual(source, before)
+            self.assertEqual([n["pitch"] for n in value["notes"]], [75, 73, 75, 77])
+            self.assertEqual([Fraction(n["duration"]) for n in value["notes"][:3]], [Fraction(1, 2)] * 3)
+            self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"]), 3)
+            self.assertTrue(all(n["id"] in mapping["notes"] for n in value["notes"]))
+            self.assertIn("관악기 공통", mapping["symbol_policy"]["naneuna"]["source"])
+            source["controls"]["joPreset"] = "all"
+            with self.assertRaisesRegex(ValueError, "명시한 조"):
+                converted(source, instrument="sanjo-daegeum")
+
     def test_jeongak_type_requires_evidence_and_rejects_other_instruments(self):
         for version in (1, 2):
             source = document("황 | 태", version=version)
@@ -89,7 +178,7 @@ class JgbTests(unittest.TestCase):
             value, mapping = converted(source, instrument="sanjo-daegeum")
             self.assertEqual([n["pitch"] for n in value["notes"]][1:], expected, text)
             self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"]), 3, text)
-            self.assertEqual(mapping["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v1")
+            self.assertEqual(mapping["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v2")
             self.assertEqual(source, before)
         for mark in ("같은음표", "repeat"):
             source = document(f"청황 | {{{mark}}}")

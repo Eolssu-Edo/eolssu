@@ -15,6 +15,30 @@ def profile(kind, **policy):
 
 
 class ExpressionTests(unittest.TestCase):
+    def test_sanjo_kkeok_requires_points_and_converts_written_pitch_reference(self):
+        source = {"playback": {"expression_policy": {
+            "name": "fixed-test", "basis": "검사용 명시 기준음", "status": "audition-policy-not-performance-standard",
+            "kkeok": {"reference": "written-pitch", "points": [[0, 100], [.15, 0], [1, 0]]}}}}
+        before = deepcopy(source)
+        chosen = expression_policy(source, "sanjo-daegeum")
+        for shift, expected in ((0, [100, 0, 0]), (1, [0, -100, -100])):
+            note = {}
+            apply_effects(note, {"kkeok": True}, "검사", delay=1, policy=chosen, written_pitch_shift=shift)
+            self.assertEqual([v for _, v in note["pitch_curve"]["points"]], expected)
+            self.assertEqual(note["pitch_curve"]["delay_seconds"], 1)
+            self.assertEqual(note["pitch_curve"].get("step_at_delay", False), shift == 0)
+            self.assertNotIn("reference", note["pitch_curve"])
+        self.assertEqual(source, before)
+        with self.assertRaisesRegex(ValueError, "산조대금"):
+            expression_policy(source, "danso")
+        for invalid in ({"end_cents": -100, "tail_fraction": .1, "maximum_seconds": .1},
+                        {"points": [[0, 0], [1, 100]]},
+                        {"points": [[0, 0], [1, -100]], "delay_seconds": .2},
+                        {"reference": "unknown", "points": [[0, 0], [1, -100]]}):
+            source["playback"]["expression_policy"]["kkeok"] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                expression_policy(source, "sanjo-daegeum")
+
     def test_jeongak_effects_require_authored_policy_and_keep_instrument_schema(self):
         empty = expression_policy({}, "jeongak-daegeum")
         self.assertEqual(empty["name"], "jeongak-daegeum-explicit-effects-v1")

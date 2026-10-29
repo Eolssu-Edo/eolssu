@@ -12,6 +12,18 @@ from data.src.playback.tests._helpers import score, wire
 
 
 class MidiTests(unittest.TestCase):
+    def test_explicit_step_at_delay_keeps_prefix_and_starts_at_quantized_tick(self):
+        source = score([{"id": "a", "pitch": 72, "duration": 2,
+                         "pitch_curve": {"points": [[0, 100], [.15, 0], [1, 0]],
+                                         "delay_seconds": .33333, "step_at_delay": True}}])
+        _, result = wire(source, "sanjo-daegeum")
+        boundary = 1 / 3
+        self.assertTrue(all(v == 0 for t, v in result["bends"] if t < boundary - 1e-8))
+        time, cents = min(result["bends"], key=lambda pair: abs(pair[0] - boundary))
+        self.assertAlmostEqual(time, boundary, places=8)
+        self.assertAlmostEqual(cents, 100, delta=.05)
+        self.assertEqual(result["bends"][-1][1], 0)
+
     def test_jeongak_has_no_automatic_motion_and_authored_unwind_reaches_midi(self):
         value = score([{"id": "a", "pitch": 75, "duration": 2}])
         _, plain = wire(value, "jeongak-daegeum")
