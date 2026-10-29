@@ -75,6 +75,16 @@ class PrepareFrontendWorkspaceTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.source.read_text(), 'keep existing change')
 
+    def test_unborn_repository_requests_bootstrap_without_mutating_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(['git', 'init', '-q', str(root)], check=True)
+            sentinel = root / 'partial-fetch.txt'
+            sentinel.write_text('incomplete checkout')
+            result = self.prepare(root)
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertEqual(sentinel.read_text(), 'incomplete checkout')
+
     def test_refuses_non_repository_without_deleting_files(self):
         with tempfile.TemporaryDirectory() as directory:
             sentinel = Path(directory) / 'keep.txt'

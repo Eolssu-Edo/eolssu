@@ -42,3 +42,9 @@
 ## 검증
 
 실제 Git fixture 4개(캐시 bytes 보존, dirty/untracked 소스 정리, 변경·삭제된 소스 checkout, 비루트/비저장소 거부). 기존 전체 Jenkins 도구 회귀 33/33, bash 문법, 실제 컨트롤러의 운영/측정 Pipeline declarative linter 통과. 구 정리 방식은 의도한 3개 fixture에서 실패했다. 동일 소스 재빌드·테스트 결과·최종 파일 일치를 실제 실행으로 확인했다. 운영 서비스 배포는 이번 비교에서 실행하지 않았다.
+
+## 리뷰 후 bootstrap 복구 (2026-10-29)
+
+HEAD 없는 부분 clone을 정상 저장소로 취급하던 P1을 수정했다. helper는 저장소 루트 검사 뒤 유효한 HEAD 커밋이 없으면 전용 종료 코드 2를 반환하고, Pipeline은 이 경우에만 deleteDir로 초기화한다. 다른 오류는 중단하며 정상 캐시 보존 경로는 그대로다. 실제 Git 회귀 5개와 전체 34개 테스트, 독립 재리뷰, Jenkins linter 및 전용 복구 잡 #2가 통과했다.
+
+현재 운영 Pipeline/잡 정의 해시는 `3c37c78c2d9644f05bdc3c1ad98ea90cb915d8a24b4a977155742b01a951713c`, helper는 `d8043ca1e696abc269bfa8105416904879fb81c8cf3aba2b11b7974aa162f3c6`이다. 후속 백업·readback은 `/opt/backups/eolssu-cache292-bootstrap-20261029T094333Z/`에 있다. 위의 최초 적용 해시와 측정 결과는 당시 이력으로 유지한다.

@@ -14,5 +14,11 @@ if [[ "$workspace" != "$repository" ]]; then
     exit 1
 fi
 
+# Exit 2 asks the Pipeline to bootstrap a clone that never checked out a commit.
+if ! git rev-parse --verify 'HEAD^{commit}' >/dev/null 2>&1; then
+    echo 'No valid HEAD commit; workspace bootstrap required' >&2
+    exit 2
+fi
+
 git reset --hard HEAD
 git clean -fd
