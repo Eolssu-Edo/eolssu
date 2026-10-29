@@ -1,0 +1,32 @@
+{
+  "v": 2,
+  "controls": {
+    "title": "정악대금 파이프라인 검사 — 직접 작성한 4정간",
+    "subtitle": "실제 정악곡이나 모범 연주가 아닌 변환 검사용 입력",
+    "beats": 4,
+    "gakBeats": "",
+    "tempoBpm": 60,
+    "staffUnit": "plain",
+    "hwangPitch": 63,
+    "joPreset": "all",
+    "playJanggu": false,
+    "playSigimsae": true
+  },
+  "tempoBpmUserSet": true,
+  "parts": [
+    {"id": "jeongak-fixture", "name": "정악대금", "instrument": "jeongak-daegeum",
+     "melody": "황{농음표} | 태{흘림표} | 중< | {쉼표}"}
+  ],
+  "playback": {
+    "instrument": "jeongak-daegeum",
+    "instrument_basis": "검사용으로 직접 작성한 정악대금 성부. 기존 곡의 기종을 추정한 결과가 아님.",
+    "tempo": {"jeonggan_bpm": 60, "beat_unit": "jeonggan", "evidence_type": "authored-test", "basis": "4정간 시간 보존을 검사하기 위한 설정"},
+    "expression_policy": {
+      "name": "jeongak-authored-regression-v1",
+      "status": "audition-policy-not-performance-standard",
+      "basis": "농음·흘림 MIDI 경로의 검사용 수치. 특정 정악곡의 연주 표준으로 사용하지 않음.",
+      "vibrato": {"mode": "pitch", "hz": 3, "cents": 40, "depth": 0, "delay_seconds": 0.1},
+      "fall": {"end_cents": -75, "tail_fraction": 0.4, "maximum_seconds": 0.15}
+    }
+  }
+}

@@ -53,7 +53,8 @@ def declared_instrument(document, voice, instrument, assume_danso):
     if declared == instrument:
         basis = metadata.get("instrument_basis")
         return "jgb", basis.strip() if isinstance(basis, str) and basis.strip() else f"JGB part instrument: {declared}"
-    require(declared in (None, "all"), "선택한 성부의 악기와 요청한 악기가 다릅니다")
+    generic_daegeum = declared == "daegeum" and instrument in ("jeongak-daegeum", "sanjo-daegeum")
+    require(declared in (None, "all") or generic_daegeum, "선택한 성부의 악기와 요청한 악기가 다릅니다")
     basis = metadata.get("instrument_basis")
     require(override == instrument and isinstance(basis, str) and basis.strip(),
             "악기 미지정입니다. 판본 근거와 playback.instrument·instrument_basis가 필요합니다")
@@ -132,6 +133,18 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
                 kind, steps = symbols[name]
                 if kind == "independent":
                     groups.append({"kind": "relative", "sequence": steps, "symbols": [name]})
+                elif kind == "articulation":
+                    require(groups and groups[-1]["kind"] == "note",
+                            f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
+                    require(not groups[-1].get("reattack"), f"{label}: 겹친 혀치기")
+                    groups[-1]["reattack"] = True
+                    groups[-1]["symbols"].append(name)
+                elif kind == "alteration":
+                    require(groups and groups[-1]["kind"] == "note",
+                            f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
+                    require("semitone_offset" not in groups[-1], f"{label}: 겹친 반음올림표")
+                    groups[-1]["semitone_offset"] = steps[0]
+                    groups[-1]["symbols"].append(name)
                 else:
                     require(groups and groups[-1]["kind"] == "note",
                             f"{label}: {{{name}}}는 본음 뒤에 붙여야 합니다")
@@ -295,6 +308,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                            "start_quarters": str(cursor), "duration_quarters": str(duration),
                            "written_start_quarters": str(written_cursor),
                            "written_duration_quarters": str(written_duration)}
+                    if group.get("semitone_offset"):
+                        loc["written_pitch_shift_semitones"] = group["semitone_offset"]
                     written_cursor += written_duration
                     cursor += duration
                     effects = expressions.has_effects(group)
@@ -307,7 +322,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         expressions.validate_sustain_effects(target, group, label)
                         target["duration"] = str(Fraction(target["duration"]) + duration)
                         delay = float(Fraction(loc["start_quarters"]) - sustain_start) * 60 / quarter_bpm
-                        expressions.apply_effects(target, group, label, delay, profile, policy)
+                        expressions.apply_effects(target, group, label, delay, profile, policy,
+                                                  locations[target["id"]][0].get("written_pitch_shift_semitones", 0))
                         locations[target["id"]].append(loc)
                     elif kind in ("rest", "hold"):
                         require(not expressions.has_effects(group, include_fermata=False),
@@ -320,7 +336,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                             require(previous_pitch is not None, f"{label}: 상대음의 앞 기준음이 없습니다")
                             reference = previous_pitch
                         else:
-                            reference = hwang + group["offset"]
+                            reference = hwang + group["offset"] + group.get("semitone_offset", 0)
                         sequence, grace, post = expressions.resolve_ornament_pitches(
                             group, reference, hwang, scale, label)
                         grace_count = len(grace) + len(post)
@@ -337,7 +353,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         for k, pitch in enumerate(sequence, 1):
                             append(nid if not slur else f"{nid}.main{k}", body / len(sequence), loc, pitch, slur=slur)
                             body_effects = expressions.main_note_effects(group, k, len(sequence))
-                            expressions.apply_effects(notes[-1], body_effects, label, profile=profile, policy=policy)
+                            expressions.apply_effects(notes[-1], body_effects, label, profile=profile, policy=policy,
+                                                      written_pitch_shift=group.get("semitone_offset", 0))
                         sustain_index = len(notes) - 1
                         sustain_start = cursor - duration + len(grace) * grace_quarters + body * (len(sequence) - 1) / len(sequence)
                         for k, pitch in enumerate(post, 1):
@@ -392,7 +409,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
         source_map.update(instrument=instrument, instrument_basis=instrument_basis, relative_scale=custom_scale)
         assumptions[3:5] = ["악보에 없는 추가 떨림을 자동 적용하지 않음. 미지원 표현은 생략하지 않고 실패.",
                             "농음·흘림·미는·풀어내림은 playback.expression_policy에 수치·근거를 지정한 경우만 적용."]
-        assumptions[6] = "소금 교재의 네로나·니르나니 음열을 별도로 적용. 느니르나니 끝음은 교재 예시의 두 음 위 선택값이며 한 음 위 대안도 있음."
+        assumptions[6] = ("소금 교재의 네로나·니르나니 음열을 별도로 적용. 느니르나니 끝음은 교재 예시의 두 음 위 선택값이며 한 음 위 대안도 있음."
+                          if instrument == "sogeum" else
+                          f"{instrument}: source-map.symbol_policy의 악기별 기호 근거를 적용. 미확정 기호는 거부.")
     elif custom_scale is not None:
         source_map["relative_scale"] = custom_scale
     if performance_plan is not None:
