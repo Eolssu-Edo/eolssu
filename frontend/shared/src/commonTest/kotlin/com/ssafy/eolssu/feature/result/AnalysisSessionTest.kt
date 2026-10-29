@@ -2,8 +2,14 @@ package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.FakeRecordingFiles
+import com.ssafy.eolssu.data.practice.FakeUploader
+import com.ssafy.eolssu.data.practice.PendingRecording
+import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.UploadOutcome
 import com.ssafy.eolssu.data.song.SampleSongs
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CancellationException
@@ -149,6 +155,69 @@ class AnalysisSessionTest {
         start()
         assertEquals(AnalysisFailure.ServerError, state.failure)
         assertEquals(false, state.retrying)
+    }
+
+    private val uploader = FakeUploader()
+    private val uploadSession = AnalysisSession(
+        scope, repository, clock = { time.now }, sleep = time::sleep,
+        uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }),
+    )
+    private val uploadState get() = uploadSession.state.value
+
+    private fun startWithRecording() {
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        scope.launch { uploadSession.start(SampleSongs.first(), bpm = 60, recording = recording) }
+    }
+
+    @Test
+    fun failedUploadOffersResendAndAnalyzesAfterSending() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        assertEquals(UploadProblem.CanResend, uploadState.upload)
+        assertEquals(0, repository.queries)
+
+        uploadSession.resend()
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(1, repository.queries)
+        assertEquals(2, uploader.calls.size)
+    }
+
+    @Test
+    fun resendThatFailsAgainStillOffersResend() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        uploadSession.resend()
+        assertEquals(UploadProblem.CanResend, uploadState.upload)
+        assertEquals(false, uploadState.resending)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun expiredUploadShowsUploadTimeout() {
+        uploader.outcomes += UploadOutcome.Expired
+        startWithRecording()
+        assertNull(uploadState.upload)
+        assertEquals(AnalysisFailure.UploadTimeout, uploadState.failure)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun rejectedUploadOnlyOffersPlayingAgain() {
+        uploader.outcomes += UploadOutcome.Rejected
+        startWithRecording()
+        assertEquals(UploadProblem.Rejected, uploadState.upload)
+        uploadSession.resend()
+        assertEquals(1, uploader.calls.size)
+        assertEquals(0, repository.queries)
+    }
+
+    @Test
+    fun sentRecordingGoesStraightToAnalysis() {
+        startWithRecording()
+        assertNull(uploadState.upload)
+        assertEquals(1, repository.queries)
     }
 }
 
