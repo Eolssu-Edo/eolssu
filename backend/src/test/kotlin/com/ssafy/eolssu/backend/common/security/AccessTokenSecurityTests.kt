@@ -185,6 +185,38 @@ class PrincipalFixture {
     fun principal(@AuthenticationPrincipal jwt: Jwt) = mapOf("userId" to requireNotNull(jwt.subject).toLong())
 }
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = [
+    "eolssu.security.jwt-secret=$TEST_SECRET",
+    "springdoc.api-docs.enabled=true",
+    "springdoc.swagger-ui.enabled=true",
+])
+class PublicDocumentationTests {
+    @LocalServerPort var port: Int = 0
+
+    @Test fun `documentation is public even with malformed or expired cookies`() {
+        HttpClient.newHttpClient().use { client ->
+            val paths = listOf("/api/v3/api-docs", "/api/v3/api-docs/swagger-config",
+                "/api/swagger-ui/index.html", "/api/swagger-ui/swagger-ui.css",
+                "/api/swagger-ui/swagger-ui-bundle.js", "/api/swagger-ui/swagger-initializer.js")
+            for (cookie in listOf(null, "broken.jwt", token(expires = Instant.now().minusSeconds(300)))) {
+                fun send(path: String, method: String = "GET"): HttpResponse<String> {
+                    val request = HttpRequest.newBuilder(URI("http://localhost:$port$path"))
+                    if (cookie != null) request.header("Cookie", "access_token=$cookie")
+                    return client.send(request.method(method, HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString())
+                }
+                for (path in paths) assertEquals(200, send(path).statusCode(), "$path cookie=$cookie")
+                assertTrue(send("/api/swagger-ui.html").statusCode() in setOf(301, 302, 307, 308))
+                for (path in listOf("/api/users/me", "/api/v3/api-docs-private", "/api/swagger-ui-private")) {
+                    val response = send(path)
+                    assertEquals(401, response.statusCode(), path)
+                    assertTrue(response.body().contains("UNAUTHENTICATED"), path)
+                }
+                assertEquals(401, send("/api/v3/api-docs", "POST").statusCode())
+            }
+        }
+    }
+}
+
 private fun token(
     secret: String = TEST_SECRET,
     subject: String = "1",

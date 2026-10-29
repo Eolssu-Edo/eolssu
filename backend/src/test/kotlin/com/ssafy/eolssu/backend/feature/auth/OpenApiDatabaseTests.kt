@@ -114,25 +114,27 @@ open class OpenApiDatabaseTests {
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())
     }
-    @Test fun `documentation and all UI assets require the existing access cookie`() {
-        for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui.html","/api/swagger-ui/index.html")) {
-            assertEquals(401,get(path,false).statusCode(),path)
+    @Test fun `documentation is public while member APIs still require an active member`() {
+        for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui/index.html")) {
+            assertEquals(200,get(path,false).statusCode(),path)
         }
-        val entry=get("/api/swagger-ui.html")
+        val entry=get("/api/swagger-ui.html",false)
         assertTrue(entry.statusCode() in setOf(301,302,307,308),entry.body())
         val location=entry.headers().firstValue("Location").orElseThrow()
         assertTrue(URI(location).path.startsWith("/api/swagger-ui/"),location)
-        val html=get(URI(location).rawPath)
+        val html=get(URI(location).rawPath,false)
         assertEquals(200,html.statusCode(),html.body())
         assertTrue(html.body().contains("swagger-ui"))
         for (asset in listOf("swagger-ui.css","swagger-ui-bundle.js","swagger-initializer.js")) {
-            assertEquals(401,get("/api/swagger-ui/$asset",false).statusCode(),asset)
+            assertEquals(200,get("/api/swagger-ui/$asset",false).statusCode(),asset)
             assertEquals(200,get("/api/swagger-ui/$asset").statusCode(),asset)
         }
         jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at='2026-10-28',purge_scheduled_at='2026-11-27' WHERE id=990253")
-        assertEquals(401,get("/api/v3/api-docs").statusCode())
+        assertEquals(200,get("/api/v3/api-docs").statusCode())
+        assertEquals(401,get("/api/users/me").statusCode())
+        assertEquals(401,get("/api/users/me",false).statusCode())
         jdbc.update("UPDATE users SET status='ACTIVE',withdrawal_requested_at=NULL,purge_scheduled_at=NULL WHERE id=990253")
-        val config=get("/api/v3/api-docs/swagger-config")
+        val config=get("/api/v3/api-docs/swagger-config",false)
         assertEquals(200,config.statusCode(),config.body())
         val uiConfig=json.readTree(config.body())
         assertEquals("/api/v3/api-docs",uiConfig.path("url").asString())
@@ -159,6 +161,6 @@ open class OpenApiDatabaseTests {
     }
 }
 
-/** 배포 프로필에서도 문서와 모든 UI 리소스가 같은 기존 인증을 받는지 검증한다. */
+/** 배포 프로필에서도 문서는 공개되고 회원 API는 보호되는지 검증한다. */
 @ActiveProfiles("ops", inheritProfiles = false)
 class OpenApiOpsDatabaseTests : OpenApiDatabaseTests()
