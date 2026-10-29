@@ -11,6 +11,7 @@ import com.ssafy.eolssu.data.practice.FakeUploader
 import com.ssafy.eolssu.data.practice.PendingRecording
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.RetryOutcome
 import com.ssafy.eolssu.data.practice.SessionStart
 import com.ssafy.eolssu.data.practice.UploadOutcome
 import com.ssafy.eolssu.data.song.SampleSongs
@@ -117,6 +118,66 @@ class AnalysisSessionTest {
         assertEquals(before + 1, repository.queries)
         time.advanceBy(2_000)
         assertEquals(before + 2, repository.queries)
+    }
+
+    /** 시간 초과로 멈춘 분석에서 다시 시도한다. */
+    private fun retryAfterTimeout(outcome: () -> RetryOutcome) {
+        repository.status = { error("network") }
+        start()
+        time.advanceBy(70_000)
+        repository.retryOutcome = outcome
+    }
+
+    @Test
+    fun retryConflictAsksStatusAgainAndShowsThatState() {
+        retryAfterTimeout { RetryOutcome.Conflict }
+        repository.status = { AnalysisStatus.Failed(AnalysisFailure.NoSound) }
+        session.retry()
+        assertEquals(AnalysisFailure.NoSound, state.failure)
+        assertEquals(false, state.retrying)
+
+        retryAfterTimeout { RetryOutcome.Conflict }
+        repository.status = { AnalysisStatus.Done("41") }
+        session.retry()
+        assertEquals("41", state.evaluationId)
+    }
+
+    @Test
+    fun busyServerKeepsRetryButtonWithWaitNotice() {
+        retryAfterTimeout { RetryOutcome.Busy }
+        val before = repository.queries
+        session.retry()
+        assertEquals(AnalysisFailure.Timeout, state.failure)
+        assertEquals(true, state.retryBusy)
+        assertEquals(false, state.retrying)
+        assertEquals(true, state.canRetry())
+        time.advanceBy(10_000)
+        assertEquals(before, repository.queries)
+
+        repository.retryOutcome = { RetryOutcome.Started }
+        repository.status = { AnalysisStatus.Pending }
+        session.retry()
+        assertEquals(false, state.retryBusy)
+        assertNull(state.failure)
+    }
+
+    @Test
+    fun missingSessionOrLostLoginLeavesTheScreen() {
+        retryAfterTimeout { RetryOutcome.NotFound }
+        session.retry()
+        assertEquals(AnalysisExit.SessionGone, state.exit)
+
+        retryAfterTimeout { RetryOutcome.Unauthorized }
+        session.retry()
+        assertEquals(AnalysisExit.NeedsLogin, state.exit)
+    }
+
+    @Test
+    fun retryWithoutResponseStaysRetryableServerError() {
+        retryAfterTimeout { error("network") }
+        session.retry()
+        assertEquals(AnalysisFailure.ServerError, state.failure)
+        assertEquals(true, state.canRetry())
     }
 
     @Test
@@ -398,8 +459,11 @@ private class FakeEvaluations : EvaluationRepository {
         return status()
     }
 
-    override suspend fun retryAnalysis(analysisId: String) {
+    var retryOutcome: () -> RetryOutcome = { RetryOutcome.Started }
+
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         retries++
+        return retryOutcome()
     }
 
     override suspend fun result(evaluationId: String): EvaluationResult? = null

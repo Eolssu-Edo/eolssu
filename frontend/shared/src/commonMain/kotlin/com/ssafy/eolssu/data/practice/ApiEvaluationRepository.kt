@@ -13,20 +13,24 @@ import com.ssafy.eolssu.core.network.sendOrNull
 import com.ssafy.eolssu.data.song.SongRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
 import io.ktor.http.HttpStatusCode
 import kotlin.math.roundToInt
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 import kotlinx.serialization.Serializable
 
 /**
  * 서버의 분석 상태(PRA-03 `GET /api/practice-sessions/{sessionId}`)와 평가 결과(`GET .../{sessionId}/evaluation`).
- * 서버 분석은 연습 세션 ID로 묻는다. 그래서 분석 ID와 결과를 찾는 키가 모두 세션 ID이고, 서버 ID는 숫자 문자열이다.
+ * 분석 다시 시도는 `POST .../{sessionId}/retry`다. 서버 분석은 연습 세션 ID로 묻는다. 그래서 분석 ID와 결과를 찾는 키가 모두 세션 ID이고, 서버 ID는 숫자 문자열이다.
  * 숫자가 아닌 ID는 녹음 없이 진행하는 플랫폼(현재 iOS·Web)의 예시 분석이라 [fallback]이 맡는다.
  */
 class ApiEvaluationRepository(
     private val client: HttpClient,
     private val songs: SongRepository,
     private val fallback: EvaluationRepository,
+    private val newKey: () -> String = { Uuid.random().toString() },
 ) : EvaluationRepository {
     private val results = mutableMapOf<String, EvaluationResult>()
 
@@ -47,9 +51,23 @@ class ApiEvaluationRepository(
         }
     }
 
-    override suspend fun retryAnalysis(analysisId: String) {
+    /**
+     * 다시 시도. 본문은 없고 `Idempotency-Key`는 필수다. 서버는 키를 저장하지 않고(이미 `PENDING`이면 같은 202) 버튼을 누를 때마다 새 키를 쓴다.
+     * 응답을 받지 못하면 예외를 던진다.
+     */
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         if (!analysisId.isServerId()) return fallback.retryAnalysis(analysisId)
-        error("분석 다시 시도 API는 아직 연결하지 않았다")
+        val response = client.sendOrNull {
+            post("/api/practice-sessions/$analysisId/retry") { header(IDEMPOTENCY_KEY, newKey()) }
+        } ?: error("다시 시도 응답 없음")
+        return when (response.status) {
+            HttpStatusCode.Accepted -> RetryOutcome.Started
+            HttpStatusCode.Conflict -> RetryOutcome.Conflict
+            HttpStatusCode.NotFound -> RetryOutcome.NotFound
+            HttpStatusCode.Unauthorized -> RetryOutcome.Unauthorized
+            HttpStatusCode.ServiceUnavailable -> RetryOutcome.Busy
+            else -> error("다시 시도 응답: ${response.status}")
+        }
     }
 
     /** 결과. 서버 결과는 한 번 받아 두고, 받지 못하면 null이다. */
@@ -99,6 +117,10 @@ class ApiEvaluationRepository(
             }
             pitches.getOrNull(note.noteIdx)?.let { ScoreError(column = it.column, row = it.row, metric = metric) }
         }.distinct()
+    }
+
+    private companion object {
+        const val IDEMPOTENCY_KEY = "Idempotency-Key"
     }
 
     @Serializable

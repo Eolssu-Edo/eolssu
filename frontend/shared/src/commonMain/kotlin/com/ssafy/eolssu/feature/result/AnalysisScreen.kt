@@ -50,6 +50,7 @@ import eolssu.shared.generated.resources.analysis_failed_title
 import eolssu.shared.generated.resources.analysis_play_again
 import eolssu.shared.generated.resources.analysis_resend
 import eolssu.shared.generated.resources.analysis_retry
+import eolssu.shared.generated.resources.analysis_retry_busy
 import eolssu.shared.generated.resources.analysis_running_body
 import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
@@ -71,12 +72,14 @@ fun AnalysisRoute(
     pendingSessionId: String?,
     onResult: (evaluationId: String) -> Unit,
     onBackToPractice: () -> Unit,
+    onExit: (AnalysisExit) -> Unit,
     viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
         parametersOf(songId, bpm, take, pendingSessionId)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
+    LaunchedEffect(state.exit) { state.exit?.let(onExit) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
     AnalysisScreen(
@@ -151,6 +154,14 @@ fun AnalysisScreen(
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
+            if (failure != null && state.retryBusy) {
+                Text(
+                    stringResource(Res.string.analysis_retry_busy),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
+                    color = colors.rec,
+                    textAlign = TextAlign.Center,
+                )
+            }
             if (stopped) {
                 Column(
                     Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else 320.dp).fillMaxWidth(),
