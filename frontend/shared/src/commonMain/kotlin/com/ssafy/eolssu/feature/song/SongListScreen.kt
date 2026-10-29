@@ -20,6 +20,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLoadFailed
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.component.SongSearchField
 import com.ssafy.eolssu.feature.song.layout.SongListExpandedLayout
@@ -38,6 +39,7 @@ class SongListActions(
     val onResetFilters: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onStartPractice: () -> Unit,
+    val onRetryLoad: () -> Unit = {},
 )
 
 /**
@@ -74,7 +76,9 @@ private fun SongListCompact(state: SongListUiState, actions: SongListActions) {
                     SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(top = 12.dp, bottom = 6.dp))
                 }
             }
-            if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadFailed) {
+                item { SongLoadFailed(actions.onRetryLoad) }
+            } else if (songs.isEmpty() && state.songs.isNotEmpty()) {
                 item { SongEmptyResult(actions.onResetFilters) }
             } else if (songs.isNotEmpty()) {
                 item {

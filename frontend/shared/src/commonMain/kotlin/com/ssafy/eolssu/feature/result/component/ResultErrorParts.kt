@@ -36,6 +36,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.ErrorMarkBox
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.ScoreCellPosition
 import com.ssafy.eolssu.feature.result.errorAt
@@ -145,10 +146,9 @@ fun SelectedCellCard(song: Song, result: EvaluationResult, cell: ScoreCellPositi
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         ErrorMarkBox(metric, Modifier.size(44.dp), cornerRadius = 10.dp, fallback = markFallback) {
             val size = if (notes.size > 1) 16.sp else 22.sp
-            Text(
-                notes.joinToString("") { it.symbol },
-                style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
-            )
+            Row {
+                notes.forEach { ScoreNoteGlyph(it, size, fontWeight = FontWeight.Bold) }
+            }
         }
         Column(Modifier.weight(1f)) {
             Text(

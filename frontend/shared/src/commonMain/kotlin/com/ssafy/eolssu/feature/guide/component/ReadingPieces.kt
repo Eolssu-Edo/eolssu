@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.score.ComposedGlyph
 import com.ssafy.eolssu.feature.guide.BasicSigimsae
 import com.ssafy.eolssu.feature.guide.BasicSigimsaeCount
 import com.ssafy.eolssu.feature.guide.MoreSigimsae

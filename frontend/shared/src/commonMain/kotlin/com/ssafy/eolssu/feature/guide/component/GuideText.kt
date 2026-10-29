@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
@@ -30,8 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.score.ComposedGlyph
 import com.ssafy.eolssu.feature.guide.glyphPartsOf
-import kotlin.math.roundToInt
 
 /*
  * 학습 화면의 글자 그리기. 본문 글꼴(Pretendard)에 한자·♭가 없고 세리프 글꼴에는 율명 15자만 있어서,
@@ -132,47 +131,6 @@ internal fun HanjaGlyph(
             color = color,
             fontWeight = fontWeight,
         )
-    }
-}
-
-/**
- * 변 + 율명을 나란히 그린다. 변 글자는 왼쪽에만 획이 있어 [overlap] 비율만큼 다음 글자를 당겨 붙인다.
- * 정간보 쉽게 읽기의 탁황(亻黃)·청황(氵黃)도 이 모양이고, 부수만 [radicalColor]로 칠한다.
- */
-@Composable
-internal fun ComposedGlyph(
-    radicals: String,
-    base: String,
-    radicalSize: TextUnit,
-    baseSize: TextUnit,
-    overlap: Float,
-    modifier: Modifier = Modifier,
-    color: Color = EolssuTheme.colors.text,
-    fontWeight: FontWeight = FontWeight.SemiBold,
-    radicalWeight: FontWeight = fontWeight,
-    radicalColor: Color = color,
-) {
-    val style = EolssuTheme.serif.yul.copy(fontWeight = fontWeight)
-    Layout(
-        content = {
-            radicals.forEach { r ->
-                Text(r.toString(), color = radicalColor, style = style.copy(fontSize = radicalSize, lineHeight = radicalSize, fontWeight = radicalWeight))
-            }
-            Text(base, color = color, style = style.copy(fontSize = baseSize, lineHeight = baseSize))
-        },
-        modifier = modifier,
-    ) { measurables, constraints ->
-        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
-        val height = placeables.maxOf { it.height }
-        val xs = mutableListOf<Int>()
-        var x = 0
-        placeables.forEachIndexed { i, p ->
-            xs += x
-            x += if (i < placeables.lastIndex) (p.width * (1 - overlap)).roundToInt() else p.width
-        }
-        layout(x, height) {
-            placeables.forEachIndexed { i, p -> p.place(xs[i], (height - p.height) / 2) }
-        }
     }
 }
 

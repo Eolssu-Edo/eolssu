@@ -9,6 +9,7 @@
 - `songId`, `instrumentId`, `title`, `description`, `difficulty`(DB 1~3), `defaultBpm`, `isScorable`, `scoreVersion`, `noteCount`, `jangdan{jangdanId,name,bpmUnit,pattern}`, `score`(기존 score_json의 JSON 객체).
 - ID는 문자열이다. 게시 상태 PUBLISHED·deleted_at NULL만 반환한다. 목록은 ID 오름차순이고 없으면 빈 목록이다. 다른 상태·삭제·없는 상세는 같은 404 RESOURCE_NOT_FOUND다.
 - 기존 악보의 events.id·NOTE만 센 idx·cellId·틱·율명·옥타브를 변경하지 않는다. 앱은 이 데이터로 표시·연주·오류 위치를 함께 연결한다. 이름에 의한 예시 곡 대응은 금지한다.
+- 앱(2026-10-29, S15P31E102-285): `HttpSongRepository`가 목록·상세를 받아 정간 글자(한글 율명·`-`·`쉼`·빈 정간)를 연주 순서대로 앱 악보로 옮긴다. 율명 글자 순서가 NOTE 이벤트 순서라 평가 `noteIdx`는 율명 음만 센 번호로 칸을 찾는다. 한 박의 정간 수는 `ticksPerBeat / ticksPerJeonggan`이고, 각(원본 악보 줄)이 장단 주기와 다르면 장단 한 주기의 정간 수로 대강을 나눈다. 한 줄을 다시 나눈 정간(`col` > 0)이나 모르는 율명이 있는 곡은 목록에서 뺀다. 계이름은 곡·악기 기준 데이터가 없어 표시하지 않는다. 연습 기록·내 악보가 아직 예시 데이터라 숫자가 아닌 곡 ID는 예시 곡으로 찾는다.
 
 ## 평가 (S15P31E102-257)
 

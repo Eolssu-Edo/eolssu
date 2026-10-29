@@ -18,6 +18,7 @@ import com.ssafy.eolssu.feature.song.SongListUiState
 import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLoadFailed
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.component.SongSearchField
 import eolssu.shared.generated.resources.Res
@@ -40,7 +41,9 @@ internal fun SongListMediumLayout(state: SongListUiState, actions: SongListActio
         ) {
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, large = true)
             SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(top = 14.dp, bottom = 20.dp))
-            if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadFailed) {
+                SongLoadFailed(actions.onRetryLoad, verticalPadding = 96.dp)
+            } else if (songs.isEmpty() && state.songs.isNotEmpty()) {
                 SongEmptyResult(actions.onResetFilters, verticalPadding = 96.dp)
             } else if (songs.isNotEmpty()) {
                 Text(

@@ -189,9 +189,9 @@ fun ErrorScorePreview(
                                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                                     val pitch = note is ScoreNote.Pitch
                                     val size = if (cell.notes.size > 1) 9.sp else 12.sp
-                                    Text(
-                                        note.symbol,
-                                        style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size),
+                                    ScoreNoteGlyph(
+                                        note,
+                                        size,
                                         fontWeight = if (pitch) FontWeight.SemiBold else FontWeight.Normal,
                                         color = if (pitch) colors.text else colors.textMuted,
                                     )
