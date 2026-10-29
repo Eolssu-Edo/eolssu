@@ -343,6 +343,10 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 
 재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.
 
+### 공개 곡 조회
+
+`GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.
+
 ### 계정 한정 인증 만료 예외
 
 `AUTH_NON_EXPIRING_USER_IDS`에 지정한 회원 ID만 서버 토큰의 시간 만료를 없앱니다(기본 빈 목록). access는 exp 없이 서명하지만 DB의 활성 refresh 세션과 ACTIVE 회원 검증을 매 요청 수행합니다. 로그아웃·비밀번호 변경·탈퇴·회전·예외 해제 후에는 기존 토큰을 거부합니다. 일반 계정은 access 30분·refresh 14일을 유지합니다. 예외 계정의 재발급 응답 accessTokenExpiresAt은 null이며 쿠키는 브라우저 제한을 고려해 400일입니다. 배포·검증 순서는 [Task 260](../docs/plans/S15P31E102-260.md)을 따릅니다. V7은 기존 데이터의 시각을 바꾸지 않고 refresh_tokens.expires_at을 nullable로 확장합니다.
