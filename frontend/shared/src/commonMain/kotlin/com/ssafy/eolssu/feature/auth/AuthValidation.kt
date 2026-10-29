@@ -6,6 +6,7 @@ import eolssu.shared.generated.resources.auth_error_email_empty
 import eolssu.shared.generated.resources.auth_error_email_exists
 import eolssu.shared.generated.resources.auth_error_email_invalid
 import eolssu.shared.generated.resources.auth_error_login_failed
+import eolssu.shared.generated.resources.auth_error_login_unavailable
 import eolssu.shared.generated.resources.auth_error_nickname_empty
 import eolssu.shared.generated.resources.auth_error_password_empty
 import eolssu.shared.generated.resources.auth_error_password_mismatch
@@ -15,6 +16,7 @@ import org.jetbrains.compose.resources.StringResource
 /** 입력칸 아래에 띄우는 오류. */
 enum class FieldError(val message: StringResource) {
     LoginFailed(Res.string.auth_error_login_failed),
+    LoginUnavailable(Res.string.auth_error_login_unavailable),
     EmailEmpty(Res.string.auth_error_email_empty),
     EmailInvalid(Res.string.auth_error_email_invalid),
     EmailAlreadyExists(Res.string.auth_error_email_exists),

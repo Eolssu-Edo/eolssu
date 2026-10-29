@@ -41,6 +41,7 @@
 
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
+- [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 
 ## 도구 조사·검증 기록
 

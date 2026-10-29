@@ -4,11 +4,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -28,6 +30,7 @@ fun LoginRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     StartMessageEffect(snackbarHostState, startMessage, onStartMessageShown)
 
     LoginScreen(
@@ -36,7 +39,7 @@ fun LoginRoute(
         snackbarHostState = snackbarHostState,
         onEmailChange = viewModel::changeEmail,
         onPasswordChange = viewModel::changePassword,
-        onLogIn = { if (viewModel.logIn()) onLoggedIn() },
+        onLogIn = { scope.launch { if (viewModel.logIn()) onLoggedIn() } },
         onSocialLogIn = onSocialLogIn,
         onFindPassword = {
             viewModel.dismissNotice()

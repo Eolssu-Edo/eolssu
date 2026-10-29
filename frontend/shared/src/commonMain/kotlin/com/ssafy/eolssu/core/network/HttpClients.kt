@@ -1,0 +1,148 @@
+package com.ssafy.eolssu.core.network
+
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.network.sockets.ConnectTimeoutException
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.cookies.CookiesStorage
+import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.plugins.plugin
+import io.ktor.client.request.post
+import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.encodedPath
+import io.ktor.http.isSuccess
+import io.ktor.serialization.kotlinx.json.json
+import kotlin.concurrent.Volatile
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/** 서버 주소. 앱은 [Production], 웹은 페이지와 같은 주소를 쓴다. 각 플랫폼 모듈이 등록한다. */
+class ServerAddress(val baseUrl: String) {
+    companion object {
+        val Production = ServerAddress("https://k15e102.p.ssafy.io")
+    }
+}
+
+/**
+ * 서버 응답의 공통 형식 `{httpStatus, isSuccess, message, code, result}`. 실패 응답의 [result]는 [ApiError]다.
+ * [httpStatus]는 상태 이름(`"SERVICE_UNAVAILABLE"`), [code]는 상태 번호(503)다. 응답 코드는 `HttpResponse.status`로도 볼 수 있다.
+ */
+@Serializable
+class ApiResponse<T>(
+    val isSuccess: Boolean,
+    val httpStatus: String = "",
+    val message: String = "",
+    val code: Int = 0,
+    val result: T? = null,
+)
+
+/** 실패 응답의 `result`. */
+@Serializable
+class ApiError(val errorCode: String? = null)
+
+val ApiJson = Json {
+    ignoreUnknownKeys = true
+    explicitNulls = false
+}
+
+/**
+ * 앱 전체가 쓰는 HTTP 클라이언트. 응답 코드는 부르는 쪽이 판단한다(`expectSuccess = false`).
+ * 로그인 쿠키는 [cookies]에 둔다. 웹은 브라우저가 쿠키를 보관하고 보내므로 null이다.
+ *
+ * - 시간 제한 기본값은 연결 10초, 요청 전체 30초다. 녹음 업로드처럼 오래 걸리는 요청은 요청마다
+ *   `timeout { requestTimeoutMillis = ... }`로 바꾼다.
+ * - 로그인이 필요한 요청이 401이면 `/api/auth/refresh`로 토큰을 갱신하고 같은 요청을 한 번 더 보낸다. 본문도 다시 보내므로,
+ *   multipart의 파일 칸은 스트림을 매번 새로 여는 `ChannelProvider { ... }`나 바이트 배열로 넣는다(이미 연 스트림은 두 번째에 비어 있다).
+ */
+fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: CookiesStorage? = null): HttpClient {
+    val client = HttpClient(engine) {
+        expectSuccess = false
+        install(ContentNegotiation) { json(ApiJson) }
+        install(HttpTimeout) {
+            connectTimeoutMillis = 10_000
+            requestTimeoutMillis = 30_000
+        }
+        if (cookies != null) install(HttpCookies) { storage = cookies }
+        defaultRequest { url(server.baseUrl) }
+    }
+    val refresher = TokenRefresher()
+    client.plugin(HttpSend).intercept { request ->
+        val seen = refresher.generation
+        val call = execute(request)
+        if (call.response.status != HttpStatusCode.Unauthorized || request.url.encodedPath in NO_REFRESH_PATHS) return@intercept call
+        val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
+        if (refreshed) execute(request) else call
+    }
+    return client
+}
+
+/** 요청 결과. 응답을 받았거나([Received]), 받지 못한 이유. 응답 코드(503·410·413 등)는 [Received.response]에서 본다. */
+sealed interface NetworkResult {
+    class Received(val response: HttpResponse) : NetworkResult
+
+    /** 서버에 닿지 못했다(네트워크 끊김, 주소를 찾지 못함, 연결 거부 등). */
+    data object ConnectionFailed : NetworkResult
+
+    /** 연결·요청 시간 제한을 넘었다. 서버가 요청을 받았을 수도 있다. */
+    data object TimedOut : NetworkResult
+}
+
+/** 요청을 보내고 결과를 [NetworkResult]로 돌려준다. 코루틴 취소는 그대로 전한다. */
+suspend fun HttpClient.sendCatching(request: suspend HttpClient.() -> HttpResponse): NetworkResult = try {
+    NetworkResult.Received(request())
+} catch (e: HttpRequestTimeoutException) {
+    NetworkResult.TimedOut
+} catch (e: ConnectTimeoutException) {
+    NetworkResult.TimedOut
+} catch (e: SocketTimeoutException) {
+    NetworkResult.TimedOut
+} catch (e: CancellationException) {
+    throw e
+} catch (ignored: Throwable) {
+    NetworkResult.ConnectionFailed
+}
+
+/** 요청을 보내고 응답을 받는다. 연결 실패와 시간 초과를 나눌 필요가 없을 때 쓴다. 응답을 받지 못하면 null. */
+suspend fun HttpClient.sendOrNull(request: suspend HttpClient.() -> HttpResponse): HttpResponse? =
+    (sendCatching(request) as? NetworkResult.Received)?.response
+
+/** 본문을 공통 형식으로 읽는다. 형식이 아니면(프록시 오류 페이지 등) null. */
+suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try {
+    body<ApiResponse<T>>()
+} catch (e: CancellationException) {
+    throw e
+} catch (ignored: Throwable) {
+    null
+}
+
+/**
+ * 갱신은 한 번에 하나만 한다. 리프레시 토큰은 쓸 때마다 바뀌므로, 동시에 401을 받은 요청들이 각자 갱신하면
+ * 늦게 보낸 쪽이 이미 바뀐 토큰을 써서 로그아웃된다. 기다리는 동안 다른 요청이 갱신했으면 그 결과를 쓴다.
+ */
+private class TokenRefresher {
+    private val mutex = Mutex()
+
+    @Volatile
+    var generation = 0
+        private set
+
+    suspend fun refresh(seen: Int, refresh: suspend () -> Boolean): Boolean = mutex.withLock {
+        if (generation != seen) return@withLock true
+        refresh().also { if (it) generation++ }
+    }
+}
+
+private const val REFRESH_PATH = "/api/auth/refresh"
+
+/** 401이 '로그인 정보가 틀림'이거나 갱신 자체인 경로. 이때는 갱신하지 않는다. */
+private val NO_REFRESH_PATHS = setOf(REFRESH_PATH, "/api/auth/sign-in", "/api/auth/sign-up")
