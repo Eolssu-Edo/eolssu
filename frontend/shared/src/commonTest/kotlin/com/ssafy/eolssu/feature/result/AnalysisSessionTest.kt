@@ -160,7 +160,7 @@ class AnalysisSessionTest {
     private val uploader = FakeUploader()
     private val uploadSession = AnalysisSession(
         scope, repository, clock = { time.now }, sleep = time::sleep,
-        uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }),
+        uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles("rec/practice-1.m4a"), clock = { 0L }),
     )
     private val uploadState get() = uploadSession.state.value
 
@@ -218,6 +218,35 @@ class AnalysisSessionTest {
         startWithRecording()
         assertNull(uploadState.upload)
         assertEquals(1, repository.queries)
+    }
+
+    @Test
+    fun resendIsIgnoredWhileOneIsInFlight() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        startWithRecording()
+        val gate = CompletableDeferred<Unit>()
+        uploader.gate = gate
+        uploadSession.resend()
+        assertEquals(true, uploadState.resending)
+        uploadSession.resend()
+        assertEquals(2, uploader.calls.size)
+
+        gate.complete(Unit)
+        assertNull(uploadState.upload)
+        assertEquals(false, uploadState.resending)
+    }
+
+    @Test
+    fun missingRecordingOnlyOffersPlayingAgain() {
+        val session = AnalysisSession(
+            scope, repository, clock = { time.now }, sleep = time::sleep,
+            uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }),
+        )
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        scope.launch { session.start(SampleSongs.first(), bpm = 60, recording = recording) }
+        assertEquals(UploadProblem.Missing, session.state.value.upload)
+        assertEquals(0, uploader.calls.size)
+        assertEquals(0, repository.queries)
     }
 }
 

@@ -77,6 +77,7 @@ internal class AnalysisSession(
             }
             SendResult.CanResend -> _state.update { it.copy(upload = UploadProblem.CanResend, resending = false) }
             SendResult.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
+            SendResult.Missing -> _state.update { it.copy(upload = UploadProblem.Missing, resending = false) }
             SendResult.Expired -> _state.update { it.copy(upload = null, resending = false, failure = AnalysisFailure.UploadTimeout) }
         }
     }

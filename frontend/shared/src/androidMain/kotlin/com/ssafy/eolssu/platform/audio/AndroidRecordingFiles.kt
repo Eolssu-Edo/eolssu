@@ -18,15 +18,24 @@ class AndroidRecordingFiles(context: Context) : RecordingFiles {
         directory.mkdirs()
         val target = File(directory, source.name)
         if (source.renameTo(target)) return target.path
-        return runCatching {
+        return try {
             source.copyTo(target, overwrite = true)
             source.delete()
             target.path
-        }.getOrNull()
+        } catch (e: Exception) {
+            target.delete()
+            null
+        }
     }
+
+    override fun exists(path: String): Boolean = File(path).isFile
 
     override fun delete(path: String) {
         File(path).delete()
+    }
+
+    override fun deleteKeptExcept(path: String?) {
+        directory.listFiles()?.filter { it.path != path }?.forEach { it.delete() }
     }
 
     private companion object {

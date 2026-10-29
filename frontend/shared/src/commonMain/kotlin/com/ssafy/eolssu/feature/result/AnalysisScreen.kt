@@ -54,6 +54,7 @@ import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
 import eolssu.shared.generated.resources.analysis_upload_failed_title
 import eolssu.shared.generated.resources.analysis_upload_kept
+import eolssu.shared.generated.resources.analysis_upload_missing
 import eolssu.shared.generated.resources.analysis_upload_rejected
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -175,6 +176,7 @@ fun AnalysisScreen(
 internal fun UploadProblem.messageRes(): StringResource = when (this) {
     UploadProblem.CanResend -> Res.string.analysis_upload_kept
     UploadProblem.Rejected -> Res.string.analysis_upload_rejected
+    UploadProblem.Missing -> Res.string.analysis_upload_missing
 }
 
 /** 실패 사유별 안내 문구 리소스. */
