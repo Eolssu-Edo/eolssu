@@ -33,6 +33,7 @@
 ## 기능 스펙
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
+- [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
 - [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
@@ -51,6 +52,8 @@
 - [프론트엔드 화면 이동·DI 라이브러리](decisions/frontend-navigation-di.md) (제안)
 - [프론트엔드 기기 뒤로 가기 처리 라이브러리](decisions/frontend-back-handler.md) (제안)
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
+
+- [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
 
 ## 도구 조사·검증 기록
 
@@ -151,6 +154,8 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - ADR은 `docs/decisions`의 결정 문서 형식을 따르고 상태를 반드시 적습니다. 기각한 대안은 관련 결정 문서에 이유와 함께 남기고, 독립적으로 기각한 결정은 상태를 `기각`으로 둡니다.
 - 품질 기준·필수 검사는 각 구현 폴더의 `README.md`에 두고 `CONSTRAINTS.md` 같은 별도 정책 파일을 만들지 않습니다.
 - `coco-askme` 요약, `coco-learn` 학습 노트 같은 개인 학습 기록은 루트 `TIL/`에 둡니다.
+
+- [S15P31E102-282 긴 녹음·분석 제한 판단 근거 갱신](plans/S15P31E102-282.md)
 
 ## 코드 변경이 없는 작업
 
