@@ -331,7 +331,7 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - JSON: `/api/v3/api-docs`
 - 배포 후 주소: https://k15e102.p.ssafy.io/api/swagger-ui.html
 
-문서·UI 정적 파일·설정 JSON도 기존 access_token 쿠키와 ACTIVE 회원 검증을 받습니다. 먼저 같은 출처의 앱 로그인 화면 또는 `POST /api/auth/sign-in`을 브라우저에서 호출해 로그인한 다음 문서를 엽니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다. 만료되면 다시 로그인합니다.
+문서·UI 정적 파일·설정 JSON의 GET 조회는 로그인 없이 가능합니다. access_token 쿠키가 없거나 잘못됐거나 만료돼도 문서는 열립니다. 실제 회원 API의 인증과 ACTIVE 회원 검증은 유지합니다. Try it out으로 회원 API를 호출하려면 같은 출처의 앱에서 먼저 로그인합니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다.
 
 Swagger UI의 Try it out은 브라우저가 보관한 HttpOnly 쿠키를 전송합니다. OpenAPI에는 accessCookie·refreshCookie를 표시하지만 Authorize 입력으로 브라우저의 Cookie 헤더/HttpOnly 쿠키를 설정할 수는 없습니다. Bearer 헤더 인증을 추가하지 않았으며 비밀번호·실제 토큰을 문서에 저장하지 않습니다. 운영 HTTPS에서는 Secure 쿠키를 사용합니다.
 
