@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -58,6 +59,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -80,13 +84,15 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 /*
  * 시김새 창(`.sigm`): 기호 · 이름 · 설명 아래에 부는 모양을 붓으로 먹을 찍어 긋듯 그린다(와이어프레임 sigModalHtml · sigPlay · startWave).
  * 붓질: 끝이 흐린 가리개를 왼쪽 → 오른쪽으로 밀어 드러낸다. 처음엔 천천히 대고 뒤로 갈수록 흘러간다(SMIL keySplines .5 0 .35 1).
  * 먹: 가장자리를 한지 결처럼 살짝 흔들고(feDisplacementMap 대신 고정된 잡음으로 점을 옮긴다) 밑에 옅게 번진 먹 한 겹을 깐다.
  * 붓끝이 지나는 자리만 줄처럼 떨고, 지나간 자리와 다 그은 선은 떨지 않는다. 적힌 음 점선 · 눈금 · 한 음 칸은 먹 효과 없이 늘 보인다.
- * 소리는 아직 없다(시김새 소리 재생 Task). '다시 보기'는 붓질을 처음부터 다시 긋는다.
+ * 소리: 붓끝이 지나는 높이를 따라가는 단소 소리(와이어프레임 playSig)를 미리 만든 파일로 붓질과 함께 튼다. 소리가 나기 시작하면 붓질을 시작한다.
+ * '다시 듣기'는 소리와 붓질을 처음부터 다시 한다. 창을 닫거나 앱이 뒤로 가면 소리를 멈춘다.
  */
 
 /** 붓질이 끝까지 가는 시간(초). 떨리는 선 · 시김새 소리도 이 시간표를 따른다. */
@@ -121,6 +127,9 @@ internal fun waveOffset(i: Int, count: Int, x: Float, seconds: Float): Float {
 @Composable
 internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> Unit) {
     val colors = EolssuTheme.colors
+    val player = koinInject<SoundPlayer>()
+    DisposableEffect(player) { onDispose { player.stop() } }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.stop() }
     val closeFocus = remember { FocusRequester() }
     var replay by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { closeFocus.requestFocus() }
@@ -161,7 +170,9 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
                         .hanjiGrain()
                         .padding(start = 14.dp, end = 14.dp, top = 18.dp, bottom = 12.dp),
                 ) {
-                    SigimsaeFigureView(item.figure, replay, stringResource(Res.string.guide_sigimsae_figure, item.name, item.description))
+                    SigimsaeFigureView(item.figure, replay, stringResource(Res.string.guide_sigimsae_figure, item.name, item.description)) {
+                        player.play(item.soundPath)
+                    }
                     SigimsaeLegend(hint, Modifier.padding(top = 12.dp))
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
@@ -233,7 +244,7 @@ private fun SigimsaeLegend(hint: String?, modifier: Modifier) {
     }
 }
 
-/** '다시 보기'(`.sigm-btn.play`): 녹색 단추. 소리를 붙이면 '다시 듣기'가 된다. */
+/** '다시 듣기'(`.sigm-btn.play`): 녹색 단추. */
 @Composable
 private fun ReplayButton(onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -280,16 +291,18 @@ private fun samplePath(d: String, step: Float): List<Offset> {
 }
 
 /**
- * 부는 모양 그림(`.sig-curve`, 최대 260dp). [replay]가 바뀔 때마다 붓질을 처음부터 다시 긋는다.
+ * 부는 모양 그림(`.sig-curve`, 최대 260dp). [replay]가 바뀔 때마다 [onStart](소리 틀기)가 돌아온 뒤 붓질을 처음부터 다시 긋는다.
+ * 소리를 틀지 못해도 붓질은 한다.
  */
 @Composable
-private fun SigimsaeFigureView(figure: SigimsaeFigure, replay: Int, description: String) {
+private fun SigimsaeFigureView(figure: SigimsaeFigure, replay: Int, description: String, onStart: suspend () -> Unit) {
     val colors = EolssuTheme.colors
     val shape = remember(figure) { figureShape(figure) }
     val tailPath = remember(figure) { (figure as? SigimsaeFigure.Curve)?.tail?.let { PathParser().parsePathString(it).toPath() } }
     var seconds by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(replay) {
         seconds = 0f
+        onStart()
         val start = withFrameNanos { it }
         while (seconds < SigimsaeDrawSeconds) {
             seconds = (withFrameNanos { it } - start) / 1_000_000_000f

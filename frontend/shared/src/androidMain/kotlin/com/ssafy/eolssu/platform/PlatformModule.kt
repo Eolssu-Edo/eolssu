@@ -4,11 +4,13 @@ import android.content.Context
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.platform.audio.AndroidAudioRecorder
 import com.ssafy.eolssu.platform.audio.AndroidRecordingFiles
+import com.ssafy.eolssu.platform.audio.AndroidSoundPlayer
 import com.ssafy.eolssu.platform.permission.AndroidMicPermission
 import com.ssafy.eolssu.platform.storage.AndroidKeyValueStore
 import com.ssafy.eolssu.platform.storage.AndroidSecureStore
@@ -30,5 +32,6 @@ internal fun androidPlatformModule(context: Context): Module {
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
+        single<SoundPlayer> { AndroidSoundPlayer() }
     }
 }
