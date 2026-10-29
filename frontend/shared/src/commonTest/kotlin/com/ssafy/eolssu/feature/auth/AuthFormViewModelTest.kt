@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.SampleAuthRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
+import com.ssafy.eolssu.testing.runImmediately
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,14 +20,14 @@ class AuthFormViewModelTest {
     fun loginFailureShowsErrorUntilAFieldChanges() {
         val viewModel = LoginViewModel(repository)
 
-        assertFalse(viewModel.logIn())
+        assertFalse(runImmediately { viewModel.logIn() })
         assertEquals(FieldError.LoginFailed, viewModel.uiState.value.error)
 
         viewModel.changeEmail("user@example.com")
         assertNull(viewModel.uiState.value.error)
 
         viewModel.changePassword("password")
-        assertTrue(viewModel.logIn())
+        assertTrue(runImmediately { viewModel.logIn() })
         assertNull(viewModel.uiState.value.error)
         assertNull(viewModel.uiState.value.notice)
     }
@@ -37,7 +38,7 @@ class AuthFormViewModelTest {
         viewModel.changeEmail(SampleAuthRepository.LockedEmail)
         viewModel.changePassword("password")
 
-        assertFalse(viewModel.logIn())
+        assertFalse(runImmediately { viewModel.logIn() })
         assertNull(viewModel.uiState.value.error)
         assertEquals(LoginNotice.Locked, viewModel.uiState.value.notice)
 
@@ -51,7 +52,7 @@ class AuthFormViewModelTest {
         viewModel.changeEmail(SampleAuthRepository.WithdrawnEmail)
         viewModel.changePassword("password")
 
-        assertFalse(viewModel.logIn())
+        assertFalse(runImmediately { viewModel.logIn() })
         assertEquals(LoginNotice.WithdrawalCancelled, viewModel.uiState.value.notice)
     }
 

@@ -61,7 +61,7 @@ com/ssafy/eolssu/
     theme/                    # 색·글꼴·모양 테마
     network/                  # HTTP 클라이언트 설정, 공통 응답 처리
     audio/                    # 녹음·재생의 공통 인터페이스
-    storage/                  # 로컬 저장의 공통 인터페이스
+    storage/                  # 로컬 저장의 공통 인터페이스(KeyValueStore, 민감한 값은 SecureStore)
     model/                    # 여러 기능이 함께 쓰는 앱 모델 (예: Song, Note)
 
   data/

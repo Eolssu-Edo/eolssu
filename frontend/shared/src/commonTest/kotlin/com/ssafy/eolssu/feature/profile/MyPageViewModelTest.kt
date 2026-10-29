@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.PasswordCheckResult
+import com.ssafy.eolssu.data.user.SampleAuthRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.CoroutineScope
@@ -25,7 +26,7 @@ class MyPageViewModelTest {
 
     @Test
     fun instrumentChangeIsSharedAndSurvivesRelaunch() {
-        val viewModel = MyPageViewModel(users, instruments, timeQueue)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
 
         assertFalse(viewModel.selectInstrument(Instrument.Danso))
         assertTrue(viewModel.selectInstrument(Instrument.Daegeum))
@@ -36,7 +37,7 @@ class MyPageViewModelTest {
 
     @Test
     fun unlinkNeedsConfirmationAndCanRemoveTheLastProvider() {
-        val viewModel = MyPageViewModel(users, instruments, timeQueue)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
         assertEquals(setOf(SocialProvider.Kakao), viewModel.profile.value.linkedProviders)
 
         viewModel.askUnlink(SocialProvider.Kakao)
@@ -52,7 +53,7 @@ class MyPageViewModelTest {
 
     @Test
     fun logOutAsksFirst() {
-        val viewModel = MyPageViewModel(users, instruments, timeQueue)
+        val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
         viewModel.askLogOut()
         assertEquals(MyPageDialog.LogOut, viewModel.dialog.value)
         viewModel.confirmLogOut()
