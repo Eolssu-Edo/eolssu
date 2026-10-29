@@ -1,6 +1,8 @@
 """U1: 기존 채점 호출에서 얻은 DTW 경로와 실패 상태를 고정한다."""
 import numpy as np
+import pytest
 
+from ai_service.pipelines.scoring import Note
 from evaluation.dtw_baseline import measure_case, run_case, tie_probes
 
 
@@ -57,6 +59,23 @@ def test_budget_skip_happens_before_score(monkeypatch):
     result = measure_case("normal-8s", max_bytes=1)
     assert result["status"] == "skipped_budget"
     assert result["estimatedDtwBytes"] == 24 * 800 * 800
+
+
+@pytest.mark.parametrize("case,budget,expected", [("repeated", 100, 216), ("rest", 300, 384)])
+def test_budget_counts_all_notes_and_rest_before_score(monkeypatch, case, budget, expected):
+    def fail(_):
+        raise AssertionError("score must not run above budget")
+    monkeypatch.setattr("evaluation.dtw_baseline.run_case", fail)
+    result = measure_case(case, max_bytes=budget)
+    assert result["status"] == "skipped_budget"
+    assert result["estimatedDtwBytes"] == expected
+
+
+def test_budget_span_starts_at_first_requested_note(monkeypatch):
+    monkeypatch.setattr("evaluation.dtw_baseline.inputs", lambda _: (
+        np.full(4, 311.13), [Note(0, 1, start_beat=10), Note(2, 1, start_beat=13)], 6000))
+    result = measure_case("rest", max_bytes=1)
+    assert result["estimatedDtwBytes"] == 24 * 4 * 4
 
 
 def test_measurement_keeps_snapshot_separate_from_variable_metrics():

@@ -109,7 +109,9 @@ def process_peak_rss():
 
 def measure_case(name, max_bytes=512 * 2**20):
     f0, notes, bpm = inputs(name)
-    span = ((notes[-1].start_beat or 0) + notes[-1].beats) * 60 / bpm
+    span_beats = (sum(n.beats for n in notes) if notes[0].start_beat is None else
+                  notes[-1].start_beat + notes[-1].beats - notes[0].start_beat)
+    span = span_beats * 60 / bpm
     estimated = 24 * round(span / HOP_S) * len(f0)
     if estimated > max_bytes:
         return {"case": name, "status": "skipped_budget", "estimatedDtwBytes": estimated}

@@ -33,9 +33,9 @@
 
 | 양쪽 길이 | 반복 | 시간 중앙값 ms | tracemalloc 최대 bytes 범위 | 프로세스 최대 RSS bytes |
 | --- | --- | --- | --- | --- |
-| 2초 | 3 | 14.078 | 979633~979633 | 123637760 |
-| 4초 | 3 | 22.521 | 3874233~3874233 | 126001152 |
-| 8초 | 3 | 36.404 | 15423433~15423553 | 138194944 |
+| 2초 | 3 | 13.973 | 979633~979633 | 123219968 |
+| 4초 | 3 | 18.737 | 3874233~3874353 | 125743104 |
+| 8초 | 3 | 40.971 | 15423433~15423433 | 138031104 |
 
 프로세스 최대 RSS는 Windows GetProcessMemoryInfo의 PeakWorkingSetSize다. 모듈 읽기와 JIT 준비를 포함한 프로세스 생애 최댓값이며 score 구간만의 증가량이 아니다. U1은 RSS 1GiB의 강제 제한을 구현하지 않았고, 최대 800×800인 고정 사례만 받는다. 자식 프로세스당 60초 제한은 준비도 포함한다. U4에서 계획한 준비 제외 시간 제한과 구분한다.
 
@@ -54,11 +54,17 @@ $env:NUMBA_CACHE_DIR = Join-Path $env:TEMP 'n286'
 New-Item -ItemType Directory -Force $env:NUMBA_CACHE_DIR | Out-Null
 $env:OPENBLAS_NUM_THREADS = '1'
 $env:OMP_NUM_THREADS = '1'
-uv run python -m evaluation.dtw_baseline --repeat 3 --out ../data/processed/dtw-286/u1-baseline.json
+uv run python -m evaluation.dtw_baseline --repeat 3 --out ../data/processed/dtw-286/u1-baseline-fixed.json
 uv run pytest tests/unit/test_dtw_baseline.py
 ```
 
-실제 검증에서는 `uv.lock`으로 준비한 Python 3.12.10 임시 환경의 python을 직접 실행했고 짧은 캐시 경로 `C:/Users/SSAFY/AppData/Local/Temp/n242`를 사용했다. 원시 결과는 Git에서 제외된 `data/processed/dtw-286/u1-baseline.json`에 있다. 입력·서비스 코드·평가 코드·잠금 파일 해시와 환경을 JSON에 기록한다. 단일 사례는 `--cases rest --repeat 1`로 실행한다.
+실제 검증에서는 `uv.lock`으로 준비한 Python 3.12.10 임시 환경의 python을 직접 실행했고 짧은 캐시 경로 `C:/Users/SSAFY/AppData/Local/Temp/n242`를 사용했다. 수정 뒤 원시 결과는 Git에서 제외된 `data/processed/dtw-286/u1-baseline-fixed.json`에 있다. 입력·서비스 코드·평가 코드·잠금 파일 해시와 환경을 JSON에 기록한다. 단일 사례는 `--cases rest --repeat 1`로 실행한다.
+
+## 리뷰 후 예상 메모리 계산 수정
+
+첫 기록의 반복음 사례는 마지막 음 길이만 사용해 3×3 비용 표의 예상치를 216바이트가 아닌 72바이트로 계산했다. 시작 박이 없으면 전체 음 길이를 합산하고, 시작 박이 있으면 마지막 음 끝에서 첫 음 시작을 뺀다. 따라서 중간 구간 이전의 시간도 계산에서 제외한다. 서비스 채점 코드는 바꾸지 않았다.
+
+예산 100바이트에서 반복음 실행을 거절하는 사례와 첫 시작 박이 10인 사례가 수정 전에 실패했고 수정 뒤 통과했다. 쉼을 포함한 길이도 검사한다. 관련 테스트는 11개다. 수정된 도구로 24회를 다시 실행해 모든 입력 해시·경로·비용·판정 snapshot이 기존과 같고 반복음 예상치가 3회 모두 216바이트임을 확인했다. 위 측정 표도 이 재실행 결과다. 예전 `u1-baseline.json`은 잘못된 예상치를 포함하므로 이후 후보 비교의 기준 기록으로 사용하지 않는다.
 
 ## C0에서 정할 내용
 
