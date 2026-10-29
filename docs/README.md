@@ -83,6 +83,7 @@
 - [정간보 OMR 대조 결과와 율명 인식 개선](knowledge/data/jeongganbo-omr-accuracy.md)
 - [소금 정간보 우물사이 문서의 검토 화면과 대조 결과](knowledge/data/sogeum-scores-review.md)
 - [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
+- [단소 4곡 공통 악보와 V6 시드 일치 검수](knowledge/data/danso-seed-consistency-audit.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
 - [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md) · [자동 테스트별 확인 범위](../data/src/playback/tests/README.md)
 
@@ -137,6 +138,7 @@
 - [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 - [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
 - [S15P31E102-249 단소 4곡과 악기·장단 기준 데이터 DB 적재](plans/S15P31E102-249.md)
+- [S15P31E102-281 단소 4곡 공통 악보와 운영 V6 시드 일치 검수](plans/S15P31E102-281.md)
 
 - [S15P31E102-272 R2 접근·보관 정책 검증](plans/S15P31E102-272.md)
 
