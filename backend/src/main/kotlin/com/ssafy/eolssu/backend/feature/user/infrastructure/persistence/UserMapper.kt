@@ -8,6 +8,7 @@ import java.time.LocalDateTime
 @Mapper
 interface UserMapper {
     fun findById(@Param("id") id: Long): UserRow?
+    fun findByIdForUpdate(@Param("id") id: Long): UserRow?
     @Options(useGeneratedKeys = true, keyProperty = "id")
     fun insert(user: UserInsert): Int
     fun emailSortKey(@Param("email") email: String): String

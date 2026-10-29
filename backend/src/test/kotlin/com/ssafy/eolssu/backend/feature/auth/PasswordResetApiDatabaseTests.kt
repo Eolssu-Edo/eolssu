@@ -163,6 +163,39 @@ class PasswordResetApiDatabaseTests {
         val response=post("/api/auth/password-reset","""{"verificationToken":"$token","newPassword":"NewPassword!567"}""","access_token=invalid")
         assertEquals(204,response.statusCode(),response.body())
     }
+    @Autowired private lateinit var transactionManager: org.springframework.transaction.PlatformTransactionManager
+    @Autowired private lateinit var purgeRepository: com.ssafy.eolssu.backend.feature.auth.domain.WithdrawalPurgeRepository
+
+    @Test fun `purge holding the user primary key completes while reset waits without a deadlock`() {
+        jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at='2026-09-01',purge_scheduled_at='2026-10-01' WHERE id=?", userId)
+        proof()
+        lateinit var resetting: java.util.concurrent.CompletableFuture<HttpResponse<String>>
+        org.springframework.transaction.support.TransactionTemplate(transactionManager).executeWithoutResult {
+            assertEquals("WITHDRAWAL_PENDING", users.findStatusForUpdate(userId))
+            resetting = java.util.concurrent.CompletableFuture.supplyAsync { reset() }
+            // 실제 DB 잠금 대기를 확인한 뒤 삭제를 계속한다. 시간차나 고정 sleep에 의존하지 않는다.
+            val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+            var waiting = false
+            while (System.nanoTime() < deadline) {
+                waiting = jdbc.queryForObject(
+                    """SELECT COUNT(*) FROM performance_schema.data_lock_waits w
+                       JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+                       WHERE l.OBJECT_NAME='users' AND l.INDEX_NAME='PRIMARY' AND l.LOCK_DATA=?""",
+                    Int::class.java, userId.toString(),
+                )!! > 0
+                if (waiting) break
+                if (resetting.isDone) fail("reset finished before reaching the held user lock")
+            }
+            assertTrue(waiting, "reset must be waiting for this user's primary key")
+            // 209의 운영 저장소를 같은 트랜잭션에서 실행해 email=NULL까지 완료한다.
+            assertTrue(purgeRepository.purge(userId, clock.instant()))
+        }
+        error(resetting.get(15, java.util.concurrent.TimeUnit.SECONDS), 401, "EMAIL_NOT_VERIFIED")
+        assertEquals("DELETED", jdbc.queryForObject("SELECT status FROM users WHERE id=?", String::class.java, userId))
+        assertNull(jdbc.queryForObject("SELECT email FROM users WHERE id=?", String::class.java, userId))
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM email_verifications WHERE email='reset@auth210.test'", Int::class.java))
+    }
+
     @Autowired private lateinit var mailFixture: CapturingVerificationMail
     private fun hash(token: String)=com.ssafy.eolssu.backend.feature.auth.infrastructure.security.EmailVerificationSecrets(null).hashToken(token)
     private fun storedHash()=jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?",String::class.java,userId)

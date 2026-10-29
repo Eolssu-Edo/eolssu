@@ -70,7 +70,7 @@ class PasswordResetServiceTests {
         override fun findVerification(tokenHash: String)=ConsumableVerification(7,"member@example.com",VerificationPurpose.PASSWORD_RESET,Instant.parse("2026-10-29T00:30:00Z"),consumed,invalidated)
         override fun findVerificationForUpdate(tokenHash: String): ConsumableVerification { events+="proof-lock"; onProofLock(); return findVerification(tokenHash) }
         override fun findMember(email: String)=member
-        override fun findMemberForUpdate(email: String): ResetMember { events+="user-lock"; return member }
+        override fun findMemberForUpdate(userId: Long): ResetMember { events+="user-lock"; return member }
         override fun updatePasswordHash(userId: Long,passwordHash: String) { events+="password"; member=ResetMember(member.id,member.email,passwordHash) }
         override fun markConsumed(verificationId: Long,now: Instant) { events+="consume"; consumed=now }
         override fun revokeAllRefreshTokens(userId: Long,now: Instant) { events+="refresh" }

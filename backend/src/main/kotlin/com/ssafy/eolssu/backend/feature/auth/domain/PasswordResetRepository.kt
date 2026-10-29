@@ -9,7 +9,7 @@ interface PasswordResetRepository {
     fun findVerification(tokenHash: String): ConsumableVerification?
     fun findVerificationForUpdate(tokenHash: String): ConsumableVerification?
     fun findMember(email: String): ResetMember?
-    fun findMemberForUpdate(email: String): ResetMember?
+    fun findMemberForUpdate(userId: Long): ResetMember?
     fun updatePasswordHash(userId: Long, passwordHash: String)
     fun markConsumed(verificationId: Long, now: Instant)
     fun revokeAllRefreshTokens(userId: Long, now: Instant)

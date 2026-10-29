@@ -25,7 +25,7 @@ class PasswordResetService(
         if (passwordEncoder.matches(newPassword, member.passwordHash)) return PasswordResetResult.InvalidRequest
         val newHash = checkNotNull(passwordEncoder.encode(newPassword))
         return repository.inTransaction {
-            val locked = repository.findMemberForUpdate(member.email)
+            val locked = repository.findMemberForUpdate(member.id)
             if (locked == null || locked.id != member.id || locked.email != member.email || locked.passwordHash != member.passwordHash) {
                 return@inTransaction PasswordResetResult.EmailNotVerified
             }

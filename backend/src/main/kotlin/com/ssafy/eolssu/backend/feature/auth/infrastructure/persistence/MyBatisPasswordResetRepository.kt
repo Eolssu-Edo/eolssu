@@ -20,13 +20,14 @@ class MyBatisPasswordResetRepository(
     override fun findVerification(tokenHash: String) = verifications.findByTokenHash(tokenHash)?.proof()
     override fun findVerificationForUpdate(tokenHash: String) = verifications.findByTokenHashForUpdate(tokenHash)?.proof()
     override fun findMember(email: String) = users.findSignInMember(email)?.member()
-    override fun findMemberForUpdate(email: String) = users.findSignInMemberForUpdate(email)?.member()
+    // purge와 같은 PK부터 잠근다. email 인덱스를 먼저 잡으면 익명화(email=NULL)와 교착한다.
+    override fun findMemberForUpdate(userId: Long) = users.findByIdForUpdate(userId)?.member()
     override fun updatePasswordHash(userId: Long, passwordHash: String) { check(users.resetPasswordHash(userId, passwordHash) == 1) }
     override fun markConsumed(verificationId: Long, now: Instant) { check(verifications.markConsumed(verificationId, now.utc()) == 1) }
     override fun revokeAllRefreshTokens(userId: Long, now: Instant) {
         refreshTokens.revokeAllActive(userId, RevokeReason.PASSWORD_CHANGED.name, now.utc())
     }
-    private fun UserRow.member(): ResetMember? = if (email != null && passwordHash != null) ResetMember(id,email,passwordHash) else null
+    private fun UserRow.member(): ResetMember? = if (status in setOf("ACTIVE", "WITHDRAWAL_PENDING") && email != null && passwordHash != null) ResetMember(id,email,passwordHash) else null
     private fun EmailVerificationRow.proof(): ConsumableVerification? = if (verifiedAt == null) null else
         ConsumableVerification(id,email,VerificationPurpose.valueOf(purpose),tokenExpiresAt?.toInstant(ZoneOffset.UTC),consumedAt?.toInstant(ZoneOffset.UTC),invalidatedAt?.toInstant(ZoneOffset.UTC))
     private fun Instant.utc() = LocalDateTime.ofInstant(this,ZoneOffset.UTC)

@@ -6,6 +6,11 @@
         FROM users
         WHERE id = #{id}
     </select>
+    <select id="findByIdForUpdate" resultType="com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserRow">
+        SELECT id, email, password_hash, nickname, instrument_id, notation_mode, status, last_login_at, withdrawal_requested_at, purge_scheduled_at, created_at, updated_at, deleted_at
+        FROM users
+        WHERE id = #{id} FOR UPDATE
+    </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO users (email, password_hash, nickname, instrument_id, notation_mode, status, created_at, updated_at)
         VALUES (#{email}, #{passwordHash}, #{nickname}, #{instrumentId}, #{notationMode}, 'ACTIVE', #{createdAt}, #{createdAt})
