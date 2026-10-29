@@ -45,12 +45,16 @@ class ResultViewModel(
     private val songRepository: SongRepository,
     private val recordRepository: PracticeRecordRepository,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(ResultUiState(result = evaluationRepository.result(evaluationId)))
+    private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
     private var songJob: Job? = null
 
     init {
-        retrySong()
+        viewModelScope.launch {
+            val result = evaluationRepository.result(evaluationId) ?: return@launch
+            _uiState.update { it.copy(result = result) }
+            retrySong()
+        }
     }
 
     fun retrySong() {

@@ -158,7 +158,7 @@ class PracticeLiveProgressTest {
             }
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel(song.id, false, repository, PracticeSettingsStore(settings),
-                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, backgroundScope), playbackTimeSource = testScheduler.timeSource)
+                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), playbackTimeSource = testScheduler.timeSource)
             store.put("practice", vm)
             runCurrent()
             block(vm)

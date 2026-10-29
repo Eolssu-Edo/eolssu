@@ -8,6 +8,7 @@ import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.song.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 
@@ -27,6 +28,7 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.POST,"/api/auth/sign-in","signIn","인증","이메일 로그인",

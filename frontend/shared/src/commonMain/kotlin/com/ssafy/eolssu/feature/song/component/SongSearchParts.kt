@@ -36,6 +36,8 @@ import com.ssafy.eolssu.feature.song.SongLevelFilter
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_empty
+import eolssu.shared.generated.resources.song_load_failed
+import eolssu.shared.generated.resources.song_load_retry
 import eolssu.shared.generated.resources.song_level_all
 import eolssu.shared.generated.resources.song_reset_filters
 import eolssu.shared.generated.resources.song_search_placeholder
@@ -99,6 +101,19 @@ internal fun SongLevelChips(selected: SongLevelFilter, onSelect: (SongLevelFilte
 @Composable
 private fun songLevelFilterLabel(filter: SongLevelFilter): String =
     filter.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_level_all)
+
+/** 곡 목록을 받지 못했을 때의 안내와 '다시 시도'. */
+@Composable
+internal fun SongLoadFailed(onRetry: () -> Unit, modifier: Modifier = Modifier, verticalPadding: Dp = 56.dp) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = verticalPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(stringResource(Res.string.song_load_failed), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp))
+        EolssuButton(stringResource(Res.string.song_load_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+    }
+}
 
 /** 검색·필터 결과가 없을 때의 안내와 '검색 조건 초기화'. 태블릿 세로는 위아래 여백이 96dp다. */
 @Composable

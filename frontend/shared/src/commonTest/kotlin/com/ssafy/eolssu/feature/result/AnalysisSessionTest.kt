@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
@@ -8,7 +9,10 @@ import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.FakeRecordingFiles
 import com.ssafy.eolssu.data.practice.FakeUploader
 import com.ssafy.eolssu.data.practice.PendingRecording
+import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.RetryOutcome
+import com.ssafy.eolssu.data.practice.SessionStart
 import com.ssafy.eolssu.data.practice.UploadOutcome
 import com.ssafy.eolssu.data.song.SampleSongs
 import kotlinx.coroutines.CancellableContinuation
@@ -114,6 +118,66 @@ class AnalysisSessionTest {
         assertEquals(before + 1, repository.queries)
         time.advanceBy(2_000)
         assertEquals(before + 2, repository.queries)
+    }
+
+    /** 시간 초과로 멈춘 분석에서 다시 시도한다. */
+    private fun retryAfterTimeout(outcome: () -> RetryOutcome) {
+        repository.status = { error("network") }
+        start()
+        time.advanceBy(70_000)
+        repository.retryOutcome = outcome
+    }
+
+    @Test
+    fun retryConflictAsksStatusAgainAndShowsThatState() {
+        retryAfterTimeout { RetryOutcome.Conflict }
+        repository.status = { AnalysisStatus.Failed(AnalysisFailure.NoSound) }
+        session.retry()
+        assertEquals(AnalysisFailure.NoSound, state.failure)
+        assertEquals(false, state.retrying)
+
+        retryAfterTimeout { RetryOutcome.Conflict }
+        repository.status = { AnalysisStatus.Done("41") }
+        session.retry()
+        assertEquals("41", state.evaluationId)
+    }
+
+    @Test
+    fun busyServerKeepsRetryButtonWithWaitNotice() {
+        retryAfterTimeout { RetryOutcome.Busy }
+        val before = repository.queries
+        session.retry()
+        assertEquals(AnalysisFailure.Timeout, state.failure)
+        assertEquals(true, state.retryBusy)
+        assertEquals(false, state.retrying)
+        assertEquals(true, state.canRetry())
+        time.advanceBy(10_000)
+        assertEquals(before, repository.queries)
+
+        repository.retryOutcome = { RetryOutcome.Started }
+        repository.status = { AnalysisStatus.Pending }
+        session.retry()
+        assertEquals(false, state.retryBusy)
+        assertNull(state.failure)
+    }
+
+    @Test
+    fun missingSessionOrLostLoginLeavesTheScreen() {
+        retryAfterTimeout { RetryOutcome.NotFound }
+        session.retry()
+        assertEquals(AnalysisExit.SessionGone, state.exit)
+
+        retryAfterTimeout { RetryOutcome.Unauthorized }
+        session.retry()
+        assertEquals(AnalysisExit.NeedsLogin, state.exit)
+    }
+
+    @Test
+    fun retryWithoutResponseStaysRetryableServerError() {
+        retryAfterTimeout { error("network") }
+        session.retry()
+        assertEquals(AnalysisFailure.ServerError, state.failure)
+        assertEquals(true, state.canRetry())
     }
 
     @Test
@@ -278,6 +342,78 @@ class AnalysisSessionTest {
         assertEquals(0, uploader.calls.size)
         assertEquals(0, repository.queries)
     }
+
+    private val sessions = FakeSessions()
+    private val takeSession = AnalysisSession(
+        scope, repository, clock = { time.now }, sleep = time::sleep, uploads = uploads, sessions = sessions,
+    )
+    private val take = RecordedTake(path = "rec/practice-1.m4a", key = "take-1")
+
+    private fun startWithTake() {
+        scope.launch { takeSession.start(SampleSongs.first(), bpm = 60, take = take) }
+    }
+
+    @Test
+    fun takeCreatesSessionUploadsAndPollsThatSession() {
+        startWithTake()
+        assertEquals(listOf(Triple(SampleSongs.first().id, 60, "take-1")), sessions.calls)
+        assertEquals(listOf("41" to "kept/practice-1.m4a"), uploader.calls)
+        assertEquals(listOf("41"), repository.queriedIds)
+        assertNull(takeSession.state.value.upload)
+    }
+
+    @Test
+    fun unreachableSessionCreationOffersResendWithSameKey() {
+        sessions.results += SessionStart.Unreachable
+        startWithTake()
+        assertEquals(UploadProblem.CanResend, takeSession.state.value.upload)
+        assertEquals(0, uploader.calls.size)
+
+        takeSession.resend()
+        assertEquals(listOf("take-1", "take-1"), sessions.calls.map { it.third })
+        assertEquals(listOf("41" to "kept/practice-1.m4a"), uploader.calls)
+        assertNull(takeSession.state.value.upload)
+        assertEquals(listOf("41"), repository.queriedIds)
+    }
+
+    @Test
+    fun rejectedSessionCreationOnlyOffersPlayingAgain() {
+        sessions.results += SessionStart.Rejected
+        startWithTake()
+        assertEquals(UploadProblem.Rejected, takeSession.state.value.upload)
+        takeSession.resend()
+        assertEquals(1, sessions.calls.size)
+        assertEquals(0, uploader.calls.size)
+    }
+
+    @Test
+    fun pendingRecordingFromLastRunIsSentForItsSession() {
+        uploader.outcomes += UploadOutcome.Unreachable
+        scope.launch { uploads.send(PendingRecording("41", "rec/practice-1.m4a", startedAtMillis = 0L, songId = "arirang", bpm = 60)) }
+
+        scope.launch { takeSession.startPending(SampleSongs.first(), bpm = 60, sessionId = "41") }
+        assertNull(takeSession.state.value.upload)
+        assertEquals(listOf("41", "41"), uploader.calls.map { it.first })
+        assertEquals(listOf("41"), repository.queriedIds)
+    }
+
+    @Test
+    fun pendingRecordingThatIsGoneOnlyOffersPlayingAgain() {
+        scope.launch { takeSession.startPending(SampleSongs.first(), bpm = 60, sessionId = "41") }
+        assertEquals(UploadProblem.Missing, takeSession.state.value.upload)
+        assertEquals(0, uploader.calls.size)
+    }
+}
+
+/** 세션 생성 결과를 차례로 돌려준다. 결과가 없으면 세션 "41"을 만든다. */
+private class FakeSessions : PracticeSessionRepository {
+    val results = ArrayDeque<SessionStart>()
+    val calls = mutableListOf<Triple<String, Int, String>>()
+
+    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String): SessionStart {
+        calls += Triple(songId, bpm, idempotencyKey)
+        return results.removeFirstOrNull() ?: SessionStart.Created("41", startedAtMillis = 0L)
+    }
 }
 
 /** 시계를 넘길 때 그 시각까지 기다리던 코루틴을 순서대로 깨운다. */
@@ -307,6 +443,7 @@ private class FakeEvaluations : EvaluationRepository {
     var requestError: Exception? = null
     var hangs = false
     var queries = 0
+    val queriedIds = mutableListOf<String>()
     var retries = 0
 
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String {
@@ -317,13 +454,17 @@ private class FakeEvaluations : EvaluationRepository {
 
     override suspend fun analysisStatus(analysisId: String): AnalysisStatus {
         queries++
+        queriedIds += analysisId
         if (hangs) awaitCancellation()
         return status()
     }
 
-    override suspend fun retryAnalysis(analysisId: String) {
+    var retryOutcome: () -> RetryOutcome = { RetryOutcome.Started }
+
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         retries++
+        return retryOutcome()
     }
 
-    override fun result(evaluationId: String): EvaluationResult? = null
+    override suspend fun result(evaluationId: String): EvaluationResult? = null
 }

@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.feature.profile
 
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.PracticeTimeSegment
 import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.InstrumentRepository
@@ -23,7 +25,7 @@ class MyPageViewModelTest {
     private val store = FakeKeyValueStore()
     private val instruments = InstrumentRepository(store)
     private val users = SampleUserRepository()
-    private val timeQueue = PracticeTimeQueue(store, api = null, scope = CoroutineScope(Dispatchers.Unconfined))
+    private val timeQueue = PracticeTimeQueue(store, api = null, SignedInMember(store), CoroutineScope(Dispatchers.Unconfined))
 
     @Test
     fun instrumentChangeDoesNotClaimSuccessWithoutServerMapping() = runTest {
@@ -104,7 +106,8 @@ class MyPageViewModelTest {
 
     @Test
     fun withdrawNeedsCorrectPassword() = runTest {
-        val viewModel = WithdrawViewModel(wrongPasswordRepository())
+        timeQueue.close(PracticeTimeSegment("a", "12", 0, 60_000, 60, 60))
+        val viewModel = WithdrawViewModel(wrongPasswordRepository(), timeQueue)
         assertFalse(viewModel.submit())
         assertEquals(ProfileFieldError.PasswordEmpty, viewModel.uiState.value.error)
 
@@ -112,10 +115,12 @@ class MyPageViewModelTest {
         assertNull(viewModel.uiState.value.error)
         assertFalse(viewModel.submit())
         assertEquals(ProfileFieldError.PasswordWrong, viewModel.uiState.value.error)
+        assertEquals(1, timeQueue.pending.size)
 
-        val ok = WithdrawViewModel(users)
+        val ok = WithdrawViewModel(users, timeQueue)
         ok.changePassword("password")
         assertTrue(ok.submit())
+        assertTrue(timeQueue.pending.isEmpty())
     }
 
     /** 현재 비밀번호를 늘 틀린 것으로 보는 저장소(서버 오류 응답 대신). */

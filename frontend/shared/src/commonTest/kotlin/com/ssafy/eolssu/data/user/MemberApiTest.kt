@@ -31,7 +31,7 @@ class MemberApiTest {
             respond("""{"isSuccess":true,"result":{"userId":"42"}}""", HttpStatusCode.Created, headersOf(HttpHeaders.ContentType, "application/json"))
         }, ServerAddress.Production)
         val request = Registration("member@example.test", "test-pass1!", "Member", "verified-test", listOf(TermAgreement("17", "v3", true), TermAgreement("19", "v2", false)))
-        assertEquals(MemberResult.Done, ApiAuthRepository(client, null, this).signUp(request))
+        assertEquals(MemberResult.Done, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).signUp(request))
         client.close()
     }
 
@@ -41,7 +41,7 @@ class MemberApiTest {
             val client = createHttpClient(MockEngine {
                 respond("""{"isSuccess":false,"result":{"errorCode":"$code"}}""", HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json"))
             }, ServerAddress.Production)
-            assertEquals(expected, ApiAuthRepository(client, null, this).signUp(Registration("member@example.test", "test-pass1!", "Member", "old-token", emptyList())))
+            assertEquals(expected, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).signUp(Registration("member@example.test", "test-pass1!", "Member", "old-token", emptyList())))
             client.close()
         }
     }
@@ -55,7 +55,7 @@ class MemberApiTest {
                 if (accepted) respond("", HttpStatusCode.NoContent)
                 else respond("{}", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
             }, ServerAddress.Production)
-            assertEquals(if (accepted) MemberResult.Done else MemberResult.Unavailable, ApiAuthRepository(client, null, this).resetPassword("verified-reset", "new-pass1!"))
+            assertEquals(if (accepted) MemberResult.Done else MemberResult.Unavailable, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).resetPassword("verified-reset", "new-pass1!"))
             client.close()
         }
     }
@@ -67,7 +67,7 @@ class MemberApiTest {
                 if (body == null) error("offline test")
                 respond(body, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
             }, ServerAddress.Production)
-            assertEquals(LoginResult.Unavailable, ApiAuthRepository(client, null, this).logIn("member@example.test", "test-pass1!"))
+            assertEquals(LoginResult.Unavailable, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).logIn("member@example.test", "test-pass1!"))
             client.close()
         }
     }
@@ -85,7 +85,7 @@ class MemberApiTest {
                 respond("""{"isSuccess":true,"result":{"verificationId":"42","expiresAt":"2026-10-29T02:03:00Z","resendAvailableAt":"2026-10-29T02:01:00Z"}}""", HttpStatusCode.Accepted, headersOf(HttpHeaders.ContentType, "application/json"))
             }
         }, ServerAddress.Production)
-        val repository = ApiAuthRepository(client, null, this)
+        val repository = ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this)
         val sent = assertIs<SendCodeResult.Sent>(repository.sendCode("member@example.test", VerificationPurpose.SignUp))
         assertEquals("42", sent.verificationId)
         assertEquals("test-token", assertIs<ConfirmCodeResult.Confirmed>(repository.confirmCode(sent.verificationId, "012345")).verificationToken)

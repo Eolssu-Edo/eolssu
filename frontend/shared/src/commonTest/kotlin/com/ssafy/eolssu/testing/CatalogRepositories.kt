@@ -38,8 +38,8 @@ internal class CatalogEvaluations : EvaluationRepository {
     )
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String { requests++; return "analysis" }
     override suspend fun analysisStatus(analysisId: String): AnalysisStatus = AnalysisStatus.Failed(AnalysisFailure.NoSound)
-    override suspend fun retryAnalysis(analysisId: String) = Unit
-    override fun result(evaluationId: String): EvaluationResult? = cached
+    override suspend fun retryAnalysis(analysisId: String) = com.ssafy.eolssu.data.practice.RetryOutcome.Started
+    override suspend fun result(evaluationId: String): EvaluationResult? = cached
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

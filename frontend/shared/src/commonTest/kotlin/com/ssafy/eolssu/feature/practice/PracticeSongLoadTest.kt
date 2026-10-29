@@ -117,7 +117,7 @@ class PracticeSongLoadTest {
         try {
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel("db-42", false, repository, PracticeSettingsStore(settings), meter,
-                PracticeTimeQueue(settings, null, backgroundScope))
+                PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope))
             store.put("practice", vm)
             block(vm, meter, store)
         } finally {

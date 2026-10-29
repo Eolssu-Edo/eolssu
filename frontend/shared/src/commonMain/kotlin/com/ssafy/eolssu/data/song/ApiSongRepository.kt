@@ -11,7 +11,7 @@ import io.ktor.client.request.get
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
-/** Task256의 공개 곡 API. 원본 score JSON의 식별자·버전·시간을 보존한다. */
+/** CAT01/02 메타데이터와 CAT04 정본 악보. 식별자·버전·정수 tick을 보존한다. */
 class ApiSongRepository(private val client: HttpClient) : SongRepository {
     override suspend fun getSongs(): List<SongSummary> {
         val response = client.sendOrNull { get("/api/songs") } ?: throw CatalogUnavailable()
@@ -32,7 +32,25 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
         val summary = item.summary()
         if (summary.id != songId) throw CatalogUnavailable()
         val level = summary.level ?: throw CatalogUnavailable()
-        val score = CommonScoreData.decode(item.score?.toString() ?: throw CatalogUnavailable()).toScore()
+        val scoreResponse = client.sendOrNull { get("/api/songs/$songId/score") } ?: throw CatalogUnavailable()
+        if (scoreResponse.status.value != 200) throw CatalogUnavailable()
+        val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
+        if (scoreItem.songId != songId || scoreItem.scoreVersion != item.scoreVersion ||
+            scoreItem.noteCount != item.noteCount || scoreItem.defaultBpm != item.defaultBpm ||
+            scoreItem.bpmUnit != item.jangdan.bpmUnit || (item.score != null && item.score != scoreItem.score)
+        ) throw CatalogUnavailable()
+        val common = CommonScoreData.decode(scoreItem.score.toString())
+        if (common.schemaVersion != scoreItem.schemaVersion) throw CatalogUnavailable()
+        val score = common.toScore()
+        val timeline = score.timeline(songId)
+        if (timeline.size != scoreItem.events.size || timeline.zip(scoreItem.events).any { (event, projected) ->
+                event.id != projected.eventId || event.noteIndex != projected.noteIdx ||
+                    event.startTick != projected.startTick || event.durationTick != projected.durationTick ||
+                    event.column != projected.columnIdx || event.row != projected.cellIdx ||
+                    (if (event.noteIndex == null) projected.kind != "REST" || projected.pitchId != null
+                        else projected.kind != "NOTE" || projected.pitchId?.let(::validCatalogId) != true)
+            }
+        ) throw CatalogUnavailable()
         val jangdan = item.jangdan
         val timing = score.timing ?: throw CatalogUnavailable()
         val source = score.source ?: throw CatalogUnavailable()
@@ -56,6 +74,18 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
         )
     }
 }
+
+@Serializable
+private class CatalogScore(
+    val songId: String, val scoreVersion: Int, val schemaVersion: Int, val noteCount: Int,
+    val defaultBpm: Int, val bpmUnit: String, val score: JsonObject, val events: List<CatalogScoreEvent>,
+)
+
+@Serializable
+private class CatalogScoreEvent(
+    val eventId: String, val kind: String, val noteIdx: Int?, val pitchId: String?,
+    val startTick: Long, val durationTick: Long, val columnIdx: Int, val cellIdx: Int,
+)
 
 /** 내용을 꾸미거나 예시 곡으로 대체하지 않고 화면의 재시도 상태로 전달한다. */
 class CatalogUnavailable : Exception("Catalog unavailable or invalid")

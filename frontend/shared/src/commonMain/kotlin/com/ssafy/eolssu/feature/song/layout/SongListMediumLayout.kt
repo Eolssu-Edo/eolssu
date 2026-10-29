@@ -20,6 +20,7 @@ import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLoadFailed
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.component.SongSearchField
 import eolssu.shared.generated.resources.Res

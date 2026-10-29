@@ -60,15 +60,16 @@ class CommonScoreDataTest {
         assertEquals(1750.0, state.eventDurationMs(1))
         // REST의 시작은 2박째: 세마치 구음 6번 칸 = 세 번째 묶음. 원본 정간 row(0)로 추정하면 틀린다.
         assertEquals(2, state.copy(position = 2).beatIndex)
-        assertNull(state.selectEvent(1).panel) // 청중 운지 데이터를 중려 운지로 바꾸지 않는다.
-        assertNull(state.selectEvent(0).selectEvent(1).panel) // 이전 음의 운지 패널도 남겨 두지 않는다.
+        assertEquals(com.ssafy.eolssu.core.model.Yul.CheongJungnyeo, state.selectEvent(1).draft.note)
+        assertEquals(com.ssafy.eolssu.core.model.Yul.CheongJungnyeo, state.selectEvent(0).selectEvent(1).draft.note)
     }
 
     @Test fun unsupportedOctavesRemainExactAndNeverFallBackToBaseFingering() {
         val cheongJung = ScoreNote.SourcePitch("중", 1)
         assertEquals("㳞", cheongJung.symbol)
         assertEquals("청중려", cheongJung.fullName)
-        assertNull(cheongJung.fingeringYul)
+        assertEquals(com.ssafy.eolssu.core.model.Yul.CheongJungnyeo, cheongJung.fingeringYul)
+        assertNull(ScoreNote.SourcePitch("중", 2).fingeringYul)
         assertEquals("㳲", ScoreNote.SourcePitch("태", 2).symbol)
         assertEquals("㴢", ScoreNote.SourcePitch("중", 2).symbol)
     }

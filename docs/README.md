@@ -28,8 +28,11 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+- [S15P31E102-257 평가 결과 조회](plans/S15P31E102-257.md)
+
 ## 기능 스펙
 
+- [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
@@ -61,6 +64,7 @@
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
+- [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
 
 ## 프론트엔드 조사·검증 기록
 
@@ -96,13 +100,17 @@
 
 ## AI 실험 기록
 
+- [단소 채점 오류 검출 평가: 실행과 결과 해석](knowledge/ai/scoring-error-evaluation.md)
+
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
 - [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
+- [단소 단음 녹음의 조율 흔들림: 김 세기·취법별 보정량](knowledge/ai/danso-tuning-variation.md)
 
 ## COCO 산출물
 
 - [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](plans/S15P31E102-261.md) (직접 구현 작업)
+- [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
 - [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
@@ -143,12 +151,14 @@
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
 - [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
+- [S15P31E102-242 채점 오류 검출 평가 도구와 단소 단음 조율 흔들림 측정](plans/S15P31E102-242.md)
 - [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
 - [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
 - [S15P31E102-249 단소 4곡과 악기·장단 기준 데이터 DB 적재](plans/S15P31E102-249.md)
 - [S15P31E102-281 단소 4곡 공통 악보와 운영 V6 시드 일치 검수](plans/S15P31E102-281.md)
 
 - [S15P31E102-272 R2 접근·보관 정책 검증](plans/S15P31E102-272.md)
+- [S15P31E102-263 마이페이지 내 정보 응답에 이메일 추가](plans/S15P31E102-263.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

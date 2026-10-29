@@ -17,7 +17,7 @@ import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
-import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.GrowthRepository
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -140,16 +140,30 @@ private fun rememberRecordDetailActions(
     }
 }
 
-class GrowthViewModel(recordRepository: PracticeRecordRepository, now: () -> Long) : ViewModel() {
-    private val _uiState = MutableStateFlow(GrowthUiState())
+/** GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다. */
+class GrowthViewModel(private val repository: GrowthRepository, now: () -> Long) : ViewModel() {
+    private val _uiState = MutableStateFlow(GrowthUiState(today = KoreanDateTime.fromEpochMillis(now())))
     val uiState: StateFlow<GrowthUiState> = _uiState.asStateFlow()
-    val today: KoreanDateTime = KoreanDateTime.fromEpochMillis(now())
 
     init {
-        viewModelScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
+        load(GrowthRange.Week)
     }
 
-    fun changeRange(range: GrowthRange) = _uiState.update { it.copy(range = range) }
+    fun changeRange(range: GrowthRange) {
+        _uiState.update { it.copy(range = range) }
+        if (_uiState.value.loads[range] !is GrowthLoad.Loaded) load(range)
+    }
+
+    fun retry() = load(_uiState.value.range)
+
+    private fun load(range: GrowthRange) {
+        if (_uiState.value.loads[range] == GrowthLoad.Loading) return
+        _uiState.update { it.copy(loads = it.loads + (range to GrowthLoad.Loading)) }
+        viewModelScope.launch {
+            val load = loadGrowth(repository, GrowthPeriod.of(range, _uiState.value.today))
+            _uiState.update { it.copy(loads = it.loads + (range to load)) }
+        }
+    }
 }
 
 /** GROWTH-01 연결. [onOpenMissions]는 '완료한 미션'(학습 화면) 이동. */
@@ -164,9 +178,9 @@ fun GrowthRoute(
     GrowthScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
-        todayEpochDay = viewModel.today.epochDay,
         onBack = onBack,
         onRange = viewModel::changeRange,
+        onRetry = viewModel::retry,
         onOpenMissions = onOpenMissions,
         onOpenRecords = onOpenRecords,
     )

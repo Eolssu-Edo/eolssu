@@ -28,7 +28,7 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         single<MicPermission> { AndroidMicPermission.of(appContext) }
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
-        // 업로드를 기다리는 녹음. 실제 업로드가 붙으면 RecordingUploads가 쓴다(S15P31E102-187).
+        // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
     }
 }

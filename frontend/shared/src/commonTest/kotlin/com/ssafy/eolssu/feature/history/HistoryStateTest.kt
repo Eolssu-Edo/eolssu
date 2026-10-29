@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.history
 
-import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.SampleSongs
@@ -56,13 +55,5 @@ class HistoryStateTest {
         assertEquals(9, state.indexAt(3.0))
         assertEquals(0, state.indexAt(-5.0))
         assertEquals(state.eventCount - 1, state.indexAt(999.0))
-    }
-
-    @Test
-    fun growthUsesLatestFiveOldestFirst() {
-        val state = GrowthUiState(records = records)
-        assertEquals(listOf(68, 71, 76, 79), state.trend.map { it.score })
-        assertEquals(Triple(EvaluationMetric.Pitch, 80, 82), state.metricGrowth.first())
-        assertEquals(listOf("아리랑" to 79, "도라지타령" to 71), state.bestBySong)
     }
 }

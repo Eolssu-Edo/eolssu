@@ -55,7 +55,7 @@ fun pitchIndexOf(hanja: String): Int {
  * 세리프 글꼴에 있는 율명 한자(`tools/fonts/build_fonts.py`의 `SERIF_HANJA`와 같은 율명 15자).
  * 나머지 청성·탁성·중청 글자는 글꼴에 없어서 변(氵·亻)과 기본 율명을 나란히 그린다.
  */
-internal val SerifYulGlyphs: Set<String> = Yul.entries.map { it.symbol }.toSet()
+internal val SerifYulGlyphs: Set<String> = Yul.entries.filter { it.drawnAs == null }.map { it.symbol }.toSet()
 
 /** 율명 글자를 그릴 조각. [radicals]를 작게 앞에 붙이고 [base]를 그린다. [radicals]가 비면 글자 그대로다. */
 data class HanjaGlyphParts(val radicals: String, val base: String)

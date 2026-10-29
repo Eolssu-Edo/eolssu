@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.user
 
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
@@ -20,10 +21,12 @@ import kotlinx.serialization.Serializable
  * 인증번호·가입·비밀번호 재설정도 같은 서버 계약을 따른다. 예시 저장소로 대체하지 않는다.
  *
  * 로그아웃은 화면이 바로 넘어가도 끝나도록 앱 전체의 [scope]에서 한다. 서버 요청이 실패해도 기기의 쿠키는 지운다.
+ * 로그인에 성공하면 응답의 `userId`를, 로그아웃하면 빈 값을 [member]에 남긴다(회원별 기록을 다른 회원으로 보내지 않기 위해).
  */
 class ApiAuthRepository(
     private val client: HttpClient,
     private val cookies: SecureCookiesStorage?,
+    private val member: SignedInMember,
     private val scope: CoroutineScope,
 ) : AuthRepository {
     private var signingOut: Job? = null
@@ -31,25 +34,35 @@ class ApiAuthRepository(
     override suspend fun logIn(email: String, password: String): LoginResult {
         // 로그아웃이 끝나기 전에 로그인하면 새 쿠키가 지워질 수 있다.
         signingOut?.join()
-        val response = client.sendOrNull {
-            post("/api/auth/sign-in") {
-                contentType(ContentType.Application.Json)
-                setBody(SignInRequest(email.trim(), password))
+        // 쿠키는 200 응답에서만 바뀌므로 회원도 그때만 바꾼다. 실패하면 이전 회원(만료된 세션 포함)이 그대로 남는다.
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/sign-in") {
+                    contentType(ContentType.Application.Json)
+                    setBody(SignInRequest(email.trim(), password))
+                }
+            } ?: return@changing LoginResult.Unavailable
+            when (response.status.value) {
+                200 -> {
+                    val signedIn = response.apiResponse<SignedIn>()?.takeIf { it.isSuccess }?.result
+                        ?.takeIf { it.userId.isNotBlank() } ?: return@changing LoginResult.Unavailable
+                    member.set(signedIn.userId)
+                    LoginResult.Success(withdrawalCancelled = signedIn.withdrawalCancelled)
+                }
+                400, 401 -> LoginResult.WrongCredentials
+                429 -> LoginResult.Locked
+                else -> LoginResult.Unavailable
             }
-        } ?: return LoginResult.Unavailable
-        return when (response.status.value) {
-            200 -> response.apiResponse<SignedIn>()?.takeIf { it.isSuccess }?.result
-                ?.takeIf { it.userId.isNotBlank() }?.let { LoginResult.Success(it.withdrawalCancelled) } ?: LoginResult.Unavailable
-            400, 401 -> LoginResult.WrongCredentials
-            429 -> LoginResult.Locked
-            else -> LoginResult.Unavailable
         }
     }
 
     override fun logOut() {
         signingOut = scope.launch {
-            client.sendOrNull { post("/api/auth/sign-out") }
-            cookies?.clear()
+            member.changing {
+                member.set(null)
+                client.sendOrNull { post("/api/auth/sign-out") }
+                cookies?.clear()
+            }
         }
     }
 

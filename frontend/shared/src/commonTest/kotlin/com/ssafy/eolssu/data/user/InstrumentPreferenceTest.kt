@@ -79,7 +79,7 @@ class InstrumentPreferenceTest {
             respond("""{"isSuccess":true,"result":{"userId":"42"}}""", HttpStatusCode.Created, JSON)
         }, ServerAddress.Production)
         try {
-            assertEquals(MemberResult.Done, ApiAuthRepository(client, null, this).signUp(
+            assertEquals(MemberResult.Done, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).signUp(
                 Registration("member@example.test", "test-pass1!", "Member", "verified-test", emptyList(), "73"),
             ))
         } finally { client.close() }

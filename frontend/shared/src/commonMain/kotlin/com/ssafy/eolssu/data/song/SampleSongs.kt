@@ -12,7 +12,7 @@ import kotlin.math.roundToInt
 
 /*
  * 와이어프레임(data.js)의 예시 곡·장단. 화면 구성과 이동을 확인하기 위한 예시이며 실제 곡의 악보가 아니다.
- * 곡 API가 생기면 SongRepository 구현을 바꾸고 이 파일은 지운다.
+ * 앱은 서버 곡을 쓰고, 이 예시는 테스트와 아직 예시 데이터인 연습 기록·내 악보가 쓴다.
  * 정간 수·대강 분절 출처: jeongganbo-generator (https://github.com/danbinaerinHan/jeongganbo-generator)
  */
 

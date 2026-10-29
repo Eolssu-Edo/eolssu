@@ -76,7 +76,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db`·`ops` 프로필에서 제공하며 모두 로그인(access_token 쿠키)이 필요합니다. 토큰은 유효하지만 회원이 없거나 ACTIVE가 아니면 401 `UNAUTHENTICATED`입니다(회원 행이 없을 때 401은 GRO-04와 같음).
 
-- `GET /api/users/me`: 닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 이메일·제공자 사용자 ID는 내보내지 않습니다.
+- `GET /api/users/me`: 본인 이메일·닉네임·악기·표기와 연결된 간편 로그인(`linkedProviders`, 연결 순). 비밀번호 해시와 간편 로그인 제공자의 사용자 ID·이메일은 내보내지 않습니다. 닉네임·악기·표기 저장 응답에는 이메일을 넣지 않습니다.
 - `PATCH /api/users/me`: 닉네임(가입과 같은 규칙, 60자 이하).
 - `PATCH /api/users/me/preferences`: `instrumentId`·`notationMode` 중 한 개 이상. 없거나 비활성인 악기는 422 `UNPROCESSABLE_INPUT`. 곡별 BPM(`user_song_settings`)은 형식이 정해지지 않아 아직 받지 않습니다.
 - `PATCH /api/users/me/password`: 현재 비밀번호가 틀리면 403 `CURRENT_PASSWORD_MISMATCH`, 같은 회원 15분 안 5번째 실패부터 15분 동안 429(`retryAvailableAt`, 로그인 잠금과 따로 셈). 새 비밀번호는 가입 규칙을 따르고 현재 값과 같으면 400입니다. 성공하면 그 회원의 refresh를 모두 폐기(PASSWORD_CHANGED)하고 현재 기기에만 두 쿠키를 새로 줍니다. 다른 기기의 access_token은 만료(최대 30분)까지 쓸 수 있습니다.
@@ -331,7 +331,7 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - JSON: `/api/v3/api-docs`
 - 배포 후 주소: https://k15e102.p.ssafy.io/api/swagger-ui.html
 
-문서·UI 정적 파일·설정 JSON도 기존 access_token 쿠키와 ACTIVE 회원 검증을 받습니다. 먼저 같은 출처의 앱 로그인 화면 또는 `POST /api/auth/sign-in`을 브라우저에서 호출해 로그인한 다음 문서를 엽니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다. 만료되면 다시 로그인합니다.
+문서·UI 정적 파일·설정 JSON의 GET 조회는 로그인 없이 가능합니다. access_token 쿠키가 없거나 잘못됐거나 만료돼도 문서는 열립니다. 실제 회원 API의 인증과 ACTIVE 회원 검증은 유지합니다. Try it out으로 회원 API를 호출하려면 같은 출처의 앱에서 먼저 로그인합니다. 다른 HTTP 클라이언트의 로그인 쿠키는 브라우저와 공유되지 않습니다.
 
 Swagger UI의 Try it out은 브라우저가 보관한 HttpOnly 쿠키를 전송합니다. OpenAPI에는 accessCookie·refreshCookie를 표시하지만 Authorize 입력으로 브라우저의 Cookie 헤더/HttpOnly 쿠키를 설정할 수는 없습니다. Bearer 헤더 인증을 추가하지 않았으며 비밀번호·실제 토큰을 문서에 저장하지 않습니다. 운영 HTTPS에서는 Secure 쿠키를 사용합니다.
 
@@ -343,6 +343,9 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 
 재발급·로그아웃·분석 재시도처럼 업무 본문이 없는 POST도 기존 필터상 `Content-Type: application/json`이 필요합니다. Swagger 문서는 선택적인 빈 JSON `{}` 예시를 제공해 Try it out이 이 헤더를 설정하도록 합니다. 서버의 요청 본문 요구/업무 동작을 바꾼 것은 아닙니다.
 
+### 연주 평가 결과 조회
+
+인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
 ### 공개 곡 조회
 
 `GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.

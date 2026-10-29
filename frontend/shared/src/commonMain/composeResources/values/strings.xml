@@ -35,6 +35,8 @@
     <string name="song_search_placeholder">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
     <string name="song_empty">조건에 맞는 곡이 없어요.</string>
+    <string name="song_load_failed">곡 목록을 불러오지 못했어요.</string>
+    <string name="song_load_retry">다시 시도</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>
@@ -186,12 +188,17 @@
     <string name="analysis_failed_timeout">분석이 오래 걸리고 있어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_failed_server_error">분석 중 문제가 생겼어요. 다시 시도해 주세요.</string>
     <string name="analysis_retry">분석 다시 시도</string>
+    <string name="analysis_retry_busy">지금은 분석을 다시 시작하지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="analysis_back_to_practice">연습으로 돌아가기</string>
     <string name="analysis_play_again">다시 연주하기</string>
     <string name="analysis_upload_failed_title">녹음을 보내지 못했어요.</string>
     <string name="analysis_upload_kept">녹음은 기기에 남아 있어요.</string>
     <string name="analysis_upload_rejected">이 녹음은 보낼 수 없어요. 다시 연주해 주세요.</string>
     <string name="analysis_upload_missing">기기에서 녹음을 찾지 못했어요. 다시 연주해 주세요.</string>
+    <string name="pending_recording_title">보내지 못한 녹음이 있어요</string>
+    <string name="pending_recording_body">지난 연주 녹음이 기기에 남아 있어요. 지금 보내서 평가를 받을까요?</string>
+    <string name="pending_recording_send">녹음 보내기</string>
+    <string name="pending_recording_later">나중에</string>
     <string name="analysis_resend">녹음 다시 보내기</string>
 
     <string name="result_title">연주 결과</string>
@@ -268,16 +275,28 @@
     <string name="record_detail_seek">재생 위치</string>
 
     <string name="growth_title">연습 기록지</string>
-    <string name="growth_subtitle">%1$s · 예시 데이터</string>
+    <string name="growth_period_week">%1$d월 %2$d주차</string>
+    <string name="growth_period_month">%1$d월</string>
     <string name="growth_week">이번 주</string>
     <string name="growth_month">이번 달</string>
     <string name="growth_by_day">요일별 연습 시간</string>
     <string name="growth_by_week">주별 연습 시간</string>
     <string name="growth_minutes">%1$d분</string>
-    <string name="growth_trend">점수 변화 · 최근 %1$d회</string>
-    <string name="growth_trend_range">%1$d → %2$d점</string>
-    <string name="growth_trend_section">%1$s 구간</string>
+    <string name="growth_tile_time">연습 시간</string>
+    <string name="growth_tile_count">연습 횟수</string>
+    <string name="growth_tile_score">평균 점수</string>
+    <string name="growth_count_value">%1$d회</string>
+    <string name="growth_score_value">%1$d점</string>
+    <string name="growth_change_last_week">지난주보다 %1$s</string>
+    <string name="growth_change_last_month">지난달보다 %1$s</string>
+    <string name="growth_score_change">%1$s점</string>
+    <string name="growth_streak">%1$d일 연속</string>
+    <string name="growth_practice_days">%1$d일 연습</string>
     <string name="growth_items">항목별 성장 · 첫 기록 → 최근</string>
+    <string name="growth_items_basis">%1$s · %2$d BPM 기준</string>
+    <string name="growth_best_none">아직 없어요</string>
+    <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
+    <string name="growth_retry">다시 시도</string>
     <string name="growth_missions">완료한 미션</string>
     <string name="growth_missions_value">%1$d개</string>
     <string name="growth_missions_total">/ %1$d</string>

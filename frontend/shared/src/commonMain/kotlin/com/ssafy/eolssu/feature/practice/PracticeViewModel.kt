@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -24,6 +25,7 @@ import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import kotlin.uuid.Uuid
 
 /**
  * PRACTICE-01. 정간 길이만큼 기다리며 위치를 옮긴다(와이어프레임 타이머와 같은 방식).
@@ -32,6 +34,7 @@ import kotlin.time.TimeSource
  * 평가 연주는 [recorder]로 녹음한다. 연주 중단 확인 창·이어 연주 카운트다운 동안은 일시정지하고,
  * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼(iOS·Web)은 녹음 없이 진행만 한다.
  * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
+ * 끝까지 마친 녹음은 [recordedTake]로 분석 화면에 넘긴다. 녹음마다 새 세션 키를 [newKey]로 만든다.
  * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
  *
  * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
@@ -47,6 +50,7 @@ class PracticeViewModel(
     private val recorder: AudioRecorder? = null,
     private val micPermission: MicPermission? = null,
     private val playbackTimeSource: TimeSource = TimeSource.Monotonic,
+    private val newKey: () -> String = { Uuid.random().toString() },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, settings = settingsStore.settings.value, inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
@@ -64,6 +68,8 @@ class PracticeViewModel(
     private var songJob: Job? = null
     private var screenShown = false
     private val recordingClock = RecordingClock()
+    private var takeKey = ""
+    private var take: RecordedTake? = null
 
     init {
         retryLoadSong()
@@ -375,8 +381,13 @@ class PracticeViewModel(
 
     // 녹음
 
+    /** 끝까지 마치고 저장된 녹음. 20MiB를 넘거나 저장하지 못했으면 null이다. 새 녹음을 시작하면 비운다. */
+    fun recordedTake(): RecordedTake? = take
+
     private fun startRecorder(): Boolean {
         val recorder = recorder ?: return true
+        take = null
+        takeKey = newKey()
         if (runCatching { recorder.start() }.isFailure) return false
         recordingClock.start()
         watchRecording()
@@ -414,6 +425,7 @@ class PracticeViewModel(
         levelJob?.cancel()
         recordingClock.reset()
         val audio = recorder.stop()
+        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey) }
         _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
     }
 

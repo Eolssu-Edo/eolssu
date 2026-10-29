@@ -21,6 +21,15 @@ fun ScoreNoteGlyph(
     color: Color = EolssuTheme.colors.text,
     fontWeight: FontWeight = FontWeight.SemiBold,
 ) {
+    val knownYul = when (note) {
+        is ScoreNote.Pitch -> note.yul
+        is ScoreNote.SourcePitch -> note.fingeringYul
+        else -> null
+    }
+    if (knownYul != null) {
+        YulGlyph(knownYul, size, modifier, color, fontWeight)
+        return
+    }
     val pitch = note as? ScoreNote.SourcePitch
     val style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = fontWeight)
     if (pitch == null || pitch.fingeringYul != null || pitch.symbol == pitch.hangul) {
