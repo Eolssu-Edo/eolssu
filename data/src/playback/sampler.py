@@ -268,7 +268,7 @@ class CatSampler:
                     self._sustain_loops = cache
                     key = (digest, rate, zone["root"], zone.get("start", 0), zone.get("end", len(samples) - 1))
                     if key not in cache:
-                        loop = find_sustain_loop(samples, rate, zone["root"]) if self.instrument == "danso" else None
+                        loop = find_sustain_loop(samples, rate, zone["root"]) if self.instrument in ("danso", "sogeum") else None
                         cache[key] = ({**loop, "sample": zone["file"], "sample_sha256": digest,
                                        "policy": dict(SUSTAIN_POLICY)} if loop else None)
                     selected_loop = cache[key]
