@@ -122,6 +122,7 @@
 - [S15P31E102-95 Mattermost 서버 점검 명령·HTTPS 중계 배포](plans/S15P31E102-95.md)
 - [S15P31E102-112 운영 DB·설정 백업과 복구 검증](plans/S15P31E102-112.md)
 - [S15P31E102-293 edo2 백업 복구 실패와 실험 중지 오탐 수정](plans/S15P31E102-293.md)
+- [S15P31E102-294 edo2 Android 실험 자원과 점검 예외 제거](plans/S15P31E102-294.md)
 - [S15P31E102-128 기술 블로그 GitHub Pages 자동 배포 설정](plans/S15P31E102-128.md)
 - [S15P31E102-133 edo2 Mattermost 서버 점검](plans/S15P31E102-133.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
