@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.app.di
 
 import com.ssafy.eolssu.data.practice.EvaluationRepository
+import com.ssafy.eolssu.data.practice.GrowthRepository
+import com.ssafy.eolssu.data.practice.HttpGrowthRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.HttpScoreViewApi
@@ -76,6 +78,7 @@ val appModule = module {
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get()) }
+    single<GrowthRepository> { HttpGrowthRepository(get()) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)

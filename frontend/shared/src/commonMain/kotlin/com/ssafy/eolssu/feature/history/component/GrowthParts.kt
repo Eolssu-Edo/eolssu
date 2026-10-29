@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.feature.history.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,9 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -33,11 +32,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -46,24 +42,37 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.data.practice.MetricGrowth
+import com.ssafy.eolssu.feature.history.GrowthLoad
 import com.ssafy.eolssu.feature.history.GrowthRange
 import com.ssafy.eolssu.feature.history.GrowthStats
-import com.ssafy.eolssu.feature.history.GrowthUiState
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.growth_best_by_song
+import eolssu.shared.generated.resources.growth_best_none
 import eolssu.shared.generated.resources.growth_by_day
 import eolssu.shared.generated.resources.growth_by_week
+import eolssu.shared.generated.resources.growth_change_last_month
+import eolssu.shared.generated.resources.growth_change_last_week
+import eolssu.shared.generated.resources.growth_count_value
 import eolssu.shared.generated.resources.growth_items
+import eolssu.shared.generated.resources.growth_items_basis
+import eolssu.shared.generated.resources.growth_load_failed
 import eolssu.shared.generated.resources.growth_minutes
 import eolssu.shared.generated.resources.growth_missions
 import eolssu.shared.generated.resources.growth_missions_total
 import eolssu.shared.generated.resources.growth_missions_value
 import eolssu.shared.generated.resources.growth_month
-import eolssu.shared.generated.resources.growth_trend
-import eolssu.shared.generated.resources.growth_trend_range
-import eolssu.shared.generated.resources.growth_trend_section
+import eolssu.shared.generated.resources.growth_practice_days
+import eolssu.shared.generated.resources.growth_retry
+import eolssu.shared.generated.resources.growth_score_change
+import eolssu.shared.generated.resources.growth_score_value
+import eolssu.shared.generated.resources.growth_streak
+import eolssu.shared.generated.resources.growth_tile_count
+import eolssu.shared.generated.resources.growth_tile_score
+import eolssu.shared.generated.resources.growth_tile_time
 import eolssu.shared.generated.resources.growth_week
-import eolssu.shared.generated.resources.records_today
 import eolssu.shared.generated.resources.result_metric_length
 import eolssu.shared.generated.resources.result_metric_pitch
 import eolssu.shared.generated.resources.result_metric_rhythm
@@ -72,7 +81,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * 연습 기록지의 여백·크기. 휴대폰([Compact])과 태블릿([Tablet], `Tab-Growth`)이 다르다.
  *
- * @property tablet 막대를 그래프 높이의 72%까지 그리고, 점수 변화 그래프는 와이어프레임 SVG처럼 비율을 지켜 가운데에 키운다.
+ * @property tablet 막대를 그래프 높이의 72%까지 그린다.
  */
 internal data class GrowthSpacing(
     val gap: Dp,
@@ -83,12 +92,11 @@ internal data class GrowthSpacing(
     val cardPadding: Dp,
     val itemsGap: Dp,
     val barChartHeight: Dp,
-    val trendHeight: Dp,
     val tablet: Boolean,
 ) {
     companion object {
-        val Compact = GrowthSpacing(12.dp, 12.dp, 12.dp, 11.sp, 20.sp, 14.dp, 10.dp, 110.dp, 104.dp, tablet = false)
-        val Tablet = GrowthSpacing(14.dp, 16.dp, 14.dp, 12.sp, 24.sp, 16.dp, 12.dp, 170.dp, 170.dp, tablet = true)
+        val Compact = GrowthSpacing(12.dp, 12.dp, 12.dp, 11.sp, 20.sp, 14.dp, 10.dp, 110.dp, tablet = false)
+        val Tablet = GrowthSpacing(14.dp, 16.dp, 14.dp, 12.sp, 24.sp, 16.dp, 12.dp, 170.dp, tablet = true)
     }
 }
 
@@ -136,35 +144,78 @@ internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
     }
 }
 
-/** 연습 시간 · 횟수 · 평균 점수 칸 세 개. */
+/** 연습 시간 · 횟수 · 평균 점수 칸 세 개. 횟수 칸 아래는 주 보기면 연속 일수, 월 보기면 연습한 날 수다. */
 @Composable
 internal fun GrowthTiles(stats: GrowthStats, spacing: GrowthSpacing) {
     val colors = EolssuTheme.colors
+    val week = stats.range == GrowthRange.Week
+    val tiles = listOf(
+        Triple(
+            stringResource(Res.string.growth_tile_time),
+            stringResource(Res.string.growth_minutes, stats.practiceMinutes),
+            stringResource(if (week) Res.string.growth_change_last_week else Res.string.growth_change_last_month, signed(stats.minutesChange)),
+        ),
+        Triple(
+            stringResource(Res.string.growth_tile_count),
+            stringResource(Res.string.growth_count_value, stats.practiceCount),
+            if (week) stringResource(Res.string.growth_streak, stats.streakDays) else stringResource(Res.string.growth_practice_days, stats.practiceDays),
+        ),
+        Triple(
+            stringResource(Res.string.growth_tile_score),
+            stats.averageScore?.let { stringResource(Res.string.growth_score_value, it) } ?: "–",
+            stats.averageChange?.let { stringResource(Res.string.growth_score_change, signed(it.toLong())) }.orEmpty(),
+        ),
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        stats.tiles.forEach { tile ->
+        tiles.forEach { (label, value, sub) ->
             Column(
                 Modifier
                     .weight(1f)
                     .background(colors.surface, RoundedCornerShape(14.dp))
                     .padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV),
             ) {
-                Text(tile.label, style = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize), color = colors.textMuted)
-                Text(tile.value, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.titleLarge.copy(fontSize = spacing.tileValueSize, fontWeight = FontWeight.Bold))
-                Text(tile.sub, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp))
+                Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize), color = colors.textMuted)
+                Text(value, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.titleLarge.copy(fontSize = spacing.tileValueSize, fontWeight = FontWeight.Bold))
+                Text(sub, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp))
             }
+        }
+    }
+}
+
+/** 변화량 표시: +23, -5, ±0. */
+internal fun signed(value: Long): String = when {
+    value > 0 -> "+$value"
+    value < 0 -> "$value"
+    else -> "±0"
+}
+
+/** 불러오는 중이면 도는 표시, 받지 못했으면 안내와 '다시 시도'. */
+@Composable
+internal fun GrowthStatus(load: GrowthLoad, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Column(
+        modifier.fillMaxWidth().padding(vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+    ) {
+        if (load == GrowthLoad.Failed) {
+            Text(stringResource(Res.string.growth_load_failed), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp), color = colors.textMuted)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+        } else {
+            CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
         }
     }
 }
 
 /** 요일·주별 연습 시간 카드. [fill]이면 카드가 받은 높이를 그래프가 채운다(태블릿 가로). */
 @Composable
-internal fun BarChartCard(state: GrowthUiState, spacing: GrowthSpacing, modifier: Modifier = Modifier, fill: Boolean = false) {
+internal fun BarChartCard(stats: GrowthStats, spacing: GrowthSpacing, modifier: Modifier = Modifier, fill: Boolean = false) {
     GrowthOutlinedCard(spacing, modifier) {
         Text(
-            stringResource(if (state.range == GrowthRange.Week) Res.string.growth_by_day else Res.string.growth_by_week),
+            stringResource(if (stats.range == GrowthRange.Week) Res.string.growth_by_day else Res.string.growth_by_week),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
         )
-        BarChart(state.stats, spacing, if (fill) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(spacing.barChartHeight))
+        BarChart(stats, spacing, if (fill) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(spacing.barChartHeight))
     }
 }
 
@@ -209,69 +260,25 @@ private fun BarChart(stats: GrowthStats, spacing: GrowthSpacing, modifier: Modif
     }
 }
 
-/** 최근 점수 변화 선 그래프. 와이어프레임 SVG(310×104) 좌표를 쓴다. */
+/** 항목별 첫 기록 → 최근 점수 카드. 같은 조건 연주끼리 비교하므로 기준 곡·BPM을 제목 아래에 적는다. */
 @Composable
-internal fun TrendCard(state: GrowthUiState, todayEpochDay: Long, spacing: GrowthSpacing, chartHeight: Dp = spacing.trendHeight) {
-    val colors = EolssuTheme.colors
-    val points = state.trend
-    val measurer = rememberTextMeasurer()
-    val todayLabel = stringResource(Res.string.records_today)
-    val sectionTemplate = stringResource(Res.string.growth_trend_section, "%s")
-    val labels = points.map { r ->
-        when {
-            r.recordedAt.epochDay == todayEpochDay -> todayLabel
-            r.section != null -> sectionTemplate.replace("%s", "${r.recordedAt.month}/${r.recordedAt.day}")
-            else -> "${r.recordedAt.month}/${r.recordedAt.day}"
-        }
-    }
-    GrowthOutlinedCard(spacing) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(stringResource(Res.string.growth_trend, points.size), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-            Text(stringResource(Res.string.growth_trend_range, points.first().score, points.last().score), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold))
-        }
-        val description = points.joinToString(", ") { "${it.score}점" }
-        Canvas(Modifier.fillMaxWidth().height(chartHeight).clearAndSetSemantics { contentDescription = description }) {
-            // 휴대폰은 너비에 맞춰 늘이고, 태블릿은 SVG처럼 비율을 지켜 높이에 맞춘 뒤 가운데에 둔다(글자·선도 함께 키운다).
-            val s = if (spacing.tablet) minOf(size.width / 310f, size.height / 104f) else size.width / 310f
-            val k = if (spacing.tablet) (s / density).coerceAtLeast(1f) else 1f
-            val left = (size.width - 310f * s) / 2f
-            listOf(18f, 48f, 78f).forEach { y -> drawLine(colors.surfaceStrong, Offset(left, y * s), Offset(left + 310f * s, y * s), 1.dp.toPx()) }
-            val step = if (points.size > 1) 280f / (points.size - 1) else 0f
-            // 점수 60~90점을 그래프 높이(y 84~14)에 맞춘다.
-            val coords = points.mapIndexed { i, r -> Offset(left + (14f + step * i) * s, (84f - (r.score - 60).coerceIn(0, 30) / 30f * 70f) * s) }
-            for (i in 0 until coords.size - 1) drawLine(colors.text, coords[i], coords[i + 1], 2.dp.toPx() * k)
-            coords.forEachIndexed { i, c ->
-                val last = i == coords.lastIndex
-                if (last) {
-                    drawCircle(colors.text, 5.dp.toPx() * k, c)
-                } else {
-                    drawCircle(colors.background, 4.dp.toPx() * k, c)
-                    drawCircle(colors.text, 4.dp.toPx() * k, c, style = Stroke(2.dp.toPx() * k))
-                }
-                val score = measurer.measure(
-                    "${points[i].score}",
-                    TextStyle(fontSize = (if (last) 11.sp else 10.sp) * k, fontWeight = if (last) FontWeight.Bold else FontWeight.Normal, color = if (last) colors.text else colors.textMuted),
-                )
-                drawText(score, topLeft = Offset(c.x - score.size.width / 2f, c.y - 12.dp.toPx() * k - score.size.height))
-                val label = measurer.measure(labels[i], TextStyle(fontSize = 9.sp * k, color = if (last) colors.text else colors.textMuted))
-                drawText(label, topLeft = Offset(c.x - label.size.width / 2f, size.height - label.size.height))
-            }
-        }
-    }
-}
-
-/** 항목별 첫 기록 → 최근 점수 카드. */
-@Composable
-internal fun MetricGrowthCard(state: GrowthUiState, spacing: GrowthSpacing) {
+internal fun MetricGrowthCard(growth: MetricGrowth, spacing: GrowthSpacing) {
     GrowthOutlinedCard(spacing, gap = spacing.itemsGap) {
-        Text(stringResource(Res.string.growth_items), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-        state.metricGrowth.forEach { (metric, before, after) -> GrowthBarRow(metric, before, after) }
+        Column {
+            Text(stringResource(Res.string.growth_items), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Text(
+                stringResource(Res.string.growth_items_basis, growth.title, growth.bpm),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = EolssuTheme.colors.textMuted,
+            )
+        }
+        growth.changes.forEach { GrowthBarRow(it.metric, it.first, it.last) }
     }
 }
 
-/** 완료한 미션 · 곡별 최고 점수 두 칸. */
+/** 완료한 미션 · 곡별 최고 점수 두 칸. 미션 수를 서버가 주지 않으면(미션 미구현) '–'다. */
 @Composable
-internal fun GrowthLinks(state: GrowthUiState, spacing: GrowthSpacing, onOpenMissions: () -> Unit, onOpenRecords: () -> Unit) {
+internal fun GrowthLinks(stats: GrowthStats, spacing: GrowthSpacing, onOpenMissions: () -> Unit, onOpenRecords: () -> Unit) {
     val colors = EolssuTheme.colors
     val padding = Modifier.padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV)
     val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize)
@@ -279,10 +286,16 @@ internal fun GrowthLinks(state: GrowthUiState, spacing: GrowthSpacing, onOpenMis
         Surface(onClick = onOpenMissions, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
             Column(padding) {
                 Text(stringResource(Res.string.growth_missions), style = labelStyle, color = colors.textMuted)
+                val completed = stats.completedMissions
+                val total = stats.totalMissions
                 Text(
-                    buildAnnotatedString {
-                        append(stringResource(Res.string.growth_missions_value, 5) + " ")
-                        withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.growth_missions_total, 14)) }
+                    if (completed != null && total != null) {
+                        buildAnnotatedString {
+                            append(stringResource(Res.string.growth_missions_value, completed) + " ")
+                            withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.growth_missions_total, total)) }
+                        }
+                    } else {
+                        buildAnnotatedString { append("–") }
                     },
                     modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
@@ -293,7 +306,7 @@ internal fun GrowthLinks(state: GrowthUiState, spacing: GrowthSpacing, onOpenMis
             Column(padding) {
                 Text(stringResource(Res.string.growth_best_by_song), style = labelStyle, color = colors.textMuted)
                 Text(
-                    state.bestBySong.joinToString(" · ") { (title, score) -> "$title $score" },
+                    if (stats.bestBySong.isEmpty()) stringResource(Res.string.growth_best_none) else stats.bestBySong.joinToString(" · ") { "${it.title} ${it.bestTotalScore}" },
                     modifier = Modifier.padding(top = 4.dp),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 19.5.sp),
                 )
