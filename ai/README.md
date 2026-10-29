@@ -115,3 +115,8 @@ uv run --group eval python -m evaluation.measure_latency
 | 실패 | 소리가 없거나 잡음 몇 프레임만 잡혀 모든 음표가 `MISSED`면 `NO_SOUND`, 녹음이 정답 길이의 절반 미만이면 `TOO_SHORT`. 0점과 구분 |
 
 허용 범위 기본값(음정 ±50센트, 시작 박의 1/8, 길이 ±25%)과 조율 보정 상한은 녹음으로 검증하기 전의 제안 값입니다. 입력 규칙, 상한 식의 근거와 한계는 [채점 입력과 기준음·조율 보정 상한](../docs/knowledge/ai/scoring-input-and-tuning.md)에 있습니다. 1분이 넘는 녹음은 아직 다루지 않습니다.
+
+
+## 정상·오류 녹음 평가
+
+[오류 검출 평가 실행과 결과 해석](../docs/knowledge/ai/scoring-error-evaluation.md)을 따라 합성 묶음 생성, 허용값 16개 조합 평가, 같은 녹음의 전후 비교를 실행합니다. PowerShell 명령과 검출률·오탐률, 윌슨 구간, 맥니마 검정의 뜻과 한계가 있습니다. 단소 단음의 조율 결과는 [김 세기·취법별 측정](../docs/knowledge/ai/danso-tuning-variation.md)에 있습니다. 합성 결과로 실제 입문자 허용값을 확정하지 않습니다.
