@@ -113,3 +113,35 @@ def test_variables_name_every_group_and_hash_the_labels(tmp_path):
     assert variables([a, b], labels)["data"]["datasetHash"] != first["data"]["datasetHash"]
     assert first["scoring"]["modelVersion"] == "pyin-2"
     assert first["synthetic"] == [{"kind": "SYNTHETIC", "seed": 0}, {"kind": "SYNTHETIC", "seed": 1}]
+
+
+def test_duplicate_recording_ids_are_rejected():
+    with pytest.raises(ValueError, match="recordingId"):
+        expected_letters([trial({}), trial({})])
+
+
+def test_same_basename_keeps_all_hashes(tmp_path):
+    paths = []
+    for folder in ("a", "b"):
+        path = tmp_path / folder / "take.json"
+        path.parent.mkdir()
+        path.write_text(folder)
+        paths.append(path)
+    labels = [{"conditions": {"kind": "SYNTHETIC"}} for _ in paths]
+    before = variables(paths, labels)
+    assert len(before["data"]["labels"]) == 2
+    paths[0].write_text("changed")
+    assert before["data"]["datasetHash"] != variables(paths, labels)["data"]["datasetHash"]
+
+
+def test_same_basename_without_common_drive_keeps_hashes(tmp_path, monkeypatch):
+    import evaluation.error_detection as ed
+    paths = [tmp_path / folder / "take.json" for folder in ("a", "b")]
+    for path in paths:
+        path.parent.mkdir()
+        path.write_text(str(path))
+    def no_common_drive(paths):
+        raise ValueError("Paths don't have the same drive")
+    monkeypatch.setattr(ed.os.path, "commonpath", no_common_drive)
+    labels = [{"conditions": {"kind": "SYNTHETIC"}} for _ in paths]
+    assert len(variables(paths, labels)["data"]["labels"]) == 2

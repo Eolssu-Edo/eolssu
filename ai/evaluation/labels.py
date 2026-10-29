@@ -33,6 +33,9 @@ def load_label(path: Path, root: Path = REPO) -> dict:
     if problems:
         raise LabelError(f"{path}: " + "; ".join(problems))
 
+    if label["review"] == "rejected" or (label["conditions"]["kind"] == "PERFORMED" and label["review"] != "reviewed"):
+        raise LabelError(f"{path}: review: 실제 녹음은 reviewed가 필요하며 rejected는 사용할 수 없다")
+
     for part in ("audio", "score"):
         if _sha256(root / label[part]["path"]) != label[part]["sha256"]:
             problems.append(f'{part}: SHA-256이 기록과 다르다({label[part]["path"]})')

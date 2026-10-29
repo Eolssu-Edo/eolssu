@@ -67,7 +67,7 @@ def make(tmp_path):
 
 def test_synthetic_and_performed_labels_load(make):
     assert make()["errors"][0] == {"idx": 8, "kind": "PITCH", "semitones": 1}
-    assert make(conditions=PERFORMED)["conditions"]["performer"] == "P01"
+    assert make(conditions=PERFORMED, review="reviewed")["conditions"]["performer"] == "P01"
 
 
 def test_every_performed_condition_is_required(make):
@@ -121,3 +121,12 @@ def test_changed_file_is_rejected_by_hash(make, part):
     wrong = copy.deepcopy(label[part]) | {"sha256": "0" * 64}
     with pytest.raises(LabelError, match=part):
         make(**{part: wrong})
+
+
+@pytest.mark.parametrize("conditions, review", [(PERFORMED, "inferred"), (PERFORMED, "rejected"), (None, "rejected")])
+def test_unapproved_labels_are_rejected(make, conditions, review):
+    changes = {"review": review}
+    if conditions is not None:
+        changes["conditions"] = conditions
+    with pytest.raises(LabelError, match="review"):
+        make(**changes)

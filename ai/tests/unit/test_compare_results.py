@@ -84,3 +84,32 @@ def test_different_dataset_is_refused():
     after["variables"]["data"]["datasetHash"] = "d2"
     with pytest.raises(CompareError, match="data.datasetHash"):
         compare(result(), after, vary={"scoring", "environment"})
+
+
+@pytest.mark.parametrize("change", ["empty", "expected", "grid"])
+def test_incomplete_comparison_is_rejected(change):
+    before, after = result(), result()
+    if change == "empty":
+        after["results"][0]["verdicts"]["r1"] = ""
+    elif change == "expected":
+        after["expected"]["r1"]["letters"] = "CCCC"
+    else:
+        after["results"] = []
+    with pytest.raises(CompareError):
+        compare(before, after, set())
+
+
+@pytest.mark.parametrize("change", ["recording", "length", "character", "duplicate-grid"])
+def test_invalid_result_structure_is_rejected(change):
+    before, after = result(), result()
+    row = after["results"][0]
+    if change == "recording":
+        row["verdicts"]["extra"] = "CCCC"
+    elif change == "length":
+        row["verdicts"]["r1"] += "C"
+    elif change == "character":
+        row["verdicts"]["r1"] = "CXCX"
+    else:
+        after["results"].append(copy.deepcopy(row))
+    with pytest.raises(CompareError):
+        compare(before, after, set())

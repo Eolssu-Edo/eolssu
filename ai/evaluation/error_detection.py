@@ -13,6 +13,7 @@ import inspect
 import itertools
 import json
 import math
+import os
 import platform
 import subprocess
 import sys
@@ -94,8 +95,15 @@ def _letter(r: NoteResult) -> str:
     return "O" if r.verdict == "PITCH" and r.octave_suspect else LETTER[r.verdict]
 
 
+def _unique_ids(labels: list[dict]) -> None:
+    ids = [label["recordingId"] for label in labels]
+    if len(ids) != len(set(ids)):
+        raise ValueError("recordingId가 중복됐다")
+
+
 def expected_letters(trials: list[Trial]) -> dict:
     """녹음마다 첫 음 번호와 음별 정답 글자. 전후 비교에서 판정이 맞았는지 가린다."""
+    _unique_ids([t.label for t in trials])
     out = {}
     for t in trials:
         errors = {e["idx"]: INTENDED[e["kind"]] for e in t.label["errors"]}
@@ -136,6 +144,23 @@ def compare(before: dict, after: dict, vary: set[str]) -> dict:
         raise CompareError("선언하지 않은 변인이 다르다: " + "; ".join(undeclared))
 
     expected = before["expected"]
+    if not expected or expected != after["expected"]:
+        raise CompareError("전후 정답 또는 녹음 ID가 다르다")
+    grids = []
+    for report in (before, after):
+        grid = [tuple(sorted(row["tolerance"].items())) for row in report["results"]]
+        if not grid or len(grid) != len(set(grid)):
+            raise CompareError("허용값 조합이 비었거나 중복됐다")
+        grids.append(set(grid))
+        for row in report["results"]:
+            if set(row["verdicts"]) != set(expected):
+                raise CompareError("판정의 녹음 ID가 정답과 다르다")
+            for rec, exp in expected.items():
+                letters = row["verdicts"][rec]
+                if len(letters) != len(exp["letters"]) or set(letters) - set("CPOTM"):
+                    raise CompareError("음별 판정 길이 또는 문자가 올바르지 않다")
+    if grids[0] != grids[1]:
+        raise CompareError("전후 허용값 조합이 다르다")
     default = asdict(Tolerance())
     rows, changed_notes = [], []
     for b_row in before["results"]:
@@ -185,6 +210,7 @@ def compare_table(report: dict) -> str:
 
 
 def evaluate(trials: list[Trial], grid: list[Tolerance]) -> list[dict]:
+    _unique_ids([t.label for t in trials])
     report = []
     for tol in grid:
         counts = {k: 0 for k in ("TP", "WRONG_KIND", "FN", "FP", "TN")}
@@ -250,7 +276,19 @@ def code_hash(folder: Path) -> str:
 
 def variables(label_paths: list[Path], labels: list[dict]) -> dict:
     """결과를 바꿀 수 있는 변인 다섯 묶음. 전후 비교는 바꾸겠다고 선언한 묶음 말고는 같아야 한다."""
-    hashes = {Path(p).name: _sha256(Path(p)) for p in label_paths}
+    names = [Path(p).name for p in label_paths]
+    # 이름이 겹치면 공통 폴더 기준 상대 경로로 모든 입력을 보존한다.
+    common = None
+    if len(names) != len(set(names)):
+        try:
+            common = Path(os.path.commonpath([str(Path(p).resolve().parent) for p in label_paths]))
+        except ValueError:  # Windows에서 서로 다른 드라이브면 공통 폴더가 없다.
+            pass
+    hashes = {
+        (Path(p).name if len(names) == len(set(names)) else
+         Path(p).resolve().relative_to(common).as_posix() if common else Path(p).resolve().as_posix()): _sha256(Path(p))
+        for p in label_paths
+    }
     pyin_defaults = {k: v.default for k, v in inspect.signature(pyin_f0).parameters.items() if v.default is not v.empty}
     ffmpeg = _command("ffmpeg", "-version")
     return {
@@ -282,14 +320,14 @@ def variables(label_paths: list[Path], labels: list[dict]) -> dict:
 
 
 def load_trials(label_paths: list[Path], root: Path) -> tuple[list[dict], list[Trial]]:
-    labels, trials = [], []
-    for path in label_paths:
-        label = load_label(path, root)
+    labels = [load_label(path, root) for path in label_paths]
+    _unique_ids(labels)
+    trials = []
+    for label in labels:
         score_data = json.loads((root / label["score"]["path"]).read_text(encoding="utf-8"))
         notes = score_notes(score_data, label["range"]["startNoteIdx"], label["range"]["endNoteIdx"])
         # 서비스와 같은 디코딩(ffmpeg, 16kHz 모노)을 거친다.
         audio = decode_recording(root / label["audio"]["path"]).astype(np.float32) / 32768.0
-        labels.append(label)
         trials.append(Trial(label, notes, pyin_f0(audio, SAMPLE_RATE), frame_rms(audio, SAMPLE_RATE)))
     return labels, trials
 
