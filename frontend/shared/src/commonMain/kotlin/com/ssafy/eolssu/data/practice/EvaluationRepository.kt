@@ -18,11 +18,29 @@ interface EvaluationRepository {
     /** 분석 상태. 연결 오류는 예외로 던진다. */
     suspend fun analysisStatus(analysisId: String): AnalysisStatus
 
-    /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. */
-    suspend fun retryAnalysis(analysisId: String)
+    /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. 응답을 받지 못하면 예외를 던진다. */
+    suspend fun retryAnalysis(analysisId: String): RetryOutcome
 
     /** 평가 결과. 찾지 못하면 null. */
     suspend fun result(evaluationId: String): EvaluationResult?
+}
+
+/** 분석 다시 시도(PRA-03 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */
+enum class RetryOutcome {
+    /** 새 시도를 시작했거나 이미 분석 중이다(202). 상태 조회를 이어 간다. */
+    Started,
+
+    /** 다시 시도할 수 없는 상태다(409: 재녹음이 필요한 실패·완료·업로드 전). 상태를 다시 물어 그 상태의 화면을 보인다. */
+    Conflict,
+
+    /** 서버가 지금 받지 못한다(503). 버튼을 그대로 두고 잠시 후 다시 시도하게 한다. */
+    Busy,
+
+    /** 세션이 없다(404). */
+    NotFound,
+
+    /** 토큰을 갱신해도 401이다. 다시 로그인해야 한다. */
+    Unauthorized,
 }
 
 /** 서버의 분석 상태(`PENDING`·`DONE`·`FAILED`). */
@@ -64,8 +82,9 @@ class SampleEvaluationRepository(
     }
 
     /** 예시 분석은 실패하지 않으므로 다시 시도할 일은 늘 '아직 분석 중'이고, 그대로 둔다. */
-    override suspend fun retryAnalysis(analysisId: String) {
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         analyses.getValue(analysisId)
+        return RetryOutcome.Started
     }
 
     private fun sampleResult(analysis: Analysis): EvaluationResult =

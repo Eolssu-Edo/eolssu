@@ -8,6 +8,7 @@ import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.PendingRecording
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
+import com.ssafy.eolssu.data.practice.RetryOutcome
 import com.ssafy.eolssu.data.practice.SendResult
 import com.ssafy.eolssu.data.practice.SessionStart
 import kotlinx.coroutines.CancellationException
@@ -137,16 +138,37 @@ internal class AnalysisSession(
         }
     }
 
-    /** 분석 다시 시도. 같은 녹음으로 다시 분석할 수 있는 실패에서만 하며, 시도 중에는 버튼이 돈다. */
+    /**
+     * 분석 다시 시도. 같은 녹음으로 다시 분석할 수 있는 실패에서만 하며, 시도 중에는 버튼이 돈다.
+     * 시작했으면(이미 분석 중 포함) 상태 조회를 다시 시작하고, 다시 시도할 수 없는 상태(409)면 상태를 다시 물어 그 화면을 보인다.
+     * 서버가 바쁘면(503) 실패 화면에 '잠시 후' 안내를 더하고 버튼을 둔다. 세션이 없거나(404) 로그인이 풀리면 화면을 떠난다.
+     * 응답을 받지 못하면 사유가 없는 실패라 [AnalysisFailure.ServerError]로 보인다.
+     */
     fun retry() {
         if (!_state.value.canRetry()) return
-        _state.update { it.copy(retrying = true) }
+        _state.update { it.copy(retrying = true, retryBusy = false) }
         scope.launch {
             val id = analysisId
             if (id == null) {
                 requestAnalysis()
-            } else if (attempt { repository.retryAnalysis(id) }) {
-                startPolling()
+                return@launch
+            }
+            val outcome = try {
+                repository.retryAnalysis(id)
+            } catch (e: Exception) {
+                if (e is CancellationException) currentCoroutineContext().ensureActive()
+                null
+            }
+            when (outcome) {
+                RetryOutcome.Started, RetryOutcome.Conflict -> {
+                    polling.resume()
+                    _state.update { it.copy(failure = null, retrying = false) }
+                    startPolling()
+                }
+                RetryOutcome.Busy -> _state.update { it.copy(retrying = false, retryBusy = true) }
+                RetryOutcome.NotFound -> _state.update { it.copy(retrying = false, exit = AnalysisExit.SessionGone) }
+                RetryOutcome.Unauthorized -> _state.update { it.copy(retrying = false, exit = AnalysisExit.NeedsLogin) }
+                null -> _state.update { it.copy(failure = AnalysisFailure.ServerError, retrying = false) }
             }
         }
     }

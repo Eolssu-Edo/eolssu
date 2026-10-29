@@ -44,6 +44,7 @@ import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
+import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
 import com.ssafy.eolssu.feature.song.MySongsRoute
@@ -244,6 +245,14 @@ fun EolssuNavHost(
                         }
                     },
                     onBackToPractice = { navController.popBackStack() },
+                    onExit = { exit ->
+                        when (exit) {
+                            AnalysisExit.SessionGone -> if (!navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false)) {
+                                navController.navigate(EolssuDestination.SONG_LIST) { popUpTo(EolssuDestination.HOME) }
+                            }
+                            AnalysisExit.NeedsLogin -> navController.navigate(AuthDestination.LOGIN)
+                        }
+                    },
                 )
             }
             composable(

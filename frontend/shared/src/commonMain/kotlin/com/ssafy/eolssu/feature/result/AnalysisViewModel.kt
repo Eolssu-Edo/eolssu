@@ -17,15 +17,27 @@ import kotlin.time.TimeSource
 /**
  * ANALYSIS-01 상태. 분석이 끝나면 [evaluationId]가 채워져 결과 화면으로 간다. 실패하면 [failure]에 사유가 있다.
  * 녹음을 보내지 못하면 분석 전이라 [failure] 대신 [upload]에 사유가 있다.
+ * [retryBusy]는 다시 시도를 서버가 지금 받지 못했다는 안내(503), [exit]는 이 화면을 떠나야 하는 이유다.
  */
 data class AnalysisUiState(
     val song: Song? = null,
     val failure: AnalysisFailure? = null,
     val retrying: Boolean = false,
+    val retryBusy: Boolean = false,
     val evaluationId: String? = null,
     val upload: UploadProblem? = null,
     val resending: Boolean = false,
+    val exit: AnalysisExit? = null,
 )
+
+/** 분석 대기 화면을 떠나는 이유. */
+enum class AnalysisExit {
+    /** 다시 시도할 세션이 서버에 없다(404). 곡 목록으로 간다. */
+    SessionGone,
+
+    /** 로그인이 풀렸다(401). 로그인 화면으로 간다. */
+    NeedsLogin,
+}
 
 /** 녹음을 보내지 못한 사유. 세션 업로드 시간이 지난 410은 [AnalysisFailure.UploadTimeout]으로 보인다. */
 enum class UploadProblem {

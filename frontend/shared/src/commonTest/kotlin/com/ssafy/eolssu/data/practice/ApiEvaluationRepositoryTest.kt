@@ -112,6 +112,32 @@ class ApiEvaluationRepositoryTest {
     }
 
     @Test
+    fun retrySendsNewKeyEachPressAndSortsResponses() = runTest {
+        val keys = mutableListOf<String?>()
+        var next = 0
+        fun repository(status: HttpStatusCode?) = ApiEvaluationRepository(
+            createHttpClient(
+                MockEngine { request ->
+                    paths += request.url.encodedPath
+                    keys += request.headers["Idempotency-Key"]
+                    respond("{}", status ?: error("연결 실패"), headersOf(HttpHeaders.ContentType, "application/json"))
+                },
+                ServerAddress.Production,
+            ),
+            songs,
+            fallback = SampleEvaluationRepository(now = { 0L }),
+            newKey = { "retry-${next++}" },
+        )
+        assertEquals(RetryOutcome.Started, repository(HttpStatusCode.Accepted).retryAnalysis("41"))
+        assertEquals(RetryOutcome.Conflict, repository(HttpStatusCode.Conflict).retryAnalysis("41"))
+        assertEquals(RetryOutcome.Busy, repository(HttpStatusCode.ServiceUnavailable).retryAnalysis("41"))
+        assertEquals(RetryOutcome.NotFound, repository(HttpStatusCode.NotFound).retryAnalysis("41"))
+        assertFailsWith<IllegalStateException> { repository(null).retryAnalysis("41") }
+        assertEquals("/api/practice-sessions/41/retry", paths.first())
+        assertEquals(listOf("retry-0", "retry-1", "retry-2", "retry-3"), keys.take(4))
+    }
+
+    @Test
     fun resultNotReadyIsNull() = runTest {
         assertNull(repository { HttpStatusCode.Conflict to "{}" }.result("41"))
         assertNull(repository { null }.result("41"))
