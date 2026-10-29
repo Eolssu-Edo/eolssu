@@ -141,13 +141,19 @@ class PracticePanelActions(
  * 시트 너비는 Material 기본값(최대 640dp, 가운데)이고, 태블릿 세로([tablet])는 창 높이의 45%(설정)·60%까지만 올라온다.
  */
 @Composable
-fun PracticePanelSheet(state: PracticeUiState, actions: PracticePanelActions, tablet: Boolean = false) {
+fun PracticePanelSheet(
+    state: PracticeUiState,
+    actions: PracticePanelActions,
+    tablet: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     val panel = state.panel ?: return
     val song = state.song ?: return
     val apply = panelApply(panel, actions)
     val settings = panel == PracticePanel.Settings
     EolssuBottomSheet(
         onDismiss = actions.onClose,
+        modifier = modifier,
         maxHeightFraction = when {
             tablet -> if (settings) 0.45f else 0.6f
             settings -> 0.6f

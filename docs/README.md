@@ -35,6 +35,7 @@
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
 - [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
+- [백엔드 성능 대시보드 p95와 서버 자원](specs/monitoring-p95-node.md)
 
 ## 결정 기록
 
@@ -59,6 +60,7 @@
 
 - [관악기 '기초부터 배우기' 단계와 지도 근거](knowledge/domain/wind-beginner-curriculum.md)
 - [논문·공식 자료와 설계 결정의 근거 표](knowledge/domain/design-evidence-map.md)
+- [정간보 시김새 기호의 뜻과 출처](knowledge/domain/sigimsae-symbols.md)
 
 ## 데이터 조사·검증 기록
 
@@ -66,6 +68,7 @@
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
 - [정악대금 JGB·M4A 연결과 CAT 대금 샘플 비교](knowledge/data/jeongak-playback.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
+- [소금 JGB·MIDI·M4A 생성과 실음·표현 정책](knowledge/data/sogeum-playback.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)
 - [정간보 OMR로 악보 PDF를 JSON으로 바꾸는 시험](knowledge/data/jeongganbo-omr.md)
 - [단소 정간보 PDF의 우물사이 문서 변환](knowledge/data/danso-scores-umulsai.md)
@@ -73,12 +76,13 @@
 - [소금 정간보 우물사이 문서의 검토 화면과 대조 결과](knowledge/data/sogeum-scores-review.md)
 - [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
-- [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md)
+- [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md) · [자동 테스트별 확인 범위](../data/src/playback/tests/README.md)
 
 ## AI 실험 기록
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
+- [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
 
 ## COCO 산출물
 
@@ -95,17 +99,32 @@
 - [S15P31E102-133 edo2 Mattermost 서버 점검](plans/S15P31E102-133.md)
 - [S15P31E102-137 기술 블로그 develop 분리(blog 브랜치·이미지 저장소)](plans/S15P31E102-137.md)
 - [S15P31E102-142 1차 MVP ERD 보완과 V2 마이그레이션](plans/S15P31E102-142.md)
+- [S15P31E102-143 이메일·소셜 로그인과 회원 정보 API](plans/S15P31E102-143.md)
 - [S15P31E102-154 단소 AI 평가 4곡 채점 정답 검수](plans/S15P31E102-154.md)
 - [S15P31E102-155 단소 기준 데이터 표 작성](plans/S15P31E102-155.md)
+- [S15P31E102-156 정간보 jgb를 공통 악보 데이터로 바꾸는 변환기](plans/S15P31E102-156.md)
+- [S15P31E102-157 채점 입력을 공통 악보 데이터와 기준음 E♭4로 변경](plans/S15P31E102-157.md)
 - [S15P31E102-167 분석 실패 사유 코드와 화면 안내 명세](plans/S15P31E102-167.md)
 - [S15P31E102-168 녹음 파일 규격(PRA-02) 구현 계획](plans/S15P31E102-168.md)
 - [S15P31E102-169 연습 시간 집계 기준 스펙](plans/S15P31E102-169.md)
 - [S15P31E102-173 분석 시도 저장 방식과 V4 마이그레이션](plans/S15P31E102-173.md)
 - [S15P31E102-180 녹음 파일 ffprobe 검사기와 ffmpeg 실행 환경](plans/S15P31E102-180.md)
+- [S15P31E102-181 연습 녹음 업로드 API](plans/S15P31E102-181.md)
 - [S15P31E102-182 녹음 업로드 만료 세션 정리 배치](plans/S15P31E102-182.md)
 - [S15P31E102-189 악보 화면 체류 기록 저장(GRO-04)](plans/S15P31E102-189.md)
 - [S15P31E102-190 일 마트 악기별 총 연습 시간 칸](plans/S15P31E102-190.md)
+- [S15P31E102-193 기간별 연습 시간 합산 조회(GRO-01·02)](plans/S15P31E102-193.md)
 - [S15P31E102-197 edo1 Jenkins·운영 이미지에 녹음 검사용 ffmpeg 반영](plans/S15P31E102-197.md)
+- [S15P31E102-206 Android 연주 녹음·마이크 권한과 10분 자동 정지](plans/S15P31E102-206.md)
+- [S15P31E102-207 이메일 가입·로그인과 토큰 재발급·로그아웃 API](plans/S15P31E102-207.md)
+- [S15P31E102-208 내 정보 조회·수정과 비밀번호 변경 API](plans/S15P31E102-208.md)
+- [S15P31E102-209 회원 탈퇴와 30일 뒤 일괄 삭제](plans/S15P31E102-209.md)
+- [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
+- [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
+- [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
+- [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
+- [S15P31E102-213 AI 분석 서비스 실행 이미지와 ffmpeg 버전 고정](plans/S15P31E102-213.md)
+- [S15P31E102-228 AI 분석 서비스 서버 배포와 백엔드 AI 주소 연결](plans/S15P31E102-228.md)
 
 COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 

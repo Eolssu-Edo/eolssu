@@ -13,8 +13,15 @@ enum class PracticeMode { Ready, Model, Countdown, Recording, Interrupted }
 /** 아래에서 올라오는 보조 패널. */
 enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
 
-/** 연습 화면 위에 뜨는 확인 창. */
-enum class PracticePopup { Permission, Abort, End, Restart, Exit, Interrupted }
+/**
+ * 연습 화면 위에 뜨는 확인 창.
+ * [EndNoInput]은 끝까지 마이크 입력이 없어 평가하지 않음,
+ * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
+ */
+enum class PracticePopup { Permission, Abort, End, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge }
+
+/** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
+const val NO_INPUT_HINT_MS = 1500.0
 
 /** 연습 속도 5단계 — 곡 기준 속도에 대한 비율. 정해진 칸으로만 움직인다. */
 enum class TempoStep(val ratio: Double) {
@@ -52,8 +59,13 @@ data class PracticeDraft(
  * @property position 현재 음의 연주 순서(재생·연주 중 위치).
  * @property eventStartedAt 현재 음이 시작된 시각. 멈춰 있으면 null이고 [pausedFraction]만큼 지난 상태다.
  * @property selected 준비 상태에서 고른 음의 연주 순서.
- * @property micLevel 연주 중 마이크 입력 크기(0~1). 실제 녹음이 붙기 전에는 입력이 있는 것처럼 흉내 낸다.
+ * @property micLevel 연주 중 마이크 입력 크기(0~1). 녹음 구현이 없는 플랫폼(iOS·Web)은 입력이 있는 것처럼 흉내 낸다.
+ * @property inputMeasured [micLevel]이 실제 입력 크기인지(현재 Android). 아니면 입력 없음 안내·팝업 없이 녹음을 보내
+ *   서버 `NO_SOUND` 판정에 맡긴다.
+ * @property hadInput 이번 연주에서 입력이 한 번이라도 있었는지.
+ * @property noInputMs 마지막 입력 뒤로 입력 없이 녹음한 시간(ms). 일시정지한 동안은 세지 않는다.
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
+ * @property idleReminder 마지막 활동 뒤 9분 30초가 지나 "계속 연습 중인가요?"를 묻는 중.
  */
 data class PracticeUiState(
     val song: Song? = null,
@@ -72,9 +84,13 @@ data class PracticeUiState(
     val count: Int = 3,
     val resume: Boolean = false,
     val micLevel: Float = 0f,
+    val inputMeasured: Boolean = false,
+    val hadInput: Boolean = false,
+    val noInputMs: Double = 0.0,
     val finished: Boolean = false,
     val follow: Boolean = true,
     val listening: Yul? = null,
+    val idleReminder: Boolean = false,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
@@ -88,6 +104,23 @@ data class PracticeUiState(
 
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
     val resuming: Boolean get() = mode == PracticeMode.Countdown && resume
+
+    /** 연주 중 입력이 [NO_INPUT_HINT_MS]보다 오래 없어 마이크를 확인하라고 안내하는 상태. */
+    val noInputHint: Boolean
+        get() = inputMeasured && mode == PracticeMode.Recording && !finished && noInputMs > NO_INPUT_HINT_MS
+
+    /**
+     * 입력이 없어도 연습 시간으로 세는 활동. 모범 연주·음 듣기는 재생, 카운트다운과 멈추지 않은 연주는 녹음,
+     * 장단 미리듣기는 메트로놈으로 본다. 연주 중단 확인 창이 떠 있는 동안은 녹음이 멈춰 있다.
+     */
+    val runningActivities: Set<ContinuousActivity>
+        get() = buildSet {
+            if ((mode == PracticeMode.Model && playing) || listening != null) add(ContinuousActivity.PLAYBACK)
+            if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
+                add(ContinuousActivity.RECORDING)
+            }
+            if (draft.previewing) add(ContinuousActivity.METRONOME)
+        }
 
     /** 진행 선을 그리는 상태(모범 연주·연주 중). */
     val live: Boolean get() = mode == PracticeMode.Model || mode == PracticeMode.Recording || resuming
@@ -157,7 +190,7 @@ fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = c
 
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
     mode = PracticeMode.Recording, position = 0, elapsedMs = 0.0, micLevel = 0f, finished = false, popup = null, follow = true,
-    resume = false, pausedFraction = 0f,
+    resume = false, pausedFraction = 0f, hadInput = false, noInputMs = 0.0,
 )
 
 fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true)
@@ -168,7 +201,7 @@ fun PracticeUiState.cancelCountdown(): PracticeUiState =
 
 fun PracticeUiState.toReady(): PracticeUiState = copy(
     mode = PracticeMode.Ready, position = 0, elapsedMs = 0.0, popup = null, playing = false, finished = false, micLevel = 0f,
-    eventStartedAt = null, pausedFraction = 0f, resume = false,
+    eventStartedAt = null, pausedFraction = 0f, resume = false, hadInput = false, noInputMs = 0.0,
 )
 
 /**
@@ -183,10 +216,47 @@ fun PracticeUiState.advance(doneMs: Double, micLevel: Float): PracticeUiState {
     }
     return when (mode) {
         PracticeMode.Model -> copy(playing = false, position = eventCount - 1, elapsedMs = totalSeconds * 1000.0, eventStartedAt = null)
-        PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed, finished = true, micLevel = 0f, popup = PracticePopup.End, eventStartedAt = null)
+        PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed).endRecording()
         else -> this
     }
 }
+
+/**
+ * 연주 중 측정한 입력 크기를 반영한다. [level]이 0보다 크면 입력이 있었던 것으로 보고 무입력 시간을 0으로 되돌리고,
+ * 0이면 [sinceMs](지난 측정 뒤 녹음한 시간)만큼 무입력 시간을 늘린다. 연주 중이 아니면 그대로다.
+ */
+fun PracticeUiState.recordLevel(level: Float, sinceMs: Double): PracticeUiState = when {
+    mode != PracticeMode.Recording || finished -> this
+    level > 0f -> copy(micLevel = level, hadInput = true, noInputMs = 0.0)
+    else -> copy(micLevel = 0f, noInputMs = noInputMs + sinceMs)
+}
+
+/**
+ * 연주를 마침: 곡 끝에 닿았거나 녹음이 최대 길이(10분)에 닿음. '연주를 마쳤어요' 창을 띄운다.
+ * 입력 크기를 재는 플랫폼에서 끝까지 입력이 없었으면 평가하지 않고 '소리가 입력되지 않았어요' 창을 띄운다.
+ */
+fun PracticeUiState.endRecording(): PracticeUiState {
+    val popup = if (inputMeasured && !hadInput) PracticePopup.EndNoInput else PracticePopup.End
+    return copy(finished = true, micLevel = 0f, popup = popup, eventStartedAt = null)
+}
+
+/**
+ * 마친 녹음을 확인한다. 저장하지 못했으면 녹음 실패, 보낼 수 있는 크기를 넘으면 크기 초과 창으로 바꾼다.
+ * 입력이 없어 평가하지 않는 녹음은 크기를 따지지 않는다.
+ * [saved]는 저장된 파일이 있는지, [tooLarge]는 그 파일이 20MiB를 넘는지.
+ */
+fun PracticeUiState.checkRecording(saved: Boolean, tooLarge: Boolean): PracticeUiState = when {
+    !saved -> failRecording()
+    popup == PracticePopup.EndNoInput -> this
+    tooLarge -> copy(popup = PracticePopup.TooLarge)
+    else -> this
+}
+
+/** 녹음을 시작하거나 저장하지 못함. 끊긴 연주처럼 평가하지 않는다. */
+fun PracticeUiState.failRecording(): PracticeUiState = copy(
+    mode = PracticeMode.Interrupted, popup = PracticePopup.RecordFailed, eventStartedAt = null, resume = false, micLevel = 0f,
+    finished = false,
+)
 
 /** 연주 중단을 누르면 진행을 그 자리에서 멈추고 확인 창을 띄운다. */
 fun PracticeUiState.askAbort(fraction: Float): PracticeUiState = copy(popup = PracticePopup.Abort, eventStartedAt = null, pausedFraction = fraction)

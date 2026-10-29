@@ -1,0 +1,10 @@
+# 실행에 필요한 설정·소스만 컨텍스트에 포함합니다. 모델·데이터·가상환경은 넣지 않습니다.
+**
+!.python-version
+!pyproject.toml
+!uv.lock
+!src/
+!src/**
+**/__pycache__
+**/.env
+**/.env.*

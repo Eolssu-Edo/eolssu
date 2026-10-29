@@ -1,0 +1,58 @@
+package com.ssafy.eolssu.feature.profile
+
+import androidx.lifecycle.ViewModel
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.UserProfile
+import com.ssafy.eolssu.data.user.UserRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+/**
+ * MY-01. 내 정보·간편 로그인 연결은 [UserRepository], 연습 악기는 [InstrumentRepository]에서 바로 받아 보여 준다.
+ * 연결 해제와 로그아웃은 확인 창([dialog])을 거친다.
+ */
+class MyPageViewModel(
+    private val userRepository: UserRepository,
+    private val instrumentRepository: InstrumentRepository,
+) : ViewModel() {
+    val profile: StateFlow<UserProfile> = userRepository.profile
+    val instrument: StateFlow<Instrument> = instrumentRepository.instrument
+
+    private val _dialog = MutableStateFlow<MyPageDialog?>(null)
+    val dialog: StateFlow<MyPageDialog?> = _dialog.asStateFlow()
+
+    /** 악기를 바꿨으면 true(같은 악기를 다시 누르면 false). */
+    fun selectInstrument(instrument: Instrument): Boolean {
+        if (instrumentRepository.instrument.value == instrument) return false
+        instrumentRepository.select(instrument)
+        return true
+    }
+
+    fun askUnlink(provider: SocialProvider) {
+        _dialog.value = MyPageDialog.Unlink(provider)
+    }
+
+    /** 확인 창의 제공자 연결을 해제하고 그 제공자를 돌려준다. */
+    fun confirmUnlink(): SocialProvider? {
+        val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return null
+        userRepository.unlink(provider)
+        _dialog.value = null
+        return provider
+    }
+
+    fun askLogOut() {
+        _dialog.value = MyPageDialog.LogOut
+    }
+
+    fun confirmLogOut() {
+        userRepository.logOut()
+        _dialog.value = null
+    }
+
+    fun dismissDialog() {
+        _dialog.value = null
+    }
+}

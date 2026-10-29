@@ -15,10 +15,12 @@ class SchedulingConfigTest {
     }
 
     @Test
-    fun `enables scheduling only in the db profile unless switched off`() {
+    fun `enables scheduling in the db and ops profiles unless switched off`() {
         assertEquals(1, schedulerCount("spring.profiles.active=db"))
         assertEquals(0, schedulerCount("spring.profiles.active=db", "eolssu.scheduling.enabled=false"))
         assertEquals(0, schedulerCount())
-        assertEquals(0, schedulerCount("spring.profiles.active=ops"))
+        // 운영(ops)에서도 업로드 만료 작업이 돌아야 한다.
+        assertEquals(1, schedulerCount("spring.profiles.active=ops"))
+        assertEquals(0, schedulerCount("spring.profiles.active=ops", "eolssu.scheduling.enabled=false"))
     }
 }

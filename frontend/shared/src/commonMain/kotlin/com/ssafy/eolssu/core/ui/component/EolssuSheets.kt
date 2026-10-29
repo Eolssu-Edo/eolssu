@@ -57,6 +57,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun EolssuBottomSheet(
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     maxHeightFraction: Float = 0.78f,
     header: @Composable () -> Unit,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
@@ -65,6 +66,7 @@ fun EolssuBottomSheet(
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = EolssuTheme.colors.background,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),

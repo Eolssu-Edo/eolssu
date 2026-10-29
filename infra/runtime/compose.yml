@@ -30,6 +30,26 @@ services:
       DB_USERNAME: ${MYSQL_USER:-eolssu}
       DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD를 지정하세요}
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:-}
+      AUTH_CODE_HMAC_SECRET: ${AUTH_CODE_HMAC_SECRET:-}
+      AUTH_MAIL_HOST: ${AUTH_MAIL_HOST:-}
+      AUTH_MAIL_PORT: ${AUTH_MAIL_PORT:-587}
+      AUTH_MAIL_USERNAME: ${AUTH_MAIL_USERNAME:-}
+      AUTH_MAIL_PASSWORD: ${AUTH_MAIL_PASSWORD:-}
+      AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-${AUTH_MAIL_USERNAME:-}}
+      AUTH_MAIL_FROM_NAME: ${AUTH_MAIL_FROM_NAME:-}
+      AUTH_OAUTH_KAKAO_CLIENT_ID: ${AUTH_OAUTH_KAKAO_CLIENT_ID:-}
+      AUTH_OAUTH_KAKAO_CLIENT_SECRET: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_ID: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_OAUTH_GOOGLE_CLIENT_SECRET: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:-}
+      AUTH_OAUTH_NAVER_CLIENT_ID: ${AUTH_OAUTH_NAVER_CLIENT_ID:-}
+      AUTH_OAUTH_NAVER_CLIENT_SECRET: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:-}
+      RECORDING_STORAGE_ENDPOINT: ${RECORDING_STORAGE_ENDPOINT:-}
+      RECORDING_STORAGE_BUCKET: ${RECORDING_STORAGE_BUCKET:-}
+      RECORDING_STORAGE_ACCESS_KEY_ID: ${RECORDING_STORAGE_ACCESS_KEY_ID:-}
+      RECORDING_STORAGE_SECRET_ACCESS_KEY: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:-}
+      RECORDING_STORAGE_REGION: ${RECORDING_STORAGE_REGION:-auto}
+      # 연주 분석 AI(아래 ai 서비스). 같은 Compose 내부망 주소라 비밀값이 아니다(PRA-03).
+      ANALYSIS_AI_BASE_URL: http://ai:8000
     volumes:
       - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
     depends_on:
@@ -37,6 +57,22 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "test \"$$(curl --fail --silent --max-time 3 http://127.0.0.1:8080/api/actuator/health/readiness)\" = '{\"status\":\"UP\"}'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # 연주 분석 API(ai/Dockerfile). 인증이 없으므로 포트를 공개하지 않고 backend만 내부망으로 부른다.
+  ai:
+    image: eolssu-ai:runtime
+    read_only: true
+    tmpfs:
+      # 녹음 임시 파일(25MiB 이하)과 numba 컴파일 캐시(NUMBA_CACHE_DIR=/tmp/numba-cache).
+      - /tmp:rw,size=512m
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
       interval: 30s
       timeout: 5s
       start_period: 30s

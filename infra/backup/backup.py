@@ -445,11 +445,12 @@ def restore_test():
             def api_probe():
                 info = json.loads(command(['docker', 'inspect', frontend]))[0]
                 address = next(iter(info['NetworkSettings']['Networks'].values()))['IPAddress']
-                try: response = urllib.request.urlopen('http://' + address + '/api/infra-smoke', timeout=5)
+                # 등록 안 된 /api 경로는 인증 때문에 401이다. Nginx를 거친 공개 readiness로 백엔드 기동을 본다.
+                try: response = urllib.request.urlopen('http://' + address + '/api/actuator/health/readiness', timeout=5)
                 except urllib.error.HTTPError as error: response = error
-                with response: truth(response.status == 404 and json.load(response)['path'] == '/api/infra-smoke')
+                with response: truth(response.status == 200 and json.load(response) == {'status': 'UP'})
                 return True
-            wait(api_probe); report['web_api'] = {'web_200_and_exact_content': True, 'api_json_404': True}
+            wait(api_probe); report['web_api'] = {'web_200_and_exact_content': True, 'api_readiness_up': True}
             report['phase'] = 'grafana'
             grafana = d / 'grafana/grafana'
             con = sqlite3.connect(grafana / 'grafana.db')

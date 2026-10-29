@@ -5,18 +5,34 @@
         SELECT id AS session_id, analysis_attempt AS attempt, song_id, score_version, start_note_idx, end_note_idx, bpm, bpm_unit, recording_url
         FROM practice_sessions
         WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt &gt; 0 AND recording_url IS NOT NULL
+          AND analysis_started_at &gt;= #{startedAfter}
     </select>
 
+    <select id="findScore" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.SongScoreRow">
+        SELECT score_json, score_version FROM songs WHERE id = #{songId}
+    </select>
+
+    <select id="findPitches" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScorePitchRow">
+        SELECT id, yul, octave, semitone FROM pitches
+    </select>
+
+    <!-- 같은 시도이고 마감 전(시작 시각이 startedAfter 이상)일 때만 바꾼다 -->
     <update id="markDone">
         UPDATE practice_sessions
         SET status = 'DONE'
-        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt}
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt} AND analysis_started_at &gt;= #{startedAfter}
     </update>
 
     <update id="markFailed">
         UPDATE practice_sessions
         SET status = 'FAILED', fail_reason = #{failReason}
-        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt}
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_attempt = #{attempt} AND analysis_started_at &gt;= #{startedAfter}
+    </update>
+
+    <update id="expireOverdue">
+        UPDATE practice_sessions
+        SET status = 'FAILED', fail_reason = 'TIMEOUT'
+        WHERE id = #{sessionId} AND status = 'PENDING' AND analysis_started_at &lt; #{startedAfter}
     </update>
 
     <insert id="insertEvaluation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
@@ -32,4 +48,19 @@
             (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, NULL, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict})
         </foreach>
     </insert>
+
+    <select id="findState" resultType="com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.AnalysisStateRow">
+        SELECT status, fail_reason, analysis_attempt AS attempt
+        FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId}
+    </select>
+
+    <!-- 다시 시도(S15P31E102-175): TIMEOUT·SERVER_ERROR만 같은 녹음으로 새 시도를 시작한다.
+         읽은 시도 번호를 조건에 넣어 그 사이 다른 시도가 시작·실패했으면 바꾸지 않는다. 조건부라 동시 요청 중 하나만 바뀐다 -->
+    <update id="startRetry">
+        UPDATE practice_sessions
+        SET status = 'PENDING', fail_reason = NULL, analysis_attempt = analysis_attempt + 1, analysis_started_at = #{startedAt}
+        WHERE id = #{sessionId} AND user_id = #{userId} AND analysis_attempt = #{attempt}
+          AND status = 'FAILED' AND fail_reason IN ('TIMEOUT', 'SERVER_ERROR') AND recording_url IS NOT NULL
+    </update>
 </mapper>

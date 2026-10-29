@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.home.layout
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,10 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.home.HomeFeature
-import com.ssafy.eolssu.feature.home.Instrument
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeHero
-import com.ssafy.eolssu.feature.home.component.InstrumentChip
+import com.ssafy.eolssu.feature.home.component.InstrumentLabel
+import com.ssafy.eolssu.feature.home.component.MyPageButton
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_brand
 import org.jetbrains.compose.resources.stringResource
@@ -33,7 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun HomeMediumLayout(
     instrument: Instrument,
-    onOpenInstrumentSheet: () -> Unit,
+    onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
     modifier: Modifier = Modifier,
@@ -55,8 +57,11 @@ internal fun HomeMediumLayout(
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Text(stringResource(Res.string.home_brand), style = EolssuTheme.serif.brand)
-                    InstrumentChip(instrument, onOpenInstrumentSheet, Modifier.padding(top = 6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(Res.string.home_brand), style = EolssuTheme.serif.brand, modifier = Modifier.weight(1f))
+                        MyPageButton(onOpenMyPage)
+                    }
+                    InstrumentLabel(instrument, Modifier.padding(top = 6.dp))
                 }
                 Column(Modifier.padding(vertical = 24.dp)) {
                     HomeHero(onStartEvaluation, large = true)

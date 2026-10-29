@@ -51,23 +51,19 @@ import eolssu.shared.generated.resources.sig_vib_long
 import org.jetbrains.compose.resources.DrawableResource
 
 /*
- * 정간보 쉽게 읽기 5번 시김새(와이어프레임 SIG_BASIC·SIG_MORE). 기초부터 배우기 9단계가 같은 목록을 쓴다.
+ * 정간보 쉽게 읽기 4번 시김새(와이어프레임 SIG_BASIC·SIG_MORE). 기초부터 배우기 9단계가 같은 목록을 쓴다.
  * 기호 그림: 우물사이(umulsai.com) jeongganbo-generator, MIT 라이선스(composeResources/files/licenses).
  */
 
-/** 꾸밈음 순서의 한 음. [main]이면 본음이라 검게 칠한다. */
-data class SigimsaeStep(val label: String, val length: String = "", val main: Boolean = false)
-
-/** 처음 배우는 시김새 하나. [chip]은 정악·민속악 구분. */
+/** 처음 배우는 시김새 하나. 목록에는 기호 · 이름 · 짧은 설명만 둔다. [chip]은 정악·민속악 구분. */
 data class SigimsaeItem(
     val images: List<DrawableResource>,
     val name: String,
     val description: String,
     val chip: String? = null,
-    val sequence: List<SigimsaeStep> = emptyList(),
 )
 
-data class SigimsaeGroup(val title: String, val caption: String, val items: List<SigimsaeItem>)
+data class SigimsaeGroup(val title: String, val items: List<SigimsaeItem>)
 
 /** '더 많은 시김새'의 기호와 이름. */
 data class SigimsaeSymbol(val image: DrawableResource, val name: String)
@@ -77,47 +73,28 @@ data class SigimsaeSymbolGroup(val title: String, val symbols: List<SigimsaeSymb
 val BasicSigimsae: List<SigimsaeGroup> = listOf(
     SigimsaeGroup(
         "음을 올리고 내려요",
-        "같은 동작을 정악에서는 추성⁠·⁠퇴성, 민속악에서는 미는표⁠·⁠흘림표로 적어요.",
         listOf(
-            SigimsaeItem(listOf(Res.drawable.sig_bend_up), "추성", "본음 끝을 위로 부드럽게 밀어 올려요.", chip = "정악"),
-            SigimsaeItem(listOf(Res.drawable.sig_push), "미는표", "본음을 밑에서부터 밀어 올려요.", chip = "민속악"),
-            SigimsaeItem(listOf(Res.drawable.sig_bend_down), "퇴성", "본음 끝을 아래로 부드럽게 끌어내려요.", chip = "정악"),
-            SigimsaeItem(listOf(Res.drawable.sig_flow), "흘림표", "본음 끝을 아래로 흘리듯 꺾어 내려요.", chip = "민속악"),
+            SigimsaeItem(listOf(Res.drawable.sig_bend_up), "추성", "끝을 올려요", chip = "정악"),
+            SigimsaeItem(listOf(Res.drawable.sig_push), "미는표", "밑에서 밀어 올려요", chip = "민속악"),
+            SigimsaeItem(listOf(Res.drawable.sig_bend_down), "퇴성", "아래 음으로 꺾어 내려요", chip = "정악"),
+            SigimsaeItem(listOf(Res.drawable.sig_flow), "흘림표", "끝을 흐리며 흘려 내려요", chip = "민속악"),
         ),
     ),
+    SigimsaeGroup("음을 떨어요", listOf(SigimsaeItem(listOf(Res.drawable.sig_shake, Res.drawable.sig_vib), "요성·농음", "위아래로 떨어요"))),
     SigimsaeGroup(
-        "음을 떨어요",
-        "정악에서는 요성, 민속악에서는 농음이라고 해요. 기호는 メ 모양과 물결 모양을 모두 써요.",
-        listOf(SigimsaeItem(listOf(Res.drawable.sig_shake, Res.drawable.sig_vib), "요성·농음", "본음을 위아래로 흔들어 떨어요.")),
-    ),
-    SigimsaeGroup(
-        "앞에서 스치는 꾸밈음",
-        "본음 앞에 다른 음을 짧게 스쳐 꾸며요.",
+        "앞에서 스쳐요",
         listOf(
-            SigimsaeItem(
-                listOf(Res.drawable.sig_nire), "니레", "본음 앞에 한 음 위를 스쳐요.",
-                sequence = listOf(SigimsaeStep("한 음 위", "짧게"), SigimsaeStep("본음", main = true)),
-            ),
-            SigimsaeItem(
-                listOf(Res.drawable.sig_nina), "니라", "본음 앞에 두 음 위를 스쳐요.",
-                sequence = listOf(SigimsaeStep("두 음 위", "짧게"), SigimsaeStep("본음", main = true)),
-            ),
-            SigimsaeItem(
-                listOf(Res.drawable.sig_niro), "니로", "본음 앞에 세 음 위를 스쳐요.",
-                sequence = listOf(SigimsaeStep("세 음 위", "짧게"), SigimsaeStep("본음", main = true)),
-            ),
-            SigimsaeItem(
-                listOf(Res.drawable.sig_noniro), "노니로", "본음 앞에 본음과 한 음 위를 굴려요.",
-                sequence = listOf(SigimsaeStep("본음", "짧게"), SigimsaeStep("한 음 위", "짧게"), SigimsaeStep("본음", "길게", main = true)),
-            ),
+            SigimsaeItem(listOf(Res.drawable.sig_nire), "니레", "한 음 위를 스쳐요"),
+            SigimsaeItem(listOf(Res.drawable.sig_nina), "니라", "두 음 위를 스쳐요"),
+            SigimsaeItem(listOf(Res.drawable.sig_niro), "니로", "세 음 위를 스쳐요"),
+            SigimsaeItem(listOf(Res.drawable.sig_noniro), "노니로", "본음·위 음을 굴려요"),
         ),
     ),
     SigimsaeGroup(
         "끊고 늘여요",
-        "음높이는 그대로 두고 길이만 바꿔요.",
         listOf(
-            SigimsaeItem(listOf(Res.drawable.sig_staccato), "끊는표", "본음을 짧고 또렷하게 끊어 내요."),
-            SigimsaeItem(listOf(Res.drawable.sig_fermata), "늘임표", "본음을 원래 길이의 2~3배로 늘여 내요."),
+            SigimsaeItem(listOf(Res.drawable.sig_staccato), "끊는표", "짧게 끊어요"),
+            SigimsaeItem(listOf(Res.drawable.sig_fermata), "늘임표", "2~3배 늘여요"),
         ),
     ),
 )

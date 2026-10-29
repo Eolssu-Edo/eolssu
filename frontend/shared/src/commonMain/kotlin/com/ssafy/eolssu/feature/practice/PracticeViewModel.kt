@@ -2,6 +2,9 @@ package com.ssafy.eolssu.feature.practice
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.song.SongRepository
@@ -10,33 +13,96 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * PRACTICE-01. 소리·녹음 없이 정간 길이만큼 기다리며 위치를 옮긴다(와이어프레임 타이머와 같은 방식).
- * 상태를 바꾸는 규칙은 `PracticeUiState`의 전환 함수에 두고, 여기서는 타이머를 켜고 끈다.
+ * PRACTICE-01. 정간 길이만큼 기다리며 위치를 옮긴다(와이어프레임 타이머와 같은 방식).
+ * 상태를 바꾸는 규칙은 `PracticeUiState`의 전환 함수에 두고, 여기서는 타이머와 녹음을 켜고 끈다.
+ *
+ * 평가 연주는 [recorder]로 녹음한다. 연주 중단 확인 창·이어 연주 카운트다운 동안은 일시정지하고,
+ * 끊기거나 버린 연주의 녹음은 지운다. [recorder]가 없는 플랫폼(iOS·Web)은 녹음 없이 진행만 한다.
+ * 입력 없음 안내·팝업은 [AudioRecorder.measuresLevel]인 녹음기가 있을 때만 띄우고, 나머지는 서버 판정에 맡긴다.
+ * 마이크 권한은 앱 안의 '허용'과 [micPermission](OS 권한)이 모두 있어야 있는 것으로 본다.
+ *
+ * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
+ * 입력·화면 보임은 Route가 알린다.
  */
 class PracticeViewModel(
-    songId: String,
+    private val songId: String,
     solo: Boolean,
     songRepository: SongRepository,
     private val settingsStore: PracticeSettingsStore,
+    private val timeMeter: PracticeTimeMeter,
+    private val recorder: AudioRecorder? = null,
+    private val micPermission: MicPermission? = null,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(PracticeUiState(solo = solo, settings = settingsStore.settings.value))
+    private val _uiState = MutableStateFlow(
+        PracticeUiState(solo = solo, settings = settingsStore.settings.value, inputMeasured = recorder?.measuresLevel == true),
+    )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
     private var stepJob: Job? = null
     private var countdownJob: Job? = null
     private var previewJob: Job? = null
     private var listenJob: Job? = null
+    private var levelJob: Job? = null
+    private var idleJob: Job? = null
+    private val recordingClock = RecordingClock()
 
     init {
         viewModelScope.launch { _uiState.update { it.copy(song = songRepository.getSong(songId)) } }
         viewModelScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
+        viewModelScope.launch {
+            _uiState.map { it.runningActivities }.distinctUntilChanged().collect { running ->
+                ContinuousActivity.entries.forEach { timeMeter.setRunning(it, it in running) }
+            }
+        }
+    }
+
+    // 연습 시간
+
+    /** 화면이 앞에 보임(들어옴·앱으로 돌아옴·탭이 다시 보임). 새 구간을 열고 알림 때를 기다린다. */
+    fun onScreenShown() {
+        timeMeter.show(songId)
+        watchIdle()
+    }
+
+    /**
+     * 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫고 떠 있던 알림을 내린다.
+     * 닫힌 구간을 기기에 저장해 서버로 보내는 일은 기기 저장·전송 대기열이 맡는다.
+     */
+    fun onScreenHidden() {
+        idleJob?.cancel()
+        timeMeter.hide()
+        _uiState.update { it.copy(idleReminder = false) }
+    }
+
+    /** 터치·스크롤·키 입력. */
+    fun onUserActivity() = timeMeter.onActivity()
+
+    /** "계속 연습 중인가요?"에 응답. 활동으로 보고 자리 비움 시간을 다시 센다. */
+    fun keepPracticing() {
+        timeMeter.onActivity()
+        _uiState.update { it.copy(idleReminder = false) }
+    }
+
+    /** 알림 때까지 기다렸다가 띄운다. 그사이 활동이 있었으면 남은 시간이 늘어 있으므로 다시 기다린다. */
+    private fun watchIdle() {
+        idleJob?.cancel()
+        idleJob = viewModelScope.launch {
+            while (true) {
+                delay(timeMeter.untilReminder() ?: IDLE_RECHECK)
+                if (timeMeter.takeReminder()) _uiState.update { it.copy(idleReminder = true) }
+            }
+        }
     }
 
     // 악보·패널
@@ -149,11 +215,15 @@ class PracticeViewModel(
 
     fun requestEvaluation() {
         stepJob?.cancel()
-        _uiState.update { it.requestEvaluation(settingsStore.micGranted.value) }
+        val granted = settingsStore.micGranted.value && micPermission?.isGranted() != false
+        _uiState.update { it.requestEvaluation(granted) }
         if (_uiState.value.mode == PracticeMode.Countdown) runCountdown()
     }
 
-    /** 마이크 안내에서 '계속'. 실제 권한 요청은 녹음을 붙일 때 한다. */
+    /** 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
+    suspend fun requestMicPermission(): Boolean = micPermission?.request() ?: true
+
+    /** OS 권한까지 허용된 뒤 연주를 시작한다. */
     fun grantMicAndStart() {
         settingsStore.grantMic()
         _uiState.update { it.beginCountdown() }
@@ -170,6 +240,7 @@ class PracticeViewModel(
     fun askAbort() {
         val fraction = currentFraction()
         stepJob?.cancel()
+        pauseRecorder()
         _uiState.update { it.askAbort(fraction) }
     }
 
@@ -183,6 +254,7 @@ class PracticeViewModel(
 
     fun restartNow() {
         stepJob?.cancel()
+        cancelRecorder()
         _uiState.update { it.beginCountdown() }
         runCountdown()
     }
@@ -216,11 +288,13 @@ class PracticeViewModel(
         }
     }
 
+    /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
         stepJob?.cancel()
         countdownJob?.cancel()
         previewJob?.cancel()
         listenJob?.cancel()
+        cancelRecorder()
     }
 
     private fun runCountdown() {
@@ -233,8 +307,79 @@ class PracticeViewModel(
             delay(1000)
             val resume = _uiState.value.resume
             val carry = _uiState.value.pausedFraction
+            if (!(if (resume) resumeRecorder() else startRecorder())) {
+                _uiState.update { it.failRecording() }
+                return@launch
+            }
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0f)
+        }
+    }
+
+    // 녹음
+
+    private fun startRecorder(): Boolean {
+        val recorder = recorder ?: return true
+        if (runCatching { recorder.start() }.isFailure) return false
+        recordingClock.start()
+        watchRecording()
+        return true
+    }
+
+    private fun resumeRecorder(): Boolean {
+        val recorder = recorder ?: return true
+        if (runCatching { recorder.resume() }.isFailure) {
+            cancelRecorder()
+            return false
+        }
+        recordingClock.resume()
+        watchRecording()
+        return true
+    }
+
+    private fun pauseRecorder() {
+        val recorder = recorder ?: return
+        levelJob?.cancel()
+        recordingClock.pause()
+        runCatching { recorder.pause() }
+        _uiState.update { it.copy(micLevel = 0f) }
+    }
+
+    private fun cancelRecorder() {
+        levelJob?.cancel()
+        recordingClock.reset()
+        recorder?.cancel()
+    }
+
+    /** 곡 끝이나 최대 길이에서 녹음을 마치고 저장된 파일을 확인한다. */
+    private fun finishRecorder() {
+        val recorder = recorder ?: return
+        levelJob?.cancel()
+        recordingClock.reset()
+        val audio = recorder.stop()
+        _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
+    }
+
+    /** 녹음하는 동안 입력 크기와 무입력 시간을 반영하고, 최대 길이(10분)에 닿으면 연주를 마친다. */
+    private fun watchRecording() {
+        val recorder = recorder ?: return
+        levelJob?.cancel()
+        levelJob = viewModelScope.launch {
+            var measuredAt = recordingClock.elapsed()
+            while (isActive) {
+                val elapsed = recordingClock.elapsed()
+                if (elapsed >= RecordingSpec.MaxDuration) {
+                    stepJob?.cancel()
+                    _uiState.update { it.endRecording() }
+                    finishRecorder()
+                    break
+                }
+                val level = recorder.level()
+                val sinceMs = (elapsed - measuredAt).inWholeMilliseconds.toDouble()
+                measuredAt = elapsed
+                _uiState.update { it.recordLevel(level, sinceMs) }
+                delay(LEVEL_INTERVAL_MS)
+            }
         }
     }
 
@@ -258,9 +403,11 @@ class PracticeViewModel(
                 _uiState.update { it.copy(eventStartedAt = startedAt, pausedFraction = fraction) }
                 val remaining = duration * (1 - fraction)
                 delay(remaining.toLong())
-                _uiState.update { it.advance(remaining, micLevel = 0.3f + Random.nextFloat() * 0.7f) }
+                // 녹음 중이면 입력 크기는 watchRecording()이 바꾼다.
+                _uiState.update { it.advance(remaining, micLevel = if (recorder != null) it.micLevel else 0.3f + Random.nextFloat() * 0.7f) }
                 fraction = 0f
                 val next = _uiState.value
+                if (next.mode == PracticeMode.Recording && next.finished) finishRecorder()
                 val running = (next.mode == PracticeMode.Model && next.playing) || (next.mode == PracticeMode.Recording && !next.finished)
                 if (!running) break
             }
@@ -269,5 +416,12 @@ class PracticeViewModel(
 
     override fun onCleared() {
         stopAll()
+    }
+
+    private companion object {
+        const val LEVEL_INTERVAL_MS = 100L
+
+        /** 알림을 기다리지 않는 동안(재생 중·이미 알림을 냄) 다시 확인하는 간격. */
+        val IDLE_RECHECK = 30.seconds
     }
 }
