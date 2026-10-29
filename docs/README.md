@@ -28,8 +28,11 @@
 
 - [DB 스키마와 ERD](contracts/db-schema.md)
 
+- [S15P31E102-257 평가 결과 조회](plans/S15P31E102-257.md)
+
 ## 기능 스펙
 
+- [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
