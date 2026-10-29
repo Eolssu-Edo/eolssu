@@ -3,6 +3,7 @@ package com.ssafy.eolssu.app.di
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
+import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.practice.SampleEvaluationRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
@@ -45,6 +46,9 @@ import com.ssafy.eolssu.feature.song.PdfPreviewViewModel
 import com.ssafy.eolssu.feature.song.PdfUploadViewModel
 import com.ssafy.eolssu.feature.song.SongDetailViewModel
 import com.ssafy.eolssu.feature.song.SongListViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -62,13 +66,15 @@ val appModule = module {
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
     single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
+    // 체류 기록 API(ScoreViewApi)는 HTTP 라이브러리가 정해지면 등록한다. 그 전에는 기록이 기기에만 쌓인다.
+    single { PracticeTimeQueue(get(), getOrNull(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
     viewModel { (songId: String, solo: Boolean) ->
-        PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), getOrNull(), getOrNull())
+        PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull())
     }
     viewModel { (songId: String, bpm: Int) -> AnalysisViewModel(songId, bpm, get(), get()) }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }

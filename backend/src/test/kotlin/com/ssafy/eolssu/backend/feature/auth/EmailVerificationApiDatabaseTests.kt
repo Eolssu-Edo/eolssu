@@ -43,7 +43,7 @@ class EmailVerificationApiDatabaseTests {
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
 
     @BeforeEach
-    fun before() { cleanup(); clock.set(Instant.parse("2026-10-28T03:00:00Z")); mail.messages.clear(); mail.fail = false }
+    fun before() { cleanup(); clock.set(Instant.parse("2026-10-28T03:00:00Z")); mail.messages.clear(); mail.recipients.clear(); mail.fail = false }
 
     @AfterEach
     fun after() { client.close(); cleanup() }
@@ -78,6 +78,21 @@ class EmailVerificationApiDatabaseTests {
         assertEquals("2026-10-28T03:30:00Z", tree(confirmed).path("result").path("expiresAt").asString())
         assertEquals(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(token.toByteArray())), jdbc.queryForObject("SELECT token_hash FROM email_verifications WHERE id = ?", String::class.java, id))
         assertError(confirm(id, code), 410, "VERIFICATION_EXPIRED")
+    }
+
+    @Test
+    fun `reset collation alias delivers only to the registered email and binds the proof to it`() {
+        jdbc.update("INSERT INTO pitches (id,yul,octave,hanja,hangul,semitone) VALUES (990001,'검증',0,'黃','검증',50)")
+        jdbc.update("INSERT INTO instruments (id,code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent) VALUES (990001,'AUTH_TEST','검증',990001,990001,50)")
+        jdbc.update("INSERT INTO users (id,email,password_hash,nickname,instrument_id,status) VALUES (990001,'member@auth143.test','test-hash','검증',990001,'ACTIVE')")
+        val sent = send("mémber@auth143.test", "PASSWORD_RESET")
+        assertEquals(202, sent.statusCode(), sent.body())
+        assertEquals(listOf("member@auth143.test"), mail.recipients.toList())
+        val id = tree(sent).path("result").path("verificationId").asString().toLong()
+        assertEquals("member@auth143.test", jdbc.queryForObject("SELECT email FROM email_verifications WHERE id = ?", String::class.java, id))
+        val verified = confirm(id, mail.messages.single())
+        assertEquals(200, verified.statusCode(), verified.body())
+        assertEquals("member@auth143.test", tree(verified).path("result").path("email").asString())
     }
 
     @Test
@@ -271,9 +286,11 @@ class VerificationTestClock : Clock() {
 
 class CapturingVerificationMail : VerificationMailSender {
     val messages = CopyOnWriteArrayList<String>()
+    val recipients = CopyOnWriteArrayList<String>()
     @Volatile var fail = false
     override fun send(email: String, purpose: VerificationPurpose, code: String) {
         if (fail) throw VerificationMailUnavailable()
+        recipients.add(email)
         messages.add(code)
     }
 }

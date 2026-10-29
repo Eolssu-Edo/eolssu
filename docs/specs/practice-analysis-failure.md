@@ -106,7 +106,7 @@ POST {AI}/v1/analyses
 - 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
 - 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
-**구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
+**구현 상태(2026-10-29).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
 
 - 업로드 저장소(`MyBatisRecordingUploadRepository`)는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행한다. 트랜잭션 밖에서 발행하면 오류 없이 버려지므로 발행 위치를 옮기지 않는다. 커밋 뒤 `AnalysisOnUpload`가 백그라운드 실행기(기본 2개 동시·대기 50개)에서 분석한다. 롤백된 업로드는 분석하지 않는다. 대기열이 가득 차면 시작하지 않고 그 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 - AI에 넘기는 녹음 주소는 업로드 설정의 `RecordingReadUrls` Bean(15분 읽기 전용 서명 URL) 하나를 쓴다. 같은 타입 Bean을 따로 만들지 않는다.
@@ -117,7 +117,16 @@ S15P31E102-186의 코드는 여기까지다. 배포 환경에 AI 서비스를 �
 
 - AI 쪽 `POST /v1/analyses`는 S15P31E102-212에서 구현했다([실행 방법](../../ai/README.md#분석-api)). 기준음은 E♭4 고정이고, 채점은 `startBeat`로 기대 시각을 정한다(S15P31E102-157). 앞 음이 끝나기 전에 시작하는 음표는 422로 거절한다.
 
-S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새 시도를 시작하는 조건부 갱신까지 구현했다. 마감을 넘긴 `PENDING`은 먼저 `TIMEOUT`으로 끝낸 뒤 다시 시도하고, 업로드 전(`RECORDING`) 세션도 거절한다. 새 시도는 읽은 시도 번호를 조건으로 시작하고, 분석을 백그라운드 작업으로 넘기지 못하면 그 시도를 `SERVER_ERROR`로 끝낸다. 다른 시도가 계속 끼어들어 몇 번 다시 읽어도 시작하지 못하면 거절이 아니라 '잠시 후 다시'(`Busy`)로 답한다. API에서는 이 결과도 거절 응답과 구분해야 한다. 유스케이스는 트랜잭션 밖에서 불러야 한다(새 시도가 커밋된 뒤 분석이 세션을 읽는다). 다시 시도 API(경로·응답 코드·거절 오류 형식)와 유스케이스의 Bean 연결은 아래 미결 사항의 API 명세가 정해진 뒤 붙인다. 이때 새 시도를 위의 분석 실행기로 넘긴다.
+S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새 시도를 시작하는 조건부 갱신까지 구현했다. 마감을 넘긴 `PENDING`은 먼저 `TIMEOUT`으로 끝낸 뒤 다시 시도하고, 업로드 전(`RECORDING`) 세션도 거절한다. 새 시도는 읽은 시도 번호를 조건으로 시작하고, 분석을 백그라운드 작업으로 넘기지 못하면 그 시도를 `SERVER_ERROR`로 끝낸다. 다른 시도가 계속 끼어들어 몇 번 다시 읽어도 시작하지 못하면 거절이 아니라 '잠시 후 다시'(`Busy`)로 답한다. API에서는 이 결과도 거절 응답과 구분해야 한다. 유스케이스는 트랜잭션 밖에서 불러야 한다(새 시도가 커밋된 뒤 분석이 세션을 읽는다).
+
+S15P31E102-222가 다시 시도 API와 Bean 연결을 붙였다. 응답은 노션 API 명세 초안(v0.1)을 따르고, 초안에 없던 두 가지는 2026-10-29 사용자가 정했다.
+
+- `POST /api/practice-sessions/{sessionId}/retry`(본문 없음). 새 시도를 시작하면 202 `ACCEPTED`와 `result{sessionId, status: "PENDING", retryable: false}`다.
+- 이미 `PENDING`이면 새 시도 없이 같은 202로 답한다(사용자 결정). 앱은 상태 조회를 이어 간다.
+- 재녹음이 필요한 실패(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`·`UPLOAD_TIMEOUT`), `DONE`, 업로드 전(`RECORDING`)은 409 `STATE_CONFLICT`, 없거나 남의 세션은 404 `RESOURCE_NOT_FOUND`다.
+- '잠시 후 다시'(`Busy`)와 분석을 실행기에 넘기지 못한 경우(대기열 가득 참, 분석 연결 전)는 503 `SERVICE_UNAVAILABLE`이다. 넘기지 못한 시도는 `SERVER_ERROR`로 끝나 바로 다시 시도할 수 있다.
+- `Idempotency-Key` 헤더는 명세대로 필수다(출력 가능한 ASCII 1~100자, 아니면 400). 저장하지 않는다(사용자 결정). 같은 요청을 다시 보내도 세션이 이미 `PENDING`이라 새 시도가 생기지 않는다.
+- 새 시도는 업로드 뒤 분석과 같은 실행기(`AnalysisOnUpload.submit`)로 넘긴다. 마감 판정은 상태 조회처럼 AI 없이 저장소로 한다.
 
 ## 다음 행동
 
@@ -209,7 +218,6 @@ S15P31E102-175는 분석 다시 시도의 판단(`RetryPracticeAnalysis`)과 새
 | 항목 | 정할 사람·필요한 것 | 막는 작업 |
 | --- | --- | --- |
 | 기록을 지운 세션(REC-04)을 상태 조회에서 404로 할지 | PRA API 명세 담당. 지금은 200으로 상세·메모를 주고 `recordingAvailable`만 false다(V2 주석은 목록·재생에서 뺀다고만 적음) | 상태 조회 API의 지운 기록 처리 |
-| 재시도 API의 거절 응답 형식 | PRA API 명세 담당. 경로는 명세의 `POST /api/practice-sessions/{sessionId}/retry` | 다시 시도 API 구현 |
 | FE 연습 구간 선택이 음표 번호(`NOTE`만 0부터)로 `startNoteIdx`·`endNoteIdx`를 보내는지 | FE 담당 확인 | 구간 연습의 올바른 채점(전체 곡 연주는 막지 않음) |
 | 녹음 길이 상한(PRA-02 600초)을 낮출지, DTW 폭 제한을 넣을지 | 팀(PRA-02·PRA-03). 서비스 곡의 최대 연습 구간 길이 확인 필요. [측정 기록](../knowledge/ai/analysis-latency.md)은 상한을 연습 구간 길이로 낮추고 120초를 넘으면 DTW 폭 제한을 먼저 넣자고 제안한다 | 120초를 넘는 녹음의 분석. 정하기 전 긴 녹음은 메모리 부족으로 실패한다 |
 | 제한 시간 60초와 앱 대기 70초의 최종 값 | 운영 서버에서 같은 명령으로 다시 잰 결과 | 값 조정(구현은 막지 않음) |

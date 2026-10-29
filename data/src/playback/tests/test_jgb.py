@@ -8,6 +8,103 @@ from data.src.playback.tests._helpers import converted, document, midi
 
 
 class JgbTests(unittest.TestCase):
+    def test_sogeum_ornaments_follow_its_textbook_and_keep_danso_sequences(self):
+        for mark, sogeum, danso in (("nerona", [82, 80, 77], [82, 80, 85]),
+                                     ("nineurani", [87, 85, 82, 85], [87, 85, 87, 85])):
+            source = document(f"청무 | {{{mark}}}")
+            old, _ = converted(source)
+            source["parts"][0]["instrument"] = "sogeum"
+            value, mapping = converted(source, instrument="sogeum")
+            self.assertEqual([n["pitch"] for n in old["notes"]][1:], danso)
+            self.assertEqual([n["pitch"] for n in value["notes"]][1:], sogeum)
+            self.assertEqual(mapping["symbol_policy"]["name"], "sogeum-official-figures-v1")
+        for mark in ("느네느", "neuneneu", "느니르", "느니-르", "neunireu"):
+            source = document(f"청황{{{mark}}} | 청태")
+            source["parts"][0]["instrument"] = "sogeum"
+            with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "소금 교재"):
+                converted(source, instrument="sogeum")
+        for mark, text, pitches in (("느너느", "청무{느너느}", [85, 80, 85]),
+                                    ("나너나", "청무{나너나}", [85, 89, 85]),
+                                    ("나노나", "청무{나노나}", [85, 80, 85]),
+                                    ("너나", "{너나}", [89, 85]), ("노나", "{노나}", [80, 85])):
+            source = document(f"청무 | {text}")
+            source["parts"][0]["instrument"] = "sogeum"
+            value, _ = converted(source, instrument="sogeum")
+            self.assertEqual([n["pitch"] for n in value["notes"]][1:], pitches, mark)
+
+    def test_sogeum_five_graces_and_roll_keep_pitches_and_short_main_budget(self):
+        source = document("청태{나니르노니르} | 청임{떠이어표}", staffUnit="eighth", tempoBpm=400)
+        source["parts"][0]["instrument"] = "sogeum"
+        value, mapping = converted(source, instrument="sogeum")
+        self.assertEqual([n["pitch"] for n in value["notes"]], [75, 80, 77, 75, 80, 77, 82, 85, 82])
+        self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"][:6]), Fraction(1, 2))
+        self.assertGreaterEqual(Fraction(value["notes"][5]["duration"]), Fraction(1, 4))
+        self.assertEqual(len({n["slur"] for n in value["notes"][:6]}), 1)
+        self.assertTrue(all(n["id"] in mapping["notes"] for n in value["notes"]))
+        source["parts"][0]["instrument"] = "danso"
+        with self.assertRaisesRegex(ValueError, "미확정"):
+            converted(source)
+
+    def test_sogeum_requires_identification_without_changing_original_or_octave(self):
+        for version in (1, 2):
+            source = document(version=version)
+            if version == 2:
+                source["parts"][0]["instrument"] = "all"
+            with self.assertRaisesRegex(ValueError, "instrument_basis"):
+                converted(source, instrument="sogeum")
+            source["playback"] = {"instrument": "sogeum", "instrument_basis": "소금 판본을 확인한 고정 검사"}
+            before = deepcopy(source)
+            value, mapping = converted(source, instrument="sogeum")
+            self.assertEqual(source, before)
+            self.assertEqual([n["pitch"] for n in value["notes"]], [75, 77])
+            self.assertEqual(mapping["instrument_selection"]["kind"], "prepared-input")
+            self.assertEqual(mapping["instrument_basis"], source["playback"]["instrument_basis"])
+            if version == 2:
+                source["parts"][0]["instrument"] = "danso"
+            else:
+                source["ornInstrument"] = "danso"
+            with self.assertRaisesRegex(ValueError, "다릅니다"):
+                converted(source, instrument="sogeum")
+        with self.assertRaisesRegex(ValueError, "단소 선택"):
+            converted(document(), instrument="sogeum", assume_danso=True)
+
+    def test_sogeum_tempo_still_requires_selection_and_scale_needs_basis(self):
+        source = document("청태{니레} | 청임", joPreset="all")
+        source["parts"][0]["instrument"] = "sogeum"
+        source.pop("tempoBpmUserSet")
+        with self.assertRaisesRegex(ValueError, "빠르기"):
+            converted(source, instrument="sogeum")
+        with self.assertRaisesRegex(ValueError, "명시한 조"):
+            converted(source, instrument="sogeum", bpm=80)
+        source["playback"] = {"relative_scale": {"pitch_classes": [2, 4, 7, 9, 10], "basis": "검사용 음계"}}
+        before = deepcopy(source)
+        value, mapping = converted(source, instrument="sogeum", bpm=80)
+        self.assertEqual(source, before)
+        self.assertEqual([n["pitch"] for n in value["notes"]], [79, 77, 82])
+        self.assertEqual(mapping["tempo_selection"]["kind"], "cli-override")
+        self.assertEqual(mapping["relative_scale"], source["playback"]["relative_scale"])
+        with self.assertRaisesRegex(ValueError, "중복"):
+            converted(source, instrument="sogeum", bpm=80, jo="jung-pyeong")
+        source["playback"]["instrument_basis"] = "판본61쪽 확인"
+        _, mapping = converted(source, instrument="sogeum", bpm=80)
+        self.assertEqual(mapping["instrument_basis"], "판본61쪽 확인")
+
+    def test_sogeum_effects_require_explicit_values_and_hold_adds_location_delay(self):
+        for mark in ("농음표", "흘림표", "미는표", "풀어내림표"):
+            source = document(f"청황{{{mark}}} | 청태")
+            source["parts"][0]["instrument"] = "sogeum"
+            with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "expression_policy"):
+                converted(source, instrument="sogeum")
+        source = document("청황 -{농음표} | 청태")
+        source["parts"][0]["instrument"] = "sogeum"
+        source["playback"] = {"expression_policy": {
+            "name": "고정 검사", "basis": "연습용 선택값", "status": "audition-policy-not-performance-standard",
+            "vibrato": {"mode": "pitch", "hz": 3, "cents": 40, "delay_seconds": .1}}}
+        value, mapping = converted(source, instrument="sogeum")
+        self.assertEqual(len(value["notes"]), 2)
+        self.assertAlmostEqual(value["notes"][0]["yoseong"]["delay_seconds"], .6)
+        self.assertEqual(len(mapping["notes"][value["notes"][0]["id"]]), 2)
+
     def test_all_instrument_needs_explicit_danso_selection_without_source_edit(self):
         source = document()
         source["parts"][0]["instrument"] = "all"
@@ -248,7 +345,7 @@ class JgbTests(unittest.TestCase):
     def test_source_and_asset_mismatch_do_not_silently_drop_sound(self):
         doc = document()
         doc["parts"][0]["instrument"] = "sogeum"
-        with self.assertRaisesRegex(ValueError, "단소"):
+        with self.assertRaisesRegex(ValueError, "악기"):
             converted(doc)
         doc = document()
         doc["parts"][0]["muted"] = True

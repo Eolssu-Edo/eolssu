@@ -6,6 +6,33 @@ from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_yoseong_delay_must_reach_sounding_note_after_tie_and_ornament_expansion(self):
+        effect = {"mode": "pitch", "hz": 3, "cents": 60, "delay_seconds": 2}
+        value = score([{"id": "a", "pitch": 75, "duration": 1, "yoseong": effect}])
+        with self.assertRaisesRegex(ValueError, "yoseong starts after"):
+            compile_score(value, "sogeum")
+        value["notes"][0]["tie"] = "start"
+        value["notes"].append({"id": "b", "pitch": 75, "duration": 2, "tie": "stop"})
+        self.assertEqual(len(compile_score(value, "sogeum")["events"]), 1)
+        value["notes"] = [{"id": "a", "pitch": 75, "duration": 3, "yoseong": effect,
+                           "ornament": {"kind": "grace-before", "pitch": 77}}]
+        self.assertEqual(len(compile_score(value, "sogeum")["events"]), 2)
+
+    def test_sogeum_written_octave_and_range_do_not_fold_sounding_notes(self):
+        value = score([{"id": "a", "pitch": 60, "duration": 1}])
+        value["context"].update(pitch_mode="written", notation_octave_shift=1)
+        self.assertEqual(compile_score(value, "sogeum")["events"][0]["pitch"], 72)
+        value["context"].update(pitch_mode="sounding", notation_octave_shift=0)
+        for pitch in (70, 72, 92, 93, 96):
+            value["notes"][0]["pitch"] = pitch
+            perf = compile_score(value, "sogeum")
+            self.assertEqual(perf["events"][0]["pitch"], pitch)
+            self.assertEqual(any("전통 관행 음역 밖" in w for w in perf["warnings"]), pitch > 92)
+        for pitch in (69, 97):
+            value["notes"][0]["pitch"] = pitch
+            with self.assertRaisesRegex(ValueError, "outside"):
+                compile_score(value, "sogeum")
+
     def test_piecewise_pitch_curves_require_ordered_bounded_complete_points(self):
         curves = [
             {"points": []}, {"points": [[0, 0], [0, -100], [1, 0]]},
