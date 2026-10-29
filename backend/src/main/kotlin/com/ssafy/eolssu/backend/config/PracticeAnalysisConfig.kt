@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.analysis.application.AnalysisOnUpload
 import com.ssafy.eolssu.backend.feature.analysis.application.AnalyzePracticeSession
+import com.ssafy.eolssu.backend.feature.analysis.application.RetryPracticeAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
@@ -13,6 +14,8 @@ import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.MyBa
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.PracticeAnalysisMapper
 import java.time.Clock
 import java.time.Duration
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -33,9 +36,24 @@ class PracticeAnalysisConfig {
     fun practiceAnalysisRepository(mapper: PracticeAnalysisMapper, transactionManager: PlatformTransactionManager): PracticeAnalysisRepository =
         MyBatisPracticeAnalysisRepository(mapper, TransactionTemplate(transactionManager))
 
-    // 다시 시도 유스케이스(RetryPracticeAnalysis)는 분석 실행과 같은 시점에, API는 PRA API 명세가 정해지면 연결한다.
     @Bean
     fun analysisRetryRepository(mapper: PracticeAnalysisMapper): AnalysisRetryRepository = MyBatisAnalysisRetryRepository(mapper)
+
+    // 새 시도는 업로드 뒤 분석과 같은 실행기로 넘긴다. 분석 연결 전이면 넘기지 못해 그 시도는 SERVER_ERROR로 끝난다.
+    // 마감 판정은 AI 없이 저장소로 하므로 분석 연결과 상관없이 동작한다(상태 조회와 같다).
+    @Bean
+    fun retryPracticeAnalysis(
+        retries: AnalysisRetryRepository,
+        analyses: PracticeAnalysisRepository,
+        analysisOnUpload: AnalysisOnUpload,
+        properties: AnalysisProperties,
+        clock: Clock,
+    ) = RetryPracticeAnalysis(
+        retries,
+        { sessionId -> analyses.expireOverdue(sessionId, LocalDateTime.ofInstant(clock.instant().minus(properties.timeLimit), ZoneOffset.UTC)) },
+        analysisOnUpload::submit,
+        clock,
+    )
 
     @Bean
     fun practiceScoreNotes(mapper: PracticeAnalysisMapper, jsonMapper: JsonMapper): PracticeScoreNotes = MyBatisPracticeScoreNotes(mapper, jsonMapper)

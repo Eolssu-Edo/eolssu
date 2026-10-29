@@ -44,6 +44,28 @@ class AnalysisOnUploadTests {
         AnalysisOnUpload({ throw IllegalStateException("db down") }, direct).onUploaded(RecordingUploaded(7))
     }
 
+    @Test
+    fun `submit hands a retried session to the same executor`() {
+        AnalysisOnUpload({ started += it }, direct).submit(9)
+        assertEquals(listOf(9L), started)
+    }
+
+    @Test
+    fun `submit fails while the analysis is not wired so the retry can end the attempt`() {
+        assertFailsWith<IllegalStateException> { AnalysisOnUpload(null, direct, missing = listOf("RecordingReadUrls")).submit(9) }
+    }
+
+    @Test
+    fun `submit lets a full queue fail the retry`() {
+        assertFailsWith<RejectedExecutionException> { AnalysisOnUpload({ started += it }, { throw RejectedExecutionException("full") }).submit(9) }
+        assertEquals(emptyList(), started)
+    }
+
+    @Test
+    fun `a failing retried analysis does not escape the background task`() {
+        AnalysisOnUpload({ throw IllegalStateException("db down") }, direct).submit(9)
+    }
+
     /** 트랜잭션만 흉내 내는 관리자. DB 없이 커밋·롤백·커밋 실패 뒤 이벤트 처리를 본다. */
     class NoResourceTransactionManager : AbstractPlatformTransactionManager() {
         var failCommit = false

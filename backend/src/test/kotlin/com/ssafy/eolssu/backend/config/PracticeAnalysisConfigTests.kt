@@ -1,13 +1,20 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.feature.analysis.application.AnalysisOnUpload
+import com.ssafy.eolssu.backend.feature.analysis.application.RetryOutcome
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
+import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
@@ -76,5 +83,43 @@ class PracticeAnalysisConfigTests {
     fun `explains which values are invalid`() {
         val error = assertFailsWith<IllegalArgumentException> { AnalysisProperties(queueCapacity = -1) }
         assertTrue(error.message!!.contains("queue-capacity"), error.message)
+    }
+
+    private class Retries(var state: AnalysisState) : AnalysisRetryRepository {
+        override fun findState(sessionId: Long, userId: Long) = state
+        override fun startRetry(sessionId: Long, userId: Long, attempt: Int, startedAt: LocalDateTime): Boolean {
+            state = AnalysisState("PENDING", null, attempt + 1)
+            return true
+        }
+        override fun failStart(sessionId: Long, attempt: Int, startedAt: LocalDateTime) = true
+    }
+
+    private val clock = Clock.fixed(Instant.parse("2026-10-29T01:00:00Z"), ZoneOffset.UTC)
+
+    @Test
+    fun `a retried attempt goes to the upload analysis executor`() {
+        val started = mutableListOf<Long>()
+        val retry = config.retryPracticeAnalysis(
+            Retries(AnalysisState("FAILED", "TIMEOUT", 1)), repository, AnalysisOnUpload({ started += it }, { it.run() }), AnalysisProperties(), clock,
+        )
+        assertEquals(RetryOutcome.Started(2), retry.retry(userId = 1, sessionId = 7))
+        assertEquals(listOf(7L), started)
+    }
+
+    @Test
+    fun `a pending retry is checked against the analysis time limit`() {
+        val expiredBefore = mutableListOf<LocalDateTime>()
+        val analyses = object : PracticeAnalysisRepository by repository {
+            override fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean {
+                expiredBefore += startedAfter
+                return false
+            }
+        }
+        val retry = config.retryPracticeAnalysis(
+            Retries(AnalysisState("PENDING", null, 1)), analyses, AnalysisOnUpload(null, { it.run() }),
+            AnalysisProperties(timeLimit = Duration.ofSeconds(90)), clock,
+        )
+        assertEquals(RetryOutcome.AlreadyPending(1), retry.retry(userId = 1, sessionId = 7))
+        assertEquals(listOf(LocalDateTime.of(2026, 10, 29, 0, 58, 30)), expiredBefore)
     }
 }

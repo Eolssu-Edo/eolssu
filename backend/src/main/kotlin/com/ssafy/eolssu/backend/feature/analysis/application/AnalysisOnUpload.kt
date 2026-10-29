@@ -26,18 +26,27 @@ class AnalysisOnUpload(
     // 트랜잭션 밖에서 발행하면 처리하지 않는다. 업로드는 PENDING 전환과 같은 트랜잭션에서 발행해야 한다.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     fun onUploaded(event: RecordingUploaded) {
-        val start = start ?: return log.warn("Analysis not started: wiring missing {} session={}", missing, event.sessionId)
+        if (start == null) return log.warn("Analysis not started: wiring missing {} session={}", missing, event.sessionId)
         try {
-            executor.execute {
-                // 실행기 밖으로 나간 예외는 앱 로그에 남지 않는다. 세션은 PENDING으로 남아 제한 시간 뒤 TIMEOUT이 된다.
-                try {
-                    start(event.sessionId)
-                } catch (e: Exception) {
-                    log.warn("Analysis failed unexpectedly session={} error={}", event.sessionId, e.javaClass.simpleName)
-                }
-            }
+            submit(event.sessionId)
         } catch (e: RejectedExecutionException) {
             log.warn("Analysis not started: queue full session={}", event.sessionId)
+        }
+    }
+
+    /**
+     * 세션 분석을 실행기에 넘기기만 하고 돌아온다. 분석 다시 시도([RetryPracticeAnalysis])도 같은 실행기를 쓴다.
+     * 넘기지 못하면(연결 전, 대기열 가득 참) 예외를 던져 다시 시도가 그 시도를 끝낼 수 있게 한다.
+     */
+    fun submit(sessionId: Long) {
+        val start = checkNotNull(start) { "analysis wiring missing $missing" }
+        executor.execute {
+            // 실행기 밖으로 나간 예외는 앱 로그에 남지 않는다. 세션은 PENDING으로 남아 제한 시간 뒤 TIMEOUT이 된다.
+            try {
+                start(sessionId)
+            } catch (e: Exception) {
+                log.warn("Analysis failed unexpectedly session={} error={}", sessionId, e.javaClass.simpleName)
+            }
         }
     }
 
