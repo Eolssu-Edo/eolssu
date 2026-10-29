@@ -19,7 +19,19 @@ pipeline {
     stages {
         stage('Clean workspace') {
             steps {
-                deleteDir()
+                script {
+                    if (fileExists('.git')) {
+                        def prepared = sh(returnStatus: true,
+                            script: '/opt/eolssu/config/prepare-frontend-workspace.sh')
+                        if (prepared == 2) {
+                            deleteDir()
+                        } else if (prepared != 0) {
+                            error("Frontend workspace preparation failed (exit ${prepared})")
+                        }
+                    } else {
+                        deleteDir()
+                    }
+                }
             }
         }
 

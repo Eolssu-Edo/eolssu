@@ -10,6 +10,7 @@ import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.song.api.*
+import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 
 /** ResponseEntity<*>의 응답 타입 소실을 보완하는 문서 계약. 요청 DTO/매핑은 springdoc이 실제 컨트롤러에서 읽는다. */
@@ -45,6 +46,14 @@ internal val apiContracts = listOf(
         LinkedProviderResult::class.java,statuses=listOf(201),errors=listOf(OAUTH_VERIFICATION_FAILED,PROVIDER_ALREADY_LINKED,SOCIAL_ACCOUNT_IN_USE,SERVICE_UNAVAILABLE)),
     ApiContract(HttpMethod.DELETE,"/api/users/me/social-accounts/{provider}","unlinkSocialAccount","회원","소셜 계정 연결 해제",
         "로그인한 ACTIVE 회원의 연결만 해제합니다. 이메일·비밀번호 로그인은 남습니다.",null,statuses=listOf(204),errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.GET,"/api/instruments","listInstruments","카탈로그","제공 중인 악기 목록", "활성 악기의 등록 음역과 허용 오차를 반환합니다. 예시값을 채점 정책으로 바꾸지 않습니다.", InstrumentListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}/score","getSongScore","카탈로그","공통 악보와 음표 타임라인", "원본 score의 정수 버전·event ID·tick·배치를 보존하고 NOTE 순번과 박 단위 타임라인을 함께 반환합니다.", SongScoreResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT),security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}/model-audio","getModelAudio","카탈로그","현재 악보의 모범 음원", "게시 곡의 현재 악보 버전·BPM·단위와 일치하는 게시 음원만 반환합니다. 미등록·초안·불일치는 404입니다. 파일 길이와 악보 시작 위치는 ms입니다.", ModelAudioResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/pitches","listPitches","카탈로그","율명과 표기 목록", "instrumentId 지정 시 활성 악기의 음역을 semitone 기준으로 제한합니다. 미확보 설명·음원은 null입니다.", PitchListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/instruments/{instrumentId}/fingerings","listFingerings","카탈로그","악기별 운지 목록", "활성 악기의 운지 목록을 반환하며 pitchId로 제한할 수 있습니다. 미등록 콘텐츠는 빈 목록이며 구조 그림은 null입니다.", FingeringListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/jangdans/{jangdanId}","getJangdan","카탈로그","장단 패턴과 기준 BPM", "등록 pattern의 소박·묶음·bpmUnit을 보존합니다. 미확보 음원은 null입니다.", JangdanDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/notation-symbols","listNotationSymbols","카탈로그","학습용 기호 설명", "등록 기호 설명만 반환하며 악보 렌더 의미를 재정의하지 않습니다. 없으면 빈 목록입니다.", NotationSymbolListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/jangdans","listJangdans","카탈로그","장단 목록", "이름·기준 BPM/단위·저장 패턴의 소박 수와 묶음 수를 ID 순으로 반환합니다.", JangdanListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),

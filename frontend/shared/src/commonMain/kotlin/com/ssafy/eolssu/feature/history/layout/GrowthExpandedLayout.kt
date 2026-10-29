@@ -34,10 +34,11 @@ private val GrowthTwoColumnMinHeight = 560.dp
 @Composable
 internal fun GrowthExpandedLayout(
     stats: GrowthStats,
+    completedSteps: Int,
     frame: HistoryFrame,
     spacing: GrowthSpacing,
     onRange: (GrowthRange) -> Unit,
-    onOpenMissions: () -> Unit,
+    onOpenSteps: () -> Unit,
     onOpenRecords: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -54,7 +55,7 @@ internal fun GrowthExpandedLayout(
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.gap)) {
                     stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
-                    GrowthLinks(stats, spacing, onOpenMissions, onOpenRecords)
+                    GrowthLinks(stats, completedSteps, spacing, onOpenSteps, onOpenRecords)
                 }
             }
         }

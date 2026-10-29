@@ -12,6 +12,14 @@
 - 추가 증명을 생략할 수 있는 Google 이메일은 email_verified=true이면서 Gmail 또는 Workspace hd 권위가 있는 경우다. 외부 이메일의 email_verified만으로는 현재 소유를 신뢰하지 않는다. 회원별 병렬 요청도 비밀번호5회 제한을 지키며, 잠금 대기 후 만료 시각을 다시 확인해야 한다.
 - 보안 검증: 잘못된/만료/재사용 state·다른 브라우저·다른 목적/회원·다른 provider, 코드 교환 실패·제공자 장애/키 누락, 미확인 이메일의 자동 연결 금지, 티켓 변조/만료/재사용, 연결/해제 경쟁·사용자 선행 잠금·실패 롤백을 검사한다. 실제 SMTP/제공자 통합은 별도다.
 
+## 운영 반영 순서
+
+1. 211 후보를 최신 develop과 통합·검증한다. 기존 develop V8은 song_model_audios이며 OAuth는 미배포 버전을 V9로 분리했다. 운영 사전 조회(2026-10-29)는 V1~V7 성공·두 테이블 미존재였다. 적용 직전에 이력과 배포 상태를 다시 확인한다.
+2. 운영 변경 승인을 받은 뒤 배포와 동일한 lock·백업 절차로 관리된 Compose·Nginx 원본과 환경 파일을 보존한다. Compose에 AUTH_OAUTH_KAKAO_REDIRECT_URIS와 AUTH_ANDROID_APP_SHA256_FINGERPRINTS 전달을 추가한다. Nginx HTTP 원본과 nginx.tls.conf.template 및 운영에 생성된 nginx.tls.conf의443 서버에도 정확한 /.well-known/assetlinks.json 프록시를 반영한다. TLS 오버레이가 별도 설정을 마운트하므로 HTTP 원본만 바꾸면 안 된다. 실제 APK 지문이 없으면 빈 값과404를 유지한다.
+3. 검증한 후보 JAR을 db 프로필·웹 서버/스케줄러 없이 별도로 실행해 V8→V9를 적용하고 Flyway 이력을 확인한다. 실행 인자는 --spring.profiles.active=db --spring.main.web-application-type=none --eolssu.scheduling.enabled=false다. DB 비밀값은 서버 보호 환경으로 전달하며 명령·로그에 쓰지 않는다. ops와 db를 함께 켜지 않는다. 운영은 자동 마이그레이션을 하지 않는다.
+4. 사람이 MR을 develop에 병합한 뒤 정상 CI/CD로 릴리스를 배포한다. 배포 파이프라인은 병합을 감지하므로 DB·관리 설정 준비 완료 전에 병합하지 않는다. backend readiness UP, 기존 회원 API 인증, 카카오 start200·허용하지 않은 콜백401, OAuth state 저장을 확인한다. 키·쿠키·인가 코드는 출력하지 않는다. 실제 제공자 로그인 성공과 Android 복귀는 별도 실기기 완료 조건이다.
+5. 실패 시 새 릴리스 적용을 중단하고 관리된 배포 절차로 이전 JAR·Compose·Nginx를 복구한다. V8·V9는 추가 테이블이므로 앱 복구를 위해 DROP하지 않는다. 사용자 데이터 복구는 별도 승인·복구 절차로 진행한다. 카카오 키가 있는 환경 파일 저장만으로 배포·기능 완료로 처리하지 않는다.
+
 ## 웹 우선 실연동 준비 (2026-10-29)
 
 **아래 웹 우선안은 같은 날 사용자의 Android 앱 우선 지시로 대체됐다.** 아직 등록·구현하지 않은 과거 계약안이며, 현재 콘솔 등록이나 FE 구현 기준으로 사용하지 않는다. 현재 기준은 아래 Android 우선 준비다.

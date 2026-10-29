@@ -5,5 +5,6 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface NotationSymbolMapper {
+    fun listAll(): List<NotationSymbolRow>
     fun findById(@Param("id") id: Long): NotationSymbolRow?
 }

@@ -37,6 +37,10 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 기본 필수 검사는 `clean build`입니다. 시작 테스트는 외부 DB·AI 서버 없이 임의 포트에 실제 HTTP 서버를 띄우고, DB 관련 Bean 미생성과 미등록 경로의 `404` 응답을 확인합니다. 결과는 `build/reports/tests/test/index.html`에 생성됩니다. 저장 모델·쿼리·마이그레이션 변경에서는 아래의 `databaseTest`, 녹음 파일 검사 변경에서는 `mediaTest`도 병합 전에 수행합니다. AI 통합과 모델 품질은 두 검사 범위에 포함하지 않습니다.
 
+### 카탈로그 조회(CAT-03~10)
+
+`db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
+
 ### 약관 목록(AUTH-08)
 
 `db` 프로필과 V2 이상 스키마에서 `GET /api/terms`를 로그인 없이 호출합니다(`Accept: application/json`). 응답은 `{httpStatus,isSuccess,message,code,result:{items:[...]}}`이며 항목은 문자열 `termId`, `code`, `title`, `required`, `version`, `contentUrl`입니다. UTC 조회 시각까지 시행된 버전 중 code별 가장 늦은 `effective_at`을 고르고, 같은 시각이면 큰 ID 한 개를 반환합니다. `seq`·ID 오름차순으로 표시하며 현재 약관이 없으면 200과 빈 목록입니다. 문구·URL·초기 데이터는 자동 생성하지 않습니다.
@@ -335,7 +339,7 @@ Android App Links 문서는 `GET /.well-known/assetlinks.json`으로 제공합�
 
 연결된 소셜 ID는 기존 회원으로 로그인하고 탈퇴 대기를 취소합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
 
-V8 `oauth_proofs`에는 토큰·쿠키 원문 대신 SHA-256과 소비 여부를 저장합니다. 실패한 병합 트랜잭션은 티켓·이메일 토큰 소비·연결·로그인 발급을 함께 되돌립니다. 코드·제공자 토큰·mergeTicket·결속 쿠키·비밀키는 로그나 문서에 복사하지 마세요. 만료 행은 매분500개 이내로 삭제합니다. 실제 앱 등록·콜백 URI 합의·실제 제공자 통합 확인은 별도이며, 자동 검사는 외부 네트워크 대신 RestClient 대역과 전용 MySQL을 사용합니다.
+V9 `oauth_proofs`에는 토큰·쿠키 원문 대신 SHA-256과 소비 여부를 저장합니다. 실패한 병합 트랜잭션은 티켓·이메일 토큰 소비·연결·로그인 발급을 함께 되돌립니다. 코드·제공자 토큰·mergeTicket·결속 쿠키·비밀키는 로그나 문서에 복사하지 마세요. 만료 행은 매분500개 이내로 삭제합니다. 실제 앱 등록·콜백 URI 합의·실제 제공자 통합 확인은 별도이며, 자동 검사는 외부 네트워크 대신 RestClient 대역과 전용 MySQL을 사용합니다.
 
 ### Swagger UI와 OpenAPI 조회
 
