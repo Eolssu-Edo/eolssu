@@ -26,6 +26,8 @@ eolssu:
       from: ${AUTH_MAIL_FROM:}
       from-name: ${AUTH_MAIL_FROM_NAME:}
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    android-app-links:
+      sha256-cert-fingerprints: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:}
     oauth:
       kakao:
         client-id: ${AUTH_OAUTH_KAKAO_CLIENT_ID:}

@@ -44,6 +44,10 @@
 
 ## Android 앱 우선 준비 (2026-10-29)
 
+### 서버 App Links 제공 계약
+
+BE 준비 범위를 먼저 마친 뒤 FE에 전달한다는 사용자 지시에 따라, GET /.well-known/assetlinks.json의 서버/Nginx 제공 경로를 준비한다. AUTH_ANDROID_APP_SHA256_FINGERPRINTS에 실제 설치 APK의 공개 SHA-256 지문(쉼표 구분)을 설정했을 때만200 application/json 배열을 반환하며, 대상 패키지는 저장소의 com.ssafy.eolssu로 한정한다. 지문은64자리16진수 또는32바이트 콜론 표기를 받아 표준 콜론 대문자 형태로 정규화한다. 잘못된 지문은 기동 시 거절하고, 미설정은 기동을 허용하되404로 제공한다. 임의의 지문·기본 인증서는 두지 않는다. 인증 쿠키 없이 조회하며 API의5필드 성공 envelope는 Android의 Digital Asset Links 형식에 덧씌우지 않는다. 회원 API 인증은 유지한다. Nginx는 이 정확한 경로만 백엔드로 보내고 SPA fallback/리다이렉트를 피한다. 실제 지문 등록·도메인 검증·배포 완료는 별도다.
+
 - 사용자 확정: 실제 사용 대상은 앱이며 Android 휴대폰·태블릿부터 진행한다. 웹과 iOS 실연동은 후속이다. 기존 웹 우선 선택을 대체한다.
 - 저장소 확인: applicationId는 com.ssafy.eolssu. 현재 MainActivity는 복귀 Intent를 처리하지 않고 manifest에 OAuth intent-filter가 없다. CI frontend 파이프라인은 웹 산출물만 만들며, 현재 작업 폴더에서 배포 APK를 찾지 못했다. release signingConfig도 명시되지 않았다. 실제 설치 APK의 서명을 알기 전 로컬 디버그 인증서를 배포 인증서로 간주하지 않는다.
 

@@ -123,6 +123,7 @@ class SecurityConfig(
             "/api/auth/oauth/{provider}", "/api/auth/email-verifications", "/api/auth/email-verifications/{verificationId}/confirm",
         )
         val PUBLIC_GET = arrayOf(
+            "/.well-known/assetlinks.json",
             // 문서 조회만 공개한다. 같은 matcher가 토큰 해석도 제외하므로 만료 쿠키로도 문서를 열 수 있다.
             "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
