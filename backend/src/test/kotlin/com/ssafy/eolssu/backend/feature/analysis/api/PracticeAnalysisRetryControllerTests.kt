@@ -132,9 +132,18 @@ class PracticeAnalysisRetryControllerTests {
         val useCase = RetryPracticeAnalysis(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), { false }, { started += it }, Clock.systemUTC())
         val mockMvc = MockMvcBuilders.standaloneSetup(PracticeAnalysisRetryController(useCase))
             .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
-        mockMvc.perform(post("/api/practice-sessions/501/retry")).andExpect(status().isBadRequest)
+        mockMvc.perform(post("/api/practice-sessions/501/retry")).error(400, "INVALID_REQUEST")
         for (key in listOf("", "has space", "k".repeat(101))) {
-            mockMvc.perform(post("/api/practice-sessions/501/retry").header("Idempotency-Key", key)).andExpect(status().isBadRequest)
+            mockMvc.perform(post("/api/practice-sessions/501/retry").header("Idempotency-Key", key)).error(400, "INVALID_REQUEST")
+        }
+        assertEquals(emptyList(), started)
+    }
+
+    @Test
+    fun `rejects a session id that is not a positive number with 400`() {
+        signIn("1")
+        for (id in listOf("0", "-1", "abc")) {
+            retry(Sessions(AnalysisState("FAILED", "TIMEOUT", 1)), path = "/api/practice-sessions/$id/retry").error(400, "INVALID_REQUEST")
         }
         assertEquals(emptyList(), started)
     }

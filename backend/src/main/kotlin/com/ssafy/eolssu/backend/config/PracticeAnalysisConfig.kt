@@ -41,19 +41,22 @@ class PracticeAnalysisConfig {
 
     // 새 시도는 업로드 뒤 분석과 같은 실행기로 넘긴다. 분석 연결 전이면 넘기지 못해 그 시도는 SERVER_ERROR로 끝난다.
     // 마감 판정은 AI 없이 저장소로 하므로 분석 연결과 상관없이 동작한다(상태 조회와 같다).
+    // 시도 시작 시각과 마감은 업로드·분석·상태 조회와 같은 서버 UTC 시계로 정한다. 공용 Clock Bean은 쓰지 않는다.
     @Bean
     fun retryPracticeAnalysis(
         retries: AnalysisRetryRepository,
         analyses: PracticeAnalysisRepository,
         analysisOnUpload: AnalysisOnUpload,
         properties: AnalysisProperties,
-        clock: Clock,
-    ) = RetryPracticeAnalysis(
-        retries,
-        { sessionId -> analyses.expireOverdue(sessionId, LocalDateTime.ofInstant(clock.instant().minus(properties.timeLimit), ZoneOffset.UTC)) },
-        analysisOnUpload::submit,
-        clock,
-    )
+    ): RetryPracticeAnalysis {
+        val clock = Clock.systemUTC()
+        return RetryPracticeAnalysis(
+            retries,
+            { sessionId -> analyses.expireOverdue(sessionId, LocalDateTime.ofInstant(clock.instant().minus(properties.timeLimit), ZoneOffset.UTC)) },
+            analysisOnUpload::submit,
+            clock,
+        )
+    }
 
     @Bean
     fun practiceScoreNotes(mapper: PracticeAnalysisMapper, jsonMapper: JsonMapper): PracticeScoreNotes = MyBatisPracticeScoreNotes(mapper, jsonMapper)

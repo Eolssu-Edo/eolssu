@@ -106,7 +106,7 @@ POST {AI}/v1/analyses
 - 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
 - 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
-**구현 상태(2026-10-28).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
+**구현 상태(2026-10-29).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
 
 - 업로드 저장소(`MyBatisRecordingUploadRepository`)는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행한다. 트랜잭션 밖에서 발행하면 오류 없이 버려지므로 발행 위치를 옮기지 않는다. 커밋 뒤 `AnalysisOnUpload`가 백그라운드 실행기(기본 2개 동시·대기 50개)에서 분석한다. 롤백된 업로드는 분석하지 않는다. 대기열이 가득 차면 시작하지 않고 그 세션은 제한 시간 뒤 `TIMEOUT`이 된다.
 - AI에 넘기는 녹음 주소는 업로드 설정의 `RecordingReadUrls` Bean(15분 읽기 전용 서명 URL) 하나를 쓴다. 같은 타입 Bean을 따로 만들지 않는다.
