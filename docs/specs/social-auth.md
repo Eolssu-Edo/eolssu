@@ -44,6 +44,8 @@
 
 ## Android 앱 우선 준비 (2026-10-29)
 
+준비 상태: 카카오 얼쑤 앱1628175 생성·로그인 ON 확인. OIDC는 OFF이며 추가 개인정보 동의항목·허용 콜백·서버 키 주입·실제 인증 검증은 미완료다. Google/Naver 콘솔 상태는 아직 확인하지 않았다. App Links는 서버 제공 코드만 준비됐고 실제 설치 APK의 공개 서명 지문·환경 주입·도메인 검증은 대기다.
+
 ### 서버 App Links 제공 계약
 
 BE 준비 범위를 먼저 마친 뒤 FE에 전달한다는 사용자 지시에 따라, GET /.well-known/assetlinks.json의 서버/Nginx 제공 경로를 준비한다. AUTH_ANDROID_APP_SHA256_FINGERPRINTS에 실제 설치 APK의 공개 SHA-256 지문(쉼표 구분)을 설정했을 때만200 application/json 배열을 반환하며, 대상 패키지는 저장소의 com.ssafy.eolssu로 한정한다. 지문은64자리16진수 또는32바이트 콜론 표기를 받아 표준 콜론 대문자 형태로 정규화한다. 잘못된 지문은 기동 시 거절하고, 미설정은 기동을 허용하되404로 제공한다. 임의의 지문·기본 인증서는 두지 않는다. 인증 쿠키 없이 조회하며 API의5필드 성공 envelope는 Android의 Digital Asset Links 형식에 덧씌우지 않는다. 회원 API 인증은 유지한다. Nginx는 이 정확한 경로만 백엔드로 보내고 SPA fallback/리다이렉트를 피한다. 실제 지문 등록·도메인 검증·배포 완료는 별도다.
