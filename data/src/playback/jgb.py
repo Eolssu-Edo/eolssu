@@ -53,7 +53,8 @@ def declared_instrument(document, voice, instrument, assume_danso):
     if declared == instrument:
         basis = metadata.get("instrument_basis")
         return "jgb", basis.strip() if isinstance(basis, str) and basis.strip() else f"JGB part instrument: {declared}"
-    require(declared in (None, "all"), "선택한 성부의 악기와 요청한 악기가 다릅니다")
+    generic_daegeum = declared == "daegeum" and instrument in ("jeongak-daegeum", "sanjo-daegeum")
+    require(declared in (None, "all") or generic_daegeum, "선택한 성부의 악기와 요청한 악기가 다릅니다")
     basis = metadata.get("instrument_basis")
     require(override == instrument and isinstance(basis, str) and basis.strip(),
             "악기 미지정입니다. 판본 근거와 playback.instrument·instrument_basis가 필요합니다")
@@ -392,7 +393,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
         source_map.update(instrument=instrument, instrument_basis=instrument_basis, relative_scale=custom_scale)
         assumptions[3:5] = ["악보에 없는 추가 떨림을 자동 적용하지 않음. 미지원 표현은 생략하지 않고 실패.",
                             "농음·흘림·미는·풀어내림은 playback.expression_policy에 수치·근거를 지정한 경우만 적용."]
-        assumptions[6] = "소금 교재의 네로나·니르나니 음열을 별도로 적용. 느니르나니 끝음은 교재 예시의 두 음 위 선택값이며 한 음 위 대안도 있음."
+        assumptions[6] = ("소금 교재의 네로나·니르나니 음열을 별도로 적용. 느니르나니 끝음은 교재 예시의 두 음 위 선택값이며 한 음 위 대안도 있음."
+                          if instrument == "sogeum" else
+                          f"{instrument}: source-map.symbol_policy의 악기별 기호 근거를 적용. 미확정 기호는 거부.")
     elif custom_scale is not None:
         source_map["relative_scale"] = custom_scale
     if performance_plan is not None:

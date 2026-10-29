@@ -9,6 +9,27 @@ from data.src.playback.tests._helpers import score, synthetic_sampler, wire
 
 
 class SamplerTests(unittest.TestCase):
+    def test_jeongak_sustain_keeps_same_pitch_phase_and_fails_without_stable_loop(self):
+        fake = synthetic_sampler(1.5)
+        fake.instrument = "jeongak-daegeum"
+        _, whole = wire(score([{"id": "a", "pitch": 75, "duration": 4}]), fake.instrument)
+        _, split = wire(score([{"id": "a", "pitch": 75, "duration": 2, "slur": "s"},
+                               {"id": "b", "pitch": 75, "duration": 2, "slur": "s"}]), fake.instrument)
+        a, trace = fake.render(whole)
+        b, split_trace = fake.render(split)
+        self.assertIsNotNone(trace[0]["sustain_loop"])
+        self.assertTrue(split_trace[1]["same_pitch_continuation"])
+        np.testing.assert_allclose(a, b, rtol=0, atol=1e-10)
+        _, short = wire(score([{"id": "a", "pitch": 75, "duration": .4}]), fake.instrument)
+        with patch("data.src.playback.sampler.find_sustain_loop", side_effect=AssertionError("not needed")):
+            _, trace = fake.render(short)
+        self.assertIsNone(trace[0]["sustain_loop"])
+        failing = synthetic_sampler(1.5)
+        failing.instrument = "jeongak-daegeum"
+        with patch("data.src.playback.sampler.find_sustain_loop", return_value=None):
+            with self.assertRaisesRegex(ValueError, "no validated stable sustain loop"):
+                failing.render(whole)
+
     def test_sogeum_loop_preserves_slur_phase_breath_and_short_note_path(self):
         def fake():
             value = synthetic_sampler(1.5)

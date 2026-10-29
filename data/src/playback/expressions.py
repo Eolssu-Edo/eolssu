@@ -91,18 +91,50 @@ SOGEUM_SYMBOL_POLICY = {
     "unresolved": SOGEUM_UNRESOLVED,
 }
 
+# The Jeongak source confirms its own figures, including the two surround signs.
+# Do not inherit Sogeum-only text aliases or resolve contradictory examples.
+JEONGAK_SYMBOLS = dict(SYMBOLS)
+JEONGAK_SYMBOLS.pop("나니르")  # The source table names this figure 나니로.
+JEONGAK_SYMBOLS.update({name: ("independent", (-1, -2, -3)) for name in ("네로나", "nerona")})
+JEONGAK_SYMBOLS.update({name: ("independent", (1, 0, -1, 0)) for name in ("니느라니", "nineurani")})
+JEONGAK_SYMBOLS.update({name: ("grace", (-1, 1, 0, -1, 1))
+                        for name in ("나니르노니르", "nanireunonireu")})
+JEONGAK_UNRESOLVED = {
+    **{name: "대금정악보의 느네느 설명과 예시 음열이 다릅니다. 판본의 실제 음열을 확인하세요"
+       for name in ("느네느", "neuneneu")},
+    **{name: "대금정악보의 느나르나니 끝음 설명과 예시가 다릅니다. 판본의 실제 음열을 확인하세요"
+       for name in ("느나르나니", "느니르나니", "neunareunani")},
+}
+JEONGAK_SYMBOL_POLICY = {
+    "name": "jeongak-daegeum-2021-figures-v1",
+    "source": "국립국악원 대금정악보 2021 수정본 PDF10–14; 창작을 위한 국악기 이해와 활용 대금 p163",
+    "source_url": "https://archive.gugak.go.kr/portal/detail/searchEtcDetail?clipid=T014947&recording_type_code=T&system_id=AI",
+    "instrument_sequences": {"nerona": [-1, -2, -3], "nineurani": [1, 0, -1, 0],
+                             "nanireunonireu": {"grace": [-1, 1, 0, -1, 1], "main": [0]}},
+    "surround_anchor": "니루-니/느니-르: written main note with short upper/lower neighbours before and after",
+    "roll": "대금 교재 p163 임→무→임 예시만 적용",
+    "unresolved": JEONGAK_UNRESOLVED,
+}
+SYMBOL_TABLES = {"danso": SYMBOLS, "sogeum": SOGEUM_SYMBOLS, "jeongak-daegeum": JEONGAK_SYMBOLS}
+SYMBOL_POLICIES = {"danso": SYMBOL_POLICY, "sogeum": SOGEUM_SYMBOL_POLICY,
+                   "jeongak-daegeum": JEONGAK_SYMBOL_POLICY}
+SYMBOL_UNRESOLVED = {"sogeum": SOGEUM_UNRESOLVED, "jeongak-daegeum": JEONGAK_UNRESOLVED}
+
 
 def symbol_policy(instrument):
-    return deepcopy(SYMBOL_POLICY if instrument == "danso" else SOGEUM_SYMBOL_POLICY)
+    require(instrument in SYMBOL_POLICIES, f"{instrument}: 기호 해석 정책이 없습니다")
+    return deepcopy(SYMBOL_POLICIES[instrument])
 
 
 def symbols_for(instrument):
-    return SYMBOLS if instrument == "danso" else SOGEUM_SYMBOLS
+    require(instrument in SYMBOL_TABLES, f"{instrument}: 기호 해석 정책이 없습니다")
+    return SYMBOL_TABLES[instrument]
 
 
 def validate_symbol(name, instrument, label):
-    if instrument == "sogeum":
-        require(name not in SOGEUM_UNRESOLVED, f"{label}: {{{name}}}: {SOGEUM_UNRESOLVED.get(name)}")
+    unresolved = SYMBOL_UNRESOLVED.get(instrument, {})
+    require(name not in unresolved, f"{label}: {{{name}}}: {unresolved.get(name)}")
+    if instrument in ("sogeum", "jeongak-daegeum"):
         if name in ("나니르노니르", "nanireunonireu"):
             return
     require(name not in UNRESOLVED,
@@ -157,11 +189,11 @@ UNRESOLVED_REASONS = {
 
 
 def expression_policy(document, instrument):
-    """Preserve explicit Sogeum choices without importing Danso's numeric defaults."""
+    """Preserve explicit instrument choices without importing Danso's defaults."""
     policy = document.get("playback", {}).get("expression_policy")
     if policy is None:
         return deepcopy(EXPRESSION_POLICY) if instrument == "danso" else {
-            "name": "sogeum-explicit-effects-v1", "status": EXPRESSION_POLICY["status"],
+            "name": f"{instrument}-explicit-effects-v1", "status": EXPRESSION_POLICY["status"],
             "staccato": deepcopy(EXPRESSION_POLICY["staccato"]),
             "fermata": deepcopy(EXPRESSION_POLICY["fermata"]),
             "unresolved_display_annotations": ["원문점"],

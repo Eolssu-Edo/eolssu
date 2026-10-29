@@ -8,6 +8,67 @@ from data.src.playback.tests._helpers import converted, document, midi
 
 
 class JgbTests(unittest.TestCase):
+    def test_jeongak_type_requires_evidence_and_rejects_other_instruments(self):
+        for version in (1, 2):
+            source = document("황 | 태", version=version)
+            if version == 1:
+                source["ornInstrument"] = "daegeum"
+            else:
+                source["parts"][0]["instrument"] = "daegeum"
+            with self.assertRaisesRegex(ValueError, "instrument_basis"):
+                converted(source, instrument="jeongak-daegeum")
+            source["playback"] = {"instrument": "jeongak-daegeum", "instrument_basis": "검사 판본의 정악대금 명시"}
+            before = deepcopy(source)
+            value, mapping = converted(source, instrument="jeongak-daegeum")
+            self.assertEqual(source, before)
+            self.assertEqual([n["pitch"] for n in value["notes"]], [63, 65])
+            self.assertEqual(mapping["instrument_selection"]["original"], "daegeum")
+            self.assertEqual(mapping["instrument_selection"]["kind"], "prepared-input")
+            source["tempoBpmUserSet"] = False
+            with self.assertRaisesRegex(ValueError, "빠르기"):
+                converted(source, instrument="jeongak-daegeum")
+            converted(source, instrument="jeongak-daegeum", bpm=60)
+            if version == 1:
+                source["ornInstrument"] = "sanjo-daegeum"
+            else:
+                source["parts"][0]["instrument"] = "sanjo-daegeum"
+            with self.assertRaisesRegex(ValueError, "다릅니다"):
+                converted(source, instrument="jeongak-daegeum", bpm=60)
+
+    def test_jeongak_figures_follow_source_and_refuse_contradictory_examples(self):
+        for mark, expected in (("네로나", [80, 77, 75]), ("니느라니", [85, 82, 80, 82])):
+            source = document(f"청임 | {{{mark}}}")
+            source["parts"][0]["instrument"] = "jeongak-daegeum"
+            value, mapping = converted(source, instrument="jeongak-daegeum")
+            self.assertEqual([n["pitch"] for n in value["notes"]][1:], expected)
+            self.assertEqual(mapping["symbol_policy"]["name"], "jeongak-daegeum-2021-figures-v1")
+        for mark in ("느네느", "neuneneu", "느나르나니", "neunareunani", "느니르나니"):
+            source = document(f"청태{{{mark}}} | 청임")
+            source["parts"][0]["instrument"] = "jeongak-daegeum"
+            with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "대금정악보"):
+                converted(source, instrument="jeongak-daegeum")
+        for mark in ("느너느", "나너나", "노니노", "느라"):
+            source = document(f"청태{{{mark}}} | 청임")
+            source["parts"][0]["instrument"] = "jeongak-daegeum"
+            with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "미지원"):
+                converted(source, instrument="jeongak-daegeum")
+
+    def test_jeongak_surround_and_compound_graces_keep_main_and_source(self):
+        cases = (("느니-르", [75, 77, 75]), ("니루-니", [80, 77, 80]),
+                 ("나니르노니르", [75, 80, 77, 75, 80, 77]))
+        for mark, pitches in cases:
+            source = document(f"청태{{{mark}}} | 청임{{떠이어표}}", staffUnit="eighth")
+            source["parts"][0]["instrument"] = "jeongak-daegeum"
+            before = deepcopy(source)
+            value, mapping = converted(source, instrument="jeongak-daegeum")
+            self.assertEqual(source, before)
+            self.assertEqual([n["pitch"] for n in value["notes"]], pitches + [82, 85, 82])
+            self.assertEqual(sum(Fraction(n["duration"]) for n in value["notes"][:len(pitches)]), Fraction(1, 2))
+            self.assertTrue(all(n["id"] in mapping["notes"] for n in value["notes"]))
+        source["controls"]["joPreset"] = "all"
+        with self.assertRaisesRegex(ValueError, "명시한 조"):
+            converted(source, instrument="jeongak-daegeum")
+
     def test_sogeum_ornaments_follow_its_textbook_and_keep_danso_sequences(self):
         for mark, sogeum, danso in (("nerona", [82, 80, 77], [82, 80, 85]),
                                      ("nineurani", [87, 85, 82, 85], [87, 85, 87, 85])):

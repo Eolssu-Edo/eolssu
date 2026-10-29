@@ -43,6 +43,26 @@ class ScoreMidiIntegrationTests(unittest.TestCase):
 
 
 class JgbRenderIntegrationTests(unittest.TestCase):
+    def test_jeongak_single_input_preserves_original_and_has_only_pipeline_outputs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, assets = root / "input.jgb.json", root / "assets.json"
+            source.write_bytes((Path(__file__).parents[1] / "examples/jeongak-daegeum-jgb.json").read_bytes())
+            assets.write_text('{"jeongak-daegeum":"unused.zip"}', encoding="utf-8")
+            fake = sampler()
+            fake.instrument = "jeongak-daegeum"
+            fake.zones[0].update(low=58, high=89)
+            with patch("data.src.playback.__main__.CatSampler", return_value=fake):
+                manifest = run(source, assets, root / "out", [fake.instrument], audio_format="wav")
+            self.assertEqual((root / "out/source.jgb.json").read_bytes(), source.read_bytes())
+            self.assertEqual({p.name for p in (root / "out").iterdir()}, {
+                "jeongak-daegeum.wav", "jeongak-daegeum.mid", "jeongak-daegeum.json",
+                "manifest.json", "source-map.json", "source.jgb.json", "score.json"})
+            self.assertIsNone(manifest["playback_vibrato"])
+            report = json.loads((root / "out/jeongak-daegeum.json").read_text(encoding="utf-8"))
+            self.assertEqual([n["pitch"] for n in report["events"]], [63, 65, 68])
+            self.assertTrue(all(n["parent_ids"] for n in report["events"]))
+
     def test_windows_directory_lock_is_retried_but_permanent_error_stops(self):
         locked = PermissionError("temporary lock")
         locked.winerror = 5
