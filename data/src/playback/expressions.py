@@ -115,10 +115,47 @@ JEONGAK_SYMBOL_POLICY = {
     "roll": "대금 교재 p163 임→무→임 예시만 적용",
     "unresolved": JEONGAK_UNRESOLVED,
 }
-SYMBOL_TABLES = {"danso": SYMBOLS, "sogeum": SOGEUM_SYMBOLS, "jeongak-daegeum": JEONGAK_SYMBOLS}
+# The general Daegeum chapter explicitly covers Jeongak and Sanjo. Keep only
+# figures verified in its pp162–164 tables and the common-wind NIKL rule below.
+SANJO_SYMBOLS = {name: SYMBOLS[name] for name in (
+    "노", "no", "로", "ro", "니", "ni", "리", "ri", "니나", "nina-dur",
+    "느나", "neuna", "느니", "neuni", "노라", "nora", "나니나", "nanina",
+    "니레나", "nirena", "니로나", "nirona", "니레", "nire", "니라", "nina",
+    "노네", "none", "너녜", "너네", "neonye", "노니로", "noniro",
+    "네로네", "nerone", "나니로", "나니르", "naniro", "느로니르", "neuronireu",
+    "나느나", "naneuna", "같은음표", "repeat",
+)}
+SANJO_SYMBOLS["혀치기"] = ("articulation", ())
+SANJO_SYMBOLS["반음올림표"] = ("alteration", (1,))
+SANJO_UNRESOLVED = {name: "산조에 적용할 판본별 음열 근거가 미확정입니다. 정악·소금표를 대신 적용하지 않습니다"
+                    for name in set(SYMBOLS) - set(SANJO_SYMBOLS)}
+SANJO_SYMBOL_POLICY = {
+    "name": "sanjo-daegeum-general-figures-v2",
+    "source": "국립국악원 창작을 위한 국악기 이해와 활용 대금 pp162–164; p165 정악·산조 예시 안내",
+    "scope": "general Daegeum figures only; not all school/tube-specific Sanjo ornaments",
+    "naneuna": {"source": "국립국어원 한국 음악 점자 규정 해설서(2019) 제18항 관악기 공통 장식음, 인쇄33/PDF41쪽",
+                "steps": [0, -1, 0], "timing": "three equal durations; not grace timing"},
+    "tongue_reattack": {"source": "국립국악원 창작을 위한 국악기 이해와 활용 대금 p161·164 혀치기",
+                       "rendering": "attached to an explicit main note; retain pitch/duration and restart sample attack without legato",
+                       "status": "sample-attack-approximation-not-tonguing-specific-recording",
+                       "transcription": "혀치기 is explicit; 자출 is not an alias"},
+    "semitone_up": {"source": "김희영, 산조대금을 활용한 민요 지도방안(한양대 석사,2013), PDF84/인쇄76쪽 기호표",
+                    "source_url": "https://dl.nanet.go.kr/SearchDetailView.do?cn=KDMT1201331912",
+                    "semitones": 1, "scope": "written main and sustain; verified nire grace uses the raised main as its explicit-scale anchor",
+                    "transcription": "반음올림표 is explicit; s02 is not an alias"},
+    "kkeok": {"source": "김희영(2013) 진도아리랑 PDF84/인쇄76쪽: 굵고 짧게 꺾어준다",
+              "rendering": "explicit downward points from the mark onset; no default curve or global flow alias"},
+    "same_note_repeat": "같은음표/repeat는 앞 음높이를 다시 발음하는 공통 JGB 의미. 지속음으로 합치지 않음",
+    "explicit_semantic_effects": "농음·흘림·미는·풀어내림은 작성자가 의미와 수치를 지정한 합성 정책. 산조 원보의 글리프 대응을 검증했다는 뜻이 아님",
+    "glyph_limitations": ["닫는 괄호형은 정악 퇴성과 민속악 꺾는음의 의미가 다름. 글리프만으로 끝부분 흘림에 대응시키지 않음"],
+    "unresolved": SANJO_UNRESOLVED,
+}
+SYMBOL_TABLES = {"danso": SYMBOLS, "sogeum": SOGEUM_SYMBOLS,
+                 "jeongak-daegeum": JEONGAK_SYMBOLS, "sanjo-daegeum": SANJO_SYMBOLS}
 SYMBOL_POLICIES = {"danso": SYMBOL_POLICY, "sogeum": SOGEUM_SYMBOL_POLICY,
-                   "jeongak-daegeum": JEONGAK_SYMBOL_POLICY}
-SYMBOL_UNRESOLVED = {"sogeum": SOGEUM_UNRESOLVED, "jeongak-daegeum": JEONGAK_UNRESOLVED}
+                   "jeongak-daegeum": JEONGAK_SYMBOL_POLICY, "sanjo-daegeum": SANJO_SYMBOL_POLICY}
+SYMBOL_UNRESOLVED = {"sogeum": SOGEUM_UNRESOLVED,
+                     "jeongak-daegeum": JEONGAK_UNRESOLVED, "sanjo-daegeum": SANJO_UNRESOLVED}
 
 
 def symbol_policy(instrument):
@@ -132,6 +169,8 @@ def symbols_for(instrument):
 
 
 def validate_symbol(name, instrument, label):
+    if instrument == "sanjo-daegeum" and name == "꺾는음":
+        return  # Only this instrument exposes the explicit, source-scoped policy.
     unresolved = SYMBOL_UNRESOLVED.get(instrument, {})
     require(name not in unresolved, f"{label}: {{{name}}}: {unresolved.get(name)}")
     if instrument in ("sogeum", "jeongak-daegeum"):
@@ -166,7 +205,8 @@ LENGTH_MARKS = {"덧길이표": Fraction(3, 2), "len-double": Fraction(3, 2),
 EFFECT_MARKS = {"농음표": "vibrato", "떠는표": "vibrato", "vib": "vibrato",
                 "흘림표": "fall", "flow": "fall", "미는표": "push", "push": "push",
                 "풀어내림표": "unwind", "풀어내리는표": "unwind", "vib-long": "unwind",
-                "끊는표": "staccato", "staccato": "staccato", "늘임표": "fermata", "fermata": "fermata"}
+                "끊는표": "staccato", "staccato": "staccato", "늘임표": "fermata", "fermata": "fermata",
+                "꺾는음": "kkeok"}
 PROFILE_MARKS = {alias: kind for kind, aliases in {
     "accent": ("특강표", "accent"), "shake": ("요성표", "shake"),
     "shake-rep": ("겹요성표", "shake-rep"), "flow-rep": ("겹흘림표", "flow-rep"),
@@ -198,7 +238,8 @@ def expression_policy(document, instrument):
             "fermata": deepcopy(EXPRESSION_POLICY["fermata"]),
             "unresolved_display_annotations": ["원문점"],
         }
-    reject_unknown(policy, ["name", "basis", "status", "vibrato", "fall", "push", "unwind"], "expression_policy")
+    reject_unknown(policy, ["name", "basis", "status", "vibrato", "fall", "push", "unwind", "kkeok"], "expression_policy")
+    require("kkeok" not in policy or instrument == "sanjo-daegeum", "kkeok 정책은 산조대금에만 지원합니다")
     require(all(isinstance(policy.get(k), str) and policy[k].strip() for k in ("name", "basis")),
             "표현 정책의 name·basis가 필요합니다")
     require(policy.get("status") == EXPRESSION_POLICY["status"],
@@ -224,10 +265,24 @@ def expression_policy(document, instrument):
         if kind == "unwind":
             require(value["mode"] in ("pitch", "mixed") and value.get("cents", 0) > 0,
                     "풀어내림에는 음높이 농음이 필요합니다")
-    for kind in ("fall", "push", "unwind"):
+    for kind in ("fall", "push", "unwind", "kkeok"):
         if kind not in policy:
             continue
-        curve = validate_pitch_curve(policy[kind]["pitch_curve"] if kind == "unwind" else policy[kind])
+        raw = policy[kind]["pitch_curve"] if kind == "unwind" else policy[kind]
+        if kind == "kkeok":
+            reject_unknown(raw, ["points", "delay_seconds", "reference"], "kkeok")
+            reference = raw.get("reference", "midi-pitch")
+            require(reference in ("midi-pitch", "written-pitch"), "kkeok: unknown pitch reference")
+            curve = validate_pitch_curve({k: v for k, v in raw.items() if k != "reference"})
+            require("points" in curve and curve["points"][1][1] < curve["points"][0][1]
+                    and curve["delay_seconds"] == 0, "kkeok: 기호 시작에서 하강하는 명시 points가 필요합니다")
+            values = [p[1] for p in curve["points"]]
+            require((reference == "written-pitch" and values[0] > 0 and values[-1] == 0
+                     and all(0 <= v <= values[0] for v in values))
+                    or (reference == "midi-pitch" and values[0] == 0 and all(v <= 0 for v in values)),
+                    "kkeok: curve direction contradicts pitch reference")
+            continue
+        curve = validate_pitch_curve(raw)
         values = [p[1] for p in curve["points"]] if "points" in curve else [curve["end_cents"]]
         sign = 1 if kind == "push" else -1
         require(all(sign*v >= 0 for v in values) and any(sign*v > 0 for v in values),
@@ -251,7 +306,7 @@ def relative_scale(document):
     return deepcopy(value)
 
 
-def apply_effects(note, group, label, delay=0, profile=None, policy=None):
+def apply_effects(note, group, label, delay=0, profile=None, policy=None, written_pitch_shift=0):
     """Keep ambiguous superimposed curves explicit instead of overwriting them."""
     policy = EXPRESSION_POLICY if policy is None else policy
     for effect in set(EFFECT_MARKS.values()):
@@ -262,14 +317,21 @@ def apply_effects(note, group, label, delay=0, profile=None, policy=None):
         require("yoseong" not in note, f"{label}: 겹친 농음/풀어내림의 범위를 분리하세요")
         value = policy["unwind"]["yoseong"] if group.get("unwind") else policy["vibrato"]
         note["yoseong"] = dict(value, delay_seconds=value.get("delay_seconds", 0) + delay)
-    curves = [effect for effect in ("fall", "push", "unwind") if group.get(effect)]
-    require(len(curves) <= 1, f"{label}: 하행·상행·풀어내림을 겹쳐 지정할 수 없습니다")
+    curves = [effect for effect in ("fall", "push", "unwind", "kkeok") if group.get(effect)]
+    require(len(curves) <= 1, f"{label}: 하행·상행·풀어내림·꺾는음을 겹쳐 지정할 수 없습니다")
     if curves:
         require("pitch_curve" not in note, f"{label}: 지속에 겹친 음높이 곡선의 범위를 분리하세요")
         effect = curves[0]
         note["pitch_curve"] = deepcopy(policy[effect]["pitch_curve"] if effect == "unwind" else policy[effect])
+        if effect == "kkeok":
+            reference = note["pitch_curve"].pop("reference", "midi-pitch")
+            if reference == "written-pitch":
+                note["pitch_curve"]["points"] = [[x, y - 100 * written_pitch_shift]
+                                                  for x, y in note["pitch_curve"]["points"]]
         if delay:
             note["pitch_curve"]["delay_seconds"] = note["pitch_curve"].get("delay_seconds", 0) + delay
+            if effect == "kkeok" and note["pitch_curve"]["points"][0][1] != 0:
+                note["pitch_curve"]["step_at_delay"] = True
     if group.get("staccato"):
         note["gate_fraction"] = policy["staccato"]["gate_fraction"]
     for kind in group.get("profile_effects", []):
@@ -462,6 +524,13 @@ def resolve_ornament_pitches(group, reference, hwang, scale, label):
     post = [step(reference, d) for d in group.get("post_grace", ())]
     require(not group.get("staccato") or not (grace or post or len(sequence) > 1),
             f"{label}: 장식음열과 끊는표의 적용 범위를 새 음으로 분리하세요")
+    require(not group.get("reattack") or not (grace or post or len(sequence) > 1),
+            f"{label}: 혀치기와 장식음열을 별도 본음으로 분리하세요")
+    require(not group.get("kkeok") or len(sequence) == 1,
+            f"{label}: 꺾는음의 본음을 장식음열에서 분리하세요")
+    if group.get("semitone_offset"):
+        require(len(sequence) == 1 and not post and (not grace or group.get("grace") == (1,)),
+                f"{label}: 반음올림표와 이 꾸밈 조합은 미확정입니다. 니레 앞꾸밈만 확인했습니다")
     return sequence, grace, post
 
 
