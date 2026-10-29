@@ -12,6 +12,19 @@ from data.src.playback.tests._helpers import score, wire
 
 
 class MidiTests(unittest.TestCase):
+    def test_jeongak_has_no_automatic_motion_and_authored_unwind_reaches_midi(self):
+        value = score([{"id": "a", "pitch": 75, "duration": 2}])
+        _, plain = wire(value, "jeongak-daegeum")
+        self.assertTrue(all(cents == 0 for _, cents in plain["bends"]))
+        value["notes"][0].update(
+            yoseong={"mode": "pitch", "hz": 3, "cents": 80, "delay_seconds": .5},
+            pitch_curve={"points": [[0, 0], [1, -200]], "delay_seconds": .5})
+        _, marked = wire(value, "jeongak-daegeum")
+        self.assertTrue(all(cents == 0 for t, cents in marked["bends"] if t < .5))
+        self.assertLess(min(cents for _, cents in marked["bends"]), -200)
+        self.assertEqual(marked["bends"][-1][1], 0)
+
+
     def test_sanjo_has_no_unmarked_bend_and_keeps_authored_onset_curve(self):
         value = score([{"id": "a", "pitch": 75, "duration": 2}])
         _, plain = wire(value, "sanjo-daegeum")

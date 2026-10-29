@@ -6,6 +6,25 @@ from data.src.playback.tests._helpers import converted, document, score
 
 
 class ScoreTests(unittest.TestCase):
+    def test_jeongak_range_and_explicit_yoseong_mode_keep_bank_limit_distinct(self):
+        value = score()
+        for pitch in (58, 87, 88, 89, 90, 92):
+            value["notes"][0]["pitch"] = pitch
+            perf = compile_score(value, "jeongak-daegeum")
+            self.assertEqual(perf["events"][0]["pitch"], pitch)
+            self.assertEqual(any("전통 관행 음역 밖" in w for w in perf["warnings"]), pitch > 87)
+            self.assertTrue(any("WAV 67개" in w for w in perf["warnings"]))
+        for pitch in (57, 93):
+            value["notes"][0]["pitch"] = pitch
+            with self.assertRaisesRegex(ValueError, "outside"):
+                compile_score(value, "jeongak-daegeum")
+        value["notes"][0].update(pitch=75, yoseong={"hz": 3, "cents": 40})
+        with self.assertRaises(ValueError):
+            compile_score(value, "jeongak-daegeum")
+        value["notes"][0]["yoseong"]["mode"] = "pitch"
+        self.assertEqual(compile_score(value, "jeongak-daegeum")["events"][0]["yoseong"]["mode"], "pitch")
+
+
     def test_sanjo_unknown_tube_range_and_shared_bank_are_exposed_without_transposition(self):
         value = score([{"id": "a", "pitch": 95, "duration": 1}])
         result = compile_score(value, "sanjo-daegeum")

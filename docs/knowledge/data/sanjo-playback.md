@@ -2,6 +2,8 @@
 
 [S15P31E102-107](https://ssafy.atlassian.net/browse/S15P31E102-107) · Story30 · Epic18 · 2026-10-29. 단소 !87·소금 !44가 병합된 공통 엔진에 산조 프로필을 연결한다. 악기 종류·황종 기준·빠르기·필요한 상대음 음급과 표현 정책을 명시한 단선율 JGB를 처리한다. 관종·유파별 모범 연주나 실제 운지 가능성을 검증한 결과는 아니다.
 
+[MR !43](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/43)은 정악대금 [MR !42](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/42)를 선행 변경으로 사용한다. 정악의 공통 악기 선택·표현 registry·샘플 경고를 먼저 반영한 뒤 산조표와 검증을 추가한다. 두 registry는 분리되어 있고 산조에 정악 복합음열을 자동 적용하지 않는다. 검토 기준 커밋은 정악 `22d8a601f0bcddfb7135b40cf5bc01e77e33538e`이며 병합 순서는 !42 → !43이다.
+
 ## CAT에서 구분되는 것
 
 [공식 라이브러리](https://www.catseoul.com/gugak-library/)는 대금(통합)·산조 대금·정악 대금을 각각 배포한다. 확보한 Live Sampler v1.3 ZIP의 이름만 비교하지 않고, 내부 WAV 67개와 simple·modal 프리셋을 직접 대조했다.
@@ -64,7 +66,7 @@ CAT 원본 ZIP·WAV와 생성 음원은 Git에 넣지 않는다. 출처 표시�
 
 ## 검증 결과 · 2026-10-29
 
-- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: **135개 통과·건너뜀0개**. 최신 단소·소금126개에 산조9개를 추가했으며 실제 FFmpeg 통합2개를 포함한다. 이전 `test_sanjo_daegeum.py`·`test_instrument_policy.py`는 없애고 대응하는 `test_jgb.py`·`test_score.py` 등으로 통합했다. 기종·빠르기·확인한19개 음형·미확정 복합기호·명시적 표현·원본·계획 hash/schema·지속음·MIDI를 검사한다. [검사별 범위](../../../data/src/playback/tests/README.md)를 따른다.
+- `python -m unittest discover -s data/src/playback/tests -p 'test_*.py'`: 산조 단독 통합에서는135개, 정악 선행 변경까지 함께 반영한 최종 상태에서 **144개 통과·건너뜀0개**. 단소·소금126개에 정악9개·산조9개를 추가했으며 실제 FFmpeg 통합2개를 포함한다. 이전 `test_sanjo_daegeum.py`·`test_instrument_policy.py`는 없애고 대응하는 `test_jgb.py`·`test_score.py` 등으로 통합했다. 기종·빠르기·확인한19개 음형·미확정 복합기호·명시적 표현·원본·계획 hash/schema·지속음·MIDI를 검사한다. [검사별 범위](../../../data/src/playback/tests/README.md)를 따른다.
 - Python3.12·실제 CAT simple·FFmpeg9.0.2로 기존 4정간 JGB를 다시 생성했다. MIDI5음, 44,100Hz mono AAC-LC M4A **4.55초·200,655프레임·76,116bytes**로 기존 음원과 해시가 같다. 입력 음가 합계는4초이며 공통 출력의 잔향 여백이 포함된다. 요청192kbps, 실제130,362bps, 디코드 peak0.850016, 끝 패딩0프레임을 확인했다. 중간 WAV·HTML은 생성하지 않았다.
 - 원본 JGB 바이트·입력/코드/프로필 해시, 명시 expression/relative-scale 정책의 source-map 보존, CAT 공통 샘플 경고를 확인했다. M4A SHA-256은 `096c510da0be4e300939fab85f951f43a7d6aea53f7e56b51871d053b6fc6ae1`이다.
 - 실제 CAT32개 키존의15초 지속을 확인했다. MIDI60–91 중 **31개**에서 검증된 루프·동일음7.5+7.5초 이음·숨표의 무음을 확인했고, **MIDI86**의 안정 구간 탐색은 실패하여 원래 샘플 길이를 넘기면 오류를 유지한다. 검증 통과 구간만 합성 연장하며 실제 긴 호흡 녹음을 얻은 것이 아니다.

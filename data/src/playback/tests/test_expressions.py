@@ -15,6 +15,22 @@ def profile(kind, **policy):
 
 
 class ExpressionTests(unittest.TestCase):
+    def test_jeongak_effects_require_authored_policy_and_keep_instrument_schema(self):
+        empty = expression_policy({}, "jeongak-daegeum")
+        self.assertEqual(empty["name"], "jeongak-daegeum-explicit-effects-v1")
+        for mark in ("vibrato", "fall", "push", "unwind"):
+            with self.subTest(mark=mark), self.assertRaisesRegex(ValueError, "expression_policy"):
+                apply_effects({}, {mark: True}, "검사", policy=empty)
+        source = {"schema": "jeongak-daegeum-expression-profile/v1", "policies": {
+            "bend-down": {"basis": "검사용 명시 곡선", "pitch_curve": {"points": [[0, 0], [1, -100]]}}}}
+        before = deepcopy(source)
+        chosen = resolve_expression_profile(source, "jeongak-daegeum")
+        self.assertEqual(expression_for(chosen, "bend-down")["pitch_curve"]["points"], [[0, 0], [1, -100]])
+        self.assertEqual(source, before)
+        with self.assertRaisesRegex(ValueError, "schema"):
+            resolve_expression_profile(source, "sogeum")
+
+
     def test_sanjo_policy_does_not_supply_default_motion_and_rejects_other_schema(self):
         chosen = expression_policy({}, "sanjo-daegeum")
         self.assertEqual(chosen["name"], "sanjo-daegeum-explicit-effects-v1")

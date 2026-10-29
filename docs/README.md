@@ -67,6 +67,7 @@
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [산조대금 JGB·MIDI·M4A 변환과 CAT 공통 샘플 확인](knowledge/data/sanjo-playback.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
+- [정악대금 JGB·M4A 연결과 CAT 대금 샘플 비교](knowledge/data/jeongak-playback.md)
 - [소금 라벨·연주 자료와 검수 근거](knowledge/data/sogeum.md)
 - [소금 JGB·MIDI·M4A 생성과 실음·표현 정책](knowledge/data/sogeum-playback.md)
 - [단소 라벨·연주 자료와 판단 근거](knowledge/data/danso.md)

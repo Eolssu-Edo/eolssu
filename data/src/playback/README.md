@@ -1,6 +1,6 @@
-# JGB·공통 악보 JSON의 단소·소금·산조대금 MIDI·CAT 음원 생성
+# JGB·공통 악보 JSON의 MIDI·CAT·M4A 생성
 
-JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 선택한 CAT 악기 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 단소 JGB·M4A와 [108](https://ssafy.atlassian.net/browse/S15P31E102-108)의 소금 해석을 더했습니다. 아래 그림은 단소 출력의 예이며 소금도 같은 단계에서 해당 프로필과 표현표를 선택합니다.
+JGB v1·v2 또는 공통 악보 JSON(`gugak-reviewed-score/v1`)을 해석해 MIDI를 저장하고, 선택한 CAT 악기 샘플로 합성한 PCM을 **AAC-LC 192kbps 목표의 M4A**로 저장하는 로컬 CLI입니다. 중간 WAV 파일을 만들지 않으며, WAV가 필요할 때는 `--audio-format wav`를 선택합니다. [105](https://ssafy.atlassian.net/browse/S15P31E102-105)의 재생 기반에 [166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 단소 JGB·M4A와 [108](https://ssafy.atlassian.net/browse/S15P31E102-108)의 소금 해석을 더했습니다. [106](https://ssafy.atlassian.net/browse/S15P31E102-106)의 정악대금과 [107](https://ssafy.atlassian.net/browse/S15P31E102-107)의 산조대금도 같은 공통 엔진을 사용합니다. 아래 그림은 단소 출력의 예이며 악기별 프로필과 표현표를 선택합니다.
 
 담당 범위: 박찬형은 **JGB를 바탕으로 정석 음원을 제작**하고, 사지한은 **채점·AI 평가**를 담당합니다(2026-10-27 사용자 확인). 이 도구는 그 제작을 위한 재생 기반이며, 생성 성공이나 자동 테스트 통과만으로 원보 판독·정석 연주 품질의 검수가 끝난 것은 아닙니다.
 
@@ -46,18 +46,18 @@ python -m venv data/.venv
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
-작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 135개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
+작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 144개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
 
 | 파일 | 대응 구현 | 개수 | 확인 범위 |
 | --- | --- | ---: | --- |
-| `test_jgb.py` | `jgb.py` | 45 | 구문·기호·분박·지속·악기별 음열·빠르기 선택·원문 대응 |
-| `test_score.py` | `score.py` | 16 | 공통 악보 검증·소금 음역·옥타브·요성 시작 시점·이벤트 생성 |
-| `test_midi.py` | `midi.py` | 10 | MIDI 제어 메시지·단소 자동 떨림·소금 명시 표현 |
-| `test_sampler.py` | `sampler.py` | 14 | 합성 PCM의 주파수·위상·무음·단소/소금 지속음 |
+| `test_jgb.py` | `jgb.py` | 48 | 구문·기호·분박·지속·악기별 음열·빠르기 선택·원문 대응 |
+| `test_score.py` | `score.py` | 17 | 공통 악보 검증·소금 음역·옥타브·요성 시작 시점·이벤트 생성 |
+| `test_midi.py` | `midi.py` | 11 | MIDI 제어 메시지·단소 자동 떨림·소금 명시 표현 |
+| `test_sampler.py` | `sampler.py` | 15 | 합성 PCM의 주파수·위상·무음·단소/소금 지속음 |
 | `test_audio.py` | `audio.py` | 4 | PCM 출력·프로세스 오류·실제 AAC 시간 정렬 1개 |
-| `test_pipeline.py` | `__main__.py` 및 모듈 연결 | 23 | score→MIDI·JGB→PCM·CLI의 출처/실패 보존·실제 M4A 전체 변환 1개 |
-| `test_expressions.py` | `expressions.py` | 10 | 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 |
-| `test_tempo_repeat.py` | `tempo_repeat.py` | 13 | 악기별 계획·빠르기 적분·반복·원문 위치·숨표 예산 |
+| `test_pipeline.py` | `__main__.py` 및 모듈 연결 | 24 | score→MIDI·JGB→PCM·CLI의 출처/실패 보존·실제 M4A 전체 변환 1개 |
+| `test_expressions.py` | `expressions.py` | 11 | 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 |
+| `test_tempo_repeat.py` | `tempo_repeat.py` | 14 | 악기별 계획·빠르기 적분·반복·원문 위치·숨표 예산 |
 
 파일은 주된 검증 대상 모듈을 기준으로 나눕니다. 여러 단계의 연결은 `test_pipeline.py`에서 검사하며, 고정 입력·합성 샘플 헬퍼는 `_helpers.py`에서 공유합니다. 테스트 파일끼리는 import하지 않습니다.
 
@@ -85,7 +85,7 @@ $env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
 .\data\.venv\Scripts\python -m data.src.playback --score data/src/playback/examples/seryeongsan-first-jangdan.json --assets C:/local-gugak/assets.json --instrument danso --out data/processed/playback/seryeongsan-fixed25
 ```
 
-단소의 추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 소금·산조대금에는 이 자동 떨림을 추가하지 않습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 등록 프로필은 단소·소금·산조대금이며 `--instrument all`은 공통 score 입력에서 등록된 프로필 전체를 뜻합니다. JGB에서는 `--instrument danso`, `sogeum` 또는 `sanjo-daegeum`을 선택합니다.
+단소의 추가 떨림은 **±25cent로 고정**하며 별도 선택 옵션이 없습니다. 소금·정악대금·산조대금에는 이 자동 떨림을 추가하지 않습니다. 이전 `--vibrato` 인자는 명령에서 제거합니다. 원본 CAT 샘플에 녹음된 흔들림은 그대로 남습니다. `--transpose`는 명시적인 반음 이동이고 기본0입니다. 자동 옥타브 보정·편곡은 하지 않습니다. 등록 프로필은 단소·소금·정악대금·산조대금이며 `--instrument all`은 공통 score 입력에서 등록된 프로필 전체를 뜻합니다. JGB에서는 `--instrument danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum` 중 하나를 선택합니다.
 
 출력 폴더에는 `danso.mid`, **`danso.m4a`**, 해석·샘플 추적 `danso.json`, 입력 사본 `score.json`, 재현 정보 `manifest.json`이 생성됩니다. M4A는44.1kHz·mono·AAC-LC이며 목표 비트레이트는192kbps입니다. 실제 비트레이트는 인코더와 음원에 따라 달라지며 결과에 따로 기록합니다. PCM을 메모리에서 인코더 stdin으로 전달하므로 중간 WAV를 저장하지 않습니다.
 
@@ -227,3 +227,13 @@ JGB 입력에서는 원본 바이트 사본 `source.jgb.json`과 `source-map.jso
 이 CLI의 출력은 음원·MIDI·변환/추적 JSON입니다. 목록 일괄 처리·원보 교정·빠르기 조사·HTML 페이지 생성은 포함하지 않습니다. 필요한 빠르기·조·악기와 원보 교정은 입력을 준비할 때 확인합니다.
 
 CAT ZIP을 보유한 개발자가 위 CLI를 실행해 입력37→MIDI44, 원본 ID, manifest/악기별 JSON의 소스·입력·프리셋·샘플 해시, M4A 코덱·길이·피크를 확인합니다. 무음·파형의 정확한 비교가 필요할 때는 WAV 선택 출력을 사용합니다. 재현할 때는 같은 입력·ZIP·속도·코드·인코더 버전을 사용합니다. 작은 합성 검사 통과와 실제 샘플 생성 성공은 전문가의 원보·연주 품질 검수와 구분합니다. 최신 M4A 검증은 [단소 변환 기록](../../../docs/knowledge/data/danso-expanded-auditions.md), 이전 WAV 검증은 [음원과 재현 기록](../../../docs/knowledge/data/score-instrument-playback-pipeline.md#음원과-재현)에 있습니다.
+
+## 정악대금 단일 변환
+
+assets JSON에 `jeongak-daegeum` 키와 CAT 정악 Live Sampler v1.3 ZIP 경로를 등록합니다.
+
+```powershell
+python -m data.src.playback --score data/src/playback/examples/jeongak-daegeum-jgb.json --instrument jeongak-daegeum --assets C:/local-gugak/assets.json --out data/processed/playback/jeongak-example
+```
+
+예제는 검사용으로 작성한4정간이며 실제 정악곡의 빠르기·표현을 지정한 자료가 아닙니다. JGB의 기종·빠르기 선택을 확인하고, 일반 `daegeum` 입력은 기종을 확인한 `playback.instrument`와 `instrument_basis`가 있어야 합니다. 정악대금도 농음·흘림·풀어내림에 명시 정책을 요구하며, 소금표를 자동 적용하지 않습니다. 기술 음역58–92와 CAT 지원58–89는 별도 검사합니다. MIDI86의 긴 음은 안정 구간 미확보 시 실패합니다. [정악대금 기호·CAT 제약·검증 기록](../../../docs/knowledge/data/jeongak-playback.md)을 참고하세요.
