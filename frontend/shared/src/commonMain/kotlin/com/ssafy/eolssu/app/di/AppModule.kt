@@ -3,7 +3,9 @@ package com.ssafy.eolssu.app.di
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
+import com.ssafy.eolssu.data.practice.HttpScoreViewApi
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
+import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.SampleEvaluationRepository
 import com.ssafy.eolssu.data.practice.SamplePracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
@@ -72,8 +74,8 @@ val appModule = module {
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
     single<EvaluationRepository> { SampleEvaluationRepository(now = get()) }
     single<PracticeRecordRepository> { SamplePracticeRecordRepository() }
-    // 체류 기록 API(ScoreViewApi)는 HTTP 라이브러리가 정해지면 등록한다. 그 전에는 기록이 기기에만 쌓인다.
-    single { PracticeTimeQueue(get(), getOrNull(), CoroutineScope(SupervisorJob() + Dispatchers.Default)) }
+    single<ScoreViewApi> { HttpScoreViewApi(get()) }
+    single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get()) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)

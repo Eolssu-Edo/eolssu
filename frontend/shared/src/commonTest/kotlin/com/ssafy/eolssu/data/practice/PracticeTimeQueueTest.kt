@@ -77,21 +77,11 @@ class PracticeTimeQueueTest {
     }
 
     @Test
-    fun unauthorizedRefreshesTokenOnceThenResends() {
-        api.statuses += listOf(401, 201)
-        api.refreshes = true
-        queue().close(segment("a"))
-        assertEquals(1, api.refreshCount)
-        assertEquals(2, api.posted.size)
-        assertEquals(emptyList(), queue().pending)
-    }
-
-    @Test
-    fun unauthorizedWithFailedRefreshKeepsSegment() {
+    fun unauthorizedAfterFailedRefreshKeepsSegment() {
         api.statuses += 401
         queue().close(segment("a"))
-        assertEquals(1, api.refreshCount)
         assertEquals(listOf(segment("a")), queue().pending)
+        assertEquals(emptyList(), errors)
     }
 
     @Test
@@ -177,17 +167,10 @@ class PracticeTimeQueueTest {
         /** 차례로 돌려줄 응답 코드(null은 응답 없음). 다 쓰면 201. */
         val statuses = mutableListOf<Int?>()
         val posted = mutableListOf<PracticeTimeSegment>()
-        var refreshes = false
-        var refreshCount = 0
 
         override suspend fun post(segment: PracticeTimeSegment): Int? {
             posted += segment
             return if (statuses.isEmpty()) 201 else statuses.removeAt(0)
-        }
-
-        override suspend fun refreshToken(): Boolean {
-            refreshCount++
-            return refreshes
         }
     }
 

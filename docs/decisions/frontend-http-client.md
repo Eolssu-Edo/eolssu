@@ -1,7 +1,7 @@
 # 프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관
 
 - 작업: [S15P31E102-247](https://ssafy.atlassian.net/browse/S15P31E102-247)
-- 상태: **확정** — 2026-10-29 권영민·송가연 합의(권영민이 전달). 연습 세션·녹음 업로드 연결(S15P31E102-245)은 이 클라이언트 위에서 한다.
+- 상태: **확정** — 2026-10-29 권영민·송가연 합의(권영민이 전달). 연습 세션·녹음 업로드 연결 작업은 이 클라이언트 위에서 한다.
 - 관련 규칙: [frontend/docs/collaboration.md](../../frontend/docs/collaboration.md) 4절(새 라이브러리 도입 절차), [화면 이동·DI 결정](frontend-navigation-di.md)의 'HTTP 보류'를 이 문서가 대신한다.
 
 ## 선택

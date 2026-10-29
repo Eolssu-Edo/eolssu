@@ -56,15 +56,13 @@ class PracticeTimeQueue(
     }
 
     /**
-     * 대기열을 앞에서부터 보낸다. 201·200은 저장됨, 401은 토큰을 갱신해 한 번 더 보낸다.
-     * 그 밖의 4xx는 다시 보내도 결과가 같으므로 오류를 남기고 지운다. 응답이 없거나 5xx·갱신 실패면 남겨 두고 멈춘다.
+     * 대기열을 앞에서부터 보낸다. 201·200은 저장됨이다. 401은 HTTP 클라이언트가 이미 토큰을 갱신해 한 번 더 보낸 결과라
+     * (갱신 실패) 남겨 둔다. 그 밖의 4xx는 다시 보내도 결과가 같으므로 오류를 남기고 지운다. 응답이 없거나 5xx면 남겨 두고 멈춘다.
      */
     suspend fun send() = sending.withLock {
         val api = api ?: return@withLock
         for (segment in pending) {
-            var status = api.post(segment)
-            if (status == 401 && api.refreshToken()) status = api.post(segment)
-            when (status) {
+            when (val status = api.post(segment)) {
                 null, 401 -> return@withLock
                 in 200..299 -> remove(segment.key)
                 in 400..499 -> {
