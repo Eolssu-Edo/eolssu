@@ -1,0 +1,1343 @@
+{
+ "schemaVersion": 1,
+ "createdAt": "2026-10-29T01:18:26+00:00",
+ "command": "C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\ai\\evaluation\\error_detection.py C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-missed-1.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-missed-2.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-missed-3.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-normal.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-octave-1.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-octave-2.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-octave-3.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-pitch-1.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-pitch-2.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-pitch-3.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-timing-1.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-timing-2.label.json C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\sheet-screen-time-tracking-f8bd39\\data\\processed\\recordings\\danso\\arirang-synthetic\\arirang-synth-timing-3.label.json --out evaluation\\baselines\\arirang-synthetic-pyin-2.json",
+ "commit": "026e6501afb4fc9ffac144b9efe2201735aafd91",
+ "variables": {
+  "data": {
+   "labels": {
+    "arirang-synth-missed-1.label.json": "fa32917c4b3f095add8a8e2af550452d3260624a7e23a14b7735e9029333de01",
+    "arirang-synth-missed-2.label.json": "6470f3af4a2d98650d3bdfd96863aeaf0fcd87717f8a6ffaa71b4c3c7c268042",
+    "arirang-synth-missed-3.label.json": "01a7d2bde1ec447d982e4db980ee0e381e79ef9fe8786ca46badb0dad9f29f05",
+    "arirang-synth-normal.label.json": "3258a969418413553a49fead00ccacf65b12e92a7ce875bbc68b01035a7015e3",
+    "arirang-synth-octave-1.label.json": "e8ad86ef307aebf4445885f35b9a4e684d2171dcad46a9b52465ec5d500bca63",
+    "arirang-synth-octave-2.label.json": "4f59e0c27e95ee91d1b10702c7898c724324445c94e593153bf208a3a9b23d67",
+    "arirang-synth-octave-3.label.json": "621b3aa2a4514abc23ffc5737e9f85efc3823895faee9f58bf5a002c995dd0d7",
+    "arirang-synth-pitch-1.label.json": "c5152368345987b298ee6bb40e8d04fc3ca308ad7e86509e8bef86e544b01b55",
+    "arirang-synth-pitch-2.label.json": "0dbd4608d3193b4e41e98df5ca63e1164f82d488655408af949d7f92cfd8e29b",
+    "arirang-synth-pitch-3.label.json": "d38a919aea47ad8c822620531fdc8f19c2186cd0be5f0ab47f641373d3412b74",
+    "arirang-synth-timing-1.label.json": "cd16254a5ee3c66e710e96f9794806032cd47ebbe02a322120520cabcbb6ce73",
+    "arirang-synth-timing-2.label.json": "5c214777bb112c540bdd335f736077f43deb5153376706ccbd481fccde555321",
+    "arirang-synth-timing-3.label.json": "85e60df449df873b6471d21411a6dd35a7a0f084448f8adcf7693621330bf83d"
+   },
+   "datasetHash": "9fa8b0040a830d4f6249fe629415cebb8d11ee301dcfe35f01e94aba3225001a"
+  },
+  "scoring": {
+   "modelVersion": "pyin-2",
+   "scoringCode": "f8720503fc58149b36c4cbd446323e0af789ffafe63ae0b46c6dfec4587541c8",
+   "evaluationCode": "7c150550df3a8bc429d463c26796049ce538ea1558ecc82fa6b615fe9ddc1de4",
+   "toleranceDefaults": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "pitchEstimator": {
+    "name": "pyin",
+    "fmin": 100.0,
+    "fmax": 2500.0,
+    "frame_length": 1024
+   },
+   "hopSeconds": 0.01,
+   "referenceHz": 311.13
+  },
+  "environment": {
+   "python": "3.12.10",
+   "packages": {
+    "numpy": "2.5.4",
+    "librosa": "1.0.0",
+    "jsonschema": "4.26.0"
+   },
+   "uvLock": "5fc91fbbd72adf4a6b2f45f084584a8309068256874a610ee1f652732a352818",
+   "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+   "platform": "Windows-11-10.0.26200-SP0",
+   "machine": "AMD64"
+  },
+  "synthetic": [
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   },
+   {
+    "kind": "SYNTHETIC",
+    "generator": "sine-harmonics",
+    "seed": 0,
+    "noiseDb": null,
+    "gapSeconds": 0.04
+   }
+  ],
+  "performed": []
+ },
+ "expected": {
+  "arirang-synth-missed-1": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCCMCCCCMCCCCMCCCCCCCCCCCCCCCCCMC"
+  },
+  "arirang-synth-missed-2": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC"
+  },
+  "arirang-synth-missed-3": {
+   "start": 0,
+   "letters": "CCCCCCMCCCCCCCMCCCMCCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "arirang-synth-normal": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "arirang-synth-octave-1": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCOCCCCCOCCCCCCCCCCCCCCCCCCOCOCCOCCCCCCCCC"
+  },
+  "arirang-synth-octave-2": {
+   "start": 0,
+   "letters": "CCCCCCCOCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCOCCCCC"
+  },
+  "arirang-synth-octave-3": {
+   "start": 0,
+   "letters": "CCCCOCCCCCCCCCCCCCCOCOCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "arirang-synth-pitch-1": {
+   "start": 0,
+   "letters": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC"
+  },
+  "arirang-synth-pitch-2": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC"
+  },
+  "arirang-synth-pitch-3": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC"
+  },
+  "arirang-synth-timing-1": {
+   "start": 0,
+   "letters": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "arirang-synth-timing-2": {
+   "start": 0,
+   "letters": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC"
+  },
+  "arirang-synth-timing-3": {
+   "start": 0,
+   "letters": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+  }
+ },
+ "results": [
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    78
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 49,
+    "wrongKind": 3,
+    "fn": 8,
+    "recall": 0.8166666666666667,
+    "ci": [
+     0.7008000677353371,
+     0.8944231096286387
+    ]
+   },
+   "falsePositive": {
+    "fp": 10,
+    "tn": 723,
+    "rate": 0.013642564802182811,
+    "ci": [
+     0.007426884458177916,
+     0.024929594871979342
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 14,
+     "wrongKind": 0,
+     "fn": 1
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPTCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCTCTCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCTCCCCCCCTCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCTCCCTCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    125
+   ],
+   "normal": {
+    "recordings": 1,
+    "meanTotal": 100.0
+   },
+   "detection": {
+    "tp": 43,
+    "wrongKind": 3,
+    "fn": 14,
+    "recall": 0.7166666666666667,
+    "ci": [
+     0.5923247495026482,
+     0.8149332139569141
+    ]
+   },
+   "falsePositive": {
+    "fp": 9,
+    "tn": 724,
+    "rate": 0.01227830832196453,
+    "ci": [
+     0.006472801786009168,
+     0.023169389968636607
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 15,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 6,
+     "wrongKind": 2,
+     "fn": 7
+    },
+    "TIMING": {
+     "tp": 8,
+     "wrongKind": 0,
+     "fn": 7
+    },
+    "MISSED": {
+     "tp": 14,
+     "wrongKind": 1,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "arirang-synth-missed-1": "CCCCCCCCCCCCCCCCCCCCCCMCCCCCCCMTCCCCMCCCCMCCCCCCCCCCCCCCCCCMC",
+    "arirang-synth-missed-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCMCMCMCCCCCCCCCCCCCCCCCCCCMCMCCC",
+    "arirang-synth-missed-3": "CCCCCCMCCCCCCCMCCCMPCCMCCCCCCCCCCCCMCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-normal": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-1": "CCCCCCCCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCCCCCCCCCCOCCCCCCCCCCCC",
+    "arirang-synth-octave-2": "CCCCCCCCCCCCCMMMMTCCCCCCCCCCCCMTCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-octave-3": "CCCCOCCCCCCCCCCCCCCOCCCCCCCOCCCCCCCCOCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-1": "CCCCCCCCCPCCCCCCCPCCCPCCCCCCPCCCCCCCCCCCCCCPCCCCCCCCCCCCCCCCC",
+    "arirang-synth-pitch-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCPCPCCCPCCCCCCCCPCPCCCCC",
+    "arirang-synth-pitch-3": "CCCCCCCCCCCCCPCCCCCCCPCCCCCCPCCCCCCCCCCCCPCCCCCCCCCCPCCCCCCCC",
+    "arirang-synth-timing-1": "CCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCTTTTCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "arirang-synth-timing-2": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCTCCCCCCCCCCCCCTCCCCCCCCCCC",
+    "arirang-synth-timing-3": "CCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCC"
+   }
+  }
+ ]
+}

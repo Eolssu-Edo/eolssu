@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lab.ssafy.com/s15-final/S15P31E102/data/src/recordings/recording_label.schema.json",
+  "title": "녹음 정답 기록",
+  "description": "채점 평가용 녹음 1개의 정답: 어떤 악보 구간을 어떤 조건에서 불었고 어디를 일부러 틀렸는가. 음 번호(idx)는 공통 악보 데이터 events 중 NOTE만 0부터 센 번호다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "recordingId", "method", "review", "audio", "score", "range", "bpm", "bpmUnit", "errors", "conditions"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "recordingId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "method": {"type": "string", "pattern": "^(manual|tool:.+@.+)$", "description": "data/README의 annotations 출처 표시"},
+    "review": {"enum": ["inferred", "reviewed", "rejected"]},
+    "audio": {"$ref": "#/$defs/file"},
+    "score": {"$ref": "#/$defs/file", "description": "공통 악보 데이터(score_data.schema.json) 파일"},
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startNoteIdx", "endNoteIdx"],
+      "properties": {
+        "startNoteIdx": {"type": "integer", "minimum": 0},
+        "endNoteIdx": {"type": "integer", "minimum": 0}
+      }
+    },
+    "bpm": {"type": "number", "exclusiveMinimum": 0},
+    "bpmUnit": {"enum": ["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"]},
+    "errors": {"type": "array", "items": {"$ref": "#/$defs/error"}},
+    "conditions": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {"kind": {"enum": ["SYNTHETIC", "PERFORMED"]}},
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "SYNTHETIC"}}}, "then": {"$ref": "#/$defs/synthetic"}},
+        {"if": {"properties": {"kind": {"const": "PERFORMED"}}}, "then": {"$ref": "#/$defs/performed"}}
+      ]
+    }
+  },
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "description": "저장소 루트 기준 경로"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["idx", "kind"],
+      "properties": {
+        "idx": {"type": "integer", "minimum": 0},
+        "kind": {"enum": ["PITCH", "OCTAVE", "TIMING", "MISSED"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "PITCH"}}},
+          "then": {
+            "additionalProperties": false,
+            "required": ["semitones"],
+            "properties": {"idx": true, "kind": true, "semitones": {"type": "integer", "minimum": -11, "maximum": 11, "not": {"const": 0}}}
+          }
+        },
+        {
+          "if": {"properties": {"kind": {"const": "OCTAVE"}}},
+          "then": {
+            "additionalProperties": false,
+            "required": ["octaves"],
+            "properties": {"idx": true, "kind": true, "octaves": {"type": "integer", "not": {"const": 0}}}
+          }
+        },
+        {
+          "if": {"properties": {"kind": {"const": "TIMING"}}},
+          "then": {
+            "additionalProperties": false,
+            "required": ["ms"],
+            "properties": {"idx": true, "kind": true, "ms": {"type": "integer", "not": {"const": 0}, "description": "+는 늦게, −는 일찍"}}
+          }
+        },
+        {
+          "if": {"properties": {"kind": {"const": "MISSED"}}},
+          "then": {"additionalProperties": false, "properties": {"idx": true, "kind": true}}
+        }
+      ]
+    },
+    "synthetic": {
+      "additionalProperties": false,
+      "required": ["kind", "generator", "seed", "noiseDb", "gapSeconds"],
+      "properties": {
+        "kind": true,
+        "generator": {"type": "string", "description": "합성 방법(예: sine-harmonics, cat-danso)"},
+        "seed": {"type": "integer"},
+        "noiseDb": {"type": ["number", "null"], "description": "잡음의 신호 대비 크기(dB). 없으면 null"},
+        "gapSeconds": {"type": "number", "minimum": 0, "description": "음마다 끊어 분 길이"}
+      }
+    },
+    "performed": {
+      "additionalProperties": false,
+      "required": ["kind", "performer", "skill", "instrument", "device", "app", "micDistanceCm", "place", "noise", "recordedOn", "temperatureC", "take", "errorMethod"],
+      "properties": {
+        "kind": true,
+        "performer": {"type": "string", "pattern": "^P[0-9]{2}$", "description": "연주자 ID. 이름은 저장소에 넣지 않는다"},
+        "skill": {"enum": ["BEGINNER", "INTERMEDIATE", "ADVANCED"]},
+        "instrument": {"type": "string", "pattern": "^I[0-9]{2}$"},
+        "device": {"type": "string", "minLength": 1},
+        "app": {"type": "string", "minLength": 1},
+        "micDistanceCm": {"type": "number", "exclusiveMinimum": 0},
+        "place": {"type": "string", "minLength": 1},
+        "noise": {"type": "string", "minLength": 1},
+        "recordedOn": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "temperatureC": {"type": "number", "description": "관악기는 온도에 따라 음높이가 바뀐다"},
+        "take": {"type": "integer", "minimum": 1},
+        "errorMethod": {"type": "string", "minLength": 1, "description": "의도한 오류를 어떻게 냈는지"}
+      }
+    }
+  }
+}
