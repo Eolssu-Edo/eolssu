@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, NoteResult, Tolerance
-from evaluation.error_detection import Trial, classify, evaluate, score_notes, variables, wilson
+from evaluation.error_detection import Trial, classify, evaluate, expected_letters, score_notes, variables, wilson
 from evaluation.labels import REPO
 
 SCORE = json.loads((REPO / "data/tests/fixtures/scores/ngc-standard-2022-p173.score.json").read_text(encoding="utf-8"))
@@ -66,6 +66,13 @@ def test_evaluate_applies_each_tolerance():
     assert (loose["detection"]["tp"], loose["falsePositive"]["fp"]) == (1, 0)
     assert loose["falsePositive"]["rate"] == 0 and loose["detection"]["recall"] == 1
     assert loose["verdicts"]["t"][5] == "P" and loose["verdicts"]["t"][2] == "C"
+
+
+def test_expected_letters_mark_intended_errors_from_first_note():
+    # 곡 중간 10~17번 연습 구간. 13번 지연, 15번 옥타브를 의도했다.
+    label = {"recordingId": "t", "errors": [{"idx": 13, "kind": "TIMING"}, {"idx": 15, "kind": "OCTAVE"}]}
+    t = Trial(label, score_notes(SCORE, 10, 17), np.array([]), None)
+    assert expected_letters([t]) == {"t": {"start": 10, "letters": "CCCTCOCC"}}
 
 
 def test_clean_recordings_report_normal_score():

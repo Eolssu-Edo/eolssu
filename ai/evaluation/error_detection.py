@@ -1,6 +1,7 @@
 """녹음 정답 기록으로 채점의 오류 검출률·오탐률을 허용값 조합별로 잰다.
 
 실행: uv run python -m evaluation.error_detection <정답 기록.json ...> [--root 저장소_루트] [--out 결과.json]
+전후 비교: 같은 명령에 --compare 이전결과.json --vary scoring(바꾼 변인 묶음)을 더한다.
 
 녹음마다 f0를 한 번 구하고 허용값 조합마다 다시 채점한다. 결과 JSON에는 지표와 함께 결과를 바꿀 수 있는
 변인 다섯 묶음(데이터·채점 설정·실행 환경·합성 입력·실제 녹음 조건)을 남겨 전후 비교에 쓴다.
@@ -11,6 +12,7 @@ import hashlib
 import inspect
 import itertools
 import json
+import math
 import platform
 import subprocess
 import sys
@@ -33,7 +35,14 @@ GRID = [
 ]
 # 의도한 오류가 맞게 잡혔다고 보는 판정. OCTAVE는 PITCH이면서 옥타브 의심 표시가 붙어야 한다.
 EXPECTED = {"PITCH": "PITCH", "OCTAVE": "PITCH", "TIMING": "TIMING", "MISSED": "MISSED"}
+# 음별 판정 글자. O는 옥타브 의심이 붙은 PITCH. 정답 문자열의 C는 오류를 넣지 않은 음이다.
 LETTER = {"CORRECT": "C", "PITCH": "P", "TIMING": "T", "MISSED": "M"}
+INTENDED = {"PITCH": "P", "OCTAVE": "O", "TIMING": "T", "MISSED": "M"}
+DECLARABLE = {"scoring", "environment"}  # 나머지 묶음은 정답 기록에 들어 있어 바뀌면 같은 녹음 비교가 아니다
+
+
+class CompareError(ValueError):
+    """두 결과를 같은 조건의 전후로 비교할 수 없다."""
 
 
 @dataclass
@@ -81,6 +90,100 @@ def classify(results: list[NoteResult], errors: dict[int, str]) -> list[str]:
     return out
 
 
+def _letter(r: NoteResult) -> str:
+    return "O" if r.verdict == "PITCH" and r.octave_suspect else LETTER[r.verdict]
+
+
+def expected_letters(trials: list[Trial]) -> dict:
+    """녹음마다 첫 음 번호와 음별 정답 글자. 전후 비교에서 판정이 맞았는지 가린다."""
+    out = {}
+    for t in trials:
+        errors = {e["idx"]: INTENDED[e["kind"]] for e in t.label["errors"]}
+        out[t.label["recordingId"]] = {"start": t.notes[0].idx, "letters": "".join(errors.get(n.idx, "C") for n in t.notes)}
+    return out
+
+
+def _ok(expected: str, got: str) -> bool:
+    return expected == got or (expected == "P" and got == "O")
+
+
+def mcnemar(b: int, c: int) -> float:
+    """같은 음의 판정이 맞음→틀림(b), 틀림→맞음(c)으로 바뀐 수로 두 채점이 다른지 본다(양측 p).
+
+    b + c가 25 미만이면 이항 정확 검정 2 × P(X ≤ min(b, c)), X ~ B(b + c, 1/2), 아니면 χ² = (b − c)² / (b + c).
+    """
+    n = b + c
+    if n == 0:
+        return 1.0
+    if n < 25:
+        return min(1.0, 2 * sum(math.comb(n, k) for k in range(min(b, c) + 1)) / 2**n)
+    return math.erfc(math.sqrt((b - c) ** 2 / n / 2))
+
+
+def _flatten(value, prefix: str = "") -> dict:
+    if isinstance(value, dict):
+        return {k: v for key, item in value.items() for k, v in _flatten(item, f"{prefix}{key}.").items()}
+    return {prefix[:-1]: value}
+
+
+def compare(before: dict, after: dict, vary: set[str]) -> dict:
+    """선언한 묶음(vary) 말고는 변인이 같아야 비교한다. 다르면 달라진 항목을 모두 적어 멈춘다."""
+    if bad := sorted(vary - DECLARABLE):
+        raise CompareError(f"--vary에 {bad}를 쓸 수 없다. 이 묶음은 정답 기록에 들어 있어 바뀌면 같은 녹음 비교가 아니다")
+    old, new = _flatten(before["variables"]), _flatten(after["variables"])
+    changed = [f"{k}: {old.get(k)} → {new.get(k)}" for k in sorted(old.keys() | new.keys()) if old.get(k) != new.get(k)]
+    if undeclared := [c for c in changed if c.split(".")[0] not in vary]:
+        raise CompareError("선언하지 않은 변인이 다르다: " + "; ".join(undeclared))
+
+    expected = before["expected"]
+    default = asdict(Tolerance())
+    rows, changed_notes = [], []
+    for b_row in before["results"]:
+        a_row = next((r for r in after["results"] if r["tolerance"] == b_row["tolerance"]), None)
+        if a_row is None:
+            continue
+        b = c = 0
+        for rec, exp in expected.items():
+            for pos, (e, x, y) in enumerate(zip(exp["letters"], b_row["verdicts"][rec], a_row["verdicts"][rec])):
+                b += _ok(e, x) and not _ok(e, y)
+                c += not _ok(e, x) and _ok(e, y)
+                if b_row["tolerance"] == default and x != y:
+                    changed_notes.append({"recordingId": rec, "idx": exp["start"] + pos, "expected": e, "before": x, "after": y})
+        rows.append(
+            {
+                "tolerance": b_row["tolerance"],
+                "meanTotal": (b_row["normal"]["meanTotal"], a_row["normal"]["meanTotal"]),
+                "recall": (b_row["detection"]["recall"], a_row["detection"]["recall"]),
+                "falsePositiveRate": (b_row["falsePositive"]["rate"], a_row["falsePositive"]["rate"]),
+                "b": b,
+                "c": c,
+                "p": mcnemar(b, c),
+            }
+        )
+    return {"changedVariables": changed, "rows": rows, "changedNotes": changed_notes}
+
+
+def _arrow(pair, fmt="{:.0%}") -> str:
+    return " → ".join("-" if v is None else fmt.format(v) for v in pair)
+
+
+def compare_table(report: dict) -> str:
+    lines = ["달라진 변인: " + ("; ".join(report["changedVariables"]) or "없음"), ""]
+    lines += [
+        "| 음정 | 시작(박) | 길이 | 정상 점수 | 검출률 | 오탐률 | 맞음→틀림 b | 틀림→맞음 c | p |",
+        "| ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: |",
+    ]
+    for r in report["rows"]:
+        tol = r["tolerance"]
+        lines.append(
+            f'| ±{tol["pitch_cent"]:.0f} | {tol["onset_beat"]} | ±{tol["duration_ratio"]:.0%} | {_arrow(r["meanTotal"], "{:.0f}")} '
+            f'| {_arrow(r["recall"])} | {_arrow(r["falsePositiveRate"])} | {r["b"]} | {r["c"]} | {r["p"]:.3g} |'
+        )
+    notes = [f'- {n["recordingId"]} {n["idx"]}번: 정답 {n["expected"]}, {n["before"]} → {n["after"]}' for n in report["changedNotes"]]
+    lines += ["", "기본 허용값에서 판정이 바뀐 음:", *(notes or ["- 없음"])]
+    return "\n".join(lines) + "\n"
+
+
 def evaluate(trials: list[Trial], grid: list[Tolerance]) -> list[dict]:
     report = []
     for tol in grid:
@@ -92,7 +195,7 @@ def evaluate(trials: list[Trial], grid: list[Tolerance]) -> list[dict]:
             result = score(t.f0, t.notes, t.label["bpm"], HWANG_HZ, tol, t.rms)
             # 무음 실패면 음표 결과가 없다. 모든 음을 놓친 것으로 센다.
             notes = result.notes or [NoteResult(n.idx, "MISSED") for n in t.notes]
-            verdicts[t.label["recordingId"]] = "".join(LETTER[n.verdict] for n in notes)
+            verdicts[t.label["recordingId"]] = "".join(_letter(n) for n in notes)
             for n, c in zip(notes, classify(notes, errors)):
                 counts[c] += 1
                 if n.idx in errors:
@@ -212,19 +315,24 @@ def main() -> None:
     parser.add_argument("labels", nargs="+", type=Path, help="녹음 정답 기록 JSON")
     parser.add_argument("--root", type=Path, default=REPO, help="정답 기록 안 경로의 기준 폴더")
     parser.add_argument("--out", type=Path, help="결과 JSON을 저장할 파일")
+    parser.add_argument("--compare", type=Path, help="비교할 이전 결과 JSON")
+    parser.add_argument("--vary", nargs="*", default=[], choices=sorted(DECLARABLE), help="이번에 바꾼 변인 묶음")
     args = parser.parse_args()
     labels, trials = load_trials(args.labels, args.root)
     report = evaluate(trials, GRID)
     print(table(report))
+    result = {
+        "schemaVersion": 1,
+        "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "command": " ".join(sys.argv),
+        "variables": variables(args.labels, labels),
+        "expected": expected_letters(trials),
+        "results": report,
+    }
     if args.out:
-        result = {
-            "schemaVersion": 1,
-            "createdAt": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-            "command": " ".join(sys.argv),
-            "variables": variables(args.labels, labels),
-            "results": report,
-        }
         args.out.write_text(json.dumps(result, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    if args.compare:
+        print(compare_table(compare(json.loads(args.compare.read_text(encoding="utf-8")), result, set(args.vary))))
 
 
 if __name__ == "__main__":
