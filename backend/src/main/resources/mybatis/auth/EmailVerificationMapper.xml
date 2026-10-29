@@ -17,6 +17,9 @@
     <update id="markConsumed">
         UPDATE email_verifications SET consumed_at = #{now} WHERE id = #{id} AND consumed_at IS NULL
     </update>
+    <select id="registeredEmail" resultType="string">
+        SELECT email FROM users WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING')
+    </select>
     <select id="memberExists" resultType="boolean">
         SELECT EXISTS(SELECT 1 FROM users WHERE email = #{email} AND status IN ('ACTIVE', 'WITHDRAWAL_PENDING'))
     </select>
