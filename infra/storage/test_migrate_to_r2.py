@@ -96,6 +96,9 @@ class MigrateToR2Tests(unittest.TestCase):
     def test_missing_bucket_stops_before_any_upload_or_deletion(self):
         recording(self.root, KEY, b'live', NOW - timedelta(days=1))
         self.bucket.exists = False
+        # The read-only inventory runs before the switch, so it must already surface a missing bucket or HeadBucket denial.
+        with self.assertRaises(Missing):
+            to_r2.migrate(self.bucket, 'b', self.root, {KEY}, now=NOW)
         with self.assertRaises(Missing):
             to_r2.migrate(self.bucket, 'b', self.root, {KEY}, apply=True, now=NOW)
         with self.assertRaises(Missing):
@@ -180,7 +183,7 @@ class MigrateToR2Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             to_r2.referenced_keys(lambda _: '../escape')
         # The production query reuses the terms tool's MySQL helper rather than a second copy of it.
-        self.assertTrue(callable(to_r2.production_query))
+        self.assertTrue(callable(to_r2.terms_tool().mysql))
 
     def test_manifest_keeps_completed_copies_when_a_later_object_fails(self):
         recording(self.root, KEY, b'live', NOW - timedelta(days=1))

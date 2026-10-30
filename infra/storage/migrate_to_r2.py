@@ -90,8 +90,8 @@ def migrate(client, bucket, root, referenced, apply=False, now=None, manifest=No
     files = inventory(root)
     report = {"files": len(files), "bytes": sum(f["bytes"] for f in files), "expired": 0, "unreferenced": 0, "copied": 0, "verified_existing": 0}
     manifest = [] if manifest is None else manifest
-    if apply:
-        client.head_bucket(Bucket=bucket)  # a wrong bucket must fail loudly, not look like missing objects
+    # A wrong bucket or a token denied HeadBucket must fail loudly, and already in the inventory run before the switch.
+    client.head_bucket(Bucket=bucket)
     for item in files:
         if item["uploaded_at"] + RETENTION <= now:
             report["expired"] += 1
@@ -169,17 +169,21 @@ def remove_local(client, bucket, root, referenced, copied, now=None, delete=Fals
     return report
 
 
-def production_query(sql):
-    """The terms tool's MySQL access: active backend database from its DB_URL, password kept inside the container."""
+def terms_tool():
+    """The terms tool module, whose MySQL access finds the active database from the backend's DB_URL and keeps the password in the container."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("publish", Path(__file__).resolve().parents[1] / "terms" / "publish.py")
     publish = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(publish)
-    return publish.mysql(sql)
+    return publish
+
+
+def production_query(sql):
+    return terms_tool().mysql(sql)
 
 
 def referenced_keys(query=production_query):
-    """Current recording keys; withdrawal purges delete rows and REC-04 deletion sets record_deleted_at."""
+    """Current recording keys. Withdrawal purges delete rows; record_deleted_at is excluded for REC-04 record deletion, not yet written by the backend."""
     rows = query("SELECT recording_url FROM practice_sessions WHERE recording_url IS NOT NULL AND record_deleted_at IS NULL;")
     keys = {line.strip() for line in rows.splitlines() if line.strip()}
     if any(not KEY.fullmatch(key) for key in keys):
@@ -246,5 +250,5 @@ if __name__ == "__main__":
     except Exception as error:
         import traceback
         frame = traceback.extract_tb(error.__traceback__)[-1]
-        print(f"Migration failed ({type(error).__name__}, line {frame.lineno}); review before retrying", file=sys.stderr)
+        print(f"Migration failed ({type(error).__name__}, {Path(frame.filename).name}:{frame.lineno}); review before retrying", file=sys.stderr)
         sys.exit(1)
