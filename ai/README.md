@@ -105,6 +105,8 @@ uv run --group eval python -m evaluation.measure_latency
 
 연구용 후보는 `uv run python -m evaluation.dtw_candidate_check --method A --out ../data/processed/dtw-286/u2-A.json`으로 같은 작은 입력에 연결합니다. `--method B --half-width-seconds 0.5`로 제한 범위 후보도 확인합니다. 기본 서비스는 기존 전체 DTW를 사용하며, 자세한 비교 범위와 한계는 [후보 구현 기록](../docs/knowledge/ai/dtw-memory-comparison.md#u2-후보-구현과-작은-입력-검증)을 따릅니다.
 
+곡별 고정 음높이와 합성 녹음의 음별 판정 비교는 [U3 실행 방법과 한계](../docs/knowledge/ai/dtw-memory-comparison.md#u3-합성-입력-품질-비교-2026-10-30)를 따릅니다. 결과는 연구용이며 실제 연주나 전체 곡의 품질을 보증하지 않습니다.
+
 `src/ai_service/pipelines/scoring.py`
 
 | 항목 | 현재 기준 |
