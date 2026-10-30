@@ -1,6 +1,6 @@
 package com.ssafy.eolssu.feature.song
 
-import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.SongLevel
 
 /** 곡 목록의 난이도 필터. [level]이 null이면 전체. */
@@ -20,14 +20,14 @@ enum class SongLevelFilter(val level: SongLevel?) {
  *   직접 고른 채 세로로 바뀌면 그 곡의 상세를 연다.
  */
 data class SongListUiState(
-    val songs: List<Song> = emptyList(),
-    val loadFailed: Boolean = false,
+    val loadState: SongLoadState = SongLoadState.Loading,
+    val songs: List<SongSummary> = emptyList(),
     val query: String = "",
     val filter: SongLevelFilter = SongLevelFilter.All,
     val selectedSongId: String? = null,
     val songPicked: Boolean = false,
 ) {
-    val visibleSongs: List<Song>
+    val visibleSongs: List<SongSummary>
         get() {
             val q = query.trim()
             return songs.filter { song ->
@@ -38,16 +38,16 @@ data class SongListUiState(
         }
 
     /** 고른 곡. 검색·필터로 목록에서 빠지면 null이라 '곡을 골라주세요' 안내를 보인다. */
-    val selectedSong: Song?
+    val selectedSong: SongSummary?
         get() = selectedSongId?.let { id -> visibleSongs.firstOrNull { it.id == id } }
 
     /** 세로로 바뀌면 상세를 열 곡. 직접 고른 곡이 목록에 보일 때만 있다. */
-    val pickedSong: Song?
+    val pickedSong: SongSummary?
         get() = selectedSong?.takeIf { songPicked }
 
     /** 곡 목록을 받는다. 아직 고른 곡이 없으면 보이는 첫 곡을 고른다(직접 고른 것으로 보지 않는다). */
-    fun receiveSongs(received: List<Song>): SongListUiState {
-        val next = copy(songs = received)
+    fun receiveSongs(received: List<SongSummary>): SongListUiState {
+        val next = copy(songs = received, loadState = SongLoadState.Ready)
         return if (selectedSongId != null) next else next.copy(selectedSongId = next.visibleSongs.firstOrNull()?.id)
     }
 

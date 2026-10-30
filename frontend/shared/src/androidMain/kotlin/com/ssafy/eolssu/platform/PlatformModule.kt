@@ -2,6 +2,8 @@ package com.ssafy.eolssu.platform
 
 import android.content.Context
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.platform.audio.AndroidAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.audio.SoundPlayer
@@ -20,16 +22,17 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 
 /** Android 구현 등록. `MainActivity`가 넘긴 Context로 만든다(`App(context)`). */
-internal fun androidPlatformModule(context: Context): Module {
+internal fun androidPlatformModule(context: Context, serverAddress: ServerAddress): Module {
     val appContext = context.applicationContext
     return module {
         single<KeyValueStore> { AndroidKeyValueStore(appContext) }
         single<HttpClientEngine> { OkHttp.create() }
-        single { ServerAddress.Production }
+        single { serverAddress }
         single { SecureCookiesStorage(AndroidSecureStore(appContext), now = get()) }
         single<MicPermission> { AndroidMicPermission.of(appContext) }
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
+        factory<AudioPlayer> { AndroidAudioPlayer(appContext) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
         single<SoundPlayer> { AndroidSoundPlayer() }

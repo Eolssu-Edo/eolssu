@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.ScoreError
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -29,14 +30,14 @@ class ResultErrorViewTest {
         assertEquals(2, r.errorCount(ErrorFilter.Pitch))
         assertEquals(1, r.errorCount(ErrorFilter.Rhythm))
         assertEquals(1, r.errorCount(ErrorFilter.Length))
-        assertEquals(mapOf((3 to 1) to EvaluationMetric.Pitch, (2 to 2) to EvaluationMetric.Pitch), r.visibleErrors(ErrorFilter.Pitch))
+        assertEquals(mapOf((3 to 1) to ScoreErrorKind.Pitch, (2 to 2) to ScoreErrorKind.Pitch), r.visibleErrors(ErrorFilter.Pitch))
         assertEquals(4, r.visibleErrors(ErrorFilter.All).size)
     }
 
     @Test
     fun errorAtIgnoresFilter() {
         val r = result(errors)
-        assertEquals(EvaluationMetric.Length, r.errorAt(ScoreCellPosition(2, 5)))
+        assertEquals(ScoreErrorKind.Length, r.errorAt(ScoreCellPosition(2, 5)))
         assertNull(r.errorAt(ScoreCellPosition(1, 1)))
     }
 
@@ -49,5 +50,19 @@ class ResultErrorViewTest {
     @Test
     fun defaultSelectionWithoutErrorsIsFirstCell() {
         assertEquals(ScoreCellPosition(0, 0), result(emptyList()).defaultSelectedCell())
+    }
+
+    @Test
+    fun missedNoteRemainsAnErrorWithoutBecomingLengthError() {
+        val r = result(listOf(ScoreError(2, 3, ScoreErrorKind.Missed))).copy(sample = false)
+
+        assertEquals(1, r.errorCount(ErrorFilter.All))
+        assertEquals(1, r.errorCount(ErrorFilter.Missed))
+        assertEquals(0, r.errorCount(ErrorFilter.Length))
+        assertEquals(mapOf((2 to 3) to ScoreErrorKind.Missed), r.visibleErrors(ErrorFilter.All))
+        assertEquals(mapOf((2 to 3) to ScoreErrorKind.Missed), r.visibleErrors(ErrorFilter.Missed))
+        assertEquals(emptyMap(), r.visibleErrors(ErrorFilter.Length))
+        assertEquals(ScoreErrorKind.Missed, r.errorAt(ScoreCellPosition(2, 3)))
+        assertEquals(ScoreCellPosition(2, 3), r.defaultSelectedCell())
     }
 }

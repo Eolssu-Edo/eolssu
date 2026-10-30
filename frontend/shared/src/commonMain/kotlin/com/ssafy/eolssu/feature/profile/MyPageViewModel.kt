@@ -24,16 +24,27 @@ class MyPageViewModel(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userRepository.profile
-    val instrument: StateFlow<Instrument> = instrumentRepository.instrument
+    val instrument: StateFlow<Instrument?> = instrumentRepository.instrument
 
     private val _dialog = MutableStateFlow<MyPageDialog?>(null)
     val dialog: StateFlow<MyPageDialog?> = _dialog.asStateFlow()
 
-    /** 악기를 바꿨으면 true(같은 악기를 다시 누르면 false). */
-    fun selectInstrument(instrument: Instrument): Boolean {
+    /** 실제 내 정보를 다시 읽는다. */
+    suspend fun refresh() = userRepository.refresh()
+
+    private var savingInstrument = false
+
+    suspend fun selectInstrument(instrument: Instrument): Boolean {
+        if (savingInstrument) return false
         if (instrumentRepository.instrument.value == instrument) return false
-        instrumentRepository.select(instrument)
-        return true
+        savingInstrument = true
+        return try {
+            val id = instrumentRepository.serverIdFor(instrument) ?: return false
+            if (userRepository.changeInstrument(id) != com.ssafy.eolssu.data.user.MemberResult.Done) return false
+            if (userRepository.profile.value.instrumentId != id) return false
+            instrumentRepository.select(instrument)
+            true
+        } finally { savingInstrument = false }
     }
 
     fun askUnlink(provider: SocialProvider) {
@@ -43,7 +54,7 @@ class MyPageViewModel(
     /** 확인 창의 제공자 연결을 해제하고 그 제공자를 돌려준다. */
     fun confirmUnlink(): SocialProvider? {
         val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return null
-        userRepository.unlink(provider)
+        if (!userRepository.unlink(provider)) return null
         _dialog.value = null
         return provider
     }
@@ -52,12 +63,13 @@ class MyPageViewModel(
         _dialog.value = MyPageDialog.LogOut
     }
 
-    fun confirmLogOut() {
-        practiceTimeQueue.logOut {
+    fun confirmLogOut(): kotlinx.coroutines.Job {
+        val job = practiceTimeQueue.logOut {
             authRepository.logOut()
             userRepository.logOut()
         }
         _dialog.value = null
+        return job
     }
 
     fun dismissDialog() {

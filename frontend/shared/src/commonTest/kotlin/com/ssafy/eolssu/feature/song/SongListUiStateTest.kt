@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.core.model.toSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -9,7 +10,7 @@ import kotlin.test.assertTrue
 
 class SongListUiStateTest {
 
-    private val base = SongListUiState(songs = SampleSongs)
+    private val base = SongListUiState(songs = SampleSongs.map { it.toSummary() })
 
     @Test
     fun showsOnlyEvaluableSongs() {
@@ -37,7 +38,7 @@ class SongListUiStateTest {
 
     @Test
     fun selectsFirstVisibleSongWhenSongsArrive() {
-        val state = SongListUiState().receiveSongs(SampleSongs)
+        val state = SongListUiState().receiveSongs(SampleSongs.map { it.toSummary() })
         assertEquals(state.visibleSongs.first().id, state.selectedSongId)
         assertEquals(state.visibleSongs.first(), state.selectedSong)
     }
@@ -45,7 +46,7 @@ class SongListUiStateTest {
     @Test
     fun keepsChosenSongWhenSongsArriveAgain() {
         val chosen = base.visibleSongs[2].id
-        val state = base.selectSong(chosen).receiveSongs(SampleSongs)
+        val state = base.selectSong(chosen).receiveSongs(SampleSongs.map { it.toSummary() })
         assertEquals(chosen, state.selectedSong?.id)
     }
 
@@ -59,7 +60,7 @@ class SongListUiStateTest {
 
     @Test
     fun firstSongSelectedOnArrivalIsNotPicked() {
-        val state = SongListUiState().receiveSongs(SampleSongs)
+        val state = SongListUiState().receiveSongs(SampleSongs.map { it.toSummary() })
         assertFalse(state.songPicked)
         assertNull(state.pickedSong, "자동으로 고른 첫 곡은 세로로 돌려도 상세를 열지 않는다")
     }
@@ -67,7 +68,7 @@ class SongListUiStateTest {
     @Test
     fun pickedSongSurvivesSongsArrivingAndOpensOnce() {
         val chosen = base.visibleSongs[3].id
-        val picked = SongListUiState().pickSong(chosen).receiveSongs(SampleSongs)
+        val picked = SongListUiState().pickSong(chosen).receiveSongs(SampleSongs.map { it.toSummary() })
         assertEquals(chosen, picked.pickedSong?.id)
 
         val opened = picked.openPickedSong()

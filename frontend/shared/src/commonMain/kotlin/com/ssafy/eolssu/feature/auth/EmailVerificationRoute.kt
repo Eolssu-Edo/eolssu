@@ -44,15 +44,15 @@ fun EmailVerificationRoute(
         onBack = onBack,
         onEmailChange = viewModel::changeEmail,
         onCodeChange = viewModel::changeCode,
-        onSendCode = { viewModel.sendCode() },
-        onResendCode = {
+        onSendCode = { scope.launch { viewModel.sendCode() } },
+        onResendCode = { scope.launch {
             if (viewModel.resendCode()) {
                 scope.launch {
                     snackbarHostState.currentSnackbarData?.dismiss()
                     snackbarHostState.showSnackbar(resent)
                 }
             }
-        },
-        onConfirm = { if (viewModel.confirmCode()) onVerified(viewModel.uiState.value.email) },
+        } },
+        onConfirm = { scope.launch { if (viewModel.confirmCode()) onVerified(viewModel.uiState.value.email) } },
     )
 }

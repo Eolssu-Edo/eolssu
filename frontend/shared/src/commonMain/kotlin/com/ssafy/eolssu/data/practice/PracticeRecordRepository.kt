@@ -12,9 +12,13 @@ import kotlinx.coroutines.flow.update
 
 /**
  * 연습 기록. 와이어프레임 API 정리의 `POST /records`·`GET /records`·`PATCH /records/{id}`에 대응한다.
- * 지금은 [SamplePracticeRecordRepository]가 앱이 켜져 있는 동안만 기록을 들고 있다.
+ * 기록 API 연결 전에는 운영 DI가 [UnavailablePracticeRecordRepository]를 사용한다.
+ * [SamplePracticeRecordRepository]는 격리된 테스트용이며 사용자 계정의 기록으로 표시하지 않는다.
  */
 interface PracticeRecordRepository {
+    /** 기록 조회 구현을 사용할 수 있는지. 기록 수나 개별 네트워크 요청의 성공 여부가 아니다. */
+    val available: Boolean get() = true
+
     /** 최신순 기록. */
     val records: StateFlow<List<PracticeRecord>>
 

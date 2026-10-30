@@ -61,7 +61,7 @@ class PracticeTimeMemberTest {
      */
     private inner class App(scope: CoroutineScope) {
         val member = SignedInMember(store)
-        val auth = ApiAuthRepository(client, null, member, scope, SampleAuthRepository { 0L })
+        val auth = ApiAuthRepository(client, null, member, scope)
         val recorder = PracticeTimeQueue(store, null, member, scope)
         val queue = PracticeTimeQueue(store, HttpScoreViewApi(client), member, scope)
     }

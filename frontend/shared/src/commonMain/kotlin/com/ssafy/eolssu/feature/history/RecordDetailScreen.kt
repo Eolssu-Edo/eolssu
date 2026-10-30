@@ -29,6 +29,7 @@ import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
 import com.ssafy.eolssu.feature.history.component.RecordScoreText
+import com.ssafy.eolssu.feature.history.component.RecordSongLookupContent
 import com.ssafy.eolssu.feature.history.component.SwitchBox
 import com.ssafy.eolssu.feature.history.component.historyFrame
 import com.ssafy.eolssu.feature.history.component.recordMetricsLabel
@@ -52,6 +53,7 @@ class RecordDetailActions(
     val onToggleErrors: () -> Unit,
     val onToggleFollow: () -> Unit,
     val onWeakSection: () -> Unit,
+    val onRetrySong: () -> Unit = {},
 )
 
 /**
@@ -66,6 +68,12 @@ fun RecordDetailScreen(
     snackbarHostState: SnackbarHostState,
     actions: RecordDetailActions,
 ) {
+    if (state.record == null || state.song == null) {
+        EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.record_detail_title), onBack = actions.onBack) }) {
+            RecordSongLookupContent(state, actions)
+        }
+        return
+    }
     if (widthClass == WindowWidthClass.Compact) {
         RecordDetailCompact(state, snackbarHostState, actions)
     } else {
@@ -125,7 +133,7 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
                 notation = ScoreNotation(showHangul = true),
                 currentIndex = state.position,
                 follow = state.follow,
-                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.metric } else emptyMap(),
+                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
                 onEventClick = { actions.onSeek(it.index) },
             )
         }

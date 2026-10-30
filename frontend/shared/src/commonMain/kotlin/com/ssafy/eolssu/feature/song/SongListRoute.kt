@@ -43,12 +43,18 @@ fun SongListRoute(
         }
     }
     val selectedId = state.selectedSong?.id
-    val detail = if (twoPane && selectedId != null) songDetailState(selectedId) else null
+    val detailBinding: Pair<SongDetailUiState, () -> Unit>? = if (twoPane && selectedId != null) {
+        key(selectedId) {
+            val detailViewModel: SongDetailViewModel = koinViewModel(key = "song-list-detail-$selectedId") { parametersOf(selectedId) }
+            val detailState by detailViewModel.uiState.collectAsStateWithLifecycle()
+            detailState to detailViewModel::retry
+        }
+    } else null
 
     SongListScreen(
         state = state,
         widthClass = widthClass,
-        detail = detail,
+        detail = detailBinding?.first,
         actions = SongListActions(
             onBack = onBack,
             onQueryChange = viewModel::changeQuery,
@@ -64,15 +70,8 @@ fun SongListRoute(
                 }
             },
             onStartPractice = { selectedId?.let(onStartPractice) },
-            onRetryLoad = viewModel::load,
+            onRetry = viewModel::retry,
+            onRetryDetail = { detailBinding?.second?.invoke() },
         ),
     )
-}
-
-/** 두 칸 배치 오른쪽 칸의 곡 정보. 곡 상세 화면과 같은 ViewModel을 곡마다 이 화면 범위에 둔다. */
-@Composable
-private fun songDetailState(songId: String): SongDetailUiState = key(songId) {
-    val viewModel: SongDetailViewModel = koinViewModel(key = "song-list-detail-$songId") { parametersOf(songId) }
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    state
 }

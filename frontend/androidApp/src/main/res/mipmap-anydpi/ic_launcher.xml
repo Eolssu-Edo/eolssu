@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><shape><solid android:color="#EFF2D6" /><corners android:radius="12dp" /><size android:width="48dp" android:height="48dp" /></shape></item>
+    <item android:width="36dp" android:height="29dp" android:gravity="center">
+        <bitmap android:src="@drawable/launcher_tiger" android:gravity="fill" android:filter="true" />
+    </item>
+</layer-list>

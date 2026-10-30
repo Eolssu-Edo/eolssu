@@ -3,30 +3,33 @@ package com.ssafy.eolssu.feature.song
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
-import com.ssafy.eolssu.data.song.SongsUnavailableException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 class SongListViewModel(private val songRepository: SongRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(SongListUiState())
     val uiState: StateFlow<SongListUiState> = _uiState.asStateFlow()
 
-    init {
-        load()
-    }
+    private var loadJob: Job? = null
 
-    /** 곡 목록을 받는다. 받지 못하면 다시 시도를 보인다. */
-    fun load() {
-        _uiState.update { it.copy(loadFailed = false) }
-        viewModelScope.launch {
+    init { retry() }
+
+    fun retry() {
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch {
+            _uiState.update { it.copy(loadState = SongLoadState.Loading) }
             try {
                 val songs = songRepository.getSongs()
                 _uiState.update { it.receiveSongs(songs) }
-            } catch (e: SongsUnavailableException) {
-                _uiState.update { it.copy(loadFailed = true) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.update { it.copy(loadState = SongLoadState.Failed) }
             }
         }
     }

@@ -37,7 +37,7 @@ internal fun RecordsExpandedLayout(
     state: RecordListUiState,
     frame: HistoryFrame,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     onBack: () -> Unit,
     onOpenGrowth: () -> Unit,
     onToggle: (String) -> Unit,
@@ -57,9 +57,9 @@ internal fun RecordsExpandedLayout(
             val listWidth = (maxWidth * 0.36f).coerceIn(320.dp, 400.dp)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(Modifier.width(listWidth).fillMaxHeight()) {
-                    WeekCard(state, spacing, onOpenGrowth)
-                    if (state.groups.isEmpty()) {
-                        RecordsEmpty()
+                    if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
+                    if (!state.recordsAvailable || state.groups.isEmpty()) {
+                        RecordsEmpty(available = state.recordsAvailable)
                     } else {
                         RecordListToolbar(state.groups.size, state.sort, spacing, onSort)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {

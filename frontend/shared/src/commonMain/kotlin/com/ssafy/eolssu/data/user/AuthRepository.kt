@@ -11,9 +11,12 @@ interface AuthRepository {
     /** 서버 로그아웃을 요청하고 기기의 로그인 쿠키를 지운다. 화면이 바로 넘어가도 끝까지 하도록 기다리지 않는다. */
     fun logOut()
 
-    fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult
+    suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult
 
-    fun confirmCode(verificationId: String, code: String): ConfirmCodeResult
+    suspend fun confirmCode(verificationId: String, code: String): ConfirmCodeResult
+
+    suspend fun signUp(request: Registration): MemberResult = MemberResult.Unavailable
+    suspend fun resetPassword(token: String, password: String): MemberResult = MemberResult.Unavailable
 }
 
 /** 인증번호를 받는 목적(`purpose`). 계정 연결(`ACCOUNT_MERGE`)은 연결 화면이 인증번호를 쓰기로 정해지면 더한다. */
@@ -33,6 +36,8 @@ sealed interface LoginResult {
 }
 
 sealed interface SendCodeResult {
+    data object Unavailable : SendCodeResult
+    data class RateLimited(val resendAvailableAtMillis: Long?) : SendCodeResult
     /** 인증번호는 [expiresAtMillis]까지 유효하고, [resendAvailableAtMillis]부터 다시 받을 수 있다. */
     data class Sent(val verificationId: String, val expiresAtMillis: Long, val resendAvailableAtMillis: Long) : SendCodeResult
 
@@ -41,7 +46,8 @@ sealed interface SendCodeResult {
 }
 
 sealed interface ConfirmCodeResult {
-    data class Confirmed(val verificationToken: String) : ConfirmCodeResult
+    data object Unavailable : ConfirmCodeResult
+    data class Confirmed(val verificationToken: String, val email: String? = null) : ConfirmCodeResult
 
     /** 400 `VERIFICATION_CODE_MISMATCH`의 `remainingAttempts`. */
     data class Mismatch(val remainingAttempts: Int) : ConfirmCodeResult
@@ -76,7 +82,7 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
 
     override fun logOut() = Unit
 
-    override fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
+    override suspend fun sendCode(email: String, purpose: VerificationPurpose): SendCodeResult {
         if (purpose == VerificationPurpose.SignUp && email.trim().lowercase() in registeredEmails) return SendCodeResult.EmailAlreadyExists
         val sentAt = now()
         val id = "sample-${expiries.size + 1}"
@@ -84,7 +90,7 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
         return SendCodeResult.Sent(id, sentAt + VerificationCodeValidMillis, sentAt + VerificationResendMillis)
     }
 
-    override fun confirmCode(verificationId: String, code: String): ConfirmCodeResult {
+    override suspend fun confirmCode(verificationId: String, code: String): ConfirmCodeResult {
         val expiresAt = expiries[verificationId] ?: return ConfirmCodeResult.Expired
         return if (now() >= expiresAt) ConfirmCodeResult.Expired else ConfirmCodeResult.Confirmed("sample-token-$verificationId")
     }

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.network.NetworkResult
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendCatching
 import io.ktor.client.HttpClient
@@ -16,7 +17,7 @@ import kotlinx.serialization.Serializable
 /** 연습 세션 생성 결과. */
 sealed interface SessionStart {
     /** 세션이 생겼다(201). 같은 키로 다시 보내 이미 있던 세션을 받은 경우도 같다. [startedAtMillis]는 서버가 기록한 시작 시각이다. */
-    data class Created(val sessionId: String, val startedAtMillis: Long) : SessionStart
+    data class Created(val sessionId: String, val startedAtMillis: Long, val memberId: String) : SessionStart
 
     /** 응답을 받지 못했거나 503·500·401. 같은 키로 다시 만들 수 있다. */
     data object Unreachable : SessionStart
@@ -35,8 +36,9 @@ interface PracticeSessionRepository {
 }
 
 /** [PracticeSessionRepository]를 `POST /api/practice-sessions`로 보낸다. 구간·부모 세션 없이 곡 전체 연주만 만든다. */
-class HttpPracticeSessionRepository(private val client: HttpClient) : PracticeSessionRepository {
-    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String): SessionStart {
+class HttpPracticeSessionRepository(private val client: HttpClient, private val member: SignedInMember) : PracticeSessionRepository {
+    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String): SessionStart = member.whileSignedIn { memberId ->
+        if (memberId.isNullOrBlank()) return@whileSignedIn SessionStart.Unreachable
         val sent = client.sendCatching {
             post("/api/practice-sessions") {
                 header(IDEMPOTENCY_KEY, idempotencyKey)
@@ -44,10 +46,10 @@ class HttpPracticeSessionRepository(private val client: HttpClient) : PracticeSe
                 setBody(CreateRequest(songId, bpm))
             }
         }
-        val response = (sent as? NetworkResult.Received)?.response ?: return SessionStart.Unreachable
-        return when (response.status) {
+        val response = (sent as? NetworkResult.Received)?.response ?: return@whileSignedIn SessionStart.Unreachable
+        when (response.status) {
             HttpStatusCode.Created -> response.apiResponse<CreatedSession>()?.result
-                ?.let { SessionStart.Created(it.sessionId, Instant.parse(it.startedAt).toEpochMilliseconds()) }
+                ?.let { SessionStart.Created(it.sessionId, Instant.parse(it.startedAt).toEpochMilliseconds(), memberId) }
                 ?: SessionStart.Unreachable
             HttpStatusCode.BadRequest, HttpStatusCode.NotFound, HttpStatusCode.Conflict -> SessionStart.Rejected
             else -> SessionStart.Unreachable

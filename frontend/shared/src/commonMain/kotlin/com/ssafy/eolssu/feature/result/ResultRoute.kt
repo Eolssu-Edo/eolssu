@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.result
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -9,6 +10,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.record_save_failed
+import eolssu.shared.generated.resources.record_save_unavailable
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -32,6 +35,18 @@ fun ResultRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val saveErrorMessage = when (state.recordSaveError) {
+        RecordSaveError.Unavailable -> stringResource(Res.string.record_save_unavailable)
+        RecordSaveError.Failed -> stringResource(Res.string.record_save_failed)
+        null -> null
+    }
+    LaunchedEffect(state.recordSaveError) {
+        if (saveErrorMessage != null) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(saveErrorMessage)
+            viewModel.dismissRecordSaveError()
+        }
+    }
     val comingSoon = stringResource(Res.string.common_coming_soon)
     val showComingSoon: () -> Unit = {
         scope.launch {
@@ -65,6 +80,8 @@ fun ResultRoute(
             },
             onSelectFilter = viewModel::selectErrorFilter,
             onSelectCell = viewModel::selectCell,
+            onRetrySong = viewModel::retrySong,
+            onRetryResult = viewModel::retryResult,
         ),
     )
 }

@@ -1,0 +1,10 @@
+<!-- Decorative artwork derived from the Main board SVG. Not an instructional score. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="144dp" android:height="88dp" android:viewportWidth="144" android:viewportHeight="88">
+    <group android:rotation="-10" android:pivotX="60" android:pivotY="45"><path android:fillColor="#E9EDEB" android:pathData="M36,15 L85,15 Q89,15 89,19 L89,76 Q89,80 85,80 L36,80 Q32,80 32,76 L32,19 Q32,15 36,15Z" /></group>
+    <group android:rotation="8" android:pivotX="80" android:pivotY="45">
+        <path android:fillColor="#FFFFFF" android:strokeColor="#9EAAA4" android:strokeWidth="1" android:pathData="M61,6 L108,6 Q111,6 111,9 L111,73 Q111,76 108,76 L61,76 Q58,76 58,73 L58,9 Q58,6 61,6Z" />
+        <path android:strokeColor="#D5DDD8" android:strokeWidth="1" android:pathData="M75,15V65 M92,15V65 M65,31H104 M65,48H104" />
+    </group>
+    <path android:fillColor="#344B40" android:pathData="M127,65 A14,14 0,1 1,99,65 A14,14 0,1 1,127,65" />
+    <path android:fillColor="#FFFFFF" android:pathData="M110,59 L118,65 L110,71Z" />
+</vector>

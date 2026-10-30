@@ -5,8 +5,10 @@ import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.toSummary
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.createHttpClient
 import com.ssafy.eolssu.data.song.SampleSongs
@@ -28,10 +30,32 @@ import kotlin.test.assertTrue
 class ApiEvaluationRepositoryTest {
     private val paths = mutableListOf<String>()
 
+    @Test fun changedScoreVersionAndNewMemberCannotReuseOldResult() = runTest {
+        var version = 2
+        var allowed = true
+        val repo = repository {
+            if (!allowed) HttpStatusCode.NotFound to "{}"
+            else HttpStatusCode.OK to """{"isSuccess":true,"result":{"sessionId":"41","songId":"2","scoreVersion":$version,
+                "bpm":60,"startedAt":"2026-10-29T00:00:00Z","totalScore":80,"pitchScore":80,"timingScore":80,"durationScore":80,"notes":[]}}"""
+        }
+        assertNull(repo.result("41"))
+        version = 1
+        assertEquals(80, repo.result("41")?.total)
+        allowed = false
+        assertNull(repo.result("41"))
+        assertEquals(3, paths.size)
+    }
+
     /** 악보 시간축에 지속·쉼이 섞인 예시 곡을 서버 곡 ID "2"로 쓴다. */
-    private val song: Song = SampleSongs.first { s -> s.timeline.any { it.note !is ScoreNote.Pitch } }.copy(id = "2")
+    private val song: Song = SampleSongs.first { s -> s.timeline.any { it.note !is ScoreNote.Pitch } }.let { base ->
+        var noteIndex = 0
+        base.copy(id = "2", scoreVersion = 1, score = base.score.copy(events = base.timeline.map { event ->
+            if (event.note is ScoreNote.Pitch) event.copy(note = ScoreNote.SourcePitch("황", 0), noteIndex = noteIndex++)
+            else event
+        }))
+    }
     private val songs = object : SongRepository {
-        override suspend fun getSongs() = listOf(song)
+        override suspend fun getSongs() = listOf(song.toSummary())
 
         override suspend fun getSong(songId: String) = song.takeIf { it.id == songId }
     }
@@ -74,7 +98,7 @@ class ApiEvaluationRepositoryTest {
 
     @Test
     fun resultKeepsServerScoresAndPlacesWrongNotesOnScore() = runTest {
-        val pitches = song.timeline.filter { it.note is ScoreNote.Pitch }
+        val pitches = song.timeline.filter { it.noteIndex != null }
         val evaluation = """{"isSuccess":true,"code":200,"result":{"sessionId":"41","evaluationId":"7","songId":"2","scoreVersion":1,
             |"bpm":60,"bpmUnit":"DOTTED_QUARTER","startedAt":"2026-10-20T06:20:00Z","endedAt":"2026-10-20T06:21:00Z",
             |"evaluatedAt":"2026-10-20T06:21:05Z","totalScore":81,"pitchScore":90,"timingScore":70,"durationScore":77,
@@ -87,6 +111,7 @@ class ApiEvaluationRepositoryTest {
 
         assertEquals("/api/practice-sessions/41/evaluation", paths.single())
         assertEquals(81, result.total)
+        assertEquals(1, result.scoreVersion)
         assertEquals(
             listOf(
                 MetricScore(EvaluationMetric.Pitch, 90),
@@ -103,12 +128,13 @@ class ApiEvaluationRepositoryTest {
             listOf(
                 ScoreError(pitches[1].column, pitches[1].row, EvaluationMetric.Pitch),
                 ScoreError(pitches[2].column, pitches[2].row, EvaluationMetric.Rhythm),
+                ScoreError(pitches[3].column, pitches[3].row, ScoreErrorKind.Missed),
             ),
             result.errors,
         )
-        // 한 번 받은 결과는 다시 묻지 않는다.
+        // 매번 서버 소유권을 확인하므로 다른 회원의 캐시 결과를 돌려주지 않는다.
         repository.result("41")
-        assertEquals(1, paths.size)
+        assertEquals(2, paths.size)
     }
 
     @Test

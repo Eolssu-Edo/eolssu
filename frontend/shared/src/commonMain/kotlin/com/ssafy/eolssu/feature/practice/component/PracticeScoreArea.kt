@@ -16,7 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -24,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -34,6 +39,7 @@ import com.ssafy.eolssu.core.ui.score.ScoreHighlight
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.Res
@@ -73,15 +79,19 @@ fun PracticeScoreArea(
     }
     val tablet = style != PracticeScoreStyle.Phone
     val big = state.settings.bigScore
+    val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
+    val longestStrip = strips.maxOf { it.rows.count() }
+    val stripsPerColumn = strips.groupBy { it.column }.maxOf { it.value.size }
     BoxWithConstraints(modifier.fillMaxSize().padding(padding)) {
-        val bandColumns = if (style == PracticeScoreStyle.TabletPortrait) {
+        // 확대 글꼴에서는 고정 높이 두 단 대신 가로·세로 스크롤로 모든 정간을 열어 둔다.
+        val bandColumns = if (style == PracticeScoreStyle.TabletPortrait && LocalDensity.current.fontScale <= 1f) {
             twoBandColumnCount(
                 columnCount = song.score.columns.size,
-                stripsPerColumn = song.jangdan.strips.size,
-                longestStrip = song.jangdan.strips.max(),
+                stripsPerColumn = stripsPerColumn,
+                longestStrip = longestStrip,
                 availableWidth = maxWidth,
                 availableHeight = maxHeight,
-                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big, tablet = true),
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big, tablet = true, longestStrip = longestStrip),
                 minCellHeight = JeongganboMetrics.practiceMinCellHeight(big),
             )
         } else {
@@ -99,7 +109,7 @@ fun PracticeScoreArea(
             JeongganboView(
                 song = song,
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet),
+                metrics = JeongganboMetrics.practice(song.jangdan, maxHeight, big = big, tablet = tablet, longestStrip = longestStrip),
                 notation = notation,
                 scrollState = scrollState,
                 currentIndex = currentIndex,
@@ -112,7 +122,7 @@ fun PracticeScoreArea(
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
-            val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true)
+            val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip)
             val columnCount = song.score.columns.size
             val scrollState = rememberBandScroll(state, bandColumns, bandHeight, onUserScroll)
             Column(Modifier.fillMaxSize().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(BandGap)) {
@@ -173,14 +183,23 @@ private fun rememberBandScroll(state: PracticeUiState, bandColumns: Int, bandHei
         if (state.mode == PracticeMode.Countdown && !state.resume) scrollState.animateScrollTo(0)
     }
     val song = state.song
-    val currentBand = if (state.live && song != null) {
-        song.timeline.getOrNull(state.position.coerceAtMost(state.eventCount - 1))?.column?.div(bandColumns)
-    } else {
-        null
+    var currentBand by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(song, state.live, state.position, state.eventStartedAt, state.pausedFraction, bandColumns) {
+        if (!state.live || song == null) { currentBand = null; return@LaunchedEffect }
+        val index = state.position.coerceAtMost(state.eventCount - 1)
+        val started = state.eventStartedAt
+        fun updateBand() {
+            val fraction = if (started == null) state.pausedFraction else
+                (started.elapsedNow().inWholeMicroseconds / 1000.0 / state.eventDurationMs()).toFloat().coerceIn(0f, 1f)
+            currentBand = song.displayUnitAt(index, fraction)?.column?.div(bandColumns)
+        }
+        updateBand()
+        if (started != null) while (true) withFrameNanos { updateBand() }
     }
     LaunchedEffect(currentBand, state.follow, scrollState.viewportSize, bandHeight) {
-        if (!state.follow || currentBand == null || scrollState.viewportSize == 0) return@LaunchedEffect
-        val top = with(density) { ((bandHeight + BandGap) * currentBand).toPx() }
+        val band = currentBand
+        if (!state.follow || band == null || scrollState.viewportSize == 0) return@LaunchedEffect
+        val top = with(density) { ((bandHeight + BandGap) * band).toPx() }
         val height = with(density) { bandHeight.toPx() }
         val visible = top >= scrollState.value && top + height <= scrollState.value + scrollState.viewportSize
         if (!visible) scrollState.animateScrollTo(top.toInt().coerceIn(0, scrollState.maxValue))

@@ -32,22 +32,6 @@ fun YulGlyph(
     }
 }
 
-/** 정간 글자 하나(율명·지속·쉼). 율명은 [YulGlyph]로, 기호는 그대로 그린다. */
-@Composable
-fun ScoreNoteGlyph(
-    note: ScoreNote,
-    fontSize: TextUnit,
-    modifier: Modifier = Modifier,
-    color: Color = EolssuTheme.colors.text,
-    fontWeight: FontWeight = FontWeight.SemiBold,
-) {
-    if (note is ScoreNote.Pitch) {
-        YulGlyph(note.yul, fontSize, modifier, color, fontWeight)
-    } else {
-        Text(note.symbol, modifier, color = color, style = EolssuTheme.serif.yul.copy(fontSize = fontSize, lineHeight = fontSize, fontWeight = fontWeight))
-    }
-}
-
 /**
  * 변 + 율명을 나란히 그린다. 변 글자는 왼쪽에만 획이 있어 [overlap] 비율만큼 다음 글자를 당겨 붙인다.
  * 정간보 쉽게 읽기의 탁황(亻黃)·청황(氵黃)도 이 모양이고, 부수만 [radicalColor]로 칠한다.

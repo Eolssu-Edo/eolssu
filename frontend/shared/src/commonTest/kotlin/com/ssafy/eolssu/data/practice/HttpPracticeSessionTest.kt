@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
@@ -11,16 +13,21 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import io.ktor.utils.io.readRemaining
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import kotlinx.io.Buffer
 import kotlinx.io.readString
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** 연습 세션 생성(PRA-01)과 녹음 업로드(PRA-02)의 요청 형식과 응답별 처리. 서버는 MockEngine으로 대신한다. */
 class HttpPracticeSessionTest {
+    private val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
     private val requests = mutableListOf<HttpRequestData>()
     private val bodies = mutableListOf<String>()
 
@@ -52,9 +59,9 @@ class HttpPracticeSessionTest {
 
     @Test
     fun createSendsKeyAndBodyAndReadsServerStartTime() = runTest {
-        val start = HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }).create("2", 60, "take-1")
+        val start = HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }, member).create("2", 60, "take-1")
 
-        assertEquals(SessionStart.Created("41", 1_793_163_600_123), start)
+        assertEquals(SessionStart.Created("41", 1_793_163_600_123, "A"), start)
         val request = requests.single()
         assertEquals("/api/practice-sessions", request.url.encodedPath)
         assertEquals("take-1", request.headers["Idempotency-Key"])
@@ -63,7 +70,7 @@ class HttpPracticeSessionTest {
 
     @Test
     fun createSortsFailures() = runTest {
-        fun repo(status: HttpStatusCode?) = HttpPracticeSessionRepository(client { status?.let { it to "{}" } })
+        fun repo(status: HttpStatusCode?) = HttpPracticeSessionRepository(client { status?.let { it to "{}" } }, member)
         assertEquals(SessionStart.Rejected, repo(HttpStatusCode.NotFound).create("2", 60, "k"))
         assertEquals(SessionStart.Rejected, repo(HttpStatusCode.BadRequest).create("2", 60, "k"))
         assertEquals(SessionStart.Rejected, repo(HttpStatusCode.Conflict).create("2", 60, "k"))
@@ -71,6 +78,37 @@ class HttpPracticeSessionTest {
         assertEquals(SessionStart.Unreachable, repo(null).create("2", 60, "k"))
         // 201인데 본문을 읽지 못하면 같은 키로 다시 만들어 받는다.
         assertEquals(SessionStart.Unreachable, repo(HttpStatusCode.Created).create("2", 60, "k"))
+    }
+
+    @Test
+    fun createKeepsTheOwnerUntilItsResponseIsBoundToTheSession() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        val response = CompletableDeferred<Unit>()
+        val client = createHttpClient(MockEngine {
+            entered.complete(Unit)
+            response.await()
+            respond(created, HttpStatusCode.Created, headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        val creating = async { HttpPracticeSessionRepository(client, member).create("2", 60, "take-1") }
+        entered.await()
+        val changing = async { member.changing { member.set("B") } }
+        yield()
+        assertFalse(changing.isCompleted)
+        assertEquals("A", member.id)
+
+        response.complete(Unit)
+        assertEquals(SessionStart.Created("41", 1_793_163_600_123, "A"), creating.await())
+        changing.await()
+        assertEquals("B", member.id)
+        client.close()
+    }
+
+    @Test
+    fun createWithoutKnownMemberDoesNotCreateAnOwnerlessSession() = runTest {
+        member.changing { member.set(null) }
+        val repository = HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }, member)
+        assertEquals(SessionStart.Unreachable, repository.create("2", 60, "take-1"))
+        assertTrue(requests.isEmpty())
     }
 
     private fun uploader(status: HttpStatusCode?) = HttpRecordingUploader(
@@ -122,9 +160,11 @@ class HttpPracticeSessionTest {
             fileSize = { 3 },
             openFile = { Buffer().apply { write("abc".encodeToByteArray()) } },
         )
-        assertEquals(UploadOutcome.Uploaded, uploader.upload("41", "p"))
-        val uploads = bodies.filterIndexed { i, _ -> requests[i].url.encodedPath.endsWith("/recording") }
-        assertEquals(2, uploads.size)
-        uploads.forEach { assertContains(it, "abc") }
+        val files = FakeRecordingFiles("rec/practice-1.m4a")
+        val uploads = RecordingUploads(uploader, FakeKeyValueStore(), files, { 0L }, member)
+        assertEquals(SendResult.Sent, uploads.send(PendingRecording("41", "rec/practice-1.m4a", 0L, memberId = "A")))
+        val uploadBodies = bodies.filterIndexed { i, _ -> requests[i].url.encodedPath.endsWith("/recording") }
+        assertEquals(2, uploadBodies.size)
+        uploadBodies.forEach { assertContains(it, "abc") }
     }
 }

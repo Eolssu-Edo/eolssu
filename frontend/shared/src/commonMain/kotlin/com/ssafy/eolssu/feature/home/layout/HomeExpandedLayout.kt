@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.core.model.Instrument
@@ -31,12 +32,12 @@ import eolssu.shared.generated.resources.home_brand
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-Main-Land`). 왼쪽에 족자, 오른쪽에 카드 2×2를 둔다.
+ * 태블릿 가로·넓은 웹 창 배치(와이어프레임 `Tab-Main-Land`). 왼쪽에 대표 일러스트, 오른쪽에 카드 2×2를 둔다.
  * 내용은 최대 [WindowBreakpoints.ContentMaxWidth]로 가운데에 두고, 창이 낮으면 세로로 스크롤한다.
  */
 @Composable
 internal fun HomeExpandedLayout(
-    instrument: Instrument,
+    instrument: Instrument?,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -58,12 +59,12 @@ internal fun HomeExpandedLayout(
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Text(stringResource(Res.string.home_brand), style = EolssuTheme.serif.brand)
+                    EolssuLogo()
                     InstrumentLabel(instrument, Modifier.weight(1f))
                     MyPageButton(onOpenMyPage)
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                    // 와이어프레임은 1120dp 너비에서 카드 열 440dp. 좁은 가로 창에서는 족자가 너무 좁아지지 않게 줄인다.
+                    // 와이어프레임은 1120dp 너비에서 카드 열 440dp. 좁은 가로 창에서는 대표 일러스트가 너무 좁아지지 않게 줄인다.
                     val featureWidth = (maxWidth * 0.4f).coerceIn(320.dp, 440.dp)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(40.dp)) {
                         HomeHero(onStartEvaluation, Modifier.weight(1f), large = true)

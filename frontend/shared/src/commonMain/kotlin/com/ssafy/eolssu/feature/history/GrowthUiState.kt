@@ -137,7 +137,7 @@ data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
     val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
-    val completedSteps: Int = 0,
+    val completedSteps: Int? = null,
 ) {
     val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
 

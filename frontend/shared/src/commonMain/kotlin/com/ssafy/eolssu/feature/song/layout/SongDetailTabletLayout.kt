@@ -23,6 +23,7 @@ import com.ssafy.eolssu.feature.song.SongDetailUiState
 import com.ssafy.eolssu.feature.song.component.SongInfoGrid
 import com.ssafy.eolssu.feature.song.component.SongPreviewHeader
 import com.ssafy.eolssu.feature.song.component.SongTitleRow
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.song_detail_title
 import eolssu.shared.generated.resources.song_preview_hint
@@ -51,6 +52,7 @@ internal fun SongDetailTabletLayout(
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onStartPractice: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     SongTabletScaffold(
         expanded = false,
@@ -66,7 +68,11 @@ internal fun SongDetailTabletLayout(
             )
         },
     ) { gutter ->
-        val song = state.song ?: return@SongTabletScaffold
+        val song = state.song
+        if (song == null) {
+            SongLoadNotice(state.loadState, onRetry)
+            return@SongTabletScaffold
+        }
         Column(
             Modifier
                 .fillMaxSize()
@@ -76,7 +82,7 @@ internal fun SongDetailTabletLayout(
         ) {
             SongTitleRow(song, titleSize = 36.sp, large = true)
             SongInfoGrid(song, Modifier.padding(top = 20.dp), columns = 4, large = true)
-            SongPreviewHeader(Modifier.padding(top = 28.dp, bottom = 10.dp), large = true)
+            SongPreviewHeader(Modifier.padding(top = 28.dp, bottom = 10.dp), large = true, sample = song.score.source == null)
             JeongganboView(
                 song = song,
                 modifier = Modifier

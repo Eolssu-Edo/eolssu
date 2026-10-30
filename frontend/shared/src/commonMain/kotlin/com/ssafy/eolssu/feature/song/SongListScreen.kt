@@ -19,6 +19,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.component.SongCard
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLoadFailed
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
@@ -39,7 +40,8 @@ class SongListActions(
     val onResetFilters: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onStartPractice: () -> Unit,
-    val onRetryLoad: () -> Unit = {},
+    val onRetry: () -> Unit,
+    val onRetryDetail: () -> Unit,
 )
 
 /**
@@ -76,9 +78,9 @@ private fun SongListCompact(state: SongListUiState, actions: SongListActions) {
                     SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(top = 12.dp, bottom = 6.dp))
                 }
             }
-            if (state.loadFailed) {
-                item { SongLoadFailed(actions.onRetryLoad) }
-            } else if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                item { SongLoadNotice(state.loadState, actions.onRetry) }
+            } else if (songs.isEmpty()) {
                 item { SongEmptyResult(actions.onResetFilters) }
             } else if (songs.isNotEmpty()) {
                 item {
@@ -89,7 +91,7 @@ private fun SongListCompact(state: SongListUiState, actions: SongListActions) {
                     )
                 }
                 items(songs, key = { it.id }) { song ->
-                    SongCard(song, jangdanLabel(song.jangdan), onClick = { actions.onOpenSong(song.id) })
+                    SongCard(song, jangdanLabel(song.jangdanName), onClick = { actions.onOpenSong(song.id) })
                 }
             }
         }
