@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.common.security.ActiveMemberCheck
 import com.ssafy.eolssu.backend.common.security.ActiveMemberFilter
 import com.ssafy.eolssu.backend.common.security.StateChangingRequestFilter
 import com.ssafy.eolssu.backend.feature.auth.api.AuthCookies
+import com.ssafy.eolssu.backend.feature.term.api.LegalDocumentPageController
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
 import org.springframework.context.annotation.Bean
@@ -125,12 +126,14 @@ class SecurityConfig(
             "/api/auth/oauth/{provider}", "/api/auth/email-verifications", "/api/auth/email-verifications/{verificationId}/confirm",
         )
         val PUBLIC_GET = arrayOf(
+            "/api/recordings/read",
+            "/api/terms/documents/account-deletion",
             "/.well-known/assetlinks.json",
             // 문서 조회만 공개한다. 같은 matcher가 토큰 해석도 제외하므로 만료 쿠키로도 문서를 열 수 있다.
             "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols",
-        )
+        ) + LegalDocumentPageController.PUBLIC_PATHS
     }
 }

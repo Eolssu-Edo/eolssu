@@ -25,12 +25,14 @@ internal fun App(
     platformModule: Module,
     onNavHostReady: suspend (NavController) -> Unit = {},
     browserBackGuard: BrowserBackGuard? = null,
+    // TEMP S15P31E102-309: Android QA only; all other callers retain false.
+    qaSkipConsent: Boolean = false,
 ) {
     KoinApplication(configuration = koinConfiguration { modules(platformModule, appModule) }) {
         val practiceTimeQueue = koinInject<PracticeTimeQueue>()
         LifecycleEventEffect(Lifecycle.Event.ON_START) { practiceTimeQueue.onAppStart() }
         EolssuTheme {
-            EolssuNavHost(onNavHostReady = onNavHostReady, browserBackGuard = browserBackGuard)
+            EolssuNavHost(onNavHostReady = onNavHostReady, browserBackGuard = browserBackGuard, qaSkipConsent = qaSkipConsent)
         }
     }
 }
