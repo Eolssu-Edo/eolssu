@@ -66,6 +66,28 @@ class SignUpApiDatabaseTests {
     }
 
     @Test
+    fun `release consent requires collection but optional microphone notice may be declined`() {
+        jdbc.update("DELETE FROM terms WHERE id = 990215")
+        jdbc.update("UPDATE terms SET version = '2026-10-30' WHERE id IN (990211,990212)")
+        for ((id, code, required) in listOf(Triple(990213, "PRIVACY_COLLECTION", true), Triple(990214, "MICROPHONE_NOTICE", false))) {
+            jdbc.update(
+                "INSERT INTO terms (id,code,version,title,content_url,is_required,seq,effective_at) VALUES (?,?,'2026-10-30',?,'https://example.test/terms',?,?,'2026-10-01')",
+                id, code, if (required) "개인정보 수집·이용 동의" else "접근권한 안내", required, id - 990210,
+            )
+        }
+        val token = verify("release@auth207.test")
+        val incomplete = """[{"termId":"990211","version":"2026-10-30","agreed":true},{"termId":"990212","version":"2026-10-30","agreed":true}]"""
+        assertError(signUp("release@auth207.test", token, agreements = incomplete), 422, "TERMS_AGREEMENT_REQUIRED")
+        assertNull(jdbc.queryForObject("SELECT consumed_at FROM email_verifications WHERE email = 'release@auth207.test' AND token_hash IS NOT NULL", Any::class.java))
+        val complete = incomplete.dropLast(1) + """,{"termId":"990213","version":"2026-10-30","agreed":true},{"termId":"990214","version":"2026-10-30","agreed":false}]"""
+        val response = signUp("release@auth207.test", token, agreements = complete)
+        assertEquals(201, response.statusCode(), response.body())
+        val userId = tree(response).path("result").path("userId").asString().toLong()
+        assertEquals(4, jdbc.queryForObject("SELECT COUNT(*) FROM user_term_agreements WHERE user_id = ?", Int::class.java, userId))
+        assertEquals(false, jdbc.queryForObject("SELECT agreed FROM user_term_agreements WHERE user_id = ? AND term_id = 990214", Boolean::class.java, userId))
+    }
+
+    @Test
     fun `verified sign up creates the member logs in with cookies and consumes the token once`() {
         val token = verify("New@auth207.test")
         val response = signUp("New@auth207.test", token)

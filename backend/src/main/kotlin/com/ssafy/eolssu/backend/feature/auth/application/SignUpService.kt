@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.auth.application
 
 import com.ssafy.eolssu.backend.feature.auth.domain.*
 import com.ssafy.eolssu.backend.feature.term.domain.TermRepository
+import com.ssafy.eolssu.backend.feature.term.domain.Term
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -37,7 +38,10 @@ class SignUpService(
         val verification = repository.findVerificationForUpdate(secrets.hashToken(command.verificationToken))
         if (verification == null || !verification.usableFor(email, now)) return SignUpResult.EmailNotVerified
         if (repository.memberExists(email)) return SignUpResult.EmailAlreadyExists
-        if (!agreesToCurrentTerms(command.agreements, now)) return SignUpResult.TermsAgreementRequired
+        val currentTerms = terms.findCurrent(now)
+        // An empty/misconfigured catalog must never turn missing consent into successful signup.
+        if (currentTerms.none { it.required }) return SignUpResult.Unavailable
+        if (!agreesToCurrentTerms(command.agreements, currentTerms)) return SignUpResult.TermsAgreementRequired
         val instrumentId = when (val requested = command.instrumentId) {
             null -> repository.activeInstrumentIdByCode(DEFAULT_INSTRUMENT) ?: return SignUpResult.Unavailable
             else -> requested.takeIf { repository.activeInstrumentExists(it) } ?: return SignUpResult.InvalidRequest
@@ -56,8 +60,8 @@ class SignUpService(
             tokenExpiresAt?.isAfter(now) == true
 
     /** 동의 목록은 모두 시행 중인 약관의 현재 버전이어야 하고, 필수 약관은 모두 동의해야 한다. */
-    private fun agreesToCurrentTerms(agreements: List<TermAgreement>, now: Instant): Boolean {
-        val current = terms.findCurrent(now).associateBy { it.id }
+    private fun agreesToCurrentTerms(agreements: List<TermAgreement>, currentTerms: List<Term>): Boolean {
+        val current = currentTerms.associateBy { it.id }
         if (agreements.any { current[it.termId]?.version != it.version }) return false
         val agreed = agreements.filter { it.agreed }.map { it.termId }.toSet()
         return current.values.filter { it.required }.all { it.id in agreed }

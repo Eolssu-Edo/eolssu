@@ -12,6 +12,50 @@ import kotlin.test.*
 
 class ConsentViewModelTest {
     @Test
+    fun optionalOnlyCatalogCannotPermitSignup() = runTest {
+        val client = createHttpClient(MockEngine {
+            respond("""{"isSuccess":true,"result":{"items":[
+                {"termId":"19","code":"MICROPHONE_NOTICE","title":"접근권한 안내","required":false,"version":"v1","contentUrl":"https://example.test/permissions"}]}}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        val draft = AccountDraft()
+        val vm = ConsentViewModel(TermsRepository(client), draft)
+        vm.load()
+        vm.toggleAll()
+        assertFalse(vm.accept())
+        assertTrue(vm.uiState.value.failed)
+        assertTrue(draft.agreements.isEmpty())
+        client.close()
+    }
+
+    @Test
+    fun retryAfterCatalogRecoveryRequiresFreshConsentAndUsesNewVersion() = runTest {
+        var attempt = 0
+        val client = createHttpClient(MockEngine {
+            val items = if (attempt++ == 0) "[]" else """[{"termId":"17","code":"SERVICE_TERMS","title":"약관","required":true,"version":"v$attempt","contentUrl":"https://example.test/terms"}]"""
+            respond("""{"isSuccess":true,"result":{"items":$items}}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        val draft = AccountDraft()
+        val vm = ConsentViewModel(TermsRepository(client), draft)
+        vm.load()
+        assertTrue(vm.uiState.value.failed)
+        vm.load(force = true)
+        assertFalse(vm.uiState.value.failed)
+        assertFalse(vm.accept())
+        vm.toggle("17")
+        assertTrue(vm.accept())
+        assertEquals("v2", draft.agreements.single().version)
+        vm.load(force = true)
+        assertTrue(draft.agreements.isEmpty())
+        assertTrue(vm.uiState.value.checked.isEmpty())
+        assertFalse(vm.accept())
+        vm.toggle("17")
+        assertTrue(vm.accept())
+        assertEquals("v3", draft.agreements.single().version)
+        client.close()
+    }
+
+    @Test
     fun consentStartsUncheckedAndKeepsSelectedServerVersions() = runTest {
         val client = createHttpClient(MockEngine {
             respond("""{"isSuccess":true,"result":{"items":[

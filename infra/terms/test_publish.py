@@ -4,6 +4,7 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
 import json
+import copy
 
 spec = importlib.util.spec_from_file_location('publish', Path(__file__).with_name('publish.py'))
 publish = importlib.util.module_from_spec(spec)
@@ -11,6 +12,24 @@ spec.loader.exec_module(publish)
 
 
 class PublishTests(unittest.TestCase):
+    def test_live_catalog_rejects_missing_required_wrong_versions_and_corrupted_titles(self):
+        items = [dict(termId=str(index), code=code, title=title, required=required,
+                      version=publish.VERSION, contentUrl=publish.BASE + '/api/terms/documents/' + publish.VERSION + '/' + document)
+                 for index, (code, title, document, required, _) in enumerate(publish.ROWS, 1)]
+        publish.verify_catalog(items)
+        for broken in ([], items[:-1]):
+            with self.assertRaises(ValueError):
+                publish.verify_catalog(broken)
+        for field, value in [('title', 'corrupted-title'), ('required', False), ('version', 'old'), ('contentUrl', 'https://example.test/other')]:
+            broken = copy.deepcopy(items)
+            broken[0][field] = value
+            with self.assertRaises(ValueError):
+                publish.verify_catalog(broken)
+        broken = copy.deepcopy(items)
+        broken[1]['termId'] = broken[0]['termId']
+        with self.assertRaises(ValueError):
+            publish.verify_catalog(broken)
+
     def test_registration_targets_active_backend_database_after_database_rename(self):
         inspected = [{'Config': {'Env': ['DB_URL=jdbc:mysql://mysql:3306/eolssu?connectTimeout=2000']}}]
         with patch.object(publish.subprocess, 'run', side_effect=[

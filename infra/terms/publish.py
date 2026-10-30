@@ -45,6 +45,33 @@ def build_insert(effective):
     return 'INSERT INTO terms (code,version,title,content_url,is_required,seq,effective_at) VALUES\n' + ',\n'.join(values) + ';'
 
 
+def verify_catalog(items):
+    if not isinstance(items, list) or len(items) != len(ROWS):
+        raise ValueError('published terms catalog is incomplete')
+    ids = set()
+    for item, (code, title, document, required, _) in zip(items, ROWS):
+        if (item.get('code') != code or item.get('title') != title or
+                item.get('version') != VERSION or item.get('required') is not required or
+                item.get('contentUrl') != BASE + '/api/terms/documents/' + VERSION + '/' + document or
+                not re.fullmatch(r'[1-9][0-9]*', str(item.get('termId', '')))):
+            raise ValueError('published terms metadata differs from reviewed source')
+        ids.add(item['termId'])
+    if len(ids) != len(ROWS):
+        raise ValueError('published term IDs are duplicated')
+
+
+def verify_live_catalog():
+    url = BASE + '/api/terms'
+    with urllib.request.urlopen(url, timeout=15) as response:
+        if response.url != url or response.headers.get_content_type() != 'application/json':
+            raise ValueError('terms API redirected or returned a non-JSON response')
+        body = json.load(response)
+    if body.get('isSuccess') is not True:
+        raise ValueError('terms API did not succeed')
+    verify_catalog(body.get('result', {}).get('items'))
+    print('live_terms_metadata_verified=True')
+
+
 def mysql(sql):
     # The MySQL container can retain its bootstrap database name after a rename.
     inspected = subprocess.run(['docker', 'inspect', 'eolssu-runtime-backend-1'], capture_output=True, timeout=15, check=True)
@@ -65,6 +92,7 @@ def mysql(sql):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--verify-live', action='store_true', help='read-only check of registered API metadata, including Korean titles')
     parser.add_argument('--effective-at', help='required UTC ISO time, e.g. YYYY-MM-DDTHH:MM:SSZ')
     args = parser.parse_args()
     if args.apply and not args.effective_at:
@@ -79,6 +107,8 @@ def main():
         verify_document((RESOURCE.parent / 'account-deletion.html').read_bytes(), response.read(), response.headers.get('Content-Type', ''), response.url, url)
     print('published_html_verified=True')
     if not args.apply:
+        if args.verify_live:
+            verify_live_catalog()
         return
     effective = datetime.strptime(args.effective_at, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
     if (effective + timedelta(hours=9)).date().isoformat() != VERSION:
@@ -95,6 +125,7 @@ def main():
     if len(rows.splitlines()) != len(ROWS):
         raise RuntimeError('terms read-back incomplete; preserve inserted rows and inspect')
     print('terms_registered_and_read_back=True')
+    verify_live_catalog()
 
 
 if __name__ == '__main__':
