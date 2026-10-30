@@ -27,6 +27,13 @@ def blocks_later_inputs(status):
     return status in ('ERROR', 'TIMEOUT', 'FAILED', 'PREPARE_ERROR')
 
 
+def timed_process(args, timeout):
+    """부모가 측정한 자식 생성부터 종료까지의 벽시계 시간."""
+    started = time.perf_counter()
+    process = run_process(args, timeout)
+    return process, time.perf_counter() - started
+
+
 def candidate_estimate(method, n, m):
     """정렬의 보수적 사전 추정. 모듈 준비·음높이 추정 메모리는 포함하지 않는다."""
     if method == 'reference':
@@ -207,37 +214,59 @@ def main():
                 'codeHash': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'lockHash': hashlib.sha256((ROOT / 'ai/uv.lock').read_bytes()).hexdigest()},
               'commitLimitBytes': LIMIT, 'rssLimitBytes': RSS_LIMIT, 'rssCheck': json.loads(rss_check.stdout),
-              'budgetBytes': BUDGET, 'timeoutIncludesWarmupSeconds': 60, 'runs': []}
+              'budgetBytes': BUDGET, 'timeoutIncludesWarmupSeconds': 60,
+              'orchestratorMemoryLimited': False, 'combinedPeakMemoryMeasured': False,
+              'preparations': [], 'runs': []}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     blocked = {}
+    preparation_blocked = None
     for recorded_frames, frames, page, bpm in sorted(cases):
         audio = output_dir / f'p{page}-{bpm}.m4a'
-        prepared = run_process([sys.executable, '-m', 'evaluation.dtw_full_performance', '--prepare', str(page), str(bpm), str(audio)], 60)
-        audio_hash = None if prepared is None or prepared.returncode else json.loads(prepared.stdout)['audioHash']
+        prior_prepare_failure = preparation_blocked
+        if preparation_blocked is None:
+            prepared, preparation_seconds = timed_process(
+                [sys.executable, '-m', 'evaluation.dtw_full_performance', '--prepare', str(page), str(bpm), str(audio)], 60)
+            if prepared is None or prepared.returncode:
+                reason = 'TIMEOUT' if prepared is None else f'EXIT_{prepared.returncode}: {prepared.stderr[-500:]}'
+                preparation_blocked = f'p{page} BPM {bpm}: {reason}'
+                preparation_status, audio_hash = 'PREPARE_ERROR', None
+            else:
+                preparation_status = 'DONE'
+                audio_hash = json.loads(prepared.stdout)['audioHash']
+                reason = None
+        else:
+            preparation_status, audio_hash, preparation_seconds = 'SKIPPED_PRIOR_FAILURE', None, None
+            reason = preparation_blocked
+        report['preparations'].append({'page': page, 'bpm': bpm, 'status': preparation_status,
+                                       'processWallSeconds': preparation_seconds, 'reason': reason, 'audioHash': audio_hash})
         for mode in ('dtw', 'm4a'):
             for method in METHODS:
                 for repeat in range(args.repeat):
                     estimate = candidate_estimate(method, frames, recorded_frames + (20 if mode == 'm4a' else 0))
                     key = (mode, method)
-                    if key in blocked:
+                    if prior_prepare_failure is not None:
+                        row = {'status': 'SKIPPED_PRIOR_FAILURE', 'seconds': None, 'peakRssBytes': None,
+                               'reason': prior_prepare_failure}
+                    elif key in blocked:
                         row = {'status': 'SKIPPED_PRIOR_FAILURE', 'seconds': None, 'peakRssBytes': None,
                                'reason': blocked[key]}
                     elif mode == 'm4a' and audio_hash is None:
-                        reason = 'TIMEOUT' if prepared is None else f'EXIT_{prepared.returncode}: {prepared.stderr[-500:]}'
                         row = {'status': 'PREPARE_ERROR', 'seconds': None, 'peakRssBytes': None, 'reason': reason}
                     elif estimate > BUDGET:
                         row = {'status': 'SKIPPED_BUDGET', 'seconds': None, 'peakRssBytes': None,
                                'estimatedBytes': estimate, 'expectedFrames': frames,
                                'detectedFramesEstimate': recorded_frames + (20 if mode == 'm4a' else 0)}
                     else:
-                        process = run_process([sys.executable, '-m', 'evaluation.dtw_full_performance', '--child',
-                                               str(page), str(bpm), method, mode, str(audio)], 60)
+                        process, process_seconds = timed_process(
+                            [sys.executable, '-m', 'evaluation.dtw_full_performance', '--child',
+                             str(page), str(bpm), method, mode, str(audio)], 60)
                         if process is None:
                             row = {'status': 'TIMEOUT', 'seconds': None, 'peakRssBytes': None}
                         elif process.returncode:
                             row = {'status': 'ERROR', 'seconds': None, 'peakRssBytes': None, 'error': process.stderr[-1000:]}
                         else:
                             row = json.loads(process.stdout)
+                        row['processWallSeconds'] = process_seconds
                     if blocks_later_inputs(row['status']):
                         blocked[key] = f"p{page} BPM {bpm}: {row['status']}"
                     row.update({'page': page, 'bpm': bpm, 'method': method, 'mode': mode,

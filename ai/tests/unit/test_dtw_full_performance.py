@@ -57,8 +57,72 @@ def test_runner_stops_failed_candidate_without_stopping_others(tmp_path, monkeyp
     out = tmp_path / 'result.json'
     monkeypatch.setattr(sys, 'argv', ['benchmark', '--pages', '171', '--bpm', '96', '--repeat', '2', '--out', str(out)])
     benchmark.main()
-    rows = json.loads(out.read_text(encoding='utf-8'))['runs']
+    report = json.loads(out.read_text(encoding='utf-8'))
+    rows = report['runs']
     a = [r['status'] for r in rows if r['method'] == 'A' and r['mode'] == 'dtw']
     ref = [r['status'] for r in rows if r['method'] == 'reference' and r['mode'] == 'dtw']
     assert a == ['ERROR', 'SKIPPED_PRIOR_FAILURE']
     assert ref == ['DONE', 'DONE']
+    assert all(r['processWallSeconds'] >= 0 for r in rows if r['status'] in ('DONE', 'ERROR'))
+    assert report['orchestratorMemoryLimited'] is False
+    assert report['combinedPeakMemoryMeasured'] is False
+
+
+def test_prepare_failure_prevents_larger_audio_generation(tmp_path, monkeypatch):
+    import json
+    import sys
+    from types import SimpleNamespace
+    import evaluation.dtw_full_performance as benchmark
+
+    (tmp_path / 'ai').mkdir()
+    (tmp_path / 'ai/uv.lock').write_text('lock', encoding='utf-8')
+    monkeypatch.setattr(benchmark, 'ROOT', tmp_path)
+    def load(page):
+        beats = 1 if page == 171 else 2
+        return {'music': {'ticksPerBeat': 1}, 'events': [{'startTick': 0, 'durationTick': beats}]}, [SimpleNamespace(start_beat=0, beats=beats)]
+    monkeypatch.setattr(benchmark, 'load_notes', load)
+    preparations = []
+    def fake_run(command, timeout):
+        if '--guard-check' in command:
+            return SimpleNamespace(returncode=0, stdout='LIMIT_OK', stderr='')
+        if '--check-rss' in command:
+            return SimpleNamespace(returncode=0, stdout='{"rssLimit": 1, "peakRss": 1}', stderr='')
+        if '-c' in command:
+            return None
+        if '--prepare' in command:
+            preparations.append(command[-3])
+            return SimpleNamespace(returncode=1, stdout='', stderr='simulated preparation failure')
+        return SimpleNamespace(returncode=0, stderr='', stdout=json.dumps(
+            {'status': 'DONE', 'seconds': 0.1, 'peakRssBytes': 100}))
+    monkeypatch.setattr(benchmark, 'run_process', fake_run)
+    out = tmp_path / 'result.json'
+    monkeypatch.setattr(sys, 'argv', ['benchmark', '--pages', '171', '172', '--bpm', '96', '--repeat', '1', '--out', str(out)])
+    benchmark.main()
+    report = json.loads(out.read_text(encoding='utf-8'))
+    rows = report['runs']
+    assert preparations == ['171']
+    assert all(r['status'] == 'SKIPPED_PRIOR_FAILURE' for r in rows if r['page'] == 172 and r['mode'] == 'm4a')
+    assert all(r['status'] == 'SKIPPED_PRIOR_FAILURE' for r in rows if r['page'] == 172 and r['mode'] == 'dtw')
+    assert [p['status'] for p in report['preparations']] == ['PREPARE_ERROR', 'SKIPPED_PRIOR_FAILURE']
+    assert report['preparations'][0]['processWallSeconds'] is not None
+    assert report['preparations'][1]['processWallSeconds'] is None
+
+
+def test_process_walltime_includes_process_startup(monkeypatch):
+    import evaluation.dtw_full_performance as benchmark
+    times = iter((10.0, 15.5))
+    monkeypatch.setattr(benchmark.time, 'perf_counter', lambda: next(times))
+    monkeypatch.setattr(benchmark, 'run_process', lambda command, timeout: 'completed')
+    result, seconds = benchmark.timed_process(['child'], 60)
+    assert result == 'completed'
+    assert seconds == 5.5
+
+
+def test_process_walltime_is_saved_when_child_times_out(monkeypatch):
+    import evaluation.dtw_full_performance as benchmark
+    times = iter((20.0, 80.5))
+    monkeypatch.setattr(benchmark.time, 'perf_counter', lambda: next(times))
+    monkeypatch.setattr(benchmark, 'run_process', lambda command, timeout: None)
+    result, seconds = benchmark.timed_process(['child'], 60)
+    assert result is None
+    assert seconds == 60.5
