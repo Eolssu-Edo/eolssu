@@ -20,12 +20,16 @@ import java.time.Instant
 import com.ssafy.eolssu.backend.feature.auth.domain.VerificationSecrets
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.*
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.*
 import org.springframework.test.context.*
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.json.JsonMapper
 
 @Tag("database")
@@ -39,8 +43,11 @@ class SocialAuthApiDatabaseTests {
     @Autowired private lateinit var passwords:PasswordEncoder
     @Autowired private lateinit var signer:AccessTokenSigner
     @Autowired private lateinit var secrets:VerificationSecrets
+    @Autowired private lateinit var clock:VerificationTestClock
+    @Autowired private lateinit var transactionManager:PlatformTransactionManager
     @BeforeEach fun seed() {
         cleanup()
+        clock.set(Instant.now().truncatedTo(ChronoUnit.MICROS))
         jdbc.update("INSERT INTO users(id,email,password_hash,nickname,instrument_id,status) VALUES (990211,'social211@example.test',?,'소셜',1,'ACTIVE')",passwords.encode("ExamplePassword!234"))
         jdbc.update("INSERT INTO users(id,email,password_hash,nickname,instrument_id,status) VALUES (990212,'other211@example.test',?,'다른회원',1,'ACTIVE')",passwords.encode("OtherPassword!234"))
     }
@@ -91,6 +98,81 @@ class SocialAuthApiDatabaseTests {
         assertTrue(member.path("withdrawalCancelled").asBoolean())
         assertEquals(2,result.headers().allValues("Set-Cookie").size)
         assertEquals("ACTIVE",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+    }
+
+    @Test fun `linked social login only restores withdrawal before thirty days`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val expiry=clock.instant()
+        for(offsetMicros in listOf(-1L,0L,1L)) {
+            pendingSince(expiry.minus(Duration.ofDays(30)),expiry.plusSeconds(3600))
+            jdbc.update("DELETE FROM refresh_tokens WHERE user_id=990211")
+            clock.set(expiry.plusNanos(offsetMicros*1000))
+            val result=complete("linked")
+            if(offsetMicros<0) {
+                assertEquals(200,result.statusCode(),result.body())
+                assertEquals("ACTIVE",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+            } else {
+                assertEquals(401,result.statusCode(),result.body())
+                assertEquals("INVALID_CREDENTIALS",error(result))
+                assertTrue(result.headers().allValues("Set-Cookie").isEmpty())
+                assertPendingWithoutLogin()
+            }
+        }
+    }
+
+    @Test fun `expired withdrawal cannot be restored by social merge and ticket and links stay unchanged`() {
+        val flow=started()
+        val mergeTicket=ticket(complete("verified",flow))
+        val expiry=clock.instant()
+        pendingSince(expiry.minus(Duration.ofDays(30)),expiry.plusSeconds(3600))
+        val result=send("/api/auth/oauth/merge","""{"mergeTicket":"$mergeTicket"}""",flow.second)
+        assertEquals(401,result.statusCode(),result.body())
+        assertEquals("INVALID_CREDENTIALS",error(result))
+        assertPendingWithoutLogin()
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM user_social_accounts WHERE user_id=990211",Int::class.java))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE token_hash=? AND consumed_at IS NOT NULL",Int::class.java,secrets.hashToken(mergeTicket)))
+    }
+
+    @Test fun `linked social login waiting for the member lock cannot cancel at expiry`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val expiry=clock.instant()
+        pendingSince(expiry.minus(Duration.ofDays(30)),expiry.plusSeconds(3600))
+        clock.set(expiry.minusNanos(1000))
+        val flow=started()
+        lateinit var signingIn:CompletableFuture<HttpResponse<String>>
+        TransactionTemplate(transactionManager).executeWithoutResult {
+            jdbc.queryForObject("SELECT id FROM users WHERE id=990211 FOR UPDATE",Long::class.java)
+            signingIn=CompletableFuture.supplyAsync{complete("linked",flow)}
+            val deadline=System.nanoTime()+Duration.ofSeconds(10).toNanos()
+            var waiting=false
+            while(System.nanoTime()<deadline) {
+                waiting=jdbc.queryForObject(
+                    """SELECT COUNT(*) FROM performance_schema.data_lock_waits w
+                       JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+                       WHERE l.OBJECT_NAME='users' AND l.INDEX_NAME='PRIMARY' AND l.LOCK_DATA='990211'""",Int::class.java)!!>0
+                if(waiting) break
+                if(signingIn.isDone) fail("social login finished before reaching the held member lock")
+            }
+            assertTrue(waiting,"social login must wait on the member row")
+            clock.set(expiry)
+        }
+        val result=signingIn.get(15,TimeUnit.SECONDS)
+        assertEquals(401,result.statusCode(),result.body())
+        assertEquals("INVALID_CREDENTIALS",error(result))
+        assertPendingWithoutLogin()
+    }
+
+    private fun pendingSince(requestedAt:Instant,purgeAt:Instant) {
+        jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at=?,purge_scheduled_at=?,last_login_at=NULL WHERE id=990211",
+            LocalDateTime.ofInstant(requestedAt,ZoneOffset.UTC),LocalDateTime.ofInstant(purgeAt,ZoneOffset.UTC))
+    }
+    private fun assertPendingWithoutLogin() {
+        val row=jdbc.queryForMap("SELECT status,last_login_at,withdrawal_requested_at,purge_scheduled_at FROM users WHERE id=990211")
+        assertEquals("WITHDRAWAL_PENDING",row["status"])
+        assertNull(row["last_login_at"])
+        assertNotNull(row["withdrawal_requested_at"])
+        assertNotNull(row["purge_scheduled_at"])
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM refresh_tokens WHERE user_id=990211",Int::class.java))
     }
 
     @Test fun `verified merge requires consent consumes ticket once and unlink cannot revive ticket`() {
@@ -170,7 +252,7 @@ class SocialAuthApiDatabaseTests {
     @Test fun `expired ticket and other browser cannot merge and protected start requires login`() {
         val flow=started(); val ticket=ticket(complete("verified",flow))
         assertEquals(410,send("/api/auth/oauth/merge","""{"mergeTicket":"$ticket"}""").statusCode())
-        jdbc.update("UPDATE oauth_proofs SET expires_at=UTC_TIMESTAMP(6) WHERE token_hash=?",secrets.hashToken(ticket))
+        jdbc.update("UPDATE oauth_proofs SET expires_at=? WHERE token_hash=?",LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC),secrets.hashToken(ticket))
         assertEquals(410,send("/api/auth/oauth/merge","""{"mergeTicket":"$ticket"}""",flow.second).statusCode())
         assertEquals(401,send("/api/users/me/social-accounts/google/start","""{"redirectUri":"https://example.test/callback"}""").statusCode())
         assertEquals(401,send("/api/auth/oauth/google/start","""{"redirectUri":"https://evil.test/callback"}""").statusCode())
@@ -201,6 +283,7 @@ class SocialAuthApiDatabaseTests {
 
     @TestConfiguration(proxyBeanMethods=false)
     class Fixtures {
+        @Bean @Primary fun socialTestClock()=VerificationTestClock()
         @Bean @Primary fun fakeOAuthGateway()=object:OAuthGateway {
             override fun ready(provider:SocialProvider)=true
             override fun allows(provider:SocialProvider,redirectUri:String)=redirectUri=="https://example.test/callback"

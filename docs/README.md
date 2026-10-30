@@ -32,6 +32,8 @@
 
 ## 기능 스펙
 
+- [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
+
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 
@@ -119,6 +121,8 @@
 - [단소 단음 녹음의 조율 흔들림: 김 세기·취법별 보정량](knowledge/ai/danso-tuning-variation.md)
 
 ## COCO 산출물
+
+- [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
 
 - [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](plans/S15P31E102-261.md) (직접 구현 작업)
 - [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)

@@ -32,8 +32,12 @@ interface WithdrawalRepository {
 interface WithdrawalPurgeRepository {
     /** 삭제 예정 시각이 지난 탈퇴 대기 회원 ID를 afterUserId 다음부터 오름차순으로 limit개. */
     fun dueMembers(now: Instant, afterUserId: Long, limit: Int): List<Long>
-    /** 이 회원 연습 세션의 녹음 원본 키. */
-    fun recordingKeys(userId: Long): List<String>
-    /** 한 트랜잭션으로 회원 데이터를 지우고 개인정보를 비운다. 그 사이 탈퇴를 취소했거나 이미 지웠으면 false. */
+    /**
+     * 회원 행을 잠가 진행 중인 취소가 끝나기를 기다리고 삭제 대상을 재확인한다.
+     * 대상이면 녹음 원본 키(없으면 빈 목록), 취소·삭제됐거나 예정 전이면 null.
+     * 대상의 취소 기한은 이미 지났으므로 이후 로그인도 취소할 수 없다. 반환 전에 잠금을 해제한다.
+     */
+    fun preparePurge(userId: Long, now: Instant): List<String>?
+    /** 한 트랜잭션으로 회원 데이터를 지우고 개인정보를 비운다. 재확인 시 삭제 대상이 아니면 false. */
     fun purge(userId: Long, now: Instant): Boolean
 }

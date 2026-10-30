@@ -12,7 +12,15 @@ class SignInMember(
     val instrumentId: Long,
     val notationMode: String,
     val status: MemberStatus,
-)
+    val withdrawalRequestedAt: Instant? = null,
+) {
+    /** 탈퇴 요청 후 30일 정각부터는 배치 실행 여부와 관계없이 복구할 수 없다. */
+    fun canSignInAt(now: Instant): Boolean = when (status) {
+        MemberStatus.ACTIVE -> true
+        MemberStatus.WITHDRAWAL_PENDING -> withdrawalRequestedAt?.let { now.isBefore(it.plus(WithdrawalPolicy.RETENTION)) } == true
+        MemberStatus.DELETED -> false
+    }
+}
 
 interface SignInRepository {
     fun <T : Any> inTransaction(action: () -> T): T
