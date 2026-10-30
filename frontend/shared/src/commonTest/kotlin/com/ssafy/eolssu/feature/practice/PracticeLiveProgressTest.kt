@@ -111,7 +111,7 @@ class PracticeLiveProgressTest {
     }
 
     @Test fun recordingAbortAndResumeCountdownDoNotAdvanceTheScoreClock() = progressTest { vm, _ ->
-        // 마이크 입력 검사가 아닌 녹음 화면의 시계/상태 검사다. 이 테스트에는 AudioRecorder가 없다.
+        // 실제 마이크 대신 녹음 대역을 사용해 녹음 화면의 시계/상태를 검사한다.
         vm.grantMicAndStart()
         runCurrent()
         advanceTimeBy(3000)
@@ -155,7 +155,7 @@ class PracticeLiveProgressTest {
             }
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel(song.id, false, repository, PracticeSettingsStore(settings),
-                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), playbackTimeSource = testScheduler.timeSource,
+                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), recorder = FakePracticeRecorder(), playbackTimeSource = testScheduler.timeSource,
                 modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player)
             store.put("practice", vm)
             runCurrent()
