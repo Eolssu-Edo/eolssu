@@ -225,3 +225,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
 - [약관 본문 공개와 버전 등록](../infra/terms/README.md)
 - [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
+
+- [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)
