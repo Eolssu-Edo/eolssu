@@ -31,7 +31,7 @@ class SectionComparisonController(private val getComparison: GetSectionCompariso
                     startNoteIdx, endNoteIdx, outcome.startColumn, outcome.endColumn,
                     before.toBefore(), AfterScores(
                         requireNotNull(after.totalScore), requireNotNull(after.pitchScore), requireNotNull(after.timingScore),
-                        requireNotNull(after.durationScore), after.errorCount, outcome.bpm, outcome.bpmUnit,
+                        requireNotNull(after.durationScore), requireNotNull(after.errorCount), outcome.bpm, outcome.bpmUnit,
                     ),
                     delta?.let { ScoreDelta(it.totalScore, it.errorCount) }, correctedNoteIndices,
                     remainingErrors.map { RemainingError(it.noteIdx, it.verdict) },
@@ -56,7 +56,7 @@ data class SectionComparisonApiResult(
     val startColumnIdx: Int, val endColumnIdx: Int, val before: BeforeScores, val after: AfterScores, val delta: ScoreDelta?,
     val correctedNoteIndices: List<Int>, val remainingErrors: List<RemainingError>,
 )
-data class BeforeScores(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?, val errorCount: Int)
+data class BeforeScores(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?, val errorCount: Int?)
 data class AfterScores(val totalScore: Int, val pitchScore: Int, val timingScore: Int, val durationScore: Int, val errorCount: Int,
     val bpm: Int, val bpmUnit: String)
 data class ScoreDelta(val totalScore: Int, val errorCount: Int)

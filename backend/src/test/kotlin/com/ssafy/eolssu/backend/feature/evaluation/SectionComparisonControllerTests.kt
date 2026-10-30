@@ -17,17 +17,21 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 class SectionComparisonControllerTests {
     private val time = Instant.parse("2026-10-29T00:00:00Z")
     private val sessions = mutableMapOf<Long, PracticeEvaluationSnapshot>()
+    private val owners = mutableMapOf<Long, Long>()
     private val notes = mutableMapOf<Long, List<PracticeEvaluationNote>>()
-    private fun save(id: Long, start: Int, end: Int, total: Int, parent: Long? = null, songId: Long = 1, status: String = "DONE", model: String = "m1") {
-        sessions[id] = PracticeEvaluationSnapshot(id, songId, 1, 48, "DOTTED_QUARTER", status, time, time, id, total, total + 1, total - 1, total,
-            time, null, start, end, parentSessionId = parent, modelVersion = model)
+    private var scoreChanged = false
+    private fun save(id: Long, start: Int, end: Int, total: Int, parent: Long? = null, songId: Long = 1, status: String = "DONE", model: String = "m1",
+        startedAt: Instant = time, scoreVersion: Int = 1, owner: Long = 2) {
+        owners[id] = owner
+        sessions[id] = PracticeEvaluationSnapshot(id, songId, scoreVersion, 48, "DOTTED_QUARTER", status, startedAt, startedAt, id, total, total + 1,
+            total - 1, total, startedAt, null, start, end, parentSessionId = parent, modelVersion = model)
     }
     private val repository = object : PracticeEvaluations {
-        override fun findOwned(sessionId: Long, userId: Long) = sessions[sessionId]?.takeIf { userId == 2L }
+        override fun findOwned(sessionId: Long, userId: Long) = sessions[sessionId]?.takeIf { owners[sessionId] == userId }
         override fun notes(evaluationId: Long) = notes[evaluationId].orEmpty()
     }
     // 각 0: 음표 0·1, 각 1: 음표 2·3, 각 2: 음표 4·5.
-    private val cells = EvaluationScoreCells { _, _ -> (0..5).map { NoteCell(it / 2, "c${it / 2}-j${it % 2}") } }
+    private val cells = EvaluationScoreCells { _, _ -> if (scoreChanged) null else (0..5).map { NoteCell(it / 2, "c${it / 2}-j${it % 2}") } }
     private val mvc = MockMvcBuilders.standaloneSetup(SectionComparisonController(GetSectionComparison(repository, cells)))
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).build()
     private fun login() { SecurityContextHolder.getContext().authentication=JwtAuthenticationToken(Jwt.withTokenValue("test").header("alg","HS256").subject("2").build()) }
@@ -87,6 +91,31 @@ class SectionComparisonControllerTests {
         mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "15")).andExpect(status().isBadRequest)
         mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "14")).andExpect(status().isConflict)
         mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "99")).andExpect(status().isNotFound)
+    }
+
+    @Test fun `baseline must belong to the user and come before the retake`() {
+        login()
+        save(20, 2, 3, 50, owner = 3)
+        save(21, 2, 3, 50, startedAt = time.plusSeconds(60))
+        mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "20")).andExpect(status().isNotFound)
+        mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "21")).andExpect(status().isBadRequest)
+    }
+
+    @Test fun `baseline on an older score is reported without matching note indices`() {
+        login()
+        save(22, 0, 1, 50, scoreVersion = 0)
+        notes[22] = listOf(note(0,"PITCH"), note(1,"PITCH"))
+        mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "22")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.comparable").value(false))
+            .andExpect(jsonPath("$.result.reason").isNotEmpty)
+            .andExpect(jsonPath("$.result.before.errorCount").doesNotExist())
+            .andExpect(jsonPath("$.result.correctedNoteIndices.length()").value(0))
+            .andExpect(jsonPath("$.result.remainingErrors[0].noteIdx").value(3))
+    }
+
+    @Test fun `changed current score is a state conflict`() {
+        login();scoreChanged = true
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isConflict)
     }
 
     @Test fun `current session must be owned and finished`() {

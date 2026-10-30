@@ -53,6 +53,16 @@ class SectionComparisonTests {
             session(0, 3, 80, scoreVersion = 2), notes(0..3), session(0, 3, 70), notes(0..3, 1 to "PITCH"),
         )
         assertEquals(NotComparable.SCORE_VERSION, result.notComparable)
+        assertEquals(SectionScores(null, null, null, null, null), result.before)
         assertEquals(emptyList(), result.correctedNoteIndices)
+    }
+
+    @Test fun `older score baseline is not checked against the new note indices`() {
+        val result = SectionComparison.compare(
+            session(2, 3, 80, scoreVersion = 2), notes(2..3, 3 to "PITCH"), session(0, 1, 70), notes(0..1, 1 to "PITCH"),
+        )
+        assertEquals(NotComparable.SCORE_VERSION, result.notComparable)
+        assertEquals(SectionScores(null, null, null, null, null), result.before)
+        assertEquals(listOf(3), result.remainingErrors.map { it.noteIdx })
     }
 }

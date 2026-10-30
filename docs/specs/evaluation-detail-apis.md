@@ -63,7 +63,7 @@
 
 | 이전 세션 상황 | HTTP |
 | --- | --- |
-| baselineSessionId·parentSessionId 모두 없음, 자기 자신, 다른 곡, 이번 구간을 모두 담지 않음 | 400 |
+| baselineSessionId·parentSessionId 모두 없음, 자기 자신, 다른 곡, 이번 세션보다 나중에 시작함(startedAt), 같은 악보 버전인데 이번 구간을 모두 담지 않음 | 400 |
 | 없음·타인·기록 삭제 | 404 |
 | 미완료 | 409 |
 
@@ -73,7 +73,7 @@
 | comparable | 아래 비교 조건을 모두 만족하면 true |
 | reason | comparable=false일 때 이유 문장, true면 null |
 | startNoteIdx·endNoteIdx, startColumnIdx·endColumnIdx | 이번 세션 구간과 그 첫·끝 음표의 각(0부터) |
-| before | 이전 결과. totalScore·pitchScore·timingScore·durationScore는 이전 세션 구간이 이번과 같을 때만 저장 점수, 다르면 null. errorCount는 비교 구간의 저장 판정으로 센다 |
+| before | 이전 결과. totalScore·pitchScore·timingScore·durationScore는 이전 세션 구간이 이번과 같을 때만 저장 점수, 다르면 null. errorCount는 비교 구간의 저장 판정으로 센다. 이전 결과의 악보 버전이 다르면 음표 순번이 맞지 않아 점수·errorCount 모두 null이고 구간 포함 여부도 검사하지 않는다 |
 | after | 이번 저장 점수 4개, 비교 구간 errorCount, bpm·bpmUnit |
 | delta | comparable=true일 때만 `{totalScore, errorCount}`(이번 − 이전), 아니면 null |
 | correctedNoteIndices | 이전에 오류였고 이번에 CORRECT인 noteIdx. 악보 버전이 다르면 `[]` |

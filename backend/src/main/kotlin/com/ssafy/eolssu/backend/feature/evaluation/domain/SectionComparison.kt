@@ -11,11 +11,12 @@ object SectionComparison {
         baseline: PracticeEvaluationSnapshot, baselineNotes: List<PracticeEvaluationNote>,
     ): SectionComparisonResult {
         val range = current.startNoteIdx..current.endNoteIdx
-        require(baseline.startNoteIdx <= range.first && range.last <= baseline.endNoteIdx)
-        val after = currentNotes.filter { it.noteIdx in range }
-        val before = baselineNotes.filter { it.noteIdx in range }
-        val sameRange = baseline.startNoteIdx == range.first && baseline.endNoteIdx == range.last
+        // 악보 버전이 다르면 같은 noteIdx가 같은 음이라는 보장이 없어 이전 음표를 이번 구간에 대지 않는다.
         val sameScore = baseline.scoreVersion == current.scoreVersion
+        require(!sameScore || baseline.startNoteIdx <= range.first && range.last <= baseline.endNoteIdx)
+        val after = currentNotes.filter { it.noteIdx in range }
+        val before = if (sameScore) baselineNotes.filter { it.noteIdx in range } else emptyList()
+        val sameRange = baseline.startNoteIdx == range.first && baseline.endNoteIdx == range.last
         val notComparable = when {
             !sameScore -> NotComparable.SCORE_VERSION
             !sameRange -> NotComparable.RANGE
@@ -23,9 +24,12 @@ object SectionComparison {
             baseline.bpm != current.bpm || baseline.bpmUnit != current.bpmUnit -> NotComparable.TEMPO
             else -> null
         }
-        val beforeScores = if (sameRange) baseline.scores(before) else SectionScores(null, null, null, null, before.count { it.isError })
+        val beforeScores = when {
+            !sameScore -> SectionScores(null, null, null, null, null)
+            sameRange -> baseline.scores(before)
+            else -> SectionScores(null, null, null, null, before.count { it.isError })
+        }
         val afterScores = current.scores(after)
-        // 악보 버전이 다르면 같은 noteIdx가 같은 음이라는 보장이 없다.
         val corrected = if (!sameScore) emptyList() else {
             val correctNow = after.filter { !it.isError }.map { it.noteIdx }.toSet()
             before.filter { it.isError && it.noteIdx in correctNow }.map { it.noteIdx }
@@ -34,7 +38,7 @@ object SectionComparison {
             notComparable, range.first, range.last, beforeScores, afterScores,
             if (notComparable == null) SectionDelta(
                 requireNotNull(afterScores.totalScore) - requireNotNull(beforeScores.totalScore),
-                afterScores.errorCount - beforeScores.errorCount,
+                requireNotNull(afterScores.errorCount) - requireNotNull(beforeScores.errorCount),
             ) else null,
             corrected, after.filter { it.isError },
         )
@@ -53,7 +57,7 @@ data class SectionComparisonResult(
     val correctedNoteIndices: List<Int>, val remainingErrors: List<PracticeEvaluationNote>,
 )
 
-/** 이전 결과가 다른 구간이면 점수 4개는 null이다. errorCount는 비교 구간의 저장 판정으로 센다. */
-data class SectionScores(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?, val errorCount: Int)
+/** 이전 결과가 다른 구간이면 점수 4개는 null이다. errorCount는 비교 구간의 저장 판정으로 세며 악보 버전이 다르면 null이다. */
+data class SectionScores(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?, val errorCount: Int?)
 
 data class SectionDelta(val totalScore: Int, val errorCount: Int)
