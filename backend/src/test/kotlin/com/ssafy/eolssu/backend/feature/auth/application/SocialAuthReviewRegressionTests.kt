@@ -76,6 +76,28 @@ class SocialAuthReviewRegressionTests {
         verify(verification,never()).markConsumed(9,base)
     }
 
+    @Test fun `expired withdrawal cannot be restored through a verified social merge`() {
+        repository.owner=SocialMember("owner@example.test",SignInMember(7,"hash","owner",1,"HANJA",MemberStatus.WITHDRAWAL_PENDING,base.minus(Duration.ofDays(30))))
+        `when`(proofs.find(secrets.hashToken(ticket))).thenReturn(proof(true))
+        `when`(proofs.consume(secrets.hashToken(ticket),base)).thenReturn(true)
+        val service=service(encoder{error("Verified email must not use password")})
+        assertEquals(ErrorCode.INVALID_CREDENTIALS,assertFailsWith<SocialAuthFailure>{service.merge(ticket,mapOf("GOOGLE" to binding),null,null)}.code)
+        assertEquals(0,repository.completedLogins)
+        assertTrue(repository.links.isEmpty())
+        verify(proofs,never()).consume(secrets.hashToken(ticket),base)
+    }
+
+    @Test fun `withdrawal expiry is rechecked after social merge member lock`() {
+        repository.owner=SocialMember("owner@example.test",SignInMember(7,"hash","owner",1,"HANJA",MemberStatus.WITHDRAWAL_PENDING,base.minus(Duration.ofDays(30)).plusSeconds(1)))
+        `when`(proofs.find(secrets.hashToken(ticket))).thenReturn(proof(true))
+        `when`(proofs.consume(secrets.hashToken(ticket),base.plusSeconds(1))).thenReturn(true)
+        repository.afterLock={clock.current=base.plusSeconds(1)}
+        val service=service(encoder{error("Verified email must not use password")})
+        assertEquals(ErrorCode.INVALID_CREDENTIALS,assertFailsWith<SocialAuthFailure>{service.merge(ticket,mapOf("GOOGLE" to binding),null,null)}.code)
+        assertEquals(0,repository.completedLogins)
+        assertTrue(repository.links.isEmpty())
+    }
+
     private class MutableClock(var current:Instant):Clock(){
         override fun instant()=current
         override fun getZone()=ZoneOffset.UTC
@@ -84,7 +106,8 @@ class SocialAuthReviewRegressionTests {
     private inner class Members:SocialAuthRepository {
         var afterLock:()->Unit={}
         val links=mutableListOf<SocialLink>()
-        private val owner=SocialMember("owner@example.test",SignInMember(7,"hash","owner",1,"HANJA",MemberStatus.ACTIVE))
+        var owner=SocialMember("owner@example.test",SignInMember(7,"hash","owner",1,"HANJA",MemberStatus.ACTIVE))
+        var completedLogins=0
         override fun <T:Any> inTransaction(action:()->T)=action()
         override fun memberByEmail(email:String)=owner
         override fun member(userId:Long,lock:Boolean):SocialMember{if(lock)afterLock();return owner}
@@ -92,6 +115,6 @@ class SocialAuthReviewRegressionTests {
         override fun links(userId:Long)=links.toList()
         override fun link(userId:Long,provider:String,subject:String,now:Instant){links.add(SocialLink(userId,provider,subject,now))}
         override fun unlink(userId:Long,provider:String)=false
-        override fun completeLogin(userId:Long,now:Instant){}
+        override fun completeLogin(userId:Long,now:Instant){completedLogins++}
     }
 }

@@ -8,7 +8,7 @@ import java.util.Locale
 import org.springframework.security.crypto.password.PasswordEncoder
 
 /**
- * AUTH-01. 이메일 없음·비밀번호 불일치는 같은 401이다. 탈퇴 대기 회원은 로그인하면 탈퇴가 취소된다.
+ * AUTH-01. 이메일 없음·비밀번호 불일치는 같은 401이다. 탈퇴 대기 회원은 30일 유예 안에 로그인하면 탈퇴가 취소된다.
  * 없는 이메일도 같은 비밀번호 계산을 거쳐 응답 시간으로 가입 여부가 드러나지 않게 한다.
  */
 class SignInService(
@@ -34,7 +34,7 @@ class SignInService(
             SignInResult.InvalidCredentials
         } else {
             try {
-                repository.inTransaction { complete(member, normalized, now) }
+                repository.inTransaction { complete(member, normalized) }
             } catch (_: TokenIssuingUnavailable) {
                 return SignInResult.Unavailable
             }
@@ -48,9 +48,12 @@ class SignInService(
     }
 
     /** 확인한 뒤 비밀번호가 바뀌었거나 다른 회원이 되었으면 로그인하지 않는다. */
-    private fun complete(verified: SignInMember, email: String, now: Instant): SignInResult {
+    private fun complete(verified: SignInMember, email: String): SignInResult {
         val member = repository.findMemberForUpdate(email)
         if (member == null || member.id != verified.id || member.passwordHash != verified.passwordHash) return SignInResult.InvalidCredentials
+        // 비밀번호 계산·회원 잠금 대기 중 만료될 수 있으므로 잠금 이후 시각으로 판정한다.
+        val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
+        if (!member.canSignInAt(now)) return SignInResult.InvalidCredentials
         val withdrawalCancelled = member.status == MemberStatus.WITHDRAWAL_PENDING
         if (withdrawalCancelled) repository.cancelWithdrawal(member.id, now)
         repository.recordLogin(member.id, now)

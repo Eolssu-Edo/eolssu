@@ -4,6 +4,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.feature.auth.domain.*
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.oauth.*
 import java.time.*
+import java.time.temporal.ChronoUnit
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.dao.DuplicateKeyException
 import java.util.concurrent.locks.ReentrantLock
@@ -77,6 +78,7 @@ class SocialAuthService(
             // 회원을 먼저 잠근 뒤 이메일 증명·티켓·소셜 연결·refresh 순서로 진행한다.
             val member=repository.member(snapshot.member.id,true)?:fail(ErrorCode.INVALID_CREDENTIALS)
             if(member.email!=proof.email || member.member.passwordHash!=snapshot.member.passwordHash) fail(ErrorCode.INVALID_CREDENTIALS)
+            if(!member.member.canSignInAt(clock.instant())) fail(ErrorCode.INVALID_CREDENTIALS)
             if(!proof.emailVerified && useEmail) {
                 val verified=verification.findVerificationForUpdate(secrets.hashToken(checkNotNull(verificationToken)))?:fail(ErrorCode.INVALID_CREDENTIALS)
                 val now=clock.instant() // 이메일 행 잠금 대기 중에도 만료될 수 있다.
@@ -129,7 +131,8 @@ class SocialAuthService(
         try{repository.link(userId,provider,subject,now)}catch(_:DuplicateKeyException){fail(ErrorCode.SOCIAL_ACCOUNT_IN_USE)}
     }
     private fun complete(member:SocialMember):SocialLoginResult {
-        val now=clock.instant()
+        val now=clock.instant().truncatedTo(ChronoUnit.MICROS)
+        if(!member.member.canSignInAt(now)) fail(ErrorCode.INVALID_CREDENTIALS)
         repository.completeLogin(member.member.id,now)
         val tokens=try{issuer.issue(member.member.id)}catch(_:TokenIssuingUnavailable){fail(ErrorCode.SERVICE_UNAVAILABLE)}
         return SocialLoginResult(SignInResult.SignedIn(member.member,member.member.status==MemberStatus.WITHDRAWAL_PENDING,tokens),listOf("EMAIL")+repository.links(member.member.id).map{it.provider})

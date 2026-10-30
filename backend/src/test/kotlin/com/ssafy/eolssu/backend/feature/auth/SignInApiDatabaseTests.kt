@@ -8,6 +8,8 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -21,6 +23,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
@@ -31,6 +35,7 @@ import tools.jackson.databind.json.JsonMapper
 class SignInApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var clock: VerificationTestClock
+    @Autowired private lateinit var transactionManager: PlatformTransactionManager
     @Value("\${local.server.port}") private var port = 0
     private val json = JsonMapper.builder().build()
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
@@ -94,6 +99,61 @@ class SignInApiDatabaseTests {
         assertEquals("ACTIVE", row["status"])
         assertNull(row["withdrawal_requested_at"])
         assertNull(row["purge_scheduled_at"])
+    }
+
+    @Test
+    fun `withdrawal cancellation ends at thirty days even before the scheduled purge`() {
+        // 10월 20일 00:00 요청의 30일 기한은 11월 19일 00:00이다. 삭제 배치와 독립이다.
+        val beforeId = member("before-expiry@auth207in.test", "WITHDRAWAL_PENDING")
+        clock.set(Instant.parse("2026-11-18T23:59:59.999999Z"))
+        assertEquals(200, signIn("before-expiry@auth207in.test", "Example!234").statusCode())
+        assertEquals("ACTIVE", jdbc.queryForObject("SELECT status FROM users WHERE id=?", String::class.java, beforeId))
+        for ((index, time) in listOf("2026-11-19T00:00:00Z", "2026-11-19T00:00:00.000001Z").withIndex()) {
+            val email = "expired-$index@auth207in.test"
+            val id = member(email, "WITHDRAWAL_PENDING")
+            clock.set(Instant.parse(time))
+            val response = signIn(email, "Example!234")
+            assertError(response, 401, "INVALID_CREDENTIALS")
+            assertTrue(response.headers().allValues("Set-Cookie").isEmpty())
+            assertPendingWithoutLogin(id)
+        }
+    }
+
+    @Test
+    fun `login that waits on the member lock cannot cancel after the grace period expires`() {
+        val email = "lock-expiry@auth207in.test"
+        val id = member(email, "WITHDRAWAL_PENDING")
+        clock.set(Instant.parse("2026-11-18T23:59:59.999999Z"))
+        lateinit var signingIn: CompletableFuture<HttpResponse<String>>
+        TransactionTemplate(transactionManager).executeWithoutResult {
+            jdbc.queryForObject("SELECT id FROM users WHERE id=? FOR UPDATE", Long::class.java, id)
+            signingIn = CompletableFuture.supplyAsync { signIn(email, "Example!234") }
+            val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+            var waiting = false
+            while (System.nanoTime() < deadline) {
+                waiting = jdbc.queryForObject(
+                    """SELECT COUNT(*) FROM performance_schema.data_lock_waits w
+                       JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+                       WHERE l.OBJECT_NAME='users' AND l.INDEX_NAME='PRIMARY' AND l.LOCK_DATA=?""",
+                    Int::class.java, id.toString(),
+                )!! > 0
+                if (waiting) break
+                if (signingIn.isDone) fail("login finished before reaching the held user lock")
+            }
+            assertTrue(waiting, "login must wait on this member's row")
+            clock.set(Instant.parse("2026-11-19T00:00:00Z"))
+        }
+        assertError(signingIn.get(15, TimeUnit.SECONDS), 401, "INVALID_CREDENTIALS")
+        assertPendingWithoutLogin(id)
+    }
+
+    private fun assertPendingWithoutLogin(id: Long) {
+        val row = jdbc.queryForMap("SELECT status,withdrawal_requested_at,purge_scheduled_at,last_login_at FROM users WHERE id=?", id)
+        assertEquals("WITHDRAWAL_PENDING", row["status"])
+        assertNotNull(row["withdrawal_requested_at"])
+        assertNotNull(row["purge_scheduled_at"])
+        assertNull(row["last_login_at"])
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM refresh_tokens WHERE user_id=?", Int::class.java, id))
     }
 
     @Test

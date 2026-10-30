@@ -24,12 +24,12 @@ class MyBatisSocialAuthRepository(private val users:UserMapper,private val jdbc:
     }
     override fun unlink(userId:Long,provider:String)=jdbc.update("DELETE FROM user_social_accounts WHERE user_id=? AND provider=?",userId,provider)==1
     override fun completeLogin(userId:Long,now:Instant) {
-        users.cancelWithdrawal(userId,now.utc())
+        users.cancelWithdrawal(userId,now.utc(),now.minus(WithdrawalPolicy.RETENTION).utc())
         check(users.recordLogin(userId,now.utc())==1)
     }
     private fun UserRow.member():SocialMember? {
         if(status !in setOf("ACTIVE","WITHDRAWAL_PENDING") || email==null || passwordHash==null || nickname==null) return null
-        return SocialMember(email,SignInMember(id,passwordHash,nickname,instrumentId,notationMode,MemberStatus.valueOf(status)))
+        return SocialMember(email,SignInMember(id,passwordHash,nickname,instrumentId,notationMode,MemberStatus.valueOf(status),withdrawalRequestedAt?.toInstant(ZoneOffset.UTC)))
     }
     private fun Instant.utc()=LocalDateTime.ofInstant(this,ZoneOffset.UTC)
 }
