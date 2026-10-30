@@ -1,4 +1,5 @@
 <resources>
+    <string name="member_api_terms_unavailable">약관을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</string>
     <string name="member_api_unavailable">요청을 완료하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.</string>
     <string name="member_api_session_expired">로그인이 만료됐어요. 다시 로그인해 주세요.</string>
     <string name="member_api_rate_limited">요청이 너무 많아요. 잠시 기다린 뒤 다시 시도해 주세요.</string>

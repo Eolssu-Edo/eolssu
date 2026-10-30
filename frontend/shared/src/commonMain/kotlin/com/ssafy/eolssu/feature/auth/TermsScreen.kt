@@ -14,11 +14,13 @@ import eolssu.shared.generated.resources.common_confirm
 import eolssu.shared.generated.resources.member_api_open_terms
 import eolssu.shared.generated.resources.member_api_terms_loading
 import eolssu.shared.generated.resources.member_api_terms_version
-import eolssu.shared.generated.resources.member_api_unavailable
+import eolssu.shared.generated.resources.member_api_terms_unavailable
+import eolssu.shared.generated.resources.member_api_retry
+import eolssu.shared.generated.resources.legal_open_failed
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onOpen: () -> Unit, widthClass: WindowWidthClass) {
+fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onOpen: () -> Unit, onRetry: () -> Unit, widthClass: WindowWidthClass) {
     AuthScaffold(authFrameOf(widthClass, split = false),
         topBar = { AuthTopBar(state.term?.title.orEmpty(), onBack = onClose) },
         bottomBar = { EolssuButton(stringResource(Res.string.common_confirm), onClose) },
@@ -26,13 +28,16 @@ fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onOpen: () -> Unit, wi
         AuthBody(AuthBodyTopWithBar) {
             val term = state.term
             if (state.loading) Text(stringResource(Res.string.member_api_terms_loading))
-            else if (term == null) Text(stringResource(Res.string.member_api_unavailable))
+            else if (term == null) {
+                Text(stringResource(Res.string.member_api_terms_unavailable))
+                EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
+            }
             else {
                 Text(term.title)
                 Text(stringResource(Res.string.member_api_terms_version, term.version))
                 EolssuButton(stringResource(Res.string.member_api_open_terms), onOpen)
             }
-            if (state.openFailed) Text(stringResource(Res.string.member_api_unavailable))
+            if (state.openFailed) Text(stringResource(Res.string.legal_open_failed))
         }
     }
 }

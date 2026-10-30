@@ -123,10 +123,12 @@ fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
     browserBackGuard: BrowserBackGuard? = null,
+    // TEMP S15P31E102-309: remove together with the startDestination branch.
+    qaSkipConsent: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember { startDestination(firstRunRepository.isCompleted()) }
+    val start = remember(qaSkipConsent) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }

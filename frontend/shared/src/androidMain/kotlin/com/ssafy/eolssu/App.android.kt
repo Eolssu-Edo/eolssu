@@ -16,7 +16,10 @@ import com.ssafy.eolssu.core.network.ServerAddress
  * [incomingLinks]에는 `MainActivity`가 간편 로그인 복귀 주소(App Links)를 넣는다.
  */
 @Composable
-fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Production, incomingLinks: IncomingLinks = remember { IncomingLinks() }) {
+fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Production, incomingLinks: IncomingLinks = remember { IncomingLinks() },
+    // TEMP S15P31E102-309: remove parameter and forwarding after consent recovery.
+    qaSkipConsent: Boolean = false,
+) {
     val platformModule = remember(context, serverAddress.baseUrl, incomingLinks) { androidPlatformModule(context, serverAddress, incomingLinks) }
     // 마이크 권한 창은 화면에 등록한 요청으로만 띄울 수 있어 여기서 등록해 넘긴다.
     val micPermission = remember(context) { AndroidMicPermission.of(context) }
@@ -25,5 +28,5 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
         micPermission.launcher = launcher
         onDispose { if (micPermission.launcher === launcher) micPermission.launcher = null }
     }
-    App(platformModule = platformModule)
+    App(platformModule = platformModule, qaSkipConsent = qaSkipConsent)
 }

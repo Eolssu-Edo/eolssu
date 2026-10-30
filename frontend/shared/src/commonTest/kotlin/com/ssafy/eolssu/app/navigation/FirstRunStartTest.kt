@@ -9,6 +9,20 @@ import kotlin.test.assertTrue
 
 /** 첫 실행 표시(`FirstRunRepository`)와 앱 시작 화면. */
 class FirstRunStartTest {
+    // TEMP S15P31E102-309: QA 옵션 제거 시 아래 두 검사도 제거한다.
+    @Test
+    fun qaFirstLaunchSkipsOnlyConsentWithoutPersistingCompletion() {
+        val repository = FirstRunRepository(FakeKeyValueStore())
+        assertEquals(AuthDestination.MIC, startDestination(repository.isCompleted(), qaSkipConsent = true))
+        assertFalse(repository.isCompleted())
+        assertEquals(AuthDestination.CONSENT, startDestination(repository.isCompleted()))
+    }
+
+    @Test
+    fun qaCompletedLaunchStillStartsAtHome() {
+        assertEquals(EolssuDestination.HOME, startDestination(true, qaSkipConsent = true))
+    }
+
     @Test
     fun firstLaunchStartsAtConsent() {
         val repository = FirstRunRepository(FakeKeyValueStore())

@@ -47,7 +47,13 @@ class HttpAnalysisClient(
                 ?: throw AnalysisResponseException("modelVersion must be 1..$MODEL_VERSION_MAX characters")
             val judged = notes ?: throw AnalysisResponseException("DONE without notes")
             if (judged.map { it.idx } != requestedIdx) throw AnalysisResponseException("note idx differ from the request")
-            AnalysisResult.Done(version, score(total), score(pitch), score(timing), score(duration), judged.map { it.toJudgement() })
+            if ((tuningOffsetCent == null) != (tuningOutOfRange == null) || tuningOffsetCent?.isFinite() == false) {
+                throw AnalysisResponseException("tuning metadata must be a finite offset and a flag, or both absent")
+            }
+            AnalysisResult.Done(
+                version, score(total), score(pitch), score(timing), score(duration), judged.map { it.toJudgement() },
+                tuningOffsetCent, tuningOutOfRange,
+            )
         }
         "FAILED" -> AnalysisResult.Failed(
             AnalysisFailReason.entries.find { it.name == failReason }
@@ -77,7 +83,7 @@ class HttpAnalysisClient(
 
     internal data class RequestNote(val idx: Int, val semitone: Int, val startBeat: Double, val beats: Double, val sigimsae: Boolean)
 
-    // tuningOffsetCent·tuningOutOfRange는 저장할 칸이 없어 읽지 않는다.
+    // 이전 AI 응답의 미수집 값은 null로 보존한다. false나 보정 적용량 0으로 바꾸지 않는다.
     @JsonIgnoreProperties(ignoreUnknown = true)
     internal data class ResponseBody(
         val status: String? = null,
@@ -88,6 +94,8 @@ class HttpAnalysisClient(
         val timing: Int? = null,
         val duration: Int? = null,
         val notes: List<ResponseNote>? = null,
+        val tuningOffsetCent: Double? = null,
+        val tuningOutOfRange: Boolean? = null,
     )
 
     @JsonIgnoreProperties(ignoreUnknown = true)

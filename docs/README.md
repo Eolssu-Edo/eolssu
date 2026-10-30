@@ -73,6 +73,7 @@
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+- [평가 조율 정보 저장·실제 AI 연동 검증](knowledge/backend/evaluation-tuning-verification.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 - [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
 
@@ -213,3 +214,14 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
+
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+
+- [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
+- [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
+- [약관 공개·동의·출시 검증](knowledge/backend/terms-release-verification.md)
+- [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
+- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
+- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [약관 본문 공개와 버전 등록](../infra/terms/README.md)
+- [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
