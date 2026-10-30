@@ -62,6 +62,7 @@ import eolssu.shared.generated.resources.practice_pause
 import eolssu.shared.generated.resources.practice_play
 import eolssu.shared.generated.resources.practice_rec_time_detail
 import eolssu.shared.generated.resources.practice_restart
+import eolssu.shared.generated.resources.practice_recording_unsupported
 import eolssu.shared.generated.resources.practice_start_eval
 import eolssu.shared.generated.resources.practice_stop_listening
 import eolssu.shared.generated.resources.practice_switch_to_eval
@@ -87,15 +88,17 @@ class PracticeBottomActions(
 @Composable
 fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
     val song = state.song ?: return
+    val unsupportedEvaluation = !state.recordingSupported && (!state.solo || song.evaluable)
+    if (unsupportedEvaluation) Hint(stringResource(Res.string.practice_recording_unsupported))
     when {
         state.mode == PracticeMode.Model -> {
             ModelTransport(state, actions)
             ModelAudioHint(state.modelAudioStatus)
             ProgressBar(state.progressPercent, EolssuTheme.colors.play)
             if (!state.solo) {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic)
+                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
             } else if (song.evaluable) {
-                EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic)
+                EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
             }
         }
         state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming -> {
@@ -121,7 +124,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
             )
         }
         state.solo -> {
-            Hint(stringResource(if (song.evaluable) Res.string.practice_hint_solo else Res.string.practice_hint_solo_only))
+            if (!unsupportedEvaluation) Hint(stringResource(if (song.evaluable) Res.string.practice_hint_solo else Res.string.practice_hint_solo_only))
             PairedButtons(
                 stacked,
                 secondWeight = 1.25f,
@@ -132,7 +135,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
                     )
                 },
                 second = if (song.evaluable) {
-                    { m -> EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, m, icon = EolssuIcons.Mic, compact = true) }
+                    { m -> EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, m, icon = EolssuIcons.Mic, compact = true, enabled = state.recordingSupported) }
                 } else {
                     null
                 },
@@ -140,7 +143,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
         }
         else -> {
             val countingDown = state.mode == PracticeMode.Countdown
-            Hint(stringResource(Res.string.practice_hint_ready))
+            if (!unsupportedEvaluation) Hint(stringResource(Res.string.practice_hint_ready))
             PairedButtons(
                 stacked,
                 first = { m ->
@@ -152,7 +155,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
                 second = { m ->
                     EolssuButton(
                         stringResource(Res.string.practice_start_eval), actions.onStartEval, m, compact = true,
-                        icon = EolssuIcons.Mic, enabled = !countingDown,
+                        icon = EolssuIcons.Mic, enabled = !countingDown && state.recordingSupported,
                     )
                 },
             )
