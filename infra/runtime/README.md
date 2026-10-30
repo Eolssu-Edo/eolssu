@@ -2,7 +2,7 @@
 
 ## Android App Links 준비 (S15P31E102-211)
 
-정확한 경로 `/.well-known/assetlinks.json`은 Nginx가 백엔드로 프록시합니다. SPA나 리다이렉트가 아닙니다. `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`에는 실제 설치할 Android Studio APK의 공개 SHA-256 인증서 지문만 쉼표로 구분해 설정합니다. 비어 있으면 서버는 기동하지만 검증 문서는404이며, 잘못된 지문은 기동 시 거절됩니다. 정상 설정은 com.ssafy.eolssu 대상의200 JSON 배열을 제공합니다. 이 값은 비밀키가 아니며, 키스토어·키 비밀번호는 필요하지 않습니다. 지문은 추측하지 않고 APK 제작자에게 받습니다. 환경 주입·Nginx/백엔드 배포·실기기 verified 확인은 별도이며, 준비 코드만으로 도메인 검증 완료로 보지 않습니다. [현재 계약·인계](../../docs/specs/social-auth.md)를 참고합니다.
+정확한 경로 `/.well-known/assetlinks.json`은 Nginx가 백엔드로 프록시합니다. SPA나 리다이렉트가 아닙니다. `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`에는 실제 설치할 Android Studio APK의 공개 SHA-256 인증서 지문만 쉼표로 구분해 설정합니다. 잘못된 지문은 기동 시 거절됩니다. 정상 설정은 com.ssafy.eolssu 대상의 JSON 항목을 제공하며 QA 앱 설정과 미설정 처리 기준은 아래를 따릅니다. 이 값은 비밀키가 아니며, 키스토어·키 비밀번호는 필요하지 않습니다. 지문은 추측하지 않고 APK 제작자에게 받습니다. 환경 주입·Nginx/백엔드 배포·실기기 verified 확인은 별도이며, 준비 코드만으로 도메인 검증 완료로 보지 않습니다. [현재 계약·인계](../../docs/specs/social-auth.md)를 참고합니다.
 
 운영 Compose 원본은 `/opt/eolssu/config/compose.yml`, 실제 환경변수는 `/opt/eolssu/.env`입니다. 이 폴더의 `compose.yml`·`nginx.conf`는 서버에서 확인한 프론트·백엔드·MySQL 구성을 관리합니다. 루트의 개발/운영 Compose 두 서비스 예시와 구분합니다.
 
@@ -295,3 +295,9 @@ Pipeline Graph View에서 빌드를 열어 `Stages`의 `Deploy ... transaction`�
 Cloudflare 버킷 Settings에서 사용자 도메인 없음·Public Development URL disabled, `recordings-expire-after-30-days`의 접두사 `recordings/`·객체 생성 후 30일 삭제·Enabled를 확인합니다. 기본 미완료 multipart 7일 중단 규칙은 별도로 보존합니다. 새 검증 객체의 `x-amz-expiration`에서 30일 만료 시각과 규칙명을 확인하며, 실제 자동 삭제 실행과 구분합니다. 저장소 접근 키·서명 URL은 출력하지 않습니다.
 
 2026-10-29의 버킷명 정정·backend 재생성·서명 읽기·만료·삭제 검증과 복구 위치는 [Task 272](../../docs/plans/S15P31E102-272.md)·[R2 검증 기록](../../docs/knowledge/infra/r2-storage-verification.md)을 따릅니다. 일반 재현은 테스트 전용 버킷을 쓰며 운영 객체 검사는 범위·정리 대상을 먼저 승인받습니다.
+
+### 일반·QA 앱의 App Links 지문
+
+기존 `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`는 일반 패키지 `com.ssafy.eolssu` 전용으로 유지합니다. `AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS`는 `com.ssafy.eolssu.qa` 전용이며 각 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 설정합니다. 한 패키지 지문을 다른 패키지에 복사하지 않습니다. 설정된 패키지만 JSON 배열에 포함하고 둘 다 비어 있을 때만404입니다. 두 설정 모두 형식 검증·대문자 콜론 표기 정규화·중복 제거를 적용합니다. 설정은 운영 Compose 전달과 백엔드 반영 후 확인합니다.
+
+검증 순서: 설치 APK 패키지·versionCode·공개 서명 확인 → `/.well-known/assetlinks.json`의 리다이렉트 없는200/application/json과 패키지별 지문 일치 → 기기 `adb shell pm verify-app-links --re-verify com.ssafy.eolssu.qa` 후 `adb shell pm get-app-links com.ssafy.eolssu.qa`에서 도메인 verified → 새 카카오 인증 시작부터 앱 복귀·완료 API를 확인합니다. 재검증은 비동기이며 강제 인텐트 실행만으로 verified를 대체하지 않습니다. 키스토어·비밀번호는 공유하지 않습니다.

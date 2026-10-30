@@ -17,4 +17,10 @@ class AndroidAppLinksPropertiesTests {
             assertFailsWith<IllegalArgumentException>(value){AndroidAppLinksProperties(listOf(value))}
         }
     }
+    @Test fun `QA fingerprints normalize independently and reject invalid settings`() {
+        val settings=AndroidAppLinksProperties(listOf("cd".repeat(32)), listOf("ab".repeat(32),List(32){"AB"}.joinToString(":")))
+        assertEquals(listOf(List(32){"CD"}.joinToString(":")),settings.normalizedFingerprints)
+        assertEquals(listOf(List(32){"AB"}.joinToString(":")),settings.normalizedQaFingerprints)
+        assertFailsWith<IllegalArgumentException>{AndroidAppLinksProperties(qaSha256CertFingerprints=listOf("invalid"))}
+    }
 }
