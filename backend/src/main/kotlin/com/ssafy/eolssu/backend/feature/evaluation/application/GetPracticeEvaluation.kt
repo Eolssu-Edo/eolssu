@@ -17,6 +17,7 @@ open class GetPracticeEvaluation(private val evaluations: PracticeEvaluations) {
             requireNotNull(row.totalScore), requireNotNull(row.pitchScore),
             requireNotNull(row.timingScore), requireNotNull(row.durationScore),
             evaluations.notes(id), row.recordingDurationMs,
+            row.tuningOffsetCent, row.tuningOutOfRange,
         ))
     }
 }

@@ -11,4 +11,6 @@ data class EvaluationRow(
     val durationScore: Short,
     val modelVersion: String,
     val evaluatedAt: LocalDateTime,
+    val tuningOffsetCent: Double?,
+    val tuningOutOfRange: Boolean?,
 )
