@@ -10,6 +10,7 @@ import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.RetryOutcome
 import com.ssafy.eolssu.data.practice.SendResult
+import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.practice.SessionStart
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -55,12 +56,28 @@ internal class AnalysisSession(
     private var recording: PendingRecording? = null
     private var take: RecordedTake? = null
 
-    /**
-     * 곡을 보이고 녹음을 분석에 맡긴다. [take]가 있으면 연습 세션을 만들어 올리고, 세션이 있는 [recording]이면 바로 올린다.
-     * 올라간 뒤에 분석을 기다린다. 둘 다 없으면 녹음 없이 예시 분석을 맡긴다.
-     */
+    /** 곡 조회 실패는 분석 요청 전의 실패이며, 분석 상태나 결과로 바꾸지 않는다. */
+    suspend fun loadSong(songId: String, bpm: Int, songs: SongRepository, take: RecordedTake? = null, pendingSessionId: String? = null) {
+        _state.update { it.copy(songLookup = SongLookup.Loading) }
+        val song = try {
+            songs.getSong(songId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            currentCoroutineContext().ensureActive()
+            _state.update { it.copy(songLookup = SongLookup.Failed) }
+            return
+        }
+        currentCoroutineContext().ensureActive()
+        if (pendingSessionId != null) {
+            _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
+            startPending(song, bpm, pendingSessionId)
+        } else start(song, bpm, take = take)
+    }
+
+    /** 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다. */
     suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null, take: RecordedTake? = null) {
-        _state.update { it.copy(song = song) }
+        _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
         if (song == null) return
         request = Request(song.id, bpm, song.durationSeconds(bpm))
         val uploads = uploads
@@ -97,7 +114,7 @@ internal class AnalysisSession(
         val request = request ?: return
         when (val created = sessions.create(request.songId, request.bpm, take.key)) {
             is SessionStart.Created -> {
-                val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm)
+                val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending
                 afterSend(uploads.send(pending))
             }
@@ -135,6 +152,7 @@ internal class AnalysisSession(
             SendResult.Rejected -> _state.update { it.copy(upload = UploadProblem.Rejected, resending = false) }
             SendResult.Missing -> _state.update { it.copy(upload = UploadProblem.Missing, resending = false) }
             SendResult.Expired -> _state.update { it.copy(upload = null, resending = false, failure = AnalysisFailure.UploadTimeout) }
+            SendResult.NotOwner -> _state.update { it.copy(resending = false, exit = AnalysisExit.NeedsLogin) }
         }
     }
 

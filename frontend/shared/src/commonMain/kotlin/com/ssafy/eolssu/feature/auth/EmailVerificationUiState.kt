@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 /** 인증번호 칸 아래 오류. */
 sealed interface CodeError {
+    data object Unavailable : CodeError
     /** 6자리 숫자가 아니다. */
     data object Invalid : CodeError
 

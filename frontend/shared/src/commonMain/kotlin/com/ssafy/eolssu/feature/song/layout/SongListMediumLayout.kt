@@ -15,6 +15,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
+import com.ssafy.eolssu.feature.song.SongLoadState
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.SongCard
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
@@ -41,9 +43,9 @@ internal fun SongListMediumLayout(state: SongListUiState, actions: SongListActio
         ) {
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery, large = true)
             SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(top = 14.dp, bottom = 20.dp))
-            if (state.loadFailed) {
-                SongLoadFailed(actions.onRetryLoad, verticalPadding = 96.dp)
-            } else if (songs.isEmpty() && state.songs.isNotEmpty()) {
+            if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                SongLoadNotice(state.loadState, actions.onRetry)
+            } else if (songs.isEmpty()) {
                 SongEmptyResult(actions.onResetFilters, verticalPadding = 96.dp)
             } else if (songs.isNotEmpty()) {
                 Text(
@@ -55,7 +57,7 @@ internal fun SongListMediumLayout(state: SongListUiState, actions: SongListActio
                 CardGrid(songs, columns = 2, itemKey = { it.id }) { song, modifier ->
                     SongCard(
                         song,
-                        meta = stringResource(Res.string.tab_song_meta_bpm, jangdanLabel(song.jangdan), song.baseBpm),
+                        meta = stringResource(Res.string.tab_song_meta_bpm, jangdanLabel(song.jangdanName), song.baseBpm),
                         onClick = { actions.onOpenSong(song.id) },
                         modifier = modifier,
                         large = true,

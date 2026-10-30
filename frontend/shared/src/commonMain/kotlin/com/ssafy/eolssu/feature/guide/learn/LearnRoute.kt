@@ -193,6 +193,7 @@ private fun learnStageActions(
         val songId = state.songIds[song.title]
         if (songId != null) navigation.onOpenSong(songId) else notify { getString(Res.string.learn_song_missing, song.title) }
     },
+    onRetrySongs = viewModel::retrySongs,
 )
 
 /** '음 듣기'를 누른 버튼의 강조를 잠시 뒤 끈다. */

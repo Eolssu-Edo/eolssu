@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.MySheet
-import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -27,6 +27,7 @@ import com.ssafy.eolssu.feature.song.component.AddSheetOption
 import com.ssafy.eolssu.feature.song.component.MySheetCard
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
 import com.ssafy.eolssu.feature.song.component.SongCard
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_practice_only
@@ -45,6 +46,7 @@ class MySongsActions(
     val onOpenAddSheet: () -> Unit,
     val onCloseAddSheet: () -> Unit,
     val onSelectAddOption: (AddSheetOption) -> Unit,
+    val onRetry: () -> Unit,
 )
 
 /**
@@ -66,8 +68,8 @@ fun MySongsScreen(state: MySongsUiState, widthClass: WindowWidthClass, snackbarH
 
 /** 제공 곡의 보조 문구: 평가 곡은 장단, 아니면 '장단 · 연습 전용'. */
 @Composable
-internal fun providedSongMeta(song: Song): String {
-    val jangdan = jangdanLabel(song.jangdan)
+internal fun providedSongMeta(song: SongSummary): String {
+    val jangdan = jangdanLabel(song.jangdanName)
     return if (song.evaluable) jangdan else stringResource(Res.string.mysongs_practice_only, jangdan)
 }
 
@@ -91,13 +93,17 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 when (state.tab) {
-                    MySongsTab.Songs -> items(state.songs, key = { it.id }) { song ->
+                    MySongsTab.Songs -> {
+                        if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                            item { SongLoadNotice(state.loadState, actions.onRetry) }
+                        } else items(state.songs, key = { it.id }) { song ->
                         SongCard(
                             song,
                             meta = providedSongMeta(song),
                             onClick = { actions.onOpenSong(song.id) },
                             evaluableBadge = song.evaluable,
                         )
+                        }
                     }
                     MySongsTab.Sheets -> {
                         item(key = "add") { AddSheetButton(actions.onOpenAddSheet) }

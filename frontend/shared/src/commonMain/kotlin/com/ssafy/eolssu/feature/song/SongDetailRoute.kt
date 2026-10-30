@@ -34,6 +34,7 @@ fun SongDetailRoute(
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
+        onRetry = viewModel::retry,
         onStartPractice = {
             if (onStartPractice != null) {
                 onStartPractice(songId)

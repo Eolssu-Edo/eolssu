@@ -25,11 +25,11 @@ class SongsUnavailableException : Exception("곡 목록을 받지 못했다")
 class HttpSongRepository(
     private val client: HttpClient,
     private val fallback: SongRepository = SampleSongRepository(),
-) : SongRepository {
+) {
     private val songs = mutableMapOf<String, Song>()
 
     /** 서버 곡 목록. 응답을 받지 못하면 [SongsUnavailableException]을 던진다. */
-    override suspend fun getSongs(): List<Song> {
+    suspend fun getSongs(): List<Song> {
         val response = client.sendOrNull { get("/api/songs") }
         if (response?.status != HttpStatusCode.OK) throw SongsUnavailableException()
         val items = response.apiResponse<SongList>()?.result?.items ?: throw SongsUnavailableException()
@@ -37,7 +37,7 @@ class HttpSongRepository(
     }
 
     /** 곡 하나. 없거나(404) 받지 못하면 null. */
-    override suspend fun getSong(songId: String): Song? {
+    suspend fun getSong(songId: String): Song? {
         if (!songId.isServerId()) return fallback.getSong(songId)
         songs[songId]?.let { return it }
         val response = client.sendOrNull { get("/api/songs/$songId") }

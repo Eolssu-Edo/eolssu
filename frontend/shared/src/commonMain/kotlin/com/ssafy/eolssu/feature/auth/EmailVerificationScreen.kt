@@ -35,6 +35,7 @@ import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authBodyTopBelowProgress
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.auth_error_login_unavailable
 import eolssu.shared.generated.resources.auth_code
 import eolssu.shared.generated.resources.auth_code_confirm
 import eolssu.shared.generated.resources.auth_code_error_expired
@@ -161,6 +162,7 @@ fun EmailVerificationScreen(
 
 @Composable
 private fun codeErrorText(error: CodeError): String = when (error) {
+    CodeError.Unavailable -> stringResource(Res.string.auth_error_login_unavailable)
     CodeError.Invalid -> stringResource(Res.string.auth_code_error_invalid)
     is CodeError.Mismatch -> stringResource(Res.string.auth_code_error_mismatch, error.remainingAttempts)
     CodeError.Expired -> stringResource(Res.string.auth_code_error_expired)

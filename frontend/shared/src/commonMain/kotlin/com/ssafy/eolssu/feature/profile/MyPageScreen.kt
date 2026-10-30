@@ -71,7 +71,7 @@ enum class MyPageTarget { Nickname, Password, Withdraw }
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
-    instrument: Instrument,
+    instrument: Instrument?,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -145,7 +145,7 @@ private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(profile.nickname, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold), color = colors.text)
-            Text(profile.email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+            if (profile.email.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
         }
         SmallButton(stringResource(Res.string.my_nickname_edit), onEdit)
     }

@@ -24,7 +24,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_instrument
 import eolssu.shared.generated.resources.auth_instrument_help
 import eolssu.shared.generated.resources.auth_nickname
-import eolssu.shared.generated.resources.auth_nickname_help
+import eolssu.shared.generated.resources.member_api_nickname_rule
 import eolssu.shared.generated.resources.auth_nickname_placeholder
 import eolssu.shared.generated.resources.auth_profile_heading
 import eolssu.shared.generated.resources.auth_signup_done
@@ -60,7 +60,7 @@ fun ProfileSetupScreen(
                     onValueChange = onNicknameChange,
                     label = stringResource(Res.string.auth_nickname),
                     placeholder = stringResource(Res.string.auth_nickname_placeholder),
-                    help = stringResource(Res.string.auth_nickname_help),
+                    help = stringResource(Res.string.member_api_nickname_rule),
                     error = state.nicknameError?.let { stringResource(it.message) },
                     imeAction = ImeAction.Done,
                 )

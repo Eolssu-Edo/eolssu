@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.fingeringYul
+import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.data.practice.PracticeSettings
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -9,6 +11,9 @@ import kotlin.time.TimeMark
 
 /** 연습 화면 상태(와이어프레임 PRACTICE-01의 상태 A~D와 중단). */
 enum class PracticeMode { Ready, Model, Countdown, Recording, Interrupted }
+
+/** 상세 API가 없는 곡과 일시적인 조회·악보 검증 실패를 구분한다. */
+enum class PracticeSongError { NotFound, Failed }
 
 /** 아래에서 올라오는 보조 패널. */
 enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
@@ -74,6 +79,7 @@ data class PracticeUiState(
     val settings: PracticeSettings = PracticeSettings(),
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
+    val modelAudioStatus: ModelAudioStatus = ModelAudioStatus.Idle,
     val position: Int = 0,
     val elapsedMs: Double = 0.0,
     val eventStartedAt: TimeMark? = null,
@@ -92,6 +98,10 @@ data class PracticeUiState(
     val follow: Boolean = true,
     val listening: Yul? = null,
     val idleReminder: Boolean = false,
+    val isSongLoading: Boolean = false,
+    val songError: PracticeSongError? = null,
+    /** 현재 원본 이벤트 안에서 지난 시간. 긴 음/이음 중에도 표시 시계가 갱신한다. */
+    val eventElapsedMs: Double = 0.0,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
@@ -126,12 +136,23 @@ data class PracticeUiState(
     /** 진행 선을 그리는 상태(모범 연주·연주 중). */
     val live: Boolean get() = mode == PracticeMode.Model || mode == PracticeMode.Recording || resuming
 
-    /** 정간 단위 진행률(0~100). 와이어프레임 `progressPct`. */
+    val currentEventFraction: Double get() = if (eventCount == 0) 0.0 else (eventElapsedMs / eventDurationMs()).coerceIn(0.0, 1.0)
+
+    /** 현재 원본 이벤트의 정수 tick에 실제 경과분을 더한 표시용 tick. 원본 event 자체는 바꾸지 않는다. */
+    val currentTick: Double?
+        get() = song?.timeline?.getOrNull(position)?.let { event ->
+            event.startTick?.let { it + requireNotNull(event.durationTick) * currentEventFraction }
+        }
+
+    val currentScoreUnit get() = song?.displayUnitAt(position, currentEventFraction.toFloat())
+
+    /** 정간 단위 진행률(0~100). 이벤트 중간의 경과분도 반영한다. */
     val progressPercent: Float
         get() {
             val song = song ?: return 0f
             if (finished || position >= eventCount) return 100f
-            return (song.timeline[position].unitStart / song.score.totalUnits * 100).toFloat()
+            val event = song.timeline.getOrNull(position) ?: return 0f
+            return ((event.unitStart + event.unitDuration * currentEventFraction) / song.score.totalUnits * 100).toFloat()
         }
 
     /** 현재 위치가 속한 대강 번호(현재 박 표시). */
@@ -139,13 +160,17 @@ data class PracticeUiState(
         get() {
             val song = song ?: return 0
             val event = song.timeline[position.coerceIn(0, eventCount - 1)]
-            return song.jangdan.daegangIndexOfRow(event.row)
+            song.score.timing?.let { timing ->
+                val patternCell = ((requireNotNull(currentTick) * song.jangdan.subdivision / timing.ticksPerBeat) % song.jangdan.gak).toInt()
+                return song.jangdan.daegangIndexOfRow(patternCell)
+            }
+            return song.jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
         }
 
     /** 현재 음의 실제 길이(ms). */
     fun eventDurationMs(index: Int = position): Double {
         val song = song ?: return 0.0
-        return song.timeline[index.coerceIn(0, eventCount - 1)].unitDuration * song.jangdan.cellMillis(bpm)
+        return song.eventDurationMs(song.timeline[index.coerceIn(0, eventCount - 1)], bpm)
     }
 }
 
@@ -155,29 +180,29 @@ data class PracticeUiState(
 
 /** 모범 연주 시작. 준비 상태면 처음부터, 이미 모범 연주 중이면 그 자리부터. */
 fun PracticeUiState.startModel(): PracticeUiState {
-    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = 0, elapsedMs = 0.0) else this
+    val base = if (mode == PracticeMode.Ready) copy(mode = PracticeMode.Model, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f) else this
     return base.copy(panel = null, playing = true, follow = true)
 }
 
 /** 모범 연주 일시정지·다시 재생. 끝까지 들은 뒤 재생하면 처음부터. */
 fun PracticeUiState.toggleModel(): PracticeUiState = when {
-    playing -> copy(playing = false, eventStartedAt = null)
-    position >= eventCount - 1 -> copy(playing = true, position = 0, elapsedMs = 0.0)
+    playing -> copy(playing = false, eventStartedAt = null, pausedFraction = currentEventFraction.toFloat())
+    position >= eventCount - 1 && currentEventFraction >= 1.0 -> copy(playing = true, position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, pausedFraction = 0f)
     else -> copy(playing = true)
 }
 
-fun PracticeUiState.restartModel(): PracticeUiState = copy(position = 0, elapsedMs = 0.0, follow = true, pausedFraction = 0f)
+fun PracticeUiState.restartModel(): PracticeUiState = copy(position = 0, elapsedMs = 0.0, eventElapsedMs = 0.0, eventStartedAt = null, follow = true, pausedFraction = 0f)
 
 /** 듣기 종료: 준비 상태로 돌아가고 듣던 자리의 음을 골라 둔다. */
 fun PracticeUiState.stopModel(): PracticeUiState = copy(
     mode = PracticeMode.Ready, playing = false, selected = position.coerceAtMost(eventCount - 1), position = 0, elapsedMs = 0.0,
-    eventStartedAt = null,
+    eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f,
 )
 
 /** 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 없으면 안내 창을 띄운다. */
 fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
     val base = if (mode == PracticeMode.Model) {
-        copy(mode = PracticeMode.Ready, playing = false, position = 0, elapsedMs = 0.0, eventStartedAt = null)
+        copy(mode = PracticeMode.Ready, playing = false, position = 0, elapsedMs = 0.0, eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f)
     } else {
         this
     }
@@ -191,7 +216,7 @@ fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = c
 
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
     mode = PracticeMode.Recording, position = 0, elapsedMs = 0.0, micLevel = 0f, finished = false, popup = null, follow = true,
-    resume = false, pausedFraction = 0f, hadInput = false, noInputMs = 0.0,
+    resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
 )
 
 fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true)
@@ -202,7 +227,7 @@ fun PracticeUiState.cancelCountdown(): PracticeUiState =
 
 fun PracticeUiState.toReady(): PracticeUiState = copy(
     mode = PracticeMode.Ready, position = 0, elapsedMs = 0.0, popup = null, playing = false, finished = false, micLevel = 0f,
-    eventStartedAt = null, pausedFraction = 0f, resume = false, hadInput = false, noInputMs = 0.0,
+    eventStartedAt = null, pausedFraction = 0f, eventElapsedMs = 0.0, resume = false, hadInput = false, noInputMs = 0.0,
 )
 
 /**
@@ -213,10 +238,10 @@ fun PracticeUiState.advance(doneMs: Double, micLevel: Float): PracticeUiState {
     val next = position + 1
     val elapsed = elapsedMs + doneMs
     if (next < eventCount) {
-        return copy(position = next, elapsedMs = elapsed, micLevel = if (mode == PracticeMode.Recording) micLevel else this.micLevel, pausedFraction = 0f)
+        return copy(position = next, elapsedMs = elapsed, eventElapsedMs = 0.0, micLevel = if (mode == PracticeMode.Recording) micLevel else this.micLevel, pausedFraction = 0f)
     }
     return when (mode) {
-        PracticeMode.Model -> copy(playing = false, position = eventCount - 1, elapsedMs = totalSeconds * 1000.0, eventStartedAt = null)
+        PracticeMode.Model -> copy(playing = false, position = eventCount - 1, elapsedMs = elapsed, eventElapsedMs = eventDurationMs(), pausedFraction = 1f, eventStartedAt = null)
         PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed).endRecording()
         else -> this
     }
@@ -260,7 +285,8 @@ fun PracticeUiState.failRecording(): PracticeUiState = copy(
 )
 
 /** 연주 중단을 누르면 진행을 그 자리에서 멈추고 확인 창을 띄운다. */
-fun PracticeUiState.askAbort(fraction: Float): PracticeUiState = copy(popup = PracticePopup.Abort, eventStartedAt = null, pausedFraction = fraction)
+fun PracticeUiState.askAbort(fraction: Float, elapsedInEventMs: Double = eventDurationMs() * fraction): PracticeUiState =
+    copy(popup = PracticePopup.Abort, eventStartedAt = null, pausedFraction = fraction, eventElapsedMs = elapsedInEventMs)
 
 /** 앱을 벗어나는 등으로 연주가 끊김. 끊긴 연주는 평가하지 않는다. */
 fun PracticeUiState.interrupt(): PracticeUiState =
@@ -273,9 +299,10 @@ fun PracticeUiState.interrupt(): PracticeUiState =
 /** 준비 상태에서 음을 누르면 고르고, 율명이면 운지법 패널을 연다. 지속·쉼 기호는 고르기만 한다. */
 fun PracticeUiState.selectEvent(index: Int): PracticeUiState {
     if (mode != PracticeMode.Ready) return this
-    val yul = (song?.timeline?.getOrNull(index)?.note as? com.ssafy.eolssu.core.model.ScoreNote.Pitch)?.yul
+    val yul = song?.timeline?.getOrNull(index)?.note?.fingeringYul
     val base = copy(selected = index, listening = null)
-    return if (yul != null) base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = yul)) else base
+    return if (yul != null) base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = yul))
+        else base.copy(panel = base.panel.takeUnless { it == PracticePanel.Fingering })
 }
 
 /** 패널 열기. 연주·카운트다운 중에는 열지 않는다. 지금 설정을 고치는 값으로 옮겨 둔다. */

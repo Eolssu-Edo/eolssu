@@ -56,6 +56,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideCard
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
@@ -74,6 +76,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_reading_sigimsae_small
 import eolssu.shared.generated.resources.guide_reading_title
 import eolssu.shared.generated.resources.guide_sigimsae_credit
+import eolssu.shared.generated.resources.guide_catalog_title
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -92,16 +95,23 @@ fun ReadingScreen(
     onBack: () -> Unit,
     initialPage: ReadingPage = ReadingPage.Intro,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
+    onOpenCatalog: (() -> Unit)? = null,
 ) {
     var moreTip by rememberSaveable { mutableStateOf<Int?>(null) }
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack, widthClass = widthClass) },
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
-        if (widthClass == WindowWidthClass.Compact) {
-            ReadingBook(initialPage, moreTip, onMoreTip = { moreTip = it })
-        } else {
-            ReadingTabletGrid(widthClass, moreTip, onMoreTip = { moreTip = it })
+        Column(Modifier.fillMaxSize()) {
+            Box(Modifier.weight(1f)) {
+                if (widthClass == WindowWidthClass.Compact) {
+                    ReadingBook(initialPage, moreTip, onMoreTip = { moreTip = it })
+                } else {
+                    ReadingTabletGrid(widthClass, moreTip, onMoreTip = { moreTip = it })
+                }
+            }
+            if (onOpenCatalog != null) EolssuButton(stringResource(Res.string.guide_catalog_title), onOpenCatalog,
+                Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = EolssuButtonStyle.Secondary)
         }
     }
 }

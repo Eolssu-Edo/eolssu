@@ -22,9 +22,12 @@ class EolssuColorsContrastTest {
     @Test
     fun textOnFilledButtonsIsReadable() {
         assertReadable("onPrimary / primary", colors.onPrimary, colors.primary)
-        assertReadable("onPrimary / play", colors.onPrimary, colors.play)
-        assertReadable("onPrimary / rec", colors.onPrimary, colors.rec)
+        assertReadable("onPlay / play", colors.onPlay, colors.play)
+        assertReadable("onRec / rec", colors.onRec, colors.rec)
         assertReadable("onPrimary / green", colors.onPrimary, colors.green)
+        assertReadable("onInk / selected tab and completed badge", colors.onInk, colors.text)
+        assertReadable("selection outline / background", colors.accentText, colors.background, minimum = 3f)
+        assertReadable("selection outline / surface", colors.accentText, colors.surface, minimum = 3f)
     }
 
     /** 부수 강조색은 24sp 이상 큰 글자에만 쓰므로 큰 글자 기준(3:1)을 본다. 검은 율명과도 구분돼야 한다. */

@@ -167,7 +167,7 @@ private fun PageThumbs(state: PdfPreviewUiState, onSelectPage: (Int) -> Unit, sp
             shape = RoundedCornerShape(6.dp),
             color = colors.background,
             contentColor = colors.text,
-            border = if (selected) BorderStroke(2.dp, colors.primary) else BorderStroke(1.dp, colors.line),
+            border = if (selected) BorderStroke(2.dp, colors.accentText) else BorderStroke(1.dp, colors.line),
         ) {
             Box(Modifier.padding(bottom = 4.dp), contentAlignment = Alignment.BottomCenter) {
                 Text("$page", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))

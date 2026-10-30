@@ -22,6 +22,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.song.MySongsActions
 import com.ssafy.eolssu.feature.song.MySongsTab
 import com.ssafy.eolssu.feature.song.MySongsUiState
+import com.ssafy.eolssu.feature.song.SongLoadState
+import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.AddSheetButton
 import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.MySheetCard
@@ -81,7 +83,9 @@ internal fun MySongsTabletLayout(
             }
             when (state.tab) {
                 MySongsTab.Songs -> {
-                    CardGrid(state.songs, columns, itemKey = { it.id }) { song, modifier ->
+                    if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
+                        SongLoadNotice(state.loadState, actions.onRetry)
+                    } else CardGrid(state.songs, columns, itemKey = { it.id }) { song, modifier ->
                         SongCard(
                             song,
                             meta = providedSongMeta(song),

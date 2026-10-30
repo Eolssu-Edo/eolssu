@@ -74,7 +74,7 @@ private fun BlowTab(instrument: GuideInstrument, blow: Blow, shown: Blow, onSele
         shape = RoundedCornerShape(if (large) 12.dp else 10.dp),
         color = if (on) colors.text else colors.background,
         contentColor = when {
-            on -> colors.onPrimary
+            on -> colors.onInk
             enabled -> colors.text
             else -> colors.lineStrong
         },

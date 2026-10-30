@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -49,16 +50,21 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.EvaluationMetric
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.displayUnitAt
+import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.score_column_start
@@ -89,7 +95,7 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
 
 /**
  * 정간보. 각 0을 가장 오른쪽에 두고 다음 각을 왼쪽에 놓아, 위 → 아래, 오른쪽 → 왼쪽으로 읽는다.
- * 대강이 시작하는 정간 위에는 굵은 선을 긋고, 긴 각은 [com.ssafy.eolssu.core.model.Jangdan.strips]대로 여러 줄로 나눈다.
+ * 원본의 가변 각 길이를 유지하고, 긴 각은 여러 줄로 나눈다. 기존 샘플에만 장단의 대강 선을 적용한다.
  *
  * @param scrollState 가로 스크롤 상태. 처음에는 오른쪽 끝(시작 각)이 보인다. null이면 스크롤 없이 넘치는 왼쪽을 자른다(미리보기).
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
@@ -103,6 +109,8 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
  * @param columns 이 범위의 각만 그린다. 악보를 여러 단으로 나눠 그릴 때 쓴다.
  * @param dimUnmarked [errors]에 없는 정간을 흐리게 해 틀린 정간을 돋보이게 한다.
  * @param highlightColumns 이 범위의 각을 노란 테두리로 강조한다(틀린 칸이 몰린 각).
+ * @param selectedCell 결과에서 선택한 표시 정간. 같은 이벤트를 잇는 다른 정간까지 선택하지 않는다.
+ * @param onUnitClick 표시 자리를 선택할 때 쓴다. 연습의 [onEventClick]은 원본 이벤트를 그대로 전달한다.
  */
 @Composable
 fun JeongganboView(
@@ -116,7 +124,7 @@ fun JeongganboView(
     playback: ScorePlayback? = null,
     follow: Boolean = false,
     onUserScroll: () -> Unit = {},
-    errors: Map<Pair<Int, Int>, EvaluationMetric> = emptyMap(),
+    errors: Map<Pair<Int, Int>, ScoreErrorKind> = emptyMap(),
     selectedIndex: Int? = null,
     onEventClick: ((ScoreEvent) -> Unit)? = null,
     maxColumns: Int? = null,
@@ -124,16 +132,22 @@ fun JeongganboView(
     columns: IntRange? = null,
     dimUnmarked: Boolean = false,
     highlightColumns: IntRange? = null,
+    selectedCell: Pair<Int, Int>? = null,
+    onUnitClick: ((ScoreDisplayUnit) -> Unit)? = null,
 ) {
+    // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
+    // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
+    val renderMetrics = metrics.forFontScale(LocalDensity.current.fontScale)
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
-    val eventsByCell = remember(song) { song.timeline.groupBy { it.column to it.row } }
-    val daegangStarts = song.jangdan.daegangStarts
+    val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
+    // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않는다.
+    val daegangStarts = if (song.score.timing == null) song.jangdan.daegangStarts else emptyList()
     val solfege = song.solfege.takeIf { notation.showSolfege }
 
-    // 진행 비율은 그리기 단계에서만 읽어 매 프레임 다시 구성하지 않는다.
+    // 채우기는 그리기 단계에서, 따라가기는 표시 자리 경계를 넘을 때만 갱신한다.
     val fraction = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(playback) {
-        val p = playback ?: return@LaunchedEffect
+        val p = playback ?: run { fraction.floatValue = 0f; return@LaunchedEffect }
         val started = p.startedAt
         if (started == null) {
             fraction.floatValue = p.pausedFraction
@@ -146,8 +160,12 @@ fun JeongganboView(
         }
     }
 
+    val currentUnit by remember(song, currentIndex) {
+        derivedStateOf { currentIndex?.let { song.displayUnitAt(it, fraction.floatValue) } }
+    }
+
     if (scrollState != null) {
-        FollowCurrentStrip(scrollState, strips, song, currentIndex, follow, metrics, onUserScroll)
+        FollowCurrentStrip(scrollState, strips, currentUnit, follow, renderMetrics, onUserScroll)
     }
 
     val rowModifier = if (scrollState != null) {
@@ -157,27 +175,31 @@ fun JeongganboView(
     }
     Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
         Row(
-            modifier = rowModifier.padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 10.dp),
+            modifier = rowModifier.semantics { isTraversalGroup = true }
+                .padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
-            for (strip in strips.asReversed()) {
-                ScoreStripColumn(strip, metrics, highlighted = highlightColumns != null && strip.column in highlightColumns) { row ->
+            for ((readingIndex, strip) in strips.withIndex().reversed()) {
+                ScoreStripColumn(strip, renderMetrics, readingIndex, highlighted = highlightColumns != null && strip.column in highlightColumns) { row ->
                     ScoreCellBox(
-                        events = eventsByCell[strip.column to row].orEmpty(),
-                        metrics = metrics,
+                        units = unitsByCell[strip.column to row].orEmpty(),
+                        metrics = renderMetrics,
                         drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
                         isDaegangStart = row in daegangStarts,
                         notation = notation,
                         solfege = solfege,
                         currentIndex = currentIndex,
+                        currentEvent = currentIndex?.let { song.timeline.getOrNull(it) },
                         highlight = highlight,
                         live = playback != null,
                         fraction = { fraction.floatValue },
                         error = errors[strip.column to row],
                         dimmed = dimUnmarked && (strip.column to row) !in errors,
                         selectedIndex = selectedIndex,
+                        selectedCell = selectedCell?.let { it == (strip.column to row) },
                         onEventClick = onEventClick,
+                        onUnitClick = onUnitClick,
                     )
                 }
             }
@@ -190,8 +212,7 @@ fun JeongganboView(
 private fun FollowCurrentStrip(
     scrollState: ScrollState,
     strips: List<ScoreStrip>,
-    song: Song,
-    currentIndex: Int?,
+    currentUnit: ScoreDisplayUnit?,
     follow: Boolean,
     metrics: JeongganboMetrics,
     onUserScroll: () -> Unit,
@@ -201,8 +222,7 @@ private fun FollowCurrentStrip(
     LaunchedEffect(scrollState) {
         scrollState.interactionSource.interactions.collect { if (it is DragInteraction.Start) latestOnUserScroll() }
     }
-    val event = currentIndex?.let { song.timeline.getOrNull(it) }
-    val stripIndex = event?.let { e -> strips.indexOfFirst { it.column == e.column && e.row in it.rows } } ?: -1
+    val stripIndex = currentUnit?.let { e -> strips.indexOfFirst { it.column == e.column && e.row in it.rows } } ?: -1
     LaunchedEffect(stripIndex, follow, scrollState.viewportSize) {
         if (!follow || stripIndex < 0 || scrollState.viewportSize == 0) return@LaunchedEffect
         with(density) {
@@ -224,6 +244,7 @@ private fun FollowCurrentStrip(
 private fun ScoreStripColumn(
     strip: ScoreStrip,
     metrics: JeongganboMetrics,
+    readingIndex: Int,
     highlighted: Boolean = false,
     cell: @Composable (row: Int) -> Unit,
 ) {
@@ -245,6 +266,10 @@ private fun ScoreStripColumn(
     }
     Column(
         Modifier
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = readingIndex.toFloat()
+            }
             .padding(top = if (strip.strip > 0) metrics.headHeight else 0.dp)
             .width(metrics.columnWidth)
             .then(ring)
@@ -275,24 +300,34 @@ private fun ColumnHead(column: Int, metrics: JeongganboMetrics, highlighted: Boo
 
 @Composable
 private fun ScoreCellBox(
-    events: List<ScoreEvent>,
+    units: List<ScoreDisplayUnit>,
     metrics: JeongganboMetrics,
     drawTopLine: Boolean,
     isDaegangStart: Boolean,
     notation: ScoreNotation,
     solfege: Map<Yul, String>?,
     currentIndex: Int?,
+    currentEvent: ScoreEvent?,
     highlight: ScoreHighlight,
     live: Boolean,
     fraction: () -> Float,
-    error: EvaluationMetric?,
+    error: ScoreErrorKind?,
     selectedIndex: Int?,
+    selectedCell: Boolean?,
     onEventClick: ((ScoreEvent) -> Unit)?,
+    onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val errorStyle = error?.let { errorStyle(it) }
-    val progress = cellProgress(events, currentIndex)
+    val cellStart = units.minOfOrNull { it.unitStart } ?: 0.0
+    val currentFraction by rememberUpdatedState(fraction)
+    val progress by remember(units, currentEvent, live) {
+        derivedStateOf {
+            val position = currentEvent?.let { it.unitStart + if (live) it.unitDuration * currentFraction() else 0.0 }
+            cellProgressAt(cellStart, position)
+        }
+    }
     val (fill, ring) = when (highlight) {
         ScoreHighlight.Position -> colors.accentSoft to colors.accent
         ScoreHighlight.Recording -> colors.recSoft to colors.rec
@@ -300,8 +335,8 @@ private fun ScoreCellBox(
     val headColor = if (highlight == ScoreHighlight.Recording) colors.rec else colors.play
     val lineColor = if (isDaegangStart) colors.lineStrong else colors.line
     val lineWidth = if (isDaegangStart) 2.dp else 1.dp
-    val isSelected = selectedIndex != null && events.any { it.index == selectedIndex }
-    val current = events.firstOrNull { it.index == currentIndex }
+    val isSelected = selectedCell ?: (selectedIndex != null && units.any { it.event.index == selectedIndex })
+    val rows = remember(units) { units.groupBy { it.unitRow }.values.toList() }
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
@@ -312,13 +347,25 @@ private fun ScoreCellBox(
         progress == CellProgress.Current -> cellModifier.background(fill)
         else -> cellModifier
     }
-    if (live && current != null) {
+    if (live && progress == CellProgress.Current && currentEvent != null) {
         // 현재 정간: 정간 안에서 지난 만큼(나눈 음이면 앞 음 몫 포함) 위에서부터 채우고 그 자리에 진행 선을 긋는다.
         cellModifier = cellModifier.drawWithContent {
-            val cellFraction = ((current.sub + fraction()) / current.subCount).coerceIn(0f, 1f)
-            val y = size.height * cellFraction
-            drawRect(colors.doneSoft, size = Size(size.width, y))
+            val cellFraction = (currentEvent.unitStart + currentEvent.unitDuration * fraction() - cellStart).toFloat().coerceIn(0f, 1f)
+            val rowProgress = cellFraction * rows.size
+            val activeRow = rowProgress.toInt().coerceAtMost(rows.lastIndex)
+            val rowFraction = (rowProgress - activeRow).coerceIn(0f, 1f)
+            val rowHeight = size.height / rows.size
+            val y = rowHeight * (activeRow + rowFraction)
+            val splitHorizontally = rows[activeRow].size > 1
+            val top = rowHeight * activeRow
+            drawRect(colors.doneSoft, size = Size(size.width, if (splitHorizontally) top else y))
+            if (splitHorizontally) drawRect(colors.doneSoft, topLeft = Offset(0f, top), size = Size(size.width * rowFraction, rowHeight))
             drawContent()
+            if (splitHorizontally) {
+                val x = size.width * rowFraction
+                drawLine(headColor, Offset(x, top), Offset(x, top + rowHeight), strokeWidth = 2.5.dp.toPx())
+                return@drawWithContent
+            }
             val band = 14.dp.toPx().coerceAtMost(y)
             drawRect(
                 Brush.verticalGradient(listOf(Color.Transparent, headColor.copy(alpha = 0.16f)), startY = y - band, endY = y),
@@ -363,18 +410,23 @@ private fun ScoreCellBox(
 
     Box(cellModifier) {
     Column(Modifier.fillMaxSize()) {
-        events.forEachIndexed { k, event ->
-            ScoreNoteBox(
-                event = event,
-                metrics = metrics,
-                showDivider = k > 0,
-                isCurrentInSplit = !live && events.size > 1 && event.index == currentIndex,
-                notation = notation,
-                solfege = solfege,
-                onClick = onEventClick?.let { { it(event) } },
-                isSelected = event.index == selectedIndex,
-                modifier = Modifier.weight(1f),
-            )
+        rows.forEachIndexed { r, row ->
+            Row(Modifier.fillMaxWidth().weight(1f)) {
+                row.forEach { unit ->
+                    ScoreNoteBox(
+                        unit = unit,
+                        splitCount = maxOf(rows.size, row.size),
+                        metrics = metrics,
+                        showDivider = r > 0,
+                        isCurrentInSplit = !live && units.size > 1 && unit.event.index == currentIndex,
+                        notation = notation,
+                        solfege = solfege,
+                        onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
+                        isSelected = selectedCell ?: (unit.event.index == selectedIndex),
+                        modifier = Modifier.weight(1f).fillMaxSize(),
+                    )
+                }
+            }
         }
     }
         if (error != null && errorStyle != null) {
@@ -390,7 +442,8 @@ private fun ScoreCellBox(
 
 @Composable
 private fun ScoreNoteBox(
-    event: ScoreEvent,
+    unit: ScoreDisplayUnit,
+    splitCount: Int,
     metrics: JeongganboMetrics,
     showDivider: Boolean,
     isCurrentInSplit: Boolean,
@@ -401,20 +454,23 @@ private fun ScoreNoteBox(
     modifier: Modifier = Modifier,
 ) {
     val colors = EolssuTheme.colors
-    val note = event.note
-    val pitch = note as? ScoreNote.Pitch
+    val note = unit.note
+    val isPitch = note is ScoreNote.Pitch || note is ScoreNote.SourcePitch
     val label = when (note) {
         is ScoreNote.Pitch -> note.yul.fullName
+        is ScoreNote.SourcePitch -> note.fullName
         ScoreNote.Hold -> stringResource(Res.string.score_hold)
+        ScoreNote.Blank -> stringResource(if (unit.event.note == ScoreNote.Rest) Res.string.score_rest else Res.string.score_hold)
         ScoreNote.Rest -> stringResource(Res.string.score_rest)
     }
     val hangul = when {
         !notation.showHangul -> null
-        pitch != null -> pitch.yul.hangul
+        note is ScoreNote.Pitch -> note.yul.hangul
+        note is ScoreNote.SourcePitch -> note.hangul
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    val solfegeText = pitch?.let { solfege?.get(it.yul) }
+    val solfegeText = note.fingeringYul?.let { solfege?.get(it) }
 
     var noteModifier = modifier.fillMaxWidth()
     if (isCurrentInSplit) noteModifier = noteModifier.background(Color.White.copy(alpha = 0.55f))
@@ -436,19 +492,19 @@ private fun ScoreNoteBox(
         if (onClick != null) selected = isSelected
     }
 
-    val yulSize = metrics.yulSizeFor(event.subCount)
-    val auxSize = metrics.auxSizeFor(event.subCount)
+    val yulSize = metrics.yulSizeFor(splitCount)
+    val auxSize = metrics.auxSizeFor(splitCount)
     Row(
         noteModifier.padding(horizontal = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ScoreNoteGlyph(
-            note,
-            yulSize,
+            note = note,
             modifier = Modifier.clearAndSetSemantics {},
-            color = if (pitch != null) colors.text else colors.textMuted,
-            fontWeight = if (pitch != null) FontWeight.SemiBold else FontWeight.Normal,
+            size = yulSize,
+            color = if (isPitch) colors.text else colors.textMuted,
+            fontWeight = if (isPitch) FontWeight.SemiBold else FontWeight.Normal,
         )
         if (hangul != null || solfegeText != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)

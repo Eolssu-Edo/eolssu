@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -84,7 +84,7 @@ fun EolssuTextField(
             }),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .heightIn(min = 52.dp)
                 .semantics {
                     contentDescription = label
                     if (error != null) error(error)
@@ -93,10 +93,10 @@ fun EolssuTextField(
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .background(colors.background, shape)
-                        .border(if (error != null) 1.5.dp else 1.dp, if (error != null) colors.text else colors.line, shape)
-                        .padding(horizontal = 14.dp),
+                        .heightIn(min = 52.dp)
+                        .background(colors.surface, shape)
+                        .border(if (error != null) 1.5.dp else 1.dp, if (error != null) colors.rec else colors.line, shape)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {
                     Box(Modifier.padding(end = if (trailing != null) 48.dp else 0.dp)) {

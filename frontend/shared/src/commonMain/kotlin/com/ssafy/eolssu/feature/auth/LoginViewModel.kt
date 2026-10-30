@@ -1,7 +1,9 @@
 package com.ssafy.eolssu.feature.auth
 
 import androidx.lifecycle.ViewModel
+import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.data.user.LoginResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,7 +11,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** AUTH-04. 계정 확인은 [AuthRepository]가 하고, 결과에 따라 오류 문구나 안내 창을 남긴다. */
-class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
+class LoginViewModel(
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository? = null,
+    private val draft: AccountDraft = AccountDraft(),
+) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
@@ -27,21 +33,23 @@ class LoginViewModel(private val authRepository: AuthRepository) : ViewModel() {
         if (loggingIn) return false
         loggingIn = true
         val state = _uiState.value
-        val result = try {
-            authRepository.logIn(state.email, state.password)
-        } finally {
-            loggingIn = false
-        }
-        return when (result) {
+        return try {
+            val result = authRepository.logIn(state.email, state.password)
+            when (result) {
             LoginResult.WrongCredentials -> false.also { _uiState.update { it.copy(error = FieldError.LoginFailed) } }
             LoginResult.Unavailable -> false.also { _uiState.update { it.copy(error = FieldError.LoginUnavailable) } }
             LoginResult.Locked -> false.also { _uiState.update { it.copy(error = null, notice = LoginNotice.Locked) } }
             is LoginResult.Success -> {
+                // A completed login ends the anonymous signup flow, including its consent choices.
+                draft.clear()
+                userRepository?.logOut()
+                userRepository?.refresh(state.email.trim())
                 val notice = if (result.withdrawalCancelled) LoginNotice.WithdrawalCancelled else null
-                _uiState.update { it.copy(error = null, notice = notice) }
+                _uiState.update { it.copy(password = "", error = null, notice = notice) }
                 notice == null
             }
-        }
+            }
+        } finally { loggingIn = false }
     }
 
     fun dismissNotice() = _uiState.update { it.copy(notice = null) }

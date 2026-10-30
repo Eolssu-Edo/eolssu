@@ -117,7 +117,7 @@ internal fun ListenButton(playing: Boolean, contentDescription: String, onClick:
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(40.dp).semantics { this.contentDescription = contentDescription },
+        modifier = Modifier.size(48.dp).semantics { this.contentDescription = contentDescription },
         shape = CircleShape,
         color = if (playing) colors.accent else colors.background,
         border = BorderStroke(1.dp, if (playing) colors.accent else colors.line),

@@ -138,6 +138,7 @@ private fun rememberRecordDetailActions(
             onToggleErrors = viewModel::toggleErrors,
             onToggleFollow = viewModel::toggleFollow,
             onWeakSection = { scope.launch { snackbarHostState.showSnackbar(comingSoon) } },
+            onRetrySong = viewModel::retrySong,
         )
     }
 }
@@ -158,7 +159,7 @@ class GrowthViewModel(
     init {
         load(GrowthRange.Week)
         viewModelScope.launch {
-            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> learnProgress.doneStageCount(instrument) }
+            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument?.let(learnProgress::doneStageCount) }
                 .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
         }
     }
