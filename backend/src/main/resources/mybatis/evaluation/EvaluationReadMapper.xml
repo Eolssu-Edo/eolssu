@@ -3,12 +3,15 @@
 <mapper namespace="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadMapper">
     <select id="findOwned" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadRow">
         SELECT s.id AS session_id,s.song_id,s.score_version,s.bpm,s.bpm_unit,s.status,s.started_at,s.ended_at,s.recording_duration_ms,
-               e.id AS evaluation_id,e.total_score,e.pitch_score,e.timing_score,e.duration_score,e.evaluated_at
+               s.start_note_idx,s.end_note_idx,e.id AS evaluation_id,e.total_score,e.pitch_score,e.timing_score,e.duration_score,e.evaluated_at
         FROM practice_sessions s LEFT JOIN evaluations e ON e.session_id=s.id
         WHERE s.id=#{sessionId} AND s.user_id=#{userId} AND s.record_deleted_at IS NULL
     </select>
     <select id="notes" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow">
         SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict
         FROM note_results WHERE evaluation_id=#{evaluationId} ORDER BY note_idx
+    </select>
+    <select id="score" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationScoreRow">
+        SELECT score_json,score_version FROM songs WHERE id=#{songId}
     </select>
 </mapper>

@@ -29,7 +29,7 @@
 | notes[].noteIdx, notes[].verdict | INT·STRING, 저장 순번과 판정 |
 | notes[].pitchErrorCent, onsetErrorMs, durationErrorMs | INT 또는 null, 저장 오차 그대로 |
 
-feedbackMessage·tip·previousTotalScore·savedAt·mission·modelVersion·startNoteIdx·endNoteIdx는 이 응답에 포함하지 않는다. 원본 녹음 키·서명 URL도 노출하지 않는다. 별도 `/evaluation/notes` 경로를 이 Task에서 구현한 것으로 보지 않는다.
+feedbackMessage·tip·previousTotalScore·savedAt·mission·modelVersion·startNoteIdx·endNoteIdx는 이 응답에 포함하지 않는다. 원본 녹음 키·서명 URL도 노출하지 않는다. 구간·유형별 개수가 필요한 `/evaluation/notes`는 [EVA-02·03 스펙](evaluation-detail-apis.md)에 있다.
 
 ## 구현 경계·검증
 

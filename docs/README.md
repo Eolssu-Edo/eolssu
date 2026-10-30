@@ -36,6 +36,7 @@
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
+- [오류 음표·취약 구간 조회 API (EVA-02·03)](specs/evaluation-detail-apis.md) · [계획](plans/S15P31E102-307.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
