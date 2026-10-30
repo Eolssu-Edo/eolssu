@@ -3,7 +3,7 @@ import sys
 from unittest.mock import patch
 
 from ai_service.pipelines import scoring
-from evaluation.dtw_quality import ROOT, compare, note_groups, synth, summarize_cases, load_recording_case
+from evaluation.dtw_quality import ROOT, compare, note_groups, synth, summarize_cases, load_recording_case, omission_evidence
 from evaluation.error_detection import score_notes
 from evaluation.dtw_candidates import NoPath
 
@@ -132,3 +132,50 @@ def test_reference_path_outside_band_is_reported():
     result = summarize_cases([{'recordingId': 'outside', 'results': {'reference': reference, 'B0.5': candidate}}])
     assert result['B0.5']['comparisons'][0]['referenceInsideBand'] is False
     assert result['B0.5']['comparisons'][0]['pathChanged'] is True
+
+
+def test_omission_distinguishes_silence_from_deleted_time():
+    notes = [scoring.Note(i * 2, 1, idx=i, start_beat=i) for i in range(6)]
+    for count, suffix in ((1, ''), (2, '_two')):
+        f0, rms = synth(notes, 120, 'silence' + suffix)
+        silent = omission_evidence(notes, 120, 'silence' + suffix, f0, rms)
+        f0, rms = synth(notes, 120, 'cut' + suffix)
+        cut = omission_evidence(notes, 120, 'cut' + suffix, f0, rms)
+        assert silent['originalFrames'] == silent['generatedFrames'] == 300
+        assert cut['originalFrames'] == 300
+        assert cut['generatedFrames'] == 300 - 50 * count
+        assert silent['generatedFollowingFrame'] == silent['originalFollowingFrame']
+        assert cut['generatedFollowingFrame'] == cut['originalFollowingFrame'] - 50 * count
+        assert silent['suffixMatches'] and cut['suffixMatches']
+
+
+def test_omission_evidence_handles_score_fractional_beats():
+    sys.path.insert(0, str(ROOT / 'data/src/scores'))
+    try:
+        from score_data import convert_answer
+        for page in (171, 172, 173, 174):
+            notes = score_notes(convert_answer(f'ngc-standard-2022-p{page}'), 0, 10000)
+            notes = [n for n in notes if n.start_beat - notes[0].start_beat + n.beats <= 8]
+            bpm = 66 if page == 174 else 96
+            for variant in ('silence', 'silence_two', 'cut', 'cut_two'):
+                f0, rms = synth(notes, bpm, variant)
+                assert omission_evidence(notes, bpm, variant, f0, rms)['suffixMatches']
+    finally:
+        sys.path.pop(0)
+
+
+def test_omission_preserves_first_frame_of_following_note():
+    sys.path.insert(0, str(ROOT / 'data/src/scores'))
+    try:
+        from score_data import convert_answer
+        notes = score_notes(convert_answer('ngc-standard-2022-p171'), 0, 10000)
+        notes = [n for n in notes if n.start_beat - notes[0].start_beat + n.beats <= 8]
+        base_f0, base_rms = synth(notes, 96, 'normal')
+        for variant in ('silence_two', 'cut_two'):
+            f0, rms = synth(notes, 96, variant)
+            info = omission_evidence(notes, 96, variant, f0, rms)
+            orig, actual = info['originalFollowingFrame'], info['generatedFollowingFrame']
+            assert np.array_equal(f0[actual:], base_f0[orig:], equal_nan=True)
+            assert np.array_equal(rms[actual:], base_rms[orig:])
+    finally:
+        sys.path.pop(0)

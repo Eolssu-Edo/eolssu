@@ -80,6 +80,10 @@ def synth(notes, bpm, variant):
     stop = round((starts[middle] + notes[middle].beats * beat_s) / scoring.HOP_S)
     if variant in ('silence_two', 'cut_two') and middle + 1 < len(notes):
         stop = round((starts[middle + 1] + notes[middle + 1].beats * beat_s) / scoring.HOP_S)
+    if variant in ('silence', 'silence_two', 'cut', 'cut_two'):
+        last = min(middle + (1 if variant.endswith('_two') else 0), len(notes) - 1)
+        if last + 1 < len(notes):
+            stop = min(stop, round(starts[last + 1] / scoring.HOP_S))
     if variant in ('silence', 'silence_two'):
         f0[first:stop] = np.nan
         rms[first:stop] = 0.0
@@ -102,6 +106,36 @@ def synth(notes, bpm, variant):
     elif variant == 'ornament':
         f0[first:stop] *= 2 ** (100 * np.sin(np.arange(stop - first) * 0.2) / 1200)
     return f0, rms
+
+
+def omission_evidence(notes, bpm, variant, f0, rms):
+    """누락 앞뒤 입력을 직접 대조하고 이후 음이 이동한 시각을 기록한다."""
+    base_f0, base_rms = synth(notes, bpm, 'normal')
+    middle = len(notes) // 2
+    last = min(middle + (1 if variant.endswith('_two') else 0), len(notes) - 1)
+    beat_s = 60 / bpm
+    first = round((notes[middle].start_beat - notes[0].start_beat) * beat_s / scoring.HOP_S)
+    stop = round(((notes[last].start_beat - notes[0].start_beat) * beat_s + notes[last].beats * beat_s) / scoring.HOP_S)
+    following = notes[last + 1] if last + 1 < len(notes) else None
+    original_following = None if following is None else round(
+        (following.start_beat - notes[0].start_beat) * beat_s / scoring.HOP_S)
+    if original_following is not None:
+        stop = min(stop, original_following)
+    deleted = stop - first if variant.startswith('cut') else 0
+    new_following = None if original_following is None else original_following - deleted
+    same_prefix = np.array_equal(f0[:first], base_f0[:first], equal_nan=True) and np.array_equal(rms[:first], base_rms[:first])
+    same_suffix = np.array_equal(f0[stop - deleted:], base_f0[stop:], equal_nan=True) and np.array_equal(rms[stop - deleted:], base_rms[stop:])
+    following_matches = following is None or (
+        np.array_equal(f0[new_following:], base_f0[original_following:], equal_nan=True)
+        and np.array_equal(rms[new_following:], base_rms[original_following:]))
+    silence_valid = not variant.startswith('silence') or (np.isnan(f0[first:stop]).all() and np.all(rms[first:stop] == 0))
+    if len(f0) != len(base_f0) - deleted or len(rms) != len(f0) or not (same_prefix and same_suffix and following_matches and silence_valid):
+        raise ValueError(f'{variant}: 누락 전후 입력이 예상과 다르다')
+    return {'originalFrames': len(base_f0), 'generatedFrames': len(f0), 'removedFrames': deleted,
+            'omittedNoteIds': [n.idx for n in notes[middle:last + 1]],
+            'followingNoteIdx': None if following is None else following.idx,
+            'originalFollowingFrame': original_following, 'generatedFollowingFrame': new_following,
+            'suffixMatches': same_suffix, 'followingMatches': following_matches, 'frameSeconds': scoring.HOP_S}
 
 
 def load_recording_case(path, seen_ids=None):
@@ -212,6 +246,7 @@ def main():
                         'variant': f'segment_{variant}', 'bpm': bpm,
                         'inputHash': hashlib.sha256(f0.tobytes()).hexdigest(),
                         'rmsHash': hashlib.sha256(rms.tobytes()).hexdigest(),
+                        'omission': omission_evidence(case_notes, bpm, variant, f0, rms) if variant in ('silence', 'silence_two', 'cut', 'cut_two') else None,
                         'notes': [asdict(n) for n in case_notes], 'results': compare(f0, case_notes, bpm, rms)})
         # 길이가 제한된 동일 악보 구간. 곡 전체 검증은 별도로 필요하다.
         notes = [n for n in full_notes if n.start_beat - full_notes[0].start_beat + n.beats <= 8]
@@ -225,6 +260,7 @@ def main():
             f0, rms = synth(case_notes, bpm, variant)
             report['cases'].append({'source': source, 'provenance': data['provenance'], 'variant': variant, 'bpm': bpm,
                 'inputHash': hashlib.sha256(f0.tobytes()).hexdigest(), 'rmsHash': hashlib.sha256(rms.tobytes()).hexdigest(),
+                'omission': omission_evidence(case_notes, bpm, variant, f0, rms) if variant in ('silence', 'silence_two', 'cut', 'cut_two') else None,
                 'notes': [asdict(n) for n in case_notes],
                 'results': compare(f0, case_notes, bpm, rms)})
     if args.labels:
