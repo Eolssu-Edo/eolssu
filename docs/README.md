@@ -221,8 +221,9 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
 - [약관 공개·동의·출시 검증](knowledge/backend/terms-release-verification.md)
 - [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
-- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
-- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [공개 약관 및 녹음 저장 계약(R2 복귀 변경 포함)](specs/terms-release.md)
+- [S15P31E102-333 녹음 저장소 R2 복귀와 국외 이전 고지](plans/S15P31E102-333.md)
+- [녹음 저장 이관(국내 디스크·R2 복귀)·Naver 메일 준비](../infra/storage/README.md)
 - [약관 본문 공개와 버전 등록](../infra/terms/README.md)
 - [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
 
