@@ -13,6 +13,7 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
                 row.startedAt.toInstant(ZoneOffset.UTC), row.endedAt?.toInstant(ZoneOffset.UTC),
                 row.evaluationId, row.totalScore, row.pitchScore, row.timingScore, row.durationScore,
                 row.evaluatedAt?.toInstant(ZoneOffset.UTC), row.recordingDurationMs, row.startNoteIdx, row.endNoteIdx,
+                row.tuningOffsetCent, row.tuningOutOfRange,
             )
         }
 
