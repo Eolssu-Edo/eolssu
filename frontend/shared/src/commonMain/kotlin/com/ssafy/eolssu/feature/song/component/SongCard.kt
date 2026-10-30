@@ -28,7 +28,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuBadge
 import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.songLevelLabel
+import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.song_difficulty_number
@@ -73,8 +73,10 @@ fun SongCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    EolssuBadge(song.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_difficulty_number, song.difficulty))
-                    if (evaluableBadge) EolssuBadge(stringResource(Res.string.mysongs_evaluable_badge), style = EolssuBadgeStyle.Dark)
+                    val level = song.level
+                    if (level != null) EolssuLevelBadge(level, small = true)
+                    else EolssuBadge(stringResource(Res.string.song_difficulty_number, song.difficulty), small = true)
+                    if (evaluableBadge) EolssuBadge(stringResource(Res.string.mysongs_evaluable_badge), style = EolssuBadgeStyle.Play, small = true)
                 }
                 Text(meta, style = MaterialTheme.typography.bodySmall.copy(fontSize = if (large) 13.sp else 12.sp), color = colors.textMuted)
             }

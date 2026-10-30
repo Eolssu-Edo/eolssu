@@ -13,17 +13,30 @@ data class EolssuColors(
     val surface: Color,
     val surfaceStrong: Color,
     val line: Color,
+    /** 칩·흰 카드·원형 버튼의 옅은 테두리(`#E8E4DA`). 글자에 쓰지 않는다. */
+    val lineSoft: Color,
     /** 화살표·구분선처럼 글자가 아닌 보조 표시에만 쓴다. */
     val lineStrong: Color,
     val text: Color,
     /** 먹색을 배경으로 사용하는 선택 탭·완료 배지의 전경. */
     val onInk: Color,
     val textMuted: Color,
+    /** 고르지 않은 칩·페이지 설명처럼 [text]보다 한 단계 낮춘 글자. */
+    val textSub: Color,
+    /** 비활성 칩·버튼 글자. 비활성 요소는 WCAG 대비 기준에서 빠지므로 4.5:1을 넘지 않는다. 다른 글자에는 쓰지 않는다. */
+    val textDisabled: Color,
     val primary: Color,
     val onPrimary: Color,
     /** 현재 위치·선택 강조(연두). */
     val accent: Color,
+    /** 연두 10%. */
     val accentSoft: Color,
+    /** 연두 20%: 상태 배지 · 난이도 '입문' 바탕. */
+    val accentTint: Color,
+    /** 연두 40%: 난이도 '초급' 바탕. */
+    val accentTintStrong: Color,
+    /** 연두 60%: 난이도 배지 테두리. 글자에 쓰지 않는다. */
+    val accentTintLine: Color,
     val accentText: Color,
     /** 모범 연주(재생) 상태(짙은 연두). */
     val play: Color,
@@ -58,14 +71,20 @@ val LightEolssuColors = EolssuColors(
     surface = Color(0xFFFFFFFF),
     surfaceStrong = Color(0xFFEEEBE3),
     line = Color(0xFFD9D3C6),
+    lineSoft = Color(0xFFE8E4DA),
     lineStrong = Color(0xFF8B857B),
     text = Color(0xFF27221E),
     onInk = Color.White,
     textMuted = Color(0xFF6B655D),
+    textSub = Color(0xFF5C564F),
+    textDisabled = Color(0xFF9A948A),
     primary = Color(0xFFADBE31),
     onPrimary = Color(0xFF27221E),
     accent = Color(0xFFADBE31),
     accentSoft = Color(0xFFF6F8E3),
+    accentTint = Color(0xFFEFF2D6),
+    accentTintStrong = Color(0xFFDEE5AD),
+    accentTintLine = Color(0xFFCED883),
     accentText = Color(0xFF4A5316),
     play = Color(0xFF64721D),
     onPlay = Color.White,

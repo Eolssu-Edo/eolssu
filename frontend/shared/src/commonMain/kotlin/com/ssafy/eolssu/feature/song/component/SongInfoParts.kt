@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuBadge
+import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import eolssu.shared.generated.resources.Res
@@ -41,7 +42,7 @@ internal fun SongTitleRow(song: Song, modifier: Modifier = Modifier, titleSize: 
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         val style = EolssuTheme.serif.songTitle
         Text(song.title, modifier = Modifier.align(Alignment.CenterVertically), style = if (titleSize.isSpecified) style.copy(fontSize = titleSize) else style)
-        EolssuBadge(songLevelLabel(song.level), modifier = Modifier.align(Alignment.CenterVertically))
+        EolssuLevelBadge(song.level, modifier = Modifier.align(Alignment.CenterVertically))
     }
 }
 
