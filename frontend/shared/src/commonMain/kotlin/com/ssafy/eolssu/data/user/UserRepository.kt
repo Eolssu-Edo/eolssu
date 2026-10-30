@@ -29,7 +29,7 @@ sealed interface PasswordCheckResult {
 /**
  * 마이페이지의 내 정보·간편 로그인 연결·비밀번호 변경·로그아웃·탈퇴.
  * 출시에서는 [ApiUserRepository]가 서버 응답을 확인한다. 예시 구현은 격리된 테스트에만 쓴다.
- * 간편 로그인 연결은 제공자 로그인을 거친 뒤 서버가 확정하므로 [link]는 그 결과만 반영한다.
+ * 간편 로그인 연결은 [startLink]로 받은 제공자 화면을 거친 뒤 [link]로 서버가 확정하고, 성공하면 [profile]의 연결 목록에 반영한다.
  */
 interface UserRepository {
     suspend fun refresh(email: String? = null): MemberResult = MemberResult.Done
@@ -40,10 +40,17 @@ interface UserRepository {
 
     suspend fun changeInstrument(instrumentId: String): MemberResult = MemberResult.Unavailable
 
-    fun link(provider: SocialProvider): Boolean
+    /** 마이페이지 연결 start. 받은 제공자 주소를 외부 브라우저로 연다. */
+    suspend fun startLink(provider: SocialProvider): OAuthStartResult = OAuthStartResult.Unavailable
 
-    /** 가입은 이메일로만 하므로 이메일 로그인이 항상 남아 있어, 마지막 간편 로그인도 해제할 수 있다. */
-    fun unlink(provider: SocialProvider): Boolean
+    /** 복귀 주소의 코드·state로 연결을 끝낸다. state가 1회용이라 실패해도 같은 [callback]으로 다시 부르지 않는다. */
+    suspend fun link(callback: OAuthCallback): LinkResult
+
+    /**
+     * 연결을 해제한다. 이미 해제돼 있었으면(404) 결과가 같아 [MemberResult.Done]이다.
+     * 가입은 이메일로만 하므로 이메일 로그인이 항상 남아 있어, 마지막 간편 로그인도 해제할 수 있다.
+     */
+    suspend fun unlink(provider: SocialProvider): MemberResult
 
     suspend fun changePassword(current: String, new: String): PasswordCheckResult
 
@@ -60,9 +67,15 @@ class SampleUserRepository : UserRepository {
 
     override suspend fun changeNickname(nickname: String): MemberResult { _profile.update { it.copy(nickname = nickname) }; return MemberResult.Done }
 
-    override fun link(provider: SocialProvider): Boolean { _profile.update { it.copy(linkedProviders = it.linkedProviders + provider) }; return true }
+    override suspend fun link(callback: OAuthCallback): LinkResult {
+        _profile.update { it.copy(linkedProviders = it.linkedProviders + callback.provider) }
+        return LinkResult.Linked
+    }
 
-    override fun unlink(provider: SocialProvider): Boolean { _profile.update { it.copy(linkedProviders = it.linkedProviders - provider) }; return true }
+    override suspend fun unlink(provider: SocialProvider): MemberResult {
+        _profile.update { it.copy(linkedProviders = it.linkedProviders - provider) }
+        return MemberResult.Done
+    }
 
     override suspend fun changePassword(current: String, new: String): PasswordCheckResult = check(current)
 

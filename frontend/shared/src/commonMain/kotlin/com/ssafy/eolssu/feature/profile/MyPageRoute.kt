@@ -67,8 +67,14 @@ fun MyPageRoute(
         onLink = onLink,
         onUnlink = viewModel::askUnlink,
         onConfirmUnlink = {
-            viewModel.confirmUnlink()?.let { provider -> show { getString(Res.string.my_unlinked, getString(provider.displayName)) } }
-                ?: show { getString(Res.string.member_api_unavailable) }
+            val provider = (dialog as? MyPageDialog.Unlink)?.provider
+            scope.launch {
+                when (viewModel.confirmUnlink()) {
+                    null -> Unit
+                    MemberResult.Done -> provider?.let { show { getString(Res.string.my_unlinked, getString(it.displayName)) } }
+                    else -> show { getString(Res.string.member_api_unavailable) }
+                }
+            }
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {

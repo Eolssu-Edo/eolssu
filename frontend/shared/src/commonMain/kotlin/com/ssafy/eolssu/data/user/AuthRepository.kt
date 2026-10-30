@@ -1,9 +1,11 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.SocialProvider
+
 /**
  * 이메일 로그인·로그아웃과 이메일 인증번호(`/api/auth/email-verifications`).
  * 로그인·로그아웃은 [ApiAuthRepository]가 서버로 하고, 인증번호는 아직 [SampleAuthRepository]가 예시 결과를 돌려준다.
- * 가입·비밀번호 재설정·계정 연결 요청은 가입 API를 붙일 때 여기에 더한다.
+ * 간편 로그인(AUTH-05)과 계정 연결(AUTH-09)도 여기서 서버로 한다. 시도 상태·복귀 주소 확인은 [OAuthAttempts]가 맡는다.
  */
 interface AuthRepository {
     suspend fun logIn(email: String, password: String): LoginResult
@@ -17,6 +19,15 @@ interface AuthRepository {
 
     suspend fun signUp(request: Registration): MemberResult = MemberResult.Unavailable
     suspend fun resetPassword(token: String, password: String): MemberResult = MemberResult.Unavailable
+
+    /** 간편 로그인 start. 받은 제공자 주소를 외부 브라우저로 연다. */
+    suspend fun startSocialLogIn(provider: SocialProvider): OAuthStartResult = OAuthStartResult.Unavailable
+
+    /** 복귀 주소의 코드·state로 간편 로그인을 끝낸다. state가 1회용이라 실패해도 같은 [callback]으로 다시 부르지 않는다. */
+    suspend fun completeSocialLogIn(callback: OAuthCallback): SocialLoginResult = SocialLoginResult.Unavailable
+
+    /** 계정 연결 확인(AUTH-09)에서 [offer]의 계정에 제공자를 연결하고 로그인한다. [password]는 [MergeOffer.needsPassword]일 때만 보낸다. */
+    suspend fun mergeAccount(offer: MergeOffer, password: String?): MergeResult = MergeResult.Unavailable
 }
 
 /** 인증번호를 받는 목적(`purpose`). 계정 연결(`ACCOUNT_MERGE`)은 연결 화면이 인증번호를 쓰기로 정해지면 더한다. */

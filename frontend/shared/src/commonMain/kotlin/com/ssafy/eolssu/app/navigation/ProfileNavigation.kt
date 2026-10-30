@@ -11,7 +11,7 @@ import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
 import com.ssafy.eolssu.feature.profile.NicknameEditRoute
 import com.ssafy.eolssu.feature.profile.PasswordChangeRoute
-import com.ssafy.eolssu.feature.profile.SocialLinkScreen
+import com.ssafy.eolssu.feature.profile.SocialLinkRoute
 import com.ssafy.eolssu.feature.profile.WithdrawRoute
 
 /** 마이페이지 화면 경로(MY-01~05). */
@@ -77,9 +77,10 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
     ) { entry ->
         val provider = entry.linkProvider()
-        SocialLinkScreen(
+        SocialLinkRoute(
             provider = provider,
             onBack = { navController.popBackStack() },
+            onLinked = { navController.popWithNotice(StartNotice.MyAccountLinked, provider) },
         )
     }
 }

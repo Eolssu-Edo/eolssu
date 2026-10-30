@@ -8,6 +8,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.patch
+import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -94,12 +95,52 @@ class ApiUserRepository(
         return passwordFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
     }
 
-    // 제공자 OAuth 계약·토큰이 없으므로 연결/해제를 성공으로 만들지 않는다.
-    override fun link(provider: SocialProvider): Boolean = false
-    override fun unlink(provider: SocialProvider): Boolean = false
+    override suspend fun startLink(provider: SocialProvider): OAuthStartResult =
+        startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", provider)
+
+    /**
+     * 연결 완료는 state를 한 번 쓰므로 401에 토큰 갱신·재전송을 하지 않는다. 브라우저에 다녀오는 동안 액세스 토큰이 만료됐을 수 있어
+     * 먼저 갱신되는 요청(`GET /api/users/me`)으로 로그인을 이어 둔 뒤 보낸다.
+     */
+    override suspend fun link(callback: OAuthCallback): LinkResult {
+        val generation = sessionGeneration.value
+        val me = client.sendOrNull { get("/api/users/me") } ?: return LinkResult.Unavailable
+        if (me.status.value == 401) return LinkResult.Unauthenticated
+        val response = client.sendOrNull {
+            post("/api/users/me/social-accounts/${callback.provider.pathName}") {
+                contentType(ContentType.Application.Json)
+                setBody(OAuthComplete(callback.authorizationCode, callback.redirectUri, callback.state))
+            }
+        } ?: return LinkResult.Unavailable
+        val code = if (response.status.value == 201) null else response.apiResponse<Error>()?.result?.errorCode
+        val result = when {
+            response.status.value == 201 || code == "PROVIDER_ALREADY_LINKED" -> LinkResult.Linked
+            code == "SOCIAL_ACCOUNT_IN_USE" -> LinkResult.InUse
+            response.status.value == 401 -> if (code == "UNAUTHENTICATED") LinkResult.Unauthenticated else LinkResult.Restart
+            response.status.value == 400 || response.status.value == 410 -> LinkResult.Restart
+            else -> LinkResult.Unavailable
+        }
+        if (result == LinkResult.Linked && sessionGeneration.value == generation) changeLinked(callback.provider, linked = true)
+        return result
+    }
+
+    override suspend fun unlink(provider: SocialProvider): MemberResult {
+        val generation = sessionGeneration.value
+        val response = client.sendOrNull { delete("/api/users/me/social-accounts/${provider.pathName}") } ?: return MemberResult.Unavailable
+        if (response.status.value != 204 && response.status.value != 404) return memberFailure(response.status.value)
+        if (sessionGeneration.value == generation) changeLinked(provider, linked = false)
+        return MemberResult.Done
+    }
+
+    private fun changeLinked(provider: SocialProvider, linked: Boolean) {
+        profileRevision.updateAndGet { it + 1 }
+        state.value = state.value.copy(linkedProviders = if (linked) state.value.linkedProviders + provider else state.value.linkedProviders - provider)
+    }
+
     override fun logOut() { sessionGeneration.updateAndGet { it + 1 }; state.value = UserProfile("", "", emptySet()); instruments?.clear() }
 
     @Serializable private class MyInfo(val nickname: String, val instrumentId: String, val notationMode: String, val linkedProviders: List<Provider> = emptyList(), val email: String? = null)
+    @Serializable private class OAuthComplete(val authorizationCode: String, val redirectUri: String, val state: String)
     @Serializable private class InstrumentPreference(val instrumentId: String)
     @Serializable private class Preferences(val instrumentId: String, val notationMode: String)
     @Serializable private class Provider(val provider: String)
