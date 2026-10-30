@@ -56,27 +56,26 @@ class SectionComparisonControllerTests {
             .andExpect(jsonPath("$.result.endNoteIdx").value(3))
             .andExpect(jsonPath("$.result.startColumnIdx").value(1))
             .andExpect(jsonPath("$.result.endColumnIdx").value(1))
-            .andExpect(jsonPath("$.result.before.totalScore").value(70))
+            .andExpect(jsonPath("$.result.before.totalScore").doesNotExist())
             .andExpect(jsonPath("$.result.before.errorCount").value(2))
             .andExpect(jsonPath("$.result.after.pitchScore").value(91))
             .andExpect(jsonPath("$.result.after.errorCount").value(1))
             .andExpect(jsonPath("$.result.after.bpm").value(48))
             .andExpect(jsonPath("$.result.after.bpmUnit").value("DOTTED_QUARTER"))
-            .andExpect(jsonPath("$.result.delta.totalScore").value(20))
+            .andExpect(jsonPath("$.result.delta.totalScore").doesNotExist())
             .andExpect(jsonPath("$.result.delta.errorCount").value(-1))
             .andExpect(jsonPath("$.result.correctedNoteIndices[0]").value(2))
             .andExpect(jsonPath("$.result.remainingErrors[0].noteIdx").value(3))
             .andExpect(jsonPath("$.result.remainingErrors[0].verdict").value("PITCH"))
     }
 
-    @Test fun `whole song baseline is shown without scores or delta`() {
+    @Test fun `whole song baseline is compared by error count on the section notes`() {
         login()
         mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "10")).andExpect(status().isOk)
-            .andExpect(jsonPath("$.result.comparable").value(false))
-            .andExpect(jsonPath("$.result.reason").isNotEmpty)
-            .andExpect(jsonPath("$.result.before.totalScore").doesNotExist())
+            .andExpect(jsonPath("$.result.comparable").value(true))
+            .andExpect(jsonPath("$.result.reason").doesNotExist())
             .andExpect(jsonPath("$.result.before.errorCount").value(2))
-            .andExpect(jsonPath("$.result.delta").doesNotExist())
+            .andExpect(jsonPath("$.result.delta.errorCount").value(-1))
             .andExpect(jsonPath("$.result.correctedNoteIndices[0]").value(2))
     }
 

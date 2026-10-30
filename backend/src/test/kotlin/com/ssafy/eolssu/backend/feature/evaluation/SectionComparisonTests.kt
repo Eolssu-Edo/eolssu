@@ -15,34 +15,34 @@ class SectionComparisonTests {
         PracticeEvaluationNote(idx, wrong.toMap()[idx] ?: "CORRECT", null, null, null, 1, null)
     }
 
-    @Test fun `same section retake compares stored scores and note changes`() {
+    @Test fun `same section retake compares error counts and note changes`() {
         val result = SectionComparison.compare(
             session(2, 5, 85), notes(2..5, 4 to "TIMING"),
             session(2, 5, 68), notes(2..5, 2 to "PITCH", 3 to "MISSED", 4 to "PITCH"),
         )
         assertNull(result.notComparable)
-        assertEquals(SectionScores(68, 68, 68, 68, 3), result.before)
+        assertEquals(3, result.beforeErrorCount)
         assertEquals(SectionScores(85, 85, 85, 85, 1), result.after)
-        assertEquals(SectionDelta(17, -2), result.delta)
+        assertEquals(SectionDelta(-2), result.delta)
         assertEquals(listOf(2, 3), result.correctedNoteIndices)
         assertEquals(listOf(4), result.remainingErrors.map { it.noteIdx })
     }
 
-    @Test fun `whole song baseline counts errors in the section but keeps its scores out`() {
+    @Test fun `whole song baseline is compared on the section notes`() {
         val result = SectionComparison.compare(
             session(2, 5, 90), notes(2..5),
             session(0, 9, 70), notes(0..9, 0 to "PITCH", 3 to "TIMING", 8 to "MISSED"),
         )
-        assertEquals(NotComparable.RANGE, result.notComparable)
-        assertEquals(SectionScores(null, null, null, null, 1), result.before)
-        assertNull(result.delta)
+        assertNull(result.notComparable)
+        assertEquals(1, result.beforeErrorCount)
+        assertEquals(SectionDelta(-1), result.delta)
         assertEquals(listOf(3), result.correctedNoteIndices)
     }
 
     @Test fun `different model or tempo keeps both results without delta`() {
         val model = SectionComparison.compare(session(0, 3, 80, model = "m2"), notes(0..3), session(0, 3, 70), notes(0..3))
         assertEquals(NotComparable.MODEL, model.notComparable)
-        assertEquals(70, model.before.totalScore)
+        assertEquals(0, model.beforeErrorCount)
         assertNull(model.delta)
         val tempo = SectionComparison.compare(session(0, 3, 80, bpm = 48), notes(0..3), session(0, 3, 70), notes(0..3))
         assertEquals(NotComparable.TEMPO, tempo.notComparable)
@@ -53,7 +53,7 @@ class SectionComparisonTests {
             session(0, 3, 80, scoreVersion = 2), notes(0..3), session(0, 3, 70), notes(0..3, 1 to "PITCH"),
         )
         assertEquals(NotComparable.SCORE_VERSION, result.notComparable)
-        assertEquals(SectionScores(null, null, null, null, null), result.before)
+        assertNull(result.beforeErrorCount)
         assertEquals(emptyList(), result.correctedNoteIndices)
     }
 
@@ -62,7 +62,7 @@ class SectionComparisonTests {
             session(2, 3, 80, scoreVersion = 2), notes(2..3, 3 to "PITCH"), session(0, 1, 70), notes(0..1, 1 to "PITCH"),
         )
         assertEquals(NotComparable.SCORE_VERSION, result.notComparable)
-        assertEquals(SectionScores(null, null, null, null, null), result.before)
+        assertNull(result.beforeErrorCount)
         assertEquals(listOf(3), result.remainingErrors.map { it.noteIdx })
     }
 }

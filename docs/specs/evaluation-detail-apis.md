@@ -59,7 +59,7 @@
 
 ## EVA-04 `GET /api/practice-sessions/{sessionId}/comparison`
 
-비교 구간은 이번 세션의 연습 구간이다. `baselineSessionId`를 생략하면 PRA-01에서 세션을 만들 때 넘긴 `parentSessionId`를 쓴다.
+비교 구간은 이번 세션의 연습 구간이다. 점수는 비교하지 않고 비교 구간 음표의 저장 판정으로 오류 수·고친 음표·남은 오류를 비교한다(2026-10-30 사용자 결정). `baselineSessionId`를 생략하면 PRA-01에서 세션을 만들 때 넘긴 `parentSessionId`를 쓴다.
 
 | 이전 세션 상황 | HTTP |
 | --- | --- |
@@ -73,25 +73,24 @@
 | comparable | 아래 비교 조건을 모두 만족하면 true |
 | reason | comparable=false일 때 이유 문장, true면 null |
 | startNoteIdx·endNoteIdx, startColumnIdx·endColumnIdx | 이번 세션 구간과 그 첫·끝 음표의 각(0부터) |
-| before | 이전 결과. totalScore·pitchScore·timingScore·durationScore는 이전 세션 구간이 이번과 같을 때만 저장 점수, 다르면 null. errorCount는 비교 구간의 저장 판정으로 센다. 이전 결과의 악보 버전이 다르면 음표 순번이 맞지 않아 점수·errorCount 모두 null이고 구간 포함 여부도 검사하지 않는다 |
-| after | 이번 저장 점수 4개, 비교 구간 errorCount, bpm·bpmUnit |
-| delta | comparable=true일 때만 `{totalScore, errorCount}`(이번 − 이전), 아니면 null |
+| before | `{errorCount}`만 준다. 비교 구간의 이전 저장 판정으로 센다. 이전 결과가 곡 전체 등 더 넓은 구간이어도 같은 음표끼리 센다. 이전 결과의 악보 버전이 다르면 음표 순번이 맞지 않아 null이고 구간 포함 여부도 검사하지 않는다 |
+| after | 이번 세션의 저장 점수 4개(화면 표시용, 비교하지 않음), 비교 구간 errorCount, bpm·bpmUnit |
+| delta | comparable=true일 때만 `{errorCount}`(이번 − 이전), 아니면 null |
 | correctedNoteIndices | 이전에 오류였고 이번에 CORRECT인 noteIdx. 악보 버전이 다르면 `[]` |
 | remainingErrors | 이번에도 틀린 음표 `{noteIdx, verdict}` |
 
 ### 비교 조건
 
-다음 순서로 확인해 처음 걸린 하나를 reason으로 쓴다: 악보 버전 같음 → 구간 같음 → `evaluations.model_version` 같음 → bpm·bpmUnit 같음.
+다음 순서로 확인해 처음 걸린 하나를 reason으로 쓴다: 악보 버전 같음 → `evaluations.model_version` 같음 → bpm·bpmUnit 같음. 구간이 다른 것은 비교 불가 사유가 아니다.
 
-점수는 음표별 오차와 AI 허용 범위로 계산되어 저장 판정만으로는 다시 만들 수 없다. 그래서 곡 전체 등 다른 구간의 이전 점수를 이번 구간 점수로 바꾸지 않고(노션 규칙 1·5) 비워 둔다. 판정 정책 버전은 저장하지 않아 비교 조건에 넣지 못했다.
+점수는 음표별 오차와 AI 허용 범위로 계산되어 저장 판정만으로는 같은 구간 점수를 다시 만들 수 없다. 서버가 공식을 복제하지 않도록 점수 비교를 계약에서 뺐다. 판정 정책 버전은 저장하지 않아 비교 조건에 넣지 못했다.
 
 ## 미구현·후속
 
 - 복수 오류 유형, DURATION 판정, 녹음 위치(recordingOffsetMs)는 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
 - 누락(MISSED) 표시 방식과 '취약 구간 연습' 버튼의 1차 이동 화면은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
 - EVA-04를 쓰는 구간 재평가 화면(RESULT-04)과 구간 반복 연습(PRACTICE-02·03)은 와이어프레임 기준 2차 확장이다. 서버 API는 먼저 구현했다.
-- 이전 결과와 구간이 다를 때 구간 점수를 보이려면 AI가 구간 재집계 공식을 제공해야 한다(노션 규칙 5).
-- 노션 EVA-04 초안과 다른 점: before 점수 4개와 before.errorCount는 초안에서 필수 INT지만, 구현은 이전 결과가 다른 구간이면 점수 4개를, 악보 버전이 다르면 errorCount까지 null로 준다. baselineSessionId도 초안은 필수지만 생략하면 parentSessionId를 쓴다. FE는 이 필드를 nullable로 받아야 하며, 노션 초안 갱신과 FE 공유가 남아 있다.
+- 노션 EVA-04 초안과 다른 점: 초안의 before 점수 4개·delta.totalScore·규칙 1~3·5(구간 점수 재집계)를 뺐다. before.errorCount는 악보 버전이 다르면 null이다. baselineSessionId는 생략하면 parentSessionId를 쓴다. 디자인 RESULT-04의 '이전보다 17점 올랐어요'·항목별 이전→이번 점수는 '남은 오류 9개 → 2개'처럼 오류 수 중심으로 바꿔야 한다. 노션 초안 갱신과 FE·디자인 공유가 남아 있다.
 
 ## 구현 경계·검증
 
