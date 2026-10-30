@@ -120,3 +120,7 @@ adb shell pm get-app-links com.ssafy.eolssu
 ```
 
 재검증은 비동기다. verify-app-links 뒤 검증 에이전트가 완료할 시간을 둔 다음 get-app-links를 조회한다. none이면 대기 중일 수 있으므로 완료 시간을 두고 다시 조회하며, 계속 검증되지 않으면 설정/네트워크를 점검한다. 대상 도메인의 verified 상태를 확인하고 실제 제공자 브라우저 왕복을 시험한다. 단순히 인텐트를 해당 패키지로 강제 실행한 결과만으로 App Links 검증을 통과 처리하지 않는다. [Android 공식 검증 절차](https://developer.android.com/training/app-links/verify-applinks)를 근거로 하며 아직 기기에서 실행하지 않았다.
+
+## 탈퇴 유예 만료
+
+2026-10-30 사용자 수정 요청에 따라 소셜 로그인·병합도 [탈퇴 유예 만료와 삭제 경계](withdrawal-expiry.md)를 따른다. 회원 잠금을 얻은 뒤의 시각이 탈퇴 요청 후 30일 정각 이상이면 `401 INVALID_CREDENTIALS`로 거절하며, 탈퇴를 취소하거나 로그인 토큰을 발급하지 않는다.

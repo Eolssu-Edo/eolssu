@@ -24,7 +24,7 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 | 영역 | 테이블 | 설명 |
 | --- | --- | --- |
 | 기준 데이터 | `pitches`, `instruments`, `fingering_charts`, `jangdans`, `songs`, `notation_symbols` | 율명·악기·운지표·장단·곡·기호처럼 운영자가 넣는 데이터. 단소 율명(`pitches`)은 V5, 단소 악기 1개·장단 3개·1차 4곡(`instruments`·`jangdans`·`songs`)은 V6 마이그레이션이 `data/reference/` 값과 변환한 공통 악보 데이터로 넣는다 |
-| 사용자 | `users`, `user_song_settings` | 가입은 이메일·비밀번호로만 하며, 탈퇴 완료 전까지 이메일·비밀번호·닉네임이 있어야 합니다(`users_chk_2`). 탈퇴를 요청하면 `WITHDRAWAL_PENDING`으로 30일 보관하고, 그 안에 로그인하면 취소합니다. 30일 뒤 일괄 처리에서 개인정보 칸을 비우고 `DELETED`로 바꾸며 행은 남깁니다. 재가입은 새 행입니다. 곡별 BPM만 서버에 둡니다. |
+| 사용자 | `users`, `user_song_settings` | 가입은 이메일·비밀번호로만 하며, 탈퇴 완료 전까지 이메일·비밀번호·닉네임이 있어야 합니다(`users_chk_2`). 탈퇴를 요청하면 `WITHDRAWAL_PENDING`으로 30일 보관하고, 요청 후 30일 미만에 로그인하면 취소합니다. 회원 잠금 이후의 시각이 만료 정각 이상이면 실제 삭제 여부와 관계없이 취소를 거절합니다. 30일 뒤 일괄 처리에서 개인정보 칸을 비우고 `DELETED`로 바꾸며 행은 남깁니다. 재가입은 새 행입니다. 곡별 BPM만 서버에 둡니다. |
 | 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 기존 회원에 붙이는 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
 | 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 녹음 원본 메타데이터(`recording_bytes`·`recording_duration_ms`·`recording_sample_rate`·`recording_channels`)는 업로드 검사를 통과해 원본을 저장할 때 네 칸을 함께 채우고, 그 전에는 모두 NULL입니다(`chk_practice_sessions_recording_meta`). 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
@@ -50,7 +50,9 @@ V4는 V3(녹음 메타데이터) 다음에 적용됩니다. `outOfOrder`를 쓰�
 
 ## 탈퇴 일괄 삭제 대상
 
-USR-05 결정안: 탈퇴 요청 뒤 30일이 지나면(`purge_scheduled_at` 경과) 매일 04:00 KST에 회원 단위로 아래를 처리합니다. DB 처리(2~6)는 한 트랜잭션으로 묶고, 녹음 파일 삭제(1)는 트랜잭션에 묶이지 않으므로 먼저 지우고, 실패하면 그 회원의 DB 처리를 다음 일괄 처리로 미룹니다(S15P31E102-209에서 구현). 트랜잭션은 `users` 행을 먼저 잠그고, 인증번호(5)는 저장된 주소와 정확히 같은 행(`COLLATE utf8mb4_bin`)만 지웁니다. 30일 안에 로그인하면 `status`를 ACTIVE로 되돌리고 두 탈퇴 시각을 비웁니다.
+[탈퇴 유예 만료와 삭제 경계](../specs/withdrawal-expiry.md): 아래 파일 삭제 전에 회원 행을 잠그고 대기 상태와 삭제 예정 시각을 재확인합니다. 기존 취소가 커밋됐으면 파일·DB를 보존합니다. 확인 이후 새 취소는 30일 기한 검사로 거절되므로 저장소 호출은 DB 잠금을 해제한 뒤 실행합니다.
+
+USR-05 결정안: 탈퇴 요청 뒤 30일이 지나면(`purge_scheduled_at` 경과) 매일 04:00 KST에 회원 단위로 아래를 처리합니다. DB 처리(2~6)는 한 트랜잭션으로 묶고, 녹음 파일 삭제(1)는 트랜잭션에 묶이지 않으므로 먼저 지우고, 실패하면 그 회원의 DB 처리를 다음 일괄 처리로 미룹니다(S15P31E102-209에서 구현). 트랜잭션은 `users` 행을 먼저 잠그고, 인증번호(5)는 저장된 주소와 정확히 같은 행(`COLLATE utf8mb4_bin`)만 지웁니다. 요청 후 30일 미만에 로그인하면 `status`를 ACTIVE로 되돌리고 두 탈퇴 시각을 비웁니다.
 
 | 순서 | 대상 | 처리 |
 | --- | --- | --- |
