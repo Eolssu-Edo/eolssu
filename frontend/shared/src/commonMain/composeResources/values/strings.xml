@@ -32,11 +32,16 @@
     <string name="jangdan_label">%1$s장단</string>
 
     <string name="song_list_title">평가할 곡 고르기</string>
-    <string name="song_search_placeholder">곡 제목 검색</string>
+    <string name="song_list_eyebrow">PLAY &amp; DISCOVER</string>
+    <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
+    <string name="song_list_intro">한 각씩 익히고, 한 곡을 완성해 보세요.</string>
+    <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
+    <string name="song_search_label">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
-    <string name="song_empty">조건에 맞는 곡이 없어요.</string>
-    <string name="song_load_failed">곡 목록을 불러오지 못했어요.</string>
-    <string name="song_load_retry">다시 시도</string>
+    <string name="song_count_instrument">%1$d곡 · %2$s</string>
+    <string name="song_row_meta">%1$s · %2$s</string>
+    <string name="song_empty">찾는 곡이 없어요.</string>
+    <string name="song_empty_body">다른 제목이나 난이도로 찾아보세요.</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>
@@ -46,9 +51,9 @@
     <string name="song_info_level">난이도</string>
     <string name="song_bpm_value">%1$d BPM</string>
     <string name="song_preview_label">악보 일부 미리보기 · 오른쪽 각부터 읽어요</string>
-    <string name="song_preview_sample">예시 악보</string>
     <string name="song_preview_hint">연습 화면에서 모범 연주와 운지법을 확인할 수 있어요.</string>
-    <string name="song_start_practice">이 곡 연습하기</string>
+    <string name="song_start_practice">이 곡 연습하기 →</string>
+    <string name="song_cover_seal">얼쑤</string>
     <string name="practice_subtitle">%1$s · %2$s</string>
     <string name="practice_subtitle_solo">%1$s · %2$s · 연습 모드</string>
     <string name="practice_mode_ready">연습 준비</string>

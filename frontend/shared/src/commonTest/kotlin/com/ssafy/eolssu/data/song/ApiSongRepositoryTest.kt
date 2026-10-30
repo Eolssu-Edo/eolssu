@@ -21,6 +21,16 @@ class ApiSongRepositoryTest {
             assertEquals(5, song.difficulty)
             assertNull(song.level)
             assertFalse(song.evaluable)
+            assertNull(song.instrumentCode, "목록에 악보가 없으면 악기 코드를 추정하지 않는다")
+        } finally { client.close() }
+    }
+
+    @Test
+    fun listKeepsInstrumentCodeFromAttachedScore() = runTest {
+        val withScore = ITEM.dropLast(1) + ""","score":{"score":{"instrument":"DANSO","scoreVersion":3}}}"""
+        val client = catalogClient("""{"isSuccess":true,"result":{"items":[$withScore]}}""")
+        try {
+            assertEquals("DANSO", ApiSongRepository(client).getSongs().single().instrumentCode)
         } finally { client.close() }
     }
 
