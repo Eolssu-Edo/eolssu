@@ -67,8 +67,12 @@ object AuthDestination {
 }
 
 /** 첫 실행을 마쳤으면 홈, 아니면 약관 동의에서 시작한다. */
-fun startDestination(firstRunCompleted: Boolean): String =
-    if (firstRunCompleted) EolssuDestination.HOME else AuthDestination.CONSENT
+// TEMP S15P31E102-309: bypass only the initial consent screen; never persist consent/completion.
+fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false): String = when {
+    firstRunCompleted -> EolssuDestination.HOME
+    qaSkipConsent -> AuthDestination.MIC
+    else -> AuthDestination.CONSENT
+}
 
 /**
  * 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다.
