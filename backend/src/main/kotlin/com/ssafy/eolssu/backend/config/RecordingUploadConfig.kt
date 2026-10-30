@@ -10,6 +10,7 @@ import com.ssafy.eolssu.backend.feature.practice.infrastructure.media.FfprobeAud
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.MyBatisRecordingUploadRepository
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionMapper
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.RecordingStorageProperties
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.LocalRecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.S3RecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import java.time.Clock
@@ -35,9 +36,13 @@ class RecordingUploadConfig {
     // 연결값(RECORDING_STORAGE_*)이 하나라도 비면 업로드를 503으로 답한다. 기동은 막지 않는다.
     @Bean
     fun recordingStorage(properties: RecordingStorageProperties): RecordingStorage =
-        if (properties.isConfigured) {
+        if (properties.type == "local") {
+            require(properties.localDirectory.isNotBlank() && properties.localReadBaseUrl.isNotBlank())
+            LocalRecordingStorage(java.nio.file.Path.of(properties.localDirectory), properties.localReadBaseUrl, properties.localSigningSecret)
+        } else if (properties.type == "s3" && properties.isConfigured) {
             S3RecordingStorage.create(properties)
         } else {
+            require(properties.type == "s3") { "Unknown recording storage type" }
             log.warn("Recording storage is not configured; uploads answer 503")
             UnavailableRecordingStorage()
         }

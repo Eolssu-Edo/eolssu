@@ -167,6 +167,7 @@
 - [S15P31E102-253 구현된 API Swagger 문서화와 운영 조회](plans/S15P31E102-253.md)
 - [S15P31E102-211 간편 로그인·계정 연결과 마이페이지 연결·해제](plans/S15P31E102-211.md)
 - [S15P31E102-296 카카오 연결 해제 웹훅](plans/S15P31E102-296.md)
+- [S15P31E102-311 Google 간편 로그인 콘솔·서버 연동 준비](plans/S15P31E102-311.md)
 - [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
@@ -213,3 +214,16 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
+
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+
+- [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
+- [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
+- [약관 공개·동의·출시 검증](knowledge/backend/terms-release-verification.md)
+- [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
+- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
+- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [약관 본문 공개와 버전 등록](../infra/terms/README.md)
+- [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
+
+- [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)
