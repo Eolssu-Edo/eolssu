@@ -1,0 +1,58 @@
+package com.ssafy.eolssu.backend.feature.evaluation
+
+import com.ssafy.eolssu.backend.feature.evaluation.domain.*
+import java.time.Instant
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import org.junit.jupiter.api.Test
+
+class SectionComparisonTests {
+    private val time = Instant.parse("2026-10-29T00:00:00Z")
+    private fun session(start: Int, end: Int, total: Int, scoreVersion: Int = 1, model: String = "m1", bpm: Int = 60) =
+        PracticeEvaluationSnapshot(1, 1, scoreVersion, bpm, "QUARTER", "DONE", time, time, 1, total, total, total, total, time, null,
+            start, end, null, model)
+    private fun notes(range: IntRange, vararg wrong: Pair<Int, String>) = range.map { idx ->
+        PracticeEvaluationNote(idx, wrong.toMap()[idx] ?: "CORRECT", null, null, null, 1, null)
+    }
+
+    @Test fun `same section retake compares stored scores and note changes`() {
+        val result = SectionComparison.compare(
+            session(2, 5, 85), notes(2..5, 4 to "TIMING"),
+            session(2, 5, 68), notes(2..5, 2 to "PITCH", 3 to "MISSED", 4 to "PITCH"),
+        )
+        assertNull(result.notComparable)
+        assertEquals(SectionScores(68, 68, 68, 68, 3), result.before)
+        assertEquals(SectionScores(85, 85, 85, 85, 1), result.after)
+        assertEquals(SectionDelta(17, -2), result.delta)
+        assertEquals(listOf(2, 3), result.correctedNoteIndices)
+        assertEquals(listOf(4), result.remainingErrors.map { it.noteIdx })
+    }
+
+    @Test fun `whole song baseline counts errors in the section but keeps its scores out`() {
+        val result = SectionComparison.compare(
+            session(2, 5, 90), notes(2..5),
+            session(0, 9, 70), notes(0..9, 0 to "PITCH", 3 to "TIMING", 8 to "MISSED"),
+        )
+        assertEquals(NotComparable.RANGE, result.notComparable)
+        assertEquals(SectionScores(null, null, null, null, 1), result.before)
+        assertNull(result.delta)
+        assertEquals(listOf(3), result.correctedNoteIndices)
+    }
+
+    @Test fun `different model or tempo keeps both results without delta`() {
+        val model = SectionComparison.compare(session(0, 3, 80, model = "m2"), notes(0..3), session(0, 3, 70), notes(0..3))
+        assertEquals(NotComparable.MODEL, model.notComparable)
+        assertEquals(70, model.before.totalScore)
+        assertNull(model.delta)
+        val tempo = SectionComparison.compare(session(0, 3, 80, bpm = 48), notes(0..3), session(0, 3, 70), notes(0..3))
+        assertEquals(NotComparable.TEMPO, tempo.notComparable)
+    }
+
+    @Test fun `changed score version does not match notes by index`() {
+        val result = SectionComparison.compare(
+            session(0, 3, 80, scoreVersion = 2), notes(0..3), session(0, 3, 70), notes(0..3, 1 to "PITCH"),
+        )
+        assertEquals(NotComparable.SCORE_VERSION, result.notComparable)
+        assertEquals(emptyList(), result.correctedNoteIndices)
+    }
+}

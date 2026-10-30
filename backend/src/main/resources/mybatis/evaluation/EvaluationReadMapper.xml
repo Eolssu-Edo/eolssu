@@ -3,7 +3,8 @@
 <mapper namespace="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadMapper">
     <select id="findOwned" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadRow">
         SELECT s.id AS session_id,s.song_id,s.score_version,s.bpm,s.bpm_unit,s.status,s.started_at,s.ended_at,s.recording_duration_ms,
-               s.start_note_idx,s.end_note_idx,e.id AS evaluation_id,e.total_score,e.pitch_score,e.timing_score,e.duration_score,e.evaluated_at
+               s.start_note_idx,s.end_note_idx,e.id AS evaluation_id,e.total_score,e.pitch_score,e.timing_score,e.duration_score,e.evaluated_at,
+               s.parent_session_id,e.model_version
         FROM practice_sessions s LEFT JOIN evaluations e ON e.session_id=s.id
         WHERE s.id=#{sessionId} AND s.user_id=#{userId} AND s.record_deleted_at IS NULL
     </select>
