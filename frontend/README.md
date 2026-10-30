@@ -284,3 +284,9 @@ release 키가 없으면 이 스크립트는 중단하며 debug 키로 대체하
 운영 Jenkins는 develop의 백엔드 잡이 성공한 뒤 동일 SHA로 프론트 웹 잡을 시작합니다. `:shared:wasmJsTest`, `:shared:jsTest`, `:webApp:wasmJsBrowserDistribution`을 실행하고 JUnit·웹 산출물을 보관한 뒤 후보 자산 검증과 운영 배포를 수행합니다. 프론트 잡 이름은 `eolssu-frontend`이며 Linux·JDK 21·Google Chrome(`CHROME_BIN=/usr/bin/google-chrome`) 환경입니다. Android·iOS 패키지는 이 흐름에 포함하지 않습니다.
 
 동작·실패 복구·인증서 갱신·배포 SHA 확인은 [운영 문서](../infra/runtime/README.md#프론트-웹-자동-배포), 실제 검증 상태는 [Task 73](../docs/plans/S15P31E102-73.md)을 따릅니다. 이 잡의 테스트 통과가 업무 기능 전체를 검증한다는 뜻은 아닙니다.
+
+## 임시 Android QA APK (TEMP S15P31E102-309)
+
+기존 테스트 계정으로 후속 API를 검증할 때만 `./gradlew :androidApp:assembleDebug -Peolssu.qaSkipConsent=true`로 빌드합니다. 첫 실행은 약관 대신 마이크 안내에서 시작하고 실제 로그인은 유지합니다. 약관 동의 기록은 만들지 않으며 신규 가입은 우회하지 않습니다. 기본 debug·release·Web·iOS에는 적용하지 않습니다. release는 이 속성을 주어도 우회가 꺼집니다.
+
+해제는 위 속성을 빼고 재빌드합니다. 이미 실제 로그인으로 첫 실행을 마친 기기는 기존 동작대로 홈에서 시작하므로 정상 첫 실행 비교에는 새 설치 상태의 별도 테스트 기기를 사용합니다. [제거 위치·조건과 검증 결과](../docs/plans/S15P31E102-309.md)를 따릅니다.

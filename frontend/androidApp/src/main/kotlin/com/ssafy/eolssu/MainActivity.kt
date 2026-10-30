@@ -21,7 +21,9 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) deliverLink(intent)
 
         setContent {
-            App(context = applicationContext, serverAddress = ServerAddress(BuildConfig.API_BASE_URL), incomingLinks = incomingLinks)
+            App(context = applicationContext, serverAddress = ServerAddress(BuildConfig.API_BASE_URL), incomingLinks = incomingLinks,
+                // TEMP S15P31E102-309: Android debug QA build is the only opt-in entry.
+                qaSkipConsent = BuildConfig.DEBUG && BuildConfig.QA_SKIP_CONSENT)
         }
     }
 
