@@ -64,11 +64,13 @@ class NginxActuatorTests(unittest.TestCase):
             'dev': (ROOT / 'infra/nginx/default.conf').read_text(encoding='utf-8'),
         }
         cls.ports = {}
+        cls.containers = {}
         for name, text in configs.items():
             conf = root / name
             conf.mkdir()
             (conf / 'default.conf').write_text(text)
             cls.ports[name] = cls.start(network, f'{name}-{tag}', conf, certs=root / 'certs')
+            cls.containers[name] = f'eolssu-actuator-test-{name}-{tag}'
         for name in configs:
             cls.wait(name)
 
@@ -155,6 +157,13 @@ class NginxActuatorTests(unittest.TestCase):
             for path in PASSED:
                 with self.subTest(config=name, path=path):
                     self.assertEqual(self.request(name, path), (200, 'backend ' + path))
+
+    def test_runtime_access_logs_omit_secret_query_strings(self):
+        for name in ('runtime', 'runtime-tls'):
+            marker = 'secret-query-must-not-be-logged-300'
+            self.assertEqual(self.request(name, '/api/infra-smoke?token=' + marker)[0], 200)
+            output = subprocess.check_output(['docker', 'logs', self.containers[name]], stderr=subprocess.STDOUT).decode()
+            self.assertNotIn(marker, output)
 
     def test_other_actuator_paths_never_reach_backend(self):
         for name in self.ports:

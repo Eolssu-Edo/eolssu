@@ -97,6 +97,10 @@ class S3RecordingStorage(
 /** 원본 저장소 연결값. 키는 서버 `.env`의 비밀값으로 주입하고 저장소에 커밋하지 않는다. */
 @ConfigurationProperties("eolssu.recording-storage")
 data class RecordingStorageProperties(
+    val type: String = "s3",
+    val localDirectory: String = "",
+    val localReadBaseUrl: String = "",
+    val localSigningSecret: String = "",
     val endpoint: String = "",
     val bucket: String = "",
     val accessKeyId: String = "",
@@ -107,7 +111,7 @@ data class RecordingStorageProperties(
         get() = listOf(endpoint, bucket, accessKeyId, secretAccessKey, region).none { it.isBlank() }
 
     // 비밀 키가 설정 출력·로그에 찍히지 않게 한다.
-    override fun toString() = "RecordingStorageProperties(endpoint=$endpoint, bucket=$bucket, region=$region, configured=$isConfigured)"
+    override fun toString() = "RecordingStorageProperties(type=$type, configured=$isConfigured)"
 }
 
 /** 연결값이 없을 때(로컬·테스트 서버). 업로드는 503으로 답하고 원본을 저장하지 않는다. */

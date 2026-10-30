@@ -1,5 +1,7 @@
 # 얼쑤 Backend
 
+약관 공개·등록 작업은 [실행 안내](../infra/terms/README.md)를 따릅니다. 버전별 HTML 및 앱 외 계정 삭제 안내는 `LEGAL_PUBLICATION_ENABLED=true`이고 국내 LocalRecordingStorage가 연결된 뒤에만 공개됩니다. 기본값은 false입니다. 운영 저장·보유기간·최종 본문을 확인하지 않은 상태에서 활성화하거나 terms를 임의 등록하지 않습니다.
+
 Spring Boot + Kotlin으로 구성한 독립 Gradle 애플리케이션입니다. MyBatis와 Flyway로 [ERD·정본 SQL](../docs/contracts/db-schema.md)의 MySQL 8.4 저장 계층을 구성합니다. 프로젝트명과 `spring.application.name`은 `eolssu`, 기본 패키지는 `com.ssafy.eolssu.backend`입니다. IDE에서는 저장소 루트가 아닌 `backend/`를 Gradle 프로젝트로 엽니다.
 
 ## 개발 환경
