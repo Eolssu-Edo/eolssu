@@ -2,7 +2,7 @@ import numpy as np
 import sys
 
 from ai_service.pipelines import scoring
-from evaluation.dtw_quality import ROOT, compare, synth
+from evaluation.dtw_quality import ROOT, compare, note_groups, synth
 from evaluation.error_detection import score_notes
 
 
@@ -31,6 +31,13 @@ def test_synthetic_repeated_note_dip_is_inside_new_note():
     _, rms = synth(notes, 66, 'normal')
     first_frame = int(np.ceil((4 + 1 / 3) * 60 / 66 / scoring.HOP_S))
     assert rms[first_frame] == 0.1
+
+
+def test_note_groups_cover_every_id_once():
+    notes = [scoring.Note(0, 1, idx=i, start_beat=i) for i in range(91)]
+    groups = list(note_groups(notes, 31))
+    assert list(map(len, groups)) == [31, 31, 29]
+    assert [n.idx for group in groups for n in group] == list(range(91))
 
 
 def test_normal_score_excerpts_preserve_ids_and_verdicts():

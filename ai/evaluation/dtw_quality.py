@@ -19,6 +19,12 @@ ROOT = Path(__file__).resolve().parents[2]
 BUDGET = 512 * 1024 * 1024
 
 
+def note_groups(notes, size):
+    """음표를 순서대로 한 번씩 포함하는 별도 비교 구간."""
+    for start in range(0, len(notes), size):
+        yield notes[start:start + size]
+
+
 def compare(f0, notes, bpm, rms=None, budget=BUDGET):
     """실패와 예산 거절에는 음별 판정을 만들지 않는다."""
     seconds = (notes[-1].start_beat - notes[0].start_beat + notes[-1].beats
@@ -115,6 +121,19 @@ def main():
         report['cases'].append({'source': source, 'provenance': data['provenance'], 'variant': 'full_normal',
             'bpm': bpm, 'inputHash': hashlib.sha256(f0.tobytes()).hexdigest(),
             'notes': [asdict(n) for n in full_notes], 'results': compare(f0, full_notes, bpm, rms)})
+        if page == 171:
+            for group in note_groups(full_notes, 31):
+                for variant in ('normal', 'silence', 'silence_two', 'cut', 'cut_two', 'pitch',
+                                'octave', 'tuning', 'slow', 'fast', 'local_slow', 'ornament'):
+                    case_notes = list(group)
+                    if variant == 'ornament':
+                        middle = len(case_notes) // 2
+                        case_notes[middle] = replace(case_notes[middle], sigimsae=True)
+                    f0, rms = synth(case_notes, bpm, variant)
+                    report['cases'].append({'source': source, 'provenance': data['provenance'],
+                        'variant': f'segment_{variant}', 'bpm': bpm,
+                        'inputHash': hashlib.sha256(f0.tobytes()).hexdigest(),
+                        'notes': [asdict(n) for n in case_notes], 'results': compare(f0, case_notes, bpm, rms)})
         # 길이가 제한된 동일 악보 구간. 곡 전체 검증은 별도로 필요하다.
         notes = [n for n in full_notes if n.start_beat - full_notes[0].start_beat + n.beats <= 8]
         for variant in ('normal', 'silence', 'silence_two', 'cut', 'cut_two', 'pitch', 'octave',
