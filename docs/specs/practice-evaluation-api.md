@@ -25,6 +25,8 @@
 | endedAt | UTC ISO8601 STRING 또는 null |
 | totalScore, pitchScore, timingScore, durationScore | INT, DB 저장 점수 그대로 |
 | recordingDurationMs | INT 또는 null, 검증된 업로드 오디오 길이(ms). 메타데이터 없는 기존 행은 null |
+| tuningOffsetCent | NUMBER 또는 null, AI가 추정한 전체 음높이 편차(cent). 범위 초과일 때도 보정 전 추정값을 보존 |
+| tuningOutOfRange | BOOLEAN 또는 null, AI가 해당 분석의 조율 보정 범위를 벗어났다고 판정했는지 여부 |
 | notes | ARRAY, noteIdx 오름차순. 악보 NOTE 순번은 원본 순서 그대로 |
 | notes[].noteIdx, notes[].verdict | INT·STRING, 저장 순번과 판정 |
 | notes[].pitchErrorCent, onsetErrorMs, durationErrorMs | INT 또는 null, 저장 오차 그대로 |
@@ -32,6 +34,14 @@
 feedbackMessage·tip·previousTotalScore·savedAt·mission·modelVersion·startNoteIdx·endNoteIdx는 이 응답에 포함하지 않는다. 원본 녹음 키·서명 URL도 노출하지 않는다. 별도 `/evaluation/notes` 경로를 이 Task에서 구현한 것으로 보지 않는다.
 
 ## 구현 경계·검증
+
+### 조율 정보 보존 (S15P31E102-304)
+
+2026-10-30 사용자 요청으로 AI 응답의 두 조율 필드를 `evaluations`에 저장하고 이 조회 응답에 전달한다. `tuning_offset_cent DOUBLE NULL`, `tuning_out_of_range BOOLEAN NULL`을 새 마이그레이션으로 추가한다. 기존 평가와 두 필드를 제공하지 않는 이전 AI 응답은 둘 다 null이며, 0·false로 추정하거나 과거 평가를 다시 계산하지 않는다. 제공한 값은 소수점 반올림 없이 보존한다.
+
+AI가 한 필드만 제공하거나 편차가 유한한 수가 아니면 계약 오류로 처리한다. 범위 초과 여부를 백엔드에서 재계산하지 않으며 점수·음표 판정·채점 허용치는 변경하지 않는다. null은 미수집, false는 AI의 범위 내 판정으로 구분한다. 기존 FE는 미지 필드를 무시하므로 이 변경에서 화면 경고는 추가하지 않는다.
+
+완료 조건은 파싱·저장·조회 자동 검사, 기존 행의 null 보존과 마이그레이션 검사, 실제 AI HTTP 분석 결과를 격리 MySQL에 저장한 뒤 DB·평가 GET 응답의 두 값이 일치하는 실행 증거다. 운영 DB 적용·배포는 이 구현 검증 이후 별도 단계다.
 
 API는 HTTP 매핑만, application은 소유 조회·완료 상태 판단과 읽기 전용 트랜잭션, domain은 저장소·결과 계약, infrastructure는 MyBatis와 UTC 변환을 맡는다. config가 구현을 조립한다. 계층 분리로 HTTP·DB·채점 계약을 바꾸지 않았다.
 

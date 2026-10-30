@@ -36,8 +36,8 @@
     </update>
 
     <insert id="insertEvaluation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version)
-        VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion})
+        INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version, tuning_offset_cent, tuning_out_of_range)
+        VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion}, #{tuningOffsetCent}, #{tuningOutOfRange})
     </insert>
 
     <!-- AI는 인식한 음을 주지 않아 detected_pitch_id는 비운다 -->

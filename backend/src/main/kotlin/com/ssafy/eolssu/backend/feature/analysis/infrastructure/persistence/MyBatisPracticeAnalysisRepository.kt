@@ -34,7 +34,10 @@ class MyBatisPracticeAnalysisRepository(
         }
         return transactions.execute {
             if (mapper.markDone(analysis.sessionId, analysis.attempt, startedAfter) == 0) return@execute false
-            val evaluation = NewEvaluation(analysis.sessionId, result.total, result.pitch, result.timing, result.duration, result.modelVersion)
+            val evaluation = NewEvaluation(
+                analysis.sessionId, result.total, result.pitch, result.timing, result.duration, result.modelVersion,
+                result.tuningOffsetCent, result.tuningOutOfRange,
+            )
             mapper.insertEvaluation(evaluation)
             if (rows.isNotEmpty()) mapper.insertNoteResults(checkNotNull(evaluation.id), rows)
             true
