@@ -31,3 +31,5 @@ sudo python3 infra/terms/publish.py --apply --effective-at YYYY-MM-DDTHH:MM:SSZ
 ## 검사
 
 `python -m unittest discover -s infra/terms -p 'test_*.py' -v`로 문서 변조·리다이렉트·SPA 거절 및 필수·선택 구분을 검사한다. 실제 DB 등록은 공개 검증·최종 본문 검토 후 수행한다. 이 검사는 법률 검토나 Play 심사 통과를 보장하지 않는다.
+
+운영 DB 이름은 backend 컨테이너의 실제 DB_URL에서 제한된 식별자로 추출한다. MySQL 컨테이너의 MYSQL_DATABASE는 초기 이름이 남아 있을 수 있어 사용하지 않는다. 한글 본문 제목의 저장·조회에는 --default-character-set=utf8mb4를 명시한다.

@@ -1,6 +1,9 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
+import json
 
 spec = importlib.util.spec_from_file_location('publish', Path(__file__).with_name('publish.py'))
 publish = importlib.util.module_from_spec(spec)
@@ -8,6 +11,17 @@ spec.loader.exec_module(publish)
 
 
 class PublishTests(unittest.TestCase):
+    def test_registration_targets_active_backend_database_after_database_rename(self):
+        inspected = [{'Config': {'Env': ['DB_URL=jdbc:mysql://mysql:3306/eolssu?connectTimeout=2000']}}]
+        with patch.object(publish.subprocess, 'run', side_effect=[
+            SimpleNamespace(stdout=json.dumps(inspected).encode()),
+            SimpleNamespace(returncode=0, stdout=b'0\n'),
+        ]) as call:
+            self.assertEqual(publish.mysql('SELECT COUNT(*) FROM terms;'), '0')
+            self.assertIn('--database=eolssu ', call.call_args.args[0][-1])
+            self.assertIn('--default-character-set=utf8mb4 ', call.call_args.args[0][-1])
+            self.assertNotIn('$MYSQL_DATABASE', call.call_args.args[0][-1])
+
     def test_spa_redirect_and_changed_policy_cannot_pass_preflight(self):
         html = '<html lang="ko">얼쑤 약관</html>'.encode()
         publish.verify_document(html, html, 'text/html;charset=UTF-8', 'https://example.test/privacy', 'https://example.test/privacy')

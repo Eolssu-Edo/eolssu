@@ -4,6 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import urllib.request
@@ -45,9 +46,16 @@ def build_insert(effective):
 
 
 def mysql(sql):
+    # The MySQL container can retain its bootstrap database name after a rename.
+    inspected = subprocess.run(['docker', 'inspect', 'eolssu-runtime-backend-1'], capture_output=True, timeout=15, check=True)
+    environment = dict(item.split('=', 1) for item in json.loads(inspected.stdout)[0]['Config']['Env'] if '=' in item)
+    matched = re.fullmatch(r'jdbc:mysql://[^/]+/([A-Za-z0-9_]+)(?:\?.*)?', environment.get('DB_URL', ''))
+    if not matched:
+        raise ValueError('active backend database could not be resolved')
+    database = matched.group(1)
     # The password stays in the MySQL container's environment, never in host arguments or output.
     command = ['docker', 'exec', '-i', 'eolssu-runtime-mysql-1', 'sh', '-c',
-        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --user=root --database="$MYSQL_DATABASE" --batch --raw --skip-column-names']
+        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql --default-character-set=utf8mb4 --user=root --database=' + database + ' --batch --raw --skip-column-names']
     result = subprocess.run(command, input=sql.encode(), capture_output=True, timeout=30)
     if result.returncode:
         raise RuntimeError('terms database operation failed')
