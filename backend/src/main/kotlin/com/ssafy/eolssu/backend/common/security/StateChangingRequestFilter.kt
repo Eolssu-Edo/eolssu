@@ -21,6 +21,7 @@ class StateChangingRequestFilter(
     private val allowedOrigins: Set<String>,
     private val recordingUpload: RequestMatcher,
     private val errorWriter: ErrorResponseWriter,
+    private val kakaoWebhook: RequestMatcher? = null,
 ) : OncePerRequestFilter() {
     override fun shouldNotFilter(request: HttpServletRequest) = request.method !in STATE_CHANGING_METHODS
 
@@ -55,6 +56,8 @@ class StateChangingRequestFilter(
     }
 
     private fun hasAcceptedBody(request: HttpServletRequest): Boolean {
+        // 웹훅 본문/Content-Type 오류는 컨트롤러가 카카오 규격의400으로 처리한다.
+        if(kakaoWebhook?.matches(request)==true) return true
         val contentType = request.contentType
             ?: return request.contentLengthLong <= 0 && request.getHeader("Transfer-Encoding") == null
         val mediaType = try {
