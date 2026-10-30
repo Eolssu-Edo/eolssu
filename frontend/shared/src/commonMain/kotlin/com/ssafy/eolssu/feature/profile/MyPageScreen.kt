@@ -37,6 +37,11 @@ import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.InstrumentPicker
 import com.ssafy.eolssu.data.user.UserProfile
+import com.ssafy.eolssu.data.user.PublishedLegalDocument
+import eolssu.shared.generated.resources.legal_information
+import eolssu.shared.generated.resources.legal_service
+import eolssu.shared.generated.resources.legal_privacy
+import eolssu.shared.generated.resources.legal_deletion
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
@@ -71,7 +76,7 @@ enum class MyPageTarget { Nickname, Password, Withdraw }
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
-    instrument: Instrument,
+    instrument: Instrument?,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -84,6 +89,7 @@ fun MyPageScreen(
     onLogOut: () -> Unit,
     onConfirmLogOut: () -> Unit,
     onDismissDialog: () -> Unit,
+    onOpenLegal: (PublishedLegalDocument) -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
@@ -99,6 +105,14 @@ fun MyPageScreen(
                 }
             }
             HelpText(stringResource(Res.string.my_social_help))
+        }
+        Section(stringResource(Res.string.legal_information)) {
+            Column {
+                HorizontalDivider(color = EolssuTheme.colors.line)
+                AccountRow(stringResource(Res.string.legal_service), onClick = { onOpenLegal(PublishedLegalDocument.Service) })
+                AccountRow(stringResource(Res.string.legal_privacy), onClick = { onOpenLegal(PublishedLegalDocument.Privacy) })
+                AccountRow(stringResource(Res.string.legal_deletion), onClick = { onOpenLegal(PublishedLegalDocument.Deletion) })
+            }
         }
         Section(stringResource(Res.string.my_account)) {
             Column {
@@ -145,7 +159,7 @@ private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(profile.nickname, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold), color = colors.text)
-            Text(profile.email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+            if (profile.email.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
         }
         SmallButton(stringResource(Res.string.my_nickname_edit), onEdit)
     }

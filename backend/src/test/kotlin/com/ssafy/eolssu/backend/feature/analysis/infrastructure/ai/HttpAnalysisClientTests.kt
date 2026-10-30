@@ -71,6 +71,7 @@ class HttpAnalysisClientTests {
             AnalysisResult.Done(
                 "pyin-1", 87, 90, 85, 86,
                 listOf(NoteJudgement(4, NoteVerdict.CORRECT, 3.1, 20, -15), NoteJudgement(5, NoteVerdict.MISSED, null, null, null)),
+                -12.5, false,
             ),
             client.analyze(request),
         )
@@ -82,6 +83,37 @@ class HttpAnalysisClientTests {
         respond("""{"status":"FAILED","failReason":"$reason"}""")
 
         assertEquals(AnalysisResult.Failed(AnalysisFailReason.valueOf(reason)), client.analyze(request))
+    }
+
+    @Test
+    fun `preserves the raw tuning estimate and out of range flag`() {
+        respond(doneBody.replace("-12.5", "137.25").replace("\"tuningOutOfRange\":false", "\"tuningOutOfRange\":true"))
+
+        val mapper = jacksonMapperBuilder().build()
+        val result = mapper.readTree(mapper.writeValueAsString(client.analyze(request)))
+        assertEquals(137.25, result.path("tuningOffsetCent").asDouble())
+        assertEquals(true, result.path("tuningOutOfRange").asBoolean())
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", "\"tuningOffsetCent\":null,\"tuningOutOfRange\":null,"])
+    fun `keeps unavailable tuning metadata null`(metadata: String) {
+        respond(doneBody.replace("\"tuningOffsetCent\":-12.5,\"tuningOutOfRange\":false,", metadata))
+        val result = client.analyze(request) as AnalysisResult.Done
+        assertEquals(null, result.tuningOffsetCent)
+        assertEquals(null, result.tuningOutOfRange)
+        assertEquals(87, result.total)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = [
+        "\"tuningOffsetCent\":-12.5,",
+        "\"tuningOutOfRange\":false,",
+        "\"tuningOffsetCent\":1e999,\"tuningOutOfRange\":true,",
+    ])
+    fun `rejects partial or non finite tuning metadata`(metadata: String) {
+        respond(doneBody.replace("\"tuningOffsetCent\":-12.5,\"tuningOutOfRange\":false,", metadata))
+        assertFailsWith<AnalysisResponseException> { client.analyze(request) }
     }
 
     @ParameterizedTest

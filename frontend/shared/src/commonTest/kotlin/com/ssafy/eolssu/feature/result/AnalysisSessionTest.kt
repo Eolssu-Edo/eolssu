@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.result
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.AnalysisStatus
 import com.ssafy.eolssu.data.practice.EvaluationRepository
@@ -226,12 +227,13 @@ class AnalysisSessionTest {
     private var uploadNow = 0L
     private val uploads = RecordingUploads(
         uploader, FakeKeyValueStore(), FakeRecordingFiles("rec/practice-1.m4a", "rec/practice-2.m4a"), clock = { uploadNow },
+        member = SignedInMember(FakeKeyValueStore()).apply { set("A") },
     )
     private val uploadSession = AnalysisSession(scope, repository, clock = { time.now }, sleep = time::sleep, uploads = uploads)
     private val uploadState get() = uploadSession.state.value
 
     private fun startWithRecording() {
-        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L, memberId = "A")
         scope.launch { uploadSession.start(SampleSongs.first(), bpm = 60, recording = recording) }
     }
 
@@ -240,7 +242,7 @@ class AnalysisSessionTest {
         uploader.outcomes += UploadOutcome.Unreachable
         uploader.outcomes += UploadOutcome.Unreachable
         startWithRecording()
-        val newer = PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = uploadNow)
+        val newer = PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = uploadNow, memberId = "A")
         scope.launch { uploads.send(newer) }
     }
 
@@ -334,9 +336,9 @@ class AnalysisSessionTest {
     fun missingRecordingOnlyOffersPlayingAgain() {
         val session = AnalysisSession(
             scope, repository, clock = { time.now }, sleep = time::sleep,
-            uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }),
+            uploads = RecordingUploads(uploader, FakeKeyValueStore(), FakeRecordingFiles(), clock = { 0L }, member = SignedInMember(FakeKeyValueStore()).apply { set("A") }),
         )
-        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L)
+        val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = 0L, memberId = "A")
         scope.launch { session.start(SampleSongs.first(), bpm = 60, recording = recording) }
         assertEquals(UploadProblem.Missing, session.state.value.upload)
         assertEquals(0, uploader.calls.size)
@@ -389,7 +391,7 @@ class AnalysisSessionTest {
     @Test
     fun pendingRecordingFromLastRunIsSentForItsSession() {
         uploader.outcomes += UploadOutcome.Unreachable
-        scope.launch { uploads.send(PendingRecording("41", "rec/practice-1.m4a", startedAtMillis = 0L, songId = "arirang", bpm = 60)) }
+        scope.launch { uploads.send(PendingRecording("41", "rec/practice-1.m4a", startedAtMillis = 0L, songId = "arirang", bpm = 60, memberId = "A")) }
 
         scope.launch { takeSession.startPending(SampleSongs.first(), bpm = 60, sessionId = "41") }
         assertNull(takeSession.state.value.upload)
@@ -412,7 +414,7 @@ private class FakeSessions : PracticeSessionRepository {
 
     override suspend fun create(songId: String, bpm: Int, idempotencyKey: String): SessionStart {
         calls += Triple(songId, bpm, idempotencyKey)
-        return results.removeFirstOrNull() ?: SessionStart.Created("41", startedAtMillis = 0L)
+        return results.removeFirstOrNull() ?: SessionStart.Created("41", startedAtMillis = 0L, memberId = "A")
     }
 }
 

@@ -3,9 +3,9 @@ package com.ssafy.eolssu.core.model
 import kotlin.math.ceil
 
 /**
- * 장단. 정간보 한 각이 장단 한 주기다.
+ * 장단 구음 패턴. 공통 악보의 각 길이·정간 시간은 [Score] 원본이 정하며 이 패턴과 다를 수 있다.
  *
- * @property daegang 대강 분절(정간 수 목록). 합이 한 각의 정간 수다. 악보의 굵은 가로선과 현재 박 표시가 이를 따른다.
+ * @property daegang 구음 칸의 묶음. 기존 샘플 악보에만 정간 대강 분절로도 사용한다.
  * @property beats 한 주기의 박 수. 속도(BPM)는 박 기준이다.
  * @property subdivision 한 박의 정간 수. 대강이 고르지 않은 장단은 1(BPM = 분당 정간 수)이다.
  * @property gueum 정간별 구음. 데이터가 없으면 null.
@@ -36,7 +36,7 @@ data class Jangdan(
     /** [row]번째 정간이 속한 대강 번호(0부터). */
     fun daegangIndexOfRow(row: Int): Int = daegangStarts.indexOfLast { row >= it }.coerceAtLeast(0)
 
-    /** 정간 하나의 길이(ms). */
+    /** 구음 패턴 한 칸의 길이(ms). 공통 악보의 정간에는 Song.cellDurationMs를 쓴다. */
     fun cellMillis(bpm: Int): Double = 60_000.0 / bpm / subdivision
 
     companion object {

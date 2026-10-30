@@ -62,6 +62,8 @@ sealed interface AnalysisResult {
         val timing: Int,
         val duration: Int,
         val notes: List<NoteJudgement>,
+        val tuningOffsetCent: Double? = null,
+        val tuningOutOfRange: Boolean? = null,
     ) : AnalysisResult
 
     data class Failed(val reason: AnalysisFailReason) : AnalysisResult

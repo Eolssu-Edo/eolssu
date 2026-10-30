@@ -12,7 +12,7 @@ class OAuthProofService(private val repository: OAuthProofRepository, private va
         val binding = secrets.generateToken()
         val expiresAt = clock.instant().plusSeconds(600)
         repository.insert(OAuthProof(secrets.hashToken(state), "STATE", provider, purpose,
-            secrets.hashToken(binding), userId, redirectUri, null, null, false, expiresAt))
+            secrets.hashToken(binding), userId, redirectUri, null, null, false, expiresAt, flowStartedAt=expiresAt.minusSeconds(600)))
         return OAuthStarted(state, binding, expiresAt)
     }
 

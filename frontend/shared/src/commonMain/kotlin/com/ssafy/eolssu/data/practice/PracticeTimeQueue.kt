@@ -54,13 +54,11 @@ class PracticeTimeQueue(
     }
 
     /** 로그아웃 직전. 한 번 보내 보고 남은 기록을 모두 지운 뒤 [then]을 부른다. */
-    fun logOut(then: () -> Unit = {}) {
-        scope.launch {
+    fun logOut(then: () -> Unit = {}) = scope.launch {
             closeLeftover()
             send()
             clear()
             then()
-        }
     }
 
     /** 탈퇴. 서버가 로그인 쿠키를 지워 더는 보낼 수 없으므로 남은 기록을 보내지 않고 지운다. 보내던 중이면 끝난 뒤 지운다. */

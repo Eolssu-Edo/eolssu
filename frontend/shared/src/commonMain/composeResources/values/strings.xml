@@ -8,8 +8,8 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_hero_title">내 연주,\n얼마나 정확할까?</string>
-    <string name="home_hero_body">곡을 고르고 연주하면 음정과 박자를 확인할 수 있어요.</string>
+    <string name="home_hero_title">얼쑤,\n나도 이제 국악인</string>
+    <string name="home_hero_body">우리 소리와 가까워지는 시간</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
     <string name="home_section_practice">연습·학습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
@@ -32,11 +32,16 @@
     <string name="jangdan_label">%1$s장단</string>
 
     <string name="song_list_title">평가할 곡 고르기</string>
-    <string name="song_search_placeholder">곡 제목 검색</string>
+    <string name="song_list_eyebrow">PLAY &amp; DISCOVER</string>
+    <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
+    <string name="song_list_intro">한 각씩 익히고, 한 곡을 완성해 보세요.</string>
+    <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
+    <string name="song_search_label">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
-    <string name="song_empty">조건에 맞는 곡이 없어요.</string>
-    <string name="song_load_failed">곡 목록을 불러오지 못했어요.</string>
-    <string name="song_load_retry">다시 시도</string>
+    <string name="song_count_instrument">%1$d곡 · %2$s</string>
+    <string name="song_row_meta">%1$s · %2$s</string>
+    <string name="song_empty">찾는 곡이 없어요.</string>
+    <string name="song_empty_body">다른 제목이나 난이도로 찾아보세요.</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
 
     <string name="song_detail_title">곡 정보</string>
@@ -46,9 +51,9 @@
     <string name="song_info_level">난이도</string>
     <string name="song_bpm_value">%1$d BPM</string>
     <string name="song_preview_label">악보 일부 미리보기 · 오른쪽 각부터 읽어요</string>
-    <string name="song_preview_sample">예시 악보</string>
     <string name="song_preview_hint">연습 화면에서 모범 연주와 운지법을 확인할 수 있어요.</string>
-    <string name="song_start_practice">이 곡 연습하기</string>
+    <string name="song_start_practice">이 곡 연습하기 →</string>
+    <string name="song_cover_seal">얼쑤</string>
     <string name="practice_subtitle">%1$s · %2$s</string>
     <string name="practice_subtitle_solo">%1$s · %2$s · 연습 모드</string>
     <string name="practice_mode_ready">연습 준비</string>
@@ -61,6 +66,7 @@
     <string name="practice_settings_locked">연주 중에는 설정을 바꿀 수 없어요</string>
     <string name="practice_follow_now">현재 위치로</string>
     <string name="practice_hint_ready">모범 연주를 들어보고 준비되면 시작하세요.</string>
+    <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요. 악보를 보며 연습할 수 있어요.</string>
     <string name="practice_hint_solo">점수 없이 악보를 보며 혼자 연습해요.</string>
     <string name="practice_hint_solo_only">이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요.</string>
     <string name="practice_listen_model">모범 연주 듣기</string>
@@ -216,9 +222,11 @@
     <string name="result_legend_pitch">음정 (음)</string>
     <string name="result_legend_rhythm">박자 (박)</string>
     <string name="result_legend_length">음 길이 (길)</string>
+    <string name="result_legend_missed">음 미검출 (미)</string>
     <string name="result_tag_pitch">음</string>
     <string name="result_tag_rhythm">박</string>
     <string name="result_tag_length">길</string>
+    <string name="result_tag_missed">미</string>
     <string name="result_errors_cluster">틀린 칸 %1$d개 중 %2$d개가 %3$d–%4$d각에 몰려 있어요.</string>
     <string name="result_errors_preview">정간보 %1$d–%2$d각 미리보기</string>
     <string name="result_view_all_errors">악보 전체에서 보기</string>
@@ -658,8 +666,11 @@
     <string name="result_filter_pitch">음정 %1$d</string>
     <string name="result_filter_rhythm">박자 %1$d</string>
     <string name="result_filter_length">길이 %1$d</string>
+    <string name="result_filter_missed">미검출 %1$d</string>
     <string name="result_cell_where">%1$d각 %2$d칸 · %3$s</string>
     <string name="result_cell_error">%1$s 오류</string>
+    <string name="result_cell_missed_title">음이 감지되지 않은 칸</string>
+    <string name="result_cell_missed_body">이 음에서는 연주 소리가 감지되지 않았어요.</string>
     <string name="result_cell_ok_title">틀리지 않은 칸</string>
     <string name="result_cell_ok_body">이 칸은 악보대로 연주했어요.</string>
     <string name="result_cell_sample_pitch">목표 음보다 조금 낮게 불었어요. (예시)</string>
@@ -728,4 +739,8 @@
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
+    <string name="home_feature_song_desc">나에게 맞는 곡을 찾아요</string>
+    <string name="home_feature_fingering_desc">손끝으로 익히는 우리 소리</string>
+    <string name="home_feature_reading_desc">한 칸씩, 차근차근 읽어요</string>
+    <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
 </resources>

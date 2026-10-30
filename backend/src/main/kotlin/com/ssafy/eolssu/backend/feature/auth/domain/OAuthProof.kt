@@ -16,6 +16,7 @@ class OAuthProof(
     val emailVerified: Boolean,
     val expiresAt: Instant,
     val consumedAt: Instant? = null,
+    val flowStartedAt: Instant? = null,
 )
 
 interface OAuthProofRepository {

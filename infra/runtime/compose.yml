@@ -1,7 +1,18 @@
 name: eolssu-runtime
 
+# Preinstall the loopback rsyslog input before enabling this Compose revision.
+x-private-log-options: &private-log-options
+  syslog-address: tcp://127.0.0.1:1514
+  syslog-format: rfc5424micro
+  cache-disabled: "true"
+
 services:
   frontend:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-frontend
     image: nginx:1.30.6-alpine
     ports:
       - "${HTTP_BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
@@ -19,12 +30,18 @@ services:
     restart: unless-stopped
 
   backend:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-backend
     image: eolssu-backend-runtime:21-jre-ffmpeg8.0.1
     user: "10001:10001"
     working_dir: /app
     command: ["java", "-jar", "/app/app.jar"]
     environment:
       SERVER_PORT: "8080"
+      LEGAL_PUBLICATION_ENABLED: ${LEGAL_PUBLICATION_ENABLED:-false}
       SPRING_PROFILES_ACTIVE: ops
       DB_URL: "jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-eolssu}?connectTimeout=2000&socketTimeout=2000"
       DB_USERNAME: ${MYSQL_USER:-eolssu}
@@ -40,6 +57,7 @@ services:
       AUTH_MAIL_FROM: ${AUTH_MAIL_FROM:-${AUTH_MAIL_USERNAME:-}}
       AUTH_MAIL_FROM_NAME: ${AUTH_MAIL_FROM_NAME:-}
       AUTH_OAUTH_KAKAO_CLIENT_ID: ${AUTH_OAUTH_KAKAO_CLIENT_ID:-}
+      AUTH_KAKAO_WEBHOOK_APP_ID: ${AUTH_KAKAO_WEBHOOK_APP_ID:-}
       AUTH_OAUTH_KAKAO_CLIENT_SECRET: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:-}
       AUTH_OAUTH_KAKAO_REDIRECT_URIS: ${AUTH_OAUTH_KAKAO_REDIRECT_URIS:-}
       AUTH_OAUTH_GOOGLE_CLIENT_ID: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:-}
@@ -53,10 +71,15 @@ services:
       RECORDING_STORAGE_ACCESS_KEY_ID: ${RECORDING_STORAGE_ACCESS_KEY_ID:-}
       RECORDING_STORAGE_SECRET_ACCESS_KEY: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:-}
       RECORDING_STORAGE_REGION: ${RECORDING_STORAGE_REGION:-auto}
+      RECORDING_STORAGE_TYPE: ${RECORDING_STORAGE_TYPE:-s3}
+      RECORDING_STORAGE_LOCAL_DIRECTORY: /var/lib/eolssu/recordings
+      RECORDING_STORAGE_LOCAL_READ_BASE_URL: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:-http://backend:8080/api/recordings/read}
+      RECORDING_STORAGE_LOCAL_SIGNING_SECRET: ${RECORDING_STORAGE_LOCAL_SIGNING_SECRET:-}
       # 연주 분석 AI(아래 ai 서비스). 같은 Compose 내부망 주소라 비밀값이 아니다(PRA-03).
       ANALYSIS_AI_BASE_URL: http://ai:8000
     volumes:
       - ${BACKEND_JAR:?BACKEND_JAR를 지정하세요}:/app/app.jar:ro
+      - ${RECORDING_STORAGE_LOCAL_HOST_DIRECTORY:-/opt/eolssu/recordings}:/var/lib/eolssu/recordings
     depends_on:
       mysql:
         condition: service_healthy
@@ -70,6 +93,11 @@ services:
 
   # 연주 분석 API(ai/Dockerfile). 인증이 없으므로 포트를 공개하지 않고 backend만 내부망으로 부른다.
   ai:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-ai
     image: eolssu-ai:runtime
     read_only: true
     tmpfs:
@@ -85,6 +113,11 @@ services:
     restart: unless-stopped
 
   mysql:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-mysql
     image: mysql:8.4.13
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-eolssu}

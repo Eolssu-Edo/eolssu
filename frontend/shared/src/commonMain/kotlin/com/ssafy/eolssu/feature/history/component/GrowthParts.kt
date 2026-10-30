@@ -279,7 +279,7 @@ internal fun MetricGrowthCard(growth: MetricGrowth, spacing: GrowthSpacing) {
 
 /** 완료한 단계(기초부터 배우기 9단계 중) · 곡별 최고 점수 두 칸. */
 @Composable
-internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int, spacing: GrowthSpacing, onOpenSteps: () -> Unit, onOpenRecords: () -> Unit) {
+internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int?, spacing: GrowthSpacing, onOpenSteps: () -> Unit, onOpenRecords: () -> Unit) {
     val colors = EolssuTheme.colors
     val padding = Modifier.padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV)
     val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize)
@@ -287,7 +287,7 @@ internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int, spacing: Growt
         Surface(onClick = onOpenSteps, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
             Column(padding) {
                 Text(stringResource(Res.string.growth_steps), style = labelStyle, color = colors.textMuted)
-                val value = stringResource(Res.string.growth_steps_value, completedSteps)
+                val value = if (completedSteps == null) "—" else stringResource(Res.string.growth_steps_value, completedSteps)
                 val total = stringResource(Res.string.growth_steps_total, LearnProgressRepository.STAGE_COUNT)
                 Text(
                     buildAnnotatedString {

@@ -10,7 +10,8 @@ import org.springframework.scheduling.annotation.Scheduled
 
 /**
  * USR-05 규칙 3: 삭제 예정 시각이 지난 탈퇴 대기 회원을 매일 04:00(Asia/Seoul)에 지운다.
- * 녹음 파일은 트랜잭션에 묶이지 않으므로 먼저 지우고, 실패한 회원은 DB를 건드리지 않고 다음 날로 미룬다.
+ * 파일 삭제 전에 회원 잠금으로 기존 취소의 완료를 확인한다. 이후의 취소는 로그인에서 기한으로 거절한다.
+ * 녹음 파일은 잠금을 해제한 뒤 지우고, 실패한 회원은 DB를 건드리지 않고 다음 날로 미룬다.
  * 백업(매시 10분)과 겹치지 않게 회원 단위의 짧은 트랜잭션으로 처리한다.
  */
 class WithdrawalPurgeService(
@@ -30,8 +31,19 @@ class WithdrawalPurgeService(
             val userIds = repository.dueMembers(now, afterUserId, batchSize)
             if (userIds.isEmpty()) break
             for (userId in userIds) {
+                val keys = try {
+                    repository.preparePurge(userId, now)
+                } catch (e: Exception) {
+                    log.error("Withdrawal purge preparation for user {} failed ({})", userId, e.javaClass.simpleName, e)
+                    failed++
+                    continue
+                }
+                if (keys == null) {
+                    skipped++
+                    continue
+                }
                 when {
-                    !deleteRecordings(userId) -> deferred++
+                    !deleteRecordings(userId, keys) -> deferred++
                     else -> when (purge(userId, now)) {
                         true -> purged++
                         false -> skipped++
@@ -52,8 +64,8 @@ class WithdrawalPurgeService(
         null
     }
 
-    private fun deleteRecordings(userId: Long): Boolean = try {
-        repository.recordingKeys(userId).forEach(deleteRecording)
+    private fun deleteRecordings(userId: Long, keys: List<String>): Boolean = try {
+        keys.forEach(deleteRecording)
         true
     } catch (e: Exception) {
         // 저장소 키·서명 URL이 남지 않게 예외 종류만 남긴다.
@@ -86,5 +98,5 @@ class WithdrawalPurgeService(
     }
 }
 
-/** purged: 지움, deferred: 녹음 삭제 실패로 다음 날로, skipped: 그 사이 탈퇴를 취소해 지우지 않음, failed: DB 오류로 다음 날로. */
+/** purged: 지움, deferred: 녹음 삭제 실패, skipped: 재확인 시 삭제 대상 아님, failed: DB 오류. 실패는 다음 날 재시도한다. */
 data class PurgeSummary(val purged: Int, val deferred: Int, val skipped: Int, val failed: Int)

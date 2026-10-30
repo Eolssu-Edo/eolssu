@@ -12,9 +12,26 @@ import eolssu.shared.generated.resources.auth_error_password_empty
 import eolssu.shared.generated.resources.auth_error_password_mismatch
 import eolssu.shared.generated.resources.auth_error_password_rule
 import org.jetbrains.compose.resources.StringResource
+import eolssu.shared.generated.resources.member_api_unavailable
+import eolssu.shared.generated.resources.member_api_session_expired
+import eolssu.shared.generated.resources.member_api_rate_limited
+import eolssu.shared.generated.resources.member_api_invalid
+import eolssu.shared.generated.resources.member_api_verify_again
+import eolssu.shared.generated.resources.member_api_terms_again
+import eolssu.shared.generated.resources.member_api_instrument_unavailable
+import eolssu.shared.generated.resources.my_error_password_wrong
+import eolssu.shared.generated.resources.social_auth_merge_locked
+import com.ssafy.eolssu.data.user.MemberResult
 
 /** 입력칸 아래에 띄우는 오류. */
 enum class FieldError(val message: StringResource) {
+    Unavailable(Res.string.member_api_unavailable),
+    SessionExpired(Res.string.member_api_session_expired),
+    RateLimited(Res.string.member_api_rate_limited),
+    InvalidInput(Res.string.member_api_invalid),
+    VerifyAgain(Res.string.member_api_verify_again),
+    TermsAgain(Res.string.member_api_terms_again),
+    InstrumentUnavailable(Res.string.member_api_instrument_unavailable),
     LoginFailed(Res.string.auth_error_login_failed),
     LoginUnavailable(Res.string.auth_error_login_unavailable),
     EmailEmpty(Res.string.auth_error_email_empty),
@@ -24,11 +41,17 @@ enum class FieldError(val message: StringResource) {
     PasswordRule(Res.string.auth_error_password_rule),
     PasswordMismatch(Res.string.auth_error_password_mismatch),
     NicknameEmpty(Res.string.auth_error_nickname_empty),
+
+    /** 계정 연결(AUTH-09) 본인 확인 비밀번호가 맞지 않다. */
+    MergeWrongPassword(Res.string.my_error_password_wrong),
+
+    /** 계정 연결 비밀번호를 15분 안에 5번 틀려 잠겼다. */
+    MergeLocked(Res.string.social_auth_merge_locked),
 }
 
 /**
- * 서버에 보내기 전의 입력 검사. 계정 확인·이메일 중복·인증번호는 서버(지금은 예시 저장소) 응답을 따른다.
- * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임 규칙은 아직 '[규칙 안내]' 자리라 비어 있는지만 본다.
+ * 서버에 보내기 전의 입력 검사. 계정 확인·이메일 중복·인증번호는 서버 응답을 따른다.
+ * 비밀번호 규칙은 서버와 같은 '영문·숫자·특수문자를 포함한 8~128자'다. 닉네임은 현재 서버의 NotBlank·Size(max=60) 계약을 따른다.
  */
 object AuthValidation {
     private val emailPattern = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
@@ -55,5 +78,19 @@ object AuthValidation {
     fun passwordConfirmError(password: String, confirm: String): FieldError? =
         if (password.isNotEmpty() && password != confirm) FieldError.PasswordMismatch else null
 
-    fun nicknameError(nickname: String): FieldError? = if (nickname.isBlank()) FieldError.NicknameEmpty else null
+    fun nicknameError(nickname: String): FieldError? = when {
+        nickname.isBlank() -> FieldError.NicknameEmpty
+        nickname.length > 60 -> FieldError.InvalidInput
+        else -> null
+    }
+}
+
+internal fun MemberResult.fieldError(): FieldError = when (this) {
+    MemberResult.VerificationRequired -> FieldError.VerifyAgain
+    MemberResult.TermsRequired -> FieldError.TermsAgain
+    MemberResult.EmailExists -> FieldError.EmailAlreadyExists
+    MemberResult.InvalidInput -> FieldError.InvalidInput
+    MemberResult.Unauthenticated -> FieldError.SessionExpired
+    MemberResult.RateLimited -> FieldError.RateLimited
+    else -> FieldError.Unavailable
 }

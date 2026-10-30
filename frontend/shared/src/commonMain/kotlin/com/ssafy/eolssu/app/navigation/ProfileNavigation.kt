@@ -7,14 +7,12 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.model.SocialProvider
-import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
 import com.ssafy.eolssu.feature.profile.NicknameEditRoute
 import com.ssafy.eolssu.feature.profile.PasswordChangeRoute
-import com.ssafy.eolssu.feature.profile.SocialLinkScreen
+import com.ssafy.eolssu.feature.profile.SocialLinkRoute
 import com.ssafy.eolssu.feature.profile.WithdrawRoute
-import org.koin.compose.getKoin
 
 /** 마이페이지 화면 경로(MY-01~05). */
 object ProfileDestination {
@@ -30,7 +28,7 @@ object ProfileDestination {
 /**
  * MY-01~05 화면 이동. 홈 오른쪽 위 아이콘 → 마이페이지. 닉네임·비밀번호를 바꾸거나 간편 로그인을 연결하면 마이페이지로 돌아와 안내를 띄운다.
  * 로그아웃·탈퇴 신청은 쌓인 화면을 모두 비우고 로그인 화면(AUTH-04)으로 간다.
- * 로그인 상태는 아직 서버와 연결하지 않아, 첫 실행을 마친 기기는 앱을 다시 켜면 홈에서 시작한다.
+ * 첫 실행을 마친 기기는 앱을 다시 켜면 홈에서 시작하며, 회원 요청은 서버 쿠키로 인증한다.
  */
 fun NavGraphBuilder.profileGraph(navController: NavController) {
     val toLogin: (StartNotice) -> Unit = { notice ->
@@ -79,14 +77,10 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
     ) { entry ->
         val provider = entry.linkProvider()
-        val userRepository = getKoin().get<UserRepository>()
-        SocialLinkScreen(
+        SocialLinkRoute(
             provider = provider,
             onBack = { navController.popBackStack() },
-            onLinked = {
-                userRepository.link(provider)
-                navController.popWithNotice(StartNotice.MyAccountLinked, provider)
-            },
+            onLinked = { navController.popWithNotice(StartNotice.MyAccountLinked, provider) },
         )
     }
 }

@@ -1,0 +1,8 @@
+<resources>
+    <string name="model_audio_loading">모범 연주 음원을 불러오고 있어요.</string>
+    <string name="model_audio_unavailable">이 악보 버전의 모범 연주 음원이 아직 등록되지 않았어요.</string>
+    <string name="model_audio_failed">음원을 재생할 수 없어요. 연결 상태를 확인하고 다시 시도해 주세요.</string>
+    <string name="model_audio_unsupported">이 환경에서는 모범 연주 재생을 지원하지 않아요.</string>
+    <string name="model_audio_interrupted">다른 소리 재생이나 기기 연결 변경으로 멈췄어요. 재생을 눌러 이어서 들어요.</string>
+    <string name="model_audio_retry">모범 연주 다시 시도</string>
+</resources>

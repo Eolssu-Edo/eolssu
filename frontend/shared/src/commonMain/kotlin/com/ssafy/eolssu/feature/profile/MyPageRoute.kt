@@ -3,7 +3,12 @@ package com.ssafy.eolssu.feature.profile
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import com.ssafy.eolssu.data.user.MemberResult
+import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalUriHandler
+import eolssu.shared.generated.resources.legal_open_failed
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -11,7 +16,7 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.my_instrument_changed
+import eolssu.shared.generated.resources.member_api_instrument_unavailable
 import eolssu.shared.generated.resources.my_unlinked
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -36,6 +41,7 @@ fun MyPageRoute(
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
     StartMessageEffect(snackbarHostState, startMessage, onStartMessageShown)
     val show: (suspend () -> String) -> Unit = { message ->
         scope.launch {
@@ -45,6 +51,9 @@ fun MyPageRoute(
         }
     }
 
+    LaunchedEffect(viewModel) {
+        if (viewModel.refresh() != MemberResult.Done) snackbarHostState.showSnackbar(getString(Res.string.member_api_unavailable))
+    }
     MyPageScreen(
         profile = profile,
         instrument = instrument,
@@ -53,19 +62,35 @@ fun MyPageRoute(
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onOpen = onOpen,
-        onSelectInstrument = { instrument ->
-            if (viewModel.selectInstrument(instrument)) show { getString(Res.string.my_instrument_changed, getString(instrument.label)) }
+        onSelectInstrument = { selected ->
+            scope.launch {
+                if (selected != instrument && !viewModel.selectInstrument(selected)) show { getString(Res.string.member_api_instrument_unavailable) }
+            }
         },
         onLink = onLink,
         onUnlink = viewModel::askUnlink,
         onConfirmUnlink = {
-            viewModel.confirmUnlink()?.let { provider -> show { getString(Res.string.my_unlinked, getString(provider.displayName)) } }
+            val provider = (dialog as? MyPageDialog.Unlink)?.provider
+            scope.launch {
+                when (viewModel.confirmUnlink()) {
+                    null -> Unit
+                    MemberResult.Done -> provider?.let { show { getString(Res.string.my_unlinked, getString(it.displayName)) } }
+                    else -> show { getString(Res.string.member_api_unavailable) }
+                }
+            }
         },
         onLogOut = viewModel::askLogOut,
         onConfirmLogOut = {
-            viewModel.confirmLogOut()
-            onLoggedOut()
+            scope.launch {
+                viewModel.confirmLogOut().join()
+                onLoggedOut()
+            }
         },
         onDismissDialog = viewModel::dismissDialog,
+        onOpenLegal = { document ->
+            if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
+                show { getString(Res.string.legal_open_failed) }
+            }
+        },
     )
 }

@@ -1,5 +1,7 @@
 # 얼쑤 Backend
 
+약관 공개·등록 작업은 [실행 안내](../infra/terms/README.md)를 따릅니다. 버전별 HTML 및 앱 외 계정 삭제 안내는 `LEGAL_PUBLICATION_ENABLED=true`이고 국내 LocalRecordingStorage가 연결된 뒤에만 공개됩니다. 기본값은 false입니다. 운영 저장·보유기간·최종 본문을 확인하지 않은 상태에서 활성화하거나 terms를 임의 등록하지 않습니다.
+
 Spring Boot + Kotlin으로 구성한 독립 Gradle 애플리케이션입니다. MyBatis와 Flyway로 [ERD·정본 SQL](../docs/contracts/db-schema.md)의 MySQL 8.4 저장 계층을 구성합니다. 프로젝트명과 `spring.application.name`은 `eolssu`, 기본 패키지는 `com.ssafy.eolssu.backend`입니다. IDE에서는 저장소 루트가 아닌 `backend/`를 Gradle 프로젝트로 엽니다.
 
 ## 개발 환경
@@ -71,7 +73,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 - 쿠키: 모두 HttpOnly·SameSite=Lax이고 Secure는 `AUTH_COOKIE_SECURE`(기본 `true`, 로컬 HTTP 개발에서만 `false`)를 따릅니다. `access_token`은 HS256 JWT(`sub`=users.id, 30분, Path `/api`), `refresh_token`은 임의 256비트(14일, Path `/api/auth`, DB에는 SHA-256만)입니다.
 - `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
-- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 로그인하면 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다.
+- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 요청 후 30일 미만일 때만 로그인으로 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다. 회원 잠금을 얻은 뒤의 시각이 만료 정각 이상이면 401 `INVALID_CREDENTIALS`로 거절합니다.
 - `POST /api/auth/refresh`: `refresh_token` 쿠키만 봅니다. 성공하면 이전 토큰을 폐기(ROTATED)하고 두 쿠키를 새로 줍니다. 재발급으로 폐기된(ROTATED) 토큰이 다시 오면 그 회원의 토큰을 모두 폐기(REUSE_DETECTED)합니다. 비밀번호 변경·로그아웃·탈퇴로 폐기된 토큰은 401만 줍니다. 401이면 두 쿠키를 지웁니다. 두 탭이 동시에 재발급하면 한쪽이 재사용으로 판정돼 로그아웃될 수 있습니다.
 - `POST /api/auth/sign-out`: 로그인 필요. 쿠키의 refresh_token이 그 회원의 것일 때만 폐기(SIGN_OUT)하고 두 쿠키를 지웁니다.
 - `AUTH_JWT_SECRET`이 없으면 서버는 기동하고 가입·로그인·재발급만 503입니다. 가입 기본 악기(`DANSO`)가 없어도 503입니다.
@@ -87,9 +89,9 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 회원 탈퇴와 일괄 삭제(USR-05)
 
-- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 대기 중 로그인하면 탈퇴가 취소됩니다.
+- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 탈퇴 취소는 요청 후 30일 미만의 로그인에만 허용하며, `purgeAt` 이전이라도 유예가 만료되면 취소할 수 없습니다.
 - 인증 필터: `db`·`ops` 프로필에서 로그인이 필요한 요청마다 토큰의 회원 상태를 조회해 ACTIVE가 아니면 401 `UNAUTHENTICATED`와 두 쿠키 삭제로 응답합니다. 공개 API는 그대로입니다.
-- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 원본을 먼저 지우고, [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 지운 뒤 개인정보를 비우고 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
+- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 삭제 전에 회원 행을 잠그고 대기 상태·삭제 예정 시각을 재확인합니다. 먼저 시작된 취소가 커밋되면 파일과 DB를 모두 보존합니다. 확인 후 잠금을 해제하고 녹음 원본을 지웁니다. 이어 [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 관련 행을 지우고 개인정보를 비워 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
 
 ### 준비 상태 검사
 
@@ -337,7 +339,7 @@ Android App Links 문서는 `GET /.well-known/assetlinks.json`으로 제공합�
 
 로그인은 `POST /api/auth/oauth/{provider}/start`, 로그인 회원의 연결은 `POST /api/users/me/social-accounts/{provider}/start`에 `{ "redirectUri": "등록한 정확한 주소" }`를 보냅니다. `provider`는 소문자 kakao/google/naver입니다. 응답 `authorizationUrl`을 브라우저로 열고, FE 콜백에서 받은 code·state와 같은 redirectUri를 기존 완료 API에 전달합니다. start 응답의 `oauth_flow_{provider}` HttpOnly·SameSite=Lax·Path=/api 쿠키를 유지해야 합니다. Android도 시작·완료에 같은 쿠키 저장소를 써야 합니다. state는10분·1회용이고 제공자·목적·회원·브라우저·콜백에 결속합니다. Google에는 S256 PKCE도 적용합니다. 같은 제공자의 시작을 다시 호출하면 브라우저 쿠키가 교체되어 이전 흐름은 완료할 수 없습니다.
 
-연결된 소셜 ID는 기존 회원으로 로그인하고 탈퇴 대기를 취소합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
+연결된 소셜 ID는 기존 회원으로 로그인하고 요청 후 30일 미만인 탈퇴 대기를 취소합니다. 소셜 로그인·병합도 회원 잠금 이후의 시각으로 만료를 검사하며, 만료 정각부터 401 INVALID_CREDENTIALS로 거절합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
 
 V9 `oauth_proofs`에는 토큰·쿠키 원문 대신 SHA-256과 소비 여부를 저장합니다. 실패한 병합 트랜잭션은 티켓·이메일 토큰 소비·연결·로그인 발급을 함께 되돌립니다. 코드·제공자 토큰·mergeTicket·결속 쿠키·비밀키는 로그나 문서에 복사하지 마세요. 만료 행은 매분500개 이내로 삭제합니다. 실제 앱 등록·콜백 URI 합의·실제 제공자 통합 확인은 별도이며, 자동 검사는 외부 네트워크 대신 RestClient 대역과 전용 MySQL을 사용합니다.
 
@@ -364,9 +366,22 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 ### 연주 평가 결과 조회
 
 인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
+
+S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nullable 컬럼에 저장하고 평가 조회에 그대로 반환합니다. 기존 행과 두 필드가 없는 이전 AI 응답은 null입니다. 범위 초과 편차도 원래 값을 보존하며 점수를 다시 계산하지 않습니다. [계약](../docs/specs/practice-evaluation-api.md)을 따릅니다. 운영은 Flyway가 꺼져 있으므로 새 백엔드 배포 전에 V11을 적용해야 합니다.
+
 ### 공개 곡 조회
 
 `GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.
+
+### 카카오 서명형 연결 해제 웹훅
+
+`POST /api/webhooks/kakao/events`는 `application/secevent+jwt` 원문 SET(최대16KiB)을 받습니다. 사용자 쿠키와 분리하며 카카오 RS256 공개키·앱·대상·주체·User Unlinked 이벤트를 검증합니다. 검증 후 카카오 연결만 삭제하고 회원·기록·다른 소셜 연결·기존 세션을 보존합니다. 빈202, 검증 실패400의 `err`/`description`, 일시 장애503은 공통 API 형식의 예외입니다. Swagger에도 이 계약을 표시합니다.
+
+`AUTH_KAKAO_WEBHOOK_APP_ID`에 해당 카카오 앱 ID를, 기존 `AUTH_OAUTH_KAKAO_CLIENT_ID`에는 대표 REST API 키를 주입합니다. 둘 중 하나라도 없으면 기동은 가능하나 웹훅은503입니다. 어드민 키는 사용하지 않습니다. 실제 값은 서버 환경에서 관리하고 Git·로그에 남기지 않습니다.
+
+배포 전에 백업과 V9 적용 상태를 확인하고 기존 마이그레이션 절차로 **V10**을 적용해야 합니다. V10은 선택적인 OAuth 시작 시각 열과 이벤트 해시 영수증·subject 해시 워터마크를 추가합니다. 새 JAR는 이 스키마가 필요합니다. 되돌릴 때는 콘솔 송신을 먼저 끄고 이전 JAR를 배포하며 추가 열·테이블은 보존합니다. 자동 다운 마이그레이션이나 데이터 삭제는 하지 않습니다.
+
+배포·설정 주입·수신 확인 후 별도 승인으로 카카오 콘솔에 `https://k15e102.p.ssafy.io/api/webhooks/kakao/events`를 등록하고 **계정 상태 변경 → User Unlinked만** 구독합니다. 기존 어드민 키 방식의 연결 해제 콜백을 함께 활성화하지 않습니다. 실제 계정의 연결 해제·중복 전달·세션 보존을 확인하고, 지속503은 설정/JWKS 접근/DB 잠금을 점검합니다. 공식 재시도는 최초 포함6회이며 연속3시간 실패 시 비활성화될 수 있습니다. 현재 로컬 구현·검증 단계이며 콘솔 활성화와 실제 송신 검증은 아직 하지 않았습니다. [상세 계약·보관·시간 경계](../docs/specs/kakao-webhook.md), [진행 기록](../docs/plans/S15P31E102-296.md).
 
 ### 계정 한정 인증 만료 예외
 

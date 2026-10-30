@@ -1,102 +1,125 @@
 package com.ssafy.eolssu.feature.song.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuBadge
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.instrument_daegeum
 import eolssu.shared.generated.resources.song_bpm_value
 import eolssu.shared.generated.resources.song_info_bpm
 import eolssu.shared.generated.resources.song_info_instrument
 import eolssu.shared.generated.resources.song_info_jangdan
 import eolssu.shared.generated.resources.song_info_level
-import eolssu.shared.generated.resources.song_preview_label
-import eolssu.shared.generated.resources.song_preview_sample
+import eolssu.shared.generated.resources.song_preview_hint
+import eolssu.shared.generated.resources.song_start_practice
 import org.jetbrains.compose.resources.stringResource
 
-/** SONG-02 곡 제목(명조)과 난이도 배지. 태블릿 세로는 제목 36sp, 배지 사이 12dp다. */
+/**
+ * SONG-02 본문(휴대폰·태블릿 공통, 보드 `Song-Detail` 순서): 악보 표지 · 제목과 난이도 · 곡 소개 · 정보 격자 · 안내 · '이 곡 연습하기 →'.
+ * 태블릿은 표지에 [coverColumns]각을 보이고([large]면 정간을 키운다) 정보 격자를 4열([infoColumns])로 둔다.
+ */
 @Composable
-internal fun SongTitleRow(song: Song, modifier: Modifier = Modifier, titleSize: TextUnit = TextUnit.Unspecified, large: Boolean = false) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (large) 12.dp else 10.dp)) {
-        val style = EolssuTheme.serif.songTitle
-        Text(song.title, style = if (titleSize.isSpecified) style.copy(fontSize = titleSize) else style)
-        EolssuBadge(songLevelLabel(song.level))
+internal fun SongDetailBody(
+    song: Song,
+    onStartPractice: () -> Unit,
+    modifier: Modifier = Modifier,
+    coverColumns: Int = 2,
+    coverRows: Int = 5,
+    coverFraction: Float = 0.64f,
+    infoColumns: Int = 2,
+    large: Boolean = false,
+) {
+    Column(modifier.fillMaxWidth()) {
+        SongScoreCover(song, columns = coverColumns, rows = coverRows, scoreFraction = coverFraction, large = large)
+        SongTitleRow(song, Modifier.padding(top = 24.dp, bottom = 10.dp))
+        if (song.description.isNotBlank()) {
+            Text(
+                song.description,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 22.sp),
+                color = EolssuTheme.colors.textSub,
+            )
+        }
+        SongInfoGrid(song, Modifier.padding(vertical = 20.dp), columns = infoColumns)
+        Text(
+            stringResource(Res.string.song_preview_hint),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
+            color = EolssuTheme.colors.textMuted,
+        )
+        EolssuButton(stringResource(Res.string.song_start_practice), onStartPractice, Modifier.padding(top = 12.dp))
+    }
+}
+
+/** SONG-02 곡 제목(`.page-title`, Song Myung 25sp)과 난이도 배지. */
+@Composable
+internal fun SongTitleRow(song: Song, modifier: Modifier = Modifier) {
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            song.title,
+            modifier = Modifier.align(Alignment.CenterVertically).semantics { heading() },
+            style = EolssuTheme.serif.songTitle.copy(fontSize = 25.sp, lineHeight = 37.5.sp, letterSpacing = (-0.5).sp),
+            color = EolssuTheme.colors.text,
+        )
+        EolssuLevelBadge(song.level, modifier = Modifier.align(Alignment.CenterVertically), small = true)
     }
 }
 
 /**
- * 곡 정보 칸(악기 · 장단 · 기준 속도 · 난이도). 휴대폰은 2열, 태블릿은 4열 한 줄([columns]).
- * [large]는 태블릿 세로 크기(칸 사이 10dp, 글자 12/15sp)다.
+ * 곡 정보 격자(`.meta-grid`, 악기 · 장단 · 기준 속도 · 난이도): 위아래 구분선 사이 16dp 여백, 칸 사이 16dp.
+ * 휴대폰은 2열, 태블릿은 4열 한 줄([columns]).
  */
 @Composable
-internal fun SongInfoGrid(song: Song, modifier: Modifier = Modifier, columns: Int = 2, large: Boolean = false) {
+internal fun SongInfoGrid(song: Song, modifier: Modifier = Modifier, columns: Int = 2) {
     val items = listOf(
-        stringResource(Res.string.song_info_instrument) to stringResource(Res.string.instrument_daegeum),
+        stringResource(Res.string.song_info_instrument) to songInstrumentLabel(song),
         stringResource(Res.string.song_info_jangdan) to jangdanLabel(song.jangdan),
         stringResource(Res.string.song_info_bpm) to stringResource(Res.string.song_bpm_value, song.baseBpm),
         stringResource(Res.string.song_info_level) to songLevelLabel(song.level),
     )
-    val gap = if (large) 10.dp else 8.dp
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(gap)) {
-        items.chunked(columns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                row.forEach { (label, value) -> InfoCell(label, value, Modifier.weight(1f), large) }
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+    val line = EolssuTheme.colors.surfaceStrong
+    Column(modifier.fillMaxWidth()) {
+        HorizontalDivider(color = line)
+        Column(Modifier.padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            items.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    row.forEach { (label, value) -> InfoCell(label, value, Modifier.weight(1f)) }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
+        HorizontalDivider(color = line)
     }
 }
 
 @Composable
-private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier, large: Boolean) {
-    Column(
-        modifier
-            .background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp))
-            .padding(horizontal = if (large) 16.dp else 14.dp, vertical = if (large) 14.dp else 12.dp),
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = if (large) 12.sp else 11.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
+private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = EolssuTheme.colors.textMuted)
         Text(
             value,
-            modifier = Modifier.padding(top = if (large) 4.dp else 3.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = if (large) 15.sp else 14.sp, fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.padding(top = 3.dp),
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.text,
         )
-    }
-}
-
-/** 악보 미리보기 머리글: '악보 일부 미리보기 · 오른쪽 각부터 읽어요'와 '예시 악보' 배지. 태블릿 세로는 13sp다. */
-@Composable
-internal fun SongPreviewHeader(modifier: Modifier = Modifier, large: Boolean = false) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            stringResource(Res.string.song_preview_label),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = if (large) 13.sp else 12.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
-        EolssuBadge(stringResource(Res.string.song_preview_sample))
     }
 }

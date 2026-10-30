@@ -68,7 +68,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(37,expected.size)
+        assertEquals(40,expected.size)
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans")
@@ -88,10 +88,15 @@ open class OpenApiDatabaseTests {
             val (method,path)=entry.split(' ',limit=2)
             val operation=doc.path("paths").path(path).path(method)
             assertTrue(operation.path("summary").asString().isNotBlank(),entry)
-            assertTrue(operation.path("responses").has("500"),entry)
+            assertTrue(operation.path("responses").has(if(path=="/api/webhooks/kakao/events")"503" else "500"),entry)
             assertTrue(operation.has("security"),entry)
         }
         val schemes=doc.path("components").path("securitySchemes")
+        val webhook=doc.path("paths").path("/api/webhooks/kakao/events").path("post")
+        assertEquals(0,webhook.path("security").size())
+        assertFalse(webhook.path("responses").path("202").has("content"))
+        assertTrue(webhook.path("requestBody").path("content").has("application/secevent+jwt"))
+        assertTrue(webhook.path("responses").path("400").path("content").path("application/json").path("schema").path("properties").has("err"))
         assertEquals("cookie",schemes.path("accessCookie").path("in").asString())
         assertEquals("access_token",schemes.path("accessCookie").path("name").asString())
         assertEquals("refresh_token",schemes.path("refreshCookie").path("name").asString())

@@ -10,6 +10,7 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val LocalEolssuColors = staticCompositionLocalOf { LightEolssuColors }
@@ -37,7 +38,7 @@ private fun EolssuColors.toMaterialColorScheme() = lightColorScheme(
     secondaryContainer = surfaceStrong,
     onSecondaryContainer = text,
     tertiary = play,
-    onTertiary = onPrimary,
+    onTertiary = onPlay,
     tertiaryContainer = playSoft,
     onTertiaryContainer = playText,
     background = background,
@@ -55,7 +56,7 @@ private fun EolssuColors.toMaterialColorScheme() = lightColorScheme(
     outline = line,
     outlineVariant = line,
     error = rec,
-    onError = onPrimary,
+    onError = onRec,
     errorContainer = recSoft,
     onErrorContainer = recText,
 )
@@ -63,10 +64,11 @@ private fun EolssuColors.toMaterialColorScheme() = lightColorScheme(
 @Composable
 fun EolssuTheme(content: @Composable () -> Unit) {
     val colors = LightEolssuColors
-    val sans = pretendardFamily()
+    val sans = ibmPlexSansKrFamily()
     val serif = notoSerifKrFamily()
-    val typography = remember(sans) { eolssuTypography(sans) }
-    val serifTypography = remember(serif) { eolssuSerifTypography(serif) }
+    val heading = songMyungFamily()
+    val typography = remember(sans, heading) { eolssuTypography(sans, heading) }
+    val serifTypography = remember(serif, heading) { eolssuSerifTypography(serif, heading) }
     CompositionLocalProvider(
         LocalEolssuColors provides colors,
         LocalEolssuSerifTypography provides serifTypography,

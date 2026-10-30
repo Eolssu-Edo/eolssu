@@ -21,6 +21,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -34,7 +35,7 @@ import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.FingeringRoute
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingPage
-import com.ssafy.eolssu.feature.guide.ReadingScreen
+import com.ssafy.eolssu.feature.guide.ReadingRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
@@ -122,10 +123,12 @@ fun EolssuNavHost(
     onNavHostReady: suspend (NavController) -> Unit = {},
     navController: NavHostController = rememberNavController(),
     browserBackGuard: BrowserBackGuard? = null,
+    // TEMP S15P31E102-309: remove together with the startDestination branch.
+    qaSkipConsent: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember { startDestination(firstRunRepository.isCompleted()) }
+    val start = remember(qaSkipConsent) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
@@ -333,7 +336,7 @@ fun EolssuNavHost(
                 EolssuDestination.GUIDE_READING,
                 arguments = listOf(navArgument("page") { type = NavType.StringType; defaultValue = "" }),
             ) { entry ->
-                ReadingScreen(
+                ReadingRoute(
                     onBack = { navController.popBackStack() },
                     initialPage = ReadingPage.fromId(entry.savedStateHandle.get<String>("page")),
                 )
@@ -411,9 +414,11 @@ fun EolssuNavHost(
         }
         SnackbarHost(appSnackbar, Modifier.align(Alignment.BottomCenter).windowInsetsPadding(WindowInsets.navigationBars))
         PendingRecordingNotice(
+            routeId = navController.currentBackStackEntryAsState().value?.id,
             onSend = { navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId)) },
         )
     }
+    OAuthReturnEffect(navController)
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }
 

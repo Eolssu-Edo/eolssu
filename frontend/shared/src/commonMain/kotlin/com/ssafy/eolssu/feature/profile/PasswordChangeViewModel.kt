@@ -9,8 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** MY-03. 새 비밀번호는 가입과 같은 규칙을 지키고, 현재 비밀번호는 서버(지금은 예시 저장소)가 확인한다. */
+/** MY-03. 새 비밀번호는 가입과 같은 규칙을 지키고, 현재 비밀번호는 서버가 확인한다. */
 class PasswordChangeViewModel(private val userRepository: UserRepository) : ViewModel() {
+    private var submitting = false
     private val _uiState = MutableStateFlow(PasswordChangeUiState())
     val uiState: StateFlow<PasswordChangeUiState> = _uiState.asStateFlow()
 
@@ -22,7 +23,8 @@ class PasswordChangeViewModel(private val userRepository: UserRepository) : View
     fun changeConfirm(value: String) = _uiState.update { it.copy(confirm = value, confirmError = null) }
 
     /** 바꿨으면 true. */
-    fun submit(): Boolean {
+    suspend fun submit(): Boolean {
+        if (submitting) return false
         val state = _uiState.value
         val currentError = if (state.current.isEmpty()) ProfileFieldError.PasswordEmpty else null
         val newError = when {
@@ -33,8 +35,14 @@ class PasswordChangeViewModel(private val userRepository: UserRepository) : View
         val confirmError = if (state.new.isNotEmpty() && state.new != state.confirm) ProfileFieldError.PasswordMismatch else null
         _uiState.update { it.copy(currentError = currentError, newError = newError, confirmError = confirmError) }
         if (currentError != null || newError != null || confirmError != null) return false
-        return when (userRepository.changePassword(state.current, state.new)) {
-            PasswordCheckResult.Done -> true
+        submitting = true
+        val result = try { userRepository.changePassword(state.current, state.new) } finally { submitting = false }
+        return when (result) {
+            PasswordCheckResult.Done -> true.also { _uiState.value = PasswordChangeUiState() }
+            PasswordCheckResult.Unavailable -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.Unavailable) } }
+            PasswordCheckResult.Unauthenticated -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.Unauthenticated) } }
+            PasswordCheckResult.RateLimited -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.RateLimited) } }
+            PasswordCheckResult.InvalidInput -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.InvalidInput) } }
             PasswordCheckResult.WrongPassword -> false.also { _uiState.update { it.copy(currentError = ProfileFieldError.CurrentPasswordWrong) } }
         }
     }

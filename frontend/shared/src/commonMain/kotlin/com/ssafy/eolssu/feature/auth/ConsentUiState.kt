@@ -1,9 +1,13 @@
 package com.ssafy.eolssu.feature.auth
 
-/** AUTH-01 약관 동의 상태. */
-data class ConsentUiState(val checked: Set<Agreement> = emptySet()) {
-    val allChecked: Boolean get() = Agreement.entries.all { it in checked }
+import com.ssafy.eolssu.data.user.AccountTerm
 
-    /** 필수 항목을 모두 동의해야 시작할 수 있다. 선택 항목은 상관없다. */
-    val canStart: Boolean get() = Agreement.entries.filter { it.required }.all { it in checked }
+data class ConsentUiState(
+    val terms: List<AccountTerm> = emptyList(),
+    val checked: Set<String> = emptySet(),
+    val loading: Boolean = true,
+    val failed: Boolean = false,
+) {
+    val allChecked: Boolean get() = terms.isNotEmpty() && terms.all { it.termId in checked }
+    val canStart: Boolean get() = !loading && !failed && terms.any { it.required } && terms.filter { it.required }.all { it.termId in checked }
 }

@@ -258,7 +258,7 @@ private fun StageRow(stage: LearnStage, done: Boolean, highlighted: Boolean, mod
             contentAlignment = Alignment.Center,
         ) {
             if (done) {
-                Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.onPrimary)
+                Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.onInk)
             } else {
                 Text("${stage.number}", style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
             }

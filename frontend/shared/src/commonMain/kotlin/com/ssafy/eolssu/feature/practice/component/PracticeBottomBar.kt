@@ -39,8 +39,15 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.PracticeMode
+import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.model_audio_loading
+import eolssu.shared.generated.resources.model_audio_unavailable
+import eolssu.shared.generated.resources.model_audio_failed
+import eolssu.shared.generated.resources.model_audio_unsupported
+import eolssu.shared.generated.resources.model_audio_interrupted
+import eolssu.shared.generated.resources.model_audio_retry
 import eolssu.shared.generated.resources.practice_abort
 import eolssu.shared.generated.resources.practice_from_start
 import eolssu.shared.generated.resources.practice_hint_ready
@@ -55,6 +62,7 @@ import eolssu.shared.generated.resources.practice_pause
 import eolssu.shared.generated.resources.practice_play
 import eolssu.shared.generated.resources.practice_rec_time_detail
 import eolssu.shared.generated.resources.practice_restart
+import eolssu.shared.generated.resources.practice_recording_unsupported
 import eolssu.shared.generated.resources.practice_start_eval
 import eolssu.shared.generated.resources.practice_stop_listening
 import eolssu.shared.generated.resources.practice_switch_to_eval
@@ -80,14 +88,17 @@ class PracticeBottomActions(
 @Composable
 fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
     val song = state.song ?: return
+    val unsupportedEvaluation = !state.recordingSupported && (!state.solo || song.evaluable)
+    if (unsupportedEvaluation) Hint(stringResource(Res.string.practice_recording_unsupported))
     when {
         state.mode == PracticeMode.Model -> {
             ModelTransport(state, actions)
+            ModelAudioHint(state.modelAudioStatus)
             ProgressBar(state.progressPercent, EolssuTheme.colors.play)
             if (!state.solo) {
-                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic)
+                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
             } else if (song.evaluable) {
-                EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic)
+                EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
             }
         }
         state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming -> {
@@ -113,7 +124,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
             )
         }
         state.solo -> {
-            Hint(stringResource(if (song.evaluable) Res.string.practice_hint_solo else Res.string.practice_hint_solo_only))
+            if (!unsupportedEvaluation) Hint(stringResource(if (song.evaluable) Res.string.practice_hint_solo else Res.string.practice_hint_solo_only))
             PairedButtons(
                 stacked,
                 secondWeight = 1.25f,
@@ -124,7 +135,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
                     )
                 },
                 second = if (song.evaluable) {
-                    { m -> EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, m, icon = EolssuIcons.Mic, compact = true) }
+                    { m -> EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, m, icon = EolssuIcons.Mic, compact = true, enabled = state.recordingSupported) }
                 } else {
                     null
                 },
@@ -132,7 +143,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
         }
         else -> {
             val countingDown = state.mode == PracticeMode.Countdown
-            Hint(stringResource(Res.string.practice_hint_ready))
+            if (!unsupportedEvaluation) Hint(stringResource(Res.string.practice_hint_ready))
             PairedButtons(
                 stacked,
                 first = { m ->
@@ -144,7 +155,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
                 second = { m ->
                     EolssuButton(
                         stringResource(Res.string.practice_start_eval), actions.onStartEval, m, compact = true,
-                        icon = EolssuIcons.Mic, enabled = !countingDown,
+                        icon = EolssuIcons.Mic, enabled = !countingDown && state.recordingSupported,
                     )
                 },
             )
@@ -187,15 +198,18 @@ private fun Hint(text: String) {
 @Composable
 private fun ModelTransport(state: PracticeUiState, actions: PracticeBottomActions) {
     val colors = EolssuTheme.colors
+    val needsRetry = state.modelAudioStatus in setOf(ModelAudioStatus.Failed, ModelAudioStatus.Unavailable)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         RoundButton(
-            if (state.playing) EolssuIcons.Pause else EolssuIcons.Play,
-            stringResource(if (state.playing) Res.string.practice_pause else Res.string.practice_play),
+            if (state.playing) EolssuIcons.Pause else if (needsRetry) EolssuIcons.Restart else EolssuIcons.Play,
+            stringResource(if (state.playing) Res.string.practice_pause else if (state.modelAudioStatus in setOf(ModelAudioStatus.Failed, ModelAudioStatus.Unavailable)) Res.string.model_audio_retry else Res.string.practice_play),
             actions.onToggleModel,
             container = colors.play,
-            content = colors.onPrimary,
+            content = colors.onPlay,
+            enabled = state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported,
         )
-        RoundButton(EolssuIcons.Restart, stringResource(Res.string.practice_from_start), actions.onRestartModel)
+        RoundButton(EolssuIcons.Restart, stringResource(Res.string.practice_from_start), actions.onRestartModel,
+            enabled = state.modelAudioStatus in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted))
         Column(Modifier.weight(1f)) {
             EolssuBadge(stringResource(Res.string.practice_model_badge), style = EolssuBadgeStyle.Play)
             Text(
@@ -216,10 +230,11 @@ private fun ModelTransport(state: PracticeUiState, actions: PracticeBottomAction
 }
 
 @Composable
-private fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit, container: Color? = null, content: Color? = null) {
+private fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit, container: Color? = null, content: Color? = null, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.size(48.dp),
         shape = CircleShape,
         color = container ?: colors.background,
@@ -228,6 +243,19 @@ private fun RoundButton(icon: ImageVector, label: String, onClick: () -> Unit, c
     ) {
         Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp)) }
     }
+}
+
+@Composable
+private fun ModelAudioHint(status: ModelAudioStatus) {
+    val message = when (status) {
+        ModelAudioStatus.Loading -> Res.string.model_audio_loading
+        ModelAudioStatus.Unavailable -> Res.string.model_audio_unavailable
+        ModelAudioStatus.Failed -> Res.string.model_audio_failed
+        ModelAudioStatus.Unsupported -> Res.string.model_audio_unsupported
+        ModelAudioStatus.Interrupted -> Res.string.model_audio_interrupted
+        else -> null
+    }
+    if (message != null) Hint(stringResource(message))
 }
 
 @Composable

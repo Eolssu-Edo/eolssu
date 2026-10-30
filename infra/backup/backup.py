@@ -358,10 +358,12 @@ def prune():
             if kind == 'controller-key': continue
             records = sorted((STORE / kind).glob('*.json')); daily = {}
             for p in records: daily.setdefault(p.stem[:8], p.stem)
-            for p in records[:-1]:
+            # 개인정보 사본은 최신 성공본이어도 보유 상한을 넘겨 남기지 않는다(Task 300).
+            for p in records:
                 if p.is_symlink() or not RUN.fullmatch(p.stem): raise ValueError('invalid retention target')
                 record = json.loads(p.read_text()); age = current - datetime.fromisoformat(record['snapshot_at'].replace('Z', '+00:00'))
-                keep = age < timedelta(days=14 if kind == 'jenkins' else 30)
+                # DB 정리는 하루 한 번이므로 29일에서 정리해 최대 30일 상한을 지킨다.
+                keep = age < timedelta(days=14 if kind == 'jenkins' else 29 if kind == 'db' else 30)
                 if kind == 'db' and age >= timedelta(days=7): keep = keep and daily[p.stem[:8]] == p.stem
                 if not keep:
                     cipher = p.with_suffix('.cms')

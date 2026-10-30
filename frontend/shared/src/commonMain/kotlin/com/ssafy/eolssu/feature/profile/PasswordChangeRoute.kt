@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
@@ -13,6 +15,7 @@ fun PasswordChangeRoute(
     onChanged: () -> Unit,
     viewModel: PasswordChangeViewModel = koinViewModel(),
 ) {
+    val scope = rememberCoroutineScope()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     PasswordChangeScreen(
         state = state,
@@ -21,6 +24,6 @@ fun PasswordChangeRoute(
         onCurrentChange = viewModel::changeCurrent,
         onNewChange = viewModel::changeNew,
         onConfirmChange = viewModel::changeConfirm,
-        onSubmit = { if (viewModel.submit()) onChanged() },
+        onSubmit = { scope.launch { if (viewModel.submit()) onChanged() } },
     )
 }

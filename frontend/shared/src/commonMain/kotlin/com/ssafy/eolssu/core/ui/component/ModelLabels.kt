@@ -4,6 +4,9 @@ import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.Instrument
+import eolssu.shared.generated.resources.instrument_unknown
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.date_month_day
 import eolssu.shared.generated.resources.jangdan_label
@@ -28,7 +31,18 @@ fun songLevelLabel(level: SongLevel): String = stringResource(
 /** '세마치장단'처럼 장단을 붙인다. '가곡 16박'처럼 박으로 끝나는 이름은 그대로 쓴다. */
 @Composable
 fun jangdanLabel(jangdan: Jangdan): String =
-    if (jangdan.name.endsWith("박")) jangdan.name else stringResource(Res.string.jangdan_label, jangdan.name)
+    jangdanLabel(jangdan.name)
+
+@Composable
+fun jangdanLabel(name: String): String =
+    if (name.endsWith("박")) name else stringResource(Res.string.jangdan_label, name)
+
+/** 악보의 실제 instrument code를 표시한다. 알 수 없는 코드는 다른 악기로 대체하지 않는다. */
+@Composable
+fun songInstrumentLabel(song: Song): String {
+    val instrument = Instrument.entries.firstOrNull { it.name.uppercase() == song.score.source?.instrument }
+    return stringResource(instrument?.label ?: Res.string.instrument_unknown)
+}
 
 /** 초를 '분:초'로(0:48). */
 fun formatClock(seconds: Double): String {

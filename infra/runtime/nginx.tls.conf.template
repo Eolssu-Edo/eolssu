@@ -1,4 +1,6 @@
+log_format eolssu_safe_tls '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
 server {
+    access_log /dev/stdout eolssu_safe_tls;
     listen 80;
     server_name __TLS_DOMAIN__;
     root /usr/share/nginx/html;
@@ -14,6 +16,7 @@ server {
 
 server {
     listen 443 ssl;
+    access_log /dev/stdout eolssu_safe_tls;
     server_name __TLS_DOMAIN__;
     ssl_certificate /etc/letsencrypt/live/__TLS_DOMAIN__/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/__TLS_DOMAIN__/privkey.pem;
@@ -50,6 +53,16 @@ server {
 
     location ^~ /api/actuator {
         return 404;
+    }
+
+    # 서명 URL의 쿼리와 원본 키는 접근 로그에 남기지 않는다.
+    location = /api/recordings/read {
+        access_log off;
+        error_log /dev/null;
+        set $backend http://backend:8080;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /api/ {

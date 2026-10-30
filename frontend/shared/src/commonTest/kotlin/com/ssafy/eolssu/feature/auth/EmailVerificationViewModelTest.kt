@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.ConfirmCodeResult
 import com.ssafy.eolssu.data.user.LoginResult
 import com.ssafy.eolssu.data.user.SampleAuthRepository
@@ -8,6 +9,10 @@ import com.ssafy.eolssu.data.user.SendCodeResult
 import com.ssafy.eolssu.data.user.VerificationCodeValidMillis
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.data.user.VerificationResendMillis
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,10 +24,30 @@ class EmailVerificationViewModelTest {
     private var now = 1_000L
 
     private fun viewModel(purpose: VerificationPurpose, repository: AuthRepository = SampleAuthRepository { now }) =
-        EmailVerificationViewModel(purpose, repository) { now }
+        EmailVerificationViewModel(purpose, repository, now = { now })
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun changingEmailWhileSendingDiscardsTheOldResponseAndToken() = runTest {
+        val answer = CompletableDeferred<SendCodeResult>()
+        val repository = object : AuthRepository by SampleAuthRepository({ now }) {
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = answer.await()
+        }
+        val draft = AccountDraft().apply { token = "old-token" }
+        val vm = EmailVerificationViewModel(VerificationPurpose.SignUp, repository, { now }, draft)
+        vm.changeEmail("old@example.test")
+        val request = async { vm.sendCode() }
+        runCurrent()
+        vm.changeEmail("new@example.test")
+        answer.complete(SendCodeResult.Sent("42", now + 180_000, now + 60_000))
+        assertFalse(request.await())
+        assertFalse(vm.uiState.value.codeSent)
+        assertEquals("new@example.test", vm.uiState.value.email)
+        assertEquals("", draft.token)
+    }
 
     @Test
-    fun signupBlocksRegisteredEmailButResetHidesIt() {
+    fun signupBlocksRegisteredEmailButResetHidesIt() = runTest {
         val signUp = viewModel(VerificationPurpose.SignUp)
         signUp.changeEmail(SampleAuthRepository.RegisteredEmail)
         assertFalse(signUp.sendCode())
@@ -36,7 +61,7 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun sentCodeCountsDownAndConfirmsSixDigits() {
+    fun sentCodeCountsDownAndConfirmsSixDigits() = runTest {
         val viewModel = viewModel(VerificationPurpose.SignUp)
         viewModel.changeEmail(" new@example.com ")
         assertTrue(viewModel.sendCode())
@@ -57,7 +82,7 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun resendWaitsSixtySecondsAndExpiryNeedsNewCode() {
+    fun resendWaitsSixtySecondsAndExpiryNeedsNewCode() = runTest {
         val viewModel = viewModel(VerificationPurpose.SignUp)
         viewModel.changeEmail("new@example.com")
         viewModel.sendCode()
@@ -80,14 +105,14 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun mismatchShowsRemainingAttemptsAndTooManyKeepsBlocking() {
+    fun mismatchShowsRemainingAttemptsAndTooManyKeepsBlocking() = runTest {
         var answer: ConfirmCodeResult = ConfirmCodeResult.Mismatch(remainingAttempts = 4)
         val repository = object : AuthRepository {
             override suspend fun logIn(email: String, password: String) = LoginResult.WrongCredentials
 
             override fun logOut() = Unit
-            override fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
-            override fun confirmCode(verificationId: String, code: String) = answer
+            override suspend fun sendCode(email: String, purpose: VerificationPurpose) = SendCodeResult.Sent("v1", now + 180_000, now + 60_000)
+            override suspend fun confirmCode(verificationId: String, code: String) = answer
         }
         val viewModel = viewModel(VerificationPurpose.SignUp, repository)
         viewModel.changeEmail("new@example.com")
@@ -107,7 +132,7 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun editingEmailAfterSendingDropsTheCode() {
+    fun editingEmailAfterSendingDropsTheCode() = runTest {
         val viewModel = viewModel(VerificationPurpose.SignUp)
         viewModel.changeEmail("new@example.com")
         viewModel.sendCode()
@@ -122,7 +147,7 @@ class EmailVerificationViewModelTest {
     }
 
     @Test
-    fun minutesSecondsFormat() {
+    fun minutesSecondsFormat() = runTest {
         assertEquals("3:00", formatMinutesSeconds(180))
         assertEquals("0:09", formatMinutesSeconds(9))
     }

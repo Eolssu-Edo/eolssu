@@ -46,7 +46,7 @@ fun RecordListScreen(
 ) {
     val frame = historyFrame(widthClass)
     val title = stringResource(Res.string.records_title)
-    val subtitle = stringResource(Res.string.records_subtitle, state.records.size)
+    val subtitle = if (state.recordsAvailable) stringResource(Res.string.records_subtitle, state.records.size) else null
     if (widthClass == WindowWidthClass.Expanded && detail != null && detailActions != null) {
         RecordsExpandedLayout(
             state = state,
@@ -76,9 +76,9 @@ fun RecordListScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = frame.gutter, end = frame.gutter, top = if (frame.isTablet) 4.dp else 0.dp, bottom = if (frame.isTablet) 28.dp else 24.dp),
         ) {
-            WeekCard(state, spacing, onOpenGrowth)
-            if (state.groups.isEmpty()) {
-                RecordsEmpty()
+            if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
+            if (!state.recordsAvailable || state.groups.isEmpty()) {
+                RecordsEmpty(available = state.recordsAvailable)
                 return@Column
             }
             RecordListToolbar(state.groups.size, state.sort, spacing, onSort)

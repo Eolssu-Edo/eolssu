@@ -1,0 +1,125 @@
+package com.ssafy.eolssu.data.user
+
+import com.ssafy.eolssu.core.model.SocialProvider
+
+/**
+ * 간편 로그인·계정 연결의 공통 계약(`docs/specs/social-auth.md` Android 계약안).
+ * 앱이 서버 start를 부르고 받은 제공자 주소를 외부 브라우저로 연다. 제공자는 [OAuthRedirect]의 복귀 주소(App Links)로 앱을 다시 열고,
+ * 앱은 그 주소의 코드·state를 같은 HTTP 클라이언트(start 때 받은 `oauth_flow_<제공자>` 쿠키 보유)로 완료 API에 보낸다.
+ * 인가 코드·state·mergeTicket·쿠키는 로그에 남기지 않는다. 이 파일의 값 클래스는 `toString`에서 그 값을 가린다.
+ */
+enum class OAuthPurpose {
+    /** 로그인 화면의 간편 로그인(AUTH-05). 공개 start·완료 API. */
+    LogIn,
+
+    /** 마이페이지의 간편 로그인 연결(MY-05). 로그인한 회원의 start·완료 API. */
+    Link,
+}
+
+/** 서버 경로와 복귀 주소에 쓰는 제공자 이름(`kakao`·`google`·`naver`). 서버는 소문자만 받는다. */
+val SocialProvider.pathName: String get() = name.lowercase()
+
+/**
+ * 앱 복귀 주소. 로그인과 연결이 같은 주소를 쓴다. 카카오만 콘솔·서버 허용 목록에 등록됐고 Google·Naver는 같은 형식의 후보다.
+ * 호스트·경로는 `androidApp`의 Manifest App Links `intent-filter`와 같아야 한다.
+ */
+object OAuthRedirect {
+    const val HOST = "k15e102.p.ssafy.io"
+
+    fun uriFor(provider: SocialProvider) = "https://$HOST${pathFor(provider)}"
+
+    fun pathFor(provider: SocialProvider) = "/auth/android/oauth/${provider.pathName}/callback"
+}
+
+/** start 응답. [Started.authorizationUrl]을 외부 브라우저로 연다. */
+sealed interface OAuthStartResult {
+    class Started(val authorizationUrl: String, val expiresAtMillis: Long) : OAuthStartResult {
+        override fun toString() = "Started(expiresAtMillis=$expiresAtMillis)"
+    }
+
+    /** 연결 start에서 로그인이 풀렸다(401). */
+    data object Unauthenticated : OAuthStartResult
+
+    /** 제공자 설정이 없거나 장애(503), 연결 실패. 잠시 뒤 다시 시도하게 한다. */
+    data object Unavailable : OAuthStartResult
+}
+
+/** 복귀 주소에서 꺼낸 완료 요청 값. [redirectUri]는 start 때 보낸 주소 그대로다. */
+class OAuthCallback(
+    val provider: SocialProvider,
+    val authorizationCode: String,
+    val redirectUri: String,
+    val state: String,
+) {
+    override fun toString() = "OAuthCallback(provider=$provider)"
+}
+
+/** 간편 로그인 완료(`POST /api/auth/oauth/{provider}`) 결과. */
+sealed interface SocialLoginResult {
+    /** 연결된 계정으로 로그인했다. [withdrawalCancelled]: 탈퇴 대기 계정이라 탈퇴가 취소됐다. */
+    data class Success(val withdrawalCancelled: Boolean) : SocialLoginResult
+
+    /** 같은 이메일로 가입한 계정이 있다(409 `ACCOUNT_MERGE_AVAILABLE`). 계정 연결 확인(AUTH-09)으로 간다. */
+    class MergeAvailable(val offer: MergeOffer) : SocialLoginResult {
+        override fun toString() = "MergeAvailable($offer)"
+    }
+
+    /** 연결된 계정도 같은 이메일 계정도 없다(401 `SOCIAL_ACCOUNT_NOT_REGISTERED`). 이메일 가입을 안내한다. */
+    data object NotRegistered : SocialLoginResult
+
+    /** state·코드 확인에 실패했다(401 `OAUTH_VERIFICATION_FAILED` 등). 처음부터 다시 한다. */
+    data object Restart : SocialLoginResult
+
+    /** 제공자·서버 장애(503), 연결 실패. state는 이미 썼을 수 있으므로 같은 코드로 다시 보내지 않고 처음부터 다시 한다. */
+    data object Unavailable : SocialLoginResult
+}
+
+/**
+ * 계정 연결 제안. [ticket]은 10분 동안 한 번 쓸 수 있고, 이 흐름의 메모리에만 둔다(주소·저장소에 남기지 않는다).
+ * [needsPassword]: 제공자가 이메일을 확인해 주지 않아(`providerEmailVerified=false`) 얼쑤 비밀번호로 본인을 확인해야 한다.
+ */
+class MergeOffer(
+    val provider: SocialProvider,
+    val maskedEmail: String,
+    val needsPassword: Boolean,
+    val ticket: String,
+    val expiresAtMillis: Long,
+) {
+    override fun toString() = "MergeOffer(provider=$provider, needsPassword=$needsPassword)"
+}
+
+/** 계정 연결(`POST /api/auth/oauth/merge`) 결과. */
+sealed interface MergeResult {
+    data object Success : MergeResult
+
+    /** 비밀번호 없이 보냈는데 본인 확인이 필요하다(422 `IDENTITY_CONFIRMATION_REQUIRED`). */
+    data object PasswordRequired : MergeResult
+
+    /** 비밀번호가 맞지 않는다(401 `INVALID_CREDENTIALS`). */
+    data object WrongPassword : MergeResult
+
+    /** 15분 안에 5번 틀려 잠겼다(429). */
+    data object Locked : MergeResult
+
+    /** 연결 시간(10분)이 지났거나 이미 썼다(410 `MERGE_TICKET_EXPIRED`). 간편 로그인부터 다시 한다. */
+    data object Expired : MergeResult
+
+    data object Unavailable : MergeResult
+}
+
+/** 마이페이지 연결 완료(`POST /api/users/me/social-accounts/{provider}`) 결과. */
+sealed interface LinkResult {
+    /** 연결했다(201). 이미 연결돼 있던 제공자(409 `PROVIDER_ALREADY_LINKED`)도 결과가 같아 여기로 본다. */
+    data object Linked : LinkResult
+
+    /** 이 제공자 계정이 다른 얼쑤 계정에 연결돼 있다(409 `SOCIAL_ACCOUNT_IN_USE`). MY-05 안내를 띄운다. */
+    data object InUse : LinkResult
+
+    /** state·코드 확인에 실패했다. 처음부터 다시 한다. */
+    data object Restart : LinkResult
+
+    /** 로그인이 풀렸다(401 `UNAUTHENTICATED`). */
+    data object Unauthenticated : LinkResult
+
+    data object Unavailable : LinkResult
+}

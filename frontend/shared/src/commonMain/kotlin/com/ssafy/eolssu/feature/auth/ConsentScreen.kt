@@ -10,17 +10,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.data.user.AccountTerm
+import eolssu.shared.generated.resources.member_api_terms_unavailable
+import eolssu.shared.generated.resources.member_api_terms_loading
+import eolssu.shared.generated.resources.member_api_retry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -55,16 +61,17 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * AUTH-01 약관 동의(첫 실행). 상단 바 없이 제목은 위, 동의 목록은 본문 아래쪽에 붙는다.
  * 태블릿은 제목과 동의 목록을 한 덩어리로 화면 가운데에 두고, 가로에서는 왼쪽에 브랜드 칸을 둔다.
- * 필수 4개를 모두 동의해야 시작 버튼이 켜진다.
+ * 서버가 요구한 약관을 모두 명시적으로 선택해야 시작 버튼이 켜진다.
  */
 @Composable
 fun ConsentScreen(
     state: ConsentUiState,
     widthClass: WindowWidthClass,
-    onToggle: (Agreement) -> Unit,
+    onToggle: (String) -> Unit,
     onToggleAll: () -> Unit,
-    onOpenTerms: (Agreement) -> Unit,
+    onOpenTerms: (String) -> Unit,
     onStart: () -> Unit,
+    onRetry: () -> Unit,
 ) {
     val frame = authFrameOf(widthClass, split = true)
     AuthScaffold(
@@ -90,9 +97,15 @@ fun ConsentScreen(
             // 휴대폰은 동의 목록을 아래쪽에 붙이고, 태블릿은 제목 바로 아래 12dp에 둔다(`.tabapp.auth .au-agree`).
             if (frame.isTablet) Spacer(Modifier.height(12.dp)) else Spacer(Modifier.weight(1f))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                AgreeAllRow(state.allChecked, onToggleAll)
-                Agreement.entries.forEach { agreement ->
-                    AgreementRow(agreement, agreement in state.checked, { onToggle(agreement) }, { onOpenTerms(agreement) })
+                if (state.loading) Text(stringResource(Res.string.member_api_terms_loading))
+                else if (state.failed) {
+                    Text(stringResource(Res.string.member_api_terms_unavailable))
+                    EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
+                } else {
+                    AgreeAllRow(state.allChecked, onToggleAll)
+                    state.terms.forEach { term ->
+                        AgreementRow(term, term.termId in state.checked, { onToggle(term.termId) }, { onOpenTerms(term.termId) })
+                    }
                 }
             }
         }
@@ -122,10 +135,10 @@ private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
 }
 
 @Composable
-private fun AgreementRow(agreement: Agreement, checked: Boolean, onToggle: () -> Unit, onOpenTerms: () -> Unit) {
+private fun AgreementRow(agreement: AccountTerm, checked: Boolean, onToggle: () -> Unit, onOpenTerms: () -> Unit) {
     val colors = EolssuTheme.colors
     val prefix = stringResource(if (agreement.required) Res.string.auth_required else Res.string.auth_optional)
-    val label = stringResource(agreement.label)
+    val label = agreement.title
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -153,16 +166,14 @@ private fun AgreementRow(agreement: Agreement, checked: Boolean, onToggle: () ->
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, lineHeight = 21.75.sp),
                     color = colors.text,
                 )
-                agreement.detail?.let {
-                    Text(stringResource(it), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = colors.textMuted)
-                }
+
             }
         }
-        if (agreement.hasTerms) {
+        if (agreement.contentUrl.isNotBlank()) {
             val description = stringResource(Res.string.auth_view_terms_description, label)
             Box(
                 Modifier
-                    .heightIn(min = 44.dp)
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                     .clickable(onClick = onOpenTerms)
                     .semantics {
                         contentDescription = description
@@ -173,6 +184,7 @@ private fun AgreementRow(agreement: Agreement, checked: Boolean, onToggle: () ->
             ) {
                 Text(
                     stringResource(Res.string.auth_view_terms),
+                    modifier = Modifier.clearAndSetSemantics {},
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, textDecoration = TextDecoration.Underline),
                     color = colors.textMuted,
                 )

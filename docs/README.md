@@ -32,10 +32,13 @@
 
 ## 기능 스펙
 
+- [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
+
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
+- [오류 음표·취약 구간 조회 API (EVA-02·03)](specs/evaluation-detail-apis.md) · [계획](plans/S15P31E102-307.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
@@ -43,9 +46,11 @@
 
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 - [간편 로그인과 계정 연결](specs/social-auth.md)
+- [카카오 서명형 연결 해제 웹훅](specs/kakao-webhook.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
+- [녹음 미지원 환경의 평가 시작 제한](specs/recording-support-gate.md)
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
 - [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
@@ -62,18 +67,26 @@
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
+- [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [R2 서명 URL·비공개 접근·30일 삭제 규칙 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
+- [평가 조율 정보 저장·실제 AI 연동 검증](knowledge/backend/evaluation-tuning-verification.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 - [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
 
 ## 프론트엔드 조사·검증 기록
 
+- [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
+- [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
+- [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
+- [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)
+- [Android 연두 디자인·회원 API와 Play release 준비·검증 한계](knowledge/frontend/android-play-release-readiness.md)
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
 - [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
+- [Android 간편 로그인: 외부 브라우저와 App Links 복귀](knowledge/frontend/android-social-auth-app-links.md)
 
 ## 도메인 조사 기록
 
@@ -83,6 +96,7 @@
 
 ## 데이터 조사·검증 기록
 
+- [Android 운영 자료·단소 M4A 후보와 앱 악보 대조](knowledge/data/android-catalog-audio-readiness.md)
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [산조대금 JGB·MIDI·M4A 변환과 CAT 공통 샘플 확인](knowledge/data/sanjo-playback.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
@@ -111,8 +125,10 @@
 
 ## COCO 산출물
 
-- [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
+- [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
 
+- [S15P31E102-261 Android 디자인·release 검증 및 제출 준비](plans/S15P31E102-261.md) (직접 구현 작업)
+- [S15P31E102-178 서버 녹음·분석 실패 복구 검증](plans/S15P31E102-178.md)
 - [S15P31E102-60 백엔드 기본 구조 구성](plans/S15P31E102-60.md)
 - [S15P31E102-65 서버 인프라 설정 파일 관리](plans/S15P31E102-65.md)
 - [S15P31E102-71 프로젝트명·패키지·앱 식별자 변경](plans/S15P31E102-71.md)
@@ -151,6 +167,8 @@
 - [S15P31E102-210 비밀번호 재설정 API 구현](plans/S15P31E102-210.md)
 - [S15P31E102-253 구현된 API Swagger 문서화와 운영 조회](plans/S15P31E102-253.md)
 - [S15P31E102-211 간편 로그인·계정 연결과 마이페이지 연결·해제](plans/S15P31E102-211.md)
+- [S15P31E102-296 카카오 연결 해제 웹훅](plans/S15P31E102-296.md)
+- [S15P31E102-311 Google 간편 로그인 콘솔·서버 연동 준비](plans/S15P31E102-311.md)
 - [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
@@ -197,3 +215,16 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
+
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+
+- [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
+- [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
+- [약관 공개·동의·출시 검증](knowledge/backend/terms-release-verification.md)
+- [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
+- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
+- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [약관 본문 공개와 버전 등록](../infra/terms/README.md)
+- [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
+
+- [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)

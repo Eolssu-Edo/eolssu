@@ -17,14 +17,19 @@ class EolssuColorsContrastTest {
         assertReadable("text / surface", colors.text, colors.surface)
         assertReadable("textMuted / background", colors.textMuted, colors.background)
         assertReadable("textMuted / surface", colors.textMuted, colors.surface)
+        assertReadable("textSub / background", colors.textSub, colors.background)
+        assertReadable("textSub / surface", colors.textSub, colors.surface)
     }
 
     @Test
     fun textOnFilledButtonsIsReadable() {
         assertReadable("onPrimary / primary", colors.onPrimary, colors.primary)
-        assertReadable("onPrimary / play", colors.onPrimary, colors.play)
-        assertReadable("onPrimary / rec", colors.onPrimary, colors.rec)
+        assertReadable("onPlay / play", colors.onPlay, colors.play)
+        assertReadable("onRec / rec", colors.onRec, colors.rec)
         assertReadable("onPrimary / green", colors.onPrimary, colors.green)
+        assertReadable("onInk / selected tab and completed badge", colors.onInk, colors.text)
+        assertReadable("selection outline / background", colors.accentText, colors.background, minimum = 3f)
+        assertReadable("selection outline / surface", colors.accentText, colors.surface, minimum = 3f)
     }
 
     /** 부수 강조색은 24sp 이상 큰 글자에만 쓰므로 큰 글자 기준(3:1)을 본다. 검은 율명과도 구분돼야 한다. */
@@ -43,6 +48,21 @@ class EolssuColorsContrastTest {
         assertReadable("text / doneSoft", colors.text, colors.doneSoft)
         assertReadable("pitchErrorText / pitchErrorSoft", colors.pitchErrorText, colors.pitchErrorSoft)
         assertReadable("rhythmErrorText / rhythmErrorSoft", colors.rhythmErrorText, colors.rhythmErrorSoft)
+        assertReadable("text / accentTint", colors.text, colors.accentTint)
+        assertReadable("playText / accentTint", colors.playText, colors.accentTint)
+        assertReadable("accentText / accentTint (level 1)", colors.accentText, colors.accentTint)
+        assertReadable("text / accentTintStrong (level 2)", colors.text, colors.accentTintStrong)
+        assertReadable("background / text (level 3)", colors.background, colors.text)
+        assertReadable("textMuted / surface (outline badge)", colors.textMuted, colors.surface)
+    }
+
+    /**
+     * 비활성 칩·버튼 글자는 WCAG 1.4.3 예외(비활성 UI)라 4.5:1을 요구하지 않는다.
+     * 대신 바탕과 아예 구분되지 않을 만큼 흐려지지 않았는지(2:1)만 본다.
+     */
+    @Test
+    fun disabledTextStaysVisible() {
+        assertReadable("textDisabled / surfaceStrong", colors.textDisabled, colors.surfaceStrong, minimum = 2f)
     }
 
     private fun assertReadable(name: String, foreground: Color, background: Color, minimum: Float = 4.5f) {

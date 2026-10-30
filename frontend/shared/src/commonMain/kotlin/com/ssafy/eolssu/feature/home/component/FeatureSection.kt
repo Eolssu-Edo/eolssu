@@ -1,12 +1,15 @@
 package com.ssafy.eolssu.feature.home.component
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -20,10 +23,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.HomeFeature
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_section_practice
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.painterResource
+import eolssu.shared.generated.resources.home_tiger
+import eolssu.shared.generated.resources.home_song_art
+import eolssu.shared.generated.resources.home_fingering_art
+import eolssu.shared.generated.resources.home_score_art
+import eolssu.shared.generated.resources.home_feature_song_desc
+import eolssu.shared.generated.resources.home_feature_fingering_desc
+import eolssu.shared.generated.resources.home_feature_reading_desc
+import eolssu.shared.generated.resources.home_feature_learn_desc
 
 /**
  * '연습·학습하기' 제목과 카드 묶음.
@@ -71,21 +84,32 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
         onClick = onClick,
         modifier = modifier.heightIn(min = minHeight),
         shape = MaterialTheme.shapes.medium,
-        color = EolssuTheme.colors.background,
+        color = EolssuTheme.colors.surface,
         border = BorderStroke(1.dp, EolssuTheme.colors.line),
     ) {
         Column(
-            Modifier.padding(horizontal = if (large) 16.dp else 14.dp, vertical = if (large) 18.dp else 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.padding(horizontal = if (large) 16.dp else 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Box(
-                Modifier.size(34.dp).background(EolssuTheme.colors.surface, MaterialTheme.shapes.small),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(feature.icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            val illustration = when (feature) {
+                HomeFeature.SongSelect -> Res.drawable.home_song_art
+                HomeFeature.Fingering -> Res.drawable.home_fingering_art
+                HomeFeature.Reading -> Res.drawable.home_score_art
+                HomeFeature.Learn -> Res.drawable.home_tiger
             }
+            Image(painterResource(illustration), contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
             val label = MaterialTheme.typography.titleSmall
-            Text(stringResource(feature.label), style = if (large) label.copy(fontSize = 15.sp) else label)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(feature.label), modifier = Modifier.weight(1f), style = if (large) label.copy(fontSize = 15.sp) else label)
+                Icon(EolssuIcons.ArrowUpRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = EolssuTheme.colors.textMuted)
+            }
+            val description = when (feature) {
+                HomeFeature.SongSelect -> Res.string.home_feature_song_desc
+                HomeFeature.Fingering -> Res.string.home_feature_fingering_desc
+                HomeFeature.Reading -> Res.string.home_feature_reading_desc
+                HomeFeature.Learn -> Res.string.home_feature_learn_desc
+            }
+            Text(stringResource(description), style = MaterialTheme.typography.bodySmall, color = EolssuTheme.colors.textMuted)
         }
     }
 }

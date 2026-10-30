@@ -37,10 +37,18 @@ internal fun scoreStrips(
         } else {
             val strips = mutableListOf<ScoreStrip>()
             var start = 0
-            for (count in jangdan.strips) {
+            // 공통 악보의 각 길이는 원본 columns가 정한다. 장단 이름의 샘플 정간 수로 자르지 않는다.
+            val maxStrip = Jangdan.MAX_STRIP_CELLS
+            val counts = if (score.timing != null) List((size + maxStrip - 1) / maxStrip) { maxStrip } else jangdan.strips
+            for (count in counts) {
                 if (start >= size) break
                 strips += ScoreStrip(column, strips.size, start until minOf(start + count, size))
                 start += count
+            }
+            // 기존 악보도 알려진 장단보다 긴 각의 나머지를 버리지 않는다.
+            while (start < size) {
+                strips += ScoreStrip(column, strips.size, start until minOf(start + maxStrip, size))
+                start += maxStrip
             }
             strips
         }
@@ -88,4 +96,11 @@ internal fun cellProgress(events: List<ScoreEvent>, currentIndex: Int?): CellPro
     events.any { it.index == currentIndex } -> CellProgress.Current
     events.all { it.index < currentIndex } -> CellProgress.Past
     else -> CellProgress.Upcoming
+}
+
+/** 이음 이벤트가 다음 정간까지 이어져도 현재 위치와 각 정간의 시간 구간을 비교한다. */
+internal fun cellProgressAt(cellStart: Double, position: Double?): CellProgress = when {
+    position == null || position < cellStart -> CellProgress.Upcoming
+    position >= cellStart + 1 -> CellProgress.Past
+    else -> CellProgress.Current
 }

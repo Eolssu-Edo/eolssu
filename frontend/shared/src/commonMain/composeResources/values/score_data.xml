@@ -1,0 +1,8 @@
+<resources>
+    <string name="practice_jangdan_pattern_meta">장단 구음 %1$d칸 · 묶음 %2$s%3$s · %4$d BPM</string>
+    <string name="practice_score_title">연습 악보</string>
+    <string name="practice_score_loading">악보를 불러오고 있어요.</string>
+    <string name="practice_score_missing">이 악보를 찾을 수 없어요. 곡 목록에서 다른 악보를 선택해 주세요.</string>
+    <string name="practice_score_failed">악보를 불러오지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.</string>
+    <string name="practice_score_retry">다시 불러오기</string>
+</resources>

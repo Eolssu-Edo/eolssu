@@ -9,11 +9,11 @@ import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.my_nickname
 import eolssu.shared.generated.resources.my_nickname_edit
-import eolssu.shared.generated.resources.my_nickname_help
+import eolssu.shared.generated.resources.member_api_nickname_rule
 import eolssu.shared.generated.resources.my_save
 import org.jetbrains.compose.resources.stringResource
 
-/** MY-02 닉네임 수정. 닉네임 규칙은 '[규칙 안내]' 자리다. */
+/** MY-02 닉네임 수정. 닉네임은 서버와 같은 길이 제한을 안내한다. */
 @Composable
 fun NicknameEditScreen(
     state: NicknameEditUiState,
@@ -33,7 +33,7 @@ fun NicknameEditScreen(
             onValueChange = onNicknameChange,
             label = stringResource(Res.string.my_nickname),
             placeholder = stringResource(Res.string.my_nickname),
-            help = stringResource(Res.string.my_nickname_help),
+            help = stringResource(Res.string.member_api_nickname_rule),
             error = state.error?.let { stringResource(it.message) },
             imeAction = ImeAction.Done,
             onImeAction = onSave,

@@ -15,7 +15,10 @@ server:
   port: ${SERVER_PORT:8080}
 
 eolssu:
+  legal:
+    publication-enabled: ${LEGAL_PUBLICATION_ENABLED:false}
   auth:
+    kakao-webhook-app-id: ${AUTH_KAKAO_WEBHOOK_APP_ID:}
     code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
     mail-mode: ${AUTH_MAIL_MODE:smtp}
     mail:
@@ -48,6 +51,10 @@ eolssu:
     allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}
   # 녹음 원본 저장소(S3 호환, Cloudflare R2). 하나라도 비면 업로드는 503이다. 키는 서버 .env에만 둔다.
   recording-storage:
+    type: ${RECORDING_STORAGE_TYPE:s3}
+    local-directory: ${RECORDING_STORAGE_LOCAL_DIRECTORY:}
+    local-read-base-url: ${RECORDING_STORAGE_LOCAL_READ_BASE_URL:}
+    local-signing-secret: ${RECORDING_STORAGE_LOCAL_SIGNING_SECRET:}
     endpoint: ${RECORDING_STORAGE_ENDPOINT:}
     bucket: ${RECORDING_STORAGE_BUCKET:}
     access-key-id: ${RECORDING_STORAGE_ACCESS_KEY_ID:}

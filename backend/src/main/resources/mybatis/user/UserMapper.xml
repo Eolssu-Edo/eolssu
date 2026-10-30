@@ -65,8 +65,9 @@
     <update id="cancelWithdrawal">
         UPDATE users SET status = 'ACTIVE', withdrawal_requested_at = NULL, purge_scheduled_at = NULL, updated_at = #{now}
         WHERE id = #{id} AND status = 'WITHDRAWAL_PENDING'
+          AND withdrawal_requested_at &gt; #{requestedAfter}
     </update>
     <update id="recordLogin">
-        UPDATE users SET last_login_at = #{now}, updated_at = #{now} WHERE id = #{id}
+        UPDATE users SET last_login_at = #{now}, updated_at = #{now} WHERE id = #{id} AND status = 'ACTIVE'
     </update>
 </mapper>

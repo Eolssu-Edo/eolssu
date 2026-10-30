@@ -30,7 +30,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun InstrumentPicker(
-    selected: Instrument,
+    selected: Instrument?,
     onSelect: (Instrument) -> Unit,
     help: String,
     modifier: Modifier = Modifier,
@@ -57,7 +57,7 @@ fun InstrumentPicker(
                     shape = RoundedCornerShape(14.dp),
                     color = if (isSelected) colors.background else colors.surface,
                     contentColor = colors.text,
-                    border = if (isSelected) BorderStroke(2.dp, colors.primary) else BorderStroke(1.dp, colors.line),
+                    border = if (isSelected) BorderStroke(2.dp, colors.accentText) else BorderStroke(1.dp, colors.line),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(stringResource(instrument.label), style = EolssuTheme.serif.headline.copy(fontSize = 21.sp, lineHeight = 28.sp))

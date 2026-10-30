@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.platform
 
+import com.ssafy.eolssu.core.audio.AudioPlayer
+import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
+
 import com.ssafy.eolssu.core.audio.SoundPlayer
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
@@ -14,6 +17,7 @@ import org.koin.dsl.module
 
 /** iOS 구현 등록. `MainViewController`가 `App`에 넘긴다. */
 internal fun iosPlatformModule(): Module = module {
+    factory<AudioPlayer> { UnavailableAudioPlayer() }
     single<KeyValueStore> { IosKeyValueStore() }
     single<HttpClientEngine> { Darwin.create() }
     single { ServerAddress.Production }

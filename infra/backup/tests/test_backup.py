@@ -26,6 +26,23 @@ def bundle(path, name='files/opt/eolssu/.env', content=b'fixture-secret', digest
 
 
 class BackupTests(unittest.TestCase):
+    def test_latest_db_backup_is_not_exempt_from_thirty_day_cap(self):
+        with tempfile.TemporaryDirectory() as folder:
+            previous = backup.STORE
+            backup.STORE = Path(folder)
+            try:
+                root = backup.STORE / 'db'; root.mkdir()
+                ident = '20260101T010000Z-012345abcdef'
+                body = b'ciphertext'
+                for age in (31, 29.5):
+                    (root / (ident + '.cms')).write_bytes(body)
+                    (root / (ident + '.json')).write_text(json.dumps({'sha256': hashlib.sha256(body).hexdigest(), 'snapshot_at': (datetime.now(timezone.utc) - timedelta(days=age)).isoformat()}))
+                    backup.prune()
+                    self.assertFalse((root / (ident + '.cms')).exists())
+                    self.assertFalse((root / (ident + '.json')).exists())
+            finally:
+                backup.STORE = previous
+
     def test_users_precede_definers_and_table_grants_follow_schema(self):
         accounts = (b"CREATE USER 'reader'@'%' IDENTIFIED BY 'fixture';\n"
                     b"GRANT SELECT ON `eolssu`.`songs` TO 'reader'@'%';\n"

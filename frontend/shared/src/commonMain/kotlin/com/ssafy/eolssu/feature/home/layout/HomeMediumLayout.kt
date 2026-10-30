@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.home.layout
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.home.component.FeatureSection
@@ -29,12 +31,12 @@ import eolssu.shared.generated.resources.home_brand
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 태블릿 세로 배치(와이어프레임 `Tab-Main-Port`). 족자를 크게 두고 카드 4개를 한 줄에 놓는다.
- * 족자와 카드는 남은 높이의 가운데에 두고, 창이 낮으면 세로로 스크롤한다.
+ * 태블릿 세로 배치(와이어프레임 `Tab-Main-Port`). 대표 일러스트를 크게 두고 카드 4개를 한 줄에 놓는다.
+ * 대표 일러스트와 카드는 남은 높이의 가운데에 두고, 창이 낮으면 세로로 스크롤한다.
  */
 @Composable
 internal fun HomeMediumLayout(
-    instrument: Instrument,
+    instrument: Instrument?,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -58,7 +60,7 @@ internal fun HomeMediumLayout(
             ) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(Res.string.home_brand), style = EolssuTheme.serif.brand, modifier = Modifier.weight(1f))
+                        Box(Modifier.weight(1f)) { EolssuLogo() }
                         MyPageButton(onOpenMyPage)
                     }
                     InstrumentLabel(instrument, Modifier.padding(top = 6.dp))

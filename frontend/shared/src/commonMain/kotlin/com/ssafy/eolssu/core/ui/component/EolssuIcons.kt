@@ -16,6 +16,8 @@ object EolssuIcons {
     val Back = lineIcon("Back", "M15 18l-6 -6 6 -6")
     val Chevron = lineIcon("Chevron", "M9 6l6 6 -6 6")
     val ChevronDown = lineIcon("ChevronDown", "M6 9l6 6 6 -6")
+    val ArrowRight = lineIcon("ArrowRight", "M5 12h14 M13 6l6 6 -6 6")
+    val ArrowUpRight = lineIcon("ArrowUpRight", "M6 18L18 6 M6 6h12v12")
     val Search = lineIcon("Search", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5")
     val Close = lineIcon("Close", "M6 6l12 12M18 6L6 18")
     val User = lineIcon("User", circle(12f, 8f, 4f), "M4 21c0 -4 3.6 -6.5 8 -6.5s8 2.5 8 6.5")
