@@ -15,6 +15,7 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.plugin
 import io.ktor.client.request.post
 import io.ktor.client.statement.HttpResponse
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodedPath
 import io.ktor.http.isSuccess
@@ -63,6 +64,7 @@ val ApiJson = Json {
  *   `timeout { requestTimeoutMillis = ... }`로 바꾼다.
  * - 로그인이 필요한 요청이 401이면 `/api/auth/refresh`로 토큰을 갱신하고 같은 요청을 한 번 더 보낸다. 본문도 다시 보내므로,
  *   multipart의 파일 칸은 스트림을 매번 새로 여는 `ChannelProvider { ... }`나 바이트 배열로 넣는다(이미 연 스트림은 두 번째에 비어 있다).
+ *   1회용 값(간편 로그인 state·mergeTicket)이나 비밀번호 시도 횟수를 쓰는 요청은 갱신·재전송하지 않고 원래 401을 돌려준다([skipsRefresh]).
  */
 fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: CookiesStorage? = null): HttpClient {
     val client = HttpClient(engine) {
@@ -79,7 +81,7 @@ fun createHttpClient(engine: HttpClientEngine, server: ServerAddress, cookies: C
     client.plugin(HttpSend).intercept { request ->
         val seen = refresher.generation
         val call = execute(request)
-        if (call.response.status != HttpStatusCode.Unauthorized || request.url.encodedPath in NO_REFRESH_PATHS) return@intercept call
+        if (call.response.status != HttpStatusCode.Unauthorized || skipsRefresh(request.method, request.url.encodedPath)) return@intercept call
         val refreshed = refresher.refresh(seen) { client.post(REFRESH_PATH).status.isSuccess() }
         if (refreshed) execute(request) else call
     }
@@ -146,3 +148,12 @@ private const val REFRESH_PATH = "/api/auth/refresh"
 
 /** 401이 '로그인 정보가 틀림'이거나 갱신 자체인 경로. 이때는 갱신하지 않는다. */
 private val NO_REFRESH_PATHS = setOf(REFRESH_PATH, "/api/auth/sign-in", "/api/auth/sign-up")
+
+/**
+ * 간편 로그인 start·완료·계정 연결(merge)과 마이페이지 연결 완료. 완료는 state를, merge는 mergeTicket과 비밀번호 시도 횟수를 한 번 쓰므로
+ * 같은 요청을 다시 보내면 안 된다. 마이페이지 연결 start(`.../{provider}/start`)와 해제(DELETE)는 1회용 값을 쓰지 않아 평소처럼 갱신한다.
+ */
+private val NO_REFRESH_OAUTH_PATHS = listOf(Regex("/api/auth/oauth/[^/]+(/start)?"), Regex("/api/users/me/social-accounts/[^/]+"))
+
+internal fun skipsRefresh(method: HttpMethod, path: String): Boolean =
+    path in NO_REFRESH_PATHS || method == HttpMethod.Post && NO_REFRESH_OAUTH_PATHS.any { it.matches(path) }

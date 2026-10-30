@@ -29,6 +29,9 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.POST,"/api/webhooks/kakao/events","kakaoSecurityEvent","웹훅","카카오 연결 해제 SET 수신",
+        "카카오 RS256 서명형 User Unlinked만 수신. 사용자 쿠키 대신 서명·앱·대상·이벤트 주체를 검증합니다. 공통 envelope의 예외이며202 본문 없음, 검증 실패400 err/description, 일시 장애503입니다.",
+        null,statuses=listOf(202),security=null),
     ApiContract(HttpMethod.POST,"/api/auth/oauth/{provider}/start","startSocialLogin","인증","소셜 로그인 시작",
         "kakao/google/naver. 등록된 redirectUri만 허용하며 10분·1회용 state와 HttpOnly 브라우저 쿠키를 결속합니다. authorizationUrl을 브라우저로 연 뒤 완료 API에 code/state를 보냅니다.",
         OAuthStartResult::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SERVICE_UNAVAILABLE),security=null),

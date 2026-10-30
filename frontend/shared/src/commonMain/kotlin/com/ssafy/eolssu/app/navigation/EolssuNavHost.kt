@@ -416,6 +416,7 @@ fun EolssuNavHost(
             onSend = { navController.navigate(EolssuDestination.analysis(it.songId, it.bpm, pendingSessionId = it.sessionId)) },
         )
     }
+    OAuthReturnEffect(navController)
     LaunchedEffect(navController) { onNavHostReady(navController) }
 }
 

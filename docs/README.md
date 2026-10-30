@@ -43,6 +43,7 @@
 
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 - [간편 로그인과 계정 연결](specs/social-auth.md)
+- [카카오 서명형 연결 해제 웹훅](specs/kakao-webhook.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
@@ -63,6 +64,7 @@
 ## 도구 조사·검증 기록
 
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
+- [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
 - [R2 서명 URL·비공개 접근·30일 삭제 규칙 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
@@ -80,6 +82,7 @@
 - [Android 연두 디자인·회원 API와 Play release 준비·검증 한계](knowledge/frontend/android-play-release-readiness.md)
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
 - [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
+- [Android 간편 로그인: 외부 브라우저와 App Links 복귀](knowledge/frontend/android-social-auth-app-links.md)
 
 ## 도메인 조사 기록
 
@@ -157,6 +160,7 @@
 - [S15P31E102-210 비밀번호 재설정 API 구현](plans/S15P31E102-210.md)
 - [S15P31E102-253 구현된 API Swagger 문서화와 운영 조회](plans/S15P31E102-253.md)
 - [S15P31E102-211 간편 로그인·계정 연결과 마이페이지 연결·해제](plans/S15P31E102-211.md)
+- [S15P31E102-296 카카오 연결 해제 웹훅](plans/S15P31E102-296.md)
 - [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
