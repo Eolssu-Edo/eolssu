@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.SongLevel
 
@@ -35,6 +36,17 @@ data class SongListUiState(
                     (filter.level == null || song.level == filter.level) &&
                     (q.isEmpty() || song.title.contains(q))
             }
+        }
+
+    /**
+     * 곡 수 옆에 적을 악기('9곡 · 대금'). 평가 가능한 곡이 모두 같은 악기일 때만 있고,
+     * 악기가 섞이거나 알 수 없는 악기 코드가 있으면 null이라 곡 수만 적는다.
+     */
+    val instrument: Instrument?
+        get() {
+            val codes = songs.filter { it.evaluable }.map { it.instrumentCode }.distinct()
+            val code = codes.singleOrNull() ?: return null
+            return Instrument.entries.firstOrNull { it.name.uppercase() == code }
         }
 
     /** 고른 곡. 검색·필터로 목록에서 빠지면 null이라 '곡을 골라주세요' 안내를 보인다. */

@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.toSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -82,6 +84,33 @@ class SongListUiStateTest {
         val state = base.pickSong(base.visibleSongs[0].id).selectSong(chosen)
         assertEquals(chosen, state.selectedSong?.id)
         assertNull(state.pickedSong)
+    }
+
+    @Test
+    fun boardScenesFilterSearchAndEmpty() {
+        // 보드 Song-List-Filter · -Search · -Empty: '입문' 필터에 검색어 없음 · '아리' · '수제천'.
+        val intro = base.copy(filter = SongLevelFilter.Intro)
+        assertTrue(intro.visibleSongs.isNotEmpty())
+        assertTrue(intro.visibleSongs.all { it.difficulty == 1 })
+        assertEquals(listOf("아리랑"), intro.copy(query = "아리").visibleSongs.map { it.title })
+        assertEquals(emptyList(), intro.copy(query = "수제천").visibleSongs)
+    }
+
+    @Test
+    fun instrumentShownOnlyWhenEvaluableSongsShareOne() {
+        fun song(id: String, code: String?, evaluable: Boolean = true) =
+            SongSummary(id, id, 1, "세마치", 60, evaluable, instrumentCode = code)
+
+        assertEquals(Instrument.Daegeum, SongListUiState(songs = listOf(song("a", "DAEGEUM"), song("b", "DAEGEUM"))).instrument)
+        assertEquals(
+            Instrument.Danso,
+            SongListUiState(songs = listOf(song("a", "DANSO"), song("b", "DAEGEUM", evaluable = false))).instrument,
+            "평가할 수 없는 곡의 악기는 보지 않는다",
+        )
+        assertNull(SongListUiState(songs = listOf(song("a", "DANSO"), song("b", "DAEGEUM"))).instrument, "악기가 섞이면 곡 수만 적는다")
+        assertNull(SongListUiState(songs = listOf(song("a", "PIRI"))).instrument, "알 수 없는 악기 코드는 다른 악기로 바꾸지 않는다")
+        assertNull(SongListUiState(songs = listOf(song("a", null))).instrument)
+        assertNull(SongListUiState().instrument)
     }
 
     @Test
