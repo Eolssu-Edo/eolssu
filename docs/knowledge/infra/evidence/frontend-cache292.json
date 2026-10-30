@@ -1,0 +1,346 @@
+{
+  "queue": [],
+  "builds": [
+    {
+      "number": 2,
+      "result": "SUCCESS",
+      "building": false,
+      "durationMs": 123577,
+      "revision": "d50abd7219006e1cc50385a8d1947518e0b313f3",
+      "allocationOverheadMs": 352,
+      "pipelineSha256": "dee035d76ab11798ab30bd4db7cde03d9d5f10cc34c0054fe1240f3c4ab82c06",
+      "gradle": [
+        "Reusing configuration cache.",
+        "BUILD SUCCESSFUL in 9s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "BUILD SUCCESSFUL in 9s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "> Task :shared:wasmJsBrowserTest UP-TO-DATE",
+        "BUILD SUCCESSFUL in 10s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "BUILD SUCCESSFUL in 7s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "BUILD SUCCESSFUL in 8s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "> Task :shared:jsBrowserTest UP-TO-DATE",
+        "BUILD SUCCESSFUL in 9s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "BUILD SUCCESSFUL in 9s",
+        "Configuration cache entry reused.",
+        "+ ./gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJsOptimize",
+        "Reusing configuration cache.",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize UP-TO-DATE",
+        "BUILD SUCCESSFUL in 8s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize UP-TO-DATE",
+        "BUILD SUCCESSFUL in 10s",
+        "Configuration cache entry reused.",
+        "Reusing configuration cache.",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize UP-TO-DATE",
+        "BUILD SUCCESSFUL in 10s",
+        "Configuration cache entry reused."
+      ],
+      "stages": [
+        {
+          "name": "Clean workspace",
+          "start": 1793264627133,
+          "durationMs": 1327,
+          "complete": true
+        },
+        {
+          "name": "Checkout verified develop revision",
+          "start": 1793264628516,
+          "durationMs": 687,
+          "complete": true
+        },
+        {
+          "name": "Backend deploy tool tests",
+          "start": 1793264629273,
+          "durationMs": 7491,
+          "complete": true
+        },
+        {
+          "name": "Frontend deploy tool tests",
+          "start": 1793264636840,
+          "durationMs": 592,
+          "complete": true
+        },
+        {
+          "name": "Certificate initialization tests",
+          "start": 1793264637500,
+          "durationMs": 333,
+          "complete": true
+        },
+        {
+          "name": "Nginx health routing tests",
+          "start": 1793264637900,
+          "durationMs": 4443,
+          "complete": true
+        },
+        {
+          "name": "HTTPS redirect tests",
+          "start": 1793264642420,
+          "durationMs": 1417,
+          "complete": true
+        },
+        {
+          "name": "Compile Wasm app",
+          "start": 1793264643910,
+          "durationMs": 10513,
+          "complete": true
+        },
+        {
+          "name": "Compile Wasm tests",
+          "start": 1793264654492,
+          "durationMs": 9946,
+          "complete": true
+        },
+        {
+          "name": "Wasm browser tests",
+          "start": 1793264664512,
+          "durationMs": 11562,
+          "complete": true
+        },
+        {
+          "name": "Compile JavaScript",
+          "start": 1793264676140,
+          "durationMs": 8222,
+          "complete": true
+        },
+        {
+          "name": "Compile JavaScript tests",
+          "start": 1793264684426,
+          "durationMs": 8739,
+          "complete": true
+        },
+        {
+          "name": "JavaScript browser tests",
+          "start": 1793264693224,
+          "durationMs": 10337,
+          "complete": true
+        },
+        {
+          "name": "Compile production Wasm",
+          "start": 1793264703631,
+          "durationMs": 9785,
+          "complete": true
+        },
+        {
+          "name": "Optimize production Wasm",
+          "start": 1793264713482,
+          "durationMs": 9111,
+          "complete": true
+        },
+        {
+          "name": "Bundle production web",
+          "start": 1793264722660,
+          "durationMs": 11090,
+          "complete": true
+        },
+        {
+          "name": "Assemble web distribution",
+          "start": 1793264733831,
+          "durationMs": 11628,
+          "complete": true
+        },
+        {
+          "name": "Build frontend image",
+          "start": 1793264745525,
+          "durationMs": 607,
+          "complete": true
+        },
+        {
+          "name": "Archive web distribution",
+          "start": 1793264746199,
+          "durationMs": 3923,
+          "complete": true
+        }
+      ],
+      "tests": {
+        "total": 744,
+        "fail": 0,
+        "skip": 0
+      },
+      "common18WallMs": 118999
+    },
+    {
+      "number": 1,
+      "result": "FAILURE",
+      "building": false,
+      "durationMs": 1196358,
+      "revision": "d50abd7219006e1cc50385a8d1947518e0b313f3",
+      "allocationOverheadMs": 441,
+      "pipelineSha256": "d26e677bbb86bd83d8605c744b4066b9ef2a990e3f5a84d770f37ac466975eba",
+      "gradle": [
+        "BUILD SUCCESSFUL in 1m 23s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 47s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 1m 49s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 1m 17s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 43s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 2m 31s",
+        "Configuration cache entry stored.",
+        "BUILD SUCCESSFUL in 1m 49s",
+        "Configuration cache entry stored.",
+        "+ ./gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJsOptimize",
+        "Calculating task graph as no cached configuration is available for tasks: :webApp:compileProductionExecutableKotlinWasmJsOptimize",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize",
+        "BUILD SUCCESSFUL in 7m 51s",
+        "Configuration cache entry stored.",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize UP-TO-DATE",
+        "BUILD SUCCESSFUL in 33s",
+        "Configuration cache entry stored.",
+        "> Task :webApp:compileProductionExecutableKotlinWasmJsOptimize UP-TO-DATE",
+        "BUILD SUCCESSFUL in 22s",
+        "Configuration cache entry stored."
+      ],
+      "stages": [
+        {
+          "name": "Clean workspace",
+          "start": 1793263323389,
+          "durationMs": 215,
+          "complete": true
+        },
+        {
+          "name": "Checkout verified develop revision",
+          "start": 1793263323688,
+          "durationMs": 2537,
+          "complete": true
+        },
+        {
+          "name": "Backend deploy tool tests",
+          "start": 1793263326268,
+          "durationMs": 7447,
+          "complete": true
+        },
+        {
+          "name": "Frontend deploy tool tests",
+          "start": 1793263333783,
+          "durationMs": 588,
+          "complete": true
+        },
+        {
+          "name": "Certificate initialization tests",
+          "start": 1793263334439,
+          "durationMs": 334,
+          "complete": true
+        },
+        {
+          "name": "Nginx health routing tests",
+          "start": 1793263334843,
+          "durationMs": 4181,
+          "complete": true
+        },
+        {
+          "name": "HTTPS redirect tests",
+          "start": 1793263339094,
+          "durationMs": 1414,
+          "complete": true
+        },
+        {
+          "name": "Compile Wasm app",
+          "start": 1793263340578,
+          "durationMs": 84665,
+          "complete": true
+        },
+        {
+          "name": "Compile Wasm tests",
+          "start": 1793263425310,
+          "durationMs": 50070,
+          "complete": true
+        },
+        {
+          "name": "Wasm browser tests",
+          "start": 1793263475450,
+          "durationMs": 111353,
+          "complete": true
+        },
+        {
+          "name": "Compile JavaScript",
+          "start": 1793263586872,
+          "durationMs": 78149,
+          "complete": true
+        },
+        {
+          "name": "Compile JavaScript tests",
+          "start": 1793263665092,
+          "durationMs": 46128,
+          "complete": true
+        },
+        {
+          "name": "JavaScript browser tests",
+          "start": 1793263711285,
+          "durationMs": 154451,
+          "complete": true
+        },
+        {
+          "name": "Compile production Wasm",
+          "start": 1793263865804,
+          "durationMs": 111139,
+          "complete": true
+        },
+        {
+          "name": "Optimize production Wasm",
+          "start": 1793263977012,
+          "durationMs": 481726,
+          "complete": true
+        },
+        {
+          "name": "Bundle production web",
+          "start": 1793264458807,
+          "durationMs": 33612,
+          "complete": true
+        },
+        {
+          "name": "Assemble web distribution",
+          "start": 1793264492492,
+          "durationMs": 22929,
+          "complete": true
+        },
+        {
+          "name": "Build frontend image",
+          "start": 1793264515484,
+          "durationMs": 3021,
+          "complete": true
+        },
+        {
+          "name": "Archive web distribution",
+          "start": 1793264518549,
+          "durationMs": 581,
+          "complete": true
+        }
+      ],
+      "tests": {
+        "total": 744,
+        "fail": 0,
+        "skip": 0
+      },
+      "common18WallMs": 1195116
+    }
+  ],
+  "method": {
+    "sha": "d50abd7219006e1cc50385a8d1947518e0b313f3",
+    "job": "verify-frontend-cache-S15P31E102-292",
+    "agent": "edo1-host",
+    "deployment": false,
+    "comparison": "first 18 identical stages, Clean workspace through Build frontend image; archive measurement code excluded",
+    "limitation": "Run 1 failed only in extra manifest instrumentation after all Gradle tests/build and image succeeded. Run 2 fixed only newline escaping in that instrumentation. End-to-end full-success speedup is not claimed. One pair, no variance estimate.",
+    "pairs": 1
+  },
+  "artifacts": {
+    "count": 76,
+    "sameBytes": true,
+    "manifestSha256": "2f456b4728ed05f2ad671754ec6092f1efc5dfcec89daae438f31151562e3885"
+  }
+}

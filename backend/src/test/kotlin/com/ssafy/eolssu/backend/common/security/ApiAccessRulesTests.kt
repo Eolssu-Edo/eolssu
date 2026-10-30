@@ -42,6 +42,7 @@ class ApiAccessRulesTests {
         val PUBLIC = listOf(
             "POST" to "/api/auth/sign-in", "POST" to "/api/auth/sign-up", "POST" to "/api/auth/refresh",
             "POST" to "/api/auth/password-reset", "POST" to "/api/auth/oauth/kakao", "POST" to "/api/auth/oauth/merge",
+            "POST" to "/api/auth/oauth/kakao/start",
             "POST" to "/api/auth/email-verifications", "POST" to "/api/auth/email-verifications/301/confirm",
             "GET" to "/api/terms", "GET" to "/api/songs", "GET" to "/api/songs/1", "GET" to "/api/songs/1/score",
             "GET" to "/api/songs/1/model-audio", "GET" to "/api/instruments", "GET" to "/api/instruments/1/fingerings",
@@ -52,6 +53,7 @@ class ApiAccessRulesTests {
             "POST" to "/api/auth/sign-out", "GET" to "/api/users/me", "PATCH" to "/api/users/me", "DELETE" to "/api/users/me",
             "PATCH" to "/api/users/me/preferences", "PATCH" to "/api/users/me/password",
             "POST" to "/api/users/me/social-accounts/kakao", "DELETE" to "/api/users/me/social-accounts/kakao",
+            "POST" to "/api/users/me/social-accounts/kakao/start",
             "POST" to "/api/practice-sessions", "GET" to "/api/practice-sessions/1", "POST" to "/api/practice-sessions/1/retry",
             "PUT" to "/api/practice-sessions/1/record", "GET" to "/api/practice-sessions/1/evaluation",
             "GET" to "/api/users/me/practice-records", "GET" to "/api/missions", "GET" to "/api/users/me/growth/summary",

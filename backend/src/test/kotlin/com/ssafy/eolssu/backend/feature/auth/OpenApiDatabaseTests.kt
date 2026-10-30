@@ -68,8 +68,22 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(23,expected.size)
+        assertEquals(37,expected.size)
+        val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
+            "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
+            "/api/notation-symbols", "/api/jangdans")
+        assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
+        for (path in catalogPaths) {
+            val operation=doc.path("paths").path(path).path("get")
+            assertEquals(0,operation.path("security").size(),path)
+            val envelope=resolve(doc,operation.path("responses").path("200").path("content").path("application/json").path("schema"))
+            assertTrue(envelope.path("properties").has("result"),path)
+        }
+        val modelAudio=doc.path("components").path("schemas").path("ModelAudioResult")
+        assertEquals("string",modelAudio.path("properties").path("songId").path("type").asString())
+        assertEquals("integer",modelAudio.path("properties").path("durationMs").path("type").asString())
+        assertEquals("integer",modelAudio.path("properties").path("scoreVersion").path("type").asString())
         for (entry in actual) {
             val (method,path)=entry.split(' ',limit=2)
             val operation=doc.path("paths").path(path).path(method)
@@ -103,7 +117,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(4,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(5,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())
