@@ -46,6 +46,14 @@ class SectionComparisonTests {
         assertNull(model.delta)
         val tempo = SectionComparison.compare(session(0, 3, 80, bpm = 48), notes(0..3), session(0, 3, 70), notes(0..3))
         assertEquals(NotComparable.TEMPO, tempo.notComparable)
+        assertNull(tempo.delta)
+    }
+
+    @Test fun `whole song baseline on another model reports the model not the range`() {
+        val result = SectionComparison.compare(session(2, 3, 80, model = "m2"), notes(2..3), session(0, 9, 70), notes(0..9, 2 to "PITCH"))
+        assertEquals(NotComparable.MODEL, result.notComparable)
+        assertEquals(1, result.beforeErrorCount)
+        assertNull(result.delta)
     }
 
     @Test fun `changed score version does not match notes by index`() {
