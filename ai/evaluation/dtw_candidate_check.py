@@ -8,6 +8,7 @@ from dataclasses import asdict
 from functools import partial
 import hashlib
 import json
+import math
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,11 +26,19 @@ def check_case(name, method, half_width_seconds=0.5):
 
     def align(expected, detected):
         nonlocal path, total, cells
-        cells = len(expected) * len(detected)  # 기준·A가 비용을 계산하는 칸 수
+        n, m = len(expected), len(detected)
+        cells = n * m  # 누적 비용을 계산한 칸 수. A의 재계산은 경로를 얻은 뒤 더한다.
         if method == "B":  # B는 band 안의 칸만 계산하고 그 칸마다 uint8 방향 하나를 저장한다
-            starts, stops = band_bounds(len(expected), len(detected), frames)
-            cells = int((stops - starts).clip(min=0).sum())
+            starts, stops = band_bounds(n, m, frames)
+            cells = 0 if n == 1 or m == 1 or (stops <= starts).any() else int((stops - starts).sum())
         path = target(expected, detected)
+        if method == "A":
+            k = min(n, math.ceil(math.sqrt(8 * n)))
+            blocks = {}
+            for i, _ in path[:-1]:
+                first = (int(i) // k) * k
+                blocks.setdefault(first, int(i) + 1 - first)
+            cells += sum(blocks.values()) * m
         total, previous = 0., None
         for i, j in path[::-1]:
             cost = float(_distance(expected[i], detected[j]))

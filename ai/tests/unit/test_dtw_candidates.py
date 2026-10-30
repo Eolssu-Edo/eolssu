@@ -96,6 +96,15 @@ def test_candidate_records_computed_cells_for_band_width():
     assert narrow < wide < full
 
 
+def test_checkpoint_counts_forward_and_recomputed_cells():
+    result = check_case("normal-8s", "A")
+    assert result["computedCells"] == 2 * 800 * 800
+
+
+def test_band_single_frame_needs_no_dynamic_programming():
+    assert check_case("single", "B")["computedCells"] == 0
+
+
 def test_candidate_no_path_is_separate_failure_and_restores_default():
     original = scoring._align
     result = check_case("unequal", "B", half_width_seconds=0)
