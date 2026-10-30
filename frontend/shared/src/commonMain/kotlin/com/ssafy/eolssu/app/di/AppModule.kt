@@ -43,12 +43,16 @@ import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.TermsRepository
 import com.ssafy.eolssu.data.user.ApiUserRepository
 import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.data.user.VerificationPurpose
+import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.feature.auth.AccountLinkViewModel
 import com.ssafy.eolssu.feature.auth.ConsentViewModel
+import com.ssafy.eolssu.feature.auth.OAuthViewModel
 import com.ssafy.eolssu.feature.auth.TermsViewModel
 import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
@@ -58,6 +62,7 @@ import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
+import com.ssafy.eolssu.feature.profile.SocialLinkViewModel
 import com.ssafy.eolssu.feature.profile.WithdrawViewModel
 import com.ssafy.eolssu.feature.practice.PracticeTimeMeter
 import com.ssafy.eolssu.feature.practice.PracticeViewModel
@@ -137,6 +142,10 @@ val appModule = module {
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModelOf(::ProfileSetupViewModel)
+    // 간편 로그인·연결. 외부 브라우저와 복귀 주소(App Links)는 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
+    single { OAuthAttempts(getOrNull(), get(), get()) }
+    viewModel { (provider: SocialProvider) -> OAuthViewModel(provider, get(), get(), getOrNull(), getOrNull(), get(), get()) }
+    viewModel { AccountLinkViewModel(get(), get(), get(), get()) }
 
     // 활성 악기 목록의 실제 ID와 회원 설정을 연결한다.
     single { InstrumentRepository(get(), get()) }
@@ -145,6 +154,7 @@ val appModule = module {
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)
     viewModelOf(::WithdrawViewModel)
+    viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull()) }
 
     // 내 악보 · PDF 올리기. 기기 파일 선택기를 붙이기 전까지 '파일에서 선택'은 예시 파일을 고른다.
     single<MySheetRepository> { SampleMySheetRepository(now = get()) }

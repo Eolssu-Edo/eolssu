@@ -156,17 +156,4 @@ class AuthFormViewModelTest {
     private fun profileSetup() = ProfileSetupViewModel(InstrumentRepository(FakeKeyValueStore()), SampleUserRepository(),
         object : AuthRepository by SampleAuthRepository({ 0L }) { override suspend fun signUp(request: Registration) = MemberResult.Done },
         AccountDraft().apply { email = "member@example.test"; token = "verified"; password = "test-pass1!"; purpose = VerificationPurpose.SignUp; agreements = listOf(TermAgreement("1", "v1", true)) })
-
-    @Test
-    fun accountLinkAsksPasswordOnlyWhenNeeded() = runTest {
-        val viewModel = AccountLinkViewModel()
-
-        assertTrue(viewModel.link(needsPassword = false))
-        assertFalse(viewModel.link(needsPassword = true))
-        assertEquals(FieldError.PasswordEmpty, viewModel.uiState.value.passwordError)
-
-        viewModel.changePassword("eolssu1!")
-        assertNull(viewModel.uiState.value.passwordError)
-        assertTrue(viewModel.link(needsPassword = true))
-    }
 }

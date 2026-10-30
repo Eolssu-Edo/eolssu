@@ -79,6 +79,7 @@
 - [Android 연두 디자인·회원 API와 Play release 준비·검증 한계](knowledge/frontend/android-play-release-readiness.md)
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
 - [Android 휴대폰 세로 고정과 태블릿 회전](knowledge/frontend/android-orientation-lock.md)
+- [Android 간편 로그인: 외부 브라우저와 App Links 복귀](knowledge/frontend/android-social-auth-app-links.md)
 
 ## 도메인 조사 기록
 

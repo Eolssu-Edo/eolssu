@@ -19,6 +19,8 @@ import eolssu.shared.generated.resources.member_api_invalid
 import eolssu.shared.generated.resources.member_api_verify_again
 import eolssu.shared.generated.resources.member_api_terms_again
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
+import eolssu.shared.generated.resources.my_error_password_wrong
+import eolssu.shared.generated.resources.social_auth_merge_locked
 import com.ssafy.eolssu.data.user.MemberResult
 
 /** 입력칸 아래에 띄우는 오류. */
@@ -39,6 +41,12 @@ enum class FieldError(val message: StringResource) {
     PasswordRule(Res.string.auth_error_password_rule),
     PasswordMismatch(Res.string.auth_error_password_mismatch),
     NicknameEmpty(Res.string.auth_error_nickname_empty),
+
+    /** 계정 연결(AUTH-09) 본인 확인 비밀번호가 맞지 않다. */
+    MergeWrongPassword(Res.string.my_error_password_wrong),
+
+    /** 계정 연결 비밀번호를 15분 안에 5번 틀려 잠겼다. */
+    MergeLocked(Res.string.social_auth_merge_locked),
 }
 
 /**
