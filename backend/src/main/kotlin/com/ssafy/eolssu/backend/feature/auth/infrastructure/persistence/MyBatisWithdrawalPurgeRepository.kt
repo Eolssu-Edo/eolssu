@@ -14,7 +14,10 @@ class MyBatisWithdrawalPurgeRepository(
     private val transaction = TransactionTemplate(transactionManager)
 
     override fun dueMembers(now: Instant, afterUserId: Long, limit: Int) = mapper.findDueMembers(now.utc(), afterUserId, limit)
-    override fun recordingKeys(userId: Long) = mapper.findRecordingKeys(userId)
+    override fun preparePurge(userId: Long, now: Instant): List<String>? = transaction.execute {
+        mapper.lockDueMemberEmail(userId, now.utc()) ?: return@execute null
+        mapper.findRecordingKeys(userId)
+    }
 
     override fun purge(userId: Long, now: Instant): Boolean = transaction.execute {
         val email = mapper.lockDueMemberEmail(userId, now.utc()) ?: return@execute false

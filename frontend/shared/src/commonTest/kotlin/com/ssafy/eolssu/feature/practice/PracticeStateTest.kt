@@ -173,8 +173,8 @@ class PracticeStateTest {
     }
 
     @Test
-    fun platformsWithoutMeasuredInputAlwaysEvaluate() {
-        // iOS·Web: 입력 크기를 흉내만 내므로 팝업 없이 평가로 넘기고 서버 NO_SOUND 판정에 맡긴다.
+    fun recordingsWithoutMeasuredInputUseServerSilenceDetection() {
+        // 녹음은 지원하지만 입력 크기를 측정하지 않는 구현은 서버 NO_SOUND 판정에 맡긴다.
         var state = ready.beginRecording()
         repeat(state.eventCount) { state = state.advance(doneMs = 100.0, micLevel = 0f) }
         assertFalse(state.inputMeasured)

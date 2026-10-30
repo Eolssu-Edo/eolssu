@@ -21,8 +21,8 @@ class PracticeEvaluationControllerTests {
     private var tuningOutOfRange: Boolean? = null
     private val repository = object : PracticeEvaluations {
         override fun findOwned(sessionId: Long,userId: Long) = if (sessionId == 11L && userId == 2L)
-            PracticeEvaluationSnapshot(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time,2876,tuningOffset,tuningOutOfRange) else null
-        override fun notes(evaluationId: Long) = listOf(PracticeEvaluationNote(0,"TIMING",null,150,0))
+            PracticeEvaluationSnapshot(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,84,88,80,84,time,2876,0,0,tuningOffset,tuningOutOfRange) else null
+        override fun notes(evaluationId: Long) = listOf(PracticeEvaluationNote(0,"TIMING",null,150,0,1,1))
     }
     private val mvc = MockMvcBuilders.standaloneSetup(PracticeEvaluationController(GetPracticeEvaluation(repository)))
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).build()

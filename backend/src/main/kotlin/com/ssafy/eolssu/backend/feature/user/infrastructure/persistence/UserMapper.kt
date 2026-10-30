@@ -27,6 +27,6 @@ interface UserMapper {
     ): Int
     fun findSignInMember(@Param("email") email: String): UserRow?
     fun findSignInMemberForUpdate(@Param("email") email: String): UserRow?
-    fun cancelWithdrawal(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int
+    fun cancelWithdrawal(@Param("id") id: Long, @Param("now") now: LocalDateTime, @Param("requestedAfter") requestedAfter: LocalDateTime): Int
     fun recordLogin(@Param("id") id: Long, @Param("now") now: LocalDateTime): Int
 }

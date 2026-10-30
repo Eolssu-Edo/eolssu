@@ -71,7 +71,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 - 쿠키: 모두 HttpOnly·SameSite=Lax이고 Secure는 `AUTH_COOKIE_SECURE`(기본 `true`, 로컬 HTTP 개발에서만 `false`)를 따릅니다. `access_token`은 HS256 JWT(`sub`=users.id, 30분, Path `/api`), `refresh_token`은 임의 256비트(14일, Path `/api/auth`, DB에는 SHA-256만)입니다.
 - `POST /api/auth/sign-up`: 이메일·비밀번호(영문·숫자·특수문자 포함 8~128자, Argon2id 저장)·닉네임·SIGN_UP `verificationToken`·`agreements`(시행 중인 필수 약관 전부 현재 버전 동의)·선택 `instrumentId`(활성 악기, 생략하면 코드 `DANSO` 악기)·`notationMode`(기본 HANJA). 201과 로그인 쿠키. 토큰 문제는 401 `EMAIL_NOT_VERIFIED`, 중복은 409, 약관은 422 `TERMS_AGREEMENT_REQUIRED`이며 어느 단계가 실패해도 회원이 남지 않습니다.
-- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 로그인하면 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다.
+- `POST /api/auth/sign-in`: 이메일 없음·비밀번호 불일치는 같은 401 `INVALID_CREDENTIALS`입니다. 같은 이메일 15분 안 5번째 실패부터 15분 동안 429이고 `result.details.retryAvailableAt`을 줍니다. 잠금은 `users.email` 콜레이션(`utf8mb4_0900_ai_ci`)의 정렬 키 기준이라 악센트·대소문자 변형으로 피할 수 없고, 가입하지 않은 이메일에도 똑같이 걸려 가입 여부를 드러내지 않습니다. 실패 기록은 서버 메모리라 재시작하면 초기화됩니다. 비밀번호 확인(Argon2)은 DB 트랜잭션 밖에서 합니다. 탈퇴 대기 회원은 요청 후 30일 미만일 때만 로그인으로 ACTIVE로 돌아가고 `withdrawalCancelled=true`입니다. 회원 잠금을 얻은 뒤의 시각이 만료 정각 이상이면 401 `INVALID_CREDENTIALS`로 거절합니다.
 - `POST /api/auth/refresh`: `refresh_token` 쿠키만 봅니다. 성공하면 이전 토큰을 폐기(ROTATED)하고 두 쿠키를 새로 줍니다. 재발급으로 폐기된(ROTATED) 토큰이 다시 오면 그 회원의 토큰을 모두 폐기(REUSE_DETECTED)합니다. 비밀번호 변경·로그아웃·탈퇴로 폐기된 토큰은 401만 줍니다. 401이면 두 쿠키를 지웁니다. 두 탭이 동시에 재발급하면 한쪽이 재사용으로 판정돼 로그아웃될 수 있습니다.
 - `POST /api/auth/sign-out`: 로그인 필요. 쿠키의 refresh_token이 그 회원의 것일 때만 폐기(SIGN_OUT)하고 두 쿠키를 지웁니다.
 - `AUTH_JWT_SECRET`이 없으면 서버는 기동하고 가입·로그인·재발급만 503입니다. 가입 기본 악기(`DANSO`)가 없어도 503입니다.
@@ -87,9 +87,9 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 회원 탈퇴와 일괄 삭제(USR-05)
 
-- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 대기 중 로그인하면 탈퇴가 취소됩니다.
+- `DELETE /api/users/me`: JSON `currentPassword`로 다시 확인합니다. 틀리면 403 `CURRENT_PASSWORD_MISMATCH`이고, 15분 5회 실패 잠금(429)은 비밀번호 변경과 함께 셉니다. 성공하면 `WITHDRAWAL_PENDING`으로 바꾸고 요청+30일 뒤 첫 04:00(Asia/Seoul)을 `purgeAt`으로 돌려주며, refresh를 모두 폐기(WITHDRAWN)하고 두 쿠키를 지웁니다. 탈퇴 취소는 요청 후 30일 미만의 로그인에만 허용하며, `purgeAt` 이전이라도 유예가 만료되면 취소할 수 없습니다.
 - 인증 필터: `db`·`ops` 프로필에서 로그인이 필요한 요청마다 토큰의 회원 상태를 조회해 ACTIVE가 아니면 401 `UNAUTHENTICATED`와 두 쿠키 삭제로 응답합니다. 공개 API는 그대로입니다.
-- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 원본을 먼저 지우고, [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 지운 뒤 개인정보를 비우고 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
+- 일괄 삭제: 매일 04:00(Asia/Seoul)에 삭제 예정 시각이 지난 탈퇴 대기 회원을 100명씩 읽어 회원 단위로 처리합니다. 녹음 삭제 전에 회원 행을 잠그고 대기 상태·삭제 예정 시각을 재확인합니다. 먼저 시작된 취소가 커밋되면 파일과 DB를 모두 보존합니다. 확인 후 잠금을 해제하고 녹음 원본을 지웁니다. 이어 [DB 스키마 계약](../docs/contracts/db-schema.md#탈퇴-일괄-삭제-대상) 순서로 한 트랜잭션에서 관련 행을 지우고 개인정보를 비워 `DELETED`로 바꿉니다. 녹음 삭제가 실패한 회원은 다음 날로 미룹니다(녹음 저장소가 설정되지 않은 서버도 같음). 끝나면 처리·미룸·건너뜀 수와 걸린 시간을 로그로 남깁니다. `eolssu.scheduling.enabled=false`면 돌지 않습니다.
 
 ### 준비 상태 검사
 
@@ -337,7 +337,7 @@ Android App Links 문서는 `GET /.well-known/assetlinks.json`으로 제공합�
 
 로그인은 `POST /api/auth/oauth/{provider}/start`, 로그인 회원의 연결은 `POST /api/users/me/social-accounts/{provider}/start`에 `{ "redirectUri": "등록한 정확한 주소" }`를 보냅니다. `provider`는 소문자 kakao/google/naver입니다. 응답 `authorizationUrl`을 브라우저로 열고, FE 콜백에서 받은 code·state와 같은 redirectUri를 기존 완료 API에 전달합니다. start 응답의 `oauth_flow_{provider}` HttpOnly·SameSite=Lax·Path=/api 쿠키를 유지해야 합니다. Android도 시작·완료에 같은 쿠키 저장소를 써야 합니다. state는10분·1회용이고 제공자·목적·회원·브라우저·콜백에 결속합니다. Google에는 S256 PKCE도 적용합니다. 같은 제공자의 시작을 다시 호출하면 브라우저 쿠키가 교체되어 이전 흐름은 완료할 수 없습니다.
 
-연결된 소셜 ID는 기존 회원으로 로그인하고 탈퇴 대기를 취소합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
+연결된 소셜 ID는 기존 회원으로 로그인하고 요청 후 30일 미만인 탈퇴 대기를 취소합니다. 소셜 로그인·병합도 회원 잠금 이후의 시각으로 만료를 검사하며, 만료 정각부터 401 INVALID_CREDENTIALS로 거절합니다. 미연결이며 같은 이메일의 회원이 있으면409 ACCOUNT_MERGE_AVAILABLE의 details에10분 mergeTicket을 반환합니다. POST /api/auth/oauth/merge로 명시적으로 동의해야 하며, 제공자가 확인하지 않은 이메일은 기존 비밀번호 또는 ACCOUNT_MERGE 완료 토큰이 필요합니다. 비밀번호는 회원별 독립15분 내5회 실패·15분 잠금이며 잠겨도 이메일 인증은 허용합니다. 이메일이 없거나 같은 회원이 없으면401 SOCIAL_ACCOUNT_NOT_REGISTERED이며 신규 회원은 만들지 않습니다. 마이페이지 POST/DELETE /api/users/me/social-accounts/{provider}는 연결/해제이고, 내 정보의 linkedProviders로 목록을 조회합니다.
 
 V9 `oauth_proofs`에는 토큰·쿠키 원문 대신 SHA-256과 소비 여부를 저장합니다. 실패한 병합 트랜잭션은 티켓·이메일 토큰 소비·연결·로그인 발급을 함께 되돌립니다. 코드·제공자 토큰·mergeTicket·결속 쿠키·비밀키는 로그나 문서에 복사하지 마세요. 만료 행은 매분500개 이내로 삭제합니다. 실제 앱 등록·콜백 URI 합의·실제 제공자 통합 확인은 별도이며, 자동 검사는 외부 네트워크 대신 RestClient 대역과 전용 MySQL을 사용합니다.
 

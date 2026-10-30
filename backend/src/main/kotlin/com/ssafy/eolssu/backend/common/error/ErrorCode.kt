@@ -30,7 +30,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "지원하지 않는 요청 형식이에요"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했어요"),
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "같은 요청 키로 다른 내용이 이미 저장됐어요"),
-    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일이에요. 로그인해 주세요. 탈퇴 대기 중이면 로그인 시 탈퇴가 취소돼요"),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 가입된 이메일이에요. 탈퇴 취소는 요청 후 30일이 지나기 전에 로그인한 경우에만 가능해요"),
     TERMS_AGREEMENT_REQUIRED(HttpStatus.UNPROCESSABLE_CONTENT, "필수 약관에 동의해 주세요"),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.FORBIDDEN, "현재 비밀번호가 맞지 않아요"),
     UNPROCESSABLE_INPUT(HttpStatus.UNPROCESSABLE_CONTENT, "요청한 내용으로는 처리할 수 없어요"),

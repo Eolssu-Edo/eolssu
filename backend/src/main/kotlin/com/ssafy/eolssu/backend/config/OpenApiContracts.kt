@@ -8,7 +8,9 @@ import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.song.api.*
 import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -58,10 +60,12 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/notation-symbols","listNotationSymbols","카탈로그","학습용 기호 설명", "등록 기호 설명만 반환하며 악보 렌더 의미를 재정의하지 않습니다. 없으면 빈 목록입니다.", NotationSymbolListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/jangdans","listJangdans","카탈로그","장단 목록", "이름·기준 BPM/단위·저장 패턴의 소박 수와 묶음 수를 ID 순으로 반환합니다.", JangdanListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation/notes","getEvaluationNotes","연습","음표별 오류 위치·판정 조회", "본인 미삭제 DONE 세션 구간 안의 저장 판정을 noteIdx 순으로 반환합니다. 구간은 세션 범위 안의 양 끝 포함이며 벗어나면 400입니다. errorTypes는 저장 판정 하나, duration 개수는 0, recordingOffsetMs는 null입니다.", EvaluationNotesResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/weak-sections","getWeakSections","연습","취약 구간 추천 조회", "저장 판정을 정간 단위로 세어 이어진 2각 안에서 틀린 칸이 많은 구간을 겹치지 않게 limit(1~10, 기본 1)개 반환합니다. 모두 맞으면 빈 목록, 세션 이후 곡 악보가 바뀌었으면 409입니다.", WeakSectionsResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.POST,"/api/auth/sign-in","signIn","인증","이메일 로그인",
-        "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 대기는 로그인 성공 시에만 취소합니다.",
+        "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 요청 후 30일 미만일 때만 로그인으로 취소하며, 만료 정각부터 401 INVALID_CREDENTIALS로 거절합니다.",
         SignedIn::class.java,errors=listOf(INVALID_CREDENTIALS,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
     ApiContract(HttpMethod.POST,"/api/auth/sign-up","signUp","인증","이메일 회원가입",
         "SIGN_UP 인증 완료 토큰(30분)을 1회 소비합니다. 비밀번호는 영문·숫자·특수문자 포함 8~128자, 필수 약관에 동의해야 합니다. 성공 시 로그인 쿠키를 발급합니다.",
@@ -94,7 +98,7 @@ internal val apiContracts = listOf(
         "현재 비밀번호를 확인합니다(실패 403, 15분 5회 실패 시 15분 잠금). 새 비밀번호는 영문·숫자·특수문자 포함 8~128자이며 현재 값과 달라야 합니다. refresh 전부 폐기 후 현재 기기만 재발급합니다.",
         PasswordChanged::class.java,errors=listOf(CURRENT_PASSWORD_MISMATCH,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),setsCookies=true),
     ApiContract(HttpMethod.DELETE,"/api/users/me","withdraw","회원","탈퇴 요청",
-        "현재 비밀번호를 확인해 탈퇴 대기로 전환합니다. 30일 뒤 삭제하며 로그인 성공 시만 취소합니다. refresh를 전부 폐기하고 쿠키를 지웁니다. 비밀번호 변경과 실패 잠금을 공유합니다.",
+        "현재 비밀번호를 확인해 탈퇴 대기로 전환합니다. 요청 후 30일 미만의 로그인 성공 시만 취소하며, 30일 뒤 첫 04:00 KST에 삭제합니다. refresh를 전부 폐기하고 쿠키를 지웁니다. 비밀번호 변경과 실패 잠금을 공유합니다.",
         Withdrawn::class.java,errors=listOf(CURRENT_PASSWORD_MISMATCH,TOO_MANY_REQUESTS),setsCookies=true),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/summary","growthSummary","성장","기간별 연습 요약",
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다. 미구현 미션 값은 null입니다.",SummaryResult::class.java),

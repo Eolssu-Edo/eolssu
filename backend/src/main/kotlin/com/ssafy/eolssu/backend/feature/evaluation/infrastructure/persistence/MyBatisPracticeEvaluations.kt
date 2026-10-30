@@ -12,12 +12,13 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
                 row.sessionId, row.songId, row.scoreVersion, row.bpm, row.bpmUnit, row.status,
                 row.startedAt.toInstant(ZoneOffset.UTC), row.endedAt?.toInstant(ZoneOffset.UTC),
                 row.evaluationId, row.totalScore, row.pitchScore, row.timingScore, row.durationScore,
-                row.evaluatedAt?.toInstant(ZoneOffset.UTC), row.recordingDurationMs,
+                row.evaluatedAt?.toInstant(ZoneOffset.UTC), row.recordingDurationMs, row.startNoteIdx, row.endNoteIdx,
                 row.tuningOffsetCent, row.tuningOutOfRange,
             )
         }
 
     override fun notes(evaluationId: Long): List<PracticeEvaluationNote> = mapper.notes(evaluationId).map {
-        PracticeEvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent?.toInt(), it.onsetErrorMs, it.durationErrorMs)
+        PracticeEvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent?.toInt(), it.onsetErrorMs, it.durationErrorMs,
+            it.expectedPitchId, it.detectedPitchId)
     }
 }
