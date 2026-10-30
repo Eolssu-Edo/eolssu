@@ -40,31 +40,33 @@ sudo python3 migrate_r2.py --env-file /opt/eolssu/.env --destination /opt/eolssu
 | (없음) | 디스크 녹음 수·바이트·만료 수 조회 |
 | `--apply --uploads-paused --manifest <새 root 전용 경로>` | 30일 미만 파일만 R2에 복사. 메타데이터에 원래 업로드 시각(`original-uploaded-at`)·SHA-256을 남기고 크기·해시를 재확인. 같은 키가 다르면 중단 |
 | `--purge-expired [--delete]` | 메타데이터가 있는 객체 중 원래 업로드 시각 기준 30일이 지난 것을 조회·삭제. 백엔드가 새로 올린 객체는 R2 수명 주기 규칙에 맡긴다 |
-| `--remove-local [--delete]` | 30일 미만 디스크 파일이 모두 R2에서 같은 크기·SHA-256으로 확인될 때만 디스크 녹음 전체를 조회·삭제. 하나라도 없으면 아무것도 지우지 않음 |
+| `--remove-local --manifest <--apply 기록> [--delete]` | 30일 미만 디스크 파일이 모두 `--apply` 기록에 있고 R2에서 같은 크기·SHA-256이거나 전환 뒤 이용자 삭제로 R2에서 사라졌을 때만 디스크 녹음·`.upload-*` 임시파일을 조회·삭제. 기록에 있으나 전환 전 디스크에서 삭제된 녹음의 R2 사본도 삭제. 하나라도 어긋나면 아무것도 지우지 않음. 완료하면 `<기록>.removed`를 만들고 그 뒤 재실행을 거절 |
 
-운영 순서(각 단계 승인 후, 배포 lock·백업 절차 준수). 아래 `<checkout>`은 검토한 저장소 체크아웃이다.
+운영 순서(각 단계 승인 후, 배포 lock·백업 절차 준수). 아래 `<checkout>`은 검토한 저장소 체크아웃이다. 국외 이전은 고지 공개·시행 뒤에만 일어나야 하므로 **3단계는 2026-10-31 00:00 KST 이후**에 시작한다.
 
-1. MR 병합·배포를 확인한다. 이 시점 운영은 local이며 약관 `2026-10-30`만 공개된다.
+1. MR 병합·배포를 확인한다. 이 시점 운영은 local이며 `2026-10-30`과 앱·웹이 연결하는 `/api/terms/documents/current/*`가 국내 저장 고지를 보여 준다.
 2. Cloudflare 대시보드에서 버킷 `eolssu-recordings`의 `recordings/` 30일 삭제 규칙, 공개 접근 비활성, 토큰 상태를 확인한다. 서버 `.env`의 R2 값 5개가 남아 있는지 확인한다.
-3. 녹음 업로드를 중지하고 진행 중 분석이 끝난 것을 확인한 뒤 조회와 복사를 실행한다.
+3. 녹음 업로드를 중지하고 진행 중 분석이 끝난 것을 확인한다. 디스크 현황을 조회한 뒤 `.env`의 `RECORDING_STORAGE_TYPE`을 `s3`로 바꾸고 backend를 재시작한다. `/api/terms/documents/current/privacy`가 200이고 국외 이전 문구를 포함하는지 확인한다. 503이면 R2 값 누락이므로 `local`로 되돌린다. 이어서 [약관 등록](../terms/README.md#버전-등록)을 2026-10-31 KST 시각으로 실행하고, Play Console 개인정보처리방침 URL을 `https://k15e102.p.ssafy.io/api/terms/documents/current/privacy`로 바꾼다.
 
    ```sh
    sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings
-   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --apply --uploads-paused --manifest /root/recordings-to-r2-333.json
    ```
 
-4. `.env`의 `RECORDING_STORAGE_TYPE`을 `s3`로 바꾸고 backend를 재시작한다. `/api/terms/documents/2026-10-31/privacy`가 200, 국외 이전 문구 포함인지 확인하고 [약관 등록](../terms/README.md#버전-등록)을 2026-10-31 KST 시각으로 실행한다.
-5. 실제 녹음 업로드·AI 분석과 R2 새 객체를 확인한 뒤 디스크 사본을 조회·삭제한다.
+4. 고지가 공개된 뒤 업로드 중지 상태에서 기존 녹음을 복사하고 매시 정리를 바로 등록한다. 정리 항목은 `--purge-expired`의 `tracked`가 0이 되면(마지막 원래 업로드 시각 + 30일 이후) 지운다. 실패하면 cron 메일로 확인한다.
 
    ```sh
-   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --remove-local
-   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --remove-local --delete
+   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --apply --uploads-paused --manifest /root/recordings-to-r2-333.json
+   echo '45 * * * * root /usr/bin/python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --purge-expired --delete' | sudo tee /etc/cron.d/eolssu-r2-purge
    ```
 
-6. 옮긴 객체가 남아 있는 동안(마지막 원래 업로드 시각 + 30일까지) 매시 정리를 실행한다. 예: `/etc/cron.d/eolssu-r2-purge`에 `45 * * * * root /usr/bin/python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --purge-expired --delete`. `--purge-expired`의 `tracked`가 0이 되면 이 항목을 지운다.
-7. Play Console 개인정보처리방침 URL을 `https://k15e102.p.ssafy.io/api/terms/documents/2026-10-31/privacy`로 바꾼다.
+5. 업로드를 재개하고 실제 녹음 업로드·AI 분석과 R2 새 객체를 확인한 뒤 같은 날 디스크 사본을 조회·삭제한다.
 
-되돌릴 때는 `.env`를 `local`로 바꾸면 약관 공개가 `2026-10-30`만으로 돌아간다. 이미 등록한 `2026-10-31` 약관 행과 R2로 옮긴 녹음은 자동으로 되돌리지 않는다.
+   ```sh
+   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --remove-local --manifest /root/recordings-to-r2-333.json
+   sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --remove-local --manifest /root/recordings-to-r2-333.json --delete
+   ```
+
+되돌릴 때는 `.env`를 `local`로 바꾸면 `2026-10-30`과 `current`가 국내 저장 고지로 돌아간다. 이때 등록된 `2026-10-31` 약관 행의 본문 주소는 503이 되어 가입 동의 화면의 본문 열기가 실패하므로, 약관 버전도 새로 준비해야 한다. R2로 옮긴 녹음은 자동으로 되돌리지 않는다.
 
 ## Naver 인증 메일
 

@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.term
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.LocalRecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.RecordingStorageProperties
 import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.S3RecordingStorage
+import com.ssafy.eolssu.backend.feature.practice.infrastructure.storage.UnavailableRecordingStorage
 import com.ssafy.eolssu.backend.feature.term.api.LegalDocumentPageController
 import java.net.URI
 import java.net.http.HttpClient
@@ -48,6 +49,8 @@ class LegalDocumentPageTests {
             }
             assertEquals(200, client.get(port, "/api/terms/documents/account-deletion").statusCode())
             assertEquals(401, client.get(port, "/api/terms/documents/2026-10-30/private").statusCode())
+            // The app and Play Console link the current alias, which must follow the storage actually in use.
+            assertPublished(client.get(port, "/api/terms/documents/current/privacy"), "current", "2026년 10월 30일")
         }
     }
 
@@ -75,9 +78,13 @@ class R2LegalDocumentTests {
             assertTrue(privacy.contains("Cloudflare, Inc."))
             assertTrue(privacy.contains("국외 이전"))
             assertFalse(privacy.contains("국내 서버·비공개 디스크"))
+            val current = client.get(port, "/api/terms/documents/current/privacy")
+            assertPublished(current, "current", "2026년 10월 31일")
+            assertTrue(current.body().contains("Cloudflare, Inc."))
             assertEquals(200, client.get(port, "/api/terms/documents/account-deletion").statusCode())
-            assertTrue(LegalDocumentPageController.PUBLIC_PATHS.containsAll(
-                LegalDocumentPageController.DOCUMENTS.flatMap { listOf("/api/terms/documents/2026-10-30/$it", "/api/terms/documents/2026-10-31/$it") }))
+            assertTrue(LegalDocumentPageController.PUBLIC_PATHS.containsAll(LegalDocumentPageController.DOCUMENTS.flatMap {
+                listOf("/api/terms/documents/2026-10-30/$it", "/api/terms/documents/2026-10-31/$it", "/api/terms/documents/current/$it")
+            }))
         }
     }
 
@@ -105,15 +112,32 @@ class UnpublishedLegalDocumentTests {
     }
 }
 
+private fun assertNothingPublished(client: HttpClient, port: Int) {
+    for (version in listOf("2026-10-30", "2026-10-31", "current")) {
+        assertEquals(503, client.get(port, "/api/terms/documents/$version/privacy").statusCode(), version)
+    }
+    assertEquals(503, client.get(port, "/api/terms/documents/account-deletion").statusCode())
+}
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["eolssu.legal.publication-enabled=true"])
 class MissingRecordingStorageLegalDocumentTests {
     @Value("\${local.server.port}") private var port = 0
     @Test fun `activation alone cannot publish a storage policy without the matching storage`() {
-        HttpClient.newHttpClient().use { client ->
-            for (version in listOf("2026-10-30", "2026-10-31")) {
-                assertEquals(503, client.get(port, "/api/terms/documents/$version/privacy").statusCode())
-            }
-            assertEquals(503, client.get(port, "/api/terms/documents/account-deletion").statusCode())
-        }
+        HttpClient.newHttpClient().use { assertNothingPublished(it, port) }
+    }
+}
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["eolssu.legal.publication-enabled=true"])
+@Import(UnconfiguredR2LegalDocumentTests.Unconfigured::class)
+class UnconfiguredR2LegalDocumentTests {
+    @Value("\${local.server.port}") private var port = 0
+    // type=s3 with missing R2 values is the likeliest cutover mistake; it must not look like a completed R2 switch.
+    @Test fun `s3 selected without R2 values publishes neither policy`() {
+        HttpClient.newHttpClient().use { assertNothingPublished(it, port) }
+    }
+
+    @TestConfiguration
+    class Unconfigured {
+        @Bean fun legalTestStorage() = UnavailableRecordingStorage()
     }
 }
