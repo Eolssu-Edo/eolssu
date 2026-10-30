@@ -1,9 +1,11 @@
 import numpy as np
 import sys
+from unittest.mock import patch
 
 from ai_service.pipelines import scoring
-from evaluation.dtw_quality import ROOT, compare, note_groups, synth
+from evaluation.dtw_quality import ROOT, compare, note_groups, synth, summarize_cases, load_recording_case
 from evaluation.error_detection import score_notes
+from evaluation.dtw_candidates import NoPath
 
 
 def test_same_f0_preserves_note_ids_and_checkpoint_result():
@@ -56,3 +58,77 @@ def test_normal_score_excerpts_preserve_ids_and_verdicts():
                 assert all(n['verdict'] == 'CORRECT' for n in item['score']['notes'])
     finally:
         sys.path.pop(0)
+
+
+def test_synthetic_silence_and_score_rest_have_zero_rms():
+    notes = [scoring.Note(0, 1, idx=0, start_beat=0),
+             scoring.Note(0, 1, idx=1, start_beat=2),
+             scoring.Note(0, 1, idx=2, start_beat=3)]
+    f0, rms = synth(notes, 120, 'silence')
+    assert np.all(rms[np.isnan(f0)] == 0)
+    assert np.any(rms[~np.isnan(f0)] > 0)
+
+
+def test_candidate_failure_is_separate_and_other_candidates_run():
+    notes = [scoring.Note(0, 1, idx=0)]
+    with patch('evaluation.dtw_quality.checkpoint_path', side_effect=ValueError('broken')):
+        result = compare(np.full(50, scoring.HWANG_HZ), notes, 120)
+    assert result['A']['status'] == 'ERROR'
+    assert 'ValueError' in result['A']['reason']
+    assert result['A']['score'] is None
+    assert result['reference']['status'] == result['B0.5']['status'] == 'DONE'
+
+
+def test_bad_recording_is_recorded_without_note_results(tmp_path):
+    result = load_recording_case(tmp_path / 'missing.json')
+    assert result['results']['reference']['status'] == 'INPUT_ERROR'
+    assert result['results']['reference']['score'] is None
+    assert 'FileNotFoundError' in result['results']['reference']['reason']
+
+
+def test_summary_records_band_membership_changed_notes_and_exclusions():
+    score = {'notes': [{'idx': 7, 'verdict': 'CORRECT'}], 'total': 100}
+    changed = {'notes': [{'idx': 7, 'verdict': 'MISSED'}], 'total': 0}
+    reference = {'status': 'DONE', 'score': score, 'path': [[2, 2], [1, 1], [0, 0]]}
+    candidate = {'status': 'DONE', 'score': changed, 'path': [[2, 2], [1, 0], [0, 0]]}
+    skipped = {'status': 'SKIPPED_BUDGET', 'score': None, 'path': None}
+    report = summarize_cases([{'recordingId': 'one', 'results': {'reference': reference, 'B0.5': candidate}},
+                              {'recordingId': 'two', 'results': {'reference': reference, 'B0.5': skipped}}])
+    b = report['B0.5']
+    assert b['comparisons'][0]['referenceInsideBand'] is True
+    assert b['comparisons'][0]['changedNotes'] == [{'idx': 7, 'reference': 'CORRECT', 'candidate': 'MISSED'}]
+    assert b['comparisons'][0]['changedMeasurements'][0]['idx'] == 7
+    assert b['excluded'][0]['caseId'] == 'two'
+    assert b['excluded'][0]['candidateStatus'] == 'SKIPPED_BUDGET'
+
+
+def test_repeated_recording_id_is_excluded():
+    from types import SimpleNamespace
+    label = {'recordingId': 'duplicate'}
+    with patch('evaluation.dtw_quality.load_trials', return_value=([label], [SimpleNamespace(label=label)])):
+        case = load_recording_case(ROOT / 'duplicate.json', {'duplicate'})
+    assert case['results']['reference']['status'] == 'INPUT_ERROR'
+    assert 'duplicate' in case['results']['reference']['reason']
+
+
+def test_missing_path_and_note_id_mismatch_are_excluded_separately():
+    notes = [scoring.Note(0, 1, idx=0)]
+    with patch('evaluation.dtw_quality.band_path', side_effect=NoPath('no route')):
+        result = compare(np.full(50, scoring.HWANG_HZ), notes, 120)
+    assert result['B0.5']['status'] == 'NO_PATH'
+    assert result['B0.5']['score'] is None
+    reference = result['reference']
+    mismatched = dict(reference, score=dict(reference['score'], notes=[{'idx': 99, 'verdict': 'CORRECT'}]))
+    report = summarize_cases([{'recordingId': 'missing-path', 'results': result},
+                              {'recordingId': 'different-id', 'results': {'reference': reference, 'A': mismatched}}])
+    assert report['B0.5']['excluded'][0]['candidateStatus'] == 'NO_PATH'
+    assert report['A']['excluded'][0]['referenceStatus'] == 'NOTE_ID_MISMATCH'
+
+
+def test_reference_path_outside_band_is_reported():
+    score = {'notes': [{'idx': 1, 'verdict': 'CORRECT'}], 'total': 100}
+    reference = {'status': 'DONE', 'score': score, 'path': [[2, 102], [1, 0], [0, 0]]}
+    candidate = {'status': 'DONE', 'score': score, 'path': [[2, 102], [1, 51], [0, 0]]}
+    result = summarize_cases([{'recordingId': 'outside', 'results': {'reference': reference, 'B0.5': candidate}}])
+    assert result['B0.5']['comparisons'][0]['referenceInsideBand'] is False
+    assert result['B0.5']['comparisons'][0]['pathChanged'] is True
