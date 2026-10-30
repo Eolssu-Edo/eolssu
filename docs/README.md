@@ -213,3 +213,10 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
+
+- [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
+- [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
+- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
+- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [약관 본문 공개와 버전 등록](../infra/terms/README.md)
+- [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
