@@ -10,7 +10,7 @@ class SectionComparisonTests {
     private val time = Instant.parse("2026-10-29T00:00:00Z")
     private fun session(start: Int, end: Int, total: Int, scoreVersion: Int = 1, model: String = "m1", bpm: Int = 60) =
         PracticeEvaluationSnapshot(1, 1, scoreVersion, bpm, "QUARTER", "DONE", time, time, 1, total, total, total, total, time, null,
-            start, end, null, model)
+            start, end, parentSessionId = null, modelVersion = model)
     private fun notes(range: IntRange, vararg wrong: Pair<Int, String>) = range.map { idx ->
         PracticeEvaluationNote(idx, wrong.toMap()[idx] ?: "CORRECT", null, null, null, 1, null)
     }

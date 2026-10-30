@@ -32,9 +32,11 @@ class PracticeEvaluationController(private val getEvaluation: GetPracticeEvaluat
         startedAt, endedAt, evaluatedAt, totalScore, pitchScore, timingScore, durationScore,
         notes.map { EvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent, it.onsetErrorMs, it.durationErrorMs) },
         recordingDurationMs,
+        tuningOffsetCent, tuningOutOfRange,
     )
 }
 
 data class PracticeEvaluationResult(val sessionId: String,val evaluationId: String,val songId: String,val scoreVersion: Int,val bpm: Int,val bpmUnit: String,
-    val startedAt: Instant,val endedAt: Instant?,val evaluatedAt: Instant,val totalScore: Int,val pitchScore: Int,val timingScore: Int,val durationScore: Int,val notes: List<EvaluationNote>, val recordingDurationMs: Int? = null)
+    val startedAt: Instant,val endedAt: Instant?,val evaluatedAt: Instant,val totalScore: Int,val pitchScore: Int,val timingScore: Int,val durationScore: Int,val notes: List<EvaluationNote>, val recordingDurationMs: Int? = null,
+    val tuningOffsetCent: Double? = null, val tuningOutOfRange: Boolean? = null)
 data class EvaluationNote(val noteIdx: Int,val verdict: String,val pitchErrorCent: Int?,val onsetErrorMs: Int?,val durationErrorMs: Int?)

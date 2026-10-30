@@ -21,6 +21,8 @@ V9 [OAuth 일회용 증명값](../../backend/src/main/resources/db/migration/V9_
 
 ## 테이블 구성
 
+V11 [평가 조율 정보](../../backend/src/main/resources/db/migration/V11__evaluation_tuning_metadata.sql)는 `evaluations.tuning_offset_cent DOUBLE NULL`, `tuning_out_of_range BOOLEAN NULL`을 추가한다(S15P31E102-304). 두 값은 함께 null이거나 함께 존재하며 flag는 0/1이다. 기존 행은 미수집인 null로 남고 점수·음표 판정을 변경하지 않는다. 편차는 AI가 보고한 추정값을 반올림 없이 보존하며, 범위 초과 flag가 true여도 편차를 0으로 바꾸지 않는다. 조회 계약은 [평가 API](../specs/practice-evaluation-api.md)를 따른다. 운영 `ops`는 Flyway를 끄므로 **새 백엔드 배포 전에 V11을 적용**해야 한다. 이전 코드는 새 nullable 컬럼을 무시할 수 있어 코드 롤백 시 컬럼을 지울 필요가 없다.
+
 V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song_model_audio_metadata.sql)는 `(song_id, score_version)`별 모범 음원 URL·BPM/단위·실제 파일 길이·시작 위치·MIME·SHA-256·게시 상태를 저장한다. DRAFT가 기본이며 초기 데이터는 없다. 기존 곡/연습/평가 데이터와 V1~V7은 변경하지 않는다. 공개 조회와 적재 전 검증은 [카탈로그 API](../specs/catalog-read-apis.md#모범-연주-메타데이터)를 따른다. ERD 그림에는 아직 반영되지 않았다.
 
 | 영역 | 테이블 | 설명 |

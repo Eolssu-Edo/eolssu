@@ -20,7 +20,7 @@ class SectionComparisonControllerTests {
     private val notes = mutableMapOf<Long, List<PracticeEvaluationNote>>()
     private fun save(id: Long, start: Int, end: Int, total: Int, parent: Long? = null, songId: Long = 1, status: String = "DONE", model: String = "m1") {
         sessions[id] = PracticeEvaluationSnapshot(id, songId, 1, 48, "DOTTED_QUARTER", status, time, time, id, total, total + 1, total - 1, total,
-            time, null, start, end, parent, model)
+            time, null, start, end, parentSessionId = parent, modelVersion = model)
     }
     private val repository = object : PracticeEvaluations {
         override fun findOwned(sessionId: Long, userId: Long) = sessions[sessionId]?.takeIf { userId == 2L }

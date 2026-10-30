@@ -21,7 +21,8 @@ data class PracticeEvaluationSnapshot(
     val status: String, val startedAt: Instant, val endedAt: Instant?, val evaluationId: Long?,
     val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?,
     val evaluatedAt: Instant?, val recordingDurationMs: Int?, val startNoteIdx: Int, val endNoteIdx: Int,
-    val parentSessionId: Long?, val modelVersion: String?,
+    val tuningOffsetCent: Double? = null, val tuningOutOfRange: Boolean? = null,
+    val parentSessionId: Long? = null, val modelVersion: String? = null,
 )
 
 data class PracticeEvaluation(
@@ -29,6 +30,7 @@ data class PracticeEvaluation(
     val bpm: Int, val bpmUnit: String, val startedAt: Instant, val endedAt: Instant?,
     val evaluatedAt: Instant, val totalScore: Int, val pitchScore: Int, val timingScore: Int,
     val durationScore: Int, val notes: List<PracticeEvaluationNote>, val recordingDurationMs: Int?,
+    val tuningOffsetCent: Double? = null, val tuningOutOfRange: Boolean? = null,
 )
 
 data class PracticeEvaluationNote(

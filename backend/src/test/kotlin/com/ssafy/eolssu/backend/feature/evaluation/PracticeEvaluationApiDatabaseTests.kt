@@ -9,6 +9,7 @@ import java.time.Instant
 import java.util.Date
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.AfterEach
@@ -58,6 +59,8 @@ class PracticeEvaluationApiDatabaseTests {
         assertEquals("2026-10-29T00:01:02Z",result.path("endedAt").asText())
         assertEquals("2026-10-29T00:02:03Z",result.path("evaluatedAt").asText())
         assertEquals(2876,result.path("recordingDurationMs").asInt())
+        assertTrue(result.has("tuningOffsetCent") && result.path("tuningOffsetCent").isNull)
+        assertTrue(result.has("tuningOutOfRange") && result.path("tuningOutOfRange").isNull)
         assertFalse(result.has("recordingUrl"))
         assertFalse(result.has("feedback"))
         assertEquals(0,result.path("notes").path(0).path("noteIdx").asInt())
@@ -66,6 +69,14 @@ class PracticeEvaluationApiDatabaseTests {
         assertEquals(-12,result.path("notes").path(1).path("pitchErrorCent").asInt())
         assertEquals(150,result.path("notes").path(1).path("onsetErrorMs").asInt())
         assertEquals(20,result.path("notes").path(1).path("durationErrorMs").asInt())
+        for ((offset, outOfRange) in listOf(-12.5 to false, 137.25 to true)) {
+            jdbc.update("UPDATE evaluations SET tuning_offset_cent=?,tuning_out_of_range=? WHERE id=991257",offset,outOfRange)
+            val updated=get(991257);assertEquals(200,updated.statusCode(),updated.body())
+            val stored=json.readTree(updated.body()).path("result")
+            assertEquals(offset,stored.path("tuningOffsetCent").asDouble())
+            assertEquals(outOfRange,stored.path("tuningOutOfRange").asBoolean())
+            assertEquals(84,stored.path("totalScore").asInt())
+        }
         jdbc.update("UPDATE practice_sessions SET record_deleted_at=CURRENT_TIMESTAMP WHERE id=991257")
         assertEquals(404,get(991257).statusCode())
     }

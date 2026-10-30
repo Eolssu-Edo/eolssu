@@ -81,6 +81,8 @@ class NewEvaluation(
     val timingScore: Int,
     val durationScore: Int,
     val modelVersion: String,
+    val tuningOffsetCent: Double? = null,
+    val tuningOutOfRange: Boolean? = null,
 ) {
     var id: Long? = null
 }
