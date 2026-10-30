@@ -7,6 +7,8 @@ import androidx.compose.runtime.LaunchedEffect
 import com.ssafy.eolssu.data.user.MemberResult
 import eolssu.shared.generated.resources.member_api_unavailable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalUriHandler
+import eolssu.shared.generated.resources.legal_open_failed
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -39,6 +41,7 @@ fun MyPageRoute(
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
     StartMessageEffect(snackbarHostState, startMessage, onStartMessageShown)
     val show: (suspend () -> String) -> Unit = { message ->
         scope.launch {
@@ -84,5 +87,10 @@ fun MyPageRoute(
             }
         },
         onDismissDialog = viewModel::dismissDialog,
+        onOpenLegal = { document ->
+            if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
+                show { getString(Res.string.legal_open_failed) }
+            }
+        },
     )
 }

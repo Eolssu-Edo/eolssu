@@ -35,7 +35,7 @@ class TermsRepository(private val client: HttpClient) {
         if (response.status.value != 200) return null
         val body = response.apiResponse<TermList>()?.takeIf { it.isSuccess }?.result ?: return null
         return body.items.takeIf { items ->
-            items.isNotEmpty() && items.map { it.termId }.distinct().size == items.size &&
+            items.any { it.required } && items.map { it.termId }.distinct().size == items.size &&
                 items.all { it.termId.matches(Regex("[1-9][0-9]*")) && it.version.isNotBlank() && it.title.isNotBlank() && isHttpsDocumentUrl(it.contentUrl) }
         }
     }

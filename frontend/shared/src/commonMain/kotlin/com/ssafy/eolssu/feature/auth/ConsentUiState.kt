@@ -9,5 +9,5 @@ data class ConsentUiState(
     val failed: Boolean = false,
 ) {
     val allChecked: Boolean get() = terms.isNotEmpty() && terms.all { it.termId in checked }
-    val canStart: Boolean get() = !loading && !failed && terms.isNotEmpty() && terms.filter { it.required }.all { it.termId in checked }
+    val canStart: Boolean get() = !loading && !failed && terms.any { it.required } && terms.filter { it.required }.all { it.termId in checked }
 }

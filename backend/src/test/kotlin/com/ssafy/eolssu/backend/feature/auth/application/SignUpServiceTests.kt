@@ -19,7 +19,7 @@ class SignUpServiceTests {
     private val now = Instant.parse("2026-10-28T03:00:00Z")
     private val secrets = EmailVerificationSecrets(ByteArray(32) { it.toByte() })
     private val repository = MemorySignUpRepository()
-    private val terms = listOf(
+    private var terms = listOf(
         Term(1, "AGE_OVER_14", "만 14세 이상", true, "2026-10", "https://example.test/age"),
         Term(2, "SERVICE_TERMS", "서비스 이용약관", true, "2026-10", "https://example.test/service"),
         Term(5, "MARKETING_NOTICE", "소식 알림", false, "2026-10", "https://example.test/news"),
@@ -52,6 +52,21 @@ class SignUpServiceTests {
         agreements: List<TermAgreement> = listOf(TermAgreement(1, "2026-10", true), TermAgreement(2, "2026-10", true), TermAgreement(5, "2026-10", false)),
         instrumentId: Long? = null,
     ) = SignUpCommand(email, password, "연습자", token, agreements, instrumentId, null)
+
+    @Test
+    fun `missing required term configuration cannot create a member or consume verification`() {
+        val configured = terms
+        for (catalog in listOf(emptyList(), configured.filterNot { it.required })) {
+            terms = catalog
+            assertEquals(SignUpResult.Unavailable, service.signUp(command(agreements = emptyList())))
+            assertTrue(repository.users.isEmpty())
+            assertTrue(repository.agreements.isEmpty())
+            assertTrue(repository.refreshTokens.isEmpty())
+            assertNull(repository.consumed[11])
+        }
+        terms = configured
+        assertIs<SignUpResult.Created>(service.signUp(command()))
+    }
 
     @Test
     fun `creates an active member with hashed password agreements default instrument and login tokens`() {
