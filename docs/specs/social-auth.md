@@ -124,3 +124,7 @@ adb shell pm get-app-links com.ssafy.eolssu
 ## 탈퇴 유예 만료
 
 2026-10-30 사용자 수정 요청에 따라 소셜 로그인·병합도 [탈퇴 유예 만료와 삭제 경계](withdrawal-expiry.md)를 따른다. 회원 잠금을 얻은 뒤의 시각이 탈퇴 요청 후 30일 정각 이상이면 `401 INVALID_CREDENTIALS`로 거절하며, 탈퇴를 취소하거나 로그인 토큰을 발급하지 않는다.
+
+## QA Android App Links
+
+사용자 요청(2026-10-30)에 따라 일반 com.ssafy.eolssu와 QA com.ssafy.eolssu.qa의 실제 APK 지문을 독립 등록한다. 일반 환경변수는 유지하고 QA는 AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS를 사용한다. 운영 적용·기기 verified·카카오 왕복 결과는 [Task337](../plans/S15P31E102-337.md)에 기록하며 구현 테스트와 구분한다.

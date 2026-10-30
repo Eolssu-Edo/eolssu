@@ -331,7 +331,7 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 
 ### 간편 로그인·계정 연결 (S15P31E102-211)
 
-Android App Links 문서는 `GET /.well-known/assetlinks.json`으로 제공합니다. `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`에 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 구분해 설정합니다.64자리16진수 또는 콜론으로 구분한32바이트를 받으며, 잘못된 값은 기동 시 거절하고 미설정은 서버를 기동하되404로 응답합니다. package_name은 `com.ssafy.eolssu`입니다. 설정 시200 application/json 원시 배열이며 로그인 쿠키가 필요 없습니다. 실제 지문/환경변수 주입과 Nginx 배포·기기 검증 전에는 App Links가 준비된 상태가 아닙니다. API5필드 성공 형식의 예외는 이 Android 공개 검증 프로토콜에만 적용합니다.
+Android App Links 문서는 `GET /.well-known/assetlinks.json`으로 제공합니다. `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`에 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 구분해 설정합니다.64자리16진수 또는 콜론으로 구분한32바이트를 받으며, 잘못된 값은 기동 시 거절합니다. 일반 앱 package_name은 `com.ssafy.eolssu`이며 QA 앱 설정과 미설정 처리 기준은 아래를 따릅니다. 설정 시200 application/json 원시 배열이며 로그인 쿠키가 필요 없습니다. 실제 지문/환경변수 주입과 Nginx 배포·기기 검증 전에는 App Links가 준비된 상태가 아닙니다. API5필드 성공 형식의 예외는 이 Android 공개 검증 프로토콜에만 적용합니다.
 
 현재는 서버 코드와 대역 기반 검증 단계입니다. 사용자 확인(2026-10-29): 제공자 키는 아직 발급하지 않았습니다. 실제 사용 완료 조건은 제공자별 앱 등록·키 발급, FE 콜백 URI 합의/콘솔 등록, 서버 환경변수 주입, 실제 계정으로 로그인·연결·해제 확인입니다. 자동 테스트의 가짜 인가 코드·사용자 응답·토큰은 실제 제공자 인증 성공을 뜻하지 않습니다.
 
@@ -386,3 +386,9 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 ### 계정 한정 인증 만료 예외
 
 `AUTH_NON_EXPIRING_USER_IDS`에 지정한 회원 ID만 서버 토큰의 시간 만료를 없앱니다(기본 빈 목록). access는 exp 없이 서명하지만 DB의 활성 refresh 세션과 ACTIVE 회원 검증을 매 요청 수행합니다. 로그아웃·비밀번호 변경·탈퇴·회전·예외 해제 후에는 기존 토큰을 거부합니다. 일반 계정은 access 30분·refresh 14일을 유지합니다. 예외 계정의 재발급 응답 accessTokenExpiresAt은 null이며 쿠키는 브라우저 제한을 고려해 400일입니다. 배포·검증 순서는 [Task 260](../docs/plans/S15P31E102-260.md)을 따릅니다. V7은 기존 데이터의 시각을 바꾸지 않고 refresh_tokens.expires_at을 nullable로 확장합니다.
+
+### 일반·QA 앱의 App Links 지문
+
+기존 `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`는 일반 패키지 `com.ssafy.eolssu` 전용으로 유지합니다. `AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS`는 `com.ssafy.eolssu.qa` 전용이며 각 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 설정합니다. 한 패키지 지문을 다른 패키지에 복사하지 않습니다. 설정된 패키지만 JSON 배열에 포함하고 둘 다 비어 있을 때만404입니다. 두 설정 모두 형식 검증·대문자 콜론 표기 정규화·중복 제거를 적용합니다. 설정은 운영 Compose 전달과 백엔드 반영 후 확인합니다.
+
+검증 순서: 설치 APK 패키지·versionCode·공개 서명 확인 → `/.well-known/assetlinks.json`의 리다이렉트 없는200/application/json과 패키지별 지문 일치 → 기기 `adb shell pm verify-app-links --re-verify com.ssafy.eolssu.qa` 후 `adb shell pm get-app-links com.ssafy.eolssu.qa`에서 도메인 verified → 새 카카오 인증 시작부터 앱 복귀·완료 API를 확인합니다. 재검증은 비동기이며 강제 인텐트 실행만으로 verified를 대체하지 않습니다. 키스토어·비밀번호는 공유하지 않습니다.

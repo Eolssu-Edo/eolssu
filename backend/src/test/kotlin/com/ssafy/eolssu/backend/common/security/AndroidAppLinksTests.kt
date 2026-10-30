@@ -48,3 +48,55 @@ class MissingAndroidAppLinksTests {
         }
     }
 }
+
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties=[
+    "eolssu.auth.android-app-links.sha256-cert-fingerprints=",
+    "eolssu.auth.android-app-links.qa-sha256-cert-fingerprints=abababababababababababababababababababababababababababababababab",
+])
+class QaOnlyAndroidAppLinksTests {
+    @Value("\${local.server.port}") private var port=0
+    @Test fun `packages publish independent signing certificates`() {
+        HttpClient.newHttpClient().use { client ->
+            val response=client.send(HttpRequest.newBuilder(URI("http://localhost:$port/.well-known/assetlinks.json")).GET().build(),HttpResponse.BodyHandlers.ofString())
+            assertEquals(200,response.statusCode(),response.body())
+            assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("application/json"))
+            assertFalse(response.headers().firstValue("Location").isPresent)
+            val json=JsonMapper.builder().build().readTree(response.body())
+            assertEquals(1,json.size())
+            val qa=json[1-1].path("target")
+            assertEquals("com.ssafy.eolssu.qa",qa.path("package_name").asString())
+            assertEquals(List(32){"AB"}.joinToString(":"),qa.path("sha256_cert_fingerprints")[0].asString())
+            if(1==2) {
+                val normal=json[0].path("target")
+                assertEquals("com.ssafy.eolssu",normal.path("package_name").asString())
+                assertEquals(List(32){"CD"}.joinToString(":"),normal.path("sha256_cert_fingerprints")[0].asString())
+            }
+        }
+    }
+}
+
+@SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT,properties=[
+    "eolssu.auth.android-app-links.sha256-cert-fingerprints=cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "eolssu.auth.android-app-links.qa-sha256-cert-fingerprints=abababababababababababababababababababababababababababababababab",
+])
+class MultipleAndroidAppLinksTests {
+    @Value("\${local.server.port}") private var port=0
+    @Test fun `packages publish independent signing certificates`() {
+        HttpClient.newHttpClient().use { client ->
+            val response=client.send(HttpRequest.newBuilder(URI("http://localhost:$port/.well-known/assetlinks.json")).GET().build(),HttpResponse.BodyHandlers.ofString())
+            assertEquals(200,response.statusCode(),response.body())
+            assertTrue(response.headers().firstValue("Content-Type").orElse("").startsWith("application/json"))
+            assertFalse(response.headers().firstValue("Location").isPresent)
+            val json=JsonMapper.builder().build().readTree(response.body())
+            assertEquals(2,json.size())
+            val qa=json[2-1].path("target")
+            assertEquals("com.ssafy.eolssu.qa",qa.path("package_name").asString())
+            assertEquals(List(32){"AB"}.joinToString(":"),qa.path("sha256_cert_fingerprints")[0].asString())
+            if(2==2) {
+                val normal=json[0].path("target")
+                assertEquals("com.ssafy.eolssu",normal.path("package_name").asString())
+                assertEquals(List(32){"CD"}.joinToString(":"),normal.path("sha256_cert_fingerprints")[0].asString())
+            }
+        }
+    }
+}
