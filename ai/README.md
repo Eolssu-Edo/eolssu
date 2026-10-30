@@ -107,6 +107,8 @@ uv run --group eval python -m evaluation.measure_latency
 
 곡별 고정 음높이와 합성 녹음의 음별 판정 비교는 [U3 실행 방법과 한계](../docs/knowledge/ai/dtw-memory-comparison.md#u3-합성-입력-품질-비교-2026-10-30)를 따릅니다. 결과는 연구용이며 실제 연주나 전체 곡의 품질을 보증하지 않습니다.
 
+Windows에서 곡별 DTW와 합성 m4a 전체 처리 시간을 측정할 때는 `uv run python -m evaluation.dtw_full_performance --out ../data/processed/dtw-286/u4-full-rest.json`을 사용합니다. 실행 전 메모리·시간 제한을 작은 입력으로 확인하고 각 조건을 별도 프로세스에서 다섯 번 실행합니다. 합성 m4a는 실제 연주나 팀원이 만든 음원이 아닙니다. 자세한 입력과 제한은 [측정 기록](../docs/knowledge/ai/dtw-memory-comparison.md)을 따릅니다.
+
 `src/ai_service/pipelines/scoring.py`
 
 | 항목 | 현재 기준 |
