@@ -4,7 +4,7 @@
 
 ## 결과를 읽는 기준
 
-2026-10-29, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **153개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
+2026-10-30, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **157개 통과, 건너뜀 0개**를 재확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다. S15P31E102-284에서 각 경계 지속 검사 4개를 추가했다.
 
 - 고정 JSON과 합성 사인파를 사용한다. 음원 검사는 실제 샘플러의 렌더링 로직을 거치지만, 실제 CAT 뱅크를 읽거나 단소 음색을 평가하지 않는다.
 - `test_audio.py`의 코덱 검사 1개와 `test_pipeline.py`의 CLI 검사 1개만 실제 FFmpeg/ffprobe 인코딩·디코딩 통합 검사다. 입력 소리는 합성 신호이며, 인코더를 찾지 못하면 이 2개는 건너뛴다.
@@ -17,7 +17,7 @@
 
 | 테스트 파일 | 대응 구현·범위 | 개수 |
 | --- | --- | ---: |
-| `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 52 |
+| `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 56 |
 | `test_score.py` | `score.py`: 공통 악보 검증·음역·이벤트 생성 | 17 |
 | `test_midi.py` | `midi.py`: 제어 메시지·악기별 자동 떨림·직렬화 | 12 |
 | `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·악기별 지속·샘플 확장 | 18 |
@@ -85,7 +85,16 @@
 | `test_direction_and_repetition_match_explicit_curve_shape` | 추성·퇴성 방향과 겹흘림·겹미는 반복 곡선 검사 |
 | `test_unverified_aliases_and_incomplete_or_unknown_fields_are_rejected` | 근거 누락·알 수 없는 기호·필드·불완전 표현 설정 거부 |
 
-## test_jgb.py — 52개
+## test_jgb.py — 56개
+
+S15P31E102-284의 추가 4개는 명시한 각 경계의 지속을 검사한다.
+
+| 테스트 | 확인 내용 |
+| --- | --- |
+| `test_explicit_gak_continuation_keeps_one_attack_and_source_locations` | 새 note-on 없이 연결, 총길이·원문·각별 위치 보존, 미지정 다음 경계는 쉼 |
+| `test_gak_continuation_rejects_invalid_boundaries_and_missing_basis` | 쉼·숨표 뒤 연결, 새 음, 잘못된 위치·중복·근거 누락 거부 |
+| `test_gak_continuation_supports_breath_at_end_without_rearticulation` | 연결한 긴 음의 끝에서 숨표 적용 |
+| `test_gak_continuation_after_tempo_cue_preserves_attack_and_retimes_hold` | 빠르기 기호가 먼저 있는 경계도 연결하고 속도 변경에 맞춰 길이 계산 |
 
 [코드](test_jgb.py).
 

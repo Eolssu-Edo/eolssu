@@ -265,6 +265,20 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     starts = [0] + [m.end() for m in separators]
     ends = [m.start() for m in separators] + [end]
     require(all(g <= len(starts) for g in overrides), "gakBeats에 존재하지 않는 각 번호가 있습니다")
+    continuation_entries = document.get("playback", {}).get("gak_continuations", [])
+    require(isinstance(continuation_entries, list), "playback.gak_continuations는 배열이어야 합니다")
+    continuations, continuation_keys = {}, set()
+    for entry in continuation_entries:
+        require(isinstance(entry, dict) and set(entry) == {"part", "gak", "basis"},
+                "각 경계 지속에는 part·gak·basis가 필요합니다")
+        p = integer(entry["part"], "각 경계 지속 성부", 1, len(parts))
+        g = integer(entry["gak"], "각 경계 지속 각", 2, 10000)
+        require((p, g) not in continuation_keys, "중복 각 경계 지속 위치입니다")
+        continuation_keys.add((p, g))
+        require(isinstance(entry["basis"], str) and entry["basis"].strip(), "각 경계 지속 근거가 필요합니다")
+        if p == selected:
+            require(g <= len(starts), "각 경계 지속에 존재하지 않는 각 번호가 있습니다")
+            continuations[g] = {"part": p, "gak": g, "basis": entry["basis"].strip()}
     total_cells = 0
     for g, (start, stop) in enumerate(zip(starts, ends), 1):
         line = melody[start:stop]
@@ -316,7 +330,12 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                     require(not effects or controls.get("playSigimsae", True) is True,
                             f"{label}: 시김새 재생이 꺼져 있습니다")
                     kind = group["kind"]
-                    if kind == "hold" and previous_gak == g and notes and not notes[-1].get("rest"):
+                    crosses_gak = g in continuations and c == 1 and r == row_numbers[0] and u == 1
+                    if crosses_gak:
+                        require(kind == "hold" and previous_gak == g - 1 and notes and not notes[-1].get("rest"),
+                                f"{label}: 각 경계 지속은 바로 앞 각의 본음과 첫 지속칸이 필요합니다")
+                        loc["gak_continuation"] = dict(continuations[g])
+                    if kind == "hold" and (previous_gak == g or crosses_gak) and notes and not notes[-1].get("rest"):
                         require(not breath_applied, f"{label}: 숨표 뒤의 연장은 명시한 새 음이 필요합니다")
                         target = notes[sustain_index]
                         expressions.validate_sustain_effects(target, group, label)
@@ -325,6 +344,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         expressions.apply_effects(target, group, label, delay, profile, policy,
                                                   locations[target["id"]][0].get("written_pitch_shift_semitones", 0))
                         locations[target["id"]].append(loc)
+                        previous_gak = g
                     elif kind in ("rest", "hold"):
                         require(not expressions.has_effects(group, include_fermata=False),
                                 f"{label}: 표현을 적용할 앞 본음이 없습니다")
@@ -405,6 +425,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                                            "selected": instrument, "kind": selection},
                   "tempo_cues": tempo_cues,
                   "notes": locations}
+    if continuations:
+        source_map["gak_continuations"] = list(continuations.values())
+        assumptions[1] = "빈칸·-는 같은 각에서 앞 음을 연장. 근거와 성부·각을 명시한 playback.gak_continuations 위치만 각 경계를 이어 불며 나머지 각 첫 연장은 쉼."
     if instrument != "danso":
         source_map.update(instrument=instrument, instrument_basis=instrument_basis, relative_scale=custom_scale)
         assumptions[3:5] = ["악보에 없는 추가 떨림을 자동 적용하지 않음. 미지원 표현은 생략하지 않고 실패.",

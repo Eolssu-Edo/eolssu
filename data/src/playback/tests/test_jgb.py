@@ -478,6 +478,59 @@ class JgbTests(unittest.TestCase):
         self.assertAlmostEqual(notes[1]["start"], 3, places=5)
         self.assertAlmostEqual(notes[0]["end"], 1, places=5)
 
+    def test_explicit_gak_continuation_keeps_one_attack_and_source_locations(self):
+        source = document("청황 | 남\n | -\n- | 청황")
+        source["playback"] = {"gak_continuations": [{"part": 1, "gak": 2, "basis": "고정 악보의 이어 불기"}]}
+        before = deepcopy(source)
+        score, mapping = converted(source)
+        self.assertEqual(source, before)
+        notes = midi(score)["notes"]
+        self.assertEqual([(n["pitch"], round(n["start"], 5), round(n["end"], 5)) for n in notes],
+                         [(75, 0, 1), (72, 1, 4), (75, 5, 6)])
+        held = mapping["notes"]["p1.g1.c2.r1.u1"]
+        self.assertEqual([(p["gak"], p["cell"]) for p in held], [(1, 2), (2, 1), (2, 2)])
+        self.assertEqual(held[1]["gak_continuation"], source["playback"]["gak_continuations"][0])
+        self.assertEqual(mapping["gak_continuations"], source["playback"]["gak_continuations"])
+        self.assertEqual(mapping["total_quarters"], "9")
+
+    def test_gak_continuation_rejects_invalid_boundaries_and_missing_basis(self):
+        for melody in ("청황 | 쉼\n- | 청태", "청황 | 남<\n- | 청태", "청황 | 남\n청황 | 청태"):
+            source = document(melody)
+            source["playback"] = {"gak_continuations": [{"part": 1, "gak": 2, "basis": "검사"}]}
+            with self.subTest(melody=melody), self.assertRaises(ValueError):
+                converted(source)
+        for entries in (None, [{"part": 1, "gak": 2, "basis": ""}],
+                        [{"part": 1, "gak": 1, "basis": "검사"}], [{"part": 1, "gak": 3, "basis": "검사"}],
+                        [{"part": 2, "gak": 2, "basis": "검사"}], [{"part": True, "gak": 2, "basis": "검사"}],
+                        [{"part": 1, "gak": 2, "basis": "검사"}] * 2):
+            source = document("청황 | 남\n- | 청태")
+            source["playback"] = {"gak_continuations": entries}
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                converted(source)
+
+    def test_gak_continuation_supports_breath_at_end_without_rearticulation(self):
+        source = document("청황 | 남\n- | -<")
+        source["playback"] = {"gak_continuations": [{"part": 1, "gak": 2, "basis": "고정 연습 구간"}]}
+        score, mapping = converted(source)
+        notes = midi(score)["notes"]
+        self.assertEqual(len(notes), 2)
+        self.assertAlmostEqual(notes[1]["start"], 1, places=5)
+        self.assertAlmostEqual(notes[1]["end"], 3.83, places=4)
+        self.assertTrue(mapping["notes"]["p1.g1.c2.r1.u1"][-1]["breath"])
+
+    def test_gak_continuation_after_tempo_cue_preserves_attack_and_retimes_hold(self):
+        source = document("청황 | 남\n{조금속하게} - | 청태")
+        source["playback"] = {"gak_continuations": [{"part": 1, "gak": 2, "basis": "고정 연습 구간"}]}
+        plan = {"schema": "danso-performance/v1", "input_sha256": "a" * 64,
+                "tempos": [{"gak": 2, "cell": 1, "bpm": 120}]}
+        score, mapping = converted(source, performance_plan=plan, input_sha256="a" * 64)
+        notes = midi(score)["notes"]
+        self.assertEqual([(n["pitch"], round(n["start"], 5), round(n["end"], 5)) for n in notes],
+                         [(75, 0, 1), (72, 1, 2.5), (77, 2.5, 3)])
+        held = [loc for locs in mapping["notes"].values() for loc in locs if "gak_continuation" in loc]
+        self.assertEqual(len(held), 1)
+        self.assertEqual((held[0]["gak"], held[0]["cell"], held[0]["row"]), (2, 1, 2))
+
     def test_subdivisions_and_variable_gak_length(self):
         score, mapping = converted(document("청황청태 임 | 청중\n청태", gakBeats="2:1"))
         self.assertEqual([Fraction(n["duration"]) for n in score["notes"]],

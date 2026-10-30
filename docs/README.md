@@ -67,6 +67,7 @@
 
 ## 데이터 조사·검증 기록
 
+- [기종 미표기 대금 악보의 출처별 분류](knowledge/data/common/daegeum-score-types.md)
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [산조대금 JGB·MIDI·M4A 변환과 CAT 공통 샘플 확인](knowledge/data/sanjo-playback.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
