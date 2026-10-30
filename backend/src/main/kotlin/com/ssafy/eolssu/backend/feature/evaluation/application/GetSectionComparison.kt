@@ -1,0 +1,50 @@
+package com.ssafy.eolssu.backend.feature.evaluation.application
+
+import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
+import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluations
+import com.ssafy.eolssu.backend.feature.evaluation.domain.SectionComparison
+import com.ssafy.eolssu.backend.feature.evaluation.domain.SectionComparisonResult
+import org.springframework.transaction.annotation.Transactional
+
+/**
+ * 이번 세션과 이전 세션의 저장 결과를 같은 읽기 전용 트랜잭션에서 비교한다(EVA-04).
+ * 이전 세션 규칙은 PRA-01의 parentSessionId와 같다: 본인·미삭제가 아니면 404, 다른 곡이면 400, 미완료면 409.
+ * 이번 세션보다 나중에 시작한 세션은 이전 결과가 아니므로 400이다.
+ */
+open class GetSectionComparison(private val evaluations: PracticeEvaluations, private val scores: EvaluationScoreCells) {
+    @Transactional(readOnly = true)
+    open fun execute(userId: Long, sessionId: Long, baselineSessionId: Long?): SectionComparisonLookup {
+        val current = evaluations.findOwned(sessionId, userId) ?: return SectionComparisonLookup.NotFound
+        if (current.status != "DONE") return SectionComparisonLookup.NotReady
+        val baselineId = baselineSessionId ?: current.parentSessionId ?: return SectionComparisonLookup.InvalidBaseline
+        if (baselineId == sessionId) return SectionComparisonLookup.InvalidBaseline
+        val baseline = evaluations.findOwned(baselineId, userId) ?: return SectionComparisonLookup.NotFound
+        if (baseline.songId != current.songId) return SectionComparisonLookup.InvalidBaseline
+        if (baseline.status != "DONE") return SectionComparisonLookup.NotReady
+        // 나중 세션을 이전 결과로 넣으면 이전·이번과 차이의 부호가 뒤바뀐다.
+        if (baseline.startedAt.isAfter(current.startedAt)) return SectionComparisonLookup.InvalidBaseline
+        // 같은 악보에서는 이전 결과가 이번 구간을 모두 담아야 같은 음표끼리 견줄 수 있다. 악보가 다르면 음표를 대지 않는다.
+        val coversRange = baseline.startNoteIdx <= current.startNoteIdx && current.endNoteIdx <= baseline.endNoteIdx
+        if (baseline.scoreVersion == current.scoreVersion && !coversRange) return SectionComparisonLookup.InvalidBaseline
+        val cells = scores.noteCells(current.songId, current.scoreVersion)?.takeIf { it.size > current.endNoteIdx }
+            ?: return SectionComparisonLookup.ScoreChanged
+        val result = SectionComparison.compare(
+            current, evaluations.notes(requireNotNull(current.evaluationId)),
+            baseline, evaluations.notes(requireNotNull(baseline.evaluationId)),
+        )
+        return SectionComparisonLookup.Found(
+            baselineId, result, cells[current.startNoteIdx].column, cells[current.endNoteIdx].column, current.bpm, current.bpmUnit,
+        )
+    }
+}
+
+sealed interface SectionComparisonLookup {
+    data object NotFound : SectionComparisonLookup
+    data object NotReady : SectionComparisonLookup
+    data object InvalidBaseline : SectionComparisonLookup
+    data object ScoreChanged : SectionComparisonLookup
+    data class Found(
+        val baselineSessionId: Long, val comparison: SectionComparisonResult, val startColumn: Int, val endColumn: Int,
+        val bpm: Int, val bpmUnit: String,
+    ) : SectionComparisonLookup
+}
