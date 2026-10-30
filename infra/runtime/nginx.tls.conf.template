@@ -28,6 +28,16 @@ server {
         return 404;
     }
 
+    # Android App Links는 HTTPS에서도 SPA가 아닌 서버의 원시 JSON을 제공한다.
+    location = /.well-known/assetlinks.json {
+        set $backend http://backend:8080;
+        proxy_pass $backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # 점검 주소(actuator)는 readiness만 밖에 연다. 수치(prometheus) 등은 서버 안에서 backend:8080으로만 읽는다.
     location = /api/actuator/health/readiness {
         set $backend http://backend:8080;

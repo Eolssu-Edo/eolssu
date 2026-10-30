@@ -26,6 +26,21 @@ eolssu:
       from: ${AUTH_MAIL_FROM:}
       from-name: ${AUTH_MAIL_FROM_NAME:}
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    android-app-links:
+      sha256-cert-fingerprints: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:}
+    oauth:
+      kakao:
+        client-id: ${AUTH_OAUTH_KAKAO_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_KAKAO_REDIRECT_URIS:}
+      google:
+        client-id: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_GOOGLE_REDIRECT_URIS:}
+      naver:
+        client-id: ${AUTH_OAUTH_NAVER_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_NAVER_REDIRECT_URIS:}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
     non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}

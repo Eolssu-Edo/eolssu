@@ -75,3 +75,9 @@ version4 패키지·검사 기록은 이전 소스의 증거로 보존했다. ve
 versionCode5 debug APK를 API37 LocalTransport로 백업→앱 삭제→동일 APK 재설치→복원했다. cloud와 D2D 모드 각각 일반 파일 대조군은 복원되고 녹음·회원·인증·cache 파일은 복원되지 않았다. `backup-transport/result.json` 및 명령 로그가 증거다. 최종 release APK에서도 두 XML 리소스의 경로를 추출해 동일 제외 규칙을 확인했다. API24~30의 실제 복원, Google 클라우드, 제조사 실기기 이전 및 기존 백업의 소급 삭제는 미검증이다. 이번 백업 제외 결정·구현은 완료이며 앱/서버 계정 삭제와 기존 OS 백업 삭제를 동일 범위로 간주하지 않는다. 검사 후 LocalTransport 테스트 백업·debug 앱을 정리하고 원래 백업 비활성 상태·선택 transport·설정을 복원했다.
 
 판정: A 개발 환경 **완료**. B **로컬 서명 산출물 검증 완료 / 공식 제출 키 미확인**. C 제출 준비 **미완료**(위 P0/P1·필수 미검증), D 심사 승인 **미검증**(미제출). 전체 실기기 절차·기존 정책 감사/스토어 초안은 이전 release-catalog 묶음과 이 delta 문서를 함께 인계한다.
+
+## 2026-10-30 MR !169 develop 동기화
+
+사용자 요청으로 최신 origin/develop `0052082f7129fafadcb113a2d251bcb42f36fd39`을 반영했다. 시작 소스는 `dcbf235b747feb7ca001af71a89e8901d95aac63`이며 사용자 미커밋 변경은 없었다. Git 자동 병합 성공, 미해결 경로 0개, staged diff 공백 검사 통과. 문서 색인 양쪽 항목이 유지됐다.
+
+병합 전후 frontend tree `9741eae0e91f2f24a2092d9731efd75c818d262c`가 같고 backend/infra는 각각 최신 develop tree와 정확히 같다. 앱 코드·리소스·빌드 설정 변경이 없어 APK/AAB 재생성 및 기존 479개 검사를 반복하지 않았다. 이전 versionCode5 산출물과 검증 범위는 그대로이며 이번 확인은 Git 통합 검사다. develop에 서버 MR !166과 소셜 인증·인프라 후속 변경이 포함됐다. 운영 배포·실제 소셜 로그인·출시 준비 완료를 뜻하지 않는다. Task261은 Story109·sprint59139·진행 중을 유지한다.

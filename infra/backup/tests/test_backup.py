@@ -26,6 +26,35 @@ def bundle(path, name='files/opt/eolssu/.env', content=b'fixture-secret', digest
 
 
 class BackupTests(unittest.TestCase):
+    def test_users_precede_definers_and_table_grants_follow_schema(self):
+        accounts = (b"CREATE USER 'reader'@'%' IDENTIFIED BY 'fixture';\n"
+                    b"GRANT SELECT ON `eolssu`.`songs` TO 'reader'@'%';\n"
+                    b"CREATE USER 'definer'@'%';\n"
+                    b"GRANT SELECT ON `eolssu`.* TO 'definer'@'%';\n")
+        schema = b'CREATE TABLE songs (id INT); CREATE DEFINER=definer VIEW v AS SELECT * FROM songs;'
+        state, phases, report = set(), [], {}
+        def import_sql(data):
+            phases.append(report['phase'])
+            if b'CREATE TABLE' in data:
+                self.assertIn('users', state)
+                state.add('schema')
+            elif b'GRANT ' in data:
+                self.assertIn('schema', state, 'MySQL 1146: table does not exist')
+            else:
+                self.assertNotIn(b'GRANT ', data)
+                self.assertEqual(data.count(b'CREATE USER '), 2)
+                state.add('users')
+        backup.restore_database(import_sql, accounts, schema, report)
+        self.assertEqual(phases, ['accounts-create', 'database-import', 'accounts-grants'])
+
+    def test_grant_import_failure_is_not_ignored(self):
+        report = {}
+        def import_sql(data):
+            if b'GRANT ' in data: raise RuntimeError('fixture grant rejected')
+        with self.assertRaisesRegex(RuntimeError, 'grant rejected'):
+            backup.restore_database(import_sql, b"CREATE USER 'fixture';\nGRANT SELECT ON missing TO fixture;\n", b'schema', report)
+        self.assertEqual(report['phase'], 'accounts-grants')
+
     def test_oversized_pax_header_is_rejected_before_tar_parser_reads_it(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'oversized.tgz'
