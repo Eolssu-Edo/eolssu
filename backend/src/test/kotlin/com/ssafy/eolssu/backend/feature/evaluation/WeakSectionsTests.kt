@@ -40,6 +40,11 @@ class WeakSectionsTests {
         assertEquals(listOf(WeakSection(2, 3, 1, 1, 2, "MISSED")), report.sections)
     }
 
+    @Test fun `pitch wins a tie with timing`() {
+        val report = WeakSections.recommend(notes(2 to "TIMING", 3 to "PITCH"), cells, 0, 9, 1)
+        assertEquals("PITCH", report.sections.single().dominantError)
+    }
+
     @Test fun `section practice stays inside the session range`() {
         val report = WeakSections.recommend(notes(0 to "PITCH", 3 to "TIMING", 4 to "TIMING"), cells, 3, 6, 1)
         assertEquals(2, report.totalErrorCellCount)
