@@ -211,3 +211,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 기존 업무에 필요한 조사·문서는 같은 Task에 포함합니다. 독립적인 조사·문서 업무는 [루트 지침의 Jira 연결 절차](../AGENTS.md)를 따릅니다. 기록을 남기는 데 코드 변경이나 Jira 댓글은 필수 조건이 아닙니다. 커밋·MR·Notion 게시 등 팀에 전달하는 작업은 현재 요청 범위에 따라 진행합니다.
 
 - [S15P31E102-262 Jenkins 단계와 배포 순서](plans/S15P31E102-262.md) · [스펙](specs/jenkins-deploy-order.md)
+
+- [Android QA 약관 임시 우회](specs/android-qa-consent-bypass.md) · [S15P31E102-309 검증·제거 안내](plans/S15P31E102-309.md)
+
+- [Android QA 실제 API 검증 결과와 미제공 콘텐츠](knowledge/frontend/android-qa-api-verification.md)
