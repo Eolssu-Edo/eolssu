@@ -38,9 +38,11 @@ sudo python3 migrate_r2.py --env-file /opt/eolssu/.env --destination /opt/eolssu
 | 명령 옵션 | 동작 |
 | --- | --- |
 | (없음) | 디스크 녹음 수·바이트·만료 수 조회 |
-| `--apply --uploads-paused --manifest <새 root 전용 경로>` | 30일 미만 파일만 R2에 복사. 메타데이터에 원래 업로드 시각(`original-uploaded-at`)·SHA-256을 남기고 크기·해시를 재확인. 같은 키가 다르면 중단 |
+| `--apply --uploads-paused --manifest <새 root 전용 경로>` | 버킷 존재를 먼저 확인하고, DB가 아직 참조하는(`recording_url` 있고 `record_deleted_at` 없음) 30일 미만 파일만 R2에 복사. 메타데이터에 원래 업로드 시각(`original-uploaded-at`)·SHA-256을 남기고 크기·해시를 재확인. 같은 키가 다르면 중단 |
 | `--purge-expired [--delete]` | 메타데이터가 있는 객체 중 원래 업로드 시각 기준 30일이 지난 것을 조회·삭제. 백엔드가 새로 올린 객체는 R2 수명 주기 규칙에 맡긴다 |
-| `--remove-local --manifest <--apply 기록> [--delete]` | 30일 미만 디스크 파일이 모두 `--apply` 기록에 있고 R2에서 같은 크기·SHA-256이거나 전환 뒤 이용자 삭제로 R2에서 사라졌을 때만 디스크 녹음·`.upload-*` 임시파일을 조회·삭제. 기록에 있으나 전환 전 디스크에서 삭제된 녹음의 R2 사본도 삭제. 하나라도 어긋나면 아무것도 지우지 않음. 완료하면 `<기록>.removed`를 만들고 그 뒤 재실행을 거절 |
+| `--remove-local --manifest <--apply 기록> [--delete]` | 버킷 존재를 먼저 확인한다. DB가 아직 참조하는 30일 미만 파일이 모두 `--apply` 기록에 있고 R2에서 같은 크기·SHA-256일 때만 디스크 녹음·`.upload-*` 임시파일을 조회·삭제. DB에서 이미 삭제된 녹음의 디스크 파일은 R2 확인 없이 삭제. R2에 없다는 사실만으로는 삭제를 판단하지 않으며 하나라도 어긋나면 아무것도 지우지 않음. R2 객체는 지우지 않으므로 중단 뒤 재실행해도 안전 |
+
+DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 backend 컨테이너의 `DB_URL`에서 DB 이름을 찾고 MySQL 컨테이너 안의 암호를 쓴다. 출력에는 개수만 남긴다.
 
 운영 순서(각 단계 승인 후, 배포 lock·백업 절차 준수). 아래 `<checkout>`은 검토한 저장소 체크아웃이다. 국외 이전은 고지 공개·시행 뒤에만 일어나야 하므로 **3단계는 2026-10-31 00:00 KST 이후**에 시작한다.
 
@@ -52,7 +54,7 @@ sudo python3 migrate_r2.py --env-file /opt/eolssu/.env --destination /opt/eolssu
    sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings
    ```
 
-4. 고지가 공개된 뒤 업로드 중지 상태에서 기존 녹음을 복사하고 매시 정리를 바로 등록한다. 정리 항목은 `--purge-expired`의 `tracked`가 0이 되면(마지막 원래 업로드 시각 + 30일 이후) 지운다. 실패하면 cron 메일로 확인한다.
+4. 고지가 공개된 뒤 업로드 중지 상태에서 3단계에 이어 바로 기존 녹음을 복사하고 매시 정리를 바로 등록한다. 탈퇴 일괄 삭제가 도는 04:00 KST 전후에는 3~5단계를 하지 않는다. 그 사이 삭제된 녹음은 DB 참조 대조로 복사에서 빠진다. 정리 항목은 `--purge-expired`의 `tracked`가 0이 되면(마지막 원래 업로드 시각 + 30일 이후) 지운다. 실패하면 cron 메일로 확인한다.
 
    ```sh
    sudo python3 <checkout>/infra/storage/migrate_to_r2.py --env-file /opt/eolssu/.env --source /opt/eolssu/recordings --apply --uploads-paused --manifest /root/recordings-to-r2-333.json

@@ -2,7 +2,7 @@
 """Move domestic-disk recordings back to R2. Read-only by default; every write or delete needs an explicit flag.
 
 R2 lifecycle ages count from the R2 upload, so copies carry the original upload time and --purge-expired deletes
-them 30 days after that time instead.
+them 30 days after that time instead. Copy and disk cleanup follow the database's current recording references.
 """
 import argparse
 import base64
@@ -81,15 +81,23 @@ def matches(head, item, sha):
     return head is not None and head["ContentLength"] == item["bytes"] and head.get("Metadata", {}).get("sha256") == sha
 
 
-def migrate(client, bucket, root, apply=False, now=None, manifest=None):
-    """Append each verified copy to manifest as it completes, so a later failure still leaves an audit record."""
+def migrate(client, bucket, root, referenced, apply=False, now=None, manifest=None):
+    """Copy only recordings the database still references; a withdrawal purge after the switch leaves its disk file behind.
+
+    Each verified copy is appended to manifest as it completes, so a later failure still leaves an audit record.
+    """
     now = now or datetime.now(timezone.utc)
     files = inventory(root)
-    report = {"files": len(files), "bytes": sum(f["bytes"] for f in files), "expired": 0, "copied": 0, "verified_existing": 0}
+    report = {"files": len(files), "bytes": sum(f["bytes"] for f in files), "expired": 0, "unreferenced": 0, "copied": 0, "verified_existing": 0}
     manifest = [] if manifest is None else manifest
+    if apply:
+        client.head_bucket(Bucket=bucket)  # a wrong bucket must fail loudly, not look like missing objects
     for item in files:
         if item["uploaded_at"] + RETENTION <= now:
             report["expired"] += 1
+            continue
+        if item["key"] not in referenced:
+            report["unreferenced"] += 1
             continue
         if not apply:
             continue
@@ -132,45 +140,51 @@ def purge_expired(client, bucket, now=None, delete=False):
     return report
 
 
-def remove_local(client, bucket, root, copied, now=None, delete=False, done_marker=None):
+def remove_local(client, bucket, root, referenced, copied, now=None, delete=False):
     """Delete the disk copies only after every unexpired file is accounted for; nothing is deleted on any doubt.
 
-    copied holds the keys recorded by --apply. Only the backend deletes besides this tool, so a copied key missing from R2
-    was deleted by the user after the switch, and a copied key missing from disk was deleted before it; both sides follow.
-    That inference holds once: after this tool empties the disk every copy would look orphaned, so done_marker blocks reruns.
+    referenced is the database's current recording keys and copied the keys recorded by --apply. A file the database still
+    references must be copied and verified in R2; R2 absence alone is never trusted. This never deletes R2 objects, so a
+    rerun after a partial run is safe.
     """
-    if done_marker is not None and done_marker.exists():
-        raise ValueError("local removal already completed for this manifest; refusing to treat R2 copies as orphans")
+    client.head_bucket(Bucket=bucket)
     now = now or datetime.now(timezone.utc)
     files = inventory(root)
-    report = {"verified": 0, "deleted_in_r2": 0, "expired": 0, "temporaries": 0, "r2_orphans": 0, "deleted": 0, "r2_deleted": 0}
+    report = {"verified": 0, "unreferenced": 0, "expired": 0, "temporaries": 0, "deleted": 0}
     for item in files:
         if item["uploaded_at"] + RETENTION <= now:
             report["expired"] += 1
-            continue
-        if item["key"] not in copied:
-            raise ValueError("a live recording was never copied to R2; nothing deleted")
-        head = remote(client, bucket, item["key"])
-        if head is None:
-            report["deleted_in_r2"] += 1
-        elif matches(head, item, digests(item["path"])[0]):
+        elif item["key"] not in referenced:
+            report["unreferenced"] += 1
+        elif item["key"] in copied and matches(remote(client, bucket, item["key"]), item, digests(item["path"])[0]):
             report["verified"] += 1
         else:
-            raise ValueError("a live recording differs in R2; nothing deleted")
-    on_disk = {item["key"] for item in files}
-    orphans = [key for key in sorted(copied - on_disk) if remote(client, bucket, key) is not None]
+            raise ValueError("a referenced recording is not verified in R2; nothing deleted")
     leftovers = temporaries(root)
-    report["r2_orphans"], report["temporaries"] = len(orphans), len(leftovers)
+    report["temporaries"] = len(leftovers)
     if delete:
-        for key in orphans:
-            client.delete_object(Bucket=bucket, Key=key)
-            report["r2_deleted"] += 1
         for path in [item["path"] for item in files] + leftovers:
             path.unlink()
             report["deleted"] += 1
-        if done_marker is not None:
-            done_marker.touch(mode=0o600, exist_ok=False)
     return report
+
+
+def production_query(sql):
+    """The terms tool's MySQL access: active backend database from its DB_URL, password kept inside the container."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("publish", Path(__file__).resolve().parents[1] / "terms" / "publish.py")
+    publish = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(publish)
+    return publish.mysql(sql)
+
+
+def referenced_keys(query=production_query):
+    """Current recording keys; withdrawal purges delete rows and REC-04 deletion sets record_deleted_at."""
+    rows = query("SELECT recording_url FROM practice_sessions WHERE recording_url IS NOT NULL AND record_deleted_at IS NULL;")
+    keys = {line.strip() for line in rows.splitlines() if line.strip()}
+    if any(not KEY.fullmatch(key) for key in keys):
+        raise ValueError("unexpected recording reference in database; review it privately")
+    return keys
 
 
 def main():
@@ -210,18 +224,19 @@ def main():
         report = purge_expired(client, bucket, delete=args.delete)
     elif args.remove_local:
         copied = {item["key"] for item in json.loads(args.manifest.read_text())["objects"]}
-        report = remove_local(client, bucket, root, copied, delete=args.delete, done_marker=args.manifest.with_name(args.manifest.name + ".removed"))
+        report = remove_local(client, bucket, root, referenced_keys(), copied, delete=args.delete)
     elif args.apply:
+        referenced = referenced_keys()
         # Exclusive creation before any upload: never overwrite a previous audit manifest, and keep partial progress on failure.
         fd = os.open(args.manifest, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         manifest, report = [], {"failed": True}
         try:
-            report, _ = migrate(client, bucket, root, True, manifest=manifest)
+            report, _ = migrate(client, bucket, root, referenced, True, manifest=manifest)
         finally:
             with os.fdopen(fd, "w") as out:
                 json.dump({"checked_at": datetime.now(timezone.utc).isoformat(), "report": report, "objects": manifest}, out)
     else:
-        report, _ = migrate(client, bucket, root)
+        report, _ = migrate(client, bucket, root, referenced_keys())
     print(json.dumps(report))  # No credentials, keys, signed URLs or personal data in console output.
 
 
