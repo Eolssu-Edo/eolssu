@@ -68,16 +68,35 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(20,expected.size)
+        assertEquals(40,expected.size)
+        val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
+            "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
+            "/api/notation-symbols", "/api/jangdans")
+        assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
+        for (path in catalogPaths) {
+            val operation=doc.path("paths").path(path).path("get")
+            assertEquals(0,operation.path("security").size(),path)
+            val envelope=resolve(doc,operation.path("responses").path("200").path("content").path("application/json").path("schema"))
+            assertTrue(envelope.path("properties").has("result"),path)
+        }
+        val modelAudio=doc.path("components").path("schemas").path("ModelAudioResult")
+        assertEquals("string",modelAudio.path("properties").path("songId").path("type").asString())
+        assertEquals("integer",modelAudio.path("properties").path("durationMs").path("type").asString())
+        assertEquals("integer",modelAudio.path("properties").path("scoreVersion").path("type").asString())
         for (entry in actual) {
             val (method,path)=entry.split(' ',limit=2)
             val operation=doc.path("paths").path(path).path(method)
             assertTrue(operation.path("summary").asString().isNotBlank(),entry)
-            assertTrue(operation.path("responses").has("500"),entry)
+            assertTrue(operation.path("responses").has(if(path=="/api/webhooks/kakao/events")"503" else "500"),entry)
             assertTrue(operation.has("security"),entry)
         }
         val schemes=doc.path("components").path("securitySchemes")
+        val webhook=doc.path("paths").path("/api/webhooks/kakao/events").path("post")
+        assertEquals(0,webhook.path("security").size())
+        assertFalse(webhook.path("responses").path("202").has("content"))
+        assertTrue(webhook.path("requestBody").path("content").has("application/secevent+jwt"))
+        assertTrue(webhook.path("responses").path("400").path("content").path("application/json").path("schema").path("properties").has("err"))
         assertEquals("cookie",schemes.path("accessCookie").path("in").asString())
         assertEquals("access_token",schemes.path("accessCookie").path("name").asString())
         assertEquals("refresh_token",schemes.path("refreshCookie").path("name").asString())
@@ -103,7 +122,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(4,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(5,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())
@@ -114,25 +133,27 @@ open class OpenApiDatabaseTests {
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())
     }
-    @Test fun `documentation and all UI assets require the existing access cookie`() {
-        for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui.html","/api/swagger-ui/index.html")) {
-            assertEquals(401,get(path,false).statusCode(),path)
+    @Test fun `documentation is public while member APIs still require an active member`() {
+        for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui/index.html")) {
+            assertEquals(200,get(path,false).statusCode(),path)
         }
-        val entry=get("/api/swagger-ui.html")
+        val entry=get("/api/swagger-ui.html",false)
         assertTrue(entry.statusCode() in setOf(301,302,307,308),entry.body())
         val location=entry.headers().firstValue("Location").orElseThrow()
         assertTrue(URI(location).path.startsWith("/api/swagger-ui/"),location)
-        val html=get(URI(location).rawPath)
+        val html=get(URI(location).rawPath,false)
         assertEquals(200,html.statusCode(),html.body())
         assertTrue(html.body().contains("swagger-ui"))
         for (asset in listOf("swagger-ui.css","swagger-ui-bundle.js","swagger-initializer.js")) {
-            assertEquals(401,get("/api/swagger-ui/$asset",false).statusCode(),asset)
+            assertEquals(200,get("/api/swagger-ui/$asset",false).statusCode(),asset)
             assertEquals(200,get("/api/swagger-ui/$asset").statusCode(),asset)
         }
         jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at='2026-10-28',purge_scheduled_at='2026-11-27' WHERE id=990253")
-        assertEquals(401,get("/api/v3/api-docs").statusCode())
+        assertEquals(200,get("/api/v3/api-docs").statusCode())
+        assertEquals(401,get("/api/users/me").statusCode())
+        assertEquals(401,get("/api/users/me",false).statusCode())
         jdbc.update("UPDATE users SET status='ACTIVE',withdrawal_requested_at=NULL,purge_scheduled_at=NULL WHERE id=990253")
-        val config=get("/api/v3/api-docs/swagger-config")
+        val config=get("/api/v3/api-docs/swagger-config",false)
         assertEquals(200,config.statusCode(),config.body())
         val uiConfig=json.readTree(config.body())
         assertEquals("/api/v3/api-docs",uiConfig.path("url").asString())
@@ -159,6 +180,6 @@ open class OpenApiDatabaseTests {
     }
 }
 
-/** 배포 프로필에서도 문서와 모든 UI 리소스가 같은 기존 인증을 받는지 검증한다. */
+/** 배포 프로필에서도 문서는 공개되고 회원 API는 보호되는지 검증한다. */
 @ActiveProfiles("ops", inheritProfiles = false)
 class OpenApiOpsDatabaseTests : OpenApiDatabaseTests()

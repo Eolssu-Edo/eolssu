@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,40 +25,56 @@ class MyPageViewModel(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userRepository.profile
-    val instrument: StateFlow<Instrument> = instrumentRepository.instrument
+    val instrument: StateFlow<Instrument?> = instrumentRepository.instrument
 
     private val _dialog = MutableStateFlow<MyPageDialog?>(null)
     val dialog: StateFlow<MyPageDialog?> = _dialog.asStateFlow()
 
-    /** 악기를 바꿨으면 true(같은 악기를 다시 누르면 false). */
-    fun selectInstrument(instrument: Instrument): Boolean {
+    /** 실제 내 정보를 다시 읽는다. */
+    suspend fun refresh() = userRepository.refresh()
+
+    private var savingInstrument = false
+
+    suspend fun selectInstrument(instrument: Instrument): Boolean {
+        if (savingInstrument) return false
         if (instrumentRepository.instrument.value == instrument) return false
-        instrumentRepository.select(instrument)
-        return true
+        savingInstrument = true
+        return try {
+            val id = instrumentRepository.serverIdFor(instrument) ?: return false
+            if (userRepository.changeInstrument(id) != MemberResult.Done) return false
+            if (userRepository.profile.value.instrumentId != id) return false
+            instrumentRepository.select(instrument)
+            true
+        } finally { savingInstrument = false }
     }
 
     fun askUnlink(provider: SocialProvider) {
         _dialog.value = MyPageDialog.Unlink(provider)
     }
 
-    /** 확인 창의 제공자 연결을 해제하고 그 제공자를 돌려준다. */
-    fun confirmUnlink(): SocialProvider? {
+    private var unlinking = false
+
+    /** 확인 창의 제공자 연결을 서버에서 해제한다. 해제하면 창을 닫고, 실패하면 창을 남긴다. 창이 없거나 요청 중 다시 누르면 null. */
+    suspend fun confirmUnlink(): MemberResult? {
         val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return null
-        userRepository.unlink(provider)
-        _dialog.value = null
-        return provider
+        if (unlinking) return null
+        unlinking = true
+        return try {
+            userRepository.unlink(provider).also { if (it == MemberResult.Done) _dialog.value = null }
+        } finally { unlinking = false }
     }
 
     fun askLogOut() {
         _dialog.value = MyPageDialog.LogOut
     }
 
-    fun confirmLogOut() {
-        practiceTimeQueue.logOut {
+    fun confirmLogOut(): kotlinx.coroutines.Job {
+        val job = practiceTimeQueue.logOut {
             authRepository.logOut()
             userRepository.logOut()
         }
         _dialog.value = null
+        return job
     }
 
     fun dismissDialog() {

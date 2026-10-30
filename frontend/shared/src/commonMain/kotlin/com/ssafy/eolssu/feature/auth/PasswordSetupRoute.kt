@@ -2,6 +2,8 @@ package com.ssafy.eolssu.feature.auth
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.user.VerificationPurpose
@@ -19,6 +21,7 @@ fun PasswordSetupRoute(
     onDone: () -> Unit,
     viewModel: PasswordSetupViewModel = koinViewModel(),
 ) {
+    val scope = rememberCoroutineScope()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     PasswordSetupScreen(
         purpose = purpose,
@@ -28,6 +31,6 @@ fun PasswordSetupRoute(
         onBack = onBack,
         onPasswordChange = viewModel::changePassword,
         onPasswordConfirmChange = viewModel::changePasswordConfirm,
-        onSubmit = { if (viewModel.submit()) onDone() },
+        onSubmit = { scope.launch { if (viewModel.submitToServer(purpose, email)) onDone() } },
     )
 }

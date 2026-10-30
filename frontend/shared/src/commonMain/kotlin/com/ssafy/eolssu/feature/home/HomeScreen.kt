@@ -35,7 +35,7 @@ enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
  */
 @Composable
 fun HomeScreen(
-    instrument: Instrument,
+    instrument: Instrument?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     onOpenMyPage: () -> Unit,

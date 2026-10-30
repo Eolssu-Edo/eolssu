@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -31,7 +32,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 enum class EolssuButtonStyle { Primary, Secondary, Text, Danger }
 
 /**
- * 알약 모양 버튼(높이 52dp, [small]이면 40dp). 기본은 가로를 꽉 채우고, [small]이면 내용 너비만큼만 차지한다.
+ * 연두 디자인 버튼. 최소 48dp 터치 영역을 유지하고 글꼴 확대 시 내용에 맞게 높아진다.
  * [busy]이면 글자 대신 도는 표시를 보이고 누를 수 없다. 좁은 칸에 두 개를 나란히 둘 때는 [compact]로 옆 여백을 줄인다.
  */
 @Composable
@@ -53,11 +54,11 @@ fun EolssuButton(
         EolssuButtonStyle.Primary -> Triple(colors.primary, colors.onPrimary, colors.primary)
         EolssuButtonStyle.Secondary -> Triple(colors.background, colors.text, colors.line)
         EolssuButtonStyle.Text -> Triple(Color.Transparent, colors.textMuted, Color.Transparent)
-        EolssuButtonStyle.Danger -> Triple(colors.rec, colors.onPrimary, colors.rec)
+        EolssuButtonStyle.Danger -> Triple(colors.rec, colors.onRec, colors.rec)
     }
     val height = when {
-        style == EolssuButtonStyle.Text -> 40.dp
-        small -> 40.dp
+        style == EolssuButtonStyle.Text -> 48.dp
+        small -> 48.dp
         else -> 52.dp
     }
     Surface(
@@ -65,14 +66,14 @@ fun EolssuButton(
         enabled = enabled && !busy,
         modifier = modifier
             .then(if (small) Modifier else Modifier.fillMaxWidth())
-            .height(height)
+            .heightIn(min = height)
             .alpha(if (enabled) 1f else 0.45f),
-        shape = CircleShape,
+        shape = RoundedCornerShape(if (small) 12.dp else 14.dp),
         color = container,
         contentColor = contentColor ?: content,
         border = BorderStroke(1.dp, borderColor ?: border),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(PaddingValues(horizontal = if (small) 14.dp else if (compact) 10.dp else 20.dp))) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(PaddingValues(horizontal = if (small) 14.dp else if (compact) 10.dp else 20.dp, vertical = 12.dp))) {
             if (busy) {
                 CircularProgressIndicator(Modifier.size(18.dp), color = contentColor ?: content, strokeWidth = 2.dp)
             } else {
@@ -84,8 +85,7 @@ fun EolssuButton(
                             fontSize = if (small) 14.sp else 15.sp,
                             fontWeight = if (style == EolssuButtonStyle.Text) FontWeight.Medium else FontWeight.SemiBold,
                         ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }

@@ -60,7 +60,7 @@ import com.ssafy.eolssu.feature.result.layout.ResultExpandedLayout
 import com.ssafy.eolssu.feature.result.layout.ResultMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
-import eolssu.shared.generated.resources.instrument_daegeum
+import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import eolssu.shared.generated.resources.result_errors_cluster
 import eolssu.shared.generated.resources.result_errors_count
 import eolssu.shared.generated.resources.result_errors_none
@@ -103,6 +103,8 @@ class ResultActions(
     val onGoRecords: () -> Unit,
     val onSelectFilter: (ErrorFilter) -> Unit,
     val onSelectCell: (ScoreCellPosition) -> Unit,
+    val onRetrySong: () -> Unit = {},
+    val onRetryResult: () -> Unit = {},
 )
 
 /**
@@ -116,6 +118,16 @@ fun ResultScreen(
     snackbarHostState: SnackbarHostState,
     actions: ResultActions,
 ) {
+    if (state.result == null || state.song == null) {
+        EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.result_title), onBack = actions.onBack) }) {
+            SongLookupContent(
+                if (state.result == null) state.resultLookup else state.songLookup,
+                if (state.result == null) actions.onRetryResult else actions.onRetrySong,
+                actions.onBack, resultLookup = state.result == null,
+            )
+        }
+        return
+    }
     when (widthClass) {
         WindowWidthClass.Compact -> ResultCompactLayout(state, snackbarHostState, actions)
         WindowWidthClass.Medium -> ResultMediumLayout(state, snackbarHostState, actions)
@@ -141,7 +153,7 @@ internal fun ResultTopBar(
         onBack = actions.onBack,
         modifier = modifier,
         subtitle = song?.let {
-            stringResource(Res.string.result_subtitle, it.title, stringResource(Res.string.instrument_daegeum), songLevelLabel(it.level))
+            stringResource(Res.string.result_subtitle, it.title, songInstrumentLabel(it), songLevelLabel(it.level))
         },
         maxWidth = maxWidth,
         right = { EolssuIconButton(EolssuIcons.Bookmark, stringResource(Res.string.result_save), actions.onSave) },
@@ -201,11 +213,14 @@ internal fun TotalScore(
             },
             style = EolssuTheme.serif.brand.copy(fontSize = scoreSize, lineHeight = scoreSize),
         )
-        Text(
-            result.feedback,
-            modifier = Modifier.padding(top = 10.dp),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-        )
+        // 서버 결과는 총평이 없다.
+        if (result.feedback.isNotEmpty()) {
+            Text(
+                result.feedback,
+                modifier = Modifier.padding(top = 10.dp),
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+            )
+        }
         if (result.sample) EolssuBadge(stringResource(Res.string.result_sample_badge), Modifier.padding(top = 8.dp))
     }
 }

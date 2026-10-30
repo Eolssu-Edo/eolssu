@@ -81,6 +81,8 @@ import kotlin.test.assertTrue
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
@@ -116,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("6", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("11", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -126,7 +128,8 @@ class DatabaseIntegrationTests {
                 "pitches", "instruments", "fingering_charts", "jangdans", "songs", "notation_symbols",
                 "users", "practice_sessions", "evaluations", "note_results", "lessons", "lesson_progress",
                 "user_social_accounts", "terms", "user_term_agreements", "email_verifications", "refresh_tokens",
-                "user_song_settings", "score_views", "flyway_schema_history",
+                "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "flyway_schema_history",
+                "kakao_unlink_subjects", "kakao_event_receipts",
             ),
             tables,
         )
@@ -199,7 +202,7 @@ class DatabaseIntegrationTests {
             mapper<PracticeSessionMapper>().findById(2),
         )
         assertEquals(
-            EvaluationRow(1, 1, 85, 80, 90, 85, "test-v1", time),
+            EvaluationRow(1, 1, 85, 80, 90, 85, "test-v1", time, null, null),
             mapper<EvaluationMapper>().findById(1),
         )
         assertEquals(
@@ -762,10 +765,11 @@ class DatabaseIntegrationTests {
         assertFailsWith<ScoreNotesException> { notes.notesFor(pending.copy(songId = 999)) }
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(booleans = [false, true])
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
-    fun `stores an analysis result only while the session is pending on the same attempt`() {
+    fun `stores an analysis result only while the session is pending on the same attempt`(outOfRange: Boolean) {
         val startedAt = LocalDateTime.parse("2026-10-28T01:00:00")
         for ((id, attempt) in listOf(21L to 2, 22L to 1)) {
             jdbc.update(
@@ -788,6 +792,7 @@ class DatabaseIntegrationTests {
         val done = AnalysisResult.Done(
             "pyin-1", 87, 90, 85, 86,
             listOf(NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15), NoteJudgement(4, NoteVerdict.MISSED, null, null, null)),
+            if (outOfRange) 137.25 else -12.5, outOfRange,
         )
         assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes, inTime)) // 이전 시도의 늦은 결과
         assertFalse(repository.saveDone(pending, done, notes, overdue)) // 마감 뒤에 온 결과
@@ -797,6 +802,10 @@ class DatabaseIntegrationTests {
         assertFalse(repository.expireOverdue(21, inTime)) // 아직 제한 시간 안
 
         assertTrue(repository.saveDone(pending, done, notes, inTime))
+        val evaluationId = assertNotNull(jdbc.queryForObject("SELECT id FROM evaluations WHERE session_id = 21", Long::class.java))
+        val stored = assertNotNull(mapper<EvaluationMapper>().findById(evaluationId))
+        assertEquals(done.tuningOffsetCent, stored.tuningOffsetCent)
+        assertEquals(outOfRange, stored.tuningOutOfRange)
         assertEquals(
             listOf(87, 90, 85, 86, "pyin-1"),
             jdbc.queryForList("SELECT total_score, pitch_score, timing_score, duration_score, model_version FROM evaluations WHERE session_id = 21")
@@ -828,6 +837,19 @@ class DatabaseIntegrationTests {
             jdbc.queryForMap("SELECT status, fail_reason FROM practice_sessions WHERE id = 22"),
         )
         assertNull(repository.findPending(22, inTime))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `legacy evaluations have no tuning metadata and partial values are rejected`() {
+        val legacy = assertNotNull(mapper<EvaluationMapper>().findById(1))
+        assertNull(legacy.tuningOffsetCent)
+        assertNull(legacy.tuningOutOfRange)
+        assertFailsWith<DataAccessException> { jdbc.update("UPDATE evaluations SET tuning_offset_cent=12.5 WHERE id=1") }
+        assertFailsWith<DataAccessException> { jdbc.update("UPDATE evaluations SET tuning_out_of_range=0 WHERE id=1") }
+        assertFailsWith<DataAccessException> { jdbc.update("UPDATE evaluations SET tuning_offset_cent=12.5,tuning_out_of_range=2 WHERE id=1") }
+        assertEquals(1, jdbc.update("UPDATE evaluations SET tuning_offset_cent=12.5,tuning_out_of_range=0 WHERE id=1"))
     }
 
     @Test

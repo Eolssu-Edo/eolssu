@@ -8,6 +8,11 @@ import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
+import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
+import com.ssafy.eolssu.backend.feature.song.api.*
+import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 
 /** ResponseEntity<*>의 응답 타입 소실을 보완하는 문서 계약. 요청 DTO/매핑은 springdoc이 실제 컨트롤러에서 읽는다. */
@@ -26,8 +31,41 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.POST,"/api/webhooks/kakao/events","kakaoSecurityEvent","웹훅","카카오 연결 해제 SET 수신",
+        "카카오 RS256 서명형 User Unlinked만 수신. 사용자 쿠키 대신 서명·앱·대상·이벤트 주체를 검증합니다. 공통 envelope의 예외이며202 본문 없음, 검증 실패400 err/description, 일시 장애503입니다.",
+        null,statuses=listOf(202),security=null),
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/{provider}/start","startSocialLogin","인증","소셜 로그인 시작",
+        "kakao/google/naver. 등록된 redirectUri만 허용하며 10분·1회용 state와 HttpOnly 브라우저 쿠키를 결속합니다. authorizationUrl을 브라우저로 연 뒤 완료 API에 code/state를 보냅니다.",
+        OAuthStartResult::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SERVICE_UNAVAILABLE),security=null),
+    ApiContract(HttpMethod.POST,"/api/users/me/social-accounts/{provider}/start","startSocialLink","회원","소셜 계정 연결 시작",
+        "로그인 회원·브라우저·제공자·연결 목적·redirectUri에 결속한10분 state를 발급합니다. 로그인용 state로 대신할 수 없습니다.",
+        OAuthStartResult::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/{provider}","socialLogin","인증","소셜 로그인 완료",
+        "연결된 제공자 ID로 로그인합니다. 미연결 기존 이메일은409 ACCOUNT_MERGE_AVAILABLE와10분 mergeTicket을 돌려줍니다. 신규 회원은 만들지 않습니다. state·브라우저 쿠키가 필요합니다.",
+        SignedIn::class.java,errors=listOf(OAUTH_VERIFICATION_FAILED,SOCIAL_ACCOUNT_NOT_REGISTERED,ACCOUNT_MERGE_AVAILABLE,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
+    ApiContract(HttpMethod.POST,"/api/auth/oauth/merge","mergeSocialAccount","인증","소셜 계정 연결 동의",
+        "10분 mergeTicket과 동일 브라우저 쿠키 필요. 확인되지 않은 이메일은 password 또는 ACCOUNT_MERGE verificationToken 필요. 비밀번호 확인은 회원별 독립15분 내5회·15분 잠금이고 이메일 인증은 잠금 중에도 허용합니다.",
+        MergedMemberResult::class.java,errors=listOf(INVALID_CREDENTIALS,MERGE_TICKET_EXPIRED,IDENTITY_CONFIRMATION_REQUIRED,PROVIDER_ALREADY_LINKED,SOCIAL_ACCOUNT_IN_USE,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
+    ApiContract(HttpMethod.POST,"/api/users/me/social-accounts/{provider}","linkSocialAccount","회원","소셜 계정 연결 완료",
+        "연결용 state·같은 회원의 access_token·같은 브라우저 쿠키 필요. 제공자 이메일이 회원 이메일과 달라도 소유 확인 후 연결합니다.",
+        LinkedProviderResult::class.java,statuses=listOf(201),errors=listOf(OAUTH_VERIFICATION_FAILED,PROVIDER_ALREADY_LINKED,SOCIAL_ACCOUNT_IN_USE,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.DELETE,"/api/users/me/social-accounts/{provider}","unlinkSocialAccount","회원","소셜 계정 연결 해제",
+        "로그인한 ACTIVE 회원의 연결만 해제합니다. 이메일·비밀번호 로그인은 남습니다.",null,statuses=listOf(204),errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.GET,"/api/instruments","listInstruments","카탈로그","제공 중인 악기 목록", "활성 악기의 등록 음역과 허용 오차를 반환합니다. 예시값을 채점 정책으로 바꾸지 않습니다.", InstrumentListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}/score","getSongScore","카탈로그","공통 악보와 음표 타임라인", "원본 score의 정수 버전·event ID·tick·배치를 보존하고 NOTE 순번과 박 단위 타임라인을 함께 반환합니다.", SongScoreResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT),security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}/model-audio","getModelAudio","카탈로그","현재 악보의 모범 음원", "게시 곡의 현재 악보 버전·BPM·단위와 일치하는 게시 음원만 반환합니다. 미등록·초안·불일치는 404입니다. 파일 길이와 악보 시작 위치는 ms입니다.", ModelAudioResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/pitches","listPitches","카탈로그","율명과 표기 목록", "instrumentId 지정 시 활성 악기의 음역을 semitone 기준으로 제한합니다. 미확보 설명·음원은 null입니다.", PitchListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/instruments/{instrumentId}/fingerings","listFingerings","카탈로그","악기별 운지 목록", "활성 악기의 운지 목록을 반환하며 pitchId로 제한할 수 있습니다. 미등록 콘텐츠는 빈 목록이며 구조 그림은 null입니다.", FingeringListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/jangdans/{jangdanId}","getJangdan","카탈로그","장단 패턴과 기준 BPM", "등록 pattern의 소박·묶음·bpmUnit을 보존합니다. 미확보 음원은 null입니다.", JangdanDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/notation-symbols","listNotationSymbols","카탈로그","학습용 기호 설명", "등록 기호 설명만 반환하며 악보 렌더 의미를 재정의하지 않습니다. 없으면 빈 목록입니다.", NotationSymbolListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/jangdans","listJangdans","카탈로그","장단 목록", "이름·기준 BPM/단위·저장 패턴의 소박 수와 묶음 수를 ID 순으로 반환합니다.", JangdanListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation/notes","getEvaluationNotes","연습","음표별 오류 위치·판정 조회", "본인 미삭제 DONE 세션 구간 안의 저장 판정을 noteIdx 순으로 반환합니다. 구간은 세션 범위 안의 양 끝 포함이며 벗어나면 400입니다. errorTypes는 저장 판정 하나, duration 개수는 0, recordingOffsetMs는 null입니다.", EvaluationNotesResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/weak-sections","getWeakSections","연습","취약 구간 추천 조회", "저장 판정을 정간 단위로 세어 이어진 2각 안에서 틀린 칸이 많은 구간을 겹치지 않게 limit(1~10, 기본 1)개 반환합니다. 모두 맞으면 빈 목록, 세션 이후 곡 악보가 바뀌었으면 409입니다.", WeakSectionsResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/songs","listSongs","곡","게시 곡 목록", "게시·미삭제 곡과 원본 공통 악보, 장단을 ID 순으로 반환합니다.", SongListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/songs/{songId}","getSong","곡","게시 곡 상세", "숫자 곡 ID와 악보 버전·원본 음표 식별자를 보존합니다.", SongItem::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.POST,"/api/auth/sign-in","signIn","인증","이메일 로그인",
-        "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 대기는 로그인 성공 시에만 취소합니다.",
+        "이메일·비밀번호로 로그인하고 access_token/refresh_token HttpOnly 쿠키를 발급합니다. 15분 내 5회 실패 시 15분 잠금. 탈퇴 요청 후 30일 미만일 때만 로그인으로 취소하며, 만료 정각부터 401 INVALID_CREDENTIALS로 거절합니다.",
         SignedIn::class.java,errors=listOf(INVALID_CREDENTIALS,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),security=null,setsCookies=true),
     ApiContract(HttpMethod.POST,"/api/auth/sign-up","signUp","인증","이메일 회원가입",
         "SIGN_UP 인증 완료 토큰(30분)을 1회 소비합니다. 비밀번호는 영문·숫자·특수문자 포함 8~128자, 필수 약관에 동의해야 합니다. 성공 시 로그인 쿠키를 발급합니다.",
@@ -60,7 +98,7 @@ internal val apiContracts = listOf(
         "현재 비밀번호를 확인합니다(실패 403, 15분 5회 실패 시 15분 잠금). 새 비밀번호는 영문·숫자·특수문자 포함 8~128자이며 현재 값과 달라야 합니다. refresh 전부 폐기 후 현재 기기만 재발급합니다.",
         PasswordChanged::class.java,errors=listOf(CURRENT_PASSWORD_MISMATCH,TOO_MANY_REQUESTS,SERVICE_UNAVAILABLE),setsCookies=true),
     ApiContract(HttpMethod.DELETE,"/api/users/me","withdraw","회원","탈퇴 요청",
-        "현재 비밀번호를 확인해 탈퇴 대기로 전환합니다. 30일 뒤 삭제하며 로그인 성공 시만 취소합니다. refresh를 전부 폐기하고 쿠키를 지웁니다. 비밀번호 변경과 실패 잠금을 공유합니다.",
+        "현재 비밀번호를 확인해 탈퇴 대기로 전환합니다. 요청 후 30일 미만의 로그인 성공 시만 취소하며, 30일 뒤 첫 04:00 KST에 삭제합니다. refresh를 전부 폐기하고 쿠키를 지웁니다. 비밀번호 변경과 실패 잠금을 공유합니다.",
         Withdrawn::class.java,errors=listOf(CURRENT_PASSWORD_MISMATCH,TOO_MANY_REQUESTS),setsCookies=true),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/summary","growthSummary","성장","기간별 연습 요약",
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다. 미구현 미션 값은 null입니다.",SummaryResult::class.java),

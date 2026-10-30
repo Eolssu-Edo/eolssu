@@ -17,13 +17,30 @@ pipeline {
     }
 
     stages {
+        stage('Clean workspace') {
+            steps {
+                script {
+                    if (fileExists('.git')) {
+                        def prepared = sh(returnStatus: true,
+                            script: '/opt/eolssu/config/prepare-frontend-workspace.sh')
+                        if (prepared == 2) {
+                            deleteDir()
+                        } else if (prepared != 0) {
+                            error("Frontend workspace preparation failed (exit ${prepared})")
+                        }
+                    } else {
+                        deleteDir()
+                    }
+                }
+            }
+        }
+
         stage('Checkout verified develop revision') {
             steps {
                 script {
                     if (!params.REVISION?.matches('[0-9a-f]{40}')) {
                         error('A full develop commit SHA is required')
                     }
-                    deleteDir()
                     def revision = checkout scmGit(
                         branches: [[name: params.REVISION]],
                         userRemoteConfigs: [[credentialsId: 'eolssu-gitlab',
@@ -37,52 +54,153 @@ pipeline {
             }
         }
 
-        stage('Validate deployment tools') {
+        stage('Backend deploy tool tests') {
             steps {
                 sh '''
-                    python3 -B -m unittest discover -s infra/jenkins/tests -v
-                    RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -v
+                python3 -B -m unittest discover -s infra/jenkins/tests -p test_deploy_backend.py -v
                 '''
             }
         }
 
-        stage('Test and package web') {
+        stage('Frontend deploy tool tests') {
+            steps {
+                sh '''
+                python3 -B -m unittest discover -s infra/jenkins/tests -p test_deploy_frontend.py -v
+                '''
+            }
+        }
+
+        stage('Certificate initialization tests') {
+            steps {
+                sh '''
+                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_init_letsencrypt.py -v
+                '''
+            }
+        }
+
+        stage('Nginx health routing tests') {
+            steps {
+                sh '''
+                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_actuator.py -v
+                '''
+            }
+        }
+
+        stage('HTTPS redirect tests') {
+            steps {
+                sh '''
+                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_redirect.py -v
+                '''
+            }
+        }
+
+        stage('Compile Wasm app') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:wasmJsTest :shared:jsTest :webApp:wasmJsBrowserDistribution'
-                }
-            }
-            post {
-                always {
-                    junit testResults: 'frontend/shared/build/test-results/*/TEST-*.xml', allowEmptyResults: false
+                    sh './gradlew --no-daemon :shared:compileKotlinWasmJs :webApp:compileKotlinWasmJs'
                 }
             }
         }
 
-        stage('Build verified web image') {
+        stage('Compile Wasm tests') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :shared:compileTestKotlinWasmJs'
+                }
+            }
+        }
+
+        stage('Wasm browser tests') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :shared:wasmJsTest'
+                }
+            }
+            post { always { junit testResults: 'frontend/shared/build/test-results/wasmJsBrowserTest/TEST-*.xml', allowEmptyResults: false } }
+        }
+
+        stage('Compile JavaScript') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :shared:compileKotlinJs'
+                }
+            }
+        }
+
+        stage('Compile JavaScript tests') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :shared:compileTestKotlinJs'
+                }
+            }
+        }
+
+        stage('JavaScript browser tests') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :shared:jsTest'
+                }
+            }
+            post { always { junit testResults: 'frontend/shared/build/test-results/jsBrowserTest/TEST-*.xml', allowEmptyResults: false } }
+        }
+
+        stage('Compile production Wasm') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJs'
+                }
+            }
+        }
+
+        stage('Optimize production Wasm') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJsOptimize'
+                }
+            }
+        }
+
+        stage('Bundle production web') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :webApp:wasmJsBrowserProductionWebpack'
+                }
+            }
+        }
+
+        stage('Assemble web distribution') {
+            steps {
+                dir('frontend') {
+                    sh './gradlew --no-daemon :webApp:wasmJsBrowserDistribution'
+                }
+            }
+        }
+
+        stage('Build frontend image') {
             steps {
                 sh '''
-                    docker build --file /opt/eolssu/config/frontend.Dockerfile \
-                        --label "org.opencontainers.image.revision=${GIT_COMMIT}" \
-                        --tag "eolssu-frontend:ci-${GIT_COMMIT}" \
-                        frontend/webApp/build/dist/wasmJs/productionExecutable
+                docker build --file /opt/eolssu/config/frontend.Dockerfile --label "org.opencontainers.image.revision=${GIT_COMMIT}" --tag "eolssu-frontend:ci-${GIT_COMMIT}" frontend/webApp/build/dist/wasmJs/productionExecutable
                 '''
+            }
+        }
+
+        stage('Archive web distribution') {
+            steps {
                 archiveArtifacts artifacts: 'frontend/webApp/build/dist/wasmJs/productionExecutable/**', fingerprint: true
             }
         }
 
-        stage('Verify candidate and deploy frontend') {
+        stage('Deploy frontend transaction') {
             steps {
-                sh '''
-                    sudo -n /opt/eolssu/bin/deploy-frontend "${GIT_COMMIT}" > frontend-deployment.jsonl
-                    cat frontend-deployment.jsonl
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'frontend-deployment.jsonl', allowEmptyArchive: true
+                script {
+                    def deployment = load '/opt/eolssu/config/deployment-stages.groovy'
+                    deployment('frontend-deployment.jsonl') {
+                        sh(returnStatus: true, script: 'sudo -n /opt/eolssu/bin/deploy-frontend "$GIT_COMMIT" > frontend-deployment.jsonl 2>&1')
+                    }
                 }
             }
+            post { always { archiveArtifacts artifacts: 'frontend-deployment.jsonl', allowEmptyArchive: true } }
         }
+
     }
 }

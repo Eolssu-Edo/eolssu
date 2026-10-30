@@ -23,14 +23,15 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuBadge
 import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.songLevelLabel
+import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_evaluable_badge
+import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -41,7 +42,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 fun SongCard(
-    song: Song,
+    song: SongSummary,
     meta: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -56,7 +57,7 @@ fun SongCard(
         modifier = modifier.fillMaxWidth().then(if (selected) Modifier.semantics { this.selected = true } else Modifier),
         shape = MaterialTheme.shapes.medium,
         color = if (selected) colors.surface else colors.background,
-        border = if (selected) BorderStroke(2.dp, colors.primary) else BorderStroke(1.dp, colors.line),
+        border = if (selected) BorderStroke(2.dp, colors.accentText) else BorderStroke(1.dp, colors.line),
     ) {
         val padding = if (large) 18.dp else 16.dp
         Row(Modifier.padding(padding), verticalAlignment = Alignment.CenterVertically) {
@@ -72,8 +73,10 @@ fun SongCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    EolssuBadge(songLevelLabel(song.level))
-                    if (evaluableBadge) EolssuBadge(stringResource(Res.string.mysongs_evaluable_badge), style = EolssuBadgeStyle.Dark)
+                    val level = song.level
+                    if (level != null) EolssuLevelBadge(level, small = true)
+                    else EolssuBadge(stringResource(Res.string.song_difficulty_number, song.difficulty), small = true)
+                    if (evaluableBadge) EolssuBadge(stringResource(Res.string.mysongs_evaluable_badge), style = EolssuBadgeStyle.Play, small = true)
                 }
                 Text(meta, style = MaterialTheme.typography.bodySmall.copy(fontSize = if (large) 13.sp else 12.sp), color = colors.textMuted)
             }

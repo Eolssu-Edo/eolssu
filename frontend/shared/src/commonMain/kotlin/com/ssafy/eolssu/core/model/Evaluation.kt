@@ -6,8 +6,32 @@ enum class EvaluationMetric { Pitch, Rhythm, Length }
 /** 항목 점수(0~100 정수). */
 data class MetricScore(val metric: EvaluationMetric, val score: Int)
 
-/** 틀린 정간 하나. 정간보의 각·정간 위치와 틀린 항목. */
-data class ScoreError(val column: Int, val row: Int, val metric: EvaluationMetric)
+/** 음별 판정. 음 미검출은 합산 점수의 음 길이 항목과 별개다. */
+enum class ScoreErrorKind {
+    Pitch, Rhythm, Length, Missed;
+
+    companion object {
+        /** 정상 판정만 null이다. 미지원 판정을 정상으로 표시하지 않는다. */
+        fun fromVerdict(verdict: String): ScoreErrorKind? = when (verdict) {
+            "CORRECT" -> null
+            "PITCH" -> Pitch
+            "TIMING" -> Rhythm
+            "MISSED" -> Missed
+            else -> throw IllegalArgumentException("Unsupported evaluation verdict: $verdict")
+        }
+    }
+}
+
+/** 틀린 정간 하나. 정간보의 각·정간 위치와 서버 판정 종류. */
+data class ScoreError(val column: Int, val row: Int, val kind: ScoreErrorKind) {
+    constructor(column: Int, row: Int, metric: EvaluationMetric) : this(
+        column, row, when (metric) {
+            EvaluationMetric.Pitch -> ScoreErrorKind.Pitch
+            EvaluationMetric.Rhythm -> ScoreErrorKind.Rhythm
+            EvaluationMetric.Length -> ScoreErrorKind.Length
+        },
+    )
+}
 
 /**
  * 연주 평가 결과. 점수 단위·항목 키는 서버 결과를 그대로 쓰고 화면에서 다시 계산하지 않는다.
@@ -26,6 +50,8 @@ data class EvaluationResult(
     val recordedSeconds: Int,
     val recordedAt: KoreanDateTime,
     val sample: Boolean,
+    /** 서버 결과의 악보 버전. 예시 fixture에서만 null을 허용한다. */
+    val scoreVersion: Int? = null,
 ) {
     /**
      * 틀린 칸이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 칸이 없으면 null.

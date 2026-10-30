@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
@@ -49,6 +50,7 @@ import eolssu.shared.generated.resources.analysis_failed_title
 import eolssu.shared.generated.resources.analysis_play_again
 import eolssu.shared.generated.resources.analysis_resend
 import eolssu.shared.generated.resources.analysis_retry
+import eolssu.shared.generated.resources.analysis_retry_busy
 import eolssu.shared.generated.resources.analysis_running_body
 import eolssu.shared.generated.resources.analysis_running_title
 import eolssu.shared.generated.resources.analysis_title
@@ -66,12 +68,18 @@ import org.koin.core.parameter.parametersOf
 fun AnalysisRoute(
     songId: String,
     bpm: Int,
+    take: RecordedTake?,
+    pendingSessionId: String?,
     onResult: (evaluationId: String) -> Unit,
     onBackToPractice: () -> Unit,
-    viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm") { parametersOf(songId, bpm) },
+    onExit: (AnalysisExit) -> Unit,
+    viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
+        parametersOf(songId, bpm, take, pendingSessionId)
+    },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(state.evaluationId) { state.evaluationId?.let(onResult) }
+    LaunchedEffect(state.exit) { state.exit?.let(onExit) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.resume() }
     AnalysisScreen(
@@ -80,6 +88,7 @@ fun AnalysisRoute(
         onRetry = viewModel::retry,
         onResend = viewModel::resend,
         onBackToPractice = onBackToPractice,
+        onRetrySong = viewModel::retrySong,
     )
 }
 
@@ -95,7 +104,14 @@ fun AnalysisScreen(
     onRetry: () -> Unit,
     onBackToPractice: () -> Unit,
     onResend: () -> Unit = {},
+    onRetrySong: () -> Unit = {},
 ) {
+    if (state.songLookup != SongLookup.Ready) {
+        EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.analysis_title), onBack = onBackToPractice) }) {
+            SongLookupContent(state.songLookup, onRetrySong, onBackToPractice)
+        }
+        return
+    }
     val colors = EolssuTheme.colors
     val failure = state.failure
     val upload = state.upload
@@ -146,6 +162,14 @@ fun AnalysisScreen(
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
+            if (failure != null && state.retryBusy) {
+                Text(
+                    stringResource(Res.string.analysis_retry_busy),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
+                    color = colors.rec,
+                    textAlign = TextAlign.Center,
+                )
+            }
             if (stopped) {
                 Column(
                     Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else 320.dp).fillMaxWidth(),

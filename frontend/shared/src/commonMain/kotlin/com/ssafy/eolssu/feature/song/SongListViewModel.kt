@@ -8,15 +8,29 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 class SongListViewModel(private val songRepository: SongRepository) : ViewModel() {
     private val _uiState = MutableStateFlow(SongListUiState())
     val uiState: StateFlow<SongListUiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            val songs = songRepository.getSongs()
-            _uiState.update { it.receiveSongs(songs) }
+    private var loadJob: Job? = null
+
+    init { retry() }
+
+    fun retry() {
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch {
+            _uiState.update { it.copy(loadState = SongLoadState.Loading) }
+            try {
+                val songs = songRepository.getSongs()
+                _uiState.update { it.receiveSongs(songs) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.update { it.copy(loadState = SongLoadState.Failed) }
+            }
         }
     }
 

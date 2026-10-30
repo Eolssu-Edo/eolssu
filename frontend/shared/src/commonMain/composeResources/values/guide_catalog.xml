@@ -1,0 +1,24 @@
+<resources>
+    <string name="guide_catalog_title">장단·기호 자료</string>
+    <string name="guide_catalog_fingering_title">등록된 율명·운지 자료</string>
+    <string name="guide_catalog_loading">자료를 불러오고 있어요.</string>
+    <string name="guide_catalog_failed">자료를 불러오지 못했어요.</string>
+    <string name="guide_catalog_not_registered">연결된 자료가 아직 없어요. 기존 학습 안내를 계속 볼 수 있어요.</string>
+    <string name="guide_catalog_empty">아직 등록된 자료가 없어요.</string>
+    <string name="guide_catalog_retry">다시 불러오기</string>
+    <string name="guide_catalog_close">닫기</string>
+    <string name="guide_catalog_open">자료 보기</string>
+    <string name="guide_catalog_fingering_image">운지 그림 보기</string>
+    <string name="guide_catalog_structure_image">악기 구조 그림 보기</string>
+    <string name="guide_catalog_symbol_image">기호 그림 보기</string>
+    <string name="guide_catalog_open_sound">음원 열기</string>
+    <string name="guide_catalog_no_sound">이 음의 음원이 아직 등록되지 않았어요.</string>
+    <string name="guide_catalog_link_failed">자료를 열지 못했어요.</string>
+    <string name="guide_catalog_jangdans">장단</string>
+    <string name="guide_catalog_symbols">기호</string>
+    <string name="guide_catalog_bpm">기준 빠르기 %1$d BPM · %2$s</string>
+    <string name="guide_catalog_quarter">4분음표 기준</string>
+    <string name="guide_catalog_dotted_quarter">점4분음표 기준</string>
+    <string name="guide_catalog_groups">구음 묶음: %1$s</string>
+    <string name="guide_catalog_no_fingerings">추가 운지 자료가 아직 등록되지 않았어요.</string>
+</resources>

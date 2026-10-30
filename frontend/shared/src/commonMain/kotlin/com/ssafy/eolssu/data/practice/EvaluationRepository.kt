@@ -9,26 +9,45 @@ import com.ssafy.eolssu.core.model.ScoreError
 
 /**
  * 연주 평가. 녹음을 분석에 맡긴 뒤 상태를 물어 결과를 받는다(PRA-03 상태 조회).
- * 상태 조회·재시도 API 모양은 아직 정해지지 않았다. 지금은 [SampleEvaluationRepository]가 녹음 없이 예시 결과를 돌려준다.
+ * 서버 분석은 [ApiEvaluationRepository]가, 녹음 없이 진행하는 플랫폼의 예시 분석은 [SampleEvaluationRepository]가 맡는다.
  */
 interface EvaluationRepository {
-    /** 연주를 분석에 맡기고 분석 ID를 돌려준다. */
+    /** 녹음 없이 연주를 분석에 맡기고 분석 ID를 돌려준다(예시 분석). 녹음은 업로드가 분석을 시작한다. */
     suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String
 
     /** 분석 상태. 연결 오류는 예외로 던진다. */
     suspend fun analysisStatus(analysisId: String): AnalysisStatus
 
-    /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. */
-    suspend fun retryAnalysis(analysisId: String)
+    /** 같은 녹음으로 다시 분석한다. 아직 분석 중이면 그대로 둔다. 응답을 받지 못하면 예외를 던진다. */
+    suspend fun retryAnalysis(analysisId: String): RetryOutcome
 
-    /** 이미 받은 평가 결과. */
-    fun result(evaluationId: String): EvaluationResult?
+    /** 평가 결과. 찾지 못하면 null. */
+    suspend fun result(evaluationId: String): EvaluationResult?
+}
+
+/** 분석 다시 시도(PRA-03 `POST /api/practice-sessions/{sessionId}/retry`)의 응답. */
+enum class RetryOutcome {
+    /** 새 시도를 시작했거나 이미 분석 중이다(202). 상태 조회를 이어 간다. */
+    Started,
+
+    /** 다시 시도할 수 없는 상태다(409: 재녹음이 필요한 실패·완료·업로드 전). 상태를 다시 물어 그 상태의 화면을 보인다. */
+    Conflict,
+
+    /** 서버가 지금 받지 못한다(503). 버튼을 그대로 두고 잠시 후 다시 시도하게 한다. */
+    Busy,
+
+    /** 세션이 없다(404). */
+    NotFound,
+
+    /** 토큰을 갱신해도 401이다. 다시 로그인해야 한다. */
+    Unauthorized,
 }
 
 /** 서버의 분석 상태(`PENDING`·`DONE`·`FAILED`). */
 sealed interface AnalysisStatus {
     data object Pending : AnalysisStatus
 
+    /** [evaluationId]는 결과 화면이 [EvaluationRepository.result]로 찾는 키다. 서버 결과는 세션 ID로 찾는다. */
     data class Done(val evaluationId: String) : AnalysisStatus
 
     /** [reason]은 서버 `fail_reason` 코드에 맞는 사유다. */
@@ -63,8 +82,9 @@ class SampleEvaluationRepository(
     }
 
     /** 예시 분석은 실패하지 않으므로 다시 시도할 일은 늘 '아직 분석 중'이고, 그대로 둔다. */
-    override suspend fun retryAnalysis(analysisId: String) {
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
         analyses.getValue(analysisId)
+        return RetryOutcome.Started
     }
 
     private fun sampleResult(analysis: Analysis): EvaluationResult =
@@ -85,7 +105,7 @@ class SampleEvaluationRepository(
             sample = true,
         )
 
-    override fun result(evaluationId: String): EvaluationResult? = results[evaluationId]
+    override suspend fun result(evaluationId: String): EvaluationResult? = results[evaluationId]
 }
 
 /** 와이어프레임 예시 오류 위치(9정간 각 기준 칸 번호 → 각·정간). 3–4각에 9개가 몰려 있다. */

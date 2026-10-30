@@ -2,6 +2,7 @@ package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import kotlinx.coroutines.CancellationException
 import kotlin.time.Duration
@@ -9,8 +10,17 @@ import kotlin.time.Duration.Companion.minutes
 
 /**
  * 연습 세션 하나에 올릴 녹음. [startedAtMillis]는 세션을 시작한 시각(epoch ms, 서버 `started_at`)이고 업로드 만료 판정에 쓴다.
+ * [songId]·[bpm]은 앱을 다시 켜고 남은 녹음을 보낼 때 분석 대기 화면이 곡을 보이는 데 쓴다.
+ * [memberId]는 세션을 만든 회원이다. 소유자를 모르는 이전 녹음은 전송하거나 삭제하지 않는다.
  */
-data class PendingRecording(val sessionId: String, val path: String, val startedAtMillis: Long)
+data class PendingRecording(
+    val sessionId: String,
+    val path: String,
+    val startedAtMillis: Long,
+    val songId: String = "",
+    val bpm: Int = 0,
+    val memberId: String? = null,
+)
 
 /**
  * 업로드 API(PRA-02 `docs/specs/recording-file.md`) 응답을 앱이 다룰 결과로 나눈 것.
@@ -32,14 +42,14 @@ sealed interface UploadOutcome {
     data object Rejected : UploadOutcome
 }
 
-/** 녹음 업로드. 실제 HTTP 구현은 FE 업로드 API 연결 Task(S15P31E102-245)에서 [UploadOutcome]의 대응대로 붙인다. */
+/** 녹음 업로드. HTTP 구현은 [HttpRecordingUploader]다. */
 interface RecordingUploader {
     /** [path]의 녹음을 세션 [sessionId]에 올린다. 연결 오류는 [UploadOutcome.Unreachable]로 돌려주거나 예외로 던진다. */
     suspend fun upload(sessionId: String, path: String): UploadOutcome
 }
 
-/** 보낸 결과. 화면은 [CanResend]에만 '녹음 다시 보내기'를 보인다. [Missing]은 녹음 파일이 기기에 없는 경우다. */
-enum class SendResult { Sent, CanResend, Expired, Rejected, Missing }
+/** [NotOwner]는 로그인한 회원이 세션 소유자와 달라 파일을 건드리지 않은 경우다. */
+enum class SendResult { Sent, CanResend, Expired, Rejected, Missing, NotOwner }
 
 /**
  * 기기 시계가 서버보다 빠를 수 있어, 업로드 시간이 지나도 이만큼은 파일을 지우지 않는다. 그동안 다시 보내면 서버가 410으로 판정한다.
@@ -48,7 +58,7 @@ internal val LocalClockMargin: Duration = 10.minutes
 
 /**
  * 녹음을 보내고, 성공할 때까지 기기에 둔다(PRA-03 '녹음 다시 보내기').
- * 한 번에 녹음 하나만 기다린다. 새 녹음을 보내면 전에 기다리던 녹음은 버린다.
+ * 회원마다 녹음 하나를 기다린다. 같은 회원의 새 녹음을 보내면 그 회원의 이전 녹음만 버린다.
  * 서버는 세션 시작 뒤 40분([RecordingSpec.UploadWindow])이 지나면 410으로 거부한다(정각은 아직 유효). 기기 시계로 그 시간이 지나면
  * 다시 보내기를 권하지 않고, [LocalClockMargin]이 더 지나면 파일을 지운다. 그 사이의 판정은 서버에 맡긴다.
  */
@@ -57,48 +67,45 @@ class RecordingUploads(
     private val store: KeyValueStore,
     private val files: RecordingFiles,
     private val clock: () -> Long,
+    private val member: SignedInMember,
 ) {
     /**
      * 녹음을 보관 위치에 옮긴 뒤 보낸다. 옮기지 못하면 원래 자리에서 보낸다(그 파일은 다음 녹음 때 지워질 수 있다).
      * 파일이 없으면 보내지 않는다.
      */
-    suspend fun send(recording: PendingRecording): SendResult {
-        val path = files.keep(recording.path) ?: recording.path.takeIf(files::exists) ?: return SendResult.Missing
+    suspend fun send(recording: PendingRecording): SendResult = member.whileSignedIn { memberId ->
+        if (!recording.belongsTo(memberId)) return@whileSignedIn SendResult.NotOwner
+        val path = files.keep(recording.path) ?: recording.path.takeIf(files::exists) ?: return@whileSignedIn SendResult.Missing
         val pending = recording.copy(path = path)
-        load()?.let { old -> if (old.path != path) files.delete(old.path) }
-        files.deleteKeptExcept(path)
+        load(memberId)?.let { old -> if (old.path != path) files.delete(old.path) }
         save(pending)
-        return upload(pending)
+        upload(pending)
     }
 
     /**
      * [recording]과 같은 세션의 기다리는 녹음을 다시 보낸다. 다른 세션의 녹음은 보내지 않는다.
      * 그 세션의 녹음이 없을 때 업로드 시간이 지났으면 [SendResult.Expired], 아니면(새 녹음으로 바뀜, 파일 사라짐) [SendResult.Missing]이다.
      */
-    suspend fun resend(recording: PendingRecording): SendResult {
-        val pending = current()?.takeIf { it.sessionId == recording.sessionId }
-            ?: return if (age(recording) > RecordingSpec.UploadWindow.inWholeMilliseconds) SendResult.Expired else SendResult.Missing
-        return upload(pending)
+    suspend fun resend(recording: PendingRecording): SendResult = member.whileSignedIn { memberId ->
+        if (!recording.belongsTo(memberId)) return@whileSignedIn SendResult.NotOwner
+        val pending = current(memberId)?.takeIf { it.sessionId == recording.sessionId }
+            ?: return@whileSignedIn if (age(recording) > RecordingSpec.UploadWindow.inWholeMilliseconds) SendResult.Expired else SendResult.Missing
+        upload(pending)
     }
 
     /** 다시 보내기를 권할 녹음. 업로드 시간이 지난 녹음은 숨기고, 지울 때가 지난 녹음은 지운다. */
-    fun pending(): PendingRecording? = current()?.takeIf { age(it) <= RecordingSpec.UploadWindow.inWholeMilliseconds }
+    fun pending(): PendingRecording? = current(member.id)?.takeIf { age(it) <= RecordingSpec.UploadWindow.inWholeMilliseconds }
 
     /**
-     * 앱을 켤 때 보내기 전에 한 번 부른다. 기다리는 녹음이 아닌 보관 파일(보관과 기록 저장 사이에 앱이 꺼져 남은 파일)을 치운다.
-     * 읽기에서는 치우지 않는다. [send]가 보관한 뒤 기록을 저장하기 전에 읽으면 방금 보관한 파일을 지우게 된다.
+     * 현재 회원의 만료된 녹음만 정리한다. 다른 회원·소유자 없는 기존 파일은 삭제 정책이 정해질 때까지 보존한다.
      */
     fun cleanUp() {
-        files.deleteKeptExcept(current()?.path)
+        current(member.id)
     }
 
-    /** 저장된 녹음. 기록이 깨졌으면 비우고, 지울 때가 지났으면 지운다. */
-    private fun current(): PendingRecording? {
-        val pending = load()
-        if (pending == null) {
-            if (!store.getString(KEY).isNullOrEmpty()) store.putString(KEY, "")
-            return null
-        }
+    /** 해당 회원의 녹음만 읽고 만료를 처리한다. 소유자를 확인할 수 없는 기록은 손대지 않는다. */
+    private fun current(memberId: String?): PendingRecording? {
+        val pending = load(memberId) ?: return null
         if (age(pending) > (RecordingSpec.UploadWindow + LocalClockMargin).inWholeMilliseconds) {
             discard(pending)
             return null
@@ -131,19 +138,29 @@ class RecordingUploads(
     /** [pending]의 파일을 지우고, 저장된 기록이 아직 그 녹음이면 비운다. 그 사이 새 녹음이 저장됐으면 그대로 둔다. */
     private fun discard(pending: PendingRecording) {
         files.delete(pending.path)
-        if (load() == pending) store.putString(KEY, "")
+        if (load(pending.memberId) == pending) store.putString(key(checkNotNull(pending.memberId)), "")
     }
 
     private fun save(pending: PendingRecording) {
-        store.putString(KEY, listOf(pending.sessionId, pending.startedAtMillis.toString(), pending.path).joinToString(SEPARATOR))
+        val memberId = checkNotNull(pending.memberId)
+        val parts = listOf(memberId, pending.sessionId, pending.startedAtMillis.toString(), pending.songId, pending.bpm.toString(), pending.path)
+        store.putString(key(memberId), parts.joinToString(SEPARATOR))
     }
 
-    private fun load(): PendingRecording? {
-        val parts = store.getString(KEY)?.split(SEPARATOR, limit = 3) ?: return null
-        if (parts.size != 3) return null
-        val startedAt = parts[1].toLongOrNull() ?: return null
-        return PendingRecording(sessionId = parts[0], path = parts[2], startedAtMillis = startedAt)
+    /** 회원별 키와 저장된 소유자가 모두 일치해야 읽는다. 이전 전역 키는 소유자를 모르므로 그대로 보존한다. */
+    private fun load(memberId: String?): PendingRecording? {
+        if (memberId.isNullOrBlank()) return null
+        val parts = store.getString(key(memberId))?.split(SEPARATOR, limit = 6) ?: return null
+        if (parts.size != 6 || parts[0] != memberId) return null
+        val startedAt = parts[2].toLongOrNull() ?: return null
+        val bpm = parts[4].toIntOrNull() ?: return null
+        return PendingRecording(sessionId = parts[1], path = parts[5], startedAtMillis = startedAt, songId = parts[3], bpm = bpm, memberId = memberId)
     }
+
+    private fun PendingRecording.belongsTo(currentMemberId: String?) =
+        !memberId.isNullOrBlank() && memberId == currentMemberId
+
+    private fun key(memberId: String) = "$KEY.member.$memberId"
 
     private companion object {
         const val KEY = "pending_recording_upload"

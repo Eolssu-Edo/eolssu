@@ -69,6 +69,7 @@ class SecurityConfig(
                     properties.normalizedAllowedOrigins,
                     paths.matcher(HttpMethod.POST, RECORDING_UPLOAD),
                     errorWriter,
+                    paths.matcher(HttpMethod.POST, "/api/webhooks/kakao/events"),
                 ),
                 CorsFilter::class.java,
             )
@@ -118,10 +119,15 @@ class SecurityConfig(
         // 로그인 전에 쓰는 API(명세 Request Header '공개'). 재발급은 리프레시 토큰 쿠키로 확인한다.
         // 와일드카드를 쓰지 않고 명세 경로만 연다. 그 아래에 회원 전용 API가 생겨도 공개되지 않게 하려는 것이다.
         val PUBLIC_POST = arrayOf(
+            "/api/webhooks/kakao/events",
+            "/api/auth/oauth/{provider}/start", "/api/auth/oauth/merge",
             "/api/auth/sign-in", "/api/auth/sign-up", "/api/auth/refresh", "/api/auth/password-reset",
             "/api/auth/oauth/{provider}", "/api/auth/email-verifications", "/api/auth/email-verifications/{verificationId}/confirm",
         )
         val PUBLIC_GET = arrayOf(
+            "/.well-known/assetlinks.json",
+            // 문서 조회만 공개한다. 같은 matcher가 토큰 해석도 제외하므로 만료 쿠키로도 문서를 열 수 있다.
+            "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols",

@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorCode.*
 import com.ssafy.eolssu.backend.feature.auth.api.RetryDetails
 import com.ssafy.eolssu.backend.feature.auth.api.ResendDetails
 import com.ssafy.eolssu.backend.feature.auth.api.AttemptDetails
+import com.ssafy.eolssu.backend.feature.auth.api.MergeDetails
 import com.ssafy.eolssu.backend.feature.growth.api.RejectionDetails
 import io.swagger.v3.core.converter.AnnotatedType
 import io.swagger.v3.core.converter.ModelConverters
@@ -37,7 +38,7 @@ class OpenApiConfig {
         components.addSecuritySchemes("refreshCookie", cookie("refresh_token"))
         components.addSchemas("ApiErrorResult", ObjectSchema()
             .addProperty("errorCode", StringSchema().description("클라이언트 분기용 코드")._enum(ErrorCode.entries.map { it.name }))
-            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 오류별 추가 정보이며 민감값 제외"))
+            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 계정 연결 응답의 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
             .required(listOf("errorCode")))
         components.addSchemas("ApiError", envelope(schemaRef("ApiErrorResult"), false))
         for (doc in apiContracts) {
@@ -48,6 +49,17 @@ class OpenApiConfig {
             operation.description = doc.description
             operation.tags = listOf(doc.tag)
             operation.security = doc.security?.let { listOf(SecurityRequirement().addList(it)) } ?: emptyList()
+            if(doc.id=="kakaoSecurityEvent") {
+                operation.requestBody=RequestBody().required(true).content(Content().addMediaType("application/secevent+jwt",
+                    MediaType().schema(StringSchema().maxLength(16384).description("카카오가 서명한 SET 원문. 실제 토큰을 Swagger에 저장하지 않습니다."))))
+                operation.responses=ApiResponses()
+                    .addApiResponse("202",ApiResponse().description("검증·DB 처리 완료. 본문 없음"))
+                    .addApiResponse("400",ApiResponse().description("SET 검증 실패").content(jsonContent(ObjectSchema()
+                        .addProperty("err",StringSchema()._enum(listOf("invalid_request","invalid_key","invalid_issuer","invalid_audience")))
+                        .addProperty("description",StringSchema()).required(listOf("err","description")))))
+                    .addApiResponse("503",ApiResponse().description("일시 장애·설정 누락·처리 시간 초과. 재전송 필요, 본문 없음"))
+                continue
+            }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
             if (doc.method == PathItem.HttpMethod.POST && operation.requestBody == null) {
@@ -56,6 +68,9 @@ class OpenApiConfig {
                     .content(jsonContent(ObjectSchema().example(emptyMap<String,Any>())))
             }
             operation.responses = ApiResponses()
+            if (doc.id in setOf("startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount")) {
+                operation.parameters?.filter { it.name == "provider" }?.forEach { it.schema=StringSchema()._enum(listOf("kakao","google","naver")) }
+            }
             for (status in doc.statuses) {
                 val response = ApiResponse().description(if (status == 204) "성공, 응답 본문 없음" else doc.summary)
                 if (doc.result != null) {
@@ -66,6 +81,7 @@ class OpenApiConfig {
                 }
                 if (doc.setsCookies) response.addHeaderObject("Set-Cookie", Header().schema(StringSchema())
                     .description("HttpOnly·SameSite=Lax 쿠키 발급·교체 또는 삭제. access_token Path=/api, refresh_token Path=/api/auth. Secure는 AUTH_COOKIE_SECURE(기본 true)를 따릅니다."))
+                if (doc.id in setOf("startSocialLogin","startSocialLink")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
                 operation.responses.addApiResponse(status.toString(), response)
             }
             val common = listOf(INVALID_REQUEST,FORBIDDEN,METHOD_NOT_ALLOWED,NOT_ACCEPTABLE,INTERNAL_SERVER_ERROR) +

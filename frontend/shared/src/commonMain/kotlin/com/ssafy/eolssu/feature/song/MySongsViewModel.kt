@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 
 class MySongsViewModel(
     private val songRepository: SongRepository,
@@ -16,14 +18,27 @@ class MySongsViewModel(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MySongsUiState())
     val uiState: StateFlow<MySongsUiState> = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            val songs = songRepository.getSongs()
-            _uiState.update { it.copy(songs = songs) }
-        }
+        retry()
         viewModelScope.launch {
             mySheetRepository.sheets.collect { sheets -> _uiState.update { it.receiveSheets(sheets) } }
+        }
+    }
+
+    fun retry() {
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch {
+            _uiState.update { it.copy(loadState = SongLoadState.Loading) }
+            try {
+                val songs = songRepository.getSongs()
+                _uiState.update { it.copy(songs = songs, loadState = SongLoadState.Ready) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.update { it.copy(loadState = SongLoadState.Failed) }
+            }
         }
     }
 

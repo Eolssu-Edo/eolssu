@@ -2,6 +2,7 @@ package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.model.PracticeTimeSegment
 import com.ssafy.eolssu.core.model.PracticeTimeSnapshot
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.testing.runImmediately
 import kotlinx.coroutines.CoroutineScope
@@ -17,9 +18,12 @@ class PracticeTimeQueueTest {
     private val api = FakeScoreViewApi()
     private val errors = mutableListOf<String>()
 
+    /** 로그인한 회원도 같은 [store]에 있다. 처음에는 회원 A로 로그인한 상태다. */
+    private val member = SignedInMember(store).apply { set("A") }
+
     /** 같은 [store]로 새로 만들면 앱을 다시 켠 것과 같다. 전송은 멈추지 않으므로 그 자리에서 끝난다. */
     private fun queue(api: ScoreViewApi? = this.api) =
-        PracticeTimeQueue(store, api, CoroutineScope(Dispatchers.Unconfined), logError = { errors += it })
+        PracticeTimeQueue(store, api, SignedInMember(store), CoroutineScope(Dispatchers.Unconfined), logError = { errors += it })
 
     @Test
     fun closedSegmentIsSentRightAway() {
@@ -135,6 +139,68 @@ class PracticeTimeQueueTest {
     }
 
     @Test
+    fun otherMembersRecordsAreDroppedWithoutSending() {
+        val offline = queue(api = null)
+        offline.close(segment("a"))
+        offline.saveOpen(snapshot("b"))
+        // 로그아웃 없이 회원 B로 로그인(세션 만료 뒤 다른 회원 로그인)한 뒤 앱이 앞으로 옴
+        member.set("B")
+        queue().onAppStart()
+
+        assertEquals(emptyList(), api.posted)
+        assertEquals(emptyList(), queue().pending)
+        assertEquals(2, errors.size)
+    }
+
+    @Test
+    fun onlyCurrentMembersRecordsAreSent() {
+        queue(api = null).close(segment("a"))
+        member.set("B")
+        queue(api = null).close(segment("b"))
+        queue().onAppStart()
+
+        assertEquals(listOf("b"), api.posted.map { it.key })
+        assertEquals(emptyList(), queue().pending)
+    }
+
+    @Test
+    fun unknownMemberKeepsRecordsUntilSameMemberSignsInAgain() {
+        queue(api = null).close(segment("a"))
+        member.set(null)
+        queue().onAppStart()
+        assertEquals(emptyList(), api.posted)
+        assertEquals(listOf(segment("a")), queue().pending)
+
+        member.set("A")
+        queue().onAppStart()
+        assertEquals(listOf(segment("a")), api.posted)
+    }
+
+    @Test
+    fun recordsMeasuredWithoutMemberAreNeverSent() {
+        member.set(null)
+        queue(api = null).close(segment("a"))
+        member.set("A")
+        queue().onAppStart()
+
+        assertEquals(emptyList(), api.posted)
+        assertEquals(emptyList(), queue().pending)
+    }
+
+    @Test
+    fun discardClearsEverythingWithoutSending() {
+        val offline = queue(api = null)
+        offline.close(segment("a"))
+        offline.saveOpen(snapshot("b"))
+
+        queue().discard()
+        queue().onAppStart()
+
+        assertEquals(emptyList(), api.posted)
+        assertEquals(emptyList(), queue().pending)
+    }
+
+    @Test
     fun separatorsInValuesSurviveStorage() {
         val odd = segment("a").copy(songId = "곡\t1\n%09")
         queue(api = null).close(odd)
@@ -144,13 +210,15 @@ class PracticeTimeQueueTest {
     @Test
     fun brokenLinesAreSkipped() {
         queue(api = null).close(segment("a"))
-        store.values["practice_time.queue"] = store.values.getValue("practice_time.queue") + "\n깨진 줄\nb\t12\tx\t0\t0\t0"
+        // 숫자가 아닌 칸, 회원 칸이 없는 이전 형식
+        store.values["practice_time.queue"] = store.values.getValue("practice_time.queue") +
+            "\n깨진 줄\nA\tb\t12\tx\t0\t0\t0\nc\t12\t0\t0\t0\t0"
         assertEquals(listOf(segment("a")), queue(api = null).pending)
     }
 
     private fun encodedOpen(key: String): String {
         val probe = FakeKeyValueStore()
-        PracticeTimeQueue(probe, null, CoroutineScope(Dispatchers.Unconfined)).saveOpen(snapshot(key))
+        PracticeTimeQueue(probe, null, SignedInMember(probe), CoroutineScope(Dispatchers.Unconfined)).saveOpen(snapshot(key))
         return probe.values.getValue("practice_time.open")
     }
 

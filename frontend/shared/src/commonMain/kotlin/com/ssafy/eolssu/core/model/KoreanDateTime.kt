@@ -29,6 +29,12 @@ data class KoreanDateTime(val year: Int, val month: Int, val day: Int, val hour:
             return KoreanDateTime(y, m, d, (millisOfDay / 3_600_000L).toInt(), ((millisOfDay / 60_000L) % 60).toInt())
         }
 
+        /** 1970-01-01부터의 날 수 → 그날 0시. */
+        fun ofEpochDay(epochDay: Long): KoreanDateTime {
+            val (y, m, d) = civilFromDays(epochDay)
+            return KoreanDateTime(y, m, d, 0, 0)
+        }
+
         /** (연, 월, 일) → 1970-01-01부터의 날 수. Howard Hinnant의 days_from_civil. */
         private fun daysFromCivil(year: Int, month: Int, day: Int): Long {
             val y = (if (month <= 2) year - 1 else year).toLong()

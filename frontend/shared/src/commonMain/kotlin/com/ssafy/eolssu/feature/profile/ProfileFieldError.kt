@@ -8,9 +8,17 @@ import eolssu.shared.generated.resources.my_error_password_mismatch
 import eolssu.shared.generated.resources.my_error_password_rule
 import eolssu.shared.generated.resources.my_error_password_wrong
 import org.jetbrains.compose.resources.StringResource
+import eolssu.shared.generated.resources.member_api_unavailable
+import eolssu.shared.generated.resources.member_api_session_expired
+import eolssu.shared.generated.resources.member_api_rate_limited
+import eolssu.shared.generated.resources.member_api_invalid
 
 /** 마이페이지 입력칸 아래에 띄우는 오류. */
 enum class ProfileFieldError(val message: StringResource) {
+    Unavailable(Res.string.member_api_unavailable),
+    Unauthenticated(Res.string.member_api_session_expired),
+    RateLimited(Res.string.member_api_rate_limited),
+    InvalidInput(Res.string.member_api_invalid),
     NicknameEmpty(Res.string.my_error_nickname_empty),
     PasswordEmpty(Res.string.my_error_password_empty),
     PasswordWrong(Res.string.my_error_password_wrong),

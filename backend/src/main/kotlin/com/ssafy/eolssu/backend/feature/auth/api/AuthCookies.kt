@@ -11,8 +11,8 @@ import org.springframework.http.ResponseCookie
  */
 class AuthCookies(private val secure: Boolean) {
     fun issue(tokens: IssuedTokens): List<String> = listOf(
-        cookie(ACCESS, tokens.accessToken, ACCESS_PATH, AuthTokenPolicy.ACCESS_TOKEN_TTL),
-        cookie(REFRESH, tokens.refreshToken, REFRESH_PATH, AuthTokenPolicy.REFRESH_TOKEN_TTL),
+        cookie(ACCESS, tokens.accessToken, ACCESS_PATH, if (tokens.accessTokenExpiresAt == null) NON_EXPIRING_COOKIE_AGE else AuthTokenPolicy.ACCESS_TOKEN_TTL),
+        cookie(REFRESH, tokens.refreshToken, REFRESH_PATH, if (tokens.refreshTokenExpiresAt == null) NON_EXPIRING_COOKIE_AGE else AuthTokenPolicy.REFRESH_TOKEN_TTL),
     )
 
     fun clear(): List<String> = listOf(cookie(ACCESS, "", ACCESS_PATH, Duration.ZERO), cookie(REFRESH, "", REFRESH_PATH, Duration.ZERO))
@@ -21,6 +21,8 @@ class AuthCookies(private val secure: Boolean) {
         .path(path).maxAge(maxAge).secure(secure).httpOnly(true).sameSite("Lax").build().toString()
 
     companion object {
+        // 서버 토큰은 무기한이지만 브라우저의 쿠키 보관 상한은 없앨 수 없다.
+        private val NON_EXPIRING_COOKIE_AGE = Duration.ofDays(400)
         const val ACCESS = "access_token"
         const val REFRESH = "refresh_token"
         private const val ACCESS_PATH = "/api"

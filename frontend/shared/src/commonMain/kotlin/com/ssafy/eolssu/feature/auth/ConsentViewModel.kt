@@ -1,22 +1,36 @@
 package com.ssafy.eolssu.feature.auth
 
 import androidx.lifecycle.ViewModel
+import com.ssafy.eolssu.data.user.AccountDraft
+import com.ssafy.eolssu.data.user.TermAgreement
+import com.ssafy.eolssu.data.user.TermsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** AUTH-01. 약관 보기(AUTH-02)에 다녀와도 이 화면이 뒤에 남아 있어 동의 상태가 유지된다. */
-class ConsentViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(ConsentUiState())
-    val uiState: StateFlow<ConsentUiState> = _uiState.asStateFlow()
+class ConsentViewModel(private val repository: TermsRepository, private val draft: AccountDraft) : ViewModel() {
+    private val state = MutableStateFlow(ConsentUiState())
+    val uiState = state.asStateFlow()
 
-    fun toggle(agreement: Agreement) = _uiState.update {
-        it.copy(checked = if (agreement in it.checked) it.checked - agreement else it.checked + agreement)
+    private var initialized = false
+
+    suspend fun load(force: Boolean = false) {
+        if (initialized && !force) return
+        state.value = ConsentUiState()
+        draft.agreements = emptyList()
+        val terms = repository.load()
+        initialized = true
+        state.value = ConsentUiState(terms = terms.orEmpty(), loading = false, failed = terms.isNullOrEmpty())
     }
-
-    /** 모두 동의돼 있으면 모두 풀고, 하나라도 빠져 있으면 모두 동의한다. */
-    fun toggleAll() = _uiState.update {
-        it.copy(checked = if (it.allChecked) emptySet() else Agreement.entries.toSet())
+    fun toggle(termId: String) = state.update {
+        if (it.terms.none { term -> term.termId == termId }) it
+        else it.copy(checked = if (termId in it.checked) it.checked - termId else it.checked + termId)
+    }
+    fun toggleAll() = state.update { it.copy(checked = if (it.allChecked) emptySet() else it.terms.map { term -> term.termId }.toSet()) }
+    fun accept(): Boolean {
+        val current = state.value
+        if (!current.canStart) return false
+        draft.agreements = current.terms.map { TermAgreement(it.termId, it.version, it.termId in current.checked) }
+        return true
     }
 }

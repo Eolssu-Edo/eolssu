@@ -10,9 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.model.EvaluationMetric
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
@@ -54,12 +55,12 @@ internal fun WrappedJeongganbo(
     metrics: JeongganboMetrics,
     currentIndex: Int,
     follow: Boolean,
-    errors: Map<Pair<Int, Int>, EvaluationMetric>,
+    errors: Map<Pair<Int, Int>, ScoreErrorKind>,
     onEventClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier) {
-        val slots = stripSlots(maxWidth, metrics)
+        val slots = stripSlots(maxWidth, metrics.forFontScale(LocalDensity.current.fontScale))
         val rows = remember(song, slots) {
             val strips = scoreStrips(song.score, song.jangdan).groupingBy { it.column }.eachCount()
             wrapColumns(song.score.columns.indices.map { strips[it] ?: 1 }, slots)
@@ -80,7 +81,6 @@ internal fun WrappedJeongganbo(
                     song = song,
                     metrics = metrics,
                     notation = ScoreNotation(showHangul = true),
-                    scrollState = null,
                     currentIndex = currentIndex,
                     errors = errors,
                     onEventClick = { onEventClick(it.index) },

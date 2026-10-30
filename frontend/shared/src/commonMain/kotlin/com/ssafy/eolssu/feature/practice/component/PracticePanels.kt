@@ -61,6 +61,7 @@ import com.ssafy.eolssu.core.ui.component.ToggleRow
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
+import com.ssafy.eolssu.core.ui.score.YulGlyph
 import com.ssafy.eolssu.feature.practice.FingeringOrder
 import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
@@ -89,6 +90,7 @@ import eolssu.shared.generated.resources.practice_jangdan_beat_desc
 import eolssu.shared.generated.resources.practice_jangdan_gueum_note
 import eolssu.shared.generated.resources.practice_jangdan_gueum_placeholder
 import eolssu.shared.generated.resources.practice_jangdan_meta
+import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
 import eolssu.shared.generated.resources.practice_jangdan_mic_notice
 import eolssu.shared.generated.resources.practice_jangdan_no_gueum
 import eolssu.shared.generated.resources.practice_jangdan_preview_start
@@ -302,7 +304,7 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
     ) {
         JeongganboView(
             song = song,
-            modifier = Modifier.width(60.dp),
+            modifier = Modifier.width(60.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
             metrics = JeongganboMetrics(columnWidth = 56.dp, cellHeight = 40.dp, yulSize = 19.sp, auxSize = 9.5.sp),
             notation = ScoreNotation(draft.showHangul, hasSolfege && draft.showSolfege),
             scrollState = null,
@@ -329,7 +331,7 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_fingering_prev), { actions.onMoveFingering(-1) }, enabled = index > 0)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(yul.symbol, style = EolssuTheme.serif.yul.copy(fontSize = 30.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold))
+            YulGlyph(yul, 30.sp, fontWeight = FontWeight.Bold)
             Text(
                 stringResource(Res.string.practice_fingering_name, yul.fullName, yul.hangul),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
@@ -436,7 +438,8 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
             val sub = if (jangdan.subdivision > 1) " " + stringResource(Res.string.practice_jangdan_sub, jangdan.subdivision) else ""
             Text(
-                stringResource(Res.string.practice_jangdan_meta, jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
+                stringResource(if (song.score.timing == null) Res.string.practice_jangdan_meta else Res.string.practice_jangdan_pattern_meta,
+                    jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.End,

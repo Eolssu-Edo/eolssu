@@ -14,40 +14,48 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.history.component.BarChartCard
 import com.ssafy.eolssu.feature.history.component.GrowthLinks
 import com.ssafy.eolssu.feature.history.component.GrowthSpacing
+import com.ssafy.eolssu.feature.history.component.GrowthStatus
 import com.ssafy.eolssu.feature.history.component.GrowthTiles
 import com.ssafy.eolssu.feature.history.component.HistoryTopBar
 import com.ssafy.eolssu.feature.history.component.MetricGrowthCard
 import com.ssafy.eolssu.feature.history.component.RangeTabs
-import com.ssafy.eolssu.feature.history.component.TrendCard
 import com.ssafy.eolssu.feature.history.component.historyFrame
 import com.ssafy.eolssu.feature.history.layout.GrowthExpandedLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.growth_subtitle
+import eolssu.shared.generated.resources.growth_period_month
+import eolssu.shared.generated.resources.growth_period_week
 import eolssu.shared.generated.resources.growth_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * GROWTH-01 연습 기록지·성취도. 휴대폰·태블릿 세로는 한 칸으로 쌓고(태블릿은 여백·글자·그래프를 키운다),
- * 태블릿 가로·넓은 웹 창은 왼쪽(기간 · 요약 · 연습 시간)과 오른쪽(점수 변화 · 항목 성장 · 바로 가기) 두 칸이다.
+ * 태블릿 가로·넓은 웹 창은 왼쪽(기간 · 요약 · 연습 시간)과 오른쪽(항목 성장 · 바로 가기) 두 칸이다.
+ * 고른 기간의 통계를 받는 중이거나 받지 못했으면 기간 탭 아래에 그 상태만 보인다.
  */
 @Composable
 fun GrowthScreen(
     state: GrowthUiState,
     widthClass: WindowWidthClass,
-    todayEpochDay: Long,
     onBack: () -> Unit,
     onRange: (GrowthRange) -> Unit,
-    onOpenMissions: () -> Unit,
+    onRetry: () -> Unit,
+    onOpenSteps: () -> Unit,
     onOpenRecords: () -> Unit,
 ) {
     val frame = historyFrame(widthClass)
     val spacing = if (frame.isTablet) GrowthSpacing.Tablet else GrowthSpacing.Compact
+    val period = state.period
+    val periodLabel = when (period.range) {
+        GrowthRange.Week -> stringResource(Res.string.growth_period_week, period.month, period.weekOfMonth)
+        GrowthRange.Month -> stringResource(Res.string.growth_period_month, period.month)
+    }
+    val stats = (state.load as? GrowthLoad.Loaded)?.stats
     EolssuScaffold(
         contentMaxWidth = frame.contentMaxWidth,
-        topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), stringResource(Res.string.growth_subtitle, state.stats.period), onBack) },
+        topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack) },
     ) {
-        if (widthClass == WindowWidthClass.Expanded) {
-            GrowthExpandedLayout(state, frame, spacing, todayEpochDay, onRange, onOpenMissions, onOpenRecords)
+        if (stats != null && widthClass == WindowWidthClass.Expanded) {
+            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords)
             return@EolssuScaffold
         }
         Column(
@@ -58,11 +66,14 @@ fun GrowthScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.gap),
         ) {
             RangeTabs(state.range, onRange)
-            GrowthTiles(state.stats, spacing)
-            BarChartCard(state, spacing)
-            if (state.trend.isNotEmpty()) TrendCard(state, todayEpochDay, spacing)
-            if (state.metricGrowth.isNotEmpty()) MetricGrowthCard(state, spacing)
-            GrowthLinks(state, spacing, onOpenMissions, onOpenRecords)
+            if (stats == null) {
+                GrowthStatus(state.load, onRetry)
+                return@Column
+            }
+            GrowthTiles(stats, spacing)
+            BarChartCard(stats, spacing)
+            stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
+            GrowthLinks(stats, state.completedSteps, spacing, onOpenSteps, onOpenRecords)
         }
     }
 }

@@ -62,13 +62,14 @@ class MyInfoController(private val service: MyInfoService) {
 
 data class MyInfoResult(
     val userId: String,
+    val email: String,
     val nickname: String,
     val instrumentId: String,
     val notationMode: String,
     val linkedProviders: List<LinkedProviderResult>,
 ) {
     constructor(found: MyInfoWithProviders) : this(
-        found.info.userId.toString(), found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
+        found.info.userId.toString(), found.info.email, found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
         found.linkedProviders.map { LinkedProviderResult(it.provider, it.linkedAt) },
     )
 }

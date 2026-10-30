@@ -15,7 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.history.GrowthRange
-import com.ssafy.eolssu.feature.history.GrowthUiState
+import com.ssafy.eolssu.feature.history.GrowthStats
 import com.ssafy.eolssu.feature.history.component.BarChartCard
 import com.ssafy.eolssu.feature.history.component.GrowthLinks
 import com.ssafy.eolssu.feature.history.component.GrowthSpacing
@@ -23,23 +23,22 @@ import com.ssafy.eolssu.feature.history.component.GrowthTiles
 import com.ssafy.eolssu.feature.history.component.HistoryFrame
 import com.ssafy.eolssu.feature.history.component.MetricGrowthCard
 import com.ssafy.eolssu.feature.history.component.RangeTabs
-import com.ssafy.eolssu.feature.history.component.TrendCard
 
 /** 두 칸이 세로 스크롤 없이 들어가는 최소 높이. 창이 이보다 낮으면 전체를 세로로 스크롤한다. */
 private val GrowthTwoColumnMinHeight = 560.dp
 
 /**
  * 태블릿 가로 연습 기록지(`Tab-Growth` land): 같은 너비의 두 칸(사이 24dp).
- * 왼쪽 연습 시간 카드가 남은 높이를 채우고, 오른쪽 점수 변화 그래프는 150dp다.
+ * 왼쪽 연습 시간 카드가 남은 높이를 채우고, 오른쪽에 항목별 성장과 바로 가기를 둔다.
  */
 @Composable
 internal fun GrowthExpandedLayout(
-    state: GrowthUiState,
+    stats: GrowthStats,
+    completedSteps: Int?,
     frame: HistoryFrame,
     spacing: GrowthSpacing,
-    todayEpochDay: Long,
     onRange: (GrowthRange) -> Unit,
-    onOpenMissions: () -> Unit,
+    onOpenSteps: () -> Unit,
     onOpenRecords: () -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -50,14 +49,13 @@ internal fun GrowthExpandedLayout(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
                 Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(spacing.gap)) {
-                    RangeTabs(state.range, onRange)
-                    GrowthTiles(state.stats, spacing)
-                    BarChartCard(state, spacing, Modifier.weight(1f), fill = true)
+                    RangeTabs(stats.range, onRange)
+                    GrowthTiles(stats, spacing)
+                    BarChartCard(stats, spacing, Modifier.weight(1f), fill = true)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.gap)) {
-                    if (state.trend.isNotEmpty()) TrendCard(state, todayEpochDay, spacing, chartHeight = 150.dp)
-                    if (state.metricGrowth.isNotEmpty()) MetricGrowthCard(state, spacing)
-                    GrowthLinks(state, spacing, onOpenMissions, onOpenRecords)
+                    stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
+                    GrowthLinks(stats, completedSteps, spacing, onOpenSteps, onOpenRecords)
                 }
             }
         }

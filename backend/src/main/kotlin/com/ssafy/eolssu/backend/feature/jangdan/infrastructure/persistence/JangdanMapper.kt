@@ -5,5 +5,6 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface JangdanMapper {
+    fun listAll(): List<JangdanRow>
     fun findById(@Param("id") id: Long): JangdanRow?
 }

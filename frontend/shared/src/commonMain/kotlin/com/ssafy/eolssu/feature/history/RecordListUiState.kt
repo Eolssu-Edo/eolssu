@@ -30,6 +30,7 @@ data class RecordListUiState(
     val opened: Set<String>? = null,
     val justSavedId: String? = null,
     val selectedId: String? = null,
+    val recordsAvailable: Boolean = true,
 ) {
     /**
      * 두 칸 배치에서 오른쪽에 상세를 보여 줄 기록. 고른 기록 → 방금 저장한 기록 → 가장 최근 기록 순으로,

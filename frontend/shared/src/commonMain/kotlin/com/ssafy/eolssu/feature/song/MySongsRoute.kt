@@ -56,6 +56,7 @@ fun MySongsRoute(
         snackbarHostState = snackbarHostState,
         actions = MySongsActions(
             onBack = onBack,
+            onRetry = viewModel::retry,
             onSelectTab = viewModel::selectTab,
             onOpenSong = onPractice,
             onOpenSheet = { sheet ->

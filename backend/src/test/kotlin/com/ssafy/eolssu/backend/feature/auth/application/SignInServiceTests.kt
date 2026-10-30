@@ -40,7 +40,7 @@ class SignInServiceTests {
 
     init {
         repository.members["learner@example.com"] = SignInMember(7, "hashed:Example!234", "연습자", 3, "HANJA", MemberStatus.ACTIVE)
-        repository.members["pending@example.com"] = SignInMember(8, "hashed:Example!234", "대기", 3, "HANGUL", MemberStatus.WITHDRAWAL_PENDING)
+        repository.members["pending@example.com"] = pendingMember(Instant.parse("2026-10-01T03:00:00Z"))
     }
 
     @Test
@@ -58,6 +58,45 @@ class SignInServiceTests {
         assertTrue(signedIn.withdrawalCancelled)
         assertEquals(setOf(8L), repository.cancelled)
     }
+
+    @Test
+    fun `withdrawal can be cancelled just before thirty days`() {
+        now = Instant.parse("2026-10-31T02:59:59.999999Z")
+        assertIs<SignInResult.SignedIn>(service.signIn("pending@example.com", "Example!234"))
+        assertEquals(setOf(8L), repository.cancelled)
+    }
+
+    @Test
+    fun `withdrawal cannot be cancelled at or after thirty days`() {
+        for (time in listOf("2026-10-31T03:00:00Z", "2026-10-31T03:00:00.000001Z")) {
+            now = Instant.parse(time)
+            assertEquals(SignInResult.InvalidCredentials, service.signIn("pending@example.com", "Example!234"))
+        }
+        assertTrue(repository.cancelled.isEmpty())
+        assertTrue(repository.lastLogins.isEmpty())
+        assertEquals(0, repository.issuedTokens)
+    }
+
+    @Test
+    fun `expiry while waiting for member lock uses the time after the lock`() {
+        now = Instant.parse("2026-10-31T02:59:59.999999Z")
+        repository.beforeLockedRead = { now = Instant.parse("2026-10-31T03:00:00Z") }
+        assertEquals(SignInResult.InvalidCredentials, service.signIn("pending@example.com", "Example!234"))
+        assertTrue(repository.cancelled.isEmpty())
+        assertTrue(repository.lastLogins.isEmpty())
+        assertEquals(0, repository.issuedTokens)
+    }
+
+    @Test
+    fun `pending member with missing withdrawal time fails closed`() {
+        repository.members["pending@example.com"] = pendingMember(null)
+        assertEquals(SignInResult.InvalidCredentials, service.signIn("pending@example.com", "Example!234"))
+        assertTrue(repository.cancelled.isEmpty())
+        assertEquals(0, repository.issuedTokens)
+    }
+
+    private fun pendingMember(requestedAt: Instant?) =
+        SignInMember(8, "hashed:Example!234", "대기", 3, "HANGUL", MemberStatus.WITHDRAWAL_PENDING, requestedAt)
 
     @Test
     fun `unknown email and wrong password are the same invalid credentials`() {
@@ -131,6 +170,7 @@ internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository
     val aliases = mutableMapOf<String, String>()
     val lastLogins = mutableMapOf<Long, Instant>()
     val cancelled = mutableSetOf<Long>()
+    var issuedTokens = 0
 
     var inTransaction = false
     var beforeLockedRead: () -> Unit = {}
@@ -147,5 +187,8 @@ internal class MemorySignInRepository : SignInRepository, RefreshTokenRepository
     }
     override fun cancelWithdrawal(userId: Long, now: Instant) { cancelled.add(userId) }
     override fun recordLogin(userId: Long, now: Instant) { lastLogins[userId] = now }
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant) = 1L
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long {
+        issuedTokens++
+        return 1L
+    }
 }

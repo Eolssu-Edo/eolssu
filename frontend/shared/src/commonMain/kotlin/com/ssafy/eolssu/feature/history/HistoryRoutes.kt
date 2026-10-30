@@ -17,12 +17,15 @@ import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
-import com.ssafy.eolssu.data.practice.PracticeRecordRepository
+import com.ssafy.eolssu.data.practice.GrowthRepository
+import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.LearnProgressRepository
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -135,38 +138,65 @@ private fun rememberRecordDetailActions(
             onToggleErrors = viewModel::toggleErrors,
             onToggleFollow = viewModel::toggleFollow,
             onWeakSection = { scope.launch { snackbarHostState.showSnackbar(comingSoon) } },
+            onRetrySong = viewModel::retrySong,
         )
     }
 }
 
-class GrowthViewModel(recordRepository: PracticeRecordRepository, now: () -> Long) : ViewModel() {
-    private val _uiState = MutableStateFlow(GrowthUiState())
+/**
+ * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
+ * '완료한 단계'는 연습 악기가 바뀌거나 학습 화면에서 완료 표시를 바꾸면 다시 센다.
+ */
+class GrowthViewModel(
+    private val repository: GrowthRepository,
+    private val learnProgress: LearnProgressRepository,
+    instruments: InstrumentRepository,
+    now: () -> Long,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(GrowthUiState(today = KoreanDateTime.fromEpochMillis(now())))
     val uiState: StateFlow<GrowthUiState> = _uiState.asStateFlow()
-    val today: KoreanDateTime = KoreanDateTime.fromEpochMillis(now())
 
     init {
-        viewModelScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
+        load(GrowthRange.Week)
+        viewModelScope.launch {
+            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument?.let(learnProgress::doneStageCount) }
+                .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
+        }
     }
 
-    fun changeRange(range: GrowthRange) = _uiState.update { it.copy(range = range) }
+    fun changeRange(range: GrowthRange) {
+        _uiState.update { it.copy(range = range) }
+        if (_uiState.value.loads[range] !is GrowthLoad.Loaded) load(range)
+    }
+
+    fun retry() = load(_uiState.value.range)
+
+    private fun load(range: GrowthRange) {
+        if (_uiState.value.loads[range] == GrowthLoad.Loading) return
+        _uiState.update { it.copy(loads = it.loads + (range to GrowthLoad.Loading)) }
+        viewModelScope.launch {
+            val load = loadGrowth(repository, GrowthPeriod.of(range, _uiState.value.today))
+            _uiState.update { it.copy(loads = it.loads + (range to load)) }
+        }
+    }
 }
 
-/** GROWTH-01 연결. [onOpenMissions]는 '완료한 미션'(학습 화면) 이동. */
+/** GROWTH-01 연결. [onOpenSteps]는 '완료한 단계'(기초부터 배우기) 이동. */
 @Composable
 fun GrowthRoute(
     onBack: () -> Unit,
     onOpenRecords: () -> Unit,
-    onOpenMissions: () -> Unit,
+    onOpenSteps: () -> Unit,
     viewModel: GrowthViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     GrowthScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
-        todayEpochDay = viewModel.today.epochDay,
         onBack = onBack,
         onRange = viewModel::changeRange,
-        onOpenMissions = onOpenMissions,
+        onRetry = viewModel::retry,
+        onOpenSteps = onOpenSteps,
         onOpenRecords = onOpenRecords,
     )
 }

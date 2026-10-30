@@ -78,6 +78,27 @@ class TokenRefreshServiceTests {
     }
 
     @Test
+    fun `null expiration is rejected when user is no longer selected`() {
+        repository.statuses[7] = MemberStatus.ACTIVE
+        repository.insert(7, secrets.hashToken("permanent"), null, now)
+        assertEquals(TokenRefreshResult.Unauthenticated, service.refresh("permanent"))
+    }
+
+    @Test
+    fun `selected non expiring refresh rotates and old session is revoked`() {
+        repository.statuses[7] = MemberStatus.ACTIVE
+        val permanentIssuer = AuthTokenIssuer(
+            com.ssafy.eolssu.backend.feature.auth.infrastructure.security.JwtAccessTokenSigner("test-signing-key-at-least-32-bytes-long!!"),
+            repository, secrets, clock, setOf(7),
+        )
+        val tokens = permanentIssuer.issue(7)
+        val permanentService = TokenRefreshService(repository, permanentIssuer, secrets, clock)
+        val result = assertIs<TokenRefreshResult.Refreshed>(permanentService.refresh(tokens.refreshToken))
+        assertNull(result.tokens.refreshTokenExpiresAt)
+        assertEquals("ROTATED", repository.tokens.values.first().revokeReason)
+    }
+
+    @Test
     fun `missing signing key is unavailable`() {
         repository.statuses[7] = MemberStatus.ACTIVE
         stored("old-token")
@@ -87,13 +108,13 @@ class TokenRefreshServiceTests {
 }
 
 internal class MemoryTokenRefreshRepository : TokenRefreshRepository, RefreshTokenRepository {
-    class Stored(val id: Long, val userId: Long, val hash: String, val expiresAt: Instant, var revokeReason: String? = null)
+    class Stored(val id: Long, val userId: Long, val hash: String, val expiresAt: Instant?, var revokeReason: String? = null)
 
     val tokens = linkedMapOf<Long, Stored>()
     val statuses = mutableMapOf<Long, MemberStatus>()
 
     override fun <T : Any> inTransaction(action: () -> T): T = action()
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long {
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long {
         val id = tokens.size + 1L
         tokens[id] = Stored(id, userId, tokenHash, expiresAt)
         return id

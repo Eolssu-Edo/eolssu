@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -27,52 +23,58 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_confirm
-import eolssu.shared.generated.resources.my_link_placeholder_body
-import eolssu.shared.generated.resources.my_link_placeholder_title
-import eolssu.shared.generated.resources.my_link_result_done
-import eolssu.shared.generated.resources.my_link_result_hint
-import eolssu.shared.generated.resources.my_link_result_taken
+import eolssu.shared.generated.resources.member_api_retry
 import eolssu.shared.generated.resources.my_link_taken_message
 import eolssu.shared.generated.resources.my_link_taken_title
 import eolssu.shared.generated.resources.my_link_title
+import eolssu.shared.generated.resources.social_auth_progress
+import eolssu.shared.generated.resources.social_auth_reopen
+import eolssu.shared.generated.resources.social_auth_waiting_body
+import eolssu.shared.generated.resources.social_auth_waiting_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * MY-05 간편 로그인 연결. 실제로는 제공자 화면이 뜨는 자리라 점선 자리 표시만 두고, 제공자 로그인 뒤 서버 결과는 아래 버튼으로 고른다(예시).
- * 연결되면 [onLinked], 이미 다른 얼쑤 계정에 연결된 제공자 계정이면 안내 창을 띄운 뒤 [onBack]으로 돌아간다(오류 코드는 BE 확인).
+ * MY-05 간편 로그인 연결. 제공자 화면은 외부 브라우저에 뜨고, 이 화면은 그동안 와이어프레임의 점선 자리에 진행 상태를 보여 준다.
+ * 이미 다른 얼쑤 계정에 연결된 제공자 계정이면(409 `SOCIAL_ACCOUNT_IN_USE`) 안내 창을 띄운 뒤 [onBack]으로 돌아간다.
  */
 @Composable
 fun SocialLinkScreen(
     provider: SocialProvider,
+    step: SocialLinkStep,
+    widthClass: WindowWidthClass,
     onBack: () -> Unit,
-    onLinked: () -> Unit,
-    widthClass: WindowWidthClass = currentWindowLayout().widthClass,
+    onRetry: () -> Unit,
+    onReopen: () -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val name = stringResource(provider.displayName)
-    var taken by rememberSaveable { mutableStateOf(false) }
+    val (title, body) = when (step) {
+        is SocialLinkStep.Stopped -> null to stringResource(step.problem.message, name)
+        SocialLinkStep.Starting, SocialLinkStep.Completing -> null to stringResource(Res.string.social_auth_progress)
+        else -> stringResource(Res.string.social_auth_waiting_title, name) to stringResource(Res.string.social_auth_waiting_body)
+    }
     ProfileScaffold(
         widthClass,
         stringResource(Res.string.my_link_title, name),
         onBack,
         bottomBar = {
-            Text(
-                stringResource(Res.string.my_link_result_hint),
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-                textAlign = TextAlign.Center,
-            )
-            EolssuButton(stringResource(Res.string.my_link_result_done), onClick = onLinked)
-            EolssuButton(stringResource(Res.string.my_link_result_taken), onClick = { taken = true }, style = EolssuButtonStyle.Secondary)
+            when (step) {
+                SocialLinkStep.InBrowser -> EolssuButton(stringResource(Res.string.social_auth_reopen, name), onClick = onReopen)
+                is SocialLinkStep.Stopped -> if (step.problem.retryable) {
+                    EolssuButton(stringResource(Res.string.member_api_retry), onClick = onRetry)
+                } else {
+                    EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
+                }
+                SocialLinkStep.Starting, SocialLinkStep.Completing ->
+                    EolssuButton(stringResource(Res.string.social_auth_progress), onClick = {}, busy = true)
+                else -> Unit
+            }
         },
     ) {
         Column(
@@ -100,20 +102,22 @@ fun SocialLinkScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            if (title != null) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center,
+                )
+            }
             Text(
-                stringResource(Res.string.my_link_placeholder_title, name),
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(Res.string.my_link_placeholder_body),
+                body,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 20.8.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
             )
         }
     }
-    if (taken) {
+    if (step == SocialLinkStep.InUse) {
         EolssuDialog(
             title = stringResource(Res.string.my_link_taken_title, name),
             message = stringResource(Res.string.my_link_taken_message, name),

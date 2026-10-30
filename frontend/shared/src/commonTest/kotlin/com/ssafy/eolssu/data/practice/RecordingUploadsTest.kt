@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.audio.RecordingFiles
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import kotlinx.coroutines.CompletableDeferred
 import kotlin.coroutines.Continuation
@@ -17,12 +18,13 @@ import kotlin.time.Duration.Companion.minutes
  */
 class RecordingUploadsTest {
     private val store = FakeKeyValueStore()
+    private val member = SignedInMember(store).apply { set("A") }
     private val files = FakeRecordingFiles("rec/practice-1.m4a", "rec/practice-2.m4a")
     private val uploader = FakeUploader()
     private var now = 1_000_000L
-    private fun uploads() = RecordingUploads(uploader, store, files, clock = { now })
+    private fun uploads() = RecordingUploads(uploader, store, files, clock = { now }, member = member)
 
-    private val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = now)
+    private val recording = PendingRecording(sessionId = "41", path = "rec/practice-1.m4a", startedAtMillis = now, memberId = "A")
     private val window = 40.minutes.inWholeMilliseconds
 
     @Test
@@ -64,6 +66,26 @@ class RecordingUploadsTest {
         assertEquals("41", reopened.pending()?.sessionId)
         assertEquals(SendResult.Sent, reopened.resend(recording))
         assertNull(uploads().pending())
+    }
+
+    @Test
+    fun pendingRecordingKeepsSongAndBpmForTheNextRun() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording.copy(songId = "2", bpm = 66))
+
+        val reopened = uploads().pending()
+        assertEquals("2", reopened?.songId)
+        assertEquals(66, reopened?.bpm)
+    }
+
+    @Test
+    fun recordWithoutOwnerIsPreservedWithoutOfferingToSend() = immediate {
+        store.putString("pending_recording_upload", listOf("41", "$now", "kept/practice-1.m4a").joinToString("\n"))
+        files.existing += "kept/practice-1.m4a"
+        val uploads = uploads()
+        assertNull(uploads.pending())
+        uploads.cleanUp()
+        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a", "kept/practice-1.m4a"), files.existing)
     }
 
     @Test
@@ -137,7 +159,7 @@ class RecordingUploadsTest {
         uploads.send(recording)
         files.existing -= "rec/practice-2.m4a"
 
-        assertEquals(SendResult.Missing, uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now)))
+        assertEquals(SendResult.Missing, uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now, memberId = "A")))
         assertEquals(1, uploader.calls.size)
         assertEquals("41", uploads.pending()?.sessionId)
         assertEquals(true, "kept/practice-1.m4a" in files.existing)
@@ -161,7 +183,7 @@ class RecordingUploadsTest {
         uploader.outcomes += UploadOutcome.Unreachable
         val uploads = uploads()
         uploads.send(recording)
-        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now))
+        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now, memberId = "A"))
         assertEquals(setOf("kept/practice-2.m4a"), files.existing)
         assertEquals("42", uploads.pending()?.sessionId)
     }
@@ -185,7 +207,7 @@ class RecordingUploadsTest {
 
         uploader.gate = null
         uploader.outcomes += UploadOutcome.Unreachable
-        launchNow { uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now)) }
+        launchNow { uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now, memberId = "A")) }
         gate.complete(Unit)
 
         assertEquals(SendResult.Sent, first())
@@ -194,14 +216,14 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun malformedRecordIsClearedAndLeftoverFilesRemovedAtStart() {
+    fun malformedLegacyRecordAndOwnerlessFilesArePreservedAtStart() {
         store.values["pending_recording_upload"] = "broken"
         files.existing += "kept/orphan.m4a"
         val uploads = uploads()
         uploads.cleanUp()
         assertNull(uploads.pending())
-        assertEquals("", store.values["pending_recording_upload"])
-        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+        assertEquals("broken", store.values["pending_recording_upload"])
+        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a", "kept/orphan.m4a"), files.existing)
     }
 
     @Test
@@ -211,7 +233,7 @@ class RecordingUploadsTest {
         files.existing += "kept/orphan.m4a"
 
         uploads().cleanUp()
-        assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+        assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a", "kept/orphan.m4a"), files.existing)
     }
 
     @Test
@@ -226,11 +248,11 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun sendingRemovesLeftoverFiles() = immediate {
+    fun sendingPreservesFilesWithUnknownOwner() = immediate {
         files.existing += "kept/orphan.m4a"
         uploader.outcomes += UploadOutcome.Unreachable
         uploads().send(recording)
-        assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+        assertEquals(setOf("kept/practice-1.m4a", "rec/practice-2.m4a", "kept/orphan.m4a"), files.existing)
     }
 
     @Test
@@ -252,7 +274,7 @@ class RecordingUploadsTest {
         val uploads = uploads()
         uploads.send(recording)
         now += window + 1
-        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now))
+        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now, memberId = "A"))
 
         assertEquals(SendResult.Expired, uploads.resend(recording))
         assertEquals(2, uploader.calls.size)
@@ -265,7 +287,7 @@ class RecordingUploadsTest {
         uploader.outcomes += UploadOutcome.Unreachable
         val uploads = uploads()
         uploads.send(recording)
-        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now))
+        uploads.send(PendingRecording(sessionId = "42", path = "rec/practice-2.m4a", startedAtMillis = now, memberId = "A"))
 
         assertEquals(SendResult.Missing, uploads.resend(recording))
         assertEquals(2, uploader.calls.size)
@@ -284,7 +306,7 @@ class RecordingUploadsTest {
     }
 
     @Test
-    fun leftoverFilesAreRemovedAtStartWhenNothingIsWaiting() {
+    fun ownerlessFilesArePreservedAtStartWhenNothingIsWaiting() {
         store.values["pending_recording_upload"] = ""
         files.existing += "kept/orphan.m4a"
         val uploads = uploads()
@@ -292,7 +314,104 @@ class RecordingUploadsTest {
         assertEquals(true, "kept/orphan.m4a" in files.existing)
 
         uploads.cleanUp()
-        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a"), files.existing)
+        assertEquals(setOf("rec/practice-1.m4a", "rec/practice-2.m4a", "kept/orphan.m4a"), files.existing)
+    }
+
+    @Test
+    fun logoutAndAnotherAccountCannotSendOrDeleteTheOwnersRecording() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+        val owned = checkNotNull(uploads().pending())
+        val savedFiles = files.existing.toSet()
+
+        for (nextMember in listOf(null, "B")) {
+            member.changing { member.set(nextMember) }
+            val reopened = uploads()
+            reopened.cleanUp()
+            assertNull(reopened.pending())
+            assertEquals(SendResult.NotOwner, reopened.resend(owned))
+            assertEquals(SendResult.NotOwner, reopened.send(owned))
+            assertEquals(1, uploader.calls.size)
+            assertEquals(savedFiles, files.existing)
+            assertEquals(emptyList(), files.deleted)
+            assertEquals(0, files.bulkDeleteCalls)
+        }
+
+        member.changing { member.set("A") }
+        assertEquals(owned, uploads().pending())
+        assertEquals(SendResult.Sent, uploads().resend(owned))
+        assertEquals(2, uploader.calls.size)
+    }
+
+    @Test
+    fun anotherAccountsNewRecordingDoesNotReplaceTheOwnersWaitingRecording() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+        val owned = checkNotNull(uploads().pending())
+        member.changing { member.set("B") }
+
+        uploader.outcomes += UploadOutcome.Unreachable
+        val other = PendingRecording("42", "rec/practice-2.m4a", now, memberId = "B")
+        assertEquals(SendResult.CanResend, uploads().send(other))
+        assertEquals("42", uploads().pending()?.sessionId)
+        assertEquals(setOf("kept/practice-1.m4a", "kept/practice-2.m4a"), files.existing)
+
+        member.changing { member.set("A") }
+        assertEquals(owned, uploads().pending())
+        assertEquals(SendResult.Sent, uploads().resend(owned))
+        member.changing { member.set("B") }
+        assertEquals("42", uploads().pending()?.sessionId)
+        assertEquals(true, "kept/practice-2.m4a" in files.existing)
+    }
+
+    @Test
+    fun anotherAccountDoesNotExpireTheOwnersFile() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+        val owned = checkNotNull(uploads().pending())
+        member.changing { member.set("B") }
+        now += window + LocalClockMargin.inWholeMilliseconds + 1
+
+        uploads().cleanUp()
+        assertNull(uploads().pending())
+        assertEquals(SendResult.NotOwner, uploads().resend(owned))
+        assertEquals(true, owned.path in files.existing)
+        assertEquals(1, uploader.calls.size)
+    }
+
+    @Test
+    fun legacyRecordingCannotAcquireTheCurrentlySignedInOwner() = immediate {
+        val legacy = recording.copy(path = "kept/practice-1.m4a", memberId = null)
+        val saved = listOf("41", "$now", "2", "60", legacy.path).joinToString("\n")
+        store.putString("pending_recording_upload", saved)
+        files.existing += legacy.path
+
+        assertNull(uploads().pending())
+        assertEquals(SendResult.NotOwner, uploads().send(legacy))
+        assertEquals(SendResult.NotOwner, uploads().resend(legacy))
+        uploads().cleanUp()
+        assertEquals(saved, store.getString("pending_recording_upload"))
+        assertEquals(true, legacy.path in files.existing)
+        assertEquals(0, uploader.calls.size)
+        assertEquals(emptyList(), files.deleted)
+        assertEquals(0, files.bulkDeleteCalls)
+    }
+
+    @Test
+    fun accountChangeWaitsUntilTheOwnersUploadCompletes() {
+        val gate = CompletableDeferred<Unit>()
+        uploader.gate = gate
+        uploader.outcomes += UploadOutcome.Unreachable
+        val send = launchNow { uploads().send(recording) }
+        val changeAccount = launchNow { member.changing { member.set("B") } }
+        assertEquals("A", member.id)
+        gate.complete(Unit)
+
+        assertEquals(SendResult.CanResend, send())
+        changeAccount()
+        assertEquals("B", member.id)
+        assertNull(uploads().pending())
+        assertEquals(true, "kept/practice-1.m4a" in files.existing)
     }
 }
 
@@ -302,6 +421,8 @@ class RecordingUploadsTest {
  */
 internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     val existing = recorded.toMutableSet()
+    val deleted = mutableListOf<String>()
+    var bulkDeleteCalls = 0
     var keepFails = false
     var onKeep: () -> Unit = {}
 
@@ -318,10 +439,12 @@ internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     override fun exists(path: String): Boolean = path in existing
 
     override fun delete(path: String) {
+        deleted += path
         existing -= path
     }
 
     override fun deleteKeptExcept(path: String?) {
+        bulkDeleteCalls++
         existing.removeAll { it.startsWith("kept/") && it != path }
     }
 }

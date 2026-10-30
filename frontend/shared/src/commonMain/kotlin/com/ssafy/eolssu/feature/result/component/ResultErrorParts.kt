@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,22 +30,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.ErrorMarkBox
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.ScoreCellPosition
 import com.ssafy.eolssu.feature.result.errorAt
 import com.ssafy.eolssu.feature.result.errorCount
-import com.ssafy.eolssu.feature.result.metricLabel
 import com.ssafy.eolssu.feature.result.visibleErrors
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_cell_error
+import eolssu.shared.generated.resources.result_cell_missed_body
+import eolssu.shared.generated.resources.result_cell_missed_title
 import eolssu.shared.generated.resources.result_cell_ok_body
 import eolssu.shared.generated.resources.result_cell_ok_title
 import eolssu.shared.generated.resources.result_cell_sample_length
@@ -56,8 +61,12 @@ import eolssu.shared.generated.resources.result_errors_none
 import eolssu.shared.generated.resources.result_errors_title
 import eolssu.shared.generated.resources.result_filter_all
 import eolssu.shared.generated.resources.result_filter_length
+import eolssu.shared.generated.resources.result_filter_missed
 import eolssu.shared.generated.resources.result_filter_pitch
 import eolssu.shared.generated.resources.result_filter_rhythm
+import eolssu.shared.generated.resources.result_metric_length
+import eolssu.shared.generated.resources.result_metric_pitch
+import eolssu.shared.generated.resources.result_metric_rhythm
 import eolssu.shared.generated.resources.score_hold
 import eolssu.shared.generated.resources.score_rest
 import org.jetbrains.compose.resources.stringResource
@@ -80,10 +89,10 @@ fun ErrorSummary(result: EvaluationResult, modifier: Modifier = Modifier) {
     }
 }
 
-/** 오류 종류 필터(전체·음정·박자·길이). 고른 종류의 틀린 칸만 정간보에 색칠한다. */
+/** 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 칸만 정간보에 색칠한다. */
 @Composable
 fun ErrorFilterChips(result: EvaluationResult, selected: ErrorFilter, onSelect: (ErrorFilter) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         ErrorFilter.entries.forEach { filter ->
             FilterChip(filter, result.errorCount(filter), on = filter == selected) { onSelect(filter) }
         }
@@ -99,6 +108,7 @@ private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: ()
             ErrorFilter.Pitch -> Res.string.result_filter_pitch
             ErrorFilter.Rhythm -> Res.string.result_filter_rhythm
             ErrorFilter.Length -> Res.string.result_filter_length
+            ErrorFilter.Missed -> Res.string.result_filter_missed
         },
         count,
     )
@@ -108,18 +118,18 @@ private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: ()
         shape = CircleShape,
         color = if (on) colors.primary else colors.background,
         contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.primary else colors.line),
+        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            val metric = filter.metric
-            if (metric == null) {
+            val kind = filter.kind
+            if (kind == null) {
                 Box(Modifier.size(10.dp).background(if (on) colors.onPrimary else colors.primary, RoundedCornerShape(3.dp)))
             } else {
-                ErrorMarkBox(metric, Modifier.size(10.dp))
+                ErrorMarkBox(kind, Modifier.size(10.dp))
             }
             Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)
         }
@@ -128,27 +138,36 @@ private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: ()
 
 /**
  * 고른 칸 설명: 칸의 글자 · 위치와 음 이름 · 오류 종류. 틀리지 않은 칸이면 그렇다고 알린다.
- * 오류마다의 자세한 설명은 아직 결과에 없어 예시 결과([EvaluationResult.sample])일 때만 예시 문구를 붙인다.
+ * 미검출은 판정 의미를 표시하고, 다른 오류의 상세 설명은 예시 결과([EvaluationResult.sample])일 때만 붙인다.
  */
 @Composable
 fun SelectedCellCard(song: Song, result: EvaluationResult, cell: ScoreCellPosition, modifier: Modifier = Modifier, markFallback: Color) {
     val colors = EolssuTheme.colors
-    val notes = song.score.columns.getOrNull(cell.column)?.getOrNull(cell.row)?.notes.orEmpty()
-    val metric = result.errorAt(cell)
-    val names = notes.map { note ->
-        when (note) {
+    val units = song.displayUnits.filter { it.column == cell.column && it.row == cell.row }
+    val notes = units.map { it.note }
+    val kind = result.errorAt(cell)
+    val names = units.map { unit ->
+        when (val note = unit.note) {
             is ScoreNote.Pitch -> note.yul.fullName
+            is ScoreNote.SourcePitch -> note.fullName
             ScoreNote.Hold -> stringResource(Res.string.score_hold)
+            ScoreNote.Blank -> stringResource(if (unit.event.note == ScoreNote.Rest) Res.string.score_rest else Res.string.score_hold)
             ScoreNote.Rest -> stringResource(Res.string.score_rest)
         }
     }
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ErrorMarkBox(metric, Modifier.size(44.dp), cornerRadius = 10.dp, fallback = markFallback) {
+        ErrorMarkBox(kind, Modifier.size(44.dp), cornerRadius = 10.dp, fallback = markFallback) {
             val size = if (notes.size > 1) 16.sp else 22.sp
-            Text(
-                notes.joinToString("") { it.symbol },
-                style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
-            )
+            Column(Modifier.fillMaxSize()) {
+                val rows = units.groupBy { it.unitRow }.values
+                rows.forEach { units ->
+                    Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                        units.forEach { unit ->
+                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { ScoreNoteGlyph(unit.note, size) }
+                        }
+                    }
+                }
+            }
         }
         Column(Modifier.weight(1f)) {
             Text(
@@ -157,13 +176,18 @@ fun SelectedCellCard(song: Song, result: EvaluationResult, cell: ScoreCellPositi
                 color = colors.textMuted,
             )
             Text(
-                if (metric != null) stringResource(Res.string.result_cell_error, metricLabel(metric)) else stringResource(Res.string.result_cell_ok_title),
+                when (kind) {
+                    null -> stringResource(Res.string.result_cell_ok_title)
+                    ScoreErrorKind.Missed -> stringResource(Res.string.result_cell_missed_title)
+                    else -> stringResource(Res.string.result_cell_error, stringResource(errorLabel(kind)))
+                },
                 modifier = Modifier.padding(top = 2.dp),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
             )
             val desc = when {
-                metric == null -> stringResource(Res.string.result_cell_ok_body)
-                result.sample -> stringResource(sampleDescription(metric))
+                kind == null -> stringResource(Res.string.result_cell_ok_body)
+                kind == ScoreErrorKind.Missed -> stringResource(Res.string.result_cell_missed_body)
+                result.sample -> stringResource(sampleDescription(kind))
                 else -> null
             }
             if (desc != null) {
@@ -173,10 +197,18 @@ fun SelectedCellCard(song: Song, result: EvaluationResult, cell: ScoreCellPositi
     }
 }
 
-private fun sampleDescription(metric: EvaluationMetric) = when (metric) {
-    EvaluationMetric.Pitch -> Res.string.result_cell_sample_pitch
-    EvaluationMetric.Rhythm -> Res.string.result_cell_sample_rhythm
-    EvaluationMetric.Length -> Res.string.result_cell_sample_length
+private fun errorLabel(kind: ScoreErrorKind) = when (kind) {
+    ScoreErrorKind.Pitch -> Res.string.result_metric_pitch
+    ScoreErrorKind.Rhythm -> Res.string.result_metric_rhythm
+    ScoreErrorKind.Length -> Res.string.result_metric_length
+    ScoreErrorKind.Missed -> Res.string.result_cell_missed_title
+}
+
+private fun sampleDescription(kind: ScoreErrorKind) = when (kind) {
+    ScoreErrorKind.Pitch -> Res.string.result_cell_sample_pitch
+    ScoreErrorKind.Rhythm -> Res.string.result_cell_sample_rhythm
+    ScoreErrorKind.Length -> Res.string.result_cell_sample_length
+    ScoreErrorKind.Missed -> Res.string.result_cell_missed_body
 }
 
 /**
@@ -197,23 +229,25 @@ fun ErrorScore(
 ) {
     val errors = result.visibleErrors(filter)
     val cluster = result.densestColumnPair()?.let { it.first..it.first + 1 }
-    val selectedIndex = selected?.let { cell -> song.timeline.firstOrNull { it.column == cell.column && it.row == cell.row }?.index }
-    val longest = song.jangdan.strips.max()
+    val selectedCell = selected?.let { it.column to it.row }
+    val strips = scoreStrips(song.score, song.jangdan)
+    val longest = strips.maxOf { it.rows.count() }
+    val stripsPerColumn = strips.groupBy { it.column }.maxOf { it.value.size }
     val columnCount = song.score.columns.size
     BoxWithConstraints(modifier) {
         if (wrap) {
             val metrics = ErrorScoreMetrics.copy(cellHeight = WrapCellHeight)
-            val stripsFit = ((maxWidth - 4.dp + metrics.columnGap) / (metrics.columnWidth + metrics.columnGap)).toInt()
-            val perRow = maxOf(1, stripsFit / song.jangdan.strips.size)
+            val rendered = metrics.forFontScale(androidx.compose.ui.platform.LocalDensity.current.fontScale)
+            val stripsFit = ((maxWidth - 4.dp + rendered.columnGap) / (rendered.columnWidth + rendered.columnGap)).toInt()
+            val perRow = maxOf(1, stripsFit / stripsPerColumn)
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 for (first in 0 until columnCount step perRow) {
                     JeongganboView(
                         song = song,
                         metrics = metrics,
-                        scrollState = null,
                         errors = errors,
-                        selectedIndex = selectedIndex,
-                        onEventClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
+                        selectedCell = selectedCell,
+                        onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
                         columns = first until minOf(first + perRow, columnCount),
                         dimUnmarked = true,
                         highlightColumns = cluster,
@@ -228,8 +262,8 @@ fun ErrorScore(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 metrics = metrics,
                 errors = errors,
-                selectedIndex = selectedIndex,
-                onEventClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
+                selectedCell = selectedCell,
+                onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
                 dimUnmarked = true,
                 highlightColumns = cluster,
             )

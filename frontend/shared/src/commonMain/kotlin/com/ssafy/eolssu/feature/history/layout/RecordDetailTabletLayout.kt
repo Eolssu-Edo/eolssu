@@ -92,7 +92,7 @@ internal fun RecordDetailTabletLayout(
                 metrics = RecordScorePortrait,
                 currentIndex = state.position,
                 follow = state.follow,
-                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.metric } else emptyMap(),
+                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
                 onEventClick = actions.onSeek,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             )

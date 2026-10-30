@@ -74,6 +74,10 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
             )
             return@BoxWithConstraints
         }
+        if (state.song == null) {
+            RecordSongLookupContent(state, actions)
+            return@BoxWithConstraints
+        }
         val wide = maxWidth >= PaneWideMinWidth
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             PaneHeader(state, record, actions, wide)
@@ -94,7 +98,7 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
                 notation = ScoreNotation(showHangul = true),
                 currentIndex = state.position,
                 follow = state.follow,
-                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.metric } else emptyMap(),
+                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
                 onEventClick = { actions.onSeek(it.index) },
             )
             Column {

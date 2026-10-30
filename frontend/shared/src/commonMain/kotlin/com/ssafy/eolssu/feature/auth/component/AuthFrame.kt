@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.auth.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -28,27 +26,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceAtMost
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.auth_brand
 import eolssu.shared.generated.resources.auth_brand_body
 import eolssu.shared.generated.resources.auth_brand_headline
 import org.jetbrains.compose.resources.stringResource
@@ -168,14 +161,13 @@ fun AuthTopBar(
     }
 }
 
-/** 브랜드 칸의 한지 바탕·낙관 색. 홈 족자와 같은 값이다(와이어프레임 `.ta-brand`, `.ta-seal`). */
-private val BrandPaper = Color(0xFFF7F1E4)
+/** 태블릿 배치는 구버전 `.ta-brand`, 바탕과 로고는 최신 연두 시안을 따른다. */
+private val BrandPaper = Color(0xFFF9FAF9)
 private val BrandEdge = Color(0x1F3C301E)
-private val BrandSeal = Color(0xFFB8322A)
 
 /**
- * 가로 배치 왼쪽 브랜드 칸(`.ta-brand`): 한지 바탕에 앱 이름 · 대표 문구 · 한 줄 소개, 오른쪽 위에 낙관.
- * 와이어프레임의 붓글씨 글꼴은 앱에 없어 홈 족자처럼 세리프 제목으로 쓴다.
+ * 넓은 창의 왼쪽 브랜드 칸: 원본 붓글씨 로고와 소개.
+ * 본문은 스크롤해 큰 글꼴에서도 접근할 수 있게 한다.
  */
 @Composable
 private fun AuthBrandPane(modifier: Modifier = Modifier) {
@@ -191,8 +183,6 @@ private fun AuthBrandPane(modifier: Modifier = Modifier) {
         // 560dp 칸에서 왼쪽 80 · 오른쪽 64. 좁은 창에서는 같은 비율로 줄인다.
         val start = (maxWidth * (80f / 560f)).coerceIn(32.dp, 80.dp)
         val end = (maxWidth * (64f / 560f)).coerceIn(24.dp, 64.dp)
-        val brand = stringResource(Res.string.auth_brand)
-        BrandSealMark(brand, Modifier.align(Alignment.TopEnd).padding(top = 28.dp, end = 28.dp))
         val viewportHeight = maxHeight
         Column(
             Modifier
@@ -202,7 +192,7 @@ private fun AuthBrandPane(modifier: Modifier = Modifier) {
                 .padding(start = start, end = end, top = 72.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(brand, style = EolssuTheme.serif.brand, color = colors.text)
+            EolssuLogo()
             Text(
                 stringResource(Res.string.auth_brand_headline),
                 Modifier.padding(top = 28.dp),
@@ -214,33 +204,6 @@ private fun AuthBrandPane(modifier: Modifier = Modifier) {
                 Modifier.padding(top = 16.dp),
                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 24.sp),
                 color = colors.textMuted,
-            )
-        }
-    }
-}
-
-/** 붉은 낙관. 세로쓰기가 없어 글자를 한 자씩 세로로 쌓는다. 장식이라 화면 읽기에서 제외한다. */
-@Composable
-private fun BrandSealMark(text: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .clearAndSetSemantics {}
-            .alpha(0.85f)
-            .rotate(4f)
-            .border(1.5.dp, BrandSeal, RoundedCornerShape(3.dp))
-            .padding(horizontal = 3.dp, vertical = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        text.forEach { ch ->
-            Text(
-                ch.toString(),
-                style = TextStyle(
-                    fontFamily = EolssuTheme.serif.brand.fontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    lineHeight = 14.sp,
-                    color = BrandSeal,
-                ),
             )
         }
     }

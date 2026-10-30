@@ -92,3 +92,7 @@ infra/**/certs/
 
 # ===== Personal notes =====
 /TIL/
+
+# Local Android audit evidence and installed agent skills
+/.scratch/
+/.agents/

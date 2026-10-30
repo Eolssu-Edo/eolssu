@@ -16,6 +16,7 @@ server:
 
 eolssu:
   auth:
+    kakao-webhook-app-id: ${AUTH_KAKAO_WEBHOOK_APP_ID:}
     code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
     mail-mode: ${AUTH_MAIL_MODE:smtp}
     mail:
@@ -26,8 +27,24 @@ eolssu:
       from: ${AUTH_MAIL_FROM:}
       from-name: ${AUTH_MAIL_FROM_NAME:}
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    android-app-links:
+      sha256-cert-fingerprints: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:}
+    oauth:
+      kakao:
+        client-id: ${AUTH_OAUTH_KAKAO_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_KAKAO_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_KAKAO_REDIRECT_URIS:}
+      google:
+        client-id: ${AUTH_OAUTH_GOOGLE_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_GOOGLE_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_GOOGLE_REDIRECT_URIS:}
+      naver:
+        client-id: ${AUTH_OAUTH_NAVER_CLIENT_ID:}
+        client-secret: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:}
+        redirect-uris: ${AUTH_OAUTH_NAVER_REDIRECT_URIS:}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
+    non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}
     # 같은 사이트 밖에서 API를 부르는 개발용 주소(쉼표로 구분). 운영은 웹과 API가 같은 주소라 비워 둔다.
     allowed-origins: ${SECURITY_ALLOWED_ORIGINS:}
   # 녹음 원본 저장소(S3 호환, Cloudflare R2). 하나라도 비면 업로드는 503이다. 키는 서버 .env에만 둔다.

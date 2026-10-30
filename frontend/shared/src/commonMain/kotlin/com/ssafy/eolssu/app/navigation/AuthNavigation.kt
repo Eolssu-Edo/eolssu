@@ -1,28 +1,36 @@
 package com.ssafy.eolssu.app.navigation
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.audio.MicPermission
+import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.data.user.FirstRunRepository
+import com.ssafy.eolssu.data.user.AccountDraft
+import com.ssafy.eolssu.data.user.OAuthAttempts
+import com.ssafy.eolssu.data.user.OAuthPurpose
 import com.ssafy.eolssu.data.user.VerificationPurpose
 import com.ssafy.eolssu.feature.auth.AccountLinkRoute
-import com.ssafy.eolssu.feature.auth.Agreement
 import com.ssafy.eolssu.feature.auth.ConsentRoute
 import com.ssafy.eolssu.feature.auth.EmailVerificationRoute
 import com.ssafy.eolssu.feature.auth.LoginRoute
 import com.ssafy.eolssu.feature.auth.MicPermissionScreen
-import com.ssafy.eolssu.feature.auth.OAuthScreen
+import com.ssafy.eolssu.feature.auth.OAuthRoute
 import com.ssafy.eolssu.feature.auth.PasswordSetupRoute
 import com.ssafy.eolssu.feature.auth.ProfileSetupRoute
 import com.ssafy.eolssu.core.model.SocialProvider
-import com.ssafy.eolssu.feature.auth.TermsScreen
+import com.ssafy.eolssu.feature.auth.TermsRoute
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.auth_link_done
 import eolssu.shared.generated.resources.auth_mic_denied_notice
@@ -51,7 +59,7 @@ object AuthDestination {
     const val PASSWORD_RESET = "auth/password-reset"
     const val PASSWORD_RESET_NEW = "auth/password-reset/password"
 
-    fun terms(agreement: Agreement) = "auth/terms/${agreement.name}"
+    fun terms(termId: String) = "auth/terms/$termId"
 
     fun oauth(provider: SocialProvider) = "auth/oauth/${provider.name}"
 
@@ -85,9 +93,6 @@ enum class StartNotice(val message: StringResource) {
 private const val START_NOTICE_KEY = "start_notice"
 private const val START_NOTICE_PROVIDER_KEY = "start_notice_provider"
 private const val VERIFIED_EMAIL_KEY = "verified_email"
-
-/** 간편 로그인 409 응답이 알려 줄 얼쑤 계정 이메일 자리. 제공자 연동 전이라 AUTH-05의 예시 결과에서 쓴다. */
-private const val ExampleLinkEmail = "user@example.com"
 
 private fun NavBackStackEntry.putStartNotice(notice: StartNotice, provider: SocialProvider?) {
     savedStateHandle[START_NOTICE_KEY] = notice.name
@@ -145,6 +150,7 @@ private fun NavBackStackEntry.verifiedEmail(): String = savedStateHandle.get<Str
 /**
  * AUTH-01~11 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → 홈.
  * 간편 로그인은 로그인 전용이다: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 없음 → 이메일 가입 안내.
+ * 계정 연결 확인·이메일 가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
  * 이메일 가입은 이메일 인증(AUTH-06) → 비밀번호 설정(AUTH-08) → 프로필 설정(AUTH-07) → 홈,
  * 비밀번호 찾기는 이메일 인증(AUTH-10) → 새 비밀번호(AUTH-11) → 로그인이다.
  * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
@@ -161,7 +167,6 @@ fun NavGraphBuilder.authGraph(
             popUpTo(AuthDestination.CONSENT) { inclusive = true }
         }
     }
-    // 간편 로그인·계정 연결에서 이메일 가입·비밀번호 찾기로 갈 때는 로그인 화면 바로 위에 쌓아 뒤로 가기가 로그인으로 오게 한다.
     val fromLogin: (String) -> Unit = { route -> navController.navigate(route) { popUpTo(AuthDestination.LOGIN) } }
     composable(AuthDestination.CONSENT) {
         ConsentRoute(
@@ -174,8 +179,8 @@ fun NavGraphBuilder.authGraph(
         arguments = listOf(navArgument("agreement") { type = NavType.StringType }),
     ) { entry ->
         val name = entry.savedStateHandle.get<String>("agreement")
-        TermsScreen(
-            agreement = Agreement.entries.firstOrNull { it.name == name && it.hasTerms } ?: Agreement.Terms,
+        TermsRoute(
+            termId = name.orEmpty(),
             onClose = { navController.popBackStack() },
         )
     }
@@ -197,13 +202,15 @@ fun NavGraphBuilder.authGraph(
         )
     }
     composable(AuthDestination.LOGIN) { entry ->
+        val draft = getKoin().get<AccountDraft>()
+        LaunchedEffect(draft) { draft.clearVerification() }
         LoginRoute(
             startMessage = entry.startNotice(),
             onStartMessageShown = entry::clearStartNotice,
             onLoggedIn = { onFinished(null, null) },
             onSocialLogIn = { navController.navigate(AuthDestination.oauth(it)) },
             onFindPassword = { navController.navigate(AuthDestination.PASSWORD_RESET) },
-            onSignUp = { navController.navigate(AuthDestination.SIGNUP) },
+            onSignUp = { navController.navigate(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
         )
     }
     composable(
@@ -211,27 +218,23 @@ fun NavGraphBuilder.authGraph(
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
     ) { entry ->
         val provider = entry.socialProvider() ?: SocialProvider.Kakao
-        OAuthScreen(
+        val draft = getKoin().get<AccountDraft>()
+        OAuthRoute(
             provider = provider,
             onBack = { navController.popBackStack() },
-            onLinked = { onFinished(null, null) },
+            onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
-            onSignUp = { fromLogin(AuthDestination.SIGNUP) },
+            onSignUp = { fromLogin(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
         )
     }
     composable(
         AuthDestination.LINK,
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
-    ) { entry ->
-        val provider = entry.socialProvider() ?: SocialProvider.Kakao
+    ) {
         AccountLinkRoute(
-            provider = provider,
-            email = ExampleLinkEmail,
-            // 서버가 제공자의 이메일 확인 여부를 알려 준다. 네이버는 주지 않아 항상 비밀번호를 받고, 예시에서는 카카오·Google은 확인된 것으로 본다.
-            needsPassword = provider == SocialProvider.Naver,
             onCancel = { navController.popBackStack() },
             onFindPassword = { fromLogin(AuthDestination.PASSWORD_RESET) },
-            onLinked = { onFinished(StartNotice.AccountLinked, provider) },
+            onLinked = { onFinished(StartNotice.AccountLinked, it) },
         )
     }
     composable(AuthDestination.SIGNUP) {
@@ -279,3 +282,32 @@ fun NavGraphBuilder.authGraph(
 
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
+
+/**
+ * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05)이 주소를 받도록 그 화면으로 간다.
+ * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
+ * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
+ */
+@Composable
+fun OAuthReturnEffect(navController: NavController) {
+    val links = getKoin().getOrNull<IncomingLinks>() ?: return
+    val attempts = getKoin().get<OAuthAttempts>()
+    val pending by links.pending.collectAsStateWithLifecycle()
+    val route = navController.currentBackStackEntryAsState().value?.destination?.route
+    LaunchedEffect(pending, route) {
+        val uri = pending ?: return@LaunchedEffect
+        // 화면 이동 그래프가 아직 없거나, 복귀를 받을 화면이 이미 떠 있다.
+        if (route == null || route == AuthDestination.OAUTH || route == ProfileDestination.LINK) return@LaunchedEffect
+        val target = attempts.pending()
+        if (target == null) {
+            links.take(uri)
+            return@LaunchedEffect
+        }
+        navController.navigate(
+            when (target.purpose) {
+                OAuthPurpose.LogIn -> AuthDestination.oauth(target.provider)
+                OAuthPurpose.Link -> ProfileDestination.link(target.provider)
+            },
+        )
+    }
+}

@@ -122,7 +122,7 @@ internal class MemoryPasswordChangeRepository : PasswordChangeRepository, Refres
     }
     override fun updatePasswordHash(userId: Long, passwordHash: String) { hashes[userId] = passwordHash }
     override fun revokeAllRefreshTokens(userId: Long, now: Instant) { events += userId to "revoke-all" }
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant, now: Instant): Long {
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long {
         events += userId to "insert"
         return 1L
     }

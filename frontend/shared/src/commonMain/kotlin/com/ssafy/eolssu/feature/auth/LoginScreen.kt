@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -152,11 +153,7 @@ private fun Brand() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(
-            stringResource(Res.string.auth_brand),
-            style = EolssuTheme.serif.brand.copy(fontSize = 40.sp, lineHeight = 48.sp, letterSpacing = 0.sp),
-            color = EolssuTheme.colors.text,
-        )
+        EolssuLogo()
         Text(
             stringResource(Res.string.auth_tagline),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
