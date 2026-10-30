@@ -49,6 +49,17 @@ class OpenApiConfig {
             operation.description = doc.description
             operation.tags = listOf(doc.tag)
             operation.security = doc.security?.let { listOf(SecurityRequirement().addList(it)) } ?: emptyList()
+            if(doc.id=="kakaoSecurityEvent") {
+                operation.requestBody=RequestBody().required(true).content(Content().addMediaType("application/secevent+jwt",
+                    MediaType().schema(StringSchema().maxLength(16384).description("카카오가 서명한 SET 원문. 실제 토큰을 Swagger에 저장하지 않습니다."))))
+                operation.responses=ApiResponses()
+                    .addApiResponse("202",ApiResponse().description("검증·DB 처리 완료. 본문 없음"))
+                    .addApiResponse("400",ApiResponse().description("SET 검증 실패").content(jsonContent(ObjectSchema()
+                        .addProperty("err",StringSchema()._enum(listOf("invalid_request","invalid_key","invalid_issuer","invalid_audience")))
+                        .addProperty("description",StringSchema()).required(listOf("err","description")))))
+                    .addApiResponse("503",ApiResponse().description("일시 장애·설정 누락·처리 시간 초과. 재전송 필요, 본문 없음"))
+                continue
+            }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
             if (doc.method == PathItem.HttpMethod.POST && operation.requestBody == null) {

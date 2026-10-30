@@ -16,9 +16,9 @@ class JdbcOAuthProofRepository(
     private val transaction=TransactionTemplate(manager)
     override fun insert(proof: OAuthProof) {
         jdbc.update("""INSERT INTO oauth_proofs(token_hash,kind,provider,purpose,binding_hash,user_id,redirect_uri,
-            provider_subject,email,email_verified,expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            provider_subject,email,email_verified,expires_at,flow_started_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
             proof.hash,proof.kind,proof.provider,proof.purpose,proof.bindingHash,proof.userId,proof.redirectUri,
-            proof.subject,proof.email,proof.emailVerified,proof.expiresAt.utc())
+            proof.subject,proof.email,proof.emailVerified,proof.expiresAt.utc(),proof.flowStartedAt?.utc())
     }
 
     override fun find(hash: String): OAuthProof? = jdbc.query("SELECT * FROM oauth_proofs WHERE token_hash=?", { row, _ ->
@@ -26,7 +26,8 @@ class JdbcOAuthProofRepository(
             row.getString("binding_hash"),row.getObject("user_id",java.lang.Long::class.java)?.toLong(),row.getString("redirect_uri"),
             row.getString("provider_subject"),row.getString("email"),row.getBoolean("email_verified"),
             row.getObject("expires_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC),
-            row.getObject("consumed_at",LocalDateTime::class.java)?.toInstant(ZoneOffset.UTC))
+            row.getObject("consumed_at",LocalDateTime::class.java)?.toInstant(ZoneOffset.UTC),
+            row.getObject("flow_started_at",LocalDateTime::class.java)?.toInstant(ZoneOffset.UTC))
     },hash).singleOrNull()
 
     override fun consume(hash: String, now: Instant):Boolean = transaction.execute {

@@ -10,6 +10,8 @@
 
 ## ERD
 
+V10 [카카오 연결 해제 이벤트](../../backend/src/main/resources/db/migration/V10__kakao_unlink_events.sql)은 `oauth_proofs.flow_started_at`·`user_social_accounts.oauth_started_at`과 `kakao_event_receipts`·`kakao_unlink_subjects`를 추가합니다. 이벤트/transaction ID 및 subject의 SHA-256만 새 테이블에 남기고48시간 뒤500개씩 정리합니다. 회원→subject 잠금과 원자적 영수증 처리로 재연결·미완료 티켓·중복을 보호합니다. 회원·기록·refresh 토큰은 건드리지 않습니다. 실제 운영 적용은 별도이며 [296 계약](../specs/kakao-webhook.md)을 따릅니다.
+
 V9 [OAuth 일회용 증명값](../../backend/src/main/resources/db/migration/V9__oauth_one_time_proofs.sql)은 `oauth_proofs`를 추가합니다. state·mergeTicket 원문 대신 SHA-256, 브라우저 결속 해시·제공자·목적·연결 대상·만료·소비 시각을 저장합니다. state와 mergeTicket은10분이며 원자적 조건 갱신으로1회만 소비합니다. 회원을 잠근 후 증명값·연결·refresh를 처리합니다. 회원 삭제를 막는 FK는 두지 않고 완료 처리에서 현재 회원을 재확인합니다. 만료 행은 매분 최대500개 삭제하며 서버 장기 중단 시 재기동 후 정리합니다. 제공자 subject·이메일은 그때까지 서버 내부에만 남습니다. 사용자 승인과 변경 이유는 [211 계획](../plans/S15P31E102-211.md)에 있습니다.
 
 - 원본: [ERDCloud](https://www.erdcloud.com/d/aB9vM5edsqHqmedcE)
