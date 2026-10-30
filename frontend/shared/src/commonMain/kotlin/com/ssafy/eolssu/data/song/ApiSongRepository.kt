@@ -10,6 +10,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /** CAT01/02 메타데이터와 CAT04 정본 악보. 식별자·버전·정수 tick을 보존한다. */
 class ApiSongRepository(private val client: HttpClient) : SongRepository {
@@ -113,7 +114,16 @@ private class CatalogSong(
         if (!validCatalogId(songId) || !validCatalogId(instrumentId) || title.isBlank() ||
             difficulty !in 1..5 || defaultBpm <= 0 || jangdan.name.isBlank() || noteCount < 0 || scoreVersion <= 0
         ) throw CatalogUnavailable()
-        return SongSummary(songId, title, difficulty, jangdan.name, defaultBpm, isScorable, instrumentId, scoreVersion, noteCount = noteCount)
+        return SongSummary(
+            songId, title, difficulty, jangdan.name, defaultBpm, isScorable, instrumentId, scoreVersion,
+            instrumentCode = instrumentCode(), noteCount = noteCount,
+        )
+    }
+
+    /** 목록에 함께 온 공통 악보의 `score.instrument`(DANSO 등). 곡 수 옆 악기 표시에만 쓰고, 없으면 null이다. */
+    private fun instrumentCode(): String? {
+        val code = (score?.get("score") as? JsonObject)?.get("instrument") as? JsonPrimitive ?: return null
+        return code.content.takeIf { code.isString && it.isNotBlank() }
     }
 }
 
