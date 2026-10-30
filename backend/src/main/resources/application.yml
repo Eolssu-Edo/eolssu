@@ -18,6 +18,7 @@ eolssu:
   legal:
     publication-enabled: ${LEGAL_PUBLICATION_ENABLED:false}
   auth:
+    kakao-webhook-app-id: ${AUTH_KAKAO_WEBHOOK_APP_ID:}
     code-hmac-secret: ${AUTH_CODE_HMAC_SECRET:}
     mail-mode: ${AUTH_MAIL_MODE:smtp}
     mail:

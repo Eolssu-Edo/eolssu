@@ -65,7 +65,8 @@ data class PracticeDraft(
  * @property position 현재 음의 연주 순서(재생·연주 중 위치).
  * @property eventStartedAt 현재 음이 시작된 시각. 멈춰 있으면 null이고 [pausedFraction]만큼 지난 상태다.
  * @property selected 준비 상태에서 고른 음의 연주 순서.
- * @property micLevel 연주 중 마이크 입력 크기(0~1). 녹음 구현이 없는 플랫폼(iOS·Web)은 입력이 있는 것처럼 흉내 낸다.
+ * @property micLevel 연주 중 마이크 입력 크기(0~1).
+ * @property recordingSupported 실제 녹음기가 등록되어 평가 연주를 시작할 수 있는지.
  * @property inputMeasured [micLevel]이 실제 입력 크기인지(현재 Android). 아니면 입력 없음 안내·팝업 없이 녹음을 보내
  *   서버 `NO_SOUND` 판정에 맡긴다.
  * @property hadInput 이번 연주에서 입력이 한 번이라도 있었는지.
@@ -91,6 +92,7 @@ data class PracticeUiState(
     val count: Int = 3,
     val resume: Boolean = false,
     val micLevel: Float = 0f,
+    val recordingSupported: Boolean = false,
     val inputMeasured: Boolean = false,
     val hadInput: Boolean = false,
     val noInputMs: Double = 0.0,

@@ -52,16 +52,27 @@ class WithdrawalPurgeServiceTests {
     }
 
     @Test
-    fun `a member that cancelled in the meantime is skipped`() {
+    fun `a member that cancelled after being listed keeps recordings and database`() {
         repository.due += listOf(3L)
+        repository.keys[3] = listOf("recordings/3/keep.m4a")
         repository.cancelled += 3L
         assertEquals(PurgeSummary(purged = 0, deferred = 0, skipped = 1, failed = 0), service.purgeDue())
+        assertEquals(emptyList(), repository.events)
     }
 
     @Test
     fun `a member whose database purge fails is counted and the next members are still purged`() {
         repository.due += listOf(3L, 5L)
         repository.failing += 3L
+        assertEquals(PurgeSummary(purged = 1, deferred = 0, skipped = 0, failed = 1), service.purgeDue())
+        assertEquals(listOf("purge 5"), repository.events)
+    }
+
+    @Test
+    fun `a member whose preparation fails keeps recordings and the next members continue`() {
+        repository.due += listOf(3L, 5L)
+        repository.keys[3] = listOf("recordings/3/keep.m4a")
+        repository.preparationFailing += 3L
         assertEquals(PurgeSummary(purged = 1, deferred = 0, skipped = 0, failed = 1), service.purgeDue())
         assertEquals(listOf("purge 5"), repository.events)
     }
@@ -80,6 +91,7 @@ internal class MemoryWithdrawalPurgeRepository : WithdrawalPurgeRepository {
     val keys = mutableMapOf<Long, List<String>>()
     val cancelled = mutableSetOf<Long>()
     val failing = mutableSetOf<Long>()
+    val preparationFailing = mutableSetOf<Long>()
     val events = mutableListOf<String>()
     val purgedAt = mutableListOf<Instant>()
     val readAfter = mutableListOf<Long>()
@@ -88,7 +100,10 @@ internal class MemoryWithdrawalPurgeRepository : WithdrawalPurgeRepository {
         readAfter += afterUserId
         return due.filter { it > afterUserId }.sorted().take(limit)
     }
-    override fun recordingKeys(userId: Long) = keys[userId].orEmpty()
+    override fun preparePurge(userId: Long, now: Instant): List<String>? {
+        if (userId in preparationFailing) throw IllegalStateException("lock wait timeout")
+        return if (userId in cancelled) null else keys[userId].orEmpty()
+    }
     override fun purge(userId: Long, now: Instant): Boolean {
         if (userId in failing) throw IllegalStateException("lock wait timeout")
         if (userId in cancelled) return false
