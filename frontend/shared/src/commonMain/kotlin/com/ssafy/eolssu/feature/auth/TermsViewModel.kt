@@ -14,6 +14,7 @@ class TermsViewModel(private val termId: String, private val repository: TermsRe
     val uiState = state.asStateFlow()
 
     suspend fun load() {
+        state.value = TermsUiState()
         state.value = TermsUiState(term = repository.load()?.firstOrNull { it.termId == termId }, loading = false)
     }
 

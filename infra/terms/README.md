@@ -6,7 +6,11 @@ Task: S15P31E102-300. [공개·저장 계약](../../docs/specs/terms-release.md)
 
 ## 공개 전 조건
 
-본문은 운영 적용 전 검토본이다. 배포만으로 공개하지 않도록 `LEGAL_PUBLICATION_ENABLED=false`가 기본이며, 활성화 값과 LocalRecordingStorage가 모두 있어야 본문·삭제 요청 안내를 반환한다. 조건 미충족은 로그인 페이지나 SPA 대신 503이다. 활성화 후에는 모두 로그인 없이 제공한다.
+2026-10-30 국내 저장 전환·기존 R2 원본 정리 후 공개 및 약관 4개 등록을 완료했다. 기존 버전과 동의 기록을 재생성하지 않는다. 이 절은 다음 신규 버전을 준비할 때의 절차다. 실제 반영 결과는 [작업 기록](../../docs/plans/S15P31E102-300.md)을 따른다.
+
+현재 운영을 DB 쓰기 없이 점검하려면 저장소 루트에서 `python infra/terms/publish.py --verify-live`를 실행한다. 공개 HTML 6개의 해시와 약관 API의 ID 중복·한글 제목·필수 여부·버전·URL을 확인한다. HTTP 200만으로 성공 판정하지 않는다.
+
+신규 본문은 운영 적용 전 검토를 거친다. 배포만으로 공개하지 않도록 `LEGAL_PUBLICATION_ENABLED=false`가 기본이며, 활성화 값과 LocalRecordingStorage가 모두 있어야 본문·삭제 요청 안내를 반환한다. 조건 미충족은 로그인 페이지나 SPA 대신 503이다. 활성화 후에는 모두 로그인 없이 제공한다.
 
 1. 국내 저장 전환·이관 및 녹음 처리 검증을 마친다. R2 잔존 원본 처리도 확인하며 필요한 원본 삭제는 별도 승인 없이 실행하지 않는다.
 2. 개인정보 담당자가 처리 근거·수탁자·연락처·동의 항목·시행일을 최종 검토한다. 소스의 시행일과 실제 적용일이 다르면 새 버전을 작성한다. 기능 범위를 실제 배포 APK와 대조한다.
@@ -31,3 +35,5 @@ sudo python3 infra/terms/publish.py --apply --effective-at YYYY-MM-DDTHH:MM:SSZ
 ## 검사
 
 `python -m unittest discover -s infra/terms -p 'test_*.py' -v`로 문서 변조·리다이렉트·SPA 거절 및 필수·선택 구분을 검사한다. 실제 DB 등록은 공개 검증·최종 본문 검토 후 수행한다. 이 검사는 법률 검토나 Play 심사 통과를 보장하지 않는다.
+
+운영 DB 이름은 backend 컨테이너의 실제 DB_URL에서 제한된 식별자로 추출한다. MySQL 컨테이너의 MYSQL_DATABASE는 초기 이름이 남아 있을 수 있어 사용하지 않는다. 한글 본문 제목의 저장·조회에는 --default-character-set=utf8mb4를 명시한다.

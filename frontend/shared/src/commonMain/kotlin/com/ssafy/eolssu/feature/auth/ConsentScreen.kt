@@ -18,7 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.data.user.AccountTerm
-import eolssu.shared.generated.resources.member_api_unavailable
+import eolssu.shared.generated.resources.member_api_terms_unavailable
 import eolssu.shared.generated.resources.member_api_terms_loading
 import eolssu.shared.generated.resources.member_api_retry
 import androidx.compose.ui.Alignment
@@ -99,7 +99,7 @@ fun ConsentScreen(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (state.loading) Text(stringResource(Res.string.member_api_terms_loading))
                 else if (state.failed) {
-                    Text(stringResource(Res.string.member_api_unavailable))
+                    Text(stringResource(Res.string.member_api_terms_unavailable))
                     EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
                 } else {
                     AgreeAllRow(state.allChecked, onToggleAll)
