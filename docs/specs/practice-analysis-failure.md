@@ -94,7 +94,7 @@ POST {AI}/v1/analyses
 - `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
 - `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
 - `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
-- 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`는 AI가 주지 않으므로 비운다. `pitchErrorCent`는 정수로 반올림해 저장한다. `tuningOffsetCent`·`tuningOutOfRange`는 V10부터 `evaluations`에 함께 저장하고 [평가 조회 API](practice-evaluation-api.md)에 전달한다. 편차는 AI의 원래 추정값이며 범위 초과여도 0으로 바꾸지 않는다. 기존 평가·이전 AI의 두 필드 누락은 둘 다 null로 보존한다. 한쪽만 있거나 편차가 유한한 수가 아니면 응답 계약 오류다(S15P31E102-304).
+- 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`는 AI가 주지 않으므로 비운다. `pitchErrorCent`는 정수로 반올림해 저장한다. `tuningOffsetCent`·`tuningOutOfRange`는 V11부터 `evaluations`에 함께 저장하고 [평가 조회 API](practice-evaluation-api.md)에 전달한다. 편차는 AI의 원래 추정값이며 범위 초과여도 0으로 바꾸지 않는다. 기존 평가·이전 AI의 두 필드 누락은 둘 다 null로 보존한다. 한쪽만 있거나 편차가 유한한 수가 아니면 응답 계약 오류다(S15P31E102-304).
 - 응답 형식이 맞지 않거나 연결이 실패하면 `SERVER_ERROR`, 제한 시간을 넘으면 `TIMEOUT`이다(S15P31E102-174). AI 오류 응답의 본문은 요청을 되돌려 줄 수 있어 예외·로그에 남기지 않고 상태 코드만 남긴다.
 - 결과·실패 코드 저장은 같은 시도이고 마감 전(`analysis_started_at` ≥ 지금 − 제한 시간)일 때만 한다. 마감을 넘겨 거절되면 그 시도를 `TIMEOUT`으로 바꾼다. 분석을 시작할 때 이미 마감을 넘겼으면 AI를 부르지 않고 `TIMEOUT`이다. 마감과 같은 시각은 아직 제한 시간 안이다.
 - 악보 음표를 만들지 못하거나 결과 저장이 실패해도(예: 칸 범위를 넘는 값) `SERVER_ERROR`다. 시도마다 결과 코드와 처리 시간(ms)을 로그에 남기고, 예외 메시지는 남기지 않는다. `TIMEOUT`으로 바꿀 때는 분석 중이든 상태 조회 때든 따로 한 줄 남겨 시간 초과 횟수를 센다.

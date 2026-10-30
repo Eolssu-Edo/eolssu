@@ -79,6 +79,30 @@ class HttpClientsTest {
     }
 
     @Test
+    fun oneTimeOAuthRequestsAreNotResent() = runTest {
+        val client = client { request ->
+            if (request.url.encodedPath == "/api/auth/refresh") respond("", HttpStatusCode.OK) else respond("", HttpStatusCode.Unauthorized)
+        }
+        val oneTime = listOf(
+            "/api/auth/oauth/kakao/start",
+            "/api/auth/oauth/kakao",
+            "/api/auth/oauth/merge",
+            "/api/users/me/social-accounts/naver",
+        )
+
+        oneTime.forEach { assertEquals(HttpStatusCode.Unauthorized, client.post(it).status) }
+        assertEquals(oneTime.map { "POST $it" }, requests)
+
+        // 마이페이지 연결 start는 1회용 값을 쓰지 않아 평소처럼 갱신 뒤 다시 보낸다.
+        requests.clear()
+        client.post("/api/users/me/social-accounts/naver/start")
+        assertEquals(
+            listOf("POST /api/users/me/social-accounts/naver/start", "POST /api/auth/refresh", "POST /api/users/me/social-accounts/naver/start"),
+            requests,
+        )
+    }
+
+    @Test
     fun concurrentUnauthorizedRequestsShareOneRefresh() = runTest {
         var refreshed = false
         val client = client { request ->

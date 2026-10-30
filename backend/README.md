@@ -365,11 +365,21 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 
 인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
 
-S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V10의 nullable 컬럼에 저장하고 평가 조회에 그대로 반환합니다. 기존 행과 두 필드가 없는 이전 AI 응답은 null입니다. 범위 초과 편차도 원래 값을 보존하며 점수를 다시 계산하지 않습니다. [계약](../docs/specs/practice-evaluation-api.md)을 따릅니다. 운영은 Flyway가 꺼져 있으므로 새 백엔드 배포 전에 V10을 적용해야 합니다.
+S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nullable 컬럼에 저장하고 평가 조회에 그대로 반환합니다. 기존 행과 두 필드가 없는 이전 AI 응답은 null입니다. 범위 초과 편차도 원래 값을 보존하며 점수를 다시 계산하지 않습니다. [계약](../docs/specs/practice-evaluation-api.md)을 따릅니다. 운영은 Flyway가 꺼져 있으므로 새 백엔드 배포 전에 V11을 적용해야 합니다.
 
 ### 공개 곡 조회
 
 `GET /api/songs`와 `GET /api/songs/{songId}`는 게시·미삭제 곡만 제공합니다. 숫자 ID는 문자열이고 원본 공통 악보 JSON과 악보 버전·장단을 그대로 반환합니다. [계약](../docs/specs/practice-read-apis.md), [검증](../docs/plans/S15P31E102-256.md)을 따릅니다.
+
+### 카카오 서명형 연결 해제 웹훅
+
+`POST /api/webhooks/kakao/events`는 `application/secevent+jwt` 원문 SET(최대16KiB)을 받습니다. 사용자 쿠키와 분리하며 카카오 RS256 공개키·앱·대상·주체·User Unlinked 이벤트를 검증합니다. 검증 후 카카오 연결만 삭제하고 회원·기록·다른 소셜 연결·기존 세션을 보존합니다. 빈202, 검증 실패400의 `err`/`description`, 일시 장애503은 공통 API 형식의 예외입니다. Swagger에도 이 계약을 표시합니다.
+
+`AUTH_KAKAO_WEBHOOK_APP_ID`에 해당 카카오 앱 ID를, 기존 `AUTH_OAUTH_KAKAO_CLIENT_ID`에는 대표 REST API 키를 주입합니다. 둘 중 하나라도 없으면 기동은 가능하나 웹훅은503입니다. 어드민 키는 사용하지 않습니다. 실제 값은 서버 환경에서 관리하고 Git·로그에 남기지 않습니다.
+
+배포 전에 백업과 V9 적용 상태를 확인하고 기존 마이그레이션 절차로 **V10**을 적용해야 합니다. V10은 선택적인 OAuth 시작 시각 열과 이벤트 해시 영수증·subject 해시 워터마크를 추가합니다. 새 JAR는 이 스키마가 필요합니다. 되돌릴 때는 콘솔 송신을 먼저 끄고 이전 JAR를 배포하며 추가 열·테이블은 보존합니다. 자동 다운 마이그레이션이나 데이터 삭제는 하지 않습니다.
+
+배포·설정 주입·수신 확인 후 별도 승인으로 카카오 콘솔에 `https://k15e102.p.ssafy.io/api/webhooks/kakao/events`를 등록하고 **계정 상태 변경 → User Unlinked만** 구독합니다. 기존 어드민 키 방식의 연결 해제 콜백을 함께 활성화하지 않습니다. 실제 계정의 연결 해제·중복 전달·세션 보존을 확인하고, 지속503은 설정/JWKS 접근/DB 잠금을 점검합니다. 공식 재시도는 최초 포함6회이며 연속3시간 실패 시 비활성화될 수 있습니다. 현재 로컬 구현·검증 단계이며 콘솔 활성화와 실제 송신 검증은 아직 하지 않았습니다. [상세 계약·보관·시간 경계](../docs/specs/kakao-webhook.md), [진행 기록](../docs/plans/S15P31E102-296.md).
 
 ### 계정 한정 인증 만료 예외
 

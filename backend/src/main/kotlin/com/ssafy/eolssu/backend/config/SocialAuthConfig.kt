@@ -25,7 +25,7 @@ class SocialAuthConfig {
         val requests=JdkClientHttpRequestFactory(http).apply{setReadTimeout(Duration.ofSeconds(5))}
         return RestOAuthGateway(properties,RestClient.builder().requestFactory(requests).build())
     }
-    @Bean fun socialAuthRepository(users:UserMapper,jdbc:JdbcTemplate,manager:PlatformTransactionManager):SocialAuthRepository=MyBatisSocialAuthRepository(users,jdbc,manager)
+    @Bean fun socialAuthRepository(users:UserMapper,jdbc:JdbcTemplate,manager:PlatformTransactionManager,subjects:KakaoSubjectLocks):SocialAuthRepository=MyBatisSocialAuthRepository(users,jdbc,manager,subjects)
     @Bean fun socialAuthService(repository:SocialAuthRepository,proofs:OAuthProofRepository,states:OAuthProofService,gateway:OAuthGateway,
         secrets:VerificationSecrets,issuer:AuthTokenIssuer,verification:PasswordResetRepository,passwords:PasswordEncoder,clock:Clock)=
         SocialAuthService(repository,proofs,states,gateway,secrets,issuer,verification,passwords,LoginAttemptLimiter(),clock)

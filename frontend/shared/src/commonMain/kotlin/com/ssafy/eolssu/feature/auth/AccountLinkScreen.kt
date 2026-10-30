@@ -29,6 +29,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.core.ui.component.TextFieldType
@@ -49,17 +51,17 @@ import eolssu.shared.generated.resources.auth_link_password
 import eolssu.shared.generated.resources.auth_link_password_help
 import eolssu.shared.generated.resources.auth_link_title
 import eolssu.shared.generated.resources.auth_password_placeholder
+import eolssu.shared.generated.resources.common_confirm
+import eolssu.shared.generated.resources.social_auth_merge_expired
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * AUTH-09 계정 연결 확인. 간편 로그인에 연결된 계정은 없지만 같은 이메일로 가입한 계정이 있을 때 연다.
- * 제공자가 이메일을 확인해 줬으면 동의만 받고, 아니면([needsPassword], 네이버는 항상) 그 계정의 비밀번호를 한 번 받는다.
+ * 제공자가 이메일을 확인해 줬으면 동의만 받고, 아니면([AccountLinkUiState.needsPassword], 네이버는 항상) 그 계정의 비밀번호를 한 번 받는다.
+ * 이메일은 서버가 가린 형태(`maskedEmail`)로 보여 준다. 연결 시간이 지났으면 안내 창의 확인으로 [onBack]한다.
  */
 @Composable
 fun AccountLinkScreen(
-    provider: SocialProvider,
-    email: String,
-    needsPassword: Boolean,
     state: AccountLinkUiState,
     widthClass: WindowWidthClass,
     onBack: () -> Unit,
@@ -67,13 +69,13 @@ fun AccountLinkScreen(
     onFindPassword: () -> Unit,
     onLink: () -> Unit,
 ) {
-    val name = stringResource(provider.displayName)
+    val name = stringResource(state.provider.displayName)
     AuthScaffold(
         authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = { AuthTopBar(stringResource(Res.string.auth_link_title), onBack = onBack) },
         bottomBar = {
-            EolssuButton(stringResource(Res.string.auth_link_confirm), onClick = onLink)
+            EolssuButton(stringResource(Res.string.auth_link_confirm), onClick = onLink, busy = state.linking)
             EolssuButton(stringResource(Res.string.auth_link_cancel), onClick = onBack, style = EolssuButtonStyle.Text)
         },
     ) {
@@ -82,8 +84,11 @@ fun AccountLinkScreen(
                 AuthHeading(stringResource(Res.string.auth_link_heading))
                 AuthLead(stringResource(Res.string.auth_link_lead, name))
             }
-            AccountCard(provider, email)
-            if (needsPassword) {
+            AccountCard(state.provider, state.email)
+            state.error?.let {
+                Text(stringResource(it.message), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = EolssuTheme.colors.recText)
+            }
+            if (state.needsPassword) {
                 Column {
                     EolssuTextField(
                         value = state.password,
@@ -111,6 +116,11 @@ fun AccountLinkScreen(
                     }
                 }
             }
+        }
+    }
+    if (state.expired) {
+        EolssuDialog(title = stringResource(Res.string.social_auth_merge_expired), icon = EolssuIcons.Info) {
+            EolssuButton(stringResource(Res.string.common_confirm), onClick = onBack)
         }
     }
 }

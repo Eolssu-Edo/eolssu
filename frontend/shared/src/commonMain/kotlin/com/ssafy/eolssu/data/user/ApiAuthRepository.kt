@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.apiResponse
@@ -22,6 +23,7 @@ import kotlinx.serialization.Serializable
  *
  * 로그아웃은 화면이 바로 넘어가도 끝나도록 앱 전체의 [scope]에서 한다. 서버 요청이 실패해도 기기의 쿠키는 지운다.
  * 로그인에 성공하면 응답의 `userId`를, 로그아웃하면 빈 값을 [member]에 남긴다(회원별 기록을 다른 회원으로 보내지 않기 위해).
+ * 간편 로그인 완료·계정 연결도 로그인이므로 같은 방식으로 [member]를 바꾼다. 둘 다 1회용 값을 써서 HTTP 클라이언트가 401에 재전송하지 않는다.
  */
 class ApiAuthRepository(
     private val client: HttpClient,
@@ -123,6 +125,72 @@ class ApiAuthRepository(
         else memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
     }
 
+    override suspend fun startSocialLogIn(provider: SocialProvider): OAuthStartResult =
+        startOAuth(client, "/api/auth/oauth/${provider.pathName}/start", provider)
+
+    override suspend fun completeSocialLogIn(callback: OAuthCallback): SocialLoginResult {
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/oauth/${callback.provider.pathName}") {
+                    contentType(ContentType.Application.Json)
+                    setBody(OAuthComplete(callback.authorizationCode, callback.redirectUri, callback.state))
+                }
+            } ?: return@changing SocialLoginResult.Unavailable
+            when (response.status.value) {
+                200 -> {
+                    val signedIn = response.apiResponse<SignedIn>()?.takeIf { it.isSuccess }?.result
+                        ?.takeIf { it.userId.isNotBlank() } ?: return@changing SocialLoginResult.Unavailable
+                    member.set(signedIn.userId)
+                    SocialLoginResult.Success(withdrawalCancelled = signedIn.withdrawalCancelled)
+                }
+                409 -> {
+                    val details = response.apiResponse<MergeError>()?.result?.details ?: return@changing SocialLoginResult.Unavailable
+                    val expiry = details.expiresAt.toMillis() ?: return@changing SocialLoginResult.Unavailable
+                    SocialLoginResult.MergeAvailable(
+                        MergeOffer(callback.provider, details.maskedEmail, !details.providerEmailVerified, details.mergeTicket, expiry),
+                    )
+                }
+                401 -> if (response.apiResponse<VerificationError>()?.result?.errorCode == "SOCIAL_ACCOUNT_NOT_REGISTERED") {
+                    SocialLoginResult.NotRegistered
+                } else {
+                    SocialLoginResult.Restart
+                }
+                400, 410 -> SocialLoginResult.Restart
+                else -> SocialLoginResult.Unavailable
+            }
+        }
+    }
+
+    override suspend fun mergeAccount(offer: MergeOffer, password: String?): MergeResult {
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/oauth/merge") {
+                    contentType(ContentType.Application.Json)
+                    setBody(Merge(offer.ticket, password?.takeIf { offer.needsPassword }))
+                }
+            } ?: return@changing MergeResult.Unavailable
+            when (response.status.value) {
+                200 -> {
+                    val merged = response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result
+                        ?.takeIf { it.userId.isNotBlank() } ?: return@changing MergeResult.Unavailable
+                    member.set(merged.userId)
+                    MergeResult.Success
+                }
+                422 -> MergeResult.PasswordRequired
+                401 -> MergeResult.WrongPassword
+                429 -> MergeResult.Locked
+                400, 410 -> MergeResult.Expired
+                else -> MergeResult.Unavailable
+            }
+        }
+    }
+
+    @Serializable private class OAuthComplete(val authorizationCode: String, val redirectUri: String, val state: String)
+    @Serializable private class Merge(val mergeTicket: String, val password: String? = null)
+    @Serializable private class MergeError(val errorCode: String, val details: MergeDetails? = null)
+    @Serializable private class MergeDetails(val mergeTicket: String, val maskedEmail: String, val providerEmailVerified: Boolean, val expiresAt: String)
     @Serializable private class SendVerification(val email: String, val purpose: String)
     @Serializable private class SentVerification(val verificationId: String, val expiresAt: String, val resendAvailableAt: String)
     @Serializable private class ConfirmVerification(val code: String)
@@ -139,7 +207,26 @@ class ApiAuthRepository(
     private class SignedIn(val userId: String, val withdrawalCancelled: Boolean)
 }
 
-private fun String.toMillis(): Long? = runCatching { Instant.parse(this).toEpochMilliseconds() }.getOrNull()
+internal fun String.toMillis(): Long? = runCatching { Instant.parse(this).toEpochMilliseconds() }.getOrNull()
+
+/** 로그인·연결 start(`{redirectUri}` → `authorizationUrl`·`expiresAt`). 401은 연결 start에서만 생긴다. */
+internal suspend fun startOAuth(client: HttpClient, path: String, provider: SocialProvider): OAuthStartResult {
+    val response = client.sendOrNull {
+        post(path) { contentType(ContentType.Application.Json); setBody(OAuthStart(OAuthRedirect.uriFor(provider))) }
+    } ?: return OAuthStartResult.Unavailable
+    return when (response.status.value) {
+        200 -> {
+            val result = response.apiResponse<OAuthStarted>()?.takeIf { it.isSuccess }?.result ?: return OAuthStartResult.Unavailable
+            val expiry = result.expiresAt.toMillis() ?: return OAuthStartResult.Unavailable
+            OAuthStartResult.Started(result.authorizationUrl, expiry)
+        }
+        401 -> OAuthStartResult.Unauthenticated
+        else -> OAuthStartResult.Unavailable
+    }
+}
+
+@Serializable private class OAuthStart(val redirectUri: String)
+@Serializable private class OAuthStarted(val authorizationUrl: String, val expiresAt: String)
 
 internal fun memberFailure(status: Int, code: String? = null): MemberResult = when {
     code == "EMAIL_NOT_VERIFIED" -> MemberResult.VerificationRequired

@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.PasswordCheckResult
 import com.ssafy.eolssu.data.user.SampleAuthRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
@@ -72,7 +73,7 @@ class MyPageViewModelTest {
         assertEquals(setOf(SocialProvider.Kakao), viewModel.profile.value.linkedProviders)
 
         viewModel.askUnlink(SocialProvider.Kakao)
-        assertEquals(SocialProvider.Kakao, viewModel.confirmUnlink())
+        assertEquals(MemberResult.Done, viewModel.confirmUnlink())
         assertTrue(viewModel.profile.value.linkedProviders.isEmpty())
         assertNull(viewModel.dialog.value)
     }
