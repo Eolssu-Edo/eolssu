@@ -4,6 +4,8 @@ Task: S15P31E102-300. [공개·저장 계약](../../docs/specs/terms-release.md)
 
 버전 `2026-10-30`의 이용약관·처리방침·필수 수집 동의·접근권한 안내·연령 확인 원문은 `backend/src/main/resources/legal/2026-10-30`에 있다. 공개 경로는 `/api/terms/documents/2026-10-30/{service|privacy|collection|permissions|age}`이며, 앱 외 삭제 요청 안내는 `/api/terms/documents/account-deletion`이다.
 
+S15P31E102-333에서 R2 국외 보관을 고지하는 버전 `2026-10-31`을 추가했다. `publish.py`의 등록 대상은 `2026-10-31`이다. 공개 조건은 저장소에 따라 다르다. local에서는 `2026-10-30`만, R2(s3)에서는 `2026-10-31`과 이전 버전 이력 `2026-10-30`을 공개한다. `/api/terms/documents/current/{문서}`는 그때의 현행 버전을 보여 주며 앱과 Play Console이 이 주소를 연결한다. 그래서 등록은 운영을 `s3`로 바꾼 뒤에 실행한다. 순서는 [R2 복귀 운영 절차](../storage/README.md#r2-복귀-s15p31e102-333)를 따른다.
+
 ## 공개 전 조건
 
 2026-10-30 국내 저장 전환·기존 R2 원본 정리 후 공개 및 약관 4개 등록을 완료했다. 기존 버전과 동의 기록을 재생성하지 않는다. 이 절은 다음 신규 버전을 준비할 때의 절차다. 실제 반영 결과는 [작업 기록](../../docs/plans/S15P31E102-300.md)을 따른다.
