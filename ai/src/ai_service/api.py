@@ -24,7 +24,7 @@ from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recordin
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, ScoreResult, frame_rms, pyin_f0, score
 
 # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한
-MODEL_VERSION = "pyin-3"
+MODEL_VERSION = "pyin-4"
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # PRA-02 원본 상한 20MiB, Nginx·multipart 한도 25MiB
 DOWNLOAD_TIMEOUT_S = 30.0  # 연결부터 다 받을 때까지 전체 시간
 # DTW는 정답 프레임 수 × 녹음 프레임 수만큼 메모리를 쓴다(칸당 실측 20바이트에 여유를 둔 24바이트,
