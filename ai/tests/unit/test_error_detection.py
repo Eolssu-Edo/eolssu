@@ -111,7 +111,7 @@ def test_variables_name_every_group_and_hash_the_labels(tmp_path):
     assert first["data"]["datasetHash"] == variables([b, a], labels[::-1])["data"]["datasetHash"]  # 순서와 무관
     b.write_text('{"x": 3}', encoding="utf-8")
     assert variables([a, b], labels)["data"]["datasetHash"] != first["data"]["datasetHash"]
-    assert first["scoring"]["modelVersion"] == "pyin-2"
+    assert first["scoring"]["modelVersion"] == "pyin-3"
     assert first["synthetic"] == [{"kind": "SYNTHETIC", "seed": 0}, {"kind": "SYNTHETIC", "seed": 1}]
 
 
