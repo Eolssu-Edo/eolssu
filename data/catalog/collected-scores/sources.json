@@ -884,6 +884,46 @@
       "originalFilename": "닐리리야_정간보_단소_표준악보집-PDF174.pdf",
       "instrument": "danso",
       "notes": "책 PDF 174쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 책 원본과 대조하지 않음. 글자 층 있음. S15P31E102-154 채점 정답 검수 기준 판본."
+    },
+    {
+      "id": "school-textbook-sogeum-p15",
+      "kind": "score",
+      "title": "아리랑 소금 정간보(학교 교과서 발췌)",
+      "sha256": "48c8f8ae8924edc928fa514722ecfff8d5772985ea87339953237bd4eae14184",
+      "bytes": 515328,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": null,
+      "collection": null,
+      "sourceVerified": false,
+      "license": null,
+      "attribution": null,
+      "verifiedOn": "2026-11-01",
+      "redistribution": null,
+      "rawPath": "data/raw/scores/school-textbook-sogeum-p15/아리랑_정간보_소금_학교교과서-PDF15.pdf",
+      "originalFilename": "아리랑_정간보_소금_학교교과서-PDF15.pdf",
+      "instrument": "sogeum",
+      "notes": "학교 교과서 한 쪽(인쇄 84쪽) 발췌. 악보 아래 '국립국악원 악보 / 세마치장단' 표기. 교과서 이름·출판사·이용 조건은 확인하지 못함. S15P31E102-158 소금 정상 연주 채점 정답."
+    },
+    {
+      "id": "school-textbook-sogeum-p16",
+      "kind": "score",
+      "title": "도라지타령 소금 정간보(학교 교과서 발췌)",
+      "sha256": "18302dfaff29f7215791fad453806df9a561995d84cb1c6e6bc987922894f0cc",
+      "bytes": 531269,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": null,
+      "collection": null,
+      "sourceVerified": false,
+      "license": null,
+      "attribution": null,
+      "verifiedOn": "2026-11-01",
+      "redistribution": null,
+      "rawPath": "data/raw/scores/school-textbook-sogeum-p16/도라지타령_정간보_소금_학교교과서-PDF16.pdf",
+      "originalFilename": "도라지타령_정간보_소금_학교교과서-PDF16.pdf",
+      "instrument": "sogeum",
+      "notes": "학교 교과서 한 쪽(인쇄 85쪽) 발췌. 악보 아래 '국립국악원 악보 / 세마치장단' 표기. 교과서 이름·출판사·이용 조건은 확인하지 못함. S15P31E102-158 소금 정상 연주 채점 정답."
     }
   ]
 }
