@@ -19,6 +19,8 @@ import soundfile as sf
 YULS = "황 대 태 협 고 중 유 임 이 남 무 응".split()
 PITCH_LIMIT_CENTS = 50.0
 AAC_EDGE_SECONDS = 0.025  # Slightly over one 1024-sample AAC frame at 44.1kHz.
+CONTINUITY_WINDOW_SECONDS = 0.020  # At least two periods at the 100Hz lower bound.
+CONTINUITY_HOP_SECONDS = 0.010
 
 
 def require(condition, message):
@@ -160,6 +162,20 @@ def inspect_waveform(source, bpm, audio, rate, *, lossy=False, container_seconds
         offset = min(event["audible_end"], event["start"] + (active[-1] + 1) * hop / rate) if active else None
         timing_limit = .025 + (AAC_EDGE_SECONDS if lossy else 0)
         support_ok = bool(active) and onset - event["start"] <= timing_limit and event["audible_end"] - offset <= timing_limit
+        # Check the whole sustain, not only its ends or three pitch windows.
+        # RMS over >=2 periods avoids treating ordinary zero crossings as gaps.
+        sustain_start, sustain_end = event["start"] + .025, event["audible_end"] - .025
+        sustain = segment(sustain_start, sustain_end)
+        window = round(CONTINUITY_WINDOW_SECONDS * rate)
+        stride = round(CONTINUITY_HOP_SECONDS * rate)
+        last = len(sustain) - window
+        require(last >= 0, f"{event['id']}: sustain too short for continuity observation")
+        starts = sorted(set([*range(0, last + 1, stride), last]))
+        energies = [rms(sustain[i:i + window]) for i in starts]
+        dropouts = [{"start": sustain_start + i / rate,
+                     "end": sustain_start + (i + window) / rate, "rms": energy}
+                    for i, energy in zip(starts, energies) if energy <= max(body * .02, 1e-6)]
+        continuity_ok = not dropouts
         # Every common-score NOTE is a new articulation; the release is inside
         # its source slot. A short energy valley should remain at its onset.
         boundary = rms(segment(event["start"] - .001, event["start"] + .001))
@@ -169,6 +185,9 @@ def inspect_waveform(source, bpm, audio, rate, *, lossy=False, container_seconds
                "rms": body, "early_rms": early, "late_rms": late,
                "observed_active_start": onset, "observed_active_end": offset,
                "energy_support_passed": support_ok,
+               "continuity_passed": continuity_ok, "continuity_windows": len(starts),
+               "minimum_sustain_rms_ratio": min(energies) / body if body else None,
+               "dropout_windows": dropouts,
                "onset_energy_ratio": boundary_ratio, "pitch_passed": pitch_ok,
                "active_interval_passed": active_ok, "onset_boundary_passed": boundary_ok}
         notes.append(row)
@@ -178,13 +197,20 @@ def inspect_waveform(source, bpm, audio, rate, *, lossy=False, container_seconds
             failures.append(event["id"] + ":active-interval")
         if not support_ok:
             failures.append(event["id"] + ":energy-support")
+        if not continuity_ok:
+            failures.append(event["id"] + ":continuity")
         if not boundary_ok:
             failures.append(event["id"] + ":onset-boundary")
         if event["breath_seconds"]:
             silences.append({"id": event["id"], "kind": "BREATH", "start": event["audible_end"], "end": event["end"]})
+    # The release belongs inside its original NOTE slot; the MIDI end tail and
+    # any decoded AAC padding must be quiet, with only a leading codec margin.
+    silences.append({"id": "score-end", "kind": "TAIL", "start": transported,
+                     "end": max(expected_seconds, len(audio) / rate)})
     reference_rms = float(np.median([x["rms"] for x in notes]))
     for quiet in silences:
-        start, end = quiet["start"] + edge, quiet["end"] - edge
+        start = quiet["start"] + edge
+        end = quiet["end"] if quiet["kind"] == "TAIL" else quiet["end"] - edge
         require(end > start, f"{quiet['id']}: silence too short for codec edge allowance")
         wave = segment(start, end)
         energy = rms(wave)
@@ -204,11 +230,15 @@ def inspect_waveform(source, bpm, audio, rate, *, lossy=False, container_seconds
             "padding_frames": padding, "duration_passed": duration_ok,
             "policy": {"pitch_limit_cents": PITCH_LIMIT_CENTS, "codec_edge_seconds": edge,
                        "energy_edge_tolerance_seconds": .025 + (AAC_EDGE_SECONDS if lossy else 0),
+                       "continuity_window_seconds": CONTINUITY_WINDOW_SECONDS,
+                       "continuity_hop_seconds": CONTINUITY_HOP_SECONDS,
+                       "continuity_minimum_rms_ratio": .02,
                        "silence": "relative RMS <= 1%" if lossy else "exact PCM zero",
                        "pitch_estimator": "target-independent normalized autocorrelation"},
             "notes": notes, "silences": silences,
             "limits": ["Energy/F0 windows do not certify human performance or timbre.",
                        "Adjacent same-pitch notes are checked for an energy valley, not a human tongue gesture.",
+                       "Continuity observes 20ms RMS windows every 10ms, excluding the first/last 25ms of each note.",
                        "No ornaments, tempo changes, transposition, polyphony, or notes shorter than 70ms."]}
 
 

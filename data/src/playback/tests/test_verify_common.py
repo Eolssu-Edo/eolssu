@@ -39,7 +39,7 @@ class CommonAudioObserverTests(unittest.TestCase):
         report = inspect_waveform(source(), 60, authored_wave(), RATE)
         self.assertTrue(report["passed"], report["failures"])
         self.assertEqual(report["source_nominal_seconds"], 3)
-        self.assertEqual(len(report["silences"]), 1)
+        self.assertEqual([x["kind"] for x in report["silences"]], ["REST", "TAIL"])
 
     def test_pitch_shift_is_detected(self):
         report = inspect_waveform(source(), 60, authored_wave(440 * 2 ** (1 / 12)), RATE)
@@ -59,6 +59,24 @@ class CommonAudioObserverTests(unittest.TestCase):
         wave[:round(.12 * RATE)] = 0
         report = inspect_waveform(source(), 60, wave, RATE)
         self.assertIn("0:active-interval", report["failures"])
+
+    def test_sound_in_midi_end_tail_is_detected(self):
+        wave = authored_wave()
+        time = np.arange(len(wave) - 3 * RATE) / RATE
+        wave[3 * RATE:] = .2 * np.sin(2 * np.pi * 880 * time)
+        for lossy in (False, True):
+            with self.subTest(lossy=lossy):
+                report = inspect_waveform(source(), 60, wave, RATE, lossy=lossy)
+                self.assertIn("score-end:tail", report["failures"])
+
+    def test_internal_note_dropouts_are_detected(self):
+        wave = authored_wave()
+        for start, end in ((.10, .23), (.35, .45), (.55, .65), (.75, .90)):
+            wave[round(start * RATE):round(end * RATE)] = 0
+        for lossy in (False, True):
+            with self.subTest(lossy=lossy):
+                report = inspect_waveform(source(), 60, wave, RATE, lossy=lossy)
+                self.assertIn("0:continuity", report["failures"])
 
     def test_adjacent_same_pitch_requires_a_new_articulation(self):
         value = source()
