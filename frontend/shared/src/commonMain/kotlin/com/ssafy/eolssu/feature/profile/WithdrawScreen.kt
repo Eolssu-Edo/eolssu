@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,9 +54,13 @@ fun WithdrawScreen(
             style = EolssuTheme.serif.headline.copy(fontSize = if (widthClass == WindowWidthClass.Compact) 24.sp else 28.sp, lineHeight = 34.sp),
             color = colors.text,
         )
-        // 안내 목록(`.my-notice`): 회색 바탕에 점 목록
+        // 안내 목록(`.my-notice`): 흰 바탕 · 옅은 테두리에 점 목록
         Column(
-            Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(16.dp),
+            Modifier
+                .fillMaxWidth()
+                .background(colors.surface, RoundedCornerShape(14.dp))
+                .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             listOf(Res.string.my_withdraw_notice_1, Res.string.my_withdraw_notice_2, Res.string.my_withdraw_notice_3).forEach { notice ->

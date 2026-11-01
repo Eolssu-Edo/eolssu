@@ -14,6 +14,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +39,9 @@ import eolssu.shared.generated.resources.social_auth_reopen
 import eolssu.shared.generated.resources.social_auth_waiting_body
 import eolssu.shared.generated.resources.social_auth_waiting_title
 import org.jetbrains.compose.resources.stringResource
+
+/** 제공자 화면 자리의 점선 색(보드 `.au-placeholder` #B9B3A6). 테마에 없는 옅은 선이라 이 화면에만 둔다. */
+private val PlaceholderDash = Color(0xFFB9B3A6)
 
 /**
  * MY-05 간편 로그인 연결. 제공자 화면은 외부 브라우저에 뜨고, 이 화면은 그동안 와이어프레임의 점선 자리에 진행 상태를 보여 준다.
@@ -91,7 +95,7 @@ fun SocialLinkScreen(
                 .drawBehind {
                     val stroke = 1.5.dp.toPx()
                     drawRoundRect(
-                        color = colors.lineStrong,
+                        color = PlaceholderDash,
                         topLeft = Offset(stroke / 2, stroke / 2),
                         size = Size(size.width - stroke, size.height - stroke),
                         cornerRadius = CornerRadius(18.dp.toPx()),
