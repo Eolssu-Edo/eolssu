@@ -15,6 +15,20 @@ _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
 
 
+def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
+    """기본 정렬은 기존 전체 DTW다. 평가에서는 비용 표 생성 전에 이 부분만 교체한다."""
+    # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 긴 녹음 대안은 S15P31E102-286에서 비교 중이다.
+    cost =np.abs(expected[:, None] - detected[None, :])
+    cost[np.isnan(cost)] = _UNVOICED_COST
+    cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0
+    _, path = librosa.sequence.dtw(
+        C=cost,
+        step_sizes_sigma=np.array([[1, 1], [0, 1], [1, 0]]),
+        weights_add=np.array([0.0, _STRETCH_COST, _STRETCH_COST]),
+    )
+    return path
+
+
 @dataclass(frozen=True)
 class Note:
     semitone: int  # 기준음에서 몇 반음 위인지
@@ -141,15 +155,7 @@ def score(
     frame_note[rest] = -1  # 쉼 프레임은 어느 음표에도 속하지 않는다
     expected = np.where(rest, np.nan, 100.0 * np.array([n.semitone for n in notes])[frame_note])
 
-    # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 1분을 넘는 녹음은 band 제약을 넣는다.
-    cost = np.abs(expected[:, None] - detected[None, :])
-    cost[np.isnan(cost)] = _UNVOICED_COST
-    cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0  # 쉼에 소리 없음은 맞음
-    _, path = librosa.sequence.dtw(
-        C=cost,
-        step_sizes_sigma=np.array([[1, 1], [0, 1], [1, 0]]),
-        weights_add=np.array([0.0, _STRETCH_COST, _STRETCH_COST]),
-    )
+    path = _align(expected, detected)
 
     # 음표별로 정렬된 녹음 프레임 중 소리가 있는 가운데 60%를 음정 측정에 쓴다.
     measured = []
