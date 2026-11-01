@@ -55,6 +55,14 @@ def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 
 
+def test_short_octave_up_between_lower_notes_is_octave_error():
+    # 앞뒤 음 사이에 짧게 낀 옥타브 위 음을 pYIN이 원래 옥타브로 잡던 문제(S15P31E102-251).
+    notes = [Note(10, 1.25), Note(12, 0.5), Note(14, 1.25)]
+    audio = synth(notes, shift={1: 12}, gap=0.04)
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert (result.notes[1].verdict, result.notes[1].octave_suspect) == ("PITCH", True)
+
+
 def test_skipped_note_is_missed():
     assert verdicts(run(synth(SCALE, drop=(6,)))) == {6: "MISSED"}
 
