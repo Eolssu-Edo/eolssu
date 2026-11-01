@@ -13,12 +13,16 @@ HOP_S = 0.01  # f0 프레임 간격(초)
 HWANG_HZ = 311.13  # 반음 0인 황 = E♭4. 반음 번호는 pitches.semitone(옥타브 × 12 + 율 순서)
 _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센트)
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
+_SUBHARMONIC_RATIO = 0.1  # A(f0)/A(2f0)가 이보다 작으면 f0를 2f0로 고친다
 
 
 def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
     """기본 정렬은 기존 전체 DTW다. 평가에서는 비용 표 생성 전에 이 부분만 교체한다."""
     # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 긴 녹음 대안은 S15P31E102-286에서 비교 중이다.
     cost =np.abs(expected[:, None] - detected[None, :])
+    # 옥타브 어긋남은 소리 유무가 어긋난 만큼만 비싸게 둔다. 1200센트 그대로면 정렬이 그 음을
+    # 한 프레임으로 줄이고 이웃 음에 넘긴다(S15P31E102-251). 판정은 원래 음높이로 한다.
+    cost = np.minimum(cost, np.abs(cost - 1200.0) + _UNVOICED_COST)
     cost[np.isnan(cost)] = _UNVOICED_COST
     cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0
     _, path = librosa.sequence.dtw(
@@ -78,7 +82,33 @@ def pyin_f0(
     f0, voiced, _ = librosa.pyin(
         audio, fmin=fmin, fmax=fmax, sr=sr, frame_length=frame_length, hop_length=round(sr * HOP_S)
     )
-    return np.where(voiced, f0, np.nan)
+    return _undo_subharmonic(audio, sr, np.where(voiced, f0, np.nan))
+
+
+def _undo_subharmonic(audio: np.ndarray, sr: int, f0: np.ndarray, n_fft: int = 4096) -> np.ndarray:
+    """f0 자리에 소리가 거의 없고 2f0에만 있으면 2f0로 고친다.
+
+    2f로 반복되는 소리는 f로도 반복되므로, pYIN은 앞뒤 음과 이어지는 쪽을 골라 짧은 옥타브 위 음을
+    원래 옥타브로 잡는다(S15P31E102-251). 실제 단소 단음의 A(f)/A(2f)는 하위 1%가 0.82였다.
+    """
+    hop = round(sr * HOP_S)
+    padded = np.pad(audio, n_fft // 2)  # pYIN처럼 프레임 i의 가운데를 i * hop에 둔다
+    window = np.hanning(n_fft)
+    out = f0.copy()
+    voiced = np.flatnonzero(~np.isnan(f0))
+    voiced = voiced[voiced * hop + n_fft <= padded.size]
+    for start in range(0, voiced.size, 256):  # 256프레임씩 묶어 메모리를 수십 MB 안에 둔다
+        i = voiced[start : start + 256]
+        spectrum = np.abs(np.fft.rfft(padded[i[:, None] * hop + np.arange(n_fft)] * window, axis=1))
+        rows = np.arange(i.size)[:, None]
+
+        def near(hz):  # 주파수에 가장 가까운 칸과 양옆 한 칸 중 최대 크기
+            k = np.rint(hz * n_fft / sr).astype(int)[:, None] + np.arange(-1, 2)
+            return spectrum[rows, np.clip(k, 0, spectrum.shape[1] - 1)].max(axis=1)
+
+        fix = i[near(f0[i]) < _SUBHARMONIC_RATIO * near(2 * f0[i])]
+        out[fix] = 2 * f0[fix]
+    return out
 
 
 def crepe_f0(

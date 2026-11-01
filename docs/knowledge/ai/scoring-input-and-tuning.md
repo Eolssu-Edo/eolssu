@@ -1,7 +1,7 @@
 # 채점 입력과 기준음·조율 보정 상한
 
 - 작업: [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)
-- 상태: 구현·합성 입력 검증 완료. 음 번호와 `startBeat`는 [PRA-03](../../specs/practice-analysis-failure.md)에 반영됐다(변경 기록 2026-10-28). 분석 API(S15P31E102-212)가 이 값을 채점에 넘기고 `modelVersion`은 `pyin-2`다. 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
+- 상태: 구현·합성 입력 검증 완료. 음 번호와 `startBeat`는 [PRA-03](../../specs/practice-analysis-failure.md)에 반영됐다(변경 기록 2026-10-28). 분석 API(S15P31E102-212)가 이 값을 채점에 넘기고 `modelVersion`은 `pyin-3`이다([짧은 옥타브 오류 수정](short-octave-error.md)에서 올림). 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
 - 재현: `ai/`에서 `uv run pytest tests/unit/test_scoring.py tests/unit/test_arirang_score.py`
 - 코드: [채점](../../../ai/src/ai_service/pipelines/scoring.py), [합성 입력](../../../ai/evaluation/synthetic.py), [아리랑 끝까지 검사](../../../ai/tests/unit/test_arirang_score.py)
 
