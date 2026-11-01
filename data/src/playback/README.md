@@ -54,6 +54,12 @@ flowchart TD
 
 상세 범위와 검증 기준은 [338 스펙](../../../docs/specs/common-score-playback.md), 실행 증거는 [작업 기록](../../../docs/plans/S15P31E102-338.md)을 따릅니다.
 
+생성한 실제 PCM을 원본과 독립 비교하려면 다음 명령을 사용합니다. M4A의 FFmpeg/ffprobe 옵션, 관측 기준·범위 및 실제61음 측정값은 [파형 검증 기록](../../../docs/knowledge/data/common-score-audio-verification.md)을 따릅니다.
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.playback.verify_common --score data/tests/fixtures/scores/ngc-standard-2022-p173.score.json --bpm 96 --audio data/processed/playback-338/arirang-wav/danso.wav --out data/processed/playback-338/verify-wav.json
+```
+
 ## 설치와 빠른 검사
 
 저장소 루트에서 Python 3.10 이상으로 별도 가상환경을 만듭니다. 아래 명령은 PowerShell 기준입니다.
@@ -64,7 +70,7 @@ python -m venv data/.venv
 .\data\.venv\Scripts\python -m unittest discover -s data/src/playback/tests -p "test_*.py" -v
 ```
 
-작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 153개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
+작은 고정 악보와 합성 신호를 사용하는 검사이며 CAT 파일·모델·서버·네트워크가 필요하지 않습니다. 아래 169개는 테스트 메서드 수이며, 검수한 곡 수나 원보 인식 정확도가 아닙니다. 각 테스트의 입력과 확인 내용은 [테스트별 설명](tests/README.md)에 정리합니다.
 
 | 파일 | 대응 구현 | 개수 | 확인 범위 |
 | --- | --- | ---: | --- |
@@ -76,6 +82,8 @@ python -m venv data/.venv
 | `test_pipeline.py` | `__main__.py` 및 모듈 연결 | 24 | score→MIDI·JGB→PCM·CLI의 출처/실패 보존·실제 M4A 전체 변환 1개 |
 | `test_expressions.py` | `expressions.py` | 12 | 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 |
 | `test_tempo_repeat.py` | `tempo_repeat.py` | 14 | 악기별 계획·빠르기 적분·반복·원문 위치·숨표 예산 |
+| `test_common_score.py` | `common_score.py` / CLI | 7 | 서비스 v1·표시/이벤트 참조·조율·BPM·쉼·숨·미지원 오류 위치 |
+| `test_verify_common.py` | `verify_common.py` | 9 | 독립 파형 관측기와 반음·쉼·내부 단절·종료 잔음 반례 |
 
 파일은 주된 검증 대상 모듈을 기준으로 나눕니다. 여러 단계의 연결은 `test_pipeline.py`에서 검사하며, 고정 입력·합성 샘플 헬퍼는 `_helpers.py`에서 공유합니다. 테스트 파일끼리는 import하지 않습니다.
 
