@@ -14,21 +14,20 @@ YUL_NAMES = "황대태협고중유임이남무응"
 PREFIXES = {-2: "하배", -1: "배", 0: "", 1: "청", 2: "중청"}
 
 
+def require_integer(value, location):
+    require(type(value) is int, f"{location}: 정수 필드는 소수·불리언 없이 입력해야 합니다")
+
+
 def validate_common(source):
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     error = next(Draft202012Validator(schema).iter_errors(source), None)
     if error is not None:
         location = ".".join(map(str, error.absolute_path)) or "scoreData"
         raise ValueError(f"{location}: {error.message}")
-    integer_values = [source["schemaVersion"], source["score"]["part"], source["score"]["scoreVersion"],
-                      source["music"]["ticksPerBeat"], source["music"]["ticksPerJeonggan"]]
-    integer_values += [value for e in source["events"] for value in
-                       (e["startTick"], e["durationTick"], *([e["octave"]] if e["kind"] == "NOTE" else []))]
-    integer_values += [c["index"] for c in source["columns"]]
-    integer_values += [cell["index"] for c in source["columns"] for cell in c["cells"]]
-    integer_values += [value for c in source["columns"] for cell in c["cells"]
-                       for u in cell["units"] for value in (u["row"], u["col"])]
-    require(all(type(value) is int for value in integer_values), "정수 필드는 소수·불리언 없이 입력해야 합니다")
+    require_integer(source["schemaVersion"], "schemaVersion")
+    for section, keys in (("score", ("part", "scoreVersion")), ("music", ("ticksPerBeat", "ticksPerJeonggan"))):
+        for key in keys:
+            require_integer(source[section][key], f"{section}.{key}")
     require(source["provenance"]["review"] != "rejected", "provenance.review: rejected 악보는 재생하지 않습니다")
     require(source["score"]["sourceId"] == source["provenance"]["sourceId"], "provenance.sourceId 불일치")
     events = source["events"]
@@ -38,6 +37,8 @@ def validate_common(source):
     by_id, cursor = {}, 0
     for event in events:
         eid = event["id"]
+        for key in ("startTick", "durationTick", *(("octave",) if event["kind"] == "NOTE" else ())):
+            require_integer(event[key], f"{eid}.{key}")
         require(event["startTick"] == cursor, f"{eid}: 빈틈·겹침 없는 시간축이 필요합니다")
         require(not event["sigimsae"], f"{eid}: 공통 v1 sigimsae 미지원: 배치 시각·조 정보가 필요합니다")
         require(not (event["kind"] == "REST" and event["breathAfter"]), f"{eid}: REST의 숨표는 지원하지 않습니다")
@@ -46,12 +47,16 @@ def validate_common(source):
     positions, origins, offset = {}, set(), 0
     cell_ticks = source["music"]["ticksPerJeonggan"]
     for c, column in enumerate(source["columns"]):
+        require_integer(column["index"], f"columns[{c}].index")
         require(column["index"] == c and column["cells"], f"columns[{c}]: 각 순서·정간을 확인하세요")
         for j, cell in enumerate(column["cells"]):
             cid = f"c{c}-j{j}"
+            require_integer(cell["index"], f"{cid}.index")
             require(cell["id"] == cid and cell["index"] == j, f"{cid}: 정간 ID·위치 불일치")
             rows = {}
             for unit in cell["units"]:
+                for key in ("row", "col"):
+                    require_integer(unit[key], f"{cid}.units.{key}")
                 rows.setdefault(unit["row"], []).append(unit)
             require(list(rows) == list(range(len(rows))), f"{cid}: row 순서 불일치")
             require(cell["units"] == sorted(cell["units"], key=lambda u: (u["row"], u["col"])),
@@ -110,7 +115,10 @@ def convert_common_score(source, *, bpm, instrument, input_sha256):
         duration = Fraction(event["durationTick"], music["ticksPerBeat"]) * ratio
         start = Fraction(event["startTick"], music["ticksPerBeat"]) * ratio
         # Reject unrepresentable subdivisions instead of silently rounding them.
-        start_midi, duration_midi = ticks(start), ticks(duration)
+        try:
+            start_midi, duration_midi = ticks(start), ticks(duration)
+        except ValueError as exc:
+            raise ValueError(f"{eid}: {exc}") from exc
         note = {"id": eid, "duration": str(duration)}
         target_hz = None
         ordinal = None

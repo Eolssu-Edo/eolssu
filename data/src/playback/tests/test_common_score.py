@@ -15,6 +15,14 @@ FIXTURE = Path(__file__).resolve().parents[3] / "tests/fixtures/scores/ngc-stand
 
 
 class CommonScorePlaybackTests(unittest.TestCase):
+    def test_invalid_integer_and_subdivision_identify_input_location(self):
+        for value, location in ((1.0, "music.ticksPerBeat"), (7, "c0-j0-r0-u0")):
+            with self.subTest(value=value):
+                source = small_score()
+                source["music"]["ticksPerBeat"] = value
+                with self.assertRaisesRegex(ValueError, location):
+                    convert_common_score(source, bpm=60, instrument="danso", input_sha256="a"*64)
+
     def test_small_score_preserves_rearticulation_rest_and_exact_tuning(self):
         source = small_score()
         normalized, mapping = convert_common_score(source, bpm=60, instrument="danso", input_sha256="a"*64)
