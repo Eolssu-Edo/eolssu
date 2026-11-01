@@ -15,6 +15,8 @@ _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
 _SUBHARMONIC_RATIO = 0.1  # A(f0)/A(2f0)가 이보다 작으면 f0를 2f0로 고친다
 _ONSET_WINDOW = 3  # 박자 판정에서 기준으로 삼는 앞뒤 음 수
+# 흔들림으로 허용을 넓히려면 소리 낸 음이 이만큼 있어야 한다. 음이 적으면 늦은 음 하나가 이웃 차이 여러 개를 흔들어 흔들림이 부푼다.
+_SPREAD_MIN_NOTES = 12
 
 
 def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
@@ -241,15 +243,21 @@ def score(
         played.append((k, err, onset_err, dur_err, octave))
 
     # 박자는 곡 처음 기준이 아니라 앞뒤 음 기준으로 본다. 메트로놈 없이 빨라지거나 느려지면 늦음이 쌓이지만
-    # 앞뒤 음도 같이 늦으므로, 그 음의 늦음에서 앞뒤 _ONSET_WINDOW음(놓친 음 제외) 늦음의 중앙값을 뺀 나머지로 판정한다.
-    # 허용은 onset_beat 박과 이 연주 나머지의 흔들림(MAD × 1.4826, 정규분포의 표준편차에 맞춘 값) × onset_spread 중 큰 쪽.
+    # 앞뒤 음도 같이 늦는다. 연주 전체의 빠르기 차이(늦음이 1초에 늘어나는 양 drift, 이웃 음 사이 기울기의 중앙값)를 빼고,
+    # 그 음의 늦음과 앞뒤 _ONSET_WINDOW음(놓친 음 제외)으로 예상한 늦음의 중앙값의 차이(나머지)로 판정한다.
+    # 허용은 onset_beat 박과 이 연주의 박자 흔들림 × onset_spread 중 큰 쪽이다. 흔들림은 이웃 음 사이 늦음 차이로 잰다
+    # (MAD × 1.4826 ÷ √2, 정규분포면 음 하나의 표준편차). 나머지로 재면 붙은 음 몇 개가 함께 늦을 때 그 늦음이 이웃 음의
+    # 나머지에도 번져 흔들림이 커지고 허용이 넓어져 모두 놓친다. 이웃 차이는 늦기 시작한 곳과 돌아온 곳 두 곳만 커진다.
     onsets = np.array([p[2] for p in played])
+    times = starts[[p[0] for p in played]]
+    drift = float(np.median(np.diff(onsets) / np.diff(times))) if len(onsets) > 1 else 0.0
     resid = np.array([
-        o - np.median(np.delete(onsets[max(0, i - _ONSET_WINDOW) : i + _ONSET_WINDOW + 1], min(i, _ONSET_WINDOW)))
+        o - np.median(np.delete(onsets[lo : i + _ONSET_WINDOW + 1] + drift * (t - times[lo : i + _ONSET_WINDOW + 1]), i - lo))
         if len(onsets) > 1 else 0.0
-        for i, o in enumerate(onsets)
+        for i, (o, t, lo) in enumerate(zip(onsets, times, (max(0, i - _ONSET_WINDOW) for i in range(len(onsets)))))
     ])
-    spread = 1.4826 * float(np.median(np.abs(resid - np.median(resid)))) if resid.size else 0.0
+    steps = np.diff(onsets) - drift * np.diff(times)
+    spread = 1.4826 * float(np.median(np.abs(steps - np.median(steps)))) / np.sqrt(2) if len(onsets) >= _SPREAD_MIN_NOTES else 0.0
     onset_tol_s = max(tol.onset_beat * beat_s, tol.onset_spread * spread)
 
     results, pitch_c, timing_c, duration_c = [], [], [], []

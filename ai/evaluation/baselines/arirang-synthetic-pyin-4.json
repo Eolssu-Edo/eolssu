@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "createdAt": "2026-11-01T14:38:18+00:00",
+ "createdAt": "2026-11-01T15:03:35+00:00",
  "command": "C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\confident-sutherland-4b4873\\ai\\evaluation\\error_detection.py ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-missed-1.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-missed-2.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-missed-3.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-normal.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-octave-1.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-octave-2.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-octave-3.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-pitch-1.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-pitch-2.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-pitch-3.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-timing-1.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-timing-2.label.json ../data/processed/recordings/danso/arirang-synthetic/arirang-synth-timing-3.label.json --out evaluation/baselines/arirang-synthetic-pyin-4.json --compare evaluation/baselines/arirang-synthetic-pyin-3.json --vary scoring",
- "commit": "fcb03ee0a91ac4aba8d32584dc79691e2295815e",
+ "commit": "18788e46d20fe30be829d58ca7f8689b06f715bb",
  "variables": {
   "data": {
    "labels": {
@@ -24,8 +24,8 @@
   },
   "scoring": {
    "modelVersion": "pyin-4",
-   "scoringCode": "c3c3bcdb0f37be9cf535e5b1a355f66597adc94422f59a06cb65acd838331338",
-   "evaluationCode": "1ddbefefc6bca83a01e0e15cc5f8aafc9b4e64fed65d7d517842942b0c073843",
+   "scoringCode": "58ed59190e8b83ec1db59b28e743a4f449fd148a68f0a7c53087adb60e1bd96c",
+   "evaluationCode": "5cfcfee5327cde396ced8b4b2c6426dae01dbead441ce0bc9917b64e17a5853d",
    "toleranceDefaults": {
     "pitch_cent": 50.0,
     "onset_beat": 0.125,

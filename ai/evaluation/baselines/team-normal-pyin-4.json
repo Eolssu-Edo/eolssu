@@ -1,8 +1,8 @@
 {
  "schemaVersion": 1,
- "createdAt": "2026-11-01T14:39:03+00:00",
- "command": "C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\confident-sutherland-4b4873\\ai\\evaluation\\error_detection.py ../data/annotations/recordings/danso/p01-danso-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-doraji-20261029-t1.json --out evaluation/baselines/team-normal-pyin-4.json --compare evaluation/baselines/team-normal-pyin-3.json --vary scoring",
- "commit": "fcb03ee0a91ac4aba8d32584dc79691e2295815e",
+ "createdAt": "2026-11-01T15:04:10+00:00",
+ "command": "C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\confident-sutherland-4b4873\\ai\\evaluation\\error_detection.py ../data/annotations/recordings/danso/p01-danso-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-doraji-20261029-t1.json --out evaluation/baselines/team-normal-pyin-4.json",
+ "commit": "18788e46d20fe30be829d58ca7f8689b06f715bb",
  "variables": {
   "data": {
    "labels": {
@@ -14,8 +14,8 @@
   },
   "scoring": {
    "modelVersion": "pyin-4",
-   "scoringCode": "c3c3bcdb0f37be9cf535e5b1a355f66597adc94422f59a06cb65acd838331338",
-   "evaluationCode": "1ddbefefc6bca83a01e0e15cc5f8aafc9b4e64fed65d7d517842942b0c073843",
+   "scoringCode": "58ed59190e8b83ec1db59b28e743a4f449fd148a68f0a7c53087adb60e1bd96c",
+   "evaluationCode": "5cfcfee5327cde396ced8b4b2c6426dae01dbead441ce0bc9917b64e17a5853d",
    "toleranceDefaults": {
     "pitch_cent": 50.0,
     "onset_beat": 0.125,
@@ -133,12 +133,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 35,
-    "tn": 152,
-    "rate": 0.18716577540106952,
+    "fp": 42,
+    "tn": 145,
+    "rate": 0.22459893048128343,
     "ci": [
-     0.13776660397748725,
-     0.2491595169521214
+     0.17067488279140935,
+     0.28961050571927177
     ]
    },
    "byKind": {
@@ -164,9 +164,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCCMCCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCCCCCCCCCCPCCCCCCCCCCCPCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCTMTCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCTCCCCCCCCPCCCCCCCCCCCPCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -194,12 +194,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 35,
-    "tn": 152,
-    "rate": 0.18716577540106952,
+    "fp": 42,
+    "tn": 145,
+    "rate": 0.22459893048128343,
     "ci": [
-     0.13776660397748725,
-     0.2491595169521214
+     0.17067488279140935,
+     0.28961050571927177
     ]
    },
    "byKind": {
@@ -225,9 +225,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCCMCCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCCCCCCCCCCPCCCCCCCCCCCPCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCTMTCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCTCCCCCCCCPCCCCCCCCCCCPCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -255,12 +255,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 35,
-    "tn": 152,
-    "rate": 0.18716577540106952,
+    "fp": 42,
+    "tn": 145,
+    "rate": 0.22459893048128343,
     "ci": [
-     0.13776660397748725,
-     0.2491595169521214
+     0.17067488279140935,
+     0.28961050571927177
     ]
    },
    "byKind": {
@@ -286,9 +286,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCCMCCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCCCCCCCCCCPCCCCCCCCCCCPCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCTMTCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCTCCCCCCCCPCCCCCCCCCCCPCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -316,12 +316,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 35,
-    "tn": 152,
-    "rate": 0.18716577540106952,
+    "fp": 42,
+    "tn": 145,
+    "rate": 0.22459893048128343,
     "ci": [
-     0.13776660397748725,
-     0.2491595169521214
+     0.17067488279140935,
+     0.28961050571927177
     ]
    },
    "byKind": {
@@ -347,9 +347,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCCMCCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCCCCCCCCCCPCCCCCCCCCCCPCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCPCCCCCMCCCCCCCTMTCPCCCCCCCCCOPCPCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCPCCCCCCCCCCCPCCCPCCTCCCCCCCCPCCCCCCCCCCCPCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCPCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCPPPPPCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -367,7 +367,251 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 79.0
+    "meanTotal": 78.33333333333333
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 31,
+    "tn": 156,
+    "rate": 0.1657754010695187,
+    "ci": [
+     0.11931407186804938,
+     0.22569246758666067
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0,
+    "onset_spread": 4.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 82.66666666666667
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 31,
+    "tn": 156,
+    "rate": 0.1657754010695187,
+    "ci": [
+     0.11931407186804938,
+     0.22569246758666067
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0,
+    "onset_spread": 4.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 78.33333333333333
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 31,
+    "tn": 156,
+    "rate": 0.1657754010695187,
+    "ci": [
+     0.11931407186804938,
+     0.22569246758666067
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0,
+    "onset_spread": 4.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 82.66666666666667
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 31,
+    "tn": 156,
+    "rate": 0.1657754010695187,
+    "ci": [
+     0.11931407186804938,
+     0.22569246758666067
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0,
+    "onset_spread": 4.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 78.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -408,14 +652,14 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
    "tolerance": {
-    "pitch_cent": 40.0,
+    "pitch_cent": 50.0,
     "onset_beat": 0.125,
     "duration_ratio": 0.25,
     "max_tuning_cent": 100.0,
@@ -428,7 +672,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 83.33333333333333
+    "meanTotal": 82.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -469,14 +713,14 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
    "tolerance": {
-    "pitch_cent": 40.0,
+    "pitch_cent": 50.0,
     "onset_beat": 0.2,
     "duration_ratio": 0.2,
     "max_tuning_cent": 100.0,
@@ -489,7 +733,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 79.0
+    "meanTotal": 78.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -530,14 +774,14 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
    "tolerance": {
-    "pitch_cent": 40.0,
+    "pitch_cent": 50.0,
     "onset_beat": 0.2,
     "duration_ratio": 0.25,
     "max_tuning_cent": 100.0,
@@ -550,7 +794,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 83.33333333333333
+    "meanTotal": 82.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -591,253 +835,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "PCCCCPCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCPPCCCPPPCCCCCCCMCCCCCCCCCC"
-   }
-  },
-  {
-   "tolerance": {
-    "pitch_cent": 50.0,
-    "onset_beat": 0.125,
-    "duration_ratio": 0.2,
-    "max_tuning_cent": 100.0,
-    "onset_spread": 4.0
-   },
-   "onsetMs": [
-    98,
-    110,
-    114
-   ],
-   "normal": {
-    "recordings": 3,
-    "meanTotal": 79.0
-   },
-   "detection": {
-    "tp": 0,
-    "wrongKind": 0,
-    "fn": 0,
-    "recall": null,
-    "ci": null
-   },
-   "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
-    "ci": [
-     0.05335079161135415,
-     0.13445731731248634
-    ]
-   },
-   "byKind": {
-    "PITCH": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "OCTAVE": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "TIMING": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "MISSED": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    }
-   },
-   "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
-   }
-  },
-  {
-   "tolerance": {
-    "pitch_cent": 50.0,
-    "onset_beat": 0.125,
-    "duration_ratio": 0.25,
-    "max_tuning_cent": 100.0,
-    "onset_spread": 4.0
-   },
-   "onsetMs": [
-    98,
-    110,
-    114
-   ],
-   "normal": {
-    "recordings": 3,
-    "meanTotal": 83.66666666666667
-   },
-   "detection": {
-    "tp": 0,
-    "wrongKind": 0,
-    "fn": 0,
-    "recall": null,
-    "ci": null
-   },
-   "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
-    "ci": [
-     0.05335079161135415,
-     0.13445731731248634
-    ]
-   },
-   "byKind": {
-    "PITCH": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "OCTAVE": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "TIMING": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "MISSED": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    }
-   },
-   "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
-   }
-  },
-  {
-   "tolerance": {
-    "pitch_cent": 50.0,
-    "onset_beat": 0.2,
-    "duration_ratio": 0.2,
-    "max_tuning_cent": 100.0,
-    "onset_spread": 4.0
-   },
-   "onsetMs": [
-    157,
-    176,
-    182
-   ],
-   "normal": {
-    "recordings": 3,
-    "meanTotal": 79.0
-   },
-   "detection": {
-    "tp": 0,
-    "wrongKind": 0,
-    "fn": 0,
-    "recall": null,
-    "ci": null
-   },
-   "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
-    "ci": [
-     0.05335079161135415,
-     0.13445731731248634
-    ]
-   },
-   "byKind": {
-    "PITCH": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "OCTAVE": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "TIMING": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "MISSED": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    }
-   },
-   "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
-   }
-  },
-  {
-   "tolerance": {
-    "pitch_cent": 50.0,
-    "onset_beat": 0.2,
-    "duration_ratio": 0.25,
-    "max_tuning_cent": 100.0,
-    "onset_spread": 4.0
-   },
-   "onsetMs": [
-    157,
-    176,
-    182
-   ],
-   "normal": {
-    "recordings": 3,
-    "meanTotal": 83.66666666666667
-   },
-   "detection": {
-    "tp": 0,
-    "wrongKind": 0,
-    "fn": 0,
-    "recall": null,
-    "ci": null
-   },
-   "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
-    "ci": [
-     0.05335079161135415,
-     0.13445731731248634
-    ]
-   },
-   "byKind": {
-    "PITCH": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "OCTAVE": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "TIMING": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    },
-    "MISSED": {
-     "tp": 0,
-     "wrongKind": 0,
-     "fn": 0
-    }
-   },
-   "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -855,7 +855,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 79.0
+    "meanTotal": 78.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -865,12 +865,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
+    "fp": 24,
+    "tn": 163,
+    "rate": 0.12834224598930483,
     "ci": [
-     0.05335079161135415,
-     0.13445731731248634
+     0.08778302429586352,
+     0.18386424757777411
     ]
    },
    "byKind": {
@@ -896,9 +896,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -916,7 +916,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 83.66666666666667
+    "meanTotal": 83.0
    },
    "detection": {
     "tp": 0,
@@ -926,12 +926,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
+    "fp": 24,
+    "tn": 163,
+    "rate": 0.12834224598930483,
     "ci": [
-     0.05335079161135415,
-     0.13445731731248634
+     0.08778302429586352,
+     0.18386424757777411
     ]
    },
    "byKind": {
@@ -957,9 +957,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -977,7 +977,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 79.0
+    "meanTotal": 78.66666666666667
    },
    "detection": {
     "tp": 0,
@@ -987,12 +987,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
+    "fp": 24,
+    "tn": 163,
+    "rate": 0.12834224598930483,
     "ci": [
-     0.05335079161135415,
-     0.13445731731248634
+     0.08778302429586352,
+     0.18386424757777411
     ]
    },
    "byKind": {
@@ -1018,9 +1018,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   },
   {
@@ -1038,7 +1038,7 @@
    ],
    "normal": {
     "recordings": 3,
-    "meanTotal": 83.66666666666667
+    "meanTotal": 83.0
    },
    "detection": {
     "tp": 0,
@@ -1048,12 +1048,12 @@
     "ci": null
    },
    "falsePositive": {
-    "fp": 16,
-    "tn": 171,
-    "rate": 0.0855614973262032,
+    "fp": 24,
+    "tn": 163,
+    "rate": 0.12834224598930483,
     "ci": [
-     0.05335079161135415,
-     0.13445731731248634
+     0.08778302429586352,
+     0.18386424757777411
     ]
    },
    "byKind": {
@@ -1079,9 +1079,9 @@
     }
    },
    "verdicts": {
-    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCCMCCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCCMCCCCM",
-    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCM",
-    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMCCCCMCCCCCCCCCCCCCCCCMCCCCCCCCCC"
+    "p01-danso-arirang-20261029-t1": "TCCCCCCCCCMCCCCCCCTMTCCCCCCCCCCCOOCCCCCCCCCCCCCCCCCCCCTMCCCCM",
+    "p02-sogeum-arirang-20261029-t1": "CCPPCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTCCCCCCCCCCCCCCCCCCCCCCCCCM",
+    "p02-sogeum-doraji-20261029-t1": "CCCCCCCCCCCCCCCCCCCCCCCCCPMCCCCCPMTCTTMCTCCCCCCCCCCCCCCMCCCCCCCCCC"
    }
   }
  ]
