@@ -38,7 +38,7 @@
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
-- [오류 음표·취약 구간 조회 API (EVA-02·03)](specs/evaluation-detail-apis.md) · [계획](plans/S15P31E102-307.md)
+- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
@@ -97,6 +97,7 @@
 ## 데이터 조사·검증 기록
 
 - [Android 운영 자료·단소 M4A 후보와 앱 악보 대조](knowledge/data/android-catalog-audio-readiness.md)
+- [악기별 악보 분류와 추가 확보](knowledge/data/score-collection.md) · [계획](plans/S15P31E102-111.md)
 - [산조대금 라벨·연주 자료와 검수 근거](knowledge/data/sanjo-daegeum.md)
 - [산조대금 JGB·MIDI·M4A 변환과 CAT 공통 샘플 확인](knowledge/data/sanjo-playback.md)
 - [정악대금 라벨·연주 자료와 검수 근거](knowledge/data/jeongak-daegeum.md)
@@ -112,6 +113,7 @@
 - [단소 4곡 공통 악보와 V6 시드 일치 검수](knowledge/data/danso-seed-consistency-audit.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
 - [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md) · [자동 테스트별 확인 범위](../data/src/playback/tests/README.md)
+- [대금·단소·소금 악보의 기준음·박·빠르기·시김새 근거](knowledge/data/score-reference-standards.md) · [계획](plans/S15P31E102-129.md)
 
 ## AI 실험 기록
 
@@ -222,9 +224,12 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [공개 약관과 삭제 안내 준비](knowledge/backend/terms-publication.md)
 - [약관 공개·동의·출시 검증](knowledge/backend/terms-release-verification.md)
 - [S15P31E102-300 약관 제공 준비](plans/S15P31E102-300.md)
-- [공개 약관 및 국내 녹음 저장 계약](specs/terms-release.md)
-- [국내 저장 이관·Naver 메일 준비](../infra/storage/README.md)
+- [공개 약관 및 녹음 저장 계약(R2 복귀 변경 포함)](specs/terms-release.md)
+- [S15P31E102-333 녹음 저장소 R2 복귀와 국외 이전 고지](plans/S15P31E102-333.md)
+- [녹음 저장 이관(국내 디스크·R2 복귀)·Naver 메일 준비](../infra/storage/README.md)
 - [약관 본문 공개와 버전 등록](../infra/terms/README.md)
 - [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
 
 - [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)
+
+- [S15P31E102-337 QA 앱 App Links 수정·검증](plans/S15P31E102-337.md)

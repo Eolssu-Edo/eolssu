@@ -1,7 +1,7 @@
-# 오류 음표·취약 구간 조회 API (EVA-02·03)
+# 오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)
 
-- Jira: S15P31E102-307, Story S15P31E102-37, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md)
-- 현재 구현 계약. 노션 API 명세서의 EVA-02·03 계약 초안을 따르고, 저장 데이터로 채울 수 없는 필드는 아래처럼 고정값으로 둔다. 채점을 다시 하거나 결과를 저장하지 않는다.
+- Jira: EVA-02·03은 S15P31E102-307, EVA-04는 S15P31E102-310. Story S15P31E102-37, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md) · [310 계획](../plans/S15P31E102-310.md)
+- 현재 구현 계약. 노션 API 명세서의 EVA-02·03·04 계약 초안을 따르고, 저장 데이터로 채울 수 없는 필드는 아래처럼 고정값으로 둔다. EVA-04는 초안의 점수 비교를 뺐다(아래 '미구현·후속'의 노션 초안과 다른 점). 채점을 다시 하거나 결과를 저장하지 않는다.
 
 ## 공통
 
@@ -12,7 +12,7 @@
 | 본인·미삭제·DONE | 200 | 성공 응답 |
 | 인증 없음·만료 | 401 | UNAUTHENTICATED |
 | 없음·타인·기록 삭제 | 404 | RESOURCE_NOT_FOUND |
-| 본인 미완료, (EVA-03만) 세션 이후 곡 악보 버전 변경 | 409 | STATE_CONFLICT |
+| 본인 미완료, (EVA-03·04) 세션 이후 곡 악보 버전 변경 | 409 | STATE_CONFLICT |
 | 쿼리 형식·범위 위반 | 400 | INVALID_REQUEST |
 
 ## EVA-02 `GET /api/practice-sessions/{sessionId}/evaluation/notes`
@@ -57,12 +57,41 @@
 
 창 길이 2각, 정렬 기준, 판정 우선순위는 노션 초안의 검토 필요 항목이다. AI 임계값 검증 결과에 따라 바뀔 수 있다.
 
+## EVA-04 `GET /api/practice-sessions/{sessionId}/comparison`
+
+비교 구간은 이번 세션의 연습 구간이다. 점수는 비교하지 않고 비교 구간 음표의 저장 판정으로 오류 수·고친 음표·남은 오류를 비교한다(2026-10-30 사용자 결정). `baselineSessionId`를 생략하면 PRA-01에서 세션을 만들 때 넘긴 `parentSessionId`를 쓴다.
+
+| 이전 세션 상황 | HTTP |
+| --- | --- |
+| baselineSessionId·parentSessionId 모두 없음, 자기 자신, 다른 곡, 이번 세션보다 나중에 시작함(startedAt), 같은 악보 버전인데 이번 구간을 모두 담지 않음 | 400 |
+| 없음·타인·기록 삭제 | 404 |
+| 미완료 | 409 |
+
+| result 필드 | 값 |
+| --- | --- |
+| baselineSessionId | 실제로 비교한 이전 세션 ID(STRING) |
+| comparable | 아래 비교 조건을 모두 만족하면 true |
+| reason | comparable=false일 때 이유 문장, true면 null |
+| startNoteIdx·endNoteIdx, startColumnIdx·endColumnIdx | 이번 세션 구간과 그 첫·끝 음표의 각(0부터) |
+| before | `{errorCount}`만 준다. 비교 구간의 이전 저장 판정으로 센다. 이전 결과가 곡 전체 등 더 넓은 구간이어도 같은 음표끼리 센다. 이전 결과의 악보 버전이 다르면 음표 순번이 맞지 않아 null이고 구간 포함 여부도 검사하지 않는다 |
+| after | 이번 세션의 저장 점수 4개(화면 표시용, 비교하지 않음), 비교 구간 errorCount, bpm·bpmUnit |
+| delta | comparable=true일 때만 `{errorCount}`(이번 − 이전), 아니면 null |
+| correctedNoteIndices | 이전에 오류였고 이번에 CORRECT인 noteIdx. 악보 버전이 다르면 `[]` |
+| remainingErrors | 이번에도 틀린 음표 `{noteIdx, verdict}` |
+
+### 비교 조건
+
+다음 순서로 확인해 처음 걸린 하나를 reason으로 쓴다: 악보 버전 같음 → `evaluations.model_version` 같음 → bpm·bpmUnit 같음. 구간이 다른 것은 비교 불가 사유가 아니다.
+
+점수는 음표별 오차와 AI 허용 범위로 계산되어 저장 판정만으로는 같은 구간 점수를 다시 만들 수 없다. 서버가 공식을 복제하지 않도록 점수 비교를 계약에서 뺐다. 판정 정책 버전은 저장하지 않아 비교 조건에 넣지 못했다.
+
 ## 미구현·후속
 
 - 복수 오류 유형, DURATION 판정, 녹음 위치(recordingOffsetMs)는 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
 - 누락(MISSED) 표시 방식과 '취약 구간 연습' 버튼의 1차 이동 화면은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
-- EVA-04(구간 재평가 비교)는 2차 보류다.
+- EVA-04를 쓰는 구간 재평가 화면(RESULT-04)과 구간 반복 연습(PRACTICE-02·03)은 와이어프레임 기준 2차 확장이다. 서버 API는 먼저 구현했다.
+- 노션 EVA-04 초안과 다른 점: 초안의 before 점수 4개·delta.totalScore·규칙 1~3·5(구간 점수 재집계)를 뺐다. before.errorCount는 악보 버전이 다르면 null이다. baselineSessionId는 생략하면 parentSessionId를 쓴다. 디자인 RESULT-04의 '이전보다 17점 올랐어요'·항목별 이전→이번 점수는 '남은 오류 9개 → 2개'처럼 오류 수 중심으로 바꿔야 한다. 노션 초안 갱신과 FE·디자인 공유가 남아 있다.
 
 ## 구현 경계·검증
 
-API는 HTTP 매핑·쿼리 검증, application은 소유·상태·범위 판단과 읽기 전용 트랜잭션, domain은 취약 구간 계산, infrastructure는 MyBatis 조회와 악보 JSON 해석을 맡는다. 단위 테스트로 구간 계산 규칙을, MockMvc로 상태·필터·400을, 실제 HTTP/MySQL 테스트로 V6 시드 악보의 정간 묶음과 404·409를 검증한다.
+API는 HTTP 매핑·쿼리 검증, application은 소유·상태·범위 판단과 읽기 전용 트랜잭션, domain은 취약 구간 계산과 구간 비교, infrastructure는 MyBatis 조회와 악보 JSON 해석을 맡는다. 단위 테스트로 구간 계산 규칙을, MockMvc로 상태·필터·400을, 실제 HTTP/MySQL 테스트로 V6 시드 악보의 정간 묶음과 404·409를 검증한다.

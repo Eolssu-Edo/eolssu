@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.evaluation.application.GetEvaluationNotes
 import com.ssafy.eolssu.backend.feature.evaluation.application.GetPracticeEvaluation
+import com.ssafy.eolssu.backend.feature.evaluation.application.GetSectionComparison
 import com.ssafy.eolssu.backend.feature.evaluation.application.GetWeakSections
 import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluations
@@ -30,4 +31,7 @@ class PracticeEvaluationConfig {
 
     @Bean
     fun getWeakSections(evaluations: PracticeEvaluations, scores: EvaluationScoreCells) = GetWeakSections(evaluations, scores)
+
+    @Bean
+    fun getSectionComparison(evaluations: PracticeEvaluations, scores: EvaluationScoreCells) = GetSectionComparison(evaluations, scores)
 }

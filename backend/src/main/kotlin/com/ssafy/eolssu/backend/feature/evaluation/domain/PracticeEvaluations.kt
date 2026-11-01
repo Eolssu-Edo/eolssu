@@ -22,6 +22,7 @@ data class PracticeEvaluationSnapshot(
     val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?,
     val evaluatedAt: Instant?, val recordingDurationMs: Int?, val startNoteIdx: Int, val endNoteIdx: Int,
     val tuningOffsetCent: Double? = null, val tuningOutOfRange: Boolean? = null,
+    val parentSessionId: Long? = null, val modelVersion: String? = null,
 )
 
 data class PracticeEvaluation(

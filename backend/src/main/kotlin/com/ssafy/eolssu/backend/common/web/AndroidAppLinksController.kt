@@ -13,18 +13,21 @@ import org.springframework.web.bind.annotation.RestController
 class AndroidAppLinksController(private val properties: AndroidAppLinksProperties) {
     @GetMapping("/.well-known/assetlinks.json", produces = ["application/json"])
     fun association(): ResponseEntity<Any> {
-        if (properties.normalizedFingerprints.isEmpty()) {
+        if (properties.normalizedFingerprints.isEmpty() && properties.normalizedQaFingerprints.isEmpty()) {
             return ResponseEntity.status(404).cacheControl(CacheControl.noStore())
                 .body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
         }
-        val statements = listOf(mapOf(
+        val statements = listOf(
+            "com.ssafy.eolssu" to properties.normalizedFingerprints,
+            "com.ssafy.eolssu.qa" to properties.normalizedQaFingerprints,
+        ).filter { (_, fingerprints) -> fingerprints.isNotEmpty() }.map { (packageName, fingerprints) -> mapOf(
             "relation" to listOf("delegate_permission/common.handle_all_urls"),
             "target" to mapOf(
                 "namespace" to "android_app",
-                "package_name" to "com.ssafy.eolssu",
-                "sha256_cert_fingerprints" to properties.normalizedFingerprints,
+                "package_name" to packageName,
+                "sha256_cert_fingerprints" to fingerprints,
             ),
-        ))
+        ) }
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(statements)
     }
 }

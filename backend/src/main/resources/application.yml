@@ -31,6 +31,7 @@ eolssu:
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
     android-app-links:
       sha256-cert-fingerprints: ${AUTH_ANDROID_APP_SHA256_FINGERPRINTS:}
+      qa-sha256-cert-fingerprints: ${AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS:}
     oauth:
       kakao:
         client-id: ${AUTH_OAUTH_KAKAO_CLIENT_ID:}
