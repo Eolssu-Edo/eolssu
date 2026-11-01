@@ -27,8 +27,11 @@ import numpy as np
 from ai_service.api import MODEL_VERSION
 from ai_service.pipelines.audio import SAMPLE_RATE, decode_recording
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, NoteResult, Tolerance, frame_rms, pyin_f0, score
-from evaluation.danso_tuning import PITCHES
 from evaluation.labels import REPO, load_label
+
+# 12율. 옥타브 0의 황이 반음 0이고 옥타브는 황에서 바뀐다(pitches.json과 같은 규칙).
+# 단소 음 표는 단소 음역만 담아, 소금 악보의 고·남 같은 율을 읽으려고 직접 계산한다.
+YUL = "황대태협고중유임이남무응"
 
 GRID = [
     Tolerance(pitch_cent=p, onset_beat=o, duration_ratio=d)
@@ -69,7 +72,7 @@ def score_notes(score_data: dict, start: int, end: int) -> list[Note]:
     tpb = score_data["music"]["ticksPerBeat"]
     events = [e for e in score_data["events"] if e["kind"] == "NOTE"]
     return [
-        Note(PITCHES[e["yul"], e["octave"]], e["durationTick"] / tpb, bool(e["sigimsae"]), i, e["startTick"] / tpb)
+        Note(12 * e["octave"] + YUL.index(e["yul"]), e["durationTick"] / tpb, bool(e["sigimsae"]), i, e["startTick"] / tpb)
         for i, e in enumerate(events)
         if start <= i <= end
     ]

@@ -40,6 +40,24 @@ def test_score_notes_count_only_notes_and_keep_rests_in_start_beat():
     assert (notes[0].start_beat, notes[1].start_beat) == pytest.approx((34 / 3, 12))  # 사이에 1/3박 쉼
 
 
+def test_score_notes_reads_yul_outside_danso_pitch_table():
+    # 소금 악보에는 단소 음 표(pitches.json)에 없는 고·남이 나온다.
+    score = {"music": {"ticksPerBeat": 1}, "events": [
+        {"kind": "NOTE", "yul": y, "octave": o, "startTick": i, "durationTick": 1, "sigimsae": []}
+        for i, (y, o) in enumerate([("고", 1), ("남", 0), ("응", 1)])
+    ]}
+    assert [n.semitone for n in score_notes(score, 0, 2)] == [16, 9, 23]
+
+
+def test_score_notes_matches_danso_pitch_table():
+    rows = json.loads((REPO / "data/reference/pitches.json").read_text(encoding="utf-8"))["rows"]
+    score = {"music": {"ticksPerBeat": 1}, "events": [
+        {"kind": "NOTE", "yul": r["yul"], "octave": r["octave"], "startTick": i, "durationTick": 1, "sigimsae": []}
+        for i, r in enumerate(rows)
+    ]}
+    assert [n.semitone for n in score_notes(score, 0, len(rows) - 1)] == [r["semitone"] for r in rows]
+
+
 def results(*verdicts, octave=()):
     return [NoteResult(i, v, octave_suspect=i in octave) for i, v in enumerate(verdicts)]
 
