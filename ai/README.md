@@ -14,6 +14,12 @@ uv sync
 uv run pytest
 ```
 
+Windows에서 저장소가 긴 경로(예: `.claude\worktrees\...` 아래 작업 공간)에 있으면 librosa의 numba가 컴파일 결과를 패키지 옆에 저장하다 경로 길이 한도를 넘어 `FileNotFoundError`나 DLL 로드 오류로 실패할 수 있습니다. 테스트나 평가 도구를 실행하기 전에 같은 PowerShell 창에서 캐시를 짧은 경로로 옮깁니다.
+
+```powershell
+$env:NUMBA_CACHE_DIR = 'C:/nbc'
+```
+
 `tests/unit/test_scoring.py`는 합성 음계로 만점, 음 바꿈, 늦은 시작, 빠진 음, 쉼, 조율 보정과 상한, 무음·잡음 몇 프레임·짧은 입력 실패를 검사합니다. `tests/unit/test_arirang_score.py`는 공통 악보 데이터의 아리랑 샘플(`data/tests/fixtures/scores/`)을 채점 입력으로 바꿔 곡 전체와 연습 구간을 채점합니다. 실제 녹음이나 모델 검증이 아닙니다. `tests/unit/test_audio.py`는 테스트 중 `ffmpeg`로 만든 2초짜리 사인파 AAC(44.1kHz 스테레오·48kHz 모노)와 헤더·중간이 손상되거나 끝이 잘린 파일(패킷 경계에서 잘린 파일 포함), 오디오가 아닌 파일·오디오 없는 파일, 없는 파일·URL·`:`가 든 상대 경로·시간 초과로 디코딩을 검사합니다. 파일은 커밋하지 않습니다.
 
 ## 녹음 디코딩
