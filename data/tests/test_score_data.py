@@ -192,22 +192,24 @@ class ConvertTests(unittest.TestCase):
 
 
 ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
+# 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
+SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
 
 class AnswerTests(unittest.TestCase):
-    """저장소의 채점 정답 4곡을 실제로 변환해 형식·불변식·계보를 확인한다."""
+    """저장소의 채점 정답(단소 4곡, 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
 
     def test_answers_pass_schema_and_invariants(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        for source_id in ANSWERS:
+        for source_id in ANSWERS + SOGEUM_ANSWERS:
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
 
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re
-        for source_id in ANSWERS:
+        for source_id in ANSWERS + SOGEUM_ANSWERS:
             jgb = next((DATA / "annotations/scores" / source_id).glob("*.jgb.json"))
             melody = melody_of(json.loads(jgb.read_text(encoding="utf-8")))
             kinds = [e["kind"] for e in convert_answer(source_id)["events"]]
@@ -218,6 +220,18 @@ class AnswerTests(unittest.TestCase):
         for source_id in ANSWERS:
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
+
+    def test_answers_outside_songs_take_song_info_from_review(self):
+        # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
+        result = convert_answer("school-textbook-sogeum-p16")
+        self.assertEqual((result["score"]["title"], result["score"]["instrument"]), ("도라지타령", "SOGEUM"))
+        self.assertEqual(result["music"]["jangdan"], "세마치")
+        self.assertIn(("고", 1), {(e["yul"], e["octave"]) for e in result["events"] if e["kind"] == "NOTE"})
+
+    def test_sogeum_samples_match_the_current_conversion(self):
+        for source_id in SOGEUM_ANSWERS:
+            sample = DATA / f"tests/fixtures/scores/{source_id}.score.json"
+            self.assertEqual(dumps(convert_answer(source_id)), sample.read_text(encoding="utf-8"), source_id)
 
     def test_arirang_sample_matches_the_current_conversion(self):
         # FE·AI·BE 검증용 샘플. 정답·기준 데이터·변환기를 바꾸면 이 샘플도 다시 만들어 함께 올린다.

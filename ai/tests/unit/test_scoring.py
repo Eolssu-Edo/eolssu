@@ -55,6 +55,27 @@ def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 
 
+def test_gradually_slower_playing_is_not_timing_error():
+    # 메트로놈 없이 분 입문자처럼 전체가 점점 늦어지면 음마다 늦음이 쌓인다. 앞뒤 음과 같이 늦으면 박자 오류가 아니다(S15P31E102-158).
+    assert verdicts(run(synth(SCALE, bpm=BPM * 0.85))) == {}
+
+
+def test_several_late_notes_in_a_row_are_timing_errors():
+    # 박이 고른 연주에서 붙은 음 몇 개가 함께 늦었다가 돌아오면 각각 박자 오류다. 늦음이 흔들림 값을 키워 허용을 넓히면 안 된다.
+    assert verdicts(run(synth(SCALE, delay={3: 0.15, 4: 0.2, 5: 0.3}))) == {3: "TIMING", 4: "TIMING", 5: "TIMING"}
+
+
+def test_whole_section_shifted_late_flags_only_its_first_note():
+    # 한 번 밀린 박이 끝까지 가면(쉼을 건너뛴 연주 등) 밀리기 시작한 음만 박자 오류다. 뒤는 새 박에 맞춰 분 것으로 본다.
+    assert verdicts(run(synth(SCALE, delay={i: 0.3 for i in range(4, 11)}))) == {4: "TIMING"}
+
+
+def test_late_note_next_to_missed_note_is_still_timing_error():
+    # 놓친 음은 앞뒤 음 기준을 구할 때 빠진다.
+    # 바로 다음 음을 늦추면 합성음에서 비운 음의 높이가 늦춘 만큼 이어져 놓침이 아니게 되므로 한 칸 띄운다.
+    assert verdicts(run(synth(SCALE, drop=(3,), delay={5: 0.15}))) == {3: "MISSED", 5: "TIMING"}
+
+
 def test_short_octave_up_between_lower_notes_is_octave_error():
     # 앞뒤 음 사이에 짧게 낀 옥타브 위 음을 pYIN이 원래 옥타브로 잡던 문제(S15P31E102-251).
     notes = [Note(10, 1.25), Note(12, 0.5), Note(14, 1.25)]
@@ -184,9 +205,12 @@ def test_rests_keep_expected_onsets_and_request_idx():
 
 
 def test_without_start_beat_notes_after_rest_look_early():
-    # 쉼을 빼고 이어 붙이면 쉼 뒤 음의 기대 시각이 한 박(0.5초) 이상 앞당겨진다.
+    # 쉼을 빼고 이어 붙이면 쉼 뒤 음의 기대 시각이 한 박(0.5초) 이상 앞당겨져 onset_error_ms가 그만큼 커진다.
+    # 판정은 앞뒤 음 기준이라 밀림이 이웃에 얼마나 있느냐에 따라 달라진다(S15P31E102-158). 한 번 밀린 경우는
+    # test_whole_section_shifted_late_flags_only_its_first_note가 본다.
     plain = [Note(n.semitone, n.beats) for n in RESTED]
-    assert verdicts(score_rested(synth(RESTED), plain)) == {k: "TIMING" for k in (2, 3, 4, 5)}
+    result = score_rested(synth(RESTED), plain)
+    assert all(n.onset_error_ms >= 450 for n in result.notes[2:])
 
 
 def test_late_note_after_rest_is_timing_error_with_request_idx():

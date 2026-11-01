@@ -49,7 +49,9 @@ class PitchTableTests(unittest.TestCase):
     def test_every_pitch_in_scoring_answers_is_listed(self):
         names = {r["hangul"] for r in self.rows}
         yul = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
-        answers = sorted((DATA / "annotations/scores").glob("*/*.jgb.json"))
+        # 율명 표는 단소 음역이라 서비스 곡(songs.json)의 정답만 본다. 평가용 소금 정답은 고·남 등을 쓴다.
+        sources = {row["source"] for row in load("songs.json")["rows"]}
+        answers = sorted(p for p in (DATA / "annotations/scores").glob("*/*.jgb.json") if p.parent.name in sources)
         self.assertTrue(answers)
         for path in answers:
             melody = json.loads(path.read_text(encoding="utf-8"))["parts"][0]["melody"]

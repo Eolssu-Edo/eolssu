@@ -14,6 +14,9 @@ HWANG_HZ = 311.13  # 반음 0인 황 = E♭4. 반음 번호는 pitches.semitone(
 _UNVOICED_COST = 300.0  # 소리 유무가 어긋난 프레임의 DTW 비용(센트)
 _STRETCH_COST = 50.0  # DTW가 음표를 늘이거나 줄일 때 프레임마다 더하는 비용
 _SUBHARMONIC_RATIO = 0.1  # A(f0)/A(2f0)가 이보다 작으면 f0를 2f0로 고친다
+_ONSET_WINDOW = 3  # 박자 판정에서 기준으로 삼는 앞뒤 음 수
+# 흔들림으로 허용을 넓히려면 소리 낸 음이 이만큼 있어야 한다. 음이 적으면 늦은 음 하나가 이웃 차이 여러 개를 흔들어 흔들림이 부푼다.
+_SPREAD_MIN_NOTES = 12
 
 
 def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
@@ -50,6 +53,8 @@ class Tolerance:
     onset_beat: float = 0.125
     duration_ratio: float = 0.25
     max_tuning_cent: float = 100.0  # 곡에 반음 이웃이 있으면 score가 더 낮춘다
+    # 박자 허용은 onset_beat 박과 (이 연주의 박자 흔들림 × onset_spread) 중 큰 쪽이다. 흔들림이 큰 연주일수록 후하다.
+    onset_spread: float = 4.0
 
 
 @dataclass
@@ -208,17 +213,10 @@ def score(
     out_of_range = abs(offset) > max_tuning
     applied = 0.0 if out_of_range else offset
 
-    results, pitch_c, timing_c, duration_c = [], [], [], []
-    onset_tol_s = tol.onset_beat * beat_s
+    played = []  # 놓치지 않은 음: (k, err, onset_err, dur_err, octave)
     for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
-            results.append(NoteResult(k if n.idx is None else n.idx, "MISSED"))
-            timing_c.append(0.0)
-            duration_c.append(0.0)
-            if not n.sigimsae:
-                pitch_c.append(0.0)
             continue
-
         raw = float(np.median(detected[middle]))
         err = raw - applied - 100.0 * n.semitone
         # 음이 바뀐 시점: 정렬 구간에서 앞 음보다 이 음에 더 가까워진 첫 프레임.
@@ -242,17 +240,51 @@ def score(
         onset_err = onset_frame * HOP_S - starts[k]
         dur_err = (voiced[-1] - onset_frame + 1) * HOP_S - lengths[k]
         octave = abs(err) > 600 and abs(err - 1200 * round(err / 1200)) <= tol.pitch_cent
+        played.append((k, err, onset_err, dur_err, octave))
 
+    # 박자는 곡 처음 기준이 아니라 앞뒤 음 기준으로 본다. 메트로놈 없이 빨라지거나 느려지면 늦음이 쌓이지만
+    # 앞뒤 음도 같이 늦는다. 연주 전체의 빠르기 차이(늦음이 1초에 늘어나는 양 drift, 이웃 음 사이 기울기의 중앙값)를 빼고,
+    # 그 음의 늦음과 앞뒤 _ONSET_WINDOW음(놓친 음 제외)으로 예상한 늦음의 중앙값의 차이(나머지)로 판정한다.
+    # 허용은 onset_beat 박과 이 연주의 박자 흔들림 × onset_spread 중 큰 쪽이다. 흔들림은 이웃 음 사이 늦음 차이로 잰다
+    # (MAD × 1.4826 ÷ √2, 정규분포면 음 하나의 표준편차). 나머지로 재면 붙은 음 몇 개가 함께 늦을 때 그 늦음이 이웃 음의
+    # 나머지에도 번져 흔들림이 커지고 허용이 넓어져 모두 놓친다. 이웃 차이는 늦기 시작한 곳과 돌아온 곳 두 곳만 커진다.
+    onsets = np.array([p[2] for p in played])
+    times = starts[[p[0] for p in played]]
+    drift = float(np.median(np.diff(onsets) / np.diff(times))) if len(onsets) > 1 else 0.0
+    resid = np.array([
+        o - np.median(np.delete(onsets[lo : i + _ONSET_WINDOW + 1] + drift * (t - times[lo : i + _ONSET_WINDOW + 1]), i - lo))
+        if len(onsets) > 1 else 0.0
+        for i, (o, t, lo) in enumerate(zip(onsets, times, (max(0, i - _ONSET_WINDOW) for i in range(len(onsets)))))
+    ])
+    steps = np.diff(onsets) - drift * np.diff(times)
+    spread = 1.4826 * float(np.median(np.abs(steps - np.median(steps)))) / np.sqrt(2) if len(onsets) >= _SPREAD_MIN_NOTES else 0.0
+    onset_tol_s = max(tol.onset_beat * beat_s, tol.onset_spread * spread)
+
+    results, pitch_c, timing_c, duration_c = [], [], [], []
+    by_k = {p[0]: (p, r) for p, r in zip(played, resid)}
+    for k, n in enumerate(notes):
+        idx = k if n.idx is None else n.idx
+        if k not in by_k:
+            results.append(NoteResult(idx, "MISSED"))
+            timing_c.append(0.0)
+            duration_c.append(0.0)
+            if not n.sigimsae:
+                pitch_c.append(0.0)
+            continue
+        (_, err, onset_err, dur_err, octave), r = by_k[k]
+        # 곡 처음 기준과 앞뒤 음 기준 중 작은 쪽으로 본다. 앞뒤 음의 측정 오차가 더해져 예전보다 엄격해지는 일을 막는다.
+        r = min(r, onset_err, key=abs)
         if not n.sigimsae and abs(err) > tol.pitch_cent:
             verdict = "PITCH"
-        elif abs(onset_err) > onset_tol_s:
+        elif abs(r) > onset_tol_s:
             verdict = "TIMING"
         else:
             verdict = "CORRECT"
-        results.append(NoteResult(k if n.idx is None else n.idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
+        # onset_error_ms는 지금처럼 곡 처음 기준 늦음이다(백엔드 저장값의 뜻 유지). 판정만 나머지로 한다.
+        results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
-        timing_c.append(_credit(onset_err, onset_tol_s))
+        timing_c.append(_credit(r, onset_tol_s))
         duration_c.append(_credit(dur_err, tol.duration_ratio * lengths[k]))
 
     # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.

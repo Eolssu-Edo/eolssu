@@ -36,7 +36,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
-3. `DONE`(`modelVersion` `pyin-3`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+3. `DONE`(`modelVersion` `pyin-4`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
 | 상황 | 응답 | 백엔드 처리 |
 | --- | --- | --- |
