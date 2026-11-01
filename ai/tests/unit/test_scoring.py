@@ -63,6 +63,15 @@ def test_short_octave_up_between_lower_notes_is_octave_error():
     assert (result.notes[1].verdict, result.notes[1].octave_suspect) == ("PITCH", True)
 
 
+def test_octave_error_frames_stay_with_their_note():
+    # 정렬이 옥타브 어긋난 음을 한 프레임으로 줄이고 이웃 음에 넘기던 아리랑 구간(S15P31E102-251).
+    notes = [Note(12, 1 / 3), Note(10, 2 / 3), Note(12, 1 / 3), Note(14, 1), Note(12, 1 / 3)]
+    audio = synth(notes, shift={2: 12}, gap=0.04, bpm=96)
+    result = score(pyin_f0(audio, SR), notes, 96, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {2: "PITCH"}
+    assert result.notes[2].octave_suspect
+
+
 def test_skipped_note_is_missed():
     assert verdicts(run(synth(SCALE, drop=(6,)))) == {6: "MISSED"}
 

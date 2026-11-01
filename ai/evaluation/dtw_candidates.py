@@ -18,7 +18,8 @@ def _arrays(expected, detected):
 def _distance(a, b):
     if np.isnan(a) or np.isnan(b):
         return 0. if np.isnan(a) and np.isnan(b) else _UNVOICED_COST
-    return abs(a - b)
+    d = abs(a - b)
+    return min(d, abs(d - 1200.) + _UNVOICED_COST)  # scoring._align과 같은 옥타브 접기
 
 
 @njit(cache=True)

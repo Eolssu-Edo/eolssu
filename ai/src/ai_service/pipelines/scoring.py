@@ -20,6 +20,9 @@ def _align(expected: np.ndarray, detected: np.ndarray) -> np.ndarray:
     """기본 정렬은 기존 전체 DTW다. 평가에서는 비용 표 생성 전에 이 부분만 교체한다."""
     # ponytail: 전체 DTW라 메모리가 프레임 수의 제곱. 긴 녹음 대안은 S15P31E102-286에서 비교 중이다.
     cost =np.abs(expected[:, None] - detected[None, :])
+    # 옥타브 어긋남은 소리 유무가 어긋난 만큼만 비싸게 둔다. 1200센트 그대로면 정렬이 그 음을
+    # 한 프레임으로 줄이고 이웃 음에 넘긴다(S15P31E102-251). 판정은 원래 음높이로 한다.
+    cost = np.minimum(cost, np.abs(cost - 1200.0) + _UNVOICED_COST)
     cost[np.isnan(cost)] = _UNVOICED_COST
     cost[np.isnan(expected)[:, None] & np.isnan(detected)[None, :]] = 0.0
     _, path = librosa.sequence.dtw(

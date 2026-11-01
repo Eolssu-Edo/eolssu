@@ -19,8 +19,8 @@ def test_checkpoint_matches_dense_with_ties_rests_and_block_boundaries(block_row
     rng = np.random.default_rng(286)
     for n in (1, 2, 3, 7, 17):
         for m in (1, 2, 5, 11):
-            expected = rng.choice([np.nan, -200., 0., 100., 350.], n)
-            detected = rng.choice([np.nan, -200., 0., 100., 350.], m)
+            expected = rng.choice([np.nan, -200., 0., 100., 350., 1200.], n)
+            detected = rng.choice([np.nan, -200., 0., 100., 350., 1200.], m)
             np.testing.assert_array_equal(
                 checkpoint_path(expected, detected, block_rows=block_rows),
                 scoring._align(expected, detected), err_msg=f"shape={n,m}, K={block_rows}")
