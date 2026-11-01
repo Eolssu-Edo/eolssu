@@ -36,6 +36,24 @@ flowchart TD
 
 `.jgb.json`을 `--score`에 직접 넣을 수 있습니다. 한 번에 악기 하나와 성부 하나를 선택하며 사진 인식·웹 API·합주·연주 녹음 채점은 포함하지 않습니다.
 
+## 서비스 공통 악보 v1 입력 (338)
+
+`schemaVersion: 1`의 B2 JSON은 `gugak-reviewed-score/v1` 재생 내부 JSON과 구분합니다. 원본 JSON을 그대로 넣고 `music.bpmUnit` 기준 BPM을 명시합니다. 아리랑은 세마치 기준 데이터의 점4분음표96 BPM을 사용합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.playback --score data/tests/fixtures/scores/ngc-standard-2022-p173.score.json --common-bpm 96 --instrument danso --assets assets.json --out data/processed/playback/arirang
+```
+
+- `common_score.py`가 스키마·표시 자리·이벤트 시간/음높이 일치를 검증한 뒤 기존 재생기로 전달합니다. `jsonschema`도 requirements에 포함됩니다.
+- BPM·조율을 장단명이나 악기 기본값으로 추측하지 않습니다. QUARTER는1, DOTTED_QUARTER는3/2 quarter로 길이와 BPM을 함께 환산합니다. JEONGGAN/JANGDAN_BEAT는 전송상 1박=1quarter이며 서양 표기 음가를 확정하는 의미가 아닙니다.
+- `--instrument`는 원본 instrument와 같아야 합니다. 명시한 기존 `--transpose`만 이조하며 대응표에 기록합니다.
+- `source.common.json`은 원본 바이트, `source-map.json`은 버전·출처·조율·BPM·원본 tick/초·NOTE 번호·모든 표시 자리 대응을 보관합니다. `score.json`은 재생 IR입니다. MIDI만 분리하면 ID 대응을 잃습니다.
+- release를 NOTE 길이 안에 넣어 쉼을 보존합니다. 숨표는 기존120ms 목표/최대 반길이 정책을 적용합니다. 합쳐진 지속 이벤트를 다시 나누거나 같은 음의 별도 이벤트를 합치지 않습니다.
+- 비어 있지 않은 `sigimsae`는 명시적으로 중단합니다. v1 배열만으로는 장식의 원래 위치·조를 복원할 수 없습니다. rejected 원본, 불일치 표시, 미지원 MIDI 시간 분할·음역도 실패합니다.
+- 악보길이와 파일길이는 다릅니다. 이 아리랑의 악보는30초이며 기존 MIDI의 reset/EOT 여백 약550ms가 파일에 추가됩니다. 입력 reviewed는 합성 연주의 전문가 검수 완료가 아닙니다.
+
+상세 범위와 검증 기준은 [338 스펙](../../../docs/specs/common-score-playback.md), 실행 증거는 [작업 기록](../../../docs/plans/S15P31E102-338.md)을 따릅니다.
+
 ## 설치와 빠른 검사
 
 저장소 루트에서 Python 3.10 이상으로 별도 가상환경을 만듭니다. 아래 명령은 PowerShell 기준입니다.

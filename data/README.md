@@ -49,6 +49,8 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 ## 공통 악보 데이터
 
+서비스 공통 악보 JSON을 기존 CAT 재생기에 연결하는 방법은 [재생 도구의 공통 v1 입력](src/playback/README.md#서비스-공통-악보-v1-입력-338)을 따릅니다. `--common-bpm`을 명시하고 원본·ID/tick/초 대응표와 함께 MIDI·M4A를 생성합니다.
+
 [score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
 
 ```powershell

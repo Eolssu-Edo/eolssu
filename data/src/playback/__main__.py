@@ -14,6 +14,7 @@ from .score import PROFILES, compile_score, require
 from .midi import RELEASE_CC, write_midi, read_midi
 from .sampler import CatSampler, FS, CREDIT, sha
 from .jgb import convert_jgb
+from .common_score import convert_common_score
 from .expressions import SCALES, playback_vibrato
 from .audio import FORMATS, AAC_BIT_RATE, add_audio_arguments, resolve_encoder, write_audio
 
@@ -60,7 +61,7 @@ def publish(stage, out, outputs):
 def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bpm=None,
         speed=1, hwang_midi=None, jo=None, audio_format="m4a", ffmpeg=None, ffprobe=None,
         encoder=None, max_duration_seconds=600, performance_plan=None, expression_profile=None,
-        assume_danso=False):
+        assume_danso=False, common_bpm=None):
     require(audio_format in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     input_bytes = Path(score_path).read_bytes()
     input_hash = hashlib.sha256(input_bytes).hexdigest()
@@ -76,6 +77,9 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                              "sha256": hashlib.sha256(payload).hexdigest()}
     source_map = None
     is_jgb = Path(score_path).name.endswith(".jgb.json") or isinstance(source, dict) and "v" in source
+    is_common = isinstance(source, dict) and "schemaVersion" in source
+    require(not (is_jgb and is_common), "JGB와 공통 악보 형식이 섞여 있습니다")
+    require(is_common or common_bpm is None, "--common-bpm은 서비스 공통 악보 입력용입니다")
     if is_jgb:
         require(len(instruments) == 1, "JGB 입력은 악기 하나와 한 성부를 선택해야 합니다")
         score, source_map = convert_jgb(source, source_name=Path(score_path).name, part=part,
@@ -90,19 +94,27 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
         require(part is None and bpm is None and speed == 1 and hwang_midi is None and jo is None
                 and not configs and not assume_danso,
                 "성부·빠르기·황종·조·연주 계획·표현 프로필·단소 선택 옵션은 JGB 입력용입니다")
-        score = source
+        if is_common:
+            require(len(instruments) == 1, "공통 악보 입력은 --instrument로 원본 악기 하나를 선택하세요")
+            score, source_map = convert_common_score(source, bpm=common_bpm, instrument=instruments[0],
+                                                     input_sha256=input_hash)
+            source_map["transpose_semitones"] = transpose
+        else:
+            score = source
     assets = json.loads(Path(assets_path).read_text(encoding="utf-8-sig"))
     out = Path(out).absolute()
     outputs = ["score.json", "manifest.json"]
     outputs += [f"{key}.{suffix}" for key in instruments for suffix in ("mid", audio_format, "json")]
     if is_jgb:
         outputs += ["source.jgb.json", "source-map.json"]
+    if is_common:
+        outputs += ["source.common.json", "source-map.json"]
     outputs += list(configs)
     targets = {(out / name).resolve() for name in outputs}
     require(Path(score_path).resolve() not in targets and Path(assets_path).resolve() not in targets
             and not any(config["path"] in targets for config in configs.values()),
             "출력 파일이 원본 입력 또는 assets 파일과 겹칩니다. 다른 --out 폴더를 사용하세요")
-    require(is_jgb or not any((out / name).exists() for name in ("source.jgb.json", "source-map.json")),
+    require(is_jgb or is_common or not any((out / name).exists() for name in ("source.jgb.json", "source.common.json", "source-map.json")),
             "이 폴더에 이전 JGB 원본·대응표가 있습니다. 일반 악보 JSON은 다른 --out 폴더에 생성하세요")
     other_format = "wav" if audio_format == "m4a" else "m4a"
     require(not any((out / f"{key}.{other_format}").exists() for key in instruments),
@@ -115,6 +127,8 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
         stage = Path(tmp)
         for key in instruments:
             perf = compile_score(score, key, transpose, max_duration_seconds=max_duration_seconds)
+            if is_common:
+                source_map["midi_score_seconds"] = perf["end_tick"] * perf["tempo_us"] / 1e6 / perf["ppqn"]
             require(key in assets, f"Missing asset mapping for {key}")
             archive = Path(assets[key])
             if not archive.is_absolute():
@@ -154,7 +168,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":playback_vibrato(instruments[0]) if len(instruments) == 1 else None,
                     "playback_vibrato_by_instrument":{key:playback_vibrato(key) for key in instruments},
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","expressions.py","tempo_repeat.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","jgb.py","common_score.py","expressions.py","tempo_repeat.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["JGB v1/v2 import supports one selected instrument part and the documented notation subset.",
@@ -167,9 +181,10 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, part=None, bp
             (stage/name).write_bytes(config["bytes"])
         manifest["configuration_sha256"] = {name: config["sha256"] for name, config in configs.items()}
         if source_map is not None:
-            (stage/"source.jgb.json").write_bytes(input_bytes)
+            (stage/("source.common.json" if is_common else "source.jgb.json")).write_bytes(input_bytes)
             dump(stage/"source-map.json", source_map)
-            manifest["jgb"] = {k:v for k,v in source_map.items() if k != "notes"}
+            manifest["common_score" if is_common else "jgb"] = {
+                k:v for k,v in source_map.items() if k not in ("notes", "events")}
             manifest["normalized_score_sha256"] = sha(stage/"score.json")
             manifest["source_map_sha256"] = sha(stage/"source-map.json")
         dump(stage/"manifest.json", manifest)
@@ -186,6 +201,7 @@ def main():
     p.add_argument("--transpose", type=int, default=0, help="Explicit semitone audition transposition; never automatic")
     p.add_argument("--part", type=int, help="JGB part number, starting at 1; required for multiple parts")
     p.add_argument("--bpm", type=float, help="JGB tempo override in jeonggan cells per minute")
+    p.add_argument("--common-bpm", type=float, help="Service score v1 BPM in music.bpmUnit beats; required for common scores")
     p.add_argument("--speed", type=float, default=1, help="JGB tempo multiplier (0.25..4), default 1")
     p.add_argument("--hwang-midi", type=int, help="JGB huangjong MIDI override; otherwise use hwangPitch")
     p.add_argument("--jo", choices=list(SCALES), help="Explicit JGB scale for relative ornaments")
@@ -201,7 +217,7 @@ def main():
                      a.transpose, part=a.part, bpm=a.bpm, speed=a.speed, hwang_midi=a.hwang_midi, jo=a.jo,
                      audio_format=a.audio_format, ffmpeg=a.ffmpeg, ffprobe=a.ffprobe,
                      max_duration_seconds=a.max_duration_seconds, performance_plan=a.performance_plan,
-                     expression_profile=a.expression_profile, assume_danso=a.assume_danso)
+                     expression_profile=a.expression_profile, assume_danso=a.assume_danso, common_bpm=a.common_bpm)
     except ValueError as exc:
         p.error(str(exc))
     print(json.dumps(result, ensure_ascii=False, indent=2))
