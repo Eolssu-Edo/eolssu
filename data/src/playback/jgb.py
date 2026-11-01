@@ -29,6 +29,7 @@ import re
 
 from .score import PROFILES, finite, midi_tempo, require, ticks
 from . import expressions
+from . import preview
 from .tempo_repeat import TEMPO_CUES, apply_tempo_repeat
 
 YUL = "황대태협고중유임이남무응"
@@ -76,7 +77,7 @@ def integer(value, label, low, high):
     return int(result)
 
 
-def row_groups(text, label, tempo_cues=None, instrument="danso"):
+def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy=None, inline_relative=False):
     """Group attached ornaments without allocating another time slot."""
     groups, breath, i = [], False, 0
     while i < len(text):
@@ -91,16 +92,31 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
             require(end != -1, f"{label}: 닫히지 않은 기호")
             raw = text[i + 1:end]
             name, _, adjustment = raw.partition("@")
-            expressions.validate_symbol(name, instrument, label)
+            original = name
+            if notation_policy == preview.MODE:
+                name = preview.canonical(name)
+            expressions.validate_symbol(name, instrument, label, notation_policy)
             if adjustment:
                 require(all(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", v)
                             for v in adjustment.split(",")), f"{label}: 잘못된 기호 배치값")
-            if name in TEMPO_CUES:
+            if notation_policy == preview.MODE and name in preview.EXTRA_MARKS:
+                require(groups and groups[-1]["kind"] in ("note", "hold"),
+                        f"{label}: {{{original}}} 앞에 본음/지속 자리가 필요합니다")
+                group = groups[-1]
+                effects = group.setdefault("preview_effects", [])
+                require(all(preview.EXTRA_MARKS[other] != preview.EXTRA_MARKS[name] for other in effects),
+                        f"{label}: 겹친 {original}")
+                if preview.EXTRA_MARKS[name] == "geok":
+                    require(group["kind"] == "note", f"{label}: 격음 attack 근사에는 새 본음이 필요합니다")
+                    group["reattack"] = True
+                effects.append(name)
+                group["symbols"].append(original)
+            elif name in TEMPO_CUES:
                 require(tempo_cues is not None, f"{label}: {{{name}}}는 --performance-plan에 BPM·적용 구간을 지정하세요")
                 tempo_cues.append(name)
             elif name in expressions.PROFILE_MARKS:
                 kind = expressions.PROFILE_MARKS[name]
-                if kind in expressions.INDEPENDENT_PROFILE_EFFECTS or not groups:
+                if (kind in expressions.INDEPENDENT_PROFILE_EFFECTS and not inline_relative) or not groups:
                     require(kind in expressions.HOLD_PROFILE_EFFECTS,
                             f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
                     groups.append({"kind": "hold", "symbols": []})
@@ -109,11 +125,11 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
                 effects = group.setdefault("profile_effects", [])
                 require(kind not in effects, f"{label}: 겹친 {name}")
                 effects.append(kind)
-                group["symbols"].append(name)
+                group["symbols"].append(original)
             elif name in ("쉼표", "쉼", "pause_007"):
-                groups.append({"kind": "rest", "symbols": [name]})
+                groups.append({"kind": "rest", "symbols": [original]})
             elif name in ("이음표", "-", "빈지속"):
-                groups.append({"kind": "hold", "symbols": [name]})
+                groups.append({"kind": "hold", "symbols": [original]})
             elif name in expressions.LENGTH_MARKS or name in expressions.EFFECT_MARKS or name in expressions.EXPRESSION_POLICY["unresolved_display_annotations"]:
                 require(groups, f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
                 group = groups[-1]
@@ -126,25 +142,30 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
                             f"{label}: {{{name}}}의 본음이 필요합니다")
                     require(effect not in group, f"{label}: 겹친 {name}")
                     group[effect] = True
-                group["symbols"].append(name)
+                group["symbols"].append(original)
             else:
-                symbols = expressions.symbols_for(instrument)
+                symbols = expressions.symbols_for(instrument, notation_policy)
                 require(name in symbols, f"{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다")
                 kind, steps = symbols[name]
                 if kind == "independent":
-                    groups.append({"kind": "relative", "sequence": steps, "symbols": [name]})
+                    if inline_relative and groups and groups[-1]["kind"] == "note":
+                        require("sequence" not in groups[-1], f"{label}: 겹친 independent 기호")
+                        groups[-1]["sequence"] = steps
+                        groups[-1]["symbols"].append(original)
+                    else:
+                        groups.append({"kind": "relative", "sequence": steps, "symbols": [original]})
                 elif kind == "articulation":
                     require(groups and groups[-1]["kind"] == "note",
                             f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
                     require(not groups[-1].get("reattack"), f"{label}: 겹친 혀치기")
                     groups[-1]["reattack"] = True
-                    groups[-1]["symbols"].append(name)
+                    groups[-1]["symbols"].append(original)
                 elif kind == "alteration":
                     require(groups and groups[-1]["kind"] == "note",
                             f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
                     require("semitone_offset" not in groups[-1], f"{label}: 겹친 반음올림표")
                     groups[-1]["semitone_offset"] = steps[0]
-                    groups[-1]["symbols"].append(name)
+                    groups[-1]["symbols"].append(original)
                 else:
                     require(groups and groups[-1]["kind"] == "note",
                             f"{label}: {{{name}}}는 본음 뒤에 붙여야 합니다")
@@ -154,7 +175,7 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
                     group[field] = steps
                     if kind == "surround":
                         group["post_grace"] = steps
-                    group["symbols"].append(name)
+                    group["symbols"].append(original)
             i = end + 1
             continue
         rest = re.match(r"쉼표|쉼|-", text[i:])
@@ -172,7 +193,7 @@ def row_groups(text, label, tempo_cues=None, instrument="danso"):
 
 def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_midi=None, jo=None,
                 performance_plan=None, input_sha256=None, expression_profile=None, assume_danso=False,
-                instrument="danso"):
+                instrument="danso", inline_relative=False, cell_quarters=None):
     """Return the existing score IR and a map from IR note IDs to JGB locations."""
     require(isinstance(document, dict) and type(document.get("v")) is int
             and document["v"] in (1, 2), "지원하는 JGB 버전은 v1·v2입니다")
@@ -191,7 +212,9 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     selected = integer(1 if part is None else part, "part", 1, len(parts))
     voice = parts[selected - 1]
     selection, instrument_basis = declared_instrument(document, voice, instrument, assume_danso)
-    profile = expressions.resolve_expression_profile(expression_profile, instrument)
+    require(type(inline_relative) is bool, "inline_relative은 true/false여야 합니다")
+    notation_policy = preview.mode(document)
+    profile = expressions.resolve_expression_profile(expression_profile, instrument, notation_policy)
     policy = expressions.expression_policy(document, instrument)
     custom_scale = expressions.relative_scale(document)
     require(voice.get("muted", False) is False, "선택한 성부가 음소거되어 있습니다")
@@ -218,11 +241,26 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     unit = ("eighth" if beats == 12 else "dotted") if requested_unit in ("auto", "") else requested_unit
     require(unit in RATIOS, f"미지원 staffUnit: {unit}")
     ratio = RATIOS[unit]
+    if cell_quarters is not None:
+        require(inline_relative, "cell_quarters는 검증된 공통 악보 inline 변환용입니다")
+        require(type(cell_quarters) in (int, str, Fraction), "cell_quarters는 정확한 분수여야 합니다")
+        try:
+            ratio = Fraction(cell_quarters)
+        except (ValueError, ZeroDivisionError):
+            raise ValueError("cell_quarters는 양의 분수여야 합니다") from None
+        require(ratio > 0, "cell_quarters는 양의 분수여야 합니다")
+        unit = "common-explicit"
     quarter_bpm = base_bpm * speed * float(ratio)
     tempo_us = midi_tempo(quarter_bpm)
     scale_name = controls.get("joPreset", "") if jo is None else jo
     require(isinstance(scale_name, str), "joPreset은 문자열이어야 합니다")
     scale = expressions.SCALES.get(scale_name)
+    default_scale = False
+    if notation_policy and custom_scale is None:
+        require(scale_name in ("", "all", *expressions.SCALES), "Unknown educational preview scale")
+        if scale is None:
+            scale_name, default_scale = preview.DEFAULT_SCALE, True
+            scale = expressions.SCALES[scale_name]
     if custom_scale is not None:
         require(jo is None and scale_name in ("", "all"), "상대음 음계와 joPreset/--jo가 중복 지정되었습니다")
         scale = tuple(custom_scale["pitch_classes"])
@@ -246,6 +284,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
 
     def append(nid, duration, location, pitch=None, grace=False, slur=None):
         require(duration > 0, f"{nid}: 꾸밈이 본음 길이를 소진합니다")
+        require(not inline_relative or len(notes) < 10000, "1..10000 notes required")
         ticks(duration)
         n = {"id": nid, "duration": str(duration)}
         if pitch is None:
@@ -280,21 +319,22 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
             parsed, row_numbers = [], []
             for r, row in enumerate(rows, 1):
                 cues = [] if performance_plan is not None else None
-                groups, breath = row_groups(row[0], f"{label} · {r}분박", cues, instrument)
+                groups, breath = row_groups(row[0], f"{label} · {r}분박", cues, instrument,
+                                            notation_policy, inline_relative)
                 tempo_cues.extend({"gak": g, "cell": c, "symbol": symbol} for symbol in cues or [])
                 if groups or breath or not cues:
                     parsed.append((groups, breath))
                     row_numbers.append(r)
             parsed, row_numbers = parsed or [([], False)], row_numbers or [1]
             rows = parsed
-            require(len(rows) <= 3, f"{label}: 4개 이상의 분박은 미지원입니다")
+            require(inline_relative or len(rows) <= 3, f"{label}: 4개 이상의 분박은 미지원입니다")
             weight = sum(sum((g.get("weight", 1) for g in groups), Fraction()) / max(1, len(groups))
                          if groups else Fraction(1) for groups, _ in parsed)
             require(weight == len(rows), f"{label}: 길이 기호의 짝이 정간 전체 시가를 보존하지 않습니다")
             cell_breath = False
             for r, (groups, breath) in zip(row_numbers, parsed):
                 cell_breath |= breath
-                require(len(groups) <= 3 and not (len(rows) == 1 and len(groups) > 1),
+                require(inline_relative or len(groups) <= 3 and not (len(rows) == 1 and len(groups) > 1),
                         f"{label}: 좌우 분할에는 상하 분박이 필요하며 한 분박에 최대 3음입니다")
                 groups = groups or [{"kind": "hold", "symbols": []}]
                 for u, group in enumerate(groups, 1):
@@ -338,7 +378,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                         else:
                             reference = hwang + group["offset"] + group.get("semitone_offset", 0)
                         sequence, grace, post = expressions.resolve_ornament_pitches(
-                            group, reference, hwang, scale, label)
+                            group, reference, hwang, scale, label, notation_policy)
                         grace_count = len(grace) + len(post)
                         grace_quarters = expressions.adaptive_grace(duration, grace_count, len(sequence), label)
                         body = duration - grace_count * grace_quarters
@@ -380,7 +420,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                    "끊는표는 release 포함 반길이 발음. 늘임표는 표시된 자리의 연주시간을 2배로 늘리는 선택값.",
                    "니느라니·느나르나니는 우물사이 음열 대신 공식 단소 교육자료의 음열을 적용.",
                    "JGB를 읽었다는 것은 원보·연주 품질 검수 완료를 뜻하지 않음."]
-    if requested_unit in ("auto", ""):
+    if cell_quarters is None and requested_unit in ("auto", ""):
         assumptions.append(f"staffUnit 없는 구형 JGB 또는 auto: 기본각 {beats}정간에 따라 {unit}(정간={ratio} quarter) 적용.")
     score = {"schema": "gugak-reviewed-score/v1", "title": title,
              "source": {"edition": source_name, "review_status": "source-review-unverified",
@@ -414,6 +454,12 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                           f"{instrument}: source-map.symbol_policy의 악기별 기호 근거를 적용. 미확정 기호는 거부.")
     elif custom_scale is not None:
         source_map["relative_scale"] = custom_scale
+    if notation_policy:
+        source_map["notation_policy"] = preview.evidence(instrument, locations,
+            expressions.confirmed_symbols(instrument), expressions.symbols_for(instrument, notation_policy),
+            default_scale, policy, profile)
+        assumptions[6] = "기존 악기별 확정 음열 우선. 나머지 알려진 기호에는 notation_policy에 기록한 교육용 근사를 적용."
+        assumptions.append("교육용 미리듣기 근사값 사용. 원전의 확정 음열·정석 연주 또는 전용 주법 음색으로 간주하지 않음.")
     if performance_plan is not None:
         score, source_map = apply_tempo_repeat(score, source_map, performance_plan, input_sha256, instrument=instrument)
     return score, source_map

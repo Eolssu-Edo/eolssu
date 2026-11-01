@@ -29,6 +29,7 @@ from fractions import Fraction
 import math
 
 from .score import PPQN, finite, reject_unknown, require, ticks, validate_pitch_curve, validate_yoseong
+from . import preview
 
 SCALES = {"hwang-pyeong": (0, 2, 5, 7, 9), "hwang-gyemyeon": (0, 3, 5, 7, 10),
           "jung-pyeong": (0, 2, 5, 7, 10)}
@@ -163,12 +164,25 @@ def symbol_policy(instrument):
     return deepcopy(SYMBOL_POLICIES[instrument])
 
 
-def symbols_for(instrument):
+def confirmed_symbols(instrument):
+    blocked = SYMBOL_UNRESOLVED.get(instrument, {})
+    return {name: value for name, value in SYMBOL_TABLES[instrument].items() if name not in blocked}
+
+
+def symbols_for(instrument, notation_policy=None):
     require(instrument in SYMBOL_TABLES, f"{instrument}: 기호 해석 정책이 없습니다")
+    if notation_policy == preview.MODE:
+        return preview.symbol_table(SYMBOLS, SOGEUM_SYMBOLS, confirmed_symbols(instrument))
     return SYMBOL_TABLES[instrument]
 
 
-def validate_symbol(name, instrument, label):
+def validate_symbol(name, instrument, label, notation_policy=None):
+    if notation_policy == preview.MODE:
+        name = preview.canonical(name)
+        if name in preview.TIMELINE_MARKS:
+            raise ValueError(f"{label}: {{{name}}}: 반복 범위는 companion timeline/performance-plan에서 전개하세요")
+        if name in symbols_for(instrument, notation_policy) or name in preview.EXTRA_MARKS or name in EFFECT_MARKS or name in PROFILE_MARKS:
+            return
     if instrument == "sanjo-daegeum" and name == "꺾는음":
         return  # Only this instrument exposes the explicit, source-scoped policy.
     unresolved = SYMBOL_UNRESOLVED.get(instrument, {})
@@ -231,6 +245,15 @@ UNRESOLVED_REASONS = {
 def expression_policy(document, instrument):
     """Preserve explicit instrument choices without importing Danso's defaults."""
     policy = document.get("playback", {}).get("expression_policy")
+    notation_policy = preview.mode(document)
+    if notation_policy:
+        defaults = preview.effect_policy(EXPRESSION_POLICY, instrument)
+        for key in ("staccato", "fermata", "unresolved_display_annotations"):
+            defaults.pop(key)
+        if policy is not None:
+            require(isinstance(policy, dict), "expression_policy은 객체여야 합니다")
+            defaults.update(deepcopy(policy))
+        policy = defaults
     if policy is None:
         return deepcopy(EXPRESSION_POLICY) if instrument == "danso" else {
             "name": f"{instrument}-explicit-effects-v1", "status": EXPRESSION_POLICY["status"],
@@ -239,7 +262,8 @@ def expression_policy(document, instrument):
             "unresolved_display_annotations": ["원문점"],
         }
     reject_unknown(policy, ["name", "basis", "status", "vibrato", "fall", "push", "unwind", "kkeok"], "expression_policy")
-    require("kkeok" not in policy or instrument == "sanjo-daegeum", "kkeok 정책은 산조대금에만 지원합니다")
+    require("kkeok" not in policy or instrument == "sanjo-daegeum" or notation_policy,
+            "kkeok 정책은 산조대금에만 지원합니다")
     require(all(isinstance(policy.get(k), str) and policy[k].strip() for k in ("name", "basis")),
             "표현 정책의 name·basis가 필요합니다")
     require(policy.get("status") == EXPRESSION_POLICY["status"],
@@ -346,6 +370,7 @@ def apply_effects(note, group, label, delay=0, profile=None, policy=None, writte
                         f"{label}: 지속 중 {kind}의 강세 적용에는 명시한 새 음이 필요합니다")
                 value["delay_seconds"] = value.get("delay_seconds", 0) + delay
             note[key] = value
+    preview.apply_extra(note, group.get("preview_effects", []), label, delay)
 
 
 def adaptive_grace(duration, count, main_count, label):
@@ -400,13 +425,19 @@ DEFAULT_ACCENT = {
 }
 
 
-def resolve_expression_profile(profile=None, instrument="danso"):
+def resolve_expression_profile(profile=None, instrument="danso", notation_policy=None):
     """Return validated policies. Missing pitch gestures have no invented defaults.
 
     Input policies contain ``basis`` and score note fields at the same level.
     Resolved policies contain ``basis``, ``status`` and normalized ``note`` fields.
     This file is a CLI rendering option, not a change to the JGB data contract.
     """
+    if notation_policy == preview.MODE:
+        result = resolve_expression_profile(preview.profile_defaults(instrument), instrument)
+        if profile is not None:
+            authored = resolve_expression_profile(profile, instrument)
+            result["policies"].update(authored["policies"])
+        return result
     schema = f"{instrument}-expression-profile/v1"
     result = {"schema": schema, "policies": {"accent": deepcopy(DEFAULT_ACCENT)}}
     if profile is None:
@@ -483,7 +514,7 @@ HOLD_PROFILE_EFFECTS = INDEPENDENT_PROFILE_EFFECTS | {"bend-down", "bend-up"}
 
 def has_effects(group, *, include_fermata=True):
     effects = set(EFFECT_MARKS.values()) - (set() if include_fermata else {"fermata"})
-    return bool(group.get("profile_effects") or any(group.get(effect) for effect in effects))
+    return bool(group.get("profile_effects") or group.get("preview_effects") or any(group.get(effect) for effect in effects))
 
 
 def validate_sustain_effects(note, group, label):
@@ -501,7 +532,7 @@ def main_note_effects(group, index, count):
     return group if index == count else {"vibrato": group.get("vibrato")}
 
 
-def resolve_ornament_pitches(group, reference, hwang, scale, label):
+def resolve_ornament_pitches(group, reference, hwang, scale, label, notation_policy=None):
     """Return main, front-grace and post-grace pitches without changing the source."""
     def step(pitch, degree):
         if degree == 0:
@@ -515,6 +546,8 @@ def resolve_ornament_pitches(group, reference, hwang, scale, label):
         return pitch
 
     is_roll = any(s in ("떠이어표", "roll") for s in group["symbols"])
+    if is_roll and notation_policy == preview.MODE and (reference - hwang) % 12 != 7:
+        is_roll = False  # Educational neighbour roll; the confirmed Im/Mu case is retained.
     if is_roll:
         require((reference - hwang) % 12 == 7, f"{label}: 떠이어표는 임→무→임 교육 예시만 확인됐습니다")
     sequence = [step(reference, d) for d in group.get("sequence", (0,))]
