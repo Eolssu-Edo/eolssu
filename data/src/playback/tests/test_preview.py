@@ -121,6 +121,21 @@ class PreviewTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaisesRegex(ValueError, "cell_quarters"):
                 convert_jgb(source, source_name="test", inline_relative=True, cell_quarters=value)
 
+    def test_private_unit_boundaries_do_not_merge_register_prefixes(self):
+        source = self.prepared("니레")
+        source["parts"][0]["melody"] = "중;청황 | 청중{니레@50,0,0};청중"
+        with self.assertRaisesRegex(ValueError, "읽을 수 없는"):
+            convert_jgb(source, source_name="test")
+        score, mapping = convert_jgb(source, source_name="test", inline_relative=True, cell_quarters=1)
+        self.assertEqual([n["pitch"] for n in score["notes"][:2]], [68, 75])
+        self.assertEqual([Fraction(n["duration"]) for n in score["notes"][:2]], [Fraction(1, 2)] * 2)
+        self.assertEqual([mapping["notes"][n["id"]][0]["unit"] for n in score["notes"][:2]], [1, 2])
+        self.assertEqual(mapping["notes"][score["notes"][2]["id"]][0]["symbols"], ["니레"])
+        for melody in (";중|청중", "중;|청중", "중;;청황|청중"):
+            source["parts"][0]["melody"] = melody
+            with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, "unit"):
+                convert_jgb(source, source_name="test", inline_relative=True)
+
 
 if __name__ == "__main__":
     unittest.main()

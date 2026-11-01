@@ -80,7 +80,15 @@ def integer(value, label, low, high):
 def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy=None, inline_relative=False):
     """Group attached ornaments without allocating another time slot."""
     groups, breath, i = [], False, 0
+    separators = 0
     while i < len(text):
+        if inline_relative and text[i] == ";":
+            # Private common-adapter boundary: 중 + 청황 must not become 중청황.
+            # Braced symbol/placement text is consumed whole by the branch below.
+            require(len(groups) == separators + 1, f"{label}: 각 common unit에는 한 자리만 필요합니다")
+            separators += 1
+            i += 1
+            continue
         if text[i] == "<":
             require(not breath, f"{label}: 중복 숨표")
             breath = True
@@ -188,6 +196,8 @@ def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy
         groups.append({"kind": "note", "offset": YUL.index(note[2]) + 12 * PREFIX[note[1] or ""],
                        "symbols": []})
         i = note.end()
+    require(not separators or len(groups) == separators + 1,
+            f"{label}: 빈 common unit 또는 중복 자리를 확인하세요")
     return groups, breath
 
 
