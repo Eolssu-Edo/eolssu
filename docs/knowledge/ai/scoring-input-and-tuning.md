@@ -1,7 +1,7 @@
 # 채점 입력과 기준음·조율 보정 상한
 
 - 작업: [S15P31E102-157](https://ssafy.atlassian.net/browse/S15P31E102-157)
-- 상태: 구현·합성 입력 검증 완료. 음 번호와 `startBeat`는 [PRA-03](../../specs/practice-analysis-failure.md)에 반영됐다(변경 기록 2026-10-28). 분석 API(S15P31E102-212)가 이 값을 채점에 넘기고 `modelVersion`은 `pyin-3`이다([짧은 옥타브 오류 수정](short-octave-error.md)에서 올림). 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
+- 상태: 구현·합성 입력 검증 완료. 음 번호와 `startBeat`는 [PRA-03](../../specs/practice-analysis-failure.md)에 반영됐다(변경 기록 2026-10-28). 분석 API(S15P31E102-212)가 이 값을 채점에 넘기고 `modelVersion`은 `pyin-4`이다([입문자 정상 연주 박자 판정](beginner-normal-performance.md)에서 올림). 보정 상한은 S15P31E102-158 녹음으로 다시 정할 임시 값이다.
 - 재현: `ai/`에서 `uv run pytest tests/unit/test_scoring.py tests/unit/test_arirang_score.py`
 - 코드: [채점](../../../ai/src/ai_service/pipelines/scoring.py), [합성 입력](../../../ai/evaluation/synthetic.py), [아리랑 끝까지 검사](../../../ai/tests/unit/test_arirang_score.py)
 
@@ -51,5 +51,5 @@ g = 100 × (곡에 나오는 서로 다른 반음 번호 중 가장 가까운 �
 
 - 쉼 동안 앞 음을 계속 불어도 감점하지 않는다. 쉼 프레임은 어느 음표에도 속하지 않는다.
 - 연습 구간은 보낸 음표로만 `g`를 계산한다. 같은 연주라도 곡 전체와 구간의 상한이 다를 수 있다.
-- 시작 허용 범위 `onset_beat`(1/8박)는 박 단위라 BPM과 박 단위(`bpmUnit`)에 따라 실제 시간이 달라진다. 기본 BPM에서 아리랑·도라지타령·밀양아리랑은 78ms, 늴리리야는 114ms다. 박을 쪼개 적으면 허용 범위도 좁아진다(테스트로 남김). 박자 판정 방식은 팀 합의 뒤 다룬다.
+- 시작 허용 범위 `onset_beat`(1/8박)는 박 단위라 BPM과 박 단위(`bpmUnit`)에 따라 실제 시간이 달라진다. 기본 BPM에서 아리랑·도라지타령·밀양아리랑은 78ms, 늴리리야는 114ms다. 박을 쪼개 적으면 허용 범위도 좁아진다(테스트로 남김). `pyin-4`부터 이 값은 허용의 최솟값이다. 박자는 앞뒤 3음 기준으로도 보고, 허용은 연주의 박자 흔들림 × `onset_spread`(4)까지 넓어진다([입문자 정상 연주 박자 판정](beginner-normal-performance.md)).
 - 모든 검증은 합성 입력이다. 실제 단소 녹음은 S15P31E102-158에서 확인한다.
