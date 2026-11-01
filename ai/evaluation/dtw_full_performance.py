@@ -27,6 +27,11 @@ def blocks_later_inputs(status):
     return status in ('ERROR', 'TIMEOUT', 'FAILED', 'PREPARE_ERROR')
 
 
+def run_status(score_status):
+    """채점이 DONE이 아니면(NO_SOUND·TOO_SHORT 등) 측정 성공으로 세지 않는다."""
+    return 'DONE' if score_status == 'DONE' else 'FAILED'
+
+
 def timed_process(args, timeout):
     """부모가 측정한 자식 생성부터 종료까지의 벽시계 시간."""
     started = time.perf_counter()
@@ -155,7 +160,7 @@ def child(page, bpm, method, mode, audio_path):
         result = scoring.score(f0, notes, bpm, scoring.HWANG_HZ, rms=rms)
     elapsed = time.perf_counter() - began
     peak = process_peak_rss()
-    return {'status': 'DONE' if result.status == 'DONE' else 'FAILED', 'failReason': result.fail_reason,
+    return {'status': run_status(result.status), 'failReason': result.fail_reason,
             'seconds': alignment_seconds if mode == 'dtw' else elapsed, 'alignmentSeconds': alignment_seconds,
             'warmupSeconds': warm_seconds, 'peakRssBytes': peak, 'rssMayBeLimited': peak >= RSS_LIMIT - 16 * 1024 ** 2,
             'estimatedBytes': estimate, 'expectedFrames': n, 'detectedFrames': m,
