@@ -113,7 +113,8 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
         document, instrument, part, policy, performance_plan is not None)
     # Resolve glyphs before tempo/repetition, and retain original source coordinates separately.
     legacy, mapping = convert_jgb(prepared, source_name=source_name, instrument=instrument,
-                                  part=part, input_sha256=input_sha256, expression_profile=expression_profile)
+                                  part=part, input_sha256=input_sha256, expression_profile=expression_profile,
+                                  source_boundaries=any(';' in row['clean'] for cell in source_cells for row in cell['rows']))
     final_score, final_mapping = deepcopy(legacy), deepcopy(mapping)
     _stretch_lengths(final_score, final_mapping, length_factors)
     final_mapping['tempo_cues'] = tempo_cues

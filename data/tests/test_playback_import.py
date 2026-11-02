@@ -12,6 +12,7 @@ import unittest
 from data.src.scores.playback_import import import_jgb
 from data.src.scores.score_data import dumps
 from data.src.playback.common_score import convert_common_score
+from data.src.playback.jgb import convert_jgb
 from data.src.playback.score import compile_score
 
 
@@ -298,6 +299,36 @@ class PlaybackImportTests(unittest.TestCase):
         doc['playback'] = []
         with self.assertRaisesRegex(ValueError, 'playback'):
             bundle(doc, notation_policy='educational-preview/v1')
+
+    def test_removing_annotations_does_not_merge_jung_with_next_cheong_pitch(self):
+        cases = [('조금느리게', [Fraction(3, 5), Fraction(3, 10), Fraction(3, 10)], 1),
+                 ('반복표', [Fraction(1, 2), Fraction(1, 4), Fraction(1, 4)] * 2, 2),
+                 ('덧길이표', [Fraction(1, 2), Fraction(3, 8), Fraction(1, 4)], 1),
+                 ('반복표}{조금느리게', [Fraction(3, 5), Fraction(3, 10), Fraction(3, 10)] * 2, 2)]
+        for mark, durations, count in cases:
+            with self.subTest(mark=mark):
+                doc = source('청황 중{' + mark + '}청황')
+                options = {'notation_policy': 'educational-preview/v1'}
+                if '조금느리게' in mark:
+                    digest = hashlib.sha256(json.dumps(doc, ensure_ascii=False).encode()).hexdigest()
+                    options['performance_plan'] = {'schema': 'danso-performance/v1', 'input_sha256': digest,
+                        'tempos': [{'gak': 1, 'cell': 1, 'bpm': 50}],
+                        'repeats': [{'start_gak': 1, 'end_gak': 1, 'times': count}] if count > 1 else []}
+                score = performed(bundle(doc, **options))
+                self.assertEqual([n['pitch'] for n in score['notes']], [75, 68, 75] * count)
+                self.assertEqual([Fraction(n['duration']) for n in score['notes']], durations)
+
+    def test_internal_source_boundary_keeps_strict_source_and_independent_slots(self):
+        doc = source('청황 중;청황{니나}')
+        with self.assertRaises(ValueError):
+            convert_jgb(doc, source_name='internal boundary')
+        score, _ = convert_jgb(doc, source_name='internal boundary', source_boundaries=True)
+        self.assertEqual([n['pitch'] for n in score['notes']], [75, 68, 75, 77, 75])
+        with self.assertRaises(ValueError):
+            bundle(doc, notation_policy='educational-preview/v1')
+        for melody in ('청황 중{반복표]청황', '청황 중{조금느리게)청황'):
+            with self.subTest(melody=melody), self.assertRaisesRegex(ValueError, '괄호'):
+                bundle(source(melody), notation_policy='educational-preview/v1')
 
     def test_source_slots_cannot_override_pitches_marks_coverage_or_review(self):
         result = bundle(source('청황 청황 청황{니레}{니나}'))

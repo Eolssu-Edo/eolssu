@@ -3,7 +3,7 @@ from copy import deepcopy
 from fractions import Fraction
 import re
 
-from data.src.playback.jgb import integer, row_groups
+from data.src.playback.jgb import integer, row_groups, NOTE
 from data.src.playback.preview import canonical
 from data.src.playback.expressions import LENGTH_MARKS
 from data.src.playback.score import require
@@ -12,6 +12,22 @@ from data.src.playback.tempo_repeat import TEMPO_CUES
 MARK = re.compile(r"[\{(\[]([^{}()\[\]]+)[\})\]]")
 BREAK = re.compile(r"\|\|(?:\r\n|\r|\n)?|\r\n|\n|\r")
 REPEATS = {"반복표", "도돌이표"}
+
+
+def _without_marks(text, names):
+    """Delete only selected annotations, retaining any note-token boundary."""
+    for match in reversed(list(MARK.finditer(text))):
+        if canonical(match[1].partition('@')[0]) not in names:
+            continue
+        left, right = text[:match.start()], text[match.end():]
+        before, after = list(NOTE.finditer(left)), NOTE.match(right)
+        boundary = ''
+        if before and before[-1].end() == len(left) and after:
+            a, b = before[-1][0], after[0]
+            if NOTE.match(a + b).end() != len(a):
+                boundary = ';'
+        text = left + boundary + right
+    return text
 
 
 def prepare_source(document, instrument, part, policy, has_plan):
@@ -35,9 +51,12 @@ def prepare_source(document, instrument, part, policy, has_plan):
             rows, annotations = [], []
             for original_row, match in enumerate(re.finditer(r'\S+', cell), 1):
                 text = match[0]
+                require(';' not in text, f'{label}: 원문에는 내부 음표 경계 문자를 사용할 수 없습니다')
                 raw = list(MARK.finditer(text))
                 annotation_marks = [m for m in raw if canonical(m[1].partition('@')[0]) in TEMPO_CUES | REPEATS]
                 for mark in annotation_marks:
+                    require(mark[0][-1] == {'{': '}', '(': ')', '[': ']'}[mark[0][0]],
+                            f'{label} · {original_row}분박: 닫는 기호 괄호가 다릅니다')
                     name = canonical(mark[1].partition('@')[0])
                     require(name not in REPEATS or policy, f'{label}: 원문 반복표에는 명시적 educational-preview/v1 정책이 필요합니다')
                     require(name not in TEMPO_CUES or policy or has_plan, f'{label}: 빠르기 기호는 --performance-plan을 지정하세요')
@@ -52,8 +71,9 @@ def prepare_source(document, instrument, part, policy, has_plan):
                         cues.append({'gak': g, 'cell': c, 'symbol': name})
                     else:
                         repeats.add(g)
-                clean = MARK.sub(lambda m: '' if canonical(m[1].partition('@')[0]) in TEMPO_CUES | REPEATS else m[0], text)
-                groups, breath = row_groups(clean, f'{label} · {original_row}분박', instrument=instrument, notation_policy=policy)
+                clean = _without_marks(text, TEMPO_CUES | REPEATS)
+                groups, breath = row_groups(_without_marks(text, REPEATS), f'{label} · {original_row}분박',
+                                            tempo_cues=[], instrument=instrument, notation_policy=policy, source_boundaries=True)
                 if not clean and annotation_marks:
                     continue
                 rows.append({'text': text, 'clean': clean, 'start': cell_start + match.start(), 'row': original_row,
@@ -70,7 +90,7 @@ def prepare_source(document, instrument, part, policy, has_plan):
                     for u, group in enumerate(row['groups'], 1):
                         if 'weight' in group:
                             factors[(g, c, r, u)] = Fraction(group['weight'])
-                    row['clean'] = MARK.sub(lambda m: '' if canonical(m[1].partition('@')[0]) in LENGTH_MARKS else m[0], row['clean'])
+                    row['clean'] = _without_marks(row['clean'], LENGTH_MARKS)
                 traces.append({'gak': g, 'cell': c, 'operation': 'unpaired-length-performed',
                                'basis': '명시 교육 정책: 원래 균등 자리에서 꾸밈 생성 후 수행 길이 배율 적용'})
             if annotations:

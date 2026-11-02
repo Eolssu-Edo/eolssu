@@ -77,11 +77,19 @@ def integer(value, label, low, high):
     return int(result)
 
 
-def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy=None, inline_relative=False):
+def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy=None, inline_relative=False,
+               source_boundaries=False):
     """Group attached ornaments without allocating another time slot."""
     groups, breath, i = [], False, 0
     separators = 0
     while i < len(text):
+        if source_boundaries and text[i] == ";":
+            # Import normalization can remove a mark between 중 + 청황.
+            # Preserve that lexical boundary without changing independent slots.
+            require(groups and groups[-1]['kind'] == 'note' and NOTE.match(text, i + 1),
+                    f'{label}: 원문 음표 사이 경계만 사용할 수 있습니다')
+            i += 1
+            continue
         if inline_relative and text[i] == ";":
             # Private common-adapter boundary: 중 + 청황 must not become 중청황.
             # Braced symbol/placement text is consumed whole by the branch below.
@@ -203,7 +211,7 @@ def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy
 
 def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_midi=None, jo=None,
                 performance_plan=None, input_sha256=None, expression_profile=None, assume_danso=False,
-                instrument="danso", inline_relative=False, cell_quarters=None):
+                instrument="danso", inline_relative=False, cell_quarters=None, source_boundaries=False):
     """Return the existing score IR and a map from IR note IDs to JGB locations."""
     require(isinstance(document, dict) and type(document.get("v")) is int
             and document["v"] in (1, 2), "지원하는 JGB 버전은 v1·v2입니다")
@@ -223,6 +231,8 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
     voice = parts[selected - 1]
     selection, instrument_basis = declared_instrument(document, voice, instrument, assume_danso)
     require(type(inline_relative) is bool, "inline_relative은 true/false여야 합니다")
+    require(type(source_boundaries) is bool and not (source_boundaries and inline_relative),
+            'source_boundaries는 원문 가져오기 전용 true/false여야 합니다')
     notation_policy = preview.mode(document)
     profile = expressions.resolve_expression_profile(expression_profile, instrument, notation_policy)
     policy = expressions.expression_policy(document, instrument)
@@ -350,7 +360,7 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
             for r, row in enumerate(rows, 1):
                 cues = [] if performance_plan is not None else None
                 groups, breath = row_groups(row[0], f"{label} · {r}분박", cues, instrument,
-                                            notation_policy, inline_relative)
+                                            notation_policy, inline_relative, source_boundaries)
                 tempo_cues.extend({"gak": g, "cell": c, "symbol": symbol} for symbol in cues or [])
                 if groups or breath or not cues:
                     parsed.append((groups, breath))
