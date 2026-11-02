@@ -39,6 +39,10 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 기본 필수 검사는 `clean build`입니다. 시작 테스트는 외부 DB·AI 서버 없이 임의 포트에 실제 HTTP 서버를 띄우고, DB 관련 Bean 미생성과 미등록 경로의 `404` 응답을 확인합니다. 결과는 `build/reports/tests/test/index.html`에 생성됩니다. 저장 모델·쿼리·마이그레이션 변경에서는 아래의 `databaseTest`, 녹음 파일 검사 변경에서는 `mediaTest`도 병합 전에 수행합니다. AI 통합과 모델 품질은 두 검사 범위에 포함하지 않습니다.
 
+### 내 악보(SHT-01·03·08)
+
+S15P31E102-390: `db`·`ops`에서 로그인한 회원이 `POST /api/users/me/sheets`(빈 악보·제공 곡/내 악보 복사), `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`가 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 편집 저장·삭제·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `CreateUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
+
 ### 카탈로그 조회(CAT-03~10)
 
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
