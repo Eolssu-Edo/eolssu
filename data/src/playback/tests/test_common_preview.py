@@ -12,9 +12,7 @@ from data.src.playback.__main__ import run
 from data.src.playback import expressions as expr, preview
 from data.src.playback.common_score import convert_common_score
 from data.src.playback.score import compile_score
-from data.src.playback.tests._helpers import sampler
-from data.src.playback.tests._helpers import document
-from data.src.playback.tests.test_common_score import small_score
+from data.src.playback.tests._helpers import sampler, document, common_small_score as small_score, COMMON_SCORE_FIXTURE as FIXTURE
 from data.src.scores.score_data import convert as common_from_jgb
 
 
@@ -177,7 +175,6 @@ class CommonPreviewTests(unittest.TestCase):
         self.assertEqual(shifted['effective_position'], ['c0-j0', 0, 0])
 
     def test_preview_plain_arirang_matches_original_playback(self):
-        from data.src.playback.tests.test_common_score import FIXTURE
         source = json.loads(FIXTURE.read_text(encoding='utf-8'))
         old, _ = convert_common_score(source, bpm=96, instrument='danso', input_sha256='a'*64)
         new, mapping = convert_common_score(source, bpm=96, instrument='danso', input_sha256='a'*64,

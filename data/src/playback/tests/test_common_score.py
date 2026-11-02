@@ -9,9 +9,7 @@ from data.src.playback.__main__ import run
 from data.src.playback.common_score import convert_common_score
 from data.src.playback.midi import read_midi, write_midi
 from data.src.playback.score import compile_score
-from data.src.playback.tests._helpers import sampler
-
-FIXTURE = Path(__file__).resolve().parents[3] / "tests/fixtures/scores/ngc-standard-2022-p173.score.json"
+from data.src.playback.tests._helpers import sampler, common_small_score as small_score, COMMON_SCORE_FIXTURE as FIXTURE
 
 
 class CommonScorePlaybackTests(unittest.TestCase):
@@ -115,23 +113,6 @@ class CommonScorePlaybackTests(unittest.TestCase):
             self.assertEqual(mapping["total_ticks"], 144)
             self.assertEqual(mapping["score_seconds"], 30)
             self.assertAlmostEqual(manifest["results"][0]["seconds"], 30.55, delta=.0001)
-
-
-def small_score():
-    """Authored four-beat fixture: rest, 중, newly attacked 중, rest."""
-    value = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    value["music"].update(bpmUnit="QUARTER", ticksPerBeat=1, ticksPerJeonggan=1)
-    value["columns"] = [{"index": 0, "cells": []}]
-    value["events"] = []
-    for i, symbol in enumerate(["쉼", "중", "중", "쉼"]):
-        cid, eid = f"c0-j{i}", f"c0-j{i}-r0-u0"
-        value["columns"][0]["cells"].append({"id": cid, "index": i, "units": [
-            {"row": 0, "col": 0, "symbol": symbol, "eventId": eid}]})
-        rest = symbol == "쉼"
-        value["events"].append({"id": eid, "kind": "REST" if rest else "NOTE", "yul": None if rest else symbol,
-                                "octave": None if rest else 0, "startTick": i, "durationTick": 1,
-                                "cellId": cid, "breathAfter": False, "sigimsae": []})
-    return value
 
 
 if __name__ == "__main__":

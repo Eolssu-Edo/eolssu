@@ -75,6 +75,14 @@ flowchart TD
 - `source-map.json`에는 기존 본음 기준 대응표와 펼친 표현/근거/추정 위치를 함께 남깁니다. 단독 MIDI만으로는 이 정보를 복원할 수 없습니다.
 - 직접 JGB 입력은 파일에 `playback.notation_policy: "educational-preview/v1"`을 지정합니다. 직접 JGB의 반복은 기존 `--performance-plan`으로 범위를 명시하고 길이표 짝 규칙을 유지합니다. 공통 입력의 기본 반복/길이표 정책과 구분합니다.
 
+교육용 고정곡의 실제 파형 검사는 재생 결과 JSON 대신 사람이 작성한 기대 음열·구간을 사용합니다. `--case`는 해당 악기 이름입니다. WAV와 M4A 모두 입력할 수 있으며 M4A는 위와 같은 FFmpeg/ffprobe 준비가 필요합니다.
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.playback.verify_preview --expect data/tests/fixtures/playback/common-preview.expect.json --case danso --audio data/processed/playback/preview-study/danso.wav --out data/processed/playback/preview-study-check.json
+```
+
+현재 실제 단소 BPM60은62.5ms 꾸밈의 초기 한 관측창이 F0 검사에 실패하므로 이 명령은 실패 상태를 유지합니다. 다른 세 악기는 통과했고, 단소 BPM30의125ms 꾸밈은 별도 `common-preview-slow-danso.expect.json`으로 검증했습니다. 상세 측정과 한계는 위 정책 문서에 기록합니다.
+
 ## 설치와 빠른 검사
 
 저장소 루트에서 Python 3.10 이상으로 별도 가상환경을 만듭니다. 아래 명령은 PowerShell 기준입니다.
