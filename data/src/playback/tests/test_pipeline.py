@@ -1,6 +1,8 @@
 """Cross-module and __main__.run integration; synthetic audio, no CAT bank."""
 from fractions import Fraction
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -9,14 +11,50 @@ from unittest.mock import patch
 
 import numpy as np
 
-from data.src.playback.__main__ import run, publish, replace_directory
+from data.src.playback.__main__ import main, run, publish, replace_directory
 from data.src.playback.audio import resolve_encoder
 from data.src.playback.sampler import FS
 from data.src.playback.score import PROFILES
 from data.src.playback.tests._helpers import (
     EXAMPLE, HAVE_ENCODER, converted, document, inputs, midi, sampler,
-    score, synthetic_sampler, wire,
+    score, synthetic_sampler, wire, common_notes,
 )
+
+
+class GenerationBoundaryTests(unittest.TestCase):
+    def test_jgb_and_legacy_ir_require_common_import_before_assets_or_output(self):
+        for value in (document(), score()):
+            with self.subTest(value=value.get("schema", "JGB")), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                source = root / "input.json"
+                source.write_text(json.dumps(value), encoding="utf-8")
+                with patch("data.src.playback.__main__.CatSampler") as bank:
+                    with self.assertRaisesRegex(ValueError, "data.src.scores.playback_import"):
+                        run(source, root / "missing-assets.json", root / "out", ["danso"],
+                            common_bpm=60, audio_format="wav")
+                    bank.assert_not_called()
+                self.assertFalse((root / "out").exists())
+
+    def test_generation_help_exposes_only_common_score_options(self):
+        output = io.StringIO()
+        with patch("sys.argv", ["playback", "--help"]), redirect_stdout(output):
+            with self.assertRaises(SystemExit) as stopped:
+                main()
+        self.assertEqual(stopped.exception.code, 0)
+        for option in ("--part", "--bpm ", "--speed", "--hwang-midi", "--jo ",
+                       "--performance-plan", "--expression-profile", "--assume-danso"):
+            self.assertNotIn(option, output.getvalue())
+        self.assertIn("--common-bpm", output.getvalue())
+        self.assertIn("--common-expressions", output.getvalue())
+
+    def test_generation_cli_requires_explicit_common_bpm(self):
+        with patch("sys.argv", ["playback", "--score", "score.json", "--assets", "assets.json",
+                                "--out", "out", "--instrument", "danso"]), redirect_stderr(io.StringIO()), \
+             redirect_stdout(io.StringIO()), patch("data.src.playback.__main__.run", return_value={}) as generate:
+            with self.assertRaises(SystemExit) as stopped:
+                main()
+        self.assertEqual(stopped.exception.code, 2)
+        generate.assert_not_called()
 
 
 class ScoreMidiIntegrationTests(unittest.TestCase):
@@ -42,22 +80,23 @@ class ScoreMidiIntegrationTests(unittest.TestCase):
         self.assertFalse(midi["notes"][1]["legato"])
 
 
-class JgbRenderIntegrationTests(unittest.TestCase):
+class RenderIntegrationTests(unittest.TestCase):
     def test_jeongak_single_input_preserves_original_and_has_only_pipeline_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source, assets = root / "input.jgb.json", root / "assets.json"
-            source.write_bytes((Path(__file__).parents[1] / "examples/jeongak-daegeum-jgb.json").read_bytes())
+            source, assets = root / "input.common.json", root / "assets.json"
+            source.write_text(json.dumps(common_notes((("황", 0), ("태", 0), ("중", 0)),
+                                                      "jeongak-daegeum")), encoding="utf-8")
             assets.write_text('{"jeongak-daegeum":"unused.zip"}', encoding="utf-8")
             fake = sampler()
             fake.instrument = "jeongak-daegeum"
             fake.zones[0].update(low=58, high=89)
             with patch("data.src.playback.__main__.CatSampler", return_value=fake):
-                manifest = run(source, assets, root / "out", [fake.instrument], audio_format="wav")
-            self.assertEqual((root / "out/source.jgb.json").read_bytes(), source.read_bytes())
+                manifest = run(source, assets, root / "out", [fake.instrument], common_bpm=60, audio_format="wav")
+            self.assertEqual((root / "out/source.common.json").read_bytes(), source.read_bytes())
             self.assertEqual({p.name for p in (root / "out").iterdir()}, {
                 "jeongak-daegeum.wav", "jeongak-daegeum.mid", "jeongak-daegeum.json",
-                "manifest.json", "source-map.json", "source.jgb.json", "score.json"})
+                "manifest.json", "source-map.json", "source.common.json", "score.json"})
             self.assertIsNone(manifest["playback_vibrato"])
             report = json.loads((root / "out/jeongak-daegeum.json").read_text(encoding="utf-8"))
             self.assertEqual([n["pitch"] for n in report["events"]], [63, 65, 68])
@@ -67,24 +106,39 @@ class JgbRenderIntegrationTests(unittest.TestCase):
     def test_sanjo_single_input_preserves_source_and_records_explicit_policies(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root / "input.jgb.json"
-            source.write_bytes((Path(__file__).parents[1] / "examples/sanjo-authored.jgb.json").read_bytes())
+            source = root / "input.common.json"
+            value = common_notes((("황", 0), ("태", 0), ("중", 0), ("임", 0)), "sanjo-daegeum")
+            for event, marks in zip(value["events"], (["농음표"], ["흘림표"], ["니레"], [])):
+                event["sigimsae"] = marks
+            value["events"][-1]["breathAfter"] = True
+            source.write_text(json.dumps(value), encoding="utf-8")
+            config = root / "expressions.json"
+            config.write_text(json.dumps({"schema": "common-score-expressions/v1",
+                "sourceSha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "placements": [{"eventId": e["id"], "cellId": e["cellId"], "row": 0, "col": 0,
+                                "symbols": e["sigimsae"]} for e in value["events"] if e["sigimsae"]],
+                "relativeScale": {"pitch_classes": [0, 2, 5, 7, 9], "basis": "Authored test scale"},
+                "expressionPolicy": {"name": "sanjo-authored-fixture-v1", "basis": "Authored test choices",
+                    "status": "audition-policy-not-performance-standard",
+                    "vibrato": {"mode": "pitch", "hz": 4, "cents": 25, "delay_seconds": .1},
+                    "fall": {"end_cents": -50, "tail_fraction": .3, "maximum_seconds": .2}}}), encoding="utf-8")
             assets = root / "assets.json"
             assets.write_text('{"sanjo-daegeum":"unused.zip"}', encoding="utf-8")
             fake = sampler()
             fake.instrument = "sanjo-daegeum"
             fake.zones[0].update(low=60, high=91)
             with patch("data.src.playback.__main__.CatSampler", return_value=fake) as constructor:
-                manifest = run(source, assets, root / "out", ["sanjo-daegeum"], audio_format="wav")
+                manifest = run(source, assets, root / "out", ["sanjo-daegeum"], common_bpm=60,
+                               notation_policy="educational-preview/v1", common_expressions=config, audio_format="wav")
             constructor.assert_called_once_with(root / "unused.zip", "sanjo-daegeum")
-            self.assertEqual((root / "out/source.jgb.json").read_bytes(), source.read_bytes())
+            self.assertEqual((root / "out/source.common.json").read_bytes(), source.read_bytes())
             self.assertIsNone(manifest["playback_vibrato"])
             report = json.loads((root / "out/sanjo-daegeum.json").read_text(encoding="utf-8"))
             mapping = json.loads((root / "out/source-map.json").read_text(encoding="utf-8"))
             self.assertEqual([e["pitch"] for e in report["events"]], [63, 65, 70, 68, 70])
-            self.assertEqual(mapping["expression_policy"]["name"], "sanjo-authored-fixture-v1")
-            self.assertEqual(mapping["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v2")
-            self.assertEqual(len(list((root / "out").iterdir())), 7)
+            self.assertEqual(mapping["expression_source_map"]["expression_policy"]["name"], "sanjo-authored-fixture-v1")
+            self.assertEqual(mapping["expression_source_map"]["symbol_policy"]["name"], "sanjo-daegeum-general-figures-v2")
+            self.assertEqual(len(list((root / "out").iterdir())), 9)
             self.assertTrue(any("WAV 67개" in message for message in report["warnings"]))
 
     def test_windows_directory_lock_is_retried_but_permanent_error_stops(self):
@@ -111,24 +165,27 @@ class JgbRenderIntegrationTests(unittest.TestCase):
     def test_sogeum_single_input_keeps_source_ids_and_instrument_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root / "input.jgb.json"
-            source.write_bytes((Path(__file__).parents[1] / "examples/sogeum-jgb.json").read_bytes())
+            source = root / "input.common.json"
+            value = common_notes((("황", 1), ("태", 1), ("중", 1)), "sogeum")
+            value["score"]["sourceId"] = value["provenance"]["sourceId"] = "sogeum-example"
+            source.write_text(json.dumps(value), encoding="utf-8")
             assets = root / "assets.json"
             assets.write_text('{"sogeum":"unused.zip"}', encoding="utf-8")
             fake = sampler()
             fake.instrument = "sogeum"
             with patch("data.src.playback.__main__.CatSampler", return_value=fake) as constructor:
-                manifest = run(source, assets, root / "out", ["sogeum"], audio_format="wav")
+                manifest = run(source, assets, root / "out", ["sogeum"], common_bpm=60, audio_format="wav")
             constructor.assert_called_once_with(root / "unused.zip", "sogeum")
-            self.assertEqual((root / "out/source.jgb.json").read_bytes(), source.read_bytes())
+            self.assertEqual((root / "out/source.common.json").read_bytes(), source.read_bytes())
             self.assertIsNone(manifest["playback_vibrato"])
             self.assertIsNone(manifest["playback_vibrato_by_instrument"]["sogeum"])
             report = json.loads((root / "out/sogeum.json").read_text(encoding="utf-8"))
             mapping = json.loads((root / "out/source-map.json").read_text(encoding="utf-8"))
             self.assertEqual(report["notes"], 3)
             self.assertEqual([n["pitch"] for n in report["events"]], [75, 77, 80])
-            self.assertEqual(mapping["part_id"], "sogeum-example")
-            self.assertTrue(all(parent in mapping["notes"] for event in report["events"] for parent in event["parent_ids"]))
+            self.assertEqual(mapping["score"]["sourceId"], "sogeum-example")
+            source_ids = {event["id"] for event in mapping["events"]}
+            self.assertTrue(all(parent in source_ids for event in report["events"] for parent in event["parent_ids"]))
             self.assertEqual(len(list((root / "out").iterdir())), 7)
 
     def test_short_breath_preserves_half_note_next_onset_and_audible_gap(self):
@@ -224,70 +281,77 @@ class CliPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source, assets = inputs(root)
-            plan, profile = root / "plan.json", root / "profile.json"
-            plan.write_text(json.dumps({"schema": "danso-performance/v1",
-                "input_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-                "tempos": [{"gak": 1, "cell": 2, "bpm": 120}]}), encoding="utf-8")
-            profile.write_text(json.dumps({"schema": "danso-expression-profile/v1", "policies": {}}), encoding="utf-8")
+            config = root / "expressions.json"
+            source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+            config.write_text(json.dumps({"schema": "common-score-expressions/v1", "sourceSha256": source_hash,
+                "placements": [], "performancePlan": {"schema": "danso-performance/v1",
+                    "input_sha256": source_hash, "tempos": [{"gak": 1, "cell": 2, "bpm": 120}]},
+                "expressionProfile": {"schema": "danso-expression-profile/v1", "policies": {}}}), encoding="utf-8")
             with patch("data.src.playback.__main__.CatSampler", return_value=sampler()):
-                result = run(source, assets, root / "out", ["danso"], audio_format="wav",
-                    performance_plan=plan, expression_profile=profile, max_duration_seconds=1200)
+                result = run(source, assets, root / "out", ["danso"], common_bpm=60, audio_format="wav",
+                    notation_policy="educational-preview/v1", common_expressions=config, max_duration_seconds=1200)
             self.assertEqual(result["resource_limits"]["max_duration_seconds"], 1200)
-            for filename, original in (("performance-plan.json", plan), ("expression-profile.json", profile)):
-                self.assertEqual((root / "out" / filename).read_bytes(), original.read_bytes())
-                self.assertEqual(result["configuration_sha256"][filename], hashlib.sha256(original.read_bytes()).hexdigest())
+            self.assertEqual((root / "out/expressions.common.json").read_bytes(), config.read_bytes())
+            self.assertEqual(result["configuration_sha256"]["expressions.common.json"], hashlib.sha256(config.read_bytes()).hexdigest())
             rendered = json.loads((root / "out/score.json").read_text(encoding="utf-8"))
-            self.assertAlmostEqual(midi(rendered)["notes"][-1]["end"], 1.5, places=4)
+            last = midi(rendered)["notes"][-1]
+            self.assertAlmostEqual(last["end"] + last["release_seconds"], 1.5, places=4)
 
     def test_failed_cli_preserves_previous_result(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); out=root/"out";out.mkdir()
             (out/"manifest.json").write_text("previous",encoding="utf-8")
-            (root/"score.json").write_text(json.dumps(score()),encoding="utf-8")
+            (root/"score.json").write_text(json.dumps(common_notes()),encoding="utf-8")
             (root/"assets.json").write_text("{}",encoding="utf-8")
             with self.assertRaisesRegex(ValueError,"asset mapping"):
-                run(root/"score.json",root/"assets.json",out,["danso"],audio_format="wav")
+                run(root/"score.json",root/"assets.json",out,["danso"],common_bpm=60,audio_format="wav")
             self.assertEqual((out/"manifest.json").read_text(),"previous")
             self.assertEqual(len(list(out.iterdir())),1)
 
     def test_cli_pipeline_keeps_original_bytes_and_resolvable_source_map(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root/"input.jgb.json"
-            payload = b"\xef\xbb\xbf" + json.dumps(document("청황 | -"), ensure_ascii=False).encode("utf-8")
+            source = root/"input.common.json"
+            value = common_notes()
+            value["events"] = [dict(value["events"][0], durationTick=2)]
+            value["columns"][0]["cells"][1]["units"][0].update(symbol="-", eventId=value["events"][0]["id"])
+            payload = b"\xef\xbb\xbf" + json.dumps(value, ensure_ascii=False).encode("utf-8")
             source.write_bytes(payload)
             assets = root/"assets.json"
             assets.write_text('{"danso":"unused.zip"}', encoding="utf-8")
             fake = synthetic_sampler()
             fake.manifest, fake.close = {"fixture": "synthetic"}, lambda: None
             with patch("data.src.playback.__main__.CatSampler", return_value=fake):
-                result = run(source, assets, root/"out", ["danso"], audio_format="wav")
+                result = run(source, assets, root/"out", ["danso"], common_bpm=60, audio_format="wav")
             self.assertEqual(source.read_bytes(), payload)
-            self.assertEqual((root/"out/source.jgb.json").read_bytes(), payload)
+            self.assertEqual((root/"out/source.common.json").read_bytes(), payload)
             self.assertEqual(result["input_sha256"], hashlib.sha256(payload).hexdigest())
             mapping = json.loads((root/"out/source-map.json").read_text(encoding="utf-8"))
             report = json.loads((root/"out/danso.json").read_text(encoding="utf-8"))
-            self.assertEqual(len(mapping["notes"][report["events"][0]["parent_ids"][0]]), 2)
-            self.assertEqual(result["jgb"]["part_id"], "part-17")
+            self.assertEqual(report["events"][0]["parent_ids"], [value["events"][0]["id"]])
+            self.assertEqual(len(mapping["events"][0]["displayUnits"]), 2)
+            self.assertEqual(result["common_score"]["score"]["sourceId"], value["score"]["sourceId"])
 
-    def test_bad_jgb_preserves_previous_output(self):
+    def test_bad_common_score_preserves_previous_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source = root/"bad.jgb.json"
-            source.write_text(json.dumps(document("청황{알수없음} | 청태")), encoding="utf-8")
+            source = root/"bad.common.json"
+            value = common_notes()
+            value["events"][0]["sigimsae"] = ["알수없음"]
+            source.write_text(json.dumps(value), encoding="utf-8")
             out = root/"out"
             out.mkdir()
             (out/"danso.wav").write_bytes(b"previous")
-            with self.assertRaisesRegex(ValueError, "미지원"):
-                run(source, root/"missing-assets.json", out, ["danso"])
+            with self.assertRaisesRegex(ValueError, "sigimsae"):
+                run(source, root/"missing-assets.json", out, ["danso"], common_bpm=60)
             self.assertEqual((out/"danso.wav").read_bytes(), b"previous")
             self.assertEqual(len(list(out.iterdir())), 1)
 
     def test_hash_describes_captured_input_even_if_original_changes_during_render(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            source, assets = root/"input.jgb.json", root/"assets.json"
-            payload = json.dumps(document()).encode("utf-8")
+            source, assets = root/"input.common.json", root/"assets.json"
+            payload = json.dumps(common_notes()).encode("utf-8")
             source.write_bytes(payload)
             assets.write_text('{"danso":"unused.zip"}', encoding="utf-8")
             fake = synthetic_sampler()
@@ -298,42 +362,42 @@ class CliPipelineTests(unittest.TestCase):
             fake.render = render_with_external_edit
             fake.manifest, fake.close = {"fixture": "synthetic"}, lambda: None
             with patch("data.src.playback.__main__.CatSampler", return_value=fake):
-                result = run(source, assets, root/"out", ["danso"], audio_format="wav")
-            self.assertEqual((root/"out/source.jgb.json").read_bytes(), payload)
+                result = run(source, assets, root/"out", ["danso"], common_bpm=60, audio_format="wav")
+            self.assertEqual((root/"out/source.common.json").read_bytes(), payload)
             self.assertEqual(result["input_sha256"], hashlib.sha256(payload).hexdigest())
-            self.assertEqual(result["jgb"]["input_sha256"], result["input_sha256"])
+            self.assertEqual(result["common_score"]["input_sha256"], result["input_sha256"])
 
     def test_output_cannot_overwrite_original_input(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source, assets = root/"score.json", root/"assets.json"
-            payload = json.dumps(document()).encode("utf-8")
+            payload = json.dumps(common_notes()).encode("utf-8")
             source.write_bytes(payload)
             assets.write_text('{"danso":"unused.zip"}', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "겹칩니다"):
-                run(source, assets, root, ["danso"])
+                run(source, assets, root, ["danso"], common_bpm=60)
             self.assertEqual(source.read_bytes(), payload)
 
-    def test_ir_cannot_leave_an_obsolete_jgb_map_beside_new_audio(self):
+    def test_common_generation_refuses_previous_jgb_bundle_without_deleting_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             source, assets, out = root/"score.json", root/"assets.json", root/"out"
-            source.write_text(json.dumps(converted(document())[0]), encoding="utf-8")
+            source.write_text(json.dumps(common_notes()), encoding="utf-8")
             assets.write_text('{"danso":"unused.zip"}', encoding="utf-8")
             out.mkdir()
             (out/"source-map.json").write_bytes(b"previous map")
+            (out/"source.jgb.json").write_bytes(b"previous JGB")
             with self.assertRaisesRegex(ValueError, "이전 JGB"):
-                run(source, assets, out, ["danso"])
+                run(source, assets, out, ["danso"], common_bpm=60)
             self.assertEqual((out/"source-map.json").read_bytes(), b"previous map")
+            self.assertEqual((out/"source.jgb.json").read_bytes(), b"previous JGB")
 
     def test_unconfirmed_tempo_fails_before_assets_or_output(self):
         with tempfile.TemporaryDirectory() as tmp:
-            source, out = Path(tmp) / "a.jgb.json", Path(tmp) / "out"
-            doc = document()
-            doc.pop("tempoBpmUserSet")
-            payload = json.dumps(doc).encode()
+            source, out = Path(tmp) / "a.common.json", Path(tmp) / "out"
+            payload = json.dumps(common_notes()).encode()
             source.write_bytes(payload)
-            with self.assertRaisesRegex(ValueError, "빠르기 선택"):
+            with self.assertRaisesRegex(ValueError, "common-bpm"):
                 run(source, Path(tmp) / "missing-assets.json", out, ["danso"], audio_format="wav")
             self.assertEqual(source.read_bytes(), payload)
             self.assertFalse(out.exists())
@@ -348,7 +412,7 @@ class CliPipelineTests(unittest.TestCase):
                 previous = out / f"danso.{old}"
                 previous.write_bytes(b"previous output")
                 with self.assertRaisesRegex(ValueError, "이전 형식"):
-                    run(source, assets, out, ["danso"], audio_format=kind)
+                    run(source, assets, out, ["danso"], common_bpm=60, audio_format=kind)
                 self.assertEqual(previous.read_bytes(), b"previous output")
                 self.assertEqual(len(list(out.iterdir())), 1)
 
@@ -364,7 +428,7 @@ class CliPipelineTests(unittest.TestCase):
             with patch("data.src.playback.__main__.CatSampler", return_value=sampler()), \
                  patch("data.src.playback.audio.command", side_effect=ValueError("encoder failed")):
                 with self.assertRaisesRegex(ValueError, "encoder failed"):
-                    run(source, assets, out, ["danso"], encoder={"ffmpeg": "unused"})
+                    run(source, assets, out, ["danso"], common_bpm=60, encoder={"ffmpeg": "unused"})
             self.assertEqual({p.name: p.read_bytes() for p in out.iterdir()}, before)
 
     def test_missing_encoder_fails_before_writing_any_output(self):
@@ -372,7 +436,7 @@ class CliPipelineTests(unittest.TestCase):
             root = Path(tmp)
             source, assets = inputs(root)
             with self.assertRaisesRegex(ValueError, "ffmpeg"):
-                run(source, assets, root / "out", ["danso"], ffmpeg=str(root / "missing-ffmpeg"))
+                run(source, assets, root / "out", ["danso"], common_bpm=60, ffmpeg=str(root / "missing-ffmpeg"))
             self.assertFalse((root / "out").exists())
 
 
@@ -388,7 +452,7 @@ class M4aPipelineIntegrationTests(unittest.TestCase):
             source, assets = inputs(root)
             with patch("data.src.playback.__main__.CatSampler", return_value=sampler()), \
                  patch("data.src.playback.audio.sf.write", side_effect=AssertionError("WAV must not be written")):
-                result = run(source, assets, root / "out", ["danso"], encoder=self.encoder)
+                result = run(source, assets, root / "out", ["danso"], common_bpm=60, encoder=self.encoder)
             audio = result["results"][0]["audio"]
             self.assertEqual((audio["file"], audio["codec"], audio["profile"]), ("danso.m4a", "aac", "LC"))
             self.assertEqual(audio["sha256"], hashlib.sha256((root / "out/danso.m4a").read_bytes()).hexdigest())

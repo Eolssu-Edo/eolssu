@@ -296,7 +296,7 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 마감 전 `PENDING` 세션에만 결과를 저장합니다. `AnalyzePracticeSession`은 실패를 `SERVER_ERROR`, 제한 시간(기본 60초)을 넘긴 시도를 `TIMEOUT`으로 기록합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필의 분석 실행·AI 클라이언트 연결은 아래 `AnalysisOnUpload` 설명을 따릅니다.
 
-`practice`의 `GET /api/practice-sessions/{sessionId}`(`PracticeSessionController`)는 API 명세의 연습 세션·분석 상태 조회입니다. 회원 본인의 세션만 돌려주고(없거나 남의 세션은 404 `RESOURCE_NOT_FOUND`), 제한 시간을 넘긴 `PENDING`은 응답 전에 `TIMEOUT`으로 바꿉니다(`GetPracticeSession`).
+`practice`의 `GET /api/practice-sessions/{sessionId}`(`PracticeSessionController`)는 API 명세의 연습 세션·분석 상태 조회입니다. 회원 본인의 세션만 돌려주고(없거나 남의 세션, 기록을 지운 세션은 404 `RESOURCE_NOT_FOUND`), 제한 시간을 넘긴 `PENDING`은 응답 전에 `TIMEOUT`으로 바꿉니다(`GetPracticeSession`). 저장한 기록을 처음 조회하면 `viewed_at`을 한 번 기록해 연습 기록 목록의 NEW 표시를 끕니다.
 
 업로드 뒤 분석은 `AnalysisOnUpload`가 시작합니다. 업로드는 `PENDING`으로 바꾸는 트랜잭션 안에서 `RecordingUploaded(sessionId)`를 발행하고, 커밋 뒤에 `analysisExecutor`(기본 2개 동시·대기 50개)에서 `AnalyzePracticeSession`이 돕니다. 롤백된 업로드나 트랜잭션 밖 발행은 분석하지 않습니다. 음표는 `MyBatisPracticeScoreNotes`가 곡 악보(공통 악보 데이터)의 `NOTE`만 0부터 세어 연습 구간을 고르고, `pitches`로 반음·음 ID를 채웁니다. 이 연결은 `PracticeScoreNotes`·`RecordingReadUrls` 구현 Bean과 `ANALYSIS_AI_BASE_URL`이 모두 있을 때만 켜지며, 없으면 경고 로그만 남기고 세션은 제한 시간 뒤 `TIMEOUT`이 됩니다. 설정은 `eolssu.analysis.*`(`time-limit` 기본 60초, `ai-response-timeout` 기본은 제한 시간 + 5초이며 제한 시간보다 길어야 함, `workers`, `queue-capacity`)입니다. 두 시간은 숫자만 쓰면 초로 읽습니다.
 
@@ -308,6 +308,7 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 | `auth`, `term`, `growth` | `user_social_accounts`, `email_verifications`, `refresh_tokens`, `terms`, `user_term_agreements`, `score_views` |
 | `evaluation` | `evaluations`, `note_results` |
 | `analysis` | 분석 결과 저장(`practice_sessions` 상태, `evaluations`, `note_results`) |
+| `record` | 연습 기록 칸(`practice_sessions`의 `saved_at`·`memo`·`viewed_at`·`record_deleted_at`, 녹음 경로 비우기) |
 | `lesson` | `lessons`, `lesson_progress` |
 
 Mapper는 `@Mapper`로 검색하고 XML namespace는 인터페이스 전체 이름, statement ID는 메서드 이름과 맞춥니다. Kotlin 생성자 매핑을 위해 `javaParameters`, `arg-name-based-constructor-auto-mapping`, `map-underscore-to-camel-case`를 사용합니다. XML은 조회 열을 명시합니다. JSON 열은 원문 `String`, 상태 열은 `String`, nullable 열은 Kotlin nullable로 보존하며 도메인 정책은 추가하지 않습니다.
@@ -326,6 +327,7 @@ Docker 이미지·개발/운영 Compose·Nginx·백엔드 Jenkins 구성과 실�
 - V5 단소 율명(`pitches`) 시드: [S15P31E102-186](https://ssafy.atlassian.net/browse/S15P31E102-186) · [PRA-03 스펙](../docs/specs/practice-analysis-failure.md)
 - V6 단소 악기·장단·1차 4곡 시드: [S15P31E102-249](https://ssafy.atlassian.net/browse/S15P31E102-249) · [작업 기록](../docs/plans/S15P31E102-249.md)
 - 체류 구간 기록: [S15P31E102-189](https://ssafy.atlassian.net/browse/S15P31E102-189) · [작업 기록](../docs/plans/S15P31E102-189.md)
+- 연습 기록 저장·목록·재생·삭제(REC-01~04): [S15P31E102-342](https://ssafy.atlassian.net/browse/S15P31E102-342) · [작업 기록](../docs/plans/S15P31E102-342.md)
 - 구조안: [Notion 폴더 구조](https://app.notion.com/p/401a0252aa458076afe3e2ff12e6e5b1)
 - 초기화 방법: [Spring Boot + Kotlin 공식 가이드](https://spring.io/guides/tutorials/spring-boot-kotlin/)
 
@@ -368,6 +370,10 @@ Nginx의 기존 `/api/` 프록시 안에서 UI·JS·CSS·JSON을 모두 제공�
 인증된 `GET /api/practice-sessions/{sessionId}/evaluation`은 본인 미삭제 DONE 세션의 저장 점수·음표 판정을 반환합니다. 미완료는 409, 타인·삭제·없는 세션은 같은 404입니다. 판정은 noteIdx 순서이며 점수를 재계산하지 않습니다. [검증·계약](../docs/plans/S15P31E102-257.md).
 
 S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nullable 컬럼에 저장하고 평가 조회에 그대로 반환합니다. 기존 행과 두 필드가 없는 이전 AI 응답은 null입니다. 범위 초과 편차도 원래 값을 보존하며 점수를 다시 계산하지 않습니다. [계약](../docs/specs/practice-evaluation-api.md)을 따릅니다. 운영은 Flyway가 꺼져 있으므로 새 백엔드 배포 전에 V11을 적용해야 합니다.
+
+### 연습 기록(REC-01~04)
+
+`record`는 기록 저장·메모 수정(`PUT /api/practice-sessions/{sessionId}/record`), 곡별 목록(`GET /api/users/me/practice-records`), 녹음 다시 듣기 주소(`GET /api/practice-sessions/{sessionId}/recording`), 기록 삭제(`DELETE /api/practice-sessions/{sessionId}/record`)를 제공합니다(`db`·`ops` 프로필). 새 Flyway 버전 없이 V2의 기록 칸을 씁니다. 녹음 저장소(PRA-02)의 15분 서명 URL과 삭제는 `PracticeRecordConfig`가 함수로 연결합니다. 저장소를 쓸 수 없으면 다시 듣기와 녹음이 있는 기록의 삭제가 503입니다. 로컬 저장소(`RECORDING_STORAGE_TYPE=local`)의 읽기 주소는 AI용 내부 주소라 다시 듣기는 항상 503입니다. 삭제는 녹음 파일을 먼저 지우고 DB를 조건부로 갱신하며, 평가 점수는 남아 성장 집계는 바뀌지 않습니다. 저장한 녹음을 계속 보관하는 정책 전환(처리방침·R2 수명 주기)은 S15P31E102-375에서 합니다. [계약](../docs/specs/practice-records.md), [결정·검증](../docs/plans/S15P31E102-342.md).
 
 ### 공개 곡 조회
 

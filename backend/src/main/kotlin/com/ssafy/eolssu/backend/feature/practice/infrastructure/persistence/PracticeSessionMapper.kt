@@ -10,8 +10,11 @@ interface PracticeSessionMapper {
 
     fun failRecordingStartedBefore(@Param("cutoff") cutoff: LocalDateTime, @Param("failReason") failReason: String): Int
 
-    /** 회원 본인의 세션과 평가 ID. 다른 회원의 세션이면 null. */
+    /** 회원 본인의 세션과 평가 ID. 다른 회원의 세션이나 기록을 지운 세션이면 null. */
     fun findDetail(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): PracticeSessionDetailRow?
+
+    /** 저장했고 지우지 않은 기록의 `viewed_at`이 비어 있을 때만 채운다. 바뀐 행 수. */
+    fun markViewed(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long, @Param("viewedAt") viewedAt: LocalDateTime): Int
 
     /** 업로드 판정용 상태. 다른 회원의 세션이면 null. */
     fun findUploadTarget(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): RecordingUploadTargetRow?
@@ -58,4 +61,5 @@ data class PracticeSessionDetailRow(
     val analysisStartedAt: LocalDateTime?,
     val savedAt: LocalDateTime?,
     val memo: String?,
+    val viewedAt: LocalDateTime?,
 )

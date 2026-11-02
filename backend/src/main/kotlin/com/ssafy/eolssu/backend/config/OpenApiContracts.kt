@@ -12,6 +12,7 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
+import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.song.api.*
 import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -125,11 +126,23 @@ internal val apiContracts = listOf(
         "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
         CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}","getPracticeSession","연습","연습 세션과 분석 상태 조회",
-        "본인 세션만 조회합니다. RECORDING·PENDING·DONE·FAILED 상태와 실패 사유/재시도 가능 여부를 반환합니다. 초과 PENDING은 TIMEOUT으로 정리됩니다.",
+        "본인 세션만 조회합니다. RECORDING·PENDING·DONE·FAILED 상태와 실패 사유/재시도 가능 여부를 반환합니다. 초과 PENDING은 TIMEOUT으로 정리됩니다. 기록을 지운 세션은 404이고, 저장한 기록을 처음 조회하면 목록의 isNew를 끕니다.",
         PracticeSessionResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/recording","uploadRecording","연습","녹음 업로드와 분석 접수",
         "multipart audio 1개(MP4 컨테이너 AAC/m4a), 20MiB 이하·600초(패딩 포함 601초 미만). 샘플레이트/채널/비트레이트로 거부하지 않습니다. Spring 앞 계층은 25MiB. endedAt/Idempotency-Key는 받지 않으며 종료 시각은 서버가 기록합니다.",
         RecordingUploadAccepted::class.java,listOf(202),listOf(SESSION_NOT_FOUND,SESSION_NOT_RECORDING,SESSION_EXPIRED,RECORDING_TOO_LARGE,RECORDING_UNSUPPORTED_FORMAT,RECORDING_INVALID_DURATION,RECORDING_STORAGE_UNAVAILABLE)),
+    ApiContract(HttpMethod.PUT,"/api/practice-sessions/{sessionId}/record","savePracticeRecord","연습 기록","연습 기록 저장·메모 수정",
+        "분석이 끝난(DONE) 본인 세션을 연습 기록으로 저장합니다. 다시 보내도 처음 저장 시각은 그대로입니다. 본문이 없거나 memo를 생략하면 메모를 바꾸지 않고 null이면 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 500자를 넘으면 400입니다. 지운 기록은 404, 미완료는 409입니다.",
+        SavedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.DELETE,"/api/practice-sessions/{sessionId}/record","deletePracticeRecord","연습 기록","연습 기록 삭제",
+        "저장한 본인 기록과 녹음을 지웁니다. 녹음 파일을 먼저 지우고, 지우지 못하면 503이며 기록은 그대로입니다. 평가 점수는 남아 성장 집계는 바뀌지 않고, 지운 뒤에는 기록 상세·평가·연습 기록 API가 모두 404입니다. 다시 보내도 404이므로 재시도에서 받은 404는 이미 지운 것으로 처리합니다.",
+        DeletedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.GET,"/api/users/me/practice-records","listPracticeRecords","연습 기록","저장한 이전 연주 목록",
+        "저장했고 지우지 않은 본인 기록만 곡별로 묶습니다. songId를 생략하면 가장 최근에 저장한 곡을 펼치고, 펼친 곡의 기록만 연주 시작 시각 sort(NEWEST|OLDEST)·page(0부터)·size(1~100, 기본 20)로 나눕니다. isNew는 기록 상세를 처음 조회하기 전까지 true입니다. 범위 밖 값은 400입니다.",
+        PracticeRecordList::class.java),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/recording","getRecordingPlayback","연습 기록","녹음 다시 듣기 주소",
+        "본인 세션에 녹음이 있으면 저장 여부와 관계없이 15분짜리 서명 URL(audio/mp4)을 발급합니다. 만료되면 다시 받아 같은 위치부터 이어 재생합니다. 녹음이 없거나 지운 기록은 404, 녹음 저장소를 쓸 수 없으면 503입니다.",
+        RecordingPlaybackResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/retry","retryAnalysis","연습","실패한 분석 재시도",
         "Idempotency-Key 필수. TIMEOUT·SERVER_ERROR의 본인 녹음을 재분석합니다. 이미 PENDING이면 새 시도 없이 동일한 202, 재녹음 필요/완료/업로드 전 상태는 409입니다. 요청 본문은 없습니다.",
         RetryResult::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,SERVICE_UNAVAILABLE)),

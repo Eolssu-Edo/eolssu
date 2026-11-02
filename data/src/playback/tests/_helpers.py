@@ -13,15 +13,41 @@ from data.src.playback.sampler import CatSampler, FS
 from data.src.playback.score import compile_score
 
 EXAMPLE = Path(__file__).parents[1] / "examples/seryeongsan-first-jangdan.json"
+COMMON_SCORE_FIXTURE = Path(__file__).resolve().parents[3] / "tests/fixtures/scores/ngc-standard-2022-p173.score.json"
 HAVE_ENCODER = all(shutil.which(os.environ.get(f"{name.upper()}_BINARY", name))
                    for name in ("ffmpeg", "ffprobe"))
 
 
 def inputs(root):
-    source, assets = root / "input.jgb.json", root / "assets.json"
-    source.write_text(json.dumps(document("청황 | 청태")), encoding="utf-8")
+    source, assets = root / "input.common.json", root / "assets.json"
+    source.write_text(json.dumps(common_notes()), encoding="utf-8")
     assets.write_text('{"danso":"unused.zip"}', encoding="utf-8")
     return source, assets
+
+
+def common_small_score():
+    """Authored four-beat fixture: rest, 중, newly attacked 중, rest."""
+    return common_notes((None, ("중", 0), ("중", 0), None))
+
+
+def common_notes(pitches=(("황", 1), ("태", 1)), instrument="danso"):
+    """Author service-v1 events directly; no JGB parser or intermediate conversion."""
+    value = json.loads(COMMON_SCORE_FIXTURE.read_text(encoding="utf-8"))
+    value["score"]["instrument"] = instrument.upper().replace("-", "_")
+    value["music"].update(bpmUnit="QUARTER", ticksPerBeat=1, ticksPerJeonggan=1)
+    value["columns"] = [{"index": 0, "cells": []}]
+    value["events"] = []
+    for i, pitch in enumerate(pitches):
+        yul, octave = pitch if pitch is not None else (None, None)
+        symbol = "쉼" if pitch is None else ("청" if octave == 1 else "") + yul
+        cid, eid = f"c0-j{i}", f"c0-j{i}-r0-u0"
+        value["columns"][0]["cells"].append({"id": cid, "index": i, "units": [
+            {"row": 0, "col": 0, "symbol": symbol, "eventId": eid}]})
+        rest = pitch is None
+        value["events"].append({"id": eid, "kind": "REST" if rest else "NOTE", "yul": yul,
+                                "octave": octave, "startTick": i, "durationTick": 1,
+                                "cellId": cid, "breathAfter": False, "sigimsae": []})
+    return value
 
 
 def sampler():
