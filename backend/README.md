@@ -151,6 +151,8 @@ $env:SECURITY_ALLOWED_ORIGINS = 'http://localhost:8080'
 
 ### MySQL 연결과 Flyway
 
+모범 음원339의 V15는 객체 키 전환까지 수행하고 구 BE 호환용 `audio_url`을 남깁니다. 새 BE 배포 완료 후 [전용 후처리 도구](../infra/catalog/model-audio.md#새-be-배포-후-audio_url-삭제)로 컬럼을 삭제합니다. 이 삭제는 배포 전에 실행되는 일반 Flyway migration에 포함하지 않습니다. V15 이력/checksum은 그대로이며 이후 Flyway 검증·새 BE 조회는 컬럼 없이 동작해야 합니다.
+
 비어 있는 MySQL 8.4 DB와 접속 계정을 먼저 준비한 뒤 아래 환경변수를 설정합니다. URL에는 실제 DB 이름을 지정합니다. 인프라 합의의 서버 DB 이름은 `eolssu`입니다.
 
 | 환경변수 | 용도 |

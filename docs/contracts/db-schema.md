@@ -25,6 +25,8 @@ V11 [평가 조율 정보](../../backend/src/main/resources/db/migration/V11__ev
 
 V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song_model_audio_metadata.sql)는 `(song_id, score_version)`별 모범 음원 URL·BPM/단위·실제 파일 길이·시작 위치·MIME·SHA-256·게시 상태를 저장한다. DRAFT가 기본이며 초기 데이터는 없다. 기존 곡/연습/평가 데이터와 V1~V7은 변경하지 않는다. 공개 조회와 적재 전 검증은 [카탈로그 API](../specs/catalog-read-apis.md#모범-연주-메타데이터)를 따른다. ERD 그림에는 아직 반영되지 않았다.
 
+S15P31E102-339의 후속 전환에서는 모범 음원의 원본 위치를 `object_key`로 저장하고 앱 재생 URL은 서버가 발급한다. 수행 시간표는 `performance_object_key`와 `source_common_sha256`으로 같은 공통 악보 판본에 연결한다. `generation_metadata`에는 생성·임시 난이도·권리 상태 근거를 보존하며 사용자용 곡 설명과 분리한다. V15 직후에는 `audio_url`이 nullable 호환 컬럼으로 남지만 새 코드는 사용하지 않는다. 객체 키 BE 배포를 확인한 별도 후처리 도구가 이 컬럼을 삭제하며, 최종 스키마에는 저장 URL이 없다. V15 checksum과 Flyway 이력은 보존하고 후처리 receipt로 삭제 단계를 기록한다. 장단 연결은 선택값이며 악기·난이도는 계속 필수다. [실행 범위와 전환 순서](../specs/model-audio-catalog-load.md)를 따른다.
+
 | 영역 | 테이블 | 설명 |
 | --- | --- | --- |
 | 기준 데이터 | `pitches`, `instruments`, `fingering_charts`, `jangdans`, `songs`, `notation_symbols` | 율명·악기·운지표·장단·곡·기호처럼 운영자가 넣는 데이터. 단소 율명(`pitches`)은 V5, 단소 악기 1개·장단 3개·1차 4곡(`instruments`·`jangdans`·`songs`)은 V6 마이그레이션이 `data/reference/` 값과 변환한 공통 악보 데이터로 넣는다 |
