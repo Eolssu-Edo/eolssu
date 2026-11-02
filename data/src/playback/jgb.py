@@ -116,17 +116,8 @@ def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy
                 require(all(re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", v)
                             for v in adjustment.split(",")), f"{label}: 잘못된 기호 배치값")
             if notation_policy == preview.MODE and name in preview.EXTRA_MARKS:
-                require(groups and groups[-1]["kind"] in ("note", "hold"),
-                        f"{label}: {{{original}}} 앞에 본음/지속 자리가 필요합니다")
-                group = groups[-1]
-                effects = group.setdefault("preview_effects", [])
-                require(all(preview.EXTRA_MARKS[other] != preview.EXTRA_MARKS[name] for other in effects),
-                        f"{label}: 겹친 {original}")
-                if preview.EXTRA_MARKS[name] == "geok":
-                    require(group["kind"] == "note", f"{label}: 격음 attack 근사에는 새 본음이 필요합니다")
-                    group["reattack"] = True
-                effects.append(name)
-                group["symbols"].append(original)
+                require(groups, f"{label}: {{{original}}} 앞에 본음/지속 자리가 필요합니다")
+                expressions.add_symbol(groups[-1], name, original, instrument, notation_policy, label)
             elif name in TEMPO_CUES:
                 require(tempo_cues is not None, f"{label}: {{{name}}}는 --performance-plan에 BPM·적용 구간을 지정하세요")
                 tempo_cues.append(name)
@@ -136,62 +127,27 @@ def row_groups(text, label, tempo_cues=None, instrument="danso", notation_policy
                     require(kind in expressions.HOLD_PROFILE_EFFECTS,
                             f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
                     groups.append({"kind": "hold", "symbols": []})
-                group = groups[-1]
-                require(group["kind"] in ("note", "relative", "hold"), f"{label}: {{{name}}}의 본음이 필요합니다")
-                effects = group.setdefault("profile_effects", [])
-                require(kind not in effects, f"{label}: 겹친 {name}")
-                effects.append(kind)
-                group["symbols"].append(original)
+                expressions.add_symbol(groups[-1], name, original, instrument, notation_policy, label)
             elif name in ("쉼표", "쉼", "pause_007"):
                 groups.append({"kind": "rest", "symbols": [original]})
             elif name in ("이음표", "-", "빈지속"):
                 groups.append({"kind": "hold", "symbols": [original]})
             elif name in expressions.LENGTH_MARKS or name in expressions.EFFECT_MARKS or name in expressions.EXPRESSION_POLICY["unresolved_display_annotations"]:
                 require(groups, f"{label}: {{{name}}} 앞에 본음/지속 자리가 필요합니다")
-                group = groups[-1]
-                if name in expressions.LENGTH_MARKS:
-                    require("weight" not in group, f"{label}: 겹친 길이 기호")
-                    group["weight"] = expressions.LENGTH_MARKS[name]
-                elif name in expressions.EFFECT_MARKS:
-                    effect = expressions.EFFECT_MARKS[name]
-                    require(effect == "fermata" or group["kind"] in ("note", "relative", "hold"),
-                            f"{label}: {{{name}}}의 본음이 필요합니다")
-                    require(effect not in group, f"{label}: 겹친 {name}")
-                    group[effect] = True
-                group["symbols"].append(original)
+                expressions.add_symbol(groups[-1], name, original, instrument, notation_policy, label)
             else:
                 symbols = expressions.symbols_for(instrument, notation_policy)
                 require(name in symbols, f"{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다")
                 kind, steps = symbols[name]
                 if kind == "independent":
                     if inline_relative and groups and groups[-1]["kind"] == "note":
-                        require("sequence" not in groups[-1], f"{label}: 겹친 independent 기호")
-                        groups[-1]["sequence"] = steps
-                        groups[-1]["symbols"].append(original)
+                        expressions.add_symbol(groups[-1], name, original, instrument, notation_policy, label)
                     else:
                         groups.append({"kind": "relative", "sequence": steps, "symbols": [original]})
-                elif kind == "articulation":
-                    require(groups and groups[-1]["kind"] == "note",
-                            f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
-                    require(not groups[-1].get("reattack"), f"{label}: 겹친 혀치기")
-                    groups[-1]["reattack"] = True
-                    groups[-1]["symbols"].append(original)
-                elif kind == "alteration":
-                    require(groups and groups[-1]["kind"] == "note",
-                            f"{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다")
-                    require("semitone_offset" not in groups[-1], f"{label}: 겹친 반음올림표")
-                    groups[-1]["semitone_offset"] = steps[0]
-                    groups[-1]["symbols"].append(original)
                 else:
-                    require(groups and groups[-1]["kind"] == "note",
+                    require(groups,
                             f"{label}: {{{name}}}는 본음 뒤에 붙여야 합니다")
-                    group = groups[-1]
-                    field = "grace" if kind in ("grace", "surround") else "sequence"
-                    require(field not in group, f"{label}: 겹친 {kind} 기호는 미지원입니다")
-                    group[field] = steps
-                    if kind == "surround":
-                        group["post_grace"] = steps
-                    group["symbols"].append(original)
+                    expressions.add_symbol(groups[-1], name, original, instrument, notation_policy, label)
             i = end + 1
             continue
         rest = re.match(r"쉼표|쉼|-", text[i:])
@@ -423,29 +379,16 @@ def convert_jgb(document, *, source_name, part=None, bpm=None, speed=1, hwang_mi
                             reference = previous_pitch
                         else:
                             reference = hwang + group["offset"] + group.get("semitone_offset", 0)
-                        sequence, grace, post = expressions.resolve_ornament_pitches(
-                            group, reference, hwang, scale, label, notation_policy)
-                        grace_count = len(grace) + len(post)
-                        grace_quarters = expressions.adaptive_grace(duration, grace_count, len(sequence), label)
-                        body = duration - grace_count * grace_quarters
-                        require(body > 0, f"{label}: 꾸밈이 본음 길이를 소진합니다")
-                        if grace_count:
-                            loc["grace_timing"] = {"each_quarters": str(grace_quarters),
-                                                   "count": grace_count, "main_quarters": str(body),
-                                                   "reduced": grace_quarters < expressions.GRACE_QUARTERS}
-                        slur = nid if len(grace) + len(sequence) + len(post) > 1 else None
-                        for k, pitch in enumerate(grace, 1):
-                            append(f"{nid}.grace{k}", grace_quarters, loc, pitch, True, slur)
-                        for k, pitch in enumerate(sequence, 1):
-                            append(nid if not slur else f"{nid}.main{k}", body / len(sequence), loc, pitch, slur=slur)
-                            body_effects = expressions.main_note_effects(group, k, len(sequence))
-                            expressions.apply_effects(notes[-1], body_effects, label, profile=profile, policy=policy,
-                                                      written_pitch_shift=group.get("semitone_offset", 0))
-                        sustain_index = len(notes) - 1
-                        sustain_start = cursor - duration + len(grace) * grace_quarters + body * (len(sequence) - 1) / len(sequence)
-                        for k, pitch in enumerate(post, 1):
-                            append(f"{nid}.postgrace{k}", grace_quarters, loc, pitch, True, slur)
-                        previous_pitch, previous_gak = sequence[-1], g
+                        expanded, target, offset, last_pitch, timing = expressions.ornament_notes(
+                            group, reference, hwang, scale, duration, nid, label,
+                            notation_policy=notation_policy, profile=profile, policy=policy)
+                        require(not inline_relative or len(notes) + len(expanded) <= 10000, '1..10000 notes required')
+                        if timing:
+                            loc['grace_timing'] = timing
+                        sustain_index, sustain_start = len(notes) + target, cursor - duration + offset
+                        notes.extend(expanded)
+                        locations.update({note['id']: [dict(loc)] for note in expanded})
+                        previous_pitch, previous_gak = last_pitch, g
                         breath_applied = False
             if cell_breath:
                 require(notes and not notes[-1].get("rest") and previous_gak == g,

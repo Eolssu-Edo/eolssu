@@ -243,9 +243,12 @@ UNRESOLVED_REASONS = {
 
 
 def expression_policy(document, instrument):
+    """Legacy document boundary; musical policy validation is representation-neutral."""
+    return resolve_expression_policy(document.get("playback", {}).get("expression_policy"), instrument, preview.mode(document))
+
+
+def resolve_expression_policy(policy, instrument, notation_policy=None):
     """Preserve explicit instrument choices without importing Danso's defaults."""
-    policy = document.get("playback", {}).get("expression_policy")
-    notation_policy = preview.mode(document)
     if notation_policy:
         defaults = preview.effect_policy(EXPRESSION_POLICY, instrument)
         for key in ("staccato", "fermata", "unresolved_display_annotations"):
@@ -318,7 +321,10 @@ def expression_policy(document, instrument):
 
 
 def relative_scale(document):
-    value = document.get("playback", {}).get("relative_scale")
+    return resolve_relative_scale(document.get("playback", {}).get("relative_scale"))
+
+
+def resolve_relative_scale(value):
     if value is None:
         return None
     reject_unknown(value, ["pitch_classes", "basis"], "relative_scale")
@@ -328,6 +334,52 @@ def relative_scale(document):
             "relative_scale.pitch_classes는 황종 기준 0..11의 오름차순 중복 없는 배열이어야 합니다")
     require(isinstance(value.get("basis"), str) and value["basis"].strip(), "상대음 음계의 basis가 필요합니다")
     return deepcopy(value)
+
+
+def add_symbol(group, name, original, instrument, notation_policy, label):
+    """Apply one decoded symbol to an existing musical slot, without parsing text."""
+    validate_symbol(name, instrument, label, notation_policy)
+    kind = group['kind']
+    if notation_policy == preview.MODE and name in preview.EXTRA_MARKS:
+        require(kind in ('note', 'hold'), f'{label}: {{{original}}} 앞에 본음/지속 자리가 필요합니다')
+        effects = group.setdefault('preview_effects', [])
+        require(all(preview.EXTRA_MARKS[other] != preview.EXTRA_MARKS[name] for other in effects), f'{label}: 겹친 {original}')
+        if preview.EXTRA_MARKS[name] == 'geok':
+            require(kind == 'note', f'{label}: 격음 attack 근사에는 새 본음이 필요합니다')
+            group['reattack'] = True
+        effects.append(name)
+    elif name in PROFILE_MARKS:
+        require(kind in ('note', 'relative', 'hold'), f'{label}: {{{name}}}의 본음이 필요합니다')
+        effects = group.setdefault('profile_effects', [])
+        require(PROFILE_MARKS[name] not in effects, f'{label}: 겹친 {name}')
+        effects.append(PROFILE_MARKS[name])
+    elif name in LENGTH_MARKS:
+        require('weight' not in group, f'{label}: 겹친 길이 기호')
+        group['weight'] = LENGTH_MARKS[name]
+    elif name in EFFECT_MARKS:
+        effect = EFFECT_MARKS[name]
+        require(effect == 'fermata' or kind in ('note', 'relative', 'hold'), f'{label}: {{{name}}}의 본음이 필요합니다')
+        require(effect not in group, f'{label}: 겹친 {name}')
+        group[effect] = True
+    elif name not in EXPRESSION_POLICY['unresolved_display_annotations']:
+        table = symbols_for(instrument, notation_policy)
+        require(name in table, f'{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다')
+        figure, steps = table[name]
+        require(kind == 'note' or figure == 'independent' and kind == 'relative',
+                f'{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다')
+        if figure == 'articulation':
+            require(not group.get('reattack'), f'{label}: 겹친 혀치기')
+            group['reattack'] = True
+        elif figure == 'alteration':
+            require('semitone_offset' not in group, f'{label}: 겹친 반음올림표')
+            group['semitone_offset'] = steps[0]
+        else:
+            field = 'grace' if figure in ('grace', 'surround') else 'sequence'
+            require(field not in group, f'{label}: 겹친 {figure} 기호는 미지원입니다')
+            group[field] = steps
+            if figure == 'surround':
+                group['post_grace'] = steps
+    group['symbols'].append(original)
 
 
 def apply_effects(note, group, label, delay=0, profile=None, policy=None, written_pitch_shift=0):
@@ -565,6 +617,37 @@ def resolve_ornament_pitches(group, reference, hwang, scale, label, notation_pol
         require(len(sequence) == 1 and not post and (not grace or group.get("grace") == (1,)),
                 f"{label}: 반음올림표와 이 꾸밈 조합은 미확정입니다. 니레 앞꾸밈만 확인했습니다")
     return sequence, grace, post
+
+
+def ornament_notes(group, reference, hwang, scale, duration, note_id, label, *, notation_policy=None,
+                   profile=None, policy=None):
+    """Expand one pitched slot; retain its main sustain target before post-graces."""
+    sequence, grace, post = resolve_ornament_pitches(group, reference, hwang, scale, label, notation_policy)
+    count = len(grace) + len(post)
+    each = adaptive_grace(duration, count, len(sequence), label)
+    body = duration - count * each
+    require(body > 0, f'{label}: 꾸밈이 본음 길이를 소진합니다')
+    slur = note_id if count + len(sequence) > 1 else None
+    notes = []
+    for prefix, pitches, width, is_grace in [('grace', grace, each, True),
+                                           ('main', sequence, body / len(sequence), False),
+                                           ('postgrace', post, each, True)]:
+        for i, pitch in enumerate(pitches, 1):
+            ticks(width)
+            note = {'id': f'{note_id}.{prefix}{i}' if slur else note_id, 'duration': str(width), 'pitch': pitch}
+            if slur:
+                note['slur'] = slur
+            if is_grace:
+                note['velocity'] = GRACE_VELOCITY
+            else:
+                apply_effects(note, main_note_effects(group, i, len(sequence)), label, profile=profile, policy=policy,
+                              written_pitch_shift=group.get('semitone_offset', 0))
+            notes.append(note)
+    sustain_index = len(grace) + len(sequence) - 1
+    sustain_offset = len(grace) * each + body * (len(sequence) - 1) / len(sequence)
+    timing = {'each_quarters': str(each), 'count': count, 'main_quarters': str(body),
+              'reduced': each < GRACE_QUARTERS} if count else None
+    return notes, sustain_index, sustain_offset, sequence[-1], timing
 
 
 def fit_breath_to_duration(note, seconds):
