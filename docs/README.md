@@ -32,6 +32,8 @@
 
 ## 기능 스펙
 
+- [R2 공통 파일·폴더 업로드](specs/r2-upload.md) · [392 계획·검증](plans/S15P31E102-392.md) · [실행 안내](../infra/r2/README.md)
+
 - [기본음·시김새 운영 게시](specs/reference-audio-publication.md) · [368 계획](plans/S15P31E102-368.md) · [배포 통합·게시 기록](knowledge/infra/reference-audio-publication.md)
 
 - [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md) · [364 관계 보완 계획](plans/S15P31E102-364.md)
