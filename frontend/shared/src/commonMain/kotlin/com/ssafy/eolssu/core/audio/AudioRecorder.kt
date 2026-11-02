@@ -29,7 +29,7 @@ data class RecordedAudio(val path: String, val bytes: Long) {
 /**
  * 연주 녹음. 한 번에 하나만 녹음하고 m4a(AAC)로 저장한다(PRA-02).
  * 길이 제한은 부르는 쪽이 [RecordingSpec.MaxDuration]으로 잰다. 일시정지한 동안은 녹음되지 않는다.
- * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 iOS·Web)은 등록하지 않는다.
+ * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 Web)은 등록하지 않는다.
  */
 interface AudioRecorder {
     /** 새 녹음을 시작한다. 전에 [stop]으로 남긴 파일은 지운다. 시작하지 못하면 예외를 던진다. */

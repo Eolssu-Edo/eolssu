@@ -51,6 +51,7 @@
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
 - [녹음 파일 규격 (PRA-02)](specs/recording-file.md)
 - [녹음 미지원 환경의 평가 시작 제한](specs/recording-support-gate.md)
+- [S15P31E102-373 iOS 녹음·재생과 App Store 출시 설정](plans/S15P31E102-373.md)
 - [연습 시간 집계 기준 (GRO-01·02·04)](specs/practice-time.md)
 - [연주 분석 실패 사유와 화면 안내 (PRA-03)](specs/practice-analysis-failure.md)
 - [모니터링 Metabase 제거와 Prometheus 도입](specs/monitoring-prometheus.md)
