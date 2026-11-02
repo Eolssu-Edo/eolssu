@@ -148,7 +148,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
                     "playback_vibrato":playback_vibrato(instruments[0]) if len(instruments) == 1 else None,
                     "playback_vibrato_by_instrument":{key:playback_vibrato(key) for key in instruments},
-                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","common_score.py","common_preview.py","import_slots.py","expressions.py","preview.py","tempo_repeat.py"]},
+                    "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","common_score.py","common_preview.py","common_compile.py","import_slots.py","expressions.py","preview.py","tempo_repeat.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],
                     "limitations":["Generation accepts one service common score v1 and its original instrument; JGB import is a separate step.",
