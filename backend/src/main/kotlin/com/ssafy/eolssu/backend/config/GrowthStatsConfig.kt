@@ -1,8 +1,12 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
 import com.ssafy.eolssu.backend.feature.growth.application.GetGrowthStats
+import com.ssafy.eolssu.backend.feature.growth.application.GetScoreTrend
 import com.ssafy.eolssu.backend.feature.growth.domain.PracticeStatsRepository
+import com.ssafy.eolssu.backend.feature.growth.domain.ScoreTrendRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisPracticeStatsRepository
+import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.MyBatisScoreTrendRepository
 import com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.PracticeStatsMapper
 import java.time.Clock
 import org.springframework.context.annotation.Bean
@@ -19,4 +23,12 @@ class GrowthStatsConfig {
     // 공유 Clock Bean(termClock)과 섞이지 않게 직접 넘긴다. 오늘(KST)은 연속 일수에만 쓴다.
     @Bean
     fun getGrowthStats(repository: PracticeStatsRepository) = GetGrowthStats(repository, Clock.systemUTC())
+
+    @Bean
+    fun scoreTrendRepository(mapper: PracticeStatsMapper): ScoreTrendRepository = MyBatisScoreTrendRepository(mapper)
+
+    // 점수 변화의 각 번호는 오류 위치·취약 구간(EVA-02·03)과 같은 악보 해석을 쓴다.
+    @Bean
+    fun getScoreTrend(repository: ScoreTrendRepository, cells: EvaluationScoreCells) =
+        GetScoreTrend(repository) { songId, scoreVersion -> cells.noteCells(songId, scoreVersion)?.map { it.column } }
 }

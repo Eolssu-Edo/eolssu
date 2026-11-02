@@ -39,7 +39,40 @@ interface PracticeStatsMapper {
         @Param("bpm") bpm: Int,
         @Param("bpmUnit") bpmUnit: String,
     ): FullSongPlayRow?
+
+    fun findPlayedSongs(@Param("userId") userId: Long): List<PlayedSongRow>
+
+    /** [full]이 참이면 전체 곡 연주, 거짓이면 구간 연습. */
+    fun findRecentScoredPlays(
+        @Param("userId") userId: Long,
+        @Param("songId") songId: Long,
+        @Param("full") full: Boolean,
+        @Param("limit") limit: Int,
+    ): List<ScoredPlayRow>
 }
+
+data class PlayedSongRow(
+    val songId: Long,
+    val title: String,
+    val lastPlayedAt: LocalDateTime,
+    val fullPlayCount: Long,
+    val sectionPlayCount: Long,
+)
+
+data class ScoredPlayRow(
+    val sessionId: Long,
+    val startedAt: LocalDateTime,
+    val bpm: Int,
+    val bpmUnit: String,
+    val startNoteIdx: Int,
+    val endNoteIdx: Int,
+    val scoreVersion: Int,
+    val modelVersion: String,
+    val totalScore: Int,
+    val pitchScore: Int,
+    val timingScore: Int,
+    val durationScore: Int,
+)
 
 data class DailySecondsRow(val day: LocalDate, val total: Long)
 
