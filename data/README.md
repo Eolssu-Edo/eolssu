@@ -26,7 +26,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 ## 정석 음원 제작
 
-[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 JGB v1·v2의 선택한 단소 성부 또는 공통 악보 JSON을 MIDI와 AAC-LC M4A로 만듭니다. WAV는 검증용 선택 출력입니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
+[공통 악보 MIDI·CAT 음원 생성기](src/playback/README.md)는 서비스 공통 악보 v1을 직접 해석해 MIDI와 AAC-LC M4A를 만듭니다. WAV는 검증용 선택 출력입니다. 기존 JGB는 별도 가져오기 명령으로 공통 악보를 만든 뒤 사용합니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
 
 의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
 
@@ -48,6 +48,12 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 `songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
 
 ## 공통 악보 데이터
+
+서비스 공통 악보 JSON을 기존 CAT 재생기에 연결하는 방법은 [재생 도구의 공통 v1 입력](src/playback/README.md#서비스-공통-악보-v1-입력-338)을 따릅니다. `--common-bpm`을 명시하고 원본·ID/tick/초 대응표와 함께 MIDI·M4A를 생성합니다.
+
+원본과 실제 생성 PCM의 음높이·발음 구간·쉼을 비교하는 명령과 관측 한계는 [독립 파형 검증](../docs/knowledge/data/common-score-audio-verification.md)에 있습니다.
+
+기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수·원본 음가 단위와 꾸밈/길이표 조합을 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 명시 연주 계획·표현 프로필을 전달할 수 있고, 반복표·짝 없는 길이표의 기본 해석에는 교육용 정책을 명시해야 합니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
 
 [score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
 
@@ -219,7 +225,7 @@ raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지�
 
 ## 라벨링 음원의 M4A 배포본
 
-`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 기존 JGB 재생기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
+`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 공통 악보 음원 생성기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
 
 저장소 루트에서 실제 exporter 출력 위치를 `--catalog`에 지정합니다. 여러 악기를 합칠 때 같은 옵션을 반복합니다.
 

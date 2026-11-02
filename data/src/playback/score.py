@@ -138,7 +138,12 @@ def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
     if score["source"]["review_status"] == "machine-transcribed-unverified":
         warnings.append("자동 인식 악보의 합성 미리듣기입니다. 원보와 음높이·길이·기호 대조가 필요합니다.")
     elif score["source"]["review_status"] == "source-review-unverified":
-        warnings.append("입력 악보의 검수 상태를 확인하지 않은 합성 미리듣기입니다. 원보 대조가 필요합니다.")
+        common_provenance = score["source"].get("common_provenance")
+        common_review = common_provenance.get("review") if isinstance(common_provenance, dict) else None
+        if common_review == "reviewed":
+            warnings.append("입력 공통 악보는 reviewed입니다. 합성 연주의 전문가 검수 완료를 뜻하지 않습니다.")
+        else:
+            warnings.append("입력 악보의 검수 상태를 확인하지 않은 합성 미리듣기입니다. 원보 대조가 필요합니다.")
     cursor = 0
     tie_open = False
     for n in score["notes"]:

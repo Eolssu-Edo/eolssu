@@ -97,6 +97,9 @@
 
 ## 데이터 조사·검증 기록
 
+- [공통 악보 v1 재생 연결 스펙](specs/common-score-playback.md) · [S15P31E102-338 실행·검증 기록](plans/S15P31E102-338.md)
+- [공통 악보 음원의 독립 파형 검증](knowledge/data/common-score-audio-verification.md)
+- [악기별 시김새 교육용 미리듣기와 표현 시간표](knowledge/data/common-score-expression-preview.md)
 - [라벨링 기본음·시김새 M4A 생성·검증](knowledge/data/reference-audio-m4a.md)
 
 - [Android 운영 자료·단소 M4A 후보와 앱 악보 대조](knowledge/data/android-catalog-audio-readiness.md)
