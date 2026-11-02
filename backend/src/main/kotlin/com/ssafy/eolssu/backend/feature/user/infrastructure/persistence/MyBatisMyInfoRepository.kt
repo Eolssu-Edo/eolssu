@@ -14,7 +14,7 @@ class MyBatisMyInfoRepository(
 ) : MyInfoRepository {
     override fun findActive(userId: Long) = users.findById(userId)
         ?.takeIf { it.status == "ACTIVE" }
-        ?.let { MyInfo(it.id, it.email, checkNotNull(it.nickname), it.instrumentId, it.notationMode) }
+        ?.let { MyInfo(it.id, it.email, checkNotNull(it.nickname), it.instrumentId, it.notationMode, it.passwordHash != null) }
 
     override fun linkedProviders(userId: Long) =
         socialAccounts.findByUserId(userId).map { LinkedProvider(it.provider, it.createdAt.toInstant(ZoneOffset.UTC)) }

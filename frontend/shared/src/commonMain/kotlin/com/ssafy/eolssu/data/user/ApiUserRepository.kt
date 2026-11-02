@@ -39,7 +39,7 @@ class ApiUserRepository(
         if (profileRevision.value != revision) return MemberResult.Unavailable
         state.value = UserProfile(result.nickname, result.email ?: email ?: state.value.email, result.linkedProviders.mapNotNull { provider ->
             SocialProvider.entries.firstOrNull { it.name.equals(provider.provider, ignoreCase = true) }
-        }.toSet(), result.instrumentId, result.notationMode)
+        }.toSet(), result.instrumentId, result.notationMode, result.hasPassword)
         if (instruments != null && !instruments.applyServerId(result.instrumentId)) return MemberResult.Unavailable
         return MemberResult.Done
     }
@@ -95,6 +95,49 @@ class ApiUserRepository(
         return passwordFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
     }
 
+    override suspend fun startWithdrawalReauth(provider: SocialProvider): OAuthStartResult =
+        startOAuth(client, "/api/users/me/withdrawal/oauth/${provider.pathName}/start", provider)
+
+    /** 연결 완료([link])처럼 먼저 갱신되는 요청으로 로그인을 이어 둔 뒤, 갱신·재전송하지 않는 완료 요청을 보낸다. */
+    override suspend fun confirmWithdrawalReauth(callback: OAuthCallback): ReauthResult {
+        val me = client.sendOrNull { get("/api/users/me") } ?: return ReauthResult.Unavailable
+        if (me.status.value == 401) return ReauthResult.Unauthenticated
+        val response = client.sendOrNull {
+            post("/api/users/me/withdrawal/oauth/${callback.provider.pathName}") {
+                contentType(ContentType.Application.Json)
+                setBody(OAuthComplete(callback.authorizationCode, callback.redirectUri, callback.state))
+            }
+        } ?: return ReauthResult.Unavailable
+        if (response.status.value == 200) {
+            val ticket = response.apiResponse<WithdrawalTicket>()?.takeIf { it.isSuccess }?.result?.withdrawalTicket
+                ?.takeIf { it.isNotBlank() } ?: return ReauthResult.Unavailable
+            return ReauthResult.Proven(WithdrawalProof(callback.provider, ticket))
+        }
+        val code = response.apiResponse<Error>()?.result?.errorCode
+        return when {
+            response.status.value == 401 -> if (code == "UNAUTHENTICATED") ReauthResult.Unauthenticated else ReauthResult.Restart
+            response.status.value == 400 || response.status.value == 404 || response.status.value == 410 -> ReauthResult.Restart
+            else -> ReauthResult.Unavailable
+        }
+    }
+
+    override suspend fun withdraw(proof: WithdrawalProof): MemberResult {
+        return member?.changing { withdrawWithProof(proof) } ?: withdrawWithProof(proof)
+    }
+
+    private suspend fun withdrawWithProof(proof: WithdrawalProof): MemberResult {
+        val response = client.sendOrNull {
+            delete("/api/users/me") { contentType(ContentType.Application.Json); setBody(WithdrawalTicketBody(proof.ticket)) }
+        } ?: return MemberResult.Unavailable
+        if (response.status.value == 200 && response.apiResponse<Withdrawn>()?.takeIf { it.isSuccess }?.result?.withdrawn == true) {
+            cookies?.clear()
+            member?.set(null)
+            logOut()
+            return MemberResult.Done
+        }
+        return memberFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
+    }
+
     override suspend fun startLink(provider: SocialProvider): OAuthStartResult =
         startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", provider)
 
@@ -127,7 +170,9 @@ class ApiUserRepository(
     override suspend fun unlink(provider: SocialProvider): MemberResult {
         val generation = sessionGeneration.value
         val response = client.sendOrNull { delete("/api/users/me/social-accounts/${provider.pathName}") } ?: return MemberResult.Unavailable
-        if (response.status.value != 204 && response.status.value != 404) return memberFailure(response.status.value)
+        if (response.status.value != 204 && response.status.value != 404) {
+            return memberFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
+        }
         if (sessionGeneration.value == generation) changeLinked(provider, linked = false)
         return MemberResult.Done
     }
@@ -139,7 +184,17 @@ class ApiUserRepository(
 
     override fun logOut() { sessionGeneration.updateAndGet { it + 1 }; state.value = UserProfile("", "", emptySet()); instruments?.clear() }
 
-    @Serializable private class MyInfo(val nickname: String, val instrumentId: String, val notationMode: String, val linkedProviders: List<Provider> = emptyList(), val email: String? = null)
+    /** [hasPassword]는 서버에 아직 없는 요청 중인 필드다. 오지 않으면 null로 둔다. */
+    @Serializable private class MyInfo(
+        val nickname: String,
+        val instrumentId: String,
+        val notationMode: String,
+        val linkedProviders: List<Provider> = emptyList(),
+        val email: String? = null,
+        val hasPassword: Boolean? = null,
+    )
+    @Serializable private class WithdrawalTicket(val withdrawalTicket: String)
+    @Serializable private class WithdrawalTicketBody(val withdrawalTicket: String)
     @Serializable private class OAuthComplete(val authorizationCode: String, val redirectUri: String, val state: String)
     @Serializable private class InstrumentPreference(val instrumentId: String)
     @Serializable private class Preferences(val instrumentId: String, val notationMode: String)

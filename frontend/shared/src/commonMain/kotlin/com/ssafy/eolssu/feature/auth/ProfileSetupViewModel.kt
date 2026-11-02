@@ -10,12 +10,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-/** AUTH-07 이메일 가입 마지막 단계. 서버가 가입을 수락한 뒤 회원 정보를 읽는다. */
+/**
+ * AUTH-07 가입 마지막 단계. 이메일 가입은 인증 토큰·비밀번호로, [social] 가입은 간편 로그인이 남긴 가입 티켓([OAuthAttempts.signUpTicket])으로 보낸다.
+ * 서버가 가입을 수락한 뒤 회원 정보를 읽는다. 소셜 가입 티켓은 1회용이라 만료·재사용이면 간편 로그인부터 다시 하게 한다.
+ */
 class ProfileSetupViewModel(
     private val instrumentRepository: InstrumentRepository,
     private val userRepository: UserRepository,
     private val auth: AuthRepository,
     private val draft: AccountDraft,
+    private val attempts: OAuthAttempts? = null,
+    val social: Boolean = false,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileSetupUiState())
     val uiState: StateFlow<ProfileSetupUiState> = _uiState.asStateFlow()
@@ -26,15 +31,20 @@ class ProfileSetupViewModel(
 
     private var submitting = false
 
-    /** 인증 토큰·실제 동의와 입력을 보내고 서버가 계정을 생성했을 때만 true. */
+    /** 인증 토큰(소셜은 가입 티켓)·실제 동의와 입력을 보내고 서버가 계정을 생성했을 때만 true. */
     suspend fun complete(): Boolean {
         if (submitting) return false
         val state = _uiState.value
         val error = AuthValidation.nicknameError(state.nickname)
         _uiState.update { it.copy(nicknameError = error) }
         if (error != null) return false
-        if (draft.token.isBlank() || draft.password.isBlank() || draft.purpose != VerificationPurpose.SignUp) {
-            _uiState.update { it.copy(nicknameError = FieldError.VerifyAgain) }; return false
+        val ticket = if (social) {
+            attempts?.signUpTicket() ?: return false.also { _uiState.update { it.copy(nicknameError = FieldError.SignUpExpired) } }
+        } else {
+            if (draft.token.isBlank() || draft.password.isBlank() || draft.purpose != VerificationPurpose.SignUp) {
+                _uiState.update { it.copy(nicknameError = FieldError.VerifyAgain) }; return false
+            }
+            null
         }
         if (draft.agreements.isEmpty()) {
             _uiState.update { it.copy(nicknameError = FieldError.TermsAgain) }; return false
@@ -46,16 +56,23 @@ class ProfileSetupViewModel(
                 _uiState.update { it.copy(nicknameError = FieldError.InstrumentUnavailable) }
                 return false
             }
-            val result = auth.signUp(Registration(draft.email, draft.password, state.nickname.trim(), draft.token, draft.agreements, instrumentId))
+            val result = if (ticket != null) {
+                auth.socialSignUp(SocialRegistration(ticket, state.nickname.trim(), draft.agreements, instrumentId))
+            } else {
+                auth.signUp(Registration(draft.email, draft.password, state.nickname.trim(), draft.token, draft.agreements, instrumentId))
+            }
             if (result == MemberResult.Done) {
                 instrumentRepository.select(state.instrument)
                 userRepository.logOut()
-                userRepository.refresh(draft.email)
+                userRepository.refresh(draft.email.takeIf { ticket == null })
                 draft.clear()
+                attempts?.clearSignUp()
                 true
             } else {
                 if (result == MemberResult.TermsRequired) draft.agreements = emptyList()
-                _uiState.update { it.copy(nicknameError = result.fieldError()) }; false
+                // 티켓이 만료·재사용됐거나 이미 다른 회원이 됐으면 같은 티켓으로 다시 보내도 같다.
+                if (result == MemberResult.TicketExpired || result == MemberResult.SocialAccountInUse) attempts?.clearSignUp()
+                _uiState.update { it.copy(nicknameError = result.fieldError(social)) }; false
             }
         } finally { submitting = false }
     }

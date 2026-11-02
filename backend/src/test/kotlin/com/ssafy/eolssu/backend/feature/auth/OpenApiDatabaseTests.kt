@@ -45,6 +45,16 @@ open class OpenApiDatabaseTests {
         }
         return client.send(request.GET().build(),HttpResponse.BodyHandlers.ofString())
     }
+    @Test fun `my info documents password presence as a required boolean without a hash`() {
+        val response = get("/api/v3/api-docs")
+        assertEquals(200, response.statusCode())
+        val schema = json.readTree(response.body()).path("components").path("schemas").path("MyInfoResult")
+        val properties = schema.path("properties")
+        assertEquals("boolean", properties.path("hasPassword").path("type").asString())
+        assertFalse(properties.path("hasPassword").path("nullable").asBoolean())
+        assertTrue(schema.path("required").any { it.asString() == "hasPassword" })
+        assertFalse(properties.has("passwordHash"))
+    }
     @Test fun `authenticated user can fetch the full business API definition`() {
         val response=get("/api/v3/api-docs")
         assertEquals(200,response.statusCode(),response.body())

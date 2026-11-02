@@ -25,8 +25,10 @@ MySQL 회귀 검사는 실행자가 별도로 만든 `eolssu-reference-audio-*` 
 
 ## 운영 게시 순서
 
-2026-11-02 edo1의 Flyway 성공 이력이 V1~V12이고 카탈로그 두 테이블이 없으며 pitches는11행임을 읽기 전용으로 확인했다. 미적용 개발 버전V13~V16을 최종 V13 하나로 통합했다. 이미 예전 개발판을 적용한 로컬DB는 새 폐기DB로 교체하고 checksum repair로 이력을 맞추지 않는다. 운영DB에는 이번 작업에서 아무 변경도 하지 않았다. MySQL DDL은 전체 트랜잭션 롤백을 보장하지 않으므로 실패하면 백업·부분 적용 상태를 확인한 뒤 복구한다.
+364 사전 점검 당시(2026-11-02) edo1은 Flyway V1~V12, 카탈로그 테이블 없음, pitches11행이었다. 미적용 개발 버전V13~V16을 최종 V13 하나로 통합했다. 이미 예전 개발판을 적용한 로컬DB는 새 폐기DB로 교체하고 checksum repair로 이력을 맞추지 않는다. 이후 INF368에서 운영 V13·학습V14와 430개 게시까지 적용했다. MySQL DDL은 전체 트랜잭션 롤백을 보장하지 않으므로 실패하면 백업·부분 적용 상태를 확인한 뒤 복구한다.
 
+
+현재 통합 백엔드에는 학습 V14도 포함된다. 아래 카탈로그 V13 적용과 별도로 V14의 빈 학습 테이블·기존 제약 사전 확인을 통과해야 하며, 실제 배포 순서와 결과는 [368 게시 기록](../../docs/knowledge/infra/reference-audio-publication.md)을 따른다.
 
 1. 대상 DB의 백업·버전 확인 후 최종 V13 하나를 적용한다. 운영 ops는 자동 마이그레이션을 하지 않으므로 새 API 배포·매핑 적용 전에 완료한다.
 2. M4A와 manifest를 검증하고 DRAFT 적재 결과를 대조한다.
@@ -34,9 +36,9 @@ MySQL 회귀 검사는 실행자가 별도로 만든 `eolssu-reference-audio-*` 
 4. 업로드한 각 객체의 전체 다운로드 SHA-256·크기와 재생을 대조한다. 단순 ETag를 SHA-256으로 취급하지 않는다. 장기 보관 규칙과 클라이언트 읽기 정책도 확인한다.
 5. 검증된 정확한 assetId만 PUBLISHED로 변경한다. 일괄 무조건 게시하지 않는다. rejected 라벨은 게시할 수 없다. inferred는 재생 참고 자료이며 채점 정답으로 승격하지 않는다.
 6. `REFERENCE_AUDIO_STORAGE_*`에 별도 읽기용 설정을 주입한다. 이 설정은 사용자 녹음의 `RECORDING_STORAGE_TYPE`과 독립적이다.
-7. 실제 조회·302 재생 이동·음원 디코딩·만료와 앱 재생을 확인한다. soundUrl은 상대 API 경로이므로 앱은 서버 기준 주소로 해석한다. 임시 서명 URL을 DB나 장기 캐시에 저장하지 않는다.
+7. INF368은 실제 조회·302·서명GET·해시·범위 응답을 확인한다. 앱 내부 재생·출처/가공 안내·실기기 청취는 FE367에서 확인한다. soundUrl은 상대 API 경로이므로 앱은 서버 기준 주소로 해석한다. 임시 서명 URL을 DB나 장기 캐시에 저장하지 않는다.
 
-실제 R2 게시·운영 DB 적용·서비스 재시작은 이 구현 작업에서 실행하지 않았다. 기존 CAT-06의 대표 음원 선정과 FE 연결은 별도 작업으로 남는다.
+364는 구현·검증을 담당했고 실제 R2 게시·운영 DB 적용·읽기 설정은 INF368에서 완료했다. 기존 CAT-06의 대표 음원 선정은 별도이며 앱 재생 연결·검증은 FE367의 완료 조건이다.
 
 ## 명목상 기준 음 연결
 
@@ -77,7 +79,7 @@ V13과 기존 manifest 적재 후 생성 SQL 네 파일을 전용 mysql 연결�
 
 CLI는 고정한 manifest 전체 SHA-256과 실제 자산·파일, 전체 역할 집합·순서·선택 anchor 일치·분석창 범위를 확인하고 근거 경로를 복원한다. SQL은 자산을 잠그고 원본 metadata를 같은 MySQL JSON 표현으로 대조한다. DB 관계가 없으면 전체 집합을 추가하고, 완전히 같으면 재실행은 no-op이다. 기존 집합의 일부 누락·추가·대상/근거 변경, 없는 pitch, DB metadata 변경은 전체 파일 배치를 거부한다. 기존 import도 다른 metadata를 덮어쓰지 않는다.
 
-SEQUENCE의 index만 관측 순서다. 다루치기 역할의 DB index=0은 키용이며 시간순을 뜻하지 않는다. LABEL은 시작음/전체구간 단음 보장이 아니다. 원음 기준 분석창·F0·대안·labelAnchorIndex·반복 횟수와 inferred/채점 제외 상태는 metadata에 보존하며 음표 이벤트를 새로 만들지 않는다. 적재 뒤 시김새207개·관계315개·전체426연결/4미연결을 확인하고, 게시 검증과 실제 앱 재생은 INF368에서 별도로 수행한다.
+SEQUENCE의 index만 관측 순서다. 다루치기 역할의 DB index=0은 키용이며 시간순을 뜻하지 않는다. LABEL은 시작음/전체구간 단음 보장이 아니다. 원음 기준 분석창·F0·대안·labelAnchorIndex·반복 횟수와 inferred/채점 제외 상태는 metadata에 보존하며 음표 이벤트를 새로 만들지 않는다. 적재 뒤 시김새207개·관계315개·전체426연결/4미연결을 확인하고, 서버 게시 검증은 INF368, 실제 앱 재생은 FE367에서 수행한다.
 
 매핑 JSON basis의 파생 SQL 참조도 최종 `V13__reference_audio_assets.sql` 및 명시적 기본음 매핑으로 정렬했다. 단소30개 기존 근거와 모든 원본 라벨·metadata는 그대로이며 이전 개발 참조는 커밋4c2ff7d7·266b5d66에 보존된다.
 
@@ -111,3 +113,23 @@ SEQUENCE의 index만 관측 순서다. 다루치기 역할의 DB index=0은 키�
 두 linker는 schema2만 받는다. 내부 Python 함수의 입력은 `load_mappings(mapping_path, manifest_path)`이고 확인하지 않은 assets 리스트를 직접 넘기지 않는다. 형식/중복JSON키·labelId/unknown field/잘못된dataset·category/manifest 변경/파일손상/목표타입·범위/누락·추가 역할/sequence수/같은 원본음의 목표불일치는 SQL 파일을 만들기 전에 거부한다. SQL의 전체배치 충돌·재실행 검사는 그대로이며 DB/R2에 자동 쓰지 않는다.
 
 재검증은 위 unittest 명령과 기존8개 CLI 명령을 사용한다. 각 출력은 새 경로에 생성한다. 기준 manifest 파일의 SHA-256은 `5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb`다. 원본 manifest가 바뀌면 기존 매핑을 그대로 적용하지 않고 해당자료와 명시적 선택을 다시 대조한다.
+
+## 2026-11-02 운영 게시 확인과 회수
+
+INF368에서 430개를 게시했다. 단소56·정악대금107·산조대금121·소금146이며 [실행·검증·백업 기록](../../docs/knowledge/infra/reference-audio-publication.md#운영-적용)을 따른다. 서버의 기존 R2 버킷·자격증명을 읽기 env5개에 연결했고 URL을 DB에 입력하지 않았다.
+
+```sh
+curl --fail --silent --show-error https://k15e102.p.ssafy.io/api/actuator/health/readiness
+curl --fail --silent --show-error 'https://k15e102.p.ssafy.io/api/reference-audios?datasetId=danso'
+ssh -o ClearAllForwardings=yes edo2 'sudo /opt/eolssu-backup/backup.py status'
+```
+
+게시 회수가 필요할 때 아래 고정 helper는 최초 DRAFT였던 430개 중 ID·SHA·object key가 같은 행만 DRAFT로 돌린다. 실행 시 공용 배포 lock을 획득하며 실패하면 재실행 전에 원인을 확인한다. 객체·원본 metadata·pitch 관계는 삭제하지 않는다. 이미 발급한 서명 URL은 최대900초 유효할 수 있다.
+
+```sh
+ssh -o ClearAllForwardings=yes edo1 'sudo sha256sum /opt/eolssu/ops368-reference-audio-20261102/publish_verify.py'
+# SHA-256: 82203e6a7312245d7e02d5a5db935c991c39399ac366b55c36e12662c6026eae
+ssh -o ClearAllForwardings=yes edo1 'sudo python3 /opt/eolssu/ops368-reference-audio-20261102/publish_verify.py --rollback'
+```
+
+기본 인자 없는 helper 실행은 신규 게시용이며 현재 상태에 재실행하지 않는다. 설정 원본은 같은 root 전용 폴더의 `env.before`와 `compose.before.yml`이다. 이후 다른 배포의 변경이 있는지 먼저 대조하고 필요한 설정만 공용 lock 아래 복구한 뒤 백엔드만 재생성한다. 파일 전체를 출력하거나 현재 설정에 무조건 덮어쓰지 않는다. DB 스키마는 별도 복구 대상이며 V14 checksum1541415930을 repair하지 않는다. 운영 로그는 Docker 중복 캐시가 꺼져 있으므로 root 전용 `/var/log/eolssu/ordinary/eolssu-backend.*.log`에서 확인한다.
