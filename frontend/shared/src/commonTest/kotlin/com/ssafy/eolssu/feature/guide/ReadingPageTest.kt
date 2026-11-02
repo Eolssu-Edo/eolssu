@@ -29,6 +29,15 @@ class ReadingPageTest {
     }
 
     @Test
+    fun prevIsOffOnFirstPageAndNextIsOffOnLastPage() {
+        assertEquals(null, Intro.previous)
+        assertEquals(Order, Intro.next)
+        assertEquals(Sigimsae, SigimsaeMore.previous)
+        assertEquals(null, SigimsaeMore.next)
+        assertEquals(Pitch to Sigimsae, Length.next to Pitch.next)
+    }
+
+    @Test
     fun portraitTabletPairsPagesAndGivesBothSigimsaePagesAFullRow() {
         assertEquals(listOf(listOf(Intro, Order), listOf(Length, Pitch), listOf(Sigimsae), listOf(SigimsaeMore)), readingTabletRows(2))
     }
