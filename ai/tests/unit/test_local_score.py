@@ -80,3 +80,21 @@ def test_oversized_alignment_is_rejected_before_scoring(tmp_path):
         wav.writeframes(b'\0\0' * 16000)
     with pytest.raises(RecordingTooLong):
         score_recording(audio, "ngc-standard-2022-p173", 0.00001, 0)
+
+
+def test_analysis_duration_limit_applies_after_start_before_pitch(tmp_path, monkeypatch):
+    from evaluation import local_score
+    audio = tmp_path / 'long.wav'
+    with wave.open(str(audio), 'wb') as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b'\0\0' * (181 * 16000))
+    calls = []
+    monkeypatch.setattr(local_score, 'pyin_f0', lambda samples, rate: calls.append(len(samples)))
+    monkeypatch.setattr(local_score, 'frame_rms', lambda *_: None)
+    with pytest.raises(local_score.AnalysisDurationExceeded, match='3분'):
+        local_score.prepare_recording(audio, 'ngc-standard-2022-p173', 96, 0)
+    assert calls == []
+    local_score.prepare_recording(audio, 'ngc-standard-2022-p173', 96, 1)
+    assert calls == [180 * 16000]

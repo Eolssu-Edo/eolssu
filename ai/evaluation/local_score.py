@@ -17,8 +17,13 @@ from evaluation.local_audio import decode_window
 
 _SCORES = frozenset(f"ngc-standard-2022-p{page}" for page in range(171, 175))
 _REPO = Path(__file__).resolve().parents[2]
+MAX_ANALYSIS_SECONDS = 180
 sys.path.insert(0, str(_REPO / "data/src/scores"))
 from score_data import convert_answer  # noqa: E402
+
+
+class AnalysisDurationExceeded(RecordingTooLong):
+    """로컬 도구에서 선택한 분석 구간이 3분을 넘는다."""
 
 
 def load_notes(source_id):
@@ -54,7 +59,14 @@ def prepare_recording(audio_path, source_id, bpm, start_s=0):
     max_samples = min(ceiling, math.floor(allowed)) if math.isfinite(allowed) else ceiling
     if max_samples < 1:
         raise RecordingTooLong("악보와 녹음이 분석 메모리 한도를 넘습니다")
-    audio = decode_window(audio_path, start_sample, max_samples).astype(np.float32) / 32768.0
+    duration_limit = MAX_ANALYSIS_SECONDS * SAMPLE_RATE
+    try:
+        audio = decode_window(audio_path, start_sample, min(max_samples, duration_limit))
+    except RecordingTooLong as exc:
+        if duration_limit <= max_samples:
+            raise AnalysisDurationExceeded("시작 위치부터 분석할 수 있는 길이는 최대 3분입니다") from exc
+        raise
+    audio = audio.astype(np.float32) / 32768.0
     return pyin_f0(audio, SAMPLE_RATE), notes, frame_rms(audio, SAMPLE_RATE)
 
 

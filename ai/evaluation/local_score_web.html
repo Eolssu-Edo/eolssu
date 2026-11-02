@@ -62,7 +62,7 @@
         <div class="wide"><label for="audio">녹음 파일</label><input id="audio" type="file" accept=".m4a,audio/mp4" required><small>선택한 녹음은 이 PC에서만 분석합니다.</small></div>
         <div><label for="song">악보</label><select id="song"><option value="ngc-standard-2022-p173" data-bpm="96">아리랑 · 단소</option><option value="ngc-standard-2022-p171" data-bpm="96">도라지타령 · 단소</option><option value="ngc-standard-2022-p172" data-bpm="96">밀양아리랑 · 단소</option><option value="ngc-standard-2022-p174" data-bpm="66">늴리리야 · 단소</option></select><small>국립국악원 표준악보집. 실제 연주한 악보와 같은지 확인해 주세요.</small></div>
         <div><label for="bpm">BPM</label><input id="bpm" type="number" min="1" max="240" step="1" value="96" required><small>기본 BPM은 실제 연주 속도를 측정한 값이 아닙니다.</small></div>
-        <div><label for="start">녹음 시작 위치 · 초</label><input id="start" type="number" min="0" step="0.01" value="0" required><small>0이면 앞부분을 자르지 않습니다.</small></div>
+        <div><label for="start">녹음 시작 위치 · 초</label><input id="start" type="number" min="0" step="0.01" value="0" required><small>0이면 앞부분을 자르지 않습니다. 시작 위치부터 최대 3분을 분석합니다.</small></div>
       </div>
       <button id="submit" type="submit">기준 점수 확인</button>
       <p id="message" role="status" aria-live="polite"></p>

@@ -87,6 +87,17 @@ def test_storage_error_is_explained_without_leaking_path(monkeypatch):
     assert not _LOCK.locked()
 
 
+def test_analysis_duration_error_is_explained(monkeypatch):
+    from evaluation import local_score_web
+    def fail(*args):
+        raise local_score_web.AnalysisDurationExceeded('시작 위치부터 분석할 수 있는 길이는 최대 3분입니다')
+    monkeypatch.setattr(local_score_web, 'score_recording', fail)
+    response = client.post('/score?score_id=ngc-standard-2022-p173&bpm=96&start=0',
+                           content=b'recording', headers=ORIGIN)
+    assert response.status_code == 400
+    assert '3분' in response.json()['error']
+
+
 def test_compare_defaults_match_current_score_and_invalid_weights_are_rejected(monkeypatch):
     from evaluation import local_score_web
     notes = [Note(i % 2 * 2, 1, idx=i) for i in range(16)]

@@ -13,7 +13,7 @@ from starlette.concurrency import run_in_threadpool
 from ai_service.api import MAX_DOWNLOAD_BYTES, RecordingTooLong
 from ai_service.pipelines.audio import DecodeError
 from ai_service.pipelines.scoring import HWANG_HZ
-from evaluation.local_score import _SCORES, prepare_recording, score_recording
+from evaluation.local_score import AnalysisDurationExceeded, _SCORES, prepare_recording, score_recording
 from evaluation.score_experiment import Experiment, score_experiment
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -87,6 +87,8 @@ async def analyze(request: Request):
                 return JSONResponse({'error': str(exc)}, status_code=400)
             except DecodeError:
                 return JSONResponse({'error': '녹음 파일을 읽을 수 없습니다.'}, status_code=400)
+            except AnalysisDurationExceeded as exc:
+                return JSONResponse({'error': str(exc)}, status_code=400)
             except RecordingTooLong:
                 return JSONResponse({'error': '녹음과 악보가 분석 메모리 한도를 넘습니다.'}, status_code=400)
             except FileNotFoundError:
