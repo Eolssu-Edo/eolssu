@@ -12,6 +12,7 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
+import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.song.api.*
 import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -127,6 +128,9 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/recording","uploadRecording","연습","녹음 업로드와 분석 접수",
         "multipart audio 1개(MP4 컨테이너 AAC/m4a), 20MiB 이하·600초(패딩 포함 601초 미만). 샘플레이트/채널/비트레이트로 거부하지 않습니다. Spring 앞 계층은 25MiB. endedAt/Idempotency-Key는 받지 않으며 종료 시각은 서버가 기록합니다.",
         RecordingUploadAccepted::class.java,listOf(202),listOf(SESSION_NOT_FOUND,SESSION_NOT_RECORDING,SESSION_EXPIRED,RECORDING_TOO_LARGE,RECORDING_UNSUPPORTED_FORMAT,RECORDING_INVALID_DURATION,RECORDING_STORAGE_UNAVAILABLE)),
+    ApiContract(HttpMethod.PUT,"/api/practice-sessions/{sessionId}/record","savePracticeRecord","연습 기록","연습 기록 저장·메모 수정",
+        "분석이 끝난(DONE) 본인 세션을 연습 기록으로 저장합니다. 다시 보내도 처음 저장 시각은 그대로입니다. 본문이 없거나 memo를 생략하면 메모를 바꾸지 않고 null이면 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 500자를 넘으면 400입니다. 지운 기록은 404, 미완료는 409입니다.",
+        SavedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/retry","retryAnalysis","연습","실패한 분석 재시도",
         "Idempotency-Key 필수. TIMEOUT·SERVER_ERROR의 본인 녹음을 재분석합니다. 이미 PENDING이면 새 시도 없이 동일한 202, 재녹음 필요/완료/업로드 전 상태는 409입니다. 요청 본문은 없습니다.",
         RetryResult::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,SERVICE_UNAVAILABLE)),

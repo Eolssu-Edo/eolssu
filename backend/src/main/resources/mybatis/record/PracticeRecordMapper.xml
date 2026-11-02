@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.PracticeRecordMapper">
+    <!-- 저장(REC-01)과 삭제(REC-04)가 엇갈리지 않도록 세션 행만 잠근다. 곡·평가 행은 잠그지 않는다 -->
+    <select id="lockStatus" resultType="string">
+        SELECT status FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND record_deleted_at IS NULL
+        FOR UPDATE
+    </select>
+
+    <select id="findSession" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordSessionRow">
+        SELECT ps.id AS session_id, ps.song_id, s.title AS song_title, s.note_count, ps.score_version, ps.start_note_idx, ps.end_note_idx,
+               ps.bpm, ps.bpm_unit, ps.status, ps.started_at, ps.recording_duration_ms, e.total_score, ps.saved_at, ps.memo
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        LEFT JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.id = #{sessionId} AND ps.user_id = #{userId} AND ps.record_deleted_at IS NULL
+    </select>
+
+    <!-- 다시 보내도 처음 저장 시각은 그대로다(멱등) -->
+    <update id="save">
+        UPDATE practice_sessions
+        SET saved_at = COALESCE(saved_at, #{savedAt})<if test="changeMemo">, memo = #{memo}</if>
+        WHERE id = #{sessionId} AND user_id = #{userId} AND status = 'DONE' AND record_deleted_at IS NULL
+    </update>
+</mapper>
