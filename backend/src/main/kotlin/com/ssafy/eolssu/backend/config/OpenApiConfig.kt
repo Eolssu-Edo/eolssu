@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorCode.*
 import com.ssafy.eolssu.backend.feature.auth.api.RetryDetails
 import com.ssafy.eolssu.backend.feature.auth.api.ResendDetails
 import com.ssafy.eolssu.backend.feature.auth.api.AttemptDetails
+import com.ssafy.eolssu.backend.feature.auth.api.SocialSignUpDetails
 import com.ssafy.eolssu.backend.feature.auth.api.MergeDetails
 import com.ssafy.eolssu.backend.feature.growth.api.RejectionDetails
 import io.swagger.v3.core.converter.AnnotatedType
@@ -38,7 +39,7 @@ class OpenApiConfig {
         components.addSecuritySchemes("refreshCookie", cookie("refresh_token"))
         components.addSchemas("ApiErrorResult", ObjectSchema()
             .addProperty("errorCode", StringSchema().description("클라이언트 분기용 코드")._enum(ErrorCode.entries.map { it.name }))
-            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 계정 연결 응답의 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
+            .addProperty("details", ComposedSchema().oneOf(listOf(RetryDetails::class.java,ResendDetails::class.java,AttemptDetails::class.java,RejectionDetails::class.java,MergeDetails::class.java,SocialSignUpDetails::class.java).map { model(components,it) }).description("있을 때만 포함. 가입 signupTicket·계정 연결 mergeTicket은 인증 증명값이므로 로그·공유에 남기지 않습니다."))
             .required(listOf("errorCode")))
         components.addSchemas("ApiError", envelope(schemaRef("ApiErrorResult"), false))
         for (doc in apiContracts) {
@@ -68,7 +69,7 @@ class OpenApiConfig {
                     .content(jsonContent(ObjectSchema().example(emptyMap<String,Any>())))
             }
             operation.responses = ApiResponses()
-            if (doc.id in setOf("startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount")) {
+            if (doc.id in setOf("startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount","startSocialWithdrawal","confirmSocialWithdrawal")) {
                 operation.parameters?.filter { it.name == "provider" }?.forEach { it.schema=StringSchema()._enum(listOf("kakao","google","naver")) }
             }
             for (status in doc.statuses) {
@@ -81,7 +82,7 @@ class OpenApiConfig {
                 }
                 if (doc.setsCookies) response.addHeaderObject("Set-Cookie", Header().schema(StringSchema())
                     .description("HttpOnly·SameSite=Lax 쿠키 발급·교체 또는 삭제. access_token Path=/api, refresh_token Path=/api/auth. Secure는 AUTH_COOKIE_SECURE(기본 true)를 따릅니다."))
-                if (doc.id in setOf("startSocialLogin","startSocialLink")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
+                if (doc.id in setOf("startSocialLogin","startSocialLink","startSocialWithdrawal")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
                 operation.responses.addApiResponse(status.toString(), response)
             }
             val common = listOf(INVALID_REQUEST,FORBIDDEN,METHOD_NOT_ALLOWED,NOT_ACCEPTABLE,INTERNAL_SERVER_ERROR) +

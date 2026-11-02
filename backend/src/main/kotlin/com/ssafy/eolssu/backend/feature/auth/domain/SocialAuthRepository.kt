@@ -2,8 +2,8 @@ package com.ssafy.eolssu.backend.feature.auth.domain
 
 import java.time.Instant
 
-class SocialMember(val email:String, val member:SignInMember)
-class SocialLink(val userId:Long,val provider:String,val subject:String,val linkedAt:Instant)
+class SocialMember(val email:String?, val member:SignInMember)
+class SocialLink(val userId:Long,val provider:String,val subject:String,val linkedAt:Instant,val id:Long)
 
 interface SocialAuthRepository {
     fun <T:Any> inTransaction(action:()->T):T

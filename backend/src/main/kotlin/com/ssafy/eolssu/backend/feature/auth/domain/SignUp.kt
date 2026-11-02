@@ -25,7 +25,7 @@ class ConsumableVerification(
     val invalidatedAt: Instant?,
 )
 
-class NewUser(val email: String, val passwordHash: String, val nickname: String, val instrumentId: Long, val notationMode: String)
+class NewUser(val email: String?, val passwordHash: String?, val nickname: String, val instrumentId: Long, val notationMode: String)
 
 /** 같은 이메일이 동시에 가입해 users.email 유일키에 걸렸다. */
 class EmailAlreadyRegistered : RuntimeException("Email already registered")

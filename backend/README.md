@@ -392,3 +392,7 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 기존 `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`는 일반 패키지 `com.ssafy.eolssu` 전용으로 유지합니다. `AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS`는 `com.ssafy.eolssu.qa` 전용이며 각 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 설정합니다. 한 패키지 지문을 다른 패키지에 복사하지 않습니다. 설정된 패키지만 JSON 배열에 포함하고 둘 다 비어 있을 때만404입니다. 두 설정 모두 형식 검증·대문자 콜론 표기 정규화·중복 제거를 적용합니다. 설정은 운영 Compose 전달과 백엔드 반영 후 확인합니다.
 
 검증 순서: 설치 APK 패키지·versionCode·공개 서명 확인 → `/.well-known/assetlinks.json`의 리다이렉트 없는200/application/json과 패키지별 지문 일치 → 기기 `adb shell pm verify-app-links --re-verify com.ssafy.eolssu.qa` 후 `adb shell pm get-app-links com.ssafy.eolssu.qa`에서 도메인 verified → 새 카카오 인증 시작부터 앱 복귀·완료 API를 확인합니다. 재검증은 비동기이며 강제 인텐트 실행만으로 verified를 대체하지 않습니다. 키스토어·비밀번호는 공유하지 않습니다.
+
+### 소셜 신규 가입·재인증 탈퇴
+
+[OAuth 가입 계약](../docs/specs/social-sign-up.md)을 따릅니다. V12 적용이 필요하며 운영 마이그레이션은 배포 전에 별도 절차로 수행합니다. 신규 인증은409 SOCIAL_SIGN_UP_REQUIRED의10분·1회 signupTicket을 반환하며 POST /api/auth/oauth/sign-up에서 현재 약관·닉네임으로 가입을 완료합니다. 비밀번호는 저장하지 않고 확인되지 않은 이메일은NULL입니다. GET /api/users/me.email도nullable입니다. 소셜 탈퇴는 연결 제공자 WITHDRAW 재인증 증명으로 기존 DELETE /api/users/me를 호출하며, 기존 비밀번호 방식도 유지합니다. FE는 신규 약관 화면·nullable 이메일·탈퇴 복귀 흐름을 연결해야 합니다. 원문 티켓·코드·쿠키를 로그에 기록하거나 자동 재전송하지 마세요.
