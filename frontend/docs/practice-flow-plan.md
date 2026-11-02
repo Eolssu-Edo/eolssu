@@ -178,6 +178,24 @@
 - 점수 변화 카드: 보드 그래프(310×104 좌표, x 14~294, 최저 점수 72 · 최고 24, 마지막 점 연두)를 `ScoreTrendCard`로 만들고, 점수 추이 API(GRO-03, 서버 346) 연결은 S15P31E102-372에 남긴다. 그전에는 카드 제목과 ‘준비 중인 기능이에요.’만 보인다.
 - 기록 목록 조회·녹음 재생·삭제 연결(서버 342)은 이번 범위가 아니다. 운영 DI는 여전히 ‘사용할 수 없어요’ 안내다.
 
+## 6A. Task 369 — 기록 저장·목록·상세 재생을 기록 API에 연결
+
+- 기준: 서버 REC-01~04·PRA-03 계약 `docs/specs/practice-records.md`, 결정 `docs/plans/S15P31E102-342.md`. Jira [S15P31E102-369](https://ssafy.atlassian.net/browse/S15P31E102-369)(담당 송가연, 스프린트 4).
+- 브랜치: 359가 병합 전이라 359 브랜치 위에 쌓았다(2026-11-02 사용자 확정). 359 병합 뒤 develop을 받아 맞추고 MR을 연다.
+
+### 6A.1 구현
+- `data/practice/HttpPracticeRecordRepository`: 목록은 REC-02를 곡마다(페이지 100개씩)받아 최신순 한 목록으로 합친다. 저장은 REC-01에 본문 `{}`, 메모는 같은 요청에 `memo`. 상세는 PRA-03(메모·`recordingAvailable`, 처음 열면 서버가 NEW를 끔)과 평가 EVA-01·02(`EvaluationRepository.result`)를 합친다. 재생 주소는 REC-03, 삭제는 REC-04(다시 보낸 삭제의 404는 성공).
+- 저장소 인터페이스에 `refresh`·`detail`·`playback`·`delete`를 기본 구현과 함께 더했다. `PracticeRecord`에 `recordingAvailable`·`isNew`를 더했다. 운영 DI를 `UnavailablePracticeRecordRepository`에서 HTTP 구현으로 바꿨다.
+- 기록 목록: 열면 서버에서 받고, 받는 동안은 도는 표시, 받지 못하면 ‘연습 기록을 불러오지 못했어요.’ + ‘다시 시도’(받은 기록이 있으면 그대로 보인다).
+- 기록 상세: 서버 상세로 메모·점수·오류 위치를 채운다. 녹음은 REC-03 주소를 플랫폼 `AudioPlayer`로 재생하고, 재생 위치(ms)를 기록할 때의 속도로 정간에 놓는다. 주소는 만료 30초 전부터 다시 받는다. 다시 들을 수 없는 기록은 재생 버튼을 끈다. 녹음이 없음(404)·지금 못 줌(503)·실패는 스낵바로 알린다. 앱을 벗어나면(ON_STOP) 멈추고, 화면을 닫으면 플레이어를 놓는다.
+
+### 6A.2 결정과 남은 일
+- 재생 위치는 녹음이 첫 음에서 시작한다고 보고 속도로 계산한다. EVA-02 `recordingOffsetMs`(음별 실제 위치)로 맞추는 것은 하지 않았다(REC-03 규칙 6의 대체안). 카운트다운 길이만큼 어긋나면 고친다.
+- 구간 기록의 각을 모르면(악보 버전이 다름) 구간 이름을 ‘일부’로 둔다(화면에는 ‘일부 구간’).
+- 서버 `isNew`는 모델에만 담고 화면에 따로 표시하지 않는다. 보드의 ‘방금 저장’은 결과 화면에서 막 저장한 기록에만 붙인다.
+- 삭제: 보드(RECORD-01·02)에 삭제 화면이 없어 화면은 붙이지 않았다. 저장소의 REC-04 삭제는 구현·테스트했다. 어디에 둘지 정해지면 붙인다.
+- 실서버 확인: 에뮬레이터 앱이 서버에 유효한 로그인 쿠키를 갖고 있지 않다. 사용자가 로그인한 뒤에도 기록 목록 요청(REC-02)과 마이페이지 회원 정보 요청이 똑같이 401이었다(임시 로그로 확인, 커밋 안 함). 기록 API만의 문제가 아니다. 이 PC에서 쓸 수 있는 테스트 계정이 없어(2026-11-02 사용자) 실서버 저장 → 목록 → 상세 → 재생 확인은 하지 않았고, 계정이 생기면 확인한다. 재생은 실기기 확인도 필요하다.
+
 ## 7. 2차 343 — 오류 위치·취약 구간 선택·반복·재평가
 
 ### 7.1 보드 구조 요약(ResultErrors · SectionSelect · SectionLoop · SectionResult, 인라인 스타일·흰 바탕)
@@ -214,3 +232,4 @@
 - 2026-11-02 (357 1차 구현): 운지 모델(`Fingering.kt`·`FingeringTables.kt`·`YulNotation.kt`)과 악기 이름·사진, `FingeringFigure`·`HoleLegend`를 `feature/guide`에서 `core/model/fingering`·`core/ui/score`로 옮기고 guide 호출처는 import만 바꿈(공동 파일, B 알림 필요). `JeongganboView`에 `JeongganboLook`(보드 `.ms` 모양·곁줄·‘시작 · 1각’ 머리·다음 각 표시)을 더하고 `JeongganboMetrics.practiceBoard`를 추가. 연습 화면을 U1~U9대로 새로 구성(`PracticeHeaderParts`·`PracticePlayer`·`PracticeBottomBar`·`PracticePanels`·`PracticeDialogs`·`PracticeFingeringPage`·`PracticeBoardScore`). 공동 컴포넌트 변경: `EolssuDialog` 보드 규격, `EolssuBottomSheet` 흰 바탕·먹색 스크림, `SheetHeader` Song Myung 18, `EolssuSwitch` 연두·크기 인자, `EolssuButton` Secondary 흰 바탕·Ghost 추가, `PageHeading(compact)`, 아이콘(Cog·MicOff·Speaker·메뉴 3종). `MicPermission`에 ‘다시 묻지 않음’ 판정·설정 열기를 더하고 Android 구현. 마이크 거부는 연습 화면 안 대화상자로(`EolssuNavHost`의 되돌아가기·스낵바 제거). 검증·캡처는 아래 기록에 이어 적는다.
 - 2026-11-02 (357 에뮬레이터 검증, Medium_Phone_API_37.0 · Android 에뮬레이터 1080×2400 · 마이크 입력 없음 · 실기기 아님): 연습 준비(보드 악보·안내 문구·모범 연주 카드·연주 평가 시작·안내), 설정 시트(악기 선택·3개 메뉴 행·운지법과 함께 보기), 운지 보기 페이지(6정간 표·이전/다음), 율명·장단·속도 패널과 하위 패널에서 뒤로 → 설정 시트 복귀, 카운트다운(3·2·1 · 시작 취소), 연주 중 하단 바(시간 · 전체 · % · 입력 감지/입력 없음 · 진행 막대 · 박 점 · 처음부터 다시/연주 중단), ‘소리가 잘 들리지 않아요’ 배너와 ‘연주 중 · 소리 입력 없음’ 상태, 대화상자 6종(연주를 마칠까요? · 지금 연주를 버리고 처음부터 시작할까요? · 나가면 이번 연주는 저장되지 않아요. · 연주를 마쳤어요 · 연주가 중단되었어요 · 마이크 권한 안내)의 문구·버튼·순서가 보드와 같음을 캡처로 확인. ‘계속 연주’는 보드대로 3·2·1 뒤 멈춘 자리부터 이어진다. 권한 거부(PermDenied·PermBlocked)는 이미 허용된 에뮬레이터라 열리지 않아 코드 경로만 테스트(`denyMic`)로 확인. 모범 연주는 서버에 아리랑 음원이 없어(`Unavailable`, 카드에 ‘음원이 아직 등록되지 않았어요’) 재생·±5초를 확인하지 못함(8절 서버 의존). 음원이 없을 때 모드가 `Model`에 머물러 악보 첫 정간에 진행 선이 남는 것은 c4f2477과 같은 기존 동작이라 이번 범위에서 바꾸지 않음. 태블릿 배치(Medium·Expanded)는 컴파일만 확인(태블릿 AVD 없음), iOS는 Windows라 미검증. 안 쓰는 `practice_*` 문자열 21개 삭제 후 `testAndroidHostTest`·`assembleDebug`·`compileKotlinWasmJs`·`compileKotlinJs`로 재확인.
 - 2026-11-02 (359 구현·검증): 357 병합 뒤 develop `ba888d0`에서 `feat(fe)/S15P31E102-359-연습-기록·성장-화면을-연두-디자인-보드-기준으로-개편` 생성, Jira 359를 스프린트 4 `진행 중`으로 옮김. 기록 목록 · 기록 상세 · 기록지를 6.3 결정대로 보드에 맞추고 `GrowthBoardTest` 5개 추가. 에뮬레이터(Medium_Phone_API_37.0, 실기기 아님)는 기록 저장소가 운영에서 ‘사용 불가’이고 서버 기록지 통계를 받지 못해, 예시 기록·예시 곡·가짜 통계·예시 점수 추이를 임시로 연결해 목록 · 상세 · 기록지 주/월을 보드와 대조했다(임시 변경은 되돌려 커밋하지 않음). `testAndroidHostTest`(552개, 실패 0)·`assembleDebug`·`compileKotlinWasmJs`·`compileKotlinJs` 통과. 태블릿 배치는 컴파일만, iOS는 미검증.
+- 2026-11-02 (369 구현): 359 브랜치 위에 `feat(fe)/S15P31E102-369-연습-기록-저장·목록·상세-재생·삭제를-기록-API에-연결` 생성, Jira 369를 송가연 담당 · 스프린트 4 `진행 중`으로 옮김. 6A대로 구현하고 `HttpPracticeRecordRepositoryTest`(8)·`RecordDetailPlaybackTest`(6)·`RecordListLoadTest`(1) 추가. `testAndroidHostTest`(580개, 실패 0)·`assembleDebug`·Wasm·JS 컴파일 통과. 에뮬레이터는 실패 안내 화면까지 확인했다. 테스트 계정이 없어 실서버 목록·재생은 미확인. `wasmJsTest`(573개)도 온라인으로 통과.
