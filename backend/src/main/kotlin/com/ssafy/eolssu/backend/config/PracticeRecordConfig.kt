@@ -1,7 +1,10 @@
 package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
+import com.ssafy.eolssu.backend.feature.practice.domain.RECORDING_READ_URL_TTL
+import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
+import com.ssafy.eolssu.backend.feature.record.application.GetRecordingPlayback
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
@@ -30,4 +33,9 @@ class PracticeRecordConfig {
 
     @Bean
     fun getPracticeRecords(records: PracticeRecords, columns: ScoreColumns) = GetPracticeRecords(records, columns)
+
+    // 다시 듣기 주소는 녹음 저장소(PRA-02)의 서명 URL이고, 유효 시간은 분석 요청과 같은 15분이다.
+    @Bean
+    fun getRecordingPlayback(records: PracticeRecords, storage: RecordingStorage) =
+        GetRecordingPlayback(records, storage::readUrl, RECORDING_READ_URL_TTL, Clock.systemUTC())
 }

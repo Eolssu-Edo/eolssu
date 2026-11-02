@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
+import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.LocalDateTime
@@ -40,6 +41,8 @@ class GetPracticeRecordsTests {
             queries += listOf(userId, songId, sort, offset, limit)
             return page
         }
+
+        override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
     }
 
     private var columnReads = 0

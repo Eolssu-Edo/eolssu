@@ -43,6 +43,9 @@ data class SongRecordSummary(
 /** 곡 안 기록 정렬. 같은 시각이면 세션 ID 순이다. */
 enum class RecordSort { NEWEST, OLDEST }
 
+/** 다시 들을 녹음 원본(REC-03). [key]는 녹음 저장소 키라 응답·로그에 내보내지 않는다. */
+data class RecordingFile(val key: String, val durationMs: Int?)
+
 /** 구간 첫·끝 음표의 각(0부터). */
 data class ColumnRange(val start: Int, val end: Int)
 
@@ -74,4 +77,7 @@ interface PracticeRecords {
 
     /** 한 곡의 기록을 [sort] 순으로 [offset]부터 [limit]개. */
     fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int): List<RecordSession>
+
+    /** 본인 세션의 녹음. 저장 여부는 보지 않는다. 녹음이 없거나 기록을 지운 세션이면 null. */
+    fun findRecording(sessionId: Long, userId: Long): RecordingFile?
 }

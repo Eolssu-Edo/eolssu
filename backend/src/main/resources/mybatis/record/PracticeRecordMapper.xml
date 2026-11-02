@@ -47,6 +47,12 @@
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
+    <!-- 다시 듣기(REC-03)는 저장 전 결과 화면에서도 쓴다. 상태·저장 여부는 보지 않는다 -->
+    <select id="findRecording" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.RecordingFileRow">
+        SELECT recording_url, recording_duration_ms FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND recording_url IS NOT NULL AND record_deleted_at IS NULL
+    </select>
+
     <!-- 다시 보내도 처음 저장 시각은 그대로다(멱등) -->
     <update id="save">
         UPDATE practice_sessions

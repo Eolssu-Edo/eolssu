@@ -9,10 +9,14 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.Date
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -68,6 +72,7 @@ class PracticeRecordApiDatabaseTests {
         jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 991342 AND 991359")
         jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 991342 AND 991359")
         jdbc.update("DELETE FROM users WHERE id IN (991342,991343)")
+        recordingRoot.toFile().listFiles()?.forEach { it.deleteRecursively() }
     }
 
     @Test
@@ -198,6 +203,42 @@ class PracticeRecordApiDatabaseTests {
         }
     }
 
+    @Test
+    fun `issues a playback address for the member's own recording that the storage actually serves`() {
+        val audio = "m4a-bytes-991342".toByteArray()
+        val file = recordingRoot.resolve(recordingKey(991342))
+        Files.createDirectories(file.parent)
+        Files.write(file, audio)
+        val before = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+        val playback = result(recording(991342, OWNER))
+        val after = Instant.now()
+        // 저장하지 않은 세션도 결과 화면에서 다시 들을 수 있다.
+        assertNull(jdbc.queryForObject("SELECT saved_at FROM practice_sessions WHERE id=991342", LocalDateTime::class.java))
+        assertEquals(listOf("991342", "2876", "audio/mp4"), listOf("sessionId", "durationMs", "contentType").map { playback.path(it).asString() })
+        val expiresAt = Instant.parse(playback.path("urlExpiresAt").asString())
+        assertTrue(expiresAt >= before.plusSeconds(900) && expiresAt <= after.plusSeconds(900), "$expiresAt")
+        val url = URI(playback.path("playbackUrl").asString())
+        assertEquals("recordings.test", url.host)
+        // 서명은 호스트를 덮지 않으므로 이 서버의 로컬 읽기 주소로 바꿔 실제로 받아 본다.
+        val served = client.send(
+            HttpRequest.newBuilder(URI("http://localhost:$port${url.rawPath}?${url.rawQuery}")).GET().build(),
+            HttpResponse.BodyHandlers.ofByteArray(),
+        )
+        assertEquals(200, served.statusCode())
+        assertEquals("audio/mp4", served.headers().firstValue("Content-Type").orElse(null))
+        assertContentEquals(audio, served.body())
+
+        jdbc.update("UPDATE practice_sessions SET recording_url=NULL WHERE id=991346")
+        for (sessionId in listOf(991344L, 991345L, 991346L, 999999L)) assertEquals(404, recording(sessionId, OWNER).statusCode(), "$sessionId")
+        assertEquals(401, recording(991342, null).statusCode())
+        assertEquals(400, recording(0, OWNER).statusCode())
+        // 저장소가 주소를 만들지 못하면(로컬 저장소가 받지 않는 옛 키) 503이다.
+        jdbc.update("UPDATE practice_sessions SET recording_url='legacy/991343.m4a' WHERE id=991343")
+        val unavailable = recording(991343, OWNER)
+        assertEquals(503, unavailable.statusCode())
+        assertEquals("SERVICE_UNAVAILABLE", json.readTree(unavailable.body()).path("result").path("errorCode").asString())
+    }
+
     private fun session(
         id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int,
         songId: Long = 1, startedAt: String = "2026-11-01 10:00:00",
@@ -206,9 +247,12 @@ class PracticeRecordApiDatabaseTests {
             """INSERT INTO practice_sessions(id,user_id,song_id,score_version,bpm,bpm_unit,start_note_idx,end_note_idx,recording_url,recording_bytes,
                recording_duration_ms,recording_sample_rate,recording_channels,status,analysis_attempt,analysis_started_at,started_at,ended_at)
                VALUES(?,?,?,?,96,'DOTTED_QUARTER',?,?,?,1024,2876,44100,1,?,1,'2026-11-01 10:00:40',?,'2026-11-01 10:00:30')""",
-            id, userId, songId, scoreVersion, start, end, "recordings/$id/test.m4a", status, startedAt,
+            id, userId, songId, scoreVersion, start, end, recordingKey(id), status, startedAt,
         )
     }
+
+    // 녹음 저장소가 받는 키 형식(recordings/{세션}/{UUID}.m4a)을 따른다.
+    private fun recordingKey(sessionId: Long) = "recordings/$sessionId/00000000-0000-4000-8000-%012d.m4a".format(sessionId)
 
     private fun evaluation(sessionId: Long, total: Int) {
         jdbc.update(
@@ -237,6 +281,9 @@ class PracticeRecordApiDatabaseTests {
     private fun get(sessionId: Long, user: Long?): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
 
+    private fun recording(sessionId: Long, user: Long?): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId/recording"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
     private fun list(user: Long?, query: String): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
 
@@ -254,11 +301,18 @@ class PracticeRecordApiDatabaseTests {
     }
 
     companion object {
+        // 로컬 녹음 저장소는 심볼릭 링크가 낀 경로를 거부한다(macOS의 /var 등). 실제 경로로 바꿔 쓴다.
+        val recordingRoot: Path = Files.createTempDirectory("practice-records-").toRealPath()
+
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("eolssu.security.jwt-secret") { SECRET }
+            registry.add("eolssu.recording-storage.type") { "local" }
+            registry.add("eolssu.recording-storage.local-directory") { recordingRoot.toString() }
+            registry.add("eolssu.recording-storage.local-read-base-url") { "http://recordings.test/api/recordings/read" }
+            registry.add("eolssu.recording-storage.local-signing-secret") { "practice-record-recording-read-key-342" }
             registry.add("spring.datasource.url") { requireNotNull(System.getenv("TEST_DB_URL")) }
             registry.add("spring.datasource.username") { requireNotNull(System.getenv("TEST_DB_USERNAME")) }
             registry.add("spring.datasource.password") { requireNotNull(System.getenv("TEST_DB_PASSWORD")) }

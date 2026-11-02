@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
+import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.Clock
@@ -48,6 +49,8 @@ class PracticeRecordListControllerTests {
             queries += listOf(userId, songId, sort, offset, limit)
             return listOf(record, record.copy(sessionId = 502, startNoteIdx = 2, endNoteIdx = 3, viewedAt = record.savedAt, recordingAvailable = false, memo = null))
         }
+
+        override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
     }
     private val columns = ScoreColumns { _, _ -> listOf(0, 0, 1, 1, 2, 2) }
     private val mvc = MockMvcBuilders.standaloneSetup(

@@ -33,7 +33,12 @@ interface PracticeRecordMapper {
         @Param("offset") offset: Long,
         @Param("limit") limit: Int,
     ): List<RecordSessionRow>
+
+    /** 본인 세션의 녹음 키와 길이. 저장 여부는 보지 않고, 녹음이 없거나 기록을 지웠으면 null. */
+    fun findRecording(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): RecordingFileRow?
 }
+
+data class RecordingFileRow(val recordingUrl: String, val recordingDurationMs: Int?)
 
 data class SongRecordSummaryRow(
     val songId: Long,
