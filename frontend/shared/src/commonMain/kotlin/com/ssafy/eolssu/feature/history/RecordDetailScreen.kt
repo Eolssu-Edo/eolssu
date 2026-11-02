@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.compose.foundation.border
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
+import com.ssafy.eolssu.feature.history.component.HistoryBoardTopBar
+import eolssu.shared.generated.resources.records_section
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +26,6 @@ import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboView
@@ -69,7 +72,7 @@ fun RecordDetailScreen(
     actions: RecordDetailActions,
 ) {
     if (state.record == null || state.song == null) {
-        EolssuScaffold(topBar = { EolssuTopBar(stringResource(Res.string.record_detail_title), onBack = actions.onBack) }) {
+        EolssuScaffold(containerColor = EolssuTheme.colors.surface, topBar = { HistoryBoardTopBar(stringResource(Res.string.record_detail_title), null, actions.onBack, bottom = 8.dp) }) {
             RecordSongLookupContent(state, actions)
         }
         return
@@ -88,7 +91,7 @@ internal fun recordDetailSubtitle(record: PracticeRecord?): String? = record?.le
         Res.string.record_detail_subtitle,
         "${monthDayLabel(it.recordedAt)} ${timeLabel(it.recordedAt)}",
         it.songTitle,
-        it.section ?: stringResource(Res.string.record_detail_whole),
+        it.section?.let { s -> stringResource(Res.string.records_section, s) } ?: stringResource(Res.string.record_detail_whole),
     )
 }
 
@@ -98,14 +101,16 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
     val song = state.song
     val colors = EolssuTheme.colors
     EolssuScaffold(
+        containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuTopBar(stringResource(Res.string.record_detail_title), onBack = actions.onBack, subtitle = recordDetailSubtitle(record)) },
+        topBar = { HistoryBoardTopBar(stringResource(Res.string.record_detail_title), recordDetailSubtitle(record), actions.onBack, bottom = 8.dp) },
         bottomBar = { if (song != null && record != null) PlaybackBarContent(state, actions, gap = 12.dp) },
     ) {
         if (record == null || song == null) return@EolssuScaffold
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
             Row(
-                Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -135,6 +140,7 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
                 follow = state.follow,
                 errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
                 onEventClick = { actions.onSeek(it.index) },
+                look = JeongganboLook.Record,
             )
         }
     }

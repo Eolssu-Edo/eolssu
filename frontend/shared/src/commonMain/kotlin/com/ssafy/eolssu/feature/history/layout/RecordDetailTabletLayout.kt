@@ -58,6 +58,7 @@ internal fun RecordDetailTabletLayout(
     val song = state.song
     val colors = EolssuTheme.colors
     EolssuScaffold(
+        containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = { HistoryTopBar(frame, stringResource(Res.string.record_detail_title), recordDetailSubtitle(record), actions.onBack) },

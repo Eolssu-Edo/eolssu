@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.feature.history.component.ScoreTrendCard
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,11 +53,12 @@ fun GrowthScreen(
     }
     val stats = (state.load as? GrowthLoad.Loaded)?.stats
     EolssuScaffold(
+        containerColor = EolssuTheme.colors.surface,
         contentMaxWidth = frame.contentMaxWidth,
-        topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack) },
+        topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack, bottom = 10.dp) },
     ) {
         if (stats != null && widthClass == WindowWidthClass.Expanded) {
-            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords)
+            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords, state.scoreTrend, state.today)
             return@EolssuScaffold
         }
         Column(
@@ -72,6 +75,7 @@ fun GrowthScreen(
             }
             GrowthTiles(stats, spacing)
             BarChartCard(stats, spacing)
+            ScoreTrendCard(state.scoreTrend, state.today, spacing)
             stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
             GrowthLinks(stats, state.completedSteps, spacing, onOpenSteps, onOpenRecords)
         }

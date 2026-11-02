@@ -60,7 +60,7 @@ internal val RecordScorePortrait = JeongganboMetrics(columnWidth = 82.dp, cellHe
 /** 태블릿 가로 두 칸 배치의 정간보 크기(`Tab-Records-Land`: 각 58 · 정간 40). */
 internal val RecordScoreLandscape = JeongganboMetrics(columnWidth = 58.dp, cellHeight = 40.dp, yulSize = 17.sp, auxSize = 9.sp)
 
-/** 큰 점수(명조) + 작은 '점'. */
+/** 큰 점수(Noto Serif 굵게) + 작은 '점'. */
 @Composable
 internal fun RecordScoreText(record: PracticeRecord, size: TextUnit) {
     val colors = EolssuTheme.colors
@@ -69,7 +69,8 @@ internal fun RecordScoreText(record: PracticeRecord, size: TextUnit) {
             append("${record.score}")
             withStyle(SpanStyle(fontSize = 12.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)) { append(stringResource(Res.string.records_score_unit)) }
         },
-        style = EolssuTheme.serif.brand.copy(fontSize = size, lineHeight = size),
+        // 보드: 점수는 Noto Serif KR 굵게.
+        style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Bold),
     )
 }
 
@@ -98,7 +99,7 @@ internal fun SwitchBox(
     fillLabel: Boolean = true,
 ) {
     Row(
-        modifier.border(1.dp, EolssuTheme.colors.line, RoundedCornerShape(12.dp)).padding(horizontal = paddingH, vertical = 8.dp),
+        modifier.border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(12.dp)).padding(horizontal = paddingH, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(if (fillLabel) 0.dp else 10.dp),
     ) {
@@ -107,7 +108,8 @@ internal fun SwitchBox(
             modifier = if (fillLabel) Modifier.weight(1f) else Modifier,
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
         )
-        EolssuSwitch(checked, onToggle, label)
+        // 보드: 40×24, 켜면 연두 · 끄면 `#EEEBE3`.
+        EolssuSwitch(checked, onToggle, label, width = 40.dp, height = 24.dp, offColor = EolssuTheme.colors.surfaceStrong)
     }
 }
 
@@ -140,7 +142,7 @@ internal fun PlaybackSlider(state: RecordDetailUiState, actions: RecordDetailAct
         onValueChange = { actions.onSeek(it.toInt()) },
         valueRange = 0f..(state.eventCount - 1).coerceAtLeast(1).toFloat(),
         modifier = modifier.height(24.dp).semantics { contentDescription = seekLabel },
-        colors = SliderDefaults.colors(thumbColor = colors.text, activeTrackColor = colors.text, inactiveTrackColor = colors.surfaceStrong),
+        colors = SliderDefaults.colors(thumbColor = colors.primary, activeTrackColor = colors.primary, inactiveTrackColor = colors.surfaceStrong),
     )
 }
 
@@ -171,8 +173,8 @@ internal fun WeakSectionButton(onClick: () -> Unit, modifier: Modifier = Modifie
         onClick = onClick,
         modifier = modifier.height(height),
         shape = CircleShape,
-        color = colors.background,
-        border = BorderStroke(1.dp, colors.line),
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Box(Modifier.padding(horizontal = paddingH), contentAlignment = Alignment.Center) {
             Text(
@@ -204,8 +206,8 @@ private fun SkipButton(text: String, label: String, size: Dp, onClick: () -> Uni
         onClick = onClick,
         modifier = Modifier.size(size).semantics { contentDescription = label },
         shape = CircleShape,
-        color = EolssuTheme.colors.background,
-        border = BorderStroke(1.dp, EolssuTheme.colors.line),
+        color = EolssuTheme.colors.surface,
+        border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))

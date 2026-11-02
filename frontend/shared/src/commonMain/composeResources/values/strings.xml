@@ -283,6 +283,8 @@
     <string name="records_best">최고</string>
     <string name="records_score_unit">점</string>
     <string name="records_whole">전체 연주</string>
+    <string name="records_section">%1$s 구간</string>
+    <string name="records_row_today">오늘 · %1$s</string>
     <string name="records_just_saved">방금 저장</string>
     <string name="records_today">오늘</string>
     <string name="records_meta_whole">녹음 %1$s · %2$d BPM</string>
@@ -324,9 +326,13 @@
     <string name="growth_change_last_month">지난달보다 %1$s</string>
     <string name="growth_score_change">%1$s점</string>
     <string name="growth_streak">%1$d일 연속</string>
-    <string name="growth_practice_days">%1$d일 연습</string>
+    <string name="growth_per_week">주 %1$s회</string>
+    <string name="growth_score_trend">점수 변화 · 최근 %1$d회</string>
+    <string name="growth_score_trend_range">%1$d → %2$d점</string>
+    <string name="growth_score_trend_today">오늘</string>
+    <string name="growth_score_trend_section">%1$s 구간</string>
+    <string name="growth_score_trend_desc">최근 %1$d회 점수 %2$s점</string>
     <string name="growth_items">항목별 성장 · 첫 기록 → 최근</string>
-    <string name="growth_items_basis">%1$s · %2$d BPM 기준</string>
     <string name="growth_best_none">아직 없어요</string>
     <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
     <string name="growth_retry">다시 시도</string>

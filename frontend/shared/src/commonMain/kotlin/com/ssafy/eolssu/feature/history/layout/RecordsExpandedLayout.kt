@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history.layout
 
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ internal fun RecordsExpandedLayout(
 ) {
     val spacing = RecordListSpacing.Pane
     EolssuScaffold(
+        containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = { HistoryTopBar(frame, title, subtitle, onBack) },
