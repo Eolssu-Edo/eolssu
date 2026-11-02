@@ -61,7 +61,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p172 ngc-standard-2022-p173 ngc-standard-2022-p174
 ```
 
-결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소 음역) 대신 12율 읽기 규칙만 검사합니다. 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소·소금 음역)로 검사합니다. 서비스 소금 4곡은 표준악보집 판본(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)입니다. 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
 
 ## 녹음 정답 기록
 

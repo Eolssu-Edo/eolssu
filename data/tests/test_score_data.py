@@ -192,24 +192,26 @@ class ConvertTests(unittest.TestCase):
 
 
 ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
+# 서비스 소금 4곡(표준악보집 아리랑 PDF194·도라지타령 PDF192·밀양아리랑 PDF193·닐리리야 PDF196)
+SERVICE_SOGEUM = ["ngc-standard-2022-p194", "ngc-standard-2022-p192", "ngc-standard-2022-p193", "ngc-standard-2022-p196"]
 # 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
 SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
 
 class AnswerTests(unittest.TestCase):
-    """저장소의 채점 정답(단소 4곡, 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
+    """저장소의 채점 정답(단소 4곡, 서비스 소금 4곡, 평가용 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
 
     def test_answers_pass_schema_and_invariants(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        for source_id in ANSWERS + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
 
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re
-        for source_id in ANSWERS + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
             jgb = next((DATA / "annotations/scores" / source_id).glob("*.jgb.json"))
             melody = melody_of(json.loads(jgb.read_text(encoding="utf-8")))
             kinds = [e["kind"] for e in convert_answer(source_id)["events"]]
@@ -221,8 +223,22 @@ class AnswerTests(unittest.TestCase):
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
 
+    def test_service_sogeum_answers_take_song_info_from_songs_and_use_listed_pitches(self):
+        titles = {"ngc-standard-2022-p194": "아리랑", "ngc-standard-2022-p192": "도라지타령",
+                  "ngc-standard-2022-p193": "밀양아리랑", "ngc-standard-2022-p196": "늴리리야"}
+        for source_id in SERVICE_SOGEUM:
+            result = convert_answer(source_id)
+            self.assertEqual((result["score"]["title"], result["score"]["instrument"]), (titles[source_id], "SOGEUM"))
+            self.assertEqual(check(result), [], source_id)
+
+    def test_check_finds_sogeum_pitch_missing_from_table(self):
+        result = convert_answer("ngc-standard-2022-p194")
+        note = next(e for e in result["events"] if e["kind"] == "NOTE")
+        note["yul"], note["octave"] = "응", 2  # 율명 표에 없는 중청응
+        self.assertTrue(any("율명 표에 없다" in p for p in check(result)))
+
     def test_answers_outside_songs_take_song_info_from_review(self):
-        # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
+        # 평가용 교과서 소금 정답. 곡 정보는 검토 기록의 song에서 읽고, 율명은 소금 행이 있는 율명 표로 검사한다.
         result = convert_answer("school-textbook-sogeum-p16")
         self.assertEqual((result["score"]["title"], result["score"]["instrument"]), ("도라지타령", "SOGEUM"))
         self.assertEqual(result["music"]["jangdan"], "세마치")

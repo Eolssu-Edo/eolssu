@@ -1,0 +1,30 @@
+{
+ "sourceId": "ngc-standard-2022-p194",
+ "sourceHashes": {
+  "ngc-standard-2022-p194": "e7c494c132c8a819a9012ac0926707e37dc12d17d4393738b854c219677da57f"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "아리랑_정간보_소금_표준악보집-PDF194.jgb.json",
+  "sha256": "672e79bc1851386d96d64ba76d29006686acdddff1e21cae41274ef1953f283f",
+  "note": "팀 소금 정간보 묶음(sogeum_dataset, 2026-10-26 S15P31E102-130 검토 화면으로 원본 대조) 사본"
+ },
+ "answerApproval": null,
+ "sourceValues": {
+  "jangdan": "세마치",
+  "meter": "3소박 3박자",
+  "tempo": null,
+  "note": "악보에 빠르기 표기 없음",
+  "beatsPerJeonggan": "1",
+  "beatsPerJeongganBasis": "원본 장구 기호 칸에서 세마치 한 장단(9소박, 3박)이 정간 3개에 걸침 → 정간 하나 = 1박(점4분음표). 같은 곡 단소 표준악보집 판본과 같은 기보"
+ },
+ "serviceSettings": {
+  "hwang": "E♭4 (311.13Hz)",
+  "tempoBpm": null,
+  "note": "장단 기본 BPM은 팀 표를 따른다. jgb의 편집기 tempoBpm은 쓰지 않는다"
+ },
+ "title": "아리랑_소금",
+ "source": "input"
+}
