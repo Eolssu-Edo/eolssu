@@ -112,7 +112,7 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/terms","listTerms","약관","시행 중인 약관 목록",
         "code별 현재 시행 버전 1개를 반환합니다. 시행 시각이 같으면 더 큰 ID를 선택합니다.",TermsResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/users/me","getMyInfo","회원","내 정보와 학습 설정 조회",
-        "회원 정보·선택 악기·기본 악보 표기·연결된 소셜 제공자를 반환합니다.",MyInfoResult::class.java),
+        "회원 정보·선택 악기·기본 악보 표기·연결된 소셜 제공자를 반환합니다. hasPassword는 저장된 비밀번호 해시 존재 여부의 필수 boolean이며 이메일·소셜 연결 유무와 독립적입니다. 해시 원문은 반환하지 않습니다.",MyInfoResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me","changeNickname","회원","닉네임 수정",
         "공백이 아닌 최대 60자 닉네임을 저장합니다.",MyProfileResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me/preferences","changePreferences","회원","악기와 악보 표기 설정",
