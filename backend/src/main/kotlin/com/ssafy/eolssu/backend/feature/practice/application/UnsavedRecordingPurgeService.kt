@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled
  * 저장하지 않은 녹음을 업로드(`ended_at`) 30일 뒤 매일 04:30(Asia/Seoul)에 지운다(S15P31E102-375).
  * 탈퇴 일괄 삭제(04:00)·백업(매시 10분)과 겹치지 않게 세션 단위의 짧은 갱신으로 처리한다.
  * DB에서 먼저 비워 저장과 겹친 세션을 갱신 조건으로 걸러 내고, 파일을 지우지 못하면 키를 되돌려 다음 날 다시 지운다.
+ * 비우기·파일 삭제·되돌리기는 각각 따로 커밋돼야 한다. 트랜잭션으로 묶으면 저장소 호출(최대 40초) 동안 행 잠금을 쥐고 저장과의 순서도 깨진다.
  */
 class UnsavedRecordingPurgeService(
     private val repository: UnsavedRecordingRepository,
@@ -58,8 +59,10 @@ class UnsavedRecordingPurgeService(
             repository.restore(recording)
         } catch (e: Exception) {
             log.error("Restoring the recording of session {} failed ({})", recording.sessionId, e.javaClass.simpleName, e)
-            false
+            return Outcome.FAILED
         }
+        // 그사이 탈퇴 삭제로 행이 없어졌거나 기록을 지웠다. 파일은 남지만 가리키는 행이 없다.
+        if (!restored) log.warn("Recording of session {} was left without a reference after a failed delete", recording.sessionId)
         return if (restored) Outcome.RESTORED else Outcome.FAILED
     }
 
@@ -90,5 +93,8 @@ class UnsavedRecordingPurgeService(
     }
 }
 
-/** deleted: 지움, skipped: 그사이 저장·변경돼 그대로 둠, restored: 파일 삭제 실패로 키를 되돌림, failed: DB 오류. 남은 녹음은 다음 날 다시 대상이 된다. */
+/**
+ * deleted: 지움, skipped: 그사이 저장·변경돼 그대로 둠, restored: 파일 삭제 실패로 키를 되돌림(다음 날 다시 대상),
+ * failed: DB 오류 또는 파일 삭제 실패 뒤 되돌릴 행이 없음(객체가 남을 수 있어 로그의 세션 ID로 확인한다).
+ */
 data class RecordingPurgeSummary(val deleted: Int, val skipped: Int, val restored: Int, val failed: Int)

@@ -25,7 +25,8 @@ class UnsavedRecordingPurgeServiceTests {
     private val service = UnsavedRecordingPurgeService(
         repository,
         { key ->
-            if (key in failingKeys) throw IllegalStateException("storage down")
+            // 실제 저장소 예외처럼 메시지에 키를 넣어, 서비스가 예외 메시지를 로그에 남기면 아래 로그 검사가 잡게 한다.
+            if (key in failingKeys) throw IllegalStateException("storage down for $key")
             repository.events += "delete $key"
         },
         Clock.fixed(now, ZoneOffset.UTC),
@@ -91,12 +92,14 @@ class UnsavedRecordingPurgeServiceTests {
 
     @Test
     fun `logs carry counts and session ids but never storage keys`(output: CapturedOutput) {
-        repository.expired += listOf(recording(3), recording(5))
-        failingKeys += "recordings/3/a.m4a"
+        repository.expired += listOf(recording(3), recording(5), recording(7))
+        failingKeys += listOf("recordings/3/a.m4a", "recordings/7/a.m4a")
+        repository.gone += 7L
 
         service.runScheduled()
 
-        assertTrue(output.out.contains("deleted=1, skipped=0, restored=1, failed=0"))
+        assertTrue(output.out.contains("deleted=1, skipped=0, restored=1, failed=1"))
+        assertTrue(output.out.contains("Recording of session 7 was left without a reference"))
         assertFalse(output.out.contains("recordings/"))
     }
 

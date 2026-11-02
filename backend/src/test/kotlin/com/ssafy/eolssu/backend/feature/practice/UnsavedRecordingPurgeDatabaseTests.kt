@@ -49,7 +49,8 @@ class UnsavedRecordingPurgeDatabaseTests {
         jdbc.update("UPDATE practice_sessions SET saved_at = '2026-10-01 00:01:00', record_deleted_at = '2026-10-02 00:00:00' WHERE id = 52")
 
         val deleted = mutableListOf<String>()
-        val summary = UnsavedRecordingPurgeService(repository, { deleted += it }, Clock.fixed(now, ZoneOffset.UTC)).purgeExpired()
+        // 묶음 하나에 한 행씩 읽어 실제 SQL의 커서(id > 마지막 ID)와 LIMIT으로 끝까지 넘기는지도 본다.
+        val summary = UnsavedRecordingPurgeService(repository, { deleted += it }, Clock.fixed(now, ZoneOffset.UTC), batchSize = 1).purgeExpired()
 
         assertEquals(RecordingPurgeSummary(deleted = 2, skipped = 0, restored = 0, failed = 0), summary)
         assertEquals(listOf("https://example.test/recording.wav", "recordings/53/a.m4a"), deleted)

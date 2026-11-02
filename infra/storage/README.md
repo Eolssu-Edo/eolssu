@@ -76,7 +76,7 @@ DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 back
 
 각 단계는 승인 뒤 배포 lock 아래에서 변경 전 백업을 받고 한다. 정리 작업이 배포되기 전에 규칙을 지우면 미저장 녹음이 30일 넘게 남으므로 순서를 바꾸지 않는다.
 
-1. 375 병합·배포를 확인한다. `current/privacy`의 시행일이 새 판(`2026-11-03`)이고, backend 로그에 정리 작업 실패가 없는지 본다. 이어 약관 버전을 등록한다([약관 등록](../terms/README.md#버전-등록)).
+1. 375 병합·배포를 확인한다. `current/privacy`의 시행일이 새 판(`2026-11-03`)인지 본다(정리 작업의 첫 실행은 다음 04:30 KST라 결과는 5단계에서 본다). 이어 약관 버전을 등록한다([약관 등록](../terms/README.md#버전-등록)).
 
    ```sh
    sudo python3 <checkout>/infra/terms/publish.py
@@ -98,7 +98,7 @@ DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 back
      AND ended_at < UTC_TIMESTAMP(6) - INTERVAL 30 DAY;
    ```
 
-5. 다음 날 04:30 KST 뒤 backend 로그의 `Unsaved recording purge finished` 줄에서 `failed=0`과 `restored` 수를 확인한다. `restored`가 이어지면 저장소 삭제 권한·연결을 확인한다.
+5. 다음 날 04:30 KST 뒤 backend 로그의 `Unsaved recording purge finished` 줄에서 `failed=0`과 `restored` 수를 확인한다. `restored`가 이어지면 저장소 삭제 권한·연결을 확인한다. `failed`가 있으면 같은 시각의 오류·경고 로그에서 세션 ID를 찾는다. 'left without a reference' 경고는 가리키는 행이 없는 객체가 남았다는 뜻이다.
 
 되돌릴 때는 R2 규칙을 다시 추가하고 이전 JAR로 배포한다. 규칙을 지운 동안 저장한 녹음은 다시 30일 기준으로 지워지므로, 되돌리기 전에 처리방침 판도 함께 정한다.
 
