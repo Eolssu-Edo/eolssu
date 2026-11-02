@@ -1,0 +1,1761 @@
+{
+  "schemaVersion": 1,
+  "basis": "Existing inferred source labels and docs/knowledge/data/sanjo-daegeum.md; groups.analysisBasis, evidence.sequenceDecision/orderedAnchors/labelAnchorIndex and expanded metadata.label.gesture. LABEL is the chosen nominal row label, not a whole-clip monophonic claim; SEQUENCE preserves observed anchor order, LOWER_ANCHOR and DESTINATION are roles without invented event timing. Analysis windows, measured F0, alternatives, repeated rises and review/scoring state remain unchanged. Nominal notation octaves follow the existing 22 pitches and V15 basic mapping; not a tuning correction or scoring approval.",
+  "mappings": [
+    {
+      "assetId": "6aef4a89b9bb22297eec307fa0c4f3989821e8d24b6070362a92a494f55723bb",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-001",
+      "sha256": "2cf8fb04a112d8f470a941f1a8a028287fb688c8014f9eeb8a08189132daa5c1",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "임",
+      "metadataSha256": "4e2b3e1df70c33fc9c0bab73abde952294015fdf1d4aa9b26a08e272d5386e36",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "a1f486611b1a1812f30106cdc87f1d0d53292cae011e60edb98c9c257ec2b683",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-002",
+      "sha256": "2d090a1fbe1b418cbca74694ac34571dbd3acea3d99aefce38b74f1b2e6f37b1",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "남",
+      "metadataSha256": "00718e2cfbcae860a0ab98ba45d82418dc812ba95b453e7f416fc5b316cf4eeb",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "885467ec286427dd351b910a256b483c941aeea193b3dacb181463727acf98ba",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-003",
+      "sha256": "232854fa04867395c78d3bc1686d6df2e25b72b92890a5f4ded5fe14f86b50be",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "무",
+      "metadataSha256": "ddc251f479c28b4df858724ef7d8fcb825f20cf7334ae9c49be9f286d0c3d2a1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "ecd0fe63cf7ccb52785939ea73345f76a710d78c371ed5739e533448b4ae075c",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-004",
+      "sha256": "9fa695473c03970da96cf317f59021b416d288c43bbe6a20fb2c0bc3d57e9058",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "황",
+      "metadataSha256": "e44464dc8f9b146faf8496dfaa70c373b8596e7a53ff3abcaaf2b648566594f6",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "1c8988fa90af82f59bdac30a7d9227856c047d80898c1b9f87d8563eafc25c5d",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-005",
+      "sha256": "0ba481c3d2374b1cae2463ffeed05e6a809afee1aa88a809709e06941c738a92",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "4067dd51e2c92dfed834b6cebebed1c26348ddd6202a57248d76643f1087c3c8",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "0e289a5224bdba9fddce968209269006110a3c2f56b38ee211cd2437822887a3",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-006",
+      "sha256": "20f4f61b5deb9ff1300b061ea100b9fc84a75f9dda7535e32c6a1e2414e031f5",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "고",
+      "metadataSha256": "9480825a4308821a47633ef6891d175840fe05b74f9b0df494541dcc32bf5395",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "b5eb406cb5cdf65bccb35c887e37ccae55f0d0ffdfd0fd860fbf63b5585e295f",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-007",
+      "sha256": "130a49ca044fe319cb1a4baff8b0eb2d11adc9f05e306592f24cae78af314d7f",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "중",
+      "metadataSha256": "f4d5a7e84a92024353cf6901db074a67604f836253654f9a959b30ab0a9b9983",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "01f2bfb77f52fcacba0fb3d911602ef20a0c9ca4eb43036b2a4c7840b3985b21",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-008",
+      "sha256": "de90944472319affeb0f924b391bf934f7c96747367e25e6dfeb44d40c0b449d",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "임",
+      "metadataSha256": "af3fcbf93739ec999cb0058b130e9180c4eb0ed315cf2d1d5efdd18de91475d7",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "382dabd87f41b1b4d0e3989e06fb2dde18160a4403c0aea8278591af48f0c172",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-009",
+      "sha256": "a51b7eaf7fdffec827596fd088c312ac26c6b6a6c966ab90330c7c036a953e45",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "남",
+      "metadataSha256": "508e4133bc757795f3b24c5e23c9ba21987f1aa6d59e444a0c78e95cd9521e63",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "6ee0915efb955f15c87f7d3cca288f5cd5abb49cc63d418a56094971c8f0357b",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-010",
+      "sha256": "a2bd4a034ebe05d536972c83a56d5a0a70255b968b6c4ff6ee191ca591f46043",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "무",
+      "metadataSha256": "1088943dc77d074327add8ab8f887ed3625e07b6db33461fb09df8c8e3ce4bb2",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "4d862b3e957550c57de90d7ce4695c948bbb917c75e5ab70d2b96e40b7d5d232",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-011",
+      "sha256": "6d347fcda281fb2f70644574bac182f07d4ef4b918903de1dc69624cd4613805",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "2dada2639d74bb3ccc11911c41da3fa550a3bc6d3cb33b7d7aaf8e491c1ae2e1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "fb171a3a4e7e2194390945188cd8227c11d5bb62f1b1f378d53127d181039abd",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-012",
+      "sha256": "b6f740bb7e0be8245970f530d3446e76e2b19102cebc15d0f5cffb846f7321ff",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "0062f3cbf9e80b0b5da7c038dca69513b98260965c90ec3246ceb5678ded445f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "221ae858bffd06d8ea2a25354ed5c239095d8771443ca555fcedb6ea2684a7c4",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-013",
+      "sha256": "3929a6613fc0cf278efd36b76660c5b1eebdd53318159a0b81120e163d69e825",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "고",
+      "metadataSha256": "166caabd073eaf1469258775694d19034e542d3a52b5ee7a827010d8f1b55c7b",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "efcbf6adf0a529722382e4429c73028ad8d13886b9d82819c96a38ad400eba15",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-014",
+      "sha256": "0bb87608ba128df72235ae2d7eea28314d6e633afb619bdc118e90cd219dca6f",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "중",
+      "metadataSha256": "c1872e6965b9df7ef7a005c2bdbaa05e7d7b4250ebc3a3f09ab1145b6db70a30",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "98576946c09dceb7eb31adb3d0a848971d6007b2a3897568cc29843c21310225",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-015",
+      "sha256": "12ec00bfc6c6442a26cc727203d26b0eb699132c57717b033a861558a6b7b8ad",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "d46565139b067aa79ba7bd62b5e85b1ab9c6dd7a3b63bf19681d105db3b5397a",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "f4e3a267307f08ada656bd803220a4abbc78c5f4fa2468621bdc26741af5a082",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-016",
+      "sha256": "36fa8d5e290ff44223a7175886e11b687fd86350f2498cf538c297c8686e6b3d",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "1c18f9d5928904a847dc0cd9d950c2ac9856cbf53b957d730fc9694d0f519005",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "96b03737d81d133189dd36c196746a0fb9d4e3084865858d820f1c9a2806648c",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-017",
+      "sha256": "8a5afd4b9ef6c2897b0c350a07152f983a0f351938553a704d11df8ecaeca12b",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "남",
+      "metadataSha256": "fbfd0d874feed29b527b59edfdfb9ba7b94567d2a5ac8e2b343b6ccb7f991204",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "7b94912c307fd0cda631f07f50260e3fa9af7487ca419e4a4fcf9aef934e2c74",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2553.region-018",
+      "sha256": "204cb8f84baf039831a7305b4efe231724625bbcabe2e952d06a12f8d96a37f7",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "931eef7a2a2c014f17b4136f5b3611adb8477b242cadeb012a20336e31e6767f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "0ccd77883ffe434c2ff6bdaffb93492969100644aa93268213eeb4ce2c1995e8",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-001",
+      "sha256": "bdab7dd48363f7ed6809d082d88320ec3b88fa867256cacc9d3021ff6658e563",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "임",
+      "metadataSha256": "8fcf0f1607b55a7a73eee9af6dbe3978311960a348e9b4e1fc02f54c42e9ba00",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "f80ca3cb5dfe76f47bc7f33a4d31f2645a61138e3ac91335105f4b49fd1b5aed",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-002",
+      "sha256": "004fe6426e8930f590cba7870dcee35796f830c38dc75dc2aada6c0b50b1c931",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "남",
+      "metadataSha256": "178ffb6bdf2f58b06ddb380c3379c7affeb52be8f3d6e04897fbf6572f17dc8b",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "14a410a1cdc4927b74e50c96d36b9b68f7bd3e6fd915e285fef517cebd1f467b",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-003",
+      "sha256": "727fb4f8639bb74e19376fcd72e9e7a8b66cc5486aa61554f861314f183c9a6f",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "무",
+      "metadataSha256": "68e7746f69ef8642ce60f25ef7e3dc084140c1720c4f89aab7d615a9d24889b9",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "71ccefa10a87ef09caf19347843e77e17cf46d8aa14c21896254c11f7ed9cf7d",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-004",
+      "sha256": "e11bdfafb6e5561f13b1dbb9e02d738c8dac446cb63db6ba90fabc0ac8f2907d",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "황",
+      "metadataSha256": "1793742699fe7dfcf39f8c441e00f1506b50ab068a249adea4d9b07cfe855ae1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "f9ccbcc718775e061c94c955262941c9579d9f05a1201239c75484899028f686",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-005",
+      "sha256": "d69b361b17db8f1b74414ea3b2b3b2ed519ea9ee79645611fd424b47a6f42c6b",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "56fdec59e40bf5b3fd78b390a6c7feb096c7639b03a087711a6cd9d25dfa41c9",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "f9a8131598cbdedcbf5fec517d06cabbe8cca70f6644584068a9510f04151adf",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-006",
+      "sha256": "85efa2519d0390a915da2cd920ea964133027406e8b3cb59f4708123358a0b63",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "고",
+      "metadataSha256": "221976a891e8e237c4814e77179b071655d37816793397532d9459d625289ccd",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "1825bf247bf151bbef4ddb8f113cca9fa31aa805460e881f9fd429b45fd5f709",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-007",
+      "sha256": "0f71f9d21e9316d4080ea182cc409b54b62e0d52a7cff4f18d11f7e1920f2c8c",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "중",
+      "metadataSha256": "a2f52f1a6a44e8f3e926495d6a8bb61bf948f4c68602f0fe93e0c2d153d72bdd",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "1a7e0b1b9957c65a431387583ea32eba9f56bf28ffec8e5084baa46935ce4f77",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-008",
+      "sha256": "81c687cdc32c4c67faaba467f8a52d3b937d0189ad0f60131357ac434076c6d1",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "임",
+      "metadataSha256": "ccee124afe4cbd36e3507617f3ec531b20908d142447746d9a76e85990d40977",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "cc5a6c1e87439b8031455b47fa18aeba1c3407ce40c62da0888a789d5c9e1c14",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-009",
+      "sha256": "5dd3fb9c5dd4285dbfb6284169de235536fc256ae548fe276488a3b092e9c9a1",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "남",
+      "metadataSha256": "395f64fa824399821254b8913b6774fd50a96250d86b786f9ed997b34c152293",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "809cfe4f3cba202531c23d405c81047d4110d1c4746367d56af9aabdff20228b",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-010",
+      "sha256": "b27cd4986a2d44e59f9c172bb218122c13155c43706295e25dea0d9fb853380d",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "무",
+      "metadataSha256": "9d2f8d192e1c99d0fdab1b0fdd2bf5e7ef9b2120f5aa9f4a1494c5aed3847bf1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "25338ed1a2519831a4e71b76ceccaf54799d45e8631e8bf6eaeac6a664b45df6",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-011",
+      "sha256": "7c0255ec1405b8743f6e27eece751f370a6d5e7ba8045208dad22adac20c228a",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "81523e24ed51916d645d0415d62748924a3692bdfa0e0eca9f2bad8f0bf642c2",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "1791c5465562bc19f939f297ad80f1e01d4b827558d57deaff4fc78e91125563",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-012",
+      "sha256": "961d20f0ac5c667aaaa7133211a0ddc4605a9f21ae4d2390c4299d79b14659a0",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "5db3e525381a01a3f47aa922763353a43b702e3bd997e59c2a7360dce2b4420c",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "ff05331a650d11ac2d716b6bc099351c7878ed2e5eea931edd57b2a7f16b3a68",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-013",
+      "sha256": "2293db5c83d55e507d9ed731a10129f3cc0b0195b897147e453447093c53d200",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "고",
+      "metadataSha256": "b53e5a4ee121deb2accd2c4fd186b752dc250d88e46e25b9314c371177b052b1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "4ea199ac355de5f17625dc3c71fccbd649b7671d4289837a5b293e93f1d45e0a",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2554.region-014",
+      "sha256": "bc0df10293181ac4dfe4950beff19d24a665047a3db2b386792eaa1d1bd403e5",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "중",
+      "metadataSha256": "abfa965db42a0501ea2e85f3f2da1a377fda98dfa02b6c090d3f35bb8b409ff5",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "3bbf90b50c36f09676079b42c73ba5196048bee90bc62988d9127b1af4f64e11",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0001",
+      "sha256": "8ef4f81e3a7ad30c3354d53cb808fed369c6c0e10fee2380815464291a002b31",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "임",
+      "metadataSha256": "e1f0c8e17b7f09cccb7131acbb1e419ba9b13e19499bb479d4c7e62e7f59ecc7",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "d4a7ad3f4928ae58bf3edd5f80609ef2cf53c59b92e0386aa650d84f30fd8c00",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0002",
+      "sha256": "80e0392fa9f10559e5fbf9e101f8e94a1616d207c423a112a8d1902b2d5ba415",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "남",
+      "metadataSha256": "e976f159a88683c4be38981cc86f6d23ceb831234d699b05300fdb62a1040e4e",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "a3825abfacd5027d4973a97bd447c26671026780c957e0d7095a35b416c68472",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0003",
+      "sha256": "05b912263f40ec4a0c4fb4ca493cf454d71f0efc6f4d5cde6382be13e75a157b",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "무",
+      "metadataSha256": "284a0a1734ff960b2e8bc44cd86ec86ca207f192a19bc41b97185469a16e528c",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "a175fc5f41710f8f46af983097895399f84e72d39c5bcb900d0ed7d13846cb0b",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0004",
+      "sha256": "433ecf15fc015c597878478f75795fd1b93ded9ca2ce9633091d6ee8196b01f2",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "황",
+      "metadataSha256": "5a40f274864fd26ee78ace93b12a158b11bc9ef0ce619df0f1af32fa08b95ac3",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "809a2a07c51f8b6b8879aceca0c54e5e9b12e7fddd02da9bf20e6c5bbd82bb13",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0005",
+      "sha256": "b357a0622175d4f67cc65cf8d312ef63cee25f74de6fec5e70c1af5ec1aab6a0",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "fb0ed9168d3aaba222eec8435bcd9cd147cdf8dd00368678292c628f4591932c",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "5aa13022da289e153080b26339e1bd50266819d3ed4a623a83d68d7e1df2d3ec",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0006",
+      "sha256": "be38a40046edeaaab9c54d1ec2383860801722433b6f050977eddb9565e60bab",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "고",
+      "metadataSha256": "7a996d4682b44e528adb1283a8384ddef6d7e18f48f3b5d4fb0ecb14f2d4a281",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "3ff1ee39dd0be1f0c26595a954a03e38de2832f6f9e3aab13016e0b0922351cd",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0007",
+      "sha256": "8d3f4e0a10ddf9805a4322dfd018e2f8daae9062277691dd3742dc7f9f715220",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "중",
+      "metadataSha256": "5dc326b9a3affee5aad068f841ebba3a7808a18a6b0164572885cc21b2b32280",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "83eefec701669ffd011da767737c628b60c882c96016d4e4a354578571ddc72d",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0008",
+      "sha256": "1bee47efba19417cb15049e418f9790065632cfcca3636d703cf15ec9614b161",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "남",
+      "metadataSha256": "ca0f41dfd06bc1cf30b6852a92bce06ba25f35a93213f0f67b2aaaffb1c7159a",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "c72ece74e7c868ff540d31f7d49ae24383ded0237dfb0eb454c2867cc2f494fe",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0009",
+      "sha256": "623833e88bd36bd90083f50b4d9852e5646b47ab7073e483ddce27d83597e62a",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "무",
+      "metadataSha256": "854c2e9bfb5b6faae001e4240729c26f9a6e3b57ae562aaacbc1478399e5a15f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "505b20bec92b0de9859f5c5f61860ffac2e330f6ad550b9f42d940742f370c3a",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0010",
+      "sha256": "3d918648e9f925b2c88bb6e8e153363e0fea5d61f5ce2f707b3756b4a7980ad4",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "7e1d70c9674c24366367548fcf90d7c22daca6c3a0b2e36acdbd1bf6ecf48528",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "f7574bf73af489d760baefd51b14aa48607cb6a737273cfc95169cee9550cb7f",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0011",
+      "sha256": "180fa6b36d7a8569ddd05110bf237ace87fb3da63a392378e06cc7143d4dea16",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "1474feb694e699eeefc45face9b72698d71d4e3ffcda0cfe118274c10dba9c66",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "e487e0839f33845a79b66bad2f97d6a0decf2e6eb2cb22a821a7ea1dda4edbe8",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0012",
+      "sha256": "7b2523c29f25e9f3c4a249880d693bd1ec3329cd6bae1b977f2fc4022ce42303",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "고",
+      "metadataSha256": "0abb95ccce5d99ae0376f010345538e9902826611e746ee2079fc26f870bf249",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "23bffd43b5e2af0855103c09140f8c7dbc2c2e576aeecc1cc65f63e1f05eb386",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0013",
+      "sha256": "77b6af80e33933816ad8491b0c8c06b51f0c80e9c1db320e4721f789d3273f8f",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "중",
+      "metadataSha256": "6f1acc3a78f03de7f4c2e13335b9bf51ef2872a5f6a63ab1f32c53c625eee73f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "f2b92e7c3ce0d7447417ec89c5e4ad2741edfdad634d26f183997709db989d7c",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0014",
+      "sha256": "b507f80c18156351d580ecd86630b7a05838486bc1cdb79fc3ac67ef5b96e9b9",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "0fec2a9519d3c6df85386e9d7c1c244647703f6c02f6047cbd5f9ca1988a5117",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "3c59d06befb122078e1bc6c6f543c5fa6be293de8d018b5b1efdd0dea3919275",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0015",
+      "sha256": "57d9f3ce343be1ce4b5745a3290d4b4798256ca5b5dc0497fb42fa750189c21d",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "남",
+      "metadataSha256": "32bb19227a1938126c9b013389fd5b6cf94dba85c68f51a56d69091560e8c739",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "2cf068398fe4cd023311960ee80589b060e5498d96cf9eff2e0a883733974d50",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0016",
+      "sha256": "90291d2a93fda98428c771b5d98053207b25695e4a68bfcb51311e91eca4b425",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "5d33c4a1048c79ad3329d9b107288a566ef292a886c1bff66ef3f1ee31a9d3d0",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "cbd22d2c0ed2fe25cc0552235ec6384b5d000dc9e8e5894e939c0e240a48008c",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2555.attack-0017",
+      "sha256": "07fab72a57133a3bc72b6f4e9034ed738a07bfdc808675b3fd74b685a312f4d8",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "황",
+      "metadataSha256": "a4544e6a035048a66ef4a5206b2f3e8f3c3bfa6053c5759b3ca8ef06d9c338d1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 2
+        }
+      ]
+    },
+    {
+      "assetId": "057c48086d50911830aa0394ab029668b3018c559d6754d628b847433a64e732",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-001",
+      "sha256": "7ada8e2a483ae97b16c0b4021a3534e5196deba6fb195af752e1b58829d6dc54",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "임",
+      "metadataSha256": "e910252da7f7649735e4dbdd7bd87d09d2a8c65994906ac41ce578191f53a3f2",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "186a7ef6c5c8f0996c015ae78932d87d20a41ed4864aea9a4557cbd31ffd9e09",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-002",
+      "sha256": "ff3adc706d7b972de94e15cfe724d03e1af79aa355c8e6cb7172a737f596dbc0",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "남",
+      "metadataSha256": "2014789883987b16ba0ce1326672fed585ea9f87129e1f822393a7ad0957b9e2",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "63b14a5bb103f2427c4abab79a1f7a7b2672c618422ef09ea85a7c8ee7f27e42",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-003",
+      "sha256": "7f67cbc0754f0eb37a5eba7994301939bc365b2ba2764710b61369800b611948",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "무",
+      "metadataSha256": "55eaed478215c69eaa49f3e3167f2cce619b13f626271f38d503ed4491d3e355",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "8a75e60ee79a1547fa56ef0d7d40e57b5c1c07a2eb4941d57ff9cdabfcd08713",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-004",
+      "sha256": "cc7c29b787337e1632aa04f4d0e61609c2eb492059a2c47aa6a57d1afca51c94",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "dfced62c588b3041836f7c84dae1601c875c36774298ae952e2be9fdeabcd17b",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "2badeebef21363b3407e142c2d9ce31ec0f61e232e1fa91a0c3386730a47e5d2",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-005",
+      "sha256": "4d81db59de606aac90db4b1bf2564c6e31df5aa3615f49a7dde7c2065ad45df8",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "고",
+      "metadataSha256": "f7dbb352097bcbdc4304fbfff6c37733da7aaf917268c18f4d5eeae862f2bcc7",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "3a50221aa9820fede7847589e19f045e10c88d70af4d57e49a521a9556211bd0",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-006",
+      "sha256": "16987428f3bd07a8d7a0e0509b899725afc555d2341b2c903894b08f93e789e9",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "중",
+      "metadataSha256": "9431d11046f4691327bade9c11a504d50a67f840fb92d31c0d10b45e9ba72f01",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "0cb43cb8d2cb558df7a60090d799eaf4ceef6ec4d4d767ed2cd3954d5aff2281",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-007",
+      "sha256": "f6f1d88f153064b2a57564eb6d1f4ccafc0279e710fe7dfb6726e720553309c0",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "임",
+      "metadataSha256": "335776c3adf74191484573de036178028960d220b513f25af0c451ef4195a86d",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "17a48752d5c00ddca68d681ea21b613d3683675cc704b4f47c0f4369a1d2dd63",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-008",
+      "sha256": "d2eea6b6ac745fa97eaa2d2d3bb969bc5cba9fa2b540537916862956406300fa",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "남",
+      "metadataSha256": "49398adbe271f64be3f5d0542a3051de06784d8a8fd309028b3cdf02bd169f95",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "6ce9a2e85746a7c57d8063d414dd02ad5389ad7cf7de850bf9d81c6d53ae46a9",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-009",
+      "sha256": "2f50514acedfa515e95e2b76e104a42814868b1a7e06aca48192e26bda5a84b1",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "무",
+      "metadataSha256": "38fee4307095781fdf5a99e0cac29c8866e9d434447bd56d4368fbc9115c3279",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "0f4ea9a1a1722c66ac2bdca1d1992000c2ab9aec8293c031c9dfde1a350ac1ce",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-010",
+      "sha256": "7ca3e34aed67a534e8d01fae19733e925c3a986a0087c2098f4acb5f71bf139a",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "19a65c9228b2fe837277ce596ffda43c7a08831aeed69da5d3323a669613314c",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "ec6ffc2b1b4dac5270167fd36446b0c8a3b2f8e5ce16b39f6ef0147ceb8ca655",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-011",
+      "sha256": "7f0da99513bf4ef7b85072e1e758ad11798c99306e26b883cfd801575da69634",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "고",
+      "metadataSha256": "f78802b3d9d1fdbc654d447a517e81573099480c32432f665ece4bf1874948d6",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "ab1823f995698cea13b32c7dc4efccf78ce717590a3a32f97d9c12dcd7188bf0",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-012",
+      "sha256": "6eaa56fc43a7883e4a6d0fce1e70938c88a78a9e6fee6a4b2bd5404a6042ea66",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "중",
+      "metadataSha256": "cc5d81784823cd42e43f80e7b6f6aaedb5fd2328f5b949880c3c158ccde6ede0",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "4f4254f458b603cf7cbde4cd56c212b854dc647c423c7aa5eaa00fdb81d55313",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-013",
+      "sha256": "f337dcdfdf4a89e3ff8c4e19a71f29c56847bbfd9ba064011366917ec210d0bf",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "3f518ac2dae55858e20013981ff06cb6b16279966ce9072ec2650f4e49bb12ec",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "670236087f7c372865b165c7dd6909560b917c2637678591d429808045ecc8a4",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-014",
+      "sha256": "fb27d24e9655fd88e9012a8bf3d5dd05e27fcf8fd1ed3580f8b2a8cbfa6b37d2",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "남",
+      "metadataSha256": "eca0f27c8fce0daeb778567ff16fe1fe319517f04439aeac903c3fc4596bf132",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "d4900764c758d237a65e7d652b9846a001a7c9cb985d68706b16c01f8f573e26",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-015",
+      "sha256": "6fc7d1addeca589d0d3e119686d11706bcc0d95ce1a68115a04cec8c716829fa",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "71a75759a9e2402f4ca79b7267f98a7f05e1b86872e7454dbf33ac1272c591d3",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "0ce92e0ac31a9bbeaa3d6d9440b7baf1cbe63d9d80d9a13aeca1598531321397",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2564.region-016",
+      "sha256": "77128d80614746339e27b3db5cbcfbb0c980313c13c5d76a54938af99bda8a08",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "황",
+      "metadataSha256": "fa1e3eaf4943bfcb008d0437f032a4bbc3aa05a88d5a3ba971af74237e8922f3",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 2
+        }
+      ]
+    },
+    {
+      "assetId": "869c593e15e584c8baca2c38c490201f314c223e37fedfda7e75014265cc95c2",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-001",
+      "sha256": "5b668c0ea68f268c75670e23984e293d4176393ff9c51dff9a19c71cf14248a0",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "남",
+      "metadataSha256": "9b8c05b53a522cc2405be5cc474bbbf4aa4e45a245b99e92f039a273694a6b12",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "저취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": -1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        }
+      ]
+    },
+    {
+      "assetId": "3fc4009f91ca6a273f9e690ceb88460d8b4bfe00c75cb41f9e20f648414dc23b",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-002",
+      "sha256": "df85264666931bc03ec6a49194318784b8a9685818807edf33f4e7e62e68ce90",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "421ecfb2722bd1bc6def81dd1b97f77b18b0b3965d83c4e1a20a9079a9377297",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "816240d53d8274780a75811b554e0f663a8ce377c3da6d8ebe874f12079d68d3",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-003",
+      "sha256": "5b263bc04979ffb15ff35af9acb1067b82801b02f2726de0989404ff2b9c14ec",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "태",
+      "metadataSha256": "72714ac7273d6d93c2dc9c19955bb7ab4792a971bc6e36226d872e83bb61a8ee",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "1efe7dc765ba423b95eabe924820d8b4dde50e8ae79f41e67b14a9ea571bc7dd",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-004",
+      "sha256": "c8654539d329dd0750c2872c8fe9904b14fe87d1673667a3fa636049d5b07ce8",
+      "category": "시김새",
+      "register": "저취",
+      "yulmyeong": "고",
+      "metadataSha256": "ccb1fa62739b2d5517ecab66aa28612babbe84ffb14515d67cace3638d66a51b",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "저취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": -1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "저취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "83f2a60cd801a2655cb3a635606f19c183054c104add9ad138a901eb43296a36",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-005",
+      "sha256": "f436af75f1d2ec0b5ba5f8955ba4e7bd0113d9f08144306abfee252549976646",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "임",
+      "metadataSha256": "418d907e5d30ddeff80b1149de21f171d728a699ef50f82f664499ae980dd072",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "저취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 0
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "39100da0c014b66ad7aeb3b82bfadbaaffd050eb4bbaf4d61eba22ea7cd15fa7",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-006",
+      "sha256": "69ab4e0542aa37c56928c018cf12bcba391c4f9a21dd41e3974804e654344bc5",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "남",
+      "metadataSha256": "e5bf5785a83a9355d3347ef93614d748fbba917aeb2d53e60ebde20bb13974df",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        }
+      ]
+    },
+    {
+      "assetId": "9128837f1f3807c61ae0b33a9ff3406f7c9972c6847756fcba6b5fd5f4347c89",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-007",
+      "sha256": "5f0137c20e5c2972094c06d5006ada855e6d1ca7ee2c488a71878feeeb2d7b63",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "f6c91b0c3a37e0b11bacd1fe2e550c5d9a84080885cd51e6eaccd6e77f226bef",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "166b5ac3b47abcafadba4436ba3e461f40786eb1c8404d72f476c5705386f664",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-008",
+      "sha256": "ec2740476b073c6c39b28251037478fcf59ca98a8fbc148c4ad14a5bec45e9b8",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "고",
+      "metadataSha256": "9c5b4ed85d2247e17fd0be6a5759f3712d37aa233026e0b3f492ad1eb836879d",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "평취",
+          "yulmyeong": "남",
+          "yul": "남",
+          "octave": 0
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "평취",
+          "yulmyeong": "고",
+          "yul": "고",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "808103258ba807ab780a699cc743368a6024e1c3bb2adbf7d9d29ac0cded3268",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-009",
+      "sha256": "357363d159f64603c8be4270953c969759b26bb15ffa9d3e8223b80989274dc5",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "86cc832521c88c0f986a6bef22befe206390ecdb7e0927aae4f2969094c4d7ef",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "7b065a21ac6076fbb1057995e06159e21f84143a41d6d5fe590e901ed5dd0518",
+      "datasetId": "sanjo-daegeum",
+      "labelId": "ngc-sanjo-2566.region-010",
+      "sha256": "3176c1fe1b65be291baed4728512f993592547d12296d9ddfd975ee69b31f02e",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "07c3189e1fe2f00d1deb01e9ba47aa3a8fe36c98ca96c97696cb21cbe9e3bb3e",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "LOWER_ANCHOR",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/lowerAnchor",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "DESTINATION",
+          "anchorIndex": 0,
+          "evidencePath": "/label/gesture/destination",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    }
+  ]
+}

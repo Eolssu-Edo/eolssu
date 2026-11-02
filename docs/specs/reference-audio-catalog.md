@@ -2,7 +2,7 @@
 
 - Task: S15P31E102-364, Story S15P31E102-28. 2026-11-02 사용자 요청: Jira 등록, M4A 생성, DB/API 구성.
 - 기존 4악기 라벨링 WAV 430개를 재사용한다. 산조대금 121, 정악대금 107, 단소 56, 소금 146개다.
-- 최종 확정: V15까지 적용해 기본음219개를 연결하고 시김새207개·개별 대안4개는 null로 유지한다. 전역 기준22개·단소 범위15개를 기존 API로 제공한다. 아래30/141개 논의는 후속 결정으로 대체된 이력이다.
+- 최종 확정: V16 역할별 관계로 시김새207개도 연결한다. 기본음219개와 합쳐426개 자산이 연결되며 개별 대안4개만 미연결이다. 전역 기준22개·단소 범위15개와 기존 기본음 `pitchId` 계약은 유지한다. 아래30/141/219개 논의는 후속 결정으로 대체된 이력이다.
 
 ## 동작과 경계
 
@@ -81,3 +81,15 @@ V13은 유지하고 V14에서 FK와 `pitch_mapping_basis`를 추가한다. 둘�
 새 기준은 임/남/무 octave−1, 황/태/고 octave0, 남 octave0, 고/남 octave1, 고/임 octave2다. ID는 DB에서 할당하며 기존 `data/reference/pitches.json`은 단소 전사 기준이므로 확대하지 않는다. 한자는 기존 `data/src/scores/review_page.html`의 HANJA 표를 따른다.
 
 완료 기준을 **기본음219개 연결(단소30·정악54·소금90·산조45), 미연결211개(시김새207·명시적 대안4)**로 대체한다. 기존 단소 매핑/근거와 모두의 inferred/채점 제외/파일을 보존한다. 스키마/기준 데이터가 바뀌므로 clean build와 databaseTest를 다시 실행하고 실제430개 적재·매핑·재실행, 전역22/단소15 조회를 검증한다.
+
+## 후속 확정: 시김새207개의 역할별 음 관계
+
+사용자의 시김새 연결 요청에 따라 기존 라벨 근거를 재사용한다. 기본음 전용 scalar FK를 모든 음형의 대표음으로 확장하는 대신 V16 `reference_audio_pitch_relations`에 자산·역할·관측 순서·기준 음 FK·근거 경로·매핑 근거를 저장한다. 원래 `pitchId`/필터는 기본음 전용으로 유지한다.
+
+- 207자산 모두 `LABEL`(행의 명목상 율명) 1개를 가진다. 단소26·소금12자산에는 `SEQUENCE` 88개, 산조 다루치기10자산에는 `LOWER_ANCHOR`/`DESTINATION` 20개를 추가한다. 총315관계이며 추가 기준 음은 없다.
+- `SEQUENCE`만 원래 orderedAnchors 배열의 0부터 시작하는 순서를 가진다. 다른 역할은 순서가 없고 DB 키용 index=0이다. 목록 정렬은 LABEL, SEQUENCE(index), LOWER_ANCHOR, DESTINATION이며 시간순이라는 뜻이 아니다.
+- 원음 기준 F0 분석창은 음표의 시작/끝이 아니다. 다루치기 반복 횟수로 관측하지 않은 이벤트를 만들지 않는다. labelAnchorIndex, 대안, 검토 근거는 metadata에 보존한다. 연결은 inferred 라벨의 명목상 대응이며 채점 정답 승격이 아니다.
+- 목록/상세 자산은 `pitchRelations: [{role, sequenceIndex: number|null, pitchId: string, evidencePath: string}]`를 추가한다. 기본음은 빈 배열이다. evidencePath는 상세 metadata를 기준으로 한 JSON Pointer다.
+- 새 선택 필터 `relatedPitchId`는 기본음 scalar 또는 역할별 관계의 일치를 찾는다. 기존 필터들과 AND이며 동일 음이 반복돼도 자산은 한 번만 나온다. ID 형식/400은 기존 pitchId와 같다. 목록 관계는 배치 조회하고 재생에는 추가 조회가 없다.
+- 명시적 매핑 CLI는 manifest 파일·자산 식별과 원본 metadata를 검사한다. SQL은 자산/기준 음을 잠그고 전체 관계 집합을 비교한다. 기존 집합이 완전히 같으면 no-op, 부분/추가/충돌·누락 대상·근거 변경이면 전체 배치를 거부한다. 기존 import 역시 metadata 충돌을 거부하므로 관계가 낡은 근거 위에 남지 않는다.
+- 완료 검증: V16 제약, 순서/역할/근거 대응, atomic conflict/replay, 기존 scalar 필터 보존, 새 필터 중복 방지, 실제430개 중426연결·4미연결 및 모든 상태/파일/metadata 보존, clean build/databaseTest/Python/HTTP.

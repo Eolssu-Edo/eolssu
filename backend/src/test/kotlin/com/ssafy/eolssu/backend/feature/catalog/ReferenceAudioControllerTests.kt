@@ -20,6 +20,7 @@ class ReferenceAudioControllerTests {
             return listOf(asset)
         }
         override fun published(assetId: String) = asset.takeIf { it.assetId == assetId }
+        override fun pitchRelations(assetIds: List<String>) = emptyList<ReferenceAudioPitchRelation>()
     }
     private fun mvc(urls: ReferenceAudioReadUrls = ReferenceAudioReadUrls { key ->
         signed = key
@@ -53,6 +54,13 @@ class ReferenceAudioControllerTests {
             mvc().perform(get("/api/reference-audios").param("datasetId", "danso").param("pitchId", id))
                 .andExpect(status().isBadRequest).andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
         }
+    }
+
+    @Test fun `related pitch rejects invalid identifiers and leaves basic relation empty`() {
+        mvc().perform(get("/api/reference-audios").param("datasetId", "danso").param("relatedPitchId", "01"))
+            .andExpect(status().isBadRequest)
+        mvc().perform(get("/api/reference-audios").param("datasetId", "danso"))
+            .andExpect(status().isOk).andExpect(jsonPath("$.result.items[0].pitchRelations").isEmpty)
     }
 
     @Test fun `pitch identity is a nullable string and filter accepts the Long upper bound`() {

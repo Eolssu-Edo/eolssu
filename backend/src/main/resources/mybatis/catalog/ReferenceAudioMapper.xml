@@ -11,10 +11,18 @@
         <if test="filter.registerName != null">AND register_name=#{filter.registerName}</if>
         <if test="filter.yulmyeong != null">AND yulmyeong=#{filter.yulmyeong}</if>
         <if test="filter.pitchId != null">AND pitch_id=#{filter.pitchId}</if>
+        <if test="filter.relatedPitchId != null">AND (pitch_id=#{filter.relatedPitchId} OR EXISTS (
+            SELECT 1 FROM reference_audio_pitch_relations r
+            WHERE r.asset_id=reference_audio_assets.asset_id AND r.pitch_id=#{filter.relatedPitchId}))</if>
         ORDER BY label_id,asset_id
     </select>
     <select id="findPublishedById" resultType="com.ssafy.eolssu.backend.feature.catalog.domain.ReferenceAudioAsset">
         SELECT <include refid="columns"/> FROM reference_audio_assets
         WHERE asset_id=#{assetId} AND status='PUBLISHED' AND review_status != 'rejected'
+    </select>
+    <select id="findPitchRelations" resultType="com.ssafy.eolssu.backend.feature.catalog.domain.ReferenceAudioPitchRelation">
+        SELECT asset_id,role,anchor_index,pitch_id,evidence_path FROM reference_audio_pitch_relations
+        WHERE asset_id IN <foreach collection="assetIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+        ORDER BY asset_id,FIELD(role,'LABEL','SEQUENCE','LOWER_ANCHOR','DESTINATION'),anchor_index
     </select>
 </mapper>

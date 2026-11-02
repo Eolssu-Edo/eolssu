@@ -2,7 +2,7 @@
 
 Task S15P31E102-364. 2026-11-02. [기능 계약](../../specs/reference-audio-catalog.md), [적재 절차](../../../infra/catalog/README.md).
 
-최종 상태는 **기본음219개 연결·211개 미연결, 기준 음22개·단소 범위15개**다. V15 확장과 사용자 선택을 반영한 마지막 절이 현재 결과이며, 앞의30/141개 결과는 단계별 검증 이력이다.
+현재 상태는 **426자산 연결(기본음219·시김새207), 미연결4개, 기준 음22개·단소 범위15개**다. V16 역할별 관계315개를 추가한 마지막 절이 현재 결과이며, 앞의30/141/219개 결과는 단계별 검증 이력이다.
 
 ## 선택과 범위
 
@@ -142,3 +142,29 @@ R2의 endpoint는 S3 호환 프로토콜을 쓰는 R2 주소다. AWS S3 서비�
 - 별도 읽기 전용 리뷰에서 V15 키/한자/반음,219개 실제 manifest 대응, 정확한4개 예외, 기존 기준/단소 매핑 보존을 확인했고 조치가 필요한 결함은 없었다.
 
 최종 JAR SHA-256은 `ed69688907d9ec534f70ca43e58bd5b90b03201c19e060038398347fbfcf09cf`이다. 같은 Git 제외 검증 폴더에 `complete-backend-validation.log`, `complete-db-verification.json`, `complete-http-verification.json`, `verify_complete_mappings.py`, `verify_complete_http.py`, `complete-mappings/*.sql`을 남겼다. HTTP 검증 후 테스트 행을 DRAFT로 복구하고 앱을 종료했다. 운영 DB·R2·배포·실기기 청취는 수행하지 않았다.
+
+## 시김새207개 연결: 대표 라벨과 관측 안정음의 역할 보존
+
+시김새207개 미연결은 기존 기본음 전용 FK의 구현 범위 때문이었다. 라벨 근거가 없는207개라는 뜻이 아니었다. 사용자 요청으로 기존 annotations/manifest를 전수 대조했으며 207개의 선택 라벨과 내부 안정음은 모두 기존22개 pitches로 표현할 수 있었다. 새 측정·기준 음·파일 재변환은 필요하지 않았다.
+
+기본음 scalar를 전체 자산의 단일 대표음으로 바꾸는 대안, metadata를 매 요청 해석하는 대안, 별도 FK 관계를 추가하는 대안을 비교했다. 기존 scalar/필터 의미를 유지하면서 음 순서·역할과 DB 참조 무결성을 표현하기 위해 V16 `reference_audio_pitch_relations`를 선택했다. 목록은 자산 조회와 관계 배치 조회를 사용하며 새 relatedPitchId는 EXISTS로 자산 중복을 막는다. 기존 FE의 ignoreUnknownKeys와 라벨 기반 앱 재생은 호환된다.
+
+| 대상 | 자산 | LABEL | SEQUENCE | LOWER_ANCHOR / DESTINATION |
+| --- | ---: | ---: | ---: | ---: |
+| 단소 | 26 | 26 | 76 | 0 |
+| 정악대금 | 53 | 53 | 0 | 0 |
+| 소금 | 53 | 53 | 12 | 0 |
+| 산조대금 | 75 | 75 | 0 | 20 |
+| 합계 | 207 | 207 | 88 | 20 |
+
+LABEL은 원래 행 율명이다. 단소 대부분은 마지막 안정음, 소금 내리떠는농음은 농음 전 안정음, 나니르·노니로·노로니르는 장식 뒤 안정음이다. 소금 스타카토41개와 정악 등의 단일 라벨에 내부 이벤트를 만들지 않는다. 원본 orderedAnchors는 SEQUENCE에 순서 그대로 연결한다. 단소2368 첫 임0의 낮은 취음 검토도 metadata에 남는다. [단소 근거](../data/danso.md), [소금 근거](../data/sogeum.md).
+
+산조 다루치기10개는 행 LABEL 외 아래 안정음/도착 안정음 두 역할을 명시한다. 예를 들어2566.region-001은 도착창0.20~0.33초, 아래창0.36~0.41초, 도착창0.44~0.61초다. 아래→도착을 임의 시간순으로 저장하지 않으며 repeatedRises=2로 네 음표를 생성하지 않는다. 원본37분석창(아래17·도착20), 역할별 대안/검토를 보존한다. 일반 산조8개 시김새의 대안은 선택 라벨을 보완하는 근거로 유지한다. [산조 근거](../data/sanjo-daegeum.md), [정악 근거](../data/jeongak-daegeum.md).
+
+CLI는 자산·파일·metadata 해시와 역할 집합·근거 경로·선택 anchor를 대조한다. MySQL에서는 입력과 저장 metadata를 모두 JSON으로 정규화한 표현으로 비교하므로 기존 부동소수점 정규화를 새 근거 변경으로 오해하지 않는다. 자산/기준 음을 잠근 후 일치하는 전체 집합만 추가하며 동일 집합은 no-op, 부분/추가/변경 집합은 배치 거부다. 기본음 import는 기존 metadata를 덮어쓰지 않아 새 관계가 낡은 근거를 가리키도록 만들지 않는다.
+
+남은4개는 소금2654/2655/2656 group-006과 산조2552 region-004 기본음의 명시적 라벨 대안이다. 모든 자산은 inferred/채점 제외 상태를 보존한다. 운영R2·DB·게시 및 실제기기 청취는 INF368에서 수행하며 이 로컬 검증으로 대체하지 않는다.
+
+검증 결과: clean build 단위436개, databaseTest162개, Python34개가 실패/오류/건너뜀 없이 통과했다. 최초 전체 DB 실행에서는 기존 최신버전15 기대를16으로 갱신하지 않아1건 실패했고 이를 수정한 뒤 전체162개를 다시 통과했다. 새 폐기 DB에서 자산426연결/4미연결과 관계315개, 원본자산 전체행·기존import/관계재실행 보존을 확인했다. HTTP는 모든430개 목록, 시김새207개 상세와 모든evidencePath, 각dataset/음의 기본/역할필터 및AND·중복방지,22/15음,400/404/OpenAPI와302/900초/no-store를 검증했다. 최종 실행JAR의 SHA-256은 `5d3fc4875c5e93e6a41600e1ccf59b6bd1087e19ed16c114a3468f982032c10c`이다. OpenAPI 설명 갱신 뒤 최종JAR로 HTTP를 재실행했다.
+
+작업 worktree의 Git 제외 `data/processed/reference-audio-relation-verification/`에 `sigimsae-backend-validation.log`(최초 schema기대 실패 포함), `sigimsae-db-tests.log`(전체 재실행 성공), `sigimsae-python-validation.log`, `sigimsae-db-verification.json`, `sigimsae-http-verification.json`, `sigimsae-api-examples.json`, `sigimsae-review-scope.json`과 생성SQL/재현스크립트를 보존했다. 테스트 게시행은 DRAFT로 복구했고 HTTP 앱과 작업용MySQL 컨테이너는 종료했다. 신규env·운영DB/R2쓰기는 없다.

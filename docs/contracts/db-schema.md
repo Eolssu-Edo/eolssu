@@ -73,9 +73,36 @@ erDiagram
     }
 ```
 
-V14 직후 기존 행은 전부 null로 유지한다. [매핑 CLI](../../infra/catalog/README.md#명목상-기준-음-연결)가 파일/라벨/근거를 검증한 명시적 입력만 `(yul,octave)`로 연결한다. V15까지 적용하면 기본음219개(단소30·정악대금54·소금90·산조대금45)의 매핑을 제공하며 미연결211개는 시김새207·개별 라벨 대안4개다. 이는 명목상 라벨 식별이고 실측 음높이 검수·채점 기준 승격은 아니다. inferred/채점 제외·게시 상태와 원본 metadata는 그대로 보존한다.
+V14 직후 기존 행은 전부 null로 유지한다. [매핑 CLI](../../infra/catalog/README.md#명목상-기준-음-연결)가 파일/라벨/근거를 검증한 명시적 입력만 `(yul,octave)`로 연결한다. V15까지 적용하면 기본음219개(단소30·정악대금54·소금90·산조대금45)의 매핑을 제공하며 기본음 FK 밖의211개 중 시김새207개는 V16의 역할별 관계로 연결하고 개별 라벨 대안4개만 미연결로 남긴다. 이는 명목상 라벨 식별이고 실측 음높이 검수·채점 기준 승격은 아니다. inferred/채점 제외·게시 상태와 원본 metadata는 그대로 보존한다.
 
 V15 [라벨 대응 기준 음](../../backend/src/main/resources/db/migration/V15__seed_reference_audio_pitches.sql)은 `pitches`에 누락11행을 AUTO_INCREMENT ID로 추가한다. 기존 V5의11행 ID·반음과 악기의 범위 FK를 보존한다. 추가 대상은 `(임/남/무,-1)`, `(황/태/고/남,0)`, `(고/남,1)`, `(고/임,2)`이며 semitone=octave×12+율 순서다. 한자는 기존 scores review의 HANJA 표를 따른다. 사용자가 선택한 현재 범위 조회 방식에 따라 전역 목록22개, 단소 범위 `[5,29]` 목록15개가 된다. 별도 악기별 허용 목록 테이블은 만들지 않고 단소 전사용 `data/reference/pitches.json`도 그대로 둔다. **완전한 매핑 적용 전에 V15를 실행**해야 한다.
+
+## V16 시김새의 역할별 기준 음
+
+`reference_audio_pitch_relations`는 `(asset_id, role, anchor_index)` 복합 PK와 `pitches.id`의 non-null FK를 갖는다. 자산 삭제 시 해당 관계만 함께 삭제하며 pitch 삭제는 참조가 있으면 거부한다. `mapping_basis`는 필수이며 `evidence_path`는 상세 metadata의 JSON Pointer다.
+
+| 역할 | 수량 | 경로·index 의미 |
+| --- | ---: | --- |
+| LABEL | 207 | `/label`; 행의 선택 율명. DB index=0, API sequenceIndex=null |
+| SEQUENCE | 88 | `/label/evidence/sequenceDecision/orderedAnchors/{index}`; 원본 배열 순서 |
+| LOWER_ANCHOR | 10 | `/label/gesture/lowerAnchor`; 시간순을 부여하지 않음 |
+| DESTINATION | 10 | `/label/gesture/destination`; 시간순을 부여하지 않음 |
+
+```mermaid
+erDiagram
+    reference_audio_assets ||--o{ reference_audio_pitch_relations : "원본 라벨·관측 근거"
+    pitches ||--o{ reference_audio_pitch_relations : "명목상 율명·옥타브"
+    reference_audio_pitch_relations {
+        CHAR asset_id PK,FK
+        VARCHAR role PK
+        INT anchor_index PK
+        BIGINT pitch_id FK
+        VARCHAR evidence_path
+        TEXT mapping_basis
+    }
+```
+
+모든 시김새207자산에315관계를 적재하며 기존 기본음219개 FK와 합쳐426자산이 연결된다. V16은 새 pitches 행이나 운영 자산을 자동 적재하지 않는다. 기존 `pitch_id` 필터는 기본음 전용이며 새 `relatedPitchId`는 scalar 또는 역할 관계의 일치를 중복 없이 조회한다. 근거의 분석창·측정 F0·대안은 원본 metadata에 남고 이 테이블은 해당 위치를 참조한다. 명시적 매핑은 전체 관계 집합의 멱등성과 근거 불변을 검사한다. [실행 절차](../../infra/catalog/README.md#시김새의-역할별-음-연결).
 
 ## 탈퇴 일괄 삭제 대상
 

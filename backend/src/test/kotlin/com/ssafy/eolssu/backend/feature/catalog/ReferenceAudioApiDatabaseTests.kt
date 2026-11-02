@@ -101,6 +101,39 @@ class ReferenceAudioApiDatabaseTests {
         assertFails { jdbc.update("UPDATE reference_audio_assets SET pitch_id=?,pitch_mapping_basis='invalid ornament' WHERE asset_id=?",pitchId,ornamentId) }
     }
 
+    @Test fun `role relationships preserve repeated sequence and related filter returns each asset once`() {
+        seed(firstId,"CAT364.001",status="PUBLISHED")
+        seed(secondId,"CAT364.002",status="PUBLISHED")
+        jdbc.update("UPDATE reference_audio_assets SET category='시김새' WHERE asset_id=?",secondId)
+        val pitch = jdbc.queryForObject("SELECT id FROM pitches WHERE yul='중' AND octave=0",Long::class.java)!!
+        jdbc.update("UPDATE reference_audio_assets SET pitch_id=?,pitch_mapping_basis='basic nominal' WHERE asset_id=?",pitch,firstId)
+        for ((role,index,path) in listOf(Triple("SEQUENCE",1,"/label/evidence/sequenceDecision/orderedAnchors/1"),
+            Triple("LABEL",0,"/label"),Triple("SEQUENCE",0,"/label/evidence/sequenceDecision/orderedAnchors/0"),
+            Triple("LOWER_ANCHOR",0,"/label/gesture/lowerAnchor"),Triple("DESTINATION",0,"/label/gesture/destination"))) {
+            jdbc.update("INSERT INTO reference_audio_pitch_relations(asset_id,role,anchor_index,pitch_id,evidence_path,mapping_basis) VALUES(?,?,?,?,?,'fixture evidence')",
+                secondId,role,index,pitch,path)
+        }
+        val filtered=items("?datasetId=danso&technique=CAT364&relatedPitchId=$pitch")
+        assertEquals(listOf(firstId,secondId),filtered.map { it.path("assetId").asString() })
+        assertTrue(filtered[0].path("pitchRelations").isEmpty)
+        val ornament=filtered[1]
+        assertTrue(ornament.path("pitchId").isNull)
+        val relations=ornament.path("pitchRelations").toList()
+        assertEquals(listOf("LABEL","SEQUENCE","SEQUENCE","LOWER_ANCHOR","DESTINATION"),relations.map { it.path("role").asString() })
+        assertTrue(relations[0].path("sequenceIndex").isNull)
+        assertEquals(listOf(0,1),relations.slice(1..2).map { it.path("sequenceIndex").asInt() })
+        assertTrue(relations.all { it.path("pitchId").isString && it.path("pitchId").asString()==pitch.toString() })
+        assertEquals("/label/gesture/destination",relations.last().path("evidencePath").asString())
+        assertEquals(ornament,json.readTree(get("/$secondId").body()).path("result").path("asset"))
+        assertEquals(listOf(firstId),items("?datasetId=danso&technique=CAT364&pitchId=$pitch&relatedPitchId=$pitch").map { it.path("assetId").asString() })
+        assertTrue(items("?datasetId=sogeum&relatedPitchId=$pitch").isEmpty())
+        assertTrue(items("?datasetId=danso&relatedPitchId=9223372036854775807").isEmpty())
+        for (value in listOf("0","01","-1","abc","9223372036854775808")) assertEquals(400,get("?datasetId=danso&relatedPitchId=$value").statusCode())
+        jdbc.update("UPDATE reference_audio_assets SET status='DRAFT' WHERE asset_id=?",secondId)
+        assertEquals(listOf(firstId),items("?datasetId=danso&technique=CAT364&relatedPitchId=$pitch").map { it.path("assetId").asString() })
+        assertEquals(404,get("/$secondId").statusCode())
+    }
+
     private fun seed(id: String,label: String,yul: String="중",status: String="DRAFT") {
         jdbc.update("""INSERT INTO reference_audio_assets(asset_id,dataset_id,label_id,category,technique,register_name,yulmyeong,display_label,
             object_key,content_type,sha256,byte_size,duration_ms,sample_rate_hz,channels,review_status,eligible_for_note_scoring,metadata_json,status)

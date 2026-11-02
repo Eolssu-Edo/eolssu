@@ -43,7 +43,8 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         self.asset = module.load_assets(fixture.manifest())[0]
-        self.run_sql("""DROP TABLE IF EXISTS reference_audio_assets;
+        self.run_sql("""DROP TABLE IF EXISTS reference_audio_pitch_relations;
+            DROP TABLE IF EXISTS reference_audio_assets;
             DROP TABLE IF EXISTS pitches;
             CREATE TABLE pitches(id BIGINT PRIMARY KEY,yul VARCHAR(10),octave SMALLINT,UNIQUE(yul,octave));
             INSERT INTO pitches VALUES(71,'중',0),(72,'중',1);

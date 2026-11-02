@@ -1,0 +1,1236 @@
+{
+  "schemaVersion": 1,
+  "basis": "Existing inferred source labels and docs/knowledge/data/danso.md; groups.analysisBasis, evidence.sequenceDecision/orderedAnchors/labelAnchorIndex and expanded metadata.label.gesture. LABEL is the chosen nominal row label, not a whole-clip monophonic claim; SEQUENCE preserves observed anchor order, LOWER_ANCHOR and DESTINATION are roles without invented event timing. Analysis windows, measured F0, alternatives, repeated rises and review/scoring state remain unchanged. Nominal notation octaves follow the existing 22 pitches and V15 basic mapping; not a tuning correction or scoring approval.",
+  "mappings": [
+    {
+      "assetId": "45bc60c4481c08c527b29e3d63a79659f8d1851e5080166986f9115e338935d2",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2343.gesture-001",
+      "sha256": "a92625687bbd3eff7772b3ff77fb1b22818e086033ca01a968c65d83c8a8c2db",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "f47ba93182856fdcc67f12e9fa867225895aa9dc0c26061b477b57c9bfd9df6f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "43f5e4c0d078f86f25f9e52edce6049a641a74bcaeda3844135a6c3e1b1d83a1",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2344.gesture-001",
+      "sha256": "c0cc35b4b0b6fe8dd422ecab1f64e60e29af774f526e55171808c2b7b583c43d",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "1b9d207ae5728e87b4e6f7dfa20c8d4b4eca55fc9e56d07753240cd12374052f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "0ce70b1fe026775f0478e73bcaff5a281df012da03ea4c3754e139288feaace1",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2345.gesture-001",
+      "sha256": "51eace9d6c846529129fceccb3aa80f2f5ddd889bb91e064c287af2e03fde536",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "중",
+      "metadataSha256": "9b95c9dde6d62cba014fd0eef4bd900460f1bbbf1d4dc6ee749dbb06b53fe534",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "8e405a9c06dfcdf17979cb6884852d3e8ed84b49efef0bb9be686183370d5199",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2346.gesture-001",
+      "sha256": "29d2d5a500417dbc4b3ea288df3f234968e42d96f0da57d50bc5904b0b0610f5",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "2faec40d85cbb51cdd91e0bd58a0c10265f8b4e68f7d5c2d2ebac7267f3a1704",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "1a3c413d89b4b86821f6805d98b9e4c40b3037684d141101e13e514cdbfd8227",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2347.gesture-001",
+      "sha256": "d2141511df80b70759c1bb1c390347242b543bcf7d7f910c428b7f694f25752d",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "be5c7b0b44dddcc2e70c918a4f6cf3f6a869386ca5b087288773b03d6a53b5e1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "cdfe9d49796119421c3d56f3034c09cdfa9089eb073c2a2d1427812645ddef4f",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2348.gesture-001",
+      "sha256": "2ee5eb24fbd27c1a138583092a8adbbe9bae89974eded68591a18b60d4cdfb2f",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "무",
+      "metadataSha256": "8277dbe0f276507f9ee7fa3344faace0599e69cd64e1e5882e4d41fe8a64ca08",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 3,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/3",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 4,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/4",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 5,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/5",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "273c5d69a950aa11cbac3d23171c8192f8007b32a863347508ed82653cb3856b",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2349.gesture-001",
+      "sha256": "649cc45eed41e841c7b437e86e257d1a43dbaf6f2743fc35bcc41fc73dd7b0d9",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "15f3ffc6f2005fc6160a0dcad184d195dfb4a1ccf36b280cdae40f3869ee5618",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 3,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/3",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 4,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/4",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "92ce29de495a35b2fc470abec83dbaadc6b91d5d6d9cd7379a757a0e68774db8",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2350.gesture-001",
+      "sha256": "cfb8f7298d1496220ad67d682234d9941a76ce247f5ab7d16bba3753e5b5bfe8",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "8b692e7f73206b32aead9f3f5204ba10bcefdd99ed4d1f56ddf005c7fccead58",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "3e5c1a2d40f72cff9e75a3206e5638886cda76149e351cf53f6ea0bd79ab6585",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2351.gesture-001",
+      "sha256": "aea87769a006e8820feb3697c57bac277ed91e68b1a9deeaf95531c4982f9a4e",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "19fb04d55b454673365044d0c08afa738ee4e97efd6d5f9c81888396d104fddf",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "346e4ef65753eb7596eb4ba402c2602eec3b41999f906c2058ed785b4e132243",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2352.gesture-001",
+      "sha256": "c6401299d9137fcaa449d2136c78e5b9d166b75de10250f5e564f0556aeac052",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "중",
+      "metadataSha256": "d94aef817007eb63fe0d0812ece8313a23066b270d29b1d9031ae0c80efa5674",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 3,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/3",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "bb9e83a5922a76ca37b0f207fd688a8405215bd99b5e8581f766e0aef06086c4",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2353.gesture-001",
+      "sha256": "c587b439e49739e002a70a3d270c0ca858e5dc2e2294bd489fcfa1c0fef57d25",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "e1a16740bdad75616b91e14ae322b1075ab75f324f5dff838f6dd1cd2f5bb889",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 3,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/3",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "09bb7b8c60df64a3ce46be5033d012064b173143d2477c01f2683f4964fe6377",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2354.gesture-001",
+      "sha256": "7887907a6902ff0dceb034aa90ad123bbec2f6f3d7ad2a167d93f31f202d0a8e",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "0d72923a3c5cdf2c4d260861919b3eacbc120f9d658a09b61c7ac6da1803c9ec",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "aab056b026169c728e74606f849bdaca25ee1f73788d0ea481eb11533c0de916",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2355.gesture-001",
+      "sha256": "9c7853b3178547fcc030c36046eb2183712022fd9982b159e742ab4b277e474e",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "황",
+      "metadataSha256": "e08d669ea7497d76a4fff3d5bdaca9c508e6c8137429298c3ae748de483f2b07",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 2
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 2
+        }
+      ]
+    },
+    {
+      "assetId": "0f323a2fde28fc06ad249c433f5a9698eba85e252b1c808df80a5f1a76b5b38a",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2356.gesture-001",
+      "sha256": "2ee979a027fe597f97361e2cb496cbd1b0a2b9eb8eee17c89e7028f7671dc228",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "3d2a97414fe9261a52127164c798bb773a787c6d355826495c72415f829774dc",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "4d9e08527313a6337011d4bfbf72e5826e3d66ecc3a9241c1efb6321230f8c37",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2357.gesture-001",
+      "sha256": "0cfc9afeec32a1a88b21c15b0cccb15f432e0bbb59fae0c08f5751f4d2a8eded",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "7a1dc1a94e8ee4cb546128ff23cc297f20575bc7f5403568cc3d3379c401f5f7",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "36e6f7d3249cfc1f11b1777f756509da7109476d5c0cb97ef9035e504021252c",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2358.gesture-001",
+      "sha256": "40498a851dd85693f64709eb7e6331555ff60351d6c61b2070e0eb9d4c64824d",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "7662d9e580156f6c4dcba8a904e0ad8b2d1041607d1172cb9677a77d29f768df",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "b5e72c8ab26d9e644bb9691202e5174bfec1eadfd9848f93ad89a2716a152f66",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2359.gesture-001",
+      "sha256": "5f66b876d36a301c9ca1cf0ae96e509d76bb6a1a6de266181398bc8e1a58d022",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "중",
+      "metadataSha256": "fba80a049f4f0d2e98564e92ce233d2b8301962295ba17456267b43ceffeaa5f",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "46d49b83b8f2b915f2c7520991937b76d79866f48ae44e62309691a83161069e",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2360.gesture-001",
+      "sha256": "2e569f2e0b19c7a07766ad679c7c1c66a4afc7a59fcbd0a6fbce97bb952ab720",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "3d8641dfea8dcfeaee9be4c444b3adb6ac7ed6cea47c3b11802d67b38213513c",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "f71dedcc55fc38f92bc332f0be60fad4a551ac5aecc4789c16cc7be13e18ca73",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2361.gesture-001",
+      "sha256": "67500e462d4b0f8855d04c63974cdd7d67f5efd09bc6ee384f5bbf710f7b1d12",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "2332397064ba2aaf7b23ac0dcba8f78ef089ae674b92c67b9bcddd8d36531aa6",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "28914bd7bd773944ca1d9d903c533f8306b04e373b2a1ec3070a806e7562aa55",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2362.gesture-001",
+      "sha256": "77dad64e483fcaa13a230b3a95babcc0c337b23e861547dcbfc9c1223913afa0",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "ab15dc141c7cc9e6153e9d4ccbb0fbc84a3c0e001ca109b216bfaa27f3721255",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "dc77ce69059f302c68b9dbcc572ae15d23f166d7456485fb7e80ba596a90c5d4",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2363.gesture-001",
+      "sha256": "0772407b6239e8ba56d264c0a590fe92991fd578a66d1a44cad9c98406faee67",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "fca78f310eafbe340174f42b511568b648ecc580fa67b59d7b911be0c1fc3d59",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "2e29705d7685947818e13ac9803e36dbea434c2fb7a50d0ab8bf62911a51922b",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2364.gesture-001",
+      "sha256": "5ee73fc9ade855f3634d1baffb6b051624ac94ff5b8cf90a09ab9910c0a3b2fe",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "6409d8bd03d94a6e9feacfe120f8c0e6cbde1eb0b106ba623ee697851732b528",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 3,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/3",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "1d72d5b5a3454b250cad03a128b1ecd3b0a54c19626ad09a0843ebe272c019e7",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2365.gesture-001",
+      "sha256": "ca3205e8c07354571432d14b2f3520bc4277167beec5c27a3a2c7ee8a4c338e0",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "중",
+      "metadataSha256": "ea84ad85210e413853ee4f61b820ac5d466988856ce854317a02e79810c8fffa",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "중",
+          "yul": "중",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "fa8647edd8c8c80390bcb9538a6fb3bfca57f86971e713b799b49d629dbac460",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2366.gesture-001",
+      "sha256": "59b6d6d969b7945b17fdea04ac749d2443e0f0f4023ab8d619f3d5054ce7198f",
+      "category": "시김새",
+      "register": "역취",
+      "yulmyeong": "임",
+      "metadataSha256": "fe0fd8adcc2ddb1ff89c8be19ef3749141cd248e8d725c7bd1235a5467453414",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "역취",
+          "yulmyeong": "무",
+          "yul": "무",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "역취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "d8f4ee1f9ba2c64c57d24d6f3c623bdd8500b8e785cc1f814d04f7254b2be5c9",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2367.gesture-001",
+      "sha256": "af4bb6e342ba25110b2db7754e58836727192b8b58a0169470ed293cf223e1d3",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "태",
+      "metadataSha256": "f703307b9856987bc48f15a809ddbb4c6be3ecb9105746cdf2fdf8c08fa73e60",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        }
+      ]
+    },
+    {
+      "assetId": "a371b6690ecfbcf88fea2e3fd52e5f6315d34a8c5f0b14ad8f3ab78b04f61b5c",
+      "datasetId": "danso",
+      "labelId": "ngc-danso-2368.gesture-001",
+      "sha256": "2230fcaf1d99b9168ef6e86efcb107dd71ae683c1161febfbd87f2a5c87ef55f",
+      "category": "시김새",
+      "register": "평취",
+      "yulmyeong": "황",
+      "metadataSha256": "353489fe9471cbb000fab5429a3212108178d21ffc1f369686944f1ba6e422d1",
+      "relations": [
+        {
+          "role": "LABEL",
+          "anchorIndex": 0,
+          "evidencePath": "/label",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 0,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/0",
+          "register": "평취",
+          "yulmyeong": "임",
+          "yul": "임",
+          "octave": 0
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 1,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/1",
+          "register": "평취",
+          "yulmyeong": "태",
+          "yul": "태",
+          "octave": 1
+        },
+        {
+          "role": "SEQUENCE",
+          "anchorIndex": 2,
+          "evidencePath": "/label/evidence/sequenceDecision/orderedAnchors/2",
+          "register": "평취",
+          "yulmyeong": "황",
+          "yul": "황",
+          "octave": 1
+        }
+      ]
+    }
+  ]
+}
