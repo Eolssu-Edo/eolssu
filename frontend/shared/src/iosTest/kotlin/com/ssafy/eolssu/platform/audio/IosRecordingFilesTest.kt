@@ -37,7 +37,8 @@ class IosRecordingFilesTest {
 
         assertEquals("$kept/practice-1.m4a", path)
         assertTrue(recordings.exists(path!!))
-        assertFalse(recordings.exists(source))
+        assertFalse(files.fileExistsAtPath(source))
+        assertEquals(path, recordings.locate(source))
         assertEquals(path, recordings.keep(path))
     }
 

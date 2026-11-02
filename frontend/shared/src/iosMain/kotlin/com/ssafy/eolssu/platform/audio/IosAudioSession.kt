@@ -10,6 +10,7 @@ import platform.AVFAudio.AVAudioSessionCategorySoloAmbient
 import platform.AVFAudio.AVAudioSessionModeDefault
 import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
+import platform.AVFAudio.setActive
 
 /**
  * 앱에 하나뿐인 `AVAudioSession`을 녹음기와 재생기가 나눠 쓴다. 세션을 끄면 그 위의 녹음도 멈추므로,

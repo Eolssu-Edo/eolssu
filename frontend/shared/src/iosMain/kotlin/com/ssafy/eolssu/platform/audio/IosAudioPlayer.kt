@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.readValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -36,6 +37,7 @@ import platform.AVFoundation.currentTime
 import platform.AVFoundation.duration
 import platform.AVFoundation.pause
 import platform.AVFoundation.rate
+import platform.AVFoundation.replaceCurrentItemWithPlayerItem
 import platform.AVFoundation.seekToTime
 import platform.CoreMedia.CMTime
 import platform.CoreMedia.CMTimeGetSeconds
@@ -72,11 +74,11 @@ class IosAudioPlayer : AudioPlayer {
     private val sessionObservers = listOf(
         notifications.addObserverForName(AVAudioSessionInterruptionNotification, `object` = null,
             queue = NSOperationQueue.mainQueue) { note ->
-            if (note.number(AVAudioSessionInterruptionTypeKey) == AVAudioSessionInterruptionTypeBegan) interrupt()
+            if (note?.number(AVAudioSessionInterruptionTypeKey) == AVAudioSessionInterruptionTypeBegan) interrupt()
         },
         notifications.addObserverForName(AVAudioSessionRouteChangeNotification, `object` = null,
             queue = NSOperationQueue.mainQueue) { note ->
-            if (note.number(AVAudioSessionRouteChangeReasonKey) == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) interrupt()
+            if (note?.number(AVAudioSessionRouteChangeReasonKey) == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) interrupt()
         },
     )
 
@@ -172,7 +174,7 @@ class IosAudioPlayer : AudioPlayer {
 
     private suspend fun seek(media: AVPlayer, positionMs: Long): Boolean = suspendCancellableCoroutine { continuation ->
         media.seekToTime(CMTimeMakeWithSeconds(positionMs / 1000.0, preferredTimescale = 1000),
-            toleranceBefore = kCMTimeZero, toleranceAfter = kCMTimeZero) { finished ->
+            toleranceBefore = kCMTimeZero.readValue(), toleranceAfter = kCMTimeZero.readValue()) { finished ->
             if (continuation.isActive) continuation.resume(finished)
         }
     }
