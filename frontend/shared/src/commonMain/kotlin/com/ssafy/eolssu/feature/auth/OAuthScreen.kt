@@ -33,6 +33,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
+import com.ssafy.eolssu.feature.auth.component.AuthFaint
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
@@ -147,7 +148,7 @@ private fun ProviderPlaceholder(minHeight: Dp, step: OAuthStep, name: String) {
             .drawBehind {
                 val stroke = 1.5.dp.toPx()
                 drawRoundRect(
-                    color = colors.lineStrong,
+                    color = AuthFaint,
                     topLeft = Offset(stroke / 2, stroke / 2),
                     size = Size(size.width - stroke, size.height - stroke),
                     cornerRadius = CornerRadius(18.dp.toPx()),

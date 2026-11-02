@@ -4,6 +4,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.feature.auth.component.AuthHelp
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
@@ -33,11 +35,11 @@ fun TermsScreen(state: TermsUiState, onClose: () -> Unit, onOpen: () -> Unit, on
                 EolssuButton(stringResource(Res.string.member_api_retry), onRetry)
             }
             else {
-                Text(term.title)
-                Text(stringResource(Res.string.member_api_terms_version, term.version))
-                EolssuButton(stringResource(Res.string.member_api_open_terms), onOpen)
+                // 보드 `.au-terms`: 시행일(도움말) 아래 본문. 본문은 서버 문서 주소(contentUrl)라 원문 열기 버튼으로 연다.
+                AuthHelp(stringResource(Res.string.member_api_terms_version, term.version))
+                EolssuButton(stringResource(Res.string.member_api_open_terms), onOpen, style = EolssuButtonStyle.Secondary)
             }
-            if (state.openFailed) Text(stringResource(Res.string.legal_open_failed))
+            if (state.openFailed) AuthHelp(stringResource(Res.string.legal_open_failed))
         }
     }
 }

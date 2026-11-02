@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -54,6 +53,7 @@ import com.ssafy.eolssu.feature.guide.MoreSigimsaeCount
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.BorrowCard
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
+import com.ssafy.eolssu.feature.guide.component.GuideFaint
 import com.ssafy.eolssu.feature.guide.component.GuideGrid
 import com.ssafy.eolssu.feature.guide.component.GuideIcons
 import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
@@ -258,13 +258,15 @@ private fun GoalCard(stage: LearnStage) {
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 14.dp)
             .background(colors.surface, MaterialTheme.shapes.medium)
+            .border(1.dp, colors.lineSoft, MaterialTheme.shapes.medium)
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(Res.string.learn_goal), Modifier.weight(1f), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
             JudgeTag(stringResource(stage.judge.label), stage.judge)
         }
-        Text(stage.goal, style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, lineHeight = 22.sp))
+        // `.lp-goal p`: 본문 글꼴 굵게 16(제목 글꼴 아님)
+        Text(stage.goal, style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold))
         Text(
             stage.why,
             Modifier.padding(top = 8.dp),
@@ -464,7 +466,11 @@ private fun PatternName(name: String, note: String?) {
 private fun InstrumentFigure(instrument: GuideInstrument, parts: List<String>, imageMaxWidth: Dp = Dp.Unspecified) {
     val colors = EolssuTheme.colors
     Column(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(12.dp),
+        Modifier
+            .fillMaxWidth()
+            .background(colors.surface, RoundedCornerShape(14.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Image(
@@ -482,8 +488,8 @@ private fun InstrumentFigure(instrument: GuideInstrument, parts: List<String>, i
                 Box(
                     Modifier
                         .height(26.dp)
-                        .background(colors.background, RoundedCornerShape(13.dp))
-                        .border(1.dp, colors.line, RoundedCornerShape(13.dp))
+                        .background(colors.surface, RoundedCornerShape(13.dp))
+                        .border(1.dp, colors.lineSoft, RoundedCornerShape(13.dp))
                         .padding(horizontal = 10.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -494,7 +500,7 @@ private fun InstrumentFigure(instrument: GuideInstrument, parts: List<String>, i
     }
 }
 
-/** 8단계 연습할 곡 한 줄(`.lp-song`). */
+/** 8단계 연습할 곡 한 줄(`.lp-song`): 흰 바탕에 옅은 테두리, 오른쪽 옅은 화살표. */
 @Composable
 private fun SongRow(song: LearnSong, modifier: Modifier, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -502,15 +508,15 @@ private fun SongRow(song: LearnSong, modifier: Modifier, onClick: () -> Unit) {
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = colors.background,
-        border = BorderStroke(1.dp, colors.line),
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(song.title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
                 Text(song.meta, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
             }
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.lineStrong)
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = GuideFaint)
         }
     }
 }
@@ -522,8 +528,8 @@ private fun PassSection(stage: LearnStage, pass: LearnPass) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(colors.background, RoundedCornerShape(14.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(14.dp))
+                .background(colors.surface, RoundedCornerShape(14.dp))
+                .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Text(pass.rule, Modifier.padding(bottom = 4.dp), style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
@@ -532,7 +538,7 @@ private fun PassSection(stage: LearnStage, pass: LearnPass) {
                 stringResource(Res.string.learn_pass_example, stringResource(stage.judge.label)),
                 Modifier.padding(top = 6.dp),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = colors.lineStrong,
+                color = GuideFaint,
             )
         }
     }
@@ -568,8 +574,8 @@ private fun NavButton(text: String, enabled: Boolean, onClick: () -> Unit, modif
         enabled = enabled,
         modifier = modifier.height(36.dp).alpha(if (enabled) 1f else 0.35f),
         shape = RoundedCornerShape(10.dp),
-        color = colors.background,
-        border = BorderStroke(1.dp, colors.line),
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text(
@@ -589,43 +595,46 @@ internal fun LearnStageBottomBar(stage: LearnStage, done: Boolean, actions: Lear
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
         val primary = Modifier.weight(1f)
-        when (stage.judge) {
-            LearnJudge.Read -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
-            LearnJudge.Listen -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
-            LearnJudge.Pitch, LearnJudge.Beat ->
+        when (stage.primaryAction) {
+            LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
+            LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
+            LearnStageAction.Practice ->
                 EolssuButton(stringResource(Res.string.learn_start_practice), { actions.onStartPractice(stage.number) }, primary, icon = EolssuIcons.Mic)
         }
     }
-    val hint = when {
-        stage.judge == LearnJudge.Read -> stringResource(Res.string.learn_hint_read)
-        stage.judge == LearnJudge.Listen -> stringResource(Res.string.learn_hint_listen)
-        stage.number == 8 -> stringResource(Res.string.learn_hint_song)
-        else -> stringResource(Res.string.learn_hint_practice, stringResource(stage.judge.label))
+    val hint = when (stage.hint) {
+        LearnStageHint.Read -> stringResource(Res.string.learn_hint_read)
+        LearnStageHint.Listen -> stringResource(Res.string.learn_hint_listen)
+        LearnStageHint.Song -> stringResource(Res.string.learn_hint_song)
+        LearnStageHint.Practice -> stringResource(Res.string.learn_hint_practice, stringResource(stage.judge.label))
     }
     Text(
         hint,
         Modifier.fillMaxWidth(),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
         color = colors.textMuted,
         textAlign = TextAlign.Center,
     )
 }
 
-/** '완료로 표시'·'완료 취소'(`.btn.secondary`, 완료면 `.done-on` 회색 바탕). */
+/**
+ * '완료로 표시'·'완료 취소'(`.btn.secondary`: 흰 바탕, #D9D3C6 테두리, 모서리 14).
+ * 보드에 완료한 모습이 없어 완료면 옅은 연두 바탕으로 눌린 상태를 보인다.
+ */
 @Composable
 private fun DoneToggleButton(done: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
         modifier = modifier.height(52.dp),
-        shape = CircleShape,
-        color = if (done) colors.surface else colors.background,
-        border = BorderStroke(1.dp, if (done) colors.surface else colors.line),
+        shape = RoundedCornerShape(14.dp),
+        color = if (done) colors.accentTint else colors.surface,
+        border = BorderStroke(1.dp, if (done) colors.accentTintLine else colors.line),
     ) {
         Box(Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
             Text(
                 stringResource(if (done) Res.string.learn_unmark_done else Res.string.learn_mark_done),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
             )
         }
