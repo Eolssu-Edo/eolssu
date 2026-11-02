@@ -56,7 +56,7 @@
 ## SHT-01 `GET /api/users/me/sheets`
 
 - 쿼리: `kind`(`JEONGGANBO`/`MIDI`/`PDF`, 그 외 400), `page`(0 이상, 기본 0), `size`(1~100, 기본 20).
-- `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`, `jangdanName`, `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`. `page`, `size`, `totalElements`, `totalPages`도 반환한다.
+- `result.items[]`: `sheetId`, `kind`, `title`, `status`, `jangdanId`·`jangdanName`(장단 없는 곡 복사본은 둘 다 null), `source`, `pendingCellCount`, `sourcePageCount`(null), `updatedAt`. `page`, `size`, `totalElements`, `totalPages`도 반환한다.
 - 본인 악보만, `updatedAt` 내림차순·`sheetId` 내림차순. 없으면 빈 배열.
 
 ## 노션 초안과 다른 점
@@ -65,7 +65,7 @@
 - SHT-03 상태: 노션은 "복사본은 EVALUABLE"이지만, 채점 불가 곡(`is_scorable=false`)의 복사본은 `NEEDS_REVIEW`이고 내 악보 복사본은 원본 상태를 따른다(빈 악보 복사본은 `NEEDS_REVIEW`).
 - SHT-03 오류: 노션에 없는 409 `STATE_CONFLICT`(복사 원본 악보 검증 실패)를 더했다.
 - SHT-08: `scoreData`는 빈 악보에서 null이고, `jangdanId`는 장단 없는 곡 복사본에서 null이다. 편집 화면에 필요한 `title`·`jangdanId`·`bpm`·`bpmUnit`·`columnCount`를 더했다. `source`는 null, `issues`는 빈 배열이다.
-- SHT-01: `source`는 지금 `MANUAL`만, `sourcePageCount`는 null이다.
+- SHT-01: `source`는 지금 `MANUAL`만, `sourcePageCount`는 null이다. 장단 없는 곡 복사본은 `jangdanId`·`jangdanName`이 null이다.
 
 ## 탈퇴
 

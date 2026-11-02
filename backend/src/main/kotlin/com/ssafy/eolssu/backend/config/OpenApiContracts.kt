@@ -176,7 +176,7 @@ internal val apiContracts = listOf(
         "Idempotency-Key 필수. startType BLANK(장단·각 수 필수)와 COPY(copyFromSongId·copyFromSheetId 중 하나, 장단·각 수는 원본을 따르며 주면 같아야 함, 장단 없는 곡의 복사본은 jangdanId null)만 받습니다. 복사 원본 악보가 검증을 통과하지 못하면 409 STATE_CONFLICT입니다. PDF·pdfSheetId는 400입니다. 제목은 앞뒤 공백을 자른 1~50자, bpm은 30~160입니다. 빈 악보는 NEEDS_REVIEW, 채점 가능한 곡 복사는 EVALUABLE이며 원본과 연결하지 않습니다. 같은 키 재요청은 처음 악보로 201, 다른 본문은 409입니다.",
         CreatedSheet::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets","listSheets","내 악보","내 악보 목록",
-        "본인 악보만 updatedAt·sheetId 내림차순으로 page(0부터)·size(1~100, 기본 20)로 나눕니다. kind는 JEONGGANBO·MIDI·PDF이며 그 밖의 값은 400입니다.",
+        "본인 악보만 updatedAt·sheetId 내림차순으로 page(0부터)·size(1~100, 기본 20)로 나눕니다. kind는 JEONGGANBO·MIDI·PDF이며 그 밖의 값은 400입니다. 장단 없는 곡 복사본은 jangdanId·jangdanName이 null입니다.",
         SheetList::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
         "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",

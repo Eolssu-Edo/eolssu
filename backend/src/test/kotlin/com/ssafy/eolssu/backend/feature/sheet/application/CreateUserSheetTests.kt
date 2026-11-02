@@ -128,6 +128,23 @@ class CreateUserSheetTests {
     }
 
     @Test
+    fun `copying my sheet without jangdan keeps no jangdan and its own unit`() {
+        repository.store(
+            sheet(id = 53, userId = OWNER, status = SheetStatus.EVALUABLE, json = "plain@v2", version = 2, noteCount = 4)
+                .copy(jangdanId = null, jangdanName = null, bpmUnit = "QUARTER"),
+        )
+        val copy = CreateUserSheetCommand(OWNER, "copy-plain", "장단 없는 복사본", SheetStartType.COPY, null, 90, null, copyFromSheetId = 53)
+
+        val created = assertIs<CreateUserSheetResult.Created>(service.execute(copy))
+
+        assertNull(created.sheet.jangdanId)
+        assertEquals("QUARTER", created.sheet.bpmUnit)
+        assertEquals("QUARTER", repository.inserted.single().bpmUnit)
+        assertEquals(listOf("QUARTER"), scores.units)
+        assertEquals(CreateUserSheetResult.InvalidRequest, service.execute(copy.copy(idempotencyKey = "copy-plain-2", jangdanId = 3)))
+    }
+
+    @Test
     fun `unknown jangdan or song is not found and a broken song score is a conflict`() {
         assertEquals(CreateUserSheetResult.NotFound, service.execute(blank().copy(jangdanId = 99)))
         assertEquals(CreateUserSheetResult.NotFound, service.execute(copySong(songId = 99)))
@@ -189,8 +206,12 @@ class CreateUserSheetTests {
             else -> CopiedScore(scoreJson.substringBefore("@") + "@v$scoreVersion", if (scoreJson.startsWith("wide")) 48 else 12, 5)
         }
 
-        override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String) =
-            listOf(ScoreTimelineEvent(scoreJson, "NOTE", 0, "1", 0, 0, 0, 0, 12, 0.0, 1.0))
+        val units = mutableListOf<String>()
+
+        override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String): List<ScoreTimelineEvent> {
+            units += bpmUnit
+            return listOf(ScoreTimelineEvent(scoreJson, "NOTE", 0, "1", 0, 0, 0, 0, 12, 0.0, 1.0))
+        }
     }
 
     private class FakeSheets : UserSheetRepository {

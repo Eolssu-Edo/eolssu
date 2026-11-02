@@ -151,18 +151,27 @@ class UserSheetApiDatabaseTests {
     fun `a song without jangdan is copied with its score bpm unit and lists without a jangdan`() {
         jdbc.update(
             """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
-            SELECT 993902,instrument_id,NULL,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status FROM songs WHERE id=1""",
+            SELECT 993902,instrument_id,NULL,title,difficulty,default_bpm,JSON_SET(score_json,'$.music.bpmUnit','QUARTER'),score_version,note_count,is_scorable,status FROM songs WHERE id=1""",
         )
-        val unit = jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(score_json,'$.music.bpmUnit')) FROM songs WHERE id=1", String::class.java)
+        // 1번 곡 장단의 단위와 다른 값이라, 장단이 아니라 원본 악보의 단위를 쓰는지 구별된다.
+        assertTrue(jdbc.queryForObject("SELECT j.bpm_unit FROM songs s JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=1", String::class.java) != "QUARTER")
 
         val created = create(OWNER, "copy-nojangdan", """{"title":"장단 없음","startType":"COPY","bpm":72,"copyFromSongId":"993902"}""")
         assertEquals(201, created.statusCode(), created.body())
         val sheetId = json.readTree(created.body()).path("result").path("sheetId").asString()
         val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
         assertTrue(stored.has("jangdanId") && stored.path("jangdanId").isNull)
-        assertEquals(unit, stored.path("bpmUnit").asString())
+        assertEquals("QUARTER", stored.path("bpmUnit").asString())
+        assertEquals("QUARTER", jdbc.queryForObject("SELECT bpm_unit FROM user_sheets WHERE id=?", String::class.java, sheetId.toLong()))
         val item = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").get(0)
         assertTrue(item.path("jangdanId").isNull && item.path("jangdanName").isNull, item.toString())
+        val again = create(OWNER, "copy-nojangdan-sheet", """{"title":"다시 복사","startType":"COPY","bpm":80,"copyFromSheetId":"$sheetId"}""")
+        assertEquals(201, again.statusCode(), again.body())
+        val againResult = json.readTree(again.body()).path("result")
+        assertEquals(json.readTree(created.body()).path("result").path("events"), againResult.path("events"))
+        val againStored = json.readTree(get(OWNER, "/api/users/me/sheets/${againResult.path("sheetId").asString()}/score").body()).path("result")
+        assertTrue(againStored.path("jangdanId").isNull)
+        assertEquals("QUARTER", againStored.path("bpmUnit").asString())
         assertEquals(400, create(OWNER, "nojangdan-given", """{"title":"x","startType":"COPY","bpm":72,"copyFromSongId":"993902","jangdanId":"$jangdanId"}""").statusCode())
     }
 
