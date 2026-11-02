@@ -35,6 +35,7 @@
 - [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
 
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
+- [생성 악보·음원 검수대기 적재](specs/model-audio-catalog-load.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)

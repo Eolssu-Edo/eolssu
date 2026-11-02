@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | CAT-03 | `/instruments` | 활성 악기 목록, `instrumentId/code/name/pitchToleranceCent/rangeLowPitchId/rangeHighPitchId`. 기존 등록값만 반환한다. |
 | CAT-04 | `/songs/{songId}/score` | 게시·미삭제 곡의 원본 공통 악보와 조회용 타임라인. 세부 구조는 아래 참조. |
-| CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·장단 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
+| CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·기준 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
 | CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. |
@@ -26,6 +26,8 @@ CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 �
 ## 모범 연주 메타데이터
 
 V8 `song_model_audios`는 `(song_id,score_version)`마다 기준 음원 한 개를 저장한다. 초기 상태는 DRAFT이며 이번 마이그레이션은 음원 행을 넣지 않는다. 게시·미삭제 곡의 현재 악보 버전, 곡 defaultBpm, 장단 bpmUnit과 일치하는 PUBLISHED 행만 CAT-05에 노출한다. 이전 버전 행은 현재 곡에 재사용하지 않는다.
+
+S15P31E102-339는 장단 연결을 선택값으로 확장한다. 장단이 연결돼 있으면 기존 장단의 `bpmUnit`과 공통 악보의 일치 검증을 유지한다. 연결이 없으면 공통 악보 `music.bpmUnit`을 기준으로 사용하며 허용된 대문자 단위만 받는다. 원본 장단명만으로 장단 pattern을 추정하지 않는다. [검수대기 적재 계약](model-audio-catalog-load.md)은 기존 공개 곡과 새 DRAFT 자료를 구분한다.
 
 응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`이다. Notion 초안의 필드에 버전·시작 위치·해시를 더해 파일과 악보를 구분한다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
 
