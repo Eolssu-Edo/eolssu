@@ -3,34 +3,30 @@ package com.ssafy.eolssu.feature.home.layout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.Surface
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeHero
-import com.ssafy.eolssu.feature.home.component.InstrumentLabel
-import com.ssafy.eolssu.feature.home.component.MyPageButton
+import com.ssafy.eolssu.feature.home.component.InstrumentPlate
+import com.ssafy.eolssu.feature.home.component.LogoPlate
+import com.ssafy.eolssu.feature.home.component.MyPagePlate
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_brand
 import org.jetbrains.compose.resources.stringResource
 
-/** 휴대폰 배치(와이어프레임 `Main`). 넓은 창이 아니면 이 배치를 쓴다. */
+/** 휴대폰 배치(보드 `Main`): 대표 그림 위에 로고 · 현재 악기 · 마이페이지 판을 얹는다. 넓은 창이 아니면 이 배치를 쓴다. */
 @Composable
 internal fun HomeCompactLayout(
     instrument: Instrument?,
@@ -47,15 +43,15 @@ internal fun HomeCompactLayout(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 24.dp),
         ) {
-            HomeHero(onStartEvaluation, Modifier.padding(bottom = 18.dp), edgeToEdge = true) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(color = EolssuTheme.colors.surface.copy(alpha = 0.94f), shape = RoundedCornerShape(12.dp)) {
-                        EolssuLogo(Modifier.padding(horizontal = 10.dp, vertical = 6.dp).size(58.dp, 30.dp))
-                    }
-                    Surface(modifier = Modifier.weight(1f), color = EolssuTheme.colors.surface.copy(alpha = 0.94f), shape = RoundedCornerShape(12.dp)) {
-                        InstrumentLabel(instrument, Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-                    }
-                    MyPageButton(onOpenMyPage)
+            HomeHero(onStartEvaluation, Modifier.padding(bottom = 16.dp), edgeToEdge = true) {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    LogoPlate()
+                    Spacer(Modifier.weight(1f))
+                    InstrumentPlate(instrument, Modifier.padding(end = 8.dp))
+                    MyPagePlate(onOpenMyPage)
                 }
             }
             FeatureSection(

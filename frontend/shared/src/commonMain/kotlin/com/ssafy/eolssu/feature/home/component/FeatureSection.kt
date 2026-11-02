@@ -12,18 +12,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.HomeFeature
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_section_practice
@@ -39,10 +41,10 @@ import eolssu.shared.generated.resources.home_feature_reading_desc
 import eolssu.shared.generated.resources.home_feature_learn_desc
 
 /**
- * '연습·학습하기' 제목과 카드 묶음.
+ * '연습·학습하기' 제목 줄(`.lhead`: 제목 · 가는 선)과 카드 묶음(`.lgrid`, 간격 12dp).
  *
  * @param columns 한 줄의 카드 수. 휴대폰·태블릿 가로는 2, 태블릿 세로는 4.
- * @param large 태블릿 배치용 카드 여백·글자 크기.
+ * @param large 태블릿 배치용 카드 글자 크기.
  */
 @Composable
 internal fun FeatureSection(
@@ -52,14 +54,16 @@ internal fun FeatureSection(
     modifier: Modifier = Modifier,
     large: Boolean = false,
 ) {
-    val gap = if (large) 12.dp else 10.dp
+    val gap = 12.dp
     Column(modifier) {
-        Text(
-            stringResource(Res.string.home_section_practice),
-            style = MaterialTheme.typography.labelLarge,
-            color = EolssuTheme.colors.textMuted,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
+        Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(
+                stringResource(Res.string.home_section_practice),
+                style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp),
+                color = SectionInk,
+            )
+            Box(Modifier.weight(1f).height(1.dp).background(SectionLine))
+        }
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             HomeFeature.entries.chunked(columns).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -78,18 +82,19 @@ internal fun FeatureSection(
     }
 }
 
+/** 카드(`.lcard`): 흰 바탕, 옅은 초록빛 테두리, 모서리 13dp, 그림 80dp 아래 제목 13sp · ↗ · 설명 11sp. 내용은 세로 가운데. */
 @Composable
 private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp, large: Boolean, modifier: Modifier = Modifier) {
     Surface(
         onClick = onClick,
         modifier = modifier.heightIn(min = minHeight),
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(13.dp),
         color = EolssuTheme.colors.surface,
-        border = BorderStroke(1.dp, EolssuTheme.colors.line),
+        border = BorderStroke(1.dp, CardLine),
     ) {
         Column(
-            Modifier.padding(horizontal = if (large) 16.dp else 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            Modifier.padding(start = 15.dp, end = 15.dp, top = 10.dp, bottom = 14.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             val illustration = when (feature) {
                 HomeFeature.SongSelect -> Res.drawable.home_song_art
@@ -97,11 +102,19 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
                 HomeFeature.Reading -> Res.drawable.home_score_art
                 HomeFeature.Learn -> Res.drawable.home_tiger
             }
-            Image(painterResource(illustration), contentDescription = null, modifier = Modifier.fillMaxWidth().height(80.dp))
-            val label = MaterialTheme.typography.titleSmall
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(feature.label), modifier = Modifier.weight(1f), style = if (large) label.copy(fontSize = 15.sp) else label)
-                Icon(EolssuIcons.ArrowUpRight, contentDescription = null, modifier = Modifier.size(16.dp), tint = EolssuTheme.colors.textMuted)
+            Image(painterResource(illustration), contentDescription = null, modifier = Modifier.padding(bottom = 7.dp).fillMaxWidth().height(80.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(feature.label),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = if (large) 15.sp else 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.4).sp,
+                    ),
+                    color = CardInk,
+                )
+                Text("↗", modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp), color = CardArrow)
             }
             val description = when (feature) {
                 HomeFeature.SongSelect -> Res.string.home_feature_song_desc
@@ -109,7 +122,24 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
                 HomeFeature.Reading -> Res.string.home_feature_reading_desc
                 HomeFeature.Learn -> Res.string.home_feature_learn_desc
             }
-            Text(stringResource(description), style = MaterialTheme.typography.bodySmall, color = EolssuTheme.colors.textMuted)
+            Text(
+                stringResource(description),
+                modifier = Modifier.padding(top = 4.dp),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = if (large) 12.sp else 11.sp,
+                    lineHeight = if (large) 18.sp else 16.5.sp,
+                    letterSpacing = (-0.3).sp,
+                ),
+                color = CardDescription,
+            )
         }
     }
 }
+
+// 홈 보드만 쓰는 옅은 초록빛 먹색들(테마에 없음).
+private val SectionInk = Color(0xFF29372E)
+private val SectionLine = Color(0xFFE5EAE5)
+private val CardLine = Color(0xFFE3E9E3)
+private val CardInk = Color(0xFF2E3E32)
+private val CardArrow = Color(0xFF738774)
+private val CardDescription = Color(0xFF5F6C63)
