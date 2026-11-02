@@ -105,6 +105,7 @@ class OAuthViewModel(
                     if (result.withdrawalCancelled) OAuthStep.WithdrawalCancelled else OAuthStep.LoggedIn
                 }
                 is SocialLoginResult.MergeAvailable -> OAuthStep.MergeAvailable.also { attempts.offerMerge(result.offer) }
+                is SocialLoginResult.SignUpRequired -> OAuthStep.SignUpRequired.also { attempts.offerSignUp(result.ticket) }
                 SocialLoginResult.NotRegistered -> OAuthStep.NoAccount
                 SocialLoginResult.Restart -> OAuthStep.Stopped(OAuthProblem.Invalid)
                 SocialLoginResult.Unavailable -> OAuthStep.Stopped(OAuthProblem.Unavailable)

@@ -575,7 +575,7 @@
     <string name="auth_error_password_mismatch">비밀번호가 서로 달라요.</string>
     <string name="auth_error_nickname_empty">닉네임을 입력해 주세요.</string>
     <string name="auth_social_login">%1$s로 로그인</string>
-    <string name="auth_social_members_only">간편 로그인은 얼쑤에 가입한 회원만 쓸 수 있어요.</string>
+    <string name="auth_social_signup_hint">처음이라면 간편 로그인으로 바로 가입할 수 있어요.</string>
     <string name="auth_confirm">확인</string>
     <string name="auth_close">닫기</string>
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>
@@ -732,12 +732,16 @@
     <string name="my_instrument_changed">연습 악기를 %1$s(으)로 바꿨어요.</string>
     <string name="my_social">간편 로그인</string>
     <string name="my_social_help">이메일·비밀번호 로그인은 항상 남아 있어서 연결을 해제해도 로그인할 수 있어요.</string>
+    <string name="my_social_help_social">간편 로그인으로 가입한 계정이라 마지막 남은 간편 로그인은 해제할 수 없어요.</string>
+    <string name="my_email_none">이메일 없이 간편 로그인으로 가입했어요</string>
     <string name="my_linked">연결됨</string>
     <string name="my_not_linked">연결 안 됨</string>
     <string name="my_link">연결</string>
     <string name="my_unlink">해제</string>
     <string name="my_unlink_confirm_title">%1$s 연결을 해제할까요?</string>
     <string name="my_unlink_confirm_message">다음부터 %1$s로 로그인할 수 없어요. 이메일과 비밀번호로는 계속 로그인할 수 있어요.</string>
+    <string name="my_unlink_confirm_message_social">다음부터 %1$s로 로그인할 수 없어요. 연결된 다른 간편 로그인으로 로그인해 주세요.</string>
+    <string name="my_unlink_last">마지막 로그인 수단이라 해제할 수 없어요. 다른 간편 로그인을 먼저 연결해 주세요.</string>
     <string name="my_unlink_confirm">해제하기</string>
     <string name="my_unlinked">%1$s 연결을 해제했어요.</string>
     <string name="my_account">계정</string>
@@ -749,6 +753,7 @@
     <string name="my_password_help">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_password_change_done">비밀번호 바꾸기</string>
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
+    <string name="my_password_none">간편 로그인으로 가입한 계정은 비밀번호가 없어요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>
@@ -759,6 +764,10 @@
     <string name="my_withdraw_notice_2">30일이 지나면 계정과 연습 기록이 삭제돼요.</string>
     <string name="my_withdraw_notice_3">30일 안에 다시 로그인하면 탈퇴가 취소돼요.</string>
     <string name="my_withdraw_password_help">본인인지 확인하려고 비밀번호를 한 번 더 입력해요.</string>
+    <string name="my_withdraw_social_help">연결된 간편 로그인으로 본인인지 확인한 뒤 바로 탈퇴를 신청해요.</string>
+    <string name="my_withdraw_social">%1$s로 확인하고 탈퇴하기</string>
+    <string name="my_withdraw_or">또는 간편 로그인으로 확인</string>
+    <string name="my_withdraw_proof_expired">본인 확인 시간이 지났어요. 다시 확인해 주세요.</string>
     <string name="my_withdraw_done">탈퇴하기</string>
     <string name="my_withdrawn">탈퇴를 신청했어요. 30일 안에 로그인하면 취소돼요.</string>
     <string name="my_link_title">%1$s 계정 연결</string>
