@@ -91,7 +91,7 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 - `lessons`: track(네 코드)·seq·title·judge_type·is_optional·content_json(LRN-02 상세)·status. (track, seq)는 유일하다. 기존 kind·instrument_id는 없앤다.
 - `lesson_progress`: user_id·lesson_id·completed_at. (user_id, lesson_id)는 유일하다. 행이 있으면 완료이고 해제하면 행을 지운다. 기존 score는 없앤다.
-- Flyway 마이그레이션(현재 develop 최신 V12 다음, 병합 직전 번호 재확인): 두 테이블에 행이 있거나 지울 V1 자동 이름(외래 키·CHECK·유일 인덱스)이 없으면 구조를 바꾸기 전에 실패한다. 이어서 36행을 PUBLISHED로 넣는다. 문구 출처는 develop cfad44c3의 `LearnCurriculum.kt`(`LearnStages`·`learnContent`·`LearnSongs`)다.
+- Flyway [V14 마이그레이션](../../backend/src/main/resources/db/migration/V14__learning_tracks_and_progress.sql)(통합 시 먼저 병합된 오디오 V13 다음으로 이동, S15P31E102-368): 두 테이블에 행이 있거나 지울 V1 자동 이름(외래 키·CHECK·유일 인덱스)이 없으면 구조를 바꾸기 전에 실패한다. 이어서 36행을 PUBLISHED로 넣는다. 문구 출처는 develop cfad44c3의 `LearnCurriculum.kt`(`LearnStages`·`learnContent`·`LearnSongs`)다.
 - 단계 문구 수정은 새 Flyway 마이그레이션으로 한다. 같은 값이 여러 행에 있어(3단계 율명은 4단계 첫 음, 5·8단계 기본 5음, 정악·산조대금 공통 문구) 고칠 때 함께 바꾼다.
 - 화면 구성·섹션 제목과 4·5·6단계 할 일·패턴을 만드는 규칙(`strings.xml`·`LearnPattern`)은 앱에 남는다. 단계별 안내 문장 일부(3단계 첫 소리 안내, 5단계 동요 보충, 8단계 음계·곡 안내, 9단계 감상 안내, 정간보 그림 설명)도 `strings.xml`에 남아 서버에서 고칠 수 없다.
 - 탈퇴 일괄 삭제는 지금처럼 회원의 `lesson_progress`를 지운다.

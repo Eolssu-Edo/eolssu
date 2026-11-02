@@ -7,13 +7,18 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
-/** AUTH-07 연결(이메일 가입 3/3). 뒤로 가기는 비밀번호 설정(AUTH-08)으로, 가입을 마치면 [onDone]으로 홈에 간다. */
+/**
+ * AUTH-07 연결. 이메일 가입(3/3)은 뒤로 가기로 비밀번호 설정(AUTH-08)에, 간편 로그인 가입([social])은 앞 화면에 돌아간다.
+ * 가입을 마치면 [onDone]으로 홈에 간다.
+ */
 @Composable
 fun ProfileSetupRoute(
     onBack: () -> Unit,
     onDone: () -> Unit,
-    viewModel: ProfileSetupViewModel = koinViewModel(),
+    social: Boolean = false,
+    viewModel: ProfileSetupViewModel = koinViewModel { parametersOf(social) },
 ) {
     val scope = rememberCoroutineScope()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -24,5 +29,6 @@ fun ProfileSetupRoute(
         onNicknameChange = viewModel::changeNickname,
         onSelectInstrument = viewModel::selectInstrument,
         onComplete = { scope.launch { if (viewModel.complete()) onDone() } },
+        social = social,
     )
 }

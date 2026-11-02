@@ -41,7 +41,7 @@ import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 
 /**
- * 음 하나의 운지 카드(`.fg-row`): 흰 바탕에 율명 · 이름과 계이름 · 읽는 법 · 음 듣기 · 악기 그림.
+ * 음 하나의 운지 카드(`.fg-row`): 흰 바탕에 율명 · 이름과 괄호 안 서양 음이름 · 읽는 법 · 음 듣기 · 악기 그림.
  *
  * @param inLearn 기초부터 배우기의 카드(`.lp-figs .fing-row`). 율명 칸이 조금 좁고 반음 표시를 하지 않는다.
  */

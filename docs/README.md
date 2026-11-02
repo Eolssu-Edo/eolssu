@@ -32,6 +32,8 @@
 
 ## 기능 스펙
 
+- [기본음·시김새 운영 게시](specs/reference-audio-publication.md) · [368 계획](plans/S15P31E102-368.md) · [배포 통합·게시 기록](knowledge/infra/reference-audio-publication.md)
+
 - [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md) · [364 관계 보완 계획](plans/S15P31E102-364.md)
 
 - [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
@@ -51,6 +53,7 @@
 
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 - [간편 로그인과 계정 연결](specs/social-auth.md)
+- [내 정보 비밀번호 보유 여부 계약·검증](plans/S15P31E102-385.md)
 - [카카오 서명형 연결 해제 웹훅](specs/kakao-webhook.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)

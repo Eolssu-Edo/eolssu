@@ -9,6 +9,7 @@ import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.UserRepository
+import com.ssafy.eolssu.data.user.signsInWithPassword
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,19 +49,32 @@ class MyPageViewModel(
         } finally { savingInstrument = false }
     }
 
-    fun askUnlink(provider: SocialProvider) {
+    /**
+     * 해제 확인 창을 띄운다. 비밀번호 없는 회원의 마지막 간편 로그인이면 서버가 거절할 것이라 창 없이 false를 돌려준다.
+     * 비밀번호 유무를 짐작할 때([signsInWithPassword])는 서버의 409 `LAST_LOGIN_METHOD`가 마지막으로 막는다.
+     */
+    fun askUnlink(provider: SocialProvider): Boolean {
+        val profile = userRepository.profile.value
+        if (!profile.signsInWithPassword && profile.linkedProviders == setOf(provider)) return false
         _dialog.value = MyPageDialog.Unlink(provider)
+        return true
     }
+
+    /** 비밀번호 변경을 열 수 있는지. 비밀번호 없는 소셜 가입 회원은 서버가 401로 거절하므로 열지 않는다. */
+    fun canChangePassword(): Boolean = userRepository.profile.value.signsInWithPassword
 
     private var unlinking = false
 
-    /** 확인 창의 제공자 연결을 서버에서 해제한다. 해제하면 창을 닫고, 실패하면 창을 남긴다. 창이 없거나 요청 중 다시 누르면 null. */
+    /**
+     * 확인 창의 제공자 연결을 서버에서 해제한다. 해제했거나 마지막 로그인 수단이라 거절되면 창을 닫고, 그 밖의 실패는 창을 남긴다.
+     * 창이 없거나 요청 중 다시 누르면 null.
+     */
     suspend fun confirmUnlink(): MemberResult? {
         val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return null
         if (unlinking) return null
         unlinking = true
         return try {
-            userRepository.unlink(provider).also { if (it == MemberResult.Done) _dialog.value = null }
+            userRepository.unlink(provider).also { if (it == MemberResult.Done || it == MemberResult.LastLoginMethod) _dialog.value = null }
         } finally { unlinking = false }
     }
 

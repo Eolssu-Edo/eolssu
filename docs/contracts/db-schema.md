@@ -61,7 +61,7 @@ V4는 V3(녹음 메타데이터) 다음에 적용됩니다. `outOfOrder`를 쓰�
 
 V13 [기본음·시김새 자산](../../backend/src/main/resources/db/migration/V13__reference_audio_assets.sql)은 `reference_audio_assets`를 추가한다. `asset_id`와 `(dataset_id,label_id)`로 파일을 식별하고, 장기 보관 object key·M4A 메타데이터·출처 JSON·라벨 검수 상태·게시 상태를 저장한다. 기존 `pitches`의 의미와 사용자 녹음 보관 정책은 바꾸지 않는다. 미디어 초기 데이터는 없으며 [검증된 DRAFT 적재](../../infra/catalog/README.md)를 사용한다. 새 API의 `ops` 배포 전에 V13를 적용해야 한다. [조회·재생 계약](../specs/reference-audio-catalog.md).
 
-같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **최종 V13 적용 후 새 백엔드를 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
+같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **현재 통합 백엔드는 오디오 V13과 학습 V14를 적용한 뒤 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
 
 ```mermaid
 erDiagram
