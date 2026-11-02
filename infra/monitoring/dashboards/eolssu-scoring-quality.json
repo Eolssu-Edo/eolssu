@@ -76,6 +76,20 @@
           "value": "$__all"
         },
         "allValue": "'__all'"
+      },
+      {
+        "name": "evaluation",
+        "label": "연주",
+        "type": "query",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_EOLSSU}"
+        },
+        "query": "SELECT CONCAT(DATE_FORMAT(e.evaluated_at, '%m-%d %H:%i'), ' · ', s.title, ' · ', e.total_score, '점 · ', e.model_version, ' · #', e.id) AS __text, e.id AS __value FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) ORDER BY e.evaluated_at DESC LIMIT 200",
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "description": "연주별 음 판정 표에만 적용된다. 기간·악기·곡·모델 버전으로 거른 최근 200개 연주"
       }
     ]
   },
@@ -464,6 +478,48 @@
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT CAST(b AS CHAR) AS 처리_초, n AS 세션_수 FROM (SELECT FLOOR(LEAST(TIMESTAMPDIFF(SECOND, ps.ended_at, e.evaluated_at), 120) / 5) * 5 AS b, COUNT(*) AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND ps.ended_at IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "연주별 판정",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "연주별 음 판정 (위쪽 '연주' 선택상자로 고름)",
+      "description": "고른 연주의 음마다 정답 음·잡힌 음·판정·오차. 시작 늦음은 곡 처음 기준이라 pyin-4 박자 판정(곡 처음 기준과 앞뒤 음 기준 중 덜 어긋난 쪽)과 다를 수 있다. 판정 근거까지 보려면 녹음을 평가 도구로 다시 채점한다. 음을 못 잡은 MISSED는 오차가 비어 있다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT nr.note_idx AS 음_번호, ep.hangul AS 정답_음, dp.hangul AS 잡힌_음, nr.verdict AS 판정, nr.pitch_error_cent AS 음높이_오차_cent, nr.onset_error_ms AS 시작_늦음_ms, nr.duration_error_ms AS 길이_오차_ms FROM note_results nr JOIN pitches ep ON ep.id = nr.expected_pitch_id LEFT JOIN pitches dp ON dp.id = nr.detected_pitch_id WHERE nr.evaluation_id = ${evaluation:sqlstring} ORDER BY nr.note_idx"
         }
       ]
     }
