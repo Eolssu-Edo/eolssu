@@ -44,3 +44,26 @@ Jira 경계:364 DB/API,366 M4A 변환·검증,367 앱 재생,368 운영 R2/DB �
 ## MR 분리
 
 선행366(변환) →364(DB/API) 병합후367(앱재생)를검토한다. 이MR은프론트만포함하며 frontend제품트리는 기존검증스냅샷fa7f2849와동일하다. 전체host548중546통과/기존2skip, Wasm개발번들및 실제웹재생검증결과는코드동일성확인후재사용한다. iOS·모바일실기기 확인은미검증으로유지한다.
+
+## 운영 음원과 간결한 플레이어 (2026-11-02)
+
+이 절은 위 초기 MR 분리 시점의 검증을 갱신한다. 선행364·368이 완료되어 실제 운영 카탈로그와 R2 음원으로 확인했다. 사용자 요청에 따라 목록에는 주법·율명·연주 예시와 길이만 남기고, 선택한 음원의 재생·일시정지·이어 듣기 버튼과 현재/전체 시간·진행 막대를 목록 아래 고정했다. 진행 막대는 읽기 전용이며 드래그 탐색은 제공하지 않는다. 출처는 작은 `출처·가공 정보` 링크를 누를 때만 열린다. 국립국악원, 공공누리 제1유형(KOGL-1), 구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A) 인코딩 설명과 원본 링크를 유지한다.
+
+같은 음원의 Playing은 pause, Paused는 resume으로 처리해 재다운로드 없이 위치를 보존한다. 완료·실패·중단 후에는 원래 API 재생 경로로 다시 요청한다. 다른 음원 선택은 이전 재생을 교체하고, 필터 변경·닫기는 해제한다. 이 결정은 다른 기능의 AudioPlayer 계약이나 서버 API를 바꾸지 않는다. iOS의 resume이 실패하면 타이머와 플레이어를 해제해 Failed가 Completed로 덮이지 않게 했다.
+
+검증 소스는 플레이어58a12cd2, 이어 듣기 보완8fe0c0de와 develop720d0c9e를 통합한5a1a7021이다. PowerShell에서 Android SDK를 지정하고 frontend에서 다음 실제 작업을 실행했다.
+
+```powershell
+$env:ANDROID_HOME='C:/Users/SSAFY/AppData/Local/Android/Sdk'
+./gradlew.bat :shared:testAndroidHostTest :webApp:wasmJsBrowserDevelopmentWebpack :androidApp:assembleDebug --console=plain
+```
+
+- 통합 전566개 중564통과, 통합 후578개 중576통과. 모두 기존 opt-in2skip, 실패·오류0. Wasm 개발 번들·Android debug APK 성공. production 최적화 빌드 결과는 아니다.
+- 일시정지 테스트는 기존 stop 동작에서 Paused 대신 Idle이 되는 실패를 관찰한 뒤 통과했다. Playing/Paused 토글, Loading 취소, 다른 자산 교체, Completed/Failed/Interrupted 재요청을 네 테스트에서 검사한다.
+- 루프백 검증 서버는 운영 `https://k15e102.p.ssafy.io`의 공개 조회와 재생302만 중계하고, 브라우저가 실제 R2 M4A를 받았다. 인증정보를 전달하거나 운영 데이터를 쓰지 않았다. 단소 평취 중4개, 전체56개를 확인했다.
+- 자산c4bdaed9…의 실제 길이5.04288초, Playing의 currentTime3.493788초, 완료 시5.04288초/진행100%를 관찰했다. 별도 재생에서0.191288초에 일시정지해 다음 관찰까지 같은 위치를 유지했고 이어 듣기 후0.326847초로 증가했다. resume 때 새 `/play` 요청은 없었다.
+- 닫기 버튼으로 창이 사라지고 audio요소0개가 됐다. 출처 링크를 열고 닫으면 목록이 남고 원본 보기 동작은 재생을 해제한다. 출처 원문 페이지의 로딩 성공까지 검증한 것은 아니다.
+- 검증 서버에만 음원404를 주입해 실패 안내를 확인하고, 정상 모드로 돌려 재시도 시 readyState4/paused=false로 실제 음원이 복구됐다. 앞선503 목록 오류도 재시도 후56개로 복구됐다.
+- 390×844·360×640 화면에서 목록, 고정 플레이어, 출처 링크와 닫기가 겹치지 않는다. 독립 코드·스크린샷 리뷰에서 추가 차단 결함은 없었다. 접근성 대비 수치를 측정한 검사는 아니다.
+
+증거는 FE worktree의 Git 제외 `frontend/reference-audio-player-integrated-build.log`, JUnit XML, `data/processed/reference-audio-fe367/requests.jsonl`, `player-paused.png`, `player-mobile.png`, `player-small.png`에 있다. 요청 로그에는 서명 URL을 남기지 않는다. iOS 컴파일과 모바일 실기기 청취는 미검증이다. IAB에서 새 탭을 열어도 원래 문서가 visible로 남아 실제 백그라운드 전환을 입증하지 못했다. 출처 팝업 이후 접근성 트리가 지연되어 화면으로 대조했으며 전체 초점 순서·Esc 통과를 주장하지 않는다.
