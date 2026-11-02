@@ -1,10 +1,12 @@
 package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.lesson.application.LessonQueries
+import com.ssafy.eolssu.backend.feature.lesson.application.MarkLessonCompletion
 import com.ssafy.eolssu.backend.feature.lesson.domain.LessonRepository
 import com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.LessonContentJson
 import com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.LessonMapper
 import com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.MyBatisLessonRepository
+import java.time.Clock
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -20,4 +22,8 @@ class LessonConfig {
 
     @Bean
     fun lessonQueries(repository: LessonRepository) = LessonQueries(repository)
+
+    // 완료 시각은 앱 공통 UTC 시계(TermConfig)로 기록한다.
+    @Bean
+    fun markLessonCompletion(repository: LessonRepository, clock: Clock) = MarkLessonCompletion(repository, clock)
 }

@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.lesson.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.lesson.application.LessonQueries
+import com.ssafy.eolssu.backend.feature.lesson.application.MarkLessonCompletion
 import com.ssafy.eolssu.backend.feature.lesson.domain.JudgeType
 import com.ssafy.eolssu.backend.feature.lesson.domain.LearnTrack
 import com.ssafy.eolssu.backend.feature.lesson.domain.LessonContent
@@ -13,16 +14,20 @@ import com.ssafy.eolssu.backend.feature.lesson.domain.PassCriteria
 import com.ssafy.eolssu.backend.feature.lesson.domain.PitchNote
 import com.ssafy.eolssu.backend.feature.lesson.domain.PitchRange
 import com.ssafy.eolssu.backend.feature.lesson.domain.SongCandidate
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.assertEquals
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.http.MediaType
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -30,7 +35,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
 class LessonControllerTests {
     private val repository = FakeLessonRepository()
-    private val mvc = MockMvcBuilders.standaloneSetup(LessonController(LessonQueries(repository)))
+    private val now = Instant.parse("2026-11-02T03:04:05.123456789Z")
+    private val mvc = MockMvcBuilders
+        .standaloneSetup(LessonController(LessonQueries(repository), MarkLessonCompletion(repository, Clock.fixed(now, ZoneOffset.UTC))))
         .setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver())
         .setControllerAdvice(GlobalExceptionHandler())
         .build()
@@ -102,17 +109,78 @@ class LessonControllerTests {
             .andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
     }
 
+    @Test
+    fun `marks a stage once at microsecond precision and returns the track progress`() {
+        mvc.perform(put("/api/lessons/2/completion").contentType(MediaType.APPLICATION_JSON).content("""{"completed":true}"""))
+            .andExpect(status().isOk)
+            .andExpect(
+                content().json(
+                    """{"httpStatus":"OK","isSuccess":true,"message":"학습 단계 완료 표시 성공","code":200,
+                    "result":{"lessonId":"2","completed":true,"completedCount":2,"nextLessonId":null}}""",
+                ),
+            )
+            .andExpect(jsonPath("$.result.completedAt").isNotEmpty)
+        assertEquals(listOf(Triple(7L, 2L, Instant.parse("2026-11-02T03:04:05.123456Z"))), repository.marks)
+
+        mvc.perform(put("/api/lessons/1/completion").contentType(MediaType.APPLICATION_JSON).content("""{"completed":false}"""))
+            .andExpect(status().isOk)
+            .andExpect(
+                content().json(
+                    """{"message":"학습 단계 완료 표시 해제 성공","result":{"lessonId":"1","completed":false,"completedAt":null,
+                    "completedCount":1,"nextLessonId":"1"}}""",
+                ),
+            )
+        assertEquals(listOf(7L to 1L), repository.clears)
+    }
+
+    @Test
+    fun `does not write for a missing or draft stage`() {
+        mvc.perform(put("/api/lessons/99/completion").contentType(MediaType.APPLICATION_JSON).content("""{"completed":true}"""))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.result.errorCode").value("RESOURCE_NOT_FOUND"))
+        assertEquals(emptyList(), repository.marks)
+    }
+
+    @Test
+    fun `rejects a completion body that is not a JSON boolean`() {
+        for (body in listOf("{}", """{"completed":null}""", """{"completed":"true"}""", """{"completed":1}""", "not json", "")) {
+            mvc.perform(put("/api/lessons/2/completion").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest)
+                .andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
+        }
+        assertEquals(emptyList(), repository.marks)
+        assertEquals(emptyList(), repository.clears)
+    }
+
     private class FakeLessonRepository : LessonRepository {
         val listCalls = mutableListOf<Pair<Long, LearnTrack>>()
         val detailCalls = mutableListOf<Pair<Long, Long>>()
+        val marks = mutableListOf<Triple<Long, Long, Instant>>()
+        val clears = mutableListOf<Pair<Long, Long>>()
+        private val completed = mutableMapOf(1L to Instant.parse("2026-11-02T03:00:00Z"))
+
+        override fun findPublishedStep(userId: Long, lessonId: Long): LessonStep? =
+            steps(LearnTrack.DANSO).firstOrNull { it.id == lessonId }
+
+        override fun markCompleted(userId: Long, lessonId: Long, at: Instant) {
+            marks += Triple(userId, lessonId, at)
+            completed.putIfAbsent(lessonId, at)
+        }
+
+        override fun clearCompletion(userId: Long, lessonId: Long) {
+            clears += userId to lessonId
+            completed.remove(lessonId)
+        }
+
+        private fun steps(track: LearnTrack) = listOf(
+            LessonStep(9, track, 9, "장식음·시김새", JudgeType.LISTEN, true, completed[9]),
+            LessonStep(1, track, 1, "악기 알기·감상", JudgeType.READ, false, completed[1]),
+            LessonStep(2, track, 2, "자세·호흡", JudgeType.READ, false, completed[2]),
+        ).sortedBy { it.seq }
 
         override fun findPublishedSteps(userId: Long, track: LearnTrack): List<LessonStep> {
             listCalls += userId to track
-            return listOf(
-                LessonStep(9, track, 9, "장식음·시김새", JudgeType.LISTEN, true, null),
-                LessonStep(1, track, 1, "악기 알기·감상", JudgeType.READ, false, Instant.parse("2026-11-02T03:00:00Z")),
-                LessonStep(2, track, 2, "자세·호흡", JudgeType.READ, false, null),
-            ).sortedBy { it.seq }
+            return steps(track)
         }
 
         override fun findPublishedDetail(userId: Long, lessonId: Long): LessonDetail? {

@@ -15,6 +15,24 @@
         ORDER BY l.seq
     </select>
 
+    <select id="findPublishedStep" resultType="com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.LessonStepRow">
+        SELECT l.id, l.track, l.seq, l.title, l.judge_type, l.is_optional, p.completed_at
+        FROM lessons l
+        LEFT JOIN lesson_progress p ON p.user_id = #{userId} AND p.lesson_id = l.id
+        WHERE l.id = #{lessonId} AND l.status = 'PUBLISHED'
+    </select>
+
+    <!-- 같은 행을 그대로 두는 no-op 갱신. INSERT IGNORE는 외래 키 오류까지 경고로 바꿔 쓰지 않는다. -->
+    <insert id="insertCompletionIfAbsent">
+        INSERT INTO lesson_progress (user_id, lesson_id, completed_at)
+        VALUES (#{userId}, #{lessonId}, #{completedAt})
+        ON DUPLICATE KEY UPDATE id = id
+    </insert>
+
+    <delete id="deleteCompletion">
+        DELETE FROM lesson_progress WHERE user_id = #{userId} AND lesson_id = #{lessonId}
+    </delete>
+
     <select id="findPublishedDetail" resultType="com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.LessonDetailRow">
         SELECT l.id, l.track, l.seq, l.title, l.judge_type, l.is_optional, l.content_json, p.completed_at
         FROM lessons l

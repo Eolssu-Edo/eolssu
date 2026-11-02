@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.feature.lesson.domain.LearnTrack
 import com.ssafy.eolssu.backend.feature.lesson.domain.LessonDetail
 import com.ssafy.eolssu.backend.feature.lesson.domain.LessonRepository
 import com.ssafy.eolssu.backend.feature.lesson.domain.LessonStep
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -17,6 +18,17 @@ class MyBatisLessonRepository(
         mapper.findPublishedSteps(userId, track.name).map {
             step(it.id, it.track, it.seq, it.title, it.judgeType, it.isOptional, it.completedAt)
         }
+
+    override fun findPublishedStep(userId: Long, lessonId: Long): LessonStep? =
+        mapper.findPublishedStep(userId, lessonId)?.let { step(it.id, it.track, it.seq, it.title, it.judgeType, it.isOptional, it.completedAt) }
+
+    override fun markCompleted(userId: Long, lessonId: Long, at: Instant) {
+        mapper.insertCompletionIfAbsent(userId, lessonId, LocalDateTime.ofInstant(at, ZoneOffset.UTC))
+    }
+
+    override fun clearCompletion(userId: Long, lessonId: Long) {
+        mapper.deleteCompletion(userId, lessonId)
+    }
 
     override fun findPublishedDetail(userId: Long, lessonId: Long): LessonDetail? =
         mapper.findPublishedDetail(userId, lessonId)?.let {

@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.feature.auth.api.*
 import com.ssafy.eolssu.backend.feature.user.api.*
 import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonCompletionResult
 import com.ssafy.eolssu.backend.feature.lesson.api.LessonDetailResult
 import com.ssafy.eolssu.backend.feature.lesson.api.LessonListResult
 import com.ssafy.eolssu.backend.feature.practice.api.*
@@ -126,6 +127,9 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/lessons/{lessonId}","getLesson","학습","학습 단계 상세",
         "공개 단계의 트랙별 문구(목표·이유·할 일·통과 기준·율명·음역·곡 후보·근거)와 본인 완료 시각을 반환합니다. 해당하지 않는 목록은 빈 배열입니다. 없거나 초안 단계는 404입니다.",
         LessonDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.PUT,"/api/lessons/{lessonId}/completion","completeLesson","학습","학습 단계 완료 표시·해제",
+        "사용자가 누른 완료 표시만 저장합니다(서버 판정 없음). completed는 JSON 불리언만 받습니다. 다시 true를 보내도 처음 완료 시각을 유지하고, false는 표시를 지웁니다(없어도 200). 응답의 완료 수·다음 단계는 그 단계 트랙 기준입니다.",
+        LessonCompletionResult::class.java,errors=listOf(INVALID_REQUEST,RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions","createPracticeSession","연습","연습 세션 생성",
         "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
         CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),

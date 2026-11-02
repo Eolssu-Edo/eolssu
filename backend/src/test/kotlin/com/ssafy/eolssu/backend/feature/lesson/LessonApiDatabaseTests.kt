@@ -148,6 +148,53 @@ class LessonApiDatabaseTests {
     }
 
     @Test
+    fun `marks and clears a stage keeping the first completion time and other members' marks`() {
+        val first = result(put("/api/lessons/3/completion", "961", """{"completed":true}"""))
+        assertTrue(first["completed"].asBoolean())
+        assertEquals(2, first["completedCount"].asInt())
+        assertEquals("2", first["nextLessonId"].asString())
+        val firstAt = first["completedAt"].asString()
+        assertEquals(firstAt, storedCompletion(961, 3))
+
+        val again = result(put("/api/lessons/3/completion", "961", """{"completed":true}"""))
+        assertEquals(firstAt, again["completedAt"].asString())
+        assertEquals(1, progressRows(961, 3))
+
+        result(put("/api/lessons/2/completion", "961", """{"completed":true}"""))
+        assertEquals("2026-11-01T05:00:00Z", storedCompletion(962, 2), "회원 962의 표시는 그대로여야 한다")
+
+        val cleared = result(put("/api/lessons/3/completion", "961", """{"completed":false}"""))
+        assertFalse(cleared["completed"].asBoolean())
+        assertTrue(cleared["completedAt"].isNull)
+        assertEquals(2, cleared["completedCount"].asInt())
+        assertEquals("3", cleared["nextLessonId"].asString())
+        assertEquals(0, progressRows(961, 3))
+
+        val clearedAgain = result(put("/api/lessons/3/completion", "961", """{"completed":false}"""))
+        assertTrue(clearedAgain["completedAt"].isNull)
+    }
+
+    @Test
+    fun `keeps one row when the same stage is marked concurrently`() {
+        val requests = (1..2).map { putAsync("/api/lessons/4/completion", "961", """{"completed":true}""") }
+        val times = requests.map { result(it.join())["completedAt"].asString() }.toSet()
+
+        assertEquals(1, times.size)
+        assertEquals(1, progressRows(961, 4))
+        assertEquals(times.single(), storedCompletion(961, 4))
+    }
+
+    @Test
+    fun `rejects completion of hidden stages and invalid requests`() {
+        assertError(put("/api/lessons/9601/completion", "961", """{"completed":true}"""), 404, "RESOURCE_NOT_FOUND")
+        assertError(put("/api/lessons/999999/completion", "961", """{"completed":true}"""), 404, "RESOURCE_NOT_FOUND")
+        assertError(put("/api/lessons/3/completion", "961", """{"completed":"true"}"""), 400, "INVALID_REQUEST")
+        assertError(put("/api/lessons/3/completion", "961", "completed=true", "text/plain"), 415, "UNSUPPORTED_MEDIA_TYPE")
+        assertError(put("/api/lessons/3/completion", null, """{"completed":true}"""), 401, "UNAUTHENTICATED")
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM lesson_progress WHERE lesson_id IN (3, 9601)", Int::class.java))
+    }
+
+    @Test
     fun `reads a track through the two unique indexes without sorting`() {
         val statement = sqlSessionFactory.configuration
             .getMappedStatement("com.ssafy.eolssu.backend.feature.lesson.infrastructure.persistence.LessonMapper.findPublishedSteps")
@@ -167,6 +214,28 @@ class LessonApiDatabaseTests {
         if (subject != null) builder.header("Cookie", "access_token=${token(subject)}")
         return client.send(builder.build(), HttpResponse.BodyHandlers.ofString())
     }
+
+    private fun putRequest(path: String, subject: String?, body: String, contentType: String): HttpRequest {
+        val builder = HttpRequest.newBuilder(URI("http://localhost:$port$path")).timeout(Duration.ofSeconds(10))
+            .header("Accept", "application/json").header("Content-Type", contentType)
+            .PUT(HttpRequest.BodyPublishers.ofString(body))
+        if (subject != null) builder.header("Cookie", "access_token=${token(subject)}")
+        return builder.build()
+    }
+
+    private fun put(path: String, subject: String?, body: String, contentType: String = "application/json"): HttpResponse<String> =
+        client.send(putRequest(path, subject, body, contentType), HttpResponse.BodyHandlers.ofString())
+
+    private fun putAsync(path: String, subject: String, body: String) =
+        client.sendAsync(putRequest(path, subject, body, "application/json"), HttpResponse.BodyHandlers.ofString())
+
+    private fun progressRows(userId: Long, lessonId: Long): Int =
+        jdbc.queryForObject("SELECT COUNT(*) FROM lesson_progress WHERE user_id = ? AND lesson_id = ?", Int::class.java, userId, lessonId)!!
+
+    // 응답과 같은 형식(UTC ISO8601)으로 저장값을 읽는다.
+    private fun storedCompletion(userId: Long, lessonId: Long): String = jdbc.queryForObject(
+        "SELECT completed_at FROM lesson_progress WHERE user_id = ? AND lesson_id = ?", java.time.LocalDateTime::class.java, userId, lessonId,
+    )!!.toInstant(java.time.ZoneOffset.UTC).toString()
 
     private fun result(response: HttpResponse<String>): JsonNode {
         assertEquals(200, response.statusCode(), response.body())
