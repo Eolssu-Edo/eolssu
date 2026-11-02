@@ -22,10 +22,10 @@ def source(melody, beats=1):
             "parts": [{"instrument": "danso", "melody": melody}]}
 
 
-def bundle(doc, part=None):
+def bundle(doc, part=None, **options):
     digest = hashlib.sha256(json.dumps(doc, ensure_ascii=False).encode()).hexdigest()
     return import_jgb(doc, source_name="test.jgb.json", instrument="danso",
-                      part=part, input_sha256=digest)
+                      part=part, input_sha256=digest, **options)
 
 
 def performed(result):
@@ -35,6 +35,59 @@ def performed(result):
 
 
 class PlaybackImportTests(unittest.TestCase):
+    def test_explicit_plan_preserves_original_hash_and_jeonggan_bpm(self):
+        doc = source("청황 {니나} | 청태", beats=2)
+        doc["controls"]["staffUnit"] = "dotted"
+        digest = hashlib.sha256(json.dumps(doc, ensure_ascii=False).encode()).hexdigest()
+        plan = {"schema": "danso-performance/v1", "input_sha256": digest,
+                "tempos": [{"gak": 1, "cell": 2, "bpm": 120}],
+                "repeats": [{"start_gak": 1, "end_gak": 1, "times": 3}]}
+        before = deepcopy(plan)
+        result = bundle(doc, performance_plan=plan)
+        score = performed(result)
+        self.assertEqual([n["pitch"] for n in score["notes"]], [75, 77, 75, 77] * 3)
+        self.assertAlmostEqual(sum(float(Fraction(n["duration"])) for n in score["notes"]) * 60 / score["quarter_bpm"], 4.5)
+        self.assertEqual(result["expressions"]["performancePlan"]["tempos"], plan["tempos"])
+        self.assertEqual(result["source_map"]["originalPerformancePlan"], before)
+        self.assertEqual(result["expressions"]["performancePlan"]["input_sha256"], result["expressions"]["sourceSha256"])
+        self.assertEqual(plan, before)
+        plan["input_sha256"] = "f" * 64
+        with self.assertRaisesRegex(ValueError, "SHA|sha|다릅니다"):
+            bundle(doc, performance_plan=plan)
+
+    def test_explicit_source_profile_preserves_delayed_hold_expression(self):
+        profile = {"schema": "danso-expression-profile/v1", "policies": {"shake": {
+            "basis": "고정 검사", "yoseong": {"mode": "pitch", "hz": 2, "cents": 70, "delay_seconds": .1}}}}
+        before = deepcopy(profile)
+        result = bundle(source("청황 {요성표} | 청태", beats=2), expression_profile=profile)
+        score = performed(result)
+        self.assertAlmostEqual(score["notes"][0]["yoseong"]["delay_seconds"], .6)
+        self.assertEqual(score["notes"][0]["yoseong"]["cents"], 70)
+        self.assertEqual(result["expressions"]["expressionProfile"], profile)
+        self.assertEqual(profile, before)
+
+    def test_cli_reads_original_hash_plan_and_expression_profile(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw = json.dumps(source("청황 {요성표} | 청태", beats=2), ensure_ascii=False).encode("utf-8")
+            input_path = root / "source.jgb.json"
+            input_path.write_bytes(raw)
+            plan = {"schema": "danso-performance/v1", "input_sha256": hashlib.sha256(raw).hexdigest(),
+                    "repeats": [{"start_gak": 1, "end_gak": 1, "times": 3}]}
+            profile = {"schema": "danso-expression-profile/v1", "policies": {"shake": {
+                "basis": "CLI 검사", "yoseong": {"mode": "pitch", "hz": 2, "cents": 70, "delay_seconds": .1}}}}
+            for name, value in (("plan", plan), ("profile", profile)):
+                (root / f"{name}.json").write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+            command = [sys.executable, "-B", "-X", "utf8", "-m", "data.src.scores.playback_import", str(input_path),
+                       "--instrument", "danso", "--out", str(root / "bundle"),
+                       "--performance-plan", str(root / "plan.json"), "--expression-profile", str(root / "profile.json")]
+            subprocess.run(command, capture_output=True, text=True, encoding="utf-8", check=True)
+            companion = json.loads((root / "bundle/expressions.json").read_text(encoding="utf-8"))
+            source_map = json.loads((root / "bundle/source-map.json").read_text(encoding="utf-8"))
+            self.assertEqual(companion["expressionProfile"], profile)
+            self.assertEqual(source_map["originalPerformancePlan"], plan)
+            self.assertEqual(companion["performancePlan"]["input_sha256"], companion["sourceSha256"])
+
     def test_independent_figure_keeps_its_internal_slur_after_expansion(self):
         result = bundle(source("청황 {니나}"))
         ids = [e["id"] for e in result["common"]["events"]]

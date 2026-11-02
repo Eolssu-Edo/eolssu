@@ -90,7 +90,8 @@ def _assemble(units, ratio, doc, source_id, instrument, part, digest, hwang):
     return common, ids
 
 
-def import_jgb(document, *, source_name, instrument, part=None, input_sha256, source_id=None):
+def import_jgb(document, *, source_name, instrument, part=None, input_sha256, source_id=None,
+               performance_plan=None, expression_profile=None, notation_policy=None):
     """Return common/expressions/source_map/bpm; part uses the JGB CLI's 1-based numbering.
 
     Input metadata must already be explicit enough for the original JGB reader.
@@ -99,8 +100,22 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
     require(isinstance(input_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", input_sha256),
             "input_sha256: 원본 바이트 SHA-256이 필요합니다")
     require(isinstance(source_name, str) and source_name.strip(), "source_name이 필요합니다")
-    legacy, mapping = convert_jgb(document, source_name=source_name, instrument=instrument,
-                                  part=part, input_sha256=input_sha256)
+    require(notation_policy in (None, "educational-preview/v1"), "알 수 없는 가져오기 notation policy")
+    if notation_policy is not None:
+        document = deepcopy(document)
+        document.setdefault("playback", {})["notation_policy"] = notation_policy
+    final_score, final_mapping = convert_jgb(document, source_name=source_name, instrument=instrument,
+                                           part=part, input_sha256=input_sha256,
+                                           performance_plan=performance_plan, expression_profile=expression_profile)
+    # Resolve source glyphs once, before repetitions duplicate their locations.
+    base_plan = deepcopy(performance_plan)
+    if base_plan is not None:
+        base_plan["repeats"] = []
+        legacy, mapping = convert_jgb(document, source_name=source_name, instrument=instrument,
+                                      part=part, input_sha256=input_sha256,
+                                      performance_plan=base_plan, expression_profile=expression_profile)
+    else:
+        legacy, mapping = final_score, final_mapping
     selected = mapping["part_index"]
     source_id = source_id or f"jgb-playback-{input_sha256[:16]}-p{selected}"
     require(isinstance(source_id, str) and source_id.strip(), "source_id가 비어 있습니다")
@@ -195,6 +210,11 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
     placements = [{"eventId": eid, "cellId": u.cell_id, "row": u.row, "col": u.col,
                    "symbols": list(u.sigimsae)} for u, eid in zip(units, ids) if u.sigimsae]
     expressions = {"schema": "common-score-expressions/v1", "sourceSha256": common_hash, "placements": placements}
+    if performance_plan is not None:
+        expressions["performancePlan"] = deepcopy(performance_plan)
+        expressions["performancePlan"]["input_sha256"] = common_hash
+    if expression_profile is not None:
+        expressions["expressionProfile"] = deepcopy(expression_profile)
     controls, playback = document["controls"], document.get("playback", {})
     if "joPreset" in controls:
         expressions["jo"] = controls["joPreset"]
@@ -213,7 +233,7 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                      f"{origin['row']}분박 {origin['unit']}자리의 독립 음열 {origin['symbols']} — "
                      f"원본 재생 슬러 {origin['interpretedSlur']['id']}")
             expressions.setdefault("slurGroups", []).append({"eventIds": event_ids, "basis": basis})
-    _verify_projection(legacy, mapping, common, expressions, mapping["quarter_bpm"], instrument)
+    _verify_projection(final_score, final_mapping, common, expressions, mapping["quarter_bpm"], instrument)
     source_map = {"schema": CONVERTER, "sourceName": source_name, "sourceSha256": input_sha256,
                   "commonSha256": common_hash, "part": selected, "slots": slots, "offsetUnit": "unicode-codepoint",
                   "staffUnit": mapping["staff_unit"], "quarterRatio": str(ratio),
@@ -224,6 +244,10 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                   "validation": {"nominalPitchTiming": "passed", "toleranceSeconds": 0.000001,
                                  "restComparison": "adjacent rests coalesced"},
                   "scope": "Inferred playback projection preserving nominal pitch/onset/duration. Consumed independent glyphs are recorded here, not applied twice; their interpreted internal slurs are carried in the expression companion. Gate, velocity, breath/release and waveform identity are not guaranteed by the nominal check."}
+    if performance_plan is not None:
+        source_map["originalPerformancePlan"] = deepcopy(performance_plan)
+    if expression_profile is not None:
+        source_map["originalExpressionProfile"] = deepcopy(expression_profile)
     return {"common": common, "expressions": expressions, "source_map": source_map, "bpm": mapping["quarter_bpm"]}
 
 
@@ -234,11 +258,17 @@ def main():
     parser.add_argument("--instrument", required=True, choices=("danso", "sogeum", "jeongak-daegeum", "sanjo-daegeum"))
     parser.add_argument("--part", type=int, help="1-based JGB part; required for multipart input")
     parser.add_argument("--source-id")
+    parser.add_argument("--performance-plan", type=Path, help="JGB-SHA-bound tempo/repeat plan; BPM is jeonggan/minute")
+    parser.add_argument("--expression-profile", type=Path, help="Explicit instrument expression parameters and basis")
+    parser.add_argument("--notation-policy", choices=("educational-preview/v1",), help="Explicit educational import policy")
     parser.add_argument("--out", type=Path, required=True, help="New bundle directory (must not exist)")
     args = parser.parse_args()
     raw = args.input.read_bytes()
     result = import_jgb(json.loads(raw.decode("utf-8-sig")), source_name=args.input.name,
                         instrument=args.instrument, part=args.part, source_id=args.source_id,
+                        performance_plan=json.loads(args.performance_plan.read_text(encoding="utf-8-sig")) if args.performance_plan else None,
+                        expression_profile=json.loads(args.expression_profile.read_text(encoding="utf-8-sig")) if args.expression_profile else None,
+                        notation_policy=args.notation_policy,
                         input_sha256=hashlib.sha256(raw).hexdigest())
     args.out.mkdir(parents=True, exist_ok=False)
     (args.out / "source.jgb.json").write_bytes(raw)
