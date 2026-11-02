@@ -74,7 +74,7 @@ def _placements(source, config, input_hash):
     require(isinstance(config, dict), '표현 파일은 JSON 객체여야 합니다')
     reject_unknown(config, ['schema', 'sourceSha256', 'placements', 'jo', 'relativeScale',
                             'expressionPolicy', 'expressionProfile', 'performancePlan',
-                            'gakContinuations'], 'expression companion')
+                            'gakContinuations', 'slurGroups'], 'expression companion')
     require(config.get('schema') == 'common-score-expressions/v1', '표현 파일 schema 불일치')
     require(config.get('sourceSha256') == input_hash, '표현 파일 sourceSha256 불일치')
     entries = config.get('placements')
@@ -99,6 +99,32 @@ def _placements(source, config, input_hash):
         require(actual[event['id']] == event['sigimsae'],
                 f"{event['id']}: placement 기호가 원본 sigimsae와 다릅니다")
     return units, marks, 'explicit-unit-placement'
+
+
+def _slur_groups(source, config):
+    """Only explicit, contiguous concrete notes may restore an imported figure."""
+    groups = config.get('slurGroups', [])
+    require(isinstance(groups, list) and len(groups) <= 10000, 'slurGroups는 최대10000개 배열이어야 합니다')
+    events = {event['id']: (i, event) for i, event in enumerate(source['events'])}
+    assigned = {}
+    for number, group in enumerate(groups):
+        label = f'slurGroups[{number}]'
+        require(isinstance(group, dict), f'{label}: 객체가 필요합니다')
+        reject_unknown(group, ['eventIds', 'basis'], label)
+        basis, ids = group.get('basis'), group.get('eventIds')
+        require(isinstance(basis, str) and basis.strip(), f'{label}: 원문 근거가 필요합니다')
+        require(isinstance(ids, list) and 2 <= len(ids) <= len(events) and
+                all(isinstance(eid, str) and eid in events for eid in ids),
+                f'{label}: 실제 eventId2개 이상의 배열이 필요합니다')
+        require(len(set(ids)) == len(ids) and not (assigned.keys() & set(ids)), f'{label}: 중복·겹친 그룹')
+        indices, members = zip(*(events[eid] for eid in ids))
+        require(list(indices) == list(range(indices[0], indices[0] + len(ids))), f'{label}: 연속 이벤트가 필요합니다')
+        require(len({e['cellId'] for e in members}) == 1 and
+                all(e['kind'] == 'NOTE' and all(_sustain_effect(m) for m in e['sigimsae']) for e in members),
+                f'{label}: 같은 정간의 구체 NOTE와 지속 효과만 연결할 수 있습니다')
+        require(not any(e['breathAfter'] for e in members[:-1]), f'{label}: 중간 숨표를 넘을 수 없습니다')
+        assigned.update({eid: f'common-slur-{number}' for eid in ids})
+    return assigned
 
 
 def _spans(mapping):
@@ -154,6 +180,7 @@ def convert_preview(source, base_score, base_map, config):
     require(isinstance(input_hash, str) and re.fullmatch('[0-9a-f]{64}', input_hash), '원본 SHA256이 필요합니다')
     units, marks, placement_policy = _placements(source, config, input_hash)
     config = config or {}
+    slur_groups = _slur_groups(source, config)
     instrument = source['score']['instrument'].lower().replace('_', '-')
     events = {event['id']: event for event in source['events']}
     by_location = {(u['gak'], u['cell'], u['row'] + 1, u['col'] + 1): u for u in units}
@@ -208,6 +235,8 @@ def convert_preview(source, base_score, base_map, config):
                     else:
                         remaining.append(mark)
                 symbol = unit['symbol'] or '-'
+                require(event['kind'] == 'NOTE' or not any(not _sustain_effect(m) for m in remaining),
+                        f'{key}: 쉼·각 경계 지속 자리의 새 음열/강세에는 원본 본음이 필요합니다')
                 # Pure curves on a held note use the existing delayed-effect path.
                 # A new pitch figure on a hold must have an explicit pitch anchor.
                 if symbol in ('', '-') and event['kind'] == 'NOTE' and any(not _sustain_effect(m) for m in remaining):
@@ -250,15 +279,17 @@ def convert_preview(source, base_score, base_map, config):
             loc['common'] = {key: unit[key] for key in ('eventId', 'cellId', 'row', 'col')}
             loc['common'].update(noteIdx=ordinals[unit['eventId']],
                                  startTick=str(unit['startTick']), endTick=str(unit['endTick']))
+    for note in score['notes']:
+        origin = mapping['notes'][note['id']][0]
+        group = slur_groups.get(origin['common']['eventId'])
+        if group:
+            note['slur'] = f"{group}.pass{origin.get('repeat_pass', 1)}"
     # Exact hwangHz and source provenance are inherited from the normal adapter.
     score['context'] = deepcopy(base_score['context'])
     score['source'] = deepcopy(base_score['source'])
     score['source']['notation_policy'] = POLICY
     score['assumptions'].extend(base_score['assumptions'])
     score['assumptions'].append('교육·미리듣기용 해석. 원본 v1 저장·NOTE idx·채점 타임라인은 변경하지 않음.')
-    for note in score['notes']:
-        if not note.get('rest'):
-            note.setdefault('gate_fraction', 1)
     # Breath belongs to the final performed sound of each original event/pass,
     # including an ornament figure whose last sound differs from its main pitch.
     last_sound = {}
@@ -271,6 +302,16 @@ def convert_preview(source, base_score, base_map, config):
     for (eid, _), note in last_sound.items():
         if events[eid]['breathAfter']:
             note.update(adaptive_breath(note['duration'], score['quarter_bpm']))
+    for index, note in enumerate(score['notes']):
+        if note.get('rest'):
+            continue
+        following = score['notes'][index + 1] if index + 1 < len(score['notes']) else {}
+        linked = (note.get('slur') and following.get('slur') == note['slur'] and
+                  not following.get('rest') and not note.get('breath_seconds'))
+        # A figure's internal note-off must reach the next onset for legato.
+        # Explicit gates still take precedence; only the default moves to its end.
+        if not linked:
+            note.setdefault('gate_fraction', 1)
     segments = []
     seconds_per_quarter = mapping['midi_tempo_us'] / 1e6
     for index, (start, end, location, _) in enumerate(_spans(mapping)):
@@ -295,4 +336,6 @@ def convert_preview(source, base_score, base_map, config):
                   placement_assumptions=approximations, performanceTimeline=timeline,
                   expression_source_map=mapping, performed_score_seconds=total_ms / 1000,
                   written_score_seconds=base_map['score_seconds'])
+    if slur_groups:
+        result['slur_groups'] = deepcopy(config['slurGroups'])
     return score, result
