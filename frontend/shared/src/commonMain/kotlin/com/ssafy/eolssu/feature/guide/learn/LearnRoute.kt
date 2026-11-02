@@ -4,6 +4,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -11,18 +13,18 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.guide.Blow
 import com.ssafy.eolssu.feature.guide.GuideInstrument
-import com.ssafy.eolssu.feature.guide.LISTEN_HIGHLIGHT_MILLIS
+import com.ssafy.eolssu.feature.guide.FingeringNote
+import com.ssafy.eolssu.feature.guide.ReferenceAudioRoute
+import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_listen_pending
 import eolssu.shared.generated.resources.learn_listen_model_pending
 import eolssu.shared.generated.resources.learn_practice_pending
 import eolssu.shared.generated.resources.learn_reset_message
 import eolssu.shared.generated.resources.learn_song_missing
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 
@@ -57,6 +59,8 @@ fun LearnListRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
+    var audioSelection by remember(state.instrument, state.shownStage) { mutableStateOf<ReferenceAudioSelection?>(null) }
+    audioSelection?.let { ReferenceAudioRoute(it, onClose = { audioSelection = null }) }
 
     LaunchedEffect(twoPane, state.selectedStage) {
         val selected = state.selectedStage
@@ -87,7 +91,6 @@ fun LearnListRoute(
     )
 
     if (twoPane) {
-        ListenHighlightEffect(state.playing, viewModel)
         val stage = learnStageOf(state.shownStage) ?: return
         LearnExpandedLayout(
             state = state,
@@ -105,6 +108,7 @@ fun LearnListRoute(
                 onConfirmed = viewModel::selectStage,
                 onToggleDone = viewModel::toggleShownDone,
                 navigation = navigation,
+                onListen = { audioSelection = ReferenceAudioSelection.forNote(state.instrument, it) },
             ),
         )
     } else {
@@ -132,6 +136,8 @@ fun LearnStageRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
+    var audioSelection by remember(state.instrument, stageNumber) { mutableStateOf<ReferenceAudioSelection?>(null) }
+    audioSelection?.let { ReferenceAudioRoute(it, onClose = { audioSelection = null }) }
 
     LaunchedEffect(twoPane) {
         if (twoPane) {
@@ -141,7 +147,6 @@ fun LearnStageRoute(
     }
     // 목록에 돌아가면 이 단계 카드를 펼친다(이전·다음 단계와 '확인했어요' 뒤 연 단계 포함)
     LaunchedEffect(stageNumber) { viewModel.viewCard(stageNumber) }
-    ListenHighlightEffect(state.playing, viewModel)
 
     LearnStageScreen(
         state = state,
@@ -158,6 +163,7 @@ fun LearnStageRoute(
             onConfirmed = { next -> next?.let(onOpenStage) ?: onBack() },
             onToggleDone = viewModel::toggleDone,
             navigation = navigation,
+            onListen = { audioSelection = ReferenceAudioSelection.forNote(state.instrument, it) },
         ),
     )
 }
@@ -175,6 +181,7 @@ private fun learnStageActions(
     onConfirmed: (Int?) -> Unit,
     onToggleDone: (Int) -> Unit,
     navigation: LearnNavigation,
+    onListen: (FingeringNote) -> Unit,
 ) = LearnStageActions(
     onBack = onBack,
     onOpenStage = onOpenStage,
@@ -187,10 +194,7 @@ private fun learnStageActions(
         if (n == 8) navigation.onOpenSongList() else notify { getString(Res.string.learn_practice_pending, n, stage.title) }
     },
     onListenModel = { notify { getString(Res.string.learn_listen_model_pending) } },
-    onListen = { note ->
-        viewModel.listen(note.hanja)
-        notify { getString(Res.string.guide_listen_pending) }
-    },
+    onListen = onListen,
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },
     onOpenReading = navigation.onOpenReading,
     onOpenSong = { song ->
@@ -199,16 +203,6 @@ private fun learnStageActions(
     },
     onRetrySongs = viewModel::retrySongs,
 )
-
-/** '음 듣기'를 누른 버튼의 강조를 잠시 뒤 끈다. */
-@Composable
-private fun ListenHighlightEffect(playing: String?, viewModel: LearnViewModel) {
-    LaunchedEffect(playing) {
-        val hanja = playing ?: return@LaunchedEffect
-        delay(LISTEN_HIGHLIGHT_MILLIS)
-        viewModel.finishListening(hanja)
-    }
-}
 
 private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> String) -> Unit =
     { message -> scope.launch { show(message()) } }

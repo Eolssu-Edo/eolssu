@@ -79,6 +79,8 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [기본음·시김새 녹음 선택과 앱 내부 재생](knowledge/frontend/reference-audio-playback.md)
+
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)

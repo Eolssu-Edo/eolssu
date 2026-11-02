@@ -1,0 +1,15 @@
+<resources>
+    <string name="reference_audio_title">%1$s 녹음 음원</string>
+    <string name="reference_audio_explanation">주법과 구간을 골라 들어 보세요. 연주 예시는 채점 기준음과 다를 수 있어요.</string>
+    <string name="reference_audio_all_notes">전체 음원</string>
+    <string name="reference_audio_all_categories">전체 분류</string>
+    <string name="reference_audio_empty_note">같은 취법·율명으로 공개된 음원이 없어요. 전체 음원에서 원래 라벨을 확인해 보세요.</string>
+    <string name="reference_audio_empty_all">이 악기에 공개된 녹음 음원이 아직 없어요.</string>
+    <string name="reference_audio_count">녹음 %1$d개</string>
+    <string name="reference_audio_open">재생</string>
+    <string name="reference_audio_play">재생</string>
+    <string name="reference_audio_stop">정지</string>
+    <string name="reference_audio_loading_sound">소리를 불러오는 중이에요.</string>
+    <string name="reference_audio_failed_sound">소리를 재생하지 못했어요. 다시 시도해 주세요.</string>
+    <string name="reference_audio_take">연주 예시 %1$d</string>
+</resources>
