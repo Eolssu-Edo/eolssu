@@ -61,8 +61,8 @@
 | goal, why, source | STRING. 단계 목표·이 순서로 배우는 이유·근거 자료 |
 | tasks[] | `{title, description}` 순서대로. description은 STRING 또는 null. 2단계 '악기 잡기'의 description은 트랙별 잡는 법이다. 4·5·6단계는 `[]`(앱이 pitchNames·ranges로 할 일을 만든다) |
 | passCriteria | `{title, description}` 또는 null(1·2·9단계) |
-| pitchNames | 율명 한자 배열(옥타브 표시 포함, 예: 汰). 3단계는 첫 소리 1개, 4단계는 익힐 순서, 5·8단계는 기본 5음(낮은 음부터). 그 밖은 `[]` |
-| pitchNote | 4단계 익힐 순서 설명 `{text, caution}`. caution은 STRING 또는 null. 그 밖은 null |
+| pitchNames | 율명 한자 배열(옥타브 표시 포함, 예: 汰). 3단계는 처음 낼 음 1개(4단계 익힐 순서의 첫 음), 4단계는 익힐 순서, 5·8단계는 기본 5음(낮은 음부터). 그 밖은 `[]` |
+| pitchNote | 4단계 익힐 순서 설명 `{text, caution}`. caution은 STRING 또는 null이고 앞의 '※ '는 앱이 붙인다. 그 밖은 null |
 | parts | 1단계 악기 부분 이름 배열 |
 | ranges[] | 6단계 음역 `{blow, label, description, firstPitch}`. blow는 HIGH·LOW, firstPitch는 율명 한자 |
 | songs[] | 8단계 연습곡 후보 `{title, meta}`. 곡 연결은 앱이 같은 제목의 평가 가능한 곡을 찾는다 |
@@ -91,8 +91,9 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 - `lessons`: track(네 코드)·seq·title·judge_type·is_optional·content_json(LRN-02 상세)·status. (track, seq)는 유일하다. 기존 kind·instrument_id는 없앤다.
 - `lesson_progress`: user_id·lesson_id·completed_at. (user_id, lesson_id)는 유일하다. 행이 있으면 완료이고 해제하면 행을 지운다. 기존 score는 없앤다.
-- Flyway 마이그레이션(현재 develop 최신 V12 다음, 병합 직전 번호 재확인): 두 테이블에 행이 있으면 구조를 바꾸기 전에 실패한다. 이어서 36행을 PUBLISHED로 넣는다. 문구 출처는 develop cfad44c3의 `LearnCurriculum.kt`(`LearnStages`·`learnContent`·`LearnSongs`)다.
-- 단계 문구 수정은 새 Flyway 마이그레이션으로 한다. 화면 구성·섹션 제목과 4·5·6단계 할 일·패턴을 만드는 규칙(`strings.xml`·`LearnPattern`)은 앱에 남는다.
+- Flyway 마이그레이션(현재 develop 최신 V12 다음, 병합 직전 번호 재확인): 두 테이블에 행이 있거나 지울 V1 자동 이름(외래 키·CHECK·유일 인덱스)이 없으면 구조를 바꾸기 전에 실패한다. 이어서 36행을 PUBLISHED로 넣는다. 문구 출처는 develop cfad44c3의 `LearnCurriculum.kt`(`LearnStages`·`learnContent`·`LearnSongs`)다.
+- 단계 문구 수정은 새 Flyway 마이그레이션으로 한다. 같은 값이 여러 행에 있어(3단계 율명은 4단계 첫 음, 5·8단계 기본 5음, 정악·산조대금 공통 문구) 고칠 때 함께 바꾼다.
+- 화면 구성·섹션 제목과 4·5·6단계 할 일·패턴을 만드는 규칙(`strings.xml`·`LearnPattern`)은 앱에 남는다. 단계별 안내 문장 일부(3단계 첫 소리 안내, 5단계 동요 보충, 8단계 음계·곡 안내, 9단계 감상 안내, 정간보 그림 설명)도 `strings.xml`에 남아 서버에서 고칠 수 없다.
 - 탈퇴 일괄 삭제는 지금처럼 회원의 `lesson_progress`를 지운다.
 - LRN-01은 (track, seq) 인덱스로 트랙의 단계를 순서대로 읽고 (user_id, lesson_id) 인덱스로 본인 표시를 붙인다. content_json은 LRN-02에서만 읽는다.
 
@@ -110,14 +111,14 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 ## 구현 경계·검증
 
-- 기존 `feature/lesson` 패키지에 둔다. api는 HTTP 매핑·입력 검증, application은 본인 진도와 트랜잭션, domain은 트랙 코드와 완료 수·다음 단계 계산, infrastructure는 MyBatis 조회와 content_json 해석을 맡는다.
+- 기존 `feature/lesson` 패키지에 둔다. api는 HTTP 매핑·입력 검증, application은 본인 진도 조회·표시(트랜잭션으로 묶지 않는다. REPEATABLE READ 스냅샷에서는 동시에 먼저 커밋한 상대의 처음 시각이 다시 읽기에 보이지 않는다), domain은 트랙 코드와 완료 수·다음 단계 계산, infrastructure는 MyBatis 조회와 content_json 해석을 맡는다.
 - 단위 테스트: completedCount·nextLessonId(선택 단계 제외, 모두 완료면 null, 초안 단계 제외), 트랙 코드 해석.
-- MockMvc: track 누락·모르는 코드·숫자가 아닌 lessonId·본문 누락·문자열 completed의 400, 미인증 401, JSON이 아닌 본문 415.
+- MockMvc: `LessonControllerTests`에서 track 누락·모르는 코드·숫자가 아닌 lessonId·본문 누락·문자열 completed의 400, `ApiAccessRulesTests`에서 세 경로의 미인증 401. JSON이 아닌 본문 415는 보안 필터를 거치는 `databaseTest`에서 확인한다.
 - 실제 HTTP/MySQL(`databaseTest`):
   - 마이그레이션 뒤 36행, 트랙마다 9행, 모두 PUBLISHED, seq별 judgeType, 9단계만 optional인지 확인한다.
   - 트랙 분리와 다른 회원 표시 불변, 초안 단계의 목록 제외·상세 404·완료 404를 확인한다.
   - LRN-02 표본: DANSO 4단계 pitchNames, SOGEUM 1단계 parts, DAEGEUM_SANJO 2단계 잡는 법, DAEGEUM_JEONGAK 6단계 ranges 2개, 8단계 songs 6개.
-  - LRN-03: true 두 번이면 첫 시각 유지, false로 해제, 같은 단계 동시 true에도 한 행.
+  - LRN-03: true 두 번이면 첫 시각 유지, false로 해제, 같은 단계 동시 true에도 한 행, 응답 진도는 표시한 단계의 트랙 기준.
   - 탈퇴 일괄 삭제 뒤 진도가 남지 않는다.
   - LRN-01 조회의 실행 계획(EXPLAIN)이 두 유일 인덱스를 쓰고 filesort가 없다.
   - Swagger 검사(`OpenApiDatabaseTests`)가 새 경로 3개를 포함해 통과한다.
@@ -126,4 +127,5 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 ## 열린 항목
 
-- pitchNames·firstPitch는 앱 운지표와 같은 율명 한자를 쓴다. 서버 율명 테이블(CAT-06)은 단소만 있어 대조하지 않는다. 370 착수 때 앱 표기와 맞는지 확인한다.
+- pitchNames·firstPitch는 앱 운지표와 같은 율명 한자를 쓴다. 서버 율명 테이블(CAT-06)은 단소만 있어 대조하지 않는다. 370 착수 때 앱 표기와 맞는지 확인한다. 앱은 운지표에 없는 율명을 화면에서 조용히 숨기므로 문구를 고칠 때도 앱 운지표에 있는 율명만 쓴다.
+- `strings.xml`에 남는 단계별 안내 문장을 서버로 옮길지(content_json 필드 추가, 기존 앱과 호환)는 정하지 않았다.

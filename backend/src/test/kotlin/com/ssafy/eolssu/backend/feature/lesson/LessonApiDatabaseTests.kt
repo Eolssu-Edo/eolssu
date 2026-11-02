@@ -32,7 +32,7 @@ import tools.jackson.databind.json.JsonMapper
 
 private const val TEST_SECRET = "test-only-signing-key-32-bytes-1234567890"
 
-/** 실제 HTTP·JWT 쿠키·MySQL과 V13 시드로 LRN-01·02를 확인한다. 넣은 행은 끝에서 지운다. */
+/** 실제 HTTP·JWT 쿠키·MySQL과 V13 시드로 LRN-01·02·03을 확인한다. 넣은 행은 끝에서 지운다. */
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["eolssu.security.jwt-secret=$TEST_SECRET"])
@@ -116,6 +116,7 @@ class LessonApiDatabaseTests {
         val sogeumParts = result(get("/api/lessons/10", "961"))
         assertEquals(listOf("취구", "지공 6개"), sogeumParts["parts"].values().map { it.asString() })
         assertTrue(sogeumParts["passCriteria"].isNull)
+        assertTrue(sogeumParts["completedAt"].isNull, "회원 962의 표시가 보이면 안 된다")
 
         val sanjoHold = result(get("/api/lessons/29", "961"))
         assertEquals("DAEGEUM_SANJO", sanjoHold["track"].asString())
@@ -172,6 +173,17 @@ class LessonApiDatabaseTests {
 
         val clearedAgain = result(put("/api/lessons/3/completion", "961", """{"completed":false}"""))
         assertTrue(clearedAgain["completedAt"].isNull)
+
+        result(put("/api/lessons/2/completion", "961", """{"completed":false}"""))
+        assertEquals(0, progressRows(961, 2))
+        assertEquals(1, progressRows(962, 2), "해제는 회원 962의 표시를 지우면 안 된다")
+    }
+
+    @Test
+    fun `reports the progress of the marked stage's own track`() {
+        val sogeum = result(put("/api/lessons/11/completion", "962", """{"completed":true}"""))
+        assertEquals(2, sogeum["completedCount"].asInt())
+        assertEquals("12", sogeum["nextLessonId"].asString())
     }
 
     @Test

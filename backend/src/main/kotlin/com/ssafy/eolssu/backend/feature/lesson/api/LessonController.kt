@@ -27,12 +27,12 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.annotation.JsonDeserialize
 
-/** 기초부터 배우기(LEARN-01·02) 단계 API. 계약은 docs/specs/learning-progress-apis.md(LRN-01·02·03). */
+/** 기초부터 배우기(앱 화면 LEARN-02) 단계 API. 계약은 docs/specs/learning-progress-apis.md(LRN-01·02·03). */
 @RestController
 @Profile("db | ops")
 class LessonController(private val queries: LessonQueries, private val completion: MarkLessonCompletion) {
     @GetMapping("/api/lessons")
-    fun list(@AuthenticationPrincipal jwt: Jwt, @RequestParam(required = false) track: String?): ResponseEntity<*> {
+    fun list(@AuthenticationPrincipal jwt: Jwt, @RequestParam track: String): ResponseEntity<*> {
         val learnTrack = LearnTrack.parse(track) ?: return error(ErrorCode.INVALID_REQUEST)
         return ok("기초 학습 목록·나의 진도 조회 성공", queries.list(jwt.userId(), learnTrack).toResult())
     }

@@ -4,7 +4,8 @@
 
 -- ---------- 적용 전 확인 ----------
 -- MySQL DDL은 되돌려지지 않는다. 두 테이블은 쓰는 API가 없어 비어 있어야 하며, 행이 있으면 DDL 전에 멈춘다.
--- 실패 시: 행이 어디서 왔는지 확인해 정리하고 flyway_schema_history의 실패 행(version 13, success 0)을 지운 뒤 다시 적용한다(backend README).
+-- 아래에서 지우는 V1 자동 이름(외래 키·CHECK·유일 인덱스)이 다른 DB도 DDL 전에 멈춘다.
+-- 여기서 실패하면 원인을 정리하고 flyway_schema_history의 실패 행(version 13, success 0)을 지운 뒤 다시 적용한다(backend README).
 CREATE TEMPORARY TABLE v13_preconditions (
   item VARCHAR(40) NOT NULL,
   ok   BOOLEAN     NOT NULL,
@@ -12,6 +13,18 @@ CREATE TEMPORARY TABLE v13_preconditions (
 );
 INSERT INTO v13_preconditions (item, ok) SELECT 'lessons.empty', NOT EXISTS (SELECT 1 FROM lessons);
 INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress.empty', NOT EXISTS (SELECT 1 FROM lesson_progress);
+INSERT INTO v13_preconditions (item, ok) SELECT 'lessons_ibfk_1', EXISTS (
+  SELECT 1 FROM information_schema.referential_constraints
+  WHERE constraint_schema = DATABASE() AND table_name = 'lessons' AND constraint_name = 'lessons_ibfk_1');
+INSERT INTO v13_preconditions (item, ok) SELECT 'lessons_chk_1', EXISTS (
+  SELECT 1 FROM information_schema.check_constraints
+  WHERE constraint_schema = DATABASE() AND constraint_name = 'lessons_chk_1' AND check_clause LIKE '%kind%');
+INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress_chk_1', EXISTS (
+  SELECT 1 FROM information_schema.check_constraints
+  WHERE constraint_schema = DATABASE() AND constraint_name = 'lesson_progress_chk_1' AND check_clause LIKE '%score%');
+INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress.user_id', EXISTS (
+  SELECT 1 FROM information_schema.statistics
+  WHERE table_schema = DATABASE() AND table_name = 'lesson_progress' AND index_name = 'user_id' AND non_unique = 0);
 DROP TEMPORARY TABLE v13_preconditions;
 
 -- ---------- 학습 단계 ----------
@@ -43,7 +56,7 @@ ALTER TABLE lesson_progress
 -- 앱 frontend/shared/.../feature/guide/learn/LearnCurriculum.kt(develop cfad44c3)의 LearnStages·learnContent·LearnSongs를 옮겼다.
 -- id는 V5·V6처럼 고정한다. 트랙 순서(단소·소금·정악대금·산조대금)대로 단계 1~9가 이어진다.
 -- 2단계 '악기 잡기' 설명은 트랙별 잡는 법, pitchNames는 3단계 첫 소리·4단계 익힐 순서·5·8단계 기본 5음(낮은 음부터)이다.
--- 문구를 고칠 때는 이 파일이 아니라 새 마이그레이션에서 바꾼다.
+-- 문구를 고칠 때는 이 파일이 아니라 새 마이그레이션에서 바꾼다. 같은 값이 여러 행에 있으니 함께 바꾼다(스펙 참고).
 INSERT INTO lessons (id, track, seq, title, judge_type, is_optional, content_json, status) VALUES
   (1, 'DANSO', 1, '악기 알기·감상', 'READ', FALSE,
    JSON_OBJECT('goal', '소리와 악기 구조를 안다', 'why', '지도서는 악기를 보고 모범 연주를 먼저 듣는 범주 학습을 가장 앞에 둬요.', 'tasks', JSON_ARRAY(JSON_OBJECT('title', '악기 구조와 이름 보기', 'description', '취구·지공 같은 부분 이름을 알아 둬요.'), JSON_OBJECT('title', '모범 연주 듣기', 'description', '이 악기로 연주한 소리를 먼저 들어요.'), JSON_OBJECT('title', '이 악기 소리의 특징 느끼기', 'description', '높낮이·음색을 귀로 익혀요.')), 'passCriteria', NULL, 'pitchNames', JSON_ARRAY(), 'pitchNote', NULL, 'parts', JSON_ARRAY('취구(U자 홈)', '뒷구멍 1개 · 왼손 엄지', '앞 지공 4개'), 'ranges', JSON_ARRAY(), 'songs', JSON_ARRAY(), 'source', '단소 지도서 기본원칙 ①·④, 과정안 기초단계 1·2항. 모든 강좌의 1차시'),
