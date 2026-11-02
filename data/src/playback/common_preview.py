@@ -4,7 +4,6 @@ The original score is the storage/scoring contract. This adapter supplies
 placement and performed time separately; none of the defaults claim to
 reconstruct ornament positions or a historically authoritative performance.
 """
-from collections import Counter
 from copy import deepcopy
 from fractions import Fraction
 import re
@@ -92,10 +91,11 @@ def _placements(source, config, input_hash):
         require(isinstance(symbols, list) and symbols and all(isinstance(x, str) and x for x in symbols),
                 f'{key}: 비어 있지 않은 symbols 배열이 필요합니다')
         marks[key] = list(symbols)
-        actual[unit['eventId']].extend(symbols)
         seen.add(key)
+    for unit in units:
+        actual[unit['eventId']].extend(marks[_key(unit)])
     for event in source['events']:
-        require(Counter(actual[event['id']]) == Counter(event['sigimsae']),
+        require(actual[event['id']] == event['sigimsae'],
                 f"{event['id']}: placement 기호가 원본 sigimsae와 다릅니다")
     return units, marks, 'explicit-unit-placement'
 
@@ -185,6 +185,9 @@ def convert_preview(source, base_score, base_map, config):
                         where = (column['index'] + 1, cell['index'] + 1)
                         require(where not in tempo_entries, f'{key}: 빠르기 기호 중복')
                         tempo_entries[where] = name
+                        approximations.append({'symbol': mark, 'written_position': list(key),
+                            'effective_position': [cell['id'], 0, 0],
+                            'basis': '빠르기 기호는 기존 정간 단위 계획에 맞춰 해당 정간 시작부터 적용; 원래 기호 위치는 보존'})
                     else:
                         remaining.append(mark)
                 symbol = unit['symbol'] or '-'
@@ -223,6 +226,13 @@ def convert_preview(source, base_score, base_map, config):
         if tempo_entries or repeat_columns:
             approximations.append({'basis': '교육용 기본 계획: 반복 기호가 있는 각 총2회; 느림0.8/빠름1.2; 점진 변화는 다음 정간까지', 'plan': deepcopy(plan)})
     score, mapping = apply_tempo_repeat(score, mapping, plan, input_hash, instrument=instrument)
+    ordinals = {event['id']: event['noteIdx'] for event in base_map['events']}
+    for locations in mapping['notes'].values():
+        for loc in locations:
+            unit = by_location[(loc['gak'], loc['cell'], loc['row'], loc['unit'])]
+            loc['common'] = {key: unit[key] for key in ('eventId', 'cellId', 'row', 'col')}
+            loc['common'].update(noteIdx=ordinals[unit['eventId']],
+                                 startTick=str(unit['startTick']), endTick=str(unit['endTick']))
     # Exact hwangHz and source provenance are inherited from the normal adapter.
     score['context'] = deepcopy(base_score['context'])
     score['source'] = deepcopy(base_score['source'])

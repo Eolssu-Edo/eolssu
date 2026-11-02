@@ -75,6 +75,11 @@ class CommonPreviewTests(unittest.TestCase):
             self.assertEqual([n['pitch'] for n in score['notes'][1:5]], pitches)
             self.assertEqual([Fraction(n['duration']) for n in score['notes'][1:5]], [Fraction(1, 4)]*4)
             self.assertEqual(mapping['events'][1]['noteIdx'], 0)
+            decorated = [loc for refs in mapping['expression_source_map']['notes'].values()
+                         for loc in refs if loc['gak'] == 1 and loc['cell'] == 2]
+            self.assertTrue(decorated)
+            self.assertTrue(all(loc['common']['eventId'] == 'c0-j1-r0-u0' and
+                                loc['common']['noteIdx'] == 0 for loc in decorated))
         source['events'][1]['sigimsae'] = ['반복표']
         _, mapping = self.convert(source)
         segments = mapping['performanceTimeline']['segments']
@@ -150,6 +155,26 @@ class CommonPreviewTests(unittest.TestCase):
         self.assertEqual([n['pitch'] for n in score['notes']], [68, 75])
         self.assertEqual([s['eventId'] for s in mapping['performanceTimeline']['segments']],
                          ['c0-j0-r0-u0', 'c0-j0-r0-u1'])
+
+    def test_placements_preserve_symbol_order_independent_of_entry_order(self):
+        source = from_melody('청중{니레} -{농음표}')
+        entries = [{'eventId': 'c0-j0-r0-u0', 'cellId': 'c0-j0', 'row': row, 'col': 0, 'symbols': [mark]}
+                   for row, mark in enumerate(['니레', '농음표'])]
+        config = {'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64, 'placements': list(reversed(entries))}
+        self.convert(source, expressions=config)
+        entries[0]['symbols'], entries[1]['symbols'] = entries[1]['symbols'], entries[0]['symbols']
+        with self.assertRaisesRegex(ValueError, 'sigimsae'):
+            self.convert(source, expressions=config)
+
+    def test_tempo_cue_keeps_written_placement_and_records_cell_policy(self):
+        source = from_melody('청중 청중{조금느리게} 청중')
+        _, mapping = self.convert(source)
+        segments = mapping['performanceTimeline']['segments']
+        self.assertEqual([s['sigimsae'] for s in segments], [[], ['조금느리게'], []])
+        self.assertEqual(segments[-1]['endMs'], 1250)
+        shifted = next(item for item in mapping['placement_assumptions'] if item.get('symbol') == '조금느리게')
+        self.assertEqual(shifted['written_position'], ['c0-j0', 1, 0])
+        self.assertEqual(shifted['effective_position'], ['c0-j0', 0, 0])
 
     def test_preview_plain_arirang_matches_original_playback(self):
         from data.src.playback.tests.test_common_score import FIXTURE

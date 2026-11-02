@@ -71,6 +71,7 @@ flowchart TD
 - 별도 위치 파일은 `--common-expressions expressions.json`으로 지정합니다. 형식은 `common-score-expressions/v1`, 원본 `sourceSha256`, 원본 기호 전체의 `placements`입니다. 기존 v1 원본을 고치지 않습니다.
 - 위치 파일이 없으면 이벤트 첫 표시 자리에 적용하고 `event-origin-inferred`로 기록합니다. 조 미지정 시 교육용 황종계면 기본값을 명시합니다. 기호 오타·원본/배치 불일치·상충 표현은 오류입니다.
 - `performance.common.json`은 실제 음원 SHA와 원본 SHA에 묶인 표시 자리별 수행 시간표입니다. 늘임·길이표·반복을 적용한 시간으로 화면을 진행시킬 때 사용합니다. 원본 `events`는 저장·채점에 계속 사용합니다.
+- 빠르기 기호는 기존 정간 단위 계획대로 해당 정간 시작부터 적용합니다. 정간 중간에 적힌 경우 원래 위치와 실제 적용 위치를 `placement_assumptions`에 따로 기록합니다.
 - `source-map.json`에는 기존 본음 기준 대응표와 펼친 표현/근거/추정 위치를 함께 남깁니다. 단독 MIDI만으로는 이 정보를 복원할 수 없습니다.
 - 직접 JGB 입력은 파일에 `playback.notation_policy: "educational-preview/v1"`을 지정합니다. 직접 JGB의 반복은 기존 `--performance-plan`으로 범위를 명시하고 길이표 짝 규칙을 유지합니다. 공통 입력의 기본 반복/길이표 정책과 구분합니다.
 
