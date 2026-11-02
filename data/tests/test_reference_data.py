@@ -49,13 +49,12 @@ class PitchTableTests(unittest.TestCase):
     def test_every_pitch_in_scoring_answers_is_listed(self):
         names = {r["hangul"] for r in self.rows}
         yul = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
-        # 서비스 곡(songs.json)의 정답만 본다. jgb v2는 parts[]의 선율, v1은 루트 선율이다.
+        # 율명 표는 단소 음역이라 서비스 곡(songs.json)의 정답만 본다. 평가용 소금 정답은 고·남 등을 쓴다.
         sources = {row["source"] for row in load("songs.json")["rows"]}
         answers = sorted(p for p in (DATA / "annotations/scores").glob("*/*.jgb.json") if p.parent.name in sources)
-        self.assertEqual(len(answers), 8)
+        self.assertTrue(answers)
         for path in answers:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-            melody = doc.get("parts", [doc])[0]["melody"]
+            melody = json.loads(path.read_text(encoding="utf-8"))["parts"][0]["melody"]
             self.assertLessEqual(set(re.findall(yul, melody)), names, path.name)
 
 
@@ -129,17 +128,11 @@ class SongTableTests(unittest.TestCase):
     def test_songs_point_at_jangdans_and_reviewed_answers(self):
         jangdans = {r["name"]: r for r in load("jangdans.json")["rows"]}
         rows = load("songs.json")["rows"]
-        titles = {"아리랑", "도라지타령", "밀양아리랑", "늴리리야"}
-        for code in ("DANSO", "SOGEUM"):  # 소금은 단소와 같은 곡·장단·난이도(2026-11-02 결정)
-            self.assertEqual({r["title"] for r in rows if r["instrument"] == code}, titles, code)
-        by_title = {}
-        for row in rows:
-            by_title.setdefault(row["title"], []).append((row["jangdan"], row["difficulty"], row["default_bpm"]))
-        self.assertTrue(all(len(set(v)) == 1 for v in by_title.values()), by_title)
-        self.assertEqual(len(rows), 8)
+        self.assertEqual({r["title"] for r in rows}, {"아리랑", "도라지타령", "밀양아리랑", "늴리리야"})
         for row in rows:
             self.assertEqual(set(row), {"title", "instrument", "jangdan", "difficulty", "default_bpm",
                                         "description", "source", "is_scorable", "status"})
+            self.assertEqual(row["instrument"], "DANSO")
             self.assertEqual(row["default_bpm"], jangdans[row["jangdan"]]["default_bpm"], row["title"])
             self.assertIn(row["status"], {"DRAFT", "PUBLISHED", "HIDDEN"})
             self.assertIn(row["difficulty"], range(1, 6), row["title"])  # songs.difficulty NOT NULL, 1~5

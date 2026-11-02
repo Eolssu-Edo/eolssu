@@ -111,3 +111,20 @@ SEQUENCE의 index만 관측 순서다. 다루치기 역할의 DB index=0은 키�
 두 linker는 schema2만 받는다. 내부 Python 함수의 입력은 `load_mappings(mapping_path, manifest_path)`이고 확인하지 않은 assets 리스트를 직접 넘기지 않는다. 형식/중복JSON키·labelId/unknown field/잘못된dataset·category/manifest 변경/파일손상/목표타입·범위/누락·추가 역할/sequence수/같은 원본음의 목표불일치는 SQL 파일을 만들기 전에 거부한다. SQL의 전체배치 충돌·재실행 검사는 그대로이며 DB/R2에 자동 쓰지 않는다.
 
 재검증은 위 unittest 명령과 기존8개 CLI 명령을 사용한다. 각 출력은 새 경로에 생성한다. 기준 manifest 파일의 SHA-256은 `5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb`다. 원본 manifest가 바뀌면 기존 매핑을 그대로 적용하지 않고 해당자료와 명시적 선택을 다시 대조한다.
+
+## 표준악보집 소금 4곡 채점 켜기
+
+Task S15P31E102-387. S15P31E102-339가 운영 DB에 넣은 소금 아리랑(97)·도라지타령(92)·밀양아리랑(95)·늴리리야(91)에 사람 검수한 숨표와 `provenance.review: reviewed`를 반영하고 `is_scorable`을 켠다. 정답은 `data/annotations/scores/ngc-standard-2022-p194·p192·p193·p196`이고, 운영 악보와 음·길이·이벤트 id가 같음을 2026-11-02 운영 DB 읽기로 확인했다. 악기 행·율명·게시 상태·`score_version`은 바꾸지 않는다(모범 음원은 같은 `score_version`일 때만 나온다).
+
+339 게시 도구로 4곡을 PUBLISHED로 바꾼 뒤 edo1에서 실행한다. 339 적재 도구는 기존 곡의 `is_scorable=0`을 요구하므로 이 도구 뒤에 다시 적재하면 멈춘다.
+
+```sh
+python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-check.json
+python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-apply.json --apply
+```
+
+기본은 읽기 전용이다. 곡마다 id·출처·`score_version`·삭제 여부와 현재 악보 해시가 도구의 `PLAN`과 같아야 하고, 하나라도 다르면 쓰기 전에 멈춘다. `--apply`는 한 트랜잭션에서 행마다 바뀐 수가 1인지 확인하고 커밋한 뒤 다시 읽어 대조한다. 이미 바뀐 곡은 다시 쓰지 않는다. 결과는 새 receipt 파일에 남는다.
+
+```powershell
+python -m unittest discover -s infra/catalog -p "test_enable_sogeum_scoring.py" -v
+```

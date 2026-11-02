@@ -21,6 +21,11 @@
    "note": "원본에 숨표 없음, 넣지 않음"
   }
  },
+ "song": {
+  "title": "늴리리야",
+  "instrument": "SOGEUM",
+  "jangdan": "굿거리"
+ },
  "sourceValues": {
   "jangdan": "굿거리",
   "meter": "3소박 4박자",

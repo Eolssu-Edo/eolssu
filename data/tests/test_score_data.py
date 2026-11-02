@@ -192,7 +192,8 @@ class ConvertTests(unittest.TestCase):
 
 
 ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
-# 서비스 소금 4곡(표준악보집 아리랑 PDF194·도라지타령 PDF192·밀양아리랑 PDF193·닐리리야 PDF196)
+# 표준악보집 소금 4곡(아리랑 PDF194·도라지타령 PDF192·밀양아리랑 PDF193·닐리리야 PDF196). 서비스 곡 행은
+# S15P31E102-339 적재분이고, 이 정답은 그 곡의 채점을 켜는 근거다(infra/catalog/enable_sogeum_scoring.py).
 SERVICE_SOGEUM = ["ngc-standard-2022-p194", "ngc-standard-2022-p192", "ngc-standard-2022-p193", "ngc-standard-2022-p196"]
 # 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
 SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]
@@ -200,7 +201,7 @@ YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무�
 
 
 class AnswerTests(unittest.TestCase):
-    """저장소의 채점 정답(단소 4곡, 서비스 소금 4곡, 평가용 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
+    """저장소의 채점 정답(단소 4곡, 표준악보집 소금 4곡, 평가용 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
 
     def test_answers_pass_schema_and_invariants(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -223,14 +224,14 @@ class AnswerTests(unittest.TestCase):
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
 
-    def test_service_sogeum_answers_take_song_info_from_songs_and_use_listed_pitches(self):
+    def test_standard_sogeum_answers_are_reviewed_and_use_listed_pitches(self):
         titles = {"ngc-standard-2022-p194": "아리랑", "ngc-standard-2022-p192": "도라지타령",
                   "ngc-standard-2022-p193": "밀양아리랑", "ngc-standard-2022-p196": "늴리리야"}
         for source_id in SERVICE_SOGEUM:
             result = convert_answer(source_id)
             self.assertEqual((result["score"]["title"], result["score"]["instrument"]), (titles[source_id], "SOGEUM"))
             self.assertEqual(check(result), [], source_id)
-            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 서비스 곡은 사람 검수를 마친 정답만
+            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 채점을 켜는 정답은 사람 검수를 마친 것만
 
     def test_check_finds_sogeum_pitch_missing_from_table(self):
         result = convert_answer("ngc-standard-2022-p194")

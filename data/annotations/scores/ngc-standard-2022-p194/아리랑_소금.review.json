@@ -21,6 +21,11 @@
    "note": "원본의 숨표 4개를 3·15·27·39번째 정간에 넣음"
   }
  },
+ "song": {
+  "title": "아리랑",
+  "instrument": "SOGEUM",
+  "jangdan": "세마치"
+ },
  "sourceValues": {
   "jangdan": "세마치",
   "meter": "3소박 3박자",
