@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,7 +26,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -36,7 +40,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.feature.song.PdfJangdanChoices
 import com.ssafy.eolssu.feature.song.PdfPreviewUiState
 import eolssu.shared.generated.resources.Res
@@ -78,9 +81,11 @@ internal fun PdfPagePreview(
 ) {
     val colors = EolssuTheme.colors
     val gap = if (spec.large) 16.dp else 12.dp
+    val boxShape = RoundedCornerShape(if (spec.large) 20.dp else 18.dp)
     val boxModifier = modifier
         .fillMaxWidth()
-        .background(colors.surface, RoundedCornerShape(if (spec.large) 20.dp else 18.dp))
+        .background(colors.surface, boxShape)
+        .border(1.dp, colors.lineSoft, boxShape)
         .padding(if (spec.large) 20.dp else 16.dp)
     if (spec.thumbsBeside) {
         Row(
@@ -112,8 +117,8 @@ private fun PageSheet(page: Int, spec: PdfPageSpec) {
         Modifier
             .size(width = spec.pageWidth, height = spec.pageHeight)
             .shadow(8.dp, RectangleShape, ambientColor = PageShadow, spotColor = PageShadow)
-            .background(colors.background)
-            .border(1.dp, colors.line)
+            .background(colors.surface)
+            .border(1.dp, colors.lineSoft)
             .padding(horizontal = if (large) 20.dp else 16.dp, vertical = if (large) 22.dp else 18.dp)
             .semantics { contentDescription = pageLabel },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -126,12 +131,12 @@ private fun PageSheet(page: Int, spec: PdfPageSpec) {
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .border(1.dp, colors.line)
+                .border(1.dp, colors.lineSoft)
                 .drawBehind {
                     val line = 1.dp.toPx()
                     var x = (columnStep - 1.dp).toPx()
                     while (x < size.width) {
-                        drawLine(colors.line, Offset(x, 0f), Offset(x, size.height), line)
+                        drawLine(colors.lineSoft, Offset(x, 0f), Offset(x, size.height), line)
                         x += columnStep.toPx()
                     }
                     var y = size.height - rowStep.toPx()
@@ -165,9 +170,9 @@ private fun PageThumbs(state: PdfPreviewUiState, onSelectPage: (Int) -> Unit, sp
                     this.selected = selected
                 },
             shape = RoundedCornerShape(6.dp),
-            color = colors.background,
+            color = colors.surface,
             contentColor = colors.text,
-            border = if (selected) BorderStroke(2.dp, colors.accentText) else BorderStroke(1.dp, colors.line),
+            border = if (selected) BorderStroke(2.dp, colors.text) else BorderStroke(1.dp, colors.lineSoft),
         ) {
             Box(Modifier.padding(bottom = 4.dp), contentAlignment = Alignment.BottomCenter) {
                 Text("$page", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold))
@@ -195,7 +200,7 @@ internal fun PdfTitleField(title: String, onChange: (String) -> Unit, large: Boo
 internal fun PdfJangdanPicker(selected: String?, onSelect: (String?) -> Unit, large: Boolean = false) {
     val label = stringResource(Res.string.upload_jangdan_label)
     val optional = stringResource(Res.string.upload_jangdan_optional)
-    val chipModifier = if (large) Modifier.height(38.dp) else Modifier
+    val chipHeight = if (large) 38.dp else 34.dp
     val chipGap = if (large) 8.dp else 6.dp
     Column(verticalArrangement = Arrangement.spacedBy(if (large) 8.dp else 6.dp)) {
         Text(
@@ -207,10 +212,31 @@ internal fun PdfJangdanPicker(selected: String?, onSelect: (String?) -> Unit, la
             style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(chipGap), verticalArrangement = Arrangement.spacedBy(chipGap)) {
-            EolssuChip(stringResource(Res.string.upload_jangdan_unknown), selected = selected == null, onClick = { onSelect(null) }, modifier = chipModifier)
+            JangdanChip(stringResource(Res.string.upload_jangdan_unknown), selected = selected == null, onClick = { onSelect(null) }, height = chipHeight)
             PdfJangdanChoices.forEach { name ->
-                EolssuChip(name, selected = selected == name, onClick = { onSelect(name) }, modifier = chipModifier)
+                JangdanChip(name, selected = selected == name, onClick = { onSelect(name) }, height = chipHeight)
             }
+        }
+    }
+}
+
+/** 장단 칩: 34dp(태블릿 38dp), 13sp, 고르면 연두 바탕, 아니면 흰 바탕에 옅은 테두리. 글자는 늘 먹색이다. */
+@Composable
+private fun JangdanChip(text: String, selected: Boolean, onClick: () -> Unit, height: Dp) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = height).semantics {
+            this.selected = selected
+            role = Role.Tab
+        },
+        shape = CircleShape,
+        color = if (selected) colors.primary else colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
+    ) {
+        Box(Modifier.padding(horizontal = 12.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
+            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium))
         }
     }
 }
@@ -219,7 +245,7 @@ internal fun PdfJangdanPicker(selected: String?, onSelect: (String?) -> Unit, la
 @Composable
 internal fun PdfViewOnlyRow(large: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        SheetBadge(stringResource(Res.string.upload_view_only_badge), EolssuTheme.colors.surface, EolssuTheme.colors.text)
+        SheetBadge(stringResource(Res.string.upload_view_only_badge), EolssuTheme.colors.surface, EolssuTheme.colors.text, border = EolssuTheme.colors.lineSoft)
         Text(
             stringResource(Res.string.upload_view_only_hint),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = if (large) 13.sp else 12.sp),
