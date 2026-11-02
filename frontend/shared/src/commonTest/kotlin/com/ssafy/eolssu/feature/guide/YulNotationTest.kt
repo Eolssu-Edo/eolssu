@@ -19,13 +19,19 @@ class YulNotationTest {
     fun solfegeCountsSemitonesFromHwangjong() {
         // 정악대금·소금·단소는 황종 = E♭(3)
         assertEquals(listOf("미♭", "파", "라♭", "시♭", "도"), listOf("黃", "太", "仲", "林", "南").map { solfegeOf(it, 3) })
-        // 청성·탁성은 옥타브를 적지 않고 같은 계이름
+        // 청성·탁성은 옥타브를 적지 않고 같은 서양 음이름
         assertEquals("미♭", solfegeOf("㶂", 3))
         assertEquals("시♭", solfegeOf("㑣", 3))
         // 산조대금은 황종 = F(5)라 임종이 C
         assertEquals("파", solfegeOf("黃", 5))
         assertEquals("도", solfegeOf("林", 5))
         assertEquals("", solfegeOf("ㅡ", 3))
+    }
+
+    @Test
+    fun westernNameIsShownInParenthesesBesideYulName() {
+        assertEquals("(미♭)", westernNameLabel(solfegeOf("黃", 3)))
+        assertEquals("", westernNameLabel(solfegeOf("ㅡ", 3)))
     }
 
     @Test
