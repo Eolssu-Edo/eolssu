@@ -114,12 +114,13 @@ class RecordingUploads(
     }
 
     private suspend fun upload(pending: PendingRecording): SendResult {
-        if (!files.exists(pending.path)) {
+        val path = files.locate(pending.path)
+        if (path == null) {
             discard(pending)
             return SendResult.Missing
         }
         val outcome = try {
-            uploader.upload(pending.sessionId, pending.path)
+            uploader.upload(pending.sessionId, path)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -127,17 +128,20 @@ class RecordingUploads(
         }
         return when (outcome) {
             UploadOutcome.Unreachable -> SendResult.CanResend
-            UploadOutcome.Uploaded -> SendResult.Sent.also { discard(pending) }
-            UploadOutcome.Expired -> SendResult.Expired.also { discard(pending) }
-            UploadOutcome.Rejected -> SendResult.Rejected.also { discard(pending) }
+            UploadOutcome.Uploaded -> SendResult.Sent.also { discard(pending, path) }
+            UploadOutcome.Expired -> SendResult.Expired.also { discard(pending, path) }
+            UploadOutcome.Rejected -> SendResult.Rejected.also { discard(pending, path) }
         }
     }
 
     private fun age(pending: PendingRecording): Long = clock() - pending.startedAtMillis
 
-    /** [pending]의 파일을 지우고, 저장된 기록이 아직 그 녹음이면 비운다. 그 사이 새 녹음이 저장됐으면 그대로 둔다. */
-    private fun discard(pending: PendingRecording) {
-        files.delete(pending.path)
+    /**
+     * [pending]의 파일([path], 앱 폴더가 옮겨졌으면 찾은 경로)을 지우고, 저장된 기록이 아직 그 녹음이면 비운다.
+     * 그 사이 새 녹음이 저장됐으면 그대로 둔다.
+     */
+    private fun discard(pending: PendingRecording, path: String = pending.path) {
+        files.delete(path)
         if (load(pending.memberId) == pending) store.putString(key(checkNotNull(pending.memberId)), "")
     }
 

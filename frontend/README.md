@@ -74,6 +74,22 @@ Windows에서는 iOS 코드(`iosMain`)를 작성할 수만 있고, 컴파일·�
 4. iOS 시뮬레이터를 고르고 ▶ Run을 누릅니다. Android Studio가 내부에서 Xcode를 불러 빌드합니다.
 5. Swift 파일이나 `Info.plist`(마이크 권한 문구 등)를 고칠 때는 `iosApp`을 Xcode로 엽니다.
 
+실제 iPhone에서 개인 개발팀으로 실행할 때는 `frontend/iosApp/Configuration/Config.local.xcconfig`를 만들고 아래 값을 본인 설정으로 바꿉니다. 이 파일은 Git에서 제외하며 개인 Team ID를 공유 설정에 넣지 않습니다.
+
+```xcconfig
+TEAM_ID=본인_TEAM_ID
+PRODUCT_BUNDLE_IDENTIFIER=com.ssafy.eolssu.본인개발용식별자
+```
+
+Xcode에서 `frontend/iosApp/iosApp.xcodeproj`를 열고 `iosApp` scheme과 연결한 iPhone을 선택해 실행합니다. 기존 설치 앱의 데이터를 유지하려면 같은 개발용 Bundle ID를 사용합니다. 출시용 기본 Bundle ID는 `com.ssafy.eolssu`입니다.
+
+Mac의 `frontend/`에서 네이티브 코드 컴파일과 시뮬레이터 테스트를 확인할 수 있습니다.
+
+```sh
+./gradlew :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosSimulatorArm64
+./gradlew :shared:iosSimulatorArm64Test
+```
+
 iOS 담당은 develop을 주기적으로 받아 iOS 빌드가 깨지지 않았는지 확인합니다. 공통 코드만 바뀌어도 iOS 빌드가 깨질 수 있습니다.
 
 ## 🔨 명령어로 빌드·실행
@@ -241,7 +257,8 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **`gradlew` 실행 권한**: Windows에서 커밋하면 실행 권한이 빠질 수 있습니다. `gradlew`를 새로 추가하거나 교체할 때는 `git update-index --chmod=+x frontend/gradlew`를 실행한 뒤 커밋합니다.
 - **커밋하지 않는 파일**: `local.properties`, `build/`, `.gradle/`, `.kotlin/`, `.idea/`, `xcuserdata/` ([`.gitignore`](.gitignore)에 등록됨)
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
-- **iOS 번들 ID**: 지금은 마법사 기본값(`com.ssafy.eolssu.eolssu` + 개발팀 ID)입니다. Mac 담당자가 `iosApp/Configuration/Config.xcconfig`에서 개발팀 ID를 넣을 때 함께 정리합니다.
+- **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
+- **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증
 

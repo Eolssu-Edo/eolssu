@@ -12,7 +12,7 @@ CAT-05의 게시 음원 메타데이터를 기존 연습 화면의 모범 연주
 
 ## 플랫폼과 수명
 
-- 공통 `AudioPlayer`를 플랫폼 DI로 공급한다. Android는 화면마다 실제 `AndroidAudioPlayer`, iOS/Web은 명시적 `UnavailableAudioPlayer`다. Windows에서 iOS 빌드를 확인하지 않았다.
+- 공통 `AudioPlayer`를 플랫폼 DI로 공급한다. Android는 화면마다 실제 `AndroidAudioPlayer`, iOS는 `IosAudioPlayer`(S15P31E102-373, Mac·실기기 미검증), Web은 명시적 `UnavailableAudioPlayer`다.
 - MediaPlayer 생성·data source 설정·prepareAsync·seek·재생·release는 전용 HandlerThread 한 곳에서 실행한다. 준비/seek가 30초 내 끝나지 않으면 실패로 복구한다.
 - 재생 시작/재개 전에 오디오 포커스를 요청한다. 포커스 상실·일시 상실·duck 요청은 중단으로 처리하고 사용자가 눌러 재개한다. 헤드폰 분리 방송도 같은 중단 경로다. 자동 백그라운드 재생과 서비스는 추가하지 않았다.
 - ON_STOP/화면 폐기 때 위치를 보존하고 네이티브 플레이어·포커스를 해제한다. 중복 수명 알림으로 위치를 0으로 덮어쓰지 않는다. 평가 녹음 시작·화면 뒤로 가기·ViewModel 해제도 재생을 종료한다.
