@@ -24,6 +24,12 @@ enum class ReadingPage(val id: String) {
     /** 앞 쪽에 딸린 쪽인지(더 많은 시김새). 쪽 표시를 흰 원으로 그린다. */
     val sub: Boolean get() = this == SigimsaeMore
 
+    /** 이전 쪽. 첫 쪽이면 없어서 '이전'을 끈다. */
+    val previous: ReadingPage? get() = entries.getOrNull(ordinal - 1)
+
+    /** 다음 쪽. 마지막 쪽이면 없어서 '다음'을 끈다. */
+    val next: ReadingPage? get() = entries.getOrNull(ordinal + 1)
+
     companion object {
         /** 경로 인자의 쪽. 비었거나 모르는 값이면 첫 쪽이다. */
         fun fromId(id: String?): ReadingPage = entries.firstOrNull { it.id == id } ?: Intro
