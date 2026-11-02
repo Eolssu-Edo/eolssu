@@ -9,7 +9,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-/** DB 시각은 UTC로 저장한다(V1 머리말). track·judge_type은 V13 CHECK가 막아 모르는 값이 오지 않는다. */
+/** DB 시각은 UTC로 저장한다(V1 머리말). track·judge_type은 V14 CHECK가 막아 모르는 값이 오지 않는다. */
 class MyBatisLessonRepository(
     private val mapper: LessonMapper,
     private val content: LessonContentJson,
