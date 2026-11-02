@@ -3,7 +3,7 @@ from copy import deepcopy
 from fractions import Fraction
 
 from .expressions import symbols_for, LENGTH_MARKS
-from .jgb import NOTE, YUL
+from .common_score import ANCHOR_OFFSETS, YUL_NAMES
 from .score import reject_unknown, require
 
 
@@ -37,7 +37,7 @@ def source_slots(source, config, units, marks, symbol_name):
         require(isinstance(entry.get('basis'), str) and entry['basis'].strip(), f'{label}: 원문 근거가 필요합니다')
         kind, symbol, raw = entry.get('kind'), entry.get('anchorSymbol'), entry.get('symbols')
         require(kind in ('note', 'relative', 'hold', 'rest'), f'{label}: 잘못된 kind')
-        require(isinstance(symbol, str) and (NOTE.fullmatch(symbol) if kind in ('note', 'relative') else
+        require(isinstance(symbol, str) and (symbol in ANCHOR_OFFSETS if kind in ('note', 'relative') else
                 symbol == '-' if kind == 'hold' else symbol == '쉼'), f'{label}: 숨은 음표/숨표 없는 anchorSymbol이 필요합니다')
         require(isinstance(raw, list) and all(isinstance(v, str) for v in raw), f'{label}: symbols 배열이 필요합니다')
         names = [symbol_name(v) for v in raw]
@@ -102,7 +102,7 @@ def expand_locations(score, mapping, groups, source, base_map):
                     for eid, (sound, a, b) in zip(ids, sounds):
                         event = by_event[eid]
                         require(event['kind'] == 'NOTE', 'sourceSlots: 독립 음열에는 구체 NOTE가 필요합니다')
-                        pitch = base_map['hwang_midi'] + YUL.index(event['yul']) + 12 * event['octave']
+                        pitch = base_map['hwang_midi'] + YUL_NAMES.index(event['yul']) + 12 * event['octave']
                         require(sound.get('pitch') == pitch,
                                 'sourceSlots: 독립 음열의 실제 음높이가 공통 NOTE와 다릅니다')
                         chunks.append(([u for u in members if u['eventId'] == eid], max(a, start), min(b, start + width), sound['id']))

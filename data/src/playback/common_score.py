@@ -2,16 +2,23 @@
 from fractions import Fraction
 import json
 import math
+from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from data.src.scores.score_data import SCHEMA_PATH
 from .expressions import BREATH_POLICY, adaptive_breath
 from .score import PROFILES, finite, midi_tempo, require, ticks
 
 ADAPTER = "common-score-playback/v1"
 YUL_NAMES = "황대태협고중유임이남무응"
 PREFIXES = {-2: "하배", -1: "배", 0: "", 1: "청", 2: "중청"}
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / 'scores/score_data.schema.json'
+# Old import companions may carry these equivalent anchor spellings. Canonical
+# common events/units still use PREFIXES and are validated before interpretation.
+ANCHOR_OFFSETS = {prefix + yul: octave * 12 + degree
+                  for prefix, octave in {'': 0, '청': 1, '중청': 2, '겹청': 2, '배': -1, '탁': -1,
+                                         '하배': -2, '배탁': -2, '하하배': -3}.items()
+                  for degree, yul in enumerate(YUL_NAMES)}
 
 
 def require_integer(value, location):

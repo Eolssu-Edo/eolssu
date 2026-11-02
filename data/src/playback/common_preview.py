@@ -10,7 +10,8 @@ import re
 
 from .expressions import EFFECT_MARKS, PROFILE_MARKS, LENGTH_MARKS, adaptive_breath
 from .preview import EXTRA_MARKS, canonical
-from .jgb import convert_jgb
+from .common_compile import compile_slots
+from .common_score import ANCHOR_OFFSETS, YUL_NAMES
 from .score import reject_unknown, require
 from .tempo_repeat import TEMPO_CUES, apply_tempo_repeat
 from .import_slots import source_slots, expand_locations
@@ -187,33 +188,28 @@ def convert_preview(source, base_score, base_map, config):
     instrument = source['score']['instrument'].lower().replace('_', '-')
     events = {event['id']: event for event in source['events']}
     by_location = {(u['gak'], u['cell'], u['row'] + 1, u['col'] + 1): u for u in units}
-    cell_ratio = Fraction(source['music']['ticksPerJeonggan'], source['music']['ticksPerBeat']) * Fraction(base_map['quarter_ratio'])
     cell_bpm = base_map['bpm'] * source['music']['ticksPerBeat'] / source['music']['ticksPerJeonggan']
-    playback = {'notation_policy': POLICY}
+    continuations = {}
     if 'gakContinuations' in config:
         entries = config['gakContinuations']
         require(isinstance(entries, list), 'gakContinuations는 배열이어야 합니다')
-        playback['gak_continuations'] = []
         for entry in entries:
             require(isinstance(entry, dict), 'gakContinuations 항목은 객체여야 합니다')
             reject_unknown(entry, ['gak', 'basis'], 'gakContinuations')
             gak = entry.get('gak')
             require(type(gak) is int and 2 <= gak <= len(source['columns']),
                     'gakContinuations.gak은 2 이상인 실제 각 번호여야 합니다')
+            require(gak not in continuations, '중복 각 경계 지속 위치입니다')
+            require(isinstance(entry.get('basis'), str) and entry['basis'].strip(), '각 경계 지속 근거가 필요합니다')
             # Breath is normally applied after the preview has been compiled.
-            # Check it here as well, before allowing the JGB sustain to cross.
+            # Check it here as well, before allowing the performed sustain to cross.
             previous = source['columns'][gak - 2]['cells'][-1]['units'][-1]
             require(not events[previous['eventId']]['breathAfter'],
                     f'gakContinuations 각 {gak}: 숨표 뒤에서는 이어 불 수 없습니다')
-            playback['gak_continuations'].append({'part': 1, **entry})
-    for external, internal in [('relativeScale', 'relative_scale'), ('expressionPolicy', 'expression_policy')]:
-        if external in config:
-            playback[internal] = deepcopy(config[external])
-    columns, factors, repeat_columns, tempo_entries, approximations = [], {}, set(), {}, []
+            continuations[gak] = {'part': 1, 'gak': gak, 'basis': entry['basis'].strip()}
+    slots, factors, repeat_columns, tempo_entries, approximations = [], {}, set(), {}, []
     for column in source['columns']:
-        cells = []
         for cell in column['cells']:
-            rows = {}
             for unit in cell['units']:
                 key = (cell['id'], unit['row'], unit['col'])
                 if imported_slots is not None and key not in imported_slots:
@@ -243,29 +239,32 @@ def convert_preview(source, base_score, base_map, config):
                             'basis': '빠르기 기호는 기존 정간 단위 계획에 맞춰 해당 정간 시작부터 적용; 원래 기호 위치는 보존'})
                     else:
                         remaining.append(mark)
-                symbol = slot['anchorSymbol'] if slot else unit['symbol'] or '-'
+                kind = ('note' if slot['kind'] == 'relative' else slot['kind']) if slot else (
+                    'hold' if unit['symbol'] in ('', '-') else 'rest' if event['kind'] == 'REST' else 'note')
+                pitch = None
+                if kind == 'note':
+                    pitch = base_map['hwang_midi'] + (ANCHOR_OFFSETS[slot['anchorSymbol']] if slot else
+                                                     YUL_NAMES.index(event['yul']) + 12 * event['octave'])
                 sounding_marks = [m for m in remaining if not (slot and _symbol_name(m) in LENGTH_MARKS)]
                 require(event['kind'] == 'NOTE' or not any(not _sustain_effect(m) for m in sounding_marks),
                         f'{key}: 쉼·각 경계 지속 자리의 새 음열/강세에는 원본 본음이 필요합니다')
                 # Pure curves on a held note use the existing delayed-effect path.
                 # A new pitch figure on a hold must have an explicit pitch anchor.
-                if symbol in ('', '-') and event['kind'] == 'NOTE' and any(not _sustain_effect(m) for m in sounding_marks):
-                    from .common_score import PREFIXES
-                    symbol = PREFIXES[event['octave']] + event['yul']
+                if kind == 'hold' and event['kind'] == 'NOTE' and any(not _sustain_effect(m) for m in sounding_marks):
+                    kind = 'note'
+                    pitch = base_map['hwang_midi'] + YUL_NAMES.index(event['yul']) + 12 * event['octave']
                     approximations.append({'symbols': list(remaining), 'location': list(key),
                                            'basis': '교육용 이음 자리의 음열을 원본 본음에서 새로 발음'})
-                rows.setdefault(unit['row'], []).append(symbol + ''.join('{' + m + '}' for m in remaining))
-            cells.append(' '.join(';'.join(row) for row in rows.values()))
-        columns.append(' | '.join(cells))
-    document = {'v': 2, 'controls': {'title': source['score']['title'], 'tempoBpm': cell_bpm,
-                'hwangPitch': base_map['hwang_midi'], 'beats': len(source['columns'][0]['cells']),
-                'gakBeats': ','.join(f"{c['index'] + 1}:{len(c['cells'])}" for c in source['columns']),
-                'staffUnit': 'plain', 'joPreset': config.get('jo', ''), 'playSigimsae': True},
-                'parts': [{'id': source['score']['part'], 'instrument': instrument, 'melody': '\n'.join(columns)}],
-                'playback': playback}
-    score, mapping = convert_jgb(document, source_name=source['score']['sourceId'], instrument=instrument, bpm=cell_bpm,
-                                input_sha256=input_hash, expression_profile=config.get('expressionProfile'),
-                                inline_relative=True, cell_quarters=cell_ratio)
+                members = slot['units'] if slot else [by_location[(column['index'] + 1, cell['index'] + 1,
+                                                                  unit['row'] + 1, unit['col'] + 1)]]
+                width = sum(u['endTick'] - u['startTick'] for u in members) / source['music']['ticksPerBeat']
+                slots.append({'eventId': unit['eventId'], 'cellId': cell['id'], 'col': unit['col'],
+                              'location': location, 'kind': kind, 'pitch': pitch,
+                              'concreteEventIds': list(dict.fromkeys(u['eventId'] for u in members))
+                                                  if slot and slot['kind'] == 'relative' else None,
+                              'writtenDuration': width * Fraction(base_map['quarter_ratio']),
+                              'symbols': [(raw, _symbol_name(raw)) for raw in remaining]})
+    score, mapping = compile_slots(source, base_score, base_map, slots, config, continuations)
     _stretch_lengths(score, mapping, factors)
     plan = config.get('performancePlan')
     if plan is None:
