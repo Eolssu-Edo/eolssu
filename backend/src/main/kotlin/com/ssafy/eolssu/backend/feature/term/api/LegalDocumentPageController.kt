@@ -45,9 +45,9 @@ class LegalDocumentPageController(
             .body(ClassPathResource("legal/$version/$document.html").getContentAsString(Charsets.UTF_8))
 
     companion object {
-        /** 2026-10-30은 국내 디스크 저장, 2026-10-31은 Cloudflare R2 국외 보관을 고지한다. */
+        /** 2026-10-30은 국내 디스크 저장, 2026-11-02은 Cloudflare R2 국외 보관을 고지한다. */
         const val DOMESTIC_DISK_VERSION = "2026-10-30"
-        const val R2_VERSION = "2026-10-31"
+        const val R2_VERSION = "2026-11-02"
         val VERSIONS = setOf(DOMESTIC_DISK_VERSION, R2_VERSION)
         val DOCUMENTS = setOf("service", "privacy", "collection", "permissions", "age")
         val PUBLIC_PATHS = (VERSIONS + "current").flatMap { version -> DOCUMENTS.map { "/api/terms/documents/$version/$it" } }
