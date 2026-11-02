@@ -91,7 +91,7 @@ internal fun LearnExpandedLayout(
                         listActions,
                         Modifier.weight(1f).fillMaxWidth(),
                         contentPadding = PaddingValues(start = outer, end = 24.dp, bottom = 24.dp),
-                        highlightedStage = stage.number,
+                        currentStage = stage.number,
                     )
                 }
                 VerticalDivider(color = colors.line)
