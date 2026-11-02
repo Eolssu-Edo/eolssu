@@ -76,6 +76,27 @@ Windows에서는 iOS 코드(`iosMain`)를 작성할 수만 있고, 컴파일·�
 
 iOS 담당은 develop을 주기적으로 받아 iOS 빌드가 깨지지 않았는지 확인합니다. 공통 코드만 바뀌어도 iOS 빌드가 깨질 수 있습니다.
 
+### 무료 계정의 iPhone 개발 서명
+
+Xcode의 **Settings → Apple Accounts**에 로그인하고 Personal Team을 확인합니다. 브라우저의 Apple Developer 로그인과는 별도입니다. **Settings → Components**에서 iOS 플랫폼 설치도 완료해야 합니다.
+
+`iosApp/Configuration/Config.local.xcconfig`에 Xcode에서 확인한 자신의 Team ID를 설정합니다. 이 파일은 Git에서 제외하며 `Config.xcconfig`가 선택적으로 읽습니다. 팀 공통 파일에 개인 Team ID나 인증서를 넣지 않습니다.
+
+```xcconfig
+TEAM_ID=<Xcode에서 확인한 Personal Team ID>
+PRODUCT_BUNDLE_IDENTIFIER=com.ssafy.eolssu.<개인 개발용 식별자>
+```
+
+`iosApp/iosApp.xcodeproj`를 Xcode에서 열고 `iosApp` 타깃의 **Signing & Capabilities**에서 자동 서명과 개발팀이 적용됐는지 확인합니다. 최초 기기 연결은 iPhone을 Mac에 케이블로 연결하고 신뢰·개발자 모드를 직접 허용해야 합니다. 페어링 후 네트워크 연결을 설정하면 무선 실행이 가능합니다. 원격 접속만으로 최초 기기 페어링을 마쳤다고 가정하지 않습니다.
+
+서명 없이 컴파일만 확인하려면 `frontend/`에서 아래 명령을 사용합니다. 이 성공은 iPhone 설치·실행 또는 API 검증 통과를 뜻하지 않습니다.
+
+```sh
+./gradlew :shared:compileKotlinIosArm64
+```
+
+[Apple 기기 페어링 안내](https://help.apple.com/xcode/mac/current/en.lproj/devbc48d1bad.html) · [작업 환경·검증 기록](../docs/plans/S15P31E102-377.md)
+
 ## 🔨 명령어로 빌드·실행
 
 `frontend/`에서 실행합니다. Git Bash는 `./gradlew`, PowerShell·cmd는 `.\gradlew.bat`을 씁니다.
