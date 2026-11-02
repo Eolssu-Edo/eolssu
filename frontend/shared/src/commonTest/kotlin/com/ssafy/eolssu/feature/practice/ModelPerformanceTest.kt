@@ -67,4 +67,25 @@ class ModelPerformanceTest {
         session.release()
         assertTrue(player.released)
     }
+
+    @Test fun boardSeekUsesPerformedEndAndKeepsWrittenFallback() = runTest {
+        for ((source, expectedEnd) in listOf(audio to 6500L, previewAudio() to 3000L)) {
+            val player = FakeAudioPlayer()
+            val session = ModelAudioSession(modelRepository { source }, player, backgroundScope)
+            session.play(song, 60)
+            runCurrent()
+            player.emit(AudioPlaybackStatus.Playing, 1000)
+            runCurrent()
+            session.seekBy(10000)
+            assertEquals(expectedEnd, player.requestedPosition)
+            player.emit(AudioPlaybackStatus.Paused, expectedEnd)
+            runCurrent()
+            session.seekBy(-500)
+            assertEquals(ModelAudioStatus.Paused, session.state.value.status)
+            assertEquals(expectedEnd - 500, session.state.value.mediaPositionMs)
+            session.seekBy(-10000)
+            assertEquals(0L, session.state.value.mediaPositionMs)
+            session.release()
+        }
+    }
 }

@@ -33,6 +33,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.BandGap
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreHighlight
@@ -42,8 +43,18 @@ import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_follow_now
+import eolssu.shared.generated.resources.practice_score_hint
 import org.jetbrains.compose.resources.stringResource
 
 /** 연습 악보를 놓는 배치. 정간 크기·여백과 두 단 나누기가 달라진다. */
@@ -208,4 +219,68 @@ private fun rememberBandScroll(state: PracticeUiState, bandColumns: Int, bandHei
         if (!visible) scrollState.animateScrollTo(top.toInt().coerceIn(0, scrollState.maxValue))
     }
     return scrollState
+}
+
+/**
+ * 휴대폰 보드(PRACTICE-01 `.practice-score .ms`)의 악보 영역: 각 78dp(크게 보기 104) · 정간 44dp(11정간 이상 32 · 크게 보기 60) 고정,
+ * 가로 스크롤, 흰 각과 곁줄, 테두리로만 상태를 표시한다. 세로로 넘치면 화면 전체가 스크롤된다.
+ * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
+ */
+@Composable
+fun PracticeBoardScore(
+    state: PracticeUiState,
+    onSelectEvent: (ScoreEvent) -> Unit,
+    onUserScroll: () -> Unit,
+    onFollowNow: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val song = state.song ?: return
+    val colors = EolssuTheme.colors
+    val big = state.settings.bigScore
+    val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
+    val longestStrip = strips.maxOf { it.rows.count() }
+    val recording = state.mode == PracticeMode.Recording || state.resuming
+    val playback = if (state.live) ScorePlayback(state.eventStartedAt, state.eventDurationMs(), state.pausedFraction) else null
+    Column(modifier.fillMaxWidth()) {
+        JeongganboView(
+            song = song,
+            modifier = Modifier.fillMaxWidth(),
+            metrics = JeongganboMetrics.practiceBoard(big, longestStrip),
+            notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+            scrollState = rememberHorizontalScoreScroll(state),
+            currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else null,
+            highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
+            playback = playback,
+            follow = state.follow,
+            onUserScroll = onUserScroll,
+            selectedIndex = if (state.mode == PracticeMode.Ready) state.selected else null,
+            onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
+            look = JeongganboLook.practice(big),
+            annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
+        )
+        if (state.mode == PracticeMode.Ready) {
+            Text(
+                stringResource(Res.string.practice_score_hint),
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
+                color = colors.textMuted,
+            )
+        }
+        if (state.live && !state.follow) {
+            // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
+            val shape = RoundedCornerShape(8.dp)
+            Text(
+                stringResource(Res.string.practice_follow_now),
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 8.dp)
+                    .background(colors.surface, shape)
+                    .border(1.dp, colors.line, shape)
+                    .clickable(role = Role.Button, onClick = onFollowNow)
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                color = colors.accentText,
+            )
+        }
+    }
 }
