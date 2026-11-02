@@ -6,7 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.ssafy.eolssu.platform.audio.AndroidAudioPlayer
 
 @Composable
-actual fun rememberReferenceAudioPlayer(): AudioPlayer {
+actual fun rememberReferenceAudioPlayer(): ReferenceAudioPlayer {
     val context = LocalContext.current
-    return remember(context) { AndroidAudioPlayer(context) }
+    return remember(context) { AndroidAudioPlayer(context, retainCompletedMedia = true) }
 }

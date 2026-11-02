@@ -18,18 +18,19 @@ import platform.Foundation.NSData
 import platform.Foundation.create
 
 @Composable
-actual fun rememberReferenceAudioPlayer(): AudioPlayer {
+actual fun rememberReferenceAudioPlayer(): ReferenceAudioPlayer {
     val client = koinInject<HttpClient>()
     return remember(client) { IosReferenceAudioPlayer(client) }
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-private class IosReferenceAudioPlayer(private val client: HttpClient) : AudioPlayer {
+private class IosReferenceAudioPlayer(private val client: HttpClient) : ReferenceAudioPlayer {
     override val available = true
     private val mutable = MutableStateFlow(AudioPlaybackState())
     override val state = mutable.asStateFlow()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var job: Job? = null
+    private var positionJob: Job? = null
     private var player: AVAudioPlayer? = null
     override fun load(source: AudioSource, positionMs: Long, speed: Float) {
         stop()
@@ -48,16 +49,11 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : AudioPla
                 check(current.prepareToPlay())
                 player = current
                 check(current.play())
-                while (isActive) {
-                    if (mutable.value.status == AudioPlaybackStatus.Paused) { delay(100); continue }
-                    mutable.value = AudioPlaybackState(source.id,
-                        if (current.playing) AudioPlaybackStatus.Playing else AudioPlaybackStatus.Completed,
-                        (current.currentTime * 1000).toLong(), (current.duration * 1000).toLong())
-                    if (!current.playing) break
-                    delay(100)
-                }
+                mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Playing,
+                    (current.currentTime * 1000).toLong(), (current.duration * 1000).toLong())
+                observePosition(current)
             } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Failed) }
+            catch (_: Exception) { fail() }
         }
     }
     override fun resume(speed: Float) {
@@ -66,17 +62,52 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : AudioPla
             current.rate = speed
             check(current.play())
             mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Playing)
+            observePosition(current)
         } catch (_: Exception) {
             // Stop the polling job before it can report a failed resume as normal completion.
-            job?.cancel()
-            job = null
-            current.stop()
-            player = null
-            mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Failed)
+            fail()
+        }
+    }
+    private fun observePosition(current: AVAudioPlayer) {
+        positionJob?.cancel()
+        positionJob = scope.launch {
+            try {
+                while (isActive && player === current) {
+                    if (mutable.value.status != AudioPlaybackStatus.Paused) {
+                        mutable.value = mutable.value.copy(
+                            status = if (current.playing) AudioPlaybackStatus.Playing else AudioPlaybackStatus.Completed,
+                            positionMs = (current.currentTime * 1000).toLong(),
+                            durationMs = (current.duration * 1000).toLong(),
+                        )
+                        if (!current.playing) break
+                    }
+                    delay(100)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { fail() }
         }
     }
     override fun pause() { player?.pause(); mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Paused) }
+    override fun seekTo(positionMs: Long) {
+        val current = player ?: return
+        val target = mutable.value.referenceSeekTarget(positionMs) ?: return
+        try {
+            current.currentTime = target.positionMs / 1000.0
+            mutable.value = target
+        } catch (_: Exception) { fail() }
+    }
     override fun setSpeed(speed: Float) { player?.rate = speed }
-    override fun stop() { job?.cancel(); job = null; player?.stop(); player = null; mutable.value = AudioPlaybackState() }
+    override fun stop() {
+        job?.cancel(); job = null
+        positionJob?.cancel(); positionJob = null
+        player?.stop(); player = null
+        mutable.value = AudioPlaybackState()
+    }
     override fun release() { stop(); scope.cancel() }
+    private fun fail() {
+        job?.cancel(); job = null
+        positionJob?.cancel(); positionJob = null
+        player?.stop(); player = null
+        mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Failed)
+    }
 }

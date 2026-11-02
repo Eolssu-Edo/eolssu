@@ -10,10 +10,10 @@ import org.w3c.dom.HTMLAudioElement
 import org.w3c.dom.events.Event
 
 @Composable
-actual fun rememberReferenceAudioPlayer(): AudioPlayer = remember { WebReferenceAudioPlayer() }
+actual fun rememberReferenceAudioPlayer(): ReferenceAudioPlayer = remember { WebReferenceAudioPlayer() }
 
 /** HTML media playback stays in the application; no external window or download. */
-class WebReferenceAudioPlayer : AudioPlayer {
+class WebReferenceAudioPlayer : ReferenceAudioPlayer {
     override val available = true
     private val mutable = MutableStateFlow(AudioPlaybackState())
     override val state = mutable.asStateFlow()
@@ -38,7 +38,9 @@ class WebReferenceAudioPlayer : AudioPlayer {
         } })
         element.addEventListener("playing", { if (audio === element) update(element, AudioPlaybackStatus.Playing) })
         element.addEventListener("timeupdate", { if (audio === element) update(element, mutable.value.status) })
-        element.addEventListener("ended", { if (audio === element) update(element, AudioPlaybackStatus.Completed) })
+        element.addEventListener("ended", { if (audio === element) {
+            update(element, if (mutable.value.status == AudioPlaybackStatus.Paused) AudioPlaybackStatus.Paused else AudioPlaybackStatus.Completed)
+        } })
         element.addEventListener("error", { if (audio === element) update(element, AudioPlaybackStatus.Failed) })
         // Called synchronously from the user's button gesture, preserving browser autoplay permission.
         element.play().catch { if (audio === element) update(element, AudioPlaybackStatus.Failed); null }
@@ -55,6 +57,14 @@ class WebReferenceAudioPlayer : AudioPlayer {
         element.play().catch { if (audio === element) update(element, AudioPlaybackStatus.Failed); null }
     }
     override fun pause() { audio?.pause(); mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Paused) }
+    override fun seekTo(positionMs: Long) {
+        val element = audio ?: return
+        val target = mutable.value.referenceSeekTarget(positionMs) ?: return
+        runCatching {
+            element.currentTime = target.positionMs / 1000.0
+            mutable.value = target
+        }.onFailure { element.pause(); update(element, AudioPlaybackStatus.Failed) }
+    }
     override fun setSpeed(speed: Float) { audio?.playbackRate = speed.toDouble() }
     override fun stop() {
         val element = audio
