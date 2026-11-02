@@ -32,6 +32,15 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/reference-audios","listReferenceAudios","카탈로그","기본음·시김새 음원 목록",
+        "datasetId 필수(danso/sogeum/jeongak-daegeum/sanjo-daegeum). category·technique·register·yulmyeong 정확 일치 필터. 게시된 라벨별 음원만 반환하며 soundUrl은 API 원점 기준 상대 재생 경로입니다. 추정 라벨을 채점 정답으로 승격하지 않습니다.",
+        ReferenceAudioListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}","getReferenceAudio","카탈로그","기본음·시김새 음원과 출처",
+        "SHA-256 형식 assetId. 게시된 자산과 원본 라벨·출처·변환 metadata를 반환합니다. 미등록/초안은404입니다.",
+        ReferenceAudioDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}/play","playReferenceAudio","카탈로그","기본음·시김새 재생 주소 발급",
+        "게시된 자산에 한해900초 서명 GET 주소로302 이동합니다. 본문 없음, Location 헤더·Cache-Control:no-store. 저장소 미설정은503입니다. DB에 만료 URL을 저장하지 않습니다.",
+        null,statuses=listOf(302),errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE),security=null),
     ApiContract(HttpMethod.POST,"/api/webhooks/kakao/events","kakaoSecurityEvent","웹훅","카카오 연결 해제 SET 수신",
         "카카오 RS256 서명형 User Unlinked만 수신. 사용자 쿠키 대신 서명·앱·대상·이벤트 주체를 검증합니다. 공통 envelope의 예외이며202 본문 없음, 검증 실패400 err/description, 일시 장애503입니다.",
         null,statuses=listOf(202),security=null),

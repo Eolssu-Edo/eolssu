@@ -32,6 +32,8 @@
 
 ## 기능 스펙
 
+- [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md)
+
 - [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
 
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)

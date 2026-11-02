@@ -52,6 +52,10 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 
 V4는 V3(녹음 메타데이터) 다음에 적용됩니다. `outOfOrder`를 쓰지 않으므로 이미 적용한 번호보다 작은 버전은 나중에 넣을 수 없습니다.
 
+## 기본음·시김새 자산
+
+V13 [기본음·시김새 자산](../../backend/src/main/resources/db/migration/V13__reference_audio_assets.sql)은 `reference_audio_assets`를 추가한다. `asset_id`와 `(dataset_id,label_id)`로 파일을 식별하고, 장기 보관 object key·M4A 메타데이터·출처 JSON·라벨 검수 상태·게시 상태를 저장한다. 기존 `pitches`의 의미와 사용자 녹음 보관 정책은 바꾸지 않는다. 초기 데이터는 없으며 [검증된 DRAFT 적재](../../infra/catalog/README.md)를 사용한다. 새 API의 `ops` 배포 전에 V13를 적용해야 한다. [조회·재생 계약](../specs/reference-audio-catalog.md).
+
 ## 탈퇴 일괄 삭제 대상
 
 [탈퇴 유예 만료와 삭제 경계](../specs/withdrawal-expiry.md): 아래 파일 삭제 전에 회원 행을 잠그고 대기 상태와 삭제 예정 시각을 재확인합니다. 기존 취소가 커밋됐으면 파일·DB를 보존합니다. 확인 이후 새 취소는 30일 기한 검사로 거절되므로 저장소 호출은 DB 잠금을 해제한 뒤 실행합니다.
