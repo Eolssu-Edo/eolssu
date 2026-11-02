@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -42,6 +41,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.feature.guide.FingeringNote
 import com.ssafy.eolssu.feature.guide.GuideInstrument
 import com.ssafy.eolssu.feature.guide.HoleState
+import com.ssafy.eolssu.feature.guide.NoteRemark
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_figure
 import eolssu.shared.generated.resources.guide_legend_closed
@@ -54,11 +54,8 @@ import eolssu.shared.generated.resources.guide_note_semitone
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** 구멍 표시 색. 와이어프레임 그림의 막음 색(#121212)과 '?' 색이다. */
-private val HoleInk = Color(0xFF121212)
-
 /**
- * 음 하나의 운지 카드(`.fg-row`): 율명 · 이름과 계이름 · 읽는 법 · 음 듣기 · 악기 그림.
+ * 음 하나의 운지 카드(`.fg-row`): 흰 바탕에 율명 · 이름과 계이름 · 읽는 법 · 음 듣기 · 악기 그림.
  *
  * @param inLearn 기초부터 배우기의 카드(`.lp-figs .fing-row`). 율명 칸이 조금 좁고 반음 표시를 하지 않는다.
  */
@@ -73,25 +70,26 @@ internal fun FingeringCard(
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
-    val details = buildList {
-        add(stringResource(Res.string.guide_note_reading, note.reading))
-        if (!inLearn && !note.basic) add(stringResource(Res.string.guide_note_semitone))
-        if (note.needsCheck) add(stringResource(Res.string.guide_note_needs_check))
+    val details = listOf(stringResource(Res.string.guide_note_reading, note.reading)) + note.remarks(inLearn).map { remark ->
+        when (remark) {
+            NoteRemark.Semitone -> stringResource(Res.string.guide_note_semitone)
+            NoteRemark.NeedsCheck -> stringResource(Res.string.guide_note_needs_check)
+        }
     }
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.background, shape)
-            .border(1.dp, colors.line, shape)
+            .background(colors.surface, shape)
+            .border(1.dp, colors.lineSoft, shape)
             .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = if (inLearn) 8.dp else 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.width(if (inLearn) 40.dp else 44.dp).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
-                HanjaGlyph(note.hanja, if (inLearn) 28.sp else 30.sp, fontWeight = FontWeight.Bold)
+                HanjaGlyph(note.hanja, if (inLearn) 28.sp else 30.sp)
             }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(note.name, style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp))
+                    Text(note.name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
                     SolfegeText(instrument.solfegeOf(note.hanja), Modifier.padding(start = 7.dp))
                 }
                 Text(
@@ -106,21 +104,21 @@ internal fun FingeringCard(
             instrument,
             note.holes,
             Modifier.padding(top = if (inLearn) 6.dp else 4.dp),
-            description = stringResource(Res.string.guide_fingering_figure, stringResource(instrument.label)),
+            description = stringResource(Res.string.guide_fingering_figure, note.name),
         )
     }
 }
 
-/** '음 듣기' 원형 버튼(`.listen-btn`). 누르면 잠시 노랗게 강조한다. */
+/** '음 듣기' 원형 버튼(`.listen-btn`, 40dp). 누를 수 있는 영역은 Surface가 48dp로 넓힌다. [playing]이면 연두로 강조한다. */
 @Composable
 internal fun ListenButton(playing: Boolean, contentDescription: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(48.dp).semantics { this.contentDescription = contentDescription },
+        modifier = Modifier.size(40.dp).semantics { this.contentDescription = contentDescription },
         shape = CircleShape,
-        color = if (playing) colors.accent else colors.background,
-        border = BorderStroke(1.dp, if (playing) colors.accent else colors.line),
+        color = if (playing) colors.accent else colors.surface,
+        border = BorderStroke(1.dp, if (playing) colors.accent else colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(GuideIcons.Speaker, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)
@@ -129,7 +127,7 @@ internal fun ListenButton(playing: Boolean, contentDescription: String, onClick:
 }
 
 /**
- * 악기 사진 위에 구멍 상태를 겹친 그림. 막음은 검은 원, 반 막음은 왼쪽 반원, 확인 필요는 '?'.
+ * 악기 사진 위에 구멍 상태를 겹친 그림. 막음은 먹색 원, 반 막음은 왼쪽 반원, 확인 필요는 회색 '?'(보드 #27221E · #6B655D).
  * 좌표는 사진 원본(가로 2000px) 기준이라 그린 너비에 맞춰 줄인다.
  */
 @Composable
@@ -140,6 +138,7 @@ internal fun FingeringFigure(
     description: String? = null,
 ) {
     val measurer = rememberTextMeasurer()
+    val ink = EolssuTheme.colors.text
     val muted = EolssuTheme.colors.textMuted
     Box(
         modifier
@@ -154,10 +153,10 @@ internal fun FingeringFigure(
             instrument.holes.forEachIndexed { i, point ->
                 val center = Offset(point.x * k, point.y * k)
                 when (holes.getOrElse(i) { HoleState.Open }) {
-                    HoleState.Closed -> drawCircle(HoleInk, r, center)
+                    HoleState.Closed -> drawCircle(ink, r, center)
                     HoleState.Half -> drawPath(
                         Path().apply { arcTo(Rect(center, r), 90f, 180f, forceMoveTo = true); close() },
-                        HoleInk,
+                        ink,
                     )
                     HoleState.Unknown -> {
                         val layout = measurer.measure(
@@ -173,11 +172,11 @@ internal fun FingeringFigure(
     }
 }
 
-/** 구멍 표시 범례(`.legend`): 막는 구멍 · 여는 구멍 · 반 막음. 너비를 넓혀 주면 가운데에 놓는다. */
+/** 구멍 표시 범례(`.glegend`): 막는 구멍 · 여는 구멍 · 반 막음을 왼쪽부터 놓는다. */
 @Composable
 internal fun HoleLegend(modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
         LegendItem(stringResource(Res.string.guide_legend_closed)) { drawCircle(colors.text) }
         LegendItem(stringResource(Res.string.guide_legend_open)) {}
         LegendItem(stringResource(Res.string.guide_legend_half)) {

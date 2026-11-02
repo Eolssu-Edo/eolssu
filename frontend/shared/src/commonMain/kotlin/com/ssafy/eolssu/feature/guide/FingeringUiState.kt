@@ -23,6 +23,8 @@ data class FingeringUiState(
 
     val notes: List<FingeringNote> get() = instrument.notesByPitch(blow)
 
+    val blowTabs: List<BlowTab> get() = instrument.blowTabs(shownBlow)
+
     fun pitchFor(hanja: String): CatalogPitch? = catalogPitches.singleOrNull { it.hanja == hanja }
 }
 
