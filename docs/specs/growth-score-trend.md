@@ -1,7 +1,7 @@
 # 곡별 최근 점수 변화 조회 API (GRO-03)
 
 - Jira: [S15P31E102-346](https://ssafy.atlassian.net/browse/S15P31E102-346), Story S15P31E102-42. 결정·진행: [346 계획](../plans/S15P31E102-346.md)
-- 상태: 사용자 승인 계약(2026-11-02, clarify 결정과 스펙 추가 항목 포함). 구현 전이다. Notion API 명세 GRO-03 초안과 다른 점은 아래 'Notion 초안과 다른 점'에 모았다.
+- 상태: 사용자 승인 계약(2026-11-02, clarify 결정과 스펙 추가 항목 포함). 구현·자동 검사 완료, 리뷰 대기. 검사 결과는 [346 계획](../plans/S15P31E102-346.md#검증2026-11-02)에 있다. Notion API 명세 GRO-03 초안과 다른 점은 아래 'Notion 초안과 다른 점'에 모았다.
 - 소비자: 연습 기록지(GROWTH-01) '점수 변화' 그래프. 앱 연결은 [S15P31E102-372](https://ssafy.atlassian.net/browse/S15P31E102-372)에서 한다.
 
 ## 목적
