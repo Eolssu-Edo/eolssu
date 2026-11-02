@@ -81,7 +81,7 @@ class PracticeSessionController(
         }
     }
 
-    /** API 명세 `GET /practice-sessions/{sessionId}`(PRA-03 연습 세션·분석 상태 조회). 없거나 다른 회원의 세션은 404. */
+    /** API 명세 `GET /practice-sessions/{sessionId}`(PRA-03 연습 세션·분석 상태 조회). 없거나 다른 회원의 세션, 기록을 지운 세션은 404. */
     @GetMapping("/{sessionId}")
     fun get(@AuthenticationPrincipal jwt: Jwt, @PathVariable @Positive sessionId: Long): ResponseEntity<*> {
         val detail = getPracticeSession.execute(requireNotNull(jwt.subject).toLong(), sessionId)

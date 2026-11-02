@@ -12,7 +12,7 @@
 
 ## 실제 연결 계약
 
-모든 응답은 기존 `{httpStatus,isSuccess,message,code,result}` envelope를 쓴다. ID는 DB Long을 10진 문자열로 표현한다. 숫자로 내려 JS에서 정밀도를 잃거나, 제목/원본 sourceId로 DB ID를 대체하지 않는다. 목록은 안정된 ID 순서로 반환한다. 현 4곡에 임의 페이지·검색 API를 추가하지 않는다.
+모든 응답은 기존 `{httpStatus,isSuccess,message,code,result}` envelope를 쓴다. ID는 DB Long을 10진 문자열로 표현한다. 숫자로 내려 JS에서 정밀도를 잃거나, 제목/원본 sourceId로 DB ID를 대체하지 않는다. 목록은 안정된 ID 순서로 반환한다. 현 4곡에 임의 페이지·검색 API를 추가하지 않는다(2026-11-02 S15P31E102-345 보류, [재개 조건](../../plans/S15P31E102-345.md)).
 
 | 경로 | result | 조건 |
 | --- | --- | --- |
