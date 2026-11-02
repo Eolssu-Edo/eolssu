@@ -12,7 +12,9 @@ from starlette.concurrency import run_in_threadpool
 
 from ai_service.api import MAX_DOWNLOAD_BYTES, RecordingTooLong
 from ai_service.pipelines.audio import DecodeError
-from evaluation.local_score import _SCORES, score_recording
+from ai_service.pipelines.scoring import HWANG_HZ
+from evaluation.local_score import _SCORES, prepare_recording, score_recording
+from evaluation.score_experiment import Experiment, score_experiment
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 _HTML = Path(__file__).with_name('local_score_web.html')
@@ -39,6 +41,7 @@ def home():
 
 
 @app.post('/score')
+@app.post('/compare')
 async def analyze(request: Request):
     if request.headers.get('content-type', '').split(';')[0] != 'application/octet-stream':
         return JSONResponse({'error': '녹음 파일을 선택해 주세요.'}, status_code=400)
@@ -48,6 +51,13 @@ async def analyze(request: Request):
         start = float(request.query_params['start'])
         if source not in _SCORES:
             raise ValueError
+        if request.url.path == '/compare':
+            values = request.query_params
+            spec = Experiment(pitch_cent=float(values['pitch_cent']), duration_ratio=float(values['duration_ratio']),
+                              onset_spread=float(values['onset_spread']), pitch_penalty=float(values['pitch_penalty']),
+                              timing_penalty=float(values['timing_penalty']), large_error_exponent=float(values['large_error_exponent']),
+                              weights=(float(values['weight_pitch']), float(values['weight_timing']), float(values['weight_duration'])))
+            spec.validate()
     except (KeyError, ValueError):
         return JSONResponse({'error': '악보와 BPM, 시작 위치를 확인해 주세요.'}, status_code=400)
     if not _LOCK.acquire(blocking=False):
@@ -65,6 +75,13 @@ async def analyze(request: Request):
             if not size:
                 return JSONResponse({'error': '녹음 파일이 비어 있습니다.'}, status_code=400)
             try:
+                if request.url.path == '/compare':
+                    def compare():
+                        f0, notes, rms = prepare_recording(audio, source, bpm, start)
+                        return score_experiment(f0, notes, bpm, HWANG_HZ, spec, rms)
+                    experiment = await run_in_threadpool(compare)
+                    return JSONResponse({'result': asdict(experiment['result']),
+                                         'onset_tolerance_ms': experiment['onset_tolerance_ms']})
                 result = await run_in_threadpool(score_recording, audio, source, bpm, start)
             except ValueError as exc:
                 return JSONResponse({'error': str(exc)}, status_code=400)
@@ -76,6 +93,8 @@ async def analyze(request: Request):
                 return JSONResponse({'error': '녹음 분석 도구를 찾을 수 없습니다. ffmpeg와 ffprobe 설치를 확인해 주세요.'}, status_code=500)
             except TimeoutError:
                 return JSONResponse({'error': '녹음 분석 시간이 초과됐습니다.'}, status_code=500)
+            except RuntimeError:
+                return JSONResponse({'error': '실제 채점과 실험 측정값이 일치하지 않아 비교를 중단했습니다.'}, status_code=500)
             return JSONResponse(asdict(result))
     finally:
         _LOCK.release()

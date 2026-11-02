@@ -30,8 +30,8 @@ def load_notes(source_id):
     return score_notes(sheet, 0, sys.maxsize)
 
 
-def score_recording(audio_path, source_id, bpm, start_s=0):
-    """녹음 앞 start_s초를 제외하고 서비스와 같은 기본 설정으로 채점한다."""
+def prepare_recording(audio_path, source_id, bpm, start_s=0):
+    """녹음과 악보를 검증하고 음높이와 음량을 준비한다."""
     if not math.isfinite(bpm) or bpm <= 0:
         raise ValueError("BPM은 0보다 커야 합니다")
     if not math.isfinite(start_s) or start_s < 0:
@@ -50,8 +50,13 @@ def score_recording(audio_path, source_id, bpm, start_s=0):
     expected_frames = span_beats * 60.0 / bpm / HOP_S
     if expected_frames * (len(audio) / SAMPLE_RATE / HOP_S) * DTW_BYTES_PER_CELL > MAX_DTW_BYTES:
         raise RecordingTooLong("악보와 녹음이 분석 메모리 한도를 넘습니다")
-    f0 = pyin_f0(audio, SAMPLE_RATE)
-    return score(f0, notes, bpm, HWANG_HZ, rms=frame_rms(audio, SAMPLE_RATE))
+    return pyin_f0(audio, SAMPLE_RATE), notes, frame_rms(audio, SAMPLE_RATE)
+
+
+def score_recording(audio_path, source_id, bpm, start_s=0):
+    """녹음 앞 start_s초를 제외하고 서비스와 같은 기본 설정으로 채점한다."""
+    f0, notes, rms = prepare_recording(audio_path, source_id, bpm, start_s)
+    return score(f0, notes, bpm, HWANG_HZ, rms=rms)
 
 
 def main():

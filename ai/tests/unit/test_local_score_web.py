@@ -1,10 +1,12 @@
 import wave
 import tempfile
 
+import numpy as np
 from fastapi.testclient import TestClient
 
 from evaluation.local_score_web import app, _LOCK
 from ai_service.pipelines.scoring import NoteResult, ScoreResult
+from ai_service.pipelines.scoring import HWANG_HZ, Note
 
 
 BASE = "http://127.0.0.1:8765"
@@ -70,3 +72,21 @@ def test_second_analysis_does_not_run_concurrently():
         assert response.status_code == 409
     finally:
         _LOCK.release()
+
+
+def test_compare_defaults_match_current_score_and_invalid_weights_are_rejected(monkeypatch):
+    from evaluation import local_score_web
+    notes = [Note(i % 2 * 2, 1, idx=i) for i in range(16)]
+    f0 = np.concatenate([np.full(50, HWANG_HZ * 2 ** (n.semitone / 12)) for n in notes])
+    monkeypatch.setattr(local_score_web, 'prepare_recording', lambda *_: (f0, notes, None))
+    params = {'score_id': 'ngc-standard-2022-p173', 'bpm': 120, 'start': 0,
+              'pitch_cent': 50, 'duration_ratio': .25, 'onset_spread': 4,
+              'pitch_penalty': 0, 'timing_penalty': 0, 'large_error_exponent': 1,
+              'weight_pitch': 1, 'weight_timing': 1, 'weight_duration': 1}
+    response = client.post('/compare', params=params, content=b'recording', headers=ORIGIN)
+    assert response.status_code == 200
+    assert response.json()['result']['status'] == 'DONE'
+    assert response.json()['result']['total'] == 100
+    assert response.json()['onset_tolerance_ms'] == 62.5
+    params.update(weight_pitch=0, weight_timing=0, weight_duration=0)
+    assert client.post('/compare', params=params, content=b'recording', headers=ORIGIN).status_code == 400
