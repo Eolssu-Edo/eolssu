@@ -87,7 +87,7 @@ flowchart TD
 .\data\.venv\Scripts\python -m data.src.playback.verify_preview --expect data/tests/fixtures/playback/common-preview.expect.json --case danso --audio data/processed/playback/preview-study/danso.wav --out data/processed/playback/preview-study-check.json
 ```
 
-현재 실제 단소 BPM60은62.5ms 꾸밈의 초기 한 관측창이 F0 검사에 실패하므로 이 명령은 실패 상태를 유지합니다. 다른 세 악기는 통과했고, 단소 BPM30의125ms 꾸밈은 별도 `common-preview-slow-danso.expect.json`으로 검증했습니다. 상세 측정과 한계는 위 정책 문서에 기록합니다.
+2026-11-02 수정·공통화 후 실제4악기 BPM60 WAV/AAC는 각각40/40을 통과했습니다. 기존62.5ms 꾸밈의 관측창과50cent 기준을 유지했으며, 단소 BPM30의125ms 꾸밈도 별도 `common-preview-slow-danso.expect.json`으로9/9을 확인했습니다. 과거 실패와 수정 근거·청감 검수의 한계는 위 정책 문서에 기록합니다.
 
 ### 기존 재생용 JGB를 공통 악보로 가져오기
 

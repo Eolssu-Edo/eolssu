@@ -4,6 +4,10 @@
 - 요청: 기존 공통 악보와 재생기를 연결하고 한 곡의 화면 음·실제 생성 음원의 음높이, 길이, 쉼을 대조한다.
 - 입력 계약: [score_data.schema.json](../../data/src/scores/score_data.schema.json). 새 서비스 스키마나 API는 만들지 않는다.
 
+## 검증 JSON 공통화
+
+2026-11-02 후속 요청으로 4악기 검증 자료의 동일 본문을 공유한다. 서비스 v1·시김새 해석·음원 생성 동작은 유지하며, 악기별 이름·원본/음원 해시와 수기 음높이 차이를 명시한다. FE에서 복원한 입력은 기존 4악기 파일의 바이트·고정 해시와 일치해야 한다. 파형 검사의 관측창·기대값·허용치·검사 ID는 보존하고 기존 4악기 WAV/AAC 각각40개, 단소 BPM30의9개 검사를 재실행한다. 중복 제거를 위해 검사를 삭제하거나 기대값을 렌더러로 계산하지 않는다.
+
 ## 동작
 
 기존 `python -m data.src.playback`이 서비스 JSON을 판별해 기존 reviewed-score IR → MIDI → CAT PCM → M4A/WAV 경로를 사용한다. `--common-bpm`은 `music.bpmUnit`의 분당 박 수이며 반드시 명시한다. QUARTER는 1, DOTTED_QUARTER는 3/2 quarter로 길이와 BPM을 함께 변환한다. JEONGGAN/JANGDAN_BEAT는 서양 음가를 추측하지 않고 MIDI 전송용 1 quarter를 1 입력 박에 대응시킨다. 어느 경우도 `tick/ticksPerBeat*60/bpm` 초를 보존한다.
