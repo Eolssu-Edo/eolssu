@@ -34,6 +34,7 @@ import com.ssafy.eolssu.feature.history.RecordListViewModel
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -129,6 +130,8 @@ val appModule = module {
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
     viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
+    // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
+    viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }

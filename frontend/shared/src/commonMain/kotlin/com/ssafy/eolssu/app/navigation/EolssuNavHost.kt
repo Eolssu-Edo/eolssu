@@ -38,6 +38,7 @@ import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.ReadingRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnNavigation
+import com.ssafy.eolssu.feature.guide.learn.LearnPracticeRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnStageRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
@@ -96,6 +97,7 @@ object EolssuDestination {
     const val LEARN = "learn"
     const val LEARN_LIST = "learn/stages"
     const val LEARN_STAGE = "learn/stages/{stage}"
+    const val LEARN_PRACTICE = "learn/stages/{stage}/practice"
 
     fun guideFingering(instrument: GuideInstrument? = null, blow: Blow? = null) =
         "guide/fingering?instrument=${instrument?.id.orEmpty()}&blow=${blow?.name.orEmpty()}"
@@ -103,6 +105,8 @@ object EolssuDestination {
     fun guideReading(page: ReadingPage? = null) = "guide/reading?page=${page?.id.orEmpty()}"
 
     fun learnStage(stage: Int) = "learn/stages/$stage"
+
+    fun learnPractice(stage: Int) = "learn/stages/$stage/practice"
 
     // 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02)
     const val MY_SONGS = "my-songs"
@@ -340,6 +344,7 @@ fun EolssuNavHost(
                     onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
                     onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
                     onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
+                    onOpenPractice = { navController.navigate(EolssuDestination.learnPractice(it)) },
                 )
                 composable(EolssuDestination.LEARN_LIST) { entry ->
                     LearnListRoute(
@@ -370,6 +375,27 @@ fun EolssuNavHost(
                             }
                         },
                         navigation = learnNavigation,
+                    )
+                }
+                composable(
+                    EolssuDestination.LEARN_PRACTICE,
+                    arguments = listOf(navArgument("stage") { type = NavType.IntType }),
+                ) { entry ->
+                    LearnPracticeRoute(
+                        stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 3,
+                        learnViewModel = learnViewModel(navController, entry),
+                        onBack = { navController.popBackStack() },
+                        // 완료로 표시하면 연습과 그 단계 상세를 다음 단계 상세로 바꿔 끼운다(주소로 바로 들어와 목록이 없어도 연습으로 돌아가지 않게).
+                        // 태블릿 가로처럼 목록에서 바로 연 연습이면 바꿔 끼울 상세가 없어 다음 단계 상세가 목록으로 돌아가 그 단계를 고른다. 마지막 단계면 목록으로 돌아간다.
+                        onCompleted = { next ->
+                            if (next != null) {
+                                navController.navigate(EolssuDestination.learnStage(next)) {
+                                    popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
+                                }
+                            } else {
+                                navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)
+                            }
+                        },
                     )
                 }
             }
