@@ -178,6 +178,7 @@ hugo server -D
 - `data/brand.yaml`: 상단 로고·캐릭터 이미지(`static/` 기준 경로).
 - `data/blog.yaml`: 직무 필터의 순서와 표기. 키는 글 머리말 `categories` 값과 같다. 글이 없는 직무도 0편으로 표시한다.
 - 작성자 필터는 `data/team.yaml`의 팀원 순서로 표시하고, 팀원 목록에 없는 머리말 `author`(예: Team Edo)는 뒤에 붙인다. 글 머리말의 `author`는 팀원 이름과 똑같이 쓴다.
+- 직무·작성자 필터는 두 조건을 함께 적용한다(`static/js/site.js`). 글 목록은 항상 최신 글이 위에 오고, 같은 날짜의 글은 제목 순으로 고정한다.
 - `data/project.yaml`: 프로젝트 소개 문구와 학습 4단계. 제목과 정간보 칸은 `layouts/_default/project.html`에 있다.
 - `data/team.yaml`: 팀 소개 문구와 팀원 카드(`name`, `role`, `headline`, `description`, 카드 색 `accent`·`tint`). 공개에 동의한 팀원 정보만 넣는다.
 - `static/app-preview/home.html`: 프로젝트 화면 휴대폰 안의 앱 홈 화면. 앱 디자인 프로토타입의 홈 마크업을 정적으로 복사했으며 `sandbox` iframe으로 스크립트 없이 표시한다. 앱 디자인이 바뀌면 이 파일을 갱신한다.
@@ -193,8 +194,7 @@ hugo server -D
 
 - 서체는 **Noto Sans KR**(Google Fonts 400·500·600·700)이며 불러오지 못하면 시스템 고딕을 사용한다. 한글은 단어 단위로 줄바꿈한다(`word-break: keep-all`).
 - 750px 이하에서는 분야 필터가 가로 버튼으로 바뀌고 보조 영역을 숨긴다. 600px 이하에서는 상단 메뉴가 햄버거 버튼으로 바뀌며 Esc·바깥 클릭으로 닫힌다.
-- 글 목록은 항상 최신 글이 위에 온다. 같은 날짜의 글은 제목 순으로 고정한다.
-- `static/js/site.js`는 추천 글 넘기기, 직무·작성자 필터(두 조건 함께 적용, 빈 결과·전체 보기 포함), 모바일 메뉴를 담당한다. JavaScript가 없어도 모든 글 링크를 이용할 수 있다. 이전 화면의 로컬 검색은 이번 디자인에서 제외했다.
+- `static/js/site.js`는 추천 글 넘기기, 분야 필터(빈 결과·전체 보기 포함), 모바일 메뉴를 담당한다. JavaScript가 없어도 모든 글 링크를 이용할 수 있다. 이전 화면의 로컬 검색은 이번 디자인에서 제외했다.
 - `static/css/style.css`에서 색상·간격·반응형·동작 줄이기 대응을 관리한다.
 - `assets/images/`의 확정 로고·캐릭터 시트 원본은 보존하며, 화면에는 `static/images/`의 WebP를 사용한다.
 
