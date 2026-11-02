@@ -27,8 +27,11 @@ import numpy as np
 from ai_service.api import MODEL_VERSION
 from ai_service.pipelines.audio import SAMPLE_RATE, decode_recording
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, NoteResult, Tolerance, frame_rms, pyin_f0, score
-from evaluation.danso_tuning import PITCHES
 from evaluation.labels import REPO, load_label
+
+# 12율. 옥타브 0의 황이 반음 0이고 옥타브는 황에서 바뀐다(pitches.json과 같은 규칙).
+# 단소 음 표는 단소 음역만 담아, 소금 악보의 고·남 같은 율을 읽으려고 직접 계산한다.
+YUL = "황대태협고중유임이남무응"
 
 GRID = [
     Tolerance(pitch_cent=p, onset_beat=o, duration_ratio=d)
@@ -69,7 +72,7 @@ def score_notes(score_data: dict, start: int, end: int) -> list[Note]:
     tpb = score_data["music"]["ticksPerBeat"]
     events = [e for e in score_data["events"] if e["kind"] == "NOTE"]
     return [
-        Note(PITCHES[e["yul"], e["octave"]], e["durationTick"] / tpb, bool(e["sigimsae"]), i, e["startTick"] / tpb)
+        Note(12 * e["octave"] + YUL.index(e["yul"]), e["durationTick"] / tpb, bool(e["sigimsae"]), i, e["startTick"] / tpb)
         for i, e in enumerate(events)
         if start <= i <= end
     ]
@@ -146,9 +149,15 @@ def compare(before: dict, after: dict, vary: set[str]) -> dict:
     expected = before["expected"]
     if not expected or expected != after["expected"]:
         raise CompareError("전후 정답 또는 녹음 ID가 다르다")
+    # 허용값 칸이 늘면(예: pyin-4의 onset_spread) 이전 결과에는 그 칸이 없다. 양쪽에 다 있는 칸으로 조합을 맞춘다.
+    shared = set(asdict(Tolerance())).intersection(*(row["tolerance"] for report in (before, after) for row in report["results"]))
+
+    def key(tolerance: dict) -> tuple:
+        return tuple(sorted((k, v) for k, v in tolerance.items() if k in shared))
+
     grids = []
     for report in (before, after):
-        grid = [tuple(sorted(row["tolerance"].items())) for row in report["results"]]
+        grid = [key(row["tolerance"]) for row in report["results"]]
         if not grid or len(grid) != len(set(grid)):
             raise CompareError("허용값 조합이 비었거나 중복됐다")
         grids.append(set(grid))
@@ -161,10 +170,10 @@ def compare(before: dict, after: dict, vary: set[str]) -> dict:
                     raise CompareError("음별 판정 길이 또는 문자가 올바르지 않다")
     if grids[0] != grids[1]:
         raise CompareError("전후 허용값 조합이 다르다")
-    default = asdict(Tolerance())
+    default = key(asdict(Tolerance()))
     rows, changed_notes = [], []
     for b_row in before["results"]:
-        a_row = next((r for r in after["results"] if r["tolerance"] == b_row["tolerance"]), None)
+        a_row = next((r for r in after["results"] if key(r["tolerance"]) == key(b_row["tolerance"])), None)
         if a_row is None:
             continue
         b = c = 0
@@ -172,7 +181,7 @@ def compare(before: dict, after: dict, vary: set[str]) -> dict:
             for pos, (e, x, y) in enumerate(zip(exp["letters"], b_row["verdicts"][rec], a_row["verdicts"][rec])):
                 b += _ok(e, x) and not _ok(e, y)
                 c += not _ok(e, x) and _ok(e, y)
-                if b_row["tolerance"] == default and x != y:
+                if key(b_row["tolerance"]) == default and x != y:
                     changed_notes.append({"recordingId": rec, "idx": exp["start"] + pos, "expected": e, "before": x, "after": y})
         rows.append(
             {

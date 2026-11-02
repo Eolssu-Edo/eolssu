@@ -1,0 +1,36 @@
+{
+ "schemaVersion": 1,
+ "recordingId": "p02-sogeum-doraji-20261029-t1",
+ "method": "manual",
+ "review": "reviewed",
+ "audio": {
+  "path": "data/raw/recordings/team-2026-10-29/도라지타령_소금_연습.m4a",
+  "sha256": "051fcafa76d6a02389c3e25f123e395234f026412b5339d570abbb648cc4d633"
+ },
+ "score": {
+  "path": "data/tests/fixtures/scores/school-textbook-sogeum-p16.score.json",
+  "sha256": "c3a17364c4be7a16f59d65972f797c56694e276911d950978afd1b8f996602d2"
+ },
+ "range": {
+  "startNoteIdx": 0,
+  "endNoteIdx": 65
+ },
+ "bpm": 65.8,
+ "bpmUnit": "DOTTED_QUARTER",
+ "errors": [],
+ "conditions": {
+  "kind": "PERFORMED",
+  "skill": "BEGINNER",
+  "device": "Galaxy S24+",
+  "app": "삼성 기본 녹음 앱",
+  "micDistanceCm": 25,
+  "place": "소회의실",
+  "noise": "조용함",
+  "recordedOn": "2026-10-29",
+  "temperatureC": 22,
+  "take": 1,
+  "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+  "performer": "P02",
+  "instrument": "I02"
+ }
+}

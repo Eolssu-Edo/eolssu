@@ -1,0 +1,36 @@
+{
+ "schemaVersion": 1,
+ "recordingId": "p02-sogeum-arirang-20261029-t1",
+ "method": "manual",
+ "review": "reviewed",
+ "audio": {
+  "path": "data/raw/recordings/team-2026-10-29/아리랑_소금_연습.m4a",
+  "sha256": "4810c99b0f79c96a8c3fb020106ff664a719dab3e9475145df769db53e72e47c"
+ },
+ "score": {
+  "path": "data/tests/fixtures/scores/school-textbook-sogeum-p15.score.json",
+  "sha256": "fb9326c596d877e2abc811eac723ce033da309f5c9908150a0fcc5bd79f88f90"
+ },
+ "range": {
+  "startNoteIdx": 0,
+  "endNoteIdx": 59
+ },
+ "bpm": 68.2,
+ "bpmUnit": "DOTTED_QUARTER",
+ "errors": [],
+ "conditions": {
+  "kind": "PERFORMED",
+  "skill": "BEGINNER",
+  "device": "Galaxy S24+",
+  "app": "삼성 기본 녹음 앱",
+  "micDistanceCm": 25,
+  "place": "소회의실",
+  "noise": "조용함",
+  "recordedOn": "2026-10-29",
+  "temperatureC": 22,
+  "take": 1,
+  "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+  "performer": "P02",
+  "instrument": "I02"
+ }
+}

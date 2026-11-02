@@ -14,6 +14,12 @@ uv sync
 uv run pytest
 ```
 
+Windows에서 저장소가 긴 경로(예: `.claude\worktrees\...` 아래 작업 공간)에 있으면 librosa의 numba가 컴파일 결과를 패키지 옆에 저장하다 경로 길이 한도를 넘어 `FileNotFoundError`나 DLL 로드 오류로 실패할 수 있습니다. 테스트나 평가 도구를 실행하기 전에 같은 PowerShell 창에서 캐시를 짧은 경로로 옮깁니다.
+
+```powershell
+$env:NUMBA_CACHE_DIR = 'C:/nbc'
+```
+
 `tests/unit/test_scoring.py`는 합성 음계로 만점, 음 바꿈, 늦은 시작, 빠진 음, 쉼, 조율 보정과 상한, 무음·잡음 몇 프레임·짧은 입력 실패를 검사합니다. `tests/unit/test_arirang_score.py`는 공통 악보 데이터의 아리랑 샘플(`data/tests/fixtures/scores/`)을 채점 입력으로 바꿔 곡 전체와 연습 구간을 채점합니다. 실제 녹음이나 모델 검증이 아닙니다. `tests/unit/test_audio.py`는 테스트 중 `ffmpeg`로 만든 2초짜리 사인파 AAC(44.1kHz 스테레오·48kHz 모노)와 헤더·중간이 손상되거나 끝이 잘린 파일(패킷 경계에서 잘린 파일 포함), 오디오가 아닌 파일·오디오 없는 파일, 없는 파일·URL·`:`가 든 상대 경로·시간 초과로 디코딩을 검사합니다. 파일은 커밋하지 않습니다.
 
 ## 녹음 디코딩
@@ -30,7 +36,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 1. `audioUrl`(서명 URL)에서 원본을 임시 폴더로 내려받습니다. 연결부터 전체 30초, 25MiB까지 받고 응답을 마치면 지웁니다.
 2. 위 '녹음 디코딩'으로 16kHz 모노로 바꾸고, pYIN으로 음높이를 추정해 '채점 방식'대로 채점합니다.
-3. `DONE`(`modelVersion` `pyin-2`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
+3. `DONE`(`modelVersion` `pyin-4`, 점수 4개, 조율 보정, 음표별 판정) 또는 `FAILED`(`NO_SOUND`·`TOO_SHORT`·`DECODE_ERROR`)를 200으로 돌려줍니다. 음표 결과의 `idx`는 요청 음표의 `idx` 그대로입니다.
 
 | 상황 | 응답 | 백엔드 처리 |
 | --- | --- | --- |
@@ -100,6 +106,22 @@ uv run --group eval python -m evaluation.measure_latency
 `--seconds`·`--methods`로 범위를 줄이고 `--out`으로 표를 저장합니다. 최근 결과는 [녹음 길이별 분석 처리 시간과 메모리](../docs/knowledge/ai/analysis-latency.md)에 있습니다.
 
 ## 채점 방식
+
+작은 고정 f0의 DTW 기준은 `uv run python -m evaluation.dtw_baseline --out ../data/processed/dtw-286/u1-baseline-fixed.json`으로 기록합니다. 경로·비용·판정과 메모리의 측정 범위는 [U1 기준 관찰](../docs/knowledge/ai/dtw-memory-comparison.md)을 따릅니다. 서비스의 채점 알고리즘을 바꾸거나 긴 녹음을 실행하는 도구는 아닙니다.
+
+연구용 후보는 `uv run python -m evaluation.dtw_candidate_check --method A --out ../data/processed/dtw-286/u2-A.json`으로 같은 작은 입력에 연결합니다. `--method B --half-width-seconds 0.5`로 제한 범위 후보도 확인합니다. 기본 서비스는 기존 전체 DTW를 사용하며, 자세한 비교 범위와 한계는 [후보 구현 기록](../docs/knowledge/ai/dtw-memory-comparison.md#u2-후보-구현과-작은-입력-검증)을 따릅니다.
+
+곡별 고정 음높이와 합성 녹음의 음별 판정 비교는 [U3 실행 방법과 한계](../docs/knowledge/ai/dtw-memory-comparison.md#u3-합성-입력-품질-비교-2026-10-30)를 따릅니다. 결과는 연구용이며 실제 연주나 전체 곡의 품질을 보증하지 않습니다.
+
+Windows에서 곡별 DTW와 합성 m4a 전체 처리 시간을 측정할 때는 `ai` 폴더의 PowerShell에서 아래처럼 단일 스레드로 실행합니다. 스레드 설정이 빠지면 1GiB 커밋 메모리 제한 안에서 OpenBLAS 할당 오류가 날 수 있습니다. 출력 이름은 문서가 인용한 기존 원본(`u4-full-rest.json`, `u4-reviewed.json`)과 겹치지 않게 새로 정합니다.
+
+```powershell
+$env:OPENBLAS_NUM_THREADS = '1'; $env:OMP_NUM_THREADS = '1'
+uv run --locked python -m evaluation.dtw_full_performance --out ../data/processed/dtw-286/u4-rerun.json
+uv run --locked python -m evaluation.dtw_u4_table ../data/processed/dtw-286/u4-rerun.json --out ../data/processed/dtw-286/u4-rerun.csv
+```
+
+실행 전 메모리·시간 제한을 작은 입력으로 확인하고 각 조건을 별도 프로세스에서 다섯 번 실행합니다. 두 번째 명령은 원본 JSON에서 반복별 결과 표를 만듭니다. 문서의 표 두 개는 같은 명령으로 기존 원본에서 바이트까지 똑같이 다시 만들어집니다. 합성 m4a는 실제 연주나 팀원이 만든 음원이 아닙니다. 자세한 입력과 제한은 [측정 기록](../docs/knowledge/ai/dtw-memory-comparison.md)을 따릅니다.
 
 `src/ai_service/pipelines/scoring.py`
 

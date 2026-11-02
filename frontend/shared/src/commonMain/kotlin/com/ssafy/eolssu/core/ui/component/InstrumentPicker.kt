@@ -25,7 +25,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 악기 고르기(`.au-inst`): 세 칸 76dp, 고른 칸은 흰 바탕에 굵은 테두리. [label]이 있으면 위에, [help]는 아래에 둔다.
+ * 악기 고르기(`.au-inst`): 세 칸 76dp, 흰 바탕 · 옅은 테두리이고 고른 칸은 연두 바탕(`.on`)이다. [label]이 있으면 위에, [help]는 아래에 둔다.
  * 가입 프로필 설정(AUTH-07)과 마이페이지 연습 악기(MY-01)가 함께 쓴다.
  */
 @Composable
@@ -55,12 +55,19 @@ fun InstrumentPicker(
                         .height(76.dp)
                         .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(instrument) }),
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) colors.background else colors.surface,
-                    contentColor = colors.text,
-                    border = if (isSelected) BorderStroke(2.dp, colors.accentText) else BorderStroke(1.dp, colors.line),
+                    color = if (isSelected) colors.primary else colors.surface,
+                    contentColor = if (isSelected) colors.onPrimary else colors.text,
+                    border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.lineSoft),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(stringResource(instrument.label), style = EolssuTheme.serif.headline.copy(fontSize = 21.sp, lineHeight = 28.sp))
+                        Text(
+                            stringResource(instrument.label),
+                            style = EolssuTheme.serif.headline.copy(
+                                fontSize = 21.sp,
+                                lineHeight = 28.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            ),
+                        )
                     }
                 }
             }

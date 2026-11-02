@@ -1,0 +1,36 @@
+{
+ "schemaVersion": 1,
+ "recordingId": "p01-danso-arirang-20261029-t1",
+ "method": "manual",
+ "review": "reviewed",
+ "audio": {
+  "path": "data/raw/recordings/team-2026-10-29/아리랑_단소_연습.m4a",
+  "sha256": "90b2993f6377ae2c0234853602b612f48b326f25128a8ebf58c2f8897f231b53"
+ },
+ "score": {
+  "path": "data/tests/fixtures/scores/ngc-standard-2022-p173.score.json",
+  "sha256": "51cd874652d705511cfaa0f2c03ba6d3632ae10b4a483036d6a438a8eac73f1b"
+ },
+ "range": {
+  "startNoteIdx": 0,
+  "endNoteIdx": 60
+ },
+ "bpm": 76.3,
+ "bpmUnit": "DOTTED_QUARTER",
+ "errors": [],
+ "conditions": {
+  "kind": "PERFORMED",
+  "skill": "BEGINNER",
+  "device": "Galaxy S24+",
+  "app": "삼성 기본 녹음 앱",
+  "micDistanceCm": 25,
+  "place": "소회의실",
+  "noise": "조용함",
+  "recordedOn": "2026-10-29",
+  "temperatureC": 22,
+  "take": 1,
+  "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+  "performer": "P01",
+  "instrument": "I01"
+ }
+}

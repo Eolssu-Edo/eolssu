@@ -172,12 +172,14 @@ def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, b
 
 def convert_answer(source_id, data=DATA):
     """저장소의 채점 정답 하나를 변환한다. 정간당 박·검수 상태는 정답 검토 기록에서,
-    곡 제목·악기·장단은 data/reference의 기준 데이터에서 읽는다."""
+    곡 제목·악기·장단은 data/reference의 기준 데이터에서 읽는다. 서비스 곡(songs.json)이 아닌
+    평가용 정답(소금 등)은 검토 기록의 song에서 읽는다."""
     folder = data / "annotations/scores" / source_id
     (jgb,) = folder.glob("*.jgb.json")
     (review_path,) = folder.glob("*.review.json")
     review = json.loads(review_path.read_text(encoding="utf-8"))
-    (song,) = [s for s in _rows(data, "songs.json") if s["source"] == source_id]
+    songs = [s for s in _rows(data, "songs.json") if s["source"] == source_id]
+    (song,) = songs or [review["song"]]
     (jangdan,) = [j for j in _rows(data, "jangdans.json") if j["name"] == song["jangdan"]]
     return convert(json.loads(jgb.read_text(encoding="utf-8")),
                    beats_per_jeonggan=Fraction(review["sourceValues"]["beatsPerJeonggan"]),
@@ -203,9 +205,11 @@ def check(result, data=DATA):
     problems += [f"eventId {u['eventId']}가 events에 없다 ({c['id']})"
                  for c in cells for u in c["units"] if u["eventId"] not in event_ids]
     problems += [f"cellId {e['cellId']}가 cells에 없다 ({e['id']})" for e in events if e["cellId"] not in cell_ids]
-    pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")}
-    problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
-                 for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
+    # 율명 표는 단소 음역이다. 다른 악기는 읽기 규칙(12율)만 따른다.
+    if result["score"]["instrument"] == "DANSO":
+        pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")}
+        problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
+                     for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
     return problems
 
 

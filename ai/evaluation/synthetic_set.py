@@ -1,7 +1,7 @@
 """아리랑 공통 악보 샘플로 정상·오류 합성 녹음과 정답 기록 묶음을 만든다.
 
 실행: uv run python -m evaluation.synthetic_set [--out data/processed/recordings/danso/arirang-synthetic]
-평가: uv run python -m evaluation.error_detection <out>/*.label.json --out ai/evaluation/baselines/arirang-synthetic-pyin-2.json
+평가: uv run python -m evaluation.error_detection <out>/*.label.json --out ai/evaluation/baselines/arirang-synthetic-pyin-4.json
 
 정상 1개와 오류 종류(PITCH·OCTAVE·TIMING·MISSED)마다 3개, 녹음 하나에 오류 5개라 종류마다 틀린 음이 15개다.
 같은 계획이면 녹음까지 같은 바이트로 다시 만들어 묶음 해시가 유지된다. 실제 녹음 검출률을 대신하지 않는다.

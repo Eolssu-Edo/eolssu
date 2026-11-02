@@ -76,6 +76,20 @@
           "value": "$__all"
         },
         "allValue": "'__all'"
+      },
+      {
+        "name": "evaluation",
+        "label": "연주",
+        "type": "query",
+        "datasource": {
+          "type": "mysql",
+          "uid": "${DS_EOLSSU}"
+        },
+        "query": "SELECT CONCAT(DATE_FORMAT(e.evaluated_at, '%m-%d %H:%i'), ' · ', s.title, ' · ', e.total_score, '점 · ', e.model_version, ' · #', e.id) AS __text, e.id AS __value FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) ORDER BY e.evaluated_at DESC LIMIT 200",
+        "refresh": 2,
+        "multi": false,
+        "includeAll": false,
+        "description": "연주별 음 판정 표에만 적용된다. 기간·악기·곡·모델 버전으로 거른 최근 200개 연주"
       }
     ]
   },
@@ -105,7 +119,7 @@
       "gridPos": {
         "x": 0,
         "y": 1,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "options": {
@@ -131,16 +145,16 @@
     {
       "id": 3,
       "type": "barchart",
-      "title": "박자 오차 분포 (ms, ±400 넘으면 끝 칸)",
-      "description": "음 시작 시각 오차의 20 ms 구간별 음 수. 한쪽으로 쏠리면 시작 시각 계산이 밀려 있다. -420 칸은 -400 미만, 400 칸은 400 이상이다.",
+      "title": "박자 오차 분포 (ms, 곡 처음 기준, ±400 넘으면 끝 칸)",
+      "description": "곡 처음부터 잰 음 시작 시각 오차(onset_error_ms)의 20 ms 구간별 음 수. 여러 연주를 합친 분포다. 가운데가 0에서 밀리는 원인에는 녹음 시작 지점 밀림, 연주 전체가 일정하게 느리거나 빠름, 음 시작 검출의 치우침이 있고, 폭에는 연주마다 다른 시작 밀림과 연주 안 박자 흔들림이 섞인다. pyin-4부터 박자 판정은 곡 처음 기준과 앞뒤 음 기준 중 덜 어긋난 쪽으로 하므로 이 값이 커도 CORRECT일 수 있다. 박자 오류 여부는 판정 비율 패널에서 본다. -420 칸은 -400 미만, 400 칸은 400 이상이다.",
       "datasource": {
         "type": "mysql",
         "uid": "${DS_EOLSSU}"
       },
       "gridPos": {
-        "x": 8,
+        "x": 6,
         "y": 1,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "options": {
@@ -164,6 +178,41 @@
       ]
     },
     {
+      "id": 13,
+      "type": "barchart",
+      "title": "연주 안 박자 흔들림 (ms, 연주별 평균을 뺌)",
+      "description": "음 시작 시각 오차에서 그 연주(evaluation)의 평균 오차를 뺀 값의 20 ms 구간별 음 수. 녹음 시작 밀림처럼 연주 전체에 똑같이 더해진 늦음이 빠진다. 빠르기가 점점 변한 효과는 남아 박자 판정 값과 같지 않다. 평균이라 크게 튄 음이 있으면 다른 음까지 끌려간다. ±400 ms를 넘으면 끝 칸에 넣는다: -420 칸은 -400 미만, 400 칸은 400 이상이다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 6,
+        "h": 8
+      },
+      "options": {
+        "xTickLabelRotation": -45,
+        "legend": {
+          "showLegend": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT CAST(b AS CHAR) AS 오차_ms, n AS 음_수 FROM (SELECT FLOOR(LEAST(GREATEST(d, -420), 400) / 20) * 20 AS b, COUNT(*) AS n FROM (SELECT nr.onset_error_ms - AVG(nr.onset_error_ms) OVER (PARTITION BY nr.evaluation_id) AS d FROM note_results nr JOIN evaluations e ON e.id = nr.evaluation_id JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND nr.onset_error_ms IS NOT NULL) x GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
       "id": 4,
       "type": "barchart",
       "title": "길이 오차 분포 (ms, ±1000 넘으면 끝 칸)",
@@ -173,9 +222,9 @@
         "uid": "${DS_EOLSSU}"
       },
       "gridPos": {
-        "x": 16,
+        "x": 18,
         "y": 1,
-        "w": 8,
+        "w": 6,
         "h": 8
       },
       "options": {
@@ -429,6 +478,48 @@
           "format": "table",
           "rawQuery": true,
           "rawSql": "SELECT CAST(b AS CHAR) AS 처리_초, n AS 세션_수 FROM (SELECT FLOOR(LEAST(TIMESTAMPDIFF(SECOND, ps.ended_at, e.evaluated_at), 120) / 5) * 5 AS b, COUNT(*) AS n FROM evaluations e JOIN practice_sessions ps ON ps.id = e.session_id JOIN songs s ON s.id = ps.song_id JOIN instruments i ON i.id = s.instrument_id WHERE $__timeFilter(e.evaluated_at) AND ('__all' IN (${instrument:sqlstring}) OR i.name IN (${instrument:sqlstring})) AND ('__all' IN (${song:sqlstring}) OR s.title IN (${song:sqlstring})) AND ('__all' IN (${model:sqlstring}) OR e.model_version IN (${model:sqlstring})) AND ps.ended_at IS NOT NULL GROUP BY b) t ORDER BY b"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "연주별 판정",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 34,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "연주별 음 판정 (위쪽 '연주' 선택상자로 고름)",
+      "description": "고른 연주의 음마다 정답 음·잡힌 음·판정·오차. 시작 늦음은 곡 처음 기준이라 pyin-4 박자 판정(곡 처음 기준과 앞뒤 음 기준 중 덜 어긋난 쪽)과 다를 수 있다. 판정 근거까지 보려면 녹음을 평가 도구로 다시 채점한다. 음을 못 잡은 MISSED는 오차가 비어 있다.",
+      "datasource": {
+        "type": "mysql",
+        "uid": "${DS_EOLSSU}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "mysql",
+            "uid": "${DS_EOLSSU}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT nr.note_idx AS 음_번호, ep.hangul AS 정답_음, dp.hangul AS 잡힌_음, nr.verdict AS 판정, nr.pitch_error_cent AS 음높이_오차_cent, nr.onset_error_ms AS 시작_늦음_ms, nr.duration_error_ms AS 길이_오차_ms FROM note_results nr JOIN pitches ep ON ep.id = nr.expected_pitch_id LEFT JOIN pitches dp ON dp.id = nr.detected_pitch_id WHERE nr.evaluation_id = ${evaluation:sqlstring} ORDER BY nr.note_idx"
         }
       ]
     }

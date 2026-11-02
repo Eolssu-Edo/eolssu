@@ -1,0 +1,1071 @@
+{
+ "schemaVersion": 1,
+ "createdAt": "2026-11-01T14:28:56+00:00",
+ "command": "C:\\Users\\SSAFY\\Desktop\\pjt\\S15P31E102\\.claude\\worktrees\\confident-sutherland-4b4873\\ai\\evaluation\\error_detection.py ../data/annotations/recordings/danso/p01-danso-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-arirang-20261029-t1.json ../data/annotations/recordings/sogeum/p02-sogeum-doraji-20261029-t1.json --out evaluation/baselines/team-normal-pyin-3.json",
+ "commit": "7a6528ba848c3d9710a8c10ddb05135458a031ef",
+ "variables": {
+  "data": {
+   "labels": {
+    "p01-danso-arirang-20261029-t1.json": "17755b8bf05b8a19fd0e32fb65b06b7302df4a129af02606ed63de3871202c99",
+    "p02-sogeum-arirang-20261029-t1.json": "2c62093fc1a0f8ceb04c33988593c5057fcf11ee8f602643f2d389b31196eade",
+    "p02-sogeum-doraji-20261029-t1.json": "db43de6c3f7283b0a9adfb6aeb74b22c584954d4d89aa0e8bb007edf054de13d"
+   },
+   "datasetHash": "abab0afc59912d23825623e6d1ebf0ea705969b0daff344adf43a0f4d7a90d21"
+  },
+  "scoring": {
+   "modelVersion": "pyin-3",
+   "scoringCode": "8ac41675ee68fce7996a214ecbbba170c63080e6e1b762a88b65f6f7bd89e679",
+   "evaluationCode": "3f60772040564fb8b0bc9b47db452d0498f60c991aabf90bd5cd954b8faa1e5d",
+   "toleranceDefaults": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "pitchEstimator": {
+    "name": "pyin",
+    "fmin": 100.0,
+    "fmax": 2500.0,
+    "frame_length": 1024
+   },
+   "hopSeconds": 0.01,
+   "referenceHz": 311.13
+  },
+  "environment": {
+   "python": "3.12.10",
+   "packages": {
+    "numpy": "2.5.4",
+    "librosa": "1.0.0",
+    "jsonschema": "4.26.0"
+   },
+   "uvLock": "5fc91fbbd72adf4a6b2f45f084584a8309068256874a610ee1f652732a352818",
+   "ffmpeg": "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+   "platform": "Windows-11-10.0.26200-SP0",
+   "machine": "AMD64"
+  },
+  "synthetic": [],
+  "performed": [
+   {
+    "kind": "PERFORMED",
+    "skill": "BEGINNER",
+    "device": "Galaxy S24+",
+    "app": "삼성 기본 녹음 앱",
+    "micDistanceCm": 25,
+    "place": "소회의실",
+    "noise": "조용함",
+    "recordedOn": "2026-10-29",
+    "temperatureC": 22,
+    "take": 1,
+    "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+    "performer": "P01",
+    "instrument": "I01"
+   },
+   {
+    "kind": "PERFORMED",
+    "skill": "BEGINNER",
+    "device": "Galaxy S24+",
+    "app": "삼성 기본 녹음 앱",
+    "micDistanceCm": 25,
+    "place": "소회의실",
+    "noise": "조용함",
+    "recordedOn": "2026-10-29",
+    "temperatureC": 22,
+    "take": 1,
+    "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+    "performer": "P02",
+    "instrument": "I02"
+   },
+   {
+    "kind": "PERFORMED",
+    "skill": "BEGINNER",
+    "device": "Galaxy S24+",
+    "app": "삼성 기본 녹음 앱",
+    "micDistanceCm": 25,
+    "place": "소회의실",
+    "noise": "조용함",
+    "recordedOn": "2026-10-29",
+    "temperatureC": 22,
+    "take": 1,
+    "errorMethod": "의도한 오류 없음(정상 연주, 메트로놈 없이 자유 빠르기)",
+    "performer": "P02",
+    "instrument": "I02"
+   }
+  ]
+ },
+ "expected": {
+  "p01-danso-arirang-20261029-t1": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "p02-sogeum-arirang-20261029-t1": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  },
+  "p02-sogeum-doraji-20261029-t1": {
+   "start": 0,
+   "letters": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+  }
+ },
+ "results": [
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 48.333333333333336
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 182,
+    "tn": 5,
+    "rate": 0.9732620320855615,
+    "ci": [
+     0.938944330980215,
+     0.9885264091519155
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTPTTTTTMTTTTTTTTMTTPTTTTTTTTTOPTPTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTPTTTTTTTTTTTPTTTPTTTTTTTTTTTPTTTTTTTTTTTPTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTPTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTPPPPPTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 53.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 182,
+    "tn": 5,
+    "rate": 0.9732620320855615,
+    "ci": [
+     0.938944330980215,
+     0.9885264091519155
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTPTTTTTMTTTTTTTTMTTPTTTTTTTTTOPTPTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTPTTTTTTTTTTTPTTTPTTTTTTTTTTTPTTTTTTTTTTTPTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTPTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTPPPPPTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 50.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 179,
+    "tn": 8,
+    "rate": 0.9572192513368984,
+    "ci": [
+     0.9178653304531158,
+     0.9781657235728408
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTPTTTTTMTTTTTTTTMTTPTTTTTTTTTOPTPTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTPTTTTTTTTTTTPTTTPTTTTTTTTTTTPTTTTTTTTTTCPCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTPTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTPPPPPTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 30.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 54.333333333333336
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 179,
+    "tn": 8,
+    "rate": 0.9572192513368984,
+    "ci": [
+     0.9178653304531158,
+     0.9781657235728408
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTPTTTTTMTTTTTTTTMTTPTTTTTTTTTOPTPTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTPTTTTTTTTTTTPTTTPTTTTTTTTTTTPTTTTTTTTTTCPCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTPTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTPPPPPTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 49.666666666666664
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 182,
+    "tn": 5,
+    "rate": 0.9732620320855615,
+    "ci": [
+     0.938944330980215,
+     0.9885264091519155
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTTTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTTPPPTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 53.666666666666664
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 182,
+    "tn": 5,
+    "rate": 0.9732620320855615,
+    "ci": [
+     0.938944330980215,
+     0.9885264091519155
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTTTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTTPPPTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 51.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 178,
+    "tn": 9,
+    "rate": 0.9518716577540107,
+    "ci": [
+     0.9110750373515629,
+     0.9744761213056691
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTTTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTTPPPTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 40.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 55.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 178,
+    "tn": 9,
+    "rate": 0.9518716577540107,
+    "ci": [
+     0.9110750373515629,
+     0.9744761213056691
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "PTTTTPTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTPPTTTPPPTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 49.666666666666664
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 181,
+    "tn": 6,
+    "rate": 0.9679144385026738,
+    "ci": [
+     0.9317770769752791,
+     0.9852137677881267
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 54.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 181,
+    "tn": 6,
+    "rate": 0.9679144385026738,
+    "ci": [
+     0.9317770769752791,
+     0.9852137677881267
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 51.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 177,
+    "tn": 10,
+    "rate": 0.946524064171123,
+    "ci": [
+     0.9043741139931262,
+     0.9706971492953812
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 50.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 55.333333333333336
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 177,
+    "tn": 10,
+    "rate": 0.946524064171123,
+    "ci": [
+     0.9043741139931262,
+     0.9706971492953812
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 49.666666666666664
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 181,
+    "tn": 6,
+    "rate": 0.9679144385026738,
+    "ci": [
+     0.9317770769752791,
+     0.9852137677881267
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.125,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    98,
+    110,
+    114
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 54.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 181,
+    "tn": 6,
+    "rate": 0.9679144385026738,
+    "ci": [
+     0.9317770769752791,
+     0.9852137677881267
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCTM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.2,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 51.0
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 177,
+    "tn": 10,
+    "rate": 0.946524064171123,
+    "ci": [
+     0.9043741139931262,
+     0.9706971492953812
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  },
+  {
+   "tolerance": {
+    "pitch_cent": 60.0,
+    "onset_beat": 0.2,
+    "duration_ratio": 0.25,
+    "max_tuning_cent": 100.0
+   },
+   "onsetMs": [
+    157,
+    176,
+    182
+   ],
+   "normal": {
+    "recordings": 3,
+    "meanTotal": 55.333333333333336
+   },
+   "detection": {
+    "tp": 0,
+    "wrongKind": 0,
+    "fn": 0,
+    "recall": null,
+    "ci": null
+   },
+   "falsePositive": {
+    "fp": 177,
+    "tn": 10,
+    "rate": 0.946524064171123,
+    "ci": [
+     0.9043741139931262,
+     0.9706971492953812
+    ]
+   },
+   "byKind": {
+    "PITCH": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "OCTAVE": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "TIMING": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    },
+    "MISSED": {
+     "tp": 0,
+     "wrongKind": 0,
+     "fn": 0
+    }
+   },
+   "verdicts": {
+    "p01-danso-arirang-20261029-t1": "TTTTTTTTTTMTTTTTTTTMTTTTTTTTTTTTOOTTTTTTTTTTTTTTTTTTTTTMCTCCM",
+    "p02-sogeum-arirang-20261029-t1": "CTPPTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCTTM",
+    "p02-sogeum-doraji-20261029-t1": "CTTTTTTTTTTTTTTTTTTTTTTTTPMTTTTTPMTTTTMTTTTTTTTTTTTTTTCMTTTTTTTTTT"
+   }
+  }
+ ]
+}

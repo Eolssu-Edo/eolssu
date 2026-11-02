@@ -13,7 +13,7 @@
       "additionalProperties": false,
       "properties": {
         "title": {"type": "string", "minLength": 1},
-        "instrument": {"type": "string", "description": "data/reference/instruments.json의 code"},
+        "instrument": {"type": "string", "description": "data/reference/instruments.json의 code. 서비스 곡이 아닌 평가용 정답은 그 표에 없는 코드(SOGEUM)를 쓸 수 있다"},
         "part": {"type": "integer", "minimum": 0, "description": "우물사이 문서 안 파트 순번"},
         "sourceId": {"type": "string", "description": "원본 악보 ID(data/catalog)"},
         "scoreVersion": {"type": "integer", "minimum": 1, "description": "songs.score_version. 결과가 바뀌면 올린다"}
