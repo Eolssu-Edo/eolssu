@@ -160,6 +160,9 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                               "rowStart": row_start, "rowEnd": row_start + len(text),
                               "symbolSpans": [{"text": m[0], "start": row_start + m.start(),
                                                "end": row_start + m.end()} for m in matched_marks]}
+                    if kind == "relative" and len(notes) > 1 and notes[0].get("slur") and all(
+                            n.get("slur") == notes[0]["slur"] for n in notes):
+                        origin["interpretedSlur"] = {"id": notes[0]["slur"], "noteIds": [n["id"] for n in notes]}
                     group_data.append((group, symbols, marks, origin))
                 require(mark_index == len(raw_marks), f"{label}: 원문 기호 누락")
                 factor = math.lcm(*(len(v[1]) for v in group_data))
@@ -200,19 +203,27 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
             expressions[output] = deepcopy(playback[original])
     if mapping.get("gak_continuations"):
         expressions["gakContinuations"] = [{"gak": e["gak"], "basis": e["basis"]} for e in mapping["gak_continuations"]]
-    _verify_projection(legacy, mapping, common, expressions, mapping["quarter_bpm"], instrument)
     for slot in slots:
         slot["generated"] = [{"eventId": ids[i], "cellId": units[i].cell_id,
                               "row": units[i].row, "col": units[i].col} for i in slot.pop("unitIndices")]
+        origin = slot["source"]
+        event_ids = list(dict.fromkeys(g["eventId"] for g in slot["generated"]))
+        if "interpretedSlur" in origin and len(event_ids) >= 2:
+            basis = (f"JGB {source_name}: 성부 {selected}, {origin['gak']}각 {origin['cell']}정간 "
+                     f"{origin['row']}분박 {origin['unit']}자리의 독립 음열 {origin['symbols']} — "
+                     f"원본 재생 슬러 {origin['interpretedSlur']['id']}")
+            expressions.setdefault("slurGroups", []).append({"eventIds": event_ids, "basis": basis})
+    _verify_projection(legacy, mapping, common, expressions, mapping["quarter_bpm"], instrument)
     source_map = {"schema": CONVERTER, "sourceName": source_name, "sourceSha256": input_sha256,
                   "commonSha256": common_hash, "part": selected, "slots": slots, "offsetUnit": "unicode-codepoint",
                   "staffUnit": mapping["staff_unit"], "quarterRatio": str(ratio),
                   "bpm": mapping["quarter_bpm"], "referenceWarnings": check(common),
                   "sourcePolicy": {"notation": policy, "expression": mapping["expression_policy"],
                                    "symbol": mapping["symbol_policy"]},
+                  "slurGroups": deepcopy(expressions.get("slurGroups", [])),
                   "validation": {"nominalPitchTiming": "passed", "toleranceSeconds": 0.000001,
                                  "restComparison": "adjacent rests coalesced"},
-                  "scope": "Inferred playback projection preserving nominal pitch/onset/duration. Consumed independent glyphs are recorded here, not applied twice. Slur grouping, gate, velocity, breath/release and waveform identity are not guaranteed by the nominal check."}
+                  "scope": "Inferred playback projection preserving nominal pitch/onset/duration. Consumed independent glyphs are recorded here, not applied twice; their interpreted internal slurs are carried in the expression companion. Gate, velocity, breath/release and waveform identity are not guaranteed by the nominal check."}
     return {"common": common, "expressions": expressions, "source_map": source_map, "bpm": mapping["quarter_bpm"]}
 
 

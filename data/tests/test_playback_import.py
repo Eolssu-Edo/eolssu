@@ -11,6 +11,7 @@ import unittest
 
 from data.src.scores.playback_import import import_jgb
 from data.src.playback.common_score import convert_common_score
+from data.src.playback.score import compile_score
 
 
 def source(melody, beats=1):
@@ -34,6 +35,50 @@ def performed(result):
 
 
 class PlaybackImportTests(unittest.TestCase):
+    def test_independent_figure_keeps_its_internal_slur_after_expansion(self):
+        result = bundle(source("청황 {니나}"))
+        ids = [e["id"] for e in result["common"]["events"]]
+        groups = result["expressions"].get("slurGroups", [])
+        self.assertEqual([g["eventIds"] for g in groups], [ids[1:]])
+        self.assertTrue(groups[0]["basis"])
+        compiled = compile_score(performed(result), "danso")
+        self.assertEqual([e["legato"] for e in compiled["events"]], [False, False, True])
+        self.assertEqual(result["source_map"]["slurGroups"], groups)
+        origin = result["source_map"]["slots"][-1]["source"]
+        self.assertEqual(origin["interpretedSlur"]["id"], "p1.g1.c1.r2.u1")
+        self.assertEqual(len(origin["interpretedSlur"]["noteIds"]), 2)
+
+    def test_separate_independent_figures_do_not_join_each_other(self):
+        result = bundle(source("청황 {니나} {느나}"))
+        ids = [e["id"] for e in result["common"]["events"]]
+        self.assertEqual([g["eventIds"] for g in result["expressions"]["slurGroups"]], [ids[1:3], ids[3:5]])
+        compiled = compile_score(performed(result), "danso")
+        self.assertEqual([e["legato"] for e in compiled["events"]], [False, False, True, False, True])
+
+    def test_independent_slur_can_end_in_hold_and_breath_without_extending_the_group(self):
+        result = bundle(source("청황 {니나} | -<", beats=2))
+        events = result["common"]["events"]
+        self.assertEqual([g["eventIds"] for g in result["expressions"]["slurGroups"]], [[e["id"] for e in events[1:]]])
+        self.assertTrue(events[-1]["breathAfter"])
+        self.assertEqual(len(result["source_map"]["slots"][-1]["generated"]), 1)
+        compiled = compile_score(performed(result), "danso")
+        self.assertEqual([e["legato"] for e in compiled["events"]], [False, False, True])
+
+    def test_single_note_relative_and_attached_figures_need_no_expanded_slur_group(self):
+        for melody in ("청황 {같은음표}", "청황{나니나}", "청황 청태"):
+            with self.subTest(melody=melody):
+                result = bundle(source(melody))
+                self.assertNotIn("slurGroups", result["expressions"])
+                self.assertEqual(result["source_map"]["slurGroups"], [])
+
+    def test_final_slur_note_keeps_effect_placed_on_later_hold(self):
+        result = bundle(source("청황 {니나} | -{농음표}", beats=2))
+        score = performed(result)
+        self.assertEqual([e["legato"] for e in compile_score(score, "danso")["events"]], [False, False, True])
+        self.assertAlmostEqual(score["notes"][-1]["yoseong"]["delay_seconds"], .25)
+        self.assertEqual(result["expressions"]["placements"][0]["cellId"], "c0-j1")
+        self.assertEqual(len(result["expressions"]["slurGroups"]), 1)
+
     def test_null_source_jangdan_is_not_invented(self):
         doc = source("청황")
         doc["playback"] = {"tempo_basis": {"jangdan": None}}
