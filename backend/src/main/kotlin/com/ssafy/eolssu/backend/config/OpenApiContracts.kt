@@ -6,6 +6,8 @@ import com.ssafy.eolssu.backend.feature.auth.api.*
 import com.ssafy.eolssu.backend.feature.user.api.*
 import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonDetailResult
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonListResult
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
@@ -118,6 +120,12 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.POST,"/api/users/me/score-views","recordScoreView","성장","악보 화면 체류 기록",
         "Idempotency-Key로 1회 저장합니다(신규 201, 같은 내용 재요청 200, 다른 내용 409). songId는 JSON 문자열, 시각은 ISO8601, 초는 JSON 정수입니다.",
         RecordedScoreView::class.java,listOf(201,200),listOf(IDEMPOTENCY_CONFLICT,RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.GET,"/api/lessons","listLessons","학습","학습 단계 목록과 나의 진도",
+        "track(DANSO·SOGEUM·DAEGEUM_JEONGAK·DAEGEUM_SANJO, 대문자 그대로)의 공개 단계를 seq 순서로 본인 완료 시각과 함께 반환합니다. 완료 수·다음 단계는 필수 단계만 봅니다. 트랙 누락·모르는 값은 400입니다.",
+        LessonListResult::class.java,errors=listOf(INVALID_REQUEST)),
+    ApiContract(HttpMethod.GET,"/api/lessons/{lessonId}","getLesson","학습","학습 단계 상세",
+        "공개 단계의 트랙별 문구(목표·이유·할 일·통과 기준·율명·음역·곡 후보·근거)와 본인 완료 시각을 반환합니다. 해당하지 않는 목록은 빈 배열입니다. 없거나 초안 단계는 404입니다.",
+        LessonDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions","createPracticeSession","연습","연습 세션 생성",
         "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
         CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
