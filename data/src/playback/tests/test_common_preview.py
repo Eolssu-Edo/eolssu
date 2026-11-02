@@ -27,6 +27,42 @@ class CommonPreviewTests(unittest.TestCase):
         return convert_common_score(source, bpm=60, instrument=source['score']['instrument'].lower().replace('_', '-'),
                                     input_sha256='a'*64, notation_policy=preview.MODE, **kwargs)
 
+    def test_explicit_gak_continuation_changes_only_performance(self):
+        source = from_melody('청황 남 | - | -\n | | ')
+        before = deepcopy(source)
+        config = {'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64,
+                  'placements': [], 'gakContinuations': [{'gak': 2, 'basis': '남 5.5정간 지속'}]}
+        plain, _ = self.convert(source)
+        self.assertEqual([(n.get('pitch'), Fraction(n['duration'])) for n in plain['notes']],
+                         [(75, Fraction(1, 2)), (72, Fraction(5, 2))] + [(None, Fraction(1))]*3)
+        score, mapping = self.convert(source, expressions=config)
+        self.assertEqual([(n.get('pitch'), Fraction(n['duration'])) for n in score['notes']],
+                         [(75, Fraction(1, 2)), (72, Fraction(11, 2))])
+        self.assertEqual(source, before)
+        self.assertEqual(mapping['events'][-1]['kind'], 'REST')
+        self.assertEqual(mapping['events'][-1]['noteIdx'], None)
+        segments = mapping['performanceTimeline']['segments']
+        self.assertEqual(segments[-1]['endMs'], 6000)
+        self.assertEqual({s['cellId'] for s in segments},
+                         {f'c{c}-j{j}' for c in range(2) for j in range(3)})
+        self.assertEqual(mapping['expression_source_map']['gak_continuations'],
+                         [{'part': 1, 'gak': 2, 'basis': '남 5.5정간 지속'}])
+
+    def test_gak_continuation_companion_rejects_malformed_and_wrong_boundary(self):
+        source = from_melody('청황 | 남 | -\n | | ')
+        valid = {'gak': 2, 'basis': '원문에 명시'}
+        for entries in (None, {}, [None], [dict(valid, part=1)], [dict(valid, basis=' ')],
+                        [dict(valid, gak=True)], [dict(valid, gak=1)], [dict(valid, gak=3)],
+                        [valid, valid]):
+            config = {'schema': 'common-score-expressions/v1', 'sourceSha256': 'a'*64,
+                      'placements': [], 'gakContinuations': entries}
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                self.convert(source, expressions=config)
+        source = from_melody('청황 | 남 | -<\n | | ')
+        config['gakContinuations'] = [valid]
+        with self.assertRaisesRegex(ValueError, '숨표'):
+            self.convert(source, expressions=config)
+
     def test_fermata_changes_performance_but_not_source_ticks(self):
         source = small_score()
         source['events'][1]['sigimsae'] = ['늘임표']

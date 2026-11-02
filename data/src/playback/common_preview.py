@@ -73,7 +73,8 @@ def _placements(source, config, input_hash):
         return units, marks, 'event-origin-inferred'
     require(isinstance(config, dict), '표현 파일은 JSON 객체여야 합니다')
     reject_unknown(config, ['schema', 'sourceSha256', 'placements', 'jo', 'relativeScale',
-                            'expressionPolicy', 'expressionProfile', 'performancePlan'], 'expression companion')
+                            'expressionPolicy', 'expressionProfile', 'performancePlan',
+                            'gakContinuations'], 'expression companion')
     require(config.get('schema') == 'common-score-expressions/v1', '표현 파일 schema 불일치')
     require(config.get('sourceSha256') == input_hash, '표현 파일 sourceSha256 불일치')
     entries = config.get('placements')
@@ -159,6 +160,22 @@ def convert_preview(source, base_score, base_map, config):
     cell_ratio = Fraction(source['music']['ticksPerJeonggan'], source['music']['ticksPerBeat']) * Fraction(base_map['quarter_ratio'])
     cell_bpm = base_map['bpm'] * source['music']['ticksPerBeat'] / source['music']['ticksPerJeonggan']
     playback = {'notation_policy': POLICY}
+    if 'gakContinuations' in config:
+        entries = config['gakContinuations']
+        require(isinstance(entries, list), 'gakContinuations는 배열이어야 합니다')
+        playback['gak_continuations'] = []
+        for entry in entries:
+            require(isinstance(entry, dict), 'gakContinuations 항목은 객체여야 합니다')
+            reject_unknown(entry, ['gak', 'basis'], 'gakContinuations')
+            gak = entry.get('gak')
+            require(type(gak) is int and 2 <= gak <= len(source['columns']),
+                    'gakContinuations.gak은 2 이상인 실제 각 번호여야 합니다')
+            # Breath is normally applied after the preview has been compiled.
+            # Check it here as well, before allowing the JGB sustain to cross.
+            previous = source['columns'][gak - 2]['cells'][-1]['units'][-1]
+            require(not events[previous['eventId']]['breathAfter'],
+                    f'gakContinuations 각 {gak}: 숨표 뒤에서는 이어 불 수 없습니다')
+            playback['gak_continuations'].append({'part': 1, **entry})
     for external, internal in [('relativeScale', 'relative_scale'), ('expressionPolicy', 'expression_policy')]:
         if external in config:
             playback[internal] = deepcopy(config[external])
