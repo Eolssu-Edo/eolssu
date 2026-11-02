@@ -34,7 +34,7 @@ class QaLiveCatalogTest {
                 val song = assertNotNull(repository.getSong(summary.id))
                 assertEquals(summary.scoreVersion, song.scoreVersion)
                 assertTrue(song.durationMs() > 0)
-                ApiModelAudioRepository(client).get(song.id)?.let { assertTrue(it.matches(song)) }
+                ApiModelAudioRepository(client).get(song)?.let { assertTrue(it.matches(song)) }
             }
         } finally { client.close() }
     }

@@ -30,7 +30,7 @@ fun Song.toSummary(): SongSummary = SongSummary(
         SongLevel.Elementary -> 2
         SongLevel.Intermediate -> 3
     },
-    jangdanName = jangdan.name,
+    jangdanName = jangdanName,
     baseBpm = baseBpm,
     evaluable = evaluable,
     instrumentId = instrumentId,

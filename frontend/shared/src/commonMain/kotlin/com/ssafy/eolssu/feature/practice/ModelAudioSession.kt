@@ -84,7 +84,7 @@ internal class ModelAudioSession(
         _state.value = ModelAudioState(ModelAudioStatus.Loading)
         loadJob = scope.launch {
             try {
-                val audio = repository?.get(song.id)
+                val audio = repository?.get(song)
                 if (request != requestId || !active) return@launch
                 when {
                     repository == null -> _state.value = ModelAudioState(ModelAudioStatus.Unsupported)

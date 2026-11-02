@@ -77,7 +77,7 @@ data class JeongganboMetrics(
          * 한 줄이 11정간 이상인 장단은 글자를 줄이고([dense]), 크게 보기([big])는 각·글자를 키운다(와이어프레임 `fitCellsIn`).
          * [tablet]이면 각·글자를 태블릿 크기(각 72dp, 크게 보기 92dp)로 그리고 정간은 [practiceMinCellHeight] 이상이다.
          */
-        fun practice(jangdan: Jangdan, availableHeight: Dp, big: Boolean, tablet: Boolean = false, longestStrip: Int = jangdan.strips.max()): JeongganboMetrics {
+        fun practice(jangdan: Jangdan?, availableHeight: Dp, big: Boolean, tablet: Boolean = false, longestStrip: Int = jangdan?.strips?.max() ?: Jangdan.MAX_STRIP_CELLS): JeongganboMetrics {
             val rows = longestStrip.coerceAtLeast(1)
             if (tablet) return tabletPractice(rows, availableHeight, big)
             val dense = rows >= 11

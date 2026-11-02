@@ -147,10 +147,10 @@ fun JeongganboView(
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
-    val patternStarts = song.jangdan.daegangStarts
+    val patternStarts = song.jangdan?.daegangStarts.orEmpty()
     fun daegangStarts(column: Int): List<Int> = when {
         song.score.timing == null -> patternStarts
-        look.daegangWhenFits && song.score.columns[column].size == song.jangdan.gak -> patternStarts
+        look.daegangWhenFits && song.score.columns[column].size == song.jangdan?.gak -> patternStarts
         else -> emptyList()
     }
     val solfege = song.solfege.takeIf { notation.showSolfege }

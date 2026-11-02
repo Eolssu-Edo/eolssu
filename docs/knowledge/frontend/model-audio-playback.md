@@ -2,13 +2,25 @@
 
 CAT-05의 게시 음원 메타데이터를 기존 연습 화면의 모범 연주 조작부에 연결한다. 서버 계약은 S15P31E102-288의 `GET /api/songs/{songId}/model-audio`다. 이 구현은 운영 음원 적재·공개 사용권·실기기 음악적 품질 승인과 별개다.
 
+## S15P31E102-380 후속 연결 범위
+
+2026-11-02 사용자는 생성 자료를 먼저 사용하고 이상한 곡을 숨김·교체하는 흐름을 선택했다. FE380은 별도 MR !222로 유지한다. 최신 develop을 통합한 뒤 장단이 없는 곡도 원본 공통 악보의 시간·장단명을 그대로 사용한다. 장단 pattern은 만들지 않고 패턴 미리듣기·장단 박 표시만 비활성화한다. 기존 연결 장단의 이름·BPM 단위 검증과 공개4곡 동작은 유지한다.
+
+CAT-05의 상대 `audioUrl`은 같은 서버의 재생 경로로 해석한다. 선택적 `performanceUrl`과 `sourceCommonSha256`이 함께 있으면 수행 JSON을 조회하고 기존 FE380 파서로 곡·악보 버전·음원 해시·길이·원본 SHA를 대조한 뒤 실제 연주 위치에 사용한다. 제공된 수행 데이터가 잘못되면 재생 실패로 처리한다. 수행 데이터가 원래 없는 기존 음원만 정본 시간표를 사용한다. 검증은 HTTP 대역의 정상·NULL·불일치·실패와 연습 상태 테스트, 전체 Android host 검사 및 Web 컴파일로 한다. 실제 기기·운영 배포는 별도 결과로 기록한다.
+
+2026-11-02 검증: `origin/develop`의 `ba888d04`를 `554e22ea`로 통합했고, 전체 `:shared:testAndroidHostTest`는 571개 중 569개 성공·2개 명시적 skip·실패 0개였다. skip은 별도 서버를 요구하는 `CatalogLocalServerTest`와 운영 읽기 검사를 opt-in하는 `QaLiveCatalogTest`다. `:shared:compileKotlinJs`, `:shared:compileKotlinWasmJs`, 기본 설정의 `:androidApp:assembleDebug`도 통과했다. 새 회귀 검사는 111개 목록 중 장단 NULL 103개, NULL 장단의 CAT04 악보·시간 보존, 정악/산조 운지 구분, 상대 재생 경로, 수행 JSON의 누락·불일치 시 실패를 확인한다. 기존 연결 장단·4곡 회귀 검사도 통과했다.
+
+`GeneratedCatalogBundleTest`는 `EOLSSU_MODEL_AUDIO_BUNDLE`로 지정한 외부 batch-339 원본 107개를 읽고, 실제 원문 SHA를 대조한 다음 앱의 공통 악보 파서와 HTTP 수행 시간표 연결을 모두 통과했다(단소 46·소금 23·정악대금 28·산조대금 10). 정악대금019의 정본 28초와 실제 수행 29000.014499999997ms 차이도 보존했다. 외부 원본·음원은 저장소에 추가하지 않는다. 재현은 환경변수를 지정한 뒤 `:shared:testAndroidHostTest --tests '*GeneratedCatalogBundleTest'`이며 미지정 시 skip이다.
+
+배포 제약: 장단을 필수로 가정한 기존 앱은 NULL 곡이 있는 전체 목록을 읽지 못한다. 107곡을 공개하기 전에 이 변경을 포함한 Android 앱 업데이트가 필요하다. 기존 제공 곡 탭에서 연습 전용으로 열며 AI 평가 목록이나 회원가입 악기 카탈로그를 확대하지 않는다. Web/iOS의 `UnavailableAudioPlayer`는 유지하며 이번 Web 검증은 공통 코드·HTTP 변환과 컴파일 범위다. 신규 플랫폼 재생 구현은 포함하지 않는다. 실제 Android MediaPlayer 재생·화면 관찰은 별도의 격리 서버/에뮬레이터 검증 결과를 따라야 하며, Windows 빌드나 host 검사로 실기기 확인을 대신하지 않는다.
+
 ## 계약과 상태
 
-`ApiModelAudioRepository`는 양의 Long 문자열 ID, 정수 scoreVersion, BPM 30~400, QUARTER/DOTTED_QUARTER 단위, HTTPS URL, 지원 MIME, 소문자 SHA-256을 검사한다. 사용자정보·fragment·공백이 있는 URL은 거절한다. MediaPlayer의 위치 범위에 맞춰 길이는 양의 Int 밀리초 범위만 지원한다. 메타데이터 SHA의 형식 확인이며 스트리밍 파일 전체의 해시 재계산은 아니다.
+`ApiModelAudioRepository`는 양의 Long 문자열 ID, 정수 scoreVersion, BPM 30~400, QUARTER/DOTTED_QUARTER 단위, 지원 MIME, 소문자 SHA-256을 검사한다. URL은 같은 곡의 정확한 `/api/songs/{id}/model-audio/play`를 서버 origin으로 해석하거나 기존 HTTPS URL을 수용한다. 사용자정보·fragment·공백이 있는 외부 URL은 거절한다. 수행 JSON은 같은 곡의 `/api/songs/{id}/model-audio/performance`만 조회하며 서버가 보관한 원본 `sourceCommonSha256`을 사용한다. CAT04 JSON을 다시 직렬화해서 원문 해시를 만들지 않는다. MediaPlayer의 위치 범위에 맞춰 길이는 양의 Int 밀리초 범위만 지원한다. 메타데이터 SHA의 형식 확인이며 스트리밍 파일 전체의 해시 재계산은 아니다.
 
 404는 게시 음원 없음, 통신/응답 오류는 실패로 구분한다. 악보의 ID·버전·기본 BPM·박 단위가 일치해야 재생한다. 다른 버전 음원이나 샘플 파일로 대체하지 않는다. 로딩·미등록·오류·플랫폼 미지원·포커스 중단을 화면에 표시한다. 오류와 미등록 상태는 같은 조작부에서 다시 조회할 수 있다.
 
-재생 중 위치는 MediaPlayer의 실제 media position에서 `startOffsetMs`를 뺀 뒤 기본 BPM과 ticksPerBeat로 원본 tick에 대응한다. 녹음용 `PracticeTimelineClock`으로 소리가 재생되는 것처럼 진행하지 않는다. 앞 무음과 잔향은 실제 파일 길이대로 재생하고 악보 길이를 늘리지 않는다. 템포 변경은 pitch를 유지한 재생 속도 비율로 적용한다. 화면 시간은 현재 템포에서의 악보 위치이며 템포 변경 시 실제 청취 누적 시간과 다를 수 있다.
+재생 중 위치는 MediaPlayer의 실제 media position에서 `startOffsetMs`를 뺀 뒤 수행 시간표가 있으면 그 구간의 원본 tick으로 대응하고, 없으면 기본 BPM과 ticksPerBeat로 대응한다. 녹음용 `PracticeTimelineClock`으로 소리가 재생되는 것처럼 진행하지 않는다. 앞 무음과 잔향은 실제 파일 길이대로 재생하고 악보 길이를 늘리지 않는다. 템포 변경은 pitch를 유지한 재생 속도 비율로 적용한다. 화면 시간은 현재 템포에서의 악보 위치이며 템포 변경 시 실제 청취 누적 시간과 다를 수 있다.
 
 ## 플랫폼과 수명
 

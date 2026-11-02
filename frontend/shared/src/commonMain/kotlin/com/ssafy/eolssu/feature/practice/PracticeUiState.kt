@@ -123,13 +123,15 @@ data class PracticeUiState(
     val fingeringView: Boolean get() = settings.fingeringView
 
     /**
-     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드(DAEGEUM·SOGEUM·DANSO)를 따르고,
-     * 대금은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
+     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드를 따른다.
+     * 정악·산조대금을 구분하며 기존 DAEGEUM은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
      */
     val instrument: GuideInstrument
         get() = GuideInstrument.fromId(settings.instrumentId) ?: when (song?.score?.source?.instrument) {
             "SOGEUM" -> GuideInstrument.Sogeum
             "DANSO" -> GuideInstrument.Danso
+            "SANJO_DAEGEUM" -> GuideInstrument.DaegeumSanjo
+            "JEONGAK_DAEGEUM", "DAEGEUM" -> GuideInstrument.DaegeumJeongak
             else -> GuideInstrument.DaegeumJeongak
         }
 
@@ -192,12 +194,14 @@ data class PracticeUiState(
     val beatIndex: Int
         get() {
             val song = song ?: return 0
+            val jangdan = song.jangdan ?: return -1
+            if (eventCount == 0) return -1
             val event = song.timeline[position.coerceIn(0, eventCount - 1)]
             song.score.timing?.let { timing ->
-                val patternCell = ((requireNotNull(currentTick) * song.jangdan.subdivision / timing.ticksPerBeat) % song.jangdan.gak).toInt()
-                return song.jangdan.daegangIndexOfRow(patternCell)
+                val patternCell = ((requireNotNull(currentTick) * jangdan.subdivision / timing.ticksPerBeat) % jangdan.gak).toInt()
+                return jangdan.daegangIndexOfRow(patternCell)
             }
-            return song.jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
+            return jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
         }
 
     /** 현재 음의 실제 길이(ms). */
