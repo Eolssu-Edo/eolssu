@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(59,expected.size)
+        assertEquals(61,expected.size)
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
@@ -91,6 +91,12 @@ open class OpenApiDatabaseTests {
         assertFalse(play.path("responses").path("302").has("content"))
         assertTrue(play.path("responses").path("302").path("headers").has("Location"))
         assertTrue(play.path("responses").has("503"))
+        val modelPlay = doc.path("paths").path("/api/songs/{songId}/model-audio/play").path("get")
+        assertEquals(0,modelPlay.path("security").size())
+        assertTrue(modelPlay.path("responses").path("302").path("headers").has("Location"))
+        val performance = doc.path("paths").path("/api/songs/{songId}/model-audio/performance").path("get")
+        assertEquals(0,performance.path("security").size())
+        assertFalse(performance.path("responses").path("200").path("content").path("application/json").path("schema").has("result"))
         for (path in listOf("/api/terms/documents/{version}/{document}","/api/terms/documents/current/{document}","/api/terms/documents/account-deletion")) {
             assertTrue(doc.path("paths").path(path).path("get").path("responses").path("200").path("content").has("text/html"))
         }

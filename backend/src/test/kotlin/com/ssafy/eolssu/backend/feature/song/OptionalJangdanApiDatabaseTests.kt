@@ -6,12 +6,9 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.test.*
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -38,19 +35,14 @@ class OptionalJangdanApiDatabaseTests {
     private val json = JsonMapper.builder().build()
     private val songId = 991339L
 
-    // Exercise the proposed DDL on TEST_DB only until its Flyway version is assigned.
-    @BeforeAll fun allowOptionalJangdan() {
-        jdbc.execute(Files.readString(Path.of("../infra/catalog/proposals/optional_jangdan.sql")))
-    }
-
     @BeforeEach fun prepare() {
         jdbc.update("""INSERT INTO songs(id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
             SELECT ?,instrument_id,NULL,'장단 없는 곡',difficulty,default_bpm,
                 JSON_SET(score_json,'$.music.jangdan','','$.music.bpmUnit','QUARTER'),score_version,note_count,TRUE,'PUBLISHED'
             FROM songs WHERE id=1""", songId)
-        jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,audio_url,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status)
-            SELECT id,score_version,'https://media.example.test/optional-jangdan.m4a',default_bpm,'QUARTER',53050,125,'audio/mp4',?,'PUBLISHED'
-            FROM songs WHERE id=?""", "b".repeat(64), songId)
+        jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,object_key,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status)
+            SELECT id,score_version,?,default_bpm,'QUARTER',53050,125,'audio/mp4',?,'PUBLISHED'
+            FROM songs WHERE id=?""", "model-audio/drafts/${"c".repeat(64)}/cases/danso-001-p1/danso.m4a", "b".repeat(64), songId)
     }
 
     @AfterEach fun cleanup() {
@@ -59,7 +51,6 @@ class OptionalJangdanApiDatabaseTests {
     }
 
     @AfterAll fun restoreSchema() {
-        jdbc.execute("ALTER TABLE songs MODIFY COLUMN jangdan_id BIGINT NOT NULL")
         client.close()
     }
 
