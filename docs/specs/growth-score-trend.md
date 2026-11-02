@@ -123,7 +123,7 @@
 | 7건 중 `limit=5`면 최근 5건이 오래된 순. 같은 시각이면 세션 ID 순 | 단위·DB 통합 |
 | `songs`는 최근 연주 순이고 곡별 전체·구간 개수가 맞다. 구간만 연습한 곡도 들어간다 | DB 통합 |
 | 세션 악보 버전이 지금과 다르면 각 번호가 `null`, 같으면 각 번호가 있다 | 단위 |
-| 세는 연주가 없으면 `songId=null`·`items=[]`·`songs=[]`. 없는 곡·연주 안 한 곡은 200과 빈 `items` | 컨트롤러·DB 통합 |
+| `songId` 없이 불렀는데 세는 연주가 없으면 `songId=null`·`items=[]`·`songs=[]`. 없는 곡·연주 안 한 곡은 200과 빈 `items`이고 요청한 `songId`를 그대로 돌려준다 | 컨트롤러·DB 통합 |
 | `limit` 0·101·`abc`·`05`·`+5`, `scope=full`·`ALL`, `songId` 0·`-1`·`abc`·`05`·`+1`은 400 | 컨트롤러 |
 | 인증 없으면 401 | 접근 규칙·DB 통합 |
 | Swagger 계약(`OpenApiContracts`)에 GRO-03이 '성장' 묶음으로 있다 | `OpenApiDatabaseTests`(구현 메서드 수가 하나 는다) |
