@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.NoteRemark
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_figure
 import eolssu.shared.generated.resources.guide_listen
@@ -40,7 +41,7 @@ import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 
 /**
- * 음 하나의 운지 카드(`.fg-row`): 율명 · 이름과 계이름 · 읽는 법 · 음 듣기 · 악기 그림.
+ * 음 하나의 운지 카드(`.fg-row`): 흰 바탕에 율명 · 이름과 계이름 · 읽는 법 · 음 듣기 · 악기 그림.
  *
  * @param inLearn 기초부터 배우기의 카드(`.lp-figs .fing-row`). 율명 칸이 조금 좁고 반음 표시를 하지 않는다.
  */
@@ -55,25 +56,26 @@ internal fun FingeringCard(
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
-    val details = buildList {
-        add(stringResource(Res.string.guide_note_reading, note.reading))
-        if (!inLearn && !note.basic) add(stringResource(Res.string.guide_note_semitone))
-        if (note.needsCheck) add(stringResource(Res.string.guide_note_needs_check))
+    val details = listOf(stringResource(Res.string.guide_note_reading, note.reading)) + note.remarks(inLearn).map { remark ->
+        when (remark) {
+            NoteRemark.Semitone -> stringResource(Res.string.guide_note_semitone)
+            NoteRemark.NeedsCheck -> stringResource(Res.string.guide_note_needs_check)
+        }
     }
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.background, shape)
-            .border(1.dp, colors.line, shape)
+            .background(colors.surface, shape)
+            .border(1.dp, colors.lineSoft, shape)
             .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = if (inLearn) 8.dp else 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.width(if (inLearn) 40.dp else 44.dp).clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
-                HanjaGlyph(note.hanja, if (inLearn) 28.sp else 30.sp, fontWeight = FontWeight.Bold)
+                HanjaGlyph(note.hanja, if (inLearn) 28.sp else 30.sp)
             }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(note.name, style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp))
+                    Text(note.name, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
                     SolfegeText(instrument.solfegeOf(note.hanja), Modifier.padding(start = 7.dp))
                 }
                 Text(
@@ -88,21 +90,21 @@ internal fun FingeringCard(
             instrument,
             note.holes,
             Modifier.padding(top = if (inLearn) 6.dp else 4.dp),
-            description = stringResource(Res.string.guide_fingering_figure, stringResource(instrument.label)),
+            description = stringResource(Res.string.guide_fingering_figure, note.name),
         )
     }
 }
 
-/** '음 듣기' 원형 버튼(`.listen-btn`). 누르면 잠시 노랗게 강조한다. */
+/** '음 듣기' 원형 버튼(`.listen-btn`, 40dp). 누를 수 있는 영역은 Surface가 48dp로 넓힌다. [playing]이면 연두로 강조한다. */
 @Composable
 internal fun ListenButton(playing: Boolean, contentDescription: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(48.dp).semantics { this.contentDescription = contentDescription },
+        modifier = Modifier.size(40.dp).semantics { this.contentDescription = contentDescription },
         shape = CircleShape,
-        color = if (playing) colors.accent else colors.background,
-        border = BorderStroke(1.dp, if (playing) colors.accent else colors.line),
+        color = if (playing) colors.accent else colors.surface,
+        border = BorderStroke(1.dp, if (playing) colors.accent else colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(GuideIcons.Speaker, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)

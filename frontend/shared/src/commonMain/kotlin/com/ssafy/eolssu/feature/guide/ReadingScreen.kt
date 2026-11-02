@@ -143,8 +143,8 @@ private fun ReadingBook(initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown || tocOpen || e.isAltPressed || e.isCtrlPressed || e.isMetaPressed) return@onPreviewKeyEvent false
                 when (e.key) {
-                    Key.DirectionRight, Key.PageDown -> pages.getOrNull(settled.ordinal + 1)?.let(go) != null
-                    Key.DirectionLeft, Key.PageUp -> pages.getOrNull(settled.ordinal - 1)?.let(go) != null
+                    Key.DirectionRight, Key.PageDown -> settled.next?.let(go) != null
+                    Key.DirectionLeft, Key.PageUp -> settled.previous?.let(go) != null
                     else -> false
                 }
             },
@@ -189,7 +189,8 @@ private fun ReadingBook(initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int
                     .fillMaxSize()
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { tocOpen = false },
             )
-            ReadingTocMenu(current, onSelect = go, Modifier.padding(start = 20.dp, end = 20.dp, top = 46.dp))
+            // 목차 단추(48) 아래 여백(8)에서 2 올린 자리(`.rb-menu` top: calc(100% - 2px))
+            ReadingTocMenu(current, onSelect = go, Modifier.padding(start = 20.dp, end = 20.dp, top = 54.dp))
         }
     }
 }
@@ -276,7 +277,7 @@ private fun ReadingPageCard(
     interactive: Boolean = true,
 ) {
     when (page) {
-        ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = page.title(), intro = true) { ReadIntro() }
+        ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadIntro() }
         ReadingPage.Order -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadOrderBoard(animate = animate) }
         ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = page.title()) { LengthRow() }
         ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = page.title()) { PitchSteps() }

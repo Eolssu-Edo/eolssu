@@ -441,7 +441,7 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
     }
     PanelCard(padding = 10.dp) {
         FingeringFigure(instrument, holes, Modifier.fillMaxWidth(), description = stringResource(instrument.label))
-        HoleLegend(Modifier.fillMaxWidth().padding(top = 8.dp), centered = false)
+        HoleLegend(Modifier.fillMaxWidth().padding(top = 8.dp))
     }
     val listening = state.listening == yul && !rest
     EolssuButton(

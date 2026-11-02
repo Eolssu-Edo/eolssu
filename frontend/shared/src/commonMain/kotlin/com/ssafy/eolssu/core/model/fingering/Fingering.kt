@@ -18,6 +18,12 @@ enum class HoleState {
 /** 취법. 같은 운지에서 입김 세기로 옥타브를 나눈다. */
 enum class Blow { Low, Mid, High }
 
+/** 취법 탭 하나(`.blow button`). [enabled]가 false면 이 악기에 없는 취법이다. */
+data class BlowTab(val blow: Blow, val selected: Boolean, val enabled: Boolean)
+
+/** 운지 카드 설명 줄에서 '읽는 법' 뒤에 붙는 표시(`· 반음·그 밖의 음`, `· 운지 확인 필요`). */
+enum class NoteRemark { Semitone, NeedsCheck }
+
 /**
  * 운지표 한 줄.
  *
@@ -35,6 +41,12 @@ data class FingeringNote(
 ) {
     /** 자료가 갈려 운지를 확인하지 못한 구멍이 있다. */
     val needsCheck: Boolean get() = HoleState.Unknown in holes
+
+    /** 설명 줄의 표시. 기초부터 배우기 카드([inLearn])는 반음 표시를 하지 않는다. */
+    fun remarks(inLearn: Boolean = false): List<NoteRemark> = buildList {
+        if (!inLearn && !basic) add(NoteRemark.Semitone)
+        if (needsCheck) add(NoteRemark.NeedsCheck)
+    }
 }
 
 /** 악기 그림 위 구멍 중심. 그림 원본 픽셀 좌표다. */
@@ -93,6 +105,9 @@ enum class GuideInstrument(
 
     /** 이 악기에 없는 취법(단소·소금의 저취)을 고른 채면 평취를 보여준다. */
     fun resolveBlow(blow: Blow): Blow = if (blow in blows) blow else Blow.Mid
+
+    /** 저취·평취·역취 탭. [shown]이 고른 탭이고, 이 악기에 없는 취법은 누를 수 없다. */
+    fun blowTabs(shown: Blow): List<BlowTab> = Blow.entries.map { BlowTab(it, selected = it == shown, enabled = it in blows) }
 
     /** [blow]의 모든 음을 낮은 음부터. 기본 5음·반음을 나누지 않는다. */
     fun notesByPitch(blow: Blow): List<FingeringNote> =

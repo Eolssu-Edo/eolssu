@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.guide.layout
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.guide.FingeringActions
@@ -52,16 +50,13 @@ internal fun FingeringExpandedLayout(state: FingeringUiState, actions: Fingering
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
                 BlowTabs(
-                    instrument,
-                    state.shownBlow,
+                    state.blowTabs,
                     actions.onSelectBlow,
                     Modifier.fillMaxWidth().padding(bottom = 14.dp),
                     large = true,
                     vertical = true,
                 )
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
-                }
+                HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
                 FingeringInstrumentNote(instrument)
             }
             FingeringSource(instrument, Modifier.padding(top = 12.dp))

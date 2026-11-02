@@ -5,6 +5,7 @@ import com.ssafy.eolssu.data.song.CatalogFingerings
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.BlowTab
 
 /**
  * GUIDE-01 상태.
@@ -25,6 +26,8 @@ data class FingeringUiState(
     val shownBlow: Blow get() = instrument.resolveBlow(blow)
 
     val notes: List<FingeringNote> get() = instrument.notesByPitch(blow)
+
+    val blowTabs: List<BlowTab> get() = instrument.blowTabs(shownBlow)
 
     fun pitchFor(hanja: String): CatalogPitch? = catalogPitches.singleOrNull { it.hanja == hanja }
 }

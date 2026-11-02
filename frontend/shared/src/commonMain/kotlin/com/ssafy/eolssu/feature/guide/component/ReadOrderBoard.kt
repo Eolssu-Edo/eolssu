@@ -139,12 +139,12 @@ internal fun ReadOrderBoard(modifier: Modifier = Modifier, animate: Boolean = fa
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Figure(ViewWidth, ViewHeight, maxWidth = 300.dp, description = stringResource(Res.string.guide_reading_order_figure)) {
             val d = draw
-            val track = colors.lineStrong
-            // 각 상자와 칸 선
+            val track = colors.line   // `.rd-trk` #D9D3C6
+            // 각 상자(흰 바탕 · 옅은 테두리)와 칸 선
             ColumnLeft.forEach { x ->
-                d.drawRoundRect(colors.background, Offset(u(x), u(Top)), Size(u(ColumnWidth), u(CellHeight * 3)), CornerRadius(u(8f)))
-                d.drawRoundRect(track, Offset(u(x), u(Top)), Size(u(ColumnWidth), u(CellHeight * 3)), CornerRadius(u(8f)), style = Stroke(u(1f)))
-                listOf(1, 2).forEach { r -> d.drawLine(colors.line, Offset(u(x), u(Top + CellHeight * r)), Offset(u(x + ColumnWidth), u(Top + CellHeight * r)), u(1f)) }
+                d.drawRoundRect(colors.surface, Offset(u(x), u(Top)), Size(u(ColumnWidth), u(CellHeight * 3)), CornerRadius(u(8f)))
+                d.drawRoundRect(GuideFaint, Offset(u(x), u(Top)), Size(u(ColumnWidth), u(CellHeight * 3)), CornerRadius(u(8f)), style = Stroke(u(1f)))
+                listOf(1, 2).forEach { r -> d.drawLine(colors.lineSoft, Offset(u(x), u(Top + CellHeight * r)), Offset(u(x + ColumnWidth), u(Top + CellHeight * r)), u(1f)) }
             }
             // 회색 길: 넘어가는 점선 · 각 안의 세로선과 화살촉
             val jumps = listOf(0, 1).map { i -> jumpPath(i) { v -> u(v) } }
@@ -180,13 +180,13 @@ internal fun ReadOrderBoard(modifier: Modifier = Modifier, animate: Boolean = fa
                         text(
                             t, centerX(c), baseline, serif, size,
                             color = if (symbol) colors.textMuted else colors.text,
-                            halo = colors.background, haloUnits = 7f,
+                            halo = colors.surface, haloUnits = 7f,
                             glow = if (glow) colors.glow else null,
                         )
                     }
                     if (notes.size > 1) {
                         d.drawLine(
-                            colors.line, Offset(u(ColumnLeft[c] + 10), u(cy)), Offset(u(ColumnLeft[c] + ColumnWidth - 10), u(cy)), u(1f),
+                            colors.lineSoft, Offset(u(ColumnLeft[c] + 10), u(cy)), Offset(u(ColumnLeft[c] + ColumnWidth - 10), u(cy)), u(1f),
                             pathEffect = PathEffect.dashPathEffect(floatArrayOf(u(3f), u(3f))),
                         )
                         note(notes[0], cy - 12, 17f, on(y, y + CellHeight / 2))

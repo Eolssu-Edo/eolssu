@@ -189,11 +189,14 @@ internal fun SigimsaeDialog(item: SigimsaeItem, hint: String?, onDismiss: () -> 
     }
 }
 
-/** 기호 칸(`.sig-glyph`): 회색 둥근 네모에 기호 그림. 기호가 둘(요성·농음)이면 나란히 둔다. */
+/** 기호 칸(`.sig-glyph`): 옅은 테두리의 흰 둥근 네모에 기호 그림. 기호가 둘(요성·농음)이면 나란히 둔다. */
 @Composable
 internal fun SigimsaeGlyph(item: SigimsaeItem, box: Dp, imageHeight: Dp, imageMaxWidth: Dp) {
     Row(
-        Modifier.size(box).background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp)),
+        Modifier
+            .size(box)
+            .background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(12.dp)),
         horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -206,7 +209,7 @@ internal fun SigimsaeGlyph(item: SigimsaeItem, box: Dp, imageHeight: Dp, imageMa
 internal fun SigimsaeChip(text: String) {
     val colors = EolssuTheme.colors
     Box(
-        Modifier.height(20.dp).border(1.dp, colors.line, RoundedCornerShape(10.dp)).padding(horizontal = 7.dp),
+        Modifier.height(20.dp).border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp)).padding(horizontal = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 11.sp), color = colors.textMuted)

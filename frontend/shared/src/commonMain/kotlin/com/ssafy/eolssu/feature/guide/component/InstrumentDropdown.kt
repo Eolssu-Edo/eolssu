@@ -93,8 +93,8 @@ internal fun InstrumentDropdown(
                         stateDescription = selectedLabel
                     },
                 shape = shape,
-                color = colors.background,
-                border = BorderStroke(1.dp, colors.line),
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.lineSoft),
             ) {
                 Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -123,11 +123,11 @@ internal fun InstrumentDropdown(
                             .width(width)
                             .shadow(18.dp, shape, ambientColor = Color.Black.copy(alpha = 0.12f), spotColor = Color.Black.copy(alpha = 0.12f))
                             .clip(shape)
-                            .background(colors.background)
-                            .border(1.dp, colors.line, shape),
+                            .background(colors.surface)
+                            .border(1.dp, colors.lineSoft, shape),
                     ) {
                         GuideInstrument.entries.forEachIndexed { i, instrument ->
-                            if (i > 0) HorizontalDivider(color = colors.line)
+                            if (i > 0) HorizontalDivider(color = colors.lineSoft)
                             DropdownItem(stringResource(instrument.label), instrument == selected) { onSelect(instrument) }
                         }
                     }
@@ -144,7 +144,7 @@ private fun DropdownItem(label: String, selected: Boolean, onClick: () -> Unit) 
         Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .background(if (selected) colors.surface else colors.background)
+            .background(if (selected) colors.primary else colors.surface)
             .clickable(role = Role.RadioButton, onClick = onClick)
             .semantics { this.selected = selected }
             .padding(horizontal = 14.dp),

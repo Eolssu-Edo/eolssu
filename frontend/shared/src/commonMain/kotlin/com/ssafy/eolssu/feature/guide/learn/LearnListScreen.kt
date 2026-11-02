@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.guide.learn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,10 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -28,10 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -42,22 +36,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import com.ssafy.eolssu.feature.guide.component.GuideGrid
+import com.ssafy.eolssu.feature.guide.component.GuideFaint
 import com.ssafy.eolssu.feature.guide.component.GuideText
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
-import com.ssafy.eolssu.feature.guide.component.JudgeTag
-import com.ssafy.eolssu.feature.guide.component.dashedRoundBorder
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_done
 import eolssu.shared.generated.resources.learn_list_source
-import eolssu.shared.generated.resources.learn_optional
 import eolssu.shared.generated.resources.learn_progress_all_done
 import eolssu.shared.generated.resources.learn_progress_done
 import eolssu.shared.generated.resources.learn_progress_label
@@ -65,8 +54,6 @@ import eolssu.shared.generated.resources.learn_progress_next
 import eolssu.shared.generated.resources.learn_progress_not_started
 import eolssu.shared.generated.resources.learn_progress_total
 import eolssu.shared.generated.resources.learn_reset
-import eolssu.shared.generated.resources.learn_stage_item
-import eolssu.shared.generated.resources.learn_stage_item_done
 import eolssu.shared.generated.resources.learn_stages
 import eolssu.shared.generated.resources.learn_subtitle
 import eolssu.shared.generated.resources.learn_title
@@ -80,11 +67,13 @@ class LearnListActions(
     val onSelectInstrument: (GuideInstrument) -> Unit,
     val onResetDone: () -> Unit,
     val onOpenStage: (Int) -> Unit,
+    /** 단계 카드를 넘겨 [Int] 단계가 자리 잡았다. */
+    val onShowCard: (Int) -> Unit,
 )
 
 /**
- * LEARN-02 단계 목록. 악기별 진행률과 9단계를 보여주고, 잠금 없이 아무 단계나 열 수 있다.
- * 태블릿 세로는 단계를 두 칸 격자로 놓는다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
+ * LEARN-02 단계 목록. 악기별 진행률과 9단계 그림 카드를 보여주고, 잠금 없이 아무 단계나 열 수 있다.
+ * 태블릿 세로도 휴대폰처럼 카드를 넘기고 카드는 최대 480dp로 가운데에 둔다. 태블릿 가로는 단계 상세와 한 화면이라 [com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout]이 그린다.
  */
 @Composable
 fun LearnListScreen(
@@ -108,7 +97,7 @@ fun LearnListScreen(
             actions,
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
-            stageColumns = if (tablet) 2 else 1,
+            currentStage = state.cardStage,
             dropdownMaxWidth = if (tablet) TabletDropdownMaxWidth else Dp.Unspecified,
         )
     }
@@ -118,10 +107,9 @@ fun LearnListScreen(
 private val TabletDropdownMaxWidth = 400.dp
 
 /**
- * 단계 목록 본문(악기 · 진행 카드 · 단계 · 출처). 세로로 스크롤한다.
+ * 단계 목록 본문(악기 · 진행 카드 · 단계 카드 넘기기 · 출처). 세로로 스크롤한다.
  *
- * @param stageColumns 단계 칸 수. 태블릿 세로는 2칸.
- * @param highlightedStage 태블릿 가로 배치에서 오른쪽 칸에 보이는 단계. 굵은 테두리로 표시한다.
+ * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
  */
 @Composable
 internal fun LearnListContent(
@@ -129,8 +117,7 @@ internal fun LearnListContent(
     actions: LearnListActions,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
-    stageColumns: Int = 1,
-    highlightedStage: Int? = null,
+    currentStage: Int = state.cardStage,
     dropdownMaxWidth: Dp = Dp.Unspecified,
 ) {
     Column(
@@ -147,9 +134,15 @@ internal fun LearnListContent(
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).widthIn(max = dropdownMaxWidth),
         )
         ProgressCard(state)
+        // `.lp-head`: '단계' 옆에 지금 카드 번호(`.lc-count`, 옅은 회색 고정폭 숫자)
         Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                stringResource(Res.string.learn_stages),
+                buildAnnotatedString {
+                    append(stringResource(Res.string.learn_stages))
+                    withStyle(SpanStyle(color = GuideFaint, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum")) {
+                        append("  $currentStage / ${LearnStages.size}")
+                    }
+                },
                 Modifier.weight(1f),
                 style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 color = EolssuTheme.colors.textMuted,
@@ -161,11 +154,13 @@ internal fun LearnListContent(
                 color = EolssuTheme.colors.textMuted,
             )
         }
-        GuideGrid(LearnStages, stageColumns, horizontalGap = 10.dp, verticalGap = if (stageColumns > 1) 10.dp else 8.dp) { _, stage, cell ->
-            StageRow(stage, state.isDone(stage.number), highlighted = stage.number == highlightedStage, modifier = cell) {
-                actions.onOpenStage(stage.number)
-            }
-        }
+        LearnStageCarousel(
+            state,
+            currentStage,
+            onShow = actions.onShowCard,
+            onOpen = actions.onOpenStage,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
         Text(
             stringResource(Res.string.learn_list_source),
             Modifier.padding(top = 14.dp),
@@ -185,6 +180,7 @@ private fun ProgressCard(state: LearnUiState) {
             .fillMaxWidth()
             .padding(bottom = 14.dp)
             .background(colors.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(18.dp))
             .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Row(Modifier.fillMaxWidth()) {
@@ -208,7 +204,7 @@ private fun ProgressCard(state: LearnUiState) {
             style = EolssuTheme.serif.yul.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
         )
         Box(Modifier.padding(top = 10.dp).fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(colors.background)) {
-            Box(Modifier.fillMaxHeight().fillMaxWidth(state.progress).background(colors.text))
+            Box(Modifier.fillMaxHeight().fillMaxWidth(state.progress).background(colors.primary))
         }
         val next = state.nextStage
         GuideText(
@@ -216,73 +212,5 @@ private fun ProgressCard(state: LearnUiState) {
             Modifier.padding(top = 10.dp),
             style = small,
         )
-    }
-}
-
-/**
- * 단계 한 줄(`.lp-stage`). 완료면 번호 대신 ✓, 선택 단계는 점선 테두리.
- * [highlighted]는 태블릿 가로 배치에서 오른쪽에 보이는 단계로, 진한 2dp 테두리와 회색 바탕이다.
- */
-@Composable
-private fun StageRow(stage: LearnStage, done: Boolean, highlighted: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val shape = MaterialTheme.shapes.medium
-    val description = if (done) {
-        stringResource(Res.string.learn_stage_item_done, stage.number, stage.title)
-    } else {
-        stringResource(Res.string.learn_stage_item, stage.number, stage.title)
-    }
-    Row(
-        modifier
-            .clip(shape)
-            .background(if (highlighted) colors.surface else colors.background)
-            .then(
-                when {
-                    highlighted -> Modifier.border(2.dp, colors.text, shape)
-                    stage.optional -> Modifier.dashedRoundBorder(colors.line, 16.dp)
-                    else -> Modifier.border(1.dp, colors.line, shape)
-                },
-            )
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) {
-                contentDescription = description
-                if (highlighted) selected = true
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            Modifier
-                .size(36.dp)
-                .then(if (done) Modifier.background(colors.text, CircleShape) else Modifier.border(1.5.dp, colors.lineStrong, CircleShape)),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (done) {
-                Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.onInk)
-            } else {
-                Text("${stage.number}", style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-            }
-        }
-        Column(Modifier.weight(1f).clearAndSetSemantics {}) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stage.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp))
-                if (stage.optional) JudgeTag(stringResource(Res.string.learn_optional), LearnJudge.Read)
-            }
-            Text(
-                stage.goal,
-                Modifier.padding(top = 2.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                color = colors.textMuted,
-            )
-        }
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            JudgeTag(stringResource(stage.judge.label), stage.judge)
-            if (done) {
-                Text(stringResource(Res.string.learn_done), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold))
-            } else {
-                Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.lineStrong)
-            }
-        }
     }
 }

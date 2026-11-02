@@ -39,9 +39,6 @@ import eolssu.shared.generated.resources.guide_legend_open
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** 구멍 표시 색. 와이어프레임 그림의 막음 색(#121212)과 '?' 색이다. */
-private val HoleInk = Color(0xFF121212)
-
 /** 가로 띠로 자를 때 사진 위아래에서 각각 잘라내는 원본 픽셀(연습 화면 보드 `viewBox 0 150 2000 h-300`). */
 private const val FigureCropPx = 150
 
@@ -60,6 +57,7 @@ fun FingeringFigure(
     cropVertical: Boolean = false,
 ) {
     val measurer = rememberTextMeasurer()
+    val ink = EolssuTheme.colors.text
     val muted = EolssuTheme.colors.textMuted
     val painter = painterResource(instrument.image)
     val cropTop = if (cropVertical) FigureCropPx else 0
@@ -78,10 +76,10 @@ fun FingeringFigure(
             instrument.holes.forEachIndexed { i, point ->
                 val center = Offset(point.x * k, point.y * k)
                 when (holes.getOrElse(i) { HoleState.Open }) {
-                    HoleState.Closed -> drawCircle(HoleInk, r, center)
+                    HoleState.Closed -> drawCircle(ink, r, center)
                     HoleState.Half -> drawPath(
                         Path().apply { arcTo(Rect(center, r), 90f, 180f, forceMoveTo = true); close() },
-                        HoleInk,
+                        ink,
                     )
                     HoleState.Unknown -> {
                         val layout = measurer.measure(
@@ -97,13 +95,13 @@ fun FingeringFigure(
     }
 }
 
-/** 구멍 표시 범례(`.legend`): 막는 구멍 · 여는 구멍 · 반 막음. [centered]이면 가운데에, 아니면 왼쪽부터 놓는다. */
+/** 구멍 표시 범례(`.glegend`): 막는 구멍 · 여는 구멍 · 반 막음을 왼쪽부터 놓는다. */
 @Composable
-fun HoleLegend(modifier: Modifier = Modifier, centered: Boolean = true) {
+fun HoleLegend(modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Row(
         modifier,
-        horizontalArrangement = if (centered) Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally) else Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         LegendItem(stringResource(Res.string.guide_legend_closed)) { drawCircle(colors.text) }

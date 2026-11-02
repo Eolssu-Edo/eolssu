@@ -75,13 +75,13 @@ fun FingeringScreen(
     }
 }
 
-/** 악기별 안내 문구(뒷구멍·역취 설명). */
+/** 악기별 안내 문구(`.fg-note`, 13sp · 줄 간격 1.45). */
 @Composable
 internal fun FingeringInstrumentNote(instrument: GuideInstrument, modifier: Modifier = Modifier) {
     GuideText(
         instrument.note,
         modifier,
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.5.sp),
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.85.sp),
         color = EolssuTheme.colors.textMuted,
     )
 }
