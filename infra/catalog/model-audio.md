@@ -27,7 +27,25 @@ python3 load_model_audio.py --bundle /path/bundle --difficulty /path/difficulty.
 
 실제 적재는 `--apply`를 추가한다. 먼저 공용 배포 lock 아래 [변경 전 백업](../backup/README.md)을 성공시키고 V15 객체 키 전환을 적용한다. 최초107개 적재 당시에는 [선택 장단 DDL](proposals/optional_jangdan.sql)만 적용했고, V15 후에는 새 도구를 사용한다. 새 도구는 주소 대신 `object_key`를 쓰므로 스토리지 환경 파일을 받지 않는다. DDL과 데이터 트랜잭션은 별개다. 도구는 실행 중인 backend 컨테이너에서 DB명만 알아내고 MySQL 컨테이너 내부 비밀번호를 사용한다. 데이터는 단일 트랜잭션으로 추가하며 이후 별도 접속에서 원본·음원·실제 ID를 다시 확인한다.
 
-V15는 기존107개 URL·근거를 검증하고 객체 키, 수행 키, 공통 원문 해시, 생성 근거 JSON으로 옮긴다. 알 수 없는 호스트·식별자 또는 사전 검사 이후의 행 변경은 중단한다. 기존 `audio_url` 값은 구 서버와의 전환 호환성만을 위해 유지한다. 새 코드·적재는 이 값을 읽거나 생성하지 않으며, 새 BE 배포 확인 후 폐기할 수 있다. 내부 근거는 사용자용 곡 설명에서 제거한다.
+V15는 기존107개 URL·근거를 검증하고 객체 키, 수행 키, 공통 원문 해시, 생성 근거 JSON으로 옮긴다. 알 수 없는 호스트·식별자 또는 사전 검사 이후의 행 변경은 중단한다. 기존 `audio_url` 값은 구 서버와의 전환 호환성만을 위해 유지한다. 새 코드·적재는 이 값을 읽거나 생성하지 않으며, 아래 순서로 새 BE 배포를 확인한 뒤 삭제한다. 내부 근거는 사용자용 곡 설명에서 제거한다.
+
+## 새 BE 배포 후 audio_url 삭제
+
+순서는 **V15 적용 → 객체 키를 읽는 BE 배포 성공 → 컬럼 삭제 → 게시**다. 운영 `ops`는 Flyway를 실행하지 않는다. 기존 배포 전 `db` 프로필 마이그레이션에 DROP을 넣으면 구 BE가 실행 중일 때 삭제되므로 V15 checksum을 유지하고 삭제 도구를 별도 단계로 실행한다. Flyway 이력은 V15로 유지하며 삭제 사실은 스키마 조회와 전용 receipt에 남긴다. 일반 로컬 DB도 V15 직후는 호환 컬럼이 남는 단계다.
+
+1. 사람이339 MR을 병합한 뒤 배포 대상의 고정 JAR로 V15를 적용한다. 기존 DB 마이그레이션 실행에 `--spring.flyway.target=15`를 지정해 이 단계의 상한을 고정한다. 공용 lock과 변경 전 DB·설정 백업을 사용한다.
+2. 기존 `sudo -n /opt/eolssu/bin/deploy-backend <전체-커밋-SHA>`로 새 BE를 배포한다. 이 명령은 공용 lock을 직접 얻는다. 밖에서 같은 lock을 잡은 채 호출하지 않는다. 실패·rollback 상태에서는 다음 단계로 진행하지 않는다.
+3. 아래 삭제 도구를 기본 모드로 검사하고 새 receipt 경로에 `--apply`로 적용한다. 도구는 공용 lock 안에서 배포 journal의 완료 상태·요청 SHA, 선택 JAR의 해시·실행 컨테이너 mount, readiness, 실제 JAR의 객체 키 조회 코드를 확인한다. V15 성공·키/수행 연결 검사와 변경 전 백업도 통과해야 삭제한다. 오래된 SHA, 배포 중/실패 상태, URL 조회 JAR는 거절한다.
+
+```sh
+# 검토한339 도구 파일과 load_model_audio.py, stage_model_audio.py를 같은 폴더에 보관한다.
+sudo python3 drop_model_audio_url.py --deployed-sha <배포-완료한-40자리-SHA> --receipt /path/audio-url-check.json
+sudo python3 drop_model_audio_url.py --deployed-sha <배포-완료한-40자리-SHA> --receipt /path/audio-url-drop.json --apply
+```
+
+삭제 도구는 `song_model_audios.audio_url`만 제거하고 새 연결·악보 원문·상태·시각의 행 해시를 삭제 전후 비교한다. 이미 삭제된 경우 재실행은 변경·백업 없이 끝난다. 적용 후에는 공용 lock을 놓은 상태에서 `sudo /opt/eolssu-backup/backup.py send db`로 사후 DB 백업을 남기고, 공개 곡의 CAT-05/재생/수행 응답과 신규107곡 게시 전 검사를 확인한다. API 응답의 `audioUrl`은 앱용 재생 경로로 계속 존재한다.
+
+DROP은 롤백 가능한 트랜잭션이 아니다. 연결 중단/사후 검사 실패를 삭제 취소로 해석하지 말고 receipt와 실제 컬럼 존재 여부를 먼저 확인한다. 컬럼 삭제 후에는 객체 키를 지원하는 BE로 복구한다. 구 BE만 다시 올리면 조회가 실패하므로 구 버전으로 돌아가야 한다면 백업으로 컬럼·기존 URL을 복원하는 별도 DB 복구를 먼저 계획한다. Flyway checksum repair나 전체 운영 백업의 무조건 덮어쓰기는 하지 않는다.
 
 ## 게시·곡별 숨김
 
