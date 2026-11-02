@@ -53,7 +53,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 원본과 실제 생성 PCM의 음높이·발음 구간·쉼을 비교하는 명령과 관측 한계는 [독립 파형 검증](../docs/knowledge/data/common-score-audio-verification.md)에 있습니다.
 
-기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수와 원본 음가 단위를 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
+기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수·원본 음가 단위와 꾸밈/길이표 조합을 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 명시 연주 계획·표현 프로필을 전달할 수 있고, 반복표·짝 없는 길이표의 기본 해석에는 교육용 정책을 명시해야 합니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
 
 [score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
 
