@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -43,6 +43,7 @@ import eolssu.shared.generated.resources.legal_service
 import eolssu.shared.generated.resources.legal_privacy
 import eolssu.shared.generated.resources.legal_deletion
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
+import com.ssafy.eolssu.feature.profile.component.ProviderMark
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.my_account
@@ -91,14 +92,14 @@ fun MyPageScreen(
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
 ) {
-    ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp) {
+    ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
         Section(stringResource(Res.string.my_instrument)) {
             InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, help = stringResource(Res.string.my_instrument_help))
         }
         Section(stringResource(Res.string.my_social)) {
             Column {
-                HorizontalDivider(color = EolssuTheme.colors.line)
+                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
                 SocialProvider.entries.forEach { provider ->
                     val linked = provider in profile.linkedProviders
                     ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
@@ -108,7 +109,7 @@ fun MyPageScreen(
         }
         Section(stringResource(Res.string.legal_information)) {
             Column {
-                HorizontalDivider(color = EolssuTheme.colors.line)
+                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
                 AccountRow(stringResource(Res.string.legal_service), onClick = { onOpenLegal(PublishedLegalDocument.Service) })
                 AccountRow(stringResource(Res.string.legal_privacy), onClick = { onOpenLegal(PublishedLegalDocument.Privacy) })
                 AccountRow(stringResource(Res.string.legal_deletion), onClick = { onOpenLegal(PublishedLegalDocument.Deletion) })
@@ -116,7 +117,7 @@ fun MyPageScreen(
         }
         Section(stringResource(Res.string.my_account)) {
             Column {
-                HorizontalDivider(color = EolssuTheme.colors.line)
+                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
                 AccountRow(stringResource(Res.string.my_password_change), onClick = { onOpen(MyPageTarget.Password) })
                 AccountRow(stringResource(Res.string.my_logout), onClick = onLogOut)
                 AccountRow(stringResource(Res.string.my_withdraw), onClick = { onOpen(MyPageTarget.Withdraw) }, muted = true)
@@ -145,16 +146,20 @@ fun MyPageScreen(
     }
 }
 
-/** 프로필 칸(`.my-profile`): 회색 바탕에 얼굴 자리 · 닉네임·이메일 · 닉네임 수정. */
+/** 프로필 칸(`.my-profile`): 흰 바탕 · 옅은 테두리에 얼굴 자리 · 닉네임·이메일 · 닉네임 수정. */
 @Composable
 private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).padding(16.dp),
+        Modifier
+            .fillMaxWidth()
+            .background(colors.surface, RoundedCornerShape(16.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp))
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Box(Modifier.size(52.dp).background(colors.background, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(52.dp).background(colors.surface, CircleShape), contentAlignment = Alignment.Center) {
             Icon(EolssuIcons.User, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -184,9 +189,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
     val colors = EolssuTheme.colors
     Column {
         Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(24.dp).background(colors.surfaceStrong, RoundedCornerShape(6.dp)), contentAlignment = Alignment.Center) {
-                Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.text)
-            }
+            ProviderMark(provider)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(stringResource(provider.displayName), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
                 Text(
@@ -197,7 +200,7 @@ private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -
             }
             SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), onClick)
         }
-        HorizontalDivider(color = colors.line)
+        HorizontalDivider(color = colors.lineSoft)
     }
 }
 
@@ -213,18 +216,18 @@ private fun AccountRow(text: String, onClick: () -> Unit, muted: Boolean = false
             Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = if (muted) colors.textMuted else colors.text)
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
         }
-        HorizontalDivider(color = colors.line)
+        HorizontalDivider(color = colors.lineSoft)
     }
 }
 
-/** 작은 테두리 버튼(`.btn.secondary.sm`): 높이 40dp. */
+/** 작은 테두리 버튼(`.btn.secondary.sm`): 흰 바탕, 높이 40dp, 모서리 12dp. */
 @Composable
 private fun SmallButton(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        shape = CircleShape,
-        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        color = colors.surface,
         contentColor = colors.text,
         border = BorderStroke(1.dp, colors.line),
     ) {

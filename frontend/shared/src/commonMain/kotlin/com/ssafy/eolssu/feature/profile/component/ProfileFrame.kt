@@ -38,6 +38,7 @@ private val TabletBottomButtonWidth: Dp = 560.dp
 /**
  * 마이페이지 화면 틀(MY-01~05). 휴대폰은 최대 560dp, 태블릿은 가운데 한 단에 본문(세로 560dp · 가로 640dp)과
  * 하단 버튼(560dp)을 둔다. 본문은 좌우 20dp·세로 스크롤이고 최소 화면 높이만큼 늘어난다.
+ * 휴대폰 본문 위 여백은 [topPadding](양식 화면 `.au-body` 12dp, 마이페이지 `.my-body` 8dp)이다.
  */
 @Composable
 internal fun ProfileScaffold(
@@ -47,6 +48,7 @@ internal fun ProfileScaffold(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     gap: Dp = 20.dp,
+    topPadding: Dp = 12.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
@@ -74,7 +76,7 @@ internal fun ProfileScaffold(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .heightIn(min = viewportHeight)
-                    .padding(start = 20.dp, end = 20.dp, top = if (tablet) 24.dp else 12.dp, bottom = 24.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = if (tablet) 24.dp else topPadding, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(gap),
                 content = content,
             )
