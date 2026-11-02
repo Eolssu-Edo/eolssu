@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.feature.history.component.RecordsLoadStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,6 +42,7 @@ fun RecordListScreen(
     onToggle: (String) -> Unit,
     onSort: (RecordSort) -> Unit,
     onOpenRecord: (String) -> Unit,
+    onRetry: () -> Unit = {},
     detail: RecordDetailUiState? = null,
     detailActions: RecordDetailActions? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -78,6 +80,10 @@ fun RecordListScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = frame.gutter, end = frame.gutter, top = if (frame.isTablet) 4.dp else 0.dp, bottom = if (frame.isTablet) 28.dp else 24.dp),
         ) {
+            if (state.showLoadStatus) {
+                RecordsLoadStatus(failed = state.loadFailed, onRetry = onRetry)
+                return@Column
+            }
             if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
             if (!state.recordsAvailable || state.groups.isEmpty()) {
                 RecordsEmpty(available = state.recordsAvailable)

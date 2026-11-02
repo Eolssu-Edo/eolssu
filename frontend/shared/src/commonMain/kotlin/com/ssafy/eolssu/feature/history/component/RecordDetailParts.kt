@@ -152,7 +152,15 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
     val colors = EolssuTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
         SkipButton(stringResource(Res.string.record_detail_back5), stringResource(Res.string.record_detail_back5_label), skipSize) { actions.onSkip(-5) }
-        Surface(onClick = actions.onTogglePlay, modifier = Modifier.size(playSize), shape = CircleShape, color = colors.primary, contentColor = colors.onPrimary) {
+        // 녹음을 다시 들을 수 없는 기록(`recordingAvailable` false)은 재생 버튼을 쓸 수 없다.
+        Surface(
+            onClick = actions.onTogglePlay,
+            enabled = state.canPlay,
+            modifier = Modifier.size(playSize),
+            shape = CircleShape,
+            color = if (state.canPlay) colors.primary else colors.surfaceStrong,
+            contentColor = if (state.canPlay) colors.onPrimary else colors.textDisabled,
+        ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     if (state.playing) EolssuIcons.Pause else EolssuIcons.Play,

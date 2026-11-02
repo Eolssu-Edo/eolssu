@@ -22,6 +22,8 @@ data class RecordGroup(
  * @property opened 펼친 곡. null이면 처음 상태로, 가장 최근에 연습한 곡만 펼친다.
  * @property justSavedId 이번에 결과 화면에서 저장해 '방금 저장'을 붙일 기록.
  * @property selectedId 두 칸 배치(태블릿 가로)에서 사용자가 고른 기록. 고르기 전에는 null.
+ * @property loading 서버에서 목록을 받는 중.
+ * @property loadFailed 목록을 받지 못함. 이미 받은 기록이 있으면 그대로 보인다.
  */
 data class RecordListUiState(
     val records: List<PracticeRecord> = emptyList(),
@@ -31,7 +33,12 @@ data class RecordListUiState(
     val justSavedId: String? = null,
     val selectedId: String? = null,
     val recordsAvailable: Boolean = true,
+    val loading: Boolean = false,
+    val loadFailed: Boolean = false,
 ) {
+    /** 받은 기록이 없는데 받는 중이거나 받지 못해, 빈 목록 대신 그 상태를 보일 때. */
+    val showLoadStatus: Boolean get() = recordsAvailable && records.isEmpty() && (loading || loadFailed)
+
     /**
      * 두 칸 배치에서 오른쪽에 상세를 보여 줄 기록. 고른 기록 → 방금 저장한 기록 → 가장 최근 기록 순으로,
      * 지금 목록에 있는 것을 쓴다. 기록이 없으면 null.

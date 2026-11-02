@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.history
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import eolssu.shared.generated.resources.record_play_unavailable
+import eolssu.shared.generated.resources.record_play_busy
+import eolssu.shared.generated.resources.record_play_failed
+import eolssu.shared.generated.resources.record_detail_failed
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -59,7 +65,7 @@ fun RecordListRoute(
     if (widthClass == WindowWidthClass.Expanded) {
         RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel)
     } else {
-        RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord)
+        RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
     }
 }
 
@@ -85,6 +91,8 @@ private fun RecordsTwoPaneRoute(
     }
     val detail by detailViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    RecordNoticeEffect(detail.notice, snackbarHostState, detailViewModel::consumeNotice)
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { detailViewModel.pause() }
     RecordListScreen(
         state = state,
         widthClass = WindowWidthClass.Expanded,
@@ -93,6 +101,7 @@ private fun RecordsTwoPaneRoute(
         onToggle = viewModel::toggle,
         onSort = viewModel::changeSort,
         onOpenRecord = viewModel::select,
+        onRetry = viewModel::retry,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, snackbarHostState, onBack),
         snackbarHostState = snackbarHostState,
@@ -108,12 +117,36 @@ fun RecordDetailRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    RecordNoticeEffect(state.notice, snackbarHostState, viewModel::consumeNotice)
+    // 앱을 벗어나면(홈 화면·전화) 녹음 재생을 멈춘다.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     RecordDetailScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         actions = rememberRecordDetailActions(viewModel, snackbarHostState, onBack),
     )
+}
+
+/** 기록 상세의 한 번짜리 안내를 스낵바로 보이고 지운다. */
+@Composable
+private fun RecordNoticeEffect(notice: RecordNotice?, snackbarHostState: SnackbarHostState, onShown: () -> Unit) {
+    val message = notice?.let {
+        stringResource(
+            when (it) {
+                RecordNotice.PlaybackUnavailable -> Res.string.record_play_unavailable
+                RecordNotice.PlaybackBusy -> Res.string.record_play_busy
+                RecordNotice.PlaybackFailed -> Res.string.record_play_failed
+                RecordNotice.DetailFailed -> Res.string.record_detail_failed
+            },
+        )
+    }
+    LaunchedEffect(notice) {
+        if (message == null) return@LaunchedEffect
+        onShown()
+        snackbarHostState.currentSnackbarData?.dismiss()
+        snackbarHostState.showSnackbar(message)
+    }
 }
 
 /** 기록 상세 동작. 뒤로 가기 전에 재생을 멈추고, 취약 구간 연습은 2차 확장 화면이라 '준비 중' 안내를 띄운다. */
