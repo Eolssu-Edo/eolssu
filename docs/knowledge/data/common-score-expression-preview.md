@@ -10,8 +10,9 @@
 - 내부 음표 ID는 공통 cell/row/unit 기반으로 바꾸고 하위 대응표를 `common-expression-map/v1`로 명명했다. 가상 JGB의 offset/version은 제거한다. 원본 event/cell ID·NOTE idx·tick과 performance 시간표는 유지한다.
 - 통합 코드 `1eb851c4`: playback225개·data120개, 실패/생략0. 실제 CAT 4악기 WAV/AAC 8개는 각각40/40, 단소 BPM30 WAV는9/9을 통과했다. 9음원 모두 이전 `2d23ae5d`의 파일 SHA256 및 디코딩 PCM SHA256과 정확히 같다. 고정 기대값·관측창·50cent 기준은 변경하지 않았다.
 - 구버전에서 동결한 공통 입력263개(기존107성부·수기/경계156개)의 음높이·길이·효과·연결과 performance 시간표가 모두 같다. 비교 시 내부 ID의 이름만 정규화하고 원본 event ID·시간·음악 값은 그대로 비교했다. 전체6,208조합의 성공/거부 분류가 같으며5,496개 고유 공통 결과도 음악 값·events·시간표 차이가 없다. 해시 변조516건을 거부했고 공통 호출7,356회에서 JGB parser 호출은0이다. JGB 모듈 import 차단과 공개 CLI의 잘못된 입력/제거 옵션12건 거부도 통과했다.
+- 기존107성부 전부 공통 JSON·표현 파일만으로 공개 CLI M4A 생성·AAC 디코딩을 재실행했다(4 workers,86.55초,107/107 성공). 원본 바이트·시간표와 동결한 구버전 MIDI의 바이트가 모두 같고 생성 중 실행 파일 해시도 변하지 않았다. `common-native/corpus-audio-final/summary.json`과 곡별 `render-command.json`에 결과·해시·검사 명령을 보존한다. 이는 음원 생성·구조 회귀이며 모든 곡의 전문가 청감/F0 검수를 뜻하지 않는다.
 - FE 보존 커밋은 `b1a9bcf0`, 원격 브랜치는 `feat(fe)/S15P31E102-380-공통-악보-시김새-표시와-연주-타임라인-연결`이다. 원래16경로의 Git blob과 공유 fixture의4악기 복원 JSON8개 해시가 모두 같으며 별도 MR은 만들지 않았다. 새 develop 기준의 FE 전체 회귀·실기기 검증은 후속이다.
-- 외부 검증 자료: `mr203-common-evidence/common-native/audio/summary.json`, `common-native/audio-parity.json`, `native-playback-tests.log`, `native-data-tests.log`. CAT·음원·대량 결과는 Git에 넣지 않는다.
+- 외부 검증 자료: `mr203-common-evidence/common-native/audio/summary.json`, `common-native/audio-parity.json`, `common-native-baseline/review-final-1eb851c4.json`, `native-playback-tests.log`, `native-data-tests.log`. CAT·음원·대량 결과는 Git에 넣지 않는다.
 
 ## 이전 검증본의 JSON 공통화 결과
 
