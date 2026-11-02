@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
@@ -134,6 +136,7 @@ fun JeongganboView(
     highlightColumns: IntRange? = null,
     selectedCell: Pair<Int, Int>? = null,
     onUnitClick: ((ScoreDisplayUnit) -> Unit)? = null,
+    annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -200,6 +203,7 @@ fun JeongganboView(
                         selectedCell = selectedCell?.let { it == (strip.column to row) },
                         onEventClick = onEventClick,
                         onUnitClick = onUnitClick,
+                        annotations = annotations,
                     )
                 }
             }
@@ -317,6 +321,7 @@ private fun ScoreCellBox(
     onEventClick: ((ScoreEvent) -> Unit)?,
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
+    annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
 ) {
     val colors = EolssuTheme.colors
     val errorStyle = error?.let { errorStyle(it) }
@@ -424,6 +429,7 @@ private fun ScoreCellBox(
                         onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
                         isSelected = selectedCell ?: (unit.event.index == selectedIndex),
                         modifier = Modifier.weight(1f).fillMaxSize(),
+                        sigimsae = annotations[unit.key].orEmpty(),
                     )
                 }
             }
@@ -452,6 +458,7 @@ private fun ScoreNoteBox(
     onClick: (() -> Unit)?,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
+    sigimsae: List<String> = emptyList(),
 ) {
     val colors = EolssuTheme.colors
     val note = unit.note
@@ -488,17 +495,19 @@ private fun ScoreNoteBox(
     // 화면 읽기 프로그램은 한자 대신 율명 이름(황종)을 읽는다. 글자 자체는 아래에서 읽지 않게 숨긴다.
     if (onClick != null) noteModifier = noteModifier.clickable(role = Role.Button, onClick = onClick)
     noteModifier = noteModifier.semantics(mergeDescendants = true) {
-        contentDescription = label
+        contentDescription = (listOf(label) + sigimsae.map(::scoreSigimsaeName)).joinToString(" · ")
         if (onClick != null) selected = isSelected
     }
 
     val yulSize = metrics.yulSizeFor(splitCount)
     val auxSize = metrics.auxSizeFor(splitCount)
-    Row(
+    Column(
         noteModifier.padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
+      Row(horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+          verticalAlignment = Alignment.CenterVertically) {
         ScoreNoteGlyph(
             note = note,
             modifier = Modifier.clearAndSetSemantics {},
@@ -506,6 +515,12 @@ private fun ScoreNoteBox(
             color = if (isPitch) colors.text else colors.textMuted,
             fontWeight = if (isPitch) FontWeight.SemiBold else FontWeight.Normal,
         )
+        val glyphs = sigimsae.filter { scoreSigimsaeImage(it) != null }
+        if (glyphs.isNotEmpty()) {
+            Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
+                glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * 0.7f) }
+            }
+        }
         if (hangul != null || solfegeText != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)
             Column(Modifier.clearAndSetSemantics {}) {
@@ -513,5 +528,10 @@ private fun ScoreNoteBox(
                 if (solfegeText != null) Text(solfegeText, style = auxStyle, color = colors.playText)
             }
         }
+      }
+      sigimsae.filter { scoreSigimsaeImage(it) == null }.forEach {
+          Text(scoreSigimsaeName(it), modifier = Modifier.clearAndSetSemantics {},
+              fontSize = auxSize, lineHeight = auxSize * 1.1f, color = colors.textMuted)
+      }
     }
 }
