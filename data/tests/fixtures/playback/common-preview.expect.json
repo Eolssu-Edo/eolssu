@@ -68,6 +68,86 @@
           27.9
         ],
         "midi": 80
+      },
+      {
+        "id": "nineurani-0",
+        "span": [
+          0.035,
+          0.215
+        ],
+        "midi": 82
+      },
+      {
+        "id": "nineurani-1",
+        "span": [
+          0.28500000000000003,
+          0.46499999999999997
+        ],
+        "midi": 80
+      },
+      {
+        "id": "nineurani-2",
+        "span": [
+          0.535,
+          0.715
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nineurani-3",
+        "span": [
+          0.785,
+          0.965
+        ],
+        "midi": 80
+      },
+      {
+        "id": "nerona-21-0",
+        "span": [
+          21.035,
+          21.298333333333332
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nerona-21-1",
+        "span": [
+          21.368333333333332,
+          21.631666666666668
+        ],
+        "midi": 75
+      },
+      {
+        "id": "nerona-21-2",
+        "span": [
+          21.701666666666668,
+          21.965
+        ],
+        "midi": 73
+      },
+      {
+        "id": "nerona-25-0",
+        "span": [
+          25.035,
+          25.298333333333332
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nerona-25-1",
+        "span": [
+          25.368333333333332,
+          25.631666666666668
+        ],
+        "midi": 75
+      },
+      {
+        "id": "nerona-25-2",
+        "span": [
+          25.701666666666668,
+          25.965
+        ],
+        "midi": 73
       }
     ],
     "silences": [
@@ -227,520 +307,80 @@
           20.7
         ]
       }
+    ],
+    "boundaries": [
+      {
+        "id": "nineurani-split-1",
+        "at": 0.25,
+        "from_midi": 82,
+        "to_midi": 80
+      },
+      {
+        "id": "nineurani-split-2",
+        "at": 0.5,
+        "from_midi": 80,
+        "to_midi": 78
+      },
+      {
+        "id": "nineurani-split-3",
+        "at": 0.75,
+        "from_midi": 78,
+        "to_midi": 80
+      },
+      {
+        "id": "nerona-split-21-1",
+        "at": 21.333333333333332,
+        "from_midi": 78,
+        "to_midi": 75
+      },
+      {
+        "id": "nerona-split-21-2",
+        "at": 21.666666666666668,
+        "from_midi": 75,
+        "to_midi": 73
+      },
+      {
+        "id": "nerona-split-25-1",
+        "at": 25.333333333333332,
+        "from_midi": 78,
+        "to_midi": 75
+      },
+      {
+        "id": "nerona-split-25-2",
+        "at": 25.666666666666668,
+        "from_midi": 75,
+        "to_midi": 73
+      }
     ]
   },
   "cases": {
     "danso": {
-      "pitches": [
-        {
-          "id": "nineurani-0",
-          "span": [
-            0.035,
-            0.215
-          ],
+      "pitchOverrides": {
+        "nineurani-2": {
           "midi": 82
         },
-        {
-          "id": "nineurani-1",
-          "span": [
-            0.28500000000000003,
-            0.46499999999999997
-          ],
+        "nerona-21-2": {
           "midi": 80
         },
-        {
-          "id": "nineurani-2",
-          "span": [
-            0.535,
-            0.715
-          ],
-          "midi": 82
-        },
-        {
-          "id": "nineurani-3",
-          "span": [
-            0.785,
-            0.965
-          ],
+        "nerona-25-2": {
           "midi": 80
         },
-        {
-          "id": "nerona-21-0",
-          "span": [
-            21.035,
-            21.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-21-1",
-          "span": [
-            21.368333333333332,
-            21.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-21-2",
-          "span": [
-            21.701666666666668,
-            21.965
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nerona-25-0",
-          "span": [
-            25.035,
-            25.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-25-1",
-          "span": [
-            25.368333333333332,
-            25.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-25-2",
-          "span": [
-            25.701666666666668,
-            25.965
-          ],
-          "midi": 80
-        }
-      ],
-      "boundaries": [
-        {
-          "id": "nineurani-split-1",
-          "at": 0.25,
-          "from_midi": 82,
-          "to_midi": 80
-        },
-        {
-          "id": "nineurani-split-2",
-          "at": 0.5,
-          "from_midi": 80,
+        "nineurani-split-2": {
           "to_midi": 82
         },
-        {
-          "id": "nineurani-split-3",
-          "at": 0.75,
-          "from_midi": 82,
+        "nineurani-split-3": {
+          "from_midi": 82
+        },
+        "nerona-split-21-2": {
           "to_midi": 80
         },
-        {
-          "id": "nerona-split-21-1",
-          "at": 21.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-21-2",
-          "at": 21.666666666666668,
-          "from_midi": 75,
-          "to_midi": 80
-        },
-        {
-          "id": "nerona-split-25-1",
-          "at": 25.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-25-2",
-          "at": 25.666666666666668,
-          "from_midi": 75,
+        "nerona-split-25-2": {
           "to_midi": 80
         }
-      ]
+      }
     },
-    "sogeum": {
-      "pitches": [
-        {
-          "id": "nineurani-0",
-          "span": [
-            0.035,
-            0.215
-          ],
-          "midi": 82
-        },
-        {
-          "id": "nineurani-1",
-          "span": [
-            0.28500000000000003,
-            0.46499999999999997
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nineurani-2",
-          "span": [
-            0.535,
-            0.715
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nineurani-3",
-          "span": [
-            0.785,
-            0.965
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nerona-21-0",
-          "span": [
-            21.035,
-            21.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-21-1",
-          "span": [
-            21.368333333333332,
-            21.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-21-2",
-          "span": [
-            21.701666666666668,
-            21.965
-          ],
-          "midi": 73
-        },
-        {
-          "id": "nerona-25-0",
-          "span": [
-            25.035,
-            25.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-25-1",
-          "span": [
-            25.368333333333332,
-            25.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-25-2",
-          "span": [
-            25.701666666666668,
-            25.965
-          ],
-          "midi": 73
-        }
-      ],
-      "boundaries": [
-        {
-          "id": "nineurani-split-1",
-          "at": 0.25,
-          "from_midi": 82,
-          "to_midi": 80
-        },
-        {
-          "id": "nineurani-split-2",
-          "at": 0.5,
-          "from_midi": 80,
-          "to_midi": 78
-        },
-        {
-          "id": "nineurani-split-3",
-          "at": 0.75,
-          "from_midi": 78,
-          "to_midi": 80
-        },
-        {
-          "id": "nerona-split-21-1",
-          "at": 21.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-21-2",
-          "at": 21.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        },
-        {
-          "id": "nerona-split-25-1",
-          "at": 25.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-25-2",
-          "at": 25.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        }
-      ]
-    },
-    "jeongak-daegeum": {
-      "pitches": [
-        {
-          "id": "nineurani-0",
-          "span": [
-            0.035,
-            0.215
-          ],
-          "midi": 82
-        },
-        {
-          "id": "nineurani-1",
-          "span": [
-            0.28500000000000003,
-            0.46499999999999997
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nineurani-2",
-          "span": [
-            0.535,
-            0.715
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nineurani-3",
-          "span": [
-            0.785,
-            0.965
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nerona-21-0",
-          "span": [
-            21.035,
-            21.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-21-1",
-          "span": [
-            21.368333333333332,
-            21.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-21-2",
-          "span": [
-            21.701666666666668,
-            21.965
-          ],
-          "midi": 73
-        },
-        {
-          "id": "nerona-25-0",
-          "span": [
-            25.035,
-            25.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-25-1",
-          "span": [
-            25.368333333333332,
-            25.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-25-2",
-          "span": [
-            25.701666666666668,
-            25.965
-          ],
-          "midi": 73
-        }
-      ],
-      "boundaries": [
-        {
-          "id": "nineurani-split-1",
-          "at": 0.25,
-          "from_midi": 82,
-          "to_midi": 80
-        },
-        {
-          "id": "nineurani-split-2",
-          "at": 0.5,
-          "from_midi": 80,
-          "to_midi": 78
-        },
-        {
-          "id": "nineurani-split-3",
-          "at": 0.75,
-          "from_midi": 78,
-          "to_midi": 80
-        },
-        {
-          "id": "nerona-split-21-1",
-          "at": 21.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-21-2",
-          "at": 21.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        },
-        {
-          "id": "nerona-split-25-1",
-          "at": 25.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-25-2",
-          "at": 25.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        }
-      ]
-    },
-    "sanjo-daegeum": {
-      "pitches": [
-        {
-          "id": "nineurani-0",
-          "span": [
-            0.035,
-            0.215
-          ],
-          "midi": 82
-        },
-        {
-          "id": "nineurani-1",
-          "span": [
-            0.28500000000000003,
-            0.46499999999999997
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nineurani-2",
-          "span": [
-            0.535,
-            0.715
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nineurani-3",
-          "span": [
-            0.785,
-            0.965
-          ],
-          "midi": 80
-        },
-        {
-          "id": "nerona-21-0",
-          "span": [
-            21.035,
-            21.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-21-1",
-          "span": [
-            21.368333333333332,
-            21.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-21-2",
-          "span": [
-            21.701666666666668,
-            21.965
-          ],
-          "midi": 73
-        },
-        {
-          "id": "nerona-25-0",
-          "span": [
-            25.035,
-            25.298333333333332
-          ],
-          "midi": 78
-        },
-        {
-          "id": "nerona-25-1",
-          "span": [
-            25.368333333333332,
-            25.631666666666668
-          ],
-          "midi": 75
-        },
-        {
-          "id": "nerona-25-2",
-          "span": [
-            25.701666666666668,
-            25.965
-          ],
-          "midi": 73
-        }
-      ],
-      "boundaries": [
-        {
-          "id": "nineurani-split-1",
-          "at": 0.25,
-          "from_midi": 82,
-          "to_midi": 80
-        },
-        {
-          "id": "nineurani-split-2",
-          "at": 0.5,
-          "from_midi": 80,
-          "to_midi": 78
-        },
-        {
-          "id": "nineurani-split-3",
-          "at": 0.75,
-          "from_midi": 78,
-          "to_midi": 80
-        },
-        {
-          "id": "nerona-split-21-1",
-          "at": 21.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-21-2",
-          "at": 21.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        },
-        {
-          "id": "nerona-split-25-1",
-          "at": 25.333333333333332,
-          "from_midi": 78,
-          "to_midi": 75
-        },
-        {
-          "id": "nerona-split-25-2",
-          "at": 25.666666666666668,
-          "from_midi": 75,
-          "to_midi": 73
-        }
-      ]
-    }
+    "sogeum": {},
+    "jeongak-daegeum": {},
+    "sanjo-daegeum": {}
   }
 }

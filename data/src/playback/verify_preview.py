@@ -12,11 +12,13 @@ span/reference_span windows at hz, amplitude_cents [min,max] and a minimum
 added amplitude. Levels compare span/reference_span RMS with ratio [min,max].
 Attacks compare a 2ms energy valley at `at` against a reference_span. Named
 preview-waveform-cases/v1 fixtures select shared + case checks with --case.
+Optional pitchOverrides replace only literal MIDI fields of existing check IDs.
 
 This is a bounded signal observer, not an expert-performance or timbre review.
 Keep expectations authored separately from generated IR, MIDI and source maps.
 """
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -81,8 +83,29 @@ def select_expectation(payload, case=None):
     if payload.get("schema") == "preview-waveform-cases/v1":
         require(case in payload.get("cases", {}), "Select a named expectation --case")
         shared, selected = payload["shared"], payload["cases"][case]
-        require(set(selected) <= set(KINDS), "Cases may only append check arrays")
-        return {**shared, **{kind: shared.get(kind, []) + selected.get(kind, []) for kind in KINDS}}
+        require(isinstance(shared, dict) and isinstance(selected, dict), "Shared expectation and case must be objects")
+        require(set(selected) <= {*KINDS, "pitchOverrides"}, "Cases may only append checks or override literal pitches")
+        require(all(isinstance(value.get(kind, []), list) for value in (shared, selected) for kind in KINDS),
+                "Check groups must be arrays")
+        result = deepcopy({**shared, **{kind: shared.get(kind, []) + selected.get(kind, []) for kind in KINDS}})
+        overrides = selected.get("pitchOverrides", {})
+        require(isinstance(overrides, dict), "pitchOverrides must be an object keyed by check ID")
+        targets = {}
+        for kind in KINDS:
+            for check in result[kind]:
+                require(isinstance(check, dict) and isinstance(check.get("id"), str) and check["id"], "Check ID required")
+                require(check["id"] not in targets, "Unique check id required")
+                targets[check["id"]] = (kind, check)
+        for identifier, values in overrides.items():
+            require(isinstance(identifier, str) and identifier in targets, "Unknown pitch override check ID")
+            kind, check = targets[identifier]
+            allowed = {"pitches": {"midi"}, "boundaries": {"from_midi", "to_midi"}}.get(kind, set())
+            require(isinstance(values, dict) and values and set(values) <= allowed & set(check),
+                    "Pitch overrides may only replace MIDI fields of pitches/boundaries")
+            require(all(type(value) is int and 0 <= value <= 127 for value in values.values()),
+                    "Pitch overrides require integer MIDI values in 0..127")
+            check.update(values)
+        return result
     require(case is None, "--case requires preview-waveform-cases/v1")
     return payload
 

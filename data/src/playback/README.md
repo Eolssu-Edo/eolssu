@@ -81,6 +81,8 @@ flowchart TD
 
 교육용 고정곡의 실제 파형 검사는 재생 결과 JSON 대신 사람이 작성한 기대 음열·구간을 사용합니다. `--case`는 해당 악기 이름입니다. WAV와 M4A 모두 입력할 수 있으며 M4A는 위와 같은 FFmpeg/ffprobe 준비가 필요합니다.
 
+`common-preview.expect.json`의 `shared`에는 같은 순서의40개 수기 검사를 두고, `cases.<악기>.pitchOverrides`에는 검사 ID별로 달라지는 MIDI 값만 적습니다. `pitches` 검사의 `midi`, `boundaries` 검사의 `from_midi`·`to_midi`만 바꿀 수 있으며 관측창·경계 시점·허용치는 공통 본문에 그대로 둡니다. 기존 `shared`와 악기별 검사 배열을 이어 붙이는 v1 형식도 지원합니다. 선택 결과는 원본을 수정하지 않으며, 존재하지 않거나 중복된 ID와 음높이 이외의 변경은 거부합니다.
+
 ```powershell
 .\data\.venv\Scripts\python -m data.src.playback.verify_preview --expect data/tests/fixtures/playback/common-preview.expect.json --case danso --audio data/processed/playback/preview-study/danso.wav --out data/processed/playback/preview-study-check.json
 ```

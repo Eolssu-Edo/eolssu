@@ -1,4 +1,8 @@
 """Independent observer controls, authored without the production renderer."""
+from copy import deepcopy
+import hashlib
+import json
+from pathlib import Path
 import unittest
 
 import numpy as np
@@ -98,6 +102,64 @@ class PreviewObserverTests(unittest.TestCase):
         self.assertEqual(chosen["pitches"][0]["midi"], 80)
         with self.assertRaisesRegex(ValueError, "named"):
             select_expectation(payload, "unknown")
+
+    def test_literal_pitch_overrides_keep_order_and_other_cases_immutable(self):
+        shared = expectation(pitches=[{'id': 'main', 'span': [0, 1], 'midi': 80}],
+                             boundaries=[{'id': 'split', 'at': 2, 'from_midi': 78, 'to_midi': 80}])
+        payload = {'schema': 'preview-waveform-cases/v1', 'shared': shared,
+                   'cases': {'danso': {'pitchOverrides': {'main': {'midi': 82}, 'split': {'to_midi': 82}}},
+                             'sogeum': {}}}
+        original = deepcopy(payload)
+        chosen = select_expectation(payload, 'danso')
+        self.assertEqual(chosen['pitches'], [{'id': 'main', 'span': [0, 1], 'midi': 82}])
+        self.assertEqual(chosen['boundaries'], [{'id': 'split', 'at': 2, 'from_midi': 78, 'to_midi': 82}])
+        self.assertEqual(payload, original)
+        chosen['pitches'][0]['span'][0] = .25
+        chosen['boundaries'][0]['from_midi'] = 75
+        self.assertEqual(select_expectation(payload, 'sogeum')['pitches'], shared['pitches'])
+        self.assertEqual(payload, original)
+
+    def test_pitch_overrides_reject_unknown_ambiguous_or_non_midi_changes(self):
+        shared = expectation(pitches=[{'id': 'main', 'span': [0, 1], 'midi': 80}],
+                             boundaries=[{'id': 'split', 'at': 2, 'from_midi': 78, 'to_midi': 80}],
+                             silences=[{'id': 'rest', 'span': [3, 4]}])
+        invalid = [[], {'absent': {'midi': 82}}, {'rest': {'midi': 82}}, {'main': {}},
+                   {'main': {'span': [0, 2]}}, {'main': {'from_midi': 82}}, {'split': {'midi': 82}},
+                   {'main': {'midi': True}}, {'main': {'midi': 82.0}}, {'main': {'midi': -1}},
+                   {'main': {'midi': 128}}]
+        for values in invalid:
+            with self.subTest(values=values), self.assertRaises(ValueError):
+                select_expectation({'schema': 'preview-waveform-cases/v1', 'shared': shared,
+                                    'cases': {'danso': {'pitchOverrides': values}}}, 'danso')
+        duplicate = {'schema': 'preview-waveform-cases/v1', 'shared': shared,
+                     'cases': {'danso': {'pitches': [{'id': 'main', 'span': [2, 3], 'midi': 78}],
+                                         'pitchOverrides': {'main': {'midi': 82}}}}}
+        with self.assertRaisesRegex(ValueError, 'Unique'):
+            select_expectation(duplicate, 'danso')
+        missing = {'schema': 'preview-waveform-cases/v1',
+                   'shared': expectation(pitches=[{'id': 'main', 'span': [0, 1]}]),
+                   'cases': {'danso': {'pitchOverrides': {'main': {'midi': 82}}}}}
+        with self.assertRaises(ValueError):
+            select_expectation(missing, 'danso')
+
+    def test_fixture_preserves_all_pre_refactor_manual_checks_exactly(self):
+        # Frozen from the independent literal fixture at 3c9127fc, not from IR,
+        # MIDI, audio, or the renderer. The digest includes array order and floats.
+        fixture = Path(__file__).resolve().parents[3] / 'tests/fixtures/playback/common-preview.expect.json'
+        payload = json.loads(fixture.read_text(encoding='utf-8'))
+        expected = {
+            'danso': '1673e26fab8da9158be671a2691b252db1b2b556d42dd662e5d0d1187cd5ed22',
+            'sogeum': 'ab4672fa55aa4ff3a9e50ea4cf89c30ac5ee9567406229f2c3cfb1d5b7039e96',
+            'jeongak-daegeum': 'ab4672fa55aa4ff3a9e50ea4cf89c30ac5ee9567406229f2c3cfb1d5b7039e96',
+            'sanjo-daegeum': 'ab4672fa55aa4ff3a9e50ea4cf89c30ac5ee9567406229f2c3cfb1d5b7039e96',
+        }
+        self.assertEqual(set(payload['cases']), set(expected))
+        for case, digest in expected.items():
+            with self.subTest(case=case):
+                chosen = select_expectation(payload, case)
+                self.assertEqual(sum(len(v) for v in chosen.values() if isinstance(v, list)), 40)
+                normalized = json.dumps(chosen, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+                self.assertEqual(hashlib.sha256(normalized).hexdigest(), digest)
 
     def test_spectral_diagnostic_does_not_pass_an_octave_error(self):
         wave = np.zeros(round(4.55 * RATE))
