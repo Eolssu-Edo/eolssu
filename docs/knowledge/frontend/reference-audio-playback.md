@@ -2,6 +2,22 @@
 
 S15P31E102-367, 2026-11-02. [기능 계약](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/6b6157d686569b78871ff3384fc735e38b9e855e/docs/specs/reference-audio-catalog.md), [DB/API와 운영 설정](https://lab.ssafy.com/s15-final/S15P31E102/-/blob/6b6157d686569b78871ff3384fc735e38b9e855e/docs/knowledge/backend/reference-audio-catalog.md).
 
+## 운지와 녹음의 제공 범위 차이 (2026-11-02)
+
+`7658ce59`의 운지표와 4악기 원본 녹음 라벨을 대조했다. 운지 카드는 [FingeringTables.kt](../../../frontend/shared/src/commonMain/kotlin/com/ssafy/eolssu/core/model/fingering/FingeringTables.kt)의 교육자료 기반 표이고, 연주 옵션은 [ReferenceAudioViewModel.kt](../../../frontend/shared/src/commonMain/kotlin/com/ssafy/eolssu/feature/guide/ReferenceAudioViewModel.kt)의 악기·취법·율명 정확 일치로 연결한다. 두 자료의 수록 범위가 같다는 계약은 없으며, 운지 존재 여부로 녹음을 만들거나 녹음 존재 여부로 운지를 확정하지 않는다.
+
+| 악기 | 운지는 있으나 연결할 녹음 라벨이 없는 카드 |
+| --- | --- |
+| 단소 | 평취 협·남 |
+| 소금 | 평취 응 / 역취 청응·중청협·중청남 |
+| 정악대금·산조대금 각각 | 저취 탁이·탁응·대·협·유 / 평취 이·응·청대·청협·청유 / 역취 청이·청응 |
+
+반대 사례는 **단소 역취 청태**다. 운지표는 자료가 갈려 `?????`와 `운지 확인 필요`를 유지하지만 원본에는 `ngc-danso-2341.tone-005`(역취), `ngc-danso-2342.tone-010`(음계+요성) 녹음이 있다. [단소 라벨 근거](../data/danso.md)의 역취 태와 화면 청태를 명시적으로 대응한다. 녹음의 inferred/채점 제외 상태는 운지 검증과 별개다.
+
+읽기 전용 대조는 `data/annotations/audio/{danso,sogeum,jeongak-daegeum,sanjo-daegeum}/**/labels.json`의 `columns`와 `groups[].rows`를 해석해 `(datasetId, register, yulmyeong)`으로 묶고, 운지표의 reading에 현재 `recordingLabel` 별칭을 적용해 비교했다. 단소 56개/10조합, 소금 146개/16조합, 정악대금 107개/18조합, 산조대금 121개/18조합이며 대응 카드 자체가 없는 녹음 조합은 0개였다. FE는 이 경로에서 `pitchId`를 필터로 쓰지 않으므로 DB의 미연결 FK가 위 빈 옵션의 원인은 아니다. 이는 저장소 라벨 대조이며 현재 운영 API의 게시 상태·실제 기기 재생을 새로 검증한 결과가 아니다.
+
+사용자 요청에 따라 운지법 화면의 `등록된 율명·운지 자료` 버튼과 열기 상태/콜백을 제거했다. 세 화면 폭의 기존 카드와 내부 녹음 선택·재생은 유지한다. 녹음이나 운지의 빈 부분을 다른 음으로 대체하는 변경은 하지 않았다.
+
 ## 연결 방식
 
 운지법과 기초 학습의 음 듣기는 악기·취법·율명에 맞는 게시 음원 목록을 연다. 실제 녹음에는 같은 음의 강·중·약, 요성, 서로 다른 구간이 있어 첫 항목을 대표음으로 자동 선택하지 않는다. 주법·율명·연주 예시 번호를 보고 사용자가 파일 하나를 선택한다. 전체 음원과 기본음계/시김새 필터로 같은 악기의 다른 연주 예시도 찾을 수 있다.

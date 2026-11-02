@@ -3,13 +3,9 @@ package com.ssafy.eolssu.feature.guide
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
-import com.ssafy.eolssu.feature.guide.component.FingeringCatalogDialog
 import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -29,7 +25,6 @@ fun FingeringRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var catalogOpen by rememberSaveable { mutableStateOf(false) }
     val audio = rememberReferenceAudioController(state.instrument, state.shownBlow)
 
     FingeringScreen(
@@ -41,10 +36,8 @@ fun FingeringRoute(
         onDismissDropdown = viewModel::dismissDropdown,
         onSelectInstrument = viewModel::selectInstrument,
         onSelectBlow = viewModel::selectBlow,
-        onOpenCatalog = { catalogOpen = true },
         noteAudioContent = { note ->
             ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow), audio)
         },
     )
-    if (catalogOpen) FingeringCatalogDialog(state, viewModel::retryCatalog, onClose = { catalogOpen = false })
 }
