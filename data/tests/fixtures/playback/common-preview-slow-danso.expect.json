@@ -1,0 +1,75 @@
+{
+  "schema": "preview-waveform-check/v1",
+  "description": "Additional BPM30 diagnostic of 125ms Danso grace notes, after a 25ms attack margin; does not replace or pass the BPM60 check.",
+  "duration_seconds": 58.55,
+  "pitches": [
+    {
+      "id": "neunira-slow-grace-0",
+      "span": [
+        4.025,
+        4.11
+      ],
+      "midi": 82
+    },
+    {
+      "id": "neunira-slow-grace-1",
+      "span": [
+        4.15,
+        4.235
+      ],
+      "midi": 80
+    },
+    {
+      "id": "neunira-slow-grace-2",
+      "span": [
+        4.275,
+        4.36
+      ],
+      "midi": 78
+    },
+    {
+      "id": "neunira-slow-main",
+      "span": [
+        4.425,
+        5.95
+      ],
+      "midi": 80
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "neunira-slow-split-1",
+      "at": 4.125,
+      "from_midi": 82,
+      "to_midi": 80
+    },
+    {
+      "id": "neunira-slow-split-2",
+      "at": 4.25,
+      "from_midi": 80,
+      "to_midi": 78
+    },
+    {
+      "id": "neunira-slow-split-3",
+      "at": 4.375,
+      "from_midi": 78,
+      "to_midi": 80
+    }
+  ],
+  "silences": [
+    {
+      "id": "neunira-slow-following-rest",
+      "span": [
+        6.025,
+        7.975
+      ]
+    },
+    {
+      "id": "end-tail",
+      "span": [
+        58.025,
+        58.55
+      ]
+    }
+  ]
+}

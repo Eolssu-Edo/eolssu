@@ -32,7 +32,11 @@ class PracticeSessionControllerTests {
         startedAt = LocalDateTime.parse("2026-10-22T03:00:00"), endedAt = LocalDateTime.parse("2026-10-22T03:00:48"),
         analysisStartedAt = LocalDateTime.parse("2026-10-22T03:00:49"), savedAt = null, memo = null,
     )
-    private val details = PracticeSessionDetails { sessionId, userId -> detail.takeIf { it.sessionId == sessionId && it.userId == userId } }
+    private val details = object : PracticeSessionDetails {
+        override fun findOwned(sessionId: Long, userId: Long) = detail.takeIf { it.sessionId == sessionId && it.userId == userId }
+
+        override fun markViewed(sessionId: Long, userId: Long, viewedAt: LocalDateTime) = false
+    }
     private val sessions = MemoryPracticeSessionRepository().apply { songs[101] = PracticeSong(101, BpmUnit.DOTTED_QUARTER, 72, 1) }
     private val mockMvc = MockMvcBuilders.standaloneSetup(
         PracticeSessionController(

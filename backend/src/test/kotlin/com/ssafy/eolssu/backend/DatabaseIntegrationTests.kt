@@ -573,23 +573,43 @@ class DatabaseIntegrationTests {
         assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), withEvaluation.startedAt)
         assertEquals(LocalDateTime.parse("2026-10-22T01:02:04.123456"), withEvaluation.endedAt)
 
-        val deletedRecord = assertNotNull(details.findOwned(2, 1))
-        assertNull(deletedRecord.evaluationId)
-        assertFalse(deletedRecord.recordingAvailable)
-        assertEquals("다시 연습", deletedRecord.memo)
-        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), deletedRecord.savedAt)
-
-        // 녹음 재생 가능은 두 조건이 모두 맞아야 한다: 녹음이 있어도 기록을 지웠으면, 지우지 않았어도 녹음이 없으면 false.
+        // 기록을 지운 세션은 회원 조회에서 없는 세션과 같다(REC-04). 녹음이 남아 있어도 마찬가지다.
+        assertNull(details.findOwned(2, 1))
         jdbc.update(
             "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, started_at, record_deleted_at) " +
                 "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'recordings/21/a.m4a', 'DONE', '2026-10-22 01:02:03', '2026-10-23 01:02:03')," +
                 " (22, 1, 1, 90, 'DOTTED_QUARTER', 0, NULL, 'RECORDING', '2026-10-22 01:02:03', NULL)",
         )
-        assertFalse(assertNotNull(details.findOwned(21, 1)).recordingAvailable)
+        assertNull(details.findOwned(21, 1))
         assertFalse(assertNotNull(details.findOwned(22, 1)).recordingAvailable)
 
         assertNull(details.findOwned(1, 2))
         assertNull(details.findOwned(999, 1))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `marks only the first view of a saved record that is not deleted`() {
+        val details = MyBatisPracticeSessionDetails(mapper<PracticeSessionMapper>())
+        val first = LocalDateTime.parse("2026-10-23T01:00:00.123456")
+        jdbc.update("UPDATE practice_sessions SET saved_at = '2026-10-22 01:03:00' WHERE id = 1")
+
+        assertFalse(details.markViewed(1, 2, first))
+        assertTrue(details.markViewed(1, 1, first))
+        assertFalse(details.markViewed(1, 1, first.plusDays(1)))
+        assertEquals(first, assertNotNull(details.findOwned(1, 1)).viewedAt)
+
+        // 저장하지 않은 세션과 지운 기록(세션 2)은 그대로 둔다.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                "VALUES (23, 1, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', '2026-10-22 01:02:03')",
+        )
+        assertFalse(details.markViewed(23, 1, first))
+        jdbc.update("UPDATE practice_sessions SET viewed_at = NULL WHERE id = 2")
+        assertFalse(details.markViewed(2, 1, first))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id = 23", LocalDateTime::class.java))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id = 2", LocalDateTime::class.java))
     }
 
     @Test
