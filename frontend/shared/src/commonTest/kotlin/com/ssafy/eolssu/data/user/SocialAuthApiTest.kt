@@ -88,6 +88,121 @@ class SocialAuthApiTest {
     }
 
     @Test
+    fun newProviderAccountGetsASignUpTicketAndSignsUpOnce() = runTest {
+        var status = HttpStatusCode.Conflict
+        var body = """{"isSuccess":false,"result":{"errorCode":"SOCIAL_SIGN_UP_REQUIRED","details":{"signupTicket":"${OAuthAttemptsTest.TICKET}","expiresAt":"2026-10-30T01:10:00Z"}}}"""
+        val sent = mutableListOf<String>()
+        val repo = auth { request ->
+            sent += (request.body as TextContent).text
+            json(body, status)
+        }
+
+        val ticket = assertIs<SocialLoginResult.SignUpRequired>(repo.completeSocialLogIn(callback)).ticket
+        assertEquals(SocialProvider.Kakao, ticket.provider)
+        assertEquals(OAuthAttemptsTest.TICKET, ticket.ticket)
+        assertEquals(null, member.id)
+
+        status = HttpStatusCode.Created
+        body = """{"isSuccess":true,"result":{"userId":"77","nickname":"새회원","instrumentId":"1","notationMode":"HANJA","createdAt":"2026-10-30T01:00:00Z"}}"""
+        val agreements = listOf(TermAgreement("5", "2026-11-02", true), TermAgreement("8", "2026-11-02", false))
+        assertEquals(MemberResult.Done, repo.socialSignUp(SocialRegistration(ticket, "새회원", agreements, "1")))
+        assertEquals("77", member.id)
+        // 이메일·비밀번호 없이 티켓·닉네임·약관·악기만 보낸다.
+        assertEquals(
+            """{"signupTicket":"${OAuthAttemptsTest.TICKET}","nickname":"새회원","agreements":[{"termId":"5","version":"2026-11-02","agreed":true},{"termId":"8","version":"2026-11-02","agreed":false}],"instrumentId":"1"}""",
+            sent.last(),
+        )
+
+        suspend fun failure(code: String): MemberResult {
+            body = """{"isSuccess":false,"result":{"errorCode":"$code"}}"""
+            return repo.socialSignUp(SocialRegistration(ticket, "새회원", agreements, null))
+        }
+        status = HttpStatusCode.Gone
+        assertEquals(MemberResult.TicketExpired, failure("SIGNUP_TICKET_EXPIRED"))
+        status = HttpStatusCode.Conflict
+        assertEquals(MemberResult.SocialAccountInUse, failure("SOCIAL_ACCOUNT_IN_USE"))
+        assertEquals(MemberResult.EmailExists, failure("EMAIL_ALREADY_EXISTS"))
+        status = HttpStatusCode.UnprocessableEntity
+        assertEquals(MemberResult.TermsRequired, failure("TERMS_AGREEMENT_REQUIRED"))
+        // 티켓은 1회용이라 401이어도 갱신·재전송하지 않는다.
+        status = HttpStatusCode.Unauthorized
+        assertEquals(MemberResult.Unauthenticated, failure("UNAUTHENTICATED"))
+        assertEquals(0, requests.count { it == "POST /api/auth/refresh" })
+    }
+
+    @Test
+    fun withdrawalReauthGetsAProofAndWithdrawsWithIt() = runTest {
+        var confirm = HttpStatusCode.OK
+        var confirmCode = ""
+        var withdrawal = HttpStatusCode.OK
+        val sent = mutableListOf<String>()
+        val repo = ApiUserRepository(client { request ->
+            val path = request.url.encodedPath
+            when {
+                request.method.value == "GET" -> json("""{"isSuccess":true,"result":{"nickname":"n","instrumentId":"1","notationMode":"HANJA"}}""")
+                path == "/api/users/me/withdrawal/oauth/kakao/start" ->
+                    json("""{"isSuccess":true,"result":{"authorizationUrl":"${OAuthAttemptsTest.authorizationUrl()}","expiresAt":"2026-10-30T01:10:00Z"}}""")
+                path == "/api/users/me/withdrawal/oauth/kakao" -> if (confirm == HttpStatusCode.OK) {
+                    json("""{"isSuccess":true,"result":{"withdrawalTicket":"${OAuthAttemptsTest.TICKET}","expiresAt":"2026-10-30T01:10:00Z"}}""")
+                } else {
+                    json("""{"isSuccess":false,"result":{"errorCode":"$confirmCode"}}""", confirm)
+                }
+                else -> {
+                    sent += (request.body as TextContent).text
+                    if (withdrawal == HttpStatusCode.OK) json("""{"isSuccess":true,"result":{"withdrawn":true}}""")
+                    else json("""{"isSuccess":false,"result":{"errorCode":"WITHDRAWAL_TICKET_EXPIRED"}}""", withdrawal)
+                }
+            }
+        }, null, member = member)
+
+        assertIs<OAuthStartResult.Started>(repo.startWithdrawalReauth(SocialProvider.Kakao))
+        val proof = assertIs<ReauthResult.Proven>(repo.confirmWithdrawalReauth(callback)).proof
+        assertEquals(OAuthAttemptsTest.TICKET, proof.ticket)
+        assertEquals("Proven(WithdrawalProof(provider=Kakao))", ReauthResult.Proven(proof).toString())
+
+        withdrawal = HttpStatusCode.Gone
+        assertEquals(MemberResult.TicketExpired, repo.withdraw(proof))
+        withdrawal = HttpStatusCode.OK
+        assertEquals(MemberResult.Done, repo.withdraw(proof))
+        assertEquals("""{"withdrawalTicket":"${OAuthAttemptsTest.TICKET}"}""", sent.last())
+        assertEquals(null, member.id)
+
+        confirm = HttpStatusCode.Unauthorized
+        confirmCode = "OAUTH_VERIFICATION_FAILED"
+        assertEquals(ReauthResult.Restart, repo.confirmWithdrawalReauth(callback))
+        confirmCode = "UNAUTHENTICATED"
+        assertEquals(ReauthResult.Unauthenticated, repo.confirmWithdrawalReauth(callback))
+        confirm = HttpStatusCode.ServiceUnavailable
+        assertEquals(ReauthResult.Unavailable, repo.confirmWithdrawalReauth(callback))
+        assertEquals(0, requests.count { it == "POST /api/auth/refresh" })
+    }
+
+    @Test
+    fun lastLoginMethodUnlinkIsRefusedAndPasswordFlagIsRead() = runTest {
+        var hasPassword = ""
+        val repo = ApiUserRepository(client { request ->
+            if (request.method.value == "GET") {
+                json("""{"isSuccess":true,"result":{"nickname":"n","email":null,"instrumentId":"1","notationMode":"HANJA"$hasPassword,"linkedProviders":[{"provider":"NAVER"}]}}""")
+            } else {
+                json("""{"isSuccess":false,"result":{"errorCode":"LAST_LOGIN_METHOD"}}""", HttpStatusCode.Conflict)
+            }
+        }, null)
+
+        repo.refresh()
+        // 서버가 아직 비밀번호 유무를 주지 않으면 이메일이 없는 회원을 비밀번호 없는 회원으로 본다.
+        assertEquals(null, repo.profile.value.hasPassword)
+        assertEquals(false, repo.profile.value.signsInWithPassword)
+        assertEquals(MemberResult.LastLoginMethod, repo.unlink(SocialProvider.Naver))
+        assertEquals(setOf(SocialProvider.Naver), repo.profile.value.linkedProviders)
+
+        hasPassword = ""","hasPassword":true"""
+        repo.refresh()
+        assertEquals(true, repo.profile.value.signsInWithPassword)
+        // 이메일이 있어도 서버가 비밀번호가 없다고 하면 그 값을 따른다.
+        assertEquals(false, UserProfile("n", "a@b.test", emptySet(), hasPassword = false).signsInWithPassword)
+    }
+
+    @Test
     fun mergeSendsPasswordOnlyWhenNeededAndMapsFailures() = runTest {
         var status = HttpStatusCode.OK
         val sent = mutableListOf<String>()

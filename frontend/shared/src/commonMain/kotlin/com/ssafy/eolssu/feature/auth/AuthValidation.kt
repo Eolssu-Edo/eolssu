@@ -21,6 +21,9 @@ import eolssu.shared.generated.resources.member_api_terms_again
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
 import eolssu.shared.generated.resources.my_error_password_wrong
 import eolssu.shared.generated.resources.social_auth_merge_locked
+import eolssu.shared.generated.resources.social_signup_email_exists
+import eolssu.shared.generated.resources.social_signup_expired
+import eolssu.shared.generated.resources.social_signup_in_use
 import com.ssafy.eolssu.data.user.MemberResult
 
 /** 입력칸 아래에 띄우는 오류. */
@@ -47,6 +50,15 @@ enum class FieldError(val message: StringResource) {
 
     /** 계정 연결 비밀번호를 15분 안에 5번 틀려 잠겼다. */
     MergeLocked(Res.string.social_auth_merge_locked),
+
+    /** 소셜 가입 티켓이 없거나 만료·재사용됐다(10분·1회). 간편 로그인부터 다시 한다. */
+    SignUpExpired(Res.string.social_signup_expired),
+
+    /** 가입하는 사이 이 제공자 계정이 다른 얼쑤 계정에 연결됐다. */
+    SocialAccountInUse(Res.string.social_signup_in_use),
+
+    /** 가입하는 사이 제공자 이메일로 다른 계정이 생겼다. 간편 로그인을 다시 하면 계정 연결을 안내한다. */
+    SocialEmailExists(Res.string.social_signup_email_exists),
 }
 
 /**
@@ -85,10 +97,13 @@ object AuthValidation {
     }
 }
 
-internal fun MemberResult.fieldError(): FieldError = when (this) {
+/** [social] 가입이면 이메일 중복을 소셜 가입 안내로 바꾼다(입력한 이메일이 없어서). */
+internal fun MemberResult.fieldError(social: Boolean = false): FieldError = when (this) {
     MemberResult.VerificationRequired -> FieldError.VerifyAgain
     MemberResult.TermsRequired -> FieldError.TermsAgain
-    MemberResult.EmailExists -> FieldError.EmailAlreadyExists
+    MemberResult.EmailExists -> if (social) FieldError.SocialEmailExists else FieldError.EmailAlreadyExists
+    MemberResult.TicketExpired -> FieldError.SignUpExpired
+    MemberResult.SocialAccountInUse -> FieldError.SocialAccountInUse
     MemberResult.InvalidInput -> FieldError.InvalidInput
     MemberResult.Unauthenticated -> FieldError.SessionExpired
     MemberResult.RateLimited -> FieldError.RateLimited

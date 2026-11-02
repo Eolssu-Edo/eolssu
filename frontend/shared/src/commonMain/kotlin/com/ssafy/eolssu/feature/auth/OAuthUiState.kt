@@ -34,6 +34,9 @@ sealed interface OAuthStep {
 
     /** 같은 이메일로 가입한 계정이 있다. 계정 연결 확인(AUTH-09)으로 간다. */
     data object MergeAvailable : OAuthStep
+
+    /** 처음 온 제공자 계정이다. 약관 동의(동의가 없을 때)·프로필 설정(AUTH-07)으로 가서 가입한다. */
+    data object SignUpRequired : OAuthStep
 }
 
 /** 멈춘 이유. [message]의 `%1$s`에는 제공자 이름을 넣는다. */

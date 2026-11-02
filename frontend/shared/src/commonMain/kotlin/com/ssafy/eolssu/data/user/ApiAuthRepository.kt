@@ -144,7 +144,11 @@ class ApiAuthRepository(
                     member.set(signedIn.userId)
                     SocialLoginResult.Success(withdrawalCancelled = signedIn.withdrawalCancelled)
                 }
-                409 -> {
+                409 -> if (response.apiResponse<VerificationError>()?.result?.errorCode == "SOCIAL_SIGN_UP_REQUIRED") {
+                    val details = response.apiResponse<SignUpError>()?.result?.details ?: return@changing SocialLoginResult.Unavailable
+                    val expiry = details.expiresAt.toMillis() ?: return@changing SocialLoginResult.Unavailable
+                    SocialLoginResult.SignUpRequired(SignUpTicket(callback.provider, details.signupTicket, expiry))
+                } else {
                     val details = response.apiResponse<MergeError>()?.result?.details ?: return@changing SocialLoginResult.Unavailable
                     val expiry = details.expiresAt.toMillis() ?: return@changing SocialLoginResult.Unavailable
                     SocialLoginResult.MergeAvailable(
@@ -187,6 +191,28 @@ class ApiAuthRepository(
         }
     }
 
+    override suspend fun socialSignUp(request: SocialRegistration): MemberResult {
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/oauth/sign-up") {
+                    contentType(ContentType.Application.Json)
+                    setBody(SocialSignUp(request.ticket.ticket, request.nickname, request.agreements, request.instrumentId))
+                }
+            } ?: return@changing MemberResult.Unavailable
+            if (response.status.value == 201) {
+                val signedUp = response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result
+                    ?.takeIf { it.userId.isNotBlank() } ?: return@changing MemberResult.Unavailable
+                member.set(signedUp.userId)
+                return@changing MemberResult.Done
+            }
+            memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        }
+    }
+
+    @Serializable private class SocialSignUp(val signupTicket: String, val nickname: String, val agreements: List<TermAgreement>, val instrumentId: String? = null)
+    @Serializable private class SignUpError(val errorCode: String, val details: SignUpDetails? = null)
+    @Serializable private class SignUpDetails(val signupTicket: String, val expiresAt: String)
     @Serializable private class OAuthComplete(val authorizationCode: String, val redirectUri: String, val state: String)
     @Serializable private class Merge(val mergeTicket: String, val password: String? = null)
     @Serializable private class MergeError(val errorCode: String, val details: MergeDetails? = null)
@@ -235,6 +261,9 @@ internal fun memberFailure(status: Int, code: String? = null): MemberResult = wh
     code == "EMAIL_NOT_VERIFIED" -> MemberResult.VerificationRequired
     code == "TERMS_AGREEMENT_REQUIRED" -> MemberResult.TermsRequired
     code == "EMAIL_ALREADY_EXISTS" -> MemberResult.EmailExists
+    code == "SIGNUP_TICKET_EXPIRED" || code == "WITHDRAWAL_TICKET_EXPIRED" -> MemberResult.TicketExpired
+    code == "SOCIAL_ACCOUNT_IN_USE" -> MemberResult.SocialAccountInUse
+    code == "LAST_LOGIN_METHOD" -> MemberResult.LastLoginMethod
     status == 401 -> MemberResult.Unauthenticated
     status == 429 -> MemberResult.RateLimited
     status == 400 || status == 422 -> MemberResult.InvalidInput
