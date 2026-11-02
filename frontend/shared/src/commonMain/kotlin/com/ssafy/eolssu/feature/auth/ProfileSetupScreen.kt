@@ -12,6 +12,7 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.InstrumentPicker
 import com.ssafy.eolssu.feature.auth.component.AuthBody
+import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
 import com.ssafy.eolssu.feature.auth.component.AuthHeading
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthStepLabel
@@ -31,7 +32,10 @@ import eolssu.shared.generated.resources.auth_signup_done
 import eolssu.shared.generated.resources.auth_signup_title
 import org.jetbrains.compose.resources.stringResource
 
-/** AUTH-07 프로필 설정(이메일 가입 3/3). 간편 로그인은 로그인 전용이라 소셜 첫 가입용 화면은 없다. */
+/**
+ * AUTH-07 프로필 설정. 이메일 가입은 3/3 단계를 보이고, 간편 로그인 가입([social])은 이메일 인증·비밀번호 단계가 없어 단계 표시 없이 같은 입력을 받는다.
+ * 소셜 가입 화면은 와이어프레임에 따로 없어서 이 보드를 그대로 쓴다.
+ */
 @Composable
 fun ProfileSetupScreen(
     state: ProfileSetupUiState,
@@ -40,19 +44,24 @@ fun ProfileSetupScreen(
     onNicknameChange: (String) -> Unit,
     onSelectInstrument: (Instrument) -> Unit,
     onComplete: () -> Unit,
+    social: Boolean = false,
 ) {
     AuthScaffold(
         authFrameOf(widthClass, split = true),
         modifier = Modifier.imePadding(),
         topBar = {
-            Column {
-                AuthTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack, right = { AuthStepLabel(3, SignupStepCount) })
-                AuthStepProgress(3, SignupStepCount)
+            if (social) {
+                AuthTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack)
+            } else {
+                Column {
+                    AuthTopBar(stringResource(Res.string.auth_signup_title), onBack = onBack, right = { AuthStepLabel(3, SignupStepCount) })
+                    AuthStepProgress(3, SignupStepCount)
+                }
             }
         },
         bottomBar = { EolssuButton(stringResource(Res.string.auth_signup_done), onClick = onComplete) },
     ) {
-        AuthBody(topPadding = authBodyTopBelowProgress()) {
+        AuthBody(topPadding = if (social) AuthBodyTopWithBar else authBodyTopBelowProgress()) {
             AuthHeading(stringResource(Res.string.auth_profile_heading))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 EolssuTextField(

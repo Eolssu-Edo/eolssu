@@ -6,8 +6,14 @@ import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.core.storage.FakeSecureStore
+import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.AuthRepository
+import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.MergeOffer
+import com.ssafy.eolssu.data.user.SignUpTicket
+import com.ssafy.eolssu.data.user.SocialRegistration
+import com.ssafy.eolssu.data.user.TermAgreement
 import com.ssafy.eolssu.data.user.MergeResult
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.OAuthAttemptsTest.Companion.EXPIRES_AT
@@ -21,6 +27,13 @@ import com.ssafy.eolssu.data.user.OAuthStartResult
 import com.ssafy.eolssu.data.user.SampleAuthRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.data.user.SocialLoginResult
+import com.ssafy.eolssu.core.network.ServerAddress
+import com.ssafy.eolssu.core.network.createHttpClient
+import com.ssafy.eolssu.data.song.InstrumentCatalog
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -185,6 +198,66 @@ class OAuthViewModelTest {
         assertTrue(AccountLinkViewModel(attempts, auth).uiState.value.expired)
     }
 
+    @Test
+    fun newProviderAccountHandsTheSignUpTicketToProfileSetup() = runTest {
+        auth.loginResult = SocialLoginResult.SignUpRequired(SignUpTicket(SocialProvider.Kakao, TICKET, EXPIRES_AT))
+        val viewModel = viewModel()
+        links.deliver(callback())
+
+        assertEquals(OAuthStep.SignUpRequired, viewModel.step.value)
+        assertEquals(TICKET, attempts.signUpTicket()?.ticket)
+    }
+
+    @Test
+    fun socialProfileSetupSignsUpOnceWithTheTicketAndAgreements() = runTest {
+        attempts.offerSignUp(SignUpTicket(SocialProvider.Kakao, TICKET, EXPIRES_AT))
+        val draft = AccountDraft().apply { agreements = listOf(TermAgreement("5", "v1", true)) }
+        val viewModel = socialProfile(draft)
+        viewModel.changeNickname(" 새회원 ")
+
+        auth.signUpResult = MemberResult.SocialAccountInUse
+        assertFalse(viewModel.complete())
+        assertEquals(FieldError.SocialAccountInUse, viewModel.uiState.value.nicknameError)
+        // 다른 회원이 된 티켓은 다시 보내지 않는다.
+        assertNull(attempts.signUpTicket())
+        assertFalse(viewModel.complete())
+        assertEquals(FieldError.SignUpExpired, viewModel.uiState.value.nicknameError)
+        assertEquals(1, auth.signUps.size)
+
+        attempts.offerSignUp(SignUpTicket(SocialProvider.Kakao, TICKET, EXPIRES_AT))
+        auth.signUpResult = MemberResult.Done
+        assertTrue(viewModel.complete())
+        val sent = auth.signUps.last()
+        assertEquals("새회원", sent.nickname)
+        assertEquals(listOf("5"), sent.agreements.map { it.termId })
+        assertEquals("1", sent.instrumentId)
+        assertNull(attempts.signUpTicket())
+        assertTrue(draft.agreements.isEmpty())
+    }
+
+    @Test
+    fun socialProfileSetupNeedsAgreementsAndAnUnexpiredTicket() = runTest {
+        attempts.offerSignUp(SignUpTicket(SocialProvider.Kakao, TICKET, EXPIRES_AT))
+        val viewModel = socialProfile(AccountDraft())
+        viewModel.changeNickname("새회원")
+        assertFalse(viewModel.complete())
+        assertEquals(FieldError.TermsAgain, viewModel.uiState.value.nicknameError)
+
+        now = EXPIRES_AT
+        assertFalse(socialProfile(AccountDraft().apply { agreements = listOf(TermAgreement("5", "v1", true)) }).apply { changeNickname("새회원") }.complete())
+        assertTrue(auth.signUps.isEmpty())
+    }
+
+    /** 활성 악기 목록이 단소 1번뿐인 서버. 가입 요청의 instrumentId를 확인하려고 쓴다. */
+    private val catalogClient = createHttpClient(
+        MockEngine { respond("""{"isSuccess":true,"result":{"items":[{"instrumentId":"1","code":"DANSO","name":"단소"}]}}""", headers = headersOf(HttpHeaders.ContentType, "application/json")) },
+        ServerAddress.Production,
+    )
+
+    private fun socialProfile(draft: AccountDraft) = ProfileSetupViewModel(
+        InstrumentRepository(FakeKeyValueStore(), InstrumentCatalog(catalogClient)), SampleUserRepository(), auth, draft, attempts, social = true,
+    )
+
     private fun offer(needsPassword: Boolean) = MergeOffer(SocialProvider.Kakao, "us***@example.test", needsPassword, TICKET, EXPIRES_AT)
 
     private class FakeBrowser : ExternalBrowser {
@@ -198,9 +271,13 @@ class OAuthViewModelTest {
         var startResult: OAuthStartResult = OAuthStartResult.Started(authorizationUrl(), EXPIRES_AT)
         var loginResult: SocialLoginResult = SocialLoginResult.Success(withdrawalCancelled = false)
         var mergeResult: MergeResult = MergeResult.Success
+        var signUpResult: MemberResult = MemberResult.Done
         var starts = 0
         val completed = mutableListOf<OAuthCallback>()
         val merges = mutableListOf<String?>()
+        val signUps = mutableListOf<SocialRegistration>()
+
+        override suspend fun socialSignUp(request: SocialRegistration): MemberResult = signUpResult.also { signUps += request }
 
         override suspend fun startSocialLogIn(provider: SocialProvider): OAuthStartResult = startResult.also { starts++ }
 

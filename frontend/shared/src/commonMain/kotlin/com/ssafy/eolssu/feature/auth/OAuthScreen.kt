@@ -1,40 +1,24 @@
 package com.ssafy.eolssu.feature.auth
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.SocialProvider
-import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.ProviderWaiting
 import com.ssafy.eolssu.feature.auth.component.AuthBodyTopWithBar
-import com.ssafy.eolssu.feature.auth.component.AuthFaint
-import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.feature.auth.component.AuthTopBar
 import com.ssafy.eolssu.feature.auth.component.authFrameOf
@@ -56,8 +40,9 @@ import eolssu.shared.generated.resources.social_auth_waiting_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * AUTH-05 간편 로그인(로그인 전용). 제공자 화면은 외부 브라우저에 뜨고, 이 화면은 그동안 와이어프레임의 점선 자리에 진행 상태를 보여 준다.
- * 연결된 계정이면 홈, 같은 이메일 계정이면 계정 연결 확인(Route가 이동), 둘 다 없으면 '가입된 계정이 없어요' 창([onSignUp]으로 이메일 가입)이다.
+ * AUTH-05 간편 로그인. 제공자 화면은 외부 브라우저에 뜨고, 이 화면은 그동안 제공자 표시와 진행 상태([ProviderWaiting])를 보여 준다.
+ * 연결된 계정이면 홈, 같은 이메일 계정이면 계정 연결 확인, 처음 온 계정이면 소셜 가입(둘 다 Route가 이동)이다.
+ * 소셜 가입 전 서버가 '가입된 계정 없음'을 주면 '가입된 계정이 없어요' 창([onSignUp]으로 이메일 가입)을 띄운다.
  * 탈퇴 대기 계정이면 이메일 로그인처럼 '탈퇴 신청이 취소됐어요' 창의 확인 뒤 [onLoggedIn]으로 간다.
  */
 @Composable
@@ -79,20 +64,15 @@ fun OAuthScreen(
         bottomBar = { ProviderStepButton(step, name, onBack = onBack, onRetry = onRetry, onReopen = onReopen) },
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            // 자리 표시는 본문 높이를 채우되 최소 360dp(`.au-placeholder`), 태블릿 세로 560dp · 가로 440dp.
-            val minHeight = when (frame) {
-                AuthFrame.Compact -> 360.dp
-                AuthFrame.Portrait -> 560.dp
-                AuthFrame.Landscape, AuthFrame.Split -> 440.dp
-            }
-            val boxHeight = maxOf(minHeight, maxHeight - AuthBodyTopWithBar - 24.dp)
+            // 본문 높이 가운데에 두고, 글자를 키워 넘치면 스크롤한다.
+            val bodyHeight = maxHeight - AuthBodyTopWithBar - 24.dp
             Column(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = AuthBodyTopWithBar, bottom = 24.dp),
             ) {
-                ProviderPlaceholder(boxHeight, step, name)
+                ProviderStatus(provider, step, name, Modifier.heightIn(min = bodyHeight))
             }
         }
     }
@@ -132,45 +112,13 @@ private fun ProviderStepButton(step: OAuthStep, name: String, onBack: () -> Unit
     }
 }
 
-/** 제공자 화면 자리(`.au-placeholder`): 점선 둥근 상자 안에 단계 안내를 가운데에 둔다. */
+/** 단계별 안내: 진행 중이면 '제공자 화면에서 계속해 주세요'·'확인하고 있어요', 멈추면 이유. */
 @Composable
-private fun ProviderPlaceholder(minHeight: Dp, step: OAuthStep, name: String) {
-    val colors = EolssuTheme.colors
+private fun ProviderStatus(provider: SocialProvider, step: OAuthStep, name: String, modifier: Modifier) {
     val (title, body) = when (step) {
         is OAuthStep.Stopped -> null to stringResource(step.problem.message, name)
         OAuthStep.Starting, OAuthStep.Completing -> null to stringResource(Res.string.social_auth_progress)
         else -> stringResource(Res.string.social_auth_waiting_title, name) to stringResource(Res.string.social_auth_waiting_body)
     }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = minHeight)
-            .drawBehind {
-                val stroke = 1.5.dp.toPx()
-                drawRoundRect(
-                    color = AuthFaint,
-                    topLeft = Offset(stroke / 2, stroke / 2),
-                    size = Size(size.width - stroke, size.height - stroke),
-                    cornerRadius = CornerRadius(18.dp.toPx()),
-                    style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))),
-                )
-            }
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (title != null) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center,
-            )
-        }
-        Text(
-            body,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 20.8.sp),
-            color = colors.textMuted,
-            textAlign = TextAlign.Center,
-        )
-    }
+    ProviderWaiting(provider, title, body, busy = step !is OAuthStep.Stopped, modifier = modifier)
 }
