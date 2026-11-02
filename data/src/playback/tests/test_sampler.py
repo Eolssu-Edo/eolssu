@@ -3,6 +3,7 @@ import unittest
 from copy import deepcopy
 import hashlib
 import io
+from itertools import product
 import zipfile
 from unittest.mock import patch
 
@@ -11,10 +12,59 @@ import soundfile as sf
 
 from data.src.playback.sampler import CatSampler, FS, find_sustain_loop
 from data.src.playback.score import PROFILES
+from data.src.playback.verify_common import fundamental
 from data.src.playback.tests._helpers import score, synthetic_sampler, wire
 
 
 class SamplerTests(unittest.TestCase):
+    def test_short_daegeum_link_does_not_mask_quieter_next_pitch(self):
+        # The first sample is louder, like neighboring CAT zones with different
+        # attacks. A 20ms tail masks a substantial part of a 62.5ms grace note.
+        for instrument in ("jeongak-daegeum", "sanjo-daegeum"):
+            for first_pitch, duration in product((78, 82), (.04, .0625, .0975, .1, .125)):
+                with self.subTest(instrument=instrument, first_pitch=first_pitch, duration=duration):
+                    fake = synthetic_sampler()
+                    fake.instrument = instrument
+                    fake.zones = [{"low": p, "high": p, "root": p, "detune": 0,
+                                   "file": f"{p}.wav", "volume": 1} for p in (80, first_pitch)]
+                    def samples(zone):
+                        hz = 440 * 2 ** ((zone["root"] - 69) / 12)
+                        amplitude = .32 if zone["root"] == first_pitch else .02
+                        return amplitude * np.sin(2 * np.pi * hz * np.arange(FS) / FS), FS, zone["file"]
+                    fake.samples = samples
+                    _, midi = wire(score([
+                        {"id": "neighbor", "pitch": first_pitch, "duration": .0625, "slur": "grace"},
+                        {"id": "main", "pitch": 80, "duration": duration, "slur": "grace"},
+                        {"id": "hold", "pitch": 80, "duration": .25, "slur": "grace", "gate_fraction": 1},
+                        {"id": "rest", "rest": True, "duration": .25}]), instrument)
+                    before = deepcopy(midi)
+                    audio, trace = fake.render(midi)
+                    start = midi["notes"][1]["start"]
+                    # At least 20ms of the intended note, before its written end.
+                    left = start + duration / 4
+                    width = min(.025, duration / 2)
+                    hz, _ = fundamental(audio[round(left * FS):round((left + width) * FS)], FS)
+                    self.assertIsNotNone(hz)
+                    self.assertLess(abs(1200 * np.log2(hz / (440 * 2 ** (11 / 12)))), 50)
+                    self.assertEqual(midi, before)
+                    self.assertEqual([(n["pitch"], n["start"], n["end"]) for n in trace],
+                                     [(n["pitch"], n["start"], n["end"]) for n in midi["notes"]])
+                    rest = round((.0625 + duration + .25) * FS)
+                    self.assertEqual(np.count_nonzero(audio[rest:]), 0)
+
+    def test_short_same_pitch_daegeum_slur_keeps_continuous_phase(self):
+        for instrument in ("jeongak-daegeum", "sanjo-daegeum"):
+            with self.subTest(instrument=instrument):
+                fake = synthetic_sampler()
+                fake.instrument = instrument
+                _, whole = wire(score([{"id": "a", "pitch": 80, "duration": .125}]), instrument)
+                _, split = wire(score([{"id": "a", "pitch": 80, "duration": .0625, "slur": "s"},
+                                       {"id": "b", "pitch": 80, "duration": .0625, "slur": "s"}]), instrument)
+                a, _ = fake.render(whole)
+                b, trace = fake.render(split)
+                self.assertTrue(trace[1]["same_pitch_continuation"])
+                np.testing.assert_allclose(a, b, rtol=0, atol=1e-10)
+
     def _sanjo_extension_fixture(self):
         fake = synthetic_sampler()
         fake.instrument = "sanjo-daegeum"

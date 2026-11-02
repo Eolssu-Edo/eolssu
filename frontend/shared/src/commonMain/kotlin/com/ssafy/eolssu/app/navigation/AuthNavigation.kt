@@ -54,12 +54,23 @@ object AuthDestination {
     const val OAUTH = "auth/oauth/{provider}"
     const val LINK = "auth/link/{provider}"
     const val SIGNUP = "auth/signup"
+
+    /**
+     * 가입하려는데 동의한 약관이 없을 때의 약관 동의(앱을 다시 켰거나 서버가 동의를 다시 요구함). 첫 실행의 [CONSENT]와 달리
+     * 마이크 안내를 다시 거치지 않고 `next`(이메일 가입 [SIGNUP] 또는 간편 로그인 가입 [SOCIAL_PROFILE])로 바로 간다.
+     */
+    const val SIGNUP_CONSENT = "auth/signup/consent?next={next}"
     const val SIGNUP_PASSWORD = "auth/signup/password"
     const val PROFILE = "auth/profile"
+
+    /** 간편 로그인 가입의 프로필 설정(AUTH-07). 이메일 인증·비밀번호 단계가 없다. */
+    const val SOCIAL_PROFILE = "auth/social-signup/profile"
     const val PASSWORD_RESET = "auth/password-reset"
     const val PASSWORD_RESET_NEW = "auth/password-reset/password"
 
     fun terms(termId: String) = "auth/terms/$termId"
+
+    fun signupConsent(next: String) = "auth/signup/consent?next=$next"
 
     fun oauth(provider: SocialProvider) = "auth/oauth/${provider.name}"
 
@@ -153,8 +164,10 @@ private fun NavBackStackEntry.verifiedEmail(): String = savedStateHandle.get<Str
 
 /**
  * AUTH-01~11 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → 홈.
- * 간편 로그인은 로그인 전용이다: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 없음 → 이메일 가입 안내.
- * 계정 연결 확인·이메일 가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
+ * 간편 로그인: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 처음 온 계정 → 소셜 가입(프로필 설정 AUTH-07) → 홈.
+ * 소셜 가입 전 서버가 '가입된 계정 없음'을 주면 이메일 가입을 안내한다.
+ * 계정 연결 확인·가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
+ * 가입하려는데 동의한 약관이 없으면(앱을 다시 켰거나 서버가 동의를 다시 요구함) 가입용 약관 동의([AuthDestination.SIGNUP_CONSENT])를 먼저 거친다.
  * 이메일 가입은 이메일 인증(AUTH-06) → 비밀번호 설정(AUTH-08) → 프로필 설정(AUTH-07) → 홈,
  * 비밀번호 찾기는 이메일 인증(AUTH-10) → 새 비밀번호(AUTH-11) → 로그인이다.
  * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
@@ -214,7 +227,7 @@ fun NavGraphBuilder.authGraph(
             onLoggedIn = { onFinished(null, null) },
             onSocialLogIn = { navController.navigate(AuthDestination.oauth(it)) },
             onFindPassword = { navController.navigate(AuthDestination.PASSWORD_RESET) },
-            onSignUp = { navController.navigate(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
+            onSignUp = { navController.navigate(draft.signUpRoute(SignUpNext.Email)) },
         )
     }
     composable(
@@ -228,7 +241,25 @@ fun NavGraphBuilder.authGraph(
             onBack = { navController.popBackStack() },
             onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
-            onSignUp = { fromLogin(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
+            onSocialSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Social)) },
+            onSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Email)) },
+        )
+    }
+    composable(
+        AuthDestination.SIGNUP_CONSENT,
+        arguments = listOf(navArgument("next") { type = NavType.StringType; defaultValue = SignUpNext.Email.name }),
+    ) { entry ->
+        val next = entry.savedStateHandle.get<String>("next")?.let { name -> SignUpNext.entries.firstOrNull { it.name == name } } ?: SignUpNext.Email
+        ConsentRoute(
+            onOpenTerms = { navController.navigate(AuthDestination.terms(it)) },
+            onStart = { fromLogin(next.route) },
+        )
+    }
+    composable(AuthDestination.SOCIAL_PROFILE) {
+        ProfileSetupRoute(
+            onBack = { navController.popBackStack() },
+            onDone = { onFinished(StartNotice.Welcome, null) },
+            social = true,
         )
     }
     composable(
@@ -284,11 +315,21 @@ fun NavGraphBuilder.authGraph(
     }
 }
 
+/** 가입 약관 동의 뒤 갈 곳. */
+private enum class SignUpNext(val route: String) {
+    Email(AuthDestination.SIGNUP),
+    Social(AuthDestination.SOCIAL_PROFILE),
+}
+
+/** 동의한 약관이 있으면 [next]로 바로, 없으면 가입용 약관 동의를 거쳐 간다. */
+private fun AccountDraft.signUpRoute(next: SignUpNext): String =
+    if (agreements.isEmpty()) AuthDestination.signupConsent(next.name) else next.route
+
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
 
 /**
- * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05)이 주소를 받도록 그 화면으로 간다.
+ * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
  * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
  * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
  */
@@ -301,7 +342,7 @@ fun OAuthReturnEffect(navController: NavController) {
     LaunchedEffect(pending, route) {
         val uri = pending ?: return@LaunchedEffect
         // 화면 이동 그래프가 아직 없거나, 복귀를 받을 화면이 이미 떠 있다.
-        if (route == null || route == AuthDestination.OAUTH || route == ProfileDestination.LINK) return@LaunchedEffect
+        if (route == null || route == AuthDestination.OAUTH || route == ProfileDestination.LINK || route == ProfileDestination.WITHDRAW) return@LaunchedEffect
         val target = attempts.pending()
         if (target == null) {
             links.take(uri)
@@ -311,6 +352,7 @@ fun OAuthReturnEffect(navController: NavController) {
             when (target.purpose) {
                 OAuthPurpose.LogIn -> AuthDestination.oauth(target.provider)
                 OAuthPurpose.Link -> ProfileDestination.link(target.provider)
+                OAuthPurpose.Withdraw -> ProfileDestination.WITHDRAW
             },
         )
     }

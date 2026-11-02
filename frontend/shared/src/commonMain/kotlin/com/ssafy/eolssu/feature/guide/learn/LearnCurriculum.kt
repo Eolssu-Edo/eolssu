@@ -1,7 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import com.ssafy.eolssu.feature.guide.Blow
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 
 /*
  * 기초부터 배우기 9단계(와이어프레임 LEARN_STAGES·LEARN_BY_INST·LEARN_SONGS).

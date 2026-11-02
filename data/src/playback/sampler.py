@@ -286,11 +286,22 @@ class CatSampler:
         output = np.zeros(size)
         trace, previous_cursor = [], 0.
         notes = midi["notes"]
+        crossfades = [0.] * len(notes)
+        for i in range(1, len(notes)):
+            previous, note = notes[i - 1], notes[i]
+            if note["legato"] and abs(previous["end"] - note["start"]) < 1e-6:
+                fade = .02
+                if (self.instrument in ("jeongak-daegeum", "sanjo-daegeum")
+                        and previous["pitch"] != note["pitch"]):
+                    # A fixed 20ms tail can mask a quieter short grace sample.
+                    # Synthesis policy: share at most its first fifth between
+                    # incoming attack and outgoing release, capped at 20ms.
+                    fade = min(fade, (note["end"] - note["start"]) / 5)
+                crossfades[i] = fade
         natural_stops = []
         for i, note in enumerate(notes):
-            connected_next = bool(i + 1 < len(notes) and notes[i + 1]["legato"]
-                                  and abs(note["end"] - notes[i + 1]["start"]) < 1e-6)
-            release = .02 if connected_next else note.get("release_seconds", self.release)
+            fade = crossfades[i + 1] if i + 1 < len(notes) else 0.
+            release = fade or note.get("release_seconds", self.release)
             natural_stops.append(round(note["end"] * FS) + round(release * FS))
         # Only protect an actual gap, retaining existing crossfades where the
         # next note already sounds. Include every tail spanning that gap.
@@ -308,7 +319,7 @@ class CatSampler:
             offset = .1 if connected and self.instrument == "danso" else 0
             cursor = previous_cursor if same else offset*rate
             release = int(stops[i]) - end
-            attack = min(end-at, round((.02 if connected else self.attack)*FS))
+            attack = min(end-at, round((crossfades[i] if connected else self.attack)*FS))
             stop = end+release
             require(0 <= at < end and stop <= size, "MIDI render bounds invalid")
             base_ratio = rate/FS * 2**((note["pitch"]-zone["root"]+zone["detune"]/100)/12)

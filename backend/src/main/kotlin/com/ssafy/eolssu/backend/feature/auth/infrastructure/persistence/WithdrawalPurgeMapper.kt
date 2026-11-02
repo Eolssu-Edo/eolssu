@@ -19,6 +19,7 @@ interface WithdrawalPurgeMapper {
     fun deleteTermAgreements(@Param("userId") userId: Long): Int
     fun deleteSongSettings(@Param("userId") userId: Long): Int
     fun deleteLessonProgress(@Param("userId") userId: Long): Int
+    fun deleteUserSheets(@Param("userId") userId: Long): Int
     fun deleteRefreshTokens(@Param("userId") userId: Long): Int
     fun deleteSocialAccounts(@Param("userId") userId: Long): Int
     fun deleteEmailVerifications(@Param("email") email: String): Int

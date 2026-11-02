@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | CAT-03 | `/instruments` | 활성 악기 목록, `instrumentId/code/name/pitchToleranceCent/rangeLowPitchId/rangeHighPitchId`. 기존 등록값만 반환한다. |
 | CAT-04 | `/songs/{songId}/score` | 게시·미삭제 곡의 원본 공통 악보와 조회용 타임라인. 세부 구조는 아래 참조. |
-| CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·장단 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
+| CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·기준 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
 | CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. |
@@ -27,15 +27,19 @@ CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 �
 
 V8 `song_model_audios`는 `(song_id,score_version)`마다 기준 음원 한 개를 저장한다. 초기 상태는 DRAFT이며 이번 마이그레이션은 음원 행을 넣지 않는다. 게시·미삭제 곡의 현재 악보 버전, 곡 defaultBpm, 장단 bpmUnit과 일치하는 PUBLISHED 행만 CAT-05에 노출한다. 이전 버전 행은 현재 곡에 재사용하지 않는다.
 
-응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`이다. Notion 초안의 필드에 버전·시작 위치·해시를 더해 파일과 악보를 구분한다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
+S15P31E102-339는 장단 연결을 선택값으로 확장한다. 장단이 연결돼 있으면 기존 장단의 `bpmUnit`과 공통 악보의 일치 검증을 유지한다. 연결이 없으면 공통 악보 `music.bpmUnit`을 기준으로 사용하며 허용된 대문자 단위만 받는다. 원본 장단명만으로 장단 pattern을 추정하지 않는다. [검수대기 적재 계약](model-audio-catalog-load.md)은 기존 공개 곡과 새 DRAFT 자료를 구분한다.
 
-HTTPS URL, 양의 길이, 범위 안 시작 위치, 지원 MIME(`audio/mp4`, `audio/mpeg`, `audio/ogg`, `audio/wav`), 소문자 SHA-256 64자만 반환한다. URL에 사용자 인증정보나 fragment를 넣지 않는다. 이 GET은 파일을 서버에서 내려받거나 합성하거나 업로드하지 않는다. 실제 파일 유효성·권리·URL 수명은 적재 전에 검증한다. 비밀번호·스토리지 키·일회성 인증 URL을 데이터에 넣지 않는다.
+응답은 `songId`, 정수 `scoreVersion`, `audioUrl`, `bpm`, `bpmUnit`, `durationMs`, `startOffsetMs`, `contentType`, `sha256`과 선택적 `performanceUrl`, `sourceCommonSha256`이다. `durationMs`는 실제 인코딩된 파일 길이이며 잔향이 포함될 수 있다. 악보 총길이로 줄이거나 늘리지 않는다. `startOffsetMs`는 파일에서 악보 0박이 시작하는 위치이며 적재자가 측정해 명시한다. 기본값으로 추정하지 않는다. BPM은 songs 저장 계약(30~400)을 따르며 연습 녹음 세션의 별도 20~240 제한으로 축소하지 않는다.
 
-운영 적재 순서: 파일과 원본/악보 버전 연결·권리 확인 → 실제 디코딩/해시/길이/시작 위치 검사 → 운영 저장소에 파일 배치 → HTTPS 재생 확인 → 메타데이터 DRAFT 적재 → 담당자 검수 후 PUBLISHED. 이번 작업은 로컬 저장 구조/API까지이며 배포·운영 적재를 수행하지 않는다. 기존 단소 4곡 M4A는 기술 후보이고 자동 게시하지 않는다.
+S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 같은 서버의 `/api/songs/{songId}/model-audio/play` 경로이며 앱은 설정된 API 서버 주소를 기준으로 해석한다. 이 경로는 게시 상태·판본을 다시 확인하고 비공개 객체에 대한 짧은 GET 서명 URL로302 이동한다. `Cache-Control: no-store`이며 DB나 장기 캐시에 만료 URL을 저장하지 않는다. 새 요청은 DRAFT/HIDDEN 또는 버전 불일치에서404, 저장소 준비/읽기 실패에서503이다.
+
+수행 시간표가 있는 경우 `/api/songs/{songId}/model-audio/performance`는 같은 서버에서 크기·시간 제한 아래 원본 JSON을 제공한다. `sourceCommonSha256`은 그 수행 시간표의 정본 공통 JSON 원문 바이트 해시다. CAT-04 응답을 다시 직렬화한 해시로 대체하지 않는다. FE는 곡·판본·공통 원문 해시·음원 해시·길이·시작 위치를 대조해 연결한다. 제공된 수행 자료가 잘못됐을 때 정본 시간표로 조용히 대체하지 않는다. 수행 자료가 아예 없는 기존 계약에서는 정본 시간표를 사용할 수 있다.
+
+운영 적재 순서와 상태는 [339 적재·재생 계약](model-audio-catalog-load.md)을 따른다. 현재107개는 DRAFT 적재까지 완료했고, 사용자 후속 결정에 따라 전문가 청음 승인 없이 먼저 사용할 수 있도록 연결한다. 기존 공개4곡은 덮어쓰지 않는다. 실제 공개 전환에는 새 BE와 NULL 장단을 받는 Android 앱의 배포·재생 확인이 필요하다. Web/iOS의 기존 플랫폼 플레이어 미지원은 이 계약만으로 해결되지 않는다. 곡을 숨기면 새 재생 요청은404이지만 이미 발급된 서명 URL은 최대15분 유효할 수 있다.
 
 ## 미확보 데이터와 상태 구분
 
-- 현재 기준 시드는 단소 1악기·11율명·3장단·4곡이다. 다른 악기의 JGB 자료 보유가 곧 앱 DB 등록·권리 승인·채점 가능을 뜻하지 않는다.
+- 현재 기준 시드는 단소1악기·전역22율명·3장단·4곡이다. S15P31E102-364의 최종 V13은 기본음 라벨에 필요한 기준11행을 추가하며 기존11개 ID/반음은 보존한다. 사용자 선택에 따라 기존 음역 필터를 유지하므로 단소 범위 `[5,29]`에는15음이 표시된다. 별도 운지표·악기별 허용 목록을 자동 등록하지 않는다. 다른 악기의 JGB 자료 보유가 곧 앱 DB 등록·권리 승인·채점 가능을 뜻하지 않는다.
 - 율명 `description/soundUrl`, 운지 `structureImageUrl`, 장단 `soundUrl`은 저장 근거가 없어 null이다. 운지 description은 기존 DB에서 nullable이므로 Notion의 필수 STRING 초안과 달리 null을 보존한다. 가짜 문구나 URL을 채우지 않는다.
 - 운지·기호의 운영 시드는 없다. 테스트 fixture의 이미지/설명은 운영 콘텐츠가 아니다. `pitchToleranceCent`는 DB 값이며 별도 AI 채점 정책을 바꾸지 않는다.
 - 악기·운지·기호·장단 목록은 ID 오름차순, 율명은 semitone·ID 오름차순이다. 이는 일관된 기술적 순서이며 학습 추천 순서가 아니다. 장단의 pattern과 박 단위는 그대로 유지한다.

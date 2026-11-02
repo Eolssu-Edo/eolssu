@@ -39,15 +39,15 @@ class MyInfoControllerTests {
     fun clearContext() = SecurityContextHolder.clearContext()
 
     @Test
-    fun `returns my info with linked providers and no email`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+    fun `returns my info with linked providers and password presence`() {
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
         repository.providers[7] = listOf(LinkedProvider("KAKAO", Instant.parse("2026-10-28T00:00:00Z")))
 
         mvc.perform(get("/api/users/me"))
             .andExpect(status().isOk)
             .andExpect(
                 content().json(
-                    """{"httpStatus":"OK","isSuccess":true,"code":200,"message":"내 정보·학습 설정 조회 성공","result":{"userId":"7","email":"me@example.test","nickname":"연습자",
+                    """{"httpStatus":"OK","isSuccess":true,"code":200,"message":"내 정보·학습 설정 조회 성공","result":{"userId":"7","email":"me@example.test","hasPassword":true,"nickname":"연습자",
                     "instrumentId":"3","notationMode":"HANJA","linkedProviders":[{"provider":"KAKAO","linkedAt":"2026-10-28T00:00:00Z"}]}}""",
                     true,
                 ),
@@ -55,8 +55,23 @@ class MyInfoControllerTests {
     }
 
     @Test
+    fun `social members return a boolean false with or without an email`() {
+        for (email in listOf("verified@example.test", null)) {
+            repository.members[7] = MyInfo(7, email, "소셜 회원", 3, "HANJA", false)
+            repository.providers[7] = listOf(LinkedProvider("KAKAO", Instant.parse("2026-10-28T00:00:00Z")))
+            mvc.perform(get("/api/users/me"))
+                .andExpect(status().isOk)
+                .andExpect(content().json("""{"result":{"hasPassword":false}}"""))
+                .andExpect { result ->
+                    kotlin.test.assertFalse(result.response.contentAsString.contains("passwordHash"))
+                    kotlin.test.assertFalse(result.response.contentAsString.contains("password_hash"))
+                }
+        }
+    }
+
+    @Test
     fun `no linked provider is an empty array`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANGUL")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANGUL", true)
 
         mvc.perform(get("/api/users/me"))
             .andExpect(status().isOk)
@@ -72,7 +87,7 @@ class MyInfoControllerTests {
 
     @Test
     fun `nickname is changed and my info is returned`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
 
         mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content("""{"nickname":"새 닉네임"}"""))
             .andExpect(status().isOk)
@@ -88,7 +103,7 @@ class MyInfoControllerTests {
 
     @Test
     fun `blank too long or missing nickname is an invalid request`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
         for (body in listOf("""{"nickname":" "}""", """{"nickname":"${"가".repeat(61)}"}""", "{}")) {
             mvc.perform(patch("/api/users/me").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest)
@@ -108,7 +123,7 @@ class MyInfoControllerTests {
 
     @Test
     fun `preferences change only the given fields`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
         repository.activeInstruments += setOf(3L, 4L)
 
         mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"notationMode":"HANGUL"}"""))
@@ -127,7 +142,7 @@ class MyInfoControllerTests {
 
     @Test
     fun `an instrument that is missing or inactive cannot be chosen`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
 
         mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content("""{"instrumentId":"9","notationMode":"HANGUL"}"""))
             .andExpect(status().isUnprocessableContent)
@@ -137,7 +152,7 @@ class MyInfoControllerTests {
 
     @Test
     fun `empty or malformed preferences are an invalid request`() {
-        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA")
+        repository.members[7] = MyInfo(7, "me@example.test", "연습자", 3, "HANJA", true)
         for (body in listOf("{}", """{"notationMode":"KOREAN"}""", """{"instrumentId":"0"}""", """{"instrumentId":"abc"}""")) {
             mvc.perform(patch("/api/users/me/preferences").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest)
@@ -162,13 +177,13 @@ internal class MemoryMyInfoRepository : MyInfoRepository {
     override fun linkedProviders(userId: Long) = providers[userId].orEmpty()
     override fun updateNickname(userId: Long, nickname: String): Boolean {
         val member = members[userId] ?: return false
-        members[userId] = MyInfo(member.userId, member.email, nickname, member.instrumentId, member.notationMode)
+        members[userId] = MyInfo(member.userId, member.email, nickname, member.instrumentId, member.notationMode, member.hasPassword)
         return true
     }
     override fun activeInstrumentExists(instrumentId: Long) = instrumentId in activeInstruments
     override fun updatePreferences(userId: Long, instrumentId: Long?, notationMode: String?): Boolean {
         val member = members[userId] ?: return false
-        members[userId] = MyInfo(member.userId, member.email, member.nickname, instrumentId ?: member.instrumentId, notationMode ?: member.notationMode)
+        members[userId] = MyInfo(member.userId, member.email, member.nickname, instrumentId ?: member.instrumentId, notationMode ?: member.notationMode, member.hasPassword)
         return true
     }
 }

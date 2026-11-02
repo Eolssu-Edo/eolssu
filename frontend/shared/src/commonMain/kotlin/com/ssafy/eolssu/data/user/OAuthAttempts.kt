@@ -39,8 +39,8 @@ enum class OAuthRestartReason {
  * 간편 로그인 시도 상태(제공자·목적·정확한 redirectUri·state·만료·연결 회원)를 보관하고 복귀 주소를 확인한다.
  * 시도는 [store]에 암호화해 남겨 브라우저에 다녀오는 동안 앱 프로세스가 끝나도 이어 갈 수 있다(웹·iOS처럼 없으면 메모리만).
  * 복귀를 받아들이면 시도를 먼저 지워 같은 state로 완료 요청을 두 번 보내지 않는다.
- * 연결(LINK)은 시작한 회원과 지금 회원이 다르면 받아들이지 않는다(다른 회원의 흐름으로 복구하지 않음).
- * 간편 로그인이 409로 돌려준 계정 연결 제안([MergeOffer])도 계정 연결 확인 화면에 넘길 때까지 여기 메모리에만 둔다.
+ * 연결(LINK)·탈퇴 재인증(WITHDRAW)은 시작한 회원과 지금 회원이 다르면 받아들이지 않는다(다른 회원의 흐름으로 복구하지 않음).
+ * 간편 로그인이 409로 돌려준 계정 연결 제안([MergeOffer])과 소셜 가입 티켓([SignUpTicket])도 다음 화면에 넘길 때까지 여기 메모리에만 둔다.
  */
 class OAuthAttempts(
     private val store: SecureStore?,
@@ -53,6 +53,8 @@ class OAuthAttempts(
     private var handledState: String? = null
 
     private var merge: MergeOffer? = null
+
+    private var signUp: SignUpTicket? = null
 
     /**
      * start 응답으로 새 시도를 남긴다. 이전 시도는 버린다. state는 [authorizationUrl]의 `state` 매개변수다.
@@ -92,7 +94,7 @@ class OAuthAttempts(
         handledState = state
         val target = attempt.target()
         if (target == null || target.provider != provider || target.purpose != purpose) return restart(OAuthRestartReason.Invalid)
-        if (purpose == OAuthPurpose.Link && attempt.memberId != member?.id) return restart(OAuthRestartReason.Invalid)
+        if (purpose != OAuthPurpose.LogIn && attempt.memberId != member?.id) return restart(OAuthRestartReason.Invalid)
         if (url.parameters["error"] != null) return restart(OAuthRestartReason.Cancelled)
         val code = url.parameters["code"]
         if (code.isNullOrBlank()) return restart(OAuthRestartReason.Invalid)
@@ -115,6 +117,23 @@ class OAuthAttempts(
 
     fun clearMerge() {
         merge = null
+    }
+
+    /** 약관 동의·프로필 설정(AUTH-07)에 넘길 소셜 가입 티켓. 저장소에 남기지 않는다. */
+    fun offerSignUp(ticket: SignUpTicket) {
+        signUp = ticket
+    }
+
+    /** 남은 소셜 가입 티켓. 만료됐으면 지우고 null. */
+    fun signUpTicket(): SignUpTicket? {
+        val ticket = signUp ?: return null
+        if (now() < ticket.expiresAtMillis) return ticket
+        signUp = null
+        return null
+    }
+
+    fun clearSignUp() {
+        signUp = null
     }
 
     /** 진행 중 시도를 버린다(화면에서 나가거나 다시 시작할 때). */

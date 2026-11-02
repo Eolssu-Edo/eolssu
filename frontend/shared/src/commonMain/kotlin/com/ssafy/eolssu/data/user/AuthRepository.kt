@@ -28,6 +28,9 @@ interface AuthRepository {
 
     /** 계정 연결 확인(AUTH-09)에서 [offer]의 계정에 제공자를 연결하고 로그인한다. [password]는 [MergeOffer.needsPassword]일 때만 보낸다. */
     suspend fun mergeAccount(offer: MergeOffer, password: String?): MergeResult = MergeResult.Unavailable
+
+    /** 소셜 가입. 성공하면 로그인한 상태가 된다. 티켓이 1회용이라 실패해도 같은 요청을 자동으로 다시 보내지 않는다. */
+    suspend fun socialSignUp(request: SocialRegistration): MemberResult = MemberResult.Unavailable
 }
 
 /** 인증번호를 받는 목적(`purpose`). 계정 연결(`ACCOUNT_MERGE`)은 연결 화면이 인증번호를 쓰기로 정해지면 더한다. */
@@ -39,8 +42,8 @@ sealed interface LoginResult {
 
     data object WrongCredentials : LoginResult
 
-    /** 같은 이메일로 15분 안에 5번 실패해 15분 동안 로그인할 수 없다(429). */
-    data object Locked : LoginResult
+    /** 같은 이메일로 15분 안에 5번 실패해 15분 동안 로그인할 수 없다(429). [retryAvailableAtMillis]부터 다시 시도할 수 있고, 서버가 알려 주지 않으면 null. */
+    data class Locked(val retryAvailableAtMillis: Long?) : LoginResult
 
     /** 서버에 닿지 못했거나 서버가 처리하지 못했다(연결 실패·시간 초과·5xx). */
     data object Unavailable : LoginResult
@@ -86,7 +89,7 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
         val address = email.trim().lowercase()
         return when {
             !emailPattern.matches(address) || password.isEmpty() -> LoginResult.WrongCredentials
-            address == LockedEmail -> LoginResult.Locked
+            address == LockedEmail -> LoginResult.Locked(now() + 15 * 60_000L)
             else -> LoginResult.Success(withdrawalCancelled = address == WithdrawnEmail)
         }
     }

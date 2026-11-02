@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -30,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
-/** 점선 테두리(`border: 1.5px dashed`). 악보 추가 버튼·PDF 고르기 칸에 쓴다. */
+/** 점선 테두리(`border: 1.5px dashed`). PDF 고르기 칸에 쓴다. */
 fun Modifier.dashedBorder(color: Color, cornerRadius: Dp, width: Dp = 1.5.dp): Modifier = drawBehind {
     val stroke = width.toPx()
     val inset = stroke / 2
@@ -43,11 +44,11 @@ fun Modifier.dashedBorder(color: Color, cornerRadius: Dp, width: Dp = 1.5.dp): M
     )
 }
 
-/** 24dp 상태 배지(`height: 24px; padding: 0 10px`). 내 악보 카드·PDF 미리보기에서 쓴다. */
+/** 24dp 상태 배지(`height: 24px; padding: 0 10px`). PDF 미리보기의 '보기 전용'에 쓴다. [border]가 있으면 1dp 테두리를 두른다. */
 @Composable
-fun SheetBadge(text: String, background: Color, contentColor: Color, modifier: Modifier = Modifier) {
+fun SheetBadge(text: String, background: Color, contentColor: Color, modifier: Modifier = Modifier, border: Color = Color.Transparent) {
     Box(
-        modifier.height(24.dp).background(background, CircleShape).padding(horizontal = 10.dp),
+        modifier.height(24.dp).background(background, CircleShape).border(1.dp, border, CircleShape).padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = contentColor)
@@ -70,7 +71,7 @@ fun UploadStepBar(step: Int, modifier: Modifier = Modifier, steps: Int = 2) {
     }
 }
 
-/** 회색 바탕 한 줄 입력칸(높이 48dp). */
+/** 흰 바탕에 옅은 테두리를 두른 한 줄 입력칸(높이 48dp, 모서리 12dp). */
 @Composable
 fun FilledTextField(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String? = null) {
     val colors = EolssuTheme.colors
@@ -80,6 +81,7 @@ fun FilledTextField(value: String, onValueChange: (String) -> Unit, modifier: Mo
             .fillMaxWidth()
             .height(48.dp)
             .background(colors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -95,7 +97,7 @@ fun FilledTextField(value: String, onValueChange: (String) -> Unit, modifier: Mo
     }
 }
 
-/** 44dp 회색 칸 안의 종류 글자·아이콘 자리(`PDF`, `MIDI`). */
+/** 44dp 칸 안의 종류 글자·아이콘 자리(`PDF`, `MIDI`). 바탕은 [background], 테두리가 필요하면 [modifier]로 준다. */
 @Composable
 fun KindTile(modifier: Modifier = Modifier, background: Color = EolssuTheme.colors.surface, content: @Composable () -> Unit) {
     Box(modifier.size(44.dp).background(background, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { content() }
