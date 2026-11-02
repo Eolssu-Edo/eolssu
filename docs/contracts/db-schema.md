@@ -23,6 +23,8 @@ V9 [OAuth 일회용 증명값](../../backend/src/main/resources/db/migration/V9_
 
 V11 [평가 조율 정보](../../backend/src/main/resources/db/migration/V11__evaluation_tuning_metadata.sql)는 `evaluations.tuning_offset_cent DOUBLE NULL`, `tuning_out_of_range BOOLEAN NULL`을 추가한다(S15P31E102-304). 두 값은 함께 null이거나 함께 존재하며 flag는 0/1이다. 기존 행은 미수집인 null로 남고 점수·음표 판정을 변경하지 않는다. 편차는 AI가 보고한 추정값을 반올림 없이 보존하며, 범위 초과 flag가 true여도 편차를 0으로 바꾸지 않는다. 조회 계약은 [평가 API](../specs/practice-evaluation-api.md)를 따른다. 운영 `ops`는 Flyway를 끄므로 **새 백엔드 배포 전에 V11을 적용**해야 한다. 이전 코드는 새 nullable 컬럼을 무시할 수 있어 코드 롤백 시 컬럼을 지울 필요가 없다.
 
+V15 [내 악보](../../backend/src/main/resources/db/migration/V15__user_sheets.sql)는 `user_sheets`만 새로 만들고 기존 테이블·데이터는 바꾸지 않는다(S15P31E102-390). 운영 `ops`는 Flyway를 끄므로 **내 악보 API를 배포하기 전에 V15를 적용**해야 한다. ERD 그림에는 아직 반영되지 않았다.
+
 V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song_model_audio_metadata.sql)는 `(song_id, score_version)`별 모범 음원 URL·BPM/단위·실제 파일 길이·시작 위치·MIME·SHA-256·게시 상태를 저장한다. DRAFT가 기본이며 초기 데이터는 없다. 기존 곡/연습/평가 데이터와 V1~V7은 변경하지 않는다. 공개 조회와 적재 전 검증은 [카탈로그 API](../specs/catalog-read-apis.md#모범-연주-메타데이터)를 따른다. ERD 그림에는 아직 반영되지 않았다.
 
 | 영역 | 테이블 | 설명 |
@@ -32,6 +34,7 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 | 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 신규 소셜 가입과 기존 회원의 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
 | 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 녹음 원본 메타데이터(`recording_bytes`·`recording_duration_ms`·`recording_sample_rate`·`recording_channels`)는 업로드 검사를 통과해 원본을 저장할 때 네 칸을 함께 채우고, 그 전에는 모두 NULL입니다(`chk_practice_sessions_recording_meta`). 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
+| 내 악보 | `user_sheets` | V15. 회원이 만든 악보 한 개가 한 행입니다. 공통 악보 v1(`score_json`, 빈 악보는 NULL)·장단·BPM·각 수·평가 가능 상태(`NEEDS_REVIEW`/`EVALUABLE`)와 생성 요청의 Idempotency-Key(회원·키 유일)를 둡니다. 제공 곡을 복사해도 곡과 연결하지 않습니다. 기준은 [내 악보 API 스펙](../specs/user-sheets.md) |
 | 학습 | `lessons`, `lesson_progress` | '기초부터 배우기' 단계와 회원별 완료 표시. V14부터 단계는 악기가 아니라 학습 트랙(`DANSO`·`SOGEUM`·`DAEGEUM_JEONGAK`·`DAEGEUM_SANJO`)마다 9단계(트랙·단계 유일, `uq_lessons_track_seq`)이고 `content_json`에 단계 상세 문구를 둡니다. 진도는 회원·단계당 한 행이며 행이 있으면 완료입니다. 기준은 [학습 단계·진도 API 스펙](../specs/learning-progress-apis.md) |
 | 집계 | `mart_daily_practice`, `mart_song_accuracy`, `mart_pitch_error` | 일 배치가 운영 DB를 읽어 만드는 통계. 외래키 없음. `mart_daily_practice.total_practice_seconds`는 그날(KST) 시작한 체류 구간의 인정 시간 합 |
 
@@ -117,7 +120,7 @@ USR-05 결정안: 탈퇴 요청 뒤 30일이 지나면(`purge_scheduled_at` 경�
 | --- | --- | --- |
 | 1 | 녹음 파일(MinIO) | 연습 녹음 저장소의 삭제 기능으로 지웁니다. DB 행보다 먼저 지워 경로를 잃지 않게 합니다. |
 | 2 | `note_results` → `evaluations` → `practice_sessions` | 회원의 세션과 그 평가를 지웁니다. 세션은 `DELETE ... WHERE user_id = ?` 한 문장으로 지울 수 있고, 다른 세션의 `parent_session_id`는 비워집니다. 집계 DB의 지난 통계는 남습니다. |
-| 3 | `score_views`, `user_term_agreements`, `user_song_settings`, `lesson_progress` | 회원 행을 지웁니다. |
+| 3 | `score_views`, `user_term_agreements`, `user_song_settings`, `lesson_progress`, `user_sheets` | 회원 행을 지웁니다. |
 | 4 | `refresh_tokens`, `user_social_accounts` | 지웁니다. 소셜 연결을 지워야 같은 간편 로그인 계정으로 새 회원을 만들 수 있습니다. |
 | 5 | `email_verifications` | 회원 이메일로 남은 행을 지웁니다. 이메일을 비우기 전에 처리합니다. |
 | 6 | `users` | `email`·`password_hash`·`nickname`을 비우고 `status = 'DELETED'`, `deleted_at`을 채우며 두 탈퇴 시각을 비웁니다. 행은 남깁니다. |

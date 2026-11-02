@@ -67,3 +67,6 @@ VALUES (1, 1, 1, 72, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456')
 
 INSERT INTO score_views (id, user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds, created_at)
 VALUES (1, 1, 1, 'view-key', '2026-10-22 01:02:03.123456', '2026-10-22 01:14:03.123456', 690, 600, '2026-10-22 01:02:03.123456');
+
+INSERT INTO user_sheets (id, user_id, title, kind, source, status, jangdan_id, bpm, column_count, idempotency_key, request_hash, created_at, updated_at)
+VALUES (1, 1, '새 악보 1', 'JEONGGANBO', 'MANUAL', 'NEEDS_REVIEW', 1, 60, 8, 'sheet-key', REPEAT('e', 64), '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');

@@ -16,6 +16,9 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
+import com.ssafy.eolssu.backend.feature.sheet.api.CreatedSheet
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetList
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetScore
 import com.ssafy.eolssu.backend.feature.song.api.*
 import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -167,4 +170,13 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/retry","retryAnalysis","연습","실패한 분석 재시도",
         "Idempotency-Key 필수. TIMEOUT·SERVER_ERROR의 본인 녹음을 재분석합니다. 이미 PENDING이면 새 시도 없이 동일한 202, 재녹음 필요/완료/업로드 전 상태는 409입니다. 요청 본문은 없습니다.",
         RetryResult::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets","createSheet","내 악보","새 정간보 악보 만들기",
+        "Idempotency-Key 필수. startType BLANK(장단·각 수 필수)와 COPY(copyFromSongId·copyFromSheetId 중 하나, 장단·각 수는 원본을 따르며 주면 같아야 함)만 받습니다. PDF·pdfSheetId는 400입니다. 제목은 앞뒤 공백을 자른 1~50자, bpm은 30~160입니다. 빈 악보는 NEEDS_REVIEW, 채점 가능한 곡 복사는 EVALUABLE이며 원본과 연결하지 않습니다. 같은 키 재요청은 처음 악보로 201, 다른 본문은 409입니다.",
+        CreatedSheet::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
+    ApiContract(HttpMethod.GET,"/api/users/me/sheets","listSheets","내 악보","내 악보 목록",
+        "본인 악보만 updatedAt·sheetId 내림차순으로 page(0부터)·size(1~100, 기본 20)로 나눕니다. kind는 JEONGGANBO·MIDI·PDF이며 그 밖의 값은 400입니다.",
+        SheetList::class.java),
+    ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
+        "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",
+        SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
 )
