@@ -42,6 +42,8 @@ CAT-05의 상대 `audioUrl`은 같은 서버의 재생 경로로 해석한다. �
 - 통합 후 실제 HTTPS M4A native probe: API37/x86_64/16KB에서 준비·위치 증가·pause/resume·속도·같은 UID의 두 번째 OS focus client 중단·오류·자원 해제가 통과했다. 별도 debug package/로컬 CA만 사용하고 삭제했으며 OS CA나 release 설정은 변경하지 않았다. 결과는 `model-audio-native-probe/audio-probe.json`, 전체 통합 검사는 [최종 기록](app-catalog-api-integration.md)을 따른다.
 - 실제 HTTPS 파일의 Android 디코딩·스피커 출력·포커스 경합·통화·헤드폰·화면 회전/분할 크기 변경 관찰은 통합 에뮬레이터 또는 후속 실기기 검사다. 자동 상태 검사만으로 이 검사가 통과했다고 하지 않는다.
 
+2026-11-02 FE380 후속 검증에서 공통 악보107개와 실제 BE HTTP 응답의 결합을 확인했다. Android API37 에뮬레이터의 실제 앱에서 단소 몽금포타령·정악대금 “중고태황” 연습곡·산조대금 늴리리야·소금 개구리소리의 R2 HTTPS M4A 재생과 진행 표시를 확인했다. 단소 일시정지38초→앞으로43초, 정악대금 수행 길이28초→29초 반영도 관찰했다. 테스트 앱 종료 후 네이티브 player는 남지 않았다. 음원은 실제 파일이지만 메타데이터/수행은 실제 BE 응답을 제공하는 로컬 fixture, 로그인은 가짜 로컬 응답이었다. 운영302 경로 전체·실기기 스피커 청음·Web/iOS 재생 통과로 확대하지 않는다. 외부 증거는 `audio-publish-preflight/android-publication-339/verification.json`에 보관한다.
+
 ## Android skills 적용
 
 프로젝트에 설치된 공식 `android-permissions-security`, `android-intent-security`, `edge-to-edge`, `testing-setup`, `anr-audit-and-fix`를 이 추가분에 대조했다. UI는 기존 inset 처리 안에 상태 문구를 추가하며 새로운 Activity/권한/Intent 경계를 만들지 않는다. 기존 테스트 스택을 유지한다. 이 기록은 기존 Play 정책 감사의 통과를 의미하지 않는다.
