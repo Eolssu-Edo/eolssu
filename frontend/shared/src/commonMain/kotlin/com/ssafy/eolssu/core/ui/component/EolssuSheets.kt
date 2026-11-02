@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
@@ -64,17 +65,18 @@ fun EolssuBottomSheet(
     body: @Composable ColumnScope.() -> Unit,
 ) {
     val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    // 연두 보드 `.sheet`: 흰 바탕, 위 반지름 24, 손잡이 40×4(위 12 · 아래 2), 안쪽 여백 20 · 아래 34, 스크림 먹색 45%.
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = EolssuTheme.colors.background,
+        containerColor = EolssuTheme.colors.surface,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        scrimColor = Color.Black.copy(alpha = 0.35f),
+        scrimColor = EolssuTheme.colors.text.copy(alpha = 0.45f),
         dragHandle = {
             Box(
                 Modifier
-                    .padding(top = 10.dp, bottom = 10.dp)
+                    .padding(top = 12.dp, bottom = 2.dp)
                     .width(40.dp)
                     .height(4.dp)
                     .background(EolssuTheme.colors.line, RoundedCornerShape(2.dp)),
@@ -85,7 +87,7 @@ fun EolssuBottomSheet(
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = windowHeight * maxHeightFraction)
-                .padding(start = 20.dp, end = 20.dp, bottom = 30.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 34.dp),
         ) {
             header()
             Column(
@@ -100,12 +102,12 @@ fun EolssuBottomSheet(
     }
 }
 
-/** 패널 머리(`.sheet-head`): 제목·보조 문구와 닫기 버튼. */
+/** 패널 머리(`.sheet-head`): 제목(Song Myung 18sp)·보조 문구와 닫기 버튼. */
 @Composable
 fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) {
-    Row(modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().padding(top = 4.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, lineHeight = 23.4.sp))
             if (subtitle != null) {
                 Text(
                     subtitle,
@@ -119,25 +121,36 @@ fun SheetHeader(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** 켜고 끄는 스위치(`.switch`, 44×26). */
+/**
+ * 켜고 끄는 스위치(연두 보드 `.switch`): 켜면 연두, 끄면 옅은 테두리 색 바탕에 흰 손잡이.
+ * 크기는 화면마다 다르다 — 연습 설정 시트 50×30(기본), 기록 상세 40×24. 손잡이는 높이에서 6dp를 뺀 원이다.
+ */
 @Composable
-fun EolssuSwitch(checked: Boolean, onToggle: () -> Unit, label: String, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun EolssuSwitch(
+    checked: Boolean,
+    onToggle: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    width: Dp = 50.dp,
+    height: Dp = 30.dp,
+) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onToggle,
         enabled = enabled,
         modifier = modifier
-            .size(width = 44.dp, height = 26.dp)
+            .size(width = width, height = height)
             .semantics {
                 role = Role.Switch
                 toggleableState = ToggleableState(checked)
                 this.contentDescription = label
             },
         shape = CircleShape,
-        color = if (checked) colors.text else colors.surfaceStrong,
+        color = if (checked) colors.primary else colors.line,
     ) {
         Box(Modifier.padding(3.dp), contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
-            Box(Modifier.size(20.dp).shadow(1.dp, CircleShape).background(Color.White, CircleShape))
+            Box(Modifier.size(height - 6.dp).shadow(1.dp, CircleShape).background(Color.White, CircleShape))
         }
     }
 }
@@ -177,7 +190,11 @@ fun ToggleRow(
 }
 
 /**
- * 확인 창(`.dialog`): 아이콘 칸 · 제목 · 설명 · 세로로 쌓은 버튼. 바깥을 눌러도 닫히지 않는다.
+ * 확인 창(연두 보드 `.dialog`): 양옆 28dp 안쪽의 흰 상자(반지름 20, 여백 24·20·20)에 48dp 아이콘 고리(`.ico-ring`) ·
+ * Song Myung 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 바깥을 눌러도 닫히지 않는다.
+ *
+ * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
+ * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
  */
 @Composable
 fun EolssuDialog(
@@ -186,34 +203,39 @@ fun EolssuDialog(
     message: String? = null,
     icon: ImageVector? = null,
     maxWidth: Dp = 340.dp,
+    iconBackground: Color? = null,
+    iconTint: Color? = null,
     actions: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(onDismissRequest = {}) {
+    val colors = EolssuTheme.colors
+    Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier
+                .padding(horizontal = 28.dp)
                 .widthIn(max = maxWidth)
                 .fillMaxWidth()
-                .background(EolssuTheme.colors.background, RoundedCornerShape(20.dp))
+                .shadow(12.dp, RoundedCornerShape(20.dp))
+                .background(colors.surface, RoundedCornerShape(20.dp))
                 .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (icon != null) {
                 Box(
-                    Modifier.padding(bottom = 4.dp).size(44.dp).background(EolssuTheme.colors.surface, RoundedCornerShape(12.dp)),
+                    Modifier.size(48.dp).background(iconBackground ?: colors.accentTint, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = EolssuTheme.colors.text)
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = iconTint ?: colors.text)
                 }
             }
-            Text(title, style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold, lineHeight = 24.sp))
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 19.sp, lineHeight = 24.7.sp), color = colors.text)
             if (message != null) {
                 Text(
                     message,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
-                    color = EolssuTheme.colors.textMuted,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                    color = colors.textSub,
                 )
             }
-            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
+            Column(Modifier.padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = actions)
         }
     }
 }

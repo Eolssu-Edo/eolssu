@@ -6,6 +6,9 @@ import com.ssafy.eolssu.backend.feature.auth.api.*
 import com.ssafy.eolssu.backend.feature.user.api.*
 import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonCompletionResult
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonDetailResult
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonListResult
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
@@ -33,6 +36,15 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/reference-audios","listReferenceAudios","카탈로그","기본음·시김새 음원 목록",
+        "datasetId 필수(danso/sogeum/jeongak-daegeum/sanjo-daegeum). category·technique·register·yulmyeong·pitchId·relatedPitchId 필터는 AND입니다. 두 음 ID는 선행 0 없는 1~9223372036854775807 십진 문자열이며 그 외400입니다. pitchId는 기본음 전용이고 relatedPitchId는 기본음 또는 역할별 음 관계가 일치하는 자산을 중복 없이 찾습니다. 자산의 pitchId는 문자열 또는 null이며 pitchRelations는 role·sequenceIndex·pitchId·evidencePath 배열입니다. LABEL, SEQUENCE(원본 순서), LOWER_ANCHOR, DESTINATION 순이며 SEQUENCE 외 index는 null입니다. evidencePath는 상세 metadata 기준 JSON Pointer입니다. 게시된 라벨별 음원만 반환하며 soundUrl은 API 원점 기준 상대 재생 경로입니다. 추정 라벨을 채점 정답으로 승격하지 않습니다.",
+        ReferenceAudioListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}","getReferenceAudio","카탈로그","기본음·시김새 음원과 출처",
+        "SHA-256 형식 assetId. 게시된 자산과 원본 라벨·출처·변환 metadata를 반환합니다. asset.pitchRelations의 evidencePath는 result.metadata 기준 JSON Pointer이며 분석창·F0·대안은 metadata에 보존합니다. 미등록/초안은404입니다.",
+        ReferenceAudioDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}/play","playReferenceAudio","카탈로그","기본음·시김새 재생 주소 발급",
+        "게시된 자산에 한해900초 서명 GET 주소로302 이동합니다. 본문 없음, Location 헤더·Cache-Control:no-store. 저장소 미설정은503입니다. DB에 만료 URL을 저장하지 않습니다.",
+        null,statuses=listOf(302),errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE),security=null),
     ApiContract(HttpMethod.POST,"/api/webhooks/kakao/events","kakaoSecurityEvent","웹훅","카카오 연결 해제 SET 수신",
         "카카오 RS256 서명형 User Unlinked만 수신. 사용자 쿠키 대신 서명·앱·대상·이벤트 주체를 검증합니다. 공통 envelope의 예외이며202 본문 없음, 검증 실패400 err/description, 일시 장애503입니다.",
         null,statuses=listOf(202),security=null),
@@ -116,9 +128,21 @@ internal val apiContracts = listOf(
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다. 미구현 미션 값은 null입니다.",SummaryResult::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/calendar","growthCalendar","성장","날짜별 연습 기록",
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999의 날짜별 연습 초와 횟수를 반환합니다.",CalendarResult::class.java),
+    ApiContract(HttpMethod.GET,"/api/users/me/growth/scores","growthScores","성장","곡별 최근 점수 변화",
+        "songId를 생략하면 가장 최근에 연주한 곡입니다. scope는 FULL(전체 곡 연주, 기본)·SECTION(구간 연습), limit은 1~100(기본 5)입니다. 분석이 끝나고 평가가 있는 연주의 최근 limit개를 오래된 순으로 주고, 점마다 연주 조건·각 범위와 비교 가능 여부, 연주한 곡 목록을 반환합니다. 없는 곡은 빈 items입니다.",
+        ScoreTrendResult::class.java),
     ApiContract(HttpMethod.POST,"/api/users/me/score-views","recordScoreView","성장","악보 화면 체류 기록",
         "Idempotency-Key로 1회 저장합니다(신규 201, 같은 내용 재요청 200, 다른 내용 409). songId는 JSON 문자열, 시각은 ISO8601, 초는 JSON 정수입니다.",
         RecordedScoreView::class.java,listOf(201,200),listOf(IDEMPOTENCY_CONFLICT,RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.GET,"/api/lessons","listLessons","학습","학습 단계 목록과 나의 진도",
+        "track(DANSO·SOGEUM·DAEGEUM_JEONGAK·DAEGEUM_SANJO, 대문자 그대로)의 공개 단계를 seq 순서로 본인 완료 시각과 함께 반환합니다. 완료 수·다음 단계는 필수 단계만 봅니다. 트랙 누락·모르는 값은 400입니다.",
+        LessonListResult::class.java,errors=listOf(INVALID_REQUEST)),
+    ApiContract(HttpMethod.GET,"/api/lessons/{lessonId}","getLesson","학습","학습 단계 상세",
+        "공개 단계의 트랙별 문구(목표·이유·할 일·통과 기준·율명·음역·곡 후보·근거)와 본인 완료 시각을 반환합니다. 해당하지 않는 목록은 빈 배열입니다. 없거나 초안 단계는 404입니다.",
+        LessonDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.PUT,"/api/lessons/{lessonId}/completion","completeLesson","학습","학습 단계 완료 표시·해제",
+        "사용자가 누른 완료 표시만 저장합니다(서버 판정 없음). completed는 JSON 불리언만 받습니다. 다시 true를 보내도 처음 완료 시각을 유지하고, false는 표시를 지웁니다(없어도 200). 응답의 완료 수·다음 단계는 그 단계 트랙 기준입니다.",
+        LessonCompletionResult::class.java,errors=listOf(INVALID_REQUEST,RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions","createPracticeSession","연습","연습 세션 생성",
         "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
         CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),

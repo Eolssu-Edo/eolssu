@@ -72,6 +72,11 @@ def score_experiment(f0, notes, bpm, ref_hz, spec, rms=None):
         if not note.sigimsae:
             pitch.append(credit(err, spec.pitch_cent, spec.pitch_penalty, spec.large_error_exponent))
             standard_pitch.append(scoring._credit(err, spec.pitch_cent))
+        # 채점과 같이 높이가 틀린 음(PITCH)은 박자 점수를 주지 않는다(pyin-5).
+        if not note.sigimsae and abs(err) > spec.pitch_cent:
+            timing.append(0.0)
+            standard_timing.append(0.0)
+            continue
         timing.append(credit(relative, captured['onset_tol_s'], spec.timing_penalty, spec.large_error_exponent))
         standard_timing.append(scoring._credit(relative, captured['onset_tol_s']))
 

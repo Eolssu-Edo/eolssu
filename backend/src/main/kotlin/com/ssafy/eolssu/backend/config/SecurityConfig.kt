@@ -133,6 +133,7 @@ class SecurityConfig(
             "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
+            "/api/reference-audios", "/api/reference-audios/{assetId}", "/api/reference-audios/{assetId}/play",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols",
         ) + LegalDocumentPageController.PUBLIC_PATHS
     }

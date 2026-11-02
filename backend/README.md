@@ -43,6 +43,20 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
+### 기본음·시김새 음원 카탈로그
+
+S15P31E102-364: V13 `reference_audio_assets`는 네 악기의 라벨별 M4A와 출처·추정 상태를 연결합니다. 같은 V13에 기본음 자산의 명목상 기준 음을 가리키는 nullable `pitch_id` FK와 근거를 포함합니다. 서비스 지원 음역·실측 검수·채점 기준과 구분하며 사용자 녹음 저장소는 그대로입니다. 마이그레이션만으로 자산을 적재하거나 연결하지 않습니다. 운영 `ops` 배포 전 최종 V13 하나를 별도 적용해야 합니다. [명시적 매핑 절차](../infra/catalog/README.md#명목상-기준-음-연결)를 따릅니다. 운영은 V12까지 적용됐고 새 카탈로그 두 테이블이 없음을2026-11-02 읽기 전용으로 확인하여 미적용 개발 파일V14~V16은 V13에 통합했습니다. 기존 로컬 검증DB는 repair하지 않고 새 폐기DB를 사용합니다.
+
+V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존11개 ID/반음과 단소 악기의 범위는 보존하며 전역 `GET /api/pitches`는22개, 기존 범위 방식의 단소 조회는15개를 제공합니다(사용자 선택). V13 적용 뒤 단소30·정악54·소금90·산조45의 명시적 매핑을 실행하면 기본음219개가 연결됩니다. 같은 V13의 역할별 관계에 시김새207개/315관계를 추가하면 총426자산이 연결되고 개별 라벨 대안4개만 미연결입니다. `data/reference/pitches.json`의 단소 전사 기준이나 운지표를 자동 확대하지 않습니다.
+
+- `GET /api/reference-audios?datasetId=danso`: datasetId 필수(`danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`). `category`, `technique`, `register`, `yulmyeong`, `pitchId`, `relatedPitchId`를 조합합니다. pitchId는 선행 0 없는 1~9223372036854775807 십진 문자열이고 그 외400입니다. 게시 행만 labelId 순서로 반환합니다. 없는 조합은 빈 목록, 잘못된 datasetId·빈 필터는400입니다. 목록·상세 자산의 `pitchId`는 기본음 전용 문자열 또는 명시적 null입니다. `relatedPitchId`는 같은 ID 형식이며 기본음 FK 또는 역할별 관계 중 일치하는 음이 있는 자산을 중복 없이 찾습니다. 모든 필터는 AND입니다. 목록·상세의 `pitchRelations` 배열은 `{role,sequenceIndex,pitchId,evidencePath}`를 반환합니다. LABEL, SEQUENCE(원본순서), LOWER_ANCHOR, DESTINATION 순이며 SEQUENCE 외 index는 null입니다. evidencePath는 상세 metadata를 기준으로 한 JSON Pointer이고 기본음은 빈 배열입니다.
+- `GET /api/reference-audios/{assetId}`: `result.asset`에 음원 정보, `result.metadata`에 원본 라벨·출처·변환 근거를 반환합니다. 미등록·초안은404입니다.
+- `GET /api/reference-audios/{assetId}/play`: 게시된 DB 키에만900초 서명 GET URL을 만들어302로 이동합니다. `Location`과 `Cache-Control: no-store`, 본문 없음. 저장소 미설정은 공통503입니다. 목록·상세의 `soundUrl`은 `/api/reference-audios/{assetId}/play` 형식이며 API 원점에 대해 해석하는 상대 경로입니다.
+
+읽기만 공개하며 만료 로그인 쿠키에 영향받지 않습니다. 업로드·등록·게시 HTTP API는 없습니다. 출처 검토와 실제 객체의 해시·재생을 확인한 뒤 운영 적재 담당자가 `DRAFT`를 `PUBLISHED`로 바꿉니다. 데이터셋/라벨 ID를 임의 대표 율명으로 축약하지 않고, `inferred`를 `reviewed`나 채점 정답으로 승격하지 않습니다.
+
+`REFERENCE_AUDIO_STORAGE_ENDPOINT`, `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `REGION`은 각각 `REFERENCE_AUDIO_STORAGE_` 접두사를 사용합니다(`.env.example`). HTTPS S3 API 엔드포인트·버킷·읽기 권한 키를 주입합니다. 설정 누락은 기동을 막지 않고 재생만503으로 답합니다. DB에 저장하는 것은 `reference-audio/v1/{datasetId}/{assetId}/{sha256}.m4a` 키이며 만료형 URL이 아닙니다. R2 버킷의 공개 정책이나 녹음 삭제 규칙은 변경하지 않습니다. 검증은 `ReferenceAudioControllerTests`, `ReferenceAudioSignerTests`, 실제 MySQL의 `ReferenceAudioApiDatabaseTests`와 전체 `clean build`/`databaseTest`를 사용합니다.
+
 ### 약관 목록(AUTH-08)
 
 `db` 프로필과 V2 이상 스키마에서 `GET /api/terms`를 로그인 없이 호출합니다(`Accept: application/json`). 응답은 `{httpStatus,isSuccess,message,code,result:{items:[...]}}`이며 항목은 문자열 `termId`, `code`, `title`, `required`, `version`, `contentUrl`입니다. UTC 조회 시각까지 시행된 버전 중 code별 가장 늦은 `effective_at`을 고르고, 같은 시각이면 큰 ID 한 개를 반환합니다. `seq`·ID 오름차순으로 표시하며 현재 약관이 없으면 200과 빈 목록입니다. 문구·URL·초기 데이터는 자동 생성하지 않습니다.
@@ -159,8 +173,8 @@ macOS / Linux에서는 같은 값을 터미널에서 `export`한 뒤 `./gradlew 
 
 - Flyway가 `src/main/resources/db/migration/`의 `V1__initial_schema.sql`, `V2__auth_user_practice_extensions.sql`, `V3__practice_session_recording_metadata.sql`, `V4__practice_session_analysis_attempt.sql`을 버전 순서대로 적용하고 `flyway_schema_history`에 기록합니다. 다시 시작하면 이력을 검증하고 이미 적용한 버전은 재실행하지 않습니다.
 - 적용한 버전 파일은 수정하지 않고 `V5__설명.sql`처럼 다음 번호로 새 버전을 추가합니다. `schema.sql` 자동 초기화는 사용하지 않습니다.
-- MySQL DDL은 실패해도 되돌려지지 않습니다. V2는 DDL 전에 기존 데이터를 확인해, 세마치·굿거리·중모리·타령 밖의 장단, 개인정보가 남은 탈퇴 회원, 20~240 밖의 세션 BPM이 있으면 `chk_v2_preconditions` 위반으로 스키마를 바꾸지 않고 기동에 실패합니다. 기존 장단·세션의 `bpm_unit`은 장단 이름으로 채웁니다. V4도 같은 방식으로, 실패 코드(`fail_reason`)가 6종 밖이거나 `FAILED` 여부와 실패 코드가 맞지 않는 세션이 있으면 `chk_v4_preconditions` 위반으로 멈춥니다(실패 행은 `version = '4'`).
-- 이때 `flyway_schema_history`에는 실패 행(`version = '2'`, `success = 0`)이 남아, 데이터만 고쳐 다시 시작하면 `Detected failed migration to version 2`로 다시 실패합니다. 이 프로젝트에는 Flyway CLI·Gradle 작업이 없으므로 같은 DB에 MySQL 클라이언트로 접속해 해당 행을 고친 뒤 실패 행을 지우고 `db` 프로필로 다시 시작합니다.
+- MySQL DDL은 실패해도 되돌려지지 않습니다. V2는 DDL 전에 기존 데이터를 확인해, 세마치·굿거리·중모리·타령 밖의 장단, 개인정보가 남은 탈퇴 회원, 20~240 밖의 세션 BPM이 있으면 `chk_v2_preconditions` 위반으로 스키마를 바꾸지 않고 기동에 실패합니다. 기존 장단·세션의 `bpm_unit`은 장단 이름으로 채웁니다. V4도 같은 방식으로, 실패 코드(`fail_reason`)가 6종 밖이거나 `FAILED` 여부와 실패 코드가 맞지 않는 세션이 있으면 `chk_v4_preconditions` 위반으로 멈춥니다(실패 행은 `version = '4'`). V13은 `lessons`·`lesson_progress`에 행이 있거나, 지울 V1 자동 이름(`lessons_ibfk_1`·`lessons_chk_1`·`lesson_progress_chk_1`·유일 인덱스 `user_id`)이 없으면 `chk_v13_preconditions` 위반으로 멈춥니다(실패 행은 `version = '13'`).
+- 이때 `flyway_schema_history`에는 실패 행(`version = '2'`, `success = 0`)이 남아, 데이터만 고쳐 다시 시작하면 `Detected failed migration to version 2`로 다시 실패합니다. 이 프로젝트에는 Flyway CLI·Gradle 작업이 없으므로 같은 DB에 MySQL 클라이언트로 접속해 해당 행을 고친 뒤 실패 행을 지우고 `db` 프로필로 다시 시작합니다. 사전 확인을 통과한 뒤 구조 변경 중에 실패하면(연결 끊김 등) 앞 문장은 이미 반영돼 실패 행만 지우면 같은 문장에서 다시 실패합니다. 이때는 `SHOW CREATE TABLE`로 반영된 문장을 확인해 남은 문장을 적용한 뒤 실패 행을 `success = 1`로 고치고 다시 시작합니다.
 
 ```sql
 SELECT version, success FROM flyway_schema_history;               -- 2, 0 확인
@@ -180,7 +194,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 
 ### 실제 MySQL 통합 검사
 
-담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V6 DDL·시드와 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
+담당 개발자가 저장 계층 변경 후, MR 병합 전에 실행합니다. **운영·공유 개발 DB가 아닌 비어 있는 폐기 가능한 MySQL 8.4 DB**를 준비합니다. V1~V14 DDL·시드와 Flyway 이력은 남고, 검사 데이터는 테스트 트랜잭션 종료 시 롤백됩니다. 검사는 DB를 자동 생성하거나 삭제하지 않습니다.
 
 ```powershell
 $env:TEST_DB_URL = 'jdbc:mysql://localhost:3306/eolssu_test'
@@ -191,7 +205,7 @@ $env:TEST_DB_PASSWORD = '<테스트 DB 비밀번호>'
 
 macOS / Linux에서는 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 `export`한 뒤 `./gradlew databaseTest`를 실행합니다. 이 검사는 앱용 `DB_*` 대신 `TEST_DB_*`로 접속하며 세 변수가 없으면 실패합니다. 보고서는 `build/reports/tests/databaseTest/index.html`입니다. 재설정·탈퇴 일괄 삭제 동시성 검사는 고정 지연 대신 실제 잠금 대기를 관측하므로, 테스트 계정은 `performance_schema.data_lock_waits`와 `performance_schema.data_locks`의 SELECT 권한도 필요합니다. 이 권한은 테스트 DB 계정용이며 운영 앱 계정에 추가하지 않습니다.
 
-검사 범위는 MySQL 8.4 V1~V6 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK·공통 레슨 유일성과 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
+검사 범위는 MySQL 8.4 V1~V14 적용·재실행·검증, 19개 테이블의 Mapper Bean·XML·생성자 매핑, nullable 값·JSON·한글/한자·전각 기호·마이크로초·UTC 세션, FK·CHECK와 V2의 회원 상태·간편 로그인 연결·약관·인증·토큰·곡별 BPM·연습 기록 중복 키·체류 기록 제약과 V3 녹음 메타데이터의 전부 NULL 또는 전부 양수 제약, V4 분석 시도·실패 코드 제약(위반 제약 이름까지 확인), V5 단소 율명 시드, V6 단소 악기·장단·4곡 시드가 연습 세션 조건(`PUBLISHED`·채점 가능)을 갖추고 4곡 악보 전체가 음표로 풀리는지, V13 학습 트랙 4개×9단계 시드와 트랙·단계 유일·트랙·판정 방식 제약, 학습 단계 API의 실제 HTTP 조회·완료 표시(본인 표시만·처음 시각 유지·동시 표시 한 행)와 목록 조회의 인덱스 사용, 곡 악보를 연습 구간 음표로 푸는 동작, 탈퇴 일괄 삭제에서 회원 세션을 한 문장으로 지우는 동작, 체류 구간의 회원·키별 1회 저장과 마이크로초 왕복, 분석 결과를 같은 시도의 마감 전 `PENDING` 세션에만 저장하고 마감을 넘긴 `PENDING`만 `TIMEOUT`으로 바꾸며 음표별 결과 저장이 실패하면 상태 변경까지 되돌리는 동작, 녹음 업로드의 조건부 갱신(회원 본인의 `RECORDING` 세션만 원본·메타데이터·`ended_at` 기록, `PENDING` 전환, 분석 시도 시작, 같은 트랜잭션에서 `RecordingUploaded` 발행), KST 날짜별 연습 시간·`DONE` 세션 합산과 연습한 날 조회, 성장 요약·날짜별 API의 실제 HTTP·JWT 쿠키 조회, 분석 다시 시도를 본인의 녹음이 있는 `TIMEOUT`·`SERVER_ERROR` 세션에만 시작하고 동시 요청 두 건 중 하나만 새 시도로 바꾸는 동작입니다. 되돌림·동시 요청 검사는 테스트 트랜잭션 밖에서 커밋하고 넣은 행을 지웁니다. 기본 `test`와 CI의 `clean build`에는 이 DB 검사를 포함하지 않습니다.
 
 ### 녹음 파일 검사와 ffmpeg
 
@@ -292,7 +306,9 @@ Mapper는 기본적으로 PK 조회 `findById`를 제공하고, 기능 구현에
 
 `db`·`ops` 프로필에서는 녹음 업로드 만료 작업이 5분마다 실행됩니다. `RECORDING`인 채 `started_at` + 40분이 지난 연습 세션을 `FAILED`·`UPLOAD_TIMEOUT`으로 바꿉니다([녹음 파일 규격](../docs/specs/recording-file.md), S15P31E102-168에서 develop 병합 전). 무DB 기본 프로필에서는 만들지 않습니다. 주기 실행은 `eolssu.scheduling.enabled=false`로 끌 수 있으며, `databaseTest`는 공유 테스트 DB와 겹치지 않도록 이 값을 끕니다.
 
-`growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다. 요약의 곡별 최고점·항목별 성장은 기간과 관계없이 회원의 전체 곡 연주(첫 음~끝 음)로 냅니다.
+`growth`에는 악보 화면 체류 구간 기록 API `POST /api/users/me/score-views`(GRO-04)와 그 검증·중복 처리·저장소, 연습 기록지 요약(GRO-01, `GET /api/users/me/growth/summary`)·날짜별 값(GRO-02, `GET /api/users/me/growth/calendar`)·곡별 최근 점수 변화(GRO-03, `GET /api/users/me/growth/scores`) API가 있습니다. `db` 프로필에서 조회 API는 `GrowthStatsConfig`, 체류 기록 API는 `ScoreViewConfig`로 연결하고 access_token의 회원으로 처리합니다. 체류 기록 요청·응답 계약은 [연습 시간 집계 기준](../docs/specs/practice-time.md#체류-기록-api-gro-04)을 따릅니다. 요약의 곡별 최고점·항목별 성장은 기간과 관계없이 회원의 전체 곡 연주(첫 음~끝 음)로 냅니다. 점수 변화는 곡 하나의 전체 곡 연주 또는 구간 연습 점수를 최근 순으로 골라 오래된 순서로 주며, 각 번호는 EVA-03과 같은 `EvaluationScoreCells`로 읽습니다([곡별 최근 점수 변화 조회 API](../docs/specs/growth-score-trend.md)).
+
+`lesson`에는 기초부터 배우기 단계 목록·진도(LRN-01, `GET /api/lessons?track=`)·단계 상세(LRN-02, `GET /api/lessons/{lessonId}`)·완료 표시·해제(LRN-03, `PUT /api/lessons/{lessonId}/completion`) API가 있습니다. `db` 프로필에서 `LessonConfig`로 연결하고 access_token의 회원 진도만 읽고 바꿉니다. 단계는 V13이 넣은 학습 트랙 4개×9단계이며 계약은 [학습 단계·진도 API](../docs/specs/learning-progress-apis.md)를 따릅니다.
 
 `analysis`에는 업로드된 연습 녹음을 AI로 분석하는 흐름(PRA-03 [분석 요청과 상태 조회 계약](../docs/specs/practice-analysis-failure.md))이 있습니다. `HttpAnalysisClient`가 AI의 `POST /v1/analyses`를 부르고, `MyBatisPracticeAnalysisRepository`가 같은 시도의 마감 전 `PENDING` 세션에만 결과를 저장합니다. `AnalyzePracticeSession`은 실패를 `SERVER_ERROR`, 제한 시간(기본 60초)을 넘긴 시도를 `TIMEOUT`으로 기록합니다. 한 흐름이 `practice_sessions`·`evaluations`·`note_results`를 함께 바꾸므로 `PracticeAnalysisMapper` 하나에 모았습니다. `db` 프로필의 분석 실행·AI 클라이언트 연결은 아래 `AnalysisOnUpload` 설명을 따릅니다.
 
