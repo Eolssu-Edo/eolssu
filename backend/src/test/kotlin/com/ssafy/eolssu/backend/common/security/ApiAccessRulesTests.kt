@@ -57,7 +57,9 @@ class ApiAccessRulesTests {
             "POST" to "/api/practice-sessions", "GET" to "/api/practice-sessions/1", "POST" to "/api/practice-sessions/1/retry",
             "PUT" to "/api/practice-sessions/1/record", "GET" to "/api/practice-sessions/1/evaluation",
             "GET" to "/api/users/me/practice-records", "GET" to "/api/missions", "GET" to "/api/users/me/growth/summary",
+            "GET" to "/api/users/me/growth/scores",
             "POST" to "/api/users/me/score-views",
+            "GET" to "/api/lessons", "GET" to "/api/lessons/1", "PUT" to "/api/lessons/1/completion",
             // 공개 경로 아래에 나중에 생길 수 있는 다른 경로는 공개하지 않는다.
             "GET" to "/api/songs/1/members", "GET" to "/api/instruments/1/notes", "GET" to "/api/jangdans/1/members",
             "POST" to "/api/auth/oauth/kakao/extra", "POST" to "/api/auth/email-verifications/301/other",

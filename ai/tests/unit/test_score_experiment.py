@@ -79,7 +79,8 @@ def test_selected_settings_change_the_expected_axis():
     pitch = run(Experiment(pitch_cent=30))
     timing = run(Experiment(onset_spread=1))
     duration = run(Experiment(duration_ratio=0.1))
-    assert pitch.pitch < base.pitch and pitch.duration == base.duration
+    # pyin-5: 음정 허용을 좁혀 PITCH가 된 음은 박자·길이 점수도 잃는다(S15P31E102-353).
+    assert pitch.pitch < base.pitch and pitch.duration < base.duration and pitch.timing < base.timing
     assert any(n.verdict == 'PITCH' for n in pitch.notes)
     assert timing.timing < base.timing and timing.pitch == base.pitch
     assert any(n.verdict == 'TIMING' for n in timing.notes)
