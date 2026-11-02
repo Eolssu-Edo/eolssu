@@ -32,7 +32,7 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 | 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 신규 소셜 가입과 기존 회원의 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
 | 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 녹음 원본 메타데이터(`recording_bytes`·`recording_duration_ms`·`recording_sample_rate`·`recording_channels`)는 업로드 검사를 통과해 원본을 저장할 때 네 칸을 함께 채우고, 그 전에는 모두 NULL입니다(`chk_practice_sessions_recording_meta`). 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
-| 학습 | `lessons`, `lesson_progress` | '기초부터 배우기' 단계와 회원별 완료 표시. V13부터 단계는 악기가 아니라 학습 트랙(`DANSO`·`SOGEUM`·`DAEGEUM_JEONGAK`·`DAEGEUM_SANJO`)마다 9단계(트랙·단계 유일, `uq_lessons_track_seq`)이고 `content_json`에 단계 상세 문구를 둡니다. 진도는 회원·단계당 한 행이며 행이 있으면 완료입니다. 기준은 [학습 단계·진도 API 스펙](../specs/learning-progress-apis.md) |
+| 학습 | `lessons`, `lesson_progress` | '기초부터 배우기' 단계와 회원별 완료 표시. V14부터 단계는 악기가 아니라 학습 트랙(`DANSO`·`SOGEUM`·`DAEGEUM_JEONGAK`·`DAEGEUM_SANJO`)마다 9단계(트랙·단계 유일, `uq_lessons_track_seq`)이고 `content_json`에 단계 상세 문구를 둡니다. 진도는 회원·단계당 한 행이며 행이 있으면 완료입니다. 기준은 [학습 단계·진도 API 스펙](../specs/learning-progress-apis.md) |
 | 집계 | `mart_daily_practice`, `mart_song_accuracy`, `mart_pitch_error` | 일 배치가 운영 DB를 읽어 만드는 통계. 외래키 없음. `mart_daily_practice.total_practice_seconds`는 그날(KST) 시작한 체류 구간의 인정 시간 합 |
 
 공통 규칙은 운영 DB SQL 파일 머리말에 있습니다. 시각은 UTC로 저장하고, 상태 칸은 ENUM 대신 문자열과 CHECK 제약을 씁니다.
@@ -59,7 +59,7 @@ V4는 V3(녹음 메타데이터) 다음에 적용됩니다. `outOfOrder`를 쓰�
 
 V13 [기본음·시김새 자산](../../backend/src/main/resources/db/migration/V13__reference_audio_assets.sql)은 `reference_audio_assets`를 추가한다. `asset_id`와 `(dataset_id,label_id)`로 파일을 식별하고, 장기 보관 object key·M4A 메타데이터·출처 JSON·라벨 검수 상태·게시 상태를 저장한다. 기존 `pitches`의 의미와 사용자 녹음 보관 정책은 바꾸지 않는다. 미디어 초기 데이터는 없으며 [검증된 DRAFT 적재](../../infra/catalog/README.md)를 사용한다. 새 API의 `ops` 배포 전에 V13를 적용해야 한다. [조회·재생 계약](../specs/reference-audio-catalog.md).
 
-같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **최종 V13 적용 후 새 백엔드를 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
+같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **현재 통합 백엔드는 오디오 V13과 학습 V14를 적용한 뒤 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
 
 ```mermaid
 erDiagram
