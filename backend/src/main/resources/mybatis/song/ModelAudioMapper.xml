@@ -6,11 +6,12 @@
                a.duration_ms, a.start_offset_ms, a.content_type, a.sha256
         FROM song_model_audios a
         JOIN songs s ON s.id = a.song_id AND s.score_version = a.score_version
-        JOIN jangdans j ON j.id = s.jangdan_id
+        LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
-          AND a.status = 'PUBLISHED' AND a.bpm = s.default_bpm AND a.bpm_unit = j.bpm_unit
+          AND a.status = 'PUBLISHED' AND a.bpm = s.default_bpm
+          AND a.bpm_unit = COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')))
           AND JSON_TYPE(JSON_EXTRACT(s.score_json, '$.score.scoreVersion')) = 'INTEGER'
           AND JSON_EXTRACT(s.score_json, '$.score.scoreVersion') = s.score_version
-          AND JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')) = a.bpm_unit
+          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')) AS BINARY) = a.bpm_unit
     </select>
 </mapper>

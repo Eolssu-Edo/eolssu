@@ -136,6 +136,8 @@ open class OpenApiDatabaseTests {
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())
+        val song = doc.path("components").path("schemas").path("SongItem")
+        assertTrue(song.path("properties").path("jangdan").path("nullable").asBoolean(), song.toString())
         val request=doc.path("components").path("schemas").path("PasswordResetRequest")
         assertEquals(8,request.path("properties").path("newPassword").path("minLength").asInt())
         assertEquals(128,request.path("properties").path("newPassword").path("maxLength").asInt())
