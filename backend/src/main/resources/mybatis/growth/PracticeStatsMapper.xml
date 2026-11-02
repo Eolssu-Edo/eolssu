@@ -50,6 +50,32 @@
         ORDER BY ps.started_at DESC, ps.id DESC
         LIMIT 1
     </select>
+    <!-- 세는 연주(GRO-03): 분석이 끝나고 평가가 있는 세션. 저장 여부·기록 삭제와 관계없이 회원 전체 기록이다. -->
+    <sql id="scoredPlays">
+        FROM practice_sessions ps
+        JOIN songs s ON s.id = ps.song_id
+        JOIN evaluations e ON e.session_id = ps.id
+        WHERE ps.user_id = #{userId} AND ps.status = 'DONE'
+    </sql>
+    <!-- 전체 곡 연주 판정은 fullSongPlays와 같다. 그 밖의 세는 연주는 구간 연습이다. -->
+    <sql id="isFullSongPlay">(ps.start_note_idx = 0 AND ps.end_note_idx = s.note_count - 1)</sql>
+    <select id="findPlayedSongs" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.PlayedSongRow">
+        SELECT s.id AS song_id, s.title, MAX(ps.started_at) AS last_played_at,
+               SUM(CASE WHEN <include refid="isFullSongPlay"/> THEN 1 ELSE 0 END) AS full_play_count,
+               SUM(CASE WHEN <include refid="isFullSongPlay"/> THEN 0 ELSE 1 END) AS section_play_count
+        <include refid="scoredPlays"/>
+        GROUP BY s.id, s.title
+        ORDER BY last_played_at DESC, s.id DESC
+    </select>
+    <select id="findRecentScoredPlays" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.ScoredPlayRow">
+        SELECT ps.id AS session_id, ps.started_at, ps.bpm, ps.bpm_unit, ps.start_note_idx, ps.end_note_idx, ps.score_version,
+               e.model_version, e.total_score, e.pitch_score, e.timing_score, e.duration_score
+        <include refid="scoredPlays"/>
+          AND ps.song_id = #{songId}
+          AND <if test="!full">NOT </if><include refid="isFullSongPlay"/>
+        ORDER BY ps.started_at DESC, ps.id DESC
+        LIMIT #{limit}
+    </select>
     <!-- 항목 성장의 비교 조건: 곡·악보 버전·채점 모델·BPM(단위 포함). -->
     <select id="findFirstFullSongPlayLike" resultType="com.ssafy.eolssu.backend.feature.growth.infrastructure.persistence.FullSongPlayRow">
         SELECT <include refid="fullSongPlayColumns"/>

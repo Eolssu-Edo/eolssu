@@ -86,7 +86,7 @@
 | 상황 | HTTP | `result.errorCode` |
 | --- | --- | --- |
 | 인증 없음·만료 | 401 | `UNAUTHENTICATED` |
-| `songId`가 양의 정수가 아님, `scope`가 `FULL`·`SECTION`이 아님, `limit`이 정수가 아니거나 1~100 밖 | 400 | `INVALID_REQUEST` |
+| `songId`가 앞자리 0 없는 양의 정수가 아님(빈 값·`05`·Long 범위 초과 포함), `scope`가 `FULL`·`SECTION`이 아님(빈 값 포함), `limit`이 앞자리 0 없는 1~100 정수가 아님 | 400 | `INVALID_REQUEST` |
 
 없는 곡·연주한 적 없는 곡은 오류가 아니다(규칙 4).
 
