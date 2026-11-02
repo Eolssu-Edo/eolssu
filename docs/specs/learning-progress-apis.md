@@ -89,7 +89,7 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 ## 데이터
 
-- `lessons`: track(네 코드)·seq·title·judge_type·optional·content_json(LRN-02 상세)·status. (track, seq)는 유일하다. 기존 kind·instrument_id는 없앤다.
+- `lessons`: track(네 코드)·seq·title·judge_type·is_optional·content_json(LRN-02 상세)·status. (track, seq)는 유일하다. 기존 kind·instrument_id는 없앤다.
 - `lesson_progress`: user_id·lesson_id·completed_at. (user_id, lesson_id)는 유일하다. 행이 있으면 완료이고 해제하면 행을 지운다. 기존 score는 없앤다.
 - Flyway 마이그레이션(현재 develop 최신 V12 다음, 병합 직전 번호 재확인): 두 테이블에 행이 있으면 구조를 바꾸기 전에 실패한다. 이어서 36행을 PUBLISHED로 넣는다. 문구 출처는 develop cfad44c3의 `LearnCurriculum.kt`(`LearnStages`·`learnContent`·`LearnSongs`)다.
 - 단계 문구 수정은 새 Flyway 마이그레이션으로 한다. 화면 구성·섹션 제목과 4·5·6단계 할 일·패턴을 만드는 규칙(`strings.xml`·`LearnPattern`)은 앱에 남는다.
