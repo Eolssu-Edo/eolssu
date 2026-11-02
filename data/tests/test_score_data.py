@@ -230,6 +230,7 @@ class AnswerTests(unittest.TestCase):
             result = convert_answer(source_id)
             self.assertEqual((result["score"]["title"], result["score"]["instrument"]), (titles[source_id], "SOGEUM"))
             self.assertEqual(check(result), [], source_id)
+            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 서비스 곡은 사람 검수를 마친 정답만
 
     def test_check_finds_sogeum_pitch_missing_from_table(self):
         result = convert_answer("ngc-standard-2022-p194")
