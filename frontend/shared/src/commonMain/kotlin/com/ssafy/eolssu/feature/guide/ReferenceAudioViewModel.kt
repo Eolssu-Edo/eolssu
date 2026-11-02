@@ -64,53 +64,53 @@ private fun recordingLabel(instrument: GuideInstrument, blow: Blow?, reading: St
 }
 
 data class ReferenceAudioUiState(
-    val selection: ReferenceAudioSelection? = null,
-    val allNotes: Boolean = false,
-    val category: String? = "기본음계",
+    val instrument: GuideInstrument? = null,
     val loadState: ReferenceLoadState = ReferenceLoadState.Loading,
     val clips: List<ReferenceAudioClip> = emptyList(),
+    val selectedAssets: Map<ReferenceAudioSelection, String> = emptyMap(),
 ) {
-    val query: ReferenceAudioQuery? get() = selection?.let {
-        ReferenceAudioQuery(it.datasetId, category, if (allNotes) null else it.register, if (allNotes) null else it.yulmyeong)
+    fun clipsFor(selection: ReferenceAudioSelection): List<ReferenceAudioClip> = clips.filter {
+        it.datasetId == selection.datasetId && it.register == selection.register && it.yulmyeong == selection.yulmyeong
     }
+    fun selectedClip(selection: ReferenceAudioSelection): ReferenceAudioClip? =
+        clipsFor(selection).firstOrNull { it.assetId == selectedAssets[selection] }
 }
 
-/** 창이 닫히거나 필터가 바뀌면 이전 요청을 취소하고 결과가 새 선택을 덮지 못하게 한다. */
+/** 한 화면에서 악기 목록을 공유하고, 카드 선택만으로 재생하지 않는다. */
 class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(ReferenceAudioUiState())
     val uiState = mutableState.asStateFlow()
     private var request: Job? = null
 
-    fun open(selection: ReferenceAudioSelection) {
-        mutableState.value = ReferenceAudioUiState(selection = selection)
+    fun open(instrument: GuideInstrument) {
+        mutableState.value = ReferenceAudioUiState(instrument = instrument)
         retry()
     }
 
-    fun showAllNotes(all: Boolean) {
-        if (all == mutableState.value.allNotes) return
-        mutableState.value = mutableState.value.copy(allNotes = all, category = if (all) null else "기본음계")
-        retry()
-    }
-
-    fun selectCategory(category: String?) {
-        if (category !in listOf(null, "기본음계", "시김새") || category == mutableState.value.category) return
-        mutableState.value = mutableState.value.copy(category = category)
-        retry()
+    fun nextOption(selection: ReferenceAudioSelection) {
+        val state = mutableState.value
+        if (state.loadState != ReferenceLoadState.Ready || state.instrument != selection.instrument) return
+        val options = state.clipsFor(selection)
+        if (options.isEmpty()) return
+        val current = options.indexOfFirst { it.assetId == state.selectedAssets[selection] }
+        val next = options[(current + 1) % options.size]
+        mutableState.value = state.copy(selectedAssets = state.selectedAssets + (selection to next.assetId))
     }
 
     fun retry() {
-        val query = mutableState.value.query ?: return
+        val instrument = mutableState.value.instrument ?: return
+        val query = ReferenceAudioQuery(ReferenceAudioSelection(instrument, null, "").datasetId)
         request?.cancel()
-        mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Loading, clips = emptyList())
+        mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Loading, clips = emptyList(), selectedAssets = emptyMap())
         request = viewModelScope.launch {
             try {
                 val clips = repository.clips(query)
                 currentCoroutineContext().ensureActive()
-                if (mutableState.value.query == query) mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Ready, clips = clips)
+                if (mutableState.value.instrument == instrument) mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Ready, clips = clips)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
                 currentCoroutineContext().ensureActive()
-                if (mutableState.value.query == query) mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Failed)
+                if (mutableState.value.instrument == instrument) mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Failed)
             }
         }
     }

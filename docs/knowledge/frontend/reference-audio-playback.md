@@ -67,3 +67,22 @@ $env:ANDROID_HOME='C:/Users/SSAFY/AppData/Local/Android/Sdk'
 - 390×844·360×640 화면에서 목록, 고정 플레이어, 출처 링크와 닫기가 겹치지 않는다. 독립 코드·스크린샷 리뷰에서 추가 차단 결함은 없었다. 접근성 대비 수치를 측정한 검사는 아니다.
 
 증거는 FE worktree의 Git 제외 `frontend/reference-audio-player-integrated-build.log`, JUnit XML, `data/processed/reference-audio-fe367/requests.jsonl`, `player-paused.png`, `player-mobile.png`, `player-small.png`에 있다. 요청 로그에는 서명 URL을 남기지 않는다. iOS 컴파일과 모바일 실기기 청취는 미검증이다. IAB에서 새 탭을 열어도 원래 문서가 visible로 남아 실제 백그라운드 전환을 입증하지 못했다. 출처 팝업 이후 접근성 트리가 지연되어 화면으로 대조했으며 전체 초점 순서·Esc 통과를 주장하지 않는다.
+
+## 카드 안 재생과 탐색으로 대체 (2026-11-02)
+
+사용자가 별도 재생창을 없애고 카드에서 옵션을 고른 뒤 재생하며, 진행 막대를 터치·드래그로 조절하도록 요청했다. 이에 위 모달/읽기 전용 막대 결정은 폐기했다. 운지법의 세 너비 배치와 기초 학습4·6단계는 공통 운지 카드 아래에 같은 컨트롤을 넣는다. 옵션 버튼을 누르면 다음 녹음으로 순환하고 현재 번호/전체 개수를 표시한다. 선택은 자동 재생하지 않는다. 옆 버튼 하나가 재생·일시정지·이어 듣기를 맡고 출처는 같은 카드 안에서 펼친다.
+
+한 Route가 악기 목록과 player 하나를 소유한다. 각 카드는 정확한 dataset/register/yulmyeong으로 기본음·시김새 옵션을 추린다. 카드별 선택은 화면 상태에 보존하며 악기·취법·학습 단계 변경에는 초기화한다. Lazy 카드에 네트워크나 player를 생성하지 않는다. 이전 화면/악기의 늦은 응답은 취소 및 ensureActive로 차단한다.
+
+기존 AudioPlayer 계약은 유지하고 ReferenceAudioPlayer 하위 계약에 seekTo를 추가했다. Web은 HTMLAudioElement.currentTime, Android는 기존 MediaPlayer.seekTo, iOS는 AVAudioPlayer.currentTime을 사용한다. 탐색은 재다운로드하지 않고 Playing/Paused를 보존한다. Completed에서 이동하면 Paused로 준비한다. 로딩·실패·미선택에는 Slider를 비활성화한다. Android는 이 화면의 인스턴스에만 완료 미디어 보존 옵션을 적용하고, iOS는 완료 후 이어 듣기 때 위치 관찰을 재개한다. 다른 재생 기능의 완료 동작은 유지한다.
+
+검증 결과:
+
+- 옵션 순환·카드별 보존의 구현 전 의미 실패2개를 관찰한 뒤 ReferenceAudio focused 검사 통과. seek 상태/범위 정책은 stub에서3개 의미 실패 후4개 통과했다.
+- 실제 데이터에1초 미만 음원이 있어 시간을 소수 첫째 자리까지 표시한다. 210/420/999ms와 분 경계를 검사하며 기존 정수 표시에서1개 실패 후 통과했다.
+- 최종 전체 host584개 중582통과·기존 opt-in2skip, 실패/오류0. Wasm 개발 번들·Android debug APK 성공. 마지막 비활성 버튼색·원본 링크색 변경 후 Web/APK도 다시 빌드했다. 로그는 `frontend/reference-audio-inline-{red,green,final,visual}.log`와 `reference-audio-subsecond-red.log`.
+- 실제 운영 목록/R2의 단소 평취 중 옵션1/4를 선택할 때 audio요소0개, 재생 후 currentTime3.845399초/전체5.04288초를 확인했다. 완료 뒤 막대 클릭은1.394초/Paused, 드래그는3.429초/Paused, 이어 듣기는3.607968초/Playing이었다. 재생 중 탐색도2.866105초/Playing을 유지했다. 옵션2/4로 변경하면 audio요소0개, 시간0초와 해당 음원 길이4.8초로 초기화됐다. 탐색·이어 듣기 중 새 `/play` 요청은 없었다.
+- 출처를 같은 카드에서 펼치고 접었다. 390×844 운지 카드와1280×900 학습 양쪽 배치에서 컨트롤이 겹치지 않았다. 학습4단계의 태/황 옵션12개/9개와 명시적 재생 요청, 화면/배치 경로 전환 뒤 audio요소0개를 확인했다. 미연결 반음에는 빈 음원 안내를 표시한다.
+- 독립 코드 리뷰의 짧은 음원 표시 지적을 수정했고 재검토에서 추가 차단 결함은 없었다. Windows에서는 iOS 컴파일과 모바일 실기기 탐색/청취를 확인하지 못했다. IAB의 방향키 입력으로 Slider 위치가 바뀌는 것은 관찰하지 못해 전체 키보드 접근성 통과로 보고하지 않는다. 터치에 해당하는 클릭과 드래그는 실제 UI로 확인했다.
+
+레이아웃 연결378b466d, 플랫폼 탐색228db865와 후속 상태·컨트롤 변경이 검증 대상이다. 화면 증거는 Git 제외 `data/processed/reference-audio-fe367/inline-mobile.png`, `inline-learn.png`, `inline-expanded.png`, 최종 `inline-final.png`에 둔다. 이전 모달 스크린샷은 과거 검증 자료이며 최종 UI 증거로 사용하지 않는다.

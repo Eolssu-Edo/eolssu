@@ -10,6 +10,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReferenceAudioPlaybackTest {
+    @Test fun subsecondRecordingsHaveAnAudibleLengthInsteadOfZeroSeconds() {
+        assertEquals("0:00.2", referenceAudioTime(210))
+        assertEquals("0:00.4", referenceAudioTime(420))
+        assertEquals("0:00.9", referenceAudioTime(999))
+        assertEquals("1:02.3", referenceAudioTime(62_340))
+        assertEquals("0:00.0", referenceAudioTime(-1))
+    }
+
     private val clip = ReferenceAudioClip(
         assetId = "a".repeat(64), datasetId = "danso", labelId = "fixture",
         category = "기본음계", technique = "평취 강", register = "평취", yulmyeong = "중",

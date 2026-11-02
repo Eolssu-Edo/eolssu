@@ -59,32 +59,60 @@ class ReferenceAudioViewModelTest {
         assertEquals("중청남", selection("중청남").yulmyeong)
     }
 
-    @Test fun allNotesAndCategoryChoiceUseActualDatasetWithoutPitchGuessing() = runTest {
+    @Test fun optionsCycleOnlyWithinTheExactNoteWithoutAnAutomaticSelection() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val requests = mutableListOf<ReferenceAudioQuery>()
-        val vm = ReferenceAudioViewModel(repository { requests += it; emptyList() })
+        val basic = clip("danso")
+        val ornament = basic.copy(assetId = "b".repeat(64), category = "시김새", technique = "요성")
+        val vm = ReferenceAudioViewModel(repository {
+            requests += it
+            listOf(basic, ornament, basic.copy(assetId = "c".repeat(64), register = "역취"),
+                basic.copy(assetId = "d".repeat(64), yulmyeong = "황"))
+        })
+        val selection = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
         try {
-            vm.open(ReferenceAudioSelection(GuideInstrument.DaegeumSanjo, "역취", "청임"))
-            advanceUntilIdle()
-            assertEquals(ReferenceAudioQuery("sanjo-daegeum", "기본음계", "역취", "청임"), requests.last())
-            vm.showAllNotes(true)
-            advanceUntilIdle()
-            assertEquals(ReferenceAudioQuery("sanjo-daegeum"), requests.last())
-            vm.selectCategory("시김새")
-            advanceUntilIdle()
-            assertEquals(ReferenceAudioQuery("sanjo-daegeum", "시김새"), requests.last())
-            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
-            assertTrue(vm.uiState.value.clips.isEmpty())
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            assertEquals(listOf(ReferenceAudioQuery("danso")), requests)
+            assertEquals(listOf(basic, ornament), vm.uiState.value.clipsFor(selection))
+            assertNull(vm.uiState.value.selectedClip(selection))
+            vm.nextOption(selection)
+            assertEquals(basic, vm.uiState.value.selectedClip(selection))
+            vm.nextOption(selection)
+            assertEquals(ornament, vm.uiState.value.selectedClip(selection))
+            vm.nextOption(selection)
+            assertEquals(basic, vm.uiState.value.selectedClip(selection))
+            assertEquals(1, requests.size)
+            val missing = selection.copy(yulmyeong = "태")
+            vm.nextOption(missing)
+            assertNull(vm.uiState.value.selectedClip(missing))
+            assertTrue(vm.uiState.value.clipsFor(selection.copy(instrument = GuideInstrument.Sogeum)).isEmpty())
         } finally { vm.dismiss(); Dispatchers.resetMain() }
     }
 
-    @Test fun failedRequestCanRetryAndKeepsTheSelection() = runTest {
+    @Test fun choicesStayWithTheirCardAndChangingInstrumentClearsThem() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val vm = ReferenceAudioViewModel(repository { query -> listOf(clip(query.datasetId),
+            clip(query.datasetId).copy(assetId = "b".repeat(64), yulmyeong = "황")) })
+        val jung = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
+        val hwang = jung.copy(yulmyeong = "황")
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            vm.nextOption(jung); vm.nextOption(hwang)
+            assertEquals("a".repeat(64), vm.uiState.value.selectedClip(jung)?.assetId)
+            assertEquals("b".repeat(64), vm.uiState.value.selectedClip(hwang)?.assetId)
+            vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
+            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
+            assertTrue(vm.uiState.value.clipsFor(jung).isEmpty())
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun failedRequestCanRetryAndKeepsTheInstrument() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         var failed = true
         val vm = ReferenceAudioViewModel(repository { if (failed) error("offline"); emptyList() })
         try {
-            val selection = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
-            vm.open(selection)
+            val instrument = GuideInstrument.Danso
+            vm.open(instrument)
             advanceUntilIdle()
             assertEquals(ReferenceLoadState.Failed, vm.uiState.value.loadState)
             failed = false
@@ -92,7 +120,7 @@ class ReferenceAudioViewModelTest {
             assertEquals(ReferenceLoadState.Loading, vm.uiState.value.loadState)
             advanceUntilIdle()
             assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
-            assertEquals(selection, vm.uiState.value.selection)
+            assertEquals(instrument, vm.uiState.value.instrument)
         } finally { vm.dismiss(); Dispatchers.resetMain() }
     }
 
@@ -104,8 +132,8 @@ class ReferenceAudioViewModelTest {
             listOf(clip(query.datasetId))
         })
         try {
-            vm.open(ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")); runCurrent()
-            vm.open(ReferenceAudioSelection(GuideInstrument.Sogeum, "평취", "임")); runCurrent()
+            vm.open(GuideInstrument.Danso); runCurrent()
+            vm.open(GuideInstrument.Sogeum); runCurrent()
             assertEquals("sogeum", vm.uiState.value.clips.single().datasetId)
             old.complete(Unit); advanceUntilIdle()
             assertEquals("sogeum", vm.uiState.value.clips.single().datasetId)
@@ -117,9 +145,9 @@ class ReferenceAudioViewModelTest {
         val pending = CompletableDeferred<Unit>()
         val vm = ReferenceAudioViewModel(repository { pending.await(); listOf(clip("danso")) })
         try {
-            vm.open(ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")); runCurrent()
+            vm.open(GuideInstrument.Danso); runCurrent()
             vm.dismiss(); pending.complete(Unit); advanceUntilIdle()
-            assertNull(vm.uiState.value.selection)
+            assertNull(vm.uiState.value.instrument)
             assertTrue(vm.uiState.value.clips.isEmpty())
         } finally { vm.dismiss(); Dispatchers.resetMain() }
     }
