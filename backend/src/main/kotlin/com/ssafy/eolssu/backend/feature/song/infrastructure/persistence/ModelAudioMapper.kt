@@ -6,8 +6,9 @@ import org.apache.ibatis.annotations.Mapper
 import org.apache.ibatis.annotations.Param
 
 data class ModelAudioRow(
-    val songId: Long, val scoreVersion: Int, val audioUrl: String, val bpm: Short, val bpmUnit: String,
+    val songId: Long, val scoreVersion: Int, val objectKey: String, val bpm: Short, val bpmUnit: String,
     val durationMs: Int, val startOffsetMs: Int, val contentType: String, val sha256: String,
+    val performanceObjectKey: String?, val sourceCommonSha256: String?,
 )
 
 @Mapper
@@ -17,7 +18,7 @@ interface ModelAudioMapper {
 
 class MyBatisModelAudioRepository(private val mapper: ModelAudioMapper) : ModelAudioRepository {
     override fun findCurrent(songId: Long): ModelAudio? = mapper.findCurrent(songId)?.let {
-        ModelAudio(it.songId, it.scoreVersion, it.audioUrl, it.bpm.toInt(), it.bpmUnit,
-            it.durationMs, it.startOffsetMs, it.contentType, it.sha256)
+        ModelAudio(it.songId, it.scoreVersion, it.objectKey, it.bpm.toInt(), it.bpmUnit,
+            it.durationMs, it.startOffsetMs, it.contentType, it.sha256, it.performanceObjectKey, it.sourceCommonSha256)
     }
 }

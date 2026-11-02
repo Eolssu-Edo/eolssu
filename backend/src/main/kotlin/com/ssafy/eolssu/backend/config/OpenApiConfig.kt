@@ -89,8 +89,12 @@ class OpenApiConfig {
                 if (doc.setsCookies) response.addHeaderObject("Set-Cookie", Header().schema(StringSchema())
                     .description("HttpOnly·SameSite=Lax 쿠키 발급·교체 또는 삭제. access_token Path=/api, refresh_token Path=/api/auth. Secure는 AUTH_COOKIE_SECURE(기본 true)를 따릅니다."))
                 if (doc.id in setOf("startSocialLogin","startSocialLink","startSocialWithdrawal")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
-                if (doc.id == "playReferenceAudio") {
+                if (doc.id in setOf("playReferenceAudio", "playModelAudio")) {
                     response.addHeaderObject("Location", Header().schema(StringSchema().format("uri")).description("900초 동안 유효한 서명 GET URL"))
+                    response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                }
+                if (doc.id == "getModelAudioPerformance") {
+                    response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
                 }
                 operation.responses.addApiResponse(status.toString(), response)
