@@ -1,12 +1,10 @@
 package com.ssafy.eolssu.feature.guide.layout
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -55,11 +53,9 @@ internal fun FingeringMediumLayout(state: FingeringUiState, actions: FingeringAc
                         onDismiss = actions.onDismissDropdown,
                         modifier = Modifier.weight(1f),
                     )
-                    BlowTabs(instrument, state.shownBlow, actions.onSelectBlow, Modifier.weight(1f), large = true)
+                    BlowTabs(state.blowTabs, actions.onSelectBlow, Modifier.weight(1f), large = true)
                 }
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
-                }
+                HoleLegend(Modifier.padding(top = 2.dp, bottom = 6.dp))
                 FingeringInstrumentNote(instrument)
             }
         }
