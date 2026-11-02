@@ -36,11 +36,14 @@ VALUES (1, 1, 85, 80, 90, 85, 'test-v1', '2026-10-22 01:02:03.123456');
 INSERT INTO note_results (id, evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict)
 VALUES (1, 1, 0, 2, NULL, NULL, -16, NULL, 'MISSED');
 
-INSERT INTO lessons (id, kind, instrument_id, seq, title, content_json, status, created_at, updated_at)
-VALUES (1, 'YUL', NULL, 1, '황종', '{"yul":"황"}', 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+-- 레슨 1은 V14 시드(단소 1단계) 행이라 지우지 않고 고정 값으로 덮어쓴다.
+INSERT INTO lessons (id, track, seq, title, judge_type, is_optional, content_json, status, created_at, updated_at)
+VALUES (1, 'DANSO', 1, '악기 알기·감상', 'READ', FALSE, '{"goal":"소리를 안다","pitchNames":["汰"]}', 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456') AS f
+ON DUPLICATE KEY UPDATE track = f.track, seq = f.seq, title = f.title, judge_type = f.judge_type, is_optional = f.is_optional,
+  content_json = f.content_json, status = f.status, created_at = f.created_at, updated_at = f.updated_at;
 
-INSERT INTO lesson_progress (id, user_id, lesson_id, score, completed_at, created_at, updated_at)
-VALUES (1, 1, 1, NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+INSERT INTO lesson_progress (id, user_id, lesson_id, completed_at, created_at, updated_at)
+VALUES (1, 1, 1, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 
 INSERT INTO user_social_accounts (id, user_id, provider, provider_user_id, created_at)
 VALUES (1, 3, 'NAVER', 'AbC-네이버', '2026-10-22 01:02:03.123456');

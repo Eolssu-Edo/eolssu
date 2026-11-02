@@ -45,6 +45,16 @@ open class OpenApiDatabaseTests {
         }
         return client.send(request.GET().build(),HttpResponse.BodyHandlers.ofString())
     }
+    @Test fun `my info documents password presence as a required boolean without a hash`() {
+        val response = get("/api/v3/api-docs")
+        assertEquals(200, response.statusCode())
+        val schema = json.readTree(response.body()).path("components").path("schemas").path("MyInfoResult")
+        val properties = schema.path("properties")
+        assertEquals("boolean", properties.path("hasPassword").path("type").asString())
+        assertFalse(properties.path("hasPassword").path("nullable").asBoolean())
+        assertTrue(schema.path("required").any { it.asString() == "hasPassword" })
+        assertFalse(properties.has("passwordHash"))
+    }
     @Test fun `authenticated user can fetch the full business API definition`() {
         val response=get("/api/v3/api-docs")
         assertEquals(200,response.statusCode(),response.body())
@@ -70,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(55,expected.size)
+        assertEquals(59,expected.size)
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
@@ -151,6 +161,8 @@ open class OpenApiDatabaseTests {
         assertTrue(request.path("required").any { it.asString()=="verificationToken" })
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())
+        val lessons=doc.path("paths").path("/api/lessons").path("get").path("parameters")
+        assertTrue(lessons.any { it.path("name").asString()=="track" && it.path("required").asBoolean() },lessons.toString())
     }
     @Test fun `documentation is public while member APIs still require an active member`() {
         for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui/index.html")) {

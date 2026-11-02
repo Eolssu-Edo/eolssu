@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.user.application.MyInfoService
 import com.ssafy.eolssu.backend.feature.user.application.MyInfoWithProviders
 import com.ssafy.eolssu.backend.feature.user.application.PreferencesResult
 import com.ssafy.eolssu.backend.feature.user.domain.MyInfo
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
@@ -63,13 +64,15 @@ class MyInfoController(private val service: MyInfoService) {
 data class MyInfoResult(
     val userId: String,
     val email: String?,
+    @field:Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+    val hasPassword: Boolean,
     val nickname: String,
     val instrumentId: String,
     val notationMode: String,
     val linkedProviders: List<LinkedProviderResult>,
 ) {
     constructor(found: MyInfoWithProviders) : this(
-        found.info.userId.toString(), found.info.email, found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
+        found.info.userId.toString(), found.info.email, found.info.hasPassword, found.info.nickname, found.info.instrumentId.toString(), found.info.notationMode,
         found.linkedProviders.map { LinkedProviderResult(it.provider, it.linkedAt) },
     )
 }
