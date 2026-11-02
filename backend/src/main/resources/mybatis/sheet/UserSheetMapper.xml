@@ -19,7 +19,7 @@
     <!-- CAT-04와 같은 공개 조건: 게시·미삭제 -->
     <select id="findSongSource" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SongCopySourceRow">
         SELECT s.jangdan_id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit,
-               s.score_json, s.is_scorable AS scorable
+               s.score_json, s.is_scorable AS scorable, s.score_version, s.note_count, s.default_bpm
         FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
     </select>

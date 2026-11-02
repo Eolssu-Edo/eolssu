@@ -98,6 +98,9 @@ class CreateUserSheet(
     private fun copy(command: CreateUserSheetCommand): CopyOutcome {
         val draft = command.copyFromSongId?.let { songId ->
             val song = repository.findSongSource(songId) ?: return Rejected(CreateUserSheetResult.NotFound)
+            // CAT-04가 409로 막는 곡(저장 버전·음표 수·단위 불일치)은 복사하지 않는다. 사본만 검증하면 원본 값과 비교하지 못한다.
+            scores.timeline(song.scoreJson, song.scoreVersion, song.noteCount, song.defaultBpm, song.bpmUnit)
+                ?: return Rejected(CreateUserSheetResult.StateConflict)
             val copied = scores.copy(song.scoreJson, FIRST_VERSION) ?: return Rejected(CreateUserSheetResult.StateConflict)
             val status = if (song.scorable) SheetStatus.EVALUABLE else SheetStatus.NEEDS_REVIEW
             Draft(status, song.jangdanId, song.bpmUnit, copied.columnCount, copied.json, copied.noteCount)

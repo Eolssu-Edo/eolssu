@@ -12,7 +12,9 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
     override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit) }
 
     override fun findSongSource(songId: Long) =
-        mapper.findSongSource(songId)?.let { SongCopySource(it.jangdanId, it.bpmUnit, it.scoreJson, it.scorable) }
+        mapper.findSongSource(songId)?.let {
+            SongCopySource(it.jangdanId, it.bpmUnit, it.scoreJson, it.scorable, it.scoreVersion, it.noteCount, it.defaultBpm)
+        }
 
     override fun find(sheetId: Long, userId: Long) = mapper.find(sheetId, userId)?.toSheet()
 

@@ -66,6 +66,13 @@ class CreateUserSheetTests {
             assertEquals(5, noteCount)
         }
         assertEquals(listOf("song-10@v1"), created.events.map { it.eventId })
+        assertEquals(Triple("song-10@v4", 4, 5), scores.checked.first())
+    }
+
+    @Test
+    fun `a song CAT-04 rejects for its stored note count is not copied`() {
+        assertEquals(CreateUserSheetResult.StateConflict, service.execute(copySong(songId = 15)))
+        assertEquals(emptyList(), repository.inserted)
     }
 
     @Test
@@ -102,8 +109,8 @@ class CreateUserSheetTests {
 
     @Test
     fun `copying my own sheet keeps its content and status, another member's sheet is not found`() {
-        repository.store(sheet(id = 50, userId = OWNER, status = SheetStatus.EVALUABLE, json = "mine@v3", version = 3, noteCount = 4))
-        repository.store(sheet(id = 51, userId = OTHER, status = SheetStatus.EVALUABLE, json = "theirs@v1", version = 1, noteCount = 4))
+        repository.store(sheet(id = 50, userId = OWNER, status = SheetStatus.EVALUABLE, json = "mine@v3", version = 3, noteCount = 5))
+        repository.store(sheet(id = 51, userId = OTHER, status = SheetStatus.EVALUABLE, json = "theirs@v1", version = 1, noteCount = 5))
         val copy = CreateUserSheetCommand(OWNER, "copy-sheet", "복사본", SheetStartType.COPY, null, 90, null, copyFromSheetId = 50)
 
         val created = assertIs<CreateUserSheetResult.Created>(service.execute(copy))
@@ -111,7 +118,7 @@ class CreateUserSheetTests {
         assertEquals(SheetStatus.EVALUABLE, created.sheet.status)
         assertEquals("mine@v1", created.sheet.scoreJson)
         assertEquals(1, created.sheet.scoreVersion)
-        assertEquals(4, created.sheet.noteCount)
+        assertEquals(5, created.sheet.noteCount)
         assertEquals(CreateUserSheetResult.NotFound, service.execute(copy.copy(idempotencyKey = "other", copyFromSheetId = 51)))
     }
 
@@ -130,7 +137,7 @@ class CreateUserSheetTests {
     @Test
     fun `copying my sheet without jangdan keeps no jangdan and its own unit`() {
         repository.store(
-            sheet(id = 53, userId = OWNER, status = SheetStatus.EVALUABLE, json = "plain@v2", version = 2, noteCount = 4)
+            sheet(id = 53, userId = OWNER, status = SheetStatus.EVALUABLE, json = "plain@v2", version = 2, noteCount = 5)
                 .copy(jangdanId = null, jangdanName = null, bpmUnit = "QUARTER"),
         )
         val copy = CreateUserSheetCommand(OWNER, "copy-plain", "장단 없는 복사본", SheetStartType.COPY, null, 90, null, copyFromSheetId = 53)
@@ -207,9 +214,13 @@ class CreateUserSheetTests {
         }
 
         val units = mutableListOf<String>()
+        val checked = mutableListOf<Triple<String, Int, Int>>()
 
-        override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String): List<ScoreTimelineEvent> {
+        // 가짜 악보 JSON은 "이름@v버전"이고 NOTE는 늘 5개다. 버전·음표 수가 다르면 실제 디코더처럼 거절한다.
+        override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String): List<ScoreTimelineEvent>? {
             units += bpmUnit
+            checked += Triple(scoreJson, scoreVersion, noteCount)
+            if (!scoreJson.endsWith("@v$scoreVersion") || noteCount != 5) return null
             return listOf(ScoreTimelineEvent(scoreJson, "NOTE", 0, "1", 0, 0, 0, 0, 12, 0.0, 1.0))
         }
     }
@@ -235,11 +246,13 @@ class CreateUserSheetTests {
         }
 
         override fun findSongSource(songId: Long) = when (songId) {
-            10L -> SongCopySource(1, "DOTTED_QUARTER", "song-10@v4", scorable = true)
-            11L -> SongCopySource(1, "DOTTED_QUARTER", "song-11@v1", scorable = false)
-            12L -> SongCopySource(1, "DOTTED_QUARTER", "broken", scorable = true)
-            13L -> SongCopySource(null, "QUARTER", "song-13@v1", scorable = true)
-            14L -> SongCopySource(1, "DOTTED_QUARTER", "wide-14@v1", scorable = true)
+            10L -> SongCopySource(1, "DOTTED_QUARTER", "song-10@v4", scorable = true, scoreVersion = 4, noteCount = 5, defaultBpm = 90)
+            11L -> SongCopySource(1, "DOTTED_QUARTER", "song-11@v1", scorable = false, scoreVersion = 1, noteCount = 5, defaultBpm = 90)
+            12L -> SongCopySource(1, "DOTTED_QUARTER", "broken", scorable = true, scoreVersion = 1, noteCount = 5, defaultBpm = 90)
+            13L -> SongCopySource(null, "QUARTER", "song-13@v1", scorable = true, scoreVersion = 1, noteCount = 5, defaultBpm = 90)
+            14L -> SongCopySource(1, "DOTTED_QUARTER", "wide-14@v1", scorable = true, scoreVersion = 1, noteCount = 5, defaultBpm = 90)
+            // 저장한 음표 수(4)가 악보 JSON(5개)과 달라 CAT-04가 409로 막는 곡
+            15L -> SongCopySource(1, "DOTTED_QUARTER", "song-15@v1", scorable = true, scoreVersion = 1, noteCount = 4, defaultBpm = 90)
             else -> null
         }
 

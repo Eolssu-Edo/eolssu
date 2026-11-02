@@ -48,7 +48,15 @@ data class NewUserSheet(
 data class SheetJangdan(val id: Long, val bpmUnit: String)
 
 /** 복사할 수 있는 게시·미삭제 곡. 장단이 없으면 bpmUnit은 원본 악보의 music.bpmUnit(CAT-04와 같다). */
-data class SongCopySource(val jangdanId: Long?, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
+data class SongCopySource(
+    val jangdanId: Long?,
+    val bpmUnit: String,
+    val scoreJson: String,
+    val scorable: Boolean,
+    val scoreVersion: Int,
+    val noteCount: Int,
+    val defaultBpm: Int,
+)
 
 data class SheetPage(val items: List<UserSheet>, val totalElements: Long)
 

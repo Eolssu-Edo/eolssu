@@ -50,7 +50,15 @@ data class UserSheetRow(
 
 data class SheetJangdanRow(val id: Long, val bpmUnit: String)
 
-data class SongCopySourceRow(val jangdanId: Long?, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
+data class SongCopySourceRow(
+    val jangdanId: Long?,
+    val bpmUnit: String,
+    val scoreJson: String,
+    val scorable: Boolean,
+    val scoreVersion: Int,
+    val noteCount: Int,
+    val defaultBpm: Int,
+)
 
 data class UserSheetInsert(
     val userId: Long,

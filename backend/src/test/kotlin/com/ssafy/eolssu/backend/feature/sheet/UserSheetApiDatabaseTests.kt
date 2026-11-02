@@ -60,7 +60,7 @@ class UserSheetApiDatabaseTests {
     fun cleanup() {
         jdbc.update("DELETE FROM user_sheets WHERE user_id IN (?,?)", OWNER, OTHER)
         jdbc.update("DELETE FROM users WHERE id IN (?,?)", OWNER, OTHER)
-        jdbc.update("DELETE FROM songs WHERE id BETWEEN 993900 AND 993902")
+        jdbc.update("DELETE FROM songs WHERE id BETWEEN 993900 AND 993903")
     }
 
     @Test
@@ -139,6 +139,17 @@ class UserSheetApiDatabaseTests {
         assertEquals(201, again.statusCode(), again.body())
         val againId = json.readTree(again.body()).path("result").path("sheetId").asString()
         assertEquals(stored.path("scoreData"), json.readTree(get(OWNER, "/api/users/me/sheets/$againId/score").body()).path("result").path("scoreData"))
+
+        // 저장한 음표 수가 악보와 다른 곡은 CAT-04처럼 409이고 악보를 만들지 않는다.
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+            SELECT 993903,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count+1,is_scorable,status FROM songs WHERE id=1""",
+        )
+        assertEquals(409, get(OWNER, "/api/songs/993903/score").statusCode())
+        val mismatched = create(OWNER, "mismatch", """{"title":"손상","startType":"COPY","bpm":72,"copyFromSongId":"993903"}""")
+        assertEquals(409, mismatched.statusCode(), mismatched.body())
+        assertEquals("STATE_CONFLICT", json.readTree(mismatched.body()).path("result").path("errorCode").asString())
+        assertEquals(2, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
 
         assertEquals(404, create(OWNER, "hidden", """{"title":"숨김","startType":"COPY","bpm":72,"copyFromSongId":"993901"}""").statusCode())
         assertEquals(404, create(OTHER, "theirs", """{"title":"남의 것","startType":"COPY","bpm":72,"copyFromSheetId":"$sheetId"}""").statusCode())
