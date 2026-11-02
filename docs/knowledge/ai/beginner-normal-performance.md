@@ -108,3 +108,46 @@ uv run --locked python -m evaluation.error_detection @synth --out evaluation/bas
 - 결과 JSON의 `onsetMs`는 `onset_beat`로만 계산해 pyin-4에서는 허용의 최솟값이다. 실제 허용은 연주마다 다르다.
 - 소금 아리랑은 도라지타령에 맞춰 교과서 판본으로 정했고 연주자에게 확인하지 않았다. 표준악보집 판본과는 네 곳(길이 셋, 음 하나)이 달라 1~2음이 영향을 받을 수 있다.
 - 녹음 앞 숨소리·잡음이 첫 음 시작을 흔든다. 녹음 시작을 다듬는 처리는 하지 않았다.
+
+## S15P31E102-353: 아리랑 두 녹음의 현재 기준 확인
+
+2026-11-02에 `1dec028b`에서 로컬로 확인했다. `c701c32`와 비교했을 때 채점 파이프라인, 악보 변환기와 아리랑 고정 악보에는 차이가 없다. 서버에 저장된 파일의 해시는 확인하지 못했다. 아래 서버 결과와 로컬 파일의 연결은 사용자가 알려준 파일명과 연습 기록을 기준으로 한다.
+
+| 로컬 녹음 | SHA-256 | 사용자 제공 서버 총점 | 로컬 총점 | 음정 · 박자 · 길이 | 조율 편차 |
+| --- | --- | --- | --- | --- | --- |
+| 아리랑_단소_2.m4a | `ba30948d85b6a54744624f2323dc2c26353e56238112a2c3569e0002d7335657` | 81 | 81 | 91 · 93 · 60 | -25센트 |
+| 아리랑_단소_연습.m4a | `90b2993f6377ae2c0234853602b612f48b326f25128a8ebf58c2f8897f231b53` | 78 | 78 | 92 · 88 · 54 | 15센트 |
+
+- 두 연주 모두 메트로놈 없이 녹음했다. 서버에서 입력한 BPM 96을 그대로 쓰고, 녹음 앞부분을 자르지 않았다. 96은 실제 연주 속도를 측정한 값이 아니다.
+- 표준악보집 `ngc-standard-2022-p173`을 변환해 음표 인덱스 0~60을 채점했다. JGB SHA-256은 `b3e9d743df9cb5b1b64149378dcf14ba30e54387334080c5d9a5262db67a048d`, 고정 공통 악보는 `51cd874652d705511cfaa0f2c03ba6d3632ae10b4a483036d6a438a8eac73f1b`이다.
+- `pyin-4`, 황 311.13Hz, 10ms 음높이 간격, 기본 허용값과 박자 흔들림 배수 4를 사용했다. Windows, Python 3.12.10, NumPy 2.5.4, librosa 1.0.0에서 실행했다.
+- 78점 녹음의 해시는 위 10월 29일 정상 연주 기록의 단소 녹음과 같다. 위 기록의 BPM 76.3은 소리 구간으로 추정한 값이며, 이번 96과 비교 조건이 다르다. 기존 정상 연주 3개의 녹음과 악보 해시는 모두 각 기록과 일치했다.
+- 의도한 오류가 없다는 기록은 모든 음이 정확하다는 뜻이 아니다. 사람의 음별 정답은 확인하지 않아 이 두 점수만으로 오류 검출률이나 점수의 적절성을 판단할 수 없다. 공유·Git 업로드를 위한 녹음 사용 허용 범위도 미확인이다.
+
+### 두 녹음 재현
+
+두 원본을 `Downloads/실제_연주_데이터/`에 두고 `ai` 폴더에서 실행한다. 저장소 밖 원본이 필요하며, 아래 명령은 서비스나 서버를 수정하지 않는다. 사용한 `ai/uv.lock`의 SHA-256은 `5fc91fbbd72adf4a6b2f45f084584a8309068256874a610ee1f652732a352818`이다.
+
+```powershell
+$env:PYTHONPATH='.;src'
+$env:OPENBLAS_NUM_THREADS='1'
+$env:OMP_NUM_THREADS='1'
+$env:NUMBA_CACHE_DIR='C:/nbc'
+@'
+from pathlib import Path
+import numpy as np
+from evaluation.error_detection import score_notes
+from ai_service.pipelines.audio import decode_recording, SAMPLE_RATE
+from ai_service.pipelines import scoring
+import sys
+sys.path.insert(0, str(Path('../data/src/scores').resolve()))
+from score_data import convert_answer
+notes = score_notes(convert_answer('ngc-standard-2022-p173'), 0, 60)
+for name in ['아리랑_단소_2.m4a', '아리랑_단소_연습.m4a']:
+    audio = decode_recording(Path.home() / 'Downloads/실제_연주_데이터' / name).astype(np.float32) / 32768
+    f0 = scoring.pyin_f0(audio, SAMPLE_RATE)
+    rms = scoring.frame_rms(audio, SAMPLE_RATE)
+    result = scoring.score(f0, notes, 96, scoring.HWANG_HZ, rms=rms)
+    print(name, result.total, result.pitch, result.timing, result.duration, result.tuning_offset_cent)
+'@ | .venv/Scripts/python.exe -X utf8 -
+```
