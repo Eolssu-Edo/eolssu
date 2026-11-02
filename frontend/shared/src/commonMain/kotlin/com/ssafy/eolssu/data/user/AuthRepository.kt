@@ -39,8 +39,8 @@ sealed interface LoginResult {
 
     data object WrongCredentials : LoginResult
 
-    /** 같은 이메일로 15분 안에 5번 실패해 15분 동안 로그인할 수 없다(429). */
-    data object Locked : LoginResult
+    /** 같은 이메일로 15분 안에 5번 실패해 15분 동안 로그인할 수 없다(429). [retryAvailableAtMillis]부터 다시 시도할 수 있고, 서버가 알려 주지 않으면 null. */
+    data class Locked(val retryAvailableAtMillis: Long?) : LoginResult
 
     /** 서버에 닿지 못했거나 서버가 처리하지 못했다(연결 실패·시간 초과·5xx). */
     data object Unavailable : LoginResult
@@ -86,7 +86,7 @@ class SampleAuthRepository(private val now: () -> Long) : AuthRepository {
         val address = email.trim().lowercase()
         return when {
             !emailPattern.matches(address) || password.isEmpty() -> LoginResult.WrongCredentials
-            address == LockedEmail -> LoginResult.Locked
+            address == LockedEmail -> LoginResult.Locked(now() + 15 * 60_000L)
             else -> LoginResult.Success(withdrawalCancelled = address == WithdrawnEmail)
         }
     }

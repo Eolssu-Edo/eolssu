@@ -1,11 +1,12 @@
 package com.ssafy.eolssu.feature.song.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,14 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -35,7 +34,7 @@ import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
 import org.jetbrains.compose.resources.stringResource
 
-/** SONG-03 두 칸 탭(`role=tablist`): 고른 칸은 흰 바탕에 그림자. */
+/** SONG-03 두 칸 탭(`.tabs`, `role=tablist`): 흰 바탕 옅은 테두리 틀 안에서 고른 칸만 연두 바탕. 개수는 회색으로 붙인다. */
 @Composable
 internal fun MySongsTabSwitch(
     tab: MySongsTab,
@@ -45,58 +44,62 @@ internal fun MySongsTabSwitch(
     modifier: Modifier = Modifier,
 ) {
     val colors = EolssuTheme.colors
+    val frame = RoundedCornerShape(14.dp)
     Row(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(12.dp))
+            .background(colors.surface, frame)
+            .border(1.dp, colors.lineSoft, frame)
             .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         MySongsTab.entries.forEach { entry ->
             val selected = tab == entry
-            val label = when (entry) {
-                MySongsTab.Songs -> stringResource(Res.string.mysongs_tab_songs, songCount)
-                MySongsTab.Sheets -> stringResource(Res.string.mysongs_tab_sheets, sheetCount)
+            val (label, count) = when (entry) {
+                MySongsTab.Songs -> stringResource(Res.string.mysongs_tab_songs) to songCount
+                MySongsTab.Sheets -> stringResource(Res.string.mysongs_tab_sheets) to sheetCount
             }
-            val shape = RoundedCornerShape(9.dp)
             Surface(
                 onClick = { onSelect(entry) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(40.dp)
-                    .then(if (selected) Modifier.shadow(2.dp, shape, ambientColor = SelectedTabShadow, spotColor = SelectedTabShadow) else Modifier)
+                    .heightIn(min = 40.dp)
                     .semantics {
                         role = Role.Tab
                         this.selected = selected
                     },
-                shape = shape,
-                color = if (selected) colors.background else Color.Transparent,
-                contentColor = if (selected) colors.text else colors.textMuted,
+                shape = RoundedCornerShape(11.dp),
+                color = if (selected) colors.primary else Color.Transparent,
+                contentColor = if (selected) colors.onPrimary else colors.textSub,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                    val style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp)
+                    Text(label, style = style.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium))
+                    Text("$count", style = style.copy(fontWeight = FontWeight.Medium), color = colors.textMuted)
                 }
             }
         }
     }
 }
 
-private val SelectedTabShadow = Color.Black.copy(alpha = 0.12f)
-
-/** 점선 테두리의 '악보 추가' 버튼. 휴대폰 56dp, 태블릿 세로 60dp, 태블릿 가로(탭 오른쪽) 48dp·모서리 14dp. */
+/** '악보 추가 · PDF, 음원, 직접 만들기'(`.btn.outline`): 52dp, 흰 바탕에 테두리, 모서리 14dp, 더하기 20dp. */
 @Composable
-internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 56.dp, cornerRadius: Dp = 16.dp) {
+internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(height).dashedBorder(colors.lineStrong, cornerRadius),
-        shape = RoundedCornerShape(cornerRadius),
-        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.surface,
         contentColor = colors.text,
+        border = BorderStroke(1.dp, colors.line),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-            Icon(EolssuIcons.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(stringResource(Res.string.mysongs_add), style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
+        Row(
+            Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(EolssuIcons.Plus, contentDescription = null, modifier = Modifier.size(20.dp))
+            Text(stringResource(Res.string.mysongs_add), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold))
         }
     }
 }

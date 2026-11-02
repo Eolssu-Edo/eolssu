@@ -58,7 +58,7 @@ class ApiAuthRepositoryTest {
         val cases = mapOf(
             HttpStatusCode.Unauthorized to LoginResult.WrongCredentials,
             HttpStatusCode.BadRequest to LoginResult.WrongCredentials,
-            HttpStatusCode.TooManyRequests to LoginResult.Locked,
+            HttpStatusCode.TooManyRequests to LoginResult.Locked(null),
             HttpStatusCode.ServiceUnavailable to LoginResult.Unavailable,
         )
         for ((status, expected) in cases) {
@@ -67,6 +67,15 @@ class ApiAuthRepositoryTest {
         }
         assertEquals(LoginResult.Unavailable, repository { null }.logIn("user@example.com", "eolssu1!"))
         assertEquals("1", member.id)
+    }
+
+    @Test
+    fun lockedLoginKeepsRetryTimeFromServer() = runTest {
+        val repository = repository {
+            HttpStatusCode.TooManyRequests to
+                """{"isSuccess":false,"message":"","code":429,"result":{"errorCode":"TOO_MANY_REQUESTS","details":{"retryAvailableAt":"2026-11-02T05:30:00Z"}}}"""
+        }
+        assertEquals(LoginResult.Locked(1_793_597_400_000L), repository.logIn("user@example.com", "eolssu1!"))
     }
 
     @Test
