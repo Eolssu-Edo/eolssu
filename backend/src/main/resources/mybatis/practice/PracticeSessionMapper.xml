@@ -32,6 +32,28 @@
         WHERE status = 'RECORDING' AND started_at &lt; #{cutoff}
     </update>
 
+    <!-- 미저장 녹음 정리(S15P31E102-375). 저장한 기록은 saved_at 조건으로 빠지고, 비우기와 저장이 겹치면 늦은 쪽의 조건이 막는다 -->
+    <select id="findExpiredUnsavedRecordings" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.ExpiredRecordingRow">
+        SELECT id AS session_id, recording_url
+        FROM practice_sessions
+        WHERE saved_at IS NULL AND recording_url IS NOT NULL AND ended_at &lt; #{cutoff} AND id &gt; #{afterSessionId}
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
+    <update id="clearUnsavedRecording">
+        UPDATE practice_sessions
+        SET recording_url = NULL
+        WHERE id = #{sessionId} AND recording_url = #{recordingUrl} AND saved_at IS NULL AND ended_at &lt; #{cutoff}
+    </update>
+
+    <!-- 파일을 지우지 못했을 때 다음 실행에서 다시 지우도록 키를 되돌린다. 그사이 저장됐으면 녹음이 저장한 기록으로 남는다 -->
+    <update id="restoreRecording">
+        UPDATE practice_sessions
+        SET recording_url = #{recordingUrl}
+        WHERE id = #{sessionId} AND recording_url IS NULL AND record_deleted_at IS NULL
+    </update>
+
     <!-- 세션당 평가는 하나다. 기록을 지운 세션은 회원 조회에서 없는 세션과 같다(REC-04). 녹음은 원본이 있을 때만 재생할 수 있다 -->
     <select id="findDetail" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PracticeSessionDetailRow">
         SELECT ps.id AS session_id, ps.user_id, ps.song_id, ps.bpm, ps.bpm_unit, ps.start_note_idx, ps.end_note_idx, ps.status,
