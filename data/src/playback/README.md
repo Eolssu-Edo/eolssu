@@ -75,6 +75,8 @@ flowchart TD
 - `source-map.json`에는 기존 본음 기준 대응표와 펼친 표현/근거/추정 위치를 함께 남깁니다. 단독 MIDI만으로는 이 정보를 복원할 수 없습니다.
 - 직접 JGB 입력은 파일에 `playback.notation_policy: "educational-preview/v1"`을 지정합니다. 직접 JGB의 반복은 기존 `--performance-plan`으로 범위를 명시하고 길이표 짝 규칙을 유지합니다. 공통 입력의 기본 반복/길이표 정책과 구분합니다.
 
+원문에 각 경계를 넘어 이어 불라는 근거가 있을 때만 표현 파일에 `"gakContinuations": [{"gak": 5, "basis": "남 5.5정간 이어 불기"}]`를 지정합니다. `gak`은 이어질 새 각의1-based 번호이며 첫 자리는 이음·빈칸이어야 합니다. 앞 음의 숨표·쉼과 충돌하면 실패합니다. 이는 수행만 바꾸며 원본 v1의 각 경계 REST와 채점 이벤트는 유지합니다. 직접 JGB에는 성부 번호도 포함한 `playback.gak_continuations: [{"part": 1, "gak": 5, "basis": "…"}]`를 사용합니다. 선언하지 않은 경계의 기본 쉼은 유지합니다.
+
 교육용 고정곡의 실제 파형 검사는 재생 결과 JSON 대신 사람이 작성한 기대 음열·구간을 사용합니다. `--case`는 해당 악기 이름입니다. WAV와 M4A 모두 입력할 수 있으며 M4A는 위와 같은 FFmpeg/ffprobe 준비가 필요합니다.
 
 ```powershell
@@ -82,6 +84,19 @@ flowchart TD
 ```
 
 현재 실제 단소 BPM60은62.5ms 꾸밈의 초기 한 관측창이 F0 검사에 실패하므로 이 명령은 실패 상태를 유지합니다. 다른 세 악기는 통과했고, 단소 BPM30의125ms 꾸밈은 별도 `common-preview-slow-danso.expect.json`으로 검증했습니다. 상세 측정과 한계는 위 정책 문서에 기록합니다.
+
+### 기존 재생용 JGB를 공통 악보로 가져오기
+
+저장소 루트에서 아래 명령을 실행합니다. 입력에 선택한 악기·명시 빠르기·황종이 필요하고, 다성부 악보에는1-based `--part`를 지정해야 합니다. 출력 폴더는 새 경로를 사용합니다.
+
+```powershell
+$imported = python -m data.src.scores.playback_import input.jgb.json --instrument danso --part 1 --out data/processed/common-import/song | ConvertFrom-Json
+python -m data.src.playback --score data/processed/common-import/song/common.json --common-bpm $imported.bpm --common-expressions data/processed/common-import/song/expressions.json --notation-policy educational-preview/v1 --instrument danso --assets assets.json --out data/processed/common-import/song-audio
+```
+
+`common.json`은 원본 `staffUnit`의 quarter 비율과 황종을 보존한 v1입니다. 재생 BPM은 첫 명령의 `bpm`을 사용합니다. 원문 정간/분 값을 그대로 `--common-bpm`에 넣으면 quarter 비율이 다른 곡의 속도가 달라집니다. `expressions.json`은 공통 파일 SHA와 원래 시김새 위치·조·표현 정책·명시 각 경계 지속을 전달합니다. `source.jgb.json`은 원본 바이트, `source-map.json`은 원문 슬롯과 생성 표시 자리/이벤트의 대응 및 율명 기준표 경고입니다. 함께 보관하고 공통 파일만 고쳐 해시 결합을 끊지 마세요.
+
+독립 `{니나}` 등의 시간 자리는 기존 JGB 해석대로 실제 율명으로 펼칩니다. 소비한 원문 기호는 대응표에 남기고 다시 연주하지 않습니다. 같은 row에 길이를 바꾸는 꾸밈과 독립 음열이 섞여 정확히 옮길 수 없으면 위치를 포함해 실패합니다. 결과는 `inferred` 재생용 투영이며 채점용 정답·전문가 검수·서비스 게시를 대신하지 않습니다. 기존 `score_data.py`와 검수 fixture의 ID/채점 시간은 변경하지 않습니다. 공통 경로의 release를 음 길이 안에 포함하는 정책도 유지하므로 기존 JGB 음원과 바이트 동일성을 보장하지 않습니다.
 
 ## 설치와 빠른 검사
 
