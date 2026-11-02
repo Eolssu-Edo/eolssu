@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>얼쑤 채점 실험</title>
+  <style>
+    :root { color-scheme: light; --ink: #1e2925; --muted: #596961; --green: #285d49; --paper: #f4f6f2; --edge: #e0e7df; --soft: #edf4ec; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 'Pretendard', 'Malgun Gothic', sans-serif; }
+    header { background: #fff; border-bottom: 1px solid var(--edge); }
+    .top, main { max-width: 1040px; margin: auto; padding: 28px 32px; }
+    .brand { display: inline-flex; align-items: center; gap: 9px; color: var(--green); font-size: .82rem; font-weight: 800; letter-spacing: .02em; }
+    .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--green); color: white; font-size: 1rem; }
+    h1 { margin: 20px 0 4px; font-size: clamp(1.55rem, 4vw, 2rem); letter-spacing: -.04em; line-height: 1.3; }
+    h2 { margin: 0 0 20px; font-size: 1.12rem; letter-spacing: -.03em; }
+    p { margin: 4px 0; }
+    .muted, small { color: var(--muted); }
+    small { display: block; margin-top: 7px; font-size: .8rem; line-height: 1.5; }
+    main { display: grid; gap: 18px; padding-top: 26px; padding-bottom: 64px; }
+    section { min-width: 0; background: white; border: 1px solid var(--edge); border-radius: 16px; padding: 28px; box-shadow: 0 4px 18px #24392a08; }
+    .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+    .wide { grid-column: 1 / -1; }
+    label { display: block; font-weight: 700; margin-bottom: 8px; font-size: .9rem; }
+    input, select, button { font: inherit; }
+    input, select { width: 100%; min-height: 46px; border: 1px solid #cbd7cc; border-radius: 9px; background: #fcfdfb; padding: 10px 12px; color: var(--ink); }
+    input[type=file] { padding: 7px; color: var(--muted); }
+    input[type=file]::file-selector-button { margin-right: 12px; border: 0; border-radius: 6px; background: var(--soft); color: var(--green); padding: 7px 12px; font: inherit; font-weight: 700; cursor: pointer; }
+    input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #85b887; outline-offset: 2px; }
+    button { margin-top: 24px; border: 1px solid var(--green); border-radius: 9px; padding: 11px 22px; background: var(--green); color: white; font-weight: 700; cursor: pointer; }
+    button:hover:not(:disabled) { background: #194a37; }
+    #reset { background: white; color: var(--green); margin-left: 8px; }
+    #reset:hover { background: var(--soft); }
+    button:disabled { opacity: .6; cursor: wait; }
+    #message { margin-top: 14px; min-height: 1.5em; font-weight: 700; }
+    .error { color: #a0312b; }
+    .scores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .score { background: #f4f7f2; border: 1px solid #e6ece4; border-radius: 12px; padding: 16px; color: var(--muted); font-size: .85rem; font-weight: 700; }
+    .score:first-child { background: #e7f1e8; border-color: #d6e8d7; }
+    .score strong { display: block; margin-top: 4px; color: var(--green); font-size: clamp(1.45rem, 3vw, 1.9rem); letter-spacing: -.04em; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; text-align: left; white-space: nowrap; }
+    th, td { border-bottom: 1px solid var(--edge); padding: 11px 12px; }
+    th { color: var(--muted); font-size: .8rem; }
+    details { margin-top: 20px; }
+    summary { cursor: pointer; font-weight: 700; }
+    .control { min-width: 0; padding: 18px 0; border-bottom: 1px solid var(--edge); }
+    .control label { display: flex; justify-content: space-between; gap: 12px; }
+    .control output { flex-shrink: 0; color: var(--green); font-variant-numeric: tabular-nums; }
+    input[type=range] { min-height: 30px; padding: 0; accent-color: var(--green); cursor: pointer; }
+    .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; }
+    @media (max-width: 600px) { .top, main { padding: 20px 16px; } section { padding: 20px; } .fields, .scores { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fields > div { grid-column: 1 / -1; } .controls { grid-template-columns: 1fr; } #reset { margin-left: 0; } }
+  </style>
+</head>
+<body>
+<header><div class="top"><div class="brand"><span class="brand-mark" aria-hidden="true">♪</span>얼쑤 · 채점 실험</div><h1>녹음 채점하기</h1><p class="muted">내 PC에서 현재 채점 기준을 확인합니다.</p></div></header>
+<main>
+  <section aria-labelledby="input-title">
+    <h2 id="input-title">1. 녹음과 악보 선택</h2>
+    <form id="form">
+      <div class="fields">
+        <div class="wide"><label for="audio">녹음 파일</label><input id="audio" type="file" accept=".m4a,audio/mp4" required><small>선택한 녹음은 이 PC에서만 분석합니다.</small></div>
+        <div><label for="song">악보</label><select id="song"><option value="ngc-standard-2022-p173" data-bpm="96">아리랑 · 단소</option><option value="ngc-standard-2022-p171" data-bpm="96">도라지타령 · 단소</option><option value="ngc-standard-2022-p172" data-bpm="96">밀양아리랑 · 단소</option><option value="ngc-standard-2022-p174" data-bpm="66">늴리리야 · 단소</option></select><small>국립국악원 표준악보집. 실제 연주한 악보와 같은지 확인해 주세요.</small></div>
+        <div><label for="bpm">BPM</label><input id="bpm" type="number" min="1" max="240" step="1" value="96" required><small>기본 BPM은 실제 연주 속도를 측정한 값이 아닙니다.</small></div>
+        <div><label for="start">녹음 시작 위치 · 초</label><input id="start" type="number" min="0" step="0.01" value="0" required><small>0이면 앞부분을 자르지 않습니다. 시작 위치부터 최대 3분을 분석합니다.</small></div>
+      </div>
+      <button id="submit" type="submit">기준 점수 확인</button>
+      <p id="message" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <section id="results" aria-labelledby="results-title" hidden>
+    <h2 id="results-title">2. 현재 기준 결과</h2>
+    <div class="scores"><div class="score">총점<strong id="total"></strong></div><div class="score">음정<strong id="pitch"></strong></div><div class="score">박자<strong id="timing"></strong></div><div class="score">길이<strong id="duration"></strong></div></div>
+    <p id="tuning" class="muted"></p>
+    <details><summary>음표별 판정 보기</summary><p class="muted">음표 번호는 0부터 시작합니다. 시작 오차는 녹음 처음 기준입니다.</p><div class="table-wrap"><table><thead><tr><th scope="col">음표 번호</th><th scope="col">판정</th><th scope="col">음정 오차 · 센트</th><th scope="col">시작 오차 · ms</th><th scope="col">길이 오차 · ms</th></tr></thead><tbody id="notes"></tbody></table></div></details>
+  </section>
+  <section id="experiment" aria-labelledby="experiment-title" hidden>
+    <h2 id="experiment-title">3. 기준 바꿔 비교</h2>
+    <p class="muted">슬라이더를 조절한 뒤 비교하기를 누르세요. 실험 점수는 서비스에 적용되지 않습니다.</p>
+    <div class="controls">
+      <div class="control"><label for="pitch-cent">음정 허용 <output for="pitch-cent">50센트</output></label><input id="pitch-cent" type="range" min="10" max="100" step="5" value="50" data-unit="센트"></div>
+      <div class="control"><label for="duration-ratio">길이 허용 <output for="duration-ratio">25%</output></label><input id="duration-ratio" type="range" min="5" max="100" step="5" value="25" data-unit="%"></div>
+      <div class="control"><label for="onset-spread">박자 흔들림 배수 <output for="onset-spread">4배</output></label><input id="onset-spread" type="range" min="0" max="10" step="0.5" value="4" data-unit="배"></div>
+      <div class="control"><label for="pitch-penalty">음정 부분 점수 감점 <output for="pitch-penalty">0%</output></label><input id="pitch-penalty" type="range" min="0" max="100" step="5" value="0" data-unit="%"><small>허용 범위 경계에서 깎는 점수입니다.</small></div>
+      <div class="control"><label for="timing-penalty">박자 부분 점수 감점 <output for="timing-penalty">0%</output></label><input id="timing-penalty" type="range" min="0" max="100" step="5" value="0" data-unit="%"></div>
+      <div class="control"><label for="large-error">음정·박자 큰 오차 감점 <output for="large-error">1배</output></label><input id="large-error" type="range" min="1" max="4" step="0.25" value="1" data-unit="배"><small>1은 현재와 같은 감점입니다.</small></div>
+      <div class="control"><label for="weight-pitch">음정 비중 <output for="weight-pitch">1</output></label><input id="weight-pitch" type="range" min="0" max="10" step="0.5" value="1" data-unit=""></div>
+      <div class="control"><label for="weight-timing">박자 비중 <output for="weight-timing">1</output></label><input id="weight-timing" type="range" min="0" max="10" step="0.5" value="1" data-unit=""></div>
+      <div class="control"><label for="weight-duration">길이 비중 <output for="weight-duration">1</output></label><input id="weight-duration" type="range" min="0" max="10" step="0.5" value="1" data-unit=""></div>
+    </div>
+    <button id="compare" type="button">비교하기</button>
+    <button id="reset" type="button">현재 기준으로 되돌리기</button>
+    <p id="compare-message" role="status" aria-live="polite"></p>
+    <div id="comparison" hidden>
+      <h2>실험 결과</h2>
+      <div class="scores"><div class="score">총점<strong id="new-total"></strong></div><div class="score">음정<strong id="new-pitch"></strong></div><div class="score">박자<strong id="new-timing"></strong></div><div class="score">길이<strong id="new-duration"></strong></div></div>
+      <p id="allowance" class="muted"></p><p id="changed" class="muted"></p>
+    </div>
+  </section>
+</main>
+<script>
+  const form = document.querySelector('#form'), song = document.querySelector('#song');
+  const audio = document.querySelector('#audio'), bpm = document.querySelector('#bpm'), start = document.querySelector('#start');
+  const message = document.querySelector('#message'), results = document.querySelector('#results'), submit = document.querySelector('#submit');
+  const experiment = document.querySelector('#experiment'), comparison = document.querySelector('#comparison');
+  const compare = document.querySelector('#compare'), reset = document.querySelector('#reset'), compareMessage = document.querySelector('#compare-message');
+  const sliders = [...experiment.querySelectorAll('input[type=range]')];
+  let revision = 0, busy = false, baseline = null;
+  function clearResult() { revision++; baseline = null; results.hidden = true; experiment.hidden = true; comparison.hidden = true; message.textContent = ''; message.className = ''; compareMessage.textContent = ''; }
+  for (const input of [audio, song, bpm, start]) input.addEventListener('input', clearResult);
+  song.addEventListener('change', () => { bpm.value = song.selectedOptions[0].dataset.bpm; clearResult(); });
+  const verdict = {CORRECT: '맞음', PITCH: '음정 오류', TIMING: '박자 오류', MISSED: '놓침'};
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (busy || !form.reportValidity()) return;
+    clearResult(); const current = revision; busy = true; submit.disabled = true;
+    message.textContent = '녹음을 분석하고 있습니다. 곡 길이에 따라 시간이 걸릴 수 있습니다.';
+    try {
+      const query = new URLSearchParams({score_id: song.value, bpm: bpm.value, start: start.value});
+      const response = await fetch('/score?' + query, {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: audio.files[0]});
+      const result = await response.json();
+      if (current !== revision) return;
+      if (!response.ok) throw new Error(result.error || '분석하지 못했습니다.');
+      if (result.status !== 'DONE') throw new Error(({NO_SOUND: '연주 소리를 찾지 못했습니다.', TOO_SHORT: '녹음이 악보에 비해 너무 짧습니다.'})[result.fail_reason] || '분석하지 못했습니다.');
+      for (const key of ['total', 'pitch', 'timing', 'duration']) document.getElementById(key).textContent = result[key] + '점';
+      document.querySelector('#tuning').textContent = '조율 편차 ' + result.tuning_offset_cent + '센트' + (result.tuning_out_of_range ? ' · 보정 범위 초과' : '');
+      const tbody = document.querySelector('#notes'); tbody.replaceChildren();
+      for (const note of result.notes) { const row = tbody.insertRow(); for (const value of [note.idx, verdict[note.verdict] || note.verdict, note.pitch_error_cent, note.onset_error_ms, note.duration_error_ms]) row.insertCell().textContent = value ?? '—'; }
+      baseline = result; results.hidden = false; experiment.hidden = false; message.textContent = '분석이 완료됐습니다.';
+    } catch (error) { if (current === revision) { message.textContent = error.message || '분석 서버에 연결할 수 없습니다.'; message.className = 'error'; } }
+    finally { busy = false; submit.disabled = false; }
+  });
+  function updateSliders() { for (const slider of sliders) document.querySelector(`output[for="${slider.id}"]`).textContent = slider.value + slider.dataset.unit; }
+  for (const slider of sliders) slider.addEventListener('input', () => { revision++; updateSliders(); comparison.hidden = true; compareMessage.textContent = ''; });
+  reset.addEventListener('click', () => { for (const slider of sliders) slider.value = slider.defaultValue; revision++; updateSliders(); comparison.hidden = true; compareMessage.textContent = '현재 기준으로 되돌렸습니다. 비교하기를 눌러 확인하세요.'; });
+  compare.addEventListener('click', async () => {
+    if (busy || !baseline) return;
+    const get = id => document.getElementById(id).value;
+    const weights = ['weight-pitch', 'weight-timing', 'weight-duration'].map(id => Number(get(id)));
+    if (!weights.some(Boolean)) { compareMessage.className = 'error'; compareMessage.textContent = '음정, 박자, 길이 비중을 하나 이상 올려 주세요.'; return; }
+    const current = revision; busy = true; submit.disabled = true; compare.disabled = true; comparison.hidden = true;
+    compareMessage.className = ''; compareMessage.textContent = '바꾼 기준으로 다시 분석하고 있습니다.';
+    try {
+      const query = new URLSearchParams({score_id: song.value, bpm: bpm.value, start: start.value,
+        pitch_cent: get('pitch-cent'), duration_ratio: Number(get('duration-ratio')) / 100, onset_spread: get('onset-spread'),
+        pitch_penalty: Number(get('pitch-penalty')) / 100, timing_penalty: Number(get('timing-penalty')) / 100,
+        large_error_exponent: get('large-error'), weight_pitch: weights[0], weight_timing: weights[1], weight_duration: weights[2]});
+      const response = await fetch('/compare?' + query, {method: 'POST', headers: {'Content-Type': 'application/octet-stream'}, body: audio.files[0]});
+      const payload = await response.json();
+      if (current !== revision) return;
+      if (!response.ok) throw new Error(payload.error || '비교하지 못했습니다.');
+      const result = payload.result;
+      if (result.status !== 'DONE') throw new Error('녹음을 분석하지 못했습니다: ' + result.fail_reason);
+      for (const key of ['total', 'pitch', 'timing', 'duration']) document.getElementById('new-' + key).textContent = result[key] + '점';
+      document.querySelector('#allowance').textContent = '이번 박자 허용 범위: ±' + Math.round(payload.onset_tolerance_ms) + 'ms · 조율 편차: ' + result.tuning_offset_cent + '센트' + (result.tuning_out_of_range ? ' · 보정 범위 초과' : '');
+      const changed = result.notes.map((note, i) => ({note, before: baseline.notes[i]})).filter(({note, before}) => before?.idx !== note.idx || before?.verdict !== note.verdict);
+      document.querySelector('#changed').textContent = changed.length ? '판정 변화: ' + changed.map(({note, before}) => note.idx + '번 ' + (verdict[before?.verdict] || '없음') + ' → ' + (verdict[note.verdict] || note.verdict)).join(', ') : '음별 맞음·오류 판정은 바뀌지 않았습니다.';
+      comparison.hidden = false; compareMessage.textContent = '비교가 완료됐습니다.';
+    } catch (error) { if (current === revision) { compareMessage.className = 'error'; compareMessage.textContent = error.message || '비교하지 못했습니다.'; } }
+    finally { busy = false; submit.disabled = false; compare.disabled = false; }
+  });
+</script>
+</body>
+</html>
