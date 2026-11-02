@@ -68,6 +68,33 @@ class FingeringTest {
     }
 
     @Test
+    fun blowTabsSelectShownBlowAndDisableMissingOnes() {
+        assertEquals(
+            listOf(BlowTab(Blow.Low, selected = false, enabled = false), BlowTab(Blow.Mid, selected = true, enabled = true), BlowTab(Blow.High, selected = false, enabled = true)),
+            FingeringUiState(instrument = GuideInstrument.Danso, blow = Blow.Low).blowTabs,
+        )
+        assertEquals(
+            listOf(true, false, false),
+            FingeringUiState(instrument = GuideInstrument.DaegeumJeongak, blow = Blow.Low).blowTabs.map { it.selected },
+        )
+        assertTrue(FingeringUiState(instrument = GuideInstrument.DaegeumJeongak).blowTabs.all { it.enabled })
+    }
+
+    @Test
+    fun remarksFollowBoardDescriptionRule() {
+        assertEquals(emptyList(), GuideInstrument.Danso.noteOf("仲")!!.remarks())
+        assertEquals(listOf(NoteRemark.Semitone), GuideInstrument.Danso.noteOf("夾")!!.remarks())
+        assertEquals(listOf(NoteRemark.NeedsCheck), GuideInstrument.Danso.noteOf("㶃")!!.remarks())
+        // 기초부터 배우기 카드는 반음 표시를 하지 않는다
+        assertEquals(emptyList(), GuideInstrument.Danso.noteOf("夾")!!.remarks(inLearn = true))
+    }
+
+    @Test
+    fun dropdownListsInstrumentsInBoardOrder() {
+        assertEquals(listOf("danso", "sogeum", "daegeum-jeongak", "daegeum-sanjo"), GuideInstrument.entries.map { it.id })
+    }
+
+    @Test
     fun findsInstrumentById() {
         assertEquals(GuideInstrument.DaegeumSanjo, GuideInstrument.fromId("daegeum-sanjo"))
         assertNull(GuideInstrument.fromId("piri"))
