@@ -12,4 +12,11 @@
     <string name="reference_audio_loading_sound">소리를 불러오는 중이에요.</string>
     <string name="reference_audio_failed_sound">소리를 재생하지 못했어요. 다시 시도해 주세요.</string>
     <string name="reference_audio_take">연주 예시 %1$d</string>
+    <string name="reference_audio_source">출처: 국립국악원 국악기 디지털 음원\n공공누리 제1유형(KOGL-1)</string>
+    <string name="reference_audio_processing">구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A)로 인코딩한 음원이에요.</string>
+    <string name="reference_audio_source_open">국립국악원 원본 보기</string>
+    <string name="reference_audio_source_failed">원본 페이지를 열지 못했어요. 다시 눌러 주세요.</string>
+    <string name="reference_audio_playing">재생 중이에요.</string>
+    <string name="reference_audio_completed">재생을 마쳤어요.</string>
+    <string name="reference_audio_replay">다시 재생</string>
 </resources>

@@ -11,9 +11,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
-import com.ssafy.eolssu.feature.guide.Blow
-import com.ssafy.eolssu.feature.guide.GuideInstrument
-import com.ssafy.eolssu.feature.guide.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.feature.guide.ReferenceAudioRoute
 import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
 import com.ssafy.eolssu.feature.guide.ReadingPage
@@ -27,6 +27,7 @@ import eolssu.shared.generated.resources.learn_song_missing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
+import com.ssafy.eolssu.core.model.fingering.label
 
 /*
  * LEARN-02 연결. 단계 목록과 단계 상세는 화면 이동 그래프 `learn`에 묶인 하나의 [LearnViewModel]을 받는다.

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
-import com.ssafy.eolssu.feature.practice.PracticeTopBar
+import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomContent
 import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
@@ -29,7 +29,7 @@ internal fun PracticeMediumLayout(state: PracticeUiState, snackbarHostState: Sna
         snackbarHostState = snackbarHostState,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth,
         topBar = {
-            PracticeTopBar(state, actions, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth)
+            PracticeTopBar(state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth)
         },
         bottomBar = {
             Column(

@@ -30,7 +30,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.score.ComposedGlyph
-import com.ssafy.eolssu.feature.guide.glyphPartsOf
+import com.ssafy.eolssu.core.model.fingering.glyphPartsOf
+import com.ssafy.eolssu.core.model.fingering.westernNameLabel
 
 /*
  * 학습 화면의 글자 그리기. 본문 글꼴(Pretendard)에 한자·♭가 없고 세리프 글꼴에는 율명 15자만 있어서,
@@ -134,11 +135,11 @@ internal fun HanjaGlyph(
     }
 }
 
-/** 계이름(작은 회색 글자). ♭는 그림으로 넣는다. */
+/** 서양 음이름(작은 회색 글자, [westernNameLabel]대로 괄호). ♭는 그림으로 넣는다. */
 @Composable
 internal fun SolfegeText(solfege: String, modifier: Modifier = Modifier) {
     GuideText(
-        solfege,
+        westernNameLabel(solfege),
         modifier,
         style = LocalTextStyle.current.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
         color = EolssuTheme.colors.textMuted,

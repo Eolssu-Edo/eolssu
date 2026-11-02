@@ -4,6 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.guide.component.ReferenceAudioDialog
 import org.koin.compose.viewmodel.koinViewModel
@@ -21,6 +25,8 @@ fun ReferenceAudioRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
+    var sourceLinkFailed by remember(selection) { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.stop() }
     LaunchedEffect(state.query) { player.stop() }
     LaunchedEffect(selection) { viewModel.open(selection) }
@@ -35,6 +41,16 @@ fun ReferenceAudioRoute(
         onShowAll = viewModel::showAllNotes,
         onCategory = viewModel::selectCategory,
         onRetry = viewModel::retry,
+        onOpenSource = {
+            player.stop()
+            sourceLinkFailed = false
+            try {
+                uriHandler.openUri("https://www.gugak.go.kr/digitaleum/front/monotone/list.do")
+            } catch (_: Exception) {
+                sourceLinkFailed = true
+            }
+        },
+        sourceLinkFailed = sourceLinkFailed,
         onClose = onClose,
     )
 }

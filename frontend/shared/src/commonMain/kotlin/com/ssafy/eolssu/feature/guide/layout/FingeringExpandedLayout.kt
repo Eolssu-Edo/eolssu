@@ -24,7 +24,7 @@ import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
-import com.ssafy.eolssu.feature.guide.component.HoleLegend
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 
 /**

@@ -12,10 +12,12 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.guide.component.FingeringCatalogDialog
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /**
  * GUIDE-01 연결. 기초부터 배우기에서 오면 [instrument]·[blow]로 시작하고, 뒤로 가기는 들어온 화면으로 돌아간다.
- * 음 듣기는 정확한 라벨의 녹음 목록을 연다. 여러 주법·구간 중 선택한 파일을 외부 재생기로 연다.
+ * 음 듣기는 정확한 라벨의 녹음 목록을 열고, 선택한 연주 예시를 앱 안에서 재생한다.
  */
 @Composable
 fun FingeringRoute(

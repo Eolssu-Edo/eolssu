@@ -17,6 +17,7 @@ import io.ktor.client.engine.mock.respond
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -84,6 +85,7 @@ class AuthFormViewModelTest {
         assertFalse(runImmediately { viewModel.logIn() })
         assertNull(viewModel.uiState.value.error)
         assertEquals(LoginNotice.Locked, viewModel.uiState.value.notice)
+        assertNotNull(viewModel.uiState.value.lockedUntil, "예시 저장소도 다시 시도할 시각을 알려 준다")
 
         viewModel.dismissNotice()
         assertNull(viewModel.uiState.value.notice)

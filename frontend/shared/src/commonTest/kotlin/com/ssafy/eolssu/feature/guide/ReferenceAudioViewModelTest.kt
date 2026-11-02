@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.guide
 
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
 import com.ssafy.eolssu.data.song.ReferenceAudioQuery
 import com.ssafy.eolssu.data.song.ReferenceAudioRepository

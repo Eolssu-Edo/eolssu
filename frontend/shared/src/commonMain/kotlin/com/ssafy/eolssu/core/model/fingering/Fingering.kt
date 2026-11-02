@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.guide
+package com.ssafy.eolssu.core.model.fingering
 
 /** 구멍 하나의 상태. 운지표 문자 `1` 막음, `0` 엶, `h` 반 막음, `?` 확인 필요. */
 enum class HoleState {
@@ -91,14 +91,14 @@ enum class GuideInstrument(
         id = "daegeum-jeongak", hwang = 3, blows = Blow.entries, table = DaegeumTable,
         imageWidth = 2000, imageHeight = 668, holeRadius = 25,
         holes = points(883 to 323, 1006 to 323, 1124 to 323, 1245 to 323, 1368 to 323, 1492 to 323),
-        note = "같은 운지에서 입김 세기로 저취·평취·역취 옥타브를 나눠요. 계이름은 황종=미♭(E♭) 기준이에요.",
+        note = "같은 운지에서 입김 세기로 저취·평취·역취 옥타브를 나눠요. 서양 음이름은 황종=미♭(E♭) 기준이에요.",
         source = "출처: 국립국악원 『2021 대금정악보』 9쪽 대금 안공표(공공누리 4유형).",
     ),
     DaegeumSanjo(
         id = "daegeum-sanjo", hwang = 5, blows = Blow.entries, table = DaegeumTable,
         imageWidth = 2000, imageHeight = 667, holeRadius = 25,
         holes = points(848 to 332, 981 to 332, 1115 to 332, 1244 to 332, 1374 to 332, 1510 to 331),
-        note = "기본 운지틀은 정악대금과 같아요. 계이름은 황종=F(정악대금보다 장2도 높음) 기준이고, 유파마다 조율·세부 운지가 조금 다를 수 있어요.",
+        note = "기본 운지틀은 정악대금과 같아요. 서양 음이름은 황종=F(정악대금보다 장2도 높음) 기준이고, 유파마다 조율·세부 운지가 조금 다를 수 있어요.",
         source = "출처: 정악대금 안공표의 기본 운지틀. 유파별 차이는 선생님께 확인하세요.",
     ),
     ;

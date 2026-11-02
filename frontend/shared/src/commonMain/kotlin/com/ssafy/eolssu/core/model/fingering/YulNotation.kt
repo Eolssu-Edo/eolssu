@@ -1,10 +1,10 @@
-package com.ssafy.eolssu.feature.guide
+package com.ssafy.eolssu.core.model.fingering
 
 import com.ssafy.eolssu.core.model.Yul
 
 /*
  * 운지표의 율명 글자 규칙(와이어프레임 guide-data.js). 운지법 보기와 기초부터 배우기가 함께 쓴다.
- * 청성(氵)·탁성(亻)·중청 글자를 기본 12율명으로 되돌린 뒤 계이름·음높이를 센다.
+ * 청성(氵)·탁성(亻)·중청 글자를 기본 12율명으로 되돌린 뒤 서양 음이름·음높이를 센다.
  */
 
 /** 기본 12율명(황종 → 응종). */
@@ -25,7 +25,7 @@ private val OctaveOf: Map<String, Int> = buildMap {
     "㶂㶃㶄㴩㶌㶍㶝".forEach { put(it.toString(), 2) }
 }
 
-/** C부터 반음씩 올린 계이름(내림표 표기, 고정 도). */
+/** C부터 반음씩 올린 서양 음이름(내림표 표기, 고정 도). 음계 안 자리를 뜻하는 계이름이 아니다. */
 private val Solfege12 = listOf("도", "레♭", "레", "미♭", "미", "파", "솔♭", "솔", "라♭", "라", "시♭", "시")
 
 /** 운지표에 없는 글자의 음높이 순서. 낮은 음부터 나열할 때 맨 뒤로 보낸다. */
@@ -37,13 +37,16 @@ fun baseYulOf(hanja: String): String? = BaseOf[hanja] ?: hanja.takeIf { it in Ba
 fun octaveOf(hanja: String): Int = OctaveOf[hanja] ?: 0
 
 /**
- * [hanja]의 계이름. 악기의 황종 높이 [hwang](C에서 반음 수)에서 반음 단위로 센다. 옥타브는 적지 않는다.
+ * [hanja]의 서양 음이름. 악기의 황종 높이 [hwang](C에서 반음 수)에서 반음 단위로 센다. 옥타브는 적지 않는다.
  * 운지표에 없는 글자면 빈 문자열.
  */
 fun solfegeOf(hanja: String, hwang: Int): String {
     val i = BaseYul.indexOf(BaseOf[hanja] ?: hanja)
     return if (i < 0) "" else Solfege12[(hwang + i) % 12]
 }
+
+/** 율명 옆에 덧붙이는 서양 음이름 표시. 율명이 주이고 이것은 참고라서 괄호로 감싼다. 음이름이 없으면 빈 문자열. */
+fun westernNameLabel(name: String): String = if (name.isEmpty()) "" else "($name)"
 
 /** 낮은 음부터 나열할 때 쓰는 음높이 순서. 황종 = 0, 반음마다 1. */
 fun pitchIndexOf(hanja: String): Int {

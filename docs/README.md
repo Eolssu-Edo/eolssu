@@ -32,6 +32,10 @@
 
 ## 기능 스펙
 
+- [기본음·시김새 운영 게시](specs/reference-audio-publication.md) · [368 계획](plans/S15P31E102-368.md) · [배포 통합·게시 기록](knowledge/infra/reference-audio-publication.md)
+
+- [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md) · [364 관계 보완 계획](plans/S15P31E102-364.md)
+
 - [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
 
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
@@ -40,12 +44,15 @@
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
 - [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
+- [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
+- [기초부터 배우기 학습 단계·진도 API (LRN-01·02·03)](specs/learning-progress-apis.md) · [344 계획](plans/S15P31E102-344.md)
 
 - [최신 운영 구성의 수동 서버 점검](specs/server-inspection-current-runtime.md)
 - [운영 테스트 계정의 인증 만료 예외](specs/non-expiring-test-account.md)
 
 - [구현된 업무 API Swagger 문서화](specs/api-documentation.md)
 - [간편 로그인과 계정 연결](specs/social-auth.md)
+- [내 정보 비밀번호 보유 여부 계약·검증](plans/S15P31E102-385.md)
 - [카카오 서명형 연결 해제 웹훅](specs/kakao-webhook.md)
 
 - [채점 품질 통계 대시보드](specs/scoring-quality-dashboard.md)
@@ -63,6 +70,7 @@
 - [프론트엔드 HTTP 클라이언트와 로그인 쿠키 보관](decisions/frontend-http-client.md) (확정)
 
 - [S15P31E102-256 곡·악보 조회](plans/S15P31E102-256.md)
+- [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
 
 ## 도구 조사·검증 기록
 
@@ -79,7 +87,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
-- [기본음·시김새 녹음 선택과 앱 내부 재생](knowledge/frontend/reference-audio-playback.md)
+- [기본음·시김새 녹음 선택과 앱 내부 재생](knowledge/frontend/reference-audio-playback.md) · [367 계획](plans/S15P31E102-367.md)
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
@@ -97,6 +105,11 @@
 - [정간보 시김새 기호의 뜻과 출처](knowledge/domain/sigimsae-symbols.md)
 
 ## 데이터 조사·검증 기록
+
+- [공통 악보 v1 재생 연결 스펙](specs/common-score-playback.md) · [S15P31E102-338 실행·검증 기록](plans/S15P31E102-338.md)
+- [공통 악보 음원의 독립 파형 검증](knowledge/data/common-score-audio-verification.md)
+- [악기별 시김새 교육용 미리듣기와 표현 시간표](knowledge/data/common-score-expression-preview.md)
+- [라벨링 기본음·시김새 M4A 생성·검증](knowledge/data/reference-audio-m4a.md)
 
 - [Android 운영 자료·단소 M4A 후보와 앱 악보 대조](knowledge/data/android-catalog-audio-readiness.md)
 - [악기별 악보 분류와 추가 확보](knowledge/data/score-collection.md) · [계획](plans/S15P31E102-111.md)
@@ -122,6 +135,7 @@
 - [단소 채점 오류 검출 평가: 실행과 결과 해석](knowledge/ai/scoring-error-evaluation.md)
 - [짧은 옥타브 위 음 채점 오류: 원인과 수정](knowledge/ai/short-octave-error.md)
 - [입문자 정상 연주 채점: 박자 판정과 소금 정답](knowledge/ai/beginner-normal-performance.md)
+- [일부러 틀린 실제 녹음 요청서 (아리랑, 단소·소금, 보류)](knowledge/ai/real-error-recording-request.md)
 - [DTW 메모리 절감 비교: 기준 관찰과 연구용 후보](knowledge/ai/dtw-memory-comparison.md)
 
 - [음높이 추정 방법 비교: 합성 입력](knowledge/ai/pitch-estimator-comparison.md)
@@ -178,6 +192,7 @@
 - [S15P31E102-260 운영 테스트 계정과 인증 만료 예외](plans/S15P31E102-260.md)
 - [S15P31E102-219 연습 기록지 요약의 곡별 최고점·항목별 성장](plans/S15P31E102-219.md)
 - [S15P31E102-217 연습 세션 생성 API(PRA-01)](plans/S15P31E102-217.md)
+- [S15P31E102-342 연습 기록 저장·목록·녹음 재생·삭제 API(REC-01~04)](plans/S15P31E102-342.md)
 - [S15P31E102-221 운영 backend에서 업무 API 활성화](plans/S15P31E102-221.md)
 - [S15P31E102-229 자동 배포 검사를 health 경로로](plans/S15P31E102-229.md)
 - [S15P31E102-242 채점 오류 검출 평가 도구와 단소 단음 조율 흔들림 측정](plans/S15P31E102-242.md)
@@ -239,3 +254,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-337 QA 앱 App Links 수정·검증](plans/S15P31E102-337.md)
 
 - [S15P31E102-356 OAuth 신규 가입·소셜 탈퇴](plans/S15P31E102-356.md) · [API 계약](specs/social-sign-up.md)
+
+- [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)

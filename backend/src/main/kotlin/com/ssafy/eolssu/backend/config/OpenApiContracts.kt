@@ -6,12 +6,16 @@ import com.ssafy.eolssu.backend.feature.auth.api.*
 import com.ssafy.eolssu.backend.feature.user.api.*
 import com.ssafy.eolssu.backend.feature.term.api.TermsResult
 import com.ssafy.eolssu.backend.feature.growth.api.*
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonCompletionResult
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonDetailResult
+import com.ssafy.eolssu.backend.feature.lesson.api.LessonListResult
 import com.ssafy.eolssu.backend.feature.practice.api.*
 import com.ssafy.eolssu.backend.feature.analysis.api.RetryResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.EvaluationNotesResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.PracticeEvaluationResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResult
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
+import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.song.api.*
 import com.ssafy.eolssu.backend.feature.catalog.api.*
 import io.swagger.v3.oas.models.PathItem.HttpMethod
@@ -32,6 +36,15 @@ internal data class ApiContract(
 )
 
 internal val apiContracts = listOf(
+    ApiContract(HttpMethod.GET,"/api/reference-audios","listReferenceAudios","카탈로그","기본음·시김새 음원 목록",
+        "datasetId 필수(danso/sogeum/jeongak-daegeum/sanjo-daegeum). category·technique·register·yulmyeong·pitchId·relatedPitchId 필터는 AND입니다. 두 음 ID는 선행 0 없는 1~9223372036854775807 십진 문자열이며 그 외400입니다. pitchId는 기본음 전용이고 relatedPitchId는 기본음 또는 역할별 음 관계가 일치하는 자산을 중복 없이 찾습니다. 자산의 pitchId는 문자열 또는 null이며 pitchRelations는 role·sequenceIndex·pitchId·evidencePath 배열입니다. LABEL, SEQUENCE(원본 순서), LOWER_ANCHOR, DESTINATION 순이며 SEQUENCE 외 index는 null입니다. evidencePath는 상세 metadata 기준 JSON Pointer입니다. 게시된 라벨별 음원만 반환하며 soundUrl은 API 원점 기준 상대 재생 경로입니다. 추정 라벨을 채점 정답으로 승격하지 않습니다.",
+        ReferenceAudioListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}","getReferenceAudio","카탈로그","기본음·시김새 음원과 출처",
+        "SHA-256 형식 assetId. 게시된 자산과 원본 라벨·출처·변환 metadata를 반환합니다. asset.pitchRelations의 evidencePath는 result.metadata 기준 JSON Pointer이며 분석창·F0·대안은 metadata에 보존합니다. 미등록/초안은404입니다.",
+        ReferenceAudioDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}/play","playReferenceAudio","카탈로그","기본음·시김새 재생 주소 발급",
+        "게시된 자산에 한해900초 서명 GET 주소로302 이동합니다. 본문 없음, Location 헤더·Cache-Control:no-store. 저장소 미설정은503입니다. DB에 만료 URL을 저장하지 않습니다.",
+        null,statuses=listOf(302),errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE),security=null),
     ApiContract(HttpMethod.POST,"/api/webhooks/kakao/events","kakaoSecurityEvent","웹훅","카카오 연결 해제 SET 수신",
         "카카오 RS256 서명형 User Unlinked만 수신. 사용자 쿠키 대신 서명·앱·대상·이벤트 주체를 검증합니다. 공통 envelope의 예외이며202 본문 없음, 검증 실패400 err/description, 일시 장애503입니다.",
         null,statuses=listOf(202),security=null),
@@ -99,7 +112,7 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/terms","listTerms","약관","시행 중인 약관 목록",
         "code별 현재 시행 버전 1개를 반환합니다. 시행 시각이 같으면 더 큰 ID를 선택합니다.",TermsResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/users/me","getMyInfo","회원","내 정보와 학습 설정 조회",
-        "회원 정보·선택 악기·기본 악보 표기·연결된 소셜 제공자를 반환합니다.",MyInfoResult::class.java),
+        "회원 정보·선택 악기·기본 악보 표기·연결된 소셜 제공자를 반환합니다. hasPassword는 저장된 비밀번호 해시 존재 여부의 필수 boolean이며 이메일·소셜 연결 유무와 독립적입니다. 해시 원문은 반환하지 않습니다.",MyInfoResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me","changeNickname","회원","닉네임 수정",
         "공백이 아닌 최대 60자 닉네임을 저장합니다.",MyProfileResult::class.java),
     ApiContract(HttpMethod.PATCH,"/api/users/me/preferences","changePreferences","회원","악기와 악보 표기 설정",
@@ -115,18 +128,42 @@ internal val apiContracts = listOf(
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다. 미구현 미션 값은 null입니다.",SummaryResult::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/calendar","growthCalendar","성장","날짜별 연습 기록",
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999의 날짜별 연습 초와 횟수를 반환합니다.",CalendarResult::class.java),
+    ApiContract(HttpMethod.GET,"/api/users/me/growth/scores","growthScores","성장","곡별 최근 점수 변화",
+        "songId를 생략하면 가장 최근에 연주한 곡입니다. scope는 FULL(전체 곡 연주, 기본)·SECTION(구간 연습), limit은 1~100(기본 5)입니다. 분석이 끝나고 평가가 있는 연주의 최근 limit개를 오래된 순으로 주고, 점마다 연주 조건·각 범위와 비교 가능 여부, 연주한 곡 목록을 반환합니다. 없는 곡은 빈 items입니다.",
+        ScoreTrendResult::class.java),
     ApiContract(HttpMethod.POST,"/api/users/me/score-views","recordScoreView","성장","악보 화면 체류 기록",
         "Idempotency-Key로 1회 저장합니다(신규 201, 같은 내용 재요청 200, 다른 내용 409). songId는 JSON 문자열, 시각은 ISO8601, 초는 JSON 정수입니다.",
         RecordedScoreView::class.java,listOf(201,200),listOf(IDEMPOTENCY_CONFLICT,RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.GET,"/api/lessons","listLessons","학습","학습 단계 목록과 나의 진도",
+        "track(DANSO·SOGEUM·DAEGEUM_JEONGAK·DAEGEUM_SANJO, 대문자 그대로)의 공개 단계를 seq 순서로 본인 완료 시각과 함께 반환합니다. 완료 수·다음 단계는 필수 단계만 봅니다. 트랙 누락·모르는 값은 400입니다.",
+        LessonListResult::class.java,errors=listOf(INVALID_REQUEST)),
+    ApiContract(HttpMethod.GET,"/api/lessons/{lessonId}","getLesson","학습","학습 단계 상세",
+        "공개 단계의 트랙별 문구(목표·이유·할 일·통과 기준·율명·음역·곡 후보·근거)와 본인 완료 시각을 반환합니다. 해당하지 않는 목록은 빈 배열입니다. 없거나 초안 단계는 404입니다.",
+        LessonDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.PUT,"/api/lessons/{lessonId}/completion","completeLesson","학습","학습 단계 완료 표시·해제",
+        "사용자가 누른 완료 표시만 저장합니다(서버 판정 없음). completed는 JSON 불리언만 받습니다. 다시 true를 보내도 처음 완료 시각을 유지하고, false는 표시를 지웁니다(없어도 200). 응답의 완료 수·다음 단계는 그 단계 트랙 기준입니다.",
+        LessonCompletionResult::class.java,errors=listOf(INVALID_REQUEST,RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions","createPracticeSession","연습","연습 세션 생성",
         "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
         CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}","getPracticeSession","연습","연습 세션과 분석 상태 조회",
-        "본인 세션만 조회합니다. RECORDING·PENDING·DONE·FAILED 상태와 실패 사유/재시도 가능 여부를 반환합니다. 초과 PENDING은 TIMEOUT으로 정리됩니다.",
+        "본인 세션만 조회합니다. RECORDING·PENDING·DONE·FAILED 상태와 실패 사유/재시도 가능 여부를 반환합니다. 초과 PENDING은 TIMEOUT으로 정리됩니다. 기록을 지운 세션은 404이고, 저장한 기록을 처음 조회하면 목록의 isNew를 끕니다.",
         PracticeSessionResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/recording","uploadRecording","연습","녹음 업로드와 분석 접수",
         "multipart audio 1개(MP4 컨테이너 AAC/m4a), 20MiB 이하·600초(패딩 포함 601초 미만). 샘플레이트/채널/비트레이트로 거부하지 않습니다. Spring 앞 계층은 25MiB. endedAt/Idempotency-Key는 받지 않으며 종료 시각은 서버가 기록합니다.",
         RecordingUploadAccepted::class.java,listOf(202),listOf(SESSION_NOT_FOUND,SESSION_NOT_RECORDING,SESSION_EXPIRED,RECORDING_TOO_LARGE,RECORDING_UNSUPPORTED_FORMAT,RECORDING_INVALID_DURATION,RECORDING_STORAGE_UNAVAILABLE)),
+    ApiContract(HttpMethod.PUT,"/api/practice-sessions/{sessionId}/record","savePracticeRecord","연습 기록","연습 기록 저장·메모 수정",
+        "분석이 끝난(DONE) 본인 세션을 연습 기록으로 저장합니다. 다시 보내도 처음 저장 시각은 그대로입니다. 본문이 없거나 memo를 생략하면 메모를 바꾸지 않고 null이면 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 500자를 넘으면 400입니다. 지운 기록은 404, 미완료는 409입니다.",
+        SavedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.DELETE,"/api/practice-sessions/{sessionId}/record","deletePracticeRecord","연습 기록","연습 기록 삭제",
+        "저장한 본인 기록과 녹음을 지웁니다. 녹음 파일을 먼저 지우고, 지우지 못하면 503이며 기록은 그대로입니다. 평가 점수는 남아 성장 집계는 바뀌지 않고, 지운 뒤에는 기록 상세·평가·연습 기록 API가 모두 404입니다. 다시 보내도 404이므로 재시도에서 받은 404는 이미 지운 것으로 처리합니다.",
+        DeletedPracticeRecord::class.java,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.GET,"/api/users/me/practice-records","listPracticeRecords","연습 기록","저장한 이전 연주 목록",
+        "저장했고 지우지 않은 본인 기록만 곡별로 묶습니다. songId를 생략하면 가장 최근에 저장한 곡을 펼치고, 펼친 곡의 기록만 연주 시작 시각 sort(NEWEST|OLDEST)·page(0부터)·size(1~100, 기본 20)로 나눕니다. isNew는 기록 상세를 처음 조회하기 전까지 true입니다. 범위 밖 값은 400입니다.",
+        PracticeRecordList::class.java),
+    ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/recording","getRecordingPlayback","연습 기록","녹음 다시 듣기 주소",
+        "본인 세션에 녹음이 있으면 저장 여부와 관계없이 15분짜리 서명 URL(audio/mp4)을 발급합니다. 만료되면 다시 받아 같은 위치부터 이어 재생합니다. 녹음이 없거나 지운 기록은 404, 녹음 저장소를 쓸 수 없으면 503입니다.",
+        RecordingPlaybackResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions/{sessionId}/retry","retryAnalysis","연습","실패한 분석 재시도",
         "Idempotency-Key 필수. TIMEOUT·SERVER_ERROR의 본인 녹음을 재분석합니다. 이미 PENDING이면 새 시도 없이 동일한 202, 재녹음 필요/완료/업로드 전 상태는 409입니다. 요청 본문은 없습니다.",
         RetryResult::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,SERVICE_UNAVAILABLE)),

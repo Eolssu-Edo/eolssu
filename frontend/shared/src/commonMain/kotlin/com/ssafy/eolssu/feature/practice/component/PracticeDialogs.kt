@@ -1,18 +1,25 @@
 package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.runtime.Composable
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.practice.PracticePopup
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_close
+import eolssu.shared.generated.resources.common_confirm
 import eolssu.shared.generated.resources.practice_idle_body
 import eolssu.shared.generated.resources.practice_idle_continue
 import eolssu.shared.generated.resources.practice_idle_title
 import eolssu.shared.generated.resources.practice_popup_abort_body
 import eolssu.shared.generated.resources.practice_popup_abort_title
+import eolssu.shared.generated.resources.practice_popup_blocked_body
+import eolssu.shared.generated.resources.practice_popup_blocked_title
 import eolssu.shared.generated.resources.practice_popup_continue
+import eolssu.shared.generated.resources.practice_popup_denied_body
+import eolssu.shared.generated.resources.practice_popup_denied_title
 import eolssu.shared.generated.resources.practice_popup_end_body
 import eolssu.shared.generated.resources.practice_popup_end_title
 import eolssu.shared.generated.resources.practice_popup_evaluate
@@ -26,6 +33,7 @@ import eolssu.shared.generated.resources.practice_popup_keep_playing
 import eolssu.shared.generated.resources.practice_popup_later
 import eolssu.shared.generated.resources.practice_popup_no_input_body
 import eolssu.shared.generated.resources.practice_popup_no_input_title
+import eolssu.shared.generated.resources.practice_popup_open_settings
 import eolssu.shared.generated.resources.practice_popup_permission_body
 import eolssu.shared.generated.resources.practice_popup_permission_title
 import eolssu.shared.generated.resources.practice_popup_play_again
@@ -51,10 +59,16 @@ class PracticeDialogActions(
     val onRestartNow: () -> Unit,
     val onExit: () -> Unit,
     val onToReady: () -> Unit,
+    /** ‘설정에서 허용하기’: 기기 앱 설정으로 보낸다. */
+    val onOpenMicSettings: () -> Unit = {},
 )
 
+/**
+ * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
+ */
 @Composable
 fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
+    val colors = EolssuTheme.colors
     when (popup) {
         PracticePopup.Permission -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_permission_title),
@@ -62,7 +76,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
             icon = EolssuIcons.Mic,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic)
-            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Text)
+            EolssuButton(stringResource(Res.string.practice_popup_later), actions.onDenyMic, style = EolssuButtonStyle.Ghost)
         }
         PracticePopup.Abort -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_abort_title),
@@ -74,6 +88,8 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         PracticePopup.End -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_end_title),
             message = stringResource(Res.string.practice_popup_end_body),
+            icon = EolssuIcons.Check,
+            iconBackground = colors.accentTintStrong,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate)
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, style = EolssuButtonStyle.Secondary)
@@ -81,10 +97,31 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         PracticePopup.EndNoInput -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_no_input_title),
             message = stringResource(Res.string.practice_popup_no_input_body),
-            icon = EolssuIcons.Mic,
+            icon = EolssuIcons.MicOff,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_play_again), actions.onRestartNow)
             EolssuButton(stringResource(Res.string.practice_popup_go_back), actions.onToReady, style = EolssuButtonStyle.Secondary)
+        }
+        PracticePopup.PermDenied -> EolssuDialog(
+            title = stringResource(Res.string.practice_popup_denied_title),
+            message = stringResource(Res.string.practice_popup_denied_body),
+            icon = EolssuIcons.Alert,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
+        ) {
+            EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+        }
+        PracticePopup.PermBlocked -> EolssuDialog(
+            title = stringResource(Res.string.practice_popup_blocked_title),
+            message = stringResource(Res.string.practice_popup_blocked_body),
+            icon = EolssuIcons.Alert,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
+        ) {
+            EolssuButton(stringResource(Res.string.practice_popup_open_settings), actions.onOpenMicSettings)
+            EolssuButton(stringResource(Res.string.common_close), actions.onClose, style = EolssuButtonStyle.Ghost)
         }
         PracticePopup.Restart -> EolssuDialog(title = stringResource(Res.string.practice_popup_restart_title)) {
             EolssuButton(stringResource(Res.string.practice_popup_restart_confirm), actions.onRestartNow)
@@ -98,6 +135,8 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
             title = stringResource(Res.string.practice_popup_interrupted_title),
             message = stringResource(Res.string.practice_popup_interrupted_body),
             icon = EolssuIcons.Alert,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
             EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
@@ -106,6 +145,8 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
             title = stringResource(Res.string.practice_popup_record_failed_title),
             message = stringResource(Res.string.practice_popup_record_failed_body),
             icon = EolssuIcons.Alert,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
             EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
@@ -114,6 +155,8 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
             title = stringResource(Res.string.practice_popup_too_large_title),
             message = stringResource(Res.string.practice_popup_too_large_body),
             icon = EolssuIcons.Alert,
+            iconBackground = colors.recSoft,
+            iconTint = colors.recText,
         ) {
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow)
             EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)

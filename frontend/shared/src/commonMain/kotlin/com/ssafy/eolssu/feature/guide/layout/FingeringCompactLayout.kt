@@ -16,7 +16,7 @@ import com.ssafy.eolssu.feature.guide.FingeringSource
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
-import com.ssafy.eolssu.feature.guide.component.HoleLegend
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
 
 /** 휴대폰 배치: 악기 · 취법 · 범례 아래로 운지 카드를 한 줄씩 쌓는다. */
