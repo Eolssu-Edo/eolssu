@@ -34,10 +34,7 @@ fun ReferenceAudioRoute(
     ReferenceAudioDialog(
         state = if (state.selection == selection) state else ReferenceAudioUiState(selection),
         playback = playback,
-        onPlay = { clip ->
-            if (playback.sourceId == clip.assetId && playback.status in setOf(AudioPlaybackStatus.Playing, AudioPlaybackStatus.Loading)) player.stop()
-            else player.load(AudioSource(clip.assetId, clip.soundUrl), 0, 1f)
-        },
+        onPlay = { clip -> toggleReferenceAudio(player, clip) },
         onShowAll = viewModel::showAllNotes,
         onCategory = viewModel::selectCategory,
         onRetry = viewModel::retry,
