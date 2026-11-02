@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.guide.component.FingeringCatalogDialog
+import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
@@ -17,7 +18,7 @@ import com.ssafy.eolssu.core.model.fingering.Blow
 
 /**
  * GUIDE-01 연결. 기초부터 배우기에서 오면 [instrument]·[blow]로 시작하고, 뒤로 가기는 들어온 화면으로 돌아간다.
- * 음 듣기는 정확한 라벨의 녹음 목록을 열고, 선택한 연주 예시를 앱 안에서 재생한다.
+ * 각 운지 카드에서 정확한 라벨의 녹음 옵션을 고르고, 화면이 공유하는 플레이어로 재생한다.
  */
 @Composable
 fun FingeringRoute(
@@ -29,7 +30,7 @@ fun FingeringRoute(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var catalogOpen by rememberSaveable { mutableStateOf(false) }
-    var audioSelection by remember(state.instrument, state.shownBlow) { mutableStateOf<ReferenceAudioSelection?>(null) }
+    val audio = rememberReferenceAudioController(state.instrument, state.shownBlow)
 
     FingeringScreen(
         state = state,
@@ -41,10 +42,9 @@ fun FingeringRoute(
         onSelectInstrument = viewModel::selectInstrument,
         onSelectBlow = viewModel::selectBlow,
         onOpenCatalog = { catalogOpen = true },
-        onListen = { note ->
-            audioSelection = ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow)
+        noteAudioContent = { note ->
+            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow), audio)
         },
     )
     if (catalogOpen) FingeringCatalogDialog(state, viewModel::retryCatalog, onClose = { catalogOpen = false })
-    audioSelection?.let { ReferenceAudioRoute(it, onClose = { audioSelection = null }) }
 }

@@ -4,8 +4,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -13,9 +11,9 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import com.ssafy.eolssu.core.model.fingering.FingeringNote
-import com.ssafy.eolssu.feature.guide.ReferenceAudioRoute
 import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
+import com.ssafy.eolssu.feature.guide.rememberReferenceAudioController
+import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
@@ -60,8 +58,7 @@ fun LearnListRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
-    var audioSelection by remember(state.instrument, state.shownStage) { mutableStateOf<ReferenceAudioSelection?>(null) }
-    audioSelection?.let { ReferenceAudioRoute(it, onClose = { audioSelection = null }) }
+    val audio = rememberReferenceAudioController(state.instrument, state.shownStage)
 
     LaunchedEffect(twoPane, state.selectedStage) {
         val selected = state.selectedStage
@@ -109,8 +106,10 @@ fun LearnListRoute(
                 onConfirmed = viewModel::selectStage,
                 onToggleDone = viewModel::toggleShownDone,
                 navigation = navigation,
-                onListen = { audioSelection = ReferenceAudioSelection.forNote(state.instrument, it) },
             ),
+            noteAudioContent = { note ->
+                ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+            },
         )
     } else {
         LearnListScreen(state, widthClass, snackbarHostState, onBack, listActions)
@@ -137,8 +136,7 @@ fun LearnStageRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
-    var audioSelection by remember(state.instrument, stageNumber) { mutableStateOf<ReferenceAudioSelection?>(null) }
-    audioSelection?.let { ReferenceAudioRoute(it, onClose = { audioSelection = null }) }
+    val audio = rememberReferenceAudioController(state.instrument, stageNumber)
 
     LaunchedEffect(twoPane) {
         if (twoPane) {
@@ -164,8 +162,10 @@ fun LearnStageRoute(
             onConfirmed = { next -> next?.let(onOpenStage) ?: onBack() },
             onToggleDone = viewModel::toggleDone,
             navigation = navigation,
-            onListen = { audioSelection = ReferenceAudioSelection.forNote(state.instrument, it) },
         ),
+        noteAudioContent = { note ->
+            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+        },
     )
 }
 
@@ -182,7 +182,6 @@ private fun learnStageActions(
     onConfirmed: (Int?) -> Unit,
     onToggleDone: (Int) -> Unit,
     navigation: LearnNavigation,
-    onListen: (FingeringNote) -> Unit,
 ) = LearnStageActions(
     onBack = onBack,
     onOpenStage = onOpenStage,
@@ -195,7 +194,6 @@ private fun learnStageActions(
         if (n == 8) navigation.onOpenSongList() else notify { getString(Res.string.learn_practice_pending, n, stage.title) }
     },
     onListenModel = { notify { getString(Res.string.learn_listen_model_pending) } },
-    onListen = onListen,
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },
     onOpenReading = navigation.onOpenReading,
     onOpenSong = { song ->

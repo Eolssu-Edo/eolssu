@@ -35,7 +35,6 @@ internal class FingeringActions(
     val onDismissDropdown: () -> Unit,
     val onSelectInstrument: (GuideInstrument) -> Unit,
     val onSelectBlow: (Blow) -> Unit,
-    val onListen: (FingeringNote) -> Unit,
 )
 
 /**
@@ -52,10 +51,10 @@ fun FingeringScreen(
     onDismissDropdown: () -> Unit,
     onSelectInstrument: (GuideInstrument) -> Unit,
     onSelectBlow: (Blow) -> Unit,
-    onListen: (FingeringNote) -> Unit,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
     onOpenCatalog: (() -> Unit)? = null,
 ) {
-    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow, onListen)
+    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow)
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
         snackbarHostState = snackbarHostState,
@@ -64,9 +63,9 @@ fun FingeringScreen(
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 when (widthClass) {
-                    WindowWidthClass.Compact -> FingeringCompactLayout(state, actions)
-                    WindowWidthClass.Medium -> FingeringMediumLayout(state, actions)
-                    WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions)
+                    WindowWidthClass.Compact -> FingeringCompactLayout(state, actions, noteAudioContent)
+                    WindowWidthClass.Medium -> FingeringMediumLayout(state, actions, noteAudioContent)
+                    WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
                 }
             }
             if (onOpenCatalog != null) EolssuButton(stringResource(Res.string.guide_catalog_fingering_title), onOpenCatalog,
