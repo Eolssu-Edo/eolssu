@@ -54,4 +54,11 @@ class GetRecordingPlaybackTests {
         storageFails = true
         assertEquals(PlaybackOutcome.Unavailable, playback.execute(1, 501))
     }
+
+    @Test
+    fun `answers unavailable when the storage has no address for the app`() {
+        val withoutAddress = GetRecordingPlayback(records, null, Duration.ofMinutes(15), Clock.systemUTC())
+        assertEquals(PlaybackOutcome.Unavailable, withoutAddress.execute(1, 501))
+        assertEquals(PlaybackOutcome.NotFound, withoutAddress.execute(2, 501))
+    }
 }

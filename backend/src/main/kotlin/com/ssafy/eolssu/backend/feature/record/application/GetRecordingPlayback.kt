@@ -13,17 +13,18 @@ import org.slf4j.LoggerFactory
  */
 class GetRecordingPlayback(
     private val records: PracticeRecords,
-    /** 저장소 키를 `ttl` 동안 읽는 서명 URL. 설정이 녹음 저장소(PRA-02)를 연결한다. */
-    private val signedUrl: (key: String, ttl: Duration) -> String,
+    /** 저장소 키를 `ttl` 동안 읽는 앱용 서명 URL. 설정이 녹음 저장소(PRA-02)를 연결하며, 앱에 줄 주소가 없는 저장소면 null이다. */
+    private val signedUrl: ((key: String, ttl: Duration) -> String)?,
     private val ttl: Duration,
     private val clock: Clock,
 ) {
     fun execute(userId: Long, sessionId: Long): PlaybackOutcome {
         val recording = records.findRecording(sessionId, userId) ?: return PlaybackOutcome.NotFound
+        val sign = signedUrl ?: return PlaybackOutcome.Unavailable
         // 서명 전 시각을 초 단위로 내려 알린다. 저장소가 서명할 때의 만료보다 늦지 않게 하려는 것이다.
         val expiresAt = clock.instant().truncatedTo(ChronoUnit.SECONDS).plus(ttl)
         val url = try {
-            signedUrl(recording.key, ttl)
+            sign(recording.key, ttl)
         } catch (e: RuntimeException) {
             log.warn("Recording playback URL for session {} is unavailable ({})", sessionId, e.javaClass.simpleName)
             return PlaybackOutcome.Unavailable
@@ -39,7 +40,7 @@ class GetRecordingPlayback(
 sealed interface PlaybackOutcome {
     data object NotFound : PlaybackOutcome
 
-    /** 저장소가 설정되지 않았거나 주소를 만들지 못했다. */
+    /** 저장소가 설정되지 않았거나, 앱에 줄 주소가 없는 저장소이거나, 주소를 만들지 못했다. */
     data object Unavailable : PlaybackOutcome
 
     data class Ready(val playback: RecordingPlayback) : PlaybackOutcome

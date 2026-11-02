@@ -18,7 +18,6 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Date
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -207,40 +206,20 @@ class PracticeRecordApiDatabaseTests {
         }
     }
 
+    // 이 서버는 로컬 녹음 저장소를 쓴다. 그 읽기 주소는 AI용 내부 주소라 앱에 주지 않는다(infra/storage/README.md).
+    // S3 호환 저장소의 주소 발급은 RecordingPlaybackDatabaseTests가 본다.
     @Test
-    fun `issues a playback address for the member's own recording that the storage actually serves`() {
-        val audio = "m4a-bytes-991342".toByteArray()
-        val file = recordingRoot.resolve(recordingKey(991342))
-        Files.createDirectories(file.parent)
-        Files.write(file, audio)
-        val before = Instant.now().truncatedTo(ChronoUnit.SECONDS)
-        val playback = result(recording(991342, OWNER))
-        val after = Instant.now()
-        // 저장하지 않은 세션도 결과 화면에서 다시 들을 수 있다.
-        assertNull(jdbc.queryForObject("SELECT saved_at FROM practice_sessions WHERE id=991342", LocalDateTime::class.java))
-        assertEquals(listOf("991342", "2876", "audio/mp4"), listOf("sessionId", "durationMs", "contentType").map { playback.path(it).asString() })
-        val expiresAt = Instant.parse(playback.path("urlExpiresAt").asString())
-        assertTrue(expiresAt >= before.plusSeconds(900) && expiresAt <= after.plusSeconds(900), "$expiresAt")
-        val url = URI(playback.path("playbackUrl").asString())
-        assertEquals("recordings.test", url.host)
-        // 서명은 호스트를 덮지 않으므로 이 서버의 로컬 읽기 주소로 바꿔 실제로 받아 본다.
-        val served = client.send(
-            HttpRequest.newBuilder(URI("http://localhost:$port${url.rawPath}?${url.rawQuery}")).GET().build(),
-            HttpResponse.BodyHandlers.ofByteArray(),
-        )
-        assertEquals(200, served.statusCode())
-        assertEquals("audio/mp4", served.headers().firstValue("Content-Type").orElse(null))
-        assertContentEquals(audio, served.body())
+    fun `local recording storage never hands out its internal read address for playback`() {
+        val unavailable = recording(991342, OWNER)
+        assertEquals(503, unavailable.statusCode())
+        assertEquals("SERVICE_UNAVAILABLE", json.readTree(unavailable.body()).path("result").path("errorCode").asString())
+        assertFalse("recordings.test" in unavailable.body())
 
+        // 다시 들을 녹음이 없으면 저장소와 관계없이 404다.
         jdbc.update("UPDATE practice_sessions SET recording_url=NULL WHERE id=991346")
         for (sessionId in listOf(991344L, 991345L, 991346L, 999999L)) assertEquals(404, recording(sessionId, OWNER).statusCode(), "$sessionId")
         assertEquals(401, recording(991342, null).statusCode())
         assertEquals(400, recording(0, OWNER).statusCode())
-        // 저장소가 주소를 만들지 못하면(로컬 저장소가 받지 않는 옛 키) 503이다.
-        jdbc.update("UPDATE practice_sessions SET recording_url='legacy/991343.m4a' WHERE id=991343")
-        val unavailable = recording(991343, OWNER)
-        assertEquals(503, unavailable.statusCode())
-        assertEquals("SERVICE_UNAVAILABLE", json.readTree(unavailable.body()).path("result").path("errorCode").asString())
     }
 
     // 991342: 저장·메모·첫 조회까지 한 기록(녹음 파일 있음). 991346: 녹음 없이 저장한 기록. 991347: 저장하지 않은 세션(파일 있음).

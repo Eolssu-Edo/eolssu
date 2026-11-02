@@ -373,7 +373,7 @@ S15P31E102-304부터 AI의 `tuningOffsetCent`와 `tuningOutOfRange`를 V11의 nu
 
 ### 연습 기록(REC-01~04)
 
-`record`는 기록 저장·메모 수정(`PUT /api/practice-sessions/{sessionId}/record`), 곡별 목록(`GET /api/users/me/practice-records`), 녹음 다시 듣기 주소(`GET /api/practice-sessions/{sessionId}/recording`), 기록 삭제(`DELETE /api/practice-sessions/{sessionId}/record`)를 제공합니다(`db`·`ops` 프로필). 새 Flyway 버전 없이 V2의 기록 칸을 씁니다. 녹음 저장소(PRA-02)의 15분 서명 URL과 삭제는 `PracticeRecordConfig`가 함수로 연결하며, 저장소 연결값이 없는 서버에서는 재생·삭제가 503입니다. 삭제는 녹음 파일을 먼저 지우고 DB를 조건부로 갱신하며, 평가 점수는 남아 성장 집계는 바뀌지 않습니다. 저장한 녹음을 계속 보관하는 정책 전환(처리방침·R2 수명 주기)은 S15P31E102-375에서 합니다. [계약](../docs/specs/practice-records.md), [결정·검증](../docs/plans/S15P31E102-342.md).
+`record`는 기록 저장·메모 수정(`PUT /api/practice-sessions/{sessionId}/record`), 곡별 목록(`GET /api/users/me/practice-records`), 녹음 다시 듣기 주소(`GET /api/practice-sessions/{sessionId}/recording`), 기록 삭제(`DELETE /api/practice-sessions/{sessionId}/record`)를 제공합니다(`db`·`ops` 프로필). 새 Flyway 버전 없이 V2의 기록 칸을 씁니다. 녹음 저장소(PRA-02)의 15분 서명 URL과 삭제는 `PracticeRecordConfig`가 함수로 연결합니다. 저장소를 쓸 수 없으면 다시 듣기와 녹음이 있는 기록의 삭제가 503입니다. 로컬 저장소(`RECORDING_STORAGE_TYPE=local`)의 읽기 주소는 AI용 내부 주소라 다시 듣기는 항상 503입니다. 삭제는 녹음 파일을 먼저 지우고 DB를 조건부로 갱신하며, 평가 점수는 남아 성장 집계는 바뀌지 않습니다. 저장한 녹음을 계속 보관하는 정책 전환(처리방침·R2 수명 주기)은 S15P31E102-375에서 합니다. [계약](../docs/specs/practice-records.md), [결정·검증](../docs/plans/S15P31E102-342.md).
 
 ### 공개 곡 조회
 
