@@ -117,7 +117,7 @@ internal fun LearnExpandedLayout(
                             )
                         }
                     }
-                    HorizontalDivider(color = colors.line)
+                    HorizontalDivider(color = colors.lineSoft)
                     Column(
                         Modifier
                             .fillMaxWidth()
