@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("12", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("13", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -128,8 +128,8 @@ class DatabaseIntegrationTests {
                 "pitches", "instruments", "fingering_charts", "jangdans", "songs", "notation_symbols",
                 "users", "practice_sessions", "evaluations", "note_results", "lessons", "lesson_progress",
                 "user_social_accounts", "terms", "user_term_agreements", "email_verifications", "refresh_tokens",
-                "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "flyway_schema_history",
-                "kakao_unlink_subjects", "kakao_event_receipts",
+                "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "reference_audio_assets", "flyway_schema_history",
+                "kakao_unlink_subjects", "kakao_event_receipts", "reference_audio_pitch_relations",
             ),
             tables,
         )
@@ -211,12 +211,12 @@ class DatabaseIntegrationTests {
         )
         val lesson = assertNotNull(mapper<LessonMapper>().findById(1))
         assertEquals(
-            LessonRow(1, "YUL", null, 1, "황종", "", "PUBLISHED", time, time),
+            LessonRow(1, "DANSO", 1, "악기 알기·감상", "READ", false, "", "PUBLISHED", time, time),
             lesson.copy(contentJson = ""),
         )
-        assertJson("""{"yul":"황"}""", lesson.contentJson)
+        assertJson("""{"goal":"소리를 안다","pitchNames":["汰"]}""", lesson.contentJson)
         assertEquals(
-            LessonProgressRow(1, 1, 1, null, null, time, time),
+            LessonProgressRow(1, 1, 1, time, time, time),
             mapper<LessonProgressMapper>().findById(1),
         )
         assertEquals(
@@ -254,15 +254,59 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
-    fun `keeps foreign keys check constraints and common lesson uniqueness`() {
+    fun `keeps foreign keys and check constraints`() {
         assertMysqlError(1452) {
             jdbc.update("INSERT INTO fingering_charts (instrument_id, pitch_id, image_url) VALUES (999, 2, 'test')")
         }
         assertMysqlError(3819) {
             jdbc.update("UPDATE songs SET status = 'UNKNOWN' WHERE id = 1")
         }
-        assertMysqlError(1062) {
-            jdbc.update("INSERT INTO lessons (kind, instrument_id, seq, title, content_json, status) VALUES ('YUL', NULL, 1, '중복', '{}', 'DRAFT')")
+        assertMysqlError(1452) {
+            jdbc.update("INSERT INTO lesson_progress (user_id, lesson_id, completed_at) VALUES (1, 999, '2026-10-22 01:02:03')")
+        }
+    }
+
+    @Test
+    @Transactional
+    fun `seeds nine published stages for each of the four learning tracks`() {
+        val rows = jdbc.queryForList("SELECT id, track, seq, title, judge_type, is_optional, status FROM lessons ORDER BY id")
+        val tracks = listOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO")
+        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기·박 나누기", "악보와 곡", "장식음·시김새")
+        val judges = listOf("READ", "READ", "PITCH", "PITCH", "PITCH", "PITCH", "BEAT", "BEAT", "LISTEN")
+        assertEquals(36, rows.size)
+        rows.forEachIndexed { index, row ->
+            val seq = index % 9 + 1
+            assertEquals(index + 1L, (row["id"] as Number).toLong())
+            assertEquals(tracks[index / 9], row["track"])
+            assertEquals(seq, (row["seq"] as Number).toInt())
+            assertEquals(titles[seq - 1], row["title"])
+            assertEquals(judges[seq - 1], row["judge_type"])
+            assertEquals(seq == 9, row["is_optional"])
+            assertEquals("PUBLISHED", row["status"])
+        }
+
+        fun content(track: String, seq: Int, path: String) = assertNotNull(
+            jdbc.queryForObject(
+                "SELECT JSON_EXTRACT(content_json, ?) FROM lessons WHERE track = ? AND seq = ?", String::class.java, path, track, seq,
+            ),
+        )
+        assertJson("""["汰","潢","無","林","仲"]""", content("DANSO", 4, "$.pitchNames"))
+        assertJson("""["㴌"]""", content("SOGEUM", 3, "$.pitchNames"))
+        assertJson("""["취구","지공 6개"]""", content("SOGEUM", 1, "$.parts"))
+        assertJson(""""가로로 오른쪽을 향해 잡아요. 기본 운지틀은 정악대금과 같아요."""", content("DAEGEUM_SANJO", 2, "$.tasks[1].description"))
+        assertJson("""["HIGH","LOW"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].blow"))
+        assertJson("""["淋","㑣"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].firstPitch"))
+        assertJson("""{"title":"풍년가","meta":"굿거리장단"}""", content("DANSO", 8, "$.songs[5]"))
+        assertJson("null", content("DANSO", 9, "$.passCriteria"))
+
+        assertMysqlError(1062, "lessons.uq_lessons_track_seq") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 1, '중복', 'READ', '{}', 'DRAFT')")
+        }
+        assertMysqlError(3819, "chk_lessons_track") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('danso', 10, '소문자', 'READ', '{}', 'DRAFT')")
+        }
+        assertMysqlError(3819, "chk_lessons_judge_type") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 10, '판정', 'QUIZ', '{}', 'DRAFT')")
         }
     }
 
@@ -529,23 +573,43 @@ class DatabaseIntegrationTests {
         assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), withEvaluation.startedAt)
         assertEquals(LocalDateTime.parse("2026-10-22T01:02:04.123456"), withEvaluation.endedAt)
 
-        val deletedRecord = assertNotNull(details.findOwned(2, 1))
-        assertNull(deletedRecord.evaluationId)
-        assertFalse(deletedRecord.recordingAvailable)
-        assertEquals("다시 연습", deletedRecord.memo)
-        assertEquals(LocalDateTime.parse("2026-10-22T01:02:03.123456"), deletedRecord.savedAt)
-
-        // 녹음 재생 가능은 두 조건이 모두 맞아야 한다: 녹음이 있어도 기록을 지웠으면, 지우지 않았어도 녹음이 없으면 false.
+        // 기록을 지운 세션은 회원 조회에서 없는 세션과 같다(REC-04). 녹음이 남아 있어도 마찬가지다.
+        assertNull(details.findOwned(2, 1))
         jdbc.update(
             "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, recording_url, status, started_at, record_deleted_at) " +
                 "VALUES (21, 1, 1, 90, 'DOTTED_QUARTER', 0, 'recordings/21/a.m4a', 'DONE', '2026-10-22 01:02:03', '2026-10-23 01:02:03')," +
                 " (22, 1, 1, 90, 'DOTTED_QUARTER', 0, NULL, 'RECORDING', '2026-10-22 01:02:03', NULL)",
         )
-        assertFalse(assertNotNull(details.findOwned(21, 1)).recordingAvailable)
+        assertNull(details.findOwned(21, 1))
         assertFalse(assertNotNull(details.findOwned(22, 1)).recordingAvailable)
 
         assertNull(details.findOwned(1, 2))
         assertNull(details.findOwned(999, 1))
+    }
+
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `marks only the first view of a saved record that is not deleted`() {
+        val details = MyBatisPracticeSessionDetails(mapper<PracticeSessionMapper>())
+        val first = LocalDateTime.parse("2026-10-23T01:00:00.123456")
+        jdbc.update("UPDATE practice_sessions SET saved_at = '2026-10-22 01:03:00' WHERE id = 1")
+
+        assertFalse(details.markViewed(1, 2, first))
+        assertTrue(details.markViewed(1, 1, first))
+        assertFalse(details.markViewed(1, 1, first.plusDays(1)))
+        assertEquals(first, assertNotNull(details.findOwned(1, 1)).viewedAt)
+
+        // 저장하지 않은 세션과 지운 기록(세션 2)은 그대로 둔다.
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, started_at) " +
+                "VALUES (23, 1, 1, 90, 'DOTTED_QUARTER', 0, 'DONE', '2026-10-22 01:02:03')",
+        )
+        assertFalse(details.markViewed(23, 1, first))
+        jdbc.update("UPDATE practice_sessions SET viewed_at = NULL WHERE id = 2")
+        assertFalse(details.markViewed(2, 1, first))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id = 23", LocalDateTime::class.java))
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id = 2", LocalDateTime::class.java))
     }
 
     @Test
@@ -885,7 +949,7 @@ class DatabaseIntegrationTests {
     // 저장 중 실패가 상태 변경까지 되돌리는지 보려면 테스트 트랜잭션 밖에서 커밋해야 한다. 넣은 행은 끝에서 지운다.
     @Test
     fun `keeps the session pending when storing the note results fails`() {
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (901, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (901, 'ROLLBACK', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (901, 'ROLLBACK_TEST', '시험', 901, 901, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
@@ -987,7 +1051,7 @@ class DatabaseIntegrationTests {
     // 동시 요청은 서로 다른 연결이 보도록 테스트 트랜잭션 밖에서 커밋한다. 넣은 행은 끝에서 지운다.
     @Test
     fun `starts only one retry when two requests arrive together`() {
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, 'RETRY', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (902, 'RETRY_TEST', '시험', 902, 902, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",

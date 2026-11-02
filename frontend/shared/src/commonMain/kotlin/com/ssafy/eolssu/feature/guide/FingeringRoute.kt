@@ -19,6 +19,8 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /** 기존 기초 학습 화면에서만 사용하는 미연결 안내 강조 시간. 운지 API 재생에는 사용하지 않는다. */
 internal const val LISTEN_HIGHLIGHT_MILLIS = 1_000L

@@ -1,8 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import com.ssafy.eolssu.data.song.SampleSongs
-import com.ssafy.eolssu.feature.guide.GuideInstrument
-import com.ssafy.eolssu.feature.guide.pitchIndexOf
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.pitchIndexOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

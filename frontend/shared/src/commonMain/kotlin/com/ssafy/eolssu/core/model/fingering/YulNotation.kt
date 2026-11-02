@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.guide
+package com.ssafy.eolssu.core.model.fingering
 
 import com.ssafy.eolssu.core.model.Yul
 

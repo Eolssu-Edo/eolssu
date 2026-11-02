@@ -3,6 +3,16 @@ package com.ssafy.eolssu.feature.guide
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.solfegeOf
+import com.ssafy.eolssu.core.model.fingering.pitchIndexOf
+import com.ssafy.eolssu.core.model.fingering.baseYulOf
+import com.ssafy.eolssu.core.model.fingering.glyphPartsOf
+import com.ssafy.eolssu.core.model.fingering.HanjaGlyphParts
+import com.ssafy.eolssu.core.model.fingering.SerifYulGlyphs
+import com.ssafy.eolssu.core.model.fingering.UNKNOWN_PITCH
+import com.ssafy.eolssu.core.model.fingering.westernNameLabel
 
 class YulNotationTest {
 

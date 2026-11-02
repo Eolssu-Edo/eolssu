@@ -2,75 +2,61 @@ package com.ssafy.eolssu.feature.practice
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
-import com.ssafy.eolssu.core.ui.component.EolssuBadge
-import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuIconButton
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuTopBar
-import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.practice.component.IdleReminderDialog
+import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
-import com.ssafy.eolssu.feature.practice.component.PracticeBottomContent
+import com.ssafy.eolssu.feature.practice.component.PracticeCallToAction
+import com.ssafy.eolssu.feature.practice.component.PracticeCountdown
 import com.ssafy.eolssu.feature.practice.component.PracticeDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
+import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
-import com.ssafy.eolssu.feature.practice.component.PracticeScoreArea
-import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
+import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
+import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
+import com.ssafy.eolssu.feature.practice.component.PracticeStatusLabel
+import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
+import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
-import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import eolssu.shared.generated.resources.practice_countdown_cancel
-import eolssu.shared.generated.resources.practice_countdown_cancel_resume
-import eolssu.shared.generated.resources.practice_countdown_resume
 import eolssu.shared.generated.resources.practice_countdown_soon
-import eolssu.shared.generated.resources.practice_countdown_with_jangdan
-import eolssu.shared.generated.resources.practice_mode_countdown
-import eolssu.shared.generated.resources.practice_mode_interrupted
-import eolssu.shared.generated.resources.practice_mode_model
-import eolssu.shared.generated.resources.practice_model_badge
-import eolssu.shared.generated.resources.practice_mode_ready
-import eolssu.shared.generated.resources.practice_mode_recording
-import eolssu.shared.generated.resources.practice_mode_solo
-import eolssu.shared.generated.resources.practice_settings
-import eolssu.shared.generated.resources.practice_settings_locked
-import eolssu.shared.generated.resources.practice_subtitle
-import eolssu.shared.generated.resources.practice_subtitle_solo
-import eolssu.shared.generated.resources.practice_score_title
+import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
-import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_retry
+import eolssu.shared.generated.resources.practice_title
 import org.jetbrains.compose.resources.stringResource
 
 /** PRACTICE-01 화면에서 부르는 동작. */
@@ -90,8 +76,9 @@ class PracticeScreenActions(
 )
 
 /**
- * PRACTICE-01 연습. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
- * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 카운트다운·확인 창은 배치와 관계없이 같다.
+ * PRACTICE-01 연습(연두 보드). 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
+ * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 확인 창은 배치와 관계없이 같다.
+ * 휴대폰은 보드대로 카운트다운을 본문 안에 두고, 태블릿은 보드가 없어 덮는 카운트다운을 유지한다.
  * 화면과 보조 패널 시트의 입력은 연습 시간의 활동으로 알린다.
  */
 @Composable
@@ -111,7 +98,7 @@ fun PracticeScreen(
             WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions)
             WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions)
         }
-        if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
+        if (state.mode == PracticeMode.Countdown && widthClass != WindowWidthClass.Compact) CountdownOverlay(state, actions.onCancelCountdown)
     }
     // 태블릿 가로는 보조 패널을 오른쪽 상태 패널 자리에 연다(PracticeExpandedLayout).
     if (state.panel != null && widthClass != WindowWidthClass.Expanded) {
@@ -131,7 +118,7 @@ fun PracticeScreen(
 private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScreenActions, snackbarHostState: SnackbarHostState) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuTopBar(title = stringResource(Res.string.practice_score_title), onBack = actions.onBack) },
+        topBar = { EolssuPageTopBar(title = stringResource(Res.string.practice_title), onBack = actions.onBack) },
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {
@@ -148,73 +135,50 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
     }
 }
 
-/** 휴대폰 배치: 악보가 화면 대부분을 차지하고, 상태별 버튼은 아래에 고정한다. */
+/**
+ * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·pill, 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
+ * 행동 버튼·안내, 카운트다운)이 세로로 스크롤되고, 연주 중에만 하단 바가 고정된다.
+ */
 @Composable
 private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
+    val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
+    val showPlayer = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
+    val fingering = state.fingeringView
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { PracticeTopBar(state, actions) },
-        bottomBar = { PracticeBottomContent(state, actions.bottom) },
+        topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings) },
+        bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
-        if (state.song != null) {
-            PracticeScoreArea(state, PracticeScoreStyle.Phone, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, top = if (fingering) 8.dp else 18.dp, bottom = 12.dp),
+        ) {
+            PracticeTitleRow(state)
+            Spacer(Modifier.height(if (fingering) 7.dp else 10.dp))
+            PracticeStatusLabel(state)
+            Spacer(Modifier.height(if (fingering) 8.dp else 14.dp))
+            if (fingering) {
+                PracticeFingeringPage(state, actions.onSelectEvent)
+            } else {
+                PracticeBoardScore(state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow)
+            }
+            if (showPlayer) {
+                PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
+            }
+            if (state.mode == PracticeMode.Countdown) {
+                PracticeCountdown(state, actions.onCancelCountdown, Modifier.padding(top = 18.dp))
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
-/**
- * 상단 바: 뒤로 · 곡 제목 · 상태 배지 · 연습 설정. [showSettings]가 아니면 설정 버튼을 두지 않는다(태블릿 가로는 상태 패널에 바로가기가 있다).
- */
-@Composable
-internal fun PracticeTopBar(
-    state: PracticeUiState,
-    actions: PracticeScreenActions,
-    modifier: Modifier = Modifier,
-    maxWidth: Dp = CompactContentMaxWidth,
-    showSettings: Boolean = true,
-) {
-    val song = state.song ?: return
-    val subtitle = stringResource(
-        if (state.solo) Res.string.practice_subtitle_solo else Res.string.practice_subtitle,
-        songInstrumentLabel(song),
-        songLevelLabel(song.level),
-    )
-    EolssuTopBar(
-        title = song.title,
-        onBack = actions.onBack,
-        modifier = modifier,
-        subtitle = subtitle,
-        below = { ModeBadge(state) },
-        maxWidth = maxWidth,
-        right = {
-            if (showSettings) {
-                EolssuIconButton(
-                    if (state.settingsLocked) EolssuIcons.Lock else EolssuIcons.Settings,
-                    stringResource(if (state.settingsLocked) Res.string.practice_settings_locked else Res.string.practice_settings),
-                    actions.onOpenSettings,
-                    enabled = !state.settingsLocked,
-                )
-            }
-        },
-    )
-}
-
-@Composable
-private fun ModeBadge(state: PracticeUiState) {
-    val (text, style) = when (state.mode) {
-        PracticeMode.Ready -> stringResource(if (state.solo) Res.string.practice_mode_solo else Res.string.practice_mode_ready) to EolssuBadgeStyle.Soft
-        PracticeMode.Model -> stringResource(if (state.playing) Res.string.practice_mode_model else Res.string.practice_model_badge) to
-            if (state.playing) EolssuBadgeStyle.Play else EolssuBadgeStyle.Soft
-        PracticeMode.Countdown -> stringResource(Res.string.practice_mode_countdown) to EolssuBadgeStyle.Soft
-        PracticeMode.Recording -> stringResource(Res.string.practice_mode_recording) to EolssuBadgeStyle.Recording
-        PracticeMode.Interrupted -> stringResource(Res.string.practice_mode_interrupted) to EolssuBadgeStyle.Recording
-    }
-    EolssuBadge(text, style = style)
-}
-
+/** 태블릿의 카운트다운: 화면을 흰색으로 덮고 큰 숫자를 가운데 둔다(휴대폰 보드의 본문 카운트다운과 같은 문구). */
 @Composable
 private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
-    val message = stringResource(if (state.resume) Res.string.practice_countdown_resume else Res.string.practice_countdown_soon)
     Column(
         Modifier
             .fillMaxSize()
@@ -224,13 +188,13 @@ private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
     ) {
         Text(
-            if (state.settings.jangdanSound) stringResource(Res.string.practice_countdown_with_jangdan, message) else message,
+            stringResource(Res.string.practice_countdown_soon),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-            color = EolssuTheme.colors.textMuted,
+            color = EolssuTheme.colors.textSub,
         )
-        Text("${state.count}", style = EolssuTheme.serif.brand.copy(fontSize = 140.sp, lineHeight = 140.sp, fontWeight = FontWeight.Bold))
+        Text("${state.count}", style = EolssuTheme.serif.brand.copy(fontSize = 140.sp, lineHeight = 140.sp, fontWeight = FontWeight.Normal))
         EolssuButton(
-            stringResource(if (state.resume) Res.string.practice_countdown_cancel_resume else Res.string.practice_countdown_cancel),
+            stringResource(Res.string.practice_countdown_cancel),
             onCancel,
             style = EolssuButtonStyle.Secondary,
             modifier = Modifier.padding(horizontal = 0.dp),

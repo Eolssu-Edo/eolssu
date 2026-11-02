@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.guide
+package com.ssafy.eolssu.core.model.fingering
 
 /** 구멍 하나의 상태. 운지표 문자 `1` 막음, `0` 엶, `h` 반 막음, `?` 확인 필요. */
 enum class HoleState {
