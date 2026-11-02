@@ -35,7 +35,7 @@
 | --- | --- |
 | isFullSong | `start_note_idx` = 0이고 `end_note_idx` = 곡 `note_count` − 1. 성장 집계의 전체 곡 연주와 같은 정의다 |
 | startColumnIdx·endColumnIdx | 구간 첫·끝 음표의 각(0부터, 화면은 +1). EVA-03·04와 같은 규칙(`songs.score_json` NOTE 순서의 cellId)으로 읽는다. 세션 악보 버전이 지금 곡 악보 버전과 다르면 null이다 |
-| recordingDurationMs | 업로드 때 저장한 녹음 길이(ms). 녹음이 없으면 null |
+| recordingDurationMs | 업로드 때 저장한 녹음 길이(ms). 업로드하지 않은 세션이면 null이다. 녹음 파일이 정리돼 다시 들을 수 없어도 길이는 남는다(다시 들을 수 있는지는 `recordingAvailable`) |
 | bpm·bpmUnit | 세션 값. bpm은 bpmUnit 단위로 센 값 |
 | totalScore | 저장된 평가 총점(0~100) |
 | startedAt | 세션 연주 시작 시각 |
