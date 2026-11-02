@@ -28,16 +28,18 @@ class ReferenceAudioPlaybackTest {
         assertEquals(listOf("pause", "resume"), player.calls)
     }
 
-    @Test fun selectingAnotherClipReplacesThePausedSourceFromTheBeginning() {
-        val player = RecordingPlayer(AudioPlaybackState("b".repeat(64), AudioPlaybackStatus.Paused, 2_125, 5_000))
-        toggleReferenceAudio(player, clip)
-        assertEquals(AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Loading, 0), player.state.value)
-        assertEquals(listOf("load:${clip.assetId}:0"), player.calls)
-        assertEquals(AudioSource(clip.assetId, clip.soundUrl), player.loaded)
+    @Test fun selectingAnotherClipReplacesThePreviousSourceFromTheBeginning() {
+        for (status in listOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing, AudioPlaybackStatus.Paused)) {
+            val player = RecordingPlayer(AudioPlaybackState("b".repeat(64), status, 2_125, 5_000))
+            toggleReferenceAudio(player, clip)
+            assertEquals(AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Loading, 0), player.state.value)
+            assertEquals(listOf("load:${clip.assetId}:0"), player.calls)
+            assertEquals(AudioSource(clip.assetId, clip.soundUrl), player.loaded)
+        }
     }
 
     @Test fun completedAndFailedPlaybackStartFreshThroughTheApi() {
-        for (status in listOf(AudioPlaybackStatus.Completed, AudioPlaybackStatus.Failed)) {
+        for (status in listOf(AudioPlaybackStatus.Completed, AudioPlaybackStatus.Failed, AudioPlaybackStatus.Interrupted)) {
             val player = RecordingPlayer(AudioPlaybackState(clip.assetId, status, 5_000, 5_000))
             toggleReferenceAudio(player, clip)
             assertEquals(AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Loading, 0), player.state.value)

@@ -60,7 +60,21 @@ private class IosReferenceAudioPlayer(private val client: HttpClient) : AudioPla
             catch (_: Exception) { mutable.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Failed) }
         }
     }
-    override fun resume(speed: Float) { player?.let { it.rate = speed; it.play(); mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Playing) } }
+    override fun resume(speed: Float) {
+        val current = player ?: return
+        try {
+            current.rate = speed
+            check(current.play())
+            mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Playing)
+        } catch (_: Exception) {
+            // Stop the polling job before it can report a failed resume as normal completion.
+            job?.cancel()
+            job = null
+            current.stop()
+            player = null
+            mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Failed)
+        }
+    }
     override fun pause() { player?.pause(); mutable.value = mutable.value.copy(status = AudioPlaybackStatus.Paused) }
     override fun setSpeed(speed: Float) { player?.rate = speed }
     override fun stop() { job?.cancel(); job = null; player?.stop(); player = null; mutable.value = AudioPlaybackState() }
