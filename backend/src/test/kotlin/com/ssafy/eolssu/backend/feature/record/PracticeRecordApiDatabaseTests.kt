@@ -13,16 +13,20 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.Date
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
@@ -34,6 +38,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
@@ -48,6 +54,7 @@ private const val OTHER = 991343L
 class PracticeRecordApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var records: PracticeRecords
+    @Autowired private lateinit var manager: PlatformTransactionManager
     @Value("\${local.server.port}") private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
@@ -293,6 +300,31 @@ class PracticeRecordApiDatabaseTests {
         assertNull(jdbc.queryForObject("SELECT record_deleted_at FROM practice_sessions WHERE id=991347", LocalDateTime::class.java))
     }
 
+    // 저장(REC-01)은 세션 행을 잠그고 상태를 읽은 뒤 갱신하고 다시 읽는다. 그사이 온 삭제가 잠금을 기다리지 않으면
+    // 저장이 방금 지워진 기록을 다시 읽지 못해 500이 된다.
+    @Test
+    fun `a deletion arriving during a save waits for the session row lock`() {
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00' WHERE id=991342")
+        val now = LocalDateTime.parse("2026-11-02T04:00:00")
+        var deleting: CompletableFuture<Boolean>? = null
+        try {
+            TransactionTemplate(manager).executeWithoutResult {
+                assertEquals("DONE", records.lockStatus(991342, OWNER))
+                deleting = CompletableFuture.supplyAsync { records.markDeleted(991342, OWNER, now) }
+                awaitSessionLock(991342, checkNotNull(deleting))
+                records.save(991342, OWNER, now, MemoChange.Replace("저장 중 메모"))
+                assertEquals("저장 중 메모", records.findSession(991342, OWNER)?.memo)
+            }
+            // 저장이 끝난 뒤에 삭제가 이어서 지운다.
+            assertTrue(checkNotNull(deleting).get(15, TimeUnit.SECONDS))
+            assertNotNull(jdbc.queryForObject("SELECT record_deleted_at FROM practice_sessions WHERE id=991342", LocalDateTime::class.java))
+            assertNull(jdbc.queryForObject("SELECT memo FROM practice_sessions WHERE id=991342", String::class.java))
+        } finally {
+            // 실패해도 삭제 작업이 끝난 뒤 정리해야 서로 겹치지 않는다.
+            deleting?.get(15, TimeUnit.SECONDS)
+        }
+    }
+
     // 확인과 갱신 사이에 다른 요청이 먼저 지우거나 저장한 경우는 마지막 조건부 갱신이 막는다. 저장소를 직접 불러 확인한다.
     @Test
     fun `final conditional updates leave records deleted or never saved meanwhile untouched`() {
@@ -328,6 +360,21 @@ class PracticeRecordApiDatabaseTests {
             "INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(?,?,?,?,?,?,'test','2026-11-01 10:01:00')",
             sessionId, sessionId, total, total, total, total,
         )
+    }
+
+    private fun awaitSessionLock(sessionId: Long, worker: CompletableFuture<*>) {
+        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
+        while (System.nanoTime() < deadline) {
+            val waiting = jdbc.queryForObject(
+                """SELECT COUNT(*) FROM performance_schema.data_lock_waits w
+                   JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID
+                   WHERE l.OBJECT_SCHEMA=DATABASE() AND l.OBJECT_NAME='practice_sessions' AND l.INDEX_NAME='PRIMARY' AND l.LOCK_DATA=?""",
+                Int::class.java, sessionId.toString(),
+            )!! > 0
+            if (waiting) return
+            if (worker.isDone) fail("deletion finished without waiting for the save's row lock: ${worker.get()}")
+        }
+        fail("deletion must wait for the save's row lock")
     }
 
     private fun ids(list: JsonNode): List<String> = list.path("items").values().map { it.path("sessionId").asString() }
