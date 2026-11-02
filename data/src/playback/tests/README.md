@@ -1,14 +1,14 @@
 # 단소·소금·정악대금·산조대금 재생 테스트별 확인 범위
 
-[S15P31E102-166](https://ssafy.atlassian.net/browse/S15P31E102-166)의 단소, [S15P31E102-108](https://ssafy.atlassian.net/browse/S15P31E102-108)의 소금, [S15P31E102-106](https://ssafy.atlassian.net/browse/S15P31E102-106)의 정악대금, [S15P31E102-107](https://ssafy.atlassian.net/browse/S15P31E102-107)의 산조대금 단일 JGB/score → MIDI → CAT PCM → M4A/WAV 검사다. 실행 명령·의존성·FFmpeg 설정은 [상위 README](../README.md#설치와-빠른-검사)를 따른다.
+[S15P31E102-338](https://ssafy.atlassian.net/browse/S15P31E102-338)의 공통 v1 → 수행 음표 → MIDI → CAT PCM → M4A/WAV 검사다. 기존 악기별 JGB 검사는 가져오기 경계에 남기고 생성 CLI는 공통 악보만 받는다. 실행 명령·의존성·FFmpeg 설정은 [상위 README](../README.md#설치와-빠른-검사)를 따른다.
 
 ## 결과를 읽는 기준
 
 338에서 추가한 `test_common_score.py`는 서비스 B2 v1 원본 입력의 실제 CLI 경계를 검사한다. 아리랑61음·4쉼·30초·원본 보존, 별도 동음 재발음·숨표·release 포함 길이, 네 BPM 단위, 잘못된 표시·ID·시김새·음역/박 분할 입력의 실패를 대조한다. 실제 CAT 자산의 음정·쉼 측정은 이 합성 테스트와 별도로 [338 실행 기록](../../../../docs/plans/S15P31E102-338.md)에 남긴다.
 
-338 시김새 후속은 `test_preview.py`10개(4악기 등록 기호·원본 모드 회귀), `test_common_preview.py`12개(위치/원문/시간표/CLI), `test_verify_preview.py`10개(재생 결과를 기대값으로 쓰지 않는 파형 관측기)를 추가했다. 2026-11-02 playback 전체201개 통과, 생략0. 실제 CAT 검증에는 짧은 단소 꾸밈음1구간의 F0 관측 한계가 남으며 단위 테스트 통과와 구분한다. [정책과 실제 검증 결과](../../../../docs/knowledge/data/common-score-expression-preview.md)를 참고한다.
+338 시김새 후속은 4악기 등록 기호·위치·시간표·CLI와 독립 파형 관측을 검사한다. `test_common_direct.py`는 JGB 해석기 없이 공통 악보에서 음표를 만드는 경계를 확인한다. 2026-11-02 통합 코드 `1eb851c4`에서 playback225개가 생략 없이 통과했다. 실제 CAT 4악기 WAV/AAC 각40개·느린 단소9개 관측과 구별하며 [정책과 실제 검증 결과](../../../../docs/knowledge/data/common-score-expression-preview.md)를 참고한다.
 
-2026-10-29, Windows / Python 3.12 / FFmpeg·ffprobe 9.0.2에서 **153개 통과, 건너뜀 0개**를 확인했다. 숫자는 아래 8개 파일의 테스트 메서드 수다. `subTest` 안의 사례 수나 검수한 악보 수가 아니다.
+초기 2026-10-29 검사에서는153개가 통과했다. 현재 통과 수는 테스트 메서드 수이며 `subTest` 안의 사례 수나 검수한 악보 수가 아니다. 아래 표는 주요 엔진 검사 파일의 범위다.
 
 - 고정 JSON과 합성 사인파를 사용한다. 음원 검사는 실제 샘플러의 렌더링 로직을 거치지만, 실제 CAT 뱅크를 읽거나 단소 음색을 평가하지 않는다.
 - `test_audio.py`의 코덱 검사 1개와 `test_pipeline.py`의 CLI 검사 1개만 실제 FFmpeg/ffprobe 인코딩·디코딩 통합 검사다. 입력 소리는 합성 신호이며, 인코더를 찾지 못하면 이 2개는 건너뛴다.
@@ -24,9 +24,9 @@
 | `test_jgb.py` | `jgb.py`: 구문·악기별 기호·시간·빠르기 선택·원문 대응 | 52 |
 | `test_score.py` | `score.py`: 공통 악보 검증·음역·이벤트 생성 | 17 |
 | `test_midi.py` | `midi.py`: 제어 메시지·악기별 자동 떨림·직렬화 | 12 |
-| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·악기별 지속·샘플 확장 | 18 |
+| `test_sampler.py` | `sampler.py`: PCM·주파수·위상·무음·악기별 지속·샘플 확장 | 20 |
 | `test_audio.py` | `audio.py`: 파일 출력·프로세스 오류·AAC 시간 정렬 | 4 |
-| `test_pipeline.py` | `__main__.py`와 모듈 연결: score→MIDI, JGB→PCM, CLI 전체 실행 | 24 |
+| `test_pipeline.py` | 공통 v1→MIDI/PCM·CLI·출력 보호 및 JGB/IR 직접 입력 거부 | 27 |
 | `test_expressions.py` | `expressions.py`: 악기별 표현 정책·음형·꾸밈/숨 시간·프로필 검증 | 12 |
 | `test_tempo_repeat.py` | `tempo_repeat.py`: 악기별 계획·빠르기 적분·반복·원문 시간 보존 | 14 |
 
@@ -185,9 +185,11 @@
 | `test_gradual_cue_requires_endpoint_and_plan_is_not_applied_twice` | 점진 기호의 끝 위치와 계획 중복 적용 거부 |
 | `test_empty_plan_preserves_timing_and_quantization_rejects_lost_notes` | 빈 계획은 시간을 유지하고 지나친 속도로 tick이 사라지는 음은 거부 |
 
-## test_pipeline.py — 24개
+## test_pipeline.py — 27개
 
 [코드](test_pipeline.py).
+
+`GenerationBoundaryTests`의3개 검사는 JGB/구형 IR 거부, 공통 전용 CLI 도움말, 명시 BPM 필수를 확인한다.
 
 ### ScoreMidiIntegrationTests
 
@@ -196,7 +198,7 @@
 | `test_fixture_expands_37_to_44_and_preserves_parent_ids` | 예제의 원음 37개가 꾸밈을 포함한 MIDI 음 44개로 확장되고 원음 ID·음높이 순서가 유지됨 |
 | `test_rest_tie_and_rearticulation_are_different` | 붙임줄은 음을 합치고 쉼은 침묵을 만들며 같은 음을 다시 적으면 재발음 |
 
-### JgbRenderIntegrationTests
+### RenderIntegrationTests
 
 추가 `test_sogeum_single_input_keeps_source_ids_and_instrument_manifest`는 소금 선택이 샘플러까지 전달되는지, 실음·ID·원본 바이트·7개 산출물을 확인한다. `test_windows_directory_lock_is_retried_but_permanent_error_stops`는 Windows 잠금 오류만 제한 재시도하며 영구 오류와 다른 오류는 중단하는지 확인한다. 기존 출력 복구 검사는 아래 CLI 검사에서 유지한다.
 
@@ -216,10 +218,10 @@
 | `test_cli_preserves_explicit_configs_and_resource_limit` | 계획·프로필 원본 바이트/해시·자원 한도 및 실제 MIDI시간 확인 |
 | `test_failed_cli_preserves_previous_result` | 잘못된 자산 설정으로 CLI가 실패해도 이전 결과를 보존 |
 | `test_cli_pipeline_keeps_original_bytes_and_resolvable_source_map` | BOM 포함 원본 바이트·해시를 보존하고 생성 음에서 원문 위치를 추적 가능 |
-| `test_bad_jgb_preserves_previous_output` | JGB 해석 실패 시 기존 WAV를 보존 |
+| `test_bad_common_score_preserves_previous_output` | 공통 악보 검증 실패 시 기존 WAV를 보존 |
 | `test_hash_describes_captured_input_even_if_original_changes_during_render` | 렌더링 중 입력 파일이 바뀌어도 사본·해시는 시작할 때 읽은 내용을 가리킴 |
 | `test_output_cannot_overwrite_original_input` | 출력이 입력 원본을 덮어쓸 수 있는 경로를 거부 |
-| `test_ir_cannot_leave_an_obsolete_jgb_map_beside_new_audio` | 공통 악보 입력 결과에 이전 JGB 대응표가 잘못 남을 수 있는 폴더 사용을 거부 |
+| `test_common_generation_refuses_previous_jgb_bundle_without_deleting_it` | 공통 악보 입력 결과에 이전 JGB 대응표가 잘못 남을 수 있는 폴더 사용을 거부 |
 | `test_unconfirmed_tempo_fails_before_assets_or_output` | 빠르기 미선택 입력은 자산 로딩·출력 생성 전에 실패하고 기존 자료를 보존 |
 | `test_switching_format_rejects_stale_audio_without_deleting_it` | 반대 형식 음원이 남은 폴더를 거부하며 이전 파일을 삭제하지 않음 |
 | `test_encoder_failure_preserves_all_previous_outputs` | 인코딩 실패 시 이전 M4A·MIDI·manifest·대응표 바이트를 보존 |

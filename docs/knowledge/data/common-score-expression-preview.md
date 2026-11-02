@@ -1,6 +1,19 @@
 # 공통 악보 시김새 교육용 미리듣기
 
-## 2026-11-02 검증 자료 공통화 결과
+## 현재 구조와 담당 범위
+
+2026-11-02 사용자 정정에 따라 지한의 공통 악보를 직접 해석하는 DATA 음원 생성기로 전환했다. 공통→JGB 왕복을 제거하고 JGB는 가져오기 입력에서만 판독한다. 이 MR에 추가했던 FE 제품 코드·테스트·리소스16개 변경은 `5f68e658`에서 제거했다. [FE Task380](https://ssafy.atlassian.net/browse/S15P31E102-380)에 분리하고 최신 develop 기반 별도 FE 브랜치에 원래 변경을 보존한다. 백로그·담당자/스프린트 미배정이며 FE 구현 완료를 뜻하지 않는다. 서버 등록·음원 게시도 별도다. 아래 FE 검사와 자료 크기는 이전 검증본 `2d23ae5d`의 이력으로 보존한다.
+
+### 공통 악보 직접 생성 검증
+
+- 생성기는 공통 v1과 SHA에 결합된 표현 파일을 직접 읽는다. JGB·구형 내부 IR의 직접 CLI 입력은 거부하고 먼저 가져오도록 안내한다. `common_compile.py`가 구조화된 표시 자리에서 수행 음표를 만들고 기존 음악 규칙·MIDI·CAT·인코더를 재사용한다.
+- 내부 음표 ID는 공통 cell/row/unit 기반으로 바꾸고 하위 대응표를 `common-expression-map/v1`로 명명했다. 가상 JGB의 offset/version은 제거한다. 원본 event/cell ID·NOTE idx·tick과 performance 시간표는 유지한다.
+- 통합 코드 `1eb851c4`: playback225개·data120개, 실패/생략0. 실제 CAT 4악기 WAV/AAC 8개는 각각40/40, 단소 BPM30 WAV는9/9을 통과했다. 9음원 모두 이전 `2d23ae5d`의 파일 SHA256 및 디코딩 PCM SHA256과 정확히 같다. 고정 기대값·관측창·50cent 기준은 변경하지 않았다.
+- 구버전에서 동결한 공통 입력263개(기존107성부·수기/경계156개)의 음높이·길이·효과·연결과 performance 시간표가 모두 같다. 비교 시 내부 ID의 이름만 정규화하고 원본 event ID·시간·음악 값은 그대로 비교했다. 전체6,208조합의 성공/거부 분류가 같으며5,496개 고유 공통 결과도 음악 값·events·시간표 차이가 없다. 해시 변조516건을 거부했고 공통 호출7,356회에서 JGB parser 호출은0이다. JGB 모듈 import 차단과 공개 CLI의 잘못된 입력/제거 옵션12건 거부도 통과했다.
+- FE 보존 커밋은 `b1a9bcf0`, 원격 브랜치는 `feat(fe)/S15P31E102-380-공통-악보-시김새-표시와-연주-타임라인-연결`이다. 원래16경로의 Git blob과 공유 fixture의4악기 복원 JSON8개 해시가 모두 같으며 별도 MR은 만들지 않았다. 새 develop 기준의 FE 전체 회귀·실기기 검증은 후속이다.
+- 외부 검증 자료: `mr203-common-evidence/common-native/audio/summary.json`, `common-native/audio-parity.json`, `native-playback-tests.log`, `native-data-tests.log`. CAT·음원·대량 결과는 Git에 넣지 않는다.
+
+## 이전 검증본의 JSON 공통화 결과
 
 기존 공통 v1의 화면/이벤트 ID·정수 tick·시김새 보존 구조를 유지한다. 근거는 사지한의 [156 승인 결정 D1~D6](../../plans/S15P31E102-156.md)이며, 이번 공통화는 테스트 자료와 기대값 선택기에 한정한다. 아래 과거 실패 기록은 원인 추적을 위해 보존하며 현재 판정은4악기 WAV/AAC 모두40/40이다.
 
@@ -68,7 +81,7 @@ Task [S15P31E102-338](https://ssafy.atlassian.net/browse/S15P31E102-338)의 후�
 
 출력 `performance.common.json`은 `common-score-performance/v1`이다. 원본 SHA256·scoreVersion·sourceId·instrument·BPM/단위와 실제 출력 음원 SHA256에 결합한다. `segments`는 모든 표시 자리의 occurrenceId/eventId/cellId/row/col, startTick/endTick, startMs/endMs, sigimsae다. 재생 시간 구간은 연속하며 기보 틱은 반복 시 뒤로 돌아간다. `durationMs`는 악보 종료이며 MIDI의 후행 약550ms는 포함하지 않는다. `source-map.json.events`의 target_hz/시각은 원래 본음·기보 기준이며 시김새가 펼쳐진 소리의 목록은 `expression_source_map`이다.
 
-FE는 이 파일을 원본·음원에 맞춰 검증한 뒤 Model 모드에만 연결한다. 기존 녹음·채점 시간이나 Song의 기보 길이는 바꾸지 않는다. 서버 API/DB 게시 경로는 이번 범위에 포함하지 않는다.
+생성기는 이 시간표를 원본·음원에 결합된 데이터로 출력한다. 이를 받아 화면에 표시하는 FE 구현과 서버 API/DB 게시 경로는 별도 업무이며 이 MR에 포함하지 않는다. 원본 악보의 녹음·채점 시간은 바꾸지 않는다.
 
 ## 검증 자료
 

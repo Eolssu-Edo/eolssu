@@ -109,6 +109,8 @@ $env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
 | `expressions.common.json` | 표현 파일을 지정한 경우 그 원본 바이트 |
 | `performance.common.json` | 교육용 정책을 선택한 경우 실제 수행 시간표 |
 
+직접 공통 생성으로 전환하면서 내부 IR ID는 공통 cell/row/unit 기준으로 바뀌었습니다. `expression_source_map`은 `common-expression-map/v1`이며 JGB 문자 offset·version은 기록하지 않습니다. 서비스 원본 event/cell ID·NOTE idx·tick과 `performance.common.json`의 대응 관계는 유지합니다.
+
 M4A는44.1kHz·mono·AAC-LC, 목표192kbps입니다. 중간 WAV를 저장하지 않고 메모리 PCM을 인코더에 전달합니다. WAV는44.1kHz·mono·PCM16입니다. `audio.frames/seconds`는 PCM, `container_seconds`는 M4A 표시 길이, `decoded_frames/end_padding_frames`는 디코딩 길이와 끝 패딩입니다. 재생 시작0·길이 오차2샘플 이내·끝 패딩1024샘플 미만·유한값·피크를 검사하며 인코더 버전을 기록합니다.
 
 임시 폴더에서 합성·인코딩·디코딩 검사까지 성공한 뒤 결과 폴더를 교체합니다. 교체 실패 시 이전 묶음을 복구합니다. 입력/설정 파일과 출력이 겹치거나, 출력에 다른 개인 파일·반대 형식의 음원·이전 JGB 생성 묶음이 있으면 거부합니다. JGB 가져오기 폴더와 음원 출력 폴더도 분리합니다. 프로세스 강제 종료·전원 손실까지 보장하는 트랜잭션은 아닙니다.
