@@ -549,6 +549,7 @@
     <string name="auth_close">닫기</string>
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>
     <string name="auth_locked_message">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. 15분 뒤에 다시 시도해 주세요.</string>
+    <string name="auth_locked_message_until">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. %1$s부터 다시 시도할 수 있어요.</string>
     <string name="auth_withdrawal_cancelled_title">탈퇴 신청이 취소됐어요</string>
     <string name="auth_withdrawal_cancelled_message">탈퇴를 신청한 계정으로 30일 안에 로그인해서 탈퇴가 취소됐어요. 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_oauth_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>
@@ -599,9 +600,11 @@
     <!-- 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02) -->
     <string name="mysongs_title">연습곡 고르기</string>
     <string name="mysongs_subtitle">제공 곡이나 내 악보로 연습해요.</string>
-    <string name="mysongs_tab_songs">제공 곡 %1$d</string>
-    <string name="mysongs_tab_sheets">내 악보 %1$d</string>
+    <string name="mysongs_tab_songs">제공 곡</string>
+    <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_evaluable_badge">AI 평가</string>
+    <string name="mysongs_practice_only_badge">연습 전용</string>
+    <string name="mysongs_songs_hint">점수 없이 혼자 연습해요 · AI 평가 표시가 있는 곡은 연습 화면에서 평가로 넘어갈 수 있어요</string>
     <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_add">악보 추가 · PDF, 음원, 직접 만들기</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
@@ -660,7 +663,6 @@
     <string name="tab_song_meta_bpm">%1$s · %2$d BPM</string>
     <string name="tab_song_pick_title">곡을 골라주세요</string>
     <string name="tab_song_pick_body">왼쪽 목록에서 곡을 누르면 여기에 곡 정보가 보여요.</string>
-    <string name="mysongs_tab_solo_hint">곡을 누르면 점수 없이 혼자 연습하는 연습 모드로 열려요. AI 평가 곡은 연습 화면에서 평가로 바꿀 수 있어요.</string>
     <!-- 연습·분석 대기·평가 결과 태블릿 배치 -->
     <string name="practice_dock_song_info">곡 정보</string>
     <string name="practice_dock_info">%1$s · %2$d BPM · %3$s</string>

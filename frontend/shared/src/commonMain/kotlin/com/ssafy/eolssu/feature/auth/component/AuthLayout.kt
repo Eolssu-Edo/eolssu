@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -90,17 +91,32 @@ fun AuthHeading(text: String, modifier: Modifier = Modifier, textAlign: TextAlig
     )
 }
 
-/** 제목 아래 회색 설명(`.au-lead`, 14sp · 줄 높이 1.55). */
+/** 제목 아래 회색 설명(`.au-lead`, 14sp · 줄 높이 1.55, #5C564F). */
 @Composable
 fun AuthLead(text: String, modifier: Modifier = Modifier, textAlign: TextAlign = TextAlign.Start) {
     Text(
         text,
         modifier = modifier,
         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 21.7.sp),
+        color = EolssuTheme.colors.textSub,
+        textAlign = textAlign,
+    )
+}
+
+/** 작은 회색 도움말(`.au-help`, 12.5sp). */
+@Composable
+fun AuthHelp(text: String, modifier: Modifier = Modifier, textAlign: TextAlign = TextAlign.Start) {
+    Text(
+        text,
+        modifier = modifier,
+        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
         color = EolssuTheme.colors.textMuted,
         textAlign = textAlign,
     )
 }
+
+/** 보드의 옅은 회색 선(`--faint`, #B9B3A6): 체크 상자·빈 자리 점선. 테마에 없어 로그인·가입 화면에서만 쓴다. */
+internal val AuthFaint = Color(0xFFB9B3A6)
 
 /** 상단 바 오른쪽 단계 표시(`.au-step`, 예: 1 / 2). */
 @Composable
@@ -141,8 +157,8 @@ fun AuthCheckBox(checked: Boolean, modifier: Modifier = Modifier) {
     Box(
         modifier
             .size(22.dp)
-            .background(if (checked) colors.primary else colors.background, shape)
-            .border(1.5.dp, if (checked) colors.primary else colors.lineStrong, shape),
+            .background(if (checked) colors.primary else colors.surface, shape)
+            .border(1.5.dp, if (checked) colors.primary else AuthFaint, shape),
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {

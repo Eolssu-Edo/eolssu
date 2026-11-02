@@ -35,7 +35,7 @@ import org.jetbrains.compose.resources.stringResource
 /** 악보를 더하는 방법. */
 enum class AddSheetOption { Pdf, Audio, New }
 
-/** SONG-03 '악보 추가하기' 시트: PDF 올리기 · 음원으로 만들기 · 직접 만들기. */
+/** SONG-03 '악보 추가하기' 시트: PDF 올리기 · 음원으로 만들기 · 직접 만들기. 고르는 칸은 연두 카드(`.card.cream`)에 흰 아이콘 칸이다. */
 @Composable
 fun AddSheetBottomSheet(onSelect: (AddSheetOption) -> Unit, onDismiss: () -> Unit) {
     EolssuBottomSheet(
@@ -70,13 +70,13 @@ private fun OptionIcon(icon: ImageVector) {
 @Composable
 private fun OptionRow(title: String, description: String, onClick: () -> Unit, tile: @Composable () -> Unit) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = colors.surface) {
+    Surface(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.medium, color = colors.accentTint, contentColor = colors.text) {
         Row(
             Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            KindTile(background = colors.background, content = tile)
+            KindTile(background = colors.surface, content = tile)
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), color = colors.text)
                 Text(
@@ -86,7 +86,7 @@ private fun OptionRow(title: String, description: String, onClick: () -> Unit, t
                     color = colors.textMuted,
                 )
             }
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
         }
     }
 }

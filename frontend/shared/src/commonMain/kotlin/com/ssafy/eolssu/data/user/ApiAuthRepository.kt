@@ -52,7 +52,7 @@ class ApiAuthRepository(
                     LoginResult.Success(withdrawalCancelled = signedIn.withdrawalCancelled)
                 }
                 400, 401 -> LoginResult.WrongCredentials
-                429 -> LoginResult.Locked
+                429 -> LoginResult.Locked(response.apiResponse<RetryError>()?.result?.details?.retryAvailableAt?.toMillis())
                 else -> LoginResult.Unavailable
             }
         }
@@ -205,6 +205,9 @@ class ApiAuthRepository(
 
     @Serializable
     private class SignedIn(val userId: String, val withdrawalCancelled: Boolean)
+
+    @Serializable private class RetryError(val errorCode: String, val details: RetryDetails? = null)
+    @Serializable private class RetryDetails(val retryAvailableAt: String? = null)
 }
 
 internal fun String.toMillis(): Long? = runCatching { Instant.parse(this).toEpochMilliseconds() }.getOrNull()
