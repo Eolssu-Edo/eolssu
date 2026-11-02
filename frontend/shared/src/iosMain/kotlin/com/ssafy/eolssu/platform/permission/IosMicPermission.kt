@@ -3,8 +3,12 @@ package com.ssafy.eolssu.platform.permission
 import com.ssafy.eolssu.core.audio.MicPermission
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.AVFAudio.AVAudioApplication
+import platform.AVFAudio.AVAudioApplicationRecordPermissionDenied
 import platform.AVFAudio.AVAudioApplicationRecordPermissionGranted
 import platform.AVFAudio.AVAudioApplicationRecordPermissionUndetermined
+import platform.Foundation.NSURL
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationOpenSettingsURLString
 import kotlin.coroutines.resume
 
 /**
@@ -14,6 +18,17 @@ import kotlin.coroutines.resume
 class IosMicPermission : MicPermission {
     override fun isGranted(): Boolean =
         AVAudioApplication.sharedInstance.recordPermission == AVAudioApplicationRecordPermissionGranted
+
+    override fun isPermanentlyDenied(): Boolean =
+        AVAudioApplication.sharedInstance.recordPermission == AVAudioApplicationRecordPermissionDenied
+
+    override fun openSettings(): Boolean {
+        val url = NSURL.URLWithString(UIApplicationOpenSettingsURLString) ?: return false
+        val application = UIApplication.sharedApplication
+        if (!application.canOpenURL(url)) return false
+        application.openURL(url, options = emptyMap<Any?, Any?>(), completionHandler = null)
+        return true
+    }
 
     override suspend fun request(): Boolean {
         val permission = AVAudioApplication.sharedInstance.recordPermission
