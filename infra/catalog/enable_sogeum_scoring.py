@@ -2,8 +2,10 @@
 """Enable scoring for the four reviewed sogeum songs loaded by S15P31E102-339. Default is read-only.
 
 S15P31E102-387. Each song keeps its 339 score (same events and ticks as the reviewed answer); only the
-reviewed breath marks and provenance.review change, and is_scorable becomes TRUE. score_version stays,
-because model audio is served only for the current score_version and breath marks change no timing.
+reviewed breath marks and provenance.review change, and is_scorable becomes TRUE. songs.updated_at also
+changes (ON UPDATE CURRENT_TIMESTAMP). score_version stays, because model audio is served only for the
+current score_version and breath marks change no timing. If a run times out, the server may still commit:
+rerun without --apply to read the actual state before anything else.
 Publication (status) stays with infra/catalog/publish_model_audio.py; run this after it.
 """
 import argparse

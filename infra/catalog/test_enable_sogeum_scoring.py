@@ -122,6 +122,29 @@ class ApplyTests(unittest.TestCase):
         self.assertEqual((report['status'], report['updated']), ('applied', []))
         self.assertEqual(len(db.batches), 1)
 
+    def test_existing_receipt_is_not_overwritten(self):
+        plan, rows = fake_plan_and_rows()
+        db = FakeDb(plan, rows)
+        receipt = Path(tempfile.mkdtemp()) / 'receipt.json'
+        receipt.write_text('earlier', encoding='utf-8')
+        with self.assertRaises(FileExistsError):
+            tool.run(plan, receipt, apply=True, runner=db)
+        self.assertEqual((receipt.read_text(encoding='utf-8'), db.batches), ('earlier', []))
+
+    def test_failed_write_leaves_outcome_unknown_in_receipt(self):
+        plan, rows = fake_plan_and_rows()
+        db = FakeDb(plan, rows)
+
+        def failing(sql):
+            if sql.startswith('SELECT'):
+                return db(sql)
+            raise RuntimeError('timeout')
+        receipt = Path(tempfile.mkdtemp()) / 'receipt.json'
+        with self.assertRaises(RuntimeError):
+            tool.run(plan, receipt, apply=True, runner=failing)
+        saved = json.loads(receipt.read_text(encoding='utf-8'))
+        self.assertEqual((saved['status'], saved['errorType']), ('apply-outcome-unknown', 'RuntimeError'))
+
     def test_changed_row_stops_before_any_write(self):
         plan, rows = fake_plan_and_rows()
         rows[1]['score'] = score('src-b', ('a', 'b', 'z'))

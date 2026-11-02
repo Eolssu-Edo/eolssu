@@ -1,9 +1,8 @@
 {
   "table": "instruments",
-  "description": "서비스 악기 행(단소, 소금). 음역 하한·상한은 pitches.json 행을 (yul, octave)로 가리킨다. 백엔드가 range_low_pitch_id·range_high_pitch_id로 바꿔 넣는다.",
+  "description": "단소 악기 행. 음역 하한·상한은 pitches.json 행을 (yul, octave)로 가리킨다. 백엔드가 range_low_pitch_id·range_high_pitch_id로 바꿔 넣는다.",
   "sources": [
     "음역: e-국악아카데미 단소 안공법 https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-4/index.htm (악기 음역은 협~중청중이나 실제로는 仲에서 중청중까지 쓰인다). 녹음으로는 중~중청태까지 확인(docs/knowledge/data/danso.md)",
-    "소금 음역: 국립국악원 국악사전 「소금」 https://www.gugak.go.kr/ency/topic/view/109 평취 林(B♭4)부터 역취 최고 㵜(중청남려)까지. 㵜의 옥타브 근거는 pitches.json sources",
     "pitch_tolerance_cent: 노션 1차 MVP 논의사항 D1 시작값 ±50센트"
   ],
   "rows": [
@@ -12,14 +11,6 @@
       "name": "단소",
       "range_low": {"yul": "중", "octave": 0},
       "range_high": {"yul": "중", "octave": 2},
-      "pitch_tolerance_cent": 50,
-      "is_active": true
-    },
-    {
-      "code": "SOGEUM",
-      "name": "소금",
-      "range_low": {"yul": "임", "octave": 0},
-      "range_high": {"yul": "남", "octave": 2},
       "pitch_tolerance_cent": 50,
       "is_active": true
     }

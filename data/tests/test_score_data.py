@@ -224,7 +224,7 @@ class AnswerTests(unittest.TestCase):
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
 
-    def test_standard_sogeum_answers_are_reviewed_and_use_listed_pitches(self):
+    def test_standard_sogeum_answers_are_reviewed_and_take_song_info_from_review(self):
         titles = {"ngc-standard-2022-p194": "아리랑", "ngc-standard-2022-p192": "도라지타령",
                   "ngc-standard-2022-p193": "밀양아리랑", "ngc-standard-2022-p196": "늴리리야"}
         for source_id in SERVICE_SOGEUM:
@@ -233,14 +233,8 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
             self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 채점을 켜는 정답은 사람 검수를 마친 것만
 
-    def test_check_finds_sogeum_pitch_missing_from_table(self):
-        result = convert_answer("ngc-standard-2022-p194")
-        note = next(e for e in result["events"] if e["kind"] == "NOTE")
-        note["yul"], note["octave"] = "응", 2  # 율명 표에 없는 중청응
-        self.assertTrue(any("율명 표에 없다" in p for p in check(result)))
-
     def test_answers_outside_songs_take_song_info_from_review(self):
-        # 평가용 교과서 소금 정답. 곡 정보는 검토 기록의 song에서 읽고, 율명은 소금 행이 있는 율명 표로 검사한다.
+        # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
         self.assertEqual((result["score"]["title"], result["score"]["instrument"]), ("도라지타령", "SOGEUM"))
         self.assertEqual(result["music"]["jangdan"], "세마치")

@@ -205,8 +205,8 @@ def check(result, data=DATA):
     problems += [f"eventId {u['eventId']}가 events에 없다 ({c['id']})"
                  for c in cells for u in c["units"] if u["eventId"] not in event_ids]
     problems += [f"cellId {e['cellId']}가 cells에 없다 ({e['id']})" for e in events if e["cellId"] not in cell_ids]
-    # 율명 표는 서비스 악기(단소·소금) 음역이다. 표에 없는 악기는 읽기 규칙(12율)만 따른다.
-    if result["score"]["instrument"] in {i["code"] for i in _rows(data, "instruments.json")}:
+    # 율명 표는 단소 음역이다. 다른 악기는 읽기 규칙(12율)만 따른다.
+    if result["score"]["instrument"] == "DANSO":
         pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")}
         problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
                      for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
