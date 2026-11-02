@@ -1,31 +1,31 @@
 -- 기초부터 배우기 학습 단계와 진도 (S15P31E102-344, LRN-01·02·03). 규칙은 V1 머리말을 따른다.
 -- 계약: docs/specs/learning-progress-apis.md. 단계는 악기 테이블이 아니라 앱의 학습 트랙(GuideInstrument) 4개에 묶는다.
--- V12(소셜 회원가입) 다음 번호다.
+-- V13(기본음·시김새 카탈로그) 다음 번호다. 통합 시 중복 V13을 V14로 옮겼다(S15P31E102-368).
 
 -- ---------- 적용 전 확인 ----------
 -- MySQL DDL은 되돌려지지 않는다. 두 테이블은 쓰는 API가 없어 비어 있어야 하며, 행이 있으면 DDL 전에 멈춘다.
 -- 아래에서 지우는 V1 자동 이름(외래 키·CHECK·유일 인덱스)이 다른 DB도 DDL 전에 멈춘다.
--- 여기서 실패하면 원인을 정리하고 flyway_schema_history의 실패 행(version 13, success 0)을 지운 뒤 다시 적용한다(backend README).
-CREATE TEMPORARY TABLE v13_preconditions (
+-- 여기서 실패하면 원인을 정리하고 flyway_schema_history의 실패 행(version 14, success 0)을 지운 뒤 다시 적용한다(backend README).
+CREATE TEMPORARY TABLE v14_preconditions (
   item VARCHAR(40) NOT NULL,
   ok   BOOLEAN     NOT NULL,
-  CONSTRAINT chk_v13_preconditions CHECK (ok = TRUE)
+  CONSTRAINT chk_v14_preconditions CHECK (ok = TRUE)
 );
-INSERT INTO v13_preconditions (item, ok) SELECT 'lessons.empty', NOT EXISTS (SELECT 1 FROM lessons);
-INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress.empty', NOT EXISTS (SELECT 1 FROM lesson_progress);
-INSERT INTO v13_preconditions (item, ok) SELECT 'lessons_ibfk_1', EXISTS (
+INSERT INTO v14_preconditions (item, ok) SELECT 'lessons.empty', NOT EXISTS (SELECT 1 FROM lessons);
+INSERT INTO v14_preconditions (item, ok) SELECT 'lesson_progress.empty', NOT EXISTS (SELECT 1 FROM lesson_progress);
+INSERT INTO v14_preconditions (item, ok) SELECT 'lessons_ibfk_1', EXISTS (
   SELECT 1 FROM information_schema.referential_constraints
   WHERE constraint_schema = DATABASE() AND table_name = 'lessons' AND constraint_name = 'lessons_ibfk_1');
-INSERT INTO v13_preconditions (item, ok) SELECT 'lessons_chk_1', EXISTS (
+INSERT INTO v14_preconditions (item, ok) SELECT 'lessons_chk_1', EXISTS (
   SELECT 1 FROM information_schema.check_constraints
   WHERE constraint_schema = DATABASE() AND constraint_name = 'lessons_chk_1' AND check_clause LIKE '%kind%');
-INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress_chk_1', EXISTS (
+INSERT INTO v14_preconditions (item, ok) SELECT 'lesson_progress_chk_1', EXISTS (
   SELECT 1 FROM information_schema.check_constraints
   WHERE constraint_schema = DATABASE() AND constraint_name = 'lesson_progress_chk_1' AND check_clause LIKE '%score%');
-INSERT INTO v13_preconditions (item, ok) SELECT 'lesson_progress.user_id', EXISTS (
+INSERT INTO v14_preconditions (item, ok) SELECT 'lesson_progress.user_id', EXISTS (
   SELECT 1 FROM information_schema.statistics
   WHERE table_schema = DATABASE() AND table_name = 'lesson_progress' AND index_name = 'user_id' AND non_unique = 0);
-DROP TEMPORARY TABLE v13_preconditions;
+DROP TEMPORARY TABLE v14_preconditions;
 
 -- ---------- 학습 단계 ----------
 -- V1의 kind(문항 종류)·instrument_id를 학습 트랙 코드로 바꾼다. 자동 이름 외래 키·CHECK와 함수형 유일 키를 먼저 지운다.
