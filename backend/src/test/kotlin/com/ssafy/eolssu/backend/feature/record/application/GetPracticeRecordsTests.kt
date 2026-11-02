@@ -1,11 +1,9 @@
 package com.ssafy.eolssu.backend.feature.record.application
 
+import com.ssafy.eolssu.backend.feature.record.UnusedPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.ColumnRange
-import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
-import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
-import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.LocalDateTime
@@ -26,14 +24,8 @@ class GetPracticeRecordsTests {
     )
 
     /** 정렬·페이지는 DB가 하므로 여기서는 받은 조회 조건만 남기고 정해 둔 한 쪽을 돌려준다. */
-    private class Records(private val summaries: List<SongRecordSummary>, private val page: List<RecordSession>) : PracticeRecords {
+    private class Records(private val summaries: List<SongRecordSummary>, private val page: List<RecordSession>) : UnusedPracticeRecords() {
         val queries = mutableListOf<List<Any>>()
-
-        override fun lockStatus(sessionId: Long, userId: Long): String? = error("not used")
-
-        override fun findSession(sessionId: Long, userId: Long): RecordSession? = error("not used")
-
-        override fun save(sessionId: Long, userId: Long, savedAt: LocalDateTime, memo: MemoChange) = error("not used")
 
         override fun songSummaries(userId: Long) = summaries
 
@@ -41,8 +33,6 @@ class GetPracticeRecordsTests {
             queries += listOf(userId, songId, sort, offset, limit)
             return page
         }
-
-        override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
     }
 
     private var columnReads = 0

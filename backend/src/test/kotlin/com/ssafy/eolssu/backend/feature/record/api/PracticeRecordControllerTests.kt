@@ -1,15 +1,12 @@
 package com.ssafy.eolssu.backend.feature.record.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
+import com.ssafy.eolssu.backend.feature.record.UnusedPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
-import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
-import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
-import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
-import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDateTime
@@ -36,7 +33,7 @@ class PracticeRecordControllerTests {
     )
     private var sessionStatus = "DONE"
     private val memos = mutableListOf<MemoChange>()
-    private val records = object : PracticeRecords {
+    private val records = object : UnusedPracticeRecords() {
         override fun lockStatus(sessionId: Long, userId: Long) = sessionStatus.takeIf { sessionId == 501L && userId == 1L }
 
         override fun findSession(sessionId: Long, userId: Long) =
@@ -45,12 +42,6 @@ class PracticeRecordControllerTests {
         override fun save(sessionId: Long, userId: Long, savedAt: LocalDateTime, memo: MemoChange) {
             memos += memo
         }
-
-        override fun songSummaries(userId: Long) = emptyList<SongRecordSummary>()
-
-        override fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int) = emptyList<RecordSession>()
-
-        override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
     }
     private val columns = ScoreColumns { _, _ -> listOf(0, 0, 1, 1, 2, 2) }
     private val mvc = MockMvcBuilders.standaloneSetup(

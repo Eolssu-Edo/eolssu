@@ -1,13 +1,11 @@
 package com.ssafy.eolssu.backend.feature.record.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
+import com.ssafy.eolssu.backend.feature.record.UnusedPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
-import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
-import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
-import com.ssafy.eolssu.backend.feature.record.domain.RecordingFile
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
 import com.ssafy.eolssu.backend.feature.record.domain.SongRecordSummary
 import java.time.Clock
@@ -33,13 +31,7 @@ class PracticeRecordListControllerTests {
         recordingAvailable = true, viewedAt = null,
     )
     private val queries = mutableListOf<List<Any>>()
-    private val records = object : PracticeRecords {
-        override fun lockStatus(sessionId: Long, userId: Long): String? = null
-
-        override fun findSession(sessionId: Long, userId: Long): RecordSession? = null
-
-        override fun save(sessionId: Long, userId: Long, savedAt: LocalDateTime, memo: MemoChange) = Unit
-
+    private val records = object : UnusedPracticeRecords() {
         override fun songSummaries(userId: Long) = listOf(
             SongRecordSummary(101, "아리랑", 4, LocalDateTime.parse("2026-11-02T03:02:00"), 84),
             SongRecordSummary(102, "도라지타령", 1, LocalDateTime.parse("2026-10-17T12:10:00"), 71),
@@ -49,8 +41,6 @@ class PracticeRecordListControllerTests {
             queries += listOf(userId, songId, sort, offset, limit)
             return listOf(record, record.copy(sessionId = 502, startNoteIdx = 2, endNoteIdx = 3, viewedAt = record.savedAt, recordingAvailable = false, memo = null))
         }
-
-        override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
     }
     private val columns = ScoreColumns { _, _ -> listOf(0, 0, 1, 1, 2, 2) }
     private val mvc = MockMvcBuilders.standaloneSetup(
