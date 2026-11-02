@@ -85,7 +85,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
             .height(48.dp)
             .clip(shape)
             .background(colors.surface)
-            .border(1.dp, colors.line, shape)
+            .border(1.dp, colors.lineSoft, shape)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { stateDescription = state }
             .padding(start = 10.dp, end = 12.dp),
@@ -104,7 +104,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
     }
 }
 
-/** 펼친 쪽 목차(`.rb-menu`). 지금 쪽은 회색 바탕 · 굵게. */
+/** 펼친 쪽 목차(`.rb-menu`). 지금 쪽은 연두 바탕 · 굵게. */
 @Composable
 internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
@@ -113,8 +113,8 @@ internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Uni
         modifier
             .fillMaxWidth()
             .shadow(16.dp, shape, ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
-            .background(colors.background, shape)
-            .border(1.dp, colors.line, shape)
+            .background(colors.surface, shape)
+            .border(1.dp, colors.lineSoft, shape)
             .padding(6.dp),
     ) {
         ReadingPage.entries.forEach { page ->
@@ -124,7 +124,7 @@ internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Uni
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(if (on) colors.surface else Color.Transparent)
+                    .background(if (on) colors.primary else Color.Transparent)
                     .clickable(role = Role.Button, onClick = { onSelect(page) })
                     .semantics { selected = on }
                     .padding(horizontal = 10.dp),
@@ -144,16 +144,16 @@ internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, m
     val colors = EolssuTheme.colors
     val pages = ReadingPage.entries
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = colors.line)
+        HorizontalDivider(color = colors.lineSoft)
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                PageButton(stringResource(Res.string.guide_reading_prev), next = false, enabled = current.ordinal > 0) { onGo(pages[current.ordinal - 1]) }
+                PageButton(stringResource(Res.string.guide_reading_prev), next = false, enabled = current.previous != null) { current.previous?.let(onGo) }
             }
             Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 pages.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                PageButton(stringResource(Res.string.guide_reading_next), next = true, enabled = current.ordinal < pages.lastIndex) { onGo(pages[current.ordinal + 1]) }
+                PageButton(stringResource(Res.string.guide_reading_next), next = true, enabled = current.next != null) { current.next?.let(onGo) }
             }
         }
     }
@@ -169,8 +169,8 @@ private fun PageButton(label: String, next: Boolean, enabled: Boolean, onClick: 
             .alpha(if (enabled) 1f else 0.35f)
             .height(44.dp)
             .clip(shape)
-            .background(if (next) colors.green else colors.background)
-            .border(1.dp, if (next) colors.green else colors.line, shape)
+            .background(if (next) colors.green else colors.surface)
+            .border(1.dp, if (next) colors.green else colors.lineSoft, shape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -182,7 +182,7 @@ private fun PageButton(label: String, next: Boolean, enabled: Boolean, onClick: 
     }
 }
 
-/** 쪽 점. 지금 쪽은 길고 녹색이다. 누르는 영역은 점보다 넓다. */
+/** 쪽 점. 지금 쪽은 길고 녹색, 나머지는 옅은 회색이다. 누르는 영역은 점보다 넓다. */
 @Composable
 private fun PageDot(page: ReadingPage, on: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -198,6 +198,6 @@ private fun PageDot(page: ReadingPage, on: Boolean, onClick: () -> Unit) {
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.width(width).height(8.dp).background(if (on) colors.green else colors.lineStrong, RoundedCornerShape(4.dp)))
+        Box(Modifier.width(width).height(8.dp).background(if (on) colors.green else GuideFaint, RoundedCornerShape(4.dp)))
     }
 }
