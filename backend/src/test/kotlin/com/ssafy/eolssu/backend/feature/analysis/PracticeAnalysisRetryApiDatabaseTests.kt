@@ -61,7 +61,7 @@ class PracticeAnalysisRetryApiDatabaseTests {
     fun before() {
         cleanup()
         fixtures.submitted.clear()
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (991801, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (991801, 'TEST252', -2, '黃', '시험', -24)")
         jdbc.update("""INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active)
             VALUES (991801, 'TEST252', '테스트 악기', 991801, 991801, 50, FALSE)""")
         jdbc.update("""INSERT INTO jangdans (id, name, pattern, default_bpm, bpm_unit, source)

@@ -2,6 +2,8 @@
 
 Task S15P31E102-364. 2026-11-02. [기능 계약](../../specs/reference-audio-catalog.md), [적재 절차](../../../infra/catalog/README.md).
 
+최종 상태는 **기본음219개 연결·211개 미연결, 기준 음22개·단소 범위15개**다. V15 확장과 사용자 선택을 반영한 마지막 절이 현재 결과이며, 앞의30/141개 결과는 단계별 검증 이력이다.
+
 ## 선택과 범위
 
 기존 `pitches`는 서비스의 율명/옥타브 기준이며 특정 악기·취법의 실제 녹음 ID가 아니다. 4악기 430개에는 같은 율명에 여러 주법·발음 구간이 있으므로 공통 soundUrl 한 개를 임의 선택하면 데이터가 손실된다. 새 `reference_audio_assets`와 dataset/label별 조회를 추가했다. 기존 CAT-06과 시김새 화면의 합성 소리는 바꾸지 않았다. 이후 사용자 추가 요청으로 운지법·기초 학습의 실제 녹음 선택을 후속 Task367에서 연결한다. 임의 대표음 선택은 계속 하지 않는다.
@@ -94,7 +96,7 @@ R2의 endpoint는 S3 호환 프로토콜을 쓰는 R2 주소다. AWS S3 서비�
 
 대안은 모든 음원에 율명만으로 FK를 채우거나 시김새의 마지막 안정음을 같은 관계로 취급하는 것이었다. `pitches`는 현재 단소 1차 기준 11개만 갖고 있고, 다른 악기의 음역·조율 기준과 시김새의 시간적 의미가 다르므로 선택하지 않았다. 별도 [명시적 매핑](../../../infra/catalog/pitch-mappings/danso-basic-v1.json)을 사용해 명목상 관계와 실측 검수를 분리했다. CLI는 기존 manifest/파일을 읽기만 하며, assetId·datasetId·labelId·SHA-256·분류·취법·율명과 근거를 대조한 뒤 `(yul,octave)`로 대상 ID를 찾는다. 같은 파일을 다시 변환하거나 업로드하지 않는다.
 
-[단소 라벨링](../data/danso.md)의 기본 5음과 상하 옥타브, [pitches.json](../../../data/reference/pitches.json), V5가 일치하는 30개만 연결했다. 평취 중·임·무=octave0, 황·태=octave1이고 역취는 +1이다. 각 평취 pitch에 4개, 역취 pitch에 2개 클립이 연결된다. 단소 시김새 26개, 정악대금 107개, 산조대금 121개, 소금 146개는 합계 400개 null이다. 산조의 C 기준과 기존 Eb 기준, 미등록 음역을 이름 일치만으로 연결하지 않는다. 기존 `inferred`, 채점 제외, 원본 metadata는 그대로다.
+[단소 라벨링](../data/danso.md)의 기본 5음과 상하 옥타브, [pitches.json](../../../data/reference/pitches.json), V5가 일치하는 30개를 먼저 연결했다. 평취 중·임·무=octave0, 황·태=octave1이고 역취는 +1이다. 각 평취 pitch에 4개, 역취 pitch에 2개 클립이 연결된다. 최초 검증에서는 나머지400개를 null로 남겼다. 다른 악기의 기존 근거까지 일괄 보류한 판단은 아래 재대조에서 정정한다. 산조 ‘본청 C’는 황종 C를 뜻한다고 확인된 근거가 아니므로 그 해석을 제외한다. 기존 `inferred`, 채점 제외, 원본 metadata는 그대로다.
 
 검증 환경은 JDK21, 폐기 가능한 MySQL8.4 컨테이너 `eolssu-reference-audio-364-pitch`(localhost13364), 별도 DB `eolssu_pitch_test`/`reference_audio_import_test`/`eolssu_pitch_real430`이다. 서비스 DB·R2는 사용하지 않았다.
 
@@ -105,3 +107,38 @@ R2의 endpoint는 S3 호환 프로토콜을 쓰는 R2 주소다. AWS S3 서비�
 - 최종 JAR를 localhost18364의 ops로 실행해 430개 DRAFT 비공개 → 테스트용 게시 후 56/107/121/146개 전체 ID 집합, 10종 pitch 필터, 상세의 문자열/미연결 null, metadata 원본 일치, 잘못된 ID400, OpenAPI nullable string/선택 필터를 확인했다. 기존302/900초/no-store 계약도 통과했다. 종료 시 테스트 행을 DRAFT로 복구하고 앱을 종료했다.
 
 최종 JAR SHA-256은 `fd57637660c5c4556146445715742f115ea3f0f5e45b08c2191544fa3d1eae5b`이다. 작업 worktree의 Git 제외 `data/processed/reference-audio-relation-verification/`에 `backend-validation.log`, `db-verification.json`, `mr-http-verification.json`, `verify_http.py`와 생성 SQL을 남겼다. 운영 마이그레이션·명시적 매핑·R2 게시·실기기 청취는 후속368에서 수행하며 이 검증 결과로 대체하지 않는다.
+
+## 기존 라벨 재대조: 기준 행 추가 전 141개 연결
+
+이 절은 V15 기준 음 추가를 선택하기 전의 중간 검증 이력이다. 현재 매핑 파일과 완료 수량은 다음 절의219개 결과를 따른다.
+
+사용자의 지적에 따라 현재 기준 행 누락과 라벨 근거 부족을 구분했다. 단소 외 음원에도 이미 취법·율명·옥타브 순서의 근거가 있었으므로 400개 전체를 보류한 것은 잘못이었다. 단소30개 매핑/근거를 바꾸지 않고 [정악대금27개](../../../infra/catalog/pitch-mappings/jeongak-daegeum-basic-v1.json), [소금61개](../../../infra/catalog/pitch-mappings/sogeum-basic-v1.json), [산조대금23개](../../../infra/catalog/pitch-mappings/sanjo-daegeum-basic-v1.json)를 별도 파일로 추가했다. 스키마·기준 음·백엔드·CLI 실행 코드는 변경하지 않았다.
+
+정악대금은 [기존 조사](../data/jeongak-daegeum.md#취법율명-대응)와 세 기본음 그룹의 `analysisBasis`를 재사용한다. 각 소스2557/2558/2559의 tone007·008·010·011·012·014·015·017·018이 현재 기준 음에 대응해 각각9개다. 소금은 [기존 취법·율명 근거](../data/sogeum.md#취법율명-연결)대로 평취 임0·무0, 황1·태1·중1과 역취 임1·무1·황2·태2·중2를 연결한다. 각각8·6·6·6·6·6·6·6·5·6개로 합계61개이며 중청임을 임1로 축약하지 않는다.
+
+산조는 [기존 음렬·옥타브 대응](../data/sanjo-daegeum.md)과 [국립국악원 대금 항목④](https://www.gugak.go.kr/ency/topic/view/108)의 “정간보에서는 전폐음을㑣으로” 표기 규칙(2026-11-02 확인)을 함께 적용한다. 저취 임−1, 황0의 명목상 옥타브 경계와 평취+1·역취+2를 추론한 것이며, 실제 F0·조율값을 검증했거나 전문가가 라벨을 검수했다는 뜻이 아니다. 원본2550/2551/2552에서 각각7/9/7개가 기존 기준 행에 대응한다. 본청 C를 황종 C로 치환하지 않는다.
+
+| 미연결 사유 | 개수 | 근거/다음 범위 |
+| --- | ---: | --- |
+| 시김새 | 207 | 현재 FK는 기본음만 지원한다. 안정음·시간 순서 관계는 별도다. |
+| 명목상 음은 알려졌으나 기준 행 없음 | 78 | 정악27·소금29·산조22. 현재11개 기준 행을 확대하는 작업은 포함하지 않았다. |
+| 개별 라벨 대안 | 4 | 소금3개와 산조1개의 원래 evidence를 보존한다. |
+
+소금 예외 ID는 `ngc-sogeum-2654.group-006`, `ngc-sogeum-2655.group-006`, `ngc-sogeum-2656.group-006`이다. 각 `labels.json`의 `groups[].evidence[id].sequenceDecision`과 `alternatives`에 협/고 대안이 있다. 산조 예외는 `ngc-sanjo-2552.region-004`이며 같은 evidence 위치의 `alternatives`에 기존 무 라벨과 비교하는 황/남 후보가 남아 있다. 이 네 구간을 자동 확정하거나 원음을 다시 분석하지 않았다.
+
+새 데이터 회귀 검사는 기존30개만 있는 상태에서 목표141개와 불일치해 실패한 뒤, 실제 annotations의 행 ID·분류·취법·율명·그룹 근거·대안과 명시적 매핑을 대조해 통과했다. Python 전체26개가 통과했다. 실제430개 DB에 네 매핑을 각각2회 적용한 뒤 기존 import를 재실행해 141연결·289null·기준 음11개·inferred430·채점 가능0·DRAFT430·40,899,691바이트를 확인했다. 기존 단소 행 전체와 모든 파일 SHA/metadata/상태가 보존됐고 재실행 후 전체 행 스냅샷도 같았다. 앞 절의 백엔드 단위435·DB161 검증은 실행 코드가 동일하므로 재사용한다.
+
+## 사용자 선택 후 최종 결과: 기본음219개·전역22음·단소15음
+
+사용자가 “현재 API 방식 유지: 단소 범위 내15음을 모두 표시”를 선택해 V15에서 누락 기준11행을 추가했다. 기존 V5의11개 ID·반음과 단소의 범위 `[5,29]`를 보존하며 ID는 MySQL이 할당한다. 한자는 `data/src/scores/review_page.html`의 HANJA 표와 대조했다. 단소 전사용 `data/reference/pitches.json`, 기존 단소30개 매핑/근거, 서비스의 범위 조회 쿼리는 변경하지 않았다.
+
+최종 연결은 단소30·정악54·소금90·산조45, 합계219개다. 위 중간 단계의 기준 행 누락78개를 모두 연결했고, 미연결211개는 시김새207개와 명시적 라벨 대안4개뿐이다. 신규 기준 음이나 명목상 FK를 추가한 것이 실측 주파수 검수·운지 검수·채점 승인이라는 뜻은 아니다.
+
+- 실패→성공: 실제 HTTP 검사에서 단소 목록 예상15/실제11로 실패한 뒤 V15 적용 후 통과했다. 데이터 회귀도 기존141/예상219로 실패한 뒤 실제 annotations와 전체219매핑이 일치했다.
+- `clean build databaseTest` 재실행: 단위435개·DB161개, 실패/오류/건너뜀0. 전역22·단소15·기존ID1~11/반음/한글 표기 보존과 Flyway V15 적용/재실행을 확인했다. V15와 충돌하던 황0/반음0 합성 테스트6곳은 사적인 시험용 음으로 옮겼으며 검증 목적과 정리 범위는 유지했다.
+- Python 전체26개 통과. 실제 annotations의 분류·취법·율명·그룹 근거·개별 대안, 정악18음 순서, 소금의 중청임 구분, 산조의 명목상 옥타브, 남은211개 사유를 대조했다.
+- 새 폐기 DB `eolssu_pitch_complete430`에 V1~V15, 기존430개 import와 단소 매핑을 적용한 뒤 네 매핑을 각각2회 적용하고 기존 import를 재실행했다. 219연결·211null·기준22개·단소범위15개·inferred430·채점 가능0·DRAFT430·40,899,691바이트였다. 기존 단소 행 전체, 파일 SHA·원본metadata·게시/검수 상태를 보존했고 재실행 후 전체 행 스냅샷도 같았다.
+- 최종 JAR의 실제 ops HTTP에서 네 데이터셋 전체430개 목록·상세, 각 dataset/pitch 필터, 동일 pitch의 여러 클립, 전역22·단소15, 400/404, nullable 문자열/미연결null, OpenAPI와 기존302/900초/no-store 계약이 통과했다. API metadata는 DB에 저장된 JSON과 같았다. 기존 MySQL JSON은 일부 부동소수점 측정값의 마지막 자리를 정규화한다(예: encoding.peak의 약1.4×10⁻¹⁷ 차이). 이를 새 매핑 변경으로 취급하거나 원본 파일 해시가 바뀌었다고 해석하지 않는다.
+- 별도 읽기 전용 리뷰에서 V15 키/한자/반음,219개 실제 manifest 대응, 정확한4개 예외, 기존 기준/단소 매핑 보존을 확인했고 조치가 필요한 결함은 없었다.
+
+최종 JAR SHA-256은 `ed69688907d9ec534f70ca43e58bd5b90b03201c19e060038398347fbfcf09cf`이다. 같은 Git 제외 검증 폴더에 `complete-backend-validation.log`, `complete-db-verification.json`, `complete-http-verification.json`, `verify_complete_mappings.py`, `verify_complete_http.py`, `complete-mappings/*.sql`을 남겼다. HTTP 검증 후 테스트 행을 DRAFT로 복구하고 앱을 종료했다. 운영 DB·R2·배포·실기기 청취는 수행하지 않았다.

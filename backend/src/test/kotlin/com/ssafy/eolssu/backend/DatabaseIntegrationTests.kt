@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("14", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("15", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -885,7 +885,7 @@ class DatabaseIntegrationTests {
     // 저장 중 실패가 상태 변경까지 되돌리는지 보려면 테스트 트랜잭션 밖에서 커밋해야 한다. 넣은 행은 끝에서 지운다.
     @Test
     fun `keeps the session pending when storing the note results fails`() {
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (901, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (901, 'ROLLBACK', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (901, 'ROLLBACK_TEST', '시험', 901, 901, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
@@ -987,7 +987,7 @@ class DatabaseIntegrationTests {
     // 동시 요청은 서로 다른 연결이 보도록 테스트 트랜잭션 밖에서 커밋한다. 넣은 행은 끝에서 지운다.
     @Test
     fun `starts only one retry when two requests arrive together`() {
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (902, 'RETRY', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (902, 'RETRY_TEST', '시험', 902, 902, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
