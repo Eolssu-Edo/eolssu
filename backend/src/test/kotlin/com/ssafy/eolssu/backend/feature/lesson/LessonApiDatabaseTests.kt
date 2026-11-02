@@ -32,7 +32,7 @@ import tools.jackson.databind.json.JsonMapper
 
 private const val TEST_SECRET = "test-only-signing-key-32-bytes-1234567890"
 
-/** 실제 HTTP·JWT 쿠키·MySQL과 V13 시드로 LRN-01·02·03을 확인한다. 넣은 행은 끝에서 지운다. */
+/** 실제 HTTP·JWT 쿠키·MySQL과 V14 시드로 LRN-01·02·03을 확인한다. 넣은 행은 끝에서 지운다. */
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["eolssu.security.jwt-secret=$TEST_SECRET"])
@@ -58,7 +58,7 @@ class LessonApiDatabaseTests {
                 id, "lesson$id@example.test",
             )
         }
-        // V13 시드 id: 단소 1~9, 소금 10~18, 정악대금 19~27, 산조대금 28~36. 9단계(id 9)는 선택 단계다.
+        // V14 시드 id: 단소 1~9, 소금 10~18, 정악대금 19~27, 산조대금 28~36. 9단계(id 9)는 선택 단계다.
         jdbc.update(
             "INSERT INTO lesson_progress (user_id, lesson_id, completed_at) VALUES " +
                 "(961, 1, '2026-11-01 03:00:00.123456'), (961, 9, '2026-11-01 04:00:00'), (962, 2, '2026-11-01 05:00:00'), (962, 10, '2026-11-01 06:00:00')",
