@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -26,12 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.PdfFile
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.song.PdfUploadUiState
 import com.ssafy.eolssu.feature.song.formatFileSize
@@ -60,20 +61,21 @@ internal fun PdfPickArea(onPick: () -> Unit, modifier: Modifier = Modifier, larg
     Column(
         modifier
             .fillMaxWidth()
-            .dashedBorder(colors.lineStrong, if (large) 20.dp else 18.dp)
+            .dashedBorder(colors.textDisabled, if (large) 20.dp else 18.dp)
             .padding(horizontal = if (large) 24.dp else 20.dp, vertical = if (large) 32.dp else 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = if (large) Arrangement.spacedBy(12.dp, Alignment.CenterVertically) else Arrangement.spacedBy(10.dp),
     ) {
+        val iconShape = RoundedCornerShape(if (large) 18.dp else 16.dp)
         Box(
-            Modifier.size(if (large) 64.dp else 56.dp).background(colors.surface, RoundedCornerShape(if (large) 18.dp else 16.dp)),
+            Modifier.size(if (large) 64.dp else 56.dp).background(colors.surface, iconShape).border(1.dp, colors.lineSoft, iconShape),
             contentAlignment = Alignment.Center,
         ) {
             Icon(EolssuIcons.FileUpload, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text)
         }
         Text(
             stringResource(Res.string.upload_pick_title),
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = if (large) 18.sp else 16.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = if (large) 18.sp else 16.sp, fontWeight = FontWeight.Bold),
             textAlign = TextAlign.Center,
         )
         Text(
@@ -82,13 +84,25 @@ internal fun PdfPickArea(onPick: () -> Unit, modifier: Modifier = Modifier, larg
             color = colors.textMuted,
             textAlign = TextAlign.Center,
         )
-        EolssuButton(
-            stringResource(Res.string.upload_pick),
-            onPick,
-            modifier = Modifier.height(if (large) 48.dp else 44.dp),
-            style = EolssuButtonStyle.Secondary,
-            small = true,
-        )
+        PickFileButton(onPick, height = if (large) 48.dp else 44.dp)
+    }
+}
+
+/** '파일에서 선택': 흰 알약 버튼, 옅은 테두리, 14sp. */
+@Composable
+private fun PickFileButton(onClick: () -> Unit, height: Dp) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.heightIn(min = height),
+        shape = CircleShape,
+        color = colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(1.dp, colors.lineSoft),
+    ) {
+        Box(Modifier.padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
+            Text(stringResource(Res.string.upload_pick), style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
+        }
     }
 }
 
@@ -100,12 +114,12 @@ internal fun PdfFileCard(state: PdfUploadUiState, file: PdfFile, onRemove: () ->
     Row(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, colors.line, MaterialTheme.shapes.medium)
+            .border(1.dp, colors.lineSoft, MaterialTheme.shapes.medium)
             .padding(if (large) 16.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        KindTile { KindLabel(stringResource(Res.string.mysongs_kind_pdf)) }
+        KindTile(Modifier.border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))) { KindLabel(stringResource(Res.string.mysongs_kind_pdf)) }
         Column(Modifier.weight(1f)) {
             Text(
                 file.name,
@@ -156,7 +170,7 @@ internal fun PdfFileCard(state: PdfUploadUiState, file: PdfFile, onRemove: () ->
     }
 }
 
-/** 노란 안내: PDF는 보기·넘김 전용이라 AI 평가가 되지 않는다. [large]는 태블릿 크기(14sp, 여백 16dp)다. */
+/** 연두 안내: PDF는 보기·넘김 전용이라 AI 평가가 되지 않는다. [large]는 태블릿 크기(14sp, 여백 16dp)다. */
 @Composable
 internal fun PdfViewOnlyNotice(large: Boolean = false) {
     val colors = EolssuTheme.colors
@@ -175,7 +189,7 @@ internal fun PdfViewOnlyNotice(large: Boolean = false) {
     Row(
         Modifier
             .fillMaxWidth()
-            .background(colors.accentSoft, RoundedCornerShape(14.dp))
+            .background(colors.accentTint, RoundedCornerShape(14.dp))
             .padding(if (large) 16.dp else 14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
