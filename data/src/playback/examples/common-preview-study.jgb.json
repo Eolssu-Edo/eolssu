@@ -1,0 +1,21 @@
+{
+  "v": 2,
+  "tempoBpmUserSet": true,
+  "controls": {
+    "title": "시김새 교육용 검증곡",
+    "beats": "4",
+    "gakBeats": "",
+    "tempoBpm": "60",
+    "hwangPitch": "63",
+    "staffUnit": "plain",
+    "joPreset": "all"
+  },
+  "parts": [
+    {
+      "id": "part-17",
+      "name": "단소",
+      "instrument": "danso",
+      "melody": "청중{니느라니} | 쉼 | 청중{느니라} | 쉼\n청중{깊은요성} | - | - | 쉼\n청중{하성} | - | - | 쉼\n청중{격음} | - | 청중 | -\n청중{늘임표} | 쉼 | 청중{덧길이표} | 청중{반길이표}\n청중{네로나} | 쉼 | 청중{도돌이표} | 쉼"
+    }
+  ]
+}

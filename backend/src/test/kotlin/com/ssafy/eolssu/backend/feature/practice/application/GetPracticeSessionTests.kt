@@ -26,8 +26,14 @@ class GetPracticeSessionTests {
     /** DB와 같은 규칙: 마감 기준(startedAfter)보다 먼저 시작한 `PENDING`만 `TIMEOUT`이 된다. */
     private class Store(var detail: PracticeSessionDetail) : PracticeSessionDetails {
         val expired = mutableListOf<Long>()
+        val viewed = mutableListOf<Pair<Long, LocalDateTime>>()
 
         override fun findOwned(sessionId: Long, userId: Long) = detail.takeIf { it.sessionId == sessionId && it.userId == userId }
+
+        override fun markViewed(sessionId: Long, userId: Long, viewedAt: LocalDateTime): Boolean {
+            viewed += sessionId to viewedAt
+            return true
+        }
 
         fun expireOverdue(sessionId: Long, startedAfter: LocalDateTime): Boolean {
             expired += sessionId
@@ -79,6 +85,29 @@ class GetPracticeSessionTests {
         val store = Store(base.copy(status = "DONE", evaluationId = 701))
         assertEquals("DONE", service(store).execute(userId = 1, sessionId = 501)?.status)
         assertEquals(emptyList(), store.expired)
+    }
+
+    @Test
+    fun `records only the first view of a saved record`() {
+        // 기록 상세는 PRA-03으로 열린다. 저장했고 아직 안 본 기록만 그 시각을 남긴다(REC-02 isNew).
+        val saved = base.copy(status = "DONE", evaluationId = 701, savedAt = LocalDateTime.parse("2026-10-28T02:59:50"))
+        val store = Store(saved)
+        assertEquals(saved, service(store).execute(userId = 1, sessionId = 501))
+        assertEquals(listOf(501L to LocalDateTime.parse("2026-10-28T03:00:00")), store.viewed)
+
+        for (unmarked in listOf(
+            saved.copy(viewedAt = LocalDateTime.parse("2026-10-28T02:59:55")),
+            base.copy(status = "DONE", evaluationId = 701),
+            base,
+        )) {
+            val other = Store(unmarked)
+            service(other).execute(userId = 1, sessionId = 501)
+            assertEquals(emptyList(), other.viewed, unmarked.toString())
+        }
+
+        val strangers = Store(saved)
+        assertNull(service(strangers).execute(userId = 2, sessionId = 501))
+        assertEquals(emptyList(), strangers.viewed)
     }
 
     @Test

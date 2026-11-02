@@ -61,6 +61,12 @@ class OpenApiConfig {
                     .addApiResponse("503",ApiResponse().description("일시 장애·설정 누락·처리 시간 초과. 재전송 필요, 본문 없음"))
                 continue
             }
+            // 연습 기록 저장은 memo 생략과 null을 구분하려고 JSON 노드로 받는다. 생성된 JsonNode 스키마 대신 실제 본문을 적는다.
+            if (doc.id == "savePracticeRecord") {
+                operation.requestBody = RequestBody().required(false)
+                    .description("본문 생략·{}·memo 생략은 메모를 유지하고 null은 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 자른 뒤 500자를 넘으면 400입니다.")
+                    .content(jsonContent(ObjectSchema().addProperty("memo", StringSchema().nullable(true).maxLength(500))))
+            }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
             if (doc.method == PathItem.HttpMethod.POST && operation.requestBody == null) {

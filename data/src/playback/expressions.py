@@ -29,6 +29,7 @@ from fractions import Fraction
 import math
 
 from .score import PPQN, finite, reject_unknown, require, ticks, validate_pitch_curve, validate_yoseong
+from . import preview
 
 SCALES = {"hwang-pyeong": (0, 2, 5, 7, 9), "hwang-gyemyeon": (0, 3, 5, 7, 10),
           "jung-pyeong": (0, 2, 5, 7, 10)}
@@ -163,12 +164,25 @@ def symbol_policy(instrument):
     return deepcopy(SYMBOL_POLICIES[instrument])
 
 
-def symbols_for(instrument):
+def confirmed_symbols(instrument):
+    blocked = SYMBOL_UNRESOLVED.get(instrument, {})
+    return {name: value for name, value in SYMBOL_TABLES[instrument].items() if name not in blocked}
+
+
+def symbols_for(instrument, notation_policy=None):
     require(instrument in SYMBOL_TABLES, f"{instrument}: 기호 해석 정책이 없습니다")
+    if notation_policy == preview.MODE:
+        return preview.symbol_table(SYMBOLS, SOGEUM_SYMBOLS, confirmed_symbols(instrument))
     return SYMBOL_TABLES[instrument]
 
 
-def validate_symbol(name, instrument, label):
+def validate_symbol(name, instrument, label, notation_policy=None):
+    if notation_policy == preview.MODE:
+        name = preview.canonical(name)
+        if name in preview.TIMELINE_MARKS:
+            raise ValueError(f"{label}: {{{name}}}: 반복 범위는 companion timeline/performance-plan에서 전개하세요")
+        if name in symbols_for(instrument, notation_policy) or name in preview.EXTRA_MARKS or name in EFFECT_MARKS or name in PROFILE_MARKS:
+            return
     if instrument == "sanjo-daegeum" and name == "꺾는음":
         return  # Only this instrument exposes the explicit, source-scoped policy.
     unresolved = SYMBOL_UNRESOLVED.get(instrument, {})
@@ -229,8 +243,20 @@ UNRESOLVED_REASONS = {
 
 
 def expression_policy(document, instrument):
+    """Legacy document boundary; musical policy validation is representation-neutral."""
+    return resolve_expression_policy(document.get("playback", {}).get("expression_policy"), instrument, preview.mode(document))
+
+
+def resolve_expression_policy(policy, instrument, notation_policy=None):
     """Preserve explicit instrument choices without importing Danso's defaults."""
-    policy = document.get("playback", {}).get("expression_policy")
+    if notation_policy:
+        defaults = preview.effect_policy(EXPRESSION_POLICY, instrument)
+        for key in ("staccato", "fermata", "unresolved_display_annotations"):
+            defaults.pop(key)
+        if policy is not None:
+            require(isinstance(policy, dict), "expression_policy은 객체여야 합니다")
+            defaults.update(deepcopy(policy))
+        policy = defaults
     if policy is None:
         return deepcopy(EXPRESSION_POLICY) if instrument == "danso" else {
             "name": f"{instrument}-explicit-effects-v1", "status": EXPRESSION_POLICY["status"],
@@ -239,7 +265,8 @@ def expression_policy(document, instrument):
             "unresolved_display_annotations": ["원문점"],
         }
     reject_unknown(policy, ["name", "basis", "status", "vibrato", "fall", "push", "unwind", "kkeok"], "expression_policy")
-    require("kkeok" not in policy or instrument == "sanjo-daegeum", "kkeok 정책은 산조대금에만 지원합니다")
+    require("kkeok" not in policy or instrument == "sanjo-daegeum" or notation_policy,
+            "kkeok 정책은 산조대금에만 지원합니다")
     require(all(isinstance(policy.get(k), str) and policy[k].strip() for k in ("name", "basis")),
             "표현 정책의 name·basis가 필요합니다")
     require(policy.get("status") == EXPRESSION_POLICY["status"],
@@ -294,7 +321,10 @@ def expression_policy(document, instrument):
 
 
 def relative_scale(document):
-    value = document.get("playback", {}).get("relative_scale")
+    return resolve_relative_scale(document.get("playback", {}).get("relative_scale"))
+
+
+def resolve_relative_scale(value):
     if value is None:
         return None
     reject_unknown(value, ["pitch_classes", "basis"], "relative_scale")
@@ -304,6 +334,52 @@ def relative_scale(document):
             "relative_scale.pitch_classes는 황종 기준 0..11의 오름차순 중복 없는 배열이어야 합니다")
     require(isinstance(value.get("basis"), str) and value["basis"].strip(), "상대음 음계의 basis가 필요합니다")
     return deepcopy(value)
+
+
+def add_symbol(group, name, original, instrument, notation_policy, label):
+    """Apply one decoded symbol to an existing musical slot, without parsing text."""
+    validate_symbol(name, instrument, label, notation_policy)
+    kind = group['kind']
+    if notation_policy == preview.MODE and name in preview.EXTRA_MARKS:
+        require(kind in ('note', 'hold'), f'{label}: {{{original}}} 앞에 본음/지속 자리가 필요합니다')
+        effects = group.setdefault('preview_effects', [])
+        require(all(preview.EXTRA_MARKS[other] != preview.EXTRA_MARKS[name] for other in effects), f'{label}: 겹친 {original}')
+        if preview.EXTRA_MARKS[name] == 'geok':
+            require(kind == 'note', f'{label}: 격음 attack 근사에는 새 본음이 필요합니다')
+            group['reattack'] = True
+        effects.append(name)
+    elif name in PROFILE_MARKS:
+        require(kind in ('note', 'relative', 'hold'), f'{label}: {{{name}}}의 본음이 필요합니다')
+        effects = group.setdefault('profile_effects', [])
+        require(PROFILE_MARKS[name] not in effects, f'{label}: 겹친 {name}')
+        effects.append(PROFILE_MARKS[name])
+    elif name in LENGTH_MARKS:
+        require('weight' not in group, f'{label}: 겹친 길이 기호')
+        group['weight'] = LENGTH_MARKS[name]
+    elif name in EFFECT_MARKS:
+        effect = EFFECT_MARKS[name]
+        require(effect == 'fermata' or kind in ('note', 'relative', 'hold'), f'{label}: {{{name}}}의 본음이 필요합니다')
+        require(effect not in group, f'{label}: 겹친 {name}')
+        group[effect] = True
+    elif name not in EXPRESSION_POLICY['unresolved_display_annotations']:
+        table = symbols_for(instrument, notation_policy)
+        require(name in table, f'{label}: 미지원 기호 {{{name}}}; 생략하지 않고 중단합니다')
+        figure, steps = table[name]
+        require(kind == 'note' or figure == 'independent' and kind == 'relative',
+                f'{label}: {{{name}}}는 명시한 본음 뒤에 붙여야 합니다')
+        if figure == 'articulation':
+            require(not group.get('reattack'), f'{label}: 겹친 혀치기')
+            group['reattack'] = True
+        elif figure == 'alteration':
+            require('semitone_offset' not in group, f'{label}: 겹친 반음올림표')
+            group['semitone_offset'] = steps[0]
+        else:
+            field = 'grace' if figure in ('grace', 'surround') else 'sequence'
+            require(field not in group, f'{label}: 겹친 {figure} 기호는 미지원입니다')
+            group[field] = steps
+            if figure == 'surround':
+                group['post_grace'] = steps
+    group['symbols'].append(original)
 
 
 def apply_effects(note, group, label, delay=0, profile=None, policy=None, written_pitch_shift=0):
@@ -346,6 +422,7 @@ def apply_effects(note, group, label, delay=0, profile=None, policy=None, writte
                         f"{label}: 지속 중 {kind}의 강세 적용에는 명시한 새 음이 필요합니다")
                 value["delay_seconds"] = value.get("delay_seconds", 0) + delay
             note[key] = value
+    preview.apply_extra(note, group.get("preview_effects", []), label, delay)
 
 
 def adaptive_grace(duration, count, main_count, label):
@@ -400,13 +477,19 @@ DEFAULT_ACCENT = {
 }
 
 
-def resolve_expression_profile(profile=None, instrument="danso"):
+def resolve_expression_profile(profile=None, instrument="danso", notation_policy=None):
     """Return validated policies. Missing pitch gestures have no invented defaults.
 
     Input policies contain ``basis`` and score note fields at the same level.
     Resolved policies contain ``basis``, ``status`` and normalized ``note`` fields.
     This file is a CLI rendering option, not a change to the JGB data contract.
     """
+    if notation_policy == preview.MODE:
+        result = resolve_expression_profile(preview.profile_defaults(instrument), instrument)
+        if profile is not None:
+            authored = resolve_expression_profile(profile, instrument)
+            result["policies"].update(authored["policies"])
+        return result
     schema = f"{instrument}-expression-profile/v1"
     result = {"schema": schema, "policies": {"accent": deepcopy(DEFAULT_ACCENT)}}
     if profile is None:
@@ -483,7 +566,7 @@ HOLD_PROFILE_EFFECTS = INDEPENDENT_PROFILE_EFFECTS | {"bend-down", "bend-up"}
 
 def has_effects(group, *, include_fermata=True):
     effects = set(EFFECT_MARKS.values()) - (set() if include_fermata else {"fermata"})
-    return bool(group.get("profile_effects") or any(group.get(effect) for effect in effects))
+    return bool(group.get("profile_effects") or group.get("preview_effects") or any(group.get(effect) for effect in effects))
 
 
 def validate_sustain_effects(note, group, label):
@@ -501,7 +584,7 @@ def main_note_effects(group, index, count):
     return group if index == count else {"vibrato": group.get("vibrato")}
 
 
-def resolve_ornament_pitches(group, reference, hwang, scale, label):
+def resolve_ornament_pitches(group, reference, hwang, scale, label, notation_policy=None):
     """Return main, front-grace and post-grace pitches without changing the source."""
     def step(pitch, degree):
         if degree == 0:
@@ -515,6 +598,8 @@ def resolve_ornament_pitches(group, reference, hwang, scale, label):
         return pitch
 
     is_roll = any(s in ("떠이어표", "roll") for s in group["symbols"])
+    if is_roll and notation_policy == preview.MODE and (reference - hwang) % 12 != 7:
+        is_roll = False  # Educational neighbour roll; the confirmed Im/Mu case is retained.
     if is_roll:
         require((reference - hwang) % 12 == 7, f"{label}: 떠이어표는 임→무→임 교육 예시만 확인됐습니다")
     sequence = [step(reference, d) for d in group.get("sequence", (0,))]
@@ -532,6 +617,37 @@ def resolve_ornament_pitches(group, reference, hwang, scale, label):
         require(len(sequence) == 1 and not post and (not grace or group.get("grace") == (1,)),
                 f"{label}: 반음올림표와 이 꾸밈 조합은 미확정입니다. 니레 앞꾸밈만 확인했습니다")
     return sequence, grace, post
+
+
+def ornament_notes(group, reference, hwang, scale, duration, note_id, label, *, notation_policy=None,
+                   profile=None, policy=None):
+    """Expand one pitched slot; retain its main sustain target before post-graces."""
+    sequence, grace, post = resolve_ornament_pitches(group, reference, hwang, scale, label, notation_policy)
+    count = len(grace) + len(post)
+    each = adaptive_grace(duration, count, len(sequence), label)
+    body = duration - count * each
+    require(body > 0, f'{label}: 꾸밈이 본음 길이를 소진합니다')
+    slur = note_id if count + len(sequence) > 1 else None
+    notes = []
+    for prefix, pitches, width, is_grace in [('grace', grace, each, True),
+                                           ('main', sequence, body / len(sequence), False),
+                                           ('postgrace', post, each, True)]:
+        for i, pitch in enumerate(pitches, 1):
+            ticks(width)
+            note = {'id': f'{note_id}.{prefix}{i}' if slur else note_id, 'duration': str(width), 'pitch': pitch}
+            if slur:
+                note['slur'] = slur
+            if is_grace:
+                note['velocity'] = GRACE_VELOCITY
+            else:
+                apply_effects(note, main_note_effects(group, i, len(sequence)), label, profile=profile, policy=policy,
+                              written_pitch_shift=group.get('semitone_offset', 0))
+            notes.append(note)
+    sustain_index = len(grace) + len(sequence) - 1
+    sustain_offset = len(grace) * each + body * (len(sequence) - 1) / len(sequence)
+    timing = {'each_quarters': str(each), 'count': count, 'main_quarters': str(body),
+              'reduced': each < GRACE_QUARTERS} if count else None
+    return notes, sustain_index, sustain_offset, sequence[-1], timing
 
 
 def fit_breath_to_duration(note, seconds):
