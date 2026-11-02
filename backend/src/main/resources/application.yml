@@ -61,6 +61,13 @@ eolssu:
     access-key-id: ${RECORDING_STORAGE_ACCESS_KEY_ID:}
     secret-access-key: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:}
     region: ${RECORDING_STORAGE_REGION:auto}
+  # 영구 학습 음원의 읽기 전용 서명 설정. 사용자 녹음 저장/삭제 정책과 별개다.
+  reference-audio-storage:
+    endpoint: ${REFERENCE_AUDIO_STORAGE_ENDPOINT:}
+    bucket: ${REFERENCE_AUDIO_STORAGE_BUCKET:}
+    access-key-id: ${REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${REFERENCE_AUDIO_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${REFERENCE_AUDIO_STORAGE_REGION:auto}
   analysis:
     # AI 서비스 주소(예: http://ai:8000). 비어 있으면 업로드 뒤 분석을 시작하지 않는다(PRA-03).
     ai-base-url: ${ANALYSIS_AI_BASE_URL:}

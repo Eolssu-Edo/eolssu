@@ -43,6 +43,20 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
+### 기본음·시김새 음원 카탈로그
+
+S15P31E102-364: V13 `reference_audio_assets`는 네 악기의 라벨별 M4A와 출처·추정 상태를 연결합니다. 같은 V13에 기본음 자산의 명목상 기준 음을 가리키는 nullable `pitch_id` FK와 근거를 포함합니다. 서비스 지원 음역·실측 검수·채점 기준과 구분하며 사용자 녹음 저장소는 그대로입니다. 마이그레이션만으로 자산을 적재하거나 연결하지 않습니다. 운영 `ops` 배포 전 최종 V13 하나를 별도 적용해야 합니다. [명시적 매핑 절차](../infra/catalog/README.md#명목상-기준-음-연결)를 따릅니다. 운영은 V12까지 적용됐고 새 카탈로그 두 테이블이 없음을2026-11-02 읽기 전용으로 확인하여 미적용 개발 파일V14~V16은 V13에 통합했습니다. 기존 로컬 검증DB는 repair하지 않고 새 폐기DB를 사용합니다.
+
+V13은 라벨에 대응하는 누락 기준 음11행을 추가합니다. 기존11개 ID/반음과 단소 악기의 범위는 보존하며 전역 `GET /api/pitches`는22개, 기존 범위 방식의 단소 조회는15개를 제공합니다(사용자 선택). V13 적용 뒤 단소30·정악54·소금90·산조45의 명시적 매핑을 실행하면 기본음219개가 연결됩니다. 같은 V13의 역할별 관계에 시김새207개/315관계를 추가하면 총426자산이 연결되고 개별 라벨 대안4개만 미연결입니다. `data/reference/pitches.json`의 단소 전사 기준이나 운지표를 자동 확대하지 않습니다.
+
+- `GET /api/reference-audios?datasetId=danso`: datasetId 필수(`danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`). `category`, `technique`, `register`, `yulmyeong`, `pitchId`, `relatedPitchId`를 조합합니다. pitchId는 선행 0 없는 1~9223372036854775807 십진 문자열이고 그 외400입니다. 게시 행만 labelId 순서로 반환합니다. 없는 조합은 빈 목록, 잘못된 datasetId·빈 필터는400입니다. 목록·상세 자산의 `pitchId`는 기본음 전용 문자열 또는 명시적 null입니다. `relatedPitchId`는 같은 ID 형식이며 기본음 FK 또는 역할별 관계 중 일치하는 음이 있는 자산을 중복 없이 찾습니다. 모든 필터는 AND입니다. 목록·상세의 `pitchRelations` 배열은 `{role,sequenceIndex,pitchId,evidencePath}`를 반환합니다. LABEL, SEQUENCE(원본순서), LOWER_ANCHOR, DESTINATION 순이며 SEQUENCE 외 index는 null입니다. evidencePath는 상세 metadata를 기준으로 한 JSON Pointer이고 기본음은 빈 배열입니다.
+- `GET /api/reference-audios/{assetId}`: `result.asset`에 음원 정보, `result.metadata`에 원본 라벨·출처·변환 근거를 반환합니다. 미등록·초안은404입니다.
+- `GET /api/reference-audios/{assetId}/play`: 게시된 DB 키에만900초 서명 GET URL을 만들어302로 이동합니다. `Location`과 `Cache-Control: no-store`, 본문 없음. 저장소 미설정은 공통503입니다. 목록·상세의 `soundUrl`은 `/api/reference-audios/{assetId}/play` 형식이며 API 원점에 대해 해석하는 상대 경로입니다.
+
+읽기만 공개하며 만료 로그인 쿠키에 영향받지 않습니다. 업로드·등록·게시 HTTP API는 없습니다. 출처 검토와 실제 객체의 해시·재생을 확인한 뒤 운영 적재 담당자가 `DRAFT`를 `PUBLISHED`로 바꿉니다. 데이터셋/라벨 ID를 임의 대표 율명으로 축약하지 않고, `inferred`를 `reviewed`나 채점 정답으로 승격하지 않습니다.
+
+`REFERENCE_AUDIO_STORAGE_ENDPOINT`, `BUCKET`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`, `REGION`은 각각 `REFERENCE_AUDIO_STORAGE_` 접두사를 사용합니다(`.env.example`). HTTPS S3 API 엔드포인트·버킷·읽기 권한 키를 주입합니다. 설정 누락은 기동을 막지 않고 재생만503으로 답합니다. DB에 저장하는 것은 `reference-audio/v1/{datasetId}/{assetId}/{sha256}.m4a` 키이며 만료형 URL이 아닙니다. R2 버킷의 공개 정책이나 녹음 삭제 규칙은 변경하지 않습니다. 검증은 `ReferenceAudioControllerTests`, `ReferenceAudioSignerTests`, 실제 MySQL의 `ReferenceAudioApiDatabaseTests`와 전체 `clean build`/`databaseTest`를 사용합니다.
+
 ### 약관 목록(AUTH-08)
 
 `db` 프로필과 V2 이상 스키마에서 `GET /api/terms`를 로그인 없이 호출합니다(`Accept: application/json`). 응답은 `{httpStatus,isSuccess,message,code,result:{items:[...]}}`이며 항목은 문자열 `termId`, `code`, `title`, `required`, `version`, `contentUrl`입니다. UTC 조회 시각까지 시행된 버전 중 code별 가장 늦은 `effective_at`을 고르고, 같은 시각이면 큰 ID 한 개를 반환합니다. `seq`·ID 오름차순으로 표시하며 현재 약관이 없으면 200과 빈 목록입니다. 문구·URL·초기 데이터는 자동 생성하지 않습니다.

@@ -47,7 +47,7 @@ class GrowthApiDatabaseTests {
     @BeforeEach
     fun insertMembers() {
         deleteRows()
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (951, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (951, 'GRO_TEST', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (951, 'GROWTH_TEST', '시험', 951, 951, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
