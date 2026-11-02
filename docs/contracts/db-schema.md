@@ -90,6 +90,6 @@ V7에서 `refresh_tokens.expires_at`은 nullable입니다. NULL은 서버의 명
 
 ## V12 소셜 가입·재인증 탈퇴
 
-[V12](../../backend/src/main/resources/db/migration/V12__social_sign_up.sql)는 사용자 인증 필드 제약을 확장하고 oauth_proofs에 SIGNUP·WITHDRAW kind와 WITHDRAW purpose를 추가합니다. 두 티켓은 원문 대신 해시를 저장하며 10분·1회용·제공자 쿠키에 결속합니다. 탈퇴 증명은 회원 ID와 현재 연결 subject까지 결속합니다. 회원→카카오 subject→증명→연결/refresh 잠금 순서를 유지합니다. [356 계약](../specs/social-sign-up.md)을 따르며 운영 적용은 별도입니다.
+[V12](../../backend/src/main/resources/db/migration/V12__social_sign_up.sql)는 사용자 인증 필드 제약을 확장하고 oauth_proofs에 SIGNUP·WITHDRAW kind와 WITHDRAW purpose를 추가합니다. 두 티켓은 원문 대신 해시를 저장하며 10분·1회용·제공자 쿠키에 결속합니다. 탈퇴 증명은 회원 ID와 현재 연결 subject까지 결속합니다. 회원→카카오 subject→증명→연결/refresh 잠금 순서를 유지합니다. [356 계약](../specs/social-sign-up.md)을 따릅니다. 운영 eolssu는2026-11-02 10:23 KST에V12 적용·검증 완료했으며, 애플리케이션 배포는 별도입니다. 적용 영수증은 [356 계획](../plans/S15P31E102-356.md)에 기록했습니다.
 
 V12의 oauth_proofs.social_account_id는 WITHDRAW 목적의 STATE와 티켓에 필수이며 현재 소셜 연결 행 ID와 비교한다. FK 없이 재연결 전 증명을 차단하고, LOGIN/LINK 목적에는 NULL만 허용한다.
