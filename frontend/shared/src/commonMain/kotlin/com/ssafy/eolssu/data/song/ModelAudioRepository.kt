@@ -1,14 +1,12 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.Song
-import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.http.Url
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 @Serializable
 data class ModelAudio(
@@ -21,13 +19,10 @@ data class ModelAudio(
     val startOffsetMs: Long,
     val contentType: String,
     val sha256: String,
-    @Transient val performance: ScorePerformance? = null,
 ) {
     /** A current score must never play a different version or a differently defined beat. */
     fun matches(song: Song): Boolean = songId == song.id && scoreVersion == song.scoreVersion &&
-        bpm == song.baseBpm && bpmUnit == song.score.timing?.bpmUnit?.name &&
-        (performance?.let { it.matches(song) && it.audioSha256 == sha256 &&
-            it.audioDurationMs == durationMs && it.audioStartOffsetMs == startOffsetMs } ?: true)
+        bpm == song.baseBpm && bpmUnit == song.score.timing?.bpmUnit?.name
 }
 
 interface ModelAudioRepository {

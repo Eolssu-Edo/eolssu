@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.model.Song
-import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.model.displayUnitAt
@@ -105,17 +104,12 @@ data class PracticeUiState(
     val songError: PracticeSongError? = null,
     /** 현재 원본 이벤트 안에서 지난 시간. 긴 음/이음 중에도 표시 시계가 갱신한다. */
     val eventElapsedMs: Double = 0.0,
-    /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
-    val modelPerformance: ScorePerformance? = null,
-    val modelPerformancePositionMs: Double = 0.0,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
-    val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
-        (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
-        else song?.durationSeconds(bpm) ?: 0
+    val totalSeconds: Int get() = song?.durationSeconds(bpm) ?: 0
 
     /** 설정 버튼이 잠기는 상태. 연주 중에는 설정을 바꿀 수 없다. */
     val settingsLocked: Boolean
@@ -157,9 +151,6 @@ data class PracticeUiState(
     /** 정간 단위 진행률(0~100). 이벤트 중간의 경과분도 반영한다. */
     val progressPercent: Float
         get() {
-            if (mode == PracticeMode.Model && modelPerformance != null) {
-                return (modelPerformancePositionMs / modelPerformance.durationMs * 100).toFloat().coerceIn(0f, 100f)
-            }
             val song = song ?: return 0f
             if (finished || position >= eventCount) return 100f
             val event = song.timeline.getOrNull(position) ?: return 0f
