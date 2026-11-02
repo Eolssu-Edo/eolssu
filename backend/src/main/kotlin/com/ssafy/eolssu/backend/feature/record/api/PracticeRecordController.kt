@@ -4,11 +4,15 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
+import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
+import com.ssafy.eolssu.backend.feature.record.application.RecordList
+import com.ssafy.eolssu.backend.feature.record.application.RecordListQuery
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.application.SaveRecordOutcome
 import com.ssafy.eolssu.backend.feature.record.domain.ColumnRange
 import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
+import com.ssafy.eolssu.backend.feature.record.domain.RecordSort
 import jakarta.validation.constraints.Positive
 import java.time.Instant
 import java.time.LocalDateTime
@@ -18,20 +22,23 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.JsonNode
 
 /** 연습 기록 API(REC-01~04). 계약은 `docs/specs/practice-records.md`를 따른다. */
 @RestController
-@RequestMapping("/api/practice-sessions/{sessionId}")
 @Profile("db | ops")
-class PracticeRecordController(private val saveRecord: SavePracticeRecord) {
+class PracticeRecordController(
+    private val saveRecord: SavePracticeRecord,
+    private val getRecords: GetPracticeRecords,
+) {
     /** REC-01 `PUT /practice-sessions/{sessionId}/record`. 본문이 없으면 저장만 하고, `memo`가 있으면 메모도 바꾼다. */
-    @PutMapping("/record")
+    @PutMapping("/api/practice-sessions/{sessionId}/record")
     fun save(
         @AuthenticationPrincipal jwt: Jwt,
         @PathVariable @Positive sessionId: Long,
@@ -45,6 +52,20 @@ class PracticeRecordController(private val saveRecord: SavePracticeRecord) {
                 SuccessResponse.of(HttpStatus.OK, "연습 기록 저장 성공", SavedPracticeRecord.of(outcome.record, outcome.columns)),
             )
         }
+    }
+
+    /** REC-02 `GET /users/me/practice-records`. 곡을 고르지 않으면 가장 최근에 저장한 곡을 펼친다. */
+    @GetMapping("/api/users/me/practice-records")
+    fun list(
+        @AuthenticationPrincipal jwt: Jwt,
+        @RequestParam(required = false) songId: Long?,
+        @RequestParam(defaultValue = "NEWEST") sort: RecordSort,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
+    ): ResponseEntity<*> {
+        if ((songId != null && songId <= 0) || page < 0 || size !in 1..MAX_PAGE_SIZE) return error(ErrorCode.INVALID_REQUEST)
+        val list = getRecords.execute(requireNotNull(jwt.subject).toLong(), RecordListQuery(songId, sort, page, size))
+        return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "저장한 이전 연주 목록 조회 성공", PracticeRecordList.of(list, page, size)))
     }
 
     // 생략과 null을 구분해야 하므로 DTO 대신 JSON 노드를 읽는다. JSON 객체가 아니거나 memo가 문자열·null이 아니면 null(400).
@@ -61,6 +82,61 @@ class PracticeRecordController(private val saveRecord: SavePracticeRecord) {
     }
 
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
+
+    private companion object {
+        const val MAX_PAGE_SIZE = 100
+    }
+}
+
+data class PracticeRecordList(
+    val totalRecordCount: Int,
+    val songs: List<PracticeRecordSong>,
+    val songId: String?,
+    val items: List<PracticeRecordItem>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Int,
+    val totalPages: Int,
+) {
+    companion object {
+        fun of(list: RecordList, page: Int, size: Int) = PracticeRecordList(
+            list.totalRecordCount,
+            list.songs.map { PracticeRecordSong(it.songId.toString(), it.title, it.recordCount, it.lastSavedAt.toInstant(ZoneOffset.UTC), it.bestScore) },
+            list.songId?.toString(),
+            list.items.map { PracticeRecordItem.of(it.record, it.columns) },
+            page, size, list.totalElements, list.totalPages,
+        )
+    }
+}
+
+data class PracticeRecordSong(val songId: String, val title: String, val recordCount: Int, val lastSavedAt: Instant, val bestScore: Int)
+
+data class PracticeRecordItem(
+    val sessionId: String,
+    val songId: String,
+    val title: String,
+    @get:JsonProperty("isFullSong") val isFullSong: Boolean,
+    val startColumnIdx: Int?,
+    val endColumnIdx: Int?,
+    val recordingDurationMs: Int?,
+    val bpm: Int,
+    val bpmUnit: String,
+    val totalScore: Int,
+    val startNoteIdx: Int,
+    val endNoteIdx: Int,
+    val startedAt: Instant,
+    val recordingAvailable: Boolean,
+    val memo: String?,
+    @get:JsonProperty("isNew") val isNew: Boolean,
+) {
+    companion object {
+        fun of(record: RecordSession, columns: ColumnRange?) = with(record) {
+            PracticeRecordItem(
+                sessionId.toString(), songId.toString(), songTitle, isFullSong, columns?.start, columns?.end, recordingDurationMs, bpm, bpmUnit,
+                requireNotNull(totalScore), startNoteIdx, endNoteIdx, startedAt.toInstant(ZoneOffset.UTC), recordingAvailable, memo, viewedAt == null,
+            )
+        }
+    }
 }
 
 data class SavedPracticeRecord(

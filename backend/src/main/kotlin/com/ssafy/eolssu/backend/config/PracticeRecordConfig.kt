@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
+import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.ScoreColumns
@@ -26,4 +27,7 @@ class PracticeRecordConfig {
 
     @Bean
     fun savePracticeRecord(records: PracticeRecords, columns: ScoreColumns) = SavePracticeRecord(records, columns, Clock.systemUTC())
+
+    @Bean
+    fun getPracticeRecords(records: PracticeRecords, columns: ScoreColumns) = GetPracticeRecords(records, columns)
 }

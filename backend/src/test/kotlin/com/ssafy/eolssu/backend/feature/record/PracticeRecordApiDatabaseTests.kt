@@ -60,18 +60,13 @@ class PracticeRecordApiDatabaseTests {
         session(991345, OWNER, 16, 19, "DONE", scoreVersion = 1)
         session(991346, OWNER, 0, 60, "DONE", scoreVersion = 2)
         jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00', record_deleted_at='2026-11-01 11:00:00' WHERE id=991345")
-        for ((id, total) in listOf(991342L to 77, 991344L to 70, 991345L to 60, 991346L to 90)) {
-            jdbc.update(
-                "INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(?,?,?,?,?,?,'test','2026-11-01 10:01:00')",
-                id, id, total, total, total, total,
-            )
-        }
+        for ((id, total) in listOf(991342L to 77, 991344L to 70, 991345L to 60, 991346L to 90)) evaluation(id, total)
     }
 
     @AfterEach
     fun cleanup() {
-        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 991342 AND 991346")
-        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 991342 AND 991346")
+        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 991342 AND 991359")
+        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 991342 AND 991359")
         jdbc.update("DELETE FROM users WHERE id IN (991342,991343)")
     }
 
@@ -131,14 +126,98 @@ class PracticeRecordApiDatabaseTests {
         assertEquals(404, get(991345, OWNER).statusCode())
     }
 
-    private fun session(id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int) {
+    // 1번 곡: 991346·991342(같은 10:00 시작), 991347(09:00). 2번 곡 991348과 3번 곡 991350은 같은 11:00에 저장했다.
+    // 지운 991345, 다른 회원 991344(가장 늦게 저장), 저장 안 한 991349(최고점 99), 분석 중 991343은 나오면 안 된다.
+    @Test
+    fun `lists only saved records grouped by song with order, paging and the first view mark`() {
+        session(991347, OWNER, 16, 17, "DONE", scoreVersion = 1, startedAt = "2026-11-01 09:00:00")
+        session(991348, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 08:00:00")
+        session(991349, OWNER, 0, 90, "DONE", scoreVersion = 1, songId = 2, startedAt = "2026-10-31 09:00:00")
+        session(991350, OWNER, 0, 84, "DONE", scoreVersion = 1, songId = 3, startedAt = "2026-10-30 08:00:00")
+        for ((id, total) in listOf(991347L to 50, 991348L to 65, 991349L to 99, 991350L to 80)) evaluation(id, total)
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00' WHERE id IN (991342,991347)")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:06:00', viewed_at='2026-11-01 10:07:00', recording_url=NULL WHERE id=991346")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 11:00:00' WHERE id IN (991348,991350)")
+        jdbc.update("UPDATE practice_sessions SET memo='끝까지 숨이 부족함' WHERE id=991350")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 12:00:00' WHERE id=991344")
+
+        val latest = result(list(OWNER, ""))
+        assertEquals(5, latest.path("totalRecordCount").asInt())
+        assertEquals(
+            listOf("3 밀양아리랑 1 2026-11-01T11:00:00Z 80", "2 도라지타령 1 2026-11-01T11:00:00Z 65", "1 아리랑 3 2026-11-01T10:06:00Z 90"),
+            latest.path("songs").values().map { song -> listOf("songId", "title", "recordCount", "lastSavedAt", "bestScore").joinToString(" ") { song.path(it).asString() } },
+        )
+        assertEquals("3", latest.path("songId").asString())
+        assertEquals(listOf("991350"), ids(latest))
+        assertEquals("끝까지 숨이 부족함", latest.path("items").path(0).path("memo").asString())
+        assertEquals(listOf(0, 20, 1, 1), listOf("page", "size", "totalElements", "totalPages").map { latest.path(it).asInt() })
+
+        val newest = result(list(OWNER, "?songId=1"))
+        assertEquals(listOf("991346", "991342", "991347"), ids(newest))
+        assertEquals(
+            json.readTree(
+                """{"sessionId":"991346","songId":"1","title":"아리랑","isFullSong":true,"startColumnIdx":null,"endColumnIdx":null,
+                   "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":90,"startNoteIdx":0,"endNoteIdx":60,
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":false,"memo":null,"isNew":false}""",
+            ),
+            newest.path("items").path(0),
+        )
+        assertEquals(
+            json.readTree(
+                """{"sessionId":"991342","songId":"1","title":"아리랑","isFullSong":false,"startColumnIdx":0,"endColumnIdx":1,
+                   "recordingDurationMs":2876,"bpm":96,"bpmUnit":"DOTTED_QUARTER","totalScore":77,"startNoteIdx":16,"endNoteIdx":19,
+                   "startedAt":"2026-11-01T10:00:00Z","recordingAvailable":true,"memo":null,"isNew":true}""",
+            ),
+            newest.path("items").path(1),
+        )
+        assertEquals(listOf(0, 0), listOf("startColumnIdx", "endColumnIdx").map { newest.path("items").path(2).path(it).asInt() })
+        assertEquals(listOf("991347", "991342", "991346"), ids(result(list(OWNER, "?songId=1&sort=OLDEST"))))
+        assertEquals(listOf("991348"), ids(result(list(OWNER, "?songId=2"))))
+
+        val secondPage = result(list(OWNER, "?songId=1&size=2&page=1"))
+        assertEquals(listOf("991347"), ids(secondPage))
+        assertEquals(listOf(1, 2, 3, 2), listOf("page", "size", "totalElements", "totalPages").map { secondPage.path(it).asInt() })
+        assertEquals(emptyList<String>(), ids(result(list(OWNER, "?songId=1&size=2&page=2"))))
+        val noRecords = result(list(OWNER, "?songId=4"))
+        assertEquals(listOf("4", "0", "0", "3"), listOf(noRecords.path("songId").asString(), noRecords.path("totalElements").asString(),
+            noRecords.path("totalPages").asString(), noRecords.path("songs").size().toString()))
+        assertEquals(emptyList<String>(), ids(noRecords))
+
+        // 목록은 NEW 표시를 끄지 않고, 기록 상세(PRA-03)를 처음 열면 꺼진다
+        assertNull(jdbc.queryForObject("SELECT viewed_at FROM practice_sessions WHERE id=991342", LocalDateTime::class.java))
+        assertEquals(200, get(991342, OWNER).statusCode())
+        assertEquals(false, result(list(OWNER, "?songId=1")).path("items").path(1).path("isNew").asBoolean())
+
+        val other = result(list(OTHER, ""))
+        assertEquals(listOf("1", "991344"), listOf(other.path("totalRecordCount").asString()) + ids(other))
+        assertEquals(401, list(null, "").statusCode())
+        for (query in listOf("?size=101", "?page=-1", "?songId=0", "?songId=abc", "?sort=newest")) {
+            val response = list(OWNER, query)
+            assertEquals(400, response.statusCode(), query)
+            assertEquals("INVALID_REQUEST", json.readTree(response.body()).path("result").path("errorCode").asString(), query)
+        }
+    }
+
+    private fun session(
+        id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int,
+        songId: Long = 1, startedAt: String = "2026-11-01 10:00:00",
+    ) {
         jdbc.update(
             """INSERT INTO practice_sessions(id,user_id,song_id,score_version,bpm,bpm_unit,start_note_idx,end_note_idx,recording_url,recording_bytes,
                recording_duration_ms,recording_sample_rate,recording_channels,status,analysis_attempt,analysis_started_at,started_at,ended_at)
-               VALUES(?,?,1,?,96,'DOTTED_QUARTER',?,?,?,1024,2876,44100,1,?,1,'2026-11-01 10:00:40','2026-11-01 10:00:00','2026-11-01 10:00:30')""",
-            id, userId, scoreVersion, start, end, "recordings/$id/test.m4a", status,
+               VALUES(?,?,?,?,96,'DOTTED_QUARTER',?,?,?,1024,2876,44100,1,?,1,'2026-11-01 10:00:40',?,'2026-11-01 10:00:30')""",
+            id, userId, songId, scoreVersion, start, end, "recordings/$id/test.m4a", status, startedAt,
         )
     }
+
+    private fun evaluation(sessionId: Long, total: Int) {
+        jdbc.update(
+            "INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(?,?,?,?,?,?,'test','2026-11-01 10:01:00')",
+            sessionId, sessionId, total, total, total, total,
+        )
+    }
+
+    private fun ids(list: JsonNode): List<String> = list.path("items").values().map { it.path("sessionId").asString() }
 
     private fun stored(sessionId: Long, column: String): Instant =
         assertNotNull(jdbc.queryForObject("SELECT $column FROM practice_sessions WHERE id=?", LocalDateTime::class.java, sessionId)).toInstant(ZoneOffset.UTC)
@@ -157,6 +236,9 @@ class PracticeRecordApiDatabaseTests {
 
     private fun get(sessionId: Long, user: Long?): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun list(user: Long?, query: String): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/users/me/practice-records$query"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
 
     private fun authorized(uri: URI, user: Long?): HttpRequest.Builder {
         val request = HttpRequest.newBuilder(uri)

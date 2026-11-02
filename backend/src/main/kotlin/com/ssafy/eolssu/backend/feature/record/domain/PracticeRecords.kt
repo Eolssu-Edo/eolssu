@@ -20,11 +20,28 @@ data class RecordSession(
     val totalScore: Int?,
     val savedAt: LocalDateTime?,
     val memo: String?,
+    /** 녹음 원본이 있다(PRA-03 `recordingAvailable`과 같은 정의). 업로드 후 지난 시간은 보지 않는다. */
+    val recordingAvailable: Boolean = false,
+    /** 기록 상세를 처음 연 시각. 비어 있으면 목록의 NEW 표시다. */
+    val viewedAt: LocalDateTime? = null,
 ) {
     /** 첫 음부터 끝 음까지 연주했다. 성장 집계의 전체 곡 연주와 같은 정의다. */
     val isFullSong: Boolean
         get() = startNoteIdx == 0 && endNoteIdx == noteCount - 1
 }
+
+/** 곡별 기록 묶음(REC-02 아코디언 머리). */
+data class SongRecordSummary(
+    val songId: Long,
+    val title: String,
+    val recordCount: Int,
+    /** 그 곡 기록 중 가장 최근 저장 시각. */
+    val lastSavedAt: LocalDateTime,
+    val bestScore: Int,
+)
+
+/** 곡 안 기록 정렬. 같은 시각이면 세션 ID 순이다. */
+enum class RecordSort { NEWEST, OLDEST }
 
 /** 구간 첫·끝 음표의 각(0부터). */
 data class ColumnRange(val start: Int, val end: Int)
@@ -51,4 +68,10 @@ interface PracticeRecords {
 
     /** DONE이고 지우지 않은 본인 세션을 기록으로 저장한다. 처음 저장할 때만 [savedAt]을 넣고, [memo]가 [MemoChange.Keep]이 아니면 메모를 바꾼다. */
     fun save(sessionId: Long, userId: Long, savedAt: LocalDateTime, memo: MemoChange)
+
+    /** 기록이 있는 곡들. 최근에 저장한 곡이 앞이고, 같으면 곡 ID가 큰 곡이 앞이다. */
+    fun songSummaries(userId: Long): List<SongRecordSummary>
+
+    /** 한 곡의 기록을 [sort] 순으로 [offset]부터 [limit]개. */
+    fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int): List<RecordSession>
 }

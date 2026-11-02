@@ -21,7 +21,27 @@ interface PracticeRecordMapper {
         @Param("changeMemo") changeMemo: Boolean,
         @Param("memo") memo: String?,
     ): Int
+
+    /** 기록이 있는 곡 묶음. 최근 저장 시각 내림차순, 같으면 곡 ID 내림차순. */
+    fun songSummaries(@Param("userId") userId: Long): List<SongRecordSummaryRow>
+
+    /** 한 곡의 기록. `newest`면 연주 시작 시각·세션 ID 내림차순, 아니면 오름차순. */
+    fun songRecords(
+        @Param("userId") userId: Long,
+        @Param("songId") songId: Long,
+        @Param("newest") newest: Boolean,
+        @Param("offset") offset: Long,
+        @Param("limit") limit: Int,
+    ): List<RecordSessionRow>
 }
+
+data class SongRecordSummaryRow(
+    val songId: Long,
+    val title: String,
+    val recordCount: Int,
+    val lastSavedAt: LocalDateTime,
+    val bestScore: Int,
+)
 
 data class RecordSessionRow(
     val sessionId: Long,
@@ -39,4 +59,6 @@ data class RecordSessionRow(
     val totalScore: Int?,
     val savedAt: LocalDateTime?,
     val memo: String?,
+    val recordingAvailable: Boolean,
+    val viewedAt: LocalDateTime?,
 )
