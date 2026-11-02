@@ -14,7 +14,7 @@ import tools.jackson.databind.json.JsonMapper
 class LessonContentException(lessonId: Long, problem: String) : IllegalStateException("lessons.content_json of $lessonId: $problem")
 
 /**
- * V13이 넣는 단계 상세 JSON을 읽는다. 문자열·목록 칸은 반드시 있어야 하고, passCriteria·pitchNote는 null(또는 없음)일 수 있다.
+ * V14가 넣는 단계 상세 JSON을 읽는다. 문자열·목록 칸은 반드시 있어야 하고, passCriteria·pitchNote는 null(또는 없음)일 수 있다.
  * 항목을 조용히 건너뛰면 화면 문구가 빠진 채 보이므로 형식이 다르면 실패한다.
  */
 class LessonContentJson(private val jsonMapper: JsonMapper) {
