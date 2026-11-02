@@ -151,6 +151,8 @@ open class OpenApiDatabaseTests {
         assertTrue(request.path("required").any { it.asString()=="verificationToken" })
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())
+        val lessons=doc.path("paths").path("/api/lessons").path("get").path("parameters")
+        assertTrue(lessons.any { it.path("name").asString()=="track" && it.path("required").asBoolean() },lessons.toString())
     }
     @Test fun `documentation is public while member APIs still require an active member`() {
         for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui/index.html")) {

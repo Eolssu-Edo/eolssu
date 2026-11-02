@@ -211,12 +211,12 @@ class DatabaseIntegrationTests {
         )
         val lesson = assertNotNull(mapper<LessonMapper>().findById(1))
         assertEquals(
-            LessonRow(1, "YUL", null, 1, "황종", "", "PUBLISHED", time, time),
+            LessonRow(1, "DANSO", 1, "악기 알기·감상", "READ", false, "", "PUBLISHED", time, time),
             lesson.copy(contentJson = ""),
         )
-        assertJson("""{"yul":"황"}""", lesson.contentJson)
+        assertJson("""{"goal":"소리를 안다","pitchNames":["汰"]}""", lesson.contentJson)
         assertEquals(
-            LessonProgressRow(1, 1, 1, null, null, time, time),
+            LessonProgressRow(1, 1, 1, time, time, time),
             mapper<LessonProgressMapper>().findById(1),
         )
         assertEquals(
@@ -254,15 +254,59 @@ class DatabaseIntegrationTests {
     @Test
     @Transactional
     @Sql("/db/mapper-fixtures.sql")
-    fun `keeps foreign keys check constraints and common lesson uniqueness`() {
+    fun `keeps foreign keys and check constraints`() {
         assertMysqlError(1452) {
             jdbc.update("INSERT INTO fingering_charts (instrument_id, pitch_id, image_url) VALUES (999, 2, 'test')")
         }
         assertMysqlError(3819) {
             jdbc.update("UPDATE songs SET status = 'UNKNOWN' WHERE id = 1")
         }
-        assertMysqlError(1062) {
-            jdbc.update("INSERT INTO lessons (kind, instrument_id, seq, title, content_json, status) VALUES ('YUL', NULL, 1, '중복', '{}', 'DRAFT')")
+        assertMysqlError(1452) {
+            jdbc.update("INSERT INTO lesson_progress (user_id, lesson_id, completed_at) VALUES (1, 999, '2026-10-22 01:02:03')")
+        }
+    }
+
+    @Test
+    @Transactional
+    fun `seeds nine published stages for each of the four learning tracks`() {
+        val rows = jdbc.queryForList("SELECT id, track, seq, title, judge_type, is_optional, status FROM lessons ORDER BY id")
+        val tracks = listOf("DANSO", "SOGEUM", "DAEGEUM_JEONGAK", "DAEGEUM_SANJO")
+        val titles = listOf("악기 알기·감상", "자세·호흡", "첫 소리", "기본음", "음 잇기", "음역 넓히기", "혀치기·박 나누기", "악보와 곡", "장식음·시김새")
+        val judges = listOf("READ", "READ", "PITCH", "PITCH", "PITCH", "PITCH", "BEAT", "BEAT", "LISTEN")
+        assertEquals(36, rows.size)
+        rows.forEachIndexed { index, row ->
+            val seq = index % 9 + 1
+            assertEquals(index + 1L, (row["id"] as Number).toLong())
+            assertEquals(tracks[index / 9], row["track"])
+            assertEquals(seq, (row["seq"] as Number).toInt())
+            assertEquals(titles[seq - 1], row["title"])
+            assertEquals(judges[seq - 1], row["judge_type"])
+            assertEquals(seq == 9, row["is_optional"])
+            assertEquals("PUBLISHED", row["status"])
+        }
+
+        fun content(track: String, seq: Int, path: String) = assertNotNull(
+            jdbc.queryForObject(
+                "SELECT JSON_EXTRACT(content_json, ?) FROM lessons WHERE track = ? AND seq = ?", String::class.java, path, track, seq,
+            ),
+        )
+        assertJson("""["汰","潢","無","林","仲"]""", content("DANSO", 4, "$.pitchNames"))
+        assertJson("""["㴌"]""", content("SOGEUM", 3, "$.pitchNames"))
+        assertJson("""["취구","지공 6개"]""", content("SOGEUM", 1, "$.parts"))
+        assertJson(""""가로로 오른쪽을 향해 잡아요. 기본 운지틀은 정악대금과 같아요."""", content("DAEGEUM_SANJO", 2, "$.tasks[1].description"))
+        assertJson("""["HIGH","LOW"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].blow"))
+        assertJson("""["淋","㑣"]""", content("DAEGEUM_JEONGAK", 6, "$.ranges[*].firstPitch"))
+        assertJson("""{"title":"풍년가","meta":"굿거리장단"}""", content("DANSO", 8, "$.songs[5]"))
+        assertJson("null", content("DANSO", 9, "$.passCriteria"))
+
+        assertMysqlError(1062, "lessons.uq_lessons_track_seq") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 1, '중복', 'READ', '{}', 'DRAFT')")
+        }
+        assertMysqlError(3819, "chk_lessons_track") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('danso', 10, '소문자', 'READ', '{}', 'DRAFT')")
+        }
+        assertMysqlError(3819, "chk_lessons_judge_type") {
+            jdbc.update("INSERT INTO lessons (track, seq, title, judge_type, content_json, status) VALUES ('DANSO', 10, '판정', 'QUIZ', '{}', 'DRAFT')")
         }
     }
 

@@ -32,7 +32,7 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 | 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 신규 소셜 가입과 기존 회원의 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
 | 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 녹음 원본 메타데이터(`recording_bytes`·`recording_duration_ms`·`recording_sample_rate`·`recording_channels`)는 업로드 검사를 통과해 원본을 저장할 때 네 칸을 함께 채우고, 그 전에는 모두 NULL입니다(`chk_practice_sessions_recording_meta`). 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
-| 학습 | `lessons`, `lesson_progress` | 율명·단계·시김새 학습과 사용자별 진도 |
+| 학습 | `lessons`, `lesson_progress` | '기초부터 배우기' 단계와 회원별 완료 표시. V13부터 단계는 악기가 아니라 학습 트랙(`DANSO`·`SOGEUM`·`DAEGEUM_JEONGAK`·`DAEGEUM_SANJO`)마다 9단계(트랙·단계 유일, `uq_lessons_track_seq`)이고 `content_json`에 단계 상세 문구를 둡니다. 진도는 회원·단계당 한 행이며 행이 있으면 완료입니다. 기준은 [학습 단계·진도 API 스펙](../specs/learning-progress-apis.md) |
 | 집계 | `mart_daily_practice`, `mart_song_accuracy`, `mart_pitch_error` | 일 배치가 운영 DB를 읽어 만드는 통계. 외래키 없음. `mart_daily_practice.total_practice_seconds`는 그날(KST) 시작한 체류 구간의 인정 시간 합 |
 
 공통 규칙은 운영 DB SQL 파일 머리말에 있습니다. 시각은 UTC로 저장하고, 상태 칸은 ENUM 대신 문자열과 CHECK 제약을 씁니다.
@@ -122,7 +122,7 @@ USR-05 결정안: 탈퇴 요청 뒤 30일이 지나면(`purge_scheduled_at` 경�
 | 5 | `email_verifications` | 회원 이메일로 남은 행을 지웁니다. 이메일을 비우기 전에 처리합니다. |
 | 6 | `users` | `email`·`password_hash`·`nickname`을 비우고 `status = 'DELETED'`, `deleted_at`을 채우며 두 탈퇴 시각을 비웁니다. 행은 남깁니다. |
 
-`lesson_progress`(율명·단계·시김새 학습 진도)는 USR-05 명세 목록에는 없지만 개인 학습 기록이므로 함께 지웁니다(2026-10-27 오은서 결정).
+`lesson_progress`(기초부터 배우기 완료 표시)는 USR-05 명세 목록에는 없지만 개인 학습 기록이므로 함께 지웁니다(2026-10-27 오은서 결정).
 
 ## 미결 사항
 
