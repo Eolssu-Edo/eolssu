@@ -83,6 +83,17 @@ class WithdrawalPurgeDatabaseTests {
         assertEquals("pending@example.test", jdbc.queryForObject("SELECT email FROM users WHERE id = 3", String::class.java))
     }
 
+    @Test
+    @Transactional
+    @Sql("/db/mapper-fixtures.sql")
+    fun `social only member without email is still purged after retention`() {
+        jdbc.update("UPDATE users SET email=NULL,password_hash=NULL,purge_scheduled_at='2026-11-21 19:00:00' WHERE id=3")
+        val summary=WithdrawalPurgeService(repository, {}, Clock.fixed(now,ZoneOffset.UTC)).purgeDue()
+        assertEquals(PurgeSummary(purged=1,deferred=0,skipped=0,failed=0),summary)
+        assertEquals("DELETED",jdbc.queryForObject("SELECT status FROM users WHERE id=3",String::class.java))
+        assertEquals(0,count("SELECT COUNT(*) FROM user_social_accounts WHERE user_id=3"))
+    }
+
     private fun count(sql: String) = jdbc.queryForObject(sql, Int::class.java)!!
 
     companion object {

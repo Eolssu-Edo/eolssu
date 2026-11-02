@@ -26,8 +26,8 @@ class MyBatisSignInRepository(private val users: UserMapper, transactionManager:
     }
     override fun recordLogin(userId: Long, now: Instant) { check(users.recordLogin(userId, now.utc()) == 1) }
 
-    private fun UserRow.toMember() =
-        SignInMember(id, checkNotNull(passwordHash), checkNotNull(nickname), instrumentId, notationMode, MemberStatus.valueOf(status), withdrawalRequestedAt?.toInstant(ZoneOffset.UTC))
+    private fun UserRow.toMember() = if (passwordHash == null) null else
+        SignInMember(id, passwordHash, checkNotNull(nickname), instrumentId, notationMode, MemberStatus.valueOf(status), withdrawalRequestedAt?.toInstant(ZoneOffset.UTC))
 
     private fun Instant.utc() = LocalDateTime.ofInstant(this, ZoneOffset.UTC)
 }

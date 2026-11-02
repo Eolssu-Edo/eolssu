@@ -52,6 +52,16 @@ class SocialAuthApiDatabaseTests {
         jdbc.update("INSERT INTO users(id,email,password_hash,nickname,instrument_id,status) VALUES (990212,'other211@example.test',?,'다른회원',1,'ACTIVE')",passwords.encode("OtherPassword!234"))
     }
     @AfterEach fun cleanup() {
+        jdbc.execute("DROP TRIGGER IF EXISTS oauth356_fail_refresh")
+        jdbc.update("DELETE FROM email_verifications WHERE email LIKE 'fresh356-%@example.test'")
+        jdbc.update("DELETE FROM oauth_proofs WHERE provider_subject LIKE 'fresh356-%'")
+        jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN (SELECT id FROM users WHERE nickname='소셜신규')")
+        jdbc.update("DELETE FROM user_term_agreements WHERE user_id IN (SELECT id FROM users WHERE nickname='소셜신규')")
+        jdbc.update("DELETE FROM user_social_accounts WHERE user_id IN (SELECT id FROM users WHERE nickname='소셜신규')")
+        jdbc.update("DELETE FROM users WHERE nickname='소셜신규'")
+        jdbc.update("DELETE FROM user_term_agreements WHERE term_id=990356")
+        jdbc.update("DELETE FROM terms WHERE id=990356")
+        jdbc.update("DELETE FROM oauth_proofs WHERE kind='SIGNUP' AND provider_subject='unknown-subject'")
         jdbc.update("DELETE FROM oauth_proofs WHERE user_id IN(990211,990212) OR redirect_uri='https://example.test/callback'")
         jdbc.update("DELETE FROM refresh_tokens WHERE user_id IN(990211,990212)")
         jdbc.update("DELETE FROM email_verifications WHERE email='social211@example.test'")
@@ -258,7 +268,7 @@ class SocialAuthApiDatabaseTests {
         assertEquals(401,send("/api/auth/oauth/google/start","""{"redirectUri":"https://evil.test/callback"}""").statusCode())
     }
 
-    @Test fun `login start binds cookie and completing an unknown social account never creates a member`() {
+    @Test fun `login start binds cookie and completing an unknown social account requires consent before member creation`() {
         HttpClient.newHttpClient().use { client ->
             fun send(path:String,body:String,cookie:String?=null):HttpResponse<String> {
                 val request=HttpRequest.newBuilder(URI("http://localhost:$port$path")).header("Content-Type","application/json")
@@ -274,11 +284,200 @@ class SocialAuthApiDatabaseTests {
             val wrongBrowser=send("/api/auth/oauth/google",body)
             assertEquals(401,wrongBrowser.statusCode())
             val completed=send("/api/auth/oauth/google",body,cookie)
-            assertEquals(401,completed.statusCode(),completed.body())
-            assertEquals("SOCIAL_ACCOUNT_NOT_REGISTERED",json.readTree(completed.body()).path("result").path("errorCode").asString())
+            assertEquals(409,completed.statusCode(),completed.body())
+            assertEquals("SOCIAL_SIGN_UP_REQUIRED",json.readTree(completed.body()).path("result").path("errorCode").asString())
             val replay=send("/api/auth/oauth/google",body,cookie)
             assertEquals("OAUTH_VERIFICATION_FAILED",json.readTree(replay.body()).path("result").path("errorCode").asString())
         }
+    }
+
+    @Test fun `new social identity receives consent ticket then signs up without email or password`() {
+        jdbc.update("INSERT INTO terms(id,code,version,title,content_url,is_required,seq,effective_at) VALUES (990356,'SOCIAL_TEST','v1','필수','https://example.test',TRUE,99,'2020-01-01')")
+        try {
+            val flow=started()
+            val pending=complete("unknown",flow)
+            assertEquals(409,pending.statusCode(),pending.body())
+            assertEquals("SOCIAL_SIGN_UP_REQUIRED",error(pending))
+            val ticket=json.readTree(pending.body()).path("result").path("details").path("signupTicket").asString()
+            val body="""{"signupTicket":"$ticket","nickname":"소셜신규","agreements":[{"termId":"990356","version":"v1","agreed":true}]}"""
+            assertEquals(410,send("/api/auth/oauth/sign-up",body).statusCode())
+            val created=send("/api/auth/oauth/sign-up",body,flow.second)
+            assertEquals(201,created.statusCode(),created.body())
+            val id=json.readTree(created.body()).path("result").path("userId").asString().toLong()
+            val row=jdbc.queryForMap("SELECT email,password_hash FROM users WHERE id=?",id)
+            assertNull(row["email"]);assertNull(row["password_hash"])
+            assertEquals(2,created.headers().allValues("Set-Cookie").size)
+            val auth=created.headers().allValues("Set-Cookie").first{it.startsWith("access_token=")}.substringBefore(';')
+            val me=send("/api/users/me",cookie=auth)
+            assertEquals(200,me.statusCode(),me.body())
+            assertTrue(json.readTree(me.body()).path("result").path("email").isNull,me.body())
+            assertEquals(410,send("/api/auth/oauth/sign-up",body,flow.second).statusCode())
+            val signed=complete("unknown")
+            assertEquals(200,signed.statusCode(),signed.body())
+            val cookie=created.headers().allValues("Set-Cookie").first{it.startsWith("access_token=")}.substringBefore(';')
+            val unlink=HttpClient.newHttpClient().use{it.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me/social-accounts/google")).header("Cookie",cookie).DELETE().build(),HttpResponse.BodyHandlers.ofString())}
+            assertEquals(409,unlink.statusCode(),unlink.body())
+            assertEquals("LAST_LOGIN_METHOD",error(unlink))
+            val withdrawalStart=send("/api/users/me/withdrawal/oauth/google/start","""{"redirectUri":"https://example.test/callback"}""",cookie)
+            assertEquals(200,withdrawalStart.statusCode(),withdrawalStart.body())
+            val withdrawalBinding=withdrawalStart.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+            val withdrawalUrl=json.readTree(withdrawalStart.body()).path("result").path("authorizationUrl").asString()
+            val withdrawalState=URLDecoder.decode(URI(withdrawalUrl).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+            val withdrawalCode="""{"authorizationCode":"unknown","redirectUri":"https://example.test/callback","state":"$withdrawalState"}"""
+            val confirmation=send("/api/users/me/withdrawal/oauth/google",withdrawalCode,"$cookie; $withdrawalBinding")
+            assertEquals(200,confirmation.statusCode(),confirmation.body())
+            val withdrawalTicket=json.readTree(confirmation.body()).path("result").path("withdrawalTicket").asString()
+            val withdrawn=send("/api/users/me","""{"withdrawalTicket":"$withdrawalTicket"}""","$cookie; $withdrawalBinding","DELETE")
+            assertEquals(200,withdrawn.statusCode(),withdrawn.body())
+            assertEquals("WITHDRAWAL_PENDING",jdbc.queryForObject("SELECT status FROM users WHERE id=?",String::class.java,id))
+            jdbc.update("DELETE FROM refresh_tokens WHERE user_id=?",id)
+            jdbc.update("DELETE FROM user_term_agreements WHERE user_id=?",id)
+            jdbc.update("DELETE FROM user_social_accounts WHERE user_id=?",id)
+            jdbc.update("DELETE FROM users WHERE id=?",id)
+        } finally { jdbc.update("DELETE FROM user_term_agreements WHERE term_id=990356");jdbc.update("DELETE FROM terms WHERE id=990356") }
+    }
+
+    private fun signupFlow():Pair<String,String> {
+        val flow=started()
+        val result=complete("unknown",flow)
+        assertEquals(409,result.statusCode(),result.body())
+        return json.readTree(result.body()).path("result").path("details").path("signupTicket").asString() to flow.second
+    }
+    private fun signupBody(ticket:String,agreed:Boolean=true)="""{"signupTicket":"$ticket","nickname":"소셜신규","agreements":[{"termId":"990356","version":"v1","agreed":$agreed}]}"""
+    private fun signupTerms(){jdbc.update("INSERT INTO terms(id,code,version,title,content_url,is_required,seq,effective_at) VALUES (990356,'SOCIAL_TEST','v1','필수','https://example.test',TRUE,99,'2020-01-01')")}
+
+    @Test fun `invalid consent expiry purpose and browser cannot consume signup proof`() {
+        signupTerms()
+        val flow=signupFlow()
+        assertEquals(422,send("/api/auth/oauth/sign-up",signupBody(flow.first,false),flow.second).statusCode())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE token_hash=? AND consumed_at IS NOT NULL",Int::class.java,secrets.hashToken(flow.first)))
+        assertEquals(410,send("/api/auth/oauth/merge","""{"mergeTicket":"${flow.first}"}""",flow.second).statusCode())
+        jdbc.update("UPDATE oauth_proofs SET expires_at=? WHERE token_hash=?",LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC),secrets.hashToken(flow.first))
+        assertEquals(410,send("/api/auth/oauth/sign-up",signupBody(flow.first),flow.second).statusCode())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE nickname='소셜신규'",Int::class.java))
+    }
+
+    @Test fun `distinct signup tickets racing for same identity create exactly one member`() {
+        signupTerms()
+        val flows=listOf(signupFlow(),signupFlow())
+        val barrier=CyclicBarrier(2);val pool=Executors.newFixedThreadPool(2)
+        try {
+            val responses=flows.map{flow->pool.submit(Callable{barrier.await(10,TimeUnit.SECONDS);send("/api/auth/oauth/sign-up",signupBody(flow.first),flow.second)})}.map{it.get(20,TimeUnit.SECONDS)}
+            assertEquals(listOf(201,409),responses.map{it.statusCode()}.sorted(),responses.joinToString{it.body()})
+            assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE nickname='소셜신규'",Int::class.java))
+            assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM refresh_tokens WHERE user_id IN(SELECT id FROM users WHERE nickname='소셜신규')",Int::class.java))
+        }finally{pool.shutdownNow()}
+    }
+
+    @Test fun `token persistence failure rolls back member agreement link and ticket together`() {
+        signupTerms()
+        val flow=signupFlow()
+        jdbc.execute("CREATE TRIGGER oauth356_fail_refresh BEFORE INSERT ON refresh_tokens FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test token persistence failure'")
+        try {
+            assertEquals(500,send("/api/auth/oauth/sign-up",signupBody(flow.first),flow.second).statusCode())
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE nickname='소셜신규'",Int::class.java))
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM user_social_accounts WHERE provider_user_id='unknown-subject'",Int::class.java))
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE token_hash=? AND consumed_at IS NOT NULL",Int::class.java,secrets.hashToken(flow.first)))
+        }finally{jdbc.execute("DROP TRIGGER oauth356_fail_refresh")}
+        assertEquals(201,send("/api/auth/oauth/sign-up",signupBody(flow.first),flow.second).statusCode())
+    }
+
+    @Test fun `all providers sign up and only verified email is stored without creating password login`() {
+        signupTerms()
+        for(provider in listOf("kakao","google","naver")) {
+            val start=send("/api/auth/oauth/$provider/start","""{"redirectUri":"https://example.test/callback"}""")
+            assertEquals(200,start.statusCode(),start.body())
+            val cookie=start.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+            val url=json.readTree(start.body()).path("result").path("authorizationUrl").asString()
+            val state=URLDecoder.decode(URI(url).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+            val pending=send("/api/auth/oauth/$provider","""{"authorizationCode":"fresh356","redirectUri":"https://example.test/callback","state":"$state"}""",cookie)
+            assertEquals(409,pending.statusCode(),pending.body())
+            val ticket=json.readTree(pending.body()).path("result").path("details").path("signupTicket").asString()
+            val signed=send("/api/auth/oauth/sign-up",signupBody(ticket),cookie)
+            assertEquals(201,signed.statusCode(),signed.body())
+            val id=json.readTree(signed.body()).path("result").path("userId").asString().toLong()
+            val email="fresh356-$provider@example.test"
+            val row=jdbc.queryForMap("SELECT email,password_hash FROM users WHERE id=?",id)
+            assertEquals(if(provider=="naver")null else email,row["email"])
+            assertNull(row["password_hash"])
+            assertEquals(401,send("/api/auth/sign-in","""{"email":"$email","password":"ExamplePassword!234"}""").statusCode())
+            if(provider!="naver") {
+                val token=secrets.generateToken()
+                jdbc.update("INSERT INTO email_verifications(email,purpose,code_hash,expires_at,verified_at,token_hash,token_expires_at) VALUES (?,'PASSWORD_RESET','hash',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),?,?)",email,secrets.hashToken(token),LocalDateTime.ofInstant(clock.instant().plusSeconds(1800),ZoneOffset.UTC))
+                assertEquals(401,send("/api/auth/password-reset","""{"verificationToken":"$token","newPassword":"ExamplePassword!345"}""").statusCode())
+                assertNull(jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?",String::class.java,id))
+            }
+        }
+    }
+
+    private fun withdrawalProof():Pair<String,String> {
+        val started=send("/api/users/me/withdrawal/oauth/google/start","""{"redirectUri":"https://example.test/callback"}""",accessCookie())
+        assertEquals(200,started.statusCode(),started.body())
+        val binding=started.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+        val url=json.readTree(started.body()).path("result").path("authorizationUrl").asString()
+        val state=URLDecoder.decode(URI(url).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+        val body="""{"authorizationCode":"linked","redirectUri":"https://example.test/callback","state":"$state"}"""
+        val confirmed=send("/api/users/me/withdrawal/oauth/google",body,"${accessCookie()}; $binding")
+        assertEquals(200,confirmed.statusCode(),confirmed.body())
+        return json.readTree(confirmed.body()).path("result").path("withdrawalTicket").asString() to binding
+    }
+
+    @Test fun `reconnecting the same social identity rejects a previous withdrawal ticket`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val proof=withdrawalProof()
+        assertEquals(204,send("/api/users/me/social-accounts/google",cookie=accessCookie(),method="DELETE").statusCode())
+        val relinked=complete("linked",started(true),true)
+        assertEquals(201,relinked.statusCode(),relinked.body())
+        val rejected=send("/api/users/me","""{"withdrawalTicket":"${proof.first}"}""","${accessCookie()}; ${proof.second}","DELETE")
+        assertEquals(410,rejected.statusCode(),rejected.body())
+        assertEquals("WITHDRAWAL_TICKET_EXPIRED",error(rejected))
+        assertEquals("ACTIVE",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+        val fresh=withdrawalProof()
+        assertEquals(200,send("/api/users/me","""{"withdrawalTicket":"${fresh.first}"}""","${accessCookie()}; ${fresh.second}","DELETE").statusCode())
+    }
+
+    @Test fun `withdrawal authentication started before reconnect cannot issue a ticket for new link`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val start=send("/api/users/me/withdrawal/oauth/google/start","""{"redirectUri":"https://example.test/callback"}""",accessCookie())
+        assertEquals(200,start.statusCode(),start.body())
+        val binding=start.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+        val url=json.readTree(start.body()).path("result").path("authorizationUrl").asString()
+        val state=URLDecoder.decode(URI(url).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+        assertEquals(204,send("/api/users/me/social-accounts/google",cookie=accessCookie(),method="DELETE").statusCode())
+        assertEquals(201,complete("linked",started(true),true).statusCode())
+        val rejected=send("/api/users/me/withdrawal/oauth/google","""{"authorizationCode":"linked","redirectUri":"https://example.test/callback","state":"$state"}""","${accessCookie()}; $binding")
+        assertEquals(401,rejected.statusCode(),rejected.body())
+        assertEquals("OAUTH_VERIFICATION_FAILED",error(rejected))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE user_id=990211 AND kind='WITHDRAW'",Int::class.java))
+    }
+
+    @Test fun `withdrawal proof cannot cross members browsers purposes or expiry`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val proof=withdrawalProof()
+        val body="""{"withdrawalTicket":"${proof.first}"}"""
+        assertEquals(410,send("/api/users/me",body,"${accessCookie(990212)}; ${proof.second}","DELETE").statusCode())
+        assertEquals(410,send("/api/users/me",body,accessCookie(),"DELETE").statusCode())
+        assertEquals(410,send("/api/auth/oauth/sign-up",signupBody(proof.first),proof.second).statusCode())
+        assertEquals(400,send("/api/users/me","""{"withdrawalTicket":"${proof.first}","currentPassword":"ExamplePassword!234"}""","${accessCookie()}; ${proof.second}","DELETE").statusCode())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE token_hash=? AND consumed_at IS NOT NULL",Int::class.java,secrets.hashToken(proof.first)))
+        jdbc.update("UPDATE oauth_proofs SET expires_at=? WHERE token_hash=?",LocalDateTime.ofInstant(clock.instant(),ZoneOffset.UTC),secrets.hashToken(proof.first))
+        assertEquals(410,send("/api/users/me",body,"${accessCookie()}; ${proof.second}","DELETE").statusCode())
+        assertEquals("ACTIVE",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+    }
+
+    @Test fun `withdrawal failure rolls back proof and member status and retry succeeds`() {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
+        val proof=withdrawalProof()
+        val body="""{"withdrawalTicket":"${proof.first}"}"""
+        val cookie="${accessCookie()}; ${proof.second}"
+        jdbc.execute("CREATE TRIGGER oauth356_fail_refresh BEFORE UPDATE ON users FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test withdrawal failure'")
+        try {
+            assertEquals(500,send("/api/users/me",body,cookie,"DELETE").statusCode())
+            assertEquals("ACTIVE",jdbc.queryForObject("SELECT status FROM users WHERE id=990211",String::class.java))
+            assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM oauth_proofs WHERE token_hash=? AND consumed_at IS NOT NULL",Int::class.java,secrets.hashToken(proof.first)))
+        }finally{jdbc.execute("DROP TRIGGER oauth356_fail_refresh")}
+        assertEquals(200,send("/api/users/me",body,cookie,"DELETE").statusCode())
+        assertEquals(401,send("/api/users/me",body,cookie,"DELETE").statusCode())
     }
 
     @TestConfiguration(proxyBeanMethods=false)
@@ -289,6 +488,7 @@ class SocialAuthApiDatabaseTests {
             override fun allows(provider:SocialProvider,redirectUri:String)=redirectUri=="https://example.test/callback"
             override fun authorizationUrl(provider:SocialProvider,redirectUri:String,state:String,verifier:String)="https://provider.example.test/authorize?state=$state"
             override fun identify(provider:SocialProvider,redirectUri:String,code:String,state:String,verifier:String)=when(code){
+                "fresh356"->OAuthIdentity("fresh356-${provider.name}","fresh356-${provider.name.lowercase()}@example.test",provider!=SocialProvider.NAVER)
                 "linked"->OAuthIdentity("existing",null,false)
                 "verified"->OAuthIdentity("new","social211@example.test",true)
                 "unverified"->OAuthIdentity("new","social211@example.test",false)

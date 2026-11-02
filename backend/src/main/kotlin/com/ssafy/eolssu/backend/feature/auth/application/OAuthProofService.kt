@@ -7,12 +7,12 @@ import java.time.Instant
 class OAuthStarted(val state: String, val binding: String, val expiresAt: Instant)
 
 class OAuthProofService(private val repository: OAuthProofRepository, private val secrets: VerificationSecrets, private val clock: Clock) {
-    fun start(provider: String, purpose: String, userId: Long?, redirectUri: String): OAuthStarted {
+    fun start(provider: String, purpose: String, userId: Long?, redirectUri: String, socialAccountId: Long? = null): OAuthStarted {
         val state = secrets.generateToken()
         val binding = secrets.generateToken()
         val expiresAt = clock.instant().plusSeconds(600)
         repository.insert(OAuthProof(secrets.hashToken(state), "STATE", provider, purpose,
-            secrets.hashToken(binding), userId, redirectUri, null, null, false, expiresAt, flowStartedAt=expiresAt.minusSeconds(600)))
+            secrets.hashToken(binding), userId, redirectUri, null, null, false, expiresAt, flowStartedAt=expiresAt.minusSeconds(600),socialAccountId=socialAccountId))
         return OAuthStarted(state, binding, expiresAt)
     }
 
