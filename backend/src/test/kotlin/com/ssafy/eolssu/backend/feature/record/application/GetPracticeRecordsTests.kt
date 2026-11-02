@@ -43,15 +43,18 @@ class GetPracticeRecordsTests {
 
     @Test
     fun `opens the most recently saved song by default and pages its records`() {
-        val records = Records(summaries, listOf(record, record.copy(sessionId = 502, scoreVersion = 1), record.copy(sessionId = 503)))
+        val records = Records(
+            summaries,
+            listOf(record, record.copy(sessionId = 502, scoreVersion = 1), record.copy(sessionId = 503), record.copy(sessionId = 504, scoreVersion = 1)),
+        )
         val list = GetPracticeRecords(records, columns).execute(1, RecordListQuery(songId = null, sort = RecordSort.NEWEST, page = 1, size = 20))
         assertEquals(46, list.totalRecordCount)
         assertEquals(summaries, list.songs)
         assertEquals(101L, list.songId)
         assertEquals(listOf(listOf<Any>(1L, 101L, RecordSort.NEWEST, 20L, 20)), records.queries)
         assertEquals(45 to 3, list.totalElements to list.totalPages)
-        assertEquals(listOf(ColumnRange(1, 2), null, ColumnRange(1, 2)), list.items.map { it.columns })
-        // 같은 악보 버전의 각은 한 번만 읽는다.
+        assertEquals(listOf(ColumnRange(1, 2), null, ColumnRange(1, 2), null), list.items.map { it.columns })
+        // 같은 악보 버전의 각은 한 번만 읽는다. 지금 악보와 버전이 달라 각이 없는 결과도 다시 읽지 않는다.
         assertEquals(2, columnReads)
     }
 

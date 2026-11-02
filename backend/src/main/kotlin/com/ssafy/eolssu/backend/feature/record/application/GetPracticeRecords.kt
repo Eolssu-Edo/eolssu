@@ -25,8 +25,12 @@ open class GetPracticeRecords(
         // 큰 page에서도 넘치지 않게 Long으로 센다. 끝을 지난 페이지는 조회하지 않는다.
         val offset = query.page.toLong() * query.size
         val page = if (songId == null || offset >= total) emptyList() else records.songRecords(userId, songId, query.sort, offset, query.size)
+        // 악보 버전이 달라 각이 없는 결과(null)도 기억한다. getOrPut은 null을 없는 값으로 보고 다시 읽는다.
         val columnsByScore = mutableMapOf<Pair<Long, Int>, List<Int>?>()
-        val cached = ScoreColumns { id, version -> columnsByScore.getOrPut(id to version) { columns.columns(id, version) } }
+        val cached = ScoreColumns { id, version ->
+            val key = id to version
+            if (key in columnsByScore) columnsByScore[key] else columns.columns(id, version).also { columnsByScore[key] = it }
+        }
         return RecordList(
             totalRecordCount = songs.sumOf { it.recordCount },
             songs = songs,
