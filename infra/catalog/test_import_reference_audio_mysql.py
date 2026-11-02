@@ -22,7 +22,6 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
         cls.password = os.environ["REFERENCE_AUDIO_TEST_MYSQL_PASSWORD"]
         default = Path(__file__).resolve().parents[2] / "backend/src/main/resources/db/migration/V13__reference_audio_assets.sql"
         cls.schema = Path(os.environ.get("REFERENCE_AUDIO_TEST_SCHEMA", str(default))).read_text(encoding="utf-8")
-        cls.pitch_schema = default.with_name("V14__reference_audio_pitch_relation.sql").read_text(encoding="utf-8")
         cls.run_sql("CREATE DATABASE IF NOT EXISTS reference_audio_import_test CHARACTER SET utf8mb4;", database=False)
 
     @classmethod
@@ -46,9 +45,10 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
         self.run_sql("""DROP TABLE IF EXISTS reference_audio_pitch_relations;
             DROP TABLE IF EXISTS reference_audio_assets;
             DROP TABLE IF EXISTS pitches;
-            CREATE TABLE pitches(id BIGINT PRIMARY KEY,yul VARCHAR(10),octave SMALLINT,UNIQUE(yul,octave));
-            INSERT INTO pitches VALUES(71,'중',0),(72,'중',1);
-            """ + self.schema + self.pitch_schema)
+            CREATE TABLE pitches(id BIGINT AUTO_INCREMENT PRIMARY KEY,yul VARCHAR(10),octave SMALLINT,
+                hanja VARCHAR(10),hangul VARCHAR(20),semitone SMALLINT,UNIQUE(yul,octave));
+            INSERT INTO pitches(id,yul,octave) VALUES(71,'중',0),(72,'중',1);
+            """ + self.schema)
 
     def mapping(self, asset=None, **changes):
         asset = asset or self.asset
@@ -102,13 +102,11 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
                        "pitch_id=71,pitch_mapping_basis='ornament',category='시김새'"):
             self.assertNotEqual(0,self.run_sql("UPDATE reference_audio_assets SET " + update,check=False).returncode)
 
-    def test_upgrade_keeps_existing_published_assets_unlinked(self):
-        self.run_sql("DROP TABLE reference_audio_assets;\n" + self.schema)
-        self.run_sql(module.render_sql([self.asset]))
-        self.run_sql("UPDATE reference_audio_assets SET status='PUBLISHED';")
-        self.run_sql(self.pitch_schema)
-        self.assertEqual("1\t0\t0\tPUBLISHED\tinferred\t0", self.run_sql(
-            "SELECT COUNT(*),COUNT(pitch_id),COUNT(pitch_mapping_basis),MIN(status),MIN(review_status),SUM(eligible_for_note_scoring) FROM reference_audio_assets;").stdout.strip())
+    def test_final_schema_preserves_existing_pitch_ids_and_seeds_no_assets(self):
+        self.assertEqual("71\t중\t0\n72\t중\t1", self.run_sql(
+            "SELECT id,yul,octave FROM pitches WHERE id IN (71,72) ORDER BY id;").stdout.strip())
+        self.assertEqual("13",self.run_sql("SELECT COUNT(*) FROM pitches;").stdout.strip())
+        self.assertEqual("0\n0",self.run_sql("SELECT COUNT(*) FROM reference_audio_assets; SELECT COUNT(*) FROM reference_audio_pitch_relations;").stdout.strip())
 
     def test_exact_rerun_preserves_published_row_and_unicode(self):
         sql = module.render_sql([self.asset])

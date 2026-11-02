@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "basis": "Existing inferred source labels and docs/knowledge/data/sanjo-daegeum.md; groups.analysisBasis, evidence.sequenceDecision/orderedAnchors/labelAnchorIndex and expanded metadata.label.gesture. LABEL is the chosen nominal row label, not a whole-clip monophonic claim; SEQUENCE preserves observed anchor order, LOWER_ANCHOR and DESTINATION are roles without invented event timing. Analysis windows, measured F0, alternatives, repeated rises and review/scoring state remain unchanged. Nominal notation octaves follow the existing 22 pitches and V15 basic mapping; not a tuning correction or scoring approval.",
+  "basis": "Existing inferred source labels and docs/knowledge/data/sanjo-daegeum.md; groups.analysisBasis, evidence.sequenceDecision/orderedAnchors/labelAnchorIndex and expanded metadata.label.gesture. LABEL is the chosen nominal row label, not a whole-clip monophonic claim; SEQUENCE preserves observed anchor order, LOWER_ANCHOR and DESTINATION are roles without invented event timing. Analysis windows, measured F0, alternatives, repeated rises and review/scoring state remain unchanged. Nominal notation octaves follow the existing 22 pitches and explicit basic mappings; not a tuning correction or scoring approval.",
   "mappings": [
     {
       "assetId": "6aef4a89b9bb22297eec307fa0c4f3989821e8d24b6070362a92a494f55723bb",

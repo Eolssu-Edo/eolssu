@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "basis": "S15P31E102-364 nominal label mapping, 2026-11-02. docs/knowledge/data/jeongak-daegeum.md and data/annotations/audio/jeongak-daegeum/*/labels.json groups.analysisBasis/rows/evidence at repository 7a633ad6, resolved against existing V5 plus backend/src/main/resources/db/migration/V15__seed_reference_audio_pitches.sql nominal identities. Official nominal range and 18-tone sequence: 저취 임/남/무=octave-1, 황/태/고/중=octave0; 평취 +1, 역취 +2. No new acoustic/performer review; not scoring truth. Original inferred and eligibleForNoteScoring=false remain unchanged. Manifest SHA256=5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb",
+  "basis": "S15P31E102-364 nominal label mapping, 2026-11-02. docs/knowledge/data/jeongak-daegeum.md and data/annotations/audio/jeongak-daegeum/*/labels.json groups.analysisBasis/rows/evidence at repository 7a633ad6, resolved against existing V5 plus backend/src/main/resources/db/migration/V13__reference_audio_assets.sql nominal identities. Official nominal range and 18-tone sequence: 저취 임/남/무=octave-1, 황/태/고/중=octave0; 평취 +1, 역취 +2. No new acoustic/performer review; not scoring truth. Original inferred and eligibleForNoteScoring=false remain unchanged. Manifest SHA256=5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb",
   "mappings": [
     {
       "assetId": "bdaf25e496372feaa68fea3547713417785aff179665f4400af0e8e8294db826",

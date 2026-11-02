@@ -48,7 +48,7 @@ def render_sql(mappings):
     values = ",\n".join("(" + ", ".join(_sql_value(row[field]) for field in fields) + ")" for row in mappings)
     equal = " AND ".join(f"BINARY a.{column} = BINARY s.{column}" for column in IDENTITY.values())
     return f"""-- Nominal labels only: never promotes review/scoring/publication status.
--- Run after catalog import and V14, in a dedicated mysql connection without --force.
+-- Run after catalog import and V13, in a dedicated mysql connection without --force.
 SET NAMES utf8mb4;
 START TRANSACTION;
 CREATE TEMPORARY TABLE reference_audio_pitch_stage (

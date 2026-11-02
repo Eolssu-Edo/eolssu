@@ -102,8 +102,6 @@ class RoleMySqlTests(unittest.TestCase):
     def setUp(self):
         self.run_sql('DROP TABLE IF EXISTS reference_audio_pitch_relations;')
         mysql_fixture.ReferenceAudioMySqlTests.setUp(self)
-        schema=ROOT/'backend/src/main/resources/db/migration/V16__reference_audio_pitch_roles.sql'
-        self.run_sql(schema.read_text(encoding='utf-8'))
         self.asset['category']=self.asset['metadata']['label']['category']='시김새'
 
     def mapping(self,asset=None):

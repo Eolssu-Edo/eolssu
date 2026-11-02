@@ -2,7 +2,7 @@
 
 Task S15P31E102-364. 2026-11-02. [기능 계약](../../specs/reference-audio-catalog.md), [적재 절차](../../../infra/catalog/README.md).
 
-현재 상태는 **426자산 연결(기본음219·시김새207), 미연결4개, 기준 음22개·단소 범위15개**다. V16 역할별 관계315개를 추가한 마지막 절이 현재 결과이며, 앞의30/141/219개 결과는 단계별 검증 이력이다.
+현재 상태는 **426자산 연결(기본음219·시김새207), 미연결4개, 기준 음22개·단소 범위15개**다. 운영 미적용 개발 버전V13~V16을 최종 V13 하나로 통합한 마지막 절이 현재 배포 기준이다. 앞의30/141/219개 및 V16 결과는 단계별 개발 검증 이력이다.
 
 ## 선택과 범위
 
@@ -168,3 +168,15 @@ CLI는 자산·파일·metadata 해시와 역할 집합·근거 경로·선택 a
 검증 결과: clean build 단위436개, databaseTest162개, Python34개가 실패/오류/건너뜀 없이 통과했다. 최초 전체 DB 실행에서는 기존 최신버전15 기대를16으로 갱신하지 않아1건 실패했고 이를 수정한 뒤 전체162개를 다시 통과했다. 새 폐기 DB에서 자산426연결/4미연결과 관계315개, 원본자산 전체행·기존import/관계재실행 보존을 확인했다. HTTP는 모든430개 목록, 시김새207개 상세와 모든evidencePath, 각dataset/음의 기본/역할필터 및AND·중복방지,22/15음,400/404/OpenAPI와302/900초/no-store를 검증했다. 최종 실행JAR의 SHA-256은 `5d3fc4875c5e93e6a41600e1ccf59b6bd1087e19ed16c114a3468f982032c10c`이다. OpenAPI 설명 갱신 뒤 최종JAR로 HTTP를 재실행했다.
 
 작업 worktree의 Git 제외 `data/processed/reference-audio-relation-verification/`에 `sigimsae-backend-validation.log`(최초 schema기대 실패 포함), `sigimsae-db-tests.log`(전체 재실행 성공), `sigimsae-python-validation.log`, `sigimsae-db-verification.json`, `sigimsae-http-verification.json`, `sigimsae-api-examples.json`, `sigimsae-review-scope.json`과 생성SQL/재현스크립트를 보존했다. 테스트 게시행은 DRAFT로 복구했고 HTTP 앱과 작업용MySQL 컨테이너는 종료했다. 신규env·운영DB/R2쓰기는 없다.
+
+## 운영 미적용 확인 후 최종 V13 하나로 통합
+
+사용자가 미적용 마이그레이션을 여러 번호로 나눈 이유를 지적했다. 이전에는 개발 중 변경마다 V14·V15·V16을 추가했지만, 운영에서 이미 적용한 파일을 보존해야 하는 상황은 아니었다. 부모 작업이2026-11-02 edo1의 Flyway 성공이력V1~V12, 카탈로그 두 테이블 부재, pitches11행을 읽기 전용으로 확인했고 edo2에는 실행 중 컨테이너가 없었다. 이 근거와 사용자 요청에 따라 자산 최종컬럼/FK, 누락 기준11행, 역할별 관계 테이블을 `V13__reference_audio_assets.sql` 하나로 통합했다. 공유된 이전 커밋은 다시 쓰지 않고 후속 커밋에서 개발 파일V14~V16을 제거했다.
+
+앞 절의 V14~V16 및 관련 검증JAR는 개발 과정의 이력이다. 현재 운영 적용은 최종 V13 하나 → manifest 적재 → 기본음/시김새 명시적 매핑 순서다. 이미 과거 개발판V13~V16이 적용된 로컬DB에 checksum repair를 하지 않고 새 폐기DB에서 검사한다. MySQL DDL은 전체 원자적 롤백을 보장하지 않으므로 운영 적용 실패는 백업·부분 적용 상태를 대조해 복구해야 한다. 운영DB/R2/배포에는 이번 작업에서 쓰지 않았다.
+
+명시적 매핑 JSON basis의 파생 참조도 최종V13으로 정렬했다(기본음3파일의 SQL경로, 시김새4파일의 기본음매핑 문구). 단소30개 기존 근거는 유지했다. 이전 개발 참조는 커밋4c2ff7d7·266b5d66에 남아 있다. 음 대응·원본metadata/파일·검수/채점 상태·API는 이 통합으로 변경하지 않는다.
+
+최종 통합판 검증: 새 `eolssu_catalog_final13_tests` DB에서 clean build 단위436·databaseTest162개 통과, Flyway이력V1~V13 성공. 파생 basis참조를 정렬한 뒤 Python34개도 다시 통과했다. 새 `eolssu_catalog_final13b_430` DB의 V12→V13에서 기존11개 pitch 전체행/악기범위를 보존했으며22/15음·430자산/426연결/4미연결/315관계 및 원본metadata/파일/상태·재실행을 검증했다. 최종JAR 실제HTTP의430목록·207시김새상세/evidencePath·관련음필터/AND/중복방지·기존302/900초/no-store도 통과했다.
+
+최종JAR SHA-256: `664b0f9f2dfad891b7b2cd664e71d5d19d99020f60ef23f4685cea51fd1441fb`. 증거는 같은 Git제외 폴더의 `final13-backend-validation.log`, `final13-python-validation.log`, `final13-db-verification.json`, `final13-http-verification.json`, `final13-api-examples.json` 및 `verify_final13_mappings.py`/`verify_final13_http.py`다. HTTP테스트 게시행은 DRAFT로 복구하고 앱과 전용MySQL 컨테이너를 종료했다. 읽기전용 독립DDL 비교에서도 기존4파일과 최종1파일의 제약·인덱스·기준값·관계 의미가 같았다.

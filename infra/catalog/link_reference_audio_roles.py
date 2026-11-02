@@ -100,7 +100,7 @@ def render_sql(mappings):
         [m['assetId'], r['role'], r['anchorIndex'], r['yul'], r['octave'], r['evidencePath'], m['basis']]) + ')'
         for m in mappings for r in m['relations'])
     identity_equal = ' AND '.join(f'BINARY a.{c}=BINARY s.{c}' for c in IDENTITY.values())
-    return f"""-- V16 required. Dedicated mysql connection; never use --force.
+    return f"""-- V13 required. Dedicated mysql connection; never use --force.
 -- Exact complete sets are idempotent; any missing target/evidence/conflict rejects the whole batch.
 SET NAMES utf8mb4;
 START TRANSACTION;
