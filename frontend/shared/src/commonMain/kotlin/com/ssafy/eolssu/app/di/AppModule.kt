@@ -31,9 +31,9 @@ import com.ssafy.eolssu.data.song.ApiModelAudioRepository
 import com.ssafy.eolssu.feature.history.GrowthViewModel
 import com.ssafy.eolssu.feature.history.RecordDetailViewModel
 import com.ssafy.eolssu.feature.history.RecordListViewModel
-import com.ssafy.eolssu.feature.guide.Blow
+import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember

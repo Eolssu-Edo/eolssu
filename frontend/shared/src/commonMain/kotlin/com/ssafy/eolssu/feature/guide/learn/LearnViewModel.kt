@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
