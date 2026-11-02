@@ -1,30 +1,29 @@
 """Verify explicit sigimsae pitch roles and emit an atomic, non-overwriting MySQL import."""
 import argparse
-import hashlib
 import json
 import math
 from pathlib import Path
 import sys
 
-from import_reference_audio import _invalid_constant, _sql_value, load_assets
-from link_reference_audio_pitches import IDENTITY, YUL
-
-
-def metadata_digest(metadata):
-    return hashlib.sha256(json.dumps(metadata, ensure_ascii=False, sort_keys=True,
-        separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+from import_reference_audio import _sql_value
+from reference_audio_mapping import IDENTITY, exact_fields, pitch_target, load_mapping_input
 
 
 def evidence_nodes(label):
     """Enumerate only recorded roles; analysis windows are not note-event timing."""
     nodes = [('LABEL', 0, '/label', label)]
-    sequence = label.get('evidence', {}).get('sequenceDecision', {})
+    evidence = label.get('evidence', {})
+    if not isinstance(evidence, dict):
+        raise ValueError('Invalid source label evidence')
+    sequence = evidence.get('sequenceDecision', {})
+    if not isinstance(sequence, dict):
+        raise ValueError('Invalid source sequence evidence')
     if 'orderedAnchors' in sequence:
         anchors, selected = sequence['orderedAnchors'], sequence.get('labelAnchorIndex')
         if not isinstance(anchors, list) or not anchors or type(selected) is not int or not 0 <= selected < len(anchors):
             raise ValueError('Invalid ordered anchors/labelAnchorIndex')
         chosen = anchors[selected]
-        if any(chosen.get(k) != label.get(k) for k in ('register', 'yulmyeong')) or chosen.get('f0Hz') != label['evidence'].get('labelF0Hz'):
+        if not isinstance(chosen, dict) or any(chosen.get(k) != label.get(k) for k in ('register', 'yulmyeong')) or chosen.get('f0Hz') != evidence.get('labelF0Hz'):
             raise ValueError('Selected anchor differs from row label')
         nodes.extend(('SEQUENCE', i, f'/label/evidence/sequenceDecision/orderedAnchors/{i}', anchor)
                      for i, anchor in enumerate(anchors))
@@ -52,41 +51,31 @@ def evidence_nodes(label):
     return nodes
 
 
-def load_mappings(path, assets):
-    document = json.loads(Path(path).read_text(encoding='utf-8'), parse_constant=_invalid_constant)
-    if not isinstance(document, dict) or type(document.get('schemaVersion')) is not int or document['schemaVersion'] != 1:
-        raise ValueError('Expected role mapping schemaVersion 1')
-    basis, rows = document.get('basis'), document.get('mappings')
-    if not isinstance(basis, str) or not basis.strip() or '\x00' in basis or len(basis.encode('utf-8')) > 60000:
-        raise ValueError('Mapping basis/source is required')
-    if not isinstance(rows, list) or not rows:
-        raise ValueError('Expected non-empty explicit mappings')
-    indexed, seen, mappings = {a['assetId']: a for a in assets}, set(), []
-    for row in rows:
-        if not isinstance(row, dict) or not isinstance(row.get('assetId'), str):
-            raise ValueError('Invalid mapping row')
-        asset = indexed.get(row['assetId'])
-        if row['assetId'] in seen or asset is None or any(row.get(k) != asset[k] for k in IDENTITY):
-            raise ValueError('Duplicate mapping or identity/hash/classification mismatch')
-        if row['category'] != '시김새' or row.get('metadataSha256') != metadata_digest(asset['metadata']):
-            raise ValueError('Expected sigimsae with unchanged metadata evidence')
+def load_mappings(path, manifest):
+    basis, entries = load_mapping_input(path, manifest, '시김새')
+    mappings = []
+    for asset, row in entries:
         nodes = evidence_nodes(asset['metadata']['label'])
-        relations = row.get('relations')
-        if not isinstance(relations, list) or len(relations) != len(nodes):
-            raise ValueError('Complete source role set is required')
-        targets_by_label = {}
-        for relation, (role, index, path, node) in zip(relations, nodes):
-            if not isinstance(relation, dict) or any(relation.get(k) != value for k, value in
-                [('role', role), ('anchorIndex', index), ('evidencePath', path), ('register', node['register']), ('yulmyeong', node['yulmyeong'])]):
-                raise ValueError('Role, order, or evidence identity differs from source')
-            if type(relation.get('anchorIndex')) is not int or relation.get('yul') not in YUL or type(relation.get('octave')) is not int or not -2 <= relation['octave'] <= 2:
-                raise ValueError('Invalid nominal pitch target')
+        fields = {'labelId', 'label'}
+        sequence_count = sum(role == 'SEQUENCE' for role, _, _, _ in nodes)
+        if sequence_count:
+            fields.add('sequence')
+        if any(role == 'LOWER_ANCHOR' for role, _, _, _ in nodes):
+            fields.update(('lowerAnchor', 'destination'))
+        exact_fields(row, fields)
+        if sequence_count and (not isinstance(row['sequence'], list) or len(row['sequence']) != sequence_count):
+            raise ValueError('Complete source sequence is required')
+        targets_by_label, relations = {}, []
+        for role, index, evidence_path, node in nodes:
+            target_input = row['sequence'][index] if role == 'SEQUENCE' else row[
+                {'LABEL': 'label', 'LOWER_ANCHOR': 'lowerAnchor', 'DESTINATION': 'destination'}[role]]
+            yul, octave = pitch_target(target_input)
             source_pitch = (node['register'], node['yulmyeong'])
-            target = (relation['yul'], relation['octave'])
-            if targets_by_label.setdefault(source_pitch, target) != target:
+            if targets_by_label.setdefault(source_pitch, (yul, octave)) != (yul, octave):
                 raise ValueError('The same source pitch has conflicting role targets')
-        seen.add(row['assetId'])
-        mappings.append({**{k: row[k] for k in IDENTITY}, 'metadata': asset['metadata'], 'relations': relations, 'basis': basis})
+            relations.append(dict(role=role, anchorIndex=index, evidencePath=evidence_path,
+                register=node['register'], yulmyeong=node['yulmyeong'], yul=yul, octave=octave))
+        mappings.append({**{k: asset[k] for k in IDENTITY}, 'metadata': asset['metadata'], 'relations': relations, 'basis': basis})
     return sorted(mappings, key=lambda row: row['assetId'])
 
 
@@ -167,7 +156,7 @@ def main(argv=None):
     parser.add_argument('--output', type=Path, required=True, help='New SQL file; never overwrites')
     args = parser.parse_args(argv)
     try:
-        mappings = load_mappings(args.mapping, load_assets(args.manifest))
+        mappings = load_mappings(args.mapping, args.manifest)
         with args.output.open('x', encoding='utf-8', newline='\n') as stream:
             stream.write(render_sql(mappings))
         print(json.dumps({'assets':len(mappings),'relations':sum(len(m['relations']) for m in mappings),'output':str(args.output)}))

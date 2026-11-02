@@ -29,6 +29,15 @@ def _invalid_constant(value):
     raise ValueError(f"Non-finite JSON constant: {value}")
 
 
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
 def _validate_provenance(asset):
     metadata = asset.get("metadata")
     if not isinstance(metadata, dict) or any(not isinstance(metadata.get(key), dict) for key in ("label", "source", "wav", "encoding")):
@@ -56,9 +65,15 @@ def _validate_provenance(asset):
         raise ValueError("Invalid full decode provenance")
 
 
-def load_assets(manifest):
+def load_assets(manifest, expected_sha256=None):
     manifest = Path(manifest).resolve(strict=True)
-    document = json.loads(manifest.read_text(encoding="utf-8"), parse_constant=_invalid_constant)
+    raw = manifest.read_bytes()
+    if expected_sha256 is not None and (
+        not isinstance(expected_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_sha256)
+        or hashlib.sha256(raw).hexdigest() != expected_sha256
+    ):
+        raise ValueError("Manifest SHA-256 differs from mapping's pinned source")
+    document = json.loads(raw.decode("utf-8"), parse_constant=_invalid_constant, object_pairs_hook=_unique_json_object)
     if not isinstance(document, dict) or type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 1:
         raise ValueError("Expected manifest schemaVersion 1")
     assets = document.get("assets")

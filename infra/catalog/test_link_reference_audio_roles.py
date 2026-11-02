@@ -1,3 +1,4 @@
+import hashlib
 import copy
 import json
 import os
@@ -16,27 +17,25 @@ class RoleMappingTests(unittest.TestCase):
 
     def mapping_file(self):
         self.asset['category'] = self.asset['metadata']['label']['category'] = '시김새'
-        row = {k:self.asset[k] for k in roles.IDENTITY}
-        row.update(metadataSha256=roles.metadata_digest(self.asset['metadata']),relations=[dict(
-            role='LABEL',anchorIndex=0,evidencePath='/label',register='평취',yulmyeong='중',yul='중',octave=0)])
+        row = dict(labelId=self.asset['labelId'],label=dict(yul='중',octave=0))
         path=self.root/'roles.json'
-        path.write_text(json.dumps(dict(schemaVersion=1,basis='source nominal label',mappings=[row]),ensure_ascii=False),encoding='utf-8')
+        path.write_text(json.dumps(dict(schemaVersion=2,datasetId='danso',manifestSha256=hashlib.sha256(self.manifest().read_bytes()).hexdigest(),basis='source nominal label',mappings=[row]),ensure_ascii=False),encoding='utf-8')
         return path
 
     def test_explicit_mapping_rejects_changed_evidence_incomplete_roles_and_wrong_identity(self):
         path=self.mapping_file()
-        assets=fixtures.module.load_assets(self.manifest())
-        self.assertEqual(1,len(roles.load_mappings(path,assets)))
+        manifest=self.manifest()
+        self.assertEqual(1,len(roles.load_mappings(path,manifest)))
         original=json.loads(path.read_text(encoding='utf-8'))
         for change in ('metadata','missing','path','identity','duplicate'):
             doc=copy.deepcopy(original);row=doc['mappings'][0]
-            if change=='metadata':row['metadataSha256']='0'*64
-            if change=='missing':row['relations']=[]
-            if change=='path':row['relations'][0]['evidencePath']='/label/gesture/destination'
-            if change=='identity':row['sha256']='0'*64
+            if change=='metadata':doc['manifestSha256']='0'*64
+            if change=='missing':del row['label']
+            if change=='path':row['evidencePath']='/label/gesture/destination'
+            if change=='identity':row['labelId']='missing-label'
             if change=='duplicate':doc['mappings'].append(copy.deepcopy(row))
             path.write_text(json.dumps(doc),encoding='utf-8')
-            with self.subTest(change=change),self.assertRaises(ValueError):roles.load_mappings(path,assets)
+            with self.subTest(change=change),self.assertRaises(ValueError):roles.load_mappings(path,manifest)
 
     def test_repeated_anchors_and_label_selection_are_preserved(self):
         import link_reference_audio_roles as roles
@@ -57,30 +56,30 @@ class RoleMappingTests(unittest.TestCase):
             'orderedAnchors':[{'register':'평취','yulmyeong':'중','f0Hz':400.0,'windowsSeconds':[[0.1,0.2]]}],
             'labelAnchorIndex':0}})
         document=json.loads(path.read_text(encoding='utf-8'));row=document['mappings'][0]
-        row['metadataSha256']=roles.metadata_digest(self.asset['metadata'])
-        row['relations'].append(dict(role='SEQUENCE',anchorIndex=0,evidencePath='/label/evidence/sequenceDecision/orderedAnchors/0',
-            register='평취',yulmyeong='중',yul='중',octave=1))
+        document['manifestSha256']=hashlib.sha256(self.manifest().read_bytes()).hexdigest()
+        row['sequence']=[dict(yul='중',octave=1)]
         path.write_text(json.dumps(document),encoding='utf-8')
         with self.assertRaisesRegex(ValueError,'conflicting role targets'):
-            roles.load_mappings(path,fixtures.module.load_assets(self.manifest()))
+            roles.load_mappings(path,self.manifest())
 
     def test_curated_207_assets_and_315_roles_match_committed_annotations(self):
         from collections import Counter
         counts=Counter();ids=set()
         for path in (ROOT/'infra/catalog/pitch-mappings').glob('*-sigimsae-v1.json'):
             doc=json.loads(path.read_text(encoding='utf-8'))
-            dataset=doc['mappings'][0]['datasetId'];source=annotations(dataset)
+            dataset=doc['datasetId'];source=annotations(dataset)
             self.assertEqual({k for k,(_,g,_) in source.items() if g['category']=='시김새'}, {r['labelId'] for r in doc['mappings']})
             for mapping in doc['mappings']:
                 row,group,_=source[mapping['labelId']];ev=group.get('evidence',{}).get(row['id'],{})
-                ids.add(mapping['assetId']);counts.update(r['role'] for r in mapping['relations'])
+                ids.add((dataset,mapping['labelId']))
+                counts.update(['LABEL']+['SEQUENCE']*len(mapping.get('sequence',[]))+(['LOWER_ANCHOR','DESTINATION'] if 'lowerAnchor' in mapping else []))
                 expected=[('LABEL',0,row)]
                 expected.extend(('SEQUENCE',i,a) for i,a in enumerate(ev.get('sequenceDecision',{}).get('orderedAnchors',[])))
                 if 'gesture' in ev:
                     expected.extend([('LOWER_ANCHOR',0,ev['gesture']['lowerAnchor']),('DESTINATION',0,row)])
-                self.assertEqual(len(expected),len(mapping['relations']))
-                for relation,(role,index,node) in zip(mapping['relations'],expected):
-                    self.assertEqual((role,index,node['register'],node['yulmyeong']),tuple(relation[k] for k in ('role','anchorIndex','register','yulmyeong')))
+                self.assertEqual(len(expected),1+len(mapping.get('sequence',[]))+(2 if 'lowerAnchor' in mapping else 0))
+                for role,index,node in expected:
+                    relation=mapping['sequence'][index] if role=='SEQUENCE' else mapping[{'LABEL':'label','LOWER_ANCHOR':'lowerAnchor','DESTINATION':'destination'}[role]]
                     y=node['yulmyeong'];register=node['register']
                     if y=='중청임':target=('임',2)
                     elif dataset in ('jeongak-daegeum','sanjo-daegeum'):target=(y,(-1 if y in ('임','남','무') else 0)+{'저취':0,'평취':1,'역취':2}[register])

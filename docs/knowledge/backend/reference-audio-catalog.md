@@ -2,7 +2,7 @@
 
 Task S15P31E102-364. 2026-11-02. [기능 계약](../../specs/reference-audio-catalog.md), [적재 절차](../../../infra/catalog/README.md).
 
-현재 상태는 **426자산 연결(기본음219·시김새207), 미연결4개, 기준 음22개·단소 범위15개**다. 운영 미적용 개발 버전V13~V16을 최종 V13 하나로 통합한 마지막 절이 현재 배포 기준이다. 앞의30/141/219개 및 V16 결과는 단계별 개발 검증 이력이다.
+현재 상태는 **426자산 연결(기본음219·시김새207), 미연결4개, 기준 음22개·단소 범위15개**다. 운영 미적용 개발 버전V13~V16을 통합한 최종V13과 마지막 절의 매핑schema2가 현재 배포 기준이다. 앞의30/141/219개 및 V16 결과는 단계별 개발 검증 이력이다.
 
 ## 선택과 범위
 
@@ -180,3 +180,15 @@ CLI는 자산·파일·metadata 해시와 역할 집합·근거 경로·선택 a
 최종 통합판 검증: 새 `eolssu_catalog_final13_tests` DB에서 clean build 단위436·databaseTest162개 통과, Flyway이력V1~V13 성공. 파생 basis참조를 정렬한 뒤 Python34개도 다시 통과했다. 새 `eolssu_catalog_final13b_430` DB의 V12→V13에서 기존11개 pitch 전체행/악기범위를 보존했으며22/15음·430자산/426연결/4미연결/315관계 및 원본metadata/파일/상태·재실행을 검증했다. 최종JAR 실제HTTP의430목록·207시김새상세/evidencePath·관련음필터/AND/중복방지·기존302/900초/no-store도 통과했다.
 
 최종JAR SHA-256: `664b0f9f2dfad891b7b2cd664e71d5d19d99020f60ef23f4685cea51fd1441fb`. 증거는 같은 Git제외 폴더의 `final13-backend-validation.log`, `final13-python-validation.log`, `final13-db-verification.json`, `final13-http-verification.json`, `final13-api-examples.json` 및 `verify_final13_mappings.py`/`verify_final13_http.py`다. HTTP테스트 게시행은 DRAFT로 복구하고 앱과 전용MySQL 컨테이너를 종료했다. 읽기전용 독립DDL 비교에서도 기존4파일과 최종1파일의 제약·인덱스·기준값·관계 의미가 같았다.
+
+## 중복 없는 명시적 매핑: schemaVersion2
+
+사용자가 MR의 큰 JSON 구조 개선을 요청했다. 크기는 공개 상세API가 아니라 내부 매핑8파일의 반복된 자산ID·파일해시·분류·근거경로·metadata해시에서 나왔다. 각파일에 datasetId·변경없는basis·원본manifest전체SHA-256을 한 번 두고, 기본음행은 labelId/yul/octave, 시김새행은 label/sequence/lowerAnchor/destination의 명시적 목표만 남겼다. 원본은 그대로 보유하며 해시로 고정한 manifest에서 중복정보를 복원한다. 일문자키·목표위치배열·암시적음렬규칙은 추가하지 않았다.
+
+대안은 들여쓰기만 압축하거나 원본자산정보의 별도정규화해시를 만드는 것이었다. 파일바이트SHA-256을 선택해 기존manifest 검증값과 직접 대조하고 새해시정규화규칙을 없앴다. 두linker가 실제로 공유하는 schema2입력검사를 작은 reference_audio_mapping 모듈에 모았다. load_assets는 원본바이트를 한 번만 읽어 핀검증 후 같은바이트를 해석하므로 검사·해석 사이 재읽기 차이가 없다. 일반import는 expected_sha256을 생략하는 기존사용법을 유지한다. 내부load_mappings 호출부/테스트는 (mapping_path,manifest_path)로 함께 이전했고 schema1분기를 남기지 않았다.
+
+Git LF바이트 기준8파일은260,740→43,817바이트(83.20% 감소),7,776→490줄이다. 각자산은 한 줄이며 최장258문자/272UTF-8바이트다. 원래Windows CRLF작업파일268,516바이트와 LF값을 섞어 감소율을 계산하지 않았다. filenames의v1은 기존배포자료이름을 유지한 것이며 내용의schemaVersion은2다. 원본미디어manifest의schemaVersion1·V13·Kotlin/API는 바뀌지 않았다.
+
+검증은 schema2실패→성공과 Python40개(MySQL12개포함) 통과다. 잘못된버전/필드·중복키/labelId·핀/파일변경·분류·목표타입/범위·누락/추가역할·sequence수·선택된음의역할별목표불일치를 거부하며 실패시SQL파일이 생기지 않는다. 실제430manifest로 변경전81546853의 확장매핑8개/SQL8개를 보존해 비교했고 모든확장값과 SQL바이트가 같았다. 특히 basis는 전부 동일하다. 기존SQL적용후새CLI생성SQL/기존import를 재실행한 폐기MySQL에서 자산/관계전체행과 메타데이터·게시/검수/채점·시각을 보존했다. 기본음219·시김새207·관계315·미연결4개도 유지했다.
+
+독립읽기전용 코드검토와 실제데이터 대조에서도 새선택이나 근거손실이 없었다. Kotlin/DDL/API가 그대로이므로 직전436단위·162DB·최종JAR HTTP의 증거를 재사용한다. 증거는 Git제외 `data/processed/reference-audio-relation-verification/`의 `compact-mapping-baseline/`, `compact-sql-after/`, `compact-python-validation.log`, `compact-mapping-verification.json`, `verify_compact_mapping.py`다. 재생성은 [schema2 실행안내](../../../infra/catalog/README.md#매핑-json-schemaversion-2)의 기존8개CLI명령으로 새출력파일에 수행한다. 운영DB/R2에는 쓰지 않았다.

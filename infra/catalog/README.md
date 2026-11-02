@@ -51,7 +51,7 @@ python infra/catalog/link_reference_audio_pitches.py --manifest data/processed/r
 
 생성한 SQL 네 파일을 같은 대상 DB의 전용 mysql 연결에서 각각 `--force` 없이 실행한다. 연결 순서는 **V13 최종 스키마/기준 음 → 기존 manifest 적재 → 매핑 SQL 네 파일**이다. 파일별 트랜잭션이므로 앞 파일 성공 후 다음 파일이 실패하면 성공한 연결은 보존된다. 원인을 수정하고 같은 파일을 다시 적용할 수 있다. 파일 업로드·PUBLISHED 전환과는 별도이며 URL을 입력하지 않는다. 새 CLI의 환경변수는 없다.
 
-- 명시적 매핑 네 파일은 단소30·정악대금54·소금90·산조대금45, 총219개의 datasetId·labelId·assetId·파일 SHA-256·분류·취법·율명과 대상 yul/octave를 열거한다. `basis`에 자료·버전·명목상 연결임을 남긴다. 기존 단소 파일/근거는 보존했다. 실행할 때 이름으로 새 매핑을 추정하지 않는다.
+- 명시적 매핑 네 파일은 단소30·정악대금54·소금90·산조대금45, 총219개의 labelId와 명시적 대상 yul/octave를 열거한다. datasetId는 파일 공통이며 assetId·파일 SHA-256·분류·취법·율명은 해시로 고정한 manifest에서 읽는다. `basis`에 자료·버전·명목상 연결임을 남긴다. 기존 단소 목표/근거는 보존했다. 실행할 때 이름으로 새 매핑을 추정하지 않는다.
 - manifest 전체의 원래 파일/해시/출처 검증 후, 각 매핑이 실제 자산과 일치하는지 검사한다. 중복·미등록 자산·시김새·잘못된 목표 음·빈 근거는 SQL 생성 전에 거부한다.
 - SQL은 `(yul, octave)`로 `pitches`를 조회한다. ID 숫자를 환경 간 복사하지 않는다. 대상 pitch나 DB 자산이 없거나 파일/분류/기존 연결·근거가 다르면 배치 전체를 거부한다. 확인 전에 대상 행을 잠그고 검증 통과 때만 갱신한다.
 - 동일 매핑 재실행은 연결과 갱신 시각을 그대로 둔다. 기존 import도 연결·게시·검수 상태를 보존한다. 기존 연결을 다른 기준으로 덮어쓰는 도구가 아니므로 수정은 별도 검토가 필요하다.
@@ -75,8 +75,39 @@ python infra/catalog/link_reference_audio_roles.py --manifest data/processed/ref
 
 V13과 기존 manifest 적재 후 생성 SQL 네 파일을 전용 mysql 연결에서 각각 `--force` 없이 적용한다. 추가 env나 재변환·업로드는 없다. 연결은 기존22개 pitches의 `(yul,octave)`를 사용한다. 기존 기본음 scalar FK/필터를 확장하지 않고 `relatedPitchId`로 두 관계를 함께 찾는다.
 
-CLI는 명시적 자산·파일 해시와 metadata SHA-256, 전체 역할 집합·순서·근거 경로·선택 anchor 일치·분석창 범위를 확인한다. SQL은 자산을 잠그고 원본 metadata를 같은 MySQL JSON 표현으로 대조한다. DB 관계가 없으면 전체 집합을 추가하고, 완전히 같으면 재실행은 no-op이다. 기존 집합의 일부 누락·추가·대상/근거 변경, 없는 pitch, DB metadata 변경은 전체 파일 배치를 거부한다. 기존 import도 다른 metadata를 덮어쓰지 않는다.
+CLI는 고정한 manifest 전체 SHA-256과 실제 자산·파일, 전체 역할 집합·순서·선택 anchor 일치·분석창 범위를 확인하고 근거 경로를 복원한다. SQL은 자산을 잠그고 원본 metadata를 같은 MySQL JSON 표현으로 대조한다. DB 관계가 없으면 전체 집합을 추가하고, 완전히 같으면 재실행은 no-op이다. 기존 집합의 일부 누락·추가·대상/근거 변경, 없는 pitch, DB metadata 변경은 전체 파일 배치를 거부한다. 기존 import도 다른 metadata를 덮어쓰지 않는다.
 
 SEQUENCE의 index만 관측 순서다. 다루치기 역할의 DB index=0은 키용이며 시간순을 뜻하지 않는다. LABEL은 시작음/전체구간 단음 보장이 아니다. 원음 기준 분석창·F0·대안·labelAnchorIndex·반복 횟수와 inferred/채점 제외 상태는 metadata에 보존하며 음표 이벤트를 새로 만들지 않는다. 적재 뒤 시김새207개·관계315개·전체426연결/4미연결을 확인하고, 게시 검증과 실제 앱 재생은 INF368에서 별도로 수행한다.
 
 매핑 JSON basis의 파생 SQL 참조도 최종 `V13__reference_audio_assets.sql` 및 명시적 기본음 매핑으로 정렬했다. 단소30개 기존 근거와 모든 원본 라벨·metadata는 그대로이며 이전 개발 참조는 커밋4c2ff7d7·266b5d66에 보존된다.
+
+## 매핑 JSON schemaVersion 2
+
+8개 매핑 파일은 원본 manifest에서 읽을 수 있는 반복값을 제거했다. 파일 경로의 `-v1.json`은 기존 배포 자료 이름을 유지한 것이며 파서 형식은 내용의 `schemaVersion: 2`가 정한다. 내보낸 미디어 manifest 자체의 schemaVersion1은 변경하지 않는다. 공개 API와 SQL 형식도 그대로다.
+
+| 파일 공통 필드 | 의미 |
+| --- | --- |
+| schemaVersion | 정수2 |
+| datasetId | 해당 파일의 악기 데이터셋 |
+| manifestSha256 | 원본 manifest 파일 바이트 전체 SHA-256. 같은 바이트를 한 번 읽어 해시를 검사한 뒤 해석 |
+| basis | 기존 명목상 연결 근거 문자열. SQL 재실행의 동등성을 위해 그대로 보존 |
+| mappings | 아래 명시적 자산별 선택 목록 |
+
+기본음 행은 원본 labelId와 검토된 목표만 쓴다.
+
+```json
+{"labelId": "ngc-danso-2338.tone-001", "yul": "중", "octave": 0}
+```
+
+시김새 행은 의미가 드러나는 역할명으로 목표를 쓴다. sequence는 원본 orderedAnchors 순서이며 원본에 없으면 생략한다. lowerAnchor와 destination도 원본 gesture가 있을 때만 함께 쓴다.
+
+```json
+{"labelId": "ngc-danso-2344.gesture-001", "label": {"yul": "태", "octave": 1}, "sequence": [{"yul": "중", "octave": 1}, {"yul": "태", "octave": 1}]}
+{"labelId": "ngc-sanjo-2566.region-001", "label": {"yul": "남", "octave": -1}, "lowerAnchor": {"yul": "임", "octave": -1}, "destination": {"yul": "남", "octave": -1}}
+```
+
+자산 한 행은 한 줄로 두며 목표를 자동 추론하거나 청/탁 접두사를 일괄 처리하지 않는다. assetId·파일해시·분류·취법·율명·metadata·근거경로는 검증된 manifest에서 복원한다. 이 정보는 삭제된 것이 아니라 원본에 한 번만 보관된다. 전체 manifest 해시가 원본 metadata도 고정하므로 행마다 metadata 해시를 반복하지 않는다.
+
+두 linker는 schema2만 받는다. 내부 Python 함수의 입력은 `load_mappings(mapping_path, manifest_path)`이고 확인하지 않은 assets 리스트를 직접 넘기지 않는다. 형식/중복JSON키·labelId/unknown field/잘못된dataset·category/manifest 변경/파일손상/목표타입·범위/누락·추가 역할/sequence수/같은 원본음의 목표불일치는 SQL 파일을 만들기 전에 거부한다. SQL의 전체배치 충돌·재실행 검사는 그대로이며 DB/R2에 자동 쓰지 않는다.
+
+재검증은 위 unittest 명령과 기존8개 CLI 명령을 사용한다. 각 출력은 새 경로에 생성한다. 기준 manifest 파일의 SHA-256은 `5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb`다. 원본 manifest가 바뀌면 기존 매핑을 그대로 적용하지 않고 해당자료와 명시적 선택을 다시 대조한다.

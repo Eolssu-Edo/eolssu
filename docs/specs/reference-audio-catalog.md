@@ -97,3 +97,11 @@ V13은 유지하고 V14에서 FK와 `pitch_mapping_basis`를 추가한다. 둘�
 ## 현재 배포 단위: 최종 V13
 
 운영 Flyway가 V12까지이고 신규카탈로그 테이블이 없다는2026-11-02 확인에 따라 미적용 개발파일 V13~V16을 최종V13 하나로 묶는다. 자산테이블의 기본음 FK/근거, 누락11개 기준음, 역할별 관계테이블을 함께 정의한다. 위 기능·검수/채점·API·426/315 완료조건은 그대로다. 명시적 매핑의 파생SQL참조는 최종V13으로 정렬하고 이전개발이력은 Git에 보존한다. 이미 과거개발판을 적용한 테스트DB는 새 폐기DB로 대체하며 운영checksum repair나 DDL 원자적롤백을 가정하지 않는다.
+
+## 명시적 매핑 JSON 간소화
+
+사용자의 큰 JSON 구조 개선 요청에 따라 내부 매핑8파일을 schemaVersion2로 바꾼다. 파일 공통 datasetId·basis와 원본 manifest 파일의 SHA-256을 한 번 기록한다. 기본음 행은 labelId/yul/octave, 시김새 행은 labelId와 label/sequence/lowerAnchor/destination의 명시적 yul/octave 객체만 보유한다. sequence와 두 gesture 역할은 원본에 있을 때만 기록한다. 자산 한 행은 한 줄로 표시하고 이름을 축약하거나 위치 배열·암시적 범위로 바꾸지 않는다.
+
+manifest는 같은 바이트를 한 번 읽어 SHA-256 검증 후 JSON으로 해석하고 기존 파일/출처 검사를 수행한다. 자산 ID·파일해시·원본분류·역할·순서·근거경로는 검증된 manifest에서 복원한다. 목표음은 계속 명시적 입력이며 측정 F0로 추정하지 않는다. 잘못된 버전/필드·중복JSON키/labelId·해시·dataset/category·목표·누락/추가 역할·선택음 불일치는 SQL 생성 전에 거부한다. schema1은 내부 호출부를 함께 이전하고 제거한다.
+
+SQL DB guard와 basis는 그대로다. 변경 전 실제430개에서 확보한8개 확장 매핑/SQL과 변경 후 결과가 완전히 같아야 한다. 기준은 기본음219/시김새207/315관계/미연결4개, SQL8파일 바이트 동일, 기존 SQL 적용 후 새 SQL 재실행의 전체 DB행 보존이다. 공개API·V13·원본 annotations/M4A/manifest는 변경하지 않는다.

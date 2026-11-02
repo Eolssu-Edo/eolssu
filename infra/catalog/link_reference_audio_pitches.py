@@ -4,40 +4,18 @@ import json
 from pathlib import Path
 import sys
 
-from import_reference_audio import _invalid_constant, _sql_value, load_assets
-
-IDENTITY = {"assetId": "asset_id", "datasetId": "dataset_id", "labelId": "label_id",
-            "sha256": "sha256", "category": "category", "register": "register_name", "yulmyeong": "yulmyeong"}
-YUL = set("황대태협고중유임이남무응")
+from import_reference_audio import _sql_value
+from reference_audio_mapping import IDENTITY, exact_fields, pitch_target, load_mapping_input
 
 
-def load_mappings(path, assets):
-    document = json.loads(Path(path).read_text(encoding="utf-8"), parse_constant=_invalid_constant)
-    if not isinstance(document, dict) or type(document.get("schemaVersion")) is not int or document["schemaVersion"] != 1:
-        raise ValueError("Expected mapping schemaVersion 1")
-    basis = document.get("basis")
-    if not isinstance(basis, str) or not basis.strip() or len(basis.encode("utf-8")) > 60000 or "\x00" in basis:
-        raise ValueError("Mapping basis/source is required")
-    rows = document.get("mappings")
-    if not isinstance(rows, list) or not rows:
-        raise ValueError("Expected non-empty explicit mappings")
-    indexed = {asset["assetId"]: asset for asset in assets}
-    seen, mappings = set(), []
-    for row in rows:
-        if not isinstance(row, dict) or not isinstance(row.get("assetId"), str):
-            raise ValueError("Invalid mapping row")
-        asset = indexed.get(row["assetId"])
-        if row["assetId"] in seen:
-            raise ValueError("Duplicate asset mapping")
-        if asset is None or any(row.get(key) != asset[key] for key in IDENTITY):
-            raise ValueError("Mapping identity/hash/classification differs from verified manifest")
-        if row["category"] != "기본음계":
-            raise ValueError("Only basic tones may link to a nominal pitch")
-        if not isinstance(row.get("yul"), str) or row["yul"] not in YUL or type(row.get("octave")) is not int or not -2 <= row["octave"] <= 2:
-            raise ValueError("Invalid yul/octave target")
-        seen.add(row["assetId"])
-        mappings.append({**{key: row[key] for key in IDENTITY}, "yul": row["yul"], "octave": row["octave"], "basis": basis})
-    return sorted(mappings, key=lambda row: row["assetId"])
+def load_mappings(path, manifest):
+    basis, entries = load_mapping_input(path, manifest, '기본음계')
+    mappings = []
+    for asset, row in entries:
+        exact_fields(row, ('labelId', 'yul', 'octave'))
+        yul, octave = pitch_target({key: row[key] for key in ('yul', 'octave')})
+        mappings.append({**{key: asset[key] for key in IDENTITY}, 'yul': yul, 'octave': octave, 'basis': basis})
+    return sorted(mappings, key=lambda row: row['assetId'])
 
 
 def render_sql(mappings):
@@ -88,7 +66,7 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, required=True, help="New SQL file; never replaces an existing file")
     args = parser.parse_args(argv)
     try:
-        mappings = load_mappings(args.mapping, load_assets(args.manifest))
+        mappings = load_mappings(args.mapping, args.manifest)
         with args.output.open("x", encoding="utf-8", newline="\n") as stream:
             stream.write(render_sql(mappings))
         print(json.dumps({"mappings": len(mappings), "output": str(args.output)}, ensure_ascii=False))

@@ -1,6 +1,5 @@
 """Check curated mappings against committed annotations, not a name-only generated join."""
 from collections import Counter
-import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -23,21 +22,23 @@ def annotations(dataset):
 
 class CuratedPitchMappingTests(unittest.TestCase):
     def mapping(self, dataset):
-        return json.loads((MAPPINGS / f"{dataset}-basic-v1.json").read_text(encoding="utf-8"))
+        document=json.loads((MAPPINGS / f"{dataset}-basic-v1.json").read_text(encoding="utf-8"))
+        self.assertEqual(2,document['schemaVersion'])
+        self.assertEqual(dataset,document['datasetId'])
+        self.assertEqual('5450071ea3f8cf6c53e7a20c3800be015cdc755717213c339475ee3696c0a6fb',document['manifestSha256'])
+        return document
 
     def test_all_four_mapping_files_cover_219_unique_existing_pitch_targets(self):
-        rows = [row for path in MAPPINGS.glob("*-basic-v1.json")
-                for row in json.loads(path.read_text(encoding="utf-8"))["mappings"]]
+        rows = [dict(row,datasetId=dataset) for dataset in ("danso","sogeum","jeongak-daegeum","sanjo-daegeum") for row in self.mapping(dataset)["mappings"]]
         self.assertEqual(Counter({"danso": 30, "jeongak-daegeum": 54, "sogeum": 90, "sanjo-daegeum": 45}),
                          Counter(row["datasetId"] for row in rows))
-        self.assertEqual(219, len({row["assetId"] for row in rows}))
+        self.assertEqual(219, len({(row["datasetId"],row["labelId"]) for row in rows}))
         pitches = json.loads((ROOT / "data/reference/pitches.json").read_text(encoding="utf-8"))["rows"]
         available = {(pitch["yul"], pitch["octave"]) for pitch in pitches} | {
             ("임", -1), ("남", -1), ("무", -1), ("황", 0), ("태", 0), ("고", 0),
             ("남", 0), ("고", 1), ("남", 1), ("고", 2), ("임", 2)}
         for row in rows:
             self.assertIn((row["yul"], row["octave"]), available)
-            self.assertEqual(hashlib.sha256(f"{row['datasetId']}\n{row['labelId']}".encode()).hexdigest(), row["assetId"])
 
     def test_added_mappings_preserve_actual_annotation_identity_and_group_basis(self):
         for dataset in ("jeongak-daegeum", "sogeum", "sanjo-daegeum"):
@@ -49,9 +50,6 @@ class CuratedPitchMappingTests(unittest.TestCase):
             for mapping in document["mappings"]:
                 row, group, source = source_rows[mapping["labelId"]]
                 self.assertEqual("기본음계", group["category"])
-                self.assertEqual(group["category"], mapping["category"])
-                self.assertEqual(row["register"], mapping["register"])
-                self.assertEqual(row["yulmyeong"], mapping["yulmyeong"])
                 self.assertEqual("inferred", source["review"])
                 self.assertFalse(source["eligibleForNoteScoring"])
                 self.assertTrue(group["analysisBasis"])
