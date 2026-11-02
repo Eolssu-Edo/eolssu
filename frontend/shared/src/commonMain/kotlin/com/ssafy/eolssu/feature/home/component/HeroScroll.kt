@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Brush
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -70,20 +72,47 @@ internal fun HomeHero(
                 contentScale = ContentScale.Crop,
                 alignment = BiasAlignment(0f, 0.24f),
             )
-            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC141824)))))
+            val shade = if (edgeToEdge) {
+                // 보드 `.shade`: 52%까지 투명, 88%에서 먹색 62%.
+                Brush.verticalGradient(0.52f to Color.Transparent, 0.88f to HeroShade)
+            } else {
+                Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC141824)))
+            }
+            Box(Modifier.matchParentSize().background(shade))
             Column(
-                Modifier.fillMaxWidth().heightIn(min = if (edgeToEdge) 376.dp else if (large) 340.dp else 280.dp).padding(start = 20.dp, end = 20.dp, top = if (header != null) 100.dp else 20.dp, bottom = 24.dp),
+                Modifier.fillMaxWidth().heightIn(min = if (edgeToEdge) 376.dp else if (large) 340.dp else 280.dp).padding(start = 20.dp, end = 20.dp, top = if (header != null) 100.dp else 20.dp, bottom = if (edgeToEdge) 20.dp else 24.dp),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Bottom,
             ) {
-                Text(stringResource(Res.string.home_hero_title), style = EolssuTheme.serif.headline, color = Color.White, textAlign = TextAlign.End)
-                Text(stringResource(Res.string.home_hero_body), modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodySmall, color = Color.White, textAlign = TextAlign.End)
+                if (edgeToEdge) {
+                    // 보드 `.headline`: 붓글씨 26sp(줄 높이 1.25) 미색, 소개 13sp 연한 금빛, 둘 다 옅은 그림자.
+                    Text(
+                        stringResource(Res.string.home_hero_title),
+                        style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 32.5.sp, shadow = Shadow(TextShadow, Offset(0f, 2f), 20f)),
+                        color = EolssuTheme.colors.background,
+                        textAlign = TextAlign.End,
+                    )
+                    Text(
+                        stringResource(Res.string.home_hero_body),
+                        modifier = Modifier.padding(top = 6.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, shadow = Shadow(TextShadow, Offset(0f, 2f), 12f)),
+                        color = HeroBodyColor,
+                        textAlign = TextAlign.End,
+                    )
+                } else {
+                    Text(stringResource(Res.string.home_hero_title), style = EolssuTheme.serif.headline, color = Color.White, textAlign = TextAlign.End)
+                    Text(stringResource(Res.string.home_hero_body), modifier = Modifier.padding(top = 6.dp), style = MaterialTheme.typography.bodySmall, color = Color.White, textAlign = TextAlign.End)
+                }
             }
-            if (header != null) Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(16.dp)) { header() }
+            if (header != null) Box(Modifier.align(Alignment.TopCenter).fillMaxWidth()) { header() }
         }
         HomeEvaluationButton(onStartEvaluation, if (edgeToEdge) Modifier.padding(horizontal = 20.dp) else Modifier)
     }
 }
+
+private val HeroShade = Color(0x9E141824)
+private val HeroBodyColor = Color(0xFFF2E6CE)
+private val TextShadow = Color(0x66000000)
 
 /** Main 기본 연두 CTA와 hover/누름의 먹색 붓 효과. 문구·조작은 실제 UI다. */
 @Composable
@@ -121,7 +150,7 @@ private fun HomeEvaluationButton(onClick: () -> Unit, modifier: Modifier = Modif
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(EolssuIcons.Mic, contentDescription = null, modifier = Modifier.size(20.dp), tint = foreground)
-        Text(stringResource(Res.string.home_start_evaluation), modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge, color = foreground, textAlign = TextAlign.Center)
+        Text(stringResource(Res.string.home_start_evaluation), modifier = Modifier.weight(1f, fill = false), style = MaterialTheme.typography.labelLarge.copy(fontSize = 17.sp), color = foreground, textAlign = TextAlign.Center)
         Icon(EolssuIcons.ArrowRight, contentDescription = null, modifier = Modifier.size(20.dp), tint = foreground)
     }
 }

@@ -38,7 +38,9 @@ class LoginViewModel(
             when (result) {
             LoginResult.WrongCredentials -> false.also { _uiState.update { it.copy(error = FieldError.LoginFailed) } }
             LoginResult.Unavailable -> false.also { _uiState.update { it.copy(error = FieldError.LoginUnavailable) } }
-            LoginResult.Locked -> false.also { _uiState.update { it.copy(error = null, notice = LoginNotice.Locked) } }
+            is LoginResult.Locked -> false.also {
+                _uiState.update { it.copy(error = null, notice = LoginNotice.Locked, lockedUntil = lockRetryTime(result.retryAvailableAtMillis)) }
+            }
             is LoginResult.Success -> {
                 // A completed login ends the anonymous signup flow, including its consent choices.
                 draft.clear()

@@ -51,6 +51,14 @@ def test_changed_notes_are_pitch_errors():
     assert verdicts(run(synth(SCALE, shift={3: 1, 7: -1}))) == {3: "PITCH", 7: "PITCH"}
 
 
+def test_wrong_pitch_notes_get_no_timing_or_duration_credit():
+    # 높이가 틀린 음은 제때·제 길이로 불어도 그 음을 연주한 것이 아니다. 틀린 곡이 박자·길이 부분 점수로 남지 않게 한다(S15P31E102-353).
+    result = run(synth(SCALE, shift={3: 1, 7: -1}))
+    expected = round(100 * (len(SCALE) - 2) / len(SCALE))
+    assert (result.timing, result.duration) == (expected, expected)
+    assert result.total == round((result.pitch + result.timing + result.duration) / 3)
+
+
 def test_late_note_is_timing_error():
     assert verdicts(run(synth(SCALE, delay={4: 0.15}))) == {4: "TIMING"}
 

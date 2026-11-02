@@ -14,6 +14,9 @@ enum class OAuthPurpose {
 
     /** 마이페이지의 간편 로그인 연결(MY-05). 로그인한 회원의 start·완료 API. */
     Link,
+
+    /** 회원 탈퇴(MY-04)의 간편 로그인 재인증. 로그인한 회원의 start·완료 API로 탈퇴 증명을 받는다. */
+    Withdraw,
 }
 
 /** 서버 경로와 복귀 주소에 쓰는 제공자 이름(`kakao`·`google`·`naver`). 서버는 소문자만 받는다. */
@@ -64,7 +67,12 @@ sealed interface SocialLoginResult {
         override fun toString() = "MergeAvailable($offer)"
     }
 
-    /** 연결된 계정도 같은 이메일 계정도 없다(401 `SOCIAL_ACCOUNT_NOT_REGISTERED`). 이메일 가입을 안내한다. */
+    /** 처음 온 제공자 계정이다(409 `SOCIAL_SIGN_UP_REQUIRED`). 약관 동의·프로필 설정 뒤 [ticket]으로 가입한다. */
+    class SignUpRequired(val ticket: SignUpTicket) : SocialLoginResult {
+        override fun toString() = "SignUpRequired($ticket)"
+    }
+
+    /** 연결된 계정도 같은 이메일 계정도 없다(401 `SOCIAL_ACCOUNT_NOT_REGISTERED`). 소셜 가입(356) 전 서버의 응답이라 이메일 가입을 안내한다. */
     data object NotRegistered : SocialLoginResult
 
     /** state·코드 확인에 실패했다(401 `OAUTH_VERIFICATION_FAILED` 등). 처음부터 다시 한다. */
@@ -86,6 +94,39 @@ class MergeOffer(
     val expiresAtMillis: Long,
 ) {
     override fun toString() = "MergeOffer(provider=$provider, needsPassword=$needsPassword)"
+}
+
+/**
+ * 소셜 가입 티켓. [ticket]은 10분 동안 한 번 쓸 수 있고 start 때 받은 `oauth_flow_<제공자>` 쿠키와 묶여 있어,
+ * 같은 HTTP 클라이언트의 이 흐름 메모리에만 둔다(주소·저장소에 남기지 않는다).
+ */
+class SignUpTicket(val provider: SocialProvider, val ticket: String, val expiresAtMillis: Long) {
+    override fun toString() = "SignUpTicket(provider=$provider)"
+}
+
+/** 소셜 가입(`POST /api/auth/oauth/sign-up`)에 보내는 값. 이메일·비밀번호는 받지 않는다. */
+class SocialRegistration(val ticket: SignUpTicket, val nickname: String, val agreements: List<TermAgreement>, val instrumentId: String?) {
+    override fun toString() = "SocialRegistration(provider=${ticket.provider})"
+}
+
+/** 탈퇴 증명. [ticket]은 10분 동안 한 번 쓸 수 있고 start 때 받은 쿠키와 묶여 있어 이 흐름의 메모리에만 둔다. */
+class WithdrawalProof(val provider: SocialProvider, val ticket: String) {
+    override fun toString() = "WithdrawalProof(provider=$provider)"
+}
+
+/** 탈퇴 재인증 완료(`POST /api/users/me/withdrawal/oauth/{provider}`) 결과. */
+sealed interface ReauthResult {
+    class Proven(val proof: WithdrawalProof) : ReauthResult {
+        override fun toString() = "Proven($proof)"
+    }
+
+    /** state·코드 확인에 실패했거나 연결이 바뀌었다. 처음부터 다시 한다. */
+    data object Restart : ReauthResult
+
+    /** 로그인이 풀렸다(401 `UNAUTHENTICATED`). */
+    data object Unauthenticated : ReauthResult
+
+    data object Unavailable : ReauthResult
 }
 
 /** 계정 연결(`POST /api/auth/oauth/merge`) 결과. */

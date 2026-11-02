@@ -8,6 +8,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * 정간보 모양. [Style.Classic]은 옛 와이어프레임(각 바탕 `background`, 현재 정간 연한 바탕·테두리, 지난 정간 흐리게),
+ * [Style.Board]는 연두 보드 `.ms`(S15P31E102-308 덮어쓰기): 흰 각 · 머리 `background` · 모든 정간 흰 바탕 ·
+ * 지난 정간은 글자만 회색 · 현재 정간은 2dp 안쪽 테두리(연주 중 붉은색) · 진행 선은 붉은색 · 대강 선 2dp 먹색 · ㅡ·△는 산세리프.
+ *
+ * @property lyricLane 곁줄(가사 칸) 너비. 보드 25dp(크게 보기 34dp). 가사 데이터가 없으면 빈 칸으로 둔다.
+ * @property headCompact 각 머리를 ‘시작 · 1각’·‘2각’ 한 줄로 적는다(보드 `.ms-lab`). 아니면 ‘시작’ + 번호.
+ * @property daegangWhenFits 공통 악보라도 각 길이가 장단의 정간 수와 같으면 대강 선을 긋는다(보드).
+ * @property upcomingMark 연주 중 각의 마지막 정간에 들어서면 다음 각 머리를 ‘← 다음’으로 강조한다(보드).
+ */
+@Immutable
+data class JeongganboLook(
+    val style: Style = Style.Classic,
+    val lyricLane: Dp? = null,
+    val headCompact: Boolean = false,
+    val daegangWhenFits: Boolean = false,
+    val upcomingMark: Boolean = false,
+) {
+    enum class Style { Classic, Board }
+
+    val board: Boolean get() = style == Style.Board
+
+    companion object {
+        val Classic = JeongganboLook()
+
+        /** 연습 화면 PRACTICE-01의 악보(`.practice-score .ms`). */
+        fun practice(big: Boolean) = JeongganboLook(
+            style = Style.Board, lyricLane = if (big) 34.dp else 25.dp, headCompact = true, daegangWhenFits = true, upcomingMark = true,
+        )
+    }
+}
+
+/**
  * 정간보 크기. 화면마다 프리셋을 고르거나 `copy`로 바꾼다.
  * 한 정간을 나눈 음은 [yulSize]에 [splitScale]을 곱한 크기로 줄여 그린다.
  */
@@ -19,6 +51,8 @@ data class JeongganboMetrics(
     val auxSize: TextUnit,
     val headHeight: Dp = 20.dp,
     val columnGap: Dp = 6.dp,
+    /** 한 정간을 두 음으로 나눴을 때 율명 크기 비율. 옛 와이어프레임 0.75, 연두 보드 `.n2` 14/21 ≈ 0.667. */
+    val splitScaleTwo: Float = 0.75f,
 ) {
     /** sp 글꼴 확대와 같은 기하. 부모의 줄 나누기와 실제 렌더가 함께 사용한다. */
     fun forFontScale(scale: Float): JeongganboMetrics {
@@ -27,7 +61,7 @@ data class JeongganboMetrics(
     }
 
     /** 한 정간에 든 음 수에 맞춘 율명 크기. 와이어프레임의 16 → 12 → 10 비율을 따른다. */
-    fun yulSizeFor(noteCount: Int): TextUnit = yulSize * splitScale(noteCount)
+    fun yulSizeFor(noteCount: Int): TextUnit = yulSize * splitScale(noteCount, splitScaleTwo)
 
     fun auxSizeFor(noteCount: Int): TextUnit = if (noteCount > 1) auxSize * 0.88f else auxSize
 
@@ -60,6 +94,19 @@ data class JeongganboMetrics(
             }
         }
 
+        /**
+         * 연두 보드 PRACTICE-01 휴대폰 악보(`.practice-score .ms`): 각 78dp(크게 보기 104), 머리 22dp, 정간 44dp 고정
+         * (11정간 이상 줄은 32, 크게 보기 60), 율명 21sp(18 · 26), 보조 9sp(9 · 11), 각 사이 6dp. 세로로 넘치면 화면이 스크롤된다.
+         */
+        fun practiceBoard(big: Boolean, longestStrip: Int): JeongganboMetrics {
+            val dense = longestStrip >= 11
+            return when {
+                big -> JeongganboMetrics(columnWidth = 104.dp, cellHeight = 60.dp, yulSize = 26.sp, auxSize = 11.sp, headHeight = 22.dp, splitScaleTwo = 17f / 26f)
+                dense -> JeongganboMetrics(columnWidth = 78.dp, cellHeight = 32.dp, yulSize = 18.sp, auxSize = 9.sp, headHeight = 22.dp, splitScaleTwo = 12f / 18f)
+                else -> JeongganboMetrics(columnWidth = 78.dp, cellHeight = 44.dp, yulSize = 21.sp, auxSize = 9.sp, headHeight = 22.dp, splitScaleTwo = 14f / 21f)
+            }
+        }
+
         /** 태블릿 연습 화면의 정간 최소 높이. 와이어프레임 `cellMinH`. */
         fun practiceMinCellHeight(big: Boolean): Dp = if (big) 60.dp else 44.dp
 
@@ -77,9 +124,9 @@ data class JeongganboMetrics(
             )
         }
 
-        private fun splitScale(noteCount: Int): Float = when {
+        private fun splitScale(noteCount: Int, two: Float): Float = when {
             noteCount <= 1 -> 1f
-            noteCount == 2 -> 0.75f
+            noteCount == 2 -> two
             else -> 0.625f
         }
     }

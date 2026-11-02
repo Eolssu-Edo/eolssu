@@ -61,6 +61,12 @@ class OpenApiConfig {
                     .addApiResponse("503",ApiResponse().description("일시 장애·설정 누락·처리 시간 초과. 재전송 필요, 본문 없음"))
                 continue
             }
+            // 연습 기록 저장은 memo 생략과 null을 구분하려고 JSON 노드로 받는다. 생성된 JsonNode 스키마 대신 실제 본문을 적는다.
+            if (doc.id == "savePracticeRecord") {
+                operation.requestBody = RequestBody().required(false)
+                    .description("본문 생략·{}·memo 생략은 메모를 유지하고 null은 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 자른 뒤 500자를 넘으면 400입니다.")
+                    .content(jsonContent(ObjectSchema().addProperty("memo", StringSchema().nullable(true).maxLength(500))))
+            }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
             if (doc.method == PathItem.HttpMethod.POST && operation.requestBody == null) {
@@ -83,6 +89,14 @@ class OpenApiConfig {
                 if (doc.setsCookies) response.addHeaderObject("Set-Cookie", Header().schema(StringSchema())
                     .description("HttpOnly·SameSite=Lax 쿠키 발급·교체 또는 삭제. access_token Path=/api, refresh_token Path=/api/auth. Secure는 AUTH_COOKIE_SECURE(기본 true)를 따릅니다."))
                 if (doc.id in setOf("startSocialLogin","startSocialLink","startSocialWithdrawal")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
+                if (doc.id in setOf("playReferenceAudio", "playModelAudio")) {
+                    response.addHeaderObject("Location", Header().schema(StringSchema().format("uri")).description("900초 동안 유효한 서명 GET URL"))
+                    response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                }
+                if (doc.id == "getModelAudioPerformance") {
+                    response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))
+                    response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                }
                 operation.responses.addApiResponse(status.toString(), response)
             }
             val common = listOf(INVALID_REQUEST,FORBIDDEN,METHOD_NOT_ALLOWED,NOT_ACCEPTABLE,INTERNAL_SERVER_ERROR) +
@@ -102,6 +116,7 @@ class OpenApiConfig {
                 it.schema = StringSchema().pattern("[!-~]{1,100}").minLength(1).maxLength(100)
             }
         }
+        documentFileResponses(api)
         // 커스텀 JSON 역직렬화는 JVM Long이어도 문자열만 받으므로 생성된 타입을 실제 wire 형식에 맞춘다.
         components.schemas?.get("RecordScoreViewRequest")?.properties?.set("songId",StringSchema().pattern("0*[1-9][0-9]*").description("양의 정수 ID를 JSON 문자열로 전송"))
         for ((name,property) in listOf("SignUpRequest" to "password","PasswordChangeRequest" to "newPassword","PasswordResetRequest" to "newPassword")) {
@@ -110,6 +125,43 @@ class OpenApiConfig {
                 description = "영문·숫자·특수문자 포함 8~128자(코드 포인트). 공백은 특수문자로 세지 않습니다."
             }
         }
+    }
+
+    // JSON envelope를 쓰지 않는 기존 HTML/파일 경로도 전체 매핑 검사의 대상이다.
+    private fun documentFileResponses(api: OpenAPI) {
+        val htmlPages = linkedMapOf(
+            "/api/terms/documents/{version}/{document}" to ("getLegalVersionPage" to "버전별 약관 HTML"),
+            "/api/terms/documents/current/{document}" to ("getCurrentLegalPage" to "현행 약관 HTML"),
+            "/api/terms/documents/account-deletion" to ("getAccountDeletionPage" to "계정 삭제 안내 HTML"),
+        )
+        for ((path, names) in htmlPages) {
+            val operation = api.paths[path]?.get ?: error("Legal page mapping is missing")
+            operation.operationId = names.first
+            operation.summary = names.second
+            operation.description = "공개 준비가 끝난 문서의 HTML입니다. 등록된 버전·문서 경로만 공개하며 미준비는503입니다. JSON 성공 envelope를 사용하지 않습니다."
+            operation.tags = listOf("약관")
+            operation.security = emptyList()
+            operation.responses = ApiResponses()
+                .addApiResponse("200", ApiResponse().description(names.second).content(Content().addMediaType("text/html",MediaType().schema(StringSchema()))))
+                .addApiResponse("404", ApiResponse().description("없는 문서, 본문 없음"))
+                .addApiResponse("503", ApiResponse().description("공개 준비 중").content(Content().addMediaType("text/html",MediaType().schema(StringSchema()))))
+                .addApiResponse("500", ApiResponse().description("서버 오류").content(jsonContent(schemaRef("ApiError"))))
+        }
+        val recording = api.paths["/api/recordings/read"]?.get ?: error("Recording read mapping is missing")
+        recording.operationId = "readLocalRecording"
+        recording.summary = "서명된 로컬 녹음 읽기"
+        recording.description = "key·expires·signature가 모두 유효한 로컬 녹음만 반환합니다. 회원 쿠키 대신 URL 서명을 검증하며 local 저장소가 아니거나 접근할 수 없으면404입니다. 서명값을 예시에 기록하지 않습니다."
+        recording.tags = listOf("연습")
+        recording.security = emptyList()
+        recording.responses = ApiResponses()
+        for (status in listOf("200", "206")) recording.responses.addApiResponse(status,
+            ApiResponse().description(if (status == "206") "요청한 바이트 구간" else "녹음 원본")
+                .content(Content().addMediaType("audio/mp4",MediaType().schema(StringSchema().format("binary"))))
+                .addHeaderObject("Cache-Control",Header().schema(StringSchema()._enum(listOf("no-store")))))
+        recording.responses.addApiResponse("404",ApiResponse().description("접근할 수 없는 녹음, 본문 없음"))
+            .addApiResponse("416",ApiResponse().description("만족할 수 없는 바이트 범위"))
+            .addApiResponse("400",ApiResponse().description("잘못된 요청").content(jsonContent(schemaRef("ApiError"))))
+            .addApiResponse("500",ApiResponse().description("서버 오류").content(jsonContent(schemaRef("ApiError"))))
     }
 
     private fun cookie(name: String) = SecurityScheme().type(SecurityScheme.Type.APIKEY).`in`(SecurityScheme.In.COOKIE).name(name)

@@ -201,13 +201,53 @@ class PracticeStateTest {
     }
 
     @Test
-    fun fingeringNavigationStopsAtEnds() {
-        val first = ready.copy(draft = PracticeDraft(note = Yul.Hwangjong))
-        assertEquals(Yul.Hwangjong, first.moveFingering(-1).draft.note)
-        assertEquals(Yul.Taeju, first.moveFingering(1).draft.note)
-        val last = ready.copy(draft = PracticeDraft(note = Yul.CheongMuyeok))
-        assertEquals(Yul.CheongMuyeok, last.moveFingering(1).draft.note)
-        assertEquals(Yul.CheongJungnyeo, ready.copy(draft = PracticeDraft(note = Yul.CheongTaeju)).moveFingering(1).draft.note)
+    fun fingeringNavigationWalksScoreAndStopsAtEnds() {
+        // 보드 운지법 패널의 이전·다음 음은 악보의 앞뒤 정간으로 움직인다.
+        val first = ready.selectEvent(0)
+        assertEquals(first, first.moveFingering(-1))
+        val next = first.moveFingering(1)
+        assertEquals(1, next.selected)
+        assertEquals(ready.fingeringYulAt(1), next.draft.note)
+        assertFalse(next.draft.noteRest)
+        val last = ready.copy(selected = ready.eventCount - 1)
+        assertEquals(last, last.moveFingering(1))
+    }
+
+    @Test
+    fun fingeringYulFollowsPreviousPitchThroughHoldAndNullOnRest() {
+        val events = arirang.timeline
+        val hold = events.indexOfFirst { it.note == com.ssafy.eolssu.core.model.ScoreNote.Hold }
+        assertTrue(hold > 0)
+        assertEquals(ready.fingeringYulAt(hold - 1), ready.fingeringYulAt(hold))
+        val rest = events.indexOfFirst { it.note == com.ssafy.eolssu.core.model.ScoreNote.Rest }
+        if (rest >= 0) {
+            assertNull(ready.fingeringYulAt(rest))
+            assertTrue(ready.copy(selected = rest - 1).moveFingering(1).draft.noteRest)
+        }
+    }
+
+    @Test
+    fun micDenialStaysOnScreenWithDeniedOrBlockedPopup() {
+        val denied = ready.requestEvaluation(micGranted = false).denyMic(blocked = false)
+        assertEquals(PracticeMode.Ready, denied.mode)
+        assertEquals(PracticePopup.PermDenied, denied.popup)
+        assertEquals(PracticePopup.PermBlocked, ready.denyMic(blocked = true).popup)
+    }
+
+    @Test
+    fun readySeekMovesSelectionByTime() {
+        val forward = ready.copy(selected = 0).seekSelection(5_000)
+        assertTrue(forward.selected > 0)
+        assertEquals(0, forward.seekSelection(-60_000).selected)
+        assertEquals(ready.eventCount - 1, ready.copy(selected = 0).seekSelection(600_000).selected)
+    }
+
+    @Test
+    fun instrumentFollowsSettingThenSongCode() {
+        assertEquals(com.ssafy.eolssu.core.model.fingering.GuideInstrument.DaegeumJeongak, ready.instrument)
+        val danso = ready.copy(settings = PracticeSettings(instrumentId = "danso"))
+        assertEquals(com.ssafy.eolssu.core.model.fingering.GuideInstrument.Danso, danso.instrument)
+        assertTrue(ready.copy(settings = PracticeSettings(fingeringView = true)).fingeringView)
     }
 
     @Test

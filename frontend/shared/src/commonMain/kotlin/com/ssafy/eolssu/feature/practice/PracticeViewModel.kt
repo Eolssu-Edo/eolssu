@@ -235,6 +235,21 @@ class PracticeViewModel(
 
     fun toggleBigScore() = settingsStore.update { it.copy(bigScore = !it.bigScore) }
 
+    /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다(적용 버튼 없음). */
+    fun toggleFingeringView() = settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
+
+    /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
+    fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
+
+    /** 플레이어의 −5초·+5초. 모범 연주 중에는 음원 위치를, 준비 상태에서는 고른 음을 옮긴다. */
+    fun seekModel(deltaMs: Long) {
+        when (_uiState.value.mode) {
+            PracticeMode.Model -> modelAudio.seekBy(deltaMs)
+            PracticeMode.Ready -> _uiState.update { it.seekSelection(deltaMs) }
+            else -> Unit
+        }
+    }
+
     /** 장단 미리듣기: 구음 패턴 한 칸마다 옮긴다. 악보의 정간 길이와는 다르다. */
     fun togglePreview() {
         val state = _uiState.value
@@ -310,6 +325,15 @@ class PracticeViewModel(
         _uiState.update { it.beginCountdown() }
         runCountdown()
     }
+
+    /** OS 권한 창에서 허용하지 않음. 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다. */
+    fun micDenied() {
+        stopAll()
+        _uiState.update { it.denyMic(blocked = micPermission?.isPermanentlyDenied() == true) }
+    }
+
+    /** ‘설정에서 허용하기’: 기기의 앱 설정을 연다. 열 수 없으면 false. */
+    fun openMicSettings(): Boolean = micPermission?.openSettings() == true
 
     fun closePopup() = _uiState.update { it.copy(popup = null) }
 
@@ -471,6 +495,12 @@ class PracticeViewModel(
                     stepJob?.cancel()
                     _uiState.update { it.endRecording() }
                     finishRecorder()
+                    break
+                }
+                if (recorder.interrupted) {
+                    // 시스템이 녹음을 끊었다. 연주 시계만 흐르는 녹음을 보내지 않도록 화면 이탈과 같이 처리한다.
+                    stopAll()
+                    _uiState.update { it.interrupt() }
                     break
                 }
                 val level = recorder.level()

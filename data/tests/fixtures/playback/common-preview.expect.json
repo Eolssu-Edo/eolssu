@@ -1,0 +1,386 @@
+{
+  "schema": "preview-waveform-cases/v1",
+  "shared": {
+    "schema": "preview-waveform-check/v1",
+    "description": "Hand-authored expectations for common-preview-study.jgb.json: BPM60, hwang311.13, educational hwang-gyemyeon. MIDI references use A440 (under 0.02cent difference). Pitch spans and thresholds retain the first-run 62.5ms-grace checks. Geokeum is checked as a stronger attack followed by CC11 decay, not uniform loudness.",
+    "duration_seconds": 29.55,
+    "pitches": [
+      {
+        "id": "neunira-grace-0",
+        "span": [
+          2.015,
+          2.0525
+        ],
+        "midi": 82
+      },
+      {
+        "id": "neunira-grace-1",
+        "span": [
+          2.0775,
+          2.115
+        ],
+        "midi": 80
+      },
+      {
+        "id": "neunira-grace-2",
+        "span": [
+          2.14,
+          2.1775
+        ],
+        "midi": 78
+      },
+      {
+        "id": "neunira-main",
+        "span": [
+          2.23,
+          2.94
+        ],
+        "midi": 80
+      },
+      {
+        "id": "fermata-end",
+        "span": [
+          17.2,
+          17.9
+        ],
+        "midi": 80
+      },
+      {
+        "id": "length-extended-end",
+        "span": [
+          20.1,
+          20.4
+        ],
+        "midi": 80
+      },
+      {
+        "id": "length-half",
+        "span": [
+          20.55,
+          20.95
+        ],
+        "midi": 80
+      },
+      {
+        "id": "repeat-main",
+        "span": [
+          27.1,
+          27.9
+        ],
+        "midi": 80
+      },
+      {
+        "id": "nineurani-0",
+        "span": [
+          0.035,
+          0.215
+        ],
+        "midi": 82
+      },
+      {
+        "id": "nineurani-1",
+        "span": [
+          0.28500000000000003,
+          0.46499999999999997
+        ],
+        "midi": 80
+      },
+      {
+        "id": "nineurani-2",
+        "span": [
+          0.535,
+          0.715
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nineurani-3",
+        "span": [
+          0.785,
+          0.965
+        ],
+        "midi": 80
+      },
+      {
+        "id": "nerona-21-0",
+        "span": [
+          21.035,
+          21.298333333333332
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nerona-21-1",
+        "span": [
+          21.368333333333332,
+          21.631666666666668
+        ],
+        "midi": 75
+      },
+      {
+        "id": "nerona-21-2",
+        "span": [
+          21.701666666666668,
+          21.965
+        ],
+        "midi": 73
+      },
+      {
+        "id": "nerona-25-0",
+        "span": [
+          25.035,
+          25.298333333333332
+        ],
+        "midi": 78
+      },
+      {
+        "id": "nerona-25-1",
+        "span": [
+          25.368333333333332,
+          25.631666666666668
+        ],
+        "midi": 75
+      },
+      {
+        "id": "nerona-25-2",
+        "span": [
+          25.701666666666668,
+          25.965
+        ],
+        "midi": 73
+      }
+    ],
+    "silences": [
+      {
+        "id": "rest-1",
+        "span": [
+          1.025,
+          1.975
+        ]
+      },
+      {
+        "id": "rest-3",
+        "span": [
+          3.025,
+          3.975
+        ]
+      },
+      {
+        "id": "rest-7",
+        "span": [
+          7.025,
+          7.975
+        ]
+      },
+      {
+        "id": "rest-11",
+        "span": [
+          11.025,
+          11.975
+        ]
+      },
+      {
+        "id": "rest-18",
+        "span": [
+          18.025,
+          18.975
+        ]
+      },
+      {
+        "id": "rest-22",
+        "span": [
+          22.025,
+          22.975
+        ]
+      },
+      {
+        "id": "rest-24",
+        "span": [
+          24.025,
+          24.975
+        ]
+      },
+      {
+        "id": "rest-26",
+        "span": [
+          26.025,
+          26.975
+        ]
+      },
+      {
+        "id": "last-rest-tail",
+        "span": [
+          28.025,
+          29.55
+        ]
+      }
+    ],
+    "sweeps": [
+      {
+        "id": "lower",
+        "early": [
+          8.03,
+          8.12
+        ],
+        "late": [
+          9.2,
+          10.3
+        ],
+        "delta_cents": [
+          -230,
+          -140
+        ]
+      }
+    ],
+    "vibratos": [
+      {
+        "id": "deep",
+        "span": [
+          4.35,
+          5.75
+        ],
+        "reference_span": [
+          14.35,
+          15.75
+        ],
+        "hz": 4,
+        "amplitude_cents": [
+          70,
+          130
+        ],
+        "minimum_added_cents": 50
+      }
+    ],
+    "levels": [
+      {
+        "id": "geokeum-attack",
+        "span": [
+          12.02,
+          12.08
+        ],
+        "reference_span": [
+          14.02,
+          14.08
+        ],
+        "ratio": [
+          1.2,
+          1.31
+        ]
+      },
+      {
+        "id": "geokeum-middle",
+        "span": [
+          12.8,
+          13.2
+        ],
+        "reference_span": [
+          14.8,
+          15.2
+        ],
+        "ratio": [
+          0.73,
+          0.84
+        ]
+      },
+      {
+        "id": "geokeum-end",
+        "span": [
+          13.5,
+          13.8
+        ],
+        "reference_span": [
+          15.5,
+          15.8
+        ],
+        "ratio": [
+          0.82,
+          0.92
+        ]
+      }
+    ],
+    "attacks": [
+      {
+        "id": "length-half-reattack",
+        "at": 20.5,
+        "reference_span": [
+          20.6,
+          20.7
+        ]
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "nineurani-split-1",
+        "at": 0.25,
+        "from_midi": 82,
+        "to_midi": 80
+      },
+      {
+        "id": "nineurani-split-2",
+        "at": 0.5,
+        "from_midi": 80,
+        "to_midi": 78
+      },
+      {
+        "id": "nineurani-split-3",
+        "at": 0.75,
+        "from_midi": 78,
+        "to_midi": 80
+      },
+      {
+        "id": "nerona-split-21-1",
+        "at": 21.333333333333332,
+        "from_midi": 78,
+        "to_midi": 75
+      },
+      {
+        "id": "nerona-split-21-2",
+        "at": 21.666666666666668,
+        "from_midi": 75,
+        "to_midi": 73
+      },
+      {
+        "id": "nerona-split-25-1",
+        "at": 25.333333333333332,
+        "from_midi": 78,
+        "to_midi": 75
+      },
+      {
+        "id": "nerona-split-25-2",
+        "at": 25.666666666666668,
+        "from_midi": 75,
+        "to_midi": 73
+      }
+    ]
+  },
+  "cases": {
+    "danso": {
+      "pitchOverrides": {
+        "nineurani-2": {
+          "midi": 82
+        },
+        "nerona-21-2": {
+          "midi": 80
+        },
+        "nerona-25-2": {
+          "midi": 80
+        },
+        "nineurani-split-2": {
+          "to_midi": 82
+        },
+        "nineurani-split-3": {
+          "from_midi": 82
+        },
+        "nerona-split-21-2": {
+          "to_midi": 80
+        },
+        "nerona-split-25-2": {
+          "to_midi": 80
+        }
+      }
+    },
+    "sogeum": {},
+    "jeongak-daegeum": {},
+    "sanjo-daegeum": {}
+  }
+}

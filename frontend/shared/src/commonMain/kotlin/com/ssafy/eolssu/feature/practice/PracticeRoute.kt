@@ -20,6 +20,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.practice_switched_to_eval
 import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.launch
@@ -35,7 +36,8 @@ import org.koin.core.parameter.parametersOf
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
  *   Web 브라우저 뒤로 가기처럼 [BackHandler]를 거치지 않는 뒤로 가기를 화면 밖에서 가로챌 때 쓴다.
- * @param onMicDenied 마이크 안내에서 '나중에'를 누르거나 OS 권한 창에서 허용하지 않음. 평가는 마이크 없이 할 수 없어 이전 화면으로 돌아가며 안내를 띄운다.
+ *
+ * 마이크를 허용하지 않으면 보드(Dialog-PermDenied·PermBlocked)대로 화면에 머물며 안내 창을 띄운다.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -47,18 +49,12 @@ fun PracticeRoute(
     onGoHome: () -> Unit,
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
-    onMicDenied: () -> Unit,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
     viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo") { parametersOf(songId, solo) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val denyMic = {
-        viewModel.stopAll()
-        viewModel.closePopup()
-        onMicDenied()
-    }
     LaunchedEffect(showSwitchedNotice) {
         if (showSwitchedNotice) snackbarHostState.showSnackbar(getString(Res.string.practice_switched_to_eval))
     }
@@ -114,6 +110,7 @@ fun PracticeRoute(
                 },
                 onAskRestart = viewModel::askRestart,
                 onAskAbort = viewModel::askAbort,
+                onSeek = viewModel::seekModel,
             ),
             panel = PracticePanelActions(
                 onClose = viewModel::closePanel,
@@ -126,12 +123,14 @@ fun PracticeRoute(
                 onMoveFingering = viewModel::moveFingering,
                 onListen = { viewModel.listen(state.draft.note) },
                 onTogglePreview = viewModel::togglePreview,
+                onSetInstrument = viewModel::setInstrument,
+                onToggleFingeringView = viewModel::toggleFingeringView,
             ),
             dialog = PracticeDialogActions(
                 onGrantMic = {
-                    scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else denyMic() }
+                    scope.launch { if (viewModel.requestMicPermission()) viewModel.grantMicAndStart() else viewModel.micDenied() }
                 },
-                onDenyMic = denyMic,
+                onDenyMic = viewModel::closePopup,
                 onClose = viewModel::closePopup,
                 onGoHome = {
                     viewModel.stopAll()
@@ -152,6 +151,11 @@ fun PracticeRoute(
                     onBack()
                 },
                 onToReady = viewModel::toReady,
+                onOpenMicSettings = {
+                    val opened = viewModel.openMicSettings()
+                    viewModel.closePopup()
+                    if (!opened) scope.launch { snackbarHostState.showSnackbar(getString(Res.string.common_coming_soon)) }
+                },
             ),
         ),
     )

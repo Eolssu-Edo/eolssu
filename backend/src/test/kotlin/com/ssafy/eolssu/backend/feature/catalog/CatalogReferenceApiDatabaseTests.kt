@@ -46,11 +46,21 @@ class CatalogReferenceApiDatabaseTests {
         assertEquals(50, danso.path("pitchToleranceCent").asInt())
         assertTrue(danso.path("rangeLowPitchId").isString)
         val pitches = body("/api/pitches?instrumentId=$dansoId").path("items").toList()
-        assertEquals(11, pitches.size)
-        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), pitches.map { it.path("semitone").asInt() })
+        assertEquals(15, pitches.size)
+        assertEquals(listOf(5,7,9,10,12,14,16,17,19,21,22,24,26,28,29), pitches.map { it.path("semitone").asInt() })
         assertEquals("㴢", pitches.last().path("hanja").asString())
         assertTrue(pitches.all { it.path("description").isNull && it.path("soundUrl").isNull })
         assertTrue(body("/api/instruments/$dansoId/fingerings").path("structureImageUrl").isNull)
+        val global = body("/api/pitches").path("items").toList()
+        assertEquals(22, global.size)
+        assertEquals(listOf(-5,-3,-2,0,2,4,5,7,9,10,12,14,16,17,19,21,22,24,26,28,29,31),
+            global.map { it.path("semitone").asInt() })
+        val original = global.filter { it.path("pitchId").asString().toLong() in 1L..11L }
+            .sortedBy { it.path("pitchId").asString().toLong() }
+        assertEquals((1..11).map(Int::toString), original.map { it.path("pitchId").asString() })
+        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), original.map { it.path("semitone").asInt() })
+        assertEquals(listOf("중","임","무","청황","청태","청중","청임","청무","중청황","중청태","중청중"),
+            original.map { it.path("hangul").asString() })
     }
 
     @Test fun `range filtering uses pitch semitones with unordered IDs and inactive instruments stay private`() {

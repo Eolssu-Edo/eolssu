@@ -27,6 +27,7 @@ class ModelAudioApiDatabaseTests {
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
     private val songId = 991288L
+    private val objectKey = "model-audio/drafts/${"b".repeat(64)}/cases/danso-001-p1/danso.m4a"
 
     @BeforeEach fun prepare() {
         jdbc.update("""INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
@@ -40,9 +41,9 @@ class ModelAudioApiDatabaseTests {
 
     @Test fun `only current published media can be retrieved anonymously`() {
         assertEquals(404, get().statusCode())
-        jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,audio_url,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256)
-            SELECT s.id,s.score_version,'https://media.example.test/p171.m4a',s.default_bpm,j.bpm_unit,53050,125,'audio/mp4',?
-            FROM songs s JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=?""", "a".repeat(64),songId)
+        jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,object_key,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256)
+            SELECT s.id,s.score_version,?,s.default_bpm,j.bpm_unit,53050,125,'audio/mp4',?
+            FROM songs s JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=?""", objectKey,"a".repeat(64),songId)
         assertEquals(404,get().statusCode()) // DRAFT defaults are not public
         jdbc.update("UPDATE song_model_audios SET status='PUBLISHED' WHERE song_id=?",songId)
         val response=get()
@@ -53,12 +54,16 @@ class ModelAudioApiDatabaseTests {
         assertEquals(125,result.path("startOffsetMs").asInt())
         assertEquals("audio/mp4",result.path("contentType").asString())
         assertEquals("a".repeat(64),result.path("sha256").asString())
+        assertEquals("/api/songs/$songId/model-audio/play",result.path("audioUrl").asString())
+        assertEquals(503,get("/play").statusCode()) // no storage settings in isolated DB tests
 
         for (change in listOf("score_version=score_version+1", "default_bpm=default_bpm+1", "status='HIDDEN'", "deleted_at=CURRENT_TIMESTAMP",
             "score_json=JSON_SET(score_json,'$.score.scoreVersion',999)",
             "score_json=JSON_SET(score_json,'$.music.bpmUnit','QUARTER')")) {
             jdbc.update("UPDATE songs SET $change WHERE id=?",songId)
             assertEquals(404,get().statusCode(),change)
+            assertEquals(404,get("/play").statusCode(),change)
+            assertEquals(404,get("/performance").statusCode(),change)
             jdbc.update("""UPDATE songs s JOIN songs original ON original.id=1
                 SET s.score_version=original.score_version,s.score_json=original.score_json,s.default_bpm=original.default_bpm,s.status='PUBLISHED',s.deleted_at=NULL WHERE s.id=?""",songId)
         }
@@ -67,12 +72,12 @@ class ModelAudioApiDatabaseTests {
     }
 
     @Test fun `database rejects invalid duration and unavailable song remains 404`() {
-        assertFails { jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,audio_url,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256)
-            VALUES(?,1,'https://media.example.test/test.m4a',96,'DOTTED_QUARTER',0,0,'audio/mp4',?)""",songId,"a".repeat(64)) }
+        assertFails { jdbc.update("""INSERT INTO song_model_audios(song_id,score_version,object_key,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256)
+            VALUES(?,1,?,96,'DOTTED_QUARTER',0,0,'audio/mp4',?)""",songId,objectKey,"a".repeat(64)) }
         assertEquals(404,get().statusCode())
     }
 
-    private fun get() = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/songs/$songId/model-audio"))
+    private fun get(suffix: String="") = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/songs/$songId/model-audio$suffix"))
         .header("Cookie","access_token=invalid-public-cookie").GET().build(),HttpResponse.BodyHandlers.ofString())
     companion object {
         @JvmStatic @DynamicPropertySource fun properties(r: DynamicPropertyRegistry) {
