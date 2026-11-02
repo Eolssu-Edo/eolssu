@@ -1,30 +1,47 @@
-{{- /* 분야 필터·함께 읽을 이야기·프로젝트 안내(왼쪽)와 전체 글 목록(오른쪽). 인자: posts, reading, title */ -}}
-{{- $posts := .posts -}}
+{{- /* 직무·작성자 필터·함께 읽을 이야기·프로젝트 안내(왼쪽)와 전체 글 목록(오른쪽). 인자: posts, reading, title */ -}}
+{{- /* 같은 날짜의 글도 순서가 바뀌지 않도록 날짜·제목 순으로 고정하고, 최신 글을 맨 위에 둡니다. */ -}}
+{{- $posts := sort (sort .posts "Title" "asc") "Date" "desc" -}}
 {{- $counts := dict -}}
-{{- range $posts }}{{ range partial "categories.html" . }}{{ $counts = merge $counts (dict .key (add (index $counts .key | default 0) 1)) }}{{ end }}{{ end -}}
+{{- $authorCounts := dict -}}
+{{- range $posts }}
+  {{- range partial "categories.html" . }}{{ $counts = merge $counts (dict .key (add (index $counts .key | default 0) 1)) }}{{ end }}
+  {{- $a := .Params.author | default site.Params.team }}{{ $authorCounts = merge $authorCounts (dict $a (add (index $authorCounts $a | default 0) 1)) }}
+{{- end -}}
 {{- $known := slice -}}
 {{- range site.Data.blog.categories }}{{ $known = $known | append .key }}{{ end -}}
+{{- $members := slice -}}
+{{- range site.Data.team.members }}{{ $members = $members | append .name }}{{ end -}}
 <div class="journal-layout" data-journal>
   <section class="journal-main" aria-labelledby="all-title">
     <div class="article-header"><h2 id="all-title">{{ .title | default "전체 글" }}</h2></div>
     <div class="post-list">
       {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
-      <div class="empty" data-empty hidden><p>이 분야의 글은 아직 준비 중이에요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
+      <div class="empty" data-empty hidden><p>선택한 조건의 글은 아직 준비 중이에요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
     </div>
     {{- with $posts }}<p class="filter-result" data-filter-result aria-live="polite">전체 글 {{ len . }}편</p>{{ end }}
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
     {{- with $posts }}
-    <section class="side-block fields" aria-labelledby="fields-title">
-      <h2 id="fields-title">분야별로 읽기</h2>
-      <div class="filters" role="group" aria-label="글 분야 선택">
-        <button type="button" data-category="all" aria-pressed="true">전체 글 <span>{{ len $posts }}</span></button>
-        {{- range $c := site.Data.blog.categories }}{{ with index $counts $c.key }}
-        <button type="button" data-category="{{ $c.key }}" aria-pressed="false">{{ $c.short }} <span>{{ . }}</span></button>
-        {{- end }}{{ end }}
+    <section class="side-block fields" aria-label="글 골라 보기">
+      <h2 id="fields-title">직무별로 읽기</h2>
+      <div class="filters" role="group" aria-labelledby="fields-title" data-filter-group="category">
+        <button type="button" data-value="all" aria-pressed="true">전체 직무 <span>{{ len $posts }}</span></button>
+        {{- range $c := site.Data.blog.categories }}
+        <button type="button" data-value="{{ $c.key }}" aria-pressed="false">{{ $c.short }} <span>{{ index $counts $c.key | default 0 }}</span></button>
+        {{- end }}
         {{- range $key, $count := $counts }}{{ if not (in $known $key) }}
-        <button type="button" data-category="{{ $key }}" aria-pressed="false">{{ $key | upper }} <span>{{ $count }}</span></button>
+        <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }} <span>{{ $count }}</span></button>
+        {{- end }}{{ end }}
+      </div>
+      <h2 id="authors-title" class="filter-title-next">작성자별로 읽기</h2>
+      <div class="filters" role="group" aria-labelledby="authors-title" data-filter-group="author">
+        <button type="button" data-value="all" aria-pressed="true">전체 작성자 <span>{{ len $posts }}</span></button>
+        {{- range $members }}
+        <button type="button" data-value="{{ . }}" aria-pressed="false">{{ . }} <span>{{ index $authorCounts . | default 0 }}</span></button>
+        {{- end }}
+        {{- range $name, $count := $authorCounts }}{{ if not (in $members $name) }}
+        <button type="button" data-value="{{ $name }}" aria-pressed="false">{{ $name }} <span>{{ $count }}</span></button>
         {{- end }}{{ end }}
       </div>
       <noscript><p class="noscript-note"><a href="{{ "categories/" | relURL }}">분류별 글 보기</a></p></noscript>
