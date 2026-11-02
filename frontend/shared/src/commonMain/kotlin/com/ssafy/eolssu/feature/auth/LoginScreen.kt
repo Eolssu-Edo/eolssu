@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.auth
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -39,6 +41,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBody
+import com.ssafy.eolssu.feature.auth.component.loginMountains
 import com.ssafy.eolssu.core.ui.component.TextFieldType
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
@@ -52,6 +55,7 @@ import eolssu.shared.generated.resources.auth_email_placeholder
 import eolssu.shared.generated.resources.auth_find_password
 import eolssu.shared.generated.resources.auth_confirm
 import eolssu.shared.generated.resources.auth_locked_message
+import eolssu.shared.generated.resources.auth_locked_message_until
 import eolssu.shared.generated.resources.auth_locked_title
 import eolssu.shared.generated.resources.auth_login
 import eolssu.shared.generated.resources.auth_or_email
@@ -87,6 +91,7 @@ fun LoginScreen(
     AuthScaffold(frame, modifier = Modifier.imePadding(), snackbarHostState = snackbarHostState) {
         AuthBody(
             topPadding = authBodyTopWithoutBar(),
+            modifier = if (frame == AuthFrame.Compact) Modifier.loginMountains(EolssuTheme.colors.radical) else Modifier,
             gap = 24.dp,
             verticalAlignment = if (frame.isTablet) Alignment.CenterVertically else Alignment.Top,
         ) {
@@ -128,7 +133,8 @@ fun LoginScreen(
     when (state.notice) {
         LoginNotice.Locked -> EolssuDialog(
             title = stringResource(Res.string.auth_locked_title),
-            message = stringResource(Res.string.auth_locked_message),
+            message = state.lockedUntil?.let { stringResource(Res.string.auth_locked_message_until, clockLabel(it)) }
+                ?: stringResource(Res.string.auth_locked_message),
             icon = EolssuIcons.Lock,
         ) {
             EolssuButton(stringResource(Res.string.auth_confirm), onClick = onDismissNotice)
@@ -156,31 +162,39 @@ private fun Brand() {
         EolssuLogo()
         Text(
             stringResource(Res.string.auth_tagline),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-            color = EolssuTheme.colors.textMuted,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+            color = EolssuTheme.colors.textSub,
         )
     }
 }
 
-/** 간편 로그인 버튼(`.au-social-btn`): 왼쪽 52dp 칸에 제공사 표시, 가운데 문구. 공식 버튼 가이드는 실제 연동 때 따른다. */
+/**
+ * 간편 로그인 버튼(`.au-social-btn`): 왼쪽 52dp 칸에 제공사 표시, 가운데 문구.
+ * 카카오는 노랑, 네이버는 초록 바탕이고 Google은 흰 바탕에 파란 G다. 공식 버튼 가이드는 실제 연동 때 따른다.
+ */
 @Composable
 private fun SocialButton(provider: SocialProvider, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
+    val look = socialLook(provider)
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(52.dp),
         shape = CircleShape,
-        color = colors.background,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.line),
+        color = look.background,
+        contentColor = look.content,
+        border = BorderStroke(1.dp, look.border),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.width(52.dp), contentAlignment = Alignment.Center) {
+                val markShape = RoundedCornerShape(6.dp)
                 Box(
-                    Modifier.size(24.dp).background(colors.surfaceStrong, RoundedCornerShape(6.dp)),
+                    Modifier
+                        .size(24.dp)
+                        .background(look.markBackground, markShape)
+                        .then(if (look.markBorder) Modifier.border(1.dp, colors.lineSoft, markShape) else Modifier),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold))
+                    Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = look.markContent)
                 }
             }
             Text(
@@ -195,14 +209,39 @@ private fun SocialButton(provider: SocialProvider, onClick: () -> Unit) {
     }
 }
 
+/** 간편 로그인 버튼 색. */
+private class SocialLook(
+    val background: Color,
+    val content: Color,
+    val border: Color,
+    val markBackground: Color,
+    val markContent: Color,
+    val markBorder: Boolean = false,
+)
+
+@Composable
+private fun socialLook(provider: SocialProvider): SocialLook {
+    val colors = EolssuTheme.colors
+    return when (provider) {
+        SocialProvider.Kakao -> SocialLook(KakaoYellow, KakaoInk, KakaoYellow, colors.text.copy(alpha = 0.08f), KakaoInk)
+        SocialProvider.Naver -> SocialLook(NaverGreen, Color.White, NaverGreen, Color.White.copy(alpha = 0.25f), Color.White)
+        SocialProvider.Google -> SocialLook(colors.surface, colors.text, colors.lineSoft, colors.surface, GoogleBlue, markBorder = true)
+    }
+}
+
+private val KakaoYellow = Color(0xFFFEE500)
+private val KakaoInk = Color(0xFF191919)
+private val NaverGreen = Color(0xFF03C75A)
+private val GoogleBlue = Color(0xFF4285F4)
+
 /** '또는 이메일로' 구분선(`.au-or`). */
 @Composable
 private fun OrDivider() {
     val colors = EolssuTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        HorizontalDivider(Modifier.weight(1f), color = colors.line)
+        HorizontalDivider(Modifier.weight(1f), color = colors.lineSoft)
         Text(stringResource(Res.string.auth_or_email), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
-        HorizontalDivider(Modifier.weight(1f), color = colors.line)
+        HorizontalDivider(Modifier.weight(1f), color = colors.lineSoft)
     }
 }
 
@@ -219,7 +258,7 @@ private fun Links(onFindPassword: () -> Unit, onSignUp: () -> Unit) {
         LinkButton(stringResource(Res.string.auth_find_password), onFindPassword) {
             Text(it, style = style, color = colors.textMuted)
         }
-        Text("|", style = style, color = colors.line)
+        Text("|", style = style, color = colors.lineSoft)
         LinkButton(stringResource(Res.string.auth_signup_with_email), onSignUp) {
             Text(it, style = style.copy(fontWeight = FontWeight.Bold), color = colors.text)
         }
