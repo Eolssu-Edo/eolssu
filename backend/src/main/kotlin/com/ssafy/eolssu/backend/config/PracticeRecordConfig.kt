@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.config
 import com.ssafy.eolssu.backend.feature.evaluation.domain.EvaluationScoreCells
 import com.ssafy.eolssu.backend.feature.practice.domain.RECORDING_READ_URL_TTL
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
+import com.ssafy.eolssu.backend.feature.record.application.DeletePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.GetRecordingPlayback
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
@@ -38,4 +39,9 @@ class PracticeRecordConfig {
     @Bean
     fun getRecordingPlayback(records: PracticeRecords, storage: RecordingStorage) =
         GetRecordingPlayback(records, storage::readUrl, RECORDING_READ_URL_TTL, Clock.systemUTC())
+
+    // 기록 삭제는 탈퇴 정리처럼 녹음 저장소의 삭제를 쓴다. 없는 키도 성공이다.
+    @Bean
+    fun deletePracticeRecord(records: PracticeRecords, storage: RecordingStorage) =
+        DeletePracticeRecord(records, storage::delete, Clock.systemUTC())
 }

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.record.infrastructure.persistence
 
+import com.ssafy.eolssu.backend.feature.record.domain.DeletableRecord
 import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
@@ -29,6 +30,10 @@ class MyBatisPracticeRecords(private val mapper: PracticeRecordMapper) : Practic
 
     override fun findRecording(sessionId: Long, userId: Long) =
         mapper.findRecording(sessionId, userId)?.let { RecordingFile(it.recordingUrl, it.recordingDurationMs) }
+
+    override fun findDeletable(sessionId: Long, userId: Long) = mapper.findDeletable(sessionId, userId)?.let { DeletableRecord(it.recordingUrl) }
+
+    override fun markDeleted(sessionId: Long, userId: Long, deletedAt: LocalDateTime) = mapper.markDeleted(sessionId, userId, deletedAt) == 1
 
     private fun RecordSessionRow.toRecord() = RecordSession(
         sessionId, songId, songTitle, noteCount, scoreVersion, startNoteIdx, endNoteIdx, bpm, bpmUnit, status, startedAt,

@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.record
 
+import com.ssafy.eolssu.backend.feature.record.domain.DeletableRecord
 import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
 import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
@@ -21,4 +22,8 @@ open class UnusedPracticeRecords : PracticeRecords {
     override fun songRecords(userId: Long, songId: Long, sort: RecordSort, offset: Long, limit: Int): List<RecordSession> = error("not used")
 
     override fun findRecording(sessionId: Long, userId: Long): RecordingFile? = error("not used")
+
+    override fun findDeletable(sessionId: Long, userId: Long): DeletableRecord? = error("not used")
+
+    override fun markDeleted(sessionId: Long, userId: Long, deletedAt: LocalDateTime): Boolean = error("not used")
 }

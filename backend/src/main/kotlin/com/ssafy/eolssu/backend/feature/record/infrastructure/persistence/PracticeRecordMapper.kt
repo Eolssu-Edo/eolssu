@@ -36,9 +36,18 @@ interface PracticeRecordMapper {
 
     /** 본인 세션의 녹음 키와 길이. 저장 여부는 보지 않고, 녹음이 없거나 기록을 지웠으면 null. */
     fun findRecording(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): RecordingFileRow?
+
+    /** 저장했고 지우지 않은 본인 기록. 아니면 null. */
+    fun findDeletable(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): DeletableRecordRow?
+
+    /** 기록을 지운다. 바뀐 행 수(그사이 지워졌으면 0). */
+    fun markDeleted(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long, @Param("deletedAt") deletedAt: LocalDateTime): Int
 }
 
 data class RecordingFileRow(val recordingUrl: String, val recordingDurationMs: Int?)
+
+// MyBatis는 모든 칸이 NULL인 행을 null로 돌려주므로 녹음이 없는 기록을 위해 세션 ID를 함께 읽는다.
+data class DeletableRecordRow(val sessionId: Long, val recordingUrl: String?)
 
 data class SongRecordSummaryRow(
     val songId: Long,

@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.record.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.record.UnusedPracticeRecords
+import com.ssafy.eolssu.backend.feature.record.application.DeletePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.domain.RecordSession
@@ -44,7 +45,11 @@ class PracticeRecordListControllerTests {
     }
     private val columns = ScoreColumns { _, _ -> listOf(0, 0, 1, 1, 2, 2) }
     private val mvc = MockMvcBuilders.standaloneSetup(
-        PracticeRecordController(SavePracticeRecord(records, columns, Clock.systemUTC()), GetPracticeRecords(records, columns)),
+        PracticeRecordController(
+            SavePracticeRecord(records, columns, Clock.systemUTC()),
+            GetPracticeRecords(records, columns),
+            DeletePracticeRecord(records, { error("not used") }, Clock.systemUTC()),
+        ),
     ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
 
     @BeforeEach

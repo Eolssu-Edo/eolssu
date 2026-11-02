@@ -53,6 +53,18 @@
         WHERE id = #{sessionId} AND user_id = #{userId} AND recording_url IS NOT NULL AND record_deleted_at IS NULL
     </select>
 
+    <select id="findDeletable" resultType="com.ssafy.eolssu.backend.feature.record.infrastructure.persistence.DeletableRecordRow">
+        SELECT id AS session_id, recording_url FROM practice_sessions
+        WHERE id = #{sessionId} AND user_id = #{userId} AND saved_at IS NOT NULL AND record_deleted_at IS NULL
+    </select>
+
+    <!-- 저장 시각·평가·음표 판정·첫 조회 시각은 남긴다. 성장 집계는 점수를 그대로 센다 -->
+    <update id="markDeleted">
+        UPDATE practice_sessions
+        SET record_deleted_at = #{deletedAt}, recording_url = NULL, memo = NULL
+        WHERE id = #{sessionId} AND user_id = #{userId} AND saved_at IS NOT NULL AND record_deleted_at IS NULL
+    </update>
+
     <!-- 다시 보내도 처음 저장 시각은 그대로다(멱등) -->
     <update id="save">
         UPDATE practice_sessions

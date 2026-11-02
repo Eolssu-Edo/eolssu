@@ -5,6 +5,8 @@ import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
+import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
+import com.ssafy.eolssu.backend.feature.record.domain.PracticeRecords
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -18,6 +20,7 @@ import java.time.temporal.ChronoUnit
 import java.util.Date
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -45,6 +48,7 @@ private const val OTHER = 991343L
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PracticeRecordApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
+    @Autowired private lateinit var records: PracticeRecords
     @Value("\${local.server.port}") private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
@@ -239,6 +243,77 @@ class PracticeRecordApiDatabaseTests {
         assertEquals("SERVICE_UNAVAILABLE", json.readTree(unavailable.body()).path("result").path("errorCode").asString())
     }
 
+    // 991342: 저장·메모·첫 조회까지 한 기록(녹음 파일 있음). 991346: 녹음 없이 저장한 기록. 991347: 저장하지 않은 세션(파일 있음).
+    @Test
+    fun `deleting a record removes its recording and hides it everywhere while growth keeps the score`() {
+        session(991347, OWNER, 16, 17, "DONE", scoreVersion = 1)
+        evaluation(991347, 50)
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:05:00', memo='지울 메모', viewed_at='2026-11-01 10:07:00' WHERE id=991342")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:06:00', recording_url=NULL WHERE id=991346")
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 12:00:00' WHERE id=991344")
+        val files = listOf(991342L, 991344L, 991345L, 991347L).associateWith { id ->
+            recordingRoot.resolve(recordingKey(id)).also { Files.createDirectories(it.parent); Files.write(it, "m4a-$id".toByteArray()) }
+        }
+        val growthBefore = result(growth(OWNER))
+        assertEquals(200, evaluationOf(991342, OWNER).statusCode())
+
+        // 저장하지 않은 세션, 다른 회원의 기록, 이미 지운 기록, 없는 세션은 파일과 DB를 건드리지 않고 404다.
+        for (sessionId in listOf(991347L, 991344L, 991345L, 999999L)) assertEquals(404, deleteRecord(sessionId, OWNER).statusCode(), "$sessionId")
+        assertTrue(files.values.all { Files.exists(it) })
+        assertEquals(401, deleteRecord(991342, null).statusCode())
+        assertEquals(400, deleteRecord(0, OWNER).statusCode())
+
+        val before = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+        val deleted = result(deleteRecord(991342, OWNER))
+        assertEquals(listOf("991342", "true", "true"), listOf("sessionId", "deleted", "recordingDeleted").map { deleted.path(it).asString() })
+        val deletedAt = Instant.parse(deleted.path("deletedAt").asString())
+        assertTrue(deletedAt >= before && deletedAt <= Instant.now(), "$deletedAt")
+        assertEquals(deletedAt, stored(991342, "record_deleted_at"))
+        assertFalse(Files.exists(files.getValue(991342)))
+        assertTrue(Files.exists(files.getValue(991344)) && Files.exists(files.getValue(991347)))
+        // 녹음 경로·메모만 비우고 저장 시각·첫 조회 시각·평가는 남긴다.
+        assertNull(jdbc.queryForObject("SELECT recording_url FROM practice_sessions WHERE id=991342", String::class.java))
+        assertNull(jdbc.queryForObject("SELECT memo FROM practice_sessions WHERE id=991342", String::class.java))
+        assertEquals(listOf("2026-11-01T10:05:00Z", "2026-11-01T10:07:00Z"), listOf("saved_at", "viewed_at").map { stored(991342, it).toString() })
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM evaluations WHERE session_id=991342", Int::class.java))
+
+        // 지운 뒤에는 기록 상세·평가·저장·재생·다시 지우기가 모두 404이고 목록에서 빠진다. 성장 요약은 그대로다.
+        for (response in listOf(get(991342, OWNER), evaluationOf(991342, OWNER), put(991342, OWNER, null), recording(991342, OWNER), deleteRecord(991342, OWNER))) {
+            assertEquals(404, response.statusCode(), response.uri().toString())
+        }
+        assertEquals(listOf("991346"), ids(result(list(OWNER, "?songId=1"))))
+        assertEquals(growthBefore, result(growth(OWNER)))
+
+        // 녹음 없이 저장한 기록도 지운다.
+        assertEquals("false", result(deleteRecord(991346, OWNER)).path("recordingDeleted").asString())
+
+        // 녹음을 지우지 못하면(로컬 저장소가 받지 않는 옛 키) 503이고 기록은 그대로다.
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 10:08:00', memo='남길 메모', recording_url='legacy/991347.m4a' WHERE id=991347")
+        val unavailable = deleteRecord(991347, OWNER)
+        assertEquals(503, unavailable.statusCode())
+        assertEquals("SERVICE_UNAVAILABLE", json.readTree(unavailable.body()).path("result").path("errorCode").asString())
+        assertEquals(
+            listOf("legacy/991347.m4a", "남길 메모"),
+            listOf("recording_url", "memo").map { jdbc.queryForObject("SELECT $it FROM practice_sessions WHERE id=991347", String::class.java) },
+        )
+        assertNull(jdbc.queryForObject("SELECT record_deleted_at FROM practice_sessions WHERE id=991347", LocalDateTime::class.java))
+    }
+
+    // 확인과 갱신 사이에 다른 요청이 먼저 지우거나 저장한 경우는 마지막 조건부 갱신이 막는다. 저장소를 직접 불러 확인한다.
+    @Test
+    fun `final conditional updates leave records deleted or never saved meanwhile untouched`() {
+        jdbc.update("UPDATE practice_sessions SET saved_at='2026-11-01 12:00:00' WHERE id=991344")
+        val now = LocalDateTime.parse("2026-11-02T04:00:00")
+        assertEquals(listOf(false, false, false), listOf(991345L, 991342L, 991344L).map { records.markDeleted(it, OWNER, now) })
+        assertEquals("2026-11-01T11:00:00Z", stored(991345, "record_deleted_at").toString())
+        assertNotNull(jdbc.queryForObject("SELECT recording_url FROM practice_sessions WHERE id=991345", String::class.java))
+        assertNull(jdbc.queryForObject("SELECT record_deleted_at FROM practice_sessions WHERE id=991342", LocalDateTime::class.java))
+        assertNull(jdbc.queryForObject("SELECT record_deleted_at FROM practice_sessions WHERE id=991344", LocalDateTime::class.java))
+
+        records.save(991345, OWNER, now, MemoChange.Replace("지운 뒤 메모"))
+        assertNull(jdbc.queryForObject("SELECT memo FROM practice_sessions WHERE id=991345", String::class.java))
+    }
+
     private fun session(
         id: Long, userId: Long, start: Int, end: Int, status: String, scoreVersion: Int,
         songId: Long = 1, startedAt: String = "2026-11-01 10:00:00",
@@ -280,6 +355,17 @@ class PracticeRecordApiDatabaseTests {
 
     private fun get(sessionId: Long, user: Long?): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun deleteRecord(sessionId: Long, user: Long?): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId/record"), user).DELETE().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun evaluationOf(sessionId: Long, user: Long?): HttpResponse<String> =
+        client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId/evaluation"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
+
+    private fun growth(user: Long?): HttpResponse<String> = client.send(
+        authorized(URI("http://localhost:$port/api/users/me/growth/summary?from=2026-10-01&to=2026-11-30"), user).GET().build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
 
     private fun recording(sessionId: Long, user: Long?): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port/api/practice-sessions/$sessionId/recording"), user).GET().build(), HttpResponse.BodyHandlers.ofString())

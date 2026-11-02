@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
+import com.ssafy.eolssu.backend.feature.record.application.DeletePracticeRecord
+import com.ssafy.eolssu.backend.feature.record.application.DeleteRecordOutcome
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.RecordList
 import com.ssafy.eolssu.backend.feature.record.application.RecordListQuery
@@ -22,6 +24,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
@@ -30,12 +33,13 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import tools.jackson.databind.JsonNode
 
-/** 연습 기록 API(REC-01~04). 계약은 `docs/specs/practice-records.md`를 따른다. */
+/** 연습 기록 API(REC-01·02·04). 녹음 다시 듣기(REC-03)는 [RecordingPlaybackController]. 계약은 `docs/specs/practice-records.md`를 따른다. */
 @RestController
 @Profile("db | ops")
 class PracticeRecordController(
     private val saveRecord: SavePracticeRecord,
     private val getRecords: GetPracticeRecords,
+    private val deleteRecord: DeletePracticeRecord,
 ) {
     /** REC-01 `PUT /practice-sessions/{sessionId}/record`. 본문이 없으면 저장만 하고, `memo`가 있으면 메모도 바꾼다. */
     @PutMapping("/api/practice-sessions/{sessionId}/record")
@@ -53,6 +57,20 @@ class PracticeRecordController(
             )
         }
     }
+
+    /** REC-04 `DELETE /practice-sessions/{sessionId}/record`. 녹음까지 지우고, 지운 기록에 다시 보내면 404다. */
+    @DeleteMapping("/api/practice-sessions/{sessionId}/record")
+    fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable @Positive sessionId: Long): ResponseEntity<*> =
+        when (val outcome = deleteRecord.execute(requireNotNull(jwt.subject).toLong(), sessionId)) {
+            DeleteRecordOutcome.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
+            DeleteRecordOutcome.Unavailable -> error(ErrorCode.SERVICE_UNAVAILABLE)
+            is DeleteRecordOutcome.Deleted -> ResponseEntity.ok(
+                SuccessResponse.of(
+                    HttpStatus.OK, "연습 기록 삭제 성공",
+                    DeletedPracticeRecord(sessionId.toString(), true, outcome.recordingDeleted, outcome.deletedAt),
+                ),
+            )
+        }
 
     /** REC-02 `GET /users/me/practice-records`. 곡을 고르지 않으면 가장 최근에 저장한 곡을 펼친다. */
     @GetMapping("/api/users/me/practice-records")
@@ -87,6 +105,8 @@ class PracticeRecordController(
         const val MAX_PAGE_SIZE = 100
     }
 }
+
+data class DeletedPracticeRecord(val sessionId: String, val deleted: Boolean, val recordingDeleted: Boolean, val deletedAt: Instant)
 
 data class PracticeRecordList(
     val totalRecordCount: Int,

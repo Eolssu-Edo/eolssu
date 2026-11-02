@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.record.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.record.UnusedPracticeRecords
+import com.ssafy.eolssu.backend.feature.record.application.DeletePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.application.GetPracticeRecords
 import com.ssafy.eolssu.backend.feature.record.application.SavePracticeRecord
 import com.ssafy.eolssu.backend.feature.record.domain.MemoChange
@@ -48,6 +49,7 @@ class PracticeRecordControllerTests {
         PracticeRecordController(
             SavePracticeRecord(records, columns, Clock.fixed(Instant.parse("2026-11-02T04:00:00Z"), ZoneOffset.UTC)),
             GetPracticeRecords(records, columns),
+            DeletePracticeRecord(records, { error("not used") }, Clock.systemUTC()),
         ),
     ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
 
