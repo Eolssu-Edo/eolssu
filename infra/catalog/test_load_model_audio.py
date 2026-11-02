@@ -1,5 +1,6 @@
 import copy
 import json
+import math
 from pathlib import Path
 import sys
 import tempfile
@@ -12,15 +13,26 @@ import load_model_audio as loader
 
 
 class LoadTests(unittest.TestCase):
+    def test_metadata_normalization_accepts_mysql_double_roundtrip_only_at_numeric_leaves(self):
+        original = {"seconds": 0.15789473684210525, "review": False, "level": 2}
+        self.assertTrue(loader.same_json(original, dict(original, seconds=0.15789473684210523)))
+        two_ulps = math.nextafter(math.nextafter(original["seconds"], math.inf), math.inf)
+        self.assertTrue(loader.same_json(original, dict(original, seconds=two_ulps)))
+        self.assertFalse(loader.same_json(original, dict(original, seconds=math.nextafter(two_ulps, math.inf))))
+        for changed in (dict(original, seconds=0.16), dict(original, review=0), dict(original, level=2.0), dict(original, seconds=float('nan'))):
+            self.assertFalse(loader.same_json(original, changed))
+
     def test_inventory_rejects_duplicate_identity_changed_score_and_dangling_audio_before_writes(self):
-        row = {"source": "mr203-fixed-danso-001-p1", "title": "청황'", "description": "임시 분류", "instrument_code": "DANSO", "jangdan_name": None,
+        row = {"source": "mr203-fixed-danso-001-p1", "title": "청황'", "description": None, "instrument_code": "DANSO", "jangdan_name": None,
                "difficulty": 2, "default_bpm": 90, "score_json": {"score": {"sourceId": "mr203-fixed-danso-001-p1"}},
-               "score_version": 1, "note_count": 5, "audio_url": "https://private.example/bucket/model-audio/drafts/a/a.m4a",
+               "score_version": 1, "note_count": 5, "object_key": "model-audio/drafts/" + "a" * 64 + "/cases/danso-001-p1/danso.m4a",
+               "performance_object_key": "model-audio/drafts/" + "a" * 64 + "/cases/danso-001-p1/performance.common.json",
+               "source_common_sha256": "c" * 64, "generation_metadata": {"review": {"expertPerformanceApproved": False}},
                "bpm_unit": "QUARTER", "duration_ms": 1234, "start_offset_ms": 0, "content_type": "audio/mp4", "sha256": "b" * 64}
         model = {"rows": [row], "references": {"pitches": [], "instruments": [], "jangdans": []}}
         song = {k: row[k] for k in ("source", "title", "description", "instrument_code", "jangdan_name", "difficulty", "default_bpm", "score_json", "score_version", "note_count")}
         song.update(id=77, jangdan_id=None, umulsai_text=None, is_scorable=0, status="DRAFT", deleted_at=None)
-        audio = {k: row[k] for k in ("score_version", "audio_url", "bpm_unit", "duration_ms", "start_offset_ms", "content_type", "sha256")}
+        audio = {k: row[k] for k in ("score_version", "object_key", "performance_object_key", "source_common_sha256", "generation_metadata", "bpm_unit", "duration_ms", "start_offset_ms", "content_type", "sha256")}
         audio.update(song_id=77, bpm=90, status="DRAFT")
         inventory = {"pitches": [], "instruments": [{"code": "DANSO"}], "jangdans": [], "songs": [song], "audios": [audio]}
         self.assertEqual(loader.verify_inventory(model, inventory, complete=True), {row["source"]: 77})
