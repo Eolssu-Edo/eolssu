@@ -54,7 +54,7 @@ class PublishTests(unittest.TestCase):
         required = {code for code, _, _, required, _ in publish.ROWS if required}
         self.assertEqual(required, {'AGE_OVER_14', 'SERVICE_TERMS', 'PRIVACY_COLLECTION'})
         self.assertEqual(len({code for code, *_ in publish.ROWS}), 4)
-        sql = publish.build_insert('2026-11-02 00:00:00')
+        sql = publish.build_insert('2026-11-03 00:00:00')
         self.assertIn('is_required,seq,effective_at', sql)
         self.assertNotIn('UPDATE ', sql)
         for _, _, document, _, _ in publish.ROWS:

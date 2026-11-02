@@ -249,7 +249,7 @@ R2 버킷 준비(계정 소유자, Cloudflare 대시보드):
 
 1. R2 > 버킷 만들기: 위치 힌트 `Asia-Pacific(apac)`, 기본 저장 등급 `Standard`.
 2. 버킷 설정 > 공개 접근: `r2.dev` 주소와 사용자 도메인을 모두 끈 상태로 둡니다.
-3. 버킷 설정 > 객체 수명 주기 규칙: 접두사 `recordings/`, 객체 생성 30일 뒤 삭제를 추가합니다. R2는 만료 뒤 보통 24시간 안에 지웁니다.
+3. 버킷 설정 > 객체 수명 주기 규칙: 두지 않습니다. 저장하지 않은 녹음은 서버 정리 작업(`UnsavedRecordingPurgeService`, 매일 04:30 KST)이 업로드 30일 뒤 지우고, 저장한 기록의 녹음은 회원이 지우거나 탈퇴할 때까지 보관합니다(S15P31E102-375, [녹음 보관](../docs/specs/recording-retention.md)). 375 전환 전 운영 버킷에는 `recordings/` 30일 삭제 규칙이 있었고 전환 때 지웁니다([전환 절차](../infra/storage/README.md#저장한-기록-녹음-보관-전환-s15p31e102-375)).
 4. R2 > API 토큰 관리 > API 토큰 만들기: 권한 `Object Read & Write`, 적용 버킷은 이 버킷 하나로 지정합니다. 발급된 Access Key ID·Secret Access Key와 S3 API 주소를 서버 `.env`에 넣습니다.
 
 샘플레이트·채널 수를 양수로 읽지 못한 AAC는 415로 거부합니다(메타데이터 4칸은 전부 양수여야 저장됨). 저장소 호출은 재시도를 포함해 40초에서 끊어 503으로 답합니다. ffprobe 상한 10초를 더해도 Nginx `proxy_read_timeout` 기본값 60초보다 짧게 두어, 느린 저장소가 Nginx 504가 되지 않게 합니다.
