@@ -20,7 +20,7 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
     override fun insert(sheet: NewUserSheet): Long? {
         val row = UserSheetInsert(
             sheet.userId, sheet.title, SHEET_KIND_JEONGGANBO, SHEET_SOURCE_MANUAL, sheet.status.name, sheet.jangdanId, sheet.bpm,
-            sheet.columnCount, sheet.scoreJson, sheet.noteCount, sheet.idempotencyKey, sheet.requestHash,
+            sheet.bpmUnit, sheet.columnCount, sheet.scoreJson, sheet.noteCount, sheet.idempotencyKey, sheet.requestHash,
             LocalDateTime.ofInstant(sheet.createdAt, ZoneOffset.UTC),
         )
         try {

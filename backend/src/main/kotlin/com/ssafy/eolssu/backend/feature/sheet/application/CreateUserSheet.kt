@@ -63,6 +63,7 @@ class CreateUserSheet(
             status = draft.status,
             jangdanId = draft.jangdanId,
             bpm = command.bpm,
+            bpmUnit = draft.bpmUnit,
             columnCount = draft.columnCount,
             scoreJson = draft.scoreJson,
             noteCount = draft.noteCount,
@@ -78,10 +79,10 @@ class CreateUserSheet(
 
     private fun shapeIsValid(command: CreateUserSheetCommand): Boolean {
         if (command.bpm !in 30..160 || command.pdfSheetId != null) return false
-        if (command.columnCount != null && command.columnCount !in 1..MAX_COLUMN_COUNT) return false
         return when (command.startType) {
-            SheetStartType.BLANK ->
-                command.jangdanId != null && command.columnCount != null && command.copyFromSongId == null && command.copyFromSheetId == null
+            // 각 수 1~40은 새로 그리는 칸 수다. 복사본은 원본 각 수와 같은지만 본다(40을 넘을 수 있다).
+            SheetStartType.BLANK -> command.jangdanId != null && command.columnCount != null && command.columnCount in 1..MAX_COLUMN_COUNT &&
+                command.copyFromSongId == null && command.copyFromSheetId == null
             SheetStartType.COPY -> (command.copyFromSongId == null) != (command.copyFromSheetId == null)
             // PDF 방향은 회의(2026-11-02 안건 ①) 전이라 받지 않는다.
             SheetStartType.PDF -> false
@@ -105,7 +106,7 @@ class CreateUserSheet(
             val json = source.scoreJson?.let { scores.copy(it, FIRST_VERSION) ?: return Rejected(CreateUserSheetResult.StateConflict) }
             Draft(source.status, source.jangdanId, source.bpmUnit, source.columnCount, json?.json, source.noteCount)
         }
-        // 생략하면 원본을 따르고, 주면 원본과 같아야 한다. 장단·각 수를 바꾸는 편집은 SHT-04에서 한다.
+        // 생략하면 원본을 따르고, 주면 원본과 같아야 한다(장단 없는 원본에 장단을 주면 400). 장단·각 수를 바꾸는 편집은 SHT-04에서 한다.
         if (command.jangdanId != null && command.jangdanId != draft.jangdanId) return Rejected(CreateUserSheetResult.InvalidRequest)
         if (command.columnCount != null && command.columnCount != draft.columnCount) return Rejected(CreateUserSheetResult.InvalidRequest)
         return draft
@@ -126,7 +127,7 @@ class CreateUserSheet(
 
     private data class Draft(
         val status: SheetStatus,
-        val jangdanId: Long,
+        val jangdanId: Long?,
         val bpmUnit: String,
         val columnCount: Int,
         val scoreJson: String?,

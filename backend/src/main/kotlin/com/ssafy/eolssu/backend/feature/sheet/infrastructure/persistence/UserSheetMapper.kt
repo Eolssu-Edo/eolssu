@@ -35,8 +35,8 @@ data class UserSheetRow(
     val kind: String,
     val source: String,
     val status: String,
-    val jangdanId: Long,
-    val jangdanName: String,
+    val jangdanId: Long?,
+    val jangdanName: String?,
     val bpm: Int,
     val bpmUnit: String,
     val columnCount: Int,
@@ -50,7 +50,7 @@ data class UserSheetRow(
 
 data class SheetJangdanRow(val id: Long, val bpmUnit: String)
 
-data class SongCopySourceRow(val jangdanId: Long, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
+data class SongCopySourceRow(val jangdanId: Long?, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
 
 data class UserSheetInsert(
     val userId: Long,
@@ -58,8 +58,9 @@ data class UserSheetInsert(
     val kind: String,
     val source: String,
     val status: String,
-    val jangdanId: Long,
+    val jangdanId: Long?,
     val bpm: Int,
+    val bpmUnit: String,
     val columnCount: Int,
     val scoreJson: String?,
     val noteCount: Int,

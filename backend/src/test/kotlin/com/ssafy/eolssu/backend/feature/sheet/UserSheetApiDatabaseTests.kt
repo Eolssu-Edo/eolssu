@@ -148,6 +148,25 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
+    fun `a song without jangdan is copied with its score bpm unit and lists without a jangdan`() {
+        jdbc.update(
+            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+            SELECT 993902,instrument_id,NULL,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status FROM songs WHERE id=1""",
+        )
+        val unit = jdbc.queryForObject("SELECT JSON_UNQUOTE(JSON_EXTRACT(score_json,'$.music.bpmUnit')) FROM songs WHERE id=1", String::class.java)
+
+        val created = create(OWNER, "copy-nojangdan", """{"title":"장단 없음","startType":"COPY","bpm":72,"copyFromSongId":"993902"}""")
+        assertEquals(201, created.statusCode(), created.body())
+        val sheetId = json.readTree(created.body()).path("result").path("sheetId").asString()
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertTrue(stored.has("jangdanId") && stored.path("jangdanId").isNull)
+        assertEquals(unit, stored.path("bpmUnit").asString())
+        val item = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").get(0)
+        assertTrue(item.path("jangdanId").isNull && item.path("jangdanName").isNull, item.toString())
+        assertEquals(400, create(OWNER, "nojangdan-given", """{"title":"x","startType":"COPY","bpm":72,"copyFromSongId":"993902","jangdanId":"$jangdanId"}""").statusCode())
+    }
+
+    @Test
     fun `list pages only the owner's sheets newest first`() {
         for (index in 1..3) {
             create(OWNER, "list-$index", """{"title":"악보 $index","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")

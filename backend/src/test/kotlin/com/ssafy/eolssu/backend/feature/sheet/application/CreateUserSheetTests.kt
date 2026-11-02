@@ -69,6 +69,24 @@ class CreateUserSheetTests {
     }
 
     @Test
+    fun `a song without jangdan is copied without one and rejects a requested jangdan`() {
+        val created = assertIs<CreateUserSheetResult.Created>(service.execute(copySong(songId = 13)))
+
+        assertNull(created.sheet.jangdanId)
+        assertEquals("QUARTER", created.sheet.bpmUnit)
+        assertNull(repository.inserted.single().jangdanId)
+        assertEquals(CreateUserSheetResult.InvalidRequest, service.execute(copySong(songId = 13, jangdanId = 3)))
+    }
+
+    @Test
+    fun `a copy may keep more than 40 columns when the request matches the original`() {
+        val created = assertIs<CreateUserSheetResult.Created>(service.execute(copySong(songId = 14, columnCount = 48)))
+
+        assertEquals(48, created.sheet.columnCount)
+        assertEquals(CreateUserSheetResult.InvalidRequest, service.execute(copySong(songId = 14, columnCount = 40)))
+    }
+
+    @Test
     fun `an unscorable song copy needs review`() {
         val created = assertIs<CreateUserSheetResult.Created>(service.execute(copySong(songId = 11)))
 
@@ -168,7 +186,7 @@ class CreateUserSheetTests {
     private class FakeScores : SheetScores {
         override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? = when {
             scoreJson == "broken" -> null
-            else -> CopiedScore(scoreJson.substringBefore("@") + "@v$scoreVersion", 12, 5)
+            else -> CopiedScore(scoreJson.substringBefore("@") + "@v$scoreVersion", if (scoreJson.startsWith("wide")) 48 else 12, 5)
         }
 
         override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String) =
@@ -199,6 +217,8 @@ class CreateUserSheetTests {
             10L -> SongCopySource(1, "DOTTED_QUARTER", "song-10@v4", scorable = true)
             11L -> SongCopySource(1, "DOTTED_QUARTER", "song-11@v1", scorable = false)
             12L -> SongCopySource(1, "DOTTED_QUARTER", "broken", scorable = true)
+            13L -> SongCopySource(null, "QUARTER", "song-13@v1", scorable = true)
+            14L -> SongCopySource(1, "DOTTED_QUARTER", "wide-14@v1", scorable = true)
             else -> null
         }
 
@@ -208,10 +228,13 @@ class CreateUserSheetTests {
             inserted += sheet
             if (raceWinner != null) return null
             val id = nextId++
-            val name = if (sheet.jangdanId == 1L) "세마치" else "타령"
-            val unit = if (sheet.jangdanId == 1L) "DOTTED_QUARTER" else "JANGDAN_BEAT"
+            val name = when (sheet.jangdanId) {
+                null -> null
+                1L -> "세마치"
+                else -> "타령"
+            }
             sheets[id] = UserSheet(
-                id, sheet.userId, sheet.title, "JEONGGANBO", "MANUAL", sheet.status, sheet.jangdanId, name, sheet.bpm, unit,
+                id, sheet.userId, sheet.title, "JEONGGANBO", "MANUAL", sheet.status, sheet.jangdanId, name, sheet.bpm, sheet.bpmUnit,
                 sheet.columnCount, 1, sheet.scoreJson, sheet.noteCount, 0, sheet.requestHash, sheet.createdAt,
             )
             keys[sheet.userId to sheet.idempotencyKey] = id

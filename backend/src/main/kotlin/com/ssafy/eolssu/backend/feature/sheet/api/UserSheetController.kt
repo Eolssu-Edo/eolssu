@@ -146,7 +146,7 @@ data class SheetScore(
     val sheetId: String,
     val title: String,
     val kind: String,
-    val jangdanId: String,
+    val jangdanId: String?,
     val bpm: Int,
     val bpmUnit: String,
     val columnCount: Int,
@@ -159,7 +159,7 @@ data class SheetScore(
 ) {
     companion object {
         fun of(sheet: UserSheet, json: JsonMapper) = SheetScore(
-            sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId.toString(), sheet.bpm, sheet.bpmUnit, sheet.columnCount,
+            sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId?.toString(), sheet.bpm, sheet.bpmUnit, sheet.columnCount,
             sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), null, emptyList(), sheet.updatedAt,
         )
     }
@@ -178,8 +178,8 @@ data class SheetItem(
     val kind: String,
     val title: String,
     val status: String,
-    val jangdanId: String,
-    val jangdanName: String,
+    val jangdanId: String?,
+    val jangdanName: String?,
     val source: String,
     val pendingCellCount: Int,
     val sourcePageCount: Int?,
@@ -187,7 +187,7 @@ data class SheetItem(
 ) {
     companion object {
         fun of(sheet: UserSheet) = SheetItem(
-            sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId.toString(), sheet.jangdanName,
+            sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId?.toString(), sheet.jangdanName,
             sheet.source, sheet.pendingCellCount, null, sheet.updatedAt,
         )
     }

@@ -15,8 +15,9 @@ data class UserSheet(
     val kind: String,
     val source: String,
     val status: SheetStatus,
-    val jangdanId: Long,
-    val jangdanName: String,
+    /** 장단이 없는 곡을 복사하면 null. */
+    val jangdanId: Long?,
+    val jangdanName: String?,
     val bpm: Int,
     val bpmUnit: String,
     val columnCount: Int,
@@ -33,8 +34,9 @@ data class NewUserSheet(
     val userId: Long,
     val title: String,
     val status: SheetStatus,
-    val jangdanId: Long,
+    val jangdanId: Long?,
     val bpm: Int,
+    val bpmUnit: String,
     val columnCount: Int,
     val scoreJson: String?,
     val noteCount: Int,
@@ -45,8 +47,8 @@ data class NewUserSheet(
 
 data class SheetJangdan(val id: Long, val bpmUnit: String)
 
-/** 복사할 수 있는 게시·미삭제 곡. */
-data class SongCopySource(val jangdanId: Long, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
+/** 복사할 수 있는 게시·미삭제 곡. 장단이 없으면 bpmUnit은 원본 악보의 music.bpmUnit(CAT-04와 같다). */
+data class SongCopySource(val jangdanId: Long?, val bpmUnit: String, val scoreJson: String, val scorable: Boolean)
 
 data class SheetPage(val items: List<UserSheet>, val totalElements: Long)
 
