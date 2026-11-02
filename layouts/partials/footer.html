@@ -1,1 +1,6 @@
-<footer class="site-footer"><div class="footer-inner"><div><a class="footer-brand" href="{{ "/" | relURL }}">{{ site.Data.brand.name }}</a><p>국악기 연습 프로젝트, 얼쑤</p><small>© {{ now.Year }} {{ site.Data.brand.name }}</small></div><nav aria-label="푸터 메뉴"><a href="{{ "/" | relURL }}">프로젝트</a><a href="{{ "posts/" | relURL }}">블로그</a><a href="{{ "about/" | relURL }}">팀 소개</a><a href="{{ "posts/index.xml" | relURL }}">RSS</a></nav></div></footer>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div><b>{{ site.Data.brand.name }}</b> 국악기 연습 프로젝트, {{ site.Data.project.name }}</div>
+    <div class="footer-links"><span>© {{ now.Year }} {{ site.Data.brand.name }}</span><a href="{{ "posts/" | relURL }}">전체 글</a><a href="{{ "posts/index.xml" | relURL }}">RSS</a></div>
+  </div>
+</footer>

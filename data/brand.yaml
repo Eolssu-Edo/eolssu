@@ -1,8 +1,4 @@
 name: "Team Edo"
-# 사용자가 확정한 팀 로고와 캐릭터 원본. assets/ 기준 경로.
-logo: "images/eolssu-team-logo.png"
-character: "images/eolssu-character-sheet.png"
-# 원본 시트에서 정면 모습만 표시. 원본 파일은 변경하지 않습니다.
-characterCrop:
-  - "580x520 topleft"
-  - "430x520 topright"
+# 상단·프로젝트·팀 소개에 쓰는 확정 이미지. static/ 기준 경로.
+logo: "images/logo-eolssu.webp"
+mascot: "images/tiger-hello.webp"

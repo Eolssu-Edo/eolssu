@@ -1,9 +1,0 @@
-{{ $kind := .kind }}
-{{ $source := index site.Data.brand $kind }}
-<div class="brand-slot brand-slot-{{ $kind }}{{ if $source }} has-asset{{ end }}">
-  {{ if $source }}
-    {{ partial "brand-image.html" (dict "kind" $kind) }}
-  {{ else }}
-    <div class="brand-placeholder"><span class="slot-label">{{ if eq $kind "character" }}팀 캐릭터{{ else }}팀 로고{{ end }}</span><span>디자인이 완성되면 이곳에 들어갑니다.</span></div>
-  {{ end }}
-</div>

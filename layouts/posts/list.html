@@ -1,22 +1,7 @@
 {{ define "main" }}
-{{ $posts := .RegularPages.ByDate.Reverse }}
-{{ $featured := where $posts "Params.featured" true }}
-{{ if not $featured }}{{ $featured = first 3 $posts }}{{ else }}{{ $featured = first 3 $featured }}{{ end }}
-<div class="blog-page" data-blog>
-  <header class="blog-intro"><h1>얼쑤를 만드는 이야기</h1><p>개발하며 만난 문제와 해결 과정, 팀의 경험을 나눕니다.</p></header>
-  {{ partial "featured-posts.html" (dict "posts" $featured) }}
-  <section class="all-posts-section" aria-labelledby="all-posts-title">
-    <div class="section-heading"><h2 id="all-posts-title">모든 글 <span class="post-count" data-post-count>{{ len $posts }}</span></h2></div>
-    {{ if $posts }}
-    <div class="blog-tools" data-post-tools hidden>
-      <label class="category-picker"><span class="sr-only">카테고리</span><select data-category-filter><option value="">모든 카테고리</option>{{ range site.Taxonomies.categories.ByCount }}<option value="{{ .Page.Title | lower }}">{{ .Page.Title }}</option>{{ end }}</select></label>
-      <label class="search-field"><span class="sr-only">글 제목이나 키워드 검색</span><input type="search" data-post-search placeholder="글 제목이나 키워드 검색" autocomplete="off"></label>
-    </div>
-    {{ end }}
-    <p class="filter-result" data-filter-result role="status" aria-live="polite" hidden></p>
-    <div class="post-grid" data-post-list>{{ range $posts }}{{ partial "post-card.html" . }}{{ else }}<p class="empty-state">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}</div>
-    <div class="no-results" data-no-results hidden><h3>찾는 글이 없어요.</h3><p>다른 검색어나 카테고리로 찾아보세요.</p><button class="button button-secondary" type="button" data-reset-filters>필터 초기화</button></div>
-    <noscript><p class="filter-result"><a href="{{ "categories/" | relURL }}">카테고리별로 글 보기</a> · <a href="{{ "tags/" | relURL }}">태그로 글 보기</a></p></noscript>
-  </section>
+{{- $posts := .RegularPages.ByDate.Reverse -}}
+<div class="editorial wrap">
+  <header class="page-intro"><h1>{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</header>
+  {{ partial "journal.html" (dict "posts" $posts "reading" (first 3 (where $posts "Params.featured" true))) }}
 </div>
 {{ end }}

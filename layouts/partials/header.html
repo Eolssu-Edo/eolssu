@@ -1,12 +1,20 @@
+{{- /* 현재 화면이 속한 메뉴: 블로그(홈·글·분류), 프로젝트, 팀 소개 */ -}}
+{{- $current := "blog" -}}
+{{- if eq .RelPermalink ("project/" | relURL) }}{{ $current = "project" }}{{ else if eq .RelPermalink ("about/" | relURL) }}{{ $current = "team" }}{{ end -}}
 <header class="site-header">
-  <div class="header-inner">
-    <a class="brand" href="{{ "/" | relURL }}" aria-label="{{ site.Data.brand.name }} · {{ site.Data.project.name }} 홈">
-      {{ if site.Data.brand.logo }}{{ partial "brand-image.html" (dict "kind" "logo" "class" "brand-logo" "size" "320x160 webp q90") }}{{ else }}<span class="brand-wordmark">{{ site.Data.project.name }}</span>{{ end }}
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ "/" | relURL }}" aria-label="{{ site.Data.project.name }} 블로그 홈">
+      <img src="{{ site.Data.brand.logo | relURL }}" alt="{{ site.Data.project.name }}" width="1200" height="622" decoding="async">
+      <span>TEAM EDO</span>
     </a>
-    <nav class="header-nav" aria-label="주 메뉴">
-      <a href="{{ "/" | relURL }}"{{ if .IsHome }} class="active" aria-current="page"{{ end }}>프로젝트</a>
-      <a href="{{ "posts/" | relURL }}"{{ if or (eq .Section "posts") (in (slice "tags" "categories") .Section) }} class="active"{{ end }}{{ if and .IsSection (eq .Section "posts") }} aria-current="page"{{ end }}>블로그</a>
-      <a href="{{ "about/" | relURL }}"{{ if eq .RelPermalink ("about/" | relURL) }} class="active" aria-current="page"{{ end }}>팀 소개</a>
+    <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="메뉴 열기" data-menu-button>
+      <span class="menu-icon" aria-hidden="true"></span>
+    </button>
+    <nav class="site-nav" id="site-nav" aria-label="주 메뉴">
+      {{- range site.Menus.main }}
+      {{- $active := eq .Identifier $current }}
+      <a href="{{ .URL }}"{{ if $active }} class="active"{{ if or (and (eq $current "blog") $.IsHome) (ne $current "blog") }} aria-current="page"{{ end }}{{ end }}>{{ .Name }}</a>
+      {{- end }}
     </nav>
   </div>
 </header>

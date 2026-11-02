@@ -1,0 +1,50 @@
+{{- /* 분야 필터·함께 읽을 이야기·프로젝트 안내(왼쪽)와 전체 글 목록(오른쪽). 인자: posts, reading, title */ -}}
+{{- $posts := .posts -}}
+{{- $counts := dict -}}
+{{- range $posts }}{{ range partial "categories.html" . }}{{ $counts = merge $counts (dict .key (add (index $counts .key | default 0) 1)) }}{{ end }}{{ end -}}
+{{- $known := slice -}}
+{{- range site.Data.blog.categories }}{{ $known = $known | append .key }}{{ end -}}
+<div class="journal-layout" data-journal>
+  <section class="journal-main" aria-labelledby="all-title">
+    <div class="article-header"><h2 id="all-title">{{ .title | default "전체 글" }}</h2></div>
+    <div class="post-list">
+      {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
+      {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
+      <div class="empty" data-empty hidden><p>이 분야의 글은 아직 준비 중이에요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
+    </div>
+    {{- with $posts }}<p class="filter-result" data-filter-result aria-live="polite">전체 글 {{ len . }}편</p>{{ end }}
+  </section>
+  <aside class="journal-sidebar" aria-label="블로그 둘러보기">
+    {{- with $posts }}
+    <section class="side-block fields" aria-labelledby="fields-title">
+      <h2 id="fields-title">분야별로 읽기</h2>
+      <div class="filters" role="group" aria-label="글 분야 선택">
+        <button type="button" data-category="all" aria-pressed="true">전체 글 <span>{{ len $posts }}</span></button>
+        {{- range $c := site.Data.blog.categories }}{{ with index $counts $c.key }}
+        <button type="button" data-category="{{ $c.key }}" aria-pressed="false">{{ $c.short }} <span>{{ . }}</span></button>
+        {{- end }}{{ end }}
+        {{- range $key, $count := $counts }}{{ if not (in $known $key) }}
+        <button type="button" data-category="{{ $key }}" aria-pressed="false">{{ $key | upper }} <span>{{ $count }}</span></button>
+        {{- end }}{{ end }}
+      </div>
+      <noscript><p class="noscript-note"><a href="{{ "categories/" | relURL }}">분류별 글 보기</a></p></noscript>
+    </section>
+    {{- end }}
+    {{- with .reading }}
+    <section class="side-block reading" aria-labelledby="reading-title">
+      <h2 id="reading-title">함께 읽을 이야기</h2>
+      <ol>
+        {{- range $i, $p := . }}
+        <li><a href="{{ $p.RelPermalink }}"><b>{{ printf "%02d" (add $i 1) }}</b><span><strong>{{ $p.Title }}</strong><small>{{ range $j, $c := partial "categories.html" $p }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}{{ with partial "categories.html" $p }} · {{ end }}{{ $p.Date.Format "2006.01.02" }}</small></span></a></li>
+        {{- end }}
+      </ol>
+    </section>
+    {{- end }}
+    <div class="mini-project">
+      <img src="{{ site.Data.brand.mascot | relURL }}" alt="" width="384" height="313" loading="lazy" decoding="async">
+      <div class="kicker">OUR PROJECT</div>
+      <p>우리 소리에<br>가까워지는 시간.</p>
+      <a href="{{ "project/" | relURL }}">{{ site.Data.project.name }} 살펴보기 <span aria-hidden="true">↗</span></a>
+    </div>
+  </aside>
+</div>
