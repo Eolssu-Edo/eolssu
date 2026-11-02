@@ -74,6 +74,19 @@ def test_second_analysis_does_not_run_concurrently():
         _LOCK.release()
 
 
+def test_storage_error_is_explained_without_leaking_path(monkeypatch):
+    from evaluation import local_score_web
+    def fail(*args, **kwargs):
+        raise OSError('private-path')
+    monkeypatch.setattr(local_score_web.tempfile, 'TemporaryDirectory', fail)
+    response = client.post('/score?score_id=ngc-standard-2022-p173&bpm=96&start=0',
+                           content=b'recording', headers=ORIGIN)
+    assert response.status_code == 500
+    assert '저장 공간' in response.json()['error']
+    assert 'private-path' not in response.text
+    assert not _LOCK.locked()
+
+
 def test_compare_defaults_match_current_score_and_invalid_weights_are_rejected(monkeypatch):
     from evaluation import local_score_web
     notes = [Note(i % 2 * 2, 1, idx=i) for i in range(16)]

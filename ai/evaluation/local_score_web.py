@@ -96,6 +96,8 @@ async def analyze(request: Request):
             except RuntimeError:
                 return JSONResponse({'error': '실제 채점과 실험 측정값이 일치하지 않아 비교를 중단했습니다.'}, status_code=500)
             return JSONResponse(asdict(result))
+    except OSError:
+        return JSONResponse({'error': '임시 파일을 읽거나 쓸 수 없습니다. 저장 공간을 확인해 주세요.'}, status_code=500)
     finally:
         _LOCK.release()
 
