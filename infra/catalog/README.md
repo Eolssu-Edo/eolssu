@@ -25,7 +25,7 @@ MySQL 회귀 검사는 실행자가 별도로 만든 `eolssu-reference-audio-*` 
 
 ## 운영 게시 순서
 
-1. 대상 DB의 백업·버전 확인 후 V13를 적용한다. 운영 ops는 자동 마이그레이션을 하지 않으므로 새 API 배포 전에 완료한다.
+1. 대상 DB의 백업·버전 확인 후 V13와 V14를 순서대로 적용한다. 운영 ops는 자동 마이그레이션을 하지 않으므로 새 API 배포 전에 완료한다.
 2. M4A와 manifest를 검증하고 DRAFT 적재 결과를 대조한다.
 3. 승인된 비공개 자산 저장소에 manifest의 objectKey와 `Content-Type: audio/mp4`로 업로드한다. `recordings/` 경로 및 녹음용 30일 삭제 정책을 사용하지 않는다. 버킷 공개 정책은 변경할 필요가 없다.
 4. 업로드한 각 객체의 전체 다운로드 SHA-256·크기와 재생을 대조한다. 단순 ETag를 SHA-256으로 취급하지 않는다. 장기 보관 규칙과 클라이언트 읽기 정책도 확인한다.
@@ -34,3 +34,22 @@ MySQL 회귀 검사는 실행자가 별도로 만든 `eolssu-reference-audio-*` 
 7. 실제 조회·302 재생 이동·음원 디코딩·만료와 앱 재생을 확인한다. soundUrl은 상대 API 경로이므로 앱은 서버 기준 주소로 해석한다. 임시 서명 URL을 DB나 장기 캐시에 저장하지 않는다.
 
 실제 R2 게시·운영 DB 적용·서비스 재시작은 이 구현 작업에서 실행하지 않았다. 기존 CAT-06의 대표 음원 선정과 FE 연결은 별도 작업으로 남는다.
+
+## 명목상 기준 음 연결
+
+V14는 `pitch_id` FK와 `pitch_mapping_basis`를 nullable로 추가한다. 마이그레이션만으로 기존 자산을 연결하지 않는다. 이미 DRAFT 또는 PUBLISHED로 적재된 행에 아래 별도 매핑 SQL을 적용할 수 있다.
+
+```powershell
+python infra/catalog/link_reference_audio_pitches.py --manifest data/processed/reference-audio-v1/manifest.json --mapping infra/catalog/pitch-mappings/danso-basic-v1.json --output data/processed/reference-audio-v1/link-pitches.sql
+```
+
+생성한 SQL은 같은 대상 DB의 전용 mysql 연결에서 `--force` 없이 실행한다. 연결 순서는 **V14 → 기존 manifest 적재 → 매핑 SQL**이다. 파일 업로드·PUBLISHED 전환과는 별도이며 URL을 입력하지 않는다. 새 CLI의 환경변수는 없다.
+
+- [명시적 매핑](pitch-mappings/danso-basic-v1.json)은 단소 기본음 30개의 datasetId·labelId·assetId·파일 SHA-256·분류·취법·율명과 대상 yul/octave를 열거한다. `basis`에 자료·버전·명목상 연결임을 남긴다. 실행할 때 이름으로 새 매핑을 추정하지 않는다.
+- manifest 전체의 원래 파일/해시/출처 검증 후, 각 매핑이 실제 자산과 일치하는지 검사한다. 중복·미등록 자산·시김새·잘못된 목표 음·빈 근거는 SQL 생성 전에 거부한다.
+- SQL은 `(yul, octave)`로 `pitches`를 조회한다. ID 숫자를 환경 간 복사하지 않는다. 대상 pitch나 DB 자산이 없거나 파일/분류/기존 연결·근거가 다르면 배치 전체를 거부한다. 확인 전에 대상 행을 잠그고 검증 통과 때만 갱신한다.
+- 동일 매핑 재실행은 연결과 갱신 시각을 그대로 둔다. 기존 import도 연결·게시·검수 상태를 보존한다. 기존 연결을 다른 기준으로 덮어쓰는 도구가 아니므로 수정은 별도 검토가 필요하다.
+- 평취 중·임·무는 octave0, 황·태는 octave1이며 역취는 각각 +1이다. 기준은 [단소 라벨링](../../docs/knowledge/data/danso.md), [기준 음 데이터](../../data/reference/pitches.json), V5다. `review=inferred`, `eligibleForNoteScoring=false`는 유지한다.
+- 나머지 400개(단소 시김새 26개와 다른 악기 374개)는 null이다. 시김새의 마지막 안정음 의미와 산조대금의 조율 기준 차이, 다른 악기의 누락된 기준 음을 단일 FK로 추측하지 않는다.
+
+검사: `python -m unittest discover -s infra/catalog -p 'test_*.py'`. 실제 MySQL 검사는 `REFERENCE_AUDIO_TEST_MYSQL_CONTAINER`를 `eolssu-reference-audio-`로 시작하는 폐기 가능한 컨테이너, `REFERENCE_AUDIO_TEST_MYSQL_PASSWORD`를 그 테스트 비밀번호로 지정한다. `reference_audio_import_test` DB에서 합성 테이블을 재생성하므로 서비스 DB를 지정하지 않는다.

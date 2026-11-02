@@ -75,6 +75,32 @@ class ReferenceAudioApiDatabaseTests {
         assertEquals(400,get("?datasetId=danso&technique=").statusCode())
     }
 
+    @Test fun `several basic clips link to one nominal pitch while sigimsae remains null`() {
+        seed(firstId,"CAT364.001",status="PUBLISHED")
+        seed(secondId,"CAT364.002",status="PUBLISHED")
+        val ornamentId = "f".repeat(64)
+        seed(ornamentId,"CAT364.003",status="PUBLISHED")
+        jdbc.update("UPDATE reference_audio_assets SET category='시김새' WHERE asset_id=?",ornamentId)
+        val pitchId = jdbc.queryForObject("SELECT id FROM pitches WHERE yul='중' AND octave=0",Long::class.java)!!
+        for (id in listOf(firstId,secondId)) jdbc.update(
+            "UPDATE reference_audio_assets SET pitch_id=?,pitch_mapping_basis='nominal test label' WHERE asset_id=?",pitchId,id)
+        val linked = items("?datasetId=danso&technique=CAT364&pitchId=$pitchId")
+        assertEquals(listOf(firstId,secondId),linked.map { it.path("assetId").asString() })
+        assertTrue(linked.all { it.path("pitchId").isString && it.path("pitchId").asString()==pitchId.toString() })
+        assertTrue(linked.all { it.path("review").asString()=="inferred" && !it.path("eligibleForNoteScoring").asBoolean() })
+        assertEquals(pitchId.toString(),json.readTree(get("/$firstId").body()).path("result").path("asset").path("pitchId").asString())
+        val unlinked = json.readTree(get("/$ornamentId").body()).path("result").path("asset")
+        assertTrue(unlinked.has("pitchId") && unlinked.path("pitchId").isNull)
+        assertEquals(3,items("?datasetId=danso&technique=CAT364").size)
+        assertTrue(items("?datasetId=danso&technique=CAT364&pitchId=9223372036854775807").isEmpty())
+        for (value in listOf("0", "01", "-1", "abc", "9223372036854775808"))
+            assertEquals(400,get("?datasetId=danso&pitchId=$value").statusCode())
+        assertFails { jdbc.update("UPDATE reference_audio_assets SET pitch_id=9223372036854775807 WHERE asset_id=?",firstId) }
+        assertFails { jdbc.update("UPDATE reference_audio_assets SET pitch_mapping_basis=NULL WHERE asset_id=?",firstId) }
+        assertFails { jdbc.update("UPDATE reference_audio_assets SET category='시김새' WHERE asset_id=?",firstId) }
+        assertFails { jdbc.update("UPDATE reference_audio_assets SET pitch_id=?,pitch_mapping_basis='invalid ornament' WHERE asset_id=?",pitchId,ornamentId) }
+    }
+
     private fun seed(id: String,label: String,yul: String="중",status: String="DRAFT") {
         jdbc.update("""INSERT INTO reference_audio_assets(asset_id,dataset_id,label_id,category,technique,register_name,yulmyeong,display_label,
             object_key,content_type,sha256,byte_size,duration_ms,sample_rate_hz,channels,review_status,eligible_for_note_scoring,metadata_json,status)

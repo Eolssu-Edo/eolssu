@@ -33,7 +33,7 @@ internal data class ApiContract(
 
 internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/reference-audios","listReferenceAudios","카탈로그","기본음·시김새 음원 목록",
-        "datasetId 필수(danso/sogeum/jeongak-daegeum/sanjo-daegeum). category·technique·register·yulmyeong 정확 일치 필터. 게시된 라벨별 음원만 반환하며 soundUrl은 API 원점 기준 상대 재생 경로입니다. 추정 라벨을 채점 정답으로 승격하지 않습니다.",
+        "datasetId 필수(danso/sogeum/jeongak-daegeum/sanjo-daegeum). category·technique·register·yulmyeong·pitchId 정확 일치 필터. pitchId는 선행 0 없는 1~9223372036854775807 십진 문자열이며 그 외400입니다. 자산의 pitchId는 명목상 기준 음 ID 문자열 또는 null입니다. 게시된 라벨별 음원만 반환하며 soundUrl은 API 원점 기준 상대 재생 경로입니다. 추정 라벨을 채점 정답으로 승격하지 않습니다.",
         ReferenceAudioListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/reference-audios/{assetId}","getReferenceAudio","카탈로그","기본음·시김새 음원과 출처",
         "SHA-256 형식 assetId. 게시된 자산과 원본 라벨·출처·변환 metadata를 반환합니다. 미등록/초안은404입니다.",

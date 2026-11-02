@@ -23,10 +23,14 @@ class ReferenceAudioController(
     @GetMapping
     fun list(@RequestParam datasetId: String, @RequestParam(required = false) category: String?,
         @RequestParam(required = false) technique: String?, @RequestParam(required = false) register: String?,
-        @RequestParam(required = false) yulmyeong: String?): ResponseEntity<*> {
+        @RequestParam(required = false) yulmyeong: String?,
+        @RequestParam(required = false) pitchId: String? = null): ResponseEntity<*> {
         if (datasetId !in REFERENCE_AUDIO_DATASETS || !filterValid(category,32) || !filterValid(technique,100) ||
             !filterValid(register,32) || !filterValid(yulmyeong,32)) return error(ErrorCode.INVALID_REQUEST)
-        val items = repository.published(ReferenceAudioFilter(datasetId,category,technique,register,yulmyeong)).map { it.item() }
+        val parsedPitchId = pitchId?.toLongOrNull()
+        if (pitchId != null && (!Regex("[1-9][0-9]{0,18}").matches(pitchId) || parsedPitchId == null))
+            return error(ErrorCode.INVALID_REQUEST)
+        val items = repository.published(ReferenceAudioFilter(datasetId,category,technique,register,yulmyeong,parsedPitchId)).map { it.item() }
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK,"기본음·시김새 음원 목록 조회 성공",ReferenceAudioListResult(items)))
     }
 
@@ -57,7 +61,7 @@ class ReferenceAudioController(
     private fun error(code: ErrorCode) = ResponseEntity.status(code.status).body(ErrorResponse.of(code))
     private fun ReferenceAudioAsset.item() = ReferenceAudioItem(assetId,datasetId,labelId,category,technique,registerName,
         yulmyeong,displayLabel,contentType,sha256,byteSize,durationMs,sampleRateHz,channels.toInt(),reviewStatus,eligibleForNoteScoring,
-        "/api/reference-audios/$assetId/play")
+        "/api/reference-audios/$assetId/play", pitchId?.toString())
 }
 
 data class ReferenceAudioListResult(val items: List<ReferenceAudioItem>)
@@ -65,4 +69,6 @@ data class ReferenceAudioDetailResult(val asset: ReferenceAudioItem, val metadat
 data class ReferenceAudioItem(val assetId: String, val datasetId: String, val labelId: String, val category: String,
     val technique: String, val register: String, val yulmyeong: String, val displayLabel: String, val contentType: String,
     val sha256: String, val bytes: Long, val durationMs: Int, val sampleRateHz: Int, val channels: Int, val review: String,
-    val eligibleForNoteScoring: Boolean, val soundUrl: String)
+    val eligibleForNoteScoring: Boolean, val soundUrl: String,
+    @field:io.swagger.v3.oas.annotations.media.Schema(types = ["string", "null"], description = "명목상 기준 음 ID. 미연결은 null이며 검수/채점 정답 여부와 독립적입니다.")
+    val pitchId: String?)

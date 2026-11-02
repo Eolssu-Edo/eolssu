@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.eolssu.backend.feature.catalog.infrastructure.persistence.ReferenceAudioMapper">
     <sql id="columns">asset_id,dataset_id,label_id,category,technique,register_name,yulmyeong,display_label,
-        object_key,content_type,sha256,byte_size,duration_ms,sample_rate_hz,channels,review_status,eligible_for_note_scoring,metadata_json</sql>
+        object_key,content_type,sha256,byte_size,duration_ms,sample_rate_hz,channels,review_status,eligible_for_note_scoring,metadata_json,pitch_id</sql>
     <select id="findPublished" resultType="com.ssafy.eolssu.backend.feature.catalog.domain.ReferenceAudioAsset">
         SELECT <include refid="columns"/> FROM reference_audio_assets
         WHERE status='PUBLISHED' AND review_status != 'rejected' AND dataset_id=#{filter.datasetId}
@@ -10,6 +10,7 @@
         <if test="filter.technique != null">AND technique=#{filter.technique}</if>
         <if test="filter.registerName != null">AND register_name=#{filter.registerName}</if>
         <if test="filter.yulmyeong != null">AND yulmyeong=#{filter.yulmyeong}</if>
+        <if test="filter.pitchId != null">AND pitch_id=#{filter.pitchId}</if>
         ORDER BY label_id,asset_id
     </select>
     <select id="findPublishedById" resultType="com.ssafy.eolssu.backend.feature.catalog.domain.ReferenceAudioAsset">

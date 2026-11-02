@@ -45,9 +45,9 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 기본음·시김새 음원 카탈로그
 
-S15P31E102-364: V13 `reference_audio_assets`는 네 악기의 라벨별 M4A와 출처·추정 상태를 연결합니다. 악기의 서비스 지원 음역·채점 기준과 구분하며 기존 `pitches`나 사용자 녹음 저장소를 바꾸지 않습니다. 최초 마이그레이션은 빈 테이블만 생성합니다. 운영 `ops` 배포 전 V13를 별도 적용해야 합니다.
+S15P31E102-364: V13 `reference_audio_assets`는 네 악기의 라벨별 M4A와 출처·추정 상태를 연결합니다. V14는 기본음 자산의 명목상 기준 음을 가리키는 nullable `pitch_id` FK와 근거를 추가합니다. 서비스 지원 음역·실측 검수·채점 기준과 구분하며 사용자 녹음 저장소는 그대로입니다. 마이그레이션만으로 자산을 적재하거나 연결하지 않습니다. 운영 `ops` 배포 전 V13와 V14를 별도 적용해야 합니다. [명시적 매핑 절차](../infra/catalog/README.md#명목상-기준-음-연결)를 따릅니다.
 
-- `GET /api/reference-audios?datasetId=danso`: datasetId 필수(`danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`). `category`, `technique`, `register`, `yulmyeong`을 정확 일치로 조합합니다. 게시 행만 labelId 순서로 반환합니다. 없는 조합은 빈 목록, 잘못된 datasetId·빈 필터는400입니다.
+- `GET /api/reference-audios?datasetId=danso`: datasetId 필수(`danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`). `category`, `technique`, `register`, `yulmyeong`, `pitchId`를 정확 일치로 조합합니다. pitchId는 선행 0 없는 1~9223372036854775807 십진 문자열이고 그 외400입니다. 게시 행만 labelId 순서로 반환합니다. 없는 조합은 빈 목록, 잘못된 datasetId·빈 필터는400입니다. 목록·상세 자산의 `pitchId`는 문자열 또는 명시적 null입니다.
 - `GET /api/reference-audios/{assetId}`: `result.asset`에 음원 정보, `result.metadata`에 원본 라벨·출처·변환 근거를 반환합니다. 미등록·초안은404입니다.
 - `GET /api/reference-audios/{assetId}/play`: 게시된 DB 키에만900초 서명 GET URL을 만들어302로 이동합니다. `Location`과 `Cache-Control: no-store`, 본문 없음. 저장소 미설정은 공통503입니다. 목록·상세의 `soundUrl`은 `/api/reference-audios/{assetId}/play` 형식이며 API 원점에 대해 해석하는 상대 경로입니다.
 

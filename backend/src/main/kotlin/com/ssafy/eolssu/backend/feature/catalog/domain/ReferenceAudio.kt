@@ -10,7 +10,7 @@ data class ReferenceAudioAsset(
     val category: String, val technique: String, val registerName: String, val yulmyeong: String, val displayLabel: String,
     val objectKey: String, val contentType: String, val sha256: String, val byteSize: Long, val durationMs: Int,
     val sampleRateHz: Int, val channels: Short, val reviewStatus: String, val eligibleForNoteScoring: Boolean,
-    val metadataJson: String,
+    val metadataJson: String, val pitchId: Long?,
 ) {
     init {
         require(datasetId in REFERENCE_AUDIO_DATASETS && isReferenceAudioId(assetId) && HASH.matches(sha256))
@@ -18,11 +18,12 @@ data class ReferenceAudioAsset(
         require(contentType == "audio/mp4" && byteSize > 0 && durationMs > 0 && sampleRateHz > 0 && channels in 1..8)
         require(reviewStatus in setOf("inferred", "reviewed", "rejected"))
         require(!eligibleForNoteScoring || reviewStatus == "reviewed")
+        require(pitchId == null || (pitchId > 0 && category == "기본음계"))
     }
 }
 
 data class ReferenceAudioFilter(val datasetId: String, val category: String? = null, val technique: String? = null,
-    val registerName: String? = null, val yulmyeong: String? = null)
+    val registerName: String? = null, val yulmyeong: String? = null, val pitchId: Long? = null)
 
 interface ReferenceAudioRepository {
     fun published(filter: ReferenceAudioFilter): List<ReferenceAudioAsset>

@@ -32,7 +32,7 @@
 
 ## 기능 스펙
 
-- [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md)
+- [기본음·시김새 음원 카탈로그 DB/API](specs/reference-audio-catalog.md) · [검증 기록](knowledge/backend/reference-audio-catalog.md) · [364 관계 보완 계획](plans/S15P31E102-364.md)
 
 - [탈퇴 유예 만료와 삭제 경계](specs/withdrawal-expiry.md)
 

@@ -11,7 +11,7 @@ import tools.jackson.databind.json.JsonMapper
 import kotlin.test.*
 
 class ReferenceAudioControllerTests {
-    private val asset = referenceAudioFixture()
+    private val asset = referenceAudioFixture().copy(pitchId = 1)
     private var selected: ReferenceAudioFilter? = null
     private var signed: String? = null
     private val repository = object : ReferenceAudioRepository {
@@ -48,6 +48,21 @@ class ReferenceAudioControllerTests {
         assertNull(signed)
     }
 
+    @Test fun `pitch filter rejects noncanonical or out of range identifiers`() {
+        for (id in listOf("", "0", "-1", "01", "1.0", "9223372036854775808", "abc")) {
+            mvc().perform(get("/api/reference-audios").param("datasetId", "danso").param("pitchId", id))
+                .andExpect(status().isBadRequest).andExpect(jsonPath("$.result.errorCode").value("INVALID_REQUEST"))
+        }
+    }
+
+    @Test fun `pitch identity is a nullable string and filter accepts the Long upper bound`() {
+        mvc().perform(get("/api/reference-audios").param("datasetId", "danso").param("pitchId", "9223372036854775807"))
+            .andExpect(status().isOk).andExpect(jsonPath("$.result.items[0].pitchId").value("1"))
+        assertEquals(Long.MAX_VALUE, selected?.pitchId)
+        mvc().perform(get("/api/reference-audios/${asset.assetId}"))
+            .andExpect(status().isOk).andExpect(jsonPath("$.result.asset.pitchId").value("1"))
+    }
+
     @Test fun `detail retains attribution and missing published asset does not sign anything`() {
         mvc().perform(get("/api/reference-audios/${asset.assetId}"))
             .andExpect(status().isOk).andExpect(jsonPath("$.result.metadata.source.license").value("KOGL-1"))
@@ -81,5 +96,5 @@ internal fun referenceAudioFixture(): ReferenceAudioAsset {
     val sha = "c".repeat(64)
     return ReferenceAudioAsset(id, "danso", "ngc-danso-2338.tone-001", "기본음계", "평취 강", "평취", "중", "평취 중",
         "reference-audio/v1/danso/$id/$sha.m4a", "audio/mp4", sha, 12345, 5043, 44100, 1, "inferred", false,
-        """{"source":{"license":"KOGL-1","attribution":"국립국악원"},"label":{"review":"inferred"}}""")
+        """{"source":{"license":"KOGL-1","attribution":"국립국악원"},"label":{"review":"inferred"}}""", null)
 }

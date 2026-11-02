@@ -7,6 +7,7 @@ import subprocess
 import unittest
 
 import test_import_reference_audio as fixtures
+import link_reference_audio_pitches as links
 
 module = fixtures.module
 
@@ -21,6 +22,7 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
         cls.password = os.environ["REFERENCE_AUDIO_TEST_MYSQL_PASSWORD"]
         default = Path(__file__).resolve().parents[2] / "backend/src/main/resources/db/migration/V13__reference_audio_assets.sql"
         cls.schema = Path(os.environ.get("REFERENCE_AUDIO_TEST_SCHEMA", str(default))).read_text(encoding="utf-8")
+        cls.pitch_schema = default.with_name("V14__reference_audio_pitch_relation.sql").read_text(encoding="utf-8")
         cls.run_sql("CREATE DATABASE IF NOT EXISTS reference_audio_import_test CHARACTER SET utf8mb4;", database=False)
 
     @classmethod
@@ -41,7 +43,71 @@ class ReferenceAudioMySqlTests(unittest.TestCase):
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         self.asset = module.load_assets(fixture.manifest())[0]
-        self.run_sql("DROP TABLE IF EXISTS reference_audio_assets;\n" + self.schema)
+        self.run_sql("""DROP TABLE IF EXISTS reference_audio_assets;
+            DROP TABLE IF EXISTS pitches;
+            CREATE TABLE pitches(id BIGINT PRIMARY KEY,yul VARCHAR(10),octave SMALLINT,UNIQUE(yul,octave));
+            INSERT INTO pitches VALUES(71,'중',0),(72,'중',1);
+            """ + self.schema + self.pitch_schema)
+
+    def mapping(self, asset=None, **changes):
+        asset = asset or self.asset
+        return {**{key: asset[key] for key in links.IDENTITY}, "yul": "중", "octave": 0,
+                "basis": "nominal label from fixture; not verified pitch", **changes}
+
+    def another_asset(self):
+        row = copy.deepcopy(self.asset)
+        row["labelId"] = "second-basic-label"
+        row["assetId"] = hashlib.sha256(b"danso\nsecond-basic-label").hexdigest()
+        row["metadata"]["label"]["id"] = row["labelId"]
+        row["objectKey"] = f"reference-audio/v1/danso/{row['assetId']}/{row['sha256']}.m4a"
+        return row
+
+    def test_mapping_rerun_and_plain_import_preserve_link_and_all_statuses(self):
+        self.run_sql(module.render_sql([self.asset]))
+        self.run_sql("UPDATE reference_audio_assets SET status='PUBLISHED';")
+        sql = links.render_sql([self.mapping()])
+        self.run_sql(sql)
+        snapshot = self.run_sql("SELECT * FROM reference_audio_assets;").stdout
+        self.run_sql(sql)
+        self.run_sql(module.render_sql([self.asset]))
+        self.assertEqual(snapshot, self.run_sql("SELECT * FROM reference_audio_assets;").stdout)
+        self.assertEqual("71\tPUBLISHED\tinferred\t0", self.run_sql(
+            "SELECT pitch_id,status,review_status,eligible_for_note_scoring FROM reference_audio_assets;").stdout.strip())
+
+    def test_conflicting_mapping_aborts_entire_batch_even_with_force(self):
+        added = self.another_asset()
+        self.run_sql(module.render_sql([self.asset, added]))
+        self.run_sql(links.render_sql([self.mapping()]))
+        for conflicting in (self.mapping(octave=1), self.mapping(basis="different source")):
+            sql = links.render_sql([conflicting, self.mapping(added)])
+            for force in (False, True):
+                result = self.run_sql(sql, force=force, check=False)
+                self.assertIn("Check constraint", result.stderr)
+                self.assertEqual("1\t71", self.run_sql(
+                    "SELECT COUNT(pitch_id),MIN(pitch_id) FROM reference_audio_assets;").stdout.strip())
+
+    def test_missing_pitch_missing_asset_or_database_file_change_aborts_whole_mapping(self):
+        added = self.another_asset()
+        self.run_sql(module.render_sql([self.asset, added]))
+        for invalid in (self.mapping(octave=2), self.mapping(assetId="0" * 64), self.mapping(sha256="0" * 64)):
+            result = self.run_sql(links.render_sql([invalid, self.mapping(added)]), check=False)
+            self.assertIn("Check constraint", result.stderr)
+            self.assertEqual("0", self.run_sql("SELECT COUNT(pitch_id) FROM reference_audio_assets;").stdout.strip())
+
+    def test_foreign_key_and_basic_only_provenance_pair_are_enforced(self):
+        self.run_sql(module.render_sql([self.asset]))
+        for update in ("pitch_id=999,pitch_mapping_basis='orphan'", "pitch_id=71",
+                       "pitch_mapping_basis='without pitch'", "pitch_id=71,pitch_mapping_basis=' '",
+                       "pitch_id=71,pitch_mapping_basis='ornament',category='시김새'"):
+            self.assertNotEqual(0,self.run_sql("UPDATE reference_audio_assets SET " + update,check=False).returncode)
+
+    def test_upgrade_keeps_existing_published_assets_unlinked(self):
+        self.run_sql("DROP TABLE reference_audio_assets;\n" + self.schema)
+        self.run_sql(module.render_sql([self.asset]))
+        self.run_sql("UPDATE reference_audio_assets SET status='PUBLISHED';")
+        self.run_sql(self.pitch_schema)
+        self.assertEqual("1\t0\t0\tPUBLISHED\tinferred\t0", self.run_sql(
+            "SELECT COUNT(*),COUNT(pitch_id),COUNT(pitch_mapping_basis),MIN(status),MIN(review_status),SUM(eligible_for_note_scoring) FROM reference_audio_assets;").stdout.strip())
 
     def test_exact_rerun_preserves_published_row_and_unicode(self):
         sql = module.render_sql([self.asset])

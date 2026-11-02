@@ -80,10 +80,28 @@ MR 준비 중 develop `9ea74044`에 소셜 가입 V12가 추가됐다. 아직 �
 
 ## 테이블 분리와 기존 R2 재사용에 대한 보충
 
-pitches는 서비스의 율명/옥타브/반음 기준, reference_audio_assets는 악기·취법·주법·구간별 파일이다. 여러 파일과 시김새를 한 pitches행의 soundUrl로 압축하지 않는 물리적 분리는 적절하다. 다만 검수된 음높이 대응이 확정되면 악기·취법·주법을 포함한 관계를 서버에서 명시적으로 관리해야 한다. 현재 inferred 라벨은 검색 후보이며 음높이 FK나 대표 파일을 확정하지 않았다.
+pitches는 서비스의 율명/옥타브/반음 기준, reference_audio_assets는 악기·취법·주법·구간별 파일이다. 여러 파일과 시김새를 한 pitches행의 soundUrl로 압축하지 않는 물리적 분리는 적절하다. 최초 분할 때는 관계를 보류했으나, 아래 후속 요청에서 명목상 기본음 관계를 확정했다. 실측 검수·대표 파일 선정과는 구분한다.
 
 R2의 endpoint는 S3 호환 프로토콜을 쓰는 R2 주소다. AWS S3 서비스를 따로 추가하는 설정이 아니다. 기존241/272/335와 [R2 검증 기록](../infra/r2-storage-verification.md)에 서버 설정·서명 읽기 검증 이력이 있다. 같은 계정의 endpoint와auto리전은 재사용할 수 있으며 인프라는 버킷/권한/비밀값을 확인해 주입한다. 학습 음원용 prefix의 영구 보관과 최소 읽기 권한은 개발 요구사항으로 전달한다. REFERENCE_AUDIO_STORAGE_*는 별도 물리 저장소를 강제하지 않는다. 실제 선택과 운영 적용은368에서 검증한다.
 
 ## MR 분리
 
-366 M4A 변환 MR을 먼저 검토/병합하고 이 DB/API364를 이어서 검토한다. 이 MR에는 backend와 검증된 SQL 적재/운영 설정 예시만 포함한다. 프론트 구현은367, 실제 운영 적용은368이며 이MR을병합해도음원이자동게시되지않는다. backend/data변환/FE제품트리는 기존검증스냅샷 fa7f2849와 영역별로동일하다.
+366 M4A 변환 MR을 먼저 검토/병합하고 이 DB/API364를 이어서 검토한다. 이 MR에는 backend와 검증된 SQL 적재/운영 설정 예시가 포함된다. 프론트 구현은367, 실제 운영 적용은368이며 이 MR을 병합해도 음원이 자동 게시되지 않는다. 최초 분할 당시 backend/data 변환/FE 제품 트리는 검증 스냅샷 fa7f2849와 영역별로 같았으며, 아래 관계 보완을 후속으로 추가했다.
+
+## 364 후속: 명목상 기본음 관계와 실제 30개 연결
+
+사용자의 관계 보완 요청으로 물리적 테이블 분리는 유지하면서 V14 nullable FK를 추가했다. 기존 V13은 수정하지 않았다. `reference_audio_assets.pitch_id`는 `pitches.id`를 가리키며 `pitch_mapping_basis`와 함께 저장한다. 기본음만 연결할 수 있고, 자산 여러 개가 같은 pitch를 참조한다. 앱은 목록·상세의 `pitchId: string | null`과 선택 필터를 사용할 수 있다. 추가 운영 env는 없다.
+
+대안은 모든 음원에 율명만으로 FK를 채우거나 시김새의 마지막 안정음을 같은 관계로 취급하는 것이었다. `pitches`는 현재 단소 1차 기준 11개만 갖고 있고, 다른 악기의 음역·조율 기준과 시김새의 시간적 의미가 다르므로 선택하지 않았다. 별도 [명시적 매핑](../../../infra/catalog/pitch-mappings/danso-basic-v1.json)을 사용해 명목상 관계와 실측 검수를 분리했다. CLI는 기존 manifest/파일을 읽기만 하며, assetId·datasetId·labelId·SHA-256·분류·취법·율명과 근거를 대조한 뒤 `(yul,octave)`로 대상 ID를 찾는다. 같은 파일을 다시 변환하거나 업로드하지 않는다.
+
+[단소 라벨링](../data/danso.md)의 기본 5음과 상하 옥타브, [pitches.json](../../../data/reference/pitches.json), V5가 일치하는 30개만 연결했다. 평취 중·임·무=octave0, 황·태=octave1이고 역취는 +1이다. 각 평취 pitch에 4개, 역취 pitch에 2개 클립이 연결된다. 단소 시김새 26개, 정악대금 107개, 산조대금 121개, 소금 146개는 합계 400개 null이다. 산조의 C 기준과 기존 Eb 기준, 미등록 음역을 이름 일치만으로 연결하지 않는다. 기존 `inferred`, 채점 제외, 원본 metadata는 그대로다.
+
+검증 환경은 JDK21, 폐기 가능한 MySQL8.4 컨테이너 `eolssu-reference-audio-364-pitch`(localhost13364), 별도 DB `eolssu_pitch_test`/`reference_audio_import_test`/`eolssu_pitch_real430`이다. 서비스 DB·R2는 사용하지 않았다.
+
+- 실패→성공: 잘못된 pitchId가 기존 API에서 무시되어 200이던 테스트가 실패했고, 변경 후 공통400으로 통과했다. 실제 MySQL 검사에서 발견한 문자열 collation 충돌은 바이트 비교로 수정한 뒤 재검증했다.
+- `./gradlew.bat clean build databaseTest`: 단위435개·DB161개, 실패/오류/건너뜀0. V1~V14 Flyway 적용·재실행, 고아 FK·시김새·근거 없는 연결 거부, 여러 클립의 동일 pitch 조회와 null 응답을 포함한다.
+- Python 적재/매핑 검사21개: 중복/파일 불일치/시김새/근거 누락, 기존 V13 행의 V14 확장, 없는 pitch/자산, 충돌 시 배치 전체 거부, 잘못된 `--force`에서도 부분 갱신 방지, 동일 SQL 재적용과 기존 import의 전체 행 보존을 확인했다.
+- 실제 manifest 430개로 CLI를 실행하고 import→매핑→동일 매핑→동일 import를 적용했다. 결과는 430개·30연결·400null·기준 음10개·inferred430개·채점 가능0개·DRAFT430개·40,899,691바이트였다. 원본 manifest 해시는 위 기록과 동일하다.
+- 최종 JAR를 localhost18364의 ops로 실행해 430개 DRAFT 비공개 → 테스트용 게시 후 56/107/121/146개 전체 ID 집합, 10종 pitch 필터, 상세의 문자열/미연결 null, metadata 원본 일치, 잘못된 ID400, OpenAPI nullable string/선택 필터를 확인했다. 기존302/900초/no-store 계약도 통과했다. 종료 시 테스트 행을 DRAFT로 복구하고 앱을 종료했다.
+
+최종 JAR SHA-256은 `fd57637660c5c4556146445715742f115ea3f0f5e45b08c2191544fa3d1eae5b`이다. 작업 worktree의 Git 제외 `data/processed/reference-audio-relation-verification/`에 `backend-validation.log`, `db-verification.json`, `mr-http-verification.json`, `verify_http.py`와 생성 SQL을 남겼다. 운영 마이그레이션·명시적 매핑·R2 게시·실기기 청취는 후속368에서 수행하며 이 검증 결과로 대체하지 않는다.
