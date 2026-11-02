@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.feature.guide.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.feature.guide.learn.LearnJudge
 import com.ssafy.eolssu.feature.guide.learn.LearnTask
 import eolssu.shared.generated.resources.Res

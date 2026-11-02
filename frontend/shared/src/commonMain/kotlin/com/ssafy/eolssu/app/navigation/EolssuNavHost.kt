@@ -31,9 +31,9 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.history.GrowthRoute
 import com.ssafy.eolssu.feature.history.RecordDetailRoute
 import com.ssafy.eolssu.feature.history.RecordListRoute
-import com.ssafy.eolssu.feature.guide.Blow
+import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringRoute
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.ReadingRoute
 import com.ssafy.eolssu.feature.guide.learn.LearnListRoute

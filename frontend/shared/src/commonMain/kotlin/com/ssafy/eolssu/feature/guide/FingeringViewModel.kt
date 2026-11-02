@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /** GUIDE-01. 기초부터 배우기의 '더 보기'로 들어오면 그 악기·취법으로 시작한다. */
 class FingeringViewModel(

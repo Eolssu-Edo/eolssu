@@ -2,6 +2,9 @@ package com.ssafy.eolssu.feature.guide
 
 import com.ssafy.eolssu.data.song.CatalogPitch
 import com.ssafy.eolssu.data.song.CatalogFingerings
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /**
  * GUIDE-01 상태.

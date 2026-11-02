@@ -25,6 +25,9 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_title
 import eolssu.shared.generated.resources.guide_catalog_fingering_title
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /** 운지법 보기의 동작. 배치마다 같은 동작을 넘긴다. */
 internal class FingeringActions(
