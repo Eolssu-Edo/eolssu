@@ -6,7 +6,7 @@ POST /api/auth/oauth/sign-up은 signupTicket·nickname·현재 agreements와 선
 
 소유 확인 가능한 제공자 이메일만 계정 주소로 저장한다. 네이버 및 Google 비권위 외부 이메일은 기존 회원 검색·병합 안내에는 쓰되 신규 계정 주소로 저장하지 않는다. email/passwordHash nullable 회원을 지원하며 이메일 로그인·비밀번호 재설정의 기존 소유 확인을 우회하지 않는다. 마지막 소셜 연결만 남고 비밀번호가 없으면409 LAST_LOGIN_METHOD로 해제를 거절한다.
 
-FE: 신규 오류에서 약관·닉네임 화면으로 이동하고 같은 앱 HTTP 쿠키와 티켓으로 가입 완료를1회 요청한다. 성공 전에는 회원 토큰이 없으며 가입 취소/만료는 새 소셜 인증부터 시작한다. MyInfo email=null 표시와 비밀번호 없는 회원의 비밀번호 기능 안내가 필요하다. FE 구현은 이 Task에 포함하지 않는다.
+FE: 신규 오류에서 약관·닉네임 화면으로 이동하고 같은 앱 HTTP 쿠키와 티켓으로 가입 완료를1회 요청한다. 성공 전에는 회원 토큰이 없으며 가입 취소/만료는 새 소셜 인증부터 시작한다. MyInfo email=null 표시와 비밀번호 없는 회원의 비밀번호 기능 안내가 필요하다. [Task385](../plans/S15P31E102-385.md): GET /api/users/me의 result.hasPassword는 필수 boolean이며 password_hash가 null이 아니면 true, null이면 false다. FE는 이 값으로 비밀번호 기능·탈퇴 방식을 안내하고 email 또는 linkedProviders로 추측하지 않는다. 서버 검증은 별도로 유지한다. FE 구현은 이 Task에 포함하지 않는다.
 
 ## 소셜 재인증 탈퇴
 
