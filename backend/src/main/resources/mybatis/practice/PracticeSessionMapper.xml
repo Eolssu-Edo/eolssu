@@ -13,12 +13,15 @@
         WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
     </select>
 
-    <!-- 세션을 만들 수 있는 곡만: 공개·채점 가능·삭제 안 됨. bpm 단위 기본값은 곡 장단의 값 -->
+    <!-- 공개·채점 가능·미삭제 곡. 장단이 없으면 공통 악보의 bpm 단위를 사용하고, 유효한 단위가 없으면 연습 대상에서 제외한다 -->
     <select id="findPlayableSong" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PlayableSongRow">
-        SELECT s.id, j.bpm_unit, s.note_count, s.score_version
+        SELECT s.id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit'))) AS bpm_unit,
+               s.note_count, s.score_version
         FROM songs s
-        JOIN jangdans j ON j.id = s.jangdan_id
+        LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.is_scorable AND s.deleted_at IS NULL
+          AND CAST(COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit'))) AS BINARY)
+              IN ('QUARTER', 'DOTTED_QUARTER', 'JEONGGAN', 'JANGDAN_BEAT')
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
