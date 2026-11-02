@@ -50,11 +50,12 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_instrument_label
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.label
 
 /**
  * '악기' + 드롭다운(`.fg-select`). 메뉴는 버튼 바로 아래에 겹쳐 열리고, 바깥을 누르면 [onDismiss]로 닫힌다.

@@ -46,9 +46,9 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.feature.guide.Blow
-import com.ssafy.eolssu.feature.guide.FingeringNote
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.MoreSigimsaeCount
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.BorrowCard
@@ -72,7 +72,7 @@ import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
 import com.ssafy.eolssu.feature.guide.component.blowShortLabel
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
-import com.ssafy.eolssu.feature.guide.component.image
+import com.ssafy.eolssu.core.model.fingering.image
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.catalog_consumer_loading
@@ -143,6 +143,7 @@ import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.label
 
 /** 단계 상세의 동작. 화면 이동은 Route가 이어 준다. */
 class LearnStageActions(

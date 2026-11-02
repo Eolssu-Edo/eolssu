@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.component.GuideFaint
 import com.ssafy.eolssu.feature.guide.component.GuideText
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
@@ -58,6 +58,7 @@ import eolssu.shared.generated.resources.learn_stages
 import eolssu.shared.generated.resources.learn_subtitle
 import eolssu.shared.generated.resources.learn_title
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.label
 
 /** 단계 목록의 동작. 휴대폰·태블릿 세로 목록과 태블릿 가로 왼쪽 칸이 함께 쓴다. */
 class LearnListActions(

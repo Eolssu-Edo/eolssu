@@ -284,8 +284,10 @@ def score(
         results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
-        timing_c.append(_credit(r, onset_tol_s))
-        duration_c.append(_credit(dur_err, tol.duration_ratio * lengths[k]))
+        # 높이가 틀린 음은 그 음을 연주한 것이 아니므로 박자·길이 점수도 주지 않는다(놓친 음과 같다).
+        wrong = verdict == "PITCH"
+        timing_c.append(0.0 if wrong else _credit(r, onset_tol_s))
+        duration_c.append(0.0 if wrong else _credit(dur_err, tol.duration_ratio * lengths[k]))
 
     # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.
     if all(r.verdict == "MISSED" for r in results):
