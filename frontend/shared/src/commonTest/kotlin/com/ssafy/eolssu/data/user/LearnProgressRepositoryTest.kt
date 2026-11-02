@@ -2,7 +2,7 @@ package com.ssafy.eolssu.data.user
 
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnStages
 import kotlin.test.Test
 import kotlin.test.assertEquals

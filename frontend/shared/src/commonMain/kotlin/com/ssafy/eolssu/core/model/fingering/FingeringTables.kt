@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.guide
+package com.ssafy.eolssu.core.model.fingering
 
 /*
  * 운지표(와이어프레임 guide-data.js 그대로). 한 줄은 율명 · 이름 · 읽는 법 · 구멍 상태 · 기본 5음 여부.

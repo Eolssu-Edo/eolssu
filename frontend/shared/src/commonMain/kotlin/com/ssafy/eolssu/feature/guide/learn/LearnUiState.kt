@@ -1,6 +1,6 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 
 /**
  * LEARN-02 상태. 단계 목록과 단계 상세가 함께 쓴다.
