@@ -62,7 +62,7 @@ class MyInfoController(private val service: MyInfoService) {
 
 data class MyInfoResult(
     val userId: String,
-    val email: String,
+    val email: String?,
     val nickname: String,
     val instrumentId: String,
     val notationMode: String,

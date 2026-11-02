@@ -15,12 +15,12 @@ class MyBatisWithdrawalPurgeRepository(
 
     override fun dueMembers(now: Instant, afterUserId: Long, limit: Int) = mapper.findDueMembers(now.utc(), afterUserId, limit)
     override fun preparePurge(userId: Long, now: Instant): List<String>? = transaction.execute {
-        mapper.lockDueMemberEmail(userId, now.utc()) ?: return@execute null
+        mapper.lockDueMember(userId, now.utc()) ?: return@execute null
         mapper.findRecordingKeys(userId)
     }
 
     override fun purge(userId: Long, now: Instant): Boolean = transaction.execute {
-        val email = mapper.lockDueMemberEmail(userId, now.utc()) ?: return@execute false
+        val member = mapper.lockDueMember(userId, now.utc()) ?: return@execute false
         mapper.lockSessions(userId)
         mapper.deleteNoteResults(userId)
         mapper.deleteEvaluations(userId)
@@ -31,7 +31,7 @@ class MyBatisWithdrawalPurgeRepository(
         mapper.deleteLessonProgress(userId)
         mapper.deleteRefreshTokens(userId)
         mapper.deleteSocialAccounts(userId)
-        mapper.deleteEmailVerifications(email)
+        member.email?.let(mapper::deleteEmailVerifications)
         check(mapper.anonymize(userId, now.utc()) == 1)
         true
     } == true

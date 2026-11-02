@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("11", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("12", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -274,11 +274,12 @@ class DatabaseIntegrationTests {
             1,
             jdbc.update("INSERT INTO users (email, password_hash, nickname, instrument_id) VALUES ('new@example.test', 'hash', '새 회원', 1)"),
         )
-        assertMysqlError(3819, "users_chk_2") {
+        assertMysqlError(3819, "chk_users_auth_fields") {
             jdbc.update("INSERT INTO users (instrument_id) VALUES (1)")
         }
-        assertMysqlError(3819, "users_chk_2") {
-            jdbc.update("INSERT INTO users (email, nickname, instrument_id) VALUES ('social@example.test', '간편 회원', 1)")
+        assertEquals(1,jdbc.update("INSERT INTO users (nickname, instrument_id) VALUES ('간편 회원', 1)"))
+        assertMysqlError(3819, "chk_users_auth_fields") {
+            jdbc.update("INSERT INTO users (password_hash, nickname, instrument_id) VALUES ('hash', '이메일 없는 비밀번호', 1)")
         }
         assertMysqlError(3819, "chk_users_status") {
             jdbc.update("UPDATE users SET status = 'UNKNOWN' WHERE id = 1")

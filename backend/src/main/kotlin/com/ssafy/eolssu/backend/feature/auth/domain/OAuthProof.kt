@@ -17,6 +17,7 @@ class OAuthProof(
     val expiresAt: Instant,
     val consumedAt: Instant? = null,
     val flowStartedAt: Instant? = null,
+    val socialAccountId: Long? = null,
 )
 
 interface OAuthProofRepository {

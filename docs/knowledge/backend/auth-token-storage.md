@@ -61,3 +61,9 @@
 ## 무기한 테스트 계정 예외 (S15P31E102-260)
 
 위의 access 만료 최대 30분·폐기 한계는 일반 계정 기준입니다. 명시적으로 지정한 테스트 회원은 exp 없는 JWT를 발급하되 SHA-256 세션 해시를 넣고, 요청마다 DB의 같은 회원·같은 해시·NULL 만료·미폐기 세션을 확인합니다. 따라서 이 예외에서는 로그아웃·비밀번호 변경·탈퇴·토큰 회전·재사용 탐지로 이전 access도 거부합니다. 허용 목록 해제로 access·refresh 예외를 중단할 수 있습니다. 서버 시간 만료를 없애도 브라우저의 400일 쿠키 보관 상한이나 쿠키 삭제는 없앨 수 없습니다([Chrome 공식 안내](https://developer.chrome.com/blog/cookie-max-age-expires)). 기존 회원 정책과 기록은 보존합니다. [스펙·검증 범위](../../specs/non-expiring-test-account.md)를 참고합니다.
+
+## 소셜 가입·탈퇴 증명 확장 (S15P31E102-356)
+
+SIGNUP은 새 회원을 만들기 전 provider subject·확인 여부가 포함된 이메일을 서버 증명 행에 보관합니다. WITHDRAW는 회원·현재 연결 subject·탈퇴 목적을 함께 묶습니다. 원문 티켓은 응답에서만 전달하며 해시로 저장하고, 10분·1회 소비·제공자별 HttpOnly 쿠키 결속을 적용합니다. 가입은 새 users INSERT→카카오 subject→증명 소비→약관/연결/refresh, 탈퇴는 기존 users 잠금→카카오 subject→증명 소비→탈퇴 상태/refresh 폐기 순서입니다. 실패 시 증명 소비를 포함해 롤백합니다. 가입·로그인·연결 증명으로 탈퇴할 수 없습니다. 계약과 적용 전제는 [소셜 가입](../../specs/social-sign-up.md)을 따릅니다.
+
+탈퇴 STATE·WITHDRAW 증명은 provider subject 외에 실제 소셜 연결 행 ID에도 결속한다. 같은 subject의 해제·재연결은 새 행이므로 오래된 탈퇴 인증 흐름과 티켓을 재사용할 수 없다. 연결 ID는 서버 내부 값이며 API에 노출하지 않는다.

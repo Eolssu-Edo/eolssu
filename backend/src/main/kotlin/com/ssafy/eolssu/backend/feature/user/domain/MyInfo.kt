@@ -3,7 +3,7 @@ package com.ssafy.eolssu.backend.feature.user.domain
 import java.time.Instant
 
 /** 내 정보(USR-01). 마이페이지에 보일 본인 이메일은 담고 비밀번호 해시는 담지 않는다. */
-class MyInfo(val userId: Long, val email: String, val nickname: String, val instrumentId: Long, val notationMode: String)
+class MyInfo(val userId: Long, val email: String?, val nickname: String, val instrumentId: Long, val notationMode: String)
 
 /** 연결된 소셜 로그인. 제공자 사용자 ID·이메일은 내보내지 않는다. */
 class LinkedProvider(val provider: String, val linkedAt: Instant)
