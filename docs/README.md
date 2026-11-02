@@ -106,6 +106,7 @@
 
 ## 데이터 조사·검증 기록
 
+- [기종 미표기 대금 악보의 출처별 분류·황응남임 편집 교정 근거](knowledge/data/common/daegeum-score-types.md)
 - [공통 악보 v1 재생 연결 스펙](specs/common-score-playback.md) · [S15P31E102-338 실행·검증 기록](plans/S15P31E102-338.md)
 - [공통 악보 음원의 독립 파형 검증](knowledge/data/common-score-audio-verification.md)
 - [악기별 시김새 교육용 미리듣기와 표현 시간표](knowledge/data/common-score-expression-preview.md)

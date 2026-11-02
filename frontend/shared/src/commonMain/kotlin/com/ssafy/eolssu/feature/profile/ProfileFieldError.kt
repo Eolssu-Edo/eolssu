@@ -7,6 +7,7 @@ import eolssu.shared.generated.resources.my_error_password_empty
 import eolssu.shared.generated.resources.my_error_password_mismatch
 import eolssu.shared.generated.resources.my_error_password_rule
 import eolssu.shared.generated.resources.my_error_password_wrong
+import eolssu.shared.generated.resources.my_withdraw_proof_expired
 import org.jetbrains.compose.resources.StringResource
 import eolssu.shared.generated.resources.member_api_unavailable
 import eolssu.shared.generated.resources.member_api_session_expired
@@ -27,4 +28,7 @@ enum class ProfileFieldError(val message: StringResource) {
     CurrentPasswordWrong(Res.string.my_error_current_password_wrong),
     PasswordRule(Res.string.my_error_password_rule),
     PasswordMismatch(Res.string.my_error_password_mismatch),
+
+    /** 탈퇴(MY-04) 간편 로그인 재인증 증명이 만료·재사용됐다(10분·1회). 다시 확인한다. */
+    ProofExpired(Res.string.my_withdraw_proof_expired),
 }

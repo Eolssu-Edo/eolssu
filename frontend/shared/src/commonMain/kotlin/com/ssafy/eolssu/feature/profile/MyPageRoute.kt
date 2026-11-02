@@ -17,6 +17,8 @@ import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
+import eolssu.shared.generated.resources.my_password_none
+import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -61,20 +63,23 @@ fun MyPageRoute(
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
-        onOpen = onOpen,
+        onOpen = { target ->
+            if (target == MyPageTarget.Password && !viewModel.canChangePassword()) show { getString(Res.string.my_password_none) } else onOpen(target)
+        },
         onSelectInstrument = { selected ->
             scope.launch {
                 if (selected != instrument && !viewModel.selectInstrument(selected)) show { getString(Res.string.member_api_instrument_unavailable) }
             }
         },
         onLink = onLink,
-        onUnlink = viewModel::askUnlink,
+        onUnlink = { provider -> if (!viewModel.askUnlink(provider)) show { getString(Res.string.my_unlink_last) } },
         onConfirmUnlink = {
             val provider = (dialog as? MyPageDialog.Unlink)?.provider
             scope.launch {
                 when (viewModel.confirmUnlink()) {
                     null -> Unit
                     MemberResult.Done -> provider?.let { show { getString(Res.string.my_unlinked, getString(it.displayName)) } }
+                    MemberResult.LastLoginMethod -> show { getString(Res.string.my_unlink_last) }
                     else -> show { getString(Res.string.member_api_unavailable) }
                 }
             }

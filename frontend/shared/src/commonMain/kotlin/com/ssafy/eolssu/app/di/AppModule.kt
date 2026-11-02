@@ -146,7 +146,7 @@ val appModule = module {
     viewModelOf(::LoginViewModel)
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
-    viewModelOf(::ProfileSetupViewModel)
+    viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }
     // 간편 로그인·연결. 외부 브라우저와 복귀 주소(App Links)는 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
     single { OAuthAttempts(getOrNull(), get(), get()) }
     viewModel { (provider: SocialProvider) -> OAuthViewModel(provider, get(), get(), getOrNull(), getOrNull(), get(), get()) }
@@ -158,7 +158,7 @@ val appModule = module {
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)
-    viewModelOf(::WithdrawViewModel)
+    viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull()) }
 
     // 내 악보 · PDF 올리기. 기기 파일 선택기를 붙이기 전까지 '파일에서 선택'은 예시 파일을 고른다.
