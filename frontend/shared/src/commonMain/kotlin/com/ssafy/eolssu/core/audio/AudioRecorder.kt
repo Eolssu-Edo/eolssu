@@ -53,4 +53,10 @@ interface AudioRecorder {
      * 서버의 `NO_SOUND` 판정에 맡긴다(S15P31E102-233).
      */
     val measuresLevel: Boolean
+
+    /**
+     * 전화·Siri처럼 시스템이 녹음을 끊었는지. true면 부르는 쪽은 화면을 떠날 때처럼 녹음을 버리고 중단 안내를 띄운다.
+     * [start]로 새 녹음을 시작하면 false로 돌아간다. 끊김을 알 수 없는 플랫폼은 항상 false다.
+     */
+    val interrupted: Boolean get() = false
 }

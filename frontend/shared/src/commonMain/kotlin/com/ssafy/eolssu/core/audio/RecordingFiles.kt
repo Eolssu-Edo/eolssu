@@ -14,6 +14,12 @@ interface RecordingFiles {
     /** [path]에 녹음 파일이 있는지. 녹음기 위치든 보관 위치든 묻는다. */
     fun exists(path: String): Boolean
 
+    /**
+     * 저장해 둔 [path]의 녹음이 지금 있는 경로. 없으면 null.
+     * iOS는 앱을 업데이트하면 앱 폴더 경로가 바뀔 수 있어, 보관 위치의 같은 파일 이름으로 다시 찾는다.
+     */
+    fun locate(path: String): String? = path.takeIf(::exists)
+
     /** 녹음 파일을 지운다. 없으면 아무것도 하지 않는다. */
     fun delete(path: String)
 

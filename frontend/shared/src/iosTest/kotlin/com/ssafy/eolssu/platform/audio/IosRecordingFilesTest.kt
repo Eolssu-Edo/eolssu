@@ -42,6 +42,17 @@ class IosRecordingFilesTest {
     }
 
     @Test
+    fun storedPathFromAnOldAppFolderFindsTheKeptFile() {
+        val path = recordings.keep(write("$root/recordings/practice-2.m4a"))!!
+        val stale = "/var/mobile/Containers/Data/Application/OLD/Library/Application Support/pending-recordings/practice-2.m4a"
+
+        assertEquals(path, recordings.locate(stale))
+        assertTrue(recordings.exists(stale))
+        recordings.delete(stale)
+        assertFalse(recordings.exists(path))
+    }
+
+    @Test
     fun keepReturnsNullForMissingFile() {
         assertNull(recordings.keep("$root/recordings/missing.m4a"))
     }

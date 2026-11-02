@@ -6,6 +6,8 @@ import platform.AVFAudio.AVAudioSessionCategoryOptionAllowBluetoothA2DP
 import platform.AVFAudio.AVAudioSessionCategoryOptionDefaultToSpeaker
 import platform.AVFAudio.AVAudioSessionCategoryPlayAndRecord
 import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSessionCategorySoloAmbient
+import platform.AVFAudio.AVAudioSessionModeDefault
 import platform.AVFAudio.AVAudioSessionModeMeasurement
 import platform.AVFAudio.AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation
 
@@ -21,13 +23,14 @@ internal object IosAudioSession {
     fun startRecording(): Boolean {
         // 측정 모드는 음성용 자동 음량 조절·잡음 제거를 줄인다(Android의 VOICE_RECOGNITION과 같은 목적).
         // 녹음 중에도 메트로놈·안내음이 스피커로 나도록 PlayAndRecord + DefaultToSpeaker를 쓴다.
-        recording = session.setCategory(
+        // 실패해도 녹음 중으로 둔다. 부르는 쪽이 실패 뒤 [stopRecording]으로 세션을 기본값으로 되돌린다.
+        recording = true
+        return session.setCategory(
             AVAudioSessionCategoryPlayAndRecord,
             mode = AVAudioSessionModeMeasurement,
             options = AVAudioSessionCategoryOptionDefaultToSpeaker or AVAudioSessionCategoryOptionAllowBluetoothA2DP,
             error = null,
         ) && session.setActive(true, error = null)
-        return recording
     }
 
     fun stopRecording() {
@@ -44,7 +47,9 @@ internal object IosAudioSession {
         if (!recording) deactivate()
     }
 
+    /** 끈 뒤 기본 설정(SoloAmbient)으로 되돌려, 짧은 안내음([IosSoundPlayer])이 다시 무음 스위치를 따르고 측정 모드가 남지 않게 한다. */
     private fun deactivate() {
         session.setActive(false, withOptions = AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation, error = null)
+        session.setCategory(AVAudioSessionCategorySoloAmbient, mode = AVAudioSessionModeDefault, options = 0uL, error = null)
     }
 }

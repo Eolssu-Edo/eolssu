@@ -30,6 +30,7 @@ class IosAudioRecorder : AudioRecorder {
         "/" + DIRECTORY
     private var recorder: AVAudioRecorder? = null
     private var output: String? = null
+    private var paused = false
 
     override val measuresLevel: Boolean = true
 
@@ -46,27 +47,38 @@ class IosAudioRecorder : AudioRecorder {
             AVNumberOfChannelsKey to 1,
             AVEncoderBitRateKey to BIT_RATE,
         )
-        val sessionStarted = IosAudioSession.startRecording()
-        val audioRecorder = AVAudioRecorder(uRL = NSURL.fileURLWithPath(path), settings = settings, error = null)
-        audioRecorder.meteringEnabled = true
-        if (!sessionStarted || !audioRecorder.prepareToRecord() || !audioRecorder.record()) {
-            audioRecorder.stop()
+        // 세션을 녹음용으로 바꾼 뒤 어느 단계에서 실패해도(생성자 예외 포함) 세션을 되돌려야 재생기가 다시 세션을 쓸 수 있다.
+        var audioRecorder: AVAudioRecorder? = null
+        try {
+            check(IosAudioSession.startRecording()) { "녹음 세션을 켜지 못했어요" }
+            audioRecorder = AVAudioRecorder(uRL = NSURL.fileURLWithPath(path), settings = settings, error = null)
+            audioRecorder.meteringEnabled = true
+            check(audioRecorder.prepareToRecord() && audioRecorder.record()) { "녹음을 시작하지 못했어요" }
+        } catch (e: Throwable) {
+            audioRecorder?.stop()
             files.removeItemAtPath(path, error = null)
             IosAudioSession.stopRecording()
-            throw IllegalStateException("녹음을 시작하지 못했어요")
+            throw e
         }
         recorder = audioRecorder
         output = path
+        paused = false
     }
 
     override fun pause() {
         recorder?.pause()
+        paused = true
     }
 
     override fun resume() {
         val audioRecorder = recorder ?: return
         check(audioRecorder.record()) { "녹음을 이어 가지 못했어요" }
+        paused = false
     }
+
+    /** 일시정지하지 않았는데 녹음이 멈췄으면 시스템(전화·Siri·다른 앱의 녹음)이 끊은 것이다. 끊긴 뒤 iOS는 녹음을 다시 잇지 않는다. */
+    override val interrupted: Boolean
+        get() = recorder?.let { !paused && !it.recording } ?: false
 
     override fun stop(): RecordedAudio? {
         val audioRecorder = recorder ?: return null
