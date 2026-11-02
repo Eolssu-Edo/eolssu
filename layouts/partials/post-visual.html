@@ -1,8 +1,0 @@
-{{ $page := .page }}
-<div class="post-visual" aria-hidden="true">
-  {{ with $page.Params.thumbnail }}
-    <img src="{{ . | relURL }}" alt="" width="960" height="600" loading="{{ $.loading | default "lazy" }}" decoding="async">
-  {{ else }}
-    <div class="editorial-cover"><span class="cover-label">얼쑤 개발 기록</span><span class="cover-category">{{ with $page.Params.categories }}{{ index . 0 }}{{ else }}이야기{{ end }}</span><span class="cover-date">{{ $page.Date.Format "2006.01" }}</span><span class="cover-seal">얼쑤</span></div>
-  {{ end }}
-</div>

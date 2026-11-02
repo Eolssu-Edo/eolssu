@@ -1,0 +1,36 @@
+{{ define "main" }}
+{{- $project := site.Data.project -}}
+<div class="project-page">
+  <section class="project-hero wrap" aria-labelledby="project-title">
+    <div class="project-copy">
+      <div class="eyebrow"><span class="dot" aria-hidden="true"></span>{{ $project.eyebrow }}</div>
+      <h1 id="project-title">우리 소리에 가까이,<br><span class="under">함께 만든 과정</span>을 담다.</h1>
+      <p>{{ $project.lead }}</p>
+      <div class="actions">
+        <a class="button-primary" href="{{ "/" | relURL }}">개발 기록 읽기 <span aria-hidden="true">↘</span></a>
+        <a class="quiet" href="{{ "about/" | relURL }}">Team Edo 알아보기 <span aria-hidden="true">↗</span></a>
+        {{- with $project.serviceURL }}<a class="quiet" href="{{ . }}">서비스 둘러보기 <span aria-hidden="true">↗</span></a>{{ end }}
+      </div>
+    </div>
+    <div class="scene">
+      <div class="jeonggan" role="img" aria-label="정간보에 세로로 적은 ‘한 칸씩, 차근차근’. 오른쪽 열부터 읽습니다.">
+        <div class="jeonggan-column" aria-hidden="true"><small>2</small><span>차</span><span class="accent">근</span><span class="beat">―</span><span>차</span><span>근</span><span class="beat">―</span></div>
+        <div class="jeonggan-column" aria-hidden="true"><small>시작 1</small><span class="accent">한</span><span>칸</span><span>씩</span><span class="beat">―</span><span class="beat">―</span><span class="rest">△</span></div>
+      </div>
+      <div class="scene-line" aria-hidden="true"></div>
+      <img class="tiger" src="{{ site.Data.brand.mascot | relURL }}" alt="인사하는 얼쑤의 백호 캐릭터" width="384" height="313" decoding="async">
+      <div class="phone" role="img" aria-label="갤럭시 형태의 프레임에 담은 얼쑤 앱 홈 화면">
+        <div class="phone-screen"><iframe title="얼쑤 앱 홈 화면" src="{{ "app-preview/home.html" | relURL }}" tabindex="-1" sandbox="" loading="lazy" aria-hidden="true"></iframe></div>
+      </div>
+    </div>
+  </section>
+  <section class="project-details" aria-labelledby="steps-title">
+    <h2 id="steps-title">{{ $project.stepsTitle }}</h2>
+    <ol class="project-steps">
+      {{- range $i, $step := $project.steps }}
+      <li><span class="num">{{ printf "%02d" (add $i 1) }}</span><b>{{ $step.title }}</b><p>{{ $step.description }}</p></li>
+      {{- end }}
+    </ol>
+  </section>
+</div>
+{{ end }}

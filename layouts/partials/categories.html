@@ -1,0 +1,10 @@
+{{- /* 글의 분류를 data/blog.yaml 표기와 함께 반환합니다. 결과: [{key, label, short, url}] */ -}}
+{{- $result := slice -}}
+{{- range .GetTerms "categories" -}}
+  {{- $key := .Data.Term | lower -}}
+  {{- $label := .Title -}}
+  {{- $short := .Title -}}
+  {{- range where site.Data.blog.categories "key" $key }}{{ $label = .label }}{{ $short = .short }}{{ end -}}
+  {{- $result = $result | append (dict "key" $key "label" $label "short" $short "url" .RelPermalink) -}}
+{{- end -}}
+{{- return $result -}}

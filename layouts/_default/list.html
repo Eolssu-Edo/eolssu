@@ -1,10 +1,18 @@
 {{ define "main" }}
-<div class="archive-page">
-  <header class="page-intro"><h1>{{ .Title }}</h1><p>{{ if eq .Kind "taxonomy" }}분류별로 글을 찾아보세요.{{ else }}이 주제로 남긴 기록 {{ len .Pages }}편{{ end }}</p></header>
-  {{ if eq .Kind "taxonomy" }}
-  <div class="term-grid">{{ range .Pages }}<a class="term-card" href="{{ .RelPermalink }}"><span>{{ if eq .Section "tags" }}#{{ end }}{{ .Title }}</span><span>{{ len .Pages }}편</span></a>{{ else }}<p class="empty-state">아직 등록된 분류가 없어요.</p>{{ end }}</div>
-  {{ else }}
-  <div class="post-grid">{{ range .Pages.ByDate.Reverse }}{{ partial "post-card.html" . }}{{ else }}<p class="empty-state">아직 글이 없어요.</p>{{ end }}</div>
-  {{ end }}
+<div class="editorial wrap archive-page">
+  <header class="page-intro">
+    <p class="kicker">{{ if eq .Kind "term" }}{{ if eq .Data.Plural "tags" }}태그{{ else }}분류{{ end }}{{ else if eq .Kind "taxonomy" }}모아 보기{{ else }}블로그{{ end }}</p>
+    <h1>{{ if eq .Kind "taxonomy" }}{{ if eq .Data.Plural "tags" }}태그{{ else }}분류{{ end }}{{ else }}{{ if and (eq .Kind "term") (eq .Data.Plural "tags") }}#{{ end }}{{ .Title }}{{ end }}</h1>
+    <p>{{ if eq .Kind "taxonomy" }}분류별로 글을 찾아보세요.{{ else }}이 주제로 남긴 기록 {{ len .Pages }}편{{ end }}</p>
+  </header>
+  {{- if eq .Kind "taxonomy" }}
+  <div class="term-grid">
+    {{- range .Pages }}<a class="term-card" href="{{ .RelPermalink }}"><span>{{ if eq .Data.Plural "tags" }}#{{ end }}{{ .Title }}</span><span>{{ len .Pages }}편</span></a>{{ else }}<p class="empty">아직 등록된 분류가 없어요.</p>{{ end }}
+  </div>
+  {{- else }}
+  <div class="post-list archive-list">
+    {{- range .Pages.ByDate.Reverse }}{{ partial "post-item.html" . }}{{ else }}<p class="empty">아직 글이 없어요.</p>{{ end }}
+  </div>
+  {{- end }}
 </div>
 {{ end }}

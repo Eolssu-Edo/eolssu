@@ -1,0 +1,23 @@
+{{- /* 글 썸네일. 머리말 thumbnail이 있으면 이미지를, 없으면 첫 분류에 맞춘 그림을 표시합니다. */ -}}
+{{- $page := .page -}}
+{{- $cats := partial "categories.html" $page -}}
+{{- $kind := "default" -}}
+{{- with index $cats 0 }}{{ $kind = .key }}{{ end -}}
+{{- if not (in (slice "infra" "backend" "frontend" "ai" "data") $kind) }}{{ $kind = "default" }}{{ end -}}
+<div class="thumb{{ with .class }} {{ . }}{{ end }}{{ if not $page.Params.thumbnail }} thumb-{{ $kind }}{{ end }}" aria-hidden="true">
+  {{- if $page.Params.thumbnail }}
+  <img src="{{ $page.Params.thumbnail | relURL }}" alt="" loading="{{ $.loading | default "lazy" }}" decoding="async">
+  {{- else if eq $kind "infra" }}
+  <span class="art-branch"><i></i><i></i><i></i></span>
+  {{- else if eq $kind "backend" }}
+  <span class="art-code"><span>FAIL →</span><mark>PASS</mark></span>
+  {{- else if eq $kind "frontend" }}
+  <span class="art-screen"><i></i><i></i><i></i></span>
+  {{- else if eq $kind "ai" }}
+  <span class="art-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  {{- else if eq $kind "data" }}
+  <span class="art-notes"><span>黃</span><span>太</span><span>仲</span><span>林</span><span>南</span><span>無</span></span>
+  {{- else }}
+  <img class="art-mascot" src="{{ site.Data.brand.mascot | relURL }}" alt="" loading="{{ $.loading | default "lazy" }}" decoding="async">
+  {{- end }}
+</div>
