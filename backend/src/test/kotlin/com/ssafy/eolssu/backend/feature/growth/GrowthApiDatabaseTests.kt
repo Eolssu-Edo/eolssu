@@ -194,7 +194,6 @@ class GrowthApiDatabaseTests {
                 "(978, 952, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-08 03:00:00', NULL), " + // 다른 회원
                 "(982, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-02 12:00:00', NULL), " + // 둘째 곡: 같은 조건 세 번
                 "(983, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-02 12:00:00', NULL), " + // 982와 같은 시각
-
                 "(979, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-03 12:00:00', NULL)",
         )
         jdbc.update(
@@ -262,6 +261,35 @@ class GrowthApiDatabaseTests {
     }
 
     @Test
+    fun `defaults to a song practiced only in sections and shows those sections separately`() {
+        jdbc.update(
+            "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
+                "VALUES (954, 951, 951, '구간만', 1, 60, '{}', 4, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, start_note_idx, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(984, 951, 951, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-01 03:00:00'), " +
+                "(985, 951, 954, 60, 'JEONGGAN', 1, 2, 'DONE', NULL, '2026-08-02 03:00:00')", // 가장 최근 연주는 구간 연습뿐인 곡
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(984, 70, 70, 70, 70, 'pyin-1'), (985, 90, 90, 90, 90, 'pyin-1')",
+        )
+
+        val full = scores("/api/users/me/growth/scores", subject = "951")
+        assertEquals("954", full.path("songId").asString())
+        assertEquals(0, full.path("items").size())
+        assertEquals(
+            json.readTree(
+                """[{"songId":"954","title":"구간만","lastPlayedAt":"2026-08-02T03:00:00Z","fullPlayCount":0,"sectionPlayCount":1},
+                {"songId":"951","title":"시험","lastPlayedAt":"2026-08-01T03:00:00Z","fullPlayCount":1,"sectionPlayCount":0}]""",
+            ),
+            full.path("songs"),
+        )
+        assertEquals(listOf("985"), scores("/api/users/me/growth/scores?scope=SECTION", subject = "951").sessionIds())
+    }
+
+    @Test
     fun `has no score trend before any counted play`() {
         jdbc.update(
             "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, fail_reason, started_at) VALUES " +
@@ -304,7 +332,7 @@ class GrowthApiDatabaseTests {
         jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 951 AND 990")
         jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 951 AND 990")
         jdbc.update("DELETE FROM score_views WHERE user_id IN (951, 952)")
-        jdbc.update("DELETE FROM songs WHERE id IN (951, 952)")
+        jdbc.update("DELETE FROM songs WHERE id IN (951, 952, 954)")
         jdbc.update("DELETE FROM users WHERE id IN (951, 952)")
         jdbc.update("DELETE FROM jangdans WHERE id = 951")
         jdbc.update("DELETE FROM instruments WHERE id = 951")

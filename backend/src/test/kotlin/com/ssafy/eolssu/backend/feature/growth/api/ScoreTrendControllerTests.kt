@@ -97,9 +97,9 @@ class ScoreTrendControllerTests {
     @Test
     fun `rejects malformed queries before reading anything`() {
         val queries = listOf(
-            "limit=0", "limit=101", "limit=abc", "limit=", "limit=5.0",
+            "limit=0", "limit=101", "limit=abc", "limit=", "limit=5.0", "limit=05", "limit=+5",
             "scope=full", "scope=ALL", "scope=",
-            "songId=0", "songId=-1", "songId=abc", "songId=", "songId=99999999999999999999",
+            "songId=0", "songId=-1", "songId=abc", "songId=", "songId=99999999999999999999", "songId=05", "songId=+1",
         )
         for (query in queries) {
             mvc.perform(get("/api/users/me/growth/scores?$query"))
