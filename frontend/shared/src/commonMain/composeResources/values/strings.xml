@@ -549,6 +549,7 @@
     <string name="auth_close">닫기</string>
     <string name="auth_locked_title">잠시 후 다시 로그인해 주세요</string>
     <string name="auth_locked_message">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. 15분 뒤에 다시 시도해 주세요.</string>
+    <string name="auth_locked_message_until">비밀번호를 5번 잘못 입력해서 15분 동안 로그인할 수 없어요. %1$s부터 다시 시도할 수 있어요.</string>
     <string name="auth_withdrawal_cancelled_title">탈퇴 신청이 취소됐어요</string>
     <string name="auth_withdrawal_cancelled_message">탈퇴를 신청한 계정으로 30일 안에 로그인해서 탈퇴가 취소됐어요. 계정과 연습 기록을 그대로 쓸 수 있어요.</string>
     <string name="auth_oauth_result_hint">제공자 로그인 뒤 서버 결과 (예시)</string>

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.auth
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -120,6 +121,7 @@ private fun AgreeAllRow(checked: Boolean, onToggle: () -> Unit) {
             .heightIn(min = 56.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(EolssuTheme.colors.surface)
+            .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(14.dp))
             .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
