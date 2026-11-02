@@ -18,7 +18,7 @@ def require_integer(value, location):
     require(type(value) is int, f"{location}: 정수 필드는 소수·불리언 없이 입력해야 합니다")
 
 
-def validate_common(source):
+def validate_common(source, *, allow_sigimsae=False):
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     error = next(Draft202012Validator(schema).iter_errors(source), None)
     if error is not None:
@@ -40,7 +40,7 @@ def validate_common(source):
         for key in ("startTick", "durationTick", *(("octave",) if event["kind"] == "NOTE" else ())):
             require_integer(event[key], f"{eid}.{key}")
         require(event["startTick"] == cursor, f"{eid}: 빈틈·겹침 없는 시간축이 필요합니다")
-        require(not event["sigimsae"], f"{eid}: 공통 v1 sigimsae 미지원: 배치 시각·조 정보가 필요합니다")
+        require(allow_sigimsae or not event["sigimsae"], f"{eid}: 공통 v1 sigimsae 미지원: 배치 시각·조 정보가 필요합니다")
         require(not (event["kind"] == "REST" and event["breathAfter"]), f"{eid}: REST의 숨표는 지원하지 않습니다")
         cursor += event["durationTick"]
         by_id[eid] = event
@@ -91,9 +91,11 @@ def validate_common(source):
     return positions, cursor
 
 
-def convert_common_score(source, *, bpm, instrument, input_sha256):
+def convert_common_score(source, *, bpm, instrument, input_sha256, notation_policy=None, expressions=None):
     """BPM counts music.bpmUnit beats, never guessed from the title/jangdan."""
-    positions, total = validate_common(source)
+    require(notation_policy in (None, "educational-preview/v1"), "알 수 없는 notation policy")
+    require(expressions is None or notation_policy is not None, "표현 파일은 교육용 미리듣기 정책을 선택해야 합니다")
+    positions, total = validate_common(source, allow_sigimsae=notation_policy is not None)
     require(bpm is not None, "공통 악보는 music.bpmUnit 기준 --common-bpm이 필요합니다")
     bpm = finite(bpm, "common_bpm", 0, math.inf)
     require(bpm > 0, "common_bpm must be positive")
@@ -154,4 +156,7 @@ def convert_common_score(source, *, bpm, instrument, input_sha256):
                   "breath_policy": dict(BREATH_POLICY), "release_within_note": True,
                   "total_ticks": total, "score_seconds": total / music["ticksPerBeat"] * 60 / bpm,
                   "events": mapping}
+    if notation_policy is not None:
+        from .common_preview import convert_preview
+        return convert_preview(source, score, source_map, expressions)
     return score, source_map

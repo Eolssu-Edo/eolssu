@@ -49,7 +49,7 @@ flowchart TD
 - `--instrument`는 원본 instrument와 같아야 합니다. 명시한 기존 `--transpose`만 이조하며 대응표에 기록합니다.
 - `source.common.json`은 원본 바이트, `source-map.json`은 버전·출처·조율·BPM·원본 tick/초·NOTE 번호·모든 표시 자리 대응을 보관합니다. `score.json`은 재생 IR입니다. MIDI만 분리하면 ID 대응을 잃습니다.
 - release를 NOTE 길이 안에 넣어 쉼을 보존합니다. 숨표는 기존120ms 목표/최대 반길이 정책을 적용합니다. 합쳐진 지속 이벤트를 다시 나누거나 같은 음의 별도 이벤트를 합치지 않습니다.
-- 비어 있지 않은 `sigimsae`는 명시적으로 중단합니다. v1 배열만으로는 장식의 원래 위치·조를 복원할 수 없습니다. rejected 원본, 불일치 표시, 미지원 MIDI 시간 분할·음역도 실패합니다.
+- 기본 모드에서 비어 있지 않은 `sigimsae`는 명시적으로 중단합니다. 아래 교육용 미리듣기 모드를 선택하면 등록 기호에 기본 근사값을 적용합니다. v1 배열만으로는 장식의 원래 위치·조를 복원할 수 없습니다. rejected 원본, 불일치 표시, 미지원 MIDI 시간 분할·음역도 실패합니다.
 - 악보길이와 파일길이는 다릅니다. 이 아리랑의 악보는30초이며 기존 MIDI의 reset/EOT 여백 약550ms가 파일에 추가됩니다. 입력 reviewed는 합성 연주의 전문가 검수 완료가 아닙니다.
 
 상세 범위와 검증 기준은 [338 스펙](../../../docs/specs/common-score-playback.md), 실행 증거는 [작업 기록](../../../docs/plans/S15P31E102-338.md)을 따릅니다.
@@ -59,6 +59,20 @@ flowchart TD
 ```powershell
 .\data\.venv\Scripts\python -m data.src.playback.verify_common --score data/tests/fixtures/scores/ngc-standard-2022-p173.score.json --bpm 96 --audio data/processed/playback-338/arirang-wav/danso.wav --out data/processed/playback-338/verify-wav.json
 ```
+
+### 모든 등록 시김새의 교육용 미리듣기
+
+```powershell
+.\data\.venv\Scripts\python -m data.src.playback --score data/tests/fixtures/scores/common-preview-study.score.json --common-bpm 60 --notation-policy educational-preview/v1 --instrument danso --assets assets.json --audio-format wav --out data/processed/playback/preview-study
+```
+
+단소·소금·정악대금·산조대금의 기존 악기별 규칙을 우선 사용하고, 미확정 음열·효과에는 버전이 있는 교육용 선택값을 채웁니다. `--instrument`는 입력 악기와 같아야 합니다. 이 모드는 정석 연주나 전용 격음 샘플 확보를 뜻하지 않습니다. [정책·기호별 수치·호환성 설명](../../../docs/knowledge/data/common-score-expression-preview.md)을 먼저 확인하세요.
+
+- 별도 위치 파일은 `--common-expressions expressions.json`으로 지정합니다. 형식은 `common-score-expressions/v1`, 원본 `sourceSha256`, 원본 기호 전체의 `placements`입니다. 기존 v1 원본을 고치지 않습니다.
+- 위치 파일이 없으면 이벤트 첫 표시 자리에 적용하고 `event-origin-inferred`로 기록합니다. 조 미지정 시 교육용 황종계면 기본값을 명시합니다. 기호 오타·원본/배치 불일치·상충 표현은 오류입니다.
+- `performance.common.json`은 실제 음원 SHA와 원본 SHA에 묶인 표시 자리별 수행 시간표입니다. 늘임·길이표·반복을 적용한 시간으로 화면을 진행시킬 때 사용합니다. 원본 `events`는 저장·채점에 계속 사용합니다.
+- `source-map.json`에는 기존 본음 기준 대응표와 펼친 표현/근거/추정 위치를 함께 남깁니다. 단독 MIDI만으로는 이 정보를 복원할 수 없습니다.
+- 직접 JGB 입력은 파일에 `playback.notation_policy: "educational-preview/v1"`을 지정합니다. 직접 JGB의 반복은 기존 `--performance-plan`으로 범위를 명시하고 길이표 짝 규칙을 유지합니다. 공통 입력의 기본 반복/길이표 정책과 구분합니다.
 
 ## 설치와 빠른 검사
 
