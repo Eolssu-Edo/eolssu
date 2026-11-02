@@ -223,6 +223,27 @@ raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지�
 
 태평가의 `scores`는 현재 비어 있습니다. 성악 오선보·단소 정간보 일부는 최상위 `comparisonScores`에 별도로 두고 `forPerformanceId`로 어떤 연주를 비교할 때 함께 제공하는지만 표시합니다. 이 참조는 같은 판본·편곡·청이나 채점 정답의 대응 관계가 아닙니다. PDF의 비상업·무변경 조건과 확보 범위를 확인합니다.
 
+## 라벨링 음원의 M4A 배포본
+
+`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 기존 JGB 재생기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
+
+저장소 루트에서 실제 exporter 출력 위치를 `--catalog`에 지정합니다. 여러 악기를 합칠 때 같은 옵션을 반복합니다.
+
+```powershell
+$env:FFMPEG_BINARY = 'C:/tools/ffmpeg/bin/ffmpeg.exe'
+$env:FFPROBE_BINARY = 'C:/tools/ffmpeg/bin/ffprobe.exe'
+python data/src/audio/m4a_catalog.py --catalog data/processed/instruments/danso/export-v1/catalog.json --output-dir data/processed/reference-audio-v1
+python -m unittest discover -s data/src/audio/tests -p 'test_m4a_catalog.py' -v
+```
+
+실행 파일이 PATH에 있으면 두 환경변수는 생략할 수 있습니다. `--ffmpeg`·`--ffprobe`로 명시해도 됩니다. `--catalog`의 datasetId는 `danso`, `sogeum`, `jeongak-daegeum`, `sanjo-daegeum`입니다. 출력 디렉터리는 새 경로만 허용하고 원본 폴더 내부나 기존 결과를 덮어쓰지 않습니다.
+
+- 변환 전 WAV SHA-256·바이트·PCM16 헤더·전체 프레임을 원본 catalog와 대조합니다. 출처·이용 조건·라벨·추정 상태를 그대로 보존하며 변환 중 입력이 바뀌면 중단합니다.
+- 목표 비트레이트는 192kbps이며 리샘플링·음고 보정·정규화·구간 변경은 없습니다. 손실 압축이므로 음색·청감 검수를 대신하지 않습니다.
+- 각 M4A의 AAC-LC·샘플레이트·채널·표시 길이를 확인하고 전체 PCM으로 디코딩합니다. 끝 AAC 패딩은 0~1023프레임만 허용하며 실제 패딩·피크를 metadata에 남깁니다. 모든 파일 검사가 끝난 뒤에만 manifest와 결과 폴더를 공개합니다.
+- manifest v1의 `assetId`는 datasetId와 원래 labelId의 결정적 SHA-256입니다. `file`은 출력 폴더 기준 경로, `objectKey`는 `reference-audio/v1/<dataset>/<assetId>/<출력 해시>.m4a`이며 `contentType`은 `audio/mp4`입니다. 원본 label/source·WAV 정보와 인코더 버전·검사 결과는 `metadata`에 있습니다.
+- 이 명령은 R2 업로드·DB 게시를 실행하지 않습니다. 생성물은 Git 제외 경로에 보관하고 [M4A 변환·검증 기록](../docs/knowledge/data/reference-audio-m4a.md)에 따라 적재합니다. 사용자 녹음의 `recordings/` 30일 삭제 경로를 사용하지 않습니다.
+
 ## JSON 형식과 악기 추가
 
 sources는 schema v2·v3, performances는 v2, 원음별 labels는 v3입니다. 출력 catalog는 v2를 유지합니다. 이전의 `data/datasets/` 3파일 배치와 구형 schema를 읽는 경로는 제거했습니다. 열·행 구조, 라벨 ID·구간·율명·F0·출력 WAV 파일명은 보존합니다.
