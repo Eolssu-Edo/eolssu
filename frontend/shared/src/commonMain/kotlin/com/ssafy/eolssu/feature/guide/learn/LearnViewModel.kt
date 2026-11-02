@@ -72,6 +72,8 @@ class LearnViewModel(
 
     fun toggleShownDone(stage: Int) = updateDone { it.toggleShownDone(stage) }
 
+    fun viewCard(stage: Int) = _uiState.update { it.viewCard(stage) }
+
     fun listen(hanja: String) = _uiState.update { it.listen(hanja) }
 
     fun finishListening(hanja: String) = _uiState.update { it.finishListening(hanja) }

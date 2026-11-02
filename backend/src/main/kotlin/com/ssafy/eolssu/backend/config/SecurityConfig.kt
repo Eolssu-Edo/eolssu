@@ -121,7 +121,7 @@ class SecurityConfig(
         // 와일드카드를 쓰지 않고 명세 경로만 연다. 그 아래에 회원 전용 API가 생겨도 공개되지 않게 하려는 것이다.
         val PUBLIC_POST = arrayOf(
             "/api/webhooks/kakao/events",
-            "/api/auth/oauth/{provider}/start", "/api/auth/oauth/merge",
+            "/api/auth/oauth/{provider}/start", "/api/auth/oauth/merge", "/api/auth/oauth/sign-up",
             "/api/auth/sign-in", "/api/auth/sign-up", "/api/auth/refresh", "/api/auth/password-reset",
             "/api/auth/oauth/{provider}", "/api/auth/email-verifications", "/api/auth/email-verifications/{verificationId}/confirm",
         )

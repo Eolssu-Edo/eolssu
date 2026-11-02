@@ -19,8 +19,8 @@ data class UserRow(
 )
 
 class UserInsert(
-    val email: String,
-    val passwordHash: String,
+    val email: String?,
+    val passwordHash: String?,
     val nickname: String,
     val instrumentId: Long,
     val notationMode: String,

@@ -82,6 +82,8 @@ fun LearnListRoute(
                 onOpenStage(stage)
             }
         },
+        // 가로 배치는 넘긴 카드가 곧 오른쪽 칸의 단계다
+        onShowCard = { stage -> if (twoPane) viewModel.selectStage(stage) else viewModel.viewCard(stage) },
     )
 
     if (twoPane) {
@@ -137,6 +139,8 @@ fun LearnStageRoute(
             onShowInList()
         }
     }
+    // 목록에 돌아가면 이 단계 카드를 펼친다(이전·다음 단계와 '확인했어요' 뒤 연 단계 포함)
+    LaunchedEffect(stageNumber) { viewModel.viewCard(stageNumber) }
     ListenHighlightEffect(state.playing, viewModel)
 
     LearnStageScreen(

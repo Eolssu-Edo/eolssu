@@ -103,4 +103,59 @@ class LearnUiStateTest {
         assertTrue(marked.isDone(2))
         assertEquals(2, marked.shownStage)
     }
+
+    @Test
+    fun cardStartsAtNextStageAndFirstStageWhenAllDone() {
+        assertEquals(1, LearnUiState().cardStage)
+        assertEquals(4, LearnUiState().confirm(1).confirm(2).confirm(3).cardStage)
+
+        val all = LearnStages.fold(LearnUiState()) { s, stage -> s.confirm(stage.number) }
+        assertEquals(1, all.cardStage)
+    }
+
+    @Test
+    fun viewedCardStaysEvenWhenDoneMarksChange() {
+        // 상세에서 보던 단계 · '확인했어요' 뒤 연 단계가 목록에 돌아와도 그대로 펼쳐진다
+        val viewed = LearnUiState().viewCard(6)
+        assertEquals(6, viewed.cardStage)
+        assertEquals(6, viewed.toggleDone(1).cardStage)
+        assertEquals(7, viewed.confirm(6).viewCard(7).confirm(1).cardStage)
+    }
+
+    @Test
+    fun unknownCardIsIgnoredAndInstrumentOrResetReturnsToNextStage() {
+        val viewed = LearnUiState().confirm(1).viewCard(5)
+        assertEquals(5, viewed.viewCard(0).viewCard(10).cardStage)
+
+        assertNull(viewed.selectInstrument(GuideInstrument.Sogeum).viewedCard)
+        assertEquals(1, viewed.selectInstrument(GuideInstrument.Sogeum).cardStage)
+        assertEquals(1, viewed.resetDone().cardStage)
+    }
+
+    @Test
+    fun stageArtCropsAreSquaresInsideTheArtwork() {
+        assertEquals(LearnStages.size, LearnArtCrops.size)
+        LearnArtCrops.forEach { crop ->
+            assertTrue(crop.left >= 0 && crop.left + crop.size <= LearnArtWidth, "$crop")
+            assertTrue(crop.top >= 0 && crop.top + crop.size <= LearnArtHeight, "$crop")
+        }
+    }
+
+    @Test
+    fun bottomBarFollowsBoardForEachJudge() {
+        // 보드 Learn-Stage: 1·2 확인했어요, 3~8 연습 시작, 9 모범 연주 듣기. 안내는 8단계만 곡 평가 문구
+        assertEquals(
+            listOf(
+                LearnStageAction.Confirm, LearnStageAction.Confirm,
+                LearnStageAction.Practice, LearnStageAction.Practice, LearnStageAction.Practice,
+                LearnStageAction.Practice, LearnStageAction.Practice, LearnStageAction.Practice,
+                LearnStageAction.ListenModel,
+            ),
+            LearnStages.map { it.primaryAction },
+        )
+        assertEquals(LearnStageHint.Read, learnStageOf(1)?.hint)
+        assertEquals(LearnStageHint.Practice, learnStageOf(4)?.hint)
+        assertEquals(LearnStageHint.Song, learnStageOf(8)?.hint)
+        assertEquals(LearnStageHint.Listen, learnStageOf(9)?.hint)
+    }
 }

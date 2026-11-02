@@ -13,11 +13,11 @@ class MyBatisSocialAuthRepository(private val users:UserMapper,private val jdbc:
     override fun <T:Any> inTransaction(action:()->T):T=checkNotNull(transaction.execute{action()})
     override fun memberByEmail(email:String)=users.findSignInMember(email)?.member()
     override fun member(userId:Long,lock:Boolean)=(if(lock)users.findByIdForUpdate(userId) else users.findById(userId))?.member()
-    override fun linked(provider:String,subject:String)=jdbc.query("SELECT user_id,provider,provider_user_id,created_at FROM user_social_accounts WHERE provider=? AND provider_user_id=?",{ row,_->
-        SocialLink(row.getLong("user_id"),row.getString("provider"),row.getString("provider_user_id"),row.getObject("created_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC))
+    override fun linked(provider:String,subject:String)=jdbc.query("SELECT id,user_id,provider,provider_user_id,created_at FROM user_social_accounts WHERE provider=? AND provider_user_id=?",{ row,_->
+        SocialLink(row.getLong("user_id"),row.getString("provider"),row.getString("provider_user_id"),row.getObject("created_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC),row.getLong("id"))
     },provider,subject).singleOrNull()
-    override fun links(userId:Long)=jdbc.query("SELECT user_id,provider,provider_user_id,created_at FROM user_social_accounts WHERE user_id=? ORDER BY created_at,id",{ row,_->
-        SocialLink(row.getLong("user_id"),row.getString("provider"),row.getString("provider_user_id"),row.getObject("created_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC))
+    override fun links(userId:Long)=jdbc.query("SELECT id,user_id,provider,provider_user_id,created_at FROM user_social_accounts WHERE user_id=? ORDER BY created_at,id",{ row,_->
+        SocialLink(row.getLong("user_id"),row.getString("provider"),row.getString("provider_user_id"),row.getObject("created_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC),row.getLong("id"))
     },userId)
     override fun lockKakaoSubject(subject:String)=subjects.lock(subject)
     override fun link(userId:Long,provider:String,subject:String,now:Instant,flowStartedAt:Instant?) {
@@ -29,7 +29,7 @@ class MyBatisSocialAuthRepository(private val users:UserMapper,private val jdbc:
         check(users.recordLogin(userId,now.utc())==1)
     }
     private fun UserRow.member():SocialMember? {
-        if(status !in setOf("ACTIVE","WITHDRAWAL_PENDING") || email==null || passwordHash==null || nickname==null) return null
+        if(status !in setOf("ACTIVE","WITHDRAWAL_PENDING") || nickname==null) return null
         return SocialMember(email,SignInMember(id,passwordHash,nickname,instrumentId,notationMode,MemberStatus.valueOf(status),withdrawalRequestedAt?.toInstant(ZoneOffset.UTC)))
     }
     private fun Instant.utc()=LocalDateTime.ofInstant(this,ZoneOffset.UTC)

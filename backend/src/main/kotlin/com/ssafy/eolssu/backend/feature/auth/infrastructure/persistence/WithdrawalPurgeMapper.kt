@@ -10,7 +10,7 @@ interface WithdrawalPurgeMapper {
     fun findDueMembers(@Param("now") now: LocalDateTime, @Param("afterUserId") afterUserId: Long, @Param("limit") limit: Int): List<Long>
     fun findRecordingKeys(@Param("userId") userId: Long): List<String>
     /** 아직 삭제 대상이면 회원 행을 잠그고 이메일을 돌려준다. */
-    fun lockDueMemberEmail(@Param("userId") userId: Long, @Param("now") now: LocalDateTime): String?
+    fun lockDueMember(@Param("userId") userId: Long, @Param("now") now: LocalDateTime): PurgeMemberRow?
     fun lockSessions(@Param("userId") userId: Long): List<Long>
     fun deleteNoteResults(@Param("userId") userId: Long): Int
     fun deleteEvaluations(@Param("userId") userId: Long): Int
@@ -24,3 +24,6 @@ interface WithdrawalPurgeMapper {
     fun deleteEmailVerifications(@Param("email") email: String): Int
     fun anonymize(@Param("userId") userId: Long, @Param("now") now: LocalDateTime): Int
 }
+
+/** 행 부재와 이메일 미등록을 구분한다. */
+data class PurgeMemberRow(val id: Long, val email: String?)

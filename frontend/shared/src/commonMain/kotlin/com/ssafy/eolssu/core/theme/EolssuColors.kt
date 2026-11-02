@@ -102,6 +102,6 @@ val LightEolssuColors = EolssuColors(
     rhythmErrorSoft = Color(0xFFDFE9FB),
     rhythmErrorText = Color(0xFF1F4FB3),
     green = Color(0xFFADBE31),
-    radical = Color(0xFF7A984A),
+    radical = Color(0xFF7E8C1C),
     glow = Color(0xFFADBE31),
 )

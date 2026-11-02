@@ -63,22 +63,22 @@ val LearnJudge.label: StringResource
 @Immutable
 private data class TagColors(val background: Color, val content: Color)
 
-/** 박 판정(노랑)·듣기(초록) 태그 색. 와이어프레임 값에서 듣기 글자색만 대비 4.5:1이 되도록 어둡게 했다. */
-private val BeatTag = TagColors(Color(0xFFFFF3CF), Color(0xFF8A6400))
-private val ListenTag = TagColors(Color(0xFFE6F2DF), Color(0xFF2A7A50))
-
-/** 판정 방식 태그(`.lp-judge`). 설명은 회색, 음높이는 파랑, 박은 노랑, 듣기는 초록. */
+/** 판정 방식 태그(`.lp-judge`). 설명은 흰 바탕 회색 글자에 옅은 테두리, 음높이는 옅은 연두에 이끼 글자, 박 · 듣기는 연두(#DEE5AD)에 검은 글자. */
 @Composable
 internal fun JudgeTag(text: String, judge: LearnJudge, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     val tag = when (judge) {
         LearnJudge.Read -> TagColors(colors.surface, colors.textMuted)
-        LearnJudge.Pitch -> TagColors(colors.playSoft, colors.playText)
-        LearnJudge.Beat -> BeatTag
-        LearnJudge.Listen -> ListenTag
+        LearnJudge.Pitch -> TagColors(colors.accentTint, colors.playText)
+        LearnJudge.Beat, LearnJudge.Listen -> TagColors(colors.accentTintStrong, colors.text)
     }
+    val shape = RoundedCornerShape(10.dp)
     Box(
-        modifier.height(20.dp).background(tag.background, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp),
+        modifier
+            .height(20.dp)
+            .background(tag.background, shape)
+            .then(if (judge == LearnJudge.Read) Modifier.border(1.dp, colors.lineSoft, shape) else Modifier)
+            .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = tag.content, maxLines = 1)
@@ -133,20 +133,20 @@ internal fun MoreLink(text: String, onClick: () -> Unit, modifier: Modifier = Mo
     }
 }
 
-/** 할 일 목록(`.lp-tasks`). 태블릿은 [columns] 2칸 격자로 놓고 같은 줄의 높이를 맞춘다. */
+/** 할 일 목록(`.lp-tasks`): 흰 바탕에 옅은 테두리, 번호는 옅은 회색 원. 태블릿은 [columns] 2칸 격자로 놓고 같은 줄의 높이를 맞춘다. */
 @Composable
 internal fun LearnTaskList(tasks: List<LearnTask>, columns: Int = 1) {
     val colors = EolssuTheme.colors
     GuideGrid(tasks, columns) { i, task, cell ->
         Row(
             cell
-                .background(colors.background, RoundedCornerShape(12.dp))
-                .border(1.dp, colors.line, RoundedCornerShape(12.dp))
+                .background(colors.surface, RoundedCornerShape(12.dp))
+                .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
-                Modifier.padding(top = 1.dp).size(22.dp).border(1.5.dp, colors.lineStrong, CircleShape),
+                Modifier.padding(top = 1.dp).size(22.dp).border(1.5.dp, GuideFaint, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text("${i + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = colors.textMuted)
@@ -178,14 +178,14 @@ internal fun NoteChips(notes: List<FingeringNote>, modifier: Modifier = Modifier
     ) {
         notes.forEachIndexed { i, note ->
             if (i > 0) {
-                Text("›", Modifier.padding(horizontal = 1.dp).clearAndSetSemantics {}, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.lineStrong)
+                Text("›", Modifier.padding(horizontal = 1.dp).clearAndSetSemantics {}, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = GuideFaint)
             }
             Row(
                 Modifier
                     .height(38.dp)
                     .widthIn(min = 38.dp)
-                    .background(colors.background, RoundedCornerShape(10.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(10.dp))
+                    .background(colors.surface, RoundedCornerShape(10.dp))
+                    .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp))
                     .padding(horizontal = 10.dp)
                     .semantics(mergeDescendants = true) { contentDescription = note.name },
                 verticalAlignment = Alignment.CenterVertically,
@@ -205,20 +205,26 @@ internal fun LearnPatternBox(modifier: Modifier = Modifier, content: @Composable
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.background, RoundedCornerShape(12.dp))
-            .border(1.dp, colors.line, RoundedCornerShape(12.dp))
+            .background(colors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
 }
 
-/** 노란 안내 상자(`.lp-note`). [caution]은 아래에 회색으로 덧붙인다. */
+/** 안내 상자(`.lp-note`): 흰 바탕에 옅은 테두리. [caution]은 아래에 회색으로 덧붙인다. */
 @Composable
 internal fun LearnNote(raw: String, modifier: Modifier = Modifier, caution: String? = null) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp)
-    Column(modifier.fillMaxWidth().background(colors.accentSoft, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp)) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .background(colors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
         GuideText(raw, style = style)
         if (caution != null) GuideText(caution, Modifier.padding(top = 4.dp), style = style, color = colors.textMuted)
     }

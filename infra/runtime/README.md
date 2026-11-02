@@ -56,10 +56,13 @@ sudo docker exec eolssu-runtime-backend-1 ffprobe -version
 이미지는 저장소 `ai/Dockerfile`로 edo1에서 직접 빌드한 `eolssu-ai:runtime`을 씁니다(약 1.65GB, 빌드에 2GB 넘는 디스크 여유 필요). 배포는 `--pull never`이고 Jenkins는 이 서비스를 다시 만들지 않으므로, `ai/` 변경을 반영할 때는 같은 태그로 다시 빌드한 뒤 `ai`만 재생성합니다. 빌드한 develop 커밋을 아래 작업 기록에 남깁니다.
 
 ```sh
-# 로컬 저장소에서: 반영할 커밋의 ai/만 서버 임시 폴더로 보내 빌드한다.
+# 로컬 저장소에서: 되돌릴 수 있게 지금 이미지에 빌드 커밋 이름표를 붙이고,
+# 반영할 커밋의 ai/만 서버 임시 폴더로 보내 빌드한다. 빌드 커밋은 이미지 라벨에도 남긴다.
+REV=$(git rev-parse origin/develop)
+ssh edo1 "sudo docker tag eolssu-ai:runtime eolssu-ai:runtime-<이전 빌드 커밋 앞 7자리>"
 D=$(ssh edo1 mktemp -d)
-git archive origin/develop ai | ssh edo1 "tar -x -C $D"
-ssh edo1 "sudo docker build --tag eolssu-ai:runtime $D/ai && rm -rf $D"
+git archive "$REV" ai | ssh edo1 "tar -x -C $D"
+ssh edo1 "sudo docker build --label org.opencontainers.image.revision=$REV --tag eolssu-ai:runtime $D/ai && rm -rf $D"
 # edo1에서: ai만 (재)생성하고 backend에서 연결을 확인한다.
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never ai
@@ -70,6 +73,8 @@ sudo docker exec eolssu-runtime-backend-1 \
 ```
 
 마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). 연결 거부·이름 풀이 실패는 `ai`가 없거나 내부망이 다른 것입니다.
+
+Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4).
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
 - 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.

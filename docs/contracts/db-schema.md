@@ -28,8 +28,8 @@ V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song
 | 영역 | 테이블 | 설명 |
 | --- | --- | --- |
 | 기준 데이터 | `pitches`, `instruments`, `fingering_charts`, `jangdans`, `songs`, `notation_symbols` | 율명·악기·운지표·장단·곡·기호처럼 운영자가 넣는 데이터. 단소 율명(`pitches`)은 V5, 단소 악기 1개·장단 3개·1차 4곡(`instruments`·`jangdans`·`songs`)은 V6 마이그레이션이 `data/reference/` 값과 변환한 공통 악보 데이터로 넣는다 |
-| 사용자 | `users`, `user_song_settings` | 가입은 이메일·비밀번호로만 하며, 탈퇴 완료 전까지 이메일·비밀번호·닉네임이 있어야 합니다(`users_chk_2`). 탈퇴를 요청하면 `WITHDRAWAL_PENDING`으로 30일 보관하고, 요청 후 30일 미만에 로그인하면 취소합니다. 회원 잠금 이후의 시각이 만료 정각 이상이면 실제 삭제 여부와 관계없이 취소를 거절합니다. 30일 뒤 일괄 처리에서 개인정보 칸을 비우고 `DELETED`로 바꾸며 행은 남깁니다. 재가입은 새 행입니다. 곡별 BPM만 서버에 둡니다. |
-| 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 기존 회원에 붙이는 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
+| 사용자 | `users`, `user_song_settings` | V12부터 소셜 전용 가입을 허용해 이메일·비밀번호는 NULL일 수 있으며 닉네임은 유지합니다. 비밀번호가 있으면 이메일도 있어야 합니다(`chk_users_auth_fields`). 가입·약관·소셜 연결·토큰 발급은 한 트랜잭션입니다. 탈퇴를 요청하면 `WITHDRAWAL_PENDING`으로 30일 보관하고, 요청 후 30일 미만에 로그인하면 취소합니다. 회원 잠금 이후의 시각이 만료 정각 이상이면 실제 삭제 여부와 관계없이 취소를 거절합니다. 30일 뒤 일괄 처리에서 개인정보 칸을 비우고 `DELETED`로 바꾸며 행은 남깁니다. 재가입은 새 행입니다. 곡별 BPM만 서버에 둡니다. |
+| 인증 | `user_social_accounts`, `terms`, `user_term_agreements`, `email_verifications`, `refresh_tokens` | 신규 소셜 가입과 기존 회원의 간편 로그인 연결(제공자·제공자 ID 유일, 회원당 제공자별 1개), 버전별 약관과 동의 기록, 이메일 인증번호(서버 비밀키 HMAC)·인증 토큰(SHA-256), 리프레시 토큰 회전과 회원 단위 폐기(SHA-256). 저장 방식은 [조사 기록](../knowledge/backend/auth-token-storage.md) |
 | 연습·평가 | `practice_sessions`, `evaluations`, `note_results` | 데이터 파이프라인이 읽는 기록. 세션당 평가 1개, 평가당 음표별 결과. 연습 기록 저장·메모·확인·삭제 칸은 사용자가 나중에 바꿉니다. 녹음 원본 메타데이터(`recording_bytes`·`recording_duration_ms`·`recording_sample_rate`·`recording_channels`)는 업로드 검사를 통과해 원본을 저장할 때 네 칸을 함께 채우고, 그 전에는 모두 NULL입니다(`chk_practice_sessions_recording_meta`). 분석은 세션마다 현재 시도 하나(`analysis_attempt`, 0은 시작 전·`analysis_started_at`)만 두고, `FAILED`일 때만 실패 코드(`fail_reason`)를 아래 6종 중 하나로 둡니다. |
 | 성장 | `score_views` | 악보 화면 체류 구간 기록. 한 행이 한 구간이며 `counted_seconds`(자리 비움을 뺀 인정 시간, 상한 없음)의 합이 연습 시간입니다. 기준은 [연습 시간 집계 스펙](../specs/practice-time.md) |
 | 학습 | `lessons`, `lesson_progress` | 율명·단계·시김새 학습과 사용자별 진도 |
@@ -87,3 +87,9 @@ Flyway는 이미 적용한 마이그레이션 파일을 수정하면 실행을 �
 ## 테스트 계정의 무기한 인증 세션 (S15P31E102-260)
 
 V7에서 `refresh_tokens.expires_at`은 nullable입니다. NULL은 서버의 명시적 회원 허용 목록에 포함된 테스트 계정의 시간 만료 없는 세션입니다. 일반 계정은 기존 만료 시각을 그대로 저장합니다. access JWT는 같은 세션 해시에 묶이고 폐기·회원 상태·허용 목록을 확인합니다. [세부 계약](../specs/non-expiring-test-account.md)을 따릅니다.
+
+## V12 소셜 가입·재인증 탈퇴
+
+[V12](../../backend/src/main/resources/db/migration/V12__social_sign_up.sql)는 사용자 인증 필드 제약을 확장하고 oauth_proofs에 SIGNUP·WITHDRAW kind와 WITHDRAW purpose를 추가합니다. 두 티켓은 원문 대신 해시를 저장하며 10분·1회용·제공자 쿠키에 결속합니다. 탈퇴 증명은 회원 ID와 현재 연결 subject까지 결속합니다. 회원→카카오 subject→증명→연결/refresh 잠금 순서를 유지합니다. [356 계약](../specs/social-sign-up.md)을 따릅니다. 운영 eolssu는2026-11-02 10:23 KST에V12 적용·검증 완료했으며, 애플리케이션 배포는 별도입니다. 적용 영수증은 [356 계획](../plans/S15P31E102-356.md)에 기록했습니다.
+
+V12의 oauth_proofs.social_account_id는 WITHDRAW 목적의 STATE와 티켓에 필수이며 현재 소셜 연결 행 ID와 비교한다. FK 없이 재연결 전 증명을 차단하고, LOGIN/LINK 목적에는 NULL만 허용한다.

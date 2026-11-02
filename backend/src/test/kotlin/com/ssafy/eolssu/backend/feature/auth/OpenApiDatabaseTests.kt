@@ -61,14 +61,14 @@ open class OpenApiDatabaseTests {
             item.properties().filter { it.key in setOf("get","post","patch","put","delete") }.map { "${it.key} $path" }
         }.toSet()
         val expected=mappings.handlerMethods.filterValues { it.beanType.packageName.startsWith("com.ssafy.eolssu.backend.feature.") }
-            .flatMap { (mapping,_) -> mapping.patternValues.flatMap { path -> mapping.methodsCondition.methods.map { "${it.name.lowercase()} $path" } } }.toSet()
+            .flatMap { (mapping,_) -> mapping.patternValues.flatMap { path -> mapping.methodsCondition.methods.map { "${it.name.lowercase()} ${path.replace("{version:\\d{4}-\\d{2}-\\d{2}}", "{version}")}" } } }.toSet()
         fun checkReferences(node: tools.jackson.databind.JsonNode) {
             val ref=node.path("\$ref").asString()
             if (ref.startsWith("#/components/schemas/")) assertTrue(doc.path("components").path("schemas").has(ref.substringAfterLast('/')),ref)
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(41,expected.size)
+        assertEquals(48,expected.size)
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
             "/api/notation-symbols", "/api/jangdans")
@@ -86,10 +86,20 @@ open class OpenApiDatabaseTests {
         assertEquals("integer",modelAudio.path("properties").path("scoreVersion").path("type").asString())
         for (entry in actual) {
             val (method,path)=entry.split(' ',limit=2)
+            // HTML 약관·서명된 녹음 파일 응답은 업무 JSON envelope 계약과 별도다. 경로 포함 여부는 위에서 비교한다.
+            if(path.startsWith("/api/terms/documents/") || path=="/api/recordings/read") continue
             val operation=doc.path("paths").path(path).path(method)
             assertTrue(operation.path("summary").asString().isNotBlank(),entry)
             assertTrue(operation.path("responses").has(if(path=="/api/webhooks/kakao/events")"503" else "500"),entry)
             assertTrue(operation.has("security"),entry)
+        }
+        val signup=doc.path("paths").path("/api/auth/oauth/sign-up").path("post")
+        assertEquals(0,signup.path("security").size())
+        assertTrue(signup.path("responses").has("201"))
+        assertTrue(signup.path("responses").has("410"))
+        for(path in listOf("/api/users/me/withdrawal/oauth/{provider}/start","/api/users/me/withdrawal/oauth/{provider}")) {
+            val operation=doc.path("paths").path(path).path("post")
+            assertTrue(operation.path("security").any{it.has("accessCookie")},path)
         }
         val schemes=doc.path("components").path("securitySchemes")
         val webhook=doc.path("paths").path("/api/webhooks/kakao/events").path("post")
@@ -122,7 +132,7 @@ open class OpenApiDatabaseTests {
         assertEquals("binary",multipart.path("properties").path("audio").path("format").asString())
         val details=doc.path("components").path("schemas").path("ApiErrorResult")
         assertTrue(details.path("properties").has("details"))
-        assertEquals(5,details.path("properties").path("details").path("oneOf").size())
+        assertEquals(6,details.path("properties").path("details").path("oneOf").size())
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())

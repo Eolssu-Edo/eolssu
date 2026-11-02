@@ -27,8 +27,8 @@ class SocialAuthConfig {
     }
     @Bean fun socialAuthRepository(users:UserMapper,jdbc:JdbcTemplate,manager:PlatformTransactionManager,subjects:KakaoSubjectLocks):SocialAuthRepository=MyBatisSocialAuthRepository(users,jdbc,manager,subjects)
     @Bean fun socialAuthService(repository:SocialAuthRepository,proofs:OAuthProofRepository,states:OAuthProofService,gateway:OAuthGateway,
-        secrets:VerificationSecrets,issuer:AuthTokenIssuer,verification:PasswordResetRepository,passwords:PasswordEncoder,clock:Clock)=
-        SocialAuthService(repository,proofs,states,gateway,secrets,issuer,verification,passwords,LoginAttemptLimiter(),clock)
+        secrets:VerificationSecrets,issuer:AuthTokenIssuer,verification:PasswordResetRepository,passwords:PasswordEncoder,clock:Clock,signUps:SignUpRepository,terms:com.ssafy.eolssu.backend.feature.term.domain.TermRepository,withdrawals:WithdrawalRepository)=
+        SocialAuthService(repository,proofs,states,gateway,secrets,issuer,verification,passwords,LoginAttemptLimiter(),clock,signUps,terms,withdrawals)
     @Bean fun oauthProofCleanup(proofs:OAuthProofRepository,clock:Clock)=OAuthProofCleanup(proofs,clock)
 }
 

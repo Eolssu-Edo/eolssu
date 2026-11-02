@@ -7,7 +7,7 @@ enum class MemberStatus { ACTIVE, WITHDRAWAL_PENDING, DELETED }
 /** 로그인 대상 회원. 이메일이 비는 DELETED는 이메일로 찾을 수 없다. */
 class SignInMember(
     val id: Long,
-    val passwordHash: String,
+    val passwordHash: String?,
     val nickname: String,
     val instrumentId: Long,
     val notationMode: String,

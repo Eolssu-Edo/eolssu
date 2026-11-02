@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.IntrinsicMeasurable
@@ -130,9 +131,12 @@ import kotlin.math.roundToInt
  * 그림 하나가 한 가지를 보여 준다: 정간보란은 井 획, 1 읽는 순서는 차례로 채워지는 선([ReadOrderBoard]), 2 길이는 소리 막대, 3 높낮이는 계단.
  */
 
+/** 학습 보드의 옅은 선 · 글자(`--faint` #B9B3A6). 테마에 없는 색이라 학습 화면 조각에만 둔다. */
+internal val GuideFaint = Color(0xFFB9B3A6)
+
 /**
- * 설명 카드(`.gcard`). [mark]가 있으면 검은 원 표시(딸린 쪽이면 [subMark]로 흰 원)와 [title]을, [small]이 있으면 그 옆에 작은 회색 글을 단다.
- * [intro]이면 회색 바탕에 테두리 없이 그린다(정간보란).
+ * 설명 카드(`.gcard`): 흰 바탕에 옅은 테두리. [mark]가 있으면 연두 원 표시(딸린 쪽이면 [subMark]로 흰 원)와 [title]을,
+ * [small]이 있으면 그 옆에 작은 회색 글을 단다.
  */
 @Composable
 internal fun GuideCard(
@@ -140,15 +144,19 @@ internal fun GuideCard(
     mark: String? = null,
     title: String? = null,
     small: String? = null,
-    intro: Boolean = false,
     subMark: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val shape = MaterialTheme.shapes.medium
-    var m = modifier.fillMaxWidth().clip(shape).background(if (intro) colors.surface else colors.background)
-    if (!intro) m = m.border(1.dp, colors.line, shape)
-    Column(m.padding(horizontal = 14.dp, vertical = 16.dp)) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(colors.surface)
+            .border(1.dp, colors.lineSoft, shape)
+            .padding(horizontal = 14.dp, vertical = 16.dp),
+    ) {
         if (title != null) {
             Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (mark != null) PageMark(mark, sub = subMark)
@@ -160,7 +168,8 @@ internal fun GuideCard(
                             withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = colors.textMuted)) { append(small) }
                         }
                     },
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                    // `.gcard h3`: 본문 글꼴 굵게 16(제목 글꼴 아님)
+                    style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
                 )
             }
         }
@@ -168,13 +177,13 @@ internal fun GuideCard(
     }
 }
 
-/** 쪽 표시(`.rb-mark`): 검은 원 안의 번호. 정간보란의 井은 세리프로 쓴다. 앞 쪽에 딸린 쪽([sub])은 검은 테두리의 흰 원이다. */
+/** 쪽 표시(`.rb-mark`): 연두 원 안의 번호. 정간보란의 井은 세리프로 쓴다. 앞 쪽에 딸린 쪽([sub])은 검은 테두리의 흰 원이다. */
 @Composable
 internal fun PageMark(mark: String, modifier: Modifier = Modifier, sub: Boolean = false) {
     val colors = EolssuTheme.colors
     val han = mark.firstOrNull()?.isDigit() == false
     val circle = if (sub) {
-        modifier.size(24.dp).background(colors.background, CircleShape).border(1.5.dp, colors.text, CircleShape)
+        modifier.size(24.dp).background(colors.surface, CircleShape).border(1.5.dp, colors.text, CircleShape)
     } else {
         modifier.size(24.dp).background(colors.primary, CircleShape)
     }
@@ -192,7 +201,7 @@ internal fun PageMark(mark: String, modifier: Modifier = Modifier, sub: Boolean 
 }
 
 /**
- * 쪽 맨 위 설명 한 줄(`.page-lead`). 줄을 바꾸지 않고 카드 너비에 맞춰 최대 18sp까지 키운다.
+ * 쪽 맨 위 설명 한 줄(`.page-lead`, 글자색은 `.lead`의 #5C564F). 줄을 바꾸지 않고 카드 너비에 맞춰 최대 18sp까지 키운다.
  * 태블릿 격자가 카드 높이를 맞추려고 크기를 미리 재므로 BoxWithConstraints 대신 글자 자동 크기를 쓴다.
  */
 @Composable
@@ -203,7 +212,7 @@ internal fun PageLead(raw: String, modifier: Modifier = Modifier) {
     BasicText(
         text,
         modifier.fillMaxWidth().padding(bottom = 14.dp),
-        style = MaterialTheme.typography.bodyLarge.copy(color = colors.text, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
+        style = MaterialTheme.typography.bodyLarge.copy(color = colors.textSub, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center),
         maxLines = 1,
         softWrap = false,
         autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 18.sp, stepSize = 0.5.sp),
@@ -230,14 +239,15 @@ internal class FigureScope(val draw: DrawScope, val scale: Float, private val me
     ) {
         val layout = measurer.measure(value, style.copy(fontSize = with(draw) { u(sizeUnits).toSp() }, lineHeight = TextUnit.Unspecified))
         val topLeft = Offset(u(x) - layout.size.width / 2f, u(baseline) - layout.firstBaseline)
+        // 글자 붓의 그리기 방식은 넘기지 않으면 앞의 값이 남는다. 테두리(Stroke) 뒤의 글자는 Fill을, 번짐 뒤에는 Shadow.None을 꼭 넘긴다(넘기지 않으면 글자색 굵은 덩어리가 된다)
+        if (halo != null) {
+            draw.drawText(layout, color = halo, topLeft = topLeft, shadow = Shadow.None, drawStyle = Stroke(u(haloUnits), join = StrokeJoin.Round))
+        }
         if (glow != null) {
             val shadow = Shadow(glow, blurRadius = u(6f))
-            repeat(2) { draw.drawText(layout, color = color, topLeft = topLeft, shadow = shadow) }
+            repeat(2) { draw.drawText(layout, color = color, topLeft = topLeft, shadow = shadow, drawStyle = Fill) }
         }
-        if (halo != null) {
-            draw.drawText(layout, color = halo, topLeft = topLeft, drawStyle = Stroke(u(haloUnits), join = StrokeJoin.Round))
-        }
-        draw.drawText(layout, color = color, topLeft = topLeft)
+        draw.drawText(layout, color = color, topLeft = topLeft, shadow = Shadow.None, drawStyle = Fill)
     }
 }
 
@@ -290,7 +300,7 @@ private class FigurePolicy(private val maxWidth: Dp, private val ratio: Float) :
 
 /* ───────── 정간보란 ───────── */
 
-/** 정간보란: 큰 井의 네 획을 3×3 칸 선 위에 겹쳐, 井 가운데 네모가 곧 한 칸(정간)임을 보여 준다. 아래에 범례. */
+/** 정간보란: 큰 井의 네 획을 3×3 칸 선 위에 겹쳐, 井 가운데 연두 네모가 곧 한 칸(정간)임을 보여 준다. 아래에 범례. */
 @Composable
 internal fun ReadIntro() {
     val colors = EolssuTheme.colors
@@ -307,9 +317,9 @@ internal fun ReadIntro() {
         val gx = { i: Int -> 16f + c * i }
         val gy = { i: Int -> 12f + c * i }
         val d = draw
-        d.drawRoundRect(colors.background, Offset(u(gx(0)), u(gy(0))), Size(u(c * 3), u(c * 3)), CornerRadius(u(6f)))
+        d.drawRoundRect(colors.surface, Offset(u(gx(0)), u(gy(0))), Size(u(c * 3), u(c * 3)), CornerRadius(u(6f)))
         d.drawRoundRect(
-            colors.lineStrong,
+            GuideFaint,
             Offset(u(gx(0)), u(gy(0))),
             Size(u(c * 3), u(c * 3)),
             CornerRadius(u(6f)),
@@ -318,10 +328,10 @@ internal fun ReadIntro() {
         val faint = listOf(listOf("林", "太", "黃"), listOf("南", null, "ㅡ"), listOf("潢", "△", "仲"))
         faint.forEachIndexed { r, row ->
             row.forEachIndexed { k, t ->
-                if (t != null) text(t, gx(k) + c / 2, gy(r) + c / 2 + 6, serif, 17f, colors.lineStrong)
+                if (t != null) text(t, gx(k) + c / 2, gy(r) + c / 2 + 6, serif, 17f, GuideFaint)
             }
         }
-        d.drawRoundRect(colors.surface, Offset(u(gx(1) + 3), u(gy(1) + 3)), Size(u(c - 6), u(c - 6)), CornerRadius(u(4f)))
+        d.drawRoundRect(colors.accentTintStrong, Offset(u(gx(1) + 3), u(gy(1) + 3)), Size(u(c - 6), u(c - 6)), CornerRadius(u(4f)))
         text("黃", gx(1) + c / 2, gy(1) + c / 2 + 8, serif.copy(fontWeight = FontWeight.Bold), 24f, colors.text)
         val jeong = Stroke(u(6f), cap = StrokeCap.Round, join = StrokeJoin.Round)
         val strokes = Path().apply {
@@ -349,7 +359,7 @@ private fun IntroLegend() {
         Triple<@Composable () -> Unit, String, String>(
             {
                 Box(
-                    Modifier.size(14.dp).background(colors.surface, RoundedCornerShape(3.dp)).border(1.dp, colors.lineStrong, RoundedCornerShape(3.dp)),
+                    Modifier.size(14.dp).background(colors.accentTintStrong, RoundedCornerShape(3.dp)).border(1.dp, GuideFaint, RoundedCornerShape(3.dp)),
                 )
             },
             stringResource(Res.string.guide_reading_intro_cell),
@@ -368,12 +378,12 @@ private fun IntroLegend() {
                 }
                 rows.forEach { (_, _, desc) ->
                     Row {
-                        Text(":", Modifier.width(14.dp), style = style, color = colors.lineStrong)
+                        Text(":", Modifier.width(14.dp), style = style, color = GuideFaint)
                         Text(desc, style = style, color = colors.textMuted)
                     }
                 }
             },
-            modifier = Modifier.background(colors.background, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
             measurePolicy = LegendGridPolicy,
         )
     }
@@ -481,7 +491,7 @@ internal fun LengthRow(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(width = 6.dp, height = 14.dp).background(colors.text, RoundedCornerShape(3.dp)))
+            Box(Modifier.size(width = 6.dp, height = 14.dp).background(colors.primary, RoundedCornerShape(3.dp)))
             Text(stringResource(Res.string.guide_reading_length_key), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
     }
@@ -492,26 +502,33 @@ private fun LengthExample(cells: List<List<String>>, caption: String, modifier: 
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(8.dp)
     Column(
-        modifier.background(colors.surface, RoundedCornerShape(12.dp)).padding(start = 4.dp, end = 4.dp, top = 14.dp, bottom = 12.dp),
+        modifier
+            .background(colors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
+            .padding(start = 4.dp, end = 4.dp, top = 14.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Column(Modifier.width(50.dp).clip(shape).background(colors.background).border(1.dp, colors.lineStrong, shape)) {
+            Column(Modifier.width(50.dp).clip(shape).background(colors.surface).border(1.dp, GuideFaint, shape)) {
                 cells.forEachIndexed { i, notes ->
-                    if (i > 0) HorizontalDivider(color = colors.line)
+                    if (i > 0) HorizontalDivider(color = colors.lineSoft)
                     Column(Modifier.fillMaxWidth().height(50.dp)) {
                         notes.forEachIndexed { k, text ->
                             Box(
-                                Modifier.fillMaxWidth().weight(1f).then(if (k > 0) Modifier.dashedTopLine(colors.line) else Modifier),
+                                Modifier.fillMaxWidth().weight(1f).then(if (k > 0) Modifier.dashedTopLine(colors.lineSoft) else Modifier),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 val size = if (notes.size > 1) 16.sp else 22.sp
+                                // 율명은 세리프, ㅡ · △ 기호는 본문 글꼴의 회색(`.len-cell span.sym`)
                                 Text(
                                     text,
-                                    style = EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size),
+                                    style = if (isSymbol(text)) {
+                                        MaterialTheme.typography.bodyLarge.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.Normal)
+                                    } else {
+                                        EolssuTheme.serif.yul.copy(fontSize = size, lineHeight = size, fontWeight = FontWeight.SemiBold)
+                                    },
                                     color = if (isSymbol(text)) colors.textMuted else colors.text,
-                                    fontWeight = if (isSymbol(text)) FontWeight.Normal else FontWeight.SemiBold,
                                 )
                             }
                         }
@@ -530,14 +547,14 @@ private fun LengthExample(cells: List<List<String>>, caption: String, modifier: 
     }
 }
 
-/** 소리 막대(`.len-bar`): 가운데 점선 위에 소리 나는 구간을 검은 막대로 칠한다. 구간 위아래는 3dp씩 띄운다. */
+/** 소리 막대(`.len-bar`): 가운데 점선 위에 소리 나는 구간을 연두 막대로 칠한다. 구간 위아래는 3dp씩 띄운다. */
 @Composable
 private fun SoundBar(spans: List<Pair<Float, Float>>, modifier: Modifier) {
     val colors = EolssuTheme.colors
     Canvas(modifier) {
         val dash = 3.dp.toPx()
         drawLine(
-            colors.line,
+            colors.lineSoft,
             Offset(size.width / 2, 0f),
             Offset(size.width / 2, size.height),
             strokeWidth = 2.dp.toPx(),
@@ -547,7 +564,7 @@ private fun SoundBar(spans: List<Pair<Float, Float>>, modifier: Modifier) {
         spans.forEach { (start, length) ->
             val top = start / 2f * size.height + gap
             val h = length / 2f * size.height - gap * 2
-            drawRoundRect(colors.text, Offset(0f, top), Size(size.width, h), CornerRadius(4.dp.toPx()))
+            drawRoundRect(colors.primary, Offset(0f, top), Size(size.width, h), CornerRadius(4.dp.toPx()))
         }
     }
 }
@@ -612,7 +629,7 @@ private fun PitchAxis(modifier: Modifier) {
     val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.sp)
     Column(modifier.padding(top = 4.dp).offset(y = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.guide_reading_pitch_axis_high), style = style, color = colors.textMuted)
-        Box(Modifier.weight(1f).width(1.5.dp).background(Brush.verticalGradient(listOf(colors.textMuted, colors.line))))
+        Box(Modifier.weight(1f).width(1.5.dp).background(Brush.verticalGradient(listOf(colors.textMuted, colors.lineSoft))))
         Text(stringResource(Res.string.guide_reading_pitch_axis_low), style = style, color = colors.textMuted)
     }
 }
@@ -714,8 +731,9 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
     }
 }
 
+/** 개수를 단 제목. 처음 배우는 시김새(`.sig-head`)는 검은 글자, 더 많은 시김새의 무리(`.sig-sub`)는 회색 글자다. */
 @Composable
-private fun CountTitle(title: String, count: Int, fontSize: TextUnit, modifier: Modifier = Modifier) {
+private fun CountTitle(title: String, count: Int, fontSize: TextUnit, modifier: Modifier = Modifier, color: Color = EolssuTheme.colors.text) {
     val muted = EolssuTheme.colors.textMuted
     Text(
         buildAnnotatedString {
@@ -724,6 +742,7 @@ private fun CountTitle(title: String, count: Int, fontSize: TextUnit, modifier: 
             withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = muted)) { append("$count") }
         },
         modifier,
+        color = color,
         style = MaterialTheme.typography.titleSmall.copy(fontSize = fontSize, fontWeight = FontWeight.Bold),
     )
 }
@@ -773,7 +792,7 @@ private fun SigimsaeRow(
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
         }
         if (stretch) Spacer(Modifier.weight(1f))
-        if (!last) HorizontalDivider(color = colors.line)
+        if (!last) HorizontalDivider(color = colors.lineSoft)
     }
 }
 
@@ -793,7 +812,7 @@ internal fun SigimsaeMorePage(selected: Int?, onSelect: (Int?) -> Unit, columns:
         MoreSigimsae.forEachIndexed { g, group ->
             val first = start
             start += group.symbols.size
-            CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = if (g == 0) 12.dp else 16.dp))
+            CountTitle(group.title, group.symbols.size, 13.sp, Modifier.padding(top = if (g == 0) 12.dp else 16.dp), color = EolssuTheme.colors.textMuted)
             Column(Modifier.padding(top = 8.dp)) {
                 group.symbols.chunked(columns).forEachIndexed { r, row ->
                     if (r > 0) Spacer(Modifier.height(12.dp))
@@ -829,7 +848,7 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
             Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .background(if (on) colors.background else colors.surface, shape)
+                .background(colors.surface, shape)
                 .border(1.5.dp, if (on) colors.green else Color.Transparent, shape),
             contentAlignment = Alignment.Center,
         ) {
@@ -845,6 +864,7 @@ private fun SigimsaeTile(symbol: SigimsaeSymbol, on: Boolean, enabled: Boolean, 
 
 /**
  * 한 줄 전체의 설명 말풍선(`.sig-tip`). 꼬리는 너비의 [at] 비율 자리를 가리킨다.
+ * 새 보드에 펼친 모습이 없어, 흰 카드 위에서 보이도록 고른 칸의 녹색 테두리와 같은 계열의 옅은 연두 바탕을 쓴다.
  * 꼬리(12dp 네모를 45° 돌린 위 절반)는 칸 줄과 말풍선 사이 8dp에 그린다.
  */
 @Composable
@@ -854,7 +874,7 @@ private fun SigimsaeTip(symbol: SigimsaeSymbol, at: Float) {
         Canvas(Modifier.fillMaxWidth().height(8.dp)) {
             val half = 6.dp.toPx() * 1.4142f
             val x = size.width * at
-            drawPath(Path().apply { moveTo(x - half, size.height); lineTo(x, size.height - half); lineTo(x + half, size.height); close() }, colors.surface)
+            drawPath(Path().apply { moveTo(x - half, size.height); lineTo(x, size.height - half); lineTo(x + half, size.height); close() }, colors.accentTint)
         }
         Text(
             buildAnnotatedString {
@@ -864,7 +884,7 @@ private fun SigimsaeTip(symbol: SigimsaeSymbol, at: Float) {
             },
             Modifier
                 .fillMaxWidth()
-                .background(colors.surface, RoundedCornerShape(10.dp))
+                .background(colors.accentTint, RoundedCornerShape(10.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, lineHeight = 19.6.sp),
             color = colors.text,
