@@ -130,6 +130,8 @@ fun PageHeading(
     eyebrow: String? = null,
     intro: String? = null,
     eyebrowGap: Dp = 10.dp,
+    /** 연습 화면의 ‘운지법과 함께 보기’처럼 자리를 아끼는 22sp 제목(보드 `.paged-fingering .page-title`). */
+    compact: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     Column(modifier) {
@@ -145,8 +147,8 @@ fun PageHeading(
             title,
             modifier = Modifier.semantics { heading() },
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontSize = 25.sp,
-                lineHeight = 37.5.sp,
+                fontSize = if (compact) 22.sp else 25.sp,
+                lineHeight = if (compact) 33.sp else 37.5.sp,
                 letterSpacing = (-0.5).sp,
                 fontWeight = FontWeight.Normal,
             ),

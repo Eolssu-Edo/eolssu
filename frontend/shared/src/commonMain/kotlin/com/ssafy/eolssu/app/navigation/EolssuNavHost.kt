@@ -54,7 +54,6 @@ import com.ssafy.eolssu.feature.song.PdfUploadRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.practice_mic_required
 import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -207,13 +206,7 @@ fun EolssuNavHost(
                     onEvaluate = { id, bpm, take -> navController.navigate(EolssuDestination.analysis(id, bpm, take)) },
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
-                    onMicDenied = {
-                        navController.popBackStack()
-                        scope.launch {
-                            appSnackbar.currentSnackbarData?.dismiss()
-                            appSnackbar.showSnackbar(getString(Res.string.practice_mic_required))
-                        }
-                    },
+                    // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
                 )
             }
             composable(
