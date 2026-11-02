@@ -14,13 +14,15 @@ from pathlib import Path
 import re
 
 from .score_data import Unit, build_events, check, dumps
-from data.src.playback.jgb import convert_jgb, row_groups, YUL
+from .import_source import prepare_source, educational_plan
+from data.src.playback.jgb import convert_jgb, YUL
 from data.src.playback.common_score import convert_common_score, validate_common, PREFIXES
 from data.src.playback.preview import mode
 from data.src.playback.score import require, resolve_pitch
+from data.src.playback.tempo_repeat import apply_tempo_repeat
+from data.src.playback.common_preview import _stretch_lengths
 
 CONVERTER = "jgb-playback-import/v1"
-MARK = re.compile(r"[\{(\[]([^{}()\[\]]+)[\})\]]")
 
 
 def _nominal(score):
@@ -101,49 +103,53 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
             "input_sha256: 원본 바이트 SHA-256이 필요합니다")
     require(isinstance(source_name, str) and source_name.strip(), "source_name이 필요합니다")
     require(notation_policy in (None, "educational-preview/v1"), "알 수 없는 가져오기 notation policy")
+    require(isinstance(document, dict), "JGB는 객체여야 합니다")
+    require(isinstance(document.get("playback", {}), dict), "playback은 객체여야 합니다")
     if notation_policy is not None:
         document = deepcopy(document)
         document.setdefault("playback", {})["notation_policy"] = notation_policy
-    final_score, final_mapping = convert_jgb(document, source_name=source_name, instrument=instrument,
-                                           part=part, input_sha256=input_sha256,
-                                           performance_plan=performance_plan, expression_profile=expression_profile)
-    # Resolve source glyphs once, before repetitions duplicate their locations.
-    base_plan = deepcopy(performance_plan)
-    if base_plan is not None:
-        base_plan["repeats"] = []
-        legacy, mapping = convert_jgb(document, source_name=source_name, instrument=instrument,
-                                      part=part, input_sha256=input_sha256,
-                                      performance_plan=base_plan, expression_profile=expression_profile)
-    else:
-        legacy, mapping = final_score, final_mapping
+    policy = mode(document)
+    prepared, source_cells, length_factors, tempo_cues, repeats, normalization = prepare_source(
+        document, instrument, part, policy, performance_plan is not None)
+    # Resolve glyphs before tempo/repetition, and retain original source coordinates separately.
+    legacy, mapping = convert_jgb(prepared, source_name=source_name, instrument=instrument,
+                                  part=part, input_sha256=input_sha256, expression_profile=expression_profile)
+    final_score, final_mapping = deepcopy(legacy), deepcopy(mapping)
+    _stretch_lengths(final_score, final_mapping, length_factors)
+    final_mapping['tempo_cues'] = tempo_cues
+    selected_plan = performance_plan
+    if selected_plan is None and (tempo_cues or repeats):
+        selected_plan = educational_plan(source_cells, tempo_cues, repeats, mapping['jeonggan_bpm'], input_sha256, instrument)
+    if selected_plan is not None:
+        # The plan is checked against the original raw SHA before intentional rebinding below.
+        final_score, final_mapping = apply_tempo_repeat(final_score, final_mapping, selected_plan, input_sha256, instrument=instrument)
     selected = mapping["part_index"]
     source_id = source_id or f"jgb-playback-{input_sha256[:16]}-p{selected}"
     require(isinstance(source_id, str) and source_id.strip(), "source_id가 비어 있습니다")
     voice = document["parts"][selected - 1] if document["v"] == 2 else document
     melody = voice["melody"]
     ratio, hwang = Fraction(mapping["quarter_ratio"]), mapping["huangjong_midi"]
-    policy = mode(document)
     # The original interpreter supplies resolved pitches, including the previous
     # sounding pitch after attached figures. Do not maintain a second scale engine.
-    interpreted, locations = {}, {}
+    interpreted = {}
     for note in legacy["notes"]:
         loc = mapping["notes"][note["id"]][0]
         key = (loc["gak"], loc["cell"], loc["row"], loc["unit"])
         interpreted.setdefault(key, []).append(note)
-        for loc in mapping["notes"][note["id"]]:
-            locations[(loc["gak"], loc["cell"], loc["row"], loc["unit"])] = loc
     units, slots, cursor = [], [], Fraction()
+    needs_source_slots, previous_main = False, None
+    source_cells_iter = iter(source_cells)
     lines = re.split(r"\|\|(?:\r\n|\r|\n)?|\r\n|\n|\r", melody.rstrip("\r\n"))
     for column, line in enumerate(lines):
         for cell_index, cell in enumerate(line.split("|")):
             cid = f"c{column}-j{cell_index}"
-            words = list(re.finditer(r"\S+", cell))
+            cell_info = next(source_cells_iter)
             parsed = []
-            for row, match in enumerate(words or [None]):
-                text = match[0] if match else ""
-                label = f"성부 {selected} · {column+1}각 · {cell_index+1}정간 · {row+1}분박"
-                groups, breath = row_groups(text, label, instrument=instrument, notation_policy=policy)
-                raw_marks = list(MARK.finditer(text))
+            for row, row_info in enumerate(cell_info['rows']):
+                text = row_info['text']
+                label = f"성부 {selected} · {column+1}각 · {cell_index+1}정간 · {row_info['row']}분박"
+                groups, breath = row_info['groups'], row_info['breath']
+                raw_marks = row_info['marks']
                 mark_index = 0
                 group_data = []
                 for group_index, group in enumerate(groups or [{"kind": "hold", "symbols": []}]):
@@ -155,36 +161,45 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                             f"{label}: 기호 원문 대응을 확인할 수 없습니다")
                     kind = group["kind"]
                     if kind == "relative":
-                        require(len(original_marks) == 1 and not group.get("weight"),
-                                f"{label}: 독립 음열과 추가 효과의 동시 펼침은 지원하지 않습니다")
+                        needs_source_slots |= len(original_marks) > 1 or bool(group.get("weight"))
                         notes = interpreted.get(key, [])
                         require(notes and all("pitch" in n for n in notes),
                                 f"{label}: 독립 음열의 해석 결과를 확인할 수 없습니다")
                         symbols = [_pitch_symbol(n["pitch"], hwang, label) for n in notes]
-                        marks = []
+                        marks = original_marks[1:]
+                        anchor = _pitch_symbol(previous_main, hwang, label)
                     else:
                         symbols = [(_pitch_symbol(hwang + group["offset"], hwang, label) if kind == "note"
                                     else "쉼" if kind == "rest" else "-" if text else "")]
                         marks = [m for m in original_marks if m.partition("@")[0] not in
                                  ("이음표", "-", "빈지속", "쉼표", "쉼", "pause_007")]
-                    loc = locations[key]
-                    row_start = loc["cell_start"] + (match.start() if match else 0)
-                    origin = {"part": selected, "gak": key[0], "cell": key[1], "row": key[2], "unit": key[3],
+                        anchor = symbols[0] or "-"
+                    if group.get("weight"):
+                        needs_source_slots = True
+                    main = [n for n in interpreted.get(key, []) if "pitch" in n and
+                            ".grace" not in n["id"] and ".postgrace" not in n["id"]]
+                    if kind in ("note", "relative") and main:
+                        previous_main = main[-1]["pitch"]
+                    row_start = row_info['start']
+                    origin = {"part": selected, "gak": key[0], "cell": key[1], "row": row_info['row'], "unit": key[3],
                               "cellText": cell, "kind": kind, "symbols": original_marks,
-                              "cellStart": loc["cell_start"], "cellEnd": loc["cell_end"],
+                              "cellStart": cell_info['start'], "cellEnd": cell_info['start'] + len(cell),
                               "rowStart": row_start, "rowEnd": row_start + len(text),
                               "symbolSpans": [{"text": m[0], "start": row_start + m.start(),
                                                "end": row_start + m.end()} for m in matched_marks]}
                     if kind == "relative" and len(notes) > 1 and notes[0].get("slur") and all(
                             n.get("slur") == notes[0]["slur"] for n in notes):
                         origin["interpretedSlur"] = {"id": notes[0]["slur"], "noteIds": [n["id"] for n in notes]}
+                    origin["anchorSymbol"] = anchor
+                    origin["lengthMode"] = cell_info['lengthMode']
+                    if row == group_index == 0:
+                        marks.extend(a['symbol'] for a in cell_info['annotations'])
                     group_data.append((group, symbols, marks, origin))
                 require(mark_index == len(raw_marks), f"{label}: 원문 기호 누락")
                 factor = math.lcm(*(len(v[1]) for v in group_data))
                 if factor > 1:
-                    require(not any(g.get("grace") or g.get("post_grace") or g.get("weight") or g.get("fermata") or
-                                    g.get("sequence") and g["kind"] != "relative" for g, *_ in group_data),
-                            f"{label}: 독립 음열과 같은 row의 꾸밈/길이 혼합은 지원하지 않습니다")
+                    needs_source_slots |= any(g.get("grace") or g.get("post_grace") or g.get("weight") or g.get("fermata") or
+                                              g.get("sequence") and g["kind"] != "relative" for g, *_ in group_data)
                 require(factor * len(group_data) <= 64, f"{label}: 펼친 row가 64자리를 초과합니다")
                 parsed.append((group_data, factor, breath, label))
             for row, (groups, factor, _, label) in enumerate(parsed):
@@ -210,8 +225,8 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
     placements = [{"eventId": eid, "cellId": u.cell_id, "row": u.row, "col": u.col,
                    "symbols": list(u.sigimsae)} for u, eid in zip(units, ids) if u.sigimsae]
     expressions = {"schema": "common-score-expressions/v1", "sourceSha256": common_hash, "placements": placements}
-    if performance_plan is not None:
-        expressions["performancePlan"] = deepcopy(performance_plan)
+    if selected_plan is not None:
+        expressions["performancePlan"] = deepcopy(selected_plan)
         expressions["performancePlan"]["input_sha256"] = common_hash
     if expression_profile is not None:
         expressions["expressionProfile"] = deepcopy(expression_profile)
@@ -228,7 +243,16 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                               "row": units[i].row, "col": units[i].col} for i in slot.pop("unitIndices")]
         origin = slot["source"]
         event_ids = list(dict.fromkeys(g["eventId"] for g in slot["generated"]))
-        if "interpretedSlur" in origin and len(event_ids) >= 2:
+        if needs_source_slots:
+            rendered_marks = [m for g in slot["generated"] for m in next(
+                (p["symbols"] for p in placements if all(p[k] == g[k] for k in ("cellId", "row", "col"))), [])]
+            raw = origin["symbols"][:1] + rendered_marks if slot["expandedIndependent"] else rendered_marks
+            expressions.setdefault("sourceSlots", []).append({
+                "cellId": slot["generated"][0]["cellId"], "row": slot["generated"][0]["row"],
+                "cols": [g["col"] for g in slot["generated"]], "kind": origin["kind"],
+                "anchorSymbol": origin["anchorSymbol"], "symbols": raw, "lengthMode": origin['lengthMode'],
+                "basis": f"JGB {source_name}: 성부 {selected}, {origin['gak']}각 {origin['cell']}정간 {origin['row']}분박 {origin['unit']}자리"})
+        elif "interpretedSlur" in origin and len(event_ids) >= 2:
             basis = (f"JGB {source_name}: 성부 {selected}, {origin['gak']}각 {origin['cell']}정간 "
                      f"{origin['row']}분박 {origin['unit']}자리의 독립 음열 {origin['symbols']} — "
                      f"원본 재생 슬러 {origin['interpretedSlur']['id']}")
@@ -242,12 +266,16 @@ def import_jgb(document, *, source_name, instrument, part=None, input_sha256, so
                                    "symbol": mapping["symbol_policy"]},
                   "slurGroups": deepcopy(expressions.get("slurGroups", [])),
                   "validation": {"nominalPitchTiming": "passed", "toleranceSeconds": 0.000001,
+                                 "reference": "educational-policy-normalized-source" if length_factors or repeats or
+                                              tempo_cues and performance_plan is None else "original-source-semantics",
                                  "restComparison": "adjacent rests coalesced"},
-                  "scope": "Inferred playback projection preserving nominal pitch/onset/duration. Consumed independent glyphs are recorded here, not applied twice; their interpreted internal slurs are carried in the expression companion. Gate, velocity, breath/release and waveform identity are not guaranteed by the nominal check."}
+                  "scope": "Inferred playback projection preserving nominal pitch/onset/duration against the stated reference. Consumed independent glyphs and source slot semantics are recorded here and in the expression companion, not applied twice. Gate, velocity, breath/release and waveform identity are not guaranteed by the nominal check."}
     if performance_plan is not None:
         source_map["originalPerformancePlan"] = deepcopy(performance_plan)
     if expression_profile is not None:
         source_map["originalExpressionProfile"] = deepcopy(expression_profile)
+    if normalization:
+        source_map["normalization"] = normalization
     return {"common": common, "expressions": expressions, "source_map": source_map, "bpm": mapping["quarter_bpm"]}
 
 

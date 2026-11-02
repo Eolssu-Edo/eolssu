@@ -10,6 +10,7 @@ import tempfile
 import unittest
 
 from data.src.scores.playback_import import import_jgb
+from data.src.scores.score_data import dumps
 from data.src.playback.common_score import convert_common_score
 from data.src.playback.score import compile_score
 
@@ -230,12 +231,97 @@ class PlaybackImportTests(unittest.TestCase):
             bundle(doc, 1)
 
     def test_mixed_expansion_does_not_change_adaptive_grace_silently(self):
-        with self.assertRaisesRegex(ValueError, "같은 row의 꾸밈"):
-            bundle(source("청황 청황{니레}{니나}"))
+        result = bundle(source("청황 청황 청황{니레}{니나}"))
+        notes = performed(result)["notes"]
+        self.assertEqual([n["pitch"] for n in notes], [75, 75, 77, 75, 77, 75])
+        self.assertEqual([Fraction(n["duration"]) for n in notes],
+                         [Fraction(1, 3), Fraction(1, 3), Fraction(1, 16), Fraction(5, 48), Fraction(1, 12), Fraction(1, 12)])
 
-    def test_postcondition_rejects_unpreserved_grace_with_length_pair(self):
-        with self.assertRaisesRegex(ValueError, "성부 1.*명목 시간을 보존하지 못합니다"):
-            bundle(source("청황{니레}{덧길이표} 청태{반길이표}"))
+    def test_grace_with_balanced_length_uses_original_adaptive_cap(self):
+        result = bundle(source("청황{니레}{덧길이표} 청태{반길이표}"))
+        self.assertEqual([Fraction(n["duration"]) for n in performed(result)["notes"]],
+                         [Fraction(1, 16), Fraction(11, 16), Fraction(1, 4)])
+
+    def test_independent_effect_and_following_hold_keep_source_ornament_semantics(self):
+        result = bundle(source("청황 {니나}{농음표} | -", beats=2))
+        score = performed(result)
+        self.assertEqual([n["pitch"] for n in score["notes"]], [75, 77, 75])
+        self.assertEqual([Fraction(n["duration"]) for n in score["notes"]], [Fraction(1, 2), Fraction(1, 4), Fraction(5, 4)])
+        self.assertEqual([bool(n.get("yoseong")) for n in score["notes"]], [False, True, True])
+        self.assertEqual([n["legato"] for n in compile_score(score, "danso")["events"]], [False, False, True])
+
+    def test_balanced_temporal_marks_work_on_rest_and_initial_hold(self):
+        for rest in ("쉼", "-"):
+            score = performed(bundle(source(f"{rest}{{덧길이표}} 청황{{반길이표}}")))
+            self.assertTrue(score["notes"][0]["rest"])
+            self.assertEqual([Fraction(n["duration"]) for n in score["notes"]], [Fraction(3, 4), Fraction(1, 4)])
+        score = performed(bundle(source('청황 -{덧길이표} 청태{반길이표}')))
+        self.assertEqual([Fraction(n['duration']) for n in score['notes']], [Fraction(5, 6), Fraction(1, 6)])
+        score = performed(bundle(source('청황 -{반길이표} 청태{덧길이표}')))
+        self.assertEqual([Fraction(n['duration']) for n in score['notes']], [Fraction(1, 2), Fraction(1, 2)])
+
+    def test_unpaired_lengths_are_explicit_educational_performed_warps(self):
+        for staff, grace in (("plain", Fraction(3, 32)), ("dotted", Fraction(1, 16)), ("eighth", Fraction(3, 16))):
+            doc = source("청황{니레}{덧길이표} | 청태", beats=2)
+            doc["controls"]["staffUnit"] = staff
+            with self.assertRaisesRegex(ValueError, "길이 기호의 짝"):
+                bundle(doc)
+            result = bundle(doc, notation_policy="educational-preview/v1")
+            score = performed(result)
+            seconds = [Fraction(n['duration']) * 60 / Fraction(str(score['quarter_bpm'])) for n in score['notes']]
+            self.assertEqual(seconds, [grace, Fraction(3, 2)-grace, Fraction(1)])
+            self.assertEqual(result['source_map']['validation']['reference'], 'educational-policy-normalized-source')
+
+    def test_raw_repeat_and_tempo_keep_original_offsets_and_apply_once(self):
+        doc = source("청황{반복표} | {조금느리게} 청태{농음표}", beats=2)
+        digest = hashlib.sha256(json.dumps(doc, ensure_ascii=False).encode()).hexdigest()
+        plan = {'schema': 'danso-performance/v1', 'input_sha256': digest,
+                'tempos': [{'gak': 1, 'cell': 2, 'bpm': 120}],
+                'repeats': [{'start_gak': 1, 'end_gak': 1, 'times': 3}]}
+        # A cue contradicting its numeric target must still be rejected.
+        with self.assertRaisesRegex(ValueError, '낮은 목표'):
+            bundle(doc, notation_policy='educational-preview/v1', performance_plan=plan)
+        plan['tempos'][0]['bpm'] = 30
+        result = bundle(doc, notation_policy='educational-preview/v1', performance_plan=plan)
+        self.assertEqual([n['pitch'] for n in performed(result)['notes']], [75, 77] * 3)
+        self.assertEqual([Fraction(n['duration']) for n in performed(result)['notes']], [Fraction(1), Fraction(2)] * 3)
+        melody = doc['parts'][0]['melody']
+        for entry in result['source_map']['normalization']:
+            for mark in entry.get('annotations', []):
+                self.assertEqual(melody[mark['start']:mark['end']], mark['text'])
+        second = result['source_map']['slots'][1]['source']
+        self.assertEqual(second['row'], 2)
+        self.assertEqual(melody[second['symbolSpans'][0]['start']:second['symbolSpans'][0]['end']], '{농음표}')
+
+    def test_notation_override_rejects_malformed_playback_with_value_error(self):
+        doc = source('청황')
+        doc['playback'] = []
+        with self.assertRaisesRegex(ValueError, 'playback'):
+            bundle(doc, notation_policy='educational-preview/v1')
+
+    def test_source_slots_cannot_override_pitches_marks_coverage_or_review(self):
+        result = bundle(source('청황 청황 청황{니레}{니나}'))
+        def rejected(mutate, rebind=False):
+            changed = deepcopy(result)
+            mutate(changed)
+            if rebind:
+                changed['expressions']['sourceSha256'] = hashlib.sha256(dumps(changed['common']).encode()).hexdigest()
+            with self.assertRaises(ValueError):
+                performed(changed)
+        rejected(lambda b: b['expressions']['sourceSlots'][0].update(anchorSymbol='청태'))
+        rejected(lambda b: b['expressions']['sourceSlots'][-1].update(anchorSymbol='청태'))
+        rejected(lambda b: b['expressions']['sourceSlots'][-1]['symbols'].__setitem__(0, '느나'))
+        rejected(lambda b: b['expressions']['sourceSlots'][-1]['cols'].pop())
+        rejected(lambda b: b['expressions']['sourceSlots'].reverse())
+        rejected(lambda b: b['expressions']['sourceSlots'][-1].update(row=0))
+        rejected(lambda b: b['expressions']['sourceSlots'][0].update(symbols=['농음표']))
+        rejected(lambda b: b['common']['provenance'].update(review='reviewed'), True)
+        rejected(lambda b: b['common']['provenance'].pop('converter'), True)
+        rejected(lambda b: b['common']['events'][-2].update(breathAfter=True), True)
+        paired = bundle(source('청황{니레}{덧길이표} 청태{반길이표}'))
+        paired['expressions']['sourceSlots'][0]['lengthMode'] = 'performed'
+        with self.assertRaisesRegex(ValueError, '균형 길이표'):
+            performed(paired)
 
     def test_source_metadata_requirements_still_fail_closed(self):
         doc = source("청황")

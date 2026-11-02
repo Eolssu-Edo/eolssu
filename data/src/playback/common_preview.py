@@ -13,6 +13,7 @@ from .preview import EXTRA_MARKS, canonical
 from .jgb import convert_jgb
 from .score import reject_unknown, require
 from .tempo_repeat import TEMPO_CUES, apply_tempo_repeat
+from .import_slots import source_slots, expand_locations
 
 POLICY = "educational-preview/v1"
 REPEAT_MARKS = {"반복표", "도돌이표"}
@@ -74,7 +75,7 @@ def _placements(source, config, input_hash):
     require(isinstance(config, dict), '표현 파일은 JSON 객체여야 합니다')
     reject_unknown(config, ['schema', 'sourceSha256', 'placements', 'jo', 'relativeScale',
                             'expressionPolicy', 'expressionProfile', 'performancePlan',
-                            'gakContinuations', 'slurGroups'], 'expression companion')
+                            'gakContinuations', 'slurGroups', 'sourceSlots'], 'expression companion')
     require(config.get('schema') == 'common-score-expressions/v1', '표현 파일 schema 불일치')
     require(config.get('sourceSha256') == input_hash, '표현 파일 sourceSha256 불일치')
     entries = config.get('placements')
@@ -180,6 +181,8 @@ def convert_preview(source, base_score, base_map, config):
     require(isinstance(input_hash, str) and re.fullmatch('[0-9a-f]{64}', input_hash), '원본 SHA256이 필요합니다')
     units, marks, placement_policy = _placements(source, config, input_hash)
     config = config or {}
+    imported_slots = source_slots(source, config, units, marks, _symbol_name)
+    rendered_slots = {}
     slur_groups = _slur_groups(source, config)
     instrument = source['score']['instrument'].lower().replace('_', '-')
     events = {event['id']: event for event in source['events']}
@@ -213,12 +216,18 @@ def convert_preview(source, base_score, base_map, config):
             rows = {}
             for unit in cell['units']:
                 key = (cell['id'], unit['row'], unit['col'])
-                location = (column['index'] + 1, cell['index'] + 1, unit['row'] + 1, unit['col'] + 1)
+                if imported_slots is not None and key not in imported_slots:
+                    continue
+                slot = imported_slots.get(key) if imported_slots is not None else None
+                col = slot['renderCol'] if slot else unit['col']
+                location = (column['index'] + 1, cell['index'] + 1, unit['row'] + 1, col + 1)
+                if slot:
+                    rendered_slots[location] = slot
                 event = events[unit['eventId']]
                 remaining = []
-                for mark in marks[key]:
+                for mark in slot['symbols'] if slot else marks[key]:
                     name = _symbol_name(mark)
-                    if name in LENGTH_MARKS:
+                    if name in LENGTH_MARKS and not (slot and slot['lengthMode'] == 'written'):
                         require(location not in factors, f'{key}: 길이표 중복')
                         factors[location] = Fraction(LENGTH_MARKS[name])
                         approximations.append({'symbol': mark, 'location': list(key), 'factor': str(factors[location]),
@@ -234,12 +243,13 @@ def convert_preview(source, base_score, base_map, config):
                             'basis': '빠르기 기호는 기존 정간 단위 계획에 맞춰 해당 정간 시작부터 적용; 원래 기호 위치는 보존'})
                     else:
                         remaining.append(mark)
-                symbol = unit['symbol'] or '-'
-                require(event['kind'] == 'NOTE' or not any(not _sustain_effect(m) for m in remaining),
+                symbol = slot['anchorSymbol'] if slot else unit['symbol'] or '-'
+                sounding_marks = [m for m in remaining if not (slot and _symbol_name(m) in LENGTH_MARKS)]
+                require(event['kind'] == 'NOTE' or not any(not _sustain_effect(m) for m in sounding_marks),
                         f'{key}: 쉼·각 경계 지속 자리의 새 음열/강세에는 원본 본음이 필요합니다')
                 # Pure curves on a held note use the existing delayed-effect path.
                 # A new pitch figure on a hold must have an explicit pitch anchor.
-                if symbol in ('', '-') and event['kind'] == 'NOTE' and any(not _sustain_effect(m) for m in remaining):
+                if symbol in ('', '-') and event['kind'] == 'NOTE' and any(not _sustain_effect(m) for m in sounding_marks):
                     from .common_score import PREFIXES
                     symbol = PREFIXES[event['octave']] + event['yul']
                     approximations.append({'symbols': list(remaining), 'location': list(key),
@@ -272,6 +282,8 @@ def convert_preview(source, base_score, base_map, config):
         if tempo_entries or repeat_columns:
             approximations.append({'basis': '교육용 기본 계획: 반복 기호가 있는 각 총2회; 느림0.8/빠름1.2; 점진 변화는 다음 정간까지', 'plan': deepcopy(plan)})
     score, mapping = apply_tempo_repeat(score, mapping, plan, input_hash, instrument=instrument)
+    if imported_slots is not None:
+        expand_locations(score, mapping, rendered_slots, source, base_map)
     ordinals = {event['id']: event['noteIdx'] for event in base_map['events']}
     for locations in mapping['notes'].values():
         for loc in locations:
