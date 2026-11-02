@@ -10,9 +10,10 @@ import sys
 import numpy as np
 
 from ai_service.api import DTW_BYTES_PER_CELL, MAX_DTW_BYTES, RecordingTooLong
-from ai_service.pipelines.audio import SAMPLE_RATE, decode_recording
+from ai_service.pipelines.audio import SAMPLE_RATE
 from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, frame_rms, pyin_f0, score
 from evaluation.error_detection import score_notes
+from evaluation.local_audio import decode_window
 
 _SCORES = frozenset(f"ngc-standard-2022-p{page}" for page in range(171, 175))
 _REPO = Path(__file__).resolve().parents[2]
@@ -39,17 +40,21 @@ def prepare_recording(audio_path, source_id, bpm, start_s=0):
     notes = load_notes(source_id)
     if not notes:
         raise ValueError("악보에 음표가 없습니다")
-    audio = decode_recording(audio_path)
-    if start_s >= len(audio) / SAMPLE_RATE:
-        raise ValueError("시작 위치가 녹음 길이 밖입니다")
-    start_sample = round(start_s * SAMPLE_RATE)
-    if start_sample >= len(audio):
-        raise ValueError("시작 위치가 녹음 길이 밖입니다")
-    audio = audio[start_sample:].astype(np.float32) / 32768.0
     span_beats = notes[-1].start_beat + notes[-1].beats - notes[0].start_beat
     expected_frames = span_beats * 60.0 / bpm / HOP_S
-    if expected_frames * (len(audio) / SAMPLE_RATE / HOP_S) * DTW_BYTES_PER_CELL > MAX_DTW_BYTES:
+    if not math.isfinite(expected_frames):
         raise RecordingTooLong("악보와 녹음이 분석 메모리 한도를 넘습니다")
+    start_position = start_s * SAMPLE_RATE
+    if not math.isfinite(start_position) or start_position > (2**63 - 3) // 2:
+        raise ValueError("시작 위치가 녹음 길이 밖입니다")
+    start_sample = round(start_position)
+    denominator = expected_frames * DTW_BYTES_PER_CELL
+    ceiling = (2**63 - 3) // 2 - start_sample
+    allowed = MAX_DTW_BYTES * SAMPLE_RATE * HOP_S / denominator if denominator else math.inf
+    max_samples = min(ceiling, math.floor(allowed)) if math.isfinite(allowed) else ceiling
+    if max_samples < 1:
+        raise RecordingTooLong("악보와 녹음이 분석 메모리 한도를 넘습니다")
+    audio = decode_window(audio_path, start_sample, max_samples).astype(np.float32) / 32768.0
     return pyin_f0(audio, SAMPLE_RATE), notes, frame_rms(audio, SAMPLE_RATE)
 
 

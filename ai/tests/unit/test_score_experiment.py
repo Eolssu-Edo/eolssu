@@ -84,3 +84,13 @@ def test_selected_settings_change_the_expected_axis():
     assert timing.timing < base.timing and timing.pitch == base.pitch
     assert any(n.verdict == 'TIMING' for n in timing.notes)
     assert duration.duration < base.duration and duration.pitch == base.pitch
+
+
+def test_default_matches_real_score_at_half_point_rounding_boundary():
+    shifts = [-60, 40, -20, 70, -30, 40, -30, 0, -30, -80, -20, 10, 100, -90, 100, 0]
+    notes = [Note(i % 2 * 5, .25, idx=i) for i in range(len(shifts))]
+    f0 = np.concatenate([np.full(13, HWANG_HZ * 2 ** ((n.semitone + cents / 100) / 12))
+                         for n, cents in zip(notes, shifts)])
+    expected = score(f0, notes, 120, HWANG_HZ)
+    assert expected.pitch == 77
+    assert asdict(score_experiment(f0, notes, 120, HWANG_HZ, Experiment())['result']) == asdict(expected)

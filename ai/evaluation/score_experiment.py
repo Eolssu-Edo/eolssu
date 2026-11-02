@@ -4,6 +4,8 @@ from dataclasses import dataclass, replace
 import math
 import sys
 
+import numpy as np
+
 from ai_service.pipelines import scoring
 
 
@@ -69,12 +71,12 @@ def score_experiment(f0, notes, bpm, ref_hz, spec, rms=None):
         relative = min(resid, onset, key=abs)
         if not note.sigimsae:
             pitch.append(credit(err, spec.pitch_cent, spec.pitch_penalty, spec.large_error_exponent))
-            standard_pitch.append(credit(err, spec.pitch_cent, 0, 1))
+            standard_pitch.append(scoring._credit(err, spec.pitch_cent))
         timing.append(credit(relative, captured['onset_tol_s'], spec.timing_penalty, spec.large_error_exponent))
-        standard_timing.append(credit(relative, captured['onset_tol_s'], 0, 1))
+        standard_timing.append(scoring._credit(relative, captured['onset_tol_s']))
 
     def axis(values):
-        return round(100 * sum(values) / len(values)) if values else 100
+        return round(100 * float(np.mean(values))) if values else 100
 
     if (axis(standard_pitch), axis(standard_timing)) != (result.pitch, result.timing):
         raise RuntimeError('실제 채점과 측정값 재계산이 일치하지 않습니다')
