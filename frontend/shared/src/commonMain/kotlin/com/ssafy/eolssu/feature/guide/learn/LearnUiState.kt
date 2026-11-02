@@ -76,3 +76,24 @@ internal fun LearnUiState.selectStage(stage: Int?) =
 
 /** 가로 배치에서 보이는 단계의 완료 표시를 바꾼다. 다음에 할 단계가 바뀌어도 보던 단계에 머물도록 그 단계를 고른다. */
 internal fun LearnUiState.toggleShownDone(stage: Int) = selectStage(stage).toggleDone(stage)
+
+/** 단계 상세 아래 주 버튼(`.lbar`): 설명 단계는 '확인했어요 · 다음', 듣기 단계는 '모범 연주 듣기', 판정 단계는 '연습 시작'. */
+internal enum class LearnStageAction { Confirm, ListenModel, Practice }
+
+internal val LearnStage.primaryAction: LearnStageAction
+    get() = when (judge) {
+        LearnJudge.Read -> LearnStageAction.Confirm
+        LearnJudge.Listen -> LearnStageAction.ListenModel
+        LearnJudge.Pitch, LearnJudge.Beat -> LearnStageAction.Practice
+    }
+
+/** 주 버튼 아래 안내(`.lbar .hint`). 8단계만 곡을 골라 AI 연주 평가로 통과를 확인한다. */
+internal enum class LearnStageHint { Read, Listen, Song, Practice }
+
+internal val LearnStage.hint: LearnStageHint
+    get() = when {
+        judge == LearnJudge.Read -> LearnStageHint.Read
+        judge == LearnJudge.Listen -> LearnStageHint.Listen
+        number == 8 -> LearnStageHint.Song
+        else -> LearnStageHint.Practice
+    }
