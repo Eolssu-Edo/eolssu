@@ -397,8 +397,12 @@
     <string name="learn_reset_message">%1$s의 완료 표시를 지웠어요.</string>
     <string name="learn_optional">선택</string>
     <string name="learn_done">완료</string>
-    <string name="learn_stage_item">%1$d단계 %2$s</string>
-    <string name="learn_stage_item_done">%1$d단계 %2$s, 완료</string>
+    <string name="learn_card_stage">%1$d단계</string>
+    <string name="learn_card_prev">이전 단계</string>
+    <string name="learn_card_next">다음 단계</string>
+    <string name="learn_card_open">%1$d단계 %2$s 열기</string>
+    <string name="learn_card_open_done">%1$d단계 %2$s, 완료 열기</string>
+    <string name="learn_card_dot">%1$d단계 %2$s로 넘기기</string>
     <string name="learn_list_source">단계 순서는 국립국악원 e국악아카데미 단소 지도서와 대금·소금·단소 강좌 차시 구성을 따른 초안이에요(팀 확정 전). 1·2단계는 설명 중심, 3~8단계는 음높이·길이·박으로 판정, 9단계는 듣고 따라 하기예요.</string>
     <string name="learn_judge_read">설명·확인</string>
     <string name="learn_judge_pitch">음높이 판정</string>
