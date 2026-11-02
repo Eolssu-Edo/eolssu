@@ -26,13 +26,12 @@ class ScorePerformanceFixtureTest {
     @Test fun sanjoDaegeum() = checkFixture("sanjo-daegeum", "SANJO_DAEGEUM")
 
     private fun checkFixture(name: String, instrument: String) {
-        val bytes = resource("$name.score.json")
-        val sourceHash = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        val (bytes, json) = fixture(name)
+        val sourceHash = sha256(bytes)
         val source = CommonScoreData.decode(bytes.toString(Charsets.UTF_8))
         assertEquals(instrument, source.score.instrument)
         val song = Song("338", source.score.title, SongLevel.Intro, Jangdan(source.music.jangdan, listOf(4), 4, 1),
             60, "", false, null, source.toScore(), scoreVersion = 1)
-        val json = resource("$name.performance.json").toString(Charsets.UTF_8)
         val audioHash = Json.parseToJsonElement(json).jsonObject.getValue("audioSha256").jsonPrimitive.content
         val audio = ModelAudio(song.id, 1, "https://example.com/$name.wav", 60, "QUARTER", 29550, 0, "audio/wav", audioHash)
             .withPerformance(json, song, sourceHash)
@@ -56,6 +55,31 @@ class ScorePerformanceFixtureTest {
         assertEquals(100f, state(29550).progressPercent)
         assertEquals(24, state(25000).copy(mode = PracticeMode.Recording).totalSeconds)
     }
+
+    /** Restore the original CLI bytes; serializing JSON again would change the source hash. */
+    private fun fixture(name: String): Pair<ByteArray, String> {
+        val variants = Json.parseToJsonElement(resource("instruments.json").toString(Charsets.UTF_8)).jsonObject
+        val canonical = variants.getValue("danso").jsonObject
+        val instrument = variants.getValue(name).jsonObject
+        fun String.restore(field: String, metadataKey: String = field): String {
+            val original = "\"$field\": \"${canonical.getValue(metadataKey).jsonPrimitive.content}\""
+            val replacement = "\"$field\": \"${instrument.getValue(metadataKey).jsonPrimitive.content}\""
+            assertEquals(1, Regex(Regex.escape(original)).findAll(this).count(), "$name: unique $field field")
+            return replace(original, replacement)
+        }
+        val score = resource("common.score.json").toString(Charsets.UTF_8)
+            .restore("instrument").restore("jgbSha256").toByteArray(Charsets.UTF_8)
+        val performance = resource("common.performance.json").toString(Charsets.UTF_8)
+            .restore("instrument").restore("sourceSha256", "scoreSha256").restore("audioSha256")
+        // Both hashes were captured from the original four file pairs, independently of this loader.
+        assertEquals(instrument.getValue("scoreSha256").jsonPrimitive.content, sha256(score), "$name score bytes")
+        assertEquals(instrument.getValue("performanceSha256").jsonPrimitive.content,
+            sha256(performance.toByteArray(Charsets.UTF_8)), "$name performance bytes")
+        return score to performance
+    }
+
+    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
+        .joinToString("") { "%02x".format(it) }
 
     private fun resource(name: String) = requireNotNull(javaClass.getResourceAsStream("/scores/performance-preview/$name"))
         .use { it.readBytes() }
