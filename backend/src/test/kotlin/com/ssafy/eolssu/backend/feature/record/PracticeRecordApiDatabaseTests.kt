@@ -206,6 +206,21 @@ class PracticeRecordApiDatabaseTests {
         }
     }
 
+    // 저장 본문은 생략과 null을 구분하려고 JSON 노드로 받는다. 문서에는 그 내부 대신 실제 본문 형식이 보여야 한다.
+    @Test
+    fun `the API document shows the save body as an optional memo object`() {
+        val doc = json.readTree(
+            client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/v3/api-docs")).GET().build(), HttpResponse.BodyHandlers.ofString()).body(),
+        )
+        val body = doc.path("paths").path("/api/practice-sessions/{sessionId}/record").path("put").path("requestBody")
+        assertFalse(body.path("required").asBoolean())
+        val schema = body.path("content").path("application/json").path("schema")
+        assertTrue(schema.path("\$ref").isMissingNode, schema.toString())
+        assertEquals(listOf("memo"), schema.path("properties").propertyNames().toList())
+        val memo = schema.path("properties").path("memo")
+        assertEquals(listOf("string", "true", "500"), listOf("type", "nullable", "maxLength").map { memo.path(it).asString() })
+    }
+
     // 이 서버는 로컬 녹음 저장소를 쓴다. 그 읽기 주소는 AI용 내부 주소라 앱에 주지 않는다(infra/storage/README.md).
     // S3 호환 저장소의 주소 발급은 RecordingPlaybackDatabaseTests가 본다.
     @Test
