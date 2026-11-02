@@ -1,7 +1,7 @@
 # 연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)
 
 - Jira: [S15P31E102-342](https://ssafy.atlassian.net/browse/S15P31E102-342)(이 API), 앱 연결 [S15P31E102-369](https://ssafy.atlassian.net/browse/S15P31E102-369), 녹음 보관 정책 [S15P31E102-375](https://ssafy.atlassian.net/browse/S15P31E102-375). 결정·진행: [342 계획](../plans/S15P31E102-342.md).
-- 상태: 구현 전 계약(2026-11-02). 노션 API 명세 REC-01~04 초안을 기준으로 하고, 다른 점은 아래 '노션 초안과 다른 점'에 적는다. PRA-03 변경은 [PRA-03 계약](practice-analysis-failure.md)에도 반영했다.
+- 상태: 사용자 결정(2026-11-02, [342 계획](../plans/S15P31E102-342.md)의 13항목). REC-01~04와 PRA-03 변경을 S15P31E102-342에서 구현했고 develop 병합 전이다. 노션 API 명세 REC-01~04 초안을 기준으로 하고, 다른 점은 아래 '노션 초안과 다른 점'에 적는다. PRA-03 변경은 [PRA-03 계약](practice-analysis-failure.md)에도 반영했다.
 
 ## 목적
 
@@ -90,7 +90,7 @@
 녹음을 다시 듣는 임시 주소를 발급한다.
 
 - 본인 세션이고 재생 가능하면 발급한다. 저장 여부와는 관계없다. 녹음이 없거나 지운 기록이면 404다.
-- 응답 200 `result`: `sessionId`, `playbackUrl`(서명 URL), `urlExpiresAt`(발급 시각 + 15분), `durationMs`(`recording_duration_ms`, 없으면 null), `contentType`(`audio/mp4`).
+- 응답 200 `result`: `sessionId`, `playbackUrl`(서명 URL), `urlExpiresAt`(발급 시각을 초 단위로 내린 값 + 15분. 실제 서명 만료보다 늦지 않다), `durationMs`(`recording_duration_ms`, 없으면 null), `contentType`(`audio/mp4`).
 - 유효 시간은 분석 요청과 같은 15분이다. 만료되면 앱이 다시 받아 같은 위치부터 잇는다(노션 REC-03 규칙 7).
 - R2에 파일이 실제로 있는지는 확인하지 않는다. 주소는 로그에 남기지 않는다.
 - 저장소가 설정되지 않은 서버이거나 주소를 만들지 못하면 503이다.
@@ -105,7 +105,7 @@
   2. 녹음 파일을 지운다. R2는 없는 키 삭제도 성공으로 처리한다.
   3. DB를 조건부로 갱신한다: `record_deleted_at` = 서버 시각, `recording_url`·`memo` = NULL. `saved_at`, 평가, 음표 판정, `viewed_at`은 남긴다.
   - 2가 실패하면 503이고 DB는 바뀌지 않는다. 3에서 바뀐 행이 없으면(동시 삭제 등) 404다.
-- 응답 200 `result`: `sessionId`, `deleted`(true), `recordingDeleted`(녹음 경로가 있어 지웠으면 true, 없었으면 false), `deletedAt`.
+- 응답 200 `result`: `sessionId`, `deleted`(true), `recordingDeleted`(녹음 경로가 있어 지웠으면 true, 없었으면 false), `deletedAt`(저장한 `record_deleted_at`과 같은 값, 초 단위).
 - 지운 뒤에는 PRA-03, EVA-01~04, REC-01~04가 모두 404다. 성장 집계(GRO-01~03)는 점수를 그대로 센다.
 
 ## PRA-03 변경 (`GET /api/practice-sessions/{sessionId}`)
@@ -138,7 +138,7 @@
 
 ## 구현 경계·검증
 
-- api는 HTTP 매핑과 입력 검증, application은 소유·상태 판단과 트랜잭션·저장소 호출 순서, domain은 메모 정리와 목록 규칙, infrastructure는 MyBatis 조회·갱신과 녹음 저장소·악보 각 읽기를 맡는다. 각 계산은 EVA의 악보 칸 읽기를 재사용하고 복제하지 않는다. Flyway 변경은 없다(V2 칸 사용).
+- api는 HTTP 매핑과 입력 검증, application은 소유·상태 판단과 트랜잭션·저장소 호출 순서, domain은 메모 정리와 목록 규칙, infrastructure는 MyBatis 조회·갱신을 맡는다. 녹음 저장소(PRA-02 `RecordingStorage`의 서명 URL·삭제)와 악보 각 읽기(EVA `EvaluationScoreCells`)는 `PracticeRecordConfig`에서 함수로 연결해 복제하지 않는다. 삭제는 저장소를 부르는 동안 DB 잠금을 잡지 않도록 트랜잭션 없이 마지막 조건부 갱신으로 동시 요청을 가른다. Flyway 변경은 없다(V2 칸 사용).
 
 | 수준 | 확인하는 것 | 놓치는 것 |
 | --- | --- | --- |

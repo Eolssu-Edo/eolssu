@@ -104,7 +104,7 @@ POST {AI}/v1/analyses
 
 - `result`: `sessionId`·`songId`(문자열), `bpm`·`bpmUnit`, `startNoteIdx`·`endNoteIdx`, `status`, `evaluationId`(문자열, 없으면 null), `failReason`, `recordingAvailable`(녹음 원본이 있고 기록을 지우지 않음), `startedAt`·`endedAt`(UTC ISO8601), `retryable`(`FAILED`이고 `TIMEOUT`·`SERVER_ERROR`), `savedAt`, `memo`.
 - 없거나 다른 회원의 세션은 404 `RESOURCE_NOT_FOUND`(공통 오류 형식). 다른 회원의 세션은 상태도 바꾸지 않는다.
-- (S15P31E102-342에서 바꿀 계약, 구현 전) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 응답 필드는 같다. 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
+- (S15P31E102-342에서 구현) 기록을 지운 세션(REC-04)도 404다. 저장했고 지우지 않은 세션을 처음 조회하면 응답 전에 `viewed_at`을 한 번 기록한다(REC-02 `isNew`). 응답 필드는 같다. 자세한 계약은 [연습 기록 API](practice-records.md)를 따른다.
 - 점수·음표별 결과는 `DONE`일 때 결과 조회 API(`GET /api/practice-sessions/{sessionId}/evaluation`)로 받는다.
 
 **구현 상태(2026-10-29).** S15P31E102-186은 분석 실행 흐름, AI HTTP 클라이언트, 결과 저장까지, S15P31E102-174는 시간 초과·`SERVER_ERROR`·늦은 결과 무시와 저장소의 시간 초과 전환(`expireOverdue`)까지 구현했다. 상태 조회 API는 인증(S15P31E102-143)이 들어온 뒤 S15P31E102-186에서 붙였고, 조회한 시도가 마감을 넘겼을 때만 `GetPracticeSession`이 `expireOverdue`를 부른다. 업로드 뒤 분석 시작은 S15P31E102-186이 연결했고, 업로드(S15P31E102-181)가 이벤트 발행과 녹음 서명 URL을 구현했다.
