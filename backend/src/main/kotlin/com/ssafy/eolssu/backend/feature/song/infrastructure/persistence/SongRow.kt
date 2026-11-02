@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 data class SongRow(
     val id: Long,
     val instrumentId: Long,
-    val jangdanId: Long,
+    val jangdanId: Long?,
     val title: String,
     val description: String?,
     val difficulty: Short,

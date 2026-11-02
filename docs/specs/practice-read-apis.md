@@ -6,7 +6,8 @@
 ## 곡·악보 (S15P31E102-256)
 
 - 기존 공개 GET 정책 아래 `GET /api/songs`는 `result.items`, `GET /api/songs/{songId}`는 `result`에 곡을 제공한다.
-- `songId`, `instrumentId`, `title`, `description`, `difficulty`(DB 1~3), `defaultBpm`, `isScorable`, `scoreVersion`, `noteCount`, `jangdan{jangdanId,name,bpmUnit,pattern}`, `score`(기존 score_json의 JSON 객체).
+- `songId`, `instrumentId`, `title`, `description`, `difficulty`(DB 1~5, 현재 FE 표기 1~3), `defaultBpm`, `isScorable`, `scoreVersion`, `noteCount`, `jangdan{jangdanId,name,bpmUnit,pattern}`, `score`(기존 score_json의 JSON 객체).
+- S15P31E102-339에서 `jangdan`은 연결된 장단이 없으면 null이다. 악기와 난이도는 필수다. 장단 없는 곡의 연습 BPM 단위는 원본 `score.music.bpmUnit`을 사용한다. 현재 FE의 nullable 장단 소비는 별도 대응이 필요하므로 새 적재 자료는 DRAFT로 보관한다.
 - ID는 문자열이다. 게시 상태 PUBLISHED·deleted_at NULL만 반환한다. 목록은 ID 오름차순이고 없으면 빈 목록이다. 다른 상태·삭제·없는 상세는 같은 404 RESOURCE_NOT_FOUND다.
 - 목록에는 검색·필터·페이지 조건이 없다. 앱이 받아서 거른다. 서버 조건은 S15P31E102-345에서 보류했고 재개 조건은 [345 계획](../plans/S15P31E102-345.md)에 있다.
 - 기존 악보의 events.id·NOTE만 센 idx·cellId·틱·율명·옥타브를 변경하지 않는다. 앱은 이 데이터로 표시·연주·오류 위치를 함께 연결한다. 이름에 의한 예시 곡 대응은 금지한다.

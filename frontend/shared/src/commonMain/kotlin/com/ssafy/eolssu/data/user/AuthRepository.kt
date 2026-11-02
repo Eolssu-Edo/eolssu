@@ -28,6 +28,9 @@ interface AuthRepository {
 
     /** 계정 연결 확인(AUTH-09)에서 [offer]의 계정에 제공자를 연결하고 로그인한다. [password]는 [MergeOffer.needsPassword]일 때만 보낸다. */
     suspend fun mergeAccount(offer: MergeOffer, password: String?): MergeResult = MergeResult.Unavailable
+
+    /** 소셜 가입. 성공하면 로그인한 상태가 된다. 티켓이 1회용이라 실패해도 같은 요청을 자동으로 다시 보내지 않는다. */
+    suspend fun socialSignUp(request: SocialRegistration): MemberResult = MemberResult.Unavailable
 }
 
 /** 인증번호를 받는 목적(`purpose`). 계정 연결(`ACCOUNT_MERGE`)은 연결 화면이 인증번호를 쓰기로 정해지면 더한다. */

@@ -46,6 +46,7 @@ class ApiAccessRulesTests {
             "POST" to "/api/auth/email-verifications", "POST" to "/api/auth/email-verifications/301/confirm",
             "GET" to "/api/terms", "GET" to "/api/songs", "GET" to "/api/songs/1", "GET" to "/api/songs/1/score",
             "GET" to "/api/songs/1/model-audio", "GET" to "/api/instruments", "GET" to "/api/instruments/1/fingerings",
+            "GET" to "/api/songs/1/model-audio/play", "GET" to "/api/songs/1/model-audio/performance",
             "GET" to "/api/pitches", "GET" to "/api/jangdans", "GET" to "/api/jangdans/1", "GET" to "/api/notation-symbols",
         )
 

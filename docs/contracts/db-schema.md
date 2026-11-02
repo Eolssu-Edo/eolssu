@@ -25,6 +25,8 @@ V11 [평가 조율 정보](../../backend/src/main/resources/db/migration/V11__ev
 
 V8의 [song_model_audios](../../backend/src/main/resources/db/migration/V8__song_model_audio_metadata.sql)는 `(song_id, score_version)`별 모범 음원 URL·BPM/단위·실제 파일 길이·시작 위치·MIME·SHA-256·게시 상태를 저장한다. DRAFT가 기본이며 초기 데이터는 없다. 기존 곡/연습/평가 데이터와 V1~V7은 변경하지 않는다. 공개 조회와 적재 전 검증은 [카탈로그 API](../specs/catalog-read-apis.md#모범-연주-메타데이터)를 따른다. ERD 그림에는 아직 반영되지 않았다.
 
+S15P31E102-339의 후속 전환에서는 모범 음원의 원본 위치를 `object_key`로 저장하고 앱 재생 URL은 서버가 발급한다. 수행 시간표는 `performance_object_key`와 `source_common_sha256`으로 같은 공통 악보 판본에 연결한다. `generation_metadata`에는 생성·임시 난이도·권리 상태 근거를 보존하며 사용자용 곡 설명과 분리한다. V15 직후에는 `audio_url`이 nullable 호환 컬럼으로 남지만 새 코드는 사용하지 않는다. 객체 키 BE 배포를 확인한 별도 후처리 도구가 이 컬럼을 삭제하며, 최종 스키마에는 저장 URL이 없다. V15 checksum과 Flyway 이력은 보존하고 후처리 receipt로 삭제 단계를 기록한다. 장단 연결은 선택값이며 악기·난이도는 계속 필수다. [실행 범위와 전환 순서](../specs/model-audio-catalog-load.md)를 따른다.
+
 | 영역 | 테이블 | 설명 |
 | --- | --- | --- |
 | 기준 데이터 | `pitches`, `instruments`, `fingering_charts`, `jangdans`, `songs`, `notation_symbols` | 율명·악기·운지표·장단·곡·기호처럼 운영자가 넣는 데이터. 단소 율명(`pitches`)은 V5, 단소 악기 1개·장단 3개·1차 4곡(`instruments`·`jangdans`·`songs`)은 V6 마이그레이션이 `data/reference/` 값과 변환한 공통 악보 데이터로 넣는다 |
@@ -59,7 +61,7 @@ V4는 V3(녹음 메타데이터) 다음에 적용됩니다. `outOfOrder`를 쓰�
 
 V13 [기본음·시김새 자산](../../backend/src/main/resources/db/migration/V13__reference_audio_assets.sql)은 `reference_audio_assets`를 추가한다. `asset_id`와 `(dataset_id,label_id)`로 파일을 식별하고, 장기 보관 object key·M4A 메타데이터·출처 JSON·라벨 검수 상태·게시 상태를 저장한다. 기존 `pitches`의 의미와 사용자 녹음 보관 정책은 바꾸지 않는다. 미디어 초기 데이터는 없으며 [검증된 DRAFT 적재](../../infra/catalog/README.md)를 사용한다. 새 API의 `ops` 배포 전에 V13를 적용해야 한다. [조회·재생 계약](../specs/reference-audio-catalog.md).
 
-같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **최종 V13 적용 후 새 백엔드를 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
+같은 V13의 명목상 기준 음 관계는 `pitch_id BIGINT NULL` FK → `pitches.id`와 `pitch_mapping_basis TEXT NULL`을 추가한다. 기준 음 하나에 여러 기본음 클립이 대응하며 연결 없는 자산도 허용한다. 두 칸은 함께 null이거나 함께 존재해야 하며, 연결은 기본음계만 허용하고 고아 ID와 빈 근거를 거부한다. 기준 음 삭제/변경은 참조가 있으면 제한한다. `(dataset_id,status,pitch_id)` 인덱스로 게시 목록 필터를 지원한다. **현재 통합 백엔드는 오디오 V13과 학습 V14를 적용한 뒤 배포**한다. 기존 백엔드로 되돌릴 때 추가 칸을 삭제할 필요는 없다.
 
 ```mermaid
 erDiagram
