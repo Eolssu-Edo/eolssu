@@ -76,15 +76,28 @@ data class ReferenceAudioUiState(
         clipsFor(selection).firstOrNull { it.assetId == selectedAssets[selection] }
 }
 
-/** 한 화면에서 악기 목록을 공유하고, 카드 선택만으로 재생하지 않는다. */
+/** 화면을 떠날 때까지 악기별 음원 목록을 재사용하고, 카드 선택만으로 재생하지 않는다. */
 class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(ReferenceAudioUiState())
     val uiState = mutableState.asStateFlow()
     private var request: Job? = null
+    private val loadedClips = mutableMapOf<GuideInstrument, List<ReferenceAudioClip>>()
 
     fun open(instrument: GuideInstrument) {
-        mutableState.value = ReferenceAudioUiState(instrument = instrument)
-        retry()
+        val state = mutableState.value
+        if (state.instrument == instrument && state.loadState in setOf(ReferenceLoadState.Loading, ReferenceLoadState.Ready)) {
+            // 취법·학습 단계가 바뀌면 선택만 초기화한다. 목록의 조회 범위는 같은 악기 전체다.
+            mutableState.value = state.copy(selectedAssets = emptyMap())
+            return
+        }
+        request?.cancel()
+        val cached = loadedClips[instrument]
+        mutableState.value = ReferenceAudioUiState(
+            instrument = instrument,
+            loadState = if (cached != null) ReferenceLoadState.Ready else ReferenceLoadState.Loading,
+            clips = cached.orEmpty(),
+        )
+        if (cached == null) retry()
     }
 
     fun nextOption(selection: ReferenceAudioSelection) {
@@ -99,14 +112,18 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
 
     fun retry() {
         val instrument = mutableState.value.instrument ?: return
+        if (request?.isActive == true) return
         val query = ReferenceAudioQuery(ReferenceAudioSelection(instrument, null, "").datasetId)
-        request?.cancel()
+        loadedClips.remove(instrument)
         mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Loading, clips = emptyList(), selectedAssets = emptyMap())
         request = viewModelScope.launch {
             try {
                 val clips = repository.clips(query)
                 currentCoroutineContext().ensureActive()
-                if (mutableState.value.instrument == instrument) mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Ready, clips = clips)
+                if (mutableState.value.instrument == instrument) {
+                    loadedClips[instrument] = clips
+                    mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Ready, clips = clips)
+                }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
                 currentCoroutineContext().ensureActive()
@@ -118,6 +135,7 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
     fun dismiss() {
         request?.cancel()
         request = null
+        loadedClips.clear()
         mutableState.value = ReferenceAudioUiState()
     }
 }

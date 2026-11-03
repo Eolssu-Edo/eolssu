@@ -106,6 +106,100 @@ class ReferenceAudioViewModelTest {
         } finally { vm.dismiss(); Dispatchers.resetMain() }
     }
 
+    @Test fun reopeningTheSameInstrumentReusesItsListAndResetsCardChoices() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var requests = 0
+        val vm = ReferenceAudioViewModel(repository { requests++; listOf(clip(it.datasetId)) })
+        val selection = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            vm.nextOption(selection)
+            assertNotNull(vm.uiState.value.selectedClip(selection))
+            vm.open(GuideInstrument.Danso)
+            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
+            assertEquals(listOf(clip("danso")), vm.uiState.value.clips)
+            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
+            advanceUntilIdle()
+            assertEquals(1, requests)
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun reopeningWhileLoadingAndRepeatedRetryKeepTheOriginalRequest() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val pending = CompletableDeferred<Unit>()
+        var requests = 0
+        val vm = ReferenceAudioViewModel(repository { requests++; pending.await(); listOf(clip(it.datasetId)) })
+        try {
+            vm.open(GuideInstrument.Danso); runCurrent()
+            vm.open(GuideInstrument.Danso); vm.retry(); runCurrent()
+            assertEquals(1, requests)
+            pending.complete(Unit); advanceUntilIdle()
+            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
+            assertEquals(listOf(clip("danso")), vm.uiState.value.clips)
+        } finally { pending.complete(Unit); vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun returningToLoadedInstrumentsReusesSuccessfulAndEmptyLists() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val requests = mutableListOf<String>()
+        val vm = ReferenceAudioViewModel(repository {
+            requests += it.datasetId
+            if (it.datasetId == "sogeum") emptyList() else listOf(clip(it.datasetId))
+        })
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            vm.nextOption(ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중"))
+            vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
+            vm.open(GuideInstrument.Danso)
+            assertEquals(listOf(clip("danso")), vm.uiState.value.clips)
+            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
+            vm.open(GuideInstrument.Sogeum)
+            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
+            assertTrue(vm.uiState.value.clips.isEmpty())
+            advanceUntilIdle()
+            assertEquals(listOf("danso", "sogeum"), requests)
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun explicitRetryRefreshesTheListAndDismissEndsItsLifetime() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        var requests = 0
+        val vm = ReferenceAudioViewModel(repository {
+            requests++
+            listOf(clip(it.datasetId).copy(labelId = "revision-$requests"))
+        })
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            vm.retry(); advanceUntilIdle()
+            assertEquals("revision-2", vm.uiState.value.clips.single().labelId)
+            vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
+            vm.open(GuideInstrument.Danso)
+            assertEquals("revision-2", vm.uiState.value.clips.single().labelId)
+            vm.dismiss()
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            assertEquals("revision-4", vm.uiState.value.clips.single().labelId)
+            assertEquals(4, requests)
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
+    @Test fun failedListsAreNotReusedWhenReturningToAnInstrument() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val requests = mutableListOf<String>()
+        val vm = ReferenceAudioViewModel(repository {
+            requests += it.datasetId
+            if (requests.size == 1) error("offline")
+            listOf(clip(it.datasetId))
+        })
+        try {
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            assertEquals(ReferenceLoadState.Failed, vm.uiState.value.loadState)
+            vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
+            vm.open(GuideInstrument.Danso); advanceUntilIdle()
+            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
+            assertEquals(listOf("danso", "sogeum", "danso"), requests)
+        } finally { vm.dismiss(); Dispatchers.resetMain() }
+    }
+
     @Test fun failedRequestCanRetryAndKeepsTheInstrument() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         var failed = true
