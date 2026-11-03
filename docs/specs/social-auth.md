@@ -128,3 +128,19 @@ adb shell pm get-app-links com.ssafy.eolssu
 ## QA Android App Links
 
 사용자 요청(2026-10-30)에 따라 일반 com.ssafy.eolssu와 QA com.ssafy.eolssu.qa의 실제 APK 지문을 독립 등록한다. 일반 환경변수는 유지하고 QA는 AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS를 사용한다. 운영 적용·기기 verified·카카오 왕복 결과는 [Task337](../plans/S15P31E102-337.md)에 기록하며 구현 테스트와 구분한다.
+
+## iOS 인증 복귀 (S15P31E102-417)
+
+사용자 결정(2026-11-03): iOS도 Android와 같은 간편 로그인·신규 가입·계정 연결 제안·마이페이지 연결·탈퇴 재인증을 제공한다. 무료 Apple 개발 계정(Personal Team)은 Associated Domains를 쓸 수 없어 Android의 HTTPS App Links 복귀를 iOS에서 그대로 받을 수 없으므로, 서버의 HTTPS 중계 주소를 거쳐 앱 전용 주소로 돌아온다. 공통 화면·시도 상태·완료 API 계약은 바꾸지 않고 redirectUri와 앱이 받는 복귀 주소만 플랫폼별로 둔다.
+
+| 항목 | Android | iOS |
+| --- | --- | --- |
+| redirectUri(start·완료 요청, 제공자 콘솔·서버 허용 목록) | `https://k15e102.p.ssafy.io/auth/android/oauth/{provider}/callback` | `https://k15e102.p.ssafy.io/api/auth/ios/oauth/{provider}/callback` |
+| 앱이 받는 복귀 주소 | redirectUri 그대로(App Links) | `com.ssafy.eolssu://oauth/{provider}/callback?…` |
+| 제공자 화면 | 외부 브라우저 | `ASWebAuthenticationSession`(callbackURLScheme `com.ssafy.eolssu`) |
+
+- 중계: `GET /api/auth/ios/oauth/{provider}/callback`은 로그인 없이 연다. provider는 kakao·google·naver만 받고 그 밖은 404다. 받은 쿼리 중 `code`·`state`·`error`·`error_code`·`error_description`만 그대로 옮겨 `302 Location: com.ssafy.eolssu://oauth/{provider}/callback?…`로 보낸다. 본문은 없고 `Cache-Control: no-store`·`Referrer-Policy: no-referrer`다. 코드를 서버에서 교환·저장·기록하지 않는다. 대상 스킴은 고정이라 임의 주소로 보내지 않는다.
+- 앱 확인: 복귀 주소는 스킴 `com.ssafy.eolssu`·호스트 `oauth`·경로 `/{provider}/callback`이어야 한다. state·만료·목적·회원·`error`·`code` 확인과 완료 요청의 redirectUri(위 HTTPS 주소)는 Android와 같다.
+- 취소: 사용자가 인증 창을 닫으면 복귀 주소가 오지 않는다. Android에서 브라우저를 닫은 것과 같이 화면은 '다시 열기'를 보여 준다.
+- 운영 준비(배포 전 필요): 세 제공자 콘솔에 iOS redirectUri를 등록하고 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_REDIRECT_URIS`에 쉼표로 추가한다. 등록 전 start는 `401 OAUTH_VERIFICATION_FAILED`다.
+- 제외: Sign in with Apple(App Store 심사 4.8 대응)과 유료 계정 Universal Links는 이번 범위가 아니다.

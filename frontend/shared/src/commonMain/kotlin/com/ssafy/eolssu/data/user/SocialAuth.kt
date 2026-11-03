@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.user
 
 import com.ssafy.eolssu.core.model.SocialProvider
+import io.ktor.http.Url
 
 /**
  * 간편 로그인·계정 연결의 공통 계약(`docs/specs/social-auth.md` Android 계약안).
@@ -23,15 +24,50 @@ enum class OAuthPurpose {
 val SocialProvider.pathName: String get() = name.lowercase()
 
 /**
- * 앱 복귀 주소. 로그인과 연결이 같은 주소를 쓴다. 카카오만 콘솔·서버 허용 목록에 등록됐고 Google·Naver는 같은 형식의 후보다.
+ * 플랫폼별 복귀 경로. [uriFor]는 start·완료 요청에 보내는 redirectUri(제공자 콘솔·서버 허용 목록과 같아야 함)이고,
+ * [providerOf]는 앱이 받은 복귀 주소가 우리 경로면 그 제공자를 돌려준다. 플랫폼 모듈이 등록하지 않으면 [OAuthRedirect]를 쓴다.
+ */
+interface OAuthRoute {
+    fun uriFor(provider: SocialProvider): String
+
+    fun providerOf(url: Url): SocialProvider?
+}
+
+/**
+ * Android 복귀 주소(App Links). 로그인과 연결이 같은 주소를 쓰고, 앱은 redirectUri 그대로 돌아온다.
  * 호스트·경로는 `androidApp`의 Manifest App Links `intent-filter`와 같아야 한다.
  */
-object OAuthRedirect {
+object OAuthRedirect : OAuthRoute {
     const val HOST = "k15e102.p.ssafy.io"
 
-    fun uriFor(provider: SocialProvider) = "https://$HOST${pathFor(provider)}"
+    override fun uriFor(provider: SocialProvider) = "https://$HOST${pathFor(provider)}"
 
     fun pathFor(provider: SocialProvider) = "/auth/android/oauth/${provider.pathName}/callback"
+
+    /** https·정확한 호스트·기본 포트·`/auth/android/oauth/<제공자>/callback` 경로일 때 그 제공자. */
+    override fun providerOf(url: Url): SocialProvider? {
+        if (url.protocol.name != "https" || !url.host.equals(HOST, ignoreCase = true)) return null
+        if (url.specifiedPort != 0 && url.specifiedPort != 443) return null
+        if (url.user != null || url.password != null) return null
+        return SocialProvider.entries.firstOrNull { url.encodedPath == pathFor(it) }
+    }
+}
+
+/**
+ * iOS 복귀(`docs/specs/social-auth.md` iOS 인증 복귀). 무료 Apple 계정은 HTTPS 복귀를 앱으로 받을 수 없어,
+ * 제공자는 서버 중계 주소로 돌아가고 서버가 코드·state를 앱 전용 주소 `com.ssafy.eolssu://oauth/<제공자>/callback`으로 옮긴다.
+ */
+object IosOAuthRelay : OAuthRoute {
+    /** `ASWebAuthenticationSession`의 callbackURLScheme. 서버 중계가 보내는 스킴과 같다. */
+    const val SCHEME = "com.ssafy.eolssu"
+
+    override fun uriFor(provider: SocialProvider) = "https://${OAuthRedirect.HOST}/api/auth/ios/oauth/${provider.pathName}/callback"
+
+    override fun providerOf(url: Url): SocialProvider? {
+        if (url.protocol.name != SCHEME || url.host != "oauth" || url.specifiedPort != 0) return null
+        if (url.user != null || url.password != null) return null
+        return SocialProvider.entries.firstOrNull { url.encodedPath == "/${it.pathName}/callback" }
+    }
 }
 
 /** start 응답. [Started.authorizationUrl]을 외부 브라우저로 연다. */

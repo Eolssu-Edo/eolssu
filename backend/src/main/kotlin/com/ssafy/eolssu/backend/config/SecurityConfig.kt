@@ -6,6 +6,7 @@ import com.ssafy.eolssu.backend.common.security.ActiveMemberCheck
 import com.ssafy.eolssu.backend.common.security.ActiveMemberFilter
 import com.ssafy.eolssu.backend.common.security.StateChangingRequestFilter
 import com.ssafy.eolssu.backend.feature.auth.api.AuthCookies
+import com.ssafy.eolssu.backend.feature.auth.api.IosOAuthRelayController
 import com.ssafy.eolssu.backend.feature.term.api.LegalDocumentPageController
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -129,6 +130,8 @@ class SecurityConfig(
             "/api/recordings/read",
             "/api/terms/documents/account-deletion",
             "/.well-known/assetlinks.json",
+            // iOS 간편 로그인 복귀 중계. 제공자가 브라우저를 이 주소로 돌려보내므로 로그인 쿠키 없이 연다.
+            IosOAuthRelayController.PATH,
             // 문서 조회만 공개한다. 같은 matcher가 토큰 해석도 제외하므로 만료 쿠키로도 문서를 열 수 있다.
             "/api/swagger-ui.html", "/api/swagger-ui/**", "/api/v3/api-docs", "/api/v3/api-docs/**",
             "/api/terms", "/api/songs", "/api/songs/{songId}", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
