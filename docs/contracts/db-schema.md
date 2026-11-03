@@ -21,6 +21,8 @@ V9 [OAuth 일회용 증명값](../../backend/src/main/resources/db/migration/V9_
 
 ## 테이블 구성
 
+V18 [내장 운지 자료](../../backend/src/main/resources/db/migration/V18__builtin_fingering_patterns.sql)는 `fingering_charts.pattern_json JSON NULL`을 추가하고 `image_url`을 nullable로 바꾼다(S15P31E102-409, 2026-11-03 사용자 승인). `instrument_id`·`pitch_id` FK와 두 열의 UNIQUE는 유지한다. 이미지와 pattern 중 하나는 있어야 하며, pattern은 있으면 JSON 객체여야 한다. V17의 실제 code와 (yul,octave)를 대조해 92개 참고 운지를 연결하고 기존 ID·이미지·설명은 보존한다. 원본 식별자가 누락/충돌하면 영구 DDL 전에 실패한다. 구조화 JSON의 취법·구멍 순서·검수 상태는 [CAT-07 계약](../specs/builtin-fingering-catalog.md)을 따른다. 기존 행은 pattern이 null일 수 있다. `ops` 배포 전에 V18을 별도로 적용해야 하며, 이미지 필수 구버전의 null 처리 호환성 없이는 코드만 롤백할 수 없다. 이번 구현에서 운영 적용은 하지 않았다.
+
 V11 [평가 조율 정보](../../backend/src/main/resources/db/migration/V11__evaluation_tuning_metadata.sql)는 `evaluations.tuning_offset_cent DOUBLE NULL`, `tuning_out_of_range BOOLEAN NULL`을 추가한다(S15P31E102-304). 두 값은 함께 null이거나 함께 존재하며 flag는 0/1이다. 기존 행은 미수집인 null로 남고 점수·음표 판정을 변경하지 않는다. 편차는 AI가 보고한 추정값을 반올림 없이 보존하며, 범위 초과 flag가 true여도 편차를 0으로 바꾸지 않는다. 조회 계약은 [평가 API](../specs/practice-evaluation-api.md)를 따른다. 운영 `ops`는 Flyway를 끄므로 **새 백엔드 배포 전에 V11을 적용**해야 한다. 이전 코드는 새 nullable 컬럼을 무시할 수 있어 코드 롤백 시 컬럼을 지울 필요가 없다.
 
 V16 [내 악보](../../backend/src/main/resources/db/migration/V16__user_sheets.sql)는 `user_sheets`만 새로 만들고 기존 테이블·데이터는 바꾸지 않는다(S15P31E102-390). 운영 `ops`는 Flyway를 끄므로 **내 악보 API를 배포하기 전에 V15 다음 V16을 적용**해야 한다. ERD 그림에는 아직 반영되지 않았다.

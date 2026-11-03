@@ -119,6 +119,26 @@ class CatalogReferenceApiDatabaseTests {
         assertTrue(selected.none { it.has("semanticCode") })
     }
 
+    @Test fun `structured fingering preserves unknown and half holes and rejects corrupted patterns without leaking data`() {
+        seedInstrumentRange()
+        val pattern = """{"blow":"MID","hanja":"仲","name":"중려","reading":"중","holes":["UNKNOWN","HALF","CLOSED","OPEN","OPEN"],"basic":false,"source":"확인 전 참고 자료","instrumentNote":"구멍 순서 보존","nominalHwangPitchClass":5,"verificationStatus":"BUILTIN_REFERENCE"}"""
+        jdbc.update("INSERT INTO fingering_charts (id,instrument_id,pitch_id,pattern_json) VALUES (992884,?,992880,?)", instrumentId, pattern)
+        val stored = body("/api/instruments/$instrumentId/fingerings").path("items")[0]
+        assertTrue(stored.path("imageUrl").isNull)
+        assertEquals(listOf("UNKNOWN","HALF","CLOSED","OPEN","OPEN"), stored.path("pattern").path("holes").toList().map { it.asString() })
+        assertFalse(stored.path("pattern").path("basic").asBoolean())
+        for (bad in listOf(
+            pattern.replace("UNKNOWN","MAYBE"),
+            pattern.replace("\"basic\":false","\"basic\":\"false\""),
+            pattern.replace("\"nominalHwangPitchClass\":5","\"nominalHwangPitchClass\":5.5"),
+            pattern.replace("\"reading\":\"중\"","\"reading\":\"\""),
+        )) {
+            jdbc.update("UPDATE fingering_charts SET pattern_json=? WHERE id=992884", bad)
+            assertError("/api/instruments/$instrumentId/fingerings",500,"INTERNAL_SERVER_ERROR")
+            assertFalse(get("/api/instruments/$instrumentId/fingerings").body().contains("확인 전"))
+        }
+    }
+
     @Test fun `jangdan list and detail preserve actual reference pattern and BPM units`() {
         val list = body("/api/jangdans").path("items").toList()
         for (item in list) {
