@@ -24,7 +24,7 @@ class SongLoadingViewModelTest {
         try {
             val repo = CatalogStub()
             repo.offline = true
-            val vm = SongListViewModel(repo)
+            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()))
             advanceUntilIdle()
             assertEquals(SongLoadState.Failed, vm.uiState.value.loadState)
             vm.changeQuery("아리")
@@ -45,7 +45,7 @@ class SongLoadingViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val repo = CatalogStub().apply { songs = emptyList() }
-            val vm = SongListViewModel(repo)
+            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()))
             advanceUntilIdle()
             assertEquals(SongLoadState.Ready, vm.uiState.value.loadState)
             assertEquals(emptyList(), vm.uiState.value.visibleSongs)
@@ -87,7 +87,7 @@ private class CatalogStub : SongRepository {
     var offline = false
     var songs = SampleSongs
     var listRequests = 0
-    override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
+    override suspend fun getInstruments() = listOf(com.ssafy.eolssu.data.song.CatalogInstrument("1", "DANSO", "단소"))
     override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
         listRequests++
         check(!offline) { "Isolated offline test" }

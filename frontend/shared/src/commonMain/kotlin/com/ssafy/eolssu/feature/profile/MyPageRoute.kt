@@ -17,6 +17,7 @@ import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
+import eolssu.shared.generated.resources.member_api_rate_limited
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
@@ -34,12 +35,15 @@ fun MyPageRoute(
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
+    onSessionExpired: () -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     viewModel: MyPageViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
+    val loadingProfile by viewModel.loadingProfile.collectAsStateWithLifecycle()
+    val savingInstrument by viewModel.savingInstrument.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -54,11 +58,17 @@ fun MyPageRoute(
     }
 
     LaunchedEffect(viewModel) {
-        if (viewModel.refresh() != MemberResult.Done) snackbarHostState.showSnackbar(getString(Res.string.member_api_unavailable))
+        when (viewModel.refresh()) {
+            MemberResult.Done -> Unit
+            MemberResult.Unauthenticated -> onSessionExpired()
+            else -> snackbarHostState.showSnackbar(getString(Res.string.member_api_unavailable))
+        }
     }
     MyPageScreen(
         profile = profile,
         instrument = instrument,
+        instrumentEnabled = !loadingProfile && !savingInstrument,
+        savingInstrument = savingInstrument,
         dialog = dialog,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
@@ -68,7 +78,13 @@ fun MyPageRoute(
         },
         onSelectInstrument = { selected ->
             scope.launch {
-                if (selected != instrument && !viewModel.selectInstrument(selected)) show { getString(Res.string.member_api_instrument_unavailable) }
+                when (viewModel.selectInstrument(selected)) {
+                    null, MemberResult.Done -> Unit
+                    MemberResult.Unauthenticated -> onSessionExpired()
+                    MemberResult.RateLimited -> show { getString(Res.string.member_api_rate_limited) }
+                    MemberResult.InvalidInput -> show { getString(Res.string.member_api_instrument_unavailable) }
+                    else -> show { getString(Res.string.member_api_unavailable) }
+                }
             }
         },
         onLink = onLink,

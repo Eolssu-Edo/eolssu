@@ -128,10 +128,11 @@ fun EolssuNavHost(
     browserBackGuard: BrowserBackGuard? = null,
     // TEMP S15P31E102-309: remove together with the startDestination branch.
     qaSkipConsent: Boolean = false,
+    sessionExpired: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember(qaSkipConsent) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent) }
+    val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
@@ -438,7 +439,14 @@ fun EolssuNavHost(
         )
     }
     OAuthReturnEffect(navController)
-    LaunchedEffect(navController) { onNavHostReady(navController) }
+    LaunchedEffect(navController) {
+        // Web 연결은 주소를 먼저 적용한 뒤 계속 수집하므로, 끝나기를 기다리지 않는다.
+        launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { onNavHostReady(navController) }
+        if (sessionExpired && shouldRedirectExpiredSession(navController.currentBackStackEntry?.destination?.route))
+            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+            popUpTo(navController.graph.id) { inclusive = true }
+        }
+    }
 }
 
 /**
