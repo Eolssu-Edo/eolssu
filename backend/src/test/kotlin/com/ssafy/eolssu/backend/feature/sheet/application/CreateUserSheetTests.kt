@@ -1,8 +1,10 @@
 package com.ssafy.eolssu.backend.feature.sheet.application
 
 import com.ssafy.eolssu.backend.feature.sheet.domain.NewUserSheet
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetPage
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetStatus
 import com.ssafy.eolssu.backend.feature.sheet.domain.SongCopySource
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheet
@@ -208,6 +210,9 @@ class CreateUserSheetTests {
     )
 
     private class FakeScores : SheetScores {
+        override fun prepare(scoreJson: String, scoreVersion: Int): PreparedScore = error("not used")
+        override fun unfilledCellCount(scoreJson: String): Int? = error("not used")
+
         override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? = when {
             scoreJson == "broken" -> null
             else -> CopiedScore(scoreJson.substringBefore("@") + "@v$scoreVersion", if (scoreJson.startsWith("wide")) 48 else 12, 5)
@@ -240,8 +245,8 @@ class CreateUserSheetTests {
             keys[userId to idempotencyKey]?.let(sheets::get) ?: raceWinner?.takeIf { inserted.isNotEmpty() }
 
         override fun findJangdan(jangdanId: Long) = when (jangdanId) {
-            1L -> SheetJangdan(1, "DOTTED_QUARTER")
-            3L -> SheetJangdan(3, "JANGDAN_BEAT")
+            1L -> SheetJangdan(1, "DOTTED_QUARTER", "굿거리")
+            3L -> SheetJangdan(3, "JANGDAN_BEAT", "세마치")
             else -> null
         }
 
@@ -276,5 +281,8 @@ class CreateUserSheetTests {
         }
 
         override fun page(userId: Long, kind: String?, page: Int, size: Int) = SheetPage(emptyList(), 0)
+        override fun updateScore(update: SheetScoreUpdate) = error("not used")
+        override fun updateDraft(update: SheetDraftUpdate) = error("not used")
+        override fun delete(sheetId: Long, userId: Long) = error("not used")
     }
 }

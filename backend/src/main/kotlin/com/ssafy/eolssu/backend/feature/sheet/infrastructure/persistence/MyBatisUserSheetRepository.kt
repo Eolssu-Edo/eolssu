@@ -9,7 +9,7 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
     override fun findByIdempotencyKey(userId: Long, idempotencyKey: String) =
         mapper.findByIdempotencyKey(userId, idempotencyKey)?.toSheet()
 
-    override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit) }
+    override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit, it.name) }
 
     override fun findSongSource(songId: Long) =
         mapper.findSongSource(songId)?.let {
@@ -40,8 +40,26 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
         mapper.count(userId, kind),
     )
 
+    // 확인 필요 칸이 아직 없어(변환 기능 전) 확정 저장한 악보는 모두 EVALUABLE이다.
+    override fun updateScore(update: SheetScoreUpdate) = mapper.updateScore(
+        SheetScoreUpdateRow(
+            update.sheetId, update.userId, update.baseScoreVersion, update.title, SheetStatus.EVALUABLE.name, update.jangdanId, update.bpm,
+            update.bpmUnit, update.columnCount, update.scoreJson, update.noteCount, LocalDateTime.ofInstant(update.updatedAt, ZoneOffset.UTC),
+        ),
+    ) == 1
+
+    override fun updateDraft(update: SheetDraftUpdate) = mapper.updateDraft(
+        SheetDraftUpdateRow(
+            update.sheetId, update.userId, update.baseScoreVersion, update.draftRevision, update.draftJson,
+            LocalDateTime.ofInstant(update.savedAt, ZoneOffset.UTC),
+        ),
+    ) == 1
+
+    override fun delete(sheetId: Long, userId: Long) = mapper.delete(sheetId, userId) == 1
+
     private fun UserSheetRow.toSheet() = UserSheet(
         id, userId, title, kind, source, SheetStatus.valueOf(status), jangdanId, jangdanName, bpm, bpmUnit, columnCount, scoreVersion,
         scoreJson, noteCount, pendingCellCount, requestHash, updatedAt.toInstant(ZoneOffset.UTC),
+        draftJson?.let { SheetDraft(it, checkNotNull(draftBaseVersion), checkNotNull(draftSavedAt).toInstant(ZoneOffset.UTC)) }, draftRevision,
     )
 }

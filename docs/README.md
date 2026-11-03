@@ -87,6 +87,8 @@
 
 ## 도구 조사·검증 기록
 
+- [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)
+
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
