@@ -90,6 +90,12 @@ import com.ssafy.eolssu.feature.guide.BasicSigimsaeCount
 import com.ssafy.eolssu.feature.guide.MoreSigimsae
 import com.ssafy.eolssu.feature.guide.SigimsaeItem
 import com.ssafy.eolssu.feature.guide.SigimsaeSymbol
+import com.ssafy.eolssu.feature.guide.ReadingAudioClip
+import com.ssafy.eolssu.feature.guide.ReadingAudioState
+import com.ssafy.eolssu.feature.guide.ReadingLengthCells
+import com.ssafy.eolssu.feature.guide.ReadingLengthClips
+import com.ssafy.eolssu.feature.guide.ReadingPitchClips
+import com.ssafy.eolssu.feature.guide.readingActiveNote
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_reading_intro_cell
 import eolssu.shared.generated.resources.guide_reading_intro_cell_desc
@@ -103,6 +109,8 @@ import eolssu.shared.generated.resources.guide_reading_length_cap_rest
 import eolssu.shared.generated.resources.guide_reading_length_cap_split
 import eolssu.shared.generated.resources.guide_reading_length_key
 import eolssu.shared.generated.resources.guide_reading_length_lead
+import eolssu.shared.generated.resources.reading_length_listen_hint
+import eolssu.shared.generated.resources.reading_pitch_listen_hint
 import eolssu.shared.generated.resources.guide_reading_pitch_axis_high
 import eolssu.shared.generated.resources.guide_reading_pitch_axis_low
 import eolssu.shared.generated.resources.guide_reading_pitch_base
@@ -462,18 +470,16 @@ internal fun soundSpans(cells: List<List<String>>): List<Pair<Float, Float>> {
     return spans
 }
 
-private val LengthExamples: List<List<List<String>>> = listOf(
-    listOf(listOf("林"), listOf("南")),
-    listOf(listOf("林", "南"), listOf("太")),
-    listOf(listOf("林"), listOf("ㅡ")),
-    listOf(listOf("林"), listOf("△")),
-)
-
 private fun isSymbol(text: String) = text == "ㅡ" || text == "△"
 
 /** 2 음의 길이(`.len-row`): 정간 두 칸 옆 막대가 소리 나는 시간. 한 칸씩 · 반씩 나누기 · ㅡ 이어 가기 · △ 쉬기를 2×2로. */
 @Composable
-internal fun LengthRow(modifier: Modifier = Modifier) {
+internal fun LengthRow(
+    modifier: Modifier = Modifier,
+    audio: ReadingAudioState = ReadingAudioState(),
+    onPlayAudio: ((ReadingAudioClip) -> Unit)? = null,
+    enabled: Boolean = true,
+) {
     val colors = EolssuTheme.colors
     val captions = listOf(
         stringResource(Res.string.guide_reading_length_cap_each),
@@ -483,8 +489,15 @@ internal fun LengthRow(modifier: Modifier = Modifier) {
     )
     Column(modifier.fillMaxWidth()) {
         PageLead(stringResource(Res.string.guide_reading_length_lead))
-        GuideGrid(LengthExamples, 2, horizontalGap = 8.dp, verticalGap = 8.dp) { i, cells, cell ->
-            LengthExample(cells, captions[i], cell)
+        if (onPlayAudio != null) Text(
+            stringResource(Res.string.reading_length_listen_hint),
+            Modifier.padding(bottom = 12.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.textMuted,
+        )
+        GuideGrid(ReadingLengthCells, 2, horizontalGap = 8.dp, verticalGap = 8.dp) { i, cells, cell ->
+            val clip = ReadingLengthClips[i]
+            LengthExample(cells, captions[i], cell, clip, audio, onPlayAudio, enabled)
         }
         Row(
             Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -494,17 +507,25 @@ internal fun LengthRow(modifier: Modifier = Modifier) {
             Box(Modifier.size(width = 6.dp, height = 14.dp).background(colors.primary, RoundedCornerShape(3.dp)))
             Text(stringResource(Res.string.guide_reading_length_key), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
+        ReadingAudioError(audio, ReadingLengthClips)
     }
 }
 
 @Composable
-private fun LengthExample(cells: List<List<String>>, caption: String, modifier: Modifier) {
+private fun LengthExample(
+    cells: List<List<String>>, caption: String, modifier: Modifier,
+    clip: ReadingAudioClip, audio: ReadingAudioState,
+    onPlayAudio: ((ReadingAudioClip) -> Unit)?, enabled: Boolean,
+) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(8.dp)
+    val active = audio.active(clip)
+    val position = audio.positionMs.takeIf { audio.clip == clip && audio.playing }
+    val note = position?.let { readingActiveNote(cells, it) }
     Column(
         modifier
             .background(colors.surface, RoundedCornerShape(12.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp))
+            .border(1.dp, if (active) colors.primary else colors.lineSoft, RoundedCornerShape(12.dp))
             .padding(start = 4.dp, end = 4.dp, top = 14.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -516,7 +537,9 @@ private fun LengthExample(cells: List<List<String>>, caption: String, modifier: 
                     Column(Modifier.fillMaxWidth().height(50.dp)) {
                         notes.forEachIndexed { k, text ->
                             Box(
-                                Modifier.fillMaxWidth().weight(1f).then(if (k > 0) Modifier.dashedTopLine(colors.lineSoft) else Modifier),
+                                Modifier.fillMaxWidth().weight(1f)
+                                    .then(if (k > 0) Modifier.dashedTopLine(colors.lineSoft) else Modifier)
+                                    .readingNoteGlow(note == (i to k)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 val size = if (notes.size > 1) 16.sp else 22.sp
@@ -537,6 +560,7 @@ private fun LengthExample(cells: List<List<String>>, caption: String, modifier: 
             }
             SoundBar(soundSpans(cells), Modifier.width(8.dp).fillMaxHeight())
         }
+        if (onPlayAudio != null) ReadingBeatMarkers(position)
         Text(
             caption,
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
@@ -544,6 +568,7 @@ private fun LengthExample(cells: List<List<String>>, caption: String, modifier: 
             maxLines = 1,
             softWrap = false,
         )
+        if (onPlayAudio != null) ReadingListenButton(clip, caption, audio, { onPlayAudio(clip) }, enabled)
     }
 }
 
@@ -589,7 +614,7 @@ private val PitchRise: Dp = 32.dp
 
 /** 3 음의 높낮이(`.pit-row`): 디딤판과 챌판이 이어진 계단으로 높이를 보여 주고, 율명 왼쪽에 붙는 부수만 이끼색으로 칠한다. */
 @Composable
-internal fun PitchSteps() {
+internal fun PitchSteps(audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip) -> Unit, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
     PageLead(stringResource(Res.string.guide_reading_pitch_lead))
     val steps = listOf(
@@ -598,8 +623,17 @@ internal fun PitchSteps() {
         PitchStep(2, "氵", "黃", stringResource(Res.string.guide_reading_pitch_high), stringResource(Res.string.guide_reading_pitch_high_term), stringResource(Res.string.guide_reading_pitch_high_gloss)),
     )
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.Center) {
-        PitchAxis(Modifier.fillMaxHeight().padding(end = 12.dp))
+        PitchAxis(Modifier.width(32.dp).fillMaxHeight().padding(end = 12.dp))
         steps.forEach { PitchStepCell(it) }
+    }
+    // 디딤판 높이와 관계없이 세 스피커의 중심을 같은 가로선에 둔다.
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.Center) {
+        Spacer(Modifier.width(32.dp))
+        steps.forEachIndexed { i, step ->
+            Box(Modifier.width(82.dp), contentAlignment = Alignment.Center) {
+                ReadingSpeakerButton(ReadingPitchClips[i], step.name, audio, { onPlayAudio(ReadingPitchClips[i]) }, enabled)
+            }
+        }
     }
     val raw = stringResource(Res.string.guide_reading_pitch_caption)
     val serif = EolssuTheme.serif.yul.fontFamily ?: FontFamily.Serif
@@ -620,6 +654,14 @@ internal fun PitchSteps() {
         color = colors.textMuted,
         textAlign = TextAlign.Center,
     )
+    Text(
+        stringResource(Res.string.reading_pitch_listen_hint),
+        Modifier.fillMaxWidth().padding(top = 6.dp),
+        style = MaterialTheme.typography.bodySmall,
+        color = colors.textMuted,
+        textAlign = TextAlign.Center,
+    )
+    ReadingAudioError(audio, ReadingPitchClips)
 }
 
 /** 왼쪽 축(`.pit-axis`): 위 '높게' · 아래로 옅어지는 선 · 아래 '낮게'. '낮게'가 가장 낮은 디딤판 높이까지 내려온다. */
@@ -690,7 +732,7 @@ private val BasicSigimsaeEntries: List<Pair<SigimsaeItem, String?>> = BasicSigim
  * @param enabled 넘기는 책에서 보이지 않는 쪽이면 거짓이라 누를 수 없다.
  */
 @Composable
-internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1, enabled: Boolean = true) {
+internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1, enabled: Boolean = true, onOpen: () -> Unit = {}) {
     val colors = EolssuTheme.colors
     var open by rememberSaveable { mutableStateOf<Int?>(null) }
     var refocus by remember { mutableStateOf<Int?>(null) }
@@ -707,12 +749,12 @@ internal fun SigimsaeBasicBlock(modifier: Modifier = Modifier, columns: Int = 1,
                 if (columns <= 1) {
                     Column(Modifier.padding(top = 4.dp)) {
                         group.items.forEachIndexed { i, item ->
-                            SigimsaeRow(item, last = i == group.items.lastIndex, rows[first + i], enabled) { open = first + i }
+                            SigimsaeRow(item, last = i == group.items.lastIndex, rows[first + i], enabled) { onOpen(); open = first + i }
                         }
                     }
                 } else {
                     GuideGrid(group.items, columns, Modifier.padding(top = 4.dp), horizontalGap = 28.dp, verticalGap = 0.dp) { i, item, cell ->
-                        SigimsaeRow(item, last = false, rows[first + i], enabled, modifier = cell, stretch = true) { open = first + i }
+                        SigimsaeRow(item, last = false, rows[first + i], enabled, modifier = cell, stretch = true) { onOpen(); open = first + i }
                     }
                 }
             }
