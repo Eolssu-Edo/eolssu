@@ -65,6 +65,8 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
 
+검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
+
 ## 녹음 정답 기록
 
 채점 평가용 녹음마다 정답 기록 하나를 `annotations/recordings/<악기 ID>/<recordingId>.json`에 둡니다. 녹음 원본은 `raw/`, 합성 녹음은 `processed/`(둘 다 Git 제외)에 두고 기록에 경로와 SHA-256을 적습니다. 형식은 [recording_label.schema.json](src/recordings/recording_label.schema.json)이 정합니다.

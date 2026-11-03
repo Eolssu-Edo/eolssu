@@ -1205,6 +1205,151 @@
       "originalFilename": "북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.pdf",
       "instrument": "sogeum",
       "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p189",
+      "title": "어깨동무 소금 정간보",
+      "sha256": "8f8d1c3c8f57dbd9383a2825c926a63d93a2c57300056c5eabb2bbe9b964076e",
+      "bytes": 376157,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p189/어깨동무_정간보_소금_표준악보집-PDF189.pdf",
+      "originalFilename": "어깨동무_정간보_소금_표준악보집-PDF189.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p198",
+      "title": "옹헤야 소금 정간보",
+      "sha256": "3ed16f1a8a94e0bfd008c91c174c2d426b49d91b559b765f80e99e40e2615b1c",
+      "bytes": 600885,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p198/옹헤야_정간보_소금_표준악보집-PDF198.pdf",
+      "originalFilename": "옹헤야_정간보_소금_표준악보집-PDF198.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p197",
+      "title": "태평가 소금 정간보",
+      "sha256": "0f753dadd516b9efabb3bf31eae2146241645cb33abbaa3d2064c9598d060a14",
+      "bytes": 342789,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p197/태평가_정간보_소금_표준악보집-PDF197.pdf",
+      "originalFilename": "태평가_정간보_소금_표준악보집-PDF197.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p195",
+      "title": "해주아리랑 소금 정간보",
+      "sha256": "a293807f8732e0bc062478dfae966a93683594c382b077c8d884f4bcaed0467b",
+      "bytes": 505782,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p195/해주아리랑_정간보_소금_표준악보집-PDF195.pdf",
+      "originalFilename": "해주아리랑_정간보_소금_표준악보집-PDF195.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p200",
+      "title": "오나라 소금 정간보",
+      "sha256": "2e01d6079e7b1234a9eb79db437edc515534c475e527b5dd2b33797950e56263",
+      "bytes": 536401,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p200/오나라_정간보·오선보_소금_표준악보집-PDF200.pdf",
+      "originalFilename": "오나라_정간보·오선보_소금_표준악보집-PDF200.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
     }
   ]
 }

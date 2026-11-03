@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from fractions import Fraction as F
 import json
 from pathlib import Path
@@ -303,6 +304,29 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], [40, 96])
             result = convert_answer(f"ngc-standard-2022-p202-part-{part}")
             self.assertEqual([e["id"] for e in result["events"] if e["breathAfter"]], ["c9-j3-r0-u0"])
+
+    def test_five_reviewed_scores_match_the_published_note_timeline(self):
+        # 2026-11-03 공개 곡 목록에서 숨표를 제외한 음·쉼과 시간을 박 단위로 고정했다.
+        expected = {
+            "ngc-standard-2022-p189": "58af95d5fc655d889bde96102a94e290b80477bfc1a17dfe381bf486479e441e",
+            "ngc-standard-2022-p198": "ff5de33eee650df985caf6de028ec439d5295102547f4282eb281d6f441910e7",
+            "ngc-standard-2022-p197": "c05a2c8abc1d7edea226369c7cf1a425f98c99bba4ff6aafdabc615fd6a50e9b",
+            "ngc-standard-2022-p195": "749090635e5764bafc8005adc4df293891f8de4c81975d8f40f1fdf5e7c0980e",
+            "ngc-standard-2022-p200": "e2fc543bd525216b31a0a0974a17f1bbf363fef097ffc8963700a7554fc6bb99",
+        }
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, digest in expected.items():
+            with self.subTest(source_id=source_id):
+                result = convert_answer(source_id)
+                jsonschema.validate(result, schema)
+                self.assertEqual(check(result), [])
+                self.assertEqual(result["provenance"]["review"], "reviewed")
+                self.assertEqual(result["music"]["bpmUnit"], "QUARTER")
+                t = result["music"]["ticksPerBeat"]
+                timeline = [(e["id"], e["kind"], e["yul"], e["octave"], str(F(e["startTick"], t)),
+                             str(F(e["durationTick"], t))) for e in result["events"]]
+                actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+                self.assertEqual(actual, digest)
 
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
