@@ -105,6 +105,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [연습곡 선택 화면 단계 필터 (436)](plans/S15P31E102-436.md)
 - [기본음·시김새 녹음 선택과 앱 내부 재생](knowledge/frontend/reference-audio-playback.md) · [367 계획](plans/S15P31E102-367.md)
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)

@@ -65,6 +65,8 @@ class MySongsViewModel(
 
     fun selectTab(tab: MySongsTab) = _uiState.update { it.copy(tab = tab) }
 
+    fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
+
     fun openAddSheet() = _uiState.update { it.copy(addSheetOpen = true) }
 
     fun closeAddSheet() = _uiState.update { it.copy(addSheetOpen = false) }

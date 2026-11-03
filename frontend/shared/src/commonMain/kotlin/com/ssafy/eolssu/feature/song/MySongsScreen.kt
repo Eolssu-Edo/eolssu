@@ -29,9 +29,13 @@ import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
 import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
+import com.ssafy.eolssu.feature.song.component.SongEmptyResult
+import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_practice_only
+import eolssu.shared.generated.resources.mysongs_empty_body
+import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
 import eolssu.shared.generated.resources.mysongs_songs_hint
 import eolssu.shared.generated.resources.mysongs_subtitle
@@ -42,6 +46,7 @@ import org.jetbrains.compose.resources.stringResource
 class MySongsActions(
     val onBack: () -> Unit,
     val onSelectTab: (MySongsTab) -> Unit,
+    val onSelectFilter: (SongLevelFilter) -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
     val onEditSheet: (MySheet) -> Unit,
@@ -99,7 +104,7 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(안내 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 안내 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
  * 안내·개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
  */
 @Composable
@@ -114,12 +119,19 @@ internal fun MySongsBody(
         MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
         when (state.tab) {
             MySongsTab.Songs -> {
+                SongLevelChips(state.filter, actions.onSelectFilter, singleLine = true)
                 if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
                     SongLoadNotice(state.loadState, actions.onRetry)
+                } else if (state.visibleSongs.isEmpty()) {
+                    SongEmptyResult(
+                        onReset = { actions.onSelectFilter(SongLevelFilter.All) },
+                        body = stringResource(Res.string.mysongs_empty_body),
+                        resetLabel = stringResource(Res.string.mysongs_reset_filter),
+                    )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ListNote(stringResource(Res.string.mysongs_songs_hint))
-                        CardGrid(state.songs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
+                        CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
                             ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier)
                         }
                     }

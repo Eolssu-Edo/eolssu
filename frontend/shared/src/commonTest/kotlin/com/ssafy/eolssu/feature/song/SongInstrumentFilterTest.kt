@@ -96,6 +96,8 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         val model = keep(MySongsViewModel(repo, SampleMySheetRepository(now = { 0L }), selected))
         advanceUntilIdle()
         assertEquals(listOf<String?>("51"), repo.requests)
+        model.selectFilter(SongLevelFilter.Intro)
+        assertEquals(listOf<String?>("51"), repo.requests, "단계 선택은 추가 서버 요청 없이 처리한다")
         repo.delayedInstrumentId = "94"
         repo.gate = CompletableDeferred()
         selected.select(Instrument.DaegeumSanjo)
@@ -105,6 +107,8 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         advanceUntilIdle()
         assertEquals(listOf("74"), model.uiState.value.songs.map { it.id })
         assertFalse(model.uiState.value.songs.single().evaluable)
+        assertEquals(SongLevelFilter.Intro, model.uiState.value.filter)
+        assertEquals(listOf("74"), model.uiState.value.visibleSongs.map { it.id })
         repo.fail = true
         model.retry()
         advanceUntilIdle()
@@ -119,9 +123,16 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         advanceUntilIdle()
         assertEquals(listOf<String?>("51", "94", "94", "94"), repo.requests)
         assertEquals(SongLoadState.Ready, model.uiState.value.loadState)
+        assertEquals(SongLevelFilter.Intro, model.uiState.value.filter)
         model.selectTab(MySongsTab.Sheets)
         model.selectTab(MySongsTab.Songs)
         assertEquals("94", model.uiState.value.instrumentId)
+        assertEquals(SongLevelFilter.Intro, model.uiState.value.filter)
+        model.selectFilter(SongLevelFilter.Intermediate)
+        assertTrue(model.uiState.value.visibleSongs.isEmpty())
+        model.selectFilter(SongLevelFilter.All)
+        assertEquals(listOf("74"), model.uiState.value.visibleSongs.map { it.id })
+        assertEquals(listOf<String?>("51", "94", "94", "94"), repo.requests)
     }
 
     @Test fun cancelledResponseCannotReplaceNewInstrumentInEitherList() = runTest {
