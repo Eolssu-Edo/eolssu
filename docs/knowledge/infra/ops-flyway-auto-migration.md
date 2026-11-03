@@ -1,7 +1,7 @@
 # 운영 Flyway 마이그레이션 자동화
 
 - Jira: [S15P31E102-426](https://ssafy.atlassian.net/browse/S15P31E102-426). 실행·복구 명령: [운영 구성의 운영 DB 마이그레이션](../../../infra/runtime/README.md).
-- 상태: 운영 적용 완료. MR !264(develop `a7a48b73`) 병합 뒤 2026-11-03에 edo1·edo2에 설치했다. Jenkins #214가 410의 V19를 처음으로 자동 적용했다.
+- 상태: 운영 적용 완료. MR !264(develop `a7a48b73`) 병합 뒤 2026-11-03에 edo1·edo2에 설치했다. Jenkins #214(410의 V19)와 #215(413의 V20)가 자동 적용됐다.
 
 ## 배경
 
@@ -52,6 +52,7 @@ develop 병합은 Jenkins가 1분 안에 감지해 새 JAR을 배포한다. 운�
 | 06:53 | Jenkins #212(`a7a48b73`) | `Check database migrations`(대기 없음) → `Select release` → 사후 백업 성공. 남은 마이그레이션 컨테이너 없음 |
 | 07:55~07:56 | Jenkins #214(`cf68486e`, 410의 `V19__seed_notation_symbols.sql`) | 첫 실제 자동 적용. `prechange` DB 사본(07:55:34) → `Check`·`Apply database migrations`(07:56:33, 0.23초) → `Select release` → `postmigration` DB 사본(07:56:56) edo2 수신. 운영 이력 V19 성공, 로그는 `/opt/eolssu/releases/cf68486e…/migration.log`, 남은 컨테이너 없음 |
 | 08:01 | edo2 `/opt/eolssu-backup/backup.py` | 같은 버전으로 교체(수신 경로는 동작 변화 없음). 이전 파일: `/opt/backups/eolssu-mig426-edo2-20261103T080130Z/`. `status`의 `stale` 없음 |
+| 08:28 | Jenkins #215(`dae9795d`, 413의 `V20__user_sheet_drafts.sql`) | 같은 순서로 자동 적용(08:28:31) → 교체(08:28:54) → `postmigration` DB 사본(08:28:55) edo2 수신. `user_sheets`에 `draft_*` 4개 칸, 비로그인 `/api/users/me/sheets` 401 |
 
 `backup.py status`는 수신 저장소를 읽으므로 edo1에서는 이전 버전도 `no completed backup`으로 끝난다. 상태 확인은 edo2에서 한다.
 
