@@ -36,3 +36,19 @@
 기존 `eolssu-android-qa` 잡은 `REVISION`의 전체 SHA가 `origin/develop` 조상인지 검사한다. feature 브랜치의 미병합 SHA는 받지 않으며, backend 파이프라인이 병합 SHA의 QA 빌드를 자동 예약한다. MR 병합 뒤 성공한 표준 산출물의 commit·SHA256·`com.ssafy.eolssu.qa`·기존 공개 서명 일치를 확인하고 앱 데이터를 유지한 업데이트를 진행한다. 설정 우회나 별도 서명 경로를 만들지 않는다.
 
 현재 기기 증거는 기존 `7c57baa8` QA 앱의 실패 경로다. 수정 QA 앱에서 Google 계정 선택→앱 복귀→회원 조회 200→악기 저장→로그아웃 후 재실행까지는 아직 확인하지 않았다. 이 실기기 확인 전에는 로그인 장애 전체가 해결됐다고 판단하지 않는다.
+
+## 브라우저를 열지 못하는 후속 회귀
+
+`6212d717` QA 설치 뒤 사용자가 “브라우저를 열지 못했어요”를 보고했다. 기존 선택 테스트는 전역 HTTPS 처리 목록에 Chrome·Samsung도 들어 있다고 가정해 Android의 웹 주소 기본 처리 앱 필터를 놓쳤다. `run-as com.ssafy.eolssu.qa /system/bin/cmd package`로 같은 앱 UID에서 조회하면 Custom Tabs 서비스는 Chrome·Samsung 두 개지만, 전역 ACTION_VIEW+BROWSABLE/MATCH_DEFAULT_ONLY 목록에는 네이버만 남았다. Chrome·Samsung을 각각 패키지로 지정해 resolve하면 정상 Activity가 반환됐다. 고정 공개 Google 주소만 사용했고 OAuth code/state·쿠키는 읽지 않았다.
+
+전역 목록과 서비스 목록의 교집합을 제거하고, 서비스 제공자마다 `Intent(intent).setPackage(candidate)`를 resolve한다. `exported`와 패키지 일치를 확인한 제공자 중 지원 기본 브라우저를 우선한다. 후보가 없을 때 기본 내장 브라우저로 되돌아가는 동작은 추가하지 않는다. [Android 웹 주소 조회 설명](https://developer.android.com/training/package-visibility/use-cases#open-urls)과 [AOSP의 패키지 미지정 웹 Intent 필터](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/core/java/com/android/server/pm/CrossProfileIntentResolverEngine.java#411)를 확인했다.
+
+선택 함수의 5개 테스트와 실제 앱 UID의 조회 결과를 구분한다. 전자는 제공자별 판별·기본값 우선·중복 제거·후보 없음 경계이며, 후자는 기존 방식의 후보 0개와 패키지 지정 방식의 후보 2개를 재현한다. 둘 다 실제 브라우저 launch나 Google 로그인 성공 자체를 입증하지는 않는다.
+
+## 로컬 QA 빌드와 기존 서명 유지
+
+APK 빌드는 로컬에서도 가능하다. 서버 QA init과 같은 `.qa` applicationIdSuffix·`얼쑤 QA` 이름으로 로컬 APK를 만들고, 서버의 기존 QA 키를 사용한 `apksigner --out` 재서명만 수행하면 같은 앱을 데이터 삭제 없이 업데이트할 수 있다. 키 파일은 PC로 복사하거나 내용·비밀값을 읽지 않는다. 서명 전후 앱 payload 일치, AADE 공개 인증서, 패키지·버전·APK SHA256을 확인한 뒤 설치한다. `6212d717`의 이 경로는 로컬 빌드 16초, 설치 및 앱 링크 검증 성공으로 확인했지만 위 브라우저 로직 회귀가 남아 있었다.
+
+서버의 최신 빌드 폴더도 원하는 최신 코드라는 보장은 없다. 당시 최신 보관 APK는 `4ca30d81`로 더 이전 버전이었다. `/opt/eolssu/apks/<폴더>/build.json`의 전체 commit과 원하는 수정 포함 여부를 확인한 뒤 선택해야 한다.
+
+후속 전체 Android host 검사: 679건 중 676건 통과, 기존 opt-in 3건 제외. Android 전용 변경이므로 JS/Wasm의 변경 없는 공통 경로 검사를 추가 반복하지 않았다.
