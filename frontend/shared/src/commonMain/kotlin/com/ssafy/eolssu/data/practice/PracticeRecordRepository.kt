@@ -11,9 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * 연습 기록. 와이어프레임 API 정리의 `POST /records`·`GET /records`·`PATCH /records/{id}`에 대응한다.
- * 기록 API 연결 전에는 운영 DI가 [UnavailablePracticeRecordRepository]를 사용한다.
- * [SamplePracticeRecordRepository]는 격리된 테스트용이며 사용자 계정의 기록으로 표시하지 않는다.
+ * 연습 기록. 서버 기록 API(REC-01~04, `docs/specs/practice-records.md`)는 [HttpPracticeRecordRepository]가 쓰고,
+ * [UnavailablePracticeRecordRepository]는 기록 API가 없는 환경을, [SamplePracticeRecordRepository]는 격리된 테스트를 위한 것이다.
  */
 interface PracticeRecordRepository {
     /** 기록 조회 구현을 사용할 수 있는지. 기록 수나 개별 네트워크 요청의 성공 여부가 아니다. */
@@ -26,6 +25,44 @@ interface PracticeRecordRepository {
     suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord
 
     suspend fun updateMemo(recordId: String, memo: String)
+
+    /** 서버에서 기록 목록을 다시 받는다. 받지 못하면 false이고 [records]는 그대로다. */
+    suspend fun refresh(): Boolean = true
+
+    /**
+     * 기록 상세: 항목 점수·오류 위치·메모·다시 듣기 여부까지 채운 기록. 없거나 지운 기록이면 null.
+     * 응답을 받지 못하면 예외를 던진다.
+     */
+    suspend fun detail(recordId: String): PracticeRecord? = records.value.firstOrNull { it.id == recordId }
+
+    /** 녹음을 다시 듣는 임시 주소(REC-03). */
+    suspend fun playback(recordId: String): RecordPlayback = RecordPlayback.Unavailable
+
+    /** 기록과 녹음을 지운다(REC-04). 이미 지운 기록(404)도 [RecordDeleteOutcome.Deleted]다. */
+    suspend fun delete(recordId: String): RecordDeleteOutcome = RecordDeleteOutcome.Failed
+}
+
+/** 녹음 다시 듣기 주소. */
+sealed interface RecordPlayback {
+    /** [url]은 [expiresAtMillis](epoch ms)까지 쓸 수 있다. 지나면 다시 받는다. */
+    data class Ready(val url: String, val expiresAtMillis: Long, val durationMs: Long?) : RecordPlayback
+
+    /** 녹음이 없거나 지운 기록(404). */
+    data object Unavailable : RecordPlayback
+
+    /** 서버가 지금 녹음을 내줄 수 없음(503, 로컬 녹음 저장소 모드 포함). */
+    data object Busy : RecordPlayback
+
+    /** 응답을 받지 못했거나 예상하지 못한 응답. */
+    data object Failed : RecordPlayback
+}
+
+enum class RecordDeleteOutcome {
+    Deleted,
+
+    /** 녹음 저장소 장애(503). 아무것도 지우지 않았으니 다시 시도한다. */
+    Busy,
+    Failed,
 }
 
 /** 와이어프레임 예시 기록 4개로 시작한다. 새로 저장한 기록이 맨 위에 온다. */

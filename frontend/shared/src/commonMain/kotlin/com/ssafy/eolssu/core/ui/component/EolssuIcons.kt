@@ -48,6 +48,10 @@ object EolssuIcons {
     val Ear = lineIcon("Ear", "M6 9a6 6 0 0 1 12 0c0 3 -2 4 -3 6s-1 4 -4 4", "M9 9a3 3 0 0 1 6 0")
     val Book = lineIcon("Book", "M4 5a2 2 0 0 1 2 -2h14v16H6a2 2 0 0 0 -2 2z", "M4 19a2 2 0 0 1 2 -2h14")
     val Home = lineIcon("Home", "M3 11l9 -7 9 7v9a1 1 0 0 1 -1 1h-5v-6h-6v6H4a1 1 0 0 1 -1 -1z")
+    /** 보드 결과 화면의 집(지붕 + 문): ‘홈으로 가기’. */
+    val House = lineIcon("House", "M3 11l9 -8 9 8", "M5 10v10h5v-6h4v6h5V10")
+    /** 보드 결과 화면의 저장(디스켓): ‘연습 기록 저장’. */
+    val Save = lineIcon("Save", "M5 4h11l3 3v13H5z", "M8 4v5h7V4M8 20v-6h8v6")
     val Grid = lineIcon("Grid", rect(4f, 4f, 16f, 16f, 2f), "M4 12h16M12 4v16")
     val Flute = lineIcon(
         "Flute",

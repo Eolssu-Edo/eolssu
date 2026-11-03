@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -196,7 +197,13 @@ fun JeongganboView(
     Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
         Row(
             modifier = rowModifier.semantics { isTraversalGroup = true }
-                .padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 10.dp),
+                .then(
+                    if (look.joined) {
+                        Modifier.clip(JoinedShape).border(1.dp, JoinedOuterLine, JoinedShape).padding(1.dp)
+                    } else {
+                        Modifier.padding(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 10.dp)
+                    },
+                ),
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
@@ -206,6 +213,7 @@ fun JeongganboView(
                     strip, renderMetrics, readingIndex, look,
                     highlighted = highlightColumns != null && strip.column in highlightColumns,
                     upcoming = upcomingColumn == strip.column,
+                    leftDivider = look.joined && readingIndex != strips.lastIndex,
                 ) { row ->
                     ScoreCellBox(
                         units = unitsByCell[strip.column to row].orEmpty(),
@@ -275,10 +283,31 @@ private fun ScoreStripColumn(
     look: JeongganboLook,
     highlighted: Boolean = false,
     upcoming: Boolean = false,
+    leftDivider: Boolean = false,
     cell: @Composable (row: Int) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
+    if (look.joined) {
+        // 보드 결과 `.ms-col`: 붙은 각, 왼쪽 경계선 `#B9B3A6`(맨 왼쪽 각은 없음).
+        Column(
+            Modifier
+                .semantics {
+                    isTraversalGroup = true
+                    traversalIndex = readingIndex.toFloat()
+                }
+                .width(metrics.columnWidth)
+                .background(colors.surface)
+                .drawWithContent {
+                    drawContent()
+                    if (leftDivider) drawRect(JoinedColumnLine, size = Size(1.dp.toPx(), size.height))
+                },
+        ) {
+            if (strip.strip == 0) ColumnHead(strip.column, metrics, look)
+            for (row in strip.rows) cell(row)
+        }
+        return
+    }
     // 강조한 각은 바깥에 연한 노란 띠를 두르되, 각 너비와 정간 위치는 그대로 둔다.
     val ring = if (highlighted) {
         Modifier.drawBehind {
@@ -303,8 +332,8 @@ private fun ScoreStripColumn(
             .width(metrics.columnWidth)
             .then(ring)
             .clip(shape)
-            .background(if (look.board) colors.surface else colors.background)
-            .border(1.dp, if (highlighted) colors.accent else colors.line, shape),
+            .background(if (look.board || look.soft) colors.surface else colors.background)
+            .border(1.dp, if (highlighted) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
     ) {
         if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming)
         for (row in strip.rows) cell(row)
@@ -323,10 +352,22 @@ private fun ColumnHead(column: Int, metrics: JeongganboMetrics, look: Jeongganbo
     }
     Row(
         Modifier.fillMaxWidth().height(metrics.headHeight).background(background),
-        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+        horizontalArrangement = Arrangement.spacedBy(if (look.headStartPill) 4.dp else 3.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (look.headCompact) {
+        if (look.headStartPill) {
+            // 보드 결과 `.ms-lab`(24px · 11px): 첫 각만 연두 ‘시작’ 알약(9px)을 번호 앞에 둔다.
+            if (column == 0) {
+                Text(
+                    stringResource(Res.string.score_column_start),
+                    modifier = Modifier.background(colors.primary, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp, vertical = 1.dp),
+                    style = style.copy(fontSize = 9.sp, lineHeight = 11.sp),
+                    color = colors.onPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Text("${column + 1}", style = style.copy(fontSize = 11.sp, lineHeight = 11.sp), color = colors.textMuted, fontWeight = FontWeight.Normal)
+        } else if (look.headCompact) {
             // 보드 `.ms-lab`: ‘시작 · 1각’ · ‘2각’. 다음 각 강조는 글자색을 바꾸고 ‘← 다음’을 덧붙인다.
             Text(
                 stringResource(if (column == 0) Res.string.score_column_head_start else Res.string.score_column_head, column + 1),
@@ -370,7 +411,7 @@ private fun ScoreCellBox(
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
-    val errorStyle = error?.let { errorStyle(it) }
+    val errorStyle = error?.let { if (board) boardErrorStyle() else errorStyle(it) }
     val cellStart = units.minOfOrNull { it.unitStart } ?: 0.0
     val currentFraction by rememberUpdatedState(fraction)
     val progress by remember(units, currentEvent, live) {
@@ -380,7 +421,7 @@ private fun ScoreCellBox(
         }
     }
     val (fill, ring) = when (highlight) {
-        ScoreHighlight.Position -> colors.accentSoft to colors.accent
+        ScoreHighlight.Position -> (if (look.soft) colors.accentTint else colors.accentSoft) to colors.accent
         ScoreHighlight.Recording -> colors.recSoft to colors.rec
     }
     val headColor = when {
@@ -391,6 +432,7 @@ private fun ScoreCellBox(
     val lineColor = when {
         isDaegangStart && board -> colors.text
         isDaegangStart -> colors.lineStrong
+        look.soft -> colors.lineSoft
         else -> colors.line
     }
     val lineWidth = if (isDaegangStart) 2.dp else 1.dp
@@ -456,13 +498,19 @@ private fun ScoreCellBox(
     if (errorStyle != null) {
         cellModifier = cellModifier.drawWithContent {
             drawContent()
-            val inset = if (errorStyle.dashed) 3.dp.toPx() else 0.75.dp.toPx()
+            // 보드는 2dp 안쪽 테두리(inset box-shadow), 옛 모양은 1.5dp(음 길이는 점선).
+            val stroke = if (board) 2.dp.toPx() else 1.5.dp.toPx()
+            val inset = when {
+                board -> stroke / 2
+                errorStyle.dashed -> 3.dp.toPx()
+                else -> 0.75.dp.toPx()
+            }
             drawRect(
                 errorStyle.ring,
                 topLeft = Offset(inset, inset),
                 size = Size(size.width - inset * 2, size.height - inset * 2),
                 style = androidx.compose.ui.graphics.drawscope.Stroke(
-                    1.5.dp.toPx(),
+                    stroke,
                     pathEffect = if (errorStyle.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
                 ),
             )
@@ -499,7 +547,20 @@ private fun ScoreCellBox(
                     }
                 }
             }
-            if (error != null && errorStyle != null) {
+            if (error != null && errorStyle != null && board) {
+                // 보드 `.ms-cell .tag`: 오른쪽 위 1dp 안쪽에 14dp 붉은 상자, 흰 9sp 굵은 글자.
+                Box(
+                    Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp).size(14.dp)
+                        .background(errorStyle.ring, RoundedCornerShape(3.dp)).clearAndSetSemantics {},
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        errorTag(error),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
+                        color = errorStyle.tag,
+                    )
+                }
+            } else if (error != null && errorStyle != null) {
                 Text(
                     errorTag(error),
                     modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 2.dp).clearAndSetSemantics {},
@@ -651,3 +712,8 @@ private fun ScoreNoteBox(
       }
     }
 }
+
+/** 보드 결과 `.ms`의 바깥 테두리(반지름 3, `#8E887D`)와 각 경계선(`#B9B3A6`). */
+private val JoinedShape = RoundedCornerShape(3.dp)
+private val JoinedOuterLine = Color(0xFF8E887D)
+private val JoinedColumnLine = Color(0xFFB9B3A6)

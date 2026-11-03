@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,6 +80,7 @@ internal fun WrappedJeongganbo(
             items(rows) { range ->
                 JeongganboView(
                     song = song,
+                    look = JeongganboLook.Record,
                     metrics = metrics,
                     notation = ScoreNotation(showHangul = true),
                     currentIndex = currentIndex,

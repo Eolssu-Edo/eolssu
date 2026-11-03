@@ -16,7 +16,7 @@ import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.practice.RecordingUploader
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
-import com.ssafy.eolssu.data.practice.UnavailablePracticeRecordRepository
+import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
@@ -109,7 +109,7 @@ val appModule = module {
     single<RecordingUploader> { HttpRecordingUploader(get()) }
     // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
-    single<PracticeRecordRepository> { UnavailablePracticeRecordRepository() }
+    single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get()) }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get()) }
@@ -128,7 +128,7 @@ val appModule = module {
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
-    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get()) }
+    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get()) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기

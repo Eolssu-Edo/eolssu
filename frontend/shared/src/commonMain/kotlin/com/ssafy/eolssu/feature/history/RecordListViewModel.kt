@@ -10,9 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** RECORD-01. 화면을 열면 서버에서 목록을 받는다(REC-02). 받지 못하면 '다시 시도'로 다시 받는다. */
 class RecordListViewModel(
     justSavedId: String?,
-    recordRepository: PracticeRecordRepository,
+    private val recordRepository: PracticeRecordRepository,
     now: () -> Long,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
@@ -26,6 +27,16 @@ class RecordListViewModel(
 
     init {
         viewModelScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
+        if (recordRepository.available) retry()
+    }
+
+    fun retry() {
+        if (_uiState.value.loading) return
+        _uiState.update { it.copy(loading = true, loadFailed = false) }
+        viewModelScope.launch {
+            val ok = recordRepository.refresh()
+            _uiState.update { it.copy(loading = false, loadFailed = !ok) }
+        }
     }
 
     fun toggle(songId: String) = _uiState.update { it.toggle(songId) }

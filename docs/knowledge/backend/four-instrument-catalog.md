@@ -1,6 +1,6 @@
 # 4악기 카탈로그·회원 선택 정렬 검증
 
-2026-11-03, S15P31E102-407 / Story24. [계약](../../specs/four-instrument-catalog.md). 기준 develop `3d1521df`에서 구현했다. 사용자 후속 선택으로 회원가입·마이페이지의 일반 대금도 정악·산조를 나누었다. 운영 배포·DB 변경은 실행하지 않았다.
+2026-11-03, S15P31E102-407 / Story24. [계약](../../specs/four-instrument-catalog.md). 기준 develop `3d1521df`에서 구현했다. 사용자 후속 선택으로 회원가입·마이페이지의 일반 대금도 정악·산조를 나누었다. 최초 구현은 로컬까지였으며 이후 MR 준비 요청과 별도 승인으로 [운영 Flyway V17](../infra/four-instrument-ops-migration.md)을 적용했다. 앱 배포·MR 병합은 실행하지 않았다.
 
 ## 결과와 보존
 
@@ -20,11 +20,14 @@
 - 전체 DB 첫 실행은 V17에 따른 기존 기대값2개와 테스트 MySQL의 기본 연결 한도151로 실패했다. 기존 기대값을 실제 새 계약으로 바꾸고 해당2개를 재검증했다. MySQL Max_used_connections=152를 관측한 뒤 폐기용 DB의 max_connections만512로 조정해 전체 DB 검사를 통과했다. 앱의 pool 설정·검사 임계값은 변경하지 않았다.
 - FE `:shared:testAndroidHostTest` 전체623개 중620개 통과·기존 선택 검사3개 생략. `:webApp:compileKotlinJs :webApp:compileKotlinWasmJs` 통과. 가입·내 정보 실제 코드/ID 구분, 잘못된 ID·지연 응답·로그아웃 무효화 및 독립 학습 진도 검사를 포함한다.
 - Python `python -m unittest discover -s infra/catalog -p 'test_*.py'`:78개 중66개 통과·외부 reference-audio MySQL 조건12개 생략. 적재 호환 신규 회귀는 실패→성공을 확인했다.
+- MR 준비 시 최신 develop `aee5a4a7` 통합 후 FE host 검사를 다시 실행해648개 중645개 통과·기존 선택 검사3개 생략을 확인했다. JS·Wasm 컴파일과 Android `assembleDebug`도 통과했다. BE source·build 파일은 최초 검증본과 동일하므로 위 BE·DB 검증 결과를 유지한다. 통합 FE 검증은 JDK21에서 `--no-daemon --max-workers=1 '-Pkotlin.compiler.execution.strategy=in-process'`로 실행했다.
 
 명령은 backend/README와 frontend/README의 Wrapper를 사용한다. JDK21, Android SDK, 폐기 MySQL의 TEST_DB_URL/USERNAME/PASSWORD를 설정한다. 결과는 각 `build/reports/tests`·`build/test-results`에 있다.
 
 ## 한계와 후속
 
-독립 리뷰, 실제 기기에서의 가입·마이페이지 화면 조작, iOS 빌드·실기기는 미검증이다. 연결된 개인 기기의 계정·앱을 이 작업에서 변경하지 않았다. JS/Wasm은 컴파일 검사이며 브라우저 전체 사용자 흐름 검사로 보고하지 않는다.
+MR 준비 시 `aee5a4a7` 통합 작업트리 기준으로 BE 마이그레이션/적재와 FE 식별자/회원 선택을 두 별도 검토자가 읽기 전용으로 검토했고 확정된 결함은 없었다. 검토자가 요청한 운영 collation 일치·사전 스냅샷/백업은 실제 적용 절차에서 확인했다. 검토자는 테스트·운영 변경을 직접 실행하지 않았다.
+
+실제 기기에서의 가입·마이페이지 화면 조작과 iOS 빌드·실기기는 미검증이다. 연결된 개인 기기의 계정·앱을 이 작업에서 변경하지 않았다. JS/Wasm은 컴파일 검사이며 브라우저 전체 사용자 흐름 검사로 보고하지 않는다.
 
 공개 운지 콘텐츠·기호·장단과 악기별 곡 필터는409·410·411·408의 후속 업무다. 이번 변경만으로 그 데이터가 채워졌다고 보고하지 않는다.
