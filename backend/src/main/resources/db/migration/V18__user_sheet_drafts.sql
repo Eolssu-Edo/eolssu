@@ -1,5 +1,5 @@
 -- 내 악보 자동 저장 초안 (S15P31E102-413, SHT-11). 규칙은 V1 머리말을 따른다. 계약: docs/specs/user-sheets.md.
--- 기존 행은 초안 없음(NULL, 순번 0)으로 시작한다. 데이터는 바꾸지 않는다.
+-- 기존 행은 초안 없음(NULL, 순번 0)으로 시작한다. 데이터는 바꾸지 않는다. V17(4악기 카탈로그, S15P31E102-407) 다음 번호다.
 
 ALTER TABLE user_sheets
   ADD COLUMN draft_json         JSON        NULL AFTER pending_cell_count,            -- title·jangdanId·bpm·score. 확정 저장(SHT-04)에 성공하면 NULL
