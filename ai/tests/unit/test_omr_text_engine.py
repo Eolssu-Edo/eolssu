@@ -123,10 +123,13 @@ def test_unknown_jangdan_is_rejected():
 
 
 @needs_generator
-def test_cover_page_without_yul_is_skipped():
+def test_page_without_yul_is_skipped_and_marked():
+    # 표지일 수도, 글자 층 없이 스캔한 악보 쪽일 수도 있어 건너뛰되 알린다
     out = post(pages_pdf((SEMACHI, {"no_text": True}), (SEMACHI, {}))).json()
-    assert out["status"] == "DONE" and len(out["pages"]) == 2 and out["issues"] == []
+    assert out["status"] == "DONE" and len(out["pages"]) == 2
     assert len(out["score"]["events"]) == 4  # 둘째 쪽 악보만
+    (issue,) = out["issues"]
+    assert (issue["kind"], issue["page"], issue["detail"]) == ("UNREADABLE", 0, {"reason": "NO_TEXT"})
 
 
 @needs_generator
@@ -164,3 +167,30 @@ def test_reader_crash_is_engine_error_not_no_grid(monkeypatch, tmp_path, caplog)
         out = post(pdf_bytes(SEMACHI)).json()
     assert out["failReason"] == "ENGINE_ERROR"
     assert "result=ENGINE_ERROR:RuntimeError" in caplog.text
+
+
+@needs_generator
+def test_column_that_is_not_score_is_dropped_and_marked():
+    # 오른쪽 쪽 장식음 표처럼 정간 수가 다른 열(천년만세 고급 PDF184)
+    out = post(pdf_bytes(SEMACHI, width=1100, side_col=["淋", "仲", "南", "潢"])).json()
+    assert out["status"] == "DONE" and len(out["score"]["events"]) == 4
+    (issue,) = out["issues"]
+    assert issue["kind"] == "UNREADABLE" and issue["detail"] == {"reason": "NOT_SCORE_COLUMN"}
+    x, y, w, h = issue["bbox"]
+    assert x > out["pages"][0]["width"] / 2 and w == round(36 * 300 / 72) and h == round(4 * 45 * 300 / 72)
+
+
+@needs_generator
+def test_mixed_gak_lengths_fail_with_reason_logged(caplog):
+    # 곡 끝 각이 짧은 악보(소금 취타)는 score_data가 각별 정간 수를 아직 받지 않아 ENGINE_ERROR다
+    cols = [["林", "南", "-", "-"], ["潢", "汰", "-", "-"], ["仲", "-", "△"]]
+    with caplog.at_level("INFO"):
+        out = post(pdf_bytes([cols])).json()
+    assert out["failReason"] == "ENGINE_ERROR"
+    assert "convert failed" in caplog.text and "gakBeats" in caplog.text
+
+
+def test_logged_errors_have_no_paths():
+    stderr = "Traceback\nFileNotFoundError: no such file: 'C:\\tmp\\x\\s.pdf' (/tmp/y)\n".encode()
+    line = jeongganbo_text._last_line(stderr)
+    assert line == "FileNotFoundError: no such file: '<path>' (<path>)"

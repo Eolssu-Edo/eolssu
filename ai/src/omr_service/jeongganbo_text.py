@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -57,7 +58,7 @@ def recognize(job) -> dict:
     request = job.request
     with tempfile.TemporaryDirectory(prefix="jeongganbo-text-") as work:
         work = Path(work)
-        lines, issues, no_yul, no_grid = [], [], 0, 0
+        lines, issues, no_yul = [], [], []
         scale = DPI / 72  # PDF 좌표(pt) → 쪽 그림 픽셀
         for i, page in enumerate(job.pages):
             out = work / f"page-{i}"
@@ -65,33 +66,39 @@ def recognize(job) -> dict:
                         str(out), "--title", "page", "--page", str(i)], deadline)
             whole_page = {"eventId": None, "cellId": None, "page": i, "bbox": [0, 0, page.width, page.height]}
             if run.returncode == NO_YUL_EXIT:
-                no_yul += 1
+                no_yul.append(whole_page)
                 continue
             if run.returncode == NO_GRID_EXIT:
-                no_grid += 1
                 log.info("jeongganbo-text page=%d no grid: %s", i, _last_line(run.stderr))
                 issues.append({"kind": "UNREADABLE", **whole_page, "detail": {"reason": "NO_GRID"}})
                 continue
             if run.returncode != 0:
-                raise RuntimeError(f"standard_score_text failed: {_last_line(run.stderr)}")
+                log.info("jeongganbo-text page=%d reader failed: %s", i, _last_line(run.stderr))
+                raise RuntimeError("standard_score_text failed")
             lines += (out / "page.txt").read_text(encoding="utf-8").splitlines()
             report = json.loads((out / "report.json").read_text(encoding="utf-8"))
             issues += [{"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
                         "bbox": [round((g["x"] - g["size"] / 2) * scale), round((g["y"] - g["size"] / 2) * scale),
                                  round(g["size"] * scale), round(g["size"] * scale)], "detail": {"text": g["c"]}}
                        for g in report["ignored_at"]]
-            if report["voices"] > 1:  # 2중주 쪽은 첫 성부만 읽었다
+            if report["voices"] > 1:  # 2중주 이상 쪽은 첫 성부만 읽었다
                 issues.append({"kind": "VOICE_GUESSED", **whole_page, "detail": {"voices": report["voices"], "kept": 1}})
+            issues += [{"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,  # 정간 수가 달라 뺀 열
+                        "bbox": [round(c[k] * scale) for k in ("x", "y", "w", "h")],
+                        "detail": {"reason": "NOT_SCORE_COLUMN"}} for c in report["dropped"]]
         if not lines:
-            if no_yul == len(job.pages):
+            if len(no_yul) == len(job.pages):
                 raise NoTextLayer()
             raise RecognitionFailed("NO_GRID_FOUND")
+        # 율명 글자가 없는 쪽(표지·설명이거나 글자 층 없이 스캔한 악보 쪽)은 건너뛰었다고 알린다
+        issues += [{"kind": "UNREADABLE", **p, "detail": {"reason": "NO_TEXT"}} for p in no_yul]
         (work / "txt").mkdir()
         (work / "txt/score.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         run = _run(["node", str(Path(generator) / "tools/import-ngc-omr.mjs"), str(work / "txt"), str(work / "jgb")],
                    deadline)
         if run.returncode != 0:
-            raise RuntimeError(f"import-ngc-omr failed: {_last_line(run.stderr)}")
+            log.info("jeongganbo-text import failed: %s", _last_line(run.stderr))
+            raise RuntimeError("import-ngc-omr failed")
         jgb_bytes = (work / "jgb/score.jgb.json").read_bytes()
     doc = json.loads(jgb_bytes)
     jangdan, per_gak = JANGDANS[request.jangdan], int(doc["controls"]["beats"])
@@ -99,19 +106,32 @@ def recognize(job) -> dict:
     if bpj not in USUAL_BEATS:
         issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
                        "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
-    score = score_data.convert(
-        doc, beats_per_jeonggan=bpj,
-        title=request.conversion_id, instrument=request.instrument, source_id=request.conversion_id,
-        jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review="inferred",
-        jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest())
+    try:
+        score = _convert(doc, bpj, request, jangdan, hashlib.sha256(jgb_bytes).hexdigest())
+    except ValueError as e:  # 예: 각마다 정간 수가 다른 악보(gakBeats)는 score_data가 아직 받지 않는다
+        log.info("jeongganbo-text convert failed: %s", _clean(str(e)))
+        raise
     score["provenance"]["converter"] = CONVERTER
     return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
 
 
+def _convert(doc, bpj, request, jangdan, jgb_sha256):
+    return score_data.convert(
+        doc, beats_per_jeonggan=bpj,
+        title=request.conversion_id, instrument=request.instrument, source_id=request.conversion_id,
+        jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review="inferred",
+        jgb_sha256=jgb_sha256)
+
+
+def _clean(text: str) -> str:
+    """로그용. 파일 경로를 지운다(임시 폴더 이름 등)."""
+    return re.sub(r"[A-Za-z]:[\\/][^\s'\")]*|/[^\s'\")]+", "<path>", text)[:200]
+
+
 def _last_line(stderr: bytes) -> str:
-    """하위 프로세스 오류의 마지막 줄(예외 종류와 이유). 경로·URL을 넣지 않는 오류 문구만 나온다."""
+    """하위 프로세스 오류의 마지막 줄(예외 종류와 이유). 경로는 지운다."""
     text = stderr.decode("utf-8", "replace").strip()
-    return text.splitlines()[-1][:200] if text else ""
+    return _clean(text.splitlines()[-1]) if text else ""
 
 
 def _run(cmd: list[str], deadline: float) -> subprocess.CompletedProcess:
