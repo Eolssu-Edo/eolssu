@@ -57,7 +57,6 @@ fun MySongsRoute(
         actions = MySongsActions(
             onBack = onBack,
             onRetry = viewModel::retry,
-            onSelectInstrument = viewModel::selectInstrument,
             onSelectTab = viewModel::selectTab,
             onOpenSong = onPractice,
             onOpenSheet = { sheet ->

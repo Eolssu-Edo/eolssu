@@ -33,6 +33,7 @@
 ## 기능 스펙
 
 - [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
+- [운지법 화면 음원 목록 로딩 개선 (423)](specs/guide-audio-loading.md) · [원인·검증 기록](knowledge/frontend/guide-audio-loading.md)
 - [HOME 전체 그림·스크롤·먹 버튼](specs/home-scroll-ink.md) · [412 계획·검증](plans/S15P31E102-412.md)
 
 - [R2 공통 파일·폴더 업로드](specs/r2-upload.md) · [392 계획·검증](plans/S15P31E102-392.md) · [실행 안내](../infra/r2/README.md)
@@ -89,6 +90,7 @@
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
+- [운영 Flyway 마이그레이션 자동화와 버전 중복 검사 (426)](knowledge/infra/ops-flyway-auto-migration.md)
 - [R2 서명 URL·비공개 접근·30일 삭제 규칙·CORS 정책 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
@@ -104,6 +106,7 @@
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
+- [회원 악기 선택·인증 실패 복구와 곡 목록 자동 연결](knowledge/frontend/member-instrument-selection.md)
 - [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)
 - [Android 연두 디자인·회원 API와 Play release 준비·검증 한계](knowledge/frontend/android-play-release-readiness.md)
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
