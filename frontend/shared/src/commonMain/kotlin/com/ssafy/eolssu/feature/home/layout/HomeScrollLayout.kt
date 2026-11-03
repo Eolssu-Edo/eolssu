@@ -189,23 +189,6 @@ internal fun HomeScrollLayout(
                             style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 32.5.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 20f)),
                             color = HomeGround, textAlign = TextAlign.End)
                     }
-                    // 첫 화면에서는 상단 판을 숨기고 펼치면서 나타낸다. 왼쪽 위 로고 판은 두지 않는다.
-                    if (frame.headerAlpha > 0f) {
-                        Row(
-                            Modifier.offset(x = contentLeft.dp, y = 56.dp).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            InstrumentPlate(
-                                instrument = instrument ?: HomeInstruments.first(),
-                                instruments = HomeInstruments,
-                                enabled = !instrumentBusy,
-                                onSelect = onSelectInstrument,
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                            MyPagePlate(onOpenMyPage)
-                        }
-                    }
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
                     HomeInkButton(
@@ -243,6 +226,23 @@ internal fun HomeScrollLayout(
                 }
             }
         }
+        // 상단 판은 스크롤 상자 밖에 두어 첫 화면에서는 숨기고, 펼친 뒤 추가 스크롤에도 위 12dp에 고정한다. 왼쪽 위 로고 판은 두지 않는다.
+        if (frame.headerAlpha > 0f) {
+            Row(
+                Modifier.offset(x = contentLeft.dp, y = HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                InstrumentPlate(
+                    instrument = instrument ?: HomeInstruments.first(),
+                    instruments = HomeInstruments,
+                    enabled = !instrumentBusy,
+                    onSelect = onSelectInstrument,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                MyPagePlate(onOpenMyPage)
+            }
+        }
     }
 }
 
@@ -278,5 +278,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
     }
 }
 
+/** 상단 판과 화면(안전 영역) 위 가장자리 사이의 틈. */
+private val HomeHeaderTop = 12.dp
 private val HomeNight = Color(0xFF1B2233)
 private val HomeGround = Color(0xFFF9FAF9)
