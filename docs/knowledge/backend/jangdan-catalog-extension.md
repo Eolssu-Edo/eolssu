@@ -91,3 +91,5 @@ V19의 목록5개를 대상으로 추가5종을 기대한 BE 검사와 FE 실제
 로컬 증거: `output/jangdan-411/mr-backend-summary.json`, `mr-backend.log`, `mr-frontend-all-summary.json`, `mr-frontend-http.log`, `mr-data.log`, `mr-data-reference.log`, `mr-upgrade-preservation.json`. 최초 구현의 V19·V20 기록과 구분한다.
 
 Push 직전 develop이 `0d536d26`으로 이동해 한 번 더 통합했다. 차이는 운영 자동 마이그레이션 설치 기록 2개 문서뿐이며 코드·마이그레이션·검사 입력은 동일하므로 위 실행 증거를 재사용한다. 병합 후 추가형 마이그레이션은 배포 도구가 자동 적용하며, 이 MR 생성은 병합·배포 실행을 포함하지 않는다.
+
+마지막 동기화 기준은 `52c6a44f`다. 추가된429의 FE 의견 보내기 기능을 통합하고 실제 장단 HTTP 서버를 지정해 FE 호스트 전체를 다시 실행했다. 686개 중683개 통과·다른 외부 환경3개 skip이며 장단 연동 검사는 통과에 포함된다. BE·데이터 코드/검사 입력은 위 검증과 동일하다. 최종 FE 증거는 `mr-final-frontend.log`와 `mr-final-frontend-summary.json`이다.
