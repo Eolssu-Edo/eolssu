@@ -5,7 +5,7 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "reviewed",
+ "review": "inferred",
  "inputApproval": {
   "file": "구아리랑_정간보_소금_표준악보집-PDF191.jgb.json",
   "sha256": "f3d48889817e924b94f2ca491ca6e2dccb1e3567ab274a82679dbd35300e8905",
@@ -30,7 +30,7 @@
  "title": "구아리랑_정간보_소금_표준악보집-PDF191",
  "source": "input",
  "reviewedOn": "2026-11-03",
- "confirmed": 48,
+ "confirmed": 36,
  "total": 48,
  "cells": [
   {
@@ -66,9 +66,9 @@
   {
    "index": 2,
    "gak": 0,
-   "cell": "<",
+   "cell": "",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -111,9 +111,9 @@
   {
    "index": 5,
    "gak": 1,
-   "cell": "",
+   "cell": "<",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -156,9 +156,9 @@
   {
    "index": 8,
    "gak": 2,
-   "cell": "청태 청고 청태<",
+   "cell": "청태 청고 청태",
    "original": "청태 청고 청태",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -201,9 +201,9 @@
   {
    "index": 11,
    "gak": 3,
-   "cell": "남 임 -",
+   "cell": "남 임 -<",
    "original": "남 임 -",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -246,9 +246,9 @@
   {
    "index": 14,
    "gak": 4,
-   "cell": "<",
+   "cell": "",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -291,9 +291,9 @@
   {
    "index": 17,
    "gak": 5,
-   "cell": "남 임 -",
+   "cell": "남 임 -<",
    "original": "남 임 -",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -426,9 +426,9 @@
   {
    "index": 26,
    "gak": 8,
-   "cell": "<",
+   "cell": "",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -471,9 +471,9 @@
   {
    "index": 29,
    "gak": 9,
-   "cell": "청남 - 청임",
+   "cell": "청남 - 청임<",
    "original": "청남 - 청임",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -516,9 +516,9 @@
   {
    "index": 32,
    "gak": 10,
-   "cell": "청태 청고 청태<",
+   "cell": "청태 청고 청태",
    "original": "청태 청고 청태",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -561,9 +561,9 @@
   {
    "index": 35,
    "gak": 11,
-   "cell": "남 임 -",
+   "cell": "남 임 -<",
    "original": "남 임 -",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -606,9 +606,9 @@
   {
    "index": 38,
    "gak": 12,
-   "cell": "청태<",
+   "cell": "청태",
    "original": "청태",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -651,9 +651,9 @@
   {
    "index": 41,
    "gak": 13,
-   "cell": "남 임 -",
+   "cell": "남 임 -<",
    "original": "남 임 -",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -753,5 +753,40 @@
     110
    ]
   }
- ]
+ ],
+ "breathCorrection": {
+  "on": "2026-11-03",
+  "by": "AI",
+  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정된 칸은 사람 재확인 전.",
+  "previousCells": [
+   3,
+   9,
+   15,
+   27,
+   33,
+   39
+  ],
+  "proposedCells": [
+   6,
+   12,
+   18,
+   30,
+   36,
+   42
+  ],
+  "changedCells": [
+   3,
+   6,
+   9,
+   12,
+   15,
+   18,
+   27,
+   30,
+   33,
+   36,
+   39,
+   42
+  ]
+ }
 }

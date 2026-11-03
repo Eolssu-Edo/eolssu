@@ -242,14 +242,14 @@ class AnswerTests(unittest.TestCase):
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
-            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "reviewed"))
+            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "inferred"))
 
     def test_reviewed_song_without_jangdan_uses_its_recorded_beat_unit(self):
         result = convert_answer("ngc-standard-2022-p187")
         jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
         self.assertEqual(check(result), [])
         self.assertEqual((result["music"]["jangdan"], result["music"]["bpmUnit"]), ("", "QUARTER"))
-        self.assertEqual(result["provenance"]["review"], "reviewed")
+        self.assertEqual(result["provenance"]["review"], "inferred")
 
     def test_two_exercises_share_a_source_but_keep_separate_answers(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -275,6 +275,19 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(check(result), [])
         self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 0))
         self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_corrected_breath_marks_are_in_the_source_columns(self):
+        expected = {
+            "ngc-standard-2022-p188": [48],
+            "ngc-standard-2022-p191": [6, 12, 18, 30, 36, 42],
+            "ngc-standard-2022-p199": [24, 36, 60],
+            "ngc-standard-2022-p187": [5, 10, 15, 20, 25, 30, 35],
+        }
+        for source_id, positions in expected.items():
+            folder = DATA / "annotations/scores" / source_id
+            review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+            self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], positions)
+            self.assertEqual(review["review"], "inferred")
 
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.

@@ -5,7 +5,7 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "reviewed",
+ "review": "inferred",
  "inputApproval": {
   "file": "새야새야_정간보_소금_표준악보집-PDF187.jgb.json",
   "sha256": "287a13f33b2b7d2f7d6b936e47a68bf70818820d95aafbb7971b599e556713a2",
@@ -31,7 +31,7 @@
  "title": "새야새야_정간보_소금_표준악보집-PDF187",
  "source": "input",
  "reviewedOn": "2026-11-03",
- "confirmed": 40,
+ "confirmed": 38,
  "total": 40,
  "cells": [
   {
@@ -322,9 +322,9 @@
   {
    "index": 19,
    "gak": 3,
-   "cell": "",
+   "cell": "<",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -547,9 +547,9 @@
   {
    "index": 34,
    "gak": 6,
-   "cell": "",
+   "cell": "<",
    "original": "",
-   "confirmed": true,
+   "confirmed": false,
    "inserted": false,
    "conf": null,
    "box": [
@@ -634,5 +634,30 @@
     233
    ]
   }
- ]
+ ],
+ "breathCorrection": {
+  "on": "2026-11-03",
+  "by": "AI",
+  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정된 칸은 사람 재확인 전.",
+  "previousCells": [
+   5,
+   10,
+   15,
+   25,
+   30
+  ],
+  "proposedCells": [
+   5,
+   10,
+   15,
+   20,
+   25,
+   30,
+   35
+  ],
+  "changedCells": [
+   20,
+   35
+  ]
+ }
 }
