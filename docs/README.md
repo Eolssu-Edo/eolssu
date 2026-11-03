@@ -239,3 +239,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-337 QA 앱 App Links 수정·검증](plans/S15P31E102-337.md)
 
 - [S15P31E102-356 OAuth 신규 가입·소셜 탈퇴](plans/S15P31E102-356.md) · [API 계약](specs/social-sign-up.md)
+
+- [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
