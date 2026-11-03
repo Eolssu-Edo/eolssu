@@ -50,7 +50,7 @@ def fake_plan_and_rows():
 
 class PlanTests(unittest.TestCase):
     def test_plan_breaths_are_the_reviewed_answer_breaths(self):
-        self.assertEqual([p['songId'] for p in tool.PLAN], [97, 92, 95, 91])
+        self.assertEqual([p['songId'] for p in tool.PLAN], [96, 93, 95, 91])  # 교과서 우선, 없으면 표준악보집
         for item in tool.PLAN:
             answer = convert_answer(item['answer'])
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])

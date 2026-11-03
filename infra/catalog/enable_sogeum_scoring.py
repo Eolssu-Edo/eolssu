@@ -19,17 +19,17 @@ import re
 import subprocess
 import sys
 
-# songId/source/scoreVersion/currentSha256: 운영 DB 읽기(2026-11-02). breathEventIds: 저장소 검수 정답(answer)의 숨표.
+# 판본: 학교 교과서가 있으면 교과서, 없으면 표준악보집(2026-11-03 사용자 확인). 실제 소금 녹음도 교과서 쪽에 맞는다.
+# songId/source/scoreVersion/currentSha256: 운영 DB 읽기(2026-11-03). breathEventIds: 저장소 검수 정답(answer)의 숨표.
 PLAN = [
-    {'songId': 97, 'source': 'mr203-fixed-sogeum-009-p1', 'scoreVersion': 1, 'answer': 'ngc-standard-2022-p194',
-     'breathEventIds': ['c0-j2-r2-u0', 'c4-j2-r2-u0', 'c8-j2-r0-u0', 'c12-j2-r2-u0'],
-     'currentSha256': 'e9f41653b96da1b97b8590ec06a2d5e28d65749cb0b2344cf8ed648a64617e60',
-     'targetSha256': 'c0e7dc0f450a461ca55b7864cdd07ddc6f2c5ee07f4e32d09841978fadb44212'},
-    {'songId': 92, 'source': 'mr203-fixed-sogeum-004-p1', 'scoreVersion': 1, 'answer': 'ngc-standard-2022-p192',
-     'breathEventIds': ['c0-j2-r0-u0', 'c2-j2-r2-u0', 'c4-j1-r0-u0', 'c8-j1-r0-u0', 'c10-j2-r2-u0', 'c12-j2-r0-u0',
-                        'c16-j2-r0-u0', 'c18-j2-r2-u0', 'c20-j2-r0-u0', 'c22-j2-r2-u0', 'c24-j2-r0-u0'],
-     'currentSha256': 'fcca1214890cf15146e7a3cbf3fb3c1f6e567354d7eb5bda2104f9c113d5043b',
-     'targetSha256': '9c79d1f014f99e59dd9f9e70809cd654b75381db3cb18f853ac973b2ac146355'},
+    {'songId': 96, 'source': 'mr203-fixed-sogeum-008-p1', 'scoreVersion': 1, 'answer': 'school-textbook-sogeum-p15',
+     'breathEventIds': [],
+     'currentSha256': '54c2bd28e3fa7e6534c31d0cbdc3d3490b3bf18b60889aeef7357e6349688e8a',
+     'targetSha256': '121898993631cfe62d657fc0a0e3c59211bb3317b7d2710aa8712786339c3b0b'},
+    {'songId': 93, 'source': 'mr203-fixed-sogeum-005-p1', 'scoreVersion': 1, 'answer': 'school-textbook-sogeum-p16',
+     'breathEventIds': [],
+     'currentSha256': '823cf960bb11857d1a23c8ff263dd47a8d7ebfb24b0f5405adc883dfd642e56b',
+     'targetSha256': 'e46d006937ee49882b0afc4d67637d26945d679a61a9508d42498fd175f6ef7a'},
     {'songId': 95, 'source': 'mr203-fixed-sogeum-007-p1', 'scoreVersion': 1, 'answer': 'ngc-standard-2022-p193',
      'breathEventIds': ['c0-j2-r0-u0', 'c2-j2-r2-u0', 'c4-j2-r1-u0', 'c6-j2-r2-u0', 'c8-j2-r0-u0', 'c10-j2-r2-u0',
                         'c12-j2-r1-u0'],
