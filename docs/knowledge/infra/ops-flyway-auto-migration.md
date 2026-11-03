@@ -1,7 +1,7 @@
 # 운영 Flyway 마이그레이션 자동화
 
 - Jira: [S15P31E102-426](https://ssafy.atlassian.net/browse/S15P31E102-426). 실행·복구 명령: [운영 구성의 운영 DB 마이그레이션](../../../infra/runtime/README.md).
-- 상태: 저장소 구현·검증 완료. 서버의 `deploy-backend`·`backup.py`는 MR 병합 뒤 별도 승인으로 설치한다. 설치 전까지는 아래 임시 규칙을 따른다.
+- 상태: 운영 적용 완료. MR !264(develop `a7a48b73`) 병합 뒤 2026-11-03에 edo1·edo2에 설치했다. Jenkins #214(410의 V19)와 #215(413의 V20)가 자동 적용됐다.
 
 ## 배경
 
@@ -17,7 +17,7 @@ develop 병합은 Jenkins가 1분 안에 감지해 새 JAR을 배포한다. 운�
 | 대안 | 판단 |
 | --- | --- |
 | `ops`에서 Flyway 켜기 | 기각. 앱 기동과 마이그레이션 실패가 묶이고, 교체 중 재기동마다 적용 시점이 생기며, 백업 시점을 통제하기 어렵다 |
-| 사람이 병합 전에 적용(현행) | 자동화 전 임시 규칙으로만 유지. 병합·배포와 적용 담당이 달라 같은 500이 반복된다 |
+| 사람이 병합 전에 적용(기존) | 설치 전까지만 썼다. 병합·배포와 적용 담당이 달라 같은 500이 반복된다 |
 | 배포 도구가 교체 직전에 적용 | 채택. 기존 공유 lock·`prechange` 백업·후보 검증·롤백 흐름 안에 수동 절차를 그대로 옮긴다 |
 
 배포 도구는 후보 JAR의 마이그레이션과 운영 이력을 비교한다. 대기 중인 마이그레이션이 있을 때만 수동 적용 때 검증된 인자 그대로 일회성 컨테이너를 실행하고, 이력을 다시 확인한 뒤 교체한다. 교체가 실패해 JAR이 롤백돼도 스키마는 새 버전으로 남는다. 그래서 자동 적용은 이전 릴리스도 읽을 수 있는 추가형 변경으로 제한한다. 테이블·컬럼 DROP, RENAME(인덱스 제외), CHANGE, TRUNCATE, DELETE는 사람이 검토한 파일의 SHA-256 승인이 있어야 적용한다. 기존 V1~V18 중에는 V14만 이 조건에 걸린다.
@@ -42,11 +42,28 @@ develop 병합은 Jenkins가 1분 안에 감지해 새 JAR을 배포한다. 운�
 
 마이그레이션 로그에서 DB 비밀번호는 발견되지 않았다. 실패한 V20의 첫 문장(컬럼 추가)은 MySQL DDL 특성상 남았다. 이런 경우 실패 뒤 실제 스키마 확인과 `prechange` 백업 대조가 필요한 이유다.
 
-확인하지 못한 것: 운영 실행 이미지(`eolssu-backend-runtime`)·runtime network·실제 백업 수신을 포함한 서버 경로. 수동 적용 스크립트(`/opt/eolssu/ops395-v15-v16-20261102/apply-v15-v16.py`)와 같은 인자를 쓰지만, 설치 뒤 첫 스키마 변경 배포에서 단계 로그·이력·`postmigration` 수신을 확인해야 한다.
+## 운영 설치 (2026-11-03)
 
-## 자동화 설치 전 임시 규칙
+| 시각(UTC) | 대상 | 결과 |
+| --- | --- | --- |
+| 06:51 | edo1 `/opt/eolssu-backup/backup.py` → `/opt/eolssu/bin/deploy-backend` | 배포 lock 안에서 이 순서로 교체. 교체 전 서버 파일이 병합 전 저장소 버전과 같음을 해시로 확인. 이전 파일: `/opt/backups/eolssu-mig426-20261103T065142Z/` |
+| 06:52 | edo1 읽기 전용 점검 | 두 배포 도구 로드 정상. 실행 중 릴리스 `6212d717` JAR로 운영 이력에 `migration_plan`을 실행하면 대기 0개·적용 18개, 마이그레이션 URL `socketTimeout=300000`, 실행 이미지 `eolssu-backend-runtime:21-jre-ffmpeg8.0.1` |
+| 06:52 | edo1 `send postmigration` 1회(lock 안) | edo2가 DB(`20261103T065222Z-331a25e7bef8`)·설정 사본 수신 |
+| 06:53 | Jenkins #212(`a7a48b73`) | `Check database migrations`(대기 없음) → `Select release` → 사후 백업 성공. 남은 마이그레이션 컨테이너 없음 |
+| 07:55~07:56 | Jenkins #214(`cf68486e`, 410의 `V19__seed_notation_symbols.sql`) | 첫 실제 자동 적용. `prechange` DB 사본(07:55:34) → `Check`·`Apply database migrations`(07:56:33, 0.23초) → `Select release` → `postmigration` DB 사본(07:56:56) edo2 수신. 운영 이력 V19 성공, 로그는 `/opt/eolssu/releases/cf68486e…/migration.log`, 남은 컨테이너 없음 |
+| 08:01 | edo2 `/opt/eolssu-backup/backup.py` | 같은 버전으로 교체(수신 경로는 동작 변화 없음). 이전 파일: `/opt/backups/eolssu-mig426-edo2-20261103T080130Z/`. `status`의 `stale` 없음 |
+| 08:28 | Jenkins #215(`dae9795d`, 413의 `V20__user_sheet_drafts.sql`) | 같은 순서로 자동 적용(08:28:31) → 교체(08:28:54) → `postmigration` DB 사본(08:28:55) edo2 수신. `user_sheets`에 `draft_*` 4개 칸, 비로그인 `/api/users/me/sheets` 401 |
 
-- 운영 적용 담당은 인프라(우동균)다. 스키마를 바꾸는 MR 작성자는 MR에 버전을 적고 병합 전에 알린다.
-- 병합 직전 develop을 받아 번호를 최신 다음으로 맞추고 `test`·`databaseTest`를 통과시킨다.
-- 추가형 변경은 인프라가 MR 최종 커밋의 JAR로 수동 절차를 먼저 적용한 뒤 바로 병합한다. 적용 뒤에는 파일을 바꾸지 않는다. 사후 DB 백업은 lock을 놓은 뒤 보낸다(V17 때 lock 안 호출이 timeout).
-- 스키마 MR은 한 번에 하나씩 병합한다. 파괴적 변경은 앱 배포 순서를 따로 정한다.
+`backup.py status`는 수신 저장소를 읽으므로 edo1에서는 이전 버전도 `no completed backup`으로 끝난다. 상태 확인은 edo2에서 한다.
+
+410의 V19가 먼저 병합되면서 413(MR !257)의 내 악보 초안 마이그레이션은 V18 → V19 → V20으로 두 번 옮겨졌다. 번호는 병합 순서로 정해지므로, 병합 직전에 develop을 다시 받아 확인해야 한다.
+
+## 스키마 변경 MR의 운영 규칙
+
+- 병합 직전 develop을 받아 번호를 최신 다음으로 맞추고 `test`·`databaseTest`를 통과시킨다. 번호가 겹치면 Jenkins `Backend unit tests`가 배포 전에 멈춘다.
+- 추가형 변경은 병합하면 배포 도구가 교체 직전에 적용한다. 별도 수동 적용을 요청하지 않는다.
+- 운영에 적용된 파일은 고치지 않는다. 고치면 다음 배포가 `applied migration was edited`로 멈춘다. 수정은 새 번호로 한다.
+- 파괴적 변경(DROP·RENAME·CHANGE·TRUNCATE·DELETE)은 인프라 담당(우동균)이 이전 릴리스 호환성과 복구 방법을 검토하고 SHA-256 승인 파일을 둔 뒤 병합한다.
+- 배포가 마이그레이션 단계에서 멈추면 [운영 구성](../../../infra/runtime/README.md)의 복구 절차를 따른다.
+
+설치 전에는 인프라가 MR 최종 커밋의 JAR로 수동 절차를 먼저 적용하고 병합했다. 2026-11-03 설치로 이 방식은 끝났다.

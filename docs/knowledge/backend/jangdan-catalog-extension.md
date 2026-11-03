@@ -89,3 +89,5 @@ V19의 목록5개를 대상으로 추가5종을 기대한 BE 검사와 FE 실제
 복구 시 배포 전에는 이 Task 커밋을 되돌릴 수 있다. V21·V22가 DB에 적용된 뒤에는 앱을 되돌려도 추가 행이 남으므로, 적용 파일이나 Flyway 이력을 고치지 않고 새 ID4~10의 참조를 확인한 별도 보정 마이그레이션으로 처리한다. 운영 적용·배포·실기기 청취는 이번 MR 준비에서 실행하지 않았다.
 
 로컬 증거: `output/jangdan-411/mr-backend-summary.json`, `mr-backend.log`, `mr-frontend-all-summary.json`, `mr-frontend-http.log`, `mr-data.log`, `mr-data-reference.log`, `mr-upgrade-preservation.json`. 최초 구현의 V19·V20 기록과 구분한다.
+
+Push 직전 develop이 `0d536d26`으로 이동해 한 번 더 통합했다. 차이는 운영 자동 마이그레이션 설치 기록 2개 문서뿐이며 코드·마이그레이션·검사 입력은 동일하므로 위 실행 증거를 재사용한다. 병합 후 추가형 마이그레이션은 배포 도구가 자동 적용하며, 이 MR 생성은 병합·배포 실행을 포함하지 않는다.
