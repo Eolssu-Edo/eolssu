@@ -1,0 +1,136 @@
+# 악보 인식 서비스 계약 (omr, SHT-07 내부)
+
+- Jira: [S15P31E102-313](https://ssafy.atlassian.net/browse/S15P31E102-313)(인식, 사지한). 소비자: [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)(BE 변환 작업자·검수·저장).
+- 상태: 초안(2026-11-03, 313 설계 결정). BE(347) 검토 전이다. `hwangPitch` 생략 동작은 382 결정을 바꾸는 **제안**이다(아래 '382와 다른 점').
+- 상위 계약: [내 악보](user-sheets.md) '2차 결정(382)'의 SHT-07·08·10. 이 문서는 backend 작업자와 악보 인식 서비스 사이만 정한다. 앱이 보는 API는 382와 Notion API 명세를 따른다.
+- 근거: [변환 가능성 조사와 실측](../knowledge/ai/score-omr-feasibility.md).
+
+## 범위
+
+포함:
+
+- 내부 API `POST /v1/recognitions`의 요청·응답·실패 코드·시간 상한
+- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)의 종류
+- 오선보 → 정간보 변환 기본값
+
+제외:
+
+- 업로드·원본 보관·상태(QUEUED/RUNNING/DONE/FAILED)·검수 화면·저장(382, 347)
+- 사용자가 올리는 MusicXML·MIDI 파일 가져오기([S15P31E102-349](https://ssafy.atlassian.net/browse/S15P31E102-349), 2차 보류)
+- 정간보 → 오선보 파일 내보내기(앱이 공통 악보로 그린다, 382)
+
+## 실행 위치
+
+- 악보 인식 전용 컨테이너 `omr`. 채점 AI(`ai`)와 따로 두어 메모리·CPU를 나눠 쓰지 않는다. 내부망에서 backend만 호출하고 외부에 열지 않는다.
+- 동시 처리 1건. 메모리·CPU 상한은 313 구현 실측으로 정한다(정간보 OMR의 torch 때문에 2GiB가 부족할 수 있음).
+- Audiveris(AGPL-3.0)는 수정 없이 별도 프로세스로 실행한다.
+
+## 요청
+
+backend 변환 작업자가 SHT-07로 접수한 변환 하나마다 한 번 호출하고 응답을 기다린다(동기).
+
+```json
+POST /v1/recognitions
+{
+  "conversionId": "c-123",
+  "notation": "STAFF",
+  "files": [{"url": "https://...signed", "contentType": "application/pdf"}],
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "hwangPitch": null
+}
+```
+
+| 필드 | 뜻 |
+| --- | --- |
+| `conversionId` | backend 변환 식별자. 응답에 그대로 돌려주고 로그에 남긴다. 같은 값으로 다시 와도 서비스는 상태를 저장하지 않고 새로 인식한다(중복 처리는 backend 책임) |
+| `notation` | `JEONGGANBO` 또는 `STAFF` |
+| `files` | 서명 URL 목록. PDF 1개 또는 PNG·JPEG 1~10장(382). 파일·합계 20MiB, PDF 10쪽 |
+| `instrument` | `instruments.code`. 율명 표 적합과 음역 검사에 쓴다 |
+| `jangdan` | 장단 이름. 정간보는 필수(382). 오선보는 생략 가능(아래 기본값) |
+| `hwangPitch` | 오선보에서 황으로 둘 음(MIDI 번호). 생략하면 자동 조 맞춤 |
+
+## 응답
+
+항상 HTTP 200에 결과 상태를 담는다(채점 분석 API와 같은 방식). 요청 형식 오류만 422다.
+
+```json
+{
+  "conversionId": "c-123",
+  "status": "DONE",
+  "failReason": null,
+  "engine": "audiveris",
+  "engineVersion": "5.11.0",
+  "pages": [{"index": 0, "width": 4300, "height": 3040}],
+  "jgb": {"v": 1, "melody": "..."},
+  "score": {"schemaVersion": 1, "provenance": {"review": "inferred", "converter": "staff-omr/audiveris-5.11.0"}},
+  "issues": [{"kind": "LOW_CONFIDENCE", "eventId": "c0-j2-r0-u0", "cellId": null, "page": 0, "bbox": [10, 20, 30, 40], "detail": null}]
+}
+```
+
+- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 사용자가 검수해 저장하면 backend가 `reviewed`로 바꾼다.
+- `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
+- `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
+- `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
+
+### issues 종류
+
+| kind | 뜻 | 기준 |
+| --- | --- | --- |
+| `LOW_CONFIDENCE` | 읽었지만 확신이 낮음 | 엔진 신뢰도가 기준 아래(정간보 OMR `cells.json`) |
+| `UNREADABLE` | 칸이나 기호를 읽지 못해 비움 | 빈 결과·모르는 글자 |
+| `OUT_OF_RANGE` | 악기 음역 밖 율명 | 율명 표·`instrument` 음역 |
+| `TRANSPOSED` | 조를 자동으로 옮김 | `detail`에 옮긴 반음과 후보(동률이면 2개) |
+| `VOICE_GUESSED` | 여러 성부 중 하나를 골랐음 | 오선보 파트·성부가 2개 이상 |
+| `ORNAMENT_DROPPED` | 꾸밈음을 버림 | 오선보 꾸밈음 |
+| `JANGDAN_GUESSED` | 박자표로 장단을 정함 | 오선보 9/8·12/8 |
+
+### 실패 코드
+
+| failReason | 뜻 |
+| --- | --- |
+| `UNSUPPORTED_FILE` | 파일 형식·크기·쪽 수 위반, 내려받기 실패 |
+| `NO_GRID_FOUND` | 정간보에서 정간 격자를 찾지 못함 |
+| `NO_STAFF_FOUND` | 오선보에서 오선·음표를 찾지 못함 |
+| `TIMEOUT` | 시간 상한 초과 |
+| `ENGINE_ERROR` | 엔진 비정상 종료·그 밖의 오류 |
+
+실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽의 정간을 `UNREADABLE` issue로 남기고 `DONE`이다.
+
+## 시간 상한
+
+- 쪽마다 30초, 요청 전체 `30초 × 쪽 수`, 최대 300초. backend의 호출 제한은 이보다 길게 둔다(예: 330초).
+- 실측(2026-11-03, 20코어 PC·Docker): 오선보 쪽당 7~11초. 서버(4코어)·CPU 상한에서 313 구현 때 다시 잰다.
+
+## 엔진 선택
+
+| notation·입력 | 엔진 |
+| --- | --- |
+| `JEONGGANBO`, PDF에 글자 층이 있음 | `standard_score_text.py`(표준악보집 글자·선 좌표) |
+| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr) |
+| `STAFF` | Audiveris → MusicXML → 정간보 변환 |
+
+어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.
+
+## 오선보 → 정간보 기본값
+
+| 항목 | 기본값 | issue |
+| --- | --- | --- |
+| 조 | `hwangPitch`가 있으면 그 값. 없으면 반음씩 옮겨 `instrument` 율명 표에 가장 많이 들어가는 양 | `TRANSPOSED` |
+| 장단 | 요청 `jangdan`. 없으면 9/8 → 세마치, 12/8 → 굿거리. 그 밖은 실패하지 않고 굿거리 격자로 둔 뒤 검수 화면에서 사용자가 고른다 | `JANGDAN_GUESSED` |
+| 정간 하나 | 1박(점4분). 세마치·굿거리 장단표 기준 | — |
+| 성부 | 첫 파트의 가장 높은 음 | `VOICE_GUESSED` |
+| 반복·volta | 펼침 | — |
+| 꾸밈음 | 버림 | `ORNAMENT_DROPPED` |
+| 가사 | 버림(공통 악보에 칸 없음) | — |
+
+## 382와 다른 점 (347 합의 대기)
+
+- 오선보 `hwangPitch`를 생략하면 382는 "악기 기본(단소 E♭4)"이다. 이 계약은 **자동 조 맞춤**을 제안한다. 표준악보집 오선보는 정간보보다 6~15반음 다른 조로 적혀 있어 고정 기본값이면 거의 모든 음이 어긋나고, 자동 맞춤은 실측 8건이 모두 맞았다. 사용자가 고른 값은 언제나 우선한다.
+
+## 미결 사항
+
+- `omr` 메모리·CPU 상한, 서버에서의 쪽당 시간(313 구현 실측)
+- 폰 사진·다른 판형 정확도(실물 없어 미측정)
+- MALerLab 체크포인트 이용 조건(README에 MIT, LICENSE 파일 없음)
+- 347 합의: 위 '382와 다른 점', issue 종류, backend 호출 제한

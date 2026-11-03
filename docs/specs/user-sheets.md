@@ -88,4 +88,4 @@
 - SHT-12·13: MIDI·M4A 다운로드 링크(10분, 여러 번 사용, 쿠키 없이 토큰). 파일은 요청마다 공통 악보 음원 생성기로 만들고 서버에 저장하지 않는다.
 - 작업 취소: SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
 - 저장 모델에 필요한 것(새 Flyway): `user_sheets`의 `source` CHECK 확장·초안 칸(`draft_json` 등), `sheet_source_files`, `sheet_conversions`, `sheet_issues`, `sheet_export_links`. 탈퇴 일괄 삭제와 R2 원본 삭제도 함께 넓힌다.
-- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한, 사용자 악보의 `provenance` 값(DATA).
+- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한, 사용자 악보의 `provenance` 값(DATA). 313 초안: [악보 인식 서비스 계약](score-recognition.md)(347 합의 대기).
