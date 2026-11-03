@@ -79,6 +79,15 @@ class SheetBodyLimitFilterTests {
     }
 
     @Test
+    fun `an unknown charset falls back to UTF-8 instead of failing`() {
+        val chain = MockFilterChain()
+        // 상한 8바이트 안: "가나"는 UTF-8로 6바이트다.
+        filter.doFilter(put("/api/users/me/sheets/701/score", "가나".toByteArray()).apply { characterEncoding = "bogus" }, MockHttpServletResponse(), chain)
+
+        assertEquals("가나", (chain.request as jakarta.servlet.http.HttpServletRequest).reader.readText())
+    }
+
+    @Test
     fun `other sheet routes and methods are not limited`() {
         for (request in listOf(
             MockHttpServletRequest("POST", "/api/users/me/sheets").apply { setContent(ByteArray(20)) },

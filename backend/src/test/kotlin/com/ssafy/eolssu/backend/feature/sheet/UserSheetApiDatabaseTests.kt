@@ -286,7 +286,10 @@ class UserSheetApiDatabaseTests {
             jdbc.update("UPDATE user_sheets SET draft_json='{}', draft_base_version=NULL, draft_saved_at=NOW(6) WHERE id=$sheetId")
         }.exceptionOrNull()
         // 3819: Check constraint is violated. 다른 오류(문법·권한)로 실패해도 통과하지 않게 원인을 본다.
-        assertEquals(3819, generateSequence(rejected) { it.cause }.filterIsInstance<java.sql.SQLException>().firstOrNull()?.errorCode, rejected.toString())
+        val sql = generateSequence(rejected) { it.cause }.filterIsInstance<java.sql.SQLException>().firstOrNull()
+        assertEquals(3819, sql?.errorCode, rejected.toString())
+        // 3819는 어느 CHECK든 같다. 초안 제약이 막았는지 이름으로 확인한다.
+        assertTrue("chk_user_sheets_draft" in sql!!.message.orEmpty(), sql.message)
     }
 
     @Test

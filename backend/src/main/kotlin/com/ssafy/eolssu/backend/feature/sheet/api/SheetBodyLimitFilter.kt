@@ -41,7 +41,11 @@ class SheetBodyLimitFilter(private val maxBytes: Int, private val errorWriter: E
     private class BufferedBody(request: HttpServletRequest, private val body: ByteArray) : HttpServletRequestWrapper(request) {
         override fun getContentLength() = body.size
         override fun getContentLengthLong() = body.size.toLong()
-        override fun getReader() = BufferedReader(InputStreamReader(ByteArrayInputStream(body), characterEncoding?.let(Charset::forName) ?: Charsets.UTF_8))
+        // 알 수 없는 charset이면 예외(500) 대신 JSON 기본값 UTF-8로 읽는다.
+        override fun getReader(): BufferedReader {
+            val charset = characterEncoding?.let { runCatching { Charset.forName(it) }.getOrNull() } ?: Charsets.UTF_8
+            return BufferedReader(InputStreamReader(ByteArrayInputStream(body), charset))
+        }
         override fun getInputStream(): ServletInputStream {
             val bytes = ByteArrayInputStream(body)
             return object : ServletInputStream() {
