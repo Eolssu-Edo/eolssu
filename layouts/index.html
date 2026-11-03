@@ -9,14 +9,16 @@
   {{- with $featured }}
   <section class="spotlight" data-spotlight aria-roledescription="캐러셀" aria-label="추천 글">
     <div class="spot-left">
+      <div class="spot-slides">
       {{- range $i, $p := . }}
       {{- $cats := partial "categories.html" $p }}
-      <article class="spot-copy" data-slide{{ if $i }} hidden{{ end }} aria-roledescription="슬라이드" aria-label="{{ add $i 1 }} / {{ len $featured }}">
+      <article class="spot-copy{{ if $i }} is-hidden{{ end }}" data-slide{{ if $i }} aria-hidden="true" inert{{ end }} aria-roledescription="슬라이드" aria-label="{{ add $i 1 }} / {{ len $featured }}">
         <div class="meta">{{ with $cats }}<span class="category">{{ range $j, $c := . }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</span>{{ end }}<span>추천 글</span></div>
         <h2><a href="{{ $p.RelPermalink }}">{{ $p.Title }}</a></h2>
         <p>{{ with $p.Description }}{{ . }}{{ else }}{{ $p.Summary | plainify | truncate 120 }}{{ end }}</p>
       </article>
       {{- end }}
+      </div>
       {{- if gt (len .) 1 }}
       <div class="spot-controls" data-spot-controls hidden>
         <button class="arrow" type="button" data-spot-prev aria-label="이전 추천 글"><span aria-hidden="true">←</span></button>
