@@ -111,12 +111,16 @@ internal fun HomeScrollLayout(
         } finally { snapping = false }
     }
     LaunchedEffect(scroll, density, reduceMotion) {
+        var dragGesture = false
         snapshotFlow { Triple(scroll.value, scroll.isScrollInProgress, dragged) }.collectLatest { (value, busy, touching) ->
+            if (touching) dragGesture = true
             if (value >= rangePx) wasOpen = true
             if (value == 0) wasOpen = false
             if (busy || touching || snapping) return@collectLatest
-            delay(160) // 시안의 스크롤 종료 유예: 휠 이벤트 사이·드래그 중에는 스냅하지 않는다.
+            // 드래그·관성 종료는 이미 확인됐으므로 바로 이어 간다. 휠 이벤트 사이는 기다린다.
+            if (!dragGesture) delay(160)
             val target = with(density) { homeSnapTarget(value / density.density, wasOpen).dp.roundToPx() }
+            dragGesture = false
             if (target != value) scope.launch { goTo(target) }
         }
     }
