@@ -33,6 +33,8 @@
 ## 기능 스펙
 
 - [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
+- [HOME 전체 그림·스크롤·먹 버튼](specs/home-scroll-ink.md) · [412 계획·검증](plans/S15P31E102-412.md)
+
 - [R2 공통 파일·폴더 업로드](specs/r2-upload.md) · [392 계획·검증](plans/S15P31E102-392.md) · [실행 안내](../infra/r2/README.md)
 - [운영 DB V15·V16 적용과 모범 음원 audio_url 삭제 (395)](knowledge/infra/model-audio-ops-migration.md)
 - [기본음·시김새 운영 게시](specs/reference-audio-publication.md) · [368 계획](plans/S15P31E102-368.md) · [배포 통합·게시 기록](knowledge/infra/reference-audio-publication.md)
