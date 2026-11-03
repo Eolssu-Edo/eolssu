@@ -69,6 +69,8 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
 
+취타 고급 `ngc-standard-2022-p203`은 사람이 확인한 기보를 보존한 정답입니다. 시김새가 별도 음으로 표현된 운영 악보와 달라 운영 채점에는 아직 사용하지 않습니다. 검토 기록의 보류 표시는 채점 켜기 도구의 자동 차단 기능이 아닙니다.
+
 ## 녹음 정답 기록
 
 채점 평가용 녹음마다 정답 기록 하나를 `annotations/recordings/<악기 ID>/<recordingId>.json`에 둡니다. 녹음 원본은 `raw/`, 합성 녹음은 `processed/`(둘 다 Git 제외)에 두고 기록에 경로와 SHA-256을 적습니다. 형식은 [recording_label.schema.json](src/recordings/recording_label.schema.json)이 정합니다.

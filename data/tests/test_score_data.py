@@ -353,6 +353,20 @@ class AnswerTests(unittest.TestCase):
                 actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
                 self.assertEqual(actual, digest)
 
+    def test_chita_advanced_preserves_reviewed_notation_and_marks_service_difference(self):
+        source_id = "ngc-standard-2022-p203"
+        score = convert_answer(source_id)
+        jsonschema.validate(score, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(score), [])
+        self.assertEqual(score["provenance"]["review"], "reviewed")
+        self.assertEqual(score["music"]["bpmUnit"], "QUARTER")
+        self.assertEqual(len(score["events"]), 49)
+        self.assertTrue(any("느니르" in e["sigimsae"] for e in score["events"]))
+        review = json.loads(next((DATA / "annotations/scores" / source_id).glob("*.review.json")).read_text(encoding="utf-8"))
+        self.assertEqual((review["confirmed"], review["total"]), (28, 28))
+        self.assertEqual(review["serviceComparison"]["status"], "mismatch")
+        self.assertFalse(review["serviceComparison"]["approvedForScoring"])
+
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
