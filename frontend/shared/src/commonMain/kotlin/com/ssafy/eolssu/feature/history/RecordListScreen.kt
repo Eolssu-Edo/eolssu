@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.theme.EolssuTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -66,6 +67,7 @@ fun RecordListScreen(
     }
     val spacing = if (frame.isTablet) RecordListSpacing.Portrait else RecordListSpacing.Compact
     EolssuScaffold(
+        containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
         contentMaxWidth = frame.contentMaxWidth,
         topBar = { HistoryTopBar(frame, title, subtitle, onBack) },

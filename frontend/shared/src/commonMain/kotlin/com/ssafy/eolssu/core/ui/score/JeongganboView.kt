@@ -303,8 +303,8 @@ private fun ScoreStripColumn(
             .width(metrics.columnWidth)
             .then(ring)
             .clip(shape)
-            .background(if (look.board) colors.surface else colors.background)
-            .border(1.dp, if (highlighted) colors.accent else colors.line, shape),
+            .background(if (look.board || look.soft) colors.surface else colors.background)
+            .border(1.dp, if (highlighted) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
     ) {
         if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming)
         for (row in strip.rows) cell(row)
@@ -380,7 +380,7 @@ private fun ScoreCellBox(
         }
     }
     val (fill, ring) = when (highlight) {
-        ScoreHighlight.Position -> colors.accentSoft to colors.accent
+        ScoreHighlight.Position -> (if (look.soft) colors.accentTint else colors.accentSoft) to colors.accent
         ScoreHighlight.Recording -> colors.recSoft to colors.rec
     }
     val headColor = when {
@@ -391,6 +391,7 @@ private fun ScoreCellBox(
     val lineColor = when {
         isDaegangStart && board -> colors.text
         isDaegangStart -> colors.lineStrong
+        look.soft -> colors.lineSoft
         else -> colors.line
     }
     val lineWidth = if (isDaegangStart) 2.dp else 1.dp

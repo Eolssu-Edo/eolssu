@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
  * @property headCompact 각 머리를 ‘시작 · 1각’·‘2각’ 한 줄로 적는다(보드 `.ms-lab`). 아니면 ‘시작’ + 번호.
  * @property daegangWhenFits 공통 악보라도 각 길이가 장단의 정간 수와 같으면 대강 선을 긋는다(보드).
  * @property upcomingMark 연주 중 각의 마지막 정간에 들어서면 다음 각 머리를 ‘← 다음’으로 강조한다(보드).
+ * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
  */
 @Immutable
 data class JeongganboLook(
@@ -24,6 +25,7 @@ data class JeongganboLook(
     val headCompact: Boolean = false,
     val daegangWhenFits: Boolean = false,
     val upcomingMark: Boolean = false,
+    val soft: Boolean = false,
 ) {
     enum class Style { Classic, Board }
 
@@ -36,6 +38,9 @@ data class JeongganboLook(
         fun practice(big: Boolean) = JeongganboLook(
             style = Style.Board, lyricLane = if (big) 34.dp else 25.dp, headCompact = true, daegangWhenFits = true, upcomingMark = true,
         )
+
+        /** 기록 상세 RECORD-02의 악보: 옛 크기(각 46 · 정간 38)에 흰 각 · 옅은 선 · 연두 현재 칸. */
+        val Record = JeongganboLook(soft = true)
     }
 }
 
