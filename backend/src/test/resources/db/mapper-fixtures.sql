@@ -8,6 +8,7 @@ VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '20
 ON DUPLICATE KEY UPDATE code = f.code, name = f.name, range_low_pitch_id = f.range_low_pitch_id, range_high_pitch_id = f.range_high_pitch_id,
   pitch_tolerance_cent = f.pitch_tolerance_cent, is_active = f.is_active, created_at = f.created_at, updated_at = f.updated_at;
 
+DELETE FROM fingering_charts WHERE instrument_id=1 OR id=1;
 INSERT INTO fingering_charts (id, instrument_id, pitch_id, image_url, description, created_at, updated_at)
 VALUES (1, 1, 2, 'https://example.test/fingering.png', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 

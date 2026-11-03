@@ -36,6 +36,7 @@ internal fun FingeringCompactLayout(
         item(key = "head") {
             Column {
                 InstrumentDropdown(
+                    options = state.instrumentOptions,
                     selected = instrument,
                     open = state.isDropdownOpen,
                     onToggle = actions.onToggleDropdown,

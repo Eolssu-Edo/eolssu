@@ -40,7 +40,8 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
         checkIds(result.items.map { it.fingeringId })
         if (!safeCatalogLink(result.structureImageUrl) || result.items.any {
                 it.instrumentId != instrumentId || !validCatalogId(it.pitchId) ||
-                    (pitchId != null && it.pitchId != pitchId) || !safeCatalogLink(it.imageUrl)
+                    (pitchId != null && it.pitchId != pitchId) || !safeCatalogLink(it.imageUrl) ||
+                    (it.pattern != null && !it.pattern.valid())
             }) throw CatalogUnavailable()
         return result
     }
@@ -94,7 +95,24 @@ internal fun safeCatalogLink(value: String?): Boolean = value == null || runCatc
     val hangul: String, val semitone: Int, val description: String? = null, val soundUrl: String? = null)
 @Serializable data class CatalogFingerings(val items: List<CatalogFingering>, val structureImageUrl: String? = null)
 @Serializable data class CatalogFingering(val fingeringId: String, val instrumentId: String, val pitchId: String,
-    val imageUrl: String? = null, val description: String? = null)
+    val imageUrl: String? = null, val description: String? = null, val pattern: CatalogFingeringPattern? = null)
+@Serializable enum class CatalogFingeringBlow { LOW, MID, HIGH }
+@Serializable enum class CatalogFingeringHole { CLOSED, OPEN, HALF, UNKNOWN }
+@Serializable data class CatalogFingeringPattern(
+    val blow: CatalogFingeringBlow,
+    val hanja: String,
+    val name: String,
+    val reading: String,
+    val holes: List<CatalogFingeringHole>,
+    val basic: Boolean,
+    val source: String,
+    val instrumentNote: String,
+    val nominalHwangPitchClass: Int,
+    val verificationStatus: String,
+) {
+    internal fun valid() = holes.size in 5..6 && listOf(hanja, name, reading, source, instrumentNote).all { it.isNotBlank() } &&
+        nominalHwangPitchClass in 0..11 && verificationStatus == "BUILTIN_REFERENCE"
+}
 @Serializable data class CatalogJangdanSummary(val jangdanId: String, val name: String, val defaultBpm: Int,
     val bpmUnit: String, val beatCount: Int, val groupCount: Int)
 @Serializable data class CatalogJangdanDetail(val jangdanId: String, val name: String, val defaultBpm: Int,

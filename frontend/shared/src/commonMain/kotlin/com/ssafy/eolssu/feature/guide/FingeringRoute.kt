@@ -36,6 +36,7 @@ fun FingeringRoute(
         onDismissDropdown = viewModel::dismissDropdown,
         onSelectInstrument = viewModel::selectInstrument,
         onSelectBlow = viewModel::selectBlow,
+        onRetryInstruments = viewModel::retryCatalog,
         noteAudioContent = { note ->
             ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note, state.shownBlow), audio)
         },

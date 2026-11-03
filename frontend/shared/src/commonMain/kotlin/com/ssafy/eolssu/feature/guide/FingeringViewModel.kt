@@ -32,11 +32,14 @@ class FingeringViewModel(
 
     init { retryCatalog() }
 
-    fun toggleDropdown() = _uiState.update { it.toggleDropdown() }
+    fun toggleDropdown() = _uiState.update {
+        if (instruments == null || it.hasSelectedInstrument) it.toggleDropdown() else it
+    }
 
     fun dismissDropdown() = _uiState.update { it.dismissDropdown() }
 
     fun selectInstrument(instrument: GuideInstrument) {
+        if (instruments != null && _uiState.value.instrumentOptions.none { it.instrument == instrument }) return
         if (instrument == _uiState.value.instrument) { dismissDropdown(); return }
         catalogJob?.cancel()
         _uiState.update { it.selectInstrument(instrument).copy(catalogPitches = emptyList(), catalogFingerings = CatalogFingerings(emptyList()), playing = null) }
@@ -47,25 +50,33 @@ class FingeringViewModel(
         val instruments = instruments ?: return
         val references = references ?: return
         if (catalogJob?.isActive == true) return
-        val selected = _uiState.value.instrument
-        _uiState.update { it.copy(catalogState = ReferenceLoadState.Loading) }
+        val needsList = _uiState.value.instrumentListState != ReferenceLoadState.Ready || _uiState.value.instrumentOptions.isEmpty()
+        _uiState.update { it.copy(catalogState = ReferenceLoadState.Loading,
+            instrumentListState = if (needsList) ReferenceLoadState.Loading else it.instrumentListState) }
         catalogJob = viewModelScope.launch {
             try {
-                // Variant identity follows the server code, never a shared DAEGEUM fallback or enum position.
-                val code = when (selected) {
-                    GuideInstrument.Danso -> "DANSO"
-                    GuideInstrument.Sogeum -> "SOGEUM"
-                    GuideInstrument.DaegeumJeongak -> "JEONGAK_DAEGEUM"
-                    GuideInstrument.DaegeumSanjo -> "SANJO_DAEGEUM"
-                }
-                val instrument = instruments.load().firstOrNull { it.code == code }
-                if (instrument == null) {
+                val options = if (needsList) instruments.load().mapNotNull { item ->
+                    // A renderer capability, not a second authoritative instrument list.
+                    val renderer = when (item.code) {
+                        "DANSO" -> GuideInstrument.Danso
+                        "SOGEUM" -> GuideInstrument.Sogeum
+                        "JEONGAK_DAEGEUM" -> GuideInstrument.DaegeumJeongak
+                        "SANJO_DAEGEUM" -> GuideInstrument.DaegeumSanjo
+                        else -> return@mapNotNull null
+                    }
+                    FingeringInstrumentOption(item.instrumentId, item.name, renderer)
+                } else _uiState.value.instrumentOptions
+                currentCoroutineContext().ensureActive()
+                val selected = options.firstOrNull { it.instrument == _uiState.value.instrument } ?: options.firstOrNull()
+                _uiState.update { it.copy(instrumentOptions = options, instrumentListState = ReferenceLoadState.Ready,
+                    instrument = selected?.instrument ?: it.instrument) }
+                if (selected == null) {
                     _uiState.update { it.copy(catalogState = ReferenceLoadState.NotRegistered) }
                     return@launch
                 }
                 val (pitches, fingerings) = coroutineScope {
-                    val pitches = async { references.pitches(instrument.instrumentId) }
-                    val fingerings = async { references.fingerings(instrument.instrumentId) }
+                    val pitches = async { references.pitches(selected.instrumentId) }
+                    val fingerings = async { references.fingerings(selected.instrumentId) }
                     pitches.await() to fingerings.await()
                 }
                 currentCoroutineContext().ensureActive()
@@ -73,7 +84,8 @@ class FingeringViewModel(
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
                 currentCoroutineContext().ensureActive()
-                _uiState.update { it.copy(catalogState = ReferenceLoadState.Failed) }
+                _uiState.update { it.copy(catalogState = ReferenceLoadState.Failed,
+                    instrumentListState = if (it.instrumentListState == ReferenceLoadState.Loading) ReferenceLoadState.Failed else it.instrumentListState) }
             }
         }
     }
