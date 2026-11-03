@@ -683,6 +683,8 @@
     <string name="mysongs_evaluable_badge">AI 평가</string>
     <string name="mysongs_practice_only_badge">연습 전용</string>
     <string name="mysongs_songs_hint">점수 없이 혼자 연습해요 · AI 평가 표시가 있는 곡은 연습 화면에서 평가로 넘어갈 수 있어요</string>
+    <string name="mysongs_empty_body">다른 단계를 선택하거나 전체 곡을 확인해 보세요.</string>
+    <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_add">악보 추가 · PDF, 음원, 직접 만들기</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
