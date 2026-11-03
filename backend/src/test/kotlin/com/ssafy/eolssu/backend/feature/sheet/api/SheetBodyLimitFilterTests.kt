@@ -49,6 +49,36 @@ class SheetBodyLimitFilterTests {
     }
 
     @Test
+    fun `a declared length over the limit is rejected without reading the body`() {
+        val request = object : MockHttpServletRequest("PUT", "/api/users/me/sheets/701/score") {
+            override fun getContentLengthLong() = 9L
+            override fun getInputStream() = error("the body must not be read")
+        }
+        val response = MockHttpServletResponse()
+
+        filter.doFilter(request, response, MockFilterChain())
+
+        assertEquals(413, response.status)
+    }
+
+    @Test
+    fun `an encoded path that Spring MVC decodes to a score route is limited too`() {
+        for (uri in listOf("/api/users/me/sheets/701/%73core", "/api/users/me/sheets/701/score/%64raft")) {
+            val response = MockHttpServletResponse()
+            filter.doFilter(put(uri, "123456789".toByteArray()), response, MockFilterChain())
+            assertEquals(413, response.status, uri)
+        }
+    }
+
+    @Test
+    fun `the buffered body can also be read as characters`() {
+        val chain = MockFilterChain()
+        filter.doFilter(put("/api/users/me/sheets/701/score", "{\"a\":1}".toByteArray()).apply { characterEncoding = "UTF-8" }, MockHttpServletResponse(), chain)
+
+        assertEquals("{\"a\":1}", (chain.request as jakarta.servlet.http.HttpServletRequest).reader.readText())
+    }
+
+    @Test
     fun `other sheet routes and methods are not limited`() {
         for (request in listOf(
             MockHttpServletRequest("POST", "/api/users/me/sheets").apply { setContent(ByteArray(20)) },

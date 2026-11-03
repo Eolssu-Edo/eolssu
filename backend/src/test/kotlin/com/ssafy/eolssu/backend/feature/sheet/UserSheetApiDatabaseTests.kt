@@ -284,8 +284,9 @@ class UserSheetApiDatabaseTests {
 
         val rejected = runCatching {
             jdbc.update("UPDATE user_sheets SET draft_json='{}', draft_base_version=NULL, draft_saved_at=NOW(6) WHERE id=$sheetId")
-        }
-        assertTrue(rejected.isFailure, "CHECK must reject a draft whose base version is NULL")
+        }.exceptionOrNull()
+        // 3819: Check constraint is violated. 다른 오류(문법·권한)로 실패해도 통과하지 않게 원인을 본다.
+        assertEquals(3819, generateSequence(rejected) { it.cause }.filterIsInstance<java.sql.SQLException>().firstOrNull()?.errorCode, rejected.toString())
     }
 
     @Test
@@ -299,6 +300,26 @@ class UserSheetApiDatabaseTests {
         assertEquals("PAYLOAD_TOO_LARGE", json.readTree(tooLarge.body()).path("result").path("errorCode").asString())
         assertEquals(413, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", padded).statusCode())
         assertEquals(401, send(null, "PUT", "/api/users/me/sheets/$sheetId/score", padded).statusCode())
+        // 길이를 알리지 않는(chunked) 본문도 받은 바이트로 자른다.
+        val chunked = client.send(
+            authorized(URI("http://localhost:$port/api/users/me/sheets/$sheetId/score"), OWNER).header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofInputStream { padded.byteInputStream() }).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(413, chunked.statusCode(), chunked.body())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
+    fun `an encoded path that reaches the score routes is limited the same way`() {
+        val sheetId = copySong()
+        val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
+
+        // %73 = s, %64 = d. Spring MVC는 디코딩한 경로로 컨트롤러를 찾으므로 필터도 같은 경로로 판단해야 한다.
+        for (path in listOf("/api/users/me/sheets/$sheetId/%73core", "/api/users/me/sheets/$sheetId/score/%64raft", "/api/users/me/%73heets/$sheetId/score")) {
+            val response = send(OWNER, "PUT", path, padded)
+            assertEquals(413, response.statusCode(), "$path ${response.body().take(200)}")
+        }
         assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
     }
 

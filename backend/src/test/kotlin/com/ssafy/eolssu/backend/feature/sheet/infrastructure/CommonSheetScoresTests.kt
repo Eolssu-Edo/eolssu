@@ -35,6 +35,16 @@ class CommonSheetScoresTests {
     }
 
     @Test
+    fun `missing or mistyped top-level fields are malformed rather than a server error`() {
+        // Jackson 3의 MissingNode.intValue()·stringValue()는 0·null을 주지 않고 예외를 던진다.
+        for (score in listOf("{}", """{"schemaVersion":"1"}""", document(filled).replace(""""kind":"NOTE"""", """"kind":1"""))) {
+            assertEquals(PreparedScore.Malformed, scores.prepare(score, 2), score)
+            assertNull(scores.unfilledCellCount("{}"))
+        }
+        assertEquals(PreparedScore.Malformed, scores.prepare(document("""$filled,{"id":"","index":1,"units":[]}"""), 2))
+    }
+
+    @Test
     fun `drafts only need the common score top level and count empty cells`() {
         assertEquals(1, scores.unfilledCellCount(document("""$filled,{"id":"c0-j1","index":1,"units":[]}""")))
         assertNull(scores.unfilledCellCount("""{"schemaVersion":1,"score":{}}"""))

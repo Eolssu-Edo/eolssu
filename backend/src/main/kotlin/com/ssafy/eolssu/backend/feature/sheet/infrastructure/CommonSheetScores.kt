@@ -48,12 +48,15 @@ class CommonSheetScores(
         val score = root.path("score")
         val music = root.path("music")
         val columns = root.path("columns")
-        if (!shaped(root) || score !is ObjectNode || !music.path("bpmUnit").isString || !music.path("jangdan").isString) {
+        // Jackson 3의 stringValue()·intValue()는 타입이 다르면 예외를 던지므로 읽기 전에 타입을 본다.
+        if (!shaped(root) || score !is ObjectNode || !music.path("bpmUnit").isString || !music.path("jangdan").isString ||
+            !root.path("events").all { it.path("kind").isString }
+        ) {
             return PreparedScore.Malformed
         }
         val unfilled = columns.flatMap { column -> column.path("cells").filter { it.path("units").let { units -> units.isArray && units.isEmpty } } }
         // 알릴 칸 ID가 없는 빈 칸은 앱이 강조할 수 없으므로 악보 형식 오류다.
-        if (unfilled.any { !it.path("id").isString }) return PreparedScore.Malformed
+        if (unfilled.any { cell -> cell.path("id").let { !it.isString || it.stringValue().isEmpty() } }) return PreparedScore.Malformed
         if (unfilled.isNotEmpty()) return PreparedScore.Unfilled(unfilled.map { it.path("id").stringValue() })
         score.put("scoreVersion", scoreVersion)
         return PreparedScore.Ready(
@@ -74,7 +77,7 @@ class CommonSheetScores(
     }
 
     // 초안도 확정 저장과 같은 최상위 모양이어야 다시 열 수 있다. 칸 안의 검증은 확정 저장에서 한다.
-    private fun shaped(root: JsonNode) = root.path("schemaVersion").intValue() == 1 && root.path("score").isObject &&
+    private fun shaped(root: JsonNode) = root.path("schemaVersion").let { it.isInt && it.intValue() == 1 } && root.path("score").isObject &&
         root.path("music").isObject && root.path("columns").isArray && root.path("events").isArray && root.path("provenance").isObject &&
         root.path("columns").all { it.isObject && it.path("cells").isArray && it.path("cells").all { cell -> cell.isObject } }
 }
