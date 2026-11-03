@@ -50,7 +50,10 @@ def fake_plan_and_rows():
 
 class PlanTests(unittest.TestCase):
     def test_plan_breaths_are_the_reviewed_answer_breaths(self):
-        self.assertEqual([p['songId'] for p in tool.PLAN], [96, 93, 95, 91])  # 교과서 우선, 없으면 표준악보집
+        # 교과서 우선, 없으면 표준악보집. 운영 곡과 정답의 짝(이벤트 일치는 2026-11-03 운영 읽기로 확인)
+        self.assertEqual([(p['songId'], p['answer']) for p in tool.PLAN],
+                         [(96, 'school-textbook-sogeum-p15'), (93, 'school-textbook-sogeum-p16'),
+                          (95, 'ngc-standard-2022-p193'), (91, 'ngc-standard-2022-p196')])
         for item in tool.PLAN:
             answer = convert_answer(item['answer'])
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
