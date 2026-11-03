@@ -42,7 +42,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 | --- | --- | --- | --- |
 | `pitches.json` | `pitches` | 단소 다섯 율을 단소 실제 음역(중~중청중) 안에서 | 없음 |
 | `instruments.json` | `instruments` | 단소 | `range_low`·`range_high` = pitches의 `(yul, octave)` |
-| `jangdans.json` | `jangdans` | 세마치·굿거리·중모리 | 없음 |
+| `jangdans.json` | `jangdans` | 세마치·굿거리·중모리·자진모리·중중모리([추가 근거와 보류 후보](../docs/knowledge/backend/jangdan-catalog-extension.md)) | 없음 |
 | `songs.json` | `songs` | 1차 AI 평가 4곡 | `instrument` = instruments의 `code`, `jangdan` = jangdans의 `name`, `source` = 원본 ID |
 
 `songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 소금 녹음의 옥타브(반음 안) 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.

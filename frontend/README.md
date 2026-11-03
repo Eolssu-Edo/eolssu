@@ -288,6 +288,13 @@ $env:EOLSSU_CATALOG_TEST_URL = 'http://127.0.0.1:18081'
 adb reverse tcp:18081 tcp:18081
 ```
 
+V19의 장단5개를 가진 폐기용 로컬 서버에서 구음·묶음·점4분음표 단위가 Repository와 읽기 화면 상태에 도달하는지는 별도로 검사합니다. `EOLSSU_JANGDAN_TEST_URL` 미지정 시 해당 검사는 명시적으로 skipped입니다. 실기기 화면·청취 검증과 구분합니다.
+
+```powershell
+$env:EOLSSU_JANGDAN_TEST_URL = 'http://127.0.0.1:18081'
+./gradlew.bat :shared:testAndroidHostTest --tests '*JangdanLocalServerTest'
+```
+
 debug API 변경은 loopback 주소만 허용합니다. release는 이 속성과 관계없이 운영 HTTPS 주소를 사용하며 debug 전용 cleartext 예외를 포함하지 않습니다. 공개 곡 조회 검사는 로그인·녹음·분석 전체 흐름의 증거가 아닙니다.
 
 현재 설정은 `com.ssafy.eolssu`, minSdk 24, target/compileSdk 37입니다. 아래 PowerShell 스크립트는 실제 Gradle task로 단위 검사·debug/release lint·debug APK·release APK/AAB를 실행합니다. 버전은 Console의 최고 사용 버전을 확인한 뒤 지정해야 하며 기본값 2/1.0.0은 제출 승인을 의미하지 않습니다.
