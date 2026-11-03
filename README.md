@@ -212,7 +212,8 @@ hugo server -D
 
 - 글 상세 아래에 [giscus](https://giscus.app/ko) 댓글을 표시한다. 댓글은 `team-edo/team-edo.github.io`의 GitHub Discussions에 글 주소(`pathname`)별로 저장되고, 글에 누르는 반응(👍 등)이 좋아요 역할을 한다. 댓글·반응에는 GitHub 로그인이 필요하다.
 - `hugo.toml`의 `[params.giscus]`에 `repoId`·`categoryId`가 비어 있으면 댓글 영역을 표시하지 않는다.
-- 처음 한 번 조직 관리자가 준비한다.
+- 2026-11-03 Discussions 활성화, `Comments`(Announcement) 카테고리 생성, giscus 앱 설치(`team-edo.github.io`만, Discussions 읽기·쓰기)를 마치고 두 값을 반영했다.
+- 처음 한 번 조직 관리자가 준비한다. 저장소를 바꾸거나 다시 설정할 때 같은 순서를 따른다.
   1. `team-edo.github.io` 저장소 Settings → General → Features에서 **Discussions**를 켠다.
   2. Discussions에서 형식이 **Announcement**인 `Comments` 카테고리를 만든다. 방문자는 새 글타래를 만들 수 없고 giscus가 만든 글타래에만 댓글을 단다.
   3. [giscus 앱](https://github.com/apps/giscus)을 `team-edo` 조직의 `team-edo.github.io` 저장소에만 설치한다.
