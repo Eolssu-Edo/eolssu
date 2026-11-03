@@ -7,6 +7,7 @@ standard_score_text.py는 pymupdf(AGPL)를 쓰므로 이 프로세스에 들이�
 
 import hashlib
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -22,7 +23,10 @@ import score_data  # noqa: E402  data/와 같은 변환을 쓴다(중복 구현�
 
 ENGINE, ENGINE_VERSION = "jeongganbo-text", "1"  # 읽기·변환 규칙을 바꾸면 올린다
 CONVERTER = "jeongganbo-text/standard_score_text"
-NO_YUL_EXIT = 3  # standard_score_text.py: 쪽에 율명 글자가 없음(글자 층 없음)
+NO_YUL_EXIT, NO_GRID_EXIT = 3, 4  # standard_score_text.py: 율명 글자가 없는 쪽, 정간 격자를 못 읽은 쪽
+# 장단과 각의 정간 수가 맞을 때 나오는 정간당 박. 그 밖이면 고른 장단이 악보와 다를 수 있다(JANGDAN_MISMATCH)
+USUAL_BEATS = {Fraction(1), Fraction(1, 2), Fraction(1, 3)}
+log = logging.getLogger("omr_service.api")  # api의 로그 설정을 함께 쓴다
 JANGDANS = {r["name"]: r for r in json.loads((ROOT / "data/reference/jangdans.json").read_text(encoding="utf-8"))["rows"]}
 
 
@@ -39,7 +43,11 @@ def beats_per_jeonggan(jangdan: str, jeonggans_per_gak: int) -> Fraction:
 
 
 def recognize(job) -> dict:
-    """api.Job을 받아 엔진 결과를 돌려준다. 시간을 넘기면 TimeoutError, 글자 층이 없으면 NoTextLayer다."""
+    """api.Job을 받아 엔진 결과를 돌려준다. 시간을 넘기면 TimeoutError, 글자 층이 없으면 NoTextLayer다.
+
+    쪽 단위로 읽는다. 율명 글자가 없는 쪽(표지·설명)은 건너뛰고, 정간 격자를 못 읽은 쪽은 UNREADABLE로 남긴다.
+    모든 쪽에 율명이 없으면 NoTextLayer, 읽은 쪽이 하나도 없으면 NO_GRID_FOUND다.
+    """
     from omr_service.api import DPI, RecognitionFailed  # api가 이 모듈을 불러 순환을 피한다
 
     generator = os.environ.get("JGB_GENERATOR_DIR")
@@ -49,38 +57,61 @@ def recognize(job) -> dict:
     request = job.request
     with tempfile.TemporaryDirectory(prefix="jeongganbo-text-") as work:
         work = Path(work)
-        lines, issues = [], []
+        lines, issues, no_yul, no_grid = [], [], 0, 0
+        scale = DPI / 72  # PDF 좌표(pt) → 쪽 그림 픽셀
         for i, page in enumerate(job.pages):
             out = work / f"page-{i}"
             run = _run([sys.executable, "-X", "utf8", str(SCORES / "standard_score_text.py"), str(job.files[0]),
                         str(out), "--title", "page", "--page", str(i)], deadline)
+            whole_page = {"eventId": None, "cellId": None, "page": i, "bbox": [0, 0, page.width, page.height]}
             if run.returncode == NO_YUL_EXIT:
-                raise NoTextLayer()
+                no_yul += 1
+                continue
+            if run.returncode == NO_GRID_EXIT:
+                no_grid += 1
+                log.info("jeongganbo-text page=%d no grid: %s", i, _last_line(run.stderr))
+                issues.append({"kind": "UNREADABLE", **whole_page, "detail": {"reason": "NO_GRID"}})
+                continue
             if run.returncode != 0:
-                raise RecognitionFailed("NO_GRID_FOUND")  # 율명은 있지만 정간 격자를 읽지 못했다
+                raise RuntimeError(f"standard_score_text failed: {_last_line(run.stderr)}")
             lines += (out / "page.txt").read_text(encoding="utf-8").splitlines()
             report = json.loads((out / "report.json").read_text(encoding="utf-8"))
-            scale, size = DPI / 72, 12  # PDF 좌표(pt) → 쪽 그림 픽셀. 글자 상자는 약 12pt
             issues += [{"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
-                        "bbox": [round((g["x"] - size / 2) * scale), round((g["y"] - size / 2) * scale),
-                                 round(size * scale), round(size * scale)], "detail": {"text": g["c"]}}
+                        "bbox": [round((g["x"] - g["size"] / 2) * scale), round((g["y"] - g["size"] / 2) * scale),
+                                 round(g["size"] * scale), round(g["size"] * scale)], "detail": {"text": g["c"]}}
                        for g in report["ignored_at"]]
+            if report["voices"] > 1:  # 2중주 쪽은 첫 성부만 읽었다
+                issues.append({"kind": "VOICE_GUESSED", **whole_page, "detail": {"voices": report["voices"], "kept": 1}})
+        if not lines:
+            if no_yul == len(job.pages):
+                raise NoTextLayer()
+            raise RecognitionFailed("NO_GRID_FOUND")
         (work / "txt").mkdir()
         (work / "txt/score.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         run = _run(["node", str(Path(generator) / "tools/import-ngc-omr.mjs"), str(work / "txt"), str(work / "jgb")],
                    deadline)
         if run.returncode != 0:
-            raise RuntimeError("import-ngc-omr failed")
+            raise RuntimeError(f"import-ngc-omr failed: {_last_line(run.stderr)}")
         jgb_bytes = (work / "jgb/score.jgb.json").read_bytes()
     doc = json.loads(jgb_bytes)
-    jangdan = JANGDANS[request.jangdan]
+    jangdan, per_gak = JANGDANS[request.jangdan], int(doc["controls"]["beats"])
+    bpj = beats_per_jeonggan(request.jangdan, per_gak)
+    if bpj not in USUAL_BEATS:
+        issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
+                       "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
     score = score_data.convert(
-        doc, beats_per_jeonggan=beats_per_jeonggan(request.jangdan, int(doc["controls"]["beats"])),
+        doc, beats_per_jeonggan=bpj,
         title=request.conversion_id, instrument=request.instrument, source_id=request.conversion_id,
         jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review="inferred",
         jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest())
     score["provenance"]["converter"] = CONVERTER
     return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
+
+
+def _last_line(stderr: bytes) -> str:
+    """하위 프로세스 오류의 마지막 줄(예외 종류와 이유). 경로·URL을 넣지 않는 오류 문구만 나온다."""
+    text = stderr.decode("utf-8", "replace").strip()
+    return text.splitlines()[-1][:200] if text else ""
 
 
 def _run(cmd: list[str], deadline: float) -> subprocess.CompletedProcess:

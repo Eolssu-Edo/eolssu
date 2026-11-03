@@ -94,8 +94,8 @@ class RecognitionIn(_Camel):
             raise ValueError("a PDF must be the only file")
         if self.notation == "JEONGGANBO" and not self.jangdan:
             raise ValueError("jangdan is required for JEONGGANBO")
-        if self.jangdan and self.jangdan not in jeongganbo_text.JANGDANS:
-            raise ValueError("unknown jangdan")  # data/reference/jangdans.json의 name
+        if self.notation == "JEONGGANBO" and self.jangdan not in jeongganbo_text.JANGDANS:
+            raise ValueError("unknown jangdan")  # data/reference/jangdans.json의 name. 오선보는 U5에서 정한다
         return self
 
 

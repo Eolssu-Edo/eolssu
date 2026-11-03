@@ -33,6 +33,16 @@ def pdf_bytes(tiers, **kw):
         return path.read_bytes()
 
 
+def pages_pdf(*pages):
+    """쪽마다 (tiers, 옵션)인 여러 쪽 PDF."""
+    import pymupdf
+
+    doc = pymupdf.open()
+    for tiers, kw in pages:
+        doc.insert_pdf(pymupdf.open(stream=pdf_bytes(tiers, **kw)))
+    return doc.tobytes()
+
+
 def post(data, **override):
     def fetch(url, dest, max_bytes, deadline):
         dest.write_bytes(data)
@@ -78,7 +88,8 @@ def test_glyph_that_is_not_a_note_becomes_issue_at_its_place():
     # 글자 층 읽기가 NFKC로 맞춰 한글 자모 ㄱ(U+3131)은 첫소리 ᄀ(U+1100)이 된다
     assert issue["kind"] == "UNREADABLE" and issue["detail"] == {"text": "ᄀ"} and issue["page"] == 0
     x, y, w, h = issue["bbox"]
-    assert 0 < x < out["pages"][0]["width"] and 0 < y < out["pages"][0]["height"] and w == h == 50
+    # 글자 크기 10.5pt를 300dpi 쪽 그림 픽셀로 옮긴 정사각형
+    assert 0 < x < out["pages"][0]["width"] and 0 < y < out["pages"][0]["height"] and w == h == round(10.5 * 300 / 72)
 
 
 def test_pdf_without_text_layer_is_left_to_omr(monkeypatch, tmp_path):
@@ -109,3 +120,47 @@ def test_child_process_past_deadline_is_killed_as_timeout():
 
 def test_unknown_jangdan_is_rejected():
     assert post(pdf_bytes(SEMACHI), jangdan="없는장단").status_code == 422
+
+
+@needs_generator
+def test_cover_page_without_yul_is_skipped():
+    out = post(pages_pdf((SEMACHI, {"no_text": True}), (SEMACHI, {}))).json()
+    assert out["status"] == "DONE" and len(out["pages"]) == 2 and out["issues"] == []
+    assert len(out["score"]["events"]) == 4  # 둘째 쪽 악보만
+
+
+@needs_generator
+def test_page_with_unreadable_grid_is_marked_and_others_are_kept():
+    out = post(pages_pdf((SEMACHI, {}), (SEMACHI, {"no_lines": True}))).json()
+    assert out["status"] == "DONE" and len(out["score"]["events"]) == 4
+    (issue,) = out["issues"]
+    assert issue["kind"] == "UNREADABLE" and issue["page"] == 1 and issue["detail"] == {"reason": "NO_GRID"}
+    assert issue["bbox"] == [0, 0, out["pages"][1]["width"], out["pages"][1]["height"]]
+
+
+@needs_generator
+def test_duet_keeps_first_voice_and_says_so():
+    tiers = [[["林", "南", "-"], ["仲", "林", "-"], ["潢", "汰", "-"], ["南", "仲", "-"]]]
+    out = post(pdf_bytes(tiers, labels=["단소1", "단소2", "단소1", "단소2"])).json()
+    assert out["status"] == "DONE"
+    assert [e["yul"] for e in out["score"]["events"]] == ["임", "남", "황", "태"]
+    assert [i["kind"] for i in out["issues"]] == ["VOICE_GUESSED"] and out["issues"][0]["detail"] == {"voices": 2, "kept": 1}
+
+
+@needs_generator
+def test_jangdan_that_does_not_fit_the_gak_is_flagged():
+    # 3정간 각을 굿거리(4박)로 보내면 정간 하나가 4/3박이 된다
+    out = post(pdf_bytes(SEMACHI), jangdan="굿거리").json()
+    assert out["status"] == "DONE"
+    assert out["issues"] == [{"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
+                              "detail": {"jangdan": "굿거리", "jeongganPerGak": 3}}]
+
+
+def test_reader_crash_is_engine_error_not_no_grid(monkeypatch, tmp_path, caplog):
+    monkeypatch.setenv("JGB_GENERATOR_DIR", "unused")
+    (tmp_path / "standard_score_text.py").write_text("raise RuntimeError('boom')", encoding="utf-8")
+    monkeypatch.setattr(jeongganbo_text, "SCORES", tmp_path)
+    with caplog.at_level("INFO"):
+        out = post(pdf_bytes(SEMACHI)).json()
+    assert out["failReason"] == "ENGINE_ERROR"
+    assert "result=ENGINE_ERROR:RuntimeError" in caplog.text
