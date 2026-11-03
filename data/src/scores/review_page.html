@@ -281,7 +281,7 @@ function renderOverview() {
 function renderCrop() {
   const c = cells[cur], cv = $("crop"), ctx = cv.getContext("2d");
   if (c.x == null) { cv.width = 170; cv.height = 60; ctx.fillStyle = "#888"; ctx.fillText("직접 넣은 정간(상자 없음)", 10, 34); return; }
-  const pad = 6, k = Math.min(3, 260 / c.w);
+  const pad = Math.round(c.w * 0.22), k = 340 / (c.w + pad * 2);
   cv.width = (c.w + pad * 2) * k; cv.height = (c.h + pad * 2) * k;
   ctx.drawImage(img, c.x - pad, c.y - pad, c.w + pad * 2, c.h + pad * 2, 0, 0, cv.width, cv.height);
 }

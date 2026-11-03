@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location('tool', Path(__file__).with_name('enable_sogeum_scoring.py'))
+spec = importlib.util.spec_from_file_location('tool', Path(__file__).with_name('enable_scoring.py'))
 tool = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tool)
 
@@ -49,12 +49,36 @@ def fake_plan_and_rows():
 
 
 class PlanTests(unittest.TestCase):
+    def test_load_plan_from_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'plan.json'
+            expected, _ = fake_plan_and_rows()
+            path.write_text(json.dumps(expected), encoding='utf-8')
+            self.assertEqual(tool.load_plan(path), expected)
+
+    def test_plan_rejects_invalid_or_duplicate_ids(self):
+        plan, _ = fake_plan_and_rows()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'plan.json'
+            for invalid in ([], [dict(plan[0], songId='1 OR 1=1')], [plan[0], plan[0]],
+                            [dict(plan[0], scoreVersion='1')]):
+                path.write_text(json.dumps(invalid), encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    tool.load_plan(path)
+
     def test_plan_breaths_are_the_reviewed_answer_breaths(self):
         # 교과서 우선, 없으면 표준악보집. 운영 곡과 정답의 짝(이벤트 일치는 2026-11-03 운영 읽기로 확인)
-        self.assertEqual([(p['songId'], p['answer']) for p in tool.PLAN],
-                         [(96, 'school-textbook-sogeum-p15'), (93, 'school-textbook-sogeum-p16'),
-                          (95, 'ngc-standard-2022-p193'), (91, 'ngc-standard-2022-p196')])
-        for item in tool.PLAN:
+        self.assertEqual({p['songId']: p['answer'] for p in tool.load_plan(ROOT / 'infra/catalog/scoring-plans/sogeum.json')},
+                         {96: 'school-textbook-sogeum-p15', 93: 'school-textbook-sogeum-p16',
+                          95: 'ngc-standard-2022-p193', 91: 'ngc-standard-2022-p196',
+                          89: 'ngc-standard-2022-p188', 90: 'ngc-standard-2022-p191',
+                          94: 'ngc-standard-2022-p199', 102: 'school-textbook-sogeum-p14-exercise-1',
+                          103: 'school-textbook-sogeum-p14-exercise-2', 105: 'ngc-standard-2022-p202-part-2',
+                          106: 'ngc-standard-2022-p187', 98: 'ngc-standard-2022-p189',
+                          99: 'ngc-standard-2022-p198', 100: 'ngc-standard-2022-p197',
+                          101: 'ngc-standard-2022-p195', 108: 'ngc-standard-2022-p200',
+                          110: 'ngc-standard-2022-p201', 111: 'ngc-standard-2022-p190'})
+        for item in tool.load_plan(ROOT / 'infra/catalog/scoring-plans/sogeum.json'):
             answer = convert_answer(item['answer'])
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
             self.assertEqual(item['breathEventIds'], [e['id'] for e in answer['events'] if e['breathAfter']], item['answer'])
@@ -68,13 +92,16 @@ class PatchTests(unittest.TestCase):
         self.assertEqual(after['provenance']['review'], 'reviewed')
         self.assertEqual(before['provenance']['review'], 'inferred')  # 원본은 바꾸지 않는다
 
-    def test_patch_refuses_unknown_event_or_existing_breath(self):
+    def test_patch_refuses_unknown_event(self):
         with self.assertRaises(ValueError):
             tool.patch(score('s'), ['zz'])
+
+    def test_patch_replaces_existing_breath(self):
         marked = score('s')
         marked['events'][0]['breathAfter'] = True
-        with self.assertRaises(ValueError):
-            tool.patch(marked, ['b'])
+        after = tool.patch(marked, ['b'])
+        self.assertEqual([e['breathAfter'] for e in after['events']], [False, True, False])
+        self.assertTrue(marked['events'][0]['breathAfter'])
 
     def test_canonical_sha_ignores_key_order(self):
         a = {'x': 1, 'y': [1, 2]}

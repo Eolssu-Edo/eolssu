@@ -1,0 +1,278 @@
+{
+ "sourceId": "school-textbook-sogeum-p14",
+ "sourceHashes": {
+  "school-textbook-sogeum-p14": "111a1de6cc140630c327c3a50e3b360c6860c8549ccafbd7da84988002d0f300"
+ },
+ "attribution": null,
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "기초연습곡1·2_정간보_소금_학교교과서-PDF14_소금연습곡1.jgb.json",
+  "sha256": "005745916ee42e2bc06f55d866060028c66743f1e789964eee695164add1959a",
+  "note": "S15P31E102-130 사람 대조 기록이 있는 소금 악보 사본"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-03",
+  "note": "원본 PDF를 보며 정간과 숨표를 검토. S15P31E102-403"
+ },
+ "song": {
+  "title": "소금 연습곡 1",
+  "instrument": "SOGEUM",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "beatsPerJeongganBasis": "2026-11-03 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 별도 확인이 필요하다."
+ },
+ "title": "기초연습곡1·2_정간보_소금_학교교과서-PDF14_소금연습곡1",
+ "source": "input",
+ "reviewedOn": "2026-11-03",
+ "confirmed": 16,
+ "total": 16,
+ "cells": [
+  {
+   "index": 0,
+   "gak": 0,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2166,
+    106,
+    106
+   ]
+  },
+  {
+   "index": 1,
+   "gak": 0,
+   "cell": "- 청태",
+   "original": "- 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2272,
+    106,
+    107
+   ]
+  },
+  {
+   "index": 2,
+   "gak": 0,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2379,
+    106,
+    106
+   ]
+  },
+  {
+   "index": 3,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2485,
+    106,
+    106
+   ]
+  },
+  {
+   "index": 4,
+   "gak": 0,
+   "cell": "청남",
+   "original": "청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2591,
+    106,
+    107
+   ]
+  },
+  {
+   "index": 5,
+   "gak": 0,
+   "cell": "- 청임",
+   "original": "- 청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2698,
+    106,
+    106
+   ]
+  },
+  {
+   "index": 6,
+   "gak": 0,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2804,
+    106,
+    106
+   ]
+  },
+  {
+   "index": 7,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    937,
+    2910,
+    106,
+    110
+   ]
+  },
+  {
+   "index": 8,
+   "gak": 1,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2166,
+    107,
+    106
+   ]
+  },
+  {
+   "index": 9,
+   "gak": 1,
+   "cell": "- 중청황",
+   "original": "- 중청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2272,
+    107,
+    107
+   ]
+  },
+  {
+   "index": 10,
+   "gak": 1,
+   "cell": "청남",
+   "original": "청남",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2379,
+    107,
+    106
+   ]
+  },
+  {
+   "index": 11,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2485,
+    107,
+    106
+   ]
+  },
+  {
+   "index": 12,
+   "gak": 1,
+   "cell": "청임",
+   "original": "청임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2591,
+    107,
+    107
+   ]
+  },
+  {
+   "index": 13,
+   "gak": 1,
+   "cell": "- 청태",
+   "original": "- 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2698,
+    107,
+    106
+   ]
+  },
+  {
+   "index": 14,
+   "gak": 1,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2804,
+    107,
+    106
+   ]
+  },
+  {
+   "index": 15,
+   "gak": 1,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    807,
+    2910,
+    107,
+    110
+   ]
+  }
+ ]
+}
