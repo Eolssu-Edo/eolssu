@@ -4,6 +4,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongMapper
+import com.ssafy.eolssu.backend.feature.instrument.infrastructure.persistence.InstrumentMapper
 import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanMapper
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
@@ -17,9 +18,20 @@ import io.swagger.v3.oas.annotations.media.Schema
 @RestController
 @RequestMapping("/api/songs")
 @Profile("db | ops")
-class SongController(private val songs: SongMapper, private val jangdans: JangdanMapper, private val json: JsonMapper) {
+class SongController(private val songs: SongMapper, private val jangdans: JangdanMapper, private val json: JsonMapper,
+    private val instruments: InstrumentMapper) {
     @GetMapping
-    fun list() = SuccessResponse.of(HttpStatus.OK, "곡 목록 조회 성공", SongListResult(songs.listPublished().map(::item)))
+    fun list(@RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
+        val id = instrumentId?.let {
+            it.takeIf { value -> value.matches(Regex("[1-9][0-9]{0,18}")) }?.toLongOrNull()
+                ?: return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
+        }
+        if (id != null && !instruments.activeExists(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
+        }
+        return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "곡 목록 조회 성공",
+            SongListResult(songs.listPublished(id).map(::item))))
+    }
 
     @GetMapping("/{songId}")
     fun get(@PathVariable songId: Long): ResponseEntity<*> =

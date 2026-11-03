@@ -47,6 +47,8 @@ S15P31E102-390: `db`·`ops`에서 로그인한 회원이 `POST /api/users/me/she
 
 S15P31E102-409의 V18은 [내장 운지 계약](../docs/specs/builtin-fingering-catalog.md)에 따라 92개 참고 운지를 연결합니다. V17의 악기·율명 뒤에 적용하며, `fingering_charts.pattern_json`과 nullable `image_url`이 필요합니다. 기존 이미지·설명·ID는 보존합니다. 새 백엔드의 `ops` 배포 전에 V18 적용이 필요하며 이번 작업은 로컬 검증 범위입니다. 이미지가 필수인 구버전으로 되돌릴 때는 새 null 행을 읽을 수 있도록 먼저 호환성을 준비해야 합니다. `BuiltinFingeringApiDatabaseTests`는 FE 원본 전체와 실제 HTTP·pitchId 필터를 대조합니다. [검증 기록](../docs/knowledge/backend/builtin-fingering-catalog.md).
 
+S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다. 생략하면 기존 전체 목록, 지정하면 활성 악기의 게시·미삭제 곡만 ID 순서로 반환합니다. 잘못된 ID는400, 없는/비활성 악기는404, 곡이 없는 활성 악기는200 빈 목록입니다. [곡 목록 악기 필터](../docs/specs/song-instrument-filter.md)의 FE 선택과 연결되며 검증은 `SongControllerTests`와 실제 MySQL·HTTP의 `SongInstrumentApiDatabaseTests`를 사용합니다.
+
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.

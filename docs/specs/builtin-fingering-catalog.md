@@ -15,7 +15,7 @@ CAT-07의 악기별 목록과 `pitchId` 필터에 FE 내장 운지 자료를 연
 
 ## API 표현
 
-기존 `GET /api/instruments/{instrumentId}/fingerings?pitchId=...`의 경로·ID 문자열·정렬·400/404·빈 목록 규칙을 유지한다. 항목에 nullable `pattern`을 추가하고 기존 이미지형 항목은 `pattern: null`로 반환한다. 내장 자료는 이미지 URL을 만들지 않고 `imageUrl: null`로 반환한다. 기존 API의 ID/설명/이미지 필드는 보존한다.
+기존 `GET /api/instruments/{instrumentId}/fingerings?pitchId=...`의 경로·ID 문자열·정렬·400/404·빈 목록 규칙을 유지한다. 항목에 nullable `pattern`을 추가한다. 내장표와 연결되지 않은 기존 이미지형 항목은 `pattern: null`로 반환하며, 내장표와 연결된 기존 행은 원래 이미지·설명과 pattern을 함께 반환한다. 내장 자료는 이미지 URL을 만들지 않고 `imageUrl: null`로 반환한다. 기존 API의 ID/설명/이미지 필드는 보존한다.
 
 아래는 단소 평취 중려의 응답 항목 예시다. ID 자리표시는 실제 실행 때 DB에서 조회한 문자열로 바꾼다.
 

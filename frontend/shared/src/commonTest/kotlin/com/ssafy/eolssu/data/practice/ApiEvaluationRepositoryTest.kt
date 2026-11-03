@@ -55,7 +55,8 @@ class ApiEvaluationRepositoryTest {
         }))
     }
     private val songs = object : SongRepository {
-        override suspend fun getSongs() = listOf(song.toSummary())
+        override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
+        override suspend fun getSongs(instrumentId: String?) = listOf(song.toSummary())
 
         override suspend fun getSong(songId: String) = song.takeIf { it.id == songId }
     }

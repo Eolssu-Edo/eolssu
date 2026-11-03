@@ -1,0 +1,4 @@
+<resources>
+    <string name="song_instrument_filter">악기</string>
+    <string name="song_instrument_all">전체 악기</string>
+</resources>

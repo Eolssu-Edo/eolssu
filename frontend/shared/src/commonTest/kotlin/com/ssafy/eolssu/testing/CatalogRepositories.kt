@@ -27,7 +27,8 @@ internal class CatalogSongs : SongRepository {
     var song: suspend (String) -> Song? = { id -> SampleSongs.firstOrNull { it.id == id } }
     var list: suspend () -> List<Song> = { SampleSongs }
     override suspend fun getSong(songId: String): Song? { songCalls++; return song(songId) }
-    override suspend fun getSongs(): List<SongSummary> { listCalls++; return list().map { it.toSummary() } }
+    override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
+    override suspend fun getSongs(instrumentId: String?): List<SongSummary> { listCalls++; return list().map { it.toSummary() } }
 }
 
 internal class CatalogEvaluations : EvaluationRepository {

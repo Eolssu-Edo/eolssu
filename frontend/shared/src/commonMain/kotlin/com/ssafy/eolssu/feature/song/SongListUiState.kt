@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.data.song.CatalogInstrument
 
 /** 곡 목록의 난이도 필터. [level]이 null이면 전체. */
 enum class SongLevelFilter(val level: SongLevel?) {
@@ -27,6 +28,8 @@ data class SongListUiState(
     val filter: SongLevelFilter = SongLevelFilter.All,
     val selectedSongId: String? = null,
     val songPicked: Boolean = false,
+    val instruments: List<CatalogInstrument> = emptyList(),
+    val instrumentId: String? = null,
 ) {
     val visibleSongs: List<SongSummary>
         get() {
