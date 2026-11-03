@@ -45,8 +45,8 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         if (state.loadState != ReferenceLoadState.Ready || clips.isEmpty()) {
             val message = when (state.loadState) {
-                ReferenceLoadState.Loading -> Res.string.guide_catalog_loading
-                ReferenceLoadState.Failed, ReferenceLoadState.NotRegistered -> Res.string.guide_catalog_failed
+                ReferenceLoadState.Loading -> Res.string.reference_audio_loading_list
+                ReferenceLoadState.Failed, ReferenceLoadState.NotRegistered -> Res.string.reference_audio_failed_list
                 ReferenceLoadState.Ready -> Res.string.reference_audio_empty_note
             }
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -1,4 +1,4 @@
-"""백엔드로 넘기는 Nginx 설정 3개가 점검 주소(actuator) 중 readiness만 넘기고, API 본문은 25MiB까지 넘기는지 확인한다. RUN_NGINX_TESTS=1로 실행한다."""
+"""백엔드로 넘기는 Nginx 설정 3개가 점검 주소(actuator) 중 readiness만 넘기고, API 본문은 25MiB까지 넘기며, 큰 JSON 응답만 gzip으로 압축하는지 확인한다. RUN_NGINX_TESTS=1로 실행한다."""
 import http.client
 import json
 import os
@@ -20,6 +20,8 @@ FAKE_BACKEND = '''server {
         if ($arg_unconfigured = 1) { return 404; }
         return 200 '[{"relation":["fixture-backend"]}]';
     }
+    location = /api/large-json { default_type application/json; return 200 '{"items":"__LARGE__"}'; }
+    location = /api/large-audio { default_type audio/mp4; return 200 '__LARGE__'; }
     location / { return 200 "backend $request_uri"; }
 }
 '''
@@ -48,7 +50,7 @@ class NginxActuatorTests(unittest.TestCase):
 
         backend = root / 'backend'
         backend.mkdir()
-        (backend / 'default.conf').write_text(FAKE_BACKEND)
+        (backend / 'default.conf').write_text(FAKE_BACKEND.replace('__LARGE__', 'a' * 2048))
         cls.start(network, 'backend-' + tag, backend, alias='backend')
 
         live = root / 'certs' / 'live' / DOMAIN
@@ -104,6 +106,15 @@ class NginxActuatorTests(unittest.TestCase):
                 time.sleep(0.05)
 
     @classmethod
+    def encoding(cls, name, path, accept):
+        scheme, port = ('https', cls.ports[name][443]) if name == 'runtime-tls' else ('http', cls.ports[name][80])
+        command = ['curl', '--silent', '--output', os.devnull, '--write-out', '%header{content-encoding}', '--max-time', '5',
+                   '--resolve', f'{DOMAIN}:{port}:127.0.0.1', '--header', f'Accept-Encoding: {accept}', f'{scheme}://{DOMAIN}:{port}{path}']
+        if name == 'runtime-tls':
+            command += ['--cacert', str(cls.certificate)]
+        return subprocess.run(command, capture_output=True, text=True, check=True).stdout
+
+    @classmethod
     def request(cls, name, path, with_headers=False):
         if name == 'runtime-tls':
             connection = http.client.HTTPSConnection('127.0.0.1', cls.ports[name][443], timeout=2,
@@ -151,6 +162,15 @@ class NginxActuatorTests(unittest.TestCase):
                 self.assertEqual(json.loads(body), [{'relation': ['fixture-backend']}])
                 status, _ = self.request(name, '/.well-known/assetlinks.json?unconfigured=1')
                 self.assertEqual(status, 404)
+
+    def test_api_gzips_large_json_only_for_clients_that_accept_it(self):
+        for name in self.ports:
+            with self.subTest(config=name):
+                self.assertEqual(self.encoding(name, '/api/large-json', 'gzip'), 'gzip')
+                self.assertEqual(self.encoding(name, '/api/large-json', 'identity'), '')
+                # 짧은 응답과 미디어는 압축하지 않는다
+                self.assertEqual(self.encoding(name, '/api/infra-smoke', 'gzip'), '')
+                self.assertEqual(self.encoding(name, '/api/large-audio', 'gzip'), '')
 
     def test_readiness_and_ordinary_api_reach_backend(self):
         for name in self.ports:

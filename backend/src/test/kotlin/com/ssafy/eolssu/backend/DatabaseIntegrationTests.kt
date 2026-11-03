@@ -153,7 +153,7 @@ class DatabaseIntegrationTests {
             mapper<InstrumentMapper>().findById(1),
         )
         assertEquals(
-            FingeringChartRow(1, 1, 2, "https://example.test/fingering.png", null, time, time),
+            FingeringChartRow(1, 1, 2, "https://example.test/fingering.png", null, time, time, null),
             mapper<FingeringChartMapper>().findById(1),
         )
         val jangdan = assertNotNull(mapper<JangdanMapper>().findById(1))

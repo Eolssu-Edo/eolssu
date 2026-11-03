@@ -5,6 +5,7 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.catalog.application.CatalogReferenceQueries
 import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogJangdan
+import com.ssafy.eolssu.backend.feature.catalog.domain.FingeringPattern
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -39,7 +40,7 @@ class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
         val pitch = pitchId?.let { positiveId(it) ?: return invalidRequest() }
         val fingerings = queries.fingerings(instrument, pitch) ?: return notFound()
         return success("운지법 목록·특정 음 운지 조회 성공", FingeringListResult(fingerings.map {
-            FingeringItem(it.id.toString(), it.instrumentId.toString(), it.pitchId.toString(), it.imageUrl, it.description)
+            FingeringItem(it.id.toString(), it.instrumentId.toString(), it.pitchId.toString(), it.imageUrl, it.description, it.pattern)
         }, null))
     }
 
@@ -77,7 +78,7 @@ data class PitchItem(val pitchId: String, val yul: String, val octave: Int, val 
     val semitone: Int, val description: String?, val soundUrl: String?)
 data class FingeringListResult(val items: List<FingeringItem>, val structureImageUrl: String?)
 data class FingeringItem(val fingeringId: String, val instrumentId: String, val pitchId: String,
-    val imageUrl: String?, val description: String?)
+    val imageUrl: String?, val description: String?, val pattern: FingeringPattern?)
 data class JangdanListResult(val items: List<JangdanItem>)
 data class JangdanItem(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
     val beatCount: Int, val groupCount: Int)
