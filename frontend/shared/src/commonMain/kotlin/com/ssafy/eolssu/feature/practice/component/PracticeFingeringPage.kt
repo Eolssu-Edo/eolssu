@@ -190,7 +190,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                     fraction = fraction,
                     showHangul = state.settings.showHangul,
                     gakStart = cell.row == 0,
-                    daegang = cell.row > 0 && cell.row in song.jangdan.daegangStarts && song.score.columns[cell.column].size == song.jangdan.gak,
+                    daegang = cell.row > 0 && cell.row in song.jangdan?.daegangStarts.orEmpty() && song.score.columns[cell.column].size == song.jangdan?.gak,
                     onClick = if (state.mode == PracticeMode.Ready) cell.firstEvent?.let { event -> { onSelectEvent(event) } } else null,
                 )
             }

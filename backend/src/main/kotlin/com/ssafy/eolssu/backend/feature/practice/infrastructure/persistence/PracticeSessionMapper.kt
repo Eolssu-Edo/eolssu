@@ -10,6 +10,23 @@ interface PracticeSessionMapper {
 
     fun failRecordingStartedBefore(@Param("cutoff") cutoff: LocalDateTime, @Param("failReason") failReason: String): Int
 
+    /** 저장하지 않았고 `ended_at`이 cutoff보다 이른 녹음. id 오름차순. */
+    fun findExpiredUnsavedRecordings(
+        @Param("cutoff") cutoff: LocalDateTime,
+        @Param("afterSessionId") afterSessionId: Long,
+        @Param("limit") limit: Int,
+    ): List<ExpiredRecordingRow>
+
+    /** 같은 키이고 아직 저장하지 않았으며 cutoff 조건이 그대로일 때만 `recording_url`을 비운다. 바뀐 행 수. */
+    fun clearUnsavedRecording(
+        @Param("sessionId") sessionId: Long,
+        @Param("recordingUrl") recordingUrl: String,
+        @Param("cutoff") cutoff: LocalDateTime,
+    ): Int
+
+    /** `recording_url`이 비어 있고 기록을 지우지 않았을 때만 키를 되돌린다. 바뀐 행 수. */
+    fun restoreRecording(@Param("sessionId") sessionId: Long, @Param("recordingUrl") recordingUrl: String): Int
+
     /** 회원 본인의 세션과 평가 ID. 다른 회원의 세션이나 기록을 지운 세션이면 null. */
     fun findDetail(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): PracticeSessionDetailRow?
 
@@ -37,6 +54,11 @@ interface PracticeSessionMapper {
 
     fun insert(session: PracticeSessionInsert): Int
 }
+
+data class ExpiredRecordingRow(
+    val sessionId: Long,
+    val recordingUrl: String,
+)
 
 data class RecordingUploadTargetRow(
     val status: String,

@@ -38,7 +38,7 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
         val scoreItem = scoreResponse.apiResponse<CatalogScore>()?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         if (scoreItem.songId != songId || scoreItem.scoreVersion != item.scoreVersion ||
             scoreItem.noteCount != item.noteCount || scoreItem.defaultBpm != item.defaultBpm ||
-            scoreItem.bpmUnit != item.jangdan.bpmUnit || (item.score != null && item.score != scoreItem.score)
+            (item.jangdan != null && scoreItem.bpmUnit != item.jangdan.bpmUnit) || (item.score != null && item.score != scoreItem.score)
         ) throw CatalogUnavailable()
         val common = CommonScoreData.decode(scoreItem.score.toString())
         if (common.schemaVersion != scoreItem.schemaVersion) throw CatalogUnavailable()
@@ -56,14 +56,15 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
         val timing = score.timing ?: throw CatalogUnavailable()
         val source = score.source ?: throw CatalogUnavailable()
         if (source.scoreVersion != item.scoreVersion || source.title != item.title ||
-            timing.jangdan != jangdan.name || timing.bpmUnit.name != jangdan.bpmUnit ||
+            timing.bpmUnit.name != scoreItem.bpmUnit ||
+            (jangdan != null && (timing.jangdan != jangdan.name || timing.bpmUnit.name != jangdan.bpmUnit)) ||
             score.timeline(songId).count { it.noteIndex != null } != item.noteCount
         ) throw CatalogUnavailable()
         return Song(
             id = songId,
             title = item.title,
             level = level,
-            jangdan = jangdan.model(),
+            jangdan = jangdan?.model(),
             baseBpm = item.defaultBpm,
             description = item.description.orEmpty(),
             evaluable = item.isScorable,
@@ -107,15 +108,15 @@ private class CatalogSong(
     val noteCount: Int,
     val scoreVersion: Int,
     val description: String? = null,
-    val jangdan: CatalogJangdan,
+    val jangdan: CatalogJangdan? = null,
     val score: JsonObject? = null,
 ) {
     fun summary(): SongSummary {
         if (!validCatalogId(songId) || !validCatalogId(instrumentId) || title.isBlank() ||
-            difficulty !in 1..5 || defaultBpm <= 0 || jangdan.name.isBlank() || noteCount < 0 || scoreVersion <= 0
+            difficulty !in 1..5 || defaultBpm <= 0 || jangdan?.name?.isBlank() == true || noteCount < 0 || scoreVersion <= 0
         ) throw CatalogUnavailable()
         return SongSummary(
-            songId, title, difficulty, jangdan.name, defaultBpm, isScorable, instrumentId, scoreVersion,
+            songId, title, difficulty, jangdan?.name ?: canonicalJangdanName(), defaultBpm, isScorable, instrumentId, scoreVersion,
             instrumentCode = instrumentCode(), noteCount = noteCount,
         )
     }
@@ -124,6 +125,11 @@ private class CatalogSong(
     private fun instrumentCode(): String? {
         val code = (score?.get("score") as? JsonObject)?.get("instrument") as? JsonPrimitive ?: return null
         return code.content.takeIf { code.isString && it.isNotBlank() }
+    }
+
+    private fun canonicalJangdanName(): String {
+        val name = (score?.get("music") as? JsonObject)?.get("jangdan") as? JsonPrimitive ?: return ""
+        return name.content.takeIf { name.isString }.orEmpty()
     }
 }
 

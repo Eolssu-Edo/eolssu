@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
  * 로그아웃은 화면이 바로 넘어가도 끝나도록 앱 전체의 [scope]에서 한다. 서버 요청이 실패해도 기기의 쿠키는 지운다.
  * 로그인에 성공하면 응답의 `userId`를, 로그아웃하면 빈 값을 [member]에 남긴다(회원별 기록을 다른 회원으로 보내지 않기 위해).
  * 간편 로그인 완료·계정 연결도 로그인이므로 같은 방식으로 [member]를 바꾼다. 둘 다 1회용 값을 써서 HTTP 클라이언트가 401에 재전송하지 않는다.
+ * 이메일·간편 가입의 201도 로그인 쿠키를 주므로 응답의 `userId`를 [member]에 남긴다.
  */
 class ApiAuthRepository(
     private val client: HttpClient,
@@ -110,11 +111,20 @@ class ApiAuthRepository(
     }
 
     override suspend fun signUp(request: Registration): MemberResult {
-        val response = client.sendOrNull {
-            post("/api/auth/sign-up") { contentType(ContentType.Application.Json); setBody(request) }
-        } ?: return MemberResult.Unavailable
-        if (response.status.value == 201 && response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result?.userId?.isNotBlank() == true) return MemberResult.Done
-        return memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        // 가입 201도 로그인 쿠키를 주므로 로그인처럼 회원을 바꾼다. 로그아웃이 끝나기 전이면 새 쿠키가 지워질 수 있다.
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/sign-up") { contentType(ContentType.Application.Json); setBody(request) }
+            } ?: return@changing MemberResult.Unavailable
+            if (response.status.value == 201) {
+                val signedUp = response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result
+                    ?.takeIf { it.userId.isNotBlank() } ?: return@changing MemberResult.Unavailable
+                member.set(signedUp.userId)
+                return@changing MemberResult.Done
+            }
+            memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        }
     }
 
     override suspend fun resetPassword(token: String, password: String): MemberResult {

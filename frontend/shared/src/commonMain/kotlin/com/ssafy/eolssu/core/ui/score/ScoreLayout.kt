@@ -23,7 +23,7 @@ internal data class ScoreStrip(val column: Int, val strip: Int, val rows: IntRan
  */
 internal fun scoreStrips(
     score: Score,
-    jangdan: Jangdan,
+    jangdan: Jangdan?,
     maxColumns: Int? = null,
     maxRows: Int? = null,
     columnRange: IntRange? = null,
@@ -39,7 +39,7 @@ internal fun scoreStrips(
             var start = 0
             // 공통 악보의 각 길이는 원본 columns가 정한다. 장단 이름의 샘플 정간 수로 자르지 않는다.
             val maxStrip = Jangdan.MAX_STRIP_CELLS
-            val counts = if (score.timing != null) List((size + maxStrip - 1) / maxStrip) { maxStrip } else jangdan.strips
+            val counts = if (score.timing != null || jangdan == null) List((size + maxStrip - 1) / maxStrip) { maxStrip } else jangdan.strips
             for (count in counts) {
                 if (start >= size) break
                 strips += ScoreStrip(column, strips.size, start until minOf(start + count, size))

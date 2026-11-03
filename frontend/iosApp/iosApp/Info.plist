@@ -4,5 +4,11 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>CFBundleDisplayName</key>
+	<string>얼쑤</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>연주를 녹음해 음정과 박자를 평가하는 데 마이크를 사용해요.</string>
 </dict>
 </plist>

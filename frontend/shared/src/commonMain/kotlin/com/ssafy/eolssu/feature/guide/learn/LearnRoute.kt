@@ -19,7 +19,6 @@ import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_listen_model_pending
-import eolssu.shared.generated.resources.learn_practice_pending
 import eolssu.shared.generated.resources.learn_reset_message
 import eolssu.shared.generated.resources.learn_song_missing
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +39,8 @@ class LearnNavigation(
     val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSongList: () -> Unit,
+    /** 3~7단계의 단계 연습을 연다. */
+    val onOpenPractice: (stage: Int) -> Unit,
 )
 
 /**
@@ -118,7 +119,7 @@ fun LearnListRoute(
 
 /**
  * 단계 상세. 이전·다음 단계는 [onOpenStage]로 바꾸고, 마지막 단계를 확인하면 [onBack]으로 목록에 돌아간다.
- * 3~7단계의 단계 연습 화면은 아직 없어 '준비 중' 안내를, 8단계 '연습 시작'은 곡 목록을 연다.
+ * 3~7단계 '연습 시작'은 단계 연습([LearnPracticeRoute])을, 8단계 '연습 시작'은 곡 목록을 연다.
  * 창이 가로 배치 너비가 되면 이 단계를 고른 채 [onShowInList]로 단계 목록(목록 + 상세 한 화면)에 돌아간다.
  */
 @Composable
@@ -191,7 +192,7 @@ private fun learnStageActions(
         onConfirmed(stageAfterConfirm(n))
     },
     onStartPractice = { n ->
-        if (n == 8) navigation.onOpenSongList() else notify { getString(Res.string.learn_practice_pending, n, stage.title) }
+        if (n == 8) navigation.onOpenSongList() else navigation.onOpenPractice(n)
     },
     onListenModel = { notify { getString(Res.string.learn_listen_model_pending) } },
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },

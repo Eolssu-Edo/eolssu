@@ -26,6 +26,8 @@ S15P31E102-367, 2026-11-02. [기능 계약](https://lab.ssafy.com/s15-final/S15P
 
 원문에서 독립적으로 읽은 `Closed/Open/Closed/Open/Open`을 기대하는 `FingeringTest.dansoHighTaeUsesNationalGugakAcademyFingering`가 기존 코드의 `Unknown` 5개 때문에 실패함을 확인했다. 수정 후 운지 검사 11개가 통과했고, 낮은 태의 전개방·청태의 기존 녹음 식별·미확정 운지 일반 처리도 검사했다. 전체 `:shared:testAndroidHostTest`는 585개 중 583개 통과/기존 opt-in 2개 제외/실패·오류 0, `:androidApp:assembleDebug` 성공. 로그는 로컬 `%TEMP%/fe367-fingering-{red,green,final}.log`, JUnit은 `frontend/shared/build/test-results/testAndroidHostTest/`다. 실제 화면·실기기 청취·iOS 검증은 이번 변경에서 수행하지 않았다.
 
+2026-11-03 최신 develop `14456693` 통합 후에는 host 620개 중 617개 통과·opt-in 3개 제외(CatalogLocalServerTest, GeneratedCatalogBundleTest, QaLiveCatalogTest), Android APK·Wasm 개발 번들 성공을 확인했다. 새 단계 연습 이동과 카드 내부 재생을 함께 보존했고 DB/API·운지표 전체 정합성 검수는 추가로 수행하지 않았다. 첫 Web 번들은 선언된 `@js-joda/core:3.2.0`의 로컬 설치 폴더 누락으로 실패했다. `:kotlinWasmNpmInstall --rerun-tasks --info`를 단독 실행한 뒤 파일 존재와 Web 번들 성공을 확인했으며 의존성·lock·빌드 설정은 변경하지 않았다. 설치가 처음 누락된 원인은 확정하지 않았다. 실제 UI·운영 재생·iOS 검증은 이전 근거와 구분한다.
+
 ## 연결 방식
 
 운지법과 기초 학습의 음 듣기는 악기·취법·율명에 맞는 게시 음원 목록을 연다. 실제 녹음에는 같은 음의 강·중·약, 요성, 서로 다른 구간이 있어 첫 항목을 대표음으로 자동 선택하지 않는다. 주법·율명·연주 예시 번호를 보고 사용자가 파일 하나를 선택한다. 전체 음원과 기본음계/시김새 필터로 같은 악기의 다른 연주 예시도 찾을 수 있다.

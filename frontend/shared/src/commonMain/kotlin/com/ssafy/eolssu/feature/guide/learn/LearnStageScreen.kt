@@ -426,7 +426,7 @@ private fun StageBody(
     }
 }
 
-private val LearnPattern.label: StringResource
+internal val LearnPattern.label: StringResource
     get() = when (this) {
         LearnPattern.Ascending -> Res.string.learn_pattern_ascending
         LearnPattern.Descending -> Res.string.learn_pattern_descending
