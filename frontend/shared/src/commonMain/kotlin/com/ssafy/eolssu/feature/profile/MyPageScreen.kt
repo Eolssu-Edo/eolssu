@@ -49,6 +49,7 @@ import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.my_account
 import eolssu.shared.generated.resources.my_instrument
 import eolssu.shared.generated.resources.my_instrument_help
+import eolssu.shared.generated.resources.my_instrument_saving
 import eolssu.shared.generated.resources.my_link
 import eolssu.shared.generated.resources.my_linked
 import eolssu.shared.generated.resources.my_logout
@@ -76,12 +77,14 @@ enum class MyPageTarget { Nickname, Password, Withdraw }
 
 /**
  * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
- * 연습 악기는 누르는 즉시 바뀌어 홈에도 반영된다.
+ * 연습 악기는 서버 저장 성공 후 홈과 곡 목록에도 반영된다.
  */
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
     instrument: Instrument?,
+    instrumentEnabled: Boolean,
+    savingInstrument: Boolean,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -99,7 +102,8 @@ fun MyPageScreen(
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
         Section(stringResource(Res.string.my_instrument)) {
-            InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, help = stringResource(Res.string.my_instrument_help))
+            InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, enabled = instrumentEnabled,
+                help = stringResource(if (savingInstrument) Res.string.my_instrument_saving else Res.string.my_instrument_help))
         }
         Section(stringResource(Res.string.my_social)) {
             Column {

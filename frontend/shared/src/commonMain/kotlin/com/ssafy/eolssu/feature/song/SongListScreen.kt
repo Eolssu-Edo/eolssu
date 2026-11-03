@@ -27,7 +27,6 @@ class SongListActions(
     val onStartPractice: () -> Unit,
     val onRetry: () -> Unit,
     val onRetryDetail: () -> Unit,
-    val onSelectInstrument: (String?) -> Unit,
 )
 
 /**
