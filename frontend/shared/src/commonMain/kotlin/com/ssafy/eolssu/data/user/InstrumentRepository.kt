@@ -23,7 +23,7 @@ class InstrumentRepository(private val store: KeyValueStore, private val catalog
 
     /** 활성 목록의 code로 실제 ID를 찾는다. 순번·seed ID를 쓰지 않는다. */
     suspend fun serverIdFor(instrument: Instrument): String? = try {
-        catalog?.load()?.firstOrNull { it.code == instrument.name.uppercase() }?.instrumentId
+        catalog?.load()?.firstOrNull { it.code == instrument.serverCode }?.instrumentId
     } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
 
     /** 모르는 ID/code나 조회 실패를 이전 계정의 악기로 표시하지 않는다. */
@@ -33,7 +33,7 @@ class InstrumentRepository(private val store: KeyValueStore, private val catalog
         val code = try { catalog?.load()?.firstOrNull { it.instrumentId == id }?.code }
             catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
         if (revision.value != requestedRevision) return false
-        val instrument = Instrument.entries.firstOrNull { it.name.uppercase() == code } ?: return false
+        val instrument = Instrument.entries.firstOrNull { it.serverCode == code } ?: return false
         select(instrument)
         return true
     }

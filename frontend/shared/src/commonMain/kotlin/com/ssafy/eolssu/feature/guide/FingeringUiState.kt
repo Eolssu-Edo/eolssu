@@ -6,6 +6,9 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.BlowTab
+import com.ssafy.eolssu.core.model.fingering.baseYulOf
+import com.ssafy.eolssu.core.model.fingering.octaveOf
+import com.ssafy.eolssu.core.model.Yul
 
 /**
  * GUIDE-01 상태.
@@ -29,7 +32,10 @@ data class FingeringUiState(
 
     val blowTabs: List<BlowTab> get() = instrument.blowTabs(shownBlow)
 
-    fun pitchFor(hanja: String): CatalogPitch? = catalogPitches.singleOrNull { it.hanja == hanja }
+    fun pitchFor(hanja: String): CatalogPitch? {
+        val yul = baseYulOf(hanja)?.let(Yul::fromSymbol)?.hangul ?: return null
+        return catalogPitches.singleOrNull { it.yul == yul && it.octave == octaveOf(hanja) }
+    }
 }
 
 internal fun FingeringUiState.toggleDropdown() = copy(isDropdownOpen = !isDropdownOpen)

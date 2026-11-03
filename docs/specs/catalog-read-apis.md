@@ -4,6 +4,8 @@
 
 모든 경로는 `GET /api` 아래이며 기존 공개 접근 규칙을 사용한다. 성공은 `{httpStatus,isSuccess,message,code,result}`, 오류는 `result.errorCode`로 분기한다. DB ID는 양의 Long 범위 십진 문자열이다. 잘못된 ID는 400 `INVALID_REQUEST`, 존재하지 않거나 노출할 수 없는 리소스는 404 `RESOURCE_NOT_FOUND`다. 숫자 ID가 큰 경우에도 JSON number로 내보내지 않는다. 목록의 빈 배열은 정상 200이다.
 
+2026-11-03 사용자 후속 요청의 [4악기 계약](four-instrument-catalog.md)은 V17에서 CAT-03·06을 네 악기에 공개하고 회원 선택도 정악·산조를 나누어4종으로 통일한다. 새 DB의 전역 율명36개, 단소26·소금24·두 대금 각34개이며 아래22/15개는 V13 직후의 이전 기준이다. 기존 ID·반음·표기는 보존한다. 실제 운영 배포 여부와 구분한다.
+
 | ID | 경로·필터 | 결과 및 공개 조건 |
 | --- | --- | --- |
 | CAT-03 | `/instruments` | 활성 악기 목록, `instrumentId/code/name/pitchToleranceCent/rangeLowPitchId/rangeHighPitchId`. 기존 등록값만 반환한다. |

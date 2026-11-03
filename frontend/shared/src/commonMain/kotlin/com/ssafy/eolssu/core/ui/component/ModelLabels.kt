@@ -51,7 +51,7 @@ fun songInstrumentLabel(song: Song): String {
         "JEONGAK_DAEGEUM" -> return stringResource(Res.string.guide_instrument_daegeum_jeongak)
         "SANJO_DAEGEUM" -> return stringResource(Res.string.guide_instrument_daegeum_sanjo)
     }
-    val instrument = Instrument.entries.firstOrNull { it.name.uppercase() == song.score.source?.instrument }
+    val instrument = Instrument.entries.firstOrNull { it.serverCode == song.score.source?.instrument }
     return stringResource(instrument?.label ?: Res.string.instrument_unknown)
 }
 

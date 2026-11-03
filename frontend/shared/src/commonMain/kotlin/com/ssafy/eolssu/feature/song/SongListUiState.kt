@@ -46,7 +46,7 @@ data class SongListUiState(
         get() {
             val codes = songs.filter { it.evaluable }.map { it.instrumentCode }.distinct()
             val code = codes.singleOrNull() ?: return null
-            return Instrument.entries.firstOrNull { it.name.uppercase() == code }
+            return Instrument.entries.firstOrNull { it.serverCode == code }
         }
 
     /** 고른 곡. 검색·필터로 목록에서 빠지면 null이라 '곡을 골라주세요' 안내를 보인다. */

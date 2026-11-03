@@ -23,6 +23,37 @@ import com.ssafy.eolssu.core.model.fingering.Blow
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GuideCatalogViewModelTest {
+    @Test fun explicitDaegeumVariantsUseTheirOwnServerIdentities() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val client = createHttpClient(MockEngine {
+            respond("""{"isSuccess":true,"result":{"items":[{"instrumentId":"93","code":"JEONGAK_DAEGEUM","name":"정악대금"},{"instrumentId":"94","code":"SANJO_DAEGEUM","name":"산조대금"}]}}""",
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            for ((instrument,id) in listOf(GuideInstrument.DaegeumJeongak to "93", GuideInstrument.DaegeumSanjo to "94")) {
+                val references = StubReferences()
+                val vm = FingeringViewModel(instrument, instruments = InstrumentCatalog(client), references = references)
+                vm.uiState.first { it.catalogState != ReferenceLoadState.Loading }
+                assertEquals(ReferenceLoadState.Ready, vm.uiState.value.catalogState)
+                assertEquals(listOf(id), references.pitchRequests)
+                assertEquals(listOf(id), references.fingeringRequests)
+            }
+        } finally { client.close(); Dispatchers.resetMain() }
+    }
+
+    @Test fun alternateGlyphsResolveTheSameRegisteredYulAndOctave() {
+        val state = FingeringUiState(catalogPitches = listOf(
+            CatalogPitch("10","태",2,"㳲","중청태",26),
+            CatalogPitch("11","중",2,"㴢","중청중",29),
+            CatalogPitch("21","고",2,"㵈","중청고",28),
+            CatalogPitch("22","임",2,"㵉","중청임",31),
+        ))
+        for ((glyph,id) in listOf("㶃" to "10", "㶌" to "11", "㴩" to "21", "㶍" to "22")) {
+            assertEquals(id, state.pitchFor(glyph)?.pitchId, glyph)
+        }
+        assertNull(state.pitchFor("unknown"))
+    }
+
     @Test fun actualCatalogIdsFollowSelectedInstrumentAndEmptyContentIsReady() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val client = instrumentsClient()
