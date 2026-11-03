@@ -1,5 +1,10 @@
 package com.ssafy.eolssu.feature.history.component
 
+import androidx.compose.material3.CircularProgressIndicator
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import eolssu.shared.generated.resources.records_load_failed
+import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.records_section
 import eolssu.shared.generated.resources.records_row_today
 import androidx.compose.foundation.BorderStroke
@@ -360,5 +365,23 @@ private fun RecordRow(
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
         )
+    }
+}
+
+/** 목록을 받는 중이면 도는 표시, 받지 못했으면 안내와 ‘다시 시도’. */
+@Composable
+internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Column(
+        modifier.fillMaxWidth().padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (failed) {
+            Text(stringResource(Res.string.records_load_failed), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+        } else {
+            CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
+        }
     }
 }
