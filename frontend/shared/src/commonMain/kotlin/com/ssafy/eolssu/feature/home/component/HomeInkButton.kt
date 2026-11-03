@@ -1,7 +1,10 @@
 package com.ssafy.eolssu.feature.home.component
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -57,8 +60,8 @@ internal fun HomeInkButton(
     val targetReveal = if (reduceMotion) {
         if (scrollProgress >= .5f) 1f else 0f
     } else scrollProgress.coerceIn(0f, 1f)
-    // 휠·빠른 스와이프로 위치가 뛰어도 중간 붓질은 건너뛰지 않는다.
-    val reveal by animateFloatAsState(targetReveal, tween(if (reduceMotion) 0 else 500))
+    // 스크롤·자동 스냅이 목표를 연속 갱신해도 진행 중인 붓의 속도를 이어받는다.
+    val reveal by animateFloatAsState(targetReveal, homeInkRevealSpec(reduceMotion))
     val ink by animateColorAsState(if (darkBackground) Color.White else Color(0xFF0B1020), tween(if (reduceMotion) 0 else 250))
     val rest by animateColorAsState(if (darkBackground) Color.White else Color(0xFF171714), tween(if (reduceMotion) 0 else 250))
     val onInk by animateColorAsState(if (darkBackground) Color(0xFF171714) else Color(0xFFFFFEFA), tween(if (reduceMotion) 0 else 250))
@@ -97,3 +100,10 @@ private fun Modifier.inkReveal(progress: Float) = drawWithCache {
     val edge = inkRevealPath(size, progress)
     onDrawWithContent { clipPath(edge) { this@onDrawWithContent.drawContent() } }
 }
+
+internal fun homeInkRevealSpec(reduceMotion: Boolean): AnimationSpec<Float> =
+    if (reduceMotion) tween(0) else spring(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 200f,
+        visibilityThreshold = .001f,
+    )
