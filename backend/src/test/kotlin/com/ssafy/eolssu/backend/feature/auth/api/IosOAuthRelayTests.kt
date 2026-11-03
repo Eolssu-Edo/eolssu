@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.backend.common.security
+package com.ssafy.eolssu.backend.feature.auth.api
 
 import java.net.URI
 import java.net.http.*
@@ -28,9 +28,15 @@ class IosOAuthRelayTests {
     }
 
     @Test fun `provider errors keep their error parameters`() {
-        val response=get("/api/auth/ios/oauth/naver/callback?state=s&error=access_denied&error_description=user%20cancel")
+        val response=get("/api/auth/ios/oauth/naver/callback?state=s&error=access_denied&error_code=KOE101&error_description=user%20cancel")
         assertEquals(302,response.statusCode())
-        assertEquals("com.ssafy.eolssu://oauth/naver/callback?state=s&error=access_denied&error_description=user%20cancel",response.headers().firstValue("Location").orElse(""))
+        assertEquals("com.ssafy.eolssu://oauth/naver/callback?state=s&error=access_denied&error_code=KOE101&error_description=user%20cancel",response.headers().firstValue("Location").orElse(""))
+    }
+
+    @Test fun `repeated parameters keep only the first value`() {
+        val response=get("/api/auth/ios/oauth/google/callback?state=first&code=c1&state=second&code=c2")
+        assertEquals(302,response.statusCode())
+        assertEquals("com.ssafy.eolssu://oauth/google/callback?state=first&code=c1",response.headers().firstValue("Location").orElse(""))
     }
 
     @Test fun `unknown provider is not relayed`() {

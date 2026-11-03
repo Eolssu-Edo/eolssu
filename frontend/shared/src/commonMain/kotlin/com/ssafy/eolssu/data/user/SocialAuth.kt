@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.data.user
 
+import com.ssafy.eolssu.core.browser.APP_CALLBACK_SCHEME
 import com.ssafy.eolssu.core.model.SocialProvider
 import io.ktor.http.Url
 
@@ -58,13 +59,10 @@ object OAuthRedirect : OAuthRoute {
  * 제공자는 서버 중계 주소로 돌아가고 서버가 코드·state를 앱 전용 주소 `com.ssafy.eolssu://oauth/<제공자>/callback`으로 옮긴다.
  */
 object IosOAuthRelay : OAuthRoute {
-    /** `ASWebAuthenticationSession`의 callbackURLScheme. 서버 중계가 보내는 스킴과 같다. */
-    const val SCHEME = "com.ssafy.eolssu"
-
     override fun uriFor(provider: SocialProvider) = "https://${OAuthRedirect.HOST}/api/auth/ios/oauth/${provider.pathName}/callback"
 
     override fun providerOf(url: Url): SocialProvider? {
-        if (url.protocol.name != SCHEME || url.host != "oauth" || url.specifiedPort != 0) return null
+        if (url.protocol.name != APP_CALLBACK_SCHEME || url.host != "oauth" || url.specifiedPort != 0) return null
         if (url.user != null || url.password != null) return null
         return SocialProvider.entries.firstOrNull { url.encodedPath == "/${it.pathName}/callback" }
     }

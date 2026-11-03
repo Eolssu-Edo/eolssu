@@ -52,6 +52,8 @@ class IosOAuthRelayTest {
             appReturn().replace("://oauth/", "://evil/"),
             appReturn().replace("/callback", "/callback/extra"),
             "com.ssafy.eolssu://oauth/kakao/callback/../callback?code=code-1&state=$STATE",
+            appReturn().replace("://oauth/", "://oauth:1/"),
+            appReturn().replace("://oauth/", "://x@oauth/"),
         ).forEach { assertEquals(OAuthReturn.Ignored, attempts.accept(it, OAuthPurpose.LogIn), it) }
 
         assertIs<OAuthReturn.Accepted>(attempts.accept(appReturn(), OAuthPurpose.LogIn))
@@ -68,10 +70,11 @@ class IosOAuthRelayTest {
     }
 
     @Test
-    fun startSendsTheRelayRedirect() = runTest {
+    fun everyStartSendsTheRelayRedirect() = runTest {
+        val sent = mutableListOf<String>()
         val client = createHttpClient(
             MockEngine { request ->
-                assertEquals("""{"redirectUri":"https://k15e102.p.ssafy.io/api/auth/ios/oauth/google/callback"}""", (request.body as TextContent).text)
+                sent += "${request.url.encodedPath} ${(request.body as TextContent).text}"
                 respond(
                     """{"isSuccess":true,"result":{"authorizationUrl":"${authorizationUrl()}","expiresAt":"2026-10-30T01:10:00Z"}}""",
                     headers = headersOf(HttpHeaders.ContentType, "application/json"),
@@ -79,8 +82,19 @@ class IosOAuthRelayTest {
             },
             ServerAddress.Production,
         )
-        val repo = ApiAuthRepository(client, null, member, CoroutineScope(Dispatchers.Unconfined), IosOAuthRelay)
+        val auth = ApiAuthRepository(client, null, member, CoroutineScope(Dispatchers.Unconfined), IosOAuthRelay)
+        val user = ApiUserRepository(client, null, member = member, route = IosOAuthRelay)
 
-        assertIs<OAuthStartResult.Started>(repo.startSocialLogIn(SocialProvider.Google))
+        assertIs<OAuthStartResult.Started>(auth.startSocialLogIn(SocialProvider.Google))
+        assertIs<OAuthStartResult.Started>(user.startLink(SocialProvider.Naver))
+        assertIs<OAuthStartResult.Started>(user.startWithdrawalReauth(SocialProvider.Kakao))
+        assertEquals(
+            listOf(
+                """/api/auth/oauth/google/start {"redirectUri":"https://k15e102.p.ssafy.io/api/auth/ios/oauth/google/callback"}""",
+                """/api/users/me/social-accounts/naver/start {"redirectUri":"https://k15e102.p.ssafy.io/api/auth/ios/oauth/naver/callback"}""",
+                """/api/users/me/withdrawal/oauth/kakao/start {"redirectUri":"https://k15e102.p.ssafy.io/api/auth/ios/oauth/kakao/callback"}""",
+            ),
+            sent,
+        )
     }
 }

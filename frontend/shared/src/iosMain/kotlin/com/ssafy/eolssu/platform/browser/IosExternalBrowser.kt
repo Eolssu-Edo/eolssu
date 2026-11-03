@@ -1,14 +1,15 @@
 package com.ssafy.eolssu.platform.browser
 
+import com.ssafy.eolssu.core.browser.APP_CALLBACK_SCHEME
 import com.ssafy.eolssu.core.browser.ExternalBrowser
 import com.ssafy.eolssu.core.browser.IncomingLinks
-import com.ssafy.eolssu.data.user.IosOAuthRelay
 import platform.AuthenticationServices.ASPresentationAnchor
 import platform.AuthenticationServices.ASWebAuthenticationPresentationContextProvidingProtocol
 import platform.AuthenticationServices.ASWebAuthenticationSession
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 import platform.UIKit.UIWindow
+import platform.UIKit.UIWindowScene
 import platform.darwin.NSObject
 
 /**
@@ -20,25 +21,32 @@ import platform.darwin.NSObject
 internal class IosExternalBrowser(private val links: IncomingLinks) : ExternalBrowser {
     // 진행 중 세션은 끝날 때까지 잡아 둔다. 참조를 놓으면 창이 바로 닫힌다.
     private var session: ASWebAuthenticationSession? = null
-    private val anchor = KeyWindowAnchor()
+    private val anchor = SceneWindowAnchor()
 
     override fun open(url: String): Boolean {
         val target = NSURL.URLWithString(url) ?: return false
         // '다시 열기'는 같은 주소로 새 창을 연다. 남은 창은 먼저 닫는다.
         session?.cancel()
-        val next = ASWebAuthenticationSession(uRL = target, callbackURLScheme = IosOAuthRelay.SCHEME) { callback, _ ->
-            session = null
+        var opened: ASWebAuthenticationSession? = null
+        val next = ASWebAuthenticationSession(uRL = target, callbackURLScheme = APP_CALLBACK_SCHEME) { callback, _ ->
+            // 닫은 이전 창의 완료가 늦게 와도 새 창의 참조는 지우지 않는다.
+            if (session === opened) session = null
             callback?.absoluteString?.let(links::deliver)
         }
+        opened = next
         next.presentationContextProvider = anchor
         session = next
         return next.start().also { started -> if (!started) session = null }
     }
 }
 
-/** 인증 창을 띄울 창. 앱은 창 하나(SwiftUI `WindowGroup`)만 쓴다. */
-private class KeyWindowAnchor : NSObject(), ASWebAuthenticationPresentationContextProvidingProtocol {
-    @Suppress("DEPRECATION")
-    override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor =
-        UIApplication.sharedApplication.keyWindow ?: UIWindow()
+/** 인증 창을 띄울 창. 앱은 창 하나(SwiftUI `WindowGroup`)만 쓰므로 연결된 장면의 키 창, 없으면 그 장면의 첫 창이다. */
+private class SceneWindowAnchor : NSObject(), ASWebAuthenticationPresentationContextProvidingProtocol {
+    override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor {
+        val scenes = UIApplication.sharedApplication.connectedScenes.filterIsInstance<UIWindowScene>()
+        return scenes.firstNotNullOfOrNull { it.keyWindow }
+            ?: scenes.firstNotNullOfOrNull { scene -> scene.windows.firstOrNull() as? UIWindow }
+            // 창이 하나도 없으면 앱 화면도 없으므로 인증 창을 띄울 곳이 없다. 빈 창을 주고 실패는 시스템에 맡긴다.
+            ?: UIWindow()
+    }
 }

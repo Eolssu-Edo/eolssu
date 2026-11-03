@@ -18,8 +18,10 @@ class IosOAuthRelayController {
     @GetMapping(PATH)
     fun relay(@PathVariable provider: String, request: HttpServletRequest): ResponseEntity<Void> {
         if (provider !in PROVIDERS) return ResponseEntity.status(HttpStatus.NOT_FOUND).cacheControl(CacheControl.noStore()).build()
+        // 같은 이름이 여러 번 오면 첫 값만 옮긴다. 앱이 어느 값을 읽을지 갈리지 않게 한다.
         val query = request.queryString.orEmpty().split('&')
             .filter { it.substringBefore('=') in PARAMETERS }
+            .distinctBy { it.substringBefore('=') }
             .joinToString("&")
         return ResponseEntity.status(HttpStatus.FOUND)
             .header(HttpHeaders.LOCATION, "$APP_SCHEME://oauth/$provider/callback" + if (query.isEmpty()) "" else "?$query")

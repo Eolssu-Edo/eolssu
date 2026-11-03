@@ -4,6 +4,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+/** iOS 인증 세션이 받는 앱 전용 주소의 스킴. 서버 중계(`/api/auth/ios/oauth/{provider}/callback`)가 이 스킴으로 보낸다. */
+const val APP_CALLBACK_SCHEME = "com.ssafy.eolssu"
+
 /**
  * 앱 밖에서 앱으로 돌아온 주소(Android App Links, iOS 인증 세션의 앱 전용 주소). 간편 로그인을 마친 브라우저가 복귀 주소로 돌아올 때 쓴다.
  * 진입점(Android `MainActivity`, iOS 인증 세션)이 [deliver]로 넣고, 받을 화면이 [take]로 한 번만 꺼낸다.

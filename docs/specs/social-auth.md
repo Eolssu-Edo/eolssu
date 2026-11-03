@@ -139,7 +139,7 @@ adb shell pm get-app-links com.ssafy.eolssu
 | 앱이 받는 복귀 주소 | redirectUri 그대로(App Links) | `com.ssafy.eolssu://oauth/{provider}/callback?…` |
 | 제공자 화면 | 외부 브라우저 | `ASWebAuthenticationSession`(callbackURLScheme `com.ssafy.eolssu`) |
 
-- 중계: `GET /api/auth/ios/oauth/{provider}/callback`은 로그인 없이 연다. provider는 kakao·google·naver만 받고 그 밖은 404다. 받은 쿼리 중 `code`·`state`·`error`·`error_code`·`error_description`만 그대로 옮겨 `302 Location: com.ssafy.eolssu://oauth/{provider}/callback?…`로 보낸다. 본문은 없고 `Cache-Control: no-store`·`Referrer-Policy: no-referrer`다. 코드를 서버에서 교환·저장·기록하지 않는다. 대상 스킴은 고정이라 임의 주소로 보내지 않는다.
+- 중계: `GET /api/auth/ios/oauth/{provider}/callback`은 로그인 없이 연다. provider는 kakao·google·naver만 받고 그 밖은 404다. 받은 쿼리 중 `code`·`state`·`error`·`error_code`·`error_description`만 원래 인코딩 그대로 옮기고 같은 이름이 여러 번 오면 첫 값만 옮겨 `302 Location: com.ssafy.eolssu://oauth/{provider}/callback?…`로 보낸다. 본문은 없고 `Cache-Control: no-store`·`Referrer-Policy: no-referrer`다. 코드를 서버에서 교환·저장·기록하지 않는다. 대상 스킴은 고정이라 임의 주소로 보내지 않는다.
 - 앱 확인: 복귀 주소는 스킴 `com.ssafy.eolssu`·호스트 `oauth`·경로 `/{provider}/callback`이어야 한다. state·만료·목적·회원·`error`·`code` 확인과 완료 요청의 redirectUri(위 HTTPS 주소)는 Android와 같다.
 - 취소: 사용자가 인증 창을 닫으면 복귀 주소가 오지 않는다. Android에서 브라우저를 닫은 것과 같이 화면은 '다시 열기'를 보여 준다.
 - 운영 준비(배포 전 필요): 세 제공자 콘솔에 iOS redirectUri를 등록하고 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_REDIRECT_URIS`에 쉼표로 추가한다. 등록 전 start는 `401 OAUTH_VERIFICATION_FAILED`다.
