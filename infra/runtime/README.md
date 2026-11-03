@@ -35,7 +35,7 @@ curl -i http://127.0.0.1/api/terms
 
 프론트 `/`는 200, readiness는 200과 `{"status":"UP"}`, 공개 업무 API `/api/terms`는 200 JSON이 정상입니다. Nginx HTML 404나 502와 구분합니다. 등록 안 된 `/api/...` 경로는 인증 때문에 401이라 확인 기준으로 쓰지 않습니다. 배포 변경 후에는 이 응답, Nginx 설정 검사, MySQL health·물리 볼륨을 함께 확인합니다.
 
-API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. 단, 점검 주소(`/api/actuator`)는 readiness만 백엔드로 넘기고 나머지는 Nginx가 404로 막습니다. Prometheus 수치(`/api/actuator/prometheus`)는 서버 안에서 `backend:8080`으로만 읽습니다. 저장소의 Nginx 설정 3개(`nginx.conf`, `nginx.tls.conf.template`, `infra/nginx/default.conf`)를 바꿔도 서버의 `/opt/eolssu/config/` 파일은 따로 고쳐야 하므로, 이 규칙은 백엔드 배포보다 먼저 서버에 반영합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호로 업무 API를 제공하고, 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 스키마·물리 볼륨을 변경하지 않습니다. 스키마 변경은 마이그레이션 Task에서 따로 적용합니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
+API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. 단, 점검 주소(`/api/actuator`)는 readiness만 백엔드로 넘기고 나머지는 Nginx가 404로 막습니다. Prometheus 수치(`/api/actuator/prometheus`)는 서버 안에서 `backend:8080`으로만 읽습니다. `/api/` 응답 중 1KiB 이상의 JSON만 `Accept-Encoding: gzip`을 보낸 클라이언트에게 gzip으로 압축합니다. 녹음·음원 같은 미디어는 압축하지 않습니다. 저장소의 Nginx 설정 3개(`nginx.conf`, `nginx.tls.conf.template`, `infra/nginx/default.conf`)를 바꿔도 서버의 `/opt/eolssu/config/` 파일은 따로 고쳐야 하므로, 이 규칙은 백엔드 배포보다 먼저 서버에 반영합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호로 업무 API를 제공하고, 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 스키마·물리 볼륨을 변경하지 않습니다. 스키마 변경은 마이그레이션 Task에서 따로 적용합니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
 
 ### backend 실행 이미지
 
@@ -195,6 +195,47 @@ jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-backend *
 ```
 
 도구는 인자 하나의 40자리 SHA·이미지 revision·원격 develop 이력 소속을 확인합니다. Python isolated mode와 고정 PATH를 사용하고 임의 파일·셸 명령 인자를 받지 않습니다. 빌드 중 develop이 전진해도 선택한 SHA를 유지합니다. 공유 lock 안에서 중단된 배포를 먼저 복구한 후 현재 활성 JAR 릴리스 SHA와 Git 조상 관계를 비교하고, 이미 배포된 후속 버전을 이전 후보가 덮어쓰는 경우를 차단합니다. 같은 SHA는 기존 불변 파일·건강 검사를 유지합니다. 실패 journal의 후보 SHA는 배포 기준으로 쓰지 않습니다. Git 이력을 확인할 수 없거나 이력이 분기되면 순서를 증명할 수 없어 실패합니다. SHA 도입 전 초기 릴리스에는 비교 기준이 없으므로 첫 관리 배포를 허용합니다.
+
+### 운영 DB 마이그레이션 (S15P31E102-426)
+
+`ops` 프로필의 Flyway는 계속 끕니다. 배포 도구가 후보 검증·JAR 추출 뒤, 컨테이너 교체 직전에 같은 공유 lock 안에서 마이그레이션을 적용합니다. 백업 시점은 배포 시작 시의 `prechange`(DB·설정)입니다. 결정 근거와 리허설 결과는 [운영 Flyway 마이그레이션 자동화](../../docs/knowledge/infra/ops-flyway-auto-migration.md)에 있습니다.
+
+1. `Check database migrations`: 후보 JAR의 `db/migration`과 운영 `flyway_schema_history`를 비교합니다. 대기 중인 마이그레이션이 없으면 Flyway를 실행하지 않고 그대로 교체합니다.
+2. `Apply database migrations`: 실행 중 백엔드의 DB 연결값으로 후보 JAR을 `db` 프로필 일회성 컨테이너(`eolssu-migrate-<SHA 12자리>`, 웹·스케줄러·메일 꺼짐)에서 실행합니다. 대상 버전은 후보의 최대 버전입니다. 운영 URL의 2초 `socketTimeout`은 300초로 바꾸고, `lock_wait_timeout`·`innodb_lock_wait_timeout`은 5초로 둡니다. 로그는 root 전용 `/opt/eolssu/releases/<SHA>/migration.log`에 남깁니다.
+3. 적용 뒤 이력을 다시 읽어 성공을 확인하고 기존 교체·health 검사를 이어갑니다. 스키마를 바꾼 배포는 사후 백업을 `postmigration`(DB·설정)으로 보냅니다.
+
+다음 경우에는 교체 전에 배포를 멈추고 기존 앱이 그대로 동작합니다.
+
+| 멈춤 원인 | 의미 |
+| --- | --- |
+| `duplicate Flyway version` / `unexpected file` | 후보 JAR에 같은 버전이나 규칙에 맞지 않는 파일이 있음. 백엔드 `MigrationFileTests`가 test 단계에서 먼저 막는다 |
+| `failed Flyway migration in history` | 이전 적용이 실패해 `success=0` 행이 남음 |
+| `database has a migration the candidate lacks` | 운영에 적용된 버전이 후보에 없거나 이름이 다름(DB가 후보보다 앞섬) |
+| `applied migration was edited` | 적용된 파일의 checksum이 운영 기록과 다름 |
+| `older than applied history` | 이미 적용된 최대 버전보다 낮은 미적용 버전이 있음 |
+| `drops, renames or deletes data` | 주석·문자열 밖에 테이블·컬럼 DROP, RENAME(인덱스 제외), CHANGE, TRUNCATE, DELETE가 있음 |
+| `earlier migration container remains` | 이전 마이그레이션 컨테이너가 남아 있음(실패·시간 초과) |
+| `migration failed` / `did not finish in time` | Flyway가 실패했거나 300초 안에 끝나지 않음. 컨테이너를 강제 종료하지 않는다 |
+
+JAR 롤백은 스키마를 되돌리지 않습니다. 그래서 자동 적용 대상은 이전 릴리스도 읽을 수 있는 추가형 변경입니다. 파괴적 변경은 사람이 이전 릴리스 호환성과 복구 방법을 검토한 뒤 해당 파일의 SHA-256을 승인 파일로 남깁니다. 다음 배포가 같은 내용일 때만 적용합니다.
+
+```sh
+# 검토한 커밋의 파일로 해시를 만든다. 파일 이름은 후보 JAR의 이름과 같아야 한다.
+sha256sum backend/src/main/resources/db/migration/V20__example.sql
+ssh edo1 'sudo install -d -m 700 /opt/eolssu/migration-approvals && echo <위 해시> | sudo tee /opt/eolssu/migration-approvals/V20__example.sql >/dev/null'
+```
+
+마이그레이션이 실패하면 같은 SHA를 다시 배포하지 않습니다. MySQL DDL은 중간까지 반영될 수 있으므로 먼저 실제 스키마를 확인합니다.
+
+```sh
+ssh edo1 'sudo docker ps -a --filter label=com.eolssu.stage=migration'
+ssh edo1 'sudo tail -n 80 /opt/eolssu/releases/<SHA>/migration.log'
+ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -D eolssu -e "SELECT version,script,success FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 3"'"'"''
+```
+
+남은 변경을 `prechange` 백업과 대조해 정리하거나 백업으로 복구한 뒤 실패 행을 정리합니다. `flyway repair`로 이력만 맞추지 않습니다. 원인을 고친 마이그레이션은 새 커밋으로 병합하고, 확인을 마친 컨테이너는 `sudo docker rm <이름>`으로 지운 뒤 다음 배포를 진행합니다. 실행 중인 컨테이너는 끝날 때까지 지우지 않습니다.
+
+서버 반영 순서는 `/opt/eolssu-backup/backup.py`(`postmigration` 지원)를 먼저 설치하고, 그다음 `/opt/eolssu/bin/deploy-backend`를 root 소유 0755로 교체하는 것입니다. 순서를 바꾸면 스키마를 바꾼 배포의 사후 백업이 `unsupported operation`으로 실패합니다.
 
 ## 프론트 웹 자동 배포
 

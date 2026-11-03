@@ -31,7 +31,7 @@ edo1의 root systemd 작업이 DB·설정을 수집해 암호화한 뒤 edo2에 
 | 최신 사본·주간 복원 상태 검사 | 15분마다 | DB 90분, 기타 27시간, 복원 8일 초과/실패는 비정상 |
 | 격리 실제 복원 | 일요일 04:40 | 결과 파일에 대상 ID·비교·소요 시간 기록 |
 
-DB·설정 백업 작업은 기존 배포 lock과 전용 백업 lock을 순서대로 사용한다. 배포 도구의 `prechange`·`postchange`는 이미 배포 lock을 보유한 호출만 사용한다. 외부 백업 실패 시 새 배포를 시작하지 않는다. 배포 후 사본 실패는 이미 실행된 배포의 자동 롤백을 의미하지 않으며 배포 기록과 백업 실패를 각각 확인한다. 수동 스키마·설정 변경 전에는 다음 명령으로 먼저 사본을 확보한다.
+DB·설정 백업 작업은 기존 배포 lock과 전용 백업 lock을 순서대로 사용한다. 배포 도구의 `prechange`·`postchange`·`postmigration`은 이미 배포 lock을 보유한 호출만 사용한다. `prechange`와 스키마를 바꾼 배포 뒤의 `postmigration`은 DB·설정을, `postchange`는 설정만 보낸다(S15P31E102-426). 외부 백업 실패 시 새 배포를 시작하지 않는다. 배포 후 사본 실패는 이미 실행된 배포의 자동 롤백을 의미하지 않으며 배포 기록과 백업 실패를 각각 확인한다. 수동 스키마·설정 변경 전에는 다음 명령으로 먼저 사본을 확보한다.
 
 ```sh
 ssh -o ClearAllForwardings=yes edo1 'sudo flock -w 120 /run/lock/eolssu-backend-deploy.lock /opt/eolssu-backup/backup.py send prechange'

@@ -531,9 +531,10 @@ def main():
     elif action == 'send' and len(sys.argv) == 3:
         mode = sys.argv[2]
         with contextlib.ExitStack() as stack:
-            if mode not in ('prechange', 'postchange'): stack.enter_context(locked(Path('/run/lock/eolssu-backend-deploy.lock')))
+            # 배포 도구는 이미 배포 lock을 잡고 호출한다. postmigration은 스키마를 바꾼 배포의 사후 DB·설정 사본이다.
+            if mode not in ('prechange', 'postchange', 'postmigration'): stack.enter_context(locked(Path('/run/lock/eolssu-backend-deploy.lock')))
             stack.enter_context(locked(STATE / 'source.lock'))
-            for kind in (('db', 'config') if mode == 'prechange' else ('config',) if mode == 'postchange' else (mode,)): send(kind)
+            for kind in (('db', 'config') if mode in ('prechange', 'postmigration') else ('config',) if mode == 'postchange' else (mode,)): send(kind)
     elif action == 'status' and len(sys.argv) == 2: status()
     elif action == 'prune' and len(sys.argv) == 2: prune()
     elif action == 'restore-test' and len(sys.argv) == 2: restore_test()
