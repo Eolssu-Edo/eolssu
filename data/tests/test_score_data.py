@@ -244,6 +244,13 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
             self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "inferred"))
 
+    def test_recorded_beat_unit_overrides_the_jangdan_default(self):
+        for source_id, ratio in (("ngc-standard-2022-p188", 0.5), ("ngc-standard-2022-p191", 1.5)):
+            result = convert_answer(source_id)
+            self.assertEqual(result["music"]["bpmUnit"], "QUARTER", source_id)
+            self.assertEqual(result["music"]["ticksPerJeonggan"] / result["music"]["ticksPerBeat"], ratio)
+        self.assertEqual(convert_answer("ngc-standard-2022-p173")["music"]["bpmUnit"], "DOTTED_QUARTER")
+
     def test_reviewed_song_without_jangdan_uses_its_recorded_beat_unit(self):
         result = convert_answer("ngc-standard-2022-p187")
         jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
