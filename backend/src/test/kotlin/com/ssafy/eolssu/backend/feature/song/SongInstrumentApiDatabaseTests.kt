@@ -67,7 +67,7 @@ class SongInstrumentApiDatabaseTests {
             assertEquals(id.toString(), item.path("instrumentId").asString())
             assertEquals(id.toString(), item.path("songId").asString())
             assertTrue(item.path("scoreVersion").isInt)
-            assertEquals(original, item.path("score"))
+            assertFalse(item.has("score"))
             val detail = get("/api/songs/$id/score")
             assertEquals(200, detail.statusCode(), detail.body())
             assertEquals(original, json.readTree(detail.body()).path("result").path("score"))

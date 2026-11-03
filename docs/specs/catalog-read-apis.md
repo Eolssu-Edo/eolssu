@@ -21,7 +21,7 @@
 
 S15P31E102-408은 CAT-04·05의 선행 곡 선택을 위해 `GET /songs?instrumentId=...`를 추가한다. 생략 시 기존 전체 조회, 지정 시 해당 활성 악기의 게시·미삭제 곡만 반환한다. 잘못된 ID는400, 없는/비활성 악기는404, 활성 악기의 빈 목록은200이다. [FE 선택·검증 범위](song-instrument-filter.md)를 따르며 기존 songId 기반 상세·악보·음원 계약은 보존한다.
 
-CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 객체다. `columns`, 이벤트의 `id/cellId/startTick/durationTick/breathAfter/sigimsae`, 조율·장단·틱 기준을 보존한다. `schemaVersion`, `scoreVersion`은 현행 데이터 계약의 정수다. 오래된 Notion의 `"v1"`, `"1"` 문자열 예시로 변환하지 않는다. 기존 CAT-01/02 응답은 변경하지 않는다.
+CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 객체다. `columns`, 이벤트의 `id/cellId/startTick/durationTick/breathAfter/sigimsae`, 조율·장단·틱 기준을 보존한다. `schemaVersion`, `scoreVersion`은 현행 데이터 계약의 정수다. 오래된 Notion의 `"v1"`, `"1"` 문자열 예시로 변환하지 않는다. S15P31E102-419부터 CAT-01 목록 항목은 `score`를 싣지 않는다(111곡 기준 약 1.76MB 중 약 99%가 악보 본문). 원본 악보는 CAT-02 상세와 CAT-04에서만 반환하며 CAT-02 응답과 나머지 목록 필드는 유지한다.
 
 조회용 `events`의 NOTE `noteIdx`는 곡 전체 NOTE만 0부터 센 순서다. REST의 noteIdx/pitchId는 null이다. `pitchId`는 실제 pitches의 (yul,octave)에서 찾고, 박 값은 원본 정수 tick / ticksPerBeat로 투영한다. 원본 ID와 tick을 함께 제공해 박 소수의 반올림을 정본으로 사용하지 않도록 한다. 악보 위치는 원본 columns/cells/units와 연결하며, 이음·빈 정간을 새 NOTE로 만들지 않는다. 저장 악보의 구조·음표 수·버전·참조가 서로 맞지 않으면 409 `STATE_CONFLICT`로 거절한다.
 
