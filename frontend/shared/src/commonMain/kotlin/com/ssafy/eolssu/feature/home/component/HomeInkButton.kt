@@ -1,17 +1,12 @@
 package com.ssafy.eolssu.feature.home.component
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -51,19 +46,17 @@ import org.jetbrains.compose.resources.stringResource
 internal fun HomeInkButton(
     onClick: () -> Unit,
     darkBackground: Boolean,
+    scrollProgress: Float,
     reduceMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val fontFamily = FontFamily(Font(Res.font.home_ink_griun, FontWeight.Normal))
     val interactions = remember { MutableInteractionSource() }
-    val hovered by interactions.collectIsHoveredAsState()
     val focused by interactions.collectIsFocusedAsState()
-    val pressed by interactions.collectIsPressedAsState()
-    val painted = hovered || focused || pressed
-    val reveal by animateFloatAsState(
-        if (painted) 1f else 0f,
-        tween(if (reduceMotion) 0 else 500, easing = CubicBezierEasing(.32f, .04f, .27f, 1f)),
-    )
+    // 시간 보간을 겹치지 않아 붓 경계가 손가락의 스크롤을 그대로 따라간다.
+    val reveal = if (reduceMotion) {
+        if (scrollProgress >= .5f) 1f else 0f
+    } else scrollProgress.coerceIn(0f, 1f)
     val ink by animateColorAsState(if (darkBackground) Color.White else Color(0xFF0B1020), tween(if (reduceMotion) 0 else 250))
     val rest by animateColorAsState(if (darkBackground) Color.White else Color(0xFF171714), tween(if (reduceMotion) 0 else 250))
     val onInk by animateColorAsState(if (darkBackground) Color(0xFF171714) else Color(0xFFFFFEFA), tween(if (reduceMotion) 0 else 250))
@@ -71,7 +64,6 @@ internal fun HomeInkButton(
     Box(
         modifier.fillMaxWidth().heightIn(min = 44.dp)
             .border(2.dp, if (focused) Color(0xFF686250) else Color.Transparent, RoundedCornerShape(3.dp))
-            .hoverable(interactions)
             .clickable(interactionSource = interactions, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

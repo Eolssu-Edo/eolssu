@@ -194,8 +194,11 @@ internal fun HomeScrollLayout(
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
                     HomeInkButton(
-                        onStartEvaluation, frame.darkBehindButton, reduceMotion,
-                        Modifier.offset(x = buttonLeft.dp, y = frame.buttonTop.dp).width(buttonW.dp)
+                        onClick = onStartEvaluation,
+                        darkBackground = frame.darkBehindButton,
+                        scrollProgress = frame.progress,
+                        reduceMotion = reduceMotion,
+                        modifier = Modifier.offset(x = buttonLeft.dp, y = frame.buttonTop.dp).width(buttonW.dp)
                             .heightIn(min = (buttonW * 50f / 310f).dp)
                             .onSizeChanged { buttonH = it.height / density.density },
                     )
