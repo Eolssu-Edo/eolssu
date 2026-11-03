@@ -62,6 +62,7 @@ fun MySongsRoute(
             onBack = onBack,
             onRetry = viewModel::retry,
             onSelectTab = viewModel::selectTab,
+            onSelectFilter = viewModel::selectFilter,
             onOpenSong = onPractice,
             onOpenSheet = { sheet ->
                 val songId = sheet.songId
