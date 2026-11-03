@@ -9,6 +9,7 @@ import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.UserRepository
+import com.ssafy.eolssu.data.user.changePracticeInstrument
 import com.ssafy.eolssu.data.user.signsInWithPassword
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,19 +44,13 @@ class MyPageViewModel(
     private val _savingInstrument = MutableStateFlow(false)
     val savingInstrument: StateFlow<Boolean> = _savingInstrument.asStateFlow()
 
-    /** 같은 선택과 저장 중 재탭은 무시하며, 서버의 실패 종류를 화면에 전달한다. */
+    /** 같은 선택과 저장 중 재탭은 무시하며, 서버의 실패 종류를 화면에 전달한다. 절차는 홈 드롭다운과 같다([changePracticeInstrument]). */
     suspend fun selectInstrument(instrument: Instrument): MemberResult? {
         if (_savingInstrument.value) return null
         if (instrumentRepository.instrument.value == instrument) return null
         _savingInstrument.value = true
-        return try {
-            val id = instrumentRepository.serverIdFor(instrument) ?: return MemberResult.Unavailable
-            val result = handleSession(userRepository.changeInstrument(id))
-            if (result != MemberResult.Done) return result
-            if (userRepository.profile.value.instrumentId != id) return MemberResult.Unavailable
-            instrumentRepository.select(instrument)
-            MemberResult.Done
-        } finally { _savingInstrument.value = false }
+        return try { userRepository.changePracticeInstrument(instrumentRepository, instrument) }
+        finally { _savingInstrument.value = false }
     }
 
     private fun handleSession(result: MemberResult): MemberResult {

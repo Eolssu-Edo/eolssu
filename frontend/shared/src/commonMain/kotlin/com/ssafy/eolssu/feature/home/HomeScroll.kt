@@ -14,6 +14,7 @@ internal data class HomeScrollFrame(
     val headlineBottom: Float,
     val headlineScale: Float,
     val arrowAlpha: Float,
+    val headerAlpha: Float,
     val darkBehindButton: Boolean,
 )
 
@@ -31,9 +32,11 @@ internal fun homeScrollFrame(width: Float, height: Float, scroll: Float, buttonH
         progress = p, eased = e, bandHeight = band, groundTop = ground, buttonTop = top,
         artScale = scale,
         artY = mix(-200f * width / 390f, (band - width * 1448f / 1086f) * .62f, e),
-        headlineBottom = mix(initialTop - 20f, band - 20f, eh),
+        headlineBottom = mix(initialTop - 10f, band - 10f, eh),
         headlineScale = mix(1.3f, 1f, eh),
         arrowAlpha = (1f - p * 6f).coerceIn(0f, 1f),
+        // 첫 화면에서는 상단 판을 숨기고, 스크롤 절반을 지나며 나타나 다 펼치면 온전히 보인다.
+        headerAlpha = ((p - .5f) / .4f).coerceIn(0f, 1f),
         darkBehindButton = top + buttonHeight / 2f < ground,
     )
 }

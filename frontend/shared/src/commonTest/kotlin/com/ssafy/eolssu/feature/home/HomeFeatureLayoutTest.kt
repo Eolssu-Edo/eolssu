@@ -1,23 +1,33 @@
 package com.ssafy.eolssu.feature.home
 
+import com.ssafy.eolssu.core.model.Instrument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** 홈 카드 배치: 가로 카드 하나와 격자가 모든 기능을 한 번씩 덮고, 요청한 순서를 지킨다. */
+/** 홈 카드 격자가 모든 기능을 한 번씩 덮고 정한 순서를 지키며, 악기 드롭다운은 단소부터 네 악기를 보인다. */
 class HomeFeatureLayoutTest {
     @Test
-    fun highlightAndGridCoverEveryFeatureOnce() {
-        val placed = listOf(HomeFeatureHighlight) + HomeFeatureGrid
-        assertEquals(HomeFeature.entries.toSet(), placed.toSet())
-        assertEquals(placed.size, placed.toSet().size)
+    fun gridCoversEveryFeatureOnce() {
+        assertEquals(HomeFeature.entries.toSet(), HomeFeatureGrid.toSet())
+        assertEquals(HomeFeature.entries.size, HomeFeatureGrid.size)
     }
 
     @Test
-    fun gridFollowsRequestedOrder() {
-        assertEquals(HomeFeature.Learn, HomeFeatureHighlight)
+    fun gridFollowsDecidedOrderInTwoByThree() {
         assertEquals(
-            listOf(HomeFeature.SongSelect, HomeFeature.Records, HomeFeature.Reading, HomeFeature.Fingering),
-            HomeFeatureGrid,
+            listOf(
+                listOf(HomeFeature.Learn, HomeFeature.SongSelect),
+                listOf(HomeFeature.Fingering, HomeFeature.Reading),
+                listOf(HomeFeature.EditSheets, HomeFeature.Records),
+            ),
+            HomeFeatureGrid.chunked(2),
         )
+    }
+
+    @Test
+    fun instrumentMenuStartsWithDansoAndCoversEveryInstrument() {
+        assertEquals(Instrument.Danso, HomeInstruments.first())
+        assertEquals(Instrument.entries.toSet(), HomeInstruments.toSet())
+        assertEquals(Instrument.entries.size, HomeInstruments.size)
     }
 }
