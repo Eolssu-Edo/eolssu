@@ -91,6 +91,9 @@ data class GrowthStats(
     val bestBySong: List<SongBestScore>,
     val metricGrowth: MetricGrowth?,
 ) {
+    /** 월 보기의 주 평균 연습 횟수(보드 ‘주 3.5회’): 그 달 연습 횟수를 막대(주) 수로 나눈다. */
+    val perWeek: Double get() = if (bars.isEmpty()) 0.0 else practiceCount.toDouble() / bars.size
+
     companion object {
         fun of(period: GrowthPeriod, summary: GrowthSummary, days: List<DailyPractice>): GrowthStats {
             val current = summary.current
@@ -132,12 +135,14 @@ sealed interface GrowthLoad {
  *
  * @property today 화면을 연 때의 KST 날짜. 기간은 이 날을 기준으로 정한다.
  * @property completedSteps 연습 악기로 기초부터 배우기에서 완료한 단계 수. 기간과 관계없이 기기의 학습 완료 기록으로 센다.
+ * @property scoreTrend ‘점수 변화 · 최근 5회’ 점들(오래된 순). 점수 추이 API(GRO-03)는 S15P31E102-372에서 연결하고, 그전에는 null이다.
  */
 data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
     val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
     val completedSteps: Int? = null,
+    val scoreTrend: List<ScoreTrendPoint>? = null,
 ) {
     val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
 
@@ -151,4 +156,30 @@ suspend fun loadGrowth(repository: GrowthRepository, period: GrowthPeriod): Grow
     val s = summary.await()
     val d = days.await()
     if (s == null || d == null) GrowthLoad.Failed else GrowthLoad.Loaded(GrowthStats.of(period, s, d))
+}
+
+/** 점수 변화 그래프의 점 하나(오래된 순). [section]이면 날짜 뒤에 ‘구간’을 붙인다. */
+data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime, val section: Boolean)
+
+/** 보드 그래프 좌표계(viewBox 310×104)와 가로선(y 18 · 48 · 78). */
+const val TrendWidth: Float = 310f
+const val TrendHeight: Float = 104f
+val TrendGridLines: List<Float> = listOf(18f, 48f, 78f)
+
+/** 점 위치(보드 좌표). */
+data class TrendDot(val x: Float, val y: Float)
+
+/**
+ * 보드 꺾은선 배치: x는 14~294를 같은 간격으로 나누고(점 하나면 가운데), y는 가장 낮은 점수 72 · 가장 높은 점수 24로 맞춘다
+ * (보드 68→72 · 84→24). 점수가 모두 같으면 가운데 48에 둔다.
+ */
+fun scoreTrendDots(scores: List<Int>): List<TrendDot> {
+    if (scores.isEmpty()) return emptyList()
+    val min = scores.min()
+    val max = scores.max()
+    return scores.mapIndexed { i, s ->
+        val x = if (scores.size == 1) TrendWidth / 2 else 14f + i * (280f / (scores.size - 1))
+        val y = if (max == min) 48f else 72f - (s - min) * 48f / (max - min)
+        TrendDot(x, y)
+    }
 }

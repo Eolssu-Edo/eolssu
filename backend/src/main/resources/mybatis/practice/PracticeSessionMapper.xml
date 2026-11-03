@@ -13,12 +13,15 @@
         WHERE user_id = #{userId} AND idempotency_key = #{idempotencyKey}
     </select>
 
-    <!-- 세션을 만들 수 있는 곡만: 공개·채점 가능·삭제 안 됨. bpm 단위 기본값은 곡 장단의 값 -->
+    <!-- 공개·채점 가능·미삭제 곡. 장단이 없으면 공통 악보의 bpm 단위를 사용하고, 유효한 단위가 없으면 연습 대상에서 제외한다 -->
     <select id="findPlayableSong" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.PlayableSongRow">
-        SELECT s.id, j.bpm_unit, s.note_count, s.score_version
+        SELECT s.id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit'))) AS bpm_unit,
+               s.note_count, s.score_version
         FROM songs s
-        JOIN jangdans j ON j.id = s.jangdan_id
+        LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.is_scorable AND s.deleted_at IS NULL
+          AND CAST(COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit'))) AS BINARY)
+              IN ('QUARTER', 'DOTTED_QUARTER', 'JEONGGAN', 'JANGDAN_BEAT')
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -30,6 +33,28 @@
         UPDATE practice_sessions
         SET status = 'FAILED', fail_reason = #{failReason}
         WHERE status = 'RECORDING' AND started_at &lt; #{cutoff}
+    </update>
+
+    <!-- 미저장 녹음 정리(S15P31E102-375). 저장한 기록은 saved_at 조건으로 빠지고, 비우기와 저장이 겹치면 늦은 쪽의 조건이 막는다 -->
+    <select id="findExpiredUnsavedRecordings" resultType="com.ssafy.eolssu.backend.feature.practice.infrastructure.persistence.ExpiredRecordingRow">
+        SELECT id AS session_id, recording_url
+        FROM practice_sessions
+        WHERE saved_at IS NULL AND recording_url IS NOT NULL AND ended_at &lt; #{cutoff} AND id &gt; #{afterSessionId}
+        ORDER BY id
+        LIMIT #{limit}
+    </select>
+
+    <update id="clearUnsavedRecording">
+        UPDATE practice_sessions
+        SET recording_url = NULL
+        WHERE id = #{sessionId} AND recording_url = #{recordingUrl} AND saved_at IS NULL AND ended_at &lt; #{cutoff}
+    </update>
+
+    <!-- 파일을 지우지 못했을 때 다음 실행에서 다시 지우도록 키를 되돌린다. 그사이 저장됐으면 녹음이 저장한 기록으로 남는다 -->
+    <update id="restoreRecording">
+        UPDATE practice_sessions
+        SET recording_url = #{recordingUrl}
+        WHERE id = #{sessionId} AND recording_url IS NULL AND record_deleted_at IS NULL
     </update>
 
     <!-- 세션당 평가는 하나다. 기록을 지운 세션은 회원 조회에서 없는 세션과 같다(REC-04). 녹음은 원본이 있을 때만 재생할 수 있다 -->

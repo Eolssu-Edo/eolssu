@@ -134,6 +134,7 @@ fun EolssuSwitch(
     enabled: Boolean = true,
     width: Dp = 50.dp,
     height: Dp = 30.dp,
+    offColor: Color? = null,
 ) {
     val colors = EolssuTheme.colors
     Surface(
@@ -147,7 +148,7 @@ fun EolssuSwitch(
                 this.contentDescription = label
             },
         shape = CircleShape,
-        color = if (checked) colors.primary else colors.line,
+        color = if (checked) colors.primary else offColor ?: colors.line,
     ) {
         Box(Modifier.padding(3.dp), contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart) {
             Box(Modifier.size(height - 6.dp).shadow(1.dp, CircleShape).background(Color.White, CircleShape))

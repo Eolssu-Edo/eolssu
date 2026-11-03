@@ -69,6 +69,21 @@ class RecordingUploadsTest {
     }
 
     @Test
+    fun resendFindsTheRecordingAfterTheAppFolderMoved() = immediate {
+        uploader.outcomes += UploadOutcome.Unreachable
+        uploads().send(recording)
+        // iOS는 앱을 업데이트하면 앱 폴더 경로가 바뀔 수 있다. 저장한 경로는 그대로이고 파일만 새 경로에 있다.
+        files.existing -= "kept/practice-1.m4a"
+        files.existing += "moved/practice-1.m4a"
+        files.moved["kept/practice-1.m4a"] = "moved/practice-1.m4a"
+
+        assertEquals(SendResult.Sent, uploads().resend(recording))
+        assertEquals("41" to "moved/practice-1.m4a", uploader.calls.last())
+        assertEquals(setOf("rec/practice-2.m4a"), files.existing)
+        assertNull(uploads().pending())
+    }
+
+    @Test
     fun pendingRecordingKeepsSongAndBpmForTheNextRun() = immediate {
         uploader.outcomes += UploadOutcome.Unreachable
         uploads().send(recording.copy(songId = "2", bpm = 66))
@@ -425,6 +440,8 @@ internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     var bulkDeleteCalls = 0
     var keepFails = false
     var onKeep: () -> Unit = {}
+    /** 저장된 경로 → 앱 폴더가 옮겨진 뒤의 실제 경로. */
+    val moved = mutableMapOf<String, String>()
 
     override fun keep(path: String): String? {
         if (keepFails || path !in existing) return null
@@ -437,6 +454,8 @@ internal class FakeRecordingFiles(vararg recorded: String) : RecordingFiles {
     }
 
     override fun exists(path: String): Boolean = path in existing
+
+    override fun locate(path: String): String? = (moved[path] ?: path).takeIf { it in existing }
 
     override fun delete(path: String) {
         deleted += path

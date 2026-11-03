@@ -14,14 +14,15 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
-import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
+import com.ssafy.eolssu.core.audio.ReferenceAudioPlayer
+import com.ssafy.eolssu.core.audio.referenceSeekTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.URI
 
 /** Foreground-only player. All MediaPlayer operations/callbacks use one worker looper. */
-class AndroidAudioPlayer(context: Context) : AudioPlayer {
+class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boolean = false) : ReferenceAudioPlayer {
     private val appContext = context.applicationContext
     private val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val thread = HandlerThread("eolssu-model-audio").apply { start() }
@@ -81,7 +82,10 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
                     runCatching {
                         val completed = _state.value.copy(status = AudioPlaybackStatus.Completed,
                             positionMs = media.duration.toLong(), durationMs = media.duration.toLong())
-                        disposeMedia()
+                        if (retainCompletedMedia) {
+                            handler.removeCallbacks(updatePosition)
+                            abandonFocus()
+                        } else disposeMedia()
                         _state.value = completed
                     }.onFailure { fail() }
                 }
@@ -136,6 +140,28 @@ class AndroidAudioPlayer(context: Context) : AudioPlayer {
                 abandonFocus()
             }.onFailure { fail() }
         }
+    }
+
+    override fun seekTo(positionMs: Long) = dispatch {
+        val current = player ?: return@dispatch
+        if (!prepared) return@dispatch
+        val target = _state.value.referenceSeekTarget(positionMs) ?: return@dispatch
+        runCatching {
+            if (_state.value.status == AudioPlaybackStatus.Completed) current.pause()
+            handler.removeCallbacks(updatePosition)
+            _state.value = target
+            current.setOnSeekCompleteListener { media ->
+                if (player === media) {
+                    runCatching {
+                        media.setOnSeekCompleteListener(null)
+                        _state.value = _state.value.copy(positionMs = media.currentPosition.toLong())
+                        if (_state.value.status == AudioPlaybackStatus.Playing) handler.post(updatePosition)
+                    }.onFailure { fail() }
+                }
+            }
+            if (Build.VERSION.SDK_INT >= 26) current.seekTo(target.positionMs, MediaPlayer.SEEK_CLOSEST)
+            else @Suppress("DEPRECATION") current.seekTo(target.positionMs.toInt())
+        }.onFailure { fail() }
     }
 
     override fun setSpeed(speed: Float) = dispatch {

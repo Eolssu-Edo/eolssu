@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -64,11 +65,13 @@ fun EolssuScaffold(
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     contentMaxWidth: Dp = CompactContentMaxWidth,
+    containerColor: Color? = null,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
         modifier = modifier.imePadding().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
-        containerColor = EolssuTheme.colors.background,
+        // 기본은 `background`(#F9FAF9). 기록·성장 보드처럼 흰 바탕 화면은 [containerColor]를 넘긴다.
+        containerColor = containerColor ?: EolssuTheme.colors.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
         bottomBar = {

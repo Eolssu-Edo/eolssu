@@ -48,7 +48,7 @@ class ScoreViewApiDatabaseTests {
     @BeforeEach
     fun seed() {
         cleanup()
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (990189, '검증', 0, '黃', '검증', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (990189, '검증', -2, '黃', '검증', -24)")
         jdbc.update("INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent) VALUES (990189, 'GRO04_TEST', '검증', 990189, 990189, 50)")
         jdbc.update("INSERT INTO jangdans (id, name, pattern, default_bpm, bpm_unit, source) VALUES (990189, '검증', '{}', 60, 'JEONGGAN', '검증')")
         jdbc.update("INSERT INTO users (id, email, password_hash, nickname, instrument_id, status) VALUES (990189, 'member@gro04.test', 'test-hash', '검증', 990189, 'ACTIVE')")

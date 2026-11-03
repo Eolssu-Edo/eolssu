@@ -6,8 +6,7 @@ data class LessonProgressRow(
     val id: Long,
     val userId: Long,
     val lessonId: Long,
-    val score: Short?,
-    val completedAt: LocalDateTime?,
+    val completedAt: LocalDateTime,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime,
 )

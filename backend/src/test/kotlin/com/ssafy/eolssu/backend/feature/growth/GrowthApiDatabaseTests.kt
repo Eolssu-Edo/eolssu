@@ -25,11 +25,12 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 private const val TEST_SECRET = "test-only-signing-key-32-bytes-1234567890"
 
-/** 실제 HTTP·JWT 쿠키·MySQL로 GRO-01 summary와 GRO-02 calendar를 확인한다. 넣은 행은 끝에서 지운다. */
+/** 실제 HTTP·JWT 쿠키·MySQL로 GRO-01 summary, GRO-02 calendar, GRO-03 scores를 확인한다. 넣은 행은 끝에서 지운다. */
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = ["eolssu.security.jwt-secret=$TEST_SECRET"])
@@ -46,7 +47,7 @@ class GrowthApiDatabaseTests {
     @BeforeEach
     fun insertMembers() {
         deleteRows()
-        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (951, '황', 0, '黃', '황', 0)")
+        jdbc.update("INSERT INTO pitches (id, yul, octave, hanja, hangul, semitone) VALUES (951, 'GRO_TEST', -2, '黃', '시험', -24)")
         jdbc.update(
             "INSERT INTO instruments (id, code, name, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active, created_at, updated_at) " +
                 "VALUES (951, 'GROWTH_TEST', '시험', 951, 951, 50, FALSE, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
@@ -173,10 +174,145 @@ class GrowthApiDatabaseTests {
     }
 
     @Test
+    fun `shows the recent scores of one song by scope from every counted play of the member`() {
+        // 곡 951은 음표 4개(0~3)이고 지금 악보(버전 1)에서 각 0·0·1·1에 있다. 곡 952는 음표 2개(0~1).
+        jdbc.update(
+            "UPDATE songs SET score_json = ? WHERE id = 951",
+            """{"events":[{"kind":"NOTE","cellId":"c0-j0"},{"kind":"NOTE","cellId":"c0-j1"},""" +
+                """{"kind":"NOTE","cellId":"c1-j0"},{"kind":"NOTE","cellId":"c1-j1"}]}""",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, score_version, bpm, bpm_unit, start_note_idx, end_note_idx, status, fail_reason, started_at, saved_at) VALUES " +
+                "(980, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-07-30 03:00:00', NULL), " + // 가장 이른 전체 곡 연주
+                "(971, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-01 03:00:00', '2026-08-01 03:10:00'), " + // 저장한 기록
+                "(972, 951, 951, 1, 90, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-02 03:00:00', NULL), " + // BPM이 달라도 넣는다
+                "(973, 951, 951, 2, 60, 'DOTTED_QUARTER', 0, 3, 'DONE', NULL, '2026-08-03 03:00:00.123456', NULL), " + // 옛 악보 버전·지운 기록
+                "(974, 951, 951, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-04 03:00:00', NULL), " + // 구간 연습
+                "(975, 951, 951, 1, 60, 'JEONGGAN', 1, 3, 'DONE', NULL, '2026-08-05 03:00:00', NULL), " + // 끝 음까지 간 구간 연습, 가장 최근
+                "(976, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'FAILED', 'NO_SOUND', '2026-08-06 03:00:00', NULL), " + // 평가 행이 있어도 FAILED는 빠진다
+                "(977, 951, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-07 03:00:00', NULL), " + // 평가 없음
+                "(978, 952, 951, 1, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-08 03:00:00', NULL), " + // 다른 회원
+                "(982, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-02 12:00:00', NULL), " + // 둘째 곡: 같은 조건 세 번
+                "(983, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-02 12:00:00', NULL), " + // 982와 같은 시각
+                "(979, 951, 952, 1, 60, 'JEONGGAN', 0, 1, 'DONE', NULL, '2026-08-03 12:00:00', NULL)",
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(980, 60, 61, 62, 63, 'pyin-1'), (971, 70, 71, 72, 73, 'pyin-1'), (972, 75, 76, 77, 78, 'pyin-1'), " +
+                "(973, 80, 81, 82, 83, 'pyin-2'), (974, 99, 99, 99, 99, 'pyin-1'), (975, 98, 98, 98, 98, 'pyin-1'), " +
+                "(976, 100, 100, 100, 100, 'pyin-1'), (978, 100, 100, 100, 100, 'pyin-1'), (982, 84, 84, 84, 84, 'pyin-1'), " +
+                "(983, 86, 86, 86, 86, 'pyin-1'), " +
+                "(979, 88, 88, 88, 88, 'pyin-1')",
+        )
+        jdbc.update("UPDATE practice_sessions SET record_deleted_at = '2026-08-10 00:00:00' WHERE id = 973")
+        val songs = json.readTree(
+            """[{"songId":"951","title":"시험","lastPlayedAt":"2026-08-05T03:00:00Z","fullPlayCount":4,"sectionPlayCount":2},
+            {"songId":"952","title":"둘째","lastPlayedAt":"2026-08-03T12:00:00Z","fullPlayCount":3,"sectionPlayCount":0}]""",
+        )
+
+        // 곡을 고르지 않으면 가장 최근에 연주한 곡(구간 연습이어도)의 전체 곡 연주를 오래된 순서로 준다.
+        val latest = scores("/api/users/me/growth/scores", subject = "951")
+        assertEquals("951", latest.path("songId").asString())
+        assertEquals("FULL", latest.path("scope").asString())
+        assertEquals(listOf("980", "971", "972", "973"), latest.sessionIds())
+        assertEquals(
+            json.readTree(
+                """{"sessionId":"973","startedAt":"2026-08-03T03:00:00.123456Z","bpm":60,"bpmUnit":"DOTTED_QUARTER",
+                "startNoteIdx":0,"endNoteIdx":3,"startColumnIdx":null,"endColumnIdx":null,"scoreVersion":2,"modelVersion":"pyin-2",
+                "totalScore":80,"pitchScore":81,"timingScore":82,"durationScore":83}""",
+            ),
+            latest.path("items").toList().last(),
+        )
+        assertEquals(listOf(0, 1, 0, 1, 0, 1, -1, -1), latest.columns()) // 지금 악보 버전(1)의 0~3음은 0~1각, 옛 버전은 없음
+        assertEquals(false, latest.path("comparable").asBoolean())
+        assertEquals(songs, latest.path("songs"))
+
+        // 최근 limit개만, 여전히 오래된 순서로
+        assertEquals(listOf("972", "973"), scores("/api/users/me/growth/scores?limit=2", subject = "951").sessionIds())
+
+        // 구간 연습은 따로 본다. 범위가 다르면 비교할 수 없다.
+        val sections = scores("/api/users/me/growth/scores?scope=SECTION", subject = "951")
+        assertEquals(listOf("974", "975"), sections.sessionIds())
+        assertEquals(listOf(0, 0, 0, 1), sections.columns())
+        assertEquals(false, sections.path("comparable").asBoolean())
+
+        // 다른 곡: 같은 조건끼리는 비교할 수 있다. 같은 시각이면 세션 ID 순서다.
+        val second = scores("/api/users/me/growth/scores?songId=952", subject = "951")
+        assertEquals(listOf("982", "983", "979"), second.sessionIds())
+        assertEquals(true, second.path("comparable").asBoolean())
+
+        // 연주한 적 없는 곡
+        val unknown = scores("/api/users/me/growth/scores?songId=953", subject = "951")
+        assertEquals("953", unknown.path("songId").asString())
+        assertEquals(0, unknown.path("items").size())
+        assertEquals(songs, unknown.path("songs"))
+
+        // 다른 회원에게는 그 회원의 연주만 보인다.
+        val other = scores("/api/users/me/growth/scores", subject = "952")
+        assertEquals(listOf("978"), other.sessionIds())
+        assertEquals(1, other.path("songs").size())
+    }
+
+    private fun JsonNode.sessionIds() = path("items").toList().map { it.path("sessionId").asString() }
+
+    /** 점마다 시작·끝 각을 이어 붙인다. 각이 없으면 0으로 읽히지 않게 -1로 둔다. */
+    private fun JsonNode.columns() = path("items").toList().flatMap {
+        listOf(it.path("startColumnIdx").asInt(-1), it.path("endColumnIdx").asInt(-1))
+    }
+
+    @Test
+    fun `defaults to a song practiced only in sections and shows those sections separately`() {
+        jdbc.update(
+            "INSERT INTO songs (id, instrument_id, jangdan_id, title, difficulty, default_bpm, score_json, note_count, is_scorable, status, created_at, updated_at) " +
+                "VALUES (954, 951, 951, '구간만', 1, 60, '{}', 4, TRUE, 'PUBLISHED', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))",
+        )
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, start_note_idx, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(984, 951, 951, 60, 'JEONGGAN', 0, 3, 'DONE', NULL, '2026-08-01 03:00:00'), " +
+                "(985, 951, 954, 60, 'JEONGGAN', 1, 2, 'DONE', NULL, '2026-08-02 03:00:00')", // 가장 최근 연주는 구간 연습뿐인 곡
+        )
+        jdbc.update(
+            "INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version) VALUES " +
+                "(984, 70, 70, 70, 70, 'pyin-1'), (985, 90, 90, 90, 90, 'pyin-1')",
+        )
+
+        val full = scores("/api/users/me/growth/scores", subject = "951")
+        assertEquals("954", full.path("songId").asString())
+        assertEquals(0, full.path("items").size())
+        assertEquals(
+            json.readTree(
+                """[{"songId":"954","title":"구간만","lastPlayedAt":"2026-08-02T03:00:00Z","fullPlayCount":0,"sectionPlayCount":1},
+                {"songId":"951","title":"시험","lastPlayedAt":"2026-08-01T03:00:00Z","fullPlayCount":1,"sectionPlayCount":0}]""",
+            ),
+            full.path("songs"),
+        )
+        assertEquals(listOf("985"), scores("/api/users/me/growth/scores?scope=SECTION", subject = "951").sessionIds())
+    }
+
+    @Test
+    fun `has no score trend before any counted play`() {
+        jdbc.update(
+            "INSERT INTO practice_sessions (id, user_id, song_id, bpm, bpm_unit, end_note_idx, status, fail_reason, started_at) VALUES " +
+                "(981, 952, 951, 60, 'JEONGGAN', 3, 'FAILED', 'NO_SOUND', '2026-08-01 03:00:00')",
+        )
+
+        val empty = scores("/api/users/me/growth/scores?scope=SECTION", subject = "952")
+
+        assertEquals(json.readTree("""{"songId":null,"scope":"SECTION","items":[],"comparable":false,"songs":[]}"""), empty)
+    }
+
+    @Test
     fun `requires a valid access token`() {
-        val response = get("/api/users/me/growth/calendar?from=2026-09-07&to=2026-09-13", subject = null)
-        assertEquals(401, response.statusCode())
-        assertTrue(response.body().contains("\"errorCode\":\"UNAUTHENTICATED\""), response.body())
+        for (path in listOf("/api/users/me/growth/calendar?from=2026-09-07&to=2026-09-13", "/api/users/me/growth/scores")) {
+            val response = get(path, subject = null)
+            assertEquals(401, response.statusCode(), path)
+            assertTrue(response.body().contains("\"errorCode\":\"UNAUTHENTICATED\""), response.body())
+        }
+    }
+
+    private fun scores(path: String, subject: String) = get(path, subject).let { response ->
+        assertEquals(200, response.statusCode(), response.body())
+        json.readTree(response.body()).path("result")
     }
 
     private fun get(path: String, subject: String?): HttpResponse<String> {
@@ -193,10 +329,10 @@ class GrowthApiDatabaseTests {
     ).apply { sign(MACSigner(TEST_SECRET.toByteArray(Charsets.UTF_8))) }.serialize()
 
     private fun deleteRows() {
-        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 951 AND 970")
-        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 951 AND 970")
+        jdbc.update("DELETE FROM evaluations WHERE session_id BETWEEN 951 AND 990")
+        jdbc.update("DELETE FROM practice_sessions WHERE id BETWEEN 951 AND 990")
         jdbc.update("DELETE FROM score_views WHERE user_id IN (951, 952)")
-        jdbc.update("DELETE FROM songs WHERE id IN (951, 952)")
+        jdbc.update("DELETE FROM songs WHERE id IN (951, 952, 954)")
         jdbc.update("DELETE FROM users WHERE id IN (951, 952)")
         jdbc.update("DELETE FROM jangdans WHERE id = 951")
         jdbc.update("DELETE FROM instruments WHERE id = 951")

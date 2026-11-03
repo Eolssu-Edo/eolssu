@@ -87,19 +87,20 @@ class HttpClientsTest {
             "/api/auth/oauth/kakao/start",
             "/api/auth/oauth/kakao",
             "/api/auth/oauth/merge",
+            "/api/auth/oauth/sign-up",
             "/api/users/me/social-accounts/naver",
+            "/api/users/me/withdrawal/oauth/google",
         )
 
         oneTime.forEach { assertEquals(HttpStatusCode.Unauthorized, client.post(it).status) }
         assertEquals(oneTime.map { "POST $it" }, requests)
 
-        // 마이페이지 연결 start는 1회용 값을 쓰지 않아 평소처럼 갱신 뒤 다시 보낸다.
-        requests.clear()
-        client.post("/api/users/me/social-accounts/naver/start")
-        assertEquals(
-            listOf("POST /api/users/me/social-accounts/naver/start", "POST /api/auth/refresh", "POST /api/users/me/social-accounts/naver/start"),
-            requests,
-        )
+        // 마이페이지 연결·탈퇴 재인증 start는 1회용 값을 쓰지 않아 평소처럼 갱신 뒤 다시 보낸다.
+        listOf("/api/users/me/social-accounts/naver/start", "/api/users/me/withdrawal/oauth/google/start").forEach { path ->
+            requests.clear()
+            client.post(path)
+            assertEquals(listOf("POST $path", "POST /api/auth/refresh", "POST $path"), requests)
+        }
     }
 
     @Test

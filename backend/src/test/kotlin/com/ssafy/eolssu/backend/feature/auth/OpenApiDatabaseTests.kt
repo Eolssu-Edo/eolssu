@@ -45,6 +45,16 @@ open class OpenApiDatabaseTests {
         }
         return client.send(request.GET().build(),HttpResponse.BodyHandlers.ofString())
     }
+    @Test fun `my info documents password presence as a required boolean without a hash`() {
+        val response = get("/api/v3/api-docs")
+        assertEquals(200, response.statusCode())
+        val schema = json.readTree(response.body()).path("components").path("schemas").path("MyInfoResult")
+        val properties = schema.path("properties")
+        assertEquals("boolean", properties.path("hasPassword").path("type").asString())
+        assertFalse(properties.path("hasPassword").path("nullable").asBoolean())
+        assertTrue(schema.path("required").any { it.asString() == "hasPassword" })
+        assertFalse(properties.has("passwordHash"))
+    }
     @Test fun `authenticated user can fetch the full business API definition`() {
         val response=get("/api/v3/api-docs")
         assertEquals(200,response.statusCode(),response.body())
@@ -61,19 +71,37 @@ open class OpenApiDatabaseTests {
             item.properties().filter { it.key in setOf("get","post","patch","put","delete") }.map { "${it.key} $path" }
         }.toSet()
         val expected=mappings.handlerMethods.filterValues { it.beanType.packageName.startsWith("com.ssafy.eolssu.backend.feature.") }
-            .flatMap { (mapping,_) -> mapping.patternValues.flatMap { path -> mapping.methodsCondition.methods.map { "${it.name.lowercase()} ${path.replace("{version:\\d{4}-\\d{2}-\\d{2}}", "{version}")}" } } }.toSet()
+            .flatMap { (mapping,_) -> mapping.patternValues.flatMap { path -> mapping.methodsCondition.methods.map {
+                "${it.name.lowercase()} ${path.replace("{version:\\d{4}-\\d{2}-\\d{2}}", "{version}")}"
+            } } }.toSet()
         fun checkReferences(node: tools.jackson.databind.JsonNode) {
             val ref=node.path("\$ref").asString()
             if (ref.startsWith("#/components/schemas/")) assertTrue(doc.path("components").path("schemas").has(ref.substringAfterLast('/')),ref)
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(52,expected.size)
+        assertEquals(64,expected.size)
+        assertTrue(expected.containsAll(setOf("post /api/users/me/sheets", "get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
-            "/api/notation-symbols", "/api/jangdans")
+            "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
         assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
+        val play = doc.path("paths").path("/api/reference-audios/{assetId}/play").path("get")
+        assertEquals(0,play.path("security").size())
+        assertFalse(play.path("responses").path("302").has("content"))
+        assertTrue(play.path("responses").path("302").path("headers").has("Location"))
+        assertTrue(play.path("responses").has("503"))
+        val modelPlay = doc.path("paths").path("/api/songs/{songId}/model-audio/play").path("get")
+        assertEquals(0,modelPlay.path("security").size())
+        assertTrue(modelPlay.path("responses").path("302").path("headers").has("Location"))
+        val performance = doc.path("paths").path("/api/songs/{songId}/model-audio/performance").path("get")
+        assertEquals(0,performance.path("security").size())
+        assertFalse(performance.path("responses").path("200").path("content").path("application/json").path("schema").has("result"))
+        for (path in listOf("/api/terms/documents/{version}/{document}","/api/terms/documents/current/{document}","/api/terms/documents/account-deletion")) {
+            assertTrue(doc.path("paths").path(path).path("get").path("responses").path("200").path("content").has("text/html"))
+        }
+        assertTrue(doc.path("paths").path("/api/recordings/read").path("get").path("responses").path("200").path("content").has("audio/mp4"))
         for (path in catalogPaths) {
             val operation=doc.path("paths").path(path).path("get")
             assertEquals(0,operation.path("security").size(),path)
@@ -86,8 +114,6 @@ open class OpenApiDatabaseTests {
         assertEquals("integer",modelAudio.path("properties").path("scoreVersion").path("type").asString())
         for (entry in actual) {
             val (method,path)=entry.split(' ',limit=2)
-            // HTML 약관·서명된 녹음 파일 응답은 업무 JSON envelope 계약과 별도다. 경로 포함 여부는 위에서 비교한다.
-            if(path.startsWith("/api/terms/documents/") || path=="/api/recordings/read") continue
             val operation=doc.path("paths").path(path).path(method)
             assertTrue(operation.path("summary").asString().isNotBlank(),entry)
             assertTrue(operation.path("responses").has(if(path=="/api/webhooks/kakao/events")"503" else "500"),entry)
@@ -136,12 +162,16 @@ open class OpenApiDatabaseTests {
         assertFalse(details.path("required").any { it.asString() == "details" })
         val session=doc.path("components").path("schemas").path("PracticeSessionResult")
         assertTrue(session.path("properties").path("evaluationId").path("nullable").asBoolean(),session.toString())
+        val song = doc.path("components").path("schemas").path("SongItem")
+        assertTrue(song.path("properties").path("jangdan").path("nullable").asBoolean(), song.toString())
         val request=doc.path("components").path("schemas").path("PasswordResetRequest")
         assertEquals(8,request.path("properties").path("newPassword").path("minLength").asInt())
         assertEquals(128,request.path("properties").path("newPassword").path("maxLength").asInt())
         assertTrue(request.path("required").any { it.asString()=="verificationToken" })
         val score=doc.path("components").path("schemas").path("RecordScoreViewRequest")
         assertEquals("string",score.path("properties").path("songId").path("type").asString())
+        val lessons=doc.path("paths").path("/api/lessons").path("get").path("parameters")
+        assertTrue(lessons.any { it.path("name").asString()=="track" && it.path("required").asBoolean() },lessons.toString())
     }
     @Test fun `documentation is public while member APIs still require an active member`() {
         for (path in listOf("/api/v3/api-docs","/api/v3/api-docs/swagger-config","/api/swagger-ui/index.html")) {

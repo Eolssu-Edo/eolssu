@@ -95,6 +95,7 @@ import eolssu.shared.generated.resources.practice_jangdan_sound_off
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_jangdan_sub
 import eolssu.shared.generated.resources.practice_jangdan_title
+import eolssu.shared.generated.resources.practice_jangdan_unavailable
 import eolssu.shared.generated.resources.practice_listen_note
 import eolssu.shared.generated.resources.practice_listening
 import eolssu.shared.generated.resources.practice_menu_jangdan
@@ -238,7 +239,8 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         ) { actions.onOpen(PracticePanel.Notation) }
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
-            stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdan.name),
+            if (song.jangdan == null) jangdanLabel(song.jangdanName) else
+                stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName),
         ) { actions.onOpen(PracticePanel.Jangdan) }
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), tempoLabel(step)) {
             actions.onOpen(PracticePanel.Tempo)
@@ -477,6 +479,11 @@ private fun holeName(instrument: GuideInstrument, index: Int): String =
 private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val jangdan = song.jangdan
+    if (jangdan == null) {
+        Text(jangdanLabel(song.jangdanName), style = MaterialTheme.typography.titleMedium)
+        TinyNote(stringResource(Res.string.practice_jangdan_unavailable))
+        return
+    }
     val draft = state.draft
     val starts = jangdan.daegangStarts
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

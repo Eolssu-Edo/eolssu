@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
  * 로그아웃은 화면이 바로 넘어가도 끝나도록 앱 전체의 [scope]에서 한다. 서버 요청이 실패해도 기기의 쿠키는 지운다.
  * 로그인에 성공하면 응답의 `userId`를, 로그아웃하면 빈 값을 [member]에 남긴다(회원별 기록을 다른 회원으로 보내지 않기 위해).
  * 간편 로그인 완료·계정 연결도 로그인이므로 같은 방식으로 [member]를 바꾼다. 둘 다 1회용 값을 써서 HTTP 클라이언트가 401에 재전송하지 않는다.
+ * 이메일·간편 가입의 201도 로그인 쿠키를 주므로 응답의 `userId`를 [member]에 남긴다.
  */
 class ApiAuthRepository(
     private val client: HttpClient,
@@ -110,11 +111,20 @@ class ApiAuthRepository(
     }
 
     override suspend fun signUp(request: Registration): MemberResult {
-        val response = client.sendOrNull {
-            post("/api/auth/sign-up") { contentType(ContentType.Application.Json); setBody(request) }
-        } ?: return MemberResult.Unavailable
-        if (response.status.value == 201 && response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result?.userId?.isNotBlank() == true) return MemberResult.Done
-        return memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        // 가입 201도 로그인 쿠키를 주므로 로그인처럼 회원을 바꾼다. 로그아웃이 끝나기 전이면 새 쿠키가 지워질 수 있다.
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/sign-up") { contentType(ContentType.Application.Json); setBody(request) }
+            } ?: return@changing MemberResult.Unavailable
+            if (response.status.value == 201) {
+                val signedUp = response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result
+                    ?.takeIf { it.userId.isNotBlank() } ?: return@changing MemberResult.Unavailable
+                member.set(signedUp.userId)
+                return@changing MemberResult.Done
+            }
+            memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        }
     }
 
     override suspend fun resetPassword(token: String, password: String): MemberResult {
@@ -144,7 +154,11 @@ class ApiAuthRepository(
                     member.set(signedIn.userId)
                     SocialLoginResult.Success(withdrawalCancelled = signedIn.withdrawalCancelled)
                 }
-                409 -> {
+                409 -> if (response.apiResponse<VerificationError>()?.result?.errorCode == "SOCIAL_SIGN_UP_REQUIRED") {
+                    val details = response.apiResponse<SignUpError>()?.result?.details ?: return@changing SocialLoginResult.Unavailable
+                    val expiry = details.expiresAt.toMillis() ?: return@changing SocialLoginResult.Unavailable
+                    SocialLoginResult.SignUpRequired(SignUpTicket(callback.provider, details.signupTicket, expiry))
+                } else {
                     val details = response.apiResponse<MergeError>()?.result?.details ?: return@changing SocialLoginResult.Unavailable
                     val expiry = details.expiresAt.toMillis() ?: return@changing SocialLoginResult.Unavailable
                     SocialLoginResult.MergeAvailable(
@@ -187,6 +201,28 @@ class ApiAuthRepository(
         }
     }
 
+    override suspend fun socialSignUp(request: SocialRegistration): MemberResult {
+        signingOut?.join()
+        return member.changing {
+            val response = client.sendOrNull {
+                post("/api/auth/oauth/sign-up") {
+                    contentType(ContentType.Application.Json)
+                    setBody(SocialSignUp(request.ticket.ticket, request.nickname, request.agreements, request.instrumentId))
+                }
+            } ?: return@changing MemberResult.Unavailable
+            if (response.status.value == 201) {
+                val signedUp = response.apiResponse<SignedUp>()?.takeIf { it.isSuccess }?.result
+                    ?.takeIf { it.userId.isNotBlank() } ?: return@changing MemberResult.Unavailable
+                member.set(signedUp.userId)
+                return@changing MemberResult.Done
+            }
+            memberFailure(response.status.value, response.apiResponse<VerificationError>()?.result?.errorCode)
+        }
+    }
+
+    @Serializable private class SocialSignUp(val signupTicket: String, val nickname: String, val agreements: List<TermAgreement>, val instrumentId: String? = null)
+    @Serializable private class SignUpError(val errorCode: String, val details: SignUpDetails? = null)
+    @Serializable private class SignUpDetails(val signupTicket: String, val expiresAt: String)
     @Serializable private class OAuthComplete(val authorizationCode: String, val redirectUri: String, val state: String)
     @Serializable private class Merge(val mergeTicket: String, val password: String? = null)
     @Serializable private class MergeError(val errorCode: String, val details: MergeDetails? = null)
@@ -235,6 +271,9 @@ internal fun memberFailure(status: Int, code: String? = null): MemberResult = wh
     code == "EMAIL_NOT_VERIFIED" -> MemberResult.VerificationRequired
     code == "TERMS_AGREEMENT_REQUIRED" -> MemberResult.TermsRequired
     code == "EMAIL_ALREADY_EXISTS" -> MemberResult.EmailExists
+    code == "SIGNUP_TICKET_EXPIRED" || code == "WITHDRAWAL_TICKET_EXPIRED" -> MemberResult.TicketExpired
+    code == "SOCIAL_ACCOUNT_IN_USE" -> MemberResult.SocialAccountInUse
+    code == "LAST_LOGIN_METHOD" -> MemberResult.LastLoginMethod
     status == 401 -> MemberResult.Unauthenticated
     status == 429 -> MemberResult.RateLimited
     status == 400 || status == 422 -> MemberResult.InvalidInput

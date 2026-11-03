@@ -115,6 +115,7 @@ fun PracticeScoreArea(
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
         val selectedIndex = if (state.mode == PracticeMode.Ready) state.selected else null
         val onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null
+        val annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap()
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
             JeongganboView(
@@ -130,6 +131,7 @@ fun PracticeScoreArea(
                 onUserScroll = onUserScroll,
                 selectedIndex = selectedIndex,
                 onEventClick = onEventClick,
+                annotations = annotations,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -150,6 +152,7 @@ fun PracticeScoreArea(
                         selectedIndex = selectedIndex,
                         onEventClick = onEventClick,
                         columns = first until minOf(first + bandColumns, columnCount),
+                        annotations = annotations,
                     )
                 }
             }
@@ -253,6 +256,7 @@ fun PracticeBoardScore(
             selectedIndex = if (state.mode == PracticeMode.Ready) state.selected else null,
             onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
             look = JeongganboLook.practice(big),
+            annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
         )
         if (state.mode == PracticeMode.Ready) {
             Text(

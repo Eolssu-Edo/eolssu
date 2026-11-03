@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
@@ -137,6 +139,7 @@ fun JeongganboView(
     highlightColumns: IntRange? = null,
     selectedCell: Pair<Int, Int>? = null,
     onUnitClick: ((ScoreDisplayUnit) -> Unit)? = null,
+    annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     look: JeongganboLook = JeongganboLook.Classic,
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
@@ -145,10 +148,10 @@ fun JeongganboView(
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
-    val patternStarts = song.jangdan.daegangStarts
+    val patternStarts = song.jangdan?.daegangStarts.orEmpty()
     fun daegangStarts(column: Int): List<Int> = when {
         song.score.timing == null -> patternStarts
-        look.daegangWhenFits && song.score.columns[column].size == song.jangdan.gak -> patternStarts
+        look.daegangWhenFits && song.score.columns[column].size == song.jangdan?.gak -> patternStarts
         else -> emptyList()
     }
     val solfege = song.solfege.takeIf { notation.showSolfege }
@@ -231,6 +234,7 @@ fun JeongganboView(
                         selectedCell = selectedCell?.let { it == (strip.column to row) },
                         onEventClick = onEventClick,
                         onUnitClick = onUnitClick,
+                        annotations = annotations,
                     )
                 }
             }
@@ -328,8 +332,8 @@ private fun ScoreStripColumn(
             .width(metrics.columnWidth)
             .then(ring)
             .clip(shape)
-            .background(if (look.board) colors.surface else colors.background)
-            .border(1.dp, if (highlighted) colors.accent else colors.line, shape),
+            .background(if (look.board || look.soft) colors.surface else colors.background)
+            .border(1.dp, if (highlighted) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
     ) {
         if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming)
         for (row in strip.rows) cell(row)
@@ -403,6 +407,7 @@ private fun ScoreCellBox(
     onEventClick: ((ScoreEvent) -> Unit)?,
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
+    annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
@@ -416,7 +421,7 @@ private fun ScoreCellBox(
         }
     }
     val (fill, ring) = when (highlight) {
-        ScoreHighlight.Position -> colors.accentSoft to colors.accent
+        ScoreHighlight.Position -> (if (look.soft) colors.accentTint else colors.accentSoft) to colors.accent
         ScoreHighlight.Recording -> colors.recSoft to colors.rec
     }
     val headColor = when {
@@ -427,6 +432,7 @@ private fun ScoreCellBox(
     val lineColor = when {
         isDaegangStart && board -> colors.text
         isDaegangStart -> colors.lineStrong
+        look.soft -> colors.lineSoft
         else -> colors.line
     }
     val lineWidth = if (isDaegangStart) 2.dp else 1.dp
@@ -535,6 +541,7 @@ private fun ScoreCellBox(
                                 onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
                                 isSelected = selectedCell ?: (unit.event.index == selectedIndex),
                                 modifier = Modifier.weight(1f).fillMaxSize(),
+                                sigimsae = annotations[unit.key].orEmpty(),
                             )
                         }
                     }
@@ -611,6 +618,7 @@ private fun ScoreNoteBox(
     onClick: (() -> Unit)?,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
+    sigimsae: List<String> = emptyList(),
 ) {
     val colors = EolssuTheme.colors
     val note = unit.note
@@ -647,7 +655,7 @@ private fun ScoreNoteBox(
     // 화면 읽기 프로그램은 한자 대신 율명 이름(황종)을 읽는다. 글자 자체는 아래에서 읽지 않게 숨긴다.
     if (onClick != null) noteModifier = noteModifier.clickable(role = Role.Button, onClick = onClick)
     noteModifier = noteModifier.semantics(mergeDescendants = true) {
-        contentDescription = label
+        contentDescription = (listOf(label) + sigimsae.map(::scoreSigimsaeName)).joinToString(" · ")
         if (onClick != null) selected = isSelected
     }
 
@@ -659,11 +667,13 @@ private fun ScoreNoteBox(
         look.board -> colors.textSub
         else -> colors.textMuted
     }
-    Row(
+    Column(
         noteModifier.padding(horizontal = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
+      Row(horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+          verticalAlignment = Alignment.CenterVertically) {
         if (look.board && !isPitch) {
             // 보드 `.sym`: ㅡ·△는 산세리프 400.
             Text(
@@ -681,6 +691,12 @@ private fun ScoreNoteBox(
                 fontWeight = if (isPitch) FontWeight.SemiBold else FontWeight.Normal,
             )
         }
+        val glyphs = sigimsae.filter { scoreSigimsaeImage(it) != null }
+        if (glyphs.isNotEmpty()) {
+            Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
+                glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * 0.7f) }
+            }
+        }
         if (hangul != null || solfegeText != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)
             val auxColor = if (mutedGlyph) colors.textDisabled else colors.textMuted
@@ -689,6 +705,11 @@ private fun ScoreNoteBox(
                 if (solfegeText != null) Text(solfegeText, style = auxStyle, color = if (look.board) auxColor else colors.playText)
             }
         }
+      }
+      sigimsae.filter { scoreSigimsaeImage(it) == null }.forEach {
+          Text(scoreSigimsaeName(it), modifier = Modifier.clearAndSetSemantics {},
+              fontSize = auxSize, lineHeight = auxSize * 1.1f, color = colors.textMuted)
+      }
     }
 }
 

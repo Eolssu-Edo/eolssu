@@ -95,7 +95,7 @@ private fun SongInfo(state: PracticeUiState, song: Song) {
         Text(stringResource(Res.string.practice_dock_song_info), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         Text(song.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold))
         Text(
-            stringResource(Res.string.practice_dock_info, jangdanLabel(song.jangdan), state.bpm, songLevelLabel(song.level)),
+            stringResource(Res.string.practice_dock_info, jangdanLabel(song.jangdanName), state.bpm, songLevelLabel(song.level)),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
             color = colors.textMuted,
         )
@@ -122,8 +122,8 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) { actions.onOpen(PracticePanel.Notation) }
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
-            if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdan.name) else song.jangdan.name,
-            settings.jangdanSound, locked,
+            if (song.jangdan != null && settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
+            song.jangdan != null && settings.jangdanSound, locked,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         QuickRow(
             stringResource(Res.string.practice_menu_tempo),
