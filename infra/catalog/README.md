@@ -143,12 +143,12 @@ Task S15P31E102-387. S15P31E102-339가 운영 DB에 넣은 소금 아리랑(96)�
 339 게시 도구로 4곡을 PUBLISHED로 바꾼 뒤 edo1에서 실행한다. 339 적재 도구는 기존 곡의 `is_scorable=0`을 요구하므로 이 도구 뒤에 다시 적재하면 멈춘다.
 
 ```sh
-sudo python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-check.json
-sudo python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-apply.json --apply
+sudo python3 enable_scoring.py --plan scoring-plans/sogeum.json --receipt /tmp/sogeum-scoring-check.json
+sudo python3 enable_scoring.py --plan scoring-plans/sogeum.json --receipt /tmp/sogeum-scoring-apply.json --apply
 ```
 
-기본은 읽기 전용이다. 곡마다 id·출처·`score_version`·삭제 여부와 현재 악보 해시가 도구의 `PLAN`과 같아야 하고, 하나라도 다르면 쓰기 전에 멈춘다. `--apply`는 한 트랜잭션에서 행마다 바뀐 수가 1인지 확인하고 커밋한 뒤 다시 읽어 대조한다. 이미 바뀐 곡은 다시 쓰지 않는다. 결과는 새 receipt 파일에 남는다. 바뀌는 열은 `score_json`·`is_scorable`과 DB가 자동으로 갱신하는 `updated_at`이다. 시간 초과나 연결 오류로 receipt가 `apply-outcome-unknown`이면 서버에서 커밋됐을 수 있으므로, 다시 쓰기 전에 `--apply` 없이 실행해 실제 상태(`pending`이 비었는지)를 확인한다.
+기본은 읽기 전용이다. 곡마다 id·출처·`score_version`·삭제 여부와 현재 악보 해시가 계획 파일과 같아야 하고, 하나라도 다르면 쓰기 전에 멈춘다. `--apply`는 한 트랜잭션에서 행마다 바뀐 수가 1인지 확인하고 커밋한 뒤 다시 읽어 대조한다. 이미 바뀐 곡은 다시 쓰지 않는다. 결과는 새 receipt 파일에 남는다. 바뀌는 열은 `score_json`·`is_scorable`과 DB가 자동으로 갱신하는 `updated_at`이다. 시간 초과나 연결 오류로 receipt가 `apply-outcome-unknown`이면 서버에서 커밋됐을 수 있으므로, 다시 쓰기 전에 `--apply` 없이 실행해 실제 상태(`pending`이 비었는지)를 확인한다.
 
 ```powershell
-python -m unittest discover -s infra/catalog -p "test_enable_sogeum_scoring.py" -v
+python -m unittest discover -s infra/catalog -p "test_enable_scoring.py" -v
 ```

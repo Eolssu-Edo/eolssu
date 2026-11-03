@@ -194,7 +194,7 @@ class ConvertTests(unittest.TestCase):
 ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
 # 표준악보집 소금 4곡(아리랑 PDF194·도라지타령 PDF192·밀양아리랑 PDF193·닐리리야 PDF196). 서비스 곡 행은
 # S15P31E102-339 적재분이다. 채점을 켜는 근거는 교과서가 있는 아리랑·도라지타령은 교과서(SOGEUM_ANSWERS),
-# 나머지 2곡은 이 표준 정답이다(infra/catalog/enable_sogeum_scoring.py).
+# 나머지 2곡은 이 표준 정답이다(infra/catalog/enable_scoring.py).
 SERVICE_SOGEUM = ["ngc-standard-2022-p194", "ngc-standard-2022-p192", "ngc-standard-2022-p193", "ngc-standard-2022-p196"]
 # 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
 SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]

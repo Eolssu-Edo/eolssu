@@ -1,0 +1,46 @@
+[
+  {
+    "songId": 96,
+    "source": "mr203-fixed-sogeum-008-p1",
+    "scoreVersion": 1,
+    "answer": "school-textbook-sogeum-p15",
+    "breathEventIds": [],
+    "currentSha256": "54c2bd28e3fa7e6534c31d0cbdc3d3490b3bf18b60889aeef7357e6349688e8a",
+    "targetSha256": "121898993631cfe62d657fc0a0e3c59211bb3317b7d2710aa8712786339c3b0b"
+  },
+  {
+    "songId": 93,
+    "source": "mr203-fixed-sogeum-005-p1",
+    "scoreVersion": 1,
+    "answer": "school-textbook-sogeum-p16",
+    "breathEventIds": [],
+    "currentSha256": "823cf960bb11857d1a23c8ff263dd47a8d7ebfb24b0f5405adc883dfd642e56b",
+    "targetSha256": "e46d006937ee49882b0afc4d67637d26945d679a61a9508d42498fd175f6ef7a"
+  },
+  {
+    "songId": 95,
+    "source": "mr203-fixed-sogeum-007-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p193",
+    "breathEventIds": [
+      "c0-j2-r0-u0",
+      "c2-j2-r2-u0",
+      "c4-j2-r1-u0",
+      "c6-j2-r2-u0",
+      "c8-j2-r0-u0",
+      "c10-j2-r2-u0",
+      "c12-j2-r1-u0"
+    ],
+    "currentSha256": "b034cd9ec11071fd45915a2c4cca4fc7017b2899e4417155bf46f8ffa26a4a45",
+    "targetSha256": "cad9a1de2c264257bd2ea620adbbd486837d32def35c49cd36593fe3d6b7ec91"
+  },
+  {
+    "songId": 91,
+    "source": "mr203-fixed-sogeum-003-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p196",
+    "breathEventIds": [],
+    "currentSha256": "8466aba277f6662fd65278efaeb72d4c78c3d7e4d953167c487c911cc9332a3c",
+    "targetSha256": "1062cfa2bceab4ef971e1033f0d5f7ff0a0e3759acb8742426c4dac5f5a57b4e"
+  }
+]
