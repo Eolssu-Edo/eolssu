@@ -1,4 +1,6 @@
 <resources>
+    <string name="jangdan_unassigned">장단 미지정</string>
+    <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
     <string name="common_close">닫기</string>
     <string name="common_coming_soon">준비 중인 기능이에요.</string>
 
@@ -508,7 +510,36 @@
     <string name="learn_start_practice">연습 시작</string>
     <string name="learn_hint_song">평가할 곡을 골라 AI 연주 평가 점수로 통과를 확인해요.</string>
     <string name="learn_hint_practice">연습 화면에서 %1$s으로 통과를 확인해요.</string>
-    <string name="learn_practice_pending">%1$d단계 연습 화면은 준비 중이에요 · %2$s</string>
+    <string name="learn_practice_title">%1$d단계 연습 · %2$s</string>
+    <string name="learn_practice_listen_title">소리 듣기</string>
+    <string name="learn_practice_badge_ready">준비</string>
+    <string name="learn_practice_badge_listening">듣는 중</string>
+    <string name="learn_practice_badge_passed">통과</string>
+    <string name="learn_practice_level">소리 크기</string>
+    <string name="learn_practice_ready">‘듣기 시작’을 누르고 불어 보세요.</string>
+    <string name="learn_practice_waiting">소리를 기다리고 있어요.</string>
+    <string name="learn_practice_sounding">소리가 나고 있어요.</string>
+    <string name="learn_practice_count">%1$d / %2$d번</string>
+    <string name="learn_practice_hold">이번 소리 %1$d.%2$d초 / 2초</string>
+    <string name="learn_practice_cue_counted">좋아요! %1$d번째 소리를 셌어요. 숨을 고르고 다시 불어요.</string>
+    <string name="learn_practice_cue_too_short">2초가 되기 전에 끊겼어요. 한 번 더 길게 불어 봐요.</string>
+    <string name="learn_practice_passed_title">통과했어요!</string>
+    <string name="learn_practice_passed_body">한 소리를 2초 넘게 세 번 냈어요. 완료로 표시하고 다음 단계로 가요.</string>
+    <string name="learn_practice_self_note">이 단계의 음높이·박 판정은 아직 준비 중이에요. 소리 크기만 보여 줘요. 운지를 보며 연습하고 통과 기준을 지켰다면 스스로 완료로 표시해요.</string>
+    <string name="learn_practice_unsupported">이 기기에서는 마이크로 소리를 들을 수 없어요. 연습한 뒤 스스로 완료로 표시해요.</string>
+    <string name="learn_practice_denied">마이크 권한이 없어 소리를 들을 수 없어요. ‘듣기 시작’을 누르면 다시 물어요.</string>
+    <string name="learn_practice_blocked">마이크 권한이 꺼져 있어요. 기기 설정에서 마이크를 허용해 주세요.</string>
+    <string name="learn_practice_failed">마이크를 켜지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인하고 다시 시도해 주세요.</string>
+    <string name="learn_practice_settings_failed">설정을 열 수 없어요. 기기 설정에서 마이크를 허용해 주세요.</string>
+    <string name="learn_practice_privacy">소리 크기만 재고 녹음은 저장하지 않아요.</string>
+    <string name="learn_practice_section_notes">연습할 음</string>
+    <string name="learn_practice_section_how">이렇게 불어요</string>
+    <string name="learn_practice_start">듣기 시작</string>
+    <string name="learn_practice_stop">그만하기</string>
+    <string name="learn_practice_restart">처음부터</string>
+    <string name="learn_practice_open_settings">설정에서 허용하기</string>
+    <string name="learn_practice_finish_next">완료하고 다음 단계</string>
+    <string name="learn_practice_self_done">스스로 확인했어요</string>
 
     <!-- 첫 실행·로그인·회원가입 (S15P31E102-151) -->
     <string name="common_confirm">확인</string>

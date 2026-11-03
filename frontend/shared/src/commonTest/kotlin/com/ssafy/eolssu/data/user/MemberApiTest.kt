@@ -31,7 +31,10 @@ class MemberApiTest {
             respond("""{"isSuccess":true,"result":{"userId":"42"}}""", HttpStatusCode.Created, headersOf(HttpHeaders.ContentType, "application/json"))
         }, ServerAddress.Production)
         val request = Registration("member@example.test", "test-pass1!", "Member", "verified-test", listOf(TermAgreement("17", "v3", true), TermAgreement("19", "v2", false)))
-        assertEquals(MemberResult.Done, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).signUp(request))
+        val member = com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore())
+        assertEquals(MemberResult.Done, ApiAuthRepository(client, null, member, this).signUp(request))
+        // 가입 201은 로그인 쿠키를 함께 주므로 다시 로그인하지 않아도 회원별 요청(연습 세션·연습 시간)을 보낼 수 있어야 한다.
+        assertEquals("42", member.id)
         client.close()
     }
 
@@ -41,7 +44,9 @@ class MemberApiTest {
             val client = createHttpClient(MockEngine {
                 respond("""{"isSuccess":false,"result":{"errorCode":"$code"}}""", HttpStatusCode.BadRequest, headersOf(HttpHeaders.ContentType, "application/json"))
             }, ServerAddress.Production)
-            assertEquals(expected, ApiAuthRepository(client, null, com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), this).signUp(Registration("member@example.test", "test-pass1!", "Member", "old-token", emptyList())))
+            val member = com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore())
+            assertEquals(expected, ApiAuthRepository(client, null, member, this).signUp(Registration("member@example.test", "test-pass1!", "Member", "old-token", emptyList())))
+            assertEquals(null, member.id)
             client.close()
         }
     }

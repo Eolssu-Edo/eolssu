@@ -258,11 +258,12 @@ class PracticeViewModel(
             return
         }
         val song = state.song ?: return
+        val jangdan = song.jangdan ?: return
         _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
         previewJob = viewModelScope.launch {
-            val gak = song.jangdan.gak
+            val gak = jangdan.gak
             while (true) {
-                delay(song.jangdan.cellMillis(_uiState.value.bpm).toLong())
+                delay(jangdan.cellMillis(_uiState.value.bpm).toLong())
                 _uiState.update { it.copy(draft = it.draft.copy(previewBeat = (it.draft.previewBeat + 1) % gak)) }
             }
         }
@@ -495,6 +496,12 @@ class PracticeViewModel(
                     stepJob?.cancel()
                     _uiState.update { it.endRecording() }
                     finishRecorder()
+                    break
+                }
+                if (recorder.interrupted) {
+                    // 시스템이 녹음을 끊었다. 연주 시계만 흐르는 녹음을 보내지 않도록 화면 이탈과 같이 처리한다.
+                    stopAll()
+                    _uiState.update { it.interrupt() }
                     break
                 }
                 val level = recorder.level()

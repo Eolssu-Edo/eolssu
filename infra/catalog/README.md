@@ -1,5 +1,7 @@
 # 기본음·시김새 카탈로그 적재
 
+곡 전체의 악보·모범 음원 적재는 [별도 안내](model-audio.md)를 따른다. 아래는 기본음·시김새 단음 자산의 적재 절차다.
+
 Task S15P31E102-364. [입출력·API 계약](../../docs/specs/reference-audio-catalog.md). 운영 변경 전에 검증된 구현·마이그레이션·자산 게시 결과를 확인한다.
 
 ## SQL 준비
@@ -133,3 +135,20 @@ ssh -o ClearAllForwardings=yes edo1 'sudo python3 /opt/eolssu/ops368-reference-a
 ```
 
 기본 인자 없는 helper 실행은 신규 게시용이며 현재 상태에 재실행하지 않는다. 설정 원본은 같은 root 전용 폴더의 `env.before`와 `compose.before.yml`이다. 이후 다른 배포의 변경이 있는지 먼저 대조하고 필요한 설정만 공용 lock 아래 복구한 뒤 백엔드만 재생성한다. 파일 전체를 출력하거나 현재 설정에 무조건 덮어쓰지 않는다. DB 스키마는 별도 복구 대상이며 V14 checksum1541415930을 repair하지 않는다. 운영 로그는 Docker 중복 캐시가 꺼져 있으므로 root 전용 `/var/log/eolssu/ordinary/eolssu-backend.*.log`에서 확인한다.
+
+## 소금 4곡 채점 켜기
+
+Task S15P31E102-387. S15P31E102-339가 운영 DB에 넣은 소금 아리랑(96)·도라지타령(93)·밀양아리랑(95)·늴리리야(91)에 사람 검수한 숨표와 `provenance.review: reviewed`를 반영하고 `is_scorable`을 켠다. 판본은 교과서가 있으면 교과서(아리랑·도라지타령, `school-textbook-sogeum-p15`·`p16`), 없으면 표준악보집(`ngc-standard-2022-p193`·`p196`)이고, 운영 악보와 음·길이·이벤트 id가 같음을 운영 DB 읽기로 확인했다. 악기 행·율명·게시 상태·`score_version`은 바꾸지 않는다(모범 음원은 같은 `score_version`일 때만 나온다). 근거는 [소금 서비스 4곡 기록](../../docs/knowledge/data/sogeum-service-scores.md)이다.
+
+339 게시 도구로 4곡을 PUBLISHED로 바꾼 뒤 edo1에서 실행한다. 339 적재 도구는 기존 곡의 `is_scorable=0`을 요구하므로 이 도구 뒤에 다시 적재하면 멈춘다.
+
+```sh
+sudo python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-check.json
+sudo python3 enable_sogeum_scoring.py --receipt /tmp/sogeum-scoring-apply.json --apply
+```
+
+기본은 읽기 전용이다. 곡마다 id·출처·`score_version`·삭제 여부와 현재 악보 해시가 도구의 `PLAN`과 같아야 하고, 하나라도 다르면 쓰기 전에 멈춘다. `--apply`는 한 트랜잭션에서 행마다 바뀐 수가 1인지 확인하고 커밋한 뒤 다시 읽어 대조한다. 이미 바뀐 곡은 다시 쓰지 않는다. 결과는 새 receipt 파일에 남는다. 바뀌는 열은 `score_json`·`is_scorable`과 DB가 자동으로 갱신하는 `updated_at`이다. 시간 초과나 연결 오류로 receipt가 `apply-outcome-unknown`이면 서버에서 커밋됐을 수 있으므로, 다시 쓰기 전에 `--apply` 없이 실행해 실제 상태(`pending`이 비었는지)를 확인한다.
+
+```powershell
+python -m unittest discover -s infra/catalog -p "test_enable_sogeum_scoring.py" -v
+```

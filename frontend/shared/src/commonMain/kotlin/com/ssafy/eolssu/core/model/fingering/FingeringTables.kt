@@ -1,10 +1,11 @@
 package com.ssafy.eolssu.core.model.fingering
 
 /*
- * 운지표(와이어프레임 guide-data.js 그대로). 한 줄은 율명 · 이름 · 읽는 법 · 구멍 상태 · 기본 5음 여부.
+ * 운지표. 한 줄은 율명 · 이름 · 읽는 법 · 구멍 상태 · 기본 5음 여부.
  * 정악대금: 국립국악원 『2021 대금정악보』 9쪽 대금 안공표(황=E♭).
  * 소금: 국립국악원 『창작을 위한 국악기 이해와 활용1』 3장 소금 61쪽 [표 1] 향악계곡 안공법.
- * 단소: 같은 교재 2장 단소 25쪽 그림과 국악사전 「단소」. 역취 汰는 자료가 갈려 확인 필요.
+ * 단소: 국립국악원 e국악아카데미 「단소 안공법」(제1공은 뒷구멍, 제2~5공은 앞구멍).
+ * https://academy.gugak.go.kr/dp/pds/HTML5-1-2-2/HTML5-1-2-2-4/index.htm
  */
 
 private fun n(hanja: String, name: String, reading: String, holes: String, basic: Int) =
@@ -63,6 +64,6 @@ internal val DansoTable: Map<Blow, List<FingeringNote>> = mapOf(
     Blow.High to listOf(
         n("㳞", "청중려", "청중", "11110", 1), n("淋", "청임종", "청임", "11100", 1),
         n("潕", "청무역", "청무", "11000", 1), n("㶂", "중청황종", "청황", "10000", 1),
-        n("㶃", "중청태주", "청태", "?????", 1),
+        n("㶃", "중청태주", "청태", "10100", 1),
     ),
 )

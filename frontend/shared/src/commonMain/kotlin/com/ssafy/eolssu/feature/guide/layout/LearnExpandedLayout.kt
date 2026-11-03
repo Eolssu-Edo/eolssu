@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
@@ -64,6 +65,7 @@ internal fun LearnExpandedLayout(
     onBack: () -> Unit,
     listActions: LearnListActions,
     stageActions: LearnStageActions,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     Scaffold(
@@ -111,6 +113,7 @@ internal fun LearnExpandedLayout(
                                 state,
                                 stage,
                                 stageActions,
+                                noteAudioContent,
                                 Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(start = GuideTabletSidePadding, end = outer, bottom = 24.dp),
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,

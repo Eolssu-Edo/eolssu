@@ -924,6 +924,122 @@
       "originalFilename": "도라지타령_정간보_소금_학교교과서-PDF16.pdf",
       "instrument": "sogeum",
       "notes": "학교 교과서 한 쪽(인쇄 85쪽) 발췌. 악보 아래 '국립국악원 악보 / 세마치장단' 표기. 교과서 이름·출판사·이용 조건은 확인하지 못함. S15P31E102-158 소금 정상 연주 채점 정답."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p194",
+      "title": "아리랑 소금 정간보",
+      "sha256": "e7c494c132c8a819a9012ac0926707e37dc12d17d4393738b854c219677da57f",
+      "bytes": 336268,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-02",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p194/아리랑_정간보_소금_표준악보집-PDF194.pdf",
+      "originalFilename": "아리랑_정간보_소금_표준악보집-PDF194.pdf",
+      "instrument": "sogeum",
+      "notes": "책 PDF 194쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 팀 소금 정간보 묶음(sogeum_dataset) 사본. S15P31E102-387 서비스 소금 곡 정답 판본."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p192",
+      "title": "도라지타령 소금 정간보",
+      "sha256": "f6365efe24e8022a95b358ff0b8a83bf8366b8d18ffaf065cb42efc790e7fe00",
+      "bytes": 349374,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-02",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p192/도라지타령_정간보_소금_표준악보집-PDF192.pdf",
+      "originalFilename": "도라지타령_정간보_소금_표준악보집-PDF192.pdf",
+      "instrument": "sogeum",
+      "notes": "책 PDF 192쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 팀 소금 정간보 묶음(sogeum_dataset) 사본. S15P31E102-387 서비스 소금 곡 정답 판본."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p193",
+      "title": "밀양아리랑 소금 정간보",
+      "sha256": "6f72a0a04522e8b07dab69f233ec8f6e0d65775c0f6bdb9ba48f0b42dc02bc2c",
+      "bytes": 410768,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-02",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p193/밀양아리랑_정간보_소금_표준악보집-PDF193.pdf",
+      "originalFilename": "밀양아리랑_정간보_소금_표준악보집-PDF193.pdf",
+      "instrument": "sogeum",
+      "notes": "책 PDF 193쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 팀 소금 정간보 묶음(sogeum_dataset) 사본. S15P31E102-387 서비스 소금 곡 정답 판본."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p196",
+      "title": "늴리리야 소금 정간보",
+      "sha256": "66ba646d46891d26b157ba0a2021aa61b3ca61141fe549cf9a34af9c7ae44b8b",
+      "bytes": 644320,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-02",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p196/닐리리야_정간보_소금_표준악보집-PDF196.pdf",
+      "originalFilename": "닐리리야_정간보_소금_표준악보집-PDF196.pdf",
+      "instrument": "sogeum",
+      "notes": "책 PDF 196쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 팀 소금 정간보 묶음(sogeum_dataset) 사본. S15P31E102-387 서비스 소금 곡 정답 판본."
     }
   ]
 }

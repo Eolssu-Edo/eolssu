@@ -16,7 +16,7 @@ data class Song(
     val id: String,
     val title: String,
     val level: SongLevel,
-    val jangdan: Jangdan,
+    val jangdan: Jangdan?,
     val baseBpm: Int,
     val description: String,
     val evaluable: Boolean,
@@ -26,6 +26,9 @@ data class Song(
     val scoreVersion: Int? = null,
     val noteCount: Int? = null,
 ) {
+    /** 장단 pattern이 연결되지 않아도 원본 악보의 이름은 보존한다. */
+    val jangdanName: String get() = jangdan?.name ?: score.timing?.jangdan.orEmpty()
+
     /** 연주 순서로 펼친 음 목록. */
     val timeline: List<ScoreEvent> by lazy { score.timeline(id) }
 
@@ -35,7 +38,7 @@ data class Song(
     fun cellDurationMs(bpm: Int = baseBpm): Double {
         require(bpm > 0) { "BPM은 양수여야 한다" }
         return score.timing?.let { 60_000.0 / bpm * it.ticksPerJeonggan / it.ticksPerBeat }
-            ?: jangdan.cellMillis(bpm)
+            ?: requireNotNull(jangdan) { "악보 시간 기준 또는 연결 장단이 필요하다" }.cellMillis(bpm)
     }
 
     fun eventDurationMs(event: ScoreEvent, bpm: Int = baseBpm): Double {

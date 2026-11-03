@@ -92,7 +92,7 @@ internal fun SongTitleRow(song: Song, modifier: Modifier = Modifier) {
 internal fun SongInfoGrid(song: Song, modifier: Modifier = Modifier, columns: Int = 2) {
     val items = listOf(
         stringResource(Res.string.song_info_instrument) to songInstrumentLabel(song),
-        stringResource(Res.string.song_info_jangdan) to jangdanLabel(song.jangdan),
+        stringResource(Res.string.song_info_jangdan) to jangdanLabel(song.jangdanName),
         stringResource(Res.string.song_info_bpm) to stringResource(Res.string.song_bpm_value, song.baseBpm),
         stringResource(Res.string.song_info_level) to songLevelLabel(song.level),
     )

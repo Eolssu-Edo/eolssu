@@ -132,6 +132,26 @@ class RecordingSupportTest {
         }
     }
 
+    @Test fun systemInterruptionStopsTheTakeLikeLeavingTheScreen() {
+        val recorder = FakePracticeRecorder()
+        recordingTest(recorder) { vm, _ ->
+            vm.grantMicAndStart()
+            advanceTimeBy(4000)
+            runCurrent()
+            assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+            recorder.interrupted = true
+            advanceTimeBy(200)
+            runCurrent()
+            assertEquals(PracticeMode.Interrupted, vm.uiState.value.mode)
+            assertEquals(1, recorder.cancels)
+            assertNull(vm.takeForEvaluation())
+            vm.restartNow()
+            finishSong(vm)
+            assertEquals(2, recorder.starts)
+            assertEquals(RecordedTake("take.m4a", "take-key"), vm.takeForEvaluation())
+        }
+    }
+
     private fun TestScope.finishSong(vm: PracticeViewModel) {
         advanceTimeBy(3000 + requireNotNull(vm.uiState.value.song).durationMs().toLong() + 100)
         runCurrent()
@@ -169,11 +189,14 @@ class RecordingSupportTest {
 internal class FakePracticeRecorder(private val output: RecordedAudio? = RecordedAudio("take.m4a", 1024)) : AudioRecorder {
     var starts = 0
         private set
+    var cancels = 0
+        private set
+    override var interrupted = false
     override val measuresLevel = false
-    override fun start() { starts++ }
+    override fun start() { starts++; interrupted = false }
     override fun pause() = Unit
     override fun resume() = Unit
     override fun stop() = output
-    override fun cancel() = Unit
+    override fun cancel() { cancels++ }
     override fun level() = 0f
 }
