@@ -93,6 +93,9 @@ class OpenApiConfig {
                     response.addHeaderObject("Location", Header().schema(StringSchema().format("uri")).description("900초 동안 유효한 서명 GET URL"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
                 }
+                if (doc.id == "getNotationSymbolImage") {
+                    response.content = Content().addMediaType("image/svg+xml", MediaType().schema(StringSchema().format("binary")))
+                }
                 if (doc.id == "getModelAudioPerformance") {
                     response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))

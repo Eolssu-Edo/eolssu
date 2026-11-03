@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(67,expected.size)
+        assertEquals(68,expected.size)
         assertTrue(expected.containsAll(setOf("post /api/users/me/sheets", "get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
@@ -88,6 +88,12 @@ open class OpenApiDatabaseTests {
             "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
         assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
+        val symbolImage = doc.path("paths").path("/api/notation-symbols/{symbolId}/image").path("get")
+        assertEquals(0, symbolImage.path("security").size())
+        assertEquals("binary", symbolImage.path("responses").path("200").path("content").path("image/svg+xml").path("schema").path("format").asString())
+        assertTrue(symbolImage.path("responses").has("404"))
+        val symbolProperties = doc.path("components").path("schemas").path("NotationSymbolItem").path("properties")
+        for (field in listOf("source", "descriptionStatus", "imageLicense")) assertTrue(symbolProperties.has(field), field)
         val play = doc.path("paths").path("/api/reference-audios/{assetId}/play").path("get")
         assertEquals(0,play.path("security").size())
         assertFalse(play.path("responses").path("302").has("content"))
