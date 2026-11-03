@@ -22,6 +22,7 @@ data class MySongsUiState(
     val addSheetOpen: Boolean = false,
     val savedSheet: MySheet? = null,
     val addSheetOnReturn: Boolean = false,
+    val instrumentId: String? = null,
 ) {
     val sheetCount: Int get() = sheets?.size ?: 0
 

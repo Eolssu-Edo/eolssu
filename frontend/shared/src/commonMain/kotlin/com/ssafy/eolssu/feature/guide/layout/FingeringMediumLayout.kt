@@ -51,6 +51,7 @@ internal fun FingeringMediumLayout(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     InstrumentDropdown(
+                        options = state.instrumentOptions,
                         selected = instrument,
                         open = state.isDropdownOpen,
                         onToggle = actions.onToggleDropdown,

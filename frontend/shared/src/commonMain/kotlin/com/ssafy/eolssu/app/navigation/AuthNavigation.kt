@@ -38,6 +38,7 @@ import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
 import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
+import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_password_changed
 import eolssu.shared.generated.resources.my_withdrawn
@@ -79,11 +80,16 @@ object AuthDestination {
 
 /** 첫 실행을 마쳤으면 홈, 아니면 약관 동의에서 시작한다. */
 // TEMP S15P31E102-309: bypass only the initial consent screen; never persist consent/completion.
-fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false): String = when {
+fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false, sessionExpired: Boolean = false): String = when {
+    firstRunCompleted && sessionExpired -> AuthDestination.LOGIN
     firstRunCompleted -> EolssuDestination.HOME
     qaSkipConsent -> AuthDestination.MIC
     else -> AuthDestination.CONSENT
 }
+
+/** 복원 중인 일회성 OAuth 완료 요청과 가입 흐름을 초기 세션 확인이 덮지 않는다. */
+internal fun shouldRedirectExpiredSession(route: String?): Boolean =
+    route == AuthDestination.LOGIN || route?.startsWith("auth/") != true
 
 /**
  * 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다.
@@ -102,6 +108,7 @@ enum class StartNotice(val message: StringResource) {
     /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */
     MyAccountLinked(Res.string.my_link_done),
     LoggedOut(Res.string.my_logged_out),
+    SessionExpired(Res.string.member_api_session_expired),
     Withdrawn(Res.string.my_withdrawn),
 }
 
@@ -198,7 +205,7 @@ fun NavGraphBuilder.authGraph(
         val name = entry.savedStateHandle.get<String>("agreement")
         TermsRoute(
             termId = name.orEmpty(),
-            onClose = { navController.popBackStack() },
+            onClose = { navController.popBackStackFrom(entry) },
         )
     }
     composable(AuthDestination.MIC) {
@@ -238,7 +245,7 @@ fun NavGraphBuilder.authGraph(
         val draft = getKoin().get<AccountDraft>()
         OAuthRoute(
             provider = provider,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
             onSocialSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Social)) },
@@ -255,9 +262,9 @@ fun NavGraphBuilder.authGraph(
             onStart = { fromLogin(next.route) },
         )
     }
-    composable(AuthDestination.SOCIAL_PROFILE) {
+    composable(AuthDestination.SOCIAL_PROFILE) { entry ->
         ProfileSetupRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { onFinished(StartNotice.Welcome, null) },
             social = true,
         )
@@ -265,17 +272,17 @@ fun NavGraphBuilder.authGraph(
     composable(
         AuthDestination.LINK,
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
-    ) {
+    ) { entry ->
         AccountLinkRoute(
-            onCancel = { navController.popBackStack() },
+            onCancel = { navController.popBackStackFrom(entry) },
             onFindPassword = { fromLogin(AuthDestination.PASSWORD_RESET) },
             onLinked = { onFinished(StartNotice.AccountLinked, it) },
         )
     }
-    composable(AuthDestination.SIGNUP) {
+    composable(AuthDestination.SIGNUP) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.SignUp,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.SIGNUP_PASSWORD, it) },
         )
     }
@@ -283,20 +290,20 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.SignUp,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { navController.navigate(AuthDestination.PROFILE) },
         )
     }
-    composable(AuthDestination.PROFILE) {
+    composable(AuthDestination.PROFILE) { entry ->
         ProfileSetupRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { onFinished(StartNotice.Welcome, null) },
         )
     }
-    composable(AuthDestination.PASSWORD_RESET) {
+    composable(AuthDestination.PASSWORD_RESET) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.PasswordReset,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.PASSWORD_RESET_NEW, it) },
         )
     }
@@ -304,7 +311,7 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.PasswordReset,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             // 바꾼 뒤 자동 로그인하지 않고 새 로그인 화면에서 다시 로그인한다.
             onDone = {
                 navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.PasswordChanged) {

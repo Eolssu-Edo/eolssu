@@ -55,8 +55,8 @@ class MyPageViewModelTest {
     fun instrumentChangeDoesNotClaimSuccessWithoutServerMapping() = runTest {
         val viewModel = MyPageViewModel(users, instruments, timeQueue, SampleAuthRepository(now = { 0L }))
 
-        assertFalse(viewModel.selectInstrument(Instrument.Danso))
-        assertFalse(viewModel.selectInstrument(Instrument.Daegeum))
+        assertNull(viewModel.selectInstrument(Instrument.Danso))
+        assertEquals(MemberResult.Unavailable, viewModel.selectInstrument(Instrument.DaegeumJeongak))
         assertEquals(Instrument.Danso, viewModel.instrument.value)
         // 앱을 다시 켜면 저장소는 남고 Repository는 새로 만들어진다.
         assertEquals(Instrument.Danso, InstrumentRepository(store).instrument.value)

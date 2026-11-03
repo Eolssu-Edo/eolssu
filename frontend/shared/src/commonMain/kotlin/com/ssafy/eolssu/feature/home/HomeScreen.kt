@@ -11,9 +11,7 @@ import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.feature.home.layout.HomeCompactLayout
-import com.ssafy.eolssu.feature.home.layout.HomeExpandedLayout
-import com.ssafy.eolssu.feature.home.layout.HomeMediumLayout
+import com.ssafy.eolssu.feature.home.layout.HomeScrollLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_feature_fingering
 import eolssu.shared.generated.resources.home_feature_learn
@@ -30,8 +28,8 @@ enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
 }
 
 /**
- * HOME-01. 현재 악기는 보여 주기만 하고 오른쪽 위 아이콘으로 마이페이지에 간다. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
- * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다.
+ * HOME-01. 전체 그림에서 스크롤하면 연습·학습 카드가 나타난다.
+ * 현재 악기는 보여 주기만 하고 오른쪽 위 아이콘으로 마이페이지에 간다.
  */
 @Composable
 fun HomeScreen(
@@ -47,13 +45,6 @@ fun HomeScreen(
         containerColor = EolssuTheme.colors.background,
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        when (widthClass) {
-            WindowWidthClass.Compact ->
-                HomeCompactLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
-            WindowWidthClass.Medium ->
-                HomeMediumLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
-            WindowWidthClass.Expanded ->
-                HomeExpandedLayout(instrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
-        }
+        HomeScrollLayout(instrument, widthClass, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
     }
 }

@@ -5,6 +5,8 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.catalog.application.CatalogReferenceQueries
 import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogJangdan
+import com.ssafy.eolssu.backend.feature.catalog.domain.FingeringPattern
+import com.ssafy.eolssu.backend.feature.notation.infrastructure.BundledNotationSymbols
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -39,7 +41,7 @@ class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
         val pitch = pitchId?.let { positiveId(it) ?: return invalidRequest() }
         val fingerings = queries.fingerings(instrument, pitch) ?: return notFound()
         return success("운지법 목록·특정 음 운지 조회 성공", FingeringListResult(fingerings.map {
-            FingeringItem(it.id.toString(), it.instrumentId.toString(), it.pitchId.toString(), it.imageUrl, it.description)
+            FingeringItem(it.id.toString(), it.instrumentId.toString(), it.pitchId.toString(), it.imageUrl, it.description, it.pattern)
         }, null))
     }
 
@@ -57,8 +59,22 @@ class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
 
     @GetMapping("/notation-symbols")
     fun notationSymbols() = SuccessResponse.of(HttpStatus.OK, "쉼표·연장·시김새 기호 설명 조회 성공", NotationSymbolListResult(
-        queries.notationSymbols().map { NotationSymbolItem(it.id.toString(), it.symbol, it.name, it.description, it.imageUrl) },
+        queries.notationSymbols().map {
+            val content = BundledNotationSymbols.match(it)
+            NotationSymbolItem(it.id.toString(), it.symbol, it.name, it.description,
+                if (content == null) it.imageUrl else "/api/notation-symbols/${it.id}/image",
+                content?.source, content?.descriptionStatus, content?.imageLicense)
+        },
     ))
+
+    @GetMapping("/notation-symbols/{symbolId}/image")
+    fun notationSymbolImage(@PathVariable symbolId: String): ResponseEntity<*> {
+        val id = positiveId(symbolId) ?: return invalidRequest()
+        val stored = queries.notationSymbols().singleOrNull { it.id == id } ?: return notFound()
+        val content = BundledNotationSymbols.match(stored) ?: return notFound()
+        return ResponseEntity.ok().header("Content-Type", "image/svg+xml")
+            .header("X-Content-Type-Options", "nosniff").body(content.image())
+    }
 
     private fun positiveId(value: String) = value.takeIf { it.matches(Regex("[1-9][0-9]{0,18}")) }?.toLongOrNull()
     private fun success(message: String, result: Any) = ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, message, result))
@@ -77,7 +93,7 @@ data class PitchItem(val pitchId: String, val yul: String, val octave: Int, val 
     val semitone: Int, val description: String?, val soundUrl: String?)
 data class FingeringListResult(val items: List<FingeringItem>, val structureImageUrl: String?)
 data class FingeringItem(val fingeringId: String, val instrumentId: String, val pitchId: String,
-    val imageUrl: String?, val description: String?)
+    val imageUrl: String?, val description: String?, val pattern: FingeringPattern?)
 data class JangdanListResult(val items: List<JangdanItem>)
 data class JangdanItem(val jangdanId: String, val name: String, val defaultBpm: Int, val bpmUnit: String,
     val beatCount: Int, val groupCount: Int)
@@ -85,4 +101,5 @@ data class JangdanDetailResult(val jangdanId: String, val name: String, val defa
     val pattern: JangdanPatternResult, val source: String?, val soundUrl: String?)
 data class JangdanPatternResult(val beats: List<String>, val group: List<Int>)
 data class NotationSymbolListResult(val items: List<NotationSymbolItem>)
-data class NotationSymbolItem(val symbolId: String, val symbol: String, val name: String, val description: String, val imageUrl: String?)
+data class NotationSymbolItem(val symbolId: String, val symbol: String, val name: String, val description: String,
+    val imageUrl: String?, val source: String? = null, val descriptionStatus: String? = null, val imageLicense: String? = null)

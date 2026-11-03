@@ -24,7 +24,7 @@ class MyBatisCatalogReferenceRepository(
     override fun pitch(id: Long) = pitches.findById(id)?.let(::pitch)
     override fun pitches(lowSemitone: Int?, highSemitone: Int?) = pitches.listInRange(lowSemitone, highSemitone).map(::pitch)
     override fun fingerings(instrumentId: Long, pitchId: Long?) = fingerings.listForInstrument(instrumentId, pitchId).map {
-        CatalogFingering(it.id, it.instrumentId, it.pitchId, it.imageUrl, it.description)
+        CatalogFingering(it.id, it.instrumentId, it.pitchId, it.imageUrl, it.description, it.patternJson?.let(::fingeringPattern))
     }
     override fun jangdans() = jangdans.listAll().map(::jangdan)
     override fun jangdan(id: Long) = jangdans.findById(id)?.let(::jangdan)
@@ -36,6 +36,26 @@ class MyBatisCatalogReferenceRepository(
         row.id, row.code, row.name, row.pitchToleranceCent.toInt(), row.rangeLowPitchId, row.rangeHighPitchId,
     )
     private fun pitch(row: PitchRow) = CatalogPitch(row.id, row.yul, row.octave.toInt(), row.hanja, row.hangul, row.semitone.toInt())
+    private fun fingeringPattern(value: String): FingeringPattern {
+        val node = json.readTree(value)
+        check(node.isObject) { "Stored fingering pattern must be an object" }
+        fun text(key: String): String {
+            val field = node.path(key)
+            check(field.isString) { "Stored fingering pattern has an invalid text field" }
+            return field.asString()
+        }
+        val holes = node.path("holes")
+        val basic = node.path("basic")
+        val hwang = node.path("nominalHwangPitchClass")
+        check(holes.isArray && holes.toList().all { it.isString } && basic.isBoolean &&
+            hwang.isIntegralNumber && hwang.canConvertToInt()) { "Stored fingering pattern has invalid fields" }
+        return FingeringPattern(
+            FingeringBlow.valueOf(text("blow")), text("hanja"), text("name"), text("reading"),
+            holes.toList().map { FingeringHole.valueOf(it.asString()) }, basic.asBoolean(),
+            text("source"), text("instrumentNote"), hwang.asInt(), text("verificationStatus"),
+        )
+    }
+
     private fun jangdan(row: JangdanRow): CatalogJangdan {
         val pattern = json.readTree(row.pattern)
         check(pattern.isObject && pattern.path("beats").isArray && pattern.path("group").isArray) {

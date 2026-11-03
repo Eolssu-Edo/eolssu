@@ -43,16 +43,17 @@ class LearnProgressRepositoryTest {
 
         assertEquals(5, repository.doneStageCount(Instrument.Danso))
         assertEquals(1, repository.doneStageCount(Instrument.Sogeum))
-        assertEquals(0, repository.doneStageCount(Instrument.Daegeum))
+        assertEquals(0, repository.doneStageCount(Instrument.DaegeumJeongak))
     }
 
     @Test
-    fun daegeumCountsStagesDoneInJeongakOrSanjo() {
+    fun daegeumVariantsCountTheirOwnStages() {
         val repository = LearnProgressRepository(FakeKeyValueStore())
         repository.saveDoneStages("daegeum-jeongak", setOf(1, 2, 3))
         repository.saveDoneStages("daegeum-sanjo", setOf(3, 4))
 
-        assertEquals(4, repository.doneStageCount(Instrument.Daegeum))
+        assertEquals(3, repository.doneStageCount(Instrument.DaegeumJeongak))
+        assertEquals(2, repository.doneStageCount(Instrument.DaegeumSanjo))
     }
 
     @Test

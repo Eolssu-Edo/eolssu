@@ -8,19 +8,26 @@ import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /** CAT01/02 메타데이터와 CAT04 정본 악보. 식별자·버전·정수 tick을 보존한다. */
 class ApiSongRepository(private val client: HttpClient) : SongRepository {
-    override suspend fun getSongs(): List<SongSummary> {
-        val response = client.sendOrNull { get("/api/songs") } ?: throw CatalogUnavailable()
+    override suspend fun getInstruments() = InstrumentCatalog(client).load()
+
+    override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
+        if (instrumentId != null && !validCatalogId(instrumentId)) throw CatalogUnavailable()
+        val response = client.sendOrNull {
+            get("/api/songs") { instrumentId?.let { parameter("instrumentId", it) } }
+        } ?: throw CatalogUnavailable()
         if (response.status.value != 200) throw CatalogUnavailable()
         val items = response.apiResponse<SongListResponse>()?.takeIf { it.isSuccess }?.result?.items
             ?: throw CatalogUnavailable()
         val songs = items.map { it.summary() }
         if (songs.map { it.id }.distinct().size != songs.size) throw CatalogUnavailable()
+        if (instrumentId != null && songs.any { it.instrumentId != instrumentId }) throw CatalogUnavailable()
         return songs
     }
 

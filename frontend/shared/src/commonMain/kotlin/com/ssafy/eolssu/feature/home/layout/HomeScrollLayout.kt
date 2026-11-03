@@ -1,0 +1,271 @@
+package com.ssafy.eolssu.feature.home.layout
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.feature.home.HomeFeature
+import com.ssafy.eolssu.feature.home.HomeScrollRange
+import com.ssafy.eolssu.feature.home.homeScrollFrame
+import com.ssafy.eolssu.feature.home.homeSnapTarget
+import com.ssafy.eolssu.feature.home.mix
+import com.ssafy.eolssu.feature.home.rememberHomeEnvironment
+import com.ssafy.eolssu.feature.home.component.FeatureSection
+import com.ssafy.eolssu.feature.home.component.HomeInkButton
+import com.ssafy.eolssu.feature.home.component.InstrumentPlate
+import com.ssafy.eolssu.feature.home.component.LogoPlate
+import com.ssafy.eolssu.feature.home.component.MyPagePlate
+import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.home_hero_body
+import eolssu.shared.generated.resources.home_hero_title
+import eolssu.shared.generated.resources.home_illustration
+import eolssu.shared.generated.resources.home_scroll_to_features
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/** 고정된 그림·본문 무대를 400dp 스크롤로 펼친 뒤, 낮은 창에서는 카드 끝까지 계속 스크롤한다. */
+@Composable
+internal fun HomeScrollLayout(
+    instrument: Instrument?,
+    widthClass: WindowWidthClass,
+    onOpenMyPage: () -> Unit,
+    onStartEvaluation: () -> Unit,
+    onFeatureClick: (HomeFeature) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    val scroll = rememberScrollState()
+    val dragged by scroll.interactionSource.collectIsDraggedAsState()
+    val scope = rememberCoroutineScope()
+    val environment = rememberHomeEnvironment()
+    val reduceMotion = environment.reduceMotion || scope.coroutineContext[MotionDurationScale]?.scaleFactor == 0f
+    var wasOpen by remember { mutableStateOf(false) }
+    var snapping by remember { mutableStateOf(false) }
+    val bounce = remember { Animatable(0f) }
+    val rangePx = with(density) { HomeScrollRange.dp.roundToPx() }
+    suspend fun goTo(target: Int) {
+        snapping = true
+        try {
+            if (reduceMotion) scroll.scrollTo(target) else scroll.animateScrollTo(target, tween(500))
+            wasOpen = target >= rangePx
+        } finally { snapping = false }
+    }
+    LaunchedEffect(scroll, density, reduceMotion) {
+        var dragGesture = false
+        snapshotFlow { Triple(scroll.value, scroll.isScrollInProgress, dragged) }.collectLatest { (value, busy, touching) ->
+            if (touching) dragGesture = true
+            if (value >= rangePx) wasOpen = true
+            if (value == 0) wasOpen = false
+            if (busy || touching || snapping) return@collectLatest
+            // 드래그·관성 종료는 이미 확인됐으므로 바로 이어 간다. 휠 이벤트 사이는 기다린다.
+            if (!dragGesture) delay(160)
+            val target = with(density) { homeSnapTarget(value / density.density, wasOpen).dp.roundToPx() }
+            dragGesture = false
+            if (target != value) scope.launch { goTo(target) }
+        }
+    }
+    LaunchedEffect(reduceMotion) {
+        if (reduceMotion) bounce.snapTo(0f)
+        else bounce.animateTo(6f, infiniteRepeatable(tween(1000), RepeatMode.Reverse))
+    }
+    BoxWithConstraints(modifier.fillMaxSize().clipToBounds().background(HomeGround)) {
+        val w = maxWidth.value
+        val h = maxHeight.value
+        val expanded = widthClass == WindowWidthClass.Expanded
+        val medium = widthClass == WindowWidthClass.Medium
+        val side = if (expanded || medium) 40f else 20f
+        val contentW = (w - side * 2).coerceAtMost(1120f)
+        val contentLeft = (w - contentW) / 2
+        val finalHeroW = if (expanded) contentW * .52f else w
+        val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
+        var buttonH by remember { mutableFloatStateOf(56.5f) }
+        var headlineH by remember { mutableFloatStateOf(100f) }
+        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 230f else 390f) }
+        val s = scroll.value / density.density
+        val frame = homeScrollFrame(w, h, s, buttonH)
+        val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
+            else frame.buttonTop + buttonH + 16f + 76f * (1 - frame.eased)
+        val featureEndTop = if (expanded) 140f else frame.bandHeight + 12f + buttonH + 16f
+        val overflow = (maxOf(featureEndTop + featureH + 34f, frame.bandHeight + buttonH + 58f) - h).coerceAtLeast(0f)
+        val artWidth = mix(w, finalHeroW, frame.eased)
+        val artLeft = if (expanded) contentLeft * frame.eased else 0f
+        val openFeatures = frame.progress > .6f
+        val open: () -> Unit = { scope.launch { goTo(rangePx) } }
+        Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+            Box(Modifier.fillMaxWidth().height((h + HomeScrollRange + overflow).dp)) {
+                Box(
+                    Modifier.offset { IntOffset(0, minOf(scroll.value, rangePx)) }
+                        .fillMaxWidth().height((h + overflow).dp),
+                ) {
+                    HomeArt(
+                        artWidth, artLeft, frame.artScale,
+                        if (expanded) mix(-200f * w / 390f, (frame.bandHeight - finalHeroW * 1448f / 1086f) * .62f, frame.eased) else frame.artY,
+                        mix(.18f, .5f, frame.eased), frame.groundTop, frame.eased,
+                        Modifier.fillMaxSize().clickable(
+                            interactionSource = remember { MutableInteractionSource() }, indication = null,
+                            enabled = frame.progress < .6f, onClick = open,
+                        ).clearAndSetSemantics {},
+                    )
+                    if (expanded) {
+                        // 넓은 창의 끝 배치: 왼쪽 그림·CTA와 오른쪽 2×2 카드.
+                        Box(Modifier.offset(x = (contentLeft + finalHeroW + 24f).dp)
+                            .width((contentW - finalHeroW).dp).height((h + overflow).dp)
+                            .graphicsLayer { alpha = frame.eased }.background(HomeGround))
+                    }
+                    Column(
+                        Modifier.offset(x = artLeft.dp, y = (frame.headlineBottom - headlineH).dp)
+                            .width(artWidth.dp).padding(horizontal = 20.dp)
+                            .onSizeChanged { headlineH = it.height / density.density }
+                            .graphicsLayer {
+                                transformOrigin = TransformOrigin(1f, 1f)
+                                scaleX = frame.headlineScale; scaleY = frame.headlineScale
+                            },
+                        horizontalAlignment = Alignment.End,
+                    ) {
+                        Text(stringResource(Res.string.home_hero_title),
+                            style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 32.5.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 20f)),
+                            color = HomeGround, textAlign = TextAlign.End)
+                        Text(stringResource(Res.string.home_hero_body), Modifier.padding(top = 6.dp),
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 12f)),
+                            color = Color(0xFFF2E6CE), textAlign = TextAlign.End)
+                    }
+                    Row(Modifier.offset(x = contentLeft.dp, y = 56.dp).width(contentW.dp), verticalAlignment = Alignment.CenterVertically) {
+                        LogoPlate()
+                        Spacer(Modifier.weight(1f))
+                        InstrumentPlate(instrument, Modifier.padding(end = 8.dp))
+                        MyPagePlate(onOpenMyPage)
+                    }
+                    val buttonLeft = mix((w - buttonW) / 2f,
+                        if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
+                    HomeInkButton(
+                        onClick = onStartEvaluation,
+                        darkBackground = frame.darkBehindButton,
+                        scrollProgress = frame.progress,
+                        reduceMotion = reduceMotion,
+                        modifier = Modifier.offset(x = buttonLeft.dp, y = frame.buttonTop.dp).width(buttonW.dp)
+                            .heightIn(min = (buttonW * 50f / 310f).dp)
+                            .onSizeChanged { buttonH = it.height / density.density },
+                    )
+                    if (openFeatures) {
+                        FeatureSection(onFeatureClick,
+                            columns = if (medium) 4 else 2, cardMinHeight = 150.dp,
+                            large = medium || expanded,
+                            modifier = Modifier.offset(
+                                x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
+                                y = featureTop.dp,
+                            ).width((if (expanded) contentW - finalHeroW - 40f else contentW).dp)
+                                .onSizeChanged { featureH = it.height / density.density }
+                                .graphicsLayer { alpha = ((frame.progress - .6f) / .25f).coerceIn(0f, 1f) },
+                        )
+                    }
+                    if (frame.arrowAlpha > 0f) {
+                        Box(
+                            Modifier.offset(x = ((w - 48f) / 2f).dp, y = (h - 82f).dp).size(48.dp)
+                                .graphicsLayer { alpha = frame.arrowAlpha }
+                                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.home_scroll_to_features), onClick = open),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(EolssuIcons.ChevronDown, stringResource(Res.string.home_scroll_to_features),
+                                Modifier.offset(y = bounce.value.dp).size(28.dp), tint = HomeGround)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 원본 그림의 비율·잘림을 직접 그린다. CSS mask 대신 아래에서 올라오는 흰 그라데이션을 겹친다. */
+@Composable
+private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Float, ground: Float, progress: Float, modifier: Modifier) {
+    val painter = painterResource(Res.drawable.home_illustration)
+    val density = LocalDensity.current.density
+    Canvas(modifier) {
+        val d = density
+        drawRect(lerp(HomeNight, HomeGround, progress))
+        val imageW = width * scale * d
+        val imageH = imageW * 1448f / 1086f
+        val imageTop = artY * d
+        val imageBottom = imageTop + imageH
+        clipRect(left = left * d, right = (left + width) * d) {
+            translate(left * d + (width * d - imageW) * x, imageTop) {
+                with(painter) { draw(androidx.compose.ui.geometry.Size(imageW, imageH)) }
+            }
+            drawRect(Brush.verticalGradient(
+                0f to Color.Transparent, 1f to HomeNight,
+                startY = imageBottom - 118f * d, endY = imageBottom,
+            ))
+            drawRect(Brush.linearGradient(
+                .52f to Color.Transparent, .88f to Color(0x9E141824),
+                start = Offset(left * d, 0f), end = Offset((left + width) * d, ground * d),
+            ), size = androidx.compose.ui.geometry.Size(size.width, ground * d))
+        }
+        drawRect(Brush.verticalGradient(
+            0f to Color.Transparent, 1f to HomeGround,
+            startY = (ground - 60f) * d, endY = (ground + 30f) * d,
+        ))
+    }
+}
+
+private val HomeNight = Color(0xFF1B2233)
+private val HomeGround = Color(0xFFF9FAF9)

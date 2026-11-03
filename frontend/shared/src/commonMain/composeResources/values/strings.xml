@@ -1,4 +1,5 @@
 <resources>
+    <string name="home_scroll_to_features">연습·학습하기로 내려가기</string>
     <string name="jangdan_unassigned">장단 미지정</string>
     <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
     <string name="common_close">닫기</string>
@@ -358,6 +359,9 @@
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
     <string name="guide_instrument_label">악기</string>
     <string name="guide_instrument_select">악기 선택</string>
+    <string name="guide_instruments_loading">악기 목록을 불러오고 있어요.</string>
+    <string name="guide_instruments_failed">악기 목록을 불러오지 못했어요. 다시 시도해 주세요.</string>
+    <string name="guide_instruments_empty">운지법을 볼 수 있는 악기가 아직 없어요.</string>
     <string name="guide_instrument_danso">단소</string>
     <string name="guide_instrument_sogeum">소금</string>
     <string name="guide_instrument_daegeum_jeongak">정악대금</string>

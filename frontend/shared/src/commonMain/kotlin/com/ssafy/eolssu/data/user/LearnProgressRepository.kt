@@ -31,7 +31,7 @@ class LearnProgressRepository(private val store: KeyValueStore) {
 
     /**
      * 연습 악기로 완료 표시한 단계 수(연습 기록지 '완료한 단계'). 학습 화면은 대금을 정악·산조로 나누므로,
-     * 대금은 둘 중 하나라도 완료한 단계를 센다.
+     * 정악·산조의 완료 단계는 별도로 센다.
      */
     fun doneStageCount(instrument: Instrument): Int =
         instrument.learnIds.flatMap(::doneStages).filter { it in 1..STAGE_COUNT }.toSet().size
@@ -49,7 +49,8 @@ class LearnProgressRepository(private val store: KeyValueStore) {
 /** 학습 화면 악기 식별자(`GuideInstrument.id`). */
 private val Instrument.learnIds: List<String>
     get() = when (this) {
-        Instrument.Daegeum -> listOf("daegeum-jeongak", "daegeum-sanjo")
+        Instrument.DaegeumJeongak -> listOf("daegeum-jeongak")
+        Instrument.DaegeumSanjo -> listOf("daegeum-sanjo")
         Instrument.Sogeum -> listOf("sogeum")
         Instrument.Danso -> listOf("danso")
     }

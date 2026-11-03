@@ -110,6 +110,12 @@ internal fun ReadingCatalogDialog(state: ReadingCatalogUiState, onJangdansRetry:
                 state.symbols.forEach { symbol ->
                     GuideText("${symbol.symbol} · ${symbol.name}", style = MaterialTheme.typography.titleMedium)
                     GuideText(symbol.description)
+                    when (symbol.descriptionStatus) {
+                        "INFERRED" -> GuideText(stringResource(Res.string.guide_catalog_symbol_inferred))
+                        "EDUCATIONAL" -> GuideText(stringResource(Res.string.guide_catalog_symbol_educational))
+                    }
+                    symbol.source?.let { GuideText(it, style = MaterialTheme.typography.bodySmall) }
+                    symbol.imageLicense?.let { Text(stringResource(Res.string.guide_catalog_symbol_license, it), style = MaterialTheme.typography.bodySmall) }
                     CatalogLink(symbol.imageUrl, stringResource(Res.string.guide_catalog_symbol_image))
                 }
             }

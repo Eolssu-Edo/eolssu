@@ -128,10 +128,11 @@ fun EolssuNavHost(
     browserBackGuard: BrowserBackGuard? = null,
     // TEMP S15P31E102-309: remove together with the startDestination branch.
     qaSkipConsent: Boolean = false,
+    sessionExpired: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember(qaSkipConsent) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent) }
+    val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
@@ -159,7 +160,7 @@ fun EolssuNavHost(
             composable(EolssuDestination.SONG_LIST) { entry ->
                 val pickSongId by entry.savedStateHandle.getStateFlow<String?>(PICK_SONG_KEY, null).collectAsStateWithLifecycle()
                 SongListRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
                     onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
                     pickSongId = pickSongId,
@@ -177,7 +178,7 @@ fun EolssuNavHost(
                 }
                 SongDetailRoute(
                     songId = songId,
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
                 )
             }
@@ -200,7 +201,7 @@ fun EolssuNavHost(
                     songId = songId,
                     solo = entry.savedStateHandle.get<Boolean>("solo") ?: false,
                     showSwitchedNotice = entry.savedStateHandle.get<Boolean>("switched") ?: false,
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onGoHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     onSwitchToEval = {
                         navController.navigate(EolssuDestination.practice(songId, switched = true)) {
@@ -244,7 +245,7 @@ fun EolssuNavHost(
                             popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
                         }
                     },
-                    onBackToPractice = { navController.popBackStack() },
+                    onBackToPractice = { navController.popBackStackFrom(entry) },
                     onExit = { exit ->
                         when (exit) {
                             AnalysisExit.SessionGone -> if (!navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false)) {
@@ -261,8 +262,8 @@ fun EolssuNavHost(
             ) { entry ->
                 ResultRoute(
                     evaluationId = entry.savedStateHandle.get<String>("evaluationId").orEmpty(),
-                    onBack = { navController.popBackStack() },
-                    onPracticeAgain = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
+                    onPracticeAgain = { navController.popBackStackFrom(entry) },
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
@@ -280,7 +281,7 @@ fun EolssuNavHost(
             ) { entry ->
                 RecordListRoute(
                     justSavedId = entry.savedStateHandle.get<String>("saved"),
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
                 )
@@ -294,7 +295,7 @@ fun EolssuNavHost(
                 if (currentWindowLayout().widthClass == WindowWidthClass.Expanded) {
                     RecordListRoute(
                         justSavedId = null,
-                        onBack = { navController.popBackStack() },
+                        onBack = { navController.popBackStackFrom(entry) },
                         onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                         onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
                         initialRecordId = recordId,
@@ -302,14 +303,14 @@ fun EolssuNavHost(
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
-                        onBack = { navController.popBackStack() },
+                        onBack = { navController.popBackStackFrom(entry) },
                     )
                 }
             }
-            composable(EolssuDestination.GROWTH) {
+            composable(EolssuDestination.GROWTH) { entry ->
                 GrowthRoute(
-                    onBack = { navController.popBackStack() },
-                    onOpenRecords = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
+                    onOpenRecords = { navController.popBackStackFrom(entry) },
                     onOpenSteps = { navController.navigate(EolssuDestination.LEARN) },
                 )
             }
@@ -324,7 +325,7 @@ fun EolssuNavHost(
             ) { entry ->
                 val blowName = entry.savedStateHandle.get<String>("blow")
                 FingeringRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     instrument = GuideInstrument.fromId(entry.savedStateHandle.get<String>("instrument")) ?: GuideInstrument.Default,
                     blow = Blow.entries.firstOrNull { it.name == blowName } ?: Blow.Mid,
                 )
@@ -334,7 +335,7 @@ fun EolssuNavHost(
                 arguments = listOf(navArgument("page") { type = NavType.StringType; defaultValue = "" }),
             ) { entry ->
                 ReadingRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     initialPage = ReadingPage.fromId(entry.savedStateHandle.get<String>("page")),
                 )
             }
@@ -349,7 +350,7 @@ fun EolssuNavHost(
                 composable(EolssuDestination.LEARN_LIST) { entry ->
                     LearnListRoute(
                         viewModel = learnViewModel(navController, entry),
-                        onBack = { navController.popBackStack() },
+                        onBack = { navController.popBackStackFrom(entry) },
                         onOpenStage = { navController.navigate(EolssuDestination.learnStage(it)) },
                         navigation = learnNavigation,
                     )
@@ -361,7 +362,7 @@ fun EolssuNavHost(
                     LearnStageRoute(
                         stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
                         viewModel = learnViewModel(navController, entry),
-                        onBack = { navController.popBackStack() },
+                        onBack = { navController.popBackStackFrom(entry) },
                         // 이전·다음 단계는 단계 상세를 바꿔 끼워, 뒤로 가기가 항상 단계 목록으로 간다.
                         onOpenStage = { stage ->
                             navController.navigate(EolssuDestination.learnStage(stage)) { popUpTo(EolssuDestination.LEARN_LIST) }
@@ -384,7 +385,7 @@ fun EolssuNavHost(
                     LearnPracticeRoute(
                         stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 3,
                         learnViewModel = learnViewModel(navController, entry),
-                        onBack = { navController.popBackStack() },
+                        onBack = { navController.popBackStackFrom(entry) },
                         // 완료로 표시하면 연습과 그 단계 상세를 다음 단계 상세로 바꿔 끼운다(주소로 바로 들어와 목록이 없어도 연습으로 돌아가지 않게).
                         // 태블릿 가로처럼 목록에서 바로 연 연습이면 바꿔 끼울 상세가 없어 다음 단계 상세가 목록으로 돌아가 그 단계를 고른다. 마지막 단계면 목록으로 돌아간다.
                         onCompleted = { next ->
@@ -407,16 +408,16 @@ fun EolssuNavHost(
             )
 
             // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
-            composable(EolssuDestination.MY_SONGS) {
+            composable(EolssuDestination.MY_SONGS) { entry ->
                 MySongsRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
                     onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
                 )
             }
-            composable(EolssuDestination.PDF_UPLOAD) {
+            composable(EolssuDestination.PDF_UPLOAD) { entry ->
                 PdfUploadRoute(
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onNext = { navController.navigate(EolssuDestination.pdfPreview(it)) },
                 )
             }
@@ -426,7 +427,7 @@ fun EolssuNavHost(
             ) { entry ->
                 PdfPreviewRoute(
                     uploadId = entry.savedStateHandle.get<String>("uploadId").orEmpty(),
-                    onBack = { navController.popBackStack() },
+                    onBack = { navController.popBackStackFrom(entry) },
                     onSaved = { navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) },
                 )
             }
@@ -438,7 +439,22 @@ fun EolssuNavHost(
         )
     }
     OAuthReturnEffect(navController)
-    LaunchedEffect(navController) { onNavHostReady(navController) }
+    LaunchedEffect(navController) {
+        // Web 연결은 주소를 먼저 적용한 뒤 계속 수집하므로, 끝나기를 기다리지 않는다.
+        launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { onNavHostReady(navController) }
+        if (sessionExpired && shouldRedirectExpiredSession(navController.currentBackStackEntry?.destination?.route))
+            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+            popUpTo(navController.graph.id) { inclusive = true }
+        }
+    }
+}
+
+/**
+ * [entry] 화면이 맨 위일 때만 한 화면 뒤로 간다. 화면의 뒤로 가기·닫기는 이것으로 연결한다.
+ * 화면이 바뀌는 동안 떠나는 화면의 버튼이 한 번 더 눌리면 그 아래 화면까지 꺼내, 첫 화면에서는 쌓인 화면이 비어 흰 화면이 된다.
+ */
+internal fun NavController.popBackStackFrom(entry: NavBackStackEntry) {
+    if (currentBackStackEntry?.id == entry.id) popBackStack()
 }
 
 /** 곡 목록 경로에 두 칸 화면에서 직접 고른 것으로 둘 곡을 넘기는 키. */

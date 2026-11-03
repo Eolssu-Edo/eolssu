@@ -1,0 +1,443 @@
+[
+  {
+    "symbol": "ㅡ",
+    "name": "연장",
+    "description": "이어요",
+    "asset": "hold",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 쉽게 읽기 · 음의 길이",
+    "imageLicense": null
+  },
+  {
+    "symbol": "△",
+    "name": "쉼표",
+    "description": "쉬어요",
+    "asset": "rest",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 쉽게 읽기 · 음의 길이",
+    "imageLicense": null
+  },
+  {
+    "symbol": "추성",
+    "name": "추성",
+    "description": "끝을 올려요",
+    "asset": "sig_bend_up",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "미는표",
+    "name": "미는표",
+    "description": "밑에서 밀어 올려요",
+    "asset": "sig_push",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "퇴성",
+    "name": "퇴성",
+    "description": "아래 음으로 꺾어 내려요",
+    "asset": "sig_bend_down",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "흘림표",
+    "name": "흘림표",
+    "description": "끝을 흐리며 흘려 내려요",
+    "asset": "sig_flow",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "요성표",
+    "name": "요성·농음",
+    "description": "위아래로 떨어요",
+    "asset": "sig_shake",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "농음표",
+    "name": "요성·농음",
+    "description": "위아래로 떨어요",
+    "asset": "sig_vib",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니레",
+    "name": "니레",
+    "description": "한 음 위를 스쳐요",
+    "asset": "sig_nire",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니라",
+    "name": "니라",
+    "description": "두 음 위를 스쳐요",
+    "asset": "sig_nina",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니로",
+    "name": "니로",
+    "description": "세 음 위를 스쳐요",
+    "asset": "sig_niro",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노니로",
+    "name": "노니로",
+    "description": "본음·위 음을 굴려요",
+    "asset": "sig_noniro",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "끊는표",
+    "name": "끊는표",
+    "description": "짧게 끊어요",
+    "asset": "sig_staccato",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "늘임표",
+    "name": "늘임표",
+    "description": "2~3배 늘여요",
+    "asset": "sig_fermata",
+    "descriptionStatus": "EDUCATIONAL",
+    "source": "얼쑤 정간보 학습 안내 · 교육용 설명(전공자 검수 전); 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "겹흘림표",
+    "name": "겹흘림표",
+    "description": "소리 끝을 흘려 내리다가 다시 올려 쳐 내려요",
+    "asset": "sig_flow_rep",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "풀어내림표",
+    "name": "풀어내림표",
+    "description": "높은 음에서 낮은 음으로 옮길 때 흔들며 차차 풀어 내려요",
+    "asset": "sig_vib_long",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "떠이어표",
+    "name": "떠이어표",
+    "description": "특히 강하게 튀기며 굴려 내요",
+    "asset": "sig_roll",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "나니나",
+    "name": "나니나",
+    "description": "본음 · 한 음 위 · 본음을 같은 길이로 내요",
+    "asset": "sig_nanina",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "나느나",
+    "name": "나느나",
+    "description": "본음 · 한 음 아래 · 본음을 같은 길이로 내요",
+    "asset": "sig_naneuna",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노네",
+    "name": "노네",
+    "description": "한 음 아래 음을 짧게 먼저 내요",
+    "asset": "sig_none",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "너녜",
+    "name": "너녜",
+    "description": "두 음 아래 음을 짧게 먼저 내요",
+    "asset": "sig_neonye",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노리노",
+    "name": "노리노",
+    "description": "본음 · 두 음 위를 짧게, 본음을 길게 내요",
+    "asset": "sig_norino",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "네로네",
+    "name": "네로네",
+    "description": "본음 · 한 음 아래를 짧게, 본음을 길게 내요",
+    "asset": "sig_nerone",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느네느",
+    "name": "느네느",
+    "description": "본음 · 두 음 위를 짧게, 본음을 길게 내요",
+    "asset": "sig_neuneneu",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "나니로",
+    "name": "나니로",
+    "description": "한 음 아래 · 한 음 위를 짧게, 본음을 길게 내요",
+    "asset": "sig_naniro",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느로니르",
+    "name": "느로니르",
+    "description": "본음 · 한 음 아래 · 한 음 위를 짧게, 본음을 길게 내요",
+    "asset": "sig_neuronireu",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느니르",
+    "name": "느니르",
+    "description": "한 음 아래를 짧게, 본음을 길게, 다시 한 음 아래를 짧게 내요",
+    "asset": "sig_neunireu",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니루니",
+    "name": "니루니",
+    "description": "한 음 위를 짧게, 본음을 길게, 다시 한 음 위를 짧게 내요",
+    "asset": "sig_niruni",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "나니르노니르",
+    "name": "나니르노니르",
+    "description": "나니로(한 음 아래 · 한 음 위)와 로니로(두 음 아래 · 한 음 위)를 합쳐 꾸며요",
+    "asset": "sig_nanireunonireu",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "특강표",
+    "name": "특강표",
+    "description": "그 음을 특히 강하게 내요",
+    "asset": "sig_accent",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "덧길이표",
+    "name": "덧길이표",
+    "description": "적힌 길이보다 길게 내요",
+    "asset": "sig_len_double",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "반길이표",
+    "name": "반길이표",
+    "description": "적힌 길이보다 짧게 내고, 줄인 만큼 덧길이표 자리에서 늘려요",
+    "asset": "sig_len_half",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노",
+    "name": "노",
+    "description": "한 음 아래 음을 칸 길이만큼 내요",
+    "asset": "sig_no",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니",
+    "name": "니",
+    "description": "한 음 위 음을 칸 길이만큼 내요",
+    "asset": "sig_ni",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "로",
+    "name": "로",
+    "description": "두 음 아래 음을 칸 길이만큼 내요",
+    "asset": "sig_ro",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "리",
+    "name": "리",
+    "description": "두 음 위 음을 칸 길이만큼 내요",
+    "asset": "sig_ri",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니나",
+    "name": "니나",
+    "description": "한 음 위 · 본음을 칸 안에서 똑같이 나눠 내요",
+    "asset": "sig_nina_dur",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느나",
+    "name": "느나",
+    "description": "한 음 아래 · 본음을 칸 안에서 똑같이 나눠 내요",
+    "asset": "sig_neuna",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노라",
+    "name": "노라",
+    "description": "한 음 아래 · 두 음 아래를 칸 안에서 나눠 내요",
+    "asset": "sig_nora",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느니",
+    "name": "느니",
+    "description": "한 음 위 · 두 음 위를 칸 안에서 나눠 내요",
+    "asset": "sig_neuni",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "노라느니",
+    "name": "노라느니",
+    "description": "한 음 아래 · 두 음 아래 · 한 음 위 · 두 음 위를 나눠 내요",
+    "asset": "sig_noraneuni",
+    "descriptionStatus": "INFERRED",
+    "source": "우물사이 기호 사전 (추정); 공식 정의 미확인; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니레나",
+    "name": "니레나",
+    "description": "두 음 위 · 한 음 위 · 본음을 칸 안에서 나눠 내요",
+    "asset": "sig_nirena",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "네로나",
+    "name": "네로나",
+    "description": "한 음 · 두 음 · 세 음 아래를 칸 안에서 똑같이 나눠 내요",
+    "asset": "sig_nerona",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니로나",
+    "name": "니로나",
+    "description": "한 음 위 · 본음 · 한 음 아래를 칸 안에서 나눠 내요",
+    "asset": "sig_nirona",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "니느라니",
+    "name": "니느라니",
+    "description": "한 음 위 · 본음 · 한 음 아래 · 본음을 나눠 내요",
+    "asset": "sig_nineurani",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느나니나",
+    "name": "느나니나",
+    "description": "한 음 아래 · 본음 · 한 음 위 · 본음을 나눠 내요",
+    "asset": "sig_neunanina",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국어원 한국 음악 점자 규정 해설 제16~19항; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "느나르나니",
+    "name": "느나르나니",
+    "description": "한 음 위 · 두 음 위 · 한 음 위 · 본음 · 한 음 아래를 똑같이 나눠 내요",
+    "asset": "sig_neunareunani",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "겹요성표",
+    "name": "겹요성표",
+    "description": "본음과 한 음 위로 요성을 두 번 해요",
+    "asset": "sig_shake_rep",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  },
+  {
+    "symbol": "같은음표",
+    "name": "같은음표",
+    "description": "같은 율명이나 가락을 다시 적지 않고 줄여 쓸 때 써요",
+    "asset": "sig_repeat",
+    "descriptionStatus": "DOCUMENTED",
+    "source": "국립국악원 대금 정악보 2021 수정본, 대금 악상기호 표; 기존 문헌 대조 기준 · 전공자 검수 전; 그림: 우물사이 https://github.com/danbinaerinHan/jeongganbo-generator (MIT)",
+    "imageLicense": "MIT"
+  }
+]

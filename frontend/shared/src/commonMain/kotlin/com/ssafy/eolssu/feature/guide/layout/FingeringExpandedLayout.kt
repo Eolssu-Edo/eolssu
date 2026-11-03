@@ -47,6 +47,7 @@ internal fun FingeringExpandedLayout(
         Column(Modifier.width(300.dp).fillMaxHeight().padding(bottom = 24.dp)) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(top = 4.dp)) {
                 InstrumentDropdown(
+                    options = state.instrumentOptions,
                     selected = instrument,
                     open = state.isDropdownOpen,
                     onToggle = actions.onToggleDropdown,
