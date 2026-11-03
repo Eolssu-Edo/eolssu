@@ -17,7 +17,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 /**
  * 홈 화면 연결. 'AI 연주 평가 시작'은 [onStartEvaluation]으로 곡 목록에, 오른쪽 위 아이콘은 [onOpenMyPage]로 마이페이지에 간다.
- * 연습·학습 카드는 [onOpenFeature]가 화면을 열면 true를 돌려주고, 아직 연결된 화면이 없으면 false라 '준비 중' 안내를 띄운다.
+ * 학습·연습 카드는 [onOpenFeature]가 화면을 열면 true를 돌려주고, 아직 연결된 화면이 없으면 false라 '준비 중' 안내를 띄운다.
  * [startMessage]는 가입을 마치고 왔을 때처럼 이전 화면이 남긴 안내다.
  */
 @Composable

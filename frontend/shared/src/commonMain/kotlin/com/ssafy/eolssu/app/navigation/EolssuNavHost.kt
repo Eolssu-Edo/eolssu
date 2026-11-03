@@ -148,6 +148,7 @@ fun EolssuNavHost(
                             HomeFeature.Reading -> EolssuDestination.guideReading()
                             HomeFeature.Learn -> EolssuDestination.LEARN
                             HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
+                            HomeFeature.Records -> EolssuDestination.records()
                         }
                         route?.let(navController::navigate)
                         route != null
