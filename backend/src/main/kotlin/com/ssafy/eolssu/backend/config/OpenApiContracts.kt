@@ -17,6 +17,8 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResul
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.sheet.api.CreatedSheet
+import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetDraft
+import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetScore
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetList
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetScore
 import com.ssafy.eolssu.backend.feature.song.api.*
@@ -181,5 +183,14 @@ internal val apiContracts = listOf(
         SheetList::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
         "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",
-        SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+        SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.PUT,"/api/users/me/sheets/{sheetId}/score","saveSheetScore","내 악보","정간보 편집 확정 저장",
+        "baseScoreVersion(SHT-08 scoreVersion)과 공통 악보 v1 문서 전체(score)를 받아 교체하고 악보 버전을 1 올립니다. 미입력 칸(units 빈 배열)은 400 UNFILLED_CELLS(details.cellIds), 버전 충돌은 409, 1MiB 초과는 413입니다. jangdanId가 있으면 score.music의 장단·단위와 같아야 합니다. 저장하면 자동 저장 초안은 지워집니다.",
+        SavedSheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,UNFILLED_CELLS,PAYLOAD_TOO_LARGE)),
+    ApiContract(HttpMethod.PUT,"/api/users/me/sheets/{sheetId}/score/draft","saveSheetDraft","내 악보","정간보 편집 자동 저장",
+        "악보 버전을 올리지 않고 악보당 하나인 초안을 덮어씁니다. 미입력 칸(units 빈 배열)을 허용합니다. baseScoreVersion·draftRevision이 서버와 다르면 409입니다. 목록 정렬 시각은 바뀌지 않습니다.",
+        SavedSheetDraft::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,PAYLOAD_TOO_LARGE)),
+    ApiContract(HttpMethod.DELETE,"/api/users/me/sheets/{sheetId}","deleteSheet","내 악보","내 악보 삭제",
+        "본인 악보와 그 초안을 지우고 204 빈 본문을 돌려줍니다. 없거나 다른 회원의 악보, 이미 지운 악보는 404입니다.",
+        null,listOf(204),listOf(RESOURCE_NOT_FOUND)),
 )
