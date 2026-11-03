@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -35,28 +36,22 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.InstrumentPicker
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
-import eolssu.shared.generated.resources.legal_information
-import eolssu.shared.generated.resources.legal_service
-import eolssu.shared.generated.resources.legal_privacy
-import eolssu.shared.generated.resources.legal_deletion
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
-import com.ssafy.eolssu.core.ui.component.ProviderMark
+import com.ssafy.eolssu.feature.profile.component.MyLearningCard
+import com.ssafy.eolssu.feature.profile.component.MyPageFooter
+import com.ssafy.eolssu.feature.profile.component.ProfileProviderLogo
+import com.ssafy.eolssu.feature.profile.component.ProfileTextLink
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.my_account
-import eolssu.shared.generated.resources.my_instrument
-import eolssu.shared.generated.resources.my_instrument_help
-import eolssu.shared.generated.resources.my_instrument_saving
+import eolssu.shared.generated.resources.my_inquiry
 import eolssu.shared.generated.resources.my_link
-import eolssu.shared.generated.resources.my_linked
 import eolssu.shared.generated.resources.my_logout
 import eolssu.shared.generated.resources.my_logout_confirm_message
 import eolssu.shared.generated.resources.my_logout_confirm_title
 import eolssu.shared.generated.resources.my_nickname_edit
-import eolssu.shared.generated.resources.my_not_linked
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
 import eolssu.shared.generated.resources.my_email_none
@@ -79,21 +74,19 @@ import org.jetbrains.compose.resources.stringResource
 enum class MyPageTarget { Nickname, Password, Withdraw }
 
 /**
- * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 서비스 안내 · 의견 보내기 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
- * 연습 악기는 서버 저장 성공 후 홈과 곡 목록에도 반영된다.
+ * MY-01 마이페이지. 프로필 · 학습 진도 · 간편 로그인 · 의견/문의 · 계정 · 법적 문서 푸터.
  */
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
     instrument: Instrument?,
-    instrumentEnabled: Boolean,
-    savingInstrument: Boolean,
+    learningProgress: MyLearningProgress?,
+    loadingProfile: Boolean,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onOpen: (MyPageTarget) -> Unit,
-    onSelectInstrument: (Instrument) -> Unit,
     onLink: (SocialProvider) -> Unit,
     onUnlink: (SocialProvider) -> Unit,
     onConfirmUnlink: () -> Unit,
@@ -102,13 +95,11 @@ fun MyPageScreen(
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
     onOpenFeedback: () -> Unit,
+    onOpenInquiry: () -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
-        Section(stringResource(Res.string.my_instrument)) {
-            InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, enabled = instrumentEnabled,
-                help = stringResource(if (savingInstrument) Res.string.my_instrument_saving else Res.string.my_instrument_help))
-        }
+        MyLearningCard(instrument, learningProgress, loadingProfile)
         Section(stringResource(Res.string.my_social)) {
             Column {
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)
@@ -119,17 +110,10 @@ fun MyPageScreen(
             }
             HelpText(stringResource(if (profile.signsInWithPassword) Res.string.my_social_help else Res.string.my_social_help_social))
         }
-        Section(stringResource(Res.string.legal_information)) {
-            Column {
-                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                AccountRow(stringResource(Res.string.legal_service), onClick = { onOpenLegal(PublishedLegalDocument.Service) })
-                AccountRow(stringResource(Res.string.legal_privacy), onClick = { onOpenLegal(PublishedLegalDocument.Privacy) })
-                AccountRow(stringResource(Res.string.legal_deletion), onClick = { onOpenLegal(PublishedLegalDocument.Deletion) })
-            }
-        }
         Section(stringResource(Res.string.my_feedback_section)) {
             Column {
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)
+                AccountRow(stringResource(Res.string.my_inquiry), onClick = onOpenInquiry)
                 AccountRow(stringResource(Res.string.my_feedback), onClick = onOpenFeedback)
             }
             HelpText(stringResource(Res.string.my_feedback_help))
@@ -139,9 +123,9 @@ fun MyPageScreen(
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)
                 AccountRow(stringResource(Res.string.my_password_change), onClick = { onOpen(MyPageTarget.Password) })
                 AccountRow(stringResource(Res.string.my_logout), onClick = onLogOut)
-                AccountRow(stringResource(Res.string.my_withdraw), onClick = { onOpen(MyPageTarget.Withdraw) }, muted = true)
             }
         }
+        MyPageFooter(onOpenLegal)
     }
     when (dialog) {
         is MyPageDialog.Unlink -> {
@@ -163,6 +147,11 @@ fun MyPageScreen(
         ) {
             EolssuButton(stringResource(Res.string.my_logout), onClick = onConfirmLogOut)
             EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)
+            ProfileTextLink(
+                stringResource(Res.string.my_withdraw),
+                onClick = { onDismissDialog(); onOpen(MyPageTarget.Withdraw) },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         null -> Unit
     }
@@ -190,7 +179,9 @@ private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
             val email = profile.email.ifBlank { if (profile.nickname.isNotBlank()) stringResource(Res.string.my_email_none) else "" }
             if (email.isNotBlank()) Text(email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
         }
-        SmallButton(stringResource(Res.string.my_nickname_edit), onEdit)
+        IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
+            Icon(EolssuIcons.Pencil, contentDescription = stringResource(Res.string.my_nickname_edit), modifier = Modifier.size(22.dp), tint = colors.textMuted)
+        }
     }
 }
 
@@ -207,37 +198,30 @@ private fun HelpText(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = EolssuTheme.colors.textMuted)
 }
 
-/** 간편 로그인 한 줄(`.my-row`): 제공자 표시 · 이름·연결 상태 · 해제/연결 버튼. */
+/** 간편 로그인 한 줄: 공식 로고 · 이름 · 해제/연결 버튼. 연결 상태 문구는 반복하지 않는다. */
 @Composable
 private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Column {
         Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ProviderMark(provider)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(provider.displayName), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-                Text(
-                    stringResource(if (linked) Res.string.my_linked else Res.string.my_not_linked),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
-                    color = colors.textMuted,
-                )
-            }
+            ProfileProviderLogo(provider)
+            Text(stringResource(provider.displayName), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
             SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), onClick)
         }
         HorizontalDivider(color = colors.lineSoft)
     }
 }
 
-/** 계정 한 줄(`.my-link`): 글자와 오른쪽 화살표. 회원 탈퇴는 회색([muted])이다. */
+/** 계정 한 줄: 글자와 오른쪽 화살표. */
 @Composable
-private fun AccountRow(text: String, onClick: () -> Unit, muted: Boolean = false) {
+private fun AccountRow(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Column {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = if (muted) colors.textMuted else colors.text)
+            Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.text)
             Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
         }
         HorizontalDivider(color = colors.lineSoft)

@@ -772,6 +772,16 @@
     <string name="common_cancel">취소</string>
     <string name="home_my_page">마이페이지</string>
     <string name="my_title">마이페이지</string>
+    <string name="my_learning_title">기초부터 배우기</string>
+    <string name="my_learning_count">%1$d / %2$d단계 완료</string>
+    <string name="my_learning_instrument">%1$s 학습 진도</string>
+    <string name="my_learning_next">다음 학습 · %1$d단계</string>
+    <string name="my_learning_complete">모든 단계를 마쳤어요!</string>
+    <string name="my_learning_local">이 기기에 저장된 학습 기록이에요.</string>
+    <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
+    <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
+    <string name="my_inquiry">문의하기</string>
+    <string name="my_inquiry_preparing">문의 폼을 준비하고 있어요.</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
