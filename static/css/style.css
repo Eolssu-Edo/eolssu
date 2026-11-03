@@ -107,11 +107,14 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline
 
 /* Blog home: spotlight */
 .spotlight { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; min-height: 380px; padding: 48px 0 54px; }
+.spot-slides { display: grid; }
+.spot-copy { grid-area: 1 / 1; }
+.spot-copy.is-hidden { visibility: hidden; }
 .spot-copy .meta { font-size: 14px; gap: 12px; }
 .spot-copy .category { padding: 4px 9px; border-radius: 5px; background: var(--lime-tint); font-size: 13px; }
-.spot-copy h2 { margin: 15px 0 17px; font-size: 36px; font-weight: 700; line-height: 1.4; letter-spacing: -1.1px; }
+.spot-copy h2 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 15px 0 17px; font-size: 36px; font-weight: 700; line-height: 1.4; letter-spacing: -1.1px; }
 .spot-copy h2 a:hover { text-decoration: underline; text-underline-offset: 7px; text-decoration-thickness: 1px; }
-.spot-copy p { max-width: 475px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.85; }
+.spot-copy p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; max-width: 475px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.85; }
 .spot-controls { display: flex; align-items: center; gap: 9px; margin-top: 25px; }
 .arrow { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #f5f6f3; font-size: 17px; line-height: 1; }
 .arrow:hover { background: var(--lime); }
