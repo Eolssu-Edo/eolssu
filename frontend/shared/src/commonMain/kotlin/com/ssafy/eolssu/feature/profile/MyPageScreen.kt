@@ -60,6 +60,9 @@ import eolssu.shared.generated.resources.my_not_linked
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
 import eolssu.shared.generated.resources.my_email_none
+import eolssu.shared.generated.resources.my_feedback
+import eolssu.shared.generated.resources.my_feedback_help
+import eolssu.shared.generated.resources.my_feedback_section
 import eolssu.shared.generated.resources.my_social_help
 import eolssu.shared.generated.resources.my_social_help_social
 import eolssu.shared.generated.resources.my_title
@@ -76,7 +79,7 @@ import org.jetbrains.compose.resources.stringResource
 enum class MyPageTarget { Nickname, Password, Withdraw }
 
 /**
- * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
+ * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 서비스 안내 · 의견 보내기 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
  * 연습 악기는 서버 저장 성공 후 홈과 곡 목록에도 반영된다.
  */
 @Composable
@@ -98,6 +101,7 @@ fun MyPageScreen(
     onConfirmLogOut: () -> Unit,
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
+    onOpenFeedback: () -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
@@ -122,6 +126,13 @@ fun MyPageScreen(
                 AccountRow(stringResource(Res.string.legal_privacy), onClick = { onOpenLegal(PublishedLegalDocument.Privacy) })
                 AccountRow(stringResource(Res.string.legal_deletion), onClick = { onOpenLegal(PublishedLegalDocument.Deletion) })
             }
+        }
+        Section(stringResource(Res.string.my_feedback_section)) {
+            Column {
+                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
+                AccountRow(stringResource(Res.string.my_feedback), onClick = onOpenFeedback)
+            }
+            HelpText(stringResource(Res.string.my_feedback_help))
         }
         Section(stringResource(Res.string.my_account)) {
             Column {

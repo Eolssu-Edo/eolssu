@@ -18,6 +18,7 @@ import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
 import eolssu.shared.generated.resources.member_api_rate_limited
+import eolssu.shared.generated.resources.my_feedback_open_failed
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
@@ -111,6 +112,11 @@ fun MyPageRoute(
         onOpenLegal = { document ->
             if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
                 show { getString(Res.string.legal_open_failed) }
+            }
+        },
+        onOpenFeedback = {
+            if (runCatching { uriHandler.openUri(FEEDBACK_FORM_URL) }.isFailure) {
+                show { getString(Res.string.my_feedback_open_failed) }
             }
         },
     )
