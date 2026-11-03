@@ -51,7 +51,6 @@ import org.jetbrains.compose.resources.stringResource
 internal fun HomeInkButton(
     onClick: () -> Unit,
     darkBackground: Boolean,
-    hasHover: Boolean,
     reduceMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
@@ -60,7 +59,7 @@ internal fun HomeInkButton(
     val hovered by interactions.collectIsHoveredAsState()
     val focused by interactions.collectIsFocusedAsState()
     val pressed by interactions.collectIsPressedAsState()
-    val painted = !hasHover || hovered || focused || pressed
+    val painted = hovered || focused || pressed
     val reveal by animateFloatAsState(
         if (painted) 1f else 0f,
         tween(if (reduceMotion) 0 else 500, easing = CubicBezierEasing(.32f, .04f, .27f, 1f)),

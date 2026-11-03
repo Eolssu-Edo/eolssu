@@ -11,15 +11,12 @@ import org.w3c.dom.events.Event
 
 @Composable
 internal actual fun rememberHomeEnvironment(): HomeEnvironment {
-    val hover = remember { window.matchMedia("(hover: hover)") }
     val motion = remember { window.matchMedia("(prefers-reduced-motion: reduce)") }
-    var environment by remember { mutableStateOf(HomeEnvironment(hover.matches, motion.matches)) }
-    DisposableEffect(hover, motion) {
-        val update: (Event) -> Unit = { environment = HomeEnvironment(hover.matches, motion.matches) }
-        hover.addEventListener("change", update)
+    var environment by remember { mutableStateOf(HomeEnvironment(motion.matches)) }
+    DisposableEffect(motion) {
+        val update: (Event) -> Unit = { environment = HomeEnvironment(motion.matches) }
         motion.addEventListener("change", update)
         onDispose {
-            hover.removeEventListener("change", update)
             motion.removeEventListener("change", update)
         }
     }
