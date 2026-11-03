@@ -87,7 +87,8 @@ private class CatalogStub : SongRepository {
     var offline = false
     var songs = SampleSongs
     var listRequests = 0
-    override suspend fun getSongs(): List<SongSummary> {
+    override suspend fun getInstruments() = emptyList<com.ssafy.eolssu.data.song.CatalogInstrument>()
+    override suspend fun getSongs(instrumentId: String?): List<SongSummary> {
         listRequests++
         check(!offline) { "Isolated offline test" }
         return songs.map { it.toSummary() }

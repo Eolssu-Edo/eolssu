@@ -18,6 +18,24 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.*
 
 class InstrumentPreferenceTest {
+    @Test fun memberPreferencesKeepBothDaegeumVariantsDistinctAndIgnoreLegacyLocalChoice() = runTest {
+        val store = FakeKeyValueStore().apply { putString("practice_instrument", "Daegeum") }
+        val client = createHttpClient(MockEngine {
+            respond("""{"isSuccess":true,"result":{"items":[{"instrumentId":"91","code":"JEONGAK_DAEGEUM","name":"정악대금"},{"instrumentId":"92","code":"SANJO_DAEGEUM","name":"산조대금"}]}}""", headers = JSON)
+        }, ServerAddress.Production)
+        try {
+            val repo = InstrumentRepository(store, InstrumentCatalog(client))
+            assertNull(repo.instrument.value)
+            for ((id,name) in listOf("91" to "DaegeumJeongak", "92" to "DaegeumSanjo")) {
+                assertTrue(repo.applyServerId(id))
+                val selected = assertNotNull(repo.instrument.value)
+                assertEquals(name, selected.name)
+                assertEquals(id, repo.serverIdFor(selected))
+            }
+            assertEquals(4, com.ssafy.eolssu.feature.auth.ProfileSetupUiState().instruments.size)
+        } finally { client.close() }
+    }
+
     @Test
     fun activeCatalogMapsCodeToRealIdAndUnknownIdClearsOldSelection() = runTest {
         val client = createHttpClient(MockEngine { respond(CATALOG, headers = JSON) }, ServerAddress.Production)
@@ -25,7 +43,7 @@ class InstrumentPreferenceTest {
             val repo = InstrumentRepository(FakeKeyValueStore(), InstrumentCatalog(client))
             assertNull(repo.instrument.value)
             assertEquals("73", repo.serverIdFor(Instrument.Danso))
-            assertNull(repo.serverIdFor(Instrument.Daegeum))
+            assertNull(repo.serverIdFor(Instrument.DaegeumJeongak))
             assertTrue(repo.applyServerId("73"))
             assertEquals(Instrument.Danso, repo.instrument.value)
             assertFalse(repo.applyServerId("74"))

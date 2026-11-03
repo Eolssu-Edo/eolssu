@@ -16,20 +16,35 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
     val uiState: StateFlow<SongListUiState> = _uiState.asStateFlow()
 
     private var loadJob: Job? = null
+    private var loadGeneration = 0
 
     init { retry() }
 
+    fun selectInstrument(instrumentId: String?) {
+        val state = _uiState.value
+        if (instrumentId == state.instrumentId ||
+            (instrumentId != null && state.instruments.none { it.instrumentId == instrumentId })) return
+        loadJob?.cancel()
+        loadJob = null
+        _uiState.update { it.copy(instrumentId = instrumentId, songs = emptyList(), selectedSongId = null,
+            songPicked = false, loadState = SongLoadState.Loading) }
+        retry()
+    }
+
     fun retry() {
         if (loadJob?.isActive == true) return
+        val generation = ++loadGeneration
+        val instrumentId = _uiState.value.instrumentId
+        _uiState.update { it.copy(loadState = SongLoadState.Loading) }
         loadJob = viewModelScope.launch {
-            _uiState.update { it.copy(loadState = SongLoadState.Loading) }
             try {
-                val songs = songRepository.getSongs()
-                _uiState.update { it.receiveSongs(songs) }
+                val instruments = songRepository.getInstruments()
+                val songs = songRepository.getSongs(instrumentId)
+                if (generation == loadGeneration) _uiState.update { it.copy(instruments = instruments).receiveSongs(songs) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _uiState.update { it.copy(loadState = SongLoadState.Failed) }
+                if (generation == loadGeneration) _uiState.update { it.copy(loadState = SongLoadState.Failed) }
             }
         }
     }
@@ -48,5 +63,8 @@ class SongListViewModel(private val songRepository: SongRepository) : ViewModel(
 
     fun openPickedSong() = _uiState.update { it.openPickedSong() }
 
-    fun resetFilters() = _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
+    fun resetFilters() {
+        _uiState.update { it.copy(query = "", filter = SongLevelFilter.All) }
+        selectInstrument(null)
+    }
 }

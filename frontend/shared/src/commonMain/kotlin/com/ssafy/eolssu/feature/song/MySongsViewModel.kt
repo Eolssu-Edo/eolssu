@@ -19,6 +19,17 @@ class MySongsViewModel(
     private val _uiState = MutableStateFlow(MySongsUiState())
     val uiState: StateFlow<MySongsUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private var loadGeneration = 0
+
+    fun selectInstrument(instrumentId: String?) {
+        val state = _uiState.value
+        if (instrumentId == state.instrumentId ||
+            (instrumentId != null && state.instruments.none { it.instrumentId == instrumentId })) return
+        loadJob?.cancel()
+        loadJob = null
+        _uiState.update { it.copy(instrumentId = instrumentId, songs = emptyList(), loadState = SongLoadState.Loading) }
+        retry()
+    }
 
     init {
         retry()
@@ -29,15 +40,20 @@ class MySongsViewModel(
 
     fun retry() {
         if (loadJob?.isActive == true) return
+        val generation = ++loadGeneration
+        val instrumentId = _uiState.value.instrumentId
+        _uiState.update { it.copy(loadState = SongLoadState.Loading) }
         loadJob = viewModelScope.launch {
-            _uiState.update { it.copy(loadState = SongLoadState.Loading) }
             try {
-                val songs = songRepository.getSongs()
-                _uiState.update { it.copy(songs = songs, loadState = SongLoadState.Ready) }
+                val instruments = songRepository.getInstruments()
+                val songs = songRepository.getSongs(instrumentId)
+                if (generation == loadGeneration) _uiState.update {
+                    it.copy(instruments = instruments, songs = songs, loadState = SongLoadState.Ready)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _uiState.update { it.copy(loadState = SongLoadState.Failed) }
+                if (generation == loadGeneration) _uiState.update { it.copy(loadState = SongLoadState.Failed) }
             }
         }
     }

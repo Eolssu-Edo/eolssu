@@ -4,6 +4,8 @@
 
 모든 경로는 `GET /api` 아래이며 기존 공개 접근 규칙을 사용한다. 성공은 `{httpStatus,isSuccess,message,code,result}`, 오류는 `result.errorCode`로 분기한다. DB ID는 양의 Long 범위 십진 문자열이다. 잘못된 ID는 400 `INVALID_REQUEST`, 존재하지 않거나 노출할 수 없는 리소스는 404 `RESOURCE_NOT_FOUND`다. 숫자 ID가 큰 경우에도 JSON number로 내보내지 않는다. 목록의 빈 배열은 정상 200이다.
 
+2026-11-03 사용자 후속 요청의 [4악기 계약](four-instrument-catalog.md)은 V17에서 CAT-03·06을 네 악기에 공개하고 회원 선택도 정악·산조를 나누어4종으로 통일한다. 새 DB의 전역 율명36개, 단소26·소금24·두 대금 각34개이며 아래22/15개는 V13 직후의 이전 기준이다. 기존 ID·반음·표기는 보존한다. 실제 운영 배포 여부와 구분한다.
+
 | ID | 경로·필터 | 결과 및 공개 조건 |
 | --- | --- | --- |
 | CAT-03 | `/instruments` | 활성 악기 목록, `instrumentId/code/name/pitchToleranceCent/rangeLowPitchId/rangeHighPitchId`. 기존 등록값만 반환한다. |
@@ -16,6 +18,8 @@
 | CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount. 소박·묶음 수는 저장 pattern에서 구한다. |
 
 ## 원본 악보와 초안의 차이
+
+S15P31E102-408은 CAT-04·05의 선행 곡 선택을 위해 `GET /songs?instrumentId=...`를 추가한다. 생략 시 기존 전체 조회, 지정 시 해당 활성 악기의 게시·미삭제 곡만 반환한다. 잘못된 ID는400, 없는/비활성 악기는404, 활성 악기의 빈 목록은200이다. [FE 선택·검증 범위](song-instrument-filter.md)를 따르며 기존 songId 기반 상세·악보·음원 계약은 보존한다.
 
 CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 객체다. `columns`, 이벤트의 `id/cellId/startTick/durationTick/breathAfter/sigimsae`, 조율·장단·틱 기준을 보존한다. `schemaVersion`, `scoreVersion`은 현행 데이터 계약의 정수다. 오래된 Notion의 `"v1"`, `"1"` 문자열 예시로 변환하지 않는다. 기존 CAT-01/02 응답은 변경하지 않는다.
 
