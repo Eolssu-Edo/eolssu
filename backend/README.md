@@ -55,6 +55,12 @@ S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다.
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.
 
+### 정간보 기호 사전(CAT-09)
+
+[410 계약](../docs/specs/notation-symbol-catalog.md)의 V19은 기존 FE 시김새 그림47개와 쉼표·연장2개를 등록하며, 같은 symbol의 기존 행은 보존합니다. DB 행의 이름·설명·이미지 상태가 번들 내용과 일치할 때만 출처·검수 상태와 `/api/notation-symbols/{symbolId}/image`를 제공합니다. 이미지는 MIT 고지를 포함한 SVG이며 공개 GET만 허용합니다. 노라느니는 추정 설명입니다. 운영은 V18 다음 V19 적용과 새 서버 배포를 별도로 준비해야 하며, 이 작업에서 운영 적용은 하지 않았습니다.
+
+사전 원본 대조는 저장소 루트에서 `python backend/tools/sync_notation_symbols.py --check`로 실행합니다. FE VectorDrawable의 path·group과 설명을 그대로 SVG·사전으로 옮겼는지 확인합니다. 생성 스크립트는 V19 배포 전 스냅샷용이며, 배포 후 변경에는 새 마이그레이션을 추가해야 합니다. 실제 DB/HTTP·이미지·기존 행 보존 검사는 `CatalogReferenceApiDatabaseTests`에 있습니다.
+
 ### 기본음·시김새 음원 카탈로그
 
 S15P31E102-364: V13 `reference_audio_assets`는 네 악기의 라벨별 M4A와 출처·추정 상태를 연결합니다. 같은 V13에 기본음 자산의 명목상 기준 음을 가리키는 nullable `pitch_id` FK와 근거를 포함합니다. 서비스 지원 음역·실측 검수·채점 기준과 구분하며 사용자 녹음 저장소는 그대로입니다. 마이그레이션만으로 자산을 적재하거나 연결하지 않습니다. 운영 `ops` 배포 전 최종 V13 하나를 별도 적용해야 합니다. [명시적 매핑 절차](../infra/catalog/README.md#명목상-기준-음-연결)를 따릅니다. 운영은 V12까지 적용됐고 새 카탈로그 두 테이블이 없음을2026-11-02 읽기 전용으로 확인하여 미적용 개발 파일V14~V16은 V13에 통합했습니다. 기존 로컬 검증DB는 repair하지 않고 새 폐기DB를 사용합니다.
