@@ -16,8 +16,8 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.member_api_instrument_unavailable
-import eolssu.shared.generated.resources.member_api_rate_limited
+import com.ssafy.eolssu.data.user.LearnProgressRepository
+import eolssu.shared.generated.resources.my_inquiry_preparing
 import eolssu.shared.generated.resources.my_feedback_open_failed
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
@@ -25,6 +25,7 @@ import eolssu.shared.generated.resources.my_unlinked
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * MY-01 연결. 닉네임 수정·비밀번호 변경·탈퇴는 [onOpen], 간편 로그인 연결은 [onLink], 로그아웃 확인 뒤에는 [onLoggedOut]으로 간다.
@@ -44,7 +45,11 @@ fun MyPageRoute(
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
     val loadingProfile by viewModel.loadingProfile.collectAsStateWithLifecycle()
-    val savingInstrument by viewModel.savingInstrument.collectAsStateWithLifecycle()
+    val progressRepository = koinInject<LearnProgressRepository>()
+    val progressRevision by progressRepository.saves.collectAsStateWithLifecycle()
+    val learningProgress = remember(instrument, progressRepository, progressRevision) {
+        instrument?.let { myLearningProgress(it, progressRepository) }
+    }
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -68,25 +73,14 @@ fun MyPageRoute(
     MyPageScreen(
         profile = profile,
         instrument = instrument,
-        instrumentEnabled = !loadingProfile && !savingInstrument,
-        savingInstrument = savingInstrument,
+        learningProgress = learningProgress,
+        loadingProfile = loadingProfile,
         dialog = dialog,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
         onOpen = { target ->
             if (target == MyPageTarget.Password && !viewModel.canChangePassword()) show { getString(Res.string.my_password_none) } else onOpen(target)
-        },
-        onSelectInstrument = { selected ->
-            scope.launch {
-                when (viewModel.selectInstrument(selected)) {
-                    null, MemberResult.Done -> Unit
-                    MemberResult.Unauthenticated -> onSessionExpired()
-                    MemberResult.RateLimited -> show { getString(Res.string.member_api_rate_limited) }
-                    MemberResult.InvalidInput -> show { getString(Res.string.member_api_instrument_unavailable) }
-                    else -> show { getString(Res.string.member_api_unavailable) }
-                }
-            }
         },
         onLink = onLink,
         onUnlink = { provider -> if (!viewModel.askUnlink(provider)) show { getString(Res.string.my_unlink_last) } },
@@ -119,5 +113,6 @@ fun MyPageRoute(
                 show { getString(Res.string.my_feedback_open_failed) }
             }
         },
+        onOpenInquiry = { show { getString(Res.string.my_inquiry_preparing) } },
     )
 }
