@@ -140,7 +140,7 @@ internal fun HomeScrollLayout(
         val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
         var buttonH by remember { mutableFloatStateOf(56.5f) }
         var headlineH by remember { mutableFloatStateOf(100f) }
-        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 230f else 390f) }
+        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 310f else 470f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
