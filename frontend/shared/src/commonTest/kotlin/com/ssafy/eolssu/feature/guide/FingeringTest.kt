@@ -5,6 +5,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.HoleState
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.BlowTab
+import com.ssafy.eolssu.core.model.fingering.NoteRemark
 
 class FingeringTest {
 
@@ -53,9 +58,29 @@ class FingeringTest {
         assertFalse(half.basic)
         assertFalse(half.needsCheck)
 
-        val unknown = GuideInstrument.Danso.noteOf("㶃")!!
+        val unknown = half.copy(holes = List(5) { HoleState.Unknown })
         assertTrue(unknown.needsCheck)
-        assertEquals("청태", unknown.reading)
+        assertEquals(listOf(NoteRemark.Semitone, NoteRemark.NeedsCheck), unknown.remarks())
+    }
+
+    @Test
+    fun dansoHighTaeUsesNationalGugakAcademyFingering() {
+        // e국악아카데미 「단소 안공법」: 높은 태는 제1·3공 막음, 제2·4·5공 엶.
+        val highTae = GuideInstrument.Danso.notesByPitch(Blow.High).single { it.hanja == "㶃" }
+        assertEquals(
+            listOf(HoleState.Closed, HoleState.Open, HoleState.Closed, HoleState.Open, HoleState.Open),
+            highTae.holes,
+        )
+        assertFalse(highTae.needsCheck)
+        assertEquals(emptyList(), highTae.remarks())
+        assertEquals(emptyList(), highTae.remarks(inLearn = true))
+        assertEquals("청태", highTae.reading)
+        // 낮은 태의 전개방 운지를 높은 태에 복사하지 않는다.
+        assertEquals(List(5) { HoleState.Open }, GuideInstrument.Danso.noteOf("汰")!!.holes)
+        assertEquals(
+            ReferenceAudioSelection(GuideInstrument.Danso, "역취", "태", "청태"),
+            ReferenceAudioSelection.forNote(GuideInstrument.Danso, highTae, Blow.High),
+        )
     }
 
     @Test
@@ -84,7 +109,7 @@ class FingeringTest {
     fun remarksFollowBoardDescriptionRule() {
         assertEquals(emptyList(), GuideInstrument.Danso.noteOf("仲")!!.remarks())
         assertEquals(listOf(NoteRemark.Semitone), GuideInstrument.Danso.noteOf("夾")!!.remarks())
-        assertEquals(listOf(NoteRemark.NeedsCheck), GuideInstrument.Danso.noteOf("㶃")!!.remarks())
+        assertEquals(emptyList(), GuideInstrument.Danso.noteOf("㶃")!!.remarks())
         // 기초부터 배우기 카드는 반음 표시를 하지 않는다
         assertEquals(emptyList(), GuideInstrument.Danso.noteOf("夾")!!.remarks(inLearn = true))
     }

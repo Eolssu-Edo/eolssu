@@ -46,7 +46,7 @@ class CatalogLocalServerTest {
                 assertEquals(song.noteCount, song.timeline.count { it.noteIndex != null })
                 assertTrue(song.timeline.all { it.startTick != null && it.durationTick != null })
                 assertTrue(song.durationMs() > 0)
-                assertNull(audio.get(song.id), "The isolated database has no published model audio")
+                assertNull(audio.get(song), "The isolated database has no published model audio")
             }
         } finally { client.close() }
     }

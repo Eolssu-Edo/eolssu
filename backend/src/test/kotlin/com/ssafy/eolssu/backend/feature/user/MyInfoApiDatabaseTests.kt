@@ -78,7 +78,31 @@ class MyInfoApiDatabaseTests {
             .map { it.path("provider").asString() to it.path("linkedAt").asString() }
         assertEquals(listOf("KAKAO" to "2026-10-27T00:00:00Z", "NAVER" to "2026-10-28T01:00:00Z"), linked)
         assertEquals("me@usr208.test", result.path("email").asString())
+        assertTrue(result.path("hasPassword").isBoolean)
+        assertTrue(result.path("hasPassword").asBoolean())
+        assertFalse(result.has("passwordHash"))
         assertFalse(response.body().contains("kakao-208"))
+    }
+
+    @Test
+    fun `password presence is false for social members regardless of saved email`() {
+        val access = signIn()
+        jdbc.update("INSERT INTO user_social_accounts (user_id,provider,provider_user_id) VALUES (?,'KAKAO','has-password-385')", userId)
+        jdbc.update("UPDATE users SET password_hash = NULL WHERE id = ?", userId)
+        try {
+            for (email in listOf("me@usr208.test", null)) {
+                jdbc.update("UPDATE users SET email = ? WHERE id = ?", email, userId)
+                val response = get("/api/users/me", access)
+                assertEquals(200, response.statusCode(), response.body())
+                val result = tree(response).path("result")
+                assertTrue(result.path("hasPassword").isBoolean)
+                assertFalse(result.path("hasPassword").asBoolean())
+                assertFalse(result.has("passwordHash"))
+                assertFalse(result.has("password_hash"))
+            }
+        } finally {
+            jdbc.update("UPDATE users SET email = 'me@usr208.test' WHERE id = ?", userId)
+        }
     }
 
     @Test

@@ -7,7 +7,14 @@ import io.ktor.client.request.get
 import io.ktor.http.Url
 import kotlinx.serialization.Serializable
 
-enum class MemberResult { Done, InvalidInput, VerificationRequired, TermsRequired, EmailExists, Unauthenticated, RateLimited, Unavailable }
+/**
+ * 회원 요청 결과. [TicketExpired]는 소셜 가입·탈퇴 티켓의 만료·재사용(410), [SocialAccountInUse]는 그 제공자 계정이 다른 회원에게 연결됨(409),
+ * [LastLoginMethod]는 비밀번호 없는 회원의 마지막 간편 로그인 해제 거절(409)이다.
+ */
+enum class MemberResult {
+    Done, InvalidInput, VerificationRequired, TermsRequired, EmailExists, Unauthenticated, RateLimited, Unavailable,
+    TicketExpired, SocialAccountInUse, LastLoginMethod,
+}
 
 @Serializable
 data class TermAgreement(val termId: String, val version: String, val agreed: Boolean)

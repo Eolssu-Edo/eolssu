@@ -1,7 +1,10 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.data.practice.PracticeSettings
@@ -22,8 +25,9 @@ enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
  * 연습 화면 위에 뜨는 확인 창.
  * [EndNoInput]은 끝까지 마이크 입력이 없어 평가하지 않음,
  * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
+ * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
  */
-enum class PracticePopup { Permission, Abort, End, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge }
+enum class PracticePopup { Permission, Abort, End, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -47,7 +51,11 @@ val FingeringOrder: List<Yul> = listOf(
     Yul.CheongJungnyeo, Yul.CheongImjong, Yul.CheongMuyeok,
 )
 
-/** 패널에서 고치는 중인 값. '적용'을 눌러야 [PracticeSettings]에 반영된다. */
+/**
+ * 패널에서 고치는 중인 값. '적용'을 눌러야 [PracticeSettings]에 반영된다.
+ *
+ * @property note 운지법 패널이 보여 주는 율명. 고른 정간이 이음이면 앞 음, 쉼이면 [noteRest]가 true다.
+ */
 data class PracticeDraft(
     val showHangul: Boolean = false,
     val showSolfege: Boolean = false,
@@ -55,6 +63,7 @@ data class PracticeDraft(
     val beatVisual: Boolean = true,
     val step: TempoStep = TempoStep.Normal,
     val note: Yul = FingeringOrder.first(),
+    val noteRest: Boolean = false,
     val previewing: Boolean = false,
     val previewBeat: Int = 0,
 )
@@ -104,12 +113,33 @@ data class PracticeUiState(
     val songError: PracticeSongError? = null,
     /** 현재 원본 이벤트 안에서 지난 시간. 긴 음/이음 중에도 표시 시계가 갱신한다. */
     val eventElapsedMs: Double = 0.0,
+    /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
+    val modelPerformance: ScorePerformance? = null,
+    val modelPerformancePositionMs: Double = 0.0,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
+    /** ‘운지법과 함께 보기’(PANEL-00)가 켜져 정간 옆에 가로 악기 그림을 함께 보는 중. */
+    val fingeringView: Boolean get() = settings.fingeringView
+
+    /**
+     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드를 따른다.
+     * 정악·산조대금을 구분하며 기존 DAEGEUM은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
+     */
+    val instrument: GuideInstrument
+        get() = GuideInstrument.fromId(settings.instrumentId) ?: when (song?.score?.source?.instrument) {
+            "SOGEUM" -> GuideInstrument.Sogeum
+            "DANSO" -> GuideInstrument.Danso
+            "SANJO_DAEGEUM" -> GuideInstrument.DaegeumSanjo
+            "JEONGAK_DAEGEUM", "DAEGEUM" -> GuideInstrument.DaegeumJeongak
+            else -> GuideInstrument.DaegeumJeongak
+        }
+
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
-    val totalSeconds: Int get() = song?.durationSeconds(bpm) ?: 0
+    val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
+        (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
+        else song?.durationSeconds(bpm) ?: 0
 
     /** 설정 버튼이 잠기는 상태. 연주 중에는 설정을 바꿀 수 없다. */
     val settingsLocked: Boolean
@@ -151,6 +181,9 @@ data class PracticeUiState(
     /** 정간 단위 진행률(0~100). 이벤트 중간의 경과분도 반영한다. */
     val progressPercent: Float
         get() {
+            if (mode == PracticeMode.Model && modelPerformance != null) {
+                return (modelPerformancePositionMs / modelPerformance.durationMs * 100).toFloat().coerceIn(0f, 100f)
+            }
             val song = song ?: return 0f
             if (finished || position >= eventCount) return 100f
             val event = song.timeline.getOrNull(position) ?: return 0f
@@ -161,12 +194,14 @@ data class PracticeUiState(
     val beatIndex: Int
         get() {
             val song = song ?: return 0
+            val jangdan = song.jangdan ?: return -1
+            if (eventCount == 0) return -1
             val event = song.timeline[position.coerceIn(0, eventCount - 1)]
             song.score.timing?.let { timing ->
-                val patternCell = ((requireNotNull(currentTick) * song.jangdan.subdivision / timing.ticksPerBeat) % song.jangdan.gak).toInt()
-                return song.jangdan.daegangIndexOfRow(patternCell)
+                val patternCell = ((requireNotNull(currentTick) * jangdan.subdivision / timing.ticksPerBeat) % jangdan.gak).toInt()
+                return jangdan.daegangIndexOfRow(patternCell)
             }
-            return song.jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
+            return jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
         }
 
     /** 현재 음의 실제 길이(ms). */
@@ -303,8 +338,37 @@ fun PracticeUiState.selectEvent(index: Int): PracticeUiState {
     if (mode != PracticeMode.Ready) return this
     val yul = song?.timeline?.getOrNull(index)?.note?.fingeringYul
     val base = copy(selected = index, listening = null)
-    return if (yul != null) base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = yul))
+    return if (yul != null) base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = yul, noteRest = false))
         else base.copy(panel = base.panel.takeUnless { it == PracticePanel.Fingering })
+}
+
+/** [index] 음의 운지 율명. 이음(ㅡ)·빈 자리는 앞 음을 따르고, 쉼(△)이면 null이다(보드 운지법 패널 `fcNote`). */
+fun PracticeUiState.fingeringYulAt(index: Int): Yul? {
+    val events = song?.timeline ?: return null
+    for (i in index.coerceAtMost(events.lastIndex) downTo 0) {
+        val note = events[i].note
+        if (note == ScoreNote.Rest) return null
+        note.fingeringYul?.let { return it }
+        if (note !is ScoreNote.Hold && note !is ScoreNote.Blank) return null
+    }
+    return null
+}
+
+/** OS 권한 창에서 허용하지 않음. 화면에 머물며 [PracticePopup.PermDenied]·[PracticePopup.PermBlocked]를 띄운다. */
+fun PracticeUiState.denyMic(blocked: Boolean): PracticeUiState =
+    toReady().copy(panel = null, popup = if (blocked) PracticePopup.PermBlocked else PracticePopup.PermDenied)
+
+/**
+ * 준비 상태의 플레이어 −5초·+5초: 고른 음을 그 시간만큼 앞뒤의 음으로 옮긴다. 모범 연주 중에는 음원 위치를 옮긴다(ViewModel).
+ */
+fun PracticeUiState.seekSelection(deltaMs: Long): PracticeUiState {
+    val song = song ?: return this
+    if (song.timeline.isEmpty()) return this
+    var acc = 0.0
+    val starts = song.timeline.map { event -> acc.also { acc += song.eventDurationMs(event, bpm) } }
+    val target = (starts.getOrElse(selected) { 0.0 } + deltaMs).coerceIn(0.0, starts.last())
+    val index = starts.indexOfLast { it <= target + 0.000001 }.coerceAtLeast(0)
+    return copy(selected = index, listening = null)
 }
 
 /** 패널 열기. 연주·카운트다운 중에는 열지 않는다. 지금 설정을 고치는 값으로 옮겨 둔다. */
@@ -320,13 +384,24 @@ fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
     return copy(panel = panel, draft = draft)
 }
 
-/** 닫으면 고치던 값은 버린다. */
-fun PracticeUiState.closePanel(): PracticeUiState = copy(panel = null, listening = null, draft = draft.copy(previewing = false, previewBeat = 0))
+/** 닫으면 고치던 값은 버린다. 표기·장단·속도 패널을 닫으면 연습 설정 시트로 돌아간다(보드 `close`). */
+fun PracticeUiState.closePanel(): PracticeUiState = copy(
+    panel = if (panel == PracticePanel.Notation || panel == PracticePanel.Jangdan || panel == PracticePanel.Tempo) PracticePanel.Settings else null,
+    listening = null,
+    draft = draft.copy(previewing = false, previewBeat = 0),
+)
 
-/** 운지법 패널에서 이전(-1)·다음(+1) 음으로. 끝이면 그대로. */
+/**
+ * 운지법 패널에서 이전(-1)·다음(+1) 음으로: 악보의 앞뒤 정간을 고른다(보드 `prevNote`·`nextNote`). 끝이면 그대로.
+ * 이음은 앞 음의 운지를, 쉼은 ‘쉼’을 보여 준다.
+ */
 fun PracticeUiState.moveFingering(delta: Int): PracticeUiState {
-    val next = FingeringOrder.getOrNull(FingeringOrder.indexOf(draft.note) + delta) ?: return this
-    return copy(draft = draft.copy(note = next), listening = null)
+    val events = song?.timeline ?: return this
+    if (events.isEmpty()) return this
+    val next = (selected + delta).coerceIn(0, events.lastIndex)
+    if (next == selected) return this
+    val yul = fingeringYulAt(next)
+    return copy(selected = next, listening = null, draft = draft.copy(note = yul ?: draft.note, noteRest = yul == null))
 }
 
 /** 표기 패널 적용. 계이름 데이터가 없는 곡은 계이름을 켜지 않는다. */

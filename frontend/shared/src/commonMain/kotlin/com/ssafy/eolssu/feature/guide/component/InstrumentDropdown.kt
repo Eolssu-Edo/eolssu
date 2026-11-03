@@ -50,11 +50,13 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_instrument_label
 import eolssu.shared.generated.resources.guide_instrument_select
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.label
+import com.ssafy.eolssu.feature.guide.FingeringInstrumentOption
 
 /**
  * '악기' + 드롭다운(`.fg-select`). 메뉴는 버튼 바로 아래에 겹쳐 열리고, 바깥을 누르면 [onDismiss]로 닫힌다.
@@ -68,10 +70,11 @@ internal fun InstrumentDropdown(
     onSelect: (GuideInstrument) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    options: List<FingeringInstrumentOption>? = null,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
-    val selectedLabel = stringResource(selected.label)
+    val selectedLabel = options?.firstOrNull { it.instrument == selected }?.name ?: stringResource(selected.label)
     val menuLabel = stringResource(Res.string.guide_instrument_select)
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -125,9 +128,10 @@ internal fun InstrumentDropdown(
                             .background(colors.surface)
                             .border(1.dp, colors.lineSoft, shape),
                     ) {
-                        GuideInstrument.entries.forEachIndexed { i, instrument ->
+                        (options?.map { it.instrument } ?: GuideInstrument.entries).forEachIndexed { i, instrument ->
                             if (i > 0) HorizontalDivider(color = colors.lineSoft)
-                            DropdownItem(stringResource(instrument.label), instrument == selected) { onSelect(instrument) }
+                            val label = options?.firstOrNull { it.instrument == instrument }?.name ?: stringResource(instrument.label)
+                            DropdownItem(label, instrument == selected) { onSelect(instrument) }
                         }
                     }
                 }

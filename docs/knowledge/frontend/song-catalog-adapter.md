@@ -12,7 +12,7 @@
 
 ## 실제 연결 계약
 
-모든 응답은 기존 `{httpStatus,isSuccess,message,code,result}` envelope를 쓴다. ID는 DB Long을 10진 문자열로 표현한다. 숫자로 내려 JS에서 정밀도를 잃거나, 제목/원본 sourceId로 DB ID를 대체하지 않는다. 목록은 안정된 ID 순서로 반환한다. 현 4곡에 임의 페이지·검색 API를 추가하지 않는다.
+모든 응답은 기존 `{httpStatus,isSuccess,message,code,result}` envelope를 쓴다. ID는 DB Long을 10진 문자열로 표현한다. 숫자로 내려 JS에서 정밀도를 잃거나, 제목/원본 sourceId로 DB ID를 대체하지 않는다. 목록은 안정된 ID 순서로 반환한다. 현 4곡에 임의 페이지·검색 API를 추가하지 않는다(2026-11-02 S15P31E102-345 보류, [재개 조건](../../plans/S15P31E102-345.md)).
 
 | 경로 | result | 조건 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@
 | GET /api/songs | `{items:[SongItem]}` | PUBLISHED + deleted_at IS NULL. isScorable=false도 공개 곡이면 포함 |
 | GET /api/songs/{songId} | `SongItem` | 목록과 같은 공개 조건. 없는/비공개/삭제 곡은 404 |
 
-`SongItem`은 문자열 songId·instrumentId, title, nullable description, difficulty, defaultBpm, isScorable, scoreVersion, noteCount, `jangdan{jangdanId,name,bpmUnit,pattern{beats,group}}`, `score` 원본 JSON 객체다. 목록도 악보를 포함하는 256의 구현을 그대로 소비하고 앱 내부 목록 모델은 요약만 유지한다. 목록별 상세 N+1 요청은 하지 않는다. 최초 제안의 flat jangdanName·instrumentCode·scoreData 필드는 실제 계약으로 대체했다.
+`SongItem`은 문자열 songId·instrumentId, title, nullable description, difficulty, defaultBpm, isScorable, scoreVersion, noteCount, `jangdan{jangdanId,name,bpmUnit,pattern{beats,group}}`, `score` 원본 JSON 객체다. 목록 항목은 S15P31E102-419부터 `score`를 싣지 않으며, 앱은 목록의 `score`를 선택값으로 받고 내부 목록 모델은 요약만 유지한다. 목록별 상세 N+1 요청은 하지 않는다. 최초 제안의 flat jangdanName·instrumentCode·scoreData 필드는 실제 계약으로 대체했다.
 
 상세 응답의 scoreVersion·noteCount·장단/BPM 단위와 원본 score의 값이 다르면 실패 상태로 보낸다. 이제 상세 화면은 CAT02 메타데이터와 CAT04 `/api/songs/{songId}/score`를 함께 조회한다. 두 응답의 곡·버전·박 단위·음표 수와 원본 악보, CAT04의 eventId·noteIdx·tick·위치를 대조한다. 실패를 샘플 악보로 대체하지 않는다.
 

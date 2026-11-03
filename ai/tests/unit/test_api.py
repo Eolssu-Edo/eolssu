@@ -13,7 +13,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ai_service import api
-from ai_service.api import DownloadError, app, get_fetcher
+from pydantic import TypeAdapter
+
+from ai_service.api import AnalysisDone, AnalysisError, AnalysisResult, DownloadError, InvalidRequest, NoteOut, app, get_fetcher
 from ai_service.pipelines.scoring import HOP_S, Note
 from evaluation.synthetic import BPM, SR, synth
 
@@ -55,6 +57,22 @@ def body(notes=NOTES, **override):
     } | override
 
 
+def aliases(model):
+    return {field.alias or name for name, field in model.model_fields.items()}
+
+
+def assert_documented(response):
+    """실제 응답이 OpenAPI 문서의 상태별 모델과 같은 키·값 범위인지 본다."""
+    result = response.json()
+    model = {200: AnalysisResult, 422: InvalidRequest, 500: AnalysisError, 502: AnalysisError}[response.status_code]
+    parsed = TypeAdapter(model).validate_python(result)
+    if isinstance(parsed, AnalysisDone):
+        assert set(result) == aliases(AnalysisDone)
+        assert all(set(n) == aliases(NoteOut) for n in result["notes"])
+    elif response.status_code == 200:
+        assert set(result) == {"status", "failReason"}
+
+
 @pytest.fixture
 def serve():
     """녹음 바이트를 돌려주는 가짜 다운로드를 끼운 클라이언트. 받은 URL을 기록한다."""
@@ -81,7 +99,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     result = response.json()
     assert set(result) == DONE_KEYS
     assert result["status"] == "DONE"
-    assert result["modelVersion"] == "pyin-4"
+    assert result["modelVersion"] == "pyin-5"
     assert [n["idx"] for n in result["notes"]] == [FIRST_IDX + 2 * i for i in range(len(NOTES))]
     assert all(set(n) == NOTE_KEYS for n in result["notes"])
     assert [n["verdict"] for n in result["notes"]] == ["CORRECT"] * len(NOTES)
@@ -90,6 +108,7 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     for note in result["notes"]:  # 백엔드는 Int로 읽는다. 20.0은 받지 않는다
         assert type(note["onsetErrorMs"]) is int and type(note["durationErrorMs"]) is int
     assert serve.asked == [SIGNED_URL]
+    assert_documented(response)
 
 
 def test_wrong_note_is_pitch_not_failure(serve, tmp_path):
@@ -104,12 +123,14 @@ def test_missed_note_has_null_errors(serve, tmp_path):
     missed = result["notes"][1]
     assert missed == {"idx": FIRST_IDX + 2, "verdict": "MISSED", "pitchErrorCent": None, "onsetErrorMs": None,
                       "durationErrorMs": None}
+    TypeAdapter(AnalysisResult).validate_python(result)
 
 
 def test_silence_is_no_sound(serve, tmp_path):
     response = serve(m4a(np.zeros(SR * 2), tmp_path)).post("/v1/analyses", json=body())
     assert response.status_code == 200
     assert response.json() == {"status": "FAILED", "failReason": "NO_SOUND"}
+    assert_documented(response)
 
 
 def test_recording_under_half_length_is_too_short(serve, tmp_path):
@@ -122,18 +143,21 @@ def test_unreadable_file_is_decode_error(serve):
     response = serve(b"not an audio file").post("/v1/analyses", json=body())
     assert response.status_code == 200
     assert response.json() == {"status": "FAILED", "failReason": "DECODE_ERROR"}
+    assert_documented(response)
 
 
 def test_download_failure_is_server_error_without_url(serve):
     response = serve(DownloadError("403")).post("/v1/analyses", json=body())
     assert response.status_code == 502
     assert "secret-token" not in response.text
+    assert_documented(response)
 
 
 def test_unexpected_error_is_500_without_message(serve):
     response = serve(RuntimeError(f"boom {SIGNED_URL}")).post("/v1/analyses", json=body())
     assert response.status_code == 500
     assert response.json() == {"error": "ANALYSIS_ERROR"}  # 예외가 밖으로 나가면 uvicorn이 메시지째 로그에 남긴다
+    assert_documented(response)
 
 
 def test_invalid_request_does_not_echo_signed_url(serve):
@@ -142,6 +166,7 @@ def test_invalid_request_does_not_echo_signed_url(serve):
     assert response.status_code == 422
     assert "secret-token" not in response.text
     assert serve.asked == []
+    assert_documented(response)
 
 
 def with_start_beats(*beats):
@@ -184,7 +209,7 @@ def test_rest_gap_is_scored_with_start_beats(serve, monkeypatch):
     """쉼이 있으면 startBeat가 앞 음의 beats보다 더 벌어진다. 쉼을 지켜 분 연주는 모두 맞고, idx는 요청 그대로다."""
     response = serve(decoded(monkeypatch, synth(RESTED))).post("/v1/analyses", json=with_start_beats(*REST_STARTS))
     result = response.json()
-    assert result["modelVersion"] == "pyin-4"
+    assert result["modelVersion"] == "pyin-5"
     assert [(n["idx"], n["verdict"]) for n in result["notes"]] == [(FIRST_IDX + 2 * i, "CORRECT") for i in range(4)]
 
 
@@ -268,3 +293,25 @@ def test_download_has_overall_deadline(monkeypatch, tmp_path):
     monkeypatch.setattr(api, "DOWNLOAD_TIMEOUT_S", -1.0)  # 이미 지난 마감: 받는 중에 끊어야 한다
     with pytest.raises(DownloadError):
         api.download(SIGNED_URL, tmp_path / "r")
+
+
+def test_openapi_documents_every_route_and_status():
+    spec = app.openapi()
+    routes = {(path, method) for path, item in spec["paths"].items() for method in item}
+    assert routes == {("/v1/analyses", "post")}
+    operation = spec["paths"]["/v1/analyses"]["post"]
+    assert operation["summary"] and operation["description"]
+    assert set(operation["responses"]) == {"200", "422", "500", "502"}
+    assert all(r["content"]["application/json"]["schema"] for r in operation["responses"].values())
+    schemas = spec["components"]["schemas"]
+    request = schemas["AnalysisIn"]["properties"]
+    assert set(request) == {"sessionId", "attempt", "audioUrl", "bpm", "bpmUnit", "notes"}
+    assert set(schemas["NoteIn"]["properties"]) == {"idx", "semitone", "startBeat", "beats", "sigimsae"}
+    assert set(schemas["AnalysisDone"]["required"]) == DONE_KEYS
+    assert set(schemas["NoteOut"]["required"]) == NOTE_KEYS
+    assert schemas["AnalysisFailed"]["properties"]["failReason"]["enum"] == ["NO_SOUND", "TOO_SHORT", "DECODE_ERROR"]
+
+
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_documentation_stays_private(path):
+    assert TestClient(app).get(path).status_code == 404

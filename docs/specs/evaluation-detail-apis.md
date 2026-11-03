@@ -2,6 +2,7 @@
 
 - Jira: EVA-02·03은 S15P31E102-307, EVA-04는 S15P31E102-310. Story S15P31E102-37, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md) · [310 계획](../plans/S15P31E102-310.md)
 - 현재 구현 계약. 노션 API 명세서의 EVA-02·03·04 계약 초안을 따르고, 저장 데이터로 채울 수 없는 필드는 아래처럼 고정값으로 둔다. EVA-04는 초안의 점수 비교를 뺐다(아래 '미구현·후속'의 노션 초안과 다른 점). 채점을 다시 하거나 결과를 저장하지 않는다.
+- 2026-11-03 변경: EVA-04에 점수 비교와 같은 곡 직전 연주 비교를 다시 넣기로 했다(S15P31E102-382). 아래 EVA-04 절은 현재 구현이고, 바뀔 계약은 [EVA-04 2차 계약](#eva-04-2차-계약-미구현)에 있다.
 
 ## 공통
 
@@ -85,12 +86,23 @@
 
 점수는 음표별 오차와 AI 허용 범위로 계산되어 저장 판정만으로는 같은 구간 점수를 다시 만들 수 없다. 서버가 공식을 복제하지 않도록 점수 비교를 계약에서 뺐다. 판정 정책 버전은 저장하지 않아 비교 조건에 넣지 못했다.
 
+## EVA-04 2차 계약 (미구현)
+
+2026-11-03 사용자 결정(S15P31E102-382). 상세는 [Notion EVA-04](https://app.notion.com/p/401a0252aa45814980a6f98e0f191dfe)를 따른다.
+
+- 점수와 오류 수를 모두 비교한다. 위 '점수는 비교하지 않는다'(2026-10-30)를 대체한다.
+- 구간 점수는 서버가 공식을 만들지 않고, 평가 때 AI가 돌려준 음표별 부분 점수(`pitchScore`·`timingScore`·`durationScore`·`weight`)를 비교 구간 음표만 모아 AI가 정한 합산 규칙(`scoringVersion`·`scoreWeights`)으로 합친다. 곡 전체를 합친 값은 AI가 준 총점·항목 점수와 같아야 한다. 이 응답 변경은 [Notion /v1/analyses](https://app.notion.com/p/408a0252aa4581528abee5ac1bdfd1a7)의 2차 변경 제안이며 AI 담당 합의가 필요하다.
+- 이전 세션 선택: `baselineSessionId` → 이번 세션의 `parentSessionId` → 같은 곡·본인·미삭제·DONE이고 이번보다 먼저 시작했으며 이번 구간을 모두 담은 가장 최근 세션. 마지막 단계에서 찾지 못하면 400이 아니라 200과 `baselineSessionId: null`을 준다(첫 연주). 기록 저장 여부는 따지지 않는다.
+- BPM·단위가 달라도 비교하고 `bpmChanged`로 알린다. 악보 버전·채점 모델·합산 규칙이 다르거나 부분 점수 도입 전 평가면 점수만 비교하지 않는다(`scoreComparable=false`). 악보 버전이 다르면 오류 수도 비교하지 않는다(`errorComparable=false`).
+- 응답: `comparable`·`reason`을 `scoreComparable`·`errorComparable`·`notComparableReasons`(코드 배열)로 바꾸고, `baselineStartedAt`·`baselineSource`(QUERY / PARENT / PREVIOUS)·`isFullSong`·`bpmChanged`를 더한다. `before`·`delta`에 점수 4개를 다시 넣는다(비교 불가면 null).
+- 저장: `note_results`에 부분 점수·weight, `evaluations`에 `scoring_version`·`score_weights`를 더한다(새 Flyway). 기존 평가 행은 NULL이며 `NO_NOTE_SCORES`로 처리한다.
+
 ## 미구현·후속
 
 - 복수 오류 유형, DURATION 판정, 녹음 위치(recordingOffsetMs)는 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
-- 누락(MISSED) 표시 방식과 '취약 구간 연습' 버튼의 1차 이동 화면은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
-- EVA-04를 쓰는 구간 재평가 화면(RESULT-04)과 구간 반복 연습(PRACTICE-02·03)은 와이어프레임 기준 2차 확장이다. 서버 API는 먼저 구현했다.
-- 노션 EVA-04 초안과 다른 점: 초안의 before 점수 4개·delta.totalScore·규칙 1~3·5(구간 점수 재집계)를 뺐다. before.errorCount는 악보 버전이 다르면 null이다. baselineSessionId는 생략하면 parentSessionId를 쓴다. 디자인 RESULT-04의 '이전보다 17점 올랐어요'·항목별 이전→이번 점수는 '남은 오류 9개 → 2개'처럼 오류 수 중심으로 바꿔야 한다. 노션 초안 갱신과 FE·디자인 공유가 남아 있다.
+- 누락(MISSED) 표시 방식은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
+- '취약 구간 연습' 버튼은 2차에서 구간 선택(PRACTICE-02)으로 이동한다(2026-11-03 확정). 구간 반복(PRACTICE-03)은 서버를 부르지 않고, '이 구간 재평가'가 PRA-01 구간 세션(`parentSessionId` 포함)을 만든다.
+- (2026-11-03 이전 기록) 노션 EVA-04 초안과 다른 점: 초안의 before 점수 4개·delta.totalScore·규칙 1~3·5(구간 점수 재집계)를 뺐다. before.errorCount는 악보 버전이 다르면 null이다. baselineSessionId는 생략하면 parentSessionId를 쓴다. 이 차이는 위 'EVA-04 2차 계약'으로 다시 바뀐다. 디자인 RESULT-04의 점수 비교 문구는 2차 계약에서 그대로 쓸 수 있다.
 
 ## 구현 경계·검증
 

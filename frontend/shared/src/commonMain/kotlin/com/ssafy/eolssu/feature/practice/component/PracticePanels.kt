@@ -1,94 +1,88 @@
 package com.ssafy.eolssu.feature.practice.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.HoleState
+import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
+import com.ssafy.eolssu.core.ui.component.ChipRow
 import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.SheetHeader
-import com.ssafy.eolssu.core.ui.component.ToggleRow
+import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.score.FingeringFigure
+import com.ssafy.eolssu.core.ui.score.HoleLegend
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.YulGlyph
-import com.ssafy.eolssu.feature.practice.FingeringOrder
 import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.TempoStep
-import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_apply
-import eolssu.shared.generated.resources.practice_big_score
-import eolssu.shared.generated.resources.practice_big_score_desc
-import eolssu.shared.generated.resources.practice_fingering_closed
-import eolssu.shared.generated.resources.practice_fingering_half
+import eolssu.shared.generated.resources.practice_fingering_desc
 import eolssu.shared.generated.resources.practice_fingering_instrument
+import eolssu.shared.generated.resources.practice_fingering_missing
 import eolssu.shared.generated.resources.practice_fingering_name
 import eolssu.shared.generated.resources.practice_fingering_next
-import eolssu.shared.generated.resources.practice_fingering_open
-import eolssu.shared.generated.resources.practice_fingering_placeholder
+import eolssu.shared.generated.resources.practice_fingering_none
 import eolssu.shared.generated.resources.practice_fingering_prev
+import eolssu.shared.generated.resources.practice_fingering_rest
 import eolssu.shared.generated.resources.practice_fingering_title
-import eolssu.shared.generated.resources.practice_flute_end
-import eolssu.shared.generated.resources.practice_flute_holes
-import eolssu.shared.generated.resources.practice_flute_membrane
-import eolssu.shared.generated.resources.practice_flute_mouth
+import eolssu.shared.generated.resources.practice_fingering_view
+import eolssu.shared.generated.resources.practice_fingering_view_desc
+import eolssu.shared.generated.resources.practice_instrument
 import eolssu.shared.generated.resources.practice_jangdan_beat
 import eolssu.shared.generated.resources.practice_jangdan_beat_desc
 import eolssu.shared.generated.resources.practice_jangdan_gueum_note
-import eolssu.shared.generated.resources.practice_jangdan_gueum_placeholder
 import eolssu.shared.generated.resources.practice_jangdan_meta
 import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
 import eolssu.shared.generated.resources.practice_jangdan_mic_notice
@@ -97,18 +91,17 @@ import eolssu.shared.generated.resources.practice_jangdan_preview_start
 import eolssu.shared.generated.resources.practice_jangdan_preview_stop
 import eolssu.shared.generated.resources.practice_jangdan_sound
 import eolssu.shared.generated.resources.practice_jangdan_sound_desc
+import eolssu.shared.generated.resources.practice_jangdan_sound_off
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_jangdan_sub
 import eolssu.shared.generated.resources.practice_jangdan_title
+import eolssu.shared.generated.resources.practice_jangdan_unavailable
 import eolssu.shared.generated.resources.practice_listen_note
 import eolssu.shared.generated.resources.practice_listening
 import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_menu_tempo
 import eolssu.shared.generated.resources.practice_notation_example
-import eolssu.shared.generated.resources.practice_notation_example_aux
-import eolssu.shared.generated.resources.practice_notation_example_keep
-import eolssu.shared.generated.resources.practice_notation_example_plain
 import eolssu.shared.generated.resources.practice_notation_hangul
 import eolssu.shared.generated.resources.practice_notation_hangul_desc
 import eolssu.shared.generated.resources.practice_notation_solfege
@@ -122,7 +115,6 @@ import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.roundToInt
 
 /** 보조 패널에서 부르는 동작. */
 class PracticePanelActions(
@@ -136,10 +128,14 @@ class PracticePanelActions(
     val onMoveFingering: (Int) -> Unit,
     val onListen: () -> Unit,
     val onTogglePreview: () -> Unit,
+    /** 연습 설정의 ‘연습 악기’(`GuideInstrument.id`). */
+    val onSetInstrument: (String) -> Unit = {},
+    /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다. */
+    val onToggleFingeringView: () -> Unit = {},
 )
 
 /**
- * 휴대폰·태블릿 세로에서는 아래에서 올라오는 시트로 보여 준다.
+ * 휴대폰·태블릿 세로에서는 아래에서 올라오는 시트(보드 `.sheet`)로 보여 준다.
  * 시트 너비는 Material 기본값(최대 640dp, 가운데)이고, 태블릿 세로([tablet])는 창 높이의 45%(설정)·60%까지만 올라온다.
  */
 @Composable
@@ -153,18 +149,21 @@ fun PracticePanelSheet(
     val song = state.song ?: return
     val apply = panelApply(panel, actions)
     val settings = panel == PracticePanel.Settings
-    EolssuBottomSheet(
-        onDismiss = actions.onClose,
-        modifier = modifier,
-        maxHeightFraction = when {
-            tablet -> if (settings) 0.45f else 0.6f
-            settings -> 0.6f
-            else -> 0.78f
-        },
-        header = { PanelHeader(panel, actions.onClose) },
-        footer = apply?.let { { EolssuButton(stringResource(Res.string.practice_apply), it) } },
-    ) {
-        PanelBody(panel, state, song, actions)
+    // 표기·장단·속도 패널을 닫으면 연습 설정 시트로 돌아온다(보드 `close`). 시트는 패널마다 새로 만들어 닫힘 애니메이션 뒤에도 다시 올라온다.
+    key(panel) {
+        EolssuBottomSheet(
+            onDismiss = actions.onClose,
+            modifier = modifier,
+            maxHeightFraction = when {
+                tablet -> if (settings) 0.45f else 0.6f
+                settings -> 0.62f
+                else -> 0.82f
+            },
+            header = { PanelHeader(panel, state, actions.onClose) },
+            footer = apply?.let { { EolssuButton(stringResource(Res.string.practice_apply), it) } },
+        ) {
+            PanelBody(panel, state, song, actions)
+        }
     }
 }
 
@@ -177,7 +176,7 @@ fun PracticePanelInline(state: PracticeUiState, actions: PracticePanelActions, m
     val song = state.song ?: return
     val apply = panelApply(panel, actions)
     Column(modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp)) {
-        PanelHeader(panel, actions.onClose)
+        PanelHeader(panel, state, actions.onClose)
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -199,13 +198,13 @@ private fun panelApply(panel: PracticePanel, actions: PracticePanelActions): (()
 }
 
 @Composable
-fun PanelHeader(panel: PracticePanel, onClose: () -> Unit) {
+fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Unit) {
     when (panel) {
         PracticePanel.Settings -> SheetHeader(stringResource(Res.string.practice_settings), onClose)
         PracticePanel.Notation -> SheetHeader(stringResource(Res.string.practice_notation_title), onClose)
         PracticePanel.Fingering -> SheetHeader(
             stringResource(Res.string.practice_fingering_title), onClose,
-            subtitle = stringResource(Res.string.practice_fingering_instrument),
+            subtitle = stringResource(Res.string.practice_fingering_instrument, stringResource(state.instrument.label)),
         )
         PracticePanel.Jangdan -> SheetHeader(stringResource(Res.string.practice_jangdan_title), onClose)
         PracticePanel.Tempo -> SheetHeader(stringResource(Res.string.practice_tempo_title), onClose)
@@ -223,282 +222,305 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
     }
 }
 
+/**
+ * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 쉬운 표기 · 장단 · 속도 메뉴 줄(`.menu-row`) → ‘운지법과 함께 보기’ 스위치(`.trow`).
+ */
 @Composable
 private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val settings = state.settings
     val notationOn = settings.showHangul || settings.showSolfege
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
-    Column(Modifier.padding(bottom = 4.dp)) {
+    val instrumentName = stringResource(state.instrument.label)
+    Column {
+        InstrumentSelect(state.instrument, actions.onSetInstrument)
         MenuRow(
-            EolssuIcons.Text, stringResource(Res.string.practice_menu_notation),
-            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off), notationOn,
+            EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
+            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
         ) { actions.onOpen(PracticePanel.Notation) }
         MenuRow(
-            EolssuIcons.Metronome, stringResource(Res.string.practice_menu_jangdan),
-            if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdan.name) else song.jangdan.name,
-            settings.jangdanSound,
+            EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
+            if (song.jangdan == null) jangdanLabel(song.jangdanName) else
+                stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName),
         ) { actions.onOpen(PracticePanel.Jangdan) }
-        MenuRow(EolssuIcons.Speed, stringResource(Res.string.practice_menu_tempo), tempoLabel(step), state.bpm != song.baseBpm) {
+        MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), tempoLabel(step)) {
             actions.onOpen(PracticePanel.Tempo)
         }
+        SettingRow(
+            stringResource(Res.string.practice_fingering_view),
+            stringResource(Res.string.practice_fingering_view_desc, instrumentName),
+            checked = settings.fingeringView,
+            onToggle = actions.onToggleFingeringView,
+        )
     }
-    ToggleRow(
-        stringResource(Res.string.practice_big_score), settings.bigScore, actions.onToggleBigScore,
-        description = stringResource(Res.string.practice_big_score_desc),
-    )
 }
 
+/** ‘연습 악기’(`.instrument-select`): 13sp 라벨과 오른쪽 고르기 상자(38dp, 옅은 테두리, 반지름 8, 13sp 500). */
 @Composable
-private fun MenuRow(icon: ImageVector, label: String, status: String, on: Boolean, onClick: () -> Unit) {
+private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Unit) {
+    val colors = EolssuTheme.colors
+    var open by remember { mutableStateOf(false) }
+    val label = stringResource(Res.string.practice_instrument)
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), color = colors.text)
+        Box {
+            Row(
+                Modifier
+                    .heightIn(min = 38.dp)
+                    .border(1.dp, colors.line, RoundedCornerShape(8.dp))
+                    .background(colors.surface, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.DropdownList) { open = true }
+                    .padding(start = 10.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(stringResource(selected.label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = colors.text)
+                Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = colors.surface) {
+                GuideInstrument.entries.forEach { instrument ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(instrument.label),
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (instrument == selected) FontWeight.SemiBold else FontWeight.Normal),
+                            )
+                        },
+                        onClick = {
+                            open = false
+                            onSelect(instrument.id)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 메뉴 줄(`.menu-row`, 56dp): 위 선, 36dp 흰 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. */
+@Composable
+private fun MenuRow(icon: ImageVector, label: String, status: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .drawBehind { drawLine(colors.line, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) }
-            .padding(horizontal = 2.dp, vertical = 12.dp),
+            .height(56.dp)
+            .drawBehind { drawLine(colors.surfaceStrong, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
+            .clickable(role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(36.dp).background(colors.surface, RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.text)
+        Box(
+            Modifier.size(36.dp).background(colors.surface, RoundedCornerShape(10.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.text)
         }
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold))
-        Text(
-            status,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal),
-            color = if (on) colors.text else colors.textMuted,
-        )
-        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.lineStrong)
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        Text(status, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
     }
 }
 
+/**
+ * 스위치 줄(`.trow`): 위 선(`#EEEBE3`), 위아래 12dp, 15sp 600 이름과 13sp 설명, 오른쪽 50×30 스위치.
+ * [enabled]가 아니면 줄을 흐리게 하고 스위치를 끈다(`.trow.off`).
+ */
 @Composable
-private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
-    val hasSolfege = song.solfege != null
-    ToggleRow(
-        stringResource(Res.string.practice_notation_hangul), draft.showHangul,
-        { actions.onDraft { it.copy(showHangul = !it.showHangul) } },
-        description = stringResource(Res.string.practice_notation_hangul_desc),
-    )
-    ToggleRow(
-        stringResource(Res.string.practice_notation_solfege), hasSolfege && draft.showSolfege,
-        { actions.onDraft { it.copy(showSolfege = !it.showSolfege) } },
-        description = stringResource(if (hasSolfege) Res.string.practice_notation_solfege_desc else Res.string.practice_notation_solfege_none),
-        enabled = hasSolfege,
-    )
+private fun SettingRow(
+    label: String,
+    description: String,
+    checked: Boolean,
+    onToggle: () -> Unit,
+    enabled: Boolean = true,
+    topLine: Boolean = true,
+    vertical: Dp = 12.dp,
+) {
     val colors = EolssuTheme.colors
-    val plain = !draft.showHangul && !(hasSolfege && draft.showSolfege)
     Row(
         Modifier
             .fillMaxWidth()
-            .drawBehind {
-                drawRoundRect(
-                    colors.line, cornerRadius = CornerRadius(12.dp.toPx()),
-                    style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))),
-                )
-            }
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .alpha(if (enabled) 1f else 0.55f)
+            .then(if (topLine) Modifier.drawBehind { drawLine(colors.surfaceStrong, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) } else Modifier)
+            .padding(top = if (topLine) vertical else 0.dp, bottom = vertical),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp), color = colors.textMuted)
+        }
+        EolssuSwitch(checked, onToggle, label, enabled = enabled)
+    }
+}
+
+/** 작은 안내 글(`.tiny.muted`, 12sp). */
+@Composable
+private fun TinyNote(text: String, modifier: Modifier = Modifier) {
+    Text(text, modifier, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = EolssuTheme.colors.textMuted)
+}
+
+/** 흰 카드(`.card`): 옅은 테두리, 반지름 16. */
+@Composable
+private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
+    val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(16.dp)
+    Column(modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(padding), content = content)
+}
+
+/**
+ * PANEL-01 악보 표시 설정: 한글 읽는 법 · 계이름 스위치 줄과, 고른 설정을 보여 주는 미니 정간보 카드.
+ */
+@Composable
+private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
+    val hasSolfege = song.solfege != null
+    val colors = EolssuTheme.colors
+    SettingRow(
+        stringResource(Res.string.practice_notation_hangul), stringResource(Res.string.practice_notation_hangul_desc),
+        draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } }, topLine = false,
+    )
+    SettingRow(
+        stringResource(Res.string.practice_notation_solfege),
+        stringResource(if (hasSolfege) Res.string.practice_notation_solfege_desc else Res.string.practice_notation_solfege_none),
+        hasSolfege && draft.showSolfege, { actions.onDraft { it.copy(showSolfege = !it.showSolfege) } }, enabled = hasSolfege,
+    )
+    Row(
+        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         JeongganboView(
             song = song,
-            modifier = Modifier.width(60.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
-            metrics = JeongganboMetrics(columnWidth = 56.dp, cellHeight = 40.dp, yulSize = 19.sp, auxSize = 9.5.sp),
+            modifier = Modifier.width(90.dp),
+            metrics = JeongganboMetrics(columnWidth = 86.dp, cellHeight = 44.dp, yulSize = 17.sp, auxSize = 9.sp, headHeight = 22.dp, columnGap = 0.dp, splitScaleTwo = 11f / 17f),
             notation = ScoreNotation(draft.showHangul, hasSolfege && draft.showSolfege),
             scrollState = null,
             maxColumns = 1,
             maxRows = 3,
+            look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true),
         )
         Text(
-            listOf(
-                stringResource(Res.string.practice_notation_example),
-                stringResource(if (plain) Res.string.practice_notation_example_plain else Res.string.practice_notation_example_aux),
-                stringResource(Res.string.practice_notation_example_keep),
-            ).joinToString("\n"),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+            stringResource(Res.string.practice_notation_example),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
             color = colors.textMuted,
         )
     }
 }
 
+/**
+ * PANEL-03 운지법: 이전·다음 음(악보의 앞뒤 정간) 사이 36sp 율명과 읽는 법, 악기 사진 위 구멍 표시와 범례, ‘음 듣기’, 막는 구멍·출처.
+ */
 @Composable
 private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val yul = state.draft.note
-    val index = FingeringOrder.indexOf(yul)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_fingering_prev), { actions.onMoveFingering(-1) }, enabled = index > 0)
+    val rest = state.draft.noteRest
+    val instrument = state.instrument
+    val note = if (rest) null else instrument.noteOf(yul.symbol)
+    val holes = note?.holes ?: emptyList()
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_fingering_prev), { actions.onMoveFingering(-1) }, bordered = false, enabled = state.selected > 0)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            YulGlyph(yul, 30.sp, fontWeight = FontWeight.Bold)
+            if (rest) {
+                Text("△", style = EolssuTheme.serif.yul.copy(fontSize = 36.sp, lineHeight = 40.sp), color = colors.textSub)
+            } else {
+                YulGlyph(yul, 36.sp, fontWeight = FontWeight.SemiBold)
+            }
             Text(
-                stringResource(Res.string.practice_fingering_name, yul.fullName, yul.hangul),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                if (rest) stringResource(Res.string.practice_fingering_rest) else stringResource(Res.string.practice_fingering_name, yul.fullName, yul.hangul),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                 color = colors.textMuted,
             )
         }
         EolssuIconButton(
             EolssuIcons.Next, stringResource(Res.string.practice_fingering_next), { actions.onMoveFingering(1) },
-            enabled = index < FingeringOrder.lastIndex,
+            bordered = false, enabled = state.selected < state.eventCount - 1,
         )
     }
-    Column(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).padding(start = 14.dp, end = 14.dp, top = 16.dp, bottom = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        FluteOutline()
-        Text(
-            stringResource(Res.string.practice_fingering_placeholder),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
-            color = colors.textMuted,
-            textAlign = TextAlign.Center,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            LegendItem(stringResource(Res.string.practice_fingering_closed), fill = 1f)
-            LegendItem(stringResource(Res.string.practice_fingering_open), fill = 0f)
-            LegendItem(stringResource(Res.string.practice_fingering_half), fill = 0.5f)
-        }
+    PanelCard(padding = 10.dp) {
+        FingeringFigure(instrument, holes, Modifier.fillMaxWidth(), description = stringResource(instrument.label))
+        HoleLegend(Modifier.fillMaxWidth().padding(top = 8.dp))
     }
-    val listening = state.listening == yul
+    val listening = state.listening == yul && !rest
     EolssuButton(
         stringResource(if (listening) Res.string.practice_listening else Res.string.practice_listen_note),
         actions.onListen,
         style = EolssuButtonStyle.Secondary,
-        icon = if (listening) EolssuIcons.Pause else EolssuIcons.Ear,
+        icon = if (listening) EolssuIcons.Pause else EolssuIcons.Speaker,
+        enabled = !rest,
         contentColor = if (listening) colors.play else null,
         borderColor = if (listening) colors.play else null,
     )
-}
-
-@Composable
-private fun LegendItem(label: String, fill: Float) {
-    val colors = EolssuTheme.colors
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        Canvas(Modifier.size(12.dp)) {
-            val r = size.minDimension / 2
-            if (fill > 0f) {
-                drawArc(colors.text, startAngle = 90f, sweepAngle = 360f * fill, useCenter = true, size = size)
-            }
-            drawCircle(colors.text, radius = r - 0.75.dp.toPx(), style = Stroke(1.5.dp.toPx()))
-        }
-        Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+    if (!rest) {
+        TinyNote(
+            if (note != null) {
+                val closed = note.holes.mapIndexedNotNull { i, h -> if (h == HoleState.Closed) holeName(instrument, i) else null }
+                stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) }, instrument.source)
+            } else {
+                stringResource(Res.string.practice_fingering_missing, yul.fullName)
+            },
+        )
     }
 }
+
+/** 구멍 번호. 단소의 첫 항목은 뒷구멍이다(보드 `fcClosed`). */
+private fun holeName(instrument: GuideInstrument, index: Int): String =
+    if (instrument == GuideInstrument.Danso) (if (index == 0) "뒷" else "$index") else "${index + 1}"
 
 /**
- * 대금 윤곽(취구·청공·지공 6·칠성공). 어떤 구멍을 막는지는 실제 자료가 붙기 전까지 그리지 않는다(와이어프레임 `fluteFigure`).
+ * PANEL-04 장단: 장단 이름과 ‘한 각 N정간 · 대강 … · BPM’, 정간 칸(대강 첫 칸은 번호·구음, 미리듣기 중인 칸은 연두), 구음 안내,
+ * ‘장단 듣기’, 장단 소리·현재 박 스위치, 헤드폰 안내 카드.
  */
-@Composable
-private fun FluteOutline() {
-    val colors = EolssuTheme.colors
-    val measurer = rememberTextMeasurer()
-    val labelStyle = TextStyle(fontSize = 9.sp, color = colors.textMuted)
-    val mouth = stringResource(Res.string.practice_flute_mouth)
-    val membrane = stringResource(Res.string.practice_flute_membrane)
-    val holes = stringResource(Res.string.practice_flute_holes)
-    val end = stringResource(Res.string.practice_flute_end)
-    Canvas(Modifier.fillMaxWidth().heightIn(max = 120.dp).height(70.dp)) {
-        // 340×70 좌표계를 가로에 맞춰 늘린다.
-        val s = size.width / 340f
-        val dash = PathEffect.dashPathEffect(floatArrayOf(3 * s, 2 * s))
-        fun label(text: String, x: Float, y: Float) {
-            val layout = measurer.measure(text, labelStyle)
-            drawText(layout, topLeft = Offset(x * s - layout.size.width / 2f, y * s - layout.size.height + 2 * s))
-        }
-        drawRoundRect(Color.White, Offset(10 * s, 16 * s), Size(320 * s, 28 * s), CornerRadius(14 * s))
-        drawRoundRect(colors.lineStrong, Offset(10 * s, 16 * s), Size(320 * s, 28 * s), CornerRadius(14 * s), style = Stroke(1.5f * s))
-        drawOval(colors.surfaceStrong, Offset(41 * s, 24 * s), Size(18 * s, 12 * s))
-        drawOval(colors.textMuted, Offset(41 * s, 24 * s), Size(18 * s, 12 * s), style = Stroke(1.5f * s))
-        label(mouth, 50f, 58f)
-        drawOval(Color.White, Offset(92 * s, 25 * s), Size(16 * s, 10 * s))
-        drawOval(colors.lineStrong, Offset(92 * s, 25 * s), Size(16 * s, 10 * s), style = Stroke(1.5f * s, pathEffect = dash))
-        label(membrane, 100f, 58f)
-        listOf(150f, 175f, 200f, 235f, 260f, 285f).forEachIndexed { i, x ->
-            drawCircle(Color.White, 7 * s, Offset(x * s, 30 * s))
-            drawCircle(colors.lineStrong, 7 * s, Offset(x * s, 30 * s), style = Stroke(1.5f * s, pathEffect = dash))
-            label("${i + 1}", x, 58f)
-        }
-        drawCircle(Color.White, 4 * s, Offset(316 * s, 30 * s))
-        drawCircle(colors.lineStrong, 4 * s, Offset(316 * s, 30 * s), style = Stroke(1.5f * s, pathEffect = dash))
-        label(end, 316f, 58f)
-        label(holes, 218f, 12f)
-    }
-}
-
 @Composable
 private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val jangdan = song.jangdan
+    if (jangdan == null) {
+        Text(jangdanLabel(song.jangdanName), style = MaterialTheme.typography.titleMedium)
+        TinyNote(stringResource(Res.string.practice_jangdan_unavailable))
+        return
+    }
     val draft = state.draft
     val starts = jangdan.daegangStarts
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(jangdanLabel(jangdan), style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold), softWrap = false)
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-            val sub = if (jangdan.subdivision > 1) " " + stringResource(Res.string.practice_jangdan_sub, jangdan.subdivision) else ""
-            Text(
-                stringResource(if (song.score.timing == null) Res.string.practice_jangdan_meta else Res.string.practice_jangdan_pattern_meta,
-                    jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-                textAlign = TextAlign.End,
-            )
-            jangdan.aliases?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted, textAlign = TextAlign.End)
-            }
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(jangdanLabel(jangdan), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
+        val sub = if (jangdan.subdivision > 1) " " + stringResource(Res.string.practice_jangdan_sub, jangdan.subdivision) else ""
+        Text(
+            stringResource(if (song.score.timing == null) Res.string.practice_jangdan_meta else Res.string.practice_jangdan_pattern_meta,
+                jangdan.gak, jangdan.daegang.joinToString("·"), sub, state.bpm),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = colors.textMuted,
+        )
     }
     val perRow = minOf(jangdan.gak, 12)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 rowCells.forEach { i ->
                     val strong = i in starts
                     val on = draft.previewing && draft.previewBeat == i
                     Column(
                         Modifier
                             .weight(1f)
-                            .heightIn(min = 46.dp)
-                            .background(
-                                when {
-                                    on -> colors.accentSoft
-                                    strong -> colors.surface
-                                    else -> colors.background
-                                },
-                                RoundedCornerShape(8.dp),
-                            )
-                            .border(
-                                1.dp,
-                                when {
-                                    on -> colors.accent
-                                    strong -> colors.lineStrong
-                                    else -> colors.line
-                                },
-                                RoundedCornerShape(8.dp),
-                            )
-                            .padding(2.dp),
+                            .height(48.dp)
+                            .background(if (on) colors.accent else colors.surface, RoundedCornerShape(6.dp))
+                            .border(if (strong) 2.dp else 1.dp, if (strong) colors.text else colors.line, RoundedCornerShape(6.dp)),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        if (strong) Text("${starts.indexOf(i) + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold))
-                        val gueum = jangdan.gueum
-                        when {
-                            gueum != null && gueum[i].isNotEmpty() ->
-                                Text(gueum[i], style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted, maxLines = 1)
-                            gueum == null && strong ->
-                                Text(stringResource(Res.string.practice_jangdan_gueum_placeholder), style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp), color = colors.textMuted, maxLines = 1)
-                        }
+                        if (strong) Text("${starts.indexOf(i) + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold), color = colors.text)
+                        val gueum = jangdan.gueum?.getOrNull(i).orEmpty()
+                        if (gueum.isNotEmpty()) Text(gueum, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 13.sp), color = colors.text, maxLines = 1)
                     }
                 }
             }
         }
     }
-    Text(
-        stringResource(if (jangdan.gueum != null) Res.string.practice_jangdan_gueum_note else Res.string.practice_jangdan_no_gueum),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-        color = colors.textMuted,
-    )
+    TinyNote(stringResource(if (jangdan.gueum != null) Res.string.practice_jangdan_gueum_note else Res.string.practice_jangdan_no_gueum))
     EolssuButton(
         stringResource(if (draft.previewing) Res.string.practice_jangdan_preview_stop else Res.string.practice_jangdan_preview_start),
         actions.onTogglePreview,
@@ -507,105 +529,43 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         contentColor = if (draft.previewing) colors.play else null,
         borderColor = if (draft.previewing) colors.play else null,
     )
-    ToggleRow(
-        stringResource(Res.string.practice_jangdan_sound), draft.jangdanSound, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } },
-        description = stringResource(Res.string.practice_jangdan_sound_desc),
-    )
-    ToggleRow(
-        stringResource(Res.string.practice_jangdan_beat), draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } },
-        description = stringResource(Res.string.practice_jangdan_beat_desc),
-    )
-    if (draft.jangdanSound) {
-        Row(
-            Modifier.fillMaxWidth().background(colors.accentSoft, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(EolssuIcons.Headphone, contentDescription = null, modifier = Modifier.padding(top = 1.dp).size(16.dp), tint = colors.text)
-            Text(stringResource(Res.string.practice_jangdan_mic_notice), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp))
-        }
+    Column {
+        SettingRow(
+            stringResource(Res.string.practice_jangdan_sound), stringResource(Res.string.practice_jangdan_sound_desc),
+            draft.jangdanSound, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, vertical = 10.dp,
+        )
+        SettingRow(
+            stringResource(Res.string.practice_jangdan_beat), stringResource(Res.string.practice_jangdan_beat_desc),
+            draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } }, vertical = 10.dp,
+        )
+    }
+    Row(
+        Modifier.fillMaxWidth().background(colors.accentTint, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(EolssuIcons.Headphone, contentDescription = null, modifier = Modifier.padding(top = 1.dp).size(18.dp), tint = colors.text)
+        Text(stringResource(Res.string.practice_jangdan_mic_notice), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp), color = colors.text)
     }
 }
 
+/** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 칩 5개, 안내. */
 @Composable
 private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val step = draft.step
-    Column(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(tempoLabel(step), style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 31.sp))
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(tempoLabel(step), style = MaterialTheme.typography.headlineSmall.copy(fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Normal), color = colors.text)
         Text(
-            stringResource(Res.string.practice_tempo_sub, step.bpm(song.baseBpm), song.baseBpm, "${(step.ratio * 100).roundToInt()}%"),
-            modifier = Modifier.padding(top = 4.dp),
+            stringResource(Res.string.practice_tempo_sub, step.bpm(song.baseBpm), song.baseBpm),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
             color = colors.textMuted,
+            textAlign = TextAlign.Center,
         )
     }
-    TempoSlider(step) { next -> actions.onDraft { it.copy(step = next) } }
-    Text(stringResource(Res.string.practice_tempo_note), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-}
-
-/** 5칸 중 한 곳에만 멈추는 일자 슬라이더. 손잡이를 끌거나 아래 이름을 눌러 고른다. */
-@Composable
-private fun TempoSlider(step: TempoStep, onChange: (TempoStep) -> Unit) {
-    val colors = EolssuTheme.colors
-    val steps = TempoStep.entries
-    val stateLabel = tempoLabel(step)
-    val tempoTitle = stringResource(Res.string.practice_tempo_title)
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 26.dp, end = 26.dp, top = 22.dp, bottom = 4.dp)) {
-        val thumb = 22.dp
-        val trackWidth = maxWidth - thumb
-        fun stepAt(x: Float, widthPx: Float, thumbPx: Float): TempoStep {
-            val ratio = ((x - thumbPx / 2) / (widthPx - thumbPx)).coerceIn(0f, 1f)
-            return steps[(ratio * (steps.size - 1)).roundToInt()]
-        }
-        Column {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(thumb)
-                    .semantics {
-                        contentDescription = tempoTitle
-                        stateDescription = stateLabel
-                    }
-                    .pointerInput(Unit) {
-                        detectTapGestures { onChange(stepAt(it.x, size.width.toFloat(), thumb.toPx())) }
-                    }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures { change, _ -> onChange(stepAt(change.position.x, size.width.toFloat(), thumb.toPx())) }
-                    },
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                val pct = step.ordinal / (steps.size - 1).toFloat()
-                Box(Modifier.padding(horizontal = thumb / 2).fillMaxWidth().height(4.dp).background(colors.surfaceStrong, RoundedCornerShape(2.dp))) {
-                    Box(Modifier.fillMaxWidth(pct).height(4.dp).background(colors.text, RoundedCornerShape(2.dp)))
-                }
-                Box(
-                    Modifier
-                        .offset(x = trackWidth * pct)
-                        .size(thumb)
-                        .shadow(2.dp, CircleShape)
-                        .background(Color.White, CircleShape)
-                        .padding(4.dp)
-                        .background(colors.text, CircleShape),
-                )
-            }
-            Box(Modifier.fillMaxWidth().height(34.dp).padding(top = 6.dp)) {
-                steps.forEach { s ->
-                    val pct = s.ordinal / (steps.size - 1).toFloat()
-                    val on = s == step
-                    Text(
-                        tempoLabel(s),
-                        modifier = Modifier
-                            .offset(x = thumb / 2 + trackWidth * pct - 32.dp)
-                            .width(64.dp)
-                            .clickable { onChange(s) }
-                            .padding(vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal),
-                        color = if (on) colors.text else colors.textMuted,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                    )
-                }
-            }
+    ChipRow {
+        TempoStep.entries.forEach { s ->
+            EolssuChip(tempoLabel(s), selected = s == step, onClick = { actions.onDraft { it.copy(step = s) } })
         }
     }
+    TinyNote(stringResource(Res.string.practice_tempo_note))
 }

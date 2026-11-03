@@ -48,6 +48,9 @@
     <delete id="deleteLessonProgress">
         DELETE FROM lesson_progress WHERE user_id = #{userId}
     </delete>
+    <delete id="deleteUserSheets">
+        DELETE FROM user_sheets WHERE user_id = #{userId}
+    </delete>
     <delete id="deleteRefreshTokens">
         DELETE FROM refresh_tokens WHERE user_id = #{userId}
     </delete>

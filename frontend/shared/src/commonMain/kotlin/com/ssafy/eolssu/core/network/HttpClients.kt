@@ -150,10 +150,15 @@ private const val REFRESH_PATH = "/api/auth/refresh"
 private val NO_REFRESH_PATHS = setOf(REFRESH_PATH, "/api/auth/sign-in", "/api/auth/sign-up")
 
 /**
- * 간편 로그인 start·완료·계정 연결(merge)과 마이페이지 연결 완료. 완료는 state를, merge는 mergeTicket과 비밀번호 시도 횟수를 한 번 쓰므로
- * 같은 요청을 다시 보내면 안 된다. 마이페이지 연결 start(`.../{provider}/start`)와 해제(DELETE)는 1회용 값을 쓰지 않아 평소처럼 갱신한다.
+ * 간편 로그인 start·완료·계정 연결(merge)·소셜 가입(sign-up)과 마이페이지 연결 완료·탈퇴 재인증 완료. 완료는 state를, merge는 mergeTicket과
+ * 비밀번호 시도 횟수를, sign-up은 signupTicket을 한 번 쓰므로 같은 요청을 다시 보내면 안 된다.
+ * 마이페이지 연결·탈퇴 재인증 start(`.../{provider}/start`)와 해제(DELETE)는 1회용 값을 쓰지 않아 평소처럼 갱신한다.
  */
-private val NO_REFRESH_OAUTH_PATHS = listOf(Regex("/api/auth/oauth/[^/]+(/start)?"), Regex("/api/users/me/social-accounts/[^/]+"))
+private val NO_REFRESH_OAUTH_PATHS = listOf(
+    Regex("/api/auth/oauth/[^/]+(/start)?"),
+    Regex("/api/users/me/social-accounts/[^/]+"),
+    Regex("/api/users/me/withdrawal/oauth/[^/]+"),
+)
 
 internal fun skipsRefresh(method: HttpMethod, path: String): Boolean =
     path in NO_REFRESH_PATHS || method == HttpMethod.Post && NO_REFRESH_OAUTH_PATHS.any { it.matches(path) }

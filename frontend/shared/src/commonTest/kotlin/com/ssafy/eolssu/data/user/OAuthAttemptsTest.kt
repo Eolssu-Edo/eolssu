@@ -109,6 +109,33 @@ class OAuthAttemptsTest {
         assertNull(attempts.mergeOffer())
     }
 
+    @Test
+    fun signUpTicketStaysInMemoryUntilItExpiresOrIsCleared() {
+        attempts.offerSignUp(SignUpTicket(SocialProvider.Naver, TICKET, EXPIRES_AT))
+        assertEquals(TICKET, attempts.signUpTicket()?.ticket)
+        assertTrue(store.values.isEmpty())
+        // 티켓 원문은 로그·화면 이동 경로로 새지 않게 문자열로 바꿔도 드러나지 않는다.
+        assertEquals("SignUpTicket(provider=Naver)", attempts.signUpTicket().toString())
+        attempts.clearSignUp()
+        assertNull(attempts.signUpTicket())
+
+        attempts.offerSignUp(SignUpTicket(SocialProvider.Naver, TICKET, EXPIRES_AT))
+        now = EXPIRES_AT
+        assertNull(attempts.signUpTicket())
+    }
+
+    @Test
+    fun withdrawalReauthIsOnlyAcceptedForTheMemberWhoStartedIt() {
+        runImmediately { member.changing { member.set("7") } }
+        begin(purpose = OAuthPurpose.Withdraw)
+        // 탈퇴 재인증의 복귀는 로그인 화면이 받지 않는다.
+        assertEquals(OAuthReturn.Restart(OAuthRestartReason.Invalid), attempts.accept(callback(), OAuthPurpose.LogIn))
+
+        begin(state = OTHER_STATE, purpose = OAuthPurpose.Withdraw)
+        runImmediately { member.changing { member.set("8") } }
+        assertEquals(OAuthReturn.Restart(OAuthRestartReason.Invalid), attempts.accept(callback(state = OTHER_STATE), OAuthPurpose.Withdraw))
+    }
+
     private fun begin(state: String = STATE, purpose: OAuthPurpose = OAuthPurpose.LogIn) =
         assertTrue(attempts.begin(SocialProvider.Kakao, purpose, authorizationUrl(state), EXPIRES_AT))
 

@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** 곡 조회 API 응답(운영 시드 단소 4곡)을 앱 곡·악보로 바꾸는지. 서버는 MockEngine으로 대신한다. */
@@ -57,17 +58,17 @@ class HttpSongRepositoryTest {
         val (arirang, doraji, _, nilliriya) = repository { HttpStatusCode.OK to SongListJson }.getSongs()
 
         // 아리랑: 정간 하나가 한 박(점4분음표)이고 한 각(원본 악보 한 줄)이 12정간 = 세마치 네 주기.
-        assertEquals(1, arirang.jangdan.subdivision)
-        assertEquals(listOf(3, 3, 3, 3), arirang.jangdan.daegang)
-        assertNull(arirang.jangdan.gueum)
+        assertEquals(1, assertNotNull(arirang.jangdan).subdivision)
+        assertEquals(listOf(3, 3, 3, 3), assertNotNull(arirang.jangdan).daegang)
+        assertNull(assertNotNull(arirang.jangdan).gueum)
         assertEquals(30, arirang.durationSeconds(96)) // 48정간 × 0.625초
         // 도라지타령: 한 각이 세마치 한 주기(3박).
-        assertEquals(listOf(3), doraji.jangdan.daegang)
+        assertEquals(listOf(3), assertNotNull(doraji.jangdan).daegang)
         // 늴리리야: 한 박이 세 정간이고 한 각이 굿거리 한 주기라 장단 묶음과 구음을 그대로 쓴다.
-        assertEquals(3, nilliriya.jangdan.subdivision)
-        assertEquals(listOf(3, 3, 3, 3), nilliriya.jangdan.daegang)
-        assertEquals(12, nilliriya.jangdan.gueum?.size)
-        assertEquals("굿거리", nilliriya.jangdan.name)
+        assertEquals(3, assertNotNull(nilliriya.jangdan).subdivision)
+        assertEquals(listOf(3, 3, 3, 3), assertNotNull(nilliriya.jangdan).daegang)
+        assertEquals(12, assertNotNull(nilliriya.jangdan).gueum?.size)
+        assertEquals("굿거리", assertNotNull(nilliriya.jangdan).name)
     }
 
     @Test

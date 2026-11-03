@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -64,11 +65,13 @@ fun EolssuScaffold(
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     contentMaxWidth: Dp = CompactContentMaxWidth,
+    containerColor: Color? = null,
     content: @Composable () -> Unit,
 ) {
     Scaffold(
         modifier = modifier.imePadding().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
-        containerColor = EolssuTheme.colors.background,
+        // 기본은 `background`(#F9FAF9). 기록·성장 보드처럼 흰 바탕 화면은 [containerColor]를 넘긴다.
+        containerColor = containerColor ?: EolssuTheme.colors.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = { Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) { topBar() } },
         bottomBar = {
@@ -164,7 +167,8 @@ fun EolssuIconButton(
         enabled = enabled,
         modifier = modifier.size(48.dp),
         shape = CircleShape,
-        color = EolssuTheme.colors.background,
+        // 테두리 없는 아이콘 버튼(`.ibtn`)은 바탕도 투명하다(시트·대화상자 위에서 회색 원이 보이지 않게).
+        color = if (bordered) EolssuTheme.colors.background else androidx.compose.ui.graphics.Color.Transparent,
         border = if (bordered) androidx.compose.foundation.BorderStroke(1.dp, EolssuTheme.colors.line) else null,
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -178,7 +182,7 @@ fun EolssuIconButton(
     }
 }
 
-/** 하단 고정 영역(`.bottombar`): 위 구분선, 버튼 사이 10dp. */
+/** 하단 고정 영역(`.bottombar`): 위 구분선(`#EEEBE3`), 버튼 사이 10dp. */
 @Composable
 fun EolssuBottomBar(
     modifier: Modifier = Modifier,
@@ -186,7 +190,7 @@ fun EolssuBottomBar(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier.fillMaxWidth()) {
-        HorizontalDivider(color = EolssuTheme.colors.line)
+        HorizontalDivider(color = EolssuTheme.colors.surfaceStrong)
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
             Column(
                 Modifier

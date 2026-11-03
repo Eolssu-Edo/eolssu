@@ -1,0 +1,374 @@
+{
+  "schema": "common-score-performance/v1",
+  "policy": "educational-preview/v1",
+  "sourceSha256": "928408a9bfe5112664ced3dacca80afe96834cb9b04db9e16a6c670ee4e9ac59",
+  "scoreVersion": 1,
+  "sourceId": "authored-preview-study-338",
+  "instrument": "DANSO",
+  "bpm": 60.0,
+  "bpmUnit": "QUARTER",
+  "durationMs": 29000.0,
+  "segments": [
+    {
+      "occurrenceId": "unit-0",
+      "eventId": "c0-j0-r0-u0",
+      "cellId": "c0-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 0.0,
+      "endTick": 1.0,
+      "startMs": 0.0,
+      "endMs": 1000.0,
+      "sigimsae": [
+        "니느라니"
+      ]
+    },
+    {
+      "occurrenceId": "unit-1",
+      "eventId": "c0-j1-r0-u0",
+      "cellId": "c0-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 1.0,
+      "endTick": 2.0,
+      "startMs": 1000.0,
+      "endMs": 2000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-2",
+      "eventId": "c0-j2-r0-u0",
+      "cellId": "c0-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 2.0,
+      "endTick": 3.0,
+      "startMs": 2000.0,
+      "endMs": 3000.0,
+      "sigimsae": [
+        "느니라"
+      ]
+    },
+    {
+      "occurrenceId": "unit-3",
+      "eventId": "c0-j3-r0-u0",
+      "cellId": "c0-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 3.0,
+      "endTick": 4.0,
+      "startMs": 3000.0,
+      "endMs": 4000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-4",
+      "eventId": "c1-j0-r0-u0",
+      "cellId": "c1-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 4.0,
+      "endTick": 5.0,
+      "startMs": 4000.0,
+      "endMs": 5000.0,
+      "sigimsae": [
+        "깊은요성"
+      ]
+    },
+    {
+      "occurrenceId": "unit-5",
+      "eventId": "c1-j0-r0-u0",
+      "cellId": "c1-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 5.0,
+      "endTick": 6.0,
+      "startMs": 5000.0,
+      "endMs": 6000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-6",
+      "eventId": "c1-j0-r0-u0",
+      "cellId": "c1-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 6.0,
+      "endTick": 7.0,
+      "startMs": 6000.0,
+      "endMs": 7000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-7",
+      "eventId": "c1-j3-r0-u0",
+      "cellId": "c1-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 7.0,
+      "endTick": 8.0,
+      "startMs": 7000.0,
+      "endMs": 8000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-8",
+      "eventId": "c2-j0-r0-u0",
+      "cellId": "c2-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 8.0,
+      "endTick": 9.0,
+      "startMs": 8000.0,
+      "endMs": 9000.0,
+      "sigimsae": [
+        "하성"
+      ]
+    },
+    {
+      "occurrenceId": "unit-9",
+      "eventId": "c2-j0-r0-u0",
+      "cellId": "c2-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 9.0,
+      "endTick": 10.0,
+      "startMs": 9000.0,
+      "endMs": 10000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-10",
+      "eventId": "c2-j0-r0-u0",
+      "cellId": "c2-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 10.0,
+      "endTick": 11.0,
+      "startMs": 10000.0,
+      "endMs": 11000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-11",
+      "eventId": "c2-j3-r0-u0",
+      "cellId": "c2-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 11.0,
+      "endTick": 12.0,
+      "startMs": 11000.0,
+      "endMs": 12000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-12",
+      "eventId": "c3-j0-r0-u0",
+      "cellId": "c3-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 12.0,
+      "endTick": 13.0,
+      "startMs": 12000.0,
+      "endMs": 13000.0,
+      "sigimsae": [
+        "격음"
+      ]
+    },
+    {
+      "occurrenceId": "unit-13",
+      "eventId": "c3-j0-r0-u0",
+      "cellId": "c3-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 13.0,
+      "endTick": 14.0,
+      "startMs": 13000.0,
+      "endMs": 14000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-14",
+      "eventId": "c3-j2-r0-u0",
+      "cellId": "c3-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 14.0,
+      "endTick": 15.0,
+      "startMs": 14000.0,
+      "endMs": 15000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-15",
+      "eventId": "c3-j2-r0-u0",
+      "cellId": "c3-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 15.0,
+      "endTick": 16.0,
+      "startMs": 15000.0,
+      "endMs": 16000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-16",
+      "eventId": "c4-j0-r0-u0",
+      "cellId": "c4-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 16.0,
+      "endTick": 17.0,
+      "startMs": 16000.0,
+      "endMs": 18000.0,
+      "sigimsae": [
+        "늘임표"
+      ]
+    },
+    {
+      "occurrenceId": "unit-17",
+      "eventId": "c4-j1-r0-u0",
+      "cellId": "c4-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 17.0,
+      "endTick": 18.0,
+      "startMs": 18000.0,
+      "endMs": 19000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-18",
+      "eventId": "c4-j2-r0-u0",
+      "cellId": "c4-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 18.0,
+      "endTick": 19.0,
+      "startMs": 19000.0,
+      "endMs": 20500.0,
+      "sigimsae": [
+        "덧길이표"
+      ]
+    },
+    {
+      "occurrenceId": "unit-19",
+      "eventId": "c4-j3-r0-u0",
+      "cellId": "c4-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 19.0,
+      "endTick": 20.0,
+      "startMs": 20500.0,
+      "endMs": 21000.0,
+      "sigimsae": [
+        "반길이표"
+      ]
+    },
+    {
+      "occurrenceId": "unit-20",
+      "eventId": "c5-j0-r0-u0",
+      "cellId": "c5-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 20.0,
+      "endTick": 21.0,
+      "startMs": 21000.0,
+      "endMs": 22000.0,
+      "sigimsae": [
+        "네로나"
+      ]
+    },
+    {
+      "occurrenceId": "unit-21",
+      "eventId": "c5-j1-r0-u0",
+      "cellId": "c5-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 21.0,
+      "endTick": 22.0,
+      "startMs": 22000.0,
+      "endMs": 23000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-22",
+      "eventId": "c5-j2-r0-u0",
+      "cellId": "c5-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 22.0,
+      "endTick": 23.0,
+      "startMs": 23000.0,
+      "endMs": 24000.0,
+      "sigimsae": [
+        "도돌이표"
+      ]
+    },
+    {
+      "occurrenceId": "unit-23",
+      "eventId": "c5-j3-r0-u0",
+      "cellId": "c5-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 23.0,
+      "endTick": 24.0,
+      "startMs": 24000.0,
+      "endMs": 25000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-24",
+      "eventId": "c5-j0-r0-u0",
+      "cellId": "c5-j0",
+      "row": 0,
+      "col": 0,
+      "startTick": 20.0,
+      "endTick": 21.0,
+      "startMs": 25000.0,
+      "endMs": 26000.0,
+      "sigimsae": [
+        "네로나"
+      ]
+    },
+    {
+      "occurrenceId": "unit-25",
+      "eventId": "c5-j1-r0-u0",
+      "cellId": "c5-j1",
+      "row": 0,
+      "col": 0,
+      "startTick": 21.0,
+      "endTick": 22.0,
+      "startMs": 26000.0,
+      "endMs": 27000.0,
+      "sigimsae": []
+    },
+    {
+      "occurrenceId": "unit-26",
+      "eventId": "c5-j2-r0-u0",
+      "cellId": "c5-j2",
+      "row": 0,
+      "col": 0,
+      "startTick": 22.0,
+      "endTick": 23.0,
+      "startMs": 27000.0,
+      "endMs": 28000.0,
+      "sigimsae": [
+        "도돌이표"
+      ]
+    },
+    {
+      "occurrenceId": "unit-27",
+      "eventId": "c5-j3-r0-u0",
+      "cellId": "c5-j3",
+      "row": 0,
+      "col": 0,
+      "startTick": 23.0,
+      "endTick": 24.0,
+      "startMs": 28000.0,
+      "endMs": 29000.0,
+      "sigimsae": []
+    }
+  ],
+  "audioSha256": "82bd5cd56b37c2937c4655c06dc44c7cbe527c98eefa3a717a59a3e8fb52e1df"
+}

@@ -1,15 +1,19 @@
 package com.ssafy.eolssu.feature.guide
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
@@ -23,8 +27,14 @@ import com.ssafy.eolssu.feature.guide.layout.FingeringExpandedLayout
 import com.ssafy.eolssu.feature.guide.layout.FingeringMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_title
-import eolssu.shared.generated.resources.guide_catalog_fingering_title
+import eolssu.shared.generated.resources.guide_instruments_loading
+import eolssu.shared.generated.resources.guide_instruments_failed
+import eolssu.shared.generated.resources.guide_instruments_empty
+import eolssu.shared.generated.resources.guide_catalog_retry
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.Blow
 
 /** 운지법 보기의 동작. 배치마다 같은 동작을 넘긴다. */
 internal class FingeringActions(
@@ -32,7 +42,6 @@ internal class FingeringActions(
     val onDismissDropdown: () -> Unit,
     val onSelectInstrument: (GuideInstrument) -> Unit,
     val onSelectBlow: (Blow) -> Unit,
-    val onListen: (FingeringNote) -> Unit,
 )
 
 /**
@@ -49,25 +58,32 @@ fun FingeringScreen(
     onDismissDropdown: () -> Unit,
     onSelectInstrument: (GuideInstrument) -> Unit,
     onSelectBlow: (Blow) -> Unit,
-    onListen: (FingeringNote) -> Unit,
-    onOpenCatalog: (() -> Unit)? = null,
+    onRetryInstruments: () -> Unit,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
-    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow, onListen)
+    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow)
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
-                when (widthClass) {
-                    WindowWidthClass.Compact -> FingeringCompactLayout(state, actions)
-                    WindowWidthClass.Medium -> FingeringMediumLayout(state, actions)
-                    WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions)
+        if (!state.hasSelectedInstrument) {
+            val message = when (state.instrumentListState) {
+                ReferenceLoadState.Loading -> Res.string.guide_instruments_loading
+                ReferenceLoadState.Failed -> Res.string.guide_instruments_failed
+                else -> Res.string.guide_instruments_empty
+            }
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(message), modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    style = MaterialTheme.typography.bodyMedium, color = EolssuTheme.colors.textMuted)
+                if (state.instrumentListState != ReferenceLoadState.Loading) {
+                    EolssuButton(stringResource(Res.string.guide_catalog_retry), onRetryInstruments, style = EolssuButtonStyle.Secondary)
                 }
             }
-            if (onOpenCatalog != null) EolssuButton(stringResource(Res.string.guide_catalog_fingering_title), onOpenCatalog,
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = EolssuButtonStyle.Secondary)
+        } else when (widthClass) {
+            WindowWidthClass.Compact -> FingeringCompactLayout(state, actions, noteAudioContent)
+            WindowWidthClass.Medium -> FingeringMediumLayout(state, actions, noteAudioContent)
+            WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
         }
     }
 }

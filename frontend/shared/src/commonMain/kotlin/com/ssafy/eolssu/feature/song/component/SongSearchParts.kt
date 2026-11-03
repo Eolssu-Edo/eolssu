@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -88,9 +91,9 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
         )
     }
     item(key = "search") {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
-            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(vertical = 16.dp))
+            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp))
         }
     }
     val songs = state.visibleSongs
@@ -125,8 +128,11 @@ private fun songRowMeta(song: SongSummary): String {
 @Composable
 private fun SongCountHelper(count: Int, state: SongListUiState) {
     val instrument = state.instrument
+    val instrumentName = state.instruments.firstOrNull { it.instrumentId == state.instrumentId }?.name
     Text(
-        if (instrument != null) {
+        if (instrumentName != null) {
+            stringResource(Res.string.song_count_instrument, count, instrumentName)
+        } else if (instrument != null) {
             stringResource(Res.string.song_count_instrument, count, stringResource(instrument.label))
         } else {
             stringResource(Res.string.song_count, count)
@@ -193,11 +199,24 @@ internal fun SongSearchField(
 
 /** 난이도 필터 칩 줄(전체 · 입문 · 초급 · 중급). 고른 칩은 연두 바탕이다. */
 @Composable
-internal fun SongLevelChips(selected: SongLevelFilter, onSelect: (SongLevelFilter) -> Unit, modifier: Modifier = Modifier) {
-    ChipRow(modifier) {
+internal fun SongLevelChips(
+    selected: SongLevelFilter,
+    onSelect: (SongLevelFilter) -> Unit,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = false,
+) {
+    val chips: @Composable () -> Unit = {
         SongLevelFilter.entries.forEach { filter ->
             EolssuChip(songLevelFilterLabel(filter), selected = selected == filter, onClick = { onSelect(filter) })
         }
+    }
+    if (singleLine) {
+        Row(
+            modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) { chips() }
+    } else {
+        ChipRow(modifier) { chips() }
     }
 }
 
@@ -207,7 +226,12 @@ private fun songLevelFilterLabel(filter: SongLevelFilter): String =
 
 /** 검색·필터 결과가 없을 때(`.empty`): 井 · '찾는 곡이 없어요.' · 안내 · 너비를 채운 '검색 조건 초기화'. */
 @Composable
-internal fun SongEmptyResult(onReset: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SongEmptyResult(
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+    body: String = stringResource(Res.string.song_empty_body),
+    resetLabel: String = stringResource(Res.string.song_reset_filters),
+) {
     Column(
         modifier
             .fillMaxWidth()
@@ -229,12 +253,12 @@ internal fun SongEmptyResult(onReset: () -> Unit, modifier: Modifier = Modifier)
             textAlign = TextAlign.Center,
         )
         Text(
-            stringResource(Res.string.song_empty_body),
+            body,
             modifier = Modifier.padding(bottom = 16.dp),
             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
             color = EolssuTheme.colors.textMuted,
             textAlign = TextAlign.Center,
         )
-        EolssuButton(stringResource(Res.string.song_reset_filters), onReset, style = EolssuButtonStyle.Secondary)
+        EolssuButton(resetLabel, onReset, style = EolssuButtonStyle.Secondary)
     }
 }

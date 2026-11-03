@@ -23,7 +23,8 @@ import numpy as np
 from grid_boxes import find_blocks
 
 TEMPLATE = Path(__file__).with_name("review_page.html")
-DPI = 150  # 상자 없는 .jgb.json에 붙이는 쪽 그림 해상도
+DPI = 150  # 정간 상자 탐지 해상도
+IMAGE_DPI = 300  # 원본 칸 확대에 쓰는 그림 해상도
 
 parser = argparse.ArgumentParser()
 parser.add_argument("inputs", nargs="+", type=Path, help="결과 폴더 또는 .jgb.json 파일")
@@ -68,7 +69,7 @@ def from_jgb(path):
                 cells.append(dict(um=cell.strip(), gak=gak0 + g, conf=None, x=None, lyric=text))
     # ponytail: 첫 쪽만 붙인다. 여러 쪽 PDF가 생기면 쪽마다 그림을 이어 붙인다.
     page = pymupdf.open(pdf)[0]
-    image = png_uri(page.get_pixmap(dpi=DPI).tobytes("png"))
+    image = png_uri(page.get_pixmap(dpi=IMAGE_DPI).tobytes("png"))
     # 그림의 선으로 정간 상자를 찾아 칸 수가 문서와 같은 악보에 순서대로 붙인다.
     pix = page.get_pixmap(dpi=DPI, colorspace=pymupdf.csGRAY)
     gray = np.frombuffer(pix.samples, np.uint8).reshape(pix.height, pix.width)
@@ -82,7 +83,8 @@ def from_jgb(path):
     if len(blocks) == 1:
         for part_cells, boxes in zip(by_part, blocks[0]):
             for c, (x, y, w, h) in zip(part_cells, boxes):
-                c.update(x=round(x), y=round(y), w=round(w), h=round(h))
+                c.update(x=round(x * IMAGE_DPI / DPI), y=round(y * IMAGE_DPI / DPI),
+                         w=round(w * IMAGE_DPI / DPI), h=round(h * IMAGE_DPI / DPI))
     else:
         print(f"{stem}: 칸 수가 맞는 악보 {len(blocks)}개라 정간 상자 없이 만든다")
     return dict(title=stem, source=path.parent.name, image=image, cells=cells, doc=doc,

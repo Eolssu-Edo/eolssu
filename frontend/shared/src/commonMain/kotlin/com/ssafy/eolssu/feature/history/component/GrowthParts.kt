@@ -1,5 +1,28 @@
 package com.ssafy.eolssu.feature.history.component
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.feature.history.ScoreTrendPoint
+import com.ssafy.eolssu.feature.history.TrendGridLines
+import com.ssafy.eolssu.feature.history.TrendHeight
+import com.ssafy.eolssu.feature.history.TrendWidth
+import com.ssafy.eolssu.feature.history.scoreTrendDots
+import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.growth_per_week
+import eolssu.shared.generated.resources.growth_score_trend
+import eolssu.shared.generated.resources.growth_score_trend_desc
+import eolssu.shared.generated.resources.growth_score_trend_range
+import eolssu.shared.generated.resources.growth_score_trend_section
+import eolssu.shared.generated.resources.growth_score_trend_today
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
@@ -58,11 +80,9 @@ import eolssu.shared.generated.resources.growth_change_last_month
 import eolssu.shared.generated.resources.growth_change_last_week
 import eolssu.shared.generated.resources.growth_count_value
 import eolssu.shared.generated.resources.growth_items
-import eolssu.shared.generated.resources.growth_items_basis
 import eolssu.shared.generated.resources.growth_load_failed
 import eolssu.shared.generated.resources.growth_minutes
 import eolssu.shared.generated.resources.growth_month
-import eolssu.shared.generated.resources.growth_practice_days
 import eolssu.shared.generated.resources.growth_retry
 import eolssu.shared.generated.resources.growth_score_change
 import eolssu.shared.generated.resources.growth_score_value
@@ -109,33 +129,31 @@ private fun GrowthOutlinedCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().border(1.dp, EolssuTheme.colors.line, MaterialTheme.shapes.medium).padding(spacing.cardPadding),
+        modifier.fillMaxWidth().border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(16.dp)).padding(spacing.cardPadding),
         verticalArrangement = Arrangement.spacedBy(gap),
         content = content,
     )
 }
 
-/** 고른 탭의 옅은 그림자(와이어프레임 `.seg .on` box-shadow). 기본 그림자색은 너무 진하다. */
-private val SelectedTabShadow = Color.Black.copy(alpha = 0.12f)
-
 @Composable
 internal fun RangeTabs(range: GrowthRange, onRange: (GrowthRange) -> Unit) {
     val colors = EolssuTheme.colors
     Row(
-        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(4.dp),
+        // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 12, 고른 탭은 연두 바탕.
+        Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(12.dp)).padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         listOf(GrowthRange.Week to Res.string.growth_week, GrowthRange.Month to Res.string.growth_month).forEach { (r, label) ->
             val on = r == range
             Surface(
                 onClick = { onRange(r) },
-                modifier = Modifier.weight(1f).height(36.dp).then(if (on) Modifier.shadow(2.dp, RoundedCornerShape(9.dp), ambientColor = SelectedTabShadow, spotColor = SelectedTabShadow) else Modifier).semantics {
+                modifier = Modifier.weight(1f).height(36.dp).semantics {
                     role = Role.Tab
                     selected = on
                 },
                 shape = RoundedCornerShape(9.dp),
-                color = if (on) colors.background else colors.surface,
-                contentColor = if (on) colors.text else colors.textMuted,
+                color = if (on) colors.primary else Color.Transparent,
+                contentColor = if (on) colors.onPrimary else colors.textMuted,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(stringResource(label), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
@@ -159,7 +177,8 @@ internal fun GrowthTiles(stats: GrowthStats, spacing: GrowthSpacing) {
         Triple(
             stringResource(Res.string.growth_tile_count),
             stringResource(Res.string.growth_count_value, stats.practiceCount),
-            if (week) stringResource(Res.string.growth_streak, stats.streakDays) else stringResource(Res.string.growth_practice_days, stats.practiceDays),
+            // 보드: 주 보기는 연속 일수, 월 보기는 주 평균 횟수(‘주 3.5회’).
+            if (week) stringResource(Res.string.growth_streak, stats.streakDays) else stringResource(Res.string.growth_per_week, perWeekLabel(stats.perWeek)),
         ),
         Triple(
             stringResource(Res.string.growth_tile_score),
@@ -173,10 +192,11 @@ internal fun GrowthTiles(stats: GrowthStats, spacing: GrowthSpacing) {
                 Modifier
                     .weight(1f)
                     .background(colors.surface, RoundedCornerShape(14.dp))
+                    .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
                     .padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV),
             ) {
                 Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize), color = colors.textMuted)
-                Text(value, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.titleLarge.copy(fontSize = spacing.tileValueSize, fontWeight = FontWeight.Bold))
+                Text(value, modifier = Modifier.padding(top = 2.dp), style = MaterialTheme.typography.bodyLarge.copy(fontSize = spacing.tileValueSize, fontWeight = FontWeight.Bold))
                 Text(sub, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp))
             }
         }
@@ -247,7 +267,8 @@ private fun BarChart(stats: GrowthStats, spacing: GrowthSpacing, modifier: Modif
                             Modifier
                                 .fillMaxWidth()
                                 .height((barMax * (bar.minutes.toFloat() / max)).coerceAtLeast(2.dp))
-                                .background(if (strong) colors.text else colors.lineStrong, RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)),
+                                // 보드: 오늘 막대 연두, 나머지 `#9A948A`.
+                                .background(if (strong) colors.primary else colors.textDisabled, RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp)),
                         )
                         Text(
                             bar.label,
@@ -261,18 +282,11 @@ private fun BarChart(stats: GrowthStats, spacing: GrowthSpacing, modifier: Modif
     }
 }
 
-/** 항목별 첫 기록 → 최근 점수 카드. 같은 조건 연주끼리 비교하므로 기준 곡·BPM을 제목 아래에 적는다. */
+/** 항목별 첫 기록 → 최근 점수 카드(보드: 제목만, 이전은 `#9A948A` 막대 · 최근은 연두 표식). 같은 조건 연주끼리 비교한 값이다. */
 @Composable
 internal fun MetricGrowthCard(growth: MetricGrowth, spacing: GrowthSpacing) {
     GrowthOutlinedCard(spacing, gap = spacing.itemsGap) {
-        Column {
-            Text(stringResource(Res.string.growth_items), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-            Text(
-                stringResource(Res.string.growth_items_basis, growth.title, growth.bpm),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = EolssuTheme.colors.textMuted,
-            )
-        }
+        Text(stringResource(Res.string.growth_items), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
         growth.changes.forEach { GrowthBarRow(it.metric, it.first, it.last) }
     }
 }
@@ -284,7 +298,7 @@ internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int?, spacing: Grow
     val padding = Modifier.padding(horizontal = spacing.tilePaddingH, vertical = spacing.tilePaddingV)
     val labelStyle = MaterialTheme.typography.labelSmall.copy(fontSize = spacing.tileLabelSize)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Surface(onClick = onOpenSteps, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
+        Surface(onClick = onOpenSteps, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft)) {
             Column(padding) {
                 Text(stringResource(Res.string.growth_steps), style = labelStyle, color = colors.textMuted)
                 val value = if (completedSteps == null) "—" else stringResource(Res.string.growth_steps_value, completedSteps)
@@ -295,11 +309,11 @@ internal fun GrowthLinks(stats: GrowthStats, completedSteps: Int?, spacing: Grow
                         withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)) { append(total) }
                     },
                     modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                 )
             }
         }
-        Surface(onClick = onOpenRecords, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface) {
+        Surface(onClick = onOpenRecords, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft)) {
             Column(padding) {
                 Text(stringResource(Res.string.growth_best_by_song), style = labelStyle, color = colors.textMuted)
                 Text(
@@ -330,8 +344,8 @@ private fun GrowthBarRow(metric: EvaluationMetric, before: Int, after: Int) {
         Layout(
             content = {
                 Box(Modifier.background(colors.surfaceStrong, RoundedCornerShape(4.dp)))
-                Box(Modifier.background(colors.lineStrong, RoundedCornerShape(4.dp)))
-                Box(Modifier.background(colors.text, RoundedCornerShape(2.dp)))
+                Box(Modifier.background(colors.textDisabled, RoundedCornerShape(4.dp)))
+                Box(Modifier.background(colors.primary, RoundedCornerShape(2.dp)))
             },
             modifier = Modifier.weight(1f).height(12.dp),
         ) { measurables, constraints ->
@@ -352,5 +366,78 @@ private fun GrowthBarRow(metric: EvaluationMetric, before: Int, after: Int) {
             },
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
         )
+    }
+}
+
+/** 주 평균 횟수 표시: 3.5 → ‘3.5’, 3.0 → ‘3’. 소수 첫째 자리에서 반올림한다. */
+internal fun perWeekLabel(value: Double): String {
+    val tenths = kotlin.math.round(value * 10).toLong()
+    return if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10}.${tenths % 10}"
+}
+
+/**
+ * 보드 ‘점수 변화 · 최근 5회’ 카드: 오른쪽 위 ‘첫 점수 → 마지막 점수’, 아래 꺾은선(가로선 3개 · 점 · 점수 · 날짜, 마지막 점은 연두).
+ * 점수 추이 API(GRO-03) 연결은 S15P31E102-372에서 하고, 그전([points]가 null)에는 준비 중 안내만 보인다.
+ */
+@Composable
+internal fun ScoreTrendCard(points: List<ScoreTrendPoint>?, today: KoreanDateTime, spacing: GrowthSpacing, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    GrowthOutlinedCard(spacing, modifier, gap = 8.dp) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Text(
+                stringResource(Res.string.growth_score_trend, points?.size?.takeIf { it > 0 } ?: 5),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
+            )
+            if (!points.isNullOrEmpty()) {
+                Text(
+                    stringResource(Res.string.growth_score_trend_range, points.first().total, points.last().total),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                )
+            }
+        }
+        when {
+            points == null -> Text(stringResource(Res.string.common_coming_soon), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+            points.isEmpty() -> Text(stringResource(Res.string.growth_best_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+            else -> ScoreTrendChart(points, today)
+        }
+    }
+}
+
+@Composable
+private fun ScoreTrendChart(points: List<ScoreTrendPoint>, today: KoreanDateTime) {
+    val colors = EolssuTheme.colors
+    val measurer = rememberTextMeasurer()
+    val todayLabel = stringResource(Res.string.growth_score_trend_today)
+    val sectionFormat = stringResource(Res.string.growth_score_trend_section, "%s")
+    val labels = points.map { p ->
+        val date = if (p.playedAt.isSameDay(today)) todayLabel else "${p.playedAt.month}/${p.playedAt.day}"
+        if (p.section) sectionFormat.replace("%s", date) else date
+    }
+    val description = stringResource(Res.string.growth_score_trend_desc, points.size, points.joinToString(", ") { "${it.total}" })
+    val dots = scoreTrendDots(points.map { it.total })
+    val small = TextStyle(fontSize = 10.sp, color = colors.textMuted)
+    val lastScore = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.text)
+    val dateStyle = TextStyle(fontSize = 9.sp, color = colors.textMuted)
+    Canvas(Modifier.fillMaxWidth().aspectRatio(TrendWidth / TrendHeight).clearAndSetSemantics { contentDescription = description }) {
+        val k = size.width / TrendWidth
+        fun at(x: Float, y: Float) = Offset(x * k, y * k)
+        TrendGridLines.forEach { y -> drawLine(colors.surfaceStrong, at(0f, y), at(TrendWidth, y), strokeWidth = 1.dp.toPx()) }
+        val line = Path().apply {
+            dots.forEachIndexed { i, d -> if (i == 0) moveTo(d.x * k, d.y * k) else lineTo(d.x * k, d.y * k) }
+        }
+        drawPath(line, colors.text, style = Stroke(width = 2.dp.toPx(), join = StrokeJoin.Round))
+        dots.forEachIndexed { i, d ->
+            val last = i == dots.lastIndex
+            val r = (if (last) 5f else 4f) * k
+            drawCircle(if (last) colors.primary else colors.surface, r, at(d.x, d.y))
+            drawCircle(colors.text, r, at(d.x, d.y), style = Stroke(2.dp.toPx()))
+            fun label(text: String, style: TextStyle, baseline: Float) {
+                val layout = measurer.measure(text, style)
+                drawText(layout, topLeft = Offset(d.x * k - layout.size.width / 2f, baseline * k - layout.firstBaseline))
+            }
+            label("${points[i].total}", if (last) lastScore else small, d.y - 12f)
+            label(labels[i], if (last) dateStyle.copy(color = colors.text) else dateStyle, 100f)
+        }
     }
 }

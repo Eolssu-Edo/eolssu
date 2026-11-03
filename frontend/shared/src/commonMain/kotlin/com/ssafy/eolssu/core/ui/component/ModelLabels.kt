@@ -10,6 +10,9 @@ import eolssu.shared.generated.resources.instrument_unknown
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.date_month_day
 import eolssu.shared.generated.resources.jangdan_label
+import eolssu.shared.generated.resources.jangdan_unassigned
+import eolssu.shared.generated.resources.guide_instrument_daegeum_jeongak
+import eolssu.shared.generated.resources.guide_instrument_daegeum_sanjo
 import eolssu.shared.generated.resources.song_level_elementary
 import eolssu.shared.generated.resources.song_level_intermediate
 import eolssu.shared.generated.resources.song_level_intro
@@ -35,12 +38,20 @@ fun jangdanLabel(jangdan: Jangdan): String =
 
 @Composable
 fun jangdanLabel(name: String): String =
-    if (name.endsWith("박")) name else stringResource(Res.string.jangdan_label, name)
+    when {
+        name.isBlank() -> stringResource(Res.string.jangdan_unassigned)
+        name.endsWith("박") -> name
+        else -> stringResource(Res.string.jangdan_label, name)
+    }
 
 /** 악보의 실제 instrument code를 표시한다. 알 수 없는 코드는 다른 악기로 대체하지 않는다. */
 @Composable
 fun songInstrumentLabel(song: Song): String {
-    val instrument = Instrument.entries.firstOrNull { it.name.uppercase() == song.score.source?.instrument }
+    when (song.score.source?.instrument) {
+        "JEONGAK_DAEGEUM" -> return stringResource(Res.string.guide_instrument_daegeum_jeongak)
+        "SANJO_DAEGEUM" -> return stringResource(Res.string.guide_instrument_daegeum_sanjo)
+    }
+    val instrument = Instrument.entries.firstOrNull { it.serverCode == song.score.source?.instrument }
     return stringResource(instrument?.label ?: Res.string.instrument_unknown)
 }
 

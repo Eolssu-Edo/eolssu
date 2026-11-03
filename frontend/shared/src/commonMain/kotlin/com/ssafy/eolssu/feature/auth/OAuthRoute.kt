@@ -11,7 +11,8 @@ import org.koin.core.parameter.parametersOf
 
 /**
  * AUTH-05 연결. 로그인하면 [onLoggedIn]으로 홈, 같은 이메일 계정이 있으면 [onLinkAvailable]로 계정 연결 확인(AUTH-09),
- * '가입된 계정이 없어요' 창의 이메일 가입은 [onSignUp], 뒤로 가기·닫기는 [onBack]으로 간다.
+ * 처음 온 제공자 계정이면 [onSocialSignUp]으로 소셜 가입, '가입된 계정이 없어요' 창(소셜 가입 전 서버)의 이메일 가입은 [onSignUp],
+ * 뒤로 가기·닫기는 [onBack]으로 간다.
  */
 @Composable
 fun OAuthRoute(
@@ -19,6 +20,7 @@ fun OAuthRoute(
     onBack: () -> Unit,
     onLoggedIn: () -> Unit,
     onLinkAvailable: () -> Unit,
+    onSocialSignUp: () -> Unit,
     onSignUp: () -> Unit,
     viewModel: OAuthViewModel = koinViewModel { parametersOf(provider) },
 ) {
@@ -27,6 +29,7 @@ fun OAuthRoute(
         when (step) {
             OAuthStep.LoggedIn -> onLoggedIn()
             OAuthStep.MergeAvailable -> onLinkAvailable()
+            OAuthStep.SignUpRequired -> onSocialSignUp()
             else -> Unit
         }
     }

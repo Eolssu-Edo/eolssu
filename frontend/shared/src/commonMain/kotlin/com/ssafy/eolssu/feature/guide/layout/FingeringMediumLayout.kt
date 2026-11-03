@@ -21,15 +21,20 @@ import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
-import com.ssafy.eolssu.feature.guide.component.HoleLegend
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /**
  * 태블릿 세로 배치(와이어프레임 `Tab-GuideFing-Port`): 위에 악기와 취법 탭을 한 줄로 놓고,
  * 운지 카드는 두 칸 격자로 보여준다.
  */
 @Composable
-internal fun FingeringMediumLayout(state: FingeringUiState, actions: FingeringActions) {
+internal fun FingeringMediumLayout(
+    state: FingeringUiState,
+    actions: FingeringActions,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
+) {
     val instrument = state.instrument
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -46,6 +51,7 @@ internal fun FingeringMediumLayout(state: FingeringUiState, actions: FingeringAc
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     InstrumentDropdown(
+                        options = state.instrumentOptions,
                         selected = instrument,
                         open = state.isDropdownOpen,
                         onToggle = actions.onToggleDropdown,
@@ -59,8 +65,8 @@ internal fun FingeringMediumLayout(state: FingeringUiState, actions: FingeringAc
                 FingeringInstrumentNote(instrument)
             }
         }
-        items(state.notes, key = { "${instrument.id}-${it.hanja}" }) { note ->
-            FingeringCard(instrument, note, playing = state.playing == note.hanja, onListen = { actions.onListen(note) })
+        items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
+            FingeringCard(instrument, note, audioContent = { noteAudioContent(note) })
         }
         item(key = "source", span = { GridItemSpan(maxLineSpan) }) {
             FingeringSource(instrument, Modifier.padding(top = 4.dp))

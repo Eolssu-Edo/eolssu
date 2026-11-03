@@ -38,6 +38,7 @@ import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
 import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
+import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_password_changed
 import eolssu.shared.generated.resources.my_withdrawn
@@ -54,12 +55,23 @@ object AuthDestination {
     const val OAUTH = "auth/oauth/{provider}"
     const val LINK = "auth/link/{provider}"
     const val SIGNUP = "auth/signup"
+
+    /**
+     * 가입하려는데 동의한 약관이 없을 때의 약관 동의(앱을 다시 켰거나 서버가 동의를 다시 요구함). 첫 실행의 [CONSENT]와 달리
+     * 마이크 안내를 다시 거치지 않고 `next`(이메일 가입 [SIGNUP] 또는 간편 로그인 가입 [SOCIAL_PROFILE])로 바로 간다.
+     */
+    const val SIGNUP_CONSENT = "auth/signup/consent?next={next}"
     const val SIGNUP_PASSWORD = "auth/signup/password"
     const val PROFILE = "auth/profile"
+
+    /** 간편 로그인 가입의 프로필 설정(AUTH-07). 이메일 인증·비밀번호 단계가 없다. */
+    const val SOCIAL_PROFILE = "auth/social-signup/profile"
     const val PASSWORD_RESET = "auth/password-reset"
     const val PASSWORD_RESET_NEW = "auth/password-reset/password"
 
     fun terms(termId: String) = "auth/terms/$termId"
+
+    fun signupConsent(next: String) = "auth/signup/consent?next=$next"
 
     fun oauth(provider: SocialProvider) = "auth/oauth/${provider.name}"
 
@@ -68,11 +80,16 @@ object AuthDestination {
 
 /** 첫 실행을 마쳤으면 홈, 아니면 약관 동의에서 시작한다. */
 // TEMP S15P31E102-309: bypass only the initial consent screen; never persist consent/completion.
-fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false): String = when {
+fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false, sessionExpired: Boolean = false): String = when {
+    firstRunCompleted && sessionExpired -> AuthDestination.LOGIN
     firstRunCompleted -> EolssuDestination.HOME
     qaSkipConsent -> AuthDestination.MIC
     else -> AuthDestination.CONSENT
 }
+
+/** 복원 중인 일회성 OAuth 완료 요청과 가입 흐름을 초기 세션 확인이 덮지 않는다. */
+internal fun shouldRedirectExpiredSession(route: String?): Boolean =
+    route == AuthDestination.LOGIN || route?.startsWith("auth/") != true
 
 /**
  * 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다.
@@ -91,6 +108,7 @@ enum class StartNotice(val message: StringResource) {
     /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */
     MyAccountLinked(Res.string.my_link_done),
     LoggedOut(Res.string.my_logged_out),
+    SessionExpired(Res.string.member_api_session_expired),
     Withdrawn(Res.string.my_withdrawn),
 }
 
@@ -153,8 +171,10 @@ private fun NavBackStackEntry.verifiedEmail(): String = savedStateHandle.get<Str
 
 /**
  * AUTH-01~11 화면 이동. 약관 동의 → 마이크 안내 → 로그인 → 홈.
- * 간편 로그인은 로그인 전용이다: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 없음 → 이메일 가입 안내.
- * 계정 연결 확인·이메일 가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
+ * 간편 로그인: 연결된 계정 → 홈, 같은 이메일 계정 → 계정 연결 확인(AUTH-09), 처음 온 계정 → 소셜 가입(프로필 설정 AUTH-07) → 홈.
+ * 소셜 가입 전 서버가 '가입된 계정 없음'을 주면 이메일 가입을 안내한다.
+ * 계정 연결 확인·가입으로 갈 때는 간편 로그인 화면을 비워 뒤로 가기로 다 쓴 제공자 화면에 돌아오지 않는다.
+ * 가입하려는데 동의한 약관이 없으면(앱을 다시 켰거나 서버가 동의를 다시 요구함) 가입용 약관 동의([AuthDestination.SIGNUP_CONSENT])를 먼저 거친다.
  * 이메일 가입은 이메일 인증(AUTH-06) → 비밀번호 설정(AUTH-08) → 프로필 설정(AUTH-07) → 홈,
  * 비밀번호 찾기는 이메일 인증(AUTH-10) → 새 비밀번호(AUTH-11) → 로그인이다.
  * 로그인 화면에 들어가면 약관 동의·마이크 안내는 비워 뒤로 가기로 돌아가지 않는다.
@@ -185,7 +205,7 @@ fun NavGraphBuilder.authGraph(
         val name = entry.savedStateHandle.get<String>("agreement")
         TermsRoute(
             termId = name.orEmpty(),
-            onClose = { navController.popBackStack() },
+            onClose = { navController.popBackStackFrom(entry) },
         )
     }
     composable(AuthDestination.MIC) {
@@ -214,7 +234,7 @@ fun NavGraphBuilder.authGraph(
             onLoggedIn = { onFinished(null, null) },
             onSocialLogIn = { navController.navigate(AuthDestination.oauth(it)) },
             onFindPassword = { navController.navigate(AuthDestination.PASSWORD_RESET) },
-            onSignUp = { navController.navigate(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
+            onSignUp = { navController.navigate(draft.signUpRoute(SignUpNext.Email)) },
         )
     }
     composable(
@@ -225,26 +245,44 @@ fun NavGraphBuilder.authGraph(
         val draft = getKoin().get<AccountDraft>()
         OAuthRoute(
             provider = provider,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
-            onSignUp = { fromLogin(if (draft.agreements.isEmpty()) AuthDestination.CONSENT else AuthDestination.SIGNUP) },
+            onSocialSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Social)) },
+            onSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Email)) },
+        )
+    }
+    composable(
+        AuthDestination.SIGNUP_CONSENT,
+        arguments = listOf(navArgument("next") { type = NavType.StringType; defaultValue = SignUpNext.Email.name }),
+    ) { entry ->
+        val next = entry.savedStateHandle.get<String>("next")?.let { name -> SignUpNext.entries.firstOrNull { it.name == name } } ?: SignUpNext.Email
+        ConsentRoute(
+            onOpenTerms = { navController.navigate(AuthDestination.terms(it)) },
+            onStart = { fromLogin(next.route) },
+        )
+    }
+    composable(AuthDestination.SOCIAL_PROFILE) { entry ->
+        ProfileSetupRoute(
+            onBack = { navController.popBackStackFrom(entry) },
+            onDone = { onFinished(StartNotice.Welcome, null) },
+            social = true,
         )
     }
     composable(
         AuthDestination.LINK,
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
-    ) {
+    ) { entry ->
         AccountLinkRoute(
-            onCancel = { navController.popBackStack() },
+            onCancel = { navController.popBackStackFrom(entry) },
             onFindPassword = { fromLogin(AuthDestination.PASSWORD_RESET) },
             onLinked = { onFinished(StartNotice.AccountLinked, it) },
         )
     }
-    composable(AuthDestination.SIGNUP) {
+    composable(AuthDestination.SIGNUP) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.SignUp,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.SIGNUP_PASSWORD, it) },
         )
     }
@@ -252,20 +290,20 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.SignUp,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { navController.navigate(AuthDestination.PROFILE) },
         )
     }
-    composable(AuthDestination.PROFILE) {
+    composable(AuthDestination.PROFILE) { entry ->
         ProfileSetupRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { onFinished(StartNotice.Welcome, null) },
         )
     }
-    composable(AuthDestination.PASSWORD_RESET) {
+    composable(AuthDestination.PASSWORD_RESET) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.PasswordReset,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.PASSWORD_RESET_NEW, it) },
         )
     }
@@ -273,7 +311,7 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.PasswordReset,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             // 바꾼 뒤 자동 로그인하지 않고 새 로그인 화면에서 다시 로그인한다.
             onDone = {
                 navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.PasswordChanged) {
@@ -284,11 +322,21 @@ fun NavGraphBuilder.authGraph(
     }
 }
 
+/** 가입 약관 동의 뒤 갈 곳. */
+private enum class SignUpNext(val route: String) {
+    Email(AuthDestination.SIGNUP),
+    Social(AuthDestination.SOCIAL_PROFILE),
+}
+
+/** 동의한 약관이 있으면 [next]로 바로, 없으면 가입용 약관 동의를 거쳐 간다. */
+private fun AccountDraft.signUpRoute(next: SignUpNext): String =
+    if (agreements.isEmpty()) AuthDestination.signupConsent(next.name) else next.route
+
 private fun NavBackStackEntry.socialProvider(): SocialProvider? =
     savedStateHandle.get<String>("provider")?.let { name -> SocialProvider.entries.firstOrNull { it.name == name } }
 
 /**
- * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05)이 주소를 받도록 그 화면으로 간다.
+ * 간편 로그인을 마친 브라우저가 복귀 주소(App Links)로 앱을 열면, 그 시도를 시작한 화면(AUTH-05·MY-05·MY-04 재인증)이 주소를 받도록 그 화면으로 간다.
  * 이미 그 화면에 있으면 화면이 직접 꺼낸다. 진행 중 시도가 없으면(만료·다른 기기에서 연 주소 등) 주소를 버린다.
  * 앱이 꺼진 사이 돌아와도 시도 상태는 기기에 남아 있어 같은 화면으로 이어 간다.
  */
@@ -301,7 +349,7 @@ fun OAuthReturnEffect(navController: NavController) {
     LaunchedEffect(pending, route) {
         val uri = pending ?: return@LaunchedEffect
         // 화면 이동 그래프가 아직 없거나, 복귀를 받을 화면이 이미 떠 있다.
-        if (route == null || route == AuthDestination.OAUTH || route == ProfileDestination.LINK) return@LaunchedEffect
+        if (route == null || route == AuthDestination.OAUTH || route == ProfileDestination.LINK || route == ProfileDestination.WITHDRAW) return@LaunchedEffect
         val target = attempts.pending()
         if (target == null) {
             links.take(uri)
@@ -311,6 +359,7 @@ fun OAuthReturnEffect(navController: NavController) {
             when (target.purpose) {
                 OAuthPurpose.LogIn -> AuthDestination.oauth(target.provider)
                 OAuthPurpose.Link -> ProfileDestination.link(target.provider)
+                OAuthPurpose.Withdraw -> ProfileDestination.WITHDRAW
             },
         )
     }

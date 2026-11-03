@@ -26,6 +26,8 @@ object EolssuIcons {
     val Restart = lineIcon("Restart", "M3 12a9 9 0 1 0 3 -6.7", "M3 4v5h5")
     val Stop = lineIcon("Stop", filled = listOf(rect(6f, 6f, 12f, 12f, 2f)))
     val Mic = lineIcon("Mic", rect(9f, 3f, 6f, 11f, 3f), "M5 11a7 7 0 0 0 14 0M12 18v3")
+    /** 소리가 입력되지 않은 마이크(보드 Dialog-NoInput: 마이크 위 사선). */
+    val MicOff = lineIcon("MicOff", rect(9f, 3f, 6f, 11f, 3f), "M5 11a7 7 0 0 0 14 0M12 18v3", "M4 4l16 16")
     val Metronome = lineIcon("Metronome", "M9 3h6l3 18H6z", "M12 15l5 -9")
     val Speed = lineIcon("Speed", "M4 14a8 8 0 1 1 16 0", "M12 14l4 -5")
     val Hand = lineIcon(
@@ -46,6 +48,10 @@ object EolssuIcons {
     val Ear = lineIcon("Ear", "M6 9a6 6 0 0 1 12 0c0 3 -2 4 -3 6s-1 4 -4 4", "M9 9a3 3 0 0 1 6 0")
     val Book = lineIcon("Book", "M4 5a2 2 0 0 1 2 -2h14v16H6a2 2 0 0 0 -2 2z", "M4 19a2 2 0 0 1 2 -2h14")
     val Home = lineIcon("Home", "M3 11l9 -7 9 7v9a1 1 0 0 1 -1 1h-5v-6h-6v6H4a1 1 0 0 1 -1 -1z")
+    /** 보드 결과 화면의 집(지붕 + 문): ‘홈으로 가기’. */
+    val House = lineIcon("House", "M3 11l9 -8 9 8", "M5 10v10h5v-6h4v6h5V10")
+    /** 보드 결과 화면의 저장(디스켓): ‘연습 기록 저장’. */
+    val Save = lineIcon("Save", "M5 4h11l3 3v13H5z", "M8 4v5h7V4M8 20v-6h8v6")
     val Grid = lineIcon("Grid", rect(4f, 4f, 16f, 16f, 2f), "M4 12h16M12 4v16")
     val Flute = lineIcon(
         "Flute",
@@ -60,6 +66,22 @@ object EolssuIcons {
         circle(9f, 12f, 2f),
         circle(17f, 18f, 2f),
     )
+    /** 연두 보드 PRACTICE-01의 연습 설정 톱니(`.page-head` 오른쪽). [Settings]는 옛 와이어프레임 슬라이더 모양이다. */
+    val Cog = lineIcon(
+        "Cog",
+        circle(12f, 12f, 3f),
+        "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1 -2.8 2.8l-.1 -.1a1.7 1.7 0 0 0 -1.8 -.3 1.7 1.7 0 0 0 -1 1.5V21a2 2 0 1 1 -4 0v-.1" +
+            "a1.7 1.7 0 0 0 -1.1 -1.5 1.7 1.7 0 0 0 -1.8 .3l-.1 .1a2 2 0 1 1 -2.8 -2.8l.1 -.1a1.7 1.7 0 0 0 .3 -1.8 1.7 1.7 0 0 0 -1.5 -1H3" +
+            "a2 2 0 1 1 0 -4h.1a1.7 1.7 0 0 0 1.5 -1.1 1.7 1.7 0 0 0 -.3 -1.8l-.1 -.1a2 2 0 1 1 2.8 -2.8l.1 .1a1.7 1.7 0 0 0 1.8 .3H9" +
+            "a1.7 1.7 0 0 0 1 -1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8 -.3l.1 -.1a2 2 0 1 1 2.8 2.8l-.1 .1" +
+            "a1.7 1.7 0 0 0 -.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0 -1.5 1z",
+    )
+    /** 연습 설정 메뉴 줄 아이콘(보드 `.menu-row .mi`): 쉬운 표기 · 장단 · 속도. */
+    val NotationMark = lineIcon("NotationMark", "M5 6h14M12 6v13M8 19h8")
+    val JangdanMark = lineIcon("JangdanMark", "M8 21h8M12 21V11M6 4l6 7 6 -7")
+    val TempoMark = lineIcon("TempoMark", "M4 16a8 8 0 1 1 16 0", "M12 16l4 -5")
+    /** 음 듣기(보드 운지법 패널 `.btn.secondary`). */
+    val Speaker = lineIcon("Speaker", "M4 9h4l5 -4v14l-5 -4H4z", "M16.5 9a4.5 4.5 0 0 1 0 6")
     val Bookmark = lineIcon("Bookmark", "M6 3h12v18l-6 -4 -6 4z")
     val Target = lineIcon("Target", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f))
     val Zoom = lineIcon("Zoom", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M11 8v6M8 11h6")

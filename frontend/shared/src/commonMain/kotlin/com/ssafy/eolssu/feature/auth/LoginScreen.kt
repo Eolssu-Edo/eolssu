@@ -63,7 +63,7 @@ import eolssu.shared.generated.resources.auth_password
 import eolssu.shared.generated.resources.auth_password_placeholder
 import eolssu.shared.generated.resources.auth_signup_with_email
 import eolssu.shared.generated.resources.auth_social_login
-import eolssu.shared.generated.resources.auth_social_members_only
+import eolssu.shared.generated.resources.auth_social_signup_hint
 import eolssu.shared.generated.resources.auth_tagline
 import eolssu.shared.generated.resources.auth_withdrawal_cancelled_message
 import eolssu.shared.generated.resources.auth_withdrawal_cancelled_title
@@ -99,7 +99,7 @@ fun LoginScreen(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SocialProvider.entries.forEach { provider -> SocialButton(provider, onClick = { onSocialLogIn(provider) }) }
                 Text(
-                    stringResource(Res.string.auth_social_members_only),
+                    stringResource(Res.string.auth_social_signup_hint),
                     modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp),
                     color = EolssuTheme.colors.textMuted,

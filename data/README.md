@@ -26,7 +26,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 ## 정석 음원 제작
 
-[단소 MIDI·CAT 재생 도구](src/playback/README.md)는 JGB v1·v2의 선택한 단소 성부 또는 공통 악보 JSON을 MIDI와 AAC-LC M4A로 만듭니다. WAV는 검증용 선택 출력입니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
+[공통 악보 MIDI·CAT 음원 생성기](src/playback/README.md)는 서비스 공통 악보 v1을 직접 해석해 MIDI와 AAC-LC M4A를 만듭니다. WAV는 검증용 선택 출력입니다. 기존 JGB는 별도 가져오기 명령으로 공통 악보를 만든 뒤 사용합니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
 
 의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
 
@@ -42,12 +42,18 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 | --- | --- | --- | --- |
 | `pitches.json` | `pitches` | 단소 다섯 율을 단소 실제 음역(중~중청중) 안에서 | 없음 |
 | `instruments.json` | `instruments` | 단소 | `range_low`·`range_high` = pitches의 `(yul, octave)` |
-| `jangdans.json` | `jangdans` | 세마치·굿거리·중모리 | 없음 |
+| `jangdans.json` | `jangdans` | 장단10종([추가 근거와 시작 빠르기](../docs/knowledge/backend/jangdan-catalog-extension.md)) | 없음 |
 | `songs.json` | `songs` | 1차 AI 평가 4곡 | `instrument` = instruments의 `code`, `jangdan` = jangdans의 `name`, `source` = 원본 ID |
 
-`songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
+`songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 소금 녹음의 옥타브(반음 안) 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
 
 ## 공통 악보 데이터
+
+서비스 공통 악보 JSON을 기존 CAT 재생기에 연결하는 방법은 [재생 도구의 공통 v1 입력](src/playback/README.md#서비스-공통-악보-v1-입력-338)을 따릅니다. `--common-bpm`을 명시하고 원본·ID/tick/초 대응표와 함께 MIDI·M4A를 생성합니다.
+
+원본과 실제 생성 PCM의 음높이·발음 구간·쉼을 비교하는 명령과 관측 한계는 [독립 파형 검증](../docs/knowledge/data/common-score-audio-verification.md)에 있습니다.
+
+기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수·원본 음가 단위와 꾸밈/길이표 조합을 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 명시 연주 계획·표현 프로필을 전달할 수 있고, 반복표·짝 없는 길이표의 기본 해석에는 교육용 정책을 명시해야 합니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
 
 [score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
 
@@ -55,7 +61,15 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p172 ngc-standard-2022-p173 ngc-standard-2022-p174
 ```
 
-결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소 음역) 대신 12율 읽기 규칙만 검사합니다. 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소 음역) 대신 12율 읽기 규칙만 검사합니다. 표준악보집 소금 4곡(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)도 같습니다. 서비스 소금 곡 행은 S15P31E102-339가 넣었고, 교과서 판본이 있으면 교과서(아리랑·도라지타령), 없으면 표준악보집(밀양아리랑·늴리리야) 정답으로 채점을 켭니다([infra/catalog](../infra/catalog/README.md)). 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+
+같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
+
+검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
+
+취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
+
+취타 고급 `ngc-standard-2022-p203`은 사람이 확인한 기보를 보존한 정답입니다. 시김새가 별도 음으로 표현된 운영 악보와 달라 운영 채점에는 아직 사용하지 않습니다. 검토 기록의 보류 표시는 채점 켜기 도구의 자동 차단 기능이 아닙니다.
 
 ## 녹음 정답 기록
 
@@ -219,7 +233,7 @@ raw·processed·annotations 폴더 자체의 심볼릭 링크·junction 재지�
 
 ## 라벨링 음원의 M4A 배포본
 
-`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 기존 JGB 재생기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
+`src/audio/m4a_catalog.py`는 위 exporter가 만든 `catalog.json` v2와 WAV를 읽어 기본음계·시김새용 AAC-LC M4A 및 DB 적재용 `manifest.json`을 만듭니다. Python 3.11 이상 표준 라이브러리와 FFmpeg·ffprobe가 필요하며, 도구를 자동 설치하지 않습니다. 공통 악보 음원 생성기는 합성 PCM 44.1kHz를 사용하지만 이 변환기는 원본 WAV의 44.1/48kHz·채널·길이를 유지합니다.
 
 저장소 루트에서 실제 exporter 출력 위치를 `--catalog`에 지정합니다. 여러 악기를 합칠 때 같은 옵션을 반복합니다.
 

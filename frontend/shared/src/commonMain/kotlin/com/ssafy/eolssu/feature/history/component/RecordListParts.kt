@@ -1,5 +1,12 @@
 package com.ssafy.eolssu.feature.history.component
 
+import androidx.compose.material3.CircularProgressIndicator
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import eolssu.shared.generated.resources.records_load_failed
+import eolssu.shared.generated.resources.growth_retry
+import eolssu.shared.generated.resources.records_section
+import eolssu.shared.generated.resources.records_row_today
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -108,7 +115,8 @@ internal data class RecordListSpacing(
 @Composable
 internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOpenGrowth: () -> Unit) {
     val week = state.thisWeek
-    Surface(onClick = onOpenGrowth, shape = MaterialTheme.shapes.medium, color = EolssuTheme.colors.surface) {
+    // 보드: 흰 바탕 · `#E8E4DA` 테두리 · 반지름 16.
+    Surface(onClick = onOpenGrowth, shape = RoundedCornerShape(16.dp), color = EolssuTheme.colors.surface, border = BorderStroke(1.dp, EolssuTheme.colors.lineSoft)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = spacing.weekPaddingH, vertical = spacing.weekPaddingV),
             verticalAlignment = Alignment.CenterVertically,
@@ -122,7 +130,7 @@ internal fun WeekCard(state: RecordListUiState, spacing: RecordListSpacing, onOp
                 )
             }
             Text(stringResource(Res.string.records_growth_link), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 2.dp).size(16.dp))
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.padding(start = 2.dp).size(14.dp))
         }
     }
 }
@@ -161,7 +169,8 @@ private fun SortSelect(sort: RecordSort, onSort: (RecordSort) -> Unit) {
             Modifier
                 .width(108.dp)
                 .height(38.dp)
-                .border(1.dp, EolssuTheme.colors.line, RoundedCornerShape(10.dp))
+                .background(EolssuTheme.colors.surface, RoundedCornerShape(10.dp))
+                .border(1.dp, EolssuTheme.colors.lineSoft, RoundedCornerShape(10.dp))
                 .clickable(role = Role.DropdownList) { expanded = true }
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -169,7 +178,7 @@ private fun SortSelect(sort: RecordSort, onSort: (RecordSort) -> Unit) {
             Text(label(sort), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
             Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.background) {
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = EolssuTheme.colors.surface) {
             RecordSort.entries.forEach { s ->
                 DropdownMenuItem(text = { Text(label(s)) }, onClick = {
                     expanded = false
@@ -213,12 +222,13 @@ private fun SongGroupCard(
     val colors = EolssuTheme.colors
     val expandedLabel = stringResource(Res.string.records_expanded)
     val collapsedLabel = stringResource(Res.string.records_collapsed)
-    Surface(shape = MaterialTheme.shapes.medium, color = colors.background, border = BorderStroke(1.dp, colors.line)) {
+    // 보드: 흰 묶음 카드(테두리 `#E8E4DA`, 반지름 16), 펼친 머리는 `#EFF2D6`.
+    Surface(shape = RoundedCornerShape(16.dp), color = colors.surface, border = BorderStroke(1.dp, colors.lineSoft)) {
         Column {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .background(if (open) colors.surface else colors.background)
+                    .background(if (open) colors.accentTint else colors.surface)
                     .clickable(role = Role.Button) { onToggle(group.songId) }
                     .semantics { stateDescription = if (open) expandedLabel else collapsedLabel }
                     .padding(horizontal = spacing.groupPaddingH, vertical = spacing.groupPaddingV),
@@ -246,9 +256,9 @@ private fun SongGroupCard(
                 Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(18.dp).rotate(if (open) 180f else 0f))
             }
             if (open) {
-                HorizontalDivider(color = colors.line)
+                HorizontalDivider(color = colors.lineSoft)
                 group.records.forEachIndexed { k, record ->
-                    if (k > 0) HorizontalDivider(color = colors.surface)
+                    if (k > 0) HorizontalDivider(color = colors.background)
                     RecordRow(
                         record = record,
                         justSaved = record.id == state.justSavedId,
@@ -261,6 +271,11 @@ private fun SongGroupCard(
         }
     }
 }
+
+/** 녹음 줄의 날짜: 오늘이면 ‘오늘 · 10월 20일’(보드), 아니면 ‘10월 18일’. 묶음 머리는 [dayLabel]의 ‘오늘 10월 20일’을 쓴다. */
+@Composable
+private fun rowDayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
+    if (dateTime.isSameDay(today)) stringResource(Res.string.records_row_today, monthDayLabel(dateTime)) else monthDayLabel(dateTime)
 
 @Composable
 private fun dayLabel(dateTime: KoreanDateTime, today: KoreanDateTime): String =
@@ -300,12 +315,19 @@ private fun RecordRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(spacing.rowIcon).background(if (on) colors.text else colors.surface, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.background else colors.text)
+        // 보드: 36dp 흰 원(테두리 `#E8E4DA`) 안 14dp 재생 표시. 두 칸 배치에서 고른 줄은 검은 원.
+        Box(
+            Modifier
+                .size(spacing.rowIcon)
+                .background(if (on) colors.text else colors.surface, CircleShape)
+                .then(if (on) Modifier else Modifier.border(1.dp, colors.lineSoft, CircleShape)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(14.dp), tint = if (on) colors.background else colors.text)
         }
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(record.section ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                Text(record.section?.let { stringResource(Res.string.records_section, it) } ?: stringResource(Res.string.records_whole), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
                 if (justSaved) {
                     Text(
                         stringResource(Res.string.records_just_saved),
@@ -316,7 +338,7 @@ private fun RecordRow(
                 }
             }
             val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
-            Text("${dayLabel(record.recordedAt, today)} · ${timeLabel(record.recordedAt)}", modifier = Modifier.padding(top = 2.dp), style = small, color = colors.textMuted)
+            Text("${rowDayLabel(record.recordedAt, today)} · ${timeLabel(record.recordedAt)}", modifier = Modifier.padding(top = 2.dp), style = small, color = colors.textMuted)
             Text(
                 if (record.section != null && record.repeats != null) {
                     stringResource(Res.string.records_meta_section, formatClock(record.recordedSeconds.toDouble()), record.repeats, record.bpm)
@@ -343,5 +365,23 @@ private fun RecordRow(
                 withStyle(SpanStyle(fontSize = 11.sp, color = colors.textMuted)) { append(stringResource(Res.string.records_score_unit)) }
             },
         )
+    }
+}
+
+/** 목록을 받는 중이면 도는 표시, 받지 못했으면 안내와 ‘다시 시도’. */
+@Composable
+internal fun RecordsLoadStatus(failed: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Column(
+        modifier.fillMaxWidth().padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (failed) {
+            Text(stringResource(Res.string.records_load_failed), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), textAlign = TextAlign.Center)
+            EolssuButton(stringResource(Res.string.growth_retry), onRetry, style = EolssuButtonStyle.Secondary, small = true)
+        } else {
+            CircularProgressIndicator(Modifier.size(36.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 3.dp)
+        }
     }
 }

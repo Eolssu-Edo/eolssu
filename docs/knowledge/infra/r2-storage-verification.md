@@ -91,9 +91,63 @@ storage.close();
 - r2.dev와 사용자 도메인은 독립된 공개 경로이므로 모두 확인한다. S3 API의 무서명 접근 거부만으로 다른 공개 경로 차단을 증명하지 않는다.
 - 추가한 정책과 새 합성 객체의 만료 메타데이터는 확인했다. 실제 30일 자동 삭제 실행은 이후에 별도로 관찰한다. 객체 생성(업로드) 시각 기준이며 DB created_at 기준이 아니다.
 
+## 버킷 CORS 정책 (S15P31E102-421)
+
+- 작업: [S15P31E102-421](https://ssafy.atlassian.net/browse/S15P31E102-421), 2026-11-03 KST.
+- 증상: Swagger에서 `GET /api/songs/{songId}/model-audio/play`가 `Failed to fetch`였다. 같은 출처 API는 302로 R2 서명 URL에 이동하고, Swagger의 `fetch`가 리다이렉트를 따라간다. R2 응답에 `Access-Control-Allow-Origin`이 없어 브라우저가 응답을 막았다. Spring CORS 설정과 무관하다.
+- 앱 영향: 웹 앱은 `<audio>`의 `src`로만 재생하고 `crossOrigin`·`fetch`·`decodeAudioData`를 쓰지 않으므로 CORS 없이 재생된다. 정책은 Swagger 점검과 이후 파형·분석 같은 JS 읽기를 위한 것이다.
+
+### 선택
+
+302 계약은 유지하고, 서명 URL을 JSON으로 반환하는 API 변경은 하지 않는다. 재생마다 서버가 게시 상태와 현재 악보를 확인하고, 클라이언트는 만료를 다루지 않는다. Swagger 편의만으로 공유 계약을 바꿀 근거가 부족하다.
+
+버킷에 다음 정책을 둔다.
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://k15e102.p.ssafy.io", "http://localhost:8080"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["Content-Length", "Content-Type", "Content-Range", "Accept-Ranges"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+- `http://localhost:8080`은 [웹 개발 서버](../../../frontend/README.md) 기본 주소다. 개발·스테이징 주소가 늘면 목록에 추가하고 `*`는 쓰지 않는다.
+- 탐색(seek)의 Range 요청을 위해 `Content-Range`·`Accept-Ranges`를 노출한다. 쓰기 메서드는 허용하지 않는다.
+- R2 CORS는 접두사별로 나눌 수 없어 `recordings/`·`reference-audio/`·`model-audio/` 전체에 적용된다. CORS는 접근 권한이 아니라 허용 출처의 JS가 응답을 읽게 할 뿐이며, 보호는 서명과 900초 TTL이 맡는다. 서명 URL은 CORS와 무관하게 curl로도 받을 수 있으므로 위험 증가는 작다고 판단했다.
+- 서버 R2 키는 객체 권한만 있어 버킷 설정을 바꿀 수 없다. 대시보드 R2 > `eolssu-recordings` > Settings > CORS Policy에서 적용·확인한다.
+
+### 적용 전 관찰
+
+운영 `/api/songs/5/model-audio/play`의 302 `Location`(버킷 `eolssu-recordings`, `model-audio/` 객체)에 대해 curl로 확인했다. 두 출처 모두 preflight(`OPTIONS`, `Access-Control-Request-Method: GET`, `Access-Control-Request-Headers: range`)는 403이었다. `Origin`과 `Range: bytes=0-1`을 붙인 GET은 206·`Content-Range: bytes 0-1/554262`였고 `Access-Control-*` 헤더가 없었다.
+
+### 적용과 검증
+
+2026-11-03 15:5x KST(15:55 직전), 대시보드 CORS Policy(기존 정책 없음)에 위 JSON을 저장했다. 저장 후 화면에서 허용 출처 2개, GET·HEAD, 허용 헤더 `*`를 확인했다. 15:55 KST 새 302 `Location`으로 다시 확인한 결과는 다음과 같다.
+
+| 검사 | 결과 |
+| --- | --- |
+| 운영·`localhost:8080` 출처 preflight(GET, `range`) | 각각 204, 요청 출처 그대로의 `Access-Control-Allow-Origin`, `Allow-Methods: GET, HEAD`, `Max-Age: 3600` |
+| 두 출처의 Range GET | 206, 출처별 `Access-Control-Allow-Origin`, `Expose-Headers: Content-Length,Content-Type,Content-Range,Accept-Ranges` |
+| 비허용 출처 `https://evil.example` | preflight 403, GET 206이지만 `Access-Control-*` 없음(브라우저가 응답 읽기를 막음) |
+| 운영 출처의 PUT preflight | 403 |
+| 운영 Swagger 페이지 안의 `fetch('/api/songs/5/model-audio/play', {Range})` | 리다이렉트 후 R2 호스트에서 206·`audio/mp4`·`bytes 0-1/554262`, CORS 오류 없음 |
+
+서명 URL은 기록하지 않았다. Swagger UI의 "Try it out" 버튼 조작 자체는 하지 않았고 같은 출처의 `fetch`로 대신 확인했다.
+
+같은 Settings 화면의 Object Lifecycle Rules에는 `Default Multipart Abort Rule`만 있었다. 위에서 추가한 `recordings-expire-after-30-days` 규칙은 팀이 의도적으로 없앤 것이며(2026-11-03 사용자 확인) 복구하지 않는다. 이번 작업에서 수명 주기 설정은 바꾸지 않았다.
+
+### 남은 15분 만료 위험
+
+`<audio>`가 리다이렉트된 서명 URL로 이후 Range 요청을 보내면, 15분 넘게 연 화면에서 탐색할 때 403이 날 수 있다. 302·JSON 방식 모두의 문제이며 CORS와 별개다. 이번에는 확인하지 않았다.
+
 ## 출처
 
 - [Cloudflare: Presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/): 서명은 객체·메서드·기간에 한정되고 S3 API 도메인에서 사용한다.
 - [Cloudflare: Public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/): r2.dev와 사용자 도메인 공개 경로는 각각 설정한다.
+- [Cloudflare: Configure CORS](https://developers.cloudflare.com/r2/buckets/cors/): 버킷 단위 CORS 규칙 설정 방법.
 - [Cloudflare: Object lifecycles](https://developers.cloudflare.com/r2/buckets/object-lifecycles/): 접두사별 보관 규칙, 기본 multipart 중단 규칙, 만료 시각 뒤 통상 24시간 이내 제거. 실제 제거 시점은 30일 정각으로 보장하지 않는다.
 - 프로젝트의 직접 관찰: 운영 JAR·컨테이너 설정, Cloudflare 버킷 Settings·토큰 목록, 위 합성 객체 실행 결과. 공식 문서의 일반 설명과 운영 검증 결과를 구분했다.

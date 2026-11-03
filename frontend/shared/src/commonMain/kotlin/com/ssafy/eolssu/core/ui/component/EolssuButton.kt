@@ -28,8 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 
-/** 버튼 모양(`.btn.primary` · `.secondary` · `.text` · `.danger`). */
-enum class EolssuButtonStyle { Primary, Secondary, Text, Danger }
+/**
+ * 버튼 모양(`.btn.primary` · `.secondary` · `.text` · `.danger` · `.ghost`).
+ * [Text]는 옛 와이어프레임의 48dp 글자 버튼, [Ghost]는 연두 보드 `.btn.ghost`(52dp, 투명 바탕, `textSub` 500)다.
+ */
+enum class EolssuButtonStyle { Primary, Secondary, Text, Danger, Ghost }
 
 /**
  * 연두 디자인 버튼. 최소 48dp 터치 영역을 유지하고 글꼴 확대 시 내용에 맞게 높아진다.
@@ -52,9 +55,11 @@ fun EolssuButton(
     val colors = EolssuTheme.colors
     val (container, content, border) = when (style) {
         EolssuButtonStyle.Primary -> Triple(colors.primary, colors.onPrimary, colors.primary)
-        EolssuButtonStyle.Secondary -> Triple(colors.background, colors.text, colors.line)
+        // 보드 `.btn.secondary`는 흰 바탕(`#fff`)에 옅은 테두리다.
+        EolssuButtonStyle.Secondary -> Triple(colors.surface, colors.text, colors.line)
         EolssuButtonStyle.Text -> Triple(Color.Transparent, colors.textMuted, Color.Transparent)
         EolssuButtonStyle.Danger -> Triple(colors.rec, colors.onRec, colors.rec)
+        EolssuButtonStyle.Ghost -> Triple(Color.Transparent, colors.textSub, Color.Transparent)
     }
     val height = when {
         style == EolssuButtonStyle.Text -> 48.dp
@@ -83,7 +88,7 @@ fun EolssuButton(
                         text,
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontSize = if (small) 14.sp else 15.sp,
-                            fontWeight = if (style == EolssuButtonStyle.Text) FontWeight.Medium else FontWeight.SemiBold,
+                            fontWeight = if (style == EolssuButtonStyle.Text || style == EolssuButtonStyle.Ghost) FontWeight.Medium else FontWeight.SemiBold,
                         ),
                         textAlign = TextAlign.Center,
                     )

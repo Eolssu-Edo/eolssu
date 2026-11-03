@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetMapper">
+    <sql id="sheetColumns">
+        s.id, s.user_id, s.title, s.kind, s.source, s.status, s.jangdan_id, j.name AS jangdan_name, s.bpm, s.bpm_unit, s.column_count,
+        s.score_version, s.score_json, s.note_count, s.pending_cell_count, s.request_hash, s.updated_at,
+        s.draft_json, s.draft_revision, s.draft_base_version, s.draft_saved_at
+    </sql>
+
+    <select id="findByIdempotencyKey" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
+        SELECT <include refid="sheetColumns"/>
+        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.user_id = #{userId} AND s.idempotency_key = #{idempotencyKey}
+    </select>
+
+    <select id="findJangdan" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetJangdanRow">
+        SELECT id, bpm_unit, name FROM jangdans WHERE id = #{jangdanId}
+    </select>
+
+    <!-- CAT-04와 같은 공개 조건: 게시·미삭제 -->
+    <select id="findSongSource" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SongCopySourceRow">
+        SELECT s.jangdan_id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit,
+               s.score_json, s.is_scorable AS scorable, s.score_version, s.note_count, s.default_bpm
+        FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
+    </select>
+
+    <select id="find" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
+        SELECT <include refid="sheetColumns"/>
+        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.id = #{sheetId} AND s.user_id = #{userId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user_sheets (user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count, score_json, note_count,
+                                 idempotency_key, request_hash, created_at, updated_at)
+        VALUES (#{userId}, #{title}, #{kind}, #{source}, #{status}, #{jangdanId}, #{bpm}, #{bpmUnit}, #{columnCount}, #{scoreJson}, #{noteCount},
+                #{idempotencyKey}, #{requestHash}, #{createdAt}, #{createdAt})
+    </insert>
+
+    <!-- SHT-01: 최근 수정 순, 같은 시각은 ID 역순(idx_user_sheets_user_updated) -->
+    <select id="findPage" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
+        SELECT <include refid="sheetColumns"/>
+        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        WHERE s.user_id = #{userId}
+        <if test="kind != null">AND s.kind = #{kind}</if>
+        ORDER BY s.updated_at DESC, s.id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <!-- SHT-04: 읽은 버전 그대로일 때만 바꾼다(다른 기기의 저장과 겹치면 0행). 초안은 지우고 순번을 0으로 되돌린다. -->
+    <update id="updateScore">
+        UPDATE user_sheets
+        SET title = #{title}, status = #{status}, jangdan_id = #{jangdanId}, bpm = #{bpm}, bpm_unit = #{bpmUnit}, column_count = #{columnCount},
+            score_version = score_version + 1, score_json = #{scoreJson}, note_count = #{noteCount}, pending_cell_count = 0,
+            draft_json = NULL, draft_revision = 0, draft_base_version = NULL, draft_saved_at = NULL, updated_at = #{updatedAt}
+        WHERE id = #{sheetId} AND user_id = #{userId} AND score_version = #{baseScoreVersion}
+    </update>
+
+    <!-- SHT-11: 목록 순서를 바꾸지 않도록 updated_at을 같은 값으로 적어 ON UPDATE를 막는다. -->
+    <update id="updateDraft">
+        UPDATE user_sheets
+        SET draft_json = #{draftJson}, draft_revision = draft_revision + 1, draft_base_version = score_version,
+            draft_saved_at = #{savedAt}, updated_at = updated_at
+        WHERE id = #{sheetId} AND user_id = #{userId} AND score_version = #{baseScoreVersion} AND draft_revision = #{draftRevision}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM user_sheets WHERE id = #{sheetId} AND user_id = #{userId}
+    </delete>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM user_sheets s
+        WHERE s.user_id = #{userId}
+        <if test="kind != null">AND s.kind = #{kind}</if>
+    </select>
+</mapper>

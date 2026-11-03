@@ -22,6 +22,7 @@ data class CatalogPitch(
 
 data class CatalogFingering(
     val id: Long, val instrumentId: Long, val pitchId: Long, val imageUrl: String?, val description: String?,
+    val pattern: FingeringPattern? = null,
 )
 
 data class CatalogJangdan(

@@ -24,12 +24,17 @@ data class PracticeSessionDetail(
     val analysisStartedAt: LocalDateTime?,
     val savedAt: LocalDateTime?,
     val memo: String?,
+    /** 저장한 기록의 상세를 처음 연 시각(REC-02 `isNew`). 응답에는 넣지 않는다. */
+    val viewedAt: LocalDateTime? = null,
 ) {
     val retryable: Boolean
         get() = status == "FAILED" && failReason in RETRYABLE_FAIL_REASONS
 }
 
-fun interface PracticeSessionDetails {
-    /** 회원 본인의 세션만 돌려준다. 없거나 다른 회원의 세션이면 null. */
+interface PracticeSessionDetails {
+    /** 회원 본인의 세션만 돌려준다. 없거나 다른 회원의 세션, 기록을 지운 세션(REC-04)이면 null. */
     fun findOwned(sessionId: Long, userId: Long): PracticeSessionDetail?
+
+    /** 저장했고 지우지 않은 기록에 `viewed_at`이 비어 있을 때만 채운다. 채웠으면 true. */
+    fun markViewed(sessionId: Long, userId: Long, viewedAt: LocalDateTime): Boolean
 }

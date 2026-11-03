@@ -79,11 +79,37 @@ class PitchFrequencyTests(unittest.TestCase):
             cents = 1200 * math.log2(hz / target)
             self.assertLessEqual(abs(cents), 50, f"{register} {yul} {hz}Hz: {cents:+.1f}센트")
 
+    def test_sogeum_recordings_sound_at_rule_octave(self):
+        """소금 기본음계 녹음이 반음 = 옥타브 × 12 + 율 순서(황 0 = E♭4) 규칙의 옥타브에서 난다(반음 안).
+        소금은 평취 임이 가장 낮아 황~유가 청이고, 역취는 한 옥타브 위, '중청임'은 라벨에 옥타브가 있다.
+        국악사전 「소금」은 최고음 㵜(중청남)을 C6로 적었지만 이 규칙으로 C7이고 녹음이 C7 쪽과 맞다(S15P31E102-387).
+        이 악기는 E♭4 기준보다 50~85센트 높게 조율돼 있어 단소처럼 ±50센트가 아니라 옥타브만 가린다.
+        소금 율명 행은 기준 데이터가 아니라 V13·S15P31E102-339 적재로 DB에 있다."""
+        checked = 0
+        for path in (DATA / "annotations/audio/sogeum").glob("*기본음*/labels.json"):
+            labels = json.loads(path.read_text(encoding="utf-8"))
+            column = {name: i for i, name in enumerate(labels["columns"])}
+            for group in labels["groups"]:
+                for r in group["rows"]:
+                    yul, register = r[column["yulmyeong"]], r[column["register"]]
+                    base = yul.removeprefix("중청")
+                    if base not in "임남황태고":  # 소금 곡의 다섯 율만 본다. 녹음의 중·무·협은 반음 넘게 높다
+                        continue
+                    octave = 2 if yul != base else (YULS.index(base) < YULS.index("임")) + (register == "역취")
+                    target = 311.13 * 2 ** ((octave * 12 + YULS.index(base)) / 12)
+                    cents = 1200 * math.log2(r[column["labelF0Hz"]] / target)
+                    self.assertLess(abs(cents), 100, f"{register} {yul}: {cents:+.1f}센트")
+                    checked += 1
+        self.assertEqual(checked, 33)  # 녹음 3개 × 11음(평취 임·남·황·태·고, 역취 같은 5음, 중청임)
+
 
 class JangdanTableTests(unittest.TestCase):
-    # 기획 S15P31E102-141 "장단별 빠르기 및 근거"의 기본 BPM·클릭 단위와 backend V2 bpm_unit
+    # 기존3종은 기획141, 추가7종은 Task411의 공식 기본형·승인된 서비스 시작값.
     EXPECTED = {"세마치": (96, "DOTTED_QUARTER", 9), "굿거리": (66, "DOTTED_QUARTER", 12),
-                "중모리": (88, "QUARTER", 12)}
+                "중모리": (88, "QUARTER", 12), "자진모리": (96, "DOTTED_QUARTER", 12),
+                "중중모리": (80, "DOTTED_QUARTER", 12), "엇모리": (90, "QUARTER", 10),
+                "단모리": (120, "QUARTER", 8), "타령": (48, "QUARTER", 12),
+                "계면가락도드리": (48, "QUARTER", 12), "세령산": (63, "QUARTER", 10)}
 
     def test_jangdans_match_planning_tempo_and_unit(self):
         rows = {r["name"]: r for r in load("jangdans.json")["rows"]}

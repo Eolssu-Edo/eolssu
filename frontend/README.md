@@ -74,7 +74,39 @@ Windows에서는 iOS 코드(`iosMain`)를 작성할 수만 있고, 컴파일·�
 4. iOS 시뮬레이터를 고르고 ▶ Run을 누릅니다. Android Studio가 내부에서 Xcode를 불러 빌드합니다.
 5. Swift 파일이나 `Info.plist`(마이크 권한 문구 등)를 고칠 때는 `iosApp`을 Xcode로 엽니다.
 
+실제 iPhone에서 개인 개발팀으로 실행할 때는 `frontend/iosApp/Configuration/Config.local.xcconfig`를 만들고 아래 값을 본인 설정으로 바꿉니다. 이 파일은 Git에서 제외하며 개인 Team ID를 공유 설정에 넣지 않습니다.
+
+```xcconfig
+TEAM_ID=본인_TEAM_ID
+PRODUCT_BUNDLE_IDENTIFIER=com.ssafy.eolssu.본인개발용식별자
+```
+
+Xcode에서 `frontend/iosApp/iosApp.xcodeproj`를 열고 `iosApp` scheme과 연결한 iPhone을 선택해 실행합니다. 기존 설치 앱의 데이터를 유지하려면 같은 개발용 Bundle ID를 사용합니다. 출시용 기본 Bundle ID는 `com.ssafy.eolssu`입니다.
+
+Mac의 `frontend/`에서 네이티브 코드 컴파일과 시뮬레이터 테스트를 확인할 수 있습니다.
+
+```sh
+./gradlew :shared:compileKotlinIosArm64 :shared:compileTestKotlinIosSimulatorArm64
+./gradlew :shared:iosSimulatorArm64Test
+```
+
 iOS 담당은 develop을 주기적으로 받아 iOS 빌드가 깨지지 않았는지 확인합니다. 공통 코드만 바뀌어도 iOS 빌드가 깨질 수 있습니다.
+
+### 무료 계정의 iPhone 개발 서명
+
+Xcode의 **Settings → Apple Accounts**에 로그인하고 Personal Team을 확인합니다. 브라우저의 Apple Developer 로그인과는 별도입니다. **Settings → Components**에서 iOS 플랫폼 설치도 완료해야 합니다.
+
+위 로컬 설정 파일의 Team ID와 개발용 Bundle ID를 사용합니다. `Config.xcconfig`가 이 파일을 선택적으로 읽으며, 팀 공통 파일에는 개인 Team ID나 인증서를 넣지 않습니다.
+
+`iosApp/iosApp.xcodeproj`를 Xcode에서 열고 `iosApp` 타깃의 **Signing & Capabilities**에서 자동 서명과 개발팀이 적용됐는지 확인합니다. 최초 기기 연결은 iPhone을 Mac에 케이블로 연결하고 신뢰·개발자 모드를 직접 허용해야 합니다. 페어링 후 네트워크 연결을 설정하면 무선 실행이 가능합니다. 원격 접속만으로 최초 기기 페어링을 마쳤다고 가정하지 않습니다.
+
+서명 없이 컴파일만 확인하려면 `frontend/`에서 아래 명령을 사용합니다. 이 성공은 iPhone 설치·실행 또는 API 검증 통과를 뜻하지 않습니다.
+
+```sh
+./gradlew :shared:compileKotlinIosArm64
+```
+
+[Apple 기기 페어링 안내](https://help.apple.com/xcode/mac/current/en.lproj/devbc48d1bad.html) · [작업 환경·검증 기록](../docs/plans/S15P31E102-377.md)
 
 ## 🔨 명령어로 빌드·실행
 
@@ -241,7 +273,8 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 - **`gradlew` 실행 권한**: Windows에서 커밋하면 실행 권한이 빠질 수 있습니다. `gradlew`를 새로 추가하거나 교체할 때는 `git update-index --chmod=+x frontend/gradlew`를 실행한 뒤 커밋합니다.
 - **커밋하지 않는 파일**: `local.properties`, `build/`, `.gradle/`, `.kotlin/`, `.idea/`, `xcuserdata/` ([`.gitignore`](.gitignore)에 등록됨)
 - **커밋하는 파일**: 웹을 처음 빌드하면 생기는 `kotlin-js-store/`(웹 의존성 lock 파일)는 커밋합니다.
-- **iOS 번들 ID**: 지금은 마법사 기본값(`com.ssafy.eolssu.eolssu` + 개발팀 ID)입니다. Mac 담당자가 `iosApp/Configuration/Config.xcconfig`에서 개발팀 ID를 넣을 때 함께 정리합니다.
+- **iOS 번들 ID**: Android `applicationId`와 같은 `com.ssafy.eolssu`입니다. App Store에 등록한 뒤에는 바꿀 수 없습니다. Mac에서 빌드하려면 `iosApp/Configuration/Config.xcconfig`의 `TEAM_ID`에 Apple 개발팀 ID를 넣습니다(개인 값이면 커밋하지 않음).
+- **iOS 출시 설정**: 마이크 권한 설명·표시 이름은 `iosApp/iosApp/Info.plist`, 개인정보 매니페스트는 `iosApp/iosApp/PrivacyInfo.xcprivacy`에 있습니다. 매니페스트의 수집 항목은 App Store Connect의 개인정보 라벨과 같게 맞춥니다([S15P31E102-373 계획](../docs/plans/S15P31E102-373.md)).
 
 ## Android release 검증
 
@@ -253,6 +286,13 @@ node tools/sigimsae-sound/build_sigimsae_sounds.mjs
 $env:EOLSSU_CATALOG_TEST_URL = 'http://127.0.0.1:18081'
 ./gradlew.bat :shared:testAndroidHostTest :androidApp:assembleDebug '-Peolssu.debugApiBaseUrl=http://127.0.0.1:18081' --max-workers=2
 adb reverse tcp:18081 tcp:18081
+```
+
+V21의 장단10개를 가진 폐기용 로컬 서버에서 구음·혼합 묶음·4분/점4분음표 단위가 Repository와 읽기 화면 상태에 도달하는지는 별도로 검사합니다. `EOLSSU_JANGDAN_TEST_URL` 미지정 시 해당 검사는 명시적으로 skipped입니다. 실기기 화면·청취 검증과 구분합니다.
+
+```powershell
+$env:EOLSSU_JANGDAN_TEST_URL = 'http://127.0.0.1:18081'
+./gradlew.bat :shared:testAndroidHostTest --tests '*JangdanLocalServerTest'
 ```
 
 debug API 변경은 loopback 주소만 허용합니다. release는 이 속성과 관계없이 운영 HTTPS 주소를 사용하며 debug 전용 cleartext 예외를 포함하지 않습니다. 공개 곡 조회 검사는 로그인·녹음·분석 전체 흐름의 증거가 아닙니다.

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu
 
 import android.content.Context
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -24,9 +25,18 @@ fun App(context: Context, serverAddress: ServerAddress = ServerAddress.Productio
     // 마이크 권한 창은 화면에 등록한 요청으로만 띄울 수 있어 여기서 등록해 넘긴다.
     val micPermission = remember(context) { AndroidMicPermission.of(context) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), micPermission::onResult)
-    DisposableEffect(launcher) {
+    // 거부 뒤 설명을 보일 필요가 없다고 하면(‘다시 묻지 않음’) 연습 화면이 ‘설정에서 허용하기’ 안내를 띄운다.
+    // [context]는 applicationContext라 Activity가 아니다. 판정은 권한 창을 띄운 Activity(이 화면을 그리는 Activity)로 한다.
+    val activity = LocalActivity.current
+    DisposableEffect(launcher, activity) {
         micPermission.launcher = launcher
-        onDispose { if (micPermission.launcher === launcher) micPermission.launcher = null }
+        micPermission.shouldShowRationale = activity?.let { { it.shouldShowRequestPermissionRationale(android.Manifest.permission.RECORD_AUDIO) } }
+        onDispose {
+            if (micPermission.launcher === launcher) {
+                micPermission.launcher = null
+                micPermission.shouldShowRationale = null
+            }
+        }
     }
     App(platformModule = platformModule, qaSkipConsent = qaSkipConsent)
 }

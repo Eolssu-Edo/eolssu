@@ -46,7 +46,8 @@ class ApiAccessRulesTests {
             "POST" to "/api/auth/email-verifications", "POST" to "/api/auth/email-verifications/301/confirm",
             "GET" to "/api/terms", "GET" to "/api/songs", "GET" to "/api/songs/1", "GET" to "/api/songs/1/score",
             "GET" to "/api/songs/1/model-audio", "GET" to "/api/instruments", "GET" to "/api/instruments/1/fingerings",
-            "GET" to "/api/pitches", "GET" to "/api/jangdans", "GET" to "/api/jangdans/1", "GET" to "/api/notation-symbols",
+            "GET" to "/api/songs/1/model-audio/play", "GET" to "/api/songs/1/model-audio/performance",
+            "GET" to "/api/pitches", "GET" to "/api/jangdans", "GET" to "/api/jangdans/1", "GET" to "/api/notation-symbols", "GET" to "/api/notation-symbols/1/image",
         )
 
         val PROTECTED = listOf(
@@ -57,7 +58,9 @@ class ApiAccessRulesTests {
             "POST" to "/api/practice-sessions", "GET" to "/api/practice-sessions/1", "POST" to "/api/practice-sessions/1/retry",
             "PUT" to "/api/practice-sessions/1/record", "GET" to "/api/practice-sessions/1/evaluation",
             "GET" to "/api/users/me/practice-records", "GET" to "/api/missions", "GET" to "/api/users/me/growth/summary",
+            "GET" to "/api/users/me/growth/scores",
             "POST" to "/api/users/me/score-views",
+            "GET" to "/api/lessons", "GET" to "/api/lessons/1", "PUT" to "/api/lessons/1/completion",
             // 공개 경로 아래에 나중에 생길 수 있는 다른 경로는 공개하지 않는다.
             "GET" to "/api/songs/1/members", "GET" to "/api/instruments/1/notes", "GET" to "/api/jangdans/1/members",
             "POST" to "/api/auth/oauth/kakao/extra", "POST" to "/api/auth/email-verifications/301/other",

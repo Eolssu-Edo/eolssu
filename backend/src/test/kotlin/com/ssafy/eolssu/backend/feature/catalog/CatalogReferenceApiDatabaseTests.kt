@@ -28,6 +28,23 @@ class CatalogReferenceApiDatabaseTests {
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
     private val json = JsonMapper.builder().build()
 
+    @Test fun `four supported instruments expose independent nominal ranges and preserve original pitch IDs`() {
+        val items = body("/api/instruments").path("items").toList().associateBy { it.path("code").asString() }
+        assertTrue(items.keys.containsAll(listOf("DANSO", "SOGEUM", "JEONGAK_DAEGEUM", "SANJO_DAEGEUM")), items.keys.toString())
+        for ((code, low, high) in listOf(Triple("DANSO",3,29), Triple("SOGEUM",7,33),
+            Triple("JEONGAK_DAEGEUM",-5,29), Triple("SANJO_DAEGEUM",-5,29))) {
+            val id = items.getValue(code).path("instrumentId").asString()
+            val pitches = body("/api/pitches?instrumentId=$id").path("items").toList()
+            assertEquals(low, pitches.first().path("semitone").asInt(), code)
+            assertEquals(high, pitches.last().path("semitone").asInt(), code)
+            assertEquals(pitches.map { it.path("semitone").asInt() }.sorted(), pitches.map { it.path("semitone").asInt() })
+        }
+        val old = body("/api/pitches").path("items").toList().filter { it.path("pitchId").asString().toLong() <= 11 }
+            .sortedBy { it.path("pitchId").asString().toLong() }
+        assertEquals((1..11).map(Int::toString), old.map { it.path("pitchId").asString() })
+        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), old.map { it.path("semitone").asInt() })
+    }
+
     @AfterEach fun cleanup() {
         jdbc.update("DELETE FROM fingering_charts WHERE instrument_id IN (?, ?)", instrumentId, inactiveId)
         jdbc.update("DELETE FROM instruments WHERE id IN (?, ?) AND code IN ('CAT288_ACTIVE','CAT288_INACTIVE')", instrumentId, inactiveId)
@@ -46,11 +63,21 @@ class CatalogReferenceApiDatabaseTests {
         assertEquals(50, danso.path("pitchToleranceCent").asInt())
         assertTrue(danso.path("rangeLowPitchId").isString)
         val pitches = body("/api/pitches?instrumentId=$dansoId").path("items").toList()
-        assertEquals(11, pitches.size)
-        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), pitches.map { it.path("semitone").asInt() })
+        assertEquals(26, pitches.size)
+        assertEquals((3..24).toList() + listOf(26,27,28,29), pitches.map { it.path("semitone").asInt() })
         assertEquals("㴢", pitches.last().path("hanja").asString())
         assertTrue(pitches.all { it.path("description").isNull && it.path("soundUrl").isNull })
         assertTrue(body("/api/instruments/$dansoId/fingerings").path("structureImageUrl").isNull)
+        val global = body("/api/pitches").path("items").toList()
+        assertEquals(36, global.size)
+        assertEquals((-5..24).toList() + listOf(26,27,28,29,31,33),
+            global.map { it.path("semitone").asInt() })
+        val original = global.filter { it.path("pitchId").asString().toLong() in 1L..11L }
+            .sortedBy { it.path("pitchId").asString().toLong() }
+        assertEquals((1..11).map(Int::toString), original.map { it.path("pitchId").asString() })
+        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), original.map { it.path("semitone").asInt() })
+        assertEquals(listOf("중","임","무","청황","청태","청중","청임","청무","중청황","중청태","중청중"),
+            original.map { it.path("hangul").asString() })
     }
 
     @Test fun `range filtering uses pitch semitones with unordered IDs and inactive instruments stay private`() {
@@ -92,6 +119,26 @@ class CatalogReferenceApiDatabaseTests {
         assertTrue(selected.none { it.has("semanticCode") })
     }
 
+    @Test fun `structured fingering preserves unknown and half holes and rejects corrupted patterns without leaking data`() {
+        seedInstrumentRange()
+        val pattern = """{"blow":"MID","hanja":"仲","name":"중려","reading":"중","holes":["UNKNOWN","HALF","CLOSED","OPEN","OPEN"],"basic":false,"source":"확인 전 참고 자료","instrumentNote":"구멍 순서 보존","nominalHwangPitchClass":5,"verificationStatus":"BUILTIN_REFERENCE"}"""
+        jdbc.update("INSERT INTO fingering_charts (id,instrument_id,pitch_id,pattern_json) VALUES (992884,?,992880,?)", instrumentId, pattern)
+        val stored = body("/api/instruments/$instrumentId/fingerings").path("items")[0]
+        assertTrue(stored.path("imageUrl").isNull)
+        assertEquals(listOf("UNKNOWN","HALF","CLOSED","OPEN","OPEN"), stored.path("pattern").path("holes").toList().map { it.asString() })
+        assertFalse(stored.path("pattern").path("basic").asBoolean())
+        for (bad in listOf(
+            pattern.replace("UNKNOWN","MAYBE"),
+            pattern.replace("\"basic\":false","\"basic\":\"false\""),
+            pattern.replace("\"nominalHwangPitchClass\":5","\"nominalHwangPitchClass\":5.5"),
+            pattern.replace("\"reading\":\"중\"","\"reading\":\"\""),
+        )) {
+            jdbc.update("UPDATE fingering_charts SET pattern_json=? WHERE id=992884", bad)
+            assertError("/api/instruments/$instrumentId/fingerings",500,"INTERNAL_SERVER_ERROR")
+            assertFalse(get("/api/instruments/$instrumentId/fingerings").body().contains("확인 전"))
+        }
+    }
+
     @Test fun `jangdan list and detail preserve actual reference pattern and BPM units`() {
         val list = body("/api/jangdans").path("items").toList()
         for (item in list) {
@@ -106,6 +153,62 @@ class CatalogReferenceApiDatabaseTests {
             assertTrue(detail.path("soundUrl").isNull)
         }
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
+    }
+
+    @Test fun `sourced additional rhythms are public without changing the original catalog or songs`() {
+        val items = body("/api/jangdans", staleCookie = true).path("items").toList()
+        assertEquals(listOf("1", "2", "3", "4", "5"), items.take(5).map { it.path("jangdanId").asString() })
+        assertEquals(listOf("세마치", "굿거리", "중모리", "자진모리", "중중모리"), items.take(5).map { it.path("name").asString() })
+        val expected = listOf(
+            Triple("4", 96, listOf("떵", "", "덕", "쿵", "덕", "", "떵", "", "덕", "쿵", "덕", "")),
+            Triple("5", 80, listOf("덩", "", "따", "궁", "따", "따", "궁", "궁", "따", "궁", "", "궁")),
+        )
+        for ((id, bpm, beats) in expected) {
+            val summary = items.single { it.path("jangdanId").asString() == id }
+            val detail = body("/api/jangdans/$id", staleCookie = true)
+            assertEquals(bpm, detail.path("defaultBpm").asInt())
+            assertEquals("DOTTED_QUARTER", detail.path("bpmUnit").asString())
+            assertEquals(beats, detail.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(listOf(3, 3, 3, 3), detail.path("pattern").path("group").toList().map { it.asInt() })
+            assertEquals(12, summary.path("beatCount").asInt())
+            assertEquals(4, summary.path("groupCount").asInt())
+            assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
+            assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
+            assertTrue(detail.path("source").asString().contains("https://"))
+            assertTrue(detail.path("soundUrl").isNull)
+        }
+        assertEquals(listOf("1 세마치 96 DOTTED_QUARTER", "2 굿거리 66 DOTTED_QUARTER", "3 중모리 88 QUARTER"),
+            jdbc.queryForList("SELECT CONCAT(id,' ',name,' ',default_bpm,' ',bpm_unit) FROM jangdans WHERE id<=3 ORDER BY id", String::class.java))
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id IN (4,5)", Int::class.java))
+    }
+
+    @Test fun `remaining rhythms preserve source syllables groups and chosen quarter tempo without linking songs`() {
+        data class Expected(val id: String, val name: String, val bpm: Int, val beats: List<String>, val groups: List<Int>)
+        val expected = listOf(
+            Expected("6", "엇모리", 90, listOf("덩", "", "덕", "쿵", "", "쿵", "", "덕", "쿵", ""), listOf(3,2,3,2)),
+            Expected("7", "단모리", 120, listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2,2,2,2)),
+            Expected("8", "타령", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("9", "계면가락도드리", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
+        )
+        val items = body("/api/jangdans", staleCookie = true).path("items").toList()
+        assertEquals((1..10).map(Int::toString), items.map { it.path("jangdanId").asString() })
+        for (e in expected) {
+            val summary = items.single { it.path("jangdanId").asString() == e.id }
+            val detail = body("/api/jangdans/${e.id}", staleCookie = true)
+            assertEquals(e.name, detail.path("name").asString())
+            assertEquals(e.bpm, detail.path("defaultBpm").asInt())
+            assertEquals("QUARTER", detail.path("bpmUnit").asString())
+            assertEquals(e.beats, detail.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(e.groups, detail.path("pattern").path("group").toList().map { it.asInt() })
+            assertEquals(e.beats.size, summary.path("beatCount").asInt())
+            assertEquals(e.groups.size, summary.path("groupCount").asInt())
+            assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
+            assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
+            assertTrue(detail.path("source").asString().contains("https://"))
+            assertTrue(detail.path("soundUrl").isNull)
+        }
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
     }
 
     @Test fun `invalid stored jangdan shapes are rejected without publishing misleading rhythm data`() {
@@ -123,6 +226,50 @@ class CatalogReferenceApiDatabaseTests {
         for (path in listOf("/api/pitches?instrumentId=0", "/api/pitches?instrumentId=", "/api/pitches?instrumentId=9223372036854775808",
             "/api/instruments/01/fingerings", "/api/instruments/1/fingerings?pitchId=-1", "/api/jangdans/abc")) {
             assertError(path,400,"INVALID_REQUEST")
+        }
+    }
+
+    @Test fun `registered frontend symbols expose original descriptions provenance and public images`() {
+        val items = body("/api/notation-symbols", staleCookie = true).path("items").toList()
+        assertEquals(49, items.size)
+        assertEquals(items.size, items.map { it.path("symbol").asString() }.distinct().size)
+        val hold = items.single { it.path("symbol").asString() == "ㅡ" }
+        assertEquals("이어요", hold.path("description").asString())
+        val inferred = items.single { it.path("symbol").asString() == "노라느니" }
+        assertEquals("INFERRED", inferred.path("descriptionStatus").asString())
+        assertTrue(inferred.path("source").asString().contains("추정"))
+        for (item in items) {
+            val path = "/api/notation-symbols/${item.path("symbolId").asString()}/image"
+            assertEquals(path, item.path("imageUrl").asString())
+            val image = get(path, staleCookie = true)
+            assertEquals(200, image.statusCode(), image.body())
+            assertTrue(image.headers().firstValue("Content-Type").orElse("").startsWith("image/svg+xml"))
+            assertTrue(image.body().contains("<svg"))
+            if (item.path("imageLicense").asString() == "MIT") assertTrue(image.body().contains("Copyright (c) 2026 Danbinaerin Han"))
+        }
+        assertError("/api/notation-symbols/9223372036854775807/image", 404, "RESOURCE_NOT_FOUND")
+        assertError("/api/notation-symbols/01/image", 400, "INVALID_REQUEST")
+    }
+
+    @Test fun `seed replay preserves custom content and distinct width aliases without claiming bundled provenance`() {
+        val hold = jdbc.queryForMap("SELECT id,description FROM notation_symbols WHERE symbol='ㅡ'")
+        val holdId = (hold["id"] as Number).toLong()
+        try {
+            jdbc.update("UPDATE notation_symbols SET description='custom teaching content' WHERE id=?", holdId)
+            jdbc.update("INSERT INTO notation_symbols (id,symbol,name,description) VALUES (992886,'－','custom fullwidth','keep fullwidth'),(992887,'-','custom ASCII','keep ASCII')")
+            val before = jdbc.queryForList("SELECT * FROM notation_symbols ORDER BY id")
+            org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                org.springframework.core.io.ClassPathResource("db/migration/V19__seed_notation_symbols.sql")
+            ).execute(jdbc.dataSource!!)
+            assertEquals(before, jdbc.queryForList("SELECT * FROM notation_symbols ORDER BY id"))
+            val changed = body("/api/notation-symbols").path("items").toList().single { it.path("symbolId").asString() == holdId.toString() }
+            assertEquals("custom teaching content", changed.path("description").asString())
+            assertTrue(changed.path("source").isNull)
+            assertTrue(changed.path("descriptionStatus").isNull)
+            assertTrue(changed.path("imageUrl").isNull)
+            assertError("/api/notation-symbols/$holdId/image", 404, "RESOURCE_NOT_FOUND")
+        } finally {
+            jdbc.update("UPDATE notation_symbols SET description=? WHERE id=?", hold["description"], holdId)
         }
     }
 

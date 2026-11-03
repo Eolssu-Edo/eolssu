@@ -12,6 +12,57 @@ import kotlin.test.*
 
 class ApiSongRepositoryTest {
     @Test
+    fun filterRejectsInvalidIdsBeforeRequestAndRejectsCrossInstrumentResponse() = runTest {
+        var requests = 0
+        val client = createHttpClient(MockEngine {
+            requests++
+            respond("""{"isSuccess":true,"result":{"items":[$ITEM]}}""", HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repository = ApiSongRepository(client)
+            for (id in listOf("", "0", "01", "-1", " 1", "1.0", "9223372036854775808")) {
+                assertFailsWith<CatalogUnavailable> { repository.getSongs(id) }
+            }
+            assertEquals(0, requests)
+            assertFailsWith<CatalogUnavailable> { repository.getSongs("83") }
+            assertEquals(1, requests)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun optionalInstrumentFilterUsesServerIdAndOmittedFilterKeepsWholeList() = runTest {
+        val queries = mutableListOf<String?>()
+        val client = createHttpClient(MockEngine { request ->
+            assertEquals("/api/songs", request.url.encodedPath)
+            queries += request.url.parameters["instrumentId"]
+            respond("""{"isSuccess":true,"result":{"items":[$ITEM]}}""", HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val repository = ApiSongRepository(client)
+            assertEquals("9007199254740993", repository.getSongs("42").single().id)
+            repository.getSongs()
+            assertEquals(listOf("42", null), queries)
+        } finally { client.close() }
+    }
+
+    @Test
+    fun missingJangdanKeepsCanonicalNameWithoutBreakingOtherSongs() = runTest {
+        val unlinked = """{"songId":"7","title":"장단 미연결 곡","instrumentId":"3","difficulty":2,"defaultBpm":60,"jangdan":null,"isScorable":false,"noteCount":1,"scoreVersion":1,"score":{"score":{"instrument":"SANJO_DAEGEUM"},"music":{"jangdan":"타령","bpmUnit":"QUARTER"}}}"""
+        val items = List(8) { ITEM.replace("9007199254740993", (it + 1).toString()) } +
+            List(103) { unlinked.replace("\"songId\":\"7\"", "\"songId\":\"${it + 9}\"") }
+        val client = catalogClient("""{"isSuccess":true,"result":{"items":[${items.joinToString(",")}]}}""")
+        try {
+            val songs = ApiSongRepository(client).getSongs()
+            assertEquals(111, songs.size)
+            assertEquals("타령", songs.last().jangdanName)
+            assertEquals("SANJO_DAEGEUM", songs.last().instrumentCode)
+            assertFalse(songs.last().evaluable)
+        } finally { client.close() }
+    }
+
+    @Test
     fun listRetainsLargeIdsUnknownDifficultyAndPracticeOnlySongs() = runTest {
         val client = catalogClient("""{"isSuccess":true,"result":{"items":[$ITEM]}}""")
         try {

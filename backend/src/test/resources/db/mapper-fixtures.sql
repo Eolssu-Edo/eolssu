@@ -8,6 +8,7 @@ VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '20
 ON DUPLICATE KEY UPDATE code = f.code, name = f.name, range_low_pitch_id = f.range_low_pitch_id, range_high_pitch_id = f.range_high_pitch_id,
   pitch_tolerance_cent = f.pitch_tolerance_cent, is_active = f.is_active, created_at = f.created_at, updated_at = f.updated_at;
 
+DELETE FROM fingering_charts WHERE instrument_id=1 OR id=1;
 INSERT INTO fingering_charts (id, instrument_id, pitch_id, image_url, description, created_at, updated_at)
 VALUES (1, 1, 2, 'https://example.test/fingering.png', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 
@@ -17,6 +18,8 @@ VALUES (1, '세마치', '{"beats":["덩","덕"],"group":[2]}', 90, 'DOTTED_QUART
 INSERT INTO songs (id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at)
 VALUES (1, 1, 1, '아리랑', '경기 민요', 2, 90, '{"notes":[{"yul":"황"}]}', 3, '황', 1, NULL, TRUE, 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL);
 
+-- V17 기호 시드와 고정 fixture의 ID만 겹친다. 이 fixture의 트랜잭션 롤백으로 원복된다.
+DELETE FROM notation_symbols WHERE id IN (1,2);
 INSERT INTO notation_symbols (id, symbol, name, description, image_url, created_at, updated_at)
 VALUES (1, '－', '뻗는표', '음을 이어 연주', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456'),
        (2, '-', '반각 테스트', '전각과 구분', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
@@ -36,11 +39,14 @@ VALUES (1, 1, 85, 80, 90, 85, 'test-v1', '2026-10-22 01:02:03.123456');
 INSERT INTO note_results (id, evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict)
 VALUES (1, 1, 0, 2, NULL, NULL, -16, NULL, 'MISSED');
 
-INSERT INTO lessons (id, kind, instrument_id, seq, title, content_json, status, created_at, updated_at)
-VALUES (1, 'YUL', NULL, 1, '황종', '{"yul":"황"}', 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+-- 레슨 1은 V14 시드(단소 1단계) 행이라 지우지 않고 고정 값으로 덮어쓴다.
+INSERT INTO lessons (id, track, seq, title, judge_type, is_optional, content_json, status, created_at, updated_at)
+VALUES (1, 'DANSO', 1, '악기 알기·감상', 'READ', FALSE, '{"goal":"소리를 안다","pitchNames":["汰"]}', 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456') AS f
+ON DUPLICATE KEY UPDATE track = f.track, seq = f.seq, title = f.title, judge_type = f.judge_type, is_optional = f.is_optional,
+  content_json = f.content_json, status = f.status, created_at = f.created_at, updated_at = f.updated_at;
 
-INSERT INTO lesson_progress (id, user_id, lesson_id, score, completed_at, created_at, updated_at)
-VALUES (1, 1, 1, NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
+INSERT INTO lesson_progress (id, user_id, lesson_id, completed_at, created_at, updated_at)
+VALUES (1, 1, 1, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 
 INSERT INTO user_social_accounts (id, user_id, provider, provider_user_id, created_at)
 VALUES (1, 3, 'NAVER', 'AbC-네이버', '2026-10-22 01:02:03.123456');
@@ -64,3 +70,6 @@ VALUES (1, 1, 1, 72, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456')
 
 INSERT INTO score_views (id, user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds, created_at)
 VALUES (1, 1, 1, 'view-key', '2026-10-22 01:02:03.123456', '2026-10-22 01:14:03.123456', 690, 600, '2026-10-22 01:02:03.123456');
+
+INSERT INTO user_sheets (id, user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count, idempotency_key, request_hash, created_at, updated_at)
+VALUES (1, 1, '새 악보 1', 'JEONGGANBO', 'MANUAL', 'NEEDS_REVIEW', 1, 60, 'DOTTED_QUARTER', 8, 'sheet-key', REPEAT('e', 64), '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');

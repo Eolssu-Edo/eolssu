@@ -46,9 +46,9 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.feature.guide.Blow
-import com.ssafy.eolssu.feature.guide.FingeringNote
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.MoreSigimsaeCount
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.BorrowCard
@@ -72,7 +72,7 @@ import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
 import com.ssafy.eolssu.feature.guide.component.blowShortLabel
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
-import com.ssafy.eolssu.feature.guide.component.image
+import com.ssafy.eolssu.core.model.fingering.image
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.catalog_consumer_loading
@@ -143,6 +143,7 @@ import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import com.ssafy.eolssu.core.model.fingering.label
 
 /** 단계 상세의 동작. 화면 이동은 Route가 이어 준다. */
 class LearnStageActions(
@@ -152,7 +153,6 @@ class LearnStageActions(
     val onConfirm: (Int) -> Unit,
     val onStartPractice: (Int) -> Unit,
     val onListenModel: () -> Unit,
-    val onListen: (FingeringNote) -> Unit,
     val onOpenFingering: (Blow) -> Unit,
     val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (LearnSong) -> Unit,
@@ -184,6 +184,7 @@ fun LearnStageScreen(
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     actions: LearnStageActions,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
     EolssuScaffold(
@@ -202,6 +203,7 @@ fun LearnStageScreen(
             state,
             stage,
             actions,
+            noteAudioContent,
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
             columns = if (tablet) LearnStageColumns.Portrait else LearnStageColumns.Compact,
@@ -226,6 +228,7 @@ internal fun LearnStageContent(
     state: LearnUiState,
     stage: LearnStage,
     actions: LearnStageActions,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
     columns: LearnStageColumns = LearnStageColumns.Compact,
@@ -237,7 +240,7 @@ internal fun LearnStageContent(
             .padding(contentPadding),
     ) {
         GoalCard(stage)
-        StageBody(state, stage, actions, columns)
+        StageBody(state, stage, actions, columns, noteAudioContent)
         stage.pass?.let { PassSection(stage, it) }
         // 바로 위 묶음의 아래 여백(16dp)이 와이어프레임의 위 여백(14dp)과 겹쳐 따로 띄우지 않는다.
         Text(
@@ -276,7 +279,13 @@ private fun GoalCard(stage: LearnStage) {
 }
 
 @Composable
-private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, columns: LearnStageColumns) {
+private fun StageBody(
+    state: LearnUiState,
+    stage: LearnStage,
+    actions: LearnStageActions,
+    columns: LearnStageColumns,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
+) {
     val instrument = state.instrument
     val content = instrument.learnContent
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
@@ -311,7 +320,7 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
             val second = noteOf(content.basic[1])
             LearnSection(stringResource(Res.string.learn_section_new_notes), more = { fingeringMore(Res.string.learn_more_fingering_detail, Blow.Mid) }) {
                 GuideGrid(listOfNotNull(first, second), grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, note, cell ->
-                    NoteCard(instrument, note, state.playing, actions.onListen, cell)
+                    NoteCard(instrument, note, noteAudioContent, cell)
                 }
             }
             LearnSection(stringResource(Res.string.learn_section_order)) {
@@ -349,7 +358,7 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
                     val first = noteOf(range.first)
                     LearnPatternBox(cell) {
                         PatternName(range.label, range.description)
-                        if (first != null) NoteCard(instrument, first, state.playing, actions.onListen)
+                        if (first != null) NoteCard(instrument, first, noteAudioContent)
                         FlowRow(verticalArrangement = Arrangement.spacedBy(4.dp), itemVerticalAlignment = Alignment.CenterVertically) {
                             LearnSmallNote(stringResource(Res.string.learn_range_first, first?.name ?: range.first) + " ")
                             MoreLink(
@@ -417,7 +426,7 @@ private fun StageBody(state: LearnUiState, stage: LearnStage, actions: LearnStag
     }
 }
 
-private val LearnPattern.label: StringResource
+internal val LearnPattern.label: StringResource
     get() = when (this) {
         LearnPattern.Ascending -> Res.string.learn_pattern_ascending
         LearnPattern.Descending -> Res.string.learn_pattern_descending
@@ -438,11 +447,10 @@ private val LearnPattern.note: StringResource?
 private fun NoteCard(
     instrument: GuideInstrument,
     note: FingeringNote,
-    playing: String?,
-    onListen: (FingeringNote) -> Unit,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    FingeringCard(instrument, note, playing = playing == note.hanja, onListen = { onListen(note) }, modifier = modifier, inLearn = true)
+    FingeringCard(instrument, note, audioContent = { noteAudioContent(note) }, modifier = modifier, inLearn = true)
 }
 
 /** 묶음 이름 + 회색 보충 설명(`.lp-pattern .name`). */

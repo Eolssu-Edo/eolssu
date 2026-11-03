@@ -43,12 +43,13 @@ import eolssu.shared.generated.resources.legal_service
 import eolssu.shared.generated.resources.legal_privacy
 import eolssu.shared.generated.resources.legal_deletion
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
-import com.ssafy.eolssu.feature.profile.component.ProviderMark
+import com.ssafy.eolssu.core.ui.component.ProviderMark
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.my_account
 import eolssu.shared.generated.resources.my_instrument
 import eolssu.shared.generated.resources.my_instrument_help
+import eolssu.shared.generated.resources.my_instrument_saving
 import eolssu.shared.generated.resources.my_link
 import eolssu.shared.generated.resources.my_linked
 import eolssu.shared.generated.resources.my_logout
@@ -58,11 +59,18 @@ import eolssu.shared.generated.resources.my_nickname_edit
 import eolssu.shared.generated.resources.my_not_linked
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
+import eolssu.shared.generated.resources.my_email_none
+import eolssu.shared.generated.resources.my_feedback
+import eolssu.shared.generated.resources.my_feedback_help
+import eolssu.shared.generated.resources.my_feedback_section
 import eolssu.shared.generated.resources.my_social_help
+import eolssu.shared.generated.resources.my_social_help_social
 import eolssu.shared.generated.resources.my_title
 import eolssu.shared.generated.resources.my_unlink
 import eolssu.shared.generated.resources.my_unlink_confirm
 import eolssu.shared.generated.resources.my_unlink_confirm_message
+import eolssu.shared.generated.resources.my_unlink_confirm_message_social
+import com.ssafy.eolssu.data.user.signsInWithPassword
 import eolssu.shared.generated.resources.my_unlink_confirm_title
 import eolssu.shared.generated.resources.my_withdraw
 import org.jetbrains.compose.resources.stringResource
@@ -71,13 +79,15 @@ import org.jetbrains.compose.resources.stringResource
 enum class MyPageTarget { Nickname, Password, Withdraw }
 
 /**
- * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
- * 연습 악기는 누르는 즉시 바뀌어 홈에도 반영된다.
+ * MY-01 마이페이지. 프로필(닉네임·이메일) · 연습 악기 · 간편 로그인 연결/해제 · 서비스 안내 · 의견 보내기 · 계정(비밀번호 변경·로그아웃·회원 탈퇴).
+ * 연습 악기는 서버 저장 성공 후 홈과 곡 목록에도 반영된다.
  */
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
     instrument: Instrument?,
+    instrumentEnabled: Boolean,
+    savingInstrument: Boolean,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -91,11 +101,13 @@ fun MyPageScreen(
     onConfirmLogOut: () -> Unit,
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
+    onOpenFeedback: () -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
         Section(stringResource(Res.string.my_instrument)) {
-            InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, help = stringResource(Res.string.my_instrument_help))
+            InstrumentPicker(selected = instrument, onSelect = onSelectInstrument, enabled = instrumentEnabled,
+                help = stringResource(if (savingInstrument) Res.string.my_instrument_saving else Res.string.my_instrument_help))
         }
         Section(stringResource(Res.string.my_social)) {
             Column {
@@ -105,7 +117,7 @@ fun MyPageScreen(
                     ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
                 }
             }
-            HelpText(stringResource(Res.string.my_social_help))
+            HelpText(stringResource(if (profile.signsInWithPassword) Res.string.my_social_help else Res.string.my_social_help_social))
         }
         Section(stringResource(Res.string.legal_information)) {
             Column {
@@ -114,6 +126,13 @@ fun MyPageScreen(
                 AccountRow(stringResource(Res.string.legal_privacy), onClick = { onOpenLegal(PublishedLegalDocument.Privacy) })
                 AccountRow(stringResource(Res.string.legal_deletion), onClick = { onOpenLegal(PublishedLegalDocument.Deletion) })
             }
+        }
+        Section(stringResource(Res.string.my_feedback_section)) {
+            Column {
+                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
+                AccountRow(stringResource(Res.string.my_feedback), onClick = onOpenFeedback)
+            }
+            HelpText(stringResource(Res.string.my_feedback_help))
         }
         Section(stringResource(Res.string.my_account)) {
             Column {
@@ -129,7 +148,10 @@ fun MyPageScreen(
             val name = stringResource(dialog.provider.displayName)
             EolssuDialog(
                 title = stringResource(Res.string.my_unlink_confirm_title, name),
-                message = stringResource(Res.string.my_unlink_confirm_message, name),
+                message = stringResource(
+                    if (profile.signsInWithPassword) Res.string.my_unlink_confirm_message else Res.string.my_unlink_confirm_message_social,
+                    name,
+                ),
             ) {
                 EolssuButton(stringResource(Res.string.my_unlink_confirm), onClick = onConfirmUnlink)
                 EolssuButton(stringResource(Res.string.common_cancel), onClick = onDismissDialog, style = EolssuButtonStyle.Text)
@@ -164,7 +186,9 @@ private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(profile.nickname, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold), color = colors.text)
-            if (profile.email.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
+            // 이메일이 없는 소셜 가입 회원은 빈 칸 대신 가입 방식을 적는다. 닉네임이 비면(아직 못 읽음) 아무것도 적지 않는다.
+            val email = profile.email.ifBlank { if (profile.nickname.isNotBlank()) stringResource(Res.string.my_email_none) else "" }
+            if (email.isNotBlank()) Text(email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
         }
         SmallButton(stringResource(Res.string.my_nickname_edit), onEdit)
     }

@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from fractions import Fraction as F
 import json
 from pathlib import Path
@@ -192,24 +193,28 @@ class ConvertTests(unittest.TestCase):
 
 
 ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-2022-p173", "ngc-standard-2022-p174"]
+# 표준악보집 소금 4곡(아리랑 PDF194·도라지타령 PDF192·밀양아리랑 PDF193·닐리리야 PDF196). 서비스 곡 행은
+# S15P31E102-339 적재분이다. 채점을 켜는 근거는 교과서가 있는 아리랑·도라지타령은 교과서(SOGEUM_ANSWERS),
+# 나머지 2곡은 이 표준 정답이다(infra/catalog/enable_scoring.py).
+SERVICE_SOGEUM = ["ngc-standard-2022-p194", "ngc-standard-2022-p192", "ngc-standard-2022-p193", "ngc-standard-2022-p196"]
 # 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
 SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
 
 class AnswerTests(unittest.TestCase):
-    """저장소의 채점 정답(단소 4곡, 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
+    """저장소의 채점 정답(단소 4곡, 표준악보집 소금 4곡, 평가용 소금 2곡)을 실제로 변환해 형식·불변식·계보를 확인한다."""
 
     def test_answers_pass_schema_and_invariants(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        for source_id in ANSWERS + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
 
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re
-        for source_id in ANSWERS + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
             jgb = next((DATA / "annotations/scores" / source_id).glob("*.jgb.json"))
             melody = melody_of(json.loads(jgb.read_text(encoding="utf-8")))
             kinds = [e["kind"] for e in convert_answer(source_id)["events"]]
@@ -220,6 +225,151 @@ class AnswerTests(unittest.TestCase):
         for source_id in ANSWERS:
             first, second = (json.dumps(convert_answer(source_id), ensure_ascii=False) for _ in range(2))
             self.assertEqual(first, second, source_id)
+
+    def test_standard_sogeum_answers_are_reviewed_and_take_song_info_from_review(self):
+        titles = {"ngc-standard-2022-p194": "아리랑", "ngc-standard-2022-p192": "도라지타령",
+                  "ngc-standard-2022-p193": "밀양아리랑", "ngc-standard-2022-p196": "늴리리야"}
+        for source_id in SERVICE_SOGEUM:
+            result = convert_answer(source_id)
+            self.assertEqual((result["score"]["title"], result["score"]["instrument"]), (titles[source_id], "SOGEUM"))
+            self.assertEqual(check(result), [], source_id)
+            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 채점을 켜는 정답은 사람 검수를 마친 것만
+
+    def test_three_reviewed_sogeum_scores_are_valid(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, title in (("ngc-standard-2022-p188", "개구리소리"),
+                                 ("ngc-standard-2022-p191", "구아리랑"),
+                                 ("ngc-standard-2022-p199", "몽금포타령")):
+            result = convert_answer(source_id)
+            jsonschema.validate(result, schema)
+            self.assertEqual(check(result), [], source_id)
+            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "reviewed"))
+
+    def test_recorded_beat_unit_overrides_the_jangdan_default(self):
+        for source_id, ratio in (("ngc-standard-2022-p188", 0.5), ("ngc-standard-2022-p191", 1.5)):
+            result = convert_answer(source_id)
+            self.assertEqual(result["music"]["bpmUnit"], "QUARTER", source_id)
+            self.assertEqual(result["music"]["ticksPerJeonggan"] / result["music"]["ticksPerBeat"], ratio)
+        self.assertEqual(convert_answer("ngc-standard-2022-p173")["music"]["bpmUnit"], "DOTTED_QUARTER")
+
+    def test_reviewed_song_without_jangdan_uses_its_recorded_beat_unit(self):
+        result = convert_answer("ngc-standard-2022-p187")
+        jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(result), [])
+        self.assertEqual((result["music"]["jangdan"], result["music"]["bpmUnit"]), ("", "QUARTER"))
+        self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_two_exercises_share_a_source_but_keep_separate_answers(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for number in (1, 2):
+            result = convert_answer(f"school-textbook-sogeum-p14-exercise-{number}")
+            jsonschema.validate(result, schema)
+            self.assertEqual(check(result), [])
+            self.assertEqual(result["score"]["sourceId"], "school-textbook-sogeum-p14")
+            self.assertEqual(result["score"]["title"], f"소금 연습곡 {number}")
+            self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_reviewed_sogeum_second_part_uses_the_original_two_part_document(self):
+        result = convert_answer("ngc-standard-2022-p202-part-2")
+        jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(result), [])
+        self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 1))
+        self.assertEqual(len(result["events"]), 67)
+        self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_reviewed_sogeum_first_part_preserves_the_human_corrections(self):
+        result = convert_answer("ngc-standard-2022-p202-part-1")
+        jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(result), [])
+        self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 0))
+        self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_corrected_breath_marks_are_in_the_source_columns(self):
+        expected = {
+            "ngc-standard-2022-p188": [48],
+            "ngc-standard-2022-p191": [6, 12, 18, 30, 36, 42],
+            "ngc-standard-2022-p199": [24, 36, 60],
+            "ngc-standard-2022-p187": [5, 10, 15, 20, 25, 30, 35],
+        }
+        for source_id, positions in expected.items():
+            folder = DATA / "annotations/scores" / source_id
+            review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+            self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], positions)
+            self.assertEqual(review["review"], "reviewed")
+            self.assertEqual(review["confirmed"], review["total"])
+            self.assertEqual(review["breathCorrection"]["humanConfirmation"]["by"], "사지한")
+
+    def test_north_breath_is_on_tenth_column_of_both_parts(self):
+        for part in (1, 2):
+            folder = DATA / f"annotations/scores/ngc-standard-2022-p202-part-{part}"
+            review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+            self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], [40, 96])
+            self.assertEqual(review["confirmed"], review["total"])
+            self.assertEqual(review["breathCorrection"]["humanConfirmation"]["by"], "사지한")
+            result = convert_answer(f"ngc-standard-2022-p202-part-{part}")
+            self.assertEqual([e["id"] for e in result["events"] if e["breathAfter"]], ["c9-j3-r0-u0"])
+
+    def test_five_reviewed_scores_match_the_published_note_timeline(self):
+        # 2026-11-03 공개 곡 목록에서 숨표를 제외한 음·쉼과 시간을 박 단위로 고정했다.
+        expected = {
+            "ngc-standard-2022-p189": "58af95d5fc655d889bde96102a94e290b80477bfc1a17dfe381bf486479e441e",
+            "ngc-standard-2022-p198": "ff5de33eee650df985caf6de028ec439d5295102547f4282eb281d6f441910e7",
+            "ngc-standard-2022-p197": "c05a2c8abc1d7edea226369c7cf1a425f98c99bba4ff6aafdabc615fd6a50e9b",
+            "ngc-standard-2022-p195": "749090635e5764bafc8005adc4df293891f8de4c81975d8f40f1fdf5e7c0980e",
+            "ngc-standard-2022-p200": "e2fc543bd525216b31a0a0974a17f1bbf363fef097ffc8963700a7554fc6bb99",
+        }
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, digest in expected.items():
+            with self.subTest(source_id=source_id):
+                result = convert_answer(source_id)
+                jsonschema.validate(result, schema)
+                self.assertEqual(check(result), [])
+                self.assertEqual(result["provenance"]["review"], "reviewed")
+                self.assertEqual(result["music"]["bpmUnit"], "QUARTER")
+                t = result["music"]["ticksPerBeat"]
+                timeline = [(e["id"], e["kind"], e["yul"], e["octave"], str(F(e["startTick"], t)),
+                             str(F(e["durationTick"], t))) for e in result["events"]]
+                actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+                self.assertEqual(actual, digest)
+
+    def test_chita_beginner_and_intermediate_match_public_timeline(self):
+        expected = {
+            "ngc-standard-2022-p190": "70d5eacd62de10e62e50ae579884ceba2eefb006f5883839c53a955b1c543cf2",
+            "ngc-standard-2022-p201": "c8cdd38fb4d32264ce2140e0ce01685cbd2ed86da6206117137fc1a304fc5e83",
+        }
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, digest in expected.items():
+            with self.subTest(source_id=source_id):
+                score = convert_answer(source_id)
+                jsonschema.validate(score, schema)
+                self.assertEqual(check(score), [])
+                self.assertEqual(score["provenance"]["review"], "reviewed")
+                self.assertEqual(score["music"]["bpmUnit"], "QUARTER")
+                review = json.loads(next((DATA / "annotations/scores" / source_id).glob("*.review.json")).read_text(encoding="utf-8"))
+                self.assertEqual((review["confirmed"], review["total"]), (28, 28))
+                self.assertEqual([c["index"] + 1 for c in review["omittedInputCells"]], list(range(29, 37)))
+                self.assertTrue(all(not c["confirmed"] and not c["cell"] for c in review["omittedInputCells"]))
+                self.assertEqual([e["id"] for e in score["events"] if e["breathAfter"]],
+                                 ["c0-j3-r2-u0", "c1-j5-r2-u0", "c1-j9-r0-u0"])
+                t = score["music"]["ticksPerBeat"]
+                timeline = [(e["id"], e["kind"], e["yul"], e["octave"], str(F(e["startTick"], t)),
+                             str(F(e["durationTick"], t))) for e in score["events"]]
+                actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+                self.assertEqual(actual, digest)
+
+    def test_chita_advanced_preserves_reviewed_notation_and_marks_service_difference(self):
+        source_id = "ngc-standard-2022-p203"
+        score = convert_answer(source_id)
+        jsonschema.validate(score, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(score), [])
+        self.assertEqual(score["provenance"]["review"], "reviewed")
+        self.assertEqual(score["music"]["bpmUnit"], "QUARTER")
+        self.assertEqual(len(score["events"]), 49)
+        self.assertTrue(any("느니르" in e["sigimsae"] for e in score["events"]))
+        review = json.loads(next((DATA / "annotations/scores" / source_id).glob("*.review.json")).read_text(encoding="utf-8"))
+        self.assertEqual((review["confirmed"], review["total"]), (28, 28))
+        self.assertEqual(review["serviceComparison"]["status"], "mismatch")
+        self.assertFalse(review["serviceComparison"]["approvedForScoring"])
 
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.

@@ -16,12 +16,17 @@ import com.ssafy.eolssu.feature.guide.FingeringSource
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
-import com.ssafy.eolssu.feature.guide.component.HoleLegend
+import com.ssafy.eolssu.core.ui.score.HoleLegend
 import com.ssafy.eolssu.feature.guide.component.InstrumentDropdown
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 
 /** 휴대폰 배치: 악기 · 취법 · 범례 아래로 운지 카드를 한 줄씩 쌓는다. */
 @Composable
-internal fun FingeringCompactLayout(state: FingeringUiState, actions: FingeringActions) {
+internal fun FingeringCompactLayout(
+    state: FingeringUiState,
+    actions: FingeringActions,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
+) {
     val instrument = state.instrument
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -31,6 +36,7 @@ internal fun FingeringCompactLayout(state: FingeringUiState, actions: FingeringA
         item(key = "head") {
             Column {
                 InstrumentDropdown(
+                    options = state.instrumentOptions,
                     selected = instrument,
                     open = state.isDropdownOpen,
                     onToggle = actions.onToggleDropdown,
@@ -43,8 +49,8 @@ internal fun FingeringCompactLayout(state: FingeringUiState, actions: FingeringA
                 FingeringInstrumentNote(instrument)
             }
         }
-        items(state.notes, key = { "${instrument.id}-${it.hanja}" }) { note ->
-            FingeringCard(instrument, note, playing = state.playing == note.hanja, onListen = { actions.onListen(note) })
+        items(state.notes, key = { "${instrument.id}-${state.shownBlow}-${it.hanja}" }) { note ->
+            FingeringCard(instrument, note, audioContent = { noteAudioContent(note) })
         }
         item(key = "source") {
             FingeringSource(instrument, Modifier.padding(top = 4.dp))

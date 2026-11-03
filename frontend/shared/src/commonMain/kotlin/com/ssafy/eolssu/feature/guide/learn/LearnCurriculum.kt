@@ -1,7 +1,7 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import com.ssafy.eolssu.feature.guide.Blow
-import com.ssafy.eolssu.feature.guide.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 
 /*
  * 기초부터 배우기 9단계(와이어프레임 LEARN_STAGES·LEARN_BY_INST·LEARN_SONGS).
@@ -177,7 +177,7 @@ val GuideInstrument.learnContent: LearnInstrumentContent
             basicNote = "구멍을 다 연 汰(태)부터 하나씩 막으며 내려가요. 仲·林 같은 낮은 음은 어려워서 뒤에 해요. 반음 夾·南은 다섯 음이 익은 뒤에 배워요.",
             basicCaution = "정일영(2014)은 汰와 같은 입김으로 나는 가운데 소리를 먼저 익히자고 하고, 단소 교실은 낮은 소리 → 높은 소리 순이라 자료마다 첫 음이 달라요.",
             scale = listOf("仲", "林", "無", "潢", "汰"),
-            ranges = listOf(LearnRange(Blow.High, "역취 · 한 옥타브 위", "평취와 같은 운지에 입김을 세게 불어요.", "㳞")),
+            ranges = listOf(LearnRange(Blow.High, "역취 · 한 옥타브 위", "입김을 세게 불어요. 높은 태(청태)는 낮은 태와 운지가 달라요.", "㳞")),
         )
         GuideInstrument.Sogeum -> LearnInstrumentContent(
             parts = listOf("취구", "지공 6개"),

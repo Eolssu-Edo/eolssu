@@ -17,6 +17,10 @@ import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.member_api_instrument_unavailable
+import eolssu.shared.generated.resources.member_api_rate_limited
+import eolssu.shared.generated.resources.my_feedback_open_failed
+import eolssu.shared.generated.resources.my_password_none
+import eolssu.shared.generated.resources.my_unlink_last
 import eolssu.shared.generated.resources.my_unlinked
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -32,12 +36,15 @@ fun MyPageRoute(
     onOpen: (MyPageTarget) -> Unit,
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
+    onSessionExpired: () -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     viewModel: MyPageViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val instrument by viewModel.instrument.collectAsStateWithLifecycle()
+    val loadingProfile by viewModel.loadingProfile.collectAsStateWithLifecycle()
+    val savingInstrument by viewModel.savingInstrument.collectAsStateWithLifecycle()
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -52,29 +59,44 @@ fun MyPageRoute(
     }
 
     LaunchedEffect(viewModel) {
-        if (viewModel.refresh() != MemberResult.Done) snackbarHostState.showSnackbar(getString(Res.string.member_api_unavailable))
+        when (viewModel.refresh()) {
+            MemberResult.Done -> Unit
+            MemberResult.Unauthenticated -> onSessionExpired()
+            else -> snackbarHostState.showSnackbar(getString(Res.string.member_api_unavailable))
+        }
     }
     MyPageScreen(
         profile = profile,
         instrument = instrument,
+        instrumentEnabled = !loadingProfile && !savingInstrument,
+        savingInstrument = savingInstrument,
         dialog = dialog,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
-        onOpen = onOpen,
+        onOpen = { target ->
+            if (target == MyPageTarget.Password && !viewModel.canChangePassword()) show { getString(Res.string.my_password_none) } else onOpen(target)
+        },
         onSelectInstrument = { selected ->
             scope.launch {
-                if (selected != instrument && !viewModel.selectInstrument(selected)) show { getString(Res.string.member_api_instrument_unavailable) }
+                when (viewModel.selectInstrument(selected)) {
+                    null, MemberResult.Done -> Unit
+                    MemberResult.Unauthenticated -> onSessionExpired()
+                    MemberResult.RateLimited -> show { getString(Res.string.member_api_rate_limited) }
+                    MemberResult.InvalidInput -> show { getString(Res.string.member_api_instrument_unavailable) }
+                    else -> show { getString(Res.string.member_api_unavailable) }
+                }
             }
         },
         onLink = onLink,
-        onUnlink = viewModel::askUnlink,
+        onUnlink = { provider -> if (!viewModel.askUnlink(provider)) show { getString(Res.string.my_unlink_last) } },
         onConfirmUnlink = {
             val provider = (dialog as? MyPageDialog.Unlink)?.provider
             scope.launch {
                 when (viewModel.confirmUnlink()) {
                     null -> Unit
                     MemberResult.Done -> provider?.let { show { getString(Res.string.my_unlinked, getString(it.displayName)) } }
+                    MemberResult.LastLoginMethod -> show { getString(Res.string.my_unlink_last) }
                     else -> show { getString(Res.string.member_api_unavailable) }
                 }
             }
@@ -90,6 +112,11 @@ fun MyPageRoute(
         onOpenLegal = { document ->
             if (runCatching { uriHandler.openUri(document.url) }.isFailure) {
                 show { getString(Res.string.legal_open_failed) }
+            }
+        },
+        onOpenFeedback = {
+            if (runCatching { uriHandler.openUri(FEEDBACK_FORM_URL) }.isFailure) {
+                show { getString(Res.string.my_feedback_open_failed) }
             }
         },
     )

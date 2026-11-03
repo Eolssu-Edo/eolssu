@@ -141,6 +141,16 @@ class SignInServiceTests {
     }
 
     @Test
+    fun `social only member without a password never signs in with a password`() {
+        repository.members["social@example.com"] = SignInMember(9, null, "소셜", 3, "HANGUL", MemberStatus.ACTIVE)
+        for (password in listOf("absent-member-timing-equalizer", "Example!234")) {
+            assertEquals(SignInResult.InvalidCredentials, service.signIn("social@example.com", password))
+        }
+        assertTrue(repository.lastLogins.isEmpty())
+        assertEquals(0, repository.issuedTokens)
+    }
+
+    @Test
     fun `password hashing runs outside the database transaction`() {
         assertIs<SignInResult.SignedIn>(service.signIn("learner@example.com", "Example!234"))
         assertEquals(SignInResult.InvalidCredentials, service.signIn("learner@example.com", "Wrong!234"))
