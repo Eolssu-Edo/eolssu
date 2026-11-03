@@ -8,6 +8,9 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -15,6 +18,40 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ReferenceCatalogRepositoryTest {
+    @Test fun builtinPatternSurvivesTheWireWithoutReplacingTheInstrumentDrawing() = runTest {
+        val pattern = """{"blow":"HIGH","hanja":"㶃","name":"중청태주","reading":"청태","holes":["CLOSED","OPEN","CLOSED","OPEN","OPEN"],"basic":true,"source":"출처를 보존","instrumentNote":"높은 태는 낮은 태와 달라요.","nominalHwangPitchClass":3,"verificationStatus":"BUILTIN_REFERENCE"}"""
+        val client = client("""{"items":[{"fingeringId":"2","instrumentId":"42","pitchId":"83","imageUrl":null,"description":null,"pattern":$pattern}]}""")
+        try {
+            val result = ApiReferenceCatalogRepository(client).fingerings("42", "83")
+            assertEquals(Json.parseToJsonElement(pattern), Json.encodeToJsonElement(result.items.single()).jsonObject["pattern"])
+            assertNull(result.items.single().imageUrl)
+        } finally { client.close() }
+    }
+
+    @Test fun patternKeepsUnknownAndHalfHolesAndRejectsInvalidShapes() = runTest {
+        val pattern = """{"blow":"MID","hanja":"南","name":"남려","reading":"남","holes":["UNKNOWN","HALF","CLOSED","OPEN","OPEN"],"basic":false,"source":"확인 전 자료","instrumentNote":"원본 설명","nominalHwangPitchClass":5,"verificationStatus":"BUILTIN_REFERENCE"}"""
+        fun response(value: String) = """{"items":[{"fingeringId":"2","instrumentId":"42","pitchId":"83","pattern":$value}]}"""
+        val valid = client(response(pattern))
+        try {
+            val result = ApiReferenceCatalogRepository(valid).fingerings("42").items.single().pattern!!
+            assertEquals(CatalogFingeringHole.UNKNOWN, result.holes[0])
+            assertEquals(CatalogFingeringHole.HALF, result.holes[1])
+            assertEquals(5, result.nominalHwangPitchClass)
+        } finally { valid.close() }
+        for (bad in listOf(
+            pattern.replace("UNKNOWN","MAYBE"),
+            pattern.replace("\"nominalHwangPitchClass\":5","\"nominalHwangPitchClass\":12"),
+            pattern.replace("\"reading\":\"남\"","\"reading\":\"\""),
+            pattern.replace("\"basic\":false,",""),
+            pattern.replace(",\"OPEN\",\"OPEN\"",""),
+            pattern.replace("BUILTIN_REFERENCE","REVIEWED"),
+        )) {
+            val invalid = client(response(bad))
+            try { assertFailsWith<CatalogUnavailable> { ApiReferenceCatalogRepository(invalid).fingerings("42") } }
+            finally { invalid.close() }
+        }
+    }
+
     @Test fun pitchesUseActualInstrumentIdAndPreserveNullsAndSemitone() = runTest {
         val client = createHttpClient(MockEngine { request ->
             assertEquals("/api/pitches", request.url.encodedPath)

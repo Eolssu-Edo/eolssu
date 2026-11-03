@@ -10,6 +10,9 @@ import com.ssafy.eolssu.core.model.fingering.baseYulOf
 import com.ssafy.eolssu.core.model.fingering.octaveOf
 import com.ssafy.eolssu.core.model.Yul
 
+/** 서버의 선택지와 앱이 지원하는 운지 그림을 연결한다. */
+data class FingeringInstrumentOption(val instrumentId: String, val name: String, val instrument: GuideInstrument)
+
 /**
  * GUIDE-01 상태.
  *
@@ -22,10 +25,15 @@ data class FingeringUiState(
     val blow: Blow = Blow.Mid,
     val isDropdownOpen: Boolean = false,
     val playing: String? = null,
+    val instrumentListState: ReferenceLoadState = ReferenceLoadState.Loading,
+    val instrumentOptions: List<FingeringInstrumentOption> = emptyList(),
     val catalogState: ReferenceLoadState = ReferenceLoadState.NotRegistered,
     val catalogPitches: List<CatalogPitch> = emptyList(),
     val catalogFingerings: CatalogFingerings = CatalogFingerings(emptyList()),
 ) {
+    val hasSelectedInstrument: Boolean get() = instrumentListState == ReferenceLoadState.Ready &&
+        instrumentOptions.any { it.instrument == instrument }
+
     val shownBlow: Blow get() = instrument.resolveBlow(blow)
 
     val notes: List<FingeringNote> get() = instrument.notesByPitch(blow)
