@@ -19,6 +19,7 @@
         {{- with .NextInSection }}<a class="next" href="{{ .RelPermalink }}"><span>다음 글 →</span><strong>{{ .Title }}</strong></a>{{ end }}
       </nav>
       {{- end }}
+      {{ partial "comments.html" . }}
     </article>
     {{- if .Fragments.Headings }}
     <aside class="article-toc" aria-labelledby="toc-title"><h2 id="toc-title">이 글의 목차</h2>{{ .TableOfContents }}</aside>
