@@ -29,6 +29,7 @@ class MyBatisWithdrawalPurgeRepository(
         mapper.deleteTermAgreements(userId)
         mapper.deleteSongSettings(userId)
         mapper.deleteLessonProgress(userId)
+        mapper.deleteUserSheets(userId)
         mapper.deleteRefreshTokens(userId)
         mapper.deleteSocialAccounts(userId)
         member.email?.let(mapper::deleteEmailVerifications)

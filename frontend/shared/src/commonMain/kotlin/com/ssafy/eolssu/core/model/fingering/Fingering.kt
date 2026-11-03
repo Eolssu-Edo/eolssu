@@ -39,7 +39,7 @@ data class FingeringNote(
     val holes: List<HoleState>,
     val basic: Boolean,
 ) {
-    /** 자료가 갈려 운지를 확인하지 못한 구멍이 있다. */
+    /** 운지가 아직 확인되지 않은 구멍이 있다. */
     val needsCheck: Boolean get() = HoleState.Unknown in holes
 
     /** 설명 줄의 표시. 기초부터 배우기 카드([inLearn])는 반음 표시를 하지 않는다. */
@@ -77,8 +77,8 @@ enum class GuideInstrument(
         id = "danso", hwang = 3, blows = listOf(Blow.Mid, Blow.High), table = DansoTable,
         imageWidth = 2000, imageHeight = 683, holeRadius = 30,
         holes = points(935 to 209, 934 to 354, 1114 to 354, 1368 to 354, 1619 to 354),
-        note = "뒷구멍은 왼손 엄지로 막아요. 역취는 평취와 같은 운지에 입김을 세게 불어요.",
-        source = "출처: 국립국악원 『창작을 위한 국악기 이해와 활용1』 2장 단소 25쪽 그림, 국악사전 「단소」. 역취 汰 운지는 확인 필요.",
+        note = "뒷구멍은 왼손 엄지로 막아요. 역취는 입김을 세게 불어요. 높은 태(청태)는 낮은 태와 운지가 달라요.",
+        source = "출처: 국립국악원 e국악아카데미 「단소 안공법」. 높은 태는 제1공(뒷구멍)과 제3공을 막아요.",
     ),
     Sogeum(
         id = "sogeum", hwang = 3, blows = listOf(Blow.Mid, Blow.High), table = SogeumTable,

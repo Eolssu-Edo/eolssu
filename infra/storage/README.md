@@ -39,7 +39,7 @@ sudo python3 migrate_r2.py --env-file /opt/eolssu/.env --destination /opt/eolssu
 | --- | --- |
 | (없음) | 버킷 확인(HeadBucket 권한 포함) 후 디스크 녹음 수·바이트·만료 수와 DB가 참조하지 않는 수(`unreferenced`) 조회. backend·mysql 컨테이너가 실행 중이어야 함 |
 | `--apply --uploads-paused --manifest <새 root 전용 경로>` | 버킷 존재를 먼저 확인하고, DB가 아직 참조하는(`recording_url` 있고 `record_deleted_at` 없음) 30일 미만 파일만 R2에 복사. 메타데이터에 원래 업로드 시각(`original-uploaded-at`)·SHA-256을 남기고 크기·해시를 재확인. 같은 키가 다르면 중단 |
-| `--purge-expired [--delete]` | 메타데이터가 있는 객체 중 원래 업로드 시각 기준 30일이 지난 것을 조회·삭제. 백엔드가 새로 올린 객체는 R2 수명 주기 규칙에 맡긴다 |
+| `--purge-expired [--delete]` | 메타데이터가 있는 객체 중 원래 업로드 시각 기준 30일이 지난 것을 조회·삭제. 백엔드가 새로 올린 객체는 R2 수명 주기 규칙에 맡긴다. 저장 여부를 보지 않으므로 S15P31E102-375 전환 뒤에는 쓰지 않는다 |
 | `--remove-local --manifest <--apply 기록> [--delete]` | 버킷 존재를 먼저 확인한다. DB가 아직 참조하는 30일 미만 파일이 모두 `--apply` 기록에 있고 R2에서 같은 크기·SHA-256일 때만 디스크 녹음·`.upload-*` 임시파일을 조회·삭제. DB에서 이미 삭제된 녹음의 디스크 파일은 R2 확인 없이 삭제. R2에 없다는 사실만으로는 삭제를 판단하지 않으며 하나라도 어긋나면 아무것도 지우지 않음. R2 객체는 지우지 않으므로 중단 뒤 재실행해도 안전 |
 
 DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 backend 컨테이너의 `DB_URL`에서 DB 이름을 찾고 MySQL 컨테이너 안의 암호를 쓴다. 출력에는 개수만 남긴다.
@@ -69,6 +69,38 @@ DB 조회는 등록 도구(`infra/terms/publish.py`)와 같은 방식으로 back
    ```
 
 되돌릴 때는 `.env`를 `local`로 바꾸면 `2026-10-30`과 `current`가 국내 저장 고지로 돌아간다. 이때 등록된 `2026-11-02` 약관 행의 본문 주소는 503이 되어 가입 동의 화면의 본문 열기가 실패하므로, 약관 버전도 새로 준비해야 한다. R2로 옮긴 녹음은 자동으로 되돌리지 않는다.
+
+## 저장한 기록 녹음 보관 전환 (S15P31E102-375)
+
+위 30일 수명 주기 규칙과 매시 정리를 대체한다. [계약](../../docs/specs/recording-retention.md), [작업 기록](../../docs/plans/S15P31E102-375.md). 저장한 기록의 녹음은 계속 보관하고, 저장하지 않은 녹음은 백엔드 정리 작업(매일 04:30 KST, `ended_at` 30일 경과)이 지운다.
+
+각 단계는 승인 뒤 배포 lock 아래에서 변경 전 백업을 받고 한다. 정리 작업이 배포되기 전에 규칙을 지우면 미저장 녹음이 30일 넘게 남으므로 순서를 바꾸지 않는다.
+
+1. 375 병합·배포를 확인한다. `current/privacy`의 시행일이 새 판(`2026-11-03`)인지 본다(정리 작업의 첫 실행은 다음 04:30 KST라 결과는 5단계에서 본다). 이어 약관 버전을 등록한다([약관 등록](../terms/README.md#버전-등록)).
+
+   ```sh
+   sudo python3 <checkout>/infra/terms/publish.py
+   sudo python3 <checkout>/infra/terms/publish.py --apply --effective-at YYYY-MM-DDTHH:MM:SSZ
+   ```
+
+2. Cloudflare 대시보드(계정 소유자)에서 `eolssu-recordings`의 `recordings/` 30일 삭제 규칙을 지운다. 공개 접근 비활성은 그대로 둔다.
+3. 매시 정리를 지운다. 이 정리는 저장 여부를 보지 않아 저장한 이관 녹음까지 지운다.
+
+   ```sh
+   sudo rm /etc/cron.d/eolssu-r2-purge
+   ```
+
+4. R2 규칙으로 이미 파일이 지워진 저장한 녹음 수를 조회한다. 저장 기능이 2026-11-02에 배포됐으므로 2026-12-02 전에 전환하면 0건이다. 0건이 아니면 해당 객체가 실제로 없는지 확인한 뒤 `recording_url` 정리를 따로 승인받는다.
+
+   ```sql
+   SELECT COUNT(*) FROM practice_sessions
+   WHERE saved_at IS NOT NULL AND record_deleted_at IS NULL AND recording_url IS NOT NULL
+     AND ended_at < UTC_TIMESTAMP(6) - INTERVAL 30 DAY;
+   ```
+
+5. 다음 날 04:30 KST 뒤 backend 로그의 `Unsaved recording purge finished` 줄에서 `failed=0`과 `restored` 수를 확인한다. `restored`가 이어지면 저장소 삭제 권한·연결을 확인한다. `failed`가 있으면 같은 시각의 오류·경고 로그에서 세션 ID를 찾는다. 'left without a reference' 경고는 가리키는 행이 없는 객체가 남았다는 뜻이다.
+
+되돌릴 때는 R2 규칙을 다시 추가하고 이전 JAR로 배포한다. 규칙을 지운 동안 저장한 녹음은 다시 30일 기준으로 지워지므로, 되돌리기 전에 처리방침 판도 함께 정한다.
 
 ## Naver 인증 메일
 

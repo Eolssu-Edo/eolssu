@@ -12,6 +12,21 @@ import kotlin.test.*
 
 class ApiSongRepositoryTest {
     @Test
+    fun missingJangdanKeepsCanonicalNameWithoutBreakingOtherSongs() = runTest {
+        val unlinked = """{"songId":"7","title":"장단 미연결 곡","instrumentId":"3","difficulty":2,"defaultBpm":60,"jangdan":null,"isScorable":false,"noteCount":1,"scoreVersion":1,"score":{"score":{"instrument":"SANJO_DAEGEUM"},"music":{"jangdan":"타령","bpmUnit":"QUARTER"}}}"""
+        val items = List(8) { ITEM.replace("9007199254740993", (it + 1).toString()) } +
+            List(103) { unlinked.replace("\"songId\":\"7\"", "\"songId\":\"${it + 9}\"") }
+        val client = catalogClient("""{"isSuccess":true,"result":{"items":[${items.joinToString(",")}]}}""")
+        try {
+            val songs = ApiSongRepository(client).getSongs()
+            assertEquals(111, songs.size)
+            assertEquals("타령", songs.last().jangdanName)
+            assertEquals("SANJO_DAEGEUM", songs.last().instrumentCode)
+            assertFalse(songs.last().evaluable)
+        } finally { client.close() }
+    }
+
+    @Test
     fun listRetainsLargeIdsUnknownDifficultyAndPracticeOnlySongs() = runTest {
         val client = catalogClient("""{"isSuccess":true,"result":{"items":[$ITEM]}}""")
         try {

@@ -125,7 +125,7 @@ class ModelAudioSessionTest {
 }
 
 internal fun modelRepository(block: suspend () -> ModelAudio?) = object : ModelAudioRepository {
-    override suspend fun get(songId: String): ModelAudio? = block()
+    override suspend fun get(song: com.ssafy.eolssu.core.model.Song): ModelAudio? = block()
 }
 
 internal class FakeAudioPlayer : AudioPlayer {

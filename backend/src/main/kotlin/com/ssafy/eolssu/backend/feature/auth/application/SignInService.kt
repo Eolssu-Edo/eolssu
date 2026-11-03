@@ -28,8 +28,10 @@ class SignInService(
         val lockKey = repository.lockKey(normalized)
         attempts.lockedUntil(lockKey, now)?.let { return SignInResult.TooManyAttempts(it) }
         val member = repository.findMember(normalized)
-        // Argon2 계산(요청당 16MB)은 DB 연결·행 잠금 밖에서 끝낸다. 없는 이메일도 같은 계산을 거친다.
-        val passwordMatches = passwordEncoder.matches(password, member?.passwordHash ?: absentMemberHash)
+        // Argon2 계산(요청당 16MB)은 DB 연결·행 잠금 밖에서 끝낸다. 없는 이메일·비밀번호 없는 소셜 회원도 같은 계산을 거친다.
+        // 대체 해시와의 일치는 로그인 근거가 아니므로, 회원의 해시와 비교했을 때만 일치로 본다.
+        val memberHash = member?.passwordHash
+        val passwordMatches = passwordEncoder.matches(password, memberHash ?: absentMemberHash) && memberHash != null
         val result = if (member == null || !passwordMatches) {
             SignInResult.InvalidCredentials
         } else {
@@ -50,7 +52,7 @@ class SignInService(
     /** 확인한 뒤 비밀번호가 바뀌었거나 다른 회원이 되었으면 로그인하지 않는다. */
     private fun complete(verified: SignInMember, email: String): SignInResult {
         val member = repository.findMemberForUpdate(email)
-        if (member == null || member.id != verified.id || member.passwordHash != verified.passwordHash) return SignInResult.InvalidCredentials
+        if (member?.passwordHash == null || member.id != verified.id || member.passwordHash != verified.passwordHash) return SignInResult.InvalidCredentials
         // 비밀번호 계산·회원 잠금 대기 중 만료될 수 있으므로 잠금 이후 시각으로 판정한다.
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
         if (!member.canSignInAt(now)) return SignInResult.InvalidCredentials

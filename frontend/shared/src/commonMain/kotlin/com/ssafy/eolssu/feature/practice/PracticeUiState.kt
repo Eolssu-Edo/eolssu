@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.ScorePerformance
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingeringYul
@@ -112,6 +113,9 @@ data class PracticeUiState(
     val songError: PracticeSongError? = null,
     /** 현재 원본 이벤트 안에서 지난 시간. 긴 음/이음 중에도 표시 시계가 갱신한다. */
     val eventElapsedMs: Double = 0.0,
+    /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
+    val modelPerformance: ScorePerformance? = null,
+    val modelPerformancePositionMs: Double = 0.0,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
@@ -119,19 +123,23 @@ data class PracticeUiState(
     val fingeringView: Boolean get() = settings.fingeringView
 
     /**
-     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드(DAEGEUM·SOGEUM·DANSO)를 따르고,
-     * 대금은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
+     * 운지 그림과 제목 옆 표시에 쓰는 악기. 연습 설정에서 고른 값이 없으면 곡 악보의 악기 코드를 따른다.
+     * 정악·산조대금을 구분하며 기존 DAEGEUM은 정악대금 안공표를 쓴다. 프로필의 악기는 바꾸지 않는다.
      */
     val instrument: GuideInstrument
         get() = GuideInstrument.fromId(settings.instrumentId) ?: when (song?.score?.source?.instrument) {
             "SOGEUM" -> GuideInstrument.Sogeum
             "DANSO" -> GuideInstrument.Danso
+            "SANJO_DAEGEUM" -> GuideInstrument.DaegeumSanjo
+            "JEONGAK_DAEGEUM", "DAEGEUM" -> GuideInstrument.DaegeumJeongak
             else -> GuideInstrument.DaegeumJeongak
         }
 
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
-    val totalSeconds: Int get() = song?.durationSeconds(bpm) ?: 0
+    val totalSeconds: Int get() = if (mode == PracticeMode.Model && modelPerformance != null && bpm > 0)
+        (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
+        else song?.durationSeconds(bpm) ?: 0
 
     /** 설정 버튼이 잠기는 상태. 연주 중에는 설정을 바꿀 수 없다. */
     val settingsLocked: Boolean
@@ -173,6 +181,9 @@ data class PracticeUiState(
     /** 정간 단위 진행률(0~100). 이벤트 중간의 경과분도 반영한다. */
     val progressPercent: Float
         get() {
+            if (mode == PracticeMode.Model && modelPerformance != null) {
+                return (modelPerformancePositionMs / modelPerformance.durationMs * 100).toFloat().coerceIn(0f, 100f)
+            }
             val song = song ?: return 0f
             if (finished || position >= eventCount) return 100f
             val event = song.timeline.getOrNull(position) ?: return 0f
@@ -183,12 +194,14 @@ data class PracticeUiState(
     val beatIndex: Int
         get() {
             val song = song ?: return 0
+            val jangdan = song.jangdan ?: return -1
+            if (eventCount == 0) return -1
             val event = song.timeline[position.coerceIn(0, eventCount - 1)]
             song.score.timing?.let { timing ->
-                val patternCell = ((requireNotNull(currentTick) * song.jangdan.subdivision / timing.ticksPerBeat) % song.jangdan.gak).toInt()
-                return song.jangdan.daegangIndexOfRow(patternCell)
+                val patternCell = ((requireNotNull(currentTick) * jangdan.subdivision / timing.ticksPerBeat) % jangdan.gak).toInt()
+                return jangdan.daegangIndexOfRow(patternCell)
             }
-            return song.jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
+            return jangdan.daegangIndexOfRow(currentScoreUnit?.row ?: event.row)
         }
 
     /** 현재 음의 실제 길이(ms). */

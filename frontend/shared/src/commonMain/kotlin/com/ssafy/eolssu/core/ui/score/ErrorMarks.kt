@@ -49,15 +49,15 @@ import eolssu.shared.generated.resources.result_tag_pitch
 import eolssu.shared.generated.resources.result_tag_rhythm
 import org.jetbrains.compose.resources.stringResource
 
-/** 오류 종류의 테두리·바탕·글자 색. 음 길이는 점선 테두리. */
+/** 오류 종류의 테두리·바탕·글자 색(보드 RECORD-02: 음정 연두 · 박자 진한 연두 · 음 길이 회색 점선 · 미검출 회색). */
 internal data class ErrorStyle(val ring: androidx.compose.ui.graphics.Color, val fill: androidx.compose.ui.graphics.Color, val tag: androidx.compose.ui.graphics.Color, val dashed: Boolean)
 
 @Composable
 internal fun errorStyle(kind: ScoreErrorKind): ErrorStyle {
     val c = EolssuTheme.colors
     return when (kind) {
-        ScoreErrorKind.Pitch -> ErrorStyle(c.pitchError, c.pitchErrorSoft, c.pitchErrorText, dashed = false)
-        ScoreErrorKind.Rhythm -> ErrorStyle(c.rhythmError, c.rhythmErrorSoft, c.rhythmErrorText, dashed = false)
+        ScoreErrorKind.Pitch -> ErrorStyle(c.accentText, c.accentTint, c.accentText, dashed = false)
+        ScoreErrorKind.Rhythm -> ErrorStyle(c.text, c.accentTintStrong, c.text, dashed = false)
         ScoreErrorKind.Length -> ErrorStyle(c.text, c.surfaceStrong, c.text, dashed = true)
         ScoreErrorKind.Missed -> ErrorStyle(c.text, c.surfaceStrong, c.text, dashed = false)
     }
@@ -145,7 +145,7 @@ fun ErrorScorePreview(
 ) {
     val colors = EolssuTheme.colors
     val byCell = errors.associateBy { it.column to it.row }
-    val starts = if (song.score.timing == null) song.jangdan.daegangStarts else emptyList()
+    val starts = if (song.score.timing == null) song.jangdan?.daegangStarts.orEmpty() else emptyList()
     val displayByCell = song.displayUnits.groupBy { it.column to it.row }
     Row(
         modifier.clearAndSetSemantics { contentDescription = description },

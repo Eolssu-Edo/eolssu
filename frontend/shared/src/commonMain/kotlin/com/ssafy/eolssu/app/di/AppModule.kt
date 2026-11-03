@@ -16,7 +16,7 @@ import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.practice.RecordingUploader
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
-import com.ssafy.eolssu.data.practice.UnavailablePracticeRecordRepository
+import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.song.SamplePdfFile
@@ -24,6 +24,9 @@ import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.ApiReferenceCatalogRepository
 import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
+import com.ssafy.eolssu.data.song.ReferenceAudioRepository
+import com.ssafy.eolssu.data.song.ApiReferenceAudioRepository
+import com.ssafy.eolssu.feature.guide.ReferenceAudioViewModel
 import com.ssafy.eolssu.feature.guide.ReadingCatalogViewModel
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
@@ -34,6 +37,7 @@ import com.ssafy.eolssu.feature.history.RecordListViewModel
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -94,6 +98,8 @@ val appModule = module {
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
+    single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
+    viewModelOf(::ReferenceAudioViewModel)
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
@@ -101,9 +107,9 @@ val appModule = module {
     single<EvaluationRepository> { ApiEvaluationRepository(get(), get()) }
     single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
     single<RecordingUploader> { HttpRecordingUploader(get()) }
-    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
+    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
-    single<PracticeRecordRepository> { UnavailablePracticeRecordRepository() }
+    single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get()) }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get()) }
@@ -111,7 +117,7 @@ val appModule = module {
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
-    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
+    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = get(), audioPlayer = get())
@@ -122,13 +128,15 @@ val appModule = module {
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
-    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get()) }
+    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get()) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
     viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
+    // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
+    viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }

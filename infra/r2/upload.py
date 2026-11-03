@@ -51,7 +51,7 @@ def checked_key(key):
             or len(key.encode('utf-8')) > 1024):
         raise ValueError('목적지는 1024바이트 이내의 상대 객체 키/접두사여야 합니다.')
     if key.split('/')[0] == 'recordings':
-        raise ValueError('recordings/는 사용자 녹음·30일 삭제 경로입니다. 개발 자료는 다른 경로를 쓰세요.')
+        raise ValueError('recordings/는 사용자 녹음 보관·삭제 정책이 적용되는 경로입니다. 개발 자료는 다른 경로를 쓰세요.')
     return key
 
 

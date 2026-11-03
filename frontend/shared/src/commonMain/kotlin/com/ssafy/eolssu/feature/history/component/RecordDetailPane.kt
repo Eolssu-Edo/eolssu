@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +94,7 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
             }
             JeongganboView(
                 song = song,
+                look = JeongganboLook.Record,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 metrics = RecordScoreLandscape,
                 notation = ScoreNotation(showHangul = true),

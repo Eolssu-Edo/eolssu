@@ -1,20 +1,13 @@
 package com.ssafy.eolssu.feature.guide
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideText
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
@@ -23,7 +16,6 @@ import com.ssafy.eolssu.feature.guide.layout.FingeringExpandedLayout
 import com.ssafy.eolssu.feature.guide.layout.FingeringMediumLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_fingering_title
-import eolssu.shared.generated.resources.guide_catalog_fingering_title
 import org.jetbrains.compose.resources.stringResource
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.FingeringNote
@@ -35,7 +27,6 @@ internal class FingeringActions(
     val onDismissDropdown: () -> Unit,
     val onSelectInstrument: (GuideInstrument) -> Unit,
     val onSelectBlow: (Blow) -> Unit,
-    val onListen: (FingeringNote) -> Unit,
 )
 
 /**
@@ -52,25 +43,18 @@ fun FingeringScreen(
     onDismissDropdown: () -> Unit,
     onSelectInstrument: (GuideInstrument) -> Unit,
     onSelectBlow: (Blow) -> Unit,
-    onListen: (FingeringNote) -> Unit,
-    onOpenCatalog: (() -> Unit)? = null,
+    noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
-    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow, onListen)
+    val actions = FingeringActions(onToggleDropdown, onDismissDropdown, onSelectInstrument, onSelectBlow)
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_fingering_title), onBack = onBack, widthClass = widthClass) },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
-        Column(Modifier.fillMaxSize()) {
-            Box(Modifier.weight(1f)) {
-                when (widthClass) {
-                    WindowWidthClass.Compact -> FingeringCompactLayout(state, actions)
-                    WindowWidthClass.Medium -> FingeringMediumLayout(state, actions)
-                    WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions)
-                }
-            }
-            if (onOpenCatalog != null) EolssuButton(stringResource(Res.string.guide_catalog_fingering_title), onOpenCatalog,
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = EolssuButtonStyle.Secondary)
+        when (widthClass) {
+            WindowWidthClass.Compact -> FingeringCompactLayout(state, actions, noteAudioContent)
+            WindowWidthClass.Medium -> FingeringMediumLayout(state, actions, noteAudioContent)
+            WindowWidthClass.Expanded -> FingeringExpandedLayout(state, actions, noteAudioContent)
         }
     }
 }

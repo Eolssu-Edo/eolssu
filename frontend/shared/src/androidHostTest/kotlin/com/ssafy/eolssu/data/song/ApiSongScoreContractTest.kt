@@ -11,6 +11,24 @@ import kotlinx.serialization.json.*
 import kotlin.test.*
 
 class ApiSongScoreContractTest {
+    @Test
+    fun unlinkedPatternPreservesCanonicalScoreTimingAndName() = runTest {
+        val item = JsonObject(detail().toMutableMap().apply { put("jangdan", JsonNull); put("isScorable", JsonPrimitive(false)) })
+        val client = createHttpClient(MockEngine { request ->
+            val result = if (request.url.encodedPath.endsWith("/score")) scoreResult() else item
+            respond(buildJsonObject { put("isSuccess", true); put("result", result) }.toString(),
+                headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        }, ServerAddress.Production)
+        try {
+            val song = assertNotNull(ApiSongRepository(client).getSong("9007199254740993"))
+            assertNull(song.jangdan)
+            assertEquals("세마치", song.jangdanName)
+            assertEquals(30, song.durationSeconds())
+            assertEquals(61, song.noteCount)
+            assertFalse(song.evaluable)
+        } finally { client.close() }
+    }
+
     private val score = Json.parseToJsonElement(requireNotNull(javaClass.getResourceAsStream("/scores/ngc-standard-2022-p173.score.json"))
         .bufferedReader().use { it.readText() })
 
