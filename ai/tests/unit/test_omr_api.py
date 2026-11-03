@@ -4,7 +4,6 @@
 """
 
 import io
-import itertools
 import logging
 
 import httpx
@@ -30,12 +29,14 @@ def pdf(pages=1, size=A4):
     return out.getvalue()
 
 
-def image(fmt="PNG", size=(40, 30), orientation=None):
+def image(fmt="PNG", size=(40, 30), orientation=None, mode="RGB"):
     out = io.BytesIO()
     exif = Image.Exif()
     if orientation:
         exif[0x0112] = orientation
-    Image.new("RGB", size, "white").save(out, fmt, exif=exif)
+    # MPO는 빈 exif를 함께 주면 Pillow가 MP 머리말 없이 보통 JPEG로 쓴다
+    extra = {"save_all": True, "append_images": [Image.new(mode, size)]} if fmt == "MPO" else {"exif": exif}
+    Image.new(mode, size, "white").save(out, fmt, **extra)
     return out.getvalue()
 
 
@@ -52,15 +53,18 @@ def images(n, content_type="image/png"):
 class Engine:
     """받은 작업을 기록하고 정해진 결과를 돌려주거나 예외를 낸다."""
 
-    def __init__(self, outcome=None):
+    def __init__(self, outcome=None, clock=None, takes_s=0.0):
         self.jobs = []
         self.outcome = outcome
+        self.clock, self.takes_s = clock, takes_s
 
     def __call__(self, job):
         self.jobs.append(job)
         # 임시 폴더는 응답 뒤 지워지므로 엔진이 받은 그 순간의 파일을 기록한다
         self.heads = [f.read_bytes()[:5] for f in job.files]
         self.sizes = [Image.open(p.path).size for p in job.pages]
+        if self.clock:
+            self.clock.now += self.takes_s
         if isinstance(self.outcome, Exception):
             raise self.outcome
         return self.outcome or {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1}, "score": {"events": []},
@@ -69,11 +73,26 @@ class Engine:
 
 
 @pytest.fixture
+def clock(monkeypatch):
+    """서비스가 보는 시계. 테스트가 직접 시간을 넘긴다."""
+
+    class Clock:
+        now = 1000.0
+
+    c = Clock()
+    monkeypatch.setattr(api, "monotonic", lambda: c.now)
+    return c
+
+
+@pytest.fixture
 def serve():
     """URL마다 정한 바이트를 돌려주는 가짜 내려받기와 가짜 엔진을 끼운 클라이언트."""
 
-    def use(files, engine=None):
-        def fetch(url, dest, max_bytes):
+    def use(files, engine=None, takes_s=0.0, clock=None):
+        def fetch(url, dest, max_bytes, deadline):
+            use.deadlines.append(deadline)
+            if clock:
+                clock.now += takes_s
             data = files if not isinstance(files, dict) else files[url]
             if isinstance(data, Exception):
                 raise data
@@ -85,6 +104,7 @@ def serve():
         app.dependency_overrides[get_fetcher] = lambda: fetch
         app.dependency_overrides[get_engines] = lambda: {"STAFF": engine, "JEONGGANBO": engine}
         use.engine = engine
+        use.deadlines = []
         return TestClient(app, raise_server_exceptions=False)
 
     yield use
@@ -96,7 +116,7 @@ def failed(response, reason):
     assert response.json() == {"conversionId": "c-1", "status": "FAILED", "failReason": reason}
 
 
-def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve):
+def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve, clock):
     client = serve(pdf(pages=2))
     response = client.post("/v1/recognitions", json=body())
     assert response.status_code == 200
@@ -109,11 +129,12 @@ def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve):
     (job,) = serve.engine.jobs
     assert job.kind == "PDF" and len(job.files) == 1 and serve.engine.heads == [b"%PDF-"]
     assert serve.engine.sizes == [(2480, 3509)] * 2
-    assert job.time_budget_s == 60  # 쪽당 30초
+    assert job.time_budget_s == 60  # 쪽당 30초(시계를 멈춰 둠)
+    assert serve.deadlines == [clock.now + 300]  # 쪽 수를 모르는 내려받기는 최대 300초
     assert job.request.notation == "STAFF"
 
 
-def test_images_become_pages_in_order(serve):
+def test_images_become_pages_in_order(serve, clock):
     files = images(2)
     client = serve({files[0]["url"]: image(size=(40, 30)), files[1]["url"]: image(size=(50, 20))})
     out = client.post("/v1/recognitions", json=body(files)).json()
@@ -122,11 +143,45 @@ def test_images_become_pages_in_order(serve):
     assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 60
 
 
-def test_phone_photo_orientation_is_applied(serve):
+@pytest.mark.parametrize("mode", ["RGB", "CMYK"])
+def test_phone_photo_orientation_is_applied(serve, mode):
     files = images(1, "image/jpeg")
-    out = serve(image("JPEG", size=(40, 30), orientation=6)).post("/v1/recognitions", json=body(files)).json()
+    data = image("JPEG", size=(40, 30), orientation=6, mode=mode)
+    out = serve(data).post("/v1/recognitions", json=body(files)).json()
     assert out["pages"] == [{"index": 0, "width": 30, "height": 40}]
     assert serve.engine.sizes == [(30, 40)]
+
+
+def test_multi_picture_phone_jpeg_is_accepted(serve):
+    """삼성·iPhone HDR 사진은 JPEG 안에 그림이 여럿이라 Pillow가 MPO로 연다."""
+    assert Image.open(io.BytesIO(image("MPO"))).format == "MPO"
+    out = serve(image("MPO")).post("/v1/recognitions", json=body(images(1, "image/jpeg"))).json()
+    assert out["status"] == "DONE" and out["pages"] == [{"index": 0, "width": 40, "height": 30}]
+
+
+def test_pdf_with_leading_bytes_is_accepted(serve):
+    assert serve(b"\n" + pdf()).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
+
+
+def test_pdfium_is_called_under_lock(serve, monkeypatch):
+    """PDFium은 스레드 안전하지 않아 동시 요청이 겹쳐도 한 번에 하나만 그린다."""
+    render, held = pdfium.PdfPage.render, []
+
+    def spy(page, **kw):
+        held.append(api.PDFIUM_LOCK.locked())
+        return render(page, **kw)
+
+    monkeypatch.setattr(pdfium.PdfPage, "render", spy)
+    assert serve(pdf()).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
+    assert held == [True]
+
+
+def test_render_failure_is_unsupported(serve, monkeypatch):
+    def broken(page, **kw):
+        raise pdfium.PdfiumError("render failed")
+
+    monkeypatch.setattr(pdfium.PdfPage, "render", broken)
+    failed(serve(pdf()).post("/v1/recognitions", json=body()), "UNSUPPORTED_FILE")
 
 
 def test_jeongganbo_goes_to_its_engine(serve):
@@ -169,15 +224,39 @@ def test_total_size_counts_all_images(serve, monkeypatch):
     (RecognitionFailed("NO_STAFF_FOUND"), "NO_STAFF_FOUND"),
     (RecognitionFailed("NO_GRID_FOUND"), "NO_GRID_FOUND"),
     (RuntimeError("boom"), "ENGINE_ERROR"),
+    (RecognitionFailed("SOMETHING_ELSE"), "ENGINE_ERROR"),  # 계약 목록 밖 코드는 내보내지 않는다
+    ({"engine": "fake"}, "ENGINE_ERROR"),  # 응답 필드가 빠진 엔진 결과
 ])
 def test_engine_failures_map_to_fail_reason(serve, outcome, reason):
     failed(serve(pdf(), Engine(outcome)).post("/v1/recognitions", json=body()), reason)
 
 
-def test_engine_past_time_budget_is_timeout(serve, monkeypatch):
-    clock = itertools.count(0.0, 31.0)  # 부를 때마다 31초가 지난다
-    monkeypatch.setattr(api.time, "monotonic", lambda: next(clock))
-    failed(serve(pdf()).post("/v1/recognitions", json=body()), "TIMEOUT")
+@pytest.mark.parametrize("engine_s, fail_reason", [(29, None), (31, "TIMEOUT")])
+def test_engine_past_page_budget_is_timeout(serve, clock, engine_s, fail_reason):
+    out = serve(pdf(), Engine(clock=clock, takes_s=engine_s)).post("/v1/recognitions", json=body()).json()
+    assert out["failReason"] == fail_reason
+
+
+def test_time_before_engine_counts_against_budget(serve, clock):
+    """요청 전체가 쪽당 30초다. 내려받기에 20초를 쓰면 엔진에는 10초가 남는다."""
+    engine = Engine(clock=clock, takes_s=15)
+    failed(serve(pdf(), engine, takes_s=20, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    assert engine.jobs[0].time_budget_s == 10
+
+
+def test_no_time_left_after_download_skips_engine(serve, clock):
+    failed(serve(pdf(), takes_s=30, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    assert not serve.engine.jobs
+
+
+def test_download_timeout_is_timeout(serve):
+    failed(serve(TimeoutError()).post("/v1/recognitions", json=body()), "TIMEOUT")
+
+
+def test_unexpected_error_is_still_a_contract_response(serve, caplog):
+    with caplog.at_level(logging.INFO):
+        failed(serve(RuntimeError("disk full")).post("/v1/recognitions", json=body()), "ENGINE_ERROR")
+    assert "result=ENGINE_ERROR:RuntimeError" in caplog.text
 
 
 def test_missing_engine_is_engine_error(serve):
@@ -211,19 +290,39 @@ def test_signed_url_is_not_logged(serve, caplog):
     assert "recognition conversion=c-1" in caplog.text
 
 
-def test_download_stops_at_size_limit(tmp_path):
-    transport = httpx.MockTransport(lambda _: httpx.Response(200, content=b"x" * 11))
+def chunks(n, clock=None, step_s=0.0):
+    """1바이트씩 n번 보내는 응답. 보낼 때마다 시계를 step_s만큼 넘긴다."""
+
+    def stream():
+        for _ in range(n):
+            if clock:
+                clock.now += step_s
+            yield b"x"
+
+    return httpx.MockTransport(lambda _: httpx.Response(200, content=stream()))
+
+
+def test_download_stops_at_size_limit(tmp_path, clock):
     with pytest.raises(DownloadError) as error:
-        api.download(SIGNED_URL, tmp_path / "f", max_bytes=10, transport=transport)
+        api.download(SIGNED_URL, tmp_path / "f", max_bytes=10, deadline=clock.now + 30, transport=chunks(11))
     assert "secret-token" not in str(error.value)
-    api.download(SIGNED_URL, tmp_path / "f", max_bytes=11, transport=transport)
+    api.download(SIGNED_URL, tmp_path / "f", max_bytes=11, deadline=clock.now + 30, transport=chunks(11))
     assert (tmp_path / "f").read_bytes() == b"x" * 11
 
 
-def test_download_rejects_non_200(tmp_path):
-    transport = httpx.MockTransport(lambda _: httpx.Response(403))
+def test_download_stops_at_deadline_between_chunks(tmp_path, clock):
+    with pytest.raises(TimeoutError):
+        api.download(SIGNED_URL, tmp_path / "f", max_bytes=100, deadline=clock.now + 5,
+                     transport=chunks(10, clock, step_s=1))
+
+
+@pytest.mark.parametrize("url, transport", [
+    (SIGNED_URL, httpx.MockTransport(lambda _: httpx.Response(403))),
+    ("https://[::1", None),  # 형식 검사는 통과하지만 httpx가 InvalidURL을 낸다
+])
+def test_download_errors_are_download_error(tmp_path, clock, url, transport):
     with pytest.raises(DownloadError):
-        api.download(SIGNED_URL, tmp_path / "f", max_bytes=10, transport=transport)
+        api.download(url, tmp_path / "f", max_bytes=10, deadline=clock.now + 30, transport=transport)
 
 
 def test_health():
