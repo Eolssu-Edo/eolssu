@@ -67,6 +67,8 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
 
+취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
+
 ## 녹음 정답 기록
 
 채점 평가용 녹음마다 정답 기록 하나를 `annotations/recordings/<악기 ID>/<recordingId>.json`에 둡니다. 녹음 원본은 `raw/`, 합성 녹음은 `processed/`(둘 다 Git 제외)에 두고 기록에 경로와 SHA-256을 적습니다. 형식은 [recording_label.schema.json](src/recordings/recording_label.schema.json)이 정합니다.

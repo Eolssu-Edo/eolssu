@@ -1350,6 +1350,64 @@
       "originalFilename": "오나라_정간보·오선보_소금_표준악보집-PDF200.pdf",
       "instrument": "sogeum",
       "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p190",
+      "title": "취타 중 초장 소금 정간보 초급",
+      "sha256": "126fa697a1492af011efc184485877ea2997ad6a31a29bb009b8a098b5bb63a1",
+      "bytes": 326454,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p190/취타-초장(초급)_정간보_소금_표준악보집-PDF190.pdf",
+      "originalFilename": "취타-초장(초급)_정간보_소금_표준악보집-PDF190.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p201",
+      "title": "취타 중 초장 소금 정간보 중급",
+      "sha256": "0dd49c9c7ef519cf66096238083f16c081a418eddd56f1322cfcc5fbfe731e57",
+      "bytes": 325956,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p201/취타-초장(중급)_정간보_소금_표준악보집-PDF201.pdf",
+      "originalFilename": "취타-초장(중급)_정간보_소금_표준악보집-PDF201.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
     }
   ]
 }

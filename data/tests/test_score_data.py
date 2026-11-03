@@ -328,6 +328,31 @@ class AnswerTests(unittest.TestCase):
                 actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
                 self.assertEqual(actual, digest)
 
+    def test_chita_beginner_and_intermediate_match_public_timeline(self):
+        expected = {
+            "ngc-standard-2022-p190": "70d5eacd62de10e62e50ae579884ceba2eefb006f5883839c53a955b1c543cf2",
+            "ngc-standard-2022-p201": "c8cdd38fb4d32264ce2140e0ce01685cbd2ed86da6206117137fc1a304fc5e83",
+        }
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, digest in expected.items():
+            with self.subTest(source_id=source_id):
+                score = convert_answer(source_id)
+                jsonschema.validate(score, schema)
+                self.assertEqual(check(score), [])
+                self.assertEqual(score["provenance"]["review"], "reviewed")
+                self.assertEqual(score["music"]["bpmUnit"], "QUARTER")
+                review = json.loads(next((DATA / "annotations/scores" / source_id).glob("*.review.json")).read_text(encoding="utf-8"))
+                self.assertEqual((review["confirmed"], review["total"]), (28, 28))
+                self.assertEqual([c["index"] + 1 for c in review["omittedInputCells"]], list(range(29, 37)))
+                self.assertTrue(all(not c["confirmed"] and not c["cell"] for c in review["omittedInputCells"]))
+                self.assertEqual([e["id"] for e in score["events"] if e["breathAfter"]],
+                                 ["c0-j3-r2-u0", "c1-j5-r2-u0", "c1-j9-r0-u0"])
+                t = score["music"]["ticksPerBeat"]
+                timeline = [(e["id"], e["kind"], e["yul"], e["octave"], str(F(e["startTick"], t)),
+                             str(F(e["durationTick"], t))) for e in score["events"]]
+                actual = hashlib.sha256(json.dumps(timeline, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
+                self.assertEqual(actual, digest)
+
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
