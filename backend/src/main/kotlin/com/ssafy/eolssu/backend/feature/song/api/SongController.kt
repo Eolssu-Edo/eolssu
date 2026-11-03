@@ -30,7 +30,7 @@ class SongController(private val songs: SongMapper, private val jangdans: Jangda
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
         }
         return ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "곡 목록 조회 성공",
-            SongListResult(songs.listPublished(id).map(::item))))
+            SongListResult(songs.listPublished(id).map(::listItem))))
     }
 
     @GetMapping("/{songId}")
@@ -38,15 +38,23 @@ class SongController(private val songs: SongMapper, private val jangdans: Jangda
         songs.findPublished(songId)?.let { ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "곡 상세 조회 성공", item(it))) }
             ?: ResponseEntity.status(404).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
 
-    private fun item(song: SongRow): SongItem {
-        val jangdan = song.jangdanId?.let { requireNotNull(jangdans.findById(it)) }
-        return SongItem(song.id.toString(), song.instrumentId.toString(), song.title, song.description, song.difficulty.toInt(),
-            song.defaultBpm.toInt(), song.isScorable, song.scoreVersion, song.noteCount,
-            jangdan?.let { SongJangdan(it.id.toString(), it.name, it.bpmUnit, json.readTree(it.pattern)) }, json.readTree(song.scoreJson))
-    }
+    // 목록은 악보 본문을 싣지 않는다. 악보는 상세·CAT-04에서 곡 단위로 조회한다.
+    private fun listItem(song: SongRow) = SongListItem(song.id.toString(), song.instrumentId.toString(), song.title, song.description,
+        song.difficulty.toInt(), song.defaultBpm.toInt(), song.isScorable, song.scoreVersion, song.noteCount, jangdan(song))
+
+    private fun item(song: SongRow) = SongItem(song.id.toString(), song.instrumentId.toString(), song.title, song.description,
+        song.difficulty.toInt(), song.defaultBpm.toInt(), song.isScorable, song.scoreVersion, song.noteCount, jangdan(song),
+        json.readTree(song.scoreJson))
+
+    private fun jangdan(song: SongRow) = song.jangdanId?.let { requireNotNull(jangdans.findById(it)) }
+        ?.let { SongJangdan(it.id.toString(), it.name, it.bpmUnit, json.readTree(it.pattern)) }
 }
 
-data class SongListResult(val items: List<SongItem>)
+data class SongListResult(val items: List<SongListItem>)
+data class SongListItem(val songId: String, val instrumentId: String, val title: String, val description: String?, val difficulty: Int,
+    val defaultBpm: Int, val isScorable: Boolean, val scoreVersion: Int, val noteCount: Int,
+    @get:Schema(nullable = true, description = "연결된 장단이 없으면 null. BPM 단위는 공통 악보 music.bpmUnit을 사용합니다.")
+    val jangdan: SongJangdan?)
 data class SongItem(val songId: String, val instrumentId: String, val title: String, val description: String?, val difficulty: Int,
     val defaultBpm: Int, val isScorable: Boolean, val scoreVersion: Int, val noteCount: Int,
     @get:Schema(nullable = true, description = "연결된 장단이 없으면 null. BPM 단위는 공통 악보 music.bpmUnit을 사용합니다.")
