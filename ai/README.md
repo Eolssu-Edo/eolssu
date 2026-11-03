@@ -92,6 +92,20 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 - 시도마다 `analysis session=… attempt=… result=… ms=…` 한 줄을 남깁니다. `audioUrl`과 예외 메시지는 남기지 않고, httpx·httpcore 로그는 WARNING 미만을 막습니다(httpx는 INFO에서 URL 전체를 남깁니다).
 - `tests/unit/test_api.py`는 합성음을 m4a로 만들어 가짜 다운로드로 넘깁니다. 쉼 채점과 DTW 길이 계산 검사는 디코딩을 합성 배열로 바꿔 ffmpeg 없이 돕니다. 응답 모양과 실패 처리 검사이며 채점 품질 검증이 아닙니다.
 
+## 악보 인식 API
+
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 뼈대만 있어 엔진이 연결되지 않았고, 올바른 파일도 `ENGINE_ERROR`로 끝납니다(S15P31E102-313 U2·U3·U5에서 연결).
+
+```bash
+uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
+```
+
+1. 서명 URL의 PDF 1개 또는 PNG·JPEG 1~10장을 임시 폴더로 받습니다. 합계 20MiB, 파일마다 30초까지 받습니다.
+2. PDF는 쪽마다 300dpi PNG로 그립니다(10쪽까지). 이미지는 선언한 형식과 실제 형식이 같아야 하고, 폰 사진의 회전 정보를 적용해 둡니다. 쪽 그림 하나는 약 8,950만 화소(Pillow 기본 한도)까지입니다.
+3. `notation`에 맞는 엔진을 쪽당 30초 × 쪽 수 안에 돌립니다. 넘으면 `TIMEOUT`입니다.
+
+PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
+
 ## 실행 이미지
 
 `Dockerfile`은 분석 API를 사용자 10001로 실행하는 이미지입니다. 아래 명령은 이 폴더(`ai/`)에서 실행합니다.
