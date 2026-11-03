@@ -29,7 +29,6 @@ import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
 import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
-import com.ssafy.eolssu.feature.song.component.SongInstrumentFilter
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.mysongs_practice_only
@@ -50,7 +49,6 @@ class MySongsActions(
     val onCloseAddSheet: () -> Unit,
     val onSelectAddOption: (AddSheetOption) -> Unit,
     val onRetry: () -> Unit,
-    val onSelectInstrument: (String?) -> Unit,
 )
 
 /**
@@ -116,7 +114,6 @@ internal fun MySongsBody(
         MySongsTabSwitch(state.tab, state.songs.size, state.sheetCount, actions.onSelectTab, Modifier.padding(top = 4.dp))
         when (state.tab) {
             MySongsTab.Songs -> {
-                SongInstrumentFilter(state.instruments, state.instrumentId, actions.onSelectInstrument)
                 if (state.loadState != SongLoadState.Ready || state.songs.isEmpty()) {
                     SongLoadNotice(state.loadState, actions.onRetry)
                 } else {
