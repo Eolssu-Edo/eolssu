@@ -1,0 +1,120 @@
+"""글자 층 정간보 읽기(standard_score_text.py)를 합성 PDF로 검사한다. pymupdf가 필요하다.
+
+실제 표준악보집 8곡(단소 PDF171~174, 소금 PDF192~196)과 검수 정답의 대조는
+docs/knowledge/data/danso-scores-umulsai.md에 있다. 여기서는 판형 규칙만 작은 예로 고정한다.
+"""
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+
+import pymupdf
+
+SCRIPT = Path(__file__).resolve().parents[1] / "src/scores/standard_score_text.py"
+sys.path.insert(0, str(SCRIPT.parent))
+import standard_score_text as sst  # noqa: E402
+
+COL_W, JG_H = 36, 45  # 열 너비·정간 높이(pt). 실제 표준악보집과 비슷하다
+TWO_TIERS = [[["林", "南", "-"], ["潢", "汰", "-"]], [["仲", "林", "-"], ["南", "潢", "-"]]]
+
+
+def glyph(c, x, y, i, size=10.5):
+    return dict(c=c, x=x, y=y, size=size, i=i)
+
+
+def score_pdf(path, tiers, gap=13.0, clip_cells=False, no_lines=False, no_text=False):
+    """세로쓰기 정간보 한 쪽. tiers[단][열] = 정간마다 율명 한 글자(빈 문자열은 빈 정간). 열은 오른쪽부터.
+
+    clip_cells면 세로선을 쪽 높이 전체로 그리고 정간 칸 잘라내기 영역으로 칸 안만 보이게 한다(소금 표준악보집 방식).
+    """
+    doc = pymupdf.open()
+    page = doc.new_page(width=600, height=800)
+    ops, top = [], 40.0
+    for tier in tiers:
+        n = len(tier[0])
+        bottom = top + n * JG_H
+        for ci, col in enumerate(tier):
+            right = 500 - ci * (COL_W + 16)
+            left = right - COL_W
+            for k, c in enumerate(col):
+                if c and not no_text:
+                    page.insert_text((left + 12, top + k * JG_H + 26), c, fontname="korea", fontsize=10.5)
+            for k in range(n + 1):  # 정간 가로선(점선 조각)
+                y = top + k * JG_H
+                ops += [f"{x:.1f} {800 - y:.1f} m {x + 3:.1f} {800 - y:.1f} l S" for x in range(int(left), int(right), 6)]
+            for x in (left, right):
+                if clip_cells:
+                    for k in range(n):
+                        y0 = top + k * JG_H
+                        ops.append(f"q {left:.1f} {800 - y0 - JG_H:.1f} {COL_W:.1f} {JG_H:.1f} re W n "
+                                   f"{x:.1f} 790 m {x:.1f} 10 l S Q")
+                else:
+                    ops.append(f"{x:.1f} {800 - top:.1f} m {x:.1f} {800 - bottom:.1f} l S")
+        top = bottom + gap
+    page.draw_line((0, 0), (0, 0), width=0)  # 글자가 없어도 내용 스트림이 있게 한다
+    if no_lines:
+        ops = []
+    xref = page.get_contents()[0]
+    doc.update_stream(xref, doc.xref_stream(xref) + ("\n0.5 w\n" + "\n".join(ops) + "\n").encode())
+    doc.save(path)
+
+
+def read(tiers, **kw):
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "s.pdf"
+        score_pdf(pdf, tiers, **kw)
+        with pymupdf.open(pdf) as doc:
+            gaks, _, report = sst.read_page(doc[0])
+    return gaks, report
+
+
+class CellTextTests(unittest.TestCase):
+    def test_later_drawn_glyph_hides_the_one_under_it(self):
+        # 밀양아리랑 단소: 청무 위에 무를 그려 무만 보인다
+        text, _ = sst.cell_text([glyph("潕", 190.1, 285.6, 0), glyph("無", 190.1, 285.6, 1)], 263, 308)
+        self.assertEqual(text, ":0 무")
+
+    def test_one_row_split_left_right_becomes_two_equal_rows(self):
+        text, split = sst.cell_text([glyph("-", 180, 285, 0), glyph("林", 195, 285, 1)], 263, 308)
+        self.assertEqual((text, split), (":10 - :11 임", True))
+
+    def test_single_glyph_in_lower_half_leaves_upper_row_to_continue(self):
+        text, _ = sst.cell_text([glyph("林", 190, 300, 0)], 263, 308)
+        self.assertEqual(text, ":11 임")
+
+
+class LayoutTests(unittest.TestCase):
+    def test_full_height_columns_read_right_to_left(self):
+        gaks, report = read([[["林", "南", "-"], ["潢", "", "汰"]]])
+        self.assertEqual(gaks, [":0 임 | :0 남 | :0 -", ":0 청황 |  | :0 청태"])
+        self.assertEqual(report["jeonggans"], [3, 3])
+
+    def test_stacked_tiers_read_tier_by_tier(self):
+        # 쪽을 가로 두 단으로 나눈 판형: 위 단의 오른쪽 열, 위 단 왼쪽 열, 아래 단 오른쪽 열 … 순서다
+        gaks, report = read(TWO_TIERS)
+        self.assertEqual(gaks, [":0 임 | :0 남 | :0 -", ":0 청황 | :0 청태 | :0 -",
+                                ":0 중 | :0 임 | :0 -", ":0 남 | :0 청황 | :0 -"])
+        self.assertEqual(report["columns"], 4)
+
+    def test_lines_are_clipped_to_visible_cells(self):
+        # 세로선을 쪽 높이 전체로 그리고 정간 칸만 보이게 잘라 둔 판형도 단을 나눠 읽는다
+        self.assertEqual(read(TWO_TIERS, clip_cells=True)[0], read(TWO_TIERS)[0])
+
+    def test_page_with_yul_text_but_no_grid_is_an_error(self):
+        # 오선보 쪽의 음계표처럼 율명은 있지만 정간 열이 없으면 읽지 않는다
+        with self.assertRaisesRegex(ValueError, "정간 열"):
+            read([[["林", "南", "-"]]], no_lines=True)
+
+    def test_page_without_yul_text_exits_with_omr_code(self):
+        with tempfile.TemporaryDirectory() as d:
+            pdf = Path(d) / "blank.pdf"
+            doc = pymupdf.open()
+            doc.new_page()
+            doc.save(pdf)
+            run = subprocess.run([sys.executable, str(SCRIPT), str(pdf), str(Path(d) / "out")], capture_output=True)
+        self.assertEqual(run.returncode, sst.NO_YUL_EXIT)
+
+
+if __name__ == "__main__":
+    unittest.main()
