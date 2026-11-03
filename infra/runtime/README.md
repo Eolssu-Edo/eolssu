@@ -235,7 +235,7 @@ ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_R
 
 남은 변경을 `prechange` 백업과 대조해 정리하거나 백업으로 복구한 뒤 실패 행을 정리합니다. `flyway repair`로 이력만 맞추지 않습니다. 원인을 고친 마이그레이션은 새 커밋으로 병합하고, 확인을 마친 컨테이너는 `sudo docker rm <이름>`으로 지운 뒤 다음 배포를 진행합니다. 실행 중인 컨테이너는 끝날 때까지 지우지 않습니다.
 
-서버 반영 순서는 `/opt/eolssu-backup/backup.py`(`postmigration` 지원)를 먼저 설치하고, 그다음 `/opt/eolssu/bin/deploy-backend`를 root 소유 0755로 교체하는 것입니다. 순서를 바꾸면 스키마를 바꾼 배포의 사후 백업이 `unsupported operation`으로 실패합니다.
+서버 반영 순서는 `/opt/eolssu-backup/backup.py`(`postmigration` 지원)를 먼저 설치하고, 그다음 `/opt/eolssu/bin/deploy-backend`를 root 소유 0755로 교체하는 것입니다. 순서를 바꾸면 스키마를 바꾼 배포의 사후 백업이 `unsupported operation`으로 실패합니다. 2026-11-03 이 순서로 edo1에 설치했고 edo2의 `backup.py`도 같은 버전으로 맞췄습니다. 이전 파일과 설치 확인 결과는 [운영 Flyway 마이그레이션 자동화](../../docs/knowledge/infra/ops-flyway-auto-migration.md)의 운영 설치에 있습니다.
 
 ## 프론트 웹 자동 배포
 
