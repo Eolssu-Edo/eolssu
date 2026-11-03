@@ -7,6 +7,7 @@ categories: ["backend"]
 tags: ["테스트", "코드 리뷰", "Kotlin"]
 description: "테스트가 통과했다고 버그가 고쳐졌다고 말할 수 있을까요? 얼쑤의 연주 비교 기능을 고치며 배운, 테스트를 먼저 실패시켜 보는 습관을 정리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-test-fails-first.webp"
 ---
 
 버그를 고치고 테스트를 추가했더니 통과했습니다. 그럼 버그가 고쳐졌다고 말할 수 있을까요?
