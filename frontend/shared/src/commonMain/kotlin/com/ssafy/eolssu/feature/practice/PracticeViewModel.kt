@@ -258,11 +258,12 @@ class PracticeViewModel(
             return
         }
         val song = state.song ?: return
+        val jangdan = song.jangdan ?: return
         _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
         previewJob = viewModelScope.launch {
-            val gak = song.jangdan.gak
+            val gak = jangdan.gak
             while (true) {
-                delay(song.jangdan.cellMillis(_uiState.value.bpm).toLong())
+                delay(jangdan.cellMillis(_uiState.value.bpm).toLong())
                 _uiState.update { it.copy(draft = it.draft.copy(previewBeat = (it.draft.previewBeat + 1) % gak)) }
             }
         }

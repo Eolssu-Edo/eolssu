@@ -11,6 +11,23 @@ import kotlin.test.assertTrue
 
 class PracticeStateTest {
 
+    @Test
+    fun unlinkedJangdanKeepsScoreTimingAndBothDaegeumFingerings() {
+        val source = com.ssafy.eolssu.data.song.smallScoreData()
+        for ((code, instrument) in listOf(
+            "JEONGAK_DAEGEUM" to com.ssafy.eolssu.core.model.fingering.GuideInstrument.DaegeumJeongak,
+            "SANJO_DAEGEUM" to com.ssafy.eolssu.core.model.fingering.GuideInstrument.DaegeumSanjo,
+        )) {
+            val song = com.ssafy.eolssu.data.song.smallScoreSong(source.copy(score = source.score.copy(instrument = code))).copy(jangdan = null)
+            val state = PracticeUiState(song = song)
+            assertEquals(instrument, state.instrument)
+            assertEquals("세마치", song.jangdanName)
+            assertEquals(3000.0, song.durationMs())
+            assertEquals(-1, state.beatIndex)
+            assertEquals(3, state.eventCount)
+        }
+    }
+
     private val arirang = SampleSongs.first { it.id == "arirang" }
     private val milyang = SampleSongs.first { it.id == "milyang" }
     private val ready = PracticeUiState(song = arirang)

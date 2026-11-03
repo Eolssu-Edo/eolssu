@@ -1,4 +1,6 @@
 <resources>
+    <string name="jangdan_unassigned">장단 미지정</string>
+    <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
     <string name="common_close">닫기</string>
     <string name="common_coming_soon">준비 중인 기능이에요.</string>
 

@@ -145,7 +145,7 @@ fun ErrorScorePreview(
 ) {
     val colors = EolssuTheme.colors
     val byCell = errors.associateBy { it.column to it.row }
-    val starts = if (song.score.timing == null) song.jangdan.daegangStarts else emptyList()
+    val starts = if (song.score.timing == null) song.jangdan?.daegangStarts.orEmpty() else emptyList()
     val displayByCell = song.displayUnits.groupBy { it.column to it.row }
     Row(
         modifier.clearAndSetSemantics { contentDescription = description },
