@@ -26,6 +26,12 @@ interface UserSheetMapper {
     ): List<UserSheetRow>
 
     fun count(@Param("userId") userId: Long, @Param("kind") kind: String?): Long
+
+    fun updateScore(update: SheetScoreUpdateRow): Int
+
+    fun updateDraft(update: SheetDraftUpdateRow): Int
+
+    fun delete(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): Int
 }
 
 data class UserSheetRow(
@@ -46,9 +52,37 @@ data class UserSheetRow(
     val pendingCellCount: Int,
     val requestHash: String,
     val updatedAt: LocalDateTime,
+    val draftJson: String?,
+    val draftRevision: Int,
+    val draftBaseVersion: Int?,
+    val draftSavedAt: LocalDateTime?,
 )
 
-data class SheetJangdanRow(val id: Long, val bpmUnit: String)
+data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String)
+
+data class SheetScoreUpdateRow(
+    val sheetId: Long,
+    val userId: Long,
+    val baseScoreVersion: Int,
+    val title: String,
+    val status: String,
+    val jangdanId: Long?,
+    val bpm: Int,
+    val bpmUnit: String,
+    val columnCount: Int,
+    val scoreJson: String,
+    val noteCount: Int,
+    val updatedAt: LocalDateTime,
+)
+
+data class SheetDraftUpdateRow(
+    val sheetId: Long,
+    val userId: Long,
+    val baseScoreVersion: Int,
+    val draftRevision: Int,
+    val draftJson: String,
+    val savedAt: LocalDateTime,
+)
 
 data class SongCopySourceRow(
     val jangdanId: Long?,

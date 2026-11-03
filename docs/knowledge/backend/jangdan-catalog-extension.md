@@ -1,6 +1,6 @@
 # 서비스 장단 카탈로그의 추가 근거와 남은 자료
 
-2026-11-03 KST, S15P31E102-411. [카탈로그 계약](../../specs/catalog-read-apis.md)과 [확장 스펙](../../specs/jangdan-catalog-extension.md)을 따른다. V19의2종에 더해 사용자 후속 요청으로 V20에 보류5종까지 추가한다. 기존 세마치·굿거리·중모리의 ID 1~3과 모든 값은 유지한다. ID는 자진모리4·중중모리5·엇모리6·단모리7·타령8·계면가락도드리9·세령산10이다. 운영 DB 적용·배포 여부와 구분한다.
+2026-11-03 KST, S15P31E102-411. [카탈로그 계약](../../specs/catalog-read-apis.md)과 [확장 스펙](../../specs/jangdan-catalog-extension.md)을 따른다. MR의 최종 마이그레이션은 V21(2종)·V22(보류5종)이다. 아래 V19·V20 검증 기록은 번호를 옮기기 전 로컬 구현 이력이다. 기존 세마치·굿거리·중모리의 ID 1~3과 모든 값은 유지한다. ID는 자진모리4·중중모리5·엇모리6·단모리7·타령8·계면가락도드리9·세령산10이다. 운영 DB 적용·배포 여부와 구분한다.
 
 ## 서비스 악보와 카탈로그의 차이
 
@@ -72,3 +72,20 @@ V19의 목록5개를 대상으로 추가5종을 기대한 BE 검사와 FE 실제
 업그레이드 DB에는 기존5장단, 곡5행(기존4+보존 fixture1), 게시 음원 메타데이터1행, 악기4·율명36·운지92행을 두었다. fixture는 기존 장단과 연결하지 않고 BPM123·QUARTER·타령 이름을 가진 원본 악보와 별도 음원 metadata를 쓴다. V19→V20에서 이6개 테이블의 기존 행 전체 열을 ID 순서로 직렬화한 바이트가 전후 동일했다. 따라서 새 타령이 생겨도 이 곡의 FK가 자동 연결되거나 BPM·tick·음원이 덮어써지지 않았다. 새 장단 목록은10개다. 운영 DB의 실제111곡/107음원을 변경한 검사는 아니다.
 
 로컬 증거는 Git 제외 `output/jangdan-411/remaining-verification-summary.json`, `remaining-backend.log`, `remaining-data.log`, `remaining-frontend-all-summary.json`, `remaining-red-v19.xml`, `remaining-fe-red-v19.xml`, `remaining-fe-green-v20.xml`, `remaining-upgrade-preservation.json`에 남겼다. 전체 Task diff를 자체 점검했으며 독립 정식 리뷰는 대기다. 처음 보류한5종의 카탈로그 등록은 완료했지만 운영 DB 적용·배포·실기기 청취·장단 재생은 실행하지 않았다.
+
+
+## MR 준비: 최신 develop 통합과 V21·V22 검증
+
+2026-11-03 MR 요청으로 `origin/develop`의 `2ed94892`를 통합했다. 먼저 병합된 기호 사전V19·내 악보 초안V20을 보존하고, 아직 게시하지 않은 장단 마이그레이션만 V21·V22로 옮겼다. SQL 내용은 이전 구현과 동일하고 V1~V20은 develop과 같다. 현재 스펙·참조 데이터·실행 안내의 번호도 맞췄다.
+
+- BE `clean build databaseTest --max-workers=2`: 단위573개 통과, DB222개 중221개 통과·외부 음원 묶음 미설정1개 skip. 신규 V1~V22 적용·재실행과 버전 중복/공백 검사 포함.
+- FE `:shared:testAndroidHostTest --max-workers=2`: 685개 중681개 통과·외부 환경4개 skip. 처음 실행은 SDK 경로 미지정으로 중단됐으며 설치된 SDK를 `ANDROID_HOME`으로 지정한 뒤 성공했다. 실제 V22 HTTP→Repository→읽기 화면 상태 검사1개는 별도 실행해 통과했다.
+- 데이터 전체143개 통과. 마이그레이션 번호 설명을 정리한 뒤 참조 데이터9개도 다시 통과했다.
+- 별도 MySQL8.4 DB를 V20으로 시작해 장단3개를 확인하고 보존 fixture를 넣은 뒤 같은 JAR로 V21·V22를 적용했다. 장단 기존3·곡5·음원 metadata1·악기4·율명36·운지92·기호49·내 악보0행을 전후 전체 열/기본키 순서로 비교해 바이트가 같았다. 새 HTTP 목록은10개다. 보존 도구는 음원 복합키를 실제 `song_id, score_version`에 맞춘 뒤 스냅샷을 취득했다.
+- 별도 읽기 전용 검토에서 카탈로그 소비 경로와 마이그레이션·참조 데이터 일치를 확인했다. 차단 결함은 없었으며 남은 현재 번호 표기V19/V20은 V21/V22로 고쳤다. 신규 의존성·보안 정책 변경은 없다.
+
+현재 카탈로그 화면은 구음 묶음을 표시하며 시간을 계산하지 않는다. 향후 새 장단을 곡에 연결할 때는 `ApiSongRepository`의 QUARTER→subdivision1 변환을 그대로 쓰면 안 된다. ID6~9는8분음표 칸, ID10은점4분음표 칸이므로 재생 계약·변환을 별도 보완해야 한다. 이번 MR에는 곡 FK 연결이나 재생 변경이 없다.
+
+복구 시 배포 전에는 이 Task 커밋을 되돌릴 수 있다. V21·V22가 DB에 적용된 뒤에는 앱을 되돌려도 추가 행이 남으므로, 적용 파일이나 Flyway 이력을 고치지 않고 새 ID4~10의 참조를 확인한 별도 보정 마이그레이션으로 처리한다. 운영 적용·배포·실기기 청취는 이번 MR 준비에서 실행하지 않았다.
+
+로컬 증거: `output/jangdan-411/mr-backend-summary.json`, `mr-backend.log`, `mr-frontend-all-summary.json`, `mr-frontend-http.log`, `mr-data.log`, `mr-data-reference.log`, `mr-upgrade-preservation.json`. 최초 구현의 V19·V20 기록과 구분한다.

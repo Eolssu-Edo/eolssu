@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enable scoring for the four reviewed sogeum songs loaded by S15P31E102-339. Default is read-only.
+"""Enable scoring for reviewed songs from a plan. Default is read-only.
 
 S15P31E102-387. Each song keeps its 339 score (same events and ticks as the reviewed answer); only the
 reviewed breath marks and provenance.review change, and is_scorable becomes TRUE. songs.updated_at also
@@ -19,27 +19,28 @@ import re
 import subprocess
 import sys
 
-# 판본: 학교 교과서가 있으면 교과서, 없으면 표준악보집(2026-11-03 사용자 확인). 실제 소금 녹음도 교과서 쪽에 맞는다.
-# songId/source/scoreVersion/currentSha256: 운영 DB 읽기(2026-11-03). breathEventIds: 저장소 검수 정답(answer)의 숨표.
-PLAN = [
-    {'songId': 96, 'source': 'mr203-fixed-sogeum-008-p1', 'scoreVersion': 1, 'answer': 'school-textbook-sogeum-p15',
-     'breathEventIds': [],
-     'currentSha256': '54c2bd28e3fa7e6534c31d0cbdc3d3490b3bf18b60889aeef7357e6349688e8a',
-     'targetSha256': '121898993631cfe62d657fc0a0e3c59211bb3317b7d2710aa8712786339c3b0b'},
-    {'songId': 93, 'source': 'mr203-fixed-sogeum-005-p1', 'scoreVersion': 1, 'answer': 'school-textbook-sogeum-p16',
-     'breathEventIds': [],
-     'currentSha256': '823cf960bb11857d1a23c8ff263dd47a8d7ebfb24b0f5405adc883dfd642e56b',
-     'targetSha256': 'e46d006937ee49882b0afc4d67637d26945d679a61a9508d42498fd175f6ef7a'},
-    {'songId': 95, 'source': 'mr203-fixed-sogeum-007-p1', 'scoreVersion': 1, 'answer': 'ngc-standard-2022-p193',
-     'breathEventIds': ['c0-j2-r0-u0', 'c2-j2-r2-u0', 'c4-j2-r1-u0', 'c6-j2-r2-u0', 'c8-j2-r0-u0', 'c10-j2-r2-u0',
-                        'c12-j2-r1-u0'],
-     'currentSha256': 'b034cd9ec11071fd45915a2c4cca4fc7017b2899e4417155bf46f8ffa26a4a45',
-     'targetSha256': 'cad9a1de2c264257bd2ea620adbbd486837d32def35c49cd36593fe3d6b7ec91'},
-    {'songId': 91, 'source': 'mr203-fixed-sogeum-003-p1', 'scoreVersion': 1, 'answer': 'ngc-standard-2022-p196',
-     'breathEventIds': [],
-     'currentSha256': '8466aba277f6662fd65278efaeb72d4c78c3d7e4d953167c487c911cc9332a3c',
-     'targetSha256': '1062cfa2bceab4ef971e1033f0d5f7ff0a0e3759acb8742426c4dac5f5a57b4e'},
-]
+
+def load_plan(path):
+    plan = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(plan, list) or not plan:
+        raise ValueError('plan must contain songs')
+    ids = set()
+    for item in plan:
+        if not isinstance(item, dict):
+            raise ValueError('invalid song plan')
+        song_id, version = item.get('songId'), item.get('scoreVersion')
+        if type(song_id) is not int or song_id <= 0 or song_id in ids or type(version) is not int or version <= 0:
+            raise ValueError('invalid or duplicate song id or score version')
+        ids.add(song_id)
+        if any(not isinstance(item.get(key), str) or not item[key] for key in ('source', 'answer')):
+            raise ValueError('missing source or answer')
+        if any(not isinstance(item.get(key), str) or not re.fullmatch(r'[0-9a-f]{64}', item[key])
+               for key in ('currentSha256', 'targetSha256')):
+            raise ValueError('invalid score hash')
+        breaths = item.get('breathEventIds')
+        if not isinstance(breaths, list) or any(not isinstance(value, str) or not value for value in breaths):
+            raise ValueError('invalid breath event ids')
+    return plan
 
 
 def canonical(value):
@@ -55,9 +56,9 @@ def quote(value):
 
 
 def patch(score, breath_ids):
-    """검수 숨표와 review만 바꾼 새 악보. 이미 숨표가 있거나 모르는 이벤트면 멈춘다."""
+    """검수 숨표와 review만 바꾼 새 악보. 모르는 이벤트면 멈춘다."""
     ids = {e['id'] for e in score['events']}
-    if not set(breath_ids) <= ids or any(e['breathAfter'] for e in score['events']):
+    if not set(breath_ids) <= ids:
         raise ValueError('score events differ from the reviewed plan')
     result = copy.deepcopy(score)
     for event in result['events']:
@@ -154,13 +155,14 @@ def run(plan, receipt, *, apply=False, runner=mysql):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--plan', type=Path, required=True, help='reviewed song plan JSON')
     parser.add_argument('--receipt', type=Path, required=True, help='new file for the result record')
     parser.add_argument('--apply', action='store_true')
     args = parser.parse_args()
     try:
-        report = run(PLAN, args.receipt, apply=args.apply)
+        report = run(load_plan(args.plan), args.receipt, apply=args.apply)
     except Exception as error:
-        print('Sogeum scoring stopped (' + type(error).__name__ + '); inspect the receipt and current rows before retrying', file=sys.stderr)
+        print('Scoring stopped (' + type(error).__name__ + '); inspect the receipt and current rows before retrying', file=sys.stderr)
         return 1
     print(json.dumps({key: report[key] for key in ('status', 'pending', 'updated', 'songStatus')}))
     return 0

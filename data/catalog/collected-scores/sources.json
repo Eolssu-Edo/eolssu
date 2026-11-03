@@ -1040,6 +1040,403 @@
       "originalFilename": "닐리리야_정간보_소금_표준악보집-PDF196.pdf",
       "instrument": "sogeum",
       "notes": "책 PDF 196쪽을 한 쪽만 뺀 파일로 보임(파일 이름 기준). 팀 소금 정간보 묶음(sogeum_dataset) 사본. S15P31E102-387 서비스 소금 곡 정답 판본."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p188",
+      "title": "개구리소리 소금 정간보",
+      "sha256": "5f579d39638ae88a9f76496d62213fb77b7e4e2ceb4efb2c0e5317ca1ac817e3",
+      "bytes": 455196,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p188/개구리소리_정간보_소금_표준악보집-PDF188.pdf",
+      "originalFilename": "개구리소리_정간보_소금_표준악보집-PDF188.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p191",
+      "title": "구아리랑 소금 정간보",
+      "sha256": "91c2087f0f15da0e1aad75512132ccc2c9378ed59cb1b3f5aba1d64960e0cebd",
+      "bytes": 338983,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p191/구아리랑_정간보_소금_표준악보집-PDF191.pdf",
+      "originalFilename": "구아리랑_정간보_소금_표준악보집-PDF191.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p199",
+      "title": "몽금포타령 소금 정간보",
+      "sha256": "0d7b8410bbe5fb4d036f89b4feb01bd27b2ba9ba19d25bd4a66323792fe54d7f",
+      "bytes": 352637,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p199/몽금포타령_정간보_소금_표준악보집-PDF199.pdf",
+      "originalFilename": "몽금포타령_정간보_소금_표준악보집-PDF199.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p187",
+      "title": "새야새야 소금 정간보",
+      "sha256": "9b232a2b696847537621ff6334be3b340dc3b468efbede8f6dce7aba75bdb917",
+      "bytes": 380989,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p187/새야새야_정간보_소금_표준악보집-PDF187.pdf",
+      "originalFilename": "새야새야_정간보_소금_표준악보집-PDF187.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "id": "school-textbook-sogeum-p14",
+      "kind": "score",
+      "title": "소금 연습곡 1·2 정간보(학교 교과서 발췌)",
+      "sha256": "111a1de6cc140630c327c3a50e3b360c6860c8549ccafbd7da84988002d0f300",
+      "bytes": 612495,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": null,
+      "collection": null,
+      "sourceVerified": false,
+      "license": null,
+      "attribution": null,
+      "verifiedOn": "2026-11-03",
+      "redistribution": null,
+      "rawPath": "data/raw/scores/school-textbook-sogeum-p14/기초연습곡1·2_정간보_소금_학교교과서-PDF14.pdf",
+      "originalFilename": "기초연습곡1·2_정간보_소금_학교교과서-PDF14.pdf",
+      "instrument": "sogeum",
+      "notes": "학교 교과서 발췌. 교과서 이름·출판사·이용 조건 미확인. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p202",
+      "title": "북천이 맑다커늘 소금 정간보",
+      "sha256": "483f47443725466b49e81ecaa283b3e4a49783df7a99a3a5f271b7451a1f7d7a",
+      "bytes": 795089,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p202/북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.pdf",
+      "originalFilename": "북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p189",
+      "title": "어깨동무 소금 정간보",
+      "sha256": "8f8d1c3c8f57dbd9383a2825c926a63d93a2c57300056c5eabb2bbe9b964076e",
+      "bytes": 376157,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p189/어깨동무_정간보_소금_표준악보집-PDF189.pdf",
+      "originalFilename": "어깨동무_정간보_소금_표준악보집-PDF189.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p198",
+      "title": "옹헤야 소금 정간보",
+      "sha256": "3ed16f1a8a94e0bfd008c91c174c2d426b49d91b559b765f80e99e40e2615b1c",
+      "bytes": 600885,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p198/옹헤야_정간보_소금_표준악보집-PDF198.pdf",
+      "originalFilename": "옹헤야_정간보_소금_표준악보집-PDF198.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p197",
+      "title": "태평가 소금 정간보",
+      "sha256": "0f753dadd516b9efabb3bf31eae2146241645cb33abbaa3d2064c9598d060a14",
+      "bytes": 342789,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p197/태평가_정간보_소금_표준악보집-PDF197.pdf",
+      "originalFilename": "태평가_정간보_소금_표준악보집-PDF197.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p195",
+      "title": "해주아리랑 소금 정간보",
+      "sha256": "a293807f8732e0bc062478dfae966a93683594c382b077c8d884f4bcaed0467b",
+      "bytes": 505782,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p195/해주아리랑_정간보_소금_표준악보집-PDF195.pdf",
+      "originalFilename": "해주아리랑_정간보_소금_표준악보집-PDF195.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p200",
+      "title": "오나라 소금 정간보",
+      "sha256": "2e01d6079e7b1234a9eb79db437edc515534c475e527b5dd2b33797950e56263",
+      "bytes": 536401,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p200/오나라_정간보·오선보_소금_표준악보집-PDF200.pdf",
+      "originalFilename": "오나라_정간보·오선보_소금_표준악보집-PDF200.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명의 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p190",
+      "title": "취타 중 초장 소금 정간보 초급",
+      "sha256": "126fa697a1492af011efc184485877ea2997ad6a31a29bb009b8a098b5bb63a1",
+      "bytes": 326454,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p190/취타-초장(초급)_정간보_소금_표준악보집-PDF190.pdf",
+      "originalFilename": "취타-초장(초급)_정간보_소금_표준악보집-PDF190.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p201",
+      "title": "취타 중 초장 소금 정간보 중급",
+      "sha256": "0dd49c9c7ef519cf66096238083f16c081a418eddd56f1322cfcc5fbfe731e57",
+      "bytes": 325956,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p201/취타-초장(중급)_정간보_소금_표준악보집-PDF201.pdf",
+      "originalFilename": "취타-초장(중급)_정간보_소금_표준악보집-PDF201.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p203",
+      "title": "취타 중 초장 소금 정간보 고급",
+      "sha256": "4b76a0c7fad41c99407712b68b4b62c62adbe06cf3b329c76c465725656e6727",
+      "bytes": 330322,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p203/취타-초장(고급)_정간보_소금_표준악보집-PDF203.pdf",
+      "originalFilename": "취타-초장(고급)_정간보_소금_표준악보집-PDF203.pdf",
+      "instrument": "sogeum",
+      "notes": "팀에서 모은 악보 사본. 파일명 쪽수 기준, 출처 원문 별도 확인 전. S15P31E102-403."
     }
   ]
 }

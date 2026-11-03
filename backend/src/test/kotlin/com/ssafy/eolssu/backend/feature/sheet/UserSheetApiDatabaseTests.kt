@@ -221,6 +221,153 @@ class UserSheetApiDatabaseTests {
         assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
     }
 
+    @Test
+    fun `autosave keeps the version and list order, then saving the whole score bumps it with the CAT-04 timeline`() {
+        val sheetId = copySong()
+        val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
+        val updatedAt = jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java)
+        val partial = scoreData.deepCopy()
+        val emptied = partial.path("columns").path(0).path("cells").path(0) as ObjectNode
+        emptied.putArray("units")
+
+        val draft = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", draftBody("1", 0, partial))
+        assertEquals(200, draft.statusCode(), draft.body())
+        assertEquals(1, json.readTree(draft.body()).path("result").path("draftRevision").intValue())
+        assertEquals(1, json.readTree(draft.body()).path("result").path("unfilledCellCount").intValue())
+        assertEquals(409, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", draftBody("1", 0, partial)).statusCode())
+        assertEquals(updatedAt, jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java))
+        val listed = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").path(0)
+        assertTrue(listed.path("hasDraft").booleanValue())
+        val reopened = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("draft")
+        assertEquals(partial, reopened.path("score"))
+        assertEquals("고치는 중", reopened.path("title").asString())
+
+        val unfilled = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", partial))
+        assertEquals(400, unfilled.statusCode(), unfilled.body())
+        assertEquals("UNFILLED_CELLS", json.readTree(unfilled.body()).path("result").path("errorCode").asString())
+        assertEquals("c0-j0", json.readTree(unfilled.body()).path("result").path("details").path("cellIds").path(0).asString())
+
+        val saved = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", scoreData, title = "아리랑 (내 편곡)"))
+        assertEquals(200, saved.statusCode(), saved.body())
+        val result = json.readTree(saved.body()).path("result")
+        assertEquals("2", result.path("scoreVersion").asString())
+        assertEquals("EVALUABLE", result.path("reviewStatus").asString())
+        val catalog = json.readTree(get(OWNER, "/api/songs/1/score").body()).path("result")
+        assertEquals(catalog.path("events"), result.path("events"))
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertEquals("아리랑 (내 편곡)", stored.path("title").asString())
+        assertEquals(2, stored.path("scoreData").path("score").path("scoreVersion").intValue())
+        assertTrue(stored.has("draft") && stored.path("draft").isNull)
+        assertEquals(0, count("SELECT draft_revision FROM user_sheets WHERE id=$sheetId"))
+
+        assertEquals(409, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", scoreData)).statusCode())
+        assertEquals(404, send(OTHER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("2", scoreData)).statusCode())
+        assertEquals(404, send(OTHER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", draftBody("2", 0, scoreData)).statusCode())
+    }
+
+    @Test
+    fun `a score whose jangdan or ticks do not match is rejected and nothing changes`() {
+        val sheetId = copySong()
+        val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
+        val otherJangdan = jdbc.queryForObject("SELECT id FROM jangdans WHERE id <> ? ORDER BY id LIMIT 1", Long::class.java, jangdanId)!!
+        val brokenTicks = scoreData.deepCopy().also { (it.path("events").path(0) as ObjectNode).put("durationTick", 1) }
+
+        val wrongJangdan = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", scoreData, jangdan = otherJangdan))
+        assertEquals(400, wrongJangdan.statusCode(), wrongJangdan.body())
+        assertEquals(400, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", scoreBody("1", brokenTicks)).statusCode())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
+    fun `the draft columns cannot hold a draft without its base version`() {
+        val sheetId = copySong()
+
+        val rejected = runCatching {
+            jdbc.update("UPDATE user_sheets SET draft_json='{}', draft_base_version=NULL, draft_saved_at=NOW(6) WHERE id=$sheetId")
+        }.exceptionOrNull()
+        // 3819: Check constraint is violated. 다른 오류(문법·권한)로 실패해도 통과하지 않게 원인을 본다.
+        val sql = generateSequence(rejected) { it.cause }.filterIsInstance<java.sql.SQLException>().firstOrNull()
+        assertEquals(3819, sql?.errorCode, rejected.toString())
+        // 3819는 어느 CHECK든 같다. 초안 제약이 막았는지 이름으로 확인한다.
+        assertTrue("chk_user_sheets_draft" in sql!!.message.orEmpty(), sql.message)
+    }
+
+    @Test
+    fun `a body over 1 MiB is 413 before parsing, and an anonymous one is still 401`() {
+        val sheetId = copySong()
+        // 공백으로 부풀려 다시 직렬화하면 작아지는 본문도 받은 크기로 잰다.
+        val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
+
+        val tooLarge = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", padded)
+        assertEquals(413, tooLarge.statusCode(), tooLarge.body())
+        assertEquals("PAYLOAD_TOO_LARGE", json.readTree(tooLarge.body()).path("result").path("errorCode").asString())
+        assertEquals(413, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", padded).statusCode())
+        assertEquals(401, send(null, "PUT", "/api/users/me/sheets/$sheetId/score", padded).statusCode())
+        // 길이를 알리지 않는(chunked) 본문도 받은 바이트로 자른다.
+        val chunked = client.send(
+            authorized(URI("http://localhost:$port/api/users/me/sheets/$sheetId/score"), OWNER).header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofInputStream { padded.byteInputStream() }).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(413, chunked.statusCode(), chunked.body())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
+    fun `an encoded path that reaches the score routes is limited the same way`() {
+        val sheetId = copySong()
+        val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
+
+        // %73 = s, %64 = d. Spring MVC는 디코딩한 경로로 컨트롤러를 찾으므로 필터도 같은 경로로 판단해야 한다.
+        for (path in listOf("/api/users/me/sheets/$sheetId/%73core", "/api/users/me/sheets/$sheetId/score/%64raft", "/api/users/me/%73heets/$sheetId/score")) {
+            val response = send(OWNER, "PUT", path, padded)
+            assertEquals(413, response.statusCode(), "$path ${response.body().take(200)}")
+        }
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
+    fun `delete removes only the owner's sheet`() {
+        val sheetId = copySong()
+        val others = create(OTHER, "others", """{"title":"남의 악보","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
+        val otherId = json.readTree(others.body()).path("result").path("sheetId").asString()
+
+        assertEquals(404, send(OWNER, "DELETE", "/api/users/me/sheets/$otherId", null).statusCode())
+        val deleted = send(OWNER, "DELETE", "/api/users/me/sheets/$sheetId", null)
+        assertEquals(204, deleted.statusCode(), deleted.body())
+        assertEquals("", deleted.body())
+        assertEquals(404, get(OWNER, "/api/users/me/sheets/$sheetId/score").statusCode())
+        assertEquals(404, send(OWNER, "DELETE", "/api/users/me/sheets/$sheetId", null).statusCode())
+        assertEquals(401, send(null, "DELETE", "/api/users/me/sheets/$otherId", null).statusCode())
+        assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OTHER"))
+    }
+
+    private fun copySong(): String {
+        val created = create(OWNER, "copy-for-edit", """{"title":"아리랑 연습","startType":"COPY","bpm":72,"copyFromSongId":"1"}""")
+        assertEquals(201, created.statusCode(), created.body())
+        return json.readTree(created.body()).path("result").path("sheetId").asString()
+    }
+
+    private fun scoreBody(base: String, score: JsonNode, title: String? = null, jangdan: Long = jangdanId): String {
+        val body = json.createObjectNode().put("baseScoreVersion", base).put("jangdanId", jangdan.toString()).put("bpm", 72)
+        if (title != null) body.put("title", title)
+        body.set("score", score)
+        return json.writeValueAsString(body)
+    }
+
+    private fun draftBody(base: String, revision: Int, score: JsonNode): String {
+        val body = json.createObjectNode().put("baseScoreVersion", base).put("draftRevision", revision).put("title", "고치는 중")
+            .put("jangdanId", jangdanId.toString()).put("bpm", 72)
+        body.set("score", score)
+        return json.writeValueAsString(body)
+    }
+
+    private fun send(user: Long?, method: String, path: String, body: String?): HttpResponse<String> = client.send(
+        authorized(URI("http://localhost:$port$path"), user).header("Content-Type", "application/json")
+            .method(method, body?.let(HttpRequest.BodyPublishers::ofString) ?: HttpRequest.BodyPublishers.noBody()).build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
+
     private fun count(sql: String) = jdbc.queryForObject(sql, Int::class.java)!!
 
     private fun create(user: Long?, key: String, body: String): HttpResponse<String> = client.send(

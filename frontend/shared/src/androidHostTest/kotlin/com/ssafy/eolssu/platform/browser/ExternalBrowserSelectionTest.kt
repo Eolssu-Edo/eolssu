@@ -9,15 +9,29 @@ class ExternalBrowserSelectionTest {
         assertEquals("com.android.chrome", selectExternalBrowserPackage(
             defaultPackage = "com.nhn.android.search",
             customTabsPackages = listOf("com.android.chrome", "com.sec.android.app.sbrowser"),
-            viewHandlerPackages = setOf("com.nhn.android.search", "com.android.chrome", "com.sec.android.app.sbrowser"),
+            canOpenPackage = { it in setOf("com.android.chrome", "com.sec.android.app.sbrowser") },
         ))
+    }
+
+    @Test fun eachServiceProviderIsCheckedWithoutDependingOnGlobalWebHandlers() {
+        val checked = mutableListOf<String>()
+        val selected = selectExternalBrowserPackage(
+            defaultPackage = "com.nhn.android.search",
+            customTabsPackages = listOf("service.only", "com.android.chrome", "com.android.chrome"),
+            canOpenPackage = { candidate ->
+                checked += candidate
+                candidate == "com.android.chrome"
+            },
+        )
+        assertEquals("com.android.chrome", selected)
+        assertEquals(listOf("service.only", "com.android.chrome"), checked)
     }
 
     @Test fun supportedDefaultBrowserWinsEvenWhenListedLater() {
         assertEquals("com.sec.android.app.sbrowser", selectExternalBrowserPackage(
             defaultPackage = "com.sec.android.app.sbrowser",
             customTabsPackages = listOf("com.android.chrome", "com.sec.android.app.sbrowser"),
-            viewHandlerPackages = setOf("com.android.chrome", "com.sec.android.app.sbrowser"),
+            canOpenPackage = { it in setOf("com.android.chrome", "com.sec.android.app.sbrowser") },
         ))
     }
 
@@ -25,7 +39,7 @@ class ExternalBrowserSelectionTest {
         assertEquals("com.android.chrome", selectExternalBrowserPackage(
             defaultPackage = "service.only",
             customTabsPackages = listOf("service.only", "com.android.chrome"),
-            viewHandlerPackages = setOf("com.android.chrome"),
+            canOpenPackage = { it == "com.android.chrome" },
         ))
     }
 
@@ -33,12 +47,12 @@ class ExternalBrowserSelectionTest {
         assertNull(selectExternalBrowserPackage(
             defaultPackage = "com.nhn.android.search",
             customTabsPackages = emptyList(),
-            viewHandlerPackages = setOf("com.nhn.android.search"),
+            canOpenPackage = { it == "com.nhn.android.search" },
         ))
         assertNull(selectExternalBrowserPackage(
             defaultPackage = null,
             customTabsPackages = listOf("service.only"),
-            viewHandlerPackages = emptySet(),
+            canOpenPackage = { false },
         ))
     }
 }

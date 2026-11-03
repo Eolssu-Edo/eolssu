@@ -24,8 +24,11 @@ class AndroidExternalBrowser(private val context: Context) : ExternalBrowser {
             defaultPackage = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName,
             customTabsPackages = packageManager.queryIntentServices(Intent(CUSTOM_TABS_SERVICE_ACTION), 0)
                 .mapNotNull { it.serviceInfo?.takeIf { service -> service.exported }?.packageName },
-            viewHandlerPackages = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-                .mapNotNull { it.activityInfo?.takeIf { activity -> activity.exported }?.packageName }.toSet(),
+            // 전역 웹 Intent 조회는 기본 처리 앱만 남길 수 있으므로 제공자별로 확인한다.
+            canOpenPackage = { candidate ->
+                packageManager.resolveActivity(Intent(intent).setPackage(candidate), PackageManager.MATCH_DEFAULT_ONLY)
+                    ?.activityInfo?.let { it.exported && it.packageName == candidate } == true
+            },
         ) ?: return false
         intent.setPackage(browserPackage)
         return try {
@@ -43,8 +46,8 @@ private const val CUSTOM_TABS_SERVICE_ACTION = "android.support.customtabs.actio
 internal fun selectExternalBrowserPackage(
     defaultPackage: String?,
     customTabsPackages: List<String>,
-    viewHandlerPackages: Set<String>,
+    canOpenPackage: (String) -> Boolean,
 ): String? {
-    val candidates = customTabsPackages.filter { it in viewHandlerPackages }
+    val candidates = customTabsPackages.distinct().filter(canOpenPackage)
     return defaultPackage?.takeIf { it in candidates } ?: candidates.firstOrNull()
 }

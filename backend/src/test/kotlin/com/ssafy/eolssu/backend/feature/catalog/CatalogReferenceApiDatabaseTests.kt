@@ -229,6 +229,50 @@ class CatalogReferenceApiDatabaseTests {
         }
     }
 
+    @Test fun `registered frontend symbols expose original descriptions provenance and public images`() {
+        val items = body("/api/notation-symbols", staleCookie = true).path("items").toList()
+        assertEquals(49, items.size)
+        assertEquals(items.size, items.map { it.path("symbol").asString() }.distinct().size)
+        val hold = items.single { it.path("symbol").asString() == "ㅡ" }
+        assertEquals("이어요", hold.path("description").asString())
+        val inferred = items.single { it.path("symbol").asString() == "노라느니" }
+        assertEquals("INFERRED", inferred.path("descriptionStatus").asString())
+        assertTrue(inferred.path("source").asString().contains("추정"))
+        for (item in items) {
+            val path = "/api/notation-symbols/${item.path("symbolId").asString()}/image"
+            assertEquals(path, item.path("imageUrl").asString())
+            val image = get(path, staleCookie = true)
+            assertEquals(200, image.statusCode(), image.body())
+            assertTrue(image.headers().firstValue("Content-Type").orElse("").startsWith("image/svg+xml"))
+            assertTrue(image.body().contains("<svg"))
+            if (item.path("imageLicense").asString() == "MIT") assertTrue(image.body().contains("Copyright (c) 2026 Danbinaerin Han"))
+        }
+        assertError("/api/notation-symbols/9223372036854775807/image", 404, "RESOURCE_NOT_FOUND")
+        assertError("/api/notation-symbols/01/image", 400, "INVALID_REQUEST")
+    }
+
+    @Test fun `seed replay preserves custom content and distinct width aliases without claiming bundled provenance`() {
+        val hold = jdbc.queryForMap("SELECT id,description FROM notation_symbols WHERE symbol='ㅡ'")
+        val holdId = (hold["id"] as Number).toLong()
+        try {
+            jdbc.update("UPDATE notation_symbols SET description='custom teaching content' WHERE id=?", holdId)
+            jdbc.update("INSERT INTO notation_symbols (id,symbol,name,description) VALUES (992886,'－','custom fullwidth','keep fullwidth'),(992887,'-','custom ASCII','keep ASCII')")
+            val before = jdbc.queryForList("SELECT * FROM notation_symbols ORDER BY id")
+            org.springframework.jdbc.datasource.init.ResourceDatabasePopulator(
+                org.springframework.core.io.ClassPathResource("db/migration/V19__seed_notation_symbols.sql")
+            ).execute(jdbc.dataSource!!)
+            assertEquals(before, jdbc.queryForList("SELECT * FROM notation_symbols ORDER BY id"))
+            val changed = body("/api/notation-symbols").path("items").toList().single { it.path("symbolId").asString() == holdId.toString() }
+            assertEquals("custom teaching content", changed.path("description").asString())
+            assertTrue(changed.path("source").isNull)
+            assertTrue(changed.path("descriptionStatus").isNull)
+            assertTrue(changed.path("imageUrl").isNull)
+            assertError("/api/notation-symbols/$holdId/image", 404, "RESOURCE_NOT_FOUND")
+        } finally {
+            jdbc.update("UPDATE notation_symbols SET description=? WHERE id=?", hold["description"], holdId)
+        }
+    }
+
     private fun seedInstrumentRange() {
         for ((id,yul,semitone) in listOf(Triple(992881,"CAT288L",-10), Triple(992880,"CAT288M",-9),
             Triple(992879,"CAT288H",-8), Triple(992882,"CAT288X",-7))) {

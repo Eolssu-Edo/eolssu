@@ -135,6 +135,30 @@ class ReferenceCatalogRepositoryTest {
         } finally { client.close() }
     }
 
+    @Test fun symbolImagePathIsResolvedOnlyForItsOwnIdAndPreservesProvenance() = runTest {
+        val server = ServerAddress("http://127.0.0.1:18081/ignored?discard=1#fragment")
+        val client = createHttpClient(MockEngine {
+            respond(envelope("""{"items":[{"symbolId":"17","symbol":"노라느니","name":"노라느니","description":"기존 설명","imageUrl":"/api/notation-symbols/17/image","source":"우물사이 추정","descriptionStatus":"INFERRED","imageLicense":"MIT"}]}"""), headers = jsonHeaders)
+        }, server)
+        try {
+            val symbol = ApiReferenceCatalogRepository(client).symbols().single()
+            assertEquals("http://127.0.0.1:18081/api/notation-symbols/17/image", symbol.imageUrl)
+            // 새 필드는 wire 단계에서 보존되고 기존 설명은 바뀌지 않는다.
+            assertEquals("기존 설명", symbol.description)
+            assertEquals("우물사이 추정", symbol.source)
+            assertEquals("INFERRED", symbol.descriptionStatus)
+            assertEquals("MIT", symbol.imageLicense)
+        } finally { client.close() }
+    }
+
+    @Test fun unregisteredOrForeignRelativeImagePathsFail() = runTest {
+        for (path in listOf("/api/notation-symbols/18/image", "//evil.test/x", "/api/notation-symbols/17/image?x=1", "/api/users/me", "/api/notation-symbols/../image")) {
+            val client = client("""{"items":[{"symbolId":"17","symbol":"△","name":"쉼표","description":"설명","imageUrl":"$path"}]}""")
+            try { assertFailsWith<CatalogUnavailable> { ApiReferenceCatalogRepository(client).symbols() } }
+            finally { client.close() }
+        }
+    }
+
     @Test fun invalidIdsNeverBecomeRequests() = runTest {
         var count = 0
         val client = createHttpClient(MockEngine { count++; respond("{}") }, ServerAddress.Production)

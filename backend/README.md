@@ -51,11 +51,17 @@ S15P31E102-409의 V18은 [내장 운지 계약](../docs/specs/builtin-fingering-
 
 S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다. 생략하면 기존 전체 목록, 지정하면 활성 악기의 게시·미삭제 곡만 ID 순서로 반환합니다. 잘못된 ID는400, 없는/비활성 악기는404, 곡이 없는 활성 악기는200 빈 목록입니다. [곡 목록 악기 필터](../docs/specs/song-instrument-filter.md)의 FE 선택과 연결되며 검증은 `SongControllerTests`와 실제 MySQL·HTTP의 `SongInstrumentApiDatabaseTests`를 사용합니다.
 
-S15P31E102-411: V19의 자진모리·중중모리와 V20의 엇모리·단모리·타령·계면가락도드리·세령산으로 장단 카탈로그10종을 제공합니다. 기존 ID·곡·음원은 보존합니다. 정악3종의 시작 BPM48·48·63(QUARTER)은 사용자 승인 서비스값이며 원전 확정 빠르기가 아닙니다. [근거·검증](../docs/knowledge/backend/jangdan-catalog-extension.md)을 확인합니다. 운영 기동의 Flyway는 꺼져 있고, 실제 배포 시 [배포 마이그레이션 단계](../docs/knowledge/infra/ops-flyway-auto-migration.md)가 별도로 적용합니다. 이번 작업은 로컬 검증이며 배포는 실행하지 않습니다.
+S15P31E102-411: V21의 자진모리·중중모리와 V22의 엇모리·단모리·타령·계면가락도드리·세령산으로 장단 카탈로그10종을 제공합니다. 기존 ID·곡·음원은 보존합니다. 정악3종의 시작 BPM48·48·63(QUARTER)은 사용자 승인 서비스값이며 원전 확정 빠르기가 아닙니다. [근거·검증](../docs/knowledge/backend/jangdan-catalog-extension.md)을 확인합니다. 운영 기동의 Flyway는 꺼져 있고, 실제 배포 시 [배포 마이그레이션 단계](../docs/knowledge/infra/ops-flyway-auto-migration.md)가 별도로 적용합니다. 이번 작업은 로컬 검증이며 배포는 실행하지 않습니다.
 
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.
+
+### 정간보 기호 사전(CAT-09)
+
+[410 계약](../docs/specs/notation-symbol-catalog.md)의 V19은 기존 FE 시김새 그림47개와 쉼표·연장2개를 등록하며, 같은 symbol의 기존 행은 보존합니다. DB 행의 이름·설명·이미지 상태가 번들 내용과 일치할 때만 출처·검수 상태와 `/api/notation-symbols/{symbolId}/image`를 제공합니다. 이미지는 MIT 고지를 포함한 SVG이며 공개 GET만 허용합니다. 노라느니는 추정 설명입니다. 운영은 V18 다음 V19 적용과 새 서버 배포를 별도로 준비해야 하며, 이 작업에서 운영 적용은 하지 않았습니다.
+
+사전 원본 대조는 저장소 루트에서 `python backend/tools/sync_notation_symbols.py --check`로 실행합니다. FE VectorDrawable의 path·group과 설명을 그대로 SVG·사전으로 옮겼는지 확인합니다. 생성 스크립트는 V19 배포 전 스냅샷용이며, 배포 후 변경에는 새 마이그레이션을 추가해야 합니다. 실제 DB/HTTP·이미지·기존 행 보존 검사는 `CatalogReferenceApiDatabaseTests`에 있습니다.
 
 ### 기본음·시김새 음원 카탈로그
 
