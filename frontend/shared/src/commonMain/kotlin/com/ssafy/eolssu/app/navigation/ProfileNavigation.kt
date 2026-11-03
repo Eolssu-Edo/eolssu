@@ -38,7 +38,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
     }
     composable(ProfileDestination.MY_PAGE) { entry ->
         MyPageRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onOpen = { target ->
                 navController.navigate(
                     when (target) {
@@ -55,21 +55,21 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             onStartMessageShown = entry::clearStartNotice,
         )
     }
-    composable(ProfileDestination.NICKNAME) {
+    composable(ProfileDestination.NICKNAME) { entry ->
         NicknameEditRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onSaved = { navController.popWithNotice(StartNotice.NicknameChanged) },
         )
     }
-    composable(ProfileDestination.PASSWORD) {
+    composable(ProfileDestination.PASSWORD) { entry ->
         PasswordChangeRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onChanged = { navController.popWithNotice(StartNotice.MyPasswordChanged) },
         )
     }
-    composable(ProfileDestination.WITHDRAW) {
+    composable(ProfileDestination.WITHDRAW) { entry ->
         WithdrawRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onWithdrawn = { toLogin(StartNotice.Withdrawn) },
         )
     }
@@ -80,7 +80,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
         val provider = entry.linkProvider()
         SocialLinkRoute(
             provider = provider,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onLinked = { navController.popWithNotice(StartNotice.MyAccountLinked, provider) },
         )
     }

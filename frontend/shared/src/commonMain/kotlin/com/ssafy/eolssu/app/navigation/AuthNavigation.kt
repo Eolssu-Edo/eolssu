@@ -205,7 +205,7 @@ fun NavGraphBuilder.authGraph(
         val name = entry.savedStateHandle.get<String>("agreement")
         TermsRoute(
             termId = name.orEmpty(),
-            onClose = { navController.popBackStack() },
+            onClose = { navController.popBackStackFrom(entry) },
         )
     }
     composable(AuthDestination.MIC) {
@@ -245,7 +245,7 @@ fun NavGraphBuilder.authGraph(
         val draft = getKoin().get<AccountDraft>()
         OAuthRoute(
             provider = provider,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onLoggedIn = { onFinished(null, null) },
             onLinkAvailable = { fromLogin(AuthDestination.link(provider)) },
             onSocialSignUp = { fromLogin(draft.signUpRoute(SignUpNext.Social)) },
@@ -262,9 +262,9 @@ fun NavGraphBuilder.authGraph(
             onStart = { fromLogin(next.route) },
         )
     }
-    composable(AuthDestination.SOCIAL_PROFILE) {
+    composable(AuthDestination.SOCIAL_PROFILE) { entry ->
         ProfileSetupRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { onFinished(StartNotice.Welcome, null) },
             social = true,
         )
@@ -272,17 +272,17 @@ fun NavGraphBuilder.authGraph(
     composable(
         AuthDestination.LINK,
         arguments = listOf(navArgument("provider") { type = NavType.StringType }),
-    ) {
+    ) { entry ->
         AccountLinkRoute(
-            onCancel = { navController.popBackStack() },
+            onCancel = { navController.popBackStackFrom(entry) },
             onFindPassword = { fromLogin(AuthDestination.PASSWORD_RESET) },
             onLinked = { onFinished(StartNotice.AccountLinked, it) },
         )
     }
-    composable(AuthDestination.SIGNUP) {
+    composable(AuthDestination.SIGNUP) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.SignUp,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.SIGNUP_PASSWORD, it) },
         )
     }
@@ -290,20 +290,20 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.SignUp,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { navController.navigate(AuthDestination.PROFILE) },
         )
     }
-    composable(AuthDestination.PROFILE) {
+    composable(AuthDestination.PROFILE) { entry ->
         ProfileSetupRoute(
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onDone = { onFinished(StartNotice.Welcome, null) },
         )
     }
-    composable(AuthDestination.PASSWORD_RESET) {
+    composable(AuthDestination.PASSWORD_RESET) { entry ->
         EmailVerificationRoute(
             purpose = VerificationPurpose.PasswordReset,
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             onVerified = { navController.navigateWithVerifiedEmail(AuthDestination.PASSWORD_RESET_NEW, it) },
         )
     }
@@ -311,7 +311,7 @@ fun NavGraphBuilder.authGraph(
         PasswordSetupRoute(
             purpose = VerificationPurpose.PasswordReset,
             email = entry.verifiedEmail(),
-            onBack = { navController.popBackStack() },
+            onBack = { navController.popBackStackFrom(entry) },
             // 바꾼 뒤 자동 로그인하지 않고 새 로그인 화면에서 다시 로그인한다.
             onDone = {
                 navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.PasswordChanged) {
