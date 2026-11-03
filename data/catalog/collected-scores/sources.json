@@ -1156,6 +1156,55 @@
       "originalFilename": "새야새야_정간보_소금_표준악보집-PDF187.pdf",
       "instrument": "sogeum",
       "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
+    },
+    {
+      "id": "school-textbook-sogeum-p14",
+      "kind": "score",
+      "title": "소금 연습곡 1·2 정간보(학교 교과서 발췌)",
+      "sha256": "111a1de6cc140630c327c3a50e3b360c6860c8549ccafbd7da84988002d0f300",
+      "bytes": 612495,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": null,
+      "collection": null,
+      "sourceVerified": false,
+      "license": null,
+      "attribution": null,
+      "verifiedOn": "2026-11-03",
+      "redistribution": null,
+      "rawPath": "data/raw/scores/school-textbook-sogeum-p14/기초연습곡1·2_정간보_소금_학교교과서-PDF14.pdf",
+      "originalFilename": "기초연습곡1·2_정간보_소금_학교교과서-PDF14.pdf",
+      "instrument": "sogeum",
+      "notes": "학교 교과서 발췌. 교과서 이름·출판사·이용 조건 미확인. S15P31E102-403."
+    },
+    {
+      "kind": "score",
+      "id": "ngc-standard-2022-p202",
+      "title": "북천이 맑다커늘 소금 정간보",
+      "sha256": "483f47443725466b49e81ecaa283b3e4a49783df7a99a3a5f271b7451a1f7d7a",
+      "bytes": 795089,
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "2022 국립국악원 개정교과서 표준악보집",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "verifiedOn": "2026-11-03",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "rawPath": "data/raw/scores/ngc-standard-2022-p202/북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.pdf",
+      "originalFilename": "북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.pdf",
+      "instrument": "sogeum",
+      "notes": "팀 소금 악보 묶음 사본. 파일명의 쪽수 기준. 출처 원문 별도 확인 전. S15P31E102-403."
     }
   ]
 }

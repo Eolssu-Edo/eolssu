@@ -187,9 +187,9 @@ def convert_answer(source_id, data=DATA):
         bpm_unit = song["bpmUnit"]
     return convert(json.loads(jgb.read_text(encoding="utf-8")),
                    beats_per_jeonggan=Fraction(review["sourceValues"]["beatsPerJeonggan"]),
-                   title=song["title"], instrument=song["instrument"], source_id=source_id,
+                   title=song["title"], instrument=song["instrument"], source_id=review["sourceId"],
                    jangdan=song["jangdan"], bpm_unit=bpm_unit, review=review["review"],
-                   jgb_sha256=hashlib.sha256(jgb.read_bytes()).hexdigest())
+                   jgb_sha256=hashlib.sha256(jgb.read_bytes()).hexdigest(), part=song.get("part"))
 
 
 def check(result, data=DATA):

@@ -251,6 +251,24 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual((result["music"]["jangdan"], result["music"]["bpmUnit"]), ("", "QUARTER"))
         self.assertEqual(result["provenance"]["review"], "reviewed")
 
+    def test_two_exercises_share_a_source_but_keep_separate_answers(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for number in (1, 2):
+            result = convert_answer(f"school-textbook-sogeum-p14-exercise-{number}")
+            jsonschema.validate(result, schema)
+            self.assertEqual(check(result), [])
+            self.assertEqual(result["score"]["sourceId"], "school-textbook-sogeum-p14")
+            self.assertEqual(result["score"]["title"], f"소금 연습곡 {number}")
+            self.assertEqual(result["provenance"]["review"], "reviewed")
+
+    def test_reviewed_sogeum_second_part_uses_the_original_two_part_document(self):
+        result = convert_answer("ngc-standard-2022-p202-part-2")
+        jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(result), [])
+        self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 1))
+        self.assertEqual(len(result["events"]), 67)
+        self.assertEqual(result["provenance"]["review"], "reviewed")
+
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
