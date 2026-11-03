@@ -94,7 +94,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 
 ## 악보 인식 API
 
-backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 뼈대만 있어 엔진이 연결되지 않았고, 올바른 파일도 `ENGINE_ERROR`로 끝납니다(S15P31E102-313 U2·U3·U5에서 연결).
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF만 읽습니다. 스캔 PDF·사진 정간보(U3)와 오선보(U5)는 연결 전이라 `ENGINE_ERROR`로 끝납니다(S15P31E102-313).
 
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
@@ -105,7 +105,9 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 3. `notation`에 맞는 엔진을 돌립니다. 요청 시작부터 내려받기·쪽 그림·엔진까지 쪽당 30초 × 쪽 수를 넘으면 `TIMEOUT`입니다. 이미지는 내려받기부터 장 수 기준이고, 쪽 수를 열어 봐야 아는 PDF는 내려받기와 PDFium 대기에 300초까지 씁니다. 내려받기는 읽기 한 번 제한(10초)만큼 넘길 수 있습니다. 마감 전에 저장소가 늦어 받지 못하면 `UNSUPPORTED_FILE`입니다. 마감은 PDF 쪽을 그리기 전마다 보므로, 마감 직전에 시작한 쪽 하나와 이미지 열기는 끝까지 마친 뒤 `TIMEOUT`이 됩니다(빈 A4 300dpi 쪽 0.6초, 복잡한 쪽은 더 걸릴 수 있음).
 4. 형식 오류(422) 말고는 예상하지 못한 오류도 200 `ENGINE_ERROR`로 돌려줍니다.
 
-PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
+정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
+
+PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`·`pymupdf`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
 
 ## 실행 이미지
 

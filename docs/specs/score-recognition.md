@@ -112,6 +112,14 @@ POST /v1/recognitions
 
 어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.
 
+### 정간보 글자 층 경로 (313 U2)
+
+- 쪽마다 글자 층을 읽어 각을 이어 붙인다. 율명 글자가 없는 쪽이 하나라도 있으면 그림(OMR) 경로로 넘긴다. 율명은 있지만 정간 격자를 못 읽으면 `NO_GRID_FOUND`다.
+- 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음).
+- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치를 둔다. `eventId`·`cellId`는 비운다.
+- `engine` `jeongganbo-text`, `provenance.converter` `jeongganbo-text/standard_score_text`. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
+- 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422).
+
 ## 오선보 → 정간보 기본값
 
 | 항목 | 기본값 | issue |

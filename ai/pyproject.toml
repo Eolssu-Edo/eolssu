@@ -21,6 +21,7 @@ eval = ["torchcrepe>=0.0.23"]
 # 악보 인식 서비스(omr_service, 별도 컨테이너) 전용. PDF 쪽 그림화·이미지 읽기.
 omr = [
     "pillow>=13.0.0",
+    "pymupdf>=1.26,<1.27",  # 2.x는 쓰지 않는 onnxruntime·pymupdf4llm을 함께 받는다
     "pypdfium2>=5.14.0",
 ]
 

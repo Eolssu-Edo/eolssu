@@ -23,6 +23,8 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
+from omr_service import jeongganbo_text
+
 MAX_TOTAL_BYTES = 20 * 1024 * 1024  # 파일·합계 20MiB(382)
 MAX_PDF_PAGES = 10
 MAX_IMAGES = 10
@@ -92,6 +94,8 @@ class RecognitionIn(_Camel):
             raise ValueError("a PDF must be the only file")
         if self.notation == "JEONGGANBO" and not self.jangdan:
             raise ValueError("jangdan is required for JEONGGANBO")
+        if self.jangdan and self.jangdan not in jeongganbo_text.JANGDANS:
+            raise ValueError("unknown jangdan")  # data/reference/jangdans.json의 name
         return self
 
 
@@ -152,7 +156,17 @@ def get_fetcher() -> Fetcher:
 
 
 def get_engines() -> dict[str, Engine]:
-    return {}  # 정간보(U2·U3)·오선보(U5) 엔진을 연결하기 전이라 비어 있다
+    return {"JEONGGANBO": recognize_jeongganbo}  # 오선보(U5)는 연결 전
+
+
+def recognize_jeongganbo(job: Job) -> dict:
+    """글자 층이 있는 PDF는 글자로 읽는다. 그 밖(스캔 PDF·사진)은 정간보 OMR 경로다."""
+    if job.kind == "PDF":
+        try:
+            return jeongganbo_text.recognize(job)
+        except jeongganbo_text.NoTextLayer:
+            pass
+    raise RuntimeError("jeongganbo OMR is not connected yet")  # U3에서 연결한다. 그 전에는 ENGINE_ERROR
 
 
 @app.get("/health")
