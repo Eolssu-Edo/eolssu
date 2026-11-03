@@ -68,9 +68,16 @@ class PlanTests(unittest.TestCase):
 
     def test_plan_breaths_are_the_reviewed_answer_breaths(self):
         # 교과서 우선, 없으면 표준악보집. 운영 곡과 정답의 짝(이벤트 일치는 2026-11-03 운영 읽기로 확인)
-        self.assertEqual([(p['songId'], p['answer']) for p in tool.load_plan(ROOT / 'infra/catalog/scoring-plans/sogeum.json')],
-                         [(96, 'school-textbook-sogeum-p15'), (93, 'school-textbook-sogeum-p16'),
-                          (95, 'ngc-standard-2022-p193'), (91, 'ngc-standard-2022-p196')])
+        self.assertEqual({p['songId']: p['answer'] for p in tool.load_plan(ROOT / 'infra/catalog/scoring-plans/sogeum.json')},
+                         {96: 'school-textbook-sogeum-p15', 93: 'school-textbook-sogeum-p16',
+                          95: 'ngc-standard-2022-p193', 91: 'ngc-standard-2022-p196',
+                          89: 'ngc-standard-2022-p188', 90: 'ngc-standard-2022-p191',
+                          94: 'ngc-standard-2022-p199', 102: 'school-textbook-sogeum-p14-exercise-1',
+                          103: 'school-textbook-sogeum-p14-exercise-2', 105: 'ngc-standard-2022-p202-part-2',
+                          106: 'ngc-standard-2022-p187', 98: 'ngc-standard-2022-p189',
+                          99: 'ngc-standard-2022-p198', 100: 'ngc-standard-2022-p197',
+                          101: 'ngc-standard-2022-p195', 108: 'ngc-standard-2022-p200',
+                          110: 'ngc-standard-2022-p201', 111: 'ngc-standard-2022-p190'})
         for item in tool.load_plan(ROOT / 'infra/catalog/scoring-plans/sogeum.json'):
             answer = convert_answer(item['answer'])
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
