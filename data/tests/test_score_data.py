@@ -234,6 +234,16 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
             self.assertEqual(result["provenance"]["review"], "reviewed", source_id)  # 채점을 켜는 정답은 사람 검수를 마친 것만
 
+    def test_three_reviewed_sogeum_scores_are_valid(self):
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        for source_id, title in (("ngc-standard-2022-p188", "개구리소리"),
+                                 ("ngc-standard-2022-p191", "구아리랑"),
+                                 ("ngc-standard-2022-p199", "몽금포타령")):
+            result = convert_answer(source_id)
+            jsonschema.validate(result, schema)
+            self.assertEqual(check(result), [], source_id)
+            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "reviewed"))
+
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
