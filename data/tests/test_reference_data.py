@@ -104,9 +104,12 @@ class PitchFrequencyTests(unittest.TestCase):
 
 
 class JangdanTableTests(unittest.TestCase):
-    # 기획 S15P31E102-141 "장단별 빠르기 및 근거"의 기본 BPM·클릭 단위와 backend V2 bpm_unit
+    # 기존3종은 기획141, 추가7종은 Task411의 공식 기본형·승인된 서비스 시작값.
     EXPECTED = {"세마치": (96, "DOTTED_QUARTER", 9), "굿거리": (66, "DOTTED_QUARTER", 12),
-                "중모리": (88, "QUARTER", 12)}
+                "중모리": (88, "QUARTER", 12), "자진모리": (96, "DOTTED_QUARTER", 12),
+                "중중모리": (80, "DOTTED_QUARTER", 12), "엇모리": (90, "QUARTER", 10),
+                "단모리": (120, "QUARTER", 8), "타령": (48, "QUARTER", 12),
+                "계면가락도드리": (48, "QUARTER", 12), "세령산": (63, "QUARTER", 10)}
 
     def test_jangdans_match_planning_tempo_and_unit(self):
         rows = {r["name"]: r for r in load("jangdans.json")["rows"]}

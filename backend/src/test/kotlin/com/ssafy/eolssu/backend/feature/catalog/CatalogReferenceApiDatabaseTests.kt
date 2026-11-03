@@ -155,6 +155,62 @@ class CatalogReferenceApiDatabaseTests {
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
     }
 
+    @Test fun `sourced additional rhythms are public without changing the original catalog or songs`() {
+        val items = body("/api/jangdans", staleCookie = true).path("items").toList()
+        assertEquals(listOf("1", "2", "3", "4", "5"), items.take(5).map { it.path("jangdanId").asString() })
+        assertEquals(listOf("세마치", "굿거리", "중모리", "자진모리", "중중모리"), items.take(5).map { it.path("name").asString() })
+        val expected = listOf(
+            Triple("4", 96, listOf("떵", "", "덕", "쿵", "덕", "", "떵", "", "덕", "쿵", "덕", "")),
+            Triple("5", 80, listOf("덩", "", "따", "궁", "따", "따", "궁", "궁", "따", "궁", "", "궁")),
+        )
+        for ((id, bpm, beats) in expected) {
+            val summary = items.single { it.path("jangdanId").asString() == id }
+            val detail = body("/api/jangdans/$id", staleCookie = true)
+            assertEquals(bpm, detail.path("defaultBpm").asInt())
+            assertEquals("DOTTED_QUARTER", detail.path("bpmUnit").asString())
+            assertEquals(beats, detail.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(listOf(3, 3, 3, 3), detail.path("pattern").path("group").toList().map { it.asInt() })
+            assertEquals(12, summary.path("beatCount").asInt())
+            assertEquals(4, summary.path("groupCount").asInt())
+            assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
+            assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
+            assertTrue(detail.path("source").asString().contains("https://"))
+            assertTrue(detail.path("soundUrl").isNull)
+        }
+        assertEquals(listOf("1 세마치 96 DOTTED_QUARTER", "2 굿거리 66 DOTTED_QUARTER", "3 중모리 88 QUARTER"),
+            jdbc.queryForList("SELECT CONCAT(id,' ',name,' ',default_bpm,' ',bpm_unit) FROM jangdans WHERE id<=3 ORDER BY id", String::class.java))
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id IN (4,5)", Int::class.java))
+    }
+
+    @Test fun `remaining rhythms preserve source syllables groups and chosen quarter tempo without linking songs`() {
+        data class Expected(val id: String, val name: String, val bpm: Int, val beats: List<String>, val groups: List<Int>)
+        val expected = listOf(
+            Expected("6", "엇모리", 90, listOf("덩", "", "덕", "쿵", "", "쿵", "", "덕", "쿵", ""), listOf(3,2,3,2)),
+            Expected("7", "단모리", 120, listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2,2,2,2)),
+            Expected("8", "타령", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("9", "계면가락도드리", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+            Expected("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
+        )
+        val items = body("/api/jangdans", staleCookie = true).path("items").toList()
+        assertEquals((1..10).map(Int::toString), items.map { it.path("jangdanId").asString() })
+        for (e in expected) {
+            val summary = items.single { it.path("jangdanId").asString() == e.id }
+            val detail = body("/api/jangdans/${e.id}", staleCookie = true)
+            assertEquals(e.name, detail.path("name").asString())
+            assertEquals(e.bpm, detail.path("defaultBpm").asInt())
+            assertEquals("QUARTER", detail.path("bpmUnit").asString())
+            assertEquals(e.beats, detail.path("pattern").path("beats").toList().map { it.asString() })
+            assertEquals(e.groups, detail.path("pattern").path("group").toList().map { it.asInt() })
+            assertEquals(e.beats.size, summary.path("beatCount").asInt())
+            assertEquals(e.groups.size, summary.path("groupCount").asInt())
+            assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
+            assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
+            assertTrue(detail.path("source").asString().contains("https://"))
+            assertTrue(detail.path("soundUrl").isNull)
+        }
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
+    }
+
     @Test fun `invalid stored jangdan shapes are rejected without publishing misleading rhythm data`() {
         jdbc.update("INSERT INTO jangdans (id,name,pattern,default_bpm,bpm_unit) VALUES (992888,'CAT288_PATTERN','{}',96,'DOTTED_QUARTER')")
         for (pattern in listOf("{}", "[]", """{"beats":["떵"],"group":[2]}""",
