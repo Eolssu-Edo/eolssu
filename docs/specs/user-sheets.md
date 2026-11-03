@@ -7,7 +7,7 @@
 ## 범위
 
 - 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성, SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
-- 413에서 추가: V19 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
+- 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
 - 제외: PDF·이미지·오선보 변환(SHT-07·10)과 확인 필요 칸, MIDI·M4A 다운로드(SHT-12·13), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
 ## 공통
@@ -28,7 +28,7 @@
 | `score_version` | 1부터. JSON의 `score.scoreVersion`과 같게 유지한다. |
 | `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(현재 항상 0). |
 | `idempotency_key`, `request_hash` | SHT-03 중복 방지. 회원·키 유일. |
-| `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V19. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
+| `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
 ## SHT-03 `POST /api/users/me/sheets`
 
