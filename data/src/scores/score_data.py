@@ -180,11 +180,15 @@ def convert_answer(source_id, data=DATA):
     review = json.loads(review_path.read_text(encoding="utf-8"))
     songs = [s for s in _rows(data, "songs.json") if s["source"] == source_id]
     (song,) = songs or [review["song"]]
-    (jangdan,) = [j for j in _rows(data, "jangdans.json") if j["name"] == song["jangdan"]]
+    if song["jangdan"]:
+        (jangdan,) = [j for j in _rows(data, "jangdans.json") if j["name"] == song["jangdan"]]
+        bpm_unit = jangdan["bpm_unit"]
+    else:
+        bpm_unit = song["bpmUnit"]
     return convert(json.loads(jgb.read_text(encoding="utf-8")),
                    beats_per_jeonggan=Fraction(review["sourceValues"]["beatsPerJeonggan"]),
                    title=song["title"], instrument=song["instrument"], source_id=source_id,
-                   jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review=review["review"],
+                   jangdan=song["jangdan"], bpm_unit=bpm_unit, review=review["review"],
                    jgb_sha256=hashlib.sha256(jgb.read_bytes()).hexdigest())
 
 

@@ -244,6 +244,13 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
             self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "reviewed"))
 
+    def test_reviewed_song_without_jangdan_uses_its_recorded_beat_unit(self):
+        result = convert_answer("ngc-standard-2022-p187")
+        jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
+        self.assertEqual(check(result), [])
+        self.assertEqual((result["music"]["jangdan"], result["music"]["bpmUnit"]), ("", "QUARTER"))
+        self.assertEqual(result["provenance"]["review"], "reviewed")
+
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
         result = convert_answer("school-textbook-sogeum-p16")
