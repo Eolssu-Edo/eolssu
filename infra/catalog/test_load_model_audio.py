@@ -13,6 +13,19 @@ import load_model_audio as loader
 
 
 class LoadTests(unittest.TestCase):
+    def test_reference_reuse_accepts_published_expanded_instrument_without_changing_identity(self):
+        reference = {"code": "SOGEUM", "name": "소금", "lowSemitone": 7, "highSemitone": 31,
+                     "pitchToleranceCent": 50, "isActive": False}
+        model = {"rows": [], "references": {"pitches": [], "jangdans": [], "instruments": [reference]}}
+        observed = dict(reference, lowSemitone=5, highSemitone=33, isActive=True)
+        inventory = {"pitches": [], "jangdans": [], "instruments": [{"code": "DANSO"}, observed], "songs": [], "audios": []}
+        self.assertEqual(loader.verify_inventory(model, inventory), {})
+        for changed in (dict(observed, lowSemitone=8), dict(observed, highSemitone=30),
+                        dict(observed, name="다른 악기"), dict(observed, pitchToleranceCent=0)):
+            inventory["instruments"][1] = changed
+            with self.subTest(changed=changed), self.assertRaises(ValueError):
+                loader.verify_inventory(model, inventory)
+
     def test_metadata_normalization_accepts_mysql_double_roundtrip_only_at_numeric_leaves(self):
         original = {"seconds": 0.15789473684210525, "review": False, "level": 2}
         self.assertTrue(loader.same_json(original, dict(original, seconds=0.15789473684210523)))

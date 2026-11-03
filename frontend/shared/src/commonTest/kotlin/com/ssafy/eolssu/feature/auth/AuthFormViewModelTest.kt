@@ -122,11 +122,11 @@ class AuthFormViewModelTest {
     }
 
     @Test
-    fun profileStartsWithDansoAndOffersOnlyThreeInstruments() = runTest {
+    fun profileStartsWithDansoAndOffersFourInstruments() = runTest {
         val state = profileSetup().uiState.value
 
         assertEquals(Instrument.Danso, state.instrument)
-        assertEquals(listOf(Instrument.Daegeum, Instrument.Sogeum, Instrument.Danso), state.instruments)
+        assertEquals(listOf(Instrument.DaegeumJeongak, Instrument.DaegeumSanjo, Instrument.Sogeum, Instrument.Danso), state.instruments)
     }
 
     @Test
@@ -139,7 +139,7 @@ class AuthFormViewModelTest {
         val viewModel = ProfileSetupViewModel(instruments, users,
             object : AuthRepository by SampleAuthRepository({ 0L }) { override suspend fun signUp(request: Registration) = MemberResult.Done },
             AccountDraft().apply { email = "member@example.test"; token = "verified"; password = "test-pass1!"; purpose = VerificationPurpose.SignUp; agreements = listOf(TermAgreement("1", "v1", true)) })
-        viewModel.selectInstrument(Instrument.Daegeum)
+        viewModel.selectInstrument(Instrument.DaegeumJeongak)
 
         assertFalse(viewModel.complete())
         assertEquals(FieldError.NicknameEmpty, viewModel.uiState.value.nicknameError)

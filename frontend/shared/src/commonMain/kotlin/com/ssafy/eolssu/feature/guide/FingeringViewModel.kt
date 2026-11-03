@@ -51,11 +51,12 @@ class FingeringViewModel(
         _uiState.update { it.copy(catalogState = ReferenceLoadState.Loading) }
         catalogJob = viewModelScope.launch {
             try {
-                // 단소·소금은 기존 앱 code 계약과 대응한다. 대금 두 유형의 서버 code는 아직 확정되지 않았다.
+                // Variant identity follows the server code, never a shared DAEGEUM fallback or enum position.
                 val code = when (selected) {
                     GuideInstrument.Danso -> "DANSO"
                     GuideInstrument.Sogeum -> "SOGEUM"
-                    GuideInstrument.DaegeumJeongak, GuideInstrument.DaegeumSanjo -> null
+                    GuideInstrument.DaegeumJeongak -> "JEONGAK_DAEGEUM"
+                    GuideInstrument.DaegeumSanjo -> "SANJO_DAEGEUM"
                 }
                 val instrument = instruments.load().firstOrNull { it.code == code }
                 if (instrument == null) {

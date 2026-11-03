@@ -101,7 +101,7 @@ class SongListUiStateTest {
         fun song(id: String, code: String?, evaluable: Boolean = true) =
             SongSummary(id, id, 1, "세마치", 60, evaluable, instrumentCode = code)
 
-        assertEquals(Instrument.Daegeum, SongListUiState(songs = listOf(song("a", "DAEGEUM"), song("b", "DAEGEUM"))).instrument)
+        assertEquals(Instrument.DaegeumJeongak, SongListUiState(songs = listOf(song("a", "JEONGAK_DAEGEUM"), song("b", "JEONGAK_DAEGEUM"))).instrument)
         assertEquals(
             Instrument.Danso,
             SongListUiState(songs = listOf(song("a", "DANSO"), song("b", "DAEGEUM", evaluable = false))).instrument,

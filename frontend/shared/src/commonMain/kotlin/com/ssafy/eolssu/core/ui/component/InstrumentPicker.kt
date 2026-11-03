@@ -46,28 +46,32 @@ fun InstrumentPicker(
                 color = colors.text,
             )
         }
-        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            instruments.forEach { instrument ->
-                val isSelected = instrument == selected
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(76.dp)
-                        .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(instrument) }),
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) colors.primary else colors.surface,
-                    contentColor = if (isSelected) colors.onPrimary else colors.text,
-                    border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.lineSoft),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            stringResource(instrument.label),
-                            style = EolssuTheme.serif.headline.copy(
-                                fontSize = 21.sp,
-                                lineHeight = 28.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                            ),
-                        )
+        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            instruments.chunked(2).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { instrument ->
+                        val isSelected = instrument == selected
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(76.dp)
+                                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(instrument) }),
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSelected) colors.primary else colors.surface,
+                            contentColor = if (isSelected) colors.onPrimary else colors.text,
+                            border = BorderStroke(1.dp, if (isSelected) colors.primary else colors.lineSoft),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    stringResource(instrument.label),
+                                    style = EolssuTheme.serif.headline.copy(
+                                        fontSize = 21.sp,
+                                        lineHeight = 28.sp,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }
