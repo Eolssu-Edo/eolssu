@@ -267,14 +267,14 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(check(result), [])
         self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 1))
         self.assertEqual(len(result["events"]), 67)
-        self.assertEqual(result["provenance"]["review"], "reviewed")
+        self.assertEqual(result["provenance"]["review"], "inferred")
 
     def test_reviewed_sogeum_first_part_preserves_the_human_corrections(self):
         result = convert_answer("ngc-standard-2022-p202-part-1")
         jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
         self.assertEqual(check(result), [])
         self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 0))
-        self.assertEqual(result["provenance"]["review"], "reviewed")
+        self.assertEqual(result["provenance"]["review"], "inferred")
 
     def test_corrected_breath_marks_are_in_the_source_columns(self):
         expected = {
@@ -288,6 +288,14 @@ class AnswerTests(unittest.TestCase):
             review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
             self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], positions)
             self.assertEqual(review["review"], "inferred")
+
+    def test_north_breath_is_on_tenth_column_of_both_parts(self):
+        for part in (1, 2):
+            folder = DATA / f"annotations/scores/ngc-standard-2022-p202-part-{part}"
+            review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+            self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], [40, 96])
+            result = convert_answer(f"ngc-standard-2022-p202-part-{part}")
+            self.assertEqual([e["id"] for e in result["events"] if e["breathAfter"]], ["c9-j3-r0-u0"])
 
     def test_answers_outside_songs_take_song_info_from_review(self):
         # 소금 악보에는 단소 율명 표에 없는 고·남이 있다. 소금은 율명 표 대신 12율 읽기 규칙만 따른다.
