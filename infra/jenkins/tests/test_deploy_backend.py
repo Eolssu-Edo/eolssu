@@ -338,8 +338,11 @@ class MigrationFixture(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
         self.files = {p.name: p.read_bytes() for p in MIGRATIONS.glob('V*.sql')}
-        self.applied = {int(v): (s, int(c), '1') for v, s, c in
-                        (line.split('\t') for line in OPS_HISTORY.read_text().splitlines())}
+        # 운영 DB가 develop까지 적용된 상태. 고정 스냅샷을 쓰면 develop에 마이그레이션이 추가될 때마다 깨진다.
+        self.applied = {int(name[1:name.index('__')]): (name, deploy.flyway_checksum(body), '1')
+                        for name, body in self.files.items()}
+        self.latest = max(self.applied)
+        self.next = self.latest + 1
         self.release = self.root / 'releases' / ('a' * 40)
         self.release.mkdir(parents=True)
         self.d = deploy.Deployer(self.root)
@@ -353,17 +356,18 @@ class MigrationFixture(unittest.TestCase):
 
 
 class MigrationPlanTests(MigrationFixture):
-    def test_operation_history_matches_develop_without_pending_migrations(self):
+    def test_up_to_date_database_has_no_pending_migrations(self):
         self.assertEqual(self.plan(FakeDocker(self.applied), self.jar()), [])
 
     def test_new_additive_migration_is_pending(self):
-        jar = self.jar({'V19__user_sheet_drafts.sql': b'ALTER TABLE user_sheets ADD COLUMN draft_json JSON NULL;\n'})
-        self.assertEqual(self.plan(FakeDocker(self.applied), jar), [(19, 'V19__user_sheet_drafts.sql')])
+        script = 'V%d__user_sheet_drafts.sql' % self.next
+        jar = self.jar({script: b'ALTER TABLE user_sheets ADD COLUMN draft_json JSON NULL;\n'})
+        self.assertEqual(self.plan(FakeDocker(self.applied), jar), [(self.next, script)])
 
     def test_history_problems_stop_before_switching(self):
         cases = {
-            'failed Flyway migration': {**self.applied, 18: (self.applied[18][0], self.applied[18][1], '0')},
-            'candidate lacks': {**self.applied, 19: ('V19__other_branch.sql', 1, '1')},
+            'failed Flyway migration': {**self.applied, self.latest: (*self.applied[self.latest][:2], '0')},
+            'candidate lacks': {**self.applied, self.next: ('V%d__other_branch.sql' % self.next, 1, '1')},
             'was edited': {**self.applied, 17: (self.applied[17][0], 123, '1')},
             'older than applied': {v: r for v, r in self.applied.items() if v != 16},
         }
@@ -377,16 +381,17 @@ class MigrationPlanTests(MigrationFixture):
 
     def test_destructive_migration_needs_digest_approval(self):
         body = b'ALTER TABLE song_model_audios DROP COLUMN audio_url;\n'
-        jar = self.jar({'V19__drop_audio_url.sql': body})
+        script = 'V%d__drop_audio_url.sql' % self.next
+        jar = self.jar({script: body})
         with self.assertRaisesRegex(deploy.DeployError, 'approve its SHA-256'):
             self.plan(FakeDocker(self.applied), jar)
         approvals = self.root / 'migration-approvals'
         approvals.mkdir()
-        (approvals / 'V19__drop_audio_url.sql').write_text('0' * 64 + '\n')
+        (approvals / script).write_text('0' * 64 + '\n')
         with self.assertRaisesRegex(deploy.DeployError, 'approve its SHA-256'):
             self.plan(FakeDocker(self.applied), jar)
-        (approvals / 'V19__drop_audio_url.sql').write_text(hashlib.sha256(body).hexdigest() + '\n')
-        self.assertEqual(self.plan(FakeDocker(self.applied), jar), [(19, 'V19__drop_audio_url.sql')])
+        (approvals / script).write_text(hashlib.sha256(body).hexdigest() + '\n')
+        self.assertEqual(self.plan(FakeDocker(self.applied), jar), [(self.next, script)])
 
 
 class MigrationApplyTests(MigrationFixture):
@@ -400,8 +405,8 @@ class MigrationApplyTests(MigrationFixture):
 
     def test_success_applies_up_to_the_candidate_target_without_secrets_on_the_command_line(self):
         docker = FakeDocker(self.applied)
-        self.apply(docker, [(19, 'V19__a.sql'), (20, 'V20__b.sql')])
-        self.assertEqual(docker.target, 20)
+        self.apply(docker, [(self.next, 'V%d__a.sql' % self.next), (self.next + 1, 'V%d__b.sql' % (self.next + 1))])
+        self.assertEqual(docker.target, self.next + 1)
         command = next(c for c in docker.calls if c[:3] == ('docker', 'run', '-d'))
         self.assertNotIn('secret-value', ' '.join(command))
         self.assertIn('--spring.profiles.active=db', command)
@@ -415,14 +420,14 @@ class MigrationApplyTests(MigrationFixture):
     def test_failed_migration_keeps_container_and_log(self):
         docker = FakeDocker(self.applied, exit_code='1')
         with self.assertRaisesRegex(deploy.DeployError, 'migration failed'):
-            self.apply(docker, [(19, 'V19__a.sql')])
+            self.apply(docker, [(self.next, 'V%d__a.sql' % self.next)])
         self.assertFalse([c for c in docker.calls if c[:2] == ('docker', 'rm')])
         self.assertTrue((self.release / 'migration.log').exists())
 
     def test_timeout_does_not_kill_a_running_migration(self):
         docker = FakeDocker(self.applied, wait_timeout=True)
         with self.assertRaisesRegex(deploy.DeployError, 'did not finish'):
-            self.apply(docker, [(19, 'V19__a.sql')])
+            self.apply(docker, [(self.next, 'V%d__a.sql' % self.next)])
         self.assertFalse([c for c in docker.calls if c[1] in ('rm', 'stop', 'kill')])
 
 
