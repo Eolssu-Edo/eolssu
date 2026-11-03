@@ -158,7 +158,10 @@ def runs(vlines, gap=1.0):
 
 
 MIN_BORDER = 100  # 열 경계로 볼 세로선의 최소 길이(pt). 정간 높이(약 40~50pt)보다 길다
-VOICE = re.compile(r"^\s*(단소|소금|대금|피리|해금)\s*([0-9])\s*$")  # 2중주 열 머리 표시(예: 단소1)
+# 2중주 이상 열 머리 표시. '단소1'·'단소Ⅱ'·'1단소'·'단소2:' 모두 받는다
+_INSTRUMENT, _NUMBER = r"(?:단소|소금|대금|피리|해금)", r"([1-9]|Ⅰ|Ⅱ|Ⅲ|Ⅳ)"
+VOICE = re.compile(rf"^\s*(?:{_INSTRUMENT}\s*{_NUMBER}|{_NUMBER}\s*{_INSTRUMENT})\s*:?\s*$")
+ROMAN = {"Ⅰ": 1, "Ⅱ": 2, "Ⅲ": 3, "Ⅳ": 4}
 
 
 def voices(page, cols):
@@ -172,7 +175,8 @@ def voices(page, cols):
             for span in line["spans"]:
                 m = VOICE.match(span["text"])
                 if m:
-                    labels.append(((span["bbox"][0] + span["bbox"][2]) / 2, int(m.group(2))))
+                    number = m.group(1) or m.group(2)
+                    labels.append(((span["bbox"][0] + span["bbox"][2]) / 2, ROMAN.get(number) or int(number)))
     if len({v for _, v in labels}) < 2:
         return None
     out = {}
@@ -206,18 +210,13 @@ def read_page(page):
     boxes_ |= {b for n in g if n["c"] in "-－△" for b in [box_of(n)] if b and b[:2] in xs}
     if not boxes_:
         raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
-    # 펼침면(가로가 긴 쪽)은 악보 열이 더 많은 쪽만 읽는다. 옆 쪽의 설명문·장식음 표 칸에도 율명 한자가 있다.
-    if page.rect.width > page.rect.height * 1.2:
-        mid = page.rect.width / 2
-        left = [c for c in boxes_ if c[1] <= mid]
-        boxes_ = set(left if len(left) * 2 >= len(boxes_) else [c for c in boxes_ if c[0] >= mid])
     if not boxes_:
         raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
     width = sorted(b - a for a, b, _, _ in boxes_)[len(boxes_) // 2]
     # 넓은 칸(설명문)이나 좁은 칸(음계표)의 한자는 악보가 아니다
     cols = [c for c in boxes_ if width * 0.5 < c[1] - c[0] < width * 1.5]
     voice = voices(page, cols)
-    if voice:  # 2중주는 첫 성부만 읽는다(악보 인식 서비스는 VOICE_GUESSED로 알린다)
+    if voice:  # 2중주 이상은 첫 성부만 읽는다(악보 인식 서비스는 VOICE_GUESSED로 알린다)
         cols = [c for c in cols if voice[c] == 1]
     notes = [n for n in g if n["c"] in NOTE and any(c[0] < n["x"] < c[1] and c[2] <= n["y"] <= c[3] for c in cols)]
 
@@ -233,7 +232,7 @@ def read_page(page):
         rows_y = cluster([y for y, l in cover.items() if l > (b - a) * 0.3], 2.0)
         bands = list(zip(rows_y, rows_y[1:]))
         if not bands:
-            raise ValueError("정간 가로선이 없는 열")
+            raise ValueError("악보 쪽이 아님(정간 가로선이 없는 열)")
         typical = sorted(b2 - t for t, b2 in bands)[len(bands) // 2]
         heights += [b2 - t for t, b2 in bands if b2 - t > typical * 0.3]
         tier = [[]]
@@ -253,9 +252,32 @@ def read_page(page):
         ordered.append((tier_top, p[1], p[2], p[3]))
     pieces = sorted(ordered, key=lambda p: (p[0], p[1]))
 
+    # 정간 수가 대부분의 각과 다른 열은 악보가 아니다(옆 쪽 장식음 표 등). 곡 끝 각은 짧을 수 있어,
+    # 마지막 각이 다른 각과 같은 x 열이거나 바로 앞 각 열 옆(열 너비 2배 안)에 붙어 있으면 둔다(소금 취타 끝 4정간).
+    counts = [len(p[3]) for p in pieces]
+    mode = max(set(counts), key=counts.count)
+    xs = [p[2] for p in pieces]
+
+    def song_end(i):
+        if i == 0:
+            return False
+        if i == len(pieces) - 1 and xs.count(xs[i]) > 1:  # 마지막 단의 짧은 각
+            return True
+        last_in_tier = i == len(pieces) - 1 or pieces[i + 1][0] != pieces[i][0]
+        (_, b), (prev_a, _) = xs[i], xs[i - 1]
+        return last_in_tier and pieces[i - 1][0] == pieces[i][0] and 0 <= prev_a - b < width * 2
+
+    dropped = [p for i, p in enumerate(pieces) if counts[i] != mode and not song_end(i)]
+    pieces = [p for p in pieces if p not in dropped]
+    # 악보다운 쪽만 받는다. 설명문 상자 하나에 섞인 율명 한자를 가짜 음표로 만들지 않는다.
+    if len(pieces) < 2 or counts.count(mode) * 2 < len(counts):
+        raise ValueError(f"악보 쪽이 아님(각 {len(pieces)}개, 정간 수 {counts})")
+
     gaks, boxes = [], []
     report = dict(columns=len(pieces), jeonggans=[], split_cells=[], ignored=[], ignored_at=[],
-                  voices=2 if voice else 1)
+                  voices=max(voice.values()) if voice else 1,
+                  dropped=[dict(x=round(a, 1), y=round(bands[0][0], 1), w=round(b - a, 1),
+                                h=round(bands[-1][1] - bands[0][0], 1)) for _, _, (a, b), bands in dropped])
     for ci, (_, _, (a, b), bands) in enumerate(pieces):
         cells = []
         for top, bottom in bands:
@@ -273,6 +295,9 @@ def read_page(page):
                                  for n in ignored]
         report["jeonggans"].append(len(cells))
         gaks.append(" | ".join(cells))
+    read_notes = sum(1 for n in notes if any(c[0] < n["x"] < c[1] for _, _, c, _ in pieces))
+    if read_notes <= len(report["ignored"]):
+        raise ValueError(f"악보 쪽이 아님(율명 {read_notes}, 읽지 않은 글자 {len(report['ignored'])})")
     return gaks, boxes, report
 
 if __name__ == "__main__":

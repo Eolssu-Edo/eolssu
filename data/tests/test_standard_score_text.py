@@ -24,25 +24,26 @@ def glyph(c, x, y, i, size=10.5):
 
 
 def score_pdf(path, tiers, gap=13.0, clip_cells=False, no_lines=False, no_text=False, labels=None, width=600,
-              side_col=None):
+              side_col=None, right0=500, prose=None):
     """세로쓰기 정간보 한 쪽. tiers[단][열] = 정간마다 율명 한 글자(빈 문자열은 빈 정간). 열은 오른쪽부터.
 
     clip_cells면 세로선을 쪽 높이 전체로 그리고 정간 칸 잘라내기 영역으로 칸 안만 보이게 한다(소금 표준악보집 방식).
     labels는 맨 위 단의 열마다 머리 표시(예: '단소1'), width가 넓으면 펼침면이고 side_col은 오른쪽 쪽에 둔
-    율명 표 한 열(장식음 설명표처럼)이다.
+    율명 표 한 열(장식음 설명표처럼)이다. right0은 맨 오른쪽 열의 오른쪽 x, prose는 큰 테두리 상자 안의 설명문이다.
     """
     doc = pymupdf.open()
     page = doc.new_page(width=width, height=800)
     ops, top = [], 40.0
     if labels:
         for ci, text in enumerate(labels):
-            page.insert_text((500 - ci * (COL_W + 16) - COL_W + 4, 34), text, fontname="korea", fontsize=8)
+            page.insert_text((right0 - ci * (COL_W + 16) - COL_W + 4, 34), text, fontname="korea", fontsize=8)
     cols = [(t, None) for t in tiers] + ([([side_col], width - 60)] if side_col else [])
     for tier, fixed_right in cols:
-        n = len(tier[0])
-        bottom = top + n * JG_H
+        tier_bottom = top + max(len(c) for c in tier) * JG_H
         for ci, col in enumerate(tier):
-            right = fixed_right or 500 - ci * (COL_W + 16)
+            n = len(col)  # 곡 끝 열은 다른 열보다 짧을 수 있다
+            bottom = top + n * JG_H
+            right = fixed_right or right0 - ci * (COL_W + 16)
             left = right - COL_W
             for k, c in enumerate(col):
                 if c and not no_text:
@@ -58,7 +59,10 @@ def score_pdf(path, tiers, gap=13.0, clip_cells=False, no_lines=False, no_text=F
                                    f"{x:.1f} 790 m {x:.1f} 10 l S Q")
                 else:
                     ops.append(f"{x:.1f} {800 - top:.1f} m {x:.1f} {800 - bottom:.1f} l S")
-        top = bottom + gap if fixed_right is None else top
+        top = tier_bottom + gap if fixed_right is None else top
+    if prose:  # 설명문 상자(교과서 설명 쪽처럼 테두리 안에 율명 한자가 섞인 글)
+        page.insert_text((70, 300), prose, fontname="korea", fontsize=10.5)
+        ops += [f"60 {800 - 200} m 60 {800 - 500} l S", f"540 {800 - 200} m 540 {800 - 500} l S"]
     page.draw_line((0, 0), (0, 0), width=0)  # 글자가 없어도 내용 스트림이 있게 한다
     if no_lines:
         ops = []
@@ -127,8 +131,45 @@ class LayoutTests(unittest.TestCase):
 
     def test_side_page_table_on_a_spread_is_not_read(self):
         # 천년만세 고급(PDF184): 오른쪽 쪽의 장식음 표 칸에도 율명이 있지만 악보가 아니다
-        gaks, report = read([[["林", "南", "-"], ["潢", "汰", "-"]]], width=1100, side_col=["淋", "仲", "南"])
+        # 표 칸은 정간 수(4)가 악보 열(3)과 달라 빼고, 뺀 열을 report에 남긴다
+        gaks, report = read([[["林", "南", "-"], ["潢", "汰", "-"]]], width=1100, side_col=["淋", "仲", "南", "潢"])
         self.assertEqual(gaks, [":0 임 | :0 남 | :0 -", ":0 청황 | :0 청태 | :0 -"])
+        self.assertEqual(len(report["dropped"]), 1)
+
+    def test_landscape_page_with_music_across_the_middle_is_read_whole(self):
+        # 가로가 긴 쪽이라도 악보가 가운데를 지나 이어지면 모든 열을 읽는다
+        cols = [[c, "-", "林"] for c in "林南潢汰仲林南潢汰仲林南"]
+        gaks, _ = read([cols], width=1100, right0=1000)
+        self.assertEqual(len(gaks), 12)
+
+    def test_short_last_gak_is_kept(self):
+        # 곡 끝 각은 정간 수가 달라도 악보다(4정간 각들 뒤 마지막 단의 3정간 각)
+        gaks, report = read([[["林", "南", "-", "-"], ["潢", "汰", "-", "-"]], [["仲", "林", "-"]]])
+        self.assertEqual(gaks[-1], ":0 중 | :0 임 | :0 -")
+        self.assertEqual(report["dropped"], [])
+
+    def test_short_last_column_next_to_the_music_is_kept(self):
+        # 소금 취타(교과서 p189): 12정간 열 둘 뒤 왼쪽 옆 열이 곡 끝이라 4정간이다
+        cols = [["林", "南", "-", "-"], ["潢", "汰", "-", "-"], ["仲", "-", "△"]]
+        gaks, report = read([cols])
+        self.assertEqual((len(gaks), report["dropped"]), (3, []))
+
+    def test_prose_page_is_not_a_score(self):
+        # 교과서 설명 쪽: 테두리 안 글에 율명 한자가 섞여 있어도 악보가 아니다
+        with self.assertRaisesRegex(ValueError, "악보"):
+            read([], prose="소금으로 林 南 潢 汰를 불고, 仲은 반음 아래로 짚는다. 이 곡은 굿거리 장단이다.")
+
+    def test_voice_labels_in_other_spellings(self):
+        tiers = [[["林", "南", "-"], ["仲", "林", "-"], ["潢", "汰", "-"], ["南", "仲", "-"]]]
+        for labels in (["단소Ⅰ", "단소Ⅱ", "단소Ⅰ", "단소Ⅱ"], ["1단소", "2단소", "1단소", "2단소"]):
+            gaks, report = read(tiers, labels=labels)
+            self.assertEqual((len(gaks), report["voices"]), (2, 2), labels)
+
+    def test_trio_reports_three_voices(self):
+        tiers = [[["林", "南", "-"], ["仲", "林", "-"], ["潢", "汰", "-"], ["林", "-", "-"], ["汰", "南", "-"],
+                  ["潢", "-", "-"]]]
+        gaks, report = read(tiers, labels=["단소1", "단소2", "단소3"] * 2)
+        self.assertEqual((gaks, report["voices"]), ([":0 임 | :0 남 | :0 -", ":0 임 | :0 - | :0 -"], 3))
 
     def test_tier_with_only_rests_and_ties_is_read(self):
         # 곡 끝 단에 '- - △'만 남은 열(북천이 맑다커늘 끝)도 위 단과 같은 x의 음 열이면 한 각이다
