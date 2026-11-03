@@ -16,12 +16,12 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Assume.assumeTrue
 import kotlin.test.*
 
-/** V19를 적용한 폐기용 DB의 실제 HTTP→Repository→읽기 화면 상태. 실기기 UI 검증과 구분한다. */
+/** V20을 적용한 폐기용 DB의 실제 HTTP→Repository→읽기 화면 상태. 실기기 UI 검증과 구분한다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class JangdanLocalServerTest {
     @Test fun sourcedRhythmsReachReadingStateWithTheirOriginalSyllablesGroupsAndUnits() = runTest {
         val baseUrl = System.getenv("EOLSSU_JANGDAN_TEST_URL")
-        assumeTrue("Local V19 jangdan server not configured", baseUrl != null)
+        assumeTrue("Local V20 jangdan server not configured", baseUrl != null)
         val uri = URI(requireNotNull(baseUrl))
         require(uri.host in setOf("127.0.0.1", "localhost") && uri.scheme == "http" && uri.userInfo == null)
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -31,7 +31,7 @@ class JangdanLocalServerTest {
             val vm = ReadingCatalogViewModel(repository)
             val loaded = vm.uiState.first { it.jangdansState != ReferenceLoadState.Loading }
             assertEquals(ReferenceLoadState.Ready, loaded.jangdansState)
-            assertEquals(listOf("1", "2", "3", "4", "5"), loaded.jangdans.map { it.jangdanId })
+            assertEquals((1..10).map(Int::toString), loaded.jangdans.map { it.jangdanId })
             val expected = listOf(
                 Triple("4", 96, listOf("떵", "", "덕", "쿵", "덕", "", "떵", "", "덕", "쿵", "덕", "")),
                 Triple("5", 80, listOf("덩", "", "따", "궁", "따", "따", "궁", "궁", "따", "궁", "", "궁")),
@@ -54,6 +54,31 @@ class JangdanLocalServerTest {
                 assertTrue(assertNotNull(detail.source).contains("https://"))
                 assertNull(detail.soundUrl)
                 assertEquals(detail, repository.jangdan(id))
+            }
+            data class Remaining(val id: String, val name: String, val bpm: Int, val beats: List<String>, val groups: List<Int>)
+            val remaining = listOf(
+                Remaining("6", "엇모리", 90, listOf("덩", "", "덕", "쿵", "", "쿵", "", "덕", "쿵", ""), listOf(3,2,3,2)),
+                Remaining("7", "단모리", 120, listOf("덩", "", "따", "따", "궁", "따", "궁", ""), listOf(2,2,2,2)),
+                Remaining("8", "타령", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+                Remaining("9", "계면가락도드리", 48, listOf("덩", "", "", "기닥", "", "다", "덩", "", "기닥", "", "", "다"), listOf(3,3,3,3)),
+                Remaining("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
+            )
+            for (e in remaining) {
+                vm.selectJangdan(e.id)
+                val selected = vm.uiState.first { it.selectedJangdanId == e.id && it.detailState != ReferenceLoadState.Loading }
+                assertEquals(ReferenceLoadState.Ready, selected.detailState)
+                val detail = assertNotNull(selected.detail)
+                assertEquals(e.name, detail.name)
+                assertEquals(e.bpm, detail.defaultBpm)
+                assertEquals("QUARTER", detail.bpmUnit)
+                assertEquals(e.beats, detail.pattern.beats)
+                assertEquals(e.groups, detail.pattern.group)
+                val summary = loaded.jangdans.single { it.jangdanId == e.id }
+                assertEquals(e.beats.size, summary.beatCount)
+                assertEquals(e.groups.size, summary.groupCount)
+                assertEquals(detail, repository.jangdan(e.id))
+                if (e.id.toInt() >= 8) assertTrue(assertNotNull(detail.source).contains("사용자승인값"))
+                assertNull(detail.soundUrl)
             }
             vm.uiState.first { it.symbolsState != ReferenceLoadState.Loading }
         } finally {

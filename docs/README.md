@@ -1,6 +1,6 @@
 # 프로젝트 문서
 
-- [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·보류 후보·검증](knowledge/backend/jangdan-catalog-extension.md)
+- [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
 
 ## 문서 위치
 

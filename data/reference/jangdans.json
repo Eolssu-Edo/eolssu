@@ -1,10 +1,11 @@
 {
   "table": "jangdans",
-  "description": "기존 3개와 S15P31E102-411에서 확인한 기본형 2개. 칸은 backend V1·V2 jangdans와 같고 id는 백엔드가 정한다. pattern.beats는 한 장단을 가장 작은 칸으로 나눈 구음이고 빈 문자열은 앞 소리를 잇는 칸이다. 세마치·굿거리·자진모리·중중모리는 8분음표(소박), 중모리는 4분음표(박) 한 칸이다. 한 칸에 소리가 여럿이면(기덕, 더러러러, 덕기, 덕덕) 그 칸 안에서 연달아 치는 꾸밈 소리이고 정확한 길이는 원본 악보를 따른다: 굿거리 기덕은 앞꾸밈음 기 + 8분음표 덕, 더러러러는 4분음표 길이의 굴림, 중모리 덕기는 점8분음표 덕 + 16분음표 기, 덕덕은 8분음표 둘. 칸 안을 똑같이 나누면 덕기와 맞지 않는다. pattern.group은 칸을 큰 박으로 묶은 수다. 타령은 공식 구음을 찾지 못했고 1차 AI 평가 곡에 쓰이지 않아 넣지 않았다.",
+  "description": "S15P31E102-411에서 확인한 장단 10종(기존3+V19 추가2+V20 추가5). 칸은 backend V1·V2 jangdans와 같고 id는 백엔드가 정한다. pattern.beats는 한 장단을 가장 작은 칸으로 나눈 구음이고 빈 문자열은 앞 소리를 잇는 칸이다. 세마치·굿거리·자진모리·중중모리는 8분음표(소박), 중모리는 4분음표(박), 엇모리·단모리·타령·계면가락도드리는 8분음표(소박), 세령산은 점4분음표(정간) 한 칸이다. 한 칸에 소리가 여럿이면(기덕, 더러러러, 덕기, 덕덕) 그 칸 안에서 연달아 치는 꾸밈 소리이고 정확한 길이는 원본 악보를 따른다: 굿거리 기덕은 앞꾸밈음 기 + 8분음표 덕, 더러러러는 4분음표 길이의 굴림, 중모리 덕기는 점8분음표 덕 + 16분음표 기, 덕덕은 8분음표 둘. 칸 안을 똑같이 나누면 덕기와 맞지 않는다. pattern.group은 칸을 큰 박으로 묶은 수다. V20의 타령·계면가락도드리·세령산은 공식 교재의 구음·칸 구조와 사용자 승인 서비스 시작 BPM을 구분한다. 빈 칸만으로 실제 쉼·잔향 길이를 만들지 않는다. 곡별 장단 FK·BPM·tick은 바꾸지 않는다.",
   "sources": [
     "default_bpm·bpm_unit: 기획 S15P31E102-141 장단별 빠르기 및 근거(2026-10-27), backend V2 bpm_unit",
     "구음·박 구조: 국립국악원 e-국악아카데미 장단 교수 자료 https://academy.gugak.go.kr/dp/pds/HTML5-1-7-3/HTML5-1-7-3-3/index.htm (세마치), -2/ (굿거리), -5/ (중모리) 의 기본 장단 악보",
-    "추가2종 기본형·시작 BPM: S15P31E102-411, backend V19 및 docs/knowledge/backend/jangdan-catalog-extension.md. 기본 BPM은 해당 출처 범위 하한이며 곡별 BPM을 정하지 않는다."
+    "추가2종 기본형·시작 BPM: S15P31E102-411, backend V19 및 docs/knowledge/backend/jangdan-catalog-extension.md. 기본 BPM은 해당 출처 범위 하한이며 곡별 BPM을 정하지 않는다.",
+    "V20 후속: 공식 장구 교재 악보8·10·14·29/표23~25 및 아카데미 엇모리·단모리. 정악3종의 QUARTER48·48·63은 사용자 승인 서비스 시작값이며 원전 확정 속도가 아니다. docs/knowledge/backend/jangdan-catalog-extension.md 참조."
   ],
   "rows": [
     {
@@ -41,6 +42,41 @@
       "default_bpm": 80,
       "bpm_unit": "DOTTED_QUARTER",
       "source": "국립국악원 국악사전 중중모리장단, 김인숙. 기본형 표의 구음·3소박4박·♩.=80~90: https://www.gugak.go.kr/ency/topic/view/1319 . 시작 BPM 80은 기본형 표 하한이며 곡별 빠르기가 아님."
+    },
+    {
+      "name": "엇모리",
+      "pattern": {"beats":["덩","","덕","쿵","","쿵","","덕","쿵",""],"group":[3,2,3,2]},
+      "default_bpm": 90,
+      "bpm_unit": "QUARTER",
+      "source": "국립국악원 e-국악아카데미 자진아라리 지도방법의 구음·3+2+3+2: https://academy.gugak.go.kr/dp/pds/HTML5-4-40/HTML5-4-40-4/index.htm . 국악사전 엇모리장단의 ♪=180을 ♩=90으로 정확히 환산(180/2)."
+    },
+    {
+      "name": "단모리",
+      "pattern": {"beats":["덩","","따","따","궁","따","궁",""],"group":[2,2,2,2]},
+      "default_bpm": 120,
+      "bpm_unit": "QUARTER",
+      "source": "국립국악원 아카데미 장단통일안 휘모리(단모리) 4/4 기본형: https://academy.gugak.go.kr/dp/pds/HTML5-2-4-2/HTML5-2-4-2-4/HTML5-2-4-2-4-1/index.htm . BPM은 국악기 이해와 활용2(2019) p236 악보29의 4/4·♩=120~160 하한. 유파의 명칭 차이는 별도."
+    },
+    {
+      "name": "타령",
+      "pattern": {"beats":["덩","","","기닥","","다","덩","","기닥","","","다"],"group":[3,3,3,3]},
+      "default_bpm": 48,
+      "bpm_unit": "QUARTER",
+      "source": "국립국악원 국악기 이해와 활용2(2019) p227 악보10·p265 표23~25. https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=138&menuid=001003003006002&lang=ko . 앱 시작48(QUARTER)은 서비스곡65 기준·사용자승인값. 원전 확정 빠르기 아님."
+    },
+    {
+      "name": "계면가락도드리",
+      "pattern": {"beats":["덩","","","기닥","","다","덩","","기닥","","","다"],"group":[3,3,3,3]},
+      "default_bpm": 48,
+      "bpm_unit": "QUARTER",
+      "source": "국립국악원 국악기 이해와 활용2(2019) p228 악보14·p265 표23~25. https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=138&menuid=001003003006002&lang=ko . 앱 시작48(QUARTER)은 서비스곡45 기준·사용자승인값. 원전 확정 빠르기 아님."
+    },
+    {
+      "name": "세령산",
+      "pattern": {"beats":["덩","","덩","더러러러","","궁","","기닥","","다"],"group":[3,2,2,3]},
+      "default_bpm": 63,
+      "bpm_unit": "QUARTER",
+      "source": "국립국악원 국악기 이해와 활용2(2019) p226 악보8·p265 표23~25. https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=138&menuid=001003003006002&lang=ko . 앱 시작63(QUARTER)은 서비스곡63 기준·사용자승인값. 원전 확정 빠르기 아님."
     }
   ]
 }
