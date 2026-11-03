@@ -24,6 +24,9 @@ import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.ApiReferenceCatalogRepository
 import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
+import com.ssafy.eolssu.data.song.ReferenceAudioRepository
+import com.ssafy.eolssu.data.song.ApiReferenceAudioRepository
+import com.ssafy.eolssu.feature.guide.ReferenceAudioViewModel
 import com.ssafy.eolssu.feature.guide.ReadingCatalogViewModel
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
@@ -95,6 +98,8 @@ val appModule = module {
     single<ModelAudioRepository> { ApiModelAudioRepository(get()) }
     single { InstrumentCatalog(get()) }
     single<ReferenceCatalogRepository> { ApiReferenceCatalogRepository(get()) }
+    single<ReferenceAudioRepository> { ApiReferenceAudioRepository(get(), get()) }
+    viewModelOf(::ReferenceAudioViewModel)
     single { PracticeSettingsStore(get()) }
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }

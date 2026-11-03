@@ -11,17 +11,17 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import com.ssafy.eolssu.feature.guide.LISTEN_HIGHLIGHT_MILLIS
+import com.ssafy.eolssu.feature.guide.ReferenceAudioSelection
+import com.ssafy.eolssu.feature.guide.rememberReferenceAudioController
+import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import com.ssafy.eolssu.feature.guide.ReadingPage
 import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.feature.guide.layout.LearnExpandedLayout
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_listen_pending
 import eolssu.shared.generated.resources.learn_listen_model_pending
 import eolssu.shared.generated.resources.learn_reset_message
 import eolssu.shared.generated.resources.learn_song_missing
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import com.ssafy.eolssu.core.model.fingering.label
@@ -59,6 +59,7 @@ fun LearnListRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
+    val audio = rememberReferenceAudioController(state.instrument, state.shownStage)
 
     LaunchedEffect(twoPane, state.selectedStage) {
         val selected = state.selectedStage
@@ -89,7 +90,6 @@ fun LearnListRoute(
     )
 
     if (twoPane) {
-        ListenHighlightEffect(state.playing, viewModel)
         val stage = learnStageOf(state.shownStage) ?: return
         LearnExpandedLayout(
             state = state,
@@ -108,6 +108,9 @@ fun LearnListRoute(
                 onToggleDone = viewModel::toggleShownDone,
                 navigation = navigation,
             ),
+            noteAudioContent = { note ->
+                ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+            },
         )
     } else {
         LearnListScreen(state, widthClass, snackbarHostState, onBack, listActions)
@@ -134,6 +137,7 @@ fun LearnStageRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
+    val audio = rememberReferenceAudioController(state.instrument, stageNumber)
 
     LaunchedEffect(twoPane) {
         if (twoPane) {
@@ -143,7 +147,6 @@ fun LearnStageRoute(
     }
     // 목록에 돌아가면 이 단계 카드를 펼친다(이전·다음 단계와 '확인했어요' 뒤 연 단계 포함)
     LaunchedEffect(stageNumber) { viewModel.viewCard(stageNumber) }
-    ListenHighlightEffect(state.playing, viewModel)
 
     LearnStageScreen(
         state = state,
@@ -161,6 +164,9 @@ fun LearnStageRoute(
             onToggleDone = viewModel::toggleDone,
             navigation = navigation,
         ),
+        noteAudioContent = { note ->
+            ReferenceAudioControls(ReferenceAudioSelection.forNote(state.instrument, note), audio)
+        },
     )
 }
 
@@ -189,10 +195,6 @@ private fun learnStageActions(
         if (n == 8) navigation.onOpenSongList() else navigation.onOpenPractice(n)
     },
     onListenModel = { notify { getString(Res.string.learn_listen_model_pending) } },
-    onListen = { note ->
-        viewModel.listen(note.hanja)
-        notify { getString(Res.string.guide_listen_pending) }
-    },
     onOpenFingering = { blow -> navigation.onOpenFingering(state.instrument, blow) },
     onOpenReading = navigation.onOpenReading,
     onOpenSong = { song ->
@@ -201,16 +203,6 @@ private fun learnStageActions(
     },
     onRetrySongs = viewModel::retrySongs,
 )
-
-/** '음 듣기'를 누른 버튼의 강조를 잠시 뒤 끈다. */
-@Composable
-private fun ListenHighlightEffect(playing: String?, viewModel: LearnViewModel) {
-    LaunchedEffect(playing) {
-        val hanja = playing ?: return@LaunchedEffect
-        delay(LISTEN_HIGHLIGHT_MILLIS)
-        viewModel.finishListening(hanja)
-    }
-}
 
 private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> String) -> Unit =
     { message -> scope.launch { show(message()) } }
