@@ -279,6 +279,30 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
+    fun `the draft columns cannot hold a draft without its base version`() {
+        val sheetId = copySong()
+
+        val rejected = runCatching {
+            jdbc.update("UPDATE user_sheets SET draft_json='{}', draft_base_version=NULL, draft_saved_at=NOW(6) WHERE id=$sheetId")
+        }
+        assertTrue(rejected.isFailure, "CHECK must reject a draft whose base version is NULL")
+    }
+
+    @Test
+    fun `a body over 1 MiB is 413 before parsing, and an anonymous one is still 401`() {
+        val sheetId = copySong()
+        // 공백으로 부풀려 다시 직렬화하면 작아지는 본문도 받은 크기로 잰다.
+        val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
+
+        val tooLarge = send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score", padded)
+        assertEquals(413, tooLarge.statusCode(), tooLarge.body())
+        assertEquals("PAYLOAD_TOO_LARGE", json.readTree(tooLarge.body()).path("result").path("errorCode").asString())
+        assertEquals(413, send(OWNER, "PUT", "/api/users/me/sheets/$sheetId/score/draft", padded).statusCode())
+        assertEquals(401, send(null, "PUT", "/api/users/me/sheets/$sheetId/score", padded).statusCode())
+        assertEquals(1, count("SELECT score_version FROM user_sheets WHERE id=$sheetId"))
+    }
+
+    @Test
     fun `delete removes only the owner's sheet`() {
         val sheetId = copySong()
         val others = create(OTHER, "others", """{"title":"남의 악보","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")

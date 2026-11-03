@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.backend.config
 
+import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetBodyLimitFilter
 import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
@@ -12,6 +14,7 @@ import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.CommonSc
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.MyBatisSongScoreRepository
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.SongScoreMapper
 import java.time.Clock
+import org.springframework.boot.web.servlet.FilterRegistrationBean
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -36,4 +39,9 @@ class UserSheetConfig {
 
     @Bean
     fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock) = EditUserSheet(repository, scores, clock)
+
+    // 기본 순서(가장 늦음)라 Spring Security 뒤에서 돈다. 로그인하지 않은 요청은 본문을 읽기 전에 401이다.
+    @Bean
+    fun sheetBodyLimitFilter(errorWriter: ErrorResponseWriter) =
+        FilterRegistrationBean(SheetBodyLimitFilter(EditUserSheet.MAX_SCORE_BYTES, errorWriter)).apply { addUrlPatterns("/api/users/me/sheets/*") }
 }

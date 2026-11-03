@@ -128,6 +128,12 @@ class UserSheetEditControllerTests {
     }
 
     @Test
+    fun `an explicit null for the optional resolvedIssueIds is the same as leaving it out`() {
+        mvc.perform(put("/api/users/me/sheets/701/score").contentType(MediaType.APPLICATION_JSON).content(saveBody(extra = ""","resolvedIssueIds":null""")))
+            .andExpect(status().isOk)
+    }
+
+    @Test
     fun `save failures map to the spec error codes`() {
         mvc.perform(put("/api/users/me/sheets/701/score").contentType(MediaType.APPLICATION_JSON)
             .content(saveBody(score = """{"schemaVersion":1,"columns":[{"cells":[{"id":"c5-j4","units":[]}]}]}""")))

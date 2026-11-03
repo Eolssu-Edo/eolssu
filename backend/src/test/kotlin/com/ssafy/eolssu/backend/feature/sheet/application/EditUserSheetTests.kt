@@ -89,6 +89,13 @@ class EditUserSheetTests {
     }
 
     @Test
+    fun `a sheet deleted right after the save is reported as not found, not as a server error`() {
+        repository.deleteAfterUpdate = true
+
+        assertEquals(SaveSheetScoreResult.NotFound, service.save(save()))
+    }
+
+    @Test
     fun `another member's or a missing sheet is not found`() {
         assertEquals(SaveSheetScoreResult.NotFound, service.save(save(sheetId = 702)))
         assertEquals(SaveSheetScoreResult.NotFound, service.save(save(sheetId = 999)))
@@ -192,6 +199,7 @@ class EditUserSheetTests {
         val scoreUpdates = mutableListOf<SheetScoreUpdate>()
         val draftUpdates = mutableListOf<SheetDraftUpdate>()
         var raceOnUpdate = false
+        var deleteAfterUpdate = false
 
         override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): UserSheet? = null
         override fun findJangdan(jangdanId: Long) = when (jangdanId) {
@@ -213,6 +221,7 @@ class EditUserSheetTests {
                 columnCount = update.columnCount, scoreVersion = current.scoreVersion + 1, scoreJson = update.scoreJson,
                 noteCount = update.noteCount, updatedAt = update.updatedAt, draft = null, draftRevision = 0,
             )
+            if (deleteAfterUpdate) sheets.remove(update.sheetId)
             return true
         }
 

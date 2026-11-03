@@ -112,7 +112,8 @@ class UserSheetController(
     ): ResponseEntity<*> {
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         val score = request.score?.takeIf { it.isObject } ?: return error(ErrorCode.INVALID_REQUEST)
-        val resolved = request.resolvedIssueIds
+        // JsonNode 속성의 JSON null은 NullNode로 온다. 선택 필드이므로 생략과 같게 본다.
+        val resolved = request.resolvedIssueIds?.takeUnless { it.isNull }
         if (resolved != null && !(resolved.isArray && resolved.all { it.isString })) return error(ErrorCode.INVALID_REQUEST)
         val command = SaveSheetScoreCommand(
             userId = requireNotNull(jwt.subject).toLong(),

@@ -9,5 +9,6 @@ ALTER TABLE user_sheets
   ADD CONSTRAINT chk_user_sheets_draft CHECK (
     draft_revision >= 0
     AND ((draft_json IS NULL AND draft_base_version IS NULL AND draft_saved_at IS NULL)
-      OR (draft_json IS NOT NULL AND draft_base_version >= 1 AND draft_saved_at IS NOT NULL))
+      -- MySQL CHECK는 NULL 비교(알 수 없음)를 통과시키므로 IS NOT NULL을 따로 적는다.
+      OR (draft_json IS NOT NULL AND draft_base_version IS NOT NULL AND draft_base_version >= 1 AND draft_saved_at IS NOT NULL))
   );

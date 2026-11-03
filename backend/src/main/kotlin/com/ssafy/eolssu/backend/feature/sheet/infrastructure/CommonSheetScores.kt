@@ -52,8 +52,9 @@ class CommonSheetScores(
             return PreparedScore.Malformed
         }
         val unfilled = columns.flatMap { column -> column.path("cells").filter { it.path("units").let { units -> units.isArray && units.isEmpty } } }
-            .map { it.path("id").asString() }
-        if (unfilled.isNotEmpty()) return PreparedScore.Unfilled(unfilled)
+        // 알릴 칸 ID가 없는 빈 칸은 앱이 강조할 수 없으므로 악보 형식 오류다.
+        if (unfilled.any { !it.path("id").isString }) return PreparedScore.Malformed
+        if (unfilled.isNotEmpty()) return PreparedScore.Unfilled(unfilled.map { it.path("id").stringValue() })
         score.put("scoreVersion", scoreVersion)
         return PreparedScore.Ready(
             json.writeValueAsString(root), columns.size(), root.path("events").count { it.path("kind").stringValue() == "NOTE" },

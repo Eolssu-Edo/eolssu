@@ -97,7 +97,9 @@ class EditUserSheet(
         )
         // 읽은 뒤 다른 기기가 먼저 저장했다. 지웠으면 없는 악보다.
         if (!updated) return repository.find(command.sheetId, command.userId)?.let { SaveSheetScoreResult.StateConflict } ?: SaveSheetScoreResult.NotFound
-        return SaveSheetScoreResult.Saved(checkNotNull(repository.find(command.sheetId, command.userId)), events)
+        // 저장 직후 같은 회원이 지웠으면 돌려줄 악보가 없다.
+        val saved = repository.find(command.sheetId, command.userId) ?: return SaveSheetScoreResult.NotFound
+        return SaveSheetScoreResult.Saved(saved, events)
     }
 
     fun saveDraft(command: SaveSheetDraftCommand): SaveSheetDraftResult {
