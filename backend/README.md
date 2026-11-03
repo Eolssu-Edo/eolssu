@@ -51,7 +51,7 @@ S15P31E102-409의 V18은 [내장 운지 계약](../docs/specs/builtin-fingering-
 
 S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다. 생략하면 기존 전체 목록, 지정하면 활성 악기의 게시·미삭제 곡만 ID 순서로 반환합니다. 잘못된 ID는400, 없는/비활성 악기는404, 곡이 없는 활성 악기는200 빈 목록입니다. [곡 목록 악기 필터](../docs/specs/song-instrument-filter.md)의 FE 선택과 연결되며 검증은 `SongControllerTests`와 실제 MySQL·HTTP의 `SongInstrumentApiDatabaseTests`를 사용합니다.
 
-S15P31E102-411: V21의 자진모리·중중모리와 V22의 엇모리·단모리·타령·계면가락도드리·세령산으로 장단 카탈로그10종을 제공합니다. 기존 ID·곡·음원은 보존합니다. 정악3종의 시작 BPM48·48·63(QUARTER)은 사용자 승인 서비스값이며 원전 확정 빠르기가 아닙니다. [근거·검증](../docs/knowledge/backend/jangdan-catalog-extension.md)을 확인합니다. 운영 기동의 Flyway는 꺼져 있고, 실제 배포 시 [배포 마이그레이션 단계](../docs/knowledge/infra/ops-flyway-auto-migration.md)가 별도로 적용합니다. 이번 작업은 로컬 검증이며 배포는 실행하지 않습니다.
+S15P31E102-411: V21의 자진모리·중중모리·엇모리·단모리·타령·계면가락도드리·세령산으로 장단 카탈로그10종을 제공합니다. 기존 ID·곡·음원은 보존합니다. 정악3종의 시작 BPM48·48·63(QUARTER)은 사용자 승인 서비스값이며 원전 확정 빠르기가 아닙니다. [근거·검증](../docs/knowledge/backend/jangdan-catalog-extension.md)을 확인합니다. 운영 기동의 Flyway는 꺼져 있고, 실제 배포 시 [배포 마이그레이션 단계](../docs/knowledge/infra/ops-flyway-auto-migration.md)가 별도로 적용합니다. 이번 작업은 로컬 검증이며 배포는 실행하지 않습니다.
 
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 

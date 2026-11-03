@@ -288,7 +288,7 @@ $env:EOLSSU_CATALOG_TEST_URL = 'http://127.0.0.1:18081'
 adb reverse tcp:18081 tcp:18081
 ```
 
-V22의 장단10개를 가진 폐기용 로컬 서버에서 구음·혼합 묶음·4분/점4분음표 단위가 Repository와 읽기 화면 상태에 도달하는지는 별도로 검사합니다. `EOLSSU_JANGDAN_TEST_URL` 미지정 시 해당 검사는 명시적으로 skipped입니다. 실기기 화면·청취 검증과 구분합니다.
+V21의 장단10개를 가진 폐기용 로컬 서버에서 구음·혼합 묶음·4분/점4분음표 단위가 Repository와 읽기 화면 상태에 도달하는지는 별도로 검사합니다. `EOLSSU_JANGDAN_TEST_URL` 미지정 시 해당 검사는 명시적으로 skipped입니다. 실기기 화면·청취 검증과 구분합니다.
 
 ```powershell
 $env:EOLSSU_JANGDAN_TEST_URL = 'http://127.0.0.1:18081'

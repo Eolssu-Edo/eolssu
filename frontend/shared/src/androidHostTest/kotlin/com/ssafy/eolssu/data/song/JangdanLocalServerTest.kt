@@ -16,12 +16,12 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Assume.assumeTrue
 import kotlin.test.*
 
-/** V22을 적용한 폐기용 DB의 실제 HTTP→Repository→읽기 화면 상태. 실기기 UI 검증과 구분한다. */
+/** V21을 적용한 폐기용 DB의 실제 HTTP→Repository→읽기 화면 상태. 실기기 UI 검증과 구분한다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class JangdanLocalServerTest {
     @Test fun sourcedRhythmsReachReadingStateWithTheirOriginalSyllablesGroupsAndUnits() = runTest {
         val baseUrl = System.getenv("EOLSSU_JANGDAN_TEST_URL")
-        assumeTrue("Local V22 jangdan server not configured", baseUrl != null)
+        assumeTrue("Local V21 jangdan server not configured", baseUrl != null)
         val uri = URI(requireNotNull(baseUrl))
         require(uri.host in setOf("127.0.0.1", "localhost") && uri.scheme == "http" && uri.userInfo == null)
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
