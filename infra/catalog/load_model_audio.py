@@ -48,7 +48,10 @@ def verify_inventory(model, inventory, complete=False, status_pairs=(("DRAFT", "
         require(not complete or len(matches) == 1, "Pitch reference missing after load")
     for expected in model["references"]["instruments"]:
         matches = [i for i in inventory["instruments"] if i["code"].casefold() == expected["code"].casefold()]
-        require(len(matches) <= 1 and all(all(i[k] == expected[k] for k in expected) for i in matches), "Conflicting instrument reference")
+        require(len(matches) <= 1 and all(
+            all(i[k] == expected[k] for k in ("code", "name", "pitchToleranceCent")) and
+            i["lowSemitone"] <= expected["lowSemitone"] and i["highSemitone"] >= expected["highSemitone"] and
+            i["isActive"] in (False, True) for i in matches), "Conflicting instrument reference")
         require(not complete or len(matches) == 1, "Instrument reference missing after load")
     require(sum(i["code"] == "DANSO" for i in inventory["instruments"]) == 1, "Existing DANSO must be preserved")
     expected = {row["source"]: row for row in model["rows"]}
@@ -234,7 +237,8 @@ def build_sql(model):
         inserts.append("INSERT INTO pitches (" + ",".join(pitch) + ") SELECT " + ",".join(str(v) if type(v) is int else quote(v) for v in pitch.values()) + f" WHERE NOT EXISTS(SELECT 1 FROM pitches WHERE {matching});")
     for instrument in model["references"]["instruments"]:
         code = quote(instrument["code"])
-        same = f"BINARY i.code=BINARY {code} AND BINARY i.name=BINARY {quote(instrument['name'])} AND lo.semitone={instrument['lowSemitone']} AND hi.semitone={instrument['highSemitone']} AND i.pitch_tolerance_cent=50 AND i.is_active=0"
+        # Existing public guide ranges may be wider than this corpus. Never undo their publication.
+        same = f"BINARY i.code=BINARY {code} AND BINARY i.name=BINARY {quote(instrument['name'])} AND lo.semitone<={instrument['lowSemitone']} AND hi.semitone>={instrument['highSemitone']} AND i.pitch_tolerance_cent=50 AND i.is_active IN (0,1)"
         check(f"(SELECT COUNT(*) FROM instruments i LEFT JOIN pitches lo ON lo.id=i.range_low_pitch_id LEFT JOIN pitches hi ON hi.id=i.range_high_pitch_id WHERE i.code={code} AND NOT(COALESCE(({same}),0)))=0")
         inserts.append(f"INSERT INTO instruments (code,name,range_low_pitch_id,range_high_pitch_id,pitch_tolerance_cent,is_active) SELECT {code},{quote(instrument['name'])},lo.id,hi.id,50,0 FROM pitches lo JOIN pitches hi ON hi.semitone={instrument['highSemitone']} WHERE lo.semitone={instrument['lowSemitone']} AND NOT EXISTS(SELECT 1 FROM instruments WHERE code={code});")
     joined, same_song, same_audio = matching_rows_sql()

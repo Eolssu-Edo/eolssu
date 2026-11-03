@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("16", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("17", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -771,11 +771,11 @@ class DatabaseIntegrationTests {
         assertTrue("idx_score_views_user_started" in plan["possible_keys"].toString().split(","))
     }
 
-    // V6 시드만 읽는다. 고정 데이터를 쓰지 않으므로 다른 검사가 지운 행이 있으면 실패한다.
+    // V6 song identities stay intact; V17 expands the guide's lower range to include 협.
     @Test
     fun `seeds the danso songs that open practice sessions and turn into practice notes`() {
         assertEquals(
-            mapOf("code" to "DANSO", "range_low_pitch_id" to 1L, "range_high_pitch_id" to 11L, "pitch_tolerance_cent" to 50, "is_active" to true),
+            mapOf("code" to "DANSO", "range_low_pitch_id" to jdbc.queryForObject("SELECT id FROM pitches WHERE yul='협' AND octave=0", Long::class.java), "range_high_pitch_id" to 11L, "pitch_tolerance_cent" to 50, "is_active" to true),
             jdbc.queryForMap("SELECT code, range_low_pitch_id, range_high_pitch_id, pitch_tolerance_cent, is_active FROM instruments WHERE id = 1"),
         )
         assertEquals(

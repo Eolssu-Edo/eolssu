@@ -28,6 +28,23 @@ class CatalogReferenceApiDatabaseTests {
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()
     private val json = JsonMapper.builder().build()
 
+    @Test fun `four supported instruments expose independent nominal ranges and preserve original pitch IDs`() {
+        val items = body("/api/instruments").path("items").toList().associateBy { it.path("code").asString() }
+        assertTrue(items.keys.containsAll(listOf("DANSO", "SOGEUM", "JEONGAK_DAEGEUM", "SANJO_DAEGEUM")), items.keys.toString())
+        for ((code, low, high) in listOf(Triple("DANSO",3,29), Triple("SOGEUM",7,33),
+            Triple("JEONGAK_DAEGEUM",-5,29), Triple("SANJO_DAEGEUM",-5,29))) {
+            val id = items.getValue(code).path("instrumentId").asString()
+            val pitches = body("/api/pitches?instrumentId=$id").path("items").toList()
+            assertEquals(low, pitches.first().path("semitone").asInt(), code)
+            assertEquals(high, pitches.last().path("semitone").asInt(), code)
+            assertEquals(pitches.map { it.path("semitone").asInt() }.sorted(), pitches.map { it.path("semitone").asInt() })
+        }
+        val old = body("/api/pitches").path("items").toList().filter { it.path("pitchId").asString().toLong() <= 11 }
+            .sortedBy { it.path("pitchId").asString().toLong() }
+        assertEquals((1..11).map(Int::toString), old.map { it.path("pitchId").asString() })
+        assertEquals(listOf(5,7,10,12,14,17,19,22,24,26,29), old.map { it.path("semitone").asInt() })
+    }
+
     @AfterEach fun cleanup() {
         jdbc.update("DELETE FROM fingering_charts WHERE instrument_id IN (?, ?)", instrumentId, inactiveId)
         jdbc.update("DELETE FROM instruments WHERE id IN (?, ?) AND code IN ('CAT288_ACTIVE','CAT288_INACTIVE')", instrumentId, inactiveId)
@@ -46,14 +63,14 @@ class CatalogReferenceApiDatabaseTests {
         assertEquals(50, danso.path("pitchToleranceCent").asInt())
         assertTrue(danso.path("rangeLowPitchId").isString)
         val pitches = body("/api/pitches?instrumentId=$dansoId").path("items").toList()
-        assertEquals(15, pitches.size)
-        assertEquals(listOf(5,7,9,10,12,14,16,17,19,21,22,24,26,28,29), pitches.map { it.path("semitone").asInt() })
+        assertEquals(26, pitches.size)
+        assertEquals((3..24).toList() + listOf(26,27,28,29), pitches.map { it.path("semitone").asInt() })
         assertEquals("㴢", pitches.last().path("hanja").asString())
         assertTrue(pitches.all { it.path("description").isNull && it.path("soundUrl").isNull })
         assertTrue(body("/api/instruments/$dansoId/fingerings").path("structureImageUrl").isNull)
         val global = body("/api/pitches").path("items").toList()
-        assertEquals(22, global.size)
-        assertEquals(listOf(-5,-3,-2,0,2,4,5,7,9,10,12,14,16,17,19,21,22,24,26,28,29,31),
+        assertEquals(36, global.size)
+        assertEquals((-5..24).toList() + listOf(26,27,28,29,31,33),
             global.map { it.path("semitone").asInt() })
         val original = global.filter { it.path("pitchId").asString().toLong() in 1L..11L }
             .sortedBy { it.path("pitchId").asString().toLong() }
