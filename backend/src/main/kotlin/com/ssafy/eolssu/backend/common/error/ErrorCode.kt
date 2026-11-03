@@ -43,4 +43,7 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     VERIFICATION_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "인증번호가 일치하지 않아요"),
     VERIFICATION_EXPIRED(HttpStatus.GONE, "인증번호가 만료됐어요. 새 번호를 받아 주세요"),
     STATE_CONFLICT(HttpStatus.CONFLICT, "지금 상태에서는 처리할 수 없어요. 상태를 다시 확인해 주세요"),
+    // 내 악보 편집 저장(SHT-04, docs/specs/user-sheets.md)
+    UNFILLED_CELLS(HttpStatus.BAD_REQUEST, "빈 칸을 채워 주세요"),
+    PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "악보가 너무 커요"),
 }
