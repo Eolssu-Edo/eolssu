@@ -88,9 +88,10 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
         )
     }
     item(key = "search") {
-        Column {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SongInstrumentFilter(state.instruments, state.instrumentId, actions.onSelectInstrument)
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
-            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(vertical = 16.dp))
+            SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp))
         }
     }
     val songs = state.visibleSongs
@@ -125,8 +126,11 @@ private fun songRowMeta(song: SongSummary): String {
 @Composable
 private fun SongCountHelper(count: Int, state: SongListUiState) {
     val instrument = state.instrument
+    val instrumentName = state.instruments.firstOrNull { it.instrumentId == state.instrumentId }?.name
     Text(
-        if (instrument != null) {
+        if (instrumentName != null) {
+            stringResource(Res.string.song_count_instrument, count, instrumentName)
+        } else if (instrument != null) {
             stringResource(Res.string.song_count_instrument, count, stringResource(instrument.label))
         } else {
             stringResource(Res.string.song_count, count)
