@@ -63,7 +63,17 @@ class MySongsViewModel(
         }
     }
 
-    fun selectTab(tab: MySongsTab) = _uiState.update { it.copy(tab = tab) }
+    private var tabChosen = false
+
+    fun selectTab(tab: MySongsTab) {
+        tabChosen = true
+        _uiState.update { it.copy(tab = tab) }
+    }
+
+    /** 홈 '악보 추가·편집하기'로 들어오면 내 악보 탭부터 보인다. 화면을 다시 그릴 때 사용자가 고른 탭을 되돌리지 않는다. */
+    fun showSheetsFirst() {
+        if (!tabChosen) selectTab(MySongsTab.Sheets)
+    }
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 

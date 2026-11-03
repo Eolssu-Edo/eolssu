@@ -9,11 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,7 +60,9 @@ import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.feature.home.HomeFeature
+import com.ssafy.eolssu.feature.home.HomeInstruments
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
@@ -70,10 +71,8 @@ import com.ssafy.eolssu.feature.home.rememberHomeEnvironment
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeInkButton
 import com.ssafy.eolssu.feature.home.component.InstrumentPlate
-import com.ssafy.eolssu.feature.home.component.LogoPlate
 import com.ssafy.eolssu.feature.home.component.MyPagePlate
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.home_hero_body
 import eolssu.shared.generated.resources.home_hero_title
 import eolssu.shared.generated.resources.home_illustration
 import eolssu.shared.generated.resources.home_scroll_to_features
@@ -87,7 +86,9 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun HomeScrollLayout(
     instrument: Instrument?,
+    instrumentBusy: Boolean,
     widthClass: WindowWidthClass,
+    onSelectInstrument: (Instrument) -> Unit,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -140,7 +141,7 @@ internal fun HomeScrollLayout(
         val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
         var buttonH by remember { mutableFloatStateOf(56.5f) }
         var headlineH by remember { mutableFloatStateOf(100f) }
-        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 230f else 390f) }
+        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 350f else 520f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
@@ -167,7 +168,7 @@ internal fun HomeScrollLayout(
                         ).clearAndSetSemantics {},
                     )
                     if (expanded) {
-                        // 넓은 창의 끝 배치: 왼쪽 그림·CTA와 오른쪽 2×2 카드.
+                        // 넓은 창의 끝 배치: 왼쪽 그림·CTA와 오른쪽 2×3 카드.
                         Box(Modifier.offset(x = (contentLeft + finalHeroW + 24f).dp)
                             .width((contentW - finalHeroW).dp).height((h + overflow).dp)
                             .graphicsLayer { alpha = frame.eased }.background(HomeGround))
@@ -182,18 +183,11 @@ internal fun HomeScrollLayout(
                             },
                         horizontalAlignment = Alignment.End,
                     ) {
-                        Text(stringResource(Res.string.home_hero_title),
+                        // '얼쑤!' 글자 대신 흰 붓글씨 로고를 두고, 그 아래 한 줄 제목만 남긴다.
+                        EolssuLogo(Modifier.size(width = 96.dp, height = 50.dp), tint = Color.White)
+                        Text(stringResource(Res.string.home_hero_title), Modifier.padding(top = 2.dp),
                             style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 32.5.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 20f)),
                             color = HomeGround, textAlign = TextAlign.End)
-                        Text(stringResource(Res.string.home_hero_body), Modifier.padding(top = 6.dp),
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 12f)),
-                            color = Color(0xFFF2E6CE), textAlign = TextAlign.End)
-                    }
-                    Row(Modifier.offset(x = contentLeft.dp, y = 56.dp).width(contentW.dp), verticalAlignment = Alignment.CenterVertically) {
-                        LogoPlate()
-                        Spacer(Modifier.weight(1f))
-                        InstrumentPlate(instrument, Modifier.padding(end = 8.dp))
-                        MyPagePlate(onOpenMyPage)
                     }
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
@@ -208,7 +202,7 @@ internal fun HomeScrollLayout(
                     )
                     if (openFeatures) {
                         FeatureSection(onFeatureClick,
-                            columns = if (medium) 4 else 2, cardMinHeight = 150.dp,
+                            columns = if (medium) 3 else 2, cardMinHeight = 150.dp,
                             large = medium || expanded,
                             modifier = Modifier.offset(
                                 x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
@@ -230,6 +224,23 @@ internal fun HomeScrollLayout(
                         }
                     }
                 }
+            }
+        }
+        // 상단 판은 스크롤 상자 밖에 두어 첫 화면에서는 숨기고, 펼친 뒤 추가 스크롤에도 위 12dp에 고정한다. 왼쪽 위 로고 판은 두지 않는다.
+        if (frame.headerAlpha > 0f) {
+            Row(
+                Modifier.offset(x = contentLeft.dp, y = HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) {
+                InstrumentPlate(
+                    instrument = instrument ?: HomeInstruments.first(),
+                    instruments = HomeInstruments,
+                    enabled = !instrumentBusy,
+                    onSelect = onSelectInstrument,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                MyPagePlate(onOpenMyPage)
             }
         }
     }
@@ -267,5 +278,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
     }
 }
 
+/** 상단 판과 화면(안전 영역) 위 가장자리 사이의 틈. */
+private val HomeHeaderTop = 12.dp
 private val HomeNight = Color(0xFF1B2233)
 private val HomeGround = Color(0xFFF9FAF9)

@@ -13,6 +13,7 @@ class HomeScrollTest {
         assertEquals(1.65f, frame.artScale)
         assertTrue(frame.darkBehindButton)
         assertEquals(1f, frame.arrowAlpha)
+        assertEquals(0f, frame.headerAlpha)
     }
 
     @Test fun opensToOriginalBandAndDarkInk() {
@@ -22,11 +23,18 @@ class HomeScrollTest {
         assertEquals(1f, frame.artScale)
         assertFalse(frame.darkBehindButton)
         assertEquals(0f, frame.arrowAlpha)
+        assertEquals(1f, frame.headerAlpha)
     }
 
     @Test fun inkChangesWhenTheButtonCrossesTheRisingGround() {
         assertTrue(homeScrollFrame(390f, 844f, 160f, 56.5f).darkBehindButton)
         assertFalse(homeScrollFrame(390f, 844f, 320f, 56.5f).darkBehindButton)
+    }
+
+    @Test fun headerPlatesAppearOnlyAfterHalfOfTheScroll() {
+        assertEquals(0f, homeScrollFrame(390f, 844f, 200f, 56.5f).headerAlpha)
+        assertEquals(.5f, homeScrollFrame(390f, 844f, 280f, 56.5f).headerAlpha, 1e-5f)
+        assertEquals(1f, homeScrollFrame(390f, 844f, 380f, 56.5f).headerAlpha)
     }
 
     @Test fun snapHasDifferentOpenAndCloseThresholds() {

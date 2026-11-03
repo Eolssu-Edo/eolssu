@@ -1,5 +1,5 @@
 <resources>
-    <string name="home_scroll_to_features">연습·학습하기로 내려가기</string>
+    <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>
     <string name="jangdan_unassigned">장단 미지정</string>
     <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
     <string name="common_close">닫기</string>
@@ -11,14 +11,15 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_hero_title">얼쑤,\n나도 이제 국악인</string>
-    <string name="home_hero_body">우리 소리와 가까워지는 시간</string>
+    <string name="home_hero_title">나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
-    <string name="home_section_practice">연습·학습하기</string>
+    <string name="home_section_practice">학습·연습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
     <string name="home_feature_fingering">운지법 보기</string>
     <string name="home_feature_reading">정간보 쉽게 읽기</string>
     <string name="home_feature_learn">기초부터 배우기</string>
+    <string name="home_feature_records">연습 기록 보기</string>
+    <string name="home_feature_edit_sheets">악보 추가·편집하기</string>
 
 
     <string name="score_column_start">시작</string>
@@ -842,4 +843,6 @@
     <string name="home_feature_fingering_desc">손끝으로 익히는 우리 소리</string>
     <string name="home_feature_reading_desc">한 칸씩, 차근차근 읽어요</string>
     <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
+    <string name="home_feature_records_desc">지난 연주를 돌아봐요</string>
+    <string name="home_feature_edit_sheets_desc">내 악보를 만들고 고쳐요</string>
 </resources>
