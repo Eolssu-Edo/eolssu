@@ -36,6 +36,7 @@ fun InstrumentPicker(
     modifier: Modifier = Modifier,
     label: String? = null,
     instruments: List<Instrument> = Instrument.entries,
+    enabled: Boolean = true,
 ) {
     val colors = EolssuTheme.colors
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -55,7 +56,7 @@ fun InstrumentPicker(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(76.dp)
-                                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(instrument) }),
+                                .selectable(selected = isSelected, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(instrument) }),
                             shape = RoundedCornerShape(14.dp),
                             color = if (isSelected) colors.primary else colors.surface,
                             contentColor = if (isSelected) colors.onPrimary else colors.text,

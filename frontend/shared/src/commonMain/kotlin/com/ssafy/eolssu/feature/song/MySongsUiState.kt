@@ -2,7 +2,6 @@ package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
-import com.ssafy.eolssu.data.song.CatalogInstrument
 
 /** SONG-03 탭. 홈 '연습곡 선택하기'로 들어오면 제공 곡부터 보인다. */
 enum class MySongsTab { Songs, Sheets }
@@ -23,7 +22,6 @@ data class MySongsUiState(
     val addSheetOpen: Boolean = false,
     val savedSheet: MySheet? = null,
     val addSheetOnReturn: Boolean = false,
-    val instruments: List<CatalogInstrument> = emptyList(),
     val instrumentId: String? = null,
 ) {
     val sheetCount: Int get() = sheets?.size ?: 0

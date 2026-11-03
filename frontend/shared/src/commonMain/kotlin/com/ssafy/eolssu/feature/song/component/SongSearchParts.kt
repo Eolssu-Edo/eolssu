@@ -89,7 +89,6 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
     }
     item(key = "search") {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            SongInstrumentFilter(state.instruments, state.instrumentId, actions.onSelectInstrument)
             SongSearchField(state.query, actions.onQueryChange, actions.onClearQuery)
             SongLevelChips(state.filter, actions.onSelectFilter, Modifier.padding(bottom = 16.dp))
         }
