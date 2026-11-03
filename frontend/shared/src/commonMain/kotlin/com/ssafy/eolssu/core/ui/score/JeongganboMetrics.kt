@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.sp
  * @property headCompact 각 머리를 ‘시작 · 1각’·‘2각’ 한 줄로 적는다(보드 `.ms-lab`). 아니면 ‘시작’ + 번호.
  * @property daegangWhenFits 공통 악보라도 각 길이가 장단의 정간 수와 같으면 대강 선을 긋는다(보드).
  * @property upcomingMark 연주 중 각의 마지막 정간에 들어서면 다음 각 머리를 ‘← 다음’으로 강조한다(보드).
+ * @property joined 각 사이를 띄우지 않고 붙여 바깥 테두리 하나로 감싼다(보드 결과 `.ms`: 바깥 `#8E887D`, 각 경계 `#B9B3A6`).
+ * @property headStartPill 첫 각 머리에 연두 ‘시작’ 알약을 번호 앞에 둔다(보드 결과 `.ms-lab`).
  * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
  */
 @Immutable
@@ -25,6 +27,8 @@ data class JeongganboLook(
     val headCompact: Boolean = false,
     val daegangWhenFits: Boolean = false,
     val upcomingMark: Boolean = false,
+    val joined: Boolean = false,
+    val headStartPill: Boolean = false,
     val soft: Boolean = false,
 ) {
     enum class Style { Classic, Board }
@@ -39,6 +43,8 @@ data class JeongganboLook(
             style = Style.Board, lyricLane = if (big) 34.dp else 25.dp, headCompact = true, daegangWhenFits = true, upcomingMark = true,
         )
 
+        /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 칸은 붉은 안쪽 테두리와 글자 상자. */
+        val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true)
         /** 기록 상세 RECORD-02의 악보: 옛 크기(각 46 · 정간 38)에 흰 각 · 옅은 선 · 연두 현재 칸. */
         val Record = JeongganboLook(soft = true)
     }
@@ -111,6 +117,15 @@ data class JeongganboMetrics(
                 else -> JeongganboMetrics(columnWidth = 78.dp, cellHeight = 44.dp, yulSize = 21.sp, auxSize = 9.sp, headHeight = 22.dp, splitScaleTwo = 14f / 21f)
             }
         }
+
+        /**
+         * 연두 보드 RESULT-02 오류 위치 악보(`.ms`): 각을 붙여 [columnWidth]씩 나누고, 머리 24dp · 정간 40dp ·
+         * 율명 21sp(두 음 14sp) · 보조 9sp. 각 너비는 카드 너비를 각 수로 나눠 정한다.
+         */
+        fun resultBoard(columnWidth: Dp): JeongganboMetrics = JeongganboMetrics(
+            columnWidth = columnWidth, cellHeight = 40.dp, yulSize = 21.sp, auxSize = 9.sp,
+            headHeight = 24.dp, columnGap = 0.dp, splitScaleTwo = 14f / 21f,
+        )
 
         /** 태블릿 연습 화면의 정간 최소 높이. 와이어프레임 `cellMinH`. */
         fun practiceMinCellHeight(big: Boolean): Dp = if (big) 60.dp else 44.dp

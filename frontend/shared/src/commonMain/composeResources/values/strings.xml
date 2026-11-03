@@ -213,6 +213,7 @@
     <string name="analysis_running_title">연주를 확인하고 있어요.</string>
     <string name="analysis_running_body">음정, 박자, 음 길이를 살펴보고 있어요.</string>
     <string name="analysis_failed_title">분석을 완료하지 못했어요.</string>
+    <string name="analysis_failed_board">네트워크나 서버 문제로 결과를 받지 못했어요.\n녹음한 연주는 그대로 있어요.</string>
     <!-- 분석 실패 사유별 안내(PRA-03 스펙 문구 초안). 사용자 잘못이 아닌 실패는 연주를 탓하지 않는다. -->
     <string name="analysis_failed_no_sound">소리가 들리지 않았어요. 마이크 가까이에서 다시 불어 주세요.</string>
     <string name="analysis_failed_too_short">녹음이 끝까지 저장되지 않았어요. 다시 연주해 주세요.</string>
@@ -243,13 +244,20 @@
     <string name="result_metric_rhythm">박자</string>
     <string name="result_metric_length">음 길이</string>
     <string name="result_score_unit">점</string>
+    <string name="result_score_of">/ 100점</string>
+    <string name="result_metric_weak">더 연습</string>
+    <string name="result_feedback_good_pitch">좋아요! 음정을 조금 더 맞춰볼까요?</string>
+    <string name="result_feedback_good_rhythm">좋아요! 박자를 조금 더 맞춰볼까요?</string>
+    <string name="result_feedback_good_length">좋아요! 음 길이를 조금 더 맞춰볼까요?</string>
+    <string name="result_feedback_low_pitch">음정부터 차근차근 맞춰볼까요?</string>
+    <string name="result_feedback_low_rhythm">박자부터 차근차근 맞춰볼까요?</string>
+    <string name="result_feedback_low_length">음 길이부터 차근차근 맞춰볼까요?</string>
+    <string name="result_feedback_even_good">고르게 잘 연주했어요!</string>
+    <string name="result_feedback_even_low">한 번 더 연주해 볼까요?</string>
     <string name="result_errors_title">오류 위치</string>
     <string name="result_errors_count">틀린 칸 %1$d개</string>
     <string name="result_errors_none">틀린 칸이 없어요.</string>
-    <string name="result_legend_pitch">음정 (음)</string>
-    <string name="result_legend_rhythm">박자 (박)</string>
-    <string name="result_legend_length">음 길이 (길)</string>
-    <string name="result_legend_missed">음 미검출 (미)</string>
+    <string name="result_legend_missed_short">미검출</string>
     <string name="result_tag_pitch">음</string>
     <string name="result_tag_rhythm">박</string>
     <string name="result_tag_length">길</string>
@@ -260,13 +268,12 @@
     <string name="result_weak_section">취약 구간 연습</string>
     <string name="result_practice_again">같은 곡 다시 연습</string>
     <string name="result_other_song">다른 곡 고르기</string>
-    <string name="result_home">홈으로</string>
+    <string name="result_home">홈으로 가기</string>
     <string name="result_saved_title">연습 기록에 저장했어요</string>
     <string name="result_saved_song">%1$s · 전체 연주</string>
-    <string name="result_saved_score">%1$d점</string>
     <string name="result_saved_meta">%1$s · 녹음 %2$s · %3$d BPM</string>
     <string name="result_memo_label">메모 (선택)</string>
-    <string name="result_memo_placeholder">예: 3–4각에서 박자가 밀림</string>
+    <string name="result_memo_placeholder">예: 3~4각에서 박자가 밀렸어요</string>
     <string name="result_go_records">기록 보러 가기</string>
 
     <string name="date_month_day">%1$d월 %2$d일</string>
