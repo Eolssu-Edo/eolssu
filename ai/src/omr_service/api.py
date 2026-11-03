@@ -135,7 +135,10 @@ def download(url: str, dest: Path, max_bytes: int, deadline: float,
                     raise TimeoutError()
                 out.write(chunk)
     except httpx.TimeoutException:
-        raise TimeoutError() from None
+        # 저장소가 늦은 것은 내려받기 실패다. 요청 시간 상한을 넘긴 때만 계약의 TIMEOUT이다.
+        if monotonic() > deadline:
+            raise TimeoutError() from None
+        raise DownloadError("storage timed out") from None
     except (httpx.HTTPError, httpx.InvalidURL) as e:  # InvalidURL은 HTTPError 하위가 아니다
         raise DownloadError(type(e).__name__) from None  # httpx 메시지에는 URL이 들 수 있다
 
@@ -165,9 +168,12 @@ def recognize(
     try:
         with tempfile.TemporaryDirectory(prefix="recognition-") as work:
             try:
-                files = _fetch_all(request, Path(work), fetch, began + MAX_TIME_S)
                 kind = "PDF" if request.files[0].content_type == "application/pdf" else "IMAGE"
-                pages = _pdf_pages(files[0], Path(work)) if kind == "PDF" else [
+                # 이미지는 장 수가 곧 쪽 수라 처음부터 예산을 안다. PDF는 열어 볼 때까지 최대 10쪽으로 본다.
+                max_pages = MAX_PDF_PAGES if kind == "PDF" else len(request.files)
+                files = _fetch_all(request, Path(work), fetch, began + PAGE_TIME_S * max_pages)
+                # 이미지 열기는 짧아 따로 마감을 보지 않는다. 넘었으면 아래 엔진 예산에서 TIMEOUT이 된다.
+                pages = _pdf_pages(files[0], Path(work), began) if kind == "PDF" else [
                     _image_page(f, t.content_type) for f, t in zip(files, request.files)]
             except (DownloadError, UnsupportedFile):
                 outcome = "UNSUPPORTED_FILE"
@@ -234,9 +240,13 @@ def _fetch_all(request: RecognitionIn, work: Path, fetch: Fetcher, deadline: flo
     return paths
 
 
-def _pdf_pages(path: Path, work: Path) -> list[Page]:
+def _pdf_pages(path: Path, work: Path, began: float) -> list[Page]:
+    """PDF를 쪽 그림으로 만든다. 잠금 대기와 쪽마다 그리기도 요청 시간(began부터)에 넣는다."""
     scale = DPI / 72
-    with PDFIUM_LOCK:
+    remaining = began + MAX_TIME_S - monotonic()
+    if remaining <= 0 or not PDFIUM_LOCK.acquire(timeout=remaining):
+        raise TimeoutError()
+    try:
         try:
             doc = pdfium.PdfDocument(path)  # 머리말 앞에 다른 바이트가 있어도 PDFium이 판단한다
         except pdfium.PdfiumError:
@@ -244,8 +254,10 @@ def _pdf_pages(path: Path, work: Path) -> list[Page]:
         with doc:
             if not 1 <= len(doc) <= MAX_PDF_PAGES:
                 raise UnsupportedFile("page count")
-            pages = []
+            deadline, pages = began + PAGE_TIME_S * len(doc), []
             for i, page in enumerate(doc):
+                if monotonic() > deadline:
+                    raise TimeoutError()
                 w, h = page.get_size()
                 if w * h * scale * scale > MAX_PIXELS:  # 그리기 전에 막는다
                     raise UnsupportedFile("page too large")
@@ -257,6 +269,8 @@ def _pdf_pages(path: Path, work: Path) -> list[Page]:
                 image.save(out)
                 pages.append(Page(out, *image.size))
             return pages
+    finally:
+        PDFIUM_LOCK.release()
 
 
 def _image_page(path: Path, content_type: str) -> Page:

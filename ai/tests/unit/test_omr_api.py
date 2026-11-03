@@ -141,6 +141,7 @@ def test_images_become_pages_in_order(serve, clock):
     assert out["status"] == "DONE"
     assert out["pages"] == [{"index": 0, "width": 40, "height": 30}, {"index": 1, "width": 50, "height": 20}]
     assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 60
+    assert serve.deadlines == [clock.now + 60] * 2  # 이미지는 장 수를 미리 알아 30초 × 장 수까지만 받는다
 
 
 @pytest.mark.parametrize("mode", ["RGB", "CMYK"])
@@ -174,6 +175,36 @@ def test_pdfium_is_called_under_lock(serve, monkeypatch):
     monkeypatch.setattr(pdfium.PdfPage, "render", spy)
     assert serve(pdf()).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
     assert held == [True]
+
+
+def test_waiting_for_pdfium_counts_against_deadline(serve, clock, monkeypatch):
+    """다른 요청이 PDF를 그리는 동안 남은 시간만큼만 기다린다."""
+
+    class Busy:
+        waits = []
+
+        def acquire(self, timeout):
+            self.waits.append(timeout)
+            return False
+
+    monkeypatch.setattr(api, "PDFIUM_LOCK", Busy())
+    failed(serve(pdf(), takes_s=100, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    assert Busy.waits == [200]  # 최대 300초 중 내려받기에 100초를 썼다
+
+
+def test_rendering_stops_at_deadline(serve, clock, monkeypatch):
+    """2쪽이면 60초다. 첫 쪽에 61초가 걸리면 둘째 쪽은 그리지 않는다."""
+    render, calls = pdfium.PdfPage.render, []
+
+    def slow(page, **kw):
+        calls.append(1)
+        clock.now += 61
+        return render(page, **kw)
+
+    monkeypatch.setattr(pdfium.PdfPage, "render", slow)
+    failed(serve(pdf(pages=2)).post("/v1/recognitions", json=body()), "TIMEOUT")
+    assert len(calls) == 1 and not serve.engine.jobs
+    assert not api.PDFIUM_LOCK.locked()  # 시간 초과로 나가도 잠금을 푼다
 
 
 def test_render_failure_is_unsupported(serve, monkeypatch):
@@ -314,6 +345,30 @@ def test_download_stops_at_deadline_between_chunks(tmp_path, clock):
     with pytest.raises(TimeoutError):
         api.download(SIGNED_URL, tmp_path / "f", max_bytes=100, deadline=clock.now + 5,
                      transport=chunks(10, clock, step_s=1))
+
+
+def timing_out(clock=None, step_s=0.0):
+    """연결 중 시간 초과가 나는 저장소. 그동안 시계를 step_s만큼 넘긴다."""
+
+    def handler(request):
+        if clock:
+            clock.now += step_s
+        raise httpx.ConnectTimeout("timed out", request=request)
+
+    return httpx.MockTransport(handler)
+
+
+def test_storage_timeout_before_deadline_is_download_error(tmp_path, clock):
+    """마감 전 저장소 시간 초과는 내려받기 실패(UNSUPPORTED_FILE)다. 계약의 TIMEOUT은 요청 시간 상한 초과다."""
+    with pytest.raises(DownloadError):
+        api.download(SIGNED_URL, tmp_path / "f", max_bytes=10, deadline=clock.now + 30,
+                     transport=timing_out(clock, step_s=10))
+
+
+def test_storage_timeout_after_deadline_is_timeout(tmp_path, clock):
+    with pytest.raises(TimeoutError):
+        api.download(SIGNED_URL, tmp_path / "f", max_bytes=10, deadline=clock.now + 30,
+                     transport=timing_out(clock, step_s=31))
 
 
 @pytest.mark.parametrize("url, transport", [
