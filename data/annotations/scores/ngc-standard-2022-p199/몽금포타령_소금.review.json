@@ -5,7 +5,7 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "몽금포타령_정간보_소금_표준악보집-PDF199.jgb.json",
   "sha256": "e85b8818f45bd1a935661d11b698bf2cc9cedbb44f37a06a2954f12374683417",
@@ -30,7 +30,7 @@
  "title": "몽금포타령_정간보_소금_표준악보집-PDF199",
  "source": "input",
  "reviewedOn": "2026-11-03",
- "confirmed": 68,
+ "confirmed": 72,
  "total": 72,
  "cells": [
   {
@@ -203,7 +203,7 @@
    "gak": 0,
    "cell": "쉼",
    "original": "쉼",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -563,7 +563,7 @@
    "gak": 2,
    "cell": "청고<",
    "original": "청고",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -743,7 +743,7 @@
    "gak": 3,
    "cell": "쉼",
    "original": "쉼",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -923,7 +923,7 @@
    "gak": 4,
    "cell": "청남 청임<",
    "original": "청남 청임",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -1117,7 +1117,7 @@
  "breathCorrection": {
   "on": "2026-11-03",
   "by": "AI",
-  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정된 칸은 사람 재확인 전.",
+  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정 당시 사람 재확인 전으로 보류.",
   "previousCells": [
    12,
    24,
@@ -1133,6 +1133,11 @@
    36,
    48,
    60
-  ]
+  ],
+  "humanConfirmation": {
+   "by": "사지한",
+   "on": "2026-11-03",
+   "note": "원본 그림에 표시된 각 번호와 숨표 위치를 확인하고 전부 맞다고 응답함."
+  }
  }
 }

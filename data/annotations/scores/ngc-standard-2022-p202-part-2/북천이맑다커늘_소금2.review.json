@@ -5,7 +5,7 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202.jgb.json",
   "sha256": "3055d95f7fec5c10d0eceba83aaa579bc7745ebc9805bdd7d9c61cddf63bff94",
@@ -32,7 +32,7 @@
  "title": "북천이맑다커늘_정간보·오선보_소금_표준악보집-PDF202",
  "source": "input",
  "reviewedOn": "2026-11-03",
- "confirmed": 109,
+ "confirmed": 112,
  "total": 112,
  "cells": [
   {
@@ -565,7 +565,7 @@
    "gak": 8,
    "cell": "청고",
    "original": "청고",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -625,7 +625,7 @@
    "gak": 9,
    "cell": "청남<",
    "original": "청남",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -1465,7 +1465,7 @@
    "gak": 23,
    "cell": "청고<",
    "original": "청고",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -1719,7 +1719,7 @@
  "breathCorrection": {
   "on": "2026-11-03",
   "by": "AI",
-  "basis": "사용자가 오선보를 근거로 두 성부 모두 적용하도록 지시. 숨표를 각 10 끝에 둠. 수정 칸은 사람 재확인 전.",
+  "basis": "사용자가 오선보를 근거로 두 성부 모두 적용하도록 지시. 숨표를 각 10 끝에 둠. 수정 당시 사람 재확인 전으로 보류.",
   "previousCells": [
    36
   ],
@@ -1731,6 +1731,11 @@
    36,
    40,
    96
-  ]
+  ],
+  "humanConfirmation": {
+   "by": "사지한",
+   "on": "2026-11-03",
+   "note": "원본 그림에 표시된 각 번호와 숨표 위치를 확인하고 전부 맞다고 응답함."
+  }
  }
 }

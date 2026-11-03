@@ -243,7 +243,7 @@ class AnswerTests(unittest.TestCase):
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
-            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "inferred"))
+            self.assertEqual((result["score"]["title"], result["provenance"]["review"]), (title, "reviewed"))
 
     def test_recorded_beat_unit_overrides_the_jangdan_default(self):
         for source_id, ratio in (("ngc-standard-2022-p188", 0.5), ("ngc-standard-2022-p191", 1.5)):
@@ -257,7 +257,7 @@ class AnswerTests(unittest.TestCase):
         jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
         self.assertEqual(check(result), [])
         self.assertEqual((result["music"]["jangdan"], result["music"]["bpmUnit"]), ("", "QUARTER"))
-        self.assertEqual(result["provenance"]["review"], "inferred")
+        self.assertEqual(result["provenance"]["review"], "reviewed")
 
     def test_two_exercises_share_a_source_but_keep_separate_answers(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -275,14 +275,14 @@ class AnswerTests(unittest.TestCase):
         self.assertEqual(check(result), [])
         self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 1))
         self.assertEqual(len(result["events"]), 67)
-        self.assertEqual(result["provenance"]["review"], "inferred")
+        self.assertEqual(result["provenance"]["review"], "reviewed")
 
     def test_reviewed_sogeum_first_part_preserves_the_human_corrections(self):
         result = convert_answer("ngc-standard-2022-p202-part-1")
         jsonschema.validate(result, json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
         self.assertEqual(check(result), [])
         self.assertEqual((result["score"]["sourceId"], result["score"]["part"]), ("ngc-standard-2022-p202", 0))
-        self.assertEqual(result["provenance"]["review"], "inferred")
+        self.assertEqual(result["provenance"]["review"], "reviewed")
 
     def test_corrected_breath_marks_are_in_the_source_columns(self):
         expected = {
@@ -295,13 +295,17 @@ class AnswerTests(unittest.TestCase):
             folder = DATA / "annotations/scores" / source_id
             review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
             self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], positions)
-            self.assertEqual(review["review"], "inferred")
+            self.assertEqual(review["review"], "reviewed")
+            self.assertEqual(review["confirmed"], review["total"])
+            self.assertEqual(review["breathCorrection"]["humanConfirmation"]["by"], "사지한")
 
     def test_north_breath_is_on_tenth_column_of_both_parts(self):
         for part in (1, 2):
             folder = DATA / f"annotations/scores/ngc-standard-2022-p202-part-{part}"
             review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
             self.assertEqual([c["index"] + 1 for c in review["cells"] if "<" in c["cell"]], [40, 96])
+            self.assertEqual(review["confirmed"], review["total"])
+            self.assertEqual(review["breathCorrection"]["humanConfirmation"]["by"], "사지한")
             result = convert_answer(f"ngc-standard-2022-p202-part-{part}")
             self.assertEqual([e["id"] for e in result["events"] if e["breathAfter"]], ["c9-j3-r0-u0"])
 

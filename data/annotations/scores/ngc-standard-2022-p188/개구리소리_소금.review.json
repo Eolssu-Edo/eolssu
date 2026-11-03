@@ -5,7 +5,7 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "개구리소리_정간보_소금_표준악보집-PDF188.jgb.json",
   "sha256": "c2169919af17b7fc3b033373c36530286c31cf6f3bb4619ed7466e3f1f301772",
@@ -32,7 +32,7 @@
  "title": "개구리소리_정간보_소금_표준악보집-PDF188",
  "source": "input",
  "reviewedOn": "2026-11-03",
- "confirmed": 58,
+ "confirmed": 60,
  "total": 60,
  "cells": [
   {
@@ -565,7 +565,7 @@
    "gak": 2,
    "cell": "쉼",
    "original": "쉼",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -745,7 +745,7 @@
    "gak": 3,
    "cell": "남<",
    "original": "남",
-   "confirmed": false,
+   "confirmed": true,
    "inserted": false,
    "conf": null,
    "box": [
@@ -939,7 +939,7 @@
  "breathCorrection": {
   "on": "2026-11-03",
   "by": "AI",
-  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정된 칸은 사람 재확인 전.",
+  "basis": "원본 PDF의 율명 열 오른쪽 화살표와 사용자 승인에 따라 위치 수정. 수정 당시 사람 재확인 전으로 보류.",
   "previousCells": [
    36
   ],
@@ -949,6 +949,11 @@
   "changedCells": [
    36,
    48
-  ]
+  ],
+  "humanConfirmation": {
+   "by": "사지한",
+   "on": "2026-11-03",
+   "note": "원본 그림에 표시된 각 번호와 숨표 위치를 확인하고 전부 맞다고 응답함."
+  }
  }
 }
