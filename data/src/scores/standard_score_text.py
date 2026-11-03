@@ -15,6 +15,7 @@
 """
 import argparse
 import json
+import re
 import sys
 import unicodedata
 from collections import defaultdict
@@ -35,6 +36,7 @@ NOTE |= {"-": "-", "－": "-", "△": "쉼표"}
 
 IMAGE_DPI = 150  # 검토 화면용 page.png 해상도
 NO_YUL_EXIT = 3  # 율명 글자가 없는 쪽의 종료 코드. 악보 인식 서비스가 이 값으로 OMR 경로를 고른다
+NO_GRID_EXIT = 4  # 율명은 있지만 정간 격자를 읽지 못한 쪽. 그 밖의 오류는 1(파이썬 기본)이다
 
 # 정간 안 위치 번호(JG-like). 행 수별로 [행][왼·통째·오른].
 POS = {1: [(None, 0, None)], 2: [(12, 10, 13), (14, 11, 15)], 3: [(1, 2, 3), (4, 5, 6), (7, 8, 9)]}
@@ -137,16 +139,49 @@ class NoYulText(ValueError):
 
 def runs(vlines, gap=1.0):
     """같은 x에서 끊김 없이 이어지는(틈 gap pt 이하) 세로 선분을 하나로 잇는다. 정간 칸마다 잘라 그린 선을 열 경계로 되살린다."""
-    out = []
-    for x, y0, y1 in sorted(vlines, key=lambda l: (round(l[0], 1), l[1])):
-        if out and abs(out[-1][0] - x) < 0.5 and y0 <= out[-1][2] + gap:
-            out[-1] = (out[-1][0], out[-1][1], max(out[-1][2], y1))
+    groups = []  # x가 0.5pt 안인 선분 묶음
+    for line in sorted(vlines):
+        if groups and line[0] - groups[-1][-1][0] < 0.5:
+            groups[-1].append(line)
         else:
-            out.append((x, y0, y1))
+            groups.append([line])
+    out = []
+    for group in groups:
+        x, merged = group[0][0], []
+        for _, y0, y1 in sorted(group, key=lambda l: l[1]):
+            if merged and y0 <= merged[-1][2] + gap:
+                merged[-1] = (x, merged[-1][1], max(merged[-1][2], y1))
+            else:
+                merged.append((x, y0, y1))
+        out += merged
     return out
 
 
 MIN_BORDER = 100  # 열 경계로 볼 세로선의 최소 길이(pt). 정간 높이(약 40~50pt)보다 길다
+VOICE = re.compile(r"^\s*(단소|소금|대금|피리|해금)\s*([0-9])\s*$")  # 2중주 열 머리 표시(예: 단소1)
+
+
+def voices(page, cols):
+    """2중주 쪽이면 열마다 성부 번호, 아니면 None. 열 위 머리 표시('단소1'·'단소2')의 x가 든 열이 그 성부다.
+
+    머리 표시는 맨 위 단에만 있어 아래 단의 열은 같은 x의 표시를 따른다. 표시가 없는 음 열이 있으면 가를 수 없어 멈춘다.
+    """
+    labels = []
+    for block in page.get_text("dict")["blocks"]:
+        for line in block.get("lines", []):
+            for span in line["spans"]:
+                m = VOICE.match(span["text"])
+                if m:
+                    labels.append(((span["bbox"][0] + span["bbox"][2]) / 2, int(m.group(2))))
+    if len({v for _, v in labels}) < 2:
+        return None
+    out = {}
+    for c in cols:
+        found = {v for x, v in labels if c[0] < x < c[1]}
+        if len(found) != 1:
+            raise ValueError("2중주 성부를 열마다 가르지 못함")
+        out[c] = found.pop()
+    return out
 
 
 def read_page(page):
@@ -159,23 +194,36 @@ def read_page(page):
     # 율명 글자마다 좌우로 가장 가까운 긴 세로선 = 그 글자가 든 열의 경계. 두 선이 함께 덮는 높이가 열의 위·아래다.
     # 율명 한자가 있는 칸만 음 열이다(가사·장단 열 제외).
     borders = [l for l in runs(vlines) if l[2] - l[1] >= MIN_BORDER]
-    boxes_ = set()
-    for n in hanja:
+    def box_of(n):
         covering = [l for l in borders if l[1] <= n["y"] <= l[2]]
         left = max((l for l in covering if l[0] < n["x"]), key=lambda l: l[0], default=None)
         right = min((l for l in covering if l[0] > n["x"]), key=lambda l: l[0], default=None)
-        if left and right:
-            boxes_.add((left[0], right[0], max(left[1], right[1]), min(left[2], right[2])))
+        return (left[0], right[0], max(left[1], right[1]), min(left[2], right[2])) if left and right else None
+
+    boxes_ = {b for b in map(box_of, hanja) if b}
+    # 이음·쉼표만 든 단(곡 끝 '- - - △' 등)도 같은 x의 음 열이면 읽는다. 가사 칸의 '-'는 x가 달라 들어오지 않는다.
+    xs = {(a, b) for a, b, _, _ in boxes_}
+    boxes_ |= {b for n in g if n["c"] in "-－△" for b in [box_of(n)] if b and b[:2] in xs}
+    if not boxes_:
+        raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
+    # 펼침면(가로가 긴 쪽)은 악보 열이 더 많은 쪽만 읽는다. 옆 쪽의 설명문·장식음 표 칸에도 율명 한자가 있다.
+    if page.rect.width > page.rect.height * 1.2:
+        mid = page.rect.width / 2
+        left = [c for c in boxes_ if c[1] <= mid]
+        boxes_ = set(left if len(left) * 2 >= len(boxes_) else [c for c in boxes_ if c[0] >= mid])
     if not boxes_:
         raise ValueError("정간 열을 찾지 못함(율명은 있지만 정간 격자가 없는 쪽)")
     width = sorted(b - a for a, b, _, _ in boxes_)[len(boxes_) // 2]
-    # 옆 쪽 설명문처럼 넓은 칸이나 음계표처럼 좁은 칸의 한자는 악보가 아니다
+    # 넓은 칸(설명문)이나 좁은 칸(음계표)의 한자는 악보가 아니다
     cols = [c for c in boxes_ if width * 0.5 < c[1] - c[0] < width * 1.5]
+    voice = voices(page, cols)
+    if voice:  # 2중주는 첫 성부만 읽는다(악보 인식 서비스는 VOICE_GUESSED로 알린다)
+        cols = [c for c in cols if voice[c] == 1]
     notes = [n for n in g if n["c"] in NOTE and any(c[0] < n["x"] < c[1] and c[2] <= n["y"] <= c[3] for c in cols)]
 
     # 열마다 정간을 위에서부터 나누고, 얇은 틈(단 사이 빈 줄·곡 끝 이중선)에서 단을 끊는다. 한 단의 한 열이 한 각이다.
     # 쪽을 여러 단으로 나눈 판형(소금·단소 표준악보집 일부)은 단을 위에서부터, 단 안의 열을 오른쪽부터 읽는다.
-    pieces = []  # (단 위 y, 열 왼쪽 x의 음수, 열, [(위, 아래)])
+    pieces, heights = [], []  # pieces: (단 위 y, 열 왼쪽 x의 음수, 열, [(위, 아래)])
     for a, b, col_top, col_bottom in cols:
         # 이 열 안의 가로선: 점선 조각을 합쳐 열 너비의 30% 이상 덮는 y(점선은 약 40%를 덮는다)
         cover = defaultdict(float)
@@ -184,7 +232,10 @@ def read_page(page):
                 cover[round(y)] += max(0.0, min(x1, b) - max(x0, a))
         rows_y = cluster([y for y, l in cover.items() if l > (b - a) * 0.3], 2.0)
         bands = list(zip(rows_y, rows_y[1:]))
+        if not bands:
+            raise ValueError("정간 가로선이 없는 열")
         typical = sorted(b2 - t for t, b2 in bands)[len(bands) // 2]
+        heights += [b2 - t for t, b2 in bands if b2 - t > typical * 0.3]
         tier = [[]]
         for t, b2 in bands:
             if b2 - t > typical * 0.3:
@@ -192,7 +243,8 @@ def read_page(page):
             elif tier[-1]:
                 tier.append([])
         pieces += [(cells[0][0], -a, (a, b), cells) for cells in tier if cells]
-    # 단은 위 끝이 정간 높이의 절반 안이면 같은 단으로 묶는다
+    # 단은 위 끝이 정간 높이(모든 열의 중앙값)의 절반 안이면 같은 단으로 묶는다
+    typical = sorted(heights)[len(heights) // 2]
     pieces.sort(key=lambda p: p[0])
     tier_top, ordered = None, []
     for p in pieces:
@@ -202,7 +254,8 @@ def read_page(page):
     pieces = sorted(ordered, key=lambda p: (p[0], p[1]))
 
     gaks, boxes = [], []
-    report = dict(columns=len(pieces), jeonggans=[], split_cells=[], ignored=[], ignored_at=[])
+    report = dict(columns=len(pieces), jeonggans=[], split_cells=[], ignored=[], ignored_at=[],
+                  voices=2 if voice else 1)
     for ci, (_, _, (a, b), bands) in enumerate(pieces):
         cells = []
         for top, bottom in bands:
@@ -216,7 +269,8 @@ def read_page(page):
                    and n not in notes and n["c"] not in "｜|"]
         report["ignored"] += [n["c"] for n in ignored]
         # 확인 필요 칸 표시용 위치(PDF 좌표, pt)
-        report["ignored_at"] += [dict(c=n["c"], x=round(n["x"], 1), y=round(n["y"], 1)) for n in ignored]
+        report["ignored_at"] += [dict(c=n["c"], x=round(n["x"], 1), y=round(n["y"], 1), size=round(n["size"], 1))
+                                 for n in ignored]
         report["jeonggans"].append(len(cells))
         gaks.append(" | ".join(cells))
     return gaks, boxes, report
@@ -236,6 +290,9 @@ if __name__ == "__main__":
         except NoYulText as e:
             print(e, file=sys.stderr)
             sys.exit(NO_YUL_EXIT)
+        except ValueError as e:  # 율명은 있지만 이 판형의 정간 격자를 읽지 못했다
+            print(e, file=sys.stderr)
+            sys.exit(NO_GRID_EXIT)
         doc[args.page].get_pixmap(dpi=IMAGE_DPI).save(str(args.out / "page.png"))
     scale = IMAGE_DPI / 72  # PDF 좌표(pt) → page.png 픽셀
     for b in boxes:
