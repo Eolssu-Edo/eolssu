@@ -209,6 +209,18 @@ hugo server -D
 - `static/css/style.css`에서 색상·간격·반응형·동작 줄이기 대응을 관리한다.
 - `assets/images/`의 확정 로고·캐릭터 시트 원본은 보존하며, 화면에는 `static/images/`의 WebP를 사용한다.
 
+### 댓글과 좋아요 (giscus)
+
+- 글 상세 아래에 [giscus](https://giscus.app/ko) 댓글을 표시한다. 댓글은 `team-edo/team-edo.github.io`의 GitHub Discussions에 글 주소(`pathname`)별로 저장되고, 글에 누르는 반응(👍 등)이 좋아요 역할을 한다. 댓글·반응에는 GitHub 로그인이 필요하다.
+- `hugo.toml`의 `[params.giscus]`에 `repoId`·`categoryId`가 비어 있으면 댓글 영역을 표시하지 않는다.
+- 2026-11-03 Discussions 활성화, `Comments`(Announcement) 카테고리 생성, giscus 앱 설치(`team-edo.github.io`만, Discussions 읽기·쓰기)를 마치고 두 값을 반영했다.
+- 처음 한 번 조직 관리자가 준비한다. 저장소를 바꾸거나 다시 설정할 때 같은 순서를 따른다.
+  1. `team-edo.github.io` 저장소 Settings → General → Features에서 **Discussions**를 켠다.
+  2. Discussions에서 형식이 **Announcement**인 `Comments` 카테고리를 만든다. 방문자는 새 글타래를 만들 수 없고 giscus가 만든 글타래에만 댓글을 단다.
+  3. [giscus 앱](https://github.com/apps/giscus)을 `team-edo` 조직의 `team-edo.github.io` 저장소에만 설치한다.
+  4. [giscus.app](https://giscus.app/ko)에 저장소 `team-edo/team-edo.github.io`, 카테고리 `Comments`를 넣어 나온 `data-repo-id`·`data-category-id`를 `hugo.toml`에 적고 `blog`에 MR한다. 두 값은 공개 식별자라 저장소에 적어도 된다.
+- Jenkins 배포는 저장소 파일만 덮어쓰므로 Discussions의 댓글은 그대로 남는다. 글 주소(slug·날짜)를 바꾸면 기존 댓글과 연결이 끊긴다.
+
 ### 검증 기록 (2026-11-02, S15P31E102-386)
 
 - Jenkins와 같은 Hugo `ghcr.io/gohugoio/hugo:v0.145.0`, 네트워크 차단·읽기 전용 소스로 17페이지 빌드 성공(경고 없음).

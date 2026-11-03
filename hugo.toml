@@ -10,6 +10,14 @@ summaryLength = 60
   description = "국악기 연습 프로젝트 얼쑤와 Team Edo의 개발 기록"
   team = "Team Edo"
 
+  # 글 상세의 댓글·좋아요(giscus, GitHub Discussions에 저장).
+  # repoId·categoryId가 비어 있으면 댓글 영역을 표시하지 않음. 값은 https://giscus.app 에서 확인 (README 참고, 2026-11-03 설정)
+  [params.giscus]
+    repo = "team-edo/team-edo.github.io"
+    repoId = "R_kgDOVX3GyQ"
+    category = "Comments"
+    categoryId = "DIC_kwDOVX3Gyc4DKS5M"
+
 [taxonomies]
   tag = "tags"
   category = "categories"
