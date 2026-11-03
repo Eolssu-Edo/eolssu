@@ -73,6 +73,7 @@
 - 새 작업 브랜치는 최신 `origin/develop`에서 만든다. 기술 블로그 글·설정만 예외로 develop과 기록을 공유하지 않는 `origin/blog`에서 만들고 `blog`로 MR한다(파트 자리는 `blog`).
 - 브랜치는 `타입(파트)/JiraKey-Task제목`으로 만든다. 타입은 아래 커밋 타입, 파트는 `be|fe|data|ai|infra`를 쓰며 `codex/`를 붙이지 않는다.
 - Jira Key는 `S15P31E102-번호` 전체를 사용하고 Task제목에서는 머리말과 뒤 공백을 제외한다. `[INF]`는 브랜치·커밋에서 `infra`에 대응한다.
+- MR 제목은 주된 커밋과 같은 `타입(파트): 변경 내용 (JiraKey)` 형식으로 쓴다. Jira 머리말(`[FE]` 등)이나 `[JiraKey]` 앞머리를 쓰지 않는다.
 - 작업 브랜치에서 `develop`으로 MR을 만든다. [템플릿](.gitlab/merge_request_templates/default.md)에 전체 Jira Key, 변경 결과, 실제 검증 결과와 필요한 리뷰 요청을 간결하게 쓴다.
 - MR 생성 시 프로젝트의 기존 라벨 목록·설명을 조회하고 변경 영역·작업 성격에 맞는 라벨을 선택해 적용한다. 라벨을 추가할 때 기존 라벨을 일괄 덮어쓰지 않는다. 적합한 라벨이 없거나 조회·적용에 실패하면 임의로 생성하거나 적용 완료로 보고하지 않고 미완료 항목을 알린다.
 - MR 생성 시 assignee·reviewer를 MR 작성자로 지정한다. 템플릿 끝의 `/assign me`·`/assign_reviewer me`를 지우지 않는다.
