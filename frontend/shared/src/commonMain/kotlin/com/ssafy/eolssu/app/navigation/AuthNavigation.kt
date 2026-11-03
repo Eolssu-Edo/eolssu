@@ -38,6 +38,7 @@ import eolssu.shared.generated.resources.auth_reset_done_notice
 import eolssu.shared.generated.resources.auth_welcome
 import eolssu.shared.generated.resources.my_link_done
 import eolssu.shared.generated.resources.my_logged_out
+import eolssu.shared.generated.resources.member_api_session_expired
 import eolssu.shared.generated.resources.my_nickname_changed
 import eolssu.shared.generated.resources.my_password_changed
 import eolssu.shared.generated.resources.my_withdrawn
@@ -79,11 +80,16 @@ object AuthDestination {
 
 /** 첫 실행을 마쳤으면 홈, 아니면 약관 동의에서 시작한다. */
 // TEMP S15P31E102-309: bypass only the initial consent screen; never persist consent/completion.
-fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false): String = when {
+fun startDestination(firstRunCompleted: Boolean, qaSkipConsent: Boolean = false, sessionExpired: Boolean = false): String = when {
+    firstRunCompleted && sessionExpired -> AuthDestination.LOGIN
     firstRunCompleted -> EolssuDestination.HOME
     qaSkipConsent -> AuthDestination.MIC
     else -> AuthDestination.CONSENT
 }
+
+/** 복원 중인 일회성 OAuth 완료 요청과 가입 흐름을 초기 세션 확인이 덮지 않는다. */
+internal fun shouldRedirectExpiredSession(route: String?): Boolean =
+    route == AuthDestination.LOGIN || route?.startsWith("auth/") != true
 
 /**
  * 다음 화면에 들어가면 한 번 띄울 안내. 이동한 화면의 저장 상태에 이름으로 남겨 화면을 돌려도 유지된다.
@@ -102,6 +108,7 @@ enum class StartNotice(val message: StringResource) {
     /** 마이페이지 간편 로그인 연결(MY-05) 뒤 마이페이지. */
     MyAccountLinked(Res.string.my_link_done),
     LoggedOut(Res.string.my_logged_out),
+    SessionExpired(Res.string.member_api_session_expired),
     Withdrawn(Res.string.my_withdrawn),
 }
 

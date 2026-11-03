@@ -50,6 +50,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             },
             onLink = { navController.navigate(ProfileDestination.link(it)) },
             onLoggedOut = { toLogin(StartNotice.LoggedOut) },
+            onSessionExpired = { toLogin(StartNotice.SessionExpired) },
             startMessage = entry.startNotice(),
             onStartMessageShown = entry::clearStartNotice,
         )

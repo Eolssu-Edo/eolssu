@@ -60,7 +60,6 @@ fun SongListRoute(
             onQueryChange = viewModel::changeQuery,
             onClearQuery = viewModel::clearQuery,
             onSelectFilter = viewModel::selectFilter,
-            onSelectInstrument = viewModel::selectInstrument,
             onResetFilters = viewModel::resetFilters,
             onOpenSong = { songId ->
                 if (twoPane) {
