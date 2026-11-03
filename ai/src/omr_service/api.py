@@ -104,7 +104,11 @@ class Page:
 
 @dataclass(frozen=True)
 class Job:
-    """엔진이 받는 입력. 엔진은 time_budget_s 안에 끝내고 넘으면 TimeoutError를 낸다."""
+    """엔진이 받는 입력. 엔진은 time_budget_s 안에 끝내고 넘으면 TimeoutError를 낸다.
+
+    엔진이 files의 PDF를 PDFium(pypdfium2)으로 읽을 때도 PDFIUM_LOCK을 잡는다. 재진입이 안 되는 잠금이라
+    한 스레드에서 두 번 잡으면 멈춘다.
+    """
 
     request: RecognitionIn
     kind: Literal["PDF", "IMAGE"]
@@ -166,7 +170,7 @@ def recognize(
     began = monotonic()
     outcome, pages = "ENGINE_ERROR", []
     try:
-        with tempfile.TemporaryDirectory(prefix="recognition-") as work:
+        with tempfile.TemporaryDirectory(prefix="recognition-", ignore_cleanup_errors=True) as work:
             try:
                 kind = "PDF" if request.files[0].content_type == "application/pdf" else "IMAGE"
                 # 이미지는 장 수가 곧 쪽 수라 처음부터 예산을 안다. PDF는 열어 볼 때까지 최대 10쪽으로 본다.

@@ -165,16 +165,39 @@ def test_pdf_with_leading_bytes_is_accepted(serve):
 
 
 def test_pdfium_is_called_under_lock(serve, monkeypatch):
-    """PDFium은 스레드 안전하지 않아 동시 요청이 겹쳐도 한 번에 하나만 그린다."""
-    render, held = pdfium.PdfPage.render, []
+    """PDFium은 스레드 안전하지 않아 동시 요청이 겹쳐도 한 번에 하나만 열고 그린다."""
+    data = pdf()
+    open_doc, render, held = pdfium.PdfDocument, pdfium.PdfPage.render, []
 
-    def spy(page, **kw):
-        held.append(api.PDFIUM_LOCK.locked())
+    def spy_open(*args, **kw):
+        held.append(("open", api.PDFIUM_LOCK.locked()))
+        return open_doc(*args, **kw)
+
+    def spy_render(page, **kw):
+        held.append(("render", api.PDFIUM_LOCK.locked()))
         return render(page, **kw)
 
-    monkeypatch.setattr(pdfium.PdfPage, "render", spy)
-    assert serve(pdf()).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
-    assert held == [True]
+    monkeypatch.setattr(pdfium, "PdfDocument", spy_open)
+    monkeypatch.setattr(pdfium.PdfPage, "render", spy_render)
+    assert serve(data).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
+    assert held == [("open", True), ("render", True)]
+    assert not api.PDFIUM_LOCK.locked()
+
+
+def test_temp_cleanup_failure_keeps_result(serve):
+    """엔진이 파일을 연 채로 두면 Windows는 임시 폴더를 지우지 못한다. 그래도 인식 결과는 그대로 돌려준다."""
+    handles = []
+
+    class Leaky(Engine):
+        def __call__(self, job):
+            handles.append(job.pages[0].path.open("rb"))
+            return super().__call__(job)
+
+    try:
+        assert serve(pdf(), Leaky()).post("/v1/recognitions", json=body()).json()["status"] == "DONE"
+    finally:
+        for h in handles:
+            h.close()
 
 
 def test_waiting_for_pdfium_counts_against_deadline(serve, clock, monkeypatch):
