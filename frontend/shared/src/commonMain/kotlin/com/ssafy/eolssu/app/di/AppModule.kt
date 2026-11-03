@@ -34,6 +34,7 @@ import com.ssafy.eolssu.feature.history.RecordListViewModel
 import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -101,7 +102,7 @@ val appModule = module {
     single<EvaluationRepository> { ApiEvaluationRepository(get(), get()) }
     single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
     single<RecordingUploader> { HttpRecordingUploader(get()) }
-    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
+    // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
     single<PracticeRecordRepository> { UnavailablePracticeRecordRepository() }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
@@ -111,7 +112,7 @@ val appModule = module {
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
-    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
+    // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = get(), audioPlayer = get())
@@ -129,6 +130,8 @@ val appModule = module {
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
     viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
+    // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
+    viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }

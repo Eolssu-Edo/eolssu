@@ -497,6 +497,12 @@ class PracticeViewModel(
                     finishRecorder()
                     break
                 }
+                if (recorder.interrupted) {
+                    // 시스템이 녹음을 끊었다. 연주 시계만 흐르는 녹음을 보내지 않도록 화면 이탈과 같이 처리한다.
+                    stopAll()
+                    _uiState.update { it.interrupt() }
+                    break
+                }
                 val level = recorder.level()
                 val sinceMs = (elapsed - measuredAt).inWholeMilliseconds.toDouble()
                 measuredAt = elapsed

@@ -29,7 +29,7 @@ data class RecordedAudio(val path: String, val bytes: Long) {
 /**
  * 연주 녹음. 한 번에 하나만 녹음하고 m4a(AAC)로 저장한다(PRA-02).
  * 길이 제한은 부르는 쪽이 [RecordingSpec.MaxDuration]으로 잰다. 일시정지한 동안은 녹음되지 않는다.
- * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 iOS·Web)은 등록하지 않는다.
+ * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 Web)은 등록하지 않는다.
  */
 interface AudioRecorder {
     /** 새 녹음을 시작한다. 전에 [stop]으로 남긴 파일은 지운다. 시작하지 못하면 예외를 던진다. */
@@ -53,4 +53,10 @@ interface AudioRecorder {
      * 서버의 `NO_SOUND` 판정에 맡긴다(S15P31E102-233).
      */
     val measuresLevel: Boolean
+
+    /**
+     * 전화·Siri처럼 시스템이 녹음을 끊었는지. true면 부르는 쪽은 화면을 떠날 때처럼 녹음을 버리고 중단 안내를 띄운다.
+     * [start]로 새 녹음을 시작하면 false로 돌아간다. 끊김을 알 수 없는 플랫폼은 항상 false다.
+     */
+    val interrupted: Boolean get() = false
 }
