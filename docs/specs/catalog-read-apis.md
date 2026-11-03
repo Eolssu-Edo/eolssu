@@ -14,7 +14,7 @@
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
 | CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. |
-| CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl. 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
+| CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl 및 nullable source/descriptionStatus/imageLicense. [기존 FE 사전 연결](notation-symbol-catalog.md). 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
 | CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount. 소박·묶음 수는 저장 pattern에서 구한다. |
 
 ## 내장 운지 자료
@@ -49,6 +49,6 @@ S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 �
 
 - 현재 기준 시드는 단소1악기·전역22율명·3장단·4곡이다. S15P31E102-364의 최종 V13은 기본음 라벨에 필요한 기준11행을 추가하며 기존11개 ID/반음은 보존한다. 사용자 선택에 따라 기존 음역 필터를 유지하므로 단소 범위 `[5,29]`에는15음이 표시된다. 별도 운지표·악기별 허용 목록을 자동 등록하지 않는다. 다른 악기의 JGB 자료 보유가 곧 앱 DB 등록·권리 승인·채점 가능을 뜻하지 않는다.
 - 율명 `description/soundUrl`, 운지 `structureImageUrl`, 장단 `soundUrl`은 저장 근거가 없어 null이다. 운지 description은 기존 DB에서 nullable이므로 Notion의 필수 STRING 초안과 달리 null을 보존한다. 가짜 문구나 URL을 채우지 않는다.
-- V18 전에는 운지 시드가 없었다. V18의 앱 내장 참고 자료 등록과 실제 운영 적용 여부는 구분한다. 기호는 이 Task에서 변경하지 않는다. 테스트 fixture의 이미지/설명은 운영 콘텐츠가 아니다. `pitchToleranceCent`는 DB 값이며 별도 AI 채점 정책을 바꾸지 않는다.
+- V18 전에는 운지 시드가 없었다. V18의 앱 내장 참고 자료 등록과 실제 운영 적용 여부는 구분한다. 기호는 S15P31E102-410의 V19에 기존 FE 49개 항목을 추가하되 운영 적용은 별도다. 기존 동명 symbol 행은 덮어쓰지 않는다. 테스트 fixture의 이미지/설명은 운영 콘텐츠가 아니다. `pitchToleranceCent`는 DB 값이며 별도 AI 채점 정책을 바꾸지 않는다.
 - 악기·운지·기호·장단 목록은 ID 오름차순, 율명은 semitone·ID 오름차순이다. 이는 일관된 기술적 순서이며 학습 추천 순서가 아니다. 장단의 pattern과 박 단위는 그대로 유지한다.
 - 단위/DB/HTTP 통과는 운영 재생, 마이크 녹음, Android 오디오 포커스, 실기기 검증을 대신하지 않는다.

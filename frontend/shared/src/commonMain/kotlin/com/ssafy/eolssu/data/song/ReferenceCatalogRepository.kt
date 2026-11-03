@@ -6,6 +6,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.http.Url
+import io.ktor.http.URLBuilder
+import io.ktor.http.encodedPath
 import kotlinx.serialization.Serializable
 
 /** CAT-06~10. 서버의 등록 자료만 반환한다. 학습 순서·운지 구멍 위치를 추정하지 않는다. */
@@ -73,8 +75,25 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
         val items = response.takeIf { it.status.value == 200 }?.apiResponse<SymbolList>()
             ?.takeIf { it.isSuccess }?.result?.items ?: throw CatalogUnavailable()
         checkIds(items.map { it.symbolId })
-        if (items.any { it.symbol.isBlank() || it.name.isBlank() || !safeCatalogLink(it.imageUrl) }) throw CatalogUnavailable()
-        return items
+        return items.map { item ->
+            if (item.symbol.isBlank() || item.name.isBlank() ||
+                (item.descriptionStatus != null && item.descriptionStatus !in setOf("DOCUMENTED", "EDUCATIONAL", "INFERRED")) ||
+                (item.descriptionStatus != null && item.source.isNullOrBlank())
+            ) throw CatalogUnavailable()
+            val image = item.imageUrl
+            if (image != null && image == "/api/notation-symbols/${item.symbolId}/image") {
+                // Resolve only this item's fixed endpoint against the actual API request origin.
+                val url = URLBuilder(response.call.request.url)
+                if (url.protocol.name !in setOf("http", "https") || url.host.isBlank() || url.user != null || url.password != null) throw CatalogUnavailable()
+                url.encodedPath = image
+                url.parameters.clear()
+                url.fragment = ""
+                item.copy(imageUrl = url.buildString())
+            } else {
+                if (!safeCatalogLink(image)) throw CatalogUnavailable()
+                item
+            }
+        }
     }
 
     private fun checkIds(ids: List<String>) { if (ids.any { !validCatalogId(it) } || ids.distinct().size != ids.size) throw CatalogUnavailable() }
@@ -119,4 +138,5 @@ internal fun safeCatalogLink(value: String?): Boolean = value == null || runCatc
     val bpmUnit: String, val pattern: CatalogJangdanPattern, val source: String? = null, val soundUrl: String? = null)
 @Serializable data class CatalogJangdanPattern(val beats: List<String>, val group: List<Int>)
 @Serializable data class CatalogNotationSymbol(val symbolId: String, val symbol: String, val name: String,
-    val description: String, val imageUrl: String? = null)
+    val description: String, val imageUrl: String? = null, val source: String? = null,
+    val descriptionStatus: String? = null, val imageLicense: String? = null)
