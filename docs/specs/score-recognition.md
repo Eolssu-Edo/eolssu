@@ -83,7 +83,7 @@ POST /v1/recognitions
 | `TRANSPOSED` | 조를 자동으로 옮김 | `detail`에 옮긴 반음과 후보(동률이면 2개) |
 | `VOICE_GUESSED` | 여러 성부 중 하나를 골랐음 | 오선보 파트·성부가 2개 이상 |
 | `ORNAMENT_DROPPED` | 꾸밈음을 버림 | 오선보 꾸밈음 |
-| `JANGDAN_GUESSED` | 박자표로 장단을 정함 | 오선보 9/8·12/8 |
+| `JANGDAN_GUESSED` | 요청에 장단이 없어 정했음 | 오선보. `detail` `{"source": "timeSignature"(9/8·12/8) \| "rhythm"(박자표를 못 읽어 리듬으로) \| "default"(굿거리), "jangdan"}` |
 | `JANGDAN_MISMATCH` | 고른 장단과 각의 정간 수가 맞지 않음 | 정간당 박이 1·1/2·1/3이 아님(정간보 글자 층) |
 
 ### 실패 코드
@@ -115,9 +115,9 @@ POST /v1/recognitions
 
 ### 오선보 경로 (313 U5)
 
-- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 30초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. 비정상 종료는 `ENGINE_ERROR`다.
-- 악보를 못 낸 쪽은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
-- 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 굿거리 순이다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
+- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 30초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
+- 악보를 못 낸 쪽은 종료 코드와 상관없이(Audiveris 5.11은 오선 없는 쪽에서 종료 코드 1) `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
+- 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 굿거리 순이다. 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
 - `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
 
 ### 정간보 글자 층 경로 (313 U2)
@@ -133,7 +133,7 @@ POST /v1/recognitions
 - 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
 - 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형)를 둔다. `eventId`·`cellId`는 비운다.
 - `engine` `jeongganbo-text`, `provenance.converter` `jeongganbo-text/standard_score_text`. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
-- 정간보 요청의 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 오선보는 U5에서 정한다.
+- 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
 
 ## 오선보 → 정간보 기본값
 

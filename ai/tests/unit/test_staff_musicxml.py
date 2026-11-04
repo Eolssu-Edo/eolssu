@@ -148,8 +148,8 @@ def test_missing_time_signature_picks_meter_with_fewest_notes_over_gak_lines():
     # Audiveris가 박자표를 못 읽은 경우(오나라·어이얼어자리). 점4분음표 셋 길이(9/8 한 마디)의 음이 이어지면 세마치만 각 경계를 넘지 않는다
     out = convert(xml(measure(*[note("C4", 18)] * 4)), instrument="ANY", hwang_pitch=60)
     assert (out.jangdan, out.beats_per_gak) == ("세마치", 3)
-    assert out.issues == [{"kind": "JANGDAN_GUESSED", "eventId": None, "cellId": None, "page": None, "bbox": None,
-                           "detail": {"timeSignature": None, "compound": True, "beatsPerGak": 3}}]
+    # 장단을 추정했다는 표시는 요청 장단까지 보는 엔진(staff_engine)이 한 번만 남긴다
+    assert out.meter_guessed and out.issues == []
 
 
 def test_missing_time_signature_ties_prefer_gutgeori():

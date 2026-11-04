@@ -4,17 +4,20 @@
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv
 
 # Audiveris 5.11은 Ubuntu 24.04용 deb만 낸다.
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852 AS runtime
 ARG AUDIVERIS_VERSION=5.11.0
-# jeongganbo-generator(MIT) tools/import-ngc-omr.mjs. 저장소 문서(jeongganbo-omr.md)와 같은 커밋
-ARG JGB_GENERATOR_COMMIT=9d4a24e
-ADD https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-ubuntu24.04-x86_64.deb /tmp/audiveris.deb
+# jeongganbo-generator(MIT) tools/import-ngc-omr.mjs. 저장소 문서(jeongganbo-omr.md)의 9d4a24e
+ARG JGB_GENERATOR_COMMIT=9d4a24e54bf36093d4d264d0271d214500d36db7
+# 받은 파일이 바뀌면 빌드가 멈추게 체크섬을 고정한다(2026-11-04 내려받아 잰 값)
+ADD --checksum=sha256:f20113aaa33b3149ec8d6a09b2a7963360e65fafd92d69389987a85bbc3ec7a3 \
+    https://github.com/Audiveris/audiveris/releases/download/${AUDIVERIS_VERSION}/Audiveris-${AUDIVERIS_VERSION}-ubuntu24.04-x86_64.deb /tmp/audiveris.deb
 # Audiveris deb의 데스크톱 메뉴 등록(postinst)은 화면 없는 컨테이너에서 실패해 빼고 다시 묶는다. 화면 없이 돌아도 GTK가 필요하다.
 RUN dpkg-deb -R /tmp/audiveris.deb /tmp/a && rm -f /tmp/a/DEBIAN/postinst /tmp/a/DEBIAN/prerm \
     && dpkg-deb -b /tmp/a /tmp/aud.deb \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libgtk-3-0 nodejs git ca-certificates /tmp/aud.deb \
+        libgtk-3-0t64=3.24.41-4ubuntu1.3 nodejs=18.19.1+dfsg-6ubuntu5 \
+        ca-certificates=20260816ubuntu0.24.04.1 git /tmp/aud.deb \
     && git clone --quiet https://github.com/danbinaerinHan/jeongganbo-generator.git /opt/jeongganbo-generator \
     && git -C /opt/jeongganbo-generator checkout --quiet ${JGB_GENERATOR_COMMIT} \
     && rm -rf /opt/jeongganbo-generator/.git \

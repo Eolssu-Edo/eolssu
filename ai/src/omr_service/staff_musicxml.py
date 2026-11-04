@@ -46,6 +46,7 @@ class Conversion:
     issues: list[dict] = field(default_factory=list)
     shift: int = 0  # 자동 조 옮김 반음(hwang_pitch가 있으면 0)
     beat: Fraction = Fraction(1)  # 정간 하나(1박)의 4분음표 수. 점4분 3/2, 4분 1, 8분 1/2
+    meter_guessed: bool = False  # 박자표를 못 읽어 리듬으로 박 구성을 골랐다
 
 
 @dataclass
@@ -62,7 +63,7 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     if part is None:
         raise ValueError("MusicXML에 파트가 없음")
     issues = []
-    notes, beats_per_gak, compound, beat = _read_part(part, issues)
+    notes, beats_per_gak, compound, beat, meter_guessed = _read_part(part, issues)
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
     if hwang_pitch is None:
@@ -76,7 +77,7 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
         shift, hwang = 0, hwang_pitch
     jangdan = {(True, 3): "세마치", (True, 4): "굿거리"}.get((compound, beats_per_gak))
     return Conversion(_layout(notes, beats_per_gak, hwang, instrument, issues), jangdan, beats_per_gak, issues, shift,
-                      beat)
+                      beat, meter_guessed)
 
 
 def _xml_bytes(data: bytes) -> bytes:
@@ -169,8 +170,6 @@ def _read_part(part, issues):
     else:  # 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성을 고른다
         compound, beats_per_gak = _guess_meter(melody)
         beat = Fraction(3, 2) if compound else Fraction(1)
-        issues.append(_issue("JANGDAN_GUESSED", {"timeSignature": None, "compound": compound,
-                                                 "beatsPerGak": beats_per_gak}))
     notes = [_Note(n.start / beat, n.length / beat, n.midi, n.measure) for n in melody]
     pad = 0
     if meter:  # 첫 마디가 짧으면(못갖춘마디) 앞을 쉼표로 채워 첫 각을 맞춘다
@@ -178,7 +177,7 @@ def _read_part(part, issues):
         pad = (beats_per_gak - first % beats_per_gak) % beats_per_gak
     if pad:
         notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure) for n in notes]
-    return notes, beats_per_gak, compound, beat
+    return notes, beats_per_gak, compound, beat, not meter
 
 
 def _attributes(attrs, divisions, transpose):
