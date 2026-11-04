@@ -215,7 +215,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 - 부모 세션은 본인 소유가 아니면 404, 다른 곡이면 400, `DONE`이 아니면 409 `STATE_CONFLICT`입니다. 곡 밖의 구간은 400입니다.
 - 같은 회원·키로 같은 본문을 다시 보내면 처음 세션을 201로 돌려주고, 다른 본문이면 409 `IDEMPOTENCY_CONFLICT`입니다. 비교할 때 `startNoteIdx` 생략은 0, `jangdanSoundOn` 생략은 false와 같게 봅니다. `endNoteIdx`·`bpmUnit`은 생략과 명시를 다른 본문으로 봅니다(곡 값에 따라 달라지기 때문). 비교용 해시는 예전 미션 자리를 고정값으로 남겨, 미션 제거 전에 만든 세션도 같은 키 재전송에서 그대로 돌려줍니다. 동시에 보내도 `(user_id, idempotency_key)` 유일 제약으로 한 행만 저장됩니다.
 - Swagger 요청 본문은 전체 연습(기본)·구간 연습·다시 연습 예시를 고를 수 있고(`OpenApiContracts`의 `requestExamples`), Schema 탭에 필드별 뜻과 생략 시 값을 적었습니다. 예시의 `songId` 15는 테스트 서버의 채점 가능 곡이라 로컬 시드 DB(1~4번 곡)에서는 바꿔서 보냅니다.
-- V23은 늘 NULL이던 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로, 운영 `ops`에는 이 브랜치의 백엔드를 먼저 배포한 뒤 V23을 적용합니다.
+- V24는 늘 NULL이던 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로, 운영 `ops`에는 이 브랜치의 백엔드를 먼저 배포한 뒤 V24를 적용합니다.
 - 결정 근거는 [작업 계획](../docs/plans/S15P31E102-217.md)에 있습니다. `databaseTest`의 `PracticeSessionApiDatabaseTests`가 실제 HTTP·서명 쿠키로 확인합니다.
 
 ### 실제 MySQL 통합 검사
