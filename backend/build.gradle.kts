@@ -40,6 +40,8 @@ dependencies {
     // 녹음 원본 저장소(S3 호환, Cloudflare R2). 동기 클라이언트만 쓰므로 비동기용 Netty는 뺀다.
     implementation(platform(libs.aws.sdk.bom))
     implementation(libs.aws.sdk.s3) { exclude(group = "software.amazon.awssdk", module = "netty-nio-client") }
+    // 내 악보 불러오기(SHT-07)의 PDF 쪽 수·암호·손상 검사. Apache-2.0.
+    implementation(libs.pdfbox)
 
     testImplementation(libs.spring.boot.webmvc.test)
     testImplementation(libs.spring.security.test)

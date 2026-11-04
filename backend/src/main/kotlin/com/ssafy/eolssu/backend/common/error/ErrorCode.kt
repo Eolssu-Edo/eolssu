@@ -46,4 +46,12 @@ enum class ErrorCode(val status: HttpStatus, val message: String) {
     // 내 악보 편집 저장(SHT-04, docs/specs/user-sheets.md)
     UNFILLED_CELLS(HttpStatus.BAD_REQUEST, "빈 칸을 채워 주세요"),
     PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "악보가 너무 커요"),
+    // 내 악보 불러오기(SHT-07·10, S15P31E102-471)
+    TOO_MANY_PAGES(HttpStatus.BAD_REQUEST, "PDF는 10쪽까지 올릴 수 있어요"),
+    UNREADABLE_FILE(HttpStatus.BAD_REQUEST, "파일을 열 수 없어요. 암호가 없는 다른 파일을 골라 주세요"),
+    FILE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "파일은 모두 합쳐 20MB까지 올릴 수 있어요"),
+    UNSUPPORTED_FILE_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "PDF·PNG·JPEG 파일만 올릴 수 있어요"),
+    CONVERSION_IN_PROGRESS(HttpStatus.CONFLICT, "변환 중인 악보가 있어요. 끝난 뒤 다시 올려 주세요"),
+    SHEET_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "내 악보는 10개까지 만들 수 있어요. 악보를 지운 뒤 다시 올려 주세요"),
+    CONVERSION_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "지금은 악보를 불러올 수 없어요. 잠시 후 다시 시도해 주세요"),
 }
