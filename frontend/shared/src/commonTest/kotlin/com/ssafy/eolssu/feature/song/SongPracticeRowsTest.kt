@@ -1,9 +1,7 @@
 package com.ssafy.eolssu.feature.song
 
-import com.ssafy.eolssu.core.model.MySheetStatus
 import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
 import com.ssafy.eolssu.feature.song.component.providedSongBadgeStyle
-import com.ssafy.eolssu.feature.song.component.sheetBadgeStyle
 import com.ssafy.eolssu.feature.song.component.songTileLetter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,13 +20,6 @@ class SongPracticeRowsTest {
     fun providedSongBadgeFollowsEvaluable() {
         assertEquals(EolssuBadgeStyle.Play, providedSongBadgeStyle(evaluable = true))
         assertEquals(EolssuBadgeStyle.Outline, providedSongBadgeStyle(evaluable = false))
-    }
-
-    @Test
-    fun sheetBadgeFollowsStatus() {
-        assertEquals(EolssuBadgeStyle.Play, sheetBadgeStyle(MySheetStatus.Evaluable))
-        assertEquals(EolssuBadgeStyle.Soft, sheetBadgeStyle(MySheetStatus.NeedsReview))
-        assertEquals(EolssuBadgeStyle.Outline, sheetBadgeStyle(MySheetStatus.ViewOnly))
     }
 
     @Test

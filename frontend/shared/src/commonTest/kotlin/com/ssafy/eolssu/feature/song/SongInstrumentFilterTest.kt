@@ -20,7 +20,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore()).apply { clear() }
         val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(now = { 0L }), selected))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
         advanceUntilIdle()
         assertTrue(repo.requests.isEmpty())
         selected.select(Instrument.DaegeumSanjo)
@@ -43,7 +43,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         val repo = FilterSongs().apply { missingInstrument = true }
         val selected = InstrumentRepository(FakeKeyValueStore())
         val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(now = { 0L }), selected))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
         advanceUntilIdle()
         assertTrue(repo.requests.isEmpty())
         assertEquals(SongLoadState.Failed, evaluation.uiState.value.loadState)
@@ -93,7 +93,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun practiceListRetainsNonScorableSongsAndRetryKeepsInstrument() = runTest {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore())
-        val model = keep(MySongsViewModel(repo, SampleMySheetRepository(now = { 0L }), selected))
+        val model = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
         advanceUntilIdle()
         assertEquals(listOf<String?>("51"), repo.requests)
         model.selectFilter(SongLevelFilter.Intro)
@@ -139,7 +139,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore())
         val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(now = { 0L }), selected))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
         advanceUntilIdle()
         val gate = CompletableDeferred<Unit>()
         repo.gate = gate

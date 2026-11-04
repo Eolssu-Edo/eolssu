@@ -29,7 +29,10 @@ internal fun PracticeMediumLayout(state: PracticeUiState, snackbarHostState: Sna
         snackbarHostState = snackbarHostState,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth,
         topBar = {
-            PracticeTopBar(state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth)
+            PracticeTopBar(
+                state, actions.onBack, actions.onOpenSettings, Modifier.padding(horizontal = 12.dp), maxWidth = WindowBreakpoints.ContentMaxWidth,
+                onToggleStep = actions.bottom.onToggleStep,
+            )
         },
         bottomBar = {
             Column(

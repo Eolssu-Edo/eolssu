@@ -31,6 +31,8 @@ import org.koin.core.parameter.parametersOf
  * PRACTICE-01 연결.
  *
  * @param solo 연습곡 선택(SONG-03)에서 들어온 연습 모드. 평가 없이 혼자 연습한다.
+ * @param mine 내 악보로 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
+ * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
  * @param showSwitchedNotice 연습 모드에서 평가로 바꿔 들어왔으면 안내를 띄운다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
@@ -50,11 +52,14 @@ fun PracticeRoute(
     onSwitchToEval: () -> Unit,
     onEvaluate: ((songId: String, bpm: Int, take: RecordedTake?) -> Unit)?,
     onConfirmBackChange: ((() -> Unit)?) -> Unit = {},
-    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo") { parametersOf(songId, solo) },
+    mine: Boolean = false,
+    sheetTitle: String? = null,
+    viewModel: PracticeViewModel = koinViewModel(key = "$songId-$solo-$mine") { parametersOf(songId, solo, mine) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
     LaunchedEffect(showSwitchedNotice) {
         if (showSwitchedNotice) snackbarHostState.showSnackbar(getString(Res.string.practice_switched_to_eval))
     }
@@ -111,6 +116,10 @@ fun PracticeRoute(
                 onAskRestart = viewModel::askRestart,
                 onAskAbort = viewModel::askAbort,
                 onSeek = viewModel::seekModel,
+                onToggleStep = viewModel::toggleStep,
+                onTapStepPlaying = viewModel::tapStepPlaying,
+                onListenStepNote = viewModel::listenStepNote,
+                onConfirmStepNote = viewModel::confirmStepNoteManually,
             ),
             panel = PracticePanelActions(
                 onClose = viewModel::closePanel,
