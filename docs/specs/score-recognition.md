@@ -22,7 +22,7 @@
 ## 실행 위치
 
 - 악보 인식 전용 컨테이너 `omr`. 채점 AI(`ai`)와 따로 두어 메모리·CPU를 나눠 쓰지 않는다. 내부망에서 backend만 호출하고 외부에 열지 않는다.
-- 동시 처리 1건(Audiveris 잠금). 메모리 2GiB·CPU 1.5개(`infra/runtime/compose.yml`, 이 PC 실측 최대 1.31GiB). 그림 정간보 OMR(S15P31E102-458)의 torch를 붙이면 다시 잰다.
+- 동시 처리 1건(Audiveris 잠금). 메모리 2GiB·CPU 2개(`infra/runtime/compose.yml`, 이 PC 실측 최대 1.31GiB, 운영 서버 0.76GB). 그림 정간보 OMR(S15P31E102-458)의 torch를 붙이면 다시 잰다.
 - Audiveris(AGPL-3.0)는 수정 없이 별도 프로세스로 실행한다.
 
 ## 요청
@@ -100,8 +100,9 @@ POST /v1/recognitions
 
 ## 시간 상한
 
-- 쪽마다 30초, 요청 전체 `30초 × 쪽 수`, 최대 300초. backend의 호출 제한은 이보다 길게 둔다(예: 330초).
-- 실측(2026-11-04, 이 PC Docker, CPU 1.5·메모리 2GiB): 오선보 쪽 그림 1쪽 8.5~10초, 정간보·오선보 펼침면 PDF 1쪽 13.5초, 정간보 글자 층 1쪽 1.0초. 서버(4코어) 값은 운영 반영 때 잰다.
+- 쪽마다 60초, 요청 전체 `60초 × 쪽 수`, 최대 600초. backend의 호출 제한은 이보다 길게 둔다(630초 이상).
+- 실측(2026-11-04, 이 PC Docker, CPU 1.5·메모리 2GiB): 오선보 쪽 그림 1쪽 8.5~10초, 정간보·오선보 펼침면 PDF 1쪽 13.5초, 정간보 글자 층 1쪽 1.0초. 운영 서버(edo1, 4코어, 2026-11-04): 같은 오선보 1쪽이 CPU 1.5에서 25.1~29.5초(4곡 중 1곡 30초 제한으로 `TIMEOUT`), CPU 3에서 18.6~22.3초라 쪽당 60초·CPU 2로 정했다(S15P31E102-468).
+- 참고(BE 연결 제안, 합의 전): Audiveris는 한 번에 한 건이고 기다리는 시간도 요청 시간에 든다. 동시에 부르면 뒤 요청이 기다리다 `TIMEOUT`이 되므로, backend가 변환 작업을 큐로 한 건씩 보내고 앱에는 "인식 중" 상태로 두는 비동기 흐름을 권한다. `TIMEOUT`·`ENGINE_ERROR`는 같은 파일로 다시 보내면 된다(omr은 이전 요청을 기억하지 않는다).
 
 ## 엔진 선택
 
@@ -115,7 +116,7 @@ POST /v1/recognitions
 
 ### 오선보 경로 (313 U5)
 
-- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 30초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
+- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 60초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
 - 오선을 못 찾은 쪽(Audiveris 5.11은 종료 코드 1로 끝나고 표준 출력에 StepException을 남긴다)은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
 - 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 박자표를 못 읽었으면 리듬으로 고른 박 구성(점4분 4박 굿거리·3박 세마치) → 굿거리 순이다. 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
 - `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
@@ -158,7 +159,7 @@ MusicXML 읽기는 우리 Audiveris 출력만 받는다고 보고 만들었다. 
 
 ## 미결 사항
 
-- 서버(4코어)에서의 쪽당 시간·메모리(운영 반영 때 사람이 잼, [실행 문서](../../infra/runtime/README.md#omr-악보-인식-서비스))
+- CPU 2·쪽당 60초에서의 운영 서버 쪽당 시간(재반영 때 사람이 잼, [실행 문서](../../infra/runtime/README.md#omr-악보-인식-서비스)), 서버에서 PDF 처리 시간
 - 폰 사진·다른 판형 정확도(실물 없어 미측정)
 - MALerLab 체크포인트 이용 조건(README에 MIT, LICENSE 파일 없음)
 - 347 합의: 위 '382와 다른 점', issue 종류, backend 호출 제한
