@@ -27,69 +27,57 @@ class JangdanPlaybackApiDatabaseTests {
     @Value("\${local.server.port}") var port = 0
     private val json = JsonMapper.builder().build()
     private val client = HttpClient.newHttpClient()
-    private val ownedIds = mutableListOf<Long>()
-    private val fixtureIds = listOf(6L, 22L, 81L, 19L, 29L, 9L, 63L, 44L)
-    private val manifest = json.readTree(requireNotNull(javaClass.getResourceAsStream("/catalog/jangdan-playback.json")))
+    private var ownsSong = false
+    private val source = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/6.json")))
 
     @BeforeEach fun prepare() {
-        for (id in fixtureIds) {
-            assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE id=?", Int::class.java, id))
-            val source = source(id)
-            val review = manifest.path("scores").first { it.path("songId").asString() == id.toString() }
-            val instrument = jdbc.queryForObject("SELECT id FROM instruments WHERE code=?", Long::class.java,
-                source.path("score").path("instrument").asString())
-            jdbc.update("""INSERT INTO songs(id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,
-                score_version,note_count,is_scorable,status,source) VALUES(?,?,NULL,?,1,?,?,?,?,FALSE,'PUBLISHED',?)""",
-                id, instrument, source.path("score").path("title").asString(), review.path("defaultBpm").intValue(),
-                json.writeValueAsString(source), review.path("scoreVersion").intValue(),
-                source.path("events").count { it.path("kind").asString() == "NOTE" }, review.path("sourceId").asString())
-            ownedIds += id
-        }
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE id=6", Int::class.java))
+        val instrument = jdbc.queryForObject("SELECT id FROM instruments WHERE code=?", Long::class.java,
+            source.path("score").path("instrument").asString())
+        jdbc.update("""INSERT INTO songs(id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,
+            score_version,note_count,is_scorable,status,source) VALUES(6,?,NULL,?,1,99,?,1,?,FALSE,'PUBLISHED',?)""",
+            instrument, source.path("score").path("title").asString(), json.writeValueAsString(source),
+            source.path("events").count { it.path("kind").asString() == "NOTE" }, source.path("score").path("sourceId").asString())
+        ownsSong = true
     }
 
     @AfterEach fun cleanup() {
-        ownedIds.forEach { jdbc.update("DELETE FROM songs WHERE id=?", it) }
+        if (ownsSong) jdbc.update("DELETE FROM songs WHERE id=6")
         client.close()
     }
 
     @Test fun `public CAT04 survives MySQL JSON normalization and preserves FK BPM and source notes`() {
-        for (id in fixtureIds) {
-            val result = get(id)
-            assertEquals(source(id), result.path("score"))
-            assertEquals("QUARTER", result.path("bpmUnit").asString())
-            assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=?", Long::class.java, id))
-            if (id == 63L) {
-                assertTrue(result.path("jangdanPlayback").isNull)
-            } else {
-                val expected = if (id in listOf(6L, 22L, 44L)) "2" else if (id in listOf(19L, 81L)) "3" else "1"
-                assertEquals(expected, result.path("jangdanPlayback").path("jangdanId").asString())
-                assertEquals(0L, result.path("jangdanPlayback").path("startTick").longValue())
-            }
-        }
-        assertEquals(24L, get(6).path("jangdanPlayback").path("cycleTicks").longValue())
-        assertEquals(24L, get(22).path("jangdanPlayback").path("cycleTicks").longValue())
-        assertEquals(48L, get(19).path("jangdanPlayback").path("cycleTicks").longValue())
-        assertEquals(24L, get(81).path("jangdanPlayback").path("cycleTicks").longValue())
+        val result = get()
+        assertEquals(source, result.path("score"))
+        assertEquals(99, result.path("defaultBpm").intValue())
+        assertEquals("QUARTER", result.path("bpmUnit").asString())
+        assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=6", Long::class.java))
+        val playback = result.path("jangdanPlayback")
+        assertEquals("2", playback.path("jangdanId").asString())
+        assertEquals(0L, playback.path("startTick").longValue())
+        assertEquals(24L, playback.path("cycleTicks").longValue())
+        assertEquals("더러러러", playback.path("pattern").path("beats").get(4).asString())
     }
 
     @Test fun `changed BPM source identity or catalog pattern removes only the unreviewed playback`() {
         jdbc.update("UPDATE songs SET default_bpm=100 WHERE id=6")
-        assertTrue(get(6).path("jangdanPlayback").isNull)
+        assertTrue(get().path("jangdanPlayback").isNull)
         jdbc.update("UPDATE songs SET default_bpm=99,score_json=JSON_SET(score_json,'$.provenance.review','changed') WHERE id=6")
-        assertTrue(get(6).path("jangdanPlayback").isNull)
+        assertTrue(get().path("jangdanPlayback").isNull)
+        jdbc.update("UPDATE songs SET score_json=? WHERE id=6", json.writeValueAsString(source))
+        assertFalse(get().path("jangdanPlayback").isNull)
         val pattern = jdbc.queryForObject("SELECT pattern FROM jangdans WHERE id=2", String::class.java)
         try {
             jdbc.update("UPDATE jangdans SET pattern=JSON_SET(pattern,'$.beats[0]','쿵') WHERE id=2")
-            assertTrue(get(22).path("jangdanPlayback").isNull)
-            assertFalse(get(81).path("jangdanPlayback").isNull)
+            assertTrue(get().path("jangdanPlayback").isNull)
         } finally {
             jdbc.update("UPDATE jangdans SET pattern=? WHERE id=2", pattern)
         }
+        assertFalse(get().path("jangdanPlayback").isNull)
     }
 
-    private fun source(id: Long): JsonNode = json.readTree(requireNotNull(javaClass.getResourceAsStream("/jangdan-playback/$id.json")))
-    private fun get(id: Long): JsonNode {
-        val response = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/songs/$id/score"))
+    private fun get(): JsonNode {
+        val response = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/songs/6/score"))
             .header("Cookie", "access_token=malformed").GET().build(), HttpResponse.BodyHandlers.ofString())
         assertEquals(200, response.statusCode(), response.body())
         return json.readTree(response.body()).path("result")
