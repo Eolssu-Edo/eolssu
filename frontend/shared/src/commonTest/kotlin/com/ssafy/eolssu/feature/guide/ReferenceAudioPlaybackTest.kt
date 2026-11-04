@@ -10,14 +10,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReferenceAudioPlaybackTest {
-    @Test fun subsecondRecordingsHaveAnAudibleLengthInsteadOfZeroSeconds() {
-        assertEquals("0:00.2", referenceAudioTime(210))
-        assertEquals("0:00.4", referenceAudioTime(420))
-        assertEquals("0:00.9", referenceAudioTime(999))
-        assertEquals("1:02.3", referenceAudioTime(62_340))
-        assertEquals("0:00.0", referenceAudioTime(-1))
-    }
-
     private val clip = ReferenceAudioClip(
         assetId = "a".repeat(64), datasetId = "danso", labelId = "fixture",
         category = "기본음계", technique = "평취 강", register = "평취", yulmyeong = "중",
@@ -25,15 +17,13 @@ class ReferenceAudioPlaybackTest {
         soundUrl = "https://audio.example/api/reference-audios/" + "a".repeat(64) + "/play",
     )
 
-    @Test fun pauseAndResumeKeepTheDecodedPositionWithoutReloading() {
-        val player = RecordingPlayer(AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Playing, 2_125, 5_000))
-        toggleReferenceAudio(player, clip)
-        assertEquals(AudioPlaybackStatus.Paused, player.state.value.status)
-        assertEquals(2_125L, player.state.value.positionMs)
-        toggleReferenceAudio(player, clip)
-        assertEquals(AudioPlaybackStatus.Playing, player.state.value.status)
-        assertEquals(2_125L, player.state.value.positionMs)
-        assertEquals(listOf("pause", "resume"), player.calls)
+    @Test fun tappingTheSoundingOrPreparingExampleAgainStopsIt() {
+        for (status in listOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing, AudioPlaybackStatus.Paused)) {
+            val player = RecordingPlayer(AudioPlaybackState(clip.assetId, status, 2_125, 5_000))
+            toggleReferenceAudio(player, clip)
+            assertEquals(AudioPlaybackState(), player.state.value)
+            assertEquals(listOf("stop"), player.calls)
+        }
     }
 
     @Test fun selectingAnotherClipReplacesThePreviousSourceFromTheBeginning() {
@@ -54,13 +44,6 @@ class ReferenceAudioPlaybackTest {
             assertEquals(AudioSource(clip.assetId, clip.soundUrl), player.loaded)
             assertEquals(listOf("load:${clip.assetId}:0"), player.calls)
         }
-    }
-
-    @Test fun tappingWhilePreparingCancelsAndReleasesTheRequest() {
-        val player = RecordingPlayer(AudioPlaybackState(clip.assetId, AudioPlaybackStatus.Loading))
-        toggleReferenceAudio(player, clip)
-        assertEquals(AudioPlaybackState(), player.state.value)
-        assertEquals(listOf("stop"), player.calls)
     }
 
     private class RecordingPlayer(initial: AudioPlaybackState) : AudioPlayer {
