@@ -11,7 +11,7 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_hero_title">나도 이제 국악인</string>
+    <string name="home_hero_title">얼쑤! 나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
     <string name="home_section_practice">학습·연습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
