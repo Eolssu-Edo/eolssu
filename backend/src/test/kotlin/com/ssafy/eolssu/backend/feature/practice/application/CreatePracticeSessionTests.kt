@@ -49,10 +49,17 @@ class CreatePracticeSessionTests {
     }
 
     @Test
-    fun `unknown song and any mission are not found`() {
+    fun `unknown song is not found`() {
         assertEquals(CreatePracticeSessionResult.NotFound, service.execute(command(songId = 999)))
-        assertEquals(CreatePracticeSessionResult.NotFound, service.execute(command(key = "k2").copy(missionId = 1)))
         assertTrue(repository.inserted.isEmpty())
+    }
+
+    @Test
+    fun `request hash keeps the v1 format with the former mission slot`() {
+        // 이미 저장된 세션의 request_hash와 같아야 같은 키의 재전송이 409가 되지 않는다.
+        val canonical = "v1|101|96|-|0|-|-|-|false"
+        val expected = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray()))
+        assertEquals(expected, CreatePracticeSession.requestHash(command()))
     }
 
     @Test

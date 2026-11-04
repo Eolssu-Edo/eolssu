@@ -31,7 +31,7 @@
 | notes[].noteIdx, notes[].verdict | INT·STRING, 저장 순번과 판정 |
 | notes[].pitchErrorCent, onsetErrorMs, durationErrorMs | INT 또는 null, 저장 오차 그대로 |
 
-feedbackMessage·tip·previousTotalScore·savedAt·mission·modelVersion·startNoteIdx·endNoteIdx는 이 응답에 포함하지 않는다. 원본 녹음 키·서명 URL도 노출하지 않는다. 구간·유형별 개수가 필요한 `/evaluation/notes`는 [EVA-02·03 스펙](evaluation-detail-apis.md)에 있다.
+feedbackMessage·tip·previousTotalScore·savedAt·modelVersion·startNoteIdx·endNoteIdx는 이 응답에 포함하지 않는다. mission은 미션을 구현하지 않기로 해 명세에서도 뺄 항목이다(S15P31E102-465). 원본 녹음 키·서명 URL도 노출하지 않는다. 구간·유형별 개수가 필요한 `/evaluation/notes`는 [EVA-02·03 스펙](evaluation-detail-apis.md)에 있다.
 
 ## 구현 경계·검증
 

@@ -39,7 +39,6 @@ class HttpGrowthRepositoryTest {
         """
         {"from":"2026-10-26","to":"2026-11-01","practiceCount":3,"practiceSeconds":299,"practiceDays":2,"currentStreakDays":2,
          "averageTotalScore":78,"previousPeriod":{"practiceSeconds":120,"practiceCount":1,"averageTotalScore":null},
-         "completedMissionCount":null,"totalMissionCount":null,
          "bestBySong":[{"songId":"2","title":"도라지타령","bestTotalScore":81},{"songId":"1","title":"아리랑","bestTotalScore":79}],
          "metricGrowth":{"songId":"2","title":"도라지타령","bpm":60,"pitch":{"first":70,"last":82},"timing":{"first":65,"last":74},"duration":{"first":null,"last":null}}}
         """.trimIndent(),

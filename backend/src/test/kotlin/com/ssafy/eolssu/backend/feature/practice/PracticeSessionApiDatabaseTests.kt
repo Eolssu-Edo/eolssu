@@ -95,7 +95,7 @@ class PracticeSessionApiDatabaseTests {
         assertEquals(0, result.path("startNoteIdx").asInt())
         assertEquals(71, result.path("endNoteIdx").asInt())
         assertEquals("2026-10-28T03:00:00.123456Z", result.path("startedAt").asString())
-        val row = jdbc.queryForMap("SELECT user_id, song_id, status, score_version, bpm_unit, idempotency_key, request_hash, started_at, mission_id, parent_session_id FROM practice_sessions WHERE id = ?", id)
+        val row = jdbc.queryForMap("SELECT user_id, song_id, status, score_version, bpm_unit, idempotency_key, request_hash, started_at, parent_session_id FROM practice_sessions WHERE id = ?", id)
         assertEquals(OWNER, (row["user_id"] as Number).toLong())
         assertEquals("RECORDING", row["status"])
         assertEquals(3, (row["score_version"] as Number).toInt())
@@ -103,7 +103,6 @@ class PracticeSessionApiDatabaseTests {
         assertEquals("key-1", row["idempotency_key"])
         assertTrue((row["request_hash"] as String).matches(Regex("[0-9a-f]{64}")))
         assertEquals(LocalDateTime.parse("2026-10-28T03:00:00.123456"), row["started_at"])
-        assertNull(row["mission_id"])
         assertNull(row["parent_session_id"])
     }
 
@@ -149,10 +148,15 @@ class PracticeSessionApiDatabaseTests {
     }
 
     @Test
-    fun `song, mission, parent session and section rules`() {
+    fun `song, parent session and section rules`() {
         assertError(create("a", """{"songId":"$HIDDEN_SONG","bpm":96}"""), 404, "RESOURCE_NOT_FOUND")
         assertError(create("b", """{"songId":"999999999","bpm":96}"""), 404, "RESOURCE_NOT_FOUND")
-        assertError(create("c", """{"songId":"$SONG","bpm":96,"missionId":"1"}"""), 404, "RESOURCE_NOT_FOUND")
+        // 미션은 구현하지 않기로 했다. 예전 클라이언트가 보낸 missionId는 무시하고, 같은 키의 재전송에도 영향을 주지 않는다.
+        val withMission = create("c", """{"songId":"$SONG","bpm":96,"missionId":"1"}""")
+        assertEquals(201, withMission.statusCode(), withMission.body())
+        val withoutMission = create("c", """{"songId":"$SONG","bpm":96}""")
+        assertEquals(201, withoutMission.statusCode(), withoutMission.body())
+        assertEquals(tree(withMission).path("result").path("sessionId"), tree(withoutMission).path("result").path("sessionId"))
         assertError(create("d", """{"songId":"$SONG","bpm":96,"startNoteIdx":10,"endNoteIdx":72}"""), 400, "INVALID_REQUEST")
 
         val own = session(OWNER, SONG, "DONE")

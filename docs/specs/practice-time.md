@@ -135,13 +135,13 @@ API(모두 회원 인증 필요, 경로 앞에 `/api`):
 
 | 요구사항 | 요청 | 응답 `result` |
 | --- | --- | --- |
-| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `completedMissionCount`, `totalMissionCount`, `bestBySong[]{songId, title, bestTotalScore}`, `metricGrowth{songId, title, bpm, pitch, timing, duration}`(각 항목 `{first, last}`) |
+| GRO-01 요약 | `GET /users/me/growth/summary?from=YYYY-MM-DD&to=YYYY-MM-DD` | `from`, `to`, `practiceCount`, `practiceSeconds`, `practiceDays`, `currentStreakDays`, `averageTotalScore`, `previousPeriod{practiceSeconds, practiceCount, averageTotalScore}`, `bestBySong[]{songId, title, bestTotalScore}`, `metricGrowth{songId, title, bpm, pitch, timing, duration}`(각 항목 `{first, last}`) |
 | GRO-02 날짜별 | `GET /users/me/growth/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD` | `items[]{date, practiceSeconds, practiceCount}`. `from`~`to`의 모든 날짜를 기록 없는 날도 0으로 채워 날짜 순서로 준다 |
 
 - **기간:** `from`·`to`는 KST 날짜이고 양 끝을 포함한다. 둘 다 필요하고 `from` ≤ `to`, 최대 366일이다. 연도는 1001~9998년이다(DB 시각 범위). 어기면 400 `INVALID_REQUEST`.
 - **날짜 소속:** 구간과 연주 세션은 시작 시각의 KST 날짜에 속한다.
 - **지난 기간(`previousPeriod`):** `from`이 1일이고 `to`가 같은 달 말일이면(한 달 범위) 지난 달력 월 전체다(예: 3월 → 2/1~2/28). 그 밖에는 `from` 바로 앞의 같은 일수 구간이다(주 보기면 지난주). 화면 문구 "지난달보다"와 맞추려는 것이다(2026-10-28 사용자 결정).
-- **미션 수:** 미션이 구현되기 전에는 `null`이다(Notion 규칙 5). 앱은 이 값을 쓰지 않는다. 기록지의 '완료한 단계 n / 9'는 기기에 남은 기초부터 배우기 완료 기록을 연습 악기 기준으로 센다(대금은 정악·산조 중 하나라도 완료한 단계, 2026-10-29 사용자 결정).
+- **미션 수:** 미션은 팀 합의로 구현하지 않아 `completedMissionCount`·`totalMissionCount`를 응답에서 뺐다(S15P31E102-465). 기록지의 '완료한 단계 n / 9'는 기기에 남은 기초부터 배우기 완료 기록을 연습 악기 기준으로 센다(대금은 정악·산조 중 하나라도 완료한 단계, 2026-10-29 사용자 결정).
 - **곡별 최고점(`bestBySong`)·항목별 성장(`metricGrowth`):** 아래 '성취도'를 따른다.
 
 값:

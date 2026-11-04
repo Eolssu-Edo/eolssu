@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("22", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("23", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -187,7 +187,7 @@ class DatabaseIntegrationTests {
         )
         assertEquals(
             PracticeSessionRow(
-                1, 1, 1, null, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav",
+                1, 1, 1, null, 1, 90, "DOTTED_QUARTER", null, null, 0, 0, "https://example.test/recording.wav",
                 20_971_520, 600_500, 48_000, 2, "DONE", null, 0, null,
                 time, time.plusSeconds(1), null, null, null, null, time,
             ),
@@ -195,7 +195,7 @@ class DatabaseIntegrationTests {
         )
         assertEquals(
             PracticeSessionRow(
-                2, 1, 1, 7, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null,
+                2, 1, 1, 1, 3, 90, "DOTTED_QUARTER", "practice-key", "a".repeat(64), 0, 0, null,
                 null, null, null, null, "DONE", null, 0, null,
                 time, time.plusSeconds(1), time, "다시 연습", time, time, time,
             ),
