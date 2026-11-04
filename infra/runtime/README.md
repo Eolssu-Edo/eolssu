@@ -82,6 +82,34 @@ Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 ta
 
 backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs eolssu-runtime-backend-1 2>&1 | grep -i wiring`이 비어 있어야 합니다.
 
+### omr 악보 인식 서비스
+
+악보 인식 API([ai README](../../ai/README.md#악보-인식-api), [계약](../../docs/specs/score-recognition.md))는 `omr` 서비스로 실행합니다. 채점 `ai`와 메모리·CPU를 나누지 않게 따로 띄우고, 인증이 없으므로 호스트 포트를 열지 않습니다. backend 변환 작업자가 내부망 `http://omr:8000`으로 부르게 되는 것은 [S15P31E102-347](https://ssafy.atlassian.net/browse/S15P31E102-347)에서 합니다. 그 전에는 띄우지 않아도 다른 서비스에 영향이 없습니다. Jenkins 배포는 backend만 다시 만들므로 `omr`은 사람이 빌드·생성합니다(2026-11-04 기준 운영 미반영).
+
+이미지는 저장소 `ai/omr.Dockerfile`로 edo1에서 빌드한 `eolssu-omr:runtime`입니다(약 1.94GB, 빌드에 4GB 넘는 디스크 여유 필요). 빌드 맥락은 저장소 루트라서 `ai/`와 `data/src/scores`·`data/reference`를 함께 보냅니다. Audiveris deb(약 78MB)와 jeongganbo-generator는 빌드 중에 받습니다.
+
+```sh
+# 로컬 저장소에서: 반영할 커밋의 필요한 폴더만 서버 임시 폴더로 보내 빌드한다.
+REV=<반영할 develop 커밋>; D=/tmp/eolssu-omr-$REV
+ssh edo1 "mkdir -p $D"
+git archive "$REV" ai data/src/scores data/reference | ssh edo1 "tar -x -C $D"
+ssh edo1 "sudo docker build --label org.opencontainers.image.revision=$REV -f $D/ai/omr.Dockerfile --tag eolssu-omr:runtime $D && rm -rf $D"
+# edo1에서: 저장소 compose.yml을 /opt/eolssu/config/compose.yml에 반영한 뒤 omr만 생성하고 확인한다.
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never omr
+sudo docker compose --env-file /opt/eolssu/.env \
+  -f /opt/eolssu/config/compose.yml ps omr
+sudo docker exec eolssu-runtime-backend-1 \
+  curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://omr:8000/v1/recognitions
+```
+
+마지막 명령은 422가 정상입니다. Windows PowerShell에서는 `ai` 절과 같이 `git archive -o omr.tar "$REV" ai data/src/scores data/reference`로 파일을 만들어 `scp`로 보냅니다. 다시 빌드할 때는 먼저 `sudo docker tag eolssu-omr:runtime eolssu-omr:runtime-<이전 빌드 커밋 앞 7자리>`로 이름표를 남기고, 되돌릴 때는 그 태그를 `eolssu-omr:runtime`에 다시 붙여 `omr`만 재생성합니다. 아직 backend가 부르지 않으므로 문제가 생기면 `sudo docker compose ... stop omr`로 멈춰도 됩니다.
+
+- 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 1GiB tmpfs로 씁니다(원본·쪽 그림·Audiveris 작업 폴더와 홈 `/tmp/home`). 로컬 실측에서 요청 사이 `/tmp`는 14MB였습니다.
+- 메모리 한도 2GiB, CPU 1.5개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
+- 서버(4코어) 처리 시간은 처음 배포할 때 잽니다. 실측 4곡 쪽 그림을 서명 URL 대신 내부 주소로 올려 `POST /v1/recognitions`를 보내고, `sudo docker exec eolssu-runtime-omr-1 cat /sys/fs/cgroup/memory.peak`로 최대 메모리를 읽어 [조사 문서](../../docs/knowledge/ai/score-omr-feasibility.md)에 남깁니다. 쪽당 30초를 넘으면 계약의 시간 상한을 다시 봅니다.
+- 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-omr-1`에서 `X-Amz`·`url`이 없는지 확인합니다.
+
 ### backend 비밀값
 
 인증 비밀값은 `/opt/eolssu/.env`에만 두고 Compose의 backend `environment`에 필요한 변수만 연결합니다. 값은 저장소·채팅·로그·빌드 인자에 넣지 않습니다.
