@@ -8,13 +8,28 @@ class OAuthProviderProperties(
     val kakao: OAuthClientSettings = OAuthClientSettings(),
     val google: OAuthClientSettings = OAuthClientSettings(),
     val naver: OAuthClientSettings = OAuthClientSettings(),
+    val apple: AppleSettings = AppleSettings(),
 ) {
+    /** 웹 인증 코드 교환(RestOAuthGateway) 설정. Apple은 [AppleOAuthGateway]가 맡으므로 빈 설정(준비 안 됨)이다. */
     fun client(provider: SocialProvider) = when (provider) {
         SocialProvider.KAKAO -> kakao
         SocialProvider.GOOGLE -> google
         SocialProvider.NAVER -> naver
+        SocialProvider.APPLE -> OAuthClientSettings()
     }
 }
 
 /** 비밀값이 자동 toString으로 노출되지 않게 data class를 쓰지 않는다. */
 class OAuthClientSettings(val clientId: String = "", val clientSecret: String = "", val redirectUris: List<String> = emptyList())
+
+/**
+ * Sign in with Apple 설정. [clientId]는 앱 번들 ID, [privateKey]는 Apple Developer에서 받은 .p8(PKCS#8 PEM)이다.
+ * 환경 변수에 한 줄로 넣을 수 있게 `\n` 글자를 줄바꿈으로 본다. 비밀값이 toString으로 노출되지 않게 data class를 쓰지 않는다.
+ */
+class AppleSettings(
+    val clientId: String = "",
+    val teamId: String = "",
+    val keyId: String = "",
+    val privateKey: String = "",
+    val redirectUris: List<String> = emptyList(),
+)

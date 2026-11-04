@@ -16,6 +16,8 @@ class WithdrawalService(
     private val passwordEncoder: PasswordEncoder,
     private val attempts: LoginAttemptLimiter,
     private val clock: Clock,
+    /** 탈퇴 신청 커밋 뒤 제공자 토큰(Apple)을 해지한다. 소셜 기능이 없는 구성에서는 null. */
+    private val revocation: ProviderTokenRevocation? = null,
 ) {
     fun withdraw(userId: Long, currentPassword: String): WithdrawalResult {
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
@@ -28,7 +30,10 @@ class WithdrawalService(
             return WithdrawalResult.CurrentPasswordMismatch
         }
         val result = repository.inTransaction { markPending(userId, verifiedHash, now) }
-        if (result is WithdrawalResult.Withdrawn) attempts.reset(lockKey)
+        if (result is WithdrawalResult.Withdrawn) {
+            attempts.reset(lockKey)
+            revocation?.revokeAll(userId)
+        }
         return result
     }
 

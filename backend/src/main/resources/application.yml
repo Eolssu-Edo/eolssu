@@ -45,6 +45,13 @@ eolssu:
         client-id: ${AUTH_OAUTH_NAVER_CLIENT_ID:}
         client-secret: ${AUTH_OAUTH_NAVER_CLIENT_SECRET:}
         redirect-uris: ${AUTH_OAUTH_NAVER_REDIRECT_URIS:}
+      # Sign in with Apple(iOS 기본 로그인). client-id는 번들 ID, private-key는 .p8(PKCS#8 PEM, 한 줄이면 줄바꿈 자리에 역슬래시n). 하나라도 비면 503.
+      apple:
+        client-id: ${AUTH_OAUTH_APPLE_CLIENT_ID:}
+        team-id: ${AUTH_OAUTH_APPLE_TEAM_ID:}
+        key-id: ${AUTH_OAUTH_APPLE_KEY_ID:}
+        private-key: ${AUTH_OAUTH_APPLE_PRIVATE_KEY:}
+        redirect-uris: ${AUTH_OAUTH_APPLE_REDIRECT_URIS:}
   security:
     jwt-secret: ${AUTH_JWT_SECRET:}
     non-expiring-user-ids: ${AUTH_NON_EXPIRING_USER_IDS:}

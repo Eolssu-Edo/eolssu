@@ -16,9 +16,9 @@ class JdbcOAuthProofRepository(
     private val transaction=TransactionTemplate(manager)
     override fun insert(proof: OAuthProof) {
         jdbc.update("""INSERT INTO oauth_proofs(token_hash,kind,provider,purpose,binding_hash,user_id,redirect_uri,
-            provider_subject,email,email_verified,expires_at,flow_started_at,social_account_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            provider_subject,email,email_verified,expires_at,flow_started_at,social_account_id,provider_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             proof.hash,proof.kind,proof.provider,proof.purpose,proof.bindingHash,proof.userId,proof.redirectUri,
-            proof.subject,proof.email,proof.emailVerified,proof.expiresAt.utc(),proof.flowStartedAt?.utc(),proof.socialAccountId)
+            proof.subject,proof.email,proof.emailVerified,proof.expiresAt.utc(),proof.flowStartedAt?.utc(),proof.socialAccountId,proof.providerToken)
     }
 
     override fun find(hash: String): OAuthProof? = jdbc.query("SELECT * FROM oauth_proofs WHERE token_hash=?", { row, _ ->
@@ -28,7 +28,8 @@ class JdbcOAuthProofRepository(
             row.getObject("expires_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC),
             row.getObject("consumed_at",LocalDateTime::class.java)?.toInstant(ZoneOffset.UTC),
             row.getObject("flow_started_at",LocalDateTime::class.java)?.toInstant(ZoneOffset.UTC),
-            row.getObject("social_account_id",java.lang.Long::class.java)?.toLong())
+            row.getObject("social_account_id",java.lang.Long::class.java)?.toLong(),
+            row.getString("provider_token"))
     },hash).singleOrNull()
 
     override fun consume(hash: String, now: Instant):Boolean = transaction.execute {

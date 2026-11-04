@@ -1,0 +1,53 @@
+{
+ "sourceId": "ngc-standard-2022-p175",
+ "sourceHashes": {
+  "ngc-standard-2022-p175": "5f0b447590f87441fa5b24c4c8b075a8490043224064040cc056f863e5081b77"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "베틀가.jgb.json",
+  "sha256": "8d9dcb46f6234d3726300b432228c62cca0db26644d65546dfa7be6a7bdc827b",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "8921b5d3e0e3887063c7a39922e7b43412a02687fd87accd7f18a9c31c6d2e72"
+ },
+ "song": {
+  "title": "베틀가",
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "굿거리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 24,
+  "scoreVersion": 1
+ },
+ "breathCorrection": {
+  "on": "2026-11-04",
+  "by": "AI",
+  "basis": "원본 PDF의 율명 열 오른쪽 숨표(D-6 규칙)를 1차 검수 에이전트가 읽고 주 세션이 일부 그림으로 다시 확인함",
+  "previousCells": [],
+  "proposedCells": [
+   4,
+   8,
+   12
+  ],
+  "changedCells": [
+   4,
+   8,
+   12
+  ]
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 먼저 검수: Sonnet 에이전트가 원본 PDF 그림과 정간별로 대조하고 주 세션이 지적 항목을 그림으로 다시 확인했다. 사용자는 모호한 항목만 확인했다(25 음 1개, 26 숨표 1개). S15P31E102-404"
+ }
+}

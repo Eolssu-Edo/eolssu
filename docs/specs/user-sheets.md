@@ -6,9 +6,9 @@
 
 ## 범위
 
-- 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성, SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
+- 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, 코드는 남아 있음), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
 - 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
-- 제외: PDF·이미지·오선보 변환(SHT-07·10)과 확인 필요 칸, MIDI·M4A 다운로드(SHT-12·13), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
+- 제외: PDF·이미지·오선보 변환(SHT-07·10)과 확인 필요 칸, MIDI·M4A 다운로드(SHT-12·13), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
 ## 공통
 
@@ -31,6 +31,8 @@
 | `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
 ## SHT-03 `POST /api/users/me/sheets`
+
+> 작업 취소(2026-11-03 결정, [2차 결정](#2차-결정-2026-11-03-미구현)). 아래는 390에서 구현해 코드에 남아 있는 동작이다. 앱은 이 API를 쓰지 않으며, 빈 악보를 SHT-04로 처음 저장할 때의 `score.sourceId` 규칙은 정하지 않았다.
 
 헤더 `Idempotency-Key`(출력 가능한 ASCII 1~100자) 필수. 본문 타입이 명세와 다르면 자동 변환하지 않고 400.
 
@@ -74,7 +76,7 @@
 요청·응답 필드는 Notion SHT-02·04·08·11을 따른다. 구현에서 정한 점과 Notion과 다른 점:
 
 - SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 검증·타임라인은 CAT-04 디코더를 쓴다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
-- 서버는 `score.scoreVersion`만 바꾸고 `provenance`는 받은 값을 그대로 저장한다. 사용자 악보용 값이 DATA와 정해지지 않아서다(Notion '서버 값으로 덮어쓴다'와 다름).
+- 서버는 `score.scoreVersion`을 새 버전으로 바꾸고 `provenance`를 서버 값으로 덮어쓴다(S15P31E102-447). DATA `score_data.schema.json`·`validate_common`(SHT-12 합성)이 요구하는 형식이다: `sourceId`는 `score.sourceId`(비어 있지 않은 문자열이어야 하며 아니면 400), `jgbSha256`은 provenance를 뺀 저장 문서의 SHA-256(편집기 악보에는 .jgb.json이 없다), `review`는 `inferred`, `converter`는 `app-editor-1`. 클라이언트가 보낸 provenance는 쓰지 않는다. 초안(SHT-11)은 받은 그대로 둔다.
 - 확인 필요 칸은 변환 기능과 함께 생긴다. 지금은 `resolvedIssueIds`에 값이 있으면 400이고, 저장 결과는 항상 `EVALUABLE`·`pendingIssueCount` 0이다.
 - SHT-11 `PUT .../score/draft`: 버전과 `draftRevision`이 서버와 같을 때만 덮어쓰고 순번을 1 올린다. 칸 안은 검증하지 않고 최상위 모양만 본다. `updated_at`(목록 정렬)은 바꾸지 않는다.
 - SHT-08: `events`(저장 악보의 CAT-04 타임라인, 빈 악보는 `[]`)와 `draft`를 더했다. `draft`에는 Notion 필드(`score`·`baseScoreVersion`·`draftRevision`·`savedAt`)에 더해 초안의 `title`·`jangdanId`·`bpm`이 들어 있다(편집 화면 복원용). 저장 악보가 CAT-04 검증을 통과하지 못하면 409.
@@ -100,6 +102,7 @@
 - SHT-01: `conversionStatus`·`hasDraft`를 더하고 `source`에 `JEONGGANBO_OMR`·`STAFF_OMR`을 더한다.
 - SHT-02 `DELETE`: 204. 초안·확인 필요 칸·변환 상태·다운로드 링크·R2 원본까지 지운다. 변환 중에도 지운다. 내 악보는 연습 세션을 만들지 않으므로 연습 기록 처리는 필요 없다(회의 ③ 해소).
 - SHT-12·13: MIDI·M4A 다운로드 링크(10분, 여러 번 사용, 쿠키 없이 토큰). 파일은 요청마다 공통 악보 음원 생성기로 만들고 서버에 저장하지 않는다.
-- 작업 취소: SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
+- 작업 취소: SHT-03(악보는 SHT-07 불러오기로만 만든다. 빈 악보·복사 시작은 기획에 없다. 2026-11-04 Notion 정리, 390 구현은 코드에 남아 있고 제거는 별도로 정한다), SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
 - 저장 모델에 필요한 것(새 Flyway): `user_sheets`의 `source` CHECK 확장·초안 칸(`draft_json` 등), `sheet_source_files`, `sheet_conversions`, `sheet_issues`, `sheet_export_links`. 탈퇴 일괄 삭제와 R2 원본 삭제도 함께 넓힌다.
-- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한, 사용자 악보의 `provenance` 값(DATA).
+- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한.
+- SHT-07 변환 결과에는 `score.sourceId`를 넣어야 한다. SHT-04가 이 값으로 `provenance`를 채우고, 없으면 400이다(S15P31E102-447).

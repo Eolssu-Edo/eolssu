@@ -111,6 +111,7 @@ internal fun ProfileProviderLogo(provider: SocialProvider) {
             SocialProvider.Kakao -> Res.drawable.profile_kakao_logo
             SocialProvider.Naver -> Res.drawable.profile_naver_logo
             SocialProvider.Google -> Res.drawable.profile_google_logo
+            SocialProvider.Apple -> Res.drawable.profile_apple_logo
         }),
         contentDescription = null,
         modifier = Modifier.size(36.dp),

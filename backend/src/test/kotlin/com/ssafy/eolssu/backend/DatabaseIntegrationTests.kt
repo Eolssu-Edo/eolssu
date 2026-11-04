@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("21", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("22", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -351,7 +351,7 @@ class DatabaseIntegrationTests {
             jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'NAVER', 'other')")
         }
         assertMysqlError(3819, "chk_user_social_accounts_provider") {
-            jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'APPLE', 'apple-id')")
+            jdbc.update("INSERT INTO user_social_accounts (user_id, provider, provider_user_id) VALUES (1, 'FACEBOOK', 'facebook-id')")
         }
         assertMysqlError(1062, "terms.uq_terms_code_version") {
             jdbc.update(
