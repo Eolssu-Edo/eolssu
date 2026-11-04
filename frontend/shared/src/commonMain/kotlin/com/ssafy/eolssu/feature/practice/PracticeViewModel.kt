@@ -4,6 +4,10 @@ import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer
+import com.ssafy.eolssu.core.audio.JangdanPlan
+import com.ssafy.eolssu.core.audio.planJangdan
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
@@ -64,6 +68,7 @@ class PracticeViewModel(
     mine: Boolean = false,
     private val stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
+    private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
@@ -95,15 +100,139 @@ class PracticeViewModel(
         viewModelScope.launch { stopAll() }
     }
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource)
+    private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
+    private enum class SoundPurpose { Preview, Model, Rhythm }
+    private var soundPurpose: SoundPurpose? = null
+    private var modelSoundBpm: Int? = null
+
+    private fun currentPlan(): JangdanPlan? {
+        val state = _uiState.value
+        val song = state.song ?: return null
+        return song.jangdanPlayback?.let { planJangdan(it, state.bpm, song.score.timing?.ticksPerBeat ?: return null) }
+    }
+
+    private fun stopJangdan() {
+        soundPurpose = null
+        modelSoundBpm = null
+        jangdanAudio.stop()
+    }
+
+    private fun syncModelJangdan() {
+        val state = _uiState.value
+        if (state.mode != PracticeMode.Model || !state.playing || !state.settings.jangdanSound) {
+            if (soundPurpose == SoundPurpose.Model) stopJangdan()
+            return
+        }
+        if (soundPurpose == SoundPurpose.Model && modelSoundBpm == state.bpm) return
+        soundPurpose = SoundPurpose.Model
+        modelSoundBpm = state.bpm
+        jangdanAudio.start(currentPlan(), accompanyingModel = true, tick = {
+            val now = _uiState.value
+            val song = now.song
+            val clock = now.modelClock
+            if (now.mode != PracticeMode.Model || !now.playing || song == null || clock == null) null
+            else {
+                val mediaMs = clock.anchor.positionNow()
+                val endMs = clock.audio.startOffsetMs + (clock.audio.performance?.durationMs ?: song.durationMs(clock.audio.bpm))
+                when {
+                    mediaMs < clock.audio.startOffsetMs -> -1.0
+                    mediaMs >= endMs -> null
+                    else -> {
+                        val point = song.modelPointAt(clock.audio, mediaMs)
+                        val event = song.timeline[point.position]
+                        requireNotNull(event.startTick) + requireNotNull(event.durationTick) * point.fraction
+                    }
+                }
+            }
+        })
+    }
+
+    /** Non-recorded continuous practice uses the same absolute timeline clock as the score. */
+    fun startRhythm() {
+        if (!accountScope.isActive || _uiState.value.playbackSettingsLocked) return
+        val before = _uiState.value
+        val song = before.song ?: return
+        val plan = currentPlan()
+        if (plan == null || !jangdanPlayer.available) {
+            jangdanAudio.start(null, false, { null })
+            return
+        }
+        modelAudio.stop()
+        pauseStep()
+        stopPreview()
+        if (before.mode != PracticeMode.Rhythm) {
+            val position = if (before.mode == PracticeMode.Ready) before.selected else before.position
+            _uiState.update { it.copy(mode = PracticeMode.Rhythm, position = position, playing = false,
+                eventElapsedMs = 0.0, elapsedMs = song.timeline[position].startTick!!.toDouble() * 60_000 / before.bpm / song.score.timing!!.ticksPerBeat,
+                modelClock = null, modelPerformance = null, panel = null, follow = true, step = it.step.copy(on = false)) }
+        } else if (before.position == before.eventCount - 1 && before.currentEventFraction >= 1.0) {
+            _uiState.update { it.restartModel() }
+        }
+        settingsStore.update { it.copy(jangdanSound = true) }
+        soundPurpose = SoundPurpose.Rhythm
+        jangdanAudio.start(plan, accompanyingModel = false, tick = {
+            val end = song.timeline.last().let { it.startTick!! + it.durationTick!! }
+            if (_uiState.value.mode == PracticeMode.Rhythm && _uiState.value.playing)
+                stepClock?.sample()?.elapsedMs?.div(plan.msPerTick)?.takeIf { it < end } else null
+        }, onStarted = {
+            _uiState.update { it.copy(playing = true) }
+            startStepping(_uiState.value.eventElapsedMs)
+        })
+    }
+
+    fun toggleRhythm() { if (_uiState.value.playing) pauseRhythm() else startRhythm() }
+
+    private fun pauseRhythm() {
+        if (_uiState.value.mode != PracticeMode.Rhythm) return
+        captureStepProgress()
+        stepJob?.cancel()
+        stepClock = null
+        _uiState.update { it.copy(playing = false, eventStartedAt = null, pausedFraction = it.currentEventFraction.toFloat()) }
+        stopJangdan()
+    }
+
+    private fun seekRhythm(deltaMs: Long) {
+        val wasPlaying = _uiState.value.playing
+        pauseRhythm()
+        val state = _uiState.value
+        val song = state.song ?: return
+        val msPerTick = 60_000.0 / state.bpm / (song.score.timing?.ticksPerBeat ?: return)
+        val last = song.timeline.last()
+        val target = ((state.currentTick ?: 0.0) + deltaMs / msPerTick)
+            .coerceIn(0.0, (last.startTick!! + last.durationTick!!).toDouble())
+        val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
+        _uiState.update { it.copy(position = position, eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
+            elapsedMs = target * msPerTick, eventStartedAt = null) }
+        if (wasPlaying) startRhythm()
+    }
+
 
     init {
         retryLoadSong()
         accountScope.launch {
             modelAudio.state.collect { playback ->
                 _uiState.update { if (it.mode == PracticeMode.Model) it.withModelAudio(playback) else it }
+                syncModelJangdan()
             }
         }
-        accountScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
+        accountScope.launch { settingsStore.settings.collect { s ->
+            _uiState.update { it.copy(settings = s) }
+            _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
+            syncModelJangdan()
+        } }
+        accountScope.launch { jangdanAudio.status.collect { status ->
+            _uiState.update { it.copy(jangdanStatus = status) }
+            if (status in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)) {
+                if (_uiState.value.mode == PracticeMode.Rhythm) {
+                    captureStepProgress()
+                    stepJob?.cancel()
+                    stepClock = null
+                    _uiState.update { it.copy(playing = false, eventStartedAt = null) }
+                }
+                previewJob?.cancel()
+                _uiState.update { it.copy(draft = it.draft.copy(previewing = false)) }
+            }
+        } }
         accountScope.launch {
             _uiState.map { it.runningActivities }.distinctUntilChanged().collect { running ->
                 ContinuousActivity.entries.forEach { timeMeter.setRunning(it, it in running) }
@@ -124,6 +253,7 @@ class PracticeViewModel(
                     song.timeline.isEmpty() -> _uiState.update { it.copy(songError = PracticeSongError.Failed) }
                     else -> {
                         _uiState.update { it.copy(song = song) }
+                        _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
                         if (screenShown) startTimeTracking()
                     }
                 }
@@ -163,6 +293,10 @@ class PracticeViewModel(
     /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
     fun onScreenHidden() {
         screenShown = false
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
+        jangdanAudio.release()
         modelAudio.suspendAndRelease()
         pauseStep()
         idleJob?.cancel()
@@ -231,6 +365,7 @@ class PracticeViewModel(
 
     fun applyJangdan() {
         settingsStore.update { it.applyJangdan(_uiState.value.draft) }
+        if (!_uiState.value.draft.jangdanSound) pauseRhythm()
         closePanel()
     }
 
@@ -248,6 +383,7 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         val running = stepJob?.isActive == true
+        if (state.mode == PracticeMode.Rhythm) pauseRhythm()
         val carry = state.currentEventFraction
         settingsStore.update { it.applyTempo(state.draft, song) }
         _uiState.update {
@@ -255,7 +391,11 @@ class PracticeViewModel(
             updated.copy(eventElapsedMs = updated.eventDurationMs() * carry, pausedFraction = carry.toFloat())
         }
         closePanel()
-        if (running) startStepping(_uiState.value.eventElapsedMs)
+        if (state.mode == PracticeMode.Rhythm) {
+            val msPerTick = 60_000.0 / _uiState.value.bpm / song.score.timing!!.ticksPerBeat
+            _uiState.update { it.copy(elapsedMs = (it.currentTick ?: 0.0) * msPerTick) }
+            if (running) startRhythm()
+        } else if (running) startStepping(_uiState.value.eventElapsedMs)
     }
 
     fun toggleBigScore() = settingsStore.update { it.copy(bigScore = !it.bigScore) }
@@ -269,34 +409,42 @@ class PracticeViewModel(
     /** 플레이어의 −5초·+5초. 모범 연주 중에는 음원 위치를, 준비 상태에서는 고른 음을 옮긴다. */
     fun seekModel(deltaMs: Long) {
         when (_uiState.value.mode) {
-            PracticeMode.Model -> modelAudio.seekBy(deltaMs)
+            PracticeMode.Model -> { stopJangdan(); modelAudio.seekBy(deltaMs) }
+            PracticeMode.Rhythm -> seekRhythm(deltaMs)
             PracticeMode.Ready -> _uiState.update { it.seekSelection(deltaMs) }
             else -> Unit
         }
     }
 
-    /** 장단 미리듣기: 구음 패턴 한 칸마다 옮긴다. 악보의 정간 길이와는 다르다. */
+    /** Preview uses the reviewed score tick scale and the selected practice BPM. */
     fun togglePreview() {
-        if (!accountScope.isActive) return
-        val state = _uiState.value
-        if (state.draft.previewing) {
-            stopPreview()
-            return
-        }
-        val song = state.song ?: return
-        val jangdan = song.jangdan ?: return
-        _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
-        previewJob = accountScope.launch {
-            val gak = jangdan.gak
-            while (true) {
-                delay(jangdan.cellMillis(_uiState.value.bpm).toLong())
-                _uiState.update { it.copy(draft = it.draft.copy(previewBeat = (it.draft.previewBeat + 1) % gak)) }
+        if (!accountScope.isActive || _uiState.value.playbackSettingsLocked) return
+        if (soundPurpose == SoundPurpose.Preview) { stopPreview(); return }
+        modelAudio.pause()
+        pauseRhythm()
+        pauseStep()
+        val plan = currentPlan()
+        var mark: kotlin.time.TimeMark? = null
+        soundPurpose = SoundPurpose.Preview
+        jangdanAudio.start(plan, accompanyingModel = false, tick = {
+            if (plan == null) null else mark?.elapsedNow()?.inWholeNanoseconds?.div(1_000_000.0)?.div(plan.msPerTick)?.plus(plan.mapping.startTick)
+        }, onStarted = {
+            mark = playbackTimeSource.markNow()
+            _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
+            previewJob = accountScope.launch {
+                while (isActive) {
+                    val elapsed = mark.elapsedNow().inWholeNanoseconds / 1_000_000.0
+                    val cell = plan!!.mapping.cellAt(plan.mapping.startTick + elapsed / plan.msPerTick)
+                    _uiState.update { it.copy(draft = it.draft.copy(previewBeat = cell)) }
+                    delay(50)
+                }
             }
-        }
+        })
     }
 
     private fun stopPreview() {
         previewJob?.cancel()
+        if (soundPurpose == SoundPurpose.Preview) stopJangdan()
         _uiState.update { it.copy(draft = it.draft.copy(previewing = false, previewBeat = 0)) }
     }
 
@@ -313,7 +461,12 @@ class PracticeViewModel(
         if (!accountScope.isActive) return
         val state = _uiState.value
         val song = state.song ?: return
-        if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model)) return
+        if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)) return
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
+        pauseStep()
+        if (state.mode == PracticeMode.Rhythm) _uiState.update { it.toReady() }
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.startModel().copy(playing = false, eventStartedAt = null) }
@@ -333,6 +486,8 @@ class PracticeViewModel(
     }
 
     fun stopModel() {
+        pauseRhythm()
+        stopJangdan()
         modelAudio.stop()
         _uiState.update { it.stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle) }
     }
@@ -342,6 +497,9 @@ class PracticeViewModel(
     fun requestEvaluation() {
         if (!accountScope.isActive) return
         if (recorder == null) return
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
         modelAudio.stop()
         stepJob?.cancel()
         val granted = settingsStore.micGranted.value && micPermission?.isGranted() != false
@@ -356,6 +514,10 @@ class PracticeViewModel(
     fun grantMicAndStart() {
         if (!accountScope.isActive) return
         if (recorder == null) return
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
+        modelAudio.stop()
         settingsStore.grantMic()
         _uiState.update { it.beginCountdown() }
         runCountdown()
@@ -422,6 +584,9 @@ class PracticeViewModel(
 
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
     fun onLeaveScreen() {
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
         val state = _uiState.value
         when (state.mode) {
             PracticeMode.Recording, PracticeMode.Countdown -> {
@@ -435,6 +600,9 @@ class PracticeViewModel(
 
     /** 타이머를 모두 멈추고 진행 중인 녹음을 버린다. 마친 녹음 파일은 남긴다. */
     fun stopAll() {
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
         modelAudio.stop()
         captureStepProgress()
         stepJob?.cancel()
@@ -655,8 +823,8 @@ class PracticeViewModel(
                         clock.completeEvent(duration)
                         val next = _uiState.value
                         if (next.mode == PracticeMode.Recording && next.finished) finishRecorder()
-                        val running = (next.mode == PracticeMode.Model && next.playing) || (next.mode == PracticeMode.Recording && !next.finished)
-                        if (!running) break
+                        val running = (next.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && next.playing) || (next.mode == PracticeMode.Recording && !next.finished)
+                        if (!running) { if (next.mode == PracticeMode.Rhythm) stopJangdan(); break }
                     } else {
                         _uiState.update { it.copy(eventElapsedMs = sample.eventElapsedMs.coerceAtLeast(0.0),
                             elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt) }
@@ -673,6 +841,7 @@ class PracticeViewModel(
         stopAll()
         stepJudge.stop()
         modelAudio.release()
+        jangdanAudio.release()
     }
 
     private companion object {

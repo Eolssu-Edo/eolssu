@@ -64,6 +64,8 @@ import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.TempoStep
+import eolssu.shared.generated.resources.jangdan_source
+import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_apply
 import eolssu.shared.generated.resources.practice_fingering_desc
@@ -243,7 +245,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
                 locked -> lockedStatus
-                song.jangdan == null -> jangdanLabel(song.jangdanName)
+                state.jangdanProblem -> jangdanHint(state)
                 else -> stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName)
             },
             enabled = !locked,
@@ -485,10 +487,10 @@ private fun holeName(instrument: GuideInstrument, index: Int): String =
 @Composable
 private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
-    val jangdan = song.jangdan
+    val jangdan = song.displayJangdan
     if (jangdan == null) {
         Text(jangdanLabel(song.jangdanName), style = MaterialTheme.typography.titleMedium)
-        TinyNote(stringResource(Res.string.practice_jangdan_unavailable))
+        TinyNote(jangdanHint(state))
         return
     }
     val draft = state.draft
@@ -503,6 +505,8 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
             color = colors.textMuted,
         )
     }
+    TinyNote(jangdanHint(state))
+    TinyNote(stringResource(Res.string.jangdan_source))
     val perRow = minOf(jangdan.gak, 12)
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->
@@ -531,6 +535,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     EolssuButton(
         stringResource(if (draft.previewing) Res.string.practice_jangdan_preview_stop else Res.string.practice_jangdan_preview_start),
         actions.onTogglePreview,
+        enabled = state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading && !state.playbackSettingsLocked,
         style = EolssuButtonStyle.Secondary,
         icon = if (draft.previewing) EolssuIcons.Stop else EolssuIcons.Play,
         contentColor = if (draft.previewing) colors.play else null,
@@ -539,7 +544,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     Column {
         SettingRow(
             stringResource(Res.string.practice_jangdan_sound), stringResource(Res.string.practice_jangdan_sound_desc),
-            draft.jangdanSound, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, vertical = 10.dp,
+            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported && !state.playbackSettingsLocked, vertical = 10.dp,
         )
         SettingRow(
             stringResource(Res.string.practice_jangdan_beat), stringResource(Res.string.practice_jangdan_beat_desc),
