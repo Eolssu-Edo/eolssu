@@ -81,7 +81,8 @@ class CommonSheetScores(
 
     /**
      * 앱 편집기 악보에는 변환한 .jgb.json이 없으므로 클라이언트 값 대신 서버가 정한다. jgbSha256 자리에는
-     * provenance를 뺀 저장 문서의 SHA-256을 넣어 DATA 스키마 형식(16진 64자)을 맞추고 내용이 같으면 같은 값이 되게 한다.
+     * provenance를 뺀 저장 문서(새 scoreVersion 반영)의 SHA-256을 넣어 DATA 스키마 형식(16진 64자)을 맞춘다.
+     * 받은 키 순서대로 직렬화하므로 같은 문서면 같은 값이지만 키 순서가 다르면 값도 다르다.
      */
     private fun fillProvenance(root: ObjectNode, sourceId: String) {
         root.remove("provenance")

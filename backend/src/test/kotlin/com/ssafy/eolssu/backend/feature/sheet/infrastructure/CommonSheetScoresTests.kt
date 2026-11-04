@@ -2,6 +2,7 @@ package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.song.infrastructure.persistence.CommonScoreTimelineDecoder
+import java.security.MessageDigest
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
@@ -9,6 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 
 /** 저장 전 확인(미입력 칸·최상위 모양). 타임라인 검증은 CAT-04 디코더 테스트와 DB 테스트가 다룬다. */
 class CommonSheetScoresTests {
@@ -44,6 +46,17 @@ class CommonSheetScoresTests {
         assertEquals(provenance, saved(filled, "{}"))
         val rest = filled.replace("\"황\"", "\"태\"")
         assertNotEquals(provenance.path("jgbSha256"), saved(rest, client).path("jgbSha256"))
+    }
+
+    @Test
+    fun `the provenance hash covers the saved document with its new version`() {
+        val saved = json.readTree(assertIs<PreparedScore.Ready>(scores.prepare(document(filled), 2)).json) as ObjectNode
+        val hash = saved.path("provenance").path("jgbSha256").asString()
+        saved.remove("provenance")
+        val expected = MessageDigest.getInstance("SHA-256").digest(json.writeValueAsBytes(saved)).joinToString("") { "%02x".format(it) }
+
+        assertEquals(2, saved.path("score").path("scoreVersion").intValue())
+        assertEquals(expected, hash)
     }
 
     @Test
