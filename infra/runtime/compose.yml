@@ -118,6 +118,30 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # 악보 인식 API(ai/omr.Dockerfile, docs/specs/score-recognition.md). 채점(ai)과 메모리·CPU를 나누지 않게 따로 띄운다.
+  # 인증이 없으므로 포트를 공개하지 않고 backend만 내부망 http://omr:8000으로 부른다(S15P31E102-347에서 연결).
+  omr:
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-omr
+    image: eolssu-omr:runtime
+    read_only: true
+    tmpfs:
+      # 원본(20MiB 이하)·쪽 그림(300dpi PNG, 10쪽까지)·Audiveris 작업 폴더와 홈(HOME=/tmp/home: 설정·네이티브 라이브러리 캐시).
+      - /tmp:rw,exec,size=1g
+    # Audiveris 1건(동시 1건) 로컬 실측 최대 1.31GiB. tmpfs도 이 한도에 든다. 정간보 그림 경로(S15P31E102-458, torch)를 붙이면 다시 잰다.
+    mem_limit: 2g
+    cpus: 1.5
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
   mysql:
     logging:
       driver: syslog

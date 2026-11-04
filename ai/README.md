@@ -98,6 +98,39 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 - `tests/unit/test_api.py`는 합성음을 m4a로 만들어 가짜 다운로드로 넘깁니다. 쉼 채점과 DTW 길이 계산 검사는 디코딩을 합성 배열로 바꿔 ffmpeg 없이 돕니다. 응답 모양과 실패 처리 검사이며 채점 품질 검증이 아닙니다.
 
+## 악보 인식 API
+
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보는 연결 전이라 `ENGINE_ERROR`로 끝납니다(별도 Task [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
+
+```bash
+uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
+```
+
+1. 서명 URL의 PDF 1개 또는 PNG·JPEG 1~10장을 임시 폴더로 받습니다. 합계 20MiB까지입니다.
+2. PDF는 쪽마다 300dpi PNG로 그립니다(10쪽까지). 이미지는 선언한 형식과 실제 형식이 같아야 하고(여러 그림이 든 폰 사진 JPEG 포함), 폰 사진의 회전 정보를 적용해 둡니다. 쪽 그림 하나는 약 8,950만 화소(Pillow 기본 한도)까지입니다. PDFium은 스레드 안전하지 않아 PDF 처리는 한 번에 하나씩 합니다.
+3. `notation`에 맞는 엔진을 돌립니다. 요청 시작부터 내려받기·쪽 그림·엔진까지 쪽당 30초 × 쪽 수를 넘으면 `TIMEOUT`입니다. 이미지는 내려받기부터 장 수 기준이고, 쪽 수를 열어 봐야 아는 PDF는 내려받기와 PDFium 대기에 300초까지 씁니다. 내려받기는 읽기 한 번 제한(10초)만큼 넘길 수 있습니다. 마감 전에 저장소가 늦어 받지 못하면 `UNSUPPORTED_FILE`입니다. 마감은 PDF 쪽을 그리기 전마다 보므로, 마감 직전에 시작한 쪽 하나와 이미지 열기는 끝까지 마친 뒤 `TIMEOUT`이 됩니다(빈 A4 300dpi 쪽 0.6초, 복잡한 쪽은 더 걸릴 수 있음).
+4. 형식 오류(422) 말고는 예상하지 못한 오류도 200 `ENGINE_ERROR`로 돌려줍니다.
+
+정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
+
+오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 30초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
+
+### 악보 인식 이미지
+
+`omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
+
+```bash
+docker build -f ai/omr.Dockerfile -t eolssu-omr .
+```
+
+```bash
+docker run --rm --cpus 1.5 --memory 2g -p 127.0.0.1:8000:8000 eolssu-omr
+```
+
+2026-11-04 실측(이 PC Docker, `--cpus 1.5 --memory 2g`): 실측 4곡 오선보 쪽 그림은 1쪽 8.2~9.7초이고 결과가 고정 자료 검사 기준과 같습니다. 정간보·오선보가 함께 있는 표준악보집 펼침면 PDF(북천이 맑다커늘 PDF182) 1쪽은 13.5초, 앞에 빈 쪽을 붙인 2쪽 PDF는 16.1초(빈 쪽은 `NO_STAFF`)였습니다. Audiveris는 한 번에 하나만 돌아 동시 요청 2건은 차례로 끝나고(9.5·17.7초), 최대 메모리는 1.02GB였습니다. 이미지는 1.94GB입니다. 기반 이미지 digest·apt 패키지 버전·Audiveris deb 체크섬·생성기 커밋을 고정했습니다. Ubuntu가 보안 업데이트로 고정한 패키지(`libgtk-3-0t64`·`nodejs`·`ca-certificates`)의 이전 버전을 내리면 빌드가 `Version ... not found`로 멈춥니다. 그때는 고정을 빼고 한 번 빌드한 이미지에서 `docker run --rm --entrypoint dpkg-query eolssu-omr -W libgtk-3-0t64 nodejs ca-certificates`로 새 버전을 읽어 `omr.Dockerfile`에 다시 적고, 실측 4곡을 다시 확인합니다. Audiveris 버전을 올릴 때는 deb를 받아 `sha256sum`으로 `--checksum`도 바꿉니다. 운영 Compose 실행과 서버(4코어) 실측 방법은 [실행 문서](../infra/runtime/README.md#omr-악보-인식-서비스)에 있습니다.
+
+PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`·`pymupdf`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
+
 ## 실행 이미지
 
 `Dockerfile`은 분석 API를 사용자 10001로 실행하는 이미지입니다. 아래 명령은 이 폴더(`ai/`)에서 실행합니다.
