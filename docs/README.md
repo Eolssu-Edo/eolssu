@@ -138,6 +138,8 @@
 
 ## 데이터 조사·검증 기록
 
+- [등록 장단 10종 미리듣기 음원의 출처·생성·검증](knowledge/data/jangdan-preview-audio.md)
+
 - [기종 미표기 대금 악보의 출처별 분류·황응남임 편집 교정 근거](knowledge/data/common/daegeum-score-types.md)
 - [공통 악보 v1 재생 연결 스펙](specs/common-score-playback.md) · [S15P31E102-338 실행·검증 기록](plans/S15P31E102-338.md)
 - [공통 악보 음원의 독립 파형 검증](knowledge/data/common-score-audio-verification.md)
