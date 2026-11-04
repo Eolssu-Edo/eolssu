@@ -65,7 +65,7 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
 
-S15P31E102-339가 적재한 단소 31곡의 정답은 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>`, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 사람 검수 전이라 `review`는 `inferred`입니다.
+S15P31E102-339가 적재한 단소 31곡의 정답은 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>`, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 31곡 모두 `reviewed`이고 검수 방법은 검토 기록의 `answerApproval.note`에 있습니다. 북천이 단소1(`p182-part-1`)은 운영 음과 원본이 달라 `serviceComparison.approvedForScoring=false`로 두고 채점 계획([infra/catalog/scoring-plans/danso.json](../infra/catalog/scoring-plans/danso.json), 30곡)에서 뺐습니다.
 
 검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
 

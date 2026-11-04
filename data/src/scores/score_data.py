@@ -249,6 +249,9 @@ def _parse_word(word, cell_id):
             out.append(("-", ()))
             i = m.end()
             continue
+        if {"빈지속", "이음표", "-"} & set(SIGIMSAE.findall(m.group(3))):
+            # 재생 변환기는 붙은 지속 기호를 따로 한 자리로 떼어 시간을 나눈다. 그 규칙을 옮기기 전까지는 멈춘다.
+            raise ValueError(f"{cell_id}: 다른 글자에 붙은 지속 기호 '{m.group(0)}'는 아직 지원하지 않는다")
         if not m.group(1):
             # 우물사이는 율명 없는 시김새를 앞 음 기준의 소리로 푼다. 그 규칙을 옮기기 전까지는 멈춘다.
             raise ValueError(f"{cell_id}: 율명 없는 시김새 '{m.group(0)}'는 아직 지원하지 않는다")

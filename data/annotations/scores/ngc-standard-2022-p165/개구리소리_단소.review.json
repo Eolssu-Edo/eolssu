@@ -23,7 +23,7 @@
   "tempo": null,
   "beatsPerJeonggan": "1/2",
   "bpmUnit": "QUARTER",
-  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
  },
  "serviceSong": {
   "songId": 6,

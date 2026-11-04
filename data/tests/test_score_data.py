@@ -105,6 +105,12 @@ class ReadUnitsTests(unittest.TestCase):
             events, _ = build_events(units)
             self.assertEqual([(e.yul, e.duration) for e in events], [("임", F(1)), ("중", F(1))])
 
+    def test_sustain_mark_attached_to_a_symbol_stops(self):
+        # 재생 변환기는 '임{빈지속}'의 지속 기호를 따로 한 자리로 떼어 시간을 나눈다. 같은 규칙을 옮기기 전까지는 멈춘다.
+        for word in ("임{빈지속}", "-{이음표}", "{빈지속}{농음표}"):
+            with self.assertRaisesRegex(ValueError, "c0-j0"):
+                read_units(word, beats_per_jeonggan=F(1))
+
     def test_unreadable_text_stops_with_its_cell(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | 도레미", beats_per_jeonggan=F(1))
