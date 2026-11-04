@@ -65,7 +65,12 @@ val ScoreNote.fingeringYul: Yul? get() = when (this) {
 data class ScoreUnit(val row: Int, val col: Int, val symbol: String, val eventId: String)
 
 /** 정간 하나. 공통 악보는 [units]의 row/col로, 기존 샘플은 [notes]를 위→아래로 나눈다. */
-data class ScoreCell(val notes: List<ScoreNote>, val id: String? = null, val units: List<ScoreUnit> = emptyList()) {
+data class ScoreCell(
+    val notes: List<ScoreNote>,
+    val id: String? = null,
+    val units: List<ScoreUnit> = emptyList(),
+    val lyric: String? = null,
+) {
     init {
         require(notes.isNotEmpty()) { "정간에는 음이 하나 이상 있어야 한다" }
     }
