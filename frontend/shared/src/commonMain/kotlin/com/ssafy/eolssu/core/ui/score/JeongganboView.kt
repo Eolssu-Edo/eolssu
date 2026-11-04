@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -179,10 +180,17 @@ fun JeongganboView(
     onUnitClick: ((ScoreDisplayUnit) -> Unit)? = null,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     look: JeongganboLook = JeongganboLook.Classic,
+    /** 연습 화면의 짧은 각 묶음. 원본 각·음표 좌표는 바꾸지 않는다. */
+    columnsPerStack: Int = 1,
+    stackGap: Dp = 12.dp,
+    /** 원본 (각, 정간) 좌표별 높이. 다른 화면은 기존 고정 높이를 쓴다. */
+    cellHeights: Map<Pair<Int, Int>, Dp> = emptyMap(),
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
     val renderMetrics = metrics.forFontScale(LocalDensity.current.fontScale)
+    val stackSize = columnsPerStack.coerceAtLeast(1)
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
@@ -214,7 +222,7 @@ fun JeongganboView(
     if (scrollState != null) {
         FollowPlayhead(
             scrollState = scrollState,
-            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction) } },
+            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction, stackSize) } },
             follow = follow,
             metrics = renderMetrics,
             onUserScroll = onUserScroll,
@@ -229,6 +237,40 @@ fun JeongganboView(
     } else {
         Modifier.wrapContentWidth(align = Alignment.End, unbounded = true)
     }
+    @Composable
+    fun DrawStrip(readingIndex: Int, strip: ScoreStrip) {
+        val starts = daegangStarts(strip.column)
+        ScoreStripColumn(
+            strip, renderMetrics, readingIndex, look,
+            highlighted = highlightColumns != null && strip.column in highlightColumns,
+            upcoming = upcomingColumn == strip.column,
+            leftDivider = look.joined && readingIndex != strips.lastIndex,
+        ) { row ->
+            val height = cellHeights[strip.column to row]
+            ScoreCellBox(
+                units = unitsByCell[strip.column to row].orEmpty(),
+                metrics = if (height == null) renderMetrics else renderMetrics.copy(cellHeight = height * fontScale),
+                look = look,
+                drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
+                isDaegangStart = row in starts,
+                notation = notation,
+                solfege = solfege,
+                currentIndex = shownIndex,
+                currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
+                highlight = highlight,
+                live = live,
+                fraction = { cursor.fraction },
+                error = errors[strip.column to row],
+                dimmed = dimUnmarked && (strip.column to row) !in errors,
+                selectedIndex = selectedIndex,
+                selectedCell = selectedCell?.let { it == (strip.column to row) },
+                onEventClick = onEventClick,
+                onUnitClick = onUnitClick,
+                annotations = annotations,
+                playingKey = playingKey,
+            )
+        }
+    }
     Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
         Row(
             modifier = rowModifier.semantics { isTraversalGroup = true }
@@ -242,36 +284,16 @@ fun JeongganboView(
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
-            for ((readingIndex, strip) in strips.withIndex().reversed()) {
-                val starts = daegangStarts(strip.column)
-                ScoreStripColumn(
-                    strip, renderMetrics, readingIndex, look,
-                    highlighted = highlightColumns != null && strip.column in highlightColumns,
-                    upcoming = upcomingColumn == strip.column,
-                    leftDivider = look.joined && readingIndex != strips.lastIndex,
-                ) { row ->
-                    ScoreCellBox(
-                        units = unitsByCell[strip.column to row].orEmpty(),
-                        metrics = renderMetrics,
-                        look = look,
-                        drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
-                        isDaegangStart = row in starts,
-                        notation = notation,
-                        solfege = solfege,
-                        currentIndex = shownIndex,
-                        currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
-                        highlight = highlight,
-                        live = live,
-                        fraction = { cursor.fraction },
-                        error = errors[strip.column to row],
-                        dimmed = dimUnmarked && (strip.column to row) !in errors,
-                        selectedIndex = selectedIndex,
-                        selectedCell = selectedCell?.let { it == (strip.column to row) },
-                        onEventClick = onEventClick,
-                        onUnitClick = onUnitClick,
-                        annotations = annotations,
-                        playingKey = playingKey,
-                    )
+            if (stackSize == 1) {
+                for ((readingIndex, strip) in strips.withIndex().reversed()) DrawStrip(readingIndex, strip)
+            } else {
+                for ((groupIndex, group) in strips.withIndex().toList().chunked(stackSize).withIndex().reversed()) {
+                    Column(
+                        Modifier.semantics { isTraversalGroup = true; traversalIndex = groupIndex.toFloat() },
+                        verticalArrangement = Arrangement.spacedBy(stackGap),
+                    ) {
+                        for ((readingIndex, strip) in group) DrawStrip(readingIndex, strip)
+                    }
                 }
             }
         }
@@ -280,7 +302,7 @@ fun JeongganboView(
 
 /**
  * 진행 위치를 줄 단위로 센 값. 정수부는 [strips]에서의 줄 번호(오른쪽부터), 소수부는 그 줄의 정간 가운데 지난 몫이다.
- * 정간 안에서도 지난 만큼 늘어나 가로 따라가기가 끊기지 않는다.
+ * 정간 안에서도 지난 만큼 늘어나 가로 따라가기가 끊기지 않는다. 세로 묶음에서는 묶음 단위로 환산한다.
  */
 internal fun playheadStrip(
     song: Song,
@@ -288,6 +310,7 @@ internal fun playheadStrip(
     unitsByCell: Map<Pair<Int, Int>, List<ScoreDisplayUnit>>,
     index: Int,
     fraction: Float,
+    columnsPerStack: Int = 1,
 ): Double? {
     val event = song.timeline.getOrNull(index) ?: return null
     val unit = song.displayUnitAt(index, fraction) ?: return null
@@ -296,7 +319,7 @@ internal fun playheadStrip(
     val strip = strips[stripIndex]
     val cellStart = unitsByCell[unit.column to unit.row]?.minOfOrNull { it.unitStart } ?: unit.unitStart
     val inCell = (event.unitStart + event.unitDuration * fraction - cellStart).coerceIn(0.0, 1.0)
-    return stripIndex + (unit.row - strip.rows.first + inCell) / strip.rows.count()
+    return (stripIndex + (unit.row - strip.rows.first + inCell) / strip.rows.count()) / columnsPerStack.coerceAtLeast(1)
 }
 
 /**
