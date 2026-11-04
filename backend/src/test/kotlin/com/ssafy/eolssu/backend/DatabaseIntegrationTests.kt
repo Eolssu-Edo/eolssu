@@ -118,7 +118,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("22", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("23", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -237,11 +237,11 @@ class DatabaseIntegrationTests {
             mapper<EmailVerificationMapper>().findById(2),
         )
         assertEquals(
-            RefreshTokenRow(1, 1, "c".repeat(64), time, time, "ROTATED", time),
+            RefreshTokenRow(1, 1, "c".repeat(64), "mapper-session-1", time, time, "ROTATED", time),
             mapper<RefreshTokenMapper>().findById(1),
         )
         assertEquals(
-            RefreshTokenRow(2, 1, "d".repeat(64), time, null, null, time),
+            RefreshTokenRow(2, 1, "d".repeat(64), "mapper-session-1", time, null, null, time),
             mapper<RefreshTokenMapper>().findById(2),
         )
         assertEquals(UserSongSettingRow(1, 1, 1, 72, time, time), mapper<UserSongSettingMapper>().findById(1))
@@ -390,7 +390,7 @@ class DatabaseIntegrationTests {
             jdbc.update("UPDATE refresh_tokens SET revoke_reason = 'EXPIRED' WHERE id = 1")
         }
         assertMysqlError(1062, "refresh_tokens.uq_refresh_tokens_token") {
-            jdbc.update("INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (1, REPEAT('d', 64), CURRENT_TIMESTAMP(6))")
+            jdbc.update("INSERT INTO refresh_tokens (user_id, token_hash, session_id, expires_at) VALUES (1, REPEAT('d', 64), 'mapper-session-3', CURRENT_TIMESTAMP(6))")
         }
     }
 

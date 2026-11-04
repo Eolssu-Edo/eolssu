@@ -11,13 +11,14 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.transaction.PlatformTransactionManager
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.AuthSessionCache
 
 @Configuration(proxyBeanMethods = false)
 @Profile("db | ops")
 class PasswordResetConfig {
     @Bean
-    fun passwordResetRepository(users: UserMapper, verifications: EmailVerificationMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager): PasswordResetRepository =
-        MyBatisPasswordResetRepository(users, verifications, refreshTokens, manager)
+    fun passwordResetRepository(users: UserMapper, verifications: EmailVerificationMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager, sessions: AuthSessionCache): PasswordResetRepository =
+        MyBatisPasswordResetRepository(users, verifications, refreshTokens, manager, sessions)
     @Bean
     fun passwordResetService(repository: PasswordResetRepository, passwordEncoder: PasswordEncoder, secrets: VerificationSecrets, clock: Clock) =
         PasswordResetService(repository, passwordEncoder, secrets, clock)
