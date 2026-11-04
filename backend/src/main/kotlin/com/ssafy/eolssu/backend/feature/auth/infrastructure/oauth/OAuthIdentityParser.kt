@@ -20,6 +20,7 @@ object OAuthIdentityParser {
                     if (root.path("resultcode").asString() != "00") throw OAuthProfileRejected()
                     root.path("response")
                 }
+                SocialProvider.APPLE -> throw OAuthProfileRejected() // Apple은 id_token을 AppleOAuthGateway가 확인한다.
             }
             val subject = when (provider) {
                 SocialProvider.KAKAO -> root.path("id").let {
@@ -28,6 +29,7 @@ object OAuthIdentityParser {
                 }
                 SocialProvider.GOOGLE -> root.path("sub").text()
                 SocialProvider.NAVER -> profile.path("id").text()
+                SocialProvider.APPLE -> null
             }
             if (subject.isNullOrBlank() || subject.length > 255) throw OAuthProfileRejected()
             val email = profile.path("email").text()?.takeIf { it.isNotBlank() && it.length <= 320 }
@@ -38,6 +40,7 @@ object OAuthIdentityParser {
                 SocialProvider.GOOGLE -> profile.path("email_verified").trueBoolean() &&
                     (email.endsWith("@gmail.com", ignoreCase = true) || !profile.path("hd").text().isNullOrBlank())
                 SocialProvider.NAVER -> false // 이메일 확인 여부를 제공하지 않으므로 별도 본인 확인이 필요하다.
+                SocialProvider.APPLE -> false
             }
             return OAuthIdentity(subject, email, verified)
         } catch (_: Exception) {
