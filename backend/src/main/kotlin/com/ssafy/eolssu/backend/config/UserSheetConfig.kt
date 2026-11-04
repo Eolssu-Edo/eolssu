@@ -2,7 +2,6 @@ package com.ssafy.eolssu.backend.config
 
 import com.ssafy.eolssu.backend.common.error.ErrorResponseWriter
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetBodyLimitFilter
-import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
@@ -20,7 +19,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import tools.jackson.databind.json.JsonMapper
 
-// 내 악보(SHT-01·02·03·04·08·11). 계약: docs/specs/user-sheets.md
+// 내 악보(SHT-01·02·04·08·11). 계약: docs/specs/user-sheets.md
 @Configuration(proxyBeanMethods = false)
 @Profile("db | ops")
 class UserSheetConfig {
@@ -30,9 +29,6 @@ class UserSheetConfig {
     @Bean
     fun sheetScores(songs: SongScoreMapper, json: JsonMapper): SheetScores =
         CommonSheetScores(json, CommonScoreTimelineDecoder(json), MyBatisSongScoreRepository(songs)::pitches)
-
-    @Bean
-    fun createUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock) = CreateUserSheet(repository, scores, clock)
 
     @Bean
     fun getUserSheets(repository: UserSheetRepository, scores: SheetScores) = GetUserSheets(repository, scores)

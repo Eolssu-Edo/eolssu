@@ -108,12 +108,12 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 
 1. 서명 URL의 PDF 1개 또는 PNG·JPEG 1~10장을 임시 폴더로 받습니다. 합계 20MiB까지입니다.
 2. PDF는 쪽마다 300dpi PNG로 그립니다(10쪽까지). 이미지는 선언한 형식과 실제 형식이 같아야 하고(여러 그림이 든 폰 사진 JPEG 포함), 폰 사진의 회전 정보를 적용해 둡니다. 쪽 그림 하나는 약 8,950만 화소(Pillow 기본 한도)까지입니다. PDFium은 스레드 안전하지 않아 PDF 처리는 한 번에 하나씩 합니다.
-3. `notation`에 맞는 엔진을 돌립니다. 요청 시작부터 내려받기·쪽 그림·엔진까지 쪽당 30초 × 쪽 수를 넘으면 `TIMEOUT`입니다. 이미지는 내려받기부터 장 수 기준이고, 쪽 수를 열어 봐야 아는 PDF는 내려받기와 PDFium 대기에 300초까지 씁니다. 내려받기는 읽기 한 번 제한(10초)만큼 넘길 수 있습니다. 마감 전에 저장소가 늦어 받지 못하면 `UNSUPPORTED_FILE`입니다. 마감은 PDF 쪽을 그리기 전마다 보므로, 마감 직전에 시작한 쪽 하나와 이미지 열기는 끝까지 마친 뒤 `TIMEOUT`이 됩니다(빈 A4 300dpi 쪽 0.6초, 복잡한 쪽은 더 걸릴 수 있음).
+3. `notation`에 맞는 엔진을 돌립니다. 요청 시작부터 내려받기·쪽 그림·엔진까지 쪽당 60초 × 쪽 수를 넘으면 `TIMEOUT`입니다. 이미지는 내려받기부터 장 수 기준이고, 쪽 수를 열어 봐야 아는 PDF는 내려받기와 PDFium 대기에 600초까지 씁니다. 내려받기는 읽기 한 번 제한(10초)만큼 넘길 수 있습니다. 마감 전에 저장소가 늦어 받지 못하면 `UNSUPPORTED_FILE`입니다. 마감은 PDF 쪽을 그리기 전마다 보므로, 마감 직전에 시작한 쪽 하나와 이미지 열기는 끝까지 마친 뒤 `TIMEOUT`이 됩니다(빈 A4 300dpi 쪽 0.6초, 복잡한 쪽은 더 걸릴 수 있음).
 4. 형식 오류(422) 말고는 예상하지 못한 오류도 200 `ENGINE_ERROR`로 돌려줍니다.
 
 정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
 
-오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 30초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
+오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 60초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
 
 ### 악보 인식 이미지
 

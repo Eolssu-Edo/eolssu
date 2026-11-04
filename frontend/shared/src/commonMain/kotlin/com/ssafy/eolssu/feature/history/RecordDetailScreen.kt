@@ -30,6 +30,7 @@ import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
+import com.ssafy.eolssu.feature.history.component.CompareEntry
 import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
 import com.ssafy.eolssu.feature.history.component.RecordScoreText
 import com.ssafy.eolssu.feature.history.component.RecordSongLookupContent
@@ -57,6 +58,8 @@ class RecordDetailActions(
     val onToggleFollow: () -> Unit,
     val onWeakSection: () -> Unit,
     val onRetrySong: () -> Unit = {},
+    /** ‘지난 연주와 비교’(2차 COMPARE-01). */
+    val onCompare: () -> Unit = {},
 )
 
 /**
@@ -108,19 +111,21 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
     ) {
         if (record == null || song == null) return@EolssuScaffold
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            Row(
+            Column(
                 Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
                     .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                RecordScoreText(record, 32.sp)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(recordMetricsLabel(record), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-                    if (record.memo.isNotEmpty()) {
-                        Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    RecordScoreText(record, 32.sp)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(recordMetricsLabel(record), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+                        if (record.memo.isNotEmpty()) {
+                            Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+                        }
                     }
                 }
+                // 2차 RECORD-02: 같은 곡 전체 연주 기록만 비교한다.
+                if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(top = 10.dp))
             }
             Row(Modifier.padding(top = 10.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SwitchBox(stringResource(Res.string.record_detail_show_errors), state.showErrors, actions.onToggleErrors, Modifier.weight(1f))

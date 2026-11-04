@@ -18,12 +18,14 @@ import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
-import com.ssafy.eolssu.feature.song.component.AddSheetBottomSheet
 import com.ssafy.eolssu.feature.song.component.AddSheetButton
-import com.ssafy.eolssu.feature.song.component.AddSheetOption
 import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
@@ -33,6 +35,10 @@ import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.common_cancel
+import eolssu.shared.generated.resources.mysongs_delete
+import eolssu.shared.generated.resources.mysongs_delete_message
+import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_practice_only
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
@@ -50,14 +56,15 @@ class MySongsActions(
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
     val onEditSheet: (MySheet) -> Unit,
-    val onOpenAddSheet: () -> Unit,
-    val onCloseAddSheet: () -> Unit,
-    val onSelectAddOption: (AddSheetOption) -> Unit,
+    val onAddSheet: () -> Unit,
+    val onDeleteSheet: (MySheet) -> Unit,
+    val onConfirmDelete: () -> Unit,
+    val onCancelDelete: () -> Unit,
     val onRetry: () -> Unit,
 )
 
 /**
- * SONG-03 연습곡 고르기: 제공 곡 · 내 악보 탭, 악보 추가 시트.
+ * SONG-03 연습곡 고르기: 제공 곡 · 내 악보 탭, 내 악보 삭제 확인 창.
  * 휴대폰·태블릿 모두 같은 본문([MySongsBody])을 쓰고, 태블릿 가로([WindowWidthClass.Expanded])만 줄을 두 열로 놓는다.
  */
 @Composable
@@ -67,9 +74,23 @@ fun MySongsScreen(state: MySongsUiState, widthClass: WindowWidthClass, snackbarH
     } else {
         MySongsTabletLayout(state, expanded = widthClass == WindowWidthClass.Expanded, snackbarHostState, actions)
     }
-    // 시트 너비는 Material 기본값(최대 640dp, 가운데)이라 태블릿 와이어프레임과 같다.
-    if (state.addSheetOpen) {
-        AddSheetBottomSheet(onSelect = actions.onSelectAddOption, onDismiss = actions.onCloseAddSheet)
+    state.deleting?.let { DeleteSheetDialog(it, actions) }
+}
+
+/** 내 악보 삭제 확인(`Song-Practice-Delete`): 붉은 휴지통 고리 · '삭제' · '취소'. 가림막·뒤로 가기도 취소다. */
+@Composable
+private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
+    val colors = EolssuTheme.colors
+    EolssuDialog(
+        title = stringResource(Res.string.mysongs_delete_title, sheet.title),
+        message = stringResource(Res.string.mysongs_delete_message),
+        icon = EolssuIcons.Trash,
+        iconBackground = colors.recSoft,
+        iconTint = colors.recText,
+        onDismissRequest = actions.onCancelDelete,
+    ) {
+        EolssuButton(stringResource(Res.string.mysongs_delete), actions.onConfirmDelete, style = EolssuButtonStyle.Danger)
+        EolssuButton(stringResource(Res.string.common_cancel), actions.onCancelDelete, style = EolssuButtonStyle.Secondary)
     }
 }
 
@@ -138,13 +159,19 @@ internal fun MySongsBody(
                 }
             }
             MySongsTab.Sheets -> {
-                AddSheetButton(actions.onOpenAddSheet)
+                AddSheetButton(actions.onAddSheet)
                 val sheets = state.sheets.orEmpty()
                 if (sheets.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ListNote(stringResource(Res.string.mysongs_sheet_count, sheets.size))
                         CardGrid(sheets, columns, itemKey = { it.id }, spacing = rowGap) { sheet, rowModifier ->
-                            MySheetRow(sheet, onOpen = { actions.onOpenSheet(sheet) }, onEdit = { actions.onEditSheet(sheet) }, modifier = rowModifier)
+                            MySheetRow(
+                                sheet,
+                                onOpen = { actions.onOpenSheet(sheet) },
+                                onEdit = { actions.onEditSheet(sheet) },
+                                onDelete = { actions.onDeleteSheet(sheet) },
+                                modifier = rowModifier,
+                            )
                         }
                     }
                 }

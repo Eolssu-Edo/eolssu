@@ -41,9 +41,9 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 마이그레이션 파일은 `V숫자__소문자_설명.sql`이고 버전은 1부터 빈 번호 없이 하나씩 씁니다. `MigrationFileTests`가 일반 `test`에서 버전 중복·공백·이름을 검사합니다. Jenkins는 `databaseTest`를 돌리지 않으므로, 다른 브랜치가 같은 번호를 먼저 병합하면 이 검사가 배포를 막습니다. 병합 직전 develop을 받아 나중 쪽 번호를 최신 다음으로 옮기고, 운영에 적용된 파일은 고치지 않습니다.
 
-### 내 악보(SHT-01·03·08)
+### 내 악보(SHT-01·02·04·08·11)
 
-S15P31E102-390: `db`·`ops`에서 로그인한 회원이 `POST /api/users/me/sheets`(빈 악보·제공 곡/내 악보 복사), `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`가 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 편집 저장·삭제·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `CreateUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
+S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, 악보 만들기(SHT-07 불러오기)·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
 
 ### 카탈로그 조회(CAT-03~10)
 

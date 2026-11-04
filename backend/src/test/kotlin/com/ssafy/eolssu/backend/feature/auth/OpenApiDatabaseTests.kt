@@ -80,8 +80,8 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(69,expected.size)
-        assertTrue(expected.containsAll(setOf("post /api/users/me/sheets", "get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
+        assertEquals(68,expected.size)
+        assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
@@ -105,7 +105,11 @@ open class OpenApiDatabaseTests {
         val iosRelay = doc.path("paths").path("/api/auth/ios/oauth/{provider}/callback").path("get")
         assertEquals(0,iosRelay.path("security").size())
         assertFalse(iosRelay.path("responses").path("302").has("content"))
-        assertTrue(iosRelay.path("responses").path("302").path("headers").has("Location"))
+        for (header in listOf("Location", "Cache-Control", "Referrer-Policy")) assertTrue(iosRelay.path("responses").path("302").path("headers").has(header), header)
+        assertTrue(iosRelay.path("responses").has("404"))
+        assertFalse(iosRelay.path("responses").path("404").has("content"))
+        val provider = iosRelay.path("parameters").toList().single { it.path("name").asString() == "provider" }
+        assertEquals(listOf("kakao","google","naver"), provider.path("schema").path("enum").toList().map { it.asString() })
         val performance = doc.path("paths").path("/api/songs/{songId}/model-audio/performance").path("get")
         assertEquals(0,performance.path("security").size())
         assertFalse(performance.path("responses").path("200").path("content").path("application/json").path("schema").has("result"))
