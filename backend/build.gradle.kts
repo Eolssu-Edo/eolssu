@@ -35,6 +35,7 @@ dependencies {
     runtimeOnly(libs.flyway.mysql)
     runtimeOnly(libs.mysql.connector)
     implementation(libs.kotlin.reflect)
+    implementation(libs.caffeine)
     implementation(libs.jackson.kotlin)
     // 녹음 원본 저장소(S3 호환, Cloudflare R2). 동기 클라이언트만 쓰므로 비동기용 Netty는 뺀다.
     implementation(platform(libs.aws.sdk.bom))

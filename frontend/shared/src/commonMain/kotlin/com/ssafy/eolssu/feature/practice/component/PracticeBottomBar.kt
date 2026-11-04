@@ -38,6 +38,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_abort
 import eolssu.shared.generated.resources.practice_mic_off
@@ -60,6 +61,14 @@ class PracticeBottomActions(
     val onAskAbort: () -> Unit,
     /** 플레이어의 −5초·+5초. 양수면 앞으로. */
     val onSeek: (deltaMs: Long) -> Unit = {},
+    /** 설정 옆 ‘한 음씩’ 토글(혼자 연습). */
+    val onToggleStep: () -> Unit = {},
+    /** 한 음씩의 오른쪽 ‘내 연주’ 칸: 시작·멈춤·3·2·1 뒤 이어서. */
+    val onTapStepPlaying: () -> Unit = {},
+    /** 한 음씩의 왼쪽 ‘지금 음’ 칸: 지금 정간의 음 듣기. */
+    val onListenStepNote: () -> Unit = {},
+    /** 음 판정 연결 전 임시: 지금 음을 맞게 분 것으로 넘긴다. */
+    val onConfirmStepNote: () -> Unit = {},
 )
 
 /**
@@ -114,6 +123,7 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
 
 /**
  * 태블릿 배치가 쓰는 상태별 하단 내용: 연주 중이면 [PracticeRecordingBar], 아니면 플레이어 카드와 행동 버튼.
+ * 한 음씩이 켜지면 플레이어 카드 대신 두 칸([PracticeStepPanels])을 둔다.
  * 휴대폰은 플레이어를 본문 안에 두므로 이 함수를 쓰지 않는다.
  */
 @Composable
@@ -121,7 +131,7 @@ fun ColumnScope.PracticeBottomContent(state: PracticeUiState, actions: PracticeB
     if (state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming) {
         PracticeRecordingBar(state, actions, stacked)
     } else {
-        PracticePlayerCard(state, actions)
+        if (state.stepUi) PracticeStepPanels(state, actions) else PracticePlayerCard(state, actions)
         PracticeCallToAction(state, actions)
     }
 }

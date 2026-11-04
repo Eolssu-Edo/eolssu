@@ -31,6 +31,7 @@ class PasswordResetApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
     @Autowired private lateinit var clock: VerificationTestClock
     @Value("\${local.server.port}") private var port = 0
+    @Autowired private lateinit var issuer: com.ssafy.eolssu.backend.feature.auth.application.AuthTokenIssuer
     @Autowired private lateinit var loginAttempts: com.ssafy.eolssu.backend.feature.auth.application.LoginAttemptLimiter
     @Autowired private lateinit var users: com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper
     private val client = HttpClient.newHttpClient()
@@ -130,13 +131,16 @@ class PasswordResetApiDatabaseTests {
     }
     @Test fun `reset is independent from login and current password counters and preserves them`() {
         val signed=post("/api/auth/sign-in","""{"email":"reset@auth210.test","password":"Current!234"}""")
-        val access=signed.headers().allValues("Set-Cookie").first { it.startsWith("access_token=") }.substringBefore(';')
+        var access=signed.headers().allValues("Set-Cookie").first { it.startsWith("access_token=") }.substringBefore(';')
         fun wrongCurrent(): HttpResponse<String> = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me/password"))
             .header("Content-Type","application/json").header("Cookie",access).method("PATCH",HttpRequest.BodyPublishers.ofString("""{"currentPassword":"Wrong!234","newPassword":"Another!234"}""")).build(),HttpResponse.BodyHandlers.ofString())
         repeat(4) { error(wrongCurrent(),403,"CURRENT_PASSWORD_MISMATCH") }
         repeat(5) { post("/api/auth/sign-in","""{"email":"reset@auth210.test","password":"Wrong!234"}""") }
         proof()
         assertEquals(204,reset().statusCode())
+        // 466: 재설정은 모든 로그인 세션을 끊어 이전 access_token은 바로 401이다. 잠금 유지는 새 세션으로 확인한다.
+        error(wrongCurrent(),401,"UNAUTHENTICATED")
+        access="access_token="+issuer.issue(userId).accessToken
         error(wrongCurrent(),429,"TOO_MANY_REQUESTS")
         error(post("/api/auth/sign-in","""{"email":"reset@auth210.test","password":"NewPassword!567"}"""),429,"TOO_MANY_REQUESTS")
     }
@@ -204,6 +208,8 @@ class PasswordResetApiDatabaseTests {
         @JvmStatic @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
+            // 466: 운영과 같은 캐시로, 재설정이 커밋 뒤 캐시를 지워 이전 access_token이 바로 401인지 본다.
+            registry.add("eolssu.auth.session-cache-ttl") { "10s" }
             registry.add("eolssu.auth.code-hmac-secret") { "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=" }
             registry.add("eolssu.security.jwt-secret") { "test-signing-key-at-least-32-bytes-long!!" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }

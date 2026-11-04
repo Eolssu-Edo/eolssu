@@ -290,8 +290,9 @@ def read_page(page):
         ignored = [n for n in g if a < n["x"] < b and bands[0][0] < n["y"] < bands[-1][1]
                    and n not in notes and n["c"] not in "｜|"]
         report["ignored"] += [n["c"] for n in ignored]
-        # 확인 필요 칸 표시용 위치(PDF 좌표, pt)
-        report["ignored_at"] += [dict(c=n["c"], x=round(n["x"], 1), y=round(n["y"], 1), size=round(n["size"], 1))
+        # 확인 필요 칸 표시용 위치(PDF 좌표, pt)와 그 글자를 덮는 정간(이 쪽의 각 번호 gak, 정간 번호 jeonggan)
+        report["ignored_at"] += [dict(c=n["c"], x=round(n["x"], 1), y=round(n["y"], 1), size=round(n["size"], 1),
+                                      gak=ci, jeonggan=min(range(len(bands)), key=lambda k: abs(sum(bands[k]) / 2 - n["y"])))
                                  for n in ignored]
         report["jeonggans"].append(len(cells))
         gaks.append(" | ".join(cells))

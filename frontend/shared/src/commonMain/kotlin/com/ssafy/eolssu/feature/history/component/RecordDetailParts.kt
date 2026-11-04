@@ -37,6 +37,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.feature.history.RecordDetailActions
 import com.ssafy.eolssu.feature.history.RecordDetailUiState
@@ -52,6 +53,8 @@ import eolssu.shared.generated.resources.record_detail_position
 import eolssu.shared.generated.resources.record_detail_seek
 import eolssu.shared.generated.resources.record_detail_weak
 import eolssu.shared.generated.resources.records_score_unit
+import eolssu.shared.generated.resources.weak_record_compare
+import eolssu.shared.generated.resources.weak_record_compare_with
 import org.jetbrains.compose.resources.stringResource
 
 /** 태블릿 세로 기록 상세의 정간보 크기(`Tab-RecordDetail-Port`: 각 82 · 정간 42). */
@@ -173,14 +176,41 @@ internal fun PlaybackButtons(state: RecordDetailUiState, actions: RecordDetailAc
     }
 }
 
-/** '취약 구간 연습하기' 알약 버튼. */
+/**
+ * ‘지난 연주와 비교 · 10월 13일 68점 ›’(2차 RECORD-02 `RecordDetail-Ext`): 40dp · 반지름 10 · 크림 바탕. 누르면 COMPARE-01로 간다.
+ * [previous]는 이 기록 바로 전의 같은 곡 전체 연주이고, 없으면 이름만 적는다.
+ */
+@Composable
+internal fun CompareEntry(previous: PracticeRecord?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().height(40.dp), shape = RoundedCornerShape(10.dp), color = colors.accentTint, contentColor = colors.text) {
+        Row(Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                buildAnnotatedString {
+                    append(stringResource(Res.string.weak_record_compare))
+                    if (previous != null) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, color = colors.textSub)) {
+                            append(" · " + stringResource(Res.string.weak_record_compare_with, monthDayLabel(previous.recordedAt), previous.score))
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+            )
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+/** '취약 구간 연습하기' 버튼. 44dp 이상 큰 버튼이라 반지름 14 둥근 사각이다(시안 `border-radius: 14px`). */
 @Composable
 internal fun WeakSectionButton(onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 48.dp, paddingH: Dp = 12.dp) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
         modifier = modifier.height(height),
-        shape = CircleShape,
+        shape = RoundedCornerShape(14.dp),
         color = colors.surface,
         border = BorderStroke(1.dp, colors.lineSoft),
     ) {

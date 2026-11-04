@@ -51,8 +51,6 @@ import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
 import com.ssafy.eolssu.feature.song.MySongsRoute
-import com.ssafy.eolssu.feature.song.PdfPreviewRoute
-import com.ssafy.eolssu.feature.song.PdfUploadRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
 import com.ssafy.eolssu.feature.song.SongListRoute
 import eolssu.shared.generated.resources.Res
@@ -68,7 +66,8 @@ object EolssuDestination {
     const val SONG_LIST = "songs"
     const val SONG_DETAIL = "songs/{songId}"
 
-    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}"
+    /** [title]은 내 악보 연습에서 곡 제목 대신 보일 악보 제목(비우면 곡 제목). */
+    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&title={title}"
 
     /** [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다. */
     const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}"
@@ -90,8 +89,9 @@ object EolssuDestination {
 
     fun result(evaluationId: String) = "result/$evaluationId"
 
-    /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. */
-    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false) = "practice/$songId?solo=$solo&switched=$switched"
+    /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. [mine]: 내 악보 연습(평가 버튼 없음, solo와 함께). */
+    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null) =
+        "practice/$songId?solo=${solo || mine}&switched=$switched&mine=$mine&title=${title.orEmpty().encodeURLParameter()}"
     // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
     const val GUIDE_READING = "guide/reading?page={page}"
@@ -109,14 +109,10 @@ object EolssuDestination {
 
     fun learnPractice(stage: Int) = "learn/stages/$stage/practice"
 
-    // 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02)
+    // 내 악보 (SONG-03)
     const val MY_SONGS = "my-songs?sheets={sheets}"
-    const val PDF_UPLOAD = "my-songs/pdf"
-    const val PDF_PREVIEW = "my-songs/pdf/{uploadId}"
 
-    fun pdfPreview(uploadId: String) = "my-songs/pdf/$uploadId"
-
-    /** 연습곡 고르기. [sheets]가 true면 홈 '악보 추가·편집하기'처럼 내 악보 탭부터 보인다. */
+    /** 연습곡 고르기. [sheets]가 true면 내 악보 탭부터 보인다(홈 '악보 추가·편집하기'는 악보 추가로 바로 간다). */
     fun mySongs(sheets: Boolean = false) = if (sheets) "my-songs?sheets=true" else "my-songs"
 }
 
@@ -165,7 +161,7 @@ fun EolssuNavHost(
                             HomeFeature.Reading -> EolssuDestination.guideReading()
                             HomeFeature.Learn -> EolssuDestination.LEARN
                             HomeFeature.SongSelect -> EolssuDestination.mySongs()
-                            HomeFeature.EditSheets -> EolssuDestination.mySongs(sheets = true)
+                            HomeFeature.EditSheets -> SheetEditDestination.NEW
                             HomeFeature.Records -> EolssuDestination.records()
                         }
                         route?.let(navController::navigate)
@@ -218,6 +214,8 @@ fun EolssuNavHost(
                         type = NavType.BoolType
                         defaultValue = false
                     },
+                    navArgument("mine") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("title") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
                 val songId = entry.savedStateHandle.get<String>("songId").orEmpty()
@@ -236,6 +234,8 @@ fun EolssuNavHost(
                     // 연주 중에는 Web 브라우저 뒤로 가기도 화면의 뒤로 가기처럼 확인 창을 띄운다.
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
+                    mine = entry.savedStateHandle.get<Boolean>("mine") ?: false,
+                    sheetTitle = entry.savedStateHandle.get<String>("title"),
                 )
             }
             composable(
@@ -291,6 +291,8 @@ fun EolssuNavHost(
                     onOtherSong = { navController.popBackStack(EolssuDestination.SONG_LIST, inclusive = false) },
                     onHome = { navController.popBackStack(EolssuDestination.HOME, inclusive = false) },
                     onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
+                    onViewAllErrors = { navController.navigate(WeakSectionDestination.errors(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
+                    onWeakSection = { navController.navigate(WeakSectionDestination.select(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
                 )
             }
             composable(
@@ -308,6 +310,8 @@ fun EolssuNavHost(
                     onBack = { navController.popBackStackFrom(entry) },
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
+                    onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                    onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                 )
             }
             composable(
@@ -323,11 +327,15 @@ fun EolssuNavHost(
                         onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                         onOpenRecord = { navController.navigate(EolssuDestination.recordDetail(it)) },
                         initialRecordId = recordId,
+                        onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
                         onBack = { navController.popBackStackFrom(entry) },
+                        onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 }
             }
@@ -425,13 +433,15 @@ fun EolssuNavHost(
                 }
             }
             profileGraph(navController)
+            weakSectionGraph(navController)
+            sheetEditGraph(navController)
             authGraph(
                 navController,
                 onMicAllowed = practiceSettings::grantMic,
                 onFinished = { notice, provider -> navController.finishFirstRun(firstRunRepository, notice, provider) },
             )
 
-            // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
+            // 내 악보: 연습곡 고르기 → (평가 없는 연습) / '악보 추가' → 악보 추가·편집(2차).
             composable(
                 EolssuDestination.MY_SONGS,
                 arguments = listOf(navArgument("sheets") { type = NavType.BoolType; defaultValue = false }),
@@ -440,23 +450,9 @@ fun EolssuNavHost(
                     startOnSheets = entry.savedStateHandle.get<Boolean>("sheets") == true,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
-                    onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
-                )
-            }
-            composable(EolssuDestination.PDF_UPLOAD) { entry ->
-                PdfUploadRoute(
-                    onBack = { navController.popBackStackFrom(entry) },
-                    onNext = { navController.navigate(EolssuDestination.pdfPreview(it)) },
-                )
-            }
-            composable(
-                EolssuDestination.PDF_PREVIEW,
-                arguments = listOf(navArgument("uploadId") { type = NavType.StringType }),
-            ) { entry ->
-                PdfPreviewRoute(
-                    uploadId = entry.savedStateHandle.get<String>("uploadId").orEmpty(),
-                    onBack = { navController.popBackStackFrom(entry) },
-                    onSaved = { navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false) },
+                    onPracticeSheet = { songId, title -> navController.navigate(EolssuDestination.practice(songId, mine = true, title = title)) },
+                    onAddSheet = { navController.navigate(SheetEditDestination.NEW) },
+                    onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
                 )
             }
         }

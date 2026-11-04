@@ -2008,6 +2008,35 @@
       "originalFilename": "참새노래_정간보_단소_국악원-18924.pdf",
       "instrument": "danso",
       "notes": "팀에서 모은 악보 사본. 파일명의 쪽수·자료 번호 기준, 출처 원문 별도 확인 전. S15P31E102-404."
+    },
+    {
+      "kind": "score",
+      "pdfPageCount": 1,
+      "sourceUrl": null,
+      "publisher": "국립국악원",
+      "collection": "초·중등교사를 위한 국악실기교재(2016)",
+      "sourceVerified": false,
+      "license": "KOGL-4",
+      "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+      "redistribution": {
+        "original": "possible_with_conditions",
+        "originalConditions": [
+          "출처표시",
+          "비상업",
+          "무변경"
+        ],
+        "adapted": "not_currently_allowed",
+        "reason": "공공누리4유형의 변경금지. 별도 허락 미확보."
+      },
+      "instrument": "danso",
+      "id": "ngc-silgi-2016-ssareum",
+      "title": "싸름 단소 정간보",
+      "sha256": "a15dbb2f2bd1ef1d1318b5441c82118d560e5a336f5ee8e5dd0874bc42c53fcd",
+      "bytes": 863131,
+      "verifiedOn": "2026-11-04",
+      "rawPath": "data/raw/scores/ngc-silgi-2016-ssareum/싸름타령_정간보_단소_기존참고악보.pdf",
+      "originalFilename": "싸름타령_정간보_단소_기존참고악보.pdf",
+      "notes": "파일 이름은 기존참고악보이나 바닥글은 실기교재(2016). 스캔 그림. S15P31E102-451."
     }
   ]
 }

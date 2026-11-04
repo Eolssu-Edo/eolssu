@@ -4,7 +4,10 @@
 S15P31E102-387. Each song keeps its 339 score (same events and ticks as the reviewed answer); only the
 reviewed breath marks and provenance.review change, and is_scorable becomes TRUE. songs.updated_at also
 changes (ON UPDATE CURRENT_TIMESTAMP). score_version stays, because model audio is served only for the
-current score_version and breath marks change no timing. If a run times out, the server may still commit:
+current score_version and breath marks change no timing. A plan item with targetScore (S15P31E102-451) instead
+replaces score_json with that reviewed file, sets score_version to targetScoreVersion (+1) and note_count, because its
+notes change; the song then has no model audio until one is linked to the new version.
+If a run times out, the server may still commit:
 rerun without --apply to read the actual state before anything else.
 Publication (status) stays with infra/catalog/publish_model_audio.py; run this after it.
 """
@@ -40,7 +43,23 @@ def load_plan(path):
         breaths = item.get('breathEventIds')
         if not isinstance(breaths, list) or any(not isinstance(value, str) or not value for value in breaths):
             raise ValueError('invalid breath event ids')
+        if 'targetScore' in item:
+            item['_target'] = load_target(path.parent, item)
     return plan
+
+
+def load_target(folder, item):
+    """악보를 통째로 바꾸는 항목의 목표 악보(계획 옆 폴더). 계획의 해시·다음 버전·숨표와 같아야 한다."""
+    name, version = item['targetScore'], item.get('targetScoreVersion')
+    if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9_-]+/[0-9]+\.json', name):
+        raise ValueError('invalid target score path')
+    if type(version) is not int or version != item['scoreVersion'] + 1:
+        raise ValueError('target score version must be the next version')
+    target = json.loads((folder / name).read_text(encoding='utf-8'))
+    if canonical_sha(target) != item['targetSha256'] or target.get('score', {}).get('scoreVersion') != version \
+            or [e['id'] for e in target['events'] if e['breathAfter']] != item['breathEventIds']:
+        raise ValueError('target score file differs from the plan')
+    return target
 
 
 def canonical(value):
@@ -67,14 +86,32 @@ def patch(score, breath_ids):
     return result
 
 
+def target_score(production, answer):
+    """운영 악보의 곡 정보는 두고 음표·정간·틱만 검수한 정답으로 바꾼 새 악보(S15P31E102-451).
+    박 단위나 정간당 박이 다르면 박의 뜻이 달라지므로 멈춘다. 틱 수는 정답 것을 쓴다(박은 틱 ÷ ticksPerBeat)."""
+    old, new = production['music'], answer['music']
+    if old['bpmUnit'] != new['bpmUnit'] or \
+            old['ticksPerJeonggan'] * new['ticksPerBeat'] != new['ticksPerJeonggan'] * old['ticksPerBeat']:
+        raise ValueError('answer beats differ from the service score')
+    result = copy.deepcopy(production)
+    result['events'], result['columns'] = copy.deepcopy(answer['events']), copy.deepcopy(answer['columns'])
+    result['music'].update(ticksPerBeat=new['ticksPerBeat'], ticksPerJeonggan=new['ticksPerJeonggan'])
+    result['score']['scoreVersion'] = production['score']['scoreVersion'] + 1
+    result['provenance'].update(review='reviewed', converter=answer['provenance']['converter'],
+                                jgbSha256=answer['provenance']['jgbSha256'])
+    return result
+
+
 def state(item, row):
-    if (row['id'], row['source'], row['scoreVersion'], row['deleted']) != (item['songId'], item['source'], item['scoreVersion'], 0) \
+    done_version = item.get('targetScoreVersion', item['scoreVersion'])
+    if (row['id'], row['source'], row['deleted']) != (item['songId'], item['source'], 0) \
+            or row['scoreVersion'] not in (item['scoreVersion'], done_version) \
             or row['score']['score']['sourceId'] != item['source']:
         raise ValueError(f"song {item['songId']} identity changed")
     digest = canonical_sha(row['score'])
-    if digest == item['currentSha256'] and row['isScorable'] == 0:
+    if digest == item['currentSha256'] and row['isScorable'] == 0 and row['scoreVersion'] == item['scoreVersion']:
         return 'pending'
-    if digest == item['targetSha256'] and row['isScorable'] == 1:
+    if digest == item['targetSha256'] and row['isScorable'] == 1 and row['scoreVersion'] == done_version:
         return 'done'
     raise ValueError(f"song {item['songId']} score or scoring state differs from the plan")
 
@@ -94,7 +131,11 @@ def build_sql(pending):
     sql = ['CREATE TEMPORARY TABLE _sogeum_scoring_assert (ok INT NOT NULL CHECK (ok=1));',
            'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;', 'START TRANSACTION;']
     for item, current, target in pending:
-        sql.append(f"UPDATE songs SET score_json=CAST({quote(canonical(target))} AS JSON), is_scorable=TRUE "
+        replaced = ''
+        if '_target' in item:
+            notes = sum(e['kind'] == 'NOTE' for e in target['events'])
+            replaced = f"score_version={item['targetScoreVersion']}, note_count={notes}, "
+        sql.append(f"UPDATE songs SET score_json=CAST({quote(canonical(target))} AS JSON), {replaced}is_scorable=TRUE "
                    f"WHERE id={item['songId']} AND BINARY source=BINARY {quote(item['source'])} AND score_version={item['scoreVersion']} "
                    f"AND is_scorable=FALSE AND deleted_at IS NULL AND score_json=CAST({quote(canonical(current))} AS JSON);")
         sql.append('INSERT INTO _sogeum_scoring_assert VALUES (ROW_COUNT());')
@@ -129,7 +170,7 @@ def run(plan, receipt, *, apply=False, runner=mysql):
                 row = rows[item['songId']]
                 report['songStatus'][item['songId']] = row['status']
                 if state(item, row) == 'pending':
-                    target = patch(row['score'], item['breathEventIds'])
+                    target = item['_target'] if '_target' in item else patch(row['score'], item['breathEventIds'])
                     if canonical_sha(target) != item['targetSha256']:
                         raise ValueError(f"song {item['songId']} patched score differs from the plan")
                     pending.append((item, row['score'], target))

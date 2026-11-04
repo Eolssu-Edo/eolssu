@@ -81,7 +81,7 @@ internal fun MySongsTabSwitch(
     }
 }
 
-/** '악보 추가 · PDF, 음원, 직접 만들기'(`.btn.outline`): 52dp, 흰 바탕에 테두리, 모서리 14dp, 더하기 20dp. */
+/** '악보 추가'(`.btn.outline`, 2차: 누르면 바로 악보 추가 화면): 52dp, 흰 바탕에 테두리, 모서리 14dp, 더하기 20dp. */
 @Composable
 internal fun AddSheetButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors

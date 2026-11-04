@@ -52,7 +52,8 @@
   }
  },
  "serviceComparison": {
-  "approvedForScoring": false,
-  "reason": "운영 악보의 c11-j1 음이 청태로 원본(청임)과 달라 S15P31E102-451로 넘김(D-7)"
+  "approvedForScoring": true,
+  "replacesServiceEvents": true,
+  "differences": "운영 악보의 c11-j1 음이 청태로 원본(청임)과 달라, S15P31E102-451에서 운영 음표를 이 정답으로 바꾸고 score_version을 2로 올린다. 404에서는 채점 계획에서 뺐었다."
  }
 }
