@@ -96,6 +96,7 @@ class OpenApiConfig {
                 if (doc.id == "relayIosSocialLogin") {
                     response.addHeaderObject("Location", Header().schema(StringSchema()).description("com.ssafy.eolssu://oauth/{provider}/callback과 허용한 쿼리"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                    response.addHeaderObject("Referrer-Policy", Header().schema(StringSchema()._enum(listOf("no-referrer"))))
                 }
                 if (doc.id == "getNotationSymbolImage") {
                     response.content = Content().addMediaType("image/svg+xml", MediaType().schema(StringSchema().format("binary")))
@@ -118,6 +119,8 @@ class OpenApiConfig {
                 operation.responses.addApiResponse(status.toString(),ApiResponse().description(codes.joinToString { "${it.name}: ${it.message}" })
                     .content(Content().addMediaType("application/json",media)))
             }
+            // 모르는 제공자는 공통 오류 envelope 없이 본문 없는 404다.
+            if (doc.id == "relayIosSocialLogin") operation.responses.addApiResponse("404", ApiResponse().description("모르는 제공자, 응답 본문 없음"))
             operation.parameters?.filter { it.name == "Idempotency-Key" }?.forEach {
                 it.description = "출력 가능한 ASCII 1~100자. 재시도 시 같은 키를 사용합니다."
                 it.schema = StringSchema().pattern("[!-~]{1,100}").minLength(1).maxLength(100)
