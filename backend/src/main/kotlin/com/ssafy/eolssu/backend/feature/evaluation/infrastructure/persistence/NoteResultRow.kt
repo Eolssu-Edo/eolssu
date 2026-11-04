@@ -10,4 +10,5 @@ data class NoteResultRow(
     val onsetErrorMs: Int?,
     val durationErrorMs: Int?,
     val verdict: String,
+    val recordingOffsetMs: Int?,
 )

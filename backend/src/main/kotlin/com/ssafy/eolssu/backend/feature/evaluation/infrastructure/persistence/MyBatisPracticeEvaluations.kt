@@ -19,6 +19,6 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
 
     override fun notes(evaluationId: Long): List<PracticeEvaluationNote> = mapper.notes(evaluationId).map {
         PracticeEvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent?.toInt(), it.onsetErrorMs, it.durationErrorMs,
-            it.expectedPitchId, it.detectedPitchId)
+            it.expectedPitchId, it.detectedPitchId, it.recordingOffsetMs)
     }
 }
