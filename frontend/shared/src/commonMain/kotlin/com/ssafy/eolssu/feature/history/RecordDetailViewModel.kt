@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
  *
  * @property position 지금 듣는 음의 연주 순서.
  * @property notice 한 번 보여 줄 안내(스낵바). 보여 준 뒤 [RecordDetailViewModel.consumeNotice]로 지운다.
+ * @property previous 이 기록 바로 전의 같은 곡 전체 연주(‘지난 연주와 비교’ 표시). 기록 목록에서 찾는다.
  */
 data class RecordDetailUiState(
     val record: PracticeRecord? = null,
@@ -37,6 +38,7 @@ data class RecordDetailUiState(
     val follow: Boolean = true,
     val songLookup: RecordSongLookup = RecordSongLookup.Ready,
     val notice: RecordNotice? = null,
+    val previous: PracticeRecord? = null,
 ) {
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
@@ -123,6 +125,7 @@ class RecordDetailViewModel(
         _uiState.update { state ->
             state.copy(
                 record = record, song = state.song?.takeIf { it.id == record?.songId }, position = 0, playing = false,
+                previous = record?.previousIn(recordRepository.records.value),
                 songLookup = if (record == null) RecordSongLookup.Loading else RecordSongLookup.Ready,
             )
         }
@@ -151,7 +154,7 @@ class RecordDetailViewModel(
                 return@launch
             }
             val hadRecord = _uiState.value.record != null
-            _uiState.update { it.copy(record = detail) }
+            _uiState.update { it.copy(record = detail, previous = detail.previousIn(recordRepository.records.value)) }
             if (!hadRecord || _uiState.value.song == null) retrySong()
         }
     }

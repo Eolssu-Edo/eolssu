@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -35,7 +34,7 @@ import com.ssafy.eolssu.feature.practice.component.IdleReminderDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeCallToAction
-import com.ssafy.eolssu.feature.practice.component.PracticeCountdown
+import com.ssafy.eolssu.core.ui.component.BeatCountdownOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticeFingeringPage
@@ -44,6 +43,8 @@ import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
 import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
 import com.ssafy.eolssu.feature.practice.component.PracticeStatusLabel
+import com.ssafy.eolssu.feature.practice.component.PracticeStepCountdownOverlay
+import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
@@ -78,7 +79,7 @@ class PracticeScreenActions(
 /**
  * PRACTICE-01 연습(연두 보드). 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
  * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 확인 창은 배치와 관계없이 같다.
- * 휴대폰은 보드대로 카운트다운을 본문 안에 두고, 태블릿은 보드가 없어 덮는 카운트다운을 유지한다.
+ * 평가 시작 카운트다운은 배치와 관계없이 정간보 화면 위에 겹쳐 띄운다([CountdownOverlay]).
  * 화면과 보조 패널 시트의 입력은 연습 시간의 활동으로 알린다.
  */
 @Composable
@@ -98,7 +99,10 @@ fun PracticeScreen(
             WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions)
             WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions)
         }
-        if (state.mode == PracticeMode.Countdown && widthClass != WindowWidthClass.Compact) CountdownOverlay(state, actions.onCancelCountdown)
+        // 평가 시작 3·2·1은 리듬 게임처럼 정간보 화면 위에 겹쳐 띄운다(배치와 관계없이, 아래 악보가 비쳐 보인다).
+        if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
+        // 한 음씩 다시 시작의 3·2·1은 배치와 관계없이 화면 전체를 옅게 덮는다(누름은 막지 않는다).
+        PracticeStepCountdownOverlay(state)
     }
     // 태블릿 가로는 보조 패널을 오른쪽 상태 패널 자리에 연다(PracticeExpandedLayout).
     if (state.panel != null && widthClass != WindowWidthClass.Expanded) {
@@ -137,7 +141,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 
 /**
  * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·pill, 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
- * 행동 버튼·안내, 카운트다운)이 세로로 스크롤되고, 연주 중에만 하단 바가 고정된다.
+ * 행동 버튼·안내)이 세로로 스크롤되고, 연주 중에만 하단 바가 고정된다.
  */
 @Composable
 private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
@@ -146,7 +150,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     val fingering = state.fingeringView
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings) },
+        topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
         Column(
@@ -165,40 +169,35 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                 PracticeBoardScore(state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow)
             }
             if (showPlayer) {
-                PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                if (state.stepUi) {
+                    // 한 음씩이 켜지면 플레이어 대신 ‘지금 음’·‘내 연주’ 두 칸(2차 Practice-Ext).
+                    PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
+                } else {
+                    PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                }
                 PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
-            }
-            if (state.mode == PracticeMode.Countdown) {
-                PracticeCountdown(state, actions.onCancelCountdown, Modifier.padding(top = 18.dp))
             }
             Spacer(Modifier.height(8.dp))
         }
     }
 }
 
-/** 태블릿의 카운트다운: 화면을 흰색으로 덮고 큰 숫자를 가운데 둔다(휴대폰 보드의 본문 카운트다운과 같은 문구). */
+/**
+ * 평가 시작 카운트다운(결합본 3·2·1 원형): 정간보 화면 전체를 옅은 막(74%)으로 덮어 악보가 비쳐 보이게 하고,
+ * 가운데 3·2·1 원과 ‘숨을 고르고 준비해 주세요.’, 그 아래 ‘시작 취소’를 둔다. 구간 반복의 다시 시작 3·2·1과 같은 모양이다.
+ */
 @Composable
 private fun CountdownOverlay(state: PracticeUiState, onCancel: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(Color.White.copy(alpha = 0.92f))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-    ) {
-        Text(
-            stringResource(Res.string.practice_countdown_soon),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-            color = EolssuTheme.colors.textSub,
-        )
-        Text("${state.count}", style = EolssuTheme.serif.brand.copy(fontSize = 140.sp, lineHeight = 140.sp, fontWeight = FontWeight.Normal))
-        EolssuButton(
-            stringResource(Res.string.practice_countdown_cancel),
-            onCancel,
-            style = EolssuButtonStyle.Secondary,
-            modifier = Modifier.padding(horizontal = 0.dp),
-            small = false,
-        )
-    }
+    BeatCountdownOverlay(
+        count = state.count,
+        message = stringResource(Res.string.practice_countdown_soon),
+        action = {
+            EolssuButton(
+                stringResource(Res.string.practice_countdown_cancel),
+                onCancel,
+                style = EolssuButtonStyle.Secondary,
+                modifier = Modifier.padding(horizontal = 48.dp),
+            )
+        },
+    )
 }

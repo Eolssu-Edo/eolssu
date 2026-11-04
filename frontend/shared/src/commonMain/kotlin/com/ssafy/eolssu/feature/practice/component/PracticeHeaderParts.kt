@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,6 +43,7 @@ import eolssu.shared.generated.resources.practice_mode_ready
 import eolssu.shared.generated.resources.practice_mode_recording
 import eolssu.shared.generated.resources.practice_settings
 import eolssu.shared.generated.resources.practice_subtitle
+import eolssu.shared.generated.resources.practice_subtitle_mine
 import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
 import org.jetbrains.compose.resources.stringResource
@@ -48,6 +51,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · ‘연습’ · 오른쪽 연습 설정 톱니. 평가 연주 중에도 열린다(속도·장단만 설정 안에서 잠긴다).
  * [showSettings]가 아니면 오른쪽을 비운다(태블릿 가로는 상태 패널에 바로가기가 있다).
+ * 혼자 연습이면 톱니 왼쪽에 작은 ‘한 음씩’ 토글([PracticeStepToggle])을 둔다(2차 Practice-Ext).
  */
 @Composable
 fun PracticeTopBar(
@@ -57,6 +61,7 @@ fun PracticeTopBar(
     modifier: Modifier = Modifier,
     maxWidth: Dp = CompactContentMaxWidth,
     showSettings: Boolean = true,
+    onToggleStep: () -> Unit = {},
 ) {
     EolssuPageTopBar(
         title = stringResource(Res.string.practice_title),
@@ -64,6 +69,10 @@ fun PracticeTopBar(
         modifier = modifier,
         maxWidth = maxWidth,
         right = {
+            if (state.solo) {
+                PracticeStepToggle(state, onToggleStep)
+                if (showSettings) Spacer(Modifier.width(2.dp))
+            }
             if (showSettings) {
                 EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings)
             }
@@ -73,16 +82,17 @@ fun PracticeTopBar(
 
 /**
  * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
- * 연습 모드는 ‘{악기} · 연습 모드’다.
+ * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
  */
 @Composable
 fun PracticeTitleRow(state: PracticeUiState, modifier: Modifier = Modifier) {
     val song = state.song ?: return
     val instrument = stringResource(state.instrument.label)
-    val pill = if (state.solo) stringResource(Res.string.practice_subtitle_solo, instrument)
+    val pill = if (state.mine) stringResource(Res.string.practice_subtitle_mine, instrument)
+        else if (state.solo) stringResource(Res.string.practice_subtitle_solo, instrument)
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        PageHeading(song.title, Modifier.weight(1f), compact = state.fingeringView)
+        PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView)
         PracticePill(pill)
     }
 }
@@ -103,12 +113,13 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
 /**
  * 상태 문구(`.status-label`): 7dp 점과 12sp 글자. 연주 중 계열은 붉은 점·붉은 글자 600.
  * 연습 준비 / 모범 연주 중 / 준비해 주세요 / 연주 중 / 연주 중 · 소리 입력 없음 / 연주 완료 / 연주 중단.
+ * 한 음씩 따라 불기 중이면 ‘한 음씩 · 黃(황)을 불어 보세요’ / 멈춤 / 곧 이어서 시작해요 / 끝까지 따라 불었어요([practiceStepStatus]).
  */
 @Composable
 fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     val recording = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
-    val text = stringResource(
+    val text = practiceStepStatus(state) ?: stringResource(
         when {
             state.mode == PracticeMode.Interrupted -> Res.string.practice_mode_interrupted
             state.mode == PracticeMode.Recording && state.finished -> Res.string.practice_mode_finished

@@ -89,11 +89,20 @@ fun ErrorSummary(result: EvaluationResult, modifier: Modifier = Modifier) {
     }
 }
 
-/** 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 칸만 정간보에 색칠한다. */
+/**
+ * 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 정간만 정간보에 색칠한다.
+ * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 오류 위치 RESULT-03은 네 칩).
+ */
 @Composable
-fun ErrorFilterChips(result: EvaluationResult, selected: ErrorFilter, onSelect: (ErrorFilter) -> Unit, modifier: Modifier = Modifier) {
+fun ErrorFilterChips(
+    result: EvaluationResult,
+    selected: ErrorFilter,
+    onSelect: (ErrorFilter) -> Unit,
+    modifier: Modifier = Modifier,
+    hideEmptyMissed: Boolean = false,
+) {
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        ErrorFilter.entries.forEach { filter ->
+        ErrorFilter.entries.filterNot { hideEmptyMissed && it == ErrorFilter.Missed && result.errorCount(it) == 0 }.forEach { filter ->
             FilterChip(filter, result.errorCount(filter), on = filter == selected) { onSelect(filter) }
         }
     }
