@@ -257,6 +257,11 @@ class UserSheetApiDatabaseTests {
         val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
         assertEquals("아리랑 (내 편곡)", stored.path("title").asString())
         assertEquals(2, stored.path("scoreData").path("score").path("scoreVersion").intValue())
+        // 서버가 DATA 스키마의 provenance를 채운다(S15P31E102-447).
+        val provenance = stored.path("scoreData").path("provenance")
+        assertEquals(stored.path("scoreData").path("score").path("sourceId"), provenance.path("sourceId"))
+        assertEquals("inferred" to "app-editor-1", provenance.path("review").asString() to provenance.path("converter").asString())
+        assertTrue(Regex("[0-9a-f]{64}").matches(provenance.path("jgbSha256").asString()))
         assertTrue(stored.has("draft") && stored.path("draft").isNull)
         assertEquals(0, count("SELECT draft_revision FROM user_sheets WHERE id=$sheetId"))
 

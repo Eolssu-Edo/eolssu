@@ -24,6 +24,7 @@ class SocialAuthService(
     private val gateway:OAuthGateway,private val secrets:VerificationSecrets,private val issuer:AuthTokenIssuer,
     private val verification:PasswordResetRepository,private val passwords:PasswordEncoder,private val attempts:LoginAttemptLimiter,private val clock:Clock,
     private val signUps:SignUpRepository?=null,private val terms:TermRepository?=null,private val withdrawals:WithdrawalRepository?=null,
+    private val cipher:ProviderTokenCipher?=null,private val revocation:ProviderTokenRevocation?=null,
 ) {
     // 유한한 stripe로 메모리를 제한한다. Argon2는 DB 연결/행 잠금 밖에서 계산하되
     // 같은 회원의 잠금 확인·비밀번호 비교·실패 기록·성공 reset은 직렬화한다.
@@ -43,7 +44,9 @@ class SocialAuthService(
         if(link!=null) return repository.inTransaction {
             val member=repository.member(link.userId,true)?:fail(ErrorCode.SOCIAL_ACCOUNT_NOT_REGISTERED)
             checkKakaoFlow(provider.name,identity.subject,identity.flowStartedAt,ErrorCode.OAUTH_VERIFICATION_FAILED)
-            if(repository.linked(provider.name,identity.subject)?.userId!=member.member.id) fail(ErrorCode.OAUTH_VERIFICATION_FAILED)
+            val current=repository.linked(provider.name,identity.subject)
+            if(current?.userId!=member.member.id) fail(ErrorCode.OAUTH_VERIFICATION_FAILED)
+            sealed(identity)?.let{repository.saveProviderToken(checkNotNull(current).id,it)}
             complete(member)
         }
         val member=identity.email?.let(repository::memberByEmail)
@@ -51,14 +54,14 @@ class SocialAuthService(
             val ticket=secrets.generateToken()
             val expiry=clock.instant().plusSeconds(600)
             proofs.insert(OAuthProof(secrets.hashToken(ticket),"SIGNUP",provider.name,"LOGIN",secrets.hashToken(checkNotNull(binding)),
-                null,null,identity.subject,identity.email,identity.emailVerified,expiry,flowStartedAt=identity.flowStartedAt))
+                null,null,identity.subject,identity.email,identity.emailVerified,expiry,flowStartedAt=identity.flowStartedAt,providerToken=sealed(identity)))
             return SocialSignUpAvailable(ticket,expiry)
         }
         val ticket=secrets.generateToken()
         val expiresAt=clock.instant().plusSeconds(600)
         val verified=identity.emailVerified && identity.email.equals(member.email,true)
         proofs.insert(OAuthProof(secrets.hashToken(ticket),"MERGE",provider.name,"LOGIN",secrets.hashToken(checkNotNull(binding)),
-            member.member.id,null,identity.subject,checkNotNull(member.email),verified,expiresAt,flowStartedAt=identity.flowStartedAt))
+            member.member.id,null,identity.subject,checkNotNull(member.email),verified,expiresAt,flowStartedAt=identity.flowStartedAt,providerToken=sealed(identity)))
         return MergeAvailable(ticket,mask(checkNotNull(member.email)),verified,expiresAt)
     }
 
@@ -78,6 +81,7 @@ class SocialAuthService(
             checkKakaoFlow(provider.name,identity.subject,identity.flowStartedAt,ErrorCode.OAUTH_VERIFICATION_FAILED)
             val link=repository.linked(provider.name,identity.subject)
             if(link==null || link.userId!=userId || started?.socialAccountId!=link.id) fail(ErrorCode.OAUTH_VERIFICATION_FAILED)
+            sealed(identity)?.let{repository.saveProviderToken(link.id,it)}
             val ticket=secrets.generateToken();val expiry=clock.instant().plusSeconds(600)
             proofs.insert(OAuthProof(secrets.hashToken(ticket),"WITHDRAW",provider.name,"WITHDRAW",secrets.hashToken(checkNotNull(binding)),userId,null,identity.subject,null,false,expiry,flowStartedAt=identity.flowStartedAt,socialAccountId=link.id))
             SocialSignUpAvailable(ticket,expiry)
@@ -100,7 +104,7 @@ class SocialAuthService(
             withdrawal.markWithdrawalPending(userId,now,purge)
             withdrawal.revokeAllRefreshTokens(userId,now)
             WithdrawalResult.Withdrawn(now,purge)
-        }
+        }.also{revocation?.revokeAll(userId)}
     }
 
     fun signUp(command:SocialSignUpCommand,bindings:Map<String,String>):SignUpResult.Created {
@@ -134,7 +138,7 @@ class SocialAuthService(
                 val consumedAt=clock.instant()
                 if(!usable(consumedAt) || !proofs.consume(hash,consumedAt)) fail(ErrorCode.SIGNUP_TICKET_EXPIRED)
                 signup.insertAgreements(id,command.agreements,now)
-                addLink(id,proof.provider,proof.subject,now,proof.flowStartedAt)
+                addLink(id,proof.provider,proof.subject,now,proof.flowStartedAt,proof.providerToken)
                 repository.completeLogin(id,now)
                 val tokens=issuer.issue(id)
                 SignUpResult.Created(id,command.nickname,instrument,notation,now,tokens)
@@ -186,7 +190,7 @@ class SocialAuthService(
             val now=clock.instant() // 회원·이메일 잠금을 모두 얻은 뒤 최신 시각으로 소비한다.
             if(!now.isBefore(proof.expiresAt)) fail(ErrorCode.MERGE_TICKET_EXPIRED)
             if(!proofs.consume(hash,now)) fail(ErrorCode.MERGE_TICKET_EXPIRED)
-            addLink(member.member.id,proof.provider,checkNotNull(proof.subject),now,flowStarted)
+            addLink(member.member.id,proof.provider,checkNotNull(proof.subject),now,flowStarted,proof.providerToken)
             complete(member)
         }
         attempts.reset(snapshot.member.id.toString())
@@ -200,21 +204,24 @@ class SocialAuthService(
             if(member.member.status!=MemberStatus.ACTIVE) fail(ErrorCode.UNAUTHENTICATED)
             checkKakaoFlow(provider.name,identity.subject,identity.flowStartedAt,ErrorCode.OAUTH_VERIFICATION_FAILED)
             val now=clock.instant()
-            addLink(userId,provider.name,identity.subject,now,identity.flowStartedAt)
+            addLink(userId,provider.name,identity.subject,now,identity.flowStartedAt,sealed(identity))
             now
         }
     }
 
     fun unlink(userId:Long,provider:SocialProvider) {
-        repository.inTransaction {
+        val removed=repository.inTransaction {
             val member=repository.member(userId,true)?:fail(ErrorCode.UNAUTHENTICATED)
             if(member.member.status!=MemberStatus.ACTIVE) fail(ErrorCode.UNAUTHENTICATED)
             val links=repository.links(userId)
             if(links.none{it.provider==provider.name}) fail(ErrorCode.RESOURCE_NOT_FOUND)
             if(member.member.passwordHash==null && links.size==1) fail(ErrorCode.LAST_LOGIN_METHOD)
+            val token=repository.providerTokens(userId).firstOrNull{it.provider==provider.name}
             if(!repository.unlink(userId,provider.name)) fail(ErrorCode.RESOURCE_NOT_FOUND)
-            true
+            listOfNotNull(token)
         }
+        // 연결을 지운 커밋 뒤 해지한다. 실패해도 해제는 유지한다.
+        removed.forEach{revocation?.revoke(it.provider,it.sealed,it.linkId)}
     }
 
     private fun identity(provider:SocialProvider,code:String,redirectUri:String,state:String,binding:String?,userId:Long?,purpose:String=if(userId==null)"LOGIN" else "LINK"):OAuthIdentity {
@@ -223,7 +230,7 @@ class SocialAuthService(
         if(!states.consumeState(state,binding,provider.name,purpose,userId,redirectUri)) fail(ErrorCode.OAUTH_VERIFICATION_FAILED)
         return try{
             val identity=gateway.identify(provider,redirectUri,code,state,checkNotNull(binding))
-            OAuthIdentity(identity.subject,identity.email,identity.emailVerified,started?.flowStartedAt?:started?.expiresAt?.minusSeconds(600))
+            OAuthIdentity(identity.subject,identity.email,identity.emailVerified,started?.flowStartedAt?:started?.expiresAt?.minusSeconds(600),identity.providerToken)
         }
         catch(_:OAuthProfileRejected){fail(ErrorCode.OAUTH_VERIFICATION_FAILED)}
         catch(_:OAuthRemoteUnavailable){fail(ErrorCode.SERVICE_UNAVAILABLE)}
@@ -237,10 +244,11 @@ class SocialAuthService(
         val unlinked=repository.lockKakaoSubject(subject)?:return
         if(started==null || started<unlinked.plusSeconds(1)) fail(failure)
     }
-    private fun addLink(userId:Long,provider:String,subject:String,now:Instant,started:Instant?) {
+    private fun sealed(identity:OAuthIdentity)=identity.providerToken?.let{token->cipher?.seal(token)}
+    private fun addLink(userId:Long,provider:String,subject:String,now:Instant,started:Instant?,providerToken:String?=null) {
         if(repository.links(userId).any{it.provider==provider}) fail(ErrorCode.PROVIDER_ALREADY_LINKED)
         if(repository.linked(provider,subject)!=null) fail(ErrorCode.SOCIAL_ACCOUNT_IN_USE)
-        try{repository.link(userId,provider,subject,now,started)}catch(_:DuplicateKeyException){fail(ErrorCode.SOCIAL_ACCOUNT_IN_USE)}
+        try{repository.link(userId,provider,subject,now,started,providerToken)}catch(_:DuplicateKeyException){fail(ErrorCode.SOCIAL_ACCOUNT_IN_USE)}
     }
     private fun complete(member:SocialMember):SocialLoginResult {
         val now=clock.instant().truncatedTo(ChronoUnit.MICROS)

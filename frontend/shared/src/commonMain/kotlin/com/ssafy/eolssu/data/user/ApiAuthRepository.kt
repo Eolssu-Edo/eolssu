@@ -31,6 +31,7 @@ class ApiAuthRepository(
     private val cookies: SecureCookiesStorage?,
     private val member: SignedInMember,
     private val scope: CoroutineScope,
+    private val route: OAuthRoute = OAuthRedirect,
 ) : AuthRepository {
     private var signingOut: Job? = null
 
@@ -136,7 +137,7 @@ class ApiAuthRepository(
     }
 
     override suspend fun startSocialLogIn(provider: SocialProvider): OAuthStartResult =
-        startOAuth(client, "/api/auth/oauth/${provider.pathName}/start", provider)
+        startOAuth(client, "/api/auth/oauth/${provider.pathName}/start", route.uriFor(provider))
 
     override suspend fun completeSocialLogIn(callback: OAuthCallback): SocialLoginResult {
         signingOut?.join()
@@ -249,9 +250,9 @@ class ApiAuthRepository(
 internal fun String.toMillis(): Long? = runCatching { Instant.parse(this).toEpochMilliseconds() }.getOrNull()
 
 /** 로그인·연결 start(`{redirectUri}` → `authorizationUrl`·`expiresAt`). 401은 연결 start에서만 생긴다. */
-internal suspend fun startOAuth(client: HttpClient, path: String, provider: SocialProvider): OAuthStartResult {
+internal suspend fun startOAuth(client: HttpClient, path: String, redirectUri: String): OAuthStartResult {
     val response = client.sendOrNull {
-        post(path) { contentType(ContentType.Application.Json); setBody(OAuthStart(OAuthRedirect.uriFor(provider))) }
+        post(path) { contentType(ContentType.Application.Json); setBody(OAuthStart(redirectUri)) }
     } ?: return OAuthStartResult.Unavailable
     return when (response.status.value) {
         200 -> {
