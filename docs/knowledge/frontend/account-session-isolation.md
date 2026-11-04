@@ -67,6 +67,28 @@ $env:EOLSSU_QA_LIVE_CATALOG='false'
 - 신규 격리 회귀는 13건(요청·캐시 7, 로컬 상태·오래된 화면 5, 녹음 재생 1) 모두 통과했다. 기존 정상 로그인·가입·탈퇴, 녹음 소유권·pending 복구·토큰 갱신 회귀도 포함한다.
 - 마지막 비교 XML 시각은 `2026-11-04T01:16:46.899Z`; `tests="7" failures="0" errors="0"`이며 원래 비교용 네 metric은 모두0이다.
 
+## 정상 로그인 경계의 후속 수정
+
+교차 점검에서 첫 구현 `50eaf91d`의 회귀를 발견했다. 로그인·소셜 로그인·계정 병합·가입 완료 화면은 이전 프로필을 비우려고 `UserRepository.logOut()`을 호출했는데, 계정 격리 구현 뒤에는 이 호출이 방금 받은 회원 ID와 로그인 세대까지 무효화했다. 인증 저장소와 화면을 따로 검증한 기존 테스트만으로는 이 연결 오류를 잡지 못했다.
+
+`clearProfile()`은 표시할 프로필·악기 캐시만 비우며 로그인 세대를 유지한다. 네 성공 분기를 이 메서드로 바꿨다. 실제 로그아웃, 앱 시작 시 인증 만료, 탈퇴는 기존 세션 무효화를 유지한다.
+
+| 같은 고정 입력·순서 | 첫 구현 `50eaf91d` | 후속 수정 |
+| --- | ---: | ---: |
+| 회원 7의 이메일 로그인 성공 → 프로필 초기화 → 새 개인 연습 세션 요청 1건: 남은 회원 ID | null | 7 |
+| 같은 흐름에서 로그인 세대(epoch), 초기값 0 | 2 | 1 |
+| 같은 흐름에서 실제 Ktor MockEngine에 도달한 세션 POST 수 / 요청 1건 | 0 / 1 | 1 / 1 |
+
+`AuthSessionLifecycleRegressionTest.successfulLoginKeepsItsOwnerForTheNextPersonalRequest`를 먼저 기존 구현에 실행해 실패를 관측했다. 실제 LoginViewModel, ApiAuthRepository, ApiUserRepository, HttpPracticeSessionRepository를 연결하며, HTTP 응답만 고정했다. assertion 전에 출력한 전후 값은 각각 `member=null epoch=2 personalCreates=0`, `member=7 epoch=1 personalCreates=1`이다. 운영 서버나 DB의 삽입 건수를 측정한 값은 아니다.
+
+후속 회귀 4건은 위 이메일 로그인, 소셜 로그인·병합·이메일 가입·소셜 가입 각각의 다음 개인 요청, 실제 로그아웃 후 같은 ID 재로그인과 토큰 갱신, 프로필 초기화·startup401·탈퇴의 세대 경계를 확인한다. 마지막 focused 실행은 **46건 통과, 실패·오류·건너뜀 0**이다.
+
+```powershell
+.\gradlew.bat :shared:testAndroidHostTest --tests '*AuthSessionLifecycleRegressionTest' --tests '*ApiAuthRepositoryTest' --tests '*ApiUserRepositoryTest' --tests '*OAuthViewModelTest' --tests '*AuthFormViewModelTest' --tests '*AccountIsolationRegressionTest' --tests '*PracticeTimeMemberTest' --no-daemon --max-workers=1
+```
+
+이 후속 수정의 전체 플랫폼 빌드와 전체 회귀는 작업 통합 후 다시 수행한다. 위 730건 결과는 후속 수정 전 결과이며, 별도로 구분한다.
+
 ## 확인하지 못한 범위
 
 실제 계정으로 Android/iOS/Web 화면을 왕복하며 로그인·로그아웃한 E2E와 실제 녹음 기기의 재생 중단은 실행하지 않았다. 플레이어는 fake를 사용해 중단·URL 재사용 금지를 확인했다. Windows에서 iOS 컴파일·실기기 검증은 불가능하다. Android APK 빌드와 JS/Wasm 컴파일 성공을 이 검증의 대체 근거로 쓰지 않는다. 정식 독립 리뷰와 기기 검증은 남아 있다.

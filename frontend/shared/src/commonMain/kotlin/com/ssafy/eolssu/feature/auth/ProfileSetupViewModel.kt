@@ -63,7 +63,7 @@ class ProfileSetupViewModel(
             }
             if (result == MemberResult.Done) {
                 instrumentRepository.select(state.instrument)
-                userRepository.logOut()
+                userRepository.clearProfile()
                 userRepository.refresh(draft.email.takeIf { ticket == null })
                 draft.clear()
                 attempts?.clearSignUp()

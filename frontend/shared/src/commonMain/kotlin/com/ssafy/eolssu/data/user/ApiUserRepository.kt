@@ -191,7 +191,7 @@ class ApiUserRepository(
         if (member?.id != null) member.set(null) else clearProfile()
     }
 
-    private fun clearProfile() {
+    override fun clearProfile() {
         sessionGeneration.updateAndGet { it + 1 }
         state.value = UserProfile("", "", emptySet())
         instruments?.clear()
