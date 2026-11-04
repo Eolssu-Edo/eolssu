@@ -11,7 +11,6 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Instant
 import java.util.Date
-import java.util.concurrent.CompletableFuture
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
@@ -33,7 +32,7 @@ private const val SECRET = "user-sheet-api-test-signing-key-390"
 private const val OWNER = 991390L
 private const val OTHER = 991391L
 
-// V6 시드 1번 곡 '아리랑'(게시·채점 가능, 악보 버전 1)을 복사 원본으로 쓴다.
+// V6 시드 1번 곡 '아리랑'(게시·채점 가능, 악보 버전 1)의 악보를 내 악보 행에 넣어 쓴다.
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -43,6 +42,7 @@ class UserSheetApiDatabaseTests {
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
     private var jangdanId = 0L
+    private var keys = 0
 
     @BeforeEach
     fun fixtures() {
@@ -60,27 +60,13 @@ class UserSheetApiDatabaseTests {
     fun cleanup() {
         jdbc.update("DELETE FROM user_sheets WHERE user_id IN (?,?)", OWNER, OTHER)
         jdbc.update("DELETE FROM users WHERE id IN (?,?)", OWNER, OTHER)
-        jdbc.update("DELETE FROM songs WHERE id BETWEEN 993900 AND 993903")
+        jdbc.update("DELETE FROM songs WHERE id=993902")
     }
 
     @Test
-    fun `blank sheet is stored once per key and only its owner can read it`() {
+    fun `a blank sheet reads without score data and only its owner can read it`() {
         val title = "가".repeat(49) + "🎵"
-        val body = """{"title":" $title ","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":8}"""
-
-        val created = create(OWNER, "blank-1", body)
-        assertEquals(201, created.statusCode(), created.body())
-        val result = json.readTree(created.body()).path("result")
-        val sheetId = result.path("sheetId").asString()
-        assertEquals("NEEDS_REVIEW", result.path("status").asString())
-        assertEquals("1", result.path("scoreVersion").asString())
-        assertEquals(0, result.path("events").size())
-
-        val replay = create(OWNER, "blank-1", body.replace(" $title ", title))
-        assertEquals(201, replay.statusCode(), replay.body())
-        assertEquals(result, json.readTree(replay.body()).path("result"))
-        assertEquals(409, create(OWNER, "blank-1", body.replace("\"bpm\":60", "\"bpm\":62")).statusCode())
-        assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+        val sheetId = insertBlank(OWNER, title, columnCount = 8)
 
         val score = get(OWNER, "/api/users/me/sheets/$sheetId/score")
         assertEquals(200, score.statusCode(), score.body())
@@ -88,110 +74,54 @@ class UserSheetApiDatabaseTests {
         assertEquals(title, stored.path("title").asString())
         assertEquals(jangdanId.toString(), stored.path("jangdanId").asString())
         assertEquals(8, stored.path("columnCount").intValue())
+        assertEquals("1", stored.path("scoreVersion").asString())
         assertEquals("NEEDS_REVIEW", stored.path("reviewStatus").asString())
         assertTrue(stored.has("scoreData") && stored.path("scoreData").isNull)
+        assertEquals(0, stored.path("events").size())
         assertTrue(stored.has("source") && stored.path("source").isNull)
         assertEquals(0, stored.path("issues").size())
-        assertEquals(result.path("updatedAt"), stored.path("updatedAt"))
 
         assertEquals(404, get(OTHER, "/api/users/me/sheets/$sheetId/score").statusCode())
         assertEquals(401, get(null, "/api/users/me/sheets/$sheetId/score").statusCode())
-        assertEquals(401, create(null, "blank-2", body).statusCode())
     }
 
     @Test
-    fun `copying a published song keeps its common score with the same timeline as CAT-04`() {
-        val created = create(OWNER, "copy-song", """{"title":"아리랑 연습","startType":"COPY","bpm":72,"copyFromSongId":"1"}""")
-        assertEquals(201, created.statusCode(), created.body())
-        val result = json.readTree(created.body()).path("result")
-        assertEquals("EVALUABLE", result.path("status").asString())
+    fun `a sheet holding a published song's score reads with the same timeline as CAT-04`() {
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
 
         val catalog = json.readTree(get(OWNER, "/api/songs/1/score").body()).path("result")
-        assertEquals(catalog.path("events"), result.path("events"))
-        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/${result.path("sheetId").asString()}/score").body()).path("result")
+        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        assertEquals("EVALUABLE", stored.path("reviewStatus").asString())
+        assertEquals(catalog.path("events"), stored.path("events"))
         assertEquals(catalog.path("score"), stored.path("scoreData"))
         assertEquals(catalog.path("score").path("columns").size(), stored.path("columnCount").intValue())
         assertEquals(72, stored.path("bpm").intValue())
-        assertEquals(catalog.path("noteCount").intValue(), count("SELECT note_count FROM user_sheets WHERE user_id=$OWNER"))
     }
 
     @Test
-    fun `a newer song version restarts at version 1 and hidden songs or another member's sheet are not found`() {
-        jdbc.update(
-            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
-            SELECT 993900,instrument_id,jangdan_id,title,difficulty,default_bpm,JSON_SET(score_json,'$.score.scoreVersion',3),3,note_count,FALSE,status FROM songs WHERE id=1""",
-        )
-        jdbc.update(
-            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
-            SELECT 993901,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,'HIDDEN' FROM songs WHERE id=1""",
-        )
-        val created = create(OWNER, "copy-v3", """{"title":"새 버전","startType":"COPY","bpm":72,"copyFromSongId":"993900","jangdanId":"$jangdanId"}""")
-        assertEquals(201, created.statusCode(), created.body())
-        val sheetId = json.readTree(created.body()).path("result").path("sheetId").asString()
-        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
-        assertEquals("NEEDS_REVIEW", stored.path("reviewStatus").asString())
-        assertEquals(1, stored.path("scoreData").path("score").path("scoreVersion").intValue())
-        val original = json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=993900", String::class.java)) as ObjectNode
-        (original.path("score") as ObjectNode).put("scoreVersion", 1)
-        assertEquals(original, stored.path("scoreData"))
-
-        val again = create(OWNER, "copy-sheet", """{"title":"복사본","startType":"COPY","bpm":80,"copyFromSheetId":"$sheetId"}""")
-        assertEquals(201, again.statusCode(), again.body())
-        val againId = json.readTree(again.body()).path("result").path("sheetId").asString()
-        assertEquals(stored.path("scoreData"), json.readTree(get(OWNER, "/api/users/me/sheets/$againId/score").body()).path("result").path("scoreData"))
-
-        // 저장한 음표 수가 악보와 다른 곡은 CAT-04처럼 409이고 악보를 만들지 않는다.
-        jdbc.update(
-            """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
-            SELECT 993903,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count+1,is_scorable,status FROM songs WHERE id=1""",
-        )
-        assertEquals(409, get(OWNER, "/api/songs/993903/score").statusCode())
-        val mismatched = create(OWNER, "mismatch", """{"title":"손상","startType":"COPY","bpm":72,"copyFromSongId":"993903"}""")
-        assertEquals(409, mismatched.statusCode(), mismatched.body())
-        assertEquals("STATE_CONFLICT", json.readTree(mismatched.body()).path("result").path("errorCode").asString())
-        assertEquals(2, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
-
-        assertEquals(404, create(OWNER, "hidden", """{"title":"숨김","startType":"COPY","bpm":72,"copyFromSongId":"993901"}""").statusCode())
-        assertEquals(404, create(OTHER, "theirs", """{"title":"남의 것","startType":"COPY","bpm":72,"copyFromSheetId":"$sheetId"}""").statusCode())
-        val wrongJangdan = jdbc.queryForObject("SELECT MAX(id) FROM jangdans WHERE id<>?", Long::class.java, jangdanId)
-        assertEquals(400, create(OWNER, "wrong", """{"title":"x","startType":"COPY","bpm":72,"copyFromSongId":"1","jangdanId":"$wrongJangdan"}""").statusCode())
-        assertEquals(404, create(OWNER, "nojangdan", """{"title":"x","startType":"BLANK","bpm":72,"columnCount":4,"jangdanId":"999999"}""").statusCode())
-    }
-
-    @Test
-    fun `a song without jangdan is copied with its score bpm unit and lists without a jangdan`() {
+    fun `a sheet without jangdan reads its score bpm unit and lists without a jangdan`() {
         jdbc.update(
             """INSERT INTO songs (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
             SELECT 993902,instrument_id,NULL,title,difficulty,default_bpm,JSON_SET(score_json,'$.music.bpmUnit','QUARTER'),score_version,note_count,is_scorable,status FROM songs WHERE id=1""",
         )
-        // 1번 곡 장단의 단위와 다른 값이라, 장단이 아니라 원본 악보의 단위를 쓰는지 구별된다.
+        // 1번 곡 장단의 단위와 다른 값이라, 장단을 다시 읽지 않고 행에 저장한 단위를 쓰는지 구별된다.
         assertTrue(jdbc.queryForObject("SELECT j.bpm_unit FROM songs s JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=1", String::class.java) != "QUARTER")
 
-        val created = create(OWNER, "copy-nojangdan", """{"title":"장단 없음","startType":"COPY","bpm":72,"copyFromSongId":"993902"}""")
-        assertEquals(201, created.statusCode(), created.body())
-        val sheetId = json.readTree(created.body()).path("result").path("sheetId").asString()
-        val stored = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result")
+        val sheetId = insertSongCopy(OWNER, "장단 없음", songId = 993902)
+        val score = get(OWNER, "/api/users/me/sheets/$sheetId/score")
+        assertEquals(200, score.statusCode(), score.body())
+        val stored = json.readTree(score.body()).path("result")
         assertTrue(stored.has("jangdanId") && stored.path("jangdanId").isNull)
         assertEquals("QUARTER", stored.path("bpmUnit").asString())
-        assertEquals("QUARTER", jdbc.queryForObject("SELECT bpm_unit FROM user_sheets WHERE id=?", String::class.java, sheetId.toLong()))
+        assertEquals(json.readTree(get(OWNER, "/api/songs/993902/score").body()).path("result").path("events"), stored.path("events"))
         val item = json.readTree(get(OWNER, "/api/users/me/sheets").body()).path("result").path("items").get(0)
         assertTrue(item.path("jangdanId").isNull && item.path("jangdanName").isNull, item.toString())
-        val again = create(OWNER, "copy-nojangdan-sheet", """{"title":"다시 복사","startType":"COPY","bpm":80,"copyFromSheetId":"$sheetId"}""")
-        assertEquals(201, again.statusCode(), again.body())
-        val againResult = json.readTree(again.body()).path("result")
-        assertEquals(json.readTree(created.body()).path("result").path("events"), againResult.path("events"))
-        val againStored = json.readTree(get(OWNER, "/api/users/me/sheets/${againResult.path("sheetId").asString()}/score").body()).path("result")
-        assertTrue(againStored.path("jangdanId").isNull)
-        assertEquals("QUARTER", againStored.path("bpmUnit").asString())
-        assertEquals(400, create(OWNER, "nojangdan-given", """{"title":"x","startType":"COPY","bpm":72,"copyFromSongId":"993902","jangdanId":"$jangdanId"}""").statusCode())
     }
 
     @Test
     fun `list pages only the owner's sheets newest first`() {
-        for (index in 1..3) {
-            create(OWNER, "list-$index", """{"title":"악보 $index","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
-        }
-        create(OTHER, "list-other", """{"title":"남의 악보","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
+        for (index in 1..3) insertBlank(OWNER, "악보 $index")
+        insertBlank(OTHER, "남의 악보")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-01 00:00:00' WHERE user_id=$OWNER")
         jdbc.update("UPDATE user_sheets SET updated_at='2026-11-02 00:00:00' WHERE user_id=$OWNER AND title='악보 1'")
 
@@ -212,18 +142,18 @@ class UserSheetApiDatabaseTests {
     }
 
     @Test
-    fun `concurrent requests with one key create one sheet`() {
-        val body = """{"title":"동시","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}"""
-        val responses = (1..8).map { CompletableFuture.supplyAsync { create(OWNER, "same-key", body) } }.map { it.join() }
+    fun `the removed create endpoint answers 405 and makes no sheet`() {
+        // 만들기(SHT-03)는 지웠다(S15P31E102-462). 같은 경로의 POST는 처리기가 없어 405다.
+        val removed = send(OWNER, "POST", "/api/users/me/sheets", """{"title":"x","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
 
-        assertEquals(setOf(201), responses.map { it.statusCode() }.toSet(), responses.joinToString { it.body() })
-        assertEquals(1, responses.map { json.readTree(it.body()).path("result").path("sheetId").asString() }.toSet().size)
-        assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
+        assertEquals(405, removed.statusCode(), removed.body())
+        assertEquals("METHOD_NOT_ALLOWED", json.readTree(removed.body()).path("result").path("errorCode").asString())
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
     }
 
     @Test
     fun `autosave keeps the version and list order, then saving the whole score bumps it with the CAT-04 timeline`() {
-        val sheetId = copySong()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
         val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
         val updatedAt = jdbc.queryForObject("SELECT updated_at FROM user_sheets WHERE id=$sheetId", String::class.java)
         val partial = scoreData.deepCopy()
@@ -272,7 +202,7 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `a score whose jangdan or ticks do not match is rejected and nothing changes`() {
-        val sheetId = copySong()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
         val scoreData = json.readTree(get(OWNER, "/api/users/me/sheets/$sheetId/score").body()).path("result").path("scoreData") as ObjectNode
         val otherJangdan = jdbc.queryForObject("SELECT id FROM jangdans WHERE id <> ? ORDER BY id LIMIT 1", Long::class.java, jangdanId)!!
         val brokenTicks = scoreData.deepCopy().also { (it.path("events").path(0) as ObjectNode).put("durationTick", 1) }
@@ -285,7 +215,7 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `the draft columns cannot hold a draft without its base version`() {
-        val sheetId = copySong()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
 
         val rejected = runCatching {
             jdbc.update("UPDATE user_sheets SET draft_json='{}', draft_base_version=NULL, draft_saved_at=NOW(6) WHERE id=$sheetId")
@@ -299,7 +229,7 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `a body over 1 MiB is 413 before parsing, and an anonymous one is still 401`() {
-        val sheetId = copySong()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
         // 공백으로 부풀려 다시 직렬화하면 작아지는 본문도 받은 크기로 잰다.
         val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
 
@@ -320,7 +250,7 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `an encoded path that reaches the score routes is limited the same way`() {
-        val sheetId = copySong()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
         val padded = """{"baseScoreVersion":"1","bpm":72,"score":{}${" ".repeat(1024 * 1024)}}"""
 
         // %73 = s, %64 = d. Spring MVC는 디코딩한 경로로 컨트롤러를 찾으므로 필터도 같은 경로로 판단해야 한다.
@@ -333,9 +263,8 @@ class UserSheetApiDatabaseTests {
 
     @Test
     fun `delete removes only the owner's sheet`() {
-        val sheetId = copySong()
-        val others = create(OTHER, "others", """{"title":"남의 악보","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
-        val otherId = json.readTree(others.body()).path("result").path("sheetId").asString()
+        val sheetId = insertSongCopy(OWNER, "아리랑 연습")
+        val otherId = insertBlank(OTHER, "남의 악보")
 
         assertEquals(404, send(OWNER, "DELETE", "/api/users/me/sheets/$otherId", null).statusCode())
         val deleted = send(OWNER, "DELETE", "/api/users/me/sheets/$sheetId", null)
@@ -347,11 +276,34 @@ class UserSheetApiDatabaseTests {
         assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OTHER"))
     }
 
-    private fun copySong(): String {
-        val created = create(OWNER, "copy-for-edit", """{"title":"아리랑 연습","startType":"COPY","bpm":72,"copyFromSongId":"1"}""")
-        assertEquals(201, created.statusCode(), created.body())
-        return json.readTree(created.body()).path("result").path("sheetId").asString()
+    // 만들기 API(SHT-03)는 S15P31E102-462에서 지웠다. 그 API가 만들던 MANUAL 행과 같은 값으로 바로 넣는다.
+    private fun insertBlank(user: Long, title: String, columnCount: Int = 4): String {
+        val key = "blank-${keys++}"
+        jdbc.update(
+            """INSERT INTO user_sheets (user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,idempotency_key,request_hash,created_at,updated_at)
+            SELECT ?,?,'JEONGGANBO','MANUAL','NEEDS_REVIEW',id,60,bpm_unit,?,?,SHA2(?,256),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6) FROM jangdans WHERE id=?""",
+            user, title, columnCount, key, key, jangdanId,
+        )
+        return sheetIdOf(user, key)
     }
+
+    /** 게시 곡의 악보를 악보 버전 1로 옮긴 사본. 장단이 없는 곡은 악보의 music.bpmUnit을 쓴다(CAT-04와 같다). */
+    private fun insertSongCopy(user: Long, title: String, songId: Long = 1, bpm: Int = 72): String {
+        val key = "copy-${keys++}"
+        jdbc.update(
+            """INSERT INTO user_sheets (user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_json,note_count,
+                idempotency_key,request_hash,created_at,updated_at)
+            SELECT ?,?,'JEONGGANBO','MANUAL',IF(s.is_scorable,'EVALUABLE','NEEDS_REVIEW'),s.jangdan_id,?,
+                COALESCE(j.bpm_unit,JSON_UNQUOTE(JSON_EXTRACT(s.score_json,'$.music.bpmUnit'))),JSON_LENGTH(s.score_json,'$.columns'),
+                JSON_SET(s.score_json,'$.score.scoreVersion',1),s.note_count,?,SHA2(?,256),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)
+            FROM songs s LEFT JOIN jangdans j ON j.id=s.jangdan_id WHERE s.id=?""",
+            user, title, bpm, key, key, songId,
+        )
+        return sheetIdOf(user, key)
+    }
+
+    private fun sheetIdOf(user: Long, key: String) =
+        jdbc.queryForObject("SELECT id FROM user_sheets WHERE user_id=? AND idempotency_key=?", Long::class.java, user, key)!!.toString()
 
     private fun scoreBody(base: String, score: JsonNode, title: String? = null, jangdan: Long = jangdanId): String {
         val body = json.createObjectNode().put("baseScoreVersion", base).put("jangdanId", jangdan.toString()).put("bpm", 72)
@@ -374,13 +326,6 @@ class UserSheetApiDatabaseTests {
     )
 
     private fun count(sql: String) = jdbc.queryForObject(sql, Int::class.java)!!
-
-    private fun create(user: Long?, key: String, body: String): HttpResponse<String> = client.send(
-        authorized(URI("http://localhost:$port/api/users/me/sheets"), user)
-            .header("Idempotency-Key", key).header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
-        HttpResponse.BodyHandlers.ofString(),
-    )
 
     private fun get(user: Long?, path: String): HttpResponse<String> =
         client.send(authorized(URI("http://localhost:$port$path"), user).GET().build(), HttpResponse.BodyHandlers.ofString())
