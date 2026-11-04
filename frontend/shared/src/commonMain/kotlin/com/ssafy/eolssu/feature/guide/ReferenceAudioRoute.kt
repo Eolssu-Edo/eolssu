@@ -20,9 +20,7 @@ import org.koin.compose.viewmodel.koinViewModel
 class ReferenceAudioController(
     val state: ReferenceAudioUiState,
     val playback: AudioPlaybackState,
-    val nextOption: (ReferenceAudioSelection) -> Unit,
-    val play: (ReferenceAudioSelection) -> Unit,
-    val seek: (ReferenceAudioSelection, Long) -> Unit,
+    val play: (ReferenceAudioSelection, ReferenceAudioKind) -> Unit,
     val retry: () -> Unit,
     val openSource: () -> Unit,
     val sourceLinkFailed: Boolean,
@@ -48,12 +46,7 @@ fun rememberReferenceAudioController(
     return ReferenceAudioController(
         state = if (state.instrument == instrument) state else ReferenceAudioUiState(instrument),
         playback = playback,
-        nextOption = { selection -> player.stop(); viewModel.nextOption(selection) },
-        play = { selection -> viewModel.uiState.value.selectedClip(selection)?.let { toggleReferenceAudio(player, it) } },
-        seek = { selection, position ->
-            val clip = viewModel.uiState.value.selectedClip(selection)
-            if (clip != null && player.state.value.sourceId == clip.assetId) player.seekTo(position)
-        },
+        play = { selection, kind -> viewModel.uiState.value.clipFor(selection, kind)?.let { toggleReferenceAudio(player, it) } },
         retry = { player.stop(); viewModel.retry() },
         openSource = {
             player.stop()
