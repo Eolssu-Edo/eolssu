@@ -1,12 +1,12 @@
-# 내 악보 생성·조회·목록·편집 저장·삭제 API (SHT-01·02·03·04·08·11)
+# 내 악보 조회·목록·편집 저장·삭제 API (SHT-01·02·04·08·11)
 
-- Jira: [S15P31E102-390](https://ssafy.atlassian.net/browse/S15P31E102-390), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [390 계획](../plans/S15P31E102-390.md). 편집 저장·자동 저장·삭제: [S15P31E102-413](https://ssafy.atlassian.net/browse/S15P31E102-413), [413 계획](../plans/S15P31E102-413.md).
+- Jira: [S15P31E102-390](https://ssafy.atlassian.net/browse/S15P31E102-390), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [390 계획](../plans/S15P31E102-390.md). 편집 저장·자동 저장·삭제: [S15P31E102-413](https://ssafy.atlassian.net/browse/S15P31E102-413), [413 계획](../plans/S15P31E102-413.md). SHT-03 제거: [S15P31E102-462](https://ssafy.atlassian.net/browse/S15P31E102-462), [462 계획](../plans/S15P31E102-462.md).
 - 근거: [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01·03·08(2026-11-02 디자인 보정 반영본). 2026-11-02 회의 안건(PDF 방향, 초안 연습 진입, 삭제 시 연습 기록, 확인 필요 칸 복사)은 이 범위에서 정하지 않는다. 그중 PDF 방향·삭제 시 연습 기록은 2026-11-03 결정으로 정리됐다([2차 결정](#2차-결정-2026-11-03-미구현)).
 - 상태: 백엔드 결정 초안. 아래 '노션 초안과 다른 점'은 FE(351)와 공유해야 한다.
 
 ## 범위
 
-- 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, 코드는 남아 있음), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
+- 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, S15P31E102-462에서 API와 전용 코드 제거), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
 - 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
 - 제외: PDF·이미지·오선보 변환(SHT-07·10)과 확인 필요 칸, MIDI·M4A 다운로드(SHT-12·13), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
@@ -27,31 +27,15 @@
 | `jangdan_id`, `bpm`, `bpm_unit`, `column_count` | 편집 화면 설정. `bpm_unit`은 만들 때의 장단 단위이며, 장단 없는 곡(V15에서 `songs.jangdan_id`가 nullable)을 복사하면 `jangdan_id`는 NULL, 단위는 원본 악보의 `music.bpmUnit`이다(CAT-04와 같다). |
 | `score_version` | 1부터. JSON의 `score.scoreVersion`과 같게 유지한다. |
 | `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(현재 항상 0). |
-| `idempotency_key`, `request_hash` | SHT-03 중복 방지. 회원·키 유일. |
+| `idempotency_key`, `request_hash` | SHT-03 중복 방지용(회원·키 유일). SHT-03을 지운 뒤(462)에는 읽지 않지만 칸·제약은 그대로 둔다(스키마 변경 없음). NOT NULL이라 행을 새로 만드는 기능(SHT-07)이 값을 정해야 한다. |
 | `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
-## SHT-03 `POST /api/users/me/sheets`
+## SHT-03 `POST /api/users/me/sheets` (제거)
 
-> 작업 취소(2026-11-03 결정, [2차 결정](#2차-결정-2026-11-03-미구현)). 아래는 390에서 구현해 코드에 남아 있는 동작이다. 앱은 이 API를 쓰지 않으며, 빈 악보를 SHT-04로 처음 저장할 때의 `score.sourceId` 규칙은 정하지 않았다.
+> 작업 취소(2026-11-03 결정, [2차 결정](#2차-결정-2026-11-03-미구현)). 390에서 구현했던 엔드포인트와 그것만 쓰던 코드를 S15P31E102-462에서 지웠다. 이 경로의 POST는 이제 405 `METHOD_NOT_ALLOWED`다.
 
-헤더 `Idempotency-Key`(출력 가능한 ASCII 1~100자) 필수. 본문 타입이 명세와 다르면 자동 변환하지 않고 400.
-
-| 필드 | 규칙 |
-| --- | --- |
-| `title` | 앞뒤 공백 제거 후 1~50자 |
-| `startType` | `BLANK` / `COPY`. `PDF`는 400(2026-11-03부터 영구. PDF·이미지는 SHT-07로 만든다) |
-| `jangdanId` | BLANK 필수. COPY는 생략 가능하며, 주면 원본 장단과 같아야 한다(다르거나 원본에 장단이 없으면 400) |
-| `bpm` | 30~160 필수 |
-| `columnCount` | BLANK 필수 1~40. COPY는 생략 가능하며, 주면 원본 각 수와 같아야 한다(다르면 400). 복사본은 40을 넘을 수 있다 |
-| `copyFromSongId` / `copyFromSheetId` | COPY에서 정확히 하나. BLANK에서는 둘 다 없어야 한다 |
-| `pdfSheetId` | 받지 않는다(값이 있으면 400) |
-
-- BLANK: 악보 내용 없음, `NEEDS_REVIEW`, 각 수는 요청값.
-- COPY 제공 곡: 게시·미삭제 곡만(그 외 404). 곡의 현재 `score_json`을 복사하고 `score.scoreVersion`만 1로 바꾼다. 장단·각 수(`columns` 길이)는 원본을 따른다. 원본과 연결하지 않는다. 곡이 채점 가능(`is_scorable`)이면 `EVALUABLE`, 아니면 `NEEDS_REVIEW`.
-- COPY 내 악보: 본인 악보만(그 외 404). 내용·장단·각 수·상태를 그대로 복사한다. 지금은 정간보만 있어 확인 필요 칸이 없다. MIDI 등 확인 필요 칸이 생기면 회의 ④ 결과를 따른다.
-- 없는 장단 404. 같은 키 재요청은 처음 만든 악보로 201, 같은 키에 다른 본문은 409 `IDEMPOTENCY_CONFLICT`.
-- 복사 원본의 저장 악보가 CAT-04 검증(구조·음표 수·버전·단위)을 통과하지 못하면 409 `STATE_CONFLICT`(CAT-04 조회와 같은 처리).
-- 응답 201 `result`: `sheetId`, `kind`, `status`, `scoreVersion`(문자열), `events`, `updatedAt`. `events`는 CAT-04 조회용 타임라인(`eventId`, `kind`, `noteIdx`, `pitchId`, 위치, tick·박)이며 빈 악보는 `[]`.
+- 하던 일: `Idempotency-Key` 필수로 빈 악보(`BLANK`, 장단·각 수 지정, 내용 없음·`NEEDS_REVIEW`)나 게시 곡·내 악보 복사본(`COPY`, `score.scoreVersion`만 1로 바꾼 사본)을 만들었다. 모두 `source` `MANUAL`이다.
+- 그때 만든 행은 그대로 SHT-01·08·04·11·02로 읽고 고치고 지울 수 있다. 빈 악보는 `scoreData`가 null, 장단 없는 곡 복사본은 `jangdanId`가 null이다.
 
 ## SHT-08 `GET /api/users/me/sheets/{sheetId}/score`
 
@@ -65,9 +49,7 @@
 
 ## 노션 초안과 다른 점
 
-- SHT-03: COPY의 `jangdanId`·`columnCount`를 생략 가능하게 했다(원본 값을 따름). `startType=PDF`·`pdfSheetId`는 400(2026-11-03에 노션도 같은 규칙으로 정리).
-- SHT-03 상태: 노션은 "복사본은 EVALUABLE"이지만, 채점 불가 곡(`is_scorable=false`)의 복사본은 `NEEDS_REVIEW`이고 내 악보 복사본은 원본 상태를 따른다(빈 악보 복사본은 `NEEDS_REVIEW`).
-- SHT-03 오류: 노션에 없는 409 `STATE_CONFLICT`(복사 원본 악보 검증 실패)를 더했다.
+- SHT-03: 엔드포인트를 지웠다(462). 노션과 달랐던 점(COPY의 장단·각 수 생략, 상태·409 규칙)은 더 이상 해당하지 않는다.
 - SHT-08: `scoreData`는 빈 악보에서 null이고, `jangdanId`는 장단 없는 곡 복사본에서 null이다. 편집 화면에 필요한 `title`·`jangdanId`·`bpm`·`bpmUnit`·`columnCount`를 더했다. `source`는 null, `issues`는 빈 배열이다.
 - SHT-01: `source`는 지금 `MANUAL`만, `sourcePageCount`는 null이다. 장단 없는 곡 복사본은 `jangdanId`·`jangdanName`이 null이다.
 
@@ -102,7 +84,7 @@
 - SHT-01: `conversionStatus`·`hasDraft`를 더하고 `source`에 `JEONGGANBO_OMR`·`STAFF_OMR`을 더한다.
 - SHT-02 `DELETE`: 204. 초안·확인 필요 칸·변환 상태·다운로드 링크·R2 원본까지 지운다. 변환 중에도 지운다. 내 악보는 연습 세션을 만들지 않으므로 연습 기록 처리는 필요 없다(회의 ③ 해소).
 - SHT-12·13: MIDI·M4A 다운로드 링크(10분, 여러 번 사용, 쿠키 없이 토큰). 파일은 요청마다 공통 악보 음원 생성기로 만들고 서버에 저장하지 않는다.
-- 작업 취소: SHT-03(악보는 SHT-07 불러오기로만 만든다. 빈 악보·복사 시작은 기획에 없다. 2026-11-04 Notion 정리, 390 구현은 코드에 남아 있고 제거는 별도로 정한다), SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
+- 작업 취소: SHT-03(악보는 SHT-07 불러오기로만 만든다. 빈 악보·복사 시작은 기획에 없다. 2026-11-04 Notion 정리, 390 구현은 S15P31E102-462에서 제거), SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
 - 저장 모델에 필요한 것(새 Flyway): `user_sheets`의 `source` CHECK 확장·초안 칸(`draft_json` 등), `sheet_source_files`, `sheet_conversions`, `sheet_issues`, `sheet_export_links`. 탈퇴 일괄 삭제와 R2 원본 삭제도 함께 넓힌다.
 - 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한. 313 초안: [악보 인식 서비스 계약](score-recognition.md)(347 합의 대기).
 - SHT-07 변환 결과에는 `score.sourceId`를 넣어야 한다. SHT-04가 이 값으로 `provenance`를 채우고, 없으면 400이다(S15P31E102-447).

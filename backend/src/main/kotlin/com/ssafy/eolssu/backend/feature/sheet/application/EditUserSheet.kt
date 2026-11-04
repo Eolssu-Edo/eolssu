@@ -120,7 +120,7 @@ class EditUserSheet(
 
     fun delete(userId: Long, sheetId: Long): Boolean = repository.delete(sheetId, userId)
 
-    private fun titleIsValid(title: String) = title.codePointCount(0, title.length) in 1..CreateUserSheet.MAX_TITLE_LENGTH
+    private fun titleIsValid(title: String) = title.codePointCount(0, title.length) in 1..MAX_TITLE_LENGTH
 
     private fun now() = clock.instant().truncatedTo(ChronoUnit.MICROS)
 
@@ -129,6 +129,8 @@ class EditUserSheet(
     companion object {
         /** 공통 악보 문서 상한(1MiB, UTF-8 바이트). */
         const val MAX_SCORE_BYTES = 1024 * 1024
+        /** 제목 상한(앞뒤 공백을 자른 코드 포인트 수). */
+        const val MAX_TITLE_LENGTH = 50
         private val BPM_RANGE = 30..160
     }
 }

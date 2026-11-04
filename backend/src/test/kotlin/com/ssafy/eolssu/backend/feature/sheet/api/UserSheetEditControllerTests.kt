@@ -1,13 +1,10 @@
 package com.ssafy.eolssu.backend.feature.sheet.api
 
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
-import com.ssafy.eolssu.backend.feature.sheet.application.CopiedScore
-import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
-import com.ssafy.eolssu.backend.feature.sheet.domain.NewUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
@@ -43,11 +40,8 @@ class UserSheetEditControllerTests {
     private val now = Instant.parse("2026-11-03T03:10:00Z")
     private val sheets = mutableMapOf<Long, UserSheet>()
     private val repository = object : UserSheetRepository {
-        override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): UserSheet? = null
         override fun findJangdan(jangdanId: Long) = SheetJangdan(3, "JANGDAN_BEAT", "세마치").takeIf { jangdanId == 3L }
-        override fun findSongSource(songId: Long) = null
         override fun find(sheetId: Long, userId: Long) = sheets[sheetId]?.takeIf { it.userId == userId }
-        override fun insert(sheet: NewUserSheet): Long? = error("not used")
         override fun page(userId: Long, kind: String?, page: Int, size: Int) = SheetPage(sheets.values.filter { it.userId == userId }, 1)
 
         override fun updateScore(update: SheetScoreUpdate): Boolean {
@@ -71,7 +65,6 @@ class UserSheetEditControllerTests {
 
     // 악보 문서의 내용은 응용 테스트가 다룬다. 여기서는 표식 문자열로 결과만 고른다.
     private val scores = object : SheetScores {
-        override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? = null
         override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String) =
             if ("broken" in scoreJson) null else listOf(ScoreTimelineEvent("c0-j0-r0-u0", "NOTE", 0, "1", 0, 0, 0, 0, 480, 0.0, 1.0))
         override fun prepare(scoreJson: String, scoreVersion: Int) = when {
@@ -84,7 +77,6 @@ class UserSheetEditControllerTests {
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val mvc = MockMvcBuilders.standaloneSetup(
         UserSheetController(
-            CreateUserSheet(repository, scores, clock),
             GetUserSheets(repository, scores),
             EditUserSheet(repository, scores, clock),
             JsonMapper.builder().build(),
@@ -92,7 +84,7 @@ class UserSheetEditControllerTests {
     ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
 
     private fun sheet(id: Long, userId: Long = 1, json: String? = null) = UserSheet(
-        id, userId, "새 악보 1", "JEONGGANBO", "MANUAL", SheetStatus.NEEDS_REVIEW, 3, "세마치", 60, "JANGDAN_BEAT", 8, 1, json, 0, 0, "h",
+        id, userId, "새 악보 1", "JEONGGANBO", "MANUAL", SheetStatus.NEEDS_REVIEW, 3, "세마치", 60, "JANGDAN_BEAT", 8, 1, json, 0, 0,
         Instant.parse("2026-11-02T05:00:00Z"),
     )
 

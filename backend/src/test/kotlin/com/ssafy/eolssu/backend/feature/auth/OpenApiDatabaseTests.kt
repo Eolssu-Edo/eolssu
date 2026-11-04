@@ -80,8 +80,8 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(69,expected.size)
-        assertTrue(expected.containsAll(setOf("post /api/users/me/sheets", "get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
+        assertEquals(68,expected.size)
+        assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
             "/api/pitches", "/api/instruments/{instrumentId}/fingerings", "/api/jangdans/{jangdanId}",
