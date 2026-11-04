@@ -27,7 +27,7 @@ data class CommonScoreData(
     @Serializable data class Header(val title: String, val instrument: String, val part: Int, val sourceId: String, val scoreVersion: Int)
     @Serializable data class Music(val hwangHz: Double, val jangdan: String, val bpmUnit: String, val ticksPerBeat: Int, val ticksPerJeonggan: Int)
     @Serializable data class Column(val index: Int, val cells: List<Cell>)
-    @Serializable data class Cell(val id: String, val index: Int, val units: List<Unit>)
+    @Serializable data class Cell(val id: String, val index: Int, val units: List<Unit>, val lyric: String? = null)
     @Serializable data class Unit(val row: Int, val col: Int, val symbol: String, val eventId: String)
     @Serializable data class Event(
         val id: String, val kind: String, val yul: String?, val octave: Int?,
@@ -127,7 +127,7 @@ data class CommonScoreData(
                     }
                 }
                 cellOffset += music.ticksPerJeonggan
-                ScoreCell(notes, cell.id, cell.units.map { ScoreUnit(it.row, it.col, it.symbol, it.eventId) })
+                ScoreCell(notes, cell.id, cell.units.map { ScoreUnit(it.row, it.col, it.symbol, it.eventId) }, lyric = cell.lyric)
             }
         }
         return Score(mappedColumns,

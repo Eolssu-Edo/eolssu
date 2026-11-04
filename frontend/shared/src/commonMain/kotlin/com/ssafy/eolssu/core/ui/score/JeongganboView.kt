@@ -278,6 +278,7 @@ fun JeongganboView(
             val height = cellHeights[strip.column to row]
             ScoreCellBox(
                 units = unitsByCell[strip.column to row].orEmpty(),
+                lyric = song.score.columns[strip.column][row].lyric,
                 metrics = if (height == null) renderMetrics else renderMetrics.copy(cellHeight = height * fontScale),
                 look = look,
                 drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
@@ -526,6 +527,7 @@ private fun ColumnHead(
 @Composable
 private fun ScoreCellBox(
     units: List<ScoreDisplayUnit>,
+    lyric: String?,
     metrics: JeongganboMetrics,
     look: JeongganboLook,
     drawTopLine: Boolean,
@@ -714,6 +716,7 @@ private fun ScoreCellBox(
             notes(cellModifier.then(Modifier.weight(1f)))
             LyricLane(
                 width = lane,
+                lyric = lyric,
                 drawTopLine = drawTopLine,
                 lineColor = lineColor,
                 lineWidth = lineWidth,
@@ -724,7 +727,7 @@ private fun ScoreCellBox(
 
 /** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
 @Composable
-private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
+private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
@@ -734,7 +737,12 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, 
                 drawRect(colors.line, size = Size(1.dp.toPx(), size.height))
                 if (drawTopLine) drawRect(lineColor, size = Size(size.width, lineWidth.toPx()))
             },
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        if (lyric != null) {
+            Text(lyric.replace("{세로표}", ""), style = MaterialTheme.typography.labelSmall, color = colors.text)
+        }
+    }
 }
 
 @Composable
