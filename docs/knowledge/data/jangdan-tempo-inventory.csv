@@ -1,0 +1,108 @@
+songId,instrument,title,scoreVersion,sourceJangdan,linkedJangdanId,bpm,bpmUnit,ticksPerBeat,ticksPerJeonggan,jeongganMs,audioBpm,audioBpmUnit,sourceReview,hasPerformance
+5,단소,강원도아리랑,1,엇모리,,285,QUARTER,4,6,315.789474,285,QUARTER,reviewed,True
+6,단소,개구리소리,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+7,단소,경복궁타령,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,reviewed,True
+8,단소,고사리 끊자,1,자진모리,,162,QUARTER,2,3,555.555556,162,QUARTER,reviewed,True
+9,단소,구아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+10,단소,단소 연습곡 1,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+11,단소,단소 연습곡 2,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+12,단소,꿩꿩장서방,1,자진모리,,162,QUARTER,2,1,185.185185,162,QUARTER,reviewed,True
+13,단소,나물노래,1,자진모리,,162,QUARTER,2,1,185.185185,162,QUARTER,reviewed,True
+14,단소,너영나영,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+15,단소,늴리리야,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,inferred,True
+16,단소,늴리리야,1,굿거리,,99,QUARTER,8,12,909.090909,99,QUARTER,inferred,True
+17,단소,도라지타령,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+18,단소,매롱이소리,1,중중모리,,126,QUARTER,2,3,714.285714,126,QUARTER,reviewed,True
+19,단소,몽금포타령,1,중모리,3,88,QUARTER,4,4,681.818182,88,QUARTER,inferred,True
+20,단소,밀양아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+21,단소,바람개비,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,reviewed,True
+22,단소,박연폭포,1,굿거리,,99,QUARTER,4,6,909.090909,99,QUARTER,reviewed,True
+23,단소,뱃노래,1,굿거리,,99,QUARTER,4,6,909.090909,99,QUARTER,reviewed,True
+24,단소,베틀가,1,굿거리,,99,QUARTER,4,6,909.090909,99,QUARTER,reviewed,True
+25,단소,북천이 맑다커늘 · 단소1,1,,,60,QUARTER,4,4,1000.0,60,QUARTER,inferred,True
+26,단소,북천이 맑다커늘 · 단소2,1,,,60,QUARTER,4,4,1000.0,60,QUARTER,reviewed,True
+27,단소,새야새야,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,reviewed,True
+28,단소,싸름,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,inferred,True
+29,단소,아리랑,1,세마치,,48,QUARTER,6,3,625.0,48,QUARTER,inferred,True
+30,단소,어이 얼어자리,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+31,단소,어이 얼어자리,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+32,단소,영산회상 중 타령,1,타령,,48,QUARTER,8,4,625.0,48,QUARTER,inferred,True
+33,단소,오나라,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+34,단소,이거리저거리각거리,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,reviewed,True
+35,단소,현악영산회상-타령(중급),1,타령,,48,QUARTER,8,4,625.0,48,QUARTER,reviewed,True
+36,단소,한오백년,1,세마치,,144,QUARTER,4,6,625.0,144,QUARTER,inferred,True
+37,단소,현악영산회상-타령(고급),1,타령,,48,QUARTER,8,4,625.0,48,QUARTER,inferred,True
+38,단소,한글뒤풀이,1,굿거리,,99,QUARTER,2,1,303.030303,99,QUARTER,reviewed,True
+39,단소,현악영산회상-타령(초급),1,타령,,48,QUARTER,4,2,625.0,48,QUARTER,reviewed,True
+40,단소,풍년가,1,굿거리,,99,QUARTER,4,6,909.090909,99,QUARTER,reviewed,True
+41,단소,태평가,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+42,단소,쾌지나칭칭나네,1,중중모리,,126,QUARTER,4,6,714.285714,126,QUARTER,reviewed,True
+43,단소,청어엮기,1,중중모리,,126,QUARTER,2,3,714.285714,126,QUARTER,inferred,True
+44,단소,천안삼거리,1,굿거리,,99,QUARTER,8,12,909.090909,99,QUARTER,inferred,True
+45,단소,천년만세 계면가락도드리,1,계면가락도드리,,48,QUARTER,8,4,625.0,48,QUARTER,inferred,True
+46,단소,천년만세-계면가락도드리(중급),1,계면가락도드리,,48,QUARTER,4,2,625.0,48,QUARTER,reviewed,True
+47,단소,천년만세-계면가락도드리(초급),1,계면가락도드리,,48,QUARTER,4,2,625.0,48,QUARTER,reviewed,True
+48,단소,참새노래,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,reviewed,True
+49,단소,진도아리랑 — 국립국악원 단소 원보 직접 전사,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+50,단소,정선아리랑,1,,,30,QUARTER,36,18,1000.0,30,QUARTER,inferred,True
+51,정악대금,너영나영,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+52,정악대금,도라지타령,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+53,정악대금,밀양아리랑,1,세마치,,144,QUARTER,4,6,625.0,144,QUARTER,inferred,True
+54,정악대금,뱃노래,1,,,30,QUARTER,4,2,1000.0,30,QUARTER,inferred,True
+55,정악대금,뱃노래,1,,,30,QUARTER,4,2,1000.0,30,QUARTER,inferred,True
+56,정악대금,비행기,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,inferred,True
+57,정악대금,산도깨비,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,inferred,True
+58,정악대금,아리랑,1,세마치,,144,QUARTER,8,12,625.0,144,QUARTER,inferred,True
+59,정악대금,아리랑,1,세마치,,144,QUARTER,8,12,625.0,144,QUARTER,inferred,True
+60,정악대금,애국가,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,inferred,True
+61,정악대금,어머님의 마음,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,inferred,True
+62,정악대금,오나라,1,,,30,QUARTER,4,2,1000.0,30,QUARTER,inferred,True
+63,정악대금,세령산 1장,1,세령산,,63,QUARTER,24,36,1428.571429,63,QUARTER,inferred,True
+64,정악대금,세령산 1장,1,세령산,,63,QUARTER,12,18,1428.571429,63,QUARTER,inferred,True
+65,정악대금,타령 1장,1,타령,,48,QUARTER,24,12,625.0,48,QUARTER,inferred,True
+66,정악대금,타령 1장,1,타령,,48,QUARTER,24,12,625.0,48,QUARTER,inferred,True
+67,정악대금,인연,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,inferred,True
+68,정악대금,“임남무황” 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+69,정악대금,“중고태황” 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+70,정악대금,“중태황남황” 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+71,정악대금,풍년가,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,inferred,True
+72,정악대금,학교종,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+73,정악대금,학교종,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+74,정악대금,한오백년,1,,,30,QUARTER,24,12,1000.0,30,QUARTER,inferred,True
+75,정악대금,“황응남임” 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+76,정악대금,“황응남임” 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+77,정악대금,예보,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+78,정악대금,중고태황,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+79,산조대금,늴리리야,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,inferred,True
+80,산조대금,두꺼비,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,inferred,True
+81,산조대금,몽금포타령,1,중모리,3,44,QUARTER,4,2,681.818182,44,QUARTER,inferred,True
+82,산조대금,역취 연습곡 2,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+83,산조대금,역취 연습곡 1,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+84,산조대금,전체 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+85,산조대금,진도아리랑,1,세마치,,48,QUARTER,6,3,625.0,48,QUARTER,inferred,True
+86,산조대금,한오백년,1,중모리,3,44,QUARTER,8,4,681.818182,44,QUARTER,inferred,True
+87,산조대금,평취 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+88,산조대금,저취 연습곡,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,inferred,True
+89,소금,개구리소리,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+90,소금,구아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+91,소금,늴리리야,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+92,소금,도라지타령,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+93,소금,도라지타령,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+94,소금,몽금포타령,1,중모리,3,44,QUARTER,4,2,681.818182,44,QUARTER,reviewed,True
+95,소금,밀양아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+96,소금,아리랑,1,세마치,,144,QUARTER,4,6,625.0,144,QUARTER,reviewed,True
+97,소금,아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,inferred,True
+98,소금,어깨동무,1,자진모리,,162,QUARTER,2,1,185.185185,162,QUARTER,reviewed,True
+99,소금,옹헤야,1,단모리,,240,QUARTER,4,6,375.0,240,QUARTER,reviewed,True
+100,소금,태평가,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+101,소금,해주아리랑,1,세마치,,144,QUARTER,2,3,625.0,144,QUARTER,reviewed,True
+102,소금,소금 연습곡 1,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+103,소금,소금 연습곡 2,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,reviewed,True
+104,소금,북천이 맑다커늘,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,inferred,True
+105,소금,북천이 맑다커늘,1,,,90,QUARTER,8,12,1000.0,90,QUARTER,reviewed,True
+106,소금,새야새야,1,,,90,QUARTER,2,3,1000.0,90,QUARTER,reviewed,True
+107,소금,아리랑,1,,,90,QUARTER,4,6,1000.0,90,QUARTER,inferred,True
+108,소금,오나라,1,굿거리,,99,QUARTER,4,2,303.030303,99,QUARTER,reviewed,True
+109,소금,취타 중 초장,1,,,30,QUARTER,24,12,1000.0,30,QUARTER,inferred,True
+110,소금,취타 중 초장,1,,,30,QUARTER,36,18,1000.0,30,QUARTER,reviewed,True
+111,소금,취타 중 초장,1,,,30,QUARTER,6,3,1000.0,30,QUARTER,reviewed,True
