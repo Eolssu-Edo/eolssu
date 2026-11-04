@@ -74,7 +74,7 @@
 요청·응답 필드는 Notion SHT-02·04·08·11을 따른다. 구현에서 정한 점과 Notion과 다른 점:
 
 - SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 검증·타임라인은 CAT-04 디코더를 쓴다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
-- 서버는 `score.scoreVersion`만 바꾸고 `provenance`는 받은 값을 그대로 저장한다. 사용자 악보용 값이 DATA와 정해지지 않아서다(Notion '서버 값으로 덮어쓴다'와 다름).
+- 서버는 `score.scoreVersion`을 새 버전으로 바꾸고 `provenance`를 서버 값으로 덮어쓴다(S15P31E102-447). DATA `score_data.schema.json`·`validate_common`(SHT-12 합성)이 요구하는 형식이다: `sourceId`는 `score.sourceId`(비어 있지 않은 문자열이어야 하며 아니면 400), `jgbSha256`은 provenance를 뺀 저장 문서의 SHA-256(편집기 악보에는 .jgb.json이 없다), `review`는 `inferred`, `converter`는 `app-editor-1`. 클라이언트가 보낸 provenance는 쓰지 않는다. 초안(SHT-11)은 받은 그대로 둔다.
 - 확인 필요 칸은 변환 기능과 함께 생긴다. 지금은 `resolvedIssueIds`에 값이 있으면 400이고, 저장 결과는 항상 `EVALUABLE`·`pendingIssueCount` 0이다.
 - SHT-11 `PUT .../score/draft`: 버전과 `draftRevision`이 서버와 같을 때만 덮어쓰고 순번을 1 올린다. 칸 안은 검증하지 않고 최상위 모양만 본다. `updated_at`(목록 정렬)은 바꾸지 않는다.
 - SHT-08: `events`(저장 악보의 CAT-04 타임라인, 빈 악보는 `[]`)와 `draft`를 더했다. `draft`에는 Notion 필드(`score`·`baseScoreVersion`·`draftRevision`·`savedAt`)에 더해 초안의 `title`·`jangdanId`·`bpm`이 들어 있다(편집 화면 복원용). 저장 악보가 CAT-04 검증을 통과하지 못하면 409.
@@ -102,4 +102,4 @@
 - SHT-12·13: MIDI·M4A 다운로드 링크(10분, 여러 번 사용, 쿠키 없이 토큰). 파일은 요청마다 공통 악보 음원 생성기로 만들고 서버에 저장하지 않는다.
 - 작업 취소: SHT-05(오선보 보기는 앱이 공통 악보로 그림), SHT-06(미리듣기는 앱이 재생), SHT-09(음원 변환).
 - 저장 모델에 필요한 것(새 Flyway): `user_sheets`의 `source` CHECK 확장·초안 칸(`draft_json` 등), `sheet_source_files`, `sheet_conversions`, `sheet_issues`, `sheet_export_links`. 탈퇴 일괄 삭제와 R2 원본 삭제도 함께 넓힌다.
-- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한, 사용자 악보의 `provenance` 값(DATA).
+- 구현 전 정할 것: 변환·합성 작업자 위치와 처리 시간 상한, 사용자 악보의 `provenance` 값은 447에서 서버 값으로 정했다.

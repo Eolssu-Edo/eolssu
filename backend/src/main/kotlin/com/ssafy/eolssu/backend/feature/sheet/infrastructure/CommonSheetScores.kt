@@ -8,10 +8,15 @@ import com.ssafy.eolssu.backend.feature.song.domain.PublishedSongScore
 import com.ssafy.eolssu.backend.feature.song.domain.ScorePitch
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
 import com.ssafy.eolssu.backend.feature.song.domain.SongScoreDecoder
+import java.security.MessageDigest
+import java.util.HexFormat
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
+
+/** 앱 편집기로 저장한 악보의 provenance.converter. 편집기 저장 규칙이 바뀌면 올린다. */
+private const val EDITOR_CONVERTER = "app-editor-1"
 
 /** 제공 곡과 같은 디코더로 검증한다. 음 목록은 요청마다 읽는다(CAT-04와 같다). */
 class CommonSheetScores(
@@ -58,7 +63,11 @@ class CommonSheetScores(
         // 알릴 칸 ID가 없는 빈 칸은 앱이 강조할 수 없으므로 악보 형식 오류다.
         if (unfilled.any { cell -> cell.path("id").let { !it.isString || it.stringValue().isEmpty() } }) return PreparedScore.Malformed
         if (unfilled.isNotEmpty()) return PreparedScore.Unfilled(unfilled.map { it.path("id").stringValue() })
+        // DATA 생성기(validate_common)는 provenance.sourceId가 score.sourceId와 같아야 재생한다.
+        val sourceId = score.path("sourceId").takeIf { it.isString && it.stringValue().isNotEmpty() }?.stringValue()
+            ?: return PreparedScore.Malformed
         score.put("scoreVersion", scoreVersion)
+        fillProvenance(root as ObjectNode, sourceId)
         return PreparedScore.Ready(
             json.writeValueAsString(root), columns.size(), root.path("events").count { it.path("kind").stringValue() == "NOTE" },
             music.path("jangdan").stringValue(), music.path("bpmUnit").stringValue(),
@@ -68,6 +77,16 @@ class CommonSheetScores(
     override fun unfilledCellCount(scoreJson: String): Int? {
         val root = read(scoreJson)?.takeIf(::shaped) ?: return null
         return root.path("columns").sumOf { column -> column.path("cells").count { it.path("units").let { units -> units.isArray && units.isEmpty } } }
+    }
+
+    /**
+     * 앱 편집기 악보에는 변환한 .jgb.json이 없으므로 클라이언트 값 대신 서버가 정한다. jgbSha256 자리에는
+     * provenance를 뺀 저장 문서의 SHA-256을 넣어 DATA 스키마 형식(16진 64자)을 맞추고 내용이 같으면 같은 값이 되게 한다.
+     */
+    private fun fillProvenance(root: ObjectNode, sourceId: String) {
+        root.remove("provenance")
+        val digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json.writeValueAsBytes(root)))
+        root.putObject("provenance").put("sourceId", sourceId).put("jgbSha256", digest).put("review", "inferred").put("converter", EDITOR_CONVERTER)
     }
 
     private fun read(scoreJson: String): JsonNode? = try {
