@@ -1,13 +1,11 @@
 package com.ssafy.eolssu.backend.feature.sheet.application
 
-import com.ssafy.eolssu.backend.feature.sheet.domain.NewUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetPage
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetStatus
-import com.ssafy.eolssu.backend.feature.sheet.domain.SongCopySource
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheet
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
@@ -173,8 +171,6 @@ class EditUserSheetTests {
     }
 
     private class Scores : SheetScores {
-        override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? = null
-
         override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String) =
             if (scoreJson.startsWith("badticks")) null
             else listOf(ScoreTimelineEvent(scoreJson, "NOTE", 0, "1", 0, 0, 0, 0, 480, 0.0, 1.0))
@@ -201,15 +197,12 @@ class EditUserSheetTests {
         var raceOnUpdate = false
         var deleteAfterUpdate = false
 
-        override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): UserSheet? = null
         override fun findJangdan(jangdanId: Long) = when (jangdanId) {
             1L -> SheetJangdan(1, "DOTTED_QUARTER", "굿거리")
             3L -> SheetJangdan(3, "JANGDAN_BEAT", "세마치")
             else -> null
         }
-        override fun findSongSource(songId: Long): SongCopySource? = null
         override fun find(sheetId: Long, userId: Long) = sheets[sheetId]?.takeIf { it.userId == userId }
-        override fun insert(sheet: NewUserSheet): Long? = error("not used")
         override fun page(userId: Long, kind: String?, page: Int, size: Int) = SheetPage(emptyList(), 0)
 
         override fun updateScore(update: SheetScoreUpdate): Boolean {
@@ -240,6 +233,6 @@ class EditUserSheetTests {
 
     private fun sheet(id: Long, userId: Long) = UserSheet(
         id, userId, "새 악보 1", "JEONGGANBO", "MANUAL", SheetStatus.NEEDS_REVIEW, 3, "세마치", 60, "JANGDAN_BEAT", 8, 1, null, 0, 0,
-        "h", Instant.parse("2026-11-02T05:00:00Z"),
+        Instant.parse("2026-11-02T05:00:00Z"),
     )
 }

@@ -5,9 +5,6 @@ import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.practice.api.StrictIntDeserializer
 import com.ssafy.eolssu.backend.feature.practice.api.StrictStringDeserializer
-import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheet
-import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheetCommand
-import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheetResult
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
 import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftCommand
@@ -15,7 +12,6 @@ import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftResult
 import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreCommand
 import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreResult
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScoreLookup
-import com.ssafy.eolssu.backend.feature.sheet.application.SheetStartType
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheet
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
@@ -33,10 +29,8 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -50,47 +44,15 @@ private val ID = Regex(ID_PATTERN)
 // 악보 버전은 1부터의 INT를 문자열로 주고받는다(SHT-08 scoreVersion).
 private const val VERSION_PATTERN = "[1-9][0-9]{0,8}"
 
-/** 내 악보 API(SHT-01·02·03·04·08·11). 계약은 `docs/specs/user-sheets.md`를 따른다. */
+/** 내 악보 API(SHT-01·02·04·08·11). 계약은 `docs/specs/user-sheets.md`를 따른다. */
 @RestController
 @RequestMapping("/api/users/me/sheets")
 @Profile("db | ops")
 class UserSheetController(
-    private val createUserSheet: CreateUserSheet,
     private val getUserSheets: GetUserSheets,
     private val editUserSheet: EditUserSheet,
     private val json: JsonMapper,
 ) {
-    /** SHT-03 `POST /users/me/sheets`. 빈 악보와 제공 곡·내 악보 복사만 만든다. */
-    @PostMapping
-    fun create(
-        @AuthenticationPrincipal jwt: Jwt,
-        // DB 칸이 VARCHAR(100) ascii_bin이라 출력 가능한 ASCII 1~100자만 받는다.
-        @RequestHeader("Idempotency-Key") @Pattern(regexp = "[!-~]{1,100}") idempotencyKey: String,
-        @Valid @RequestBody request: CreateUserSheetRequest,
-    ): ResponseEntity<*> {
-        val command = CreateUserSheetCommand(
-            userId = requireNotNull(jwt.subject).toLong(),
-            idempotencyKey = idempotencyKey,
-            title = request.title!!,
-            startType = SheetStartType.valueOf(request.startType!!),
-            jangdanId = request.jangdanId?.toLong(),
-            bpm = request.bpm!!,
-            columnCount = request.columnCount,
-            copyFromSongId = request.copyFromSongId?.toLong(),
-            copyFromSheetId = request.copyFromSheetId?.toLong(),
-            pdfSheetId = request.pdfSheetId?.toLong(),
-        )
-        return when (val result = createUserSheet.execute(command)) {
-            is CreateUserSheetResult.Created -> ResponseEntity.status(HttpStatus.CREATED).body(
-                SuccessResponse.of(HttpStatus.CREATED, "새 정간보 악보 만들기 성공", CreatedSheet.of(result.sheet, result.events)),
-            )
-            CreateUserSheetResult.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
-            CreateUserSheetResult.InvalidRequest -> error(ErrorCode.INVALID_REQUEST)
-            CreateUserSheetResult.StateConflict -> error(ErrorCode.STATE_CONFLICT)
-            CreateUserSheetResult.IdempotencyConflict -> error(ErrorCode.IDEMPOTENCY_CONFLICT)
-        }
-    }
-
     /** SHT-08 `GET /users/me/sheets/{sheetId}/score`. 없거나 다른 회원의 악보는 404. */
     @GetMapping("/{sheetId}/score")
     fun score(@AuthenticationPrincipal jwt: Jwt, @PathVariable sheetId: String): ResponseEntity<*> {
@@ -205,19 +167,6 @@ class UserSheetController(
 }
 
 // 명세 타입(STRING·INT)과 다른 JSON 값은 자동 변환하지 않고 400으로 거절한다(StrictJsonDeserializers).
-data class CreateUserSheetRequest(
-    @field:NotNull @param:JsonDeserialize(using = StrictStringDeserializer::class) val title: String? = null,
-    // enum으로 받으면 숫자 0이 첫 값으로 바뀌어 문자열로 받아 이름을 확인한다.
-    @field:NotNull @field:Pattern(regexp = "BLANK|COPY|PDF") @param:JsonDeserialize(using = StrictStringDeserializer::class)
-    val startType: String? = null,
-    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val jangdanId: String? = null,
-    @field:NotNull @param:JsonDeserialize(using = StrictIntDeserializer::class) val bpm: Int? = null,
-    @param:JsonDeserialize(using = StrictIntDeserializer::class) val columnCount: Int? = null,
-    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val copyFromSongId: String? = null,
-    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val copyFromSheetId: String? = null,
-    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val pdfSheetId: String? = null,
-)
-
 data class SaveSheetScoreRequest(
     @field:NotNull @field:Pattern(regexp = VERSION_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class)
     val baseScoreVersion: String? = null,
@@ -258,20 +207,6 @@ data class SavedSheetScore(
 }
 
 data class SavedSheetDraft(val sheetId: String, val draftRevision: Int, val unfilledCellCount: Int, val savedAt: Instant)
-
-data class CreatedSheet(
-    val sheetId: String,
-    val kind: String,
-    val status: String,
-    val scoreVersion: String,
-    val events: List<ScoreTimelineEvent>,
-    val updatedAt: Instant,
-) {
-    companion object {
-        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>) =
-            CreatedSheet(sheet.id.toString(), sheet.kind, sheet.status.name, sheet.scoreVersion.toString(), events, sheet.updatedAt)
-    }
-}
 
 /** `scoreData`는 저장한 공통 악보 원본이며, 한 번도 저장하지 않은 빈 악보는 null이다. */
 data class SheetScore(
