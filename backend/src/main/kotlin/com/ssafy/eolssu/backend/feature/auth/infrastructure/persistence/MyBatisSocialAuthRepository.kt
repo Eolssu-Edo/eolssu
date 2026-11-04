@@ -20,9 +20,16 @@ class MyBatisSocialAuthRepository(private val users:UserMapper,private val jdbc:
         SocialLink(row.getLong("user_id"),row.getString("provider"),row.getString("provider_user_id"),row.getObject("created_at",LocalDateTime::class.java).toInstant(ZoneOffset.UTC),row.getLong("id"))
     },userId)
     override fun lockKakaoSubject(subject:String)=subjects.lock(subject)
-    override fun link(userId:Long,provider:String,subject:String,now:Instant,flowStartedAt:Instant?) {
-        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id,created_at,oauth_started_at) VALUES (?,?,?,?,?)",userId,provider,subject,now.utc(),flowStartedAt?.utc())
+    override fun link(userId:Long,provider:String,subject:String,now:Instant,flowStartedAt:Instant?,providerToken:String?) {
+        jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id,created_at,oauth_started_at,provider_token) VALUES (?,?,?,?,?,?)",userId,provider,subject,now.utc(),flowStartedAt?.utc(),providerToken)
     }
+    override fun saveProviderToken(linkId:Long,sealed:String) {
+        jdbc.update("UPDATE user_social_accounts SET provider_token=? WHERE id=?",sealed,linkId)
+    }
+    override fun providerTokens(userId:Long)=jdbc.query("SELECT id,provider,provider_token FROM user_social_accounts WHERE user_id=? AND provider_token IS NOT NULL ORDER BY id",{ row,_->
+        StoredProviderToken(row.getLong("id"),row.getString("provider"),row.getString("provider_token"))
+    },userId)
+    override fun clearProviderToken(linkId:Long,sealed:String)=jdbc.update("UPDATE user_social_accounts SET provider_token=NULL WHERE id=? AND provider_token=?",linkId,sealed)==1
     override fun unlink(userId:Long,provider:String)=jdbc.update("DELETE FROM user_social_accounts WHERE user_id=? AND provider=?",userId,provider)==1
     override fun completeLogin(userId:Long,now:Instant) {
         users.cancelWithdrawal(userId,now.utc(),now.minus(WithdrawalPolicy.RETENTION).utc())

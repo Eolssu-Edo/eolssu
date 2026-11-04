@@ -144,3 +144,17 @@ adb shell pm get-app-links com.ssafy.eolssu
 - 취소: 사용자가 인증 창을 닫으면 복귀 주소가 오지 않는다. Android에서 브라우저를 닫은 것과 같이 화면은 '다시 열기'를 보여 준다.
 - 운영 준비(배포 전 필요): 세 제공자 콘솔에 iOS redirectUri를 등록하고 `AUTH_OAUTH_{KAKAO|GOOGLE|NAVER}_REDIRECT_URIS`에 쉼표로 추가한다. 등록 전 start는 `401 OAUTH_VERIFICATION_FAILED`다.
 - 제외: Sign in with Apple(App Store 심사 4.8 대응)과 유료 계정 Universal Links는 이번 범위가 아니다.
+
+## Sign in with Apple (S15P31E102-446)
+
+App Store 심사 가이드라인 4.8 대응. iOS에서 카카오·Google·네이버를 제공하므로 Apple 로그인을 함께 제공한다. 사용자 결정(2026-11-04): iOS 기본 Apple 로그인(`ASAuthorizationController`), Apple 이메일은 추가 본인 확인 대상, Apple 토큰은 탈퇴 신청·연결 해제 즉시 해지.
+
+- 제공자 이름 `apple`(DB·서버 `APPLE`). 기존 start·완료·신규 가입·계정 연결 제안·마이페이지 연결/해제·탈퇴 재인증 API와 state·binding 쿠키·티켓 규칙을 그대로 쓴다. Android·웹은 버튼을 표시하지 않는다.
+- start: redirectUri는 iOS 중계 주소 `https://k15e102.p.ssafy.io/api/auth/ios/oauth/apple/callback`이며 `AUTH_OAUTH_APPLE_REDIRECT_URIS` 허용 목록과 같아야 한다. 응답 authorizationUrl은 Apple 웹 인증 주소 형식이고 `state`와 `nonce`(= state의 SHA-256 base64url)를 담는다. 앱은 이 주소를 열지 않고 두 값을 꺼내 기본 Apple 로그인 요청(`nonce`)에 넣는다.
+- 앱 복귀: 성공하면 Apple이 준 authorizationCode로 `com.ssafy.eolssu://oauth/apple/callback?code=…&state=…`를, 취소·실패면 `?error=…&state=…`를 만들어 다른 제공자와 같은 복귀 처리로 넘긴다. 중계 서버는 거치지 않는다.
+- 완료: 서버가 `https://appleid.apple.com/auth/token`에 코드를 교환한다(client_id = 번들 ID `com.ssafy.eolssu`, client_secret = 팀 ID·키 ID·.p8 개인키로 서명한 ES256 JWT, redirect_uri 없음). 받은 id_token은 Apple 공개키(`/auth/keys`)로 서명·`iss`·`aud`(번들 ID)·만료를 확인하고 `nonce`가 위 값과 같아야 한다(없거나 다르면 `401 OAUTH_VERIFICATION_FAILED`). subject는 `sub`.
+- 이메일: id_token의 `email`(가려진 릴레이 주소 포함)을 쓰되 확인된 이메일로 보지 않는다(네이버와 같음). 같은 이메일 회원이 있으면 계정 연결 제안에서 비밀번호·이메일 인증번호가 필요하고, 신규 가입 회원에는 이메일을 저장하지 않는다.
+- 토큰 보관·해지: 교환 응답의 refresh_token을 Apple 개인키에서 유도한 키로 AES-GCM 암호화해 연결 행(`user_social_accounts.provider_token`)에 둔다. 가입·연결 제안 티켓에도 같은 형태로 10분 보관한다. 로그인·탈퇴 재인증 때 새 토큰으로 바꾼다. 연결 해제와 탈퇴 신청(비밀번호·소셜 재인증 모두) 커밋 뒤 `https://appleid.apple.com/auth/revoke`로 해지하고 저장값을 지운다. 해지 실패는 탈퇴·해제를 되돌리지 않고 기록만 남긴다. 30일 안에 Apple로 다시 로그인하면 새 토큰을 저장한다.
+- 설정: `AUTH_OAUTH_APPLE_CLIENT_ID`(번들 ID), `AUTH_OAUTH_APPLE_TEAM_ID`, `AUTH_OAUTH_APPLE_KEY_ID`, `AUTH_OAUTH_APPLE_PRIVATE_KEY`(PKCS#8 PEM, 줄바꿈은 `\n` 허용), `AUTH_OAUTH_APPLE_REDIRECT_URIS`. 하나라도 비면 Apple start·완료는 `503`이다. 키는 유료 Apple Developer 계정에서 만들며 저장소·채팅에 넣지 않는다.
+- 앱 설정: iOS `com.apple.developer.applesignin` entitlement(Default). 무료 Personal Team은 이 기능을 지원하지 않아 유료 팀으로 서명해야 빌드된다.
+- 제외: Apple 서버 간 알림(이메일 전달 변경·계정 삭제 통지) 수신, Android·웹 Apple 로그인.
