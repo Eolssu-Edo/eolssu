@@ -52,6 +52,8 @@
 
 ## 악보 속도에 맞춘 장단 연습 (S15P31E102-340, 2026-11-04)
 
+MR 분리 이후 음원·가공 명세·곡별 검수 데이터·공통 전달 스펙은 S15P31E102-160이 소유한다. 아래 실행 결과는 그 자산과 340의 API·앱 연결을 함께 적용한 상태를 기준으로 하며, 반영 순서는 160 다음 340이다.
+
 CAT-04의 optional `jangdanPlayback`은 검수된 악보 판본에만 붙는다. 계약은
 `{jangdanId,name,startTick,cycleTicks,pattern:{beats,group}}`이다. 프론트는 기존
 `songs.jangdan_id`나 곡 이름에서 연결을 추정하지 않는다. 이 메타데이터가 없으면

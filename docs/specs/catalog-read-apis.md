@@ -42,7 +42,7 @@ CAT-04 `result.jangdanPlayback`은 선택적 객체이며 검수되지 않은 �
 
 `startTick`은 score tick 기준 기본형의 첫박, `cycleTicks`는 같은 단위의 한 주기 길이인 양의 정수다. `pattern.beats`의 각 칸은 한 주기를 균등 분할하고 `group`은 표시 묶음이다. 이 값으로 원본 score clock에 소리를 예약하며 카탈로그 기본 BPM이나 이름에서 subdivision을 추정하지 않는다. 예시 곡6은 ticksPerBeat4·defaultBpm99여서 한 주기24tick=약3636ms다. API의 정수값은 JSON number이며 ID만 문자열이다.
 
-서버의 [검수 목록](../../backend/src/main/resources/catalog/jangdan-playback.json)은 명시된 songId·sourceId·scoreVersion·기준 BPM/단위·공통 악보 전체의 의미 해시와 일치하는 판본만 허용한다. DB의 해당 장단 이름·단위·패턴도 검수 당시 값과 같아야 한다. 불일치하면 반주만 null이 되고 기존 악보 오류 처리 및 모범 음원 계약은 유지한다. 검수 목록에 없는 곡을 이름으로 연결하지 않는다. [107개 판본의 검수 근거·보류 사유](../knowledge/backend/jangdan-practice-links.md)를 따른다.
+서버는 160이 제공한 [검수 목록](../../backend/src/main/resources/catalog/jangdan-playback.json)을 읽어 명시된 songId·sourceId·scoreVersion·기준 BPM/단위·공통 악보 전체의 의미 해시와 일치하는 판본만 허용한다. DB의 해당 장단 이름·단위·패턴도 검수 당시 값과 같아야 한다. 불일치하면 반주만 null이 되고 기존 악보 오류 처리 및 모범 음원 계약은 유지한다. 검수 목록에 없는 곡을 이름으로 연결하지 않는다. [107개 판본의 검수 근거·보류 사유](../knowledge/data/jangdan-song-review.md)를 따른다.
 
 이 연결은 첫 정간부터 교육용 기본형을 반주하는 구조 검수다. 멜로디 원본의 `provenance.review`를 변경하거나 명인의 변주·연주자 청음 승인으로 승격하지 않는다. 세령산 굴림2개와 장단명 미상45개는 보류한다. DB migration 또는 운영 적재가 필요 없는 읽기 확장이며 서버 배포 전에는 운영 응답에 나타나지 않는다.
 

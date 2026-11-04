@@ -56,7 +56,7 @@
 - [카탈로그 공통 악보 원본과 가사 복원](specs/common-score-catalog-source.md) · [JGB 대조 및 복원 기록](knowledge/data/catalog-notation-restoration.md)
 - [공통 악보·모범 음원 적재와 재생 연결](specs/model-audio-catalog-load.md) · [객체 키 전환·재생 검증](knowledge/backend/model-audio-publication.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
-- [107개 악보의 장단 반주 연결 검수와 판본 보호 (340)](knowledge/backend/jangdan-practice-links.md)
+- [검수된 장단 반주 API와 판본 보호 (340)](knowledge/backend/jangdan-practice-links.md)
 - [4악기 카탈로그·회원 선택 정렬](specs/four-instrument-catalog.md) · [407 검증](knowledge/backend/four-instrument-catalog.md)
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 
@@ -142,8 +142,6 @@
 - [정간보 시김새 기호의 뜻과 출처](knowledge/domain/sigimsae-symbols.md)
 
 ## 데이터 조사·검증 기록
-
-- [등록 장단 10종 미리듣기 음원의 출처·생성·검증](knowledge/data/jangdan-preview-audio.md)
 
 - [기종 미표기 대금 악보의 출처별 분류·황응남임 편집 교정 근거](knowledge/data/common/daegeum-score-types.md)
 - [공통 악보 v1 재생 연결 스펙](specs/common-score-playback.md) · [S15P31E102-338 실행·검증 기록](plans/S15P31E102-338.md)
@@ -303,4 +301,3 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)
 - [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
 - [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
-- [곡별 장단 반주와 굿거리 굴림 스펙](specs/jangdan-practice-playback.md) · [음원·운영 속도 조사](knowledge/data/jangdan-preview-audio.md)

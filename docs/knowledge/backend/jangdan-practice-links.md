@@ -1,37 +1,8 @@
-# 곡별 장단 반주 연결 검수
+# 검수된 장단 반주 API와 판본 보호
 
-S15P31E102-340, 2026-11-04. 사용자가 실제 올라간 악보를 검수해 연습 속도에 맞춘 장단 반주를 구현하도록 승인했다. 이번 백엔드 변경은 CAT-04에 검수된 반주 메타데이터를 추가하며 운영 DB·서버는 변경하지 않는다.
+S15P31E102-340, 2026-11-04. 이 작업은 S15P31E102-160의 음원과 곡별 검수 데이터를 소비해 CAT-04 반주 응답과 앱 재생을 연결한다. 107곡의 조사·주기 계산·연결/보류 근거는 [160의 곡별 검수 기록](../data/jangdan-song-review.md)에 둔다. 기존 곡 FK·BPM·악보·모범 음원을 보존하며 운영 DB·서버를 변경하지 않는다.
 
-## 결과와 보존 범위
-
-[운영 공개 곡 목록](https://k15e102.p.ssafy.io/api/songs)의107개와 각각 `/api/songs/{id}/score`를 다시 읽었다. 처음 조사 뒤 곡25·44가 악보2판으로 변경됐음을 확인해 현행 판본으로 검수했다. 전체 결과와 조회 시각은 [검수 manifest](../../../backend/src/main/resources/catalog/jangdan-playback.json)의 `scores`와 `queriedAtUtc`에 있다. 제목 중복도 별도 판본으로 유지한다.
-
-- 60개는 교육용 기본형과 악보 시간·배치의 대응을 확인해 `READY`로 기록했다.
-- 45개는 원본 장단명 미상으로 `SOURCE_JANGDAN_UNSPECIFIED`, 세령산2개는 굴림 주법 미검수로 `ROLL_ARTICULATION_UNREVIEWED`다.
-- `READY`는 반주 연결에 대한 구조 검수이며 원본 악보의 `provenance.review` 또는 음악적 청음 승인을 바꾸지 않는다.
-- 곡의 기존 장단 FK·BPM·score JSON·모범 음원은 모두 보존한다. 특히 QUARTER 악보를 DOTTED_QUARTER 장단 FK와 직접 연결하면 기존 음원 단위 검증에 충돌할 수 있어 FK를 갱신하지 않는다.
-
-| 기본형 | 검수 판본 수 | 한 주기의 score tick |
-| --- | ---: | --- |
-| 굿거리 | 18 | `6 × ticksPerBeat` |
-| 자진모리 | 4 | `6 × ticksPerBeat` |
-| 중중모리 | 3 | `6 × ticksPerBeat` |
-| 세마치 | 20 | `3 × ticksPerJeonggan` |
-| 중모리 | 4 | `12 × ticksPerJeonggan` |
-| 타령 | 6 | `12 × ticksPerJeonggan` |
-| 계면가락도드리 | 3 | `12 × ticksPerJeonggan` |
-| 엇모리 | 1 | `10 × ticksPerJeonggan` |
-| 단모리 | 1 | `4 × ticksPerJeonggan` |
-
-## 구조 검수의 근거와 한계
-
-원본 악보의 명시 장단명, 판본 식별자와 원문 JGB 해시, 정간 tick 비율, 모든 열의 칸 수와 전체 이벤트의 시간 범위를 함께 확인했다. 60개는 첫 이벤트가 첫 열·첫 정간의 NOTE이고 startTick0이며, 각 열의 길이가 위 기본형의 완전한 주기 또는 정수배다. 교육용 반주는 그 첫 정간에 기본형 첫박을 맞춘다. 장단 이름만으로 runtime에서 매칭하거나 미지정곡에 기본 장단을 대입하지 않는다.
-
-굿거리18개는 12소박/각,4큰박/각,8큰박/각 형태다. 모두4분음표99이고 한 주기6박=3636.364ms이며8큰박형은 한 열에 두 주기를 담는다. 카탈로그12칸을 한 정간과 항상1:1로 대응시키면4큰박형에서3배 오차가 나므로 score tick 주기를 명시한다.
-
-중모리 곡19는 BPM88·ticksPerBeat4·ticksPerJeonggan4라48tick이 한 주기다. 곡81은 BPM44·ticksPerBeat4·ticksPerJeonggan2라24tick이며 둘 다8181.818ms다. 세마치 곡9와29도 각각 BPM144/ticksPerBeat2와 BPM48/ticksPerBeat6이지만 cycleTicks9로1875ms가 같다. 도드리·타령의12칸과 엇모리10칸, 단모리4큰박도 각 패턴의 칸·그룹과 함께 대조했다. 카탈로그 구음·음가의 출처는 [장단 카탈로그 확장 근거](jangdan-catalog-extension.md)를 재사용했다.
-
-이 검수는 현재 등록된 선율에 일정한 교육용 기본형을 붙이는 연결 확인이다. 원전 연주자의 변주·장식 타격·실제 녹음의 미세한 박 변화·청음 품질까지 검증한 것은 아니다. 향후 못갖춘마디나 장단 전환이 있는 판본은 별도 시작점·구간 검수가 필요하며, 현재 manifest와 다른 악보에는 이 연결을 재사용하지 않는다.
+160을 먼저 반영한 뒤 340을 통합한다. 이 문서의 서버·DB·107곡 대조 결과는 160의 `catalog/jangdan-playback.json`과 음원 자산을 포함한 상태의 검증이다. 340 MR에는 자산 제작·검수 결과 파일을 중복 포함하지 않는다.
 
 ## 판본과 패턴 변경 차단
 
