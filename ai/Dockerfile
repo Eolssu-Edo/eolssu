@@ -20,9 +20,9 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/python \
     UV_NO_CACHE=1
 WORKDIR /app
 COPY .python-version pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv sync --locked --no-default-groups --no-install-project
 COPY src/ src/
-RUN uv sync --locked --no-dev --no-editable
+RUN uv sync --locked --no-default-groups --no-editable
 ENV PATH=/app/.venv/bin:$PATH \
     NUMBA_CACHE_DIR=/tmp/numba-cache
 # librosa(numba)는 첫 호출 때 컴파일 결과를 저장한다. 실행 사용자는 /app에 쓸 수 없어 /tmp 아래로 둔다.
