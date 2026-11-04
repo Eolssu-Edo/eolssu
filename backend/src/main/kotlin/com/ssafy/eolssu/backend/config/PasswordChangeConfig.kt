@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.transaction.PlatformTransactionManager
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.AuthSessionCache
 
 @Configuration(proxyBeanMethods = false)
 @Profile("db | ops")
@@ -25,16 +26,16 @@ class PasswordChangeConfig {
     private val currentPasswordAttempts = LoginAttemptLimiter()
 
     @Bean
-    fun passwordChangeRepository(users: UserMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager): PasswordChangeRepository =
-        MyBatisPasswordChangeRepository(users, refreshTokens, manager)
+    fun passwordChangeRepository(users: UserMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager, sessions: AuthSessionCache): PasswordChangeRepository =
+        MyBatisPasswordChangeRepository(users, refreshTokens, manager, sessions)
 
     @Bean
     fun passwordChangeService(repository: PasswordChangeRepository, passwordEncoder: PasswordEncoder, tokenIssuer: AuthTokenIssuer, clock: Clock) =
         PasswordChangeService(repository, passwordEncoder, tokenIssuer, currentPasswordAttempts, clock)
 
     @Bean
-    fun withdrawalRepository(users: UserMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager): WithdrawalRepository =
-        MyBatisWithdrawalRepository(users, refreshTokens, manager)
+    fun withdrawalRepository(users: UserMapper, refreshTokens: RefreshTokenMapper, manager: PlatformTransactionManager, sessions: AuthSessionCache): WithdrawalRepository =
+        MyBatisWithdrawalRepository(users, refreshTokens, manager, sessions)
 
     @Bean
     fun withdrawalService(repository: WithdrawalRepository, passwordEncoder: PasswordEncoder, clock: Clock,

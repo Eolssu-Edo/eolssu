@@ -11,6 +11,7 @@ import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshT
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.JwtAccessTokenSigner
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper
 import java.time.Clock
+import java.time.Duration
 import java.time.ZoneOffset
 import java.time.LocalDateTime
 import org.springframework.beans.factory.annotation.Value
@@ -18,6 +19,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.transaction.PlatformTransactionManager
+import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.AuthSessionCache
 
 @Configuration(proxyBeanMethods = false)
 @Profile("db | ops")
@@ -27,8 +29,12 @@ class AuthTokenConfig {
 
     // 발급(RefreshTokenRepository)과 재발급·로그아웃(TokenRefreshRepository)이 같은 저장소를 쓴다.
     @Bean
-    fun refreshTokenRepository(mapper: RefreshTokenMapper, users: UserMapper, manager: PlatformTransactionManager) =
-        MyBatisRefreshTokenRepository(mapper, users, manager)
+    fun refreshTokenRepository(mapper: RefreshTokenMapper, users: UserMapper, manager: PlatformTransactionManager, sessions: AuthSessionCache) =
+        MyBatisRefreshTokenRepository(mapper, users, manager, sessions)
+
+    // 인증 필터의 회원 상태·세션 확인 결과(기본 10초). 세션을 끊는 저장소가 커밋 뒤 그 회원 항목을 지운다.
+    @Bean
+    fun authSessionCache(@Value("\${eolssu.auth.session-cache-ttl:10s}") ttl: Duration) = AuthSessionCache(ttl)
 
     @Bean
     fun authTokenIssuer(signer: AccessTokenSigner, refreshTokens: RefreshTokenRepository, secrets: VerificationSecrets, clock: Clock, properties: SecurityProperties) =
@@ -48,10 +54,12 @@ class AuthTokenConfig {
 
     // 보안 필터가 요청마다 토큰의 회원이 ACTIVE이고 로그인 세션이 살아 있는지 확인한다(USR-05 규칙 2, 466).
     @Bean
-    fun activeMemberCheck(users: UserMapper, refreshTokens: RefreshTokenMapper, clock: Clock) = object : ActiveMemberCheck {
-        override fun isActive(userId: Long) = users.findStatus(userId) == "ACTIVE"
-        override fun isActive(userId: Long, sessionId: String?) = isActive(userId) &&
-            (sessionId == null || refreshTokens.hasActiveSession(userId, sessionId, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)))
+    fun activeMemberCheck(users: UserMapper, refreshTokens: RefreshTokenMapper, clock: Clock, sessions: AuthSessionCache) = object : ActiveMemberCheck {
+        override fun isActive(userId: Long) = isActive(userId, null)
+        override fun isActive(userId: Long, sessionId: String?) = sessions.isActive(userId, sessionId) {
+            users.findStatus(userId) == "ACTIVE" &&
+                (sessionId == null || refreshTokens.hasActiveSession(userId, sessionId, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)))
+        }
     }
 
     // 로컬 HTTP 개발에서만 AUTH_COOKIE_SECURE=false로 끈다.
