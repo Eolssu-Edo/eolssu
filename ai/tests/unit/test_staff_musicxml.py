@@ -375,3 +375,53 @@ def test_score_without_sounding_notes_says_so():
     for doc in (xml(measure(note(None, 16), time=(4, 4))), xml(measure(note("C4", 0), time=(4, 4)))):
         with pytest.raises(ValueError, match="음표가 없음"):
             convert(doc, instrument="ANY", hwang_pitch=60)
+
+
+def cells(out, kind):
+    return [i["cellId"] for i in out.issues if i["kind"] == kind]
+
+
+def test_dropped_grace_note_points_to_the_cell_of_the_note_it_decorates():
+    doc = xml(measure(note("C4", 4), note("E4", 0, "<grace/>"), note("D4", 4), note("E4", 4), note("F4", 4),
+                      time=(4, 4)))
+    assert cells(convert(doc, instrument="ANY", hwang_pitch=60), "ORNAMENT_DROPPED") == ["c0-j1"]
+
+
+def test_grace_note_in_a_repeated_measure_points_to_each_played_cell():
+    fwd = '<barline location="left"><repeat direction="forward"/></barline>'
+    back = '<barline location="right"><repeat direction="backward"/></barline>'
+    doc = xml(measure(note("C4", 16), time=(4, 4)),
+              measure(note("E4", 0, "<grace/>"), note("D4", 16), barline=fwd + back), measure(note("E4", 16)))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert cells(out, "ORNAMENT_DROPPED") == ["c1-j0", "c2-j0"]
+
+
+def test_out_of_range_and_rhythm_issues_point_to_their_cell():
+    out = convert(xml(measure(note("D4", 16), time=(4, 4)), measure(note("F4", 4), note("C4", 12))),
+                  instrument="DANSO", hwang_pitch=60)
+    assert cells(out, "OUT_OF_RANGE") == ["c0-j0", "c1-j1"]  # 태(2)·황(0)은 단소 음역(중 5~) 아래
+    doc = xml(measure(note("C4", 1), note("D4", 1), note("E4", 1), note("F4", 1), note("C4", 12), time=(4, 4))
+              .replace("<divisions>4</divisions>", "<divisions>8</divisions>"))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert set(cells(out, "LOW_CONFIDENCE")) == {"c0-j2"}  # 2박짜리 첫 마디는 못갖춘마디라 앞 2정간을 쉼표로 채운다
+
+
+def test_gap_inside_the_voice_points_to_the_cell_where_silence_starts():
+    doc = xml(measure(note("C4", 16, voice=1), time=(4, 4)), measure(note("C4", 16, voice=2)),
+              measure(note("D4", 16, voice=1)))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert [i["cellId"] for i in out.issues if i["detail"].get("reason") == "GAP_IN_VOICE"] == ["c1-j0"]
+
+
+def test_whole_score_issues_have_no_cell():
+    doc = xml(measure(note("C4", 16), time=(4, 4)), measure(note("D4", 6), note("D4", 6), time=(6, 8)))
+    out = convert(doc, instrument="DANSO", hwang_pitch=None)
+    by_kind = {i["kind"]: i["cellId"] for i in out.issues if i["kind"] in ("TRANSPOSED", "LOW_CONFIDENCE")}
+    assert by_kind == {"TRANSPOSED": None, "LOW_CONFIDENCE": None}  # 박자표 바뀜은 마디 전체
+
+
+def test_grace_note_survives_when_its_note_is_replaced_by_one_starting_at_the_same_time():
+    # 같은 성부에서 시작이 같은 음이 겹치면 앞 음을 지운다. 그 음에 붙은 꾸밈음 알림은 남은 음으로 옮긴다
+    doc = xml(measure(note("E4", 0, "<grace/>"), note("D4", 4), "<backup><duration>4</duration></backup>",
+                      note("F4", 4), note("C4", 12), time=(4, 4)))
+    assert cells(convert(doc, instrument="ANY", hwang_pitch=60), "ORNAMENT_DROPPED") == ["c0-j0"]

@@ -1,0 +1,178 @@
+<resources>
+    <!-- 악보 추가·편집(2차 EDIT-01~06). S15P31E102-455 -->
+    <string name="score_blank">빈 정간</string>
+    <string name="sheetedit_where_cell">%1$d각 %2$d번째 정간</string>
+    <string name="sheetedit_where_short">%1$d각 %2$d정간</string>
+
+    <!-- EDIT-01 악보 추가 -->
+    <string name="sheetedit_new_title">악보 추가</string>
+    <string name="sheetedit_new_subtitle">정간보로 만들어 내 악보에 저장해요</string>
+    <string name="sheetedit_new_question">어떻게 추가할까요?</string>
+    <string name="sheetedit_new_jg_title">정간보 가져오기</string>
+    <string name="sheetedit_new_jg_desc">사진·PDF의 정간보를 정간 그대로 읽어요</string>
+    <string name="sheetedit_new_staff_title">오선보 가져오기</string>
+    <string name="sheetedit_new_staff_desc">사진·PDF의 오선보를 율명으로 바꿔 정간보로 옮겨요</string>
+    <string name="sheetedit_new_copy_title">내 악보·제공 곡 불러오기</string>
+    <string name="sheetedit_new_copy_desc">목록에서 고르면 바로 편집해요 · 원본은 그대로 둬요</string>
+    <string name="sheetedit_new_hwang_title">황(黃)으로 읽을 음</string>
+    <string name="sheetedit_new_hwang_desc">이 음을 황으로 놓고 율명을 정해요</string>
+    <string name="sheetedit_new_hwang_default">%1$s · 단소 기본</string>
+    <string name="sheetedit_new_file_hint">기기에 있는 사진(JPG·PNG)이나 PDF를 골라요 · 악보 한 쪽이 다 보이게, 기울지 않게 찍으면 잘 읽혀요.</string>
+    <string name="sheetedit_new_pick_file">사진·PDF 고르기</string>
+
+    <!-- DevicePick 기기 기본 선택 창 자리 -->
+    <string name="sheetedit_device_title_jg">정간보 사진·PDF 가져오기</string>
+    <string name="sheetedit_device_title_staff">오선보 사진·PDF 가져오기</string>
+    <string name="sheetedit_device_limit">사진·파일 합쳐 20MB까지</string>
+    <string name="sheetedit_device_placeholder">기기 기본 선택 창 자리 · 고르면 바로 %1$s</string>
+    <string name="sheetedit_device_next_jg">인식을 시작해요</string>
+    <string name="sheetedit_device_next_staff">정간보로 바꿔요</string>
+    <string name="sheetedit_device_camera">사진 찍기</string>
+    <string name="sheetedit_device_camera_desc">카메라로 악보 한 쪽씩 찍어요</string>
+    <string name="sheetedit_device_photos">사진 보관함</string>
+    <string name="sheetedit_device_photos_desc">JPG·PNG 1~10장</string>
+    <string name="sheetedit_device_file">파일</string>
+    <string name="sheetedit_device_file_desc">PDF 1개 · 10쪽까지</string>
+
+    <!-- EDIT-05 인식 중 -->
+    <string name="sheetedit_import_title_jg">정간보 인식 중</string>
+    <string name="sheetedit_import_title_staff">오선보 → 정간보 바꾸는 중</string>
+    <string name="sheetedit_import_page">%1$s · %2$d/%3$d쪽</string>
+    <string name="sheetedit_import_gif">마스코트 GIF 자리</string>
+    <string name="sheetedit_import_gif_note_jg">정간보를 읽는 동안 마스코트가 움직이는 GIF가 들어가요 · 지금 그림은 임시예요</string>
+    <string name="sheetedit_import_gif_note_staff">오선보를 정간보로 바꾸는 동안 마스코트가 움직이는 GIF가 들어가요 · 지금 그림은 임시예요</string>
+    <string name="sheetedit_import_progress">%1$s · %2$d/%3$d쪽</string>
+    <string name="sheetedit_import_step_jg_1">악보 영역 찾기</string>
+    <string name="sheetedit_import_step_jg_1_desc">1쪽에서 %1$d각을 찾았어요</string>
+    <string name="sheetedit_import_step_jg_2">정간 나누기</string>
+    <string name="sheetedit_import_step_jg_2_desc">세마치장단으로 읽었어요 · 한 각 %1$d정간</string>
+    <string name="sheetedit_import_step_jg_3">율명 읽기</string>
+    <string name="sheetedit_import_step_jg_3_desc">%1$d각 읽는 중</string>
+    <string name="sheetedit_import_step_jg_4">시김새·곁줄 읽기</string>
+    <string name="sheetedit_import_step_jg_4_desc">정간 오른쪽 작은 글자</string>
+    <string name="sheetedit_import_step_staff_1">오선·마디 찾기</string>
+    <string name="sheetedit_import_step_staff_1_desc">%1$d마디를 찾았어요</string>
+    <string name="sheetedit_import_step_staff_2">음표·박자 읽기</string>
+    <string name="sheetedit_import_step_staff_2_desc">%1$d마디 읽는 중</string>
+    <string name="sheetedit_import_step_staff_3">율명으로 바꾸기</string>
+    <string name="sheetedit_import_step_staff_3_desc">황 = %1$s 기준</string>
+    <string name="sheetedit_import_step_staff_4">정간보로 옮기기</string>
+    <string name="sheetedit_import_step_staff_4_desc">장단에 맞춰 각·정간으로 나눠요</string>
+    <string name="sheetedit_import_notice">인식이 끝나면 읽은 결과를 보여 드려요. 확실하지 않은 정간은 표시해 두니 확인하고 고쳐요.</string>
+    <string name="sheetedit_import_cancel">인식 취소</string>
+    <string name="sheetedit_import_result">결과 확인</string>
+
+    <!-- EDIT-06 인식 결과 -->
+    <string name="sheetedit_import_result_title">인식 결과 확인</string>
+    <string name="sheetedit_result_file_staff">%1$s → 정간보</string>
+    <string name="sheetedit_result_summary_jg">%1$d정간 중 %2$d정간 확실 · %3$d정간 확인</string>
+    <string name="sheetedit_result_summary_staff">바꾼 음 %1$d정간 확인</string>
+    <string name="sheetedit_result_tap_hint">‘?’ 정간을 눌러 확인</string>
+    <string name="sheetedit_result_setting_jg">장단 %1$s(인식) · %2$d각 · %3$d BPM</string>
+    <string name="sheetedit_result_setting_staff">황 = %1$s · %2$s %3$d각</string>
+    <string name="sheetedit_result_original">%1$s · 원본</string>
+    <string name="sheetedit_result_original_label">원본에서 이 정간 부분</string>
+    <string name="sheetedit_result_all_done">확인할 정간을 모두 봤어요. 편집에서 더 고칠 수 있어요.</string>
+    <string name="sheetedit_result_listen">들어보며 확인</string>
+    <string name="sheetedit_result_listen_desc">읽은 악보를 소리로 들려줘요</string>
+    <string name="sheetedit_result_play">들어보기 재생</string>
+    <string name="sheetedit_result_pause">들어보기 일시정지</string>
+    <string name="sheetedit_result_edit_jg">편집 시작</string>
+    <string name="sheetedit_result_edit_staff">오선보와 함께 편집</string>
+
+    <!-- EditPick 불러올 악보 고르기 -->
+    <string name="sheetedit_pick_title">불러올 악보 고르기</string>
+    <string name="sheetedit_pick_subtitle">원본은 그대로 두고 고쳐요</string>
+    <string name="sheetedit_pick_confirm">선택</string>
+    <string name="sheetedit_pick_hint_mine">고르고 ‘선택’을 누르면 바로 편집해요</string>
+    <string name="sheetedit_pick_hint_songs">제공 곡은 복사본으로 고쳐요</string>
+    <string name="sheetedit_pick_hint_picked">고른 악보 · %1$s</string>
+    <string name="sheetedit_pick_kind_jeongganbo">정간보</string>
+    <string name="sheetedit_pick_meta">%1$s · %2$s</string>
+    <string name="sheetedit_pick_meta_updated">%1$s 수정</string>
+    <string name="sheetedit_pick_empty">‘%1$s’와 맞는 곡이 없어요</string>
+
+    <!-- EDIT-02 정간보 편집 · EDIT-03 오선보로 보기 -->
+    <string name="sheetedit_close">편집 닫기</string>
+    <string name="sheetedit_preview">미리보기</string>
+    <string name="sheetedit_subtitle_editing">편집 중 · %1$s · %2$d BPM</string>
+    <string name="sheetedit_subtitle_staff">오선보로 보기 · 황 = %1$s 기준</string>
+    <string name="sheetedit_undo">실행 취소</string>
+    <string name="sheetedit_redo">다시 실행</string>
+    <string name="sheetedit_view_jeongganbo">정간보</string>
+    <string name="sheetedit_view_staff">오선보</string>
+    <string name="sheetedit_banner_import">불러온 악보 · 인식을 확인할 정간 %1$d개가 남았어요</string>
+    <string name="sheetedit_banner_open">확인 정간 보기</string>
+    <string name="sheetedit_hint_jeongganbo">오른쪽 각부터 위→아래로 입력해요 · 시김새는 정간 오른쪽에 작게 표시</string>
+    <string name="sheetedit_selected">선택</string>
+    <string name="sheetedit_selected_sigimsae">시김새 %1$s</string>
+    <string name="sheetedit_autosaved">자동 임시저장됨</string>
+    <string name="sheetedit_tab_yul">율명·기호</string>
+    <string name="sheetedit_tab_sigimsae">시김새</string>
+    <string name="sheetedit_tab_cell">정간·장단</string>
+    <string name="sheetedit_key_hold">지속</string>
+    <string name="sheetedit_key_rest">쉼</string>
+    <string name="sheetedit_key_input">%1$s 입력</string>
+    <string name="sheetedit_prev_cell">↑ 이전 정간</string>
+    <string name="sheetedit_next_cell">다음 정간 ↓</string>
+    <string name="sheetedit_erase">선택한 정간 지우기</string>
+    <string name="sheetedit_sig_yoseong">요성</string>
+    <string name="sheetedit_sig_yoseong_desc">음을 떨어 주는 소리</string>
+    <string name="sheetedit_sig_toeseong">퇴성</string>
+    <string name="sheetedit_sig_toeseong_desc">음 끝을 흘려 내리는 소리</string>
+    <string name="sheetedit_sig_chuseong">추성</string>
+    <string name="sheetedit_sig_chuseong_desc">음 끝을 밀어 올리는 소리</string>
+    <string name="sheetedit_sig_jeonseong">전성</string>
+    <string name="sheetedit_sig_jeonseong_desc">음을 굴려 꺾는 소리</string>
+    <string name="sheetedit_sig_show">시김새 작게 표시</string>
+    <string name="sheetedit_sig_show_desc">율명 오른쪽에 작게 적어요</string>
+    <string name="sheetedit_sig_clear">선택한 정간의 시김새 지우기</string>
+    <string name="sheetedit_cell_split">한 정간 나누기</string>
+    <string name="sheetedit_cell_merge">정간 합치기</string>
+    <string name="sheetedit_cell_add_column">왼쪽에 각 추가</string>
+    <string name="sheetedit_cell_delete_column">이 각 삭제</string>
+    <string name="sheetedit_cell_jangdan">장단 · %1$s</string>
+    <string name="sheetedit_cell_jangdan_desc">%1$d박 · 박마다 %2$d정간 · %3$d BPM</string>
+    <string name="sheetedit_cell_jangdan_change">장단 바꾸기</string>
+    <string name="sheetedit_cell_note">장단을 바꾸면 한 각의 정간 수와 박 구분선이 함께 바뀌어요. ‘한 정간 나누기’는 한 정간에 음을 위→아래로 여러 개 넣을 때 써요.</string>
+    <string name="sheetedit_staff_hint">한쪽을 고치면 다른 쪽도 바로 바뀌어요</string>
+    <string name="sheetedit_staff_system">정간보 %1$d–%2$d각</string>
+    <string name="sheetedit_staff_where_span">%1$s부터 %2$d정간</string>
+    <string name="sheetedit_staff_where_sub">%1$s · 나눈 정간의 %2$d번째 음</string>
+    <string name="sheetedit_staff_title">%1$s = %2$s · %3$s</string>
+    <string name="sheetedit_staff_note_label">%1$d번째 %2$s</string>
+    <string name="sheetedit_staff_same_place">같은 위치의 정간보</string>
+    <string name="sheetedit_staff_same_place_hint">오른쪽 각부터 위→아래</string>
+    <string name="sheetedit_staff_back">정간보로 돌아가기</string>
+    <string name="sheetedit_up">음 높이 올리기</string>
+    <string name="sheetedit_down">음 높이 내리기</string>
+    <string name="sheetedit_duration_sixteenth">16분음표 (반 정간)</string>
+    <string name="sheetedit_duration_eighth">8분음표 (1정간)</string>
+    <string name="sheetedit_duration_dotted_eighth">점8분음표 (1정간 반)</string>
+    <string name="sheetedit_duration_quarter">4분음표 (2정간)</string>
+    <string name="sheetedit_duration_dotted_quarter">점4분음표 (3정간)</string>
+    <string name="sheetedit_duration_half">2분음표 (4정간)</string>
+    <string name="sheetedit_duration_dotted_half">점2분음표 (6정간)</string>
+    <string name="sheetedit_duration_other">%1$s정간</string>
+
+    <!-- EDIT-04 미리보기 · 저장 -->
+    <string name="sheetedit_preview_title">미리보기 · 저장</string>
+    <string name="sheetedit_preview_beat">%1$s · %2$d BPM</string>
+    <string name="sheetedit_preview_beat_sub">한 각 %1$d정간 · %2$d박 · %3$d각</string>
+    <string name="sheetedit_preview_hint">오른쪽 각부터 위→아래로 읽어요</string>
+    <string name="sheetedit_preview_listen">미리듣기 · %1$s</string>
+    <string name="sheetedit_preview_play">미리듣기 재생</string>
+    <string name="sheetedit_preview_pause">미리듣기 일시정지</string>
+    <string name="sheetedit_preview_with_jangdan">장단 소리 함께</string>
+    <string name="sheetedit_preview_audio">음원 받기</string>
+    <string name="sheetedit_preview_draft">임시저장</string>
+    <string name="sheetedit_preview_save">저장</string>
+    <string name="sheetedit_warn_title">빈 정간 %1$d개를 채워야 저장할 수 있어요</string>
+    <string name="sheetedit_warn_message">%1$s이 비어 있어요. 빈 정간이 있어도 임시저장은 되고, 나중에 이어서 고칠 수 있어요.</string>
+    <string name="sheetedit_warn_more">%1$s 외 %2$d곳</string>
+    <string name="sheetedit_warn_fill">빈 정간 채우기</string>
+    <string name="sheetedit_msg_draft">임시저장했어요 · 내 악보에서 이어서 고칠 수 있어요</string>
+    <string name="sheetedit_msg_saved">저장했어요 · 내 악보에서 연습할 수 있어요</string>
+    <string name="sheetedit_msg_audio">마지막으로 저장한 악보로 음원(M4A)을 만들어 내려받았어요</string>
+    <string name="sheetedit_msg_audio_needs_save">저장한 악보가 있어야 음원(M4A)을 받을 수 있어요</string>
+</resources>

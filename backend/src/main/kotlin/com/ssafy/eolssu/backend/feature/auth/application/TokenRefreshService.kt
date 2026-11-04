@@ -41,7 +41,7 @@ class TokenRefreshService(
             return TokenRefreshResult.Unauthenticated
         }
         repository.revoke(stored.id, RevokeReason.ROTATED, now)
-        return TokenRefreshResult.Refreshed(tokenIssuer.issue(stored.userId))
+        return TokenRefreshResult.Refreshed(tokenIssuer.issue(stored.userId, stored.sessionId))
     }
 }
 

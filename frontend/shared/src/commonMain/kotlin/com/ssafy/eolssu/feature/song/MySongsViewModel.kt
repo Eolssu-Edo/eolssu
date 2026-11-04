@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
@@ -89,13 +90,15 @@ class MySongsViewModel(
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 
-    fun openAddSheet() = _uiState.update { it.copy(addSheetOpen = true) }
+    /** 휴지통: 삭제를 묻는 창을 연다. */
+    fun askDelete(sheet: MySheet) = _uiState.update { it.copy(deleting = sheet) }
 
-    fun closeAddSheet() = _uiState.update { it.copy(addSheetOpen = false) }
+    fun cancelDelete() = _uiState.update { it.copy(deleting = null) }
 
-    fun leaveForPdfUpload() = _uiState.update { it.leaveForPdfUpload() }
-
-    fun returnToScreen() = _uiState.update { it.returnToScreen() }
-
-    fun consumeSavedNotice() = _uiState.update { it.copy(savedSheet = null) }
+    /** 창의 '삭제': 묻던 악보를 지운다. 목록은 [MySheetRepository.sheets]로 다시 받는다. */
+    fun confirmDelete() {
+        val sheet = _uiState.value.deleting ?: return
+        _uiState.update { it.copy(deleting = null) }
+        viewModelScope.launch { mySheetRepository.delete(sheet.id) }
+    }
 }

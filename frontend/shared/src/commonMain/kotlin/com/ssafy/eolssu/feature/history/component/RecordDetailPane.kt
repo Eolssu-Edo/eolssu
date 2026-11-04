@@ -82,6 +82,7 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
         val wide = maxWidth >= PaneWideMinWidth
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             PaneHeader(state, record, actions, wide)
+            if (record.section == null) CompareEntry(state.previous, actions.onCompare)
             Text(
                 stringResource(Res.string.record_detail_hint),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),

@@ -65,7 +65,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.errorTag
+import com.ssafy.eolssu.core.ui.score.ErrorKindLegend
 import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.metricLabel
 import com.ssafy.eolssu.feature.result.visibleErrors
@@ -78,7 +78,6 @@ import eolssu.shared.generated.resources.result_errors_count
 import eolssu.shared.generated.resources.result_errors_none
 import eolssu.shared.generated.resources.result_errors_preview
 import eolssu.shared.generated.resources.result_errors_title
-import eolssu.shared.generated.resources.result_legend_missed_short
 import eolssu.shared.generated.resources.result_metric_weak
 import eolssu.shared.generated.resources.result_score_of
 import eolssu.shared.generated.resources.result_score_unit
@@ -361,8 +360,8 @@ private fun WeakBadge() {
 }
 
 /**
- * 보드 오류 위치 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 칸 수 · 가로 범례 · 몰린 각 문장 ·
- * 붙은 4각 정간보(틀린 칸은 붉은 테두리와 글자 상자) · ‘악보 전체에서 보기 ›’.
+ * 보드 오류 위치 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 · 가로 범례 · 몰린 각 문장 ·
+ * 붙은 4각 정간보(틀린 정간은 종류별 바탕·테두리와 아이콘, 2차 결합본) · ‘악보 전체에서 보기 ›’.
  */
 @Composable
 fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewAll: () -> Unit, modifier: Modifier = Modifier) {
@@ -389,6 +388,7 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewAll: () -> Uni
             )
         }
         if (result.errors.isNotEmpty()) {
+            // 2차 결합본: 칸 색 견본 · 종류 아이콘 · 이름.
             ErrorKindLegend(showMissed = result.errors.any { it.kind == ScoreErrorKind.Missed })
         }
         if (cluster != null) {
@@ -424,31 +424,5 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewAll: () -> Uni
             }
         }
         SmallGhostButton(stringResource(Res.string.result_view_all_errors), onViewAll, Modifier.align(Alignment.End))
-    }
-}
-
-/** 보드 오류 범례(가로, 사이 12): 14dp 붉은 글자 상자 + 항목 이름(12sp `#5C564F`). 음 미검출이 있으면 넷째 칸을 더한다. */
-@Composable
-private fun ErrorKindLegend(showMissed: Boolean) {
-    val colors = EolssuTheme.colors
-    val kinds = buildList {
-        add(ScoreErrorKind.Pitch to metricLabel(EvaluationMetric.Pitch))
-        add(ScoreErrorKind.Rhythm to metricLabel(EvaluationMetric.Rhythm))
-        add(ScoreErrorKind.Length to metricLabel(EvaluationMetric.Length))
-        if (showMissed) add(ScoreErrorKind.Missed to stringResource(Res.string.result_legend_missed_short))
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        kinds.forEach { (kind, label) ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(14.dp).background(colors.rec, RoundedCornerShape(3.dp)), contentAlignment = Alignment.Center) {
-                    Text(
-                        errorTag(kind),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
-                        color = colors.onRec,
-                    )
-                }
-                Text(label, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = colors.textSub)
-            }
-        }
     }
 }

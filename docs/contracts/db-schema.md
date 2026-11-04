@@ -150,6 +150,10 @@ Flyway는 이미 적용한 마이그레이션 파일을 수정하면 실행을 �
 
 V7에서 `refresh_tokens.expires_at`은 nullable입니다. NULL은 서버의 명시적 회원 허용 목록에 포함된 테스트 계정의 시간 만료 없는 세션입니다. 일반 계정은 기존 만료 시각을 그대로 저장합니다. access JWT는 같은 세션 해시에 묶이고 폐기·회원 상태·허용 목록을 확인합니다. [세부 계약](../specs/non-expiring-test-account.md)을 따릅니다.
 
+## V23 로그인 세션 ID
+
+[V23](../../backend/src/main/resources/db/migration/V23__refresh_token_sessions.sql)은 `refresh_tokens.session_id`(NULL 허용, `idx_refresh_tokens_session`)를 추가하고 기존 행을 `legacy-{id}`로 채운다. 로그인·가입마다 새 값을 정하고 refresh 회전은 이전 행의 값을 이어받는다. access_token의 `sid`와 비교해 폐기된 세션의 토큰을 거절한다. 배포 도구가 교체 실패 때 JAR만 되돌리므로 이전 JAR이 `session_id` 없이 넣는 행을 받도록 NULL을 허용한다. 그런 행을 재발급하면 새 세션을 만든다. NOT NULL은 다음 릴리스의 별도 마이그레이션에서 건다([466 계획](../plans/S15P31E102-466.md)).
+
 ## V12 소셜 가입·재인증 탈퇴
 
 [V12](../../backend/src/main/resources/db/migration/V12__social_sign_up.sql)는 사용자 인증 필드 제약을 확장하고 oauth_proofs에 SIGNUP·WITHDRAW kind와 WITHDRAW purpose를 추가합니다. 두 티켓은 원문 대신 해시를 저장하며 10분·1회용·제공자 쿠키에 결속합니다. 탈퇴 증명은 회원 ID와 현재 연결 subject까지 결속합니다. 회원→카카오 subject→증명→연결/refresh 잠금 순서를 유지합니다. [356 계약](../specs/social-sign-up.md)을 따릅니다. 운영 eolssu는2026-11-02 10:23 KST에V12 적용·검증 완료했으며, 애플리케이션 배포는 별도입니다. 적용 영수증은 [356 계획](../plans/S15P31E102-356.md)에 기록했습니다.
