@@ -42,10 +42,10 @@ class EvaluationNotesController(private val getNotes: GetEvaluationNotes) {
         }
     }
 
-    // 저장 판정은 음표당 하나이고 DURATION·녹음 위치를 저장하지 않는다. 계약 필드는 유지하고 저장값만 채운다.
+    // 저장 판정은 음표당 하나이고 DURATION은 저장하지 않는다. 인식 음·녹음 위치는 저장값이 없으면 null이다.
     private fun PracticeEvaluationNote.toItem() = EvaluationNoteItem(
         noteIdx, expectedPitchId.toString(), detectedPitchId?.toString(), pitchErrorCent, onsetErrorMs, durationErrorMs,
-        verdict, if (isError) listOf(verdict) else emptyList(), null,
+        verdict, if (isError) listOf(verdict) else emptyList(), recordingOffsetMs,
     )
 }
 

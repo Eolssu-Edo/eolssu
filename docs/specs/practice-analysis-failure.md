@@ -83,7 +83,8 @@ POST {AI}/v1/analyses
 
 200 { "status": "DONE", "modelVersion": "pyin-2", "total": 87, "pitch": 90, "timing": 85, "duration": 86,
       "tuningOffsetCent": -12.5, "tuningOutOfRange": false,
-      "notes": [{ "idx": 0, "verdict": "CORRECT", "pitchErrorCent": 3.1, "onsetErrorMs": 20, "durationErrorMs": -15 }] }
+      "notes": [{ "idx": 0, "verdict": "CORRECT", "pitchErrorCent": 3.1, "onsetErrorMs": 20, "durationErrorMs": -15,
+                  "detectedSemitone": 5, "recordingOffsetMs": 1520 }] }
 200 { "status": "FAILED", "failReason": "NO_SOUND" | "TOO_SHORT" | "DECODE_ERROR" }
 ```
 
@@ -94,7 +95,12 @@ POST {AI}/v1/analyses
 - `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
 - `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
 - `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
-- 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`는 AI가 주지 않으므로 비운다. `pitchErrorCent`는 정수로 반올림해 저장한다. `tuningOffsetCent`·`tuningOutOfRange`는 V11부터 `evaluations`에 함께 저장하고 [평가 조회 API](practice-evaluation-api.md)에 전달한다. 편차는 AI의 원래 추정값이며 범위 초과여도 0으로 바꾸지 않는다. 기존 평가·이전 AI의 두 필드 누락은 둘 다 null로 보존한다. 한쪽만 있거나 편차가 유한한 수가 아니면 응답 계약 오류다(S15P31E102-304).
+- 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`·`recording_offset_ms`는 아래 '인식 음·녹음 위치'를 따른다. `pitchErrorCent`는 정수로 반올림해 저장한다. `tuningOffsetCent`·`tuningOutOfRange`는 V11부터 `evaluations`에 함께 저장하고 [평가 조회 API](practice-evaluation-api.md)에 전달한다. 편차는 AI의 원래 추정값이며 범위 초과여도 0으로 바꾸지 않는다. 기존 평가·이전 AI의 두 필드 누락은 둘 다 null로 보존한다. 한쪽만 있거나 편차가 유한한 수가 아니면 응답 계약 오류다(S15P31E102-304).
+- **인식 음·녹음 위치 (S15P31E102-480).** 음표 결과의 `detectedSemitone`·`recordingOffsetMs`는 선택 필드다. 백엔드는 두 필드가 없거나 null이면 null로 저장하므로 AI보다 먼저 배포한다. AI 쪽 구현은 AI 담당자가 맡는다.
+  - `detectedSemitone`(정수): 그 음표 구간에서 인식한 음을 `semitone`과 같은 반음 번호로 준다. 곡별 조율 보정(`tuningOffsetCent`)을 적용한 뒤 가장 가까운 반음으로 반올림한 값이다. 즉 `pitchErrorCent`와 같은 조율 기준이다. 백엔드는 이 번호로 `pitches`를 찾아 `detected_pitch_id`에 저장하고, `pitches`에 없는 번호(악기 음역 밖)면 null로 저장한다.
+  - `recordingOffsetMs`(0 이상 정수): 업로드된 원본 녹음(m4a)을 재생할 때의 0ms부터 잰 음표 시작 시각이다. 연습 구간의 첫 음을 0초로 보는 채점 시각이 아니라 녹음 파일 안의 위치다. 음수면 응답 계약 오류다.
+  - `MISSED` 음표는 두 값을 null로 보낸다. 값을 보내도 백엔드는 저장하지 않는다.
+  - 보정 주체: AAC 앞 여백(encoder delay)과 디코딩한 PCM과 원본 재생 시각의 차이는 AI가 보정해 원본 재생 기준으로 준다. ffmpeg는 m4a의 edit list를 적용해 앞 여백을 잘라 디코딩하므로, 이 경우 PCM 시각을 그대로 쓰면 된다. 백엔드·앱은 값을 다시 보정하지 않는다. 앱 플레이어가 같은 파일을 다른 기준으로 재생하는지는 FE 연동 때 실기기로 확인한다.
 - 응답 형식이 맞지 않거나 연결이 실패하면 `SERVER_ERROR`, 제한 시간을 넘으면 `TIMEOUT`이다(S15P31E102-174). AI 오류 응답의 본문은 요청을 되돌려 줄 수 있어 예외·로그에 남기지 않고 상태 코드만 남긴다.
 - 결과·실패 코드 저장은 같은 시도이고 마감 전(`analysis_started_at` ≥ 지금 − 제한 시간)일 때만 한다. 마감을 넘겨 거절되면 그 시도를 `TIMEOUT`으로 바꾼다. 분석을 시작할 때 이미 마감을 넘겼으면 AI를 부르지 않고 `TIMEOUT`이다. 마감과 같은 시각은 아직 제한 시간 안이다.
 - 악보 음표를 만들지 못하거나 결과 저장이 실패해도(예: 칸 범위를 넘는 값) `SERVER_ERROR`다. 시도마다 결과 코드와 처리 시간(ms)을 로그에 남기고, 예외 메시지는 남기지 않는다. `TIMEOUT`으로 바꿀 때는 분석 중이든 상태 조회 때든 따로 한 줄 남겨 시간 초과 횟수를 센다.

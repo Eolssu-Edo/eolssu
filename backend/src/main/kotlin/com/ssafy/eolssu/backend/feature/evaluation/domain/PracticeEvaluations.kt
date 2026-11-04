@@ -35,7 +35,7 @@ data class PracticeEvaluation(
 
 data class PracticeEvaluationNote(
     val noteIdx: Int, val verdict: String, val pitchErrorCent: Int?, val onsetErrorMs: Int?, val durationErrorMs: Int?,
-    val expectedPitchId: Long, val detectedPitchId: Long?,
+    val expectedPitchId: Long, val detectedPitchId: Long?, val recordingOffsetMs: Int? = null,
 ) {
     val isError: Boolean get() = verdict != Verdict.CORRECT
 }
