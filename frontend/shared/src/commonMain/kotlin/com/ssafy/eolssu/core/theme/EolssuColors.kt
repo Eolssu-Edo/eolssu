@@ -50,14 +50,19 @@ data class EolssuColors(
     val recText: Color,
     /** 재생·연주 중 지나간 정간의 바탕(옅은 회색). 글자는 [text]. */
     val doneSoft: Color,
-    /** 평가 오류 위치: 음정(주황) — 테두리·바탕·글자. */
+    /** 틀린 종류 표시(2차 결합본): 음정 — 정간 테두리·아이콘 상자 바탕, 정간 바탕, 글자. 아이콘은 흰색. */
     val pitchError: Color,
     val pitchErrorSoft: Color,
     val pitchErrorText: Color,
-    /** 평가 오류 위치: 박자(파랑) — 테두리·바탕·글자. 음 길이 오류는 [text] 점선과 [surfaceStrong] 바탕. */
+    /** 틀린 종류 표시: 박자 — 정간 테두리·아이콘 상자 바탕, 정간 바탕, 글자. */
     val rhythmError: Color,
     val rhythmErrorSoft: Color,
     val rhythmErrorText: Color,
+    /** 틀린 종류 표시: 음 길이 — 정간 점선 테두리·아이콘 상자 바탕, 정간 바탕. */
+    val lengthError: Color,
+    val lengthErrorSoft: Color,
+    /** 이전 연주에서 틀린 정간·기록 상세의 틀린 정간 바탕(옅은 붉은색). 테두리는 [rec]. 글자 바탕으로만 쓴다. */
+    val recFaint: Color,
     /** 학습 화면의 녹색: 다음 단추 · 지금 쪽 표시. 글자는 [onPrimary]. */
     val green: Color,
     /** 율명 부수(氵·亻) 강조(이끼). 흰 바탕 대비가 3:1대라 24sp 이상 큰 글자에만 쓴다. */
@@ -95,12 +100,15 @@ val LightEolssuColors = EolssuColors(
     recSoft = Color(0xFFFBE5E1),
     recText = Color(0xFFB5331F),
     doneSoft = Color(0xFFEEEBE3),
-    pitchError = Color(0xFFC9671A),
-    pitchErrorSoft = Color(0xFFFDE7CF),
-    pitchErrorText = Color(0xFF9A4A0C),
-    rhythmError = Color(0xFF2A62D6),
-    rhythmErrorSoft = Color(0xFFDFE9FB),
-    rhythmErrorText = Color(0xFF1F4FB3),
+    pitchError = Color(0xFFBB7B43),
+    pitchErrorSoft = Color(0xFFF6E7D2),
+    pitchErrorText = Color(0xFF7A4A1F),
+    rhythmError = Color(0xFF6475C5),
+    rhythmErrorSoft = Color(0xFFE3E9F9),
+    rhythmErrorText = Color(0xFF3B4A99),
+    lengthError = Color(0xFF2C2C2C),
+    lengthErrorSoft = Color(0xFFECECEA),
+    recFaint = Color(0xFFFDF4F2),
     green = Color(0xFFADBE31),
     radical = Color(0xFF7E8C1C),
     glow = Color(0xFFADBE31),

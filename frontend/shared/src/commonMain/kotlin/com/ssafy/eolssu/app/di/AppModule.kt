@@ -19,7 +19,6 @@ import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
-import com.ssafy.eolssu.data.song.SamplePdfFile
 import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.ApiReferenceCatalogRepository
@@ -75,13 +74,27 @@ import com.ssafy.eolssu.feature.practice.PracticeViewModel
 import com.ssafy.eolssu.feature.result.AnalysisViewModel
 import com.ssafy.eolssu.feature.result.ResultViewModel
 import com.ssafy.eolssu.feature.song.MySongsViewModel
-import com.ssafy.eolssu.feature.song.PdfPreviewViewModel
-import com.ssafy.eolssu.feature.song.PdfUploadViewModel
 import com.ssafy.eolssu.feature.song.SongDetailViewModel
 import com.ssafy.eolssu.feature.song.SongListViewModel
+import com.ssafy.eolssu.feature.song.edit.EditNewViewModel
+import com.ssafy.eolssu.feature.song.edit.EditPickViewModel
+import com.ssafy.eolssu.feature.song.edit.EditSource
+import com.ssafy.eolssu.feature.song.edit.EditView
+import com.ssafy.eolssu.feature.song.edit.HwangPitch
+import com.ssafy.eolssu.feature.song.edit.ImportKind
+import com.ssafy.eolssu.feature.song.edit.ImportResultViewModel
+import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.data.practice.SampleWeakSectionRepository
+import com.ssafy.eolssu.data.practice.WeakSectionRepository
+import com.ssafy.eolssu.feature.history.CompareViewModel
+import com.ssafy.eolssu.feature.practice.SectionLoopViewModel
+import com.ssafy.eolssu.feature.practice.SectionSelectViewModel
+import com.ssafy.eolssu.feature.result.ResultErrorsViewModel
+import com.ssafy.eolssu.feature.result.SectionResultViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
@@ -120,9 +133,9 @@ val appModule = module {
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
-    viewModel { (songId: String, solo: Boolean) ->
+    viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), member = get())
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
@@ -167,9 +180,22 @@ val appModule = module {
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
-    // 내 악보 · PDF 올리기. 기기 파일 선택기를 붙이기 전까지 '파일에서 선택'은 예시 파일을 고른다.
-    single<MySheetRepository> { SampleMySheetRepository(now = get(), member = get()) }
+    // 내 악보. 서버 API가 없어 앱이 켜져 있는 동안만 예시 악보를 들고 있다.
+    single<MySheetRepository> { SampleMySheetRepository(member = get()) }
     viewModelOf(::MySongsViewModel)
-    viewModel { PdfUploadViewModel(get(), filePicker = { SamplePdfFile }, member = get()) }
-    viewModel { (uploadId: String) -> PdfPreviewViewModel(uploadId, get(), get()) }
+
+    // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
+    single<WeakSectionRepository> { SampleWeakSectionRepository() }
+    viewModel { (sourceId: String) -> ResultErrorsViewModel(sourceId, get()) }
+    viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
+    viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
+        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get())
+    }
+    viewModel { (sourceId: String, section: ScoreSection, bpm: Int) -> SectionResultViewModel(sourceId, section, bpm, get()) }
+    viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
+    // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
+    viewModelOf(::EditNewViewModel)
+    viewModelOf(::EditPickViewModel)
+    viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get()) }
 }

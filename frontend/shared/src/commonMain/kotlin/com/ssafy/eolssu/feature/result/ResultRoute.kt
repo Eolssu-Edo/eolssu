@@ -18,9 +18,11 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * RESULT-02 연결. 오류 위치 전체 보기·취약 구간 연습은 2차 확장 화면이라 '준비 중' 안내를 띄운다.
+ * RESULT-02 연결.
  *
  * @param onGoRecords 저장 뒤 '기록 보러 가기'. null이면 기록 화면이 아직 없어 '준비 중' 안내를 띄운다.
+ * @param onViewAllErrors ‘악보 전체에서 보기’ → RESULT-03 오류 위치(2차). null이면 '준비 중' 안내를 띄운다.
+ * @param onWeakSection ‘취약 구간 연습’ → PRACTICE-02 취약 구간 선택(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
 fun ResultRoute(
@@ -30,6 +32,8 @@ fun ResultRoute(
     onOtherSong: () -> Unit,
     onHome: () -> Unit,
     onGoRecords: ((recordId: String) -> Unit)?,
+    onViewAllErrors: (() -> Unit)? = null,
+    onWeakSection: (() -> Unit)? = null,
     viewModel: ResultViewModel = koinViewModel(key = evaluationId) { parametersOf(evaluationId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,8 +65,8 @@ fun ResultRoute(
         actions = ResultActions(
             onBack = onBack,
             onSave = viewModel::save,
-            onViewAllErrors = showComingSoon,
-            onWeakSection = showComingSoon,
+            onViewAllErrors = onViewAllErrors ?: showComingSoon,
+            onWeakSection = onWeakSection ?: showComingSoon,
             onPracticeAgain = onPracticeAgain,
             onOtherSong = onOtherSong,
             onHome = onHome,

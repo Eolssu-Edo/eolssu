@@ -11,6 +11,7 @@ import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
@@ -43,6 +44,9 @@ import kotlin.uuid.Uuid
  *
  * 화면이 보이는 동안 [timeMeter]로 연습 시간을 잰다. 재생·녹음·장단 미리듣기 상태는 화면 상태에서 읽어 넘기고,
  * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
+ *
+ * 혼자 연습의 '한 음씩 따라 불기'는 [stepJudge]가 기다리는 음을 맞게 불었다고 알리면([onStepNoteMatched]) 다음 음으로 넘어간다.
+ * 판정은 기기 안에서만 하고 녹음을 보내거나 분석하지 않는다. [mine]은 내 악보 연습(평가 버튼 없음)이다.
  */
 class PracticeViewModel(
     private val songId: String,
@@ -57,10 +61,12 @@ class PracticeViewModel(
     private val newKey: () -> String = { Uuid.random().toString() },
     modelAudioRepository: ModelAudioRepository? = null,
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
+    mine: Boolean = false,
+    private val stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo, settings = settingsStore.settings.value, recordingSupported = recorder != null,
+        PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
@@ -74,6 +80,7 @@ class PracticeViewModel(
     private var idleJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
+    private var stepCountdownJob: Job? = null
     private var screenShown = false
     private val recordingClock = RecordingClock()
     private var takeKey = ""
@@ -157,6 +164,7 @@ class PracticeViewModel(
     fun onScreenHidden() {
         screenShown = false
         modelAudio.suspendAndRelease()
+        pauseStep()
         idleJob?.cancel()
         snapshotJob?.cancel()
         val segment = timeMeter.hide()
@@ -294,6 +302,9 @@ class PracticeViewModel(
 
     fun stopFollowing() = _uiState.update { it.copy(follow = false) }
 
+    /** 내 악보 제목을 곡 제목 대신 보인다. 비어 있으면 곡 제목으로 돌아간다. */
+    fun showSheetTitle(title: String?) = _uiState.update { it.copy(sheetTitle = title?.takeIf(String::isNotBlank)) }
+
     fun followNow() = _uiState.update { it.copy(follow = true) }
 
     // 모범 연주
@@ -418,7 +429,7 @@ class PracticeViewModel(
                 _uiState.update { it.interrupt() }
             }
             PracticeMode.Model -> modelAudio.suspendAndRelease()
-            else -> Unit
+            else -> pauseStep()
         }
     }
 
@@ -433,6 +444,7 @@ class PracticeViewModel(
         previewJob?.cancel()
         listenJob?.cancel()
         cancelRecorder()
+        pauseStep()
     }
 
     private fun runCountdown() {
@@ -451,6 +463,78 @@ class PracticeViewModel(
             }
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0.0)
+        }
+    }
+
+    // 한 음씩 따라 불기
+
+    /** 설정 옆 '한 음씩' 토글. 모범 연주 중이면 음원을 멈추고 듣던 자리부터 이어 갈 수 있게 멈춤으로 둔다. */
+    fun toggleStep() {
+        val before = _uiState.value
+        if (!before.solo || (before.mode != PracticeMode.Ready && before.mode != PracticeMode.Model)) return
+        if (before.mode == PracticeMode.Model) modelAudio.stop()
+        _uiState.update { it.toggleStep() }
+        syncStep()
+    }
+
+    /** 오른쪽 '내 연주' 칸: 듣는 중이면 멈추고, 멈춰 있으면 1초마다 3·2·1을 센 뒤 이어 간다. */
+    fun tapStepPlaying() {
+        _uiState.update { it.tapStepPlaying() }
+        syncStep()
+    }
+
+    /** 왼쪽 '지금 음' 칸: 지금 기다리는 음을 들려준다. 음 하나를 내는 재생 API가 없어 운지법의 '음 듣기'와 같이 소리 없이 재생 중으로만 보인다. */
+    fun listenStepNote() {
+        val state = _uiState.value
+        val yul = state.stepShownIndex?.let { state.song?.timeline?.getOrNull(it) }?.note?.fingeringYul ?: return
+        listen(yul)
+    }
+
+    /**
+     * 판정 연결 지점: 기다리던 음 [index]를 맞게 불었음. [stepJudge]가 부르고, 대역([ManualStepNoteJudge])일 때는 화면의 임시 버튼이 부른다.
+     * 이미 다른 음을 기다리거나 멈춘 뒤에 도착한 판정은 버린다.
+     */
+    fun onStepNoteMatched(index: Int) {
+        _uiState.update { it.matchStepNote(index) }
+        syncStep()
+    }
+
+    /** 판정 대역의 임시 버튼: 지금 음을 맞게 분 것으로 넘긴다. 스스로 판정하는 판정기에서는 쓰지 않는다. */
+    fun confirmStepNoteManually() {
+        if (!_uiState.value.step.manualConfirm) return
+        onStepNoteMatched(_uiState.value.step.target)
+    }
+
+    private fun pauseStep() {
+        if (!_uiState.value.stepBusy) return
+        _uiState.update { it.pauseStep() }
+        syncStep()
+    }
+
+    /** 상태에 맞춰 판정기와 3·2·1 타이머를 켜고 끈다. 듣는 중이 아니면 마이크 자원을 놓는다. */
+    private fun syncStep() {
+        val state = _uiState.value
+        if (state.step.phase != StepPhase.Countdown || !state.stepUi) {
+            stepCountdownJob?.cancel()
+            stepCountdownJob = null
+        }
+        val event = state.song?.timeline?.getOrNull(state.step.target)
+        if (state.stepUi && state.step.phase == StepPhase.Listening && event != null) {
+            stepJudge.listen(StepTarget(event.index, event.note)) { index -> viewModelScope.launch { onStepNoteMatched(index) } }
+        } else {
+            stepJudge.stop()
+        }
+        if (state.stepUi && state.step.phase == StepPhase.Countdown && stepCountdownJob?.isActive != true) runStepCountdown()
+    }
+
+    private fun runStepCountdown() {
+        stepCountdownJob = viewModelScope.launch {
+            while (_uiState.value.step.phase == StepPhase.Countdown) {
+                delay(StepCountdownTickMs)
+                _uiState.update { it.tickStepCountdown() }
+            }
+            stepCountdownJob = null
+            syncStep()
         }
     }
 
@@ -587,6 +671,7 @@ class PracticeViewModel(
 
     override fun onCleared() {
         stopAll()
+        stepJudge.stop()
         modelAudio.release()
     }
 
