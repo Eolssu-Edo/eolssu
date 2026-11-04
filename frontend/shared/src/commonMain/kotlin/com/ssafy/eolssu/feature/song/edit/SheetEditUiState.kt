@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
 enum class EditTab { Yul, Sigimsae, Cell }
@@ -16,18 +17,49 @@ enum class SheetEditMessage {
     /** 저장(SHT-04). 빈 정간이 없을 때만 된다. */
     Saved,
 
-    /** 마지막으로 저장한 악보로 음원(M4A)을 받았다. */
-    Audio,
-
-    /** 저장한 적이 없어 음원을 받을 수 없다. */
+    /** 저장한 적이 없어 음원을 만들 수 없다. */
     AudioNeedsSave,
+
+    /** 음원 생성을 접수했다(SHT-12 202). 다 되면 알린다. */
+    AudioRequested,
+
+    /** 음원이 만들어졌다(DONE). 재생·저장할 수 있다. */
+    AudioReady,
+
+    /** 음원을 만들지 못했다(FAILED). 다시 시도할 수 있다. */
+    AudioFailed,
+
+    /** 연주 길이가 10분을 넘어 만들 수 없다(400 EXPORT_TOO_LONG). */
+    AudioTooLong,
+
+    /** 요청 설정이 맞지 않다(400 INVALID_REQUEST: 장단 없는 악보에 장단 소리, bpm 범위 밖). */
+    AudioInvalid,
+
+    /** 이 회원의 다른 음원을 만드는 중이다(409 AUDIO_IN_PROGRESS). */
+    AudioInProgress,
+
+    /** 빈 칸·확인 필요 칸·변환 중이라 만들 수 없다(409 STATE_CONFLICT). */
+    AudioNotReady,
+
+    /** 악보가 없다(404). */
+    AudioNotFound,
+
+    /** 서버에 닿지 못했거나 잠시 막혔다(429·503·응답 없음). */
+    AudioBusy,
+
+    /** 만드는 중인 음원의 상태를 거듭 확인하지 못했다. */
+    AudioStatusUnknown,
+
+    /** 파일 주소를 기기 브라우저로 열지 못했다. */
+    AudioLinkFailed,
 
     /** 아직 만들지 않은 기능(장단 바꾸기). */
     ComingSoon,
 }
 
 /**
- * 악보 편집(EDIT-02 · 03)과 미리보기·저장(EDIT-04)이 함께 쓰는 상태. 저장 API를 붙이기 전이라 저장·임시저장·음원 받기는 안내만 띄운다.
+ * 악보 편집(EDIT-02 · 03)과 미리보기·저장(EDIT-04)이 함께 쓰는 상태. 저장 API를 붙이기 전이라 저장·임시저장은 안내만 띄우고,
+ * 음원은 서버에 저장된 내 악보([serverSheetId])가 있을 때만 SHT-12·13으로 만든다.
  *
  * @property selected 고른 정간 번호(연주 순서).
  * @property past 실행 취소로 돌아갈 악보(최근 [HISTORY_LIMIT]개). [future]는 다시 실행할 악보.
@@ -35,6 +67,7 @@ enum class SheetEditMessage {
  * @property showSigimsae 시김새를 정간 오른쪽에 작게 보인다.
  * @property emptyWarning 빈 정간이 있어 저장할 수 없다는 경고 창이 열려 있다.
  * @property savedOnce 저장한 악보가 있다. 음원은 마지막으로 저장한 악보로 만든다.
+ * @property audio 내 악보 음원 칸의 상태(없음·요청 중·만드는 중·준비됨·실패·확인 못 함).
  */
 data class SheetEditUiState(
     val source: EditSource,
@@ -51,6 +84,7 @@ data class SheetEditUiState(
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
     val savedOnce: Boolean = false,
+    val audio: SheetAudioUi = SheetAudioUi.None,
     val message: SheetEditMessage? = null,
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
@@ -135,8 +169,19 @@ data class SheetEditUiState(
     /** '임시저장': 빈 정간이 있어도 된다. 경고 창에서 눌러도 같다. */
     fun saveDraft(): SheetEditUiState = copy(emptyWarning = false, message = SheetEditMessage.Draft)
 
-    /** '음원 받기': 마지막으로 저장한 악보로 만든다. 저장한 적이 없으면 먼저 저장하라고 알린다. */
-    fun requestAudio(): SheetEditUiState = copy(message = if (savedOnce) SheetEditMessage.Audio else SheetEditMessage.AudioNeedsSave)
+    /** 서버에 저장된 내 악보 ID. 예시 악보나 아직 서버에 저장하지 않은 악보는 null이라 음원을 만들 수 없다. */
+    val serverSheetId: String? get() = (source as? EditSource.Mine)?.sheetId?.takeIf { validCatalogId(it) }
+
+    /**
+     * '음원 만들기'·'다시 만들기'·'다시 시도': 마지막으로 저장한 악보로 만든다(SHT-12). 저장한 적이 없으면 먼저 저장하라고 알리고,
+     * 서버 악보가 없으면(저장 API 연결 전) 준비 중 안내를 띄운다. 요청·생성 중이거나 현재 버전의 음원이 이미 있으면 그대로 둔다.
+     */
+    fun requestAudio(): SheetEditUiState = when {
+        !savedOnce -> copy(message = SheetEditMessage.AudioNeedsSave)
+        serverSheetId == null -> copy(message = SheetEditMessage.ComingSoon)
+        !audio.canRequest -> this
+        else -> copy(audio = SheetAudioUi.Requesting(audio.latest))
+    }
 
     /** 경고 창의 '빈 정간 채우기': 첫 빈 정간을 고르고 정간보 율명 입력으로 돌아간다. */
     fun fillEmpty(): SheetEditUiState {
