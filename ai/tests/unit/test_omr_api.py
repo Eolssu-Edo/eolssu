@@ -129,8 +129,8 @@ def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve, clock):
     (job,) = serve.engine.jobs
     assert job.kind == "PDF" and len(job.files) == 1 and serve.engine.heads == [b"%PDF-"]
     assert serve.engine.sizes == [(2480, 3509)] * 2
-    assert job.time_budget_s == 60  # 쪽당 30초(시계를 멈춰 둠)
-    assert serve.deadlines == [clock.now + 300]  # 쪽 수를 모르는 내려받기는 최대 300초
+    assert job.time_budget_s == 120  # 쪽당 60초(시계를 멈춰 둠)
+    assert serve.deadlines == [clock.now + 600]  # 쪽 수를 모르는 내려받기는 최대 600초
     assert job.request.notation == "STAFF"
 
 
@@ -140,8 +140,8 @@ def test_images_become_pages_in_order(serve, clock):
     out = client.post("/v1/recognitions", json=body(files)).json()
     assert out["status"] == "DONE"
     assert out["pages"] == [{"index": 0, "width": 40, "height": 30}, {"index": 1, "width": 50, "height": 20}]
-    assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 60
-    assert serve.deadlines == [clock.now + 60] * 2  # 이미지는 장 수를 미리 알아 30초 × 장 수까지만 받는다
+    assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 120
+    assert serve.deadlines == [clock.now + 120] * 2  # 이미지는 장 수를 미리 알아 60초 × 장 수까지만 받는다
 
 
 @pytest.mark.parametrize("mode", ["RGB", "CMYK"])
@@ -212,16 +212,16 @@ def test_waiting_for_pdfium_counts_against_deadline(serve, clock, monkeypatch):
 
     monkeypatch.setattr(api, "PDFIUM_LOCK", Busy())
     failed(serve(pdf(), takes_s=100, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
-    assert Busy.waits == [200]  # 최대 300초 중 내려받기에 100초를 썼다
+    assert Busy.waits == [500]  # 최대 600초 중 내려받기에 100초를 썼다
 
 
 def test_rendering_stops_at_deadline(serve, clock, monkeypatch):
-    """2쪽이면 60초다. 첫 쪽에 61초가 걸리면 둘째 쪽은 그리지 않는다."""
+    """2쪽이면 120초다. 첫 쪽에 121초가 걸리면 둘째 쪽은 그리지 않는다."""
     render, calls = pdfium.PdfPage.render, []
 
     def slow(page, **kw):
         calls.append(1)
-        clock.now += 61
+        clock.now += 121
         return render(page, **kw)
 
     monkeypatch.setattr(pdfium.PdfPage, "render", slow)
@@ -285,21 +285,21 @@ def test_engine_failures_map_to_fail_reason(serve, outcome, reason):
     failed(serve(pdf(), Engine(outcome)).post("/v1/recognitions", json=body()), reason)
 
 
-@pytest.mark.parametrize("engine_s, fail_reason", [(29, None), (31, "TIMEOUT")])
+@pytest.mark.parametrize("engine_s, fail_reason", [(59, None), (61, "TIMEOUT")])
 def test_engine_past_page_budget_is_timeout(serve, clock, engine_s, fail_reason):
     out = serve(pdf(), Engine(clock=clock, takes_s=engine_s)).post("/v1/recognitions", json=body()).json()
     assert out["failReason"] == fail_reason
 
 
 def test_time_before_engine_counts_against_budget(serve, clock):
-    """요청 전체가 쪽당 30초다. 내려받기에 20초를 쓰면 엔진에는 10초가 남는다."""
+    """요청 전체가 쪽당 60초다. 내려받기에 50초를 쓰면 엔진에는 10초가 남는다."""
     engine = Engine(clock=clock, takes_s=15)
-    failed(serve(pdf(), engine, takes_s=20, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    failed(serve(pdf(), engine, takes_s=50, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
     assert engine.jobs[0].time_budget_s == 10
 
 
 def test_no_time_left_after_download_skips_engine(serve, clock):
-    failed(serve(pdf(), takes_s=30, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    failed(serve(pdf(), takes_s=60, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
     assert not serve.engine.jobs
 
 

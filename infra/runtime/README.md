@@ -115,7 +115,7 @@ sudo docker exec eolssu-runtime-backend-1 \
 마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). `diff`에 omr 밖의 차이가 보이면 서버 파일을 먼저 저장소에 반영하고 멈춥니다. Windows PowerShell에서는 `ai` 절과 같이 `git archive -o omr.tar "$REV" ai data/src/scores data/reference`로 파일을 만들어 `scp`로 보낸 뒤 서버에서 풉니다. 되돌릴 때는 `sudo docker tag eolssu-omr:runtime-<이전 커밋> eolssu-omr:runtime` 뒤 같은 `up` 명령으로 `omr`만 재생성합니다. 아직 backend가 부르지 않으므로 문제가 생기면 `sudo docker compose ... stop omr`로 멈추고, Compose까지 되돌릴 때는 `compose.yml.before-omr`을 다시 놓습니다.
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 1GiB tmpfs로 씁니다(원본·쪽 그림·Audiveris 작업 폴더와 홈 `/tmp/home`). 로컬 실측에서 요청 사이 `/tmp`는 14MB였습니다.
-- 메모리 한도 2GiB, CPU 1.5개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. Audiveris가 도는 동안 다른 요청이 큰 PDF 쪽을 그림으로 바꾸는 경우는 재지 않았습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
+- 메모리 한도 2GiB, CPU 2개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. Audiveris가 도는 동안 다른 요청이 큰 PDF 쪽을 그림으로 바꾸는 경우는 재지 않았습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
 - 요청 본문의 서명 URL은 uvicorn 접근 로그와 인식 로그(`recognition conversion=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-omr-1`에서 `X-Amz`·`url`이 없는지 확인합니다.
 
 서버(4코어) 처리 시간과 메모리는 처음 배포할 때 사람이 잽니다. omr은 파일을 URL로만 받고 컨테이너가 읽기 전용이라, 시험 그림을 같은 내부망의 임시 웹 서버(`omr-probe`, omr 이미지의 Python 사용)로 내보내고 backend 컨테이너에서 요청합니다. 서버에 컨테이너를 잠깐 더 띄우는 일이므로 실행하는 사람이 판단합니다. 시험 그림은 [조사 문서](../../docs/knowledge/ai/score-omr-feasibility.md) 5절의 4곡 오선보 쪽 그림(표준악보집 300DPI PNG, 오른쪽 반)입니다.
@@ -132,7 +132,7 @@ sudo docker exec eolssu-runtime-omr-1 cat /sys/fs/cgroup/memory.peak   # 바이�
 sudo docker stop omr-probe && rm -rf /tmp/omr-probe
 ```
 
-`"status":"DONE"`과 처리 시간을 4곡마다 보고, 최대 메모리와 함께 조사 문서에 남깁니다. `memory.peak`가 없으면 요청 중에 `sudo docker stats --no-stream eolssu-runtime-omr-1`을 여러 번 읽습니다. 쪽당 30초를 넘으면 계약의 시간 상한을 다시 봅니다.
+`"status":"DONE"`과 처리 시간을 4곡마다 보고, 최대 메모리와 함께 조사 문서에 남깁니다. `memory.peak`가 없으면 요청 중에 `sudo docker stats --no-stream eolssu-runtime-omr-1`을 여러 번 읽습니다. 쪽당 60초에 가까우면 계약의 시간 상한을 다시 봅니다. 2026-11-04 첫 실측(CPU 1.5, 쪽당 30초)은 4곡 1쪽 25.1~29.5초로 1곡이 `TIMEOUT`이었고, `docker update --cpus 3`으로 잠깐 올리면 18.6~22.3초, 최대 메모리 0.76GB였습니다([S15P31E102-468](https://ssafy.atlassian.net/browse/S15P31E102-468)). 시험 서버를 띄운 직후 요청하면 받을 곳이 없어 바로 실패하므로 2초 기다립니다.
 
 ### backend 비밀값
 
