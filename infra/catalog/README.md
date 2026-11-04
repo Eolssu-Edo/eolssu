@@ -162,7 +162,7 @@ sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/da
 sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-apply.json --apply
 ```
 
-S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천안삼거리(44)는 운영 음표가 원본과 달라 **악보 교체 항목**이다. 28 싸름·43 청어엮기·49 진도아리랑은 운영이 원본과 같아 숨표 항목이다. 운영 적용은 S15P31E102-476에서 한다. 이미 켜진 30곡은 완료 상태라 다시 쓰지 않는다.
+S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천안삼거리(44)는 운영 음표가 원본과 달라 **악보 교체 항목**이다. 28 싸름·43 청어엮기·49 진도아리랑은 운영이 원본과 같아 숨표 항목이다. 2026-11-04 S15P31E102-476에서 사용자가 edo1 `/opt/eolssu/ops476-danso-scoring-20261104/`에서 적용했다. 5곡만 바뀌었고 재실행 대기는 0곡이다([실행 기록](../../docs/knowledge/data/danso-loaded-scores.md#운영-적용-s15p31e102-476)).
 
 악보 교체 항목은 `targetScore`(계획 옆 `danso-scores/<곡 id>.json`)와 `targetScoreVersion`(현재 + 1)을 가진다. 도구가 하는 일은 이렇다.
 
