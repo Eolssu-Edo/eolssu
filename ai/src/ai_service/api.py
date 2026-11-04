@@ -95,6 +95,13 @@ class NoteOut(_Camel):
     pitch_error_cent: float | None = Field(description="음높이 오차(cent). MISSED면 null")
     onset_error_ms: float | None = Field(description="시작 시각 오차(ms). MISSED면 null")
     duration_error_ms: float | None = Field(description="길이 오차(ms). MISSED면 null")
+    detected_semitone: int | None = Field(
+        description="인식한 음. pitches.semitone과 같은 눈금(0 = 황 E♭4). 채점에 적용한 조율 보정을 뺀 뒤 가장 가까운 반음이다."
+        " tuningOutOfRange이면 적용한 보정은 0이다. MISSED면 null"
+    )
+    recording_offset_ms: int | None = Field(
+        description="업로드한 녹음 파일 0ms 기준으로 이 음의 소리가 실제로 시작된 시각(ms, 10ms 단위). 녹음 앞 여백을 포함한다. MISSED면 null"
+    )
 
 
 class AnalysisDone(_Camel):
@@ -237,6 +244,8 @@ def _response(result: ScoreResult) -> dict:
                 "pitchErrorCent": n.pitch_error_cent,
                 "onsetErrorMs": n.onset_error_ms,
                 "durationErrorMs": n.duration_error_ms,
+                "detectedSemitone": n.detected_semitone,
+                "recordingOffsetMs": n.recording_offset_ms,
             }
             for n in result.notes
         ],
