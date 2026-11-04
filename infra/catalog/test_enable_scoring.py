@@ -33,7 +33,11 @@ class FakeDb:
         self.batches.append(sql)
         for row in self.rows:
             item = next(p for p in self.plan if p['songId'] == row['id'])
-            row['score'], row['isScorable'] = tool.patch(row['score'], item['breathEventIds']), 1
+            if '_target' in item:
+                row['score'], row['scoreVersion'] = item['_target'], item['targetScoreVersion']
+            else:
+                row['score'] = tool.patch(row['score'], item['breathEventIds'])
+            row['isScorable'] = 1
         return ''
 
 
@@ -127,6 +131,112 @@ class PatchTests(unittest.TestCase):
         a = {'x': 1, 'y': [1, 2]}
         self.assertEqual(tool.canonical_sha(a), tool.canonical_sha(json.loads('{"y":[1,2],"x":1}')))
         self.assertEqual(tool.canonical_sha(a), hashlib.sha256(b'{"x":1,"y":[1,2]}').hexdigest())
+
+
+def production_and_answer():
+    production = {'schemaVersion': 1, 'score': {'title': '곡', 'instrument': 'DANSO', 'part': 0, 'sourceId': 'mr-1', 'scoreVersion': 1},
+                  'music': {'bpmUnit': 'QUARTER', 'hwangHz': 311.1269837220809, 'jangdan': '굿거리', 'ticksPerBeat': 8, 'ticksPerJeonggan': 12},
+                  'provenance': {'review': 'inferred', 'sourceId': 'mr-1', 'converter': 'jgb-playback-import/v1', 'jgbSha256': '0' * 64},
+                  'events': [{'id': 'e0', 'kind': 'NOTE', 'yul': '태', 'startTick': 0, 'durationTick': 12, 'breathAfter': False}],
+                  'columns': [{'index': 0, 'cells': [{'id': 'c0-j0', 'units': [{'symbol': '청태'}]}]}]}
+    answer = {'schemaVersion': 1, 'score': {'title': '곡', 'instrument': 'DANSO', 'part': 0, 'sourceId': 'ngc-x', 'scoreVersion': 1},
+              'music': {'bpmUnit': 'QUARTER', 'hwangHz': 311.13, 'jangdan': '굿거리', 'ticksPerBeat': 4, 'ticksPerJeonggan': 6},
+              'provenance': {'review': 'reviewed', 'sourceId': 'ngc-x', 'converter': 'score_data@1', 'jgbSha256': '1' * 64},
+              'events': [{'id': 'e0', 'kind': 'NOTE', 'yul': '임', 'startTick': 0, 'durationTick': 6, 'breathAfter': True}],
+              'columns': [{'index': 0, 'cells': [{'id': 'c0-j0', 'units': [{'symbol': '청임'}]}]}]}
+    return production, answer
+
+
+class TargetScoreTests(unittest.TestCase):
+    def test_target_keeps_service_identity_and_takes_answer_notes(self):
+        production, answer = production_and_answer()
+        before = copy.deepcopy(production)
+        target = tool.target_score(production, answer)
+        self.assertEqual((target['events'], target['columns']), (answer['events'], answer['columns']))
+        self.assertEqual(target['score'], dict(production['score'], scoreVersion=2))
+        self.assertEqual(target['music'], dict(production['music'], ticksPerBeat=4, ticksPerJeonggan=6))
+        self.assertEqual(target['provenance'], {'review': 'reviewed', 'sourceId': 'mr-1', 'converter': 'score_data@1',
+                                                'jgbSha256': '1' * 64})
+        self.assertEqual(production, before)  # 입력은 바꾸지 않는다
+
+    def test_target_refuses_a_different_beat_meaning(self):
+        for change in ({'bpmUnit': 'DOTTED_QUARTER'}, {'ticksPerJeonggan': 4}):
+            production, answer = production_and_answer()
+            answer['music'].update(change)
+            with self.assertRaises(ValueError):
+                tool.target_score(production, answer)
+
+
+def replacement_plan(directory):
+    """숨표만 바꾸는 97과 악보를 통째로 바꾸는 25를 담은 계획 파일. 목표 악보는 계획 옆 폴더에 둔다."""
+    plan, rows = fake_plan_and_rows()
+    plan, rows = plan[:1], rows[:1]
+    current = score('mr-25', ('a', 'b'))
+    target = dict(score('mr-25', ('a', 'x', 'y')), score={'sourceId': 'mr-25', 'scoreVersion': 2})
+    target['provenance']['review'] = 'reviewed'
+    target['events'][1]['breathAfter'] = True
+    (directory / 'danso-scores').mkdir()
+    (directory / 'danso-scores/25.json').write_text(json.dumps(target, ensure_ascii=False), encoding='utf-8')
+    plan.append({'songId': 25, 'source': 'mr-25', 'scoreVersion': 1, 'answer': 'x', 'breathEventIds': ['x'],
+                 'targetScore': 'danso-scores/25.json', 'targetScoreVersion': 2,
+                 'currentSha256': tool.canonical_sha(current), 'targetSha256': tool.canonical_sha(target)})
+    rows.append({'id': 25, 'source': 'mr-25', 'scoreVersion': 1, 'isScorable': 0, 'status': 'PUBLISHED',
+                 'deleted': 0, 'score': current})
+    (directory / 'plan.json').write_text(json.dumps(plan), encoding='utf-8')
+    return directory / 'plan.json', rows, target
+
+
+class ReplacementTests(unittest.TestCase):
+    def test_plan_loads_the_target_score_beside_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, _, target = replacement_plan(Path(directory))
+            plan = tool.load_plan(path)
+            self.assertEqual(plan[1]['_target'], target)
+            self.assertNotIn('_target', plan[0])
+
+    def test_plan_refuses_a_bad_target(self):
+        cases = {
+            'changed file': lambda item, d: (d / 'danso-scores/25.json').write_text('{}', encoding='utf-8'),
+            'version jump': lambda item, d: item.update(targetScoreVersion=3),
+            'outside folder': lambda item, d: item.update(targetScore='../25.json'),
+            'breath mismatch': lambda item, d: item.update(breathEventIds=[]),
+        }
+        for name, breaker in cases.items():
+            with tempfile.TemporaryDirectory() as directory, self.subTest(name):
+                path, _, _ = replacement_plan(Path(directory))
+                raw = json.loads(path.read_text(encoding='utf-8'))
+                breaker(raw[1], Path(directory))
+                path.write_text(json.dumps(raw), encoding='utf-8')
+                with self.assertRaises(ValueError):
+                    tool.load_plan(path)
+
+    def test_replacement_state_moves_from_old_version_to_new(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, rows, target = replacement_plan(Path(directory))
+            item, row = tool.load_plan(path)[1], rows[1]
+            self.assertEqual(tool.state(item, row), 'pending')
+            self.assertEqual(tool.state(item, dict(row, score=target, scoreVersion=2, isScorable=1)), 'done')
+            for broken in (dict(row, scoreVersion=2), dict(row, score=target, isScorable=1),
+                           dict(row, score=target, scoreVersion=3, isScorable=1)):
+                with self.assertRaises(ValueError):
+                    tool.state(item, broken)
+
+    def test_apply_replaces_score_bumps_version_and_counts_notes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, rows, target = replacement_plan(Path(directory))
+            plan = tool.load_plan(path)
+            db = FakeDb(plan, rows)
+            report = tool.run(plan, Path(directory) / 'r1.json', apply=True, runner=db)
+            self.assertEqual(report['updated'], [97, 25])
+            (sql,) = db.batches
+            (replace,) = [s for s in sql.split('\n') if 'WHERE id=25' in s]
+            self.assertIn('score_version=2, note_count=3', replace)
+            self.assertIn('AND score_version=1 AND', replace)
+            (breath,) = [s for s in sql.split('\n') if 'WHERE id=97' in s]
+            self.assertNotIn('score_version=', breath.split('WHERE')[0])
+            self.assertEqual((rows[1]['scoreVersion'], rows[1]['score']), (2, target))
+            again = tool.run(plan, Path(directory) / 'r2.json', apply=True, runner=db)
+            self.assertEqual((again['updated'], len(db.batches)), ([], 1))
 
 
 class StateTests(unittest.TestCase):
