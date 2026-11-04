@@ -135,13 +135,19 @@ def convert(doc, *, beats_per_jeonggan, title, instrument, source_id, jangdan, b
             part=None, score_version=1):
     """우물사이 문서 하나를 공통 악보 데이터(dict)로 바꾼다. beats_per_jeonggan은 사람이 원본에서 정한 값이다."""
     melody, controls = melody_of(doc, part), doc.get("controls", {})
-    # 우물사이는 beats를 넘는 정간을 잘라 쓰고 gakBeats로 각마다 길이를 바꾼다. 옮기기 전까지는 멈춘다.
-    if controls.get("gakBeats"):
-        raise ValueError(f"각별 정간 수(gakBeats={controls['gakBeats']!r})는 아직 지원하지 않는다")
+    gaks = gaks_of(melody)
+    # gakBeats '각:정간 수'는 그 각(1부터 셈)만 정간 수를 바꾼다(재생 변환기 playback/jgb.py와 같은 형식).
+    per_gak = {}
+    for entry in filter(str.strip, re.split(r"[,;\n]", controls.get("gakBeats") or "")):
+        m = re.fullmatch(r"\s*(\d+)\s*:\s*(\d+)\s*", entry)
+        if not m or not 1 <= int(m[1]) <= len(gaks) or int(m[2]) < 1 or int(m[1]) in per_gak:
+            raise ValueError(f"잘못된 gakBeats 항목 {entry!r}")
+        per_gak[int(m[1])] = int(m[2])
+    # 우물사이는 beats를 넘는 정간을 잘라 쓴다. 잘라 쓰는 규칙은 옮기지 않았으므로 멈춘다.
     beats = int(controls.get("beats") or 0)
-    long = [g for g, cells in enumerate(gaks_of(melody)) if beats and len(cells) > beats]
+    long = [g for g, cells in enumerate(gaks) if len(cells) > per_gak.get(g + 1, beats or len(cells))]
     if long:
-        raise ValueError(f"각 {long}의 정간 수가 beats={beats}보다 많다")
+        raise ValueError(f"각 {long}의 정간 수가 beats={beats}·gakBeats보다 많다")
     units = read_units(melody, Fraction(beats_per_jeonggan))
     events, unit_events = build_events(units)
     tpb = math.lcm(Fraction(beats_per_jeonggan).denominator,
@@ -238,6 +244,14 @@ def _parse_word(word, cell_id):
         m = UNIT.match(word, i)
         if not m or not m.group(0):
             raise ValueError(f"{cell_id}: '{word[i:]}'를 읽을 수 없다")
+        if not m.group(1) and SIGIMSAE.findall(m.group(3)) in (["빈지속"], ["이음표"], ["-"]):
+            # 재생 변환기와 같이 지속 기호는 '-'처럼 앞 소리를 잇는 자리다.
+            out.append(("-", ()))
+            i = m.end()
+            continue
+        if {"빈지속", "이음표", "-"} & set(SIGIMSAE.findall(m.group(3))):
+            # 재생 변환기는 붙은 지속 기호를 따로 한 자리로 떼어 시간을 나눈다. 그 규칙을 옮기기 전까지는 멈춘다.
+            raise ValueError(f"{cell_id}: 다른 글자에 붙은 지속 기호 '{m.group(0)}'는 아직 지원하지 않는다")
         if not m.group(1):
             # 우물사이는 율명 없는 시김새를 앞 음 기준의 소리로 푼다. 그 규칙을 옮기기 전까지는 멈춘다.
             raise ValueError(f"{cell_id}: 율명 없는 시김새 '{m.group(0)}'는 아직 지원하지 않는다")

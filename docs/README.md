@@ -58,6 +58,7 @@
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
+- [악보 인식 서비스 계약 (SHT-07 내부, omr)](specs/score-recognition.md) · [변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 - [저장한 기록의 녹음 보관과 미저장 녹음 30일 정리](specs/recording-retention.md) · [375 계획](plans/S15P31E102-375.md)
 - [기초부터 배우기 학습 단계·진도 API (LRN-01·02·03)](specs/learning-progress-apis.md) · [344 계획](plans/S15P31E102-344.md)
 
@@ -152,6 +153,7 @@
 - [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
 - [단소 4곡 공통 악보와 V6 시드 일치 검수](knowledge/data/danso-seed-consistency-audit.md)
 - [소금 서비스 4곡 채점 정답 검수와 채점 켜기](knowledge/data/sogeum-service-scores.md)
+- [단소 339 적재곡 채점 정답 검수와 채점 켜기 계획](knowledge/data/danso-loaded-scores.md) · [404 계획](plans/S15P31E102-404.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
 - [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md) · [자동 테스트별 확인 범위](../data/src/playback/tests/README.md)
 - [대금·단소·소금 악보의 기준음·박·빠르기·시김새 근거](knowledge/data/score-reference-standards.md) · [계획](plans/S15P31E102-129.md)
@@ -168,6 +170,7 @@
 - [녹음 길이별 분석 처리 시간과 메모리: 합성 입력](knowledge/ai/analysis-latency.md)
 - [채점 입력과 기준음·조율 보정 상한](knowledge/ai/scoring-input-and-tuning.md)
 - [단소 단음 녹음의 조율 흔들림: 김 세기·취법별 보정량](knowledge/ai/danso-tuning-variation.md)
+- [정간보·오선보 이미지·PDF의 공통 악보 변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 
 ## COCO 산출물
 

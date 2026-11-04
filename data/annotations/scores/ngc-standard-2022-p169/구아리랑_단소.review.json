@@ -1,0 +1,762 @@
+{
+ "sourceId": "ngc-standard-2022-p169",
+ "sourceHashes": {
+  "ngc-standard-2022-p169": "1da59657a16f2b2b0bdc9b476e5b88dcd900e9a2af6729b4908784d8389ab730"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "구아리랑.jgb.json",
+  "sha256": "ee9a7115b1d8c81918f1930fcb960b10d77b2cff3507b498798e5655c2d5084a",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "ee9a7115b1d8c81918f1930fcb960b10d77b2cff3507b498798e5655c2d5084a"
+ },
+ "song": {
+  "title": "구아리랑",
+  "instrument": "DANSO",
+  "jangdan": "세마치",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "세마치",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 9,
+  "scoreVersion": 1
+ },
+ "reviewedOn": "2026-11-04",
+ "confirmed": 48,
+ "total": 48,
+ "cells": [
+  {
+   "index": 0,
+   "gak": 0,
+   "cell": "중 임 -",
+   "original": "중 임 -",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    174,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 1,
+   "gak": 0,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    371,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 2,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    566,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 3,
+   "gak": 1,
+   "cell": "중 임 -",
+   "original": "중 임 -",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    174,
+    166,
+    197
+   ]
+  },
+  {
+   "index": 4,
+   "gak": 1,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    371,
+    166,
+    195
+   ]
+  },
+  {
+   "index": 5,
+   "gak": 1,
+   "cell": "<",
+   "original": "<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    566,
+    166,
+    198
+   ]
+  },
+  {
+   "index": 6,
+   "gak": 2,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    174,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 7,
+   "gak": 2,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    371,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 8,
+   "gak": 2,
+   "cell": "청황 청태 청황",
+   "original": "청황 청태 청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    566,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 9,
+   "gak": 3,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    174,
+    168,
+    197
+   ]
+  },
+  {
+   "index": 10,
+   "gak": 3,
+   "cell": "- 청황 무",
+   "original": "- 청황 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    371,
+    168,
+    195
+   ]
+  },
+  {
+   "index": 11,
+   "gak": 3,
+   "cell": "임 중 -<",
+   "original": "임 중 -<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    566,
+    168,
+    198
+   ]
+  },
+  {
+   "index": 12,
+   "gak": 4,
+   "cell": "무 청황 -",
+   "original": "무 청황 -",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    842,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 13,
+   "gak": 4,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    1039,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 14,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    1234,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 15,
+   "gak": 5,
+   "cell": "무 - 청태",
+   "original": "무 - 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    842,
+    166,
+    197
+   ]
+  },
+  {
+   "index": 16,
+   "gak": 5,
+   "cell": "청황 - 무",
+   "original": "청황 - 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    1039,
+    166,
+    195
+   ]
+  },
+  {
+   "index": 17,
+   "gak": 5,
+   "cell": "임 중 -<",
+   "original": "임 중 -<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    1234,
+    166,
+    198
+   ]
+  },
+  {
+   "index": 18,
+   "gak": 6,
+   "cell": "무 - 청태",
+   "original": "무 - 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    842,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 19,
+   "gak": 6,
+   "cell": "청황 - 무",
+   "original": "청황 - 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    1039,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 20,
+   "gak": 6,
+   "cell": "임 중 임",
+   "original": "임 중 임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    1234,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 21,
+   "gak": 7,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    842,
+    168,
+    197
+   ]
+  },
+  {
+   "index": 22,
+   "gak": 7,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    1039,
+    168,
+    195
+   ]
+  },
+  {
+   "index": 23,
+   "gak": 7,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    1234,
+    168,
+    198
+   ]
+  },
+  {
+   "index": 24,
+   "gak": 8,
+   "cell": "청황 - 청태",
+   "original": "청황 - 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    1510,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 25,
+   "gak": 8,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    1707,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 26,
+   "gak": 8,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    1902,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 27,
+   "gak": 9,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    1510,
+    166,
+    197
+   ]
+  },
+  {
+   "index": 28,
+   "gak": 9,
+   "cell": "청중",
+   "original": "청중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    1707,
+    166,
+    195
+   ]
+  },
+  {
+   "index": 29,
+   "gak": 9,
+   "cell": "청임 - 청중<",
+   "original": "청임 - 청중<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    1902,
+    166,
+    198
+   ]
+  },
+  {
+   "index": 30,
+   "gak": 10,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    1510,
+    167,
+    197
+   ]
+  },
+  {
+   "index": 31,
+   "gak": 10,
+   "cell": "청황 - 무",
+   "original": "청황 - 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    1707,
+    167,
+    195
+   ]
+  },
+  {
+   "index": 32,
+   "gak": 10,
+   "cell": "청황 청태 청황",
+   "original": "청황 청태 청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    1902,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 33,
+   "gak": 11,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    1510,
+    168,
+    197
+   ]
+  },
+  {
+   "index": 34,
+   "gak": 11,
+   "cell": "- 청황 무",
+   "original": "- 청황 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    1707,
+    168,
+    195
+   ]
+  },
+  {
+   "index": 35,
+   "gak": 11,
+   "cell": "임 중 -<",
+   "original": "임 중 -<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    1902,
+    168,
+    198
+   ]
+  },
+  {
+   "index": 36,
+   "gak": 12,
+   "cell": "무 청황 -",
+   "original": "무 청황 -",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    2152,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 37,
+   "gak": 12,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    2350,
+    167,
+    194
+   ]
+  },
+  {
+   "index": 38,
+   "gak": 12,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1318,
+    2544,
+    167,
+    222
+   ]
+  },
+  {
+   "index": 39,
+   "gak": 13,
+   "cell": "무 - 청태",
+   "original": "무 - 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    2152,
+    166,
+    198
+   ]
+  },
+  {
+   "index": 40,
+   "gak": 13,
+   "cell": "청황 - 무",
+   "original": "청황 - 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    2350,
+    166,
+    194
+   ]
+  },
+  {
+   "index": 41,
+   "gak": 13,
+   "cell": "임 중 -<",
+   "original": "임 중 -<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1088,
+    2544,
+    166,
+    222
+   ]
+  },
+  {
+   "index": 42,
+   "gak": 14,
+   "cell": "무 - 청태",
+   "original": "무 - 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    2152,
+    167,
+    198
+   ]
+  },
+  {
+   "index": 43,
+   "gak": 14,
+   "cell": "청황 - 무",
+   "original": "청황 - 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    2350,
+    167,
+    194
+   ]
+  },
+  {
+   "index": 44,
+   "gak": 14,
+   "cell": "임 중 임",
+   "original": "임 중 임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    857,
+    2544,
+    167,
+    222
+   ]
+  },
+  {
+   "index": 45,
+   "gak": 15,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    2152,
+    168,
+    198
+   ]
+  },
+  {
+   "index": 46,
+   "gak": 15,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    2350,
+    168,
+    194
+   ]
+  },
+  {
+   "index": 47,
+   "gak": 15,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    626,
+    2544,
+    168,
+    222
+   ]
+  }
+ ],
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "검수 화면에서 원본 PDF와 48정간 전부 대조, 고친 정간 0개. 숨표 규칙(D-6) 확인용. S15P31E102-404"
+ }
+}

@@ -40,6 +40,7 @@ fun MyPageRoute(
     onSessionExpired: () -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
+    providers: List<SocialProvider> = SocialProvider.entries - SocialProvider.Apple,
     viewModel: MyPageViewModel = koinViewModel(),
 ) {
     val profile by viewModel.profile.collectAsStateWithLifecycle()
@@ -72,6 +73,7 @@ fun MyPageRoute(
     }
     MyPageScreen(
         profile = profile,
+        providers = providers,
         instrument = instrument,
         learningProgress = learningProgress,
         loadingProfile = loadingProfile,

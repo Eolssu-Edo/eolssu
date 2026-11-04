@@ -152,3 +152,12 @@ sudo python3 enable_scoring.py --plan scoring-plans/sogeum.json --receipt /tmp/s
 ```powershell
 python -m unittest discover -s infra/catalog -p "test_enable_scoring.py" -v
 ```
+
+## 단소 채점 켜기 계획
+
+Task S15P31E102-404. S15P31E102-339가 적재한 단소 곡 중 사람 검수를 마친 30곡이다. 운영 악보와 음·쉼 종류, 율명·옥타브, 시작·길이, 이벤트 ID, 시김새 유무, 박 단위가 같음을 2026-11-04 공개 곡 상세로 확인했다. 숨표 66개는 검수한 정답의 숨표이며, 이 중 43개는 운영 악보에 없던 원본 숨표다. 운영 30은 어이 얼어자리 단소2(`p183-part-2`), 31은 단소1(`p183-part-1`)이다. 북천이 단소1(25)은 운영 음이 원본과 달라 S15P31E102-451로 넘겼고, 독립 시김새 6곡은 S15P31E102-449, 차이 4곡은 451이다. 2026-11-04 S15P31E102-433에서 사용자가 edo1 `/opt/eolssu/ops433-danso-scoring-20261104/`에서 아래 두 명령을 실행해 30곡을 적용했고, 재실행 대기 0곡과 공개 곡 상세로 결과를 확인했다([실행 기록](../../docs/knowledge/data/danso-loaded-scores.md#운영-적용-s15p31e102-433)).
+
+```sh
+sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-check.json
+sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-apply.json --apply
+```

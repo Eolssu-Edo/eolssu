@@ -37,6 +37,7 @@ class PasswordChangeConfig {
         MyBatisWithdrawalRepository(users, refreshTokens, manager)
 
     @Bean
-    fun withdrawalService(repository: WithdrawalRepository, passwordEncoder: PasswordEncoder, clock: Clock) =
-        WithdrawalService(repository, passwordEncoder, currentPasswordAttempts, clock)
+    fun withdrawalService(repository: WithdrawalRepository, passwordEncoder: PasswordEncoder, clock: Clock,
+        revocation: org.springframework.beans.factory.ObjectProvider<com.ssafy.eolssu.backend.feature.auth.application.ProviderTokenRevocation>) =
+        WithdrawalService(repository, passwordEncoder, currentPasswordAttempts, clock, revocation.ifAvailable)
 }

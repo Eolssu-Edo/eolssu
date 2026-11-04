@@ -18,6 +18,8 @@ class OAuthProof(
     val consumedAt: Instant? = null,
     val flowStartedAt: Instant? = null,
     val socialAccountId: Long? = null,
+    /** 가입·연결 티켓이 연결을 만들 때 넘길 봉인된 제공자 토큰(Apple). */
+    val providerToken: String? = null,
 )
 
 interface OAuthProofRepository {

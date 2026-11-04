@@ -65,6 +65,8 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 
 같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
 
+S15P31E102-339가 적재한 단소 31곡의 정답은 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>`, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 31곡 모두 `reviewed`이고 검수 방법은 검토 기록의 `answerApproval.note`에 있습니다. 북천이 단소1(`p182-part-1`)은 운영 음과 원본이 달라 `serviceComparison.approvedForScoring=false`로 두고 채점 계획([infra/catalog/scoring-plans/danso.json](../infra/catalog/scoring-plans/danso.json), 30곡)에서 뺐습니다.
+
 검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
 
 취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
@@ -322,7 +324,7 @@ node ~/omr/jeongganbo-generator/tools/import-ngc-omr.mjs data/processed/scores/o
 
 처음 실행하면 체크포인트의 옛 LayerNorm 이름을 바꾼 `model_weight-names.pt`를 OMR 폴더에 만듭니다. 정간 수가 장단 × 각 수와 다르면 칸 자르기가 실패한 것입니다. 율명이 하나도 없는 열은 장단 열로 보고 뺍니다. 세로선이 연하거나 끊긴 스캔에서 칸이 합쳐지면 `--gap-fill 10 --line-threshold 250`을 더합니다. 칸 찾기 그림에만 적용되고 율명 인식은 원래 그림으로 합니다. 그래도 빠진 정간은 `--fill-grid`로 옆 열의 줄 위치에서 채웁니다(장단 열 제외, 먹이 있는 자리만).
 
-교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 열을 한 각으로 씁니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
+교과서 표준악보집처럼 PDF에 율명이 글자로 들어 있으면 OMR 없이 글자·선 좌표로 읽습니다. 저장소의 Python만 있으면 되고(`pymupdf`), 한 단의 한 열을 한 각으로 씁니다(쪽을 가로 여러 단으로 나눈 판형은 단을 위에서부터 읽음). `--page`로 쪽을 고르고, 율명 글자가 없는 쪽은 종료 코드 3, 율명은 있지만 정간 격자를 못 읽은 쪽은 4로 끝납니다(악보 인식 서비스가 쪽마다 처리를 고르는 신호). 2중주 쪽은 열 위 '단소1' 표시가 있는 열만 읽습니다. 규칙 검사는 `python -m unittest data/tests/test_standard_score_text.py`(pymupdf 필요)입니다. 결과는 같은 변환 도구로 `.jgb.json`을 만듭니다. 두 경로의 곡별 결과는 [단소 악보 변환 기록](../docs/knowledge/data/danso-scores-umulsai.md)을 확인합니다.
 
 ```bash
 python data/src/scores/standard_score_text.py "data/raw/scores/ngc-standard-2022-p176/태평가_정간보_단소_표준악보집-PDF176.pdf" data/processed/scores/danso-115/std/ngc-standard-2022-p176 --title 태평가
