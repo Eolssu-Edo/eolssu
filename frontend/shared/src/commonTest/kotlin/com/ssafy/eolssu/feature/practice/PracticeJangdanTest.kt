@@ -119,6 +119,50 @@ class PracticeJangdanTest {
         assertEquals(beforeRecording, samples.hits.size)
     }
 
+    @Test fun pauseResumeDoesNotReplayBoundaryButExplicitSeekDoes() = practice { vm, samples, _, _ ->
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(500); runCurrent()
+        assertEquals(JangdanSample.Kung, samples.hits.last())
+        vm.toggleRhythm(); runCurrent()
+        val atPause = samples.hits.size
+        vm.toggleRhythm(); runCurrent()
+        assertEquals(atPause, samples.hits.size, "Resume must not replay the boundary already heard")
+        advanceTimeBy(500); runCurrent()
+        assertEquals(JangdanSample.Deong, samples.hits.last())
+        assertEquals(atPause + 1, samples.hits.size, "The next boundary must not be lost")
+        vm.seekModel(-1000); runCurrent()
+        assertEquals(JangdanSample.Deong, samples.hits.last())
+        assertEquals(atPause + 2, samples.hits.size, "Explicit seek starts the target attack")
+        vm.seekModel(5000); runCurrent()
+        assertFalse(vm.uiState.value.playing, "Seeking to the end must stop, not silently loop")
+        val atEnd = samples.hits.size
+        vm.startRhythm(); runCurrent()
+        assertEquals(atEnd + 1, samples.hits.size, "Play after completion starts the first attack")
+    }
+
+    @Test fun modelResumeSkipsPlayedAttackAndSeekAllowsItAgain() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        vm.startModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 500); runCurrent()
+        assertEquals(JangdanSample.Kung, samples.hits.last())
+        vm.toggleModel(); runCurrent()
+        val atPause = samples.hits.size
+        vm.toggleModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 500); runCurrent()
+        assertEquals(atPause, samples.hits.size)
+        vm.seekModel(-500); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(atPause + 1, samples.hits.size)
+        assertEquals(JangdanSample.Deong, samples.hits.last())
+        vm.toggleModel(); runCurrent()
+        vm.toggleModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(atPause + 1, samples.hits.size, "A seek does not disable later resume de-duplication")
+        vm.restartModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(atPause + 2, samples.hits.size, "Restart explicitly allows the first attack")
+    }
+
     @Test fun outputFailureAndStopNeverKeepRhythmRunning() = practice { vm, samples, _, _ ->
         samples.accept = false
         vm.startRhythm(); runCurrent()

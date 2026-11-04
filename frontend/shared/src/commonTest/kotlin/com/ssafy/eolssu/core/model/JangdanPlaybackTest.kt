@@ -12,6 +12,16 @@ class JangdanPlaybackTest {
     private val gutgeori = JangdanPlayback("2", "굿거리", 0, 24,
         listOf("떵", "", "기덕", "쿵", "더러러러", "", "쿵", "", "기덕", "쿵", "더러러러", ""), listOf(3, 3, 3, 3))
 
+    @Test fun resumedCursorIgnoresSmallBackwardDecoderJitterUntilTheNextAttack() {
+        val mapping = JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1))
+        val cursor = JangdanCursor(planJangdan(mapping, 60, 4)!!, resumeAfterTick = 2.0)
+        assertEquals(emptyList(), cursor.due(1.99))
+        assertEquals(emptyList(), cursor.due(2.0))
+        assertEquals(emptyList(), cursor.due(2.01))
+        assertEquals(listOf(JangdanSample.Deong), cursor.due(4.0).map { it.sample })
+        assertEquals(listOf(JangdanSample.Kung), cursor.due(2.0).map { it.sample })
+    }
+
     @Test fun fiveActualIntegerTemposSelectDistinctRecordedRollsWithoutPitchChange() {
         for ((bpm, roll) in listOf(59 to JangdanSample.Gutgeori59, 79 to JangdanSample.Gutgeori79,
             99 to JangdanSample.Gutgeori99, 109 to JangdanSample.Gutgeori109, 119 to JangdanSample.Gutgeori119)) {

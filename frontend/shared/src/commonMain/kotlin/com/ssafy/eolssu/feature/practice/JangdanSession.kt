@@ -21,7 +21,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
     private var job: Job? = null
     private var generation = 0
 
-    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, onStarted: () -> Unit = {}) {
+    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, onStarted: () -> Unit = {}) {
         stop()
         if (!player.available || plan == null) {
             mutableStatus.value = JangdanStatus.Unsupported
@@ -37,7 +37,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                 }
                 onStarted()
                 mutableStatus.value = JangdanStatus.Playing
-                val cursor = JangdanCursor(plan)
+                val cursor = JangdanCursor(plan, resumeAfterTick = resumeAfterTick)
                 while (isActive) {
                     if (player.interrupted) {
                         mutableStatus.value = JangdanStatus.Interrupted
