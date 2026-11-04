@@ -108,3 +108,11 @@ MockEngine으로 기존 FK가 없어도 검수 메타데이터를 보존하는�
 Kotlin JS/Wasm 컴파일과 `:androidApp:assembleDebug`(로컬 API 127.0.0.1:18081)가 통과했다.
 사용한 명령은 `:shared:testAndroidHostTest :shared:compileKotlinJs :shared:compileKotlinWasmJs :androidApp:assembleDebug --max-workers=2`다.
 iOS 빌드/실기기와 Android 출력 지연·청음은 이 자동 검사 결과에 포함되지 않는다.
+
+일시정지 직후 같은 타격 tick에서 재개하면 그 타격을 다시 내던 경계 오류를 추가
+행동 검사 2건으로 재현한 뒤 수정했다(RED → GREEN). 재개는 이미 소비한 tick을
+cursor에 전달하며, 재개 직후 decoder의 작은 후방 보고에도 재타격하지 않는다.
+다음 타격은 누락하지 않고 명시적 seek/restart는 목표의 첫 타격을 허용한다.
+곡 끝으로 이동하면 멈추고, 끝에서 재생을 누를 때 처음 타격으로 다시 시작한다.
+후속 검증은 Android host 796건(실행 792, 환경 의존 생략 4), JS/Wasm 컴파일,
+로컬 API용 debug APK 빌드가 모두 통과했다. `git diff --cached --check`도 통과했다.
