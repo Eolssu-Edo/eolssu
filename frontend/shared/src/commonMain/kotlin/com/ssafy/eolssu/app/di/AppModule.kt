@@ -119,15 +119,15 @@ val appModule = module {
     // 현재 시각(ms). 테스트에서는 고정 값을 넣는다.
     single<() -> Long> { { Clock.System.now().toEpochMilliseconds() } }
     // 실제 세션과 결과만 사용한다. 테스트 대역은 테스트에서 직접 주입한다.
-    single<EvaluationRepository> { ApiEvaluationRepository(get(), get()) }
+    single<EvaluationRepository> { ApiEvaluationRepository(get(), get(), member = get()) }
     single<PracticeSessionRepository> { HttpPracticeSessionRepository(get(), get()) }
     single<RecordingUploader> { HttpRecordingUploader(get()) }
     // 녹음 보관은 RecordingFiles가 있는 플랫폼(현재 Android·iOS)만 한다. 쓰는 쪽은 RecordingFiles가 있을 때만 받는다.
     single { RecordingUploads(get(), get(), get(), get(), get()) }
-    single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get()) }
+    single<PracticeRecordRepository> { HttpPracticeRecordRepository(get(), get(), get()) }
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
-    single<GrowthRepository> { HttpGrowthRepository(get()) }
+    single<GrowthRepository> { HttpGrowthRepository(get(), get()) }
 
     viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
@@ -135,16 +135,16 @@ val appModule = module {
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine)
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
-        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get())
+        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get())
     }
-    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get()) }
-    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get()) }
-    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get()) }
-    viewModel { GrowthViewModel(get(), get(), get(), get()) }
+    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
+    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get()) }
+    viewModel { GrowthViewModel(get(), get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
@@ -155,7 +155,7 @@ val appModule = module {
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }
-    single { LearnProgressRepository(get()) }
+    single { LearnProgressRepository(get(), get()) }
     single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     single { AccountDraft() }
     single { TermsRepository(get()) }
@@ -177,11 +177,11 @@ val appModule = module {
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)
-    viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull()) }
-    viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull()) }
+    viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
+    viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
     // 내 악보. 서버 API가 없어 앱이 켜져 있는 동안만 예시 악보를 들고 있다.
-    single<MySheetRepository> { SampleMySheetRepository() }
+    single<MySheetRepository> { SampleMySheetRepository(member = get()) }
     viewModelOf(::MySongsViewModel)
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.

@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioRecorder
@@ -61,6 +63,7 @@ class PracticeViewModel(
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
     mine: Boolean = false,
     private val stepJudge: StepNoteJudge = ManualStepNoteJudge(),
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
@@ -82,17 +85,26 @@ class PracticeViewModel(
     private val recordingClock = RecordingClock()
     private var takeKey = ""
     private var take: RecordedTake? = null
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, viewModelScope, playbackTimeSource)
+    private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
+    private fun clearAccount() {
+        take = null
+        takeKey = ""
+        screenShown = false
+        timeMeter.hide()
+        _uiState.value = PracticeUiState()
+        viewModelScope.launch { stopAll() }
+    }
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource)
 
     init {
         retryLoadSong()
-        viewModelScope.launch {
+        accountScope.launch {
             modelAudio.state.collect { playback ->
                 _uiState.update { if (it.mode == PracticeMode.Model) it.withModelAudio(playback) else it }
             }
         }
-        viewModelScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
-        viewModelScope.launch {
+        accountScope.launch { settingsStore.settings.collect { s -> _uiState.update { it.copy(settings = s) } } }
+        accountScope.launch {
             _uiState.map { it.runningActivities }.distinctUntilChanged().collect { running ->
                 ContinuousActivity.entries.forEach { timeMeter.setRunning(it, it in running) }
             }
@@ -101,9 +113,10 @@ class PracticeViewModel(
 
     /** 화면 재구성은 요청을 반복하지 않는다. 실패 후 재시도만 가능하며 취소는 오류로 바꾸지 않는다. */
     fun retryLoadSong() {
+        if (!accountScope.isActive) return
         if (songJob?.isActive == true || _uiState.value.song != null) return
         _uiState.update { it.copy(isSongLoading = true, songError = null) }
-        songJob = viewModelScope.launch {
+        songJob = accountScope.launch {
             try {
                 val song = songRepository.getSong(songId)
                 when {
@@ -128,16 +141,18 @@ class PracticeViewModel(
 
     /** 화면이 앞에 보임(들어옴·앱으로 돌아옴·탭이 다시 보임). 새 구간을 열고 알림 때를 기다린다. */
     fun onScreenShown() {
+        if (!accountScope.isActive) return
         screenShown = true
         if (_uiState.value.song == null) return
         startTimeTracking()
     }
 
     private fun startTimeTracking() {
+        if (!accountScope.isActive) return
         timeMeter.show(songId)
         watchIdle()
         snapshotJob?.cancel()
-        snapshotJob = viewModelScope.launch {
+        snapshotJob = accountScope.launch {
             while (true) {
                 delay(PracticeTimeMeter.SnapshotInterval)
                 timeMeter.snapshot()?.let(timeQueue::saveOpen)
@@ -152,7 +167,8 @@ class PracticeViewModel(
         pauseStep()
         idleJob?.cancel()
         snapshotJob?.cancel()
-        timeQueue.close(timeMeter.hide())
+        val segment = timeMeter.hide()
+        if (accountScope.isActive) timeQueue.close(segment)
         _uiState.update { it.copy(idleReminder = false) }
     }
 
@@ -168,7 +184,7 @@ class PracticeViewModel(
     /** 알림 때까지 기다렸다가 띄운다. 그사이 활동이 있었으면 남은 시간이 늘어 있으므로 다시 기다린다. */
     private fun watchIdle() {
         idleJob?.cancel()
-        idleJob = viewModelScope.launch {
+        idleJob = accountScope.launch {
             while (true) {
                 delay(timeMeter.untilReminder() ?: IDLE_RECHECK)
                 if (timeMeter.takeReminder()) _uiState.update { it.copy(idleReminder = true) }
@@ -197,9 +213,10 @@ class PracticeViewModel(
 
     /** 음 듣기: 소리는 아직 없고 1.2초 동안 재생 중으로 보인다. */
     fun listen(yul: Yul) {
+        if (!accountScope.isActive) return
         listenJob?.cancel()
         _uiState.update { it.copy(listening = yul) }
-        listenJob = viewModelScope.launch {
+        listenJob = accountScope.launch {
             delay(1200)
             _uiState.update { it.copy(listening = null) }
         }
@@ -260,6 +277,7 @@ class PracticeViewModel(
 
     /** 장단 미리듣기: 구음 패턴 한 칸마다 옮긴다. 악보의 정간 길이와는 다르다. */
     fun togglePreview() {
+        if (!accountScope.isActive) return
         val state = _uiState.value
         if (state.draft.previewing) {
             stopPreview()
@@ -268,7 +286,7 @@ class PracticeViewModel(
         val song = state.song ?: return
         val jangdan = song.jangdan ?: return
         _uiState.update { it.copy(draft = it.draft.copy(previewing = true, previewBeat = 0)) }
-        previewJob = viewModelScope.launch {
+        previewJob = accountScope.launch {
             val gak = jangdan.gak
             while (true) {
                 delay(jangdan.cellMillis(_uiState.value.bpm).toLong())
@@ -292,6 +310,7 @@ class PracticeViewModel(
     // 모범 연주
 
     fun startModel() {
+        if (!accountScope.isActive) return
         val state = _uiState.value
         val song = state.song ?: return
         if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model)) return
@@ -302,10 +321,12 @@ class PracticeViewModel(
     }
 
     fun toggleModel() {
+        if (!accountScope.isActive) return
         if (_uiState.value.playing) modelAudio.pause() else startModel()
     }
 
     fun restartModel() {
+        if (!accountScope.isActive) return
         val song = _uiState.value.song ?: return
         _uiState.update { it.restartModel().copy(playing = false, eventStartedAt = null) }
         modelAudio.restart(song, _uiState.value.bpm)
@@ -319,6 +340,7 @@ class PracticeViewModel(
     // 평가 연주
 
     fun requestEvaluation() {
+        if (!accountScope.isActive) return
         if (recorder == null) return
         modelAudio.stop()
         stepJob?.cancel()
@@ -332,6 +354,7 @@ class PracticeViewModel(
 
     /** OS 권한까지 허용된 뒤 연주를 시작한다. */
     fun grantMicAndStart() {
+        if (!accountScope.isActive) return
         if (recorder == null) return
         settingsStore.grantMic()
         _uiState.update { it.beginCountdown() }
@@ -364,6 +387,7 @@ class PracticeViewModel(
 
     /** '계속 연주': 3·2·1 뒤 멈춘 자리부터. */
     fun resumeRecording() {
+        if (!accountScope.isActive) return
         if (recorder == null) return
         _uiState.update { it.beginCountdown(resume = true) }
         runCountdown()
@@ -372,6 +396,7 @@ class PracticeViewModel(
     fun askRestart() = _uiState.update { it.copy(popup = PracticePopup.Restart) }
 
     fun restartNow() {
+        if (!accountScope.isActive) return
         if (recorder == null) return
         stepJob?.cancel()
         cancelRecorder()
@@ -424,7 +449,7 @@ class PracticeViewModel(
 
     private fun runCountdown() {
         countdownJob?.cancel()
-        countdownJob = viewModelScope.launch {
+        countdownJob = accountScope.launch {
             while (_uiState.value.count > 1) {
                 delay(1000)
                 _uiState.update { it.copy(count = it.count - 1) }
@@ -517,6 +542,7 @@ class PracticeViewModel(
 
     /** 정상 종료한 연주에서만 분석으로 넘긴다. 저장된 녹음이 없으면 화면에 실패를 알린다. */
     fun takeForEvaluation(): RecordedTake? {
+        if (!accountScope.isActive) return null
         val state = _uiState.value
         if (!state.finished || state.popup != PracticePopup.End) return null
         if (take == null) _uiState.update { it.failRecording() }
@@ -571,7 +597,7 @@ class PracticeViewModel(
     private fun watchRecording() {
         val recorder = recorder ?: return
         levelJob?.cancel()
-        levelJob = viewModelScope.launch {
+        levelJob = accountScope.launch {
             var measuredAt = recordingClock.elapsed()
             while (isActive) {
                 val elapsed = recordingClock.elapsed()
@@ -612,7 +638,7 @@ class PracticeViewModel(
         stepJob?.cancel()
         val clock = PracticeTimelineClock(playbackTimeSource, carryMs, _uiState.value.elapsedMs)
         stepClock = clock
-        stepJob = viewModelScope.launch {
+        stepJob = accountScope.launch {
             try {
                 while (isActive) {
                     val state = _uiState.value

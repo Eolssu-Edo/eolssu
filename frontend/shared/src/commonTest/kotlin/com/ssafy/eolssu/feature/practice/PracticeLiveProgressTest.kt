@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModelStore
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.data.song.audioFixture
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.core.ui.score.ScoreCursor
 import com.ssafy.eolssu.feature.practice.component.scorePlayback
@@ -188,6 +189,36 @@ class PracticeLiveProgressTest {
         assertEquals(1, paused.at().index)
     }
 
+    @Test fun changingAccountStopsModelPlaybackAndPreventsOldScreenRestart() = run {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        progressTest(member) { vm, player ->
+            vm.startModel()
+            runCurrent()
+            player.emit(AudioPlaybackStatus.Playing, 625)
+            runCurrent()
+            val playback = requireNotNull(vm.uiState.value.scorePlayback())
+            advanceTimeBy(208)
+            assertEquals(0.8f, playback.at().fraction, 0.001f)
+            assertEquals(1, player.state.subscriptionCount.value)
+            val loadsBeforeSwitch = player.loads
+            assertEquals(1, loadsBeforeSwitch)
+
+            member.set("B")
+            runCurrent()
+            assertEquals(AudioPlaybackStatus.Idle, player.state.value.status)
+            assertEquals(0, player.state.subscriptionCount.value)
+            assertEquals(null, vm.uiState.value.modelClock)
+            assertEquals(null, vm.uiState.value.song)
+            assertFalse(vm.uiState.value.playing)
+
+            vm.startModel()
+            vm.toggleModel()
+            runCurrent()
+            assertEquals(loadsBeforeSwitch, player.loads)
+            assertEquals(AudioPlaybackStatus.Idle, player.state.value.status)
+        }
+    }
+
     @Test fun recordingPlayheadChangesNoteAndFractionTogether() = progressTest { vm, _ ->
         vm.grantMicAndStart()
         runCurrent()
@@ -215,7 +246,10 @@ class PracticeLiveProgressTest {
         assertEquals(250.0, clock.eventStartedAt.elapsedNow().inWholeNanoseconds / 1_000_000.0)
     }
 
-    private fun progressTest(block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit) = runTest {
+    private fun progressTest(
+        member: SignedInMember? = null,
+        block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
         try {
@@ -226,8 +260,8 @@ class PracticeLiveProgressTest {
             }
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel(song.id, false, repository, PracticeSettingsStore(settings),
-                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), recorder = FakePracticeRecorder(), playbackTimeSource = testScheduler.timeSource,
-                modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player)
+                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, member ?: SignedInMember(settings), backgroundScope), recorder = FakePracticeRecorder(), playbackTimeSource = testScheduler.timeSource,
+                modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player, member = member)
             store.put("practice", vm)
             runCurrent()
             block(vm, player)

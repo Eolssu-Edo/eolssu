@@ -3,6 +3,8 @@ package com.ssafy.eolssu.data.song
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.MySheetOrigin
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,12 +22,17 @@ interface MySheetRepository {
     suspend fun delete(sheetId: String)
 }
 
-/** 와이어프레임(Song-Practice-Mine) 예시 정간보 2개로 시작하고, 지우면 앱이 켜져 있는 동안 목록에서 빠진다. */
-class SampleMySheetRepository : MySheetRepository {
+/**
+ * 와이어프레임(Song-Practice-Mine) 예시 정간보 2개로 시작하고, 지우면 앱이 켜져 있는 동안 목록에서 빠진다.
+ * [member]가 바뀌면(로그아웃·다른 계정) 지운 내용이 다음 계정에 남지 않게 예시 2개로 되돌린다.
+ */
+class SampleMySheetRepository(private val member: SignedInMember? = null) : MySheetRepository {
     private val _sheets = MutableStateFlow(SampleSheets)
     override val sheets: StateFlow<List<MySheet>> = _sheets.asStateFlow()
 
-    override suspend fun delete(sheetId: String) {
+    init { member?.onChange { _sheets.value = SampleSheets } }
+
+    override suspend fun delete(sheetId: String) = member.inSession {
         _sheets.update { sheets -> sheets.filterNot { it.id == sheetId } }
     }
 }

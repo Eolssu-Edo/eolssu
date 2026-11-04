@@ -17,6 +17,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -218,19 +221,25 @@ class GrowthViewModel(
     private val learnProgress: LearnProgressRepository,
     instruments: InstrumentRepository,
     now: () -> Long,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(GrowthUiState(today = KoreanDateTime.fromEpochMillis(now())))
     val uiState: StateFlow<GrowthUiState> = _uiState.asStateFlow()
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = GrowthUiState(today = _uiState.value.today)
+    }
+
     init {
         load(GrowthRange.Week)
-        viewModelScope.launch {
+        accountScope.launch {
             combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument?.let(learnProgress::doneStageCount) }
                 .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
         }
     }
 
     fun changeRange(range: GrowthRange) {
+        if (!accountScope.isActive) return
         _uiState.update { it.copy(range = range) }
         if (_uiState.value.loads[range] !is GrowthLoad.Loaded) load(range)
     }
@@ -238,9 +247,10 @@ class GrowthViewModel(
     fun retry() = load(_uiState.value.range)
 
     private fun load(range: GrowthRange) {
+        if (!accountScope.isActive) return
         if (_uiState.value.loads[range] == GrowthLoad.Loading) return
         _uiState.update { it.copy(loads = it.loads + (range to GrowthLoad.Loading)) }
-        viewModelScope.launch {
+        accountScope.launch {
             val load = loadGrowth(repository, GrowthPeriod.of(range, _uiState.value.today))
             _uiState.update { it.copy(loads = it.loads + (range to load)) }
         }

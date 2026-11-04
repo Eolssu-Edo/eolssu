@@ -44,7 +44,7 @@ class AccountLinkViewModel(
             MergeResult.Success -> {
                 attempts.clearMerge()
                 draft.clear()
-                userRepository?.logOut()
+                userRepository?.clearProfile()
                 userRepository?.refresh()
                 _uiState.update { it.copy(password = "") }
                 return true

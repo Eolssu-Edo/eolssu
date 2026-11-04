@@ -56,6 +56,15 @@ internal class AnalysisSession(
     private var recording: PendingRecording? = null
     private var take: RecordedTake? = null
 
+    fun clearAccount() {
+        pollJob?.cancel()
+        request = null
+        analysisId = null
+        recording = null
+        take = null
+        _state.value = AnalysisUiState(exit = AnalysisExit.NeedsLogin)
+    }
+
     /** 곡 조회 실패는 분석 요청 전의 실패이며, 분석 상태나 결과로 바꾸지 않는다. */
     suspend fun loadSong(songId: String, bpm: Int, songs: SongRepository, take: RecordedTake? = null, pendingSessionId: String? = null) {
         _state.update { it.copy(songLookup = SongLookup.Loading) }

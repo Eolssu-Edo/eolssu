@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
@@ -23,6 +26,7 @@ import kotlinx.coroutines.launch
 class LearnViewModel(
     private val songRepository: SongRepository,
     private val progressRepository: LearnProgressRepository,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         LearnUiState(done = GuideInstrument.entries.associateWith { progressRepository.doneStages(it.id) }),
@@ -30,14 +34,19 @@ class LearnViewModel(
     val uiState: StateFlow<LearnUiState> = _uiState.asStateFlow()
     private var songsJob: Job? = null
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = LearnUiState()
+    }
+
     init {
         retrySongs()
     }
 
     fun retrySongs() {
+        if (!accountScope.isActive) return
         if (songsJob?.isActive == true) return
         _uiState.update { it.copy(songsLoading = true, songsFailed = false) }
-        songsJob = viewModelScope.launch {
+        songsJob = accountScope.launch {
             val titles = LearnSongs.map { it.title }.toSet()
             val songs = try {
                 songRepository.getSongs()
@@ -80,6 +89,7 @@ class LearnViewModel(
 
     /** 완료 표시를 바꾸고 지금 악기의 완료 단계를 기기에 남긴다. */
     private fun updateDone(transform: (LearnUiState) -> LearnUiState) {
+        if (!accountScope.isActive) return
         val state = _uiState.updateAndGet(transform)
         progressRepository.saveDoneStages(state.instrument.id, state.doneStages)
     }

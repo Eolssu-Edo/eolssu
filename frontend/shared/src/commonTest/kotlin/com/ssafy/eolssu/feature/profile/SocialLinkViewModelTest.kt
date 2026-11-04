@@ -45,7 +45,7 @@ class SocialLinkViewModelTest {
 
     @AfterTest fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = SocialLinkViewModel(SocialProvider.Kakao, users, attempts, links) { opened += it; true }
+    private fun viewModel() = SocialLinkViewModel(SocialProvider.Kakao, users, attempts, links, browser = com.ssafy.eolssu.core.browser.ExternalBrowser { opened += it; true })
 
     @Test
     fun linksOnceThroughTheBrowserReturn() = runTest {

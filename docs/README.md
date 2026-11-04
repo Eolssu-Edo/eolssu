@@ -34,6 +34,9 @@
 
 ## 기능 스펙
 
+- [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
+- [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
+
 - [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
 - [운지법 화면 음원 목록 로딩 개선 (423)](specs/guide-audio-loading.md) · [원인·검증 기록](knowledge/frontend/guide-audio-loading.md)
 - [HOME 전체 그림·스크롤·먹 버튼](specs/home-scroll-ink.md) · [412 계획·검증](plans/S15P31E102-412.md) · [428 카드 배치 개편](plans/S15P31E102-428.md) · [437 상단 바·2x3 카드](plans/S15P31E102-437.md)
@@ -104,6 +107,10 @@
 - [평가 조율 정보 저장·실제 AI 연동 검증](knowledge/backend/evaluation-tuning-verification.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 - [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
+
+## 백엔드 조사·검증 기록
+
+- [화면 흐름 개선 검토 결과와 내 악보 후속 조건 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
 
 ## 프론트엔드 조사·검증 기록
 
