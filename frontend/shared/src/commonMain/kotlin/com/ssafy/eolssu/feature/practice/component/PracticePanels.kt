@@ -45,11 +45,9 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HoleState
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.ChipRow
 import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
@@ -111,6 +109,7 @@ import eolssu.shared.generated.resources.practice_notation_title
 import eolssu.shared.generated.resources.practice_off
 import eolssu.shared.generated.resources.practice_on
 import eolssu.shared.generated.resources.practice_settings
+import eolssu.shared.generated.resources.practice_settings_locked
 import eolssu.shared.generated.resources.practice_tempo_note
 import eolssu.shared.generated.resources.practice_tempo_sub
 import eolssu.shared.generated.resources.practice_tempo_title
@@ -231,6 +230,9 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val notationOn = settings.showHangul || settings.showSolfege
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
     val instrumentName = stringResource(state.instrument.label)
+    // 평가 연주 중에는 채점 속도와 녹음에 닿는 장단·속도만 잠근다.
+    val locked = state.playbackSettingsLocked
+    val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
         InstrumentSelect(state.instrument, actions.onSetInstrument)
         MenuRow(
@@ -239,10 +241,14 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         ) { actions.onOpen(PracticePanel.Notation) }
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
-            if (song.jangdan == null) jangdanLabel(song.jangdanName) else
-                stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName),
+            when {
+                locked -> lockedStatus
+                song.jangdan == null -> jangdanLabel(song.jangdanName)
+                else -> stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName)
+            },
+            enabled = !locked,
         ) { actions.onOpen(PracticePanel.Jangdan) }
-        MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), tempoLabel(step)) {
+        MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
         }
         SettingRow(
@@ -300,16 +306,17 @@ private fun InstrumentSelect(selected: GuideInstrument, onSelect: (String) -> Un
     }
 }
 
-/** 메뉴 줄(`.menu-row`, 56dp): 위 선, 36dp 흰 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. */
+/** 메뉴 줄(`.menu-row`, 56dp): 위 선, 36dp 흰 네모 아이콘, 15sp 600 이름, 13sp 상태, 꺾쇠. [enabled]가 아니면 흐리고 누를 수 없다. */
 @Composable
-private fun MenuRow(icon: ImageVector, label: String, status: String, onClick: () -> Unit) {
+private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: Boolean = true, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Row(
         Modifier
             .fillMaxWidth()
             .height(56.dp)
+            .alpha(if (enabled) 1f else 0.45f)
             .drawBehind { drawLine(colors.surfaceStrong, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx()) }
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -548,7 +555,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     }
 }
 
-/** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 칩 5개, 안내. */
+/** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 다섯 단계 슬라이더, 안내. */
 @Composable
 private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
@@ -562,10 +569,6 @@ private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelA
             textAlign = TextAlign.Center,
         )
     }
-    ChipRow {
-        TempoStep.entries.forEach { s ->
-            EolssuChip(tempoLabel(s), selected = s == step, onClick = { actions.onDraft { it.copy(step = s) } })
-        }
-    }
+    TempoSlider(step, onStep = { s -> actions.onDraft { it.copy(step = s) } })
     TinyNote(stringResource(Res.string.practice_tempo_note))
 }

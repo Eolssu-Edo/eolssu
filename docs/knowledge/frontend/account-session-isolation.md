@@ -97,6 +97,14 @@ $env:EOLSSU_QA_LIVE_CATALOG='false'
 
 2026-11-04 같은 전체 명령을 다시 실행한 결과는 **737건 중 733 통과·기존 조건부 4건 건너뜀·실패/오류 0**이다. Android debug APK, 공통 JS·Wasm 컴파일도 성공했다. 실행은 45초였으며 빌드 캐시가 있는 검증 소요다. 최신 develop 대비 이번 MR의 백엔드·AI·데이터·인프라 변경은 0개다. 변경 전후 비교와 정상 로그인 회귀도 이 실행에 포함한다.
 
+## 연습 화면 MR 병합 뒤 충돌 해결
+
+같은 날 권영민의 MR !300(S15P31E102-445)이 `develop`의 `8c3b1823`에 병합된 뒤, 계정 격리 MR !296과 `PracticeViewModel.kt` 한 구간이 충돌했다. `ModelAudioSession`에 계정 변경 시 취소되는 `accountScope`와 진행선 시계인 `playbackTimeSource`를 함께 전달하고, 기존 `clearAccount()`를 유지했다. 충돌 파일은 1개에서 0개가 됐다.
+
+`PracticeLiveProgressTest.changingAccountStopsModelPlaybackAndPreventsOldScreenRestart`를 추가했다. 회원 A의 재생 진행선이 가상시간에 맞춰 움직이는 것을 확인한 다음 B로 전환한다. 플레이어 상태 구독은 1개에서 0개로 줄고, 재생·곡·진행선 상태가 초기화되며 이전 화면의 재생 재시도는 추가 로드를 만들지 않는다. 실제 오디오 대신 fake와 가상시간을 사용한 회귀 검사다.
+
+충돌 해결과 회귀 추가 후 같은 전체 명령을 실행한 결과는 **743건 중 739 통과·기존 조건부 4건 건너뜀·실패/오류 0**이다. `PracticeLiveProgressTest` 11건은 모두 통과했고, 기존 계정 격리 비교의 네 metric도 모두 0을 유지했다. Android debug APK, 공통 JS·Wasm 컴파일도 성공했다. Jira 첫 Push 결과 기록 이후의 후속 변경이므로 Jira 댓글을 반복 작성하지 않았다.
+
 ## 확인하지 못한 범위
 
 실제 계정으로 Android/iOS/Web 화면을 왕복하며 로그인·로그아웃한 E2E와 실제 녹음 기기의 재생 중단은 실행하지 않았다. 플레이어는 fake를 사용해 중단·URL 재사용 금지를 확인했다. Windows에서 iOS 컴파일·실기기 검증은 불가능하다. Android APK 빌드와 JS/Wasm 컴파일 성공을 이 검증의 대체 근거로 쓰지 않는다. 정식 독립 리뷰와 기기 검증은 남아 있다.

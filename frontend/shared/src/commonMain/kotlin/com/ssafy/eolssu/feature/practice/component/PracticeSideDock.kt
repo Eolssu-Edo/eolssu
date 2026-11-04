@@ -106,7 +106,8 @@ private fun SongInfo(state: PracticeUiState, song: Song) {
 private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val settings = state.settings
-    val locked = state.settingsLocked
+    // 평가 연주 중에는 장단·속도만 잠근다. 표기·운지법·크게 보기는 그대로 바꿀 수 있다.
+    val locked = state.playbackSettingsLocked
     val notationOn = settings.showHangul || settings.showSolfege
     val note = state.draft.note
     Column {
@@ -118,7 +119,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         )
         QuickRow(
             stringResource(Res.string.practice_menu_notation),
-            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off), notationOn, locked,
+            stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off), notationOn, locked = false,
         ) { actions.onOpen(PracticePanel.Notation) }
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
@@ -129,13 +130,13 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
             stringResource(Res.string.practice_menu_tempo),
             tempoLabel(TempoStep.nearest(song.baseBpm, state.bpm)), state.bpm != song.baseBpm, locked,
         ) { actions.onOpen(PracticePanel.Tempo) }
-        QuickRow(stringResource(Res.string.practice_fingering_title), if (note.drawnAs == null) "${note.symbol} ${note.fullName}" else note.fullName, on = false, locked) {
+        QuickRow(stringResource(Res.string.practice_fingering_title), if (note.drawnAs == null) "${note.symbol} ${note.fullName}" else note.fullName, on = false, locked = false) {
             actions.onOpen(PracticePanel.Fingering)
         }
         val bigLabel = stringResource(Res.string.practice_big_score)
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(bigLabel, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold))
-            EolssuSwitch(settings.bigScore, actions.onToggleBigScore, bigLabel, enabled = !locked)
+            EolssuSwitch(settings.bigScore, actions.onToggleBigScore, bigLabel)
         }
         Text(
             stringResource(if (locked) Res.string.practice_dock_locked else Res.string.practice_dock_hint),

@@ -8,8 +8,10 @@ import com.ssafy.eolssu.core.model.ScoreTiming
 import com.ssafy.eolssu.core.model.ScoreBpmUnit
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.timeline
+import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ScoreLayoutTest {
 
@@ -19,6 +21,26 @@ class ScoreLayoutTest {
 
     private val gagok16 = Jangdan("가곡 16박", daegang = listOf(11, 5), beats = 16, subdivision = 1)
     private val semachi = Jangdan("세마치", daegang = listOf(3, 3, 3), beats = 3, subdivision = 3)
+
+    @Test
+    fun playheadStripMovesForwardWithoutGapsAcrossNotesAndColumns() {
+        val song = smallScoreSong()
+        val strips = scoreStrips(song.score, song.jangdan)
+        val units = song.displayUnits.groupBy { it.column to it.row }
+        fun at(index: Int, fraction: Float) = requireNotNull(playheadStrip(song, strips, units, index, fraction))
+        assertEquals(0.0, at(0, 0f), 1e-9)
+        var last = 0.0
+        for (event in song.timeline) {
+            // 다음 음은 앞 음이 끝난 자리에서 이어 시작한다.
+            assertEquals(last, at(event.index, 0f), 1e-6, "event ${event.index}")
+            for (step in 1..10) {
+                val now = at(event.index, step / 10f)
+                assertTrue(now >= last, "event ${event.index} step $step: $now < $last")
+                last = now
+            }
+        }
+        assertEquals(strips.size.toDouble(), last, 1e-6)
+    }
 
     @Test
     fun shortGakIsOneStripPerColumn() {

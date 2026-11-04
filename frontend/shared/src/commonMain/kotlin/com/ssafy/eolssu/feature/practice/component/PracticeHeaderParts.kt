@@ -40,14 +40,13 @@ import eolssu.shared.generated.resources.practice_mode_no_input
 import eolssu.shared.generated.resources.practice_mode_ready
 import eolssu.shared.generated.resources.practice_mode_recording
 import eolssu.shared.generated.resources.practice_settings
-import eolssu.shared.generated.resources.practice_settings_locked
 import eolssu.shared.generated.resources.practice_subtitle
 import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · ‘연습’ · 오른쪽 연습 설정 톱니. 연주·카운트다운 중에는 톱니 대신 잠긴 자물쇠(회색)다.
+ * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · ‘연습’ · 오른쪽 연습 설정 톱니. 평가 연주 중에도 열린다(속도·장단만 설정 안에서 잠긴다).
  * [showSettings]가 아니면 오른쪽을 비운다(태블릿 가로는 상태 패널에 바로가기가 있다).
  */
 @Composable
@@ -66,12 +65,7 @@ fun PracticeTopBar(
         maxWidth = maxWidth,
         right = {
             if (showSettings) {
-                EolssuPageIconButton(
-                    if (state.settingsLocked) EolssuIcons.Lock else EolssuIcons.Cog,
-                    stringResource(if (state.settingsLocked) Res.string.practice_settings_locked else Res.string.practice_settings),
-                    onOpenSettings,
-                    enabled = !state.settingsLocked,
-                )
+                EolssuPageIconButton(EolssuIcons.Cog, stringResource(Res.string.practice_settings), onOpenSettings)
             }
         },
     )

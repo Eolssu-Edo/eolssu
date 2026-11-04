@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModelStore
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.data.song.audioFixture
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
+import com.ssafy.eolssu.core.ui.score.ScoreCursor
+import com.ssafy.eolssu.feature.practice.component.scorePlayback
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.CommonScoreData
@@ -134,6 +137,105 @@ class PracticeLiveProgressTest {
         assertEquals(1042.0, vm.uiState.value.elapsedMs, 0.0001)
     }
 
+    @Test fun modelPlayheadKeepsMovingBetweenPositionReportsAndCrossesIntoTheNextNote() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 625)
+        runCurrent()
+        val playback = requireNotNull(vm.uiState.value.scorePlayback())
+        assertTrue(playback.running)
+        assertEquals(ScoreCursor(0, 0.6f), playback.at())
+        // 위치 보고 없이도 시간만큼 이어 가고, 첫 음(5 tick ≈ 1042ms)이 끝나면 화면이 직접 다음 음으로 넘어간다.
+        advanceTimeBy(208)
+        assertEquals(0.8f, playback.at().fraction, 0.001f)
+        advanceTimeBy(292)
+        assertEquals(1, playback.at().index)
+    }
+
+    @Test fun modelPlayheadNeverMovesBackOnJitteryPositionReports() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 100)
+        runCurrent()
+        var last = 0.0
+        // 실제 위치는 50ms마다 50ms씩 가지만 보고는 ±30ms 흔들린다.
+        for ((step, jitter) in listOf(30, -30, 25, -25, 30, -30, 20, -20).withIndex()) {
+            advanceTimeBy(50)
+            player.emit(AudioPlaybackStatus.Playing, 100L + 50 * (step + 1) + jitter)
+            runCurrent()
+            val clock = requireNotNull(vm.uiState.value.modelClock)
+            val shown = clock.anchor.positionNow()
+            assertTrue(shown >= last, "step $step: $shown < $last")
+            assertTrue(clock.anchor.rate in 0.9..1.1, "step $step: rate ${clock.anchor.rate}")
+            last = shown
+        }
+        assertEquals(500.0, last, 30.0)
+    }
+
+    @Test fun modelPlayheadJumpsToAFarSeekAndStopsWhenPaused() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 100)
+        runCurrent()
+        advanceTimeBy(50)
+        player.emit(AudioPlaybackStatus.Playing, 1100)
+        runCurrent()
+        assertEquals(1100.0, requireNotNull(vm.uiState.value.modelClock).anchor.positionNow(), 0.001)
+        vm.toggleModel()
+        runCurrent()
+        assertEquals(null, vm.uiState.value.modelClock)
+        val paused = requireNotNull(vm.uiState.value.scorePlayback())
+        assertFalse(paused.running)
+        assertEquals(1, paused.at().index)
+    }
+
+    @Test fun changingAccountStopsModelPlaybackAndPreventsOldScreenRestart() = run {
+        val member = SignedInMember(FakeKeyValueStore()).apply { set("A") }
+        progressTest(member) { vm, player ->
+            vm.startModel()
+            runCurrent()
+            player.emit(AudioPlaybackStatus.Playing, 625)
+            runCurrent()
+            val playback = requireNotNull(vm.uiState.value.scorePlayback())
+            advanceTimeBy(208)
+            assertEquals(0.8f, playback.at().fraction, 0.001f)
+            assertEquals(1, player.state.subscriptionCount.value)
+            val loadsBeforeSwitch = player.loads
+            assertEquals(1, loadsBeforeSwitch)
+
+            member.set("B")
+            runCurrent()
+            assertEquals(AudioPlaybackStatus.Idle, player.state.value.status)
+            assertEquals(0, player.state.subscriptionCount.value)
+            assertEquals(null, vm.uiState.value.modelClock)
+            assertEquals(null, vm.uiState.value.song)
+            assertFalse(vm.uiState.value.playing)
+
+            vm.startModel()
+            vm.toggleModel()
+            runCurrent()
+            assertEquals(loadsBeforeSwitch, player.loads)
+            assertEquals(AudioPlaybackStatus.Idle, player.state.value.status)
+        }
+    }
+
+    @Test fun recordingPlayheadChangesNoteAndFractionTogether() = progressTest { vm, _ ->
+        vm.grantMicAndStart()
+        runCurrent()
+        advanceTimeBy(3000)
+        runCurrent()
+        advanceTimeBy(1000)
+        val first = requireNotNull(vm.uiState.value.scorePlayback())
+        assertEquals(0, first.at().index)
+        assertEquals(0.96f, first.at().fraction, 0.01f)
+        advanceTimeBy(100)
+        runCurrent()
+        // 첫 음이 끝나면 새 음은 처음부터 그린다. 옛 음의 비율(≈1)로 새 음을 그리지 않는다.
+        val next = requireNotNull(vm.uiState.value.scorePlayback()).at()
+        assertEquals(1, next.index)
+        assertTrue(next.fraction < 0.5f, "fraction ${next.fraction}")
+    }
+
     @Test fun lateWakeupCarriesExcessIntoTheNextEvent() {
         val source = TestTimeSource()
         val clock = PracticeTimelineClock(source, carriedEventMs = 250.0, carriedElapsedMs = 1000.0)
@@ -144,7 +246,10 @@ class PracticeLiveProgressTest {
         assertEquals(250.0, clock.eventStartedAt.elapsedNow().inWholeNanoseconds / 1_000_000.0)
     }
 
-    private fun progressTest(block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit) = runTest {
+    private fun progressTest(
+        member: SignedInMember? = null,
+        block: suspend TestScope.(PracticeViewModel, FakeAudioPlayer) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val store = ViewModelStore()
         try {
@@ -155,8 +260,8 @@ class PracticeLiveProgressTest {
             }
             val settings = FakeKeyValueStore()
             val vm = PracticeViewModel(song.id, false, repository, PracticeSettingsStore(settings),
-                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, com.ssafy.eolssu.core.network.SignedInMember(settings), backgroundScope), recorder = FakePracticeRecorder(), playbackTimeSource = testScheduler.timeSource,
-                modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player)
+                PracticeTimeMeter({ 0L }), PracticeTimeQueue(settings, null, member ?: SignedInMember(settings), backgroundScope), recorder = FakePracticeRecorder(), playbackTimeSource = testScheduler.timeSource,
+                modelAudioRepository = modelRepository { audioFixture().copy(bpm = 96, durationMs = 1800) }, audioPlayer = player, member = member)
             store.put("practice", vm)
             runCurrent()
             block(vm, player)

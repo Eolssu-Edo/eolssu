@@ -15,12 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -36,13 +34,16 @@ import com.ssafy.eolssu.core.ui.score.BandGap
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.ui.score.ScoreCursor
 import com.ssafy.eolssu.core.ui.score.ScoreHighlight
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.ScorePlayback
+import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.modelPointAt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -109,7 +110,7 @@ fun PracticeScoreArea(
             null
         }
         val recording = state.mode == PracticeMode.Recording || state.resuming
-        val playback = if (state.live) ScorePlayback(state.eventStartedAt, state.eventDurationMs(), state.pausedFraction) else null
+        val playback = state.scorePlayback()
         val notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege)
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else null
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
@@ -137,7 +138,7 @@ fun PracticeScoreArea(
             val bandHeight = (maxHeight - BandGap) / 2
             val metrics = JeongganboMetrics.practice(song.jangdan, bandHeight, big = big, tablet = true, longestStrip = longestStrip)
             val columnCount = song.score.columns.size
-            val scrollState = rememberBandScroll(state, bandColumns, bandHeight, onUserScroll)
+            val scrollState = rememberBandScroll(state, playback, bandColumns, bandHeight, onUserScroll)
             Column(Modifier.fillMaxSize().verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(BandGap)) {
                 for (first in 0 until columnCount step bandColumns) {
                     JeongganboView(
@@ -170,6 +171,32 @@ fun PracticeScoreArea(
     }
 }
 
+/**
+ * 모범 연주·연주 중 진행 선이 그릴 위치. 모범 연주는 음원 위치를, 연주는 현재 음이 시작된 시각을 기준으로 매 프레임 계산한다.
+ * 모범 연주는 음이 바뀌는 순간도 화면이 직접 계산하므로 음원 위치 보고를 기다리지 않는다.
+ */
+internal fun PracticeUiState.scorePlayback(): ScorePlayback? {
+    val song = song
+    if (!live || song == null || eventCount == 0) return null
+    val clock = modelClock?.takeIf { mode == PracticeMode.Model && playing }
+    if (clock != null) {
+        return ScorePlayback(running = true) {
+            val point = song.modelPointAt(clock.audio, clock.anchor.positionNow())
+            ScoreCursor(point.position, point.fraction.toFloat())
+        }
+    }
+    val index = position.coerceAtMost(eventCount - 1)
+    val started = eventStartedAt
+    if (started == null) {
+        val paused = ScoreCursor(index, pausedFraction)
+        return ScorePlayback(running = false) { paused }
+    }
+    val durationMs = eventDurationMs()
+    return ScorePlayback(running = true) {
+        ScoreCursor(index, (started.elapsedNow().inWholeMicroseconds / 1000.0 / durationMs).toFloat().coerceIn(0f, 1f))
+    }
+}
+
 /** 처음 들어오거나 크기를 바꾸면 시작 위치(오른쪽 끝)로, 카운트다운이 시작되면 처음으로 되돌린다. */
 @Composable
 private fun rememberHorizontalScoreScroll(state: PracticeUiState): ScrollState {
@@ -186,7 +213,13 @@ private fun rememberHorizontalScoreScroll(state: PracticeUiState): ScrollState {
  * 카운트다운이 시작되면 첫 단으로 되돌린다.
  */
 @Composable
-private fun rememberBandScroll(state: PracticeUiState, bandColumns: Int, bandHeight: Dp, onUserScroll: () -> Unit): ScrollState {
+private fun rememberBandScroll(
+    state: PracticeUiState,
+    playback: ScorePlayback?,
+    bandColumns: Int,
+    bandHeight: Dp,
+    onUserScroll: () -> Unit,
+): ScrollState {
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val latestOnUserScroll by rememberUpdatedState(onUserScroll)
@@ -197,18 +230,13 @@ private fun rememberBandScroll(state: PracticeUiState, bandColumns: Int, bandHei
         if (state.mode == PracticeMode.Countdown && !state.resume) scrollState.animateScrollTo(0)
     }
     val song = state.song
-    var currentBand by remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(song, state.live, state.position, state.eventStartedAt, state.pausedFraction, bandColumns) {
-        if (!state.live || song == null) { currentBand = null; return@LaunchedEffect }
-        val index = state.position.coerceAtMost(state.eventCount - 1)
-        val started = state.eventStartedAt
-        fun updateBand() {
-            val fraction = if (started == null) state.pausedFraction else
-                (started.elapsedNow().inWholeMicroseconds / 1000.0 / state.eventDurationMs()).toFloat().coerceIn(0f, 1f)
-            currentBand = song.displayUnitAt(index, fraction)?.column?.div(bandColumns)
+    val live = playback != null
+    val cursor = rememberScoreCursor(playback)
+    val currentBand by remember(song, live, bandColumns) {
+        derivedStateOf {
+            val index = cursor.index
+            if (!live || song == null || index == null) null else song.displayUnitAt(index, cursor.fraction)?.column?.div(bandColumns)
         }
-        updateBand()
-        if (started != null) while (true) withFrameNanos { updateBand() }
     }
     LaunchedEffect(currentBand, state.follow, scrollState.viewportSize, bandHeight) {
         val band = currentBand
@@ -240,7 +268,7 @@ fun PracticeBoardScore(
     val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
     val longestStrip = strips.maxOf { it.rows.count() }
     val recording = state.mode == PracticeMode.Recording || state.resuming
-    val playback = if (state.live) ScorePlayback(state.eventStartedAt, state.eventDurationMs(), state.pausedFraction) else null
+    val playback = state.scorePlayback()
     Column(modifier.fillMaxWidth()) {
         JeongganboView(
             song = song,

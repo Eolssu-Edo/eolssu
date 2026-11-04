@@ -116,6 +116,8 @@ data class PracticeUiState(
     /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
     val modelPerformance: ScorePerformance? = null,
     val modelPerformancePositionMs: Double = 0.0,
+    /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
+    val modelClock: ModelClock? = null,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
@@ -141,8 +143,11 @@ data class PracticeUiState(
         (modelPerformance.durationMs * (song?.baseBpm ?: bpm) / bpm / 1000).roundToInt()
         else song?.durationSeconds(bpm) ?: 0
 
-    /** 설정 버튼이 잠기는 상태. 연주 중에는 설정을 바꿀 수 없다. */
-    val settingsLocked: Boolean
+    /**
+     * 연습 속도·장단을 바꿀 수 없는 상태(평가 연주의 카운트다운·녹음·중단). 속도는 채점 기준이고 장단 소리는 마이크에 녹음되기 때문이다.
+     * 악기·표기·운지법과 함께 보기 같은 보기 설정은 이때도 바꿀 수 있다.
+     */
+    val playbackSettingsLocked: Boolean
         get() = mode == PracticeMode.Recording || mode == PracticeMode.Countdown || mode == PracticeMode.Interrupted
 
     /** 이어서 연주하려고 카운트다운하는 중. 하단은 연주 중 모습을 유지한다. */
@@ -373,7 +378,7 @@ fun PracticeUiState.seekSelection(deltaMs: Long): PracticeUiState {
 
 /** 패널 열기. 연주·카운트다운 중에는 열지 않는다. 지금 설정을 고치는 값으로 옮겨 둔다. */
 fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
-    if (mode == PracticeMode.Recording || mode == PracticeMode.Countdown) return this
+    if (playbackSettingsLocked && (panel == PracticePanel.Tempo || panel == PracticePanel.Jangdan)) return this
     val song = song
     val draft = when (panel) {
         PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul, showSolfege = settings.showSolfege)

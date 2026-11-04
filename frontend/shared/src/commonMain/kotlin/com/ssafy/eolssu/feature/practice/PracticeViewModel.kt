@@ -87,7 +87,7 @@ class PracticeViewModel(
         _uiState.value = PracticeUiState()
         viewModelScope.launch { stopAll() }
     }
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope)
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource)
 
     init {
         retryLoadSong()
