@@ -1,0 +1,32 @@
+{
+ "sourceId": "ngc-standard-2022-p183",
+ "sourceHashes": {
+  "ngc-standard-2022-p183": "58c20868b230a54dc00dd5f25214e908e3b3dac3169605b3e281a87d43a4a5e3"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "어이얼어자리_단소2.jgb.json",
+  "sha256": "9ee772e38e22a1d2231f81a8f8e86deea34c7a654974837e158c9ce56d469864",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함. 원본은 CRLF 줄바꿈이고 저장소 사본은 LF로 바꿨다(.gitattributes). 내용은 같다",
+  "storedSha256": "2c7635ac8654c4294b8e171a48c8dde938a51ddcacb3bf48887729e45d851fb3"
+ },
+ "song": {
+  "title": "어이 얼어자리",
+  "instrument": "DANSO",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 30,
+  "scoreVersion": 1
+ }
+}

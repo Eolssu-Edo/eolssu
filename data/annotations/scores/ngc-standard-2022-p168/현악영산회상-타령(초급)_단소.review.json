@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p168",
+ "sourceHashes": {
+  "ngc-standard-2022-p168": "04e9e59e514932b5e504630e91942b44a356662da24976e8c68736244c169095"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "현악영산회상-타령(초급).jgb.json",
+  "sha256": "72b15691bb228018c1c100f9b57adcd6c14e76be03ca2e4c82f3fe3e33f43616",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "현악영산회상-타령(초급)",
+  "instrument": "DANSO",
+  "jangdan": "타령",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "타령",
+  "tempo": null,
+  "beatsPerJeonggan": "1/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 39,
+  "scoreVersion": 1
+ }
+}

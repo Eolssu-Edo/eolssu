@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p163",
+ "sourceHashes": {
+  "ngc-standard-2022-p163": "ed2d6a6cc3999e64a14bc9370f0a60fb04b46d13359a6b48425bf4d26d951256"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "꿩꿩장서방.jgb.json",
+  "sha256": "65954b92fbff9a00dc6847f29dd7aa0ac746e616998e562fc29d24326a0f3eeb",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "꿩꿩장서방",
+  "instrument": "DANSO",
+  "jangdan": "자진모리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "자진모리",
+  "tempo": null,
+  "beatsPerJeonggan": "1/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 12,
+  "scoreVersion": 1
+ }
+}

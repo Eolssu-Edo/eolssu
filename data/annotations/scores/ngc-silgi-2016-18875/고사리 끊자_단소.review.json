@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-silgi-2016-18875",
+ "sourceHashes": {
+  "ngc-silgi-2016-18875": "470586bd3c31e16a8c9b3c57d18891552f3769f6b421ce4d8fe998059efad7ca"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "고사리 끊자.jgb.json",
+  "sha256": "5d1094b8159d415c4d51a5335fd73374568b49b3dee58701021a7acb211b62cb",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "고사리 끊자",
+  "instrument": "DANSO",
+  "jangdan": "자진모리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "자진모리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 8,
+  "scoreVersion": 1
+ }
+}

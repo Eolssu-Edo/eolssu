@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p179",
+ "sourceHashes": {
+  "ngc-standard-2022-p179": "eeef7fa5c3c45e5d3db12115eb7e7bb7de48447cf25a0a6b5c96b5b4f65b78f7"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "천년만세-계면가락도드리(중급).jgb.json",
+  "sha256": "2f233ff6cf44186773ceece6305073c0309aa7c1abcfb184781d5320b0807090",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "천년만세-계면가락도드리(중급)",
+  "instrument": "DANSO",
+  "jangdan": "계면가락도드리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "계면가락도드리",
+  "tempo": null,
+  "beatsPerJeonggan": "1/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 46,
+  "scoreVersion": 1
+ }
+}

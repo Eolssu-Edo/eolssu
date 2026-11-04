@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p169",
+ "sourceHashes": {
+  "ngc-standard-2022-p169": "1da59657a16f2b2b0bdc9b476e5b88dcd900e9a2af6729b4908784d8389ab730"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "구아리랑.jgb.json",
+  "sha256": "ee9a7115b1d8c81918f1930fcb960b10d77b2cff3507b498798e5655c2d5084a",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "구아리랑",
+  "instrument": "DANSO",
+  "jangdan": "세마치",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "세마치",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 9,
+  "scoreVersion": 1
+ }
+}

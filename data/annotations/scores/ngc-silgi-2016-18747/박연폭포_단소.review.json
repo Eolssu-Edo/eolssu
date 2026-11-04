@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-silgi-2016-18747",
+ "sourceHashes": {
+  "ngc-silgi-2016-18747": "3ff173313576488e89d7edda1e7751620aa7e94f2dd1347a0ce134be5777703c"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "박연폭포.jgb.json",
+  "sha256": "147093e6a42ebde3cf675c623155bf735bd553bf48c84484da979791b5e7b567",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "박연폭포",
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "굿거리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 22,
+  "scoreVersion": 1
+ }
+}

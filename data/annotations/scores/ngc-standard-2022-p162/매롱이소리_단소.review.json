@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p162",
+ "sourceHashes": {
+  "ngc-standard-2022-p162": "b2e9df72389353a41e2b702944630bbfefb277f6ad613171c8ea8eb4fbeb6ed6"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "매롱이소리.jgb.json",
+  "sha256": "a8791641fd2804ccf73f9400addbf1bb9e3f6e3530b65c5d87009c130f3706c9",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "매롱이소리",
+  "instrument": "DANSO",
+  "jangdan": "중중모리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "중중모리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 18,
+  "scoreVersion": 1
+ }
+}

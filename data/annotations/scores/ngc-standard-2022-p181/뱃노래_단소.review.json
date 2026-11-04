@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p181",
+ "sourceHashes": {
+  "ngc-standard-2022-p181": "875079c3f6312f5a35c07eb690f56da87af69fdd3ba082240a88f417aaecd035"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "뱃노래.jgb.json",
+  "sha256": "bf995686533156c0fa6e308ee2995029d16ebf7eee5ce7df17b16cb7d9b031c5",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "뱃노래",
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "굿거리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 23,
+  "scoreVersion": 1
+ }
+}

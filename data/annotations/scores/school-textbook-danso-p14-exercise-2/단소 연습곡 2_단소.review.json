@@ -1,0 +1,31 @@
+{
+ "sourceId": "school-textbook-danso-p14",
+ "sourceHashes": {
+  "school-textbook-danso-p14": "111a1de6cc140630c327c3a50e3b360c6860c8549ccafbd7da84988002d0f300"
+ },
+ "attribution": null,
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "단소 연습곡 2.jgb.json",
+  "sha256": "e0475aded785f5eea81e3491d82694b8e0de79dd36b2399a7d27492cc81d47ba",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "단소 연습곡 2",
+  "instrument": "DANSO",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 11,
+  "scoreVersion": 1
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p175",
+ "sourceHashes": {
+  "ngc-standard-2022-p175": "5f0b447590f87441fa5b24c4c8b075a8490043224064040cc056f863e5081b77"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "베틀가.jgb.json",
+  "sha256": "8d9dcb46f6234d3726300b432228c62cca0db26644d65546dfa7be6a7bdc827b",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "베틀가",
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "굿거리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 24,
+  "scoreVersion": 1
+ }
+}

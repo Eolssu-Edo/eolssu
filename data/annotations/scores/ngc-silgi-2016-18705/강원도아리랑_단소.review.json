@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-silgi-2016-18705",
+ "sourceHashes": {
+  "ngc-silgi-2016-18705": "63b40692a485409b162c596151a437440c574cf3cb336ac5ec9536bdd0ec5926"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "강원도아리랑.jgb.json",
+  "sha256": "0bc7f6200282ebb04317d62da7d862b351de2f1aa5a8c78b9781eb3dbe02d99d",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "강원도아리랑",
+  "instrument": "DANSO",
+  "jangdan": "엇모리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "엇모리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 5,
+  "scoreVersion": 1
+ }
+}

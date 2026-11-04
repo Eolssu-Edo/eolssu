@@ -1,0 +1,31 @@
+{
+ "sourceId": "ngc-standard-2022-p161",
+ "sourceHashes": {
+  "ngc-standard-2022-p161": "e9536888f39c2ea3dcf34e97775616025ef2f35f23235d89779c81ae575ba7b9"
+ },
+ "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "inferred",
+ "inputApproval": {
+  "file": "새야새야.jgb.json",
+  "sha256": "f3da1be9815f5a69549d7625e7d4eb48ad15a5e65416f61eea0af9953f716b4b",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+ },
+ "song": {
+  "title": "새야새야",
+  "instrument": "DANSO",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat. 원본 악보 박 해석은 사람 검수에서 확인한다."
+ },
+ "serviceSong": {
+  "songId": 27,
+  "scoreVersion": 1
+ }
+}
