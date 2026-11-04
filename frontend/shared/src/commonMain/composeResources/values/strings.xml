@@ -197,17 +197,6 @@
     <string name="practice_finger_gak">%1$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
-    <string name="practice_finger_next_same">같은 %1$d각 · %2$d정간부터 이어서</string>
-    <string name="practice_finger_next_other">다음 %1$d각 · %2$d정간부터 이어서</string>
-    <string name="practice_finger_next_end">마지막 정간까지 이어서</string>
-    <string name="practice_finger_end_note">마지막 음까지 자리를 유지해요.</string>
-    <string name="practice_finger_page_count">%1$d / %2$d 페이지 · 현재 %3$d정간</string>
-    <string name="practice_finger_preview">다음 페이지 정간 미리보기</string>
-    <string name="practice_finger_jeonggan">%1$d정간</string>
-    <string name="practice_page_prev">‹ 이전</string>
-    <string name="practice_page_next">다음 ›</string>
-    <string name="practice_page_prev_desc">이전 악보 페이지</string>
-    <string name="practice_page_next_desc">다음 악보 페이지</string>
     <string name="practice_upcoming">← 다음</string>
     <string name="score_column_head">%1$d각</string>
     <string name="score_column_head_start">시작 · %1$d각</string>
