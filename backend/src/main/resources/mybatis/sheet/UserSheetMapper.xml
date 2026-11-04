@@ -3,26 +3,12 @@
 <mapper namespace="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetMapper">
     <sql id="sheetColumns">
         s.id, s.user_id, s.title, s.kind, s.source, s.status, s.jangdan_id, j.name AS jangdan_name, s.bpm, s.bpm_unit, s.column_count,
-        s.score_version, s.score_json, s.note_count, s.pending_cell_count, s.request_hash, s.updated_at,
+        s.score_version, s.score_json, s.note_count, s.pending_cell_count, s.updated_at,
         s.draft_json, s.draft_revision, s.draft_base_version, s.draft_saved_at
     </sql>
 
-    <select id="findByIdempotencyKey" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
-        SELECT <include refid="sheetColumns"/>
-        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
-        WHERE s.user_id = #{userId} AND s.idempotency_key = #{idempotencyKey}
-    </select>
-
     <select id="findJangdan" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetJangdanRow">
         SELECT id, bpm_unit, name FROM jangdans WHERE id = #{jangdanId}
-    </select>
-
-    <!-- CAT-04와 같은 공개 조건: 게시·미삭제 -->
-    <select id="findSongSource" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SongCopySourceRow">
-        SELECT s.jangdan_id, COALESCE(j.bpm_unit, JSON_UNQUOTE(JSON_EXTRACT(s.score_json, '$.music.bpmUnit')), '') AS bpm_unit,
-               s.score_json, s.is_scorable AS scorable, s.score_version, s.note_count, s.default_bpm
-        FROM songs s LEFT JOIN jangdans j ON j.id = s.jangdan_id
-        WHERE s.id = #{songId} AND s.status = 'PUBLISHED' AND s.deleted_at IS NULL
     </select>
 
     <select id="find" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
@@ -30,13 +16,6 @@
         FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
         WHERE s.id = #{sheetId} AND s.user_id = #{userId}
     </select>
-
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user_sheets (user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count, score_json, note_count,
-                                 idempotency_key, request_hash, created_at, updated_at)
-        VALUES (#{userId}, #{title}, #{kind}, #{source}, #{status}, #{jangdanId}, #{bpm}, #{bpmUnit}, #{columnCount}, #{scoreJson}, #{noteCount},
-                #{idempotencyKey}, #{requestHash}, #{createdAt}, #{createdAt})
-    </insert>
 
     <!-- SHT-01: 최근 수정 순, 같은 시각은 ID 역순(idx_user_sheets_user_updated) -->
     <select id="findPage" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
