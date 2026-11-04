@@ -98,6 +98,44 @@ class SocialAuthApiDatabaseTests {
         return json.readTree(response.body()).path("result").path("details").path("mergeTicket").asString()
     }
 
+    private fun appleFlow(link:Boolean):Pair<String,String> {
+        val result=send(if(link)"/api/users/me/social-accounts/apple/start" else "/api/auth/oauth/apple/start",
+            """{"redirectUri":"https://example.test/callback"}""",if(link)accessCookie() else null)
+        assertEquals(200,result.statusCode(),result.body())
+        val cookie=result.headers().firstValue("Set-Cookie").orElseThrow().substringBefore(';')
+        val state=URLDecoder.decode(URI(json.readTree(result.body()).path("result").path("authorizationUrl").asString()).rawQuery.substringAfter("state=").substringBefore('&'),Charsets.UTF_8)
+        return state to cookie
+    }
+    private fun appleToken()=jdbc.queryForList("SELECT provider_token FROM user_social_accounts WHERE user_id=990211 AND provider='APPLE'",String::class.java).map{checkNotNull(it)}
+
+    @Test fun `apple link keeps a sealed token and unlink revokes it`() {
+        revoked.clear()
+        val flow=appleFlow(true)
+        val linked=send("/api/users/me/social-accounts/apple","""{"authorizationCode":"apple","redirectUri":"https://example.test/callback","state":"${flow.first}"}""",flow.second+"; "+accessCookie())
+        assertEquals(201,linked.statusCode(),linked.body())
+        val stored=appleToken().single()
+        assertTrue(stored.startsWith("v1.") && !stored.contains("apple-refresh"))
+        assertEquals(204,send("/api/users/me/social-accounts/apple",cookie=accessCookie(),method="DELETE").statusCode())
+        assertTrue(appleToken().isEmpty())
+        assertEquals(listOf("apple-refresh"),revoked.toList())
+    }
+
+    @Test fun `apple merge carries the token through its ticket and password withdrawal revokes it`() {
+        revoked.clear()
+        val flow=appleFlow(false)
+        val response=send("/api/auth/oauth/apple","""{"authorizationCode":"apple-merge","redirectUri":"https://example.test/callback","state":"${flow.first}"}""",flow.second)
+        val details=json.readTree(response.body()).path("result").path("details")
+        assertEquals(409,response.statusCode(),response.body())
+        assertFalse(details.path("providerEmailVerified").asBoolean())
+        val merged=send("/api/auth/oauth/merge","""{"mergeTicket":"${details.path("mergeTicket").asString()}","password":"ExamplePassword!234"}""",flow.second)
+        assertEquals(200,merged.statusCode(),merged.body())
+        assertTrue(appleToken().single().startsWith("v1."))
+        val withdrawn=send("/api/users/me","""{"currentPassword":"ExamplePassword!234"}""",accessCookie(),method="DELETE")
+        assertTrue(withdrawn.statusCode() in 200..299,withdrawn.body())
+        assertEquals(listOf("apple-merge-refresh"),revoked.toList())
+        assertEquals(listOf<String?>(null),jdbc.queryForList("SELECT provider_token FROM user_social_accounts WHERE user_id=990211 AND provider='APPLE'",String::class.java))
+    }
+
     @Test fun `linked login restores withdrawal pending member and issues existing login cookies`() {
         jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES (990211,'GOOGLE','existing')")
         jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at=CURRENT_TIMESTAMP,purge_scheduled_at=DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 30 DAY) WHERE id=990211")
@@ -491,13 +529,20 @@ class SocialAuthApiDatabaseTests {
                 "fresh356"->OAuthIdentity("fresh356-${provider.name}","fresh356-${provider.name.lowercase()}@example.test",provider!=SocialProvider.NAVER)
                 "linked"->OAuthIdentity("existing",null,false)
                 "verified"->OAuthIdentity("new","social211@example.test",true)
+                "apple"->OAuthIdentity("apple-subject","relay@privaterelay.appleid.com",false,providerToken="apple-refresh")
+                "apple-merge"->OAuthIdentity("apple-subject","social211@example.test",false,providerToken="apple-merge-refresh")
                 "unverified"->OAuthIdentity("new","social211@example.test",false)
                 else->OAuthIdentity("unknown-subject",null,false)
             }
+            override fun revoke(provider:SocialProvider,token:String){revoked+=token}
         }
     }
     companion object {
+        val revoked=java.util.concurrent.CopyOnWriteArrayList<String>()
+        private val applePem="-----BEGIN PRIVATE KEY-----\n"+java.util.Base64.getEncoder().encodeToString(
+            java.security.KeyPairGenerator.getInstance("EC").apply{initialize(java.security.spec.ECGenParameterSpec("secp256r1"))}.generateKeyPair().private.encoded)+"\n-----END PRIVATE KEY-----"
         @JvmStatic @DynamicPropertySource fun properties(registry:DynamicPropertyRegistry) {
+            registry.add("eolssu.auth.oauth.apple.private-key"){applePem}
             registry.add("eolssu.scheduling.enabled"){"false"}
             registry.add("eolssu.security.jwt-secret"){"test-signing-key-for-social-auth-at-least-32-bytes"}
             registry.add("spring.datasource.url"){requireNotNull(System.getenv("TEST_DB_URL"))}

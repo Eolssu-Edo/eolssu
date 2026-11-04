@@ -62,7 +62,7 @@ class SocialAuthController(private val service:SocialAuthService,private val coo
 
     @PostMapping("/api/auth/oauth/sign-up")
     fun signUp(@Valid @RequestBody request:SocialSignUpRequest,http:HttpServletRequest)=respond {
-        val bindings=listOf("kakao","google","naver").mapNotNull{provider->binding(http,provider)?.let{provider.uppercase() to it}}.toMap()
+        val bindings=providers.mapNotNull{provider->binding(http,provider)?.let{provider.uppercase() to it}}.toMap()
         val result=service.signUp(SocialSignUpCommand(request.signupTicket,request.nickname,request.agreements.map{com.ssafy.eolssu.backend.feature.auth.domain.TermAgreement(it.termId.toLong(),it.version,it.agreed)},request.instrumentId?.toLong(),request.notationMode),bindings)
         ResponseEntity.status(HttpStatus.CREATED).header(HttpHeaders.SET_COOKIE,*cookies.issue(result.tokens).toTypedArray())
             .body(SuccessResponse.of(HttpStatus.CREATED,"회원가입 성공",SignedUp(result)))
@@ -70,7 +70,7 @@ class SocialAuthController(private val service:SocialAuthService,private val coo
 
     @PostMapping("/api/auth/oauth/merge")
     fun merge(@Valid @RequestBody request:OAuthMergeRequest,http:HttpServletRequest)=respond {
-        val bindings=listOf("kakao","google","naver").mapNotNull{provider->binding(http,provider)?.let{provider.uppercase() to it}}.toMap()
+        val bindings=providers.mapNotNull{provider->binding(http,provider)?.let{provider.uppercase() to it}}.toMap()
         signed(service.merge(request.mergeTicket,bindings,request.password,request.verificationToken),true)
     }
 
@@ -92,6 +92,7 @@ class SocialAuthController(private val service:SocialAuthService,private val coo
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE,*cookies.issue(result.signedIn.tokens).toTypedArray())
             .body(SuccessResponse.of(HttpStatus.OK,if(merge)"계정을 하나로 합쳤어요" else "소셜 로그인 성공",body))
     }
+    private val providers=com.ssafy.eolssu.backend.feature.auth.domain.SocialProvider.entries.map{it.name.lowercase()}
     private fun binding(http:HttpServletRequest,provider:String):String?=http.cookies?.filter{it.name=="oauth_flow_$provider"}?.singleOrNull()?.value
     private fun bindingCookie(provider:String,binding:String)=ResponseCookie.from("oauth_flow_$provider",binding).path("/api").httpOnly(true).secure(secure).sameSite("Lax").maxAge(600).build().toString()
     private fun respond(action:()->ResponseEntity<*>):ResponseEntity<*> = try{action()}catch(failure:SocialAuthFailure){

@@ -153,6 +153,7 @@
 - [단소 1차 AI 평가 4곡 채점 정답 검수](knowledge/data/danso-scoring-answers.md)
 - [단소 4곡 공통 악보와 V6 시드 일치 검수](knowledge/data/danso-seed-consistency-audit.md)
 - [소금 서비스 4곡 채점 정답 검수와 채점 켜기](knowledge/data/sogeum-service-scores.md)
+- [단소 339 적재곡 채점 정답 검수와 채점 켜기 계획](knowledge/data/danso-loaded-scores.md) · [404 계획](plans/S15P31E102-404.md)
 - [악보 MIDI·CAT 재생 엔진·단소 표현 초기값과 근거](knowledge/data/score-instrument-playback-pipeline.md)
 - [단소 JGB 표현·빠르기 해석과 M4A 출력 근거](knowledge/data/danso-expanded-auditions.md) · [구현 스펙](specs/danso-playback-expansion.md) · [자동 테스트별 확인 범위](../data/src/playback/tests/README.md)
 - [대금·단소·소금 악보의 기준음·박·빠르기·시김새 근거](knowledge/data/score-reference-standards.md) · [계획](plans/S15P31E102-129.md)

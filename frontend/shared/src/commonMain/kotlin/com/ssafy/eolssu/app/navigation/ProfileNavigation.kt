@@ -53,6 +53,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             onSessionExpired = { toLogin(StartNotice.SessionExpired) },
             startMessage = entry.startNotice(),
             onStartMessageShown = entry::clearStartNotice,
+            providers = socialProviders(),
         )
     }
     composable(ProfileDestination.NICKNAME) { entry ->

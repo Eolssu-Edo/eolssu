@@ -20,6 +20,8 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -40,6 +42,45 @@ class IosOAuthRelayTest {
         val callback = assertIs<OAuthReturn.Accepted>(attempts.accept(appReturn(), OAuthPurpose.LogIn)).callback
         assertEquals("code-1", callback.authorizationCode)
         assertEquals("https://k15e102.p.ssafy.io/api/auth/ios/oauth/kakao/callback", callback.redirectUri)
+    }
+
+    @Test
+    fun appleIsOfferedFirstOnIosOnly() {
+        assertEquals(SocialProvider.Apple, IosOAuthRelay.providers.first())
+        assertEquals(SocialProvider.entries.toSet(), IosOAuthRelay.providers.toSet())
+        assertTrue(SocialProvider.Apple !in OAuthRedirect.providers)
+    }
+
+    @Test
+    fun appleNativeSignInReadsStateAndNonceAndBuildsTheAppReturn() {
+        val url = "https://appleid.apple.com/auth/authorize?response_type=code&client_id=com.ssafy.eolssu&scope=email&state=$STATE&nonce=nonce-1"
+        val request = assertNotNull(AppleNativeSignIn.request(url))
+        assertEquals(STATE, request.state)
+        assertEquals("nonce-1", request.nonce)
+        assertTrue(attempts.begin(SocialProvider.Apple, OAuthPurpose.LogIn, url, EXPIRES_AT))
+
+        val callback = assertIs<OAuthReturn.Accepted>(
+            attempts.accept(AppleNativeSignIn.returnAddress(request, code = "apple+code/1"), OAuthPurpose.LogIn),
+        ).callback
+        assertEquals(SocialProvider.Apple, callback.provider)
+        assertEquals("apple+code/1", callback.authorizationCode)
+        assertEquals("https://k15e102.p.ssafy.io/api/auth/ios/oauth/apple/callback", callback.redirectUri)
+    }
+
+    @Test
+    fun appleNativeCancelRestartsAndForeignAddressesAreNotApple() {
+        val request = assertNotNull(AppleNativeSignIn.request("https://appleid.apple.com/auth/authorize?state=$STATE&nonce=n"))
+        assertTrue(attempts.begin(SocialProvider.Apple, OAuthPurpose.Link, "https://appleid.apple.com/auth/authorize?state=$STATE&nonce=n", EXPIRES_AT))
+        assertEquals(
+            OAuthReturn.Restart(OAuthRestartReason.Cancelled),
+            attempts.accept(AppleNativeSignIn.returnAddress(request, error = "canceled"), OAuthPurpose.Link),
+        )
+        listOf(
+            "https://kauth.kakao.com/oauth/authorize?state=$STATE&nonce=n",
+            "http://appleid.apple.com/auth/authorize?state=$STATE&nonce=n",
+            "https://appleid.apple.com/auth/authorize?state=$STATE",
+            "https://appleid.apple.com/auth/authorize?nonce=n",
+        ).forEach { assertNull(AppleNativeSignIn.request(it), it) }
     }
 
     @Test

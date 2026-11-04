@@ -113,7 +113,10 @@ class SocialAuthReviewRegressionTests {
         override fun member(userId:Long,lock:Boolean):SocialMember{if(lock)afterLock();return owner}
         override fun linked(provider:String,subject:String)=links.firstOrNull()
         override fun links(userId:Long)=links.toList()
-        override fun link(userId:Long,provider:String,subject:String,now:Instant,flowStartedAt:Instant?){links.add(SocialLink(userId,provider,subject,now,links.size.toLong()+1))}
+        override fun link(userId:Long,provider:String,subject:String,now:Instant,flowStartedAt:Instant?,providerToken:String?){links.add(SocialLink(userId,provider,subject,now,links.size.toLong()+1))}
+        override fun saveProviderToken(linkId:Long,sealed:String){}
+        override fun providerTokens(userId:Long)=emptyList<StoredProviderToken>()
+        override fun clearProviderToken(linkId:Long,sealed:String)=false
         override fun lockKakaoSubject(subject:String):Instant?=null
         override fun unlink(userId:Long,provider:String)=false
         override fun completeLogin(userId:Long,now:Instant){completedLogins++}

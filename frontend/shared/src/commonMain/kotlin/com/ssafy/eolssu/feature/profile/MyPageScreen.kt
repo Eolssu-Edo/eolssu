@@ -79,6 +79,7 @@ enum class MyPageTarget { Nickname, Password, Withdraw }
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
+    providers: List<SocialProvider>,
     instrument: Instrument?,
     learningProgress: MyLearningProgress?,
     loadingProfile: Boolean,
@@ -103,7 +104,8 @@ fun MyPageScreen(
         Section(stringResource(Res.string.my_social)) {
             Column {
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                SocialProvider.entries.forEach { provider ->
+                // 이 플랫폼에서 연결할 수 있는 제공자와, 다른 기기에서 연결해 둔 제공자(해제만 가능)를 함께 보여 준다.
+                (providers + profile.linkedProviders.filter { it !in providers }).forEach { provider ->
                     val linked = provider in profile.linkedProviders
                     ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
                 }

@@ -38,6 +38,7 @@ class RestOAuthGateway(private val properties: OAuthProviderProperties, private 
             SocialProvider.KAKAO -> "https://kauth.kakao.com/oauth/authorize"
             SocialProvider.GOOGLE -> "https://accounts.google.com/o/oauth2/v2/auth"
             SocialProvider.NAVER -> "https://nid.naver.com/oauth2.0/authorize"
+            SocialProvider.APPLE -> throw OAuthRemoteUnavailable() // AppleOAuthGateway가 맡는다.
         }
         return endpoint + "?" + parameters.entries.joinToString("&") { (key,value) -> "${URLEncoder.encode(key,UTF_8)}=${URLEncoder.encode(value,UTF_8)}" }
     }
@@ -49,11 +50,13 @@ class RestOAuthGateway(private val properties: OAuthProviderProperties, private 
             SocialProvider.KAKAO -> "https://kauth.kakao.com/oauth/token"
             SocialProvider.GOOGLE -> "https://oauth2.googleapis.com/token"
             SocialProvider.NAVER -> "https://nid.naver.com/oauth2.0/token"
+            SocialProvider.APPLE -> throw OAuthRemoteUnavailable()
         }
         val userEndpoint = when(provider) {
             SocialProvider.KAKAO -> "https://kapi.kakao.com/v2/user/me"
             SocialProvider.GOOGLE -> "https://openidconnect.googleapis.com/v1/userinfo"
             SocialProvider.NAVER -> "https://openapi.naver.com/v1/nid/me"
+            SocialProvider.APPLE -> throw OAuthRemoteUnavailable()
         }
         val form = LinkedMultiValueMap<String,String>().apply {
             add("grant_type","authorization_code"); add("client_id",settings.clientId)
