@@ -421,3 +421,11 @@ def test_issues_without_a_cell_in_the_score_become_notices(serve):
     assert [i["kind"] for i in out["issues"]] == ["LOW_CONFIDENCE", "OUT_OF_RANGE"]
     assert [i["kind"] for i in out["notices"]] == ["TRANSPOSED", "ORNAMENT_DROPPED"]
     assert all(n["eventId"] is None and n["cellId"] is None for n in out["notices"])
+
+
+def test_issue_with_a_wrong_event_but_a_real_cell_stays_an_issue(serve):
+    issue = {"kind": "OUT_OF_RANGE", "eventId": "gone", "cellId": "c0-j1", "page": None, "bbox": None, "detail": None}
+    result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
+              "score": {"events": [], "columns": [{"cells": [{"id": "c0-j1"}]}]}, "issues": [issue]}
+    out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
+    assert [i["cellId"] for i in out["issues"]] == ["c0-j1"] and out["notices"] == []

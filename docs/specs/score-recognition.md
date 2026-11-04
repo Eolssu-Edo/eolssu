@@ -10,7 +10,7 @@
 포함:
 
 - 내부 API `POST /v1/recognitions`의 요청·응답·실패 코드·시간 상한
-- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)의 종류
+- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)과 악보 전체 알림(`notices`)의 종류
 - 오선보 → 정간보 변환 기본값
 
 제외:
@@ -76,7 +76,7 @@ POST /v1/recognitions
 
 ### issues와 notices (S15P31E102-469)
 
-- `issues`: 사용자가 고칠 칸이 있는 것. 항목마다 결과 `score`의 음(`eventId`)이나 칸(`cellId`, `c{각}-j{정간}`)을 언제나 가리킨다. backend는 이 개수로 확인할 칸을 센다.
+- `issues`: 사용자가 고칠 칸이 있는 것. 항목마다 결과 `score`의 음(`eventId`)이나 칸(`cellId`, `c{각}-j{정간}`)을 언제나 가리킨다. 한 칸에 여러 개가 올 수 있으므로(예: 한 정간에 몰린 짧은 음마다 `OFF_GRID_RHYTHM`), backend는 `cellId`(없으면 `eventId`)가 같은 것을 한 칸으로 세어 확인할 칸 수로 쓴다.
 - `notices`: 칸이 없는 악보 전체·쪽·열 단위 알림. `eventId`·`cellId`는 언제나 null이고 모양은 issue와 같다. 확인할 칸 수에 넣지 않는다.
 - 엔진이 결과 악보에 없는 칸을 가리키면(엔진 잘못) 그 항목은 `notices`로 옮기고 로그를 남긴다.
 
@@ -114,7 +114,7 @@ POST /v1/recognitions
 | `TIMEOUT` | 시간 상한 초과 |
 | `ENGINE_ERROR` | 엔진·변환 프로그램의 비정상 종료와 그 밖의 오류(악보 문제가 아닌 실패). 오선보는 Audiveris가 오선을 못 찾았다고 알린(StepException) 쪽만 `NO_STAFF`로 보고, 그 밖에 악보 없이 끝나면 이 코드다 |
 
-실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽의 정간을 `UNREADABLE` issue로 남기고 `DONE`이다.
+실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽을 `UNREADABLE` notice(쪽 전체 `bbox`)로 남기고 `DONE`이다.
 
 ## 시간 상한
 
@@ -150,7 +150,7 @@ POST /v1/recognitions
 - 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 각별 정간 수(`gakBeats`)로 그 각만 짧게 읽는다(S15P31E102-404의 `score_data`). 정간 하나의 박은 기본 각의 정간 수(`controls.beats`)로 정한다. `score_data`가 받지 않는 기호(율명 없는 독립 시김새 등)가 있으면 `ENGINE_ERROR`다(원인은 로그에 남김).
 - 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
 - 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
-- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형)를 둔다. `eventId`·`cellId`는 비운다.
+- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형), `cellId`에 그 글자를 덮는 정간을 둔다(`eventId`는 비운다).
 - `engine` `jeongganbo-text`, `provenance.converter` `jeongganbo-text/standard_score_text`. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
 - 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
 

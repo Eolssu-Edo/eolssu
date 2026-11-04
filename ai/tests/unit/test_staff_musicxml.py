@@ -418,3 +418,10 @@ def test_whole_score_issues_have_no_cell():
     out = convert(doc, instrument="DANSO", hwang_pitch=None)
     by_kind = {i["kind"]: i["cellId"] for i in out.issues if i["kind"] in ("TRANSPOSED", "LOW_CONFIDENCE")}
     assert by_kind == {"TRANSPOSED": None, "LOW_CONFIDENCE": None}  # 박자표 바뀜은 마디 전체
+
+
+def test_grace_note_survives_when_its_note_is_replaced_by_one_starting_at_the_same_time():
+    # 같은 성부에서 시작이 같은 음이 겹치면 앞 음을 지운다. 그 음에 붙은 꾸밈음 알림은 남은 음으로 옮긴다
+    doc = xml(measure(note("E4", 0, "<grace/>"), note("D4", 4), "<backup><duration>4</duration></backup>",
+                      note("F4", 4), note("C4", 12), time=(4, 4)))
+    assert cells(convert(doc, instrument="ANY", hwang_pitch=60), "ORNAMENT_DROPPED") == ["c0-j0"]

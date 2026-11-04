@@ -256,10 +256,10 @@ def _split_issues(issues: list[dict], score: dict) -> dict:
     ids = {e["id"] for e in score.get("events", [])} | {c["id"] for col in score.get("columns", []) for c in col["cells"]}
     out = {"issues": [], "notices": []}
     for issue in issues:
-        where = issue["eventId"] or issue["cellId"]
-        if where and where not in ids:
-            log.warning("issue %s points to missing %s", issue["kind"], where)
-        if where in ids:
+        pointed = [x for x in (issue["eventId"], issue["cellId"]) if x]
+        if any(x not in ids for x in pointed):
+            log.warning("issue %s points to missing %s", issue["kind"], [x for x in pointed if x not in ids])
+        if any(x in ids for x in pointed):
             out["issues"].append(issue)
         else:
             out["notices"].append(issue | {"eventId": None, "cellId": None})

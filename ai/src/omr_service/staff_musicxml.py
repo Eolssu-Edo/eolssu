@@ -220,8 +220,8 @@ def _melody(groups):
         midi, tie_stop = max(sounding) if sounding and pitches[0][0] is not None else (None, False)
         if out and out[-1].start + out[-1].length > start:  # 겹치면 앞 음을 자른다
             out[-1].length = start - out[-1].start
-            if out[-1].length <= 0:
-                out.pop()
+            if out[-1].length <= 0:  # 같은 때 시작한 음이 앞 음을 대신한다. 붙은 알림은 넘겨받는다
+                flags = out.pop().flags + list(flags)
         end = out[-1].start + out[-1].length if out else Fraction(0)
         if start > end:
             if out and out[-1].midi is None:
