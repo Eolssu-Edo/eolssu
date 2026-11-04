@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(68,expected.size)
+        assertEquals(69,expected.size)
         assertTrue(expected.containsAll(setOf("post /api/users/me/sheets", "get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
@@ -102,6 +102,10 @@ open class OpenApiDatabaseTests {
         val modelPlay = doc.path("paths").path("/api/songs/{songId}/model-audio/play").path("get")
         assertEquals(0,modelPlay.path("security").size())
         assertTrue(modelPlay.path("responses").path("302").path("headers").has("Location"))
+        val iosRelay = doc.path("paths").path("/api/auth/ios/oauth/{provider}/callback").path("get")
+        assertEquals(0,iosRelay.path("security").size())
+        assertFalse(iosRelay.path("responses").path("302").has("content"))
+        assertTrue(iosRelay.path("responses").path("302").path("headers").has("Location"))
         val performance = doc.path("paths").path("/api/songs/{songId}/model-audio/performance").path("get")
         assertEquals(0,performance.path("security").size())
         assertFalse(performance.path("responses").path("200").path("content").path("application/json").path("schema").has("result"))
