@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.practice
 
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.model.ScoreCell
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreUnit
@@ -27,20 +28,23 @@ class PracticeScorePackingTest {
     fun eachStackUsesTheTallestColumnAtEverySharedRow() {
         val triple = ScoreCell(note, note, note)
         val score = Score(List(12) { column -> List(3) { if (column in listOf(3, 7, 11)) triple else cell } })
-        val packing = practiceScorePacking(score, metrics, 800.dp)
+        val packing = practiceScorePacking(score, metrics, 550.dp)
         assertEquals(3, packing.columnsPerStack)
         // 4각·8각·12각이 각각 첫째·둘째·셋째 가로줄의 가장 높은 각이다.
-        assertEquals(listOf(222.dp, 222.dp, 222.dp), packing.stackRowHeights)
+        val tallest = metrics.headHeight + packing.cellHeights.getValue(3 to 0) * 3 + 2.dp
+        assertEquals(listOf(tallest, tallest, tallest), packing.stackRowHeights)
     }
 
     @Test
     fun incompleteLastStackAlsoSetsTheCommonRowHeight() {
         val triple = ScoreCell(note, note, note)
         val score = Score(List(10) { column -> List(3) { if (column == 9) triple else cell } })
-        val packing = practiceScorePacking(score, metrics, 700.dp)
+        val packing = practiceScorePacking(score, metrics, 550.dp)
         assertEquals(3, packing.columnsPerStack)
-        assertEquals(listOf(222.dp, 156.dp, 156.dp), packing.stackRowHeights)
-        assertTrue(packing.height < 700.dp)
+        val tall = metrics.headHeight + packing.cellHeights.getValue(9 to 0) * 3 + 2.dp
+        val normal = metrics.headHeight + packing.metrics.cellHeight * 3 + 2.dp
+        assertEquals(listOf(tall, normal, normal), packing.stackRowHeights)
+        assertTrue(packing.height < 550.dp)
     }
 
     @Test
@@ -116,8 +120,50 @@ class PracticeScorePackingTest {
     }
 
     @Test
-    fun longColumnsKeepTheirExistingSingleColumnLayout() {
-        val packing = practiceScorePacking(Score(List(4) { List(12) { cell } }), metrics, 1000.dp)
+    fun columnsSplitByTheRendererKeepTheirExistingLayout() {
+        val packing = practiceScorePacking(Score(List(4) { List(16) { cell } }), metrics, 1000.dp)
         assertEquals(1, packing.columnsPerStack)
+    }
+
+    @Test
+    fun originalJangdanStripBreaksAreNotFlattenedIntoStacks() {
+        val jangdan = Jangdan("가곡 16박", daegang = listOf(11, 5), beats = 16, subdivision = 1)
+        val packing = practiceScorePacking(Score(List(4) { List(12) { cell } }), metrics, 1000.dp, jangdan = jangdan)
+        assertEquals(1, packing.columnsPerStack)
+    }
+
+    @Test
+    fun oneCellColumnsUseSevenPerStackThenWrapLeft() {
+        val score = Score(List(12) { listOf(cell) })
+        val packing = practiceScorePacking(score, metrics, 500.dp)
+        assertEquals(7, packing.columnsPerStack)
+        assertEquals((0..6).toList(), packing.columnGroups[0])
+        assertEquals((7..11).toList(), packing.columnGroups[1])
+        assertTrue(packing.height <= 500.dp)
+    }
+
+    @Test
+    fun fiveCellColumnsStackTwoWhenBothFit() {
+        val packing = practiceScorePacking(Score(List(6) { List(5) { cell } }), metrics, 500.dp)
+        assertEquals(2, packing.columnsPerStack)
+        assertTrue(packing.height <= 500.dp)
+    }
+
+    @Test
+    fun singleEightCellColumnFitsTheAvailableHeightWithoutVerticalScrolling() {
+        val packing = practiceScorePacking(Score(List(3) { List(8) { cell } }), metrics, 330.dp)
+        assertEquals(1, packing.columnsPerStack)
+        assertTrue(packing.metrics.cellHeight >= 32.dp)
+        assertTrue(packing.height <= 330.dp)
+    }
+
+    @Test
+    fun variableColumnLengthsIncludeTheLongerThirdColumnInTheFit() {
+        val lengths = listOf(1, 1, 8, 1, 2, 1)
+        val packing = practiceScorePacking(Score(lengths.map { length -> List(length) { cell } }), metrics, 500.dp)
+        assertEquals(3, packing.columnsPerStack)
+        assertEquals(lengths.indices.toList(), packing.columnGroups.flatten())
+        assertTrue(packing.height <= 500.dp)
+        assertTrue(packing.stackRowHeights[2] > packing.stackRowHeights[0])
     }
 }

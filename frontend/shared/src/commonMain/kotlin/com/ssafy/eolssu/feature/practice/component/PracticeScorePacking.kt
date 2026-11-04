@@ -3,13 +3,16 @@ package com.ssafy.eolssu.feature.practice.component
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.model.Score
+import com.ssafy.eolssu.core.model.Jangdan
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 
 internal val PracticeStackGap = 6.dp
 private val PracticeStackRowPadding = 2.dp
 
-internal fun Score.hasShortPracticeColumns(): Boolean =
-    columns.isNotEmpty() && columns.all { it.size in 1..4 }
+/** 이미 여러 표시 줄로 나눈 각은 기존 렌더링을 보존한다. 정간 수로 짧은 각을 단정하지 않는다. */
+internal fun Score.supportsPracticeColumnPacking(jangdan: Jangdan? = null): Boolean =
+    columns.isNotEmpty() && columns.all { it.isNotEmpty() } && scoreStrips(this, jangdan).all { it.strip == 0 }
 
 internal data class PracticeScorePacking(
     val columnsPerStack: Int,
@@ -22,12 +25,13 @@ internal data class PracticeScorePacking(
     val stackRowHeights: List<Dp>,
 )
 
-/** 원본 좌표를 유지하며, 남은 높이에 맞춰 짧은 각을 최대 세 개씩 쌓는다. */
+/** 각의 실제 높이에 맞춰 위→아래로 쌓고, 들어가지 않는 다음 각은 왼쪽 세로줄로 넘긴다. */
 internal fun practiceScorePacking(
     score: Score,
     metrics: JeongganboMetrics,
     availableHeight: Dp,
     fontScale: Float = 1f,
+    jangdan: Jangdan? = null,
 ): PracticeScorePacking {
     val scale = fontScale.coerceAtLeast(1f)
     val expanded = score.columns.flatMapIndexed { column, cells ->
@@ -46,10 +50,13 @@ internal fun practiceScorePacking(
 
     var count = 1
     var fitted = metrics.cellHeight
-    if (score.hasShortPracticeColumns() && availableHeight.value.isFinite()) {
+    if (score.supportsPracticeColumnPacking(jangdan) && availableHeight.value.isFinite()) {
         // 크게 보기와 글꼴 확대에서 정간 최소 크기를 깎지 않는다.
         val minimum = if (metrics.cellHeight > 44.dp || scale > 1f) metrics.cellHeight else 32.dp
-        for (candidate in minOf(3, score.columns.size) downTo 2) {
+        // 가장 짧은 각만 들어간다고 가정한 상한에서 시작해 전체 각·공유 가로줄 높이로 실제 배치를 결정한다.
+        val minimumColumnHeight = (metrics.headHeight + PracticeStackRowPadding + minimum * weights.min()) * scale + PracticeStackGap
+        val limit = minOf(score.columns.size, ((availableHeight - 14.dp + PracticeStackGap) / minimumColumnHeight).toInt())
+        for (candidate in limit downTo 1) {
             val sharedWeight = rowWeights(candidate).sum()
             // 가로줄별 픽셀 반올림 여유와 악보 바깥 여백까지 포함해 맞춘다.
             val remaining = availableHeight - 14.dp - PracticeStackGap * (candidate - 1) -

@@ -49,7 +49,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeStatusLabel
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
-import com.ssafy.eolssu.feature.practice.component.hasShortPracticeColumns
+import com.ssafy.eolssu.feature.practice.component.supportsPracticeColumnPacking
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
@@ -147,7 +147,9 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
     val showPlayer = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
     val fingering = state.fingeringView
-    val shortScore = !fingering && state.song?.score?.hasShortPracticeColumns() == true
+    val packScore = remember(state.song, fingering) {
+        !fingering && state.song?.let { it.score.supportsPracticeColumnPacking(it.jangdan) } == true
+    }
     val fontScale = LocalDensity.current.fontScale
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
@@ -156,11 +158,11 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 낮은 창·확대 글꼴에서는 고정 컨트롤 때문에 악보가 사라지지 않도록 페이지 스크롤을 유지한다.
-            val fitShortScore = shortScore && maxHeight >= 560.dp && fontScale <= 1f
+            val fitScore = packScore && maxHeight >= 560.dp && fontScale <= 1f
             Column(
                 Modifier
                     .fillMaxSize()
-                    .then(if (fitShortScore) Modifier else Modifier.verticalScroll(rememberScrollState()))
+                    .then(if (fitScore) Modifier else Modifier.verticalScroll(rememberScrollState()))
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering) 8.dp else 18.dp, bottom = 12.dp),
             ) {
                 PracticeTitleRow(state)
@@ -172,7 +174,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                 } else {
                     PracticeBoardScore(
                         state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
-                        modifier = if (fitShortScore) Modifier.weight(1f) else Modifier,
+                        modifier = if (fitScore) Modifier.weight(1f) else Modifier,
                     )
                 }
                 if (showPlayer) {

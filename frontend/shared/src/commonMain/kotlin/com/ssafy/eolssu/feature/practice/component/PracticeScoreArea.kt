@@ -251,7 +251,7 @@ private fun rememberBandScroll(
 }
 
 /**
- * 휴대폰 보드의 악보 영역. 짧은 각은 남은 높이에 맞춰 위→아래 최대 세 개씩 묶고, 다음 묶음은 왼쪽에 둔다.
+ * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
  * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족한 경우 스크롤로 모든 음에 접근할 수 있다.
  * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
  */
@@ -276,7 +276,7 @@ fun PracticeBoardScore(
         Column(if (bounded) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
             BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
                 val packing = remember(song, big, maxHeight, fontScale) {
-                    practiceScorePacking(song.score, JeongganboMetrics.practiceBoard(big, longestStrip), maxHeight, fontScale)
+                    practiceScorePacking(song.score, JeongganboMetrics.practiceBoard(big, longestStrip), maxHeight, fontScale, song.jangdan)
                 }
                 JeongganboView(
                     song = song,
