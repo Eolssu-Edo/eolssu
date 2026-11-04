@@ -19,6 +19,8 @@ import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
+import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
+import com.ssafy.eolssu.data.song.SheetAudioRepository
 import com.ssafy.eolssu.data.song.ApiSongRepository
 import com.ssafy.eolssu.data.song.InstrumentCatalog
 import com.ssafy.eolssu.data.song.ApiReferenceCatalogRepository
@@ -197,5 +199,7 @@ val appModule = module {
     viewModelOf(::EditNewViewModel)
     viewModelOf(::EditPickViewModel)
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get()) }
+    // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
+    single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get()) }
 }
