@@ -108,6 +108,11 @@
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 - [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
 
+## 백엔드 조사·검증 기록
+
+- [화면 흐름 개선 12개와 적용·후속·제외 범위 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
+- [화면 흐름 개선 API 상세 제안](knowledge/backend/screen-api-improvement-design.md) · [데이터·클라이언트 이관 상세안](knowledge/backend/screen-data-migration-plan.md)
+
 ## 프론트엔드 조사·검증 기록
 
 - [정간보 쉽게 읽기의 박·음높이 듣기 (439)](plans/S15P31E102-439.md)
