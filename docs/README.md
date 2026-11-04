@@ -34,6 +34,8 @@
 
 ## 기능 스펙
 
+- [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
+
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
 
@@ -51,6 +53,7 @@
 
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
 - [곡 목록 악기 필터](specs/song-instrument-filter.md) · [구현·검증 기록](knowledge/backend/song-instrument-filter.md)
+- [카탈로그 공통 악보 원본과 가사 복원](specs/common-score-catalog-source.md) · [JGB 대조 및 복원 기록](knowledge/data/catalog-notation-restoration.md)
 - [공통 악보·모범 음원 적재와 재생 연결](specs/model-audio-catalog-load.md) · [객체 키 전환·재생 검증](knowledge/backend/model-audio-publication.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 - [4악기 카탈로그·회원 선택 정렬](specs/four-instrument-catalog.md) · [407 검증](knowledge/backend/four-instrument-catalog.md)
@@ -107,6 +110,10 @@
 - [평가 조율 정보 저장·실제 AI 연동 검증](knowledge/backend/evaluation-tuning-verification.md)
 - [리프레시 토큰·이메일 인증번호 저장 방식](knowledge/backend/auth-token-storage.md)
 - [운영 AI 장애·복구 후 같은 세션 재시도 검증](knowledge/backend/analysis-fault-retry-verification.md)
+
+## 백엔드 조사·검증 기록
+
+- [화면 흐름 개선 검토 결과와 내 악보 후속 조건 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
 
 ## 프론트엔드 조사·검증 기록
 

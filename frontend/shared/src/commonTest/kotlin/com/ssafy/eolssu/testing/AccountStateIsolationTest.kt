@@ -3,7 +3,6 @@ package com.ssafy.eolssu.testing
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
-import com.ssafy.eolssu.data.song.SamplePdfFile
 import com.ssafy.eolssu.data.song.SampleSongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.data.user.SampleUserRepository
@@ -11,14 +10,11 @@ import com.ssafy.eolssu.data.user.UserRepository
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -57,30 +53,15 @@ internal class AccountStateIsolationTest : CatalogViewModelTest() {
     }
 
     @Test
-    fun interruptedPdfUploadCannotReportProgressOrLeaveAnUploadForNextLogin() = runTest {
-        val sheets = SampleMySheetRepository({ 0L }, uploadStepMillis = 1, member = member)
-        var progress = 0
-        val upload = async { runCatching { sheets.uploadPdf(SamplePdfFile) { progress++ } } }
-        runCurrent(); advanceTimeBy(1); runCurrent()
-        assertEquals(1, progress)
-        member.set("B")
-        advanceUntilIdle()
-        assertTrue(upload.await().isFailure)
-        assertEquals(1, progress)
-        assertNull(sheets.getUploadedPdf("upload-1"))
-        assertEquals(0, sheets.sheets.value.size)
-    }
-
-    @Test
-    fun completedPdfDataIsClearedWhileSameSessionUploadAndSaveWork() = runTest {
-        val sheets = SampleMySheetRepository({ 0L }, uploadStepMillis = 0, member = member)
-        val upload = sheets.uploadPdf(SamplePdfFile) {}
-        sheets.savePdf(upload.id, "A의 악보", null)
+    fun deletedSheetDoesNotCarryOverToNextAccount() = runTest {
+        val sheets = SampleMySheetRepository(member = member)
+        val first = sheets.sheets.value.first().id
+        sheets.delete(first)
         assertEquals(1, sheets.sheets.value.size)
-        val pending = sheets.uploadPdf(SamplePdfFile) {}
         member.set("B")
-        assertEquals(0, sheets.sheets.value.size)
-        assertNull(sheets.getUploadedPdf(pending.id))
+        // 다음 계정은 지운 내용 없이 예시 악보로 다시 시작한다(서버 API 연결 전).
+        assertEquals(2, sheets.sheets.value.size)
+        assertEquals(first, sheets.sheets.value.first().id)
     }
 
     @Test

@@ -91,7 +91,7 @@ def test_staff_page_becomes_common_score(fake_audiveris):
     assert out["score"]["provenance"]["review"] == "inferred"
     # 오나라는 박자표가 없어 굿거리(12/8)로 추정했고, 단소 5율에 맞춰 6반음 옮겼다
     assert out["score"]["music"]["jangdan"] == "굿거리"
-    kinds = {i["kind"] for i in out["issues"]}
+    kinds = {i["kind"] for i in out["notices"]}
     assert "TRANSPOSED" in kinds
     assert guessed(out) == [{"source": "rhythm", "jangdan": "굿거리"}]
     assert sum(e["kind"] == "NOTE" for e in out["score"]["events"]) == 66
@@ -103,7 +103,7 @@ def test_requested_jangdan_wins_and_mismatch_is_flagged(fake_audiveris):
     out = post("score", jangdan="세마치").json()
     assert out["status"] == "DONE" and out["score"]["music"]["jangdan"] == "세마치"
     assert {"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
-            "detail": {"jangdan": "세마치", "jeongganPerGak": 4}} in out["issues"]
+            "detail": {"jangdan": "세마치", "jeongganPerGak": 4}} in out["notices"]
 
 
 @needs_generator
@@ -111,7 +111,7 @@ def test_page_without_staff_is_marked_and_others_are_kept(fake_audiveris):
     out = post("empty", "score").json()
     assert out["status"] == "DONE"
     assert {"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": 0, "bbox": [0, 0, 40, 30],
-            "detail": {"reason": "NO_STAFF"}} in out["issues"]
+            "detail": {"reason": "NO_STAFF"}} in out["notices"]
 
 
 def test_no_staff_on_any_page_is_no_staff_found(fake_audiveris):
@@ -158,7 +158,7 @@ def test_audiveris_runs_one_at_a_time(fake_audiveris, monkeypatch):
 
 
 def guessed(out):
-    return [i["detail"] for i in out["issues"] if i["kind"] == "JANGDAN_GUESSED"]
+    return [i["detail"] for i in out["notices"] if i["kind"] == "JANGDAN_GUESSED"]
 
 
 @needs_generator
@@ -169,7 +169,7 @@ def guessed(out):
 def test_jangdan_guess_source(fake_audiveris, mode, detail, mismatch):
     out = post(mode).json()
     assert out["status"] == "DONE" and guessed(out) == [detail]
-    assert any(i["kind"] == "JANGDAN_MISMATCH" for i in out["issues"]) == mismatch
+    assert any(i["kind"] == "JANGDAN_MISMATCH" for i in out["notices"]) == mismatch
 
 
 @needs_generator

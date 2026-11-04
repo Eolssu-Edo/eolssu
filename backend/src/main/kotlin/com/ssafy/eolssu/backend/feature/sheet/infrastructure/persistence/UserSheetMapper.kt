@@ -6,17 +6,10 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface UserSheetMapper {
-    fun findByIdempotencyKey(@Param("userId") userId: Long, @Param("idempotencyKey") idempotencyKey: String): UserSheetRow?
-
     fun findJangdan(@Param("jangdanId") jangdanId: Long): SheetJangdanRow?
-
-    /** 게시·미삭제 곡만. */
-    fun findSongSource(@Param("songId") songId: Long): SongCopySourceRow?
 
     /** 본인 악보. 다른 회원의 악보면 null. */
     fun find(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): UserSheetRow?
-
-    fun insert(sheet: UserSheetInsert): Int
 
     fun findPage(
         @Param("userId") userId: Long,
@@ -50,7 +43,6 @@ data class UserSheetRow(
     val scoreJson: String?,
     val noteCount: Int,
     val pendingCellCount: Int,
-    val requestHash: String,
     val updatedAt: LocalDateTime,
     val draftJson: String?,
     val draftRevision: Int,
@@ -83,32 +75,3 @@ data class SheetDraftUpdateRow(
     val draftJson: String,
     val savedAt: LocalDateTime,
 )
-
-data class SongCopySourceRow(
-    val jangdanId: Long?,
-    val bpmUnit: String,
-    val scoreJson: String,
-    val scorable: Boolean,
-    val scoreVersion: Int,
-    val noteCount: Int,
-    val defaultBpm: Int,
-)
-
-data class UserSheetInsert(
-    val userId: Long,
-    val title: String,
-    val kind: String,
-    val source: String,
-    val status: String,
-    val jangdanId: Long?,
-    val bpm: Int,
-    val bpmUnit: String,
-    val columnCount: Int,
-    val scoreJson: String?,
-    val noteCount: Int,
-    val idempotencyKey: String,
-    val requestHash: String,
-    val createdAt: LocalDateTime,
-) {
-    var id: Long = 0
-}

@@ -17,7 +17,8 @@ from omr_service.api import DownloadError, RecognitionFailed, app, get_engines, 
 
 SIGNED_URL = "https://r2.example/sheets/1.pdf?X-Amz-Signature=secret-token"
 A4 = (595, 842)  # pt
-DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues"}
+DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues",
+             "notices"}
 
 
 def pdf(pages=1, size=A4):
@@ -67,7 +68,7 @@ class Engine:
             self.clock.now += self.takes_s
         if isinstance(self.outcome, Exception):
             raise self.outcome
-        return self.outcome or {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1}, "score": {"events": []},
+        return self.outcome or {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1}, "score": {"events": [{"id": "e0"}]},
                                 "issues": [{"kind": "LOW_CONFIDENCE", "eventId": "e0", "cellId": None, "page": 0,
                                             "bbox": [1, 2, 3, 4], "detail": None}]}
 
@@ -129,8 +130,8 @@ def test_pdf_is_rendered_per_page_and_engine_result_is_returned(serve, clock):
     (job,) = serve.engine.jobs
     assert job.kind == "PDF" and len(job.files) == 1 and serve.engine.heads == [b"%PDF-"]
     assert serve.engine.sizes == [(2480, 3509)] * 2
-    assert job.time_budget_s == 60  # 쪽당 30초(시계를 멈춰 둠)
-    assert serve.deadlines == [clock.now + 300]  # 쪽 수를 모르는 내려받기는 최대 300초
+    assert job.time_budget_s == 120  # 쪽당 60초(시계를 멈춰 둠)
+    assert serve.deadlines == [clock.now + 600]  # 쪽 수를 모르는 내려받기는 최대 600초
     assert job.request.notation == "STAFF"
 
 
@@ -140,8 +141,8 @@ def test_images_become_pages_in_order(serve, clock):
     out = client.post("/v1/recognitions", json=body(files)).json()
     assert out["status"] == "DONE"
     assert out["pages"] == [{"index": 0, "width": 40, "height": 30}, {"index": 1, "width": 50, "height": 20}]
-    assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 60
-    assert serve.deadlines == [clock.now + 60] * 2  # 이미지는 장 수를 미리 알아 30초 × 장 수까지만 받는다
+    assert serve.engine.jobs[0].kind == "IMAGE" and serve.engine.jobs[0].time_budget_s == 120
+    assert serve.deadlines == [clock.now + 120] * 2  # 이미지는 장 수를 미리 알아 60초 × 장 수까지만 받는다
 
 
 @pytest.mark.parametrize("mode", ["RGB", "CMYK"])
@@ -212,16 +213,16 @@ def test_waiting_for_pdfium_counts_against_deadline(serve, clock, monkeypatch):
 
     monkeypatch.setattr(api, "PDFIUM_LOCK", Busy())
     failed(serve(pdf(), takes_s=100, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
-    assert Busy.waits == [200]  # 최대 300초 중 내려받기에 100초를 썼다
+    assert Busy.waits == [500]  # 최대 600초 중 내려받기에 100초를 썼다
 
 
 def test_rendering_stops_at_deadline(serve, clock, monkeypatch):
-    """2쪽이면 60초다. 첫 쪽에 61초가 걸리면 둘째 쪽은 그리지 않는다."""
+    """2쪽이면 120초다. 첫 쪽에 121초가 걸리면 둘째 쪽은 그리지 않는다."""
     render, calls = pdfium.PdfPage.render, []
 
     def slow(page, **kw):
         calls.append(1)
-        clock.now += 61
+        clock.now += 121
         return render(page, **kw)
 
     monkeypatch.setattr(pdfium.PdfPage, "render", slow)
@@ -285,21 +286,21 @@ def test_engine_failures_map_to_fail_reason(serve, outcome, reason):
     failed(serve(pdf(), Engine(outcome)).post("/v1/recognitions", json=body()), reason)
 
 
-@pytest.mark.parametrize("engine_s, fail_reason", [(29, None), (31, "TIMEOUT")])
+@pytest.mark.parametrize("engine_s, fail_reason", [(59, None), (61, "TIMEOUT")])
 def test_engine_past_page_budget_is_timeout(serve, clock, engine_s, fail_reason):
     out = serve(pdf(), Engine(clock=clock, takes_s=engine_s)).post("/v1/recognitions", json=body()).json()
     assert out["failReason"] == fail_reason
 
 
 def test_time_before_engine_counts_against_budget(serve, clock):
-    """요청 전체가 쪽당 30초다. 내려받기에 20초를 쓰면 엔진에는 10초가 남는다."""
+    """요청 전체가 쪽당 60초다. 내려받기에 50초를 쓰면 엔진에는 10초가 남는다."""
     engine = Engine(clock=clock, takes_s=15)
-    failed(serve(pdf(), engine, takes_s=20, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    failed(serve(pdf(), engine, takes_s=50, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
     assert engine.jobs[0].time_budget_s == 10
 
 
 def test_no_time_left_after_download_skips_engine(serve, clock):
-    failed(serve(pdf(), takes_s=30, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
+    failed(serve(pdf(), takes_s=60, clock=clock).post("/v1/recognitions", json=body()), "TIMEOUT")
     assert not serve.engine.jobs
 
 
@@ -405,3 +406,26 @@ def test_download_errors_are_download_error(tmp_path, clock, url, transport):
 
 def test_health():
     assert TestClient(app).get("/health").json() == {"status": "ok"}
+
+
+def test_issues_without_a_cell_in_the_score_become_notices(serve):
+    """issues에는 결과 악보의 칸·음을 가리키는 것만 남긴다. 칸이 없거나 악보에 없는 칸은 notices다."""
+    def issue(kind, event_id=None, cell_id=None):
+        return {"kind": kind, "eventId": event_id, "cellId": cell_id, "page": None, "bbox": None, "detail": None}
+
+    result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
+              "score": {"events": [{"id": "c0-j0-r0-u0"}], "columns": [{"cells": [{"id": "c0-j1"}]}]},
+              "issues": [issue("LOW_CONFIDENCE", event_id="c0-j0-r0-u0"), issue("OUT_OF_RANGE", cell_id="c0-j1"),
+                         issue("TRANSPOSED"), issue("ORNAMENT_DROPPED", cell_id="c9-j9")]}
+    out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
+    assert [i["kind"] for i in out["issues"]] == ["LOW_CONFIDENCE", "OUT_OF_RANGE"]
+    assert [i["kind"] for i in out["notices"]] == ["TRANSPOSED", "ORNAMENT_DROPPED"]
+    assert all(n["eventId"] is None and n["cellId"] is None for n in out["notices"])
+
+
+def test_issue_with_a_wrong_event_but_a_real_cell_stays_an_issue(serve):
+    issue = {"kind": "OUT_OF_RANGE", "eventId": "gone", "cellId": "c0-j1", "page": None, "bbox": None, "detail": None}
+    result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
+              "score": {"events": [], "columns": [{"cells": [{"id": "c0-j1"}]}]}, "issues": [issue]}
+    out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
+    assert [(i["eventId"], i["cellId"]) for i in out["issues"]] == [(None, "c0-j1")] and out["notices"] == []

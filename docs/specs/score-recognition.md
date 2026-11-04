@@ -10,7 +10,7 @@
 포함:
 
 - 내부 API `POST /v1/recognitions`의 요청·응답·실패 코드·시간 상한
-- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)의 종류
+- 엔진 선택 규칙, 초안 결과의 `provenance`, 확인 필요 칸(`issues`)과 악보 전체 알림(`notices`)의 종류
 - 오선보 → 정간보 변환 기본값
 
 제외:
@@ -22,7 +22,7 @@
 ## 실행 위치
 
 - 악보 인식 전용 컨테이너 `omr`. 채점 AI(`ai`)와 따로 두어 메모리·CPU를 나눠 쓰지 않는다. 내부망에서 backend만 호출하고 외부에 열지 않는다.
-- 동시 처리 1건(Audiveris 잠금). 메모리 2GiB·CPU 1.5개(`infra/runtime/compose.yml`, 이 PC 실측 최대 1.31GiB). 그림 정간보 OMR(S15P31E102-458)의 torch를 붙이면 다시 잰다.
+- 동시 처리 1건(Audiveris 잠금). 메모리 2GiB·CPU 2개(`infra/runtime/compose.yml`, 이 PC 실측 최대 1.31GiB, 운영 서버 0.76GB). 그림 정간보 OMR(S15P31E102-458)의 torch를 붙이면 다시 잰다.
 - Audiveris(AGPL-3.0)는 수정 없이 별도 프로세스로 실행한다.
 
 ## 요청
@@ -64,14 +64,32 @@ POST /v1/recognitions
   "pages": [{"index": 0, "width": 4300, "height": 3040}],
   "jgb": {"v": 1, "melody": "..."},
   "score": {"schemaVersion": 1, "provenance": {"review": "inferred", "converter": "staff-omr/audiveris-5.11.0"}},
-  "issues": [{"kind": "LOW_CONFIDENCE", "eventId": "c0-j2-r0-u0", "cellId": null, "page": 0, "bbox": [10, 20, 30, 40], "detail": null}]
+  "issues": [{"kind": "OUT_OF_RANGE", "eventId": null, "cellId": "c6-j0", "page": null, "bbox": null, "detail": {"measure": 7, "semitone": 3}}],
+  "notices": [{"kind": "TRANSPOSED", "eventId": null, "cellId": null, "page": null, "bbox": null, "detail": {"semitones": 8, "candidates": [8]}}]
 }
 ```
 
-- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 사용자가 검수해 저장하면 backend가 `reviewed`로 바꾼다.
+- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 내 악보는 사용자가 검수해 저장한 뒤에도 `inferred`로 둔다(`reviewed`는 전문가가 검수한 채점 정답용). 저장할 때 backend가 `converter`·`jgbSha256`·`sourceId`를 다시 채운다(S15P31E102-447).
 - `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
 - `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
 - `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
+
+### issues와 notices (S15P31E102-469)
+
+- `issues`: 사용자가 고칠 칸이 있는 것. 항목마다 결과 `score`의 음(`eventId`)이나 칸(`cellId`, `c{각}-j{정간}`)을 언제나 가리킨다. 한 칸에 여러 개가 올 수 있으므로(예: 한 정간에 몰린 짧은 음마다 `OFF_GRID_RHYTHM`), backend는 `cellId`(없으면 `eventId`)가 같은 것을 한 칸으로 세어 확인할 칸 수로 쓴다.
+- `notices`: 칸이 없는 악보 전체·쪽·열 단위 알림. `eventId`·`cellId`는 언제나 null이고 모양은 issue와 같다. 확인할 칸 수에 넣지 않는다.
+- 엔진이 결과 악보에 없는 음·칸을 가리키면(엔진 잘못) 그 id를 비우고 로그를 남긴다. 그래서 가리키는 id가 하나도 남지 않으면 그 항목은 `notices`로 간다.
+
+| kind | 놓이는 곳 | 칸 |
+| --- | --- | --- |
+| `OUT_OF_RANGE` | issues | 그 음이 놓인 정간 |
+| `LOW_CONFIDENCE` `OFF_GRID_RHYTHM`·`COLLIDED` | issues | 리듬을 옮기거나 겹친 정간 |
+| `LOW_CONFIDENCE` `GAP_IN_VOICE` | issues | 빈 시간이 시작하는 쉼표 정간 |
+| `ORNAMENT_DROPPED` | issues | 꾸밈음이 붙어 있던 음의 정간. 반복을 펼치면 펼친 각마다 하나. 뒤따르는 음이 없으면 notices |
+| `UNREADABLE` 읽지 못한 글자(`detail.text`) | issues | 그 글자를 덮는 정간 |
+| `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
+| `LOW_CONFIDENCE` `TIME_SIGNATURE_CHANGED`·`VOLTA_NUMBER` | notices | 마디 구조 |
+| `TRANSPOSED`·`VOICE_GUESSED`·`JANGDAN_GUESSED`·`JANGDAN_MISMATCH` | notices | 악보 전체 |
 
 ### issues 종류
 
@@ -96,26 +114,27 @@ POST /v1/recognitions
 | `TIMEOUT` | 시간 상한 초과 |
 | `ENGINE_ERROR` | 엔진·변환 프로그램의 비정상 종료와 그 밖의 오류(악보 문제가 아닌 실패). 오선보는 Audiveris가 오선을 못 찾았다고 알린(StepException) 쪽만 `NO_STAFF`로 보고, 그 밖에 악보 없이 끝나면 이 코드다 |
 
-실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽의 정간을 `UNREADABLE` issue로 남기고 `DONE`이다.
+실패해도 가짜 음표를 만들지 않는다. 일부 쪽만 실패하면 그 쪽을 `UNREADABLE` notice(쪽 전체 `bbox`)로 남기고 `DONE`이다.
 
 ## 시간 상한
 
-- 쪽마다 30초, 요청 전체 `30초 × 쪽 수`, 최대 300초. backend의 호출 제한은 이보다 길게 둔다(예: 330초).
-- 실측(2026-11-04, 이 PC Docker, CPU 1.5·메모리 2GiB): 오선보 쪽 그림 1쪽 8.5~10초, 정간보·오선보 펼침면 PDF 1쪽 13.5초, 정간보 글자 층 1쪽 1.0초. 서버(4코어) 값은 운영 반영 때 잰다.
+- 쪽마다 60초, 요청 전체 `60초 × 쪽 수`, 최대 600초. backend의 호출 제한은 이보다 길게 둔다(630초 이상).
+- 실측(2026-11-04, 이 PC Docker, CPU 1.5·메모리 2GiB): 오선보 쪽 그림 1쪽 8.5~10초, 정간보·오선보 펼침면 PDF 1쪽 13.5초, 정간보 글자 층 1쪽 1.0초. 운영 서버(edo1, 4코어, 2026-11-04): 같은 오선보 1쪽이 CPU 1.5에서 25.1~29.5초(4곡 중 1곡 30초 제한으로 `TIMEOUT`), CPU 3에서 18.6~22.3초라 쪽당 60초·CPU 2로 정했다(S15P31E102-468).
+- 참고(BE 연결 제안, 합의 전): Audiveris는 한 번에 한 건이고 기다리는 시간도 요청 시간에 든다. 동시에 부르면 뒤 요청이 기다리다 `TIMEOUT`이 되므로, backend가 변환 작업을 큐로 한 건씩 보내고 앱에는 "인식 중" 상태로 두는 비동기 흐름을 권한다. `TIMEOUT`·`ENGINE_ERROR`는 같은 파일로 다시 보내면 된다(omr은 이전 요청을 기억하지 않는다).
 
 ## 엔진 선택
 
 | notation·입력 | 엔진 |
 | --- | --- |
 | `JEONGGANBO`, PDF에 글자 층이 있음 | `standard_score_text.py`(표준악보집 글자·선 좌표) |
-| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다. 그 전에는 `ENGINE_ERROR` |
+| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다(2차 일정 포함, 2026-11-04 결정). 그 전에는 `ENGINE_ERROR` |
 | `STAFF` | Audiveris → MusicXML → 정간보 변환 |
 
 어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.
 
 ### 오선보 경로 (313 U5)
 
-- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 30초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
+- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 60초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. Audiveris는 한 번에 하나만 돌리고(동시 1건, 기다리는 시간도 요청 시간에 든다), 신호를 받아 죽으면(메모리 부족 등) `ENGINE_ERROR`다.
 - 오선을 못 찾은 쪽(Audiveris 5.11은 종료 코드 1로 끝나고 표준 출력에 StepException을 남긴다)은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
 - 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 박자표를 못 읽었으면 리듬으로 고른 박 구성(점4분 4박 굿거리·3박 세마치) → 굿거리 순이다. 요청에 장단이 없으면 어떻게 정했든 `JANGDAN_GUESSED`를 한 번 남긴다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
 - `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
@@ -131,7 +150,7 @@ POST /v1/recognitions
 - 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 각별 정간 수(`gakBeats`)로 그 각만 짧게 읽는다(S15P31E102-404의 `score_data`). 정간 하나의 박은 기본 각의 정간 수(`controls.beats`)로 정한다. `score_data`가 받지 않는 기호(율명 없는 독립 시김새 등)가 있으면 `ENGINE_ERROR`다(원인은 로그에 남김).
 - 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
 - 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
-- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형)를 둔다. `eventId`·`cellId`는 비운다.
+- 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형), `cellId`에 그 글자를 덮는 정간을 둔다(`eventId`는 비운다).
 - `engine` `jeongganbo-text`, `provenance.converter` `jeongganbo-text/standard_score_text`. `score.title`·`sourceId`는 `conversionId`다(곡 제목은 backend가 저장할 때 정한다).
 - 요청 `jangdan`은 `data/reference/jangdans.json`의 `name`이어야 한다(아니면 422). 정간보는 꼭 보내고, 오선보는 생략할 수 있다.
 
@@ -158,7 +177,7 @@ MusicXML 읽기는 우리 Audiveris 출력만 받는다고 보고 만들었다. 
 
 ## 미결 사항
 
-- 서버(4코어)에서의 쪽당 시간·메모리(운영 반영 때 사람이 잼, [실행 문서](../../infra/runtime/README.md#omr-악보-인식-서비스))
+- CPU 2·쪽당 60초에서의 운영 서버 쪽당 시간(재반영 때 사람이 잼, [실행 문서](../../infra/runtime/README.md#omr-악보-인식-서비스)), 서버에서 PDF 처리 시간
 - 폰 사진·다른 판형 정확도(실물 없어 미측정)
 - MALerLab 체크포인트 이용 조건(README에 MIT, LICENSE 파일 없음)
 - 347 합의: 위 '382와 다른 점', issue 종류, backend 호출 제한

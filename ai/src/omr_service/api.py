@@ -28,8 +28,9 @@ from omr_service import jeongganbo_text, staff_engine
 MAX_TOTAL_BYTES = 20 * 1024 * 1024  # 파일·합계 20MiB(382)
 MAX_PDF_PAGES = 10
 MAX_IMAGES = 10
-# 요청 전체(내려받기·쪽 그림·엔진) 시간 = 쪽당 30초 × 쪽 수. 쪽 수를 알기 전인 내려받기는 최대 10쪽의 300초까지 쓴다.
-PAGE_TIME_S = 30
+# 요청 전체(내려받기·쪽 그림·엔진) 시간 = 쪽당 60초 × 쪽 수. 쪽 수를 알기 전인 내려받기는 최대 10쪽의 600초까지 쓴다.
+# 운영 서버 오선보 1쪽이 CPU 1.5에서 25~29.5초, CPU 3에서 18.6~22.3초라 여유를 둔다(S15P31E102-468).
+PAGE_TIME_S = 60
 MAX_TIME_S = PAGE_TIME_S * MAX_PDF_PAGES
 # 내려받기의 읽기 한 번 제한. 마감은 조각 사이에서 보므로, 조금씩 흘려 보내는 서버에서는 이만큼 넘길 수 있다.
 READ_TIMEOUT_S = 10.0
@@ -244,8 +245,26 @@ def _done(request: RecognitionIn, result: dict, pages: list[Page]) -> dict:
         "pages": [{"index": i, "width": p.width, "height": p.height} for i, p in enumerate(pages)],
         "jgb": result["jgb"],
         "score": result["score"],
-        "issues": result["issues"],
+        **_split_issues(result["issues"], result["score"]),
     }
+
+
+def _split_issues(issues: list[dict], score: dict) -> dict:
+    """issues에는 결과 악보의 음(eventId)·칸(cellId)을 가리키는 것만 둔다. 나머지는 악보 전체 알림(notices)이다.
+
+    backend는 issues로 확인할 칸을 센다(계약 'issues와 notices'). 악보에 없는 id는 엔진 잘못이라 로그를 남기고 비운다.
+    가리킨 id가 하나도 남지 않으면 notices로 옮긴다."""
+    ids = {e["id"] for e in score.get("events", [])} | {c["id"] for col in score.get("columns", []) for c in col["cells"]}
+    out = {"issues": [], "notices": []}
+    for issue in issues:
+        pointed = [x for x in (issue["eventId"], issue["cellId"]) if x]
+        if any(x not in ids for x in pointed):
+            log.warning("issue %s points to missing %s", issue["kind"], [x for x in pointed if x not in ids])
+        if any(x in ids for x in pointed):
+            out["issues"].append(issue | {k: None for k in ("eventId", "cellId") if issue[k] and issue[k] not in ids})
+        else:
+            out["notices"].append(issue | {"eventId": None, "cellId": None})
+    return out
 
 
 def _fetch_all(request: RecognitionIn, work: Path, fetch: Fetcher, deadline: float) -> list[Path]:

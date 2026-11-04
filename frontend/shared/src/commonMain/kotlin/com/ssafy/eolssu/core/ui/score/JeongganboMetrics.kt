@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
  * @property joined 각 사이를 띄우지 않고 붙여 바깥 테두리 하나로 감싼다(보드 결과 `.ms`: 바깥 `#8E887D`, 각 경계 `#B9B3A6`).
  * @property headStartPill 첫 각 머리에 연두 ‘시작’ 알약을 번호 앞에 둔다(보드 결과 `.ms-lab`).
  * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
+ * @property errorMarks `errors`로 넘긴 틀린 정간을 그리는 방식. 기본은 종류별 색·아이콘(2차 결합본), 기록 상세는 붉은 바탕·테두리만.
  */
 @Immutable
 data class JeongganboLook(
@@ -30,6 +31,7 @@ data class JeongganboLook(
     val joined: Boolean = false,
     val headStartPill: Boolean = false,
     val soft: Boolean = false,
+    val errorMarks: ErrorMarkStyle = ErrorMarkStyle.Kind,
 ) {
     enum class Style { Classic, Board }
 
@@ -43,10 +45,10 @@ data class JeongganboLook(
             style = Style.Board, lyricLane = if (big) 34.dp else 25.dp, headCompact = true, daegangWhenFits = true, upcomingMark = true,
         )
 
-        /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 칸은 붉은 안쪽 테두리와 글자 상자. */
+        /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 정간은 종류별 색·아이콘(2차 결합본). */
         val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true)
-        /** 기록 상세 RECORD-02의 악보: 옛 크기(각 46 · 정간 38)에 흰 각 · 옅은 선 · 연두 현재 칸. */
-        val Record = JeongganboLook(soft = true)
+        /** 기록 상세 RECORD-02의 악보: 옛 크기(각 46 · 정간 38)에 흰 각 · 옅은 선 · 연두 현재 칸. 틀린 정간은 옅은 붉은 바탕 + 붉은 테두리(2차, 점 없음). */
+        val Record = JeongganboLook(soft = true, errorMarks = ErrorMarkStyle.Plain)
     }
 }
 

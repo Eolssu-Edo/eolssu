@@ -71,6 +71,10 @@ class PasswordChangeApiDatabaseTests {
         assertNotEquals(thisDevice.refresh, newRefresh)
 
         assertEquals(listOf("PASSWORD_CHANGED", "PASSWORD_CHANGED", null), reasons())
+        // 466: 다른 기기의 남은 access_token은 만료 전이라도 바로 401, 바꾼 기기는 새 토큰으로 이어서 쓴다.
+        assertError(me(otherDevice.access), 401, "UNAUTHENTICATED")
+        assertError(me(thisDevice.access), 401, "UNAUTHENTICATED")
+        assertEquals(200, me(cookie(changed, "access_token")).statusCode())
         assertEquals(401, refresh(otherDevice.refresh).statusCode())
         assertEquals(401, refresh(thisDevice.refresh).statusCode())
         assertEquals(200, refresh(newRefresh).statusCode())
@@ -152,6 +156,12 @@ class PasswordChangeApiDatabaseTests {
         HttpResponse.BodyHandlers.ofString(),
     )
 
+    private fun me(access: String): HttpResponse<String> = client.send(
+        HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me")).timeout(Duration.ofSeconds(15))
+            .header("Accept", "application/json").header("Cookie", "access_token=$access").GET().build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
+
     private fun patch(cookie: String?, body: String): HttpResponse<String> {
         val builder = HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me/password")).timeout(Duration.ofSeconds(15))
             .header("Content-Type", "application/json").header("Accept", "application/json")
@@ -168,6 +178,8 @@ class PasswordChangeApiDatabaseTests {
         @JvmStatic @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
+            // 466: 운영과 같은 캐시로, 세션을 끊으면 커밋 뒤 캐시가 지워져 바로 401인지 본다.
+            registry.add("eolssu.auth.session-cache-ttl") { "10s" }
             registry.add("eolssu.auth.code-hmac-secret") { "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=" }
             registry.add("eolssu.security.jwt-secret") { "test-signing-key-at-least-32-bytes-long!!" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }

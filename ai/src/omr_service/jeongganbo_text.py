@@ -75,9 +75,11 @@ def recognize(job) -> dict:
             if run.returncode != 0:
                 log.info("jeongganbo-text page=%d reader failed: %s", i, _last_line(run.stderr))
                 raise RuntimeError("standard_score_text failed")
+            first_gak = len(lines)  # 쪽을 이어 붙이므로 결과 악보의 각 번호는 앞 쪽 각 수만큼 밀린다
             lines += (out / "page.txt").read_text(encoding="utf-8").splitlines()
             report = json.loads((out / "report.json").read_text(encoding="utf-8"))
-            issues += [{"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
+            issues += [{"kind": "UNREADABLE", "eventId": None, "page": i,
+                        "cellId": f"c{first_gak + g['gak']}-j{g['jeonggan']}",
                         "bbox": [round((g["x"] - g["size"] / 2) * scale), round((g["y"] - g["size"] / 2) * scale),
                                  round(g["size"] * scale), round(g["size"] * scale)], "detail": {"text": g["c"]}}
                        for g in report["ignored_at"]]

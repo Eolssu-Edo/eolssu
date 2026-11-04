@@ -30,6 +30,7 @@ import com.ssafy.eolssu.feature.history.component.HistoryFrame
 import com.ssafy.eolssu.feature.history.component.HistoryTopBar
 import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
 import com.ssafy.eolssu.feature.history.component.RecordScorePortrait
+import com.ssafy.eolssu.feature.history.component.CompareEntry
 import com.ssafy.eolssu.feature.history.component.RecordScoreText
 import com.ssafy.eolssu.feature.history.component.SwitchBox
 import com.ssafy.eolssu.feature.history.component.WrappedJeongganbo
@@ -82,6 +83,7 @@ internal fun RecordDetailTabletLayout(
                     SwitchBox(stringResource(Res.string.record_detail_follow), state.follow, actions.onToggleFollow, Modifier.weight(1f).fillMaxWidth())
                 }
             }
+            if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(top = 10.dp))
             Text(
                 stringResource(Res.string.record_detail_hint_wrapped),
                 modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),

@@ -59,66 +59,50 @@ class ReferenceAudioViewModelTest {
         assertEquals("중청남", selection("중청남").yulmyeong)
     }
 
-    @Test fun optionsCycleOnlyWithinTheExactNoteWithoutAnAutomaticSelection() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        val requests = mutableListOf<ReferenceAudioQuery>()
+    @Test fun eachNotePlaysTheStrongBasicToneAndPlainYoseongFromTheActualRecordingNames() {
+        // 2026-11-04 운영 /api/reference-audios 응답의 악기별 같은 음 녹음 이름이다.
+        fun pick(dataset: String, vararg techniques: String): Pair<String?, String?> {
+            val state = ReferenceAudioUiState(clips = techniques.mapIndexed { index, technique ->
+                clip(dataset).copy(assetId = "$index".repeat(64), technique = technique)
+            })
+            val selection = ReferenceAudioSelection(GuideInstrument.entries.single {
+                ReferenceAudioSelection(it, null, "").datasetId == dataset
+            }, "평취", "중")
+            return state.clipFor(selection, ReferenceAudioKind.Basic)?.technique to
+                state.clipFor(selection, ReferenceAudioKind.Yoseong)?.technique
+        }
+        assertEquals("평취 강" to "음계+요성", pick("danso", "평취 약", "평취 중", "평취 강", "음계+요성"))
+        assertEquals("역취" to "음계+요성", pick("danso", "역취", "음계+요성"))
+        assertEquals("기본음 강" to "요성 강", pick("sogeum", "기본음 약", "기본음 강", "요성 중", "요성 강", "깊은요성"))
+        assertEquals("기본음 강" to "요성 중", pick("sogeum", "기본음 강", "요성 중", "요성 약"))
+        assertEquals("기본음" to "기본음+요성", pick("jeongak-daegeum", "기본음+깊은요성", "기본음+요성", "기본음"))
+        assertEquals(null to "기본음+요성", pick("sanjo-daegeum", "기본음+요성", "기본음+깊은요성"))
+        assertEquals("기본음 강" to null, pick("sogeum", "기본음 강", "깊은요성"))
+    }
+
+    @Test fun examplesComeOnlyFromTheExactNoteAndBasicScaleRecordings() {
         val basic = clip("danso")
-        val ornament = basic.copy(assetId = "b".repeat(64), category = "시김새", technique = "요성")
-        val vm = ReferenceAudioViewModel(repository {
-            requests += it
-            listOf(basic, ornament, basic.copy(assetId = "c".repeat(64), register = "역취"),
-                basic.copy(assetId = "d".repeat(64), yulmyeong = "황"))
-        })
+        val state = ReferenceAudioUiState(clips = listOf(
+            basic.copy(assetId = "b".repeat(64), category = "시김새", technique = "요성(황종)"),
+            basic.copy(assetId = "c".repeat(64), register = "역취"),
+            basic.copy(assetId = "d".repeat(64), yulmyeong = "황", technique = "음계+요성"),
+        ))
         val selection = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
-        try {
-            vm.open(GuideInstrument.Danso); advanceUntilIdle()
-            assertEquals(listOf(ReferenceAudioQuery("danso")), requests)
-            assertEquals(listOf(basic, ornament), vm.uiState.value.clipsFor(selection))
-            assertNull(vm.uiState.value.selectedClip(selection))
-            vm.nextOption(selection)
-            assertEquals(basic, vm.uiState.value.selectedClip(selection))
-            vm.nextOption(selection)
-            assertEquals(ornament, vm.uiState.value.selectedClip(selection))
-            vm.nextOption(selection)
-            assertEquals(basic, vm.uiState.value.selectedClip(selection))
-            assertEquals(1, requests.size)
-            val missing = selection.copy(yulmyeong = "태")
-            vm.nextOption(missing)
-            assertNull(vm.uiState.value.selectedClip(missing))
-            assertTrue(vm.uiState.value.clipsFor(selection.copy(instrument = GuideInstrument.Sogeum)).isEmpty())
-        } finally { vm.dismiss(); Dispatchers.resetMain() }
+        assertNull(state.clipFor(selection, ReferenceAudioKind.Basic))
+        assertNull(state.clipFor(selection, ReferenceAudioKind.Yoseong))
+        assertEquals("d".repeat(64), state.clipFor(selection.copy(yulmyeong = "황"), ReferenceAudioKind.Yoseong)?.assetId)
+        assertNull(state.clipFor(selection.copy(instrument = GuideInstrument.Sogeum, register = "역취"), ReferenceAudioKind.Basic))
     }
 
-    @Test fun choicesStayWithTheirCardAndChangingInstrumentClearsThem() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        val vm = ReferenceAudioViewModel(repository { query -> listOf(clip(query.datasetId),
-            clip(query.datasetId).copy(assetId = "b".repeat(64), yulmyeong = "황")) })
-        val jung = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
-        val hwang = jung.copy(yulmyeong = "황")
-        try {
-            vm.open(GuideInstrument.Danso); advanceUntilIdle()
-            vm.nextOption(jung); vm.nextOption(hwang)
-            assertEquals("a".repeat(64), vm.uiState.value.selectedClip(jung)?.assetId)
-            assertEquals("b".repeat(64), vm.uiState.value.selectedClip(hwang)?.assetId)
-            vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
-            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
-            assertTrue(vm.uiState.value.clipsFor(jung).isEmpty())
-        } finally { vm.dismiss(); Dispatchers.resetMain() }
-    }
-
-    @Test fun reopeningTheSameInstrumentReusesItsListAndResetsCardChoices() = runTest {
+    @Test fun reopeningTheSameInstrumentReusesItsList() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         var requests = 0
         val vm = ReferenceAudioViewModel(repository { requests++; listOf(clip(it.datasetId)) })
-        val selection = ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중")
         try {
             vm.open(GuideInstrument.Danso); advanceUntilIdle()
-            vm.nextOption(selection)
-            assertNotNull(vm.uiState.value.selectedClip(selection))
             vm.open(GuideInstrument.Danso)
             assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
             assertEquals(listOf(clip("danso")), vm.uiState.value.clips)
-            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
             advanceUntilIdle()
             assertEquals(1, requests)
         } finally { vm.dismiss(); Dispatchers.resetMain() }
@@ -148,11 +132,9 @@ class ReferenceAudioViewModelTest {
         })
         try {
             vm.open(GuideInstrument.Danso); advanceUntilIdle()
-            vm.nextOption(ReferenceAudioSelection(GuideInstrument.Danso, "평취", "중"))
             vm.open(GuideInstrument.Sogeum); advanceUntilIdle()
             vm.open(GuideInstrument.Danso)
             assertEquals(listOf(clip("danso")), vm.uiState.value.clips)
-            assertTrue(vm.uiState.value.selectedAssets.isEmpty())
             vm.open(GuideInstrument.Sogeum)
             assertEquals(ReferenceLoadState.Ready, vm.uiState.value.loadState)
             assertTrue(vm.uiState.value.clips.isEmpty())

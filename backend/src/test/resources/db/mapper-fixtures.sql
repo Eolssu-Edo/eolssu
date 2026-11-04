@@ -61,9 +61,9 @@ INSERT INTO email_verifications (id, email, purpose, code_hash, attempt_count, e
 VALUES (1, 'test@example.test', 'SIGN_UP', 'code-hash', 2, '2026-10-22 01:02:03.123456', NULL, NULL, NULL, NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456'),
        (2, 'test@example.test', 'SIGN_UP', 'code-hash', 0, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', REPEAT('b', 64), '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL, '2026-10-22 01:02:03.123456');
 
-INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, revoked_at, revoke_reason, created_at)
-VALUES (1, 1, REPEAT('c', 64), '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', 'ROTATED', '2026-10-22 01:02:03.123456'),
-       (2, 1, REPEAT('d', 64), '2026-10-22 01:02:03.123456', NULL, NULL, '2026-10-22 01:02:03.123456');
+INSERT INTO refresh_tokens (id, user_id, token_hash, session_id, expires_at, revoked_at, revoke_reason, created_at)
+VALUES (1, 1, REPEAT('c', 64), 'mapper-session-1', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', 'ROTATED', '2026-10-22 01:02:03.123456'),
+       (2, 1, REPEAT('d', 64), 'mapper-session-1', '2026-10-22 01:02:03.123456', NULL, NULL, '2026-10-22 01:02:03.123456');
 
 INSERT INTO user_song_settings (id, user_id, song_id, bpm, created_at, updated_at)
 VALUES (1, 1, 1, 72, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');

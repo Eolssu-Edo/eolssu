@@ -140,7 +140,7 @@ ssh -o ClearAllForwardings=yes edo1 'sudo python3 /opt/eolssu/ops368-reference-a
 
 Task S15P31E102-387. S15P31E102-339가 운영 DB에 넣은 소금 아리랑(96)·도라지타령(93)·밀양아리랑(95)·늴리리야(91)에 사람 검수한 숨표와 `provenance.review: reviewed`를 반영하고 `is_scorable`을 켠다. 판본은 교과서가 있으면 교과서(아리랑·도라지타령, `school-textbook-sogeum-p15`·`p16`), 없으면 표준악보집(`ngc-standard-2022-p193`·`p196`)이고, 운영 악보와 음·길이·이벤트 id가 같음을 운영 DB 읽기로 확인했다. 악기 행·율명·게시 상태·`score_version`은 바꾸지 않는다(모범 음원은 같은 `score_version`일 때만 나온다). 근거는 [소금 서비스 4곡 기록](../../docs/knowledge/data/sogeum-service-scores.md)이다.
 
-403 계획 파일에는 기존 4곡과 새로 검수한 14곡을 넣었다. 북천이 소금 1(104)은 운영 악보와 음이 다르고 취타 고급(109)은 시김새 표현이 달라 제외했다. 운영에는 이 14곡 계획을 아직 적용하지 않았다. 339 적재 도구는 기존 곡의 `is_scorable=0`을 요구하므로 채점을 켠 뒤 다시 적재하면 멈춘다. 아래 명령은 운영에서 실행하기 전 사용자 승인이 필요하다.
+403 계획 파일에는 기존 4곡과 새로 검수한 14곡을 넣었다. 북천이 소금 1(104)은 운영 악보와 음이 다르고 취타 고급(109)은 시김새 표현이 달라 제외했다. 2026-11-04 S15P31E102-430에서 사용자가 edo1 `/opt/eolssu/ops430-sogeum-scoring-20261104/`에서 아래 두 명령으로 14곡을 적용했고, 재실행 대기 0곡과 공개 곡 상세로 18곡을 확인했다([실행 기록](../../docs/knowledge/data/sogeum-service-scores.md#운영-적용-s15p31e102-430)). 339 적재 도구는 기존 곡의 `is_scorable=0`을 요구하므로 채점을 켠 뒤 다시 적재하면 멈춘다.
 
 ```sh
 sudo python3 enable_scoring.py --plan scoring-plans/sogeum.json --receipt /tmp/sogeum-scoring-check.json
@@ -161,3 +161,14 @@ Task S15P31E102-404. S15P31E102-339가 적재한 단소 곡 중 사람 검수를
 sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-check.json
 sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-apply.json --apply
 ```
+
+S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천안삼거리(44)는 운영 음표가 원본과 달라 **악보 교체 항목**이다. 28 싸름·43 청어엮기·49 진도아리랑은 운영이 원본과 같아 숨표 항목이다. 2026-11-04 S15P31E102-476에서 사용자가 edo1 `/opt/eolssu/ops476-danso-scoring-20261104/`에서 적용했다. 5곡만 바뀌었고 재실행 대기는 0곡이다([실행 기록](../../docs/knowledge/data/danso-loaded-scores.md#운영-적용-s15p31e102-476)).
+
+악보 교체 항목은 `targetScore`(계획 옆 `danso-scores/<곡 id>.json`)와 `targetScoreVersion`(현재 + 1)을 가진다. 도구가 하는 일은 이렇다.
+
+- 목표 파일의 해시가 `targetSha256`과 같은지 확인한다. 목표 파일의 `score.scoreVersion`이 다음 버전인지, 숨표가 `breathEventIds`와 같은지도 확인한다.
+- 같은 트랜잭션에서 `score_json`을 그 파일로 바꾼다. 동시에 `score_version`을 다음 버전으로, `note_count`를 새 음 수로 바꾸고 `is_scorable`을 켠다.
+- 완료 판정은 "새 버전 + 목표 해시 + 채점 켜짐"이다.
+- 서버에는 `enable_scoring.py`, `scoring-plans/danso.json`, `scoring-plans/danso-scores/`를 같은 상대 위치로 둔다.
+
+목표 파일은 `enable_scoring.target_score(운영 악보, convert_answer(정답))`로 만든다. 운영 곡 정보·출처 ID·황 음높이는 운영 값을 두고, 음표·정간·틱은 정답 값을 쓴다. 박 단위나 정간당 박이 다르면 멈춘다. 악보 버전을 올리면 그 곡의 모범 음원은 새 버전 음원이 연결될 때까지 나오지 않는다(`ModelAudioMapper.xml`). 그래서 적용 시점은 모범 음원 담당과 맞춘다.

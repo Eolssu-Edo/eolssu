@@ -86,16 +86,11 @@ object EolssuIcons {
     val Target = lineIcon("Target", circle(12f, 12f, 9f), circle(12f, 12f, 5f), circle(12f, 12f, 1f))
     val Zoom = lineIcon("Zoom", circle(11f, 11f, 7f), "M20 20l-3.5 -3.5M11 8v6M8 11h6")
 
-    // 내 악보 · PDF 올리기
+    // 내 악보
     val Plus = lineIcon("Plus", "M12 5v14M5 12h14")
     val Pencil = lineIcon("Pencil", "M4 20h4L19 9l-4 -4L4 16z")
-    val Music = lineIcon("Music", "M9 18V5l12 -2v13", circle(6f, 18f, 3f), circle(18f, 16f, 3f))
-    val FileUpload = lineIcon(
-        "FileUpload",
-        "M14 3H6a2 2 0 0 0 -2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2V9z",
-        "M14 3v6h6",
-        "M12 18v-6M9 15l3 -3 3 3",
-    )
+    /** 내 악보 삭제(`Song-Practice` 휴지통). */
+    val Trash = lineIcon("Trash", "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1 -13M9 7V4h6v3")
 
     private fun dot(cx: Float, cy: Float) = circle(cx, cy, 0.9f)
 

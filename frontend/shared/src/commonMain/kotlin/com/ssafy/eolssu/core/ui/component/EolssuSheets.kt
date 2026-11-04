@@ -192,8 +192,9 @@ fun ToggleRow(
 
 /**
  * 확인 창(연두 보드 `.dialog`): 양옆 28dp 안쪽의 흰 상자(반지름 20, 여백 24·20·20)에 48dp 아이콘 고리(`.ico-ring`) ·
- * Song Myung 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 바깥을 눌러도 닫히지 않는다.
+ * Song Myung 19sp 제목 · 14sp 설명 · 세로로 쌓은 버튼(간격 8). 기본은 바깥을 누르거나 뒤로 가도 닫히지 않는다.
  *
+ * @param onDismissRequest 바깥(가림막)을 누르거나 뒤로 갈 때. 닫기 버튼 없이 이렇게 닫는 창만 넘긴다.
  * @param iconBackground 아이콘 고리 바탕. 기본 연두 20%(`accentTint`), 경고는 `recSoft`, 완료는 `accentTintStrong`.
  * @param iconTint 아이콘 색. 기본 먹색, 경고는 `recText`.
  */
@@ -206,10 +207,11 @@ fun EolssuDialog(
     maxWidth: Dp = 340.dp,
     iconBackground: Color? = null,
     iconTint: Color? = null,
+    onDismissRequest: () -> Unit = {},
     actions: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
-    Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier
                 .padding(horizontal = 28.dp)

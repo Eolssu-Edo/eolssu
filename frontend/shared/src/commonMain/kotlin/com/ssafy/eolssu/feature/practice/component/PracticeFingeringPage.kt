@@ -71,7 +71,14 @@ import eolssu.shared.generated.resources.score_rest_hangul
 import org.jetbrains.compose.resources.stringResource
 
 /** 정간 하나의 위치(각·정간)와 운지 줄 내용. [units]는 이 정간에 적힌 표시 자리(율명·이음·쉼)다. */
-data class FingerCell(val index: Int, val column: Int, val row: Int, val units: List<ScoreDisplayUnit>, val entries: List<FingerEntry>) {
+data class FingerCell(
+    val index: Int,
+    val column: Int,
+    val row: Int,
+    val units: List<ScoreDisplayUnit>,
+    val entries: List<FingerEntry>,
+    val lyric: String? = null,
+) {
     val rest: Boolean get() = entries.isNotEmpty() && entries.all { it.yul == null }
     val parts: Int get() = units.size.coerceAtLeast(1)
     val firstEvent: ScoreEvent? get() = units.firstOrNull()?.event
@@ -99,7 +106,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
                     }
                 }
             }
-            cells += FingerCell(cells.size, column, row, units, entries)
+            cells += FingerCell(cells.size, column, row, units, entries, rows[row].lyric)
         }
     }
     return cells
@@ -299,7 +306,15 @@ private fun FingerRow(
                 NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey)
             }
         }
-        Box(Modifier.width(FingerLyricWidth).fillMaxHeight().drawBehind { drawRect(colors.line, size = Size(1.dp.toPx(), size.height)) })
+        Box(
+            Modifier.width(FingerLyricWidth).fillMaxHeight()
+                .drawBehind { drawRect(colors.line, size = Size(1.dp.toPx(), size.height)) },
+            contentAlignment = Alignment.Center,
+        ) {
+            cell.lyric?.let {
+                Text(it.replace("{세로표}", ""), style = MaterialTheme.typography.labelSmall, color = colors.text)
+            }
+        }
     }
 }
 

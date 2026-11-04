@@ -53,6 +53,8 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 원본과 실제 생성 PCM의 음높이·발음 구간·쉼을 비교하는 명령과 관측 한계는 [독립 파형 검증](../docs/knowledge/data/common-score-audio-verification.md)에 있습니다.
 
+신규 카탈로그 곡은 [공통 악보 원본](../docs/specs/common-score-catalog-source.md)으로 작성·검수하고 같은 파일을 재생·적재에 사용합니다. 기존 곡의 가사 복원 방법은 [대조 및 복원 기록](../docs/knowledge/data/catalog-notation-restoration.md)을 따릅니다.
+
 기존 재생용 JGB는 [재생용 공통 악보 가져오기](src/playback/README.md#기존-재생용-jgb를-공통-악보로-가져오기) 명령을 사용합니다. 독립 음열 기호·빈지속·각별 정간 수·원본 음가 단위와 꾸밈/길이표 조합을 보존한 `inferred` 결과 및 원문 대응표를 만듭니다. 명시 연주 계획·표현 프로필을 전달할 수 있고, 반복표·짝 없는 길이표의 기본 해석에는 교육용 정책을 명시해야 합니다. 아래 채점 정답용 변환기와 검수된 서비스 파일은 그대로 유지합니다.
 
 [score_data.py](src/scores/score_data.py)는 사람이 확정한 채점 정답(`annotations/scores/<원본 ID>/`의 `.jgb.json`)을 FE 표시·AI 채점·BE 저장이 함께 쓰는 공통 악보 데이터로 바꿉니다(노션 B2). 형식은 [score_data.schema.json](src/scores/score_data.schema.json)이 정합니다. 화면 배치용 `columns → cells → units`와 재생·채점용 `events`를 함께 담고 `eventId`·`cellId`로 잇습니다. 시간은 박(`music.bpmUnit`)을 `music.ticksPerBeat` 칸으로 나눈 정수 틱입니다.
@@ -61,11 +63,11 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p172 ngc-standard-2022-p173 ngc-standard-2022-p174
 ```
 
-결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소 음역) 대신 12율 읽기 규칙만 검사합니다. 표준악보집 소금 4곡(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)도 같습니다. 서비스 소금 곡 행은 S15P31E102-339가 넣었고, 교과서 판본이 있으면 교과서(아리랑·도라지타령), 없으면 표준악보집(밀양아리랑·늴리리야) 정답으로 채점을 켭니다([infra/catalog](../infra/catalog/README.md)). 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 단소 음역 대신 12율 읽기 규칙만 검사합니다. 단소는 율명 표(`reference/pitches.json`, 기본 5율)와 원본에서 확인한 예외(`score_data.DANSO_EXTRA_PITCHES`, 지금은 진도아리랑의 청남)만 받습니다(S15P31E102-451). 예외는 backend 율명 표에도 있는 율만 넣습니다. 표준악보집 소금 4곡(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)도 같습니다. 서비스 소금 곡 행은 S15P31E102-339가 넣었고, 교과서 판본이 있으면 교과서(아리랑·도라지타령), 없으면 표준악보집(밀양아리랑·늴리리야) 정답으로 채점을 켭니다([infra/catalog](../infra/catalog/README.md)). 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
 
 같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
 
-S15P31E102-339가 적재한 단소 31곡의 정답은 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>`, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 31곡 모두 `reviewed`이고 검수 방법은 검토 기록의 `answerApproval.note`에 있습니다. 북천이 단소1(`p182-part-1`)은 운영 음과 원본이 달라 `serviceComparison.approvedForScoring=false`로 두고 채점 계획([infra/catalog/scoring-plans/danso.json](../infra/catalog/scoring-plans/danso.json), 30곡)에서 뺐습니다.
+S15P31E102-339가 적재한 단소 곡의 정답 35개는 원본 PDF별 ID(`ngc-standard-2022-p<쪽>`, 국립국악원 실기교재 자료 번호 `ngc-silgi-2016-<번호>` 또는 곡 이름, 교과서 연습곡 `school-textbook-danso-p14-exercise-<번호>`, 진도아리랑 단소 원본 `jindo-arirang-textbook`) 폴더에 있습니다. 검토 기록의 `serviceSong`이 운영 곡 id를 가리키며, 어이 얼어자리는 운영 30이 `p183-part-2`(단소2), 31이 `p183-part-1`입니다. 모두 `reviewed`이고 검수 방법은 `answerApproval.note`에 있습니다. 채점 계획은 [infra/catalog/scoring-plans/danso.json](../infra/catalog/scoring-plans/danso.json)(35곡)입니다. 운영 음표가 원본과 다른 북천이 단소1(`p182-part-1`)과 천안삼거리는 `serviceComparison.replacesServiceEvents`로 표시하고, 계획에서 운영 악보를 이 정답으로 바꿉니다(S15P31E102-451).
 
 검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
 

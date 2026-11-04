@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
@@ -72,6 +73,7 @@ import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_upcoming
+import eolssu.shared.generated.resources.score_blank
 import eolssu.shared.generated.resources.score_column_head
 import eolssu.shared.generated.resources.score_column_head_start
 import eolssu.shared.generated.resources.score_column_start
@@ -136,6 +138,22 @@ fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
 }
 
 /**
+ * 악보 편집·인식 확인 화면이 정간 하나에 덧그리는 표시. 바탕([fill])은 율명 칸에만 칠하고 곁줄(가사 칸)에는 칠하지 않는다.
+ *
+ * @property ring 안쪽 테두리 색. null이면 긋지 않는다.
+ * @property dashed 테두리를 점선으로 정간 안쪽 3dp에 긋는다(빈 정간·확인할 정간).
+ * @property tag 오른쪽 위에 붙이는 작은 글자(예: 확인할 정간 '?', 고친 정간 '✓').
+ */
+@Immutable
+data class ScoreCellMark(
+    val fill: Color? = null,
+    val ring: Color? = null,
+    val ringWidth: Dp = 2.dp,
+    val dashed: Boolean = false,
+    val tag: String? = null,
+)
+
+/**
  * 정간보. 각 0을 가장 오른쪽에 두고 다음 각을 왼쪽에 놓아, 위 → 아래, 오른쪽 → 왼쪽으로 읽는다.
  * 원본의 가변 각 길이를 유지하고, 긴 각은 여러 줄로 나눈다. 기존 샘플에만 장단의 대강 선을 적용한다.
  *
@@ -143,7 +161,7 @@ fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
  * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다. 이때 현재 음은 [currentIndex] 대신 진행 위치에서 읽는다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
- * @param errors 틀린 정간(각, 정간) → 틀린 항목. 정간을 색칠하고 오른쪽 위에 종류 글자(음·박·길)를 붙인다.
+ * @param errors 틀린 정간(각, 정간) → 틀린 항목. [JeongganboLook.errorMarks]에 따라 종류별 색·아이콘(또는 붉은 바탕·테두리)으로 칠한다.
  * @param selectedIndex 사용자가 고른 음의 연주 순서. 정간에 검은 테두리를 그린다.
  * @param onEventClick 있으면 음을 누를 수 있다.
  * @param maxColumns 앞에서부터 이 수의 각만 그린다.
@@ -154,6 +172,10 @@ fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
  * @param selectedCell 결과에서 선택한 표시 정간. 같은 이벤트를 잇는 다른 정간까지 선택하지 않는다.
  * @param onUnitClick 표시 자리를 선택할 때 쓴다. 연습의 [onEventClick]은 원본 이벤트를 그대로 전달한다.
  * @param look 모양([JeongganboLook]). 기본은 옛 와이어프레임, 연습 화면은 연두 보드 `.ms`.
+ * @param decorations 정간(각, 정간)마다의 꾸밈([ScoreCellDecoration]). 같은 정간의 [errors] 표시보다 먼저 쓴다(이전 연주 비교·구간 처음/끝 등).
+ * @param sectionColumns 이 범위의 각을 취약 구간으로 표시한다(2차): 연두 테두리 · 옅은 바깥 띠(`#EFF2D6` 3dp) · 크림 머리.
+ * @param fadedColumns 이 각들은 머리까지 흐리게(35%) 그린다(구간 반복의 앞뒤 각).
+ * @param cellMarks (각, 정간) → 덧그릴 표시([ScoreCellMark]). 악보 편집에서 고른 정간·빈 정간을 표시한다.
  */
 @Composable
 fun JeongganboView(
@@ -179,10 +201,23 @@ fun JeongganboView(
     onUnitClick: ((ScoreDisplayUnit) -> Unit)? = null,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     look: JeongganboLook = JeongganboLook.Classic,
+    /** 연습 화면의 짧은 각 묶음. 원본 각·음표 좌표는 바꾸지 않는다. */
+    columnsPerStack: Int = 1,
+    stackGap: Dp = 12.dp,
+    /** 원본 (각, 정간) 좌표별 높이. 다른 화면은 기존 고정 높이를 쓴다. */
+    cellHeights: Map<Pair<Int, Int>, Dp> = emptyMap(),
+    /** 묶음 전체가 공유하는 가로줄 높이. 각 머리글의 시작점을 수평으로 맞춘다. */
+    stackRowHeights: List<Dp> = emptyList(),
+    decorations: Map<Pair<Int, Int>, ScoreCellDecoration> = emptyMap(),
+    sectionColumns: IntRange? = null,
+    fadedColumns: Set<Int> = emptySet(),
+    cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
     val renderMetrics = metrics.forFontScale(LocalDensity.current.fontScale)
+    val stackSize = columnsPerStack.coerceAtLeast(1)
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
     val strips = remember(song, maxColumns, maxRows, columns) { scoreStrips(song.score, song.jangdan, maxColumns, maxRows, columns) }
     val unitsByCell = remember(song) { song.displayUnits.groupBy { it.column to it.row } }
     // 원본에는 대강 경계가 없다. 예전 장단의 고정 분할을 새 악보에 덧씌우지 않되, 보드처럼 각 길이가 장단 정간 수와 같으면 선만 긋는다.
@@ -214,7 +249,7 @@ fun JeongganboView(
     if (scrollState != null) {
         FollowPlayhead(
             scrollState = scrollState,
-            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction) } },
+            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction, stackSize) } },
             follow = follow,
             metrics = renderMetrics,
             onUserScroll = onUserScroll,
@@ -229,6 +264,45 @@ fun JeongganboView(
     } else {
         Modifier.wrapContentWidth(align = Alignment.End, unbounded = true)
     }
+    @Composable
+    fun DrawStrip(readingIndex: Int, strip: ScoreStrip) {
+        val starts = daegangStarts(strip.column)
+        ScoreStripColumn(
+            strip, renderMetrics, readingIndex, look,
+            highlighted = highlightColumns != null && strip.column in highlightColumns,
+            section = sectionColumns != null && strip.column in sectionColumns,
+            faded = strip.column in fadedColumns,
+            upcoming = upcomingColumn == strip.column,
+            leftDivider = look.joined && readingIndex != strips.lastIndex,
+        ) { row ->
+            val height = cellHeights[strip.column to row]
+            ScoreCellBox(
+                units = unitsByCell[strip.column to row].orEmpty(),
+                lyric = song.score.columns[strip.column][row].lyric,
+                metrics = if (height == null) renderMetrics else renderMetrics.copy(cellHeight = height * fontScale),
+                look = look,
+                drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
+                isDaegangStart = row in starts,
+                notation = notation,
+                solfege = solfege,
+                currentIndex = shownIndex,
+                currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
+                highlight = highlight,
+                live = live,
+                fraction = { cursor.fraction },
+                error = errors[strip.column to row],
+                decoration = decorations[strip.column to row],
+                dimmed = dimUnmarked && (strip.column to row) !in errors && (strip.column to row) !in decorations,
+                selectedIndex = selectedIndex,
+                selectedCell = selectedCell?.let { it == (strip.column to row) },
+                onEventClick = onEventClick,
+                onUnitClick = onUnitClick,
+                annotations = annotations,
+                cellMark = cellMarks[strip.column to row],
+                playingKey = playingKey,
+            )
+        }
+    }
     Box(modifier.fillMaxWidth().clipToBounds(), contentAlignment = Alignment.TopEnd) {
         Row(
             modifier = rowModifier.semantics { isTraversalGroup = true }
@@ -242,36 +316,21 @@ fun JeongganboView(
             horizontalArrangement = Arrangement.spacedBy(metrics.columnGap),
             verticalAlignment = Alignment.Top,
         ) {
-            for ((readingIndex, strip) in strips.withIndex().reversed()) {
-                val starts = daegangStarts(strip.column)
-                ScoreStripColumn(
-                    strip, renderMetrics, readingIndex, look,
-                    highlighted = highlightColumns != null && strip.column in highlightColumns,
-                    upcoming = upcomingColumn == strip.column,
-                    leftDivider = look.joined && readingIndex != strips.lastIndex,
-                ) { row ->
-                    ScoreCellBox(
-                        units = unitsByCell[strip.column to row].orEmpty(),
-                        metrics = renderMetrics,
-                        look = look,
-                        drawTopLine = !(strip.strip > 0 && row == strip.rows.first),
-                        isDaegangStart = row in starts,
-                        notation = notation,
-                        solfege = solfege,
-                        currentIndex = shownIndex,
-                        currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
-                        highlight = highlight,
-                        live = live,
-                        fraction = { cursor.fraction },
-                        error = errors[strip.column to row],
-                        dimmed = dimUnmarked && (strip.column to row) !in errors,
-                        selectedIndex = selectedIndex,
-                        selectedCell = selectedCell?.let { it == (strip.column to row) },
-                        onEventClick = onEventClick,
-                        onUnitClick = onUnitClick,
-                        annotations = annotations,
-                        playingKey = playingKey,
-                    )
+            if (stackSize == 1) {
+                for ((readingIndex, strip) in strips.withIndex().reversed()) DrawStrip(readingIndex, strip)
+            } else {
+                for ((groupIndex, group) in strips.withIndex().toList().chunked(stackSize).withIndex().reversed()) {
+                    Column(
+                        Modifier.semantics { isTraversalGroup = true; traversalIndex = groupIndex.toFloat() },
+                        verticalArrangement = Arrangement.spacedBy(stackGap),
+                    ) {
+                        for ((row, indexedStrip) in group.withIndex()) {
+                            val rowHeight = stackRowHeights.getOrNull(row)
+                            Box(if (rowHeight == null) Modifier else Modifier.height(rowHeight * fontScale)) {
+                                DrawStrip(indexedStrip.index, indexedStrip.value)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -280,7 +339,7 @@ fun JeongganboView(
 
 /**
  * 진행 위치를 줄 단위로 센 값. 정수부는 [strips]에서의 줄 번호(오른쪽부터), 소수부는 그 줄의 정간 가운데 지난 몫이다.
- * 정간 안에서도 지난 만큼 늘어나 가로 따라가기가 끊기지 않는다.
+ * 정간 안에서도 지난 만큼 늘어나 가로 따라가기가 끊기지 않는다. 세로 묶음에서는 묶음 단위로 환산한다.
  */
 internal fun playheadStrip(
     song: Song,
@@ -288,6 +347,7 @@ internal fun playheadStrip(
     unitsByCell: Map<Pair<Int, Int>, List<ScoreDisplayUnit>>,
     index: Int,
     fraction: Float,
+    columnsPerStack: Int = 1,
 ): Double? {
     val event = song.timeline.getOrNull(index) ?: return null
     val unit = song.displayUnitAt(index, fraction) ?: return null
@@ -296,7 +356,7 @@ internal fun playheadStrip(
     val strip = strips[stripIndex]
     val cellStart = unitsByCell[unit.column to unit.row]?.minOfOrNull { it.unitStart } ?: unit.unitStart
     val inCell = (event.unitStart + event.unitDuration * fraction - cellStart).coerceIn(0.0, 1.0)
-    return stripIndex + (unit.row - strip.rows.first + inCell) / strip.rows.count()
+    return (stripIndex + (unit.row - strip.rows.first + inCell) / strip.rows.count()) / columnsPerStack.coerceAtLeast(1)
 }
 
 /**
@@ -343,12 +403,15 @@ private fun ScoreStripColumn(
     readingIndex: Int,
     look: JeongganboLook,
     highlighted: Boolean = false,
+    section: Boolean = false,
+    faded: Boolean = false,
     upcoming: Boolean = false,
     leftDivider: Boolean = false,
     cell: @Composable (row: Int) -> Unit,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(6.dp)
+    val fade = if (faded) Modifier.alpha(FadedColumnAlpha) else Modifier
     if (look.joined) {
         // 보드 결과 `.ms-col`: 붙은 각, 왼쪽 경계선 `#B9B3A6`(맨 왼쪽 각은 없음).
         Column(
@@ -358,6 +421,7 @@ private fun ScoreStripColumn(
                     traversalIndex = readingIndex.toFloat()
                 }
                 .width(metrics.columnWidth)
+                .then(fade)
                 .background(colors.surface)
                 .drawWithContent {
                     drawContent()
@@ -369,12 +433,12 @@ private fun ScoreStripColumn(
         }
         return
     }
-    // 강조한 각은 바깥에 연한 노란 띠를 두르되, 각 너비와 정간 위치는 그대로 둔다.
-    val ring = if (highlighted) {
+    // 강조한 각은 바깥에 연한 노란 띠를 두르되, 각 너비와 정간 위치는 그대로 둔다. 취약 구간(2차)은 띠를 `accentTint`로 칠한다.
+    val ring = if (highlighted || section) {
         Modifier.drawBehind {
             val spread = 3.dp.toPx()
             drawRoundRect(
-                colors.accentSoft,
+                if (section) colors.accentTint else colors.accentSoft,
                 topLeft = Offset(-spread, -spread),
                 size = Size(size.width + spread * 2, size.height + spread * 2),
                 cornerRadius = CornerRadius(9.dp.toPx()),
@@ -391,22 +455,30 @@ private fun ScoreStripColumn(
             }
             .padding(top = if (strip.strip > 0) metrics.headHeight else 0.dp)
             .width(metrics.columnWidth)
+            .then(fade)
             .then(ring)
             .clip(shape)
             .background(if (look.board || look.soft) colors.surface else colors.background)
-            .border(1.dp, if (highlighted) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
+            .border(1.dp, if (highlighted || section) colors.accent else if (look.soft) colors.lineSoft else colors.line, shape),
     ) {
-        if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming)
+        if (strip.strip == 0) ColumnHead(strip.column, metrics, look, highlighted, upcoming, section)
         for (row in strip.rows) cell(row)
     }
 }
 
 @Composable
-private fun ColumnHead(column: Int, metrics: JeongganboMetrics, look: JeongganboLook, highlighted: Boolean = false, upcoming: Boolean = false) {
+private fun ColumnHead(
+    column: Int,
+    metrics: JeongganboMetrics,
+    look: JeongganboLook,
+    highlighted: Boolean = false,
+    upcoming: Boolean = false,
+    section: Boolean = false,
+) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp)
     val background = when {
-        upcoming -> colors.accentTint
+        upcoming || section -> colors.accentTint
         highlighted -> colors.accentSoft
         look.board -> colors.background
         else -> colors.surface
@@ -433,8 +505,12 @@ private fun ColumnHead(column: Int, metrics: JeongganboMetrics, look: Jeongganbo
             Text(
                 stringResource(if (column == 0) Res.string.score_column_head_start else Res.string.score_column_head, column + 1),
                 style = style,
-                color = if (upcoming) colors.accentText else colors.textMuted,
-                fontWeight = FontWeight.Normal,
+                color = when {
+                    upcoming -> colors.accentText
+                    section -> colors.text
+                    else -> colors.textMuted
+                },
+                fontWeight = if (section) FontWeight.SemiBold else FontWeight.Normal,
             )
             if (upcoming) {
                 Text(stringResource(Res.string.practice_upcoming), style = style.copy(fontSize = 8.sp, lineHeight = 8.sp), color = colors.accentText, fontWeight = FontWeight.Medium)
@@ -451,6 +527,7 @@ private fun ColumnHead(column: Int, metrics: JeongganboMetrics, look: Jeongganbo
 @Composable
 private fun ScoreCellBox(
     units: List<ScoreDisplayUnit>,
+    lyric: String?,
     metrics: JeongganboMetrics,
     look: JeongganboLook,
     drawTopLine: Boolean,
@@ -463,17 +540,20 @@ private fun ScoreCellBox(
     live: Boolean,
     fraction: () -> Float,
     error: ScoreErrorKind?,
+    decoration: ScoreCellDecoration?,
     selectedIndex: Int?,
     selectedCell: Boolean?,
     onEventClick: ((ScoreEvent) -> Unit)?,
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
+    cellMark: ScoreCellMark? = null,
     playingKey: ScoreUnitKey? = null,
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
-    val errorStyle = error?.let { if (board) boardErrorStyle() else errorStyle(it) }
+    // 넘겨받은 꾸밈이 먼저이고, 없으면 틀린 종류를 모양([JeongganboLook.errorMarks])에 맞춰 칠한다.
+    val mark = decoration ?: error?.let { errorDecoration(it, look.errorMarks) }
     val cellStart = units.minOfOrNull { it.unitStart } ?: 0.0
     val currentFraction by rememberUpdatedState(fraction)
     val progress by remember(units, currentEvent, live) {
@@ -499,6 +579,7 @@ private fun ScoreCellBox(
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
+    if (mark != null && mark.alpha < 1f && !isSelected) cellModifier = cellModifier.alpha(mark.alpha)
     // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
     cellModifier = when {
         live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
@@ -524,29 +605,44 @@ private fun ScoreCellBox(
             }
         }
     }
-    if (errorStyle != null) cellModifier = cellModifier.background(errorStyle.fill)
+    mark?.fill?.let { cellModifier = cellModifier.background(it) }
+    cellMark?.fill?.let { cellModifier = cellModifier.background(it) }
     if (drawTopLine) {
         cellModifier = cellModifier.drawBehind {
             drawRect(lineColor, size = size.copy(height = lineWidth.toPx()))
         }
     }
-    if (errorStyle != null) {
+    val markRing = mark?.ring
+    if (mark != null && markRing != null) {
         cellModifier = cellModifier.drawWithContent {
             drawContent()
-            // 보드는 2dp 안쪽 테두리(inset box-shadow), 옛 모양은 1.5dp(음 길이는 점선).
-            val stroke = if (board) 2.dp.toPx() else 1.5.dp.toPx()
-            val inset = when {
-                board -> stroke / 2
-                errorStyle.dashed -> 3.dp.toPx()
-                else -> 0.75.dp.toPx()
-            }
+            // 안쪽 테두리(inset box-shadow). 점선은 시안의 `outline: 2px dashed; outline-offset: -3px`처럼 가장자리에서 1~3dp 안쪽에 긋는다.
+            val stroke = mark.ringWidth.toPx()
+            val inset = if (mark.dashed) 2.dp.toPx() else stroke / 2
             drawRect(
-                errorStyle.ring,
+                markRing,
                 topLeft = Offset(inset, inset),
                 size = Size(size.width - inset * 2, size.height - inset * 2),
                 style = androidx.compose.ui.graphics.drawscope.Stroke(
                     stroke,
-                    pathEffect = if (errorStyle.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
+                    pathEffect = if (mark.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
+                ),
+            )
+        }
+    }
+    val cellMarkRing = cellMark?.ring
+    if (cellMark != null && cellMarkRing != null) {
+        cellModifier = cellModifier.drawWithContent {
+            drawContent()
+            val stroke = cellMark.ringWidth.toPx()
+            val inset = if (cellMark.dashed) 3.dp.toPx() else stroke / 2
+            drawRect(
+                cellMarkRing,
+                topLeft = Offset(inset, inset),
+                size = Size(size.width - inset * 2, size.height - inset * 2),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    stroke,
+                    pathEffect = if (cellMark.dashed) PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) else null,
                 ),
             )
         }
@@ -583,25 +679,30 @@ private fun ScoreCellBox(
                     }
                 }
             }
-            if (error != null && errorStyle != null && board) {
-                // 보드 `.ms-cell .tag`: 오른쪽 위 1dp 안쪽에 14dp 붉은 상자, 흰 9sp 굵은 글자.
-                Box(
-                    Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp).size(14.dp)
-                        .background(errorStyle.ring, RoundedCornerShape(3.dp)).clearAndSetSemantics {},
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        errorTag(error),
-                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
-                        color = errorStyle.tag,
-                    )
-                }
-            } else if (error != null && errorStyle != null) {
+            val tag = mark?.tag
+            if (tag != null) {
+                // `.ms-cell .tag`: 오른쪽 위 1dp 안쪽에 14dp 종류 색 상자와 흰 아이콘.
+                ErrorKindTag(tag, Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp))
+            }
+            val edge = mark?.edgeLabel
+            if (edge != null) {
+                // 구간 처음·끝: 왼쪽 아래 2dp 안쪽 연두 알약, 9sp 굵은 글자.
                 Text(
-                    errorTag(error),
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 2.dp).clearAndSetSemantics {},
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 9.sp, fontWeight = FontWeight.Bold),
-                    color = errorStyle.tag,
+                    edge,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 2.dp, bottom = 2.dp)
+                        .background(colors.accent, RoundedCornerShape(50)).padding(horizontal = 5.dp, vertical = 1.dp).clearAndSetSemantics {},
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold),
+                    color = colors.onPrimary,
+                    maxLines = 1,
+                )
+            }
+            val markTag = cellMark?.tag
+            if (markTag != null) {
+                Text(
+                    markTag,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 3.dp).clearAndSetSemantics {},
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold),
+                    color = colors.text,
                 )
             }
         }
@@ -615,6 +716,7 @@ private fun ScoreCellBox(
             notes(cellModifier.then(Modifier.weight(1f)))
             LyricLane(
                 width = lane,
+                lyric = lyric,
                 drawTopLine = drawTopLine,
                 lineColor = lineColor,
                 lineWidth = lineWidth,
@@ -625,7 +727,7 @@ private fun ScoreCellBox(
 
 /** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
 @Composable
-private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
+private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
@@ -635,7 +737,12 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, 
                 drawRect(colors.line, size = Size(1.dp.toPx(), size.height))
                 if (drawTopLine) drawRect(lineColor, size = Size(size.width, lineWidth.toPx()))
             },
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        if (lyric != null) {
+            Text(lyric.replace("{세로표}", ""), style = MaterialTheme.typography.labelSmall, color = colors.text)
+        }
+    }
 }
 
 @Composable
@@ -662,7 +769,14 @@ private fun ScoreNoteBox(
         is ScoreNote.Pitch -> note.yul.fullName
         is ScoreNote.SourcePitch -> note.fullName
         ScoreNote.Hold -> stringResource(Res.string.score_hold)
-        ScoreNote.Blank -> stringResource(if (unit.event.note == ScoreNote.Rest) Res.string.score_rest else Res.string.score_hold)
+        // 편집 중인 악보의 빈 정간은 이벤트 자체가 빈 자리다. 공통 악보의 빈 자리는 앞 이벤트(쉼·지속)를 읽는다.
+        ScoreNote.Blank -> stringResource(
+            when (unit.event.note) {
+                ScoreNote.Blank -> Res.string.score_blank
+                ScoreNote.Rest -> Res.string.score_rest
+                else -> Res.string.score_hold
+            },
+        )
         ScoreNote.Rest -> stringResource(Res.string.score_rest)
     }
     val hangul = when {
@@ -752,6 +866,9 @@ private fun ScoreNoteBox(
       }
     }
 }
+
+/** 구간 반복에서 앞뒤 각을 흐리게 하는 불투명도(시안 `opacity: .35`). */
+private const val FadedColumnAlpha = 0.35f
 
 /** 보드 결과 `.ms`의 바깥 테두리(반지름 3, `#8E887D`)와 각 경계선(`#B9B3A6`). */
 private val JoinedShape = RoundedCornerShape(3.dp)

@@ -1,6 +1,5 @@
 package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
-import com.ssafy.eolssu.backend.feature.sheet.application.CopiedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
 import com.ssafy.eolssu.backend.feature.song.domain.InvalidStoredScore
@@ -24,22 +23,6 @@ class CommonSheetScores(
     private val decoder: SongScoreDecoder,
     private val pitches: () -> List<ScorePitch>,
 ) : SheetScores {
-    override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? {
-        val root = try {
-            json.readTree(scoreJson)
-        } catch (_: JacksonException) {
-            return null
-        }
-        val score = root.path("score")
-        val columns = root.path("columns")
-        val events = root.path("events")
-        if (root.path("schemaVersion").intValue() != 1 || score !is ObjectNode || !columns.isArray || columns.isEmpty || !events.isArray) {
-            return null
-        }
-        score.put("scoreVersion", scoreVersion)
-        return CopiedScore(json.writeValueAsString(root), columns.size(), events.count { it.path("kind").stringValue() == "NOTE" })
-    }
-
     override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String): List<ScoreTimelineEvent>? =
         try {
             // 디코더는 곡 ID를 쓰지 않는다. 내 악보의 BPM을 곡 기본 BPM 자리에 넣어 같은 범위 검사를 받는다.
