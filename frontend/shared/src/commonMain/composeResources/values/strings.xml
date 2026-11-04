@@ -589,6 +589,7 @@
     <string name="auth_provider_kakao">카카오</string>
     <string name="auth_provider_naver">네이버</string>
     <string name="auth_provider_google">Google</string>
+    <string name="auth_provider_apple">Apple</string>
     <string name="auth_or_email">또는 이메일로</string>
     <string name="auth_email">이메일</string>
     <string name="auth_email_placeholder">example@email.com</string>

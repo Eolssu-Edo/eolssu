@@ -81,6 +81,8 @@ TEAM_ID=본인_TEAM_ID
 PRODUCT_BUNDLE_IDENTIFIER=com.ssafy.eolssu.본인개발용식별자
 ```
 
+Apple 로그인(Sign in with Apple) 권한은 유료 Apple Developer 팀에서만 서명됩니다. 무료 Personal Team으로 빌드할 때는 같은 파일에 `CODE_SIGN_ENTITLEMENTS =`를 추가해 권한 파일을 빼고 빌드합니다. 이때 Apple 로그인 버튼은 보이지만 동작하지 않습니다.
+
 Xcode에서 `frontend/iosApp/iosApp.xcodeproj`를 열고 `iosApp` scheme과 연결한 iPhone을 선택해 실행합니다. 기존 설치 앱의 데이터를 유지하려면 같은 개발용 Bundle ID를 사용합니다. 출시용 기본 Bundle ID는 `com.ssafy.eolssu`입니다.
 
 Mac의 `frontend/`에서 네이티브 코드 컴파일과 시뮬레이터 테스트를 확인할 수 있습니다.

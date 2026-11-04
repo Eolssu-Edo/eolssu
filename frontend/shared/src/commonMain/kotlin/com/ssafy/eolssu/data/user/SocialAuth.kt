@@ -2,7 +2,9 @@ package com.ssafy.eolssu.data.user
 
 import com.ssafy.eolssu.core.browser.APP_CALLBACK_SCHEME
 import com.ssafy.eolssu.core.model.SocialProvider
+import io.ktor.http.Parameters
 import io.ktor.http.Url
+import io.ktor.http.formUrlEncode
 
 /**
  * 간편 로그인·계정 연결의 공통 계약(`docs/specs/social-auth.md` Android 계약안).
@@ -30,6 +32,9 @@ val SocialProvider.pathName: String get() = name.lowercase()
  */
 interface OAuthRoute {
     fun uriFor(provider: SocialProvider): String
+
+    /** 이 플랫폼의 로그인·마이페이지에 보여 줄 제공자. Apple은 기본 Apple 로그인이 있는 iOS만 넣는다. */
+    val providers: List<SocialProvider> get() = SocialProvider.entries - SocialProvider.Apple
 
     fun providerOf(url: Url): SocialProvider?
 }
@@ -61,10 +66,45 @@ object OAuthRedirect : OAuthRoute {
 object IosOAuthRelay : OAuthRoute {
     override fun uriFor(provider: SocialProvider) = "https://${OAuthRedirect.HOST}/api/auth/ios/oauth/${provider.pathName}/callback"
 
+    /**
+     * App Store 심사 4.8에 따라 Apple 로그인을 다른 간편 로그인과 함께 맨 앞에 둔다. Apple은 서버 중계를 거치지 않는다:
+     * start의 authorizationUrl에서 state·nonce를 꺼내 기본 Apple 로그인을 띄우고, 받은 코드로 같은 복귀 주소를 앱이 만든다(`IosExternalBrowser`).
+     * 위 [uriFor] 주소는 start·완료 요청의 redirectUri로만 쓰인다.
+     */
+    override val providers = listOf(SocialProvider.Apple) + (SocialProvider.entries - SocialProvider.Apple)
+
     override fun providerOf(url: Url): SocialProvider? {
         if (url.protocol.name != APP_CALLBACK_SCHEME || url.host != "oauth" || url.specifiedPort != 0) return null
         if (url.user != null || url.password != null) return null
         return SocialProvider.entries.firstOrNull { url.encodedPath == "/${it.pathName}/callback" }
+    }
+}
+
+/**
+ * iOS 기본 Apple 로그인(`docs/specs/social-auth.md` Sign in with Apple). 서버 start가 준 Apple 인증 주소를 열지 않고
+ * `state`·`nonce`만 꺼내 기본 로그인 요청에 넣는다. 끝나면 다른 제공자의 서버 중계 복귀와 같은 앱 주소를 만들어 같은 확인([OAuthAttempts.accept])을 거친다.
+ */
+object AppleNativeSignIn {
+    class Request(val state: String, val nonce: String) {
+        override fun toString() = "AppleNativeSignIn.Request"
+    }
+
+    /** https `appleid.apple.com` 주소이고 state·nonce가 있으면 그 값. 아니면 null(Apple 기본 로그인 대상이 아님). */
+    fun request(authorizationUrl: String): Request? {
+        val url = runCatching { Url(authorizationUrl) }.getOrNull() ?: return null
+        if (url.protocol.name != "https" || url.host != "appleid.apple.com") return null
+        val state = url.parameters["state"]?.takeIf(String::isNotBlank) ?: return null
+        val nonce = url.parameters["nonce"]?.takeIf(String::isNotBlank) ?: return null
+        return Request(state, nonce)
+    }
+
+    /** 성공하면 [code], 취소·실패면 [error]를 담은 `com.ssafy.eolssu://oauth/apple/callback` 주소. */
+    fun returnAddress(request: Request, code: String? = null, error: String? = null): String {
+        val parameters = Parameters.build {
+            if (code != null) append("code", code) else append("error", error ?: "unknown")
+            append("state", request.state)
+        }
+        return "$APP_CALLBACK_SCHEME://oauth/${SocialProvider.Apple.pathName}/callback?${parameters.formUrlEncode()}"
     }
 }
 

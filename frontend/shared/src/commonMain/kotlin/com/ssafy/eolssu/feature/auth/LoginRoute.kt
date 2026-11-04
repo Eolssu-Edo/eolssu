@@ -26,6 +26,7 @@ fun LoginRoute(
     onSocialLogIn: (SocialProvider) -> Unit,
     onFindPassword: () -> Unit,
     onSignUp: () -> Unit,
+    providers: List<SocialProvider>,
     viewModel: LoginViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -35,6 +36,7 @@ fun LoginRoute(
 
     LoginScreen(
         state = state,
+        providers = providers,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onEmailChange = viewModel::changeEmail,

@@ -43,6 +43,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.auth.component.AuthBody
 import com.ssafy.eolssu.feature.auth.component.loginMountains
 import com.ssafy.eolssu.core.ui.component.TextFieldType
+import com.ssafy.eolssu.core.ui.component.ProviderGlyph
 import com.ssafy.eolssu.feature.auth.component.AuthFrame
 import com.ssafy.eolssu.feature.auth.component.AuthScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTextField
@@ -76,6 +77,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun LoginScreen(
     state: LoginUiState,
+    providers: List<SocialProvider>,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     onEmailChange: (String) -> Unit,
@@ -97,7 +99,7 @@ fun LoginScreen(
         ) {
             if (frame != AuthFrame.Split) Brand()
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SocialProvider.entries.forEach { provider -> SocialButton(provider, onClick = { onSocialLogIn(provider) }) }
+                providers.forEach { provider -> SocialButton(provider, onClick = { onSocialLogIn(provider) }) }
                 Text(
                     stringResource(Res.string.auth_social_signup_hint),
                     modifier = Modifier.fillMaxWidth(),
@@ -194,7 +196,7 @@ private fun SocialButton(provider: SocialProvider, onClick: () -> Unit) {
                         .then(if (look.markBorder) Modifier.border(1.dp, colors.lineSoft, markShape) else Modifier),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(provider.mark, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = look.markContent)
+                    ProviderGlyph(provider, look.markContent, 11.sp, 18.dp)
                 }
             }
             Text(
@@ -226,6 +228,8 @@ private fun socialLook(provider: SocialProvider): SocialLook {
         SocialProvider.Kakao -> SocialLook(KakaoYellow, KakaoInk, KakaoYellow, colors.text.copy(alpha = 0.08f), KakaoInk)
         SocialProvider.Naver -> SocialLook(NaverGreen, Color.White, NaverGreen, Color.White.copy(alpha = 0.25f), Color.White)
         SocialProvider.Google -> SocialLook(colors.surface, colors.text, colors.lineSoft, colors.surface, GoogleBlue, markBorder = true)
+        // Apple 로그인 버튼 지침: 검정 바탕·흰 글자·흰 로고("Apple로 로그인").
+        SocialProvider.Apple -> SocialLook(Color.Black, Color.White, Color.Black, Color.Black, Color.White)
     }
 }
 
