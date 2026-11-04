@@ -45,11 +45,9 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HoleState
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.ChipRow
 import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
@@ -548,7 +546,7 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     }
 }
 
-/** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 칩 5개, 안내. */
+/** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 다섯 단계 슬라이더, 안내. */
 @Composable
 private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
@@ -562,10 +560,6 @@ private fun TempoPanel(draft: PracticeDraft, song: Song, actions: PracticePanelA
             textAlign = TextAlign.Center,
         )
     }
-    ChipRow {
-        TempoStep.entries.forEach { s ->
-            EolssuChip(tempoLabel(s), selected = s == step, onClick = { actions.onDraft { it.copy(step = s) } })
-        }
-    }
+    TempoSlider(step, onStep = { s -> actions.onDraft { it.copy(step = s) } })
     TinyNote(stringResource(Res.string.practice_tempo_note))
 }
