@@ -30,10 +30,14 @@ mode = page.read_bytes()[-12:].decode("ascii", "replace").strip()
 fixtures = {fixtures!r}
 if mode == "slow":
     time.sleep(30)
-if mode == "empty":
-    print("WARN  Sheet ignored")
-    print("WARN  Error in reaching step PAGE")
-    print("INFO  Exit forced. Failure")
+if mode == "empty":  # 실제 출력(eolssu-omr, 빈 쪽)에서 줄인 것
+    print("WARN  [blank]  Book 2044 | Error processing stub org.audiveris.omr.step.StepException: No regularly spaced lines found")
+    print("Caused by: org.audiveris.omr.step.StepException: No regularly spaced lines found")
+    print("WARN  [blank]  CLI 956  | Exception occurred java.lang.Exception: Error in reaching step PAGE")
+    print("java.lang.Exception: Error in reaching step PAGE")
+    sys.exit(1)
+if mode == "jvmfail":  # 오선 문제가 아닌 실패(메모리 부족 등)
+    print("Exception in thread main java.lang.OutOfMemoryError: Java heap space")
     sys.exit(1)
 out.mkdir(parents=True, exist_ok=True)
 shutil.copy(fixtures[mode.rstrip("!")], out / (page.stem + ".mxl"))
@@ -60,6 +64,7 @@ def fake_audiveris(tmp_path, monkeypatch):
     fixtures = {"score": str(FIXTURES / "danso_onara.audiveris.mxl"), "s44": str(FIXTURES / "danso_bukcheon.audiveris.mxl"),
                 "s128": str(tmp_path / "gutgeori.musicxml")}
     script.write_text(FAKE.format(fixtures=fixtures), encoding="utf-8")
+    monkeypatch.setattr(staff_engine, "AUDIVERIS_LOGS", tmp_path / "audiveris-logs")  # 개발 PC의 로그를 지우지 않게
     monkeypatch.setattr(staff_engine, "AUDIVERIS", [sys.executable, str(script)])
 
 
@@ -124,9 +129,18 @@ def test_audiveris_killed_is_engine_error(fake_audiveris, monkeypatch, caplog):
 
 
 def test_page_reason_is_logged_from_stdout(fake_audiveris, caplog):
+    # 겉포장(Error in reaching step PAGE)이 아니라 그 원인(Caused by) 줄을 남긴다
     with caplog.at_level("INFO"):
         post("empty")
-    assert "audiveris page=0 no staff: WARN  Error in reaching step PAGE" in caplog.text
+    assert ("audiveris page=0 no staff: Caused by: org.audiveris.omr.step.StepException: "
+            "No regularly spaced lines found") in caplog.text
+
+
+def test_failure_that_is_not_about_staff_is_engine_error(fake_audiveris, caplog):
+    # 메모리 부족·설정 오류도 종료 코드 1이다. 오선을 못 찾았다는 StepException이 없으면 엔진 오류로 알린다
+    with caplog.at_level("INFO"):
+        assert post("jvmfail").json()["failReason"] == "ENGINE_ERROR"
+    assert "audiveris page=0 exit=1 without score: Exception in thread main java.lang.OutOfMemoryError" in caplog.text
 
 
 @needs_generator
@@ -205,3 +219,18 @@ def test_each_page_has_its_own_time_limit(fake_audiveris, monkeypatch):
     began = time.monotonic()
     assert post("slow", "score").json()["failReason"] == "TIMEOUT"
     assert time.monotonic() - began < 1.8
+
+
+def test_log_cleaning_keeps_meter_and_ratios():
+    from omr_service.jeongganbo_text import _clean
+
+    text = r"12/8 time, 1/3 beat, file /tmp/home/x.log and C:\Users\a\b.pdf"
+    assert _clean(text) == "12/8 time, 1/3 beat, file <path> and <path>"
+
+
+def test_audiveris_logs_are_removed_after_each_page(fake_audiveris, tmp_path):
+    logs = tmp_path / "audiveris-logs"
+    logs.mkdir()
+    (logs / "20261104T011307.log").write_text("x")
+    post("empty")
+    assert list(logs.glob("*.log")) == []

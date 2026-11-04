@@ -67,10 +67,11 @@ def recognize(job) -> dict:
 
 
 def _read_pages(job, deadline, page_time_s):
-    """쪽마다 Audiveris를 돌려 (MusicXML 목록, issues). 악보를 못 낸 쪽은 종료 코드와 상관없이 오선 없는 쪽이다.
+    """쪽마다 Audiveris를 돌려 (MusicXML 목록, issues).
 
-    Audiveris 5.11은 오선이 없는 쪽에서 .mxl 없이 종료 코드 1로 끝난다. 신호를 받아 죽은 경우(음수, 메모리 부족 등)만
-    엔진 오류다.
+    Audiveris 5.11은 오선이 없는 쪽에서 .mxl 없이 종료 코드 1로 끝나고 표준 출력에 StepException(No regularly spaced
+    lines found·No system found)을 남긴다. 그 쪽만 오선 없는 쪽이다. 악보 없이 끝난 다른 실패(메모리 부족·설정 오류,
+    신호로 죽음)는 엔진 오류다. 악보를 냈으면 종료 코드가 0이 아니어도 쓴다.
     """
     pages, issues = [], []
     with tempfile.TemporaryDirectory(prefix="audiveris-") as work:
@@ -83,6 +84,9 @@ def _read_pages(job, deadline, page_time_s):
                 log.info("audiveris page=%d killed by signal %d", i, -run.returncode)
                 raise RuntimeError("audiveris killed")
             sheets = sorted([*out.rglob("*.mxl"), *out.rglob("*.musicxml")], key=_natural)  # 한 쪽에 악곡이 여럿일 수 있다
+            if not sheets and b"StepException" not in run.stdout + run.stderr:
+                log.info("audiveris page=%d exit=%d without score: %s", i, run.returncode, _reason(run))
+                raise RuntimeError("audiveris failed")
             if not sheets:
                 log.info("audiveris page=%d no staff: %s", i, _reason(run))
                 issues.append({"kind": "UNREADABLE", "eventId": None, "cellId": None, "page": i,
@@ -95,10 +99,12 @@ def _read_pages(job, deadline, page_time_s):
 
 
 def _reason(run) -> str:
-    """Audiveris 출력에서 원인 한 줄. 오류는 표준 출력에 쓰므로 둘 다 보고 'Error'가 든 마지막 줄을 고른다."""
-    lines = [l for out in (run.stdout, run.stderr) for l in out.decode("utf-8", "replace").splitlines() if l.strip()]
+    """Audiveris 출력에서 원인 한 줄. 오류는 표준 출력에 쓴다. 겉포장(Error in reaching step) 대신 Caused by 줄을,
+    없으면 오류·예외가 든 마지막 줄을 고른다."""
+    lines = [l.strip() for out in (run.stdout, run.stderr) for l in out.decode("utf-8", "replace").splitlines() if l.strip()]
+    caused = [l for l in lines if l.startswith("Caused by:")]
     errors = [l for l in lines if "rror" in l or "xception" in l]
-    return _clean((errors or lines or [""])[-1].strip())
+    return _clean((caused or errors or lines or [""])[-1])
 
 
 def _forget_logs():

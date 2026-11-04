@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+# ADD --checksum은 Dockerfile 문법 1.6 이상(BuildKit)이 필요하다. 위 줄이 빌더에 그 문법을 쓰게 한다.
 # 악보 인식 서비스(omr). 채점(ai)과 다른 컨테이너로 띄운다(docs/specs/score-recognition.md '실행 위치').
 # 빌드 맥락은 저장소 루트다(data/src/scores·data/reference를 함께 쓴다). 넣을 파일은 omr.Dockerfile.dockerignore가 정한다.
 #   docker build -f ai/omr.Dockerfile -t eolssu-omr .

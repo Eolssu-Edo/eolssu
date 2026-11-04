@@ -139,7 +139,8 @@ def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter):
 
 def _clean(text: str) -> str:
     """로그용. 파일 경로를 지운다(임시 폴더 이름 등)."""
-    return re.sub(r"[A-Za-z]:[\\/][^\s'\")]*|/[^\s'\")]+", "<path>", text)[:200]
+    # 앞에 글자·숫자가 없는 '/'로 시작하는 경로만 지운다. '12/8'·'1/3' 같은 박자·비율은 남긴다
+    return re.sub(r"[A-Za-z]:[\\/][^\s'\")]*|(?<![\w/])/[^\s'\")]+", "<path>", text)[:200]
 
 
 def _last_line(stderr: bytes) -> str:

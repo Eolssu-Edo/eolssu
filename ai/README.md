@@ -127,7 +127,7 @@ docker build -f ai/omr.Dockerfile -t eolssu-omr .
 docker run --rm --cpus 1.5 --memory 2g -p 127.0.0.1:8000:8000 eolssu-omr
 ```
 
-2026-11-04 실측(이 PC Docker, `--cpus 1.5 --memory 2g`): 실측 4곡 오선보 쪽 그림은 1쪽 8.2~9.7초이고 결과가 고정 자료 검사 기준과 같습니다. 정간보·오선보가 함께 있는 표준악보집 펼침면 PDF(북천이 맑다커늘 PDF182) 1쪽은 13.5초, 앞에 빈 쪽을 붙인 2쪽 PDF는 16.1초(빈 쪽은 `NO_STAFF`)였습니다. Audiveris는 한 번에 하나만 돌아 동시 요청 2건은 차례로 끝나고(9.5·17.7초), 최대 메모리는 1.02GB였습니다. 이미지는 1.94GB입니다. 기반 이미지 digest·apt 패키지 버전·Audiveris deb 체크섬·생성기 커밋을 고정했습니다. 서버(4코어) 값은 U6에서 잽니다.
+2026-11-04 실측(이 PC Docker, `--cpus 1.5 --memory 2g`): 실측 4곡 오선보 쪽 그림은 1쪽 8.2~9.7초이고 결과가 고정 자료 검사 기준과 같습니다. 정간보·오선보가 함께 있는 표준악보집 펼침면 PDF(북천이 맑다커늘 PDF182) 1쪽은 13.5초, 앞에 빈 쪽을 붙인 2쪽 PDF는 16.1초(빈 쪽은 `NO_STAFF`)였습니다. Audiveris는 한 번에 하나만 돌아 동시 요청 2건은 차례로 끝나고(9.5·17.7초), 최대 메모리는 1.02GB였습니다. 이미지는 1.94GB입니다. 기반 이미지 digest·apt 패키지 버전·Audiveris deb 체크섬·생성기 커밋을 고정했습니다. Ubuntu가 보안 업데이트로 고정한 패키지(`libgtk-3-0t64`·`nodejs`·`ca-certificates`)의 이전 버전을 내리면 빌드가 `Version ... not found`로 멈춥니다. 그때는 고정을 빼고 한 번 빌드한 이미지에서 `docker run --rm --entrypoint dpkg-query eolssu-omr -W libgtk-3-0t64 nodejs ca-certificates`로 새 버전을 읽어 `omr.Dockerfile`에 다시 적고, 실측 4곡을 다시 확인합니다. Audiveris 버전을 올릴 때는 deb를 받아 `sha256sum`으로 `--checksum`도 바꿉니다. 서버(4코어) 값은 U6에서 잽니다.
 
 PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`·`pymupdf`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
 
