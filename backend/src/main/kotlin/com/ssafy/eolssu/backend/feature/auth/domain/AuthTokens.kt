@@ -14,6 +14,9 @@ class IssuedTokens(val accessToken: String, val accessTokenExpiresAt: Instant?, 
 interface AccessTokenSigner {
     fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant): String
     fun signNonExpiring(userId: Long, issuedAt: Instant, sessionHash: String): String = throw TokenIssuingUnavailable()
+    /** 로그인 세션 ID를 sid 클레임으로 넣는다. 세션을 끊으면 인증 필터가 만료 전이라도 거절한다. */
+    fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant, sessionId: String): String = sign(userId, issuedAt, expiresAt)
+    fun signNonExpiring(userId: Long, issuedAt: Instant, sessionHash: String, sessionId: String): String = signNonExpiring(userId, issuedAt, sessionHash)
 }
 
 /** 서명 키가 없어 로그인 토큰을 발급할 수 없다(공통 503). */
@@ -21,6 +24,8 @@ class TokenIssuingUnavailable : RuntimeException("Access token signing unavailab
 
 interface RefreshTokenRepository {
     fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long
+    /** [sessionId]는 refresh 회전이 이어받는 로그인 세션 ID다. */
+    fun insert(userId: Long, tokenHash: String, sessionId: String, expiresAt: Instant?, now: Instant): Long = insert(userId, tokenHash, expiresAt, now)
 }
 
 /** 만료 없는 access token도 서버의 활성 리프레시 세션에 묶어 폐기할 수 있어야 한다. */
@@ -30,7 +35,7 @@ fun interface NonExpiringSessionCheck {
 
 enum class RevokeReason { ROTATED, SIGN_OUT, PASSWORD_CHANGED, WITHDRAWN, REUSE_DETECTED }
 
-class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant?, val revokeReason: RevokeReason?) {
+class StoredRefreshToken(val id: Long, val userId: Long, val expiresAt: Instant?, val revokeReason: RevokeReason?, val sessionId: String? = null) {
     val revoked get() = revokeReason != null
 }
 

@@ -11,6 +11,8 @@ import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshT
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.security.JwtAccessTokenSigner
 import com.ssafy.eolssu.backend.feature.user.infrastructure.persistence.UserMapper
 import java.time.Clock
+import java.time.ZoneOffset
+import java.time.LocalDateTime
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -44,9 +46,13 @@ class AuthTokenConfig {
     @Bean
     fun signOutService(repository: TokenRefreshRepository, secrets: VerificationSecrets, clock: Clock) = SignOutService(repository, secrets, clock)
 
-    // 보안 필터가 요청마다 토큰의 회원이 ACTIVE인지 확인한다(USR-05 규칙 2).
+    // 보안 필터가 요청마다 토큰의 회원이 ACTIVE이고 로그인 세션이 살아 있는지 확인한다(USR-05 규칙 2, 466).
     @Bean
-    fun activeMemberCheck(users: UserMapper) = ActiveMemberCheck { userId -> users.findStatus(userId) == "ACTIVE" }
+    fun activeMemberCheck(users: UserMapper, refreshTokens: RefreshTokenMapper, clock: Clock) = object : ActiveMemberCheck {
+        override fun isActive(userId: Long) = users.findStatus(userId) == "ACTIVE"
+        override fun isActive(userId: Long, sessionId: String?) = isActive(userId) &&
+            (sessionId == null || refreshTokens.hasActiveSession(userId, sessionId, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)))
+    }
 
     // 로컬 HTTP 개발에서만 AUTH_COOKIE_SECURE=false로 끈다.
     @Bean

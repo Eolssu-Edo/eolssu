@@ -107,6 +107,60 @@ class TokenRefreshApiDatabaseTests {
         assertError(refresh(refresh), 401, "UNAUTHENTICATED")
     }
 
+    // 466: access_token은 로그인 세션에 묶여, 세션을 끊으면 만료 전이라도 바로 401이다.
+    @Test
+    fun `signing out rejects that device's access token at once while rotation keeps the session`() {
+        clock.set(Instant.now())
+        val login = signIn()
+        val access = cookie(login, "access_token")
+        assertEquals(200, me(access).statusCode())
+
+        val rotated = refresh(cookie(login, "refresh_token"))
+        assertEquals(200, rotated.statusCode(), rotated.body())
+        assertEquals(200, me(access).statusCode(), "회전은 같은 세션이라 이전 access_token도 유효하다")
+        val sessions = jdbc.queryForList("SELECT DISTINCT session_id FROM refresh_tokens WHERE user_id = ?", String::class.java, userId)
+        assertEquals(1, sessions.size)
+
+        val other = signIn()
+        assertNotEquals(sessions.single(), jdbc.queryForObject("SELECT session_id FROM refresh_tokens WHERE user_id = ? ORDER BY id DESC LIMIT 1", String::class.java, userId))
+
+        val signedOut = post("/api/auth/sign-out", "access_token=${cookie(rotated, "access_token")}; refresh_token=${cookie(rotated, "refresh_token")}")
+        assertEquals(200, signedOut.statusCode(), signedOut.body())
+        val rejected = me(access)
+        assertError(rejected, 401, "UNAUTHENTICATED")
+        assertTrue(rejected.headers().allValues("Set-Cookie").all { it.contains("Max-Age=0") })
+        assertEquals(200, me(cookie(other, "access_token")).statusCode(), "다른 기기의 세션은 그대로다")
+    }
+
+    @Test
+    fun `reuse detection rejects every access token of the member at once`() {
+        clock.set(Instant.now())
+        val first = signIn()
+        val other = signIn()
+        val firstRefresh = cookie(first, "refresh_token")
+        assertEquals(200, refresh(firstRefresh).statusCode())
+        assertError(refresh(firstRefresh), 401, "UNAUTHENTICATED")
+        assertError(me(cookie(first, "access_token")), 401, "UNAUTHENTICATED")
+        assertError(me(cookie(other, "access_token")), 401, "UNAUTHENTICATED")
+    }
+
+    @Test
+    fun `access tokens issued before session binding stay valid until they expire`() {
+        val key = javax.crypto.spec.SecretKeySpec("test-signing-key-at-least-32-bytes-long!!".toByteArray(), "HmacSHA256")
+        val encoder = org.springframework.security.oauth2.jwt.NimbusJwtEncoder(com.nimbusds.jose.jwk.source.ImmutableSecret(key))
+        val now = Instant.now()
+        val claims = org.springframework.security.oauth2.jwt.JwtClaimsSet.builder().subject(userId.toString()).issuedAt(now).expiresAt(now.plusSeconds(600)).build()
+        val header = org.springframework.security.oauth2.jwt.JwsHeader.with(org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256).build()
+        val legacy = encoder.encode(org.springframework.security.oauth2.jwt.JwtEncoderParameters.from(header, claims)).tokenValue
+        assertEquals(200, me(legacy).statusCode())
+    }
+
+    private fun me(access: String): HttpResponse<String> = client.send(
+        HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me")).timeout(Duration.ofSeconds(15))
+            .header("Accept", "application/json").header("Cookie", "access_token=$access").GET().build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
+
     private fun reasons(): List<String?> = jdbc.query("SELECT revoke_reason FROM refresh_tokens WHERE user_id = ? ORDER BY id", { rs, _ -> rs.getString(1) }, userId)
 
     private fun signIn(): HttpResponse<String> {

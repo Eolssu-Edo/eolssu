@@ -17,8 +17,11 @@ class MyBatisRefreshTokenRepository(
 
     override fun <T : Any> inTransaction(action: () -> T): T = checkNotNull(transaction.execute { action() })
 
-    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long {
-        val row = RefreshTokenInsert(userId, tokenHash, expiresAt?.utc(), now.utc())
+    override fun insert(userId: Long, tokenHash: String, expiresAt: Instant?, now: Instant): Long =
+        error("refresh 토큰은 로그인 세션 ID와 함께 저장한다")
+
+    override fun insert(userId: Long, tokenHash: String, sessionId: String, expiresAt: Instant?, now: Instant): Long {
+        val row = RefreshTokenInsert(userId, tokenHash, sessionId, expiresAt?.utc(), now.utc())
         check(mapper.insert(row) == 1)
         check(row.id > 0)
         return row.id
@@ -28,7 +31,7 @@ class MyBatisRefreshTokenRepository(
     override fun findForUpdate(tokenHash: String) = mapper.findByTokenHashForUpdate(tokenHash)?.toStored()
 
     private fun RefreshTokenRow.toStored() =
-        StoredRefreshToken(id, userId, expiresAt?.toInstant(ZoneOffset.UTC), revokeReason?.let(RevokeReason::valueOf))
+        StoredRefreshToken(id, userId, expiresAt?.toInstant(ZoneOffset.UTC), revokeReason?.let(RevokeReason::valueOf), sessionId)
 
     override fun revoke(id: Long, reason: RevokeReason, now: Instant) { check(mapper.revoke(id, reason.name, now.utc()) == 1) }
     override fun revokeAll(userId: Long, reason: RevokeReason, now: Instant) { mapper.revokeAllActive(userId, reason.name, now.utc()) }

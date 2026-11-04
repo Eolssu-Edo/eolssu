@@ -71,6 +71,10 @@ class PasswordChangeApiDatabaseTests {
         assertNotEquals(thisDevice.refresh, newRefresh)
 
         assertEquals(listOf("PASSWORD_CHANGED", "PASSWORD_CHANGED", null), reasons())
+        // 466: 다른 기기의 남은 access_token은 만료 전이라도 바로 401, 바꾼 기기는 새 토큰으로 이어서 쓴다.
+        assertError(me(otherDevice.access), 401, "UNAUTHENTICATED")
+        assertError(me(thisDevice.access), 401, "UNAUTHENTICATED")
+        assertEquals(200, me(cookie(changed, "access_token")).statusCode())
         assertEquals(401, refresh(otherDevice.refresh).statusCode())
         assertEquals(401, refresh(thisDevice.refresh).statusCode())
         assertEquals(200, refresh(newRefresh).statusCode())
@@ -149,6 +153,12 @@ class PasswordChangeApiDatabaseTests {
     private fun refresh(token: String): HttpResponse<String> = client.send(
         HttpRequest.newBuilder(URI("http://localhost:$port/api/auth/refresh")).header("Cookie", "refresh_token=$token")
             .POST(HttpRequest.BodyPublishers.noBody()).build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
+
+    private fun me(access: String): HttpResponse<String> = client.send(
+        HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me")).timeout(Duration.ofSeconds(15))
+            .header("Accept", "application/json").header("Cookie", "access_token=$access").GET().build(),
         HttpResponse.BodyHandlers.ofString(),
     )
 
