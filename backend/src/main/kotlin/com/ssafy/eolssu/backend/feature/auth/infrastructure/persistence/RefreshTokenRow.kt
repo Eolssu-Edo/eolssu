@@ -6,7 +6,7 @@ data class RefreshTokenRow(
     val id: Long,
     val userId: Long,
     val tokenHash: String,
-    val sessionId: String,
+    val sessionId: String?,
     val expiresAt: LocalDateTime?,
     val revokedAt: LocalDateTime?,
     val revokeReason: String?,

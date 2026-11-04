@@ -54,9 +54,8 @@ class AuthTokenConfig {
 
     // 보안 필터가 요청마다 토큰의 회원이 ACTIVE이고 로그인 세션이 살아 있는지 확인한다(USR-05 규칙 2, 466).
     @Bean
-    fun activeMemberCheck(users: UserMapper, refreshTokens: RefreshTokenMapper, clock: Clock, sessions: AuthSessionCache) = object : ActiveMemberCheck {
-        override fun isActive(userId: Long) = isActive(userId, null)
-        override fun isActive(userId: Long, sessionId: String?) = sessions.isActive(userId, sessionId) {
+    fun activeMemberCheck(users: UserMapper, refreshTokens: RefreshTokenMapper, clock: Clock, sessions: AuthSessionCache) = ActiveMemberCheck { userId, sessionId ->
+        sessions.isActive(userId, sessionId) {
             users.findStatus(userId) == "ACTIVE" &&
                 (sessionId == null || refreshTokens.hasActiveSession(userId, sessionId, LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)))
         }

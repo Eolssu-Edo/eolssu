@@ -138,10 +138,45 @@ class TokenRefreshApiDatabaseTests {
         val first = signIn()
         val other = signIn()
         val firstRefresh = cookie(first, "refresh_token")
+        // 캐시에 '활성'을 먼저 채워, 탐지가 커밋 뒤 캐시를 지우는지 본다.
+        assertEquals(200, me(cookie(first, "access_token")).statusCode())
+        assertEquals(200, me(cookie(other, "access_token")).statusCode())
         assertEquals(200, refresh(firstRefresh).statusCode())
         assertError(refresh(firstRefresh), 401, "UNAUTHENTICATED")
         assertError(me(cookie(first, "access_token")), 401, "UNAUTHENTICATED")
         assertError(me(cookie(other, "access_token")), 401, "UNAUTHENTICATED")
+    }
+
+    @Test
+    fun `withdrawing rejects every access token of the member at once`() {
+        clock.set(Instant.now())
+        val first = signIn()
+        val other = signIn()
+        // /users/me는 컨트롤러가 회원 상태를 따로 보므로, 상태를 보지 않는 보호 API로 인증 필터만 확인한다.
+        val sheets = { access: String -> client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me/sheets")).timeout(Duration.ofSeconds(15))
+            .header("Accept", "application/json").header("Cookie", "access_token=$access").GET().build(), HttpResponse.BodyHandlers.ofString()) }
+        assertEquals(200, sheets(cookie(other, "access_token")).statusCode())
+        val withdrawn = client.send(
+            HttpRequest.newBuilder(URI("http://localhost:$port/api/users/me")).timeout(Duration.ofSeconds(15))
+                .header("Content-Type", "application/json").header("Cookie", "access_token=${cookie(first, "access_token")}")
+                .method("DELETE", HttpRequest.BodyPublishers.ofString("""{"currentPassword":"Example!234"}""")).build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(200, withdrawn.statusCode(), withdrawn.body())
+        assertError(sheets(cookie(other, "access_token")), 401, "UNAUTHENTICATED")
+    }
+
+    // 배포 도구는 마이그레이션 뒤 교체가 실패하면 JAR만 되돌린다. 이전 JAR이 session_id 없이 넣은 행도 재발급되어야 한다.
+    @Test
+    fun `a refresh token stored without a session by the previous release still rotates into a new session`() {
+        clock.set(Instant.now())
+        val token = "previous-release-refresh-token"
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
+        jdbc.update("INSERT INTO refresh_tokens (user_id, token_hash, expires_at, created_at) VALUES (?, ?, UTC_TIMESTAMP(6) + INTERVAL 1 DAY, UTC_TIMESTAMP(6))", userId, hash)
+        val rotated = refresh(token)
+        assertEquals(200, rotated.statusCode(), rotated.body())
+        assertEquals(200, me(cookie(rotated, "access_token")).statusCode())
+        assertEquals(listOf(null, false), jdbc.query("SELECT session_id FROM refresh_tokens WHERE user_id = ? ORDER BY id", { rs, _ -> rs.getString(1)?.isEmpty() }, userId))
     }
 
     @Test

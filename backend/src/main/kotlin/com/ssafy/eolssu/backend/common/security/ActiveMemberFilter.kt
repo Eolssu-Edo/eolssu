@@ -12,9 +12,8 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 /** 토큰의 회원(JWT sub = users.id)이 지금 ACTIVE인지. DB가 있는 프로필에서만 Bean으로 있다. */
 fun interface ActiveMemberCheck {
-    fun isActive(userId: Long): Boolean
     /** [sessionId]는 access_token의 sid다. 세션 없이 발급된 토큰(null)은 회원 상태만 본다. */
-    fun isActive(userId: Long, sessionId: String?): Boolean = isActive(userId)
+    fun isActive(userId: Long, sessionId: String?): Boolean
 }
 
 /**

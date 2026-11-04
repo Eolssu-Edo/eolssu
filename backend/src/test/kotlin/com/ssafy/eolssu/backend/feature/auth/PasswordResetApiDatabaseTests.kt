@@ -208,6 +208,8 @@ class PasswordResetApiDatabaseTests {
         @JvmStatic @DynamicPropertySource
         fun databaseProperties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
+            // 466: 운영과 같은 캐시로, 재설정이 커밋 뒤 캐시를 지워 이전 access_token이 바로 401인지 본다.
+            registry.add("eolssu.auth.session-cache-ttl") { "10s" }
             registry.add("eolssu.auth.code-hmac-secret") { "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=" }
             registry.add("eolssu.security.jwt-secret") { "test-signing-key-at-least-32-bytes-long!!" }
             registry.add("spring.datasource.url") { requiredEnvironment("TEST_DB_URL") }
