@@ -83,6 +83,26 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
             self.assertEqual(item['breathEventIds'], [e['id'] for e in answer['events'] if e['breathAfter']], item['answer'])
 
+    def test_danso_plan_breaths_are_the_reviewed_answer_breaths(self):
+        # S15P31E102-404. 339 적재 단소 곡과 정답의 짝(이벤트 일치는 2026-11-04 공개 곡 상세로 확인).
+        # 30은 단소2, 31은 단소1이다. 북천이 단소1(25)은 운영 음이 원본과 달라 뺐다(451).
+        plan = tool.load_plan(ROOT / 'infra/catalog/scoring-plans/danso.json')
+        self.assertEqual({p['songId']: p['answer'] for p in plan}, {
+            5: 'ngc-silgi-2016-18705', 6: 'ngc-standard-2022-p165', 7: 'ngc-silgi-2016-18796',
+            8: 'ngc-silgi-2016-18875', 9: 'ngc-standard-2022-p169', 10: 'school-textbook-danso-p14-exercise-1',
+            11: 'school-textbook-danso-p14-exercise-2', 12: 'ngc-standard-2022-p163', 13: 'ngc-standard-2022-p164',
+            14: 'ngc-standard-2022-p170', 18: 'ngc-standard-2022-p162', 21: 'ngc-silgi-2016-18730',
+            22: 'ngc-silgi-2016-18747', 23: 'ngc-standard-2022-p181', 24: 'ngc-standard-2022-p175',
+            26: 'ngc-standard-2022-p182-part-2', 27: 'ngc-standard-2022-p161', 30: 'ngc-standard-2022-p183-part-2',
+            31: 'ngc-standard-2022-p183-part-1', 33: 'ngc-standard-2022-p178', 34: 'ngc-silgi-2016-18868',
+            35: 'ngc-standard-2022-p180', 38: 'ngc-standard-2022-p166', 39: 'ngc-standard-2022-p168',
+            40: 'ngc-silgi-2016-19006', 41: 'ngc-standard-2022-p176', 42: 'ngc-silgi-2016-18947',
+            46: 'ngc-standard-2022-p179', 47: 'ngc-standard-2022-p167', 48: 'ngc-silgi-2016-18924'})
+        for item in plan:
+            answer = convert_answer(item['answer'])
+            self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
+            self.assertEqual(item['breathEventIds'], [e['id'] for e in answer['events'] if e['breathAfter']], item['answer'])
+
 
 class PatchTests(unittest.TestCase):
     def test_patch_sets_only_listed_breaths_and_review(self):

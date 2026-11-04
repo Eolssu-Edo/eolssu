@@ -97,6 +97,20 @@ class ReadUnitsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | - {니나}", beats_per_jeonggan=F(1))
 
+    def test_empty_sustain_mark_holds_like_a_dash(self):
+        # 우물사이 재생 변환기는 {빈지속}·{이음표}·{-}를 '-'처럼 앞 소리를 잇는 자리로 읽는다(단소 뱃노래·베틀가).
+        for mark in ("{빈지속}", "{이음표}", "{-}"):
+            units = read_units(f"임 {mark} | 중", beats_per_jeonggan=F(1))
+            self.assertEqual([(u.symbol, u.sigimsae) for u in units], [("임", ()), ("-", ()), ("중", ())])
+            events, _ = build_events(units)
+            self.assertEqual([(e.yul, e.duration) for e in events], [("임", F(1)), ("중", F(1))])
+
+    def test_sustain_mark_attached_to_a_symbol_stops(self):
+        # 재생 변환기는 '임{빈지속}'의 지속 기호를 따로 한 자리로 떼어 시간을 나눈다. 같은 규칙을 옮기기 전까지는 멈춘다.
+        for word in ("임{빈지속}", "-{이음표}", "{빈지속}{농음표}"):
+            with self.assertRaisesRegex(ValueError, "c0-j0"):
+                read_units(word, beats_per_jeonggan=F(1))
+
     def test_unreadable_text_stops_with_its_cell(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | 도레미", beats_per_jeonggan=F(1))
@@ -172,16 +186,30 @@ class ConvertTests(unittest.TestCase):
         self.assertEqual([u["eventId"] for u in cells[1]["units"]], ["c0-j0-r0-u0", "c0-j0-r0-u0", "c0-j1-r2-u0"])
         self.assertTrue(all(e["cellId"] in {c["id"] for c in cells} for e in events.values()))
 
-    def test_gak_longer_than_beats_or_per_gak_beats_stop(self):
-        # 우물사이는 beats를 넘는 정간을 잘라 쓰고 gakBeats로 각마다 길이를 바꾼다. 아직 지원하지 않으므로 멈춘다.
+    def test_gak_longer_than_beats_stops(self):
+        # 우물사이는 beats를 넘는 정간을 잘라 쓴다. 잘라 쓰는 규칙은 옮기지 않았으므로 멈춘다.
         doc = load("v2-minimal.jgb.json")
         doc["parts"][0]["melody"] = "중 | 임 | 무 | 황"
         with self.assertRaisesRegex(ValueError, "beats"):
             convert(doc, beats_per_jeonggan=F(1), **META)
+
+    def test_per_gak_beats_set_the_length_of_that_gak(self):
+        # gakBeats '각:정간 수'(1부터 셈)는 그 각만 정간 수를 바꾼다. 단소 천안삼거리의 마지막 각 '7:1'과 같은 경우다.
         doc = load("v2-minimal.jgb.json")
-        doc["controls"]["gakBeats"] = "2:4"
-        with self.assertRaisesRegex(ValueError, "gakBeats"):
+        doc["parts"][0]["melody"] = "중 | 임 | 무\n황"
+        doc["controls"]["gakBeats"] = "2:1"
+        result = convert(doc, beats_per_jeonggan=F(1), **META)
+        tpb = result["music"]["ticksPerBeat"]
+        self.assertEqual([(e["yul"], F(e["startTick"], tpb)) for e in result["events"]],
+                         [("중", 0), ("임", 1), ("무", 2), ("황", 3)])
+        doc["parts"][0]["melody"] = "중 | 임 | 무\n황 | 태"
+        with self.assertRaisesRegex(ValueError, "각"):  # 그 각에 정한 수보다 정간이 많으면 멈춘다
             convert(doc, beats_per_jeonggan=F(1), **META)
+        for bad in ("2", "0:1", "3:1", "2:1,2:1"):  # 형식 오류, 0번 각, 없는 각, 중복
+            doc["controls"]["gakBeats"] = bad
+            doc["parts"][0]["melody"] = "중 | 임 | 무\n황"
+            with self.assertRaisesRegex(ValueError, "gakBeats"):
+                convert(doc, beats_per_jeonggan=F(1), **META)
 
     def test_schema_rejects_a_missing_field_or_wrong_kind(self):
         for broken in (lambda r: r["events"][0].pop("durationTick"), lambda r: r["events"][0].update(kind="SOUND"),
@@ -199,6 +227,18 @@ ANSWERS = ["ngc-standard-2022-p171", "ngc-standard-2022-p172", "ngc-standard-202
 SERVICE_SOGEUM = ["ngc-standard-2022-p194", "ngc-standard-2022-p192", "ngc-standard-2022-p193", "ngc-standard-2022-p196"]
 # 서비스 곡(songs.json)이 아닌 평가용 정답. 곡 정보는 검토 기록의 song에서 읽는다.
 SOGEUM_ANSWERS = ["school-textbook-sogeum-p15", "school-textbook-sogeum-p16"]
+# S15P31E102-339가 적재한 단소 곡의 정답(S15P31E102-404). 운영 id 순서이고, 30은 p183-part-2(단소2)·31은 p183-part-1이다.
+LOADED_DANSO = [
+    "ngc-silgi-2016-18705", "ngc-standard-2022-p165", "ngc-silgi-2016-18796", "ngc-silgi-2016-18875",
+    "ngc-standard-2022-p169", "school-textbook-danso-p14-exercise-1", "school-textbook-danso-p14-exercise-2",
+    "ngc-standard-2022-p163", "ngc-standard-2022-p164", "ngc-standard-2022-p170", "ngc-standard-2022-p162",
+    "ngc-silgi-2016-18730", "ngc-silgi-2016-18747", "ngc-standard-2022-p181", "ngc-standard-2022-p175",
+    "ngc-standard-2022-p182-part-1", "ngc-standard-2022-p182-part-2", "ngc-standard-2022-p161",
+    "ngc-standard-2022-p183-part-2", "ngc-standard-2022-p183-part-1", "ngc-standard-2022-p178",
+    "ngc-silgi-2016-18868", "ngc-standard-2022-p180", "ngc-standard-2022-p166", "ngc-standard-2022-p168",
+    "ngc-silgi-2016-19006", "ngc-standard-2022-p176", "ngc-silgi-2016-18947", "ngc-standard-2022-p179",
+    "ngc-standard-2022-p167", "ngc-silgi-2016-18924",
+]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
 
@@ -207,19 +247,38 @@ class AnswerTests(unittest.TestCase):
 
     def test_answers_pass_schema_and_invariants(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS + LOADED_DANSO:
             result = convert_answer(source_id)
             jsonschema.validate(result, schema)
             self.assertEqual(check(result), [], source_id)
 
+    def test_loaded_danso_answers_take_song_info_from_review(self):
+        self.assertEqual(len(LOADED_DANSO), 31)
+        for source_id in LOADED_DANSO:
+            result = convert_answer(source_id)
+            self.assertEqual((result["score"]["instrument"], result["music"]["bpmUnit"]), ("DANSO", "QUARTER"), source_id)
+            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)
+        self.assertEqual(convert_answer("ngc-standard-2022-p183-part-2")["score"]["sourceId"], "ngc-standard-2022-p183")
+
+    def test_bukcheon_danso_1_keeps_the_source_note_that_differs_from_service(self):
+        # 원본 각12 정간2는 '-淋'(청임)이다. 운영은 청태라 이 정답은 채점 계획에서 뺀다(S15P31E102-451).
+        result = convert_answer("ngc-standard-2022-p182-part-1")
+        (note,) = [e for e in result["events"] if e["id"] == "c11-j1-r1-u0"]
+        self.assertEqual((note["yul"], note["octave"]), ("임", 1))
+        folder = DATA / "annotations/scores/ngc-standard-2022-p182-part-1"
+        review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+        self.assertFalse(review["serviceComparison"]["approvedForScoring"])
+
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re
-        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS:
+        for source_id in ANSWERS + SERVICE_SOGEUM + SOGEUM_ANSWERS + LOADED_DANSO:
             jgb = next((DATA / "annotations/scores" / source_id).glob("*.jgb.json"))
             melody = melody_of(json.loads(jgb.read_text(encoding="utf-8")))
             kinds = [e["kind"] for e in convert_answer(source_id)["events"]]
             self.assertEqual(kinds.count("NOTE"), len(re.findall(YUL, melody)), source_id)
-            self.assertEqual(kinds.count("REST"), len(re.findall("쉼", melody)), source_id)
+            # 각 첫머리의 이음·빈 정간은 다른 각의 음을 잇지 못해 쉼이 된다(단소 북천이 단소1의 마지막 각 '-|-|-|쉼').
+            cut = sum(1 for gak in re.split(r"\|\|\n|\|\||\n", melody) if re.match(r"\s*(-|\||$)", gak))
+            self.assertEqual(kinds.count("REST"), len(re.findall("쉼", melody)) + cut, source_id)
 
     def test_conversion_is_deterministic(self):
         for source_id in ANSWERS:

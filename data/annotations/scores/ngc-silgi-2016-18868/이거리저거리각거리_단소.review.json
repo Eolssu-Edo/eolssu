@@ -1,0 +1,37 @@
+{
+ "sourceId": "ngc-silgi-2016-18868",
+ "sourceHashes": {
+  "ngc-silgi-2016-18868": "1decb9b644dc8ea498ce87696ba78513ca425fb0f67a950d25a43aa177e64a6a"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "이거리저거리각거리.jgb.json",
+  "sha256": "e323d7566d3b2c156027f06690fb89b5ff5fa1a40bb84bd30913c988de579d5d",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "e323d7566d3b2c156027f06690fb89b5ff5fa1a40bb84bd30913c988de579d5d"
+ },
+ "song": {
+  "title": "이거리저거리각거리",
+  "instrument": "DANSO",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 34,
+  "scoreVersion": 1
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 먼저 검수: Sonnet 에이전트가 원본 PDF 그림과 정간별로 대조하고 주 세션이 지적 항목을 그림으로 다시 확인했다. 사용자는 모호한 항목만 확인했다(25 음 1개, 26 숨표 1개). S15P31E102-404"
+ }
+}

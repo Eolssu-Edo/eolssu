@@ -1,0 +1,37 @@
+{
+ "sourceId": "ngc-silgi-2016-18947",
+ "sourceHashes": {
+  "ngc-silgi-2016-18947": "7ba6f8fd815e6a6cb719f3e35542f11ec4cb98d0586af0b46bafc834227fdf5a"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "쾌지나칭칭나네.jgb.json",
+  "sha256": "91b95da107640d95365a673c97a470484327b435f18261717254a830454d7fcf",
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "91b95da107640d95365a673c97a470484327b435f18261717254a830454d7fcf"
+ },
+ "song": {
+  "title": "쾌지나칭칭나네",
+  "instrument": "DANSO",
+  "jangdan": "중중모리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "중중모리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 42,
+  "scoreVersion": 1
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 먼저 검수: Sonnet 에이전트가 원본 PDF 그림과 정간별로 대조하고 주 세션이 지적 항목을 그림으로 다시 확인했다. 사용자는 모호한 항목만 확인했다(25 음 1개, 26 숨표 1개). S15P31E102-404"
+ }
+}
