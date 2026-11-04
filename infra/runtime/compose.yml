@@ -133,7 +133,7 @@ services:
       - /tmp:rw,exec,size=1g
     # Audiveris 1건(동시 1건) 로컬 실측 최대 1.31GiB. tmpfs도 이 한도에 든다. 정간보 그림 경로(S15P31E102-458, torch)를 붙이면 다시 잰다.
     mem_limit: 2g
-    # 운영 서버 오선보 1쪽: CPU 1.5에서 25~29.5초, 3에서 18.6~22.3초(S15P31E102-468). 채점 ai에 2코어를 남긴다.
+    # 운영 서버 오선보 1쪽: CPU 1.5에서 25~29.5초, 3에서 18.6~22.3초(S15P31E102-468). 4코어 중 2코어까지만 쓴다(채점 ai는 CPU 상한이 없어 함께 돌면 나눠 쓴다).
     cpus: 2
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
