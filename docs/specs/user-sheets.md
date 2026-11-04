@@ -1,13 +1,14 @@
-# 내 악보 생성·조회·목록 API (SHT-01·03·08)
+# 내 악보 생성·조회·목록·편집 저장·삭제 API (SHT-01·02·03·04·08·11)
 
-- Jira: [S15P31E102-390](https://ssafy.atlassian.net/browse/S15P31E102-390), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [390 계획](../plans/S15P31E102-390.md).
+- Jira: [S15P31E102-390](https://ssafy.atlassian.net/browse/S15P31E102-390), Story [S15P31E102-319](https://ssafy.atlassian.net/browse/S15P31E102-319). 진행: [390 계획](../plans/S15P31E102-390.md). 편집 저장·자동 저장·삭제: [S15P31E102-413](https://ssafy.atlassian.net/browse/S15P31E102-413), [413 계획](../plans/S15P31E102-413.md).
 - 근거: [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01·03·08(2026-11-02 디자인 보정 반영본). 2026-11-02 회의 안건(PDF 방향, 초안 연습 진입, 삭제 시 연습 기록, 확인 필요 칸 복사)은 이 범위에서 정하지 않는다. 그중 PDF 방향·삭제 시 연습 기록은 2026-11-03 결정으로 정리됐다([2차 결정](#2차-결정-2026-11-03-미구현)).
 - 상태: 백엔드 결정 초안. 아래 '노션 초안과 다른 점'은 FE(351)와 공유해야 한다.
 
 ## 범위
 
 - 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성, SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
-- 제외: 편집 저장(SHT-04), 삭제(SHT-02), PDF·이미지·오선보 변환(SHT-07·10), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
+- 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
+- 제외: PDF·이미지·오선보 변환(SHT-07·10)과 확인 필요 칸, MIDI·M4A 다운로드(SHT-12·13), 악보 수 상한(미정). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
 ## 공통
 
@@ -16,7 +17,7 @@
 
 ## 저장 모델
 
-`user_sheets` 한 행이 악보 하나다. 악보 내용은 제공 곡과 같은 공통 악보 v1 JSON(`score_json`)이며, 아직 한 번도 저장하지 않은 빈 악보는 NULL이다. 빈 칸 표현을 공통 악보에 새로 정하지 않기 위해서다(SHT-04에서 정한다).
+`user_sheets` 한 행이 악보 하나다. 악보 내용은 제공 곡과 같은 공통 악보 v1 JSON(`score_json`)이며, 아직 한 번도 저장하지 않은 빈 악보는 NULL이다. 미입력 칸(`units: []`)은 자동 저장 초안(`draft_json`)에만 둘 수 있고 확정 저장(`score_json`)에는 둘 수 없다.
 
 | 칸 | 의미 |
 | --- | --- |
@@ -27,6 +28,7 @@
 | `score_version` | 1부터. JSON의 `score.scoreVersion`과 같게 유지한다. |
 | `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(현재 항상 0). |
 | `idempotency_key`, `request_hash` | SHT-03 중복 방지. 회원·키 유일. |
+| `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
 ## SHT-03 `POST /api/users/me/sheets`
 
@@ -66,6 +68,18 @@
 - SHT-03 오류: 노션에 없는 409 `STATE_CONFLICT`(복사 원본 악보 검증 실패)를 더했다.
 - SHT-08: `scoreData`는 빈 악보에서 null이고, `jangdanId`는 장단 없는 곡 복사본에서 null이다. 편집 화면에 필요한 `title`·`jangdanId`·`bpm`·`bpmUnit`·`columnCount`를 더했다. `source`는 null, `issues`는 빈 배열이다.
 - SHT-01: `source`는 지금 `MANUAL`만, `sourcePageCount`는 null이다. 장단 없는 곡 복사본은 `jangdanId`·`jangdanName`이 null이다.
+
+## 편집 저장·자동 저장·삭제 (S15P31E102-413)
+
+요청·응답 필드는 Notion SHT-02·04·08·11을 따른다. 구현에서 정한 점과 Notion과 다른 점:
+
+- SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 검증·타임라인은 CAT-04 디코더를 쓴다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
+- 서버는 `score.scoreVersion`만 바꾸고 `provenance`는 받은 값을 그대로 저장한다. 사용자 악보용 값이 DATA와 정해지지 않아서다(Notion '서버 값으로 덮어쓴다'와 다름).
+- 확인 필요 칸은 변환 기능과 함께 생긴다. 지금은 `resolvedIssueIds`에 값이 있으면 400이고, 저장 결과는 항상 `EVALUABLE`·`pendingIssueCount` 0이다.
+- SHT-11 `PUT .../score/draft`: 버전과 `draftRevision`이 서버와 같을 때만 덮어쓰고 순번을 1 올린다. 칸 안은 검증하지 않고 최상위 모양만 본다. `updated_at`(목록 정렬)은 바꾸지 않는다.
+- SHT-08: `events`(저장 악보의 CAT-04 타임라인, 빈 악보는 `[]`)와 `draft`를 더했다. `draft`에는 Notion 필드(`score`·`baseScoreVersion`·`draftRevision`·`savedAt`)에 더해 초안의 `title`·`jangdanId`·`bpm`이 들어 있다(편집 화면 복원용). 저장 악보가 CAT-04 검증을 통과하지 못하면 409.
+- SHT-01: `hasDraft`를 더했다. `conversionStatus`·`source` 확장은 변환 기능에서 한다.
+- SHT-02 `DELETE /api/users/me/sheets/{sheetId}`: 204 빈 본문, 없거나 다른 회원·이미 지운 악보는 404. 초안은 같은 행이라 함께 지워진다. 원본 파일·다운로드 링크는 아직 없다.
 
 ## 탈퇴
 

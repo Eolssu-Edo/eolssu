@@ -1,0 +1,13 @@
+<resources>
+    <string name="reading_length_listen_hint">이 예시는 한 칸이 한 박이에요. ‘딱’ 소리에 맞춰 빛나는 글자를 따라가 보세요.</string>
+    <string name="reading_pitch_listen_hint">스피커를 눌러 낮은 음부터 비교해 보세요.</string>
+    <string name="reading_audio_listen">들어보기</string>
+    <string name="reading_audio_stop">멈추기</string>
+    <string name="reading_audio_listen_named">%1$s 듣기</string>
+    <string name="reading_audio_stop_named">%1$s 재생 멈추기</string>
+    <string name="reading_audio_loading">소리 준비 중</string>
+    <string name="reading_audio_playing">재생 중</string>
+    <string name="reading_audio_failed">소리를 재생하지 못했어요. 스피커를 다시 눌러 주세요.</string>
+    <string name="reading_beat_one">하나</string>
+    <string name="reading_beat_two">둘</string>
+</resources>

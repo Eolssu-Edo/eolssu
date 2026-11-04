@@ -2,9 +2,8 @@ package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongSummary
-import com.ssafy.eolssu.data.song.CatalogInstrument
 
-/** SONG-03 탭. 홈 '연습곡 선택하기'로 들어오면 제공 곡부터 보인다. */
+/** SONG-03 탭. 홈 '연습곡 선택하기'로 들어오면 제공 곡부터, '악보 추가·편집하기'로 들어오면 내 악보부터 보인다. */
 enum class MySongsTab { Songs, Sheets }
 
 /**
@@ -23,10 +22,14 @@ data class MySongsUiState(
     val addSheetOpen: Boolean = false,
     val savedSheet: MySheet? = null,
     val addSheetOnReturn: Boolean = false,
-    val instruments: List<CatalogInstrument> = emptyList(),
     val instrumentId: String? = null,
+    val filter: SongLevelFilter = SongLevelFilter.All,
 ) {
     val sheetCount: Int get() = sheets?.size ?: 0
+
+    /** 선택한 단계의 제공 곡. 평가 가능 여부로 제외하지 않고 서버 순서를 유지한다. */
+    val visibleSongs: List<SongSummary>
+        get() = songs.filter { filter.level == null || it.level == filter.level }
 
     /** 내 악보 목록을 받는다. 처음 받은 뒤에 새 악보가 생기면 저장 안내를 띄우고 내 악보 탭을 보인다. */
     fun receiveSheets(received: List<MySheet>): MySongsUiState {

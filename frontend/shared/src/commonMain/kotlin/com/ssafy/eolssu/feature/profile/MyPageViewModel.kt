@@ -9,6 +9,7 @@ import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.UserRepository
+import com.ssafy.eolssu.data.user.changePracticeInstrument
 import com.ssafy.eolssu.data.user.signsInWithPassword
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,21 +33,32 @@ class MyPageViewModel(
     val dialog: StateFlow<MyPageDialog?> = _dialog.asStateFlow()
 
     /** 실제 내 정보를 다시 읽는다. */
-    suspend fun refresh() = userRepository.refresh()
+    suspend fun refresh(): MemberResult {
+        _loadingProfile.value = true
+        return try { handleSession(userRepository.refresh()) }
+        finally { _loadingProfile.value = false }
+    }
 
-    private var savingInstrument = false
+    private val _loadingProfile = MutableStateFlow(true)
+    val loadingProfile: StateFlow<Boolean> = _loadingProfile.asStateFlow()
+    private val _savingInstrument = MutableStateFlow(false)
+    val savingInstrument: StateFlow<Boolean> = _savingInstrument.asStateFlow()
 
-    suspend fun selectInstrument(instrument: Instrument): Boolean {
-        if (savingInstrument) return false
-        if (instrumentRepository.instrument.value == instrument) return false
-        savingInstrument = true
-        return try {
-            val id = instrumentRepository.serverIdFor(instrument) ?: return false
-            if (userRepository.changeInstrument(id) != MemberResult.Done) return false
-            if (userRepository.profile.value.instrumentId != id) return false
-            instrumentRepository.select(instrument)
-            true
-        } finally { savingInstrument = false }
+    /** 같은 선택과 저장 중 재탭은 무시하며, 서버의 실패 종류를 화면에 전달한다. 절차는 홈 드롭다운과 같다([changePracticeInstrument]). */
+    suspend fun selectInstrument(instrument: Instrument): MemberResult? {
+        if (_savingInstrument.value) return null
+        if (instrumentRepository.instrument.value == instrument) return null
+        _savingInstrument.value = true
+        return try { userRepository.changePracticeInstrument(instrumentRepository, instrument) }
+        finally { _savingInstrument.value = false }
+    }
+
+    private fun handleSession(result: MemberResult): MemberResult {
+        if (result == MemberResult.Unauthenticated) {
+            userRepository.logOut()
+            instrumentRepository.clear()
+        }
+        return result
     }
 
     /**

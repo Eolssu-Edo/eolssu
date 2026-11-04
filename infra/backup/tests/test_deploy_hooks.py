@@ -14,10 +14,11 @@ class DeployBackupHooks(unittest.TestCase):
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
         return module
 
-    def drive(self, name, fail_backup=False):
+    def drive(self, name, fail_backup=False, migrated=False):
         module = self.load(name); events = []
         class Candidate:
-            def deploy(self, sha): events.append('deploy')
+            def deploy(self, sha):
+                events.append('deploy'); self.migrated = migrated
         def run(*args, **kwargs):
             events.append(args[-1])
             if fail_backup: raise module.DeployError('backup failed')
@@ -39,6 +40,9 @@ class DeployBackupHooks(unittest.TestCase):
         for name in ['backend', 'frontend']:
             with self.subTest(name=name):
                 self.assertEqual(self.drive(name), ['prechange', 'deploy', 'postchange'])
+
+    def test_backend_schema_change_also_backs_up_the_database_afterwards(self):
+        self.assertEqual(self.drive('backend', migrated=True), ['prechange', 'deploy', 'postmigration'])
 
     def test_external_backup_failure_prevents_both_deployment_entrypoints(self):
         for name in ['backend', 'frontend']:

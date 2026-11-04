@@ -9,6 +9,25 @@ import kotlin.test.assertTrue
 
 /** 첫 실행 표시(`FirstRunRepository`)와 앱 시작 화면. */
 class FirstRunStartTest {
+    @Test
+    fun expiredSessionRedirectPreservesPendingAuthenticationAndCallbackReceivers() {
+        for (route in listOf(AuthDestination.OAUTH, AuthDestination.SOCIAL_PROFILE)) {
+            assertFalse(shouldRedirectExpiredSession(route))
+        }
+        assertTrue(shouldRedirectExpiredSession(EolssuDestination.MY_SONGS))
+        assertTrue(shouldRedirectExpiredSession(ProfileDestination.MY_PAGE))
+        assertTrue(shouldRedirectExpiredSession(ProfileDestination.LINK))
+        assertTrue(shouldRedirectExpiredSession(ProfileDestination.WITHDRAW))
+        assertTrue(shouldRedirectExpiredSession(AuthDestination.LOGIN))
+    }
+
+    @Test
+    fun expiredSessionReturnsCompletedDeviceToLoginWithoutSkippingFirstConsent() {
+        assertEquals(AuthDestination.LOGIN, startDestination(true, sessionExpired = true))
+        assertEquals(AuthDestination.LOGIN, startDestination(true, qaSkipConsent = true, sessionExpired = true))
+        assertEquals(AuthDestination.CONSENT, startDestination(false, sessionExpired = true))
+    }
+
     // TEMP S15P31E102-309: QA 옵션 제거 시 아래 두 검사도 제거한다.
     @Test
     fun qaFirstLaunchSkipsOnlyConsentWithoutPersistingCompletion() {

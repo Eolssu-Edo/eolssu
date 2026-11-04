@@ -8,6 +8,7 @@ VALUES (1, 'DANSO', '단소', 1, 2, 50, FALSE, '2026-10-22 01:02:03.123456', '20
 ON DUPLICATE KEY UPDATE code = f.code, name = f.name, range_low_pitch_id = f.range_low_pitch_id, range_high_pitch_id = f.range_high_pitch_id,
   pitch_tolerance_cent = f.pitch_tolerance_cent, is_active = f.is_active, created_at = f.created_at, updated_at = f.updated_at;
 
+DELETE FROM fingering_charts WHERE instrument_id=1 OR id=1;
 INSERT INTO fingering_charts (id, instrument_id, pitch_id, image_url, description, created_at, updated_at)
 VALUES (1, 1, 2, 'https://example.test/fingering.png', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');
 
@@ -17,6 +18,8 @@ VALUES (1, '세마치', '{"beats":["덩","덕"],"group":[2]}', 90, 'DOTTED_QUART
 INSERT INTO songs (id, instrument_id, jangdan_id, title, description, difficulty, default_bpm, score_json, score_version, umulsai_text, note_count, source, is_scorable, status, created_at, updated_at, deleted_at)
 VALUES (1, 1, 1, '아리랑', '경기 민요', 2, 90, '{"notes":[{"yul":"황"}]}', 3, '황', 1, NULL, TRUE, 'PUBLISHED', '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456', NULL);
 
+-- V17 기호 시드와 고정 fixture의 ID만 겹친다. 이 fixture의 트랜잭션 롤백으로 원복된다.
+DELETE FROM notation_symbols WHERE id IN (1,2);
 INSERT INTO notation_symbols (id, symbol, name, description, image_url, created_at, updated_at)
 VALUES (1, '－', '뻗는표', '음을 이어 연주', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456'),
        (2, '-', '반각 테스트', '전각과 구분', NULL, '2026-10-22 01:02:03.123456', '2026-10-22 01:02:03.123456');

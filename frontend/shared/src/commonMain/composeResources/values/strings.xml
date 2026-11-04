@@ -1,4 +1,5 @@
 <resources>
+    <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>
     <string name="jangdan_unassigned">장단 미지정</string>
     <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
     <string name="common_close">닫기</string>
@@ -10,14 +11,15 @@
 
     <string name="home_brand">얼쑤</string>
     <string name="home_current_instrument">현재 악기</string>
-    <string name="home_hero_title">얼쑤,\n나도 이제 국악인</string>
-    <string name="home_hero_body">우리 소리와 가까워지는 시간</string>
+    <string name="home_hero_title">나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
-    <string name="home_section_practice">연습·학습하기</string>
+    <string name="home_section_practice">학습·연습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
     <string name="home_feature_fingering">운지법 보기</string>
     <string name="home_feature_reading">정간보 쉽게 읽기</string>
     <string name="home_feature_learn">기초부터 배우기</string>
+    <string name="home_feature_records">연습 기록 보기</string>
+    <string name="home_feature_edit_sheets">악보 추가·편집하기</string>
 
 
     <string name="score_column_start">시작</string>
@@ -358,6 +360,9 @@
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
     <string name="guide_instrument_label">악기</string>
     <string name="guide_instrument_select">악기 선택</string>
+    <string name="guide_instruments_loading">악기 목록을 불러오고 있어요.</string>
+    <string name="guide_instruments_failed">악기 목록을 불러오지 못했어요. 다시 시도해 주세요.</string>
+    <string name="guide_instruments_empty">운지법을 볼 수 있는 악기가 아직 없어요.</string>
     <string name="guide_instrument_danso">단소</string>
     <string name="guide_instrument_sogeum">소금</string>
     <string name="guide_instrument_daegeum_jeongak">정악대금</string>
@@ -679,6 +684,8 @@
     <string name="mysongs_evaluable_badge">AI 평가</string>
     <string name="mysongs_practice_only_badge">연습 전용</string>
     <string name="mysongs_songs_hint">점수 없이 혼자 연습해요 · AI 평가 표시가 있는 곡은 연습 화면에서 평가로 넘어갈 수 있어요</string>
+    <string name="mysongs_empty_body">다른 단계를 선택하거나 전체 곡을 확인해 보세요.</string>
+    <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_add">악보 추가 · PDF, 음원, 직접 만들기</string>
     <string name="mysongs_sheet_count">내 악보 %1$d개</string>
@@ -765,6 +772,16 @@
     <string name="common_cancel">취소</string>
     <string name="home_my_page">마이페이지</string>
     <string name="my_title">마이페이지</string>
+    <string name="my_learning_title">기초부터 배우기</string>
+    <string name="my_learning_count">%1$d / %2$d단계 완료</string>
+    <string name="my_learning_instrument">%1$s 학습 진도</string>
+    <string name="my_learning_next">다음 학습 · %1$d단계</string>
+    <string name="my_learning_complete">모든 단계를 마쳤어요!</string>
+    <string name="my_learning_local">이 기기에 저장된 학습 기록이에요.</string>
+    <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
+    <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
+    <string name="my_inquiry">문의하기</string>
+    <string name="my_inquiry_preparing">문의 폼을 준비하고 있어요.</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
@@ -797,6 +814,10 @@
     <string name="my_password_change_done">비밀번호 바꾸기</string>
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인으로 가입한 계정은 비밀번호가 없어요.</string>
+    <string name="my_feedback_section">의견·문의</string>
+    <string name="my_feedback">의견 보내기</string>
+    <string name="my_feedback_help">써 보면서 좋았던 점이나 불편했던 점을 구글 폼으로 알려 주세요.</string>
+    <string name="my_feedback_open_failed">의견 폼을 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>
@@ -832,4 +853,6 @@
     <string name="home_feature_fingering_desc">손끝으로 익히는 우리 소리</string>
     <string name="home_feature_reading_desc">한 칸씩, 차근차근 읽어요</string>
     <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
+    <string name="home_feature_records_desc">지난 연주를 돌아봐요</string>
+    <string name="home_feature_edit_sheets_desc">내 악보를 만들고 고쳐요</string>
 </resources>

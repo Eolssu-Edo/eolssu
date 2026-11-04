@@ -42,7 +42,7 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 | --- | --- | --- | --- |
 | `pitches.json` | `pitches` | 단소 다섯 율을 단소 실제 음역(중~중청중) 안에서 | 없음 |
 | `instruments.json` | `instruments` | 단소 | `range_low`·`range_high` = pitches의 `(yul, octave)` |
-| `jangdans.json` | `jangdans` | 세마치·굿거리·중모리 | 없음 |
+| `jangdans.json` | `jangdans` | 장단10종([추가 근거와 시작 빠르기](../docs/knowledge/backend/jangdan-catalog-extension.md)) | 없음 |
 | `songs.json` | `songs` | 1차 AI 평가 4곡 | `instrument` = instruments의 `code`, `jangdan` = jangdans의 `name`, `source` = 원본 ID |
 
 `songs`의 `score_json`·`note_count`·`umulsai_text`·`score_version`은 정간보 변환기 결과로 채우므로 여기에 없습니다. 근거와 남은 확인 사항은 각 파일의 `sources`·`description`에 적습니다. 검사는 [검증](#검증)의 테스트에 포함된 `data/tests/test_reference_data.py`가 맡으며, 칸 이름·DB 제약·한자·반음 번호, 율 목표 주파수(황 = 311.13Hz)와 단소 녹음의 ±50센트 일치, 소금 녹음의 옥타브(반음 안) 일치, 곡이 가리키는 장단·정답 jgb를 확인합니다.
@@ -62,6 +62,14 @@ python data/src/scores/score_data.py ngc-standard-2022-p171 ngc-standard-2022-p1
 ```
 
 결과는 `processed/scores/<원본 ID>/score.json`(Git 제외)에 씁니다. 스키마나 불변식(길이 합, 빈틈·겹침 없음, 정간·이벤트 참조, 율명 표) 검사가 실패하면 쓰지 않습니다. 정간 하나의 박은 jgb에 없어 정답 검토 기록의 `sourceValues.beatsPerJeonggan`에 근거와 함께 적고, 곡 제목·장단은 [reference/](reference/)에서 읽습니다. 서비스 곡(`songs.json`)이 아닌 평가용 정답(소금 교과서 판본 `school-textbook-sogeum-p15`·`p16`)은 검토 기록의 `song`에서 읽고, 율명 표(단소 음역) 대신 12율 읽기 규칙만 검사합니다. 표준악보집 소금 4곡(`ngc-standard-2022-p192`·`p193`·`p194`·`p196`)도 같습니다. 서비스 소금 곡 행은 S15P31E102-339가 넣었고, 교과서 판본이 있으면 교과서(아리랑·도라지타령), 없으면 표준악보집(밀양아리랑·늴리리야) 정답으로 채점을 켭니다([infra/catalog](../infra/catalog/README.md)). 고정 샘플은 `tests/fixtures/scores/<원본 ID>.score.json`입니다. FE·AI·BE 검증용 아리랑 샘플은 `tests/fixtures/scores/ngc-standard-2022-p173.score.json`이며, 정답·기준 데이터·변환기를 바꾸면 테스트가 실패하므로 위 명령으로 다시 만든 결과로 함께 바꿉니다.
+
+같은 원본 PDF에서 여러 곡이나 성부가 나온 경우 원본 목록은 PDF 하나로 기록하고, `annotations/scores/`에는 정답별 폴더를 둡니다. 검토 기록의 `sourceId`는 공통 원본을 가리킵니다. `sourceValues.bpmUnit`을 명시하면 그 값을 장단 기준표보다 우선하며, 명시하지 않으면 기존 장단 기준표를 사용합니다. 여러 성부가 든 문서는 검토 기록의 `song.part`에 0부터 시작하는 성부 번호를 기록합니다. 장단이 없는 운영 악보는 `song.jangdan`을 빈 문자열로 두고 `song.bpmUnit`에 확인한 박 단위를 기록합니다.
+
+검수한 소금 어깨동무·옹헤야·태평가·해주아리랑·오나라는 표준악보집 원본 ID `ngc-standard-2022-p189`·`p198`·`p197`·`p195`·`p200`의 정답을 사용합니다. 운영 악보와 음과 시간은 비교했지만 입력 JGB 원본 해시는 다릅니다.
+
+취타 초급·중급 정답은 `ngc-standard-2022-p190`·`ngc-standard-2022-p201`입니다. 사람이 확인한 원본 28정간만 담고, 입력 파일 끝에 있던 빈 8정간과 원래 검수 파일의 해시는 검토 기록에 남겼습니다.
+
+취타 고급 `ngc-standard-2022-p203`은 사람이 확인한 기보를 보존한 정답입니다. 시김새가 별도 음으로 표현된 운영 악보와 달라 운영 채점에는 아직 사용하지 않습니다. 검토 기록의 보류 표시는 채점 켜기 도구의 자동 차단 기능이 아닙니다.
 
 ## 녹음 정답 기록
 

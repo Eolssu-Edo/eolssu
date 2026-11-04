@@ -48,6 +48,8 @@ import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.data.user.OAuthAttempts
+import com.ssafy.eolssu.data.user.OAuthRedirect
+import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.data.user.AccountDraft
 import com.ssafy.eolssu.data.user.TermsRepository
 import com.ssafy.eolssu.data.user.ApiUserRepository
@@ -141,7 +143,7 @@ val appModule = module {
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }
     single { LearnProgressRepository(get()) }
-    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get()) }
+    single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     single { AccountDraft() }
     single { TermsRepository(get()) }
     viewModelOf(::ConsentViewModel)
@@ -150,14 +152,15 @@ val appModule = module {
     viewModel { (purpose: VerificationPurpose) -> EmailVerificationViewModel(purpose, get(), get(), get()) }
     viewModel { PasswordSetupViewModel(get(), get()) }
     viewModel { (social: Boolean) -> ProfileSetupViewModel(get(), get(), get(), get(), get(), social) }
-    // 간편 로그인·연결. 외부 브라우저와 복귀 주소(App Links)는 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android).
-    single { OAuthAttempts(getOrNull(), get(), get()) }
+    // 간편 로그인·연결. 외부 브라우저와 복귀 주소는 플랫폼 모듈에 구현이 있을 때만 쓴다(Android App Links, iOS 중계).
+    // 복귀 경로(OAuthRoute)를 등록하지 않은 플랫폼은 Android 주소를 쓴다.
+    single { OAuthAttempts(getOrNull(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect, get()) }
     viewModel { (provider: SocialProvider) -> OAuthViewModel(provider, get(), get(), getOrNull(), getOrNull(), get(), get()) }
     viewModel { AccountLinkViewModel(get(), get(), get(), get()) }
 
     // 활성 악기 목록의 실제 ID와 회원 설정을 연결한다.
     single { InstrumentRepository(get(), get()) }
-    single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get()) }
+    single<UserRepository> { ApiUserRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     viewModelOf(::MyPageViewModel)
     viewModelOf(::NicknameEditViewModel)
     viewModelOf(::PasswordChangeViewModel)

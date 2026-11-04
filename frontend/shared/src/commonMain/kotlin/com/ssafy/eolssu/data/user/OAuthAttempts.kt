@@ -45,6 +45,7 @@ enum class OAuthRestartReason {
 class OAuthAttempts(
     private val store: SecureStore?,
     private val member: SignedInMember?,
+    private val route: OAuthRoute = OAuthRedirect,
     private val now: () -> Long,
 ) {
     private var memory: Attempt? = null
@@ -64,7 +65,7 @@ class OAuthAttempts(
         val url = runCatching { Url(authorizationUrl) }.getOrNull() ?: return false
         val state = url.parameters["state"]
         if (url.protocol.name != "https" || state == null || !statePattern.matches(state)) return false
-        save(Attempt(provider.name, purpose.name, OAuthRedirect.uriFor(provider), state, expiresAtMillis, member?.id))
+        save(Attempt(provider.name, purpose.name, route.uriFor(provider), state, expiresAtMillis, member?.id))
         return true
     }
 
@@ -82,7 +83,7 @@ class OAuthAttempts(
     fun accept(uri: String, purpose: OAuthPurpose): OAuthReturn {
         val attempt = load()
         val url = runCatching { Url(uri) }.getOrNull()
-        val provider = url?.let(::callbackProvider)
+        val provider = url?.let(route::providerOf)
         // 우리 복귀 주소가 아니면 진행 중 시도는 그대로 둔다.
         if (url == null || provider == null) return if (attempt != null) OAuthReturn.Ignored else restart(OAuthRestartReason.Invalid)
         val state = url.parameters["state"]
@@ -145,14 +146,6 @@ class OAuthAttempts(
     private fun restart(reason: OAuthRestartReason): OAuthReturn {
         clear()
         return OAuthReturn.Restart(reason)
-    }
-
-    /** https·정확한 호스트·기본 포트·`/auth/android/oauth/<제공자>/callback` 경로일 때 그 제공자. */
-    private fun callbackProvider(url: Url): SocialProvider? {
-        if (url.protocol.name != "https" || !url.host.equals(OAuthRedirect.HOST, ignoreCase = true)) return null
-        if (url.specifiedPort != 0 && url.specifiedPort != 443) return null
-        if (url.user != null || url.password != null) return null
-        return SocialProvider.entries.firstOrNull { url.encodedPath == OAuthRedirect.pathFor(it) }
     }
 
     private fun save(attempt: Attempt) {

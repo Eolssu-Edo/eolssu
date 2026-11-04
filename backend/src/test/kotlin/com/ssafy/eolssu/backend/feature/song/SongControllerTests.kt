@@ -43,15 +43,16 @@ class SongControllerTests {
     private val mvc = MockMvcBuilders.standaloneSetup(SongController(mapper, jangdans, JsonMapper.builder().build(), instruments))
         .setControllerAdvice(GlobalExceptionHandler()).build()
 
-    @Test fun `list carries database identity and original score JSON as an object`() {
+    @Test fun `list carries database identity without the score body`() {
         mvc.perform(get("/api/songs")).andExpect(status().isOk)
             .andExpect(jsonPath("$.result.items[0].songId").value("7"))
             .andExpect(jsonPath("$.result.items[0].scoreVersion").value(3))
-            .andExpect(jsonPath("$.result.items[0].score.events[0].id").value("original-note"))
+            .andExpect(jsonPath("$.result.items[0].score").doesNotExist())
             .andExpect(jsonPath("$.result.items[0].jangdan.bpmUnit").value("DOTTED_QUARTER"))
     }
-    @Test fun `detail uses the same contract and missing songs use common 404`() {
+    @Test fun `detail carries original score JSON as an object and missing songs use common 404`() {
         mvc.perform(get("/api/songs/7")).andExpect(status().isOk).andExpect(jsonPath("$.result.songId").value("7"))
+            .andExpect(jsonPath("$.result.score.events[0].id").value("original-note"))
         mvc.perform(get("/api/songs/999")).andExpect(status().isNotFound).andExpect(jsonPath("$.result.errorCode").value("RESOURCE_NOT_FOUND"))
     }
     @Test fun `active instrument filter preserves matching songs and permits an empty result`() {

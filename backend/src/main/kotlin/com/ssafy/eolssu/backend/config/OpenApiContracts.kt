@@ -17,6 +17,8 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.SectionComparisonApiResul
 import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.sheet.api.CreatedSheet
+import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetDraft
+import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetScore
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetList
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetScore
 import com.ssafy.eolssu.backend.feature.song.api.*
@@ -83,9 +85,10 @@ internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/songs/{songId}/model-audio/play","playModelAudio","카탈로그","현재 모범 음원 재생", "매 요청마다 게시 상태와 현재 악보를 확인한 뒤 비공개 객체의 짧은 서명 주소로 이동합니다.", null,statuses=listOf(302),errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE),security=null),
     ApiContract(HttpMethod.GET,"/api/songs/{songId}/model-audio/performance","getModelAudioPerformance","카탈로그","모범 연주 수행 시간표", "현재 게시 음원과 결합한 원본 performance JSON을 그대로 반환합니다. 성공 envelope를 사용하지 않습니다.", null,errors=listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE),security=null),
     ApiContract(HttpMethod.GET,"/api/pitches","listPitches","카탈로그","율명과 표기 목록", "instrumentId 지정 시 활성 악기의 음역을 semitone 기준으로 제한합니다. 미확보 설명·음원은 null입니다.", PitchListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
-    ApiContract(HttpMethod.GET,"/api/instruments/{instrumentId}/fingerings","listFingerings","카탈로그","악기별 운지 목록", "활성 악기의 운지 목록을 반환하며 pitchId로 제한할 수 있습니다. 미등록 콘텐츠는 빈 목록이며 구조 그림은 null입니다.", FingeringListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
+    ApiContract(HttpMethod.GET,"/api/instruments/{instrumentId}/fingerings","listFingerings","카탈로그","악기별 운지 목록", "활성 악기의 운지를 pitchId로 제한할 수 있습니다. 내장 참고 자료는 nullable pattern에 취법·율명·구멍 상태·출처·명목상 황종을 보존하며 이미지가 없으면 imageUrl은 null입니다. 내장표와 연결되지 않은 이미지형 자료의 pattern은 null이며, 연결된 행은 이미지와 pattern을 함께 보존합니다. 미등록은 빈 목록, 구조 그림은 null입니다. 산조는 정악 기본틀을 공유하며 전문가 검수·실측 조율·채점 승인을 뜻하지 않습니다.", FingeringListResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.GET,"/api/jangdans/{jangdanId}","getJangdan","카탈로그","장단 패턴과 기준 BPM", "등록 pattern의 소박·묶음·bpmUnit을 보존합니다. 미확보 음원은 null입니다.", JangdanDetailResult::class.java,errors=listOf(RESOURCE_NOT_FOUND),security=null),
-    ApiContract(HttpMethod.GET,"/api/notation-symbols","listNotationSymbols","카탈로그","학습용 기호 설명", "등록 기호 설명만 반환하며 악보 렌더 의미를 재정의하지 않습니다. 없으면 빈 목록입니다.", NotationSymbolListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/notation-symbols","listNotationSymbols","카탈로그","학습용 기호 설명", "등록 기호 설명만 반환하며 악보 렌더 의미를 재정의하지 않습니다. 번들 내용과 일치하는 항목에는 source·descriptionStatus·imageLicense 및 API 원점 기준 imageUrl을 제공합니다. 기존 외부 행은 출처 상태가 null입니다. 없으면 빈 목록입니다.", NotationSymbolListResult::class.java,security=null),
+    ApiContract(HttpMethod.GET,"/api/notation-symbols/{symbolId}/image","getNotationSymbolImage","카탈로그","등록 기호 이미지", "현재 DB 행과 번들 내용이 일치할 때만 MIT 고지를 포함한 SVG를 반환합니다. 미등록·수정된 내용은404입니다.", null,errors=listOf(RESOURCE_NOT_FOUND),security=null),
     ApiContract(HttpMethod.GET,"/api/jangdans","listJangdans","카탈로그","장단 목록", "이름·기준 BPM/단위·저장 패턴의 소박 수와 묶음 수를 ID 순으로 반환합니다.", JangdanListResult::class.java,security=null),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation","getEvaluation","연습","연주 평가 결과 조회", "본인 미삭제 DONE 세션의 저장 점수와 noteIdx 순 판정을 반환합니다.", PracticeEvaluationResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}/evaluation/notes","getEvaluationNotes","연습","음표별 오류 위치·판정 조회", "본인 미삭제 DONE 세션 구간 안의 저장 판정을 noteIdx 순으로 반환합니다. 구간은 세션 범위 안의 양 끝 포함이며 벗어나면 400입니다. errorTypes는 저장 판정 하나, duration 개수는 0, recordingOffsetMs는 null입니다.", EvaluationNotesResult::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
@@ -180,5 +183,14 @@ internal val apiContracts = listOf(
         SheetList::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/score","getSheetScore","내 악보","내 악보 공통 악보 조회",
         "본인 악보의 설정과 공통 악보 원본(scoreData)을 반환합니다. 한 번도 저장하지 않은 빈 악보의 scoreData는 null입니다. 없거나 다른 회원의 악보는 404입니다.",
-        SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+        SheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT)),
+    ApiContract(HttpMethod.PUT,"/api/users/me/sheets/{sheetId}/score","saveSheetScore","내 악보","정간보 편집 확정 저장",
+        "baseScoreVersion(SHT-08 scoreVersion)과 공통 악보 v1 문서 전체(score)를 받아 교체하고 악보 버전을 1 올립니다. 미입력 칸(units 빈 배열)은 400 UNFILLED_CELLS(details.cellIds), 버전 충돌은 409, 1MiB 초과는 413입니다. jangdanId가 있으면 score.music의 장단·단위와 같아야 합니다. 저장하면 자동 저장 초안은 지워집니다.",
+        SavedSheetScore::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,UNFILLED_CELLS,PAYLOAD_TOO_LARGE)),
+    ApiContract(HttpMethod.PUT,"/api/users/me/sheets/{sheetId}/score/draft","saveSheetDraft","내 악보","정간보 편집 자동 저장",
+        "악보 버전을 올리지 않고 악보당 하나인 초안을 덮어씁니다. 미입력 칸(units 빈 배열)을 허용합니다. baseScoreVersion·draftRevision이 서버와 다르면 409입니다. 목록 정렬 시각은 바뀌지 않습니다.",
+        SavedSheetDraft::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,PAYLOAD_TOO_LARGE)),
+    ApiContract(HttpMethod.DELETE,"/api/users/me/sheets/{sheetId}","deleteSheet","내 악보","내 악보 삭제",
+        "본인 악보와 그 초안을 지우고 204 빈 본문을 돌려줍니다. 없거나 다른 회원의 악보, 이미 지운 악보는 404입니다.",
+        null,listOf(204),listOf(RESOURCE_NOT_FOUND)),
 )

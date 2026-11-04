@@ -56,8 +56,6 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideCard
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
@@ -76,7 +74,6 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.guide_reading_sigimsae_small
 import eolssu.shared.generated.resources.guide_reading_title
 import eolssu.shared.generated.resources.guide_sigimsae_credit
-import eolssu.shared.generated.resources.guide_catalog_title
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -86,18 +83,21 @@ import org.jetbrains.compose.resources.stringResource
  * GUIDE-02 정간보 쉽게 읽기. 정간보란 · 1 읽는 순서 · 2 음의 길이 · 3 음의 높낮이 · 4 시김새 · 더 많은 시김새를 한 쪽씩 둔 책이다.
  * 휴대폰은 쪽 목차 토글 · 가로로 넘기는 쪽 · 이전/점/다음으로 한 쪽씩 보고(키보드 ←·→ · PageUp·PageDown, 목차는 Esc로 닫음),
  * 태블릿은 넘기지 않고 모든 쪽을 격자로 펼친다([readingTabletRows]).
- * 상태는 지금 쪽 · 목차 열림 · 시김새 창 · '더 많은 시김새'에서 설명을 펼친 칸뿐이라 ViewModel 없이 화면이 들고 있다.
+ * 쪽 · 목차 · 시김새 상태는 화면이 들고, 오디오 상태와 재생 동작은 Route가 전달한다.
  *
  * @param initialPage 처음 펼칠 쪽. 기초부터 배우기 7·8·9단계가 해당 쪽을 넘긴다.
  */
 @Composable
-fun ReadingScreen(
+internal fun ReadingScreen(
     onBack: () -> Unit,
+    audio: ReadingAudioState,
+    onPlayAudio: (ReadingAudioClip) -> Unit,
+    onStopAudio: () -> Unit,
     initialPage: ReadingPage = ReadingPage.Intro,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
-    onOpenCatalog: (() -> Unit)? = null,
 ) {
     var moreTip by rememberSaveable { mutableStateOf<Int?>(null) }
+    LaunchedEffect(widthClass) { onStopAudio() }
     EolssuScaffold(
         topBar = { GuideTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack, widthClass = widthClass) },
         contentMaxWidth = widthClass.guidePageMaxWidth,
@@ -105,13 +105,11 @@ fun ReadingScreen(
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f)) {
                 if (widthClass == WindowWidthClass.Compact) {
-                    ReadingBook(initialPage, moreTip, onMoreTip = { moreTip = it })
+                    ReadingBook(initialPage, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
                 } else {
-                    ReadingTabletGrid(widthClass, moreTip, onMoreTip = { moreTip = it })
+                    ReadingTabletGrid(widthClass, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
                 }
             }
-            if (onOpenCatalog != null) EolssuButton(stringResource(Res.string.guide_catalog_title), onOpenCatalog,
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp), style = EolssuButtonStyle.Secondary)
         }
     }
 }
@@ -119,14 +117,19 @@ fun ReadingScreen(
 /** 휴대폰: 한 쪽씩 넘기는 책. 보이지 않는 쪽은 화면 읽기·누르기에서 뺀다. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun ReadingBook(initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int?) -> Unit) {
+private fun ReadingBook(
+    initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int?) -> Unit,
+    audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip) -> Unit, onStopAudio: () -> Unit,
+) {
     val pages = ReadingPage.entries
     val pagerState = rememberPagerState(initialPage = initialPage.ordinal) { pages.size }
     var tocOpen by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val current = pages[pagerState.currentPage]
     val settled = pages[pagerState.settledPage]
+    LaunchedEffect(current, pagerState.isScrollInProgress) { onStopAudio() }
     val go = { page: ReadingPage ->
+        onStopAudio()
         tocOpen = false
         scope.launch { pagerState.animateScrollToPage(page.ordinal) }
         Unit
@@ -175,6 +178,9 @@ private fun ReadingBook(initialPage: ReadingPage, moreTip: Int?, onMoreTip: (Int
                                 moreTip = moreTip,
                                 onMoreTip = onMoreTip,
                                 interactive = visible,
+                                audio = audio,
+                                onPlayAudio = onPlayAudio,
+                                onStopAudio = onStopAudio,
                             )
                         }
                     }
@@ -233,7 +239,10 @@ private fun Modifier.mouseDragPaging(state: PagerState): Modifier = pointerInput
 
 /** 태블릿: 넘기지 않고 모든 쪽을 격자로 펼친다. 세로 2열 · 가로 3열이고 같은 줄 카드의 높이를 맞춘다. 읽는 순서 그림은 늘 움직인다. */
 @Composable
-private fun ReadingTabletGrid(widthClass: WindowWidthClass, moreTip: Int?, onMoreTip: (Int?) -> Unit) {
+private fun ReadingTabletGrid(
+    widthClass: WindowWidthClass, moreTip: Int?, onMoreTip: (Int?) -> Unit,
+    audio: ReadingAudioState, onPlayAudio: (ReadingAudioClip) -> Unit, onStopAudio: () -> Unit,
+) {
     val expanded = widthClass == WindowWidthClass.Expanded
     val side = widthClass.guideSidePadding
     Column(
@@ -257,6 +266,9 @@ private fun ReadingTabletGrid(widthClass: WindowWidthClass, moreTip: Int?, onMor
                         animate = true,
                         moreTip = moreTip,
                         onMoreTip = onMoreTip,
+                        audio = audio,
+                        onPlayAudio = onPlayAudio,
+                        onStopAudio = onStopAudio,
                     )
                 }
             }
@@ -274,15 +286,18 @@ private fun ReadingPageCard(
     animate: Boolean,
     moreTip: Int?,
     onMoreTip: (Int?) -> Unit,
+    audio: ReadingAudioState,
+    onPlayAudio: (ReadingAudioClip) -> Unit,
+    onStopAudio: () -> Unit,
     interactive: Boolean = true,
 ) {
     when (page) {
         ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadIntro() }
         ReadingPage.Order -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadOrderBoard(animate = animate) }
-        ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = page.title()) { LengthRow() }
-        ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = page.title()) { PitchSteps() }
+        ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = page.title()) { LengthRow(audio = audio, onPlayAudio = onPlayAudio, enabled = interactive) }
+        ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = page.title()) { PitchSteps(audio, onPlayAudio, enabled = interactive) }
         ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = page.title(), small = stringResource(Res.string.guide_reading_sigimsae_small)) {
-            SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive)
+            SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive, onOpen = onStopAudio)
             SigimsaeCredit()
         }
         ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = page.title(), small = "$MoreSigimsaeCount", subMark = true) {

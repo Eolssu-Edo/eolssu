@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
+
 ## 문서 위치
 
 | 내용 | 위치 |
@@ -31,6 +33,10 @@
 - [S15P31E102-257 평가 결과 조회](plans/S15P31E102-257.md)
 
 ## 기능 스펙
+
+- [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
+- [운지법 화면 음원 목록 로딩 개선 (423)](specs/guide-audio-loading.md) · [원인·검증 기록](knowledge/frontend/guide-audio-loading.md)
+- [HOME 전체 그림·스크롤·먹 버튼](specs/home-scroll-ink.md) · [412 계획·검증](plans/S15P31E102-412.md) · [428 카드 배치 개편](plans/S15P31E102-428.md) · [437 상단 바·2x3 카드](plans/S15P31E102-437.md)
 
 - [R2 공통 파일·폴더 업로드](specs/r2-upload.md) · [392 계획·검증](plans/S15P31E102-392.md) · [실행 안내](../infra/r2/README.md)
 - [운영 DB V15·V16 적용과 모범 음원 audio_url 삭제 (395)](knowledge/infra/model-audio-ops-migration.md)
@@ -84,10 +90,14 @@
 
 ## 도구 조사·검증 기록
 
+- [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)
+
 - [Jira MCP 사용·검증 기록](knowledge/tooling/jira-mcp.md)
 - [Notion API 명세 행 생성의 제목 필드](knowledge/tooling/notion-mcp.md)
+- [Notion 테스트 시나리오 작성 프롬프트](knowledge/tooling/notion-test-scenario-prompt.md)
 - [서버 인프라 구성의 근거와 제약](knowledge/infra/server-configuration.md)
-- [R2 서명 URL·비공개 접근·30일 삭제 규칙 검증](knowledge/infra/r2-storage-verification.md)
+- [운영 Flyway 마이그레이션 자동화와 버전 중복 검사 (426)](knowledge/infra/ops-flyway-auto-migration.md)
+- [R2 서명 URL·비공개 접근·30일 삭제 규칙·CORS 정책 검증](knowledge/infra/r2-storage-verification.md)
 - [운영 DB·설정 백업 현황과 보관 권고](knowledge/infra/backup-restore-assessment.md)
 - [Mattermost 서버 점검 중계의 선택과 제약](knowledge/infra/mattermost-server-inspection.md)
 - [MyBatis·Flyway 초기 구성과 검증](knowledge/backend/mybatis-flyway-bootstrap.md)
@@ -97,11 +107,16 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [정간보 쉽게 읽기의 박·음높이 듣기 (439)](plans/S15P31E102-439.md)
+
+- [마이페이지 프로필·학습 진도·계정 UI 개편 (438)](plans/S15P31E102-438.md)
+- [연습곡 선택 화면 단계 필터 (436)](plans/S15P31E102-436.md)
 - [기본음·시김새 녹음 선택과 앱 내부 재생](knowledge/frontend/reference-audio-playback.md) · [367 계획](plans/S15P31E102-367.md)
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
+- [회원 악기 선택·인증 실패 복구와 곡 목록 자동 연결](knowledge/frontend/member-instrument-selection.md)
 - [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)
 - [Android 연두 디자인·회원 API와 Play release 준비·검증 한계](knowledge/frontend/android-play-release-readiness.md)
 - [Compose Web의 한글·율명 글꼴](knowledge/frontend/web-korean-fonts.md)
@@ -271,3 +286,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 
 - [S15P31E102-377 Mac 무료 개발 서명과 iPhone API 테스트 실행 환경](plans/S15P31E102-377.md)
 - [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)
+- [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
+- [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)

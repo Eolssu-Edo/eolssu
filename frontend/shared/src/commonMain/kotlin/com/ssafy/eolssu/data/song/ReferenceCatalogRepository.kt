@@ -6,6 +6,8 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.http.Url
+import io.ktor.http.URLBuilder
+import io.ktor.http.encodedPath
 import kotlinx.serialization.Serializable
 
 /** CAT-06~10. 서버의 등록 자료만 반환한다. 학습 순서·운지 구멍 위치를 추정하지 않는다. */
@@ -40,7 +42,8 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
         checkIds(result.items.map { it.fingeringId })
         if (!safeCatalogLink(result.structureImageUrl) || result.items.any {
                 it.instrumentId != instrumentId || !validCatalogId(it.pitchId) ||
-                    (pitchId != null && it.pitchId != pitchId) || !safeCatalogLink(it.imageUrl)
+                    (pitchId != null && it.pitchId != pitchId) || !safeCatalogLink(it.imageUrl) ||
+                    (it.pattern != null && !it.pattern.valid())
             }) throw CatalogUnavailable()
         return result
     }
@@ -72,8 +75,25 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
         val items = response.takeIf { it.status.value == 200 }?.apiResponse<SymbolList>()
             ?.takeIf { it.isSuccess }?.result?.items ?: throw CatalogUnavailable()
         checkIds(items.map { it.symbolId })
-        if (items.any { it.symbol.isBlank() || it.name.isBlank() || !safeCatalogLink(it.imageUrl) }) throw CatalogUnavailable()
-        return items
+        return items.map { item ->
+            if (item.symbol.isBlank() || item.name.isBlank() ||
+                (item.descriptionStatus != null && item.descriptionStatus !in setOf("DOCUMENTED", "EDUCATIONAL", "INFERRED")) ||
+                (item.descriptionStatus != null && item.source.isNullOrBlank())
+            ) throw CatalogUnavailable()
+            val image = item.imageUrl
+            if (image != null && image == "/api/notation-symbols/${item.symbolId}/image") {
+                // Resolve only this item's fixed endpoint against the actual API request origin.
+                val url = URLBuilder(response.call.request.url)
+                if (url.protocol.name !in setOf("http", "https") || url.host.isBlank() || url.user != null || url.password != null) throw CatalogUnavailable()
+                url.encodedPath = image
+                url.parameters.clear()
+                url.fragment = ""
+                item.copy(imageUrl = url.buildString())
+            } else {
+                if (!safeCatalogLink(image)) throw CatalogUnavailable()
+                item
+            }
+        }
     }
 
     private fun checkIds(ids: List<String>) { if (ids.any { !validCatalogId(it) } || ids.distinct().size != ids.size) throw CatalogUnavailable() }
@@ -94,11 +114,29 @@ internal fun safeCatalogLink(value: String?): Boolean = value == null || runCatc
     val hangul: String, val semitone: Int, val description: String? = null, val soundUrl: String? = null)
 @Serializable data class CatalogFingerings(val items: List<CatalogFingering>, val structureImageUrl: String? = null)
 @Serializable data class CatalogFingering(val fingeringId: String, val instrumentId: String, val pitchId: String,
-    val imageUrl: String? = null, val description: String? = null)
+    val imageUrl: String? = null, val description: String? = null, val pattern: CatalogFingeringPattern? = null)
+@Serializable enum class CatalogFingeringBlow { LOW, MID, HIGH }
+@Serializable enum class CatalogFingeringHole { CLOSED, OPEN, HALF, UNKNOWN }
+@Serializable data class CatalogFingeringPattern(
+    val blow: CatalogFingeringBlow,
+    val hanja: String,
+    val name: String,
+    val reading: String,
+    val holes: List<CatalogFingeringHole>,
+    val basic: Boolean,
+    val source: String,
+    val instrumentNote: String,
+    val nominalHwangPitchClass: Int,
+    val verificationStatus: String,
+) {
+    internal fun valid() = holes.size in 5..6 && listOf(hanja, name, reading, source, instrumentNote).all { it.isNotBlank() } &&
+        nominalHwangPitchClass in 0..11 && verificationStatus == "BUILTIN_REFERENCE"
+}
 @Serializable data class CatalogJangdanSummary(val jangdanId: String, val name: String, val defaultBpm: Int,
     val bpmUnit: String, val beatCount: Int, val groupCount: Int)
 @Serializable data class CatalogJangdanDetail(val jangdanId: String, val name: String, val defaultBpm: Int,
     val bpmUnit: String, val pattern: CatalogJangdanPattern, val source: String? = null, val soundUrl: String? = null)
 @Serializable data class CatalogJangdanPattern(val beats: List<String>, val group: List<Int>)
 @Serializable data class CatalogNotationSymbol(val symbolId: String, val symbol: String, val name: String,
-    val description: String, val imageUrl: String? = null)
+    val description: String, val imageUrl: String? = null, val source: String? = null,
+    val descriptionStatus: String? = null, val imageLicense: String? = null)

@@ -3,8 +3,12 @@ package com.ssafy.eolssu.backend.feature.sheet.api
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.sheet.application.CopiedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.CreateUserSheet
+import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
+import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraftUpdate
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.domain.NewUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetJangdan
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetPage
@@ -36,7 +40,7 @@ class UserSheetControllerTests {
     private val pages = mutableListOf<Triple<String?, Int, Int>>()
     private val repository = object : UserSheetRepository {
         override fun findByIdempotencyKey(userId: Long, idempotencyKey: String): UserSheet? = null
-        override fun findJangdan(jangdanId: Long) = SheetJangdan(jangdanId, "JANGDAN_BEAT").takeIf { jangdanId == 3L }
+        override fun findJangdan(jangdanId: Long) = SheetJangdan(jangdanId, "JANGDAN_BEAT", "세마치").takeIf { jangdanId == 3L }
         override fun findSongSource(songId: Long) = null
         override fun find(sheetId: Long, userId: Long) = stored[sheetId]?.takeIf { it.userId == userId }
         override fun insert(sheet: NewUserSheet): Long {
@@ -48,15 +52,22 @@ class UserSheetControllerTests {
             pages += Triple(kind, page, size)
             return SheetPage(stored.values.filter { it.userId == userId }, 21)
         }
+
+        override fun updateScore(update: SheetScoreUpdate): Boolean = error("not used")
+        override fun updateDraft(update: SheetDraftUpdate): Boolean = error("not used")
+        override fun delete(sheetId: Long, userId: Long): Boolean = error("not used")
     }
     private val scores = object : SheetScores {
         override fun copy(scoreJson: String, scoreVersion: Int): CopiedScore? = null
         override fun timeline(scoreJson: String, scoreVersion: Int, noteCount: Int, bpm: Int, bpmUnit: String) = emptyList<Nothing>()
+        override fun prepare(scoreJson: String, scoreVersion: Int): PreparedScore = error("not used")
+        override fun unfilledCellCount(scoreJson: String): Int? = error("not used")
     }
     private val mvc = MockMvcBuilders.standaloneSetup(
         UserSheetController(
             CreateUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC)),
-            GetUserSheets(repository),
+            GetUserSheets(repository, scores),
+            EditUserSheet(repository, scores, Clock.fixed(updatedAt, ZoneOffset.UTC)),
             JsonMapper.builder().build(),
         ),
     ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()

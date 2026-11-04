@@ -1,4 +1,6 @@
 <resources>
+    <string name="reference_audio_loading_list">음원 목록을 불러오고 있어요.</string>
+    <string name="reference_audio_failed_list">음원 목록을 불러오지 못했어요. 다시 시도해 주세요.</string>
     <string name="reference_audio_explanation">주법과 구간을 골라 들어 보세요. 연주 예시는 채점 기준음과 다를 수 있어요.</string>
     <string name="reference_audio_time">%1$s / %2$s</string>
     <string name="reference_audio_progress">재생 위치</string>

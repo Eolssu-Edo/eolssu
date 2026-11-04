@@ -109,11 +109,14 @@ object EolssuDestination {
     fun learnPractice(stage: Int) = "learn/stages/$stage/practice"
 
     // 내 악보 · PDF 올리기 (SONG-03 · UPLOAD-01 · UPLOAD-02)
-    const val MY_SONGS = "my-songs"
+    const val MY_SONGS = "my-songs?sheets={sheets}"
     const val PDF_UPLOAD = "my-songs/pdf"
     const val PDF_PREVIEW = "my-songs/pdf/{uploadId}"
 
     fun pdfPreview(uploadId: String) = "my-songs/pdf/$uploadId"
+
+    /** 연습곡 고르기. [sheets]가 true면 홈 '악보 추가·편집하기'처럼 내 악보 탭부터 보인다. */
+    fun mySongs(sheets: Boolean = false) = if (sheets) "my-songs?sheets=true" else "my-songs"
 }
 
 /**
@@ -128,10 +131,11 @@ fun EolssuNavHost(
     browserBackGuard: BrowserBackGuard? = null,
     // TEMP S15P31E102-309: remove together with the startDestination branch.
     qaSkipConsent: Boolean = false,
+    sessionExpired: Boolean = false,
 ) {
     // 저장소 읽기는 즉시 끝나므로 첫 화면을 그리기 전에 시작 화면을 정한다(홈이 잠깐 보이지 않게).
     val firstRunRepository = koinInject<FirstRunRepository>()
-    val start = remember(qaSkipConsent) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent) }
+    val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
@@ -146,12 +150,19 @@ fun EolssuNavHost(
                             HomeFeature.Fingering -> EolssuDestination.guideFingering()
                             HomeFeature.Reading -> EolssuDestination.guideReading()
                             HomeFeature.Learn -> EolssuDestination.LEARN
-                            HomeFeature.SongSelect -> EolssuDestination.MY_SONGS
+                            HomeFeature.SongSelect -> EolssuDestination.mySongs()
+                            HomeFeature.EditSheets -> EolssuDestination.mySongs(sheets = true)
+                            HomeFeature.Records -> EolssuDestination.records()
                         }
                         route?.let(navController::navigate)
                         route != null
                     },
                     onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
+                    onSessionExpired = {
+                        navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    },
                     startMessage = entry.startNotice(),
                     onStartMessageShown = entry::clearStartNotice,
                 )
@@ -407,8 +418,12 @@ fun EolssuNavHost(
             )
 
             // 내 악보 · PDF 올리기: 연습곡 고르기 → (평가 없는 연습) / PDF 올리기 → 미리보기·저장 → 연습곡 고르기
-            composable(EolssuDestination.MY_SONGS) { entry ->
+            composable(
+                EolssuDestination.MY_SONGS,
+                arguments = listOf(navArgument("sheets") { type = NavType.BoolType; defaultValue = false }),
+            ) { entry ->
                 MySongsRoute(
+                    startOnSheets = entry.savedStateHandle.get<Boolean>("sheets") == true,
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
                     onUploadPdf = { navController.navigate(EolssuDestination.PDF_UPLOAD) },
@@ -438,7 +453,14 @@ fun EolssuNavHost(
         )
     }
     OAuthReturnEffect(navController)
-    LaunchedEffect(navController) { onNavHostReady(navController) }
+    LaunchedEffect(navController) {
+        // Web 연결은 주소를 먼저 적용한 뒤 계속 수집하므로, 끝나기를 기다리지 않는다.
+        launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { onNavHostReady(navController) }
+        if (sessionExpired && shouldRedirectExpiredSession(navController.currentBackStackEntry?.destination?.route))
+            navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+            popUpTo(navController.graph.id) { inclusive = true }
+        }
+    }
 }
 
 /**

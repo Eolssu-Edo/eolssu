@@ -45,7 +45,8 @@ if not log.handlers:
 for _name in ("httpx", "httpcore"):
     logging.getLogger(_name).setLevel(logging.WARNING)
 
-app = FastAPI(title="얼쑤 연주 분석", docs_url=None, redoc_url=None, openapi_url=None)
+# 백엔드만 부르는 내부 API라 문서 화면·JSON 경로는 열지 않는다. 계약은 app.openapi()로 뽑아 본다(README).
+app = FastAPI(title="얼쑤 연주 분석", version=MODEL_VERSION, docs_url=None, redoc_url=None, openapi_url=None)
 
 
 class RecordingTooLong(Exception):
@@ -61,21 +62,23 @@ class _Camel(BaseModel):
 
 
 class NoteIn(_Camel):
-    idx: int = Field(ge=0)
-    semitone: int  # pitches.semitone. 0 = 옥타브 0의 황(E♭4)
+    idx: int = Field(ge=0, description="음표 순번. 응답 notes[].idx로 그대로 돌려준다")
+    semitone: int = Field(description="pitches.semitone. 0 = 옥타브 0의 황(E♭4)")
     # 곡 처음부터 센 시작 박(startTick ÷ ticksPerBeat). 쉼이 있으면 앞 음의 beats보다 더 벌어진다.
-    start_beat: float = Field(ge=0)
-    beats: float = Field(gt=0)
-    sigimsae: bool
+    start_beat: float = Field(ge=0, description="곡 처음부터 센 시작 박. 앞 음이 끝나기 전에 시작할 수 없다")
+    beats: float = Field(gt=0, description="음 길이(박)")
+    sigimsae: bool = Field(description="시김새 음표 여부")
 
 
 class AnalysisIn(_Camel):
-    session_id: int
-    attempt: int = Field(ge=1)
-    audio_url: str = Field(pattern=r"^https?://")
+    session_id: int = Field(description="연습 세션 ID. 로그에만 쓴다")
+    attempt: int = Field(ge=1, description="분석 시도 번호. 로그에만 쓴다")
+    audio_url: str = Field(pattern=r"^https?://", description="녹음 서명 GET URL. 로그·오류 응답에 남기지 않는다")
     bpm: int = Field(gt=0)
-    bpm_unit: Literal["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"]  # 채점은 beats·bpm만 쓴다
-    notes: list[NoteIn] = Field(min_length=1)
+    bpm_unit: Literal["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"] = Field(
+        description="백엔드 계약상 받는 단위. 채점은 beats·bpm만 쓴다"
+    )
+    notes: list[NoteIn] = Field(min_length=1, description="채점 구간의 음표. startBeat 순서")
 
     @field_validator("notes")
     @classmethod
@@ -83,6 +86,48 @@ class AnalysisIn(_Camel):
         if any(b.start_beat < a.start_beat + a.beats - 1e-9 for a, b in zip(notes, notes[1:])):
             raise ValueError("startBeat must not start before the previous note ends")
         return notes
+
+
+# 아래 응답 모델은 OpenAPI 문서용이다. 실제 응답은 _response()의 dict이며 테스트로 두 모양을 맞춘다.
+class NoteOut(_Camel):
+    idx: int = Field(description="요청 음표의 idx")
+    verdict: Literal["CORRECT", "PITCH", "TIMING", "MISSED"]
+    pitch_error_cent: float | None = Field(description="음높이 오차(cent). MISSED면 null")
+    onset_error_ms: float | None = Field(description="시작 시각 오차(ms). MISSED면 null")
+    duration_error_ms: float | None = Field(description="길이 오차(ms). MISSED면 null")
+
+
+class AnalysisDone(_Camel):
+    status: Literal["DONE"]
+    model_version: str = Field(description="evaluations.model_version(30자 이하)")
+    total: int = Field(description="종합 점수 0~100")
+    pitch: int = Field(description="음높이 점수 0~100")
+    timing: int = Field(description="박자 점수 0~100")
+    duration: int = Field(description="길이 점수 0~100")
+    tuning_offset_cent: float = Field(description="곡별 조율 보정값(cent)")
+    tuning_out_of_range: bool = Field(description="조율 보정이 상한을 넘었는지")
+    notes: list[NoteOut] = Field(description="요청 음표별 판정. 요청 idx 순서")
+
+
+class AnalysisFailed(_Camel):
+    status: Literal["FAILED"]
+    fail_reason: Literal["NO_SOUND", "TOO_SHORT", "DECODE_ERROR"] = Field(description="녹음 탓의 분석 실패 사유")
+
+
+class InvalidField(BaseModel):
+    loc: list[str | int] = Field(description="오류 위치. 입력값은 돌려주지 않는다")
+    type: str = Field(description="pydantic 오류 종류")
+
+
+class InvalidRequest(BaseModel):
+    errors: list[InvalidField]
+
+
+class AnalysisError(BaseModel):
+    error: Literal["DOWNLOAD_FAILED", "ANALYSIS_ERROR"]
+
+
+AnalysisResult = Annotated[AnalysisDone | AnalysisFailed, Field(discriminator="status")]
 
 
 def download(url: str, dest: Path) -> None:
@@ -108,7 +153,24 @@ def get_fetcher() -> Callable[[str, Path], None]:
     return download
 
 
-@app.post("/v1/analyses", response_model=None)
+@app.post(
+    "/v1/analyses",
+    response_model=None,
+    operation_id="analyzeRecording",
+    summary="녹음 분석·채점",
+    description=(
+        "백엔드 전용 내부 API(PRA-03). audioUrl의 녹음을 받아(전체 30초·25MiB) 16kHz 모노로 디코딩하고 "
+        "pYIN 음높이 추정·DTW 정렬로 음표별 채점한 결과를 같은 응답으로 돌려준다. "
+        "녹음 탓의 실패도 200 FAILED이며, 다운로드 실패는 502, 그 밖의 오류·DTW 메모리 한도 초과는 500이다. "
+        "DB를 읽지 않고, 서명 URL은 로그·오류 응답에 남기지 않는다."
+    ),
+    responses={
+        200: {"model": AnalysisResult, "description": "분석 완료(DONE) 또는 녹음 탓 실패(FAILED)"},
+        422: {"model": InvalidRequest, "description": "요청 형식 오류. 위치·종류만 돌려준다"},
+        500: {"model": AnalysisError, "description": "ANALYSIS_ERROR: 예상하지 못한 오류 또는 DTW 메모리 한도 초과"},
+        502: {"model": AnalysisError, "description": "DOWNLOAD_FAILED: 녹음을 내려받지 못함"},
+    },
+)
 def analyze(
     request: AnalysisIn, fetch: Annotated[Callable[[str, Path], None], Depends(get_fetcher)]
 ) -> dict | JSONResponse:
