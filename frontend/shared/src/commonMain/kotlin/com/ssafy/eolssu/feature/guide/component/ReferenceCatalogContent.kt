@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.ssafy.eolssu.core.audio.AudioPlaybackState
+import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -81,8 +83,17 @@ internal fun FingeringCatalogDialog(state: FingeringUiState, onRetry: () -> Unit
 }
 
 @Composable
-internal fun ReadingCatalogDialog(state: ReadingCatalogUiState, onJangdansRetry: () -> Unit, onSymbolsRetry: () -> Unit,
-    onSelectJangdan: (String) -> Unit, onDetailRetry: () -> Unit, onClose: () -> Unit) {
+internal fun ReadingCatalogDialog(
+    state: ReadingCatalogUiState,
+    playback: AudioPlaybackState,
+    playbackAvailable: Boolean,
+    onPlayJangdan: (String) -> Unit,
+    onJangdansRetry: () -> Unit,
+    onSymbolsRetry: () -> Unit,
+    onSelectJangdan: (String) -> Unit,
+    onDetailRetry: () -> Unit,
+    onClose: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text(stringResource(Res.string.guide_catalog_title)) },
@@ -92,8 +103,7 @@ internal fun ReadingCatalogDialog(state: ReadingCatalogUiState, onJangdansRetry:
                 CatalogStatus(state.jangdansState, empty = state.jangdans.isEmpty(), onRetry = onJangdansRetry)
                 state.jangdans.forEach { jangdan ->
                     EolssuButton(jangdan.name, { onSelectJangdan(jangdan.jangdanId) }, style = EolssuButtonStyle.Secondary)
-                }
-                if (state.selectedJangdanId != null) {
+                    if (state.selectedJangdanId != jangdan.jangdanId) return@forEach
                     CatalogStatus(state.detailState, onRetry = onDetailRetry)
                     state.detail?.let { detail ->
                         Text(detail.name, style = MaterialTheme.typography.titleMedium)
@@ -102,7 +112,26 @@ internal fun ReadingCatalogDialog(state: ReadingCatalogUiState, onJangdansRetry:
                         GuideText(detail.pattern.beats.joinToString(" · "))
                         Text(stringResource(Res.string.guide_catalog_groups, detail.pattern.group.joinToString(" + ")))
                         detail.source?.takeIf { it.isNotBlank() }?.let { GuideText(it, style = MaterialTheme.typography.bodySmall) }
-                        CatalogLink(detail.soundUrl, stringResource(Res.string.guide_catalog_open_sound))
+                        when {
+                            detail.soundUrl == null -> GuideText(stringResource(Res.string.guide_catalog_no_jangdan_sound))
+                            !playbackAvailable -> GuideText(stringResource(Res.string.reference_audio_unavailable))
+                            else -> {
+                                val status = playback.status.takeIf { playback.sourceId == detail.jangdanId }
+                                val label = when (status) {
+                                    AudioPlaybackStatus.Loading -> Res.string.reference_audio_cancel
+                                    AudioPlaybackStatus.Playing -> Res.string.guide_catalog_stop_sound
+                                    AudioPlaybackStatus.Completed -> Res.string.reference_audio_replay
+                                    else -> Res.string.reference_audio_play
+                                }
+                                EolssuButton(stringResource(label), { onPlayJangdan(detail.jangdanId) }, style = EolssuButtonStyle.Secondary)
+                                when (status) {
+                                    AudioPlaybackStatus.Loading -> GuideText(stringResource(Res.string.reference_audio_loading_sound))
+                                    AudioPlaybackStatus.Failed -> GuideText(stringResource(Res.string.reference_audio_failed_sound))
+                                    AudioPlaybackStatus.Interrupted -> GuideText(stringResource(Res.string.reference_audio_interrupted))
+                                    else -> Unit
+                                }
+                            }
+                        }
                     }
                 }
                 Text(stringResource(Res.string.guide_catalog_symbols), Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleMedium)
