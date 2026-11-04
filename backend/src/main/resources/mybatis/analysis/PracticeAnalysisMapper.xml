@@ -40,12 +40,12 @@
         VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion}, #{tuningOffsetCent}, #{tuningOutOfRange})
     </insert>
 
-    <!-- AI는 인식한 음을 주지 않아 detected_pitch_id는 비운다 -->
+    <!-- 인식 음·녹음 위치를 주지 않는 이전 AI 응답이면 두 칸은 NULL이다 -->
     <insert id="insertNoteResults">
-        INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict)
+        INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict, recording_offset_ms)
         VALUES
         <foreach collection="notes" item="n" separator=",">
-            (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, NULL, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict})
+            (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, #{n.detectedPitchId}, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict}, #{n.recordingOffsetMs})
         </foreach>
     </insert>
 

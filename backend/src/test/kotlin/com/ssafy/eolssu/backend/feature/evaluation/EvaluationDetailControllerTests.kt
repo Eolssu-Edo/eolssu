@@ -26,7 +26,7 @@ class EvaluationDetailControllerTests {
             PracticeEvaluationSnapshot(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,70,60,80,70,time,2876,1,4) else null
         override fun notes(evaluationId: Long) = listOf(
             PracticeEvaluationNote(1,"CORRECT",3,10,-5,7,7),
-            PracticeEvaluationNote(2,"PITCH",40,120,-80,12,13),
+            PracticeEvaluationNote(2,"PITCH",40,120,-80,12,13,1520),
             PracticeEvaluationNote(3,"MISSED",null,null,null,12,null),
             PracticeEvaluationNote(4,"TIMING",0,200,10,9,9),
         )
@@ -51,7 +51,9 @@ class EvaluationDetailControllerTests {
             .andExpect(jsonPath("$.result.items[1].pitchErrorCent").value(40))
             .andExpect(jsonPath("$.result.items[1].errorTypes[0]").value("PITCH"))
             .andExpect(jsonPath("$.result.items[0].errorTypes.length()").value(0))
+            .andExpect(jsonPath("$.result.items[1].recordingOffsetMs").value(1520))
             .andExpect(jsonPath("$.result.items[2].detectedPitchId").doesNotExist())
+            .andExpect(jsonPath("$.result.items[2].recordingOffsetMs").doesNotExist())
             .andExpect(jsonPath("$.result.errorCount").value(3))
             .andExpect(jsonPath("$.result.errorCounts.pitch").value(1))
             .andExpect(jsonPath("$.result.errorCounts.timing").value(1))

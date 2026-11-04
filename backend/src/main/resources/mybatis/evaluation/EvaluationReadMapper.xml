@@ -9,7 +9,7 @@
         WHERE s.id=#{sessionId} AND s.user_id=#{userId} AND s.record_deleted_at IS NULL
     </select>
     <select id="notes" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow">
-        SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict
+        SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict,recording_offset_ms
         FROM note_results WHERE evaluation_id=#{evaluationId} ORDER BY note_idx
     </select>
     <select id="score" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationScoreRow">

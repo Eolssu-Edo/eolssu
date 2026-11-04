@@ -45,8 +45,8 @@ class EvaluationDetailApiDatabaseTests {
         jdbc.update("UPDATE practice_sessions SET status='DONE',ended_at=CURRENT_TIMESTAMP WHERE id=991307")
         jdbc.update("INSERT INTO evaluations(id,session_id,total_score,pitch_score,timing_score,duration_score,model_version,evaluated_at) VALUES(991307,991307,40,40,40,40,'test',CURRENT_TIMESTAMP)")
         for ((idx, verdict) in listOf(19 to "PITCH", 16 to "PITCH", 17 to "TIMING", 18 to "MISSED"))
-            jdbc.update("INSERT INTO note_results(evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,verdict) VALUES(991307,?,1,?,?,?)",
-                idx, if (verdict == "MISSED") null else 1, if (verdict == "MISSED") null else 30, verdict)
+            jdbc.update("INSERT INTO note_results(evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,verdict,recording_offset_ms) VALUES(991307,?,1,?,?,?,?)",
+                idx, if (verdict == "MISSED") null else 1, if (verdict == "MISSED") null else 30, verdict, if (verdict == "MISSED") null else idx * 500)
 
         val notes=result(get(991307,"evaluation/notes"))
         assertEquals("991307",notes.path("evaluationId").asText())
@@ -54,6 +54,9 @@ class EvaluationDetailApiDatabaseTests {
         assertEquals("1",notes.path("items").path(0).path("expectedPitchId").asText())
         assertEquals(30,notes.path("items").path(0).path("pitchErrorCent").asInt())
         assertEquals(true,notes.path("items").path(2).path("detectedPitchId").isNull)
+        assertEquals("1",notes.path("items").path(0).path("detectedPitchId").asText())
+        assertEquals(8000,notes.path("items").path(0).path("recordingOffsetMs").asInt())
+        assertEquals(true,notes.path("items").path(2).path("recordingOffsetMs").isNull)
         assertEquals(4,notes.path("errorCount").asInt())
         assertEquals(listOf(2,1,0,1),listOf("pitch","timing","duration","missed").map { notes.path("errorCounts").path(it).asInt() })
         val ranged=result(get(991307,"evaluation/notes?startNoteIdx=18&endNoteIdx=19&errorsOnly=true"))

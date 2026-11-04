@@ -94,4 +94,6 @@ data class NewNoteResult(
     val onsetErrorMs: Int?,
     val durationErrorMs: Int?,
     val verdict: String,
+    val detectedPitchId: Long? = null,
+    val recordingOffsetMs: Int? = null,
 )

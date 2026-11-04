@@ -5,21 +5,13 @@ import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
 
-internal fun referenceAudioTime(positionMs: Long): String {
-    val tenths = positionMs.coerceAtLeast(0) / 100
-    val seconds = (tenths / 10 % 60).toString().padStart(2, '0')
-    return "${tenths / 600}:$seconds.${tenths % 10}"
-}
-
+/** 같은 예시음을 다시 누르면 멈추고, 그 밖에는 처음부터 새로 재생한다. */
 internal fun toggleReferenceAudio(player: AudioPlayer, clip: ReferenceAudioClip) {
     val current = player.state.value
-    if (current.sourceId == clip.assetId) {
-        when (current.status) {
-            AudioPlaybackStatus.Playing -> { player.pause(); return }
-            AudioPlaybackStatus.Paused -> { player.resume(1f); return }
-            AudioPlaybackStatus.Loading -> { player.stop(); return }
-            else -> Unit
-        }
+    if (current.sourceId == clip.assetId && current.status in setOf(
+            AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing, AudioPlaybackStatus.Paused)) {
+        player.stop()
+        return
     }
     // A different clip, replay or retry starts a fresh /play request, never a cached signed URL.
     player.load(AudioSource(clip.assetId, clip.soundUrl), 0, 1f)

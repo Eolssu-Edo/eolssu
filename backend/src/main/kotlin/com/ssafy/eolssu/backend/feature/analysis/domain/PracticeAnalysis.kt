@@ -43,12 +43,18 @@ data class AnalysisRequest(
 
 enum class NoteVerdict { CORRECT, PITCH, TIMING, MISSED }
 
+/**
+ * `detectedSemitone`은 조율 보정을 적용한 뒤 가장 가까운 반음(`pitches.semitone` 기준)이고,
+ * `recordingOffsetMs`는 업로드 원본 녹음의 재생 0ms부터 잰 음표 시작 시각이다. 모르는 AI 응답이거나 `MISSED`면 null이다.
+ */
 data class NoteJudgement(
     val idx: Int,
     val verdict: NoteVerdict,
     val pitchErrorCent: Double?,
     val onsetErrorMs: Int?,
     val durationErrorMs: Int?,
+    val detectedSemitone: Int? = null,
+    val recordingOffsetMs: Int? = null,
 )
 
 /** AI가 돌려주는 실패 사유. 시간 초과·연결 실패는 백엔드가 정한다(S15P31E102-174). */
