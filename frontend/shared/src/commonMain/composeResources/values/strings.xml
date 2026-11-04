@@ -66,7 +66,7 @@
     <string name="practice_mode_recording">연주 중</string>
     <string name="practice_mode_interrupted">연주 중단</string>
     <string name="practice_settings">연습 설정</string>
-    <string name="practice_settings_locked">연주 중에는 설정을 바꿀 수 없어요</string>
+    <string name="practice_settings_locked">연주 중에는 바꿀 수 없어요</string>
     <string name="practice_follow_now">현재 위치로</string>
     <string name="practice_hint_ready">모범 연주를 듣고 준비되면 시작하세요.</string>
     <string name="practice_recording_unsupported">현재 환경에서는 녹음과 연주 평가를 지원하지 않아요. 악보를 보며 연습할 수 있어요.</string>
@@ -197,17 +197,6 @@
     <string name="practice_finger_gak">%1$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
-    <string name="practice_finger_next_same">같은 %1$d각 · %2$d정간부터 이어서</string>
-    <string name="practice_finger_next_other">다음 %1$d각 · %2$d정간부터 이어서</string>
-    <string name="practice_finger_next_end">마지막 정간까지 이어서</string>
-    <string name="practice_finger_end_note">마지막 음까지 자리를 유지해요.</string>
-    <string name="practice_finger_page_count">%1$d / %2$d 페이지 · 현재 %3$d정간</string>
-    <string name="practice_finger_preview">다음 페이지 정간 미리보기</string>
-    <string name="practice_finger_jeonggan">%1$d정간</string>
-    <string name="practice_page_prev">‹ 이전</string>
-    <string name="practice_page_next">다음 ›</string>
-    <string name="practice_page_prev_desc">이전 악보 페이지</string>
-    <string name="practice_page_next_desc">다음 악보 페이지</string>
     <string name="practice_upcoming">← 다음</string>
     <string name="score_column_head">%1$d각</string>
     <string name="score_column_head_start">시작 · %1$d각</string>
@@ -749,7 +738,7 @@
     <string name="practice_dock_song_info">곡 정보</string>
     <string name="practice_dock_info">%1$s · %2$d BPM · %3$s</string>
     <string name="practice_dock_hint">악보의 음을 누르면 그 음의 운지법이 이 자리에 열려요.</string>
-    <string name="practice_dock_locked">연주 중에는 설정을 바꿀 수 없어요.</string>
+    <string name="practice_dock_locked">연주 중에는 장단과 속도를 바꿀 수 없어요.</string>
     <string name="result_filter_all">전체 %1$d</string>
     <string name="result_filter_pitch">음정 %1$d</string>
     <string name="result_filter_rhythm">박자 %1$d</string>

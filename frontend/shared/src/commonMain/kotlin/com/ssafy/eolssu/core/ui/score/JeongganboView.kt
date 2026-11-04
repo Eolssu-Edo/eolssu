@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.score
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,11 +26,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,9 +46,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -75,8 +78,10 @@ import eolssu.shared.generated.resources.score_column_start
 import eolssu.shared.generated.resources.score_hold
 import eolssu.shared.generated.resources.score_rest
 import eolssu.shared.generated.resources.score_rest_hangul
+import kotlinx.coroutines.flow.collectLatest
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.TimeMark
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /**
  * 율명 옆에 작게 붙이는 보조 표기. 율명은 항상 가장 크게 그린다.
@@ -89,13 +94,46 @@ data class ScoreNotation(val showHangul: Boolean = false, val showSolfege: Boole
 /** 현재 위치 강조 색. 평소·모범 연주는 [Position](노랑·파랑), 녹음 중은 [Recording](빨강)이다. */
 enum class ScoreHighlight { Position, Recording }
 
-/**
- * 재생·연주 중 진행. 현재 음([currentIndex])이 [startedAt]부터 [durationMs] 동안 진행되고,
- * 멈춰 있으면([startedAt]이 null) [pausedFraction]만큼 지난 모습으로 그린다.
- * 지나간 정간은 회색 바탕, 현재 정간은 지난 만큼 위에서부터 채우고 진행 선을 긋는다.
- */
+/** 진행 위치: 연주 순서 [index]인 음에서 [fraction]만큼 지난 곳. */
 @Immutable
-data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val pausedFraction: Float = 0f)
+data class ScoreCursor(val index: Int, val fraction: Float)
+
+/**
+ * 재생·연주 중 진행. [at]은 지금 위치를 돌려주며, [running]이면 매 프레임 다시 물어 이어 그리고 멈춰 있으면 그 자리에 둔다.
+ * 지나간 정간은 회색 바탕, 현재 정간은 테두리로 표시한다.
+ */
+class ScorePlayback(val running: Boolean, val at: () -> ScoreCursor)
+
+/** [rememberScoreCursor]가 따라가는 현재 위치. 음 순서와 지난 비율을 한 번에 바꿔, 음이 바뀌는 순간에도 둘이 어긋나지 않는다. */
+@Stable
+class ScoreCursorState internal constructor(initial: ScoreCursor?) {
+    /** 현재 음의 연주 순서. 화면 구성에서 읽는다. */
+    var index: Int? by mutableStateOf(initial?.index)
+        private set
+
+    /** 현재 음 안에서 지난 비율. 매 프레임 바뀌므로 그리기 단계나 [derivedStateOf]에서만 읽는다. */
+    var fraction: Float by mutableFloatStateOf(initial?.fraction ?: 0f)
+        private set
+
+    internal fun set(cursor: ScoreCursor?) {
+        index = cursor?.index
+        fraction = cursor?.fraction ?: 0f
+    }
+}
+
+/** [playback]을 따라가는 현재 위치. 재생·연주 중에는 매 프레임 [ScorePlayback.at]으로 갱신한다. */
+@Composable
+fun rememberScoreCursor(playback: ScorePlayback?): ScoreCursorState {
+    val cursor = remember { ScoreCursorState(playback?.at()) }
+    val latest = rememberUpdatedState(playback)
+    LaunchedEffect(cursor) {
+        snapshotFlow { latest.value }.collectLatest { p ->
+            cursor.set(p?.at())
+            if (p?.running == true) while (true) withFrameNanos { cursor.set(p.at()) }
+        }
+    }
+    return cursor
+}
 
 /**
  * 정간보. 각 0을 가장 오른쪽에 두고 다음 각을 왼쪽에 놓아, 위 → 아래, 오른쪽 → 왼쪽으로 읽는다.
@@ -103,7 +141,7 @@ data class ScorePlayback(val startedAt: TimeMark?, val durationMs: Double, val p
  *
  * @param scrollState 가로 스크롤 상태. 처음에는 오른쪽 끝(시작 각)이 보인다. null이면 스크롤 없이 넘치는 왼쪽을 자른다(미리보기).
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
- * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다.
+ * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다. 이때 현재 음은 [currentIndex] 대신 진행 위치에서 읽는다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
  * @param errors 틀린 정간(각, 정간) → 틀린 항목. 정간을 색칠하고 오른쪽 위에 종류 글자(음·박·길)를 붙인다.
  * @param selectedIndex 사용자가 고른 음의 연주 순서. 정간에 검은 테두리를 그린다.
@@ -156,38 +194,35 @@ fun JeongganboView(
     }
     val solfege = song.solfege.takeIf { notation.showSolfege }
 
-    // 채우기는 그리기 단계에서, 따라가기는 표시 자리 경계를 넘을 때만 갱신한다.
-    val fraction = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(playback) {
-        val p = playback ?: run { fraction.floatValue = 0f; return@LaunchedEffect }
-        val started = p.startedAt
-        if (started == null) {
-            fraction.floatValue = p.pausedFraction
-            return@LaunchedEffect
-        }
-        while (true) {
-            withFrameNanos {
-                fraction.floatValue = (started.elapsedNow().inWholeMicroseconds / 1000.0 / p.durationMs).toFloat().coerceIn(0f, 1f)
-            }
-        }
-    }
-
-    val currentUnit by remember(song, currentIndex) {
-        derivedStateOf { currentIndex?.let { song.displayUnitAt(it, fraction.floatValue) } }
+    // 재생·연주 중에는 현재 음도 진행 위치에서 함께 읽는다. 채우기와 가로 따라가기는 매 프레임, 화면 구성은 음이 바뀔 때만 갱신한다.
+    val live = playback != null
+    val cursor = rememberScoreCursor(playback)
+    val shownIndex = if (live) cursor.index ?: currentIndex else currentIndex
+    val currentUnit by remember(song, shownIndex, live) {
+        derivedStateOf { shownIndex?.let { song.displayUnitAt(it, if (live) cursor.fraction else 0f) } }
     }
     // 보드 `.ms-col.upcoming`: 연주 중 각의 마지막 정간에서 10% 넘게 지나면 다음 각 머리를 강조한다.
-    val upcomingColumn by remember(song, playback != null, look.upcomingMark) {
+    val upcomingColumn by remember(song, live, look.upcomingMark) {
         derivedStateOf {
             val unit = currentUnit
-            if (!look.upcomingMark || playback == null || unit == null) return@derivedStateOf null
+            if (!look.upcomingMark || !live || unit == null) return@derivedStateOf null
             val lastRow = song.score.columns[unit.column].size - 1
-            if (unit.row == lastRow && fraction.floatValue >= 0.1f && unit.column + 1 < song.score.columns.size) unit.column + 1 else null
+            if (unit.row == lastRow && cursor.fraction >= 0.1f && unit.column + 1 < song.score.columns.size) unit.column + 1 else null
         }
     }
 
     if (scrollState != null) {
-        FollowCurrentStrip(scrollState, strips, currentUnit, follow, renderMetrics, onUserScroll)
+        FollowPlayhead(
+            scrollState = scrollState,
+            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction) } },
+            follow = follow,
+            metrics = renderMetrics,
+            onUserScroll = onUserScroll,
+        )
     }
+
+    // 노래방처럼 지금 연주하는 표시 자리의 글자를 붉게 한다. 음(표시 자리)이 바뀔 때만 다시 그린다.
+    val playingKey = if (live) currentUnit?.key else null
 
     val rowModifier = if (scrollState != null) {
         Modifier.horizontalScroll(scrollState, reverseScrolling = true)
@@ -223,11 +258,11 @@ fun JeongganboView(
                         isDaegangStart = row in starts,
                         notation = notation,
                         solfege = solfege,
-                        currentIndex = currentIndex,
-                        currentEvent = currentIndex?.let { song.timeline.getOrNull(it) },
+                        currentIndex = shownIndex,
+                        currentEvent = shownIndex?.let { song.timeline.getOrNull(it) },
                         highlight = highlight,
-                        live = playback != null,
-                        fraction = { fraction.floatValue },
+                        live = live,
+                        fraction = { cursor.fraction },
                         error = errors[strip.column to row],
                         dimmed = dimUnmarked && (strip.column to row) !in errors,
                         selectedIndex = selectedIndex,
@@ -235,6 +270,7 @@ fun JeongganboView(
                         onEventClick = onEventClick,
                         onUnitClick = onUnitClick,
                         annotations = annotations,
+                        playingKey = playingKey,
                     )
                 }
             }
@@ -242,12 +278,36 @@ fun JeongganboView(
     }
 }
 
-/** 현재 음이 든 줄이 화면 밖이면 가운데로 옮긴다. 사용자가 끌면 따라가기를 멈추도록 알린다. */
-@Composable
-private fun FollowCurrentStrip(
-    scrollState: ScrollState,
+/**
+ * 진행 위치를 줄 단위로 센 값. 정수부는 [strips]에서의 줄 번호(오른쪽부터), 소수부는 그 줄의 정간 가운데 지난 몫이다.
+ * 정간 안에서도 지난 만큼 늘어나 가로 따라가기가 끊기지 않는다.
+ */
+internal fun playheadStrip(
+    song: Song,
     strips: List<ScoreStrip>,
-    currentUnit: ScoreDisplayUnit?,
+    unitsByCell: Map<Pair<Int, Int>, List<ScoreDisplayUnit>>,
+    index: Int,
+    fraction: Float,
+): Double? {
+    val event = song.timeline.getOrNull(index) ?: return null
+    val unit = song.displayUnitAt(index, fraction) ?: return null
+    val stripIndex = strips.indexOfFirst { it.column == unit.column && unit.row in it.rows }
+    if (stripIndex < 0) return null
+    val strip = strips[stripIndex]
+    val cellStart = unitsByCell[unit.column to unit.row]?.minOfOrNull { it.unitStart } ?: unit.unitStart
+    val inCell = (event.unitStart + event.unitDuration * fraction - cellStart).coerceIn(0.0, 1.0)
+    return stripIndex + (unit.row - strip.rows.first + inCell) / strip.rows.count()
+}
+
+/**
+ * 재생·연주 중 악보를 가로로 따라간다. 한 줄을 연주하는 동안은 악보를 멈춰 두고, 다음 줄로 넘어가면 그 줄의 오른쪽 끝이
+ * 화면 오른쪽에서 1/3 지점에 오도록 짧게([FollowStepMillis]) 넘긴다. 곡 처음과 끝에서는 악보 끝을 넘지 않는다.
+ * 사용자가 끌면 따라가기를 멈추도록 알린다.
+ */
+@Composable
+private fun FollowPlayhead(
+    scrollState: ScrollState,
+    playheadStrip: () -> Double?,
     follow: Boolean,
     metrics: JeongganboMetrics,
     onUserScroll: () -> Unit,
@@ -257,22 +317,23 @@ private fun FollowCurrentStrip(
     LaunchedEffect(scrollState) {
         scrollState.interactionSource.interactions.collect { if (it is DragInteraction.Start) latestOnUserScroll() }
     }
-    val stripIndex = currentUnit?.let { e -> strips.indexOfFirst { it.column == e.column && e.row in it.rows } } ?: -1
-    LaunchedEffect(stripIndex, follow, scrollState.viewportSize) {
-        if (!follow || stripIndex < 0 || scrollState.viewportSize == 0) return@LaunchedEffect
-        with(density) {
-            val step = (metrics.columnWidth + metrics.columnGap).toPx()
-            val right = 2.dp.toPx() + stripIndex * step
-            val width = metrics.columnWidth.toPx()
-            val viewport = scrollState.viewportSize
-            val visible = right >= scrollState.value && right + width <= scrollState.value + viewport
-            if (!visible) {
-                val target = (right - (viewport - width) / 2).toInt().coerceIn(0, scrollState.maxValue)
-                scrollState.animateScrollTo(target)
+    val target by rememberUpdatedState {
+        playheadStrip()?.let { strip ->
+            with(density) {
+                val x = 2.dp.toPx() + floor(strip).toFloat() * (metrics.columnWidth + metrics.columnGap).toPx()
+                (x - scrollState.viewportSize / 3f).roundToInt().coerceIn(0, scrollState.maxValue)
             }
         }
     }
+    LaunchedEffect(follow, scrollState.viewportSize) {
+        if (!follow || scrollState.viewportSize == 0) return@LaunchedEffect
+        // 진행은 매 프레임 바뀌어도 넘길 자리는 줄이 바뀔 때만 바뀐다.
+        snapshotFlow { target() }.collectLatest { if (it != null) scrollState.animateScrollTo(it, tween(FollowStepMillis)) }
+    }
 }
+
+/** 다음 줄로 넘길 때 걸리는 시간. */
+private const val FollowStepMillis = 300
 
 /** 세로 줄 하나. 각의 첫 줄에는 각 번호 머리 칸을 두고, 이어지는 줄은 머리 칸 높이만큼 내려 정간 높이를 맞춘다. */
 @Composable
@@ -408,6 +469,7 @@ private fun ScoreCellBox(
     onUnitClick: ((ScoreDisplayUnit) -> Unit)?,
     dimmed: Boolean = false,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
+    playingKey: ScoreUnitKey? = null,
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
@@ -424,11 +486,6 @@ private fun ScoreCellBox(
         ScoreHighlight.Position -> (if (look.soft) colors.accentTint else colors.accentSoft) to colors.accent
         ScoreHighlight.Recording -> colors.recSoft to colors.rec
     }
-    val headColor = when {
-        board -> colors.rec
-        highlight == ScoreHighlight.Recording -> colors.rec
-        else -> colors.play
-    }
     val lineColor = when {
         isDaegangStart && board -> colors.text
         isDaegangStart -> colors.lineStrong
@@ -442,51 +499,29 @@ private fun ScoreCellBox(
 
     var cellModifier = Modifier.fillMaxWidth().height(metrics.cellHeight)
     if (dimmed && !isSelected) cellModifier = cellModifier.alpha(0.55f)
-    if (!board) {
-        cellModifier = when {
-            live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
-            live -> cellModifier
-            progress == CellProgress.Past -> cellModifier.alpha(0.5f)
-            progress == CellProgress.Current -> cellModifier.background(fill)
-            else -> cellModifier
-        }
+    // 재생·연주 중에는 모양과 관계없이 지나간 정간에 옅은 바탕을 깔아 어디까지 왔는지 보이게 한다.
+    cellModifier = when {
+        live && progress == CellProgress.Past -> cellModifier.background(colors.doneSoft)
+        live || board -> cellModifier
+        progress == CellProgress.Past -> cellModifier.alpha(0.5f)
+        progress == CellProgress.Current -> cellModifier.background(fill)
+        else -> cellModifier
     }
     if (live && progress == CellProgress.Current && currentEvent != null) {
-        // 현재 정간: 정간 안에서 지난 만큼(나눈 음이면 앞 음 몫 포함) 위에서부터 채우고 그 자리에 진행 선을 긋는다.
-        // 보드 모양은 채우지 않고 붉은 진행 선만 긋는다(`.score-playhead`).
-        cellModifier = cellModifier.drawWithContent {
+        // 현재 정간은 노래방처럼 지난 만큼 위에서부터(가로로 나뉜 줄은 왼쪽부터) 같은 바탕으로 일정하게 채운다.
+        cellModifier = cellModifier.drawBehind {
             val cellFraction = (currentEvent.unitStart + currentEvent.unitDuration * fraction() - cellStart).toFloat().coerceIn(0f, 1f)
             val rowProgress = cellFraction * rows.size
             val activeRow = rowProgress.toInt().coerceAtMost(rows.lastIndex)
             val rowFraction = (rowProgress - activeRow).coerceIn(0f, 1f)
             val rowHeight = size.height / rows.size
-            val y = rowHeight * (activeRow + rowFraction)
-            val splitHorizontally = rows[activeRow].size > 1
             val top = rowHeight * activeRow
-            if (!board) {
-                drawRect(colors.doneSoft, size = Size(size.width, if (splitHorizontally) top else y))
-                if (splitHorizontally) drawRect(colors.doneSoft, topLeft = Offset(0f, top), size = Size(size.width * rowFraction, rowHeight))
+            if (rows[activeRow].size > 1) {
+                drawRect(colors.doneSoft, size = Size(size.width, top))
+                drawRect(colors.doneSoft, topLeft = Offset(0f, top), size = Size(size.width * rowFraction, rowHeight))
+            } else {
+                drawRect(colors.doneSoft, size = Size(size.width, top + rowHeight * rowFraction))
             }
-            drawContent()
-            if (splitHorizontally) {
-                val x = size.width * rowFraction
-                drawLine(headColor, Offset(x, top), Offset(x, top + rowHeight), strokeWidth = 2.5.dp.toPx())
-                return@drawWithContent
-            }
-            val band = 14.dp.toPx().coerceAtMost(y)
-            drawRect(
-                Brush.verticalGradient(listOf(Color.Transparent, headColor.copy(alpha = 0.16f)), startY = y - band, endY = y),
-                topLeft = Offset(0f, y - band),
-                size = Size(size.width, band),
-            )
-            drawLine(headColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 2.5.dp.toPx())
-            val tri = Path().apply {
-                moveTo(size.width, y - 4.dp.toPx())
-                lineTo(size.width - 5.dp.toPx(), y)
-                lineTo(size.width, y + 4.dp.toPx())
-                close()
-            }
-            drawPath(tri, headColor)
         }
     }
     if (errorStyle != null) cellModifier = cellModifier.background(errorStyle.fill)
@@ -517,8 +552,8 @@ private fun ScoreCellBox(
         }
     }
     when {
-        // 보드 `.cur`: 재생·연주 중에도 2dp 안쪽 테두리(연주 중 붉은색). 옛 모양은 멈춰 있을 때만 테두리를 두른다.
-        progress == CellProgress.Current && (board || !live) -> cellModifier = cellModifier.border(2.dp, ring)
+        // 멈춰 있을 때 현재 정간은 2dp 테두리로 표시한다. 재생·연주 중에는 테두리 대신 연주하는 글자를 붉게 한다.
+        progress == CellProgress.Current && !live -> cellModifier = cellModifier.border(2.dp, ring)
         isSelected -> cellModifier = cellModifier.border(2.dp, colors.text)
     }
 
@@ -538,6 +573,7 @@ private fun ScoreCellBox(
                                 notation = notation,
                                 solfege = solfege,
                                 mutedGlyph = mutedGlyph,
+                                playing = playingKey != null && unit.key == playingKey,
                                 onClick = onUnitClick?.let { { it(unit) } } ?: onEventClick?.let { { it(unit.event) } },
                                 isSelected = selectedCell ?: (unit.event.index == selectedIndex),
                                 modifier = Modifier.weight(1f).fillMaxSize(),
@@ -574,7 +610,7 @@ private fun ScoreCellBox(
     if (lane == null) {
         notes(cellModifier)
     } else {
-        // 보드 `.ms-grid`: 율명 칸 오른쪽에 곁줄(가사 칸). 가사 데이터가 없으면 빈 칸이고, 현재 정간은 아래에 연두 선을 긋는다.
+        // 보드 `.ms-grid`: 율명 칸 오른쪽에 곁줄(가사 칸). 가사 데이터가 없으면 빈 칸이다.
         Row(Modifier.fillMaxWidth().height(metrics.cellHeight)) {
             notes(cellModifier.then(Modifier.weight(1f)))
             LyricLane(
@@ -582,15 +618,14 @@ private fun ScoreCellBox(
                 drawTopLine = drawTopLine,
                 lineColor = lineColor,
                 lineWidth = lineWidth,
-                current = progress == CellProgress.Current && live,
             )
         }
     }
 }
 
-/** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋고, 현재 정간이면 아래 2dp 연두 선을 덧붙인다. */
+/** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
 @Composable
-private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp, current: Boolean) {
+private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
@@ -599,7 +634,6 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, drawTopLine: Boolean, 
             .drawBehind {
                 drawRect(colors.line, size = Size(1.dp.toPx(), size.height))
                 if (drawTopLine) drawRect(lineColor, size = Size(size.width, lineWidth.toPx()))
-                if (current) drawRect(colors.accent, topLeft = Offset(0f, size.height - 2.dp.toPx()), size = Size(size.width, 2.dp.toPx()))
             },
     )
 }
@@ -619,6 +653,7 @@ private fun ScoreNoteBox(
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     sigimsae: List<String> = emptyList(),
+    playing: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     val note = unit.note
@@ -662,6 +697,7 @@ private fun ScoreNoteBox(
     val yulSize = metrics.yulSizeFor(splitCount)
     val auxSize = metrics.auxSizeFor(splitCount)
     val glyphColor = when {
+        playing -> colors.rec
         mutedGlyph -> colors.textDisabled
         isPitch -> colors.text
         look.board -> colors.textSub
@@ -699,7 +735,11 @@ private fun ScoreNoteBox(
         }
         if (hangul != null || solfegeText != null) {
             val auxStyle = MaterialTheme.typography.labelSmall.copy(fontSize = auxSize, lineHeight = auxSize * 1.1f)
-            val auxColor = if (mutedGlyph) colors.textDisabled else colors.textMuted
+            val auxColor = when {
+                playing -> colors.rec
+                mutedGlyph -> colors.textDisabled
+                else -> colors.textMuted
+            }
             Column(Modifier.clearAndSetSemantics {}) {
                 if (hangul != null) Text(hangul, style = auxStyle, color = auxColor)
                 if (solfegeText != null) Text(solfegeText, style = auxStyle, color = if (look.board) auxColor else colors.playText)
