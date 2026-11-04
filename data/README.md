@@ -1,5 +1,11 @@
 # 데이터 수집·정제
 
+등록 장단 미리듣기 MP3를 만들 때는 [원본 출처와 생성 명령](../docs/knowledge/data/jangdan-preview-audio.md)을 참고합니다.
+
+연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
+
+160은 [107개 곡의 장단 검수 자료](../docs/knowledge/data/jangdan-song-review.md)도 전달합니다. [공통 전달 계약](../docs/specs/jangdan-practice-playback.md)에 따라 340이 이 결과를 읽어 판본 보호·API·앱 재생을 구현합니다.
+
 얼쑤의 음원·악보 데이터를 수집·정제하고, 분석과 검증에 사용할 데이터셋을 구축합니다.
 
 Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결과의 기록 방법은 [문서 기록 기준](../docs/README.md)을 따릅니다. 수집처·악보 표현·정제 방법의 조사 결과는 `docs/knowledge/data/`에, 여러 파트가 공유하는 국악 개념은 `docs/knowledge/domain/`에 남깁니다.
