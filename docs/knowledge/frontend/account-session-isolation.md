@@ -87,7 +87,9 @@ $env:EOLSSU_QA_LIVE_CATALOG='false'
 .\gradlew.bat :shared:testAndroidHostTest --tests '*AuthSessionLifecycleRegressionTest' --tests '*ApiAuthRepositoryTest' --tests '*ApiUserRepositoryTest' --tests '*OAuthViewModelTest' --tests '*AuthFormViewModelTest' --tests '*AccountIsolationRegressionTest' --tests '*PracticeTimeMemberTest' --no-daemon --max-workers=1
 ```
 
-이 후속 수정의 전체 플랫폼 빌드와 전체 회귀는 작업 통합 후 다시 수행한다. 위 730건 결과는 후속 수정 전 결과이며, 별도로 구분한다.
+위 730건 결과는 후속 수정 전 결과다. 후속 수정과 담당 범위 제외 지시를 적용한 **452 단독 브랜치 `2827b671`**에서 전체 검사를 다시 수행했다(2026-11-04, 23초): **734건 중 730 통과·기존 조건부 4건 건너뜀·실패/오류 0**. Android debug APK 빌드, 공통 JS·Wasm 컴파일도 성공했다. 비교 XML 시각은 `2026-11-04T01:38:30.816Z`이며 네 계정 격리 metric은 모두 0이다. 이 실행 시간은 빌드 캐시가 있는 검증 소요이며 앱 성능 수치가 아니다.
+
+사용자 후속 지시에 따라 Joseph Woo 담당 API와 확장은 이번 적용에서 제외했다. 453·454·456의 구현은 최종 브랜치에 포함하지 않았다. 읽기 전용 교차 점검에서 452의 백엔드·AI 변경 파일 **0개**, HTTP 메서드·요청 본문·응답 DTO·상태 코드 계약 변경 없음과 제외 작업 의존성 없음을 확인했다. [담당 API 20개와 개선안별 제외 이유](screen-improvement-scope.md)를 함께 본다.
 
 ## 확인하지 못한 범위
 

@@ -35,6 +35,7 @@
 ## 기능 스펙
 
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
+- [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
 
 - [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
 - [운지법 화면 음원 목록 로딩 개선 (423)](specs/guide-audio-loading.md) · [원인·검증 기록](knowledge/frontend/guide-audio-loading.md)
