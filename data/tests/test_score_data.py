@@ -97,6 +97,14 @@ class ReadUnitsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | - {니나}", beats_per_jeonggan=F(1))
 
+    def test_empty_sustain_mark_holds_like_a_dash(self):
+        # 우물사이 재생 변환기는 {빈지속}·{이음표}·{-}를 '-'처럼 앞 소리를 잇는 자리로 읽는다(단소 뱃노래·베틀가).
+        for mark in ("{빈지속}", "{이음표}", "{-}"):
+            units = read_units(f"임 {mark} | 중", beats_per_jeonggan=F(1))
+            self.assertEqual([(u.symbol, u.sigimsae) for u in units], [("임", ()), ("-", ()), ("중", ())])
+            events, _ = build_events(units)
+            self.assertEqual([(e.yul, e.duration) for e in events], [("임", F(1)), ("중", F(1))])
+
     def test_unreadable_text_stops_with_its_cell(self):
         with self.assertRaisesRegex(ValueError, "c0-j1"):
             read_units("임 | 도레미", beats_per_jeonggan=F(1))
@@ -172,16 +180,30 @@ class ConvertTests(unittest.TestCase):
         self.assertEqual([u["eventId"] for u in cells[1]["units"]], ["c0-j0-r0-u0", "c0-j0-r0-u0", "c0-j1-r2-u0"])
         self.assertTrue(all(e["cellId"] in {c["id"] for c in cells} for e in events.values()))
 
-    def test_gak_longer_than_beats_or_per_gak_beats_stop(self):
-        # 우물사이는 beats를 넘는 정간을 잘라 쓰고 gakBeats로 각마다 길이를 바꾼다. 아직 지원하지 않으므로 멈춘다.
+    def test_gak_longer_than_beats_stops(self):
+        # 우물사이는 beats를 넘는 정간을 잘라 쓴다. 잘라 쓰는 규칙은 옮기지 않았으므로 멈춘다.
         doc = load("v2-minimal.jgb.json")
         doc["parts"][0]["melody"] = "중 | 임 | 무 | 황"
         with self.assertRaisesRegex(ValueError, "beats"):
             convert(doc, beats_per_jeonggan=F(1), **META)
+
+    def test_per_gak_beats_set_the_length_of_that_gak(self):
+        # gakBeats '각:정간 수'(1부터 셈)는 그 각만 정간 수를 바꾼다. 단소 천안삼거리의 마지막 각 '7:1'과 같은 경우다.
         doc = load("v2-minimal.jgb.json")
-        doc["controls"]["gakBeats"] = "2:4"
-        with self.assertRaisesRegex(ValueError, "gakBeats"):
+        doc["parts"][0]["melody"] = "중 | 임 | 무\n황"
+        doc["controls"]["gakBeats"] = "2:1"
+        result = convert(doc, beats_per_jeonggan=F(1), **META)
+        tpb = result["music"]["ticksPerBeat"]
+        self.assertEqual([(e["yul"], F(e["startTick"], tpb)) for e in result["events"]],
+                         [("중", 0), ("임", 1), ("무", 2), ("황", 3)])
+        doc["parts"][0]["melody"] = "중 | 임 | 무\n황 | 태"
+        with self.assertRaisesRegex(ValueError, "각"):  # 그 각에 정한 수보다 정간이 많으면 멈춘다
             convert(doc, beats_per_jeonggan=F(1), **META)
+        for bad in ("2", "0:1", "3:1", "2:1,2:1"):  # 형식 오류, 0번 각, 없는 각, 중복
+            doc["controls"]["gakBeats"] = bad
+            doc["parts"][0]["melody"] = "중 | 임 | 무\n황"
+            with self.assertRaisesRegex(ValueError, "gakBeats"):
+                convert(doc, beats_per_jeonggan=F(1), **META)
 
     def test_schema_rejects_a_missing_field_or_wrong_kind(self):
         for broken in (lambda r: r["events"][0].pop("durationTick"), lambda r: r["events"][0].update(kind="SOUND"),
