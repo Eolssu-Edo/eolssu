@@ -219,6 +219,7 @@ hugo server -D
   2. Discussions에서 형식이 **Announcement**인 `Comments` 카테고리를 만든다. 방문자는 새 글타래를 만들 수 없고 giscus가 만든 글타래에만 댓글을 단다.
   3. [giscus 앱](https://github.com/apps/giscus)을 `team-edo` 조직의 `team-edo.github.io` 저장소에만 설치한다.
   4. [giscus.app](https://giscus.app/ko)에 저장소 `team-edo/team-edo.github.io`, 카테고리 `Comments`를 넣어 나온 `data-repo-id`·`data-category-id`를 `hugo.toml`에 적고 `blog`에 MR한다. 두 값은 공개 식별자라 저장소에 적어도 된다.
+- 댓글 모양은 `static/css/giscus-theme.css`(giscus 기본 light 테마 위에 블로그 색·글꼴·배치를 덮어쓴 전용 테마)가 정한다. giscus가 배포된 주소의 이 파일을 불러오므로, 바꾼 모양은 `blog` 병합·배포 후에 보인다. 로컬 미리 보기(`localhost`)에서는 브라우저의 사설망 접근 차단으로 이 테마가 적용되지 않는다. 글 반응은 "댓글 N개" 줄 오른쪽에 둔다.
 - Jenkins 배포는 저장소 파일만 덮어쓰므로 Discussions의 댓글은 그대로 남는다. 글 주소(slug·날짜)를 바꾸면 기존 댓글과 연결이 끊긴다.
 
 ### 검증 기록 (2026-11-02, S15P31E102-386)
