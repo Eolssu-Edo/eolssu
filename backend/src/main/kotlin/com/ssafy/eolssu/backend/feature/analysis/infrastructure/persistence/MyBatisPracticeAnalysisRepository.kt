@@ -22,6 +22,12 @@ class MyBatisPracticeAnalysisRepository(
 
     override fun saveDone(analysis: PendingAnalysis, result: AnalysisResult.Done, notes: List<ScoreNote>, startedAfter: LocalDateTime): Boolean {
         val pitchIds = notes.associate { it.idx to it.pitchId }
+        // 인식 음이 하나라도 있을 때만 기준 데이터를 읽는다. `pitches`에 없는 반음(악기 음역 밖)은 저장하지 않는다.
+        val detectedIds = if (result.notes.any { it.detectedSemitone != null }) {
+            mapper.findPitches().associate { it.semitone.toInt() to it.id }
+        } else {
+            emptyMap()
+        }
         val rows = result.notes.map {
             NewNoteResult(
                 it.idx,
@@ -30,6 +36,8 @@ class MyBatisPracticeAnalysisRepository(
                 it.onsetErrorMs,
                 it.durationErrorMs,
                 it.verdict.name,
+                it.detectedSemitone?.let(detectedIds::get),
+                it.recordingOffsetMs,
             )
         }
         return transactions.execute {

@@ -1,6 +1,6 @@
 # 오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)
 
-- Jira: EVA-02·03은 S15P31E102-307, EVA-04는 S15P31E102-310. Story S15P31E102-37, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md) · [310 계획](../plans/S15P31E102-310.md)
+- Jira: EVA-02·03은 S15P31E102-307, EVA-04는 S15P31E102-310, EVA-02의 인식 음·녹음 위치는 S15P31E102-480([계획](../plans/S15P31E102-480.md)). Story S15P31E102-37, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md) · [310 계획](../plans/S15P31E102-310.md)
 - 현재 구현 계약. 노션 API 명세서의 EVA-02·03·04 계약 초안을 따르고, 저장 데이터로 채울 수 없는 필드는 아래처럼 고정값으로 둔다. EVA-04는 초안의 점수 비교를 뺐다(아래 '미구현·후속'의 노션 초안과 다른 점). 채점을 다시 하거나 결과를 저장하지 않는다.
 - 2026-11-03 변경: EVA-04에 점수 비교와 같은 곡 직전 연주 비교를 다시 넣기로 했다(S15P31E102-382). 아래 EVA-04 절은 현재 구현이고, 바뀔 계약은 [EVA-04 2차 계약](#eva-04-2차-계약-미구현)에 있다.
 
@@ -26,9 +26,10 @@
 | result 필드 | 값 |
 | --- | --- |
 | evaluationId | STRING |
-| items[] | noteIdx 오름차순. noteIdx·verdict·pitchErrorCent·onsetErrorMs·durationErrorMs는 `note_results` 저장값, expectedPitchId·detectedPitchId는 STRING(인식 못 하면 null) |
+| items[] | noteIdx 오름차순. noteIdx·verdict·pitchErrorCent·onsetErrorMs·durationErrorMs는 `note_results` 저장값, expectedPitchId·detectedPitchId는 STRING |
+| items[].detectedPitchId | AI가 인식한 음의 `pitches.id`. MISSED, `pitches`에 없는 음, 인식 음을 주지 않은 AI로 채점한 평가면 null |
 | items[].errorTypes | 저장 판정이 음표당 하나라 오류면 `[verdict]`, CORRECT면 `[]` |
-| items[].recordingOffsetMs | 정렬 오프셋을 저장하지 않아 항상 null |
+| items[].recordingOffsetMs | 업로드 원본 녹음의 재생 0ms부터 잰 음표 시작 시각(ms, 0 이상 정수). MISSED이거나 녹음 위치를 주지 않은 AI로 채점한 평가면 null |
 | errorCount | 조회 구간의 오류 음표 수. errorsOnly와 관계없다 |
 | errorCounts.pitch·timing·missed | 조회 구간의 저장 판정별 개수 |
 | errorCounts.duration | DURATION 판정이 저장 값에 없어 항상 0 |
@@ -99,7 +100,8 @@
 
 ## 미구현·후속
 
-- 복수 오류 유형, DURATION 판정, 녹음 위치(recordingOffsetMs)는 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
+- 복수 오류 유형과 DURATION 판정은 AI 응답과 `note_results` 저장 형식을 바꿔야 한다. 이 Task 범위 밖이다.
+- 인식 음·녹음 위치는 S15P31E102-480에서 저장·응답을 구현했다. 값의 기준은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있고, AI가 두 필드를 보내기 전까지는 null이다.
 - 누락(MISSED) 표시 방식은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
 - '취약 구간 연습' 버튼은 2차에서 구간 선택(PRACTICE-02)으로 이동한다(2026-11-03 확정). 구간 반복(PRACTICE-03)은 서버를 부르지 않고, '이 구간 재평가'가 PRA-01 구간 세션(`parentSessionId` 포함)을 만든다.
 - (2026-11-03 이전 기록) 노션 EVA-04 초안과 다른 점: 초안의 before 점수 4개·delta.totalScore·규칙 1~3·5(구간 점수 재집계)를 뺐다. before.errorCount는 악보 버전이 다르면 null이다. baselineSessionId는 생략하면 parentSessionId를 쓴다. 이 차이는 위 'EVA-04 2차 계약'으로 다시 바뀐다. 디자인 RESULT-04의 점수 비교 문구는 2차 계약에서 그대로 쓸 수 있다.

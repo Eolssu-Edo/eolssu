@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -252,8 +253,8 @@ private fun rememberBandScroll(
 }
 
 /**
- * 휴대폰 보드(PRACTICE-01 `.practice-score .ms`)의 악보 영역: 각 78dp(크게 보기 104) · 정간 44dp(11정간 이상 32 · 크게 보기 60) 고정,
- * 가로 스크롤, 흰 각과 곁줄, 테두리로만 상태를 표시한다. 세로로 넘치면 화면 전체가 스크롤된다.
+ * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
+ * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족한 경우 스크롤로 모든 음에 접근할 수 있다.
  * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
  */
 @Composable
@@ -271,47 +272,59 @@ fun PracticeBoardScore(
     val longestStrip = strips.maxOf { it.rows.count() }
     val recording = state.mode == PracticeMode.Recording || state.resuming
     val playback = state.scorePlayback()
-    Column(modifier.fillMaxWidth()) {
-        JeongganboView(
-            song = song,
-            modifier = Modifier.fillMaxWidth(),
-            metrics = JeongganboMetrics.practiceBoard(big, longestStrip),
-            notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
-            scrollState = rememberHorizontalScoreScroll(state),
-            // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
-            currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
-            highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
-            playback = playback,
-            follow = state.follow,
-            onUserScroll = onUserScroll,
-            selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null,
-            onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
-            look = JeongganboLook.practice(big),
-            annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
-        )
-        if (state.mode == PracticeMode.Ready) {
-            Text(
-                stringResource(Res.string.practice_score_hint),
-                modifier = Modifier.padding(top = 8.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-                color = colors.textMuted,
-            )
-        }
-        if (state.live && !state.follow) {
-            // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
-            val shape = RoundedCornerShape(8.dp)
-            Text(
-                stringResource(Res.string.practice_follow_now),
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 8.dp)
-                    .background(colors.surface, shape)
-                    .border(1.dp, colors.line, shape)
-                    .clickable(role = Role.Button, onClick = onFollowNow)
-                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
-                color = colors.accentText,
-            )
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val bounded = constraints.hasBoundedHeight
+        val fontScale = LocalDensity.current.fontScale
+        Column(if (bounded) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
+            BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
+                val packing = remember(song, big, maxHeight, fontScale) {
+                    practiceScorePacking(song.score, JeongganboMetrics.practiceBoard(big, longestStrip), maxHeight, fontScale, song.jangdan)
+                }
+                JeongganboView(
+                    song = song,
+                    modifier = Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().verticalScroll(rememberScrollState()) else Modifier),
+                    metrics = packing.metrics,
+                    notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
+                    scrollState = rememberHorizontalScoreScroll(state),
+                    currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
+                    highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
+                    playback = playback,
+                    follow = state.follow,
+                    onUserScroll = onUserScroll,
+                    selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null,
+                    onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
+                    look = JeongganboLook.practice(big),
+                    annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
+                    columnsPerStack = packing.columnsPerStack,
+                    stackGap = PracticeStackGap,
+                    cellHeights = packing.cellHeights,
+                    stackRowHeights = packing.stackRowHeights,
+                )
+            }
+            if (state.mode == PracticeMode.Ready) {
+                Text(
+                    stringResource(Res.string.practice_score_hint),
+                    modifier = Modifier.padding(top = 8.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
+                    color = colors.textMuted,
+                )
+            }
+            if (state.live && !state.follow) {
+                // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
+                val shape = RoundedCornerShape(8.dp)
+                Text(
+                    stringResource(Res.string.practice_follow_now),
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(top = 8.dp)
+                        .background(colors.surface, shape)
+                        .border(1.dp, colors.line, shape)
+                        .clickable(role = Role.Button, onClick = onFollowNow)
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                    color = colors.accentText,
+                )
+            }
         }
     }
 }

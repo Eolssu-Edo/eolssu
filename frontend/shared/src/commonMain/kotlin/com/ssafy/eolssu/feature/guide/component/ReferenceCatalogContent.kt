@@ -118,10 +118,10 @@ internal fun ReadingCatalogDialog(
                             else -> {
                                 val status = playback.status.takeIf { playback.sourceId == detail.jangdanId }
                                 val label = when (status) {
-                                    AudioPlaybackStatus.Loading -> Res.string.reference_audio_cancel
+                                    AudioPlaybackStatus.Loading -> Res.string.guide_catalog_cancel_sound
                                     AudioPlaybackStatus.Playing -> Res.string.guide_catalog_stop_sound
-                                    AudioPlaybackStatus.Completed -> Res.string.reference_audio_replay
-                                    else -> Res.string.reference_audio_play
+                                    AudioPlaybackStatus.Completed -> Res.string.guide_catalog_replay_sound
+                                    else -> Res.string.guide_catalog_play_sound
                                 }
                                 EolssuButton(stringResource(label), { onPlayJangdan(detail.jangdanId) }, style = EolssuButtonStyle.Secondary)
                                 when (status) {

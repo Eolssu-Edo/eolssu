@@ -77,6 +77,34 @@ class HttpAnalysisClientTests {
         )
     }
 
+    @Test
+    fun `reads the detected semitone and recording offset of each heard note`() {
+        respond(
+            doneBody.replace("\"durationErrorMs\":-15}", "\"durationErrorMs\":-15,\"detectedSemitone\":12,\"recordingOffsetMs\":1520}")
+                .replace("\"durationErrorMs\":null}", "\"durationErrorMs\":null,\"detectedSemitone\":null,\"recordingOffsetMs\":null}"),
+        )
+
+        val notes = (client.analyze(request) as AnalysisResult.Done).notes
+        assertEquals(NoteJudgement(4, NoteVerdict.CORRECT, 3.1, 20, -15, 12, 1520), notes[0])
+        assertEquals(NoteJudgement(5, NoteVerdict.MISSED, null, null, null, null, null), notes[1])
+    }
+
+    @Test
+    fun `does not keep a detected note or offset for a missed note`() {
+        respond(doneBody.replace("\"durationErrorMs\":null}", "\"durationErrorMs\":null,\"detectedSemitone\":12,\"recordingOffsetMs\":3000}"))
+
+        val missed = (client.analyze(request) as AnalysisResult.Done).notes[1]
+        assertEquals(null, missed.detectedSemitone)
+        assertEquals(null, missed.recordingOffsetMs)
+    }
+
+    @Test
+    fun `rejects a negative recording offset`() {
+        respond(doneBody.replace("\"durationErrorMs\":-15}", "\"durationErrorMs\":-15,\"recordingOffsetMs\":-1}"))
+
+        assertFailsWith<AnalysisResponseException> { client.analyze(request) }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = ["NO_SOUND", "TOO_SHORT", "DECODE_ERROR"])
     fun `reads an AI failure reason`(reason: String) {

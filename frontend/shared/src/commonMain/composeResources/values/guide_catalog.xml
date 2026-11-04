@@ -23,4 +23,7 @@
     <string name="guide_catalog_dotted_quarter">점4분음표 기준</string>
     <string name="guide_catalog_groups">구음 묶음: %1$s</string>
     <string name="guide_catalog_no_fingerings">추가 운지 자료가 아직 등록되지 않았어요.</string>
+    <string name="guide_catalog_cancel_sound">불러오기 취소</string>
+    <string name="guide_catalog_play_sound">재생</string>
+    <string name="guide_catalog_replay_sound">다시 재생</string>
 </resources>

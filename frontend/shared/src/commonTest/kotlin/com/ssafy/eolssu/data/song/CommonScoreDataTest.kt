@@ -18,6 +18,16 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CommonScoreDataTest {
+    @Test fun readsOptionalLyricsWithoutChangingTheTimeline() {
+        val source = smallScoreData()
+        val json = Json.encodeToString(source)
+            .replaceFirst("\"units\":", "\"lyric\":\"아\",\"units\":")
+        val score = CommonScoreData.decode(json).toScore()
+        assertEquals("아", score.columns[0][0].lyric)
+        assertNull(score.columns[0][1].lyric)
+        assertEquals(source.toScore().events, score.events)
+    }
+
     @Test fun preservesEventIdentityPitchAndNoteOnlyIndicesAcrossDisplayTies() {
         val source = smallScoreData()
         val score = source.toScore()

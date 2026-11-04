@@ -34,6 +34,8 @@
 
 ## 기능 스펙
 
+- [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
+
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
 
@@ -51,6 +53,7 @@
 
 - [악기·악보·모범 음원·학습 카탈로그 조회 API](specs/catalog-read-apis.md)
 - [곡 목록 악기 필터](specs/song-instrument-filter.md) · [구현·검증 기록](knowledge/backend/song-instrument-filter.md)
+- [카탈로그 공통 악보 원본과 가사 복원](specs/common-score-catalog-source.md) · [JGB 대조 및 복원 기록](knowledge/data/catalog-notation-restoration.md)
 - [공통 악보·모범 음원 적재와 재생 연결](specs/model-audio-catalog-load.md) · [객체 키 전환·재생 검증](knowledge/backend/model-audio-publication.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
 - [107개 악보의 장단 반주 연결 검수와 판본 보호 (340)](knowledge/backend/jangdan-practice-links.md)
@@ -58,7 +61,7 @@
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
-- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md)
+- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
