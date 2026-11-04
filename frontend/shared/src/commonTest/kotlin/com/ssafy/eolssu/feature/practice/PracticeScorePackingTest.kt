@@ -24,6 +24,26 @@ class PracticeScorePackingTest {
     private val metrics = JeongganboMetrics.practiceBoard(false, 3)
 
     @Test
+    fun eachStackUsesTheTallestColumnAtEverySharedRow() {
+        val triple = ScoreCell(note, note, note)
+        val score = Score(List(12) { column -> List(3) { if (column in listOf(3, 7, 11)) triple else cell } })
+        val packing = practiceScorePacking(score, metrics, 800.dp)
+        assertEquals(3, packing.columnsPerStack)
+        // 4각·8각·12각이 각각 첫째·둘째·셋째 가로줄의 가장 높은 각이다.
+        assertEquals(listOf(222.dp, 222.dp, 222.dp), packing.stackRowHeights)
+    }
+
+    @Test
+    fun incompleteLastStackAlsoSetsTheCommonRowHeight() {
+        val triple = ScoreCell(note, note, note)
+        val score = Score(List(10) { column -> List(3) { if (column == 9) triple else cell } })
+        val packing = practiceScorePacking(score, metrics, 700.dp)
+        assertEquals(3, packing.columnsPerStack)
+        assertEquals(listOf(222.dp, 156.dp, 156.dp), packing.stackRowHeights)
+        assertTrue(packing.height < 700.dp)
+    }
+
+    @Test
     fun shortColumnsFitThreePerStackWithinAvailableHeight() {
         val score = Score(List(12) { List(3) { cell } })
         val packing = practiceScorePacking(score, metrics, 500.dp)

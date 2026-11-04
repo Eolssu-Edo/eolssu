@@ -296,6 +296,7 @@ fun PracticeBoardScore(
                     columnsPerStack = packing.columnsPerStack,
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,
+                    stackRowHeights = packing.stackRowHeights,
                 )
             }
             if (state.mode == PracticeMode.Ready) {

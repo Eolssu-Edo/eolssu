@@ -185,6 +185,8 @@ fun JeongganboView(
     stackGap: Dp = 12.dp,
     /** 원본 (각, 정간) 좌표별 높이. 다른 화면은 기존 고정 높이를 쓴다. */
     cellHeights: Map<Pair<Int, Int>, Dp> = emptyMap(),
+    /** 묶음 전체가 공유하는 가로줄 높이. 각 머리글의 시작점을 수평으로 맞춘다. */
+    stackRowHeights: List<Dp> = emptyList(),
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -292,7 +294,12 @@ fun JeongganboView(
                         Modifier.semantics { isTraversalGroup = true; traversalIndex = groupIndex.toFloat() },
                         verticalArrangement = Arrangement.spacedBy(stackGap),
                     ) {
-                        for ((readingIndex, strip) in group) DrawStrip(readingIndex, strip)
+                        for ((row, indexedStrip) in group.withIndex()) {
+                            val rowHeight = stackRowHeights.getOrNull(row)
+                            Box(if (rowHeight == null) Modifier else Modifier.height(rowHeight * fontScale)) {
+                                DrawStrip(indexedStrip.index, indexedStrip.value)
+                            }
+                        }
                     }
                 }
             }
