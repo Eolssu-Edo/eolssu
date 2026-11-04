@@ -101,7 +101,7 @@
 - 기존 읽기 도구는 검수 정답 8곡(단소 PDF171~173, 소금 PDF192~196) 중 7곡에서 실패했다. 원인은 잘라내기 영역으로 가린 긴 선, 가로 여러 단 판형, 1행 좌우 반칸, 빈 행, 겹쳐 그린 글자였다. 고친 뒤 8곡 모두 이벤트가 정답과 같다(`data/tests/test_standard_score_text.py`, `ai/tests/unit/test_omr_text_engine.py`).
 - 2중주 쪽(PDF182·183)은 단소1 열만 읽고 `VOICE_GUESSED`를 남긴다.
 - 악보가 아닌 것은 거르고 `UNREADABLE`로 알린다. 율명 글자가 없는 쪽은 `NO_TEXT`, 교과서 설명 쪽(p139·p232)처럼 악보답지 않거나 격자를 못 읽은 쪽은 `NO_GRID`, 펼침면 옆 설명표처럼 정간 수가 다른 열은 `NOT_SCORE_COLUMN`이다. 읽은 쪽이 하나도 없으면 요청이 `NO_GRID_FOUND`로 실패한다.
-- 각마다 정간 수가 다른 악보(gakBeats)는 `score_data`가 받지 않아 `ENGINE_ERROR`다.
+- 각마다 정간 수가 다른 악보는 각별 정간 수(gakBeats)로 읽는다(S15P31E102-404에서 `score_data`가 지원, 작은 합성 PDF로 확인). 율명 없는 독립 시김새처럼 `score_data`가 받지 않는 기호가 있으면 `ENGINE_ERROR`다.
 - HTTP 처리: 로컬 서비스로 3곡 1쪽 1.5~1.9초(2026-11-03), 운영 Compose 설정 컨테이너로 PDF194 1쪽 1.0초(2026-11-04, U6 절).
 
 ## 313 U4 변환기 결과 (2026-11-03)
@@ -149,6 +149,6 @@
 - 오선보 폰 사진·다른 판형, 정간보 사진은 재지 않았다. 다음 가장 싼 확인은 같은 4곡을 폰으로 찍은 사진으로 같은 비교를 돌리는 것이다. 그림·사진 정간보 연결은 [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)이다.
 - homr(사진에 강함)는 가중치 학습 데이터의 비상업 라이선스 때문에 넣지 않았다. 오선보 사진 품질이 문제가 되면 다시 본다.
 - 서버(4코어) 처리 시간·메모리는 재지 않았다. Audiveris가 도는 동안 큰 PDF 쪽을 함께 그리는 경우의 메모리도 재지 않았다.
-- 각마다 정간 수가 다른 악보(gakBeats)는 변환하지 못한다.
+- 율명 없는 독립 시김새가 든 정간보 악보는 변환하지 못한다(`score_data` 제한). 각마다 정간 수가 다른 실제 악보(소금 취타 p189·p202)는 404 병합 뒤 다시 돌려 보지 않았다.
 - MALerLab 모델 체크포인트의 릴리스 포함 여부와 LICENSE 파일 부재는 확인하지 못했다.
 - 폰 사진 보정(원근: OpenCV, 휨: [page-dewarp](https://github.com/lmmx/page-dewarp) MIT·[UVDoc](https://github.com/tanguymagne/UVDoc) MIT)이 오선·정간 격자에 맞는지는 검증되지 않았다.

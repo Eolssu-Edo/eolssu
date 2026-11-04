@@ -128,7 +128,7 @@ POST /v1/recognitions
   - 율명은 있지만 정간 격자를 못 읽었거나 악보다운 쪽이 아닌 쪽은 `UNREADABLE`(`detail.reason` `NO_GRID`, `bbox` 쪽 전체)로 남긴다. 읽은 쪽이 하나도 없으면 `NO_GRID_FOUND`다.
   - 글자 읽기·변환 프로그램이 비정상 종료하면 `ENGINE_ERROR`다.
 - 정간 수가 대부분의 각과 다른 열(옆 쪽 장식음 표 등)은 빼고 `UNREADABLE`(`detail.reason` `NOT_SCORE_COLUMN`, `bbox` 그 열)로 알린다. 곡 끝 각은 짧을 수 있어, 같은 단에서 바로 앞 열 옆에 붙어 있거나 다른 각과 같은 x 열이면 둔다.
-- 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 `score_data`가 각별 정간 수(`gakBeats`)를 아직 받지 않아 `ENGINE_ERROR`다(원인은 로그에 남김). 지원은 별도 작업이다.
+- 각마다 정간 수가 다른 악보(예: 끝 각만 짧은 소금 취타)는 각별 정간 수(`gakBeats`)로 그 각만 짧게 읽는다(S15P31E102-404의 `score_data`). 정간 하나의 박은 기본 각의 정간 수(`controls.beats`)로 정한다. `score_data`가 받지 않는 기호(율명 없는 독립 시김새 등)가 있으면 `ENGINE_ERROR`다(원인은 로그에 남김).
 - 2중주 이상(열 위 '단소1'·'단소Ⅱ'·'1단소' 같은 표시)은 1 성부 열만 읽고 `VOICE_GUESSED`(`detail` `{"voices": 성부 수, "kept": 1}`, `bbox` 쪽 전체)를 남긴다. 표시로 열을 모두 가르지 못하면 그 쪽은 격자를 못 읽은 쪽과 같다.
 - 정간 하나의 박 = 장단 한 번의 박(`bpmUnit` 기준) ÷ 각 하나의 정간 수. 한 각을 장단 한 번으로 본다. 세마치 3정간 → 1박, 굿거리 12정간 → 1/3박(검수 정답 8곡과 같음). 결과가 1·1/2·1/3박이 아니면 고른 장단이 악보와 다를 수 있어 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)를 남긴다.
 - 읽지 않은 글자(시김새 글자 등)는 `UNREADABLE` issue로, `detail.text`에 글자, `bbox`에 쪽 그림 위치(글자 크기의 정사각형)를 둔다. `eventId`·`cellId`는 비운다.

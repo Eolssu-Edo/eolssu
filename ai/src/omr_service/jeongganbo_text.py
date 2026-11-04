@@ -130,7 +130,7 @@ def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter):
             doc, beats_per_jeonggan=bpj_of(doc), title=request.conversion_id, instrument=request.instrument,
             source_id=request.conversion_id, jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"],
             review="inferred", jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest())
-    except ValueError as e:  # 예: 각마다 정간 수가 다른 악보(gakBeats)는 score_data가 아직 받지 않는다
+    except ValueError as e:  # 예: 율명 없는 독립 시김새는 score_data가 아직 받지 않는다
         log.info("convert failed: %s", _clean(str(e)))
         raise
     score["provenance"]["converter"] = converter

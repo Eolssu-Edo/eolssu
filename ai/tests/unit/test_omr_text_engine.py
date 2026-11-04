@@ -181,13 +181,13 @@ def test_column_that_is_not_score_is_dropped_and_marked():
 
 
 @needs_generator
-def test_mixed_gak_lengths_fail_with_reason_logged(caplog):
-    # 곡 끝 각이 짧은 악보(소금 취타)는 score_data가 각별 정간 수를 아직 받지 않아 ENGINE_ERROR다
+def test_short_last_gak_keeps_its_own_length():
+    # 곡 끝 각이 짧은 악보(소금 취타)는 각별 정간 수(gakBeats)로 그 각만 짧게 읽는다(S15P31E102-404 score_data)
     cols = [["林", "南", "-", "-"], ["潢", "汰", "-", "-"], ["仲", "-", "△"]]
-    with caplog.at_level("INFO"):
-        out = post(pdf_bytes([cols])).json()
-    assert out["failReason"] == "ENGINE_ERROR"
-    assert "convert failed" in caplog.text and "gakBeats" in caplog.text
+    out = post(pdf_bytes([cols])).json()
+    assert out["status"] == "DONE" and out["jgb"]["controls"]["gakBeats"] == "3:3"
+    starts = {e["cellId"]: e["startTick"] for e in out["score"]["events"]}
+    assert starts["c1-j0"] == 12 and starts["c2-j0"] == 24 and starts["c2-j2"] == 30  # 정간당 3틱, 4·4·3정간
 
 
 def test_logged_errors_have_no_paths():
