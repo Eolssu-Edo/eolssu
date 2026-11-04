@@ -6,6 +6,9 @@ import com.ssafy.eolssu.core.model.MySheetKind
 import com.ssafy.eolssu.core.model.MySheetStatus
 import com.ssafy.eolssu.core.model.PdfFile
 import com.ssafy.eolssu.core.model.UploadedPdf
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,25 +44,29 @@ class SampleMySheetRepository(
     private val now: () -> Long,
     private val uploadStepMillis: Long = 120,
     private val samplePageCount: Int = 3,
+    private val member: SignedInMember? = null,
 ) : MySheetRepository {
-    private val _sheets = MutableStateFlow(SampleSheets)
+    private val _sheets = MutableStateFlow(if (member == null) SampleSheets else emptyList())
     override val sheets: StateFlow<List<MySheet>> = _sheets.asStateFlow()
     private val uploads = mutableMapOf<String, UploadedPdf>()
     private var nextId = 1
 
-    override suspend fun uploadPdf(file: PdfFile, onProgress: (Float) -> Unit): UploadedPdf {
+    init { member?.onChange { _sheets.value = emptyList(); uploads.clear() } }
+
+    override suspend fun uploadPdf(file: PdfFile, onProgress: (Float) -> Unit): UploadedPdf = member.inSession {
         for (step in 1..UPLOAD_STEPS) {
             delay(uploadStepMillis)
+            ensureAccountSession()
             onProgress(step / UPLOAD_STEPS.toFloat())
         }
         val upload = UploadedPdf("upload-${nextId++}", file.name, file.sizeBytes, samplePageCount)
         uploads[upload.id] = upload
-        return upload
+        return@inSession upload
     }
 
-    override suspend fun getUploadedPdf(uploadId: String): UploadedPdf? = uploads[uploadId]
+    override suspend fun getUploadedPdf(uploadId: String): UploadedPdf? = member.inSession { uploads[uploadId] }
 
-    override suspend fun savePdf(uploadId: String, title: String, jangdanName: String?): MySheet {
+    override suspend fun savePdf(uploadId: String, title: String, jangdanName: String?): MySheet = member.inSession {
         val upload = requireNotNull(uploads.remove(uploadId)) { "올리지 않은 PDF: $uploadId" }
         val sheet = MySheet(
             id = "sheet-${nextId++}",
@@ -71,7 +78,7 @@ class SampleMySheetRepository(
             updatedAt = KoreanDateTime.fromEpochMillis(now()),
         )
         _sheets.update { listOf(sheet) + it }
-        return sheet
+        return@inSession sheet
     }
 
     private companion object {

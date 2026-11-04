@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.KoreanDateTime
@@ -15,6 +18,7 @@ class RecordListViewModel(
     justSavedId: String?,
     private val recordRepository: PracticeRecordRepository,
     now: () -> Long,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         RecordListUiState(
@@ -25,15 +29,20 @@ class RecordListViewModel(
     )
     val uiState: StateFlow<RecordListUiState> = _uiState.asStateFlow()
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = RecordListUiState(today = _uiState.value.today, recordsAvailable = recordRepository.available)
+    }
+
     init {
-        viewModelScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
+        accountScope.launch { recordRepository.records.collect { list -> _uiState.update { it.copy(records = list) } } }
         if (recordRepository.available) retry()
     }
 
     fun retry() {
+        if (!accountScope.isActive) return
         if (_uiState.value.loading) return
         _uiState.update { it.copy(loading = true, loadFailed = false) }
-        viewModelScope.launch {
+        accountScope.launch {
             val ok = recordRepository.refresh()
             _uiState.update { it.copy(loading = false, loadFailed = !ok) }
         }

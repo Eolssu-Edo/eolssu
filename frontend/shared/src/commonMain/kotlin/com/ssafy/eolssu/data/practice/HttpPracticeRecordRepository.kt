@@ -5,6 +5,9 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -32,28 +35,32 @@ import kotlin.time.Instant
 class HttpPracticeRecordRepository(
     private val client: HttpClient,
     private val evaluations: EvaluationRepository,
+    private val member: SignedInMember? = null,
 ) : PracticeRecordRepository {
     private val _records = MutableStateFlow<List<PracticeRecord>>(emptyList())
     override val records: StateFlow<List<PracticeRecord>> = _records.asStateFlow()
 
-    override suspend fun refresh(): Boolean {
-        val first = list(songId = null, page = 0) ?: return false
+    init { member?.onChange { _records.value = emptyList() } }
+
+    override suspend fun refresh(): Boolean = member.inSession {
+        val first = list(songId = null, page = 0) ?: return@inSession false
         val items = mutableListOf<RecordItem>()
         for (song in first.songs) {
             var page = 0
-            var current = if (song.songId == first.songId) first else list(song.songId, 0) ?: return false
+            var current = if (song.songId == first.songId) first else list(song.songId, 0) ?: return@inSession false
             while (true) {
                 items += current.items
                 page++
                 if (page >= current.totalPages) break
-                current = list(song.songId, page) ?: return false
+                current = list(song.songId, page) ?: return@inSession false
             }
         }
+        ensureAccountSession()
         _records.value = items
             .distinctBy { it.sessionId }
             .sortedByDescending { Instant.parse(it.startedAt).toEpochMilliseconds() }
             .map { it.toRecord() }
-        return true
+        return@inSession true
     }
 
     private suspend fun list(songId: String?, page: Int): RecordList? {
@@ -69,7 +76,7 @@ class HttpPracticeRecordRepository(
         return response.apiResponse<RecordList>()?.result
     }
 
-    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord {
+    override suspend fun saveEvaluation(result: EvaluationResult, songTitle: String): PracticeRecord = member.inSession {
         val saved = putRecord(result.id, MemoBody())
         val record = saved.toRecord(songTitle).copy(
             metrics = result.metrics,
@@ -78,12 +85,14 @@ class HttpPracticeRecordRepository(
             recordingAvailable = saved.recordingDurationMs != null,
             isNew = true,
         )
+        ensureAccountSession()
         _records.update { list -> listOf(record) + list.filterNot { it.id == record.id } }
-        return record
+        return@inSession record
     }
 
-    override suspend fun updateMemo(recordId: String, memo: String) {
+    override suspend fun updateMemo(recordId: String, memo: String) = member.inSession {
         val saved = putRecord(recordId, MemoBody(memo))
+        ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = saved.memo.orEmpty()) else it } }
     }
 
@@ -99,15 +108,16 @@ class HttpPracticeRecordRepository(
         return checkNotNull(response.apiResponse<SavedRecord>()?.result) { "기록 저장 형식이 다름" }
     }
 
-    override suspend fun detail(recordId: String): PracticeRecord? {
+    override suspend fun detail(recordId: String): PracticeRecord? = member.inSession {
         val response = client.sendOrNull { get("/api/practice-sessions/$recordId") } ?: error("기록 상세 응답 없음")
         if (response.status == HttpStatusCode.NotFound) {
+            ensureAccountSession()
             _records.update { list -> list.filterNot { it.id == recordId } }
-            return null
+            return@inSession null
         }
         if (response.status != HttpStatusCode.OK) error("기록 상세 응답: ${response.status}")
         val session = checkNotNull(response.apiResponse<SessionDetail>()?.result) { "기록 상세 형식이 다름" }
-        val base = records.value.firstOrNull { it.id == recordId } ?: return null
+        val base = records.value.firstOrNull { it.id == recordId } ?: return@inSession null
         val evaluation = evaluations.result(recordId)
         val record = base.copy(
             metrics = evaluation?.metrics ?: base.metrics,
@@ -116,13 +126,14 @@ class HttpPracticeRecordRepository(
             recordingAvailable = session.recordingAvailable,
             isNew = false,
         )
+        ensureAccountSession()
         _records.update { list -> list.map { if (it.id == recordId) it.copy(memo = record.memo, isNew = false) else it } }
-        return record
+        return@inSession record
     }
 
-    override suspend fun playback(recordId: String): RecordPlayback {
-        val response = client.sendOrNull { get("/api/practice-sessions/$recordId/recording") } ?: return RecordPlayback.Failed
-        return when (response.status) {
+    override suspend fun playback(recordId: String): RecordPlayback = member.inSession {
+        val response = client.sendOrNull { get("/api/practice-sessions/$recordId/recording") } ?: return@inSession RecordPlayback.Failed
+        return@inSession when (response.status) {
             HttpStatusCode.OK -> response.apiResponse<Playback>()?.result
                 ?.let { RecordPlayback.Ready(it.playbackUrl, Instant.parse(it.urlExpiresAt).toEpochMilliseconds(), it.durationMs) }
                 ?: RecordPlayback.Failed
@@ -132,12 +143,13 @@ class HttpPracticeRecordRepository(
         }
     }
 
-    override suspend fun delete(recordId: String): RecordDeleteOutcome {
-        val response = client.sendOrNull { delete("/api/practice-sessions/$recordId/record") } ?: return RecordDeleteOutcome.Failed
-        return when (response.status) {
+    override suspend fun delete(recordId: String): RecordDeleteOutcome = member.inSession {
+        val response = client.sendOrNull { delete("/api/practice-sessions/$recordId/record") } ?: return@inSession RecordDeleteOutcome.Failed
+        return@inSession when (response.status) {
             // 다시 보낸 삭제의 404는 '이미 지워짐'이다(REC-04).
             HttpStatusCode.OK, HttpStatusCode.NotFound -> {
-                _records.update { list -> list.filterNot { it.id == recordId } }
+                ensureAccountSession()
+            _records.update { list -> list.filterNot { it.id == recordId } }
                 RecordDeleteOutcome.Deleted
             }
             HttpStatusCode.ServiceUnavailable -> RecordDeleteOutcome.Busy

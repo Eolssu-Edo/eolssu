@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.song
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.PdfFile
@@ -18,17 +21,23 @@ import kotlinx.coroutines.launch
 class PdfUploadViewModel(
     private val repository: MySheetRepository,
     private val filePicker: suspend () -> PdfFile?,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PdfUploadUiState())
     val uiState: StateFlow<PdfUploadUiState> = _uiState.asStateFlow()
     private var uploadJob: Job? = null
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = PdfUploadUiState()
+    }
+
     fun pickFile() {
-        viewModelScope.launch {
+        if (!accountScope.isActive) return
+        accountScope.launch {
             val file = filePicker() ?: return@launch
             uploadJob?.cancel()
             _uiState.update { it.startUpload(file) }
-            uploadJob = viewModelScope.launch {
+            uploadJob = accountScope.launch {
                 val uploaded = repository.uploadPdf(file) { progress -> _uiState.update { it.withProgress(progress) } }
                 _uiState.update { it.finishUpload(uploaded) }
             }
@@ -36,6 +45,7 @@ class PdfUploadViewModel(
     }
 
     fun removeFile() {
+        if (!accountScope.isActive) return
         uploadJob?.cancel()
         uploadJob = null
         _uiState.update { it.removeFile() }

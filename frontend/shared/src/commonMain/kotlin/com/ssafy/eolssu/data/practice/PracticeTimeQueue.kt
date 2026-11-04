@@ -2,6 +2,8 @@ package com.ssafy.eolssu.data.practice
 
 import com.ssafy.eolssu.core.model.PracticeTimeSegment
 import com.ssafy.eolssu.core.model.PracticeTimeSnapshot
+import com.ssafy.eolssu.core.network.AccountWork
+import com.ssafy.eolssu.core.network.ensureAccountSession
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import kotlinx.coroutines.CoroutineScope
@@ -54,9 +56,11 @@ class PracticeTimeQueue(
     }
 
     /** 로그아웃 직전. 한 번 보내 보고 남은 기록을 모두 지운 뒤 [then]을 부른다. */
-    fun logOut(then: () -> Unit = {}) = scope.launch {
+    fun logOut(then: () -> Unit = {}) = scope.launch(AccountWork(member, member.session.value)) {
+            ensureAccountSession()
             closeLeftover()
             send()
+            ensureAccountSession()
             clear()
             then()
     }

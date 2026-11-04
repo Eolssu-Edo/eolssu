@@ -4,6 +4,8 @@ import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -14,12 +16,12 @@ import kotlinx.serialization.Serializable
  * 연습 기록지 통계를 앱 공통 HTTP 클라이언트로 조회한다. 날짜는 `YYYY-MM-DD` KST 날짜로 보낸다.
  * 서버의 음정·박자·음 길이(`pitch`·`timing`·`duration`)는 평가 항목 [EvaluationMetric]의 Pitch·Rhythm·Length다.
  */
-class HttpGrowthRepository(private val client: HttpClient) : GrowthRepository {
+class HttpGrowthRepository(private val client: HttpClient, private val member: SignedInMember? = null) : GrowthRepository {
     override suspend fun summary(fromDay: Long, toDay: Long): GrowthSummary? =
-        fetch<SummaryDto>("/api/users/me/growth/summary", fromDay, toDay)?.toModel()
+        member.inSession { fetch<SummaryDto>("/api/users/me/growth/summary", fromDay, toDay)?.toModel() }
 
     override suspend fun calendar(fromDay: Long, toDay: Long): List<DailyPractice>? =
-        fetch<CalendarDto>("/api/users/me/growth/calendar", fromDay, toDay)?.items?.mapNotNull { it.toModel() }
+        member.inSession { fetch<CalendarDto>("/api/users/me/growth/calendar", fromDay, toDay)?.items?.mapNotNull { it.toModel() } }
 
     private suspend inline fun <reified T> fetch(path: String, fromDay: Long, toDay: Long): T? {
         val response = client.sendOrNull {
