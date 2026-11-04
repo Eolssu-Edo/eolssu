@@ -103,6 +103,8 @@ fun PracticeRoute(
             onRetrySong = viewModel::retryLoadSong,
             bottom = PracticeBottomActions(
                 onStartModel = viewModel::startModel,
+                onStartRhythm = viewModel::startRhythm,
+                onToggleRhythm = viewModel::toggleRhythm,
                 onToggleModel = viewModel::toggleModel,
                 onRestartModel = viewModel::restartModel,
                 onStopModel = viewModel::stopModel,

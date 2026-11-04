@@ -146,7 +146,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 @Composable
 private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
-    val showPlayer = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
+    val showPlayer = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
     val scroll = rememberScrollState()
     // 연주가 시작되면 본문을 맨 위로 올려 정간보 한 각이 화면에 다 들어오게 한다(평가 시작 버튼을 누르려고 내려 둔 스크롤을 되돌린다).

@@ -4,6 +4,18 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
+import com.ssafy.eolssu.data.song.CatalogJangdanDetail
+
+internal fun toggleJangdanAudio(player: AudioPlayer, detail: CatalogJangdanDetail) {
+    val url = detail.soundUrl ?: return
+    if (!player.available) return
+    val current = player.state.value
+    if (current.sourceId == detail.jangdanId && current.status in setOf(AudioPlaybackStatus.Loading, AudioPlaybackStatus.Playing)) {
+        player.stop()
+    } else {
+        player.load(AudioSource(detail.jangdanId, url), 0, 1f)
+    }
+}
 
 internal fun referenceAudioTime(positionMs: Long): String {
     val tenths = positionMs.coerceAtLeast(0) / 100

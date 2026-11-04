@@ -75,7 +75,16 @@ class CatalogReferenceControllerTests {
             .andExpect(jsonPath("$.result.defaultBpm").value(96))
             .andExpect(jsonPath("$.result.bpmUnit").value("DOTTED_QUARTER"))
             .andExpect(jsonPath("$.result.pattern.beats[1]").value(""))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("\"soundUrl\":null")))
+            .andExpect(jsonPath("$.result.soundUrl").value("/api/jangdans/1/audio"))
+    }
+
+    @Test fun `public jangdan audio supports ranges and rejects unknown ids`() {
+        mvc.perform(get("/api/jangdans/1/audio").header("Range", "bytes=0-63"))
+            .andExpect(status().isPartialContent)
+            .andExpect(content().contentTypeCompatibleWith("audio/mpeg"))
+            .andExpect(header().string("Content-Range", org.hamcrest.Matchers.startsWith("bytes 0-63/")))
+        mvc.perform(get("/api/jangdans/01/audio")).andExpect(status().isBadRequest)
+        mvc.perform(get("/api/jangdans/2/audio")).andExpect(status().isNotFound)
     }
 
     @Test fun `notation preserves glyph and null image without inventing semantic codes`() {
