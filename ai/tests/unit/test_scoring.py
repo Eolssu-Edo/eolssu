@@ -115,7 +115,10 @@ def test_sigimsae_note_skips_pitch_and_keeps_onset():
 def test_late_repeated_note_is_timing_error():
     notes = [Note(s, 1) for s in (0, 0, 2, 2, 5, 5, 7, 7, 5, 5, 0)]
     audio = synth(notes, gap=0.04, delay={3: 0.15})  # 같은 높이 두 번째 음이 150ms 늦음
-    assert verdicts(score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))) == {3: "TIMING"}
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {3: "TIMING"}
+    # 높이로 경계를 못 찾는 같은 높이 음도 녹음 기준 시작(3박 × 0.5초 + 0.15초)을 음량으로 잡는다.
+    assert abs(result.notes[3].recording_offset_ms - 1650) <= 30
 
 
 def test_small_tuning_offset_is_corrected():
@@ -188,6 +191,36 @@ def test_all_wrong_notes_are_pitch_errors_not_failure():
     result = score(f0_frames(SCALE, shift=12), SCALE, BPM, REF_HZ)
     assert (result.status, result.fail_reason) == ("DONE", None)
     assert verdicts(result) == {k: "PITCH" for k in range(len(SCALE))}
+
+
+def test_detected_semitone_is_played_pitch_after_applied_tuning():
+    # S15P31E102-482 D-1: 채점에 적용한 조율 보정을 뺀 뒤 가장 가까운 반음. 60센트 낮게 분 곡은 보정(-60)을 빼면 정답 반음이다.
+    expected = [n.semitone for n in SCALE]
+    flat = score(f0_frames(SCALE) * 2 ** (-60 / 1200), SCALE, BPM, REF_HZ)
+    assert not flat.tuning_out_of_range
+    assert [n.detected_semitone for n in flat.notes] == expected
+    assert all(type(n.detected_semitone) is int and type(n.recording_offset_ms) is int for n in flat.notes)  # BE는 Int로 읽는다
+    # 상한을 넘은 어긋남(-120센트)은 보정하지 않으므로 그대로 반올림한 반음(한 반음 아래)이다.
+    far = score(f0_frames(SCALE) * 2 ** (-120 / 1200), SCALE, BPM, REF_HZ)
+    assert far.tuning_out_of_range
+    assert [n.detected_semitone for n in far.notes] == [s - 1 for s in expected]
+    # 옥타브 위로 분 곡은 정답보다 12 큰 반음이다.
+    assert [n.detected_semitone for n in score(f0_frames(SCALE, shift=12), SCALE, BPM, REF_HZ).notes] == [s + 12 for s in expected]
+
+
+def test_recording_offset_counts_from_the_start_of_the_recording():
+    # D-2: 업로드 녹음 0ms 기준 실제 소리 시작. 앞에 0.5초 무음을 붙이면 모든 음이 500ms 늦게 잡힌다.
+    starts = [round(1000 * 60 / BPM * k) for k in range(len(SCALE))]
+    assert [n.recording_offset_ms for n in score(f0_frames(SCALE), SCALE, BPM, REF_HZ).notes] == starts
+    lead = np.concatenate([np.full(50, np.nan), f0_frames(SCALE)])
+    assert [n.recording_offset_ms for n in score(lead, SCALE, BPM, REF_HZ).notes] == [s + 500 for s in starts]
+
+
+def test_missed_note_has_no_detected_pitch_or_offset():
+    result = score(f0_frames(SCALE, played=set(range(len(SCALE))) - {5}), SCALE, BPM, REF_HZ)
+    assert result.notes[5].verdict == "MISSED"
+    assert (result.notes[5].detected_semitone, result.notes[5].recording_offset_ms) == (None, None)
+    assert all(n.detected_semitone is not None and n.recording_offset_ms is not None for n in result.notes if n.idx != 5)
 
 
 def test_short_input_fails():
