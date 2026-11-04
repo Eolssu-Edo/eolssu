@@ -206,7 +206,7 @@ class DatabaseIntegrationTests {
             mapper<EvaluationMapper>().findById(1),
         )
         assertEquals(
-            NoteResultRow(1, 1, 0, 2, null, null, -16, null, "MISSED"),
+            NoteResultRow(1, 1, 0, 2, null, null, -16, null, "MISSED", null),
             mapper<NoteResultMapper>().findById(1),
         )
         val lesson = assertNotNull(mapper<LessonMapper>().findById(1))
@@ -856,7 +856,11 @@ class DatabaseIntegrationTests {
         val notes = listOf(ScoreNote(3, 0, 0.0, 1.0, false, 2), ScoreNote(4, -12, 1.0, 2.0, true, 1))
         val done = AnalysisResult.Done(
             "pyin-1", 87, 90, 85, 86,
-            listOf(NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15), NoteJudgement(4, NoteVerdict.MISSED, null, null, null)),
+            // 반음 10은 V5의 무(id 3)다. 99는 pitches에 없는 음이라 인식 음을 저장하지 않는다.
+            listOf(
+                NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15, if (outOfRange) 99 else 10, 1520),
+                NoteJudgement(4, NoteVerdict.MISSED, null, null, null),
+            ),
             if (outOfRange) 137.25 else -12.5, outOfRange,
         )
         assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes, inTime)) // 이전 시도의 늦은 결과
@@ -877,14 +881,18 @@ class DatabaseIntegrationTests {
                 .single().values.map { (it as? Number)?.toInt() ?: it },
         )
         assertEquals(
-            listOf(listOf(3, 2L, null, -62, 20, -15, "PITCH"), listOf(4, 1L, null, null, null, null, "MISSED")),
+            listOf(
+                listOf(3, 2L, if (outOfRange) null else 3L, -62, 20, -15, "PITCH", 1520),
+                listOf(4, 1L, null, null, null, null, "MISSED", null),
+            ),
             jdbc.query(
-                "SELECT n.note_idx, n.expected_pitch_id, n.detected_pitch_id, n.pitch_error_cent, n.onset_error_ms, n.duration_error_ms, n.verdict " +
-                    "FROM note_results n JOIN evaluations e ON e.id = n.evaluation_id WHERE e.session_id = 21 ORDER BY n.note_idx",
+                "SELECT n.note_idx, n.expected_pitch_id, n.detected_pitch_id, n.pitch_error_cent, n.onset_error_ms, n.duration_error_ms, n.verdict, " +
+                    "n.recording_offset_ms FROM note_results n JOIN evaluations e ON e.id = n.evaluation_id WHERE e.session_id = 21 ORDER BY n.note_idx",
             ) { rs, _ ->
                 listOf(
-                    rs.getInt(1), rs.getLong(2), rs.getObject(3), rs.getObject(4)?.let { (it as Number).toInt() },
+                    rs.getInt(1), rs.getLong(2), rs.getObject(3)?.let { (it as Number).toLong() }, rs.getObject(4)?.let { (it as Number).toInt() },
                     rs.getObject(5)?.let { (it as Number).toInt() }, rs.getObject(6)?.let { (it as Number).toInt() }, rs.getString(7),
+                    rs.getObject(8)?.let { (it as Number).toInt() },
                 )
             },
         )

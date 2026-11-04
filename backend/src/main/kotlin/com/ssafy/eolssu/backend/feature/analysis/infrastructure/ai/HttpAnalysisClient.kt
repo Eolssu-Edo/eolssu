@@ -64,13 +64,21 @@ class HttpAnalysisClient(
 
     private fun score(value: Int?) = value?.takeIf { it in 0..100 } ?: throw AnalysisResponseException("scores must be 0..100")
 
-    private fun ResponseNote.toJudgement() = NoteJudgement(
-        idx ?: throw AnalysisResponseException("note without idx"),
-        NoteVerdict.entries.find { it.name == verdict } ?: throw AnalysisResponseException("unknown verdict $verdict"),
-        pitchErrorCent,
-        onsetErrorMs,
-        durationErrorMs,
-    )
+    private fun ResponseNote.toJudgement(): NoteJudgement {
+        val judged = NoteVerdict.entries.find { it.name == verdict } ?: throw AnalysisResponseException("unknown verdict $verdict")
+        if (recordingOffsetMs != null && recordingOffsetMs < 0) throw AnalysisResponseException("recordingOffsetMs must not be negative")
+        // 새 필드는 이전 AI 응답에 없어 null로 받는다. MISSED는 소리를 찾지 못한 음표라 인식 음·녹음 위치를 저장하지 않는다.
+        val heard = judged != NoteVerdict.MISSED
+        return NoteJudgement(
+            idx ?: throw AnalysisResponseException("note without idx"),
+            judged,
+            pitchErrorCent,
+            onsetErrorMs,
+            durationErrorMs,
+            detectedSemitone.takeIf { heard },
+            recordingOffsetMs.takeIf { heard },
+        )
+    }
 
     internal data class RequestBody(
         val sessionId: Long,
@@ -105,6 +113,8 @@ class HttpAnalysisClient(
         val pitchErrorCent: Double? = null,
         val onsetErrorMs: Int? = null,
         val durationErrorMs: Int? = null,
+        val detectedSemitone: Int? = null,
+        val recordingOffsetMs: Int? = null,
     )
 
     private companion object {
