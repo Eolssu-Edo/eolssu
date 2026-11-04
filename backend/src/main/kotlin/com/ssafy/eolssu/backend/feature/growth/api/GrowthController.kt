@@ -43,9 +43,6 @@ class GrowthController(private val stats: GetGrowthStats) {
                 previousPeriod = PreviousPeriod(
                     summary.previous.practiceSeconds, summary.previous.practiceCount, summary.previous.averageTotalScore,
                 ),
-                // 미션 미구현: 0으로 꾸미지 않고 null(명세 규칙 5).
-                completedMissionCount = null,
-                totalMissionCount = null,
                 bestBySong = summary.bestBySong.map { BestSong(it.songId.toString(), it.title, it.bestTotalScore) },
                 metricGrowth = summary.metricGrowth.let { growth ->
                     MetricGrowthResult(
@@ -101,8 +98,6 @@ data class SummaryResult(
     val currentStreakDays: Int,
     val averageTotalScore: Int?,
     val previousPeriod: PreviousPeriod,
-    val completedMissionCount: Int?,
-    val totalMissionCount: Int?,
     val bestBySong: List<BestSong>,
     val metricGrowth: MetricGrowthResult,
 )

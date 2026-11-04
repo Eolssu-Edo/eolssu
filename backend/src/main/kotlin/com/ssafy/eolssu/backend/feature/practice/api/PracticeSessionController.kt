@@ -9,6 +9,7 @@ import com.ssafy.eolssu.backend.feature.practice.application.CreatePracticeSessi
 import com.ssafy.eolssu.backend.feature.practice.application.GetPracticeSession
 import com.ssafy.eolssu.backend.feature.practice.domain.BpmUnit
 import com.ssafy.eolssu.backend.feature.practice.domain.PracticeSessionDetail
+import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -61,7 +62,6 @@ class PracticeSessionController(
             startNoteIdx = request.startNoteIdx,
             endNoteIdx = request.endNoteIdx,
             parentSessionId = request.parentSessionId?.toLong(),
-            missionId = request.missionId?.toLong(),
             jangdanSoundOn = request.jangdanSoundOn,
         )
         return when (val result = createPracticeSession.execute(command)) {
@@ -93,22 +93,29 @@ class PracticeSessionController(
 }
 
 // 명세 타입(STRING·INT·BOOLEAN)과 다른 JSON 값은 자동 변환하지 않고 400으로 거절한다(StrictJsonDeserializers).
+// Swagger Schema 탭에서 키의 뜻과 생략 시 값을 보이도록 설명을 단다. 예시 본문은 OpenApiContracts에 둔다.
 data class CreatePracticeSessionRequest(
+    @field:Schema(description = "연습할 곡 ID(양의 정수 JSON 문자열). 공개·채점 가능(isScorable)·미삭제 곡이 아니면 404", example = "15", requiredMode = Schema.RequiredMode.REQUIRED)
     @field:NotNull @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val songId: String? = null,
+    @field:Schema(description = "빠르기. bpmUnit 한 박을 1분에 몇 번 치는지(20~240 정수)", example = "96", requiredMode = Schema.RequiredMode.REQUIRED)
     @field:NotNull @field:Min(20) @field:Max(240) @param:JsonDeserialize(using = StrictIntDeserializer::class) val bpm: Int? = null,
     // enum으로 받으면 숫자 0이 첫 값으로 바뀌어 문자열로 받아 이름을 확인한다.
+    @field:Schema(description = "bpm의 한 박 단위. QUARTER 4분음표, DOTTED_QUARTER 점4분음표, JEONGGAN 정간 한 칸, JANGDAN_BEAT 장단 한 박. 생략하면 곡 장단(없으면 악보)의 단위", example = "QUARTER", allowableValues = ["QUARTER", "DOTTED_QUARTER", "JEONGGAN", "JANGDAN_BEAT"])
     @field:Pattern(regexp = BPM_UNIT_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val bpmUnit: String? = null,
+    @field:Schema(description = "구간 연습의 첫 음 번호(0부터). 생략하면 0", example = "0")
     @field:Min(0) @param:JsonDeserialize(using = StrictIntDeserializer::class) val startNoteIdx: Int? = null,
+    @field:Schema(description = "구간 연습의 마지막 음 번호(포함, noteCount - 1 이하). 생략하면 곡의 마지막 음", example = "10")
     @field:Min(0) @param:JsonDeserialize(using = StrictIntDeserializer::class) val endNoteIdx: Int? = null,
+    @field:Schema(description = "다시 연습할 때 기준이 되는 이전 세션 ID. 본인·같은 곡·분석이 끝난(DONE) 세션이어야 하며, 아니면 404·400·409. 생략하면 새 연습")
     @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val parentSessionId: String? = null,
-    @field:Pattern(regexp = ID_PATTERN) @param:JsonDeserialize(using = StrictStringDeserializer::class) val missionId: String? = null,
+    @field:Schema(description = "장단 소리를 켜고 연주했는지. 지금은 저장하지 않고 같은 키 재전송 비교에만 쓴다. 생략하면 false", example = "false")
     @param:JsonDeserialize(using = StrictBooleanDeserializer::class) val jangdanSoundOn: Boolean? = null,
 )
 
 data class CreatedPracticeSessionResponse(
     val httpStatus: String = "CREATED",
     @get:JsonProperty("isSuccess") val isSuccess: Boolean = true,
-    val message: String = "전체·구간·미션 연습 세션 생성 성공",
+    val message: String = "전체·구간 연습 세션 생성 성공",
     val code: Int = 201,
     val result: CreatedSession,
 )

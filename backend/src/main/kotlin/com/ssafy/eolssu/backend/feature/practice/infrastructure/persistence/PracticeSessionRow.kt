@@ -6,7 +6,6 @@ data class PracticeSessionRow(
     val id: Long,
     val userId: Long,
     val songId: Long,
-    val missionId: Long?,
     val parentSessionId: Long?,
     val scoreVersion: Int,
     val bpm: Short,

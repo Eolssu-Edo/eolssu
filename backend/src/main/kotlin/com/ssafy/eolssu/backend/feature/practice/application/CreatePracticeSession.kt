@@ -18,7 +18,6 @@ data class CreatePracticeSessionCommand(
     val startNoteIdx: Int? = null,
     val endNoteIdx: Int? = null,
     val parentSessionId: Long? = null,
-    val missionId: Long? = null,
     val jangdanSoundOn: Boolean? = null,
 )
 
@@ -39,8 +38,6 @@ class CreatePracticeSession(
         // 같은 키의 재전송은 곡·부모 세션 상태가 바뀌었어도 처음 결과를 그대로 돌려준다(PRA-01 규칙 5·6).
         repository.findByIdempotencyKey(command.userId, command.idempotencyKey)?.let { return replay(it, hash) }
 
-        // 미션 정의(missions)가 아직 없어 어떤 missionId도 찾을 수 없다.
-        if (command.missionId != null) return CreatePracticeSessionResult.NotFound
         val song = repository.findPlayableSong(command.songId) ?: return CreatePracticeSessionResult.NotFound
         command.parentSessionId?.let { parentId ->
             val parent = repository.findSession(parentId)
@@ -88,7 +85,8 @@ class CreatePracticeSession(
                 command.startNoteIdx ?: 0,
                 command.endNoteIdx ?: "-",
                 command.parentSessionId ?: "-",
-                command.missionId ?: "-",
+                // 미션을 받던 자리다. 저장된 해시와 같게 유지해야 기존 세션의 재전송이 409가 되지 않는다.
+                "-",
                 command.jangdanSoundOn ?: false,
             ).joinToString("|")
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.toByteArray()))
