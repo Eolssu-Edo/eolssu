@@ -1,0 +1,37 @@
+{
+ "sourceId": "ngc-silgi-2016-ssareum",
+ "sourceHashes": {
+  "ngc-silgi-2016-ssareum": "a15dbb2f2bd1ef1d1318b5441c82118d560e5a336f5ee8e5dd0874bc42c53fcd"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "싸름타령_단소_최종본.jgb.json",
+  "sha256": "7e9c33a49c7d4ae09a7d39a29c216a5de10109b2675a38e196a1cd120a2b6233",
+  "storedSha256": "65c8fa3aca22d841affd6c228ad8401a2e63f2b0e243fa4fc0b27d128375efaf",
+  "note": "노션 jgb 모음의 단소 사본(v2). 1각 6정간·2각 4정간의 범위 농음표(`농음표@170`)를 원본의 긴 물결선대로 그 줄의 음마다 `{농음표}`로 적었다"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "AI(주 세션)가 원본 PDF 그림과 대조했다. 범위 농음표의 범위는 원본의 긴 물결선으로 판단했다. 사람이 정간마다 검수하지는 않았다. 시김새 이름(2곳 풀어내림표)은 운영(농음표)과 달라 사람 확정이 남아 있다. S15P31E102-451"
+ },
+ "song": {
+  "title": "싸름",
+  "instrument": "DANSO",
+  "jangdan": "",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": null,
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 28,
+  "scoreVersion": 1
+ }
+}
