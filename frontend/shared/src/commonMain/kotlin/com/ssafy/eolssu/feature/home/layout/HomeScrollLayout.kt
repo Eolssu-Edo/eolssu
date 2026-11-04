@@ -5,6 +5,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,7 +42,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -52,15 +53,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Instrument
-import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.component.EolssuLogo
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.feature.home.HomeInstruments
 import com.ssafy.eolssu.feature.home.HomeScrollRange
@@ -73,6 +70,8 @@ import com.ssafy.eolssu.feature.home.component.HomeInkButton
 import com.ssafy.eolssu.feature.home.component.InstrumentPlate
 import com.ssafy.eolssu.feature.home.component.MyPagePlate
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.home_hero_brush_lettering
+import eolssu.shared.generated.resources.home_hero_logo_white
 import eolssu.shared.generated.resources.home_hero_title
 import eolssu.shared.generated.resources.home_illustration
 import eolssu.shared.generated.resources.home_scroll_to_features
@@ -182,12 +181,20 @@ internal fun HomeScrollLayout(
                                 scaleX = frame.headlineScale; scaleY = frame.headlineScale
                             },
                         horizontalAlignment = Alignment.End,
+                        // 확대되는 첫 화면에서도 화면에 보이는 간격은 4dp로 유지한다.
+                        verticalArrangement = Arrangement.spacedBy(4.dp / frame.headlineScale),
                     ) {
-                        // '얼쑤!' 글자 대신 흰 붓글씨 로고를 두고, 그 아래 한 줄 제목만 남긴다.
-                        EolssuLogo(Modifier.size(width = 96.dp, height = 50.dp), tint = Color.White)
-                        Text(stringResource(Res.string.home_hero_title), Modifier.padding(top = 2.dp),
-                            style = EolssuTheme.serif.headline.copy(fontSize = 26.sp, lineHeight = 32.5.sp, shadow = Shadow(Color(0x66000000), Offset(0f, 2f), 20f)),
-                            color = HomeGround, textAlign = TextAlign.End)
+                        Image(
+                            painterResource(Res.drawable.home_hero_logo_white),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = 96.dp, height = 47.dp),
+                            colorFilter = HomeHeroLogoColor,
+                        )
+                        Image(
+                            painterResource(Res.drawable.home_hero_brush_lettering),
+                            contentDescription = stringResource(Res.string.home_hero_title),
+                            modifier = Modifier.size(width = 171.dp, height = 42.dp),
+                        )
                     }
                     val buttonLeft = mix((w - buttonW) / 2f,
                         if (expanded) contentLeft + (finalHeroW - buttonW) / 2f else (w - buttonW) / 2f, frame.eased)
@@ -280,5 +287,7 @@ private fun HomeArt(width: Float, left: Float, scale: Float, artY: Float, x: Flo
 
 /** 상단 판과 화면(안전 영역) 위 가장자리 사이의 틈. */
 private val HomeHeaderTop = 12.dp
+// 흰색 RGB는 그대로 두고 반투명한 붓 획의 불투명도만 높인다.
+private val HomeHeroLogoColor = ColorFilter.colorMatrix(ColorMatrix().apply { this[3, 3] = 2.2f })
 private val HomeNight = Color(0xFF1B2233)
 private val HomeGround = Color(0xFFF9FAF9)
