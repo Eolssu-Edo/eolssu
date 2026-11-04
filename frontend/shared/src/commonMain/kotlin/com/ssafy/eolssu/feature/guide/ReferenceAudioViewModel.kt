@@ -63,20 +63,33 @@ private fun recordingLabel(instrument: GuideInstrument, blow: Blow?, reading: St
     return aliases[reading] ?: reading
 }
 
+/** 음마다 들려주는 예시음 종류. 깊은요성은 요성과 다른 주법이라 어느 쪽에도 넣지 않는다. */
+enum class ReferenceAudioKind {
+    Basic, Yoseong;
+
+    fun matches(technique: String): Boolean = when (this) {
+        Basic -> "요성" !in technique
+        Yoseong -> "요성" in technique && "깊은요성" !in technique
+    }
+}
+
 data class ReferenceAudioUiState(
     val instrument: GuideInstrument? = null,
     val loadState: ReferenceLoadState = ReferenceLoadState.Loading,
     val clips: List<ReferenceAudioClip> = emptyList(),
-    val selectedAssets: Map<ReferenceAudioSelection, String> = emptyMap(),
 ) {
     fun clipsFor(selection: ReferenceAudioSelection): List<ReferenceAudioClip> = clips.filter {
         it.datasetId == selection.datasetId && it.register == selection.register && it.yulmyeong == selection.yulmyeong
     }
-    fun selectedClip(selection: ReferenceAudioSelection): ReferenceAudioClip? =
-        clipsFor(selection).firstOrNull { it.assetId == selectedAssets[selection] }
+
+    /** 기본음계 녹음에서 고른다. 강·중·약이 함께 있으면 강을 쓴다. */
+    fun clipFor(selection: ReferenceAudioSelection, kind: ReferenceAudioKind): ReferenceAudioClip? {
+        val options = clipsFor(selection).filter { it.category == "기본음계" && kind.matches(it.technique) }
+        return options.firstOrNull { "강" in it.technique.split(' ') } ?: options.firstOrNull()
+    }
 }
 
-/** 화면을 떠날 때까지 악기별 음원 목록을 재사용하고, 카드 선택만으로 재생하지 않는다. */
+/** 화면을 떠날 때까지 악기별 음원 목록을 재사용한다. */
 class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) : ViewModel() {
     private val mutableState = MutableStateFlow(ReferenceAudioUiState())
     val uiState = mutableState.asStateFlow()
@@ -85,11 +98,8 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
 
     fun open(instrument: GuideInstrument) {
         val state = mutableState.value
-        if (state.instrument == instrument && state.loadState in setOf(ReferenceLoadState.Loading, ReferenceLoadState.Ready)) {
-            // 취법·학습 단계가 바뀌면 선택만 초기화한다. 목록의 조회 범위는 같은 악기 전체다.
-            mutableState.value = state.copy(selectedAssets = emptyMap())
-            return
-        }
+        // 목록의 조회 범위는 같은 악기 전체라 취법·학습 단계가 바뀌어도 다시 받지 않는다.
+        if (state.instrument == instrument && state.loadState in setOf(ReferenceLoadState.Loading, ReferenceLoadState.Ready)) return
         request?.cancel()
         val cached = loadedClips[instrument]
         mutableState.value = ReferenceAudioUiState(
@@ -100,22 +110,12 @@ class ReferenceAudioViewModel(private val repository: ReferenceAudioRepository) 
         if (cached == null) retry()
     }
 
-    fun nextOption(selection: ReferenceAudioSelection) {
-        val state = mutableState.value
-        if (state.loadState != ReferenceLoadState.Ready || state.instrument != selection.instrument) return
-        val options = state.clipsFor(selection)
-        if (options.isEmpty()) return
-        val current = options.indexOfFirst { it.assetId == state.selectedAssets[selection] }
-        val next = options[(current + 1) % options.size]
-        mutableState.value = state.copy(selectedAssets = state.selectedAssets + (selection to next.assetId))
-    }
-
     fun retry() {
         val instrument = mutableState.value.instrument ?: return
         if (request?.isActive == true) return
         val query = ReferenceAudioQuery(ReferenceAudioSelection(instrument, null, "").datasetId)
         loadedClips.remove(instrument)
-        mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Loading, clips = emptyList(), selectedAssets = emptyMap())
+        mutableState.value = mutableState.value.copy(loadState = ReferenceLoadState.Loading, clips = emptyList())
         request = viewModelScope.launch {
             try {
                 val clips = repository.clips(query)
