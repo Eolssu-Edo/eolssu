@@ -39,15 +39,28 @@ class SheetEditStateTest {
     }
 
     @Test
-    fun saveWithoutEmptyCellsSavesAndAudioUsesLastSavedVersion() {
+    fun saveWithoutEmptyCellsSavesAndAudioNeedsAServerSheet() {
         val copy = EditSource.CopySong("arirang")
         val state = SheetEditUiState.initial(copy, SheetEditSamples.draftFor(copy, emptyList()))
         assertEquals("아리랑 (내 편곡)", state.draft.title, "제공 곡 복사본은 '(내 편곡)'을 붙인다")
-        assertEquals(SheetEditMessage.AudioNeedsSave, state.requestAudio().message, "저장한 적이 없으면 음원을 받을 수 없다")
+        assertEquals(SheetEditMessage.AudioNeedsSave, state.requestAudio().message, "저장한 적이 없으면 음원을 만들 수 없다")
         val saved = state.requestSave()
         assertEquals(SheetEditMessage.Saved, saved.message)
         assertTrue(saved.savedOnce)
-        assertEquals(SheetEditMessage.Audio, saved.copy(message = null).requestAudio().message)
+        assertNull(saved.serverSheetId, "저장 API를 붙이기 전이라 서버 악보가 없다")
+        assertEquals(SheetEditMessage.ComingSoon, saved.copy(message = null).requestAudio().message)
+        assertEquals(SheetAudioUi.None, saved.audio)
+    }
+
+    @Test
+    fun savedServerSheetRequestsAudioOnlyWhenNothingIsInProgress() {
+        val source = EditSource.Mine("12")
+        val state = SheetEditUiState.initial(source, SheetEditSamples.draftFor(source, emptyList()))
+        assertEquals("12", state.serverSheetId)
+        val requesting = state.requestAudio()
+        assertEquals(SheetAudioUi.Requesting(null), requesting.audio)
+        assertNull(requesting.message)
+        assertEquals(requesting, requesting.requestAudio(), "요청 중에는 다시 요청하지 않는다")
     }
 
     @Test

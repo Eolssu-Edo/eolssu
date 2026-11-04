@@ -89,6 +89,7 @@ uv run uvicorn ai_service.api:app --host 0.0.0.0 --port 8000
 - 기준음은 요청에 없어 `HWANG_HZ`(황 = E♭4, 311.13Hz)로 둡니다. 기기 차이는 조율 보정이 흡수하고, 보정 상한은 곡마다 계산합니다(아래 채점 방식).
 - 박 길이는 `60 / bpm`초이고 `beats`는 백엔드가 `bpmUnit` 단위로 센 값으로 봅니다. `bpmUnit`은 DB의 4종만 받습니다.
 - `notes[].startBeat`(곡 처음부터 센 시작 박, 0 이상이고 앞 음이 끝난 뒤 시작해야 함)로 기대 시각을 정합니다. 첫 음을 0초로 보고, 음 사이 빈 시간은 쉼으로 채점합니다. 음표 `idx`는 채점에 넘겨 결과에 그대로 돌려받습니다.
+- 결과 음표마다 `detectedSemitone`(조율 보정을 뺀 연주 음의 반음)과 `recordingOffsetMs`(녹음 파일 0ms부터 그 음이 시작된 시각)를 돌려줍니다. 놓친 음은 둘 다 `null`입니다. 정의와 한계는 PRA-03 계약에 있습니다.
 - 시도마다 `analysis session=… attempt=… result=… ms=…` 한 줄을 남깁니다. `audioUrl`과 예외 메시지는 남기지 않고, httpx·httpcore 로그는 WARNING 미만을 막습니다(httpx는 INFO에서 URL 전체를 남깁니다).
 - OpenAPI 문서(요청·상태별 응답 스키마와 설명)는 코드에 있지만, 내부 API라 `/docs`·`/redoc`·`/openapi.json` 경로는 열지 않습니다(404). 문서는 서버 없이 아래 명령으로 뽑아 [Swagger Editor](https://editor.swagger.io) 등에서 봅니다. 응답 스키마는 문서용 모델이며, 테스트가 실제 응답과 같은 키·값 범위인지 확인합니다.
 

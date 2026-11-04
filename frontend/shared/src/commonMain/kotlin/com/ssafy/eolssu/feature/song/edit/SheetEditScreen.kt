@@ -349,5 +349,12 @@ private fun staffNoteLabel(note: StaffNote, order: Int, hwang: HwangPitch): Stri
     return stringResource(Res.string.sheetedit_staff_note_label, order, name)
 }
 
-/** 스낵바로 띄울 문구가 있는 안내인지(EDIT-02에서 띄우는 것). */
-internal fun SheetEditMessage.shownInEditor(): Boolean = this == SheetEditMessage.ComingSoon
+/** EDIT-02에서도 띄우는 안내: 편집기에서 생긴 것과, 뒤에서 만들던 음원의 완료·실패·확인 못 함 알림. */
+internal fun SheetEditMessage.shownInEditor(): Boolean = this in EditorMessages
+
+private val EditorMessages = setOf(
+    SheetEditMessage.ComingSoon,
+    SheetEditMessage.AudioReady,
+    SheetEditMessage.AudioFailed,
+    SheetEditMessage.AudioStatusUnknown,
+)
