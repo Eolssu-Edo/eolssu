@@ -472,14 +472,16 @@ class AnswerTests(unittest.TestCase):
             problems = check(result)
             self.assertTrue(any(name in p for p in problems), (name, problems))
 
-    def test_danso_accepts_any_yul_inside_its_range(self):
-        # 진도아리랑 단소 원본의 청남(湳)은 기본 5율 표에 없지만 단소 음역(중~중청중) 안이다. 음역 밖은 막는다.
+    def test_danso_accepts_its_five_yul_and_listed_extras_only(self):
+        # 진도아리랑 단소 원본의 청남(湳)은 기본 5율 표 밖이라 예외로 받는다. 청협 같은 반음 오타와
+        # backend 율명 표에 없는 중청대는 여전히 막는다(S15P31E102-451 검토).
         result = copy.deepcopy(convert_answer(ANSWERS[2]))
         note = next(e for e in result["events"] if e["kind"] == "NOTE")
         note.update(yul="남", octave=1)
         self.assertEqual(check(result), [])
-        note.update(yul="무", octave=2)
-        self.assertTrue(any("음역" in p for p in check(result)))
+        for yul, octave in (("협", 1), ("대", 2)):
+            note.update(yul=yul, octave=octave)
+            self.assertTrue(any("율명 표" in p for p in check(result)), (yul, octave))
 
 
 if __name__ == "__main__":

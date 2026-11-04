@@ -115,6 +115,12 @@ class PlanTests(unittest.TestCase):
                 self.assertEqual((target['events'], target['columns']), (answer['events'], answer['columns']), item['answer'])
                 self.assertEqual((target['score']['scoreVersion'], target['score']['sourceId']),
                                  (item['targetScoreVersion'], item['source']), item['answer'])
+                ticks = ('bpmUnit', 'ticksPerBeat', 'ticksPerJeonggan')
+                self.assertEqual([target['music'][k] for k in ticks], [answer['music'][k] for k in ticks], item['answer'])
+                self.assertEqual((target['provenance']['review'], target['provenance']['converter'],
+                                  target['provenance']['jgbSha256'], target['provenance']['sourceId']),
+                                 ('reviewed', answer['provenance']['converter'], answer['provenance']['jgbSha256'],
+                                  item['source']), item['answer'])
 
 
 class PatchTests(unittest.TestCase):

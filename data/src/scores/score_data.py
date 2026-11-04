@@ -34,6 +34,8 @@ HWANG_HZ = 311.13  # 황 = E♭4(노션 1차 MVP 논의사항 1-1)
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 # 율명 앞말 → 옥타브 번호(backend V1 pitches.octave: -1 배, 0 중, 1 청, 2 중청)
 OCTAVE = {"하하배": -3, "하배": -2, "배": -1, "": 0, "청": 1, "중청": 2}
+# 단소 율명 표(기본 5율) 밖이지만 원본에 나와 받는 율. backend pitches(V13)에 있어야 한다.
+DANSO_EXTRA_PITCHES = {("남", 1)}  # 청남: 진도아리랑 단소 원본 3각 3정간(S15P31E102-451)
 # 음 단위 = 율명·이음·쉼표 + 숨표 + 시김새({…}·(…)·[…]). review_page.html의 UNIT과 같다.
 UNIT = re.compile(rf"({YUL}|-|쉼표|쉼)?(<)?((?:[{{(\[][^{{}}()\[\]]+[}})\]])*)")
 SIGIMSAE = re.compile(r"[{(\[]([^{}()\[\]]+)[})\]]")
@@ -219,14 +221,11 @@ def check(result, data=DATA):
     problems += [f"eventId {u['eventId']}가 events에 없다 ({c['id']})"
                  for c in cells for u in c["units"] if u["eventId"] not in event_ids]
     problems += [f"cellId {e['cellId']}가 cells에 없다 ({e['id']})" for e in events if e["cellId"] not in cell_ids]
-    # 단소는 율명 표(기본 5율)의 가장 낮은 음~가장 높은 음 안이어야 한다. 원본에는 청남처럼 5율 밖의 율도 나온다.
-    # 다른 악기는 읽기 규칙(12율)만 따른다.
+    # 단소는 율명 표(기본 5율)와 원본에서 확인한 예외만 받는다. 다른 악기는 읽기 규칙(12율)만 따른다.
     if result["score"]["instrument"] == "DANSO":
-        semitones = [p["semitone"] for p in _rows(data, "pitches.json")]
-        low, high = min(semitones), max(semitones)
-        problems += [f"율명 {e['yul']}·{e['octave']}가 단소 음역 밖이다 ({e['id']})"
-                     for e in events if e["kind"] == "NOTE"
-                     and not low <= "황대태협고중유임이남무응".index(e["yul"]) + 12 * e["octave"] <= high]
+        pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")} | DANSO_EXTRA_PITCHES
+        problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
+                     for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
     return problems
 
 
