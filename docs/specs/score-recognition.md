@@ -64,14 +64,32 @@ POST /v1/recognitions
   "pages": [{"index": 0, "width": 4300, "height": 3040}],
   "jgb": {"v": 1, "melody": "..."},
   "score": {"schemaVersion": 1, "provenance": {"review": "inferred", "converter": "staff-omr/audiveris-5.11.0"}},
-  "issues": [{"kind": "LOW_CONFIDENCE", "eventId": "c0-j2-r0-u0", "cellId": null, "page": 0, "bbox": [10, 20, 30, 40], "detail": null}]
+  "issues": [{"kind": "OUT_OF_RANGE", "eventId": null, "cellId": "c6-j0", "page": null, "bbox": null, "detail": {"measure": 7, "semitone": 3}}],
+  "notices": [{"kind": "TRANSPOSED", "eventId": null, "cellId": null, "page": null, "bbox": null, "detail": {"semitones": 8, "candidates": [8]}}]
 }
 ```
 
-- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 사용자가 검수해 저장하면 backend가 `reviewed`로 바꾼다.
+- `score`: 공통 악보 v1([score_data.schema.json](../../data/src/scores/score_data.schema.json)). 언제나 초안이라 `provenance.review`는 `inferred`다. 내 악보는 사용자가 검수해 저장한 뒤에도 `inferred`로 둔다(`reviewed`는 전문가가 검수한 채점 정답용). 저장할 때 backend가 `converter`·`jgbSha256`·`sourceId`를 다시 채운다(S15P31E102-447).
 - `provenance.converter` 값: `jeongganbo-text/standard_score_text`(글자 층), `jeongganbo-omr/malerlab`, `staff-omr/audiveris-<버전>`. `jgbSha256`·`sourceId`는 변환한 `.jgb.json`과 `conversionId` 기준으로 채운다.
 - `jgb`: 중간 결과 `.jgb.json`(382). 저장 여부는 backend가 정한다.
 - `bbox`: `pages[index]` 그림 픽셀 좌표 `[x, y, 너비, 높이]`. 검수 화면이 원본 쪽 이미지에 표시한다.
+
+### issues와 notices (S15P31E102-469)
+
+- `issues`: 사용자가 고칠 칸이 있는 것. 항목마다 결과 `score`의 음(`eventId`)이나 칸(`cellId`, `c{각}-j{정간}`)을 언제나 가리킨다. backend는 이 개수로 확인할 칸을 센다.
+- `notices`: 칸이 없는 악보 전체·쪽·열 단위 알림. `eventId`·`cellId`는 언제나 null이고 모양은 issue와 같다. 확인할 칸 수에 넣지 않는다.
+- 엔진이 결과 악보에 없는 칸을 가리키면(엔진 잘못) 그 항목은 `notices`로 옮기고 로그를 남긴다.
+
+| kind | 놓이는 곳 | 칸 |
+| --- | --- | --- |
+| `OUT_OF_RANGE` | issues | 그 음이 놓인 정간 |
+| `LOW_CONFIDENCE` `OFF_GRID_RHYTHM`·`COLLIDED` | issues | 리듬을 옮기거나 겹친 정간 |
+| `LOW_CONFIDENCE` `GAP_IN_VOICE` | issues | 빈 시간이 시작하는 쉼표 정간 |
+| `ORNAMENT_DROPPED` | issues | 꾸밈음이 붙어 있던 음의 정간. 반복을 펼치면 펼친 각마다 하나. 뒤따르는 음이 없으면 notices |
+| `UNREADABLE` 읽지 못한 글자(`detail.text`) | issues | 그 글자를 덮는 정간 |
+| `UNREADABLE` `NO_TEXT`·`NO_GRID`·`NO_STAFF`·`NOT_SCORE_COLUMN` | notices | 쪽·열 전체 |
+| `LOW_CONFIDENCE` `TIME_SIGNATURE_CHANGED`·`VOLTA_NUMBER` | notices | 마디 구조 |
+| `TRANSPOSED`·`VOICE_GUESSED`·`JANGDAN_GUESSED`·`JANGDAN_MISMATCH` | notices | 악보 전체 |
 
 ### issues 종류
 
@@ -109,7 +127,7 @@ POST /v1/recognitions
 | notation·입력 | 엔진 |
 | --- | --- |
 | `JEONGGANBO`, PDF에 글자 층이 있음 | `standard_score_text.py`(표준악보집 글자·선 좌표) |
-| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다. 그 전에는 `ENGINE_ERROR` |
+| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다(2차 일정 포함, 2026-11-04 결정). 그 전에는 `ENGINE_ERROR` |
 | `STAFF` | Audiveris → MusicXML → 정간보 변환 |
 
 어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.

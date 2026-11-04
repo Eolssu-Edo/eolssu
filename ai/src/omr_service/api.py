@@ -245,8 +245,25 @@ def _done(request: RecognitionIn, result: dict, pages: list[Page]) -> dict:
         "pages": [{"index": i, "width": p.width, "height": p.height} for i, p in enumerate(pages)],
         "jgb": result["jgb"],
         "score": result["score"],
-        "issues": result["issues"],
+        **_split_issues(result["issues"], result["score"]),
     }
+
+
+def _split_issues(issues: list[dict], score: dict) -> dict:
+    """issues에는 결과 악보의 음(eventId)·칸(cellId)을 가리키는 것만 둔다. 나머지는 악보 전체 알림(notices)이다.
+
+    backend는 issues 개수로 확인할 칸을 센다(계약 'issues와 notices'). 악보에 없는 칸을 가리키면 엔진 잘못이라 로그를 남기고 notices로 옮긴다."""
+    ids = {e["id"] for e in score.get("events", [])} | {c["id"] for col in score.get("columns", []) for c in col["cells"]}
+    out = {"issues": [], "notices": []}
+    for issue in issues:
+        where = issue["eventId"] or issue["cellId"]
+        if where and where not in ids:
+            log.warning("issue %s points to missing %s", issue["kind"], where)
+        if where in ids:
+            out["issues"].append(issue)
+        else:
+            out["notices"].append(issue | {"eventId": None, "cellId": None})
+    return out
 
 
 def _fetch_all(request: RecognitionIn, work: Path, fetch: Fetcher, deadline: float) -> list[Path]:

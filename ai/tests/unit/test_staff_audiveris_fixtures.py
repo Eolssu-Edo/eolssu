@@ -9,6 +9,7 @@
 """
 
 import difflib
+import os
 import json
 import statistics
 import sys
@@ -88,3 +89,20 @@ def test_converted_melody_matches_answer_at_least_as_before(name):
     assert all(w[0] == g[0] for w, g in pairs)  # 맞은 구간은 율명·옥타브까지 같다(조 옮김이 맞다)
     ratio = statistics.median(g[1] / w[1] for w, g in pairs)  # 정간 하나의 박이 정답과 다를 수 있다
     assert sum(g[1] == w[1] * ratio for w, g in pairs) >= duration_floor
+
+
+@pytest.mark.skipif(not os.environ.get("JGB_GENERATOR_DIR"), reason="JGB_GENERATOR_DIR(jeongganbo-generator 클론)가 없다")
+@pytest.mark.parametrize("name", CASES)
+def test_cell_issues_point_to_cells_of_the_converted_score(name):
+    # 실제 Audiveris 결과에서도 칸에 건 issue가 생성기를 거친 결과 악보의 칸을 가리킨다
+    from time import monotonic
+    from types import SimpleNamespace
+
+    from omr_service.jeongganbo_text import lines_to_score
+
+    out = convert((FIXTURES / f"{name}.audiveris.mxl").read_bytes(), instrument=CASES[name][0], hwang_pitch=None)
+    request = SimpleNamespace(conversion_id="c-1", instrument=CASES[name][0])
+    _, score = lines_to_score(out.lines, request, "굿거리", lambda doc: Fraction(1), monotonic() + 30, "test")
+    ids = {c["id"] for col in score["columns"] for c in col["cells"]}
+    placed = [i["cellId"] for i in out.issues if i["cellId"]]
+    assert set(placed) <= ids
