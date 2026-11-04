@@ -108,7 +108,7 @@ POST /v1/recognitions
 | notation·입력 | 엔진 |
 | --- | --- |
 | `JEONGGANBO`, PDF에 글자 층이 있음 | `standard_score_text.py`(표준악보집 글자·선 좌표) |
-| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr) |
+| `JEONGGANBO`, 그 밖 | `jeongganbo_omr.py`(MALerLab/jeongganbo-omr). [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)에서 연결한다. 그 전에는 `ENGINE_ERROR` |
 | `STAFF` | Audiveris → MusicXML → 정간보 변환 |
 
 어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.

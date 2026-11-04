@@ -100,7 +100,7 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 ## 악보 인식 API
 
-backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보(U3)는 연결 전이라 `ENGINE_ERROR`로 끝납니다(S15P31E102-313).
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보는 연결 전이라 `ENGINE_ERROR`로 끝납니다(별도 Task [S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458)).
 
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
