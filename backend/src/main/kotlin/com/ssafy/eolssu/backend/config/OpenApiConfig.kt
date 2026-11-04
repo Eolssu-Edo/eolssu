@@ -75,7 +75,7 @@ class OpenApiConfig {
                     .content(jsonContent(ObjectSchema().example(emptyMap<String,Any>())))
             }
             operation.responses = ApiResponses()
-            if (doc.id in setOf("startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount","startSocialWithdrawal","confirmSocialWithdrawal")) {
+            if (doc.id in setOf("relayIosSocialLogin","startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount","startSocialWithdrawal","confirmSocialWithdrawal")) {
                 operation.parameters?.filter { it.name == "provider" }?.forEach { it.schema=StringSchema()._enum(listOf("kakao","google","naver")) }
             }
             for (status in doc.statuses) {
@@ -91,6 +91,10 @@ class OpenApiConfig {
                 if (doc.id in setOf("startSocialLogin","startSocialLink","startSocialWithdrawal")) response.addHeaderObject("Set-Cookie",Header().schema(StringSchema()).description("oauth_flow_{provider} 결속 쿠키: HttpOnly·SameSite=Lax·Path=/api·Max-Age=600. Secure는 AUTH_COOKIE_SECURE를 따릅니다."))
                 if (doc.id in setOf("playReferenceAudio", "playModelAudio")) {
                     response.addHeaderObject("Location", Header().schema(StringSchema().format("uri")).description("900초 동안 유효한 서명 GET URL"))
+                    response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                }
+                if (doc.id == "relayIosSocialLogin") {
+                    response.addHeaderObject("Location", Header().schema(StringSchema()).description("com.ssafy.eolssu://oauth/{provider}/callback과 허용한 쿼리"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
                 }
                 if (doc.id == "getNotationSymbolImage") {
