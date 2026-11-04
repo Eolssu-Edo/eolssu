@@ -72,12 +72,12 @@
 
 | Task | 상태와 처리 |
 | --- | --- |
-| S15P31E102-452 | 이번 적용 대상. 전체 FE 734건 중 730 통과·조건부 4건 건너뜀·실패/오류 0. Android debug APK 및 JS·Wasm 컴파일 성공. |
+| S15P31E102-452 | 이번 적용 대상. MR 준비로 최신 develop `ce3e4b5c`를 통합한 뒤 전체 FE 737건 중 733 통과·조건부 4건 건너뜀·실패/오류 0. Android debug APK 및 JS·Wasm 컴파일 성공. |
 | S15P31E102-453 | 연주 판본 보호 초안. 별도 로컬 브랜치에 보존하며 이번 적용·공유 대상에서 제외한다. |
 | S15P31E102-454 | 기록 상세 독립화 초안. 별도 로컬 브랜치에 보존하며 이번 적용·공유 대상에서 제외한다. |
 | S15P31E102-456 | 성장 비교 초안 및 기존 통합 브랜치. 이번 최종 결과 브랜치로 사용하지 않는다. |
 
-453·454·456은 Push·MR·배포하지 않았다. 포함 관계가 있는 초안 브랜치를 통째로 올리면 제외 작업도 들어가므로 사용하지 않는다. 새 `expectedScoreVersion`, `currentScoreVersion`, `SCORE_VERSION_MISMATCH` 계약과 V22 마이그레이션은 최종 452에 없다. 원래 checkout의 기존 사용자 변경은 보존했다. Jira 네 Task는 기존 `진행 중`·스프린트 59245를 유지하며, 제외 Task를 완료로 전환하지 않았다. 범위 변경은 이 문서와 로컬 계획에 기록한다.
+453·454·456은 Push·MR·배포하지 않았다. 포함 관계가 있는 초안 브랜치를 통째로 올리면 제외 작업도 들어가므로 사용하지 않는다. 새 `expectedScoreVersion`, `currentScoreVersion`, `SCORE_VERSION_MISMATCH` 계약과 453의 `V22__allow_score_version_mismatch_failure.sql`은 최종 452에 없다. 최신 develop에서 들어온 Apple 로그인용 `V22__sign_in_with_apple.sql`은 별개이며 이번 MR의 DB 변경이 아니다. 원래 checkout의 기존 사용자 변경은 보존했다. Jira 네 Task는 기존 `진행 중`·스프린트 59245를 유지하며, 제외 Task를 완료로 전환하지 않았다. 범위 변경은 이 문서와 로컬 계획에 기록한다.
 
 제외 전 통합 브랜치에서는 BE build는 통과했지만 FE 전체 검사는 `CatalogLookupTest` 1건 실패(760건 중 실패 1·건너뜀 4)가 남았다. 제외 초안을 검증 완료로 취급하지 않으며, 그 결과를 452의 검증 결과로 사용하지 않는다.
 
