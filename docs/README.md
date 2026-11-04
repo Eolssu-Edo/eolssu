@@ -53,6 +53,7 @@
 - [곡 목록 악기 필터](specs/song-instrument-filter.md) · [구현·검증 기록](knowledge/backend/song-instrument-filter.md)
 - [공통 악보·모범 음원 적재와 재생 연결](specs/model-audio-catalog-load.md) · [객체 키 전환·재생 검증](knowledge/backend/model-audio-publication.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
+- [107개 악보의 장단 반주 연결 검수와 판본 보호 (340)](knowledge/backend/jangdan-practice-links.md)
 - [4악기 카탈로그·회원 선택 정렬](specs/four-instrument-catalog.md) · [407 검증](knowledge/backend/four-instrument-catalog.md)
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 

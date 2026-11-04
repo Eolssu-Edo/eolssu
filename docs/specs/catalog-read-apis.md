@@ -31,6 +31,21 @@ CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 �
 
 `subIdx`는 시작 정간에서 units를 row·col 오름차순으로 펼친 위치다. 실제 화면 배치는 원본 units의 row·col을 사용한다. `notationCapabilities.hanja/hangul`은 사용된 음의 등록 표기가 모두 있을 때 true다. `solfege=false`는 이 서버 API가 검증된 계이름 표기를 제공하지 않는다는 뜻이며 앱의 별도 표시 기능을 삭제하는 지시가 아니다.
 
+### 검수된 장단 반주 (S15P31E102-340)
+
+CAT-04 `result.jangdanPlayback`은 선택적 객체이며 검수되지 않은 판본에서는 null이다. 기존 `score`, `defaultBpm`, `bpmUnit`, 곡 목록의 `jangdan`과 DB FK의 의미는 바뀌지 않는다. 새 앱은 이 객체가 있을 때만 곡 반주를 켠다. 구버전 응답에서 필드가 없어도 악보·모범 음원은 그대로 사용한다.
+
+```json
+{"jangdanId":"2","name":"굿거리","startTick":0,"cycleTicks":24,
+ "pattern":{"beats":["떵","","기덕","쿵","더러러러","","쿵","","기덕","쿵","더러러러",""],"group":[3,3,3,3]}}
+```
+
+`startTick`은 score tick 기준 기본형의 첫박, `cycleTicks`는 같은 단위의 한 주기 길이인 양의 정수다. `pattern.beats`의 각 칸은 한 주기를 균등 분할하고 `group`은 표시 묶음이다. 이 값으로 원본 score clock에 소리를 예약하며 카탈로그 기본 BPM이나 이름에서 subdivision을 추정하지 않는다. 예시 곡6은 ticksPerBeat4·defaultBpm99여서 한 주기24tick=약3636ms다. API의 정수값은 JSON number이며 ID만 문자열이다.
+
+서버의 [검수 목록](../../backend/src/main/resources/catalog/jangdan-playback.json)은 명시된 songId·sourceId·scoreVersion·기준 BPM/단위·공통 악보 전체의 의미 해시와 일치하는 판본만 허용한다. DB의 해당 장단 이름·단위·패턴도 검수 당시 값과 같아야 한다. 불일치하면 반주만 null이 되고 기존 악보 오류 처리 및 모범 음원 계약은 유지한다. 검수 목록에 없는 곡을 이름으로 연결하지 않는다. [107개 판본의 검수 근거·보류 사유](../knowledge/backend/jangdan-practice-links.md)를 따른다.
+
+이 연결은 첫 정간부터 교육용 기본형을 반주하는 구조 검수다. 멜로디 원본의 `provenance.review`를 변경하거나 명인의 변주·연주자 청음 승인으로 승격하지 않는다. 세령산 굴림2개와 장단명 미상45개는 보류한다. DB migration 또는 운영 적재가 필요 없는 읽기 확장이며 서버 배포 전에는 운영 응답에 나타나지 않는다.
+
 ## 모범 연주 메타데이터
 
 V8 `song_model_audios`는 `(song_id,score_version)`마다 기준 음원 한 개를 저장한다. 초기 상태는 DRAFT이며 이번 마이그레이션은 음원 행을 넣지 않는다. 게시·미삭제 곡의 현재 악보 버전, 곡 defaultBpm, 장단 bpmUnit과 일치하는 PUBLISHED 행만 CAT-05에 노출한다. 이전 버전 행은 현재 곡에 재사용하지 않는다.
