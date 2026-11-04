@@ -100,7 +100,7 @@ class OAuthViewModel(
                 is SocialLoginResult.Success -> {
                     // 이메일 로그인과 같이 남은 가입 흐름과 이전 회원 정보를 지우고 새 회원 정보를 읽는다.
                     draft.clear()
-                    userRepository?.logOut()
+                    userRepository?.clearProfile()
                     userRepository?.refresh()
                     if (result.withdrawalCancelled) OAuthStep.WithdrawalCancelled else OAuthStep.LoggedIn
                 }

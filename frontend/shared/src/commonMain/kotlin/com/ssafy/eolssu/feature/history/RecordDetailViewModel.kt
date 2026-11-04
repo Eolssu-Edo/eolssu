@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
@@ -91,6 +94,7 @@ class RecordDetailViewModel(
     private val songRepository: SongRepository,
     private val player: AudioPlayer = UnavailableAudioPlayer(),
     private val now: () -> Long = { 0L },
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RecordDetailUiState())
     val uiState: StateFlow<RecordDetailUiState> = _uiState.asStateFlow()
@@ -102,8 +106,15 @@ class RecordDetailViewModel(
     private var sourceRequest = 0
     private var currentId = ""
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        source = null
+        currentId = ""
+        _uiState.value = RecordDetailUiState()
+        viewModelScope.launch { player.stop() }
+    }
+
     init {
-        viewModelScope.launch { player.state.collect(::onPlayer) }
+        accountScope.launch { player.state.collect(::onPlayer) }
         show(recordId)
     }
 
@@ -112,6 +123,7 @@ class RecordDetailViewModel(
      * 오류 표시·악보 따라가기 설정은 그대로 둔다(와이어프레임 `Tab-Records-Land`).
      */
     fun show(recordId: String) {
+        if (!accountScope.isActive) return
         if (recordId.isEmpty() || _uiState.value.record?.id == recordId) return
         currentId = recordId
         stopPlayback()
@@ -131,7 +143,8 @@ class RecordDetailViewModel(
     }
 
     private fun loadDetail(recordId: String) {
-        detailJob = viewModelScope.launch {
+        if (!accountScope.isActive) return
+        detailJob = accountScope.launch {
             val detail = try {
                 // 기록 상세 경로로 바로 들어와 목록을 아직 받지 않았으면 먼저 받는다.
                 if (recordRepository.records.value.none { it.id == recordId }) recordRepository.refresh()
@@ -157,6 +170,7 @@ class RecordDetailViewModel(
     }
 
     fun retrySong() {
+        if (!accountScope.isActive) return
         val record = _uiState.value.record
         if (record == null) {
             // 상세를 받지 못해 기록을 모르는 상태에서 다시 시도하면 상세부터 다시 받는다.
@@ -169,7 +183,7 @@ class RecordDetailViewModel(
         if (songJob?.isActive == true || _uiState.value.song != null) return
         val request = ++songRequest
         _uiState.update { it.copy(songLookup = RecordSongLookup.Loading) }
-        songJob = viewModelScope.launch {
+        songJob = accountScope.launch {
             val song = try {
                 songRepository.getSong(record.songId)
             } catch (cancelled: CancellationException) {
@@ -192,6 +206,7 @@ class RecordDetailViewModel(
 
     /** 재생·일시정지. 끝에서 재생하면 처음부터. 녹음을 다시 들을 수 없는 기록이면 아무것도 하지 않는다. */
     fun togglePlay() {
+        if (!accountScope.isActive) return
         val state = _uiState.value
         if (!state.canPlay) return
         if (state.playing) {
@@ -204,10 +219,11 @@ class RecordDetailViewModel(
 
     /** 녹음 주소를 (필요하면 다시) 받아 [positionMs]부터 재생한다. */
     private fun playFrom(positionMs: Long) {
+        if (!accountScope.isActive) return
         val record = _uiState.value.record ?: return
         playJob?.cancel()
         _uiState.update { it.copy(playing = true) }
-        playJob = viewModelScope.launch {
+        playJob = accountScope.launch {
             val cached = source?.takeIf { (s, expires) -> s.id.startsWith(record.id) && now() < expires - URL_MARGIN_MS }?.first
             val audio = cached ?: when (val playback = recordRepository.playback(record.id)) {
                 is RecordPlayback.Ready -> AudioSource("${record.id}#${++sourceRequest}", playback.url)
@@ -233,6 +249,7 @@ class RecordDetailViewModel(
     }
 
     private fun onPlayer(playback: AudioPlaybackState) {
+        if (!accountScope.isActive) return
         val current = source?.first ?: return
         if (playback.sourceId != current.id) return
         when (playback.status) {
@@ -249,12 +266,14 @@ class RecordDetailViewModel(
     }
 
     fun pause() {
+        if (!accountScope.isActive) return
         playJob?.cancel()
         player.pause()
         _uiState.update { it.copy(playing = false) }
     }
 
     private fun stopPlayback() {
+        if (!accountScope.isActive) return
         playJob?.cancel()
         player.stop()
         _uiState.update { it.copy(playing = false) }
@@ -262,6 +281,7 @@ class RecordDetailViewModel(
 
     /** 칸을 누르거나 재생 위치를 옮기면 그 음부터 듣는다. 재생 중이면 그 자리부터 이어 재생한다. */
     fun seek(index: Int) {
+        if (!accountScope.isActive) return
         _uiState.update { it.copy(position = index.coerceIn(0, (it.eventCount - 1).coerceAtLeast(0))) }
         if (_uiState.value.playing) playFrom(_uiState.value.startMillis())
     }

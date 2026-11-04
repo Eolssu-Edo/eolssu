@@ -1,7 +1,12 @@
 package com.ssafy.eolssu.feature.profile
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.network.AccountWork
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import com.ssafy.eolssu.core.network.inAccount
+import kotlinx.coroutines.isActive
+import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.core.browser.ExternalBrowser
 import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -31,6 +36,7 @@ class SocialLinkViewModel(
     private val attempts: OAuthAttempts,
     private val links: IncomingLinks?,
     private val browser: ExternalBrowser?,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _step = MutableStateFlow<SocialLinkStep>(SocialLinkStep.Starting)
     val step: StateFlow<SocialLinkStep> = _step.asStateFlow()
@@ -40,23 +46,31 @@ class SocialLinkViewModel(
 
     private var startingJob: Job? = null
 
+    private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
+    private fun clearAccount() {
+        authorizationUrl = null
+        attempts.clear()
+        _step.value = SocialLinkStep.Stopped(SocialLinkProblem.SessionExpired)
+    }
+
     init {
         when {
             browser == null || links == null -> _step.value = SocialLinkStep.Stopped(SocialLinkProblem.Unsupported)
             links.pending.value != null && attempts.pending()?.provider == provider -> _step.value = SocialLinkStep.InBrowser
             else -> start()
         }
-        links?.let { viewModelScope.launch { it.pending.filterNotNull().collect(::onReturn) } }
+        links?.let { accountScope.launch { it.pending.filterNotNull().collect(::onReturn) } }
     }
 
     /** 처음부터 다시 한다. start 요청 중·완료 요청 중에는 무시한다. */
     fun start() {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         val browser = browser ?: return
         if (_step.value == SocialLinkStep.Completing || startingJob?.isActive == true) return
         attempts.clear()
         authorizationUrl = null
         _step.value = SocialLinkStep.Starting
-        startingJob = viewModelScope.launch {
+        startingJob = accountScope.launch {
             _step.value = when (val result = userRepository.startLink(provider)) {
                 is OAuthStartResult.Started -> when {
                     !attempts.begin(provider, OAuthPurpose.Link, result.authorizationUrl, result.expiresAtMillis) ->
@@ -72,12 +86,14 @@ class SocialLinkViewModel(
 
     /** 브라우저를 닫았을 때 같은 제공자 화면을 다시 연다. 시도가 끝났거나 만료됐으면 처음부터 한다. */
     fun reopen() {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         val url = authorizationUrl
         if (_step.value != SocialLinkStep.InBrowser || url == null || attempts.pending() == null) return start()
         if (browser?.open(url) != true) _step.value = SocialLinkStep.Stopped(SocialLinkProblem.NoBrowser)
     }
 
     private fun onReturn(uri: String) {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         if (links?.take(uri) != true) return
         when (val result = attempts.accept(uri, OAuthPurpose.Link)) {
             OAuthReturn.Ignored -> Unit
@@ -96,9 +112,10 @@ class SocialLinkViewModel(
     }
 
     private fun complete(callback: OAuthCallback) {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         authorizationUrl = null
         _step.value = SocialLinkStep.Completing
-        viewModelScope.launch {
+        accountScope.launch {
             _step.value = when (userRepository.link(callback)) {
                 LinkResult.Linked -> SocialLinkStep.Linked
                 LinkResult.InUse -> SocialLinkStep.InUse

@@ -4,6 +4,8 @@ import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
@@ -30,57 +32,59 @@ class ApiUserRepository(
     private val sessionGeneration = MutableStateFlow(0L)
     private val profileRevision = MutableStateFlow(0L)
 
-    override suspend fun refresh(email: String?): MemberResult {
+    init { member?.onChange { clearProfile() } }
+
+    override suspend fun refresh(email: String?): MemberResult = member.inSession {
         val generation = sessionGeneration.value
         val revision = profileRevision.value
-        val response = client.sendOrNull { get("/api/users/me") } ?: return MemberResult.Unavailable
-        if (response.status.value != 200) return memberFailure(response.status.value)
-        val result = response.apiResponse<MyInfo>()?.takeIf { it.isSuccess }?.result ?: return MemberResult.Unavailable
-        if (sessionGeneration.value != generation) return MemberResult.Unauthenticated
-        if (profileRevision.value != revision) return MemberResult.Unavailable
+        val response = client.sendOrNull { get("/api/users/me") } ?: return@inSession MemberResult.Unavailable
+        if (response.status.value != 200) return@inSession memberFailure(response.status.value)
+        val result = response.apiResponse<MyInfo>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
+        if (sessionGeneration.value != generation) return@inSession MemberResult.Unauthenticated
+        if (profileRevision.value != revision) return@inSession MemberResult.Unavailable
         state.value = UserProfile(result.nickname, result.email ?: email ?: state.value.email, result.linkedProviders.mapNotNull { provider ->
             SocialProvider.entries.firstOrNull { it.name.equals(provider.provider, ignoreCase = true) }
         }.toSet(), result.instrumentId, result.notationMode, result.hasPassword)
-        if (instruments != null && !instruments.applyServerId(result.instrumentId)) return MemberResult.Unavailable
-        return MemberResult.Done
+        if (instruments != null && !instruments.applyServerId(result.instrumentId)) return@inSession MemberResult.Unavailable
+        return@inSession MemberResult.Done
     }
 
-    override suspend fun changeInstrument(instrumentId: String): MemberResult {
+    override suspend fun changeInstrument(instrumentId: String): MemberResult = member.inSession {
         val generation = sessionGeneration.value
-        if (!instrumentId.matches(Regex("[1-9][0-9]{0,17}"))) return MemberResult.InvalidInput
+        if (!instrumentId.matches(Regex("[1-9][0-9]{0,17}"))) return@inSession MemberResult.InvalidInput
         val response = client.sendOrNull {
             patch("/api/users/me/preferences") { contentType(ContentType.Application.Json); setBody(InstrumentPreference(instrumentId)) }
-        } ?: return MemberResult.Unavailable
-        if (response.status.value != 200) return memberFailure(response.status.value)
-        val saved = response.apiResponse<Preferences>()?.takeIf { it.isSuccess }?.result ?: return MemberResult.Unavailable
-        if (sessionGeneration.value != generation) return MemberResult.Unauthenticated
-        if (saved.instrumentId != instrumentId) return MemberResult.Unavailable
+        } ?: return@inSession MemberResult.Unavailable
+        if (response.status.value != 200) return@inSession memberFailure(response.status.value)
+        val saved = response.apiResponse<Preferences>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
+        if (sessionGeneration.value != generation) return@inSession MemberResult.Unauthenticated
+        if (saved.instrumentId != instrumentId) return@inSession MemberResult.Unavailable
         profileRevision.updateAndGet { it + 1 }
         state.value = state.value.copy(instrumentId = saved.instrumentId, notationMode = saved.notationMode)
-        return MemberResult.Done
+        return@inSession MemberResult.Done
     }
 
-    override suspend fun changeNickname(nickname: String): MemberResult {
+    override suspend fun changeNickname(nickname: String): MemberResult = member.inSession {
         val response = client.sendOrNull {
             patch("/api/users/me") { contentType(ContentType.Application.Json); setBody(Nickname(nickname)) }
-        } ?: return MemberResult.Unavailable
-        if (response.status.value != 200) return memberFailure(response.status.value)
-        val result = response.apiResponse<Nickname>()?.takeIf { it.isSuccess }?.result ?: return MemberResult.Unavailable
+        } ?: return@inSession MemberResult.Unavailable
+        if (response.status.value != 200) return@inSession memberFailure(response.status.value)
+        val result = response.apiResponse<Nickname>()?.takeIf { it.isSuccess }?.result ?: return@inSession MemberResult.Unavailable
         profileRevision.updateAndGet { it + 1 }
         state.value = state.value.copy(nickname = result.nickname)
-        return MemberResult.Done
+        return@inSession MemberResult.Done
     }
 
-    override suspend fun changePassword(current: String, new: String): PasswordCheckResult {
+    override suspend fun changePassword(current: String, new: String): PasswordCheckResult = member.inSession {
         val response = client.sendOrNull {
             patch("/api/users/me/password") { contentType(ContentType.Application.Json); setBody(PasswordChange(current, new)) }
-        } ?: return PasswordCheckResult.Unavailable
-        if (response.status.value == 200 && response.apiResponse<PasswordChanged>()?.takeIf { it.isSuccess }?.result?.changed == true) return PasswordCheckResult.Done
-        return passwordFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
+        } ?: return@inSession PasswordCheckResult.Unavailable
+        if (response.status.value == 200 && response.apiResponse<PasswordChanged>()?.takeIf { it.isSuccess }?.result?.changed == true) return@inSession PasswordCheckResult.Done
+        return@inSession passwordFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
     }
 
     override suspend fun withdraw(password: String): PasswordCheckResult {
-        return member?.changing { withdrawCurrentMember(password) } ?: withdrawCurrentMember(password)
+        return member?.changingCurrent { withdrawCurrentMember(password) } ?: withdrawCurrentMember(password)
     }
 
     private suspend fun withdrawCurrentMember(password: String): PasswordCheckResult {
@@ -97,25 +101,25 @@ class ApiUserRepository(
     }
 
     override suspend fun startWithdrawalReauth(provider: SocialProvider): OAuthStartResult =
-        startOAuth(client, "/api/users/me/withdrawal/oauth/${provider.pathName}/start", route.uriFor(provider))
+        member.inSession { startOAuth(client, "/api/users/me/withdrawal/oauth/${provider.pathName}/start", route.uriFor(provider)) }
 
     /** 연결 완료([link])처럼 먼저 갱신되는 요청으로 로그인을 이어 둔 뒤, 갱신·재전송하지 않는 완료 요청을 보낸다. */
-    override suspend fun confirmWithdrawalReauth(callback: OAuthCallback): ReauthResult {
-        val me = client.sendOrNull { get("/api/users/me") } ?: return ReauthResult.Unavailable
-        if (me.status.value == 401) return ReauthResult.Unauthenticated
+    override suspend fun confirmWithdrawalReauth(callback: OAuthCallback): ReauthResult = member.inSession {
+        val me = client.sendOrNull { get("/api/users/me") } ?: return@inSession ReauthResult.Unavailable
+        if (me.status.value == 401) return@inSession ReauthResult.Unauthenticated
         val response = client.sendOrNull {
             post("/api/users/me/withdrawal/oauth/${callback.provider.pathName}") {
                 contentType(ContentType.Application.Json)
                 setBody(OAuthComplete(callback.authorizationCode, callback.redirectUri, callback.state))
             }
-        } ?: return ReauthResult.Unavailable
+        } ?: return@inSession ReauthResult.Unavailable
         if (response.status.value == 200) {
             val ticket = response.apiResponse<WithdrawalTicket>()?.takeIf { it.isSuccess }?.result?.withdrawalTicket
-                ?.takeIf { it.isNotBlank() } ?: return ReauthResult.Unavailable
-            return ReauthResult.Proven(WithdrawalProof(callback.provider, ticket))
+                ?.takeIf { it.isNotBlank() } ?: return@inSession ReauthResult.Unavailable
+            return@inSession ReauthResult.Proven(WithdrawalProof(callback.provider, ticket))
         }
         val code = response.apiResponse<Error>()?.result?.errorCode
-        return when {
+        return@inSession when {
             response.status.value == 401 -> if (code == "UNAUTHENTICATED") ReauthResult.Unauthenticated else ReauthResult.Restart
             response.status.value == 400 || response.status.value == 404 || response.status.value == 410 -> ReauthResult.Restart
             else -> ReauthResult.Unavailable
@@ -123,7 +127,7 @@ class ApiUserRepository(
     }
 
     override suspend fun withdraw(proof: WithdrawalProof): MemberResult {
-        return member?.changing { withdrawWithProof(proof) } ?: withdrawWithProof(proof)
+        return member?.changingCurrent { withdrawWithProof(proof) } ?: withdrawWithProof(proof)
     }
 
     private suspend fun withdrawWithProof(proof: WithdrawalProof): MemberResult {
@@ -140,22 +144,22 @@ class ApiUserRepository(
     }
 
     override suspend fun startLink(provider: SocialProvider): OAuthStartResult =
-        startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", route.uriFor(provider))
+        member.inSession { startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", route.uriFor(provider)) }
 
     /**
      * 연결 완료는 state를 한 번 쓰므로 401에 토큰 갱신·재전송을 하지 않는다. 브라우저에 다녀오는 동안 액세스 토큰이 만료됐을 수 있어
      * 먼저 갱신되는 요청(`GET /api/users/me`)으로 로그인을 이어 둔 뒤 보낸다.
      */
-    override suspend fun link(callback: OAuthCallback): LinkResult {
+    override suspend fun link(callback: OAuthCallback): LinkResult = member.inSession {
         val generation = sessionGeneration.value
-        val me = client.sendOrNull { get("/api/users/me") } ?: return LinkResult.Unavailable
-        if (me.status.value == 401) return LinkResult.Unauthenticated
+        val me = client.sendOrNull { get("/api/users/me") } ?: return@inSession LinkResult.Unavailable
+        if (me.status.value == 401) return@inSession LinkResult.Unauthenticated
         val response = client.sendOrNull {
             post("/api/users/me/social-accounts/${callback.provider.pathName}") {
                 contentType(ContentType.Application.Json)
                 setBody(OAuthComplete(callback.authorizationCode, callback.redirectUri, callback.state))
             }
-        } ?: return LinkResult.Unavailable
+        } ?: return@inSession LinkResult.Unavailable
         val code = if (response.status.value == 201) null else response.apiResponse<Error>()?.result?.errorCode
         val result = when {
             response.status.value == 201 || code == "PROVIDER_ALREADY_LINKED" -> LinkResult.Linked
@@ -165,17 +169,17 @@ class ApiUserRepository(
             else -> LinkResult.Unavailable
         }
         if (result == LinkResult.Linked && sessionGeneration.value == generation) changeLinked(callback.provider, linked = true)
-        return result
+        return@inSession result
     }
 
-    override suspend fun unlink(provider: SocialProvider): MemberResult {
+    override suspend fun unlink(provider: SocialProvider): MemberResult = member.inSession {
         val generation = sessionGeneration.value
-        val response = client.sendOrNull { delete("/api/users/me/social-accounts/${provider.pathName}") } ?: return MemberResult.Unavailable
+        val response = client.sendOrNull { delete("/api/users/me/social-accounts/${provider.pathName}") } ?: return@inSession MemberResult.Unavailable
         if (response.status.value != 204 && response.status.value != 404) {
-            return memberFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
+            return@inSession memberFailure(response.status.value, response.apiResponse<Error>()?.result?.errorCode)
         }
         if (sessionGeneration.value == generation) changeLinked(provider, linked = false)
-        return MemberResult.Done
+        return@inSession MemberResult.Done
     }
 
     private fun changeLinked(provider: SocialProvider, linked: Boolean) {
@@ -183,7 +187,15 @@ class ApiUserRepository(
         state.value = state.value.copy(linkedProviders = if (linked) state.value.linkedProviders + provider else state.value.linkedProviders - provider)
     }
 
-    override fun logOut() { sessionGeneration.updateAndGet { it + 1 }; state.value = UserProfile("", "", emptySet()); instruments?.clear() }
+    override fun logOut() {
+        if (member?.id != null) member.set(null) else clearProfile()
+    }
+
+    override fun clearProfile() {
+        sessionGeneration.updateAndGet { it + 1 }
+        state.value = UserProfile("", "", emptySet())
+        instruments?.clear()
+    }
 
     /** [hasPassword]는 서버에 아직 없는 요청 중인 필드다. 오지 않으면 null로 둔다. */
     @Serializable private class MyInfo(

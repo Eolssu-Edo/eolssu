@@ -1,7 +1,12 @@
 package com.ssafy.eolssu.feature.profile
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.network.AccountWork
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import com.ssafy.eolssu.core.network.inAccount
+import kotlinx.coroutines.isActive
+import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.core.browser.ExternalBrowser
 import com.ssafy.eolssu.core.browser.IncomingLinks
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -35,6 +40,7 @@ class WithdrawViewModel(
     private val attempts: OAuthAttempts? = null,
     private val links: IncomingLinks? = null,
     private val browser: ExternalBrowser? = null,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private var submitting = false
     private val _uiState = MutableStateFlow(WithdrawUiState())
@@ -46,28 +52,35 @@ class WithdrawViewModel(
     /** 지금 재인증의 제공자 화면 주소. '다시 열기'에 쓰고 화면·로그에 내보내지 않는다. */
     private var authorizationUrl: String? = null
 
+    private val accountScope = member.screenScope(viewModelScope, cancelWork = false) { clearAccount() }
+    private fun clearAccount() {
+        authorizationUrl = null
+        attempts?.clear()
+        _uiState.value = WithdrawUiState()
+    }
+
     init {
         // 앱이 꺼진 사이 재인증 복귀가 왔으면 새로 시작하지 않고 그 주소를 처리한다.
         val pending = attempts?.pending()
         if (links?.pending?.value != null && pending?.purpose == OAuthPurpose.Withdraw) {
             _uiState.update { it.copy(reauth = WithdrawReauth(pending.provider, WithdrawReauth.Step.InBrowser)) }
         }
-        links?.let { viewModelScope.launch { it.pending.filterNotNull().collect(::onReturn) } }
+        links?.let { accountScope.launch { it.pending.filterNotNull().collect(::onReturn) } }
     }
 
     fun changePassword(value: String) = _uiState.update { it.copy(password = value, error = null) }
 
     /** 신청했으면 true. */
-    suspend fun submit(): Boolean {
-        if (submitting || _uiState.value.reauth?.busy == true) return false
+    suspend fun submit(): Boolean = accountScope.inAccount {
+        if (submitting || _uiState.value.reauth?.busy == true) return@inAccount false
         val password = _uiState.value.password
         if (password.isEmpty()) {
             _uiState.update { it.copy(error = ProfileFieldError.PasswordEmpty) }
-            return false
+            return@inAccount false
         }
         submitting = true
         val result = try { userRepository.withdraw(password) } finally { submitting = false }
-        return when (result) {
+        return@inAccount when (result) {
             PasswordCheckResult.Done -> true.also {
                 practiceTimeQueue.discard()
                 _uiState.value = WithdrawUiState()
@@ -82,6 +95,7 @@ class WithdrawViewModel(
 
     /** [provider] 재인증을 처음부터 시작한다. 비밀번호 신청 중이거나 다른 재인증이 진행 중이면 무시한다. */
     fun startReauth(provider: SocialProvider) {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         if (submitting || _uiState.value.reauth?.busy == true) return
         val attempts = attempts
         val browser = browser
@@ -89,7 +103,7 @@ class WithdrawViewModel(
         attempts.clear()
         authorizationUrl = null
         setReauth(provider, WithdrawReauth.Step.Starting)
-        viewModelScope.launch {
+        accountScope.launch {
             when (val result = userRepository.startWithdrawalReauth(provider)) {
                 is OAuthStartResult.Started -> when {
                     !attempts.begin(provider, OAuthPurpose.Withdraw, result.authorizationUrl, result.expiresAtMillis) ->
@@ -108,6 +122,7 @@ class WithdrawViewModel(
 
     /** 브라우저를 닫았을 때 같은 제공자 화면을 다시 연다. 시도가 끝났거나 만료됐으면 처음부터 한다. */
     fun reopen() {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         val reauth = _uiState.value.reauth?.takeIf { it.step == WithdrawReauth.Step.InBrowser } ?: return
         val url = authorizationUrl
         if (url == null || attempts?.pending() == null) {
@@ -118,6 +133,7 @@ class WithdrawViewModel(
     }
 
     private fun onReturn(uri: String) {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         if (links?.take(uri) != true) return
         val attempts = attempts ?: return
         when (val result = attempts.accept(uri, OAuthPurpose.Withdraw)) {
@@ -139,9 +155,10 @@ class WithdrawViewModel(
     }
 
     private fun complete(callback: OAuthCallback) {
+        if (!accountScope.isActive || accountScope.coroutineContext[AccountWork]?.isCurrent == false) return
         authorizationUrl = null
         setReauth(callback.provider, WithdrawReauth.Step.Completing)
-        viewModelScope.launch {
+        accountScope.launch {
             val proof = when (val result = userRepository.confirmWithdrawalReauth(callback)) {
                 is ReauthResult.Proven -> result.proof
                 ReauthResult.Restart -> return@launch stop(callback.provider, SocialLinkProblem.Invalid)

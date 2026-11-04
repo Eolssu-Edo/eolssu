@@ -63,7 +63,7 @@ class WithdrawReauthTest {
 
     @AfterTest fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = WithdrawViewModel(users, timeQueue, attempts, links) { opened += it; true }
+    private fun viewModel() = WithdrawViewModel(users, timeQueue, attempts, links, browser = com.ssafy.eolssu.core.browser.ExternalBrowser { opened += it; true })
 
     @Test
     fun reauthWithdrawsOnceWithTheProof() = runTest {

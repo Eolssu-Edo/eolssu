@@ -44,6 +44,30 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
         }
     }
 
+
+    @Test
+    fun accountChangeClearsRecordAndStopsSignedUrlPlayback() = runTest {
+        val member = com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()).apply { set("A") }
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/account-a.m4a", 900_000, 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player, now = { 0L }, member = member))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        assertEquals(1, player.loads)
+        member.changing { member.set("B") }
+        runCurrent()
+        assertEquals(null, model.uiState.value.record)
+        assertEquals(null, player.state.value.sourceId)
+        assertFalse(model.uiState.value.playing)
+        model.show("41")
+        model.togglePlay()
+        runCurrent()
+        assertEquals(1, player.loads, "이전 화면은 기존 URL을 다시 사용하지 않는다")
+        assertEquals(1, repo.asked)
+    }
+
     @Test
     fun detailReplacesListValuesAndUnavailableRecordingDisablesPlay() = runTest {
         val repo = Records(record(available = true), record(available = false).copy(memo = "서버 메모", isNew = false))

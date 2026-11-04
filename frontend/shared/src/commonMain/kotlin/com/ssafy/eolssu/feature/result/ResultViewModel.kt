@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -50,20 +53,26 @@ class ResultViewModel(
     private val evaluationRepository: EvaluationRepository,
     private val songRepository: SongRepository,
     private val recordRepository: PracticeRecordRepository,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
     private var songJob: Job? = null
     private var resultJob: Job? = null
 
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = ResultUiState()
+    }
+
     init {
         retryResult()
     }
 
     fun retryResult() {
+        if (!accountScope.isActive) return
         if (resultJob?.isActive == true || _uiState.value.result != null) return
         _uiState.update { it.copy(resultLookup = SongLookup.Loading) }
-        resultJob = viewModelScope.launch {
+        resultJob = accountScope.launch {
             val result = try {
                 evaluationRepository.result(evaluationId)
             } catch (cancelled: CancellationException) {
@@ -78,11 +87,12 @@ class ResultViewModel(
     }
 
     fun retrySong() {
+        if (!accountScope.isActive) return
         val result = _uiState.value.result ?: return
         val songId = result.songId
         if (songJob?.isActive == true || _uiState.value.song != null) return
         _uiState.update { it.copy(songLookup = SongLookup.Loading) }
-        songJob = viewModelScope.launch {
+        songJob = accountScope.launch {
             val song = try {
                 songRepository.getSong(songId)
             } catch (cancelled: CancellationException) {
@@ -103,6 +113,7 @@ class ResultViewModel(
 
     /** 연습 기록에 저장하고 확인 시트를 연다. 같은 결과는 다시 저장하지 않는다. */
     fun save() {
+        if (!accountScope.isActive) return
         val state = _uiState.value
         if (state.savingRecord) return
         val result = state.result ?: return
@@ -112,7 +123,7 @@ class ResultViewModel(
             return
         }
         _uiState.update { it.copy(savingRecord = true, recordSaveError = null) }
-        viewModelScope.launch {
+        accountScope.launch {
             try {
                 val record = recordRepository.saveEvaluation(result, title)
                 currentCoroutineContext().ensureActive()
@@ -138,15 +149,17 @@ class ResultViewModel(
 
     /** 시트를 닫거나 기록으로 갈 때 적은 메모를 남긴다. */
     fun closeSheet() {
+        if (!accountScope.isActive) return
         commitMemo()
         _uiState.update { it.copy(sheetOpen = false) }
     }
 
     fun commitMemo() {
+        if (!accountScope.isActive) return
         val state = _uiState.value
         val record = state.savedRecord ?: return
         if (record.memo == state.memo) return
-        viewModelScope.launch {
+        accountScope.launch {
             try {
                 recordRepository.updateMemo(record.id, state.memo)
                 currentCoroutineContext().ensureActive()

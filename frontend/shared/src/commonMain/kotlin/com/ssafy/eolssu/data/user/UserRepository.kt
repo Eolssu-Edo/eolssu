@@ -64,6 +64,10 @@ interface UserRepository {
 
     suspend fun changePassword(current: String, new: String): PasswordCheckResult
 
+    /** 표시 중인 프로필만 비운다. 정상 로그인 뒤 호출해도 로그인 회원·세대는 유지한다. */
+    fun clearProfile()
+
+    /** 세션 만료·실제 로그아웃에서 로그인 회원과 프로필을 함께 비운다. */
     fun logOut()
 
     /** 탈퇴를 신청한다. 30일 뒤 삭제되고, 그 전에 로그인하면 취소된다. */
@@ -99,6 +103,8 @@ class SampleUserRepository : UserRepository {
     override suspend fun changePassword(current: String, new: String): PasswordCheckResult = check(current)
 
     override fun logOut() = Unit
+
+    override fun clearProfile() = Unit
 
     override suspend fun withdraw(password: String): PasswordCheckResult = check(password)
 

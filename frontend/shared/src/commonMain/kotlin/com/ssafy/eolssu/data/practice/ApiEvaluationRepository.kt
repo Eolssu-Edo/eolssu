@@ -11,6 +11,8 @@ import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.network.apiResponse
 import com.ssafy.eolssu.core.network.sendOrNull
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.inSession
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -30,18 +32,19 @@ class ApiEvaluationRepository(
     private val client: HttpClient,
     private val songs: SongRepository,
     private val fallback: EvaluationRepository? = null,
+    private val member: SignedInMember? = null,
     private val newKey: () -> String = { Uuid.random().toString() },
 ) : EvaluationRepository {
     override suspend fun requestAnalysis(songId: String, bpm: Int, recordedSeconds: Int): String =
         requireNotNull(fallback) { "실제 녹음 세션이 필요합니다" }.requestAnalysis(songId, bpm, recordedSeconds)
 
     /** 상태. 응답을 받지 못했거나 200이 아니면 예외를 던진다(분석 대기 화면은 응답 없음으로 센다). */
-    override suspend fun analysisStatus(analysisId: String): AnalysisStatus {
-        if (!analysisId.isServerId()) return requireNotNull(fallback).analysisStatus(analysisId)
+    override suspend fun analysisStatus(analysisId: String): AnalysisStatus = member.inSession {
+        if (!analysisId.isServerId()) return@inSession requireNotNull(fallback).analysisStatus(analysisId)
         val response = client.sendOrNull { get("/api/practice-sessions/$analysisId") }
         if (response == null || response.status != HttpStatusCode.OK) error("상태 응답 없음: ${response?.status}")
         val session = checkNotNull(response.apiResponse<SessionStatus>()?.result) { "상태 형식이 다름" }
-        return when (session.status) {
+        return@inSession when (session.status) {
             "DONE" -> AnalysisStatus.Done(analysisId)
             "FAILED" -> AnalysisStatus.Failed(AnalysisFailure.fromCode(session.failReason))
             // RECORDING은 업로드가 아직 반영되지 않은 순간이라 기다린다.
@@ -53,12 +56,12 @@ class ApiEvaluationRepository(
      * 다시 시도. 본문은 없고 `Idempotency-Key`는 필수다. 서버는 키를 저장하지 않고(이미 `PENDING`이면 같은 202) 버튼을 누를 때마다 새 키를 쓴다.
      * 응답을 받지 못하면 예외를 던진다.
      */
-    override suspend fun retryAnalysis(analysisId: String): RetryOutcome {
-        if (!analysisId.isServerId()) return requireNotNull(fallback).retryAnalysis(analysisId)
+    override suspend fun retryAnalysis(analysisId: String): RetryOutcome = member.inSession {
+        if (!analysisId.isServerId()) return@inSession requireNotNull(fallback).retryAnalysis(analysisId)
         val response = client.sendOrNull {
             post("/api/practice-sessions/$analysisId/retry") { header(IDEMPOTENCY_KEY, newKey()) }
         } ?: error("다시 시도 응답 없음")
-        return when (response.status) {
+        return@inSession when (response.status) {
             HttpStatusCode.Accepted -> RetryOutcome.Started
             HttpStatusCode.Conflict -> RetryOutcome.Conflict
             HttpStatusCode.NotFound -> RetryOutcome.NotFound
@@ -69,15 +72,15 @@ class ApiEvaluationRepository(
     }
 
     /** 조회마다 서버 소유권을 확인한다. 다른 로그인 세션에 이전 회원의 캐시를 노출하지 않는다. */
-    override suspend fun result(evaluationId: String): EvaluationResult? {
-        if (!evaluationId.isServerId()) return fallback?.result(evaluationId)
+    override suspend fun result(evaluationId: String): EvaluationResult? = member.inSession {
+        if (!evaluationId.isServerId()) return@inSession fallback?.result(evaluationId)
         val response = client.sendOrNull { get("/api/practice-sessions/$evaluationId/evaluation") }
-        if (response?.status != HttpStatusCode.OK) return null
-        val evaluation = response.apiResponse<Evaluation>()?.result ?: return null
-        if (evaluation.sessionId != evaluationId) return null
-        val song = songs.getSong(evaluation.songId) ?: return null
-        if (song.scoreVersion != evaluation.scoreVersion) return null
-        return evaluation.toResult(song.timeline)
+        if (response?.status != HttpStatusCode.OK) return@inSession null
+        val evaluation = response.apiResponse<Evaluation>()?.result ?: return@inSession null
+        if (evaluation.sessionId != evaluationId) return@inSession null
+        val song = songs.getSong(evaluation.songId) ?: return@inSession null
+        if (song.scoreVersion != evaluation.scoreVersion) return@inSession null
+        return@inSession evaluation.toResult(song.timeline)
     }
 
     private fun Evaluation.toResult(timeline: List<ScoreEvent>?): EvaluationResult {

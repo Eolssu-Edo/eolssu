@@ -44,7 +44,7 @@ class LoginViewModel(
             is LoginResult.Success -> {
                 // A completed login ends the anonymous signup flow, including its consent choices.
                 draft.clear()
-                userRepository?.logOut()
+                userRepository?.clearProfile()
                 userRepository?.refresh(state.email.trim())
                 val notice = if (result.withdrawalCancelled) LoginNotice.WithdrawalCancelled else null
                 _uiState.update { it.copy(password = "", error = null, notice = notice) }

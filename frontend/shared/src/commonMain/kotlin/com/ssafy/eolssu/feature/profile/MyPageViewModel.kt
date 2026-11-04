@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.profile
 
+import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.network.AccountWork
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import com.ssafy.eolssu.core.network.inAccount
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.SocialProvider
@@ -25,6 +31,7 @@ class MyPageViewModel(
     private val instrumentRepository: InstrumentRepository,
     private val practiceTimeQueue: PracticeTimeQueue,
     private val authRepository: AuthRepository,
+    member: SignedInMember? = null,
 ) : ViewModel() {
     val profile: StateFlow<UserProfile> = userRepository.profile
     val instrument: StateFlow<Instrument?> = instrumentRepository.instrument
@@ -33,9 +40,16 @@ class MyPageViewModel(
     val dialog: StateFlow<MyPageDialog?> = _dialog.asStateFlow()
 
     /** 실제 내 정보를 다시 읽는다. */
-    suspend fun refresh(): MemberResult {
+    private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
+    private fun clearAccount() {
+        _dialog.value = null
+        _loadingProfile.value = false
+        _savingInstrument.value = false
+    }
+
+    suspend fun refresh(): MemberResult = accountScope.inAccount {
         _loadingProfile.value = true
-        return try { handleSession(userRepository.refresh()) }
+        return@inAccount try { handleSession(userRepository.refresh()) }
         finally { _loadingProfile.value = false }
     }
 
@@ -45,11 +59,11 @@ class MyPageViewModel(
     val savingInstrument: StateFlow<Boolean> = _savingInstrument.asStateFlow()
 
     /** 같은 선택과 저장 중 재탭은 무시하며, 서버의 실패 종류를 화면에 전달한다. 절차는 홈 드롭다운과 같다([changePracticeInstrument]). */
-    suspend fun selectInstrument(instrument: Instrument): MemberResult? {
-        if (_savingInstrument.value) return null
-        if (instrumentRepository.instrument.value == instrument) return null
+    suspend fun selectInstrument(instrument: Instrument): MemberResult? = accountScope.inAccount {
+        if (_savingInstrument.value) return@inAccount null
+        if (instrumentRepository.instrument.value == instrument) return@inAccount null
         _savingInstrument.value = true
-        return try { userRepository.changePracticeInstrument(instrumentRepository, instrument) }
+        return@inAccount try { userRepository.changePracticeInstrument(instrumentRepository, instrument) }
         finally { _savingInstrument.value = false }
     }
 
@@ -81,11 +95,11 @@ class MyPageViewModel(
      * 확인 창의 제공자 연결을 서버에서 해제한다. 해제했거나 마지막 로그인 수단이라 거절되면 창을 닫고, 그 밖의 실패는 창을 남긴다.
      * 창이 없거나 요청 중 다시 누르면 null.
      */
-    suspend fun confirmUnlink(): MemberResult? {
-        val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return null
-        if (unlinking) return null
+    suspend fun confirmUnlink(): MemberResult? = accountScope.inAccount {
+        val provider = (_dialog.value as? MyPageDialog.Unlink)?.provider ?: return@inAccount null
+        if (unlinking) return@inAccount null
         unlinking = true
-        return try {
+        return@inAccount try {
             userRepository.unlink(provider).also { if (it == MemberResult.Done || it == MemberResult.LastLoginMethod) _dialog.value = null }
         } finally { unlinking = false }
     }
@@ -95,6 +109,7 @@ class MyPageViewModel(
     }
 
     fun confirmLogOut(): kotlinx.coroutines.Job {
+        accountScope.coroutineContext[AccountWork]?.check()
         val job = practiceTimeQueue.logOut {
             authRepository.logOut()
             userRepository.logOut()

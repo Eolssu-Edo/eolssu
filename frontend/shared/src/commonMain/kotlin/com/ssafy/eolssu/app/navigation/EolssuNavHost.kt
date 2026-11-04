@@ -25,6 +25,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -137,6 +138,19 @@ fun EolssuNavHost(
     val firstRunRepository = koinInject<FirstRunRepository>()
     val start = remember(qaSkipConsent, sessionExpired) { startDestination(firstRunRepository.isCompleted(), qaSkipConsent, sessionExpired) }
     val practiceSettings = koinInject<PracticeSettingsStore>()
+    val member = koinInject<SignedInMember>()
+    LaunchedEffect(member, navController) {
+        var previous = member.session.value
+        member.session.collect { current ->
+            if (previous.memberId != null && current != previous) {
+                navController.navigate(if (current.memberId == null) AuthDestination.LOGIN else EolssuDestination.HOME) {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            previous = current
+        }
+    }
     // 화면을 옮긴 뒤에도 남아야 하는 안내(예: 마이크를 허용하지 않아 연습 화면을 나옴). 각 화면의 안내 위에 겹쳐 띄운다.
     val appSnackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()

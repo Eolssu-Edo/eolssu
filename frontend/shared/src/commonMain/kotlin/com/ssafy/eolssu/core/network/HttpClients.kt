@@ -101,7 +101,10 @@ sealed interface NetworkResult {
 
 /** 요청을 보내고 결과를 [NetworkResult]로 돌려준다. 코루틴 취소는 그대로 전한다. */
 suspend fun HttpClient.sendCatching(request: suspend HttpClient.() -> HttpResponse): NetworkResult = try {
-    NetworkResult.Received(request())
+    val work = kotlinx.coroutines.currentCoroutineContext()[AccountWork]
+    val response = if (work == null) request() else work.member.request { request() }
+    ensureAccountSession()
+    NetworkResult.Received(response)
 } catch (e: HttpRequestTimeoutException) {
     NetworkResult.TimedOut
 } catch (e: ConnectTimeoutException) {
@@ -120,7 +123,7 @@ suspend fun HttpClient.sendOrNull(request: suspend HttpClient.() -> HttpResponse
 
 /** 본문을 공통 형식으로 읽는다. 형식이 아니면(프록시 오류 페이지 등) null. */
 suspend inline fun <reified T> HttpResponse.apiResponse(): ApiResponse<T>? = try {
-    body<ApiResponse<T>>()
+    body<ApiResponse<T>>().also { ensureAccountSession() }
 } catch (e: CancellationException) {
     throw e
 } catch (ignored: Throwable) {

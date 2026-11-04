@@ -1,5 +1,8 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.audio.RecordedTake
@@ -72,9 +75,12 @@ class AnalysisViewModel(
     evaluationRepository: EvaluationRepository,
     uploads: RecordingUploads? = null,
     sessions: PracticeSessionRepository? = null,
+    member: SignedInMember? = null,
 ) : ViewModel() {
+    private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
+    private fun clearAccount(): Unit = session.clearAccount()
     private val session = AnalysisSession(
-        viewModelScope,
+        accountScope,
         evaluationRepository,
         clock = TimeSource.Monotonic.markNow().let { start -> { start.elapsedNow().inWholeMilliseconds } },
         sleep = { delay(it) },
@@ -94,7 +100,7 @@ class AnalysisViewModel(
 
     private fun loadSong() {
         if (songJob?.isActive == true) return
-        songJob = viewModelScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId) }
+        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId) }
     }
 
     /** 분석 다시 시도. */
