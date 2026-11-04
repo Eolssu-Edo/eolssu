@@ -24,7 +24,9 @@
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
     {{- with $posts }}
     <section class="side-block fields" aria-label="글 골라 보기">
-      <h2 id="fields-title">직무별로 읽기</h2>
+      {{- /* 목록을 가리지 않도록 처음에는 접어 두고, 접힌 상태에서도 고른 항목을 제목 옆에 보여 줍니다. */}}
+      <details class="filter-toggle">
+      <summary><h2 id="fields-title">직무별로 읽기</h2><span class="filter-current" data-filter-current>전체</span></summary>
       <div class="filters" role="group" aria-labelledby="fields-title" data-filter-group="category">
         <button type="button" data-value="all" aria-pressed="true">전체 직무 <span>{{ len $posts }}</span></button>
         {{- range $c := site.Data.blog.categories }}
@@ -34,7 +36,9 @@
         <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }} <span>{{ $count }}</span></button>
         {{- end }}{{ end }}
       </div>
-      <h2 id="authors-title" class="filter-title-next">작성자별로 읽기</h2>
+      </details>
+      <details class="filter-toggle">
+      <summary><h2 id="authors-title">작성자별로 읽기</h2><span class="filter-current" data-filter-current>전체</span></summary>
       <div class="filters" role="group" aria-labelledby="authors-title" data-filter-group="author">
         <button type="button" data-value="all" aria-pressed="true">전체 작성자 <span>{{ len $posts }}</span></button>
         {{- range $members }}
@@ -44,6 +48,7 @@
         <button type="button" data-value="{{ $name }}" aria-pressed="false">{{ $name }} <span>{{ $count }}</span></button>
         {{- end }}{{ end }}
       </div>
+      </details>
       <noscript><p class="noscript-note"><a href="{{ "categories/" | relURL }}">분류별 글 보기</a></p></noscript>
     </section>
     {{- end }}
