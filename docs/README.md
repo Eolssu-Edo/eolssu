@@ -110,8 +110,7 @@
 
 ## 백엔드 조사·검증 기록
 
-- [화면 흐름 개선 12개와 적용·후속·제외 범위 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
-- [화면 흐름 개선 API 상세 제안](knowledge/backend/screen-api-improvement-design.md) · [데이터·클라이언트 이관 상세안](knowledge/backend/screen-data-migration-plan.md)
+- [화면 흐름 개선 검토 결과와 내 악보 후속 조건 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
 
 ## 프론트엔드 조사·검증 기록
 
