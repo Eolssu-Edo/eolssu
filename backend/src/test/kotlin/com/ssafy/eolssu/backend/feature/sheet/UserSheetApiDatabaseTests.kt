@@ -139,10 +139,16 @@ class UserSheetApiDatabaseTests {
         assertEquals(listOf("악보 2"), second.path("items").titles())
         assertEquals(0, json.readTree(get(OWNER, "/api/users/me/sheets?kind=MIDI").body()).path("result").path("items").size())
         assertEquals(400, get(OWNER, "/api/users/me/sheets?size=101").statusCode())
+    }
+
+    @Test
+    fun `the removed create endpoint answers 405 and makes no sheet`() {
         // 만들기(SHT-03)는 지웠다(S15P31E102-462). 같은 경로의 POST는 처리기가 없어 405다.
         val removed = send(OWNER, "POST", "/api/users/me/sheets", """{"title":"x","startType":"BLANK","jangdanId":"$jangdanId","bpm":60,"columnCount":4}""")
+
         assertEquals(405, removed.statusCode(), removed.body())
-        assertEquals(4, count("SELECT COUNT(*) FROM user_sheets WHERE user_id IN ($OWNER,$OTHER)"))
+        assertEquals("METHOD_NOT_ALLOWED", json.readTree(removed.body()).path("result").path("errorCode").asString())
+        assertEquals(0, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OWNER"))
     }
 
     @Test
