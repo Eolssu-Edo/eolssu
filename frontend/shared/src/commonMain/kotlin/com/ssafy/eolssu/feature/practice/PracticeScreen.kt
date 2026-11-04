@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +43,6 @@ import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
 import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
-import com.ssafy.eolssu.feature.practice.component.PracticeStatusLabel
 import com.ssafy.eolssu.feature.practice.component.PracticeStepCountdownOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
@@ -140,7 +140,7 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 }
 
 /**
- * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·pill, 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
+ * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
  * 행동 버튼·안내)이 세로로 스크롤되고, 연주 중에만 하단 바가 고정된다.
  */
 @Composable
@@ -148,6 +148,9 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
     val showPlayer = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
     val fingering = state.fingeringView
+    val scroll = rememberScrollState()
+    // 연주가 시작되면 본문을 맨 위로 올려 정간보 한 각이 화면에 다 들어오게 한다(평가 시작 버튼을 누르려고 내려 둔 스크롤을 되돌린다).
+    LaunchedEffect(recordingBar) { if (recordingBar) scroll.animateScrollTo(0) }
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
@@ -156,13 +159,12 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 20.dp, end = 20.dp, top = if (fingering) 8.dp else 18.dp, bottom = 12.dp),
+                .verticalScroll(scroll)
+                .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
         ) {
-            PracticeTitleRow(state)
-            Spacer(Modifier.height(if (fingering) 7.dp else 10.dp))
-            PracticeStatusLabel(state)
-            Spacer(Modifier.height(if (fingering) 8.dp else 14.dp))
+            // 상태 문구(‘● 연습 준비’·‘● 연주 중’ 등)는 제목 줄 오른쪽에 두고 따로 줄을 두지 않아, 그만큼 악보를 올린다.
+            PracticeTitleRow(state, statusAtEnd = true)
+            Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
             if (fingering) {
                 PracticeFingeringPage(state, actions.onSelectEvent)
             } else {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,9 +84,11 @@ fun PracticeTopBar(
 /**
  * 본문 첫 줄(`.section-row`): 곡 제목(Song Myung 25sp, 운지법과 함께 보기는 22sp)과 오른쪽 `.pill` ‘{악기} · {난이도}’.
  * 연습 모드는 ‘{악기} · 연습 모드’, 내 악보 연습은 ‘{악기} · 내 악보’다.
+ * [statusAtEnd]이면 `.pill` 자리에 상태 문구(‘● 연습 준비’·‘● 연주 중’ 등)를 두어, 휴대폰 화면에서 상태 줄 한 줄만큼 악보를 올린다.
+ * 한 음씩 안내처럼 긴 문구는 제목을 밀어내지 않게 폭을 제한해 줄바꿈한다.
  */
 @Composable
-fun PracticeTitleRow(state: PracticeUiState, modifier: Modifier = Modifier) {
+fun PracticeTitleRow(state: PracticeUiState, modifier: Modifier = Modifier, statusAtEnd: Boolean = false) {
     val song = state.song ?: return
     val instrument = stringResource(state.instrument.label)
     val pill = if (state.mine) stringResource(Res.string.practice_subtitle_mine, instrument)
@@ -93,7 +96,7 @@ fun PracticeTitleRow(state: PracticeUiState, modifier: Modifier = Modifier) {
         else stringResource(Res.string.practice_subtitle, instrument, songLevelLabel(song.level))
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeading(state.title, Modifier.weight(1f), compact = state.fingeringView)
-        PracticePill(pill)
+        if (statusAtEnd) PracticeStatusLabel(state, Modifier.widthIn(max = 168.dp)) else PracticePill(pill)
     }
 }
 
