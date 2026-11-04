@@ -238,6 +238,8 @@ LOADED_DANSO = [
     "ngc-silgi-2016-18868", "ngc-standard-2022-p180", "ngc-standard-2022-p166", "ngc-standard-2022-p168",
     "ngc-silgi-2016-19006", "ngc-standard-2022-p176", "ngc-silgi-2016-18947", "ngc-standard-2022-p179",
     "ngc-standard-2022-p167", "ngc-silgi-2016-18924",
+    # S15P31E102-451: 28 싸름, 43 청어엮기, 44 천안삼거리, 49 진도아리랑(단소 원본)
+    "ngc-silgi-2016-ssareum", "ngc-silgi-2016-18940", "ngc-silgi-2016-cheonan-samgeori", "jindo-arirang-textbook",
 ]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
@@ -253,21 +255,29 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
 
     def test_loaded_danso_answers_take_song_info_from_review(self):
-        self.assertEqual(len(LOADED_DANSO), 31)
+        self.assertEqual(len(LOADED_DANSO), 35)
         for source_id in LOADED_DANSO:
             result = convert_answer(source_id)
             self.assertEqual((result["score"]["instrument"], result["music"]["bpmUnit"]), ("DANSO", "QUARTER"), source_id)
             self.assertEqual(result["provenance"]["review"], "reviewed", source_id)
         self.assertEqual(convert_answer("ngc-standard-2022-p183-part-2")["score"]["sourceId"], "ngc-standard-2022-p183")
 
+    def test_cheonan_samgeori_keeps_ornaments_as_sigimsae_on_six_gaks(self):
+        # 원본은 6각 24정간이다. 율명에 붙은 니나는 독립 음이 아니라 그 음의 시김새다(449 결정 B).
+        result = convert_answer("ngc-silgi-2016-cheonan-samgeori")
+        self.assertEqual([len(c["cells"]) for c in result["columns"]], [4] * 6)
+        ninas = [e for e in result["events"] if "니나" in e["sigimsae"]]
+        self.assertEqual([(e["yul"], e["octave"]) for e in ninas], [("무", 0), ("중", 1), ("무", 0), ("무", 0)])
+
     def test_bukcheon_danso_1_keeps_the_source_note_that_differs_from_service(self):
-        # 원본 각12 정간2는 '-淋'(청임)이다. 운영은 청태라 이 정답은 채점 계획에서 뺀다(S15P31E102-451).
+        # 원본 각12 정간2는 '-淋'(청임)이다. 운영은 청태라 S15P31E102-451에서 운영 음표를 이 정답으로 바꾼다.
         result = convert_answer("ngc-standard-2022-p182-part-1")
         (note,) = [e for e in result["events"] if e["id"] == "c11-j1-r1-u0"]
         self.assertEqual((note["yul"], note["octave"]), ("임", 1))
         folder = DATA / "annotations/scores/ngc-standard-2022-p182-part-1"
         review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
-        self.assertFalse(review["serviceComparison"]["approvedForScoring"])
+        self.assertEqual((review["serviceComparison"]["approvedForScoring"], review["serviceComparison"]["replacesServiceEvents"]),
+                         (True, True))
 
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re
@@ -461,6 +471,17 @@ class AnswerTests(unittest.TestCase):
             breaker(result)
             problems = check(result)
             self.assertTrue(any(name in p for p in problems), (name, problems))
+
+    def test_danso_accepts_its_five_yul_and_listed_extras_only(self):
+        # 진도아리랑 단소 원본의 청남(湳)은 기본 5율 표 밖이라 예외로 받는다. 청협 같은 반음 오타와
+        # backend 율명 표에 없는 중청대는 여전히 막는다(S15P31E102-451 검토).
+        result = copy.deepcopy(convert_answer(ANSWERS[2]))
+        note = next(e for e in result["events"] if e["kind"] == "NOTE")
+        note.update(yul="남", octave=1)
+        self.assertEqual(check(result), [])
+        for yul, octave in (("협", 1), ("대", 2)):
+            note.update(yul=yul, octave=octave)
+            self.assertTrue(any("율명 표" in p for p in check(result)), (yul, octave))
 
 
 if __name__ == "__main__":

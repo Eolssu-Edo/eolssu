@@ -43,6 +43,7 @@ import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.stepCurrentIndex
 import com.ssafy.eolssu.feature.practice.modelPointAt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,9 +113,10 @@ fun PracticeScoreArea(
         val recording = state.mode == PracticeMode.Recording || state.resuming
         val playback = state.scorePlayback()
         val notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege)
-        val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else null
+        // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
+        val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
-        val selectedIndex = if (state.mode == PracticeMode.Ready) state.selected else null
+        val selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null
         val onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null
         val annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap()
         if (bandColumns == null) {
@@ -276,12 +278,13 @@ fun PracticeBoardScore(
             metrics = JeongganboMetrics.practiceBoard(big, longestStrip),
             notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
             scrollState = rememberHorizontalScoreScroll(state),
-            currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else null,
+            // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
+            currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex,
             highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position,
             playback = playback,
             follow = state.follow,
             onUserScroll = onUserScroll,
-            selectedIndex = if (state.mode == PracticeMode.Ready) state.selected else null,
+            selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null,
             onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
             look = JeongganboLook.practice(big),
             annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),

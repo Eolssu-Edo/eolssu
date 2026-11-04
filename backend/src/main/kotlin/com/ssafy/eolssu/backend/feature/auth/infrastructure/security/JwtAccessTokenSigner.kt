@@ -25,8 +25,17 @@ class JwtAccessTokenSigner(secret: String) : AccessTokenSigner {
     override fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant): String =
         encode(JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).expiresAt(expiresAt).build())
 
+    override fun signNonExpiring(userId: Long, issuedAt: Instant, sessionHash: String, sessionId: String): String =
+        encode(JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).claim("session_hash", sessionHash).claim(SESSION_CLAIM, sessionId).build())
+
+    override fun sign(userId: Long, issuedAt: Instant, expiresAt: Instant, sessionId: String): String =
+        encode(JwtClaimsSet.builder().subject(userId.toString()).issuedAt(issuedAt).expiresAt(expiresAt).claim(SESSION_CLAIM, sessionId).build())
+
     private fun encode(claims: JwtClaimsSet): String {
         val jwtEncoder = encoder ?: throw TokenIssuingUnavailable()
         return jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)).tokenValue
     }
 }
+
+/** access_token의 로그인 세션 ID 클레임. */
+const val SESSION_CLAIM = "sid"

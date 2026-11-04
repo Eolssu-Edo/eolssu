@@ -17,7 +17,8 @@ from omr_service.api import DownloadError, RecognitionFailed, app, get_engines, 
 
 SIGNED_URL = "https://r2.example/sheets/1.pdf?X-Amz-Signature=secret-token"
 A4 = (595, 842)  # pt
-DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues"}
+DONE_KEYS = {"conversionId", "status", "failReason", "engine", "engineVersion", "pages", "jgb", "score", "issues",
+             "notices"}
 
 
 def pdf(pages=1, size=A4):
@@ -67,7 +68,7 @@ class Engine:
             self.clock.now += self.takes_s
         if isinstance(self.outcome, Exception):
             raise self.outcome
-        return self.outcome or {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1}, "score": {"events": []},
+        return self.outcome or {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1}, "score": {"events": [{"id": "e0"}]},
                                 "issues": [{"kind": "LOW_CONFIDENCE", "eventId": "e0", "cellId": None, "page": 0,
                                             "bbox": [1, 2, 3, 4], "detail": None}]}
 
@@ -405,3 +406,26 @@ def test_download_errors_are_download_error(tmp_path, clock, url, transport):
 
 def test_health():
     assert TestClient(app).get("/health").json() == {"status": "ok"}
+
+
+def test_issues_without_a_cell_in_the_score_become_notices(serve):
+    """issues에는 결과 악보의 칸·음을 가리키는 것만 남긴다. 칸이 없거나 악보에 없는 칸은 notices다."""
+    def issue(kind, event_id=None, cell_id=None):
+        return {"kind": kind, "eventId": event_id, "cellId": cell_id, "page": None, "bbox": None, "detail": None}
+
+    result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
+              "score": {"events": [{"id": "c0-j0-r0-u0"}], "columns": [{"cells": [{"id": "c0-j1"}]}]},
+              "issues": [issue("LOW_CONFIDENCE", event_id="c0-j0-r0-u0"), issue("OUT_OF_RANGE", cell_id="c0-j1"),
+                         issue("TRANSPOSED"), issue("ORNAMENT_DROPPED", cell_id="c9-j9")]}
+    out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
+    assert [i["kind"] for i in out["issues"]] == ["LOW_CONFIDENCE", "OUT_OF_RANGE"]
+    assert [i["kind"] for i in out["notices"]] == ["TRANSPOSED", "ORNAMENT_DROPPED"]
+    assert all(n["eventId"] is None and n["cellId"] is None for n in out["notices"])
+
+
+def test_issue_with_a_wrong_event_but_a_real_cell_stays_an_issue(serve):
+    issue = {"kind": "OUT_OF_RANGE", "eventId": "gone", "cellId": "c0-j1", "page": None, "bbox": None, "detail": None}
+    result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
+              "score": {"events": [], "columns": [{"cells": [{"id": "c0-j1"}]}]}, "issues": [issue]}
+    out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
+    assert [(i["eventId"], i["cellId"]) for i in out["issues"]] == [(None, "c0-j1")] and out["notices"] == []

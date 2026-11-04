@@ -41,7 +41,7 @@ class KakaoWebhookDatabaseTests {
         jdbc.update("INSERT INTO users(id,email,password_hash,nickname,instrument_id,status) VALUES(990296,'webhook296@example.test','unchanged-password','웹훅',1,'ACTIVE')")
         jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id,created_at) VALUES(990296,'KAKAO','990296',?)",utc(Instant.now().minusSeconds(300)))
         jdbc.update("INSERT INTO user_social_accounts(user_id,provider,provider_user_id) VALUES(990296,'GOOGLE','google296')")
-        jdbc.update("INSERT INTO refresh_tokens(user_id,token_hash,expires_at) VALUES(990296,?,?)","c".repeat(64),utc(Instant.now().plusSeconds(3600)))
+        jdbc.update("INSERT INTO refresh_tokens(user_id,token_hash,session_id,expires_at) VALUES(990296,?,'kakao-webhook-session',?)","c".repeat(64),utc(Instant.now().plusSeconds(3600)))
         jdbc.update("INSERT INTO practice_sessions(id,user_id,song_id,score_version,bpm,bpm_unit,start_note_idx,end_note_idx,status,started_at) VALUES(990296,990296,1,1,90,'DOTTED_QUARTER',0,1,'RECORDING',UTC_TIMESTAMP(6))")
     }
     @AfterEach fun cleanup() {
