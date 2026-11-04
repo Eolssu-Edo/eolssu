@@ -116,6 +116,8 @@ data class PracticeUiState(
     /** Optional local preview timing; ignored outside Model mode, including recording/scoring. */
     val modelPerformance: ScorePerformance? = null,
     val modelPerformancePositionMs: Double = 0.0,
+    /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
+    val modelClock: ModelClock? = null,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 

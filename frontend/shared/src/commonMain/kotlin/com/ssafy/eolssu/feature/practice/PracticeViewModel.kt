@@ -75,7 +75,7 @@ class PracticeViewModel(
     private val recordingClock = RecordingClock()
     private var takeKey = ""
     private var take: RecordedTake? = null
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, viewModelScope)
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, viewModelScope, playbackTimeSource)
 
     init {
         retryLoadSong()

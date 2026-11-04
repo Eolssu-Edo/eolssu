@@ -12,20 +12,48 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 enum class ModelAudioStatus { Idle, Loading, Playing, Paused, Completed, Interrupted, Unavailable, Unsupported, Failed }
 
+/** @property anchor 재생 중일 때만 있다. 진행 선은 보고된 [mediaPositionMs] 대신 이 기준점에서 이어 그린다. */
 data class ModelAudioState(
     val status: ModelAudioStatus = ModelAudioStatus.Idle,
     val audio: ModelAudio? = null,
     val mediaPositionMs: Long = 0,
+    val anchor: MediaAnchor? = null,
 )
+
+/**
+ * 재생 중인 음원 위치를 매 프레임 이어 그리기 위한 기준점. [mark] 시각에 [positionMs]였고 이후 [rate]배로 흐른다.
+ * 플레이어는 위치를 50ms마다, 앞뒤로 조금씩 흔들리게 알려 주므로 그 값을 그대로 그리면 진행 선이 계단처럼 끊기거나 뒤로 튄다.
+ */
+data class MediaAnchor(val positionMs: Double, val mark: TimeMark, val rate: Double) {
+    fun positionNow(): Double = positionMs + mark.elapsedNow().inWholeNanoseconds / 1_000_000.0 * rate
+}
+
+/**
+ * 새로 보고된 위치로 기준점을 옮긴다. 크게 어긋나면(시작·이동·끊김 뒤) 그 자리로 바로 옮기고, 작은 어긋남은
+ * 지금 그리는 위치에서 끊지 않고 흐르는 빠르기만 조금 바꿔 약 1초에 걸쳐 따라잡는다. 그래서 진행 선이 뒤로 가지 않는다.
+ */
+internal fun MediaAnchor?.follow(reportedMs: Double, speed: Double, now: TimeMark): MediaAnchor {
+    val predicted = this?.positionNow() ?: return MediaAnchor(reportedMs, now, speed)
+    val drift = reportedMs - predicted
+    if (abs(drift) > ANCHOR_SNAP_MS) return MediaAnchor(reportedMs, now, speed)
+    return MediaAnchor(predicted, now, speed * (1 + drift / ANCHOR_CATCH_UP_MS).coerceIn(0.9, 1.1))
+}
+
+private const val ANCHOR_SNAP_MS = 250.0
+private const val ANCHOR_CATCH_UP_MS = 1000.0
 
 /** Coordinates one practice screen's asynchronous metadata and real player. No simulated playback fallback. */
 internal class ModelAudioSession(
     private val repository: ModelAudioRepository?,
     private val player: AudioPlayer,
     private val scope: CoroutineScope,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     private val _state = MutableStateFlow(ModelAudioState())
     val state = _state.asStateFlow()
@@ -55,7 +83,11 @@ internal class ModelAudioSession(
                 val minimumEnd = audio.startOffsetMs + (audio.performance?.durationMs ?: currentSong?.durationMs(audio.bpm) ?: 0.0)
                 val checked = if (media.status == AudioPlaybackStatus.Completed && media.positionMs + 1.0 < minimumEnd)
                     ModelAudioStatus.Failed else status
-                _state.value = ModelAudioState(checked, audio, media.positionMs)
+                val previous = _state.value
+                val anchor = if (checked != ModelAudioStatus.Playing) null else
+                    previous.anchor.takeIf { previous.status == ModelAudioStatus.Playing }
+                        .follow(media.positionMs.toDouble(), speed(audio).toDouble(), timeSource.markNow())
+                _state.value = ModelAudioState(checked, audio, media.positionMs, anchor)
             }
         }
     }
@@ -176,31 +208,45 @@ internal class ModelAudioSession(
     private fun speed(audio: ModelAudio): Float = bpm.toFloat() / audio.bpm
 }
 
-/** Translate decoded media position to the original score ticks. Tail/leading silence never stretches the score. */
-internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): PracticeUiState {
-    if (mode != PracticeMode.Model) return this
-    val base = copy(modelAudioStatus = playback.status, playing = playback.status == ModelAudioStatus.Playing,
-        eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0)
-    val audio = playback.audio ?: return base
-    val song = song ?: return base
-    val timing = song.score.timing ?: return base
-    val events = song.timeline
-    if (events.isEmpty()) return base
-    val mediaScoreMs = (playback.mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0).toDouble()
+/** 재생 중인 모범 음원. 진행 선은 [anchor]에서 이어 간 음원 위치를 매 프레임 [modelPointAt]으로 악보 자리로 바꿔 그린다. */
+data class ModelClock(val audio: ModelAudio, val anchor: MediaAnchor)
+
+/** 음원 위치가 가리키는 악보 자리: 연주 순서 [position]인 음에서 [fraction]만큼 지난 곳과 앞 여백을 뺀 음원 위치 [scoreMs]. */
+internal data class ModelPoint(val position: Int, val fraction: Double, val scoreMs: Double)
+
+/**
+ * Translate decoded media position to the original score ticks. Tail/leading silence never stretches the score.
+ * 악보에 박자 정보와 음이 있고, 연주 기록이 있으면 그 악보의 것이어야 한다.
+ */
+internal fun Song.modelPointAt(audio: ModelAudio, mediaPositionMs: Double): ModelPoint {
+    val mediaScoreMs = (mediaPositionMs - audio.startOffsetMs).coerceAtLeast(0.0)
     audio.performance?.let { performance ->
-        if (!audio.matches(song)) return base.copy(modelAudioStatus = ModelAudioStatus.Failed, playing = false, modelPerformance = null)
         val performed = performance.at(mediaScoreMs)
         val event = performed.segment.unit.event
         val fraction = ((performed.sourceTick - requireNotNull(event.startTick)) / requireNotNull(event.durationTick)).coerceIn(0.0, 1.0)
-        val elapsed = mediaScoreMs.coerceAtMost(performance.durationMs)
-        return base.copy(position = event.index, eventElapsedMs = song.eventDurationMs(event, bpm) * fraction,
-            pausedFraction = fraction.toFloat(), elapsedMs = elapsed * audio.bpm / bpm, modelPerformancePositionMs = elapsed)
+        return ModelPoint(event.index, fraction, mediaScoreMs.coerceAtMost(performance.durationMs))
     }
-    val tick = mediaScoreMs * audio.bpm / 60_000.0 * timing.ticksPerBeat
-    val position = events.indexOfLast { requireNotNull(it.startTick) <= tick }.coerceAtLeast(0)
-    val event = events[position]
+    val tick = mediaScoreMs * audio.bpm / 60_000.0 * requireNotNull(score.timing).ticksPerBeat
+    val position = timeline.indexOfLast { requireNotNull(it.startTick) <= tick }.coerceAtLeast(0)
+    val event = timeline[position]
     val fraction = ((tick - requireNotNull(event.startTick)) / requireNotNull(event.durationTick)).coerceIn(0.0, 1.0)
-    val clampedMs = mediaScoreMs.coerceAtMost(song.durationMs(audio.bpm))
-    return base.copy(position = position, eventElapsedMs = song.eventDurationMs(event, bpm) * fraction,
-        elapsedMs = clampedMs * audio.bpm / bpm, pausedFraction = fraction.toFloat())
+    return ModelPoint(position, fraction, mediaScoreMs.coerceAtMost(durationMs(audio.bpm)))
+}
+
+internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): PracticeUiState {
+    if (mode != PracticeMode.Model) return this
+    val base = copy(modelAudioStatus = playback.status, playing = playback.status == ModelAudioStatus.Playing,
+        eventStartedAt = null, modelPerformance = playback.audio?.performance, modelPerformancePositionMs = 0.0, modelClock = null)
+    val audio = playback.audio ?: return base
+    val song = song ?: return base
+    if (song.score.timing == null || song.timeline.isEmpty()) return base
+    if (audio.performance != null && !audio.matches(song)) {
+        return base.copy(modelAudioStatus = ModelAudioStatus.Failed, playing = false, modelPerformance = null)
+    }
+    val point = song.modelPointAt(audio, playback.mediaPositionMs.toDouble())
+    val event = song.timeline[point.position]
+    return base.copy(position = point.position, eventElapsedMs = song.eventDurationMs(event, bpm) * point.fraction,
+        pausedFraction = point.fraction.toFloat(), elapsedMs = point.scoreMs * audio.bpm / bpm,
+        modelPerformancePositionMs = if (audio.performance != null) point.scoreMs else 0.0,
+        modelClock = playback.anchor?.let { ModelClock(audio, it) })
 }
