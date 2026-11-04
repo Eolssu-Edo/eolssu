@@ -115,7 +115,10 @@ def test_sigimsae_note_skips_pitch_and_keeps_onset():
 def test_late_repeated_note_is_timing_error():
     notes = [Note(s, 1) for s in (0, 0, 2, 2, 5, 5, 7, 7, 5, 5, 0)]
     audio = synth(notes, gap=0.04, delay={3: 0.15})  # 같은 높이 두 번째 음이 150ms 늦음
-    assert verdicts(score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))) == {3: "TIMING"}
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert verdicts(result) == {3: "TIMING"}
+    # 높이로 경계를 못 찾는 같은 높이 음도 녹음 기준 시작(3박 × 0.5초 + 0.15초)을 음량으로 잡는다.
+    assert abs(result.notes[3].recording_offset_ms - 1650) <= 30
 
 
 def test_small_tuning_offset_is_corrected():

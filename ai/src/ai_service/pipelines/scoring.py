@@ -277,7 +277,7 @@ def score(
                 pitch_c.append(0.0)
             continue
         (_, err, onset_err, dur_err, octave), r = by_k[k]
-        detected, onset_frame = heard[k]
+        heard_semitone, onset_frame = heard[k]
         # 곡 처음 기준과 앞뒤 음 기준 중 작은 쪽으로 본다. 앞뒤 음의 측정 오차가 더해져 예전보다 엄격해지는 일을 막는다.
         r = min(r, onset_err, key=abs)
         if not n.sigimsae and abs(err) > tol.pitch_cent:
@@ -288,7 +288,7 @@ def score(
             verdict = "CORRECT"
         # onset_error_ms는 지금처럼 곡 처음 기준 늦음이다(백엔드 저장값의 뜻 유지). 판정만 나머지로 한다.
         results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave,
-                                  detected, round(onset_frame * HOP_S * 1000)))
+                                  heard_semitone, round(onset_frame * HOP_S * 1000)))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
         # 높이가 틀린 음은 그 음을 연주한 것이 아니므로 박자·길이 점수도 주지 않는다(놓친 음과 같다).
