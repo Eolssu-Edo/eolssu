@@ -9,6 +9,8 @@ import org.apache.ibatis.annotations.Param
 interface WithdrawalPurgeMapper {
     fun findDueMembers(@Param("now") now: LocalDateTime, @Param("afterUserId") afterUserId: Long, @Param("limit") limit: Int): List<Long>
     fun findRecordingKeys(@Param("userId") userId: Long): List<String>
+
+    fun findSheetSourceKeys(@Param("userId") userId: Long): List<String>
     /** 아직 삭제 대상이면 회원 행을 잠그고 이메일을 돌려준다. */
     fun lockDueMember(@Param("userId") userId: Long, @Param("now") now: LocalDateTime): PurgeMemberRow?
     fun lockSessions(@Param("userId") userId: Long): List<Long>

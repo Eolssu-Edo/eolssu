@@ -76,6 +76,13 @@ class GlobalExceptionHandlerTests {
     }
 
     @Test
+    fun `multipart size exception on the sheet import path answers with the file code`() {
+        mvc.perform(get("/api/users/me/sheets/imports"))
+            .andExpect(status().isContentTooLarge)
+            .andExpect(jsonPath("$.result.errorCode").value("FILE_TOO_LARGE"))
+    }
+
+    @Test
     fun `other framework statuses use the common body without reasons or ProblemDetail`() {
         mvc.perform(get("/fixture/conflict"))
             .andExpect(status().isConflict)
@@ -113,6 +120,9 @@ internal class ErrorFixtureController {
 
     @GetMapping("/fixture/too-large")
     fun tooLarge(): Nothing = throw org.springframework.web.multipart.MaxUploadSizeExceededException(1024)
+
+    @GetMapping("/api/users/me/sheets/imports")
+    fun sheetImportTooLarge(): Nothing = throw org.springframework.web.multipart.MaxUploadSizeExceededException(1024)
 
     @GetMapping("/fixture/conflict")
     fun conflict(): Nothing = throw org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "dup secret")
