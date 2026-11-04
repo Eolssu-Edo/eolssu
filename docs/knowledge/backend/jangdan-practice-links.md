@@ -49,8 +49,18 @@ S15P31E102-340, 2026-11-04. 사용자가 실제 올라간 악보를 검수해 �
 
 단위 검사는 굿거리의 새 응답 필드가 없는 기존 구현에서 실패한 뒤 구현 후 통과했다. 변경 판본/BPM/단위/원문/카탈로그의 차단, 세마치·중모리의 다른 음가 스케일,107개 목록의60/45/2 분류, JSON 의미 해시의 동등·상이 입력을 검사한다.
 
-실제 MySQL8.4 폐기 DB에서는8개 원본 판본을 고정 fixture로 넣고 공개 HTTP를 호출했다. MySQL JSON 재직렬화 이후에도 올바른 연결이 제공되고, NULL FK·BPM·악보 원문이 보존되며, BPM/원문/패턴 변경 시 연결만 제거됨을 확인했다. 첫 실행의 테스트 SQL 칼럼 오기(`pattern_json`)를 실제 mapper의 `pattern`으로 고쳐 재실행했다. 제품 스키마를 수정하거나 검사를 약화하지 않았다.
+최초 구현에서는 실제 MySQL8.4 폐기 DB에8개 원본 판본을 넣고 공개 HTTP를 호출했다. MySQL JSON 재직렬화 이후에도 올바른 연결이 제공되고, NULL FK·BPM·악보 원문이 보존되며, BPM/원문/패턴 변경 시 연결만 제거됨을 확인했다. MR 축소 요청에 따라 현재 고정 원본은 곡6 한 개만 유지한다. 서로 다른 음가 스케일·판본과 보류 사례는 작은 악보·테스트 전용 manifest로 검사한다.
 
-JDK 21에서 `backend/`의 `.\gradlew.bat clean build --console=plain`이 성공했다. 일반 검사 587개가 모두 통과했다. 별도 MySQL 8.4 컨테이너에 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 지정한 `.\gradlew.bat databaseTest --console=plain`도 성공했다. DB 검사 230개 중 229개 통과, 외부 모범 음원 묶음 미설정 검사 1개 skip이며 실패는 없다. 이번 반주 DB 검사 2개는 모두 실행됐다. DB는 운영과 분리했고 검사용 곡을 실행 후 제거했다.
+최초 구현의 JDK 21 `backend/`에서 `.\gradlew.bat clean build --console=plain`이 성공했다. 일반 검사 587개가 모두 통과했다. 별도 MySQL 8.4 컨테이너에 `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 지정한 `.\gradlew.bat databaseTest --console=plain`도 성공했다. DB 검사 230개 중 229개 통과, 외부 모범 음원 묶음 미설정 검사 1개 skip이며 실패는 없다. 반주 DB 검사 2개는 모두 실행됐다. DB는 운영과 분리했고 검사용 곡을 실행 후 제거했다.
 
 검수 후 공개 API 107개를 다시 읽어 모든 scoreVersion과 의미 해시가 manifest와 일치함을 확인했다. 이 재조회 원문과 결과는 Git 제외 `data/processed/jangdan-link-review-340/`에 남겼다. 자체 diff 점검을 수행했으며 독립 정식 리뷰는 대기다. Android 통합 재생·실기기·연주자 청음은 이 백엔드 검사만으로 통과 처리하지 않는다. FE와 합의한 JSON 구조는 [CAT-04 계약](../../specs/catalog-read-apis.md#검수된-장단-반주-s15p31e102-340)에 있다.
+
+## 테스트 데이터 축소
+
+전체 악보 fixture8개의13,022줄 중7개를 제거했다. DB 검사는 남긴 원본 곡6으로 실제 운영 manifest·MySQL JSON 정규화·HTTP 응답과 기존 데이터 보존을 검사한다. 단위 검사는 굿거리의 두 정간 스케일, 중모리88/44 BPM, 세마치144/48 BPM의 같은 주기 길이와 곡44의2판 승인·1판 차단을 작은 악보로 표현한다. 제품 코드·운영 manifest·음원에는 변경이 없다.
+
+107개 원본 전체를 Git에 추가하는 대신 `JangdanPlaybackSnapshotTests`가 외부에 보관한 CAT-04 응답을 같은 Kotlin resolver와 fingerprint로 대조한다. 입력 형식과 실행 명령은 [백엔드 README](../../../backend/README.md#카탈로그-조회cat-0310)에 있다. 이는 저장 시점의 판본 대조이며 현재 운영 데이터를 새로 조회하거나 음악적 품질을 승인하는 검사는 아니다.
+
+축소 후 JDK 21의 `clean build`는591개 중590통과·선택 snapshot1개 생략으로 성공했다. 별도 실행에는2026-11-04 15:13 KST의 Git 제외 `data/processed/jangdan-link-review-340-after-477-20261104T061345Z/`를 사용했다.107개 해시·판본 및 실제 resolver의60개 연결·47개 보류가 일치했다. 임시 입력에서 곡6의 durationTick을1 늘리면 해시 불일치로 실패하는 것도 확인했다. 작은 악보의 박 단위와 기대 주기는 검수값을 독립 상수로 두어 운영 manifest가 잘못 바뀌어도 함께 따라가지 않게 했고, 수정 후 단위6개가 통과했다.
+
+최종 MySQL HTTP 검사2개도 통과했다. 원문 변조를 복원한 뒤 카탈로그 패턴을 독립적으로 바꿔 반주 차단을 검사하고, 패턴 복원 후 재연결까지 확인했다. 축소 diff의 읽기 검토에서 찾은 시간 단위의 기대값 결합을 수정·재확인했으며, 전체 기능의 정식 리뷰 상태는 그대로 대기다.
