@@ -101,11 +101,20 @@ class PlanTests(unittest.TestCase):
             31: 'ngc-standard-2022-p183-part-1', 33: 'ngc-standard-2022-p178', 34: 'ngc-silgi-2016-18868',
             35: 'ngc-standard-2022-p180', 38: 'ngc-standard-2022-p166', 39: 'ngc-standard-2022-p168',
             40: 'ngc-silgi-2016-19006', 41: 'ngc-standard-2022-p176', 42: 'ngc-silgi-2016-18947',
-            46: 'ngc-standard-2022-p179', 47: 'ngc-standard-2022-p167', 48: 'ngc-silgi-2016-18924'})
+            46: 'ngc-standard-2022-p179', 47: 'ngc-standard-2022-p167', 48: 'ngc-silgi-2016-18924',
+            # S15P31E102-451. 25·44는 운영 음표를 정답으로 바꾸고, 28·43·49는 운영이 원본과 같아 숨표만 맞춘다.
+            25: 'ngc-standard-2022-p182-part-1', 28: 'ngc-silgi-2016-ssareum', 43: 'ngc-silgi-2016-18940',
+            44: 'ngc-silgi-2016-cheonan-samgeori', 49: 'jindo-arirang-textbook'})
+        self.assertEqual(sorted(p['songId'] for p in plan if '_target' in p), [25, 44])
         for item in plan:
             answer = convert_answer(item['answer'])
             self.assertEqual(answer['provenance']['review'], 'reviewed', item['answer'])
             self.assertEqual(item['breathEventIds'], [e['id'] for e in answer['events'] if e['breathAfter']], item['answer'])
+            if '_target' in item:
+                target = item['_target']
+                self.assertEqual((target['events'], target['columns']), (answer['events'], answer['columns']), item['answer'])
+                self.assertEqual((target['score']['scoreVersion'], target['score']['sourceId']),
+                                 (item['targetScoreVersion'], item['source']), item['answer'])
 
 
 class PatchTests(unittest.TestCase):
