@@ -1,0 +1,42 @@
+{
+ "sourceId": "ngc-silgi-2016-cheonan-samgeori",
+ "sourceHashes": {
+  "ngc-silgi-2016-cheonan-samgeori": "b107bfc999074805d6919caa0f48f3f00480981d5a01b421a938695adcd11e49"
+ },
+ "attribution": "국립국악원, 초·중등교사를 위한 국악실기교재(2016), 공공누리 제4유형(출처표시·비상업·무변경)",
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": "천안삼거리.jgb.json",
+  "sha256": "df9f74da10742c442fde1f90ff4eaa53715f4fc68344186fe26d8a8cb3c7d72c",
+  "storedSha256": "07e0fbc8684562e1561908e1b6cdd27d89396f105e140dadd36dd7bc56ac3956",
+  "note": "노션 jgb 모음의 단소 사본(v2). 원본은 6각 24정간이다. 입력 JGB 끝의 한 정간짜리 7각(`청황 -무 임중`, gakBeats 7:1)은 원본에 없어 뺐다"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 원본 PDF 그림과 정간마다 대조했고 판단이 갈리는 곳이 없어 사용자 확인 항목은 없었다. S15P31E102-451"
+ },
+ "song": {
+  "title": "천안삼거리",
+  "instrument": "DANSO",
+  "jangdan": "굿거리",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "굿거리",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 44,
+  "scoreVersion": 1
+ },
+ "serviceComparison": {
+  "approvedForScoring": true,
+  "replacesServiceEvents": true,
+  "differences": "운영은 율명에 붙은 니나 4곳을 독립 음 2개로 펼쳤으나 정답은 그 음의 시김새로 둔다(449 결정 B). 1각·5각 4정간의 너녜는 원본 `一)潢`에서 기호가 `一`(앞 청태의 지속) 오른쪽에 있어 앞 청태의 시김새로 둔다. 운영은 뒤 청황에 붙였다(사지한 2026-11-04 결정)."
+ }
+}

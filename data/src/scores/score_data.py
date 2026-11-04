@@ -219,11 +219,14 @@ def check(result, data=DATA):
     problems += [f"eventId {u['eventId']}가 events에 없다 ({c['id']})"
                  for c in cells for u in c["units"] if u["eventId"] not in event_ids]
     problems += [f"cellId {e['cellId']}가 cells에 없다 ({e['id']})" for e in events if e["cellId"] not in cell_ids]
-    # 율명 표는 단소 음역이다. 다른 악기는 읽기 규칙(12율)만 따른다.
+    # 단소는 율명 표(기본 5율)의 가장 낮은 음~가장 높은 음 안이어야 한다. 원본에는 청남처럼 5율 밖의 율도 나온다.
+    # 다른 악기는 읽기 규칙(12율)만 따른다.
     if result["score"]["instrument"] == "DANSO":
-        pitches = {(p["yul"], p["octave"]) for p in _rows(data, "pitches.json")}
-        problems += [f"율명 {e['yul']}·{e['octave']}가 율명 표에 없다 ({e['id']})"
-                     for e in events if e["kind"] == "NOTE" and (e["yul"], e["octave"]) not in pitches]
+        semitones = [p["semitone"] for p in _rows(data, "pitches.json")]
+        low, high = min(semitones), max(semitones)
+        problems += [f"율명 {e['yul']}·{e['octave']}가 단소 음역 밖이다 ({e['id']})"
+                     for e in events if e["kind"] == "NOTE"
+                     and not low <= "황대태협고중유임이남무응".index(e["yul"]) + 12 * e["octave"] <= high]
     return problems
 
 

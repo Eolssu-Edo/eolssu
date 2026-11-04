@@ -1,0 +1,36 @@
+{
+ "sourceId": "jindo-arirang-textbook",
+ "sourceHashes": {
+  "jindo-arirang-textbook": "107177084348dbcbaecb75898f675295ccd22dfe641b1fbafb6e3e15e9a55e8a"
+ },
+ "attribution": null,
+ "method": "manual",
+ "review": "reviewed",
+ "inputApproval": {
+  "file": null,
+  "storedSha256": "75fc67827e4eecaf3a2c589e991d1e380c31198648f621e598e36b5f86e3aecf",
+  "note": "단소 원본 PDF로 새로 옮겼다(운영 columns를 원본과 정간마다 대조해 같음을 확인한 뒤 그 글자를 씀). 404 입력 JGB는 산조대금 자료라 쓰지 않았다"
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 원본 PDF 그림과 정간마다 대조했고 판단이 갈리는 곳이 없어 사용자 확인 항목은 없었다. S15P31E102-451"
+ },
+ "song": {
+  "title": "진도아리랑 — 국립국악원 단소 원보 직접 전사",
+  "instrument": "DANSO",
+  "jangdan": "세마치",
+  "bpmUnit": "QUARTER"
+ },
+ "sourceValues": {
+  "jangdan": "세마치",
+  "tempo": null,
+  "beatsPerJeonggan": "3/2",
+  "bpmUnit": "QUARTER",
+  "beatsPerJeongganBasis": "2026-11-04 공개 운영 악보의 ticksPerJeonggan / ticksPerBeat를 그대로 썼다. 원본 악보의 박 해석은 따로 확인하지 않았다."
+ },
+ "serviceSong": {
+  "songId": 49,
+  "scoreVersion": 1
+ }
+}

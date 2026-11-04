@@ -238,6 +238,8 @@ LOADED_DANSO = [
     "ngc-silgi-2016-18868", "ngc-standard-2022-p180", "ngc-standard-2022-p166", "ngc-standard-2022-p168",
     "ngc-silgi-2016-19006", "ngc-standard-2022-p176", "ngc-silgi-2016-18947", "ngc-standard-2022-p179",
     "ngc-standard-2022-p167", "ngc-silgi-2016-18924",
+    # S15P31E102-451: 28 싸름, 43 청어엮기, 44 천안삼거리, 49 진도아리랑(단소 원본)
+    "ngc-silgi-2016-ssareum", "ngc-silgi-2016-18940", "ngc-silgi-2016-cheonan-samgeori", "jindo-arirang-textbook",
 ]
 YUL = r"(?:하하배|하배|중청|배|청)?[황대태협고중유임이남무응]"
 
@@ -253,12 +255,19 @@ class AnswerTests(unittest.TestCase):
             self.assertEqual(check(result), [], source_id)
 
     def test_loaded_danso_answers_take_song_info_from_review(self):
-        self.assertEqual(len(LOADED_DANSO), 31)
+        self.assertEqual(len(LOADED_DANSO), 35)
         for source_id in LOADED_DANSO:
             result = convert_answer(source_id)
             self.assertEqual((result["score"]["instrument"], result["music"]["bpmUnit"]), ("DANSO", "QUARTER"), source_id)
             self.assertEqual(result["provenance"]["review"], "reviewed", source_id)
         self.assertEqual(convert_answer("ngc-standard-2022-p183-part-2")["score"]["sourceId"], "ngc-standard-2022-p183")
+
+    def test_cheonan_samgeori_keeps_ornaments_as_sigimsae_on_six_gaks(self):
+        # 원본은 6각 24정간이다. 율명에 붙은 니나는 독립 음이 아니라 그 음의 시김새다(449 결정 B).
+        result = convert_answer("ngc-silgi-2016-cheonan-samgeori")
+        self.assertEqual([len(c["cells"]) for c in result["columns"]], [4] * 6)
+        ninas = [e for e in result["events"] if "니나" in e["sigimsae"]]
+        self.assertEqual([(e["yul"], e["octave"]) for e in ninas], [("무", 0), ("중", 1), ("무", 0), ("무", 0)])
 
     def test_bukcheon_danso_1_keeps_the_source_note_that_differs_from_service(self):
         # 원본 각12 정간2는 '-淋'(청임)이다. 운영은 청태라 이 정답은 채점 계획에서 뺀다(S15P31E102-451).
@@ -461,6 +470,15 @@ class AnswerTests(unittest.TestCase):
             breaker(result)
             problems = check(result)
             self.assertTrue(any(name in p for p in problems), (name, problems))
+
+    def test_danso_accepts_any_yul_inside_its_range(self):
+        # 진도아리랑 단소 원본의 청남(湳)은 기본 5율 표에 없지만 단소 음역(중~중청중) 안이다. 음역 밖은 막는다.
+        result = copy.deepcopy(convert_answer(ANSWERS[2]))
+        note = next(e for e in result["events"] if e["kind"] == "NOTE")
+        note.update(yul="남", octave=1)
+        self.assertEqual(check(result), [])
+        note.update(yul="무", octave=2)
+        self.assertTrue(any("음역" in p for p in check(result)))
 
 
 if __name__ == "__main__":
