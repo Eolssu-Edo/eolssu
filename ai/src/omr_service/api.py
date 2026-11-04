@@ -23,7 +23,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
-from omr_service import jeongganbo_text
+from omr_service import jeongganbo_text, staff_engine
 
 MAX_TOTAL_BYTES = 20 * 1024 * 1024  # 파일·합계 20MiB(382)
 MAX_PDF_PAGES = 10
@@ -94,8 +94,8 @@ class RecognitionIn(_Camel):
             raise ValueError("a PDF must be the only file")
         if self.notation == "JEONGGANBO" and not self.jangdan:
             raise ValueError("jangdan is required for JEONGGANBO")
-        if self.notation == "JEONGGANBO" and self.jangdan not in jeongganbo_text.JANGDANS:
-            raise ValueError("unknown jangdan")  # data/reference/jangdans.json의 name. 오선보는 U5에서 정한다
+        if (self.notation == "JEONGGANBO" or self.jangdan) and self.jangdan not in jeongganbo_text.JANGDANS:
+            raise ValueError("unknown jangdan")  # data/reference/jangdans.json의 name. 오선보는 생략할 수 있다
         return self
 
 
@@ -156,7 +156,7 @@ def get_fetcher() -> Fetcher:
 
 
 def get_engines() -> dict[str, Engine]:
-    return {"JEONGGANBO": recognize_jeongganbo}  # 오선보(U5)는 연결 전
+    return {"JEONGGANBO": recognize_jeongganbo, "STAFF": staff_engine.recognize}
 
 
 def recognize_jeongganbo(job: Job) -> dict:

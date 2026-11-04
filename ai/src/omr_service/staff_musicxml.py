@@ -45,6 +45,7 @@ class Conversion:
     beats_per_gak: int
     issues: list[dict] = field(default_factory=list)
     shift: int = 0  # 자동 조 옮김 반음(hwang_pitch가 있으면 0)
+    beat: Fraction = Fraction(1)  # 정간 하나(1박)의 4분음표 수. 점4분 3/2, 4분 1, 8분 1/2
 
 
 @dataclass
@@ -61,7 +62,7 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     if part is None:
         raise ValueError("MusicXML에 파트가 없음")
     issues = []
-    notes, beats_per_gak, compound = _read_part(part, issues)
+    notes, beats_per_gak, compound, beat = _read_part(part, issues)
     if not any(n.midi is not None for n in notes):
         raise ValueError("음표가 없음")
     if hwang_pitch is None:
@@ -74,7 +75,8 @@ def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Convers
     else:
         shift, hwang = 0, hwang_pitch
     jangdan = {(True, 3): "세마치", (True, 4): "굿거리"}.get((compound, beats_per_gak))
-    return Conversion(_layout(notes, beats_per_gak, hwang, instrument, issues), jangdan, beats_per_gak, issues, shift)
+    return Conversion(_layout(notes, beats_per_gak, hwang, instrument, issues), jangdan, beats_per_gak, issues, shift,
+                      beat)
 
 
 def _xml_bytes(data: bytes) -> bytes:
@@ -176,7 +178,7 @@ def _read_part(part, issues):
         pad = (beats_per_gak - first % beats_per_gak) % beats_per_gak
     if pad:
         notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure) for n in notes]
-    return notes, beats_per_gak, compound
+    return notes, beats_per_gak, compound, beat
 
 
 def _attributes(attrs, divisions, transpose):

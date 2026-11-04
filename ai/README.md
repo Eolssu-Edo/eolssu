@@ -100,7 +100,7 @@ uv run python -c "import json; from ai_service.api import app; print(json.dumps(
 
 ## 악보 인식 API
 
-backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF만 읽습니다. 스캔 PDF·사진 정간보(U3)와 오선보(U5)는 연결 전이라 `ENGINE_ERROR`로 끝납니다(S15P31E102-313).
+backend 변환 작업자가 부르는 `POST /v1/recognitions`(`src/omr_service/api.py`)입니다. 채점 API와 다른 컨테이너(`omr`)로 띄웁니다. 요청·응답·실패 코드는 [악보 인식 서비스 계약](../docs/specs/score-recognition.md)을 따릅니다. 지금은 정간보 글자 층 PDF와 오선보(PDF·이미지)를 읽습니다. 스캔 PDF·사진 정간보(U3)는 연결 전이라 `ENGINE_ERROR`로 끝납니다(S15P31E102-313).
 
 ```bash
 uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
@@ -112,6 +112,22 @@ uv run uvicorn omr_service.api:app --host 0.0.0.0 --port 8000
 4. 형식 오류(422) 말고는 예상하지 못한 오류도 200 `ENGINE_ERROR`로 돌려줍니다.
 
 정간보 글자 층 PDF는 `src/omr_service/jeongganbo_text.py`가 `data/src/scores/standard_score_text.py`(pymupdf, 별도 프로세스)와 [jeongganbo-generator](https://github.com/danbinaerinHan/jeongganbo-generator) `9d4a24e`의 `tools/import-ngc-omr.mjs`(Node)로 읽습니다. 클론 위치를 `JGB_GENERATOR_DIR`에 넣고 실행합니다(클론 방법은 [데이터 README](../data/README.md#정간보-omr)). 없으면 정간보 요청은 `ENGINE_ERROR`이고, 변환까지 가는 테스트(`tests/unit/test_omr_text_engine.py`)는 건너뜁니다.
+
+오선보는 `src/omr_service/staff_engine.py`가 쪽마다 Audiveris를 별도 프로세스로 돌리고(쪽당 30초와 남은 요청 시간 중 짧은 쪽, 넘으면 끝냄), 쪽들의 MusicXML을 이어 `staff_musicxml.py`로 정간보 줄을 만든 뒤 글자 층과 같은 변환을 거칩니다. 명령은 `AUDIVERIS_CMD`(기본 `audiveris`)이고, 테스트(`tests/unit/test_omr_staff_engine.py`)는 가짜 Audiveris를 씁니다.
+
+### 악보 인식 이미지
+
+`omr.Dockerfile`은 Ubuntu 24.04에 Audiveris 5.11(데스크톱 등록 스크립트를 뺀 deb와 `libgtk-3-0`), Node, jeongganbo-generator `9d4a24e`, 서비스·`omr` 그룹 의존성, `data/src/scores`·`data/reference`를 넣고 사용자 10001로 실행합니다. 빌드 맥락은 저장소 루트이고 보낼 파일은 `omr.Dockerfile.dockerignore`가 정합니다. 저장소 루트에서 실행합니다.
+
+```bash
+docker build -f ai/omr.Dockerfile -t eolssu-omr .
+```
+
+```bash
+docker run --rm --cpus 1.5 --memory 2g -p 127.0.0.1:8000:8000 eolssu-omr
+```
+
+2026-11-04 실측(이 PC Docker, `--cpus 1.5 --memory 2g`): 실측 4곡 오선보 쪽 그림은 1쪽 8.2~8.6초, 최대 메모리 0.69GB이고 결과가 고정 자료 검사 기준과 같습니다. 정간보·오선보가 함께 있는 표준악보집 펼침면 PDF(북천이 맑다커늘 PDF182) 1쪽은 13.5초, 0.95GB였습니다. 이미지는 1.94GB입니다. 서버(4코어) 값은 U6에서 잽니다.
 
 PDF·이미지 처리는 `omr` 의존성 그룹(`pypdfium2`·`pillow`·`pymupdf`)에만 있습니다. `uv sync`·`uv run pytest`는 이 그룹도 설치하고, 채점 이미지는 `--no-default-groups`로 받아 넣지 않습니다. 테스트 `tests/unit/test_omr_api.py`는 가짜 내려받기·가짜 엔진으로 요청 검사·쪽 그림·시간 예산·실패 코드·응답 모양을 봅니다. 인식 품질 검증이 아닙니다.
 

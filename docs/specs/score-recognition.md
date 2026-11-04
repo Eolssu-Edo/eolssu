@@ -113,6 +113,13 @@ POST /v1/recognitions
 
 어느 경로든 JG-like 텍스트 → jeongganbo-generator `import-ngc-omr.mjs` → `.jgb.json` → `score_data.convert` 순서다.
 
+### 오선보 경로 (313 U5)
+
+- 쪽마다 Audiveris(`-batch -transcribe -export`)를 돌린다. 쪽당 30초와 남은 요청 시간 중 짧은 쪽을 넘으면 끝내고 `TIMEOUT`이다. 비정상 종료는 `ENGINE_ERROR`다.
+- 악보를 못 낸 쪽은 `UNREADABLE`(`detail.reason` `NO_STAFF`, `bbox` 쪽 전체)로 남기고, 모든 쪽이 그러면 `NO_STAFF_FOUND`다. 쪽들의 MusicXML은 첫 파트 뒤에 마디로 이어 붙여 한 곡으로 바꾼다.
+- 장단은 요청 `jangdan` → 박자표(9/8 세마치·12/8 굿거리) → 굿거리 순이다. 정간 하나의 박은 오선보 1박(점4분·4분·8분)을 장단의 `bpmUnit` 박으로 옮긴 값이다. 한 각 길이가 장단 한 번과 다르면 `JANGDAN_MISMATCH`(`detail` `{"jangdan", "jeongganPerGak"}`)다(예: 4/4 곡을 굿거리로 둘 때).
+- `engine` `audiveris`, `engineVersion`·`provenance.converter`의 버전은 컨테이너의 Audiveris 버전(`staff-omr/audiveris-5.11.0`)이다.
+
 ### 정간보 글자 층 경로 (313 U2)
 
 - 쪽마다 글자 층을 읽어 각을 이어 붙인다(위 '실패 코드'의 일부 쪽 실패 규칙과 같다).

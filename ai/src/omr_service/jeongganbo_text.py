@@ -92,35 +92,49 @@ def recognize(job) -> dict:
             raise RecognitionFailed("NO_GRID_FOUND")
         # 율명 글자가 없는 쪽(표지·설명이거나 글자 층 없이 스캔한 악보 쪽)은 건너뛰었다고 알린다
         issues += [{"kind": "UNREADABLE", **p, "detail": {"reason": "NO_TEXT"}} for p in no_yul]
+
+    def bpj_of(doc):
+        per_gak = int(doc["controls"]["beats"])
+        bpj = beats_per_jeonggan(request.jangdan, per_gak)
+        if bpj not in USUAL_BEATS:
+            issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
+                           "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
+        return bpj
+
+    doc, score = lines_to_score(lines, request, request.jangdan, bpj_of, deadline, CONVERTER)
+    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
+
+
+def lines_to_score(lines, request, jangdan_name, bpj_of, deadline, converter):
+    """JG-like 줄 → (.jgb.json 문서, 공통 악보). 글자 층·오선보 경로가 같이 쓴다.
+
+    jeongganbo-generator import-ngc-omr.mjs로 문서를 만들고 score_data.convert로 바꾼다. bpj_of(문서)가 정간 하나의 박이다.
+    """
+    generator = os.environ.get("JGB_GENERATOR_DIR")
+    if not generator:
+        raise RuntimeError("JGB_GENERATOR_DIR is not set")
+    with tempfile.TemporaryDirectory(prefix="jgb-") as work:
+        work = Path(work)
         (work / "txt").mkdir()
         (work / "txt/score.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         run = _run(["node", str(Path(generator) / "tools/import-ngc-omr.mjs"), str(work / "txt"), str(work / "jgb")],
                    deadline)
         if run.returncode != 0:
-            log.info("jeongganbo-text import failed: %s", _last_line(run.stderr))
+            log.info("import-ngc-omr failed: %s", _last_line(run.stderr))
             raise RuntimeError("import-ngc-omr failed")
         jgb_bytes = (work / "jgb/score.jgb.json").read_bytes()
     doc = json.loads(jgb_bytes)
-    jangdan, per_gak = JANGDANS[request.jangdan], int(doc["controls"]["beats"])
-    bpj = beats_per_jeonggan(request.jangdan, per_gak)
-    if bpj not in USUAL_BEATS:
-        issues.append({"kind": "JANGDAN_MISMATCH", "eventId": None, "cellId": None, "page": None, "bbox": None,
-                       "detail": {"jangdan": request.jangdan, "jeongganPerGak": per_gak}})
+    jangdan = JANGDANS[jangdan_name]
     try:
-        score = _convert(doc, bpj, request, jangdan, hashlib.sha256(jgb_bytes).hexdigest())
+        score = score_data.convert(
+            doc, beats_per_jeonggan=bpj_of(doc), title=request.conversion_id, instrument=request.instrument,
+            source_id=request.conversion_id, jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"],
+            review="inferred", jgb_sha256=hashlib.sha256(jgb_bytes).hexdigest())
     except ValueError as e:  # 예: 각마다 정간 수가 다른 악보(gakBeats)는 score_data가 아직 받지 않는다
-        log.info("jeongganbo-text convert failed: %s", _clean(str(e)))
+        log.info("convert failed: %s", _clean(str(e)))
         raise
-    score["provenance"]["converter"] = CONVERTER
-    return {"engine": ENGINE, "engineVersion": ENGINE_VERSION, "jgb": doc, "score": score, "issues": issues}
-
-
-def _convert(doc, bpj, request, jangdan, jgb_sha256):
-    return score_data.convert(
-        doc, beats_per_jeonggan=bpj,
-        title=request.conversion_id, instrument=request.instrument, source_id=request.conversion_id,
-        jangdan=jangdan["name"], bpm_unit=jangdan["bpm_unit"], review="inferred",
-        jgb_sha256=jgb_sha256)
+    score["provenance"]["converter"] = converter
+    return doc, score
 
 
 def _clean(text: str) -> str:
