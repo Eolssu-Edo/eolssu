@@ -165,9 +165,9 @@ def test_note_outside_instrument_range_is_flagged():
 
 
 def test_note_beyond_named_octaves_is_moved_into_them_and_flagged():
-    # 율명은 하배(−2)~중청(+2) 옥타브만 있다. C1은 하배보다 한 옥타브 아래라 하배로 올린다
-    out = convert(xml(measure(note("C1", 16), time=(4, 4))), instrument="ANY", hwang_pitch=60)
-    assert out.lines == [":0 하배황 |  |  | "]
+    # 율명은 하하배(−3)~중청(+2) 옥타브만 있다. C0은 하하배보다 한 옥타브 아래라 하하배로 올린다
+    out = convert(xml(measure(note("C0", 16), time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert out.lines == [":0 하하배황 |  |  | "]
     assert [i["kind"] for i in out.issues] == ["OUT_OF_RANGE"]
 
 
@@ -181,3 +181,158 @@ def test_mxl_zip_is_read():
         z.writestr("META-INF/container.xml", "<container/>")
         z.writestr("score.xml", raw)
     assert convert(buf.getvalue(), instrument="ANY", hwang_pitch=60).lines == [":0 황 |  |  | "]
+
+
+# --- U4 리뷰 지적 재현 ---
+
+FWD = '<barline location="left"><repeat direction="forward"/></barline>'
+BACK = '<barline location="right"><repeat direction="backward"/></barline>'
+
+
+def end_start(n):
+    return f'<barline location="left"><ending number="{n}" type="start"/></barline>'
+
+
+def end_stop(n, back=False):
+    rep = '<repeat direction="backward"/>' if back else ""
+    return f'<barline location="right"><ending number="{n}" type="stop"/>{rep}</barline>'
+
+
+def first_yuls(doc):
+    return [l.split(" |")[0].split()[-1] for l in convert(doc, instrument="ANY", hwang_pitch=60).lines]
+
+
+def whole(p, barline=""):
+    return measure(note(p, 16), time=(4, 4), barline=barline)
+
+
+def test_first_ending_over_two_measures():
+    # |: C |1 D | E :|2 F  →  C D E C F
+    doc = xml(whole("C4", FWD), whole("D4", end_start(1)), whole("E4", end_stop(1, back=True)),
+              whole("F4", end_start(2) + end_stop(2)))
+    assert first_yuls(doc) == ["황", "태", "고", "황", "중"]
+
+
+def test_two_repeat_blocks_with_endings():
+    # |:A|1B:|2C |:D|1E:|2F  →  A B A C D E D F
+    doc = xml(whole("C4", FWD), whole("D4", end_start(1) + end_stop(1, back=True)), whole("E4", end_start(2) + end_stop(2)),
+              whole("F4", FWD), whole("G4", end_start(1) + end_stop(1, back=True)), whole("A4", end_start(2) + end_stop(2)))
+    assert first_yuls(doc) == ["황", "태", "황", "고", "중", "임", "중", "남"]
+
+
+def test_repeats_without_forward_restart_after_previous_repeat():
+    # A B:| C D:|  →  A B A B C D C D
+    doc = xml(whole("C4"), whole("D4", BACK), whole("E4"), whole("F4", BACK))
+    assert first_yuls(doc) == ["황", "태", "황", "태", "고", "중", "고", "중"]
+
+
+def test_repeat_times_attribute():
+    doc = xml(whole("C4", FWD), whole("D4", '<barline location="right"><repeat direction="backward" times="3"/></barline>'))
+    assert first_yuls(doc) == ["황", "태"] * 3
+
+
+def test_tied_chord_is_not_struck_again():
+    doc = xml(measure(note("C4", 8, '<tie type="start"/>'), note("E4", 8, "<chord/>", '<tie type="start"/>'),
+                      note("C4", 8, '<tie type="stop"/>'), note("E4", 8, "<chord/>", '<tie type="stop"/>'), time=(4, 4)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 고 |  |  | "]
+
+
+def test_chord_on_tied_note_does_not_change_the_tied_note():
+    # C를 이어 잡은 채 셋째 박에 G를 함께 치면, 맨 위 선율은 C 2박 뒤 G다(앞 C 전체가 G가 되지 않는다)
+    doc = xml(measure(note("C4", 8, '<tie type="start"/>'), note("C4", 4, '<tie type="stop"/>'),
+                      note("G4", 4, "<chord/>"), note("C4", 4), time=(4, 4)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  | :0 임 | :0 황"]
+
+
+def test_stray_high_note_in_another_voice_does_not_take_over():
+    # Audiveris가 높은 음 하나를 voice 2로 낸 경우. 곡 길이 절반 이상을 덮는 성부만 고른다
+    main = note("C4", 16, voice=1)
+    stray = "<backup><duration>16</duration></backup>" + note("C6", 2, voice=2)
+    doc = xml(measure(main, stray, time=(4, 4)), measure(note("D4", 16, voice=1)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  |  | ", ":0 태 |  |  | "]
+
+
+def test_gap_inside_the_voice_is_a_rest():
+    doc = xml(measure(note("C4", 4), "<forward><duration>8</duration></forward>", note("D4", 4), time=(4, 4)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 | :0 쉼표 |  | :0 태"]
+
+
+def test_many_notes_are_laid_out_in_linear_time():
+    import time
+
+    doc = xml(*[measure(*[note("C4", 1)] * 16, time=(4, 4))] * 250)  # 4000음
+    began = time.perf_counter()
+    convert(doc, instrument="ANY", hwang_pitch=60)
+    assert time.perf_counter() - began < 3
+
+
+def test_time_signature_change_is_flagged():
+    doc = xml(measure(note("C4", 12), time=(3, 4)), measure(note("D4", 16), time=(4, 4)))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert {"kind": "LOW_CONFIDENCE", "eventId": None, "cellId": None, "page": None, "bbox": None,
+            "detail": {"measure": 2, "reason": "TIME_SIGNATURE_CHANGED"}} in out.issues
+
+
+@pytest.mark.parametrize("time, per_gak", [((7, 8), 7), ((5, 8), 5), ((2, 2), 4), ((6, 4), 6)])
+def test_simple_meter_beats(time, per_gak):
+    out = convert(xml(measure(note("C4", per_gak * (2 if time[1] == 8 else 4)), time=time)), instrument="ANY",
+                  hwang_pitch=60)
+    assert out.beats_per_gak == per_gak and len(out.lines) == 1
+
+
+def test_additive_or_missing_beats_do_not_crash():
+    doc = xml(measure(note("C4", 10), time=("3+2", 8)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).beats_per_gak == 5
+
+
+def test_chord_after_zero_length_note_and_chord_on_rest_do_not_crash():
+    doc = xml(measure(note("C4", 0), note("E4", 0, "<chord/>"), note(None, 4), note("G4", 4, "<chord/>"), note("C4", 12),
+                      time=(4, 4)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 쉼표 | :0 황 |  | "]
+
+
+def test_colliding_onsets_keep_both_by_flagging():
+    # 32분음표 넷: 칸이 1/4박까지라 겹치면 나중 음이 남고 알린다
+    doc = xml(measure(note("C4", 1), note("D4", 1), note("E4", 1), note("F4", 1), note("C4", 12), time=(4, 4))
+              .replace("<divisions>4</divisions>", "<divisions>8</divisions>"))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert any(i["detail"].get("reason") == "COLLIDED" for i in out.issues)
+
+
+def test_out_of_range_is_reported_once_per_note():
+    doc = xml(measure(note("C4", 8), note("C4", 8, '<tie type="start"/>'), time=(4, 4)),
+              measure(note("C4", 8, '<tie type="stop"/>'), note("C4", 8)))
+    out = convert(doc, instrument="DANSO", hwang_pitch=60)
+    assert sum(i["kind"] == "OUT_OF_RANGE" for i in out.issues) == 3
+
+
+def test_three_octaves_below_uses_hahabae():
+    out = convert(xml(measure(note("C1", 16), time=(4, 4))), instrument="ANY", hwang_pitch=60)
+    assert out.lines == [":0 하하배황 |  |  | "] and out.issues == []
+
+
+def test_transposing_part_is_read_at_sounding_pitch():
+    doc = xml(measure(note("D4", 16), time=(4, 4)).replace(
+        "</attributes>", "<transpose><diatonic>-1</diatonic><chromatic>-2</chromatic></transpose></attributes>"))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  |  | "]
+
+
+def test_mxl_rootfile_with_musicxml_extension():
+    import io
+    import zipfile
+
+    raw = xml(measure(note("C4", 16), time=(4, 4)))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("META-INF/container.xml", '<container><rootfiles><rootfile full-path="s/score.musicxml"/>'
+                                             '</rootfiles></container>')
+        z.writestr("other.xml", "<not-a-score/>")
+        z.writestr("s/score.musicxml", raw)
+    assert convert(buf.getvalue(), instrument="ANY", hwang_pitch=60).lines == [":0 황 |  |  | "]
+
+
+def test_repeat_after_volta_block_restarts_after_it():
+    # |:A|1B:|2C| D E:|  →  A B A C D E D E (둘째 반복은 C 다음에서 시작한다)
+    doc = xml(whole("C4", FWD), whole("D4", end_start(1) + end_stop(1, back=True)), whole("E4", end_start(2) + end_stop(2)),
+              whole("F4"), whole("G4", BACK))
+    assert first_yuls(doc) == ["황", "태", "황", "고", "중", "임", "중", "임"]
