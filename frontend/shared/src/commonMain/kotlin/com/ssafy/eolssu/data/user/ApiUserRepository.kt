@@ -23,6 +23,7 @@ class ApiUserRepository(
     private val cookies: SecureCookiesStorage?,
     private val instruments: InstrumentRepository? = null,
     private val member: com.ssafy.eolssu.core.network.SignedInMember? = null,
+    private val route: OAuthRoute = OAuthRedirect,
 ) : UserRepository {
     private val state = MutableStateFlow(UserProfile("", "", emptySet()))
     override val profile = state.asStateFlow()
@@ -96,7 +97,7 @@ class ApiUserRepository(
     }
 
     override suspend fun startWithdrawalReauth(provider: SocialProvider): OAuthStartResult =
-        startOAuth(client, "/api/users/me/withdrawal/oauth/${provider.pathName}/start", provider)
+        startOAuth(client, "/api/users/me/withdrawal/oauth/${provider.pathName}/start", route.uriFor(provider))
 
     /** 연결 완료([link])처럼 먼저 갱신되는 요청으로 로그인을 이어 둔 뒤, 갱신·재전송하지 않는 완료 요청을 보낸다. */
     override suspend fun confirmWithdrawalReauth(callback: OAuthCallback): ReauthResult {
@@ -139,7 +140,7 @@ class ApiUserRepository(
     }
 
     override suspend fun startLink(provider: SocialProvider): OAuthStartResult =
-        startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", provider)
+        startOAuth(client, "/api/users/me/social-accounts/${provider.pathName}/start", route.uriFor(provider))
 
     /**
      * 연결 완료는 state를 한 번 쓰므로 401에 토큰 갱신·재전송을 하지 않는다. 브라우저에 다녀오는 동안 액세스 토큰이 만료됐을 수 있어
