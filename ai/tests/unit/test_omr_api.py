@@ -428,4 +428,4 @@ def test_issue_with_a_wrong_event_but_a_real_cell_stays_an_issue(serve):
     result = {"engine": "fake", "engineVersion": "1", "jgb": {"v": 1},
               "score": {"events": [], "columns": [{"cells": [{"id": "c0-j1"}]}]}, "issues": [issue]}
     out = serve(pdf(), Engine(result)).post("/v1/recognitions", json=body()).json()
-    assert [i["cellId"] for i in out["issues"]] == ["c0-j1"] and out["notices"] == []
+    assert [(i["eventId"], i["cellId"]) for i in out["issues"]] == [(None, "c0-j1")] and out["notices"] == []
