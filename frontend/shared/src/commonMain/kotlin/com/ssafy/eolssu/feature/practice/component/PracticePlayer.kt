@@ -43,8 +43,6 @@ import eolssu.shared.generated.resources.model_audio_interrupted
 import eolssu.shared.generated.resources.model_audio_loading
 import eolssu.shared.generated.resources.model_audio_unavailable
 import eolssu.shared.generated.resources.model_audio_unsupported
-import eolssu.shared.generated.resources.practice_countdown_cancel
-import eolssu.shared.generated.resources.practice_countdown_soon
 import eolssu.shared.generated.resources.practice_hint_ready
 import eolssu.shared.generated.resources.practice_hint_solo
 import eolssu.shared.generated.resources.practice_hint_solo_only
@@ -186,11 +184,14 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
  * - 평가 연습: ‘연주 평가 시작’ + ‘평가를 시작하면 마이크로 연주를 듣고 음정·박자·음 길이를 확인해요.’
  * - 연습 모드·평가 가능 곡: ‘이 곡으로 평가하기’ + ‘점수 없이 악보를 보며 혼자 연습해요. 평가하려면 위 버튼으로 넘어가요.’
  * - 연습 모드·평가 불가 곡: 안내만 ‘이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. …’
+ * - 내 악보 연습: 평가 버튼도 안내도 없다(Practice-Mine).
  * 녹음을 지원하지 않는 환경은 안내 카드에 그 사실을 적고 버튼을 끈다.
  */
 @Composable
 fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, hideNotice: Boolean = false) {
     val song = state.song ?: return
+    // 내 악보 연습(Practice-Mine)은 평가하지 않으므로 평가 버튼도 안내도 두지 않는다.
+    if (state.mine) return
     val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         when {
@@ -219,25 +220,4 @@ fun PracticeNotice(text: String, modifier: Modifier = Modifier) {
         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 20.4.sp),
         color = colors.accentText,
     )
-}
-
-/** 카운트다운(`.countdown-big`): Song Myung 76sp 숫자, ‘숨을 고르고 준비해 주세요.’, ‘시작 취소’. 본문 안에 놓인다. */
-@Composable
-fun PracticeCountdown(state: PracticeUiState, onCancel: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "${state.count}",
-            modifier = Modifier.padding(top = 24.dp),
-            style = MaterialTheme.typography.headlineSmall.copy(fontSize = 76.sp, lineHeight = 76.sp, fontWeight = FontWeight.Normal),
-            color = colors.text,
-        )
-        Text(
-            stringResource(Res.string.practice_countdown_soon),
-            modifier = Modifier.padding(top = 14.dp, bottom = 12.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
-            color = colors.textSub,
-        )
-        EolssuButton(stringResource(Res.string.practice_countdown_cancel), onCancel, style = com.ssafy.eolssu.core.ui.component.EolssuButtonStyle.Secondary)
-    }
 }

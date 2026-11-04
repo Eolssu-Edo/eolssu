@@ -82,10 +82,16 @@ data class PracticeDraft(
  * @property noInputMs 마지막 입력 뒤로 입력 없이 녹음한 시간(ms). 일시정지한 동안은 세지 않는다.
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
  * @property idleReminder 마지막 활동 뒤 9분 30초가 지나 "계속 연습 중인가요?"를 묻는 중.
+ * @property mine 내 악보 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
+ * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
+ * @property step 2차 '한 음씩 따라 불기' 상태(`PracticeStep.kt`).
  */
 data class PracticeUiState(
     val song: Song? = null,
     val solo: Boolean = false,
+    val mine: Boolean = false,
+    val sheetTitle: String? = null,
+    val step: PracticeStep = PracticeStep(),
     val settings: PracticeSettings = PracticeSettings(),
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
@@ -120,6 +126,9 @@ data class PracticeUiState(
     val modelClock: ModelClock? = null,
 ) {
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
+
+    /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
+    val title: String get() = sheetTitle ?: song?.title.orEmpty()
 
     /** ‘운지법과 함께 보기’(PANEL-00)가 켜져 정간 옆에 가로 악기 그림을 함께 보는 중. */
     val fingeringView: Boolean get() = settings.fingeringView
@@ -167,6 +176,8 @@ data class PracticeUiState(
             if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
                 add(ContinuousActivity.RECORDING)
             }
+            // 한 음씩 따라 불기에서 '내 연주'를 듣는 중·다시 시작 3·2·1도 연주로 센다.
+            if (stepBusy) add(ContinuousActivity.RECORDING)
             if (draft.previewing) add(ContinuousActivity.METRONOME)
         }
 
@@ -340,7 +351,7 @@ fun PracticeUiState.interrupt(): PracticeUiState =
 
 /** 준비 상태에서 음을 누르면 고르고, 율명이면 운지법 패널을 연다. 지속·쉼 기호는 고르기만 한다. */
 fun PracticeUiState.selectEvent(index: Int): PracticeUiState {
-    if (mode != PracticeMode.Ready) return this
+    if (mode != PracticeMode.Ready || stepBusy) return this
     val yul = song?.timeline?.getOrNull(index)?.note?.fingeringYul
     val base = copy(selected = index, listening = null)
     return if (yul != null) base.copy(panel = PracticePanel.Fingering, draft = draft.copy(note = yul, noteRest = false))

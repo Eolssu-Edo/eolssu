@@ -93,7 +93,7 @@ private fun SongInfo(state: PracticeUiState, song: Song) {
     val colors = EolssuTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(stringResource(Res.string.practice_dock_song_info), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-        Text(song.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold))
+        Text(state.title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold))
         Text(
             stringResource(Res.string.practice_dock_info, jangdanLabel(song.jangdanName), state.bpm, songLevelLabel(song.level)),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
