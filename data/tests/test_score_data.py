@@ -251,7 +251,17 @@ class AnswerTests(unittest.TestCase):
         for source_id in LOADED_DANSO:
             result = convert_answer(source_id)
             self.assertEqual((result["score"]["instrument"], result["music"]["bpmUnit"]), ("DANSO", "QUARTER"), source_id)
+            self.assertEqual(result["provenance"]["review"], "reviewed", source_id)
         self.assertEqual(convert_answer("ngc-standard-2022-p183-part-2")["score"]["sourceId"], "ngc-standard-2022-p183")
+
+    def test_bukcheon_danso_1_keeps_the_source_note_that_differs_from_service(self):
+        # 원본 각12 정간2는 '-淋'(청임)이다. 운영은 청태라 이 정답은 채점 계획에서 뺀다(S15P31E102-451).
+        result = convert_answer("ngc-standard-2022-p182-part-1")
+        (note,) = [e for e in result["events"] if e["id"] == "c11-j1-r1-u0"]
+        self.assertEqual((note["yul"], note["octave"]), ("임", 1))
+        folder = DATA / "annotations/scores/ngc-standard-2022-p182-part-1"
+        review = json.loads(next(folder.glob("*.review.json")).read_text(encoding="utf-8"))
+        self.assertFalse(review["serviceComparison"]["approvedForScoring"])
 
     def test_event_counts_match_an_independent_count_of_the_answer(self):
         import re

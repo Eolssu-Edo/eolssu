@@ -5,12 +5,12 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "북천이 맑다커늘_단소2.jgb.json",
   "sha256": "e293c84270ea370ae017eedd4996c3c3991fc8854c29b78a3199b2fb8f8d528e",
   "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함. 원본은 CRLF 줄바꿈이고 저장소 사본은 LF로 바꿨다(.gitattributes). 내용은 같다",
-  "storedSha256": "1727675c05de308538b74fece140a7b68c7d88932a6de082e56d4abe7957e024"
+  "storedSha256": "7b0c1d00a80216a8f9fa5fbcb957d110cd43606476a1f7f568dd9d50ae7904b8"
  },
  "song": {
   "title": "북천이 맑다커늘 · 단소2",
@@ -28,5 +28,27 @@
  "serviceSong": {
   "songId": 26,
   "scoreVersion": 1
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 먼저 검수: Sonnet 에이전트가 원본 PDF 그림과 정간별로 대조하고 주 세션이 지적 항목을 그림으로 다시 확인했다. 사용자는 모호한 항목만 확인했다(25 음 1개, 26 숨표 1개). S15P31E102-404"
+ },
+ "breathCorrection": {
+  "on": "2026-11-04",
+  "by": "AI",
+  "basis": "원본 10각 끝 단소1 열 오른쪽의 숨표. 소금 북천이처럼 두 성부 모두에 적용",
+  "previousCells": [],
+  "proposedCells": [
+   40
+  ],
+  "changedCells": [
+   40
+  ],
+  "humanConfirmation": {
+   "by": "사지한",
+   "on": "2026-11-04",
+   "note": "두 성부 모두 적용하기로 응답"
+  }
  }
 }

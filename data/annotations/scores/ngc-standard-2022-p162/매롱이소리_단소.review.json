@@ -5,11 +5,12 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "매롱이소리.jgb.json",
   "sha256": "a8791641fd2804ccf73f9400addbf1bb9e3f6e3530b65c5d87009c130f3706c9",
-  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "a8791641fd2804ccf73f9400addbf1bb9e3f6e3530b65c5d87009c130f3706c9"
  },
  "song": {
   "title": "매롱이소리",
@@ -27,5 +28,10 @@
  "serviceSong": {
   "songId": 18,
   "scoreVersion": 1
+ },
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "사용자 지시로 AI가 먼저 검수: Sonnet 에이전트가 원본 PDF 그림과 정간별로 대조하고 주 세션이 지적 항목을 그림으로 다시 확인했다. 사용자는 모호한 항목만 확인했다(25 음 1개, 26 숨표 1개). S15P31E102-404"
  }
 }

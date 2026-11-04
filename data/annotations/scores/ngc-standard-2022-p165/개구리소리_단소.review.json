@@ -5,11 +5,12 @@
  },
  "attribution": "국립국악원, 2022 국립국악원 개정교과서 표준악보집 (국악교육안내서 4), 공공누리 제4유형(출처표시·비상업·무변경)",
  "method": "manual",
- "review": "inferred",
+ "review": "reviewed",
  "inputApproval": {
   "file": "개구리소리.jgb.json",
   "sha256": "57f326d8efdd430a9f5d64708e6d7c4c48c5ba156c7d6f98d4cb63c176f22c66",
-  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함"
+  "note": "노션 jgb 모음의 단소 사본(v2). 운영 provenance.jgbSha256과는 다른 파일이며 내용은 운영 악보와 대조함",
+  "storedSha256": "57f326d8efdd430a9f5d64708e6d7c4c48c5ba156c7d6f98d4cb63c176f22c66"
  },
  "song": {
   "title": "개구리소리",
@@ -27,5 +28,915 @@
  "serviceSong": {
   "songId": 6,
   "scoreVersion": 1
+ },
+ "reviewedOn": "2026-11-04",
+ "confirmed": 60,
+ "total": 60,
+ "cells": [
+  {
+   "index": 0,
+   "gak": 0,
+   "cell": "임",
+   "original": "임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    172,
+    174,
+    201
+   ]
+  },
+  {
+   "index": 1,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    373,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 2,
+   "gak": 0,
+   "cell": "임",
+   "original": "임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    558,
+    174,
+    193
+   ]
+  },
+  {
+   "index": 3,
+   "gak": 0,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    751,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 4,
+   "gak": 0,
+   "cell": "임",
+   "original": "임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    936,
+    174,
+    184
+   ]
+  },
+  {
+   "index": 5,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    1120,
+    174,
+    183
+   ]
+  },
+  {
+   "index": 6,
+   "gak": 0,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    1303,
+    174,
+    199
+   ]
+  },
+  {
+   "index": 7,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    1502,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 8,
+   "gak": 0,
+   "cell": "청황 무",
+   "original": "청황 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    1687,
+    174,
+    192
+   ]
+  },
+  {
+   "index": 9,
+   "gak": 0,
+   "cell": "임",
+   "original": "임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    1879,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 10,
+   "gak": 0,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    2064,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 11,
+   "gak": 0,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    1217,
+    2249,
+    174,
+    181
+   ]
+  },
+  {
+   "index": 12,
+   "gak": 1,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    172,
+    173,
+    201
+   ]
+  },
+  {
+   "index": 13,
+   "gak": 1,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    373,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 14,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    558,
+    173,
+    193
+   ]
+  },
+  {
+   "index": 15,
+   "gak": 1,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    751,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 16,
+   "gak": 1,
+   "cell": "- 청황",
+   "original": "- 청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    936,
+    173,
+    184
+   ]
+  },
+  {
+   "index": 17,
+   "gak": 1,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    1120,
+    173,
+    183
+   ]
+  },
+  {
+   "index": 18,
+   "gak": 1,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    1303,
+    173,
+    199
+   ]
+  },
+  {
+   "index": 19,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    1502,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 20,
+   "gak": 1,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    1687,
+    173,
+    192
+   ]
+  },
+  {
+   "index": 21,
+   "gak": 1,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    1879,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 22,
+   "gak": 1,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    2064,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 23,
+   "gak": 1,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    952,
+    2249,
+    173,
+    181
+   ]
+  },
+  {
+   "index": 24,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    172,
+    174,
+    201
+   ]
+  },
+  {
+   "index": 25,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    373,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 26,
+   "gak": 2,
+   "cell": "- 청태",
+   "original": "- 청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    558,
+    174,
+    193
+   ]
+  },
+  {
+   "index": 27,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    751,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 28,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    936,
+    174,
+    184
+   ]
+  },
+  {
+   "index": 29,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    1120,
+    174,
+    183
+   ]
+  },
+  {
+   "index": 30,
+   "gak": 2,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    1303,
+    174,
+    199
+   ]
+  },
+  {
+   "index": 31,
+   "gak": 2,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    1502,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 32,
+   "gak": 2,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    1687,
+    174,
+    192
+   ]
+  },
+  {
+   "index": 33,
+   "gak": 2,
+   "cell": "청태",
+   "original": "청태",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    1879,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 34,
+   "gak": 2,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    2064,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 35,
+   "gak": 2,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    686,
+    2249,
+    174,
+    181
+   ]
+  },
+  {
+   "index": 36,
+   "gak": 3,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    172,
+    174,
+    201
+   ]
+  },
+  {
+   "index": 37,
+   "gak": 3,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    373,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 38,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    558,
+    174,
+    193
+   ]
+  },
+  {
+   "index": 39,
+   "gak": 3,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    751,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 40,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    936,
+    174,
+    184
+   ]
+  },
+  {
+   "index": 41,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    1120,
+    174,
+    183
+   ]
+  },
+  {
+   "index": 42,
+   "gak": 3,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    1303,
+    174,
+    199
+   ]
+  },
+  {
+   "index": 43,
+   "gak": 3,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    1502,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 44,
+   "gak": 3,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    1687,
+    174,
+    192
+   ]
+  },
+  {
+   "index": 45,
+   "gak": 3,
+   "cell": "청황",
+   "original": "청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    1879,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 46,
+   "gak": 3,
+   "cell": "청황 무",
+   "original": "청황 무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    2064,
+    174,
+    185
+   ]
+  },
+  {
+   "index": 47,
+   "gak": 3,
+   "cell": "임<",
+   "original": "임<",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    420,
+    2249,
+    174,
+    181
+   ]
+  },
+  {
+   "index": 48,
+   "gak": 4,
+   "cell": "중 중",
+   "original": "중 중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    172,
+    173,
+    201
+   ]
+  },
+  {
+   "index": 49,
+   "gak": 4,
+   "cell": "중",
+   "original": "중",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    373,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 50,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    558,
+    173,
+    193
+   ]
+  },
+  {
+   "index": 51,
+   "gak": 4,
+   "cell": "임",
+   "original": "임",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    751,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 52,
+   "gak": 4,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    936,
+    173,
+    184
+   ]
+  },
+  {
+   "index": 53,
+   "gak": 4,
+   "cell": "- 청황",
+   "original": "- 청황",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    1120,
+    173,
+    183
+   ]
+  },
+  {
+   "index": 54,
+   "gak": 4,
+   "cell": "무",
+   "original": "무",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    1303,
+    173,
+    199
+   ]
+  },
+  {
+   "index": 55,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    1502,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 56,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    1687,
+    173,
+    192
+   ]
+  },
+  {
+   "index": 57,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    1879,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 58,
+   "gak": 4,
+   "cell": "",
+   "original": "",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    2064,
+    173,
+    185
+   ]
+  },
+  {
+   "index": 59,
+   "gak": 4,
+   "cell": "쉼",
+   "original": "쉼",
+   "confirmed": true,
+   "inserted": false,
+   "conf": null,
+   "box": [
+    155,
+    2249,
+    173,
+    181
+   ]
+  }
+ ],
+ "answerApproval": {
+  "by": "사지한",
+  "on": "2026-11-04",
+  "note": "검수 화면에서 원본 PDF와 60정간 전부 대조, 고친 정간 0개. 숨표 규칙(D-6) 확인용. S15P31E102-404"
  }
 }
