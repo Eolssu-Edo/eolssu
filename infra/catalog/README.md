@@ -161,3 +161,14 @@ Task S15P31E102-404. S15P31E102-339가 적재한 단소 곡 중 사람 검수를
 sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-check.json
 sudo python3 enable_scoring.py --plan scoring-plans/danso.json --receipt /tmp/danso-scoring-apply.json --apply
 ```
+
+S15P31E102-451에서 5곡을 더했다(35항목). 북천이 단소1(25)과 천안삼거리(44)는 운영 음표가 원본과 달라 **악보 교체 항목**이다. 28 싸름·43 청어엮기·49 진도아리랑은 운영이 원본과 같아 숨표 항목이다. 운영 적용은 S15P31E102-476에서 한다. 이미 켜진 30곡은 완료 상태라 다시 쓰지 않는다.
+
+악보 교체 항목은 `targetScore`(계획 옆 `danso-scores/<곡 id>.json`)와 `targetScoreVersion`(현재 + 1)을 가진다. 도구가 하는 일은 이렇다.
+
+- 목표 파일의 해시가 `targetSha256`과 같은지 확인한다. 목표 파일의 `score.scoreVersion`이 다음 버전인지, 숨표가 `breathEventIds`와 같은지도 확인한다.
+- 같은 트랜잭션에서 `score_json`을 그 파일로 바꾼다. 동시에 `score_version`을 다음 버전으로, `note_count`를 새 음 수로 바꾸고 `is_scorable`을 켠다.
+- 완료 판정은 "새 버전 + 목표 해시 + 채점 켜짐"이다.
+- 서버에는 `enable_scoring.py`, `scoring-plans/danso.json`, `scoring-plans/danso-scores/`를 같은 상대 위치로 둔다.
+
+목표 파일은 `enable_scoring.target_score(운영 악보, convert_answer(정답))`로 만든다. 운영 곡 정보·출처 ID·황 음높이는 운영 값을 두고, 음표·정간·틱은 정답 값을 쓴다. 박 단위나 정간당 박이 다르면 멈춘다. 악보 버전을 올리면 그 곡의 모범 음원은 새 버전 음원이 연결될 때까지 나오지 않는다(`ModelAudioMapper.xml`). 그래서 적용 시점은 모범 음원 담당과 맞춘다.

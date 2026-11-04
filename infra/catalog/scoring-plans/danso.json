@@ -350,5 +350,56 @@
     "breathEventIds": [],
     "currentSha256": "bfdcdc75e91b155b78636204d85f0cfceb5343bc6dc33e78d3f6ac16877468b3",
     "targetSha256": "f8a41748645fa58a519f411d5119f23c4bd149ee35703a7d154332da1e8105f8"
+  },
+  {
+    "songId": 25,
+    "source": "mr203-fixed-danso-021-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-standard-2022-p182-part-1",
+    "breathEventIds": [
+      "c9-j3-r0-u0"
+    ],
+    "currentSha256": "2e295451d77e0abffc37cfc3ebd4bf043f80e772db924633c418cf9f6f558e21",
+    "targetScore": "danso-scores/25.json",
+    "targetScoreVersion": 2,
+    "targetSha256": "c2e8e406b5fa0744f8eb8c73be6a9a3519d0a29e2f90d04e7098f7f2a8061ca4"
+  },
+  {
+    "songId": 28,
+    "source": "mr203-fixed-danso-024-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-ssareum",
+    "breathEventIds": [],
+    "currentSha256": "77dd75cc8f6c070f99d4e2e3bcc493a2383a2351219c4e93067ba721900670d8",
+    "targetSha256": "a289fea409a380028a748e82d9c79ac6e49b7cdbc6bf6b4bd0aa467cd0f55019"
+  },
+  {
+    "songId": 43,
+    "source": "mr203-fixed-danso-039-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-18940",
+    "breathEventIds": [],
+    "currentSha256": "766ad436f98322576e390eb9edc3cefcc37b492e5bef504dce48ba73af307e71",
+    "targetSha256": "b5943f58becaf043162fea08425f63343e6260e2d47a09e6a9a37e9a6f5746f9"
+  },
+  {
+    "songId": 44,
+    "source": "mr203-fixed-danso-041-p1",
+    "scoreVersion": 1,
+    "answer": "ngc-silgi-2016-cheonan-samgeori",
+    "breathEventIds": [],
+    "currentSha256": "2db1bb177024603f9a26756ee0befc626d99e1c324d50c5600942cb95472174d",
+    "targetScore": "danso-scores/44.json",
+    "targetScoreVersion": 2,
+    "targetSha256": "85902952f9268415e7bfdaa668a6a2681ea02bb7140e213f44224c701d684c14"
+  },
+  {
+    "songId": 49,
+    "source": "mr203-fixed-danso-046-p1",
+    "scoreVersion": 1,
+    "answer": "jindo-arirang-textbook",
+    "breathEventIds": [],
+    "currentSha256": "aa9dd7969555bd41a09cda86ee650002bace799f4b2d0149c227fe68839f7c54",
+    "targetSha256": "30530e2d11252daeb4a7b31971866d6cd87486ea5367b4bee934c13a6754f734"
   }
 ]
