@@ -27,7 +27,7 @@ START_BEAT = 12.0  # 곡 처음부터 센 첫 음의 시작 박
 DONE_KEYS = {
     "status", "modelVersion", "total", "pitch", "timing", "duration", "tuningOffsetCent", "tuningOutOfRange", "notes"
 }
-NOTE_KEYS = {"idx", "verdict", "pitchErrorCent", "onsetErrorMs", "durationErrorMs"}
+NOTE_KEYS = {"idx", "verdict", "pitchErrorCent", "onsetErrorMs", "durationErrorMs", "detectedSemitone", "recordingOffsetMs"}
 
 
 def m4a(audio, tmp_path):
@@ -107,6 +107,9 @@ def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
         assert type(result[key]) is int and 0 <= result[key] <= 100
     for note in result["notes"]:  # 백엔드는 Int로 읽는다. 20.0은 받지 않는다
         assert type(note["onsetErrorMs"]) is int and type(note["durationErrorMs"]) is int
+        assert type(note["detectedSemitone"]) is int and type(note["recordingOffsetMs"]) is int
+    # 맞게 분 음은 인식한 반음이 요청 semitone과 같다(S15P31E102-482).
+    assert [n["detectedSemitone"] for n in result["notes"]] == [n.semitone for n in NOTES]
     assert serve.asked == [SIGNED_URL]
     assert_documented(response)
 
@@ -122,7 +125,7 @@ def test_missed_note_has_null_errors(serve, tmp_path):
     result = serve(m4a(synth(NOTES, drop=(1,)), tmp_path)).post("/v1/analyses", json=body()).json()
     missed = result["notes"][1]
     assert missed == {"idx": FIRST_IDX + 2, "verdict": "MISSED", "pitchErrorCent": None, "onsetErrorMs": None,
-                      "durationErrorMs": None}
+                      "durationErrorMs": None, "detectedSemitone": None, "recordingOffsetMs": None}
     TypeAdapter(AnalysisResult).validate_python(result)
 
 
