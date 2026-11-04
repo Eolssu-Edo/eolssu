@@ -50,7 +50,8 @@ internal fun practiceScorePacking(
 
     var count = 1
     var fitted = metrics.cellHeight
-    if (score.supportsPracticeColumnPacking(jangdan) && availableHeight.value.isFinite()) {
+    val packable = score.supportsPracticeColumnPacking(jangdan)
+    if (packable && availableHeight.value.isFinite()) {
         // 크게 보기와 글꼴 확대에서 정간 최소 크기를 깎지 않는다.
         val minimum = if (metrics.cellHeight > 44.dp || scale > 1f) metrics.cellHeight else 32.dp
         // 가장 짧은 각만 들어간다고 가정한 상한에서 시작해 전체 각·공유 가로줄 높이로 실제 배치를 결정한다.
@@ -70,13 +71,23 @@ internal fun practiceScorePacking(
         }
     }
     val groups = score.columns.indices.toList().chunked(count)
-    val rowHeights = if (groups.isEmpty()) emptyList() else rowWeights(count).map { weight ->
+    val sharedWeights = if (groups.isEmpty()) emptyList() else rowWeights(count)
+    val rowHeights = sharedWeights.map { weight ->
         metrics.headHeight + fitted * weight + PracticeStackRowPadding
     }
+    // 같은 가로줄의 가장 긴 각에 맞춰 정간을 비례 확대하고 3소박 높이 비율을 유지한다.
+    val cellHeights = if (packable) buildMap {
+        score.columns.forEachIndexed { column, cells ->
+            val stretched = fitted * (sharedWeights[column % count] / weights[column])
+            cells.indices.forEach { row ->
+                put(column to row, stretched * if ((column to row) in expanded) 1.5f else 1f)
+            }
+        }
+    } else expanded.associateWith { fitted * 1.5f }
     return PracticeScorePacking(
         columnsPerStack = count,
         metrics = metrics.copy(cellHeight = fitted),
-        cellHeights = expanded.associateWith { fitted * 1.5f },
+        cellHeights = cellHeights,
         columnGroups = groups,
         height = rowHeights.fold(0.dp) { total, height -> total + height } * scale +
             PracticeStackGap * (rowHeights.size - 1).coerceAtLeast(0) + 12.dp,

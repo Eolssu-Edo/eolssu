@@ -17,12 +17,41 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class PracticeScorePackingTest {
     private val note = ScoreNote.Pitch(Yul.Hwangjong)
     private val cell = ScoreCell(note)
     private val metrics = JeongganboMetrics.practiceBoard(false, 3)
+
+    @Test
+    fun shorterColumnsStretchTheirCellsToAlignBothBordersAtEachRow() {
+        val triple = ScoreCell(note, note, note)
+        val score = Score(List(10) { column -> List(3) { if (column in listOf(3, 7, 9)) triple else cell } })
+        val packing = practiceScorePacking(score, metrics, 550.dp)
+        assertEquals(3, packing.columnsPerStack)
+        for ((column, cells) in score.columns.withIndex()) {
+            val renderedHeight = metrics.headHeight + cells.indices.fold(0.dp) { total, row ->
+                total + (packing.cellHeights[column to row] ?: packing.metrics.cellHeight)
+            }
+            assertEquals(packing.stackRowHeights[column % 3] - 2.dp, renderedHeight, "${column + 1}각 하단")
+        }
+        assertTrue(packing.cellHeights.getValue(0 to 0) > packing.metrics.cellHeight)
+    }
+
+    @Test
+    fun stretchPreservesThreePartRatioAndWorksWithOneAnglePerStack() {
+        val triple = ScoreCell(note, note, note)
+        val score = Score(listOf(listOf(cell, triple), List(4) { cell }))
+        val packing = practiceScorePacking(score, metrics, 200.dp)
+        assertEquals(1, packing.columnsPerStack)
+        val normal = assertNotNull(packing.cellHeights[0 to 0])
+        val expanded = assertNotNull(packing.cellHeights[0 to 1])
+        assertEquals(normal * 1.5f, expanded)
+        assertEquals(packing.stackRowHeights[0] - 2.dp, metrics.headHeight + normal + expanded)
+        assertTrue(packing.height <= 200.dp)
+    }
 
     @Test
     fun eachStackUsesTheTallestColumnAtEverySharedRow() {
@@ -104,7 +133,13 @@ class PracticeScorePackingTest {
         val packing = practiceScorePacking(score, metrics, 500.dp)
         assertEquals(3, packing.columnsPerStack)
         assertEquals(28, packing.columnGroups.flatten().size)
-        assertTrue(packing.cellHeights.values.all { it > 44.dp })
+        score.columns.forEachIndexed { column, cells ->
+            cells.forEachIndexed { row, cell ->
+                if (cell.units.map { it.row }.distinct().size >= 3) {
+                    assertTrue(packing.cellHeights.getValue(column to row) > packing.metrics.cellHeight)
+                }
+            }
+        }
         assertTrue(packing.height < 500.dp)
     }
 

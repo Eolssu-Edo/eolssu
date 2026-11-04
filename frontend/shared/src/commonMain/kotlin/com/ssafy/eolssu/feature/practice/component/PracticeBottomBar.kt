@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -87,7 +89,13 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
         Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
     }
     if (state.settings.beatVisual) song.jangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
-    if (state.noInputHint) NoInputBanner()
+    // 안내가 나타날 때 본문 높이와 악보 묶음 수가 변하지 않도록 실제 안내 크기를 항상 확보한다.
+    Box(
+        Modifier.alpha(if (state.noInputHint) 1f else 0f)
+            .then(if (state.noInputHint) Modifier else Modifier.clearAndSetSemantics {}),
+    ) {
+        NoInputBanner()
+    }
     val locked = state.mode != PracticeMode.Recording
     if (locked) {
         PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
