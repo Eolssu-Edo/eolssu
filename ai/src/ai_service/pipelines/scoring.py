@@ -65,6 +65,8 @@ class NoteResult:
     onset_error_ms: float | None = None
     duration_error_ms: float | None = None
     octave_suspect: bool = False  # 정답과 옥타브 단위로 어긋남. 음높이 도구 오류일 수 있다
+    detected_semitone: int | None = None  # 적용한 조율 보정을 뺀 뒤 가장 가까운 반음(pitches.semitone 눈금). MISSED면 None
+    recording_offset_ms: int | None = None  # 녹음 0ms 기준 실제 소리 시작(10ms 단위). MISSED면 None
 
 
 @dataclass
@@ -213,7 +215,9 @@ def score(
     out_of_range = abs(offset) > max_tuning
     applied = 0.0 if out_of_range else offset
 
-    played = []  # 놓치지 않은 음: (k, err, onset_err, dur_err, octave)
+    # 놓치지 않은 음: (k, err, onset_err, dur_err, octave). evaluation/score_experiment.py가 이 모양을 읽는다.
+    played = []
+    heard = {}  # k → (인식한 반음, 녹음 기준 시작 프레임)
     for k, (n, (frames, voiced, middle)) in enumerate(zip(notes, measured)):
         if voiced.size < 0.3 * lengths[k] / HOP_S:
             continue
@@ -241,6 +245,7 @@ def score(
         dur_err = (voiced[-1] - onset_frame + 1) * HOP_S - lengths[k]
         octave = abs(err) > 600 and abs(err - 1200 * round(err / 1200)) <= tol.pitch_cent
         played.append((k, err, onset_err, dur_err, octave))
+        heard[k] = (round((raw - applied) / 100), int(onset_frame))
 
     # 박자는 곡 처음 기준이 아니라 앞뒤 음 기준으로 본다. 메트로놈 없이 빨라지거나 느려지면 늦음이 쌓이지만
     # 앞뒤 음도 같이 늦는다. 연주 전체의 빠르기 차이(늦음이 1초에 늘어나는 양 drift, 이웃 음 사이 기울기의 중앙값)를 빼고,
@@ -272,6 +277,7 @@ def score(
                 pitch_c.append(0.0)
             continue
         (_, err, onset_err, dur_err, octave), r = by_k[k]
+        detected, onset_frame = heard[k]
         # 곡 처음 기준과 앞뒤 음 기준 중 작은 쪽으로 본다. 앞뒤 음의 측정 오차가 더해져 예전보다 엄격해지는 일을 막는다.
         r = min(r, onset_err, key=abs)
         if not n.sigimsae and abs(err) > tol.pitch_cent:
@@ -281,7 +287,8 @@ def score(
         else:
             verdict = "CORRECT"
         # onset_error_ms는 지금처럼 곡 처음 기준 늦음이다(백엔드 저장값의 뜻 유지). 판정만 나머지로 한다.
-        results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave))
+        results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave,
+                                  detected, round(onset_frame * HOP_S * 1000)))
         if not n.sigimsae:
             pitch_c.append(_credit(err, tol.pitch_cent))
         # 높이가 틀린 음은 그 음을 연주한 것이 아니므로 박자·길이 점수도 주지 않는다(놓친 음과 같다).
