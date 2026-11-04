@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -48,6 +50,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
+import com.ssafy.eolssu.feature.practice.component.supportsPracticeColumnPacking
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
@@ -148,38 +151,46 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
     val showPlayer = state.mode == PracticeMode.Ready || state.mode == PracticeMode.Model
     val fingering = state.fingeringView
+    val packScore = remember(state.song, fingering) {
+        !fingering && state.song?.let { it.score.supportsPracticeColumnPacking(it.jangdan) } == true
+    }
+    val fontScale = LocalDensity.current.fontScale
     val scroll = rememberScrollState()
-    // 연주가 시작되면 본문을 맨 위로 올려 정간보 한 각이 화면에 다 들어오게 한다(평가 시작 버튼을 누르려고 내려 둔 스크롤을 되돌린다).
     LaunchedEffect(recordingBar) { if (recordingBar) scroll.animateScrollTo(0) }
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
-                .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
-        ) {
-            // 상태 문구(‘● 연습 준비’·‘● 연주 중’ 등)는 제목 줄 오른쪽에 두고 따로 줄을 두지 않아, 그만큼 악보를 올린다.
-            PracticeTitleRow(state, statusAtEnd = true)
-            Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
-            if (fingering) {
-                PracticeFingeringPage(state, actions.onSelectEvent)
-            } else {
-                PracticeBoardScore(state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow)
-            }
-            if (showPlayer) {
-                if (state.stepUi) {
-                    // 한 음씩이 켜지면 플레이어 대신 ‘지금 음’·‘내 연주’ 두 칸(2차 Practice-Ext).
-                    PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            // 낮은 창·확대 글꼴에서는 고정 컨트롤 때문에 악보가 사라지지 않도록 페이지 스크롤을 유지한다.
+            val fitScore = packScore && maxHeight >= 560.dp && fontScale <= 1f
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .then(if (fitScore) Modifier else Modifier.verticalScroll(scroll))
+                    .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
+            ) {
+                PracticeTitleRow(state, statusAtEnd = true)
+                Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
+                if (fingering) {
+                    PracticeFingeringPage(state, actions.onSelectEvent)
                 } else {
-                    PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                    PracticeBoardScore(
+                        state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
+                        modifier = if (fitScore) Modifier.weight(1f) else Modifier,
+                    )
                 }
-                PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
+                if (showPlayer) {
+                    if (state.stepUi) {
+                        PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
+                    } else {
+                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                    }
+                    PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
+                }
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
         }
     }
 }

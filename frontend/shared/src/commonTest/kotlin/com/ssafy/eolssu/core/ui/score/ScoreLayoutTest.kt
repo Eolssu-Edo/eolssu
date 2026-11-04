@@ -23,6 +23,18 @@ class ScoreLayoutTest {
     private val semachi = Jangdan("세마치", daegang = listOf(3, 3, 3), beats = 3, subdivision = 3)
 
     @Test
+    fun stackedPlayheadKeepsThreeColumnsInOneHorizontalPosition() {
+        val song = smallScoreSong().copy(score = score(columns = 7, rows = 3))
+        val strips = scoreStrips(song.score, null)
+        val units = song.displayUnits.groupBy { it.column to it.row }
+        for (column in 0..6) {
+            val position = requireNotNull(playheadStrip(song, strips, units, column * 3, 0f, columnsPerStack = 3))
+            assertEquals(column / 3, position.toInt())
+        }
+        assertEquals((0..6).toList(), strips.map { it.column })
+    }
+
+    @Test
     fun playheadStripMovesForwardWithoutGapsAcrossNotesAndColumns() {
         val song = smallScoreSong()
         val strips = scoreStrips(song.score, song.jangdan)
