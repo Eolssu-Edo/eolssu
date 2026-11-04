@@ -55,6 +55,7 @@ class _Note:
     length: Fraction
     midi: int | None  # None = 쉼표
     measure: int
+    flags: list = field(default_factory=list)  # 이 음의 시작 칸에 남길 issue (kind, detail): 버린 꾸밈음·성부 안 빈 시간
 
 
 def convert(data: bytes, *, instrument: str, hwang_pitch: int | None) -> Conversion:
@@ -92,8 +93,9 @@ def _xml_bytes(data: bytes) -> bytes:
         return z.read(next(n for n in names if n.endswith((".xml", ".musicxml")) and not n.startswith("META-INF")))
 
 
-def _issue(kind, detail):
-    return {"kind": kind, "eventId": None, "cellId": None, "page": None, "bbox": None, "detail": detail}
+def _issue(kind, detail, cell_id=None):
+    """cell_id는 결과 악보의 칸 c{각}-j{정간}(score_data). 악보 전체에 대한 것은 None이다."""
+    return {"kind": kind, "eventId": None, "cellId": cell_id, "page": None, "bbox": None, "detail": detail}
 
 
 def _meter(time):
@@ -129,7 +131,8 @@ def _read_part(part, issues):
                 elif read and read != meter:
                     issues.append(_issue("LOW_CONFIDENCE", {"measure": i + 1, "reason": "TIME_SIGNATURE_CHANGED"}))
 
-    voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디] 묶음(화음은 한 묶음)
+    voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디, flags] 묶음(화음은 한 묶음)
+    graces = defaultdict(list)  # 성부 → 다음 음에 붙일 버린 꾸밈음
     cursor, last = Fraction(0), None
     for index in _play_order(measures, issues):
         m, number, d, shift = measures[index], index + 1, divisions[index], transpose[index]
@@ -140,8 +143,9 @@ def _read_part(part, issues):
             elif el.tag in ("backup", "forward"):
                 t += (-1 if el.tag == "backup" else 1) * Fraction(int(el.findtext("duration"))) / d
             elif el.tag == "note":
-                if el.find("grace") is not None:
-                    issues.append(_issue("ORNAMENT_DROPPED", {"measure": number}))
+                voice = el.findtext("voice") or "1"
+                if el.find("grace") is not None:  # 꾸밈음은 뒤따르는 음의 칸에 알린다
+                    graces[voice].append(("ORNAMENT_DROPPED", {"measure": number}))
                     continue
                 pitch = _midi(el, shift)
                 tie_stop = el.find("tie[@type='stop']") is not None
@@ -153,30 +157,32 @@ def _read_part(part, issues):
                 if dur <= 0:
                     last = None  # 길이 없는 음에 붙은 화음은 버린다
                     continue
-                last = [cursor + t, dur, [(pitch, tie_stop)], number]
-                voices[el.findtext("voice") or "1"].append(last)
+                last = [cursor + t, dur, [(pitch, tie_stop)], number, graces.pop(voice, [])]
+                voices[voice].append(last)
                 t += dur
             longest = max(longest, t)
         cursor += longest
+    issues += [_issue(kind, detail) for flags in graces.values() for kind, detail in flags]  # 뒤따르는 음이 없는 꾸밈음
 
     if not voices:
         raise ValueError("음표가 없음")
     voice = _pick_voice(voices, cursor)
     if len(voices) > 1 or any(len(g[2]) > 1 for g in voices[voice]):
         issues.append(_issue("VOICE_GUESSED", {"voices": len(voices)}))
-    melody = _melody(voices[voice], issues)
+    melody = _melody(voices[voice])
     if meter:
         compound, beat, beats_per_gak = meter
     else:  # 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성을 고른다
         compound, beats_per_gak = _guess_meter(melody)
         beat = Fraction(3, 2) if compound else Fraction(1)
-    notes = [_Note(n.start / beat, n.length / beat, n.midi, n.measure) for n in melody]
+    notes = [_Note(n.start / beat, n.length / beat, n.midi, n.measure, n.flags) for n in melody]
     pad = 0
     if meter:  # 첫 마디가 짧으면(못갖춘마디) 앞을 쉼표로 채워 첫 각을 맞춘다
         first = _measure_length(measures[0], divisions[0]) / beat
         pad = (beats_per_gak - first % beats_per_gak) % beats_per_gak
     if pad:
-        notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure) for n in notes]
+        notes = [_Note(Fraction(0), pad, None, 1)] + [_Note(n.start + pad, n.length, n.midi, n.measure, n.flags)
+                                                      for n in notes]
     return notes, beats_per_gak, compound, beat, not meter
 
 
@@ -203,34 +209,36 @@ def _pick_voice(voices, total):
     return max(candidates, key=mean) if candidates else max(voices, key=cover)
 
 
-def _melody(groups, issues):
+def _melody(groups):
     """한 성부의 묶음 → 시간 순서의 음표. 화음은 맨 위 음, 붙임줄은 합치고, 빈 시간은 쉼표로 채운다.
 
     마디마다 성부 번호가 바뀌는 인식 결과는 이어 잡은 음 자리가 빈 시간이 된다. 4분음표 하나보다 길게 비면 알린다."""
     out = []
-    for start, length, pitches, measure in sorted(groups, key=lambda g: g[0]):
+    for start, length, pitches, measure, flags in sorted(groups, key=lambda g: g[0]):
         sounding = [(p, tie) for p, tie in pitches if p is not None]
         # 쉼표에 붙은 화음 표시는 잘못 읽은 것이라 쉼으로 둔다
         midi, tie_stop = max(sounding) if sounding and pitches[0][0] is not None else (None, False)
         if out and out[-1].start + out[-1].length > start:  # 겹치면 앞 음을 자른다
             out[-1].length = start - out[-1].start
-            if out[-1].length <= 0:
-                out.pop()
+            if out[-1].length <= 0:  # 같은 때 시작한 음이 앞 음을 대신한다. 붙은 알림은 넘겨받는다
+                flags = out.pop().flags + list(flags)
         end = out[-1].start + out[-1].length if out else Fraction(0)
         if start > end:
-            if start - end > 1:
-                issues.append(_issue("LOW_CONFIDENCE", {"measure": measure, "reason": "GAP_IN_VOICE"}))
             if out and out[-1].midi is None:
                 out[-1].length = start - out[-1].start
             else:
                 out.append(_Note(end, start - end, None, measure))
+            if start - end > 1:  # 빈 시간이 시작하는 쉼표 칸에 알린다
+                out[-1].flags.append(("LOW_CONFIDENCE", {"measure": measure, "reason": "GAP_IN_VOICE"}))
         prev = out[-1] if out else None
         if tie_stop and prev is not None and prev.midi == midi and prev.start + prev.length == start:
             prev.length += length
+            prev.flags += flags
         elif midi is None and prev is not None and prev.midi is None:
             prev.length += length
+            prev.flags += flags
         else:
-            out.append(_Note(start, length, midi, measure))
+            out.append(_Note(start, length, midi, measure, list(flags)))
     return out
 
 
@@ -326,17 +334,20 @@ def _layout(notes, beats_per_gak, hwang, instrument, issues):
         while gak_start < n.start + n.length:
             cells[int(gak_start)].append((Fraction(0), n))
             gak_start += beats_per_gak
+    for n in notes:  # 음에 붙은 issue는 그 음이 시작하는 칸에(정간 하나 = 1박)
+        g, j = divmod(int(n.start), beats_per_gak)
+        issues += [_issue(kind, detail, f"c{g}-j{j}") for kind, detail in n.flags]
     low, high = RANGES.get(instrument, (None, None))
     flagged = set()  # OUT_OF_RANGE는 음마다 한 번
     lines = []
     for g in range(gak_count):
-        row = [_cell(sorted(cells.get(g * beats_per_gak + j, []), key=lambda c: c[0]), hwang, low, high, issues, flagged)
-               for j in range(beats_per_gak)]
+        row = [_cell(sorted(cells.get(g * beats_per_gak + j, []), key=lambda c: c[0]), hwang, low, high, issues, flagged,
+                     f"c{g}-j{j}") for j in range(beats_per_gak)]
         lines.append(" | ".join(row))
     return lines
 
 
-def _cell(inside, hwang, low, high, issues, flagged):
+def _cell(inside, hwang, low, high, issues, flagged, cell_id):
     """정간 하나(1박) 안의 음 시작들 → ':위치 율명 …'. 칸을 나눌 수 없는 자리는 가까운 칸으로 옮긴다."""
     if not inside:
         return ""
@@ -350,12 +361,12 @@ def _cell(inside, hwang, low, high, issues, flagged):
     for f, n in inside:
         k = min(_nearest(f, grid), round(1 / grid) - 1)
         if k * grid != f:
-            issues.append(_issue("LOW_CONFIDENCE", {"measure": n.measure, "reason": "OFF_GRID_RHYTHM"}))
+            issues.append(_issue("LOW_CONFIDENCE", {"measure": n.measure, "reason": "OFF_GRID_RHYTHM"}, cell_id))
         if k in slots and slots[k] is not n:
-            issues.append(_issue("LOW_CONFIDENCE", {"measure": n.measure, "reason": "COLLIDED"}))
+            issues.append(_issue("LOW_CONFIDENCE", {"measure": n.measure, "reason": "COLLIDED"}, cell_id))
         slots[k] = n  # 같은 칸이면 나중 음
     if rows == 1:
-        return f":0 {_yul(slots[0], hwang, low, high, issues, flagged)}"
+        return f":0 {_yul(slots[0], hwang, low, high, issues, flagged, cell_id)}"
     per_row = round(1 / grid) // rows  # 1(행 통째) 또는 2(좌우)
     toks = []
     for r in range(rows):
@@ -363,10 +374,10 @@ def _cell(inside, hwang, low, high, issues, flagged):
         here = [slots.get(r * per_row + h) for h in range(per_row)]
         if per_row == 1 or here[1] is None:
             if here[0] is not None:
-                toks.append(f":{whole} {_yul(here[0], hwang, low, high, issues, flagged)}")
+                toks.append(f":{whole} {_yul(here[0], hwang, low, high, issues, flagged, cell_id)}")
         else:
-            first = _yul(here[0], hwang, low, high, issues, flagged) if here[0] is not None else "-"
-            toks += [f":{left} {first}", f":{right} {_yul(here[1], hwang, low, high, issues, flagged)}"]
+            first = _yul(here[0], hwang, low, high, issues, flagged, cell_id) if here[0] is not None else "-"
+            toks += [f":{left} {first}", f":{right} {_yul(here[1], hwang, low, high, issues, flagged, cell_id)}"]
     return " ".join(toks)
 
 
@@ -374,7 +385,7 @@ def _nearest(f, grid):
     return int(f / grid + Fraction(1, 2))  # 반올림(0.5는 위로). round()는 짝수 쪽으로 가서 칸이 겹친다
 
 
-def _yul(note, hwang, low, high, issues, flagged):
+def _yul(note, hwang, low, high, issues, flagged, cell_id):
     if note.midi is None:
         return "쉼표"
     s = note.midi - hwang
@@ -382,6 +393,6 @@ def _yul(note, hwang, low, high, issues, flagged):
     outside = (low is not None and not low <= s <= high) or octave not in OCTAVE
     if outside and id(note) not in flagged:
         flagged.add(id(note))
-        issues.append(_issue("OUT_OF_RANGE", {"measure": note.measure, "semitone": s}))
+        issues.append(_issue("OUT_OF_RANGE", {"measure": note.measure, "semitone": s}, cell_id))
     octave = max(min(OCTAVE), min(max(OCTAVE), octave))  # 율명이 있는 옥타브(하하배~중청)로 옮긴다
     return OCTAVE[octave] + YUL[s % 12]

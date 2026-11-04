@@ -165,6 +165,12 @@ class LayoutTests(unittest.TestCase):
             gaks, report = read(tiers, labels=labels)
             self.assertEqual((len(gaks), report["voices"]), (2, 2), labels)
 
+    def test_unread_glyph_reports_the_jeonggan_it_sits_in(self):
+        # 확인 필요 칸을 결과 악보의 칸(각·정간)으로 잇는다(S15P31E102-469)
+        _, report = read([[["林", "南", "-"], ["潢", "ㄱ", "汰"]]])
+        (g,) = report["ignored_at"]
+        self.assertEqual((g["gak"], g["jeonggan"]), (1, 1))
+
     def test_trio_reports_three_voices(self):
         tiers = [[["林", "南", "-"], ["仲", "林", "-"], ["潢", "汰", "-"], ["林", "-", "-"], ["汰", "南", "-"],
                   ["潢", "-", "-"]]]
