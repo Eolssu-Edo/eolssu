@@ -24,9 +24,10 @@ FIXTURES = Path(__file__).resolve().parents[1] / "fixtures/omr"
 sys.path.insert(0, str(ROOT / "data/src/scores"))
 import score_data  # noqa: E402
 
-# 곡: (악기, 정답과의 실제 조 차이 반음, 음 간격 일치 기준, 맞은 구간 길이 일치 기준)
-CASES = {"danso_onara": ("DANSO", 6, 61, 58), "danso_bukcheon": ("DANSO", 8, 67, 70),
-         "danso_eoi": ("DANSO", 15, 27, 28), "sogeum_onara": ("SOGEUM", 8, 53, 50)}
+# 곡: (악기, 정답과의 실제 조 차이 반음, 음 간격 일치 기준, 맞은 구간 길이 일치 기준, 결과 음 수 상한)
+# 음 수 상한은 313 U4 결과 그대로다. 어이얼어자리는 Audiveris가 두 성부를 한 성부로 섞어 정답(28음)보다 많다
+CASES = {"danso_onara": ("DANSO", 6, 61, 58, 66), "danso_bukcheon": ("DANSO", 8, 67, 70, 73),
+         "danso_eoi": ("DANSO", 15, 27, 28, 57), "sogeum_onara": ("SOGEUM", 8, 53, 50, 56)}
 PREFIX = {v: k for k, v in OCTAVE.items()}
 
 
@@ -75,10 +76,11 @@ def answer(name):
 
 @pytest.mark.parametrize("name", CASES)
 def test_converted_melody_matches_answer_at_least_as_before(name):
-    instrument, shift, interval_floor, duration_floor = CASES[name]
+    instrument, shift, interval_floor, duration_floor, note_ceiling = CASES[name]
     out = convert((FIXTURES / f"{name}.audiveris.mxl").read_bytes(), instrument=instrument, hwang_pitch=None)
     assert out.shift == shift
     got, want = read_lines(out.lines), answer(name)
+    assert len(got) <= note_ceiling  # 반복을 두 번 펼치는 것처럼 음이 늘면 실패한다
     gi, wi = [b[0] - a[0] for a, b in zip(got, got[1:])], [b[0] - a[0] for a, b in zip(want, want[1:])]
     blocks = [b for b in difflib.SequenceMatcher(a=wi, b=gi, autojunk=False).get_matching_blocks() if b.size]
     assert sum(b.size for b in blocks) >= interval_floor

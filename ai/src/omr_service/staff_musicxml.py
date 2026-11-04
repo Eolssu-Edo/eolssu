@@ -113,14 +113,11 @@ def _read_part(part, issues):
     measures = part.findall("measure")
     divisions, transpose, meter = [], [], None
     div, shift = Fraction(1), 0
-    for i, m in enumerate(measures):  # 마디마다 그 시점의 divisions·이조 값(반복으로 돌아가도 같은 값)
-        attrs = m.find("attributes")
-        if attrs is not None:
-            if attrs.find("divisions") is not None:
-                div = Fraction(int(attrs.findtext("divisions")))
-            t = attrs.find("transpose")
-            if t is not None:
-                shift = int(t.findtext("chromatic") or 0) + 12 * int(t.findtext("octave-change") or 0)
+    for i, m in enumerate(measures):  # 마디 시작 시점의 divisions·이조 값(반복으로 돌아가도 같은 값)
+        divisions.append(div)
+        transpose.append(shift)
+        for attrs in m.findall("attributes"):  # 마디 가운데의 attributes도 다음 마디로 이어진다
+            div, shift = _attributes(attrs, div, shift)
             time = attrs.find("time")
             if time is not None:
                 read = _meter(time)
@@ -128,22 +125,22 @@ def _read_part(part, issues):
                     meter = read or False
                 elif read and read != meter:
                     issues.append(_issue("LOW_CONFIDENCE", {"measure": i + 1, "reason": "TIME_SIGNATURE_CHANGED"}))
-        divisions.append(div)
-        transpose.append(shift)
 
     voices = defaultdict(list)  # 성부 → [시작, 길이, [(MIDI, 이어받음)], 마디] 묶음(화음은 한 묶음)
     cursor, last = Fraction(0), None
-    for index in _play_order(measures):
-        m, number, d = measures[index], index + 1, divisions[index]
+    for index in _play_order(measures, issues):
+        m, number, d, shift = measures[index], index + 1, divisions[index], transpose[index]
         t, longest = Fraction(0), Fraction(0)
         for el in m:
-            if el.tag in ("backup", "forward"):
+            if el.tag == "attributes":
+                d, shift = _attributes(el, d, shift)
+            elif el.tag in ("backup", "forward"):
                 t += (-1 if el.tag == "backup" else 1) * Fraction(int(el.findtext("duration"))) / d
             elif el.tag == "note":
                 if el.find("grace") is not None:
                     issues.append(_issue("ORNAMENT_DROPPED", {"measure": number}))
                     continue
-                pitch = _midi(el, transpose[index])
+                pitch = _midi(el, shift)
                 tie_stop = el.find("tie[@type='stop']") is not None
                 if el.find("chord") is not None:  # 앞 음과 함께 치는 음
                     if last is not None:
@@ -159,10 +156,12 @@ def _read_part(part, issues):
             longest = max(longest, t)
         cursor += longest
 
+    if not voices:
+        raise ValueError("음표가 없음")
     voice = _pick_voice(voices, cursor)
     if len(voices) > 1 or any(len(g[2]) > 1 for g in voices[voice]):
         issues.append(_issue("VOICE_GUESSED", {"voices": len(voices)}))
-    melody = _melody(voices[voice])
+    melody = _melody(voices[voice], issues)
     if meter:
         compound, beat, beats_per_gak = meter
     else:  # 박자표를 못 읽었으면 각 경계를 넘는 음이 가장 적은 박 구성을 고른다
@@ -180,6 +179,16 @@ def _read_part(part, issues):
     return notes, beats_per_gak, compound
 
 
+def _attributes(attrs, divisions, transpose):
+    """<attributes> 하나를 읽은 뒤의 divisions·이조 반음."""
+    if attrs.find("divisions") is not None:
+        divisions = Fraction(int(attrs.findtext("divisions")))
+    t = attrs.find("transpose")
+    if t is not None:
+        transpose = int(t.findtext("chromatic") or 0) + 12 * int(t.findtext("octave-change") or 0)
+    return divisions, transpose
+
+
 def _pick_voice(voices, total):
     """곡 길이 절반 이상을 소리로 덮는 성부 중 평균 음이 가장 높은 성부. 그런 성부가 없으면 가장 많이 덮는 성부."""
     def cover(v):
@@ -193,8 +202,10 @@ def _pick_voice(voices, total):
     return max(candidates, key=mean) if candidates else max(voices, key=cover)
 
 
-def _melody(groups):
-    """한 성부의 묶음 → 시간 순서의 음표. 화음은 맨 위 음, 붙임줄은 합치고, 빈 시간은 쉼표로 채운다."""
+def _melody(groups, issues):
+    """한 성부의 묶음 → 시간 순서의 음표. 화음은 맨 위 음, 붙임줄은 합치고, 빈 시간은 쉼표로 채운다.
+
+    마디마다 성부 번호가 바뀌는 인식 결과는 이어 잡은 음 자리가 빈 시간이 된다. 4분음표 하나보다 길게 비면 알린다."""
     out = []
     for start, length, pitches, measure in sorted(groups, key=lambda g: g[0]):
         sounding = [(p, tie) for p, tie in pitches if p is not None]
@@ -206,6 +217,8 @@ def _melody(groups):
                 out.pop()
         end = out[-1].start + out[-1].length if out else Fraction(0)
         if start > end:
+            if start - end > 1:
+                issues.append(_issue("LOW_CONFIDENCE", {"measure": measure, "reason": "GAP_IN_VOICE"}))
             if out and out[-1].midi is None:
                 out[-1].length = start - out[-1].start
             else:
@@ -231,7 +244,9 @@ def _guess_meter(notes):
 def _measure_length(measure, divisions):
     t, longest = Fraction(0), Fraction(0)
     for el in measure:
-        if el.tag in ("backup", "forward"):
+        if el.tag == "attributes":
+            divisions, _ = _attributes(el, divisions, 0)
+        elif el.tag in ("backup", "forward"):
             t += (-1 if el.tag == "backup" else 1) * Fraction(int(el.findtext("duration"))) / divisions
         elif el.tag == "note" and el.find("grace") is None and el.find("chord") is None:
             t += Fraction(int(el.findtext("duration") or 0)) / divisions
@@ -239,7 +254,7 @@ def _measure_length(measure, divisions):
     return longest
 
 
-def _play_order(measures):
+def _play_order(measures, issues):
     """반복(forward·backward, times)과 volta(ending number)를 펼친 마디 순서. 안쪽에 겹친 반복은 다루지 않는다."""
     order, i, start, pass_no, ending, back_to, taken = [], 0, 0, 1, None, None, {}
     while i < len(measures):
@@ -248,8 +263,11 @@ def _play_order(measures):
             start, pass_no = i, 1
         back_to = None
         for e in (e for b in bars for e in b.findall("ending")):
-            if e.get("type") == "start":
-                ending = {int(x) for x in (e.get("number") or "").replace(" ", "").split(",") if x.isdigit()}
+            if e.get("type") == "start":  # '1'·'1, 2'·'1.'·'1 2' 모두 숫자만 읽는다
+                ending = {int(x) for x in re.findall(r"\d+", e.get("number") or "")}
+                if not ending:
+                    ending = {1}
+                    issues.append(_issue("LOW_CONFIDENCE", {"measure": i + 1, "reason": "VOLTA_NUMBER"}))
         play = ending is None or pass_no in ending
         if play:
             order.append(i)

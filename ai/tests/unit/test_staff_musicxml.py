@@ -263,7 +263,7 @@ def test_many_notes_are_laid_out_in_linear_time():
     doc = xml(*[measure(*[note("C4", 1)] * 16, time=(4, 4))] * 250)  # 4000음
     began = time.perf_counter()
     convert(doc, instrument="ANY", hwang_pitch=60)
-    assert time.perf_counter() - began < 3
+    assert time.perf_counter() - began < 1  # 실측 0.13초. 음 수의 제곱이면 수 초가 걸린다
 
 
 def test_time_signature_change_is_flagged():
@@ -291,8 +291,8 @@ def test_chord_after_zero_length_note_and_chord_on_rest_do_not_crash():
     assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 쉼표 | :0 황 |  | "]
 
 
-def test_colliding_onsets_keep_both_by_flagging():
-    # 32분음표 넷: 칸이 1/4박까지라 겹치면 나중 음이 남고 알린다
+def test_colliding_onsets_keep_the_later_and_flag():
+    # 32분음표 넷: 칸이 1/4박까지라 겹치면 나중 음이 남고 알린다(계약: 나중 음)
     doc = xml(measure(note("C4", 1), note("D4", 1), note("E4", 1), note("F4", 1), note("C4", 12), time=(4, 4))
               .replace("<divisions>4</divisions>", "<divisions>8</divisions>"))
     out = convert(doc, instrument="ANY", hwang_pitch=60)
@@ -336,3 +336,42 @@ def test_repeat_after_volta_block_restarts_after_it():
     doc = xml(whole("C4", FWD), whole("D4", end_start(1) + end_stop(1, back=True)), whole("E4", end_start(2) + end_stop(2)),
               whole("F4"), whole("G4", BACK))
     assert first_yuls(doc) == ["황", "태", "황", "고", "중", "임", "중", "임"]
+
+
+@pytest.mark.parametrize("numbers", [("1.", "2."), ("1 2", "3")])
+def test_volta_numbers_with_dots_or_spaces(numbers):
+    # |: C |1. D :|2. E  → C D C E ("1 2"·"3"이면 C D C D C E)
+    first, second = numbers
+    doc = xml(whole("C4", FWD), whole("D4", end_start(first) + end_stop(first, back=True)),
+              whole("E4", end_start(second) + end_stop(second)))
+    expected = ["황", "태", "황", "고"] if first == "1." else ["황", "태", "황", "태", "황", "고"]
+    if first == "1 2":
+        doc = doc.replace(b'<repeat direction="backward"/>', b'<repeat direction="backward" times="3"/>')
+    assert first_yuls(doc) == expected
+
+
+def test_volta_without_number_is_flagged_and_played_first():
+    doc = xml(whole("C4", FWD), whole("D4", end_start("") + end_stop("", back=True)), whole("E4"))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert [l.split(" |")[0].split()[-1] for l in out.lines][:2] == ["황", "태"]
+    assert any(i["detail"].get("reason") == "VOLTA_NUMBER" for i in out.issues)
+
+
+def test_long_gap_inside_the_voice_is_flagged():
+    # 마디마다 성부 번호가 바뀌면 이어 잡은 음 자리가 빈 시간이 된다. 쉼표로 두되 1박 넘게 비면 알린다
+    doc = xml(measure(note("C4", 16, voice=1), time=(4, 4)), measure(note("C4", 16, voice=2)),
+              measure(note("D4", 16, voice=1)))
+    out = convert(doc, instrument="ANY", hwang_pitch=60)
+    assert {"measure": 3, "reason": "GAP_IN_VOICE"} in [i["detail"] for i in out.issues]
+
+
+def test_divisions_changed_inside_a_measure():
+    # 첫 마디 가운데에서 divisions가 4→2로 바뀐다. 뒤 음 길이를 새 값으로 읽어야 각이 밀리지 않는다
+    doc = xml(measure(note("C4", 8), "<attributes><divisions>2</divisions></attributes>", note("D4", 4), time=(4, 4)))
+    assert convert(doc, instrument="ANY", hwang_pitch=60).lines == [":0 황 |  | :0 태 | "]
+
+
+def test_score_without_sounding_notes_says_so():
+    for doc in (xml(measure(note(None, 16), time=(4, 4))), xml(measure(note("C4", 0), time=(4, 4)))):
+        with pytest.raises(ValueError, match="음표가 없음"):
+            convert(doc, instrument="ANY", hwang_pitch=60)
