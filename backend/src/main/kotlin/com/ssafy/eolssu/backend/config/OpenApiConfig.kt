@@ -74,6 +74,15 @@ class OpenApiConfig {
                     .description("업무 본문은 없습니다. Swagger UI 실행 시 선택적인 {}를 보내 application/json 헤더를 설정합니다. 이 본문은 서버가 읽지 않습니다.")
                     .content(jsonContent(ObjectSchema().example(emptyMap<String,Any>())))
             }
+            if (doc.requestExamples.isNotEmpty()) {
+                val media = operation.requestBody?.content?.get("application/json")
+                    ?: error("Documented JSON request body is missing: ${doc.method} ${doc.path}")
+                media.example = null
+                // 순서를 지켜 첫 예시가 Swagger UI의 기본 선택이 되게 한다.
+                media.examples = linkedMapOf<String, Example>().apply {
+                    for (example in doc.requestExamples) put(example.name, Example().summary(example.summary).description(example.description).value(example.value))
+                }
+            }
             operation.responses = ApiResponses()
             if (doc.id in setOf("relayIosSocialLogin","startSocialLogin","startSocialLink","socialLogin","mergeSocialAccount","linkSocialAccount","startSocialWithdrawal","confirmSocialWithdrawal")) {
                 operation.parameters?.filter { it.name == "provider" }?.forEach { it.schema=StringSchema()._enum(listOf("kakao","google","naver")) }

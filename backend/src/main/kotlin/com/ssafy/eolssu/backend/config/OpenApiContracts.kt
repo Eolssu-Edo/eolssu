@@ -37,7 +37,11 @@ internal data class ApiContract(
     val errors: List<ErrorCode> = emptyList(),
     val security: String? = "accessCookie",
     val setsCookies: Boolean = false,
+    /** JSON 요청 본문 예시. 첫 예시가 Swagger UI의 기본값이므로 그대로 실행해도 성공하는 값을 둔다. */
+    val requestExamples: List<RequestExample> = emptyList(),
 )
+
+internal data class RequestExample(val name: String, val summary: String, val value: Map<String, Any>, val description: String? = null)
 
 internal val apiContracts = listOf(
     ApiContract(HttpMethod.GET,"/api/reference-audios","listReferenceAudios","카탈로그","기본음·시김새 음원 목록",
@@ -136,7 +140,7 @@ internal val apiContracts = listOf(
         "현재 비밀번호 또는 회원·목적·쿠키에 결속된 withdrawalTicket 중 하나를 확인해 탈퇴 대기로 전환합니다. 요청 후 30일 미만의 로그인 성공 시만 취소하며, 30일 뒤 첫 04:00 KST에 삭제합니다. refresh를 전부 폐기하고 쿠키를 지웁니다. 비밀번호 변경과 실패 잠금을 공유합니다.",
         Withdrawn::class.java,errors=listOf(CURRENT_PASSWORD_MISMATCH,TOO_MANY_REQUESTS,WITHDRAWAL_TICKET_EXPIRED),setsCookies=true),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/summary","growthSummary","성장","기간별 연습 요약",
-        "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다. 미구현 미션 값은 null입니다.",SummaryResult::class.java),
+        "from/to 양 끝 포함, 최대 366일·연도 1000~9999. 연습 횟수/초/일수·점수·이전 기간·곡별 최고점 등을 반환합니다.",SummaryResult::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/calendar","growthCalendar","성장","날짜별 연습 기록",
         "from/to 양 끝 포함, 최대 366일·연도 1000~9999의 날짜별 연습 초와 횟수를 반환합니다.",CalendarResult::class.java),
     ApiContract(HttpMethod.GET,"/api/users/me/growth/scores","growthScores","성장","곡별 최근 점수 변화",
@@ -155,8 +159,17 @@ internal val apiContracts = listOf(
         "사용자가 누른 완료 표시만 저장합니다(서버 판정 없음). completed는 JSON 불리언만 받습니다. 다시 true를 보내도 처음 완료 시각을 유지하고, false는 표시를 지웁니다(없어도 200). 응답의 완료 수·다음 단계는 그 단계 트랙 기준입니다.",
         LessonCompletionResult::class.java,errors=listOf(INVALID_REQUEST,RESOURCE_NOT_FOUND)),
     ApiContract(HttpMethod.POST,"/api/practice-sessions","createPracticeSession","연습","연습 세션 생성",
-        "Idempotency-Key 필수. 전체/구간/미션 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
-        CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT)),
+        "Idempotency-Key 필수. 전체/구간 연습을 생성합니다. bpm은 20~240, 음표 범위는 시작 0 이상·끝 포함이며 곡/상태 조건을 검사합니다.",
+        CreatedSession::class.java,listOf(201),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,IDEMPOTENCY_CONFLICT),
+        // 자동 생성 예시는 모든 선택 필드에 임의 값을 채워 404·409가 난다. songId 15는 테스트 서버의 채점 가능 곡이다(로컬 시드는 1~4).
+        requestExamples=listOf(
+            RequestExample("whole","전체 연습(기본)",mapOf("songId" to "15","bpm" to 96),
+                "필수인 songId·bpm만 보냅니다. 곡 전체를 곡의 기본 bpmUnit으로 연습합니다. 새 세션마다 Idempotency-Key를 바꿉니다."),
+            RequestExample("section","구간 연습",mapOf("songId" to "15","bpm" to 96,"startNoteIdx" to 0,"endNoteIdx" to 10),
+                "0번부터 10번 음까지(끝 포함) 연습합니다. endNoteIdx는 곡의 noteCount - 1 이하여야 합니다."),
+            RequestExample("retry","다시 연습",mapOf("songId" to "15","bpm" to 96,"parentSessionId" to "1"),
+                "parentSessionId를 본인의 같은 곡·분석 완료(DONE) 세션 ID로 바꿔서 보냅니다. 그대로 보내면 404·409가 날 수 있습니다."),
+        )),
     ApiContract(HttpMethod.GET,"/api/practice-sessions/{sessionId}","getPracticeSession","연습","연습 세션과 분석 상태 조회",
         "본인 세션만 조회합니다. RECORDING·PENDING·DONE·FAILED 상태와 실패 사유/재시도 가능 여부를 반환합니다. 초과 PENDING은 TIMEOUT으로 정리됩니다. 기록을 지운 세션은 404이고, 저장한 기록을 처음 조회하면 목록의 isNew를 끕니다.",
         PracticeSessionResult::class.java,errors=listOf(RESOURCE_NOT_FOUND)),

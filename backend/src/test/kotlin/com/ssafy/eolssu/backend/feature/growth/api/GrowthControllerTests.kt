@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
@@ -43,7 +44,7 @@ class GrowthControllerTests {
     fun clearContext() = SecurityContextHolder.clearContext()
 
     @Test
-    fun `returns the summary of the signed in member with null missions`() {
+    fun `returns the summary of the signed in member`() {
         repository.seconds[LocalDate.parse("2026-10-27")] = 144
         repository.sessions[LocalDate.parse("2026-10-20")] = SessionTotals(2, 2, 146)
 
@@ -54,11 +55,14 @@ class GrowthControllerTests {
                     """{"httpStatus":"OK","isSuccess":true,"code":200,"result":{"from":"2026-10-26","to":"2026-11-01",
                     "practiceCount":0,"practiceSeconds":144,"practiceDays":1,"currentStreakDays":1,"averageTotalScore":null,
                     "previousPeriod":{"practiceSeconds":0,"practiceCount":2,"averageTotalScore":73},
-                    "completedMissionCount":null,"totalMissionCount":null,"bestBySong":[],
+                    "bestBySong":[],
                     "metricGrowth":{"songId":null,"title":null,"bpm":null,"pitch":{"first":null,"last":null},
                     "timing":{"first":null,"last":null},"duration":{"first":null,"last":null}}}}""",
                 ),
             )
+            // 미션은 구현하지 않기로 해서 응답에 미션 개수를 싣지 않는다(S15P31E102-465).
+            .andExpect(jsonPath("$.result.completedMissionCount").doesNotExist())
+            .andExpect(jsonPath("$.result.totalMissionCount").doesNotExist())
         assertEquals(setOf(7L), repository.users)
         assertEquals(1, repository.calls)
     }

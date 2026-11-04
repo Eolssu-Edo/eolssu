@@ -109,7 +109,7 @@ class GrowthApiDatabaseTests {
                 """{"httpStatus":"OK","isSuccess":true,"message":"연습 기록지 요약 조회 성공","code":200,"result":{
                 "from":"2026-09-07","to":"2026-09-13","practiceCount":3,"practiceSeconds":2059,"practiceDays":2,"currentStreakDays":0,
                 "averageTotalScore":86,"previousPeriod":{"practiceSeconds":100,"practiceCount":1,"averageTotalScore":70},
-                "completedMissionCount":null,"totalMissionCount":null,"bestBySong":[],
+                "bestBySong":[],
                 "metricGrowth":{"songId":null,"title":null,"bpm":null,"pitch":{"first":null,"last":null},
                 "timing":{"first":null,"last":null},"duration":{"first":null,"last":null}}}}""",
             ),
