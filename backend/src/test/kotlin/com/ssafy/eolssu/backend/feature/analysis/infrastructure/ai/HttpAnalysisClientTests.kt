@@ -5,8 +5,10 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRequest
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResponseException
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
+import com.ssafy.eolssu.backend.feature.analysis.domain.NoteScore
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoringRule
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.Test
@@ -75,6 +77,50 @@ class HttpAnalysisClientTests {
             ),
             client.analyze(request),
         )
+    }
+
+    @Test
+    fun `reads the note scores and the scoring rule`() {
+        respond("""{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""")
+
+        val done = client.analyze(request) as AnalysisResult.Done
+        assertEquals(ScoringRule("note-mean-1", 0.5, 0.25, 0.25), done.scoring)
+        assertEquals(NoteScore(90.5, 80.0, 70.0, 1.0), done.notes[0].score)
+        assertEquals(NoteScore(null, 0.0, 0.0, 2.5), done.notes[1].score) // 요청의 5번 음은 시김새다
+    }
+
+    @Test
+    fun `an AI response without note scores keeps them empty`() {
+        respond(doneBody)
+
+        val done = client.analyze(request) as AnalysisResult.Done
+        assertEquals(null, done.scoring)
+        assertEquals(listOf(null, null), done.notes.map { it.score })
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.5},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":1.5,"timing":-0.25,"duration":-0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT"},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":100.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90,"timingScore":-1,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90,"timingScore":80,"durationScore":101,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90,"timingScore":80,"durationScore":70,"weight":0},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":null,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":null,"timingScore":0,"durationScore":0,"weight":2.5}]}""",
+            """{"status":"DONE","modelVersion":"pyin-1","total":87,"pitch":90,"timing":85,"duration":86,"scoringVersion":"note-mean-1","scoreWeights":{"pitch":0.5,"timing":0.25,"duration":0.25},"notes":[{"idx":4,"verdict":"CORRECT","pitchScore":90.5,"timingScore":80,"durationScore":70,"weight":1},{"idx":5,"verdict":"MISSED","pitchScore":0,"timingScore":0,"durationScore":0,"weight":1}]}""",
+        ],
+    )
+    fun `rejects note scores that break the contract`(body: String) {
+        respond(body)
+
+        assertFailsWith<AnalysisResponseException> { client.analyze(request) }
     }
 
     @Test

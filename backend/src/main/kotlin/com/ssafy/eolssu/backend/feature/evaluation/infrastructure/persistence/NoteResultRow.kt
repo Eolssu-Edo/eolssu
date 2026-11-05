@@ -11,4 +11,8 @@ data class NoteResultRow(
     val durationErrorMs: Int?,
     val verdict: String,
     val recordingOffsetMs: Int?,
+    val pitchScore: Double?,
+    val timingScore: Double?,
+    val durationScore: Double?,
+    val weight: Double?,
 )

@@ -8,12 +8,14 @@ import java.net.http.*
 import java.time.Instant
 import java.util.Date
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.dao.DataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.*
 import tools.jackson.databind.json.JsonMapper
@@ -131,6 +133,39 @@ class SectionComparisonApiDatabaseTests {
         assertEquals(true,oldScore.path("before").path("errorCount").isNull)
         assertEquals(true,oldScore.path("delta").path("errorCount").isNull)
         assertEquals(0,oldScore.path("correctedNoteIndices").size())
+    }
+
+    @Test fun `stored note scores fill the section comparison over real http`() {
+        users()
+        val correct=mapOf(16 to "CORRECT",17 to "CORRECT",18 to "CORRECT",19 to "CORRECT")
+        session(991310,null,"m1",70,correct,start=0,end=19,startedAt="2026-11-01 10:00:00.000000")
+        session(991311,991310,"m1",85,correct,startedAt=NOW)
+        jdbc.update("UPDATE evaluations SET scoring_version='note-mean-1',score_weights=JSON_OBJECT('pitch',0.5,'timing',0.25,'duration',0.25) WHERE id IN (991310,991311)")
+        jdbc.update("UPDATE note_results SET pitch_score=80,timing_score=60,duration_score=40,weight=1 WHERE evaluation_id=991310")
+        jdbc.update("UPDATE note_results SET pitch_score=NULL,duration_score=80,weight=3 WHERE evaluation_id=991310 AND note_idx=17")
+        jdbc.update("UPDATE note_results SET pitch_score=90,timing_score=90,duration_score=90,weight=1 WHERE evaluation_id=991311")
+
+        val result=result(get(991310,""))
+        assertEquals(true,result.path("scoreComparable").asBoolean())
+        assertEquals(0,result.path("notComparableReasons").size())
+        // 16~19번만 합친다. 박자 60, 길이 (40×3+80×3)/6=60, 총점 80×0.5+60×0.25+60×0.25=70
+        assertEquals(listOf(70,80,60,60),listOf("totalScore","pitchScore","timingScore","durationScore").map { result.path("before").path(it).asInt() })
+        assertEquals(listOf(15,5,25,25),listOf("totalScore","pitchScore","timingScore","durationScore").map { result.path("delta").path(it).asInt() })
+
+        // 이전 평가처럼 한쪽이 비면 점수를 비교하지 않는다.
+        jdbc.update("UPDATE evaluations SET scoring_version=NULL,score_weights=NULL WHERE id=991310")
+        jdbc.update("UPDATE note_results SET pitch_score=NULL,timing_score=NULL,duration_score=NULL,weight=NULL WHERE evaluation_id=991310")
+        val old=result(get(991310,""))
+        assertEquals(false,old.path("scoreComparable").asBoolean(true))
+        assertEquals(listOf("NO_NOTE_SCORES"),old.path("notComparableReasons").toList().map { it.asText() })
+        assertEquals(true,old.path("before").path("totalScore").isNull)
+    }
+
+    @Test fun `note score columns reject values outside the contract`() {
+        users()
+        session(991310,null,"m1",70,mapOf(16 to "CORRECT"))
+        for(column in listOf("pitch_score=101","timing_score=-1","duration_score=100.5","weight=0"))
+            assertFailsWith<DataAccessException>(column) { jdbc.update("UPDATE note_results SET $column WHERE evaluation_id=991310") }
     }
 
     private fun users() {

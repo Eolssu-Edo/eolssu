@@ -30,9 +30,14 @@ class SectionComparisonController(private val getComparison: GetSectionCompariso
                     outcome.baseline?.sessionId?.toString(), outcome.baseline?.startedAt, outcome.baseline?.source?.name,
                     startNoteIdx, endNoteIdx, outcome.startColumn, outcome.endColumn, outcome.isFullSong,
                     scoreComparable, errorComparable, notComparableReasons.map { it.name }, bpmChanged,
-                    outcome.baseline?.let { BeforeResult(errorCount = beforeErrorCount, bpm = it.bpm, bpmUnit = it.bpmUnit) },
+                    outcome.baseline?.let {
+                        BeforeResult(beforeScores?.totalScore, beforeScores?.pitchScore, beforeScores?.timingScore, beforeScores?.durationScore,
+                            beforeErrorCount, it.bpm, it.bpmUnit)
+                    },
                     AfterScores(after.totalScore, after.pitchScore, after.timingScore, after.durationScore, after.errorCount, outcome.bpm, outcome.bpmUnit),
-                    outcome.baseline?.let { ResultDelta(errorCount = errorDelta) }, correctedNoteIndices,
+                    outcome.baseline?.let {
+                        ResultDelta(scoreDelta?.totalScore, scoreDelta?.pitchScore, scoreDelta?.timingScore, scoreDelta?.durationScore, errorDelta)
+                    }, correctedNoteIndices,
                     remainingErrors.map { RemainingError(it.noteIdx, it.verdict) },
                 )))
             }
@@ -46,12 +51,12 @@ data class SectionComparisonApiResult(
     val notComparableReasons: List<String>, val bpmChanged: Boolean, val before: BeforeResult?, val after: AfterScores,
     val delta: ResultDelta?, val correctedNoteIndices: List<Int>, val remainingErrors: List<RemainingError>,
 )
-/** 점수는 음표별 부분 점수를 저장하기 전까지 null이다. errorCount는 악보 버전이 다르면 null이다. */
-data class BeforeResult(val totalScore: Int? = null, val pitchScore: Int? = null, val timingScore: Int? = null, val durationScore: Int? = null,
+/** 점수는 scoreComparable이 false면 null이다. errorCount는 악보 버전이 다르면 null이다. */
+data class BeforeResult(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?,
     val errorCount: Int?, val bpm: Int, val bpmUnit: String)
 data class AfterScores(val totalScore: Int, val pitchScore: Int, val timingScore: Int, val durationScore: Int, val errorCount: Int,
     val bpm: Int, val bpmUnit: String)
 /** 값의 null 조건은 [BeforeResult]와 같다. */
-data class ResultDelta(val totalScore: Int? = null, val pitchScore: Int? = null, val timingScore: Int? = null, val durationScore: Int? = null,
+data class ResultDelta(val totalScore: Int?, val pitchScore: Int?, val timingScore: Int?, val durationScore: Int?,
     val errorCount: Int?)
 data class RemainingError(val noteIdx: Int, val verdict: String)

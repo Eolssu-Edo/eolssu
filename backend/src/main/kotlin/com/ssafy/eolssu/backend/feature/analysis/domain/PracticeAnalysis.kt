@@ -46,6 +46,7 @@ enum class NoteVerdict { CORRECT, PITCH, TIMING, MISSED }
 /**
  * `detectedSemitone`은 조율 보정을 적용한 뒤 가장 가까운 반음(`pitches.semitone` 기준)이고,
  * `recordingOffsetMs`는 업로드 원본 녹음의 재생 0ms부터 잰 음표 시작 시각이다. 모르는 AI 응답이거나 `MISSED`면 null이다.
+ * `score`는 구간 점수 합산 재료이며 부분 점수를 주지 않는 이전 AI 응답이면 null이다.
  */
 data class NoteJudgement(
     val idx: Int,
@@ -55,7 +56,14 @@ data class NoteJudgement(
     val durationErrorMs: Int?,
     val detectedSemitone: Int? = null,
     val recordingOffsetMs: Int? = null,
+    val score: NoteScore? = null,
 )
+
+/** 음표 하나의 부분 점수(0~100)와 합산 가중치. 시김새 음은 음정을 보지 않아 `pitch`가 null이다. */
+data class NoteScore(val pitch: Double?, val timing: Double, val duration: Double, val weight: Double)
+
+/** AI가 정한 합산 규칙. 가중치는 총점을 만들 때 쓴다. */
+data class ScoringRule(val version: String, val pitchWeight: Double, val timingWeight: Double, val durationWeight: Double)
 
 /** AI가 돌려주는 실패 사유. 시간 초과·연결 실패는 백엔드가 정한다(S15P31E102-174). */
 enum class AnalysisFailReason { NO_SOUND, TOO_SHORT, DECODE_ERROR }
@@ -70,6 +78,7 @@ sealed interface AnalysisResult {
         val notes: List<NoteJudgement>,
         val tuningOffsetCent: Double? = null,
         val tuningOutOfRange: Boolean? = null,
+        val scoring: ScoringRule? = null,
     ) : AnalysisResult
 
     data class Failed(val reason: AnalysisFailReason) : AnalysisResult
