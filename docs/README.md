@@ -315,3 +315,9 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)
 - [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
 - [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
+
+- [QA 태블릿 원격 환경](specs/qa-tablet-relay.md) · [작업/검증](plans/S15P31E102-498.md) · [운영 안내](../infra/qa-phone/OPERATIONS.md)
+
+- [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
+
+- [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
