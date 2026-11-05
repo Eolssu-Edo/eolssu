@@ -36,10 +36,23 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.formatClock
+import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.feature.practice.PitchDirection
+import com.ssafy.eolssu.feature.practice.PitchFeedback
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_record_saving
+import eolssu.shared.generated.resources.practice_pitch_rest
+import eolssu.shared.generated.resources.practice_pitch_unavailable
+import eolssu.shared.generated.resources.practice_pitch_wait
+import eolssu.shared.generated.resources.practice_pitch_high
+import eolssu.shared.generated.resources.practice_pitch_low
+import eolssu.shared.generated.resources.practice_pitch_match
+import eolssu.shared.generated.resources.practice_pitch_heard
+import eolssu.shared.generated.resources.practice_pitch_previous
+import eolssu.shared.generated.resources.practice_pitch_current
 import eolssu.shared.generated.resources.practice_abort
 import eolssu.shared.generated.resources.practice_mic_off
 import eolssu.shared.generated.resources.practice_mic_on
@@ -107,7 +120,22 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
     ) {
         NoInputBanner()
     }
-    val locked = state.mode != PracticeMode.Recording
+    if (state.finalizingRecording) Text(stringResource(Res.string.practice_record_saving), modifier = Modifier.heightIn(min = 48.dp), color = colors.textMuted)
+    if (song.score.timing != null && state.pitchSupported && !state.finalizingRecording) {
+        Column(Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            val event = state.song.timeline.getOrNull(state.position)
+            val name = (event?.note as? ScoreNote.SourcePitch)?.hangul ?: event?.note?.symbol.orEmpty()
+            val current = state.pitchFeedback.current
+            val message = if (state.pitchUnavailable) stringResource(Res.string.practice_pitch_unavailable)
+                else pitchMessage(current)
+            Text(stringResource(Res.string.practice_pitch_current, current?.targetName ?: name, message),
+                style = MaterialTheme.typography.bodySmall, color = colors.text, maxLines = 1)
+            val previous = state.pitchFeedback.previous
+            Text(if (previous != null) stringResource(Res.string.practice_pitch_previous, previous.targetName, pitchMessage(previous)) else "",
+                style = MaterialTheme.typography.bodySmall, color = colors.textMuted, maxLines = 1)
+        }
+    }
+    val locked = state.mode != PracticeMode.Recording || state.recordingControlBusy || state.finished
     if (locked) {
         PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
     } else {
@@ -234,4 +262,16 @@ private fun BeatDots(count: Int, current: Int) {
             Box(Modifier.size(if (i == current) 18.dp else 12.dp).then(dot))
         }
     }
+}
+
+@Composable
+private fun pitchMessage(value: PitchFeedback?): String {
+    val direction = stringResource(when {
+        value?.rest == true -> Res.string.practice_pitch_rest
+        value?.direction == PitchDirection.Match -> Res.string.practice_pitch_match
+        value?.direction == PitchDirection.Low -> Res.string.practice_pitch_low
+        value?.direction == PitchDirection.High -> Res.string.practice_pitch_high
+        else -> Res.string.practice_pitch_wait
+    })
+    return value?.heardHz?.let { stringResource(Res.string.practice_pitch_heard, it.roundToInt(), direction) } ?: direction
 }

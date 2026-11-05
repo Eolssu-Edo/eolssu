@@ -822,4 +822,14 @@
     <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
     <string name="home_feature_records_desc">지난 연주를 돌아봐요</string>
     <string name="home_feature_edit_sheets_desc">내 악보를 만들고 고쳐요</string>
+    <string name="practice_pitch_current">음높이 안내 · %1$s · %2$s</string>
+    <string name="practice_pitch_previous">직전 %1$s · %2$s</string>
+    <string name="practice_pitch_heard">%1$dHz · %2$s</string>
+    <string name="practice_pitch_match">맞음</string>
+    <string name="practice_pitch_low">낮음</string>
+    <string name="practice_pitch_high">높음</string>
+    <string name="practice_pitch_wait">판정 대기</string>
+    <string name="practice_pitch_unavailable">안내 사용 불가</string>
+    <string name="practice_pitch_rest">쉼</string>
+    <string name="practice_record_saving">녹음 저장 중</string>
 </resources>

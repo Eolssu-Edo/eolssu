@@ -30,6 +30,61 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecordingSupportTest {
+    @Test fun cancellationDuringStartCannotBeginTheTimelineAfterReturning() {
+        lateinit var model: PracticeViewModel
+        var cancelled = false
+        val recorder = object : AudioRecorder by FakePracticeRecorder() {
+            override fun start() { model.onLeaveScreen() }
+            override fun cancel() { cancelled = true }
+        }
+        recordingTest(recorder) { vm, _ ->
+            model = vm
+            vm.grantMicAndStart()
+            advanceTimeBy(3100)
+            runCurrent()
+            assertTrue(cancelled)
+            assertEquals(PracticeMode.Interrupted, vm.uiState.value.mode)
+            assertEquals(0.0, vm.uiState.value.elapsedMs)
+            assertNull(vm.takeForEvaluation())
+        }
+    }
+
+    @Test fun evaluationWaitsForFileFinalization() {
+        lateinit var model: PracticeViewModel
+        val recorder = object : AudioRecorder by FakePracticeRecorder() {
+            override fun stop(): RecordedAudio {
+                assertTrue(model.uiState.value.finalizingRecording)
+                assertNull(model.takeForEvaluation())
+                assertNull(model.uiState.value.popup)
+                return RecordedAudio("take.m4a", 1024)
+            }
+        }
+        recordingTest(recorder) { vm, _ ->
+            model = vm
+            vm.grantMicAndStart()
+            finishSong(vm)
+            assertFalse(vm.uiState.value.finalizingRecording)
+            assertEquals(RecordedTake("take.m4a", "take-key"), vm.takeForEvaluation())
+        }
+    }
+
+    @Test fun leavingDuringStopDiscardsLateCompletion() {
+        lateinit var model: PracticeViewModel
+        val recorder = object : AudioRecorder by FakePracticeRecorder() {
+            override fun stop(): RecordedAudio {
+                model.onLeaveScreen()
+                return RecordedAudio("old.m4a", 1024)
+            }
+        }
+        recordingTest(recorder) { vm, _ ->
+            model = vm
+            vm.grantMicAndStart()
+            finishSong(vm)
+            assertEquals(PracticeMode.Interrupted, vm.uiState.value.mode)
+            assertNull(vm.takeForEvaluation())
+        }
+    }
+
     @Test fun noRecorderCannotStartEvaluationEvenAfterPermissionWasRemembered() = recordingTest { vm, settings ->
         settings.grantMic()
         vm.requestEvaluation()

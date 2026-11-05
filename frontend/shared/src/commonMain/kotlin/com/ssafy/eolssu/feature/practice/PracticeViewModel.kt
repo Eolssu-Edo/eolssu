@@ -21,6 +21,14 @@ import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -70,10 +78,11 @@ class PracticeViewModel(
     private val stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
+    private val recordingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
-            inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
+            inputMeasured = recorder?.measuresLevel == true, pitchSupported = recorder?.pitchReadings != null, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
 
@@ -83,6 +92,14 @@ class PracticeViewModel(
     private var previewJob: Job? = null
     private var listenJob: Job? = null
     private var levelJob: Job? = null
+    private var pitchJob: Job? = null
+    private var pitchExpiryJob: Job? = null
+    private var recordingControlJob: Job? = null
+    private var recordingGeneration = 0L
+    private val recordingControlMutex = Mutex()
+    private var pitchTracker: PracticePitchTracker? = null
+    private var segmentScoreMs = 0.0
+    private var alignedSegment = -1L
     private var idleJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
@@ -322,6 +339,7 @@ class PracticeViewModel(
 
     /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
     fun onScreenHidden() {
+        if (_uiState.value.mode in setOf(PracticeMode.Recording, PracticeMode.Countdown)) onLeaveScreen()
         screenShown = false
         pauseRhythm()
         stopPreview()
@@ -540,7 +558,7 @@ class PracticeViewModel(
     // 평가 연주
 
     fun requestEvaluation() {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.recordingControlBusy || _uiState.value.mode in setOf(PracticeMode.Recording, PracticeMode.Countdown)) return
         if (recorder == null) return
         pauseRhythm()
         stopPreview()
@@ -557,7 +575,7 @@ class PracticeViewModel(
 
     /** OS 권한까지 허용된 뒤 연주를 시작한다. */
     fun grantMicAndStart() {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.recordingControlBusy) return
         if (recorder == null) return
         pauseRhythm()
         stopPreview()
@@ -580,30 +598,32 @@ class PracticeViewModel(
     fun closePopup() = _uiState.update { it.copy(popup = null) }
 
     fun cancelCountdown() {
+        if (_uiState.value.recordingControlBusy) cancelRecorder()
         countdownJob?.cancel()
         _uiState.update { it.cancelCountdown() }
     }
 
     fun askAbort() {
+        if (_uiState.value.recordingControlBusy || _uiState.value.finished) return
         captureStepProgress()
         val state = _uiState.value
         stepJob?.cancel()
-        pauseRecorder()
         _uiState.update { it.askAbort(state.currentEventFraction.toFloat(), state.eventElapsedMs) }
+        pauseRecorder()
     }
 
     /** '계속 연주': 3·2·1 뒤 멈춘 자리부터. */
     fun resumeRecording() {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.recordingControlBusy) return
         if (recorder == null) return
         _uiState.update { it.beginCountdown(resume = true) }
         runCountdown()
     }
 
-    fun askRestart() = _uiState.update { it.copy(popup = PracticePopup.Restart) }
+    fun askRestart() { if (!_uiState.value.recordingControlBusy && !_uiState.value.finished) _uiState.update { it.copy(popup = PracticePopup.Restart) } }
 
     fun restartNow() {
-        if (!accountScope.isActive) return
+        if (!accountScope.isActive || _uiState.value.recordingControlBusy) return
         if (recorder == null) return
         stepJob?.cancel()
         cancelRecorder()
@@ -618,6 +638,7 @@ class PracticeViewModel(
 
     /** 뒤로 가기. 연주·카운트다운 중이면 나갈지 묻고 false를 돌려준다. */
     fun onBack(): Boolean {
+        if (_uiState.value.finalizingRecording) return false
         val mode = _uiState.value.mode
         if (mode == PracticeMode.Recording || mode == PracticeMode.Countdown) {
             _uiState.update { it.copy(popup = PracticePopup.Exit) }
@@ -668,14 +689,18 @@ class PracticeViewModel(
                 _uiState.update { it.copy(count = it.count - 1) }
             }
             delay(1000)
+            val generation = recordingGeneration
             val resume = _uiState.value.resume
             val carry = _uiState.value.eventElapsedMs
+            _uiState.update { it.copy(recordingControlBusy = true) }
             if (!(if (resume) resumeRecorder() else startRecorder())) {
                 _uiState.update { it.failRecording() }
                 return@launch
             }
-            _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
+            if (generation != recordingGeneration || !isActive) return@launch
+            _uiState.update { (if (resume) it.resumeRecording() else it.beginRecording()).copy(recordingControlBusy = false) }
             startStepping(if (resume) carry else 0.0)
+            watchRecording()
         }
     }
 
@@ -757,53 +782,168 @@ class PracticeViewModel(
     fun takeForEvaluation(): RecordedTake? {
         if (!accountScope.isActive) return null
         val state = _uiState.value
-        if (!state.finished || state.popup != PracticePopup.End) return null
+        if (state.finalizingRecording || !state.finished || state.popup != PracticePopup.End) return null
         if (take == null) _uiState.update { it.failRecording() }
         return take
     }
 
-    private fun startRecorder(): Boolean {
+    private suspend fun <T> controlRecording(block: () -> T): T =
+        if (recorder?.pitchReadings == null) block() else withContext(recordingDispatcher) {
+            // 취소된 네이티브 시작이 끝나기 전에 다음 시작이 앞서가지 않도록 한다.
+            recordingControlMutex.withLock {
+                val context = currentCoroutineContext()
+                try { context.ensureActive(); block() }
+                finally { if (!context.isActive) recorder.cancel() }
+            }
+        }
+
+    private suspend fun startRecorder(): Boolean {
         val recorder = recorder ?: return false
         take = null
         takeKey = newKey()
-        if (runCatching { recorder.start() }.isFailure) return false
+        val song = _uiState.value.song
+        val timing = song?.score?.timing
+        pitchTracker = if (song != null && timing != null) PracticePitchTracker(song.timeline, timing.hwangHz,
+            60_000.0 / _uiState.value.bpm / timing.ticksPerBeat) else null
+        segmentScoreMs = 0.0
+        alignedSegment = -1L
+        collectPitch()
+        try { controlRecording { recorder.start() } }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { cancelRecorder(); return false }
+        recorder.captureBoundary?.let { pitchTracker?.anchor(it, segmentScoreMs) }
         recordingClock.start()
-        watchRecording()
         return true
     }
 
-    private fun resumeRecorder(): Boolean {
+    private suspend fun resumeRecorder(): Boolean {
         val recorder = recorder ?: return false
-        if (runCatching { recorder.resume() }.isFailure) {
-            cancelRecorder()
-            return false
-        }
+        try { controlRecording { recorder.resume() } }
+        catch (e: CancellationException) { throw e }
+        catch (_: Exception) { cancelRecorder(); return false }
+        recorder.captureBoundary?.let { pitchTracker?.anchor(it, segmentScoreMs) }
         recordingClock.resume()
-        watchRecording()
+        collectPitch()
         return true
     }
 
     private fun pauseRecorder() {
         val recorder = recorder ?: return
         levelJob?.cancel()
+        pitchJob?.cancel()
+        pitchExpiryJob?.cancel()
         recordingClock.pause()
-        runCatching { recorder.pause() }
-        _uiState.update { it.copy(micLevel = 0f) }
+        val generation = recordingGeneration
+        _uiState.update { it.copy(micLevel = 0f, pitchFeedback = PracticePitchFeedback(), recordingControlBusy = true) }
+        recordingControlJob = accountScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                controlRecording { recorder.pause() }
+                if (generation != recordingGeneration) return@launch
+                recorder.captureBoundary?.let { boundary ->
+                    pitchTracker?.positionAt(boundary)?.let { cut ->
+                        segmentScoreMs = cut
+                        setRecordingPosition(cut)
+                    }
+                }
+                _uiState.update { it.copy(recordingControlBusy = false) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { cancelRecorder(); _uiState.update { it.failRecording() } }
+        }
     }
 
     private fun cancelRecorder() {
+        recordingGeneration++
         levelJob?.cancel()
+        pitchJob?.cancel()
+        pitchExpiryJob?.cancel()
+        recordingControlJob?.cancel()
+        pitchTracker = null
         recordingClock.reset()
         recorder?.cancel()
+        _uiState.update { it.copy(pitchFeedback = PracticePitchFeedback(), recordingControlBusy = false,
+            finalizingRecording = false, pitchUnavailable = false) }
     }
 
-    /** 곡 끝이나 최대 길이에서 녹음을 마치고 저장된 파일을 확인한다. */
+    /** 곡 끝이나 최대 길이에서 파일을 마무리한 뒤에만 평가를 허용한다. */
     private fun finishRecorder() {
+        if (_uiState.value.finalizingRecording) return
         levelJob?.cancel()
+        pitchJob?.cancel()
+        pitchExpiryJob?.cancel()
         recordingClock.reset()
-        val audio = recorder?.stop()
-        take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, takeKey) }
-        _uiState.update { it.checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
+        val generation = recordingGeneration
+        val key = takeKey
+        val popup = _uiState.value.popup
+        _uiState.update { it.copy(finalizingRecording = true, recordingControlBusy = true,
+            popup = null, pitchFeedback = PracticePitchFeedback()) }
+        recordingControlJob = accountScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val audio = try { controlRecording { recorder?.stop() } }
+            catch (e: CancellationException) { throw e }
+            catch (_: Exception) { null }
+            if (generation != recordingGeneration || !isActive) return@launch
+            take = audio?.takeUnless { it.tooLarge }?.let { RecordedTake(it.path, key) }
+            _uiState.update { it.copy(finalizingRecording = false, recordingControlBusy = false, popup = popup)
+                .checkRecording(saved = audio != null, tooLarge = audio?.tooLarge == true) }
+        }
+    }
+
+    private fun collectPitch() {
+        pitchJob?.cancel()
+        val flow = recorder?.pitchReadings ?: return
+        pitchJob = accountScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            flow.collect { reading ->
+                val state = _uiState.value
+                if (state.mode != PracticeMode.Recording || state.finished || state.popup != null || state.recordingControlBusy) return@collect
+                val boundary = recorder.captureBoundary ?: return@collect
+                pitchTracker?.anchor(boundary, segmentScoreMs)
+                val feedback = pitchTracker?.accept(reading, state.position, boundary.observedNanos) ?: return@collect
+                _uiState.update { it.copy(pitchFeedback = feedback, pitchUnavailable = !reading.analysisAvailable || !boundary.analysisAvailable) }
+                schedulePitchExpiry()
+            }
+        }
+    }
+
+    private fun schedulePitchExpiry() {
+        pitchExpiryJob?.cancel()
+        pitchExpiryJob = accountScope.launch {
+            while (isActive) {
+                val feedback = _uiState.value.pitchFeedback
+                val oldest = listOfNotNull(feedback.current, feedback.previous).minOfOrNull { it.capturedEndNanos } ?: break
+                val now = recorder?.captureBoundary?.observedNanos ?: break
+                delay(((oldest + 300_000_000L - now + 999_999) / 1_000_000).coerceAtLeast(1))
+                val state = _uiState.value
+                val time = recorder.captureBoundary?.observedNanos ?: break
+                val expired = pitchTracker?.expire(state.position, time) ?: break
+                _uiState.update { it.copy(pitchFeedback = expired) }
+            }
+        }
+    }
+
+    private fun setRecordingPosition(elapsedMs: Double) {
+        val state = _uiState.value
+        val song = state.song ?: return
+        val timing = song.score.timing ?: return
+        val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
+        val position = song.timeline.indexOfLast { (it.startTick ?: Long.MAX_VALUE) * msPerTick <= elapsedMs }.coerceAtLeast(0)
+        val event = song.timeline[position]
+        val within = (elapsedMs - requireNotNull(event.startTick) * msPerTick).coerceIn(0.0, song.eventDurationMs(event, state.bpm))
+        _uiState.update { it.copy(position = position, elapsedMs = elapsedMs, eventElapsedMs = within,
+            pausedFraction = (within / song.eventDurationMs(event, state.bpm)).toFloat()) }
+    }
+
+    private fun refreshPitch() {
+        val boundary = recorder?.captureBoundary ?: return
+        val tracker = pitchTracker ?: return
+        tracker.anchor(boundary, segmentScoreMs)
+        if (boundary.timestampValid && alignedSegment != boundary.segmentId) {
+            alignedSegment = boundary.segmentId
+            val offset = (boundary.observedNanos - boundary.monotonicNanos).coerceAtLeast(0) / 1_000_000.0
+            setRecordingPosition(segmentScoreMs + offset)
+            startStepping(_uiState.value.eventElapsedMs)
+        }
+        val feedback = tracker.expire(_uiState.value.position, boundary.observedNanos)
+        _uiState.update { it.copy(pitchFeedback = feedback, pitchUnavailable = !boundary.analysisAvailable || (!boundary.timestampValid &&
+            boundary.observedNanos - boundary.monotonicNanos > 1_000_000_000L)) }
     }
 
     /** 녹음하는 동안 입력 크기와 무입력 시간을 반영하고, 최대 길이(10분)에 닿으면 연주를 마친다. */
@@ -827,6 +967,7 @@ class PracticeViewModel(
                     _uiState.update { it.interrupt() }
                     break
                 }
+                refreshPitch()
                 val level = recorder.level()
                 val sinceMs = (elapsed - measuredAt).inWholeMilliseconds.toDouble()
                 measuredAt = elapsed
