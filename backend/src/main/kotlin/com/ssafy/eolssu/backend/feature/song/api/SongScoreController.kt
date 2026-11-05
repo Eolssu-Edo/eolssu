@@ -7,6 +7,8 @@ import com.ssafy.eolssu.backend.feature.song.application.GetSongScore
 import com.ssafy.eolssu.backend.feature.song.application.SongScoreLookup
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreNotationCapabilities
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
+import com.ssafy.eolssu.backend.feature.song.domain.ScoreJangdanPlayback
+import io.swagger.v3.oas.annotations.media.Schema
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -30,7 +32,7 @@ class SongScoreController(private val service: GetSongScore, private val json: J
                 SuccessResponse.of(HttpStatus.OK, "정간보·평가 기준 타임라인 조회 성공", SongScoreResult(
                     result.stored.songId.toString(), result.stored.scoreVersion, result.decoded.schemaVersion,
                     result.stored.noteCount, result.stored.defaultBpm, result.stored.bpmUnit,
-                    result.decoded.events, result.decoded.notationCapabilities, json.readTree(result.stored.scoreJson),
+                    result.decoded.events, result.decoded.notationCapabilities, json.readTree(result.stored.scoreJson), result.jangdanPlayback,
                 )),
             )
         }
@@ -50,4 +52,6 @@ data class SongScoreResult(
     val events: List<ScoreTimelineEvent>,
     val notationCapabilities: ScoreNotationCapabilities,
     val score: JsonNode,
+    @get:Schema(nullable = true, description = "현재 악보와 패턴이 검수된 판본과 일치할 때만 제공하는 장단 반주. 시작점과 주기는 score tick 단위입니다.")
+    val jangdanPlayback: ScoreJangdanPlayback? = null,
 )
