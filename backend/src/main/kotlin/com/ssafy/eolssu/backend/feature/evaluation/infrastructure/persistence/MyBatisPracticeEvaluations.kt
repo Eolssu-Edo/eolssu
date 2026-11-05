@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluationNote
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluationSnapshot
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluations
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : PracticeEvaluations {
@@ -16,6 +17,11 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
                 row.tuningOffsetCent, row.tuningOutOfRange, row.parentSessionId, row.modelVersion,
             )
         }
+
+    override fun findPreviousSessionId(userId: Long, current: PracticeEvaluationSnapshot): Long? = mapper.findPreviousSessionId(
+        userId, current.sessionId, current.songId, LocalDateTime.ofInstant(current.startedAt, ZoneOffset.UTC),
+        current.scoreVersion, current.startNoteIdx, current.endNoteIdx,
+    )
 
     override fun notes(evaluationId: Long): List<PracticeEvaluationNote> = mapper.notes(evaluationId).map {
         PracticeEvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent?.toInt(), it.onsetErrorMs, it.durationErrorMs,

@@ -6,6 +6,8 @@ import java.time.Instant
 interface PracticeEvaluations {
     fun findOwned(sessionId: Long, userId: Long): PracticeEvaluationSnapshot?
     fun notes(evaluationId: Long): List<PracticeEvaluationNote>
+    /** 같은 곡·본인·미삭제·DONE이고 current보다 먼저 시작한 세션 중 가장 최근 것. 같은 악보 버전이면 current 구간을 모두 담아야 한다. */
+    fun findPreviousSessionId(userId: Long, current: PracticeEvaluationSnapshot): Long?
 }
 
 /** 세션에 고정한 악보 버전의 NOTE 순번별 정간 위치. 현재 곡 악보가 그 버전이 아니면 null이다. */
