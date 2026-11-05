@@ -317,21 +317,23 @@ ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_R
 
 서버 반영 순서는 `/opt/eolssu-backup/backup.py`(`postmigration` 지원)를 먼저 설치하고, 그다음 `/opt/eolssu/bin/deploy-backend`를 root 소유 0755로 교체하는 것입니다. 순서를 바꾸면 스키마를 바꾼 배포의 사후 백업이 `unsupported operation`으로 실패합니다. 2026-11-03 이 순서로 edo1에 설치했고 edo2의 `backup.py`도 같은 버전으로 맞췄습니다. 첫 자동 적용은 Jenkins #214의 V19입니다. 이전 파일과 설치 확인 결과는 [운영 Flyway 마이그레이션 자동화](../../docs/knowledge/infra/ops-flyway-auto-migration.md)의 운영 설치에 있습니다.
 
-## 프론트 웹 자동 배포
+## 프론트 웹 수동 배포
 
-`eolssu-backend`가 develop 변경을 1분마다 감지하고 백엔드 배포까지 성공하면, 같은 전체 SHA를 `REVISION`으로 전달해 `eolssu-frontend`를 시작합니다. 상위 잡은 프론트 실행을 예약한 뒤 executor를 반환합니다. 프론트 완료는 `eolssu-frontend`의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`을 기준으로 확인합니다. 프론트 잡에는 별도 polling을 중복 등록하지 않습니다.
+수동 배포 설정을 운영에 반영한 뒤에는 백엔드의 develop 자동 흐름에서 웹 잡을 예약하지 않습니다. 백엔드 배포 도구, 인증서 초기화, Nginx health 라우팅과 HTTPS 리다이렉트 검사는 백엔드 잡에서 실행합니다. 공통 앱 로직은 Android QA의 `:shared:testAndroidHostTest`에서도 검증합니다.
+
+웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 `eolssu-frontend`의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다.
 
 프론트 잡은 다음 명령을 Jenkins 사용자로 실행합니다. JDK 21·Docker·Google Chrome이 필요하며 Node·Yarn·Wasm tooling은 Gradle이 관리합니다. Linux 서버에서 웹 타깃만 빌드·테스트합니다. Android·iOS 패키지 배포는 포함하지 않습니다.
 
 ```sh
 cd frontend
-CHROME_BIN=/usr/bin/google-chrome ./gradlew --no-daemon \
+CHROME_BIN=/usr/bin/google-chrome ./gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 \
   :shared:wasmJsTest :shared:jsTest :webApp:wasmJsBrowserDistribution
 ```
 
-JUnit 결과와 `webApp/build/dist/wasmJs/productionExecutable/`를 보관하고 [frontend.Dockerfile](../jenkins/frontend.Dockerfile)로 커밋 revision label을 붙인 `eolssu-frontend:ci-<SHA>`를 만듭니다. 관리된 Pipeline 원본은 [frontend.Jenkinsfile](../jenkins/frontend.Jenkinsfile)입니다. 초기 샘플 테스트는 JS·Wasm 합계 4개이며 업무 기능 검증 범위는 앱 테스트가 추가되는 대로 넓혀야 합니다.
+수동 웹 잡에서 프론트 배포 도구와 JS·Wasm 브라우저 테스트를 실행합니다. JUnit 결과와 `webApp/build/dist/wasmJs/productionExecutable/`를 보관하고 [frontend.Dockerfile](../jenkins/frontend.Dockerfile)로 커밋 revision label을 붙인 `eolssu-frontend:ci-<SHA>`를 만듭니다. 관리된 Pipeline 원본은 [frontend.Jenkinsfile](../jenkins/frontend.Jenkinsfile)입니다.
 
-프론트 `Clean workspace`는 기존 Git 작업공간에서 추적 파일을 복원하고, Git이 무시하지 않는 미추적 파일만 정리합니다. `.gradle`, `.kotlin`, `build`, `node_modules`의 캐시·산출물은 유지하며 Gradle의 입력/출력 검증으로 재사용 여부를 결정합니다. 소스는 매번 전달받은 전체 `REVISION`으로 checkout합니다. 처음 실행하거나 Git 작업공간이 없으면 전체 정리 후 checkout합니다. clone 중단으로 `.git`만 남고 유효한 HEAD 커밋이 없을 때도 helper의 종료 코드 2를 받아 재초기화합니다. 그 밖의 정리 오류는 작업공간을 삭제하지 않고 빌드를 실패시킵니다. 단계 이름, 테스트 명령, `--no-daemon`, production 최적화와 20분 제한은 유지합니다.
+프론트 `Clean workspace`는 기존 Git 작업공간에서 추적 파일을 복원하고, Git이 무시하지 않는 미추적 파일만 정리합니다. `.gradle`, `.kotlin`, `build`, `node_modules`의 캐시·산출물은 유지하며 Gradle의 입력/출력 검증으로 재사용 여부를 결정합니다. 소스는 매번 전달받은 전체 `REVISION`으로 checkout합니다. 처음 실행하거나 Git 작업공간이 없으면 전체 정리 후 checkout합니다. clone 중단으로 `.git`만 남고 유효한 HEAD 커밋이 없을 때도 helper의 종료 코드 2를 받아 재초기화합니다. 그 밖의 정리 오류는 작업공간을 삭제하지 않고 빌드를 실패시킵니다. 수동 실행에도 production 최적화와 20분 제한을 적용합니다.
 
 [prepare-frontend-workspace.sh](../jenkins/prepare-frontend-workspace.sh)를 root 소유 0755의 `/opt/eolssu/config/prepare-frontend-workspace.sh`에 **먼저** 설치한 뒤 관리된 `frontend.Jenkinsfile`을 갱신합니다. 스크립트는 저장소 루트에서만 실행됩니다. 캐시 손상이 의심될 때는 실행 중인 잡이 없는지 확인하고 해당 프론트 작업공간의 캐시만 수동 초기화합니다. Jenkins 사용자 홈 전체의 Gradle 캐시는 삭제하지 않습니다.
 
@@ -345,7 +347,7 @@ jenkins ALL=(root) NOPASSWD: /opt/eolssu/bin/deploy-frontend *
 
 배포 journal에 이전 웹 경로를 기록한 다음 실제 `.env`의 `WEB_DIST_DIR`만 원자적으로 교체하고, HTTP+TLS Compose로 프론트만 재생성합니다. HTTP 정적 자산·HTTPS 인증서·API 프록시·실제 bind mount와 백엔드/MySQL ID·DB 볼륨을 확인합니다. 새 릴리스의 `/__eolssu_release.json`에서 SHA·manifest 해시를 조회할 수 있습니다. 프론트 교체 중에는 짧은 연결 중단이 있을 수 있습니다.
 
-백엔드·프론트 배포는 같은 lock을 사용하고 최대 120초 기다립니다. 실패하면 이전 프론트를 복구하고, 강제 종료로 남은 `deploying`·`rollback_failed` journal은 다음 실행에서 먼저 복구합니다. 동일 SHA·이미지·정적 파일이 이미 배포돼 있으면 상태·실제 응답을 확인하고 재생성하지 않습니다. 실패한 동일 커밋을 자동으로 무한 재시도하지 않습니다. 원인을 수정한 커밋을 병합하거나, 원인 제거 후 상위 잡을 수동 실행해 같은 흐름을 재개합니다.
+백엔드·프론트 배포는 같은 lock을 사용하고 최대 120초 기다립니다. 실패하면 이전 프론트를 복구하고, 강제 종료로 남은 `deploying`·`rollback_failed` journal은 다음 실행에서 먼저 복구합니다. 동일 SHA·이미지·정적 파일이 이미 배포돼 있으면 상태·실제 응답을 확인하고 재생성하지 않습니다. 원인 제거 후 검증한 SHA로 프론트 잡을 다시 실행합니다.
 
 ```sh
 ssh edo1 'sudo cat /opt/eolssu/frontend-deployment.json'
@@ -353,7 +355,9 @@ curl -fsS https://k15e102.p.ssafy.io/__eolssu_release.json
 python3 -B -m unittest discover -s infra/jenkins/tests -v
 ```
 
-수동 복구가 필요하면 실행 중인 배포가 없는지 확인하고 자동 트리거를 잠시 중지합니다. journal의 `previous_web`를 확인해 `sudoedit /opt/eolssu/.env`에서 `WEB_DIST_DIR`만 복구하고 위의 두 Compose를 사용하는 프론트 재생성 명령을 실행합니다. 이전 릴리스·journal·설정 백업은 보존하고 DB·볼륨을 내리지 않습니다.
+수동 전환을 운영에 반영할 때는 운영 두 잡의 XML과 `/opt/eolssu/config/{backend,frontend}.Jenkinsfile`을 먼저 백업합니다. 실제 운영 백엔드 정의에서 Android QA 예약과 iOS 변경 감지를 보존하고, 두 후보를 Jenkins linter로 검사한 뒤 백엔드와 프론트 정의 및 관리 파일을 차례로 갱신합니다. 저장 후 정의와 관리 파일을 다시 대조합니다. 자동 예약 복구가 필요하면 백업한 프론트 정의를 먼저 복원한 뒤 백엔드를 복원합니다. [전환 범위와 검증](../../docs/plans/S15P31E102-520.md)
+
+웹 릴리스를 복구할 때는 실행 중인 배포가 없는지 확인합니다. journal의 `previous_web`를 확인해 `sudoedit /opt/eolssu/.env`에서 `WEB_DIST_DIR`만 복구하고 위의 두 Compose를 사용하는 프론트 재생성 명령을 실행합니다. 이전 릴리스·journal·설정 백업은 보존하고 DB·볼륨을 내리지 않습니다.
 
 이전 인증서 설정을 고정 경로로 옮길 때는 프론트에 ACME mount를 적용한 후 **도메인별 매핑도 함께** 바꿉니다. 서버의 Certbot 2.9는 `reconfigure --webroot-path`로 기존 `webroot_map`을 바꾸지 못하고, `--webroot-map`을 추가하면 도메인 변경으로 인식해 거부합니다. 실제 시험에서 두 동작을 확인했습니다. 이번 설치에서는 root 전용으로 원본을 백업한 뒤 ConfigObj로 갱신 설정의 `renewalparams.webroot_path`와 `renewalparams.webroot_map` 두 항목만 원자적으로 변경하고, 아래 명령으로 **저장된 설정 자체**와 reload hook을 검증했습니다. 실패하면 설정·프론트를 이전 상태로 복구했습니다. 운영 인증서는 강제 재발급하지 않았습니다.
 
