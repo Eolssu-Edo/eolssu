@@ -27,6 +27,8 @@ import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
+import com.ssafy.eolssu.data.practice.TrendScope
+import kotlinx.coroutines.Job
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import eolssu.shared.generated.resources.Res
@@ -215,6 +217,7 @@ private fun rememberRecordDetailActions(
 /**
  * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
  * '완료한 단계'는 연습 악기가 바뀌거나 학습 화면에서 완료 표시를 바꾸면 다시 센다.
+ * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 전체 곡 연주를 받고, 곡·범위를 고를 때마다 다시 받는다.
  */
 class GrowthViewModel(
     private val repository: GrowthRepository,
@@ -230,8 +233,11 @@ class GrowthViewModel(
         _uiState.value = GrowthUiState(today = _uiState.value.today)
     }
 
+    private var trendJob: Job? = null
+
     init {
         load(GrowthRange.Week)
+        loadTrend(songId = null, scope = TrendScope.Full)
         accountScope.launch {
             combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument?.let(learnProgress::doneStageCount) }
                 .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
@@ -245,6 +251,34 @@ class GrowthViewModel(
     }
 
     fun retry() = load(_uiState.value.range)
+
+    /** 점수 변화 곡을 바꾼다. 지금 범위에 그 곡의 연주가 없고 다른 범위에만 있으면 범위도 바꾼다. */
+    fun selectTrendSong(songId: String) {
+        val trend = _uiState.value.scoreTrend
+        val song = trend.view?.songs?.firstOrNull { it.songId == songId } ?: return
+        if (songId == trend.songId && !trend.failed) return
+        loadTrend(songId, trendScopeFor(song, trend.scope))
+    }
+
+    /** 점수 변화 범위(전체 곡·구간)를 바꾼다. */
+    fun selectTrendScope(scope: TrendScope) {
+        val trend = _uiState.value.scoreTrend
+        if (scope == trend.scope && !trend.failed) return
+        loadTrend(trend.songId, scope)
+    }
+
+    fun retryTrend() = _uiState.value.scoreTrend.let { loadTrend(it.songId, it.scope) }
+
+    /** 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). */
+    private fun loadTrend(songId: String?, scope: TrendScope) {
+        if (!accountScope.isActive) return
+        trendJob?.cancel()
+        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId, scope)) }
+        trendJob = accountScope.launch {
+            val trend = repository.scoreTrend(songId, scope)
+            _uiState.update { it.copy(scoreTrend = it.scoreTrend.received(trend)) }
+        }
+    }
 
     private fun load(range: GrowthRange) {
         if (!accountScope.isActive) return
@@ -274,5 +308,6 @@ fun GrowthRoute(
         onRetry = viewModel::retry,
         onOpenSteps = onOpenSteps,
         onOpenRecords = onOpenRecords,
+        trendActions = ScoreTrendActions(viewModel::selectTrendSong, viewModel::selectTrendScope, viewModel::retryTrend),
     )
 }
