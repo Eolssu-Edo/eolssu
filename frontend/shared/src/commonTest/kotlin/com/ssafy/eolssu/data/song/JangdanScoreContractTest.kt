@@ -50,7 +50,17 @@ class JangdanScoreContractTest {
         }
     }
 
-    private fun client(metadata: String) = createHttpClient(MockEngine { request ->
+    @Test fun supplementalPlaybackUsesTheReviewedDisplayNameWithoutChangingTheScore() = runTest {
+        val client = client(",\"supplementalJangdanPlayback\":$MAPPING", supplemental = true)
+        try {
+            val song = ApiSongRepository(client).getSong("42")!!
+            assertEquals("세마치", song.jangdanName)
+            assertEquals("", song.score.timing?.jangdan)
+            assertEquals(9L, song.jangdanPlayback?.cycleTicks)
+        } finally { client.close() }
+    }
+
+    private fun client(metadata: String, supplemental: Boolean = false) = createHttpClient(MockEngine { request ->
         val result = if (request.url.encodedPath.endsWith("/score")) {
             val data = smallScoreData()
             val events = data.events.mapIndexed { index, event ->
@@ -58,8 +68,12 @@ class JangdanScoreContractTest {
                 val note = if (event.kind == "NOTE") index.toString() else "null"
                 """{"eventId":"${event.id}","kind":"${event.kind}","noteIdx":$note,"pitchId":$pitch,"startTick":${event.startTick},"durationTick":${event.durationTick},"columnIdx":${if (index == 2) 1 else 0},"cellIdx":0}"""
             }
-            """{"songId":"42","scoreVersion":1,"schemaVersion":1,"noteCount":2,"defaultBpm":60,"bpmUnit":"DOTTED_QUARTER","score":${Json.encodeToString(data)},"events":[${events.joinToString(",")}]$metadata}"""
-        } else """{"songId":"42","title":"작은 검사 악보","instrumentId":"1","difficulty":1,"defaultBpm":60,"jangdan":null,"isScorable":false,"noteCount":2,"scoreVersion":1}"""
+            val score = Json.encodeToString(data).let { if (supplemental) it.replace("\"jangdan\":\"세마치\"", "\"jangdan\":\"\"") else it }
+            """{"songId":"42","scoreVersion":1,"schemaVersion":1,"noteCount":2,"defaultBpm":60,"bpmUnit":"DOTTED_QUARTER","score":$score,"events":[${events.joinToString(",")}]$metadata}"""
+        } else {
+            val displayName = if (supplemental) ",\"jangdanName\":\"세마치\"" else ""
+            """{"songId":"42","title":"작은 검사 악보","instrumentId":"1","difficulty":1,"defaultBpm":60,"jangdan":null,"isScorable":false,"noteCount":2,"scoreVersion":1$displayName}"""
+        }
         respond("""{"isSuccess":true,"result":$result}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
     }, ServerAddress.Production)
 
