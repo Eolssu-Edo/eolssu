@@ -23,33 +23,35 @@ internal class AccountStateIsolationTest : CatalogViewModelTest() {
     private val member = SignedInMember(store).apply { set("A") }
 
     @Test
-    fun progressIsOwnedAndLegacyValuesArePreservedUnassigned() {
+    fun deviceProgressIsUploadedOnlyToItsOwnerAndLegacyValuesStayUnassigned() = runTest {
+        val api = FakeLessonApi(owner = { member.id })
         store.putString("learn_done_danso", "1,2")
-        val progress = LearnProgressRepository(store, member)
-        assertEquals(emptySet(), progress.doneStages("danso"))
-        progress.saveDoneStages("danso", setOf(3))
+        store.putString("learn_done_member_1_A_danso", "3")
+        val progress = LearnProgressRepository(api, store, member)
+
+        progress.track("danso")
+        assertEquals(setOf(3), api.doneSeqs("danso", "A"))
         member.set("B")
-        assertEquals(emptySet(), progress.doneStages("danso"))
-        progress.saveDoneStages("danso", setOf(4))
-        member.set("A")
-        assertEquals(setOf(3), progress.doneStages("danso"))
+        progress.track("danso")
+        assertEquals(emptySet(), api.doneSeqs("danso", "B"), "다른 계정이 남긴 기기 진도를 올리지 않는다")
         assertEquals("1,2", store.getString("learn_done_danso"))
-        member.set(null)
-        progress.saveDoneStages("danso", setOf(9))
-        assertEquals(emptySet(), progress.doneStages("danso"))
     }
 
     @Test
     fun previousLearningScreenCannotWriteIntoNextAccount() = runTest {
-        val progress = LearnProgressRepository(store, member)
+        val api = FakeLessonApi(owner = { member.id })
+        val progress = LearnProgressRepository(api, store, member)
         val model = keep(LearnViewModel(SampleSongRepository(), progress, member))
         runCurrent()
         model.toggleDone(1)
+        runCurrent()
         assertTrue(model.uiState.value.doneStages.isNotEmpty())
+        assertEquals(setOf(1), api.doneSeqs("danso", "A"))
         member.set("B")
         model.toggleDone(2)
+        runCurrent()
         assertEquals(emptySet(), model.uiState.value.doneStages)
-        assertEquals(emptySet(), progress.doneStages(model.uiState.value.instrument.id))
+        assertEquals(emptySet(), api.doneSeqs("danso", "B"))
     }
 
     @Test

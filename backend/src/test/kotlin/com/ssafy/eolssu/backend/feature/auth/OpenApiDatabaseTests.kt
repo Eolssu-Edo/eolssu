@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(70,expected.size)
+        assertEquals(72,expected.size)
         assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}",
             "post /api/users/me/sheets/imports", "get /api/users/me/sheets/{sheetId}/conversion")))
@@ -93,6 +93,14 @@ open class OpenApiDatabaseTests {
         assertEquals(0, symbolImage.path("security").size())
         assertEquals("binary", symbolImage.path("responses").path("200").path("content").path("image/svg+xml").path("schema").path("format").asString())
         assertTrue(symbolImage.path("responses").has("404"))
+        val jangdanAudio = doc.path("paths").path("/api/jangdans/{jangdanId}/audio").path("get")
+        assertEquals(0, jangdanAudio.path("security").size())
+        val jangdanRedirect = jangdanAudio.path("responses").path("302")
+        assertFalse(jangdanRedirect.has("content"))
+        assertTrue(jangdanRedirect.path("headers").has("Location"))
+        assertTrue(jangdanRedirect.path("headers").has("Cache-Control"))
+        assertTrue(jangdanAudio.path("responses").has("404"))
+        assertTrue(jangdanAudio.path("responses").has("503"))
         val symbolProperties = doc.path("components").path("schemas").path("NotationSymbolItem").path("properties")
         for (field in listOf("source", "descriptionStatus", "imageLicense")) assertTrue(symbolProperties.has(field), field)
         val play = doc.path("paths").path("/api/reference-audios/{assetId}/play").path("get")

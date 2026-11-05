@@ -121,6 +121,7 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
 @Composable
 private fun songRowMeta(song: SongSummary): String {
     val level = song.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_difficulty_number, song.difficulty)
+    if (song.jangdanName.isBlank()) return level
     return stringResource(Res.string.song_row_meta, level, jangdanLabel(song.jangdanName))
 }
 

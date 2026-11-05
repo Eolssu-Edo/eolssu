@@ -1,6 +1,10 @@
 package com.ssafy.eolssu.platform
 
 import android.content.Context
+import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
+import com.ssafy.eolssu.platform.audio.AndroidJangdanSamplePlayer
+import com.ssafy.eolssu.platform.audio.JangdanSampleCache
+import java.io.File
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.platform.audio.AndroidAudioPlayer
@@ -44,6 +48,8 @@ internal fun androidPlatformModule(context: Context, serverAddress: ServerAddres
         // 연습 화면마다 따로 녹음한다.
         factory<AudioRecorder> { AndroidAudioRecorder(appContext) }
         factory<AudioPlayer> { AndroidAudioPlayer(appContext) }
+        single { JangdanSampleCache(File(appContext.cacheDir, "jangdan-practice-v1"), get()) }
+        factory<JangdanSamplePlayer> { AndroidJangdanSamplePlayer(appContext, get()) }
         // 업로드를 기다리는 녹음. RecordingUploads가 쓴다.
         single<RecordingFiles> { AndroidRecordingFiles(appContext) }
         single<SoundPlayer> { AndroidSoundPlayer() }

@@ -37,6 +37,8 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import eolssu.shared.generated.resources.*
+import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.model_audio_failed
 import eolssu.shared.generated.resources.model_audio_interrupted
@@ -75,22 +77,25 @@ const val PRACTICE_SEEK_MS = 5_000L
 fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, compact: Boolean = false) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(12.dp)
-    val playing = state.mode == PracticeMode.Model && state.playing
+    val rhythm = state.mode == PracticeMode.Rhythm
+    val playing = state.mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && state.playing
     val resumable = state.mode == PracticeMode.Model && !state.playing && state.modelAudioStatus in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)
     val time = stringResource(Res.string.practice_time, formatClock(state.elapsedMs / 1000), formatClock(state.totalSeconds.toDouble()))
     val playLabel = stringResource(
         when {
             playing -> Res.string.practice_pause
+            rhythm -> Res.string.jangdan_practice_resume
             resumable -> Res.string.practice_listen_model_resume
             else -> Res.string.practice_listen_model
         },
     )
-    val canPlay = state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
+    val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
+        else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val controls: @Composable () -> Unit = {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 24.dp)) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
-                onClick = { if (playing) actions.onToggleModel() else actions.onStartModel() },
+                onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
                 enabled = canPlay,
                 modifier = Modifier.size(44.dp).semantics { contentDescription = playLabel },
                 shape = CircleShape,
@@ -111,7 +116,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(stringResource(Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textSub)
+                Text(stringResource(if (rhythm) Res.string.jangdan_practice_label else Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textSub)
                 Text(time, style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textSub)
             }
             controls()
@@ -122,12 +127,12 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(16.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp), color = colors.textSub)
+            Text(stringResource(if (rhythm) Res.string.jangdan_practice_label else Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp), color = colors.textSub)
             Text(time, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp), color = colors.textSub)
         }
         PlayerTrack(state.progressPercent / 100f, Modifier.padding(top = 12.dp, bottom = 4.dp))
         Box(Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) { controls() }
-        val hint = when (state.modelAudioStatus) {
+        val hint = if (rhythm || state.settings.jangdanSound && state.jangdanStatus != JangdanStatus.Idle) jangdanHint(state) else when (state.modelAudioStatus) {
             ModelAudioStatus.Loading -> stringResource(Res.string.model_audio_loading)
             ModelAudioStatus.Unavailable -> stringResource(Res.string.model_audio_unavailable)
             ModelAudioStatus.Failed -> stringResource(Res.string.model_audio_failed)
@@ -190,11 +195,18 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
 @Composable
 fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, hideNotice: Boolean = false) {
     val song = state.song ?: return
-    // 내 악보 연습(Practice-Mine)은 평가하지 않으므로 평가 버튼도 안내도 두지 않는다.
-    if (state.mine) return
     val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (state.mode == PracticeMode.Rhythm) {
+            EolssuButton(stringResource(Res.string.jangdan_model_switch), actions.onStartModel, icon = EolssuIcons.Play)
+        } else {
+            EolssuButton(stringResource(Res.string.jangdan_practice_start), actions.onStartRhythm, icon = EolssuIcons.Play,
+                enabled = state.jangdanSupported && !state.playbackSettingsLocked)
+            if (!state.jangdanSupported) PracticeNotice(jangdanHint(state))
+        }
+        if (state.mode == PracticeMode.Rhythm || state.settings.jangdanSound && state.jangdanProblem) PracticeNotice(jangdanHint(state))
         when {
+            state.mine -> Unit
             !state.solo -> {
                 EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
                 // 운지법과 함께 보기에서는 평가 안내를 숨긴다(보드 `.paged-fingering .practice-demo-notice`).
@@ -221,3 +233,15 @@ fun PracticeNotice(text: String, modifier: Modifier = Modifier) {
         color = colors.accentText,
     )
 }
+
+/** Also shown when a saved ON preference cannot actually produce accompaniment. */
+@Composable
+internal fun jangdanHint(state: PracticeUiState): String = stringResource(when {
+    state.song?.jangdanPlayback == null -> Res.string.jangdan_unverified
+    state.jangdanStatus == JangdanStatus.Loading -> Res.string.jangdan_loading
+    state.jangdanStatus == JangdanStatus.Failed -> Res.string.jangdan_failed
+    state.jangdanStatus == JangdanStatus.Interrupted -> Res.string.jangdan_interrupted
+    !state.jangdanSupported || state.jangdanStatus == JangdanStatus.Unsupported -> Res.string.jangdan_unsupported
+    state.jangdanStatus == JangdanStatus.Playing -> Res.string.jangdan_playing
+    else -> Res.string.jangdan_ready
+})

@@ -47,7 +47,9 @@ import com.ssafy.eolssu.data.user.ApiAuthRepository
 import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.HttpLessonApi
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.OAuthRedirect
 import com.ssafy.eolssu.data.user.OAuthRoute
@@ -137,7 +139,7 @@ val appModule = module {
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get())
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
@@ -157,7 +159,8 @@ val appModule = module {
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }
-    single { LearnProgressRepository(get(), get()) }
+    single<LessonApi> { HttpLessonApi(get(), get()) }
+    single { LearnProgressRepository(get(), get(), get()) }
     single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     single { AccountDraft() }
     single { TermsRepository(get()) }
