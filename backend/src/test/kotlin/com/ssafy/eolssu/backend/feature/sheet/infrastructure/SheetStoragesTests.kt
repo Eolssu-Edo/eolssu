@@ -10,6 +10,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -73,5 +74,26 @@ class SheetStoragesTests {
 
         assertFalse(UnavailableSheetSourceStorage().available)
         assertFailsWith<SheetSourceStorageException> { UnavailableSheetSourceStorage().put("k", file, "image/png") }
+    }
+
+    @Test
+    fun `source download time limit includes a stalled response body`() {
+        val stalled=HttpServer.create(InetSocketAddress("127.0.0.1",0),0)
+        val release=java.util.concurrent.CountDownLatch(1)
+        stalled.createContext("/") { exchange ->
+            exchange.sendResponseHeaders(200,10); exchange.responseBody.write(1); exchange.responseBody.flush()
+            release.await(2,java.util.concurrent.TimeUnit.SECONDS); exchange.close()
+        }
+        stalled.start()
+        val source=object: com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage {
+            override val available=true
+            override fun put(key:String,file:Path,contentType:String) {}
+            override fun delete(key:String) {}
+            override fun readUrl(key:String,ttl:java.time.Duration)="http://127.0.0.1:${stalled.address.port}/"
+        }
+        try {
+            val error=assertFailsWith<SheetSourceStorageException> { source.download("key",dir.resolve("download"),java.time.Duration.ofMillis(200)) }
+            assertTrue(generateSequence<Throwable>(error) { it.cause }.any { it is java.util.concurrent.TimeoutException || it is java.net.http.HttpTimeoutException })
+        } finally { release.countDown(); stalled.stop(0) }
     }
 }

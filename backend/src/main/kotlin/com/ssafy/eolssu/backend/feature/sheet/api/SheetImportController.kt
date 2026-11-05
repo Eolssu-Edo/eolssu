@@ -139,7 +139,7 @@ data class SheetImportAccepted(
     }
 }
 
-/** issueCount는 변환 작업자(S15P31E102-472)가 issues를 저장한 뒤 채운다. 그 전 DONE은 0이다. */
+/** SHT-10 변환 상태와 확인이 남은 정간 수. */
 data class SheetConversionView(
     val sheetId: String,
     val notation: String,
@@ -154,7 +154,7 @@ data class SheetConversionView(
     val noteCount: Int?,
     val failureCode: String?,
     val attempt: Int,
-    /** 재시도(SHT-14, S15P31E102-472) 전에는 언제나 false. */
+    /** 내부 실패 원인과 횟수 상한으로 판정한다(SHT-14). */
     val retryable: Boolean,
     val acceptedAt: Instant,
     val startedAt: Instant?,
@@ -174,11 +174,12 @@ data class SheetConversionView(
                 jangdanAuto = conversion.notation == SheetNotation.STAFF && conversion.requestedJangdanId == null,
                 bpmAuto = conversion.requestedBpm == null,
                 pollAfterMs = POLL_AFTER_MS.takeIf { active },
-                issueCount = 0.takeIf { done },
+                issueCount = conversion.pendingCellCount.takeIf { done },
                 noteCount = conversion.noteCount.takeIf { done },
                 failureCode = conversion.failureCode,
                 attempt = conversion.attempt,
-                retryable = false,
+                retryable = com.ssafy.eolssu.backend.feature.sheet.application.ConversionRetryPolicy.allowed(
+                    conversion.status.name,conversion.failureCause,conversion.attempt,conversion.timeoutCount),
                 acceptedAt = conversion.acceptedAt,
                 startedAt = conversion.startedAt,
                 finishedAt = conversion.finishedAt,

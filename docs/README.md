@@ -185,6 +185,8 @@
 
 - [S15P31E102-471 내 악보 불러오기·원본 보관·변환 상태](plans/S15P31E102-471.md)
 
+- [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
+
 ## COCO 산출물
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)

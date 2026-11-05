@@ -158,13 +158,44 @@ class SheetImportApiDatabaseTests {
     fun `deleting an imported sheet removes its objects and rows`() {
         val sheetId = sheetId(import(OWNER, "k-del", jeongganbo(), listOf("a.png" to png, "b.png" to png)))
         val keys = jdbc.queryForList("SELECT object_key FROM sheet_source_files WHERE sheet_id=?", String::class.java, sheetId)
+        val pageKey="sheet-sources/$OWNER/pages/$sheetId/0.png"
+        Files.createDirectories(storageDir.resolve(pageKey).parent)
+        Files.write(storageDir.resolve(pageKey),png)
+        jdbc.update("INSERT INTO sheet_source_pages(sheet_id,page_idx,object_key,width,height) VALUES(?,0,?,200,100)",sheetId,pageKey)
 
         assertEquals(404, send(OTHER, "DELETE", "/api/users/me/sheets/$sheetId").statusCode())
         assertTrue(keys.all { storageDir.resolve(it).exists() })
         assertEquals(204, send(OWNER, "DELETE", "/api/users/me/sheets/$sheetId").statusCode())
         assertTrue(keys.none { storageDir.resolve(it).exists() })
+        assertFalse(storageDir.resolve(pageKey).exists())
         assertEquals(0, count("SELECT COUNT(*) FROM sheet_conversions WHERE sheet_id=$sheetId"))
         assertEquals(0, count("SELECT COUNT(*) FROM sheet_source_files WHERE sheet_id=$sheetId"))
+    }
+
+    @Test
+    fun `retry API exposes eligibility and accepts the same retry once`() {
+        val id=sheetId(import(OWNER,"k-retry",staff(),listOf("a.png" to png)))
+        jdbc.update("UPDATE sheet_conversions SET status='FAILED',failure_code='SERVER_ERROR',failure_cause='SERVER_ERROR',finished_at=accepted_at WHERE sheet_id=?",id)
+        val status=json.readTree(get(OWNER,"/api/users/me/sheets/$id/conversion").body()).path("result")
+        assertTrue(status.path("retryable").booleanValue())
+        assertEquals(404,send(OTHER,"POST","/api/users/me/sheets/$id/conversion/retry").statusCode())
+        repeat(2) {
+            val response=send(OWNER,"POST","/api/users/me/sheets/$id/conversion/retry")
+            assertEquals(202,response.statusCode(),response.body())
+            assertEquals(2,json.readTree(response.body()).path("result").path("attempt").intValue())
+        }
+    }
+
+    @Test
+    fun `score API returns conversion issues and notices without caching`() {
+        val id=sheetId(import(OWNER,"k-details",staff(),listOf("a.png" to png)))
+        jdbc.update("""UPDATE sheet_conversions SET status='DONE',result_json='{"issues":[{"issueId":"i1","type":"LOW_CONFIDENCE","cellId":"c1-j0","eventId":null,"candidates":[]}],"notices":[{"type":"TRANSPOSED"}],"pages":[]}',finished_at=accepted_at WHERE sheet_id=?""",id)
+        jdbc.update("UPDATE user_sheets SET pending_cell_count=1 WHERE id=?",id)
+        val response=get(OWNER,"/api/users/me/sheets/$id/score")
+        assertEquals("no-store",response.headers().firstValue("Cache-Control").orElse(""))
+        val details=json.readTree(response.body()).path("result")
+        assertEquals("i1",details.path("issues").get(0).path("issueId").asString())
+        assertEquals("TRANSPOSED",details.path("notices").get(0).path("type").asString())
     }
 
     @Test
@@ -254,6 +285,7 @@ class SheetImportApiDatabaseTests {
         @JvmStatic
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
+            registry.add("eolssu.sheet-conversion.omr-base-url") { "http://127.0.0.1:1" }
             registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("eolssu.security.jwt-secret") { SECRET }
             registry.add("eolssu.sheet-storage.type") { "local" }
