@@ -58,9 +58,9 @@ class UpdateEngine extends EventEmitter {
     try {
       const result=await this.deps.graph.check(config);
       if(epoch!==this.epoch||!result) return;
-      this.view.graph={...result,phase:!result.compatible?'code-behind':result.installed?'current':'available',lastChecked:this.deps.now(),error:''};
+      this.view.graph={...result,phase:result.installed?'current':'available',lastChecked:this.deps.now(),error:''};
       this.persist();
-      if(!result.installed&&result.compatible&&config.autoApply) {
+      if(!result.installed&&config.autoApply) {
         if(this.data.graph.failedRelease!==result.release||this.deps.now()>=(this.data.graph.retryAfter||0)) await this.downloadGraph(true);
       } else if(!result.installed&&this.data.graph.notified!==result.release) {
         this.data.graph.notified=result.release;this.persist();
@@ -76,11 +76,13 @@ class UpdateEngine extends EventEmitter {
     let release;
     try {
       const current=await this.deps.graph.check(config);release=current.release;
-      if(!current.compatible) throw new Error('먼저 프로젝트 코드를 갱신해주세요. 그래프가 현재 브랜치에 없습니다.');
       const result=current.installed?{status:'unchanged'}:await this.deps.graph.download(config);
-      this.data.graph={...this.data.graph,notified:release,failedRelease:'',retryAfter:0};
-      this.view.graph={...current,installed:true,phase:'current',lastChecked:this.deps.now(),error:''};
-      if(result.status==='updated') await this.notice({kind:'graph-downloaded',...current});
+      const applied={...current,release:result.release??release,source_commit:result.source_commit??current.source_commit,
+                     compatible:result.compatible??current.compatible};
+      if(applied.release!==release)delete applied.archive_size;
+      this.data.graph={...this.data.graph,notified:applied.release,failedRelease:'',retryAfter:0};
+      this.view.graph={...applied,installed:true,phase:'current',lastChecked:this.deps.now(),error:''};
+      if(result.status==='updated') await this.notice({kind:'graph-downloaded',...applied});
       return result;
     } catch(error) {
       this.data.graph.failedRelease=release;this.data.graph.retryAfter=this.deps.now()+300000;

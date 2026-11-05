@@ -1,7 +1,5 @@
 'use strict';
 
-const {PLAYSTORE_URL}=require('./playstore.cjs');
-
 const loopback=(name,local,remote)=>[name,{url:'http://localhost:'+local+'/',partition:'persist:eolssu-'+name,forward:{local,remote}}];
 const SITES=new Map([
  ['qa',{url:'https://15.165.144.7/qa',partition:'persist:eolssu-qa'}],
@@ -10,17 +8,17 @@ const SITES=new Map([
  loopback('prometheus',13001,3001),
  loopback('jenkins',18080,8080),
  loopback('db',18081,8081),
- loopback('n8n',15688,5688),
- ['playstore',{url:PLAYSTORE_URL,partition:'eolssu-playstore',privateLink:true}]
+ loopback('n8n',15688,5688)
 ]);
+const EDO1_FORWARDS=[...SITES.values()].map(site=>site.forward).filter(Boolean);
 const TAB_BAR_HEIGHT=46,DEFAULT_ZOOM=0.8;
 
-function createSiteTabs(win,createView,onChange,loadPlayStore=async()=>null) {
+function createSiteTabs(win,createView,onChange) {
  const pages=new Map();
  let tab='updates',attached=null,closed=false;
  const snapshot=()=>{
   const page=pages.get(tab);
-  return {tab,siteStatus:page?.status??'waiting',localPort:SITES.get(tab)?.forward?.local};
+  return {tab,siteStatus:tab==='playstore'?'setup':page?.status??'waiting',localPort:SITES.get(tab)?.forward?.local};
  };
  const resize=()=>{
   if(!attached)return;
@@ -67,11 +65,8 @@ function createSiteTabs(win,createView,onChange,loadPlayStore=async()=>null) {
  async function load(page,site) {
   page.status='loading';
   try {
-   const url=site.privateLink?await loadPlayStore():site.url;
-   if(closed||page.status!=='loading')return;
-   if(!url){page.status='setup';refresh();return;}
    const contents=page.view.webContents;
-   await contents.loadURL(url);
+   await contents.loadURL(site.url);
    if(closed||page.status!=='loading')return;
    if(site.forward&&!await contents.executeJavaScript('Boolean(document.body && (document.body.childElementCount || document.body.textContent.trim()))')){
     fail(page);return;
@@ -83,12 +78,12 @@ function createSiteTabs(win,createView,onChange,loadPlayStore=async()=>null) {
   }catch{if(page.status==='loading')fail(page);}
  }
  function select(value) {
-  if(value!=='updates'&&!SITES.has(value))throw new Error('잘못된 화면입니다.');
+  if(value!=='updates'&&value!=='playstore'&&!SITES.has(value))throw new Error('잘못된 화면입니다.');
   tab=value;
   const site=SITES.get(tab);
   if(site&&!pages.has(tab))pages.set(tab,makePage(site));
   const page=pages.get(tab);
-  if(page&&['waiting','error','setup'].includes(page.status))load(page,site);
+  if(page&&['waiting','error'].includes(page.status))load(page,site);
   refresh();
  }
  function close() {
@@ -97,9 +92,6 @@ function createSiteTabs(win,createView,onChange,loadPlayStore=async()=>null) {
   for(const {view} of pages.values())if(!view.webContents.isDestroyed())view.webContents.close();
   pages.clear();
  }
- return {snapshot,select,resize,close,currentForward:()=>SITES.get(tab)?.forward,currentURL:async()=>{
-  const site=SITES.get(tab);
-  return site?.privateLink?await loadPlayStore():site?.url;
- }};
+ return {snapshot,select,resize,close,currentForward:()=>SITES.get(tab)?.forward,currentURL:()=>SITES.get(tab)?.url};
 }
-module.exports={createSiteTabs};
+module.exports={createSiteTabs,EDO1_FORWARDS};

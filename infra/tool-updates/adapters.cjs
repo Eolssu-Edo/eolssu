@@ -94,7 +94,7 @@ function adapters(contextPath) {
    },
    async download(c) {
     const root=await project(c.projectPath),py=python();
-    const {stdout}=await run(py.command,[...py.prefix,'-B',contextPath,'sync','--project',root,'--host',PUBLISH_HOST],{timeout:120000});
+    const {stdout}=await run(py.command,[...py.prefix,'-B',contextPath,'sync','--latest','--local-ignore','--project',root,'--host',PUBLISH_HOST],{timeout:120000});
     return parseResult(stdout);
    }
   },

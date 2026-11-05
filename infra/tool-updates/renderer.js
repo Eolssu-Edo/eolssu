@@ -36,12 +36,12 @@ function render(value) {
  const files=value.apps||{};for(const [id,key] of [['phone-apk','phone'],['tablet-apk','tablet'],['iphone-ipa','iphone']]){$(id).disabled=!!files.busy||!files[key];$(id).title=files[key]?files[key].builtAt+' · '+(files[key].commit||'').slice(0,8)+(key!=='iphone'?' · 폰·태블릿 공용 APK':''):'게시된 파일 없음';}$('apps-message').textContent=files.message||files.error||'';
  if(pendingSaves===0)form(value);
  const g=value.graph,c=value.coco;
- const names={available:'새 버전',current:'최신 버전',error:'확인 필요','code-behind':'코드 갱신 필요'};
+ const names={available:'새 버전',current:'최신 버전',error:'확인 필요'};
  $('graph-badge').hidden=g.phase==='setup';
- $('graph-badge').textContent=names[g.phase]||'확인 중';$('graph-badge').className='badge '+(g.phase==='available'?'ready':g.phase==='error'||g.phase==='code-behind'?'warning':'');
- $('graph-status').textContent=g.error||(g.phase==='code-behind'?'프로젝트 코드를 먼저 갱신해주세요.':'');
+ $('graph-badge').textContent=names[g.phase]||'확인 중';$('graph-badge').className='badge '+(g.phase==='available'?'ready':g.phase==='error'?'warning':'');
+ $('graph-status').textContent=g.error||(g.release&&g.compatible===false?'코드 버전이 달라 파일 위치가 다를 수 있습니다.':'');
  $('graph-detail').textContent=g.source_commit?'develop '+g.source_commit.slice(0,8)+(g.archive_size?' · 다운로드 '+(g.archive_size/1024/1024).toFixed(2)+' MB':''):'';
- $('download').disabled=value.busyGraph||!g.compatible||g.installed;
+ $('download').disabled=value.busyGraph||!g.release||g.installed;
  $('download').textContent=value.busyGraph?'받는 중…':'다운로드';
  $('graph-time').textContent=g.lastChecked?new Date(g.lastChecked).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 확인':'';
  $('coco-badge').textContent=value.busyCoco?'설치 중':c.phase==='error'?'조회 확인 필요':c.latest?'배포 '+c.latest:'확인 중';
@@ -99,12 +99,16 @@ for(const [index,tab] of tabs.entries()) {
  };
 }
 $('site-retry').onclick=()=>selectTab(activeTab);
-$('site-connect').onclick=async()=>{
- const button=$('site-connect');
+async function connectSSH(host) {
+ const tab=activeTab,tool=tab!=='updates',button=tool?$('site-connect'):$('ssh-'+host);
  button.disabled=true;
- await invoke(()=>window.updates.connectSite(),()=>{$('site-error').textContent='터미널에서 연결되면 다시 연결을 눌러 주세요.';},'site-error');
+ if(tool)$('site-error').textContent='SSH 터널 연결을 확인하고 있습니다…';
+ await invoke(()=>window.updates.ssh(host),result=>{
+  if(tool&&activeTab===tab)$('site-error').textContent=result.connected?'':'터미널에서 연결한 뒤 다시 연결을 눌러 주세요.';
+ },tool?'site-error':'message');
  button.disabled=false;
-};
+}
+$('site-connect').onclick=()=>connectSSH('edo1');
 $('site-browser').onclick=()=>invoke(()=>window.updates.siteBrowser(),null,'site-error');
 $('playstore-form').onsubmit=async event=>{
  event.preventDefault();
@@ -116,4 +120,4 @@ $('playstore-form').onsubmit=async event=>{
 };
 for(const [id,kind] of [['phone-apk','phone'],['tablet-apk','tablet'],['iphone-ipa','iphone']])$(id).onclick=()=>invoke(()=>window.updates.downloadApp(kind));
 
-for(const host of ['edo1','edo2'])$('ssh-'+host).onclick=()=>invoke(()=>window.updates.ssh(host));
+for(const host of ['edo1','edo2'])$('ssh-'+host).onclick=()=>connectSSH(host);

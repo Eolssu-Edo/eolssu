@@ -3,7 +3,6 @@ contextBridge.exposeInMainWorld('updates',{
  tab:page=>ipcRenderer.invoke('updates:tab',page),
  ssh:host=>ipcRenderer.invoke('updates:ssh',host),
  savePlayStore:link=>ipcRenderer.invoke('updates:playstore-save',link),
- connectSite:()=>ipcRenderer.invoke('updates:site-connect'),
  siteBrowser:()=>ipcRenderer.invoke('updates:site-browser'),
  downloadApp:kind=>ipcRenderer.invoke('updates:download-app',kind),
  state:()=>ipcRenderer.invoke('updates:state'),

@@ -26,5 +26,9 @@ test('terminal shortcuts allow only the two fixed aliases and preserve SSH confi
   const win=await terminalShortcut('edo2',directory,'win32');
   assert.match(await fs.readFile(win,'utf8'),/ssh -o ClearAllForwardings=yes edo2/);
   await assert.rejects(()=>terminalShortcut('edo1;exit',directory,'darwin'));
+  const tunnel=await terminalShortcut('edo1',directory,'win32',[{local:18081,remote:8081}]);
+  const command=await fs.readFile(tunnel,'utf8');
+  assert.match(command,/-L 127\.0\.0\.1:18081:127\.0\.0\.1:8081 edo1/);
+  assert.doesNotMatch(command,/\s-N\s/); // Use the normal interactive SSH session.
  }finally{await fs.rm(directory,{recursive:true,force:true});}
 });

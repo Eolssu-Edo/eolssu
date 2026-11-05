@@ -38,14 +38,22 @@ test('COCO install requires a known exact version and explicit runtime/scope', a
  assert.deepEqual(h.installs[0],{version:'1.6.0-beta.1',runtimes:['codex','claude'],scope:'project',projectPath:'/fixture/project'});
  await assert.rejects(h.engine.installCoco('latest'),/버전/);
 });
-test('keeps graph errors independent from npm and never auto-downloads an incompatible graph',async()=>{
- let downloads=0; const notes=[];
+test('automatically downloads the newest graph even when its commit is missing locally',async()=>{
+ let downloads=0,installed=false; const notes=[];
  const e=new UpdateEngine({load:()=>({config:{projectPath:'/fixture',autoApply:true}}),save:()=>{},
- graph:{check:async()=>({release:'future',compatible:false,installed:false}),download:async()=>{downloads++;}},
+ graph:{check:async()=>({release:'future',compatible:false,installed}),download:async()=>{
+  downloads++;installed=true;return {status:'updated',release:'future',compatible:false};
+ }},
  coco:{check:async()=>pack(['0.2.0','2.0.0-beta.1'])},notify:async n=>notes.push(n),now:()=>1});
- await e.check(); assert.equal(downloads,0);assert.equal(e.snapshot().graph.phase,'code-behind');
+ await e.check();
+ await e.check();
+ assert.equal(downloads,1);
+ assert.equal(e.snapshot().graph.phase,'current');
+ assert.equal(e.snapshot().graph.compatible,false);
  assert.equal(e.snapshot().coco.latest,'2.0.0-beta.1');
+ assert.ok(notes.some(n=>n.kind==='graph-downloaded'));
 });
+
 test('restores cached npm versions when a restarted app receives HTTP 304',async()=>{
  const data={coco:{known:['1.5.1'],versions:['1.5.1'],etag:'etag'}};
  const e=new UpdateEngine({load:()=>data,save:()=>{},graph:{},coco:{check:async()=>({notModified:true})},notify:async()=>{},now:()=>1});

@@ -6,8 +6,8 @@ const {pathToFileURL}=require('node:url');
 const {UpdateEngine}=require('./engine.cjs');
 const {adapters,JsonStore,project,PUBLISH_HOST}=require('./adapters.cjs');
 const {listBuilds,downloadBuild}=require('./apps.cjs');
-const {terminalShortcut}=require('./ssh.cjs');
-const {createSiteTabs}=require('./site-tabs.cjs');
+const {terminalShortcut,waitForLoopback}=require('./ssh.cjs');
+const {createSiteTabs,EDO1_FORWARDS}=require('./site-tabs.cjs');
 const {playStoreLinkStore}=require('./playstore.cjs');
 let siteTabs,appBuilds={},appsMessage='',appsBusy=false;
 const APP_ID='com.ssafy.eolssu.updates';
@@ -72,20 +72,20 @@ function selectTab(value) {
 function selectCoco(version) {selectTab('updates');showWindow();win.webContents.send('updates:state',{...snapshot(),focusCocoVersion:version});}
 async function noticeAction(value) {
  if(value.kind==='coco'||value.kind==='coco-installed') return selectCoco(value.version);
- if(value.kind==='graph'&&value.projectPath===engine.data.config.projectPath&&value.compatible) {
+ if(value.kind==='graph'&&value.projectPath===engine.data.config.projectPath) {
   try{await engine.downloadGraph();}catch{showWindow();}
  }else showWindow();
 }
 async function notify(value) {
  if(!Notification.isSupported()) throw new Error('이 OS에서 알림을 지원하지 않습니다.');
- const action=value.kind==='coco'?'설치·업데이트':value.kind==='graph'&&value.compatible?'다운로드':'열기';
+ const action=value.kind==='coco'?'설치·업데이트':value.kind==='graph'?'다운로드':'열기';
  let title,body;
  if(value.kind==='coco') {title='COCO 새 배포';body=value.versions.join(', ')+(value.versions.length>1?' 버전이 배포됐습니다.':' 버전이 배포됐습니다.');}
  else if(value.kind==='coco-installed') {title='COCO 설치 완료';body=value.version+' 적용이 끝났습니다. 새 AI 세션에서 확인하세요.';}
  else if(value.kind==='graph-downloaded') {title='Graphify 다운로드 완료';body='프로젝트의 코드 지도를 새 버전으로 바꿨습니다.';}
  else if(value.kind==='graph-failed') {title='Graphify 자동 다운로드 실패';body='기존 그래프를 유지했습니다. 앱에서 다시 시도할 수 있습니다.';}
  else if(value.kind==='test') {title='Eolssu Updates 알림 테스트';body='새 그래프와 COCO 배포를 이곳에서 알려드립니다.';}
- else {title='Graphify 새 버전';body=value.compatible?'새 코드 지도가 준비됐습니다. 지금 내려받을 수 있습니다.':'새 코드 지도가 준비됐습니다. 프로젝트 코드를 먼저 갱신해주세요.';}
+ else {title='Graphify 새 버전';body=value.compatible?'새 코드 지도가 준비됐습니다. 지금 내려받을 수 있습니다.':'새 코드 지도를 받을 수 있습니다. 현재 코드와 버전이 다릅니다.';}
  const id=crypto.createHash('sha256').update(value.kind+String(value.release||value.version||Date.now())).digest('hex').slice(0,16);
  const n=new Notification({id,groupId:value.kind.startsWith('coco')?'coco':'graphify',title,body,actions:[{type:'button',text:action}],silent:false});
  const wrapped={...value,projectPath:engine.data.config.projectPath};
@@ -103,7 +103,7 @@ async function start() {
  engine=new UpdateEngine({load:()=>store.load(),save:v=>store.save(v),...backend,notify,now:Date.now});
  win=new BrowserWindow({...COMPACT_SIZE,minWidth:580,minHeight:380,show:false,backgroundColor:'#f4f5f1',title:'Eolssu Updates',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  const playStore=playStoreLinkStore(path.join(app.getPath('userData'),'playstore.enc'),safeStorage,path.join(resources,'playstore-link.txt'));
- siteTabs=createSiteTabs(win,options=>new WebContentsView(options),push,playStore.load);
+ siteTabs=createSiteTabs(win,options=>new WebContentsView(options),push);
  win.on('resize',siteTabs.resize);
  win.on('closed',siteTabs.close);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -116,27 +116,37 @@ async function start() {
  const allowed=event=>{if(event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame)throw new Error('허용되지 않은 요청입니다.');};
  const handle=(name,fn)=>ipcMain.handle('updates:'+name,async(event,...args)=>{allowed(event);try{return {ok:true,value:await fn(...args)};}catch(e){return {ok:false,error:e.message};}});
  handle('state',()=>snapshot());
- handle('tab',value=>{selectTab(value);return snapshot();});
- const openSSH=async(host,forward)=>{
-  const file=await terminalShortcut(host,path.join(app.getPath('userData'),'ssh'),process.platform,forward);
+ const openExternal=async url=>{
+  try{await shell.openExternal(url);}catch{throw new Error('브라우저를 열지 못했습니다.');}
+ };
+ handle('tab',async value=>{
+  if(value==='playstore'){
+   const url=await playStore.load();
+   if(url){await openExternal(url);return snapshot();}
+  }
+  selectTab(value);
+  return snapshot();
+ });
+ handle('ssh',async host=>{
+  const tab=siteTabs.snapshot().tab,edo1=host===PUBLISH_HOST;
+  const forward=edo1?siteTabs.currentForward():null;
+  const file=await terminalShortcut(host,path.join(app.getPath('userData'),'ssh'),process.platform,edo1?EDO1_FORWARDS:[]);
   const error=await shell.openPath(file);
   if(error)throw new Error(error);
- };
- handle('ssh',host=>openSSH(host));
- handle('site-connect',()=>{
-  const forward=siteTabs.currentForward();
-  if(!forward)throw new Error('로컬 도구 탭에서 연결해 주세요.');
-  return openSSH('edo1',forward);
+  const connected=forward?await waitForLoopback(forward.local):false;
+  if(connected&&siteTabs.snapshot().tab===tab)siteTabs.select(tab);
+  return {connected};
  });
  handle('site-browser',async()=>{
-  const url=await siteTabs.currentURL();
-  if(!url)return;
-  try{await shell.openExternal(url);}catch{throw new Error('브라우저를 열지 못했습니다.');}
+  const url=siteTabs.currentURL();
+  if(url)await openExternal(url);
  });
  handle('playstore-save',async link=>{
   if(siteTabs.snapshot().tab!=='playstore')throw new Error('PlayStore출시 탭에서 링크를 설정해 주세요.');
   await playStore.save(link);
-  if(siteTabs.snapshot().tab==='playstore')siteTabs.select('playstore');
+  const url=await playStore.load();
+  if(url)await openExternal(url);
+  if(siteTabs.snapshot().tab==='playstore')selectTab('updates');
   return snapshot();
  });
  handle('download-app',async kind=>{

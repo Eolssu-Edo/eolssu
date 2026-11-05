@@ -94,12 +94,12 @@ test('each local tool uses its fixed loopback port in its own session',async()=>
  assert.equal(visible.size,0);
 });
 
-test('PlayStore does not navigate without a link or return a private URL in its state',async()=>{
+test('the optional PlayStore setup screen never creates an in-app browser',async()=>{
  const {tabs,created}=fixture();
  tabs.select('playstore');
  await Promise.resolve();
  assert.equal(tabs.snapshot().siteStatus,'setup');
- assert.equal(created.at(-1).webContents.url,undefined);
+ assert.equal(created.length,0);
  assert.equal(JSON.stringify(tabs.snapshot()).includes('kmong_key'),false);
 });
 
