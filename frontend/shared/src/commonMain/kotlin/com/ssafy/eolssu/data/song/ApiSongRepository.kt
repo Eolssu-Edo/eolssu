@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.Jangdan
+import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.timeline
@@ -80,6 +81,14 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,
             noteCount = item.noteCount,
+            catalogJangdanName = item.jangdanName,
+            jangdanPlayback = (scoreItem.jangdanPlayback ?: scoreItem.supplementalJangdanPlayback?.takeIf {
+                timing.jangdan.isBlank() && it.name == item.jangdanName
+            })?.let { playback ->
+                val expectedName = timing.jangdan.ifBlank { item.jangdanName.orEmpty() }
+                if (playback.name != expectedName || playback.startTick >= timeline.last().let { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }) throw CatalogUnavailable()
+                runCatching { playback.model() }.getOrElse { throw CatalogUnavailable() }
+            },
         )
     }
 }
@@ -88,7 +97,19 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
 private class CatalogScore(
     val songId: String, val scoreVersion: Int, val schemaVersion: Int, val noteCount: Int,
     val defaultBpm: Int, val bpmUnit: String, val score: JsonObject, val events: List<CatalogScoreEvent>,
+    val jangdanPlayback: CatalogJangdanPlayback? = null,
+    val supplementalJangdanPlayback: CatalogJangdanPlayback? = null,
 )
+
+@Serializable
+private class CatalogJangdanPlayback(
+    val jangdanId: String, val name: String, val startTick: Long, val cycleTicks: Long, val pattern: Pattern,
+) {
+    fun model(): JangdanPlayback {
+        if (!validCatalogId(jangdanId)) throw CatalogUnavailable()
+        return JangdanPlayback(jangdanId, name, startTick, cycleTicks, pattern.beats, pattern.group)
+    }
+}
 
 @Serializable
 private class CatalogScoreEvent(
@@ -117,13 +138,15 @@ private class CatalogSong(
     val description: String? = null,
     val jangdan: CatalogJangdan? = null,
     val score: JsonObject? = null,
+    val jangdanName: String? = null,
 ) {
     fun summary(): SongSummary {
         if (!validCatalogId(songId) || !validCatalogId(instrumentId) || title.isBlank() ||
             difficulty !in 1..5 || defaultBpm <= 0 || jangdan?.name?.isBlank() == true || noteCount < 0 || scoreVersion <= 0
         ) throw CatalogUnavailable()
         return SongSummary(
-            songId, title, difficulty, jangdan?.name ?: canonicalJangdanName(), defaultBpm, isScorable, instrumentId, scoreVersion,
+            songId, title, difficulty, jangdan?.name ?: jangdanName?.takeIf { it.isNotBlank() } ?: canonicalJangdanName(),
+            defaultBpm, isScorable, instrumentId, scoreVersion,
             instrumentCode = instrumentCode(), noteCount = noteCount,
         )
     }

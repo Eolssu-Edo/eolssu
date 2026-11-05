@@ -4,7 +4,9 @@
     <sql id="sheetColumns">
         s.id, s.user_id, s.title, s.kind, s.source, s.status, s.jangdan_id, j.name AS jangdan_name, s.bpm, s.bpm_unit, s.column_count,
         s.score_version, s.score_json, s.note_count, s.pending_cell_count, s.updated_at,
-        s.draft_json, s.draft_revision, s.draft_base_version, s.draft_saved_at
+        s.draft_json, s.draft_revision, s.draft_base_version, s.draft_saved_at,
+        c.status AS conversion_status, c.page_count AS source_page_count, c.hwang_pitch,c.result_json AS conversion_result_json,
+        (SELECT f.file_name FROM sheet_source_files f WHERE f.sheet_id = s.id ORDER BY f.file_idx LIMIT 1) AS source_file_name
     </sql>
 
     <select id="findJangdan" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetJangdanRow">
@@ -13,14 +15,14 @@
 
     <select id="find" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
         SELECT <include refid="sheetColumns"/>
-        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id LEFT JOIN sheet_conversions c ON c.sheet_id = s.id
         WHERE s.id = #{sheetId} AND s.user_id = #{userId}
     </select>
 
     <!-- SHT-01: 최근 수정 순, 같은 시각은 ID 역순(idx_user_sheets_user_updated) -->
     <select id="findPage" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.UserSheetRow">
         SELECT <include refid="sheetColumns"/>
-        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id
+        FROM user_sheets s LEFT JOIN jangdans j ON j.id = s.jangdan_id LEFT JOIN sheet_conversions c ON c.sheet_id = s.id
         WHERE s.user_id = #{userId}
         <if test="kind != null">AND s.kind = #{kind}</if>
         ORDER BY s.updated_at DESC, s.id DESC
@@ -31,7 +33,7 @@
     <update id="updateScore">
         UPDATE user_sheets
         SET title = #{title}, status = #{status}, jangdan_id = #{jangdanId}, bpm = #{bpm}, bpm_unit = #{bpmUnit}, column_count = #{columnCount},
-            score_version = score_version + 1, score_json = #{scoreJson}, note_count = #{noteCount}, pending_cell_count = 0,
+            score_version = score_version + 1, score_json = #{scoreJson}, note_count = #{noteCount}, pending_cell_count = #{pendingCellCount},
             draft_json = NULL, draft_revision = 0, draft_base_version = NULL, draft_saved_at = NULL, updated_at = #{updatedAt}
         WHERE id = #{sheetId} AND user_id = #{userId} AND score_version = #{baseScoreVersion}
     </update>

@@ -399,3 +399,21 @@ Cloudflare 버킷 Settings에서 사용자 도메인 없음·Public Development 
 기존 `AUTH_ANDROID_APP_SHA256_FINGERPRINTS`는 일반 패키지 `com.ssafy.eolssu` 전용으로 유지합니다. `AUTH_ANDROID_QA_APP_SHA256_FINGERPRINTS`는 `com.ssafy.eolssu.qa` 전용이며 각 실제 설치 APK의 공개 SHA-256 인증서 지문을 쉼표로 설정합니다. 한 패키지 지문을 다른 패키지에 복사하지 않습니다. 설정된 패키지만 JSON 배열에 포함하고 둘 다 비어 있을 때만404입니다. 두 설정 모두 형식 검증·대문자 콜론 표기 정규화·중복 제거를 적용합니다. 설정은 운영 Compose 전달과 백엔드 반영 후 확인합니다.
 
 검증 순서: 설치 APK 패키지·versionCode·공개 서명 확인 → `/.well-known/assetlinks.json`의 리다이렉트 없는200/application/json과 패키지별 지문 일치 → 기기 `adb shell pm verify-app-links --re-verify com.ssafy.eolssu.qa` 후 `adb shell pm get-app-links com.ssafy.eolssu.qa`에서 도메인 verified → 새 카카오 인증 시작부터 앱 복귀·완료 API를 확인합니다. 재검증은 비동기이며 강제 인텐트 실행만으로 verified를 대체하지 않습니다. 키스토어·비밀번호는 공유하지 않습니다.
+
+## V25 삭제 전 호환 백엔드 배포
+
+S15P31E102-499의 1차 호환 릴리스 A는 임시 `bootJar` 블록으로 실행 JAR에서만 V25를 제외하고 V26 이상을 차단했습니다. A 운영 반영·세션 실호출 확인 후 준비하는 후속 B는 이 임시 블록을 제거해 원본 V25를 다시 포함합니다. 아래는 두 릴리스를 순서대로 수행하는 절차입니다. [이유·검증](../../docs/knowledge/infra/mission-migration-compat.md), [작업 상태](../../docs/plans/S15P31E102-499.md)를 확인합니다.
+
+1. 배포 전 운영 Flyway 이력이 V24 이하이고 실패 행이 없는지 확인합니다. V25가 이미 적용된 환경에는 이 호환 JAR을 배포하지 않습니다. 승인 파일을 먼저 추가하지 않습니다.
+2. 1차 호환 릴리스 A를 기존 Jenkins 경로로 단독 배포합니다. `Check database migrations` → 필요 시 V24까지 적용 → 백엔드 교체 순서로 동작합니다. 실행 JAR에 V25가 없는지 확인합니다.
+3. 실제 운영 컨테이너의 연결 JAR이 A의 SHA이고 healthy인지 확인합니다. 연습 세션 생성·조회와 멱등 재전송이 정상인지 확인하고 증거를 남깁니다. 확인 전에는 후속 변경을 합치지 않습니다.
+
+```sh
+ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}{{range .Mounts}}{{println .Source}}{{end}}" eolssu-runtime-backend-1'
+```
+
+4. A 반영 후 `backend/build.gradle.kts`의 S15P31E102-499 임시 `bootJar` 블록 전체를 제거하는 후속 릴리스 B를 준비합니다. 원본 V25를 변경하거나 새 번호로 복제하지 않습니다. B JAR에 원본 V25가 바이트 그대로 포함되는지 확인합니다.
+5. 운영 데이터의 `mission_id IS NOT NULL` 개수, 외래키·인덱스·뷰 등 의존성과 최신 복원 가능한 백업을 검토합니다. 공유 대화의 과거 데이터 상태를 현재 사실로 대신하지 않습니다. 검토 후 B JAR에서 추출한 V25의 SHA-256을 기존 승인 경로에 등록하고 B를 배포합니다.
+6. V25 성공 이력·컬럼 삭제·세션 생성/조회·health·사후 백업을 확인합니다. V25 이후 정상 재배포할 복구 JAR은 컬럼을 읽지 않는 코드와 원본 V25를 함께 포함해야 합니다. A JAR은 V25 누락 검사로 정상 재배포가 거부됩니다. 구 운영 e335ac 버전은 삭제된 컬럼을 읽으므로 복구 대상으로 쓰지 않습니다.
+
+검증용 로컬 `bootRun`/`db`는 V25를 적용합니다. 운영 호환성 점검에는 실행 JAR을 사용합니다. 1차·2차를 한 번에 배포하면 선배포 목적을 달성하지 못합니다.

@@ -68,6 +68,18 @@ eolssu:
     access-key-id: ${RECORDING_STORAGE_ACCESS_KEY_ID:}
     secret-access-key: ${RECORDING_STORAGE_SECRET_ACCESS_KEY:}
     region: ${RECORDING_STORAGE_REGION:auto}
+  # 내 악보 원본·음원 비공개 저장소(S15P31E102-471·481). 녹음 버킷(30일 수명 주기)과 다른 버킷·키를 쓴다.
+  # 값이 하나라도 비면 불러오기(SHT-07)는 503 CONVERSION_UNAVAILABLE이다. local은 개발·테스트용 디렉터리 저장소다.
+  sheet-conversion:
+    omr-base-url: ${SHEET_CONVERSION_OMR_BASE_URL:}
+  sheet-storage:
+    type: ${SHEET_STORAGE_TYPE:s3}
+    local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}
+    endpoint: ${SHEET_STORAGE_ENDPOINT:}
+    bucket: ${SHEET_STORAGE_BUCKET:}
+    access-key-id: ${SHEET_STORAGE_ACCESS_KEY_ID:}
+    secret-access-key: ${SHEET_STORAGE_SECRET_ACCESS_KEY:}
+    region: ${SHEET_STORAGE_REGION:auto}
   # 영구 학습 음원의 읽기 전용 서명 설정. 사용자 녹음 저장/삭제 정책과 별개다.
   reference-audio-storage:
     endpoint: ${REFERENCE_AUDIO_STORAGE_ENDPOINT:}

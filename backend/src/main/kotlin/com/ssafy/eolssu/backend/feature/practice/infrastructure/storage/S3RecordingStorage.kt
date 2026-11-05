@@ -1,51 +1,26 @@
 package com.ssafy.eolssu.backend.feature.practice.infrastructure.storage
 
+import com.ssafy.eolssu.backend.common.storage.S3ObjectStore
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorageException
-import java.net.URI
 import java.nio.file.Path
 import java.time.Duration
 import org.springframework.boot.context.properties.ConfigurationProperties
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-import software.amazon.awssdk.core.checksums.RequestChecksumCalculation
-import software.amazon.awssdk.core.checksums.ResponseChecksumValidation
 import software.amazon.awssdk.core.exception.SdkException
-import software.amazon.awssdk.core.sync.RequestBody
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.S3Configuration
-import software.amazon.awssdk.services.s3.presigner.S3Presigner
 
-/**
- * S3 호환 저장소. 업체 전용 기능 없이 엔드포인트·키 설정만으로 바꿀 수 있게 표준 S3 API만 쓴다(처음 쓰는 업체는 Cloudflare R2).
- * 예외 메시지에 서명 URL·키를 싣지 않는다.
- */
-class S3RecordingStorage(
-    private val client: S3Client,
-    private val presigner: S3Presigner,
-    private val bucket: String,
-) : RecordingStorage, AutoCloseable {
+/** 녹음 원본 저장소(PRA-02). 버킷 접근은 [S3ObjectStore]가 하고, 여기서는 녹음 형식과 예외만 정한다. */
+class S3RecordingStorage(private val store: S3ObjectStore) : RecordingStorage, AutoCloseable {
     override fun put(key: String, file: Path) {
-        storageCall("put") {
-            client.putObject({ it.bucket(bucket).key(key).contentType(CONTENT_TYPE) }, RequestBody.fromFile(file))
-        }
+        storageCall("put") { store.put(key, file, CONTENT_TYPE) }
     }
 
     override fun delete(key: String) {
-        storageCall("delete") { client.deleteObject { it.bucket(bucket).key(key) } }
+        storageCall("delete") { store.delete(key) }
     }
 
-    // 서명은 로컬 계산이라 네트워크를 쓰지 않는다. R2의 서명 URL은 S3 API 도메인에서만 동작한다.
-    override fun readUrl(key: String, ttl: Duration): String =
-        presigner.presignGetObject { it.signatureDuration(ttl).getObjectRequest { request -> request.bucket(bucket).key(key) } }
-            .url().toString()
+    override fun readUrl(key: String, ttl: Duration): String = store.readUrl(key, ttl)
 
-    // Spring이 빈을 내릴 때 부른다. 연결 풀 스레드를 정리한다.
-    override fun close() {
-        client.close()
-        presigner.close()
-    }
+    override fun close() = store.close()
 
     private fun storageCall(operation: String, call: () -> Unit) {
         try {
@@ -64,33 +39,12 @@ class S3RecordingStorage(
          */
         val CALL_TIMEOUT: Duration = Duration.ofSeconds(40)
 
-        fun create(properties: RecordingStorageProperties, maxAttempts: Int = 3, callTimeout: Duration = CALL_TIMEOUT): S3RecordingStorage {
-            val endpoint = URI(properties.endpoint)
-            val region = Region.of(properties.region)
-            val credentials = StaticCredentialsProvider.create(AwsBasicCredentials.create(properties.accessKeyId, properties.secretAccessKey))
-            // 경로 방식(엔드포인트/버킷/키)은 R2와 다른 S3 호환 업체가 모두 받는다.
-            val s3Configuration = S3Configuration.builder().pathStyleAccessEnabled(true).build()
-            val client = S3Client.builder()
-                .endpointOverride(endpoint)
-                .region(region)
-                .credentialsProvider(credentials)
-                .serviceConfiguration(s3Configuration)
-                // SDK 기본값(모든 요청에 CRC 체크섬)은 S3 호환 업체마다 지원이 달라, 필요한 요청에만 쓴다.
-                .requestChecksumCalculation(RequestChecksumCalculation.WHEN_REQUIRED)
-                .responseChecksumValidation(ResponseChecksumValidation.WHEN_REQUIRED)
-                .overrideConfiguration {
-                    it.retryStrategy { retry -> retry.maxAttempts(maxAttempts) }
-                    it.apiCallTimeout(callTimeout)
-                }
-                .build()
-            val presigner = S3Presigner.builder()
-                .endpointOverride(endpoint)
-                .region(region)
-                .credentialsProvider(credentials)
-                .serviceConfiguration(s3Configuration)
-                .build()
-            return S3RecordingStorage(client, presigner, properties.bucket)
-        }
+        fun create(properties: RecordingStorageProperties, maxAttempts: Int = 3, callTimeout: Duration = CALL_TIMEOUT) = S3RecordingStorage(
+            S3ObjectStore.create(
+                properties.endpoint, properties.region, properties.accessKeyId, properties.secretAccessKey, properties.bucket,
+                maxAttempts, callTimeout,
+            ),
+        )
     }
 }
 
