@@ -1,0 +1,414 @@
+{
+  "captured_at_utc": "2026-11-05T03:42:38.626254+00:00",
+  "method": "Existing completed build.xml and Pipeline Graph View top-level stage records; no build triggered. pre_stage_s includes agent allocation and Pipeline initialization. Nested parallel stages are not summed.",
+  "builds": [
+    {
+      "job": "eolssu-backend",
+      "number": 257,
+      "result": "SUCCESS",
+      "run_start_ms": 1793845081283,
+      "first_stage_ms": 1793845094191,
+      "last_stage_end_ms": 1793845775076,
+      "run_end_ms": 1793845775337,
+      "total_s": 694.054,
+      "pre_stage_s": 12.908,
+      "stage_span_s": 680.885,
+      "stage_sum_s": 679.682,
+      "post_stage_s": 0.261,
+      "executor_wait_log_present": false,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 8,
+      "docker_bootjar_build_observed": true,
+      "top_stages": [
+        {
+          "id": "97",
+          "name": "Build backend image",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845509296,
+          "duration_s": 141.854
+        },
+        {
+          "id": "107",
+          "name": "Deploy backend transaction",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845660282,
+          "duration_s": 114.326
+        },
+        {
+          "id": "49",
+          "name": "Backend unit tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845305269,
+          "duration_s": 112.962
+        },
+        {
+          "id": "40",
+          "name": "Compile backend tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845205753,
+          "duration_s": 99.45
+        },
+        {
+          "id": "31",
+          "name": "Compile backend",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845133422,
+          "duration_s": 72.264
+        }
+      ]
+    },
+    {
+      "job": "eolssu-backend",
+      "number": 258,
+      "result": "SUCCESS",
+      "run_start_ms": 1793845775405,
+      "first_stage_ms": 1793845776041,
+      "last_stage_end_ms": 1793846208835,
+      "run_end_ms": 1793846209127,
+      "total_s": 433.722,
+      "pre_stage_s": 0.636,
+      "stage_span_s": 432.794,
+      "stage_sum_s": 431.64,
+      "post_stage_s": 0.292,
+      "executor_wait_log_present": false,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 7,
+      "docker_bootjar_build_observed": false,
+      "top_stages": [
+        {
+          "id": "107",
+          "name": "Deploy backend transaction",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846109491,
+          "duration_s": 98.867
+        },
+        {
+          "id": "40",
+          "name": "Compile backend tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845869514,
+          "duration_s": 84.107
+        },
+        {
+          "id": "49",
+          "name": "Backend unit tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845953694,
+          "duration_s": 79.553
+        },
+        {
+          "id": "31",
+          "name": "Compile backend",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793845792365,
+          "duration_s": 77.083
+        },
+        {
+          "id": "59",
+          "name": "Recording media tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846033318,
+          "duration_s": 25.007
+        }
+      ]
+    },
+    {
+      "job": "eolssu-backend",
+      "number": 259,
+      "result": "SUCCESS",
+      "run_start_ms": 1793846701299,
+      "first_stage_ms": 1793847555244,
+      "last_stage_end_ms": 1793848295046,
+      "run_end_ms": 1793848295409,
+      "total_s": 1594.11,
+      "pre_stage_s": 853.945,
+      "stage_span_s": 739.802,
+      "stage_sum_s": 738.401,
+      "post_stage_s": 0.363,
+      "executor_wait_log_present": true,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 8,
+      "docker_bootjar_build_observed": true,
+      "top_stages": [
+        {
+          "id": "107",
+          "name": "Deploy backend transaction",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848150142,
+          "duration_s": 144.431
+        },
+        {
+          "id": "49",
+          "name": "Backend unit tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847790100,
+          "duration_s": 138.956
+        },
+        {
+          "id": "97",
+          "name": "Build backend image",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848017912,
+          "duration_s": 123.479
+        },
+        {
+          "id": "40",
+          "name": "Compile backend tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847677668,
+          "duration_s": 112.336
+        },
+        {
+          "id": "31",
+          "name": "Compile backend",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847574233,
+          "duration_s": 103.364
+        }
+      ]
+    },
+    {
+      "job": "eolssu-frontend",
+      "number": 185,
+      "result": "FAILURE",
+      "run_start_ms": 1793845783967,
+      "first_stage_ms": 1793846612534,
+      "last_stage_end_ms": 1793847397535,
+      "run_end_ms": 1793847397925,
+      "total_s": 1613.958,
+      "pre_stage_s": 828.567,
+      "stage_span_s": 785.001,
+      "stage_sum_s": 783.308,
+      "post_stage_s": 0.39,
+      "executor_wait_log_present": true,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 6,
+      "docker_bootjar_build_observed": false,
+      "top_stages": [
+        {
+          "id": "82",
+          "name": "Compile JavaScript",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846985561,
+          "duration_s": 176.522
+        },
+        {
+          "id": "100",
+          "name": "JavaScript browser tests",
+          "state": "failure",
+          "agent": "edo1-host",
+          "start_ms": 1793847257664,
+          "duration_s": 138.783
+        },
+        {
+          "id": "72",
+          "name": "Wasm browser tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846853771,
+          "duration_s": 131.699
+        },
+        {
+          "id": "54",
+          "name": "Compile Wasm app",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846631284,
+          "duration_s": 127.135
+        },
+        {
+          "id": "91",
+          "name": "Compile JavaScript tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847162236,
+          "duration_s": 95.347
+        }
+      ]
+    },
+    {
+      "job": "eolssu-frontend",
+      "number": 186,
+      "result": "ABORTED",
+      "run_start_ms": 1793847397991,
+      "first_stage_ms": 1793848373927,
+      "last_stage_end_ms": 1793849579851,
+      "run_end_ms": 1793849580339,
+      "total_s": 2182.348,
+      "pre_stage_s": 975.936,
+      "stage_span_s": 1205.924,
+      "stage_sum_s": 1204.449,
+      "post_stage_s": 0.488,
+      "executor_wait_log_present": true,
+      "timeout_log_present": true,
+      "single_use_daemon_messages": 8,
+      "docker_bootjar_build_observed": false,
+      "top_stages": [
+        {
+          "id": "119",
+          "name": "Optimize production Wasm",
+          "state": "aborted",
+          "agent": "edo1-host",
+          "start_ms": 1793848766507,
+          "duration_s": 812.672
+        },
+        {
+          "id": "110",
+          "name": "Compile production Wasm",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848627295,
+          "duration_s": 139.138
+        },
+        {
+          "id": "100",
+          "name": "JavaScript browser tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848566458,
+          "duration_s": 60.761
+        },
+        {
+          "id": "91",
+          "name": "Compile JavaScript tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848510342,
+          "duration_s": 56.044
+        },
+        {
+          "id": "63",
+          "name": "Compile Wasm tests",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793848402445,
+          "duration_s": 52.628
+        }
+      ]
+    },
+    {
+      "job": "eolssu-android-qa",
+      "number": 95,
+      "result": "SUCCESS",
+      "run_start_ms": 1793845783968,
+      "first_stage_ms": 1793846209120,
+      "last_stage_end_ms": 1793846612217,
+      "run_end_ms": 1793846612426,
+      "total_s": 828.458,
+      "pre_stage_s": 425.152,
+      "stage_span_s": 403.097,
+      "stage_sum_s": 403.03,
+      "post_stage_s": 0.209,
+      "executor_wait_log_present": true,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 1,
+      "docker_bootjar_build_observed": false,
+      "top_stages": [
+        {
+          "id": "20",
+          "name": "Build tested APK and preserve archive",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846210460,
+          "duration_s": 401.757
+        },
+        {
+          "id": "10",
+          "name": "Checkout develop revision",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793846209120,
+          "duration_s": 1.273
+        }
+      ]
+    },
+    {
+      "job": "eolssu-android-qa",
+      "number": 96,
+      "result": "SUCCESS",
+      "run_start_ms": 1793846612481,
+      "first_stage_ms": 1793847397993,
+      "last_stage_end_ms": 1793847554967,
+      "run_end_ms": 1793847555193,
+      "total_s": 942.712,
+      "pre_stage_s": 785.512,
+      "stage_span_s": 156.974,
+      "stage_sum_s": 156.901,
+      "post_stage_s": 0.226,
+      "executor_wait_log_present": true,
+      "timeout_log_present": false,
+      "single_use_daemon_messages": 1,
+      "docker_bootjar_build_observed": false,
+      "top_stages": [
+        {
+          "id": "20",
+          "name": "Build tested APK and preserve archive",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847399280,
+          "duration_s": 155.687
+        },
+        {
+          "id": "10",
+          "name": "Checkout develop revision",
+          "state": "success",
+          "agent": "edo1-host",
+          "start_ms": 1793847397993,
+          "duration_s": 1.214
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "mac-ios",
+      "executors": 1,
+      "mode": "EXCLUSIVE",
+      "labels": "macos ios"
+    },
+    {
+      "name": "edo1-host",
+      "executors": 1,
+      "mode": "NORMAL",
+      "labels": "edo1 linux docker"
+    }
+  ],
+  "installed_pipelines": [
+    {
+      "job": "eolssu-backend",
+      "sha256": "41b9718e0ef560209e27d4cce12c99196ec8d841c241aa4528e73beab9ec8147",
+      "gradle_calls": 7,
+      "no_daemon": 7,
+      "top_agent": "any",
+      "timeout_minutes": 20,
+      "downstream_wait_false_count": 3
+    },
+    {
+      "job": "eolssu-frontend",
+      "sha256": "2e9f141f0fd202c5bd5c411bf8483cde902268125d5b80322120478fe8bc453f",
+      "gradle_calls": 10,
+      "no_daemon": 10,
+      "top_agent": "any",
+      "timeout_minutes": 20,
+      "downstream_wait_false_count": 0
+    }
+  ],
+  "controller_executors": 0,
+  "host_cpu_count": 4
+}
