@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import com.ssafy.eolssu.data.user.MemberResult
 import eolssu.shared.generated.resources.member_api_unavailable
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalUriHandler
 import eolssu.shared.generated.resources.legal_open_failed
@@ -48,8 +49,9 @@ fun MyPageRoute(
     val loadingProfile by viewModel.loadingProfile.collectAsStateWithLifecycle()
     val progressRepository = koinInject<LearnProgressRepository>()
     val progressRevision by progressRepository.saves.collectAsStateWithLifecycle()
-    val learningProgress = remember(instrument, progressRepository, progressRevision) {
-        instrument?.let { myLearningProgress(it, progressRepository) }
+    // 학습 진도는 서버에서 받는다. 악기·완료 표시가 바뀌면 다시 받고, 받는 동안·받지 못하면 진도 칸을 비워 둔다.
+    val learningProgress by produceState<MyLearningProgress?>(null, instrument, progressRepository, progressRevision) {
+        value = instrument?.let { myLearningProgress(it, progressRepository) }
     }
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

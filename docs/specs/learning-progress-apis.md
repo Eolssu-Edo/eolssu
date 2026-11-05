@@ -85,7 +85,7 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 | completedAt | 완료 시각, 해제하면 null |
 | completedCount, nextLessonId | 그 단계 트랙 기준으로 LRN-01과 같은 규칙 |
 
-같은 회원이 같은 단계에 동시에 true를 보내도 완료 기록은 하나이고 시각은 먼저 저장된 값이다. 일괄 동기화 API는 두지 않는다. 기기에 남은 기존 표시를 올릴지는 S15P31E102-370이 정한다.
+같은 회원이 같은 단계에 동시에 true를 보내도 완료 기록은 하나이고 시각은 먼저 저장된 값이다. 일괄 동기화 API는 두지 않는다. 기기에 남은 기존 표시는 앱(S15P31E102-370)이 그 트랙을 처음 불러올 때 단계마다 LRN-03 true로 올리고, 올린 단계는 기기에서 지운다(실패한 단계만 남겨 다음에 다시 올림). 회원을 가리지 않던 예전 공용 표시는 올리지 않는다.
 
 ## 데이터
 
@@ -103,7 +103,7 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 - `thumbnailUrl`을 뺐다. 카드 그림은 앱에 든 9장을 단계 번호로 쓴다.
 - LRN-02 `songIds`를 `songs[{title, meta}]`로 바꾸고 `pitchNote`·`parts`·`ranges`를 더했다. 앱 단계 화면이 트랙별로 쓰는 내용이다.
 - LRN-01 규칙 4(1차 포함 여부)는 1차 포함, LRN-02 규칙 3(문구 위치)은 서버 보관, LRN-03 규칙 3(자동 판정)은 사용자 표시만으로 정했다.
-- 노션 명세 갱신과 S15P31E102-370 범위 갱신(앱이 LRN-02 문구를 쓰고 `LearnCurriculum.kt` 문구를 지움)이 남아 있다.
+- 노션 명세 갱신이 남아 있다. S15P31E102-370에서 앱이 LRN-02 문구를 쓰고 `LearnCurriculum.kt` 문구를 지웠다.
 
 ## 범위 밖
 
@@ -127,5 +127,5 @@ Body `{"completed": true}` 또는 `{"completed": false}`. completed는 JSON bool
 
 ## 열린 항목
 
-- pitchNames·firstPitch는 앱 운지표와 같은 율명 한자를 쓴다. 서버 율명 테이블(CAT-06)은 단소만 있어 대조하지 않는다. 370 착수 때 앱 표기와 맞는지 확인한다. 앱은 운지표에 없는 율명을 화면에서 조용히 숨기므로 문구를 고칠 때도 앱 운지표에 있는 율명만 쓴다.
+- pitchNames·firstPitch는 앱 운지표와 같은 율명 한자를 쓴다. 서버 율명 테이블(CAT-06)은 단소만 있어 대조하지 않는다. 370에서 운영 API의 네 트랙 3·4·5·6·8단계 율명이 앱 운지표 검사를 통과하던 이전 앱 고정본과 같음을 확인했다(2026-11-05). 앱은 운지표에 없는 율명을 화면에서 조용히 숨기므로 문구를 고칠 때도 앱 운지표에 있는 율명만 쓴다.
 - `strings.xml`에 남는 단계별 안내 문장을 서버로 옮길지(content_json 필드 추가, 기존 앱과 호환)는 정하지 않았다.

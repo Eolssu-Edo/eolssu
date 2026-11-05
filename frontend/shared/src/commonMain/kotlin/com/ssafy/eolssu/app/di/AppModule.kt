@@ -47,7 +47,9 @@ import com.ssafy.eolssu.data.user.ApiAuthRepository
 import com.ssafy.eolssu.data.user.AuthRepository
 import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.HttpLessonApi
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.OAuthRedirect
 import com.ssafy.eolssu.data.user.OAuthRoute
@@ -157,7 +159,8 @@ val appModule = module {
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }
-    single { LearnProgressRepository(get(), get()) }
+    single<LessonApi> { HttpLessonApi(get(), get()) }
+    single { LearnProgressRepository(get(), get(), get()) }
     single<AuthRepository> { ApiAuthRepository(get(), getOrNull(), get(), get(), getOrNull<OAuthRoute>() ?: OAuthRedirect) }
     single { AccountDraft() }
     single { TermsRepository(get()) }

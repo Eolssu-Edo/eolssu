@@ -60,6 +60,7 @@ import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.label
 import com.ssafy.eolssu.core.model.fingering.label
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.learn_detail_failed
 import eolssu.shared.generated.resources.learn_first_sound_note
 import eolssu.shared.generated.resources.learn_practice_badge_listening
 import eolssu.shared.generated.resources.learn_practice_badge_passed
@@ -102,6 +103,8 @@ class LearnPracticeActions(
     val onRestart: () -> Unit,
     val onComplete: () -> Unit,
     val onOpenSettings: () -> Unit,
+    /** 단계 내용을 받지 못했을 때 '다시 시도'. */
+    val onRetryDetail: () -> Unit = {},
 )
 
 /**
@@ -113,6 +116,7 @@ class LearnPracticeActions(
 fun LearnPracticeScreen(
     state: LearnPracticeUiState,
     stage: LearnStage,
+    detail: LearnDetailLoad,
     instrument: GuideInstrument,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -142,9 +146,15 @@ fun LearnPracticeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(PaddingValues(start = side, end = side, bottom = 24.dp)),
         ) {
-            stage.pass?.let { PassCard(stage, it) }
+            // 듣기 판은 단계 내용 없이도 쓸 수 있어, 내용을 받는 중·실패여도 그대로 둔다.
+            val loaded = (detail as? LearnDetailLoad.Loaded)?.detail
+            loaded?.pass?.let { PassCard(stage, it) }
             ListenPanel(state)
-            PracticeMaterial(stage, instrument, judgesBySound = state.judgesBySound, micUsable = state.mic != LearnMicStatus.Unsupported)
+            if (loaded != null) {
+                PracticeMaterial(stage, loaded, instrument, judgesBySound = state.judgesBySound, micUsable = state.mic != LearnMicStatus.Unsupported)
+            } else {
+                LearnLoadStatus(failed = detail == LearnDetailLoad.Failed, failedMessage = Res.string.learn_detail_failed, onRetry = actions.onRetryDetail)
+            }
         }
     }
 }
@@ -384,20 +394,19 @@ private fun PassedMessage() {
  * 마이크를 쓸 수 없는 기기([micUsable]이 false)는 듣기 판이 이미 스스로 확인하라고 알려 판정·녹음 안내를 되풀이하지 않는다.
  */
 @Composable
-private fun PracticeMaterial(stage: LearnStage, instrument: GuideInstrument, judgesBySound: Boolean, micUsable: Boolean) {
-    val content = instrument.learnContent
+private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instrument: GuideInstrument, judgesBySound: Boolean, micUsable: Boolean) {
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     when (stage.number) {
         3 -> {
-            LearnSection(stringResource(Res.string.learn_practice_section_how)) { LearnTaskList(stage.tasks) }
-            noteOf(content.basic.first())?.let { first ->
+            LearnSection(stringResource(Res.string.learn_practice_section_how)) { LearnTaskList(detail.tasks) }
+            detail.pitchNames.firstOrNull()?.let(noteOf)?.let { first ->
                 LearnNote(stringResource(Res.string.learn_first_sound_note, first.name, first.reading), Modifier.padding(bottom = 16.dp))
             }
         }
         4 -> LearnSection(stringResource(Res.string.learn_practice_section_notes)) {
             LearnPatternBox {
-                NoteChips(content.basic.mapNotNull(noteOf))
-                LearnSmallNote(content.basicNote)
+                NoteChips(detail.pitchNames.mapNotNull(noteOf))
+                detail.pitchNote?.let { LearnSmallNote(it) }
             }
         }
         5 -> LearnSection(stringResource(Res.string.learn_practice_section_notes)) {
@@ -408,14 +417,14 @@ private fun PracticeMaterial(stage: LearnStage, instrument: GuideInstrument, jud
                             stringResource(pattern.label),
                             style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                         )
-                        NoteChips(pattern.notes(content.scale).mapNotNull(noteOf))
+                        NoteChips(pattern.notes(detail.pitchNames).mapNotNull(noteOf))
                     }
                 }
             }
         }
         6 -> LearnSection(stringResource(Res.string.learn_practice_section_notes)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                content.ranges.forEach { range ->
+                detail.ranges.forEach { range ->
                     LearnPatternBox {
                         Text(range.label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
                         NoteChips(listOfNotNull(noteOf(range.first)))
@@ -424,7 +433,7 @@ private fun PracticeMaterial(stage: LearnStage, instrument: GuideInstrument, jud
                 }
             }
         }
-        else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(stage.tasks) }
+        else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(detail.tasks) }
     }
     if (!micUsable) return
     if (!judgesBySound) LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 16.dp))

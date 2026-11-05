@@ -82,6 +82,7 @@ import eolssu.shared.generated.resources.learn_borrow_length
 import eolssu.shared.generated.resources.learn_borrow_order
 import eolssu.shared.generated.resources.learn_borrow_sigimsae
 import eolssu.shared.generated.resources.learn_confirm_next
+import eolssu.shared.generated.resources.learn_detail_failed
 import eolssu.shared.generated.resources.learn_first_sound_note
 import eolssu.shared.generated.resources.learn_goal
 import eolssu.shared.generated.resources.learn_hint_listen
@@ -157,6 +158,8 @@ class LearnStageActions(
     val onOpenReading: (ReadingPage) -> Unit,
     val onOpenSong: (LearnSong) -> Unit,
     val onRetrySongs: () -> Unit = {},
+    /** 단계 내용을 받지 못했을 때 '다시 시도'. */
+    val onRetryDetail: (Int) -> Unit = {},
 )
 
 /**
@@ -239,21 +242,31 @@ internal fun LearnStageContent(
             .verticalScroll(scrollState)
             .padding(contentPadding),
     ) {
-        GoalCard(stage)
-        StageBody(state, stage, actions, columns, noteAudioContent)
-        stage.pass?.let { PassSection(stage, it) }
-        // 바로 위 묶음의 아래 여백(16dp)이 와이어프레임의 위 여백(14dp)과 겹쳐 따로 띄우지 않는다.
-        Text(
-            stringResource(Res.string.learn_source, stage.source),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
-        StageNav(stage, actions.onOpenStage)
+        when (val load = state.detail(stage.number)) {
+            is LearnDetailLoad.Loaded -> {
+                val detail = load.detail
+                GoalCard(stage, detail)
+                StageBody(state, stage, detail, actions, columns, noteAudioContent)
+                detail.pass?.let { PassSection(stage, it) }
+                // 바로 위 묶음의 아래 여백(16dp)이 와이어프레임의 위 여백(14dp)과 겹쳐 따로 띄우지 않는다.
+                Text(
+                    stringResource(Res.string.learn_source, detail.source),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
+                    color = EolssuTheme.colors.textMuted,
+                )
+            }
+            else -> LearnLoadStatus(
+                failed = load == LearnDetailLoad.Failed,
+                failedMessage = Res.string.learn_detail_failed,
+                onRetry = { actions.onRetryDetail(stage.number) },
+            )
+        }
+        StageNav(stage, state, actions.onOpenStage)
     }
 }
 
 @Composable
-private fun GoalCard(stage: LearnStage) {
+private fun GoalCard(stage: LearnStage, detail: LearnStageDetail) {
     val colors = EolssuTheme.colors
     Column(
         Modifier
@@ -268,9 +281,9 @@ private fun GoalCard(stage: LearnStage) {
             JudgeTag(stringResource(stage.judge.label), stage.judge)
         }
         // `.lp-goal p`: 본문 글꼴 굵게 16(제목 글꼴 아님)
-        Text(stage.goal, style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold))
+        Text(detail.goal, style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold))
         Text(
-            stage.why,
+            detail.why,
             Modifier.padding(top = 8.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
             color = colors.textMuted,
@@ -282,12 +295,12 @@ private fun GoalCard(stage: LearnStage) {
 private fun StageBody(
     state: LearnUiState,
     stage: LearnStage,
+    detail: LearnStageDetail,
     actions: LearnStageActions,
     columns: LearnStageColumns,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val instrument = state.instrument
-    val content = instrument.learnContent
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     val tasksTitle = stringResource(Res.string.learn_section_tasks)
     val fingeringMore: @Composable (StringResource, Blow) -> Unit = { label, blow ->
@@ -299,16 +312,15 @@ private fun StageBody(
     when (stage.number) {
         1 -> {
             LearnSection(stringResource(Res.string.learn_section_inspect), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
-                InstrumentFigure(instrument, content.parts, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
+                InstrumentFigure(instrument, detail.parts, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
             }
-            LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
         }
-        2 -> LearnSection(tasksTitle) {
-            LearnTaskList(stage.tasks.map { if (it.title == HOLD_TASK_TITLE) it.copy(detail = content.hold) else it }, grid)
-        }
+        // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다.
+        2 -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
         3 -> {
-            LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
-            val first = noteOf(content.basic.first())
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
+            val first = detail.pitchNames.firstOrNull()?.let(noteOf)
             if (first != null) {
                 LearnSection(stringResource(Res.string.learn_section_first_sound)) {
                     LearnNote(stringResource(Res.string.learn_first_sound_note, first.name, first.reading))
@@ -316,8 +328,8 @@ private fun StageBody(
             }
         }
         4 -> {
-            val first = noteOf(content.basic[0])
-            val second = noteOf(content.basic[1])
+            val first = detail.pitchNames.getOrNull(0)?.let(noteOf)
+            val second = detail.pitchNames.getOrNull(1)?.let(noteOf)
             LearnSection(stringResource(Res.string.learn_section_new_notes), more = { fingeringMore(Res.string.learn_more_fingering_detail, Blow.Mid) }) {
                 GuideGrid(listOfNotNull(first, second), grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, note, cell ->
                     NoteCard(instrument, note, noteAudioContent, cell)
@@ -325,8 +337,8 @@ private fun StageBody(
             }
             LearnSection(stringResource(Res.string.learn_section_order)) {
                 LearnPatternBox {
-                    NoteChips(content.basic.mapNotNull(noteOf))
-                    LearnNote(content.basicNote, caution = content.basicCaution?.let { "※ $it" })
+                    NoteChips(detail.pitchNames.mapNotNull(noteOf))
+                    detail.pitchNote?.let { LearnNote(it, caution = detail.pitchCaution?.let { caution -> "※ $caution" }) }
                 }
             }
             if (first != null && second != null) {
@@ -347,14 +359,14 @@ private fun StageBody(
                 LearnPattern.entries.forEach { pattern ->
                     LearnPatternBox {
                         PatternName(stringResource(pattern.label), pattern.note?.let { stringResource(it) })
-                        NoteChips(pattern.notes(content.scale).mapNotNull(noteOf))
+                        NoteChips(pattern.notes(detail.pitchNames).mapNotNull(noteOf))
                     }
                 }
             }
         }
         6 -> {
             LearnSection(stringResource(Res.string.learn_section_range)) {
-                GuideGrid(content.ranges, grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, range, cell ->
+                GuideGrid(detail.ranges, grid, horizontalGap = 12.dp, verticalGap = 10.dp, stretch = false) { _, range, cell ->
                     val first = noteOf(range.first)
                     LearnPatternBox(cell) {
                         PatternName(range.label, range.description)
@@ -371,7 +383,7 @@ private fun StageBody(
             }
             LearnSection(tasksTitle) {
                 LearnTaskList(
-                    content.ranges.flatMap { range ->
+                    detail.ranges.flatMap { range ->
                         val blowName = blowShortLabel(range.label)
                         val name = noteOf(range.first)?.name ?: range.first
                         listOf(
@@ -384,7 +396,7 @@ private fun StageBody(
             }
         }
         7 -> {
-            LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
             LearnSection(stringResource(Res.string.learn_section_beat), more = readingMore(ReadingPage.Length)) {
                 BorrowCard(stringResource(Res.string.learn_borrow_length)) { LengthRow() }
             }
@@ -395,7 +407,7 @@ private fun StageBody(
             }
             LearnSection(stringResource(Res.string.learn_section_scale), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
                 LearnPatternBox {
-                    NoteChips(content.scale.mapNotNull(noteOf))
+                    NoteChips(detail.pitchNames.mapNotNull(noteOf))
                     LearnSmallNote(stringResource(Res.string.learn_scale_note))
                 }
             }
@@ -406,16 +418,16 @@ private fun StageBody(
                         Text(stringResource(Res.string.catalog_consumer_failed))
                         EolssuButton(stringResource(Res.string.catalog_consumer_retry), actions.onRetrySongs)
                     }
-                    else -> GuideGrid(LearnSongs, columns.songs, horizontalGap = 8.dp, verticalGap = if (columns.wide) 8.dp else 6.dp) { _, song, cell ->
+                    else -> GuideGrid(detail.songs, columns.songs, horizontalGap = 8.dp, verticalGap = if (columns.wide) 8.dp else 6.dp) { _, song, cell ->
                         SongRow(song, cell) { actions.onOpenSong(song) }
                     }
                 }
                 LearnSmallNote(stringResource(Res.string.learn_songs_note), Modifier.padding(top = 8.dp))
             }
-            LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
         }
         9 -> {
-            LearnSection(tasksTitle) { LearnTaskList(stage.tasks, grid) }
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
             LearnSection(stringResource(Res.string.learn_section_sigimsae), more = readingMore(ReadingPage.Sigimsae)) {
                 BorrowCard(stringResource(Res.string.learn_borrow_sigimsae, MoreSigimsaeCount)) { SigimsaeBasicBlock(columns = columns.sigimsae) }
             }
@@ -553,9 +565,9 @@ private fun PassSection(stage: LearnStage, pass: LearnPass) {
 
 /** 이전·다음 단계 버튼(`.lp-nav`). 처음·마지막에서는 흐리게 막는다. */
 @Composable
-private fun StageNav(stage: LearnStage, onOpenStage: (Int) -> Unit) {
-    val prev = learnStageOf(stage.number - 1)
-    val next = learnStageOf(stage.number + 1)
+private fun StageNav(stage: LearnStage, state: LearnUiState, onOpenStage: (Int) -> Unit) {
+    val prev = state.stageOf(stage.number - 1)
+    val next = state.stageOf(stage.number + 1)
     // 버튼마다 최대 절반 너비(와이어프레임 max-width 48%)이고 사이를 8dp 띄운다.
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         NavButton(
