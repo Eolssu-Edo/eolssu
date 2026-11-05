@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
+import uuid
 
 
 def digest(path):
@@ -39,17 +41,25 @@ def build_image(revision, libs, dockerfile, *, run=subprocess.run):
              '--label', 'org.opencontainers.image.revision=' + revision,
              '--label', 'com.eolssu.artifact.sha256=' + checksum,
              '--tag', image, str(context)], check=True)
-        container = run(['docker', 'create', '--network', 'none', image],
-                        check=True, text=True, capture_output=True).stdout.strip()
-        if not re.fullmatch('[0-9a-f]{64}', container):
-            raise ValueError('Docker did not return a verification container ID')
+        # Allocate the name before creation so an interrupted create can also be cleaned up.
+        container = 'eolssu-ci-verify-' + uuid.uuid4().hex
+        created = False
         try:
+            run(['docker', 'create', '--name', container, '--network', 'none',
+                 '--label', 'com.eolssu.ci.verification=backend-jar', image],
+                check=True, stdout=subprocess.DEVNULL)
+            created = True
             extracted = root / 'image.jar'
             run(['docker', 'cp', container + ':/app/app.jar', str(extracted)], check=True)
             if digest(extracted) != checksum:
                 raise ValueError('Image JAR does not match the tested artifact')
         finally:
-            run(['docker', 'rm', container], check=True)
+            # Defer a first SIGTERM arriving during removal, including for its child process.
+            previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGTERM})
+            try:
+                run(['docker', 'rm', container], check=created, capture_output=not created, timeout=10)
+            finally:
+                signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
     return {'image': image, 'jar': jars[0].name, 'jar_sha256': checksum}
 
 
@@ -60,9 +70,15 @@ def main():
     parser.add_argument('--dockerfile', type=Path,
                         default=Path(__file__).with_name('backend-artifact.Dockerfile'))
     args = parser.parse_args()
+
+    def terminate(signum, _frame):
+        signal.signal(signum, signal.SIG_IGN)
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, terminate)
     try:
         result = build_image(args.revision, args.libs, args.dockerfile)
-    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + '\n')
     print(json.dumps(result))
 

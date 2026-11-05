@@ -80,7 +80,8 @@ stage 경과에는 stage 사이 전환 비용이 포함된다. 중첩·병렬 �
 | 변경 이미지 runtime | `10001:10001`, `/app`, `java -jar /app/app.jar`, revision·artifact hash label 및 ffprobe 8.0.1 확인 | 앱 서버를 실행하거나 DB에 연결하지 않음 |
 | 실제 Gradle 9.5.1 fixture, 3쌍 교차 실행 | no-daemon PID 3개, daemon PID 1개. 모든 입력 변경이 출력에 반영되고 설정 캐시 재사용 | 독립 home·256MiB heap·작은 Copy task. 전체 앱 CI 단축률은 아님 |
 | JVM 호출 시간 | no-daemon 14.426/15.686/14.387초, daemon 14.449/2.103/2.188초 | 첫 daemon 시작 비용은 남고, 다음 호출에서 JVM 재사용 확인 |
-| 기존 회귀·문법 | Jenkins 도구 56개, 배포 hook 3개, 실제 컨트롤러 linter의 Jenkinsfile 3개 통과 | 최초 sandbox 실행의 localhost bind 4개 오류는 권한을 허용한 동일 검사에서 해소 |
+| 중단 시 검증 자원 회수 | 실제 Docker `cp`·`rm` 각각 중단해 종료 코드 143, 검사용 컨테이너 0개, 임시 context 0개 확인 | SIGTERM 표본. SIGKILL·호스트 장애 즉시 회수는 보장하지 않음 |
+| 기존 회귀·문법 | 최종 Jenkins 도구 58개, 배포 hook 3개, 실제 컨트롤러 linter의 Jenkinsfile 3개 통과 | 최초 sandbox 실행의 localhost bind 4개 오류는 권한을 허용한 동일 검사에서 해소 |
 
 추가로 전체 5개 운영 잡에서 최근 10개씩을 직접 확인했다. backend #261은 전체 1958.645초 중 stage 이전 1520.983초, Android QA #98은 1942.958초 중 1723.618초, blog #25는 1926.677초 중 1916.194초였다. 실행 중인 frontend #188의 `wasm-opt` 3초 표본은 CPU 99.6%, RSS 920.6MiB였다. 실제 인자에는 `-O3` 네 번, `--gufa`, `--type-merging`, `-Oz`가 있었다. 특정 pass 시간은 분리하지 않았으며 최적화 수준을 바꾸지 않았다.
 

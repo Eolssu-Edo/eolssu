@@ -1,8 +1,11 @@
 """CI images must contain the tested artifact without a second compilation."""
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
+import selectors
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -25,6 +28,7 @@ class DockerBoundary:
         self.fail_copy = fail_copy
         self.calls = []
         self.context = None
+        self.container = None
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
@@ -33,6 +37,7 @@ class DockerBoundary:
             assert [p.name for p in self.context.iterdir()] == ['app.jar']
             assert (self.context / 'app.jar').read_bytes() == self.artifact
         elif args[:2] == ['docker', 'create']:
+            self.container = args[args.index('--name') + 1]
             return subprocess.CompletedProcess(args, 0, 'c' * 64 + '\n')
         elif args[:2] == ['docker', 'cp']:
             if self.fail_copy:
@@ -64,7 +69,7 @@ class BuildBackendImageTests(unittest.TestCase):
         self.assertEqual(result['jar_sha256'], hashlib.sha256(self.jar.read_bytes()).hexdigest())
         self.assertEqual(result['image'], 'eolssu-backend:ci-' + 'a' * 40)
         self.assertFalse(self.docker.context.exists())
-        self.assertIn(['docker', 'rm', 'c' * 64], self.docker.calls)
+        self.assertIn(['docker', 'rm', self.docker.container], self.docker.calls)
 
     def test_plain_only_missing_and_ambiguous_artifacts_fail_before_docker(self):
         self.jar.unlink()
@@ -95,15 +100,71 @@ class BuildBackendImageTests(unittest.TestCase):
         self.docker = DockerBoundary(extracted=b'recompiled different jar')
         with self.assertRaisesRegex(ValueError, 'does not match'):
             self.build()
-        self.assertIn(['docker', 'rm', 'c' * 64], self.docker.calls)
+        self.assertIn(['docker', 'rm', self.docker.container], self.docker.calls)
         self.assertFalse(self.docker.context.exists())
 
     def test_copy_failure_still_removes_verification_container(self):
         self.docker = DockerBoundary(fail_copy=True)
         with self.assertRaises(subprocess.CalledProcessError):
             self.build()
-        self.assertIn(['docker', 'rm', 'c' * 64], self.docker.calls)
+        self.assertIn(['docker', 'rm', self.docker.container], self.docker.calls)
         self.assertFalse(self.docker.context.exists())
+
+    def check_termination(self, pause_action):
+        executable = self.root / 'docker'
+        executable.write_text("""#!/usr/bin/env python3
+import os
+from pathlib import Path
+import sys
+
+action = sys.argv[1]
+state = Path(os.environ['VERIFY_STATE'])
+if action == os.environ['VERIFY_PAUSE_ACTION']:
+    print('VERIFY_ACTION_READY', flush=True)
+    sys.stdin.read()
+if action == 'create':
+    name = sys.argv[sys.argv.index('--name') + 1] if '--name' in sys.argv else 'c' * 64
+    state.write_text(name)
+    print('c' * 64)
+elif action == 'cp':
+    Path(sys.argv[-1]).write_bytes(b'tested executable jar')
+elif action == 'rm':
+    assert sys.argv[2] == state.read_text()
+    state.unlink()
+""")
+        executable.chmod(0o700)
+        state = self.root / 'verification-container'
+        env = dict(os.environ, PATH=str(self.root) + os.pathsep + os.environ['PATH'],
+                   VERIFY_STATE=str(state), VERIFY_PAUSE_ACTION=pause_action, TMPDIR=str(self.root))
+        process = subprocess.Popen([sys.executable, '-B', str(SCRIPT), 'a' * 40,
+                                    '--libs', str(self.libs), '--dockerfile', str(self.dockerfile)],
+                                   env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True)
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                self.assertTrue(selector.select(timeout=5), 'Docker verification did not start')
+                self.assertEqual(process.stdout.readline().strip(), 'VERIFY_ACTION_READY')
+            self.assertTrue(state.exists())
+            process.terminate()
+            if pause_action == 'rm':
+                with self.assertRaises(subprocess.TimeoutExpired):
+                    process.wait(timeout=0.5)
+            _, stderr = process.communicate(timeout=5)
+            self.assertFalse(state.exists(), 'SIGTERM left the verification container behind')
+            self.assertFalse(list(self.root.glob('eolssu-backend-image-*')))
+            self.assertEqual(process.returncode, 143, stderr)
+        finally:
+            if process.poll() is None:
+                process.kill()
+            if not process.stdout.closed:
+                process.communicate(timeout=5)
+
+    def test_termination_during_verification_cleans_up(self):
+        self.check_termination('cp')
+
+    def test_termination_during_removal_waits_for_cleanup(self):
+        self.check_termination('rm')
 
 
 if __name__ == '__main__':

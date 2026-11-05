@@ -66,6 +66,24 @@
     "daemon_median_s": 2.188,
     "scope": "Small fixture; not an application CI timing comparison."
   },
+  "termination_verification": [
+    {
+      "source_build": 261,
+      "interrupted_docker_action": "cp",
+      "real_container_before_sigterm": "eolssu-ci-verify-5f6f09890d784d789fee079f8db4d922 created",
+      "exit_after_sigterm": 143,
+      "verification_containers_after_sigterm": 0,
+      "temporary_contexts_after_sigterm": 0
+    },
+    {
+      "source_build": 261,
+      "interrupted_docker_action": "rm",
+      "real_container_before_sigterm": "eolssu-ci-verify-8957daccc1cc436e804c5b3ca5b948a4 created",
+      "exit_after_sigterm": 143,
+      "verification_containers_after_sigterm": 0,
+      "temporary_contexts_after_sigterm": 0
+    }
+  ],
   "limitations": [
     "Artifact image timing is one sample using an existing archived JAR; not a paired full-CI comparison.",
     "Gradle fixture uses an isolated home and 256MiB heap; application performance is unmeasured.",
