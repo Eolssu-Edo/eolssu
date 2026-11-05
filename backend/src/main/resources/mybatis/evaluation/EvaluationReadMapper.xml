@@ -4,12 +4,23 @@
     <select id="findOwned" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadRow">
         SELECT s.id AS session_id,s.song_id,s.score_version,s.bpm,s.bpm_unit,s.status,s.started_at,s.ended_at,s.recording_duration_ms,
                s.start_note_idx,s.end_note_idx,e.id AS evaluation_id,e.total_score,e.pitch_score,e.timing_score,e.duration_score,e.evaluated_at,
-               e.tuning_offset_cent,e.tuning_out_of_range,s.parent_session_id,e.model_version
+               e.tuning_offset_cent,e.tuning_out_of_range,s.parent_session_id,e.model_version,e.scoring_version,
+               JSON_VALUE(e.score_weights,'$.pitch' RETURNING DOUBLE) AS pitch_weight,
+               JSON_VALUE(e.score_weights,'$.timing' RETURNING DOUBLE) AS timing_weight,
+               JSON_VALUE(e.score_weights,'$.duration' RETURNING DOUBLE) AS duration_weight
         FROM practice_sessions s LEFT JOIN evaluations e ON e.session_id=s.id
         WHERE s.id=#{sessionId} AND s.user_id=#{userId} AND s.record_deleted_at IS NULL
     </select>
+    <select id="findPreviousSessionId" resultType="long">
+        SELECT s.id FROM practice_sessions s
+        WHERE s.user_id=#{userId} AND s.song_id=#{songId} AND s.status='DONE' AND s.record_deleted_at IS NULL
+          AND (s.started_at &lt; #{startedAt} OR (s.started_at=#{startedAt} AND s.id &lt; #{sessionId}))
+          AND (s.score_version &lt;&gt; #{scoreVersion} OR (s.start_note_idx &lt;= #{startNoteIdx} AND s.end_note_idx &gt;= #{endNoteIdx}))
+        ORDER BY s.started_at DESC,s.id DESC LIMIT 1
+    </select>
     <select id="notes" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow">
-        SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict,recording_offset_ms
+        SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict,recording_offset_ms,
+               pitch_score,timing_score,duration_score,weight
         FROM note_results WHERE evaluation_id=#{evaluationId} ORDER BY note_idx
     </select>
     <select id="score" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationScoreRow">

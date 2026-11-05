@@ -212,7 +212,7 @@
 - RESULT-04 구간 재평가 결과: 상단 ‘구간 재평가 결과 / 아리랑 · 3–4각 · 48 BPM’ + 북마크 → ‘85점’ + 연두 배지 ‘이전보다 17점 올랐어요’ + ‘이전 이 구간 점수 68점’ → 항목 카드(음정 70→86, 박자 62→84, 음 길이 72→85, 이전 `#9A948A`·이번 `#ADBE31` 막대) → ‘남은 오류 9개 → 2개’ 카드(미니 정간보 40px, 고친 칸 ✓ `#4A5316`, 음정 `#EFF2D6`/`#4A5316`·박자 `#DEE5AD`/`#27221E`) → ‘다음 단계’ 카드 → 하단 ‘다시 연습’ + ‘다른 구간 고르기’ · ‘곡 전체 다시 평가’.
 
 ### 7.2 데이터·서버
-- 서버: `POST /api/practice-sessions`가 `startNoteIdx`·`endNoteIdx`·`parentSessionId`를 받는다(앱 `PracticeSessionRepository.create`에는 아직 없음). `GET …/evaluation/notes`(EVA-02), `…/weak-sections`(EVA-03, `WeakSectionItem(startNoteIdx,endNoteIdx,startColumnIdx,endColumnIdx,errorCellCount,dominantError,reason)`), `…/comparison`(EVA-04, 점수는 비교하지 않고 오류 수·고친 음표·남은 오류만) 구현됨. 항목별 이전 점수는 부모 세션 `GET …/evaluation`으로 따로 받는다.
+- 서버: `POST /api/practice-sessions`가 `startNoteIdx`·`endNoteIdx`·`parentSessionId`를 받는다(앱 `PracticeSessionRepository.create`에는 아직 없음). `GET …/evaluation/notes`(EVA-02), `…/weak-sections`(EVA-03, `WeakSectionItem(startNoteIdx,endNoteIdx,startColumnIdx,endColumnIdx,errorCellCount,dominantError,reason)`), `…/comparison`(EVA-04, 2차 응답 모양과 직전 연주 선택까지 구현, 음표별 부분 점수 전까지 `scoreComparable=false`로 오류 수·고친 음표·남은 오류만 비교) 구현됨. 항목별 이전 점수는 부모 세션 `GET …/evaluation`으로 따로 받는다.
 - 앱: 경로 3개 + `ResultRoute.onWeakSection`·`HistoryRoutes` 연결, 구간 선택 상태(두 번 탭·프리셋·반복·속도), 구간 반복 재생·녹음 상태 모델(회차·회차 진행률·일시정지·채점 없음), 비교 표시. 칸 번호는 `Score.columns[c].size` 누적(보드의 9정간 고정 가정을 따르지 않음), 선택 칸 ↔ `startNoteIdx/endNoteIdx` 변환은 `ScoreEvent.noteIndex`.
 - `PracticeRecord(section, repeats)`와 ‘구간 %1$s × %2$d회 · %3$d BPM’ 문구는 이미 있다.
 

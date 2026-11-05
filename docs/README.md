@@ -46,6 +46,7 @@
 
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
 - [연습 악보 높이 테스트의 JS 부동소수점 비교 수정 (497)](plans/S15P31E102-497.md)
+- [분석 응답의 음표별 부분 점수 (501)](plans/S15P31E102-501.md)
 
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
@@ -72,7 +73,7 @@
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
-- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [343 앱 검증](plans/S15P31E102-343.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
+- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [502 구간 점수 계획](plans/S15P31E102-502.md) · [494 EVA-04 2차 개편](plans/S15P31E102-494.md) · [343 앱 검증](plans/S15P31E102-343.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
@@ -110,6 +111,7 @@
 ## 도구 조사·검증 기록
 
 - [Jenkins 전체 시간·executor 대기와 Wasm 최적화 지연 (510)](knowledge/infra/jenkins-latency.md) · [조사 계획·결과](plans/S15P31E102-510.md)
+- [프론트 웹 운영 배포 수동 전환 (520)](plans/S15P31E102-520.md) · [스펙](specs/jenkins-deploy-order.md#프론트-웹-수동-배포-s15p31e102-520)
 - [Jenkins 검증 JAR·Gradle JVM 재사용 구현](specs/jenkins-build-reuse.md) · [격리 실제 실행 결과](knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)
 
 - [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)
@@ -329,3 +331,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
 
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
+
+- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)

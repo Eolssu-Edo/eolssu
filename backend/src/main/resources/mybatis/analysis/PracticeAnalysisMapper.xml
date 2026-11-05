@@ -36,16 +36,20 @@
     </update>
 
     <insert id="insertEvaluation" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
-        INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version, tuning_offset_cent, tuning_out_of_range)
-        VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion}, #{tuningOffsetCent}, #{tuningOutOfRange})
+        INSERT INTO evaluations (session_id, total_score, pitch_score, timing_score, duration_score, model_version, tuning_offset_cent, tuning_out_of_range, scoring_version, score_weights)
+        VALUES (#{sessionId}, #{totalScore}, #{pitchScore}, #{timingScore}, #{durationScore}, #{modelVersion}, #{tuningOffsetCent}, #{tuningOutOfRange}, #{scoringVersion},
+        <choose>
+            <when test="scoringVersion != null">JSON_OBJECT('pitch', #{pitchWeight}, 'timing', #{timingWeight}, 'duration', #{durationWeight})</when>
+            <otherwise>NULL</otherwise>
+        </choose>)
     </insert>
 
-    <!-- 인식 음·녹음 위치를 주지 않는 이전 AI 응답이면 두 칸은 NULL이다 -->
+    <!-- 인식 음·녹음 위치·부분 점수를 주지 않는 이전 AI 응답이면 그 칸은 NULL이다 -->
     <insert id="insertNoteResults">
-        INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict, recording_offset_ms)
+        INSERT INTO note_results (evaluation_id, note_idx, expected_pitch_id, detected_pitch_id, pitch_error_cent, onset_error_ms, duration_error_ms, verdict, recording_offset_ms, pitch_score, timing_score, duration_score, weight)
         VALUES
         <foreach collection="notes" item="n" separator=",">
-            (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, #{n.detectedPitchId}, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict}, #{n.recordingOffsetMs})
+            (#{evaluationId}, #{n.noteIdx}, #{n.expectedPitchId}, #{n.detectedPitchId}, #{n.pitchErrorCent}, #{n.onsetErrorMs}, #{n.durationErrorMs}, #{n.verdict}, #{n.recordingOffsetMs}, #{n.pitchScore}, #{n.timingScore}, #{n.durationScore}, #{n.weight})
         </foreach>
     </insert>
 

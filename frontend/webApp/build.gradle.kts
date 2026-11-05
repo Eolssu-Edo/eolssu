@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -26,4 +27,9 @@ kotlin {
             implementation(libs.androidx.navigation.compose)
         }
     }
+}
+
+tasks.named<BinaryenExec>("compileProductionExecutableKotlinWasmJsOptimize") {
+    // Coalesce locals once after the default optimization passes.
+    binaryenArguments.addAll("--skip-pass=coalesce-locals", "--coalesce-locals-learning")
 }

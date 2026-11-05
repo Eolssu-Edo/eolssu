@@ -81,7 +81,7 @@ def score_experiment(f0, notes, bpm, ref_hz, spec, rms=None):
         standard_timing.append(scoring._credit(relative, captured['onset_tol_s']))
 
     def axis(values):
-        return round(100 * float(np.mean(values))) if values else 100
+        return scoring.combine([100 * v for v in values], [1.0] * len(values))
 
     if (axis(standard_pitch), axis(standard_timing)) != (result.pitch, result.timing):
         raise RuntimeError('실제 채점과 측정값 재계산이 일치하지 않습니다')

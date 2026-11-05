@@ -41,6 +41,30 @@ pipeline {
             }
         }
 
+        stage('Backend deploy tool tests') {
+            steps {
+                sh 'python3 -B -m unittest discover -s infra/jenkins/tests -p test_deploy_backend.py -v'
+            }
+        }
+
+        stage('Certificate initialization tests') {
+            steps {
+                sh 'RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_init_letsencrypt.py -v'
+            }
+        }
+
+        stage('Nginx health routing tests') {
+            steps {
+                sh 'RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_actuator.py -v'
+            }
+        }
+
+        stage('HTTPS redirect tests') {
+            steps {
+                sh 'RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_redirect.py -v'
+            }
+        }
+
         stage('Clean backend outputs') {
             steps {
                 dir('backend') {
@@ -139,13 +163,6 @@ pipeline {
                 }
             }
             post { always { archiveArtifacts artifacts: 'deployment.jsonl', allowEmptyArchive: true } }
-        }
-
-        stage('Queue matching frontend') {
-            steps {
-                build job: 'eolssu-frontend', wait: false,
-                    parameters: [string(name: 'REVISION', value: env.GIT_COMMIT)]
-            }
         }
 
     }
