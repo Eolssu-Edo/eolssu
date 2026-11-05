@@ -14,6 +14,7 @@ import {promisify} from 'node:util';
 import {execFile} from 'node:child_process';
 const hash = value => createHash('sha256').update(value).digest();
 const staticFiles = new Map([['/video-view.js',['video-view.js','text/javascript; charset=utf-8']],['/video-wire.js',['video-wire.js','text/javascript; charset=utf-8']],['/', ['index.html', 'text/html; charset=utf-8']], ['/app.js', ['app.js', 'text/javascript; charset=utf-8']], ['/style.css', ['style.css', 'text/css; charset=utf-8']]]);
+staticFiles.set('/apk-update.js', ['apk-update.js','text/javascript; charset=utf-8']);
 async function body(req) {
   if (req.headers['content-type'] !== 'application/json') throw new Rejected('JSON required', 415);
   let size = 0; const chunks = [];

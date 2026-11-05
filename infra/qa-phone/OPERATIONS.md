@@ -93,6 +93,18 @@ $QaConfig | ConvertTo-Json | Set-Content -LiteralPath $QaConfigPath -Encoding ut
 
 ## 4. 최신 원격 develop APK로 업데이트
 
+### QA 웹 버튼으로 업데이트
+
+1. 대상 기기 URL에 본인 이름으로 로그인한다. 휴대폰과 태블릿은 각각 접속한다.
+2. 헤더에서 **제어권 요청** 후 현재 조작자가 있으면 승인을 받는다.
+3. **앱 버전 → 최신 APK로 업데이트**를 누른다. 현재 보관소의 최신 APK를 설치하며, 이력 목록에서 선택한 이전 버전과는 무관하다.
+4. **설치 중…**에는 해당 기기의 터치/중복 설치가 잠긴다. 다른 기기는 계속 사용한다. 실행 중인 앱은 종료될 수 있으므로 녹음·작업을 먼저 마친다.
+5. **최신 버전 사용 중**과 설치된 MR을 확인한다. 실패 문구가 나오면 기기 연결/설치 오류를 확인한 뒤 다시 시도한다. 앱 삭제/초기화를 자동 수행하지 않는다.
+
+기기 단절·입력 오류·제어권 없음·설치 조회 실패·목록 동기화 오류에서는 버튼이 비활성이다. 이미 같은 버전이면 재설치하지 않는다. ‘최신’은 **성공하여 보관된 APK 중 최신**이며 아직 빌드되지 않은 origin/develop 최신 SHA와는 다를 수 있다. 해당 SHA의 APK 생성까지 필요한 경우 아래 운영자 절차를 따른다.
+
+### 원격 SHA에 맞춘 빌드·운영자 설치
+
 Codex에 **“최신 원격 develop 기준 APK로 태블릿을 업데이트해”**처럼 대상 기기를 명시해 요청한다. 두 기기는 설치 상태가 독립적이며 한쪽 설치가 다른 기기를 업데이트하지 않는다.
 다른 팀원이 조작 중이면 그 사람의 QA 웹에 뜨는 업데이트용 **제어권 요청을 승인**한다.
 설치 중에는 실행 중인 앱이 종료될 수 있으므로 녹음·작업을 끝낸 뒤 진행한다.
@@ -202,7 +214,22 @@ EDO1 원본은 두 기기가 공통으로 사용한다: `/opt/eolssu/apks/<build
 
 ‘설치됨’은 해당 기기의 `com.ssafy.eolssu.qa`를 ADB로 읽은 결과다. 일반 앱 `com.ssafy.eolssu`와 별개다. 조회 중/조회 실패와 실제 미설치를 구분한다. 기존 앱 데이터 보존은 `adb install -r`로 같은 패키지를 갱신하며 앱 삭제·데이터 초기화를 자동 실행하지 않는다는 의미다. 서명이 다르면 설치를 실패시키고 기존 앱을 유지한다. 이 동작을 자동 설치 약속으로 표시하지 않는다.
 
-2026-11-05 기존 보관 MR78개의 작성자/제목을 GitLab 실제 데이터와 대조해 공통 목록에 보충했다. 새 빌드 목록과 MR 번호는 기존 게시 흐름으로 갱신되며 추가된 `mergeRequestDetails`도 동기화한다. **새 MR의 작성자/제목을 자동 수집하는 API 권한은 현재 확보되지 않았다.** 기존 기계 자격의 읽기 API가401을 반환해 자격이나 공유 CI를 바꾸지 않았다. 상세 정보가 없는 신규 MR은 ‘작성자 확인 중 / 제목 확인 중’으로 표시한다. Git 커밋 작성자를 MR 작성자로 추측하지 않는다. 후속 자동 수집에는 승인된 GitLab 읽기 API 자격이 필요하다.
+신규 MR의 작성자/제목도 EDO1의 `eolssu-qa-mr-sync.timer`가 약1분마다 GitLab 실제 API에서 갱신한다. Windows 미러는 약1분, 웹 목록은 약5초 간격으로 가져오므로 새 MR 반영에는 보통1~2분과 다운로드 시간이 더해진다. 제목을 나중에 바꾼 경우도 다음 수집 때 갱신된다. API 오류 시 기존 APK/정보를 유지하고 재시도한다. 미확보 정보는 ‘확인 중’으로 표시하며 커밋 작성자를 MR 작성자로 추정하지 않는다.
+
+프로젝트 전용 `eolssu-qa-mr-read` 토큰은 **Reporter / read_api**, 실제 생성본 만료일은 **2027-07-31**이다. 기존 checkout 토큰을 수정하지 않았다. 원본은 EDO1 `/etc/eolssu/qa-gitlab-read-token`에 root:root/0600으로 보관하고, systemd LoadCredential이 실행 시에만 jenkins 사용자 서비스로 전달한다. 값은 명령 인수·환경변수·로그·저장소에 기록하지 않는다. 이 파일을 일반 사용자에게 읽을 수 있도록 바꾸지 않는다.
+
+```bash
+systemctl status eolssu-qa-mr-sync.timer --no-pager
+systemctl show eolssu-qa-mr-sync.service -p Result -p ExecMainStatus
+journalctl -u eolssu-qa-mr-sync.service -n 10 --no-pager
+sudo systemctl start eolssu-qa-mr-sync.service
+```
+
+조회 실패가 지속되면 만료·회수 여부와 프로젝트 read_api 권한을 확인한다. 갱신은 GitLab에서 해당 프로젝트 읽기 전용 새 토큰을 발급하고, 승인된 숨김 입력으로 위 root 전용 파일을 교체한 뒤 단발 실행을 확인한다. 키를 채팅·셸 인수에 붙여넣지 않는다. 토큰 회수는 GitLab 프로젝트 Settings → Access tokens의 정확한 토큰을 확인해 운영자가 수행한다.
+
+수집 서비스만 중지하려면 `sudo systemctl disable --now eolssu-qa-mr-sync.timer`를 사용한다. 필요 시 실행 중인 단발 서비스도 `sudo systemctl stop eolssu-qa-mr-sync.service`로 중지한다. APK 빌드·미러·기기 중계는 계속 동작하며 기존 정보는 남는다. 코드·unit 원본은 이 폴더의 `sync-mr-details.py`, `eolssu-qa-mr-sync.service/.timer`다. 초기 index 백업은 `/var/backups/qa498-mr-auto-20261105T032200Z/index.json`이다.
+
+실제 검증: 2026-11-05 12:25:52 KST 태블릿,12:26:11 KST 휴대폰에 MR !333 / Android #96 / versionCode1793847399 / `qa-20261105.025639-85a9f6d0`를 두 페이지 버튼으로 설치했다. 태블릿에서 #95를 목록 선택해도 버튼은 #96을 설치했다. 설치 후 브라우저 새로고침에서 영상/설치 정보와 ‘최신 버전 사용 중’을 확인했다.
 
 ## 실제 설정·로그 위치
 

@@ -123,7 +123,7 @@ test('Host binding and browser security headers are enforced', async t => {
   assert.ok(page.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
   assert.ok(page.headers.get('permissions-policy').includes('microphone=()'));
   assert.equal(page.headers.get('cache-control'),'no-store');
-  for (const asset of ['/app.js','/style.css']) assert.equal((await fetch(relay.url+asset)).status,200);
+  for (const asset of ['/app.js','/style.css','/apk-update.js']) assert.equal((await fetch(relay.url+asset)).status,200);
 });
 test('invalid credentials are throttled without unlimited login work', async t => {
   const { request } = await fixture(t);

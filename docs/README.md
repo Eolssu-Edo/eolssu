@@ -307,3 +307,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [QA 태블릿 원격 환경](specs/qa-tablet-relay.md) · [작업/검증](plans/S15P31E102-498.md) · [운영 안내](../infra/qa-phone/OPERATIONS.md)
 
 - [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
+
+- [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)

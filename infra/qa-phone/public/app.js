@@ -1,4 +1,5 @@
 import {VideoView} from './video-view.js';
+import {latestApkUpdate} from './apk-update.js';
 const $ = id => document.getElementById(id);
 const REFRESH_DELAY_MS = 900;
 async function loadDevice() {
@@ -23,7 +24,7 @@ void loadDevice();
 let inputTail = Promise.resolve(), inputPending = 0, refreshError = '';
 let lastStateAt=0,requestTarget=null,deciding=false,hasFrame=false;
 let portChanging=false,portEdited=false;
-function disableInputs() { document.querySelectorAll('[data-key], #textForm button, #text, #request, #release, #approveRequest, #rejectRequest').forEach(e => e.disabled = true);$('owner').classList.remove('ownerActive'); }
+function disableInputs() { document.querySelectorAll('[data-key], #textForm button, #text, #request, #release, #approveRequest, #rejectRequest, #installLatest').forEach(e => e.disabled = true);$('owner').classList.remove('ownerActive'); }
 let state = null, seq = 0, offset = 0, gesture = null, running = false, refreshTimer;
 const message = text => { $('message').textContent = text; };
 const isOwner = () => state?.online && !state.maintenance && state.owner === state.you;
@@ -80,6 +81,7 @@ function render(next) {
   $('screenAwake').textContent=next.screenAwake?.active?'접속 중 기기 화면 밝기 유지':next.screenAwake?.error?'화면 밝기 유지 재연결 중':next.screenAwake?'화면 밝기 유지 준비 중':'화면 밝기 유지 도구 설정 필요';
   if (next.maintenance) $('connection').textContent = 'APK 적용 중';
   if (!next.online) clearFrame();else if(video.active&&hasFrame){$('screen').hidden=false;$('offline').hidden=true;}
+  renderApkUpdate();
 }
 async function refresh() {
   if (!running) return;
@@ -165,8 +167,15 @@ if (window.matchMedia('(max-width: 700px)').matches) {
 
 
 
-let builds=[],buildChecked=0;
+let builds=[],buildChecked=0,buildCatalog=null,installingLatest=false;
 const buildName=build=>build?.mergeRequest?`MR !${build.mergeRequest} - ${build.authorName||'작성자 확인 중'} - ${build.mergeRequestTitle||'제목 확인 중'}`:'MR 정보 없음';
+function renderApkUpdate(){
+  const fresh=running&&Date.now()-lastStateAt<5000;
+  const update=latestApkUpdate(buildCatalog,fresh?state:null,installingLatest);
+  $('installLatest').disabled=!update.enabled;$('installLatest').textContent=update.label;
+  const job=buildCatalog?.job;
+  $('apkUpdateHint').textContent=job?.status==='failed'?`설치 실패: ${job.error} · 연결 상태를 확인한 뒤 다시 시도해 주세요.`:job?.status==='success'&&job.id===buildCatalog.latest?'최신 APK 설치가 완료되었습니다.':update.hint;
+}
 function selectedBuild(){return builds.find(build=>build.id===$('apkVersion').value);}
 function showBuild(){
   const b=selectedBuild();
@@ -176,7 +185,7 @@ function showBuild(){
 async function refreshBuilds(){
   buildChecked=Date.now();
   try{
-    const result=await api('builds');if(!running)return;builds=result.builds;
+    const result=await api('builds');if(!running)return;buildCatalog=result;builds=result.builds;
     const selected=$('apkVersion').value;
     const options=builds.map(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=`${buildName(b)} · #${b.build}${b.id===result.latest?' · 최신':''}`;return o;});
     if(!options.length){const o=document.createElement('option');o.value='';o.textContent='아직 보관된 APK가 없습니다';options.push(o);}
@@ -184,10 +193,24 @@ async function refreshBuilds(){
     const installed=result.installed,current=installed&&builds.find(b=>b.package===installed.package&&b.versionCode===installed.versionCode&&b.versionName===installed.versionName);
     $('installedVersion').textContent=installed?`설치됨: ${current?buildName(current):installed.versionName} (${installed.versionCode})`:result.installedStatus==='absent'?'이 기기에 얼쑤 QA가 설치되어 있지 않습니다':result.installedStatus==='installing'?'기기에 앱을 설치하고 있습니다':result.installedStatus==='unavailable'?'설치 정보를 불러오지 못했습니다. 다시 확인 중입니다':'기기의 설치 정보를 확인하고 있습니다';
     $('installedVersion').title=installed?`${installed.package} · ${installed.versionName}`:'';
-    $('apkStatus').textContent=result.sync?.error||'목록: 약 5초 · EDO1: 약 1분 간격';showBuild();
-  }catch(e){$('apkStatus').textContent=e.message;}
+    $('apkStatus').textContent=result.sync?.error||'목록: 약 5초 · EDO1: 약 1분 간격';showBuild();renderApkUpdate();
+  }catch(e){buildCatalog=null;$('apkStatus').textContent=e.message;renderApkUpdate();}
 }
 $('apkVersion').addEventListener('change',showBuild);
+$('installLatest').addEventListener('click',async()=>{
+  if(installingLatest||!latestApkUpdate(buildCatalog,state).enabled)return;
+  installingLatest=true;renderApkUpdate();
+  try{
+    const currentState=await api('state'),currentCatalog=await api('builds');
+    const update=latestApkUpdate(currentCatalog,currentState);
+    buildCatalog=currentCatalog;render(currentState);
+    if(!update.enabled)throw Error(update.hint);
+    await api('builds/install',{id:update.build.id,epoch:currentState.epoch});
+    message('');
+    await refreshBuilds();render(await api('state'));
+  }catch(e){message(e.message);}
+  finally{installingLatest=false;renderApkUpdate();}
+});
 async function decideRequest(path){
   if(!isOwner()||!requestTarget||deciding)return;
   const target=requestTarget,hadFocus=$('requestNotice').contains(document.activeElement);deciding=true;
@@ -198,6 +221,6 @@ async function decideRequest(path){
 }
 $('approveRequest').addEventListener('click',()=>decideRequest('transfer'));
 $('rejectRequest').addEventListener('click',()=>decideRequest('reject'));
-setInterval(()=>{if(!running||Date.now()-lastStateAt>5000)$('owner').classList.remove('ownerActive');},1000);
+setInterval(()=>{if(!running||Date.now()-lastStateAt>5000){$('owner').classList.remove('ownerActive');$('installLatest').disabled=true;}},1000);
 
 fetch('./api/state').then(response=>{if(!running)return response.ok?begin():showLogin();}).catch(()=>{if(!running)showLogin();});

@@ -3,7 +3,7 @@ export class VideoView {
   constructor(canvas,{onFrame=()=>{},onStatus=()=>{},onAuth=()=>{}}={}){
     this.canvas=canvas;this.context=canvas.getContext('2d',{alpha:false});this.onFrame=onFrame;this.onStatus=onStatus;this.onAuth=onAuth;this.running=false;this.active=false;this.total=0;this.generation=0;
   }
-  start(){if(this.running)return;this.running=true;const generation=++this.generation;this.watch=setInterval(()=>{if(document.visibilityState==='visible'&&this.active&&Date.now()-(this.lastRead||this.connectedAt)>6000)this.abort?.abort();if(this.active&&this.lastPaint&&Date.now()-this.lastPaint>2000)this.onStatus('실시간 영상 · 화면 변화 대기');},1000);void this.connect(generation);}
+  start(){if(this.running)return;this.running=true;const generation=++this.generation;this.watch=setInterval(()=>{if(document.visibilityState==='visible'&&this.active&&(Date.now()-(this.lastRead||this.connectedAt)>6000||(!this.lastPaint&&Date.now()-this.connectedAt>6000)))this.abort?.abort();if(this.active&&this.lastPaint&&Date.now()-this.lastPaint>2000)this.onStatus('실시간 영상 · 화면 변화 대기');},1000);void this.connect(generation);}
   async connect(generation){
     if(!this.running||generation!==this.generation)return;
     if(!globalThis.VideoDecoder||!globalThis.isSecureContext){this.onStatus('이미지 모드 · 응답 후 0.9초 간격');return;}

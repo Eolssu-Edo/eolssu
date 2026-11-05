@@ -689,6 +689,7 @@ footer {
 .headerBottom .headerPeople { margin-left:auto; order:initial; }
 .headerBottom .headerOwner { order:initial; margin:0; }
 #installedVersion { font-size:12px; color:#d6dfeb; }
+.apkUpdate { width:100%; margin-top:12px; }
 .apkCard label { margin-top:16px; }
 @media(max-width:700px) {
  .controlHeader { display:block; }
