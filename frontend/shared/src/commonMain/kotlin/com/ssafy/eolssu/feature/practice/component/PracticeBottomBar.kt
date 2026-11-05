@@ -61,6 +61,7 @@ class PracticeBottomActions(
     val onAskAbort: () -> Unit,
     /** 플레이어의 −5초·+5초. 양수면 앞으로. */
     val onSeek: (deltaMs: Long) -> Unit = {},
+    val onSeekToFraction: (Float) -> Unit = {},
     /** 설정 옆 ‘한 음씩’ 토글(혼자 연습). */
     val onToggleStep: () -> Unit = {},
     /** 한 음씩의 오른쪽 ‘내 연주’ 칸: 시작·멈춤·3·2·1 뒤 이어서. */

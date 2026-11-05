@@ -119,6 +119,7 @@ fun PracticeRoute(
                 onAskRestart = viewModel::askRestart,
                 onAskAbort = viewModel::askAbort,
                 onSeek = viewModel::seekModel,
+                onSeekToFraction = viewModel::seekToFraction,
                 onToggleStep = viewModel::toggleStep,
                 onTapStepPlaying = viewModel::tapStepPlaying,
                 onListenStepNote = viewModel::listenStepNote,

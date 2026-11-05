@@ -150,13 +150,25 @@ internal class ModelAudioSession(
      * 재생 중이면 그 자리부터 이어 틀고, 멈춰 있거나 끝났으면 다음 재생이 그 자리에서 시작하도록 위치만 바꾼다.
      */
     fun seekBy(deltaMs: Long) {
+        seekTo(_state.value.mediaPositionMs + deltaMs)
+    }
+
+    fun seekToFraction(fraction: Float) {
+        if (!fraction.isFinite()) return
+        val audio = _state.value.audio ?: return
+        val song = currentSong ?: return
+        val duration = audio.performance?.durationMs ?: song.durationMs(audio.bpm)
+        seekTo(audio.startOffsetMs + (duration * fraction.coerceIn(0f, 1f)).toLong())
+    }
+
+    private fun seekTo(positionMs: Long) {
         val current = _state.value
         val audio = current.audio ?: return
         val song = currentSong ?: return
         if (current.status !in setOf(ModelAudioStatus.Playing, ModelAudioStatus.Paused, ModelAudioStatus.Completed, ModelAudioStatus.Interrupted)) return
         val start = audio.startOffsetMs
         val end = start + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)).toLong()
-        val target = (current.mediaPositionMs + deltaMs).coerceIn(start, end)
+        val target = positionMs.coerceIn(start, end)
         if (current.status == ModelAudioStatus.Playing) {
             sourceId = null
             player.stop()

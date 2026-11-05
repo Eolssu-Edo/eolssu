@@ -511,6 +511,38 @@ class PracticeViewModel(
         }
     }
 
+    /** 타임라인은 음원/악보의 전체 길이에 대한 비율로 이동한다. 녹음에는 적용하지 않는다. */
+    fun seekToFraction(fraction: Float) {
+        if (!accountScope.isActive || !fraction.isFinite()) return
+        val state = _uiState.value
+        val song = state.song ?: return
+        if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) ||
+            song.timeline.isEmpty() || state.playerNotice == PracticePlayerNotice.Loading) return
+        val progress = fraction.coerceIn(0f, 1f)
+        if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
+            modelStartsAtAttack = true
+            modelResumeAfterTick = null
+            stopJangdan()
+            modelAudio.seekToFraction(progress)
+            return
+        }
+        val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
+        pauseRhythm()
+        val timing = song.score.timing ?: return
+        val last = song.timeline.last()
+        val endTick = (last.startTick!! + last.durationTick!!).toDouble()
+        val target = endTick * progress
+        val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
+        val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
+        _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
+            position = position, selected = position, playing = false, follow = true,
+            eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
+            elapsedMs = target * msPerTick, eventStartedAt = null, modelClock = null) }
+        modelStartsAtAttack = true
+        rhythmStartsAtAttack = true
+        if (wasPlaying && progress < 1f) startRhythm()
+    }
+
     /** Preview uses the reviewed score tick scale and the selected practice BPM. */
     fun togglePreview() {
         if (!accountScope.isActive || _uiState.value.playbackSettingsLocked) return
@@ -557,6 +589,11 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)) return
+        if (state.mode == PracticeMode.Model && (state.modelAudioStatus == ModelAudioStatus.Completed ||
+                state.position == state.eventCount - 1 && state.currentEventFraction >= 1.0)) {
+            restartModel()
+            return
+        }
         modelResumeAfterTick = if (!modelStartsAtAttack && state.mode == PracticeMode.Model &&
             state.modelAudioStatus in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) modelTickAtReportedPosition() else null
         modelStartsAtAttack = false

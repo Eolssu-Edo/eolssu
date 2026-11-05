@@ -21,9 +21,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -71,7 +77,7 @@ const val PRACTICE_SEEK_MS = 5_000L
 
 /**
  * 연습 플레이어: 경과·전체 시간을 좌우에 배치하고 타임라인 아래 중앙에 재생 조작을 둔다.
- * ‘−5초 · 재생(44dp 연두 원) · +5초’.
+ * ‘−5초 · 재생(48dp 연두 원) · +5초’ 아래 고정 칸에 로딩을 중앙 정렬한다.
  * 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보인다.
  *
  * @param compact 운지 악보에서 여백과 재생 버튼을 조금 줄이며 같은 배치를 유지한다.
@@ -95,7 +101,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val controls: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc)) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
                 onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
@@ -124,12 +130,10 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
             Text(formatClock(state.totalSeconds.toDouble()),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
-        PlayerTrack(state.progressPercent / 100f, Modifier.padding(top = 4.dp, bottom = 6.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            controls()
-            PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(56.dp))
-        }
+        SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
+            enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
+        controls()
+        PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(40.dp))
     }
 }
 
@@ -144,12 +148,12 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
         PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
     }
-    Box(modifier, contentAlignment = Alignment.CenterStart) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(56.dp))
+            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(40.dp))
             if (message.isNotEmpty()) Text(
-                message, modifier = Modifier.weight(1f).semantics { contentDescription = message },
+                message, modifier = Modifier.semantics { contentDescription = message },
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                 color = EolssuTheme.colors.textMuted,
@@ -176,6 +180,22 @@ private fun SeekButton(text: String, description: String, onClick: () -> Unit) {
 }
 
 /** 6dp 트랙(`.player .track`): 연두 채움과 흰 손잡이(16dp, 2dp 먹색 테두리). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SeekablePlayerTrack(fraction: Float, onSeek: (Float) -> Unit, enabled: Boolean) {
+    var draggedFraction by remember { mutableStateOf<Float?>(null) }
+    // 끄는 동안에는 재생 위치 보고와 분리하고, 놓을 때 한 번만 음원을 이동한다.
+    Slider(
+        value = draggedFraction ?: fraction.coerceIn(0f, 1f),
+        onValueChange = { draggedFraction = it },
+        onValueChangeFinished = { draggedFraction?.let(onSeek); draggedFraction = null },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().height(40.dp),
+        thumb = {},
+        track = { PlayerTrack(draggedFraction ?: fraction) },
+    )
+}
+
 @Composable
 private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors

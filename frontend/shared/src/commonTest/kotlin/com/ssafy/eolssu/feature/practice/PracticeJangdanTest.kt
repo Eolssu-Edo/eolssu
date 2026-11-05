@@ -17,6 +17,29 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun timelineSeekingPreservesRhythmPlaybackAndEndRestartsFromZero() = practice { vm, _, _, _ ->
+        vm.selectRhythm()
+        vm.seekToFraction(0.5f)
+        runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(50f, vm.uiState.value.progressPercent, 0.001f)
+        vm.startRhythm()
+        runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        vm.seekToFraction(0.75f)
+        runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        assertEquals(75f, vm.uiState.value.progressPercent, 0.001f)
+        vm.seekToFraction(1f)
+        runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(100f, vm.uiState.value.progressPercent, 0.001f)
+        vm.toggleRhythm()
+        runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        assertEquals(0f, vm.uiState.value.progressPercent, 0.001f)
+    }
+
     @Test fun settingsSaveImmediatelyAndRecordingCanToggleAccompaniment() = practice { vm, samples, _, settings ->
         vm.openPanel(PracticePanel.Notation)
         vm.updateDraft { it.copy(showHangul = true) }; runCurrent()

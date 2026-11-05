@@ -33,6 +33,57 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeLiveProgressTest {
+    @Test fun timelineSelectionBeforePlaybackKeepsExactPositionWithoutStartingAudio() = progressTest { vm, player ->
+        vm.seekToFraction(0.5f)
+        runCurrent()
+        assertEquals(50f, vm.uiState.value.progressPercent, 0.001f)
+        assertFalse(vm.uiState.value.playing)
+        vm.startModel()
+        runCurrent()
+        assertEquals(625L, player.requestedPosition)
+    }
+
+    @Test fun timelineSeekWhilePlayingContinuesFromChosenPosition() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 250)
+        runCurrent()
+        vm.seekToFraction(0.8f)
+        runCurrent()
+        assertEquals(1000L, player.requestedPosition)
+        player.emit(AudioPlaybackStatus.Playing, 1000)
+        runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        assertEquals(80f, vm.uiState.value.progressPercent, 0.001f)
+    }
+
+    @Test fun timelineSeekWhilePausedStaysPausedAndResumesFromChosenPosition() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 250)
+        runCurrent()
+        vm.toggleModel()
+        runCurrent()
+        vm.seekToFraction(0.5f)
+        runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(50f, vm.uiState.value.progressPercent, 0.001f)
+        vm.startModel()
+        runCurrent()
+        assertEquals(625L, player.requestedPosition)
+    }
+
+    @Test fun playAfterCompletionRestartsAtTheBeginning() = progressTest { vm, player ->
+        vm.startModel()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Completed, 1250)
+        runCurrent()
+        assertEquals(100f, vm.uiState.value.progressPercent)
+        vm.startModel()
+        runCurrent()
+        assertEquals(0L, player.requestedPosition)
+    }
+
     @Test fun decodedPositionMovesTheBeatWithoutGeneratingAnotherNote() = progressTest { vm, player ->
         vm.startModel()
         runCurrent()
