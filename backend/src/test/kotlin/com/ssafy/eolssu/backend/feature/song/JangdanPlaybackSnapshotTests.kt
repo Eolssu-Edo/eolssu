@@ -3,12 +3,14 @@ package com.ssafy.eolssu.backend.feature.song
 import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanRow
 import com.ssafy.eolssu.backend.feature.song.domain.PublishedSongScore
 import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.ScoreGridJangdanPlayback
+import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.scoreJangdanName
 import java.nio.file.Path
 import java.time.LocalDateTime
 import kotlin.test.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable
 import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 
 /** Opt-in evidence check: directory contains the 107 original CAT-04 responses as {songId}.json. */
 @EnabledIfEnvironmentVariable(named = "JANGDAN_SNAPSHOT_DIR", matches = ".+")
@@ -17,13 +19,23 @@ class JangdanPlaybackSnapshotTests {
         val json = JsonMapper.builder().build()
         val manifest = json.readTree(requireNotNull(javaClass.getResourceAsStream("/catalog/jangdan-playback.json")))
         val resolver = ScoreGridJangdanPlayback(json) { name ->
-            manifest.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
+            if (name == "자진타령") JangdanRow(11, name,
+                """{"beats":["덩","","","덩","","","덩","","덕","","",""],"group":[3,3,3,3]}""",
+                60, "DOTTED_QUARTER", null, LocalDateTime.MIN, LocalDateTime.MIN)
+            else manifest.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
                 JangdanRow(it.path("jangdanId").asString().toLong(), name, it.path("pattern").toString(), 66,
                     it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
             }
         }
         val rows = manifest.path("scores").toList()
         assertEquals(107, rows.size)
+        var dansoScores = 0
+        var namedDansoScores = 0
+        var dansoPlayback = 0
+        var namedOtherScores = 0
+        var otherPlayback = 0
+        val restoredNames = mapOf("54" to "굿거리", "55" to "굿거리", "107" to "세마치",
+            "109" to "취타", "110" to "취타", "111" to "취타")
         for (review in rows) {
             val id = review.path("songId").asString()
             val response = json.readTree(Path.of(System.getenv("JANGDAN_SNAPSHOT_DIR"), "$id.json").toFile()).path("result")
@@ -32,7 +44,42 @@ class JangdanPlaybackSnapshotTests {
                 response.path("defaultBpm").intValue(), response.path("bpmUnit").asString(), source.toString())
             assertEquals(review.path("scoreVersion").intValue(), stored.scoreVersion, id)
             val playback = resolver.resolve(stored)
-            if (review.path("status").asString() == "READY") {
+            val name = scoreJangdanName(source, stored.scoreVersion)
+            if (source.path("score").path("instrument").asString() == "DANSO") {
+                dansoScores++
+                if (name != null) namedDansoScores++
+                if (playback != null) dansoPlayback++
+            } else {
+                if (name != null) namedOtherScores++
+                if (playback != null) otherPlayback++
+            }
+            restoredNames[id]?.let { expected ->
+                assertEquals(expected, name, id)
+                assertNull(scoreJangdanName(source, 2), id)
+                val otherSource = source.deepCopy()
+                (otherSource.path("provenance") as ObjectNode).put("jgbSha256", "0".repeat(64))
+                assertNull(scoreJangdanName(otherSource, stored.scoreVersion), id)
+                assertNull(resolver.resolve(stored.copy(scoreJson = otherSource.toString())), id)
+            }
+            if (id == "7") {
+                assertEquals("자진타령", scoreJangdanName(source, stored.scoreVersion))
+                assertEquals("11", assertNotNull(playback).jangdanId)
+                assertEquals(0L, playback.startTick)
+                assertEquals(12L, playback.cycleTicks)
+                assertEquals(listOf(0, 3, 6, 8), playback.pattern.beats.indices.filter { playback.pattern.beats[it].isNotBlank() })
+                assertNull(resolver.resolve(stored.copy(scoreVersion = 2)))
+            } else if (id == "34") {
+                assertEquals("자진모리", scoreJangdanName(source, stored.scoreVersion))
+                assertEquals("4", assertNotNull(playback).jangdanId)
+                assertEquals(0L, playback.startTick)
+                assertEquals(12L, playback.cycleTicks)
+                assertNull(resolver.resolve(stored.copy(scoreVersion = 2)))
+            } else if (id == "107") {
+                assertEquals("1", assertNotNull(playback).jangdanId)
+                assertEquals(0L, playback.startTick)
+                assertEquals(18L, playback.cycleTicks)
+                assertNull(resolver.resolve(stored.copy(scoreVersion = 2)))
+            } else if (review.path("status").asString() == "READY") {
                 assertNotNull(playback, id)
                 assertEquals(review.path("jangdanId").asString(), playback.jangdanId, id)
                 assertEquals(review.path("startTick").longValue(), playback.startTick, id)
@@ -41,5 +88,10 @@ class JangdanPlaybackSnapshotTests {
                 assertNull(playback, id)
             }
         }
+        assertEquals(35, namedOtherScores)
+        assertEquals(28, otherPlayback)
+        assertEquals(46, dansoScores)
+        assertEquals(35, namedDansoScores)
+        assertEquals(35, dansoPlayback)
     }
 }

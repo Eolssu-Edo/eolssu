@@ -145,6 +145,12 @@ USR-05 결정안: 탈퇴 요청 뒤 30일이 지나면(`purge_scheduled_at` 경�
 
 Flyway는 이미 적용한 마이그레이션 파일을 수정하면 실행을 막습니다. 서버에 V1을 적용한 뒤에는 변경을 새 버전 파일로 추가합니다.
 
+## V26·V27 내 악보 불러오기와 변환 결과
+
+- V26은 `user_sheets.source`에 OMR 출처를 허용하고 `sheet_conversions`·`sheet_source_files`를 추가한다. 회원당 진행 중 1건은 생성 칸 UNIQUE로 보장한다.
+- V27은 내부 실패 원인·TIMEOUT 횟수·결과 JSON과 전역 RUNNING 슬롯, `sheet_source_pages`를 추가한다. 원본·쪽 이미지 행은 악보 삭제에 따라 CASCADE된다. 변환 결과의 issues·notices·쪽 메타데이터는 하나의 JSON이며, 확인한 issue 제거와 악보 버전 갱신은 동일 트랜잭션이다.
+- 상세 필드·상태·검증은 [내 악보 계약](../specs/user-sheets.md)과 [472 기록](../plans/S15P31E102-472.md)을 따른다. 운영 적용은 이번 로컬 작업에 포함하지 않는다.
+
 ## 테스트 계정의 무기한 인증 세션 (S15P31E102-260)
 
 V7에서 `refresh_tokens.expires_at`은 nullable입니다. NULL은 서버의 명시적 회원 허용 목록에 포함된 테스트 계정의 시간 만료 없는 세션입니다. 일반 계정은 기존 만료 시각을 그대로 저장합니다. access JWT는 같은 세션 해시에 묶이고 폐기·회원 상태·허용 목록을 확인합니다. [세부 계약](../specs/non-expiring-test-account.md)을 따릅니다.

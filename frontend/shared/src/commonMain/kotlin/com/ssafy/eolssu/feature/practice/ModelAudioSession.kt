@@ -8,6 +8,7 @@ import com.ssafy.eolssu.data.song.ModelAudio
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,6 +55,7 @@ internal class ModelAudioSession(
     private val player: AudioPlayer,
     private val scope: CoroutineScope,
     private val timeSource: TimeSource = TimeSource.Monotonic,
+    private val prepareAccompaniment: suspend (Song, Int) -> Boolean = { _, _ -> true },
 ) {
     private val _state = MutableStateFlow(ModelAudioState())
     val state = _state.asStateFlow()
@@ -103,10 +105,9 @@ internal class ModelAudioSession(
         val cached = _state.value.audio?.takeIf { it.matches(song) }
         val previous = _state.value
         if (cached != null && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) {
-            active = true
-            if (player.state.value.sourceId == sourceId && player.state.value.status == AudioPlaybackStatus.Paused) {
-                player.resume(speed(cached))
-            } else loadMedia(cached, previous.mediaPositionMs)
+            val resume = player.state.value.sourceId == sourceId &&
+                player.state.value.status == AudioPlaybackStatus.Paused
+            prepareExisting(song, cached, previous.mediaPositionMs, resume)
             return
         }
         active = true
@@ -114,21 +115,15 @@ internal class ModelAudioSession(
         sourceId = null
         player.stop()
         _state.value = ModelAudioState(ModelAudioStatus.Loading)
-        loadJob = scope.launch {
-            try {
-                val audio = repository?.get(song)
-                if (request != requestId || !active) return@launch
-                when {
-                    repository == null -> _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
-                    audio == null -> _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
-                    !audio.matches(song) || audio.startOffsetMs + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)) > audio.durationMs + 1.0 ->
-                        _state.value = ModelAudioState(ModelAudioStatus.Failed)
-                    else -> loadMedia(audio, 0)
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                if (request == requestId && active) _state.value = ModelAudioState(ModelAudioStatus.Failed)
+        launchPreparation(request, CoroutineStart.DEFAULT) {
+            val audio = repository?.get(song)
+            if (request != requestId || !active) return@launchPreparation
+            when {
+                repository == null -> _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
+                audio == null -> _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
+                !audio.matches(song) || audio.startOffsetMs + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)) > audio.durationMs + 1.0 ->
+                    _state.value = ModelAudioState(ModelAudioStatus.Failed)
+                else -> startWhenReady(request, song, audio, 0)
             }
         }
     }
@@ -162,8 +157,9 @@ internal class ModelAudioSession(
         val end = start + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)).toLong()
         val target = (current.mediaPositionMs + deltaMs).coerceIn(start, end)
         if (current.status == ModelAudioStatus.Playing) {
-            active = true
-            loadMedia(audio, target)
+            sourceId = null
+            player.stop()
+            prepareExisting(song, audio, target, resume = false)
         } else {
             ++requestId
             loadJob?.cancel()
@@ -198,11 +194,46 @@ internal class ModelAudioSession(
 
     fun release() { stop(); player.release() }
 
-    private fun loadMedia(audio: ModelAudio, positionMs: Long) {
-        val id = "model-${++requestId}"
-        sourceId = id
+    private fun prepareExisting(song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean) {
+        active = true
+        val request = ++requestId
         _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
-        player.load(AudioSource(id, audio.audioUrl), positionMs, speed(audio))
+        launchPreparation(request, CoroutineStart.UNDISPATCHED) {
+            startWhenReady(request, song, audio, positionMs, resume)
+        }
+    }
+
+    private fun launchPreparation(request: Long, start: CoroutineStart, action: suspend () -> Unit) {
+        loadJob = scope.launch(start = start) {
+            try {
+                action()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (request == requestId && active) _state.value = ModelAudioState(ModelAudioStatus.Failed)
+            }
+        }
+    }
+
+    private suspend fun startWhenReady(request: Long, song: Song, audio: ModelAudio, positionMs: Long, resume: Boolean = false) {
+        var ready: Boolean
+        do {
+            val preparingBpm = bpm
+            ready = prepareAccompaniment(song, preparingBpm)
+            if (request != requestId || !active) return
+        } while (preparingBpm != bpm)
+        if (!ready) {
+            player.stop()
+            sourceId = null
+            _state.value = ModelAudioState(ModelAudioStatus.Failed, audio, positionMs)
+        } else if (resume) {
+            player.resume(speed(audio))
+        } else {
+            val id = "model-$request"
+            sourceId = id
+            _state.value = ModelAudioState(ModelAudioStatus.Loading, audio, positionMs)
+            player.load(AudioSource(id, audio.audioUrl), positionMs, speed(audio))
+        }
     }
 
     private fun speed(audio: ModelAudio): Float = bpm.toFloat() / audio.bpm

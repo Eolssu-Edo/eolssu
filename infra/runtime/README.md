@@ -217,6 +217,34 @@ sudo docker compose --env-file /opt/eolssu/.env \
 
 컨테이너 구성·경로·호스트 에이전트·백업·복구 절차는 [Jenkins 컨트롤러 운영 문서](../jenkins/controller/README.md)를 따릅니다. 실제 전환·검증 결과는 [Task 76 작업 기록](../../docs/plans/S15P31E102-76.md)에 남깁니다.
 
+### 검증 JAR와 Gradle JVM 재사용 (510)
+
+이 절은 Task 510 브랜치의 구현 후보이며 2026-11-05 운영 잡에는 아직 적용하지 않았습니다. [스펙·완료 조건](../../docs/specs/jenkins-build-reuse.md), [실제 검증·한계](../../docs/knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)를 참고합니다.
+
+관리 backend Pipeline은 `python3 -B infra/jenkins/build-backend-image.py "$GIT_COMMIT" --dockerfile /opt/eolssu/config/backend-artifact.Dockerfile`을 호출합니다. 스크립트는 실행 JAR 하나만 임시 context에 넣어 `eolssu-backend:ci-<SHA>`를 만들고 이미지의 JAR 해시 일치를 검사합니다. 개발용 소스 Dockerfile과 이전 `/opt/eolssu/config/backend.Dockerfile`은 복구용으로 보존합니다. 각 Gradle 명령은 stage를 유지하며 daemon을 재사용하고 60초 유휴 종료를 설정합니다.
+
+변경이 `develop`에 병합된 뒤 다음 순서로 반영합니다.
+
+1. 실행 중인 잡을 취소하지 않고 현재 관리 파일과 실제 inline 잡 정의를 별도 백업합니다. 설치 전·후 SHA-256과 기존 stage·QA 예약·알림·트리거를 확인합니다.
+2. `infra/jenkins/backend-artifact.Dockerfile`을 root 소유 0644의 `/opt/eolssu/config/backend-artifact.Dockerfile`에 먼저 설치합니다. 조회 시 실제 파일과 저장소 원본의 SHA-256이 같아야 합니다.
+3. 관리 backend/frontend Pipeline의 변경을 운영 inline 정의와 대조해 반영합니다. 저장소에 없는 Android/iOS QA 예약이나 환경 주입을 덮어쓰지 않습니다. 병합 전 revision에는 helper·검사 파일이 없어 새 Pipeline이 실패하므로 미리 활성화하지 않습니다.
+4. 실제 Jenkins linter 검사 후 정의를 저장하고 다시 읽어 해시와 기존 옵션·stage를 확인합니다. 정상 자동 실행에서 daemon 재사용, JAR 해시, 테스트·배포 상태와 대기/실행 시간을 나누어 확인합니다. 문제 시 백업 Pipeline을 복원하고 새 artifact Dockerfile은 사용하지 않습니다.
+
+빠른 회귀 검사:
+
+```sh
+python3 -B -m unittest discover -s infra/jenkins/tests -v
+python3 -B -m unittest discover -s infra/backup/tests -p test_deploy_hooks.py -v
+```
+
+JDK 21·설치된 Gradle 9.5.1이 있는 환경에서 JVM 재사용을 별도로 재현합니다. 첫 인자는 실제 Gradle 실행 파일의 절대 경로이며 wrapper의 설치된 distribution에서도 찾을 수 있습니다. fixture는 전용 home과 256MiB heap을 사용하며 그 home의 daemon만 종료합니다.
+
+```sh
+python3 -B infra/jenkins/tests/verify_gradle_reuse.py /absolute/path/to/gradle-9.5.1/bin/gradle --receipt /tmp/gradle-reuse-receipt.json
+```
+
+### 운영 적용 상태
+
 Jenkins LTS `2.580.1` 컨트롤러는 `/opt/eolssu/jenkins/compose.yml`의 `eolssu-jenkins-controller-1` 컨테이너로 실행합니다. 기존 홈 `/var/lib/jenkins`와 UID/GID 111:113을 유지하며 `127.0.0.1:8080`에서만 접속할 수 있습니다. 관리자 인증·CSRF·가입 차단·인바운드 TCP 에이전트 포트 차단은 보존했습니다. 기존 apt의 `jenkins.service`는 중단·비활성화했고 패키지는 복구를 위해 남겼습니다.
 
 빌드·배포는 같은 서버의 `eolssu-jenkins-agent.service`가 기존 `jenkins` 계정·호스트 도구·Docker 그룹·sudoers로 실행합니다. `edo1-host` 노드의 executor는 1개이고 컨트롤러는 0개입니다. 현재 workspace는 `/var/lib/jenkins-agent/workspace`이며 과거 workspace와 빌드 이력은 보존합니다. 에이전트는 loopback HTTP 주소로 WebSocket 연결합니다.
@@ -402,7 +430,7 @@ Cloudflare 버킷 Settings에서 사용자 도메인 없음·Public Development 
 
 ## V25 삭제 전 호환 백엔드 배포
 
-S15P31E102-499의 임시 `bootJar` 블록은 실행 JAR에서 `V25__drop_practice_session_mission.sql`만 제외합니다. 원본과 DB 테스트 리소스는 보존합니다. V26 이상이 들어오면 패키징을 중단합니다. [이유·검증](../../docs/knowledge/infra/mission-migration-compat.md), [작업 상태](../../docs/plans/S15P31E102-499.md)를 확인합니다.
+S15P31E102-499의 1차 호환 릴리스 A는 임시 `bootJar` 블록으로 실행 JAR에서만 V25를 제외하고 V26 이상을 차단했습니다. A 운영 반영·세션 실호출 확인 후 준비하는 후속 B는 이 임시 블록을 제거해 원본 V25를 다시 포함합니다. 아래는 두 릴리스를 순서대로 수행하는 절차입니다. [이유·검증](../../docs/knowledge/infra/mission-migration-compat.md), [작업 상태](../../docs/plans/S15P31E102-499.md)를 확인합니다.
 
 1. 배포 전 운영 Flyway 이력이 V24 이하이고 실패 행이 없는지 확인합니다. V25가 이미 적용된 환경에는 이 호환 JAR을 배포하지 않습니다. 승인 파일을 먼저 추가하지 않습니다.
 2. 1차 호환 릴리스 A를 기존 Jenkins 경로로 단독 배포합니다. `Check database migrations` → 필요 시 V24까지 적용 → 백엔드 교체 순서로 동작합니다. 실행 JAR에 V25가 없는지 확인합니다.
