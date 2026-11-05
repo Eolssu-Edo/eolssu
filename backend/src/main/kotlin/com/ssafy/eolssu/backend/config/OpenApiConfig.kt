@@ -110,6 +110,9 @@ class OpenApiConfig {
                 if (doc.id == "getNotationSymbolImage") {
                     response.content = Content().addMediaType("image/svg+xml", MediaType().schema(StringSchema().format("binary")))
                 }
+                if (doc.id == "getJangdanAudio") {
+                    response.content = Content().addMediaType("audio/mpeg", MediaType().schema(StringSchema().format("binary")))
+                }
                 if (doc.id == "getModelAudioPerformance") {
                     response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
