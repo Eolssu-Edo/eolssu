@@ -4,11 +4,11 @@ import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.catalog.application.CatalogReferenceQueries
+import com.ssafy.eolssu.backend.feature.catalog.application.JangdanPreviewAudio
 import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogJangdan
 import com.ssafy.eolssu.backend.feature.catalog.domain.FingeringPattern
 import com.ssafy.eolssu.backend.feature.notation.infrastructure.BundledNotationSymbols
 import org.springframework.context.annotation.Profile
-import org.springframework.core.io.ClassPathResource
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -21,7 +21,10 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api")
 @Profile("db | ops")
-class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
+class CatalogReferenceController(
+    private val queries: CatalogReferenceQueries,
+    private val previews: JangdanPreviewAudio,
+) {
     @GetMapping("/instruments")
     fun instruments() = SuccessResponse.of(HttpStatus.OK, "제공 중인 악기 목록 조회 성공", InstrumentListResult(
         queries.instruments().map { InstrumentItem(it.id.toString(), it.code, it.name, it.pitchToleranceCent,
@@ -62,11 +65,11 @@ class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
     @GetMapping("/jangdans/{jangdanId}/audio")
     fun jangdanAudio(@PathVariable jangdanId: String): ResponseEntity<*> {
         val id = positiveId(jangdanId) ?: return invalidRequest()
-        if (queries.jangdan(id) == null) return notFound()
-        val audio = jangdanAudioResource(id)
-        if (!audio.exists()) return notFound()
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/mpeg"))
-            .header("X-Content-Type-Options", "nosniff").body(audio)
+        if (queries.jangdan(id) == null || !previews.hasAudio(id)) return notFound()
+        val url = previews.playbackUrl(id)
+            ?: return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header("Cache-Control", "no-store")
+                .body(ErrorResponse.of(ErrorCode.SERVICE_UNAVAILABLE))
+        return ResponseEntity.status(HttpStatus.FOUND).location(url).header("Cache-Control", "no-store").build<Void>()
     }
 
     @GetMapping("/notation-symbols")
@@ -92,10 +95,9 @@ class CatalogReferenceController(private val queries: CatalogReferenceQueries) {
     private fun success(message: String, result: Any) = ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, message, result))
     private fun invalidRequest() = ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
     private fun notFound() = ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(ErrorCode.RESOURCE_NOT_FOUND))
-    private fun jangdanAudioResource(id: Long) = ClassPathResource("catalog/jangdan-audio/$id.mp3")
 
     private fun CatalogJangdan.detail(): JangdanDetailResult {
-        val soundUrl = "/api/jangdans/$id/audio".takeIf { jangdanAudioResource(id).exists() }
+        val soundUrl = "/api/jangdans/$id/audio".takeIf { previews.hasAudio(id) }
         val attributedSource = if (soundUrl == null) source else listOfNotNull(
             source, "음원: 국립국악원 국악기 디지털 음원 장구 단음(공공누리 제1유형)을 편집한 미리듣기",
         ).joinToString("\n")

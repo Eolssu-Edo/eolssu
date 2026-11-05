@@ -4,7 +4,9 @@ S15P31E102-491, BE 작업 분리 기준2026-11-05. 백엔드는 S15P31E102-160�
 
 통합 순서는 DATA160([MR !324](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/324)) → BE491 → FE340([MR !319](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/319))이다. 이 문서의 서버·DB·107곡 대조 결과는 160의 `catalog/jangdan-playback.json`과 음원 자산을 포함한 상태의 검증이다. BE MR에는 자산 제작·검수 결과나 FE 코드·앱 검사를 중복 포함하지 않는다.
 
-CAT-08은 등록 장단의 미리듣기 자산이 있을 때 같은 API 원점의 `soundUrl`을 제공한다. `/api/jangdans/{jangdanId}/audio`는 공개 GET으로 `audio/mpeg` 본문과 범위 요청을 지원한다. 미등록 장단이나 자산이 없는 요청은404이며 오디오 경로와 응답은 OpenAPI에도 표시한다. 앱의 실제 소리 출력 검증과 서버의 바이트·HTTP 검증을 구분한다.
+CAT-08은 등록 장단의 미리듣기 자산이 있을 때 같은 API 원점의 `soundUrl`을 제공한다. `/api/jangdans/{jangdanId}/audio`는 공개 GET으로 기존 모범 음원과 같은 비공개 R2의 15분 서명 주소로 이동한다. 160의 ID별 해시를 사용해 `jangdan-preview/v1/{id}/{sha256}.m4a`를 서명하며 R2가 `audio/mp4`와 범위 요청을 응답한다. 미등록 장단이나 매핑이 없는 요청은 404, 서명 설정이 없거나 서명에 실패한 경우는 503이다. 302 응답에는 `Cache-Control: no-store`를 붙인다. 앱의 실제 소리 출력 검증과 서버의 바이트·HTTP 검증을 구분한다.
+
+2026-11-05 M4A 전환 검증에서 컨트롤러의 302·서명 경로·404·503과 160 리소스를 함께 넣은 백엔드 `build`를 확인했다. R2 객체 10개의 전체 해시와 서명 범위 응답은 [160 음원 기록](../data/jangdan-preview-audio.md)에 있다. MySQL HTTP 통합 검사와 배포된 앱 재생은 이번 전환에서 별도 확인이 필요하다.
 
 ## 판본과 패턴 변경 차단
 

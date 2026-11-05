@@ -94,10 +94,12 @@ open class OpenApiDatabaseTests {
         assertTrue(symbolImage.path("responses").has("404"))
         val jangdanAudio = doc.path("paths").path("/api/jangdans/{jangdanId}/audio").path("get")
         assertEquals(0, jangdanAudio.path("security").size())
-        for (status in listOf("200", "206")) {
-            assertEquals("binary", jangdanAudio.path("responses").path(status).path("content")
-                .path("audio/mpeg").path("schema").path("format").asString())
-        }
+        val jangdanRedirect = jangdanAudio.path("responses").path("302")
+        assertFalse(jangdanRedirect.has("content"))
+        assertTrue(jangdanRedirect.path("headers").has("Location"))
+        assertTrue(jangdanRedirect.path("headers").has("Cache-Control"))
+        assertTrue(jangdanAudio.path("responses").has("404"))
+        assertTrue(jangdanAudio.path("responses").has("503"))
         val symbolProperties = doc.path("components").path("schemas").path("NotationSymbolItem").path("properties")
         for (field in listOf("source", "descriptionStatus", "imageLicense")) assertTrue(symbolProperties.has(field), field)
         val play = doc.path("paths").path("/api/reference-audios/{assetId}/play").path("get")

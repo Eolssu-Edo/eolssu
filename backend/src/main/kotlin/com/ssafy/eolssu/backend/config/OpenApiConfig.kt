@@ -111,7 +111,8 @@ class OpenApiConfig {
                     response.content = Content().addMediaType("image/svg+xml", MediaType().schema(StringSchema().format("binary")))
                 }
                 if (doc.id == "getJangdanAudio") {
-                    response.content = Content().addMediaType("audio/mpeg", MediaType().schema(StringSchema().format("binary")))
+                    response.addHeaderObject("Location", Header().schema(StringSchema()).description("비공개 R2의 M4A 서명 URL"))
+                    response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
                 }
                 if (doc.id == "getModelAudioPerformance") {
                     response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))

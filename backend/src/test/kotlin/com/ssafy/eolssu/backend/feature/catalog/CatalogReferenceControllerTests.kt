@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.catalog
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.catalog.api.CatalogReferenceController
 import com.ssafy.eolssu.backend.feature.catalog.application.CatalogReferenceQueries
+import com.ssafy.eolssu.backend.feature.catalog.application.JangdanPreviewAudio
 import com.ssafy.eolssu.backend.feature.catalog.domain.*
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -13,7 +14,12 @@ import kotlin.test.*
 class CatalogReferenceControllerTests {
     private val repository = ReferenceFixture()
     private val queries = CatalogReferenceQueries(repository)
-    private val mvc = MockMvcBuilders.standaloneSetup(CatalogReferenceController(queries))
+    private val previewHash = "a".repeat(64)
+    private var signingAvailable = true
+    private val previews = JangdanPreviewAudio(mapOf(1L to previewHash)) {
+        if (signingAvailable) "https://r2.example.test/$it?signature=test" else null
+    }
+    private val mvc = MockMvcBuilders.standaloneSetup(CatalogReferenceController(queries, previews))
         .setControllerAdvice(GlobalExceptionHandler()).build()
 
     @Test fun `instrument response preserves bigint identities and stored tolerance`() {
@@ -78,13 +84,16 @@ class CatalogReferenceControllerTests {
             .andExpect(jsonPath("$.result.soundUrl").value("/api/jangdans/1/audio"))
     }
 
-    @Test fun `public jangdan audio supports ranges and rejects unknown ids`() {
+    @Test fun `public jangdan audio redirects without caching and rejects unknown ids`() {
         mvc.perform(get("/api/jangdans/1/audio").header("Range", "bytes=0-63"))
-            .andExpect(status().isPartialContent)
-            .andExpect(content().contentTypeCompatibleWith("audio/mpeg"))
-            .andExpect(header().string("Content-Range", org.hamcrest.Matchers.startsWith("bytes 0-63/")))
+            .andExpect(status().isFound)
+            .andExpect(header().string("Location", "https://r2.example.test/jangdan-preview/v1/1/$previewHash.m4a?signature=test"))
+            .andExpect(header().string("Cache-Control", "no-store"))
         mvc.perform(get("/api/jangdans/01/audio")).andExpect(status().isBadRequest)
         mvc.perform(get("/api/jangdans/2/audio")).andExpect(status().isNotFound)
+        signingAvailable = false
+        mvc.perform(get("/api/jangdans/1/audio")).andExpect(status().isServiceUnavailable)
+            .andExpect(header().string("Cache-Control", "no-store"))
     }
 
     @Test fun `notation preserves glyph and null image without inventing semantic codes`() {

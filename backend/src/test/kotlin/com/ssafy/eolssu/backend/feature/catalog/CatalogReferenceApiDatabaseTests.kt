@@ -154,9 +154,12 @@ class CatalogReferenceApiDatabaseTests {
             val audio = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/jangdans/$id/audio"))
                 .header("Range", "bytes=0-63").header("Cookie", "access_token=stale").build(),
                 HttpResponse.BodyHandlers.ofByteArray())
-            assertEquals(206, audio.statusCode())
-            assertTrue(audio.headers().firstValue("Content-Type").orElse("").startsWith("audio/mpeg"))
-            assertEquals(64, audio.body().size)
+            assertEquals(302, audio.statusCode())
+            assertEquals("no-store", audio.headers().firstValue("Cache-Control").orElse(""))
+            val location = URI(audio.headers().firstValue("Location").orElseThrow())
+            assertEquals("https", location.scheme)
+            assertTrue(location.path.substringAfter("/jangdan-preview/v1/").matches(Regex("$id/[0-9a-f]{64}\\.m4a")))
+            assertTrue(location.query.contains("X-Amz-Expires=900"))
         }
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
     }
@@ -315,6 +318,11 @@ class CatalogReferenceApiDatabaseTests {
         private const val inactiveId = 992883L
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
+            registry.add("eolssu.recording-storage.type") { "s3" }
+            registry.add("eolssu.recording-storage.endpoint") { "https://r2.example.test" }
+            registry.add("eolssu.recording-storage.bucket") { "test-bucket" }
+            registry.add("eolssu.recording-storage.access-key-id") { "fixture-access-key" }
+            registry.add("eolssu.recording-storage.secret-access-key") { "fixture-secret-key" }
             registry.add("spring.datasource.url") { requireNotNull(System.getenv("TEST_DB_URL")) }
             registry.add("spring.datasource.username") { requireNotNull(System.getenv("TEST_DB_USERNAME")) }
             registry.add("spring.datasource.password") { requireNotNull(System.getenv("TEST_DB_PASSWORD")) }
