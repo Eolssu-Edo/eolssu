@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.audio.JangdanClip
 import com.ssafy.eolssu.core.audio.JangdanCursor
 import com.ssafy.eolssu.core.audio.JangdanPlan
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
@@ -20,8 +21,31 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
     val status = mutableStatus.asStateFlow()
     private var job: Job? = null
     private var generation = 0
+    private var preparedClips: Set<JangdanClip> = emptySet()
 
-    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, onStarted: () -> Unit = {}) {
+    suspend fun prepareAccompaniment(plan: JangdanPlan): Boolean {
+        val ready = try {
+            prepare(plan)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+        if (!ready) {
+            release()
+            mutableStatus.value = JangdanStatus.Failed
+        }
+        return ready
+    }
+
+    private suspend fun prepare(plan: JangdanPlan): Boolean {
+        val clips = plan.strikes.map { it.clip }.toSet()
+        if (preparedClips == clips) return true
+        preparedClips = emptySet()
+        return player.prepare(clips).also { if (it) preparedClips = clips }
+    }
+
+    fun start(plan: JangdanPlan?, accompanyingModel: Boolean, tick: () -> Double?, resumeAfterTick: Double? = null, startAtTick: Double? = null, onStarted: () -> Unit = {}) {
         stop()
         if (!player.available || plan == null) {
             mutableStatus.value = JangdanStatus.Unsupported
@@ -31,13 +55,13 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         mutableStatus.value = JangdanStatus.Loading
         job = scope.launch {
             try {
-                if (!player.prepare(plan.strikes.map { it.clip }.toSet()) || !player.begin(accompanyingModel)) {
+                if (!prepare(plan) || !player.begin(accompanyingModel)) {
                     mutableStatus.value = JangdanStatus.Failed
                     return@launch
                 }
                 onStarted()
                 mutableStatus.value = JangdanStatus.Playing
-                val cursor = JangdanCursor(plan, resumeAfterTick = resumeAfterTick)
+                val cursor = JangdanCursor(plan, resumeAfterTick = resumeAfterTick, startAtTick = startAtTick)
                 while (isActive) {
                     if (player.interrupted) {
                         mutableStatus.value = JangdanStatus.Interrupted
@@ -58,7 +82,10 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                 mutableStatus.value = JangdanStatus.Failed
             } finally {
                 if (token == generation) {
-                    if (mutableStatus.value == JangdanStatus.Failed) player.release() else player.stop()
+                    if (mutableStatus.value == JangdanStatus.Failed) {
+                        preparedClips = emptySet()
+                        player.release()
+                    } else player.stop()
                     if (mutableStatus.value == JangdanStatus.Playing) mutableStatus.value = JangdanStatus.Idle
                 }
             }
@@ -73,5 +100,9 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         mutableStatus.value = JangdanStatus.Idle
     }
 
-    fun release() { stop(); player.release() }
+    fun release() {
+        stop()
+        preparedClips = emptySet()
+        player.release()
+    }
 }

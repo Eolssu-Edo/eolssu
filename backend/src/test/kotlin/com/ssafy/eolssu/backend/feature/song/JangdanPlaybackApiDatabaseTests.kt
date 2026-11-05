@@ -87,6 +87,15 @@ class JangdanPlaybackApiDatabaseTests {
         }
     }
 
+    @Test fun `CAT04 returns the registered Jajin taryeong pattern for a valid score grid`() {
+        jdbc.update("UPDATE songs SET score_json=JSON_SET(score_json,'$.music.jangdan','자진타령') WHERE id=6")
+        val playback = get().path("jangdanPlayback")
+        assertEquals("11", playback.path("jangdanId").asString())
+        assertEquals(24L, playback.path("cycleTicks").longValue())
+        assertEquals("덕", playback.path("pattern").path("beats").get(8).asString())
+        assertNull(jdbc.queryForObject("SELECT jangdan_id FROM songs WHERE id=6", Long::class.java))
+    }
+
     private fun get(): JsonNode {
         val response = client.send(HttpRequest.newBuilder(URI("http://localhost:$port/api/songs/6/score"))
             .header("Cookie", "access_token=malformed").GET().build(), HttpResponse.BodyHandlers.ofString())

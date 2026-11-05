@@ -97,7 +97,7 @@ pipeline {
         stage('Compile Wasm app') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:compileKotlinWasmJs :webApp:compileKotlinWasmJs'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:compileKotlinWasmJs :webApp:compileKotlinWasmJs'
                 }
             }
         }
@@ -105,7 +105,7 @@ pipeline {
         stage('Compile Wasm tests') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:compileTestKotlinWasmJs'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:compileTestKotlinWasmJs'
                 }
             }
         }
@@ -113,7 +113,7 @@ pipeline {
         stage('Wasm browser tests') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:wasmJsTest'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:wasmJsTest'
                 }
             }
             post { always { junit testResults: 'frontend/shared/build/test-results/wasmJsBrowserTest/TEST-*.xml', allowEmptyResults: false } }
@@ -122,7 +122,7 @@ pipeline {
         stage('Compile JavaScript') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:compileKotlinJs'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:compileKotlinJs'
                 }
             }
         }
@@ -130,7 +130,7 @@ pipeline {
         stage('Compile JavaScript tests') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:compileTestKotlinJs'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:compileTestKotlinJs'
                 }
             }
         }
@@ -138,7 +138,7 @@ pipeline {
         stage('JavaScript browser tests') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :shared:jsTest'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :shared:jsTest'
                 }
             }
             post { always { junit testResults: 'frontend/shared/build/test-results/jsBrowserTest/TEST-*.xml', allowEmptyResults: false } }
@@ -147,7 +147,7 @@ pipeline {
         stage('Compile production Wasm') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJs'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :webApp:compileProductionExecutableKotlinWasmJs'
                 }
             }
         }
@@ -155,7 +155,7 @@ pipeline {
         stage('Optimize production Wasm') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :webApp:compileProductionExecutableKotlinWasmJsOptimize'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :webApp:compileProductionExecutableKotlinWasmJsOptimize'
                 }
             }
         }
@@ -163,7 +163,7 @@ pipeline {
         stage('Bundle production web') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :webApp:wasmJsBrowserProductionWebpack'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :webApp:wasmJsBrowserProductionWebpack'
                 }
             }
         }
@@ -171,7 +171,7 @@ pipeline {
         stage('Assemble web distribution') {
             steps {
                 dir('frontend') {
-                    sh './gradlew --no-daemon :webApp:wasmJsBrowserDistribution'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 :webApp:wasmJsBrowserDistribution'
                 }
             }
         }

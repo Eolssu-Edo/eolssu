@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import com.ssafy.eolssu.core.model.scoreLyricSlots
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreErrorKind
@@ -716,6 +717,7 @@ private fun ScoreCellBox(
             LyricLane(
                 width = lane,
                 lyric = lyric,
+                units = units,
                 drawTopLine = drawTopLine,
                 lineColor = lineColor,
                 lineWidth = lineWidth,
@@ -726,7 +728,7 @@ private fun ScoreCellBox(
 
 /** 곁줄(`.ms-lyr`) 한 칸. 왼쪽 선과 위 선(대강이면 굵게)을 긋는다. */
 @Composable
-private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
+private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, units: List<ScoreDisplayUnit>, drawTopLine: Boolean, lineColor: Color, lineWidth: androidx.compose.ui.unit.Dp) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
@@ -738,8 +740,18 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, drawTo
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (lyric != null) {
-            Text(lyric.replace("{세로표}", ""), style = MaterialTheme.typography.labelSmall, color = colors.text)
+        val lines = remember(lyric, units) {
+            val slots = scoreLyricSlots(lyric, units.size)
+            units.withIndex().groupBy { it.value.unitRow }.entries.sortedBy { it.key }.map { (_, row) ->
+                row.sortedBy { it.value.unitCol }.joinToString("") { slots[it.index] }
+            }
+        }
+        Column(Modifier.fillMaxSize()) {
+            lines.forEach { line ->
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.labelSmall, color = colors.text)
+                }
+            }
         }
     }
 }

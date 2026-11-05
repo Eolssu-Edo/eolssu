@@ -43,7 +43,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 내 악보(SHT-01·02·04·08·11)
 
-S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, 악보 만들기(SHT-07 불러오기)·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
+S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, S15P31E102-471은 SHT-07 `POST /api/users/me/sheets/imports`와 SHT-10 변환 상태 조회를 구현합니다(V26). PDF·PNG·JPEG 원본은 `SHEET_STORAGE_*` 전용 저장소에 보관하고, 연결값이 없으면 업로드는 503입니다. S15P31E102-472(V27)는 단일 인식 작업자와 결과·초안 저장, SHT-14 `POST .../conversion/retry`를 연결합니다. `SHEET_CONVERSION_OMR_BASE_URL`에 내부 OMR 주소를 지정합니다(운영 Compose 기본 `http://omr:8000`). 주소 또는 악보 저장소가 없으면 신규 업로드·실패 재시도는 503입니다. 호출 제한은 본문 수신까지 630초입니다. `eolssu.scheduling.enabled=false`에서는 큐 실행과 시작 시 복구를 끕니다. 시작 시 RUNNING을 서버 실패로 정리하며 한 backend 인스턴스에서 작업자를 실행합니다. TIMEOUT은 한 번, 일반 서버 장애는 합계 세 번까지 재시도하고 인식 엔진·입력 오류는 재시도하지 않습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
 
 ### 카탈로그 조회(CAT-03~10)
 
@@ -60,6 +60,10 @@ S15P31E102-411: V21의 자진모리·중중모리·엇모리·단모리·타령�
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.
+
+### 한 음씩 연습 판정 기준(PRA-06)
+
+S15P31E102-493: `db`·`ops`에서 로그인 없이 `GET /api/note-practice/criteria?instrumentId=`로 악기별 판정 기준을 조회합니다. 기준은 `application.yml`의 `eolssu.note-practice.criteria`에 악기 code별로 있으며 테이블·마이그레이션은 없습니다. 값은 AI 미확정 초안이고, 바꾸면 백엔드 재배포·재시작만 필요하며 앱 배포는 필요 없습니다. 잘못된 값은 서버 시작을 막습니다. 계약과 초안 값은 [스펙](../docs/specs/note-practice-criteria.md)입니다. 검증은 `NotePracticeCriteriaControllerTests`, `NotePracticePropertiesTests`, 실제 MySQL의 `NotePracticeCriteriaApiDatabaseTests`입니다.
 
 ### 정간보 기호 사전(CAT-09)
 

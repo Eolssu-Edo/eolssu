@@ -1,0 +1,25 @@
+[Unit]
+Description=Short Jenkins failure notifications to Mattermost
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=eolssu-jenkins-notify
+StateDirectoryMode=0700
+LoadCredential=jenkins-auth:/opt/eolssu/jenkins/admin-cli.auth
+LoadCredential=webhook-url:/etc/eolssu-jenkins-notify/webhook-url
+ExecStart=/usr/bin/python3 -I -B /opt/eolssu/jenkins-notify/notify.py
+TimeoutStartSec=180
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
