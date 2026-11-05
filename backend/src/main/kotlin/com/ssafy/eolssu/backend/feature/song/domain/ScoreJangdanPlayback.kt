@@ -1,6 +1,6 @@
 package com.ssafy.eolssu.backend.feature.song.domain
 
-/** Reviewed accompaniment uses score ticks; catalog BPM never replaces the song clock. */
+/** Accompaniment uses current score ticks; catalog BPM never replaces the song clock. */
 data class ScoreJangdanPlayback(
     val jangdanId: String,
     val name: String,

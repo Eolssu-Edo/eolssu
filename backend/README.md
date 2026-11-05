@@ -47,7 +47,7 @@ S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me
 
 ### 카탈로그 조회(CAT-03~10)
 
-S15P31E102-491의 범위는 CAT-08 미리듣기 음원 API와 CAT-04 반주 응답입니다. CAT-08의 `soundUrl`은 `/api/jangdans/{jangdanId}/audio`를 가리키며 이 경로는 160이 게시한 비공개 R2 M4A의 15분 서명 URL로 이동합니다. 기존 모범 음원과 동일한 `RECORDING_STORAGE_*` 설정을 사용합니다. CAT-04의 선택적 `jangdanPlayback`은 160이 구조 검수한 판본에 score tick 기준 시작점·장단 주기·구음 패턴을 제공합니다(107개 중60개 허용, 장단명 미상45개·세령산2개 보류). 악보 전체의 의미 해시·판본·BPM과 장단 패턴이 검수값과 다르면 반주만 null이 됩니다. 기존 곡 FK·BPM·악보·모범 음원을 바꾸지 않는 읽기 확장이라 새 DB 마이그레이션은 없습니다. [API 계약·판본 보호·서버 검증](../docs/knowledge/backend/jangdan-practice-links.md)을 따릅니다.
+S15P31E102-491의 범위는 CAT-08 미리듣기 음원 API와 CAT-04 반주 응답입니다. CAT-08의 `soundUrl`은 `/api/jangdans/{jangdanId}/audio`를 가리키며 이 경로는 160이 게시한 비공개 R2 M4A의 15분 서명 URL로 이동합니다. 기존 모범 음원과 동일한 `RECORDING_STORAGE_*` 설정을 사용합니다. CAT-04의 선택적 `jangdanPlayback`은 현재 악보의 장단명과 틱 구조, 카탈로그 구음에서 시작점과 한 주기를 계산합니다. 시작점 또는 주기를 정할 수 없으면 반주만 null입니다. 기존 곡 FK·BPM·악보·모범 음원을 바꾸지 않는 읽기 확장이라 새 DB 마이그레이션은 없습니다. [API 계약·악보 구조 판정·서버 검증](../docs/knowledge/backend/jangdan-practice-links.md)을 따릅니다.
 
 통합 순서는 DATA160(MR !324) → BE491 → FE340(MR !319)입니다. 백엔드 실행·검사는 160의 검수 목록·음원 자산을 먼저 반영한 상태에서 수행합니다. 앱의 화면·재생 엔진·응답 소비와 앱 검증은 S15P31E102-340의 FE MR 범위입니다. 전수 대조는 공개 CAT-04 응답을 `{songId}.json`으로 저장한 디렉터리를 `JANGDAN_SNAPSHOT_DIR`에 지정하고 `.\gradlew.bat test --tests '*JangdanPlaybackSnapshotTests' --rerun-tasks`로 실행합니다. 각 파일의 `result.score`를 운영 검수 manifest와 대조하며 네트워크나 DB는 사용하지 않습니다. 디렉터리를 지정하지 않으면 이 선택 검사만 생략되고, 기본 단위 검사는 작은 악보를, DB 검사는 대표 원본 한 곡을 사용합니다. `--rerun-tasks`는 환경변수 변경 전 결과를 재사용하지 않도록 합니다.
 

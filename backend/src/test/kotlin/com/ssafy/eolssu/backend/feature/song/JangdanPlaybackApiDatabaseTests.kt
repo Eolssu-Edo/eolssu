@@ -59,21 +59,32 @@ class JangdanPlaybackApiDatabaseTests {
         assertEquals("더러러러", playback.path("pattern").path("beats").get(4).asString())
     }
 
-    @Test fun `changed BPM source identity or catalog pattern removes only the unreviewed playback`() {
-        jdbc.update("UPDATE songs SET default_bpm=100 WHERE id=6")
-        assertTrue(get().path("jangdanPlayback").isNull)
-        jdbc.update("UPDATE songs SET default_bpm=99,score_json=JSON_SET(score_json,'$.provenance.review','changed') WHERE id=6")
-        assertTrue(get().path("jangdanPlayback").isNull)
-        jdbc.update("UPDATE songs SET score_json=? WHERE id=6", json.writeValueAsString(source))
-        assertFalse(get().path("jangdanPlayback").isNull)
+    @Test fun `CAT04 follows the current BPM and edited revision while the grid stays valid`() {
+        jdbc.update("""UPDATE songs SET default_bpm=100,score_version=2,
+            score_json=JSON_SET(score_json,'$.score.scoreVersion',2,'$.score.title','제목 수정','$.provenance.review','changed')
+            WHERE id=6""")
+        val edited = get()
+        assertEquals(100, edited.path("defaultBpm").intValue())
+        assertEquals(2, edited.path("scoreVersion").intValue())
+        assertEquals(24L, edited.path("jangdanPlayback").path("cycleTicks").longValue())
+
+        jdbc.update("UPDATE songs SET score_json=JSON_SET(score_json,'$.music.jangdan','') WHERE id=6")
+        val unspecified = get()
+        assertTrue(unspecified.path("jangdanPlayback").isNull)
+        assertEquals(100, unspecified.path("defaultBpm").intValue())
+        assertEquals("제목 수정", unspecified.path("score").path("score").path("title").asString())
+    }
+
+    @Test fun `CAT04 uses the current catalog pattern and rejects an invalid grouping`() {
         val pattern = jdbc.queryForObject("SELECT pattern FROM jangdans WHERE id=2", String::class.java)
         try {
             jdbc.update("UPDATE jangdans SET pattern=JSON_SET(pattern,'$.beats[0]','쿵') WHERE id=2")
+            assertEquals("쿵", get().path("jangdanPlayback").path("pattern").path("beats").path(0).asString())
+            jdbc.update("UPDATE jangdans SET pattern=JSON_SET(pattern,'$.group[0]',0) WHERE id=2")
             assertTrue(get().path("jangdanPlayback").isNull)
         } finally {
             jdbc.update("UPDATE jangdans SET pattern=? WHERE id=2", pattern)
         }
-        assertFalse(get().path("jangdanPlayback").isNull)
     }
 
     private fun get(): JsonNode {
