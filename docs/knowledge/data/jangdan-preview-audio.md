@@ -102,4 +102,4 @@ python -m unittest data.tests.test_jangdan_practice_audio data.tests.test_jangda
 
 사용자는 기본99·빠른119 클립을 제시받고 **크게 거슬리지 않음**이라고 답했다. 이는 두 클립에 대한 사용자 청음 의견이며,5개 전체의 전문 연주자 검수나 실제 기기 출력 검증을 대신하지 않는다. 생성 명세의 `musicalListeningReview=pending`은 이 전문 검수가 남았다는 뜻이다.
 
-160은 `frontend/shared/src/commonMain/composeResources/files/jangdan/`에 11개 파생 WAV와 생성 명세를 전달한다. 340은 이 자산을 원음 속도1로 재생하는 앱 기능을 연결한다. 전체 곡 파일을5벌로 늘리지 않는다. 곡별 검수 연결과 반주 동작의 기준은 [연습 반주 스펙](../../specs/jangdan-practice-playback.md)을 따른다.
+160은 파생 WAV 11개를 비공개 R2의 `jangdan-practice/v1/{sample}/{sha256}.wav`에 게시했다. 전체 다운로드와 서명 GET에서 11개의 SHA-256과 `audio/wav`를 확인했다. 앱 리소스에는 생성 명세·이용 조건을, 서버의 `catalog/jangdan-practice-sha256.properties`에는 샘플명과 해시를 둔다. 340은 이 자산을 원음 속도1로 재생하는 앱 기능을 연결한다. 전체 곡 파일을5벌로 늘리지 않는다. 곡별 검수 연결과 반주 동작의 기준은 [연습 반주 스펙](../../specs/jangdan-practice-playback.md)을 따른다.

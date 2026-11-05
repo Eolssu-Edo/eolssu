@@ -15,7 +15,7 @@ S15P31E102-160·340. 2026-11-04 사용자 승인 범위. 기존 카탈로그·�
 
 ### 160 전달물과 BE491·FE340 소비 계약
 
-160의 [곡별 검수 결과](../knowledge/data/jangdan-song-review.md)는 `backend/src/main/resources/catalog/jangdan-playback.json`에 둔다. 107개 판본 중 구조 검수60개와 장단명 미상45개·세령산 굴림 미검수2개의 사유를 명시한다. 미리듣기 M4A는 비공개 R2의 `jangdan-preview/v1/{id}/{sha256}.m4a`에 게시하고 서버 리소스에는 ID별 SHA-256을 둔다. 연습용 WAV와 생성 manifest는 `frontend/shared/src/commonMain/composeResources/files/jangdan/`에 전달한다. 경로가 서버·앱 리소스 아래에 있어도 이 자산의 생성·출처·검수는 160의 책임이다.
+160의 [곡별 검수 결과](../knowledge/data/jangdan-song-review.md)는 `backend/src/main/resources/catalog/jangdan-playback.json`에 둔다. 107개 판본 중 구조 검수60개와 장단명 미상45개·세령산 굴림 미검수2개의 사유를 명시한다. 미리듣기 M4A는 비공개 R2의 `jangdan-preview/v1/{id}/{sha256}.m4a`에 게시하고 서버 리소스에는 ID별 SHA-256을 둔다. 연습용 WAV 11개는 비공개 R2 `jangdan-practice/v1/{sample}/{sha256}.wav`에 게시한다. 서버에는 샘플명·해시 목록을, 앱에는 `files/jangdan/manifest.json`과 이용 조건을 제공한다. 앱은 연습 시작 전에 필요한 샘플만 내려받아 길이·해시 검증 후 캐시하고 SoundPool에 로딩한다. 캐시가 유효하면 서버 요청을 생략한다. 경로가 서버·앱 리소스 아래에 있어도 이 자산의 생성·출처·검수는 160의 책임이다.
 
 악보 의미 해시의 공통 형식은 `typed-tree-sha256-v1`이다. null=`n`, boolean=`t/f`, 숫자=`d`+뒤0/지수 제거한10진수+`;`, 문자열=`s`+UTF-8바이트길이+`:`+문자열, 배열=`[`+요소+`]`, 객체=`{`+UTF-16키순으로 정렬한 문자열키·값+`}`를 UTF-8로 인코딩해 SHA-256한다. 문자열 내용·배열순서·숫자/문자열 타입을 보존하고 객체 키 순서·공백·동등한 수 표기 차이만 제거한다. 일반 파일 SHA-256이나 CAT-05 sourceCommonSha256과 혼용하지 않는다. BE491은 이 형식으로 검수 manifest와 현재 악보를 대조한다.
 
