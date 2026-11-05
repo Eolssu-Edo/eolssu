@@ -52,7 +52,7 @@ class JangdanLocalServerTest {
                 assertEquals(summary.defaultBpm, detail.defaultBpm)
                 assertEquals(summary.bpmUnit, detail.bpmUnit)
                 assertTrue(assertNotNull(detail.source).contains("https://"))
-                assertNull(detail.soundUrl)
+                assertEquals("${baseUrl.trimEnd('/')}/api/jangdans/$id/audio", detail.soundUrl)
                 assertEquals(detail, repository.jangdan(id))
             }
             data class Remaining(val id: String, val name: String, val bpm: Int, val beats: List<String>, val groups: List<Int>)
@@ -78,7 +78,7 @@ class JangdanLocalServerTest {
                 assertEquals(e.groups.size, summary.groupCount)
                 assertEquals(detail, repository.jangdan(e.id))
                 if (e.id.toInt() >= 8) assertTrue(assertNotNull(detail.source).contains("사용자승인값"))
-                assertNull(detail.soundUrl)
+                assertEquals("${baseUrl.trimEnd('/')}/api/jangdans/${e.id}/audio", detail.soundUrl)
             }
             vm.uiState.first { it.symbolsState != ReferenceLoadState.Loading }
         } finally {

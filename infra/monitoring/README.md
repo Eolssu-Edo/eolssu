@@ -106,7 +106,7 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 
 ## 4. 대시보드
 
-작업: [S15P31E102-102](https://ssafy.atlassian.net/browse/S15P31E102-102). 시각은 DB에 UTC로 저장되고 Grafana가 브라우저 시각으로 바꿔 보여 줍니다.
+작업: [S15P31E102-102](https://ssafy.atlassian.net/browse/S15P31E102-102). 시각은 DB에 UTC로 저장되고 대시보드는 한국 시각(Asia/Seoul)으로 보여 줍니다. SQL에서 날짜로 묶거나 글자로 바꾸는 곳은 9시간을 더해 KST로 맞춥니다.
 
 ### Grafana: 운영 현황과 최근 행
 
@@ -119,7 +119,7 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 | 패널 | 내용 |
 | --- | --- |
 | 현황 | 가입자 수(탈퇴 제외), 선택 기간의 연습 세션·채점 결과 수, 최근 연습 시작 시각 |
-| 일별 막대 | 일별 가입·연습·채점 수. 하루는 UTC 기준이라 한국 시각 오전 9시에 나뉩니다 |
+| 일별 막대 | 일별 가입·연습·채점 수. 하루는 한국 시각 자정에 나뉩니다 |
 | 최근 행 | practice_sessions·evaluations·note_results·users의 최근 20행. users는 이메일·닉네임·비밀번호 해시를 뺍니다 |
 | 곡별 연습 | 선택 기간에 시작한 연습의 곡·악기별 횟수와 평균 점수. 채점이 없는 연습도 셉니다. Metabase에서 옮겼습니다 |
 

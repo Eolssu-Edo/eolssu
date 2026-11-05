@@ -1,0 +1,107 @@
+package com.ssafy.eolssu.backend.feature.song
+
+import com.ssafy.eolssu.backend.feature.song.domain.*
+import com.ssafy.eolssu.backend.feature.song.infrastructure.catalog.ScoreGridJangdanPlayback
+import com.ssafy.eolssu.backend.feature.jangdan.infrastructure.persistence.JangdanRow
+import java.time.LocalDateTime
+import org.junit.jupiter.api.Test
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
+import kotlin.test.*
+
+class JangdanPlaybackTests {
+    private val json = JsonMapper.builder().build()
+    private val production = json.readTree(requireNotNull(javaClass.getResourceAsStream("/catalog/jangdan-playback.json")))
+    // Independent reviewed ticksPerBeat / ticksPerJeonggan / cycleTicks, not derived from the manifest under test.
+    private val scales = mapOf(6L to Triple(4, 2, 24), 22L to Triple(4, 6, 24), 19L to Triple(4, 4, 48),
+        81L to Triple(4, 2, 24), 9L to Triple(2, 3, 9), 29L to Triple(6, 3, 9), 44L to Triple(4, 6, 24))
+    private val examples = (scales.keys + setOf(63L, 7L)).associateWith(::fixture)
+    private val stored = examples.getValue(6)
+    private val score = stored.scoreJson
+    private fun catalog(name: String): JangdanRow? = production.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
+        JangdanRow(it.path("jangdanId").asString().toLong(), name, it.path("pattern").toString(), 66,
+            it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
+    }
+    private val resolver = ScoreGridJangdanPlayback(json, ::catalog)
+
+    private fun review(id: Long) = production.path("scores").first { it.path("songId").asString() == id.toString() }
+    private fun fixture(id: Long): PublishedSongScore {
+        val row = review(id)
+        val version = row.path("scoreVersion").intValue()
+        val jangdan = row.path("sourceJangdan").asString()
+        val (beat, cell, cycle) = scales[id] ?: Triple(4, 2, 2)
+        val cells = (0 until cycle / cell).joinToString { """{"id":"c0-j$it","index":$it,"units":[{"row":0,"col":0,"symbol":"-","eventId":"c0-j0-r0-u0"}]}""" }
+        val body = """{"schemaVersion":1,"score":{"sourceId":"test-$id","scoreVersion":$version},
+            "music":{"jangdan":"$jangdan","ticksPerBeat":$beat,"ticksPerJeonggan":$cell,"bpmUnit":"QUARTER"},"provenance":{"review":"test"},
+            "columns":[{"index":0,"cells":[$cells]}],"events":[{"id":"c0-j0-r0-u0","cellId":"c0-j0","kind":"NOTE",
+            "startTick":0,"durationTick":$cycle,"yul":"黃","octave":0,"breathAfter":false,"sigimsae":[]}]}"""
+        return PublishedSongScore(id, version, 1, row.path("defaultBpm").intValue(), "QUARTER", body)
+    }
+
+    @Test fun `different written note scales keep equal musical cycle durations`() {
+        fun duration(id: Long): Double {
+            val song = examples.getValue(id)
+            val ticksPerBeat = json.readTree(song.scoreJson).path("music").path("ticksPerBeat").intValue()
+            val playback = assertNotNull(resolver.resolve(song))
+            assertEquals(scales.getValue(id).third.toLong(), playback.cycleTicks)
+            return playback.cycleTicks * 60_000.0 / song.defaultBpm / ticksPerBeat
+        }
+        assertEquals(3_636.363636, duration(6), 0.000001)
+        assertEquals(duration(6), duration(22), 0.000001)
+        assertEquals(8_181.818182, duration(19), 0.000001)
+        assertEquals(duration(19), duration(81), 0.000001)
+        assertEquals(1_875.0, duration(9), 0.000001)
+        assertEquals(duration(9), duration(29), 0.000001)
+    }
+
+    @Test fun `title pitch and BPM edits preserve the current score grid accompaniment`() {
+        val changed = json.readTree(score) as ObjectNode
+        (changed.path("score") as ObjectNode).put("title", "제목 수정").put("scoreVersion", 2)
+        (changed.path("events").get(0) as ObjectNode).put("yul", "太")
+        val edited = stored.copy(scoreVersion = 2, defaultBpm = 100, scoreJson = changed.toString())
+        assertEquals(24L, assertNotNull(resolver.resolve(edited)).cycleTicks)
+    }
+
+    @Test fun `the cycle follows current ticks and also works for a new song id`() {
+        val changed = json.readTree(score) as ObjectNode
+        (changed.path("music") as ObjectNode).put("ticksPerBeat", 2)
+        assertEquals(12L, assertNotNull(resolver.resolve(stored.copy(songId = 11111, scoreJson = changed.toString()))).cycleTicks)
+        (changed.path("music") as ObjectNode).put("ticksPerBeat", 3).put("bpmUnit", "DOTTED_QUARTER")
+        assertEquals(12L, assertNotNull(resolver.resolve(stored.copy(bpmUnit = "DOTTED_QUARTER", scoreJson = changed.toString()))).cycleTicks)
+    }
+
+    @Test fun `an ambiguous downbeat or partial column does not attach accompaniment`() {
+        val pickup = json.readTree(score) as ObjectNode
+        (pickup.path("events").get(0) as ObjectNode).put("kind", "REST")
+        assertNull(resolver.resolve(stored.copy(scoreJson = pickup.toString())))
+
+        val partial = json.readTree(score) as ObjectNode
+        val cells = (partial.path("columns").get(0) as ObjectNode).withArray("cells")
+        cells.remove(cells.size() - 1)
+        assertNull(resolver.resolve(stored.copy(scoreJson = partial.toString())))
+
+        val nonCanonicalName = json.readTree(score) as ObjectNode
+        (nonCanonicalName.path("music") as ObjectNode).put("jangdan", " 굿거리 ")
+        assertNull(resolver.resolve(stored.copy(scoreJson = nonCanonicalName.toString())))
+    }
+
+    @Test fun `the current valid catalog pattern plays and an unusable pattern returns null`() {
+        assertNull(ScoreGridJangdanPlayback(json) { null }.resolve(stored))
+        val row = requireNotNull(catalog("굿거리"))
+        val changed = row.copy(pattern = row.pattern.replaceFirst("떵", "쿵"))
+        assertEquals("쿵", assertNotNull(ScoreGridJangdanPlayback(json) { changed }.resolve(stored)).pattern.beats.first())
+        val invalid = row.copy(pattern = """{"beats":["쿵"],"group":[2]}""")
+        assertNull(ScoreGridJangdanPlayback(json) { invalid }.resolve(stored))
+    }
+
+    @Test fun `unreviewed Seryeongsan and unspecified rhythm remain disabled with reasons in inventory`() {
+        assertNull(resolver.resolve(examples.getValue(63)))
+        assertNull(resolver.resolve(examples.getValue(7)))
+        val reviews = production.path("scores").toList()
+        assertEquals(107, reviews.size)
+        assertEquals(107, reviews.map { it.path("songId").asString() }.toSet().size)
+        assertEquals(60, reviews.count { it.path("status").asString() == "READY" })
+        assertEquals(45, reviews.count { it.path("reason").asString() == "SOURCE_JANGDAN_UNSPECIFIED" })
+        assertEquals(2, reviews.count { it.path("reason").asString() == "ROLL_ARTICULATION_UNREVIEWED" })
+    }
+}

@@ -14,7 +14,7 @@
   "tags": [
     "eolssu"
   ],
-  "timezone": "browser",
+  "timezone": "Asia/Seoul",
   "refresh": "30s",
   "time": {
     "from": "now-6h",

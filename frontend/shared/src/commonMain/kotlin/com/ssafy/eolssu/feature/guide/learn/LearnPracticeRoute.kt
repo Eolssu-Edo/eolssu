@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -28,8 +29,10 @@ fun LearnPracticeRoute(
     onCompleted: (Int?) -> Unit,
     viewModel: LearnPracticeViewModel = koinViewModel { parametersOf(stageNumber) },
 ) {
-    val stage = learnStageOf(stageNumber) ?: return
     val learnState by learnViewModel.uiState.collectAsStateWithLifecycle()
+    // 단계 목록에 없는 단계(주소로 바로 들어옴 등)는 열지 않는다. 목록은 단계 상세를 거쳐 들어와 이미 받아 두었다.
+    val stage = learnState.stageOf(stageNumber) ?: return
+    LaunchedEffect(learnState.instrument, stage) { learnViewModel.loadDetail(stage.number) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -44,6 +47,7 @@ fun LearnPracticeRoute(
     LearnPracticeScreen(
         state = state,
         stage = stage,
+        detail = learnState.detail(stage.number),
         instrument = learnState.instrument,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
@@ -55,8 +59,9 @@ fun LearnPracticeRoute(
             onComplete = {
                 viewModel.stopListening()
                 learnViewModel.confirm(stage.number)
-                onCompleted(stageAfterConfirm(stage.number))
+                onCompleted(learnState.stageAfterConfirm(stage.number))
             },
+            onRetryDetail = { learnViewModel.loadDetail(stage.number, force = true) },
             onOpenSettings = {
                 if (!viewModel.openMicSettings()) {
                     scope.launch { snackbarHostState.showSnackbar(getString(Res.string.learn_practice_settings_failed)) }

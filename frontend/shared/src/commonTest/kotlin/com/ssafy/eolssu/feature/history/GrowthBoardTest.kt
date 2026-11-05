@@ -6,7 +6,6 @@ import com.ssafy.eolssu.data.practice.PeriodTotals
 import com.ssafy.eolssu.feature.history.component.perWeekLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 /** 연습 기록지 보드(GROWTH-01)의 월 보기 ‘주 N회’와 ‘점수 변화 · 최근 5회’ 그래프 배치. */
 class GrowthBoardTest {
@@ -49,11 +48,5 @@ class GrowthBoardTest {
         assertEquals(listOf(TrendDot(TrendWidth / 2, 48f)), scoreTrendDots(listOf(80)))
         assertEquals(listOf(48f, 48f), scoreTrendDots(listOf(70, 70)).map { it.y })
         assertEquals(emptyList(), scoreTrendDots(emptyList()))
-    }
-
-    @Test
-    fun scoreTrendIsNotConnectedYet() {
-        // 점수 추이 API 연결(S15P31E102-372) 전에는 null이라 카드가 준비 중 안내를 보인다.
-        assertNull(GrowthUiState(today = thursday).scoreTrend)
     }
 }

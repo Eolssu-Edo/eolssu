@@ -123,8 +123,8 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         ) { actions.onOpen(PracticePanel.Notation) }
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
-            if (song.jangdan != null && settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
-            song.jangdan != null && settings.jangdanSound, locked,
+            if (state.jangdanProblem) jangdanHint(state) else if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
+            !state.jangdanProblem && settings.jangdanSound, locked,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         QuickRow(
             stringResource(Res.string.practice_menu_tempo),

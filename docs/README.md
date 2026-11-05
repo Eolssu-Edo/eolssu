@@ -1,6 +1,8 @@
 # 프로젝트 문서
 
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
+- [장단 음원·곡별 검수 자료 전달과 재생 공통 스펙 (160·340)](specs/jangdan-practice-playback.md)
+- [장단 음원 생성·출처·빠르기 조사 (160)](knowledge/data/jangdan-preview-audio.md) · [107개 곡별 검수 결과 (160)](knowledge/data/jangdan-song-review.md)
 
 ## 문서 위치
 
@@ -34,7 +36,10 @@
 
 ## 기능 스펙
 
+- [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
+
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
+- [연습 악보 높이 테스트의 JS 부동소수점 비교 수정 (497)](plans/S15P31E102-497.md)
 
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
@@ -56,6 +61,7 @@
 - [카탈로그 공통 악보 원본과 가사 복원](specs/common-score-catalog-source.md) · [JGB 대조 및 복원 기록](knowledge/data/catalog-notation-restoration.md)
 - [공통 악보·모범 음원 적재와 재생 연결](specs/model-audio-catalog-load.md) · [객체 키 전환·재생 검증](knowledge/backend/model-audio-publication.md)
 - [카탈로그 API 구현·검증 기록](knowledge/backend/catalog-api-verification.md)
+- [장단 음원 API와 현재 악보 기준 반주 계산 (BE491)](knowledge/backend/jangdan-practice-links.md)
 - [4악기 카탈로그·회원 선택 정렬](specs/four-instrument-catalog.md) · [407 검증](knowledge/backend/four-instrument-catalog.md)
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 

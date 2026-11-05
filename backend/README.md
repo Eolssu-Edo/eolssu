@@ -47,6 +47,10 @@ S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me
 
 ### 카탈로그 조회(CAT-03~10)
 
+S15P31E102-491의 범위는 CAT-08 미리듣기 음원 API와 CAT-04 반주 응답입니다. CAT-08의 `soundUrl`은 `/api/jangdans/{jangdanId}/audio`를 가리키며 이 경로는 160이 게시한 비공개 R2 M4A의 15분 서명 URL로 이동합니다. 기존 모범 음원과 동일한 `RECORDING_STORAGE_*` 설정을 사용합니다. CAT-04의 선택적 `jangdanPlayback`은 현재 악보의 장단명과 틱 구조, 카탈로그 구음에서 시작점과 한 주기를 계산합니다. 시작점 또는 주기를 정할 수 없으면 반주만 null입니다. 기존 곡 FK·BPM·악보·모범 음원을 바꾸지 않는 읽기 확장이라 새 DB 마이그레이션은 없습니다. [API 계약·악보 구조 판정·서버 검증](../docs/knowledge/backend/jangdan-practice-links.md)을 따릅니다.
+
+통합 순서는 DATA160(MR !324) → BE491 → FE340(MR !319)입니다. 백엔드 실행·검사는 160의 검수 목록·음원 자산을 먼저 반영한 상태에서 수행합니다. 앱의 화면·재생 엔진·응답 소비와 앱 검증은 S15P31E102-340의 FE MR 범위입니다. 전수 대조는 공개 CAT-04 응답을 `{songId}.json`으로 저장한 디렉터리를 `JANGDAN_SNAPSHOT_DIR`에 지정하고 `.\gradlew.bat test --tests '*JangdanPlaybackSnapshotTests' --rerun-tasks`로 실행합니다. 각 파일의 `result.score`를 운영 검수 manifest와 대조하며 네트워크나 DB는 사용하지 않습니다. 디렉터리를 지정하지 않으면 이 선택 검사만 생략되고, 기본 단위 검사는 작은 악보를, DB 검사는 대표 원본 한 곡을 사용합니다. `--rerun-tasks`는 환경변수 변경 전 결과를 재사용하지 않도록 합니다.
+
 S15P31E102-409의 V18은 [내장 운지 계약](../docs/specs/builtin-fingering-catalog.md)에 따라 92개 참고 운지를 연결합니다. V17의 악기·율명 뒤에 적용하며, `fingering_charts.pattern_json`과 nullable `image_url`이 필요합니다. 기존 이미지·설명·ID는 보존합니다. 새 백엔드의 `ops` 배포 전에 V18 적용이 필요하며 이번 작업은 로컬 검증 범위입니다. 이미지가 필수인 구버전으로 되돌릴 때는 새 null 행을 읽을 수 있도록 먼저 호환성을 준비해야 합니다. `BuiltinFingeringApiDatabaseTests`는 FE 원본 전체와 실제 HTTP·pitchId 필터를 대조합니다. [검증 기록](../docs/knowledge/backend/builtin-fingering-catalog.md).
 
 S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다. 생략하면 기존 전체 목록, 지정하면 활성 악기의 게시·미삭제 곡만 ID 순서로 반환합니다. 잘못된 ID는400, 없는/비활성 악기는404, 곡이 없는 활성 악기는200 빈 목록입니다. [곡 목록 악기 필터](../docs/specs/song-instrument-filter.md)의 FE 선택과 연결되며 검증은 `SongControllerTests`와 실제 MySQL·HTTP의 `SongInstrumentApiDatabaseTests`를 사용합니다.
@@ -215,7 +219,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 - 부모 세션은 본인 소유가 아니면 404, 다른 곡이면 400, `DONE`이 아니면 409 `STATE_CONFLICT`입니다. 곡 밖의 구간은 400입니다.
 - 같은 회원·키로 같은 본문을 다시 보내면 처음 세션을 201로 돌려주고, 다른 본문이면 409 `IDEMPOTENCY_CONFLICT`입니다. 비교할 때 `startNoteIdx` 생략은 0, `jangdanSoundOn` 생략은 false와 같게 봅니다. `endNoteIdx`·`bpmUnit`은 생략과 명시를 다른 본문으로 봅니다(곡 값에 따라 달라지기 때문). 비교용 해시는 예전 미션 자리를 고정값으로 남겨, 미션 제거 전에 만든 세션도 같은 키 재전송에서 그대로 돌려줍니다. 동시에 보내도 `(user_id, idempotency_key)` 유일 제약으로 한 행만 저장됩니다.
 - Swagger 요청 본문은 전체 연습(기본)·구간 연습·다시 연습 예시를 고를 수 있고(`OpenApiContracts`의 `requestExamples`), Schema 탭에 필드별 뜻과 생략 시 값을 적었습니다. 예시의 `songId` 15는 테스트 서버의 채점 가능 곡이라 로컬 시드 DB(1~4번 곡)에서는 바꿔서 보냅니다.
-- V25는 늘 NULL이던 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로, 운영 `ops`에는 이 브랜치의 백엔드를 먼저 배포한 뒤 V25를 적용합니다.
+- V25는 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로 먼저 호환 백엔드를 배포해야 합니다. S15P31E102-499의 임시 `bootJar` 설정은 실행 JAR에서만 V25를 제외합니다. 원본·테스트 classpath·`bootRun`에는 V25가 남습니다. 운영 반영·세션 생성/조회 확인 뒤 임시 블록을 제거한 별도 릴리스에서 V25를 승인·적용합니다. [단계별 배포·복구 절차](../infra/runtime/README.md#v25-삭제-전-호환-백엔드-배포)를 따릅니다.
 - 결정 근거는 [작업 계획](../docs/plans/S15P31E102-217.md)에 있습니다. `databaseTest`의 `PracticeSessionApiDatabaseTests`가 실제 HTTP·서명 쿠키로 확인합니다.
 
 ### 실제 MySQL 통합 검사

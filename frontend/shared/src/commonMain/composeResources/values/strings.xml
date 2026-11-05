@@ -121,10 +121,10 @@
     <string name="practice_jangdan_preview_start">장단 듣기</string>
     <string name="practice_jangdan_preview_stop">미리듣기 정지</string>
     <string name="practice_jangdan_sound">연습 중 장단 소리</string>
-    <string name="practice_jangdan_sound_desc">모범 연주·평가 연주 중에 장단 소리를 들려줘요</string>
+    <string name="practice_jangdan_sound_desc">모범 연주와 장단 연습에서 소리를 들려줘요</string>
     <string name="practice_jangdan_beat">현재 박 시각 표시</string>
     <string name="practice_jangdan_beat_desc">연주 중 하단에 현재 박을 표시해요</string>
-    <string name="practice_jangdan_mic_notice">평가 중 장단 소리를 켜면 마이크가 장단 소리를 함께 인식할 수도 있어요.</string>
+    <string name="practice_jangdan_mic_notice">평가 녹음 중에는 장단 소리가 꺼져요.</string>
 
     <string name="practice_tempo_title">연습 속도</string>
     <string name="practice_tempo_sub">%1$d BPM · 기준 %2$d BPM</string>
@@ -337,6 +337,14 @@
     <string name="growth_score_trend_today">오늘</string>
     <string name="growth_score_trend_section">%1$s 구간</string>
     <string name="growth_score_trend_desc">최근 %1$d회 점수 %2$s점</string>
+    <string name="growth_trend_full">전체 곡</string>
+    <string name="growth_trend_section">구간</string>
+    <string name="growth_trend_song">점수 변화를 볼 곡 고르기</string>
+    <string name="growth_trend_empty">AI 연주 평가를 하면 점수 변화가 보여요.</string>
+    <string name="growth_trend_only_section">이 곡은 구간 연습 기록만 있어요. ‘구간’을 눌러 보세요.</string>
+    <string name="growth_trend_only_full">이 곡은 전체 곡 연주 기록만 있어요. ‘전체 곡’을 눌러 보세요.</string>
+    <string name="growth_trend_mixed">속도·악보 판본·채점 기준이 다른 연주가 섞여 있어 참고용이에요.</string>
+    <string name="growth_trend_failed">점수 변화를 불러오지 못했어요.</string>
     <string name="growth_items">항목별 성장 · 첫 기록 → 최근</string>
     <string name="growth_best_none">아직 없어요</string>
     <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
@@ -433,6 +441,12 @@
     <string name="learn_progress_all_done">**모든 단계를 마쳤어요.** 어느 단계든 다시 연습할 수 있어요.</string>
     <string name="learn_stages">단계</string>
     <string name="learn_reset">완료 표시 지우기</string>
+    <string name="learn_track_failed">학습 단계를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
+    <string name="learn_detail_failed">단계 내용을 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.</string>
+    <string name="learn_retry">다시 시도</string>
+    <string name="learn_loading">불러오는 중</string>
+    <string name="learn_save_failed">완료 표시를 저장하지 못해 되돌렸어요. 연결을 확인하고 다시 눌러 주세요.</string>
+    <string name="learn_reset_failed">완료 표시를 모두 지우지 못했어요. 남은 표시는 다시 지워 주세요.</string>
     <string name="learn_reset_message">%1$s의 완료 표시를 지웠어요.</string>
     <string name="learn_optional">선택</string>
     <string name="learn_done">완료</string>

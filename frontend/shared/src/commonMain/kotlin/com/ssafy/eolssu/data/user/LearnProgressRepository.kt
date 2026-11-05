@@ -7,45 +7,93 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
- * 기초부터 배우기에서 악기별로 완료 표시한 단계 번호를 기기에 남긴다. 앱을 다시 켜도 이어진다.
- * 서버에 학습 진도를 올리는 API가 생기면 이 저장소를 그 구현으로 바꾼다.
+ * 기초부터 배우기 진도. 완료 표시는 회원 계정(LRN-01·03)에 남겨 재설치·다른 기기에서도 이어진다.
+ *
+ * 서버에 올리기 전(S15P31E102-370 이전)에 이 기기에만 남긴 완료 표시는, 그 트랙을 처음 불러올 때 단계마다 LRN-03으로 올려 합친다.
+ * 올린 단계는 기기에서 지우고, 올리지 못한 단계만 남겨 다음에 불러올 때 다시 올린다.
+ * 기기 표시는 그 기기에서 로그인했던 회원 것만 올린다. 회원을 가리지 않던 예전 공용 표시는 어느 회원에게도 올리지 않는다.
  */
-class LearnProgressRepository(private val store: KeyValueStore, private val member: SignedInMember? = null) {
+class LearnProgressRepository(
+    private val api: LessonApi,
+    private val store: KeyValueStore,
+    private val member: SignedInMember? = null,
+) {
     private val _saves = MutableStateFlow(0)
+    private val upload = Mutex()
 
-    /** 완료 표시를 저장할 때마다 늘어난다. 다른 화면(연습 기록지)이 완료 수를 다시 셀 때 쓴다. */
+    /** 서버 완료 표시가 바뀔 때마다 늘어난다. 다른 화면(연습 기록지·마이페이지)이 완료 수를 다시 셀 때 쓴다. */
     val saves: StateFlow<Int> = _saves.asStateFlow()
 
     init { member?.onChange { _saves.update { it + 1 } } }
 
-    fun doneStages(instrumentId: String): Set<Int> =
-        key(instrumentId)?.let(store::getString)
+    /**
+     * [trackId](학습 화면 악기 식별자)의 단계와 본인 완료 표시. 이 기기에 남은 완료 표시가 있으면 먼저 올려 합친 결과다.
+     * 목록을 받지 못하면 null이고, 기기 표시는 그대로 남는다.
+     */
+    suspend fun track(trackId: String): LessonTrack? = upload.withLock {
+        val track = api.track(trackId) ?: return@withLock null
+        val pending = deviceStages(trackId)
+        if (pending.isEmpty()) return@withLock track
+        val left = mutableSetOf<Int>()
+        var uploaded = false
+        val items = track.items.map { item ->
+            if (item.seq !in pending || item.completed) return@map item
+            if (api.setCompleted(item.lessonId, true) == true) {
+                uploaded = true
+                item.copy(completed = true)
+            } else {
+                left += item.seq
+                item
+            }
+        }
+        // 서버에 없는 단계 번호는 올릴 곳이 없어 버린다.
+        saveDeviceStages(trackId, left)
+        if (uploaded) _saves.update { it + 1 }
+        track.copy(items = items, completedCount = items.count { it.completed && !it.optional })
+    }
+
+    /** LRN-02 단계 상세. */
+    suspend fun lesson(lessonId: String): LessonDetail? = api.lesson(lessonId)
+
+    /** 완료 표시·해제를 서버에 남긴다. 저장했으면 true. */
+    suspend fun setCompleted(lessonId: String, completed: Boolean): Boolean {
+        val saved = api.setCompleted(lessonId, completed) == completed
+        if (saved) _saves.update { it + 1 }
+        return saved
+    }
+
+    /**
+     * 연습 악기로 완료 표시한 단계 번호(마이페이지·연습 기록지 '완료한 단계', 선택 단계 포함). 학습 화면은 대금을 정악·산조로 나누므로
+     * 정악·산조의 완료 단계는 별도로 센다. 받지 못하면 null.
+     */
+    suspend fun doneStages(instrument: Instrument): Set<Int>? {
+        val tracks = instrument.learnIds.map { track(it) ?: return null }
+        return tracks.flatMap { track -> track.items.filter { it.completed }.map { it.seq } }.filter { it in 1..STAGE_COUNT }.toSet()
+    }
+
+    /** 이 기기에 남아 아직 올리지 못한 완료 표시. */
+    internal fun deviceStages(trackId: String): Set<Int> =
+        key(trackId)?.let(store::getString)
             ?.split(SEPARATOR)
             ?.mapNotNull { it.toIntOrNull() }
             ?.toSet()
             .orEmpty()
 
-    fun saveDoneStages(instrumentId: String, stages: Set<Int>) {
-        val key = key(instrumentId) ?: return
+    private fun saveDeviceStages(trackId: String, stages: Set<Int>) {
+        val key = key(trackId) ?: return
         store.putString(key, stages.sorted().joinToString(SEPARATOR))
-        _saves.update { it + 1 }
     }
 
-    /**
-     * 연습 악기로 완료 표시한 단계 수(연습 기록지 '완료한 단계'). 학습 화면은 대금을 정악·산조로 나누므로,
-     * 정악·산조의 완료 단계는 별도로 센다.
-     */
-    fun doneStageCount(instrument: Instrument): Int =
-        instrument.learnIds.flatMap(::doneStages).filter { it in 1..STAGE_COUNT }.toSet().size
-
-    // 이전 기기 공용 키는 보존하되 어느 회원에게도 자동 귀속하지 않는다.
-    private fun key(instrumentId: String): String? = if (member == null) "learn_done_$instrumentId"
-        else member.id?.let { "learn_done_member_${it.length}_${it}_$instrumentId" }
+    // 회원을 가리지 않던 예전 공용 키는 보존하되 어느 회원에게도 올리지 않는다.
+    private fun key(trackId: String): String? = if (member == null) "learn_done_$trackId"
+        else member.id?.let { "learn_done_member_${it.length}_${it}_$trackId" }
 
     companion object {
-        /** 기초부터 배우기 단계 수. 학습 화면의 단계 목록(`LearnStages`)과 같다. */
+        /** 기초부터 배우기 단계 수(필수 8 + 선택 1). 단계 그림도 9장이다. */
         const val STAGE_COUNT = 9
 
         private const val SEPARATOR = ","
