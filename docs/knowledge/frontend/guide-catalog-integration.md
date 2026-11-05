@@ -52,7 +52,7 @@
 
 ## 악보 속도에 맞춘 장단 연습 (S15P31E102-340, 2026-11-04)
 
-2026-11-05 MR 분리 기준으로 음원·가공 명세·곡별 검수 데이터·공통 전달 스펙은 S15P31E102-160([MR !324](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/324)), CAT-08 음원 제공·CAT-04 반주 응답·판본 보호와 서버 검사는 340의 [백엔드 MR !326](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/326)이 소유한다. 기존 [프론트 MR !319](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/319)는 응답 소비·장단 재생 엔진·화면·앱 검사만 담는다. Jira Task는 340으로 유지하고, 반영 순서는 160 자료 → 340 백엔드 → 340 프론트다. 아래 과거 실행 결과는 세 부분을 함께 적용한 상태의 근거다.
+2026-11-05 사용자 요청으로 Jira도 파트별로 분리했다. 음원·가공 명세·곡별 검수 데이터·공통 전달 스펙은 S15P31E102-160([MR !324](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/324)), CAT-08 음원 제공·CAT-04 반주 응답·판본 보호와 서버 검사는 [S15P31E102-491](https://ssafy.atlassian.net/browse/S15P31E102-491)이 소유한다. S15P31E102-340의 [프론트 MR !319](https://lab.ssafy.com/s15-final/S15P31E102/-/merge_requests/319)는 응답 소비·장단 재생 엔진·화면·앱 검사와 기존 율명·지원 기기 검증을 담당한다. 반영 순서는 160 자료 → 491 백엔드 → 340 프론트다. 아래 과거 실행 결과와 커밋의 340 표기는 분리 전 이력으로 보존한다.
 
 CAT-04의 optional `jangdanPlayback`은 검수된 악보 판본에만 붙는다. 계약은
 `{jangdanId,name,startTick,cycleTicks,pattern:{beats,group}}`이다. 프론트는 기존
