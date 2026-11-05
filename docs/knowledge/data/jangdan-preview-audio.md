@@ -85,7 +85,7 @@ FFmpeg가 PATH에 없으면 `--ffmpeg`에 실행 파일을 지정한다. 이 결
 
 ## 연습용 PCM 생성
 
-2026-11-04 사용자 승인 후속 구현. 공식 단음 목록의 `instrCd=19847` 응답에서 `Janggu_4_2.wav`(mntnSeq2292)가 **더러러러/중**임을 확인했다. 4_1·4_3은 같은 주법의 강·약 녹음이며 길이 구분이 아니다. 기존 생성기의6_2는 **더/중**으로, 네 번 배치한 이전 근사와 실제 굴림 원본을 구분한다. 2_2는 **기덕/중**이며 연습 자산 `gi.wav`는 앞꾸밈만 추출한 편집이다.
+2026-11-04 사용자 승인 후속 구현. 공식 단음 목록의 `instrCd=19847` 응답에서 `Janggu_4_2.wav`(mntnSeq2292)가 **더러러러/중**임을 확인했다. 4_1·4_3은 같은 주법의 강·약 녹음이며 길이 구분이 아니다. 기존 생성기의6_2는 **더/중**으로, 네 번 배치한 이전 근사와 실제 굴림 원본을 구분한다. 2_2는 **기덕/중**이며 연습 자산 `gi.m4a`는 앞꾸밈만 추출한 편집이다.
 
 [국립국악원 공식 페이지](https://www.gugak.go.kr/digitaleum/front/monotone/list.do)가 표시하는 공공누리 제1유형에 따라 원문·가공본 재배포가 가능하며 출처와 가공 사실을 표시한다. 다운로드는 공식 `/digitaleum/cmmn/file/monotone/download.do`를 사용했고, 추가4_1·4_3 다운로드에는 비상업용 앱 개발·검증 목적을 제출했다. 새로 생성하는5개는4_2 하나를 사용한다. 제품에는 원본 전체를 포함하지 않는다.
 
@@ -94,7 +94,7 @@ python -m data.src.audio.jangdan_practice_audio --samples data/raw/jangdan-160 -
 python -m unittest data.tests.test_jangdan_practice_audio data.tests.test_jangdan_audio
 ```
 
-출력 경로는 새 경로여야 한다. FFmpeg7.1로 PCM16·44.1kHz·모노 WAV11개를 생성한다. 6개 단타는 기존 검증 원본에서 앞 무음과 잔향을 다듬고, 굴림5개는 실제 굴림 녹음의0.204~2.650초를 음높이 유지 `atempo`로 시간 압축한다. 각 필터 배수는2이하로 나누며 마지막에 실제 앱의 정수 BPM에 맞춘 프레임 수로 보정한다. [FFmpeg 공식 변경 기록](https://ffmpeg.org/pipermail/ffmpeg-cvslog/2018-June/114136.html)은2를 넘는 단일 배수에서 샘플 생략을 피하려면 필터 체인을 사용하도록 설명한다.
+출력 경로는 새 경로여야 한다. FFmpeg 7.1로 PCM16·44.1kHz·모노 중간 파일을 만든 뒤 AAC-LC M4A 11개로 인코딩한다. 배포 명세에는 중간 PCM WAV의 해시와 M4A 해시·바이트 수를 함께 기록한다. 6개 단타는 기존 검증 원본에서 앞 무음과 잔향을 다듬고, 굴림5개는 실제 굴림 녹음의0.204~2.650초를 음높이 유지 `atempo`로 시간 압축한다. 각 필터 배수는2이하로 나누며 마지막에 실제 앱의 정수 BPM에 맞춘 프레임 수로 보정한다. [FFmpeg 공식 변경 기록](https://ffmpeg.org/pipermail/ffmpeg-cvslog/2018-June/114136.html)은2를 넘는 단일 배수에서 샘플 생략을 피하려면 필터 체인을 사용하도록 설명한다.
 
 전체 압축비는 약2.41~4.85배다. 타격 개수·밀도·음색이 원본과 완전히 같다고 보장하지 않는다. 출력 전후 길이 보정량을 [연습 자산 생성 명세](../../../frontend/shared/src/commonMain/composeResources/files/jangdan/manifest.json)에 기록했다. 최대 무음 보충은635프레임(14.4ms), 최대 잘림은189프레임(4.3ms)이고 잘린 구간의 절대 피크는PCM16의9이하였다. 양끝 짧은 페이드로 클릭을 완화한다.
 
@@ -102,4 +102,4 @@ python -m unittest data.tests.test_jangdan_practice_audio data.tests.test_jangda
 
 사용자는 기본99·빠른119 클립을 제시받고 **크게 거슬리지 않음**이라고 답했다. 이는 두 클립에 대한 사용자 청음 의견이며,5개 전체의 전문 연주자 검수나 실제 기기 출력 검증을 대신하지 않는다. 생성 명세의 `musicalListeningReview=pending`은 이 전문 검수가 남았다는 뜻이다.
 
-160은 파생 WAV 11개를 비공개 R2의 `jangdan-practice/v1/{sample}/{sha256}.wav`에 게시했다. 전체 다운로드와 서명 GET에서 11개의 SHA-256과 `audio/wav`를 확인했다. 앱 리소스에는 생성 명세·이용 조건을, 서버의 `catalog/jangdan-practice-sha256.properties`에는 샘플명과 해시를 둔다. 340은 이 자산을 원음 속도1로 재생하는 앱 기능을 연결한다. 전체 곡 파일을5벌로 늘리지 않는다. 곡별 검수 연결과 반주 동작의 기준은 [연습 반주 스펙](../../specs/jangdan-practice-playback.md)을 따른다.
+연습용 M4A 11개를 비공개 R2의 `jangdan-practice/v1/{sample}/{sha256}.m4a`로 제공한다. 전체 파일은 441,672바이트에서 75,730바이트로 줄었다. 11개 모두 M4A 트랙의 길이가 PCM의 프레임 수와 일치하고, FFmpeg 디코딩 결과 앞 50ms에 발음이 있으며 클리핑이 없음을 확인했다. 재생성한 11개가 같은 해시를 냈고, R2 서명 GET의 audio/mp4 응답·해시와 Android API 37 에뮬레이터의 SoundPool 로딩 성공을 전부 확인했다. 앱 리소스에는 생성 명세·이용 조건을, 서버의 `catalog/jangdan-practice-sha256.properties`에는 샘플명과 해시를 둔다. 340은 이 자산을 원음 속도1로 재생하는 앱 기능을 연결한다. 전체 곡 파일을5벌로 늘리지 않는다. 곡별 검수 연결과 반주 동작의 기준은 [연습 반주 스펙](../../specs/jangdan-practice-playback.md)을 따른다.

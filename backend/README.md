@@ -47,6 +47,10 @@ S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me
 
 ### 카탈로그 조회(CAT-03~10)
 
+S15P31E102-491의 범위는 CAT-08 미리듣기 음원 API와 CAT-04 반주 응답입니다. CAT-08의 `soundUrl`은 `/api/jangdans/{jangdanId}/audio`를 가리키며 이 경로는 160이 게시한 비공개 R2 M4A의 15분 서명 URL로 이동합니다. 기존 모범 음원과 동일한 `RECORDING_STORAGE_*` 설정을 사용합니다. CAT-04의 선택적 `jangdanPlayback`은 현재 악보의 장단명과 틱 구조, 카탈로그 구음에서 시작점과 한 주기를 계산합니다. 시작점 또는 주기를 정할 수 없으면 반주만 null입니다. 기존 곡 FK·BPM·악보·모범 음원을 바꾸지 않는 읽기 확장이라 새 DB 마이그레이션은 없습니다. [API 계약·악보 구조 판정·서버 검증](../docs/knowledge/backend/jangdan-practice-links.md)을 따릅니다.
+
+통합 순서는 DATA160(MR !324) → BE491 → FE340(MR !319)입니다. 백엔드 실행·검사는 160의 검수 목록·음원 자산을 먼저 반영한 상태에서 수행합니다. 앱의 화면·재생 엔진·응답 소비와 앱 검증은 S15P31E102-340의 FE MR 범위입니다. 전수 대조는 공개 CAT-04 응답을 `{songId}.json`으로 저장한 디렉터리를 `JANGDAN_SNAPSHOT_DIR`에 지정하고 `.\gradlew.bat test --tests '*JangdanPlaybackSnapshotTests' --rerun-tasks`로 실행합니다. 각 파일의 `result.score`를 운영 검수 manifest와 대조하며 네트워크나 DB는 사용하지 않습니다. 디렉터리를 지정하지 않으면 이 선택 검사만 생략되고, 기본 단위 검사는 작은 악보를, DB 검사는 대표 원본 한 곡을 사용합니다. `--rerun-tasks`는 환경변수 변경 전 결과를 재사용하지 않도록 합니다.
+
 S15P31E102-409의 V18은 [내장 운지 계약](../docs/specs/builtin-fingering-catalog.md)에 따라 92개 참고 운지를 연결합니다. V17의 악기·율명 뒤에 적용하며, `fingering_charts.pattern_json`과 nullable `image_url`이 필요합니다. 기존 이미지·설명·ID는 보존합니다. 새 백엔드의 `ops` 배포 전에 V18 적용이 필요하며 이번 작업은 로컬 검증 범위입니다. 이미지가 필수인 구버전으로 되돌릴 때는 새 null 행을 읽을 수 있도록 먼저 호환성을 준비해야 합니다. `BuiltinFingeringApiDatabaseTests`는 FE 원본 전체와 실제 HTTP·pitchId 필터를 대조합니다. [검증 기록](../docs/knowledge/backend/builtin-fingering-catalog.md).
 
 S15P31E102-408: `GET /api/songs`는 선택적인 `instrumentId`를 받습니다. 생략하면 기존 전체 목록, 지정하면 활성 악기의 게시·미삭제 곡만 ID 순서로 반환합니다. 잘못된 ID는400, 없는/비활성 악기는404, 곡이 없는 활성 악기는200 빈 목록입니다. [곡 목록 악기 필터](../docs/specs/song-instrument-filter.md)의 FE 선택과 연결되며 검증은 `SongControllerTests`와 실제 MySQL·HTTP의 `SongInstrumentApiDatabaseTests`를 사용합니다.

@@ -5,6 +5,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
+import java.util.Properties
 import kotlin.test.*
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
@@ -150,9 +151,38 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(stored.path("group").size(), item.path("groupCount").asInt())
             assertEquals(item.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(item.path("bpmUnit"), detail.path("bpmUnit"))
-            assertTrue(detail.path("soundUrl").isNull)
+            assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
+            val audio = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/jangdans/$id/audio"))
+                .header("Range", "bytes=0-63").header("Cookie", "access_token=stale").build(),
+                HttpResponse.BodyHandlers.ofByteArray())
+            assertEquals(302, audio.statusCode())
+            assertEquals("no-store", audio.headers().firstValue("Cache-Control").orElse(""))
+            val location = URI(audio.headers().firstValue("Location").orElseThrow())
+            assertEquals("https", location.scheme)
+            assertTrue(location.path.substringAfter("/jangdan-preview/v1/").matches(Regex("$id/[0-9a-f]{64}\\.m4a")))
+            assertTrue(location.query.contains("X-Amz-Expires=900"))
         }
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
+    }
+
+    @Test fun `registered practice M4As redirect without requiring a valid session`() {
+        val mapping = Properties().apply {
+            requireNotNull(CatalogReferenceApiDatabaseTests::class.java.getResourceAsStream("/catalog/jangdan-practice-sha256.properties"))
+                .use { load(it) }
+        }
+        assertEquals(11, mapping.size)
+        for (sample in mapping.stringPropertyNames()) {
+            val hash = mapping.getProperty(sample)
+            val result = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/jangdan-samples/$sample/$hash"))
+                .header("Cookie", "access_token=stale").build(), HttpResponse.BodyHandlers.discarding())
+            assertEquals(302, result.statusCode())
+            assertEquals("no-store", result.headers().firstValue("Cache-Control").orElse(""))
+            val location = URI(result.headers().firstValue("Location").orElseThrow())
+            assertEquals("https", location.scheme)
+            assertTrue(location.path.endsWith("/jangdan-practice/v1/$sample/$hash.m4a"))
+            assertTrue(location.query.contains("X-Amz-Expires=900"))
+        }
+        assertError("/api/jangdan-samples/deong/${"0".repeat(64)}", 404, "RESOURCE_NOT_FOUND")
     }
 
     @Test fun `sourced additional rhythms are public without changing the original catalog or songs`() {
@@ -175,7 +205,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
             assertTrue(detail.path("source").asString().contains("https://"))
-            assertTrue(detail.path("soundUrl").isNull)
+            assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
         }
         assertEquals(listOf("1 세마치 96 DOTTED_QUARTER", "2 굿거리 66 DOTTED_QUARTER", "3 중모리 88 QUARTER"),
             jdbc.queryForList("SELECT CONCAT(id,' ',name,' ',default_bpm,' ',bpm_unit) FROM jangdans WHERE id<=3 ORDER BY id", String::class.java))
@@ -206,7 +236,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
             assertTrue(detail.path("source").asString().contains("https://"))
-            assertTrue(detail.path("soundUrl").isNull)
+            assertEquals("/api/jangdans/${e.id}/audio", detail.path("soundUrl").asString())
         }
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
     }
@@ -309,6 +339,11 @@ class CatalogReferenceApiDatabaseTests {
         private const val inactiveId = 992883L
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
+            registry.add("eolssu.recording-storage.type") { "s3" }
+            registry.add("eolssu.recording-storage.endpoint") { "https://r2.example.test" }
+            registry.add("eolssu.recording-storage.bucket") { "test-bucket" }
+            registry.add("eolssu.recording-storage.access-key-id") { "fixture-access-key" }
+            registry.add("eolssu.recording-storage.secret-access-key") { "fixture-secret-key" }
             registry.add("spring.datasource.url") { requireNotNull(System.getenv("TEST_DB_URL")) }
             registry.add("spring.datasource.username") { requireNotNull(System.getenv("TEST_DB_USERNAME")) }
             registry.add("spring.datasource.password") { requireNotNull(System.getenv("TEST_DB_PASSWORD")) }
