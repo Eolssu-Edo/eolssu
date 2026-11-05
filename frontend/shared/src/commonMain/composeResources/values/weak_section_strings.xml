@@ -10,7 +10,7 @@
     <string name="weak_edge_end">끝</string>
     <string name="weak_legend_wrong">틀린 곳</string>
     <string name="weak_legend_last">지난번 틀린 곳</string>
-    <string name="weak_load_missing">예시 데이터를 찾지 못했어요.</string>
+    <string name="weak_load_missing">연주 결과를 찾지 못했어요. 이전 화면으로 돌아가 주세요.</string>
 
     <!-- RESULT-03 오류 위치 -->
     <string name="weak_errors_title">오류 위치</string>
@@ -47,19 +47,35 @@
     <string name="weak_loop_resume">반복 계속</string>
     <string name="weak_loop_restart">처음부터 다시</string>
     <string name="weak_loop_evaluate">이 구간 재평가</string>
+    <string name="weak_loop_badge_recording">재평가 녹음 중</string>
+    <string name="weak_loop_stop_recording">녹음 그만하기</string>
+    <string name="weak_loop_count_record">%1$d박 센 뒤 %2$d각 %3$d정간부터 한 번 녹음해요</string>
+    <string name="weak_loop_record_progress">녹음 중 · %1$s / %2$s</string>
+    <string name="weak_loop_record_hint">끝까지 연주하면 바로 분석해요</string>
+    <string name="weak_loop_no_recorder">이 기기에서는 녹음할 수 없어요. 앱에서 재평가해 주세요.</string>
+    <string name="weak_loop_no_notes">이 구간에는 연주할 음이 없어 재평가할 수 없어요. 다른 구간을 골라 주세요.</string>
+    <string name="weak_loop_mic_denied">마이크를 허용해야 재평가할 수 있어요.</string>
+    <string name="weak_loop_mic_blocked">설정에서 마이크를 허용해야 재평가할 수 있어요.</string>
+    <string name="weak_loop_open_settings">설정 열기</string>
+    <string name="weak_loop_record_failed">녹음을 저장하지 못했어요. 다시 재평가해 주세요.</string>
     <string name="weak_loop_count_start">%1$d박 센 뒤 %2$d각 %3$d정간부터 구간 반복을 시작해요</string>
     <string name="weak_loop_count_resume">%1$d박 센 뒤 %2$d각 %3$d정간부터 반복을 이어 가요</string>
 
     <!-- RESULT-04 구간 재평가 결과 -->
     <string name="weak_result_title">구간 재평가 결과</string>
     <string name="weak_result_subtitle">%1$s · %2$s · %3$d BPM</string>
-    <string name="weak_result_up">이전보다 %1$d점 올랐어요</string>
-    <string name="weak_result_down">이전보다 %1$d점 내려갔어요</string>
-    <string name="weak_result_same">이전과 같은 점수예요</string>
-    <string name="weak_result_previous">이전 이 구간 점수 %1$d점</string>
-    <string name="weak_result_previous_sample">이전 이 구간 점수 %1$d점 · 예시 결과</string>
-    <string name="weak_result_before">이전</string>
-    <string name="weak_result_after">이번</string>
+    <string name="weak_result_subtitle_plain">%1$s · %2$d BPM</string>
+    <string name="weak_result_score_note">이번 구간 연주의 점수예요. 이전 점수와의 비교는 아직 제공하지 않아요.</string>
+    <string name="weak_result_errors_title">틀린 음 비교</string>
+    <string name="weak_result_errors_change">이전 %1$d개 → 이번 %2$d개</string>
+    <string name="weak_result_errors_now">이번 %1$d개</string>
+    <string name="weak_result_fewer">%1$d개 줄었어요</string>
+    <string name="weak_result_more">%1$d개 늘었어요</string>
+    <string name="weak_result_same">이전과 같아요</string>
+    <string name="weak_result_corrected">이전에 틀렸다가 이번에 맞은 음 %1$d개</string>
+    <string name="weak_result_not_comparable">%1$s 그래서 틀린 음 수를 견주지 않아요.</string>
+    <string name="weak_result_compare_rejected">바탕이 된 연주와 비교할 수 없는 연주예요.</string>
+    <string name="weak_result_compare_failed">이전 연주와 비교하지 못했어요.</string>
     <string name="weak_result_next_title">다음 단계</string>
     <string name="weak_result_next_slow">속도를 기준(%1$d BPM)에 가깝게 올려서 한 번 더 해보세요. %2$d점을 넘기면 곡 전체를 다시 평가해보세요.</string>
     <string name="weak_result_next_ready">이 구간을 기준 속도로 연주했어요. 곡 전체를 다시 평가해보세요.</string>
@@ -68,6 +84,9 @@
     <string name="weak_result_whole">곡 전체 다시 평가</string>
 
     <!-- COMPARE-01 이전 연주와 비교 -->
+    <string name="weak_compare_not_comparable">%1$s 점수와 틀린 정간은 참고로만 봐 주세요.</string>
+    <string name="weak_compare_rejected">이 두 연주는 서버에서 비교할 수 없는 연주예요. 틀린 정간은 참고로만 봐 주세요.</string>
+    <string name="weak_compare_check_failed">두 연주를 비교할 수 있는지 확인하지 못했어요.</string>
     <string name="weak_compare_title">이전 연주와 비교</string>
     <string name="weak_compare_subtitle">%1$s 전체 · %2$s</string>
     <string name="weak_compare_prev">이전</string>
