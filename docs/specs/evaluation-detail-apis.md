@@ -104,8 +104,9 @@
 
 - 서버는 공식을 만들지 않는다. 평가 때 AI가 돌려준 음표별 부분 점수를 비교 구간 음표만 모아 AI가 정한 규칙(`scoringVersion`·`scoreWeights`)대로 합친다. 공식은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있다.
 - 항목 점수는 `round(Σ(부분 점수 × weight) / Σ weight)`, 총점은 `round(Σ 항목 점수 × 가중치)`다. `round`는 0.5에서 짝수 쪽으로 간다(`Math.rint`). null인 음은 그 항목에서 빼고, 합칠 음이 없으면 100이다.
+- 소수점 끝까지 AI와 같도록 항목 점수는 음표 순서(`noteIdx` 오름차순)로, 총점은 음정·박자·길이 순서로 차례대로 더한다. 보정 합산(`fsum`·Kahan)은 쓰지 않는다.
 - 합산은 `before`에만 쓴다. `after`는 이번 세션 저장 점수이며, 이번 세션의 구간이 곧 그 평가의 구간이라 합산값과 같다.
-- 저장: `note_results`에 부분 점수·`weight`, `evaluations`에 `scoring_version`·`score_weights`(V28). 기존 평가 행과 부분 점수를 주지 않는 AI 응답은 NULL이며 `NO_NOTE_SCORES`로 답한다.
+- 저장: `note_results`에 부분 점수·`weight`, `evaluations`에 `scoring_version`·`score_weights`(V29). 기존 평가 행과 부분 점수를 주지 않는 AI 응답은 NULL이며 `NO_NOTE_SCORES`로 답한다.
 
 ## 미구현·후속
 
