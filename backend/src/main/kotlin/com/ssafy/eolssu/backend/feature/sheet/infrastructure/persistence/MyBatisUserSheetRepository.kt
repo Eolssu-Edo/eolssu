@@ -4,7 +4,8 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.*
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserSheetRepository {
+class MyBatisUserSheetRepository(private val mapper: UserSheetMapper,manager: org.springframework.transaction.PlatformTransactionManager) : UserSheetRepository {
+    private val transaction=org.springframework.transaction.support.TransactionTemplate(manager)
     override fun findJangdan(jangdanId: Long) = mapper.findJangdan(jangdanId)?.let { SheetJangdan(it.id, it.bpmUnit, it.name) }
 
     override fun find(sheetId: Long, userId: Long) = mapper.find(sheetId, userId)?.toSheet()
@@ -14,13 +15,20 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
         mapper.count(userId, kind),
     )
 
-    // 확인 필요 칸이 아직 없어(변환 기능 전) 확정 저장한 악보는 모두 EVALUABLE이다.
-    override fun updateScore(update: SheetScoreUpdate) = mapper.updateScore(
+    override fun updateScore(update: SheetScoreUpdate): Boolean = transaction.execute {
+        // Match conversion retry/completion: lock the conversion before its sheet.
+        if (update.conversionResultJson != null && mapper.lockConversion(update.sheetId, update.userId) == null) {
+            return@execute false
+        }
+        val changed=mapper.updateScore(
         SheetScoreUpdateRow(
-            update.sheetId, update.userId, update.baseScoreVersion, update.title, SheetStatus.EVALUABLE.name, update.jangdanId, update.bpm,
-            update.bpmUnit, update.columnCount, update.scoreJson, update.noteCount, LocalDateTime.ofInstant(update.updatedAt, ZoneOffset.UTC),
+            update.sheetId, update.userId, update.baseScoreVersion, update.title, if(update.pendingCellCount==0) SheetStatus.EVALUABLE.name else SheetStatus.NEEDS_REVIEW.name, update.jangdanId, update.bpm,
+            update.bpmUnit, update.columnCount, update.scoreJson, update.noteCount, LocalDateTime.ofInstant(update.updatedAt, ZoneOffset.UTC),update.pendingCellCount,
         ),
-    ) == 1
+        ) == 1
+        if(changed && update.conversionResultJson!=null) mapper.updateConversionResult(update.sheetId,update.conversionResultJson)
+        changed
+    }==true
 
     override fun updateDraft(update: SheetDraftUpdate) = mapper.updateDraft(
         SheetDraftUpdateRow(
@@ -35,5 +43,6 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
         id, userId, title, kind, source, SheetStatus.valueOf(status), jangdanId, jangdanName, bpm, bpmUnit, columnCount, scoreVersion,
         scoreJson, noteCount, pendingCellCount, updatedAt.toInstant(ZoneOffset.UTC),
         draftJson?.let { SheetDraft(it, checkNotNull(draftBaseVersion), checkNotNull(draftSavedAt).toInstant(ZoneOffset.UTC)) }, draftRevision,
+        conversionStatus?.let { SheetImportSource(SheetImportStatus.valueOf(it), checkNotNull(sourcePageCount), sourceFileName, hwangPitch,conversionResultJson) },
     )
 }

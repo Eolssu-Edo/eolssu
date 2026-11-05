@@ -5,7 +5,8 @@
     "default_bpm·bpm_unit: 기획 S15P31E102-141 장단별 빠르기 및 근거(2026-10-27), backend V2 bpm_unit",
     "구음·박 구조: 국립국악원 e-국악아카데미 장단 교수 자료 https://academy.gugak.go.kr/dp/pds/HTML5-1-7-3/HTML5-1-7-3-3/index.htm (세마치), -2/ (굿거리), -5/ (중모리) 의 기본 장단 악보",
     "추가2종 기본형·시작 BPM: S15P31E102-411, backend V21 및 docs/knowledge/backend/jangdan-catalog-extension.md. 기본 BPM은 해당 출처 범위 하한이며 곡별 BPM을 정하지 않는다.",
-    "V21의 나머지5종: 공식 장구 교재 악보8·10·14·29/표23~25 및 아카데미 엇모리·단모리. 정악3종의 QUARTER48·48·63은 사용자 승인 서비스 시작값이며 원전 확정 속도가 아니다. docs/knowledge/backend/jangdan-catalog-extension.md 참조."
+    "V21의 나머지5종: 공식 장구 교재 악보8·10·14·29/표23~25 및 아카데미 엇모리·단모리. 정악3종의 QUARTER48·48·63은 사용자 승인 서비스 시작값이며 원전 확정 속도가 아니다. docs/knowledge/backend/jangdan-catalog-extension.md 참조.",
+    "S15P31E102-511, V28 추가 자진타령: 단소 경복궁타령 원본의 12소박 기본형. 시작 BPM은 해당 악보의 연습 속도를 환산한 값이다."
   ],
   "rows": [
     {
@@ -77,6 +78,13 @@
       "default_bpm": 63,
       "bpm_unit": "QUARTER",
       "source": "국립국악원 국악기 이해와 활용2(2019) p226 악보8·p265 표23~25. https://www.gugak.go.kr/site/program/board/basicboard/list?boardtypeid=138&menuid=001003003006002&lang=ko . 앱 시작63(QUARTER)은 서비스곡63 기준·사용자승인값. 원전 확정 빠르기 아님."
+    },
+    {
+      "name": "자진타령",
+      "pattern": {"beats":["덩","","","덩","","","덩","","덕","","",""],"group":[3,3,3,3]},
+      "default_bpm": 60,
+      "bpm_unit": "DOTTED_QUARTER",
+      "source": "국립국악원 2016 국악실기교재 경복궁타령(단소) 18796 및 국악사전 자진타령: https://www.gugak.go.kr/ency/topic/view/1326 . 점4분음표 60은 이 교육용 악보의 4분음표 90 환산값이다."
     }
   ]
 }

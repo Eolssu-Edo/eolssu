@@ -66,3 +66,15 @@ PYCODE
 ## 남은 운영 검증
 
 [실행 절차](../../../infra/runtime/README.md#v25-삭제-전-호환-백엔드-배포)의 A 배포 → 실제 JAR·세션 기능 확인 → B 복원·V25 검토/승인·배포 순서가 남았다. 현재 운영 DB 이력·컬럼 값·의존성·백업은 직접 조회하지 않았다. databaseTest·Docker 이미지 빌드·Jenkins 실제 배포도 이번 로컬 검증에는 포함하지 않았다. 소스와 테스트의 DB 의미는 바꾸지 않았다. V25 이후 정상 재배포할 복구 후보에는 새 코드와 원본 V25가 모두 필요하다.
+
+
+## 2026-11-05 후속 릴리스 B 검증
+
+- A 운영 반영: MR !332, a4abb13b, Jenkins #257 SUCCESS. 운영 JAR V1~V24·미션 참조 없음·readiness UP·DB V24·실패 0·mission_id 유지·MySQL ID/볼륨 보존을 직접 확인했다.
+- 사용자 지정 개발용 계정(ID 1)의 실제 HTTPS 검증: 세션144 생성201, 조회200, 같은 키 재전송201/동일ID, 다른 BPM409, 로그아웃200. 비밀번호·쿠키는 메모리에서만 사용했다. 배포 후 기존144 재조회/재전송과 신규세션을 다시 검증한다.
+- 삭제 전 데이터: 기존143건의 mission_id는 모두NULL. 인덱스·외래키·뷰·트리거·루틴·CHECK·예약 이벤트 의존성0, 코드 소비자 참조 없음. V25 원본은 수정하지 않는다.
+- B JAR 검증: 임시 bootJar 블록 제거 후 V1~V25가 포함되고 각 V25 바이트·SHA-256이 원본과 일치한다. Mapper·Row는 계속 미션 컬럼을 읽지 않는다. 기대한 두 릴리스 분리에서 추가 의미 변경은 없다.
+- 폐기 MySQL 8.4: DatabaseIntegrationTests25개와 PracticeSessionApiDatabaseTests5개 통과. 전용 temp-mysql 도구가 종료·파일 해제를 확인한 뒤 데이터 폴더를 정리했다. backend build와 배포 회귀50개도 통과했다.
+- 별도 읽기 전용 검토: spec/quality 차단 결함 없음. 발견한 EOF 빈 줄은 정리했다. 승인 파일은 검증한 B JAR의 원본 V25 해시로만 등록하며, 배포 도구의 최종 후보 해시 비교를 유지한다.
+- 운영 컨테이너는 syslog 드라이버의 로컬 캐시를 끄므로 docker logs가 동작하지 않는다. 실제 로그는 /var/log/eolssu/ordinary/eolssu-backend.YYYY-MM-DD.log에서 신규 기동 이후 범위를 확인한다. A 기동 완료·관련 SQL/시작 오류0건을 확인했다.
+- 현재 단계: B 승인·Push/MR·배포 준비. 최종 이력·세션 재검증·postmigration 백업은 실행 후 결과를 구분해 보고한다.

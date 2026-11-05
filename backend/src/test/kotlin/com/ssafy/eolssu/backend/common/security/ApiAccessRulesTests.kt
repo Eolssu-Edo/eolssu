@@ -48,6 +48,7 @@ class ApiAccessRulesTests {
             "GET" to "/api/songs/1/model-audio", "GET" to "/api/instruments", "GET" to "/api/instruments/1/fingerings",
             "GET" to "/api/songs/1/model-audio/play", "GET" to "/api/songs/1/model-audio/performance",
             "GET" to "/api/pitches", "GET" to "/api/jangdans", "GET" to "/api/jangdans/1", "GET" to "/api/notation-symbols", "GET" to "/api/notation-symbols/1/image",
+            "GET" to "/api/note-practice/criteria",
         )
 
         val PROTECTED = listOf(
@@ -65,6 +66,7 @@ class ApiAccessRulesTests {
             "GET" to "/api/songs/1/members", "GET" to "/api/instruments/1/notes", "GET" to "/api/jangdans/1/members",
             "POST" to "/api/auth/oauth/kakao/extra", "POST" to "/api/auth/email-verifications/301/other",
             "POST" to "/api/songs", "POST" to "/api/terms",
+            "GET" to "/api/note-practice/other", "POST" to "/api/note-practice/criteria",
         )
     }
 }

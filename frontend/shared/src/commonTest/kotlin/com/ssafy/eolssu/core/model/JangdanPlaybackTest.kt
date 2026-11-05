@@ -13,6 +13,16 @@ class JangdanPlaybackTest {
     private val gutgeori = JangdanPlayback("2", "굿거리", 0, 24,
         listOf("떵", "", "기덕", "쿵", "더러러러", "", "쿵", "", "기덕", "쿵", "더러러러", ""), listOf(3, 3, 3, 3))
 
+    @Test fun jajinTaryeongLeavesTheFourthBeatEmpty() {
+        val mapping = JangdanPlayback("11", "자진타령", 0, 12,
+            listOf("덩", "", "", "덩", "", "", "덩", "", "덕", "", "", ""), listOf(3, 3, 3, 3))
+        val plan = assertNotNull(planJangdan(mapping, 90, 2))
+        assertEquals(listOf(0.0, 3.0, 6.0, 8.0), plan.strikes.map { it.tick })
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Deong, JangdanSample.Deong, JangdanSample.Deok),
+            plan.strikes.map { it.clip.sample })
+        assertEquals(4000, (plan.msPerTick * mapping.cycleTicks).roundToInt())
+    }
+
     @Test fun resumedCursorIgnoresSmallBackwardDecoderJitterUntilTheNextAttack() {
         val mapping = JangdanPlayback("3", "세마치", 0, 4, listOf("덩", "쿵"), listOf(1, 1))
         val cursor = JangdanCursor(planJangdan(mapping, 60, 4)!!, resumeAfterTick = 2.0)

@@ -28,7 +28,9 @@ class SongControllerTests {
     private val mapper = object : SongMapper {
         override fun findById(id: Long) = song.takeIf { it.id == id }
         override fun findPublished(id: Long) = findById(id)
-        override fun listPublished(instrumentId: Long?) = listOf(song).filter { instrumentId == null || it.instrumentId == instrumentId }
+        override fun listPublished(instrumentId: Long?) = listOf(song, song.copy(id = 29, jangdanId = null,
+            scoreJson = """{"music":{"jangdan":"세마치","bpmUnit":"QUARTER"}}"""))
+            .filter { instrumentId == null || it.instrumentId == instrumentId }
     }
     private val jangdans = object : JangdanMapper {
         override fun listAll() = emptyList<JangdanRow>()
@@ -49,6 +51,9 @@ class SongControllerTests {
             .andExpect(jsonPath("$.result.items[0].scoreVersion").value(3))
             .andExpect(jsonPath("$.result.items[0].score").doesNotExist())
             .andExpect(jsonPath("$.result.items[0].jangdan.bpmUnit").value("DOTTED_QUARTER"))
+            .andExpect(jsonPath("$.result.items[1].jangdanName").value("세마치"))
+            .andExpect(jsonPath("$.result.items[1].jangdan").doesNotExist())
+            .andExpect(jsonPath("$.result.items[1].score").doesNotExist())
     }
     @Test fun `detail carries original score JSON as an object and missing songs use common 404`() {
         mvc.perform(get("/api/songs/7")).andExpect(status().isOk).andExpect(jsonPath("$.result.songId").value("7"))
