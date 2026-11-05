@@ -33,14 +33,15 @@ $qaRuntime = if ($RuntimeDirectory) { (Resolve-Path -LiteralPath $RuntimeDirecto
 if ($DeviceId -ne 'phone' -and $qaRuntime -eq $qaKeyDirectory) { throw '추가 기기는 별도 RuntimeDirectory를 지정하세요.' }
 $qaToolRoot = if ($ToolRoot) { (Resolve-Path -LiteralPath $ToolRoot).Path } else { Split-Path -Parent $qaKeyDirectory }
 $qaPrevious = @{}
-foreach ($qaName in @('QA_TOKEN','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
+foreach ($qaName in @('QA_EXPECTED_IDENTITY','QA_TOKEN','QA_SERIAL','QA_ADB','QA_ADB_PORT','QA_PORT','QA_ORIGIN','QA_BASE_PATH','QA_DEVICE_ID','QA_DEVICE_NAME','QA_TRUST_PROXY','QA_APK_DIR','QA_APK_SSH_HOST','QA_SCREEN_SERVER','QA_VIDEO_SERVER','QA_STOP_FILE','QA_WIRELESS_STATE')) { $qaPrevious[$qaName] = [Environment]::GetEnvironmentVariable($qaName,'Process') }
 $qaNodeProcess = $null; $qaTunnelProcess = $null; $qaAdbChild=$null; $qaWirelessChild=$null
 $qaConfiguredSerial=$Serial
 $qaWirelessState=Join-Path $qaRuntime 'wireless-state.json'
 try {
+  $env:QA_EXPECTED_IDENTITY=$null
   if($AutoRecover -and $Serial -match '^\d{1,3}(?:\.\d{1,3}){3}:\d+$' -and (Test-Path -LiteralPath $qaWirelessState)){
     $qaSavedWireless=Get-Content -LiteralPath $qaWirelessState -Raw | ConvertFrom-Json
-    if($qaSavedWireless.configuredSerial -eq $qaConfiguredSerial -and $qaSavedWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaSavedWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){$Serial=$qaSavedWireless.endpoint}
+    if($qaSavedWireless.configuredSerial -eq $qaConfiguredSerial -and $qaSavedWireless.identity -match '^[A-Za-z0-9_-]{4,80}$' -and $qaSavedWireless.endpoint -match '^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$'){$Serial=$qaSavedWireless.endpoint;$env:QA_EXPECTED_IDENTITY=$qaSavedWireless.identity}
   }
   $env:QA_STOP_FILE=Join-Path $qaRuntime ('stop-'+[guid]::NewGuid().ToString('N'))
   $env:QA_TOKEN=$qaKey; $env:QA_SERIAL=$Serial; $env:QA_ADB=$Adb; $env:QA_ADB_PORT=[string]$AdbPort; $env:QA_PORT=[string]$Port

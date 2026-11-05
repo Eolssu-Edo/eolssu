@@ -46,7 +46,7 @@ export class PhoneVideo {
       // Samsung Android 12 native encoder overflows long app_process argv (#2841).
       if(Buffer.byteLength(argv.join(' '))>=255)throw Error('Samsung encoder argument limit');
       if(state.closing)return;
-      state.child=spawn(this.phone.adb,['-P',String(this.phone.port),'-s',this.phone.serial,'shell',`CLASSPATH=${state.remote}`,...argv],{windowsHide:true,stdio:['ignore','pipe','pipe']});
+      state.child=spawn(this.phone.adb,[...await this.phone.deviceArgs(),'shell',`CLASSPATH=${state.remote}`,...argv],{windowsHide:true,stdio:['ignore','pipe','pipe']});
       state.child.stdout.resume();state.child.stderr.resume();
       state.child.on('error',()=>void this.fail(state));state.child.on('exit',()=>void this.fail(state));
       const parser=new VideoPackets({deviceHeader:true,onSession:s=>{

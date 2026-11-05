@@ -206,7 +206,7 @@ export async function startRelay({ phone, token, port = 17680, origin, basePath 
         case '/api/input': await control.input(id, data); break;
         case '/api/logout':
           sessions.delete(secret); closeStreams(id); await control.leave(id);syncScreen();
-          res.setHeader('Set-Cookie', `qa_session=; HttpOnly; SameSite=Strict; Path=${basePath}; Max-Age=0${url.startsWith('https:') ? '; Secure' : ''}`); break;
+          res.setHeader('Set-Cookie', `${cookieName}=; HttpOnly; SameSite=Strict; Path=${basePath}; Max-Age=0${url.startsWith('https:') ? '; Secure' : ''}`); break;
         default: throw new Rejected('not found', 404);
       }
       json(200, { ok: true });
@@ -250,7 +250,7 @@ export async function startRelay({ phone, token, port = 17680, origin, basePath 
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const phone = new AdbPhone({ adb: process.env.QA_ADB || 'adb', serial: process.env.QA_SERIAL, textHelper:process.env.QA_SCREEN_SERVER, port: Number(process.env.QA_ADB_PORT || 5037) });
+    const phone = new AdbPhone({ adb: process.env.QA_ADB || 'adb', serial: process.env.QA_SERIAL, identity:process.env.QA_EXPECTED_IDENTITY||null, textHelper:process.env.QA_SCREEN_SERVER, port: Number(process.env.QA_ADB_PORT || 5037) });
     const catalog=process.env.QA_APK_DIR ? await Catalog.open(process.env.QA_APK_DIR) : null;
     const mirror=catalog && process.env.QA_APK_SSH_HOST ? createMirror(catalog,process.env.QA_APK_SSH_HOST) : null;
     const video=process.env.QA_VIDEO_SERVER ? new PhoneVideo(phone,process.env.QA_VIDEO_SERVER) : null;

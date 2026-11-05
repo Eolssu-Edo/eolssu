@@ -13,7 +13,7 @@ async function fixture(t,{run=async()=>'',valid=true}={}){
  const binary=Buffer.from('test-only-native-boundary'),source=await readFile(new URL('../android/BrightScreen.java',import.meta.url));
  await writeFile(join(root,'bright-screen.jar'),binary);await writeFile(join(root,'bright-screen.json'),JSON.stringify({leaseMs:15000,sha256:valid?sha(binary):'bad',sourceSha256:sha(source)}));
  const adb=[],launches=[],commands=[];
- const phone={adb:'fixture-adb',port:5037,serial:'fixture-phone',async run(args){adb.push(args);return run(args);}};
+ const phone={deviceArgs:async()=>['-P','5037','-t','42'],adb:'fixture-adb',port:5037,serial:'fixture-phone',async run(args){adb.push(args);return run(args);}};
  const keeper=new ScreenKeeper(phone,join(root,'bright-screen.jar'),{launch(...args){
   const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();
   const exit=()=>queueMicrotask(()=>child.emit('exit',0));child.kill=exit;
@@ -25,7 +25,7 @@ test('one native brightness lease covers repeated viewers and releases without c
  const {keeper,adb,launches,commands}=await fixture(t);
  await keeper.setPresent(true);assert.equal(keeper.state().active,true);
  for(let i=0;i<20;i++)await keeper.setPresent(true);
- keeper.refresh();assert.equal(launches.length,1);assert.ok(commands.includes('ping\n'));
+ keeper.refresh();assert.equal(launches.length,1);assert.deepEqual(launches[0][1].slice(0,4),['-P','5037','-t','42']);assert.ok(commands.includes('ping\n'));
  await keeper.setPresent(false);assert.equal(keeper.state().active,false);assert.ok(commands.includes('stop\n'));
  assert.equal(adb.filter(a=>a[0]==='push').length,1);assert.equal(adb.filter(a=>a[1]==='rm').length,1);
  assert.equal(adb.some(a=>a.includes('settings')||a.includes('input')),false);

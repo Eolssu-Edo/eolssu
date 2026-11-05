@@ -12,7 +12,7 @@ export async function pasteUnicode(phone,file,text,{launch=spawn}={}){
   const remote=`/data/local/tmp/qa290-text-${randomUUID().replaceAll('-','')}.jar`;let child,exited=false;
   try{
     await phone.run(['push',file,remote],false,10000);
-    child=launch(phone.adb,['-P',String(phone.port),'-s',phone.serial,'shell',`CLASSPATH=${remote}`,'app_process','/','com.ssafy.qa.UnicodeText'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+    child=launch(phone.adb,[...await phone.deviceArgs(),'shell',`CLASSPATH=${remote}`,'app_process','/','com.ssafy.qa.UnicodeText'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     await new Promise((resolve,reject)=>{
       let output='';const timeout=setTimeout(()=>reject(Error('Unicode helper timeout')),5000);
       child.stdout.on('data',chunk=>{output=(output+chunk.toString()).slice(-4096);});child.stderr.resume();

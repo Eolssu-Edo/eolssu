@@ -38,7 +38,9 @@ test('nested tablet and parent phone cookies work in either order without cross-
   assert.equal((await phone.request('input',packet,p)).status,409);
   assert.equal((await tablet.request('input',packet,q)).status,200);
   assert.equal(phone.inputs.length,0);assert.deepEqual(tablet.inputs,[packet.action]);
-  await tablet.request('logout',{},q);
+  const logout=await tablet.request('logout',{},q);
+  assert.ok(logout.headers.get('set-cookie').startsWith(q.split('=')[0]+'=;'));
+  assert.match(logout.headers.get('set-cookie'),/Path=\/qa\/tablet\/; Max-Age=0/);
   assert.equal((await tablet.request('state',undefined,q)).status,401);
   assert.equal((await (await phone.request('state',undefined,p)).json()).owner,ps.you);
 });

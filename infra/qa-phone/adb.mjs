@@ -4,16 +4,42 @@ import { validateAction } from './control.mjs';
 import {pasteUnicode} from './unicode-input.mjs';
 const execute = promisify(execFile);
 export class AdbPhone {
-  constructor({ adb = 'adb', serial, port = 5037, textHelper = null }) {
+  constructor({ adb = 'adb', serial, port = 5037, textHelper = null, identity = null, executor = execute }) {
     if (!serial || !/^[A-Za-z0-9._:-]+$/.test(serial) || serial.startsWith('emulator-')) throw new Error('Select an explicit physical phone serial with QA_SERIAL');
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('invalid ADB port');
+    if(identity!==null&&!/^[A-Za-z0-9_-]{4,80}$/.test(identity))throw Error('invalid expected device identity');
     this.adb = adb; this.serial = serial; this.port = port; this.size = null;this.textHelper=textHelper;
+    this.identity=identity;this.executor=executor;this.transportId=null;this.bindingTask=null;
   }
-  async run(args, binary = false, timeout = 3000) {
-    const { stdout } = await execute(this.adb, ['-P', String(this.port), '-s', this.serial, ...args], {
+  async execute(args, binary = false, timeout = 3000) {
+    const { stdout } = await this.executor(this.adb, args, {
       encoding: binary ? 'buffer' : 'utf8', timeout, maxBuffer: 20 * 1024 * 1024, windowsHide: true,
     });
     return stdout;
+  }
+  async deviceArgs(){
+    if(this.bindingTask)return this.bindingTask;
+    this.bindingTask=(async()=>{
+      const prefix=['-P',String(this.port)];
+      let transport=this.transportId;
+      if(!transport){
+        const rows=(await this.execute([...prefix,'devices','-l'])).split(/\r?\n/).map(line=>line.trim().split(/\s+/));
+        const matches=rows.filter(row=>row[0]===this.serial&&row[1]==='device');
+        if(matches.length!==1)throw Error('selected device unavailable');
+        transport=matches[0].find(field=>/^transport_id:[1-9][0-9]{0,19}$/.test(field))?.split(':')[1];
+        if(!transport)throw Error('ADB transport identity unavailable');
+      }
+      const selection=[...prefix,'-t',transport];
+      const actual=(await this.execute([...selection,'shell','getprop','ro.serialno'])).trim();
+      if(!/^[A-Za-z0-9_-]{4,80}$/.test(actual)||(this.identity&&actual!==this.identity))throw Error('selected device identity mismatch');
+      this.identity=actual;this.transportId=transport;return selection;
+    })().catch(error=>{this.transportId=null;this.size=null;throw error;}).finally(()=>{this.bindingTask=null;});
+    return this.bindingTask;
+  }
+  async run(args, binary = false, timeout = 3000) {
+    const selection=await this.deviceArgs();
+    try{return await this.execute([...selection,...args],binary,timeout);}
+    catch(error){this.transportId=null;this.size=null;throw error;}
   }
   async inputReady() {
     // A lost ADB client must not leave a phone-side input command running.

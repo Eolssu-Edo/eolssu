@@ -51,7 +51,7 @@ export class ScreenKeeper {
     this.current=state;
     await this.phone.run(['push',this.file,state.remote],false,10000);
     if(!this.present||this.closed){await this.cleanup(state);return;}
-    state.child=this.launch(this.phone.adb,['-P',String(this.phone.port),'-s',this.phone.serial,'shell',`CLASSPATH=${state.remote}`,'app_process','/','com.ssafy.qa.BrightScreen'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+    state.child=this.launch(this.phone.adb,[...await this.phone.deviceArgs(),'shell',`CLASSPATH=${state.remote}`,'app_process','/','com.ssafy.qa.BrightScreen'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
     const ready=new Promise((resolve,reject)=>{
       let output='';const timeout=setTimeout(()=>reject(Error('screen helper ready timeout')),5000);
       state.child.stdout.on('data',chunk=>{output=(output+chunk.toString()).slice(-4096);if(/(?:^|\r?\n)READY\r?\n/.test(output)){clearTimeout(timeout);state.ready=true;resolve();}});
