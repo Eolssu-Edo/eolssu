@@ -52,7 +52,7 @@ val FingeringOrder: List<Yul> = listOf(
 )
 
 /**
- * 패널에서 고치는 중인 값. '적용'을 눌러야 [PracticeSettings]에 반영된다.
+ * 패널 표시 값. 사용자 변경은 즉시 [PracticeSettings]에 저장된다.
  *
  * @property note 운지법 패널이 보여 주는 율명. 고른 정간이 이음이면 앞 음, 쉼이면 [noteRest]가 true다.
  */
@@ -157,7 +157,7 @@ data class PracticeUiState(
         else song?.durationSeconds(bpm) ?: 0
 
     /**
-     * 연습 속도·장단을 바꿀 수 없는 상태(평가 연주의 카운트다운·녹음·중단). 속도는 채점 기준이고 장단 소리는 마이크에 녹음되기 때문이다.
+     * 연습 속도를 바꿀 수 없는 상태(평가 연주의 카운트다운·녹음·중단). 속도는 채점 기준이므로 평가 중에는 고정한다. 장단 소리는 바꿀 수 있다.
      * 악기·표기·운지법과 함께 보기 같은 보기 설정은 이때도 바꿀 수 있다.
      */
     val playbackSettingsLocked: Boolean
@@ -238,6 +238,15 @@ data class PracticeUiState(
 /*
  * 상태 전환. ViewModel은 타이머만 맡고 상태를 바꾸는 규칙은 여기 둔다(와이어프레임 app.js의 actions).
  */
+
+/** 선택만 바꾸고 재생하지 않는다. 현재 음과 그 안의 진행 위치를 보존한다. */
+fun PracticeUiState.selectPlaybackMode(target: PracticeMode): PracticeUiState {
+    if (mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) ||
+        target !in setOf(PracticeMode.Model, PracticeMode.Rhythm) || mode == target) return this
+    return copy(mode = target, playing = false, eventStartedAt = null, modelClock = null,
+        modelPerformance = null, modelPerformancePositionMs = 0.0,
+        pausedFraction = currentEventFraction.toFloat(), follow = true)
+}
 
 /** 모범 연주 시작. 준비 상태면 처음부터, 이미 모범 연주 중이면 그 자리부터. */
 fun PracticeUiState.startModel(): PracticeUiState {
@@ -395,9 +404,9 @@ fun PracticeUiState.seekSelection(deltaMs: Long): PracticeUiState {
     return copy(selected = index, listening = null)
 }
 
-/** 패널 열기. 연주·카운트다운 중에는 열지 않는다. 지금 설정을 고치는 값으로 옮겨 둔다. */
+/** 패널 열기. 평가 중 속도 패널만 제한하고 저장된 값을 표시한다. */
 fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
-    if (playbackSettingsLocked && (panel == PracticePanel.Tempo || panel == PracticePanel.Jangdan)) return this
+    if (playbackSettingsLocked && panel == PracticePanel.Tempo) return this
     val song = song
     val draft = when (panel) {
         PracticePanel.Notation -> draft.copy(showHangul = settings.showHangul, showSolfege = settings.showSolfege)
@@ -408,9 +417,9 @@ fun PracticeUiState.openPanel(panel: PracticePanel): PracticeUiState {
     return copy(panel = panel, draft = draft)
 }
 
-/** 닫으면 고치던 값은 버린다. 표기·장단·속도 패널을 닫으면 연습 설정 시트로 돌아간다(보드 `close`). */
+/** 하위 설정의 뒤로가기. 변경값은 이미 저장됐으며 상위 설정으로 돌아간다. */
 fun PracticeUiState.closePanel(): PracticeUiState = copy(
-    panel = if (panel == PracticePanel.Notation || panel == PracticePanel.Jangdan || panel == PracticePanel.Tempo) PracticePanel.Settings else null,
+    panel = if (panel == PracticePanel.Notation || panel == PracticePanel.Jangdan || panel == PracticePanel.Tempo || panel == PracticePanel.Fingering) PracticePanel.Settings else null,
     listening = null,
     draft = draft.copy(previewing = false, previewBeat = 0),
 )

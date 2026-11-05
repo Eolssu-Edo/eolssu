@@ -22,8 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +49,8 @@ import kotlin.math.roundToInt
 
 /** 연습 화면 하단·플레이어에서 부르는 동작. */
 class PracticeBottomActions(
+    val onSelectModel: () -> Unit = {},
+    val onSelectRhythm: () -> Unit = {},
     val onStartModel: () -> Unit,
     val onToggleModel: () -> Unit,
     val onRestartModel: () -> Unit,
@@ -81,45 +81,41 @@ class PracticeBottomActions(
 @Composable
 fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
     val song = state.song ?: return
-    val colors = EolssuTheme.colors
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(
-            buildAnnotatedString {
-                append(formatClock(state.elapsedMs / 1000))
-                append(" ")
-                withStyle(SpanStyle(fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Normal)) {
-                    append(stringResource(Res.string.practice_rec_time_detail, formatClock(state.totalSeconds.toDouble()), "${state.progressPercent.roundToInt()}%"))
-                }
-            },
-            style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.text,
-        )
-        MicBadge(state.micLevel)
-    }
-    Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
-        Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
-    }
-    if (state.settings.beatVisual) song.displayJangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
-    // 안내가 나타날 때 본문 높이와 악보 묶음 수가 변하지 않도록 실제 안내 크기를 항상 확보한다.
-    Box(
-        Modifier.alpha(if (state.noInputHint) 1f else 0f)
-            .then(if (state.noInputHint) Modifier else Modifier.clearAndSetSemantics {}),
-    ) {
-        NoInputBanner()
-    }
-    val locked = state.mode != PracticeMode.Recording
-    if (locked) {
-        PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
-    } else {
-        PairedButtons(
-            stacked,
-            first = { m ->
-                EolssuButton(stringResource(Res.string.practice_restart), actions.onAskRestart, m, compact = true, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart)
-            },
-            second = { m ->
-                EolssuButton(stringResource(Res.string.practice_abort), actions.onAskAbort, m, compact = true, style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop)
-            },
-        )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+        val colors = EolssuTheme.colors
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                buildAnnotatedString {
+                    append(formatClock(state.elapsedMs / 1000))
+                    append(" ")
+                    withStyle(SpanStyle(fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Normal)) {
+                        append(stringResource(Res.string.practice_rec_time_detail, formatClock(state.totalSeconds.toDouble()), "${state.progressPercent.roundToInt()}%"))
+                    }
+                },
+                style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.text,
+            )
+            MicBadge(state.micLevel)
+        }
+        Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
+            Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
+        }
+        if (state.settings.beatVisual) song.displayJangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
+        if (state.noInputHint) NoInputBanner()
+        val locked = state.mode != PracticeMode.Recording
+        if (locked) {
+            PairedButtons(stacked, first = { OffButton(stringResource(Res.string.practice_restart), it) }, second = { OffButton(stringResource(Res.string.practice_abort), it) })
+        } else {
+            PairedButtons(
+                stacked,
+                first = { m ->
+                    EolssuButton(stringResource(Res.string.practice_restart), actions.onAskRestart, m, compact = true, small = true, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Restart)
+                },
+                second = { m ->
+                    EolssuButton(stringResource(Res.string.practice_abort), actions.onAskAbort, m, compact = true, small = true, style = EolssuButtonStyle.Danger, icon = EolssuIcons.Stop)
+                },
+            )
+        }
     }
 }
 
@@ -159,7 +155,7 @@ private fun PairedButtons(stacked: Boolean, first: @Composable (Modifier) -> Uni
 private fun OffButton(text: String, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Box(
-        modifier.heightIn(min = 52.dp).background(colors.surfaceStrong, RoundedCornerShape(14.dp)).padding(horizontal = 10.dp, vertical = 12.dp),
+        modifier.heightIn(min = 48.dp).background(colors.surfaceStrong, RoundedCornerShape(14.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.textDisabled, textAlign = TextAlign.Center)

@@ -17,6 +17,59 @@ import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PracticeJangdanTest {
+    @Test fun settingsSaveImmediatelyAndRecordingCanToggleAccompaniment() = practice { vm, samples, _, settings ->
+        vm.openPanel(PracticePanel.Notation)
+        vm.updateDraft { it.copy(showHangul = true) }; runCurrent()
+        assertTrue(settings.settings.value.showHangul)
+        vm.closePanel(); runCurrent()
+        vm.requestEvaluation(); runCurrent()
+        advanceTimeBy(3100); runCurrent()
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        vm.openPanel(PracticePanel.Jangdan)
+        assertEquals(PracticePanel.Jangdan, vm.uiState.value.panel)
+        vm.updateDraft { it.copy(jangdanSound = true) }; runCurrent()
+        assertTrue(settings.settings.value.jangdanSound)
+        val on = samples.hits.size
+        advanceTimeBy(600); runCurrent()
+        assertTrue(samples.hits.size > on)
+        vm.updateDraft { it.copy(jangdanSound = false) }; runCurrent()
+        val off = samples.hits.size
+        advanceTimeBy(600); runCurrent()
+        assertEquals(off, samples.hits.size)
+        assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
+        assertTrue(vm.uiState.value.elapsedMs > 1000)
+    }
+
+    @Test fun switchingModesKeepsPositionWithoutPlayingUntilPlayIsPressed() = practice { vm, samples, media, _ ->
+        vm.startRhythm(); runCurrent()
+        advanceTimeBy(750); runCurrent()
+        vm.selectModel(); runCurrent()
+        val tick = vm.uiState.value.currentTick!!
+        assertEquals(3.0, tick, 0.001)
+        assertEquals(PracticeMode.Model, vm.uiState.value.mode)
+        assertFalse(vm.uiState.value.playing)
+        val sounds = samples.hits.size
+        advanceTimeBy(500); runCurrent()
+        assertEquals(tick, vm.uiState.value.currentTick)
+        assertEquals(sounds, samples.hits.size)
+        assertEquals(0, media.loads)
+        vm.startModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 750); runCurrent()
+        assertEquals(tick, vm.uiState.value.currentTick!!, 0.001)
+        vm.selectRhythm(); runCurrent()
+        assertEquals(PracticeMode.Rhythm, vm.uiState.value.mode)
+        assertFalse(vm.uiState.value.playing)
+        assertEquals(tick, vm.uiState.value.currentTick!!, 0.001)
+        val pausedSounds = samples.hits.size
+        advanceTimeBy(500); runCurrent()
+        assertEquals(pausedSounds, samples.hits.size)
+        vm.toggleRhythm(); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        advanceTimeBy(250); runCurrent()
+        vm.toggleRhythm(); runCurrent()
+        assertEquals(4.0, vm.uiState.value.currentTick!!, 0.001)
+    }
+
     @Test fun loadingNeverShowsPlayingAndCancelledPreparationCannotStart() = runTest {
         val player = Samples().apply { pending = CompletableDeferred() }
         val session = JangdanSession(player, backgroundScope)
@@ -117,7 +170,7 @@ class PracticeJangdanTest {
         assertEquals(listOf(newClip.sample), samples.hits)
     }
 
-    @Test fun previewModelAndRecordingAreMutuallyExclusiveAndUseMediaPosition() = practice { vm, samples, media, settings ->
+    @Test fun previewStopsForRecordingAndAccompanimentFollowsRecordingClock() = practice { vm, samples, media, settings ->
         vm.togglePreview(); runCurrent()
         assertTrue(vm.uiState.value.draft.previewing)
         settings.update { it.copy(jangdanSound = true) }; runCurrent()
@@ -142,7 +195,7 @@ class PracticeJangdanTest {
         vm.startRhythm()
         advanceTimeBy(3300); runCurrent()
         assertEquals(PracticeMode.Recording, vm.uiState.value.mode)
-        assertEquals(beforeRecording, samples.hits.size)
+        assertTrue(samples.hits.size > beforeRecording)
     }
 
     @Test fun pauseResumeDoesNotReplayBoundaryButExplicitSeekDoes() = practice { vm, samples, _, _ ->

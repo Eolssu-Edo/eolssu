@@ -103,6 +103,8 @@ fun PracticeRoute(
             onRetrySong = viewModel::retryLoadSong,
             bottom = PracticeBottomActions(
                 onStartModel = viewModel::startModel,
+                onSelectModel = viewModel::selectModel,
+                onSelectRhythm = viewModel::selectRhythm,
                 onStartRhythm = viewModel::startRhythm,
                 onToggleRhythm = viewModel::toggleRhythm,
                 onToggleModel = viewModel::toggleModel,
@@ -125,11 +127,9 @@ fun PracticeRoute(
             ),
             panel = PracticePanelActions(
                 onClose = viewModel::closePanel,
+                onDismiss = viewModel::dismissPanels,
                 onOpen = viewModel::openPanel,
                 onDraft = viewModel::updateDraft,
-                onApplyNotation = viewModel::applyNotation,
-                onApplyJangdan = viewModel::applyJangdan,
-                onApplyTempo = viewModel::applyTempo,
                 onToggleBigScore = viewModel::toggleBigScore,
                 onMoveFingering = viewModel::moveFingering,
                 onListen = { viewModel.listen(state.draft.note) },

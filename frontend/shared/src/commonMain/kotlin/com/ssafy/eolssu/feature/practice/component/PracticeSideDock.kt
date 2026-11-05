@@ -69,20 +69,16 @@ fun PracticeSideDock(
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(20.dp)
     Box(modifier.clip(shape).background(colors.background).border(1.dp, colors.line, shape)) {
-        if (state.panel != null) {
-            PracticePanelInline(state, panelActions, Modifier.fillMaxSize())
-        } else {
-            Column(Modifier.fillMaxSize().padding(20.dp)) {
-                Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    SongInfo(state, song)
-                    QuickSettings(state, song, panelActions)
-                }
-                Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PracticeBottomContent(state, bottomActions, stacked = true)
-                }
+        Column(Modifier.fillMaxSize().padding(20.dp)) {
+            Column(
+                Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                SongInfo(state, song)
+                QuickSettings(state, song, panelActions)
+            }
+            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                PracticeBottomContent(state, bottomActions, stacked = true)
             }
         }
     }
@@ -106,7 +102,7 @@ private fun SongInfo(state: PracticeUiState, song: Song) {
 private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
     val settings = state.settings
-    // 평가 연주 중에는 장단·속도만 잠근다. 표기·운지법·크게 보기는 그대로 바꿀 수 있다.
+    // 평가 중 속도만 고정한다. 장단과 보기 설정은 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val notationOn = settings.showHangul || settings.showSolfege
     val note = state.draft.note
@@ -124,7 +120,7 @@ private fun QuickSettings(state: PracticeUiState, song: Song, actions: PracticeP
         QuickRow(
             stringResource(Res.string.practice_menu_jangdan),
             if (state.jangdanProblem) jangdanHint(state) else if (settings.jangdanSound) stringResource(Res.string.practice_jangdan_sound_on, song.jangdanName) else jangdanLabel(song.jangdanName),
-            !state.jangdanProblem && settings.jangdanSound, locked,
+            !state.jangdanProblem && settings.jangdanSound, locked = false,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         QuickRow(
             stringResource(Res.string.practice_menu_tempo),

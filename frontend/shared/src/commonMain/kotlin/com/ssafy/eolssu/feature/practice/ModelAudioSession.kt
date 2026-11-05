@@ -94,7 +94,7 @@ internal class ModelAudioSession(
         }
     }
 
-    fun play(song: Song, bpm: Int) {
+    fun play(song: Song, bpm: Int, startTick: Double? = null) {
         if (loadJob?.isActive == true) return
         if (!player.available) {
             _state.value = ModelAudioState(ModelAudioStatus.Unsupported)
@@ -107,7 +107,8 @@ internal class ModelAudioSession(
         if (cached != null && previous.status in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) {
             val resume = player.state.value.sourceId == sourceId &&
                 player.state.value.status == AudioPlaybackStatus.Paused
-            prepareExisting(song, cached, previous.mediaPositionMs, resume)
+            val target = startTick?.let { song.modelMediaPosition(cached, it) } ?: previous.mediaPositionMs
+            prepareExisting(song, cached, target, resume && target == previous.mediaPositionMs)
             return
         }
         active = true
@@ -123,7 +124,7 @@ internal class ModelAudioSession(
                 audio == null -> _state.value = ModelAudioState(ModelAudioStatus.Unavailable)
                 !audio.matches(song) || audio.startOffsetMs + (audio.performance?.durationMs ?: song.durationMs(audio.bpm)) > audio.durationMs + 1.0 ->
                     _state.value = ModelAudioState(ModelAudioStatus.Failed)
-                else -> startWhenReady(request, song, audio, 0)
+                else -> startWhenReady(request, song, audio, startTick?.let { song.modelMediaPosition(audio, it) } ?: 0)
             }
         }
     }
@@ -280,4 +281,16 @@ internal fun PracticeUiState.withModelAudio(playback: ModelAudioState): Practice
         pausedFraction = point.fraction.toFloat(), elapsedMs = point.scoreMs * audio.bpm / bpm,
         modelPerformancePositionMs = if (audio.performance != null) point.scoreMs else 0.0,
         modelClock = playback.anchor?.let { ModelClock(audio, it) })
+}
+
+/** 원본 악보 tick을 모범 음원의 위치로 바꾼다. 꾸밈음의 연주 시간과 앞 여백을 보존한다. */
+internal fun Song.modelMediaPosition(audio: ModelAudio, tick: Double): Long {
+    val performance = audio.performance
+    val scoreMs = if (performance == null) tick * 60_000.0 / audio.bpm / requireNotNull(score.timing).ticksPerBeat else {
+        val segment = performance.segments.firstOrNull { tick >= it.startTick && tick < it.endTick }
+            ?: if (tick <= performance.segments.first().startTick) performance.segments.first() else performance.segments.last()
+        val fraction = ((tick - segment.startTick) / (segment.endTick - segment.startTick)).coerceIn(0.0, 1.0)
+        segment.startMs + (segment.endMs - segment.startMs) * fraction
+    }
+    return (audio.startOffsetMs + scoreMs).toLong().coerceIn(0, audio.durationMs)
 }

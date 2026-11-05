@@ -5,7 +5,7 @@
     <string name="jangdan_model_switch">모범 연주로 전환</string>
     <string name="jangdan_loading">장단 소리를 준비하고 있어요.</string>
     <string name="jangdan_playing">선택한 연습 속도로 장단이 재생 중이에요.</string>
-    <string name="jangdan_ready">장단과 악보를 함께 따라가며 연습해요. 평가 녹음 중에는 장단 소리가 꺼져요.</string>
+    <string name="jangdan_ready">장단과 악보를 함께 따라가며 연습해요.</string>
     <string name="jangdan_unverified">이 악보와 장단의 연결은 아직 검수 중이에요.</string>
     <string name="jangdan_unsupported">이 환경 또는 속도에서는 장단 소리를 지원하지 않아요.</string>
     <string name="jangdan_failed">장단 소리를 재생하지 못했어요. 다시 재생해 주세요.</string>
