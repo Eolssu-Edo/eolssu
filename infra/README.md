@@ -127,3 +127,36 @@ Jenkins 잡의 SCM 브랜치를 `develop`, Script Path를 `backend/Jenkinsfile`�
 
 - [현재 구성의 근거·제약](../docs/knowledge/infra/server-configuration.md)
 - [S15P31E102-65 작업·검증 기록](../docs/plans/S15P31E102-65.md)
+
+
+## Jenkins 전체 시간과 단계 시간 대조
+
+edo1 운영 Jenkins 완료 빌드를 읽기 전용으로 확인한다. SSH 별칭 `edo1`, sudo 읽기 권한, 서버 Python 3이 필요하다. 아래 번호는 2026-11-05 조사 표본이다. 다른 이력은 실제 존재하는 번호로 바꾼다. 보관 정책으로 빌드 또는 Graph View 캐시가 없으면 측정 불가이며 전체 시간을 0으로 처리하지 않는다.
+
+```sh
+ssh -o BatchMode=yes -o ConnectTimeout=10 edo1 'sudo -n python3 -' <<'PY'
+from pathlib import Path
+import json
+import xml.etree.ElementTree as ET
+
+for job, number in [('eolssu-backend', 259), ('eolssu-frontend', 186)]:
+    path = Path('/var/lib/jenkins/jobs') / job / 'builds' / str(number)
+    build = ET.parse(path / 'build.xml')
+    stages = json.loads((path / 'pipeline-graph-view-tree.v3.json').read_text())['stages']
+    if build.findtext('result') is None or not stages:
+        raise RuntimeError('Completed build with stage records required')
+    start = int(build.findtext('startTime'))
+    duration = int(build.findtext('duration'))
+    first = min(s['startTimeMillis'] for s in stages)
+    last = max(s['startTimeMillis'] + s['totalDurationMillis'] for s in stages)
+    print(json.dumps({
+        'job': job, 'build': number, 'result': build.findtext('result'),
+        'total_s': duration / 1000,
+        'pre_stage_s': (first - start) / 1000,
+        'stage_span_s': (last - first) / 1000,
+        'post_stage_s': (start + duration - last) / 1000,
+    }))
+PY
+```
+
+`pre_stage_s`는 agent 할당 대기와 초기화의 합이다. Console의 `Still waiting to schedule task`, 노드 executor 설정과 동시간대 다른 잡 실행 구간으로 대기를 판별한다. 상위 stage 안의 병렬 배포 phase를 다시 더하지 않는다. 최상위 agent 할당 대기는 그 뒤 시작하는 Pipeline timeout에 포함되지 않는다. 운영 연결은 [runtime 문서](runtime/README.md#jenkins), 실제 수치·개선 순서·한계는 [Task 510 조사](../docs/knowledge/infra/jenkins-latency.md)를 따른다.
