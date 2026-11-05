@@ -42,6 +42,10 @@ interface SheetAudioMapper {
     @Select("SELECT COUNT(*) FROM sheet_audios WHERE status='RUNNING'") fun running(): Int
     @Update("UPDATE sheet_audios SET status='RUNNING',started_at=#{at} WHERE sheet_id=#{id} AND status='QUEUED'")
     fun start(@Param("id") id: Long,@Param("at") at: LocalDateTime): Int
+    @Update("UPDATE sheet_audios SET status='QUEUED',started_at=NULL WHERE sheet_id=#{id} AND generation=#{generation} AND status='RUNNING'")
+    fun requeue(@Param("id") id: Long,@Param("generation") generation: String): Int
+    @Select("SELECT * FROM sheet_audios WHERE status='RUNNING' AND started_at<#{before}")
+    fun staleRunning(before: LocalDateTime): List<SheetAudioRow>
     @Update("""UPDATE sheet_audios SET status='FAILED',failure_code=#{code},finished_at=#{at}
         WHERE sheet_id=#{id} AND generation=#{generation} AND status='RUNNING'""")
     fun fail(@Param("id") id: Long,@Param("generation") generation: String,@Param("code") code: String,@Param("at") at: LocalDateTime): Int
@@ -52,6 +56,8 @@ interface SheetAudioMapper {
     fun recover(at: LocalDateTime): Int
     @Update("UPDATE sheet_audios SET deleting=TRUE,status='FAILED',failure_code='SERVER_ERROR' WHERE sheet_id=#{id}")
     fun cancel(id: Long): Int
+    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL WHERE sheet_id=#{sheetId} AND user_id=#{userId} AND deleting=TRUE")
+    fun release(@Param("sheetId") sheetId: Long,@Param("userId") userId: Long): Int
     @Insert("INSERT INTO sheet_audio_objects(object_key,sheet_id,generation,state) VALUES(#{key},#{sheetId},#{generation},'PENDING')")
     fun objectPending(@Param("key") key: String,@Param("sheetId") sheetId: Long,@Param("generation") generation: String): Int
     @Update("UPDATE sheet_audio_objects SET state='RETIRED' WHERE sheet_id=#{sheetId} AND state='CURRENT'")

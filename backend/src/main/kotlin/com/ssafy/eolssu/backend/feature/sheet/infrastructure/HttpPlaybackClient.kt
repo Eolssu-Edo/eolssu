@@ -56,6 +56,7 @@ class HttpPlaybackClient(private val baseUrl: String, private val timeout: Durat
                 .header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(requestJson)).build()
             val future=client.sendAsync(request,HttpResponse.BodyHandler { LimitedBody(17*1024*1024) })
             val response=try { future.get(timeout.toMillis(),TimeUnit.MILLISECONDS) } finally { if(!future.isDone) future.cancel(true) }
+            if(response.statusCode()==409) throw PlaybackFailure("BUSY")
             if(response.statusCode()!=200) {
                 val code=runCatching { json.readTree(response.body()).path("errorCode").asString() }.getOrNull()
                 throw PlaybackFailure(code?.takeIf { it in setOf("TIMEOUT","TOO_LARGE") } ?: "SERVER_ERROR")

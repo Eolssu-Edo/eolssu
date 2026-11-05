@@ -32,7 +32,8 @@ class SheetAudioController(private val audio: SheetAudios) {
     }
     private fun respond(action: ()->Pair<HttpStatus,SheetAudioView>): ResponseEntity<*> = try {
         val (status,body)=action()
-        ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(SuccessResponse.of(status,"음원 상태 조회 성공",body))
+        val message=if(status==HttpStatus.ACCEPTED) "음원 생성 요청 접수" else "음원 상태 조회 성공"
+        ResponseEntity.status(status).cacheControl(CacheControl.noStore()).body(SuccessResponse.of(status,message,body))
     } catch(error: SheetAudioRejection) {
         ResponseEntity.status(error.code.status).cacheControl(CacheControl.noStore()).body(ErrorResponse.of(error.code))
     }

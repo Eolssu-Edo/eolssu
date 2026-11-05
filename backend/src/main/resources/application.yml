@@ -4,6 +4,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  task:
+    scheduling:
+      pool:
+        # 음원·악보 변환 작업자는 한 번에 몇 분까지 걸리므로 짧은 주기 작업과 스레드를 나눈다.
+        size: 4
   servlet:
     multipart:
       # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다.

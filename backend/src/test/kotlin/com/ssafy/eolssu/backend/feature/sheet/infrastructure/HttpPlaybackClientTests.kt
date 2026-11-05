@@ -38,6 +38,19 @@ class HttpPlaybackClientTests {
             assertEquals(2250,result.durationMs); assertEquals("{}",request)
         } finally { server.stop(0) }
     }
+    @Test fun `a generator already rendering is reported as busy rather than as a failure`() {
+        val server=HttpServer.create(InetSocketAddress("127.0.0.1",0),0)
+        server.createContext("/v1/render") { exchange ->
+            exchange.requestBody.readAllBytes()
+            val bytes="""{"errorCode":"AUDIO_IN_PROGRESS"}""".toByteArray()
+            exchange.sendResponseHeaders(409,bytes.size.toLong()); exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start()
+        try {
+            val client=HttpPlaybackClient("http://127.0.0.1:${server.address.port}",Duration.ofSeconds(2),json)
+            assertEquals("BUSY",assertFailsWith<PlaybackFailure> { client.generate("{}") }.reason)
+        } finally { server.stop(0) }
+    }
     @Test fun `zip paths and decompressed oversize audio never escape the transport boundary`() {
         val client=HttpPlaybackClient("",Duration.ofSeconds(1),json)
         assertEquals("SERVER_ERROR",assertFailsWith<PlaybackFailure> { client.decode(bundle("../private")) }.reason)

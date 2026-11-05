@@ -24,13 +24,16 @@ class SheetAudioConfig {
     @Bean fun playbackClient(@Value("\${eolssu.sheet-audio.base-url:}") url: String,
         @Value("\${eolssu.sheet-audio.timeout-seconds:100}") seconds: Long,json: JsonMapper): PlaybackClient =
         HttpPlaybackClient(url,Duration.ofSeconds(seconds),json)
-    @Bean fun sheetAudios(mapper: SheetAudioMapper,sheets: UserSheetRepository,scores: SheetScores,storage: SheetSourceStorage,
-        client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,jangdans: JangdanMapper)=
-        SheetAudios(mapper,sheets,scores,SheetAudioJangdanResolver { sheet ->
-            val row=sheet.jangdanId?.let(jangdans::findById) ?: return@SheetAudioJangdanResolver null
-            val pattern=json.readTree(row.pattern)
-            SheetAudioJangdan(row.name,row.bpmUnit,JangdanPlaybackPattern(pattern.path("beats").toList().map { it.asString() },pattern.path("group").toList().map { it.intValue() }))
-        },storage,client,json,clock,manager)
+    @Bean fun sheetAudioJangdans(jangdans: JangdanMapper,json: JsonMapper)=SheetAudioJangdanResolver { sheet ->
+        val row=sheet.jangdanId?.let(jangdans::findById) ?: return@SheetAudioJangdanResolver null
+        val pattern=json.readTree(row.pattern)
+        SheetAudioJangdan(row.name,row.bpmUnit,JangdanPlaybackPattern(pattern.path("beats").toList().map { it.asString() },pattern.path("group").toList().map { it.intValue() }))
+    }
+    @Bean fun sheetAudios(mapper: SheetAudioMapper,sheets: UserSheetRepository,scores: SheetScores,jangdans: SheetAudioJangdanResolver,storage: SheetSourceStorage,
+        client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,
+        @Value("\${eolssu.sheet-audio.timeout-seconds:100}") seconds: Long)=
+        // The worker is sequential, so a RUNNING row older than a whole attempt has no live owner.
+        SheetAudios(mapper,sheets,scores,jangdans,storage,client,json,clock,manager,Duration.ofSeconds(seconds).plusMinutes(5))
 }
 
 @Component

@@ -148,6 +148,7 @@ class UserSheetController(
             audio?.delete(userId,id)
             sources.deleteSources(userId, id)
         } catch (_: SheetSourceStorageException) {
+            audio?.release(userId, id)
             return error(ErrorCode.SERVICE_UNAVAILABLE)
         }
         if (!found || !editUserSheet.delete(userId, id)) return error(ErrorCode.RESOURCE_NOT_FOUND)

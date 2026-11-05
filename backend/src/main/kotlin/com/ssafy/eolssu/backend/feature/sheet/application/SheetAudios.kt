@@ -12,6 +12,7 @@ import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import org.slf4j.LoggerFactory
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import tools.jackson.databind.json.JsonMapper
@@ -25,6 +26,7 @@ class SheetAudios(
     private val mapper: SheetAudioMapper,private val sheets: UserSheetRepository,private val scores: SheetScores,
     private val jangdans: SheetAudioJangdanResolver,private val storage: SheetSourceStorage,
     private val client: PlaybackClient,private val json: JsonMapper,private val clock: Clock,manager: PlatformTransactionManager,
+    private val staleRunningAfter: Duration=Duration.ofMinutes(10),
 ) {
     private val transaction=TransactionTemplate(manager)
     fun request(userId: Long,sheetId: Long,instrumentId: Long?,withJangdan: Boolean,bpm: Int?): AcceptedSheetAudio {
@@ -90,7 +92,8 @@ class SheetAudios(
     private fun view(row: SheetAudioRow,sheet: UserSheet): SheetAudioView {
         val result=row.resultJson?.let(json::readTree)
         fun file(field: String): SheetAudioFileView? {
-            val item=result?.path(field)?.takeIf { it.isObject } ?: return null
+            // Files of a row being deleted are already retired, so they get no new link.
+            val item=result?.takeUnless { row.deleting }?.path(field)?.takeIf { it.isObject } ?: return null
             // Calculate expiry before signing, so it cannot claim a later expiry than the URL.
             val expires=clock.instant().truncatedTo(java.time.temporal.ChronoUnit.SECONDS).plusSeconds(900)
             val url=try { storage.downloadUrl(item.path("key").asString(),Duration.ofMinutes(15),item.path("fileName").asString()) }
@@ -98,13 +101,16 @@ class SheetAudios(
             return SheetAudioFileView(url,expires,if(field=="audio") "audio/mp4" else "audio/midi",item.path("byteSize").longValue(),item.path("fileName").asString(),
                 item.path("sha256").asString().takeIf { field=="audio" },result!!.path("durationMs").longValue().takeIf { field=="audio" })
         }
-        return SheetAudioView(row.sheetId.toString(),row.status,row.scoreVersion.toString(),sheet.scoreVersion.toString(),row.scoreVersion!=sheet.scoreVersion,
+        // A retained file keeps its own version while a newer request runs or fails.
+        val fileVersion=result?.path("scoreVersion")?.takeIf { it.isIntegralNumber }?.intValue() ?: row.scoreVersion
+        return SheetAudioView(row.sheetId.toString(),row.status,row.scoreVersion.toString(),sheet.scoreVersion.toString(),fileVersion!=sheet.scoreVersion,
             row.instrumentId.toString(),row.withJangdan,row.bpm,row.failureCode,3000.takeIf { row.status in setOf("QUEUED","RUNNING") },file("audio"),file("midi"))
     }
 
     fun recover() { transaction.executeWithoutResult { mapper.recover(clock.instant().utc()); mapper.recoverObjects() }; cleanup() }
 
     fun runOne() {
+        failStale()
         cleanup()
         val job=try { transaction.execute {
             if(mapper.running()!=0) return@execute null
@@ -143,8 +149,16 @@ class SheetAudios(
                 mapper.retireCurrent(job.sheetId); mapper.resolveObjects(job.generation,"CURRENT")
                 true
             }==true
+        } catch(e: PlaybackFailure) {
+            // Only an earlier render still running (e.g. across a restart) answers busy; it ends within its time limit.
+            if(e.reason=="BUSY") mapper.requeue(job.sheetId,job.generation)
+            else {
+                log.warn("Sheet audio generation failed: sheet={} generation={} reason={}",job.sheetId,job.generation,e.reason)
+                mapper.fail(job.sheetId,job.generation,e.reason,clock.instant().utc())
+            }
         } catch(e: Exception) {
-            mapper.fail(job.sheetId,job.generation,(e as? PlaybackFailure)?.reason ?: "SERVER_ERROR",clock.instant().utc())
+            log.error("Sheet audio generation failed: sheet={} generation={} reason=SERVER_ERROR",job.sheetId,job.generation,e)
+            mapper.fail(job.sheetId,job.generation,"SERVER_ERROR",clock.instant().utc())
         } finally {
             if(!published) mapper.resolveObjects(job.generation,"RETIRED")
             cleanup()
@@ -163,11 +177,26 @@ class SheetAudios(
         if(mapper.pending(sheetId)>0) throw SheetSourceStorageException("Audio upload is finishing")
     }
 
+    /** A failed sheet deletion keeps the sheet. Its old files are retired, so only a new generation can follow. */
+    fun release(userId: Long,sheetId: Long) { mapper.release(sheetId,userId) }
+
     fun deleteUser(userId: Long) { mapper.userSheets(userId).forEach { delete(userId,it) }; mapper.deleteRate(userId) }
 
     fun cleanup() {
         for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { break /* durable retry next tick */ }
     }
+    /** Recovers a job whose failure could not be recorded, which would otherwise hold the only slot until restart. */
+    private fun failStale() {
+        val now=clock.instant()
+        transaction.executeWithoutResult {
+            mapper.staleRunning(now.minus(staleRunningAfter).utc()).forEach { job ->
+                log.warn("Sheet audio generation abandoned: sheet={} generation={} reason=SERVER_ERROR",job.sheetId,job.generation)
+                mapper.fail(job.sheetId,job.generation,"SERVER_ERROR",now.utc())
+                mapper.resolveObjects(job.generation,"RETIRED")
+            }
+        }
+    }
     private fun reject(code: ErrorCode): Nothing=throw SheetAudioRejection(code)
     private fun java.time.Instant.utc()=LocalDateTime.ofInstant(this,ZoneOffset.UTC)
+    private companion object { val log=LoggerFactory.getLogger(SheetAudios::class.java) }
 }

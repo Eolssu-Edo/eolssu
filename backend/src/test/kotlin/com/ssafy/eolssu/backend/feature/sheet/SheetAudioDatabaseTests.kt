@@ -27,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper
 @Tag("database")
 @ActiveProfiles("db")
 @SpringBootTest(webEnvironment=SpringBootTest.WebEnvironment.RANDOM_PORT)
+@org.springframework.context.annotation.Import(SheetAudioDatabaseTests.RoutedStorageConfig::class)
 class SheetAudioDatabaseTests {
     @org.springframework.beans.factory.annotation.Value("\${local.server.port}") private var port=0
     @Autowired lateinit var jdbc: JdbcTemplate
@@ -34,14 +35,17 @@ class SheetAudioDatabaseTests {
     @Autowired lateinit var sheets: UserSheetRepository
     @Autowired lateinit var scores: SheetScores
     @Autowired lateinit var manager: PlatformTransactionManager
+    @Autowired lateinit var jangdanResolver: SheetAudioJangdanResolver
+    @Autowired lateinit var purge: com.ssafy.eolssu.backend.feature.auth.application.WithdrawalPurgeService
     private val json=JsonMapper.builder().build()
     private val objects=mutableSetOf<String>()
     private var failPut=false
     private var failGeneration=false
+    private var failDelete: (String)->Boolean={ false }
     private val storage=object: SheetSourceStorage {
         override val available=true
         override fun put(key: String,file: Path,contentType: String) { objects.add(key); if(failPut && key.endsWith(".mid")) throw SheetSourceStorageException("fixture partial write") }
-        override fun delete(key: String) { objects.remove(key) }
+        override fun delete(key: String) { if(failDelete(key)) throw SheetSourceStorageException("fixture delete failure"); objects.remove(key) }
         override fun readUrl(key: String,ttl: Duration)="https://fixture.invalid/$key"
     }
     private lateinit var audio: SheetAudios
@@ -52,7 +56,7 @@ class SheetAudioDatabaseTests {
 
     @BeforeEach fun setup() {
         cleanup()
-        failPut=false; failGeneration=false; objects.clear()
+        failPut=false; failGeneration=false; failDelete={ false }; objects.clear(); routed=storage
         jdbc.update("INSERT INTO users(id,nickname,status,instrument_id) VALUES(994481,'음원 검사','ACTIVE',1),(994482,'다른 회원','ACTIVE',1)")
         jdbc.update("""INSERT INTO user_sheets(id,user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_version,score_json,note_count,idempotency_key,request_hash)
             SELECT 994481,994481,'음원 검사','JEONGGANBO','MANUAL','EVALUABLE',s.jangdan_id,s.default_bpm,
@@ -136,20 +140,193 @@ class SheetAudioDatabaseTests {
         assertEquals("FAILED",audio.get(994481,994481).status)
         assertNotNull(audio.get(994481,994481).audio)
     }
-    @Test fun `actual API requires authentication preserves ownership and validates JSON types`() {
-        val client=java.net.http.HttpClient.newHttpClient()
-        fun send(user: Long?,body: String?,method: String="POST"): java.net.http.HttpResponse<String> {
-            val builder=java.net.http.HttpRequest.newBuilder(java.net.URI("http://localhost:$port/api/users/me/sheets/994481/audio"))
-                .header("Content-Type","application/json")
-            if(user!=null) {
-                val token=com.nimbusds.jwt.SignedJWT(com.nimbusds.jose.JWSHeader(com.nimbusds.jose.JWSAlgorithm.HS256),
-                    com.nimbusds.jwt.JWTClaimsSet.Builder().subject(user.toString()).expirationTime(java.util.Date.from(Instant.now().plusSeconds(60))).build())
-                token.sign(com.nimbusds.jose.crypto.MACSigner("sheet-audio-api-test-signing-key-481".toByteArray()))
-                builder.header("Cookie","access_token=${token.serialize()}")
-            }
-            builder.method(method,body?.let { java.net.http.HttpRequest.BodyPublishers.ofString(it) } ?: java.net.http.HttpRequest.BodyPublishers.noBody())
-            return client.send(builder.build(),java.net.http.HttpResponse.BodyHandlers.ofString())
+    private fun send(user: Long?,body: String?,method: String="POST",path: String="/api/users/me/sheets/994481/audio"): java.net.http.HttpResponse<String> {
+        val builder=java.net.http.HttpRequest.newBuilder(java.net.URI("http://localhost:$port$path"))
+            .header("Content-Type","application/json")
+        if(user!=null) {
+            val token=com.nimbusds.jwt.SignedJWT(com.nimbusds.jose.JWSHeader(com.nimbusds.jose.JWSAlgorithm.HS256),
+                com.nimbusds.jwt.JWTClaimsSet.Builder().subject(user.toString()).expirationTime(java.util.Date.from(Instant.now().plusSeconds(60))).build())
+            token.sign(com.nimbusds.jose.crypto.MACSigner("sheet-audio-api-test-signing-key-481".toByteArray()))
+            builder.header("Cookie","access_token=${token.serialize()}")
         }
+        builder.method(method,body?.let { java.net.http.HttpRequest.BodyPublishers.ofString(it) } ?: java.net.http.HttpRequest.BodyPublishers.noBody())
+        return java.net.http.HttpClient.newHttpClient().send(builder.build(),java.net.http.HttpResponse.BodyHandlers.ofString())
+    }
+    private fun deleteSheet()=send(994481,null,"DELETE","/api/users/me/sheets/994481")
+    private fun remoteStatus()=json.readTree(send(994481,null,"GET").body()).path("result")
+    private fun deleting()=jdbc.queryForObject("SELECT deleting FROM sheet_audios WHERE sheet_id=994481",Boolean::class.java)
+    private fun sheetCount()=jdbc.queryForObject("SELECT COUNT(*) FROM user_sheets WHERE id=994481",Int::class.java)
+    private fun made()=GeneratedSheetAudio(ByteArray(20),ByteArray(14),1234)
+
+    @Test fun `accepted and reused responses say what happened`() {
+        val jwt=org.springframework.security.oauth2.jwt.Jwt.withTokenValue("fixture").header("alg","none").subject("994481").build()
+        val controller=com.ssafy.eolssu.backend.feature.sheet.api.SheetAudioController(audio)
+        val accepted=controller.request(jwt,"994481",null)
+        assertEquals(202,accepted.statusCode.value())
+        assertContains(json.writeValueAsString(accepted.body),"음원 생성 요청 접수")
+        audio.runOne()
+        val reused=controller.request(jwt,"994481",null)
+        assertEquals(200,reused.statusCode.value())
+        assertContains(json.writeValueAsString(reused.body),"음원 상태 조회 성공")
+    }
+    @Test fun `a retained file from an older version stays outdated while its replacement runs and after it fails`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        val latest=jdbc.queryForObject("SELECT score_version+1 FROM user_sheets WHERE id=994481",Int::class.java)
+        jdbc.update("UPDATE user_sheets SET score_version=?,score_json=JSON_SET(score_json,'$.score.scoreVersion',?) WHERE id=994481",latest,latest)
+        failGeneration=true
+        val queued=audio.request(994481,994481,null,false,null).body
+        assertEquals("QUEUED",queued.status)
+        assertTrue(queued.outdated)
+        assertNotNull(queued.audio)
+        audio.runOne()
+        val failed=audio.get(994481,994481)
+        assertEquals("FAILED",failed.status)
+        assertEquals(latest.toString(),failed.scoreVersion)
+        assertTrue(failed.outdated)
+        assertNotNull(failed.audio)
+        failGeneration=false
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        assertFalse(audio.get(994481,994481).outdated)
+    }
+    @Test fun `a failed first generation of the current version has no file and is not outdated`() {
+        failGeneration=true
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        val failed=audio.get(994481,994481)
+        assertNull(failed.audio)
+        assertFalse(failed.outdated)
+    }
+    @Test fun `files being deleted are never signed again`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        jdbc.update("UPDATE sheet_audios SET deleting=TRUE WHERE sheet_id=994481")
+        val view=audio.get(994481,994481)
+        assertNull(view.audio)
+        assertNull(view.midi)
+    }
+    @Test fun `a failed audio file deletion answers 503 and leaves the sheet usable and deletable`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        failDelete={ true }
+        assertEquals(503,deleteSheet().statusCode())
+        failDelete={ false }
+        assertEquals(1,sheetCount())
+        assertEquals(false,deleting())
+        assertFalse(remoteStatus().path("audio").isObject)
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        assertEquals("DONE",audio.get(994481,994481).status)
+        assertEquals(2,objects.size)
+        assertEquals(204,deleteSheet().statusCode())
+        assertEquals(0,sheetCount())
+        assertTrue(objects.isEmpty())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audio_objects WHERE sheet_id=994481",Int::class.java))
+    }
+    @Test fun `a failed source file deletion after the audio is cleared leaves the sheet usable`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        val source="user-sheets/994481/source.pdf"
+        jdbc.update("INSERT INTO sheet_source_files(sheet_id,file_idx,object_key,content_type,byte_size,file_name) VALUES(994481,0,?,'application/pdf',1,'a.pdf')",source)
+        failDelete={ it==source }
+        assertEquals(503,deleteSheet().statusCode())
+        failDelete={ false }
+        assertEquals(1,sheetCount())
+        assertEquals(false,deleting())
+        assertTrue(objects.isEmpty())
+        assertFalse(remoteStatus().path("audio").isObject)
+        assertEquals(204,deleteSheet().statusCode())
+        assertEquals(0,sheetCount())
+    }
+    @Test fun `deleting while an upload is finishing answers 503 and succeeds once it settles`() {
+        audio.request(994481,994481,null,false,null)
+        val generation=mapper.find(994481,994481)!!.generation
+        mapper.objectPending("sheet-audio/994481/uploading",994481,generation)
+        assertEquals(503,deleteSheet().statusCode())
+        assertEquals(false,deleting())
+        assertEquals(1,sheetCount())
+        mapper.resolveObjects(generation,"RETIRED")
+        assertEquals(204,deleteSheet().statusCode())
+        assertEquals(0,sheetCount())
+    }
+    @Test fun `a busy generator keeps the job queued instead of failing it`() {
+        var busy=true
+        val worker=audioWith(fakeClient { if(busy) throw PlaybackFailure("BUSY"); made() })
+        worker.request(994481,994481,null,false,null)
+        worker.runOne()
+        val waiting=worker.get(994481,994481)
+        assertEquals("QUEUED",waiting.status)
+        assertNull(waiting.failureCode)
+        assertNull(mapper.find(994481,994481)!!.startedAt)
+        busy=false
+        worker.runOne()
+        assertEquals("DONE",worker.get(994481,994481).status)
+    }
+    @Test fun `a running job left behind past its deadline is failed so generation resumes`() {
+        audio.request(994481,994481,null,false,null)
+        val generation=mapper.find(994481,994481)!!.generation
+        jdbc.update("UPDATE sheet_audios SET status='RUNNING',started_at='2026-11-04 23:40:00' WHERE sheet_id=994481")
+        mapper.objectPending("sheet-audio/994481/left",994481,generation); objects.add("sheet-audio/994481/left")
+        audio.runOne()
+        assertEquals("FAILED",audio.get(994481,994481).status)
+        assertEquals("SERVER_ERROR",audio.get(994481,994481).failureCode)
+        audio.runOne()
+        assertTrue(objects.isEmpty())
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        assertEquals("DONE",audio.get(994481,994481).status)
+    }
+    @Test fun `a running job within its deadline is left alone and still holds the slot`() {
+        audio.request(994481,994481,null,false,null)
+        jdbc.update("UPDATE sheet_audios SET status='RUNNING',started_at='2026-11-04 23:55:00' WHERE sheet_id=994481")
+        audio.runOne()
+        assertEquals("RUNNING",audio.get(994481,994481).status)
+    }
+    @Test fun `generation failures record the reason without score content`() {
+        val logger=org.slf4j.LoggerFactory.getLogger(SheetAudios::class.java) as ch.qos.logback.classic.Logger
+        val appender=ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            failGeneration=true
+            audio.request(994481,994481,null,false,null); audio.runOne()
+        } finally { logger.detachAppender(appender) }
+        val message=appender.list.single().formattedMessage
+        assertContains(message,"TIMEOUT")
+        assertContains(message,"994481")
+        assertFalse(message.contains("schemaVersion"))
+    }
+    @Test fun `with jangdan sends the catalog pattern of the sheet to the generator`() {
+        jdbc.update("UPDATE user_sheets SET jangdan_id=(SELECT MIN(id) FROM jangdans) WHERE id=994481")
+        var sent=""
+        val worker=SheetAudios(mapper,sheets,scores,jangdanResolver,storage,fakeClient { sent=it; made() },json,Clock.systemUTC(),manager)
+        val accepted=worker.request(994481,994481,null,true,null).body
+        assertEquals(true,accepted.withJangdan)
+        worker.runOne()
+        assertEquals("DONE",worker.get(994481,994481).status)
+        val request=json.readTree(sent)
+        assertEquals(true,request.path("withJangdan").booleanValue())
+        val expected=jdbc.queryForMap("SELECT j.name,j.bpm_unit FROM jangdans j JOIN user_sheets s ON s.jangdan_id=j.id WHERE s.id=994481")
+        assertEquals(expected["name"],request.path("jangdan").path("name").asString())
+        assertEquals(expected["bpm_unit"],request.path("jangdan").path("bpmUnit").asString())
+        assertFalse(request.path("jangdan").path("pattern").path("beats").isEmpty)
+        assertTrue(worker.request(994481,994481,null,true,null).reused)
+        assertFalse(worker.request(994481,994481,null,false,null).reused)
+    }
+    private fun dueForPurge()=jdbc.update("UPDATE users SET status='WITHDRAWAL_PENDING',withdrawal_requested_at='2026-01-01 00:00:00',purge_scheduled_at='2026-01-02 00:00:00' WHERE id=994481")
+    @Test fun `withdrawal removes stored audio and the rate row before the member is purged`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        dueForPurge()
+        assertTrue(purge.purgeDue().purged>=1)
+        assertTrue(objects.isEmpty())
+        assertEquals(0,sheetCount())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audio_objects WHERE sheet_id=994481",Int::class.java))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audio_requests WHERE user_id=994481",Int::class.java))
+    }
+    @Test fun `withdrawal is deferred while stored audio cannot be deleted`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        dueForPurge()
+        failDelete={ true }
+        assertTrue(purge.purgeDue().deferred>=1)
+        assertEquals(1,sheetCount())
+        assertEquals("WITHDRAWAL_PENDING",jdbc.queryForObject("SELECT status FROM users WHERE id=994481",String::class.java))
+        failDelete={ false }
+        assertTrue(purge.purgeDue().purged>=1)
+        assertTrue(objects.isEmpty())
+    }
+    @Test fun `actual API requires authentication preserves ownership and validates JSON types`() {
         assertEquals(401,send(null,"{}").statusCode())
         assertEquals(404,send(994482,"{}").statusCode())
         assertEquals(400,send(994481,"""{"bpm":"60"}""").statusCode())
@@ -199,7 +376,31 @@ class SheetAudioDatabaseTests {
         assertTrue(assertNotNull(file.sha256).matches(Regex("[0-9a-f]{64}")))
         assertEquals(2,objects.size)
     }
+    @Test
+    @org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable(named="PLAYBACK_TEST_BASE_URL",matches=".+")
+    fun `real CAT HTTP generation mixes the catalog jangdan of the sheet`() {
+        jdbc.update("UPDATE user_sheets SET jangdan_id=(SELECT MIN(id) FROM jangdans) WHERE id=994481")
+        val real=SheetAudios(mapper,sheets,scores,jangdanResolver,storage,
+            HttpPlaybackClient(System.getenv("PLAYBACK_TEST_BASE_URL"),Duration.ofSeconds(100),json),json,Clock.systemUTC(),manager)
+        real.request(994481,994481,null,true,null)
+        real.runOne()
+        val result=real.get(994481,994481)
+        assertEquals("DONE",result.status,result.toString())
+        assertEquals(true,result.withJangdan)
+        assertNotNull(result.audio)
+    }
+    @org.springframework.boot.test.context.TestConfiguration(proxyBeanMethods=false)
+    class RoutedStorageConfig {
+        @org.springframework.context.annotation.Bean @org.springframework.context.annotation.Primary
+        fun routedStorage()=object: SheetSourceStorage {
+            override val available=true
+            override fun put(key: String,file: Path,contentType: String)=routed.put(key,file,contentType)
+            override fun delete(key: String)=routed.delete(key)
+            override fun readUrl(key: String,ttl: Duration)=routed.readUrl(key,ttl)
+        }
+    }
     companion object {
+        lateinit var routed: SheetSourceStorage
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }
             registry.add("eolssu.security.jwt-secret") { "sheet-audio-api-test-signing-key-481" }
