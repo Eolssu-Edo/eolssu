@@ -259,10 +259,13 @@ class MigrationSqlTests(unittest.TestCase):
         self.assertEqual(deploy.flyway_checksum(b'a;\nb;\n'), deploy.flyway_checksum(b'\xef\xbb\xbfa;\r\nb;'))
         self.assertNotEqual(deploy.flyway_checksum(b'a;\nb;\n'), deploy.flyway_checksum(b'a;\nb; \n'))
 
-    def test_only_existing_migration_that_dropped_columns_needs_review(self):
+    def test_column_drop_migrations_still_need_review(self):
         flagged = [p.name for p in sorted(MIGRATIONS.glob('V*.sql'))
                    if deploy.DESTRUCTIVE_SQL.search(deploy.sql_code(p.read_text()))]
-        self.assertEqual(flagged, ['V14__learning_tracks_and_progress.sql'])
+        self.assertEqual(flagged, [
+            'V14__learning_tracks_and_progress.sql',
+            'V25__drop_practice_session_mission.sql',
+        ])
 
     def test_destructive_statements_outside_comments_and_strings(self):
         risky = ['ALTER TABLE t DROP COLUMN a;', 'ALTER TABLE t DROP a;', 'ALTER TABLE t DROP `a`;', 'DROP TABLE t;',
