@@ -61,6 +61,10 @@ S15P31E102-411: V21의 자진모리·중중모리·엇모리·단모리·타령�
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.
 
+### 한 음씩 연습 판정 기준(PRA-06)
+
+S15P31E102-493: `db`·`ops`에서 로그인 없이 `GET /api/note-practice/criteria?instrumentId=`로 악기별 판정 기준을 조회합니다. 기준은 `application.yml`의 `eolssu.note-practice.criteria`에 악기 code별로 있으며 테이블·마이그레이션은 없습니다. 값은 AI 미확정 초안이고, 바꾸면 백엔드 재배포·재시작만 필요하며 앱 배포는 필요 없습니다. 잘못된 값은 서버 시작을 막습니다. 계약과 초안 값은 [스펙](../docs/specs/note-practice-criteria.md)입니다. 검증은 `NotePracticeCriteriaControllerTests`, `NotePracticePropertiesTests`, 실제 MySQL의 `NotePracticeCriteriaApiDatabaseTests`입니다.
+
 ### 정간보 기호 사전(CAT-09)
 
 [410 계약](../docs/specs/notation-symbol-catalog.md)의 V19은 기존 FE 시김새 그림47개와 쉼표·연장2개를 등록하며, 같은 symbol의 기존 행은 보존합니다. DB 행의 이름·설명·이미지 상태가 번들 내용과 일치할 때만 출처·검수 상태와 `/api/notation-symbols/{symbolId}/image`를 제공합니다. 이미지는 MIT 고지를 포함한 SVG이며 공개 GET만 허용합니다. 노라느니는 추정 설명입니다. 운영은 V18 다음 V19 적용과 새 서버 배포를 별도로 준비해야 하며, 이 작업에서 운영 적용은 하지 않았습니다.

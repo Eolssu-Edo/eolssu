@@ -141,6 +141,7 @@ class SecurityConfig(
             "/api/reference-audios", "/api/reference-audios/{assetId}", "/api/reference-audios/{assetId}/play",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/jangdans/{jangdanId}/audio", "/api/jangdan-samples/{sample}/{sha256}",
             "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",
+            "/api/note-practice/criteria",
         ) + LegalDocumentPageController.PUBLIC_PATHS
     }
 }
