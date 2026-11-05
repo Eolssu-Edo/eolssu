@@ -13,7 +13,7 @@
 | CAT-05 | `/songs/{songId}/model-audio` | 현재 악보 버전·곡 BPM·기준 bpmUnit과 일치하는 게시 음원 메타데이터. 미등록/초안/버전 불일치는 404. |
 | CAT-06 | `/pitches?instrumentId=...` | 생략 시 등록 율명, 지정 시 활성 악기의 음역. 음역은 양 끝 pitch의 semitone으로 비교하며 DB ID 순서를 높낮이로 해석하지 않는다. |
 | CAT-07 | `/instruments/{instrumentId}/fingerings?pitchId=...` | 해당 활성 악기의 등록 운지, 선택한 음의 운지. 없는 콘텐츠는 빈 목록이다. |
-| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. |
+| CAT-08 | `/jangdans/{jangdanId}` | 장단 이름·defaultBpm·bpmUnit·원본 pattern(beats/group)·source·soundUrl. 미리듣기가 있으면 같은 API 원점의 `/api/jangdans/{jangdanId}/audio`를 반환한다. |
 | CAT-09 | `/notation-symbols` | symbolId/symbol/name/description/imageUrl 및 nullable source/descriptionStatus/imageLicense. [기존 FE 사전 연결](notation-symbol-catalog.md). 학습용 설명이며 악보 이벤트의 의미를 재정의하지 않는다. |
 | CAT-10 | `/jangdans` | jangdanId/name/defaultBpm/bpmUnit/beatCount/groupCount. 소박·묶음 수는 저장 pattern에서 구한다. |
 
@@ -30,6 +30,25 @@ CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 �
 조회용 `events`의 NOTE `noteIdx`는 곡 전체 NOTE만 0부터 센 순서다. REST의 noteIdx/pitchId는 null이다. `pitchId`는 실제 pitches의 (yul,octave)에서 찾고, 박 값은 원본 정수 tick / ticksPerBeat로 투영한다. 원본 ID와 tick을 함께 제공해 박 소수의 반올림을 정본으로 사용하지 않도록 한다. 악보 위치는 원본 columns/cells/units와 연결하며, 이음·빈 정간을 새 NOTE로 만들지 않는다. 저장 악보의 구조·음표 수·버전·참조가 서로 맞지 않으면 409 `STATE_CONFLICT`로 거절한다.
 
 `subIdx`는 시작 정간에서 units를 row·col 오름차순으로 펼친 위치다. 실제 화면 배치는 원본 units의 row·col을 사용한다. `notationCapabilities.hanja/hangul`은 사용된 음의 등록 표기가 모두 있을 때 true다. `solfege=false`는 이 서버 API가 검증된 계이름 표기를 제공하지 않는다는 뜻이며 앱의 별도 표시 기능을 삭제하는 지시가 아니다.
+
+#### 연습용 장단 샘플
+
+공개 GET `/api/jangdan-samples/{sample}/{sha256}`은 160의 배포 목록에 샘플명·SHA-256 쌍이 있을 때 비공개 R2 M4A의 15분 서명 주소로 302 이동한다. 서명 응답은 `Cache-Control: no-store`를 붙인다. 매핑 불일치는 404, 서명 실패는 503이다. 앱은 R2에서 받은 M4A의 길이와 SHA-256을 확인한 뒤 파일을 캐시한다.
+
+## 현재 악보에 맞춘 장단 반주 (S15P31E102-491)
+
+CAT-04 `result.jangdanPlayback`은 선택적 객체이며 현재 악보의 시작점과 주기를 확정할 수 없으면 null이다. 기존 `score`, `defaultBpm`, `bpmUnit`, 곡 목록의 `jangdan`과 DB FK의 의미는 바뀌지 않는다. 새 앱은 이 객체가 있을 때만 곡 반주를 켠다. 구버전 응답에서 필드가 없어도 악보·모범 음원은 그대로 사용한다.
+
+```json
+{"jangdanId":"2","name":"굿거리","startTick":0,"cycleTicks":24,
+ "pattern":{"beats":["떵","","기덕","쿵","더러러러","","쿵","","기덕","쿵","더러러러",""],"group":[3,3,3,3]}}
+```
+
+`startTick`은 score tick 기준 기본형의 첫박, `cycleTicks`는 같은 단위의 한 주기 길이인 양의 정수다. `pattern.beats`의 각 칸은 한 주기를 균등 분할하고 `group`은 표시 묶음이다. 이 값으로 원본 score clock에 소리를 예약하며 카탈로그 기본 BPM이나 이름에서 subdivision을 추정하지 않는다. 예시 곡6은 ticksPerBeat4·defaultBpm99여서 한 주기24tick=약3636ms다. API의 정수값은 JSON number이며 ID만 문자열이다.
+
+서버는 현재 악보의 `music.jangdan`, 박 단위·틱, 첫 음표 위치와 각의 길이를 읽고, DB의 현재 장단 구음을 사용한다. 첫 정간의 0 tick에서 시작하며 각의 길이가 지원 장단 주기의 정수배이고 패턴을 균등 배치할 수 있을 때 응답한다. 장단 미지정·미지원, 시작점 불명확, 불완전한 각 또는 잘못된 카탈로그 패턴은 반주만 null이다. 악보 제목·음높이·판본·기본 BPM 변경만으로 반주를 막지 않는다. [107개 판본 검수 기록](../knowledge/data/jangdan-song-review.md)은 회귀 검증 기준이다.
+
+이 연결은 첫 정간부터 교육용 기본형을 반주하는 구조 검수다. 멜로디 원본의 `provenance.review`를 변경하거나 명인의 변주·연주자 청음 승인으로 승격하지 않는다. 세령산 굴림2개와 장단명 미상45개는 보류한다. DB migration 또는 운영 적재가 필요 없는 읽기 확장이며 서버 배포 전에는 운영 응답에 나타나지 않는다.
 
 ## 모범 연주 메타데이터
 
@@ -50,7 +69,7 @@ S15P31E102-339에서 DB의 위치 식별자는 `object_key`다. `audioUrl`은 �
 - S15P31E102-411: V21은 기존 장단1~3을 보존하며 출처가 확인된 자진모리4·중중모리5를 추가한다. 두 기본형은 DOTTED_QUARTER·12칸·4묶음이며 시작 BPM은 각각96·80이다. QUARTER인 서비스 곡에는 이름만으로 연결하지 않는다. [추가 근거와 보류5종](../knowledge/backend/jangdan-catalog-extension.md)을 따른다. 아래 후속5종까지 같은 V21에서 등록하며 장단 카탈로그는10개다. 아래3개는 기존 시드의 범위다.
 
 - 현재 기준 시드는 단소1악기·전역22율명·3장단·4곡이다. S15P31E102-364의 최종 V13은 기본음 라벨에 필요한 기준11행을 추가하며 기존11개 ID/반음은 보존한다. 사용자 선택에 따라 기존 음역 필터를 유지하므로 단소 범위 `[5,29]`에는15음이 표시된다. 별도 운지표·악기별 허용 목록을 자동 등록하지 않는다. 다른 악기의 JGB 자료 보유가 곧 앱 DB 등록·권리 승인·채점 가능을 뜻하지 않는다.
-- 율명 `description/soundUrl`, 운지 `structureImageUrl`, 장단 `soundUrl`은 저장 근거가 없어 null이다. 운지 description은 기존 DB에서 nullable이므로 Notion의 필수 STRING 초안과 달리 null을 보존한다. 가짜 문구나 URL을 채우지 않는다.
+- 율명 `description/soundUrl`과 운지 `structureImageUrl`은 저장 근거가 없어 null이다. 장단 `soundUrl`은 음원이 없으면 null이다. 등록 장단의 재생 경로는 비공개 R2의 15분 M4A 서명 주소로 `302`와 `Cache-Control: no-store`를 반환한다. R2는 `audio/mp4` 본문과 범위 요청을 지원한다. 매핑이 없으면 404, 서명 주소를 만들 수 없으면 503이다. 운지 description은 DB의 null을 보존한다.
 - V18 전에는 운지 시드가 없었다. V18의 앱 내장 참고 자료 등록과 실제 운영 적용 여부는 구분한다. 기호는 S15P31E102-410의 V19에 기존 FE 49개 항목을 추가하되 운영 적용은 별도다. 기존 동명 symbol 행은 덮어쓰지 않는다. 테스트 fixture의 이미지/설명은 운영 콘텐츠가 아니다. `pitchToleranceCent`는 DB 값이며 별도 AI 채점 정책을 바꾸지 않는다.
 - 악기·운지·기호·장단 목록은 ID 오름차순, 율명은 semitone·ID 오름차순이다. 이는 일관된 기술적 순서이며 학습 추천 순서가 아니다. 장단의 pattern과 박 단위는 그대로 유지한다.
 - 단위/DB/HTTP 통과는 운영 재생, 마이크 녹음, Android 오디오 포커스, 실기기 검증을 대신하지 않는다.
