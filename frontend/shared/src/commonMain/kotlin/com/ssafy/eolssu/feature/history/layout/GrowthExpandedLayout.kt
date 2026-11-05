@@ -1,7 +1,8 @@
 package com.ssafy.eolssu.feature.history.layout
 
 import com.ssafy.eolssu.core.model.KoreanDateTime
-import com.ssafy.eolssu.feature.history.ScoreTrendPoint
+import com.ssafy.eolssu.feature.history.ScoreTrendActions
+import com.ssafy.eolssu.feature.history.ScoreTrendState
 import com.ssafy.eolssu.feature.history.component.ScoreTrendCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,8 +44,9 @@ internal fun GrowthExpandedLayout(
     onRange: (GrowthRange) -> Unit,
     onOpenSteps: () -> Unit,
     onOpenRecords: () -> Unit,
-    scoreTrend: List<ScoreTrendPoint>? = null,
+    scoreTrend: ScoreTrendState = ScoreTrendState(),
     today: KoreanDateTime? = null,
+    trendActions: ScoreTrendActions = ScoreTrendActions.None,
 ) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val height = if (maxHeight > GrowthTwoColumnMinHeight) maxHeight else GrowthTwoColumnMinHeight
@@ -59,7 +61,7 @@ internal fun GrowthExpandedLayout(
                     BarChartCard(stats, spacing, Modifier.weight(1f), fill = true)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.gap)) {
-                    if (today != null) ScoreTrendCard(scoreTrend, today, spacing)
+                    if (today != null) ScoreTrendCard(scoreTrend, today, spacing, trendActions)
                     stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
                     GrowthLinks(stats, completedSteps, spacing, onOpenSteps, onOpenRecords)
                 }

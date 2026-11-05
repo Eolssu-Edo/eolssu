@@ -43,6 +43,7 @@ fun GrowthScreen(
     onRetry: () -> Unit,
     onOpenSteps: () -> Unit,
     onOpenRecords: () -> Unit,
+    trendActions: ScoreTrendActions = ScoreTrendActions.None,
 ) {
     val frame = historyFrame(widthClass)
     val spacing = if (frame.isTablet) GrowthSpacing.Tablet else GrowthSpacing.Compact
@@ -58,7 +59,7 @@ fun GrowthScreen(
         topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack, bottom = 10.dp) },
     ) {
         if (stats != null && widthClass == WindowWidthClass.Expanded) {
-            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords, state.scoreTrend, state.today)
+            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords, state.scoreTrend, state.today, trendActions)
             return@EolssuScaffold
         }
         Column(
@@ -75,7 +76,7 @@ fun GrowthScreen(
             }
             GrowthTiles(stats, spacing)
             BarChartCard(stats, spacing)
-            ScoreTrendCard(state.scoreTrend, state.today, spacing)
+            ScoreTrendCard(state.scoreTrend, state.today, spacing, trendActions)
             stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
             GrowthLinks(stats, state.completedSteps, spacing, onOpenSteps, onOpenRecords)
         }
