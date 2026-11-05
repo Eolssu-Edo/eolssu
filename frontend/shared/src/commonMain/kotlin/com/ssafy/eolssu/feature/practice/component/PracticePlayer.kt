@@ -204,7 +204,7 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
                 enabled = state.jangdanSupported && !state.playbackSettingsLocked)
             if (!state.jangdanSupported) PracticeNotice(jangdanHint(state))
         }
-        if (state.mode == PracticeMode.Rhythm || state.settings.jangdanSound && state.jangdanProblem) PracticeNotice(jangdanHint(state))
+        if (state.jangdanProblem && (state.mode == PracticeMode.Rhythm || state.settings.jangdanSound)) PracticeNotice(jangdanHint(state))
         when {
             state.mine -> Unit
             !state.solo -> {

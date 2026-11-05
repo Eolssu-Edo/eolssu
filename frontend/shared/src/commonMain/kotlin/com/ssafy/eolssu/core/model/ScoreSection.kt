@@ -43,11 +43,3 @@ data class ScoreSection(val start: ScorePosition, val end: ScorePosition) {
             ScoreSection(ScorePosition(first, 0), ScorePosition(last, score.columns[last].lastIndex))
     }
 }
-
-/** 틀린 정간이 가장 많이 몰린 이웃한 두 각 전체(추천 취약 구간). 틀린 정간이 없으면 null. */
-fun EvaluationResult.recommendedSection(score: Score): ScoreSection? {
-    val (first, _) = densestColumnPair() ?: return null
-    if (score.columns.isEmpty()) return null
-    val last = minOf(first + 1, score.columns.lastIndex)
-    return ScoreSection.ofColumns(score, minOf(first, last), last)
-}

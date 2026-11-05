@@ -15,15 +15,16 @@ import com.ssafy.eolssu.feature.result.ResultErrorsRoute
 import com.ssafy.eolssu.feature.result.SectionResultRoute
 
 /**
- * 2차 취약 구간 연습·이전 연주 비교 화면 경로(S15P31E102-455).
- * `{source}`는 평가 결과에서 오면 평가 ID, 기록에서 오면 기록 ID다. 지금은 예시 데이터라 화면 문맥으로만 넘긴다.
+ * 2차 취약 구간 연습·이전 연주 비교 화면 경로(S15P31E102-455·343).
+ * `{source}`는 바탕이 된 연습 세션 ID다(평가 결과의 평가 ID와 기록의 기록 ID가 모두 연습 세션 ID다).
  * 구간은 처음·끝 정간(각 `sc`·`ec`, 정간 `sr`·`er`, 0부터)으로, 반복 횟수 0은 ‘계속’이다.
+ * 구간 재평가 결과의 `{sessionId}`는 구간만 녹음한 새 연습 세션이다.
  */
 object WeakSectionDestination {
     const val ERRORS = "weak/{source}/errors"
     const val SELECT = "weak/{source}/sections"
     const val LOOP = "weak/{source}/loop?sc={sc}&sr={sr}&ec={ec}&er={er}&bpm={bpm}&repeats={repeats}"
-    const val RESULT = "weak/{source}/result?sc={sc}&sr={sr}&ec={ec}&er={er}&bpm={bpm}"
+    const val RESULT = "weak/{source}/result/{sessionId}"
     const val COMPARE = "compare/{recordId}"
 
     fun errors(source: String) = "weak/$source/errors"
@@ -33,7 +34,7 @@ object WeakSectionDestination {
     fun loop(source: String, section: ScoreSection, bpm: Int, repeats: Int?) =
         "weak/$source/loop?${section.query()}&bpm=$bpm&repeats=${repeats ?: 0}"
 
-    fun result(source: String, section: ScoreSection, bpm: Int) = "weak/$source/result?${section.query()}&bpm=$bpm"
+    fun sectionResult(source: String, sessionId: String) = "weak/$source/result/$sessionId"
 
     fun compare(recordId: String) = "compare/$recordId"
 
@@ -78,15 +79,14 @@ fun NavGraphBuilder.weakSectionGraph(navController: NavController) {
             bpm = bpm,
             repeats = entry.savedStateHandle.get<Int>("repeats")?.takeIf { it > 0 },
             onBack = { navController.popBackStackFrom(entry) },
-            onEvaluate = { navController.navigate(WeakSectionDestination.result(source, section, bpm)) },
+            // 구간만 녹음한 연주를 분석에 맡긴다. 분석이 끝나면 구간 재평가 결과로 간다.
+            onEvaluate = { songId, take, sessionSection -> navController.navigate(EolssuDestination.analysis(songId, bpm, take, section = sessionSection)) },
         )
     }
-    composable(WeakSectionDestination.RESULT, arguments = listOf(sourceArg) + sectionArgs + bpmArg) { entry ->
+    composable(WeakSectionDestination.RESULT, arguments = listOf(sourceArg, navArgument("sessionId") { type = NavType.StringType })) { entry ->
         val source = entry.source()
         SectionResultRoute(
-            sourceId = source,
-            section = entry.section(),
-            bpm = entry.savedStateHandle.get<Int>("bpm") ?: 60,
+            sessionId = entry.savedStateHandle.get<String>("sessionId").orEmpty(),
             onBack = { navController.popBackStackFrom(entry) },
             onPracticeAgain = { navController.popBackStackFrom(entry) },
             onOtherSection = {

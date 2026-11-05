@@ -7,7 +7,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
 /**
- * RESULT-03 오류 위치 연결. [sourceId]는 평가 ID이고, 지금은 예시 데이터라 화면 문맥으로만 넘긴다.
+ * RESULT-03 오류 위치 연결. [sourceId]는 평가한 연습 세션 ID다.
  *
  * @param onSelectSection ‘취약 구간 골라서 연습하기’ → PRACTICE-02 취약 구간 선택.
  */

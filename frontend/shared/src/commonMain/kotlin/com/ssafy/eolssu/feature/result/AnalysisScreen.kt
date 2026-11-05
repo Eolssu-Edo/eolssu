@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.data.practice.SessionSection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -68,7 +69,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-/** ANALYSIS-01 연결. 분석이 끝나면 [onResult]로 결과 화면에 간다. */
+/** ANALYSIS-01 연결. 분석이 끝나면 [onResult]로 결과 화면에 간다. [section]이 있으면 구간 재평가 녹음이다. */
 @Composable
 fun AnalysisRoute(
     songId: String,
@@ -78,8 +79,9 @@ fun AnalysisRoute(
     onResult: (evaluationId: String) -> Unit,
     onBackToPractice: () -> Unit,
     onExit: (AnalysisExit) -> Unit,
+    section: SessionSection? = null,
     viewModel: AnalysisViewModel = koinViewModel(key = "analysis-$songId-$bpm-${take?.key ?: pendingSessionId}") {
-        parametersOf(songId, bpm, take, pendingSessionId)
+        parametersOf(songId, bpm, take, pendingSessionId, section)
     },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
