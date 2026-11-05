@@ -69,6 +69,8 @@ class PracticeBottomActions(
     val onListenStepNote: () -> Unit = {},
     /** 음 판정 연결 전 임시: 지금 음을 맞게 분 것으로 넘긴다. */
     val onConfirmStepNote: () -> Unit = {},
+    val onStartRhythm: () -> Unit = {},
+    val onToggleRhythm: () -> Unit = {},
 )
 
 /**
@@ -97,7 +99,7 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
     Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
         Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
     }
-    if (state.settings.beatVisual) song.jangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
+    if (state.settings.beatVisual) song.displayJangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
     // 안내가 나타날 때 본문 높이와 악보 묶음 수가 변하지 않도록 실제 안내 크기를 항상 확보한다.
     Box(
         Modifier.alpha(if (state.noInputHint) 1f else 0f)
