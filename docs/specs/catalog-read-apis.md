@@ -31,7 +31,7 @@ CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 �
 
 `subIdx`는 시작 정간에서 units를 row·col 오름차순으로 펼친 위치다. 실제 화면 배치는 원본 units의 row·col을 사용한다. `notationCapabilities.hanja/hangul`은 사용된 음의 등록 표기가 모두 있을 때 true다. `solfege=false`는 이 서버 API가 검증된 계이름 표기를 제공하지 않는다는 뜻이며 앱의 별도 표시 기능을 삭제하는 지시가 아니다.
 
-### 검수된 장단 반주 (S15P31E102-340)
+### 검수된 장단 반주 (S15P31E102-491)
 
 CAT-04 `result.jangdanPlayback`은 선택적 객체이며 검수되지 않은 판본에서는 null이다. 기존 `score`, `defaultBpm`, `bpmUnit`, 곡 목록의 `jangdan`과 DB FK의 의미는 바뀌지 않는다. 새 앱은 이 객체가 있을 때만 곡 반주를 켠다. 구버전 응답에서 필드가 없어도 악보·모범 음원은 그대로 사용한다.
 
