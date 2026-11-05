@@ -7,6 +7,11 @@ import org.apache.ibatis.annotations.Param
 @Mapper
 interface EvaluationReadMapper {
     fun findOwned(@Param("sessionId") sessionId: Long, @Param("userId") userId: Long): EvaluationReadRow?
+    fun findPreviousSessionId(
+        @Param("userId") userId: Long, @Param("sessionId") sessionId: Long, @Param("songId") songId: Long,
+        @Param("startedAt") startedAt: LocalDateTime, @Param("scoreVersion") scoreVersion: Int,
+        @Param("startNoteIdx") startNoteIdx: Int, @Param("endNoteIdx") endNoteIdx: Int,
+    ): Long?
     fun notes(@Param("evaluationId") evaluationId: Long): List<NoteResultRow>
     fun score(@Param("songId") songId: Long): EvaluationScoreRow?
 }

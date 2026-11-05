@@ -8,6 +8,13 @@
         FROM practice_sessions s LEFT JOIN evaluations e ON e.session_id=s.id
         WHERE s.id=#{sessionId} AND s.user_id=#{userId} AND s.record_deleted_at IS NULL
     </select>
+    <select id="findPreviousSessionId" resultType="long">
+        SELECT s.id FROM practice_sessions s
+        WHERE s.user_id=#{userId} AND s.song_id=#{songId} AND s.status='DONE' AND s.record_deleted_at IS NULL
+          AND (s.started_at &lt; #{startedAt} OR (s.started_at=#{startedAt} AND s.id &lt; #{sessionId}))
+          AND (s.score_version &lt;&gt; #{scoreVersion} OR (s.start_note_idx &lt;= #{startNoteIdx} AND s.end_note_idx &gt;= #{endNoteIdx}))
+        ORDER BY s.started_at DESC,s.id DESC LIMIT 1
+    </select>
     <select id="notes" resultType="com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow">
         SELECT id,evaluation_id,note_idx,expected_pitch_id,detected_pitch_id,pitch_error_cent,onset_error_ms,duration_error_ms,verdict,recording_offset_ms
         FROM note_results WHERE evaluation_id=#{evaluationId} ORDER BY note_idx

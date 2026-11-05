@@ -1,11 +1,12 @@
 package com.ssafy.eolssu.backend.feature.evaluation.api
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.ssafy.eolssu.backend.common.error.ErrorCode
 import com.ssafy.eolssu.backend.common.error.ErrorResponse
 import com.ssafy.eolssu.backend.common.response.SuccessResponse
 import com.ssafy.eolssu.backend.feature.evaluation.application.GetSectionComparison
 import com.ssafy.eolssu.backend.feature.evaluation.application.SectionComparisonLookup
-import com.ssafy.eolssu.backend.feature.evaluation.domain.NotComparable
+import java.time.Instant
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -13,7 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
 
-/** EVA-04. baselineSessionId를 생략하면 세션을 만들 때 넘긴 parentSessionId와 비교한다. 점수는 비교하지 않는다. */
+/** EVA-04. 생략한 baselineSessionId는 parentSessionId, 같은 곡 직전 세션 순서로 채운다. 비교할 세션이 없으면 200과 null 필드다. */
 @RestController
 @Profile("db | ops")
 class SectionComparisonController(private val getComparison: GetSectionComparison) {
@@ -25,35 +26,32 @@ class SectionComparisonController(private val getComparison: GetSectionCompariso
                 ResponseEntity.status(409).body(ErrorResponse.of(ErrorCode.STATE_CONFLICT))
             SectionComparisonLookup.InvalidBaseline -> ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
             is SectionComparisonLookup.Found -> with(outcome.comparison) {
-                ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "구간 재평가의 이전·이번 결과 비교 성공", SectionComparisonApiResult(
-                    outcome.baselineSessionId.toString(), notComparable == null, notComparable?.let { REASONS.getValue(it) },
-                    startNoteIdx, endNoteIdx, outcome.startColumn, outcome.endColumn,
-                    BeforeErrors(beforeErrorCount), AfterScores(
-                        after.totalScore, after.pitchScore, after.timingScore, after.durationScore, after.errorCount, outcome.bpm, outcome.bpmUnit,
-                    ),
-                    delta?.let { ErrorDelta(it.errorCount) }, correctedNoteIndices,
+                ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "연주 결과 비교 성공", SectionComparisonApiResult(
+                    outcome.baseline?.sessionId?.toString(), outcome.baseline?.startedAt, outcome.baseline?.source?.name,
+                    startNoteIdx, endNoteIdx, outcome.startColumn, outcome.endColumn, outcome.isFullSong,
+                    scoreComparable, errorComparable, notComparableReasons.map { it.name }, bpmChanged,
+                    outcome.baseline?.let { BeforeResult(errorCount = beforeErrorCount, bpm = it.bpm, bpmUnit = it.bpmUnit) },
+                    AfterScores(after.totalScore, after.pitchScore, after.timingScore, after.durationScore, after.errorCount, outcome.bpm, outcome.bpmUnit),
+                    outcome.baseline?.let { ResultDelta(errorCount = errorDelta) }, correctedNoteIndices,
                     remainingErrors.map { RemainingError(it.noteIdx, it.verdict) },
                 )))
             }
         }
-
-    private companion object {
-        val REASONS = mapOf(
-            NotComparable.SCORE_VERSION to "이전 연주 뒤 악보가 바뀌어 같은 음표끼리 비교할 수 없어요",
-            NotComparable.MODEL to "채점 모델이 달라 오류 수를 바로 비교할 수 없어요",
-            NotComparable.TEMPO to "연주 속도가 달라 오류 수를 바로 비교할 수 없어요",
-        )
-    }
 }
 
 data class SectionComparisonApiResult(
-    val baselineSessionId: String, val comparable: Boolean, val reason: String?, val startNoteIdx: Int, val endNoteIdx: Int,
-    val startColumnIdx: Int, val endColumnIdx: Int, val before: BeforeErrors, val after: AfterScores, val delta: ErrorDelta?,
-    val correctedNoteIndices: List<Int>, val remainingErrors: List<RemainingError>,
+    val baselineSessionId: String?, val baselineStartedAt: Instant?, val baselineSource: String?,
+    val startNoteIdx: Int, val endNoteIdx: Int, val startColumnIdx: Int, val endColumnIdx: Int,
+    @get:JsonProperty("isFullSong") val isFullSong: Boolean, val scoreComparable: Boolean, val errorComparable: Boolean,
+    val notComparableReasons: List<String>, val bpmChanged: Boolean, val before: BeforeResult?, val after: AfterScores,
+    val delta: ResultDelta?, val correctedNoteIndices: List<Int>, val remainingErrors: List<RemainingError>,
 )
-/** 이전 결과는 비교 구간 오류 수만 준다. 악보 버전이 다르면 null이다. */
-data class BeforeErrors(val errorCount: Int?)
+/** 점수는 음표별 부분 점수를 저장하기 전까지 null이다. errorCount는 악보 버전이 다르면 null이다. */
+data class BeforeResult(val totalScore: Int? = null, val pitchScore: Int? = null, val timingScore: Int? = null, val durationScore: Int? = null,
+    val errorCount: Int?, val bpm: Int, val bpmUnit: String)
 data class AfterScores(val totalScore: Int, val pitchScore: Int, val timingScore: Int, val durationScore: Int, val errorCount: Int,
     val bpm: Int, val bpmUnit: String)
-data class ErrorDelta(val errorCount: Int)
+/** 값의 null 조건은 [BeforeResult]와 같다. */
+data class ResultDelta(val totalScore: Int? = null, val pitchScore: Int? = null, val timingScore: Int? = null, val durationScore: Int? = null,
+    val errorCount: Int?)
 data class RemainingError(val noteIdx: Int, val verdict: String)
