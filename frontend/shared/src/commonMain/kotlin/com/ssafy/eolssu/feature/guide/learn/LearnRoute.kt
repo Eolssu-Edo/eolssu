@@ -21,6 +21,12 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.learn_listen_model_pending
 import eolssu.shared.generated.resources.learn_reset_message
 import eolssu.shared.generated.resources.learn_song_missing
+import eolssu.shared.generated.resources.learn_title
+import eolssu.shared.generated.resources.learn_track_failed
+import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.feature.guide.component.GuideTopBar
+import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
+import org.jetbrains.compose.resources.stringResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
@@ -87,10 +93,13 @@ fun LearnListRoute(
         },
         // 가로 배치는 넘긴 카드가 곧 오른쪽 칸의 단계다
         onShowCard = { stage -> if (twoPane) viewModel.selectStage(stage) else viewModel.viewCard(stage) },
+        onRetryTrack = viewModel::retryTrack,
     )
+    LearnSaveErrorEffect(state.saveError, snackbarHostState, viewModel::clearSaveError)
 
     if (twoPane) {
-        val stage = learnStageOf(state.shownStage) ?: return
+        val stage = state.stageOf(state.shownStage)
+        LaunchedEffect(state.instrument, stage) { stage?.let { viewModel.loadDetail(it.number) } }
         LearnExpandedLayout(
             state = state,
             stage = stage,
@@ -99,7 +108,6 @@ fun LearnListRoute(
             listActions = listActions,
             stageActions = learnStageActions(
                 state = state,
-                stage = stage,
                 viewModel = viewModel,
                 notify = snackbarHostState.notifier(scope),
                 onBack = {},
@@ -132,12 +140,14 @@ fun LearnStageRoute(
     navigation: LearnNavigation,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
 ) {
-    val stage = learnStageOf(stageNumber) ?: return
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val twoPane = widthClass == WindowWidthClass.Expanded
     val audio = rememberReferenceAudioController(state.instrument, stageNumber)
+    val stage = state.stageOf(stageNumber)
+    LearnSaveErrorEffect(state.saveError, snackbarHostState, viewModel::clearSaveError)
+    LaunchedEffect(state.instrument, stage) { stage?.let { viewModel.loadDetail(it.number) } }
 
     LaunchedEffect(twoPane) {
         if (twoPane) {
@@ -146,7 +156,13 @@ fun LearnStageRoute(
         }
     }
     // 목록에 돌아가면 이 단계 카드를 펼친다(이전·다음 단계와 '확인했어요' 뒤 연 단계 포함)
-    LaunchedEffect(stageNumber) { viewModel.viewCard(stageNumber) }
+    LaunchedEffect(stageNumber, stage != null) { viewModel.viewCard(stageNumber) }
+
+    // 주소로 바로 들어와 단계 목록을 아직 받지 못했으면 목록 상태를 보인다.
+    if (stage == null) {
+        LearnStageMissing(state.track, widthClass, onBack, viewModel::retryTrack)
+        return
+    }
 
     LearnStageScreen(
         state = state,
@@ -155,7 +171,6 @@ fun LearnStageRoute(
         snackbarHostState = snackbarHostState,
         actions = learnStageActions(
             state = state,
-            stage = stage,
             viewModel = viewModel,
             notify = snackbarHostState.notifier(scope),
             onBack = onBack,
@@ -175,7 +190,6 @@ fun LearnStageRoute(
  */
 private fun learnStageActions(
     state: LearnUiState,
-    stage: LearnStage,
     viewModel: LearnViewModel,
     notify: (suspend () -> String) -> Unit,
     onBack: () -> Unit,
@@ -189,7 +203,7 @@ private fun learnStageActions(
     onToggleDone = onToggleDone,
     onConfirm = { n ->
         viewModel.confirm(n)
-        onConfirmed(stageAfterConfirm(n))
+        onConfirmed(state.stageAfterConfirm(n))
     },
     onStartPractice = { n ->
         if (n == 8) navigation.onOpenSongList() else navigation.onOpenPractice(n)
@@ -202,6 +216,7 @@ private fun learnStageActions(
         if (songId != null) navigation.onOpenSong(songId) else notify { getString(Res.string.learn_song_missing, song.title) }
     },
     onRetrySongs = viewModel::retrySongs,
+    onRetryDetail = { viewModel.loadDetail(it, force = true) },
 )
 
 private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> String) -> Unit =
@@ -211,4 +226,19 @@ private fun SnackbarHostState.notifier(scope: CoroutineScope): (suspend () -> St
 private suspend fun SnackbarHostState.show(message: String) {
     currentSnackbarData?.dismiss()
     showSnackbar(message)
+}
+
+/** 단계 목록을 받기 전·받지 못했을 때의 단계 상세 자리. 목록을 받았는데 없는 단계면 목록으로 돌아간다. */
+@Composable
+private fun LearnStageMissing(track: LearnTrackLoad, widthClass: WindowWidthClass, onBack: () -> Unit, onRetry: () -> Unit) {
+    if (track is LearnTrackLoad.Loaded) {
+        LaunchedEffect(Unit) { onBack() }
+        return
+    }
+    EolssuScaffold(
+        topBar = { GuideTopBar(stringResource(Res.string.learn_title), onBack = onBack, widthClass = widthClass) },
+        contentMaxWidth = widthClass.guidePageMaxWidth,
+    ) {
+        LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = onRetry)
+    }
 }
