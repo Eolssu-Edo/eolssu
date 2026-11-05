@@ -212,12 +212,12 @@ class PracticeStateTest {
     }
 
     @Test
-    fun recordingOpensViewSettingsButNotTempoOrJangdan() {
+    fun recordingOpensViewAndJangdanSettingsButNotTempo() {
         val recording = ready.beginRecording()
         assertEquals(PracticePanel.Settings, recording.openPanel(PracticePanel.Settings).panel)
         assertEquals(PracticePanel.Notation, recording.openPanel(PracticePanel.Notation).panel)
         assertNull(recording.openPanel(PracticePanel.Tempo).panel)
-        assertNull(recording.openPanel(PracticePanel.Jangdan).panel)
+        assertEquals(PracticePanel.Jangdan, recording.openPanel(PracticePanel.Jangdan).panel)
         assertEquals(PracticePanel.Tempo, ready.openPanel(PracticePanel.Tempo).panel)
     }
 

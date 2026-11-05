@@ -38,6 +38,8 @@
 
 ## 기능 스펙
 
+- [연습·평가 조작과 악보 공간](specs/practice-controls.md)
+
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
 - [한 음씩 연습 판정 기준 조회 (493)](specs/note-practice-criteria.md) · [계획](plans/S15P31E102-493.md)
 - [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
@@ -133,6 +135,8 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [연습 조작과 설정 화면 검증](knowledge/frontend/practice-controls-verification.md)
+
 - [정간보 쉽게 읽기의 박·음높이 듣기 (439)](plans/S15P31E102-439.md)
 
 - [마이페이지 프로필·학습 진도·계정 UI 개편 (438)](plans/S15P31E102-438.md)
@@ -203,6 +207,8 @@
 - [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 
 ## COCO 산출물
+
+- [S15P31E102-518 연습 모드 선택·평가 장단·악보 공간](plans/S15P31E102-518.md)
 
 - [S15P31E102-306 탈퇴 유예 만료 후 취소 차단과 녹음 삭제 경합 수정](plans/S15P31E102-306.md)
 

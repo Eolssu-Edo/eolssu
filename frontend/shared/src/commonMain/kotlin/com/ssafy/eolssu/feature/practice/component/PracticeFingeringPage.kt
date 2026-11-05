@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -21,11 +20,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,19 +60,17 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_finger_upcoming
+import eolssu.shared.generated.resources.practice_finger_end
 import eolssu.shared.generated.resources.practice_finger_gak
 import eolssu.shared.generated.resources.practice_finger_head_fingering
 import eolssu.shared.generated.resources.practice_finger_head_lyric
 import eolssu.shared.generated.resources.practice_finger_head_yul
-import eolssu.shared.generated.resources.practice_finger_heading
 import eolssu.shared.generated.resources.practice_finger_missing
 import eolssu.shared.generated.resources.practice_finger_rest
 import eolssu.shared.generated.resources.score_rest_hangul
-import eolssu.shared.generated.resources.practice_finger_page
 import eolssu.shared.generated.resources.practice_finger_previous_page
 import eolssu.shared.generated.resources.practice_finger_next_page
-import eolssu.shared.generated.resources.practice_finger_upcoming
-import eolssu.shared.generated.resources.practice_finger_end
 import org.jetbrains.compose.resources.stringResource
 
 /** 정간 하나의 위치(각·정간)와 운지 줄 내용. [units]는 이 정간에 적힌 표시 자리(율명·이음·쉼)다. */
@@ -127,11 +123,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
     return cells
 }
 
-/**
- * ‘운지법과 함께 보기’: 정간보 대신 운지 악보. ‘지금 읽는 부분’과 현재/전체 페이지 머리,
- * 표(‘{악기} 운지 | 율명 | 가사’), 줄마다 가로 악기 그림 위 구멍 표시와 율명·가사.
- * 실제 발음 6개 이상을 담은 고정 페이지다. 페이지 내부는 움직이지 않고 경계에서만 교체한다.
- */
+/** 한 각을 화면의 남은 높이에 맞추고 재생 위치가 다음 각에 들어가면 함께 넘긴다. */
 @Composable
 fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) -> Unit, modifier: Modifier = Modifier) {
     val song = state.song ?: return
@@ -139,92 +131,88 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val instrument = state.instrument
     val cells = remember(song, instrument) { fingerCells(song, instrument) }
     if (cells.isEmpty()) return
-    val cellIndex = remember(cells) { cells.associate { (it.column to it.row) to it.index } }
-    val pages = remember(song, cells) { fingerPages(song, cells) }
-    val viewportHeight = remember(pages) {
-        pages.maxOf { page -> FingerImageHeight * page.cells.sumOf { it.parts } + 8.dp * page.cells.size }.coerceIn(160.dp, 320.dp)
-    }
-
-    // 재생·연주 중에는 악보와 같은 진행 위치를 매 프레임 읽어, 음 순서와 비율이 함께 바뀌고 모범 연주도 끊기지 않는다.
+    val angles = remember(cells) { cells.groupBy { it.column }.values.toList() }
     val playback = state.scorePlayback()
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
-    // 지금 진행 위치: 줄 번호와 그 줄에서 지난 몫. 그리기 단계와 프레임마다 읽는다.
-    val livePosition: () -> Double? = {
-        cursor.index?.let { index ->
-            val event = song.timeline.getOrNull(index)
-            event?.let { it.unitStart + it.unitDuration * cursor.fraction }
-        }
+    val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
+        else song.displayUnits.firstOrNull { it.event.index == state.selected }
+    var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentUnit?.column ?: 0) }
+    val angleIndex = if (live && state.follow) currentUnit?.column ?: browsed else browsed
+    val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
+    val preview = remember(song, cells, angleIndex) {
+        val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
+        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
     }
-    val liveUnit by remember(song) { derivedStateOf { cursor.index?.let { song.displayUnitAt(it, cursor.fraction) } } }
-    val currentUnit = if (live) liveUnit else song.displayUnits.firstOrNull { it.event.index == state.selected }
-    val currentCell = currentUnit?.let { cellIndex[it.column to it.row] } ?: 0
-    val playingKey = if (live) currentUnit?.key else null
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
-
-    val livePage by remember(song, pages) { derivedStateOf { pages.pageAt(livePosition() ?: 0.0) } }
-    var browsedPage by remember(song, state.selected, live) { mutableIntStateOf(pages.pageAt(currentUnit?.unitStart ?: 0.0)) }
-    val pageIndex = if (live) livePage else browsedPage
-    val page = pages[pageIndex]
-    val previewIndex = page.cells.last().units.last().event.index
-    val preview = remember(song, cells, previewIndex) { nextFingerCells(song, cells, previewIndex) }
-
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(Res.string.practice_finger_heading), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), color = colors.accentText)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_finger_previous_page), { browsedPage = (browsedPage - 1).coerceAtLeast(0) }, bordered = false, enabled = !live && pageIndex > 0)
-                Text(stringResource(Res.string.practice_finger_page, pageIndex + 1, pages.size), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                EolssuIconButton(EolssuIcons.Next, stringResource(Res.string.practice_finger_next_page), { browsedPage = (browsedPage + 1).coerceAtMost(pages.lastIndex) }, bordered = false, enabled = !live && pageIndex < pages.lastIndex)
-            }
-        }
-        val shape = RoundedCornerShape(3.dp)
-        Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
-            FingerHead(instrumentName)
-            BoxWithConstraints(Modifier.fillMaxWidth().height(viewportHeight)) {
-                val imageHeight = ((maxHeight - 4.dp * page.cells.size) / page.cells.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat()).coerceAtLeast(28.dp * fontScale)
-                Column(Modifier.fillMaxWidth().verticalScroll(remember(pageIndex) { ScrollState(0) })) {
-                    page.cells.forEach { cell ->
-                        FingerRow(
-                            cell = cell,
-                            instrument = instrument,
-                            fill = if (!live) null else {
-                                {
-                                    val position = livePosition() ?: -1.0
+    val shape = RoundedCornerShape(3.dp)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val bounded = constraints.hasBoundedHeight
+        Column(if (bounded) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f) else Modifier)
+                .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
+                FingerHead(instrumentName)
+                BoxWithConstraints(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f) else Modifier.height(
+                    (FingerImageHeight * angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat() + 4.dp * angle.size) * fontScale,
+                ))) {
+                    val weight = angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat().coerceAtLeast(1f)
+                    val imageHeight = ((maxHeight - 4.dp * angle.size) / weight).coerceAtLeast(28.dp * fontScale)
+                    val scroll = remember(angleIndex) { ScrollState(0) }
+                    val density = LocalDensity.current
+                    androidx.compose.runtime.LaunchedEffect(currentUnit?.row, angleIndex, state.follow, scroll.maxValue) {
+                        if (live && state.follow && scroll.maxValue > 0) {
+                            val before = angle.takeWhile { it.row != currentUnit?.row }
+                            val top = before.fold(0.dp) { acc, cell ->
+                                acc + imageHeight * cell.units.sumOf { fingerSlotWeight(it).toDouble() }.toFloat() + 4.dp
+                            }
+                            scroll.animateScrollTo(with(density) { top.roundToPx() }.coerceIn(0, scroll.maxValue))
+                        }
+                    }
+                    Column(Modifier.fillMaxWidth().verticalScroll(scroll)) {
+                        angle.forEach { cell ->
+                            FingerRow(
+                                cell = cell, instrument = instrument,
+                                fill = if (!live) null else { {
+                                    val position = cursor.index?.let { song.timeline.getOrNull(it) }?.let { it.unitStart + it.unitDuration * cursor.fraction } ?: -1.0
                                     val start = cell.units.firstOrNull()?.unitStart ?: cell.index.toDouble()
                                     val end = cell.units.lastOrNull()?.let { it.unitStart + it.unitDuration } ?: start + 1
                                     ((position - start) / (end - start)).toFloat().coerceIn(0f, 1f)
-                                }
-                            },
-                            isSelected = !live && cell.index == currentCell,
-                            playingKey = playingKey,
-                            showHangul = state.settings.showHangul,
-                            gakStart = cell.row == 0 && cell.units.firstOrNull()?.unitStart == cell.index.toDouble(),
-                            daegangStarts = cell.units.indices.filter { slot ->
-                                page.groups.any { kotlin.math.abs(it.start - cell.units[slot].unitStart) < 0.000001 }
-                            },
-                            imageHeight = imageHeight,
-                            onSelectEvent = onSelectEvent.takeIf { state.mode == PracticeMode.Ready },
-                        )
+                                } },
+                                isSelected = !live && cell.units.any { it.event.index == state.selected },
+                                playingKey = if (live) currentUnit?.key else null,
+                                showHangul = state.settings.showHangul,
+                                gakStart = cell.row == 0,
+                                daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 },
+                                imageHeight = imageHeight,
+                                onSelectEvent = onSelectEvent.takeIf { state.mode == PracticeMode.Ready },
+                            )
+                        }
                     }
                 }
             }
-        }
-        Text(stringResource(Res.string.practice_finger_upcoming), style = MaterialTheme.typography.labelSmall, color = colors.accentText)
-        if (preview.isEmpty()) {
-            Text(stringResource(Res.string.practice_finger_end), color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
-        } else {
-            Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
+            Text(stringResource(Res.string.practice_finger_upcoming),
+                style = MaterialTheme.typography.labelSmall, color = colors.accentText)
+            // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
+            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * 2)
+                .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
                 FingerHead(instrumentName)
-                preview.forEach { cell ->
+                if (preview.isEmpty()) {
+                    Text(stringResource(Res.string.practice_finger_end), modifier = Modifier.padding(8.dp),
+                        style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                } else preview.forEach { cell ->
                     FingerRow(
                         cell = cell, instrument = instrument, fill = null, isSelected = false,
                         playingKey = null, showHangul = state.settings.showHangul,
                         gakStart = false, daegangStarts = emptyList(),
-                        imageHeight = FingerImageHeight * fontScale, onSelectEvent = null,
+                        imageHeight = 28.dp * fontScale, onSelectEvent = null,
                     )
                 }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_finger_previous_page), { browsed = (browsed - 1).coerceAtLeast(0) }, bordered = false, enabled = !live && browsed > 0)
+                Text(stringResource(Res.string.practice_finger_gak, angleIndex + 1), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+                EolssuIconButton(EolssuIcons.Next, stringResource(Res.string.practice_finger_next_page), { browsed = (browsed + 1).coerceAtMost(angles.lastIndex) }, bordered = false, enabled = !live && browsed < angles.lastIndex)
             }
         }
     }
