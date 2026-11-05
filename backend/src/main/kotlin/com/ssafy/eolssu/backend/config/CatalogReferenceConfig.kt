@@ -33,16 +33,21 @@ class CatalogReferenceConfig {
 
     @Bean
     fun jangdanPreviewAudio(storage: RecordingStorage, properties: RecordingStorageProperties): JangdanPreviewAudio {
-        val resource = ClassPathResource("catalog/jangdan-preview-sha256.properties")
+        val hashes = loadHashes("jangdan-preview-sha256", Regex("[1-9][0-9]*")).mapKeys { it.key.toLong() }
+        val samples = loadHashes("jangdan-practice-sha256", Regex("[a-z0-9_]+"))
+        return JangdanPreviewAudio(hashes, samples) { key ->
+            if (properties.type == "s3" && properties.isConfigured) storage.readUrl(key, Duration.ofMinutes(15)) else null
+        }
+    }
+
+    private fun loadHashes(name: String, keyPattern: Regex): Map<String, String> {
+        val resource = ClassPathResource("catalog/$name.properties")
         val manifest = Properties()
         if (resource.exists()) resource.inputStream.use(manifest::load)
-        val hashes = manifest.stringPropertyNames().associate { id ->
+        return manifest.stringPropertyNames().associateWith { id ->
             val hash = manifest.getProperty(id)
-            require(id.matches(Regex("[1-9][0-9]*")) && hash.matches(Regex("[0-9a-f]{64}")))
-            id.toLong() to hash
-        }
-        return JangdanPreviewAudio(hashes) { key ->
-            if (properties.type == "s3" && properties.isConfigured) storage.readUrl(key, Duration.ofMinutes(15)) else null
+            require(keyPattern.matches(id) && hash.matches(Regex("[0-9a-f]{64}")))
+            hash
         }
     }
 }

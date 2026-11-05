@@ -8,6 +8,7 @@ import com.ssafy.eolssu.backend.feature.catalog.application.JangdanPreviewAudio
 import com.ssafy.eolssu.backend.feature.catalog.domain.CatalogJangdan
 import com.ssafy.eolssu.backend.feature.catalog.domain.FingeringPattern
 import com.ssafy.eolssu.backend.feature.notation.infrastructure.BundledNotationSymbols
+import java.net.URI
 import org.springframework.context.annotation.Profile
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -66,8 +67,17 @@ class CatalogReferenceController(
     fun jangdanAudio(@PathVariable jangdanId: String): ResponseEntity<*> {
         val id = positiveId(jangdanId) ?: return invalidRequest()
         if (queries.jangdan(id) == null || !previews.hasAudio(id)) return notFound()
-        val url = previews.playbackUrl(id)
-            ?: return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header("Cache-Control", "no-store")
+        return audioRedirect(previews.playbackUrl(id))
+    }
+
+    @GetMapping("/jangdan-samples/{sample}/{sha256}")
+    fun jangdanSample(@PathVariable sample: String, @PathVariable sha256: String): ResponseEntity<*> {
+        if (!previews.hasSample(sample, sha256)) return notFound()
+        return audioRedirect(previews.sampleUrl(sample, sha256))
+    }
+
+    private fun audioRedirect(url: URI?): ResponseEntity<*> {
+        if (url == null) return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header("Cache-Control", "no-store")
                 .body(ErrorResponse.of(ErrorCode.SERVICE_UNAVAILABLE))
         return ResponseEntity.status(HttpStatus.FOUND).location(url).header("Cache-Control", "no-store").build<Void>()
     }

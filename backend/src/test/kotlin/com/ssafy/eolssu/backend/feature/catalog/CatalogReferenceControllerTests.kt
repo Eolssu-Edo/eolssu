@@ -16,7 +16,7 @@ class CatalogReferenceControllerTests {
     private val queries = CatalogReferenceQueries(repository)
     private val previewHash = "a".repeat(64)
     private var signingAvailable = true
-    private val previews = JangdanPreviewAudio(mapOf(1L to previewHash)) {
+    private val previews = JangdanPreviewAudio(mapOf(1L to previewHash), mapOf("deong" to previewHash)) {
         if (signingAvailable) "https://r2.example.test/$it?signature=test" else null
     }
     private val mvc = MockMvcBuilders.standaloneSetup(CatalogReferenceController(queries, previews))
@@ -94,6 +94,17 @@ class CatalogReferenceControllerTests {
         signingAvailable = false
         mvc.perform(get("/api/jangdans/1/audio")).andExpect(status().isServiceUnavailable)
             .andExpect(header().string("Cache-Control", "no-store"))
+    }
+
+    @Test fun `practice WAV signs only the registered name and hash`() {
+        mvc.perform(get("/api/jangdan-samples/deong/$previewHash"))
+            .andExpect(status().isFound)
+            .andExpect(header().string("Location", "https://r2.example.test/jangdan-practice/v1/deong/$previewHash.wav?signature=test"))
+            .andExpect(header().string("Cache-Control", "no-store"))
+        mvc.perform(get("/api/jangdan-samples/deong/${"b".repeat(64)}")).andExpect(status().isNotFound)
+        mvc.perform(get("/api/jangdan-samples/unknown/$previewHash")).andExpect(status().isNotFound)
+        signingAvailable = false
+        mvc.perform(get("/api/jangdan-samples/deong/$previewHash")).andExpect(status().isServiceUnavailable)
     }
 
     @Test fun `notation preserves glyph and null image without inventing semantic codes`() {
