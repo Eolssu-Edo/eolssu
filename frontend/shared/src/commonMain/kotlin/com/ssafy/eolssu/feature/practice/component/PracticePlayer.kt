@@ -48,7 +48,6 @@ import eolssu.shared.generated.resources.model_audio_interrupted
 import eolssu.shared.generated.resources.model_audio_loading
 import eolssu.shared.generated.resources.model_audio_unavailable
 import eolssu.shared.generated.resources.model_audio_unsupported
-import eolssu.shared.generated.resources.practice_hint_solo
 import eolssu.shared.generated.resources.practice_hint_solo_only
 import eolssu.shared.generated.resources.practice_listen_model
 import eolssu.shared.generated.resources.practice_listen_model_resume
@@ -187,8 +186,8 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
 
 /**
  * 플레이어 아래 행동(보드 `.btn.primary` + `.notice`):
- * - 평가 연습: ‘연주 평가 시작’ + ‘평가를 시작하면 마이크로 연주를 듣고 음정·박자·음 길이를 확인해요.’
- * - 연습 모드·평가 가능 곡: ‘이 곡으로 평가하기’ + ‘점수 없이 악보를 보며 혼자 연습해요. 평가하려면 위 버튼으로 넘어가요.’
+ * - 평가 준비: ‘연주 평가 시작’.
+ * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
  * - 연습 모드·평가 불가 곡: 안내만 ‘이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. …’
  * - 내 악보 연습: 평가 버튼도 안내도 없다(Practice-Mine).
  * 녹음을 지원하지 않는 환경은 안내 카드에 그 사실을 적고 버튼을 끈다.
@@ -208,8 +207,8 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
                 if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
             }
             song.evaluable -> {
-                EolssuButton(stringResource(Res.string.practice_switch_to_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
-                PracticeNotice(stringResource(if (unsupported) Res.string.practice_recording_unsupported else Res.string.practice_hint_solo))
+                EolssuButton(stringResource(Res.string.practice_start_eval), actions.onSwitchToEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
+                if (unsupported) PracticeNotice(stringResource(Res.string.practice_recording_unsupported))
             }
             else -> PracticeNotice(stringResource(Res.string.practice_hint_solo_only))
         }

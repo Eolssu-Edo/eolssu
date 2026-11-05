@@ -597,6 +597,15 @@ class PracticeViewModel(
 
     // 평가 연주
 
+    private var entryEvaluationStarted = false
+
+    /** 일반 연습에서 평가로 이동한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
+    fun startEvaluationOnEntry() {
+        if (entryEvaluationStarted || _uiState.value.song == null || !_uiState.value.recordingSupported) return
+        entryEvaluationStarted = true
+        requestEvaluation()
+    }
+
     fun requestEvaluation() {
         if (!accountScope.isActive) return
         if (recorder == null) return

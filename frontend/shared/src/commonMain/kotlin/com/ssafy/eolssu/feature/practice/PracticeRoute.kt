@@ -21,7 +21,6 @@ import com.ssafy.eolssu.feature.practice.component.PracticeDialogActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
-import eolssu.shared.generated.resources.practice_switched_to_eval
 import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -33,7 +32,7 @@ import org.koin.core.parameter.parametersOf
  * @param solo 연습곡 선택(SONG-03)에서 들어온 연습 모드. 평가 없이 혼자 연습한다.
  * @param mine 내 악보로 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @param sheetTitle 내 악보 제목(‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다. 비우면 곡 제목.
- * @param showSwitchedNotice 연습 모드에서 평가로 바꿔 들어왔으면 안내를 띄운다.
+ * @param showSwitchedNotice 일반 연습에서 평가로 전환한 진입. 곡 로딩 후 평가를 한 번만 바로 시작한다.
  * @param onSwitchToEval 연습 모드에서 같은 곡의 평가 연습으로 바꾼다.
  * @param onEvaluate 연주를 마치고 '평가하기'. 저장된 녹음이 있을 때만 연습 화면을 준비 상태로 돌리고 분석 화면으로 간다.
  * @param onConfirmBackChange 떠나기 전에 확인할 때(연주·카운트다운 중) 화면의 뒤로 가기 동작을, 아니면 null을 알린다.
@@ -60,8 +59,8 @@ fun PracticeRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     LaunchedEffect(sheetTitle) { viewModel.showSheetTitle(sheetTitle) }
-    LaunchedEffect(showSwitchedNotice) {
-        if (showSwitchedNotice) snackbarHostState.showSnackbar(getString(Res.string.practice_switched_to_eval))
+    LaunchedEffect(showSwitchedNotice, state.song?.id) {
+        if (showSwitchedNotice) viewModel.startEvaluationOnEntry()
     }
     // 앱을 벗어나면(전화·다른 앱) 연주를 끊긴 것으로 처리한다.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onLeaveScreen() }
