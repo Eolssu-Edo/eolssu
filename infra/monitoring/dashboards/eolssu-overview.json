@@ -12,7 +12,7 @@
   "title": "얼쑤 운영 현황",
   "uid": "eolssu-overview",
   "tags": ["eolssu"],
-  "timezone": "browser",
+  "timezone": "Asia/Seoul",
   "refresh": "10s",
   "time": { "from": "now-7d", "to": "now" },
   "schemaVersion": 39,
@@ -98,7 +98,7 @@
     {
       "id": 6,
       "type": "timeseries",
-      "title": "일별 가입·연습·채점 (UTC 기준 하루)",
+      "title": "일별 가입·연습·채점 (KST 기준 하루)",
       "datasource": { "type": "mysql", "uid": "${DS_EOLSSU}" },
       "gridPos": { "x": 0, "y": 5, "w": 24, "h": 8 },
       "fieldConfig": {
@@ -112,7 +112,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(created_at, 1d, 0), COUNT(*) AS 가입 FROM users WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT DATE(created_at + INTERVAL 9 HOUR) - INTERVAL 9 HOUR AS time, COUNT(*) AS 가입 FROM users WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
         },
         {
           "refId": "B",
@@ -120,7 +120,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(created_at, 1d, 0), COUNT(*) AS 연습 FROM practice_sessions WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT DATE(created_at + INTERVAL 9 HOUR) - INTERVAL 9 HOUR AS time, COUNT(*) AS 연습 FROM practice_sessions WHERE $__timeFilter(created_at) GROUP BY 1 ORDER BY 1"
         },
         {
           "refId": "C",
@@ -128,7 +128,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(evaluated_at, 1d, 0), COUNT(*) AS 채점 FROM evaluations WHERE $__timeFilter(evaluated_at) GROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT DATE(evaluated_at + INTERVAL 9 HOUR) - INTERVAL 9 HOUR AS time, COUNT(*) AS 채점 FROM evaluations WHERE $__timeFilter(evaluated_at) GROUP BY 1 ORDER BY 1"
         }
       ]
     },
