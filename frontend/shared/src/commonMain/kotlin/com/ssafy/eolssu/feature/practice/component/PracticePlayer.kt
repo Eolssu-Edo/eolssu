@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +41,8 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.feature.practice.ModelAudioStatus
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
+import com.ssafy.eolssu.feature.practice.playerNotice
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
@@ -92,12 +95,12 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val controls: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc)) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
                 onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
                 enabled = canPlay,
-                modifier = Modifier.size(if (compact) 48.dp else 56.dp).semantics { contentDescription = playLabel },
+                modifier = Modifier.size(48.dp).semantics { contentDescription = playLabel },
                 shape = CircleShape,
                 color = colors.primary,
                 contentColor = colors.onPrimary,
@@ -122,22 +125,36 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
         PlayerTrack(state.progressPercent / 100f, Modifier.padding(top = 4.dp, bottom = 6.dp))
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { controls() }
-        val hint = if (rhythm || state.settings.jangdanSound && state.jangdanStatus != JangdanStatus.Idle) jangdanHint(state) else when (state.modelAudioStatus) {
-            ModelAudioStatus.Loading -> stringResource(Res.string.model_audio_loading)
-            ModelAudioStatus.Unavailable -> stringResource(Res.string.model_audio_unavailable)
-            ModelAudioStatus.Failed -> stringResource(Res.string.model_audio_failed)
-            ModelAudioStatus.Unsupported -> stringResource(Res.string.model_audio_unsupported)
-            ModelAudioStatus.Interrupted -> stringResource(Res.string.model_audio_interrupted)
-            else -> null
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            controls()
+            PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(56.dp))
         }
-        if (hint != null && (!rhythm || state.jangdanProblem || state.jangdanStatus == JangdanStatus.Loading)) Text(
-            hint,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-            color = colors.textMuted,
-            textAlign = TextAlign.Center,
-        )
+    }
+}
+
+/** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. */
+@Composable
+private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = Modifier) {
+    val message = when (notice) {
+        PracticePlayerNotice.None -> ""
+        PracticePlayerNotice.Loading -> stringResource(Res.string.practice_player_loading)
+        PracticePlayerNotice.Failed -> stringResource(Res.string.practice_player_failed)
+        PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
+        PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
+        PracticePlayerNotice.Interrupted -> stringResource(Res.string.practice_player_interrupted)
+    }
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(56.dp))
+            if (message.isNotEmpty()) Text(
+                message, modifier = Modifier.weight(1f).semantics { contentDescription = message },
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = EolssuTheme.colors.textMuted,
+            )
+        }
     }
 }
 
@@ -191,7 +208,6 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
     val unsupported = !state.recordingSupported && (!state.solo || song.evaluable)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         PracticeModeSwitch(state, actions)
-        if (state.jangdanProblem && (state.mode == PracticeMode.Rhythm || state.settings.jangdanSound)) PracticeNotice(jangdanHint(state))
         when {
             state.mine -> Unit
             !state.solo -> {

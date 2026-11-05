@@ -193,26 +193,26 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             }
             Text(stringResource(Res.string.practice_finger_upcoming),
                 style = MaterialTheme.typography.labelSmall, color = colors.accentText)
-            if (preview.isEmpty()) {
-                Text(stringResource(Res.string.practice_finger_end),
-                    style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-            } else {
-                Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
-                    FingerHead(instrumentName)
-                    preview.forEach { cell ->
-                        FingerRow(
-                            cell = cell, instrument = instrument, fill = null, isSelected = false,
-                            playingKey = null, showHangul = state.settings.showHangul,
-                            gakStart = false, daegangStarts = emptyList(),
-                            imageHeight = 28.dp * fontScale, onSelectEvent = null,
-                        )
-                    }
+            // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
+            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * 2)
+                .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
+                FingerHead(instrumentName)
+                if (preview.isEmpty()) {
+                    Text(stringResource(Res.string.practice_finger_end), modifier = Modifier.padding(8.dp),
+                        style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+                } else preview.forEach { cell ->
+                    FingerRow(
+                        cell = cell, instrument = instrument, fill = null, isSelected = false,
+                        playingKey = null, showHangul = state.settings.showHangul,
+                        gakStart = false, daegangStarts = emptyList(),
+                        imageHeight = 28.dp * fontScale, onSelectEvent = null,
+                    )
                 }
             }
-            if (!live) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_finger_previous_page), { browsed = (browsed - 1).coerceAtLeast(0) }, bordered = false, enabled = browsed > 0)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_finger_previous_page), { browsed = (browsed - 1).coerceAtLeast(0) }, bordered = false, enabled = !live && browsed > 0)
                 Text(stringResource(Res.string.practice_finger_gak, angleIndex + 1), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                EolssuIconButton(EolssuIcons.Next, stringResource(Res.string.practice_finger_next_page), { browsed = (browsed + 1).coerceAtMost(angles.lastIndex) }, bordered = false, enabled = browsed < angles.lastIndex)
+                EolssuIconButton(EolssuIcons.Next, stringResource(Res.string.practice_finger_next_page), { browsed = (browsed + 1).coerceAtMost(angles.lastIndex) }, bordered = false, enabled = !live && browsed < angles.lastIndex)
             }
         }
     }

@@ -446,3 +446,31 @@ fun PracticeSettings.applyJangdan(draft: PracticeDraft): PracticeSettings =
 
 fun PracticeSettings.applyTempo(draft: PracticeDraft, song: Song): PracticeSettings =
     copy(bpmBySong = bpmBySong + (song.id to draft.step.bpm(song.baseBpm)))
+
+/** 플레이어의 고정 안내 칸에만 표시한다. 정상 재생에는 문구가 없다. */
+internal enum class PracticePlayerNotice { None, Loading, Failed, Unavailable, Unsupported, Interrupted }
+
+internal val PracticeUiState.playerNotice: PracticePlayerNotice
+    get() {
+        val rhythm = mode == PracticeMode.Rhythm
+        val accompaniment = rhythm || settings.jangdanSound
+        if ((!rhythm && modelAudioStatus == ModelAudioStatus.Loading) ||
+            (accompaniment && jangdanStatus == JangdanStatus.Loading)) return PracticePlayerNotice.Loading
+        if (!rhythm) when (modelAudioStatus) {
+            ModelAudioStatus.Failed -> return PracticePlayerNotice.Failed
+            ModelAudioStatus.Unavailable -> return PracticePlayerNotice.Unavailable
+            ModelAudioStatus.Unsupported -> return PracticePlayerNotice.Unsupported
+            ModelAudioStatus.Interrupted -> return PracticePlayerNotice.Interrupted
+            else -> Unit
+        }
+        if (accompaniment) {
+            if (!jangdanSupported) return PracticePlayerNotice.Unavailable
+            when (jangdanStatus) {
+                JangdanStatus.Failed -> return PracticePlayerNotice.Failed
+                JangdanStatus.Unsupported -> return PracticePlayerNotice.Unsupported
+                JangdanStatus.Interrupted -> return PracticePlayerNotice.Interrupted
+                else -> Unit
+            }
+        }
+        return PracticePlayerNotice.None
+    }
