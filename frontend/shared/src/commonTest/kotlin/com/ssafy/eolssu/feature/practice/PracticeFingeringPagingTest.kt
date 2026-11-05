@@ -9,7 +9,23 @@ class PracticeFingeringPagingTest {
     private val semachi = Jangdan("세마치", listOf(3, 3, 3), 3, 3)
     private fun pitches(count: Int) = List(count) { ScoreCell(ScoreNote.SourcePitch("고", 1)) }
 
-    @Test fun pagesContainTwoDaegangAndKeepOriginalOrder() {
+    @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {
+        val song = fingerSong(List(8) { listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold)) }.flatten(), Jangdan("검사", listOf(1, 1), 2, 1))
+        val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
+        assertEquals(6, pages.first().cells.flatMap { it.entries }.count { it.note != null })
+        assertEquals(12.0, pages[1].start)
+        assertEquals(listOf(12, 14), nextFingerUnits(song, pages.first().cells.last().units.last().event.index).map { it.event.index })
+        assertEquals((0..15).toList(), pages.flatMap { it.cells }.map { it.index })
+    }
+
+    @Test fun trailingHoldsRemainOnLastPitchPage() {
+        val song = fingerSong(pitches(6) + List(4) { ScoreCell(ScoreNote.Hold) }, Jangdan("검사", listOf(1, 1), 2, 1))
+        val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
+        assertEquals(1, pages.size)
+        assertEquals(10, pages.single().cells.size)
+    }
+
+    @Test fun pagesContainSixPitchesAtDaegangBoundariesAndKeepOriginalOrder() {
         val song = fingerSong(pitches(9), semachi)
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
         assertEquals(listOf(6, 3), pages.map { it.cells.size })
@@ -24,8 +40,8 @@ class PracticeFingeringPagingTest {
         val base = fingerSong(pitches(3), semachi)
         val song = base.copy(score = base.score.copy(timing = ScoreTiming(311.13, "세마치", ScoreBpmUnit.DOTTED_QUARTER, 3, 3)))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(listOf(2, 1), pages.map { it.cells.size })
-        assertEquals(1, pages.pageAt(2.0))
+        assertEquals(listOf(3), pages.map { it.cells.size })
+        assertEquals(0, pages.pageAt(2.0))
     }
 
     @Test fun reviewedMappingControlsBoundariesAndPreservesPickup() {
@@ -35,7 +51,8 @@ class PracticeFingeringPagingTest {
             jangdanPlayback = JangdanPlayback("1", "세마치", 3, 9, List(9) { "" }, listOf(3, 3, 3)),
         )
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(listOf(2, 2, 1), pages.map { it.cells.size })
+        assertEquals(listOf(5), pages.map { it.cells.size })
+        assertEquals(listOf(0.0, 1.0, 2.0, 3.0, 4.0), pages.single().groups.map { it.start })
         assertEquals((0..4).toList(), pages.flatMap { it.cells }.map { it.index })
     }
 
@@ -46,7 +63,7 @@ class PracticeFingeringPagingTest {
             ScoreCell(ScoreNote.Blank), ScoreCell(ScoreNote.SourcePitch("임", 1)),
         ), Jangdan("검사", listOf(1, 1), 2, 1))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(1, pages.pageAt(2.4))
+        assertEquals(0, pages.pageAt(2.4))
         assertEquals(listOf(3, 5), nextFingerUnits(song, 0).map { it.event.index })
         assertEquals(listOf(5), nextFingerUnits(song, 3).map { it.event.index })
         assertTrue(nextFingerUnits(song, 5).isEmpty())
@@ -58,25 +75,26 @@ class PracticeFingeringPagingTest {
         assertTrue(fingerPages(fingerSong(emptyList()), emptyList()).isEmpty())
     }
 
-    @Test fun twoFractionalDaegangStillMakeExactlyThreeOriginalJeonggan() {
+    @Test fun fractionalDaegangKeepTheirOriginalTimingInsideSixPitchPage() {
         val base = fingerSong(pitches(6), semachi)
         val song = base.copy(score = base.score.copy(timing = ScoreTiming(311.13, "세마치", ScoreBpmUnit.DOTTED_QUARTER, 3, 2)))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(listOf(3, 3), pages.map { it.cells.size })
-        assertEquals(1, pages.pageAt(3.0))
+        assertEquals(listOf(6), pages.map { it.cells.size })
+        assertEquals(listOf(0.0, 1.5, 3.0, 4.5), pages.single().groups.map { it.start })
+        assertEquals(0, pages.pageAt(3.0))
     }
 
     @Test fun pageBoundaryInsideDisplaySlotKeepsEventAndShowsContinuationWithoutAnotherFingering() {
-        val base = fingerSong(pitches(4), Jangdan("검사", listOf(1, 2), 3, 3))
+        val base = fingerSong(pitches(5) + ScoreCell(ScoreNote.Rest) + pitches(9), Jangdan("검사", listOf(1, 2), 3, 3))
         val song = base.copy(score = base.score.copy(timing = ScoreTiming(311.13, "검사", ScoreBpmUnit.DOTTED_QUARTER, 3, 2)))
         val original = song.displayUnits.toList()
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(listOf(0.0, 1.5, 3.0), pages.map { it.start })
+        assertEquals(6.5, pages[1].start)
         val continuation = pages[1].cells.first()
         assertEquals(ScoreNote.Hold, continuation.units.first().note)
         assertNull(continuation.entries.first().holes)
-        assertSame(song.timeline[1], continuation.units.first().event)
-        assertEquals(4.0, pages.flatMap { it.cells }.flatMap { it.units }.sumOf { it.unitDuration }, 0.000001)
+        assertSame(song.timeline[6], continuation.units.first().event)
+        assertEquals(15.0, pages.flatMap { it.cells }.flatMap { it.units }.sumOf { it.unitDuration }, 0.000001)
         assertEquals(original, song.displayUnits)
     }
 }

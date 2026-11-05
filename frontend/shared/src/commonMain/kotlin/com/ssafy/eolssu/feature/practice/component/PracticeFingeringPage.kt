@@ -130,7 +130,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
 /**
  * ‘운지법과 함께 보기’: 정간보 대신 운지 악보. ‘지금 읽는 부분’과 현재/전체 페이지 머리,
  * 표(‘{악기} 운지 | 율명 | 가사’), 줄마다 가로 악기 그림 위 구멍 표시와 율명·가사.
- * 대강 둘을 고정 페이지로 표시한다. 페이지 내부는 움직이지 않고 경계에서만 교체한다.
+ * 실제 발음 6개 이상을 담은 고정 페이지다. 페이지 내부는 움직이지 않고 경계에서만 교체한다.
  */
 @Composable
 fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) -> Unit, modifier: Modifier = Modifier) {
@@ -167,7 +167,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     var browsedPage by remember(song, state.selected, live) { mutableIntStateOf(pages.pageAt(currentUnit?.unitStart ?: 0.0)) }
     val pageIndex = if (live) livePage else browsedPage
     val page = pages[pageIndex]
-    val previewIndex = if (page.cells.any { it.index == currentCell }) currentUnit?.event?.index ?: state.selected else page.cells.first().firstEvent?.index ?: state.selected
+    val previewIndex = page.cells.last().units.last().event.index
     val preview = remember(song, previewIndex) { nextFingerUnits(song, previewIndex) }
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -183,7 +183,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
         Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
             FingerHead(instrumentName)
             BoxWithConstraints(Modifier.fillMaxWidth().height(viewportHeight)) {
-                val imageHeight = ((maxHeight - 8.dp * page.cells.size) / page.cells.sumOf { it.parts }).coerceAtLeast(32.dp * fontScale)
+                val imageHeight = ((maxHeight - 4.dp * page.cells.size) / page.cells.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat()).coerceAtLeast(28.dp * fontScale)
                 Column(Modifier.fillMaxWidth().verticalScroll(remember(pageIndex) { ScrollState(0) })) {
                     page.cells.forEach { cell ->
                         FingerRow(
@@ -228,6 +228,9 @@ private val FingerImageHeight = 40.dp
 private val FingerNoteWidth = 76.dp
 private val FingerLyricWidth = 30.dp
 
+private fun fingerSlotWeight(unit: ScoreDisplayUnit): Float =
+    if (unit.note == ScoreNote.Hold || unit.note == ScoreNote.Blank) 0.5f else 1f
+
 /** 표 머리(29dp): ‘{악기} 운지 | 율명 | 가사’, 10sp 500 회색, 칸 사이 선. */
 @Composable
 private fun FingerHead(instrumentName: String) {
@@ -270,7 +273,7 @@ private fun FingerRow(
     val colors = EolssuTheme.colors
     var rowModifier = Modifier
         .fillMaxWidth()
-        .height(imageHeight * cell.parts + 8.dp)
+        .height(imageHeight * cell.units.sumOf { fingerSlotWeight(it).toDouble() }.toFloat() + 4.dp)
         .drawBehind {
             if (fill != null) drawRect(colors.doneSoft, size = Size(size.width, size.height * fill()))
             when {
@@ -279,13 +282,13 @@ private fun FingerRow(
                 else -> drawLine(colors.line, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx())))
             }
             daegangStarts.filter { it > 0 }.forEach { slot ->
-                val y = 4.dp.toPx() + imageHeight.toPx() * slot
+                val y = 2.dp.toPx() + imageHeight.toPx() * cell.units.take(slot).sumOf { fingerSlotWeight(it).toDouble() }.toFloat()
                 drawLine(colors.lineStrong, Offset(0f, y), Offset(size.width, y), 2.dp.toPx())
             }
         }
     if (isSelected) rowModifier = rowModifier.border(2.dp, colors.accent)
     Row(rowModifier) {
-        Box(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 6.dp, vertical = 3.dp)) {
+        Box(Modifier.weight(1f).fillMaxHeight().padding(horizontal = 6.dp, vertical = 2.dp)) {
             if (gakStart) {
                 Text(
                     stringResource(Res.string.practice_finger_gak, cell.column + 1),
@@ -296,7 +299,7 @@ private fun FingerRow(
             }
             Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                 cell.entries.forEachIndexed { index, entry ->
-                    Box(Modifier.fillMaxWidth().height(imageHeight), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().height(imageHeight * fingerSlotWeight(cell.units[index])), contentAlignment = Alignment.Center) {
                         when {
                             entry.note != null -> FingerDiagram(instrument, entry, imageHeight.coerceAtMost(FingerImageHeight * LocalDensity.current.fontScale))
                             cell.units[index].note == ScoreNote.Rest -> Text(stringResource(Res.string.practice_finger_rest), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
@@ -314,7 +317,7 @@ private fun FingerRow(
             verticalArrangement = Arrangement.Center,
         ) {
             cell.units.forEach { unit ->
-                NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey, height = imageHeight,
+                NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey, height = imageHeight * fingerSlotWeight(unit),
                     onClick = onSelectEvent?.let { select -> { select(unit.event) } })
             }
         }
@@ -323,8 +326,8 @@ private fun FingerRow(
                 .drawBehind { drawRect(colors.line, size = Size(1.dp.toPx(), size.height)) },
             verticalArrangement = Arrangement.Center,
         ) {
-            cell.lyricSlots.forEach { text ->
-                Box(Modifier.fillMaxWidth().height(imageHeight), contentAlignment = Alignment.Center) {
+            cell.lyricSlots.forEachIndexed { index, text ->
+                Box(Modifier.fillMaxWidth().height(imageHeight * fingerSlotWeight(cell.units[index])), contentAlignment = Alignment.Center) {
                     if (text.isNotEmpty()) Text(text, style = MaterialTheme.typography.labelSmall, color = colors.text)
                 }
             }
@@ -369,11 +372,12 @@ private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, 
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    Row(Modifier.fillMaxWidth().heightIn(min = height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
+    Row(Modifier.fillMaxWidth().height(height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
         if (isPitch) {
             ScoreNoteGlyph(note, size = if (big) 25.sp else 19.sp, color = if (playing) colors.rec else colors.text)
         } else {
-            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (big) 21.sp else 18.sp, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
+            val sustained = note == ScoreNote.Hold || note == ScoreNote.Blank
+            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (sustained) 12.sp else if (big) 21.sp else 18.sp, lineHeight = if (sustained) 14.sp else 24.sp, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
         }
         if (hangul != null) {
             Text(hangul, style = MaterialTheme.typography.labelSmall.copy(fontSize = if (big) 10.sp else 8.sp, lineHeight = 11.sp), color = if (playing) colors.rec else colors.textMuted)

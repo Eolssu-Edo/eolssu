@@ -8,7 +8,7 @@ import kotlin.math.min
 
 data class FingerGroup(val start: Double, val end: Double)
 
-/** 원본 이벤트의 시간 위에서 대강 둘을 묶는다. 마지막 페이지는 한 대강일 수 있다. */
+/** 실제 발음 6개 이상이 되도록 원본 대강을 묶는다. 마지막 페이지는 남은 만큼 표시한다. */
 data class FingerPage(val groups: List<FingerGroup>, val cells: List<FingerCell>) {
     val start: Double get() = groups.first().start
 }
@@ -17,7 +17,24 @@ fun fingerPages(song: Song, cells: List<FingerCell>): List<FingerPage> {
     if (cells.isEmpty()) return emptyList()
     val boundaries = fingerBoundaries(song) + song.score.totalUnits.toDouble()
     val groups = boundaries.zipWithNext().filter { (start, end) -> end > start }.map { (start, end) -> FingerGroup(start, end) }
-    return groups.chunked(2).map { pair ->
+    val pageGroups = mutableListOf<List<FingerGroup>>()
+    var pending = mutableListOf<FingerGroup>()
+    var pitchCount = 0
+    for (group in groups) {
+        val onsets = song.displayUnits.count { unit ->
+            unit.unitStart >= group.start && unit.unitStart < group.end &&
+                (unit.note is ScoreNote.Pitch || unit.note is ScoreNote.SourcePitch)
+        }
+        if (pitchCount >= 6 && onsets > 0) {
+            pageGroups += pending
+            pending = mutableListOf()
+            pitchCount = 0
+        }
+        pending += group
+        pitchCount += onsets
+    }
+    if (pending.isNotEmpty()) pageGroups += pending
+    return pageGroups.map { pair ->
         val start = pair.first().start
         val end = pair.last().end
         FingerPage(pair, cells.mapNotNull { cell -> cell.onPage(start, end) })
