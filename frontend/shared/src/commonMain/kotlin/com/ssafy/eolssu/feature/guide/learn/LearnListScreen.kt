@@ -57,6 +57,7 @@ import eolssu.shared.generated.resources.learn_reset
 import eolssu.shared.generated.resources.learn_stages
 import eolssu.shared.generated.resources.learn_subtitle
 import eolssu.shared.generated.resources.learn_title
+import eolssu.shared.generated.resources.learn_track_failed
 import org.jetbrains.compose.resources.stringResource
 import com.ssafy.eolssu.core.model.fingering.label
 
@@ -69,6 +70,8 @@ class LearnListActions(
     val onOpenStage: (Int) -> Unit,
     /** 단계 카드를 넘겨 [Int] 단계가 자리 잡았다. */
     val onShowCard: (Int) -> Unit,
+    /** 단계 목록을 받지 못했을 때 '다시 시도'. */
+    val onRetryTrack: () -> Unit = {},
 )
 
 /**
@@ -133,6 +136,11 @@ internal fun LearnListContent(
             onDismiss = actions.onDismissDropdown,
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp).widthIn(max = dropdownMaxWidth),
         )
+        val track = state.track
+        if (track !is LearnTrackLoad.Loaded) {
+            LearnLoadStatus(failed = track == LearnTrackLoad.Failed, failedMessage = Res.string.learn_track_failed, onRetry = actions.onRetryTrack)
+            return@Column
+        }
         ProgressCard(state)
         // `.lp-head`: '단계' 옆에 지금 카드 번호(`.lc-count`, 옅은 회색 고정폭 숫자)
         Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -140,7 +148,7 @@ internal fun LearnListContent(
                 buildAnnotatedString {
                     append(stringResource(Res.string.learn_stages))
                     withStyle(SpanStyle(color = GuideFaint, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum")) {
-                        append("  $currentStage / ${LearnStages.size}")
+                        append("  $currentStage / ${state.stages.size}")
                     }
                 },
                 Modifier.weight(1f),
@@ -192,7 +200,7 @@ private fun ProgressCard(state: LearnUiState) {
                 color = colors.textMuted,
             )
         }
-        val total = stringResource(Res.string.learn_progress_total, RequiredLearnStages.size)
+        val total = stringResource(Res.string.learn_progress_total, state.requiredCount)
         Text(
             buildAnnotatedString {
                 append("${state.requiredDoneCount}")

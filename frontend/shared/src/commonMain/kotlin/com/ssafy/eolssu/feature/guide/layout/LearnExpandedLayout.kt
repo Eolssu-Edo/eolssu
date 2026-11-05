@@ -60,7 +60,7 @@ private val DetailWideMinWidth = 560.dp
 @Composable
 internal fun LearnExpandedLayout(
     state: LearnUiState,
-    stage: LearnStage,
+    stage: LearnStage?,
     snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     listActions: LearnListActions,
@@ -93,10 +93,12 @@ internal fun LearnExpandedLayout(
                         listActions,
                         Modifier.weight(1f).fillMaxWidth(),
                         contentPadding = PaddingValues(start = outer, end = 24.dp, bottom = 24.dp),
-                        currentStage = stage.number,
+                        currentStage = stage?.number ?: state.cardStage,
                     )
                 }
                 VerticalDivider(color = colors.line)
+                // 단계 목록을 받기 전·받지 못했으면 오른쪽 칸을 비운다(왼쪽 칸이 상태와 '다시 시도'를 보인다).
+                if (stage == null) return@Row
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     EolssuTopBar(
                         learnStageTitle(stage),

@@ -3,6 +3,8 @@ package com.ssafy.eolssu.feature.profile
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.testing.FakeLessonApi
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -38,27 +40,29 @@ class MyLearningProgressTest {
     }
 
     @Test
-    fun eachPracticeInstrumentReadsItsOwnLearningRecord() {
-        val repository = LearnProgressRepository(FakeKeyValueStore())
-        repository.saveDoneStages("danso", setOf(1))
-        repository.saveDoneStages("sogeum", setOf(1, 2))
-        repository.saveDoneStages("daegeum-jeongak", setOf(1, 2, 3))
-        repository.saveDoneStages("daegeum-sanjo", setOf(1, 2, 3, 4))
-        assertEquals(1, myLearningProgress(Instrument.Danso, repository).completedCount)
-        assertEquals(2, myLearningProgress(Instrument.Sogeum, repository).completedCount)
-        assertEquals(3, myLearningProgress(Instrument.DaegeumJeongak, repository).completedCount)
-        assertEquals(4, myLearningProgress(Instrument.DaegeumSanjo, repository).completedCount)
+    fun eachPracticeInstrumentReadsItsOwnServerProgress() = runTest {
+        val api = FakeLessonApi()
+        listOf("danso" to 1, "sogeum" to 2, "daegeum-jeongak" to 3, "daegeum-sanjo" to 4).forEach { (track, count) ->
+            api.completed.getOrPut("me") { mutableSetOf() } += (1..count).map { api.id(track, it) }
+        }
+        val repository = LearnProgressRepository(api, FakeKeyValueStore())
+        assertEquals(1, myLearningProgress(Instrument.Danso, repository)?.completedCount)
+        assertEquals(2, myLearningProgress(Instrument.Sogeum, repository)?.completedCount)
+        assertEquals(3, myLearningProgress(Instrument.DaegeumJeongak, repository)?.completedCount)
+        assertEquals(4, myLearningProgress(Instrument.DaegeumSanjo, repository)?.completedCount)
     }
 
     @Test
-    fun completingAndResettingLearningIsReflectedWhenReadAgain() {
-        val repository = LearnProgressRepository(FakeKeyValueStore())
-        repository.saveDoneStages("danso", setOf(1, 2))
-        assertEquals(3, myLearningProgress(Instrument.Danso, repository).nextStage)
-        repository.saveDoneStages("danso", setOf(1, 2, 3))
-        assertEquals(4, myLearningProgress(Instrument.Danso, repository).nextStage)
-        repository.saveDoneStages("danso", emptySet())
-        assertEquals(0, myLearningProgress(Instrument.Danso, repository).completedCount)
-        assertEquals(1, myLearningProgress(Instrument.Danso, repository).nextStage)
+    fun completingAndResettingIsReflectedWhenReadAgainAndOfflineShowsNothing() = runTest {
+        val api = FakeLessonApi()
+        val repository = LearnProgressRepository(api, FakeKeyValueStore())
+        repository.setCompleted(api.id("danso", 1), true)
+        repository.setCompleted(api.id("danso", 2), true)
+        assertEquals(3, myLearningProgress(Instrument.Danso, repository)?.nextStage)
+        repository.setCompleted(api.id("danso", 1), false)
+        repository.setCompleted(api.id("danso", 2), false)
+        assertEquals(1, myLearningProgress(Instrument.Danso, repository)?.nextStage)
+        api.online = false
+        assertNull(myLearningProgress(Instrument.Danso, repository))
     }
 }

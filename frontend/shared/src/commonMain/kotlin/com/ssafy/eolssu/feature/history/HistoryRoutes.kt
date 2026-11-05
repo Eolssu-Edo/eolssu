@@ -36,6 +36,7 @@ import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -239,8 +240,12 @@ class GrowthViewModel(
         load(GrowthRange.Week)
         loadTrend(songId = null, scope = TrendScope.Full)
         accountScope.launch {
-            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument?.let(learnProgress::doneStageCount) }
-                .collect { count -> _uiState.update { it.copy(completedSteps = count) } }
+            // 완료한 단계는 서버 학습 진도로 센다(받지 못하면 비워 둔다).
+            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument }
+                .collectLatest { instrument ->
+                    val count = instrument?.let { learnProgress.doneStages(it)?.size }
+                    _uiState.update { it.copy(completedSteps = count) }
+                }
         }
     }
 
