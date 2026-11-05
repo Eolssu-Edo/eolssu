@@ -165,7 +165,7 @@ class CatalogReferenceApiDatabaseTests {
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
     }
 
-    @Test fun `registered practice WAVs redirect without requiring a valid session`() {
+    @Test fun `registered practice M4As redirect without requiring a valid session`() {
         val mapping = Properties().apply {
             requireNotNull(CatalogReferenceApiDatabaseTests::class.java.getResourceAsStream("/catalog/jangdan-practice-sha256.properties"))
                 .use { load(it) }
@@ -179,7 +179,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals("no-store", result.headers().firstValue("Cache-Control").orElse(""))
             val location = URI(result.headers().firstValue("Location").orElseThrow())
             assertEquals("https", location.scheme)
-            assertTrue(location.path.endsWith("/jangdan-practice/v1/$sample/$hash.wav"))
+            assertTrue(location.path.endsWith("/jangdan-practice/v1/$sample/$hash.m4a"))
             assertTrue(location.query.contains("X-Amz-Expires=900"))
         }
         assertError("/api/jangdan-samples/deong/${"0".repeat(64)}", 404, "RESOURCE_NOT_FOUND")

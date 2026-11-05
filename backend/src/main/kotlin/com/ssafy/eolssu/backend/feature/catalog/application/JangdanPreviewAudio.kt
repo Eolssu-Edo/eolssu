@@ -17,7 +17,7 @@ class JangdanPreviewAudio(
     fun hasSample(sample: String, hash: String): Boolean = sampleHashes[sample] == hash
 
     fun sampleUrl(sample: String, hash: String): URI? =
-        if (hasSample(sample, hash)) signedUrl("jangdan-practice/v1/$sample/$hash.wav") else null
+        if (hasSample(sample, hash)) signedUrl("jangdan-practice/v1/$sample/$hash.m4a") else null
 
     private fun signedUrl(key: String): URI? = runCatching {
         sign(key)?.let(::URI)?.takeIf {

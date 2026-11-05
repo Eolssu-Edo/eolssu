@@ -96,10 +96,10 @@ class CatalogReferenceControllerTests {
             .andExpect(header().string("Cache-Control", "no-store"))
     }
 
-    @Test fun `practice WAV signs only the registered name and hash`() {
+    @Test fun `practice M4A signs only the registered name and hash`() {
         mvc.perform(get("/api/jangdan-samples/deong/$previewHash"))
             .andExpect(status().isFound)
-            .andExpect(header().string("Location", "https://r2.example.test/jangdan-practice/v1/deong/$previewHash.wav?signature=test"))
+            .andExpect(header().string("Location", "https://r2.example.test/jangdan-practice/v1/deong/$previewHash.m4a?signature=test"))
             .andExpect(header().string("Cache-Control", "no-store"))
         mvc.perform(get("/api/jangdan-samples/deong/${"b".repeat(64)}")).andExpect(status().isNotFound)
         mvc.perform(get("/api/jangdan-samples/unknown/$previewHash")).andExpect(status().isNotFound)
