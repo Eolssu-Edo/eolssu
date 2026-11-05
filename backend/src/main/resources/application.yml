@@ -72,6 +72,10 @@ eolssu:
   # 값이 하나라도 비면 불러오기(SHT-07)는 503 CONVERSION_UNAVAILABLE이다. local은 개발·테스트용 디렉터리 저장소다.
   sheet-conversion:
     omr-base-url: ${SHEET_CONVERSION_OMR_BASE_URL:}
+  sheet-audio:
+    base-url: ${SHEET_AUDIO_BASE_URL:}
+    # Renderer deadline 90s + transport allowance 10s (481 measured on 1 CPU).
+    timeout-seconds: ${SHEET_AUDIO_TIMEOUT_SECONDS:100}
   sheet-storage:
     type: ${SHEET_STORAGE_TYPE:s3}
     local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}

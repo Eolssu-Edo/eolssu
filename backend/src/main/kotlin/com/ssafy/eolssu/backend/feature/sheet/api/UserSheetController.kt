@@ -56,6 +56,7 @@ class UserSheetController(
     private val editUserSheet: EditUserSheet,
     private val json: JsonMapper,
     private val sources: SheetSourceCleaner,
+    private val audio: com.ssafy.eolssu.backend.feature.sheet.application.SheetAudios? = null,
 ) {
     /** SHT-08 `GET /users/me/sheets/{sheetId}/score`. 없거나 다른 회원의 악보는 404. */
     @GetMapping("/{sheetId}/score")
@@ -144,6 +145,7 @@ class UserSheetController(
         val userId = requireNotNull(jwt.subject).toLong()
         // 원본 객체를 먼저 지운다. 저장소가 실패하면 행을 남겨 다시 지울 수 있게 한다(SHT-02 규칙 5).
         val found = try {
+            audio?.delete(userId,id)
             sources.deleteSources(userId, id)
         } catch (_: SheetSourceStorageException) {
             return error(ErrorCode.SERVICE_UNAVAILABLE)
