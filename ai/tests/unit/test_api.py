@@ -16,7 +16,7 @@ from ai_service import api
 from pydantic import TypeAdapter
 
 from ai_service.api import AnalysisDone, AnalysisError, AnalysisResult, DownloadError, InvalidRequest, NoteOut, app, get_fetcher
-from ai_service.pipelines.scoring import HOP_S, Note
+from ai_service.pipelines.scoring import HOP_S, Note, combine, total_score
 from evaluation.synthetic import BPM, SR, synth
 
 SIGNED_URL = "https://r2.example/recordings/1.m4a?X-Amz-Signature=secret-token"
@@ -25,9 +25,13 @@ FIRST_IDX = 7  # 곡 중간에서 시작하고 간격이 있어도 요청 idx를
 START_BEAT = 12.0  # 곡 처음부터 센 첫 음의 시작 박
 
 DONE_KEYS = {
-    "status", "modelVersion", "total", "pitch", "timing", "duration", "tuningOffsetCent", "tuningOutOfRange", "notes"
+    "status", "modelVersion", "scoringVersion", "scoreWeights", "total", "pitch", "timing", "duration",
+    "tuningOffsetCent", "tuningOutOfRange", "notes",
 }
-NOTE_KEYS = {"idx", "verdict", "pitchErrorCent", "onsetErrorMs", "durationErrorMs", "detectedSemitone", "recordingOffsetMs"}
+NOTE_KEYS = {
+    "idx", "verdict", "pitchErrorCent", "onsetErrorMs", "durationErrorMs", "detectedSemitone", "recordingOffsetMs",
+    "pitchScore", "timingScore", "durationScore", "weight",
+}
 
 
 def m4a(audio, tmp_path):
@@ -93,6 +97,14 @@ def serve():
     app.dependency_overrides.clear()
 
 
+def assert_documented_note_scores(result):
+    for note in result["notes"]:
+        assert type(note["timingScore"]) is float and 0 <= note["timingScore"] <= 100
+        assert type(note["durationScore"]) is float and 0 <= note["durationScore"] <= 100
+        assert type(note["pitchScore"]) is float and 0 <= note["pitchScore"] <= 100
+        assert note["weight"] == 1.0
+
+
 def test_correct_playing_is_done_with_requested_idx(serve, tmp_path):
     response = serve(m4a(synth(NOTES), tmp_path)).post("/v1/analyses", json=body())
     assert response.status_code == 200
@@ -125,8 +137,25 @@ def test_missed_note_has_null_errors(serve, tmp_path):
     result = serve(m4a(synth(NOTES, drop=(1,)), tmp_path)).post("/v1/analyses", json=body()).json()
     missed = result["notes"][1]
     assert missed == {"idx": FIRST_IDX + 2, "verdict": "MISSED", "pitchErrorCent": None, "onsetErrorMs": None,
-                      "durationErrorMs": None, "detectedSemitone": None, "recordingOffsetMs": None}
+                      "durationErrorMs": None, "detectedSemitone": None, "recordingOffsetMs": None,
+                      "pitchScore": 0.0, "timingScore": 0.0, "durationScore": 0.0, "weight": 1.0}
     TypeAdapter(AnalysisResult).validate_python(result)
+
+
+def test_note_scores_add_up_to_the_reported_scores(serve, tmp_path):
+    # 규칙 A: 백엔드가 구간 점수를 만드는 것과 같은 공식으로 전체를 합치면 응답 점수와 같다.
+    result = serve(m4a(synth(NOTES, shift={2: 2}, drop=(1,)), tmp_path)).post("/v1/analyses", json=body()).json()
+    assert result["scoringVersion"] == "note-mean-1"
+    weights = result["scoreWeights"]
+    assert set(weights) == {"pitch", "timing", "duration"} and sum(weights.values()) == pytest.approx(1)
+
+    def item(key):
+        return combine([n[key] for n in result["notes"]], [n["weight"] for n in result["notes"]])
+
+    parts = {name: item(f"{name}Score") for name in weights}
+    assert parts == {name: result[name] for name in weights}
+    assert result["total"] == total_score(parts["pitch"], parts["timing"], parts["duration"], weights)
+    assert_documented_note_scores(result)
 
 
 def test_silence_is_no_sound(serve, tmp_path):
