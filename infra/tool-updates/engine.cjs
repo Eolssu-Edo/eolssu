@@ -1,6 +1,5 @@
 'use strict';
 const {EventEmitter} = require('node:events');
-const crypto = require('node:crypto');
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
 const defaults = {projectPath:'',autoApply:false,startAtLogin:true,cocoRuntime:'both',cocoScope:'project',setupComplete:false};
 const copy = value => structuredClone(value);
@@ -31,66 +30,23 @@ class UpdateEngine extends EventEmitter {
     delete config.sshHost;
     // Graphify-only consent does not authorize automatic COCO installation.
     delete config.autoDownload;
-    this.data={format:1,config,graph:saved.graph||{},coco:saved.coco||{}};
-    this.view={graph:{phase:'setup'},coco:{phase:saved.coco?.versions?.length?'ready':'waiting',versions:saved.coco?.versions||[],latest:saved.coco?.versions?.[0],installed:saved.coco?.installed},busyGraph:false,busyCoco:false};
+    this.data={format:1,config,coco:saved.coco||{}};
+    this.view={coco:{phase:saved.coco?.versions?.length?'ready':'waiting',versions:saved.coco?.versions||[],latest:saved.coco?.versions?.[0],installed:saved.coco?.installed},busyCoco:false};
   }
   snapshot() { return copy({config:this.data.config,...this.view}); }
   persist() { this.deps.save(copy(this.data)); this.emit('change',this.snapshot()); }
   configure(input) {
-    if(this.view.busyGraph||this.view.busyCoco) throw new Error('진행 중인 작업이 끝난 뒤 설정을 바꿔주세요.');
+    if(this.view.busyCoco) throw new Error('진행 중인 작업이 끝난 뒤 설정을 바꿔주세요.');
     const c={...this.data.config};
     for(const key of ['projectPath','cocoRuntime','cocoScope']) if(input[key]!==undefined) c[key]=String(input[key]).trim();
     for(const key of ['autoApply','startAtLogin']) if(input[key]!==undefined) {if(typeof input[key]!=='boolean') throw new Error('잘못된 설정입니다.');c[key]=input[key];}
     if(!['codex','claude','both'].includes(c.cocoRuntime)||!['project','global'].includes(c.cocoScope)) throw new Error('설정 값을 확인해주세요.');
-    c.setupComplete=true;this.data.config=c; this.epoch=(this.epoch||0)+1; this.persist(); return this.snapshot();
+    c.setupComplete=true;this.data.config=c; this.persist(); return this.snapshot();
   }
   async notice(value) {
     try {await this.deps.notify(value);} catch(error) {this.view.notificationError=error.message;this.persist();}
   }
-  async check() {await Promise.allSettled([this.checkGraph(),this.checkCoco()]); return this.snapshot();}
-  async checkGraph() {
-    if(this.graphCheck) return this.graphCheck;
-    this.graphCheck=this._checkGraph().finally(()=>{this.graphCheck=null;}); return this.graphCheck;
-  }
-  async _checkGraph() {
-    const config=copy(this.data.config),epoch=this.epoch;
-    if(!config.projectPath) {this.view.graph={phase:'setup'};this.persist();return;}
-    try {
-      const result=await this.deps.graph.check(config);
-      if(epoch!==this.epoch||!result) return;
-      this.view.graph={...result,phase:result.installed?'current':'available',lastChecked:this.deps.now(),error:''};
-      this.persist();
-      if(!result.installed&&config.autoApply) {
-        if(this.data.graph.failedRelease!==result.release||this.deps.now()>=(this.data.graph.retryAfter||0)) await this.downloadGraph(true);
-      } else if(!result.installed&&this.data.graph.notified!==result.release) {
-        this.data.graph.notified=result.release;this.persist();
-        await this.notice({kind:'graph',...result});
-      }
-    } catch(error) {this.view.graph={...this.view.graph,phase:'error',error:error.message,lastChecked:this.deps.now()};this.persist();}
-  }
-  async downloadGraph(automatic=false) {
-    if(this.view.busyGraph) return;
-    const config=copy(this.data.config);
-    if(!config.projectPath) throw new Error('프로젝트를 먼저 선택해주세요.');
-    this.view.busyGraph=true;this.persist();
-    let release;
-    try {
-      const current=await this.deps.graph.check(config);release=current.release;
-      const result=current.installed?{status:'unchanged'}:await this.deps.graph.download(config);
-      const applied={...current,release:result.release??release,source_commit:result.source_commit??current.source_commit,
-                     compatible:result.compatible??current.compatible};
-      if(applied.release!==release)delete applied.archive_size;
-      this.data.graph={...this.data.graph,notified:applied.release,failedRelease:'',retryAfter:0};
-      this.view.graph={...applied,installed:true,phase:'current',lastChecked:this.deps.now(),error:''};
-      if(result.status==='updated') await this.notice({kind:'graph-downloaded',...applied});
-      return result;
-    } catch(error) {
-      this.data.graph.failedRelease=release;this.data.graph.retryAfter=this.deps.now()+300000;
-      this.view.graph={...this.view.graph,phase:'error',error:error.message};
-      if(automatic&&this.data.graph.failureNotified!==release) {this.data.graph.failureNotified=release;await this.notice({kind:'graph-failed',release,error:error.message});}
-      if(!automatic) throw error;
-    } finally {this.view.busyGraph=false;this.persist();}
-  }
+  async check() {await this.checkCoco(); return this.snapshot();}
   async installCoco(version) {
     if(this.view.busyCoco) throw new Error('COCO 설치가 진행 중입니다.');
     if(!VERSION.test(version)||!this.data.coco.versions?.includes(version)) throw new Error('확인된 배포 버전을 선택해주세요.');

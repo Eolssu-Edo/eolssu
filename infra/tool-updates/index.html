@@ -10,13 +10,13 @@
  <button id="tab-playstore" title="기본 브라우저에서 열기" role="tab" aria-controls="site-panel" aria-selected="false" tabindex="-1">PlayStore출시</button>
 </nav>
 <main id="updates-panel" role="tabpanel" aria-labelledby="tab-updates">
-<section class="card" aria-labelledby="graph-title">
+<section class="card" id="graph-cleanup" aria-labelledby="graph-title" hidden>
  <div class="line graph-row">
-  <h2 id="graph-title">Graphify</h2><span class="badge" id="graph-badge" hidden></span>
-  <span class="detail grow" id="graph-detail"></span><span id="graph-time" class="timestamp"></span>
-  <button id="download" class="primary" disabled>다운로드</button>
+  <h2 id="graph-title">Graphify 정리</h2>
+  <p class="detail">이 프로젝트에 받은 그래프를 휴지통으로 이동합니다.</p>
+  <button id="cleanup-graph" class="secondary">정리</button>
  </div>
- <p class="status" id="graph-status" aria-live="polite"></p>
+ <p class="error" id="graph-error" role="status"></p>
 </section>
 <section class="card" aria-labelledby="coco-title">
  <div class="line">

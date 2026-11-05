@@ -309,4 +309,4 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
 - [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
 
-- [Graphify·COCO 갱신 알림·QA·서버 바로가기](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
+- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)

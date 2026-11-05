@@ -13,6 +13,8 @@ function form({config,native}) {
  $('auto').checked=config.autoApply;$('startup').checked=native?.packaged?native.startupEnabled:config.startAtLogin;$('runtime').value=config.cocoRuntime;$('scope').value=config.cocoScope;
 }
 function render(value) {
+ const previousLatest=state?.coco.latest;
+ if(state?.config.projectPath!==value.config.projectPath)$('graph-error').textContent='';
  state=value;
  const remote=value.tab!=='updates';
  if(activeTab!==value.tab){activeTab=value.tab;$('site-error').textContent='';window.scrollTo(0,0);}
@@ -38,21 +40,16 @@ function render(value) {
  }
  const files=value.apps||{};for(const [id,key] of [['phone-apk','phone'],['tablet-apk','tablet'],['iphone-ipa','iphone']]){$(id).disabled=!!files.busy||!files[key];$(id).title=files[key]?files[key].builtAt+' · '+(files[key].commit||'').slice(0,8)+(key!=='iphone'?' · 폰·태블릿 공용 APK':''):'게시된 파일 없음';}$('apps-message').textContent=files.message||files.error||'';
  if(pendingSaves===0)form(value);
- const g=value.graph,c=value.coco;
- const names={available:'새 버전',current:'최신 버전',error:'확인 필요'};
- $('graph-badge').hidden=g.phase==='setup';
- $('graph-badge').textContent=names[g.phase]||'확인 중';$('graph-badge').className='badge '+(g.phase==='available'?'ready':g.phase==='error'?'warning':'');
- $('graph-status').textContent=g.error||(g.release&&g.compatible===false?'코드 버전이 달라 파일 위치가 다를 수 있습니다.':'');
- $('graph-detail').textContent=g.source_commit?'develop '+g.source_commit.slice(0,8)+(g.archive_size?' · 다운로드 '+(g.archive_size/1024/1024).toFixed(2)+' MB':''):'';
- $('download').disabled=value.busyGraph||!g.release||g.installed;
- $('download').textContent=value.busyGraph?'받는 중…':'다운로드';
- $('graph-time').textContent=g.lastChecked?new Date(g.lastChecked).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 확인':'';
+ const {graphCleanup,coco:c}=value;
+ $('graph-cleanup').hidden=!graphCleanup.available&&!graphCleanup.busy;
+ $('cleanup-graph').disabled=graphCleanup.busy||pendingSaves>0;
+ $('cleanup-graph').textContent=graphCleanup.busy?'정리 중…':'정리';
  $('coco-status').textContent=c.error&&c.phase==='error'?c.error:c.latest?'새 버전을 선택해 설치하거나 업데이트할 수 있습니다.':'npm 배포 목록을 확인합니다.';
- const select=$('version'),selected=value.focusCocoVersion||select.value;
+ const select=$('version'),selected=c.latest!==previousLatest?c.latest:value.focusCocoVersion||select.value;
  const versions=c.versions||[];
  const options=versions.length?versions:[''];
  if(options.length!==select.options.length||options.some((version,index)=>version!==select.options[index].value)) {
-  select.replaceChildren(...options.map(version=>new Option(version+(version.includes('-')?' · 프리릴리스':''),version)));
+  select.replaceChildren(...options.map(version=>new Option(version,version)));
  }
  if(!versions.length)select.options[0].textContent=c.phase==='error'?'조회 실패':'확인 중';
  if(versions.includes(selected))select.value=selected;
@@ -62,7 +59,8 @@ function render(value) {
  const runtimeOption=[...$('runtime').options].find(option=>option.value===c.installed?.runtime);
  $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+(runtimeOption?.textContent||c.installed.runtime)+' · '+(c.installed.scope==='global'?'전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
  $('coco-error').textContent=c.installError||c.error||'';
- for(const id of ['choose','auto','startup','runtime','scope'])$(id).disabled=value.busyCoco||value.busyGraph;
+ for(const id of ['auto','startup','runtime','scope'])$(id).disabled=value.busyCoco;
+ $('choose').disabled=value.busyCoco||graphCleanup.busy;
  $('startup-detail').textContent=value.native?.packaged?'OS 로그인 실행: '+(value.native.startupEnabled?'켜짐':'꺼짐'):'배포 앱에서 로그인 실행을 설정할 수 있습니다.';
  $('notification-error').textContent=value.notificationError||'';
  if(value.focusCocoVersion)$('coco-title').scrollIntoView({behavior:'smooth',block:'center'});
@@ -87,7 +85,14 @@ $('choose').onclick=()=>invoke(()=>window.updates.chooseProject(),projectPath=>{
  if(projectPath){$('project').value=projectPath;saveSettings({projectPath});}
 });
 $('check').onclick=async()=>{$('check').disabled=true;$('message').textContent='새 배포를 확인하고 있습니다…';await invoke(()=>window.updates.check(),render);$('check').disabled=false;$('message').textContent='확인을 마쳤습니다. 약 1분마다 다시 확인합니다.';};
-$('download').onclick=()=>invoke(()=>window.updates.download(),()=>{$('message').textContent='다운로드를 마쳤습니다.';});
+$('cleanup-graph').onclick=async()=>{
+ if(pendingSaves)return;
+ $('graph-error').textContent='';
+ await invoke(()=>window.updates.cleanupGraph(),()=>{
+  $('message').textContent='Graphify 정리를 마쳤습니다.';
+  $('choose').focus();
+ },'graph-error');
+};
 $('install').onclick=async()=>{
  if(pendingSaves)return;
  await invoke(()=>window.updates.install($('version').value),()=>{$('message').textContent='선택한 COCO 버전을 적용했습니다. 새 AI 세션에서 확인하세요.';});

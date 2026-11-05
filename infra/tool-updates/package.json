@@ -1,16 +1,15 @@
 {
   "name": "eolssu-tool-updates",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
-  "description": "Graphify and COCO updates for the Eolssu team",
+  "description": "COCO updates and development tools for the Eolssu team",
   "author": "Eolssu Team",
   "main": "main.cjs",
   "scripts": {
     "test": "node --test test/*.test.cjs",
-    "prepare-client": "node scripts/prepare-client.cjs",
     "start": "electron .",
-    "dist:mac": "npm run prepare-client && electron-builder --mac zip --arm64",
-    "dist:win": "npm run prepare-client && electron-builder --win nsis --x64"
+    "dist:mac": "electron-builder --mac zip --arm64",
+    "dist:win": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
     "electron": "45.2.3",
@@ -31,7 +30,6 @@
         "from": "resources",
         "to": ".",
         "filter": [
-          "context.py",
           "playstore-link.txt"
         ]
       }

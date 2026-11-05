@@ -4,12 +4,12 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {pathToFileURL}=require('node:url');
 const {UpdateEngine}=require('./engine.cjs');
-const {adapters,JsonStore,project,PUBLISH_HOST}=require('./adapters.cjs');
+const {adapters,JsonStore,project,PUBLISH_HOST,legacyGraphExists,trashLegacyGraph}=require('./adapters.cjs');
 const {listBuilds,downloadBuild}=require('./apps.cjs');
 const {terminalShortcut,waitForLoopback}=require('./ssh.cjs');
 const {createSiteTabs,EDO1_FORWARDS}=require('./site-tabs.cjs');
 const {playStoreLinkStore}=require('./playstore.cjs');
-let siteTabs,appBuilds={},appsMessage='',appsBusy=false;
+let siteTabs,appBuilds={},appsMessage='',appsBusy=false,cleanupBusy=false;
 const APP_ID='com.ssafy.eolssu.updates';
 const COMPACT_SIZE={width:620,height:440},WEB_SIZE={width:1100,height:760};
 let expanded=false;
@@ -38,7 +38,7 @@ function nativeInfo() {
  try{const info=app.getLoginItemSettings(loginSettings(false));startupEnabled=info.openAtLogin;startupStatus=info.status||'';wasOpenedAtLogin=!!info.wasOpenedAtLogin;}catch{}
  return {platform:process.platform,startupEnabled,startupStatus,wasOpenedAtLogin,packaged:app.isPackaged};
 }
-function snapshot(){return {...engine.snapshot(),native:nativeInfo(),...siteTabs.snapshot(),apps:{...appBuilds,busy:appsBusy,message:appsMessage}};}
+function snapshot(){return {...engine.snapshot(),graphCleanup:{available:legacyGraphExists(engine.data.config.projectPath),busy:cleanupBusy},native:nativeInfo(),...siteTabs.snapshot(),apps:{...appBuilds,busy:appsBusy,message:appsMessage}};}
 function push(){if(win&&!win.isDestroyed())win.webContents.send('updates:state',snapshot());updateTray();}
 function updateTray() {
  if(!tray||!engine)return;
@@ -70,27 +70,17 @@ function selectTab(value) {
  win.setBounds({width,height,x:center(bounds.x,bounds.width,width,area.x,area.width),y:center(bounds.y,bounds.height,height,area.y,area.height)});
 }
 function selectCoco(version) {selectTab('updates');showWindow();win.webContents.send('updates:state',{...snapshot(),focusCocoVersion:version});}
-async function noticeAction(value) {
- if(value.kind==='coco'||value.kind==='coco-installed') return selectCoco(value.version);
- if(value.kind==='graph'&&value.projectPath===engine.data.config.projectPath) {
-  try{await engine.downloadGraph();}catch{showWindow();}
- }else showWindow();
-}
 async function notify(value) {
  if(!Notification.isSupported()) throw new Error('이 OS에서 알림을 지원하지 않습니다.');
- const action=value.kind==='coco'?'설치·업데이트':value.kind==='graph'?'다운로드':'열기';
+ const action=value.kind==='coco'?'설치·업데이트':'열기';
  let title,body;
  if(value.kind==='coco') {title='COCO 새 배포';body=value.versions.join(', ')+(value.versions.length>1?' 버전이 배포됐습니다.':' 버전이 배포됐습니다.');}
  else if(value.kind==='coco-installed') {title='COCO 설치 완료';body=value.version+' 적용이 끝났습니다. 새 AI 세션에서 확인하세요.';}
- else if(value.kind==='graph-downloaded') {title='Graphify 다운로드 완료';body='프로젝트의 코드 지도를 새 버전으로 바꿨습니다.';}
- else if(value.kind==='graph-failed') {title='Graphify 자동 다운로드 실패';body='기존 그래프를 유지했습니다. 앱에서 다시 시도할 수 있습니다.';}
- else if(value.kind==='test') {title='Eolssu Updates 알림 테스트';body='새 그래프와 COCO 배포를 이곳에서 알려드립니다.';}
- else {title='Graphify 새 버전';body=value.compatible?'새 코드 지도가 준비됐습니다. 지금 내려받을 수 있습니다.':'새 코드 지도를 받을 수 있습니다. 현재 코드와 버전이 다릅니다.';}
- const id=crypto.createHash('sha256').update(value.kind+String(value.release||value.version||Date.now())).digest('hex').slice(0,16);
- const n=new Notification({id,groupId:value.kind.startsWith('coco')?'coco':'graphify',title,body,actions:[{type:'button',text:action}],silent:false});
- const wrapped={...value,projectPath:engine.data.config.projectPath};
+ else {title='Eolssu Updates 알림 테스트';body='새 COCO 배포를 이곳에서 알려드립니다.';}
+ const id=crypto.createHash('sha256').update(value.kind+String(value.version||Date.now())).digest('hex').slice(0,16);
+ const n=new Notification({id,groupId:value.kind.startsWith('coco')?'coco':'test',title,body,actions:[{type:'button',text:action}],silent:false});
  n.on('click',()=>value.kind==='coco'?selectCoco(value.version):showWindow());
- n.on('action',event=>{if((event.actionIndex??0)===0) noticeAction(wrapped);});
+ n.on('action',event=>{if((event.actionIndex??0)===0) {if(value.version)selectCoco(value.version);else showWindow();}});
  n.on('show',()=>{engine.view.notificationError='';push();});
  n.on('failed',(_,error)=>{engine.view.notificationError=error||'OS 알림 권한을 확인해주세요.';push();});
  activeNotices.add(n);if(activeNotices.size>30)activeNotices.delete(activeNotices.values().next().value);
@@ -99,7 +89,7 @@ async function notify(value) {
 async function start() {
  const store=new JsonStore(path.join(app.getPath('userData'),'settings.json'));
  const resources=app.isPackaged?process.resourcesPath:path.join(__dirname,'resources');
- const backend=adapters(path.join(resources,'context.py'));
+ const backend=adapters();
  engine=new UpdateEngine({load:()=>store.load(),save:v=>store.save(v),...backend,notify,now:Date.now});
  win=new BrowserWindow({...COMPACT_SIZE,minWidth:580,minHeight:380,show:false,backgroundColor:'#f4f5f1',title:'Eolssu Updates',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
  const playStore=playStoreLinkStore(path.join(app.getPath('userData'),'playstore.enc'),safeStorage,path.join(resources,'playstore-link.txt'));
@@ -111,7 +101,7 @@ async function start() {
  win.webContents.session.setPermissionRequestHandler((_,permission,callback)=>callback(permission==='notifications'));
  win.on('close',event=>{if(!quitting){event.preventDefault();win.hide();app.dock?.hide();}});
  const icon=nativeImage.createFromPath(path.join(__dirname,'assets/tray.png'));icon.setTemplateImage(true);
- tray=new Tray(icon);tray.setToolTip('Graphify · COCO 업데이트');tray.on('double-click',showWindow);tray.on('click',()=>{if(process.platform==='darwin')showWindow();});
+ tray=new Tray(icon);tray.setToolTip('Eolssu Updates');tray.on('double-click',showWindow);tray.on('click',()=>{if(process.platform==='darwin')showWindow();});
  engine.on('change',push);updateTray();
  const allowed=event=>{if(event.sender!==win.webContents||event.senderFrame!==win.webContents.mainFrame)throw new Error('허용되지 않은 요청입니다.');};
  const handle=(name,fn)=>ipcMain.handle('updates:'+name,async(event,...args)=>{allowed(event);try{return {ok:true,value:await fn(...args)};}catch(e){return {ok:false,error:e.message};}});
@@ -164,7 +154,10 @@ async function start() {
  handle('choose-project',async()=>{const selected=await dialog.showOpenDialog(win,{properties:['openDirectory'],title:'Git 프로젝트 루트 선택'});return selected.canceled?'':await project(selected.filePaths[0]);});
  handle('save',async input=>{
   if(!input||typeof input!=='object')throw new Error('설정을 확인해주세요.');
-  if(input.projectPath)input.projectPath=await project(input.projectPath);
+  if(input.projectPath) {
+   input.projectPath=await project(input.projectPath);
+   if(cleanupBusy) throw new Error('Graphify 정리가 끝난 뒤 프로젝트를 바꿔주세요.');
+  }
   const old=engine.data.config;
   engine.configure(input);
   try{if(app.isPackaged&&typeof input.startAtLogin==='boolean')app.setLoginItemSettings(loginSettings(engine.data.config.startAtLogin));}
@@ -172,7 +165,12 @@ async function start() {
   checkNow();return snapshot();
  });
  handle('check',async()=>{await checkNow();return snapshot();});
- handle('download',()=>engine.downloadGraph());
+ handle('cleanup-graph',async()=>{
+  if(cleanupBusy) throw new Error('Graphify 정리가 진행 중입니다.');
+  cleanupBusy=true;push();
+  try{return await trashLegacyGraph(engine.data.config.projectPath,folder=>shell.trashItem(folder));}
+  finally{cleanupBusy=false;push();}
+ });
  handle('install',version=>engine.installCoco(String(version)));
  handle('notification-settings',()=>shell.openExternal(process.platform==='win32'?'ms-settings:notifications':'x-apple.systempreferences:com.apple.Notifications-Settings.extension'));
  handle('test-notification',()=>notify({kind:'test'}));

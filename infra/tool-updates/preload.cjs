@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('updates',{
  chooseProject:()=>ipcRenderer.invoke('updates:choose-project'),
  save:config=>ipcRenderer.invoke('updates:save',config),
  check:()=>ipcRenderer.invoke('updates:check'),
- download:()=>ipcRenderer.invoke('updates:download'),
+ cleanupGraph:()=>ipcRenderer.invoke('updates:cleanup-graph'),
  install:version=>ipcRenderer.invoke('updates:install',version),
  notificationSettings:()=>ipcRenderer.invoke('updates:notification-settings'),
  testNotification:()=>ipcRenderer.invoke('updates:test-notification'),

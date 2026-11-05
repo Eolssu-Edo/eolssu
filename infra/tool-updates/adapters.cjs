@@ -3,7 +3,6 @@ const fs=require('node:fs');
 const fsp=require('node:fs/promises');
 const path=require('node:path');
 const os=require('node:os');
-const crypto=require('node:crypto');
 const {execFile}=require('node:child_process');
 const {promisify}=require('node:util');
 const {VERSION}=require('./engine.cjs');
@@ -11,7 +10,6 @@ const exec=promisify(execFile);
 const PACKAGE='@thisis-joe/coco-skills';
 const REGISTRY='https://registry.npmjs.org/@thisis-joe%2Fcoco-skills';
 const PUBLISH_HOST='edo1';
-const GRAPH_INDEX='/opt/eolssu/graphify/data/published/index.json';
 const RELEASE=/^[0-9a-f]{40}-[0-9a-f]{16}$/;
 
 function environment() {
@@ -41,26 +39,51 @@ async function project(root) {
  if(normalizeOrigin(origin)!=='lab.ssafy.com/s15-final/S15P31E102') throw new Error('S15P31E102 프로젝트를 선택해주세요.');
  return actual;
 }
-function graphMetadata(m) {
- if(m?.format!==1||m.project!=='S15P31E102'||m.graphify_version!=='0.9.102'||m.graph_schema!==1||!RELEASE.test(m.release||'')||!m.release.startsWith(m.source_commit+'-')||!/^[a-f0-9]{64}$/.test(m.sha256||'')||!Number.isInteger(m.size)||m.size<=0||m.size>128*1024*1024) throw new Error('지원하지 않거나 손상된 Graphify 버전 정보입니다.');
- return m;
+const legacyGraphPath=root=>path.join(root,'graphify-out');
+
+function legacyGraphExists(root) {
+ return path.isAbsolute(root)&&fs.existsSync(legacyGraphPath(root));
 }
-async function installedGraph(root,m) {
- try {
-  const local=JSON.parse(await fsp.readFile(path.join(root,'graphify-out/active.json'),'utf8'));
-  if(local.release!==m.release||local.sha256!==m.sha256) return false;
-  const graphRoot=await fsp.realpath(path.join(root,'graphify-out'));
-  const file=await fsp.realpath(path.join(graphRoot,'versions',m.release,'graph.json'));
-  if(!file.startsWith(graphRoot+path.sep)) return false;
-  const stat=await fsp.stat(file);if(stat.size!==m.size) return false;
-  const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(file)) hash.update(chunk);
-  return hash.digest('hex')===m.sha256;
- }catch{return false;}
+
+async function trashLegacyGraph(selectedRoot,trash) {
+ if(!legacyGraphExists(selectedRoot)) return false;
+ const root=await project(selectedRoot),folder=legacyGraphPath(root);
+ const unexpected=()=>new Error('앱이 받은 Graphify 폴더인지 확인할 수 없어 그대로 두었습니다.');
+ const folderStat=await fsp.lstat(folder);
+ if(!folderStat.isDirectory()) throw unexpected();
+ const tracked=await run(program('git'),['-C',root,'ls-files','-z','--',':(top,icase)graphify-out']);
+ if(tracked.stdout) throw new Error('Git이 추적 중인 파일이 있어 Graphify 폴더를 그대로 두었습니다.');
+ const contents=await fsp.readdir(folder,{withFileTypes:true});
+ const expected={'.lock':'file','active.json':'file',versions:'directory'};
+ if(contents.some(entry=>!(Object.hasOwn(expected,entry.name)&&
+    (expected[entry.name]==='file'?entry.isFile():entry.isDirectory())))) throw unexpected();
+ if(!contents.some(entry=>entry.name==='active.json')||!contents.some(entry=>entry.name==='versions')) throw unexpected();
+ const readRelease=async file=>{
+  const stat=await fsp.lstat(file);
+  if(!stat.isFile()||stat.size>16384) throw unexpected();
+  let meta;
+  try{meta=JSON.parse(await fsp.readFile(file,'utf8'));}catch{throw unexpected();}
+  if(meta?.format!==1||meta.project!=='S15P31E102'||meta.graphify_version!=='0.9.102'||
+    meta.graph_schema!==1||!RELEASE.test(meta.release||'')||meta.source_commit!==meta.release.slice(0,40)) throw unexpected();
+  return meta.release;
+ };
+ const active=await readRelease(path.join(folder,'active.json'));
+ const versions=path.join(folder,'versions');
+ const releases=await fsp.readdir(versions,{withFileTypes:true});
+ if(!releases.some(entry=>entry.name===active)) throw unexpected();
+ for(const entry of releases) {
+  if(!entry.isDirectory()||!RELEASE.test(entry.name)) throw unexpected();
+  const version=path.join(versions,entry.name);
+  const files=await fsp.readdir(version,{withFileTypes:true});
+  if(files.length!==3||files.some(file=>!file.isFile()||!['graph.json','manifest.json','.graphify_root'].includes(file.name))) throw unexpected();
+  if(await readRelease(path.join(version,'manifest.json'))!==entry.name) throw unexpected();
+ }
+ const current=await fsp.lstat(folder);
+ if(!current.isDirectory()||current.dev!==folderStat.dev||current.ino!==folderStat.ino) throw unexpected();
+ await trash(folder);
+ return true;
 }
-function python() {
- if(process.platform==='win32') {try{return {command:program('py'),prefix:['-3']};}catch{}}
- return {command:program(process.platform==='win32'?'python':'python3'),prefix:[]};
-}
+
 function parseResult(text) {
  let result;
  const jsonStart=text.search(/^\s*\{/m);
@@ -80,24 +103,8 @@ function npmRuntime() {
  if(!cli) throw new Error('npm CLI 경로를 확인하지 못했습니다. Node.js 22 이상을 설치해주세요.');
  return {node,cli};
 }
-function adapters(contextPath) {
+function adapters() {
  return {
-  graph:{
-   async check(c) {
-    const root=await project(c.projectPath);
-    const {stdout}=await run(program('ssh'),['-o','ClearAllForwardings=yes','-o','BatchMode=yes','-o','ConnectTimeout=5',PUBLISH_HOST,'cat -- '+GRAPH_INDEX],{timeout:15000,maxBuffer:1024*1024});
-    const index=JSON.parse(stdout);
-    if(index.format!==1||index.project!=='S15P31E102'||!Array.isArray(index.releases)||!index.releases.length) throw new Error('발행된 그래프가 아직 없습니다.');
-    const m=graphMetadata(index.releases[0]);let compatible=false;
-    try{await run(program('git'),['-C',root,'merge-base','--is-ancestor',m.source_commit,'HEAD']);compatible=true;}catch{}
-    return {...m,compatible,installed:await installedGraph(root,m)};
-   },
-   async download(c) {
-    const root=await project(c.projectPath),py=python();
-    const {stdout}=await run(py.command,[...py.prefix,'-B',contextPath,'sync','--latest','--local-ignore','--project',root,'--host',PUBLISH_HOST],{timeout:120000});
-    return parseResult(stdout);
-   }
-  },
   coco:{
    async check(etag) {
     const response=await fetch(REGISTRY,{headers:{Accept:'application/json',...(etag?{'If-None-Match':etag}:{})},signal:AbortSignal.timeout(15000),redirect:'error'});
@@ -128,4 +135,4 @@ class JsonStore {
  load(){try{return JSON.parse(fs.readFileSync(this.file,'utf8'));}catch(e){if(e.code==='ENOENT')return {};throw new Error('설정 파일을 읽지 못했습니다: '+this.file);}}
  save(value){fs.mkdirSync(path.dirname(this.file),{recursive:true});const temp=this.file+'.pending';fs.writeFileSync(temp,JSON.stringify(value,null,2),{mode:0o600});fs.renameSync(temp,this.file);}
 }
-module.exports={PUBLISH_HOST,adapters,JsonStore,project,run,program,environment,cocoArguments,parseResult,npmRuntime,graphMetadata};
+module.exports={PUBLISH_HOST,adapters,JsonStore,project,run,program,environment,cocoArguments,parseResult,npmRuntime,legacyGraphExists,trashLegacyGraph};
