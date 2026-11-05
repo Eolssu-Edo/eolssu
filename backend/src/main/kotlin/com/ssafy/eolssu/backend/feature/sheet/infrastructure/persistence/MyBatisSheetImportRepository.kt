@@ -18,6 +18,7 @@ class MyBatisSheetImportRepository(
     private val mapper: SheetImportMapper,
     private val transaction: TransactionTemplate,
 ) : SheetImportRepository {
+    override fun stopConversion(sheetId: Long,userId: Long) { mapper.stopConversion(sheetId,userId) }
     override fun findReplay(userId: Long, idempotencyKey: String) = mapper.findReplay(userId, idempotencyKey)?.toReplay()
 
     override fun blocker(userId: Long): SheetImportSave? = when {
@@ -59,7 +60,7 @@ class MyBatisSheetImportRepository(
         SheetConversion(
             it.sheetId, SheetNotation.valueOf(it.notation), SheetImportStatus.valueOf(it.status), it.stage, it.pageCount,
             it.processedPageCount, it.jangdanId, it.bpm, it.failureCode, it.attempt, it.acceptedAt.instant(), it.startedAt?.instant(),
-            it.finishedAt?.instant(), it.noteCount,
+            it.finishedAt?.instant(), it.noteCount,it.failureCause,it.timeoutCount,it.pendingCellCount,
         )
     }
 

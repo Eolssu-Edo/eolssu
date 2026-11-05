@@ -3,8 +3,11 @@ package com.ssafy.eolssu.feature.result
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.ScoreSection
+import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.data.practice.SectionEvaluation
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
+import com.ssafy.eolssu.feature.practice.toSection
+import com.ssafy.eolssu.data.practice.WeakSectionPick
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,14 +16,20 @@ import kotlinx.coroutines.launch
 
 /** RESULT-04 구간 재평가 결과 상태. 끝났는데 [evaluation]이 없으면 찾지 못한 것이다. */
 data class SectionResultUiState(val loading: Boolean = true, val evaluation: SectionEvaluation? = null) {
-    /** 이전 구간 점수와의 차이. 이전 점수가 없으면 null. */
-    val delta: Int? get() = evaluation?.let { e -> e.previousTotal?.let { e.total - it } }
+    /** 재평가한 구간(각 전체). 서버 비교(EVA-04)가 알려 준 이번 세션 구간이고, 비교를 받지 못하면 null. */
+    val section: ScoreSection?
+        get() {
+            val evaluation = evaluation ?: return null
+            val check = (evaluation.check as? CheckLoad.Loaded)?.check ?: return null
+            val start = check.startColumn ?: return null
+            val end = check.endColumn ?: return null
+            return WeakSectionPick(start, end, 0).toSection(evaluation.song.score)
+        }
 }
 
+/** 구간만 녹음한 재평가 세션 [sessionId]의 결과(EVA-01)와 바탕 세션과의 비교(EVA-04)를 받는다. */
 class SectionResultViewModel(
-    sourceId: String,
-    section: ScoreSection,
-    bpm: Int,
+    sessionId: String,
     repository: WeakSectionRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SectionResultUiState())
@@ -28,7 +37,7 @@ class SectionResultViewModel(
 
     init {
         viewModelScope.launch {
-            val evaluation = repository.evaluateSection(sourceId, section, bpm)
+            val evaluation = repository.sectionResult(sessionId)
             _uiState.update { it.copy(loading = false, evaluation = evaluation) }
         }
     }

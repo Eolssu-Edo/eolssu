@@ -1,10 +1,11 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.data.practice.WeakSectionPick
 import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.model.Score
 import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
-import com.ssafy.eolssu.core.model.recommendedSection
 
 /** 구간 반복 횟수 고르기(시안 3회 · 5회 · 계속). [count]가 null이면 멈출 때까지 계속한다. */
 enum class SectionRepeat(val count: Int?) { Three(3), Five(5), Endless(null) }
@@ -26,10 +27,9 @@ data class SectionSelectUiState(
     val repeat: SectionRepeat = SectionRepeat.Five,
     /** 연습 속도. 연습 화면 속도 설정과 같은 5단계([TempoStep])이고 처음에는 약간 느리게(80%)다. */
     val speed: TempoStep = TempoStep.Slow,
+    /** 서버가 추천한 취약 구간(EVA-03, 각 전체). 추천할 구간이 없거나 받지 못하면 null이고 정간을 눌러 직접 고른다. */
+    val recommended: ScoreSection? = null,
 ) {
-    /** 추천 취약 구간(틀린 정간이 가장 많이 몰린 두 각). */
-    val recommended: ScoreSection? get() = song?.let { s -> result?.recommendedSection(s.score) }
-
     /** 구간 반복 화면에 넘길 반복 횟수. 반복을 끄면 1, ‘계속’이면 null. */
     val repeats: Int? get() = if (loop) repeat.count else 1
 
@@ -54,3 +54,10 @@ fun SectionSelectUiState.tap(position: ScorePosition): SectionSelectUiState {
 
 /** 추천 구간으로 되돌린다. */
 fun SectionSelectUiState.pickRecommended(): SectionSelectUiState = copy(section = recommended ?: section, picking = false)
+
+/** 서버 추천 구간(각 번호)을 이 악보의 구간으로 바꾼다. 악보에 없는 각이면 null. */
+fun WeakSectionPick.toSection(score: Score): ScoreSection? {
+    val last = score.columns.lastIndex
+    if (startColumn < 0 || endColumn > last || startColumn > endColumn) return null
+    return ScoreSection.ofColumns(score, startColumn, endColumn)
+}

@@ -16,6 +16,7 @@ class MyBatisWithdrawalPurgeRepository(
     override fun dueMembers(now: Instant, afterUserId: Long, limit: Int) = mapper.findDueMembers(now.utc(), afterUserId, limit)
     override fun preparePurge(userId: Long, now: Instant): List<String>? = transaction.execute {
         mapper.lockDueMember(userId, now.utc()) ?: return@execute null
+        mapper.stopSheetConversions(userId)
         mapper.findRecordingKeys(userId) + mapper.findSheetSourceKeys(userId)
     }
 

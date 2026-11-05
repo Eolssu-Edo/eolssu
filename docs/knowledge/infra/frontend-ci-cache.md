@@ -48,3 +48,30 @@
 HEAD 없는 부분 clone을 정상 저장소로 취급하던 P1을 수정했다. helper는 저장소 루트 검사 뒤 유효한 HEAD 커밋이 없으면 전용 종료 코드 2를 반환하고, Pipeline은 이 경우에만 deleteDir로 초기화한다. 다른 오류는 중단하며 정상 캐시 보존 경로는 그대로다. 실제 Git 회귀 5개와 전체 34개 테스트, 독립 재리뷰, Jenkins linter 및 전용 복구 잡 #2가 통과했다.
 
 현재 운영 Pipeline/잡 정의 해시는 `3c37c78c2d9644f05bdc3c1ad98ea90cb915d8a24b4a977155742b01a951713c`, helper는 `d8043ca1e696abc269bfa8105416904879fb81c8cf3aba2b11b7974aa162f3c6`이다. 후속 백업·readback은 `/opt/backups/eolssu-cache292-bootstrap-20261029T094333Z/`에 있다. 위의 최초 적용 해시와 측정 결과는 당시 이력으로 유지한다.
+
+## Wasm 최적화 재실행과 20분 제한 (2026-11-05)
+
+[S15P31E102-516](https://ssafy.atlassian.net/browse/S15P31E102-516)에서 운영과 같은 `edo1-host`와 Gradle 9.5.1, Kotlin 2.4.20으로 검증했다. 목표는 최적화 결과가 없는 빌드에서 웹 번들, 컨테이너 이미지, 배포용 파일 보관까지 20분 이내에 완료하는 것이다. 격리 잡은 배포 직전까지 수행하고 대기열 시간은 별도로 집계했다. `:webApp:compileProductionExecutableKotlinWasmJsOptimize --rerun`으로 해당 작업을 다시 실행하고 `wasm-opt` 프로세스와 Gradle task 판정을 대조했다.
+
+| 실행 | 소스 | 최적화 단계 | 첫 단계부터 결과까지 |
+| --- | --- | ---: | --- |
+| [운영 #192](http://127.0.0.1:18080/job/eolssu-frontend/192/) | `aa334ff5` | 1.849초 (`UP-TO-DATE`) | 54.509초에 파일 보관 |
+| [격리 #1](http://127.0.0.1:18080/job/verify-frontend-wasm-S15P31E102-516/1/) | `aa334ff5` | 1073.301초 | 1201.427초에 webpack 중단 |
+| [운영 #193](http://127.0.0.1:18080/job/eolssu-frontend/193/) | `5675dd0a` | 820.808초에 중단 | 약 380초의 선행 컴파일·테스트 이후 최적화 중 시간초과 |
+| [격리 #5](http://127.0.0.1:18080/job/verify-frontend-wasm-S15P31E102-516/5/) | `5675dd0a` | 1072.030초 (Binaryen 132) | 1184.662초에 파일 142개 보관 |
+| [격리 #6](http://127.0.0.1:18080/job/verify-frontend-wasm-S15P31E102-516/6/) | `5675dd0a` | 253.901초 (Binaryen 130, 변수 정리 한 번) | 352.086초에 배포용 번들 생성. 추가 Chrome 검사에서 중단 |
+| [격리 #7](http://127.0.0.1:18080/job/verify-frontend-wasm-S15P31E102-516/7/) | `5675dd0a` | 235.383초 (Binaryen 130, 변수 정리 한 번) | 300.772초에 Chrome 기동, 이미지 생성, 파일 보관까지 성공 |
+
+격리 #1은 작업공간을 복사한 39.039초와 재컴파일·링크를 포함한다. 같은 작업공간을 재사용한 #2·#3에서 Gradle 콘솔과 이전 테스트 XML의 판정이 엇갈려 두 결과를 비교에서 제외했다. #4는 격리 작업공간만 비운 뒤 Wasm·JS 브라우저 테스트를 통과했다. Kotlin 플러그인에 전달한 `version_132`가 잘못된 다운로드 주소를 만들어 #5에서 숫자 `132`로 수정했다. #5는 중간 산출물을 재사용했고, 최적화 뒤의 webpack·배포용 파일 보관까지 완료했다. Jenkins의 20분 제한은 유지했다.
+
+### 후보 비교
+
+- Linux의 6초 CPU 표본에서 최적화 중간 구간이 코어 하나를 계속 사용했다. 바이너리에 함수 기호가 없어 Linux에서 특정 pass의 이름은 확인하지 못했다. 별도로 Mac에서 Binaryen 130의 pass 로그를 분석했을 때 기본 옵션의 두 번째 `-O3` 묶음이 71.810초였고, 이 중 `inlining-optimizing` 42.943초, `coalesce-locals` 15.030초였다. [Binaryen pass 로그 방식](https://github.com/WebAssembly/binaryen/blob/version_130/src/pass.h)
+- 연속 `-O3` 하나 제거, 두 번째 `-O3`의 `-O2` 전환, 인라이닝 크기 상한 축소는 Mac에서 유의미한 벽시계 단축을 확인하지 못했다. Binaryen 132는 같은 소스의 Linux 격리 빌드를 20분 안에 마쳤지만 최적화만 17분 52초로 운영 #193의 선행 단계까지 고려하면 여유가 부족했다. [Binaryen 릴리스](https://github.com/WebAssembly/binaryen/releases)
+- `--skip-pass=coalesce-locals --coalesce-locals-learning`은 기본 pass 순서를 유지하며 로컬 변수 정리를 마지막에 한 번 수행한다. 운영 #193의 같은 입력으로 Mac에서 두 번씩 실행한 결과는 기본 121.466·135.181초, 변경 69.910·66.996초였다. 앱 Wasm은 8,817,231에서 9,274,318바이트로 늘었고 gzip-9 비교는 2,511,042에서 2,561,923바이트였다. 실제 HTTP 압축 전송 시간과 전체 사용자 동작은 이 수치로 판정하지 않는다.
+- #6의 Chrome 검사는 가상 시간을 사용해 화면 기동을 기다리지 못했다. #5와 #6 산출물을 같은 Chrome의 별도 임시 프로필로 열고 네트워크 응답과 렌더링을 기다렸을 때 두 `.wasm` 응답이 모두 HTTP 200이었고 Compose 캔버스가 표시됐다. 관측한 브라우저 런타임 예외는 0개였다.
+- #7에서 실제 화면을 기다리는 검사를 Linux Jenkins 잡에도 적용했다. 두 Wasm 파일을 HTTP 200으로 받아 앱을 렌더링했고 런타임 예외는 0개였다. 최적화 task는 처음에 실제 실행되고 이후 번들·배포용 파일 생성 때 `UP-TO-DATE`였다. 다른 중간 산출물은 재사용했다. 첫 단계 이전 대기·초기화 729.478초를 포함한 Jenkins 전체 시간은 1031.343초였다.
+
+최적화 옵션은 `webApp`의 production Wasm 작업에만 적용한다. Kotlin Gradle 플러그인에서 옵션 목록을 `@Input`으로 추적하므로 옵션 변경 시 기존 결과가 무효화되고, 이후 동일 입력에서는 다시 재사용한다. 배포용 앱 로드 크기와 실행 조건이 바뀔 수 있으므로 대표 입력의 캐시 미스 시간과 Chrome 기동을 함께 비교한다.
+
+작업 브랜치 기준 `69541563`에서 `./gradlew --offline :webApp:wasmJsBrowserDistribution`이 129초에 성공했다. 새 번들도 Chrome에서 Wasm 응답 두 개가 HTTP 200이었고 화면을 렌더링했다.

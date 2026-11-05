@@ -17,6 +17,8 @@
 | Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
 | Jenkins 컨테이너·호스트 에이전트·복구 | [Jenkins 컨트롤러 운영 문서](../infra/jenkins/controller/README.md) |
+| Jenkins 실패 Mattermost 알림·짧은 로그·복구 | [운영 문서](../infra/jenkins/notifications/README.md) · [스펙](specs/jenkins-failure-notifications.md) · [진단 근거](knowledge/infra/jenkins-failure-notifications.md) · [509 실행 기록](plans/S15P31E102-509.md) |
+| edo1 운영 MySQL 웹 조회 | [운영 문서](../infra/mysql-admin/README.md) · [스펙](specs/edo1-mysql-web-read.md) · [514 계획·검증](plans/S15P31E102-514.md) |
 | Jira MCP 연결·사용 방법 | [Jira MCP 사용 안내](knowledge/tooling/jira-mcp.md) |
 | 도메인 지식·기술 조사·실험 | `docs/knowledge/<영역>/<주제>.md` |
 | 용어집 | `docs/knowledge/domain/glossary.md` |
@@ -36,6 +38,8 @@
 
 ## 기능 스펙
 
+- [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
+- [한 음씩 연습 판정 기준 조회 (493)](specs/note-practice-criteria.md) · [계획](plans/S15P31E102-493.md)
 - [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
 
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
@@ -66,7 +70,7 @@
 - [4악기 카탈로그 운영 V17 적용](knowledge/infra/four-instrument-ops-migration.md)
 
 - [연주 평가 결과 조회 API](specs/practice-evaluation-api.md)
-- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
+- [오류 음표·취약 구간·구간 재평가 비교 API (EVA-02·03·04)](specs/evaluation-detail-apis.md) · [307 계획](plans/S15P31E102-307.md) · [310 계획](plans/S15P31E102-310.md) · [343 앱 검증](plans/S15P31E102-343.md) · [480 인식 음·녹음 위치](plans/S15P31E102-480.md)
 - [실제 연습을 위한 곡·평가 조회 API](specs/practice-read-apis.md)
 - [연습 기록 저장·목록·녹음 재생·삭제 API (REC-01~04)](specs/practice-records.md) · [342 계획](plans/S15P31E102-342.md)
 - [내 악보 생성·조회·목록 API (SHT-01·03·08)](specs/user-sheets.md) · [390 계획](plans/S15P31E102-390.md)
@@ -102,6 +106,9 @@
 - [S15P31E102-345 곡 목록 서버 검색·페이지 보류와 재개 조건](plans/S15P31E102-345.md)
 
 ## 도구 조사·검증 기록
+
+- [Jenkins 전체 시간·executor 대기와 Wasm 최적화 지연 (510)](knowledge/infra/jenkins-latency.md) · [조사 계획·결과](plans/S15P31E102-510.md)
+- [Jenkins 검증 JAR·Gradle JVM 재사용 구현](specs/jenkins-build-reuse.md) · [격리 실제 실행 결과](knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)
 
 - [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)
 
@@ -190,6 +197,8 @@
 - [정간보·오선보 이미지·PDF의 공통 악보 변환 가능성 조사](knowledge/ai/score-omr-feasibility.md)
 
 - [S15P31E102-471 내 악보 불러오기·원본 보관·변환 상태](plans/S15P31E102-471.md)
+
+- [S15P31E102-472 인식 작업자·결과 저장·재시도](plans/S15P31E102-472.md) · [시간 제한·사진 방향·재시도 근거](knowledge/backend/sheet-conversion-worker.md)
 
 ## COCO 산출물
 
@@ -308,5 +317,11 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)
 - [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
 - [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
+
+- [QA 태블릿 원격 환경](specs/qa-tablet-relay.md) · [작업/검증](plans/S15P31E102-498.md) · [운영 안내](../infra/qa-phone/OPERATIONS.md)
+
+- [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
+
+- [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
 
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)

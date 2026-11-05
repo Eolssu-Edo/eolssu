@@ -1,5 +1,9 @@
 package com.ssafy.eolssu.feature.history
 
+import eolssu.shared.generated.resources.weak_compare_not_comparable
+import eolssu.shared.generated.resources.weak_compare_check_failed
+import eolssu.shared.generated.resources.weak_compare_rejected
+import com.ssafy.eolssu.data.practice.CheckLoad
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,6 +84,7 @@ import eolssu.shared.generated.resources.weak_compare_subtitle
 import eolssu.shared.generated.resources.weak_compare_title
 import eolssu.shared.generated.resources.weak_compare_up
 import eolssu.shared.generated.resources.weak_load_missing
+import eolssu.shared.generated.resources.weak_result_same
 import org.jetbrains.compose.resources.stringResource
 
 /** 이전 연주와 비교에서 부르는 동작. */
@@ -136,16 +141,23 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
             } else {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        stringResource(Res.string.weak_compare_delta, if (delta >= 0) "+$delta" else "$delta"),
+                        stringResource(Res.string.weak_compare_delta, if (delta > 0) "+$delta" else "$delta"),
                         style = EolssuTheme.serif.brand.copy(fontSize = 24.sp, lineHeight = 24.sp),
                     )
-                    val trend = stringResource(if (delta >= 0) Res.string.weak_compare_up else Res.string.weak_compare_down)
+                    val trend = stringResource(
+                        when {
+                            delta > 0 -> Res.string.weak_compare_up
+                            delta < 0 -> Res.string.weak_compare_down
+                            else -> Res.string.weak_result_same
+                        },
+                    )
                     Text(
                         if (previous.bpm != comparison.current.bpm) stringResource(Res.string.weak_compare_speed, trend, previous.bpm, comparison.current.bpm) else trend,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                         color = colors.textSub,
                     )
                 }
+                CompareCheckNote(state.check)
             }
             CompareLegend(state.counts)
             JeongganboView(
@@ -176,6 +188,21 @@ private fun compareDecorations(marks: Map<ScorePosition, CompareMark>): Map<Pair
 }
 
 /** 이전(누르면 바꾸기) → 이번 카드. */
+/**
+ * 서버 비교 결과(EVA-04)의 안내. 악보 판본·채점 모델·속도가 달라 틀린 음 수를 견줄 수 없으면 서버 사유를,
+ * 비교할 수 없거나 받지 못하면 그 안내를 보인다. 견줄 수 있으면 아무것도 보이지 않는다.
+ */
+@Composable
+private fun CompareCheckNote(check: CheckLoad?) {
+    val text = when (check) {
+        null -> return
+        CheckLoad.Rejected -> stringResource(Res.string.weak_compare_rejected)
+        CheckLoad.Failed -> stringResource(Res.string.weak_compare_check_failed)
+        is CheckLoad.Loaded -> check.check.takeIf { !it.comparable }?.reason?.let { stringResource(Res.string.weak_compare_not_comparable, it) } ?: return
+    }
+    Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp), color = EolssuTheme.colors.textMuted)
+}
+
 @Composable
 private fun RecordPair(previous: PracticeRecord?, current: PracticeRecord, onChange: () -> Unit) {
     val colors = EolssuTheme.colors

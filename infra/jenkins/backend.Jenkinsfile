@@ -35,10 +35,16 @@ pipeline {
             }
         }
 
+        stage('Backend image tool tests') {
+            steps {
+                sh 'python3 -B -m unittest discover -s infra/jenkins/tests -p test_build_backend_image.py -v'
+            }
+        }
+
         stage('Clean backend outputs') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon clean'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 clean'
                 }
             }
         }
@@ -46,7 +52,7 @@ pipeline {
         stage('Compile backend') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon compileKotlin'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 compileKotlin'
                 }
             }
         }
@@ -54,7 +60,7 @@ pipeline {
         stage('Compile backend tests') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon compileTestKotlin'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 compileTestKotlin'
                 }
             }
         }
@@ -62,7 +68,7 @@ pipeline {
         stage('Backend unit tests') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon test'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 test'
                 }
             }
             post { always { junit testResults: 'backend/build/test-results/test/*.xml', allowEmptyResults: false } }
@@ -71,7 +77,7 @@ pipeline {
         stage('Recording media tests') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon mediaTest'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 mediaTest'
                 }
             }
             post { always { junit testResults: 'backend/build/test-results/mediaTest/*.xml', allowEmptyResults: false } }
@@ -80,7 +86,7 @@ pipeline {
         stage('Package executable JAR') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon bootJar'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 bootJar'
                 }
             }
         }
@@ -88,7 +94,7 @@ pipeline {
         stage('Backend build checks') {
             steps {
                 dir('backend') {
-                    sh './gradlew --no-daemon build'
+                    sh './gradlew --daemon -Dorg.gradle.daemon.idletimeout=60000 build'
                 }
             }
         }
@@ -112,7 +118,7 @@ pipeline {
         stage('Build backend image') {
             steps {
                 sh '''
-                docker build --file /opt/eolssu/config/backend.Dockerfile --label "org.opencontainers.image.revision=${GIT_COMMIT}" --tag "eolssu-backend:ci-${GIT_COMMIT}" backend
+                python3 -B infra/jenkins/build-backend-image.py "$GIT_COMMIT" --dockerfile /opt/eolssu/config/backend-artifact.Dockerfile
                 '''
             }
         }

@@ -69,6 +69,14 @@ class HttpPracticeSessionTest {
     }
 
     @Test
+    fun sectionSessionSendsNoteRangeAndParent() = runTest {
+        HttpPracticeSessionRepository(client { HttpStatusCode.Created to created }, member)
+            .create("2", 48, "take-2", SessionSection(startNoteIdx = 12, endNoteIdx = 27, parentSessionId = "30"))
+
+        assertEquals("""{"songId":"2","bpm":48,"startNoteIdx":12,"endNoteIdx":27,"parentSessionId":"30"}""", bodies.single())
+    }
+
+    @Test
     fun createSortsFailures() = runTest {
         fun repo(status: HttpStatusCode?) = HttpPracticeSessionRepository(client { status?.let { it to "{}" } }, member)
         assertEquals(SessionStart.Rejected, repo(HttpStatusCode.NotFound).create("2", 60, "k"))
