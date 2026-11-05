@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -99,8 +100,11 @@ class PracticeViewModel(
         _uiState.value = PracticeUiState()
         viewModelScope.launch { stopAll() }
     }
-    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource)
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
+    private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
+        val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
+        plan == null || jangdanAudio.prepareAccompaniment(plan)
+    }
     private enum class SoundPurpose { Preview, Model, Rhythm }
     private var soundPurpose: SoundPurpose? = null
     private var modelSoundBpm: Int? = null
@@ -120,7 +124,12 @@ class PracticeViewModel(
     private fun currentPlan(): JangdanPlan? {
         val state = _uiState.value
         val song = state.song ?: return null
-        return song.jangdanPlayback?.let { planJangdan(it, state.bpm, song.score.timing?.ticksPerBeat ?: return null) }
+        return song.jangdanPlanAt(state.bpm)
+    }
+
+    private fun Song.jangdanPlanAt(bpm: Int): JangdanPlan? {
+        val timing = score.timing ?: return null
+        return jangdanPlayback?.let { planJangdan(it, bpm, timing.ticksPerBeat) }
     }
 
     private fun stopJangdan() {
@@ -141,7 +150,8 @@ class PracticeViewModel(
         modelStartsAtAttack = false
         val resumeAfter = modelResumeAfterTick
         modelResumeAfterTick = null
-        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, tick = {
+        val startAt = modelTickAtReportedPosition()
+        jangdanAudio.start(currentPlan(), accompanyingModel = true, resumeAfterTick = resumeAfter, startAtTick = startAt, tick = {
             val now = _uiState.value
             val song = now.song
             val clock = now.modelClock

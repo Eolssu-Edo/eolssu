@@ -28,7 +28,12 @@ data class UserSheet(
     val draft: SheetDraft? = null,
     /** 마지막 초안 순번. 초안이 없거나 확정 저장 뒤면 0. */
     val draftRevision: Int = 0,
+    /** 불러오기(SHT-07)로 만든 악보의 변환·원본 정보. MANUAL은 null. */
+    val imported: SheetImportSource? = null,
 )
+
+/** [fileName]은 첫 원본 파일 이름, [hwangPitch]는 오선보 요청 황종 음(없으면 null). */
+data class SheetImportSource(val conversionStatus: SheetImportStatus, val pageCount: Int, val fileName: String?, val hwangPitch: String?,val resultJson: String? = null)
 
 /** 확정 저장 전 편집 내용. [json]은 title·jangdanId·bpm·score를 담은 초안 문서다. */
 data class SheetDraft(val json: String, val baseScoreVersion: Int, val savedAt: Instant)
@@ -68,6 +73,8 @@ data class SheetScoreUpdate(
     val scoreJson: String,
     val noteCount: Int,
     val updatedAt: Instant,
+    val pendingCellCount: Int = 0,
+    val conversionResultJson: String? = null,
 )
 
 data class SheetDraftUpdate(

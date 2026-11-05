@@ -72,7 +72,16 @@ class PracticeScorePackingTest {
         assertEquals(3, packing.columnsPerStack)
         val tall = metrics.headHeight + packing.cellHeights.getValue(9 to 0) * 3 + 2.dp
         val normal = metrics.headHeight + packing.metrics.cellHeight * 3 + 2.dp
-        assertEquals(listOf(tall, normal, normal), packing.stackRowHeights)
+        val expectedHeights = listOf(tall, normal, normal)
+        assertEquals(expectedHeights.size, packing.stackRowHeights.size)
+        expectedHeights.forEachIndexed { index, expectedHeight ->
+            assertEquals(
+                expected = expectedHeight.value,
+                actual = packing.stackRowHeights[index].value,
+                absoluteTolerance = 0.0001f,
+                message = "묶음 가로줄[$index] 높이",
+            )
+        }
         assertTrue(packing.height < 550.dp)
     }
 

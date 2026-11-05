@@ -12,7 +12,10 @@ import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetDraftResult
 import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreCommand
 import com.ssafy.eolssu.backend.feature.sheet.application.SaveSheetScoreResult
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScoreLookup
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetSourceCleaner
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheet
 import com.ssafy.eolssu.backend.feature.song.domain.ScoreTimelineEvent
 import jakarta.validation.Valid
@@ -52,6 +55,7 @@ class UserSheetController(
     private val getUserSheets: GetUserSheets,
     private val editUserSheet: EditUserSheet,
     private val json: JsonMapper,
+    private val sources: SheetSourceCleaner,
 ) {
     /** SHT-08 `GET /users/me/sheets/{sheetId}/score`. 없거나 다른 회원의 악보는 404. */
     @GetMapping("/{sheetId}/score")
@@ -59,7 +63,8 @@ class UserSheetController(
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         return when (val found = getUserSheets.get(requireNotNull(jwt.subject).toLong(), id)) {
             is SheetScoreLookup.Found ->
-                ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json)))
+                ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
+                    SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json,sources::pageUrl)))
             SheetScoreLookup.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SheetScoreLookup.Broken -> error(ErrorCode.STATE_CONFLICT)
         }
@@ -132,11 +137,18 @@ class UserSheetController(
         }
     }
 
-    /** SHT-02 `DELETE /users/me/sheets/{sheetId}`. 초안은 같은 행이라 함께 지워진다. */
+    /** SHT-02 `DELETE /users/me/sheets/{sheetId}`. 초안·변환·원본 행은 함께 지워진다(V26 ON DELETE CASCADE). */
     @DeleteMapping("/{sheetId}")
     fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable sheetId: String): ResponseEntity<*> {
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
-        if (!editUserSheet.delete(requireNotNull(jwt.subject).toLong(), id)) return error(ErrorCode.RESOURCE_NOT_FOUND)
+        val userId = requireNotNull(jwt.subject).toLong()
+        // 원본 객체를 먼저 지운다. 저장소가 실패하면 행을 남겨 다시 지울 수 있게 한다(SHT-02 규칙 5).
+        val found = try {
+            sources.deleteSources(userId, id)
+        } catch (_: SheetSourceStorageException) {
+            return error(ErrorCode.SERVICE_UNAVAILABLE)
+        }
+        if (!found || !editUserSheet.delete(userId, id)) return error(ErrorCode.RESOURCE_NOT_FOUND)
         return ResponseEntity.noContent().build<Unit>()
     }
 
@@ -222,20 +234,44 @@ data class SheetScore(
     val scoreData: JsonNode?,
     /** scoreData의 CAT-04 형식 타임라인. 빈 악보는 []. */
     val events: List<ScoreTimelineEvent>,
-    val source: Any?,
+    /** 불러오기 악보의 원본 정보. MANUAL은 null. */
+    val source: SheetSourceView?,
+    /** 변환 상태(SHT-10과 같음). MANUAL은 null. */
+    val conversionStatus: String?,
+    /** 확인 필요 칸과 악보 전체 알림은 변환 작업자(S15P31E102-472)가 채운다. */
     val issues: List<Any>,
+    val notices: List<Any>,
     /** 확정 저장 전 자동 저장 초안. 없으면 null. */
     val draft: SheetDraftView?,
     val updatedAt: Instant,
 ) {
     companion object {
-        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper) = SheetScore(
-            sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId?.toString(), sheet.bpm, sheet.bpmUnit, sheet.columnCount,
-            sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events, null, emptyList(),
-            sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
+        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper,signPage: (String)->String): SheetScore {
+            val details=sheet.imported?.resultJson?.let(json::readTree)
+            val pages=details?.path("pages")?.toList()?.map { page ->
+                SheetSourcePage(page.path("pageIdx").intValue(),signPage(page.path("objectKey").asString()),page.path("width").intValue(),page.path("height").intValue())
+            } ?: emptyList()
+            return SheetScore(
+            sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId?.toString(), sheet.bpm, sheet.bpmUnit,
+            // 변환이 끝나기 전 각 수는 없다(행에는 CHECK 때문에 1을 둔다).
+            if (sheet.imported != null && sheet.imported.conversionStatus != SheetImportStatus.DONE) 0 else sheet.columnCount,
+            sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events,
+            sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,pages,Instant.now().plusSeconds(900).takeIf { pages.isNotEmpty() }) }, sheet.imported?.conversionStatus?.name,
+            details?.path("issues")?.toList() ?: emptyList(), details?.path("notices")?.toList() ?: emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
         )
+        }
     }
 }
+
+/** SHT-08 source. 쪽 이미지(pages)는 변환 작업자(S15P31E102-472)가 원본 쪽 PNG를 만든 뒤 채운다. */
+data class SheetSourceView(
+    val type: String,
+    val fileName: String?,
+    val hwangPitch: String?,
+    val pages: List<SheetSourcePage> = emptyList(),
+    val pagesExpireAt: Instant? = null,
+)
+data class SheetSourcePage(val pageIdx: Int,val imageUrl: String,val width: Int,val height: Int)
 
 /** 초안 문서({title, jangdanId, bpm, score})와 저장 정보. */
 data class SheetDraftView(
@@ -278,12 +314,15 @@ data class SheetItem(
     val sourcePageCount: Int?,
     /** 자동 저장 초안(SHT-11)이 있으면 true. */
     val hasDraft: Boolean,
+    /** 불러오기 악보의 변환 상태. MANUAL은 null. */
+    val conversionStatus: String?,
     val updatedAt: Instant,
 ) {
     companion object {
         fun of(sheet: UserSheet) = SheetItem(
             sheet.id.toString(), sheet.kind, sheet.title, sheet.status.name, sheet.jangdanId?.toString(), sheet.jangdanName,
-            sheet.source, sheet.pendingCellCount, null, sheet.draft != null, sheet.updatedAt,
+            sheet.source, sheet.pendingCellCount, sheet.imported?.pageCount, sheet.draft != null, sheet.imported?.conversionStatus?.name,
+            sheet.updatedAt,
         )
     }
 }

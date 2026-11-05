@@ -14,12 +14,12 @@ import org.springframework.web.filter.OncePerRequestFilter
 /**
  * CSRF 방어(S15P31E102-143 확정안). 로그인 쿠키는 SameSite=Lax이고, 상태를 바꾸는 요청은 여기서 한 번 더 막는다.
  * 1. Origin 헤더가 있으면 같은 호스트이거나 설정한 개발 주소여야 한다(403). 앱은 Origin을 보내지 않으므로 없으면 통과한다.
- * 2. 본문은 JSON만 받는다(415). 다른 사이트의 HTML 폼은 JSON을 보낼 수 없다. 녹음 업로드만 multipart를 받는다.
+ * 2. 본문은 JSON만 받는다(415). 다른 사이트의 HTML 폼은 JSON을 보낼 수 없다. 녹음 업로드·악보 불러오기만 multipart를 받는다.
  * 경로와 관계없이 모든 상태 변경 요청에 적용한다. 인코딩된 경로(/%61pi/...)로 건너뛰지 못하게 하려는 것이다.
  */
 class StateChangingRequestFilter(
     private val allowedOrigins: Set<String>,
-    private val recordingUpload: RequestMatcher,
+    private val multipartUploads: RequestMatcher,
     private val errorWriter: ErrorResponseWriter,
     private val kakaoWebhook: RequestMatcher? = null,
 ) : OncePerRequestFilter() {
@@ -66,7 +66,7 @@ class StateChangingRequestFilter(
             return false
         }
         if (mediaType.equalsTypeAndSubtype(MediaType.APPLICATION_JSON)) return true
-        return mediaType.equalsTypeAndSubtype(MediaType.MULTIPART_FORM_DATA) && recordingUpload.matches(request)
+        return mediaType.equalsTypeAndSubtype(MediaType.MULTIPART_FORM_DATA) && multipartUploads.matches(request)
     }
 
     private fun defaultPort(scheme: String?) = when (scheme?.lowercase()) {

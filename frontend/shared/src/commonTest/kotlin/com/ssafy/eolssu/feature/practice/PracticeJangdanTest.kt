@@ -166,6 +166,51 @@ class PracticeJangdanTest {
         assertEquals(atEnd + 1, samples.hits.size, "Play after completion starts the first attack")
     }
 
+    @Test fun modelWaitsForJangdanBeforeStartingTheMelody() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        val ready = CompletableDeferred<Boolean>()
+        samples.pending = ready
+        vm.startModel(); runCurrent()
+        assertEquals(0, media.loads)
+        assertFalse(vm.uiState.value.playing)
+
+        ready.complete(true); runCurrent()
+        assertEquals(1, media.loads)
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+    }
+
+    @Test fun modelSeekDoesNotReplayAnAttackBeforeItsLanding() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        vm.startModel(); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+
+        vm.seekModel(510); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 510); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+
+        vm.seekModel(-10); runCurrent()
+        media.emit(AudioPlaybackStatus.Playing, 500); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong, JangdanSample.Kung), samples.hits)
+        assertEquals(1, samples.prepared.size, "A seek reuses the loaded samples")
+    }
+
+    @Test fun failedModelJangdanPreparationCanRetry() = practice { vm, samples, media, settings ->
+        settings.update { it.copy(jangdanSound = true) }; runCurrent()
+        samples.pending = CompletableDeferred(false)
+        vm.startModel(); runCurrent()
+        assertEquals(0, media.loads)
+        assertEquals(JangdanStatus.Failed, vm.uiState.value.jangdanStatus)
+        assertEquals(ModelAudioStatus.Failed, vm.uiState.value.modelAudioStatus)
+
+        samples.pending = null
+        vm.startModel(); runCurrent()
+        assertEquals(1, media.loads)
+        media.emit(AudioPlaybackStatus.Playing, 0); runCurrent()
+        assertEquals(listOf(JangdanSample.Deong), samples.hits)
+    }
+
     @Test fun modelResumeSkipsPlayedAttackAndSeekAllowsItAgain() = practice { vm, samples, media, settings ->
         settings.update { it.copy(jangdanSound = true) }; runCurrent()
         vm.startModel(); runCurrent()

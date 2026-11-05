@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.WithdrawalPurgeMapper">
+    <update id="stopSheetConversions">
+        UPDATE sheet_conversions SET status='FAILED',stage=NULL,failure_code='SERVER_ERROR',failure_cause='DELETED',finished_at=UTC_TIMESTAMP(6)
+        WHERE user_id=#{userId} AND status IN ('QUEUED','RUNNING')
+    </update>
     <!-- idx_users_purge(status, purge_scheduled_at)를 쓴다. -->
     <select id="findDueMembers" resultType="long">
         SELECT id FROM users
@@ -10,6 +14,12 @@
     </select>
     <select id="findRecordingKeys" resultType="string">
         SELECT recording_url FROM practice_sessions WHERE user_id = #{userId} AND recording_url IS NOT NULL
+    </select>
+    <!-- 내 악보 원본(V26). 행은 user_sheets 삭제에 따라 지워진다(ON DELETE CASCADE). -->
+    <select id="findSheetSourceKeys" resultType="string">
+        SELECT f.object_key FROM sheet_source_files f JOIN user_sheets s ON s.id = f.sheet_id WHERE s.user_id = #{userId}
+        UNION ALL
+        SELECT p.object_key FROM sheet_source_pages p JOIN user_sheets s ON s.id=p.sheet_id WHERE s.user_id=#{userId}
     </select>
     <!-- 파일 삭제 전 확인과 DB 삭제에서 사용한다. 먼저 시작된 취소가 커밋됐으면 행이 나오지 않는다. -->
     <select id="lockDueMember" resultType="com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.PurgeMemberRow">

@@ -43,7 +43,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 내 악보(SHT-01·02·04·08·11)
 
-S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, 악보 만들기(SHT-07 불러오기)·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
+S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, S15P31E102-471은 SHT-07 `POST /api/users/me/sheets/imports`와 SHT-10 변환 상태 조회를 구현합니다(V26). PDF·PNG·JPEG 원본은 `SHEET_STORAGE_*` 전용 저장소에 보관하고, 연결값이 없으면 업로드는 503입니다. S15P31E102-472(V27)는 단일 인식 작업자와 결과·초안 저장, SHT-14 `POST .../conversion/retry`를 연결합니다. `SHEET_CONVERSION_OMR_BASE_URL`에 내부 OMR 주소를 지정합니다(운영 Compose 기본 `http://omr:8000`). 주소 또는 악보 저장소가 없으면 신규 업로드·실패 재시도는 503입니다. 호출 제한은 본문 수신까지 630초입니다. `eolssu.scheduling.enabled=false`에서는 큐 실행과 시작 시 복구를 끕니다. 시작 시 RUNNING을 서버 실패로 정리하며 한 backend 인스턴스에서 작업자를 실행합니다. TIMEOUT은 한 번, 일반 서버 장애는 합계 세 번까지 재시도하고 인식 엔진·입력 오류는 재시도하지 않습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
 
 ### 카탈로그 조회(CAT-03~10)
 
@@ -60,6 +60,10 @@ S15P31E102-411: V21의 자진모리·중중모리·엇모리·단모리·타령�
 `db`·`ops`에서 로그인 없이 악기·악보·모범 음원·율명·운지·장단·기호를 조회합니다. 경로/필터/빈 데이터/초안과 현행 계약의 차이는 [카탈로그 API](../docs/specs/catalog-read-apis.md)에 있습니다. 모범 음원은 V8 `song_model_audios`의 게시 행이 현재 곡 악보 버전·BPM/단위와 같을 때만 반환합니다. V8은 운영 음원을 자동 적재하지 않습니다. `ops` 기동 전에 배포 담당자가 V8을 별도로 적용해야 합니다. 관련 `test`와 폐기 가능한 MySQL의 `databaseTest`를 수행합니다.
 
 S15P31E102-407의 V17은 단소·소금·정악대금·산조대금을 공개하고 FE 운지에 필요한 누락 율명을 보충합니다. 기존 악기/pitch ID·한자·반음은 보존합니다. 새 DB 기준 전역36음, 단소26·소금24·두 대금 각34음입니다. 이는 등록된 명목상 음역의 조회이며 모든 음의 운지·녹음·채점 승인을 뜻하지 않습니다. 회원 악기 선택도 두 대금을 나누어4종이며 명시적 서버 code로 ID를 찾습니다. [범위와 계약](../docs/specs/four-instrument-catalog.md), [검증](../docs/knowledge/backend/four-instrument-catalog.md)을 따릅니다. 사용자 후속 요청으로2026-11-03 운영 V17을 적용했습니다([운영 기록](../docs/knowledge/infra/four-instrument-ops-migration.md)). 앱 코드 배포와 구분하며 새 환경은 해당 마이그레이션이 필요합니다.
+
+### 한 음씩 연습 판정 기준(PRA-06)
+
+S15P31E102-493: `db`·`ops`에서 로그인 없이 `GET /api/note-practice/criteria?instrumentId=`로 악기별 판정 기준을 조회합니다. 기준은 `application.yml`의 `eolssu.note-practice.criteria`에 악기 code별로 있으며 테이블·마이그레이션은 없습니다. 값은 AI 미확정 초안이고, 바꾸면 백엔드 재배포·재시작만 필요하며 앱 배포는 필요 없습니다. 잘못된 값은 서버 시작을 막습니다. 계약과 초안 값은 [스펙](../docs/specs/note-practice-criteria.md)입니다. 검증은 `NotePracticeCriteriaControllerTests`, `NotePracticePropertiesTests`, 실제 MySQL의 `NotePracticeCriteriaApiDatabaseTests`입니다.
 
 ### 정간보 기호 사전(CAT-09)
 
@@ -219,7 +223,7 @@ DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0;
 - 부모 세션은 본인 소유가 아니면 404, 다른 곡이면 400, `DONE`이 아니면 409 `STATE_CONFLICT`입니다. 곡 밖의 구간은 400입니다.
 - 같은 회원·키로 같은 본문을 다시 보내면 처음 세션을 201로 돌려주고, 다른 본문이면 409 `IDEMPOTENCY_CONFLICT`입니다. 비교할 때 `startNoteIdx` 생략은 0, `jangdanSoundOn` 생략은 false와 같게 봅니다. `endNoteIdx`·`bpmUnit`은 생략과 명시를 다른 본문으로 봅니다(곡 값에 따라 달라지기 때문). 비교용 해시는 예전 미션 자리를 고정값으로 남겨, 미션 제거 전에 만든 세션도 같은 키 재전송에서 그대로 돌려줍니다. 동시에 보내도 `(user_id, idempotency_key)` 유일 제약으로 한 행만 저장됩니다.
 - Swagger 요청 본문은 전체 연습(기본)·구간 연습·다시 연습 예시를 고를 수 있고(`OpenApiContracts`의 `requestExamples`), Schema 탭에 필드별 뜻과 생략 시 값을 적었습니다. 예시의 `songId` 15는 테스트 서버의 채점 가능 곡이라 로컬 시드 DB(1~4번 곡)에서는 바꿔서 보냅니다.
-- V25는 늘 NULL이던 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로, 운영 `ops`에는 이 브랜치의 백엔드를 먼저 배포한 뒤 V25를 적용합니다.
+- V25는 `practice_sessions.mission_id`를 지웁니다. 이전 백엔드는 이 칸을 조회하므로 먼저 호환 백엔드를 배포해야 합니다. S15P31E102-499의 1차 호환 릴리스는 실행 JAR에서만 V25를 제외했고 운영 세션 생성·조회·멱등 재전송을 확인했습니다. 후속 릴리스는 임시 `bootJar` 블록을 제거해 실행 JAR에도 원본 V25를 그대로 포함합니다. 운영 승인·적용 결과는 작업 기록과 구분해 확인합니다. [단계별 배포·복구 절차](../infra/runtime/README.md#v25-삭제-전-호환-백엔드-배포)를 따릅니다.
 - 결정 근거는 [작업 계획](../docs/plans/S15P31E102-217.md)에 있습니다. `databaseTest`의 `PracticeSessionApiDatabaseTests`가 실제 HTTP·서명 쿠키로 확인합니다.
 
 ### 실제 MySQL 통합 검사
