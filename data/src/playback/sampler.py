@@ -8,10 +8,12 @@ import zlib
 import xml.etree.ElementTree as ET
 import numpy as np
 import soundfile as sf
-from .midi import controls_at
+from .midi import control_table, controls_at
 from .score import PROFILES, require
 
 FS = 44100
+# Sample-rate control curves are built in slices: a 600s render must fit 1GB.
+CONTROL_CHUNK = 1 << 20
 CREDIT = "이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)"
 
 # Rendering choices, not an assertion about an acoustic player's breathing.
@@ -140,13 +142,36 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def control_slices(size, chunk):
+    for start in range(0, size, chunk):
+        stop = min(size, start+chunk)
+        yield start, stop, np.arange(start, stop)/FS
+
+
+def pitch_integral(bends, size, chunk=CONTROL_CHUNK):
+    integral = np.empty(size+1)
+    integral[0] = 0.
+    for start, stop, grid in control_slices(size, chunk):
+        steps = 2**(controls_at(bends, grid)/1200)
+        # Same addition order as one cumsum, so results stay bit-identical.
+        steps[0] += integral[start]
+        integral[start+1:stop+1] = np.cumsum(steps)
+    return integral
+
+
+def apply_expression(output, expression, chunk=CONTROL_CHUNK):
+    for start, stop, grid in control_slices(len(output), chunk):
+        output[start:stop] *= controls_at(expression, grid)
+
+
 class CatAssetError(ValueError):
     """The configured local bank cannot be decoded as a supported preset."""
 
 
 class CatSampler:
-    def __init__(self, archive, instrument):
+    def __init__(self, archive, instrument, *, synthesis_extension=False):
         self.instrument = instrument
+        self.synthesis_extension = synthesis_extension
         self.archive = Path(archive)
         self.zip = zipfile.ZipFile(archive)
         self.cache = {}
@@ -205,6 +230,11 @@ class CatSampler:
 
     def zone(self, pitch):
         matches = [z for z in self.zones if z["low"] <= pitch <= z["high"]]
+        if not matches and getattr(self,'synthesis_extension',False):
+            # The opt-in export policy selects only the original preset's
+            # nearest sample and preserves the requested sounding pitch.
+            require(self.zones, 'No source samples')
+            return min(self.zones,key=lambda zone: (max(zone['low']-pitch,0,pitch-zone['high']),abs(zone['root']-pitch)))
         if not matches:
             extension = PROFILES[self.instrument].get("sample_zone_extensions")
             if extension and any(item["zone"]["low"] <= pitch <= item["zone"]["high"]
@@ -277,12 +307,7 @@ class CatSampler:
         approximations, not a reproduction of Ableton filters/FX/velocity curves.
         """
         size = round(midi["seconds"]*FS)
-        grid = np.arange(size)/FS
-        bends = controls_at(midi["bends"], grid, 0)
-        # Hold MIDI CC values. Interpolating across a note boundary would apply
-        # the next note's expression early, especially after a fade to silence.
-        expression = controls_at(midi["cc11"], grid, 1)
-        integral = np.concatenate(([0.], np.cumsum(2**(bends/1200))))
+        integral = pitch_integral(control_table(midi["bends"], 0), size)
         output = np.zeros(size)
         trace, previous_cursor = [], 0.
         notes = midi["notes"]
@@ -368,6 +393,9 @@ class CatSampler:
                           "same_pitch_continuation": same, "sample_cursor": cursor,
                           "sample_last_position": float(positions[-1]), "sample_length": len(samples),
                           "sustain_loop": selected_loop})
-        output *= expression
+        del integral
+        # Hold MIDI CC values. Interpolating across a note boundary would apply
+        # the next note's expression early, especially after a fade to silence.
+        apply_expression(output, control_table(midi["cc11"], 1))
         require(np.isfinite(output).all() and np.max(np.abs(output)) > 0, "Silent/nonfinite render")
         return output, trace

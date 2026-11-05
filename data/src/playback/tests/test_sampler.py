@@ -4,13 +4,15 @@ from copy import deepcopy
 import hashlib
 import io
 from itertools import product
+import tracemalloc
 import zipfile
 from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
 
-from data.src.playback.sampler import CatSampler, FS, find_sustain_loop
+from data.src.playback.midi import control_table, controls_at
+from data.src.playback.sampler import CatSampler, FS, apply_expression, find_sustain_loop, pitch_integral
 from data.src.playback.score import PROFILES
 from data.src.playback.verify_common import fundamental
 from data.src.playback.tests._helpers import score, synthetic_sampler, wire
@@ -365,6 +367,32 @@ class SamplerTests(unittest.TestCase):
                 _, playback = wire(score([{"id": "a", "pitch": 69, "duration": 4}]))
                 with self.assertRaisesRegex(ValueError, "no validated stable sustain loop"):
                     sampler.render(playback)
+
+
+class RenderMemoryTests(unittest.TestCase):
+    def test_full_length_render_keeps_only_output_and_pitch_integral(self):
+        notes=[{'pitch':69,'start':float(i),'end':i+1.,'velocity':100,'legato':False,'release_seconds':.05} for i in range(60)]
+        midi={'seconds':60.1,'notes':notes,'cc11':[(0.,.5)],'bends':[(0.,10.)]}
+        sampler=synthetic_sampler(length=2)
+        tracemalloc.start()
+        try:
+            audio,_=sampler.render(midi)
+            peak=tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        self.assertLess(peak,3.5*audio.nbytes)
+
+    def test_chunked_pitch_integral_and_expression_equal_one_shot_values(self):
+        size=1000
+        bends=control_table([(.002,37.),(.011,-53.)],0)
+        cc11=control_table([(.004,.3),(.013,.9)],1)
+        grid=np.arange(size)/FS
+        expected=np.concatenate(([0.],np.cumsum(2**(controls_at(bends,grid)/1200))))
+        np.testing.assert_array_equal(pitch_integral(bends,size,chunk=7),expected)
+        output=np.linspace(-1,1,size)
+        scaled=output.copy()
+        apply_expression(scaled,cc11,chunk=7)
+        np.testing.assert_array_equal(scaled,output*controls_at(cc11,grid))
 
 
 if __name__ == "__main__":

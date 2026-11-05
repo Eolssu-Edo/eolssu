@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 import subprocess
 import tempfile
+import tracemalloc
 import unittest
 from unittest.mock import patch
 
@@ -15,6 +16,21 @@ from data.src.playback.tests._helpers import HAVE_ENCODER
 
 
 class AudioOutputTests(unittest.TestCase):
+    def test_wav_validation_needs_one_decoded_copy_and_keeps_exact_rms(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "long.wav"
+            audio = .2 * np.sin(2 * np.pi * 440 * np.arange(2_000_000) / FS)
+            tracemalloc.start()
+            try:
+                report = write_audio(audio, path)
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            self.assertLess(peak, 1.5 * audio.nbytes)
+            decoded, _ = sf.read(path, dtype="float64")
+            self.assertEqual(report["rms"], float(np.sqrt(np.mean(decoded ** 2))))
+            self.assertEqual(report["peak"], float(np.max(np.abs(decoded))))
+
     def test_wav_option_needs_no_encoder_and_keeps_exact_length(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "tone.wav"
