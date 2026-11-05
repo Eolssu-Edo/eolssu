@@ -44,6 +44,7 @@
 
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
 - [연습 악보 높이 테스트의 JS 부동소수점 비교 수정 (497)](plans/S15P31E102-497.md)
+- [분석 응답의 음표별 부분 점수 (501)](plans/S15P31E102-501.md)
 
 - [계정 전환과 개인 데이터 격리 (452)](specs/account-session-isolation.md) · [구현 전후 수치·검증 기록](knowledge/frontend/account-session-isolation.md)
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
@@ -324,3 +325,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
 
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
+
+- [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)

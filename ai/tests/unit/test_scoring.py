@@ -1,9 +1,11 @@
 """합성 음계로 채점의 만점·오류 판정을 검사한다(계획 합격 기준 1~4)."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, frame_rms, pyin_f0, reference_hz, score
+from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, combine, frame_rms, pyin_f0, reference_hz, score, total_score
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -45,6 +47,48 @@ def test_perfect_scale_scores_100():
     assert result.status == "DONE"
     assert verdicts(result) == {}
     assert result.total == 100
+
+
+def test_note_scores_rebuild_the_item_scores():
+    # 음이 틀리고(PITCH) 빠진(MISSED) 연주도 음표별 값을 합치면 항목 점수와 정확히 같아야 한다.
+    audio = synth(SCALE, shift={1: 2}, drop=(3,))
+    result = run(audio)
+    assert combine([n.pitch_score for n in result.notes], [n.weight for n in result.notes]) == result.pitch
+    assert combine([n.timing_score for n in result.notes], [n.weight for n in result.notes]) == result.timing
+    assert combine([n.duration_score for n in result.notes], [n.weight for n in result.notes]) == result.duration
+    missed = next(n for n in result.notes if n.verdict == "MISSED")
+    assert (missed.pitch_score, missed.timing_score, missed.duration_score) == (0.0, 0.0, 0.0)
+    wrong = next(n for n in result.notes if n.verdict == "PITCH")
+    assert wrong.timing_score == wrong.duration_score == 0.0
+
+
+def test_shared_vector_keeps_the_rounding_of_note_by_note_addition():
+    # 백엔드 SectionComparisonTests의 공통 벡터와 같은 값이다. 한쪽을 바꾸면 다른 쪽도 바꾼다.
+    # 세 항목 모두 평균이 x.5인데 차례 합의 끝자리 오차로 정확한 합·역순 합과 반올림이 갈린다(62, 40, 44가 나오면 틀렸다).
+    pitch = [49.0, 90.0, 61.0, None, 58.3, 81.3, 96.8, 1.1]
+    timing = [25.0, 48.9, 59.0, 42.7, 71.3, 34.1, 33.7, 9.3]
+    duration = [70.8, 48.1, 62.0, 18.1, 15.1, 55.6, 65.6, 12.7]
+    weights = [1.0] * 8
+    assert [combine(part, weights) for part in (pitch, timing, duration)] == [63, 41, 43]
+    # 52.5는 짝수 쪽으로 간다.
+    assert total_score(63, 41, 43, {"pitch": 0.5, "timing": 0.25, "duration": 0.25}) == 52
+    # 차례 합은 끝자리 오차로 4.500000000000001(5)이고 역순·보정 합산은 4.5(짝수 쪽 4)가 된다.
+    assert total_score(6, 66, 1, {"pitch": 0.05, "timing": 0.05, "duration": 0.9}) == 5
+
+
+def test_sigimsae_note_has_no_pitch_score_even_when_missed():
+    notes = [replace(n, sigimsae=i == 3) for i, n in enumerate(SCALE)]
+    audio = synth(SCALE, drop=(3,))
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert result.notes[3].verdict == "MISSED" and result.notes[3].pitch_score is None
+    assert result.notes[3].timing_score == 0.0
+    assert combine([n.pitch_score for n in result.notes], [n.weight for n in result.notes]) == result.pitch
+
+
+def test_combine_skips_null_scores_and_rounds_half_to_even():
+    assert combine([None, 80.0, 90.0], [1.0, 1.0, 1.0]) == 85
+    assert combine([100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1.0] * 8) == 12  # 12.5는 짝수 쪽
+    assert combine([None], [1.0]) == 100  # 음정을 볼 음이 없는 구간
 
 
 def test_changed_notes_are_pitch_errors():
