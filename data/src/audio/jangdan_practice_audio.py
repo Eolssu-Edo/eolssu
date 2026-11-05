@@ -73,6 +73,18 @@ def inspect_asset(path):
             'frames': frames, 'durationMs': frames * 1000 / RATE, 'peakPcm16': peak}
 
 
+def encode_m4a(path, info, ffmpeg):
+    encoded = path.with_suffix('.m4a')
+    subprocess.run([ffmpeg, '-v', 'error', '-nostdin', '-n', '-i', str(path),
+                    '-c:a', 'aac', '-b:a', '96k', '-movie_timescale', str(RATE),
+                    '-movflags', '+faststart', str(encoded)], check=True)
+    payload = encoded.read_bytes()
+    info.update({'file': encoded.name, 'pcmWavSha256': info['sha256'],
+                 'sha256': sha256(payload).hexdigest(), 'bytes': len(payload)})
+    path.unlink()
+    return info
+
+
 def prepare(samples, output, ffmpeg, baseline_manifest):
     baseline = json.loads(baseline_manifest.read_text(encoding='utf-8'))
     for stroke, (filename, _, _, _) in SAMPLES.items():
@@ -85,7 +97,7 @@ def prepare(samples, output, ffmpeg, baseline_manifest):
     output.mkdir(parents=True, exist_ok=False)
     manifest = {
         'source': SOURCE, 'license': 'KOGL-1', 'sampleRate': RATE,
-        'channels': 1, 'pcmBits': 16,
+        'channels': 1, 'pcmBits': 16, 'codec': 'AAC-LC', 'targetBitrate': 96000,
         'rollSource': {'file': ROLL_FILE, 'mntnSeq': 2292, 'division': '더러러러',
                        'strength': '중', 'sha256': ROLL_SHA256,
                        'cropStartMs': ROLL_START_MS, 'cropEndMs': ROLL_END_MS},
@@ -104,7 +116,7 @@ def prepare(samples, output, ffmpeg, baseline_manifest):
         if stroke == '기':
             info['sourceDivision'] = '기덕'
             info['edit'] = 'Only the first grace attack is extracted from the recorded gideok'
-        manifest['assets'].append(info)
+        manifest['assets'].append(encode_m4a(path, info, ffmpeg))
     for bpm in GUTGEORI_BPMS:
         frames = gutgeori_roll_frames(bpm)
         ratio = Fraction(ROLL_END_MS - ROLL_START_MS, 1000) / Fraction(frames, RATE)
@@ -136,7 +148,7 @@ def prepare(samples, output, ffmpeg, baseline_manifest):
                      'paddedFrames': max(0, frames - uncorrected_frames),
                      'trimmedFrames': max(0, uncorrected_frames - frames),
                      'discardedTailPeakPcm16': trimmed_peak})
-        manifest['assets'].append(info)
+        manifest['assets'].append(encode_m4a(path, info, ffmpeg))
     (output / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     return manifest
 
