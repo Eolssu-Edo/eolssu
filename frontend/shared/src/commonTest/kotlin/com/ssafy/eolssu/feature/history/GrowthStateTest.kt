@@ -8,6 +8,8 @@ import com.ssafy.eolssu.data.practice.GrowthSummary
 import com.ssafy.eolssu.data.practice.MetricChange
 import com.ssafy.eolssu.data.practice.MetricGrowth
 import com.ssafy.eolssu.data.practice.PeriodTotals
+import com.ssafy.eolssu.data.practice.ScoreTrend
+import com.ssafy.eolssu.data.practice.TrendScope
 import com.ssafy.eolssu.data.practice.SongBestScore
 import com.ssafy.eolssu.feature.history.component.signed
 import kotlinx.coroutines.test.runTest
@@ -177,5 +179,7 @@ class GrowthStateTest {
         override suspend fun summary(fromDay: Long, toDay: Long): GrowthSummary? = summary.also { asked += fromDay to toDay }
 
         override suspend fun calendar(fromDay: Long, toDay: Long): List<DailyPractice>? = days.also { asked += fromDay to toDay }
+
+        override suspend fun scoreTrend(songId: String?, scope: TrendScope, limit: Int): ScoreTrend? = null
     }
 }

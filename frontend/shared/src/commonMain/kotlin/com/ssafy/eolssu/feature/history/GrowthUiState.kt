@@ -5,7 +5,10 @@ import com.ssafy.eolssu.data.practice.DailyPractice
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.GrowthSummary
 import com.ssafy.eolssu.data.practice.MetricGrowth
+import com.ssafy.eolssu.data.practice.ScoreTrend
 import com.ssafy.eolssu.data.practice.SongBestScore
+import com.ssafy.eolssu.data.practice.TrendScope
+import com.ssafy.eolssu.data.practice.TrendSong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -135,14 +138,14 @@ sealed interface GrowthLoad {
  *
  * @property today 화면을 연 때의 KST 날짜. 기간은 이 날을 기준으로 정한다.
  * @property completedSteps 연습 악기로 기초부터 배우기에서 완료한 단계 수. 기간과 관계없이 기기의 학습 완료 기록으로 센다.
- * @property scoreTrend ‘점수 변화 · 최근 5회’ 점들(오래된 순). 점수 추이 API(GRO-03)는 S15P31E102-372에서 연결하고, 그전에는 null이다.
+ * @property scoreTrend ‘점수 변화 · 최근 5회’ 카드(GRO-03). 주·월 기간과 관계없이 곡의 최근 연주로 그린다.
  */
 data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
     val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
     val completedSteps: Int? = null,
-    val scoreTrend: List<ScoreTrendPoint>? = null,
+    val scoreTrend: ScoreTrendState = ScoreTrendState(),
 ) {
     val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
 
@@ -160,6 +163,73 @@ suspend fun loadGrowth(repository: GrowthRepository, period: GrowthPeriod): Grow
 
 /** 점수 변화 그래프의 점 하나(오래된 순). [section]이면 날짜 뒤에 ‘구간’을 붙인다. */
 data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime, val section: Boolean)
+
+/**
+ * ‘점수 변화’ 카드 상태. 곡·범위를 바꿔 다시 받는 동안에도 앞서 받은 [view]를 두어 곡 고르기·범위 칩이 사라지지 않는다.
+ *
+ * @property songId 요청할 곡. null이면 서버가 가장 최근에 연주한 곡을 고른다. 받은 뒤에는 서버가 고른 곡이다.
+ * @property loading 받는 중. [view]가 없으면 카드에 진행 표시만 보인다.
+ * @property failed 마지막 요청이 실패했다. 카드에 안내와 '다시 시도'가 보인다.
+ */
+data class ScoreTrendState(
+    val songId: String? = null,
+    val scope: TrendScope = TrendScope.Full,
+    val loading: Boolean = true,
+    val failed: Boolean = false,
+    val view: ScoreTrendView? = null,
+) {
+    /** 요청을 보낼 때의 상태. 앞서 받은 [view]는 그대로 둔다. */
+    fun requesting(songId: String?, scope: TrendScope) = copy(songId = songId, scope = scope, loading = true, failed = false)
+
+    /** 받은 결과. [trend]가 null이면 실패다. */
+    fun received(trend: ScoreTrend?): ScoreTrendState =
+        if (trend == null) copy(loading = false, failed = true)
+        else ScoreTrendState(trend.songId, trend.scope, loading = false, failed = false, view = ScoreTrendView.of(trend))
+}
+
+/**
+ * 받은 점수 변화를 카드에 그릴 값.
+ *
+ * @property song 보여 준 곡. 연주 기록이 하나도 없으면 null.
+ * @property songs 고를 수 있는 곡(최근 연주 순). 비어 있으면 아직 평가한 연주가 없다.
+ * @property mixedConditions 점이 2개 이상인데 속도·악보 판본·채점 모델(구간이면 범위까지)이 섞였다(`comparable=false`).
+ */
+data class ScoreTrendView(
+    val scope: TrendScope,
+    val song: TrendSong?,
+    val songs: List<TrendSong>,
+    val points: List<ScoreTrendPoint>,
+    val mixedConditions: Boolean,
+) {
+    /** 이 범위에는 연주가 없지만 다른 범위(전체 곡·구간)에는 있다. 카드가 다른 범위를 고르도록 안내한다. */
+    val onlyOtherScope: Boolean
+        get() = points.isEmpty() && song != null && song.playCount(scope) == 0 && song.playCount(scope.other) > 0
+
+    companion object {
+        fun of(trend: ScoreTrend) = ScoreTrendView(
+            scope = trend.scope,
+            song = trend.songs.firstOrNull { it.songId == trend.songId },
+            songs = trend.songs,
+            points = trend.plays.map { ScoreTrendPoint(it.totalScore, KoreanDateTime.fromEpochMillis(it.startedAtMillis), trend.scope == TrendScope.Section) },
+            mixedConditions = trend.plays.size >= 2 && !trend.comparable,
+        )
+    }
+}
+
+/** ‘점수 변화’ 카드의 곡 고르기·범위 칩·다시 시도. */
+data class ScoreTrendActions(val onSong: (String) -> Unit, val onScope: (TrendScope) -> Unit, val onRetry: () -> Unit) {
+    companion object {
+        val None = ScoreTrendActions({}, {}, {})
+    }
+}
+
+/** [song]으로 바꿀 때 볼 범위: 지금 범위에 연주가 없고 다른 범위에만 있으면 다른 범위로 바꾼다. */
+fun trendScopeFor(song: TrendSong, current: TrendScope): TrendScope =
+    if (song.playCount(current) == 0 && song.playCount(current.other) > 0) current.other else current
+
+fun TrendSong.playCount(scope: TrendScope): Int = if (scope == TrendScope.Section) sectionPlayCount else fullPlayCount
+
+private val TrendScope.other: TrendScope get() = if (this == TrendScope.Full) TrendScope.Section else TrendScope.Full
 
 /** 보드 그래프 좌표계(viewBox 310×104)와 가로선(y 18 · 48 · 78). */
 const val TrendWidth: Float = 310f

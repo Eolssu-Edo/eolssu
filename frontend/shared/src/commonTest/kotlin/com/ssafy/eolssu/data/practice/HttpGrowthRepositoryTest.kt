@@ -98,8 +98,64 @@ class HttpGrowthRepositoryTest {
     }
 
     @Test
+    fun scoreTrendLetsServerPickSongAndMapsResponse() = runTest {
+        val trend = repository {
+            ok(
+                """
+                {"songId":"2","scope":"FULL","comparable":false,
+                 "items":[
+                   {"sessionId":"10","startedAt":"2026-10-29T12:00:00Z","bpm":60,"bpmUnit":"QUARTER","startNoteIdx":0,"endNoteIdx":41,
+                    "startColumnIdx":0,"endColumnIdx":11,"scoreVersion":"3","modelVersion":"m1","totalScore":68,"pitchScore":70,"timingScore":65,"durationScore":69},
+                   {"sessionId":"12","startedAt":"2026-10-30T01:30:00.250Z","bpm":72,"bpmUnit":"QUARTER","startNoteIdx":0,"endNoteIdx":41,
+                    "startColumnIdx":null,"endColumnIdx":null,"scoreVersion":"2","modelVersion":"m1","totalScore":74,"pitchScore":75,"timingScore":72,"durationScore":74}],
+                 "songs":[{"songId":"2","title":"도라지타령","lastPlayedAt":"2026-10-30T01:30:00.250Z","fullPlayCount":2,"sectionPlayCount":1},
+                          {"songId":"1","title":"아리랑","lastPlayedAt":"2026-10-20T01:00:00Z","fullPlayCount":0,"sectionPlayCount":4}]}
+                """.trimIndent(),
+            )
+        }.scoreTrend(songId = null, scope = TrendScope.Full)!!
+
+        val request = requests.single()
+        assertEquals("/api/users/me/growth/scores", request.url.encodedPath)
+        assertNull(request.url.parameters["songId"])
+        assertEquals("FULL", request.url.parameters["scope"])
+        assertEquals("5", request.url.parameters["limit"])
+        assertEquals("2", trend.songId)
+        assertEquals(TrendScope.Full, trend.scope)
+        assertEquals(false, trend.comparable)
+        assertEquals(
+            listOf(TrendPlay("10", 1_793_275_200_000L, 60, 0, 11, 68), TrendPlay("12", 1_793_323_800_250L, 72, null, null, 74)),
+            trend.plays,
+        )
+        assertEquals(listOf(TrendSong("2", "도라지타령", 2, 1), TrendSong("1", "아리랑", 0, 4)), trend.songs)
+    }
+
+    @Test
+    fun scoreTrendSendsSongAndSectionScope() = runTest {
+        val trend = repository { ok("""{"songId":"7","scope":"SECTION","items":[],"comparable":false,"songs":[]}""") }
+            .scoreTrend(songId = "7", scope = TrendScope.Section, limit = 10)!!
+
+        val request = requests.single()
+        assertEquals("7", request.url.parameters["songId"])
+        assertEquals("SECTION", request.url.parameters["scope"])
+        assertEquals("10", request.url.parameters["limit"])
+        assertEquals(TrendScope.Section, trend.scope)
+        assertEquals(emptyList(), trend.plays)
+    }
+
+    @Test
+    fun scoreTrendWithoutAnyPlayHasNoSong() = runTest {
+        val trend = repository { ok("""{"songId":null,"scope":"FULL","items":[],"comparable":false,"songs":[]}""") }
+            .scoreTrend(null, TrendScope.Full)!!
+
+        assertNull(trend.songId)
+        assertEquals(emptyList(), trend.songs)
+    }
+
+    @Test
     fun failureResponsesAreNull() = runTest {
         val error = """{"httpStatus":"BAD_REQUEST","isSuccess":false,"message":"잘못된 요청","code":400,"result":{"errorCode":"INVALID_REQUEST"}}"""
+        assertNull(repository(HttpStatusCode.BadRequest) { error }.scoreTrend("0", TrendScope.Full))
+        assertNull(repository { null }.scoreTrend(null, TrendScope.Section))
         assertNull(repository(HttpStatusCode.BadRequest) { error }.summary(monday, sunday))
         assertNull(repository(HttpStatusCode.ServiceUnavailable) { "<html>점검 중</html>" }.calendar(monday, sunday))
         assertNull(repository { "<html>프록시</html>" }.summary(monday, sunday))
