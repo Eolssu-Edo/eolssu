@@ -151,6 +151,11 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(stored.path("group").size(), item.path("groupCount").asInt())
             assertEquals(item.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(item.path("bpmUnit"), detail.path("bpmUnit"))
+            if (id == "11") {
+                assertTrue(detail.path("soundUrl").isNull)
+                assertError("/api/jangdans/$id/audio", 404, "RESOURCE_NOT_FOUND")
+                continue
+            }
             assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
             val audio = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/jangdans/$id/audio"))
                 .header("Range", "bytes=0-63").header("Cookie", "access_token=stale").build(),
@@ -222,7 +227,7 @@ class CatalogReferenceApiDatabaseTests {
             Expected("10", "세령산", 63, listOf("덩", "", "덩", "더러러러", "", "궁", "", "기닥", "", "다"), listOf(3,2,2,3)),
         )
         val items = body("/api/jangdans", staleCookie = true).path("items").toList()
-        assertEquals((1..10).map(Int::toString), items.map { it.path("jangdanId").asString() })
+        assertEquals((1..11).map(Int::toString), items.map { it.path("jangdanId").asString() })
         for (e in expected) {
             val summary = items.single { it.path("jangdanId").asString() == e.id }
             val detail = body("/api/jangdans/${e.id}", staleCookie = true)
@@ -239,6 +244,17 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals("/api/jangdans/${e.id}/audio", detail.path("soundUrl").asString())
         }
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
+    }
+
+    @Test fun `Jajin taryeong exposes the Danso teaching pattern without changing song foreign keys`() {
+        val detail = body("/api/jangdans/11")
+        assertEquals("자진타령", detail.path("name").asString())
+        assertEquals(60, detail.path("defaultBpm").asInt())
+        assertEquals("DOTTED_QUARTER", detail.path("bpmUnit").asString())
+        assertEquals(listOf("덩", "", "", "덩", "", "", "덩", "", "덕", "", "", ""),
+            detail.path("pattern").path("beats").toList().map { it.asString() })
+        assertEquals(listOf(3, 3, 3, 3), detail.path("pattern").path("group").toList().map { it.asInt() })
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id=11", Int::class.java))
     }
 
     @Test fun `invalid stored jangdan shapes are rejected without publishing misleading rhythm data`() {

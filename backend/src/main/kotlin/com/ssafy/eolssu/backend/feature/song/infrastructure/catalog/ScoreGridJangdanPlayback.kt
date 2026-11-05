@@ -22,7 +22,7 @@ class ScoreGridJangdanPlayback(
         if (ticksPerBeat <= 0 || ticksPerJeonggan <= 0) return null
 
         val cycleTicks = when (name) {
-            "굿거리", "자진모리", "중중모리" -> when (score.bpmUnit) {
+            "굿거리", "자진모리", "중중모리", "자진타령" -> when (score.bpmUnit) {
                 "QUARTER" -> 6 * ticksPerBeat
                 "DOTTED_QUARTER" -> 4 * ticksPerBeat
                 else -> return null
