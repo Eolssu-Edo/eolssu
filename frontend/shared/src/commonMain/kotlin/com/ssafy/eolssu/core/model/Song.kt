@@ -26,9 +26,10 @@ data class Song(
     val scoreVersion: Int? = null,
     val noteCount: Int? = null,
     val jangdanPlayback: JangdanPlayback? = null,
+    val catalogJangdanName: String? = null,
 ) {
     /** 장단 pattern이 연결되지 않아도 원본 악보의 이름은 보존한다. */
-    val jangdanName: String get() = jangdan?.name ?: score.timing?.jangdan.orEmpty()
+    val jangdanName: String get() = jangdan?.name ?: score.timing?.jangdan.orEmpty().ifBlank { catalogJangdanName.orEmpty() }
 
     /** 패널 표시도 검수한 반주 패턴을 우선한다. 표시용 Jangdan의 박 수로 재생 시간을 계산하지 않는다. */
     val displayJangdan: Jangdan? get() = jangdanPlayback?.displayPattern ?: jangdan

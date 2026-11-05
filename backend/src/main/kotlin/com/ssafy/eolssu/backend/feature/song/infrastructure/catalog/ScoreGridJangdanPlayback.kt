@@ -16,7 +16,7 @@ class ScoreGridJangdanPlayback(
     override fun resolve(score: PublishedSongScore): ScoreJangdanPlayback? {
         val source = json.readTree(score.scoreJson)
         val music = source.path("music")
-        val name = music.path("jangdan").stringValue() ?: return null
+        val name = scoreJangdanName(source, score.scoreVersion) ?: return null
         val ticksPerBeat = music.path("ticksPerBeat").longValue()
         val ticksPerJeonggan = music.path("ticksPerJeonggan").longValue()
         if (ticksPerBeat <= 0 || ticksPerJeonggan <= 0) return null

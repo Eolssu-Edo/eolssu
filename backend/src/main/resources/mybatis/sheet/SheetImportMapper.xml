@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 내 악보 불러오기(SHT-07·10, S15P31E102-471). 표는 V26. -->
+<mapper namespace="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetImportMapper">
+    <select id="findReplay" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetImportReplayRow">
+        SELECT id AS sheet_id, request_hash FROM user_sheets WHERE user_id = #{userId} AND idempotency_key = #{key}
+    </select>
+
+    <select id="countSheets" resultType="long">
+        SELECT COUNT(*) FROM user_sheets WHERE user_id = #{userId}
+    </select>
+
+    <!-- active_user_id는 QUEUED·RUNNING일 때만 값이 있다(V26 UNIQUE). -->
+    <select id="countActiveConversions" resultType="long">
+        SELECT COUNT(*) FROM sheet_conversions WHERE active_user_id = #{userId}
+    </select>
+
+    <select id="countActiveInstruments" resultType="long">
+        SELECT COUNT(*) FROM instruments WHERE id = #{instrumentId} AND is_active
+    </select>
+
+    <select id="findJangdan" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ImportJangdanRow">
+        SELECT bpm_unit, default_bpm FROM jangdans WHERE id = #{jangdanId}
+    </select>
+
+    <select id="lockUser" resultType="long">
+        SELECT id FROM users WHERE id = #{userId} FOR UPDATE
+    </select>
+
+    <!-- 변환이 끝나기 전 각 수는 1로 둔다(CHECK). 응답은 변환 상태로 0을 준다. 정렬 시각은 접수 시각(UTC)이다. -->
+    <insert id="insertSheet" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+        INSERT INTO user_sheets (user_id, title, kind, source, status, jangdan_id, bpm, bpm_unit, column_count,
+                                 idempotency_key, request_hash, created_at, updated_at)
+        VALUES (#{userId}, #{title}, 'JEONGGANBO', #{source}, 'NEEDS_REVIEW', #{jangdanId}, #{bpm}, #{bpmUnit}, 1,
+                #{idempotencyKey}, #{requestHash}, #{acceptedAt}, #{acceptedAt})
+    </insert>
+
+    <insert id="insertConversion">
+        INSERT INTO sheet_conversions (sheet_id, user_id, notation, instrument_id, jangdan_id, bpm, hwang_pitch, status, page_count, accepted_at)
+        VALUES (#{sheetId}, #{userId}, #{notation}, #{instrumentId}, #{jangdanId}, #{bpm}, #{hwangPitch}, 'QUEUED', #{pageCount}, #{acceptedAt})
+    </insert>
+
+    <insert id="insertSourceFile">
+        INSERT INTO sheet_source_files (sheet_id, file_idx, object_key, content_type, byte_size, file_name)
+        VALUES (#{sheetId}, #{fileIdx}, #{objectKey}, #{contentType}, #{byteSize}, #{fileName})
+    </insert>
+
+    <select id="findConversion" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetConversionRow">
+        SELECT c.sheet_id, c.notation, c.status, c.stage, c.page_count, c.processed_page_count, c.jangdan_id, c.bpm, c.failure_code,
+               c.attempt, c.accepted_at, c.started_at, c.finished_at, s.note_count
+        FROM sheet_conversions c JOIN user_sheets s ON s.id = c.sheet_id
+        WHERE c.sheet_id = #{sheetId} AND s.user_id = #{userId}
+    </select>
+
+    <select id="findSourceKeys" resultType="com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.SheetSourceKeyRow">
+        SELECT s.id AS sheet_id, f.object_key
+        FROM user_sheets s LEFT JOIN sheet_source_files f ON f.sheet_id = s.id
+        WHERE s.id = #{sheetId} AND s.user_id = #{userId}
+        ORDER BY f.file_idx
+    </select>
+</mapper>
