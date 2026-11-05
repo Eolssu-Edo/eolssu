@@ -1,0 +1,109 @@
+'use strict';
+const {EventEmitter} = require('node:events');
+const crypto = require('node:crypto');
+const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const defaults = {projectPath:'',sshHost:'edo1',autoDownload:false,startAtLogin:true,cocoRuntime:'codex',cocoScope:'project',setupComplete:false};
+const copy = value => structuredClone(value);
+
+class UpdateEngine extends EventEmitter {
+  constructor(deps) {
+    super(); this.deps=deps;
+    const saved=deps.load()||{};
+    this.data={format:1,config:{...defaults,...saved.config},graph:saved.graph||{},coco:saved.coco||{}};
+    this.view={graph:{phase:'setup'},coco:{phase:saved.coco?.versions?.length?'ready':'waiting',versions:saved.coco?.versions||[],latest:saved.coco?.versions?.[0],installed:saved.coco?.installed},busyGraph:false,busyCoco:false};
+  }
+  snapshot() { return copy({config:this.data.config,...this.view}); }
+  persist() { this.deps.save(copy(this.data)); this.emit('change',this.snapshot()); }
+  configure(input) {
+    if(this.view.busyGraph||this.view.busyCoco) throw new Error('진행 중인 작업이 끝난 뒤 설정을 바꿔주세요.');
+    const c={...this.data.config};
+    for(const key of ['projectPath','sshHost','cocoRuntime','cocoScope']) if(input[key]!==undefined) c[key]=String(input[key]).trim();
+    for(const key of ['autoDownload','startAtLogin']) if(input[key]!==undefined) {if(typeof input[key]!=='boolean') throw new Error('잘못된 설정입니다.');c[key]=input[key];}
+    if(!/^[A-Za-z0-9][A-Za-z0-9_.@-]*$/.test(c.sshHost)||!['codex','claude','both'].includes(c.cocoRuntime)||!['project','global'].includes(c.cocoScope)) throw new Error('설정 값을 확인해주세요.');
+    c.setupComplete=true;this.data.config=c; this.epoch=(this.epoch||0)+1; this.persist(); return this.snapshot();
+  }
+  async notice(value) {
+    try {await this.deps.notify(value);} catch(error) {this.view.notificationError=error.message;this.persist();}
+  }
+  async check() {await Promise.allSettled([this.checkGraph(),this.checkCoco()]); return this.snapshot();}
+  async checkGraph() {
+    if(this.graphCheck) return this.graphCheck;
+    this.graphCheck=this._checkGraph().finally(()=>{this.graphCheck=null;}); return this.graphCheck;
+  }
+  async _checkGraph() {
+    const config=copy(this.data.config),epoch=this.epoch;
+    if(!config.projectPath) {this.view.graph={phase:'setup'};this.persist();return;}
+    try {
+      const result=await this.deps.graph.check(config);
+      if(epoch!==this.epoch||!result) return;
+      this.view.graph={...result,phase:!result.compatible?'code-behind':result.installed?'current':'available',lastChecked:this.deps.now(),error:''};
+      this.persist();
+      if(!result.installed&&result.compatible&&config.autoDownload) {
+        if(this.data.graph.failedRelease!==result.release||this.deps.now()>=(this.data.graph.retryAfter||0)) await this.downloadGraph(true);
+      } else if(!result.installed&&this.data.graph.notified!==result.release) {
+        this.data.graph.notified=result.release;this.persist();
+        await this.notice({kind:'graph',...result});
+      }
+    } catch(error) {this.view.graph={...this.view.graph,phase:'error',error:error.message,lastChecked:this.deps.now()};this.persist();}
+  }
+  async downloadGraph(automatic=false) {
+    if(this.view.busyGraph) return;
+    const config=copy(this.data.config);
+    if(!config.projectPath) throw new Error('프로젝트를 먼저 선택해주세요.');
+    this.view.busyGraph=true;this.persist();
+    let release;
+    try {
+      const current=await this.deps.graph.check(config);release=current.release;
+      if(!current.compatible) throw new Error('먼저 프로젝트 코드를 갱신해주세요. 그래프가 현재 브랜치에 없습니다.');
+      const result=current.installed?{status:'unchanged'}:await this.deps.graph.download(config);
+      this.data.graph={...this.data.graph,notified:release,failedRelease:'',retryAfter:0};
+      this.view.graph={...current,installed:true,phase:'current',lastChecked:this.deps.now(),error:''};
+      if(result.status==='updated') await this.notice({kind:'graph-downloaded',...current});
+      return result;
+    } catch(error) {
+      this.data.graph.failedRelease=release;this.data.graph.retryAfter=this.deps.now()+300000;
+      this.view.graph={...this.view.graph,phase:'error',error:error.message};
+      if(automatic&&this.data.graph.failureNotified!==release) {this.data.graph.failureNotified=release;await this.notice({kind:'graph-failed',release,error:error.message});}
+      if(!automatic) throw error;
+    } finally {this.view.busyGraph=false;this.persist();}
+  }
+  async installCoco(version) {
+    if(this.view.busyCoco) throw new Error('COCO 설치가 진행 중입니다.');
+    if(!VERSION.test(version)||!this.data.coco.versions?.includes(version)) throw new Error('확인된 배포 버전을 선택해주세요.');
+    const c=copy(this.data.config);
+    if(c.cocoScope==='project'&&!c.projectPath) throw new Error('프로젝트를 먼저 선택해주세요.');
+    this.view.busyCoco=true;this.view.coco.installError='';this.persist();
+    try {
+      const result=await this.deps.coco.install({version,runtimes:c.cocoRuntime==='both'?['codex','claude']:[c.cocoRuntime],scope:c.cocoScope,projectPath:c.projectPath});
+      this.data.coco.installed={version,runtime:c.cocoRuntime,scope:c.cocoScope,projectPath:c.projectPath};
+      this.view.coco={...this.view.coco,installed:this.data.coco.installed,installResult:result,installError:''};
+      await this.notice({kind:'coco-installed',version});return result;
+    } catch(error) {this.view.coco.installError=error.message;throw error;}
+    finally {this.view.busyCoco=false;this.persist();}
+  }
+  async checkCoco() {
+    if(this.cocoCheck) return this.cocoCheck;
+    this.cocoCheck=this._checkCoco().finally(()=>{this.cocoCheck=null;});
+    return this.cocoCheck;
+  }
+  async _checkCoco() {
+    try {
+      const response=await this.deps.coco.check(this.data.coco.etag);
+      if(response.notModified) { this.view.coco.lastChecked=this.deps.now(); this.persist(); return; }
+      const p=response.data||response;
+      if(p.name!=='@thisis-joe/coco-skills'||!p.versions||typeof p.versions!=='object') throw new Error('COCO npm 응답이 올바르지 않습니다.');
+      const versions=Object.keys(p.versions).filter(v=>v.length<100&&VERSION.test(v)).sort((a,b)=>(Date.parse(p.time?.[b])||0)-(Date.parse(p.time?.[a])||0)||b.localeCompare(a,undefined,{numeric:true}));
+      if(!versions.length||versions.length>5000) throw new Error('COCO 배포 버전 목록을 확인할 수 없습니다.');
+      const known=this.data.coco.known;
+      // First launch offers the newest existing release once, then watches all versions.
+      const fresh=known ? versions.filter(v=>!known.includes(v)) : (versions[0]!=='0.2.0'?[versions[0]]:[]);
+      this.data.coco={...this.data.coco,known:versions,etag:response.etag||'',versions};
+      this.view.coco={...this.view.coco,phase:'ready',versions,latest:versions[0],newVersions:fresh,lastChecked:this.deps.now(),error:''};
+      this.persist();
+      if(fresh.length) await this.notice({kind:'coco',versions:fresh,version:fresh[0]});
+    } catch(error) {
+      this.view.coco={...this.view.coco,phase:'error',error:error.message,lastChecked:this.deps.now()}; this.persist();
+    }
+  }
+}
+module.exports={UpdateEngine,VERSION,defaults};

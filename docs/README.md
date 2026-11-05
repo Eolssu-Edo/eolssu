@@ -308,3 +308,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [S15P31E102-346 비교 가능한 최근 점수 추이 조회(GRO-03)](plans/S15P31E102-346.md) · [API 계약](specs/growth-score-trend.md)
 - [S15P31E102-429 마이페이지 테스터 의견 보내기](plans/S15P31E102-429.md)
 - [API 명세서 68페이지 코드 정합성·내용 품질 검토](knowledge/backend/api-spec-quality-review.md) · [S15P31E102-379 계획](plans/S15P31E102-379.md)
+
+- [Graphify·COCO 갱신 알림·QA·서버 바로가기](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)

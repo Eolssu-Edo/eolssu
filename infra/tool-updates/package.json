@@ -1,0 +1,73 @@
+{
+  "name": "eolssu-tool-updates",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Graphify and COCO updates for the Eolssu team",
+  "author": "Eolssu Team",
+  "main": "main.cjs",
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "prepare-client": "node scripts/prepare-client.cjs",
+    "start": "electron .",
+    "dist:mac": "npm run prepare-client && electron-builder --mac zip --arm64",
+    "dist:win": "npm run prepare-client && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.ssafy.eolssu.updates",
+    "productName": "Eolssu Updates",
+    "files": [
+      "*.cjs",
+      "*.html",
+      "*.css",
+      "renderer.js",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/context.py",
+        "to": "context.py"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "identity": null,
+      "hardenedRuntime": false,
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true
+    },
+    "afterPack": "scripts/after-pack.cjs"
+  }
+}
