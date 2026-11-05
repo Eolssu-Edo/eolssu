@@ -36,6 +36,8 @@
 
 ## 기능 스펙
 
+- [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
+
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
 - [연습 악보 높이 테스트의 JS 부동소수점 비교 수정 (497)](plans/S15P31E102-497.md)
 
