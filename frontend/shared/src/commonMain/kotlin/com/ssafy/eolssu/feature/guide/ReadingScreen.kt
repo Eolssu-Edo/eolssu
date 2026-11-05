@@ -56,6 +56,8 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideCard
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
@@ -71,6 +73,7 @@ import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.title
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.guide_catalog_title
 import eolssu.shared.generated.resources.guide_reading_sigimsae_small
 import eolssu.shared.generated.resources.guide_reading_title
 import eolssu.shared.generated.resources.guide_sigimsae_credit
@@ -93,6 +96,7 @@ internal fun ReadingScreen(
     audio: ReadingAudioState,
     onPlayAudio: (ReadingAudioClip) -> Unit,
     onStopAudio: () -> Unit,
+    onOpenCatalog: () -> Unit,
     initialPage: ReadingPage = ReadingPage.Intro,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
 ) {
@@ -103,6 +107,11 @@ internal fun ReadingScreen(
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
         Column(Modifier.fillMaxSize()) {
+            EolssuButton(
+                stringResource(Res.string.guide_catalog_title), onOpenCatalog,
+                Modifier.align(Alignment.End).padding(end = widthClass.guideSidePadding),
+                style = EolssuButtonStyle.Text, small = true,
+            )
             Box(Modifier.weight(1f)) {
                 if (widthClass == WindowWidthClass.Compact) {
                     ReadingBook(initialPage, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
