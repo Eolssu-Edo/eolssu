@@ -43,7 +43,7 @@ JDK 21을 설치하고 `JAVA_HOME`이 설치 경로를 가리키도록 설정합
 
 ### 내 악보(SHT-01·02·04·08·11)
 
-S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, 악보 만들기(SHT-07 불러오기)·PDF·음원 변환은 아직 없습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
+S15P31E102-390·413: `db`·`ops`에서 로그인한 회원이 `GET /api/users/me/sheets`(목록), `GET /api/users/me/sheets/{sheetId}/score`(조회), `PUT .../score`(확정 저장)·`PUT .../score/draft`(자동 저장), `DELETE /api/users/me/sheets/{sheetId}`(삭제)를 씁니다. 계약은 [내 악보 API](../docs/specs/user-sheets.md)입니다. V16 `user_sheets`와 V20 초안 칸이 필요하며, 운영 `ops` 배포 전에 V15(모범 음원) 다음으로 V16을 별도로 적용해야 합니다. 빈 악보·복사 만들기(SHT-03 `POST /api/users/me/sheets`)는 작업 취소로 S15P31E102-462에서 지웠고, S15P31E102-471은 SHT-07 `POST /api/users/me/sheets/imports`와 SHT-10 변환 상태 조회를 구현합니다(V26). PDF·PNG·JPEG 원본은 `SHEET_STORAGE_*` 전용 저장소에 보관하고, 연결값이 없으면 업로드는 503입니다. 인식 작업자·변환 결과 저장·재시도는 S15P31E102-472에서 연결하며, 그 전에는 QUEUED로 남습니다. 검증은 `UserSheetControllerTests`, `UserSheetEditControllerTests`, `EditUserSheetTests`, 실제 MySQL의 `UserSheetApiDatabaseTests`입니다.
 
 ### 카탈로그 조회(CAT-03~10)
 
