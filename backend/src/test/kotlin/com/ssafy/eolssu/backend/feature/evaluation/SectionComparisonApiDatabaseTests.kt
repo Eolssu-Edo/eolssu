@@ -77,7 +77,17 @@ class SectionComparisonApiDatabaseTests {
         jdbc.update("UPDATE practice_sessions SET status='PENDING' WHERE id=991310")
         assertEquals(409,get(991310,"").statusCode())
         jdbc.update("UPDATE practice_sessions SET record_deleted_at=CURRENT_TIMESTAMP WHERE id=991310")
-        assertEquals(404,get(991310,"").statusCode())
+        // 기록을 지운 parent는 사용자가 지정한 세션이 아니므로 직전 세션으로 넘어간다. 직접 지정한 세션은 404다.
+        assertEquals(404,get(991310,"?baselineSessionId=991310").statusCode())
+        val noPrevious=result(get(991310,""))
+        assertEquals(true,noPrevious.path("baselineSessionId").isNull)
+        assertEquals(true,noPrevious.path("baselineSource").isNull)
+        assertEquals(true,noPrevious.path("before").isNull)
+        session(991312,null,"m1",60,mapOf(16 to "PITCH",17 to "CORRECT",18 to "CORRECT",19 to "PITCH"),startedAt="2026-11-01 09:00:00.000000")
+        val fallback=result(get(991310,""))
+        assertEquals("991312",fallback.path("baselineSessionId").asText())
+        assertEquals("PREVIOUS",fallback.path("baselineSource").asText())
+        assertEquals(2,fallback.path("before").path("errorCount").asInt())
     }
 
     @Test fun `real HTTP without a parent picks the latest earlier session holding the section`() {

@@ -169,10 +169,39 @@ class SectionComparisonControllerTests {
         mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "99")).andExpect(status().isNotFound)
     }
 
-    @Test fun `deleted parent is not found instead of falling through to the previous session`() {
+    @Test fun `deleted parent falls through to the previous session`() {
         login();previous = 10
         sessions.remove(11L)
-        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isNotFound)
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.baselineSessionId").value("10"))
+            .andExpect(jsonPath("$.result.baselineSource").value("PREVIOUS"))
+    }
+
+    @Test fun `deleted parent without a previous session is a first performance`() {
+        login()
+        sessions.remove(11L)
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.baselineSessionId").value(nullValue()))
+            .andExpect(jsonPath("$.result.baselineSource").value(nullValue()))
+            .andExpect(jsonPath("$.result.before").value(nullValue()))
+    }
+
+    @Test fun `requested baseline that was deleted stays not found`() {
+        login();previous = 10
+        sessions.remove(11L)
+        mvc.perform(get("/api/practice-sessions/12/comparison").param("baselineSessionId", "11")).andExpect(status().isNotFound)
+    }
+
+    @Test fun `unfinished parent stays a state conflict`() {
+        login();previous = 10
+        save(11, 2, 3, 70, status = "PENDING")
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isConflict)
+    }
+
+    @Test fun `parent of another song stays a bad request`() {
+        login();previous = 10
+        save(11, 2, 3, 70, songId = 2)
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isBadRequest)
     }
 
     @Test fun `baseline must belong to the user and come before the retake`() {
