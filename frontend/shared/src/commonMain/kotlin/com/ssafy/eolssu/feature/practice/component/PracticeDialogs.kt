@@ -67,7 +67,7 @@ class PracticeDialogActions(
  * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
  */
 @Composable
-fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, recordingBusy: Boolean = false) {
+fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
     val colors = EolssuTheme.colors
     when (popup) {
         PracticePopup.Permission -> EolssuDialog(
@@ -83,7 +83,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, recordi
             message = stringResource(Res.string.practice_popup_abort_body),
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
-            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary, enabled = !recordingBusy)
+            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.End -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_end_title),
@@ -91,7 +91,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, recordi
             icon = EolssuIcons.Check,
             iconBackground = colors.accentTintStrong,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate, enabled = !recordingBusy)
+            EolssuButton(stringResource(Res.string.practice_popup_evaluate), actions.onEvaluate)
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.EndNoInput -> EolssuDialog(
