@@ -37,6 +37,7 @@
 
 ## 기능 스펙
 
+- [한 음씩 연습 판정 기준 조회 (493)](specs/note-practice-criteria.md) · [계획](plans/S15P31E102-493.md)
 - [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)
 
 - [휴대폰 연습 화면의 짧은 각 묶음](specs/practice-short-score-stacks.md) · [473 계획·검증](plans/S15P31E102-473.md)
