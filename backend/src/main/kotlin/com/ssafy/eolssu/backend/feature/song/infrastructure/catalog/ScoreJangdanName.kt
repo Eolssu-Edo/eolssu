@@ -27,7 +27,7 @@ private data class ReviewedJangdan(
 // Source and rhythm evidence: docs/knowledge/data/jangdan-song-review.md (503, 506).
 private val reviewedJangdans = mapOf(
     "mr203-fixed-danso-003-p1" to ReviewedJangdan("DANSO", "자진타령",
-        "e0a5b4f02b9378865d2a6fbc59be65d8883276dfdb97e0f6444ce19a179063bc"),
+        "e0a5b4f02b9378865d2a6fbc59be65d8883276dfdb97e0f6444ce19a179063bc", playback = true),
     "mr203-fixed-danso-030-p1" to ReviewedJangdan("DANSO", "자진모리",
         "46620fa702b0d5f52264841ac0d28493bf17920b0cfbdbbe885ca3aa7976ce77", playback = true),
     "mr203-fixed-jeongak-daegeum-004-p1" to ReviewedJangdan("JEONGAK_DAEGEUM", "굿거리",

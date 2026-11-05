@@ -79,10 +79,10 @@ class JangdanPlaybackSnapshotTests {
                 if (id == "7") assertEquals("자진타령", scoreJangdanName(source, stored.scoreVersion))
             }
         }
+        assertEquals(35, namedOtherScores)
+        assertEquals(28, otherPlayback)
         assertEquals(46, dansoScores)
         assertEquals(35, namedDansoScores)
         assertEquals(34, dansoPlayback)
-        assertEquals(35, namedOtherScores)
-        assertEquals(28, otherPlayback)
     }
 }
