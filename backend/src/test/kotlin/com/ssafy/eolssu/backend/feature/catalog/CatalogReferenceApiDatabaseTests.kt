@@ -150,13 +150,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(stored.path("group").size(), item.path("groupCount").asInt())
             assertEquals(item.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(item.path("bpmUnit"), detail.path("bpmUnit"))
-            assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
-            val audio = client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/jangdans/$id/audio"))
-                .header("Range", "bytes=0-63").header("Cookie", "access_token=stale").build(),
-                HttpResponse.BodyHandlers.ofByteArray())
-            assertEquals(206, audio.statusCode())
-            assertTrue(audio.headers().firstValue("Content-Type").orElse("").startsWith("audio/mpeg"))
-            assertEquals(64, audio.body().size)
+            assertTrue(detail.path("soundUrl").isNull)
         }
         assertError("/api/jangdans/9223372036854775807",404,"RESOURCE_NOT_FOUND")
     }
@@ -181,7 +175,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
             assertTrue(detail.path("source").asString().contains("https://"))
-            assertEquals("/api/jangdans/$id/audio", detail.path("soundUrl").asString())
+            assertTrue(detail.path("soundUrl").isNull)
         }
         assertEquals(listOf("1 세마치 96 DOTTED_QUARTER", "2 굿거리 66 DOTTED_QUARTER", "3 중모리 88 QUARTER"),
             jdbc.queryForList("SELECT CONCAT(id,' ',name,' ',default_bpm,' ',bpm_unit) FROM jangdans WHERE id<=3 ORDER BY id", String::class.java))
@@ -212,7 +206,7 @@ class CatalogReferenceApiDatabaseTests {
             assertEquals(summary.path("defaultBpm"), detail.path("defaultBpm"))
             assertEquals(summary.path("bpmUnit"), detail.path("bpmUnit"))
             assertTrue(detail.path("source").asString().contains("https://"))
-            assertEquals("/api/jangdans/${e.id}/audio", detail.path("soundUrl").asString())
+            assertTrue(detail.path("soundUrl").isNull)
         }
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM songs WHERE jangdan_id>=6", Int::class.java))
     }

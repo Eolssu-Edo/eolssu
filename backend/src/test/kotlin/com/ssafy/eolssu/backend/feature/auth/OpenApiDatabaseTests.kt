@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(69,expected.size)
+        assertEquals(68,expected.size)
         assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}")))
         val catalogPaths = setOf("/api/instruments", "/api/songs/{songId}/score", "/api/songs/{songId}/model-audio",
@@ -92,12 +92,6 @@ open class OpenApiDatabaseTests {
         assertEquals(0, symbolImage.path("security").size())
         assertEquals("binary", symbolImage.path("responses").path("200").path("content").path("image/svg+xml").path("schema").path("format").asString())
         assertTrue(symbolImage.path("responses").has("404"))
-        val jangdanAudio = doc.path("paths").path("/api/jangdans/{jangdanId}/audio").path("get")
-        assertEquals(0, jangdanAudio.path("security").size())
-        for (status in listOf("200", "206")) {
-            assertEquals("binary", jangdanAudio.path("responses").path(status).path("content")
-                .path("audio/mpeg").path("schema").path("format").asString())
-        }
         val symbolProperties = doc.path("components").path("schemas").path("NotationSymbolItem").path("properties")
         for (field in listOf("source", "descriptionStatus", "imageLicense")) assertTrue(symbolProperties.has(field), field)
         val play = doc.path("paths").path("/api/reference-audios/{assetId}/play").path("get")
