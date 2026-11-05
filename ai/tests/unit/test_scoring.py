@@ -72,6 +72,8 @@ def test_shared_vector_keeps_the_rounding_of_note_by_note_addition():
     assert [combine(part, weights) for part in (pitch, timing, duration)] == [63, 41, 43]
     # 52.5는 짝수 쪽으로 간다.
     assert total_score(63, 41, 43, {"pitch": 0.5, "timing": 0.25, "duration": 0.25}) == 52
+    # 차례 합은 6.5(짝수 쪽 6)이고 역순·보정 합산은 끝자리 오차로 7이 된다.
+    assert total_score(1, 1, 56, {"pitch": 0.7, "timing": 0.2, "duration": 0.1}) == 6
 
 
 def test_sigimsae_note_has_no_pitch_score_even_when_missed():
