@@ -1,0 +1,21 @@
+[Unit]
+Description=Eolssu QA APK merge request metadata sync
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=jenkins
+Group=jenkins
+LoadCredential=gitlab-token:/etc/eolssu/qa-gitlab-read-token
+ExecStart=/usr/bin/python3 -B /opt/eolssu/config/sync-mr-details.py --root /opt/eolssu/apks --token-file ${CREDENTIALS_DIRECTORY}/gitlab-token
+TimeoutStartSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/eolssu/apks
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=

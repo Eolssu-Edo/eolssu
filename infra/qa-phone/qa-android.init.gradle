@@ -1,0 +1,11 @@
+// CI-only identity; product source, normal debug/release builds and their data are preserved.
+allprojects { p ->
+    p.plugins.withId('com.android.application') {
+        def android = p.extensions.getByName('android')
+        android.buildFeatures.resValues = true
+        android.buildTypes.named('debug') {
+            applicationIdSuffix = '.qa'
+            resValue 'string', 'app_name', '얼쑤 QA'
+        }
+    }
+}
