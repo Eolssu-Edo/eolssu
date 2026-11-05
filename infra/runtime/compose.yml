@@ -108,6 +108,11 @@ services:
   # 481: explicitly enable only after local resource/asset verification.
   playback:
     profiles: ["playback"]
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-playback
     image: eolssu-playback:runtime
     read_only: true
     tmpfs:
@@ -123,6 +128,12 @@ services:
     volumes:
       - ${PLAYBACK_ASSETS_DIRECTORY:-/opt/eolssu/playback-assets}:/assets:ro
       - ${PLAYBACK_JANGGU_DIRECTORY:-/opt/eolssu/janggu}:/janggu:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     restart: unless-stopped
 
   # 연주 분석 API(ai/Dockerfile). 인증이 없으므로 포트를 공개하지 않고 backend만 내부망으로 부른다.

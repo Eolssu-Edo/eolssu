@@ -17,6 +17,21 @@ flowchart TD
     pcm --> audio["M4A 또는 WAV · 디코딩 검증"]
 ```
 
+## 내부 HTTP 서비스 (481)
+
+백엔드가 `SHEET_AUDIO_BASE_URL`로 부르는 내부 전용 서비스입니다. 인증이 없으므로 호스트 포트를 열지 않고, 운영에서는 [compose의 `playback` 프로필](../../../infra/runtime/compose.yml)로 띄웁니다. 계약은 [481 스펙](../../../docs/specs/sheet-audio.md)을 따릅니다.
+
+```powershell
+$env:PLAYBACK_ASSETS_JSON = "C:\path\assets.json"
+$env:PLAYBACK_JANGGU_SAMPLES = "C:\path\janggu"
+.\data\.venv\Scripts\python -m data.src.playback.service --port 8000 --timeout-seconds 90
+```
+
+- 시작할 때 네 악기의 CAT ZIP, 장구 샘플, FFmpeg를 확인하고, 하나라도 없으면 요청을 받기 전에 종료합니다.
+- `GET /health`는 준비 상태, `POST /v1/estimate`는 길이 계산, `POST /v1/render`는 M4A·MIDI·길이 ZIP을 돌려줍니다.
+- 생성은 전역 1건입니다. 이미 생성 중이면 `/v1/render`가 409를 돌려주고, 백엔드는 작업을 대기열에 되돌립니다.
+- 표준 오류 로그에는 오류 코드와 생성기 종료 상태만 남깁니다. 악보 내용, 요청 경로, 자산 위치는 남기지 않습니다.
+
 ## 서비스 공통 악보 v1 입력 (338)
 
 저장소 루트에서 공통 악보와 `music.bpmUnit` 기준 BPM, 원본과 같은 악기를 명시합니다. 아래 아리랑은 점4분음표96 BPM입니다.

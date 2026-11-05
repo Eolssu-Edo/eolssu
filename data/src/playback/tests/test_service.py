@@ -73,6 +73,26 @@ time.sleep(.4)
         self.assertEqual(caught.exception.code, 'SERVER_ERROR')
         self.assertNotIn('private', str(caught.exception))
 
+    def test_failed_renderer_logs_only_its_status_and_public_code(self):
+        service = PlaybackService([sys.executable, '-c', 'raise SystemExit(7)'], timeout_seconds=10)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            body = json.dumps({'score': {'title': 'private-title'}, 'instrument': 'danso', 'bpm': 60, 'withJangdan': False})
+            connection = http.client.HTTPConnection('127.0.0.1', server.server_address[1], timeout=10)
+            with self.assertLogs('playback', 'WARNING') as logs:
+                connection.request('POST', '/v1/render', body, {'Content-Type': 'application/json'})
+                self.assertEqual(connection.getresponse().status, 500)
+            connection.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+        written = '\n'.join(logs.output)
+        self.assertIn('status 7', written)
+        self.assertIn('SERVER_ERROR', written)
+        self.assertNotIn('private-title', written)
+
     def test_actual_http_rejects_bad_json_and_returns_public_error(self):
         service = PlaybackService([sys.executable, '-c', 'raise RuntimeError()'], timeout_seconds=10)
         server = ThreadingHTTPServer(('127.0.0.1', 0), handler(service))

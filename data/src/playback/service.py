@@ -2,6 +2,7 @@
 import argparse
 import io
 import json
+import logging
 import os
 import signal
 from pathlib import Path
@@ -16,6 +17,7 @@ MAX_REQUEST = 6 * 1024 * 1024
 MAX_AUDIO = 15 * 1024 * 1024
 MAX_MIDI = 1024 * 1024
 ESTIMATE_WAIT_SECONDS = 5
+LOG = logging.getLogger('playback')
 INSTRUMENTS = {'danso', 'sogeum', 'jeongak-daegeum', 'sanjo-daegeum'}
 
 
@@ -64,7 +66,9 @@ class PlaybackService:
                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                           start_new_session=os.name != 'nt') as child:
                         try:
-                            if child.wait(timeout=min(10,self.timeout) if estimate else self.timeout) != 0:
+                            status = child.wait(timeout=min(10,self.timeout) if estimate else self.timeout)
+                            if status != 0:
+                                LOG.warning('renderer exited with status %s', status)
                                 raise GenerationError('SERVER_ERROR')
                         except subprocess.TimeoutExpired:
                             if os.name == 'nt':
@@ -142,6 +146,8 @@ def handler(service):
                 self.end_headers()
                 self.wfile.write(payload)
             except GenerationError as error:
+                # Codes only: scores, request paths and asset locations stay out of logs.
+                LOG.warning('request failed: %s (%s)', error.code, error.status)
                 self.reply(error.status, {'errorCode': error.code})
             except (ValueError, UnicodeError):
                 self.reply(400, {'errorCode': 'INVALID_REQUEST'})
@@ -168,6 +174,7 @@ def main():
     parser.add_argument('--port', type=int, default=8000)
     parser.add_argument('--timeout-seconds', type=float, default=float(os.environ.get('PLAYBACK_TIMEOUT_SECONDS', '90')))
     args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
     # Fail before accepting traffic if the mounted assets or codec tools are absent.
     assets_path = Path(os.environ['PLAYBACK_ASSETS_JSON'])
     assets = json.loads(assets_path.read_text(encoding='utf-8-sig'))
