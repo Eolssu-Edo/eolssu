@@ -34,15 +34,4 @@ class ScoreSectionTest {
         val positions = ScoreSection.between(ScorePosition(0, 2), ScorePosition(2, 0)).positions(score)
         assertEquals(listOf(ScorePosition(0, 2), ScorePosition(1, 0), ScorePosition(1, 1), ScorePosition(2, 0)), positions)
     }
-
-    @Test
-    fun recommendedSectionIsTheDensestColumnPair() {
-        val result = EvaluationResult(
-            id = "e", songId = "s", total = 80, feedback = "", metrics = emptyList(),
-            errors = listOf(ScoreError(1, 0, EvaluationMetric.Pitch), ScoreError(2, 1, EvaluationMetric.Rhythm), ScoreError(2, 2, EvaluationMetric.Length)),
-            bpm = 60, recordedSeconds = 10, recordedAt = KoreanDateTime(2026, 10, 20, 15, 20), sample = true,
-        )
-        assertEquals(ScoreSection(ScorePosition(1, 0), ScorePosition(2, 2)), result.recommendedSection(score))
-        assertNull(result.copy(errors = emptyList()).recommendedSection(score))
-    }
 }

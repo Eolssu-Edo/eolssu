@@ -10,6 +10,7 @@ import com.ssafy.eolssu.data.practice.PracticeSessionRepository
 import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.RetryOutcome
 import com.ssafy.eolssu.data.practice.SendResult
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.practice.SessionStart
 import kotlinx.coroutines.CancellationException
@@ -44,7 +45,7 @@ internal class AnalysisSession(
     private val uploads: RecordingUploads? = null,
     private val sessions: PracticeSessionRepository? = null,
 ) {
-    private class Request(val songId: String, val bpm: Int, val recordedSeconds: Int)
+    private class Request(val songId: String, val bpm: Int, val recordedSeconds: Int, val section: SessionSection?)
 
     private val _state = MutableStateFlow(AnalysisUiState())
     val state: StateFlow<AnalysisUiState> = _state.asStateFlow()
@@ -66,7 +67,14 @@ internal class AnalysisSession(
     }
 
     /** 곡 조회 실패는 분석 요청 전의 실패이며, 분석 상태나 결과로 바꾸지 않는다. */
-    suspend fun loadSong(songId: String, bpm: Int, songs: SongRepository, take: RecordedTake? = null, pendingSessionId: String? = null) {
+    suspend fun loadSong(
+        songId: String,
+        bpm: Int,
+        songs: SongRepository,
+        take: RecordedTake? = null,
+        pendingSessionId: String? = null,
+        section: SessionSection? = null,
+    ) {
         _state.update { it.copy(songLookup = SongLookup.Loading) }
         val song = try {
             songs.getSong(songId)
@@ -81,14 +89,17 @@ internal class AnalysisSession(
         if (pendingSessionId != null) {
             _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
             startPending(song, bpm, pendingSessionId)
-        } else start(song, bpm, take = take)
+        } else start(song, bpm, take = take, section = section)
     }
 
-    /** 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다. */
-    suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null, take: RecordedTake? = null) {
+    /**
+     * 곡을 보이고 녹음을 분석에 맡긴다. [recording]이 있으면 먼저 올리고, 올라간 뒤에 분석을 기다린다.
+     * [section]이 있으면 그 구간만 연주한 재평가 세션을 만든다(구간 반복의 ‘이 구간 재평가’).
+     */
+    suspend fun start(song: Song?, bpm: Int, recording: PendingRecording? = null, take: RecordedTake? = null, section: SessionSection? = null) {
         _state.update { it.copy(song = song, songLookup = if (song == null) SongLookup.Missing else SongLookup.Ready) }
         if (song == null) return
-        request = Request(song.id, bpm, song.durationSeconds(bpm))
+        request = Request(song.id, bpm, song.durationSeconds(bpm), section)
         val uploads = uploads
         when {
             recording != null && uploads != null -> {
@@ -121,7 +132,7 @@ internal class AnalysisSession(
         val uploads = uploads ?: return
         val sessions = sessions ?: return
         val request = request ?: return
-        when (val created = sessions.create(request.songId, request.bpm, take.key)) {
+        when (val created = sessions.create(request.songId, request.bpm, take.key, request.section)) {
             is SessionStart.Created -> {
                 val pending = PendingRecording(created.sessionId, take.path, created.startedAtMillis, request.songId, request.bpm, created.memberId)
                 recording = pending

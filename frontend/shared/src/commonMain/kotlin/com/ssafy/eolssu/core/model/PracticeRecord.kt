@@ -10,6 +10,7 @@ package com.ssafy.eolssu.core.model
  * @property errors 오류 위치. [metrics]와 같이 기록 상세에서 채운다.
  * @property recordingAvailable 녹음을 다시 들을 수 있는지(REC-02·PRA-03 `recordingAvailable`).
  * @property isNew 저장한 뒤 기록 상세를 아직 열지 않았는지(REC-02 `isNew`).
+ * @property recordedAtMillis 연주 순서 비교에 쓰는 시작 시각. 분 단위 시각만 있는 샘플은 그 분의 시작을 쓴다.
  */
 data class PracticeRecord(
     val id: String,
@@ -26,4 +27,5 @@ data class PracticeRecord(
     val errors: List<ScoreError>,
     val recordingAvailable: Boolean = false,
     val isNew: Boolean = false,
+    val recordedAtMillis: Long = ((recordedAt.epochDay * 24 + recordedAt.hour - 9) * 60 + recordedAt.minute) * 60_000,
 )

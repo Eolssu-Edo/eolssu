@@ -26,6 +26,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
@@ -69,8 +70,11 @@ object EolssuDestination {
     /** [title]은 내 악보 연습에서 곡 제목 대신 보일 악보 제목(비우면 곡 제목). */
     const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&title={title}"
 
-    /** [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다. */
-    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}"
+    /**
+     * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
+     * [start]·[end]·[parent]는 구간 반복의 재평가 녹음(음표 번호 범위와 기준 세션)이고, 곡 전체 연주면 비어 있다.
+     */
+    const val ANALYSIS = "analysis/{songId}/{bpm}?recording={recording}&key={key}&session={session}&start={start}&end={end}&parent={parent}"
     const val RESULT = "result/{evaluationId}"
 
     const val RECORDS = "records?saved={saved}"
@@ -83,9 +87,10 @@ object EolssuDestination {
 
     fun recordDetail(recordId: String) = "records/$recordId"
 
-    fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null) =
+    fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null, section: SessionSection? = null) =
         "analysis/$songId/$bpm?recording=${take?.path.orEmpty().encodeURLParameter()}&key=${take?.key.orEmpty()}" +
-            "&session=${pendingSessionId.orEmpty()}"
+            "&session=${pendingSessionId.orEmpty()}" +
+            (section?.let { "&start=${it.startNoteIdx}&end=${it.endNoteIdx}&parent=${it.parentSessionId}" } ?: "")
 
     fun result(evaluationId: String) = "result/$evaluationId"
 
@@ -255,17 +260,24 @@ fun EolssuNavHost(
                         type = NavType.StringType
                         defaultValue = ""
                     },
+                    navArgument("start") { type = NavType.IntType; defaultValue = -1 },
+                    navArgument("end") { type = NavType.IntType; defaultValue = -1 },
+                    navArgument("parent") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
                 val recording = entry.savedStateHandle.get<String>("recording").orEmpty()
                 val key = entry.savedStateHandle.get<String>("key").orEmpty()
+                val section = entry.sessionSection()
                 AnalysisRoute(
                     songId = entry.savedStateHandle.get<String>("songId").orEmpty(),
                     bpm = entry.savedStateHandle.get<Int>("bpm") ?: 0,
                     take = if (recording.isNotEmpty() && key.isNotEmpty()) RecordedTake(recording, key) else null,
                     pendingSessionId = entry.savedStateHandle.get<String>("session")?.takeIf { it.isNotEmpty() },
+                    section = section,
+                    // 구간 재평가는 구간 재평가 결과로, 곡 전체 연주는 평가 결과로 간다.
                     onResult = { id ->
-                        navController.navigate(EolssuDestination.result(id)) {
+                        val route = section?.let { WeakSectionDestination.sectionResult(it.parentSessionId, id) } ?: EolssuDestination.result(id)
+                        navController.navigate(route) {
                             popUpTo(EolssuDestination.ANALYSIS) { inclusive = true }
                         }
                     },
@@ -479,6 +491,14 @@ fun EolssuNavHost(
  */
 internal fun NavController.popBackStackFrom(entry: NavBackStackEntry) {
     if (currentBackStackEntry?.id == entry.id) popBackStack()
+}
+
+/** 분석 경로의 구간 재평가 인자. 셋 중 하나라도 없으면 곡 전체 연주다. */
+private fun NavBackStackEntry.sessionSection(): SessionSection? {
+    val start = savedStateHandle.get<Int>("start") ?: -1
+    val end = savedStateHandle.get<Int>("end") ?: -1
+    val parent = savedStateHandle.get<String>("parent").orEmpty()
+    return if (start < 0 || end < start || parent.isEmpty()) null else SessionSection(start, end, parent)
 }
 
 /** 곡 목록 경로에 두 칸 화면에서 직접 고른 것으로 둘 곡을 넘기는 키. */
