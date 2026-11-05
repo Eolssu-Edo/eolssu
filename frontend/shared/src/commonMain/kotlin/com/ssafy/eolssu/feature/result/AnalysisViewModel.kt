@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
 import kotlinx.coroutines.isActive
@@ -64,6 +65,7 @@ internal fun AnalysisUiState.canRetry(): Boolean = !retrying && failure?.retryab
  *
  * @param take 연습 화면에서 마친 녹음. 세션을 만들어 올린다. 없으면(녹음기가 없는 플랫폼) 예시 분석이다.
  * @param pendingSessionId 앱을 다시 켜고 보내는, 기기에 남은 녹음의 세션.
+ * @param section 구간 반복에서 마친 구간 재평가 녹음의 범위와 기준 세션. 없으면 곡 전체 연주다.
  * @param uploads·sessions 녹음을 보관할 수 있는 플랫폼(현재 Android)에만 있다.
  */
 class AnalysisViewModel(
@@ -76,6 +78,7 @@ class AnalysisViewModel(
     uploads: RecordingUploads? = null,
     sessions: PracticeSessionRepository? = null,
     member: SignedInMember? = null,
+    private val section: SessionSection? = null,
 ) : ViewModel() {
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount(): Unit = session.clearAccount()
@@ -100,7 +103,7 @@ class AnalysisViewModel(
 
     private fun loadSong() {
         if (songJob?.isActive == true) return
-        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId) }
+        songJob = accountScope.launch { session.loadSong(songId, bpm, songRepository, take, pendingSessionId, section) }
     }
 
     /** 분석 다시 시도. */
