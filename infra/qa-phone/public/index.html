@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>얼쑤 QA</title><link rel="stylesheet" href="./style.css"><script src="./app.js" type="module"></script>
+</head>
+<body>
+<header class="loginHeader"><a class="brand" href="./" aria-label="얼쑤 QA 홈">얼쑤 <b>QA</b></a><nav class="deviceLinks" aria-label="기기 선택"><a href="/qa/" data-device="phone">휴대폰</a><a href="/qa/tablet/" data-device="tablet">태블릿</a></nav></header>
+<main>
+  <section id="login" class="card login">
+    <span class="loginMark" aria-hidden="true">QA</span><p class="eyebrow">얼쑤 기기 테스트</p>
+    <h1><span id="loginDeviceName">기기</span>에서<br>함께 점검하기</h1><p>화면을 클릭하면 기기의 같은 위치를 터치합니다.<br>조작은 제어권을 받은 한 명씩 할 수 있습니다.</p>
+    <form id="loginForm"><label>표시 이름<input id="name" required maxlength="32" autocomplete="nickname" placeholder="이름 또는 담당 파트"></label><label>QA 접속 키<input id="token" type="password" required minlength="24" autocomplete="off"></label><button type="submit" class="primary">기기 연결</button></form>
+  </section>
+  <section id="workspace" hidden aria-label="Android 기기 제어">
+    <h1 class="srOnly">얼쑤 QA Android 기기 제어</h1>
+    <header class="controlHeader">
+      <div class="headerTop"><div class="headerDevice">
+      <a class="brand" href="./" aria-label="얼쑤 QA 홈">얼쑤 <b>QA</b></a>
+      <nav class="deviceLinks" aria-label="기기 선택"><a href="/qa/" data-device="phone">휴대폰</a><a href="/qa/tablet/" data-device="tablet">태블릿</a></nav><strong id="deviceName" class="deviceName">기기 확인 중</strong>
+      <span id="connection" class="badge" data-state="waiting" role="status">연결 확인 중</span>
+      </div>
+      <div class="headerActions">
+        <button id="request" class="primary" disabled>제어권 요청</button><button id="release" class="secondary" hidden disabled>제어권 반납</button>
+        <button id="logout" class="quiet" hidden title="내 웹 세션만 종료합니다. 다른 참여자는 계속 연결됩니다.">연결해제</button>
+      </div>
+      </div>
+      <div class="headerBottom">
+      <form id="portForm" class="portForm" hidden><label for="wirelessPort">디버깅 포트</label><input id="wirelessPort" type="text" inputmode="numeric" pattern="[0-9]{1,5}" maxlength="5" required autocomplete="off" aria-describedby="portHint" placeholder="37457"><button id="applyPort" class="secondary" type="submit">포트 적용</button><span id="portHint" class="srOnly">기기의 무선 디버깅 기본 화면 포트를 입력하세요. 적용하면 중계를 재시작하며 다시 로그인해야 합니다.</span></form>
+      <details class="headerPeople">
+        <summary><span class="smallLabel">참여자</span><span id="peerPreview">연결 확인 중</span><span id="peerCount" class="count">0명</span></summary>
+        <div class="popover peoplePopover"><h2>함께 보는 사람</h2><ul id="peers"></ul></div>
+      </details>
+      <div class="headerOwner"><div class="ownerIdentity"><span class="smallLabel">현재 조작자</span><strong id="owner">아직 없어요</strong></div></div>
+
+      </div>
+    <section id="requestNotice" class="requestNotice" aria-label="제어권 요청 알림" hidden>
+      <div><p id="requestNoticeTitle" role="alert"></p><p id="requestQueueInfo" class="subtle"></p></div>
+      <div class="decisionActions"><button id="approveRequest" class="primary">승인</button><button id="rejectRequest" class="secondary">거절</button></div>
+    </section>
+    </header>
+    <p id="requestFeedback" class="requestFeedback" role="status" hidden></p>
+    <div class="layout">
+      <section class="device" aria-label="Android 기기 화면">
+        <div class="deviceTop"><span id="mode">제어권을 받으면 화면을 터치할 수 있어요</span><div class="frameMeta"><span id="cadence" title="실제 수신·표시 프레임 수를 표시합니다.">실시간 영상 연결 중</span><span id="frameInfo">화면 대기</span></div></div>
+        <div class="screenWrap"><canvas id="screen" aria-label="화면을 클릭하면 같은 위치를 터치하는 실제 Android 기기 화면" role="img" tabindex="0" hidden></canvas><div id="offline"><span class="offlineIcon" aria-hidden="true">↔</span><strong>기기 연결을 기다리고 있어요</strong><p>USB 또는 페어링된 무선 디버깅 연결을 확인해 주세요.</p></div></div>
+        <nav class="deviceNav" aria-label="Android 탐색"><button data-key="BACK" disabled><span aria-hidden="true">‹</span> 뒤로</button><button data-key="HOME" disabled><span aria-hidden="true">○</span> 홈</button><button data-key="APP_SWITCH" disabled><span aria-hidden="true">▢</span> 최근 앱</button></nav>
+      </section>
+      <aside aria-label="텍스트 입력과 사용 안내">
+        <section class="card apkCard"><details open><summary>앱 버전</summary>
+          <p id="installedVersion" class="subtle">설치 버전 확인 중</p>
+          <button id="installLatest" class="primary apkUpdate" disabled>최신 APK로 업데이트</button><p id="apkUpdateHint" class="subtle" role="status">기기와 최신 APK를 확인하고 있습니다.</p>
+          <label for="apkVersion">보관된 앱 버전 · MR / 작성자 / 제목</label><select id="apkVersion" disabled><option value="">빌드 대기</option></select>
+          <p id="apkMeta" class="subtle"></p>
+          <p class="subtle">목록 선택은 버전 확인용입니다.</p><p id="apkStatus" role="status" class="subtle"></p>
+        </details></section>
+        <section class="card inputCard"><details open><summary>텍스트 입력</summary><p class="inputHint">기기의 입력 칸을 먼저 선택하세요.</p><form id="textForm"><label class="srOnly" for="text">기기에 입력할 텍스트</label><input id="text" maxlength="128" placeholder="한글·영문·숫자 입력" autocomplete="off" disabled><button type="submit" class="secondary" disabled>기기에 입력</button></form></details></section>
+        <div class="sideNote"><p>선택한 기기의 화면과 앱 상태를 공유합니다.</p><p>PC 마이크·오디오는 사용하지 않습니다.</p><p>소리와 녹음은 연결된 기기에서 동작합니다.</p><p id="screenAwake" role="status">화면 밝기 유지 준비 중</p></div>
+      </aside>
+    </div>
+  </section>
+  <p id="message" class="message" role="status" aria-live="polite"></p>
+</main><footer>얼쑤 QA</footer>
+</body>
+</html>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh Eolssu QA APK merge request metadata every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=eolssu-qa-mr-sync.service
+
+[Install]
+WantedBy=timers.target
