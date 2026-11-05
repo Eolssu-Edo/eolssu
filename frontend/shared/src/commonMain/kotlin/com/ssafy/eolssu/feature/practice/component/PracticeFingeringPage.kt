@@ -60,6 +60,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_finger_upcoming
+import eolssu.shared.generated.resources.practice_finger_end
 import eolssu.shared.generated.resources.practice_finger_gak
 import eolssu.shared.generated.resources.practice_finger_head_fingering
 import eolssu.shared.generated.resources.practice_finger_head_lyric
@@ -138,6 +140,10 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentUnit?.column ?: 0) }
     val angleIndex = if (live && state.follow) currentUnit?.column ?: browsed else browsed
     val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
+    val preview = remember(song, cells, angleIndex) {
+        val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
+        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
+    }
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
     val shape = RoundedCornerShape(3.dp)
@@ -182,6 +188,24 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                                 onSelectEvent = onSelectEvent.takeIf { state.mode == PracticeMode.Ready },
                             )
                         }
+                    }
+                }
+            }
+            Text(stringResource(Res.string.practice_finger_upcoming),
+                style = MaterialTheme.typography.labelSmall, color = colors.accentText)
+            if (preview.isEmpty()) {
+                Text(stringResource(Res.string.practice_finger_end),
+                    style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
+            } else {
+                Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
+                    FingerHead(instrumentName)
+                    preview.forEach { cell ->
+                        FingerRow(
+                            cell = cell, instrument = instrument, fill = null, isSelected = false,
+                            playingKey = null, showHangul = state.settings.showHangul,
+                            gakStart = false, daegangStarts = emptyList(),
+                            imageHeight = 28.dp * fontScale, onSelectEvent = null,
+                        )
                     }
                 }
             }
