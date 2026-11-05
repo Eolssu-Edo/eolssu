@@ -114,11 +114,6 @@ data class PracticeUiState(
     val hadInput: Boolean = false,
     val noInputMs: Double = 0.0,
     val finished: Boolean = false,
-    val finalizingRecording: Boolean = false,
-    val recordingControlBusy: Boolean = false,
-    val pitchFeedback: PracticePitchFeedback = PracticePitchFeedback(),
-    val pitchUnavailable: Boolean = false,
-    val pitchSupported: Boolean = false,
     val follow: Boolean = true,
     val listening: Yul? = null,
     val idleReminder: Boolean = false,
@@ -347,7 +342,7 @@ fun PracticeUiState.checkRecording(saved: Boolean, tooLarge: Boolean): PracticeU
 /** 녹음을 시작하거나 저장하지 못함. 끊긴 연주처럼 평가하지 않는다. */
 fun PracticeUiState.failRecording(): PracticeUiState = copy(
     mode = PracticeMode.Interrupted, popup = PracticePopup.RecordFailed, eventStartedAt = null, resume = false, micLevel = 0f,
-    finished = false, finalizingRecording = false, recordingControlBusy = false, pitchFeedback = PracticePitchFeedback(),
+    finished = false,
 )
 
 /** 연주 중단을 누르면 진행을 그 자리에서 멈추고 확인 창을 띄운다. */
