@@ -35,5 +35,6 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper) : UserShee
         id, userId, title, kind, source, SheetStatus.valueOf(status), jangdanId, jangdanName, bpm, bpmUnit, columnCount, scoreVersion,
         scoreJson, noteCount, pendingCellCount, updatedAt.toInstant(ZoneOffset.UTC),
         draftJson?.let { SheetDraft(it, checkNotNull(draftBaseVersion), checkNotNull(draftSavedAt).toInstant(ZoneOffset.UTC)) }, draftRevision,
+        conversionStatus?.let { SheetImportSource(SheetImportStatus.valueOf(it), checkNotNull(sourcePageCount), sourceFileName, hwangPitch) },
     )
 }

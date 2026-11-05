@@ -17,12 +17,13 @@ class SongScoreControllerTests {
     private val pitches = listOf(ScorePitch(9007199254740993, "중", 0, 5, "仲", "중"), ScorePitch(3, "임", 0, 7, "林", "임"))
     private var stored: PublishedSongScore? = PublishedSongScore(7, 3, 2, 96, "DOTTED_QUARTER", score)
     private var currentPitches = pitches
+    private var playback: ScoreJangdanPlayback? = null
     private val repository = object : SongScoreRepository {
         override fun findPublished(songId: Long) = stored?.takeIf { it.songId == songId }
         override fun pitches() = currentPitches
     }
     private val mvc = MockMvcBuilders.standaloneSetup(SongScoreController(
-        GetSongScore(repository, CommonScoreTimelineDecoder(json)), json,
+        GetSongScore(repository, CommonScoreTimelineDecoder(json)) { playback }, json,
     )).setControllerAdvice(GlobalExceptionHandler()).build()
 
     @Test fun `keeps score source and projects NOTE identity after rests and ties`() {
@@ -51,6 +52,20 @@ class SongScoreControllerTests {
         stored = stored!!.copy(songId = Long.MAX_VALUE)
         mvc.perform(get("/api/songs/${Long.MAX_VALUE}/score")).andExpect(status().isOk)
             .andExpect(jsonPath("$.result.songId").value(Long.MAX_VALUE.toString()))
+    }
+
+    @Test fun `supplemental playback does not change the old field or the original score`() {
+        val original = stored!!
+        val source = json.readTree(original.scoreJson) as tools.jackson.databind.node.ObjectNode
+        (source.path("music") as tools.jackson.databind.node.ObjectNode).put("jangdan", "")
+        stored = original.copy(scoreJson = source.toString())
+        playback = ScoreJangdanPlayback("4", "자진모리", 0, 12, JangdanPlaybackPattern(List(12) { "덩" }, List(4) { 3 }))
+
+        val response = mvc.perform(get("/api/songs/7/score")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.jangdanPlayback").doesNotExist())
+            .andExpect(jsonPath("$.result.supplementalJangdanPlayback.name").value("자진모리"))
+            .andReturn().response.contentAsString
+        assertEquals(source, json.readTree(response).path("result").path("score"))
     }
 
     @Test fun `catalog tempo preserves song range instead of recording session limits`() {

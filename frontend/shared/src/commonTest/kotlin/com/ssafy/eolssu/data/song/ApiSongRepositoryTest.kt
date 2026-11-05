@@ -63,6 +63,15 @@ class ApiSongRepositoryTest {
     }
 
     @Test
+    fun listDisplaysScoreJangdanWithoutLoadingTheScore() = runTest {
+        val item = """{"songId":"29","title":"아리랑","instrumentId":"1","difficulty":2,"defaultBpm":144,"jangdan":null,"jangdanName":"세마치","isScorable":true,"noteCount":1,"scoreVersion":1}"""
+        val client = catalogClient("""{"isSuccess":true,"result":{"items":[$item]}}""")
+        try {
+            assertEquals("세마치", ApiSongRepository(client).getSongs().single().jangdanName)
+        } finally { client.close() }
+    }
+
+    @Test
     fun listRetainsLargeIdsUnknownDifficultyAndPracticeOnlySongs() = runTest {
         val client = catalogClient("""{"isSuccess":true,"result":{"items":[$ITEM]}}""")
         try {
