@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluationNote
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluationSnapshot
 import com.ssafy.eolssu.backend.feature.evaluation.domain.PracticeEvaluations
+import com.ssafy.eolssu.backend.feature.evaluation.domain.ScoreWeights
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -14,7 +15,8 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
                 row.startedAt.toInstant(ZoneOffset.UTC), row.endedAt?.toInstant(ZoneOffset.UTC),
                 row.evaluationId, row.totalScore, row.pitchScore, row.timingScore, row.durationScore,
                 row.evaluatedAt?.toInstant(ZoneOffset.UTC), row.recordingDurationMs, row.startNoteIdx, row.endNoteIdx,
-                row.tuningOffsetCent, row.tuningOutOfRange, row.parentSessionId, row.modelVersion,
+                row.tuningOffsetCent, row.tuningOutOfRange, row.parentSessionId, row.modelVersion, row.scoringVersion,
+                row.scoringVersion?.let { ScoreWeights(requireNotNull(row.pitchWeight), requireNotNull(row.timingWeight), requireNotNull(row.durationWeight)) },
             )
         }
 
@@ -25,6 +27,6 @@ class MyBatisPracticeEvaluations(private val mapper: EvaluationReadMapper) : Pra
 
     override fun notes(evaluationId: Long): List<PracticeEvaluationNote> = mapper.notes(evaluationId).map {
         PracticeEvaluationNote(it.noteIdx, it.verdict, it.pitchErrorCent?.toInt(), it.onsetErrorMs, it.durationErrorMs,
-            it.expectedPitchId, it.detectedPitchId, it.recordingOffsetMs)
+            it.expectedPitchId, it.detectedPitchId, it.recordingOffsetMs, it.pitchScore, it.timingScore, it.durationScore, it.weight)
     }
 }

@@ -50,6 +50,26 @@ class SectionComparisonControllerTests {
         notes[12] = listOf(note(2,"CORRECT"), note(3,"PITCH"))
     }
 
+    @Test fun `section scores fill before and delta when both sides have note scores`() {
+        login()
+        val weights = ScoreWeights(0.5, 0.25, 0.25)
+        for (id in listOf(11L, 12L)) sessions[id] = sessions.getValue(id).copy(scoringVersion = "note-mean-1", scoreWeights = weights)
+        notes[11] = listOf(2, 3).map { PracticeEvaluationNote(it, "PITCH", null, null, null, 1, null, null, 60.0, 80.0, 40.0, 1.0) }
+        notes[12] = listOf(2, 3).map { PracticeEvaluationNote(it, "CORRECT", null, null, null, 1, null, null, 90.0, 90.0, 90.0, 1.0) }
+        mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isOk)
+            .andExpect(jsonPath("$.result.scoreComparable").value(true))
+            .andExpect(jsonPath("$.result.notComparableReasons.length()").value(0))
+            .andExpect(jsonPath("$.result.before.totalScore").value(60))
+            .andExpect(jsonPath("$.result.before.pitchScore").value(60))
+            .andExpect(jsonPath("$.result.before.timingScore").value(80))
+            .andExpect(jsonPath("$.result.before.durationScore").value(40))
+            .andExpect(jsonPath("$.result.after.totalScore").value(90))
+            .andExpect(jsonPath("$.result.delta.totalScore").value(30))
+            .andExpect(jsonPath("$.result.delta.pitchScore").value(31))
+            .andExpect(jsonPath("$.result.delta.timingScore").value(9))
+            .andExpect(jsonPath("$.result.delta.durationScore").value(50))
+    }
+
     @Test fun `parent section retake compares errors and leaves scores null`() {
         login()
         mvc.perform(get("/api/practice-sessions/12/comparison")).andExpect(status().isOk)

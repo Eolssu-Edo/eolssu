@@ -95,6 +95,7 @@ POST {AI}/v1/analyses
 - `attempt`는 늦게 도착한 결과를 버리는 데 쓴다. 백엔드는 현재 시도 번호와 같은 결과만 저장한다.
 - `audioUrl`은 녹음 접근 토큰이라 백엔드·AI 로그에 남기지 않는다.
 - `modelVersion`(30자 이하)은 `evaluations.model_version`에 저장한다. 점수는 0~100이고, 결과의 음표 `idx`는 요청한 음표와 같아야 한다. 하나라도 어긋나면 형식 오류다.
+- **음표별 부분 점수 (S15P31E102-502 백엔드).** 백엔드는 `scoringVersion`·`scoreWeights`와 음표의 `pitchScore`·`timingScore`·`durationScore`·`weight`를 받아 저장한다(V29). `scoringVersion`이 없는 이전 AI 응답은 그대로 받아 NULL로 둔다. `scoringVersion`이 있으면 가중치(0~1, 합 1)와 모든 음표 값(0~100, `weight` > 0)이 있어야 하고 `pitchScore`는 시김새 음만 null이다. 어긋나면 계약 오류(`SERVER_ERROR`)다.
 - 결과를 저장할 때 백엔드는 음표마다 `expected_pitch_id`를 악보에서 채운다. `detected_pitch_id`·`recording_offset_ms`는 아래 '인식 음·녹음 위치'를 따른다. `pitchErrorCent`는 정수로 반올림해 저장한다. `tuningOffsetCent`·`tuningOutOfRange`는 V11부터 `evaluations`에 함께 저장하고 [평가 조회 API](practice-evaluation-api.md)에 전달한다. 편차는 AI의 원래 추정값이며 범위 초과여도 0으로 바꾸지 않는다. 기존 평가·이전 AI의 두 필드 누락은 둘 다 null로 보존한다. 한쪽만 있거나 편차가 유한한 수가 아니면 응답 계약 오류다(S15P31E102-304).
 - **음표별 부분 점수 (S15P31E102-501 AI).** 구간 점수 비교(EVA-04)를 위해 `DONE`에 `scoringVersion`(`note-mean-1`)·`scoreWeights`(`pitch`·`timing`·`duration`, 합 1)를, 음표에 `pitchScore`·`timingScore`·`durationScore`(0~100, 소수)·`weight`를 더한다. 기존 필드는 그대로다.
   - 항목 점수 = `round(Σ(부분 점수 × weight) / Σ weight)`, 총점 = `round(Σ 항목 점수 × 가중치)`다. `round`는 0.5에서 짝수 쪽으로 간다. 항목 점수는 음표 순서대로, 총점은 음정·박자·길이 순서대로 더해야 소수점 끝까지 같은 값이 나온다. 합칠 음이 없으면 100이다.

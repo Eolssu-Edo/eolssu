@@ -155,6 +155,10 @@ Flyway는 이미 적용한 마이그레이션 파일을 수정하면 실행을 �
 
 V7에서 `refresh_tokens.expires_at`은 nullable입니다. NULL은 서버의 명시적 회원 허용 목록에 포함된 테스트 계정의 시간 만료 없는 세션입니다. 일반 계정은 기존 만료 시각을 그대로 저장합니다. access JWT는 같은 세션 해시에 묶이고 폐기·회원 상태·허용 목록을 확인합니다. [세부 계약](../specs/non-expiring-test-account.md)을 따릅니다.
 
+## V29 음표별 부분 점수
+
+[V29](../../backend/src/main/resources/db/migration/V29__note_scores.sql)은 `note_results`에 `pitch_score`·`timing_score`·`duration_score`·`weight`(DOUBLE NULL), `evaluations`에 `scoring_version`(VARCHAR(30) NULL)·`score_weights`(JSON NULL, `pitch`·`timing`·`duration`)를 더한다(S15P31E102-502). EVA-04 구간 점수의 재료이고 값은 AI가 준 그대로다. 기존 평가 행과 값을 주지 않는 AI 응답은 NULL이며, 시김새 음은 `pitch_score`만 NULL이다. 두 `evaluations` 칸은 함께 있거나 함께 NULL이다.
+
 ## V23 로그인 세션 ID
 
 [V23](../../backend/src/main/resources/db/migration/V23__refresh_token_sessions.sql)은 `refresh_tokens.session_id`(NULL 허용, `idx_refresh_tokens_session`)를 추가하고 기존 행을 `legacy-{id}`로 채운다. 로그인·가입마다 새 값을 정하고 refresh 회전은 이전 행의 값을 이어받는다. access_token의 `sid`와 비교해 폐기된 세션의 토큰을 거절한다. 배포 도구가 교체 실패 때 JAR만 되돌리므로 이전 JAR이 `session_id` 없이 넣는 행을 받도록 NULL을 허용한다. 그런 행을 재발급하면 새 세션을 만든다. NOT NULL은 다음 릴리스의 별도 마이그레이션에서 건다([466 계획](../plans/S15P31E102-466.md)).

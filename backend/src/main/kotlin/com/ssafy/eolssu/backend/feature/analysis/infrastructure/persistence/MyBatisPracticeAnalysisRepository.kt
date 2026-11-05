@@ -38,13 +38,18 @@ class MyBatisPracticeAnalysisRepository(
                 it.verdict.name,
                 it.detectedSemitone?.let(detectedIds::get),
                 it.recordingOffsetMs,
+                it.score?.pitch,
+                it.score?.timing,
+                it.score?.duration,
+                it.score?.weight,
             )
         }
         return transactions.execute {
             if (mapper.markDone(analysis.sessionId, analysis.attempt, startedAfter) == 0) return@execute false
             val evaluation = NewEvaluation(
                 analysis.sessionId, result.total, result.pitch, result.timing, result.duration, result.modelVersion,
-                result.tuningOffsetCent, result.tuningOutOfRange,
+                result.tuningOffsetCent, result.tuningOutOfRange, result.scoring?.version,
+                result.scoring?.pitchWeight, result.scoring?.timingWeight, result.scoring?.durationWeight,
             )
             mapper.insertEvaluation(evaluation)
             if (rows.isNotEmpty()) mapper.insertNoteResults(checkNotNull(evaluation.id), rows)
