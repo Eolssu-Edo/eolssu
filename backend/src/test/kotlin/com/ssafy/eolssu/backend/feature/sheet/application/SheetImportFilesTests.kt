@@ -4,6 +4,7 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.PdfPages
 import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_IMPORT_MAX_BYTES
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetFileType
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetUpload
+import com.ssafy.eolssu.backend.feature.sheet.sheetImageBytes
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -16,8 +17,8 @@ class SheetImportFilesTests {
     private val files = SheetImportFiles { pdfPages }
 
     private val pdf = "%PDF-1.7\n".toByteArray()
-    private val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0)
-    private val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+    private val png = sheetImageBytes()
+    private val jpeg = sheetImageBytes("JPEG")
 
     private fun upload(bytes: ByteArray, name: String, size: Long = bytes.size.toLong()): SheetUpload {
         val path = Files.write(dir.resolve("f${Files.list(dir).count()}"), bytes)
@@ -61,6 +62,13 @@ class SheetImportFilesTests {
         assertEquals(10, (files.inspect(List(10) { upload(png, "p$it.png") }) as SheetImportFilesResult.Accepted).pageCount)
         pdfPages = PdfPages.Count(10)
         assertEquals(10, (files.inspect(listOf(upload(pdf, "a.pdf"))) as SheetImportFilesResult.Accepted).pageCount)
+    }
+
+    @Test
+    fun `magic bytes without a decodable image are unreadable`() {
+        for (bytes in listOf(png.copyOf(11), jpeg.copyOf(4))) {
+            assertEquals(SheetImportRejection.UNREADABLE, files.inspect(listOf(upload(bytes, "broken.png"))).rejection())
+        }
     }
 
     private fun SheetImportFilesResult.rejection() = (this as SheetImportFilesResult.Rejected).reason

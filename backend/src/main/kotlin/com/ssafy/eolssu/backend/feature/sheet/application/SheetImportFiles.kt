@@ -8,6 +8,8 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_IMPORT_MAX_FILES
 import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_IMPORT_MAX_PAGES
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetFileType
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetUpload
+import java.nio.file.Path
+import javax.imageio.ImageIO
 
 /** SHT-07 오류 코드에 대응한다(INVALID_REQUEST·FILE_TOO_LARGE·UNSUPPORTED_FILE_TYPE·TOO_MANY_PAGES·UNREADABLE_FILE). */
 enum class SheetImportRejection { INVALID, TOO_LARGE, UNSUPPORTED_TYPE, TOO_MANY_PAGES, UNREADABLE }
@@ -29,7 +31,10 @@ class SheetImportFiles(private val pdfPages: PdfPageCounter) {
             InspectedSheetFile(upload, SheetFileType.detect(upload.path) ?: return reject(SheetImportRejection.UNSUPPORTED_TYPE))
         }
         val pdf = files.filter { it.type == SheetFileType.PDF }
-        if (pdf.isEmpty()) return SheetImportFilesResult.Accepted(files, files.size)
+        if (pdf.isEmpty()) {
+            if (files.any { !readableImage(it.upload.path) }) return reject(SheetImportRejection.UNREADABLE)
+            return SheetImportFilesResult.Accepted(files, files.size)
+        }
         if (files.size != 1) return reject(SheetImportRejection.INVALID)
         return when (val counted = pdfPages.count(pdf.single().upload.path)) {
             PdfPages.Unreadable -> reject(SheetImportRejection.UNREADABLE)
@@ -42,4 +47,25 @@ class SheetImportFiles(private val pdfPages: PdfPageCounter) {
     }
 
     private fun reject(reason: SheetImportRejection) = SheetImportFilesResult.Rejected(reason)
+
+    /** 작은 출력으로 판독해 이미지 전체 크기만큼의 비트맵을 검증 과정에서 만들지 않는다. */
+    private fun readableImage(path: Path): Boolean = try {
+        ImageIO.createImageInputStream(path.toFile())?.use { input ->
+            val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return@use false
+            try {
+                reader.setInput(input, true, true)
+                val width = reader.getWidth(0)
+                val height = reader.getHeight(0)
+                if (width <= 0 || height <= 0) return@use false
+                val sample = ((maxOf(width, height).toLong() + 1023) / 1024).toInt()
+                val image = reader.read(0, reader.defaultReadParam.apply { setSourceSubsampling(sample, sample, 0, 0) }) ?: return@use false
+                image.flush()
+                true
+            } finally { reader.dispose() }
+        } ?: false
+    } catch (_: java.io.IOException) {
+        false
+    } catch (_: RuntimeException) {
+        false
+    }
 }

@@ -48,7 +48,7 @@ class SheetImportApiDatabaseTests {
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
     private var jangdanId = 0L
-    private val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3)
+    private val png = sheetImageBytes()
 
     @BeforeEach
     fun fixtures() {
@@ -144,6 +144,7 @@ class SheetImportApiDatabaseTests {
 
     @Test
     fun `files and metadata outside SHT-07 are refused before anything is stored`() {
+        assertEquals("UNREADABLE_FILE", errorCode(import(OWNER, "broken-image", staff(), listOf("broken.png" to png.copyOf(11)))))
         assertEquals("UNSUPPORTED_FILE_TYPE", errorCode(import(OWNER, "k-1", jeongganbo(), listOf("a.png" to "GIF89a".toByteArray()))))
         assertEquals("INVALID_REQUEST", errorCode(import(OWNER, "k-2", """{"title":"x","notation":"JEONGGANBO","instrumentId":"1"}""", listOf("a.png" to png))))
         assertEquals("INVALID_REQUEST", errorCode(import(OWNER, "k-3", """{"title":"x","notation":"STAFF","instrumentId":1}""", listOf("a.png" to png))))
