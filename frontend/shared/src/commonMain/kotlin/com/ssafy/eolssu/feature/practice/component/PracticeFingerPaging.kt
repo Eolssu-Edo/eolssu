@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.practice.component
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.key
 import kotlin.math.max
 import kotlin.math.min
 
@@ -67,6 +68,14 @@ fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= p
 fun nextFingerUnits(song: Song, afterEventIndex: Int): List<ScoreDisplayUnit> = song.displayUnits.asSequence()
     .filter { it.event.index > afterEventIndex && (it.note is ScoreNote.Pitch || it.note is ScoreNote.SourcePitch) }
     .distinctBy { it.event.id }.take(2).toList()
+
+/** 다음 발음만 한 행씩 만들되, 운지와 가사는 원본 표시 슬롯에서 함께 가져온다. */
+internal fun nextFingerCells(song: Song, cells: List<FingerCell>, afterEventIndex: Int): List<FingerCell> =
+    nextFingerUnits(song, afterEventIndex).map { unit ->
+        val cell = cells.first { source -> source.units.any { it.key == unit.key } }
+        val slot = cell.units.indexOfFirst { it.key == unit.key }
+        cell.copy(units = listOf(unit), entries = listOf(cell.entries[slot]), lyricSlots = listOf(cell.lyricSlots[slot]))
+    }
 
 private fun fingerBoundaries(song: Song): List<Double> {
     val total = song.score.totalUnits

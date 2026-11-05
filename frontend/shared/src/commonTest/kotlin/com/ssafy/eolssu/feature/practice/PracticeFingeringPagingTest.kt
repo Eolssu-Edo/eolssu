@@ -9,6 +9,20 @@ class PracticeFingeringPagingTest {
     private val semachi = Jangdan("세마치", listOf(3, 3, 3), 3, 3)
     private fun pitches(count: Int) = List(count) { ScoreCell(ScoreNote.SourcePitch("고", 1)) }
 
+    @Test fun previewRowsKeepTheirOwnFingeringAndOriginalLyricSlot() {
+        val base = fingerSong(listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold, ScoreNote.SourcePitch("태", 1), ScoreNote.SourcePitch("황", 1))))
+        val scoreCells = base.score.columns.single().toMutableList()
+        scoreCells[1] = scoreCells[1].copy(lyric = "- 라 지")
+        val song = base.copy(score = base.score.copy(columns = listOf(scoreCells)))
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        val preview = nextFingerCells(song, cells, 0)
+        assertEquals(listOf("라", "지"), preview.map { it.lyricSlots.single() })
+        assertEquals(listOf(ScoreNote.SourcePitch("태", 1), ScoreNote.SourcePitch("황", 1)), preview.map { it.units.single().note })
+        assertEquals(cells[1].entries.drop(1), preview.map { it.entries.single() })
+        assertEquals(1, nextFingerCells(song, cells, preview.first().firstEvent!!.index).size)
+        assertTrue(nextFingerCells(song, cells, preview.last().firstEvent!!.index).isEmpty())
+    }
+
     @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {
         val song = fingerSong(List(8) { listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold)) }.flatten(), Jangdan("검사", listOf(1, 1), 2, 1))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))

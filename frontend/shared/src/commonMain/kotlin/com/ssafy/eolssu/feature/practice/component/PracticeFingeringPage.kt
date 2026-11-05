@@ -168,7 +168,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val pageIndex = if (live) livePage else browsedPage
     val page = pages[pageIndex]
     val previewIndex = page.cells.last().units.last().event.index
-    val preview = remember(song, previewIndex) { nextFingerUnits(song, previewIndex) }
+    val preview = remember(song, cells, previewIndex) { nextFingerCells(song, cells, previewIndex) }
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -212,12 +212,18 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             }
         }
         Text(stringResource(Res.string.practice_finger_upcoming), style = MaterialTheme.typography.labelSmall, color = colors.accentText)
-        Row(Modifier.fillMaxWidth().heightIn(min = FingerImageHeight * fontScale + FingerImageHeight + 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (preview.isEmpty()) Text(stringResource(Res.string.practice_finger_end), color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
-            preview.forEach { unit ->
-                Column(Modifier.weight(1f).border(1.dp, colors.line, shape).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    NoteLine(unit, showHangul = true, big = false, height = FingerImageHeight * fontScale)
-                    FingerDiagram(instrument, FingerEntry(unit.note, instrument.fingeringFor(unit.note)), FingerImageHeight)
+        if (preview.isEmpty()) {
+            Text(stringResource(Res.string.practice_finger_end), color = colors.textMuted, style = MaterialTheme.typography.bodySmall)
+        } else {
+            Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
+                FingerHead(instrumentName)
+                preview.forEach { cell ->
+                    FingerRow(
+                        cell = cell, instrument = instrument, fill = null, isSelected = false,
+                        playingKey = null, showHangul = state.settings.showHangul,
+                        gakStart = false, daegangStarts = emptyList(),
+                        imageHeight = FingerImageHeight * fontScale, onSelectEvent = null,
+                    )
                 }
             }
         }
