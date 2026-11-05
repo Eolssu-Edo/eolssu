@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
+
 - [서비스 장단 카탈로그 확장 스펙](specs/jangdan-catalog-extension.md) · [추가 근거·시작 빠르기·검증](knowledge/backend/jangdan-catalog-extension.md)
 - [장단 음원·곡별 검수 자료 전달과 재생 공통 스펙 (160·340)](specs/jangdan-practice-playback.md)
 - [장단 음원 생성·출처·빠르기 조사 (160)](knowledge/data/jangdan-preview-audio.md) · [107개 곡별 검수 결과 (160)](knowledge/data/jangdan-song-review.md)
@@ -128,6 +130,8 @@
 - [화면 흐름 개선 검토 결과와 내 악보 후속 조건 (434)](knowledge/backend/screen-flow-improvement-integrated.md)
 
 ## 프론트엔드 조사·검증 기록
+
+- [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 
 - [정간보 쉽게 읽기의 박·음높이 듣기 (439)](plans/S15P31E102-439.md)
 
