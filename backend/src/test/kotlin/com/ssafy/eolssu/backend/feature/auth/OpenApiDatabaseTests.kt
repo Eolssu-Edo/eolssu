@@ -80,7 +80,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(73,expected.size)
+        assertEquals(74,expected.size)
         assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}",
             "post /api/users/me/sheets/imports", "get /api/users/me/sheets/{sheetId}/conversion", "post /api/users/me/sheets/{sheetId}/conversion/retry")))
@@ -89,6 +89,19 @@ open class OpenApiDatabaseTests {
             "/api/notation-symbols", "/api/jangdans", "/api/reference-audios", "/api/reference-audios/{assetId}")
         assertTrue(expected.containsAll(catalogPaths.map { "get $it" }))
         assertEquals(expected,actual)
+        val criteria = doc.path("paths").path("/api/note-practice/criteria").path("get")
+        assertEquals(0, criteria.path("security").size())
+        assertTrue(criteria.path("responses").has("404"))
+        val instrumentId = criteria.path("parameters").single()
+        assertEquals("instrumentId", instrumentId.path("name").asString())
+        assertTrue(instrumentId.path("required").asBoolean(), instrumentId.toString())
+        assertEquals("#/components/schemas/NotePracticeCriteriaResult",
+            doc.path("components").path("schemas").path("getNotePracticeCriteriaResponse").path("properties").path("result").path("\$ref").asString())
+        val criteriaResult = doc.path("components").path("schemas").path("NotePracticeCriteriaResult")
+        assertEquals(setOf("instrumentId","criteriaVersion","pitchToleranceCent","holdMs","minConfidence","minLevelDbfs","octaveMustMatch",
+            "tuning","maxTuningOffsetCent","sigimsaeMode","hintAfterMs"), criteriaResult.path("required").toList().map { it.asString() }.toSet())
+        assertEquals(listOf("NONE","FIRST_NOTE"), criteriaResult.path("properties").path("tuning").path("enum").toList().map { it.asString() })
+        assertEquals(listOf("MAIN_PITCH","SKIP"), criteriaResult.path("properties").path("sigimsaeMode").path("enum").toList().map { it.asString() })
         val symbolImage = doc.path("paths").path("/api/notation-symbols/{symbolId}/image").path("get")
         assertEquals(0, symbolImage.path("security").size())
         assertEquals("binary", symbolImage.path("responses").path("200").path("content").path("image/svg+xml").path("schema").path("format").asString())
