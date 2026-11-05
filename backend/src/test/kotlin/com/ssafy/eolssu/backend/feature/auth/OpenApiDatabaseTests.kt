@@ -91,7 +91,9 @@ open class OpenApiDatabaseTests {
         val criteria = doc.path("paths").path("/api/note-practice/criteria").path("get")
         assertEquals(0, criteria.path("security").size())
         assertTrue(criteria.path("responses").has("404"))
-        assertEquals("instrumentId", criteria.path("parameters").single().path("name").asString())
+        val instrumentId = criteria.path("parameters").single()
+        assertEquals("instrumentId", instrumentId.path("name").asString())
+        assertTrue(instrumentId.path("required").asBoolean(), instrumentId.toString())
         assertEquals("#/components/schemas/NotePracticeCriteriaResult",
             doc.path("components").path("schemas").path("getNotePracticeCriteriaResponse").path("properties").path("result").path("\$ref").asString())
         val criteriaResult = doc.path("components").path("schemas").path("NotePracticeCriteriaResult")

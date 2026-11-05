@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.practice.application.NotePracticeCriteri
 import com.ssafy.eolssu.backend.feature.practice.domain.NotePracticeCriteria
 import com.ssafy.eolssu.backend.feature.practice.domain.NotePracticeSigimsaeMode
 import com.ssafy.eolssu.backend.feature.practice.domain.NotePracticeTuning
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED
 import java.math.BigDecimal
@@ -25,7 +26,7 @@ private val INSTRUMENT_ID = Regex("[1-9][0-9]{0,17}")
 @Profile("db | ops")
 class NotePracticeCriteriaController(private val query: NotePracticeCriteriaQuery) {
     @GetMapping("/criteria")
-    fun criteria(@RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
+    fun criteria(@Parameter(required = true) @RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
         val id = instrumentId?.takeIf(INSTRUMENT_ID::matches)?.toLong()
             ?: return ResponseEntity.badRequest().body(ErrorResponse.of(ErrorCode.INVALID_REQUEST))
         val criteria = query.find(id)
