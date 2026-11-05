@@ -80,6 +80,7 @@ import eolssu.shared.generated.resources.weak_compare_subtitle
 import eolssu.shared.generated.resources.weak_compare_title
 import eolssu.shared.generated.resources.weak_compare_up
 import eolssu.shared.generated.resources.weak_load_missing
+import eolssu.shared.generated.resources.weak_result_same
 import org.jetbrains.compose.resources.stringResource
 
 /** 이전 연주와 비교에서 부르는 동작. */
@@ -136,10 +137,16 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
             } else {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        stringResource(Res.string.weak_compare_delta, if (delta >= 0) "+$delta" else "$delta"),
+                        stringResource(Res.string.weak_compare_delta, if (delta > 0) "+$delta" else "$delta"),
                         style = EolssuTheme.serif.brand.copy(fontSize = 24.sp, lineHeight = 24.sp),
                     )
-                    val trend = stringResource(if (delta >= 0) Res.string.weak_compare_up else Res.string.weak_compare_down)
+                    val trend = stringResource(
+                        when {
+                            delta > 0 -> Res.string.weak_compare_up
+                            delta < 0 -> Res.string.weak_compare_down
+                            else -> Res.string.weak_result_same
+                        },
+                    )
                     Text(
                         if (previous.bpm != comparison.current.bpm) stringResource(Res.string.weak_compare_speed, trend, previous.bpm, comparison.current.bpm) else trend,
                         style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
