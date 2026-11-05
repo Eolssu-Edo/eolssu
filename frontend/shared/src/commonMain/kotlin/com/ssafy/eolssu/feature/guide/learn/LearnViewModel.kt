@@ -16,29 +16,33 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * LEARN-02. 단계 목록과 단계 상세 화면이 하나의 ViewModel을 함께 쓴다(화면 이동 그래프 `learn` 범위).
- * 완료 표시는 [progressRepository]로 기기에 남겨 앱을 다시 켜도 이어진다.
+ * 단계 목록·완료 표시(LRN-01·03)와 단계 상세(LRN-02)는 서버에서 받는다. 완료 표시는 화면에 먼저 보이고 서버에 남기며,
+ * 남기지 못하면 되돌리고 [LearnUiState.saveError]로 알린다.
  */
 class LearnViewModel(
     private val songRepository: SongRepository,
     private val progressRepository: LearnProgressRepository,
     member: SignedInMember? = null,
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        LearnUiState(done = GuideInstrument.entries.associateWith { progressRepository.doneStages(it.id) }),
-    )
+    private val _uiState = MutableStateFlow(LearnUiState())
     val uiState: StateFlow<LearnUiState> = _uiState.asStateFlow()
     private var songsJob: Job? = null
+    private val trackJobs = mutableMapOf<GuideInstrument, Job>()
+    private val detailJobs = mutableMapOf<Pair<GuideInstrument, Int>, Job>()
+    private val saveLock = Mutex()
 
     private val accountScope = member.screenScope(viewModelScope) {
         _uiState.value = LearnUiState()
     }
 
     init {
+        loadTrack(_uiState.value.instrument)
         retrySongs()
     }
 
@@ -47,7 +51,6 @@ class LearnViewModel(
         if (songsJob?.isActive == true) return
         _uiState.update { it.copy(songsLoading = true, songsFailed = false) }
         songsJob = accountScope.launch {
-            val titles = LearnSongs.map { it.title }.toSet()
             val songs = try {
                 songRepository.getSongs()
             } catch (cancelled: CancellationException) {
@@ -58,28 +61,59 @@ class LearnViewModel(
                 return@launch
             }
             currentCoroutineContext().ensureActive()
-            val ids = songs
-                .filter { it.evaluable && it.title in titles }
-                .associate { it.title to it.id }
+            val ids = songs.filter { it.evaluable }.associate { it.title to it.id }
             _uiState.update { it.copy(songIds = ids, songsLoading = false, songsFailed = false) }
         }
     }
+
+    /** 지금 악기의 단계 목록을 다시 받는다. */
+    fun retryTrack() = loadTrack(_uiState.value.instrument, force = true)
+
+    /** 지금 악기의 [stage] 상세 내용을 받는다. 이미 받았거나 받는 중이면 그대로 둔다. [force]면 실패한 것을 다시 받는다. */
+    fun loadDetail(stage: Int, force: Boolean = false) {
+        if (!accountScope.isActive) return
+        val state = _uiState.value
+        val instrument = state.instrument
+        val lessonId = state.stageOf(stage)?.lessonId ?: return
+        val key = instrument to stage
+        if (detailJobs[key]?.isActive == true) return
+        val current = state.details[instrument]?.get(stage)
+        if (current is LearnDetailLoad.Loaded || (current is LearnDetailLoad.Failed && !force)) return
+        _uiState.update { it.withDetail(instrument, stage, LearnDetailLoad.Loading) }
+        detailJobs[key] = accountScope.launch {
+            val detail = progressRepository.lesson(lessonId)?.toStageDetail()
+            _uiState.update { it.withDetail(instrument, stage, detail?.let(LearnDetailLoad::Loaded) ?: LearnDetailLoad.Failed) }
+        }
+    }
+
+    fun clearSaveError() = _uiState.update { it.copy(saveError = null) }
 
     fun toggleDropdown() = _uiState.update { it.toggleDropdown() }
 
     fun dismissDropdown() = _uiState.update { it.dismissDropdown() }
 
-    fun selectInstrument(instrument: GuideInstrument) = _uiState.update { it.selectInstrument(instrument) }
+    fun selectInstrument(instrument: GuideInstrument) {
+        _uiState.update { it.selectInstrument(instrument) }
+        loadTrack(instrument)
+    }
 
-    fun resetDone() = updateDone { it.resetDone() }
+    /** 지금 악기의 완료 표시를 모두 지운다. 지우지 못한 단계는 되돌린다. */
+    fun resetDone() {
+        if (!accountScope.isActive) return
+        val state = _uiState.value
+        val instrument = state.instrument
+        val cleared = state.stages.filter { it.number in state.doneStages }
+        _uiState.update { it.resetDone() }
+        cleared.forEach { stage -> save(instrument, stage, completed = false, LearnSaveError.Reset) }
+    }
 
-    fun toggleDone(stage: Int) = updateDone { it.toggleDone(stage) }
+    fun toggleDone(stage: Int) = updateDone(stage) { it.toggleDone(stage) }
 
-    fun confirm(stage: Int) = updateDone { it.confirm(stage) }
+    fun confirm(stage: Int) = updateDone(stage) { it.confirm(stage) }
 
     fun selectStage(stage: Int?) = _uiState.update { it.selectStage(stage) }
 
-    fun toggleShownDone(stage: Int) = updateDone { it.toggleShownDone(stage) }
+    fun toggleShownDone(stage: Int) = updateDone(stage) { it.toggleShownDone(stage) }
 
     fun viewCard(stage: Int) = _uiState.update { it.viewCard(stage) }
 
@@ -87,10 +121,37 @@ class LearnViewModel(
 
     fun finishListening(hanja: String) = _uiState.update { it.finishListening(hanja) }
 
-    /** 완료 표시를 바꾸고 지금 악기의 완료 단계를 기기에 남긴다. */
-    private fun updateDone(transform: (LearnUiState) -> LearnUiState) {
+    private fun loadTrack(instrument: GuideInstrument, force: Boolean = false) {
         if (!accountScope.isActive) return
-        val state = _uiState.updateAndGet(transform)
-        progressRepository.saveDoneStages(state.instrument.id, state.doneStages)
+        if (trackJobs[instrument]?.isActive == true) return
+        if (!force && _uiState.value.tracks[instrument] is LearnTrackLoad.Loaded) return
+        _uiState.update { it.trackLoading(instrument) }
+        trackJobs[instrument] = accountScope.launch {
+            val track = progressRepository.track(instrument.id)
+            val stages = track?.items?.map { it.toStage() }
+            val done = track?.items.orEmpty().filter { it.completed }.map { it.seq }.toSet()
+            _uiState.update { it.trackLoaded(instrument, stages, done) }
+        }
+    }
+
+    /** 완료 표시를 화면에 먼저 바꾸고, 바뀌었으면 서버에 남긴다. */
+    private fun updateDone(stage: Int, transform: (LearnUiState) -> LearnUiState) {
+        if (!accountScope.isActive) return
+        val before = _uiState.value
+        val target = before.stageOf(stage) ?: return
+        val after = transform(before)
+        _uiState.value = after
+        val completed = after.isDone(stage)
+        if (completed != before.isDone(stage)) save(before.instrument, target, completed, LearnSaveError.Mark)
+    }
+
+    /** 빠르게 여러 번 눌러도 누른 순서대로 남도록 한 번에 하나씩 보낸다. */
+    private fun save(instrument: GuideInstrument, stage: LearnStage, completed: Boolean, error: LearnSaveError) {
+        accountScope.launch {
+            val saved = saveLock.withLock { progressRepository.setCompleted(stage.lessonId, completed) }
+            if (!saved) {
+                _uiState.update { it.revertDone(instrument, stage.number, !completed, error) }
+            }
+        }
     }
 }

@@ -138,8 +138,9 @@ internal fun LearnStageCarousel(
     onOpen: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val count = LearnStages.size
-    val pager = rememberPagerState(initialPage = current - 1) { count }
+    val stages = state.stages
+    val count = stages.size
+    val pager = rememberPagerState(initialPage = (current - 1).coerceIn(0, (count - 1).coerceAtLeast(0))) { count }
     val scope = rememberCoroutineScope()
     val show by rememberUpdatedState(onShow)
     val latest by rememberUpdatedState(current)
@@ -148,7 +149,7 @@ internal fun LearnStageCarousel(
     // 넘기기 위치는 화면 이동 뒤 저장된 쪽으로 되살아나므로, 처음 그릴 때는 지금 단계로 바로 옮긴다(상세에서 돌아옴)
     var placed by remember { mutableStateOf(false) }
     LaunchedEffect(current) {
-        val target = current - 1
+        val target = (current - 1).coerceIn(0, (count - 1).coerceAtLeast(0))
         if (pager.currentPage != target) {
             if (placed) pager.animateScrollToPage(target) else pager.scrollToPage(target)
         }
@@ -159,7 +160,7 @@ internal fun LearnStageCarousel(
         snapshotFlow { pager.settledPage }.drop(1).collect { page -> if (page + 1 != latest) show(page + 1) }
     }
     val shownPage = pager.currentPage + 1
-    val stage = LearnStages[shownPage - 1]
+    val stage = stages.getOrNull(shownPage - 1) ?: return
 
     Column(
         modifier
@@ -179,7 +180,7 @@ internal fun LearnStageCarousel(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CarouselArrow(next = false, enabled = shownPage > 1) { go(shownPage - 1) }
             HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp) { page ->
-                StageCard(LearnStages[page], state.isDone(page + 1), onOpen)
+                StageCard(stages[page], state.isDone(stages[page].number), onOpen)
             }
             CarouselArrow(next = true, enabled = shownPage < count) { go(shownPage + 1) }
         }
@@ -200,7 +201,7 @@ internal fun LearnStageCarousel(
             )
         }
         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            LearnStages.forEach { s -> CarouselDot(s, on = s.number == shownPage, done = state.isDone(s.number)) { go(s.number) } }
+            stages.forEach { s -> CarouselDot(s, on = s.number == shownPage, done = state.isDone(s.number)) { go(s.number) } }
         }
     }
 }

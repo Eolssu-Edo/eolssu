@@ -1,49 +1,69 @@
 package com.ssafy.eolssu.feature.guide.learn
 
-import com.ssafy.eolssu.data.song.SampleSongs
-import com.ssafy.eolssu.core.model.fingering.GuideInstrument
-import com.ssafy.eolssu.core.model.fingering.pitchIndexOf
+import com.ssafy.eolssu.core.model.fingering.Blow
+import com.ssafy.eolssu.data.user.LessonDetail
+import com.ssafy.eolssu.data.user.LessonItem
+import com.ssafy.eolssu.data.user.LessonPitchNote
+import com.ssafy.eolssu.data.user.LessonRange
+import com.ssafy.eolssu.data.user.LessonSong
+import com.ssafy.eolssu.data.user.LessonText
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.assertNull
 
+/** 서버 단계 목록·상세(LRN-01·02) → 화면 단계와 5단계 패턴 규칙. 단계 문구는 서버가 출처라 앱에 두지 않는다. */
 class LearnCurriculumTest {
 
     @Test
-    fun nineStagesInOrderWithOnlyTheLastOptional() {
-        assertEquals((1..9).toList(), LearnStages.map { it.number })
-        assertEquals(listOf(9), LearnStages.filter { it.optional }.map { it.number })
-        assertEquals(8, RequiredLearnStages.size)
-        assertEquals("기본음", learnStageOf(4)?.title)
+    fun judgeCodesMapToBottomBarActionsAndUnknownIsRead() {
+        assertEquals(
+            listOf(LearnJudge.Read, LearnJudge.Pitch, LearnJudge.Beat, LearnJudge.Listen, LearnJudge.Read),
+            listOf("READ", "PITCH", "BEAT", "LISTEN", "NEW").map(LearnJudge::of),
+        )
     }
 
     @Test
-    fun everyInstrumentNoteIsInItsFingeringTable() {
-        GuideInstrument.entries.forEach { instrument ->
-            val content = instrument.learnContent
-            (content.basic + content.scale).forEach { hanja ->
-                assertNotNull(instrument.noteOf(hanja), "${instrument.id} $hanja")
-            }
-            content.ranges.forEach { range ->
-                assertTrue(range.blow in instrument.blows, "${instrument.id} ${range.blow}")
-                assertTrue(instrument.notesByPitch(range.blow).any { it.hanja == range.first }, "${instrument.id} ${range.first}")
-            }
-        }
+    fun listItemBecomesStageWithLessonId() {
+        val stage = LessonItem("42", 9, "장식음·시김새", "LISTEN", optional = true, completed = false).toStage()
+        assertEquals(LearnStage(9, "장식음·시김새", LearnJudge.Listen, optional = true, lessonId = "42"), stage)
     }
 
     @Test
-    fun scaleRunsFromLowToHigh() {
-        GuideInstrument.entries.forEach { instrument ->
-            val pitches = instrument.learnContent.scale.map(::pitchIndexOf)
-            assertEquals(pitches.sorted(), pitches, instrument.id)
-            assertEquals(5, pitches.size)
-        }
+    fun detailKeepsServerTextAndTrackContent() {
+        val detail = LessonDetail(
+            "4", 4, "기본음", "PITCH", false,
+            goal = "목표", why = "이유", source = "출처",
+            tasks = listOf(LessonText("악기 잡기", "가로로 잡아요."), LessonText("굴리기", null)),
+            pass = LessonText("음마다 2초", null),
+            pitchNames = listOf("汰", "潢"),
+            pitchNote = LessonPitchNote("순서", "주의"),
+            parts = listOf("취구"),
+            ranges = listOf(LessonRange(Blow.Low, "저취", "느슨하게", "㑣")),
+            songs = listOf(LessonSong("아리랑", "세마치장단")),
+        ).toStageDetail()
+
+        assertEquals(listOf(LearnTask("악기 잡기", "가로로 잡아요."), LearnTask("굴리기", null)), detail.tasks)
+        assertEquals(LearnPass("음마다 2초", ""), detail.pass)
+        assertEquals("순서" to "주의", detail.pitchNote to detail.pitchCaution)
+        assertEquals(listOf(LearnRange(Blow.Low, "저취", "느슨하게", "㑣")), detail.ranges)
+        assertEquals(listOf(LearnSong("아리랑", "세마치장단")), detail.songs)
+        assertEquals(listOf("취구"), detail.parts)
+    }
+
+    @Test
+    fun detailWithoutOptionalPartsHasNoPassOrNote() {
+        val detail = LessonDetail(
+            "1", 1, "악기 알기", "READ", false, "목표", "이유", "출처",
+            emptyList(), null, emptyList(), null, emptyList(), emptyList(), emptyList(),
+        ).toStageDetail()
+        assertNull(detail.pass)
+        assertNull(detail.pitchNote)
+        assertNull(detail.pitchCaution)
     }
 
     @Test
     fun patternsFollowWireframeOrder() {
-        val scale = GuideInstrument.Danso.learnContent.scale
+        val scale = listOf("仲", "林", "無", "潢", "汰")
         assertEquals(listOf("仲", "林", "無", "潢", "汰"), LearnPattern.Ascending.notes(scale))
         assertEquals(listOf("汰", "潢", "無", "林", "仲"), LearnPattern.Descending.notes(scale))
         assertEquals(listOf("仲", "無", "汰", "無", "仲"), LearnPattern.SkipOne.notes(scale))
@@ -52,8 +72,7 @@ class LearnCurriculumTest {
     }
 
     @Test
-    fun onlyArirangAndDorajiHaveEvaluableSampleSongs() {
-        val titles = LearnSongs.map { it.title }.toSet()
-        assertEquals(setOf("아리랑", "도라지타령"), SampleSongs.filter { it.evaluable && it.title in titles }.map { it.title }.toSet())
+    fun shortScaleMakesNoPattern() {
+        LearnPattern.entries.forEach { assertEquals(emptyList(), it.notes(listOf("仲", "林"))) }
     }
 }
