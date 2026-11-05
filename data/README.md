@@ -4,7 +4,7 @@
 
 연습 반주의 굿거리 굴림5개와 공통 타격6개는 같은 문서의 [연습용 PCM 생성](../docs/knowledge/data/jangdan-preview-audio.md#연습용-pcm-생성)을 따릅니다. 공식 실제 굴림 원본을 사용하며 생성·길이 검사와 음악적 청음 상태를 구분합니다.
 
-160은 [107개 곡의 장단 검수 자료](../docs/knowledge/data/jangdan-song-review.md)도 전달합니다. [공통 전달 계약](../docs/specs/jangdan-practice-playback.md)에 따라 340이 이 결과를 읽어 판본 보호·API·앱 재생을 구현합니다.
+160은 [107개 곡의 장단 검수 자료](../docs/knowledge/data/jangdan-song-review.md)도 전달합니다. [공통 전달 계약](../docs/specs/jangdan-practice-playback.md)에 따라 BE491이 검수 결과를 읽어 판본 보호·API 제공을, FE340이 앱 재생을 구현합니다. 반영 순서는 160 → 491 → 340입니다.
 
 얼쑤의 음원·악보 데이터를 수집·정제하고, 분석과 검증에 사용할 데이터셋을 구축합니다.
 
