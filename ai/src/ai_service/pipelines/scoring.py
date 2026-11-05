@@ -4,7 +4,7 @@
 음높이 단위는 기준음 대비 센트이고, 서비스 기준음은 HWANG_HZ다.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 import librosa
@@ -183,6 +183,11 @@ def combine(scores: Sequence[float | None], weights: Sequence[float]) -> int:
     return round(total / weight_sum) if weight_sum else 100
 
 
+def total_score(pitch: int, timing: int, duration: int, weights: Mapping[str, float] = SCORE_WEIGHTS) -> int:
+    """항목 점수를 총점으로 합친다. 백엔드가 구간 총점을 같은 순서로 계산한다(EVA-04)."""
+    return round(pitch * weights["pitch"] + timing * weights["timing"] + duration * weights["duration"])
+
+
 def score(
     f0: np.ndarray,
     notes: list[Note],
@@ -326,7 +331,7 @@ def score(
     duration = combine([r.duration_score for r in results], weights)
     return ScoreResult(
         "DONE",
-        total=round(pitch * SCORE_WEIGHTS["pitch"] + timing * SCORE_WEIGHTS["timing"] + duration * SCORE_WEIGHTS["duration"]),
+        total=total_score(pitch, timing, duration),
         pitch=pitch,
         timing=timing,
         duration=duration,

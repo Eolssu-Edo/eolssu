@@ -16,7 +16,7 @@ from ai_service import api
 from pydantic import TypeAdapter
 
 from ai_service.api import AnalysisDone, AnalysisError, AnalysisResult, DownloadError, InvalidRequest, NoteOut, app, get_fetcher
-from ai_service.pipelines.scoring import HOP_S, Note
+from ai_service.pipelines.scoring import HOP_S, Note, combine, total_score
 from evaluation.synthetic import BPM, SR, synth
 
 SIGNED_URL = "https://r2.example/recordings/1.m4a?X-Amz-Signature=secret-token"
@@ -150,12 +150,11 @@ def test_note_scores_add_up_to_the_reported_scores(serve, tmp_path):
     assert set(weights) == {"pitch", "timing", "duration"} and sum(weights.values()) == pytest.approx(1)
 
     def item(key):
-        scored = [n for n in result["notes"] if n[key] is not None]
-        return round(sum(n[key] * n["weight"] for n in scored) / sum(n["weight"] for n in scored))
+        return combine([n[key] for n in result["notes"]], [n["weight"] for n in result["notes"]])
 
     parts = {name: item(f"{name}Score") for name in weights}
     assert parts == {name: result[name] for name in weights}
-    assert result["total"] == round(sum(parts[name] * weights[name] for name in weights))
+    assert result["total"] == total_score(parts["pitch"], parts["timing"], parts["duration"], weights)
     assert_documented_note_scores(result)
 
 

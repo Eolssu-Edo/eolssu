@@ -5,7 +5,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, combine, frame_rms, pyin_f0, reference_hz, score
+from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, combine, frame_rms, pyin_f0, reference_hz, score, total_score
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -60,6 +60,18 @@ def test_note_scores_rebuild_the_item_scores():
     assert (missed.pitch_score, missed.timing_score, missed.duration_score) == (0.0, 0.0, 0.0)
     wrong = next(n for n in result.notes if n.verdict == "PITCH")
     assert wrong.timing_score == wrong.duration_score == 0.0
+
+
+def test_shared_vector_keeps_the_rounding_of_note_by_note_addition():
+    # 백엔드 SectionComparisonTests의 공통 벡터와 같은 값이다. 한쪽을 바꾸면 다른 쪽도 바꾼다.
+    # 세 항목 모두 평균이 x.5인데 차례 합의 끝자리 오차로 정확한 합·역순 합과 반올림이 갈린다(62, 40, 44가 나오면 틀렸다).
+    pitch = [49.0, 90.0, 61.0, None, 58.3, 81.3, 96.8, 1.1]
+    timing = [25.0, 48.9, 59.0, 42.7, 71.3, 34.1, 33.7, 9.3]
+    duration = [70.8, 48.1, 62.0, 18.1, 15.1, 55.6, 65.6, 12.7]
+    weights = [1.0] * 8
+    assert [combine(part, weights) for part in (pitch, timing, duration)] == [63, 41, 43]
+    # 52.5는 짝수 쪽으로 간다.
+    assert total_score(63, 41, 43, {"pitch": 0.5, "timing": 0.25, "duration": 0.25}) == 52
 
 
 def test_sigimsae_note_has_no_pitch_score_even_when_missed():
