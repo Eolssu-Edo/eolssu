@@ -4,6 +4,7 @@ import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.Convers
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.BeforeEach
@@ -21,6 +22,8 @@ import java.time.Duration
 import java.nio.file.Path
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetScoreUpdate
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.*
 import tools.jackson.databind.json.JsonMapper
 
@@ -32,6 +35,8 @@ class ConversionQueueDatabaseTests {
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var queue: ConversionQueue
     @Autowired lateinit var scores: SheetScores
+    @Autowired lateinit var sheets: UserSheetRepository
+    @Autowired lateinit var dataSource: javax.sql.DataSource
     private val now = Instant.parse("2026-11-05T00:00:00Z")
 
     @BeforeEach fun setup() {
@@ -71,6 +76,40 @@ class ConversionQueueDatabaseTests {
         queue.claim(now)
         queue.recover(now)
         assertEquals("QUEUED",queue.retry(992472,992472,now).status)
+    }
+
+    @Test fun `saving a converted score does not hold the sheet while waiting for its conversion`() {
+        jdbc.update("UPDATE sheet_conversions SET status='DONE',finished_at=accepted_at,result_json='{\"issues\":[],\"pages\":[],\"notices\":[]}' WHERE sheet_id=992472")
+        val json=JsonMapper.builder().build()
+        val score=jdbc.queryForObject("SELECT score_json FROM songs WHERE id=1",String::class.java)!!
+        val root=json.readTree(score)
+        val update=SheetScoreUpdate(992472,992472,1,"검수 저장",null,60,root.path("music").path("bpmUnit").asString(),
+            root.path("columns").size(),score,root.path("events").count { it.path("kind").asString()=="NOTE" },now,0,
+            """{"issues":[],"pages":[],"notices":[]}""")
+        java.util.concurrent.Executors.newSingleThreadExecutor().use { executor ->
+            dataSource.connection.use { blocker ->
+                blocker.autoCommit=false
+                val connectionId=blocker.createStatement().use { statement -> statement.executeQuery("SELECT CONNECTION_ID()").use { it.next();it.getLong(1) } }
+                blocker.createStatement().use { statement -> statement.executeQuery("SELECT sheet_id FROM sheet_conversions WHERE sheet_id=992472 FOR UPDATE").use { assertTrue(it.next()) } }
+                val saved=executor.submit<Boolean> { sheets.updateScore(update) }
+                try {
+                    val deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(5)
+                    var waiting=false
+                    while(System.nanoTime()<deadline) {
+                        waiting=jdbc.queryForObject("""SELECT COUNT(*) FROM performance_schema.data_lock_waits w
+                            JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID=w.BLOCKING_ENGINE_LOCK_ID
+                            JOIN performance_schema.threads t ON t.THREAD_ID=l.THREAD_ID
+                            WHERE l.OBJECT_SCHEMA=DATABASE() AND l.OBJECT_NAME='sheet_conversions' AND t.PROCESSLIST_ID=?""",Int::class.java,connectionId)!!>0
+                        if(waiting) break
+                        Thread.yield()
+                    }
+                    assertTrue(waiting,"저장 요청이 변환 행을 기다리는 지점을 실제 DB에서 관찰해야 한다")
+                    // 재시도 조회의 c → s 순서를 재현한다. 저장이 먼저 s를 잡았으면 즉시 오류 3572다.
+                    blocker.createStatement().use { statement -> statement.executeQuery("SELECT id FROM user_sheets WHERE id=992472 FOR UPDATE NOWAIT").use { assertTrue(it.next()) } }
+                } finally { blocker.rollback() }
+                assertTrue(saved.get(5,java.util.concurrent.TimeUnit.SECONDS))
+            }
+        }
     }
     @Test fun `worker stores a real decoded score and engine errors cannot retry`() {
         val json=JsonMapper.builder().build()

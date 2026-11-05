@@ -6,6 +6,9 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface UserSheetMapper {
+    @org.apache.ibatis.annotations.Select("SELECT sheet_id FROM sheet_conversions WHERE sheet_id=#{sheetId} AND user_id=#{userId} FOR UPDATE")
+    fun lockConversion(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): Long?
+
     @org.apache.ibatis.annotations.Update("UPDATE sheet_conversions SET result_json=#{resultJson} WHERE sheet_id=#{sheetId}")
     fun updateConversionResult(@Param("sheetId") sheetId: Long,@Param("resultJson") resultJson: String): Int
     fun findJangdan(@Param("jangdanId") jangdanId: Long): SheetJangdanRow?

@@ -9,7 +9,8 @@
 - 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, S15P31E102-462에서 API와 전용 코드 제거), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
 - 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
 - 471에서 추가: SHT-07 불러오기 접수(원본 보관, 회원당 악보 10개), SHT-10 변환 상태, SHT-01·08 변환 필드, SHT-02·탈퇴의 원본 삭제(아래 [불러오기 접수·변환 상태](#불러오기-접수변환-상태-s15p31e102-471)).
-- 제외: 인식(omr) 호출·결과 저장·확인 필요 칸·재시도(SHT-14, S15P31E102-472), MIDI·M4A 음원(SHT-12·13, S15P31E102-481). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
+- 472에서 추가: 인식(omr) 호출·결과 저장·확인 필요 칸·재시도(SHT-14). [인식 작업자·결과·재시도](#인식-작업자결과재시도-s15p31e102-472)를 따른다.
+- 제외: MIDI·M4A 음원(SHT-12·13, S15P31E102-481)은 미구현이다. 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
 ## 공통
 
@@ -27,7 +28,7 @@
 | `status` | `NEEDS_REVIEW`(평가 불가) / `EVALUABLE`(평가 가능). 변환 상태는 SHT-10에서 추가한다. |
 | `jangdan_id`, `bpm`, `bpm_unit`, `column_count` | 편집 화면 설정. `bpm_unit`은 만들 때의 장단 단위이며, 장단 없는 곡(V15에서 `songs.jangdan_id`가 nullable)을 복사하면 `jangdan_id`는 NULL, 단위는 원본 악보의 `music.bpmUnit`이다(CAT-04와 같다). |
 | `score_version` | 1부터. JSON의 `score.scoreVersion`과 같게 유지한다. |
-| `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(현재 항상 0). |
+| `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(472에서 변환 결과와 검수에 따라 갱신). |
 | `idempotency_key`, `request_hash` | SHT-03 중복 방지용(회원·키 유일). SHT-03을 지운 뒤(462)에는 읽지 않지만 칸·제약은 그대로 둔다(스키마 변경 없음). NOT NULL이라 행을 새로 만드는 기능(SHT-07)이 값을 정해야 한다. |
 | `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
@@ -96,7 +97,7 @@
 
 ## 2차 결정 (2026-11-03, 미구현)
 
-사용자 결정(S15P31E102-382). 요청·응답·오류의 상세는 [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01~13을 따른다. 아래는 이 문서의 현재 구현과 달라지는 점이다.
+사용자 결정(S15P31E102-382)의 당시 미구현 기록이다. 요청·응답·오류의 상세는 [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01~13을 따른다. 이후 구현 여부는 위 작업별 절을 우선한다.
 
 - 내 악보는 연습(기기에서 따라 부르기·한 음씩 연습)만 하고 AI 평가는 하지 않는다. PRA-01은 `sheetId`를 받지 않는다. `EVALUABLE`은 '빈 칸·확인 필요 칸이 없어 연습·내보내기를 할 수 있음'이라는 뜻으로 쓴다(값은 그대로).
 - SHT-07 `POST /api/users/me/sheets/imports`(경로 변경): 정간보·오선보 PDF 1개 또는 PNG·JPEG 1~10장, 파일·합계 20MiB, PDF 10쪽, 회원당 동시 변환 1건. 202와 함께 `user_sheets` 행을 바로 만든다. 결과는 공통 악보 v1로 저장하고 `.jgb.json`은 변환 중간 결과다.

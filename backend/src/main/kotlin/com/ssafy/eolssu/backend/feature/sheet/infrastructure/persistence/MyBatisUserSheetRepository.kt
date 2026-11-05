@@ -16,6 +16,10 @@ class MyBatisUserSheetRepository(private val mapper: UserSheetMapper,manager: or
     )
 
     override fun updateScore(update: SheetScoreUpdate): Boolean = transaction.execute {
+        // Match conversion retry/completion: lock the conversion before its sheet.
+        if (update.conversionResultJson != null && mapper.lockConversion(update.sheetId, update.userId) == null) {
+            return@execute false
+        }
         val changed=mapper.updateScore(
         SheetScoreUpdateRow(
             update.sheetId, update.userId, update.baseScoreVersion, update.title, if(update.pendingCellCount==0) SheetStatus.EVALUABLE.name else SheetStatus.NEEDS_REVIEW.name, update.jangdanId, update.bpm,
