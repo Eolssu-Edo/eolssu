@@ -82,8 +82,9 @@ class SheetImports(
         try {
             inspected.files.forEachIndexed { index, file ->
                 val key = "$folder/$index.${file.type.extension}"
-                storage.put(key, file.upload.path, file.type.contentType)
+                // 응답이 실패해도 원격 PUT은 반영됐을 수 있다. 시도한 키부터 정리 대상에 넣는다.
                 stored += StoredSheetFile(key, file.type, file.upload.size, fileName(file.upload.originalName, index, file.type.extension))
+                storage.put(key, file.upload.path, file.type.contentType)
             }
         } catch (e: SheetSourceStorageException) {
             log.warn("Sheet import upload failed ({})", e.cause?.javaClass?.simpleName ?: e.javaClass.simpleName)

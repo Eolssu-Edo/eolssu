@@ -12,6 +12,7 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.SheetNotation
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetUpload
+import com.ssafy.eolssu.backend.feature.sheet.sheetImageBytes
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
@@ -25,16 +26,18 @@ import org.junit.jupiter.api.io.TempDir
 
 class SheetImportsTests {
     @TempDir lateinit var dir: Path
-    private val png = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1)
+    private val png = sheetImageBytes()
 
     private class FakeStorage : SheetSourceStorage {
         override var available = true
         val objects = mutableSetOf<String>()
         var failPutAt = -1
         var puts = 0
+        var failAfterStore = false
         override fun put(key: String, file: Path, contentType: String) {
             if (puts++ == failPutAt) throw SheetSourceStorageException("down")
             objects += key
+            if (failAfterStore) throw SheetSourceStorageException("response lost after remote commit")
         }
         override fun delete(key: String) {
             objects -= key
@@ -69,7 +72,7 @@ class SheetImportsTests {
     private val repository = FakeRepository()
     private val imports = SheetImports(SheetImportFiles { PdfPages.Count(1) }, repository, storage, Clock.fixed(Instant.parse("2026-11-04T06:00:00Z"), ZoneOffset.UTC))
 
-    private fun uploads(count: Int = 2, seed: Byte = 1) = List(count) { SheetUpload(Files.write(dir.resolve("u$seed-$it"), png + seed), 10, "../쪽$it.png") }
+    private fun uploads(count: Int = 2, seed: Byte = 1) = List(count) { SheetUpload(Files.write(dir.resolve("u$seed-$it"), png + seed), (png.size + 1).toLong(), "../쪽$it.png") }
     private fun metadata(notation: SheetNotation = SheetNotation.JEONGGANBO, jangdanId: Long? = 3, bpm: Int? = null, hwang: String? = null, title: String = " 아리랑 ") =
         SheetImportMetadata(title, notation, 1, jangdanId, bpm, hwang)
     private fun accept(metadata: SheetImportMetadata = metadata(), uploads: List<SheetUpload> = uploads(), key: String = "k1") =
@@ -116,6 +119,14 @@ class SheetImportsTests {
         storage.failPutAt = storage.puts + 1
         assertEquals(SheetImportFailure.UNAVAILABLE, accept().failure())
         storage.available = false
+        assertEquals(SheetImportFailure.UNAVAILABLE, accept().failure())
+        assertEquals(emptySet(), storage.objects)
+        assertEquals(0, repository.saved.size)
+    }
+
+    @Test
+    fun `a failed PUT is cleaned even when the remote object was committed`() {
+        storage.failAfterStore = true
         assertEquals(SheetImportFailure.UNAVAILABLE, accept().failure())
         assertEquals(emptySet(), storage.objects)
         assertEquals(0, repository.saved.size)

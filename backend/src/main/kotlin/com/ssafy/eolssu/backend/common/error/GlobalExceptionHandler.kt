@@ -8,11 +8,13 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.context.request.ServletWebRequest
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.web.context.request.WebRequest
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler
 
 @RestControllerAdvice
 class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
+    private val sheetImport = PathPatternRequestMatcher.withDefaults().matcher(SHEET_IMPORT_PATH)
     override fun handleExceptionInternal(
         ex: Exception,
         body: Any?,
@@ -28,7 +30,7 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
             405 -> ErrorCode.METHOD_NOT_ALLOWED
             406 -> ErrorCode.NOT_ACCEPTABLE
             // multipart 한도(25MB)를 넘은 요청. 업로드 경로마다 자기 오류 코드로 답한다.
-            413 -> if (request.path().startsWith(SHEET_IMPORT_PATH)) ErrorCode.FILE_TOO_LARGE else ErrorCode.RECORDING_TOO_LARGE
+            413 -> if (request.isSheetImport()) ErrorCode.FILE_TOO_LARGE else ErrorCode.RECORDING_TOO_LARGE
             415 -> ErrorCode.UNSUPPORTED_MEDIA_TYPE
             429 -> ErrorCode.TOO_MANY_REQUESTS
             500 -> ErrorCode.INTERNAL_SERVER_ERROR
@@ -46,7 +48,7 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
         return super.handleExceptionInternal(ex, errorBody, responseHeaders, statusCode, request)
     }
 
-    private fun WebRequest.path() = (this as? ServletWebRequest)?.request?.let { it.requestURI.removePrefix(it.contextPath) }.orEmpty()
+    private fun WebRequest.isSheetImport() = (this as? ServletWebRequest)?.request?.let(sheetImport::matches) == true
 
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(ex: Exception): ResponseEntity<ErrorResponse> {

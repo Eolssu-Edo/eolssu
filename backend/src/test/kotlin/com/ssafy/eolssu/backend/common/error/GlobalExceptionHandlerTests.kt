@@ -83,6 +83,15 @@ class GlobalExceptionHandlerTests {
     }
 
     @Test
+    fun `encoded sheet import paths use the same file size error`() {
+        for (path in listOf("/api/users/me/sheets/%69mports", "/api/users/me/%73heets/imports")) {
+            mvc.perform(get(java.net.URI.create("http://localhost$path")))
+                .andExpect(status().isContentTooLarge)
+                .andExpect(jsonPath("$.result.errorCode").value("FILE_TOO_LARGE"))
+        }
+    }
+
+    @Test
     fun `other framework statuses use the common body without reasons or ProblemDetail`() {
         mvc.perform(get("/fixture/conflict"))
             .andExpect(status().isConflict)
