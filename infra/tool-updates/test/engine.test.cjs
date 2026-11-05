@@ -27,7 +27,7 @@ test('graph notification is manual by default and automatic download is opt-in',
  e.configure({projectPath:'/fixture/project'});
  await e.checkGraph(); await e.checkGraph();
  assert.equal(downloads,0); assert.equal(notices.length,1);
- e.configure({autoDownload:true}); await e.checkGraph();
+ e.configure({autoApply:true}); await e.checkGraph();
  assert.equal(downloads,1); assert.equal(e.snapshot().graph.phase,'current');
  await e.checkGraph(); assert.equal(downloads,1);
 });
@@ -40,7 +40,7 @@ test('COCO install requires a known exact version and explicit runtime/scope', a
 });
 test('keeps graph errors independent from npm and never auto-downloads an incompatible graph',async()=>{
  let downloads=0; const notes=[];
- const e=new UpdateEngine({load:()=>({config:{projectPath:'/fixture',autoDownload:true}}),save:()=>{},
+ const e=new UpdateEngine({load:()=>({config:{projectPath:'/fixture',autoApply:true}}),save:()=>{},
  graph:{check:async()=>({release:'future',compatible:false,installed:false}),download:async()=>{downloads++;}},
  coco:{check:async()=>pack(['0.2.0','2.0.0-beta.1'])},notify:async n=>notes.push(n),now:()=>1});
  await e.check(); assert.equal(downloads,0);assert.equal(e.snapshot().graph.phase,'code-behind');
@@ -56,7 +56,7 @@ test('parses the official COCO CLI receipt after its preserved-global warning',(
  assert.equal(parseResult('Warning: global install still applies\n{\n  "status": "installed",\n  "skills": 30\n}\n').status,'installed');
 });
 test('download failure keeps automatic retries bounded and preserves npm checks',async()=>{
- let attempts=0,time=1000;const e=new UpdateEngine({load:()=>({config:{projectPath:'/fixture',autoDownload:true}}),save:()=>{},now:()=>time,notify:async()=>{},
+ let attempts=0,time=1000;const e=new UpdateEngine({load:()=>({config:{projectPath:'/fixture',autoApply:true}}),save:()=>{},now:()=>time,notify:async()=>{},
  graph:{check:async()=>({release:'new',compatible:true,installed:false}),download:async()=>{attempts++;throw new Error('offline');}},coco:{check:async()=>pack(['0.2.0'])}});
  await e.check();await e.check();assert.equal(attempts,1);assert.equal(e.snapshot().coco.phase,'ready');
  time+=300001;await e.check();assert.equal(attempts,2);
@@ -65,4 +65,26 @@ test('builds explicit pinned npm arguments without global-removal or shell fragm
  const {cocoArguments}=require('../adapters.cjs');
  assert.deepEqual(cocoArguments('/npm-cli.js','1.6.0-beta.1','codex','project','C:\\a project'),['/npm-cli.js','exec','--yes','--package=@thisis-joe/coco-skills@1.6.0-beta.1','--','coco-skills','install','--runtime','codex','--project','C:\\a project']);
  assert.throws(()=>cocoArguments('/npm','latest; echo leaked','codex','global',''),/버전/);
+});
+
+test('previous Graphify-only consent does not automatically install COCO',async()=>{
+ const h=harness();
+ h.data.config={projectPath:'/fixture/project',autoDownload:true};
+ h.setPack(pack(['0.2.0','2.0.0-beta.2']));
+ const restarted=new UpdateEngine(h.engine.deps);
+ await restarted.check();
+ assert.equal(restarted.snapshot().config.autoApply,false);
+ assert.equal(h.installs.length,0);
+});
+
+test('auto apply uses the highest COCO version in the saved scope, even with cached metadata',async()=>{
+ const h=harness();
+ h.setPack(pack(['0.2.0','2.0.0-beta.11','2.0.0-beta.2','1.9.0']));
+ await h.engine.checkCoco();
+ assert.equal(h.installs.length,0);
+ h.engine.configure({projectPath:'/fixture/project',cocoRuntime:'both',cocoScope:'project',autoApply:true});
+ h.setPack({notModified:true});
+ await h.engine.checkCoco();
+ await h.engine.checkCoco();
+ assert.deepEqual(h.installs,[{version:'2.0.0-beta.11',runtimes:['codex','claude'],scope:'project',projectPath:'/fixture/project'}]);
 });

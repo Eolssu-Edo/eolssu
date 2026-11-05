@@ -1,6 +1,6 @@
 {
   "name": "eolssu-tool-updates",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Graphify and COCO updates for the Eolssu team",
   "author": "Eolssu Team",
@@ -28,8 +28,12 @@
     ],
     "extraResources": [
       {
-        "from": "resources/context.py",
-        "to": "context.py"
+        "from": "resources",
+        "to": ".",
+        "filter": [
+          "context.py",
+          "playstore-link.txt"
+        ]
       }
     ],
     "directories": {

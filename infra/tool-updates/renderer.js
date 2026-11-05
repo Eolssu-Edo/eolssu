@@ -1,20 +1,43 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let state,dirty=false,editing=false;
-async function invoke(work,success) {
+const tabs=[...document.querySelectorAll('.tabs [role=tab]')].map(button=>button.id.slice(4));
+let activeTab='updates',state,pendingSaves=0,saveQueue=Promise.resolve();
+async function invoke(work,success,errorTarget='message') {
  try{const result=await work();if(!result.ok)throw new Error(result.error);if(success)success(result.value);return result.value;}
- catch(e){$('message').textContent=e.message;return null;}
+ catch(e){$(errorTarget).textContent=e.message;return null;}
 }
-function form(config) {
- $('project').value=config.projectPath;$('host').value=config.sshHost;$('auto').checked=config.autoDownload;$('startup').checked=config.startAtLogin;$('runtime').value=config.cocoRuntime;$('scope').value=config.cocoScope;
+function form({config,native}) {
+ $('project').value=config.projectPath;$('auto').checked=config.autoApply;$('startup').checked=native?.packaged?native.startupEnabled:config.startAtLogin;$('runtime').value=config.cocoRuntime;$('scope').value=config.cocoScope;
 }
 function render(value) {
  state=value;
- const qa=value.tab==='qa';$('updates-panel').hidden=qa;$('qa-panel').hidden=!qa;$('tab-updates').setAttribute('aria-selected',String(!qa));$('tab-qa').setAttribute('aria-selected',String(qa));$('qa-state').textContent=value.qaError||'QA 페이지를 연결합니다.';
+ const remote=value.tab!=='updates';
+ if(activeTab!==value.tab){activeTab=value.tab;$('site-error').textContent='';window.scrollTo(0,0);}
+ $('updates-panel').hidden=remote;
+ for(const tab of tabs) {
+  const selected=value.tab===tab,button=$('tab-'+tab);
+  button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;
+ }
+ const panel=$('site-panel'),failed=value.siteStatus==='error',setup=value.siteStatus==='setup';
+ const playstore=value.tab==='playstore',ready=value.siteStatus==='ready';
+ panel.hidden=!remote||ready;
+ panel.classList.toggle('local-fallback',!!value.localPort);
+ $('site-connect-row').hidden=!value.localPort;
+ $('playstore-form').hidden=!playstore||!setup;
+ if(remote) {
+  const label=$('tab-'+value.tab).textContent,port=value.localPort;
+  panel.setAttribute('aria-labelledby','tab-'+value.tab);
+  $('site-state').textContent=setup?'이 기기에 출시 링크를 저장해 주세요.':failed?
+   label+' 페이지를 열지 못했습니다.'+(port?' localhost:'+port+' 연결을 확인해 주세요.':''):
+   label+' 페이지를 불러오는 중…';
+  $('site-retry').hidden=!failed;
+  $('site-browser').hidden=setup;
+ }
  const files=value.apps||{};for(const [id,key] of [['phone-apk','phone'],['tablet-apk','tablet'],['iphone-ipa','iphone']]){$(id).disabled=!!files.busy||!files[key];$(id).title=files[key]?files[key].builtAt+' · '+(files[key].commit||'').slice(0,8)+(key!=='iphone'?' · 폰·태블릿 공용 APK':''):'게시된 파일 없음';}$('apps-message').textContent=files.message||files.error||'';
- if(!dirty&&!editing)form(value.config);
+ if(pendingSaves===0)form(value);
  const g=value.graph,c=value.coco;
- const names={setup:'프로젝트 연결 필요',available:'새 버전',current:'최신 버전',error:'확인 필요','code-behind':'코드 갱신 필요'};
+ const names={available:'새 버전',current:'최신 버전',error:'확인 필요','code-behind':'코드 갱신 필요'};
+ $('graph-badge').hidden=g.phase==='setup';
  $('graph-badge').textContent=names[g.phase]||'확인 중';$('graph-badge').className='badge '+(g.phase==='available'?'ready':g.phase==='error'||g.phase==='code-behind'?'warning':'');
  $('graph-status').textContent=g.error||(g.phase==='code-behind'?'프로젝트 코드를 먼저 갱신해주세요.':'');
  $('graph-detail').textContent=g.source_commit?'develop '+g.source_commit.slice(0,8)+(g.archive_size?' · 다운로드 '+(g.archive_size/1024/1024).toFixed(2)+' MB':''):'';
@@ -28,21 +51,33 @@ function render(value) {
   select.replaceChildren(...(c.versions||[]).map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v+(v.includes('-')?' · 프리릴리스':'');return o;}));
  }
  if((c.versions||[]).includes(selected))select.value=selected;
- $('install').disabled=value.busyCoco||!select.value;$('install').textContent=value.busyCoco?'설치 중…':'설치·업데이트';
+ $('install').disabled=value.busyCoco||pendingSaves>0||!select.value;$('install').textContent=value.busyCoco?'설치 중…':'설치·업데이트';
  $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+c.installed.runtime+' · '+(c.installed.scope==='global'?'개인 전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
  $('coco-error').textContent=c.installError||c.error||'';
- for(const id of ['save','choose','host','auto','startup','runtime','scope'])$(id).disabled=value.busyCoco||value.busyGraph;
- $('startup-detail').textContent=value.native?.packaged?'OS 로그인 실행: '+(value.native.startupEnabled?'켜짐':'꺼짐')+' · 설정 저장 시 적용됩니다.':'배포 앱에서 설정을 저장하면 로그인 실행이 적용됩니다.';
+ for(const id of ['choose','auto','startup','runtime','scope'])$(id).disabled=value.busyCoco||value.busyGraph;
+ $('startup-detail').textContent=value.native?.packaged?'OS 로그인 실행: '+(value.native.startupEnabled?'켜짐':'꺼짐'):'배포 앱에서 로그인 실행을 설정할 수 있습니다.';
  $('notification-error').textContent=value.notificationError||'';
  if(value.focusCocoVersion)$('coco-title').scrollIntoView({behavior:'smooth',block:'center'});
 }
-for(const id of ['host','auto','startup','runtime','scope'])$(id).addEventListener('change',()=>{dirty=true;});
-$('choose').onclick=()=>invoke(()=>window.updates.chooseProject(),p=>{if(p){$('project').value=p;dirty=true;}});
-$('save').onclick=()=>{editing=true;invoke(()=>window.updates.save({projectPath:$('project').value,sshHost:$('host').value,autoDownload:$('auto').checked,startAtLogin:$('startup').checked,cocoRuntime:$('runtime').value,cocoScope:$('scope').value}),v=>{dirty=false;editing=false;render(v);$('message').textContent='설정을 저장했습니다.';}).finally(()=>editing=false);};
+function saveSettings(input) {
+ pendingSaves++;
+ if(state)render(state);
+ saveQueue=saveQueue.then(()=>invoke(()=>window.updates.save(input),value=>{
+  render(value);$('message').textContent='설정을 적용했습니다.';
+ })).finally(()=>{pendingSaves--;if(state)render(state);});
+ return saveQueue;
+}
+$('auto').onchange=()=>saveSettings({autoApply:$('auto').checked});
+$('startup').onchange=()=>saveSettings({startAtLogin:$('startup').checked});
+$('runtime').onchange=()=>saveSettings({cocoRuntime:$('runtime').value});
+$('scope').onchange=()=>saveSettings({cocoScope:$('scope').value});
+$('choose').onclick=()=>invoke(()=>window.updates.chooseProject(),projectPath=>{
+ if(projectPath){$('project').value=projectPath;saveSettings({projectPath});}
+});
 $('check').onclick=async()=>{$('check').disabled=true;$('message').textContent='새 배포를 확인하고 있습니다…';await invoke(()=>window.updates.check(),render);$('check').disabled=false;$('message').textContent='확인을 마쳤습니다. 약 1분마다 다시 확인합니다.';};
 $('download').onclick=()=>invoke(()=>window.updates.download(),()=>{$('message').textContent='다운로드를 마쳤습니다.';});
 $('install').onclick=async()=>{
- if(dirty){$('message').textContent='설치 대상·위치를 바꿨다면 먼저 설정을 저장해주세요.';return;}
+ if(pendingSaves)return;
  await invoke(()=>window.updates.install($('version').value),()=>{$('message').textContent='선택한 COCO 버전을 적용했습니다. 새 AI 세션에서 확인하세요.';});
 };
 $('test').onclick=()=>invoke(()=>window.updates.testNotification(),()=>{$('message').textContent='OS 알림이 표시되는지 확인해주세요.';});
@@ -51,10 +86,34 @@ invoke(()=>window.updates.state(),render);
 
 $('notification-settings').onclick=()=>invoke(()=>window.updates.notificationSettings());
 
-$('tab-updates').onclick=()=>invoke(()=>window.updates.tab('updates'),render);
-$('tab-qa').onclick=()=>invoke(()=>window.updates.tab('qa'),render);
-$('qa-retry').onclick=()=>invoke(()=>window.updates.tab('qa'),render);
-$('qa-browser').onclick=()=>invoke(()=>window.updates.qaBrowser());
+const selectTab=tab=>invoke(()=>window.updates.tab(tab),render);
+for(const [index,tab] of tabs.entries()) {
+ const button=$('tab-'+tab);
+ button.onclick=()=>selectTab(tab);
+ button.onkeydown=event=>{
+  const target={ArrowLeft:(index+tabs.length-1)%tabs.length,ArrowRight:(index+1)%tabs.length,Home:0,End:tabs.length-1}[event.key];
+  if(target===undefined)return;
+  event.preventDefault();
+  $('tab-'+tabs[target]).focus();
+  selectTab(tabs[target]);
+ };
+}
+$('site-retry').onclick=()=>selectTab(activeTab);
+$('site-connect').onclick=async()=>{
+ const button=$('site-connect');
+ button.disabled=true;
+ await invoke(()=>window.updates.connectSite(),()=>{$('site-error').textContent='터미널에서 연결되면 다시 연결을 눌러 주세요.';},'site-error');
+ button.disabled=false;
+};
+$('site-browser').onclick=()=>invoke(()=>window.updates.siteBrowser(),null,'site-error');
+$('playstore-form').onsubmit=async event=>{
+ event.preventDefault();
+ const button=$('playstore-save'),field=$('playstore-link');
+ button.disabled=true;$('site-error').textContent='';
+ const link=field.value;field.value='';
+ await invoke(()=>window.updates.savePlayStore(link),render,'site-error');
+ button.disabled=false;
+};
 for(const [id,kind] of [['phone-apk','phone'],['tablet-apk','tablet'],['iphone-ipa','iphone']])$(id).onclick=()=>invoke(()=>window.updates.downloadApp(kind));
 
 for(const host of ['edo1','edo2'])$('ssh-'+host).onclick=()=>invoke(()=>window.updates.ssh(host));

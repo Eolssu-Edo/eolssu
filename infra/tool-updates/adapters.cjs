@@ -10,6 +10,7 @@ const {VERSION}=require('./engine.cjs');
 const exec=promisify(execFile);
 const PACKAGE='@thisis-joe/coco-skills';
 const REGISTRY='https://registry.npmjs.org/@thisis-joe%2Fcoco-skills';
+const PUBLISH_HOST='edo1';
 const GRAPH_INDEX='/opt/eolssu/graphify/data/published/index.json';
 const RELEASE=/^[0-9a-f]{40}-[0-9a-f]{16}$/;
 
@@ -84,8 +85,7 @@ function adapters(contextPath) {
   graph:{
    async check(c) {
     const root=await project(c.projectPath);
-    if(!/^[A-Za-z0-9][A-Za-z0-9_.@-]*$/.test(c.sshHost)) throw new Error('SSH 별칭을 확인해주세요.');
-    const {stdout}=await run(program('ssh'),['-o','ClearAllForwardings=yes','-o','BatchMode=yes','-o','ConnectTimeout=5',c.sshHost,'cat -- '+GRAPH_INDEX],{timeout:15000,maxBuffer:1024*1024});
+    const {stdout}=await run(program('ssh'),['-o','ClearAllForwardings=yes','-o','BatchMode=yes','-o','ConnectTimeout=5',PUBLISH_HOST,'cat -- '+GRAPH_INDEX],{timeout:15000,maxBuffer:1024*1024});
     const index=JSON.parse(stdout);
     if(index.format!==1||index.project!=='S15P31E102'||!Array.isArray(index.releases)||!index.releases.length) throw new Error('발행된 그래프가 아직 없습니다.');
     const m=graphMetadata(index.releases[0]);let compatible=false;
@@ -94,7 +94,7 @@ function adapters(contextPath) {
    },
    async download(c) {
     const root=await project(c.projectPath),py=python();
-    const {stdout}=await run(py.command,[...py.prefix,'-B',contextPath,'sync','--project',root,'--host',c.sshHost],{timeout:120000});
+    const {stdout}=await run(py.command,[...py.prefix,'-B',contextPath,'sync','--project',root,'--host',PUBLISH_HOST],{timeout:120000});
     return parseResult(stdout);
    }
   },
@@ -128,4 +128,4 @@ class JsonStore {
  load(){try{return JSON.parse(fs.readFileSync(this.file,'utf8'));}catch(e){if(e.code==='ENOENT')return {};throw new Error('설정 파일을 읽지 못했습니다: '+this.file);}}
  save(value){fs.mkdirSync(path.dirname(this.file),{recursive:true});const temp=this.file+'.pending';fs.writeFileSync(temp,JSON.stringify(value,null,2),{mode:0o600});fs.renameSync(temp,this.file);}
 }
-module.exports={adapters,JsonStore,project,run,program,environment,cocoArguments,parseResult,npmRuntime,graphMetadata};
+module.exports={PUBLISH_HOST,adapters,JsonStore,project,run,program,environment,cocoArguments,parseResult,npmRuntime,graphMetadata};
