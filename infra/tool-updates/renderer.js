@@ -44,7 +44,6 @@ function render(value) {
  $('download').disabled=value.busyGraph||!g.release||g.installed;
  $('download').textContent=value.busyGraph?'받는 중…':'다운로드';
  $('graph-time').textContent=g.lastChecked?new Date(g.lastChecked).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 확인':'';
- $('coco-badge').textContent=value.busyCoco?'설치 중':c.phase==='error'?'조회 확인 필요':c.latest?'배포 '+c.latest:'확인 중';
  $('coco-status').textContent=c.error&&c.phase==='error'?c.error:c.latest?'새 버전을 선택해 설치하거나 업데이트할 수 있습니다.':'npm 배포 목록을 확인합니다.';
  const select=$('version'),selected=value.focusCocoVersion||select.value;
  if(JSON.stringify([...select.options].map(o=>o.value))!==JSON.stringify(c.versions||[])) {
@@ -52,7 +51,7 @@ function render(value) {
  }
  if((c.versions||[]).includes(selected))select.value=selected;
  $('install').disabled=value.busyCoco||pendingSaves>0||!select.value;$('install').textContent=value.busyCoco?'설치 중…':'설치·업데이트';
- $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+c.installed.runtime+' · '+(c.installed.scope==='global'?'개인 전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
+ $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+c.installed.runtime+' · '+(c.installed.scope==='global'?'전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
  $('coco-error').textContent=c.installError||c.error||'';
  for(const id of ['choose','auto','startup','runtime','scope'])$(id).disabled=value.busyCoco||value.busyGraph;
  $('startup-detail').textContent=value.native?.packaged?'OS 로그인 실행: '+(value.native.startupEnabled?'켜짐':'꺼짐'):'배포 앱에서 로그인 실행을 설정할 수 있습니다.';

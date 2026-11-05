@@ -96,3 +96,15 @@ test('auto apply uses the highest COCO version in the saved scope, even with cac
  await h.engine.checkCoco();
  assert.deepEqual(h.installs,[{version:'2.0.0-beta.11',runtimes:['codex','claude'],scope:'project',projectPath:'/fixture/project'}]);
 });
+
+test('COCO defaults to both runtimes while preserving an existing explicit selection',async()=>{
+ const h=harness();
+ h.setPack(pack(['0.2.0','1.6.0']));
+ h.engine.configure({projectPath:'/fixture/project'});
+ await h.engine.checkCoco();
+ await h.engine.installCoco('1.6.0');
+ assert.deepEqual(h.installs[0].runtimes,['codex','claude']);
+ h.engine.configure({cocoRuntime:'codex'});
+ const restarted=new UpdateEngine(h.engine.deps);
+ assert.equal(restarted.snapshot().config.cocoRuntime,'codex');
+});

@@ -18,7 +18,22 @@
  </div>
  <p class="status" id="graph-status" aria-live="polite"></p>
 </section>
-<section class="card" aria-labelledby="coco-title"><div class="line"><h2 id="coco-title">COCO</h2><span class="badge" id="coco-badge">확인 중</span></div><div class="install-row"><label class="sr-only" for="version">배포 버전</label><select id="version"><option value="">확인 중</option></select><label class="sr-only" for="runtime">설치 대상</label><select id="runtime"><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="both">둘 다</option></select><label class="sr-only" for="scope">적용 위치</label><select id="scope"><option value="project">현재 프로젝트</option><option value="global">개인 전역</option></select><button id="install" class="secondary" disabled>설치·업데이트</button></div><p class="sr-only" id="coco-status" aria-live="polite">npm 배포 목록을 확인합니다.</p><p class="detail" id="coco-result"></p><p id="coco-error" class="error" role="status"></p></section>
+<section class="card" aria-labelledby="coco-title">
+ <div class="line">
+  <h2 id="coco-title">COCO</h2>
+  <div class="install-row">
+   <label class="sr-only" for="version">배포 버전</label>
+   <select id="version"><option value="">확인 중</option></select>
+   <label class="sr-only" for="runtime">설치 대상</label>
+   <select id="runtime"><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="both" selected>둘 다</option></select>
+   <label class="sr-only" for="scope">적용 위치</label>
+   <select id="scope"><option value="project">현재 프로젝트</option><option value="global">전역</option></select>
+   <button id="install" class="secondary" disabled>설치·업데이트</button>
+  </div>
+ </div>
+ <p class="sr-only" id="coco-status" aria-live="polite">npm 배포 목록을 확인합니다.</p>
+ <p class="detail" id="coco-result"></p><p id="coco-error" class="error" role="status"></p>
+</section>
 <div class="action-cards">
 <section class="card app-files" aria-labelledby="apps-title">
  <div class="line"><h2 id="apps-title">다운로드</h2>

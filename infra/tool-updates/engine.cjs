@@ -2,7 +2,7 @@
 const {EventEmitter} = require('node:events');
 const crypto = require('node:crypto');
 const VERSION = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-const defaults = {projectPath:'',autoApply:false,startAtLogin:true,cocoRuntime:'codex',cocoScope:'project',setupComplete:false};
+const defaults = {projectPath:'',autoApply:false,startAtLogin:true,cocoRuntime:'both',cocoScope:'project',setupComplete:false};
 const copy = value => structuredClone(value);
 const order = (a,b) => a===b?0:a>b?1:-1;
 
