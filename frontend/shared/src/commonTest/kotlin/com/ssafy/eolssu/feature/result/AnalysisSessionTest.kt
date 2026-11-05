@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.model.AnalysisFailure
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -365,6 +366,19 @@ class AnalysisSessionTest {
     }
 
     @Test
+    fun sectionTakeCreatesSectionSessionWithParentAndResendsTheSameSection() {
+        val section = SessionSection(startNoteIdx = 12, endNoteIdx = 27, parentSessionId = "30")
+        sessions.results += SessionStart.Unreachable
+        scope.launch { takeSession.start(SampleSongs.first(), bpm = 48, take = take, section = section) }
+        assertEquals(UploadProblem.CanResend, takeSession.state.value.upload)
+
+        takeSession.resend()
+        assertEquals(listOf<SessionSection?>(section, section), sessions.sections)
+        assertEquals(listOf("41" to "kept/practice-1.m4a"), uploader.calls)
+        assertEquals(listOf("41"), repository.queriedIds)
+    }
+
+    @Test
     fun unreachableSessionCreationOffersResendWithSameKey() {
         sessions.results += SessionStart.Unreachable
         startWithTake()
@@ -411,9 +425,11 @@ class AnalysisSessionTest {
 private class FakeSessions : PracticeSessionRepository {
     val results = ArrayDeque<SessionStart>()
     val calls = mutableListOf<Triple<String, Int, String>>()
+    val sections = mutableListOf<SessionSection?>()
 
-    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String): SessionStart {
+    override suspend fun create(songId: String, bpm: Int, idempotencyKey: String, section: SessionSection?): SessionStart {
         calls += Triple(songId, bpm, idempotencyKey)
+        sections += section
         return results.removeFirstOrNull() ?: SessionStart.Created("41", startedAtMillis = 0L, memberId = "A")
     }
 }

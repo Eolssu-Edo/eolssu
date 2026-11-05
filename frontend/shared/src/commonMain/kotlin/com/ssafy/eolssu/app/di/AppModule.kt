@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.app.di
 
+import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingFiles
 import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
@@ -92,7 +93,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import com.ssafy.eolssu.core.model.ScoreSection
-import com.ssafy.eolssu.data.practice.SampleWeakSectionRepository
+import com.ssafy.eolssu.data.practice.ApiWeakSectionRepository
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import com.ssafy.eolssu.feature.history.CompareViewModel
 import com.ssafy.eolssu.feature.practice.SectionLoopViewModel
@@ -141,9 +142,9 @@ val appModule = module {
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
             modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer())
     }
-    viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?) ->
+    viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
-        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get())
+        AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section)
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
@@ -190,13 +191,13 @@ val appModule = module {
     viewModelOf(::MySongsViewModel)
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
-    single<WeakSectionRepository> { SampleWeakSectionRepository() }
+    single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
     viewModel { (sourceId: String) -> ResultErrorsViewModel(sourceId, get()) }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
-        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get())
+        SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull())
     }
-    viewModel { (sourceId: String, section: ScoreSection, bpm: Int) -> SectionResultViewModel(sourceId, section, bpm, get()) }
+    viewModel { (sessionId: String) -> SectionResultViewModel(sessionId, get()) }
     viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)

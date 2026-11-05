@@ -42,25 +42,32 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.score.scoreSectionLabel
 import com.ssafy.eolssu.data.practice.SectionEvaluation
-import com.ssafy.eolssu.data.practice.SectionMetricChange
+import com.ssafy.eolssu.data.practice.CheckLoad
+import com.ssafy.eolssu.data.practice.SessionCheck
+import com.ssafy.eolssu.core.model.MetricScore
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_save
 import eolssu.shared.generated.resources.result_score_unit
 import eolssu.shared.generated.resources.weak_load_missing
-import eolssu.shared.generated.resources.weak_result_after
 import eolssu.shared.generated.resources.weak_result_again
-import eolssu.shared.generated.resources.weak_result_before
-import eolssu.shared.generated.resources.weak_result_down
 import eolssu.shared.generated.resources.weak_result_next_ready
 import eolssu.shared.generated.resources.weak_result_next_slow
 import eolssu.shared.generated.resources.weak_result_next_title
 import eolssu.shared.generated.resources.weak_result_other
-import eolssu.shared.generated.resources.weak_result_previous
-import eolssu.shared.generated.resources.weak_result_previous_sample
 import eolssu.shared.generated.resources.weak_result_same
+import eolssu.shared.generated.resources.weak_result_score_note
+import eolssu.shared.generated.resources.weak_result_errors_title
+import eolssu.shared.generated.resources.weak_result_errors_change
+import eolssu.shared.generated.resources.weak_result_errors_now
+import eolssu.shared.generated.resources.weak_result_fewer
+import eolssu.shared.generated.resources.weak_result_more
+import eolssu.shared.generated.resources.weak_result_corrected
+import eolssu.shared.generated.resources.weak_result_not_comparable
+import eolssu.shared.generated.resources.weak_result_compare_rejected
+import eolssu.shared.generated.resources.weak_result_compare_failed
+import eolssu.shared.generated.resources.weak_result_subtitle_plain
 import eolssu.shared.generated.resources.weak_result_subtitle
 import eolssu.shared.generated.resources.weak_result_title
-import eolssu.shared.generated.resources.weak_result_up
 import eolssu.shared.generated.resources.weak_result_whole
 import org.jetbrains.compose.resources.stringResource
 
@@ -74,7 +81,8 @@ class SectionResultActions(
 )
 
 /**
- * RESULT-04 구간 재평가 결과(2차 `SectionResult`): 총점 · 이전 대비 알약 · 항목별 이전 → 이번 막대 · 다음 단계.
+ * RESULT-04 구간 재평가 결과(2차 `SectionResult`): 이번 구간 총점 · 바탕 연주와의 틀린 음 비교(EVA-04) · 항목 점수 · 다음 단계.
+ * 서버가 점수를 비교하지 않아(EVA-04 2차 계약 미구현) 점수는 이번 값만 보이고, 비교는 틀린 음 수로 한다. 화면에서 점수를 계산하지 않는다.
  * 2차 결정으로 ‘남은 오류’ 칸은 없다. 아래에 ‘다시 연습’과 ‘다른 구간 고르기’ · ‘곡 전체 다시 평가’.
  */
 @Composable
@@ -89,7 +97,12 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
                 stringResource(Res.string.weak_result_title),
                 onBack = actions.onBack,
                 subtitle = evaluation?.let {
-                    stringResource(Res.string.weak_result_subtitle, it.song.title, scoreSectionLabel(it.section, it.song.score), it.bpm)
+                    val section = state.section
+                    if (section != null) {
+                        stringResource(Res.string.weak_result_subtitle, it.song.title, scoreSectionLabel(section, it.song.score), it.bpm)
+                    } else {
+                        stringResource(Res.string.weak_result_subtitle_plain, it.song.title, it.bpm)
+                    }
                 },
                 right = { EolssuIconButton(EolssuIcons.Bookmark, stringResource(Res.string.result_save), actions.onSave) },
             )
@@ -120,9 +133,10 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
             return@EolssuScaffold
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 20.dp)) {
-            ScoreHeader(evaluation, state.delta)
-            Column(Modifier.padding(top = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                evaluation.metrics.forEach { MetricChangeCard(it) }
+            ScoreHeader(evaluation.total)
+            ErrorCompareCard(evaluation.check, Modifier.padding(top = 18.dp))
+            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                evaluation.metrics.forEach { MetricCard(it) }
             }
             val shape = RoundedCornerShape(16.dp)
             Column(Modifier.padding(top = 12.dp).fillMaxWidth().border(1.dp, colors.lineSoft, shape).padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -144,86 +158,118 @@ fun SectionResultScreen(state: SectionResultUiState, snackbarHostState: Snackbar
     }
 }
 
-/** 총점(60sp, ‘85점’)과 ‘이전보다 17점 올랐어요’ 연두 알약, ‘이전 이 구간 점수 68점 · 예시 결과’. */
+/** 이번 구간 총점(60sp, ‘85점’)과 점수 안내. */
 @Composable
-private fun ScoreHeader(evaluation: SectionEvaluation, delta: Int?) {
+private fun ScoreHeader(total: Int) {
     val colors = EolssuTheme.colors
     Column(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             buildAnnotatedString {
-                append("${evaluation.total}")
+                append("$total")
                 withStyle(SpanStyle(fontSize = 18.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)) {
                     append(stringResource(Res.string.result_score_unit))
                 }
             },
             style = EolssuTheme.serif.brand.copy(fontSize = 60.sp, lineHeight = 60.sp),
         )
-        if (delta != null) {
-            Row(
-                Modifier.padding(top = 10.dp).heightIn(min = 28.dp).background(if (delta > 0) colors.primary else colors.surfaceStrong, CircleShape)
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                if (delta > 0) Icon(EolssuIcons.ArrowUpRight, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPrimary)
-                Text(
-                    when {
-                        delta > 0 -> stringResource(Res.string.weak_result_up, delta)
-                        delta < 0 -> stringResource(Res.string.weak_result_down, -delta)
-                        else -> stringResource(Res.string.weak_result_same)
-                    },
-                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                    color = colors.onPrimary,
-                )
-            }
-        }
-        val previous = evaluation.previousTotal
-        if (previous != null) {
-            Text(
-                stringResource(if (evaluation.sample) Res.string.weak_result_previous_sample else Res.string.weak_result_previous, previous),
-                modifier = Modifier.padding(top = 8.dp),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                color = colors.textMuted,
-            )
+        Text(
+            stringResource(Res.string.weak_result_score_note),
+            modifier = Modifier.padding(top = 8.dp),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+            color = colors.textMuted,
+        )
+    }
+}
+
+/**
+ * 바탕 연주와의 틀린 음 비교(EVA-04): ‘이전 12개 → 이번 5개’와 줄어든 수 알약, 고친 음 수.
+ * 견줄 수 없으면(악보 판본·채점 모델·속도가 다름) 서버 사유와 이번 틀린 음 수만, 비교를 받지 못하면 안내만 보인다.
+ */
+@Composable
+private fun ErrorCompareCard(check: CheckLoad, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    val shape = RoundedCornerShape(16.dp)
+    val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp)
+    Column(
+        modifier.fillMaxWidth().border(1.dp, colors.lineSoft, shape).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(stringResource(Res.string.weak_result_errors_title), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+        when (check) {
+            CheckLoad.Rejected -> Text(stringResource(Res.string.weak_result_compare_rejected), style = small, color = colors.textMuted)
+            CheckLoad.Failed -> Text(stringResource(Res.string.weak_result_compare_failed), style = small, color = colors.textMuted)
+            is CheckLoad.Loaded -> CheckBody(check.check)
         }
     }
 }
 
-/** 항목 카드: 이름 · ‘70 → 86점’ · 이전(회색)·이번(연두) 6dp 막대. */
 @Composable
-private fun MetricChangeCard(change: SectionMetricChange) {
+private fun CheckBody(check: SessionCheck) {
+    val colors = EolssuTheme.colors
+    val small = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp)
+    val before = check.beforeErrors
+    val delta = check.deltaErrors
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            if (check.comparable && before != null) {
+                stringResource(Res.string.weak_result_errors_change, before, check.afterErrors)
+            } else {
+                stringResource(Res.string.weak_result_errors_now, check.afterErrors)
+            },
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+        )
+        if (check.comparable && delta != null) DeltaPill(delta)
+    }
+    val reason = check.reason
+    if (!check.comparable && reason != null) {
+        Text(stringResource(Res.string.weak_result_not_comparable, reason), style = small, color = colors.textMuted)
+    } else if (check.correctedCount > 0) {
+        Text(stringResource(Res.string.weak_result_corrected, check.correctedCount), style = small, color = colors.textMuted)
+    }
+}
+
+/** 틀린 음 변화 알약. 줄었으면 연두 바탕, 늘었거나 같으면 회색 바탕. */
+@Composable
+private fun DeltaPill(delta: Int) {
+    val colors = EolssuTheme.colors
+    val fewer = delta < 0
+    Row(
+        Modifier.heightIn(min = 26.dp).background(if (fewer) colors.primary else colors.surfaceStrong, CircleShape).padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (fewer) Icon(EolssuIcons.ArrowUpRight, contentDescription = null, modifier = Modifier.size(13.dp), tint = colors.onPrimary)
+        Text(
+            when {
+                delta < 0 -> stringResource(Res.string.weak_result_fewer, -delta)
+                delta > 0 -> stringResource(Res.string.weak_result_more, delta)
+                else -> stringResource(Res.string.weak_result_same)
+            },
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+            color = if (fewer) colors.onPrimary else colors.text,
+        )
+    }
+}
+
+/** 항목 카드: 이름 · ‘86점’ · 연두 6dp 막대. */
+@Composable
+private fun MetricCard(score: MetricScore) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
     val unit = stringResource(Res.string.result_score_unit)
     Column(Modifier.fillMaxWidth().border(1.dp, colors.lineSoft, shape).padding(horizontal = 14.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(metricLabel(change.metric), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Text(metricLabel(score.metric), Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
             Text(
                 buildAnnotatedString {
-                    change.before?.let {
-                        withStyle(SpanStyle(color = colors.textMuted)) { append("$it") }
-                        append(" → ")
-                    }
-                    withStyle(SpanStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold)) { append("${change.after}") }
+                    withStyle(SpanStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold)) { append("${score.score}") }
                     append(unit)
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
             )
         }
-        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            change.before?.let { MetricBar(stringResource(Res.string.weak_result_before), it, colors.textDisabled) }
-            MetricBar(stringResource(Res.string.weak_result_after), change.after, colors.accent)
-        }
-    }
-}
-
-@Composable
-private fun MetricBar(label: String, score: Int, color: androidx.compose.ui.graphics.Color) {
-    val colors = EolssuTheme.colors
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, Modifier.width(30.dp), style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp), color = colors.textMuted)
-        Box(Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.background)) {
-            Box(Modifier.fillMaxWidth(score.coerceIn(0, 100) / 100f).fillMaxHeight().background(color))
+        Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.background)) {
+            Box(Modifier.fillMaxWidth(score.score.coerceIn(0, 100) / 100f).fillMaxHeight().background(colors.accent))
         }
     }
 }
