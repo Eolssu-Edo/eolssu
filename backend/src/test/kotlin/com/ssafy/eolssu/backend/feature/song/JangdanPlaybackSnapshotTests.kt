@@ -19,7 +19,10 @@ class JangdanPlaybackSnapshotTests {
         val json = JsonMapper.builder().build()
         val manifest = json.readTree(requireNotNull(javaClass.getResourceAsStream("/catalog/jangdan-playback.json")))
         val resolver = ScoreGridJangdanPlayback(json) { name ->
-            manifest.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
+            if (name == "자진타령") JangdanRow(11, name,
+                """{"beats":["덩","","","덩","","","덩","","덕","","",""],"group":[3,3,3,3]}""",
+                60, "DOTTED_QUARTER", null, LocalDateTime.MIN, LocalDateTime.MIN)
+            else manifest.path("patterns").firstOrNull { it.path("name").asString() == name }?.let {
                 JangdanRow(it.path("jangdanId").asString().toLong(), name, it.path("pattern").toString(), 66,
                     it.path("bpmUnit").asString(), null, LocalDateTime.MIN, LocalDateTime.MIN)
             }
@@ -58,7 +61,14 @@ class JangdanPlaybackSnapshotTests {
                 assertNull(scoreJangdanName(otherSource, stored.scoreVersion), id)
                 assertNull(resolver.resolve(stored.copy(scoreJson = otherSource.toString())), id)
             }
-            if (id == "34") {
+            if (id == "7") {
+                assertEquals("자진타령", scoreJangdanName(source, stored.scoreVersion))
+                assertEquals("11", assertNotNull(playback).jangdanId)
+                assertEquals(0L, playback.startTick)
+                assertEquals(12L, playback.cycleTicks)
+                assertEquals(listOf(0, 3, 6, 8), playback.pattern.beats.indices.filter { playback.pattern.beats[it].isNotBlank() })
+                assertNull(resolver.resolve(stored.copy(scoreVersion = 2)))
+            } else if (id == "34") {
                 assertEquals("자진모리", scoreJangdanName(source, stored.scoreVersion))
                 assertEquals("4", assertNotNull(playback).jangdanId)
                 assertEquals(0L, playback.startTick)
@@ -76,13 +86,12 @@ class JangdanPlaybackSnapshotTests {
                 assertEquals(review.path("cycleTicks").longValue(), playback.cycleTicks, id)
             } else {
                 assertNull(playback, id)
-                if (id == "7") assertEquals("자진타령", scoreJangdanName(source, stored.scoreVersion))
             }
         }
         assertEquals(35, namedOtherScores)
         assertEquals(28, otherPlayback)
         assertEquals(46, dansoScores)
         assertEquals(35, namedDansoScores)
-        assertEquals(34, dansoPlayback)
+        assertEquals(35, dansoPlayback)
     }
 }
