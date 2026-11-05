@@ -1,0 +1,30 @@
+name: eolssu-mysql-admin
+
+services:
+  phpmyadmin:
+    image: phpmyadmin:5.2.3-apache@sha256:9feb3b1734e2538ba633c1301ca5d08fc06cc8902428fe578034edef7897792a
+    environment:
+      PMA_HOST: ${MYSQL_ADMIN_TLS_HOST:?MySQL 인증서의 이름을 지정하세요}
+      PMA_PORT: "3306"
+      PMA_SSL: "1"
+      PMA_SSL_VERIFY: "1"
+      PMA_SSL_CA: /etc/phpmyadmin/mysql-ca.pem
+      MAX_EXECUTION_TIME: "30"
+    extra_hosts:
+      - "${MYSQL_ADMIN_TLS_HOST:?MySQL 인증서의 이름을 지정하세요}=${MYSQL_ADMIN_DB_IP:?MySQL의 런타임 내부 IP를 지정하세요}"
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - ./config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+      - ./mysql-ca.pem:/etc/phpmyadmin/mysql-ca.pem:ro
+    networks: [runtime]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+    restart: unless-stopped
+
+networks:
+  runtime:
+    external: true
+    name: eolssu-runtime_default
