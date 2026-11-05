@@ -43,6 +43,18 @@ class SectionComparisonTests {
         assertEquals(12, result.beforeScores?.pitchScore) // 12.5
     }
 
+    @Test fun `shared vector gives the same scores as the AI`() {
+        // AI test_scoring.py의 공통 벡터와 같은 값이다. 한쪽을 바꾸면 다른 쪽도 바꾼다.
+        // 세 항목 모두 평균이 x.5인데 차례 합의 끝자리 오차로 정확한 합·역순 합과 반올림이 갈린다(62, 40, 44가 나오면 틀렸다).
+        val pitch = listOf(49.0, 90.0, 61.0, null, 58.3, 81.3, 96.8, 1.1)
+        val timing = listOf(25.0, 48.9, 59.0, 42.7, 71.3, 34.1, 33.7, 9.3)
+        val duration = listOf(70.8, 48.1, 62.0, 18.1, 15.1, 55.6, 65.6, 12.7)
+        val before = (0..7).map { note(it, pitch[it], timing[it], duration[it]) }
+        val result = SectionComparison.compare(rated(0, 7), (0..7).map { note(it, 50.0, 50.0, 50.0) }, rated(0, 7), before)
+        // 총점 52.5는 짝수 쪽으로 간다.
+        assertEquals(SectionItemScores(52, 63, 41, 43), result.beforeScores)
+    }
+
     @Test fun `section of only sigimsae notes has a full pitch score like the AI`() {
         val result = SectionComparison.compare(rated(0, 0), listOf(note(0, null, 50.0, 50.0)), rated(0, 0), listOf(note(0, null, 50.0, 50.0)))
         assertEquals(100, result.beforeScores?.pitchScore)
