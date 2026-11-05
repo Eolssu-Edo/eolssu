@@ -276,6 +276,26 @@ class UserSheetApiDatabaseTests {
         assertEquals(1, count("SELECT COUNT(*) FROM user_sheets WHERE user_id=$OTHER"))
     }
 
+    @Test
+    fun `confirming imported issues changes review status only when all cells are resolved`() {
+        val id=insertSongCopy(OWNER,"인식 악보")
+        jdbc.update("UPDATE user_sheets SET source='STAFF_OMR',pending_cell_count=1 WHERE id=?",id)
+        jdbc.update("""INSERT INTO sheet_conversions(sheet_id,user_id,notation,instrument_id,status,page_count,accepted_at,finished_at,result_json)
+            VALUES(?,?,'STAFF',1,'DONE',1,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6),'{"issues":[{"issueId":"i1","cellId":"c0-j0"},{"issueId":"i2","cellId":"c0-j0"}],"notices":[],"pages":[]}')""",id,OWNER)
+        val score=json.readTree(get(OWNER,"/api/users/me/sheets/$id/score").body()).path("result").path("scoreData")
+        val first=json.readTree(scoreBody("1",score)) as ObjectNode
+        first.putArray("resolvedIssueIds").add("i1")
+        val saved=send(OWNER,"PUT","/api/users/me/sheets/$id/score",json.writeValueAsString(first))
+        assertEquals(200,saved.statusCode(),saved.body())
+        assertEquals("NEEDS_REVIEW",json.readTree(saved.body()).path("result").path("reviewStatus").asString())
+        val second=json.readTree(scoreBody("2",score)) as ObjectNode
+        second.putArray("resolvedIssueIds").add("i2")
+        val confirmed=send(OWNER,"PUT","/api/users/me/sheets/$id/score",json.writeValueAsString(second))
+        assertEquals(200,confirmed.statusCode(),confirmed.body())
+        assertEquals("EVALUABLE",json.readTree(confirmed.body()).path("result").path("reviewStatus").asString())
+        assertEquals(0,json.readTree(get(OWNER,"/api/users/me/sheets/$id/score").body()).path("result").path("issues").size())
+    }
+
     // 만들기 API(SHT-03)는 S15P31E102-462에서 지웠다. 그 API가 만들던 MANUAL 행과 같은 값으로 바로 넣는다.
     private fun insertBlank(user: Long, title: String, columnCount: Int = 4): String {
         val key = "blank-${keys++}"

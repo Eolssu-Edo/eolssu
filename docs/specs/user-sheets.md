@@ -9,7 +9,8 @@
 - 포함: `user_sheets` 저장 모델(V16), SHT-03 빈 악보·복사 생성(2026-11-03 결정으로 작업 취소, S15P31E102-462에서 API와 전용 코드 제거), SHT-08 본인 악보 조회, SHT-01 본인 악보 목록, 회원 탈퇴 일괄 삭제에 내 악보 추가.
 - 413에서 추가: V20 초안 칸, SHT-04 확정 저장, SHT-11 자동 저장, SHT-08 `events`·`draft`, SHT-01 `hasDraft`, SHT-02 삭제(아래 [편집 저장·자동 저장·삭제](#편집-저장자동-저장삭제-s15p31e102-413)).
 - 471에서 추가: SHT-07 불러오기 접수(원본 보관, 회원당 악보 10개), SHT-10 변환 상태, SHT-01·08 변환 필드, SHT-02·탈퇴의 원본 삭제(아래 [불러오기 접수·변환 상태](#불러오기-접수변환-상태-s15p31e102-471)).
-- 제외: 인식(omr) 호출·결과 저장·확인 필요 칸·재시도(SHT-14, S15P31E102-472), MIDI·M4A 음원(SHT-12·13, S15P31E102-481). 2026-11-03에 범위가 정해졌으나 미구현이다([2차 결정](#2차-결정-2026-11-03-미구현)). 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
+- 472에서 추가: 인식(omr) 호출·결과 저장·확인 필요 칸·재시도(SHT-14). [인식 작업자·결과·재시도](#인식-작업자결과재시도-s15p31e102-472)를 따른다.
+- 제외: MIDI·M4A 음원(SHT-12·13, S15P31E102-481)은 미구현이다. 악보 만들기(SHT-03, 악보는 SHT-07 불러오기로만 만든다)·음원 변환(SHT-09)·서버 미리듣기(SHT-06)·서버 오선보(SHT-05)는 작업 취소됐다.
 
 ## 공통
 
@@ -27,7 +28,7 @@
 | `status` | `NEEDS_REVIEW`(평가 불가) / `EVALUABLE`(평가 가능). 변환 상태는 SHT-10에서 추가한다. |
 | `jangdan_id`, `bpm`, `bpm_unit`, `column_count` | 편집 화면 설정. `bpm_unit`은 만들 때의 장단 단위이며, 장단 없는 곡(V15에서 `songs.jangdan_id`가 nullable)을 복사하면 `jangdan_id`는 NULL, 단위는 원본 악보의 `music.bpmUnit`이다(CAT-04와 같다). |
 | `score_version` | 1부터. JSON의 `score.scoreVersion`과 같게 유지한다. |
-| `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(현재 항상 0). |
+| `note_count`, `pending_cell_count` | NOTE 수, 확인 필요 칸 수(472에서 변환 결과와 검수에 따라 갱신). |
 | `idempotency_key`, `request_hash` | SHT-03 중복 방지용(회원·키 유일). SHT-03을 지운 뒤(462)에는 읽지 않지만 칸·제약은 그대로 둔다(스키마 변경 없음). NOT NULL이라 행을 새로 만드는 기능(SHT-07)이 값을 정해야 한다. |
 | `draft_json`, `draft_revision`, `draft_base_version`, `draft_saved_at` | V20. SHT-11 자동 저장 초안(`{title, jangdanId, bpm, score}`)과 순번·시작 버전·저장 시각. 확정 저장하면 NULL·0으로 돌아간다. |
 
@@ -60,7 +61,7 @@
 
 - SHT-04 `PUT /api/users/me/sheets/{sheetId}/score`: `baseScoreVersion`(문자열)이 현재 버전과 같을 때만 저장하고 버전을 1 올린다(DB `WHERE score_version = ?`로도 막는다). 미입력 칸은 400 `UNFILLED_CELLS`(`details.cellIds`, ID 없는 빈 칸은 400 `INVALID_REQUEST`). 요청 본문이 1MiB를 넘으면 JSON을 읽기 전에 413 `PAYLOAD_TOO_LARGE`(SHT-11도 같다, 받은 바이트 수 기준, Content-Length 없는 본문·인코딩한 경로 포함). `resolvedIssueIds: null`은 생략과 같다. `jangdanId`를 주면 `score.music.jangdan`(장단 이름)·`bpmUnit`이 그 장단과 같아야 한다. 검증·타임라인은 CAT-04 디코더를 쓴다. 성공하면 초안을 지우고 `draft_revision`을 0으로 되돌린다.
 - 서버는 `score.scoreVersion`을 새 버전으로 바꾸고 `provenance`를 서버 값으로 덮어쓴다(S15P31E102-447). DATA `score_data.schema.json`·`validate_common`(SHT-12 합성)이 요구하는 형식이다: `sourceId`는 `score.sourceId`(비어 있지 않은 문자열이어야 하며 아니면 400), `jgbSha256`은 provenance를 뺀 저장 문서의 SHA-256(편집기 악보에는 .jgb.json이 없다), `review`는 `inferred`, `converter`는 `app-editor-1`. 클라이언트가 보낸 provenance는 쓰지 않는다. 초안(SHT-11)은 받은 그대로 둔다.
-- 확인 필요 칸은 변환 기능과 함께 생긴다. 지금은 `resolvedIssueIds`에 값이 있으면 400이고, 저장 결과는 항상 `EVALUABLE`·`pendingIssueCount` 0이다.
+- 472에서 확인 필요 칸을 연결한다. `resolvedIssueIds`는 현재 악보의 issue ID만 허용한다. 확인한 항목을 제거한 뒤 cellId(없으면 eventId)를 중복 제거해 센다. 남은 칸이 있으면 NEEDS_REVIEW, 없으면 EVALUABLE이다. 악보·변환 결과 갱신은 하나의 트랜잭션이다. 변환이 DONE이 되기 전 확정 저장·초안 저장은 409다.
 - SHT-11 `PUT .../score/draft`: 버전과 `draftRevision`이 서버와 같을 때만 덮어쓰고 순번을 1 올린다. 칸 안은 검증하지 않고 최상위 모양만 본다. `updated_at`(목록 정렬)은 바꾸지 않는다.
 - SHT-08: `events`(저장 악보의 CAT-04 타임라인, 빈 악보는 `[]`)와 `draft`를 더했다. `draft`에는 Notion 필드(`score`·`baseScoreVersion`·`draftRevision`·`savedAt`)에 더해 초안의 `title`·`jangdanId`·`bpm`이 들어 있다(편집 화면 복원용). 저장 악보가 CAT-04 검증을 통과하지 못하면 409.
 - SHT-01: `hasDraft`를 더했다. `conversionStatus`·`source` 확장은 변환 기능에서 한다.
@@ -78,13 +79,25 @@
 - SHT-01은 `conversionStatus`·`sourcePageCount`, SHT-08은 `conversionStatus`·`source`(`type`·`fileName`·`hwangPitch`·`pages: []`·`pagesExpireAt: null`)·`notices: []`를 더한다. 변환이 끝나기 전 `columnCount`는 0이다(행에는 CHECK 때문에 1).
 - SHT-02는 원본 객체를 먼저 지우고 행을 지운다. 저장소가 실패하면 503 `SERVICE_UNAVAILABLE`이고 행이 남아 다시 지울 수 있다. 탈퇴 일괄 삭제는 녹음 키와 함께 `sheet-sources/` 키를 지우며, 키 앞부분으로 악보 전용 저장소를 고른다.
 
+
+## 인식 작업자·결과·재시도 (S15P31E102-472)
+
+- V27은 변환의 내부 실패 원인·누적 TIMEOUT 횟수·결과 JSON과 원본 쪽 PNG 표 `sheet_source_pages`를 추가한다. issues·notices·쪽 메타데이터는 변환 결과 JSON에 함께 보관한다. 별도 issue 표 대신 악보와 함께 원자적으로 갱신한다.
+- DB 접수 순으로 한 건씩 선점하고 전역 RUNNING 슬롯 UNIQUE로 동시 인식을 막는다. OMR HTTP 호출 동안 DB 잠금을 유지하지 않는다. 호출 제한은 전체 본문 수신까지 630초이고 자동 HTTP 재시도는 없다.
+- 공통 악보는 sourceId `sheet-{id}`, review `inferred`, 원본 jgb 해시·엔진 converter를 보관한다. 빈 칸이 없으면 score_json, 있으면 SHT-11 형식 초안에 저장한다. 결과는 NEEDS_REVIEW이며 BPM 생략 시 인식된 장단의 기본 BPM을 쓴다.
+- SHT-08은 issues·notices와 15분 서명 URL의 source.pages를 준다. bbox는 OMR 쪽 크기로 나눈 0~1 좌표다. PDF는 144dpi PNG, 사진은 OMR과 같은 EXIF 방향으로 만든다. 응답은 no-store다.
+- SHT-10은 남은 확인 칸 수와 원인별 retryable을 반환한다. SHT-14는 본인 FAILED만 재접수하며 같은 QUEUED·RUNNING 재요청은 기존 시도를 반환한다. 전체 재시도 3회(attempt 4), TIMEOUT 재시도 1회, ENGINE_ERROR·악보 없음·입력 오류는 재시도하지 않는다.
+- 삭제·탈퇴 정리 전 진행 중 작업을 중단 상태로 바꾼다. 늦게 온 결과는 저장하지 않고 만든 PNG를 정리한다. 원본과 PNG는 같은 sheet-sources/ 앞부분 아래에 두며 정리 실패는 행을 보존해 다시 삭제할 수 있다.
+- 시작 시 남은 RUNNING은 재시도 가능한 서버 실패로 정리한다. 단일 backend 인스턴스에서 실행하며 롤링 중 중복 인스턴스 운영은 이 범위에서 지원하지 않는다.
+- 실행·검증: [472 계획](../plans/S15P31E102-472.md). 실제 OMR 엔진 품질·운영 R2·기기 확인은 로컬 HTTP 대역·폐기용 MySQL 검사와 구분한다.
+
 ## 탈퇴
 
 탈퇴 일괄 삭제의 회원 행 삭제(3단계)에 `user_sheets`를 더한다.
 
 ## 2차 결정 (2026-11-03, 미구현)
 
-사용자 결정(S15P31E102-382). 요청·응답·오류의 상세는 [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01~13을 따른다. 아래는 이 문서의 현재 구현과 달라지는 점이다.
+사용자 결정(S15P31E102-382)의 당시 미구현 기록이다. 요청·응답·오류의 상세는 [Notion API 명세](https://app.notion.com/p/API-3fea0252aa45804cb9f0f896ec0310ad)의 SHT-01~13을 따른다. 이후 구현 여부는 위 작업별 절을 우선한다.
 
 - 내 악보는 연습(기기에서 따라 부르기·한 음씩 연습)만 하고 AI 평가는 하지 않는다. PRA-01은 `sheetId`를 받지 않는다. `EVALUABLE`은 '빈 칸·확인 필요 칸이 없어 연습·내보내기를 할 수 있음'이라는 뜻으로 쓴다(값은 그대로).
 - SHT-07 `POST /api/users/me/sheets/imports`(경로 변경): 정간보·오선보 PDF 1개 또는 PNG·JPEG 1~10장, 파일·합계 20MiB, PDF 10쪽, 회원당 동시 변환 1건. 202와 함께 `user_sheets` 행을 바로 만든다. 결과는 공통 악보 v1로 저장하고 `.jgb.json`은 변환 중간 결과다.

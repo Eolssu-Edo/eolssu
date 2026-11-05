@@ -216,6 +216,9 @@ internal val apiContracts = listOf(
         "Idempotency-Key 필수. multipart 파트 files(PDF 1개 또는 PNG·JPEG 1~10장, 형식은 파일 앞부분으로 판단)와 metadata(JSON: title 1~50자, notation JEONGGANBO|STAFF, instrumentId, JEONGGANBO는 jangdanId 필수, bpm 30~160 선택, STAFF만 hwangPitch 선택). 파일·합계 20MiB, PDF 10쪽. 받는 즉시 내 악보(NEEDS_REVIEW)와 QUEUED 변환을 만들고 202를 돌려줍니다. 같은 키·같은 내용은 처음 결과를 다시 주고, 다른 내용은 409 IDEMPOTENCY_CONFLICT입니다. 회원당 진행 중 변환 1건(409 CONVERSION_IN_PROGRESS), 내 악보 10개(409 SHEET_LIMIT_EXCEEDED). Spring 앞 계층은 25MiB(413 FILE_TOO_LARGE).",
         SheetImportAccepted::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,IDEMPOTENCY_CONFLICT,TOO_MANY_PAGES,UNREADABLE_FILE,FILE_TOO_LARGE,UNSUPPORTED_FILE_TYPE,CONVERSION_IN_PROGRESS,SHEET_LIMIT_EXCEEDED,CONVERSION_UNAVAILABLE)),
     ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/conversion","getSheetConversion","내 악보","악보 변환 상태 조회",
-        "불러오기로 만든 본인 악보의 변환 상태(QUEUED·RUNNING·DONE·FAILED)를 돌려줍니다. 진행 중이면 pollAfterMs 간격으로 다시 조회합니다. 재시도(retryable)는 변환 작업자 연결 전까지 false입니다. 불러오기로 만들지 않았거나 다른 회원의 악보는 404이며 Cache-Control: no-store입니다.",
+        "불러오기로 만든 본인 악보의 변환 상태(QUEUED·RUNNING·DONE·FAILED)를 돌려줍니다. 진행 중이면 pollAfterMs 간격으로 다시 조회합니다. retryable은 내부 실패 원인·TIMEOUT 누적 횟수·합계 시도 상한에 따라 결정합니다. 불러오기로 만들지 않았거나 다른 회원의 악보는 404이며 Cache-Control: no-store입니다.",
         SheetConversionView::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets/{sheetId}/conversion/retry","retrySheetConversion","내 악보","실패한 악보 변환 재시도",
+        "보관된 원본과 설정으로 재시도합니다. TIMEOUT은 한 번, 서버 장애는 합계 세 번(attempt 4)까지이며 엔진·입력 오류는 재시도하지 않습니다. 이미 QUEUED·RUNNING이면 기존 상태를 202로 반환합니다.",
+        com.ssafy.eolssu.backend.feature.sheet.api.SheetRetryAccepted::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,CONVERSION_IN_PROGRESS,CONVERSION_UNAVAILABLE)),
 )
