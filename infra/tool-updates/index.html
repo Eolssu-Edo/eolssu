@@ -23,7 +23,7 @@
   <h2 id="coco-title">COCO</h2>
   <div class="install-row">
    <label class="sr-only" for="version">배포 버전</label>
-   <select id="version"><option value="">확인 중</option></select>
+   <select id="version" disabled><option value="">확인 중</option></select>
    <label class="sr-only" for="runtime">설치 대상</label>
    <select id="runtime"><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="both" selected>Codex/Claude</option></select>
    <label class="sr-only" for="scope">적용 위치</label>
@@ -32,7 +32,7 @@
   </div>
  </div>
  <p class="sr-only" id="coco-status" aria-live="polite">npm 배포 목록을 확인합니다.</p>
- <p class="detail" id="coco-result"></p><p id="coco-error" class="error" role="status"></p>
+ <p class="detail" id="coco-result" role="status"></p><p id="coco-error" class="error" role="status"></p>
 </section>
 <div class="action-cards">
 <section class="card app-files" aria-labelledby="apps-title">

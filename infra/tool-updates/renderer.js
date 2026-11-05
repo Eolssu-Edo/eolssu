@@ -7,7 +7,10 @@ async function invoke(work,success,errorTarget='message') {
  catch(e){$(errorTarget).textContent=e.message;return null;}
 }
 function form({config,native}) {
- $('project').value=config.projectPath;$('auto').checked=config.autoApply;$('startup').checked=native?.packaged?native.startupEnabled:config.startAtLogin;$('runtime').value=config.cocoRuntime;$('scope').value=config.cocoScope;
+ const project=$('project');
+ project.value=config.projectPath;
+ project.title=config.projectPath;
+ $('auto').checked=config.autoApply;$('startup').checked=native?.packaged?native.startupEnabled:config.startAtLogin;$('runtime').value=config.cocoRuntime;$('scope').value=config.cocoScope;
 }
 function render(value) {
  state=value;
@@ -46,12 +49,18 @@ function render(value) {
  $('graph-time').textContent=g.lastChecked?new Date(g.lastChecked).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 확인':'';
  $('coco-status').textContent=c.error&&c.phase==='error'?c.error:c.latest?'새 버전을 선택해 설치하거나 업데이트할 수 있습니다.':'npm 배포 목록을 확인합니다.';
  const select=$('version'),selected=value.focusCocoVersion||select.value;
- if(JSON.stringify([...select.options].map(o=>o.value))!==JSON.stringify(c.versions||[])) {
-  select.replaceChildren(...(c.versions||[]).map(v=>{const o=document.createElement('option');o.value=v;o.textContent=v+(v.includes('-')?' · 프리릴리스':'');return o;}));
+ const versions=c.versions||[];
+ const options=versions.length?versions:[''];
+ if(options.length!==select.options.length||options.some((version,index)=>version!==select.options[index].value)) {
+  select.replaceChildren(...options.map(version=>new Option(version+(version.includes('-')?' · 프리릴리스':''),version)));
  }
- if((c.versions||[]).includes(selected))select.value=selected;
+ if(!versions.length)select.options[0].textContent=c.phase==='error'?'조회 실패':'확인 중';
+ if(versions.includes(selected))select.value=selected;
+ select.disabled=!versions.length||value.busyCoco;
+ select.title=select.selectedOptions[0]?.textContent||'';
  $('install').disabled=value.busyCoco||pendingSaves>0||!select.value;$('install').textContent=value.busyCoco?'설치 중…':'설치·업데이트';
- $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+c.installed.runtime+' · '+(c.installed.scope==='global'?'전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
+ const runtimeOption=[...$('runtime').options].find(option=>option.value===c.installed?.runtime);
+ $('coco-result').textContent=c.installed?'최근 완료: '+c.installed.version+' · '+(runtimeOption?.textContent||c.installed.runtime)+' · '+(c.installed.scope==='global'?'전역':'프로젝트')+' — 새 AI 세션에서 확인하세요.':'';
  $('coco-error').textContent=c.installError||c.error||'';
  for(const id of ['choose','auto','startup','runtime','scope'])$(id).disabled=value.busyCoco||value.busyGraph;
  $('startup-detail').textContent=value.native?.packaged?'OS 로그인 실행: '+(value.native.startupEnabled?'켜짐':'꺼짐'):'배포 앱에서 로그인 실행을 설정할 수 있습니다.';
@@ -70,6 +79,10 @@ $('auto').onchange=()=>saveSettings({autoApply:$('auto').checked});
 $('startup').onchange=()=>saveSettings({startAtLogin:$('startup').checked});
 $('runtime').onchange=()=>saveSettings({cocoRuntime:$('runtime').value});
 $('scope').onchange=()=>saveSettings({cocoScope:$('scope').value});
+$('version').onchange=event=>{
+ const select=event.currentTarget;
+ select.title=select.selectedOptions[0]?.textContent||'';
+};
 $('choose').onclick=()=>invoke(()=>window.updates.chooseProject(),projectPath=>{
  if(projectPath){$('project').value=projectPath;saveSettings({projectPath});}
 });
