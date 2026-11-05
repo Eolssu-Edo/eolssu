@@ -91,6 +91,32 @@ class PracticeJangdanTest {
         assertTrue(samples.releases > 0)
     }
 
+    @Test fun gutgeoriTempoChangeDuringPreparationLoadsOnlyTheNewLengthBeforePlaying() = practice(
+        jangdan = JangdanPlayback("2", "굿거리", 0, 4, listOf("더러러러", ""), listOf(2)),
+    ) { vm, samples, _, _ ->
+        val original = CompletableDeferred<Boolean>()
+        samples.pending = original
+        vm.startRhythm(); runCurrent()
+        assertEquals(44_100, samples.prepared.last().single().targetFrames)
+        assertFalse(vm.uiState.value.playing)
+
+        val adjusted = CompletableDeferred<Boolean>()
+        samples.pending = adjusted
+        vm.openPanel(PracticePanel.Tempo)
+        vm.updateDraft { it.copy(step = TempoStep.Slow) }
+        vm.applyTempo(); runCurrent()
+        assertEquals(48, vm.uiState.value.bpm)
+        val newClip = samples.prepared.last().single()
+        assertEquals(55_125, newClip.targetFrames)
+
+        original.complete(true); runCurrent()
+        assertFalse(vm.uiState.value.playing)
+        assertTrue(samples.hits.isEmpty())
+        adjusted.complete(true); runCurrent()
+        assertTrue(vm.uiState.value.playing)
+        assertEquals(listOf(newClip.sample), samples.hits)
+    }
+
     @Test fun previewModelAndRecordingAreMutuallyExclusiveAndUseMediaPosition() = practice { vm, samples, media, settings ->
         vm.togglePreview(); runCurrent()
         assertTrue(vm.uiState.value.draft.previewing)
@@ -177,11 +203,14 @@ class PracticeJangdanTest {
         assertEquals(before, samples.hits.size)
     }
 
-    private fun practice(block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit) = runTest {
+    private fun practice(
+        jangdan: JangdanPlayback = mapping,
+        block: suspend TestScope.(PracticeViewModel, Samples, FakeAudioPlayer, PracticeSettingsStore) -> Unit,
+    ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val views = ViewModelStore()
         try {
-            val song = smallScoreSong().copy(id = "42", scoreVersion = 1, jangdanPlayback = mapping)
+            val song = smallScoreSong().copy(id = "42", scoreVersion = 1, jangdanPlayback = jangdan)
             val repository = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String): Song = song
             }
@@ -212,9 +241,13 @@ private class Samples : JangdanSamplePlayer {
     var accept = true
     var modelFocus = false
     val hits = mutableListOf<JangdanSample>()
-    override suspend fun prepare(samples: Set<JangdanSample>) = pending?.await() ?: true
+    val prepared = mutableListOf<Set<JangdanClip>>()
+    override suspend fun prepare(clips: Set<JangdanClip>): Boolean {
+        prepared += clips
+        return pending?.await() ?: true
+    }
     override fun begin(accompanyingModel: Boolean): Boolean { begins++; modelFocus = accompanyingModel; return true }
-    override fun play(sample: JangdanSample, gain: Float): Boolean { if (accept) hits += sample; return accept }
+    override fun play(clip: JangdanClip, gain: Float): Boolean { if (accept) hits += clip.sample; return accept }
     override fun silence() { silences++ }
     override fun stop() = silence()
     override fun release() { stop(); releases++ }

@@ -403,7 +403,8 @@ class PracticeViewModel(
         captureStepProgress()
         val state = _uiState.value
         val song = state.song ?: return
-        val running = stepJob?.isActive == true
+        val preparingRhythm = soundPurpose == SoundPurpose.Rhythm && jangdanAudio.status.value == JangdanStatus.Loading
+        val running = stepJob?.isActive == true || preparingRhythm
         if (state.mode == PracticeMode.Rhythm) pauseRhythm()
         val carry = state.currentEventFraction
         settingsStore.update { it.applyTempo(state.draft, song) }

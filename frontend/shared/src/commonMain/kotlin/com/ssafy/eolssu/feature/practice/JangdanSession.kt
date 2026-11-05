@@ -31,7 +31,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
         mutableStatus.value = JangdanStatus.Loading
         job = scope.launch {
             try {
-                if (!player.prepare(plan.strikes.map { it.sample }.toSet()) || !player.begin(accompanyingModel)) {
+                if (!player.prepare(plan.strikes.map { it.clip }.toSet()) || !player.begin(accompanyingModel)) {
                     mutableStatus.value = JangdanStatus.Failed
                     return@launch
                 }
@@ -46,7 +46,7 @@ internal class JangdanSession(private val player: JangdanSamplePlayer, private v
                     val now = tick() ?: break
                     val strikes = cursor.due(now)
                     if (cursor.movedBackward) player.silence()
-                    if (strikes.any { !player.play(it.sample, it.gain) }) {
+                    if (strikes.any { !player.play(it.clip, it.gain) }) {
                         mutableStatus.value = JangdanStatus.Failed
                         break
                     }

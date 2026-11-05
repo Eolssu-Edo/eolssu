@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.math.roundToInt
 
 class JangdanPlaybackTest {
     private val gutgeori = JangdanPlayback("2", "굿거리", 0, 24,
@@ -18,17 +19,18 @@ class JangdanPlaybackTest {
         assertEquals(emptyList(), cursor.due(1.99))
         assertEquals(emptyList(), cursor.due(2.0))
         assertEquals(emptyList(), cursor.due(2.01))
-        assertEquals(listOf(JangdanSample.Deong), cursor.due(4.0).map { it.sample })
-        assertEquals(listOf(JangdanSample.Kung), cursor.due(2.0).map { it.sample })
+        assertEquals(listOf(JangdanSample.Deong), cursor.due(4.0).map { it.clip.sample })
+        assertEquals(listOf(JangdanSample.Kung), cursor.due(2.0).map { it.clip.sample })
     }
 
     @Test fun fiveActualIntegerTemposSelectDistinctRecordedRollsWithoutPitchChange() {
         for ((bpm, roll) in listOf(59 to JangdanSample.Gutgeori59, 79 to JangdanSample.Gutgeori79,
             99 to JangdanSample.Gutgeori99, 109 to JangdanSample.Gutgeori109, 119 to JangdanSample.Gutgeori119)) {
             val plan = assertNotNull(planJangdan(gutgeori, bpm, 4))
-            val rolls = plan.strikes.filter { it.sample.file.startsWith("gutgeori_roll") }
+            val rolls = plan.strikes.filter { it.clip.sample.file.startsWith("gutgeori_roll") }
             assertEquals(listOf(8.0, 20.0), rolls.map { it.tick })
-            assertEquals(listOf(roll, roll), rolls.map { it.sample })
+            assertEquals(listOf(roll, roll), rolls.map { it.clip.sample })
+            assertEquals(listOf(null, null), rolls.map { it.clip.targetFrames })
             assertEquals(360000.0 / bpm, plan.mapping.cycleTicks * plan.msPerTick, 0.0001)
         }
     }
@@ -41,8 +43,17 @@ class JangdanPlaybackTest {
         assertEquals(a.strikes.map { it.tick * a.msPerTick }, b.strikes.map { it.tick * b.msPerTick })
     }
 
-    @Test fun unpreparedRollOrNonFiveStepTempoDoesNotPretendToPlay() {
-        assertNull(planJangdan(gutgeori, 100, 4))
+    @Test fun changedTempoFitsRealRollsToTheirSlotsWithoutMovingTheAttacks() {
+        for (bpm in listOf(18, 95, 100, 120, 480)) {
+            val plan = assertNotNull(planJangdan(gutgeori, bpm, 4))
+            val rolls = plan.strikes.filter { it.clip.sample.file.startsWith("gutgeori_roll") }
+            assertEquals(listOf(8.0, 20.0), rolls.map { it.tick })
+            assertEquals(List(2) { (60.0 * 44_100 / bpm).roundToInt() }, rolls.map { it.clip.targetFrames })
+            assertNull(plan.strikes.first().clip.targetFrames)
+        }
+    }
+
+    @Test fun unpreparedRollOrUnknownPatternDoesNotPretendToPlay() {
         assertNull(planJangdan(gutgeori.copy(jangdanId = "10", name = "세령산"), 63, 4))
         assertNull(planJangdan(gutgeori.copy(beats = listOf("unknown"), groups = listOf(1)), 99, 4))
     }

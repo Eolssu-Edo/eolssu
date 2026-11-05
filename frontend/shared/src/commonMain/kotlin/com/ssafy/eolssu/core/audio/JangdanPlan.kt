@@ -3,11 +3,13 @@ package com.ssafy.eolssu.core.audio
 import com.ssafy.eolssu.core.model.JangdanPlayback
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.roundToInt
 
-data class JangdanStrike(val tick: Double, val sample: JangdanSample, val gain: Float = 1f)
+data class JangdanStrike(val tick: Double, val clip: JangdanClip, val gain: Float = 1f)
 data class JangdanPlan(val mapping: JangdanPlayback, val msPerTick: Double, val strikes: List<JangdanStrike>)
 
-/** 굴림은 검수한 길이의 파일만 고른다. 임의의 pitch/rate 변경이나 단타 반복으로 대체하지 않는다. */
+/** 두 소박의 시간에 맞춰 실제 굴림 클립과 음높이 보존 재생 속도를 정한다. */
 fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanPlan? {
     if (bpm <= 0 || ticksPerBeat <= 0) return null
     val msPerTick = 60_000.0 / bpm / ticksPerBeat
@@ -16,7 +18,7 @@ fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanP
     for ((index, syllable) in mapping.beats.withIndex()) {
         val at = index * cell
         fun add(offset: Double, sample: JangdanSample, gain: Float = 1f) {
-            result += JangdanStrike((at + offset).coerceAtLeast(0.0), sample, gain)
+            result += JangdanStrike((at + offset).coerceAtLeast(0.0), JangdanClip(sample), gain)
         }
         when (syllable) {
             "" -> Unit
@@ -37,9 +39,12 @@ fun planJangdan(mapping: JangdanPlayback, bpm: Int, ticksPerBeat: Int): JangdanP
             }
             "더러러러" -> {
                 if (mapping.jangdanId != "2") return null
-                val duration = 2 * cell * msPerTick
-                val roll = gutgeoriRolls.firstOrNull { abs(60_000.0 / it.first - duration) < 0.5 }?.second ?: return null
-                add(0.0, roll)
+                val durationMs = 2 * cell * msPerTick
+                val (sourceBpm, sample) = gutgeoriRolls.minBy { abs(ln(60_000.0 / it.first / durationMs)) }
+                val sourceFrames = (60.0 * JANGDAN_SAMPLE_RATE / sourceBpm).roundToInt()
+                val targetFrames = (durationMs * JANGDAN_SAMPLE_RATE / 1000).roundToInt()
+                if (targetFrames !in 1..4 * JANGDAN_SAMPLE_RATE) return null
+                result += JangdanStrike(at, JangdanClip(sample, targetFrames.takeUnless { it == sourceFrames }))
             }
             else -> return null
         }
