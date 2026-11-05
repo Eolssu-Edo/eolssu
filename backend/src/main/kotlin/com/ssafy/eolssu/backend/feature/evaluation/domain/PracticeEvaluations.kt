@@ -25,7 +25,11 @@ data class PracticeEvaluationSnapshot(
     val evaluatedAt: Instant?, val recordingDurationMs: Int?, val startNoteIdx: Int, val endNoteIdx: Int,
     val tuningOffsetCent: Double? = null, val tuningOutOfRange: Boolean? = null,
     val parentSessionId: Long? = null, val modelVersion: String? = null,
+    val scoringVersion: String? = null, val scoreWeights: ScoreWeights? = null,
 )
+
+/** 총점의 항목 가중치. AI가 평가 때 정한 값이다. */
+data class ScoreWeights(val pitch: Double, val timing: Double, val duration: Double)
 
 data class PracticeEvaluation(
     val sessionId: Long, val evaluationId: Long, val songId: Long, val scoreVersion: Int,
@@ -38,6 +42,7 @@ data class PracticeEvaluation(
 data class PracticeEvaluationNote(
     val noteIdx: Int, val verdict: String, val pitchErrorCent: Int?, val onsetErrorMs: Int?, val durationErrorMs: Int?,
     val expectedPitchId: Long, val detectedPitchId: Long?, val recordingOffsetMs: Int? = null,
+    val pitchScore: Double? = null, val timingScore: Double? = null, val durationScore: Double? = null, val weight: Double? = null,
 ) {
     val isError: Boolean get() = verdict != Verdict.CORRECT
 }

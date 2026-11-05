@@ -7,7 +7,11 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRequest
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResponseException
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
+import com.ssafy.eolssu.backend.feature.analysis.domain.NoteScore
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoringRule
+import kotlin.math.abs
 import org.springframework.http.MediaType
 import org.springframework.web.client.RestClient
 import tools.jackson.core.JacksonException
@@ -35,24 +39,26 @@ class HttpAnalysisClient(
         } catch (e: JacksonException) {
             throw AnalysisResponseException("analysis response is not the agreed JSON", e)
         }
-        return response.toResult(request.notes.map { it.idx })
+        return response.toResult(request.notes)
     }
 
     private fun AnalysisRequest.toBody() =
         RequestBody(sessionId, attempt, audioUrl, bpm, bpmUnit, notes.map { RequestNote(it.idx, it.semitone, it.startBeat, it.beats, it.sigimsae) })
 
-    private fun ResponseBody.toResult(requestedIdx: List<Int>): AnalysisResult = when (status) {
+    private fun ResponseBody.toResult(requested: List<ScoreNote>): AnalysisResult = when (status) {
         "DONE" -> {
             val version = modelVersion?.takeIf { it.isNotBlank() && it.length <= MODEL_VERSION_MAX }
                 ?: throw AnalysisResponseException("modelVersion must be 1..$MODEL_VERSION_MAX characters")
             val judged = notes ?: throw AnalysisResponseException("DONE without notes")
-            if (judged.map { it.idx } != requestedIdx) throw AnalysisResponseException("note idx differ from the request")
+            if (judged.map { it.idx } != requested.map { it.idx }) throw AnalysisResponseException("note idx differ from the request")
             if ((tuningOffsetCent == null) != (tuningOutOfRange == null) || tuningOffsetCent?.isFinite() == false) {
                 throw AnalysisResponseException("tuning metadata must be a finite offset and a flag, or both absent")
             }
+            val scoring = scoringRule()
             AnalysisResult.Done(
-                version, score(total), score(pitch), score(timing), score(duration), judged.map { it.toJudgement() },
-                tuningOffsetCent, tuningOutOfRange,
+                version, score(total), score(pitch), score(timing), score(duration),
+                judged.zip(requested) { note, asked -> note.toJudgement(note.noteScore(scoring != null, asked.sigimsae)) },
+                tuningOffsetCent, tuningOutOfRange, scoring,
             )
         }
         "FAILED" -> AnalysisResult.Failed(
@@ -64,7 +70,30 @@ class HttpAnalysisClient(
 
     private fun score(value: Int?) = value?.takeIf { it in 0..100 } ?: throw AnalysisResponseException("scores must be 0..100")
 
-    private fun ResponseNote.toJudgement(): NoteJudgement {
+    /** 이전 AI 응답은 scoringVersion이 없다. 버전이 있으면 가중치와 모든 음표의 부분 점수를 함께 줘야 구간을 합칠 수 있다. */
+    private fun ResponseBody.scoringRule(): ScoringRule? {
+        val version = scoringVersion ?: return null
+        if (version.isBlank() || version.length > SCORING_VERSION_MAX) throw AnalysisResponseException("scoringVersion must be 1..$SCORING_VERSION_MAX characters")
+        val weights = scoreWeights ?: throw AnalysisResponseException("scoringVersion without scoreWeights")
+        val (pitchWeight, timingWeight, durationWeight) = listOf(weights.pitch, weights.timing, weights.duration)
+            .map { it?.takeIf { w -> w in 0.0..1.0 } ?: throw AnalysisResponseException("scoreWeights must be 0..1") }
+        if (abs(pitchWeight + timingWeight + durationWeight - 1) > WEIGHT_SUM_TOLERANCE) throw AnalysisResponseException("scoreWeights must add up to 1")
+        return ScoringRule(version, pitchWeight, timingWeight, durationWeight)
+    }
+
+    private fun ResponseNote.noteScore(rated: Boolean, sigimsae: Boolean): NoteScore? {
+        if (!rated) {
+            if (listOf(pitchScore, timingScore, durationScore, weight).any { it != null }) throw AnalysisResponseException("note scores without scoringVersion")
+            return null
+        }
+        if ((pitchScore == null) != sigimsae) throw AnalysisResponseException("pitchScore must be null only for sigimsae notes")
+        return NoteScore(pitchScore?.let(::partScore), partScore(timingScore), partScore(durationScore),
+            weight?.takeIf { it > 0 && it.isFinite() } ?: throw AnalysisResponseException("note weight must be positive"))
+    }
+
+    private fun partScore(value: Double?) = value?.takeIf { it in 0.0..100.0 } ?: throw AnalysisResponseException("note scores must be 0..100")
+
+    private fun ResponseNote.toJudgement(noteScore: NoteScore?): NoteJudgement {
         val judged = NoteVerdict.entries.find { it.name == verdict } ?: throw AnalysisResponseException("unknown verdict $verdict")
         if (recordingOffsetMs != null && recordingOffsetMs < 0) throw AnalysisResponseException("recordingOffsetMs must not be negative")
         // 새 필드는 이전 AI 응답에 없어 null로 받는다. MISSED는 소리를 찾지 못한 음표라 인식 음·녹음 위치를 저장하지 않는다.
@@ -77,6 +106,7 @@ class HttpAnalysisClient(
             durationErrorMs,
             detectedSemitone.takeIf { heard },
             recordingOffsetMs.takeIf { heard },
+            noteScore,
         )
     }
 
@@ -104,7 +134,12 @@ class HttpAnalysisClient(
         val notes: List<ResponseNote>? = null,
         val tuningOffsetCent: Double? = null,
         val tuningOutOfRange: Boolean? = null,
+        val scoringVersion: String? = null,
+        val scoreWeights: ResponseWeights? = null,
     )
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    internal data class ResponseWeights(val pitch: Double? = null, val timing: Double? = null, val duration: Double? = null)
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     internal data class ResponseNote(
@@ -115,9 +150,15 @@ class HttpAnalysisClient(
         val durationErrorMs: Int? = null,
         val detectedSemitone: Int? = null,
         val recordingOffsetMs: Int? = null,
+        val pitchScore: Double? = null,
+        val timingScore: Double? = null,
+        val durationScore: Double? = null,
+        val weight: Double? = null,
     )
 
     private companion object {
         const val MODEL_VERSION_MAX = 30 // evaluations.model_version VARCHAR(30)
+        const val SCORING_VERSION_MAX = 30 // evaluations.scoring_version VARCHAR(30)
+        const val WEIGHT_SUM_TOLERANCE = 1e-9 // 1/3 세 개처럼 소수로 합이 정확히 1이 되지 않는 값을 받는다
     }
 }

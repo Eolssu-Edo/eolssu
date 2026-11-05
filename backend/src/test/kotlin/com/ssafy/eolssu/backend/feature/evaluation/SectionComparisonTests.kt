@@ -17,6 +17,65 @@ class SectionComparisonTests {
         PracticeEvaluationNote(idx, wrong.toMap()[idx] ?: "CORRECT", null, null, null, 1, null)
     }
 
+    private val weights = ScoreWeights(0.5, 0.25, 0.25)
+    private fun rated(start: Int, end: Int, total: Int = 80, version: String = "note-mean-1", model: String = "m1", scoreVersion: Int = 1) =
+        session(start, end, total, scoreVersion, model).copy(scoringVersion = version, scoreWeights = weights)
+    private fun note(idx: Int, pitch: Double?, timing: Double, duration: Double, weight: Double = 1.0, verdict: String = "CORRECT") =
+        PracticeEvaluationNote(idx, verdict, null, null, null, 1, null, null, pitch, timing, duration, weight)
+
+    @Test fun `section score merges only the notes of the section with their weights`() {
+        val result = SectionComparison.compare(
+            rated(1, 3).copy(totalScore = 85, pitchScore = 90, timingScore = 80, durationScore = 70),
+            listOf(note(1, 90.0, 90.0, 90.0), note(2, null, 90.0, 90.0), note(3, 90.0, 90.0, 90.0)),
+            rated(0, 3),
+            listOf(note(0, 100.0, 100.0, 100.0), note(1, 80.0, 60.0, 40.0), note(2, null, 90.0, 50.0, 3.0), note(3, 0.0, 0.0, 0.0)),
+        )
+        assertTrue(result.scoreComparable)
+        assertEquals(emptyList(), result.notComparableReasons)
+        // 음정 (80+0)/2=40 (시김새 제외), 박자 (60+270+0)/5=66, 길이 (40+150+0)/5=38, 총점 40×0.5+66×0.25+38×0.25=46
+        assertEquals(SectionItemScores(46, 40, 66, 38), result.beforeScores)
+        assertEquals(SectionItemScores(39, 50, 14, 32), result.scoreDelta)
+    }
+
+    @Test fun `section score rounds halves to the even side like the AI`() {
+        val before = listOf(note(0, 100.0, 50.0, 50.0)) + (1..7).map { note(it, 0.0, 50.0, 50.0) }
+        val result = SectionComparison.compare(rated(0, 7), (0..7).map { note(it, 50.0, 50.0, 50.0) }, rated(0, 7), before)
+        assertEquals(12, result.beforeScores?.pitchScore) // 12.5
+    }
+
+    @Test fun `section of only sigimsae notes has a full pitch score like the AI`() {
+        val result = SectionComparison.compare(rated(0, 0), listOf(note(0, null, 50.0, 50.0)), rated(0, 0), listOf(note(0, null, 50.0, 50.0)))
+        assertEquals(100, result.beforeScores?.pitchScore)
+    }
+
+    @Test fun `different scoring rule blocks scores but not error counts`() {
+        val result = SectionComparison.compare(
+            rated(0, 0, version = "note-mean-2"), listOf(note(0, 90.0, 90.0, 90.0)), rated(0, 0), listOf(note(0, 80.0, 80.0, 80.0)),
+        )
+        assertFalse(result.scoreComparable)
+        assertEquals(listOf(NotComparableReason.SCORING_VERSION_CHANGED), result.notComparableReasons)
+        assertNull(result.beforeScores)
+        assertNull(result.scoreDelta)
+        assertTrue(result.errorComparable)
+    }
+
+    @Test fun `each difference is reported when note scores exist on both sides`() {
+        val model = SectionComparison.compare(rated(0, 0, model = "m2"), listOf(note(0, 90.0, 90.0, 90.0)), rated(0, 0), listOf(note(0, 80.0, 80.0, 80.0)))
+        assertEquals(listOf(NotComparableReason.MODEL_CHANGED), model.notComparableReasons)
+        assertNull(model.beforeScores)
+        val score = SectionComparison.compare(rated(0, 0, scoreVersion = 2), listOf(note(0, 90.0, 90.0, 90.0)), rated(0, 0), listOf(note(0, 80.0, 80.0, 80.0)))
+        assertEquals(listOf(NotComparableReason.SCORE_VERSION_CHANGED), score.notComparableReasons)
+        assertNull(score.beforeScores)
+    }
+
+    @Test fun `an evaluation without note scores on either side blocks scores`() {
+        val old = SectionComparison.compare(rated(0, 0), listOf(note(0, 90.0, 90.0, 90.0)), session(0, 0, 70), notes(0..0))
+        assertEquals(listOf(NotComparableReason.NO_NOTE_SCORES), old.notComparableReasons)
+        assertFalse(old.scoreComparable)
+        val current = SectionComparison.compare(session(0, 0, 70), notes(0..0), rated(0, 0), listOf(note(0, 90.0, 90.0, 90.0)))
+        assertEquals(listOf(NotComparableReason.NO_NOTE_SCORES), current.notComparableReasons)
+    }
+
     @Test fun `same section retake compares error counts and note changes`() {
         val result = SectionComparison.compare(
             session(2, 5, 85), notes(2..5, 4 to "TIMING"),

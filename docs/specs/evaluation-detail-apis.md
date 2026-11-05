@@ -2,7 +2,7 @@
 
 - Jira: EVA-02·03은 S15P31E102-307, EVA-04는 S15P31E102-310·S15P31E102-494, EVA-02의 인식 음·녹음 위치는 S15P31E102-480([계획](../plans/S15P31E102-480.md)). Story S15P31E102-321, Epic S15P31E102-20. 계획·검증: [307 계획](../plans/S15P31E102-307.md) · [310 계획](../plans/S15P31E102-310.md) · [494 계획](../plans/S15P31E102-494.md)
 - 현재 구현 계약. 노션 API 명세서의 EVA-02·03·04 계약을 따르고, 저장 데이터로 채울 수 없는 필드는 아래처럼 고정값으로 둔다. 채점을 다시 하거나 결과를 저장하지 않는다.
-- EVA-04는 2차 계약(S15P31E102-382)의 응답 모양과 이전 세션 선택까지 구현했다. 점수 비교만 음표별 부분 점수가 필요해 남아 있다([남은 2차 계약](#eva-04-남은-2차-계약)).
+- EVA-04는 2차 계약(S15P31E102-382)을 구현했다. 응답 모양·이전 세션 선택은 S15P31E102-494, [구간 점수 비교](#eva-04-구간-점수)는 S15P31E102-502다.
 
 ## 공통
 
@@ -86,25 +86,26 @@
 | baselineSessionId·baselineStartedAt·baselineSource | 실제로 비교한 이전 세션 ID(STRING)·시작 시각·고른 방법. 비교 대상이 없으면 모두 null |
 | startNoteIdx·endNoteIdx, startColumnIdx·endColumnIdx | 이번 세션 구간과 그 첫·끝 음표의 각(0부터) |
 | isFullSong | 이번 세션이 곡 전체(0~noteCount−1)면 true |
-| scoreComparable | 음표별 부분 점수를 저장하기 전까지 항상 false |
+| scoreComparable | 비교 대상이 있고 악보 버전·`modelVersion`·`scoringVersion`이 같으며 두 평가 모두 음표별 부분 점수가 있으면 true. BPM은 보지 않는다 |
 | errorComparable | 비교 대상이 있고 악보 버전이 같으면 true |
-| notComparableReasons | SCORE_VERSION_CHANGED / MODEL_CHANGED / NO_NOTE_SCORES 중 해당하는 것 모두. 현재는 비교 대상이 있으면 NO_NOTE_SCORES가 항상 들어 있다. 비교 대상이 없으면 `[]`. SCORING_VERSION_CHANGED는 합산 규칙을 저장한 뒤에 쓴다 |
+| notComparableReasons | SCORE_VERSION_CHANGED / MODEL_CHANGED / SCORING_VERSION_CHANGED / NO_NOTE_SCORES 중 해당하는 것 모두. 한쪽이라도 부분 점수가 없으면 NO_NOTE_SCORES이고 SCORING_VERSION_CHANGED는 주지 않는다. 비교 대상이 없으면 `[]`. SCORING_VERSION_CHANGED는 합산 규칙을 저장한 뒤에 쓴다 |
 | bpmChanged | 이전과 bpm 또는 bpmUnit이 다르면 true. BPM이 달라도 비교한다. 비교 대상이 없으면 false |
-| before | 비교 대상이 없으면 null. 점수 4개는 null, errorCount는 비교 구간의 이전 저장 판정 수(악보 버전이 다르면 null), bpm·bpmUnit |
+| before | 비교 대상이 없으면 null. 점수 4개는 `scoreComparable=false`면 null이고 true면 이번 구간 음표만 합친 값, errorCount는 비교 구간의 이전 저장 판정 수(악보 버전이 다르면 null), bpm·bpmUnit |
 | after | 이번 세션의 저장 점수 4개, 비교 구간 errorCount, bpm·bpmUnit |
-| delta | 비교 대상이 없으면 null. 점수 4개는 null, errorCount는 이번 − 이전(악보 버전이 다르면 null) |
+| delta | 비교 대상이 없으면 null. 점수 4개는 `scoreComparable=false`면 null이고 true면 이번 − 이전, errorCount는 이번 − 이전(악보 버전이 다르면 null) |
 | correctedNoteIndices | 이전에 오류였고 이번에 CORRECT인 noteIdx. 없거나 errorComparable=false면 `[]` |
 | remainingErrors | 이번에도 틀린 음표 `{noteIdx, verdict}`. noteIdx 오름차순 |
 
 채점 모델이 달라도 오류 수는 비교한다. 판정 정책 버전은 저장하지 않아 조건에 넣지 못했다.
 
-### EVA-04 남은 2차 계약
+### EVA-04 구간 점수
 
-2026-11-03 사용자 결정(S15P31E102-382). 상세는 [Notion EVA-04](https://app.notion.com/p/401a0252aa45814980a6f98e0f191dfe)를 따른다. AI 담당 합의와 Task가 없어 아래는 구현하지 않았다.
+2026-11-03 사용자 결정(S15P31E102-382), 구현은 S15P31E102-502다. 상세는 [Notion EVA-04](https://app.notion.com/p/401a0252aa45814980a6f98e0f191dfe)를 따른다.
 
-- 구간 점수는 서버가 공식을 만들지 않고, 평가 때 AI가 돌려준 음표별 부분 점수(`pitchScore`·`timingScore`·`durationScore`·`weight`)를 비교 구간 음표만 모아 AI가 정한 합산 규칙(`scoringVersion`·`scoreWeights`)으로 합친다. 곡 전체를 합친 값은 AI가 준 총점·항목 점수와 같아야 한다. 이 응답 변경은 [Notion /v1/analyses](https://app.notion.com/p/408a0252aa4581528abee5ac1bdfd1a7)의 2차 변경 제안이다.
-- 저장: `note_results`에 부분 점수·weight, `evaluations`에 `scoring_version`·`score_weights`를 더한다(새 Flyway). 기존 평가 행은 NULL이며 `NO_NOTE_SCORES`로 처리한다.
-- 그때 `scoreComparable`을 실제 조건으로 바꾸고 `SCORING_VERSION_CHANGED`를 더하며, `before`·`delta`의 점수를 채운다. 응답 필드 모양은 바뀌지 않는다.
+- 서버는 공식을 만들지 않는다. 평가 때 AI가 돌려준 음표별 부분 점수를 비교 구간 음표만 모아 AI가 정한 규칙(`scoringVersion`·`scoreWeights`)대로 합친다. 공식은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있다.
+- 항목 점수는 `round(Σ(부분 점수 × weight) / Σ weight)`, 총점은 `round(Σ 항목 점수 × 가중치)`다. `round`는 0.5에서 짝수 쪽으로 간다(`Math.rint`). null인 음은 그 항목에서 빼고, 합칠 음이 없으면 100이다.
+- 합산은 `before`에만 쓴다. `after`는 이번 세션 저장 점수이며, 이번 세션의 구간이 곧 그 평가의 구간이라 합산값과 같다.
+- 저장: `note_results`에 부분 점수·`weight`, `evaluations`에 `scoring_version`·`score_weights`(V27). 기존 평가 행과 부분 점수를 주지 않는 AI 응답은 NULL이며 `NO_NOTE_SCORES`로 답한다.
 
 ## 미구현·후속
 
@@ -112,7 +113,7 @@
 - 인식 음·녹음 위치는 S15P31E102-480에서 저장·응답을 구현했다. 값의 기준은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있고, AI가 두 필드를 보내기 전까지는 null이다.
 - 누락(MISSED) 표시 방식은 디자인·기획 결정이 필요하다. 서버 응답은 결정과 관계없이 같다.
 - '취약 구간 연습' 버튼은 2차에서 구간 선택(PRACTICE-02)으로 이동한다(2026-11-03 확정). 구간 반복(PRACTICE-03)은 서버를 부르지 않고, '이 구간 재평가'가 PRA-01 구간 세션(`parentSessionId` 포함)을 만든다.
-- 디자인 RESULT-04의 점수 비교 문구는 위 남은 2차 계약이 구현된 뒤에 쓸 수 있다. 그전에는 `scoreComparable=false`이고 점수 비교 값이 없다.
+- 디자인 RESULT-04의 점수 비교 문구는 AI가 부분 점수를 보낸 뒤의 평가끼리만 쓸 수 있다. 그전 평가와 견주면 `scoreComparable=false`다.
 
 ## 구현 경계·검증
 

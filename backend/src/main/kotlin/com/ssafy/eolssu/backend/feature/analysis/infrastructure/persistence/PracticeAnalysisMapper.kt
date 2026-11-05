@@ -83,6 +83,10 @@ class NewEvaluation(
     val modelVersion: String,
     val tuningOffsetCent: Double? = null,
     val tuningOutOfRange: Boolean? = null,
+    val scoringVersion: String? = null,
+    val pitchWeight: Double? = null,
+    val timingWeight: Double? = null,
+    val durationWeight: Double? = null,
 ) {
     var id: Long? = null
 }
@@ -96,4 +100,8 @@ data class NewNoteResult(
     val verdict: String,
     val detectedPitchId: Long? = null,
     val recordingOffsetMs: Int? = null,
+    val pitchScore: Double? = null,
+    val timingScore: Double? = null,
+    val durationScore: Double? = null,
+    val weight: Double? = null,
 )
