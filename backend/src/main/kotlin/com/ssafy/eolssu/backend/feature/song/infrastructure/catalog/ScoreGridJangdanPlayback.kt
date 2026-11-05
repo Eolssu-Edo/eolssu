@@ -8,7 +8,7 @@ import com.ssafy.eolssu.backend.feature.song.domain.SongJangdanPlaybackResolver
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 
-/** Aligns a single declared jangdan to full cycles on the current score grid. */
+/** Aligns the declared or separately reviewed jangdan to full cycles on the score grid. */
 class ScoreGridJangdanPlayback(
     private val json: JsonMapper,
     private val findJangdan: (String) -> JangdanRow?,
@@ -16,7 +16,7 @@ class ScoreGridJangdanPlayback(
     override fun resolve(score: PublishedSongScore): ScoreJangdanPlayback? {
         val source = json.readTree(score.scoreJson)
         val music = source.path("music")
-        val name = scoreJangdanName(source, score.scoreVersion) ?: return null
+        val name = scoreJangdanName(source, score.scoreVersion, requirePlayback = true) ?: return null
         val ticksPerBeat = music.path("ticksPerBeat").longValue()
         val ticksPerJeonggan = music.path("ticksPerJeonggan").longValue()
         if (ticksPerBeat <= 0 || ticksPerJeonggan <= 0) return null
