@@ -82,23 +82,3 @@ tasks.register<Test>("databaseTest") {
     useJUnitPlatform { includeTags("database") }
     outputs.upToDateWhen { false }
 }
-
-// S15P31E102-499: mission_id를 읽지 않는 코드를 먼저 배포하는 1차 호환 릴리스.
-// 운영 반영·세션 생성/조회 확인 뒤 이 블록 전체를 제거하고 원본 V25를 별도 승인한다.
-// 테스트 classpath의 V25는 보존하고 Jenkins/Docker가 쓰는 실행 JAR에서만 제외한다.
-tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    exclude("**/db/migration/V25__drop_practice_session_mission.sql")
-    doFirst {
-        val laterMigrations = fileTree("src/main/resources/db/migration") {
-            include("V*.sql")
-        }.files.filter {
-            Regex("V([0-9]+)__.*\\.sql").matchEntire(it.name)
-                ?.groupValues?.get(1)?.toBigInteger()?.let { version -> version > 25.toBigInteger() } == true
-        }
-        check(laterMigrations.isEmpty()) {
-            "V25 호환 릴리스에 V26 이상을 포함할 수 없습니다. " +
-                "호환 백엔드 운영 반영을 확인한 뒤 임시 bootJar 블록을 제거하세요: " +
-                laterMigrations.map { it.name }.sorted().joinToString()
-        }
-    }
-}
