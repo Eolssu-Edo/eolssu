@@ -48,7 +48,6 @@ import eolssu.shared.generated.resources.model_audio_interrupted
 import eolssu.shared.generated.resources.model_audio_loading
 import eolssu.shared.generated.resources.model_audio_unavailable
 import eolssu.shared.generated.resources.model_audio_unsupported
-import eolssu.shared.generated.resources.practice_hint_ready
 import eolssu.shared.generated.resources.practice_hint_solo
 import eolssu.shared.generated.resources.practice_hint_solo_only
 import eolssu.shared.generated.resources.practice_listen_model
@@ -70,7 +69,7 @@ const val PRACTICE_SEEK_MS = 5_000L
 
 /**
  * 모범 연주 플레이어(`.player`, 준비·모범 연주 상태): 흰 카드에 ‘모범 연주 / 0:00 / 0:48’ 시간 줄 · 6dp 트랙과 흰 손잡이 ·
- * ‘−5초 · 재생(44dp 연두 원) · +5초’ · 안내 ‘모범 연주를 듣고 준비되면 시작하세요.’.
+ * ‘−5초 · 재생(44dp 연두 원) · +5초’.
  * 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보인다.
  *
  * @param compact ‘운지법과 함께 보기’의 한 줄 플레이어(`.paged-fingering .player`): 트랙·안내 없이 시간과 조절만.
@@ -140,9 +139,9 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
             ModelAudioStatus.Failed -> stringResource(Res.string.model_audio_failed)
             ModelAudioStatus.Unsupported -> stringResource(Res.string.model_audio_unsupported)
             ModelAudioStatus.Interrupted -> stringResource(Res.string.model_audio_interrupted)
-            else -> stringResource(Res.string.practice_hint_ready)
+            else -> null
         }
-        if (!rhythm || state.jangdanProblem || state.jangdanStatus == JangdanStatus.Loading) Text(
+        if (hint != null && (!rhythm || state.jangdanProblem || state.jangdanStatus == JangdanStatus.Loading)) Text(
             hint,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
