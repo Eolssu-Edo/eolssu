@@ -95,7 +95,7 @@ def render_cycle(duration, events, samples):
     peak = max(map(abs, mix))
     if not peak:
         raise ValueError("Rendered cycle is silent")
-    # Leave headroom for peaks introduced by the MP3 encoder.
+    # Leave headroom for peaks introduced by the AAC encoder.
     pcm = array("h", (round(value * 24_000 / peak) for value in mix))
     if sys.byteorder != "little":
         pcm.byteswap()
@@ -125,15 +125,17 @@ def main():
     for identifier, row in enumerate(rows, start=1):
         duration, events = rhythm_plan(row)
         pcm = render_cycle(duration, events, samples)
-        asset = args.output / f"{identifier}.mp3"
+        asset = args.output / f"{identifier}.m4a"
         subprocess.run(
             [args.ffmpeg, "-v", "error", "-n", "-f", "s16le", "-ar", str(RATE), "-ac", "1",
-             "-i", "pipe:0", "-codec:a", "libmp3lame", "-b:a", "64k", str(asset)],
+             "-i", "pipe:0", "-codec:a", "aac", "-b:a", "64k", "-movflags", "+faststart", str(asset)],
             input=pcm, check=True,
         )
+        digest = sha256(asset.read_bytes()).hexdigest()
         manifest["assets"].append({
             "jangdanId": identifier, "name": row["name"], "bpm": row["default_bpm"], "bpmUnit": row["bpm_unit"],
-            "frames": len(pcm) // 2, "file": asset.name, "sha256": sha256(asset.read_bytes()).hexdigest(),
+            "frames": len(pcm) // 2, "file": asset.name, "sha256": digest,
+            "objectKey": f"jangdan-preview/v1/{identifier}/{digest}.m4a",
             "events": [[str(time), stroke, gain] for time, stroke, gain in events],
         })
     (args.output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
