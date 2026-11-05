@@ -45,6 +45,21 @@ class NotePracticePropertiesTests {
         }
     }
 
+    @Test fun `a block missing any key stops startup instead of defaulting`() {
+        val complete = mapOf(
+            "criteria-version" to "fixture", "pitch-tolerance-cent" to "50", "hold-ms" to "300", "min-confidence" to "0.8",
+            "min-level-dbfs" to "-45", "octave-must-match" to "true", "tuning" to "NONE", "max-tuning-offset-cent" to "50",
+            "sigimsae-mode" to "SKIP", "hint-after-ms" to "8000",
+        )
+        fun settings(entries: Map<String, String>) = entries.map { "eolssu.note-practice.criteria.NEW.${it.key}=${it.value}" }.toTypedArray()
+        runner.withPropertyValues(*settings(complete)).run { context -> assertNull(context.startupFailure) }
+        for (missing in complete.keys) {
+            runner.withPropertyValues(*settings(complete - missing)).run { context ->
+                assertNotNull(context.startupFailure, missing)
+            }
+        }
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties(NotePracticeProperties::class)
     private class Enabled

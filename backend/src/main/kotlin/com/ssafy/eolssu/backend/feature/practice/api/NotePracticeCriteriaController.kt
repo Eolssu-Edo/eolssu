@@ -25,6 +25,7 @@ private val INSTRUMENT_ID = Regex("[1-9][0-9]{0,17}")
 @RequestMapping("/api/note-practice")
 @Profile("db | ops")
 class NotePracticeCriteriaController(private val query: NotePracticeCriteriaQuery) {
+    // 계약상 필수다. 누락도 공통 envelope 400으로 응답하려고 바인딩만 선택으로 두고 직접 검사한다.
     @GetMapping("/criteria")
     fun criteria(@Parameter(required = true) @RequestParam(required = false) instrumentId: String?): ResponseEntity<*> {
         val id = instrumentId?.takeIf(INSTRUMENT_ID::matches)?.toLong()
