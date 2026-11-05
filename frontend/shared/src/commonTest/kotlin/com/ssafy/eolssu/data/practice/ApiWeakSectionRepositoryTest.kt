@@ -45,7 +45,11 @@ class ApiWeakSectionRepositoryTest {
     private val records = object : PracticeRecordRepository {
         val list = MutableStateFlow(
             listOf(
-                record("now", 20, 15), record("later", 21, 9), record("same-day", 20, 9), record("section", 19, 9, section = "3–4각"),
+                record("now", 20, 15).let { current ->
+                    current.copy(recordedAtMillis = current.recordedAtMillis + 1_000)
+                },
+                record("same-minute", 20, 15),
+                record("later", 21, 9), record("same-day", 20, 9), record("section", 19, 9, section = "3–4각"),
                 record("other", 19, 10, song = "doraji"), record("two-weeks", 7, 8), record("too-old", 6, 23),
             ),
         )
@@ -139,7 +143,7 @@ class ApiWeakSectionRepositoryTest {
     @Test
     fun comparisonListsEarlierWholeSongRecordsOfLastTwoWeeks() = runTest {
         val comparison = checkNotNull(repository.comparison("now"))
-        assertEquals(listOf("same-day", "two-weeks"), comparison.previous.map { it.id })
+        assertEquals(listOf("same-minute", "same-day", "two-weeks"), comparison.previous.map { it.id })
         assertEquals(KoreanDateTime(2026, 11, 20, 15, 0), comparison.today)
         assertEquals(listOf(ScoreError(2, 1, EvaluationMetric.Rhythm)), comparison.current.errors)
     }

@@ -140,7 +140,7 @@ val appModule = module {
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get())
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }

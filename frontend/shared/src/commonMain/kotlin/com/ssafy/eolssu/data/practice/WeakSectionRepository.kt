@@ -140,8 +140,8 @@ class ApiWeakSectionRepository(
         val first = current.recordedAt.epochDay - CompareDays + 1
         val previous = records.records.value
             .filter { it.id != current.id && it.songId == current.songId && it.section == null }
-            .filter { it.recordedAt.epochDay >= first && it.recordedAt.sortKey < current.recordedAt.sortKey }
-            .sortedByDescending { it.recordedAt.sortKey }
+            .filter { it.recordedAt.epochDay >= first && it.recordedAtMillis < current.recordedAtMillis }
+            .sortedByDescending { it.recordedAtMillis }
         RecordComparison(song, current, previous, current.recordedAt)
     }
 
@@ -203,5 +203,3 @@ class ApiWeakSectionRepository(
     @Serializable
     private class CountDto(val errorCount: Int? = null)
 }
-
-private val KoreanDateTime.sortKey: Long get() = epochDay * 1440 + hour * 60 + minute

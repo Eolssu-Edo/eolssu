@@ -138,7 +138,8 @@ class SecurityConfig(
             "/api/songs/{songId}/model-audio/play", "/api/songs/{songId}/model-audio/performance",
             "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
             "/api/reference-audios", "/api/reference-audios/{assetId}", "/api/reference-audios/{assetId}/play",
-            "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",
+            "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/jangdans/{jangdanId}/audio", "/api/jangdan-samples/{sample}/{sha256}",
+            "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",
         ) + LegalDocumentPageController.PUBLIC_PATHS
     }
 }

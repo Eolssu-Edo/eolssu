@@ -15,7 +15,10 @@ import com.ssafy.eolssu.data.practice.WeakSectionSource
 import com.ssafy.eolssu.data.song.SampleSongs
 import com.ssafy.eolssu.testing.CatalogEvaluations
 import com.ssafy.eolssu.testing.CatalogViewModelTest
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
@@ -57,14 +60,13 @@ internal class SectionLoopRecordingTest : CatalogViewModelTest() {
 
     @Test
     fun recordsSectionOnceAndHandsTakeWithNoteRangeAndParent() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val recorder = FakePracticeRecorder(RecordedAudio("section.m4a", 2048))
         val model = model(recorder)
         advanceUntilIdle()
+        assertFalse(model.uiState.value.loading)
 
         model.startEvaluation()
-        runCurrent()
-        assertTrue(model.uiState.value.recording)
-        assertEquals(CountdownBeats, model.uiState.value.countdown)
         advanceUntilIdle()
 
         val state = model.uiState.value

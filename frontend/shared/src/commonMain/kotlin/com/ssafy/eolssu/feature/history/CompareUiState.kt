@@ -49,7 +49,7 @@ fun compareCalendar(today: KoreanDateTime, previous: List<PracticeRecord>, days:
     return (last - days + 1..last).map { day ->
         CompareDay(
             date = KoreanDateTime.ofEpochDay(day),
-            records = previous.filter { it.recordedAt.epochDay == day }.sortedByDescending { it.recordedAt.hour * 60 + it.recordedAt.minute },
+            records = previous.filter { it.recordedAt.epochDay == day }.sortedByDescending { it.recordedAtMillis },
             today = day == last,
         )
     }
@@ -59,10 +59,8 @@ fun compareCalendar(today: KoreanDateTime, previous: List<PracticeRecord>, days:
  * [records] 중 이 기록 바로 전에 같은 곡을 처음부터 끝까지 연주한 기록(기록 상세 ‘지난 연주와 비교’). 없으면 null.
  */
 fun PracticeRecord.previousIn(records: List<PracticeRecord>): PracticeRecord? = records
-    .filter { it.id != id && it.songId == songId && it.section == null && it.recordedAt.sortKey < recordedAt.sortKey }
-    .maxByOrNull { it.recordedAt.sortKey }
-
-private val KoreanDateTime.sortKey: Long get() = epochDay * 1440 + hour * 60 + minute
+    .filter { it.id != id && it.songId == songId && it.section == null && it.recordedAtMillis < recordedAtMillis }
+    .maxByOrNull { it.recordedAtMillis }
 
 /**
  * COMPARE-01 이전 연주와 비교 상태.
@@ -84,7 +82,7 @@ data class CompareUiState(
     val previousDetail: PreviousRecord? = null,
 ) {
     val previous: PracticeRecord?
-        get() = comparison?.previous?.let { list -> list.firstOrNull { it.id == previousId } ?: list.maxByOrNull { it.recordedAt.sortKey } }
+        get() = comparison?.previous?.let { list -> list.firstOrNull { it.id == previousId } ?: list.maxByOrNull { it.recordedAtMillis } }
 
     /** 지금 고른 이전 기록의 상세. 다른 기록을 받는 중이면 null. */
     private val loadedPrevious: PreviousRecord? get() = previousDetail?.takeIf { it.record.id == previous?.id }

@@ -86,6 +86,9 @@ class CompareStateTest {
         val now = record("now", 20, 15)
         val records = listOf(now, record("later", 21, 9), record("section", 19, 9, section = "3–4각"), record("other", 19, 10, song = "doraji"), record("old", 13, 19), record("older", 10, 21))
         assertEquals("old", now.previousIn(records)?.id)
+        val earlierInSameMinute = now.copy(id = "earlier", recordedAtMillis = now.recordedAtMillis - 1)
+        val laterInSameMinute = now.copy(id = "later-in-minute", recordedAtMillis = now.recordedAtMillis + 1)
+        assertEquals("earlier", now.previousIn(records + laterInSameMinute + earlierInSameMinute)?.id)
         assertNull(record("first", 1, 1).previousIn(records))
     }
 }

@@ -5,11 +5,28 @@ import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.data.song.ReferenceAudioClip
+import com.ssafy.eolssu.data.song.CatalogJangdanDetail
+import com.ssafy.eolssu.data.song.CatalogJangdanPattern
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReferenceAudioPlaybackTest {
+    @Test fun jangdanPlaysFromTheStartAndStopsDuringPreparationOrPlayback() {
+        val detail = CatalogJangdanDetail("8", "타령", 48, "QUARTER", CatalogJangdanPattern(listOf("덩"), listOf(1)),
+            soundUrl = "https://audio.example/api/jangdans/8/audio")
+        val player = RecordingPlayer(AudioPlaybackState())
+        toggleJangdanAudio(player, detail.copy(soundUrl = null))
+        assertEquals(emptyList(), player.calls)
+        toggleJangdanAudio(player, detail)
+        assertEquals(AudioSource("8", detail.soundUrl!!), player.loaded)
+        toggleJangdanAudio(player, detail)
+        toggleJangdanAudio(player, detail)
+        player.state.value = AudioPlaybackState("8", AudioPlaybackStatus.Playing)
+        toggleJangdanAudio(player, detail)
+        assertEquals(listOf("load:8:0", "stop", "load:8:0", "stop"), player.calls)
+    }
+
     private val clip = ReferenceAudioClip(
         assetId = "a".repeat(64), datasetId = "danso", labelId = "fixture",
         category = "기본음계", technique = "평취 강", register = "평취", yulmyeong = "중",
