@@ -402,7 +402,7 @@ Cloudflare 버킷 Settings에서 사용자 도메인 없음·Public Development 
 
 ## V25 삭제 전 호환 백엔드 배포
 
-S15P31E102-499의 임시 `bootJar` 블록은 실행 JAR에서 `V25__drop_practice_session_mission.sql`만 제외합니다. 원본과 DB 테스트 리소스는 보존합니다. V26 이상이 들어오면 패키징을 중단합니다. [이유·검증](../../docs/knowledge/infra/mission-migration-compat.md), [작업 상태](../../docs/plans/S15P31E102-499.md)를 확인합니다.
+S15P31E102-499의 1차 호환 릴리스 A는 임시 `bootJar` 블록으로 실행 JAR에서만 V25를 제외하고 V26 이상을 차단했습니다. A 운영 반영·세션 실호출 확인 후 준비하는 후속 B는 이 임시 블록을 제거해 원본 V25를 다시 포함합니다. 아래는 두 릴리스를 순서대로 수행하는 절차입니다. [이유·검증](../../docs/knowledge/infra/mission-migration-compat.md), [작업 상태](../../docs/plans/S15P31E102-499.md)를 확인합니다.
 
 1. 배포 전 운영 Flyway 이력이 V24 이하이고 실패 행이 없는지 확인합니다. V25가 이미 적용된 환경에는 이 호환 JAR을 배포하지 않습니다. 승인 파일을 먼저 추가하지 않습니다.
 2. 1차 호환 릴리스 A를 기존 Jenkins 경로로 단독 배포합니다. `Check database migrations` → 필요 시 V24까지 적용 → 백엔드 교체 순서로 동작합니다. 실행 JAR에 V25가 없는지 확인합니다.
