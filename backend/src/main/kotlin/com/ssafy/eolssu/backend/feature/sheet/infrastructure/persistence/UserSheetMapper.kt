@@ -48,6 +48,10 @@ data class UserSheetRow(
     val draftRevision: Int,
     val draftBaseVersion: Int?,
     val draftSavedAt: LocalDateTime?,
+    val conversionStatus: String?,
+    val sourcePageCount: Int?,
+    val hwangPitch: String?,
+    val sourceFileName: String?,
 )
 
 data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String)

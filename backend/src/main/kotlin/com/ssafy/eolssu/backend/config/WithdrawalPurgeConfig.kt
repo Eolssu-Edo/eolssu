@@ -5,6 +5,8 @@ import com.ssafy.eolssu.backend.feature.auth.domain.WithdrawalPurgeRepository
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.MyBatisWithdrawalPurgeRepository
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.WithdrawalPurgeMapper
 import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_SOURCE_PREFIX
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
 import java.time.Clock
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -20,6 +22,11 @@ class WithdrawalPurgeConfig {
         MyBatisWithdrawalPurgeRepository(mapper, manager)
 
     @Bean
-    fun withdrawalPurgeService(repository: WithdrawalPurgeRepository, storage: RecordingStorage) =
-        WithdrawalPurgeService(repository, storage::delete, Clock.systemUTC())
+    fun withdrawalPurgeService(repository: WithdrawalPurgeRepository, storage: RecordingStorage, sheets: SheetSourceStorage) =
+        // 내 악보 원본은 따로 둔 악보 전용 버킷에 있다(S15P31E102-471). 키 앞부분으로 저장소를 고른다.
+        WithdrawalPurgeService(
+            repository,
+            { key -> if (key.startsWith(SHEET_SOURCE_PREFIX)) sheets.delete(key) else storage.delete(key) },
+            Clock.systemUTC(),
+        )
 }
