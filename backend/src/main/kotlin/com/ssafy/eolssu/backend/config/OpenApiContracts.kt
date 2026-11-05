@@ -18,6 +18,8 @@ import com.ssafy.eolssu.backend.feature.evaluation.api.WeakSectionsResult
 import com.ssafy.eolssu.backend.feature.record.api.*
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetDraft
 import com.ssafy.eolssu.backend.feature.sheet.api.SavedSheetScore
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetConversionView
+import com.ssafy.eolssu.backend.feature.sheet.api.SheetImportAccepted
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetList
 import com.ssafy.eolssu.backend.feature.sheet.api.SheetScore
 import com.ssafy.eolssu.backend.feature.song.api.*
@@ -205,6 +207,12 @@ internal val apiContracts = listOf(
         "악보 버전을 올리지 않고 악보당 하나인 초안을 덮어씁니다. 미입력 칸(units 빈 배열)을 허용합니다. baseScoreVersion·draftRevision이 서버와 다르면 409입니다. 목록 정렬 시각은 바뀌지 않습니다.",
         SavedSheetDraft::class.java,errors=listOf(RESOURCE_NOT_FOUND,STATE_CONFLICT,PAYLOAD_TOO_LARGE)),
     ApiContract(HttpMethod.DELETE,"/api/users/me/sheets/{sheetId}","deleteSheet","내 악보","내 악보 삭제",
-        "본인 악보와 그 초안을 지우고 204 빈 본문을 돌려줍니다. 없거나 다른 회원의 악보, 이미 지운 악보는 404입니다.",
-        null,listOf(204),listOf(RESOURCE_NOT_FOUND)),
+        "본인 악보와 그 초안·변환 상태·원본 파일을 지우고 204 빈 본문을 돌려줍니다. 원본 파일을 먼저 지우며, 저장소를 쓸 수 없으면 503이고 악보는 남습니다(다시 지우면 이어서 지웁니다). 없거나 다른 회원의 악보, 이미 지운 악보는 404입니다.",
+        null,listOf(204),listOf(RESOURCE_NOT_FOUND,SERVICE_UNAVAILABLE)),
+    ApiContract(HttpMethod.POST,"/api/users/me/sheets/imports","importSheet","내 악보","정간보·오선보 PDF/이미지 불러오기 접수",
+        "Idempotency-Key 필수. multipart 파트 files(PDF 1개 또는 PNG·JPEG 1~10장, 형식은 파일 앞부분으로 판단)와 metadata(JSON: title 1~50자, notation JEONGGANBO|STAFF, instrumentId, JEONGGANBO는 jangdanId 필수, bpm 30~160 선택, STAFF만 hwangPitch 선택). 파일·합계 20MiB, PDF 10쪽. 받는 즉시 내 악보(NEEDS_REVIEW)와 QUEUED 변환을 만들고 202를 돌려줍니다. 같은 키·같은 내용은 처음 결과를 다시 주고, 다른 내용은 409 IDEMPOTENCY_CONFLICT입니다. 회원당 진행 중 변환 1건(409 CONVERSION_IN_PROGRESS), 내 악보 10개(409 SHEET_LIMIT_EXCEEDED). Spring 앞 계층은 25MiB(413 FILE_TOO_LARGE).",
+        SheetImportAccepted::class.java,listOf(202),listOf(RESOURCE_NOT_FOUND,IDEMPOTENCY_CONFLICT,TOO_MANY_PAGES,UNREADABLE_FILE,FILE_TOO_LARGE,UNSUPPORTED_FILE_TYPE,CONVERSION_IN_PROGRESS,SHEET_LIMIT_EXCEEDED,CONVERSION_UNAVAILABLE)),
+    ApiContract(HttpMethod.GET,"/api/users/me/sheets/{sheetId}/conversion","getSheetConversion","내 악보","악보 변환 상태 조회",
+        "불러오기로 만든 본인 악보의 변환 상태(QUEUED·RUNNING·DONE·FAILED)를 돌려줍니다. 진행 중이면 pollAfterMs 간격으로 다시 조회합니다. 재시도(retryable)는 변환 작업자 연결 전까지 false입니다. 불러오기로 만들지 않았거나 다른 회원의 악보는 404이며 Cache-Control: no-store입니다.",
+        SheetConversionView::class.java,errors=listOf(RESOURCE_NOT_FOUND)),
 )

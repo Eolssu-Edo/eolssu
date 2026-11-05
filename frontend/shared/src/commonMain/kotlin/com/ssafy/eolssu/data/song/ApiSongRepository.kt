@@ -81,8 +81,12 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,
             noteCount = item.noteCount,
-            jangdanPlayback = scoreItem.jangdanPlayback?.let { playback ->
-                if (playback.name != timing.jangdan || playback.startTick >= timeline.last().let { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }) throw CatalogUnavailable()
+            catalogJangdanName = item.jangdanName,
+            jangdanPlayback = (scoreItem.jangdanPlayback ?: scoreItem.supplementalJangdanPlayback?.takeIf {
+                timing.jangdan.isBlank() && it.name == item.jangdanName
+            })?.let { playback ->
+                val expectedName = timing.jangdan.ifBlank { item.jangdanName.orEmpty() }
+                if (playback.name != expectedName || playback.startTick >= timeline.last().let { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }) throw CatalogUnavailable()
                 runCatching { playback.model() }.getOrElse { throw CatalogUnavailable() }
             },
         )
@@ -94,6 +98,7 @@ private class CatalogScore(
     val songId: String, val scoreVersion: Int, val schemaVersion: Int, val noteCount: Int,
     val defaultBpm: Int, val bpmUnit: String, val score: JsonObject, val events: List<CatalogScoreEvent>,
     val jangdanPlayback: CatalogJangdanPlayback? = null,
+    val supplementalJangdanPlayback: CatalogJangdanPlayback? = null,
 )
 
 @Serializable
@@ -133,13 +138,15 @@ private class CatalogSong(
     val description: String? = null,
     val jangdan: CatalogJangdan? = null,
     val score: JsonObject? = null,
+    val jangdanName: String? = null,
 ) {
     fun summary(): SongSummary {
         if (!validCatalogId(songId) || !validCatalogId(instrumentId) || title.isBlank() ||
             difficulty !in 1..5 || defaultBpm <= 0 || jangdan?.name?.isBlank() == true || noteCount < 0 || scoreVersion <= 0
         ) throw CatalogUnavailable()
         return SongSummary(
-            songId, title, difficulty, jangdan?.name ?: canonicalJangdanName(), defaultBpm, isScorable, instrumentId, scoreVersion,
+            songId, title, difficulty, jangdan?.name ?: jangdanName?.takeIf { it.isNotBlank() } ?: canonicalJangdanName(),
+            defaultBpm, isScorable, instrumentId, scoreVersion,
             instrumentCode = instrumentCode(), noteCount = noteCount,
         )
     }

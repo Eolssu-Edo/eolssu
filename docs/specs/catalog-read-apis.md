@@ -27,6 +27,8 @@ S15P31E102-408은 CAT-04·05의 선행 곡 선택을 위해 `GET /songs?instrume
 
 CAT-04의 `score`는 CAT-02에서 반환하는 원본 공통 악보와 같은 객체다. `columns`, 이벤트의 `id/cellId/startTick/durationTick/breathAfter/sigimsae`, 조율·장단·틱 기준을 보존한다. `schemaVersion`, `scoreVersion`은 현행 데이터 계약의 정수다. 오래된 Notion의 `"v1"`, `"1"` 문자열 예시로 변환하지 않는다. S15P31E102-419부터 CAT-01 목록 항목은 `score`를 싣지 않는다(111곡 기준 약 1.76MB 중 약 99%가 악보 본문). 원본 악보는 CAT-02 상세와 CAT-04에서만 반환하며 CAT-02 응답과 나머지 목록 필드는 유지한다.
 
+S15P31E102-503에서 CAT-01·02는 표시용 `jangdanName`을 제공한다. 공통 악보의 장단명을 사용하고, 값이 없으면 원본을 별도로 대조한 단소 2개 판본에 한해 검수 이름을 제공한다. 판본은 악기·버전·원본 ID·JGB 해시로 확인한다. 앱은 기존 `jangdan.name`을 우선하고 그 값이 없으면 이 이름을 표시한다. `jangdan` 객체와 BPM 단위의 의미는 그대로다.
+
 조회용 `events`의 NOTE `noteIdx`는 곡 전체 NOTE만 0부터 센 순서다. REST의 noteIdx/pitchId는 null이다. `pitchId`는 실제 pitches의 (yul,octave)에서 찾고, 박 값은 원본 정수 tick / ticksPerBeat로 투영한다. 원본 ID와 tick을 함께 제공해 박 소수의 반올림을 정본으로 사용하지 않도록 한다. 악보 위치는 원본 columns/cells/units와 연결하며, 이음·빈 정간을 새 NOTE로 만들지 않는다. 저장 악보의 구조·음표 수·버전·참조가 서로 맞지 않으면 409 `STATE_CONFLICT`로 거절한다.
 
 `subIdx`는 시작 정간에서 units를 row·col 오름차순으로 펼친 위치다. 실제 화면 배치는 원본 units의 row·col을 사용한다. `notationCapabilities.hanja/hangul`은 사용된 음의 등록 표기가 모두 있을 때 true다. `solfege=false`는 이 서버 API가 검증된 계이름 표기를 제공하지 않는다는 뜻이며 앱의 별도 표시 기능을 삭제하는 지시가 아니다.
@@ -49,6 +51,8 @@ CAT-04 `result.jangdanPlayback`은 선택적 객체이며 현재 악보의 시�
 서버는 현재 악보의 `music.jangdan`, 박 단위·틱, 첫 음표 위치와 각의 길이를 읽고, DB의 현재 장단 구음을 사용한다. 첫 정간의 0 tick에서 시작하며 각의 길이가 지원 장단 주기의 정수배이고 패턴을 균등 배치할 수 있을 때 응답한다. 장단 미지정·미지원, 시작점 불명확, 불완전한 각 또는 잘못된 카탈로그 패턴은 반주만 null이다. 악보 제목·음높이·판본·기본 BPM 변경만으로 반주를 막지 않는다. [107개 판본 검수 기록](../knowledge/data/jangdan-song-review.md)은 회귀 검증 기준이다.
 
 이 연결은 첫 정간부터 교육용 기본형을 반주하는 구조 검수다. 멜로디 원본의 `provenance.review`를 변경하거나 명인의 변주·연주자 청음 승인으로 승격하지 않는다. 세령산 굴림2개와 장단명 미상45개는 보류한다. DB migration 또는 운영 적재가 필요 없는 읽기 확장이며 서버 배포 전에는 운영 응답에 나타나지 않는다.
+
+원문 장단명이 비어 있는 판본에 별도 검수 이름으로 반주가 계산되면 CAT-04는 이를 `supplementalJangdanPlayback`으로 제공한다. 앱은 CAT-02의 `jangdanName`과 이름이 일치할 때 이 필드를 사용한다. 현재 해당 판본은 단소 이거리 저거리 각거리 1판이다. 기존 `jangdanPlayback`은 원문 장단명과 반주명이 일치하는 경우를 계속 표현하고, 구버전 앱은 추가 필드를 무시한다.
 
 ## 모범 연주 메타데이터
 

@@ -3,6 +3,7 @@ package com.ssafy.eolssu.backend.feature.sheet.api
 import com.ssafy.eolssu.backend.common.error.GlobalExceptionHandler
 import com.ssafy.eolssu.backend.feature.sheet.application.EditUserSheet
 import com.ssafy.eolssu.backend.feature.sheet.application.GetUserSheets
+import com.ssafy.eolssu.backend.feature.sheet.application.SheetSourceCleaner
 import com.ssafy.eolssu.backend.feature.sheet.application.PreparedScore
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetDraft
@@ -80,6 +81,8 @@ class UserSheetEditControllerTests {
             GetUserSheets(repository, scores),
             EditUserSheet(repository, scores, clock),
             JsonMapper.builder().build(),
+            // 원본 파일이 없는 MANUAL 악보만 다룬다. 원본 삭제는 SheetImportsTests·DB 테스트가 본다.
+            SheetSourceCleaner { _, _ -> true },
         ),
     ).setCustomArgumentResolvers(AuthenticationPrincipalArgumentResolver()).setControllerAdvice(GlobalExceptionHandler()).build()
 
