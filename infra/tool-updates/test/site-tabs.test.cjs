@@ -81,10 +81,11 @@ test('blog allows its own pages, rejects cross-origin navigation and supports re
 
 test('each local tool uses its fixed loopback port in its own session',async()=>{
  const {tabs,created,visible}=fixture();
- const targets=[['grafana',13000],['prometheus',13001],['jenkins',18080],['n8n',15688]];
- for(const [name,port] of targets) {
+ const targets=[['grafana',13000,3000],['prometheus',13001,3001],['jenkins',18080,8080],['db',18081,8081],['n8n',15688,5688]];
+ for(const [name,port,remote] of targets) {
   tabs.select(name);
   assert.equal(created.at(-1).webContents.url,'http://localhost:'+port+'/');
+  assert.deepEqual(tabs.currentForward(),{local:port,remote});
  }
  assert.equal(new Set(created.map(view=>view.options.webPreferences.partition)).size,targets.length);
  created.at(-1).webContents.failed(new Error('ERR_CONNECTION_REFUSED'));

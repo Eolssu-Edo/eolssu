@@ -9,6 +9,7 @@ const SITES=new Map([
  loopback('grafana',13000,3000),
  loopback('prometheus',13001,3001),
  loopback('jenkins',18080,8080),
+ loopback('db',18081,8081),
  loopback('n8n',15688,5688),
  ['playstore',{url:PLAYSTORE_URL,partition:'eolssu-playstore',privateLink:true}]
 ]);
