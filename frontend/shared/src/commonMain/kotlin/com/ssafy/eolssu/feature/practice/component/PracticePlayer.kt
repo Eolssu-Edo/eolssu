@@ -67,11 +67,11 @@ import org.jetbrains.compose.resources.stringResource
 const val PRACTICE_SEEK_MS = 5_000L
 
 /**
- * 모범 연주 플레이어(`.player`, 준비·모범 연주 상태): 흰 카드에 ‘모범 연주 / 0:00 / 0:48’ 시간 줄 · 6dp 트랙과 흰 손잡이 ·
+ * 연습 플레이어: 경과·전체 시간을 좌우에 배치하고 타임라인 아래 중앙에 재생 조작을 둔다.
  * ‘−5초 · 재생(44dp 연두 원) · +5초’.
  * 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보인다.
  *
- * @param compact ‘운지법과 함께 보기’의 한 줄 플레이어(`.paged-fingering .player`): 트랙·안내 없이 시간과 조절만.
+ * @param compact 운지 악보에서 여백과 재생 버튼을 조금 줄이며 같은 배치를 유지한다.
  */
 @Composable
 fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, modifier: Modifier = Modifier, compact: Boolean = false) {
@@ -92,46 +92,37 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
     val controls: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 24.dp)) {
-            SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc)) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
                 onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
                 enabled = canPlay,
-                modifier = Modifier.size(44.dp).semantics { contentDescription = playLabel },
+                modifier = Modifier.size(if (compact) 48.dp else 56.dp).semantics { contentDescription = playLabel },
                 shape = CircleShape,
                 color = colors.primary,
                 contentColor = colors.onPrimary,
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(22.dp))
                 }
             }
-            SeekButton(stringResource(Res.string.practice_seek_forward), stringResource(Res.string.practice_seek_forward_desc), compact) { actions.onSeek(PRACTICE_SEEK_MS) }
+            SeekButton(stringResource(Res.string.practice_seek_forward), stringResource(Res.string.practice_seek_forward_desc)) { actions.onSeek(PRACTICE_SEEK_MS) }
         }
-    }
-    if (compact) {
-        Row(
-            modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(stringResource(if (rhythm) Res.string.jangdan_practice_label else Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textSub)
-                Text(time, style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textSub)
-            }
-            controls()
-        }
-        return
     }
     Column(
-        modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape).padding(16.dp),
+        modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
+            .padding(horizontal = 16.dp, vertical = if (compact) 10.dp else 14.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(if (rhythm) Res.string.jangdan_practice_label else Res.string.practice_player_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp), color = colors.textSub)
-            Text(time, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 16.sp), color = colors.textSub)
+        Row(Modifier.fillMaxWidth().semantics { contentDescription = time },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(formatClock(state.elapsedMs / 1000),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.text)
+            Text(formatClock(state.totalSeconds.toDouble()),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
-        PlayerTrack(state.progressPercent / 100f, Modifier.padding(top = 12.dp, bottom = 4.dp))
-        Box(Modifier.fillMaxWidth().padding(top = 10.dp), contentAlignment = Alignment.Center) { controls() }
+        PlayerTrack(state.progressPercent / 100f, Modifier.padding(top = 4.dp, bottom = 6.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { controls() }
         val hint = if (rhythm || state.settings.jangdanSound && state.jangdanStatus != JangdanStatus.Idle) jangdanHint(state) else when (state.modelAudioStatus) {
             ModelAudioStatus.Loading -> stringResource(Res.string.model_audio_loading)
             ModelAudioStatus.Unavailable -> stringResource(Res.string.model_audio_unavailable)
@@ -152,17 +143,19 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
 
 /** ‘−5초’·‘+5초’ 글자 버튼(`.player-controls button`: 12sp 500, 여백 8). */
 @Composable
-private fun SeekButton(text: String, description: String, compact: Boolean, onClick: () -> Unit) {
-    Text(
-        text,
-        modifier = Modifier
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description }
-            .heightIn(min = 44.dp)
-            .padding(if (compact) 5.dp else 8.dp),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = if (compact) 10.sp else 12.sp, fontWeight = FontWeight.Medium),
-        color = EolssuTheme.colors.text,
-    )
+private fun SeekButton(text: String, description: String, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.size(44.dp).semantics { contentDescription = description },
+        shape = CircleShape,
+        color = colors.surfaceStrong,
+        contentColor = colors.text,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium))
+        }
+    }
 }
 
 /** 6dp 트랙(`.player .track`): 연두 채움과 흰 손잡이(16dp, 2dp 먹색 테두리). */
