@@ -56,10 +56,10 @@ class SectionComparisonTests {
     }
 
     @Test fun `total adds pitch timing and duration in the same order as the AI`() {
-        // AI test_scoring.py의 공통 벡터와 같은 값이다. 차례 합은 6.5(짝수 쪽 6)이고 역순·보정 합산은 끝자리 오차로 7이 된다.
-        val weighted = rated(0, 0).copy(scoreWeights = ScoreWeights(0.7, 0.2, 0.1))
-        val result = SectionComparison.compare(weighted, listOf(note(0, 50.0, 50.0, 50.0)), weighted, listOf(note(0, 1.0, 1.0, 56.0)))
-        assertEquals(SectionItemScores(6, 1, 1, 56), result.beforeScores)
+        // AI test_scoring.py의 공통 벡터와 같은 값이다. 차례 합은 끝자리 오차로 4.500000000000001(5)이고 역순·보정 합산은 4.5(짝수 쪽 4)가 된다.
+        val weighted = rated(0, 0).copy(scoreWeights = ScoreWeights(0.05, 0.05, 0.9))
+        val result = SectionComparison.compare(weighted, listOf(note(0, 50.0, 50.0, 50.0)), weighted, listOf(note(0, 6.0, 66.0, 1.0)))
+        assertEquals(SectionItemScores(5, 6, 66, 1), result.beforeScores)
     }
 
     @Test fun `section of only sigimsae notes has a full pitch score like the AI`() {
