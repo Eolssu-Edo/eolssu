@@ -6,6 +6,11 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface UserSheetMapper {
+    @org.apache.ibatis.annotations.Select("SELECT sheet_id FROM sheet_conversions WHERE sheet_id=#{sheetId} AND user_id=#{userId} FOR UPDATE")
+    fun lockConversion(@Param("sheetId") sheetId: Long, @Param("userId") userId: Long): Long?
+
+    @org.apache.ibatis.annotations.Update("UPDATE sheet_conversions SET result_json=#{resultJson} WHERE sheet_id=#{sheetId}")
+    fun updateConversionResult(@Param("sheetId") sheetId: Long,@Param("resultJson") resultJson: String): Int
     fun findJangdan(@Param("jangdanId") jangdanId: Long): SheetJangdanRow?
 
     /** 본인 악보. 다른 회원의 악보면 null. */
@@ -52,6 +57,7 @@ data class UserSheetRow(
     val sourcePageCount: Int?,
     val hwangPitch: String?,
     val sourceFileName: String?,
+    val conversionResultJson: String?,
 )
 
 data class SheetJangdanRow(val id: Long, val bpmUnit: String, val name: String)
@@ -69,6 +75,7 @@ data class SheetScoreUpdateRow(
     val scoreJson: String,
     val noteCount: Int,
     val updatedAt: LocalDateTime,
+    val pendingCellCount: Int = 0,
 )
 
 data class SheetDraftUpdateRow(

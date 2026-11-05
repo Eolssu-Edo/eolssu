@@ -63,7 +63,8 @@ class UserSheetController(
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         return when (val found = getUserSheets.get(requireNotNull(jwt.subject).toLong(), id)) {
             is SheetScoreLookup.Found ->
-                ResponseEntity.ok(SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json)))
+                ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
+                    SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json,sources::pageUrl)))
             SheetScoreLookup.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SheetScoreLookup.Broken -> error(ErrorCode.STATE_CONFLICT)
         }
@@ -245,14 +246,20 @@ data class SheetScore(
     val updatedAt: Instant,
 ) {
     companion object {
-        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper) = SheetScore(
+        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper,signPage: (String)->String): SheetScore {
+            val details=sheet.imported?.resultJson?.let(json::readTree)
+            val pages=details?.path("pages")?.toList()?.map { page ->
+                SheetSourcePage(page.path("pageIdx").intValue(),signPage(page.path("objectKey").asString()),page.path("width").intValue(),page.path("height").intValue())
+            } ?: emptyList()
+            return SheetScore(
             sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId?.toString(), sheet.bpm, sheet.bpmUnit,
             // 변환이 끝나기 전 각 수는 없다(행에는 CHECK 때문에 1을 둔다).
             if (sheet.imported != null && sheet.imported.conversionStatus != SheetImportStatus.DONE) 0 else sheet.columnCount,
             sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events,
-            sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch) }, sheet.imported?.conversionStatus?.name,
-            emptyList(), emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
+            sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,pages,Instant.now().plusSeconds(900).takeIf { pages.isNotEmpty() }) }, sheet.imported?.conversionStatus?.name,
+            details?.path("issues")?.toList() ?: emptyList(), details?.path("notices")?.toList() ?: emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
         )
+        }
     }
 }
 
@@ -261,9 +268,10 @@ data class SheetSourceView(
     val type: String,
     val fileName: String?,
     val hwangPitch: String?,
-    val pages: List<Any> = emptyList(),
+    val pages: List<SheetSourcePage> = emptyList(),
     val pagesExpireAt: Instant? = null,
 )
+data class SheetSourcePage(val pageIdx: Int,val imageUrl: String,val width: Int,val height: Int)
 
 /** 초안 문서({title, jangdanId, bpm, score})와 저장 정보. */
 data class SheetDraftView(

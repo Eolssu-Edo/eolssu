@@ -80,6 +80,9 @@ data class SheetConversion(
     val finishedAt: Instant?,
     /** 변환이 끝나 악보 행에 저장한 음 수. 끝나기 전에는 의미가 없다. */
     val noteCount: Int,
+    val failureCause: String? = null,
+    val timeoutCount: Int = 0,
+    val pendingCellCount: Int = 0,
 )
 
 /** 원본 파일 비공개 저장소(eolssu.sheet-source-storage). 실패하면 [SheetSourceStorageException]. */
@@ -92,6 +95,25 @@ interface SheetSourceStorage {
     fun delete(key: String)
 
     fun readUrl(key: String, ttl: Duration): String
+
+    /** 작업자가 보관된 원본을 읽는다. URL은 이 저장소가 서명한 값만 사용한다. */
+    fun download(key: String, target: Path) = download(key,target,Duration.ofSeconds(40))
+
+    fun download(key: String,target: Path,timeout: Duration) {
+        try {
+            val request=java.net.http.HttpRequest.newBuilder(java.net.URI(readUrl(key,Duration.ofMinutes(15))))
+                .timeout(timeout).GET().build()
+            val future=java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
+                .sendAsync(request,java.net.http.HttpResponse.BodyHandlers.ofByteArray())
+            val response=try { future.get(timeout.toMillis(),java.util.concurrent.TimeUnit.MILLISECONDS) }
+                finally { if(!future.isDone) future.cancel(true) }
+            if(response.statusCode()!=200) throw SheetSourceStorageException("Source download failed")
+            if(response.body().size>SHEET_IMPORT_MAX_BYTES) throw SheetSourceStorageException("Source exceeds upload limit")
+            Files.write(target,response.body())
+        } catch(e: SheetSourceStorageException) { throw e
+        } catch(e: InterruptedException) { Thread.currentThread().interrupt(); throw SheetSourceStorageException("Source download interrupted",e)
+        } catch(e: Exception) { throw SheetSourceStorageException("Source download failed",e) }
+    }
 }
 
 class SheetSourceStorageException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
@@ -148,4 +170,5 @@ interface SheetImportRepository {
 
     /** 본인 악보의 원본 객체 키. 악보가 없으면 null, 불러오기 악보가 아니면 []. */
     fun sourceKeys(sheetId: Long, userId: Long): List<String>?
+    fun stopConversion(sheetId: Long,userId: Long) {}
 }

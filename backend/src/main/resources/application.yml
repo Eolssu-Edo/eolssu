@@ -70,6 +70,8 @@ eolssu:
     region: ${RECORDING_STORAGE_REGION:auto}
   # 내 악보 원본·음원 비공개 저장소(S15P31E102-471·481). 녹음 버킷(30일 수명 주기)과 다른 버킷·키를 쓴다.
   # 값이 하나라도 비면 불러오기(SHT-07)는 503 CONVERSION_UNAVAILABLE이다. local은 개발·테스트용 디렉터리 저장소다.
+  sheet-conversion:
+    omr-base-url: ${SHEET_CONVERSION_OMR_BASE_URL:}
   sheet-storage:
     type: ${SHEET_STORAGE_TYPE:s3}
     local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}
