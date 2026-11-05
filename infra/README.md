@@ -134,7 +134,7 @@ Jenkins 잡의 SCM 브랜치를 `develop`, Script Path를 `backend/Jenkinsfile`�
 edo1 운영 Jenkins 완료 빌드를 읽기 전용으로 확인한다. SSH 별칭 `edo1`, sudo 읽기 권한, 서버 Python 3이 필요하다. 아래 번호는 2026-11-05 조사 표본이다. 다른 이력은 실제 존재하는 번호로 바꾼다. 보관 정책으로 빌드 또는 Graph View 캐시가 없으면 측정 불가이며 전체 시간을 0으로 처리하지 않는다.
 
 ```sh
-ssh -o BatchMode=yes -o ConnectTimeout=10 edo1 'sudo -n python3 -' <<'PY'
+ssh -o BatchMode=yes -o ClearAllForwardings=yes -o ConnectTimeout=10 edo1 'sudo -n python3 -' <<'PY'
 from pathlib import Path
 import json
 import xml.etree.ElementTree as ET

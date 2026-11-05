@@ -62,3 +62,26 @@ stage 경과에는 stage 사이 전환 비용이 포함된다. 중첩·병렬 �
 ## 확인 범위
 
 기존 완료 빌드·잡 XML·설치 파일·노드 구성과 짧은 현재 자원 표본을 읽었다. 빌드 재실행·운영 설정·서비스/DB 변경·배포는 수행하지 않았다. 최적화 pass별 원인과 개선 후 성능은 미검증이다. 재현 명령과 보존 JSON의 수치·문서 링크·공백 검사 결과는 [작업 계획](../../plans/S15P31E102-510.md)에 기록한다.
+
+## 후속 구현과 실제 검증
+
+같은 날 사용자가 중복 컴파일·반복 JVM 시작 개선을 요청하여 [구현 스펙](../../specs/jenkins-build-reuse.md) 범위로 확장했다. 위의 읽기 전용 조사 결과는 당시 이력으로 보존한다. 아래 실행은 운영 workspace와 분리한 임시 경로에서 수행했고 운영 잡 설정·앱·DB는 변경하지 않았다.
+
+- backend 이미지 helper는 실행 JAR 하나를 고르고 plain JAR·누락·중복·symlink·잘못된 SHA를 거부한다. 임시 Docker context에는 `app.jar`만 복사하고, 이미지에서 추출한 bytes를 원본 SHA-256과 대조한 뒤 검사용 정지 컨테이너를 정리한다.
+- CI 전용 artifact Dockerfile은 기존 Java 21·ffmpeg·UID/GID 10001·entrypoint를 유지한다. 개발용 `backend/Dockerfile`은 소스 빌드를 유지한다.
+- 관리 backend/frontend 및 backend 예제의 각 Gradle 호출은 `--daemon -Dorg.gradle.daemon.idletimeout=60000`으로 바꿨다. stage 이름과 task·테스트·timeout·최적화 옵션은 유지하고 JVM만 재사용한다. 새로운 이미지 helper 검사 stage를 backend에 추가했다. 전역 daemon 종료 명령은 넣지 않았다.
+
+[원본 실행 영수증](evidence/jenkins-build-reuse510.json)의 결과는 다음과 같다.
+
+| 검증 | 관측 결과 | 비교 경계 |
+| --- | --- | --- |
+| 실제 Docker artifact 이미지 | backend #261의 77,555,250-byte JAR을 이미지에서 추출해 SHA-256 일치. 생성·검증 14.508초 | 한 표본. 과거 다른 SHA의 123초 이미지 stage와 단축률을 계산하지 않음 |
+| 기존 소스 Dockerfile + JAR-only context | 원본 소스/Wrapper가 없어 exit 1 | 새 CI 경로가 소스를 요구하지 않는다는 경계 확인. 기존 컴파일 성공 시간과 비교하는 실험은 아님 |
+| 변경 이미지 runtime | `10001:10001`, `/app`, `java -jar /app/app.jar`, revision·artifact hash label 및 ffprobe 8.0.1 확인 | 앱 서버를 실행하거나 DB에 연결하지 않음 |
+| 실제 Gradle 9.5.1 fixture, 3쌍 교차 실행 | no-daemon PID 3개, daemon PID 1개. 모든 입력 변경이 출력에 반영되고 설정 캐시 재사용 | 독립 home·256MiB heap·작은 Copy task. 전체 앱 CI 단축률은 아님 |
+| JVM 호출 시간 | no-daemon 14.426/15.686/14.387초, daemon 14.449/2.103/2.188초 | 첫 daemon 시작 비용은 남고, 다음 호출에서 JVM 재사용 확인 |
+| 기존 회귀·문법 | Jenkins 도구 56개, 배포 hook 3개, 실제 컨트롤러 linter의 Jenkinsfile 3개 통과 | 최초 sandbox 실행의 localhost bind 4개 오류는 권한을 허용한 동일 검사에서 해소 |
+
+추가로 전체 5개 운영 잡에서 최근 10개씩을 직접 확인했다. backend #261은 전체 1958.645초 중 stage 이전 1520.983초, Android QA #98은 1942.958초 중 1723.618초, blog #25는 1926.677초 중 1916.194초였다. 실행 중인 frontend #188의 `wasm-opt` 3초 표본은 CPU 99.6%, RSS 920.6MiB였다. 실제 인자에는 `-O3` 네 번, `--gufa`, `--type-merging`, `-Oz`가 있었다. 특정 pass 시간은 분리하지 않았으며 최적화 수준을 바꾸지 않았다.
+
+이 구현은 공유 executor 점유를 줄이는 변경이다. executor 증설·구버전 취소 정책·Wasm 자체 계산 비용의 개선은 포함하지 않았다. 운영 적용 뒤 같은 입력의 실제 전체 pipeline 시간은 추가 확인해야 한다. 설치 순서·검증 재현은 [운영 문서](../../../infra/runtime/README.md#검증-jar와-gradle-jvm-재사용-510)를 따른다.

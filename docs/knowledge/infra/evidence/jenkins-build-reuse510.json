@@ -1,0 +1,74 @@
+{
+  "captured_at_utc": "2026-11-05T04:49:19.639997+00:00",
+  "artifact": {
+    "image": "eolssu-backend:ci-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0510",
+    "jar": "eolssu-0.0.1-SNAPSHOT.jar",
+    "jar_sha256": "567608ff930a20026623fb9c6e29363ec991eaefdd0093871eee89f89b1ea43b",
+    "elapsed_s": 14.508,
+    "source_build": 261,
+    "artifact_bytes": 77555250,
+    "user": "10001:10001",
+    "entrypoint": [
+      "java",
+      "-jar",
+      "/app/app.jar"
+    ],
+    "ffprobe": "ffprobe version 8.0.1-3ubuntu2 Copyright (c) 2007-2025 the FFmpeg developers",
+    "baseline_returncode": 1
+  },
+  "gradle": {
+    "gradle": "/var/lib/jenkins/.gradle/wrapper/dists/gradle-9.5.1-bin/iq79hdu3mqx29lgffhp8bfmx/gradle-9.5.1/bin/gradle",
+    "samples": [
+      {
+        "mode": "no-daemon",
+        "seconds": 14.426,
+        "pid": 2192405,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      },
+      {
+        "mode": "daemon",
+        "seconds": 14.449,
+        "pid": 2192948,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      },
+      {
+        "mode": "no-daemon",
+        "seconds": 15.686,
+        "pid": 2193477,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      },
+      {
+        "mode": "daemon",
+        "seconds": 2.103,
+        "pid": 2192948,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      },
+      {
+        "mode": "no-daemon",
+        "seconds": 14.387,
+        "pid": 2194237,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      },
+      {
+        "mode": "daemon",
+        "seconds": 2.188,
+        "pid": 2192948,
+        "changed_input_copied": true,
+        "configuration_cache_reused": true
+      }
+    ],
+    "no_daemon_median_s": 14.426,
+    "daemon_median_s": 2.188,
+    "scope": "Small fixture; not an application CI timing comparison."
+  },
+  "limitations": [
+    "Artifact image timing is one sample using an existing archived JAR; not a paired full-CI comparison.",
+    "Gradle fixture uses an isolated home and 256MiB heap; application performance is unmeasured.",
+    "No production job configuration or application deployment changed."
+  ]
+}
