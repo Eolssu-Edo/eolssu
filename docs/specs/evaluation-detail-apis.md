@@ -88,7 +88,7 @@
 | isFullSong | 이번 세션이 곡 전체(0~noteCount−1)면 true |
 | scoreComparable | 비교 대상이 있고 악보 버전·`modelVersion`·`scoringVersion`이 같으며 두 평가 모두 음표별 부분 점수가 있으면 true. BPM은 보지 않는다 |
 | errorComparable | 비교 대상이 있고 악보 버전이 같으면 true |
-| notComparableReasons | SCORE_VERSION_CHANGED / MODEL_CHANGED / SCORING_VERSION_CHANGED / NO_NOTE_SCORES 중 해당하는 것 모두. 한쪽이라도 부분 점수가 없으면 NO_NOTE_SCORES이고 SCORING_VERSION_CHANGED는 주지 않는다. 비교 대상이 없으면 `[]`. SCORING_VERSION_CHANGED는 합산 규칙을 저장한 뒤에 쓴다 |
+| notComparableReasons | SCORE_VERSION_CHANGED / MODEL_CHANGED / SCORING_VERSION_CHANGED / NO_NOTE_SCORES 중 해당하는 것 모두. 한쪽이라도 부분 점수가 없으면 NO_NOTE_SCORES이고 SCORING_VERSION_CHANGED는 주지 않는다. 비교 대상이 없으면 `[]`. |
 | bpmChanged | 이전과 bpm 또는 bpmUnit이 다르면 true. BPM이 달라도 비교한다. 비교 대상이 없으면 false |
 | before | 비교 대상이 없으면 null. 점수 4개는 `scoreComparable=false`면 null이고 true면 이번 구간 음표만 합친 값, errorCount는 비교 구간의 이전 저장 판정 수(악보 버전이 다르면 null), bpm·bpmUnit |
 | after | 이번 세션의 저장 점수 4개, 비교 구간 errorCount, bpm·bpmUnit |
@@ -105,7 +105,7 @@
 - 서버는 공식을 만들지 않는다. 평가 때 AI가 돌려준 음표별 부분 점수를 비교 구간 음표만 모아 AI가 정한 규칙(`scoringVersion`·`scoreWeights`)대로 합친다. 공식은 [PRA-03 분석 계약](practice-analysis-failure.md#분석-요청과-상태-조회-계약-s15p31e102-186)에 있다.
 - 항목 점수는 `round(Σ(부분 점수 × weight) / Σ weight)`, 총점은 `round(Σ 항목 점수 × 가중치)`다. `round`는 0.5에서 짝수 쪽으로 간다(`Math.rint`). null인 음은 그 항목에서 빼고, 합칠 음이 없으면 100이다.
 - 합산은 `before`에만 쓴다. `after`는 이번 세션 저장 점수이며, 이번 세션의 구간이 곧 그 평가의 구간이라 합산값과 같다.
-- 저장: `note_results`에 부분 점수·`weight`, `evaluations`에 `scoring_version`·`score_weights`(V27). 기존 평가 행과 부분 점수를 주지 않는 AI 응답은 NULL이며 `NO_NOTE_SCORES`로 답한다.
+- 저장: `note_results`에 부분 점수·`weight`, `evaluations`에 `scoring_version`·`score_weights`(V28). 기존 평가 행과 부분 점수를 주지 않는 AI 응답은 NULL이며 `NO_NOTE_SCORES`로 답한다.
 
 ## 미구현·후속
 
