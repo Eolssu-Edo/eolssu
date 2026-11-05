@@ -40,6 +40,8 @@ import eolssu.shared.generated.resources.mysongs_delete
 import eolssu.shared.generated.resources.mysongs_delete_message
 import eolssu.shared.generated.resources.mysongs_delete_title
 import eolssu.shared.generated.resources.mysongs_practice_only
+import eolssu.shared.generated.resources.mysongs_practice_only_badge
+import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
@@ -94,9 +96,12 @@ private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
     }
 }
 
-/** 제공 곡의 보조 문구: 평가 곡은 장단, 아니면 '장단 · 연습 전용'. */
+/** 목록 응답에 장단 이름이 없으면 평가 가능 여부만 표시한다. */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String {
+    if (song.jangdanName.isBlank()) {
+        return stringResource(if (song.evaluable) Res.string.mysongs_evaluable_badge else Res.string.mysongs_practice_only_badge)
+    }
     val jangdan = jangdanLabel(song.jangdanName)
     return if (song.evaluable) jangdan else stringResource(Res.string.mysongs_practice_only, jangdan)
 }

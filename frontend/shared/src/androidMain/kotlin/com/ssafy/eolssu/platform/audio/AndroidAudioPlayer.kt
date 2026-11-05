@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -12,6 +13,7 @@ import android.media.PlaybackParams
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.security.NetworkSecurityPolicy
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
 import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.AudioSource
@@ -65,7 +67,11 @@ class AndroidAudioPlayer(context: Context, private val retainCompletedMedia: Boo
         disposeMedia()
         _state.value = AudioPlaybackState(source.id, AudioPlaybackStatus.Loading, positionMs.coerceAtLeast(0))
         val uri = runCatching { URI(source.url) }.getOrNull()
-        if (uri?.scheme != "https" || uri.host.isNullOrBlank() || uri.rawUserInfo != null || uri.rawFragment != null ||
+        val debugLoopback = uri?.scheme == "http" && uri.host == "127.0.0.1" &&
+            appContext.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            NetworkSecurityPolicy.getInstance().isCleartextTrafficPermitted(uri.host)
+        if (uri == null || (uri.scheme != "https" && !debugLoopback) || uri.host.isNullOrBlank() ||
+            uri.rawUserInfo != null || uri.rawFragment != null ||
             !validSpeed(speed) || positionMs !in 0..Int.MAX_VALUE.toLong()
         ) {
             fail()

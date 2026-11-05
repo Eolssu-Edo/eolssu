@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
 import kotlin.time.TimeMark
 
 /** 연습 화면 상태(와이어프레임 PRACTICE-01의 상태 A~D와 중단). */
-enum class PracticeMode { Ready, Model, Countdown, Recording, Interrupted }
+enum class PracticeMode { Ready, Model, Rhythm, Countdown, Recording, Interrupted }
 
 /** 상세 API가 없는 곡과 일시적인 조회·악보 검증 실패를 구분한다. */
 enum class PracticeSongError { NotFound, Failed }
@@ -96,6 +96,8 @@ data class PracticeUiState(
     val mode: PracticeMode = PracticeMode.Ready,
     val playing: Boolean = false,
     val modelAudioStatus: ModelAudioStatus = ModelAudioStatus.Idle,
+    val jangdanStatus: JangdanStatus = JangdanStatus.Idle,
+    val jangdanSupported: Boolean = false,
     val position: Int = 0,
     val elapsedMs: Double = 0.0,
     val eventStartedAt: TimeMark? = null,
@@ -125,6 +127,8 @@ data class PracticeUiState(
     /** 모범 음원이 재생 중일 때만 있다. 진행 선을 음원 위치에 맞춰 매 프레임 이어 그린다. */
     val modelClock: ModelClock? = null,
 ) {
+    val jangdanProblem: Boolean get() = !jangdanSupported || jangdanStatus in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)
+
     val bpm: Int get() = song?.let { settings.bpmBySong[it.id] ?: it.baseBpm } ?: 0
 
     /** 화면 제목. 내 악보면 그 악보 제목, 아니면 곡 제목. */
@@ -172,7 +176,7 @@ data class PracticeUiState(
      */
     val runningActivities: Set<ContinuousActivity>
         get() = buildSet {
-            if ((mode == PracticeMode.Model && playing) || listening != null) add(ContinuousActivity.PLAYBACK)
+            if ((mode in setOf(PracticeMode.Model, PracticeMode.Rhythm) && playing) || listening != null) add(ContinuousActivity.PLAYBACK)
             if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
                 add(ContinuousActivity.RECORDING)
             }
@@ -182,7 +186,7 @@ data class PracticeUiState(
         }
 
     /** 진행 선을 그리는 상태(모범 연주·연주 중). */
-    val live: Boolean get() = mode == PracticeMode.Model || mode == PracticeMode.Recording || resuming
+    val live: Boolean get() = mode == PracticeMode.Model || mode == PracticeMode.Rhythm || mode == PracticeMode.Recording || resuming
 
     val currentEventFraction: Double get() = if (eventCount == 0) 0.0 else (eventElapsedMs / eventDurationMs()).coerceIn(0.0, 1.0)
 
@@ -210,7 +214,11 @@ data class PracticeUiState(
     val beatIndex: Int
         get() {
             val song = song ?: return 0
-            val jangdan = song.jangdan ?: return -1
+            val jangdan = song.displayJangdan ?: return -1
+            song.jangdanPlayback?.let { mapping ->
+                val cell = mapping.cellAt(currentTick ?: return -1)
+                return if (cell < 0) -1 else jangdan.daegangIndexOfRow(cell)
+            }
             if (eventCount == 0) return -1
             val event = song.timeline[position.coerceIn(0, eventCount - 1)]
             song.score.timing?.let { timing ->
@@ -254,7 +262,7 @@ fun PracticeUiState.stopModel(): PracticeUiState = copy(
 
 /** 연주 평가 시작. 모범 연주 중이면 멈추고, 마이크 권한이 없으면 안내 창을 띄운다. */
 fun PracticeUiState.requestEvaluation(micGranted: Boolean): PracticeUiState {
-    val base = if (mode == PracticeMode.Model) {
+    val base = if (mode == PracticeMode.Model || mode == PracticeMode.Rhythm) {
         copy(mode = PracticeMode.Ready, playing = false, position = 0, elapsedMs = 0.0, eventStartedAt = null, eventElapsedMs = 0.0, pausedFraction = 0f)
     } else {
         this
@@ -294,7 +302,7 @@ fun PracticeUiState.advance(doneMs: Double, micLevel: Float): PracticeUiState {
         return copy(position = next, elapsedMs = elapsed, eventElapsedMs = 0.0, micLevel = if (mode == PracticeMode.Recording) micLevel else this.micLevel, pausedFraction = 0f)
     }
     return when (mode) {
-        PracticeMode.Model -> copy(playing = false, position = eventCount - 1, elapsedMs = elapsed, eventElapsedMs = eventDurationMs(), pausedFraction = 1f, eventStartedAt = null)
+        PracticeMode.Model, PracticeMode.Rhythm -> copy(playing = false, position = eventCount - 1, elapsedMs = elapsed, eventElapsedMs = eventDurationMs(), pausedFraction = 1f, eventStartedAt = null)
         PracticeMode.Recording -> copy(position = eventCount, elapsedMs = elapsed).endRecording()
         else -> this
     }

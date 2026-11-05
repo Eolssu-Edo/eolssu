@@ -34,6 +34,7 @@ import com.ssafy.eolssu.core.ui.component.PageHeading
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_mode_countdown
 import eolssu.shared.generated.resources.practice_mode_finished
@@ -129,6 +130,7 @@ fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
             state.mode == PracticeMode.Recording && state.noInputHint -> Res.string.practice_mode_no_input
             state.mode == PracticeMode.Recording || state.resuming -> Res.string.practice_mode_recording
             state.mode == PracticeMode.Countdown -> Res.string.practice_mode_countdown
+            state.mode == PracticeMode.Rhythm -> Res.string.jangdan_practice_label
             state.mode == PracticeMode.Model && state.playing -> Res.string.practice_mode_model
             else -> Res.string.practice_mode_ready
         },
