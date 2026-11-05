@@ -16,7 +16,31 @@ import com.ssafy.eolssu.feature.history.TrendGridLines
 import com.ssafy.eolssu.feature.history.TrendHeight
 import com.ssafy.eolssu.feature.history.TrendWidth
 import com.ssafy.eolssu.feature.history.scoreTrendDots
-import eolssu.shared.generated.resources.common_coming_soon
+import com.ssafy.eolssu.feature.history.ScoreTrendActions
+import com.ssafy.eolssu.feature.history.ScoreTrendState
+import com.ssafy.eolssu.feature.history.ScoreTrendView
+import com.ssafy.eolssu.feature.history.playCount
+import com.ssafy.eolssu.data.practice.TrendScope
+import com.ssafy.eolssu.core.ui.component.EolssuChip
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
+import eolssu.shared.generated.resources.growth_trend_empty
+import eolssu.shared.generated.resources.growth_trend_failed
+import eolssu.shared.generated.resources.growth_trend_full
+import eolssu.shared.generated.resources.growth_trend_mixed
+import eolssu.shared.generated.resources.growth_trend_only_full
+import eolssu.shared.generated.resources.growth_trend_only_section
+import eolssu.shared.generated.resources.growth_trend_section
+import eolssu.shared.generated.resources.growth_trend_song
 import eolssu.shared.generated.resources.growth_per_week
 import eolssu.shared.generated.resources.growth_score_trend
 import eolssu.shared.generated.resources.growth_score_trend_desc
@@ -376,30 +400,115 @@ internal fun perWeekLabel(value: Double): String {
 }
 
 /**
- * 보드 ‘점수 변화 · 최근 5회’ 카드: 오른쪽 위 ‘첫 점수 → 마지막 점수’, 아래 꺾은선(가로선 3개 · 점 · 점수 · 날짜, 마지막 점은 연두).
- * 점수 추이 API(GRO-03) 연결은 S15P31E102-372에서 하고, 그전([points]가 null)에는 준비 중 안내만 보인다.
+ * 보드 ‘점수 변화 · 최근 5회’ 카드(GRO-03): 오른쪽 위 ‘첫 점수 → 마지막 점수’, 아래 꺾은선(가로선 3개 · 점 · 점수 · 날짜, 마지막 점은 연두).
+ * 곡 하나씩 그리고(`docs/specs/growth-score-trend.md`), 그 아래에 곡 고르기와 전체 곡·구간 칩을 둔다. 보드에 없는 두 조작은 372에서 정했다.
+ * 조건(속도·악보 판본·채점 모델)이 섞인 추이는 그래프 아래에 참고용이라고 알린다.
  */
 @Composable
-internal fun ScoreTrendCard(points: List<ScoreTrendPoint>?, today: KoreanDateTime, spacing: GrowthSpacing, modifier: Modifier = Modifier) {
+internal fun ScoreTrendCard(
+    trend: ScoreTrendState,
+    today: KoreanDateTime,
+    spacing: GrowthSpacing,
+    actions: ScoreTrendActions,
+    modifier: Modifier = Modifier,
+) {
     val colors = EolssuTheme.colors
+    val view = trend.view
+    // 실패하면 앞서 받은 다른 곡·범위의 점수를 보이지 않는다.
+    val points = if (trend.failed) emptyList() else view?.points.orEmpty()
+    val note = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp)
     GrowthOutlinedCard(spacing, modifier, gap = 8.dp) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Text(
-                stringResource(Res.string.growth_score_trend, points?.size?.takeIf { it > 0 } ?: 5),
+                stringResource(Res.string.growth_score_trend, points.size.takeIf { it > 0 } ?: 5),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold),
             )
-            if (!points.isNullOrEmpty()) {
+            if (points.isNotEmpty()) {
                 Text(
                     stringResource(Res.string.growth_score_trend_range, points.first().total, points.last().total),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, fontWeight = FontWeight.Bold),
                 )
             }
         }
+        if (view != null && view.songs.isNotEmpty()) ScoreTrendControls(view, trend, actions)
         when {
-            points == null -> Text(stringResource(Res.string.common_coming_soon), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-            points.isEmpty() -> Text(stringResource(Res.string.growth_best_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-            else -> ScoreTrendChart(points, today)
+            trend.failed -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(Res.string.growth_trend_failed), Modifier.weight(1f), style = note, color = colors.textMuted)
+                EolssuButton(stringResource(Res.string.growth_retry), actions.onRetry, style = EolssuButtonStyle.Secondary, small = true)
+            }
+            view == null -> Box(Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(Modifier.size(24.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 2.dp)
+            }
+            view.songs.isEmpty() -> Text(stringResource(Res.string.growth_trend_empty), style = note, color = colors.textMuted)
+            points.isEmpty() -> Text(
+                stringResource(
+                    when {
+                        !view.onlyOtherScope -> Res.string.growth_best_none
+                        view.scope == TrendScope.Full -> Res.string.growth_trend_only_section
+                        else -> Res.string.growth_trend_only_full
+                    },
+                ),
+                style = note,
+                color = colors.textMuted,
+            )
+            else -> {
+                ScoreTrendChart(points, today)
+                if (view.mixedConditions) Text(stringResource(Res.string.growth_trend_mixed), style = note, color = colors.textMuted)
+            }
+        }
+    }
+}
+
+/**
+ * 곡 고르기(드롭다운)와 전체 곡·구간 칩. 받는 중·실패해도 방금 고른 곡·범위를 보인다. 연주가 없는 범위의 칩은 흐리게 막는다.
+ * 받는 중이면 칩 옆에 작은 진행 표시가 보인다.
+ */
+@Composable
+private fun ScoreTrendControls(view: ScoreTrendView, trend: ScoreTrendState, actions: ScoreTrendActions) {
+    val colors = EolssuTheme.colors
+    var expanded by remember { mutableStateOf(false) }
+    val songLabel = stringResource(Res.string.growth_trend_song)
+    val song = view.songs.firstOrNull { it.songId == trend.songId } ?: view.song
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 36.dp)
+                    .background(colors.surface, RoundedCornerShape(10.dp))
+                    .border(1.dp, colors.lineSoft, RoundedCornerShape(10.dp))
+                    .clickable(role = Role.DropdownList, onClickLabel = songLabel) { expanded = true }
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    song?.title.orEmpty(),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                )
+                Icon(EolssuIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(14.dp))
+            }
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = colors.surface) {
+                view.songs.forEach { song ->
+                    DropdownMenuItem(text = { Text(song.title) }, onClick = {
+                        expanded = false
+                        actions.onSong(song.songId)
+                    })
+                }
+            }
+        }
+        if (trend.loading) CircularProgressIndicator(Modifier.size(16.dp), color = colors.text, trackColor = colors.surfaceStrong, strokeWidth = 2.dp)
+        TrendScope.entries.forEach { scope ->
+            EolssuChip(
+                stringResource(if (scope == TrendScope.Full) Res.string.growth_trend_full else Res.string.growth_trend_section),
+                selected = trend.scope == scope,
+                onClick = { actions.onScope(scope) },
+                enabled = song == null || song.playCount(scope) > 0,
+                small = true,
+            )
         }
     }
 }
