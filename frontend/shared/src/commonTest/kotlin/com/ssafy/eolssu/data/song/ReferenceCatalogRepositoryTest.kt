@@ -126,6 +126,24 @@ class ReferenceCatalogRepositoryTest {
         }
     }
 
+    @Test fun eachJangdanResolvesOnlyItsOwnPlaybackPath() = runTest {
+        val server = ServerAddress("http://127.0.0.1:18081")
+        val client = createHttpClient(MockEngine { request ->
+            val id = request.url.encodedPath.substringAfterLast('/')
+            val path = if (id == "11") "/api/jangdans/1/audio" else "/api/jangdans/$id/audio"
+            val body = JANGDAN.replace("\"jangdanId\":\"7\"", "\"jangdanId\":\"$id\"")
+                .replace("\"soundUrl\":null", "\"soundUrl\":\"$path\"")
+            respond(envelope(body), headers = jsonHeaders)
+        }, server)
+        try {
+            val repository = ApiReferenceCatalogRepository(client)
+            for (id in 1..10) {
+                assertEquals("http://127.0.0.1:18081/api/jangdans/$id/audio", repository.jangdan("$id")?.soundUrl)
+            }
+            assertFailsWith<CatalogUnavailable> { repository.jangdan("11") }
+        } finally { client.close() }
+    }
+
     @Test fun symbolsKeepIdDescriptionAndHttpsLink() = runTest {
         val client = client("""{"items":[{"symbolId":"17","symbol":"△","name":"쉼표","description":"등록된 설명","imageUrl":"https://example.test/symbol.png"}]}""")
         try {

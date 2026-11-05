@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.data.song
 
 import com.ssafy.eolssu.core.model.Jangdan
+import com.ssafy.eolssu.core.model.JangdanPlayback
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.timeline
@@ -80,6 +81,10 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             instrumentId = item.instrumentId,
             scoreVersion = item.scoreVersion,
             noteCount = item.noteCount,
+            jangdanPlayback = scoreItem.jangdanPlayback?.let { playback ->
+                if (playback.name != timing.jangdan || playback.startTick >= timeline.last().let { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }) throw CatalogUnavailable()
+                runCatching { playback.model() }.getOrElse { throw CatalogUnavailable() }
+            },
         )
     }
 }
@@ -88,7 +93,18 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
 private class CatalogScore(
     val songId: String, val scoreVersion: Int, val schemaVersion: Int, val noteCount: Int,
     val defaultBpm: Int, val bpmUnit: String, val score: JsonObject, val events: List<CatalogScoreEvent>,
+    val jangdanPlayback: CatalogJangdanPlayback? = null,
 )
+
+@Serializable
+private class CatalogJangdanPlayback(
+    val jangdanId: String, val name: String, val startTick: Long, val cycleTicks: Long, val pattern: Pattern,
+) {
+    fun model(): JangdanPlayback {
+        if (!validCatalogId(jangdanId)) throw CatalogUnavailable()
+        return JangdanPlayback(jangdanId, name, startTick, cycleTicks, pattern.beats, pattern.group)
+    }
+}
 
 @Serializable
 private class CatalogScoreEvent(

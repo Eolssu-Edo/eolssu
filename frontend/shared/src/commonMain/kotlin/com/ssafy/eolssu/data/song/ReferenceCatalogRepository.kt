@@ -65,8 +65,17 @@ class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceC
             ?.takeIf { it.isSuccess }?.result ?: throw CatalogUnavailable()
         if (result.jangdanId != jangdanId || !validJangdan(result.name, result.defaultBpm, result.bpmUnit) ||
             result.pattern.beats.isEmpty() || result.pattern.group.isEmpty() || result.pattern.group.any { it <= 0 } ||
-            result.pattern.group.sumOf { it.toLong() } != result.pattern.beats.size.toLong() || !safeCatalogLink(result.soundUrl)
+            result.pattern.group.sumOf { it.toLong() } != result.pattern.beats.size.toLong()
         ) throw CatalogUnavailable()
+        if (result.soundUrl == "/api/jangdans/$jangdanId/audio") {
+            val url = URLBuilder(response.call.request.url)
+            if (url.protocol.name !in setOf("http", "https") || url.host.isBlank() || url.user != null || url.password != null) throw CatalogUnavailable()
+            url.encodedPath = result.soundUrl
+            url.parameters.clear()
+            url.fragment = ""
+            return result.copy(soundUrl = url.buildString())
+        }
+        if (!safeCatalogLink(result.soundUrl)) throw CatalogUnavailable()
         return result
     }
 

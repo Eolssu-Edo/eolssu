@@ -121,10 +121,10 @@
     <string name="practice_jangdan_preview_start">장단 듣기</string>
     <string name="practice_jangdan_preview_stop">미리듣기 정지</string>
     <string name="practice_jangdan_sound">연습 중 장단 소리</string>
-    <string name="practice_jangdan_sound_desc">모범 연주·평가 연주 중에 장단 소리를 들려줘요</string>
+    <string name="practice_jangdan_sound_desc">모범 연주와 장단 연습에서 소리를 들려줘요</string>
     <string name="practice_jangdan_beat">현재 박 시각 표시</string>
     <string name="practice_jangdan_beat_desc">연주 중 하단에 현재 박을 표시해요</string>
-    <string name="practice_jangdan_mic_notice">평가 중 장단 소리를 켜면 마이크가 장단 소리를 함께 인식할 수도 있어요.</string>
+    <string name="practice_jangdan_mic_notice">평가 녹음 중에는 장단 소리가 꺼져요.</string>
 
     <string name="practice_tempo_title">연습 속도</string>
     <string name="practice_tempo_sub">%1$d BPM · 기준 %2$d BPM</string>
