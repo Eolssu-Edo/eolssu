@@ -58,6 +58,8 @@ class LocalSheetSourceStorage(private val directory: Path) : SheetSourceStorage 
 
     override fun readUrl(key: String, ttl: Duration): String = throw SheetSourceStorageException("Local sheet storage has no read URL")
 
+    override fun download(key: String,target: Path) { io { Files.copy(target(key),target,StandardCopyOption.REPLACE_EXISTING) } }
+
     private fun target(key: String): Path {
         val path = directory.resolve(key).normalize()
         if (!path.startsWith(directory.normalize())) throw SheetSourceStorageException("Sheet storage key leaves the directory")
