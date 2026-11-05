@@ -9,6 +9,8 @@ import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import tools.jackson.core.io.JsonStringEncoder
+import tools.jackson.databind.json.JsonMapper
+import tools.jackson.databind.node.ObjectNode
 
 data class SaveSheetScoreCommand(
     val userId: Long,
@@ -56,15 +58,22 @@ class EditUserSheet(
     private val repository: UserSheetRepository,
     private val scores: SheetScores,
     private val clock: Clock,
+    private val json: JsonMapper = JsonMapper.builder().build(),
 ) {
     fun save(command: SaveSheetScoreCommand): SaveSheetScoreResult {
         if (command.scoreJson.toByteArray().size > MAX_SCORE_BYTES) return SaveSheetScoreResult.TooLarge
         val title = command.title?.trim()
         if (title != null && !titleIsValid(title) || command.bpm !in BPM_RANGE) return SaveSheetScoreResult.InvalidRequest
-        // 확인 필요 칸은 변환 기능(SHT-07)과 함께 생긴다. 지금은 해결할 칸이 없다.
-        if (command.resolvedIssueIds.isNotEmpty()) return SaveSheetScoreResult.InvalidRequest
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetScoreResult.NotFound
         if (sheet.scoreVersion != command.baseScoreVersion) return SaveSheetScoreResult.StateConflict
+        if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetScoreResult.StateConflict
+        val details=sheet.imported?.resultJson?.let { json.readTree(it) as ObjectNode }
+        val issues=details?.path("issues")?.toList() ?: emptyList()
+        val ids=issues.map { it.path("issueId").asString() }.toSet()
+        if(command.resolvedIssueIds.any { it !in ids }) return SaveSheetScoreResult.InvalidRequest
+        val remaining=issues.filter { it.path("issueId").asString() !in command.resolvedIssueIds }
+        val pending=remaining.map { it.path("cellId").takeIf { id -> id.isString }?.asString() ?: it.path("eventId").asString() }.toSet().size
+        details?.putArray("issues")?.addAll(remaining)
 
         val version = command.baseScoreVersion + 1
         val prepared = when (val result = scores.prepare(command.scoreJson, version)) {
@@ -93,6 +102,8 @@ class EditUserSheet(
                 scoreJson = prepared.json,
                 noteCount = prepared.noteCount,
                 updatedAt = now(),
+                pendingCellCount = pending,
+                conversionResultJson = details?.let(json::writeValueAsString),
             ),
         )
         // 읽은 뒤 다른 기기가 먼저 저장했다. 지웠으면 없는 악보다.
@@ -108,6 +119,7 @@ class EditUserSheet(
         if (title != null && !titleIsValid(title) || command.bpm !in BPM_RANGE || command.draftRevision < 0) return SaveSheetDraftResult.InvalidRequest
         val unfilled = scores.unfilledCellCount(command.scoreJson) ?: return SaveSheetDraftResult.InvalidRequest
         val sheet = repository.find(command.sheetId, command.userId) ?: return SaveSheetDraftResult.NotFound
+        if(sheet.imported!=null && sheet.imported.conversionStatus!=com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus.DONE) return SaveSheetDraftResult.StateConflict
         if (sheet.scoreVersion != command.baseScoreVersion || sheet.draftRevision != command.draftRevision) return SaveSheetDraftResult.StateConflict
 
         val savedAt = now()

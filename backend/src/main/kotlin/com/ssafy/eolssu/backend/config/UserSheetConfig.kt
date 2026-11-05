@@ -39,7 +39,7 @@ import tools.jackson.databind.json.JsonMapper
 @Profile("db | ops")
 class UserSheetConfig {
     @Bean
-    fun userSheetRepository(mapper: UserSheetMapper): UserSheetRepository = MyBatisUserSheetRepository(mapper)
+    fun userSheetRepository(mapper: UserSheetMapper,manager: PlatformTransactionManager): UserSheetRepository = MyBatisUserSheetRepository(mapper,manager)
 
     @Bean
     fun sheetScores(songs: SongScoreMapper, json: JsonMapper): SheetScores =
@@ -71,8 +71,8 @@ class UserSheetConfig {
         MyBatisSheetImportRepository(mapper, TransactionTemplate(transactionManager))
 
     @Bean
-    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage, clock: Clock) =
-        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, storage, clock)
+    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage, clock: Clock,client: com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionClient) =
+        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, storage, clock) { client.available }
 
     // 기본 순서(가장 늦음)라 Spring Security 뒤에서 돈다. 로그인하지 않은 요청은 본문을 읽기 전에 401이다.
     @Bean

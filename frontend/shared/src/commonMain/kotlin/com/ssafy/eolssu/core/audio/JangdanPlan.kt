@@ -56,7 +56,12 @@ private val gutgeoriRolls = listOf(59 to JangdanSample.Gutgeori59, 79 to Jangdan
     99 to JangdanSample.Gutgeori99, 109 to JangdanSample.Gutgeori109, 119 to JangdanSample.Gutgeori119)
 
 /** 절대 악보 위치를 사용한다. 늦은 콜백은 과거 타격을 몰아치지 않으며 반복 경계도 원래 tick으로 계산한다. */
-class JangdanCursor(private val plan: JangdanPlan, private val lateMs: Double = 30.0, resumeAfterTick: Double? = null) {
+class JangdanCursor(
+    private val plan: JangdanPlan,
+    private val lateMs: Double = 30.0,
+    resumeAfterTick: Double? = null,
+    private val startAtTick: Double? = null,
+) {
     private var previous: Double? = resumeAfterTick
     private var resumeFloor: Double? = resumeAfterTick
     var movedBackward: Boolean = false
@@ -71,7 +76,12 @@ class JangdanCursor(private val plan: JangdanPlan, private val lateMs: Double = 
         }
         val last = previous
         movedBackward = last != null && tick < last - 0.000001
-        val from = if (last == null || movedBackward) tick - lateMs / plan.msPerTick - 0.000001 else maxOf(last, tick - lateMs / plan.msPerTick)
+        val lateFloor = tick - lateMs / plan.msPerTick
+        val from = when {
+            last == null -> maxOf(lateFloor, startAtTick ?: Double.NEGATIVE_INFINITY) - 0.000001
+            movedBackward -> lateFloor - 0.000001
+            else -> maxOf(last, lateFloor)
+        }
         previous = tick
         val mapping = plan.mapping
         if (tick < mapping.startTick) return emptyList()

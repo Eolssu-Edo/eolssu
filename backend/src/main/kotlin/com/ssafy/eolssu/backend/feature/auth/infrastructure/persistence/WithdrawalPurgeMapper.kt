@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Param
 /** 탈퇴 일괄 삭제. 순서와 대상은 저장소 DB 스키마 계약 '탈퇴 일괄 삭제 대상'을 따른다. */
 @Mapper
 interface WithdrawalPurgeMapper {
+    fun stopSheetConversions(@Param("userId") userId: Long): Int
     fun findDueMembers(@Param("now") now: LocalDateTime, @Param("afterUserId") afterUserId: Long, @Param("limit") limit: Int): List<Long>
     fun findRecordingKeys(@Param("userId") userId: Long): List<String>
 

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param
 
 @Mapper
 interface SheetImportMapper {
+    fun stopConversion(@Param("sheetId") sheetId: Long,@Param("userId") userId: Long): Int
     fun findReplay(@Param("userId") userId: Long, @Param("key") key: String): SheetImportReplayRow?
 
     fun countSheets(@Param("userId") userId: Long): Long
@@ -89,4 +90,7 @@ data class SheetConversionRow(
     val startedAt: LocalDateTime?,
     val finishedAt: LocalDateTime?,
     val noteCount: Int,
+    val failureCause: String?,
+    val timeoutCount: Int,
+    val pendingCellCount: Int,
 )

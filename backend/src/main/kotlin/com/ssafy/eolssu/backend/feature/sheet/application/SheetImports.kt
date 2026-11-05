@@ -49,6 +49,7 @@ sealed interface SheetImportResult {
 /** SHT-02가 행을 지우기 전에 원본 객체를 지운다. 악보가 없으면 false, 저장소 실패는 [SheetSourceStorageException]. */
 fun interface SheetSourceCleaner {
     fun deleteSources(userId: Long, sheetId: Long): Boolean
+    fun pageUrl(key: String): String = throw UnsupportedOperationException("No imported pages")
 }
 
 /**
@@ -60,7 +61,9 @@ class SheetImports(
     private val repository: SheetImportRepository,
     private val storage: SheetSourceStorage,
     private val clock: Clock,
+    private val workerAvailable: ()->Boolean = { true },
 ) : SheetSourceCleaner {
+    override fun pageUrl(key: String)=storage.readUrl(key,java.time.Duration.ofMinutes(15))
     fun accept(command: SheetImportCommand): SheetImportResult {
         val inspected = when (val result = files.inspect(command.uploads)) {
             is SheetImportFilesResult.Rejected -> return reject(result.reason.failure())
@@ -69,7 +72,7 @@ class SheetImports(
         val metadata = command.metadata.normalized() ?: return reject(SheetImportFailure.INVALID)
         val requestHash = requestHash(metadata, inspected)
         repository.findReplay(command.userId, command.idempotencyKey)?.let { return replay(command.userId, it.sheetId, it.requestHash, requestHash) }
-        if (!storage.available) return reject(SheetImportFailure.UNAVAILABLE)
+        if (!storage.available || !workerAvailable()) return reject(SheetImportFailure.UNAVAILABLE)
         if (!repository.instrumentIsActive(metadata.instrumentId)) return reject(SheetImportFailure.NOT_FOUND)
         val jangdan = metadata.jangdanId?.let { repository.jangdan(it) ?: return reject(SheetImportFailure.NOT_FOUND) }
         repository.blocker(command.userId)?.let { return reject(it.failure()) }
@@ -133,6 +136,8 @@ class SheetImports(
      * 저장소가 실패하면 [SheetSourceStorageException]을 그대로 던져 DB 행을 남긴다(다시 지우면 이어서 지운다).
      */
     override fun deleteSources(userId: Long, sheetId: Long): Boolean {
+        repository.sourceKeys(sheetId, userId) ?: return false
+        repository.stopConversion(sheetId,userId)
         val keys = repository.sourceKeys(sheetId, userId) ?: return false
         keys.forEach(storage::delete)
         return true
