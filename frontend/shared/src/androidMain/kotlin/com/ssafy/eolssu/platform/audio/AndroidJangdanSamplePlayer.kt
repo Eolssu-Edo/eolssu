@@ -11,15 +11,11 @@ import android.media.SoundPool
 import android.os.Build
 import com.ssafy.eolssu.core.audio.JangdanSample
 import com.ssafy.eolssu.core.audio.JangdanSamplePlayer
-import eolssu.shared.generated.resources.Res
-import java.io.File
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Short, predecoded PCM clips at their recorded pitch. Called on the UI dispatcher. */
-class AndroidJangdanSamplePlayer(context: Context) : JangdanSamplePlayer {
+internal class AndroidJangdanSamplePlayer(context: Context, private val cache: JangdanSampleCache) : JangdanSamplePlayer {
     private val context = context.applicationContext
     private val manager = this.context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val attributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
@@ -52,10 +48,7 @@ class AndroidJangdanSamplePlayer(context: Context) : JangdanSamplePlayer {
         }
         for (sample in samples) {
             val id = this.samples[sample] ?: run {
-                val bytes = Res.readBytes(sample.path)
-                val file = withContext(Dispatchers.IO) {
-                    File(context.cacheDir, "jangdan-${sample.file}.wav").also { it.writeBytes(bytes) }
-                }
+                val file = cache.fileFor(sample)
                 if (current !== pool) return false
                 val result = current.load(file.absolutePath, 1)
                 if (result == 0) return false

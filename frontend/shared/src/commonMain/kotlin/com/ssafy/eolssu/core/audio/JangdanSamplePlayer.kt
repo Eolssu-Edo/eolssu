@@ -16,9 +16,7 @@ interface JangdanSamplePlayer {
 enum class JangdanSample(val file: String) {
     Deong("deong"), Gi("gi"), Kung("kung"), Deok("deok"), Da("da"), Deo("deo"),
     Gutgeori59("gutgeori_roll_59"), Gutgeori79("gutgeori_roll_79"), Gutgeori99("gutgeori_roll_99"),
-    Gutgeori109("gutgeori_roll_109"), Gutgeori119("gutgeori_roll_119");
-
-    val path: String get() = "files/jangdan/$file.wav"
+    Gutgeori109("gutgeori_roll_109"), Gutgeori119("gutgeori_roll_119")
 }
 
 class UnavailableJangdanSamplePlayer : JangdanSamplePlayer {
