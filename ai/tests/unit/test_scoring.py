@@ -1,9 +1,11 @@
 """합성 음계로 채점의 만점·오류 판정을 검사한다(계획 합격 기준 1~4)."""
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
-from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, frame_rms, pyin_f0, reference_hz, score
+from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, combine, frame_rms, pyin_f0, reference_hz, score
 from evaluation.synthetic import BPM, REF_HZ, SCALE, SR, synth
 
 
@@ -45,6 +47,34 @@ def test_perfect_scale_scores_100():
     assert result.status == "DONE"
     assert verdicts(result) == {}
     assert result.total == 100
+
+
+def test_note_scores_rebuild_the_item_scores():
+    # 음이 틀리고(PITCH) 빠진(MISSED) 연주도 음표별 값을 합치면 항목 점수와 정확히 같아야 한다.
+    audio = synth(SCALE, shift={1: 2}, drop=(3,))
+    result = run(audio)
+    assert combine([n.pitch_score for n in result.notes], [n.weight for n in result.notes]) == result.pitch
+    assert combine([n.timing_score for n in result.notes], [n.weight for n in result.notes]) == result.timing
+    assert combine([n.duration_score for n in result.notes], [n.weight for n in result.notes]) == result.duration
+    missed = next(n for n in result.notes if n.verdict == "MISSED")
+    assert (missed.pitch_score, missed.timing_score, missed.duration_score) == (0.0, 0.0, 0.0)
+    wrong = next(n for n in result.notes if n.verdict == "PITCH")
+    assert wrong.timing_score == wrong.duration_score == 0.0
+
+
+def test_sigimsae_note_has_no_pitch_score_even_when_missed():
+    notes = [replace(n, sigimsae=i == 3) for i, n in enumerate(SCALE)]
+    audio = synth(SCALE, drop=(3,))
+    result = score(pyin_f0(audio, SR), notes, BPM, REF_HZ, rms=frame_rms(audio, SR))
+    assert result.notes[3].verdict == "MISSED" and result.notes[3].pitch_score is None
+    assert result.notes[3].timing_score == 0.0
+    assert combine([n.pitch_score for n in result.notes], [n.weight for n in result.notes]) == result.pitch
+
+
+def test_combine_skips_null_scores_and_rounds_half_to_even():
+    assert combine([None, 80.0, 90.0], [1.0, 1.0, 1.0]) == 85
+    assert combine([100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [1.0] * 8) == 12  # 12.5는 짝수 쪽
+    assert combine([None], [1.0]) == 100  # 음정을 볼 음이 없는 구간
 
 
 def test_changed_notes_are_pitch_errors():

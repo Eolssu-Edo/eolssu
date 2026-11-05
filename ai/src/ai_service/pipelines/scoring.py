@@ -4,6 +4,7 @@
 음높이 단위는 기준음 대비 센트이고, 서비스 기준음은 HWANG_HZ다.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import librosa
@@ -57,6 +58,12 @@ class Tolerance:
     onset_spread: float = 4.0
 
 
+# 점수 합산 규칙 버전(evaluations.scoring_version). 음표별 부분 점수·weight·항목 가중치의 뜻이나 합치는 공식을 바꾸면 올린다.
+SCORING_VERSION = "note-mean-1"
+# 총점의 항목 가중치. 음표 weight는 모두 1이다(현재 채점이 음표를 균등 평균한다).
+SCORE_WEIGHTS = {"pitch": 1 / 3, "timing": 1 / 3, "duration": 1 / 3}
+
+
 @dataclass
 class NoteResult:
     idx: int  # 요청의 음 번호(Note.idx). 없으면 정답 음표 순번
@@ -67,6 +74,10 @@ class NoteResult:
     octave_suspect: bool = False  # 정답과 옥타브 단위로 어긋남. 음높이 도구 오류일 수 있다
     detected_semitone: int | None = None  # 적용한 조율 보정을 뺀 뒤 가장 가까운 반음(pitches.semitone 눈금). MISSED면 None
     recording_offset_ms: int | None = None  # 녹음 0ms 기준 실제 소리 시작(10ms 단위). MISSED면 None
+    pitch_score: float | None = None  # 0~100. 시김새 음은 음정을 보지 않아 None
+    timing_score: float = 0.0  # 0~100. MISSED·PITCH는 0
+    duration_score: float = 0.0  # 0~100. MISSED·PITCH는 0
+    weight: float = 1.0  # 합산 가중치
 
 
 @dataclass
@@ -156,6 +167,20 @@ def reference_hz(f0: np.ndarray) -> float:
 def _credit(error: float, tol: float) -> float:
     """허용 범위 안이면 1, 두 배에서 0이 되도록 줄인다."""
     return float(np.clip(2.0 - abs(error) / tol, 0.0, 1.0))
+
+
+def combine(scores: Sequence[float | None], weights: Sequence[float]) -> int:
+    """음표별 부분 점수를 항목 점수로 합친다. None은 뺀다. 합칠 음이 없으면 만점이다(시김새뿐인 음정).
+
+    백엔드가 구간 점수를 같은 공식·순서로 계산한다(EVA-04). 곡 전체 합산이 응답 점수와 소수점 끝까지 같도록
+    sum()(3.12부터 보정 합산)이나 np.mean 대신 차례로 더한다. round는 0.5에서 짝수 쪽으로 간다.
+    """
+    total = weight_sum = 0.0
+    for value, weight in zip(scores, weights):
+        if value is not None:
+            total += value * weight
+            weight_sum += weight
+    return round(total / weight_sum) if weight_sum else 100
 
 
 def score(
@@ -265,16 +290,12 @@ def score(
     spread = 1.4826 * float(np.median(np.abs(steps - np.median(steps)))) / np.sqrt(2) if len(onsets) >= _SPREAD_MIN_NOTES else 0.0
     onset_tol_s = max(tol.onset_beat * beat_s, tol.onset_spread * spread)
 
-    results, pitch_c, timing_c, duration_c = [], [], [], []
+    results = []
     by_k = {p[0]: (p, r) for p, r in zip(played, resid)}
     for k, n in enumerate(notes):
         idx = k if n.idx is None else n.idx
         if k not in by_k:
-            results.append(NoteResult(idx, "MISSED"))
-            timing_c.append(0.0)
-            duration_c.append(0.0)
-            if not n.sigimsae:
-                pitch_c.append(0.0)
+            results.append(NoteResult(idx, "MISSED", pitch_score=None if n.sigimsae else 0.0))
             continue
         (_, err, onset_err, dur_err, octave), r = by_k[k]
         heard_semitone, onset_frame = heard[k]
@@ -286,24 +307,26 @@ def score(
             verdict = "TIMING"
         else:
             verdict = "CORRECT"
-        # onset_error_ms는 지금처럼 곡 처음 기준 늦음이다(백엔드 저장값의 뜻 유지). 판정만 나머지로 한다.
-        results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave,
-                                  heard_semitone, round(onset_frame * HOP_S * 1000)))
-        if not n.sigimsae:
-            pitch_c.append(_credit(err, tol.pitch_cent))
         # 높이가 틀린 음은 그 음을 연주한 것이 아니므로 박자·길이 점수도 주지 않는다(놓친 음과 같다).
         wrong = verdict == "PITCH"
-        timing_c.append(0.0 if wrong else _credit(r, onset_tol_s))
-        duration_c.append(0.0 if wrong else _credit(dur_err, tol.duration_ratio * lengths[k]))
+        # onset_error_ms는 지금처럼 곡 처음 기준 늦음이다(백엔드 저장값의 뜻 유지). 판정만 나머지로 한다.
+        results.append(NoteResult(idx, verdict, round(err, 1), round(onset_err * 1000), round(dur_err * 1000), octave,
+                                  heard_semitone, round(onset_frame * HOP_S * 1000),
+                                  None if n.sigimsae else 100 * _credit(err, tol.pitch_cent),
+                                  0.0 if wrong else 100 * _credit(r, onset_tol_s),
+                                  0.0 if wrong else 100 * _credit(dur_err, tol.duration_ratio * lengths[k])))
 
     # 잡음 몇 프레임만 잡히고 모든 음표가 빠졌으면 0점이 아니라 무음 실패로 본다.
     if all(r.verdict == "MISSED" for r in results):
         return ScoreResult("FAILED", "NO_SOUND")
 
-    pitch, timing, duration = (round(100 * float(np.mean(c))) if c else 100 for c in (pitch_c, timing_c, duration_c))
+    weights = [r.weight for r in results]
+    pitch = combine([r.pitch_score for r in results], weights)
+    timing = combine([r.timing_score for r in results], weights)
+    duration = combine([r.duration_score for r in results], weights)
     return ScoreResult(
         "DONE",
-        total=round((pitch + timing + duration) / 3),
+        total=round(pitch * SCORE_WEIGHTS["pitch"] + timing * SCORE_WEIGHTS["timing"] + duration * SCORE_WEIGHTS["duration"]),
         pitch=pitch,
         timing=timing,
         duration=duration,
