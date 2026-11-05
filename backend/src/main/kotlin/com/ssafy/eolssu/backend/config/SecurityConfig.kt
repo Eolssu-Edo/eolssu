@@ -139,6 +139,7 @@ class SecurityConfig(
             "/api/instruments", "/api/instruments/{instrumentId}/fingerings", "/api/pitches",
             "/api/reference-audios", "/api/reference-audios/{assetId}", "/api/reference-audios/{assetId}/play",
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",
+            "/api/note-practice/criteria",
         ) + LegalDocumentPageController.PUBLIC_PATHS
     }
 }
