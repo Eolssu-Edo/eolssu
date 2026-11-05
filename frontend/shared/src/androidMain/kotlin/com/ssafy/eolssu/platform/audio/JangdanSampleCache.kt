@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 
-/** App-wide cache. Only a complete, verified WAV is published for SoundPool. */
+/** App-wide cache. Only a complete, verified M4A is published for SoundPool. */
 internal class JangdanSampleCache(
     private val directory: File,
     private val client: HttpClient,
@@ -28,8 +28,7 @@ internal class JangdanSampleCache(
     private data class Manifest(val assets: List<Asset>)
 
     @Serializable
-    private data class Asset(val file: String, val sha256: String, val frames: Int) {
-        val bytes: Int get() = 44 + frames * 2
+    private data class Asset(val file: String, val sha256: String, val bytes: Int) {
 
         fun matches(data: ByteArray): Boolean =
             data.size == bytes && MessageDigest.getInstance("SHA-256").digest(data)
@@ -42,7 +41,7 @@ internal class JangdanSampleCache(
     suspend fun fileFor(sample: JangdanSample): File = mutex.withLock {
         withContext(Dispatchers.IO) {
             val asset = assetFor(sample)
-            val target = File(directory, "${asset.sha256}.wav")
+            val target = File(directory, "${asset.sha256}.m4a")
             if (target.isFile && target.length() == asset.bytes.toLong() && asset.matches(target.readBytes())) {
                 return@withContext target
             }
@@ -67,12 +66,12 @@ internal class JangdanSampleCache(
 
     private suspend fun assetFor(sample: JangdanSample): Asset {
         val byName = assets ?: ApiJson.decodeFromString<Manifest>(manifest().decodeToString()).assets.let { rows ->
-            require(rows.all { it.frames in 1..88_200 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
+            require(rows.all { it.bytes in 1..128 * 1024 && it.sha256.matches(Regex("[0-9a-f]{64}")) })
             rows.associateBy { it.file }.also { mapping ->
                 require(mapping.size == rows.size)
                 assets = mapping
             }
         }
-        return checkNotNull(byName["${sample.file}.wav"])
+        return checkNotNull(byName["${sample.file}.m4a"])
     }
 }

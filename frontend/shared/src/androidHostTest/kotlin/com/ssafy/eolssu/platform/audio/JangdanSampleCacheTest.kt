@@ -24,8 +24,8 @@ class JangdanSampleCacheTest {
     @Test
     fun downloadsOnceAndReusesVerifiedFileOfflineAcrossCacheInstances() = runTest {
         val directory = createTempDirectory().toFile()
-        val wav = ByteArray(46) { it.toByte() }
-        val digest = sha256(wav)
+        val m4a = ByteArray(46) { it.toByte() }
+        val digest = sha256(m4a)
         val manifest = manifest(digest)
         var online = true
         val requests = mutableListOf<String>()
@@ -35,26 +35,26 @@ class JangdanSampleCacheTest {
             if (!online) throw IOException("offline")
             if (host == "api.test") {
                 assertEquals("/api/jangdan-samples/deong/$digest", request.url.encodedPath)
-                respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "https://r2.test/wav"))
+                respond("", HttpStatusCode.Found, headersOf(HttpHeaders.Location, "https://r2.test/m4a"))
             } else {
                 assertEquals("r2.test", host)
-                respond(ByteReadChannel(wav))
+                respond(ByteReadChannel(m4a))
             }
         }, ServerAddress("https://api.test"))
         try {
             val file = JangdanSampleCache(directory, client) { manifest }.fileFor(JangdanSample.Deong)
-            assertContentEquals(wav, file.readBytes())
+            assertContentEquals(m4a, file.readBytes())
             online = false
             assertEquals(file, JangdanSampleCache(directory, client) { manifest }.fileFor(JangdanSample.Deong))
             assertEquals(listOf("api.test", "r2.test"), requests)
 
-            file.writeBytes(wav.reversedArray())
+            file.writeBytes(m4a.reversedArray())
             assertFailsWith<IOException> {
                 JangdanSampleCache(directory, client) { manifest }.fileFor(JangdanSample.Deong)
             }
             assertTrue(directory.listFiles().orEmpty().isEmpty())
             online = true
-            assertContentEquals(wav, JangdanSampleCache(directory, client) { manifest }.fileFor(JangdanSample.Deong).readBytes())
+            assertContentEquals(m4a, JangdanSampleCache(directory, client) { manifest }.fileFor(JangdanSample.Deong).readBytes())
         } finally {
             client.close()
             directory.deleteRecursively()
@@ -64,15 +64,15 @@ class JangdanSampleCacheTest {
     @Test
     fun oversizedOrWrongHashDownloadsNeverBecomeCacheFiles() = runTest {
         val directory = createTempDirectory().toFile()
-        val wav = ByteArray(46) { it.toByte() }
-        val manifest = manifest(sha256(wav))
-        var payload = wav + ByteArray(1024)
+        val m4a = ByteArray(46) { it.toByte() }
+        val manifest = manifest(sha256(m4a))
+        var payload = m4a + ByteArray(1024)
         val client = createHttpClient(MockEngine { respond(ByteReadChannel(payload)) }, ServerAddress("https://api.test"))
         try {
             val cache = JangdanSampleCache(directory, client) { manifest }
             assertFailsWith<IllegalStateException> { cache.fileFor(JangdanSample.Deong) }
             assertTrue(directory.listFiles().orEmpty().isEmpty())
-            payload = wav.reversedArray()
+            payload = m4a.reversedArray()
             assertFailsWith<IllegalStateException> { cache.fileFor(JangdanSample.Deong) }
             assertTrue(directory.listFiles().orEmpty().isEmpty())
         } finally {
@@ -82,7 +82,7 @@ class JangdanSampleCacheTest {
     }
 
     private fun manifest(digest: String) =
-        """{"assets":[{"file":"deong.wav","sha256":"$digest","frames":1}]}""".encodeToByteArray()
+        """{"assets":[{"file":"deong.m4a","sha256":"$digest","bytes":46}]}""".encodeToByteArray()
 
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it) }
