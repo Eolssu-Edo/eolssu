@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [운지법 함께 보기 다음 음 늘리기 (543)](plans/S15P31E102-543.md)
 - [앱 실시간 등급 판정 규칙과 KMP 구조 초안 (362)](knowledge/ai/realtime-grade-rules-and-kmp.md)
 
 - [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)

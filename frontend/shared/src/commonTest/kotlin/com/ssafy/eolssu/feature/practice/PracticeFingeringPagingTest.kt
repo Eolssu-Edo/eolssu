@@ -23,6 +23,36 @@ class PracticeFingeringPagingTest {
         assertTrue(nextFingerCells(song, cells, preview.last().firstEvent!!.index).isEmpty())
     }
 
+    private fun columnsSong(columns: List<List<ScoreCell>>): Song =
+        fingerSong(columns.first(), semachi).let { it.copy(score = it.score.copy(columns = columns)) }
+
+    @Test fun singleBeatAngleShowsThreeMoreUpcomingNotes() {
+        // 대강 3·3·3처럼 정간마다 한 음뿐인 각: 다음 음을 2개에서 5개로 늘린다.
+        val song = columnsSong(List(4) { pitches(3) })
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        val angle = cells.filter { it.column == 0 }
+        val count = fingerPreviewCount(angle)
+        assertEquals(5, count)
+        val last = angle.flatMap { it.units }.maxOf { it.event.index }
+        val preview = nextFingerCells(song, cells, last, count)
+        assertEquals((3..7).toList(), preview.map { it.firstEvent!!.index })
+        assertTrue(preview.all { it.entries.single().note != null })
+    }
+
+    @Test fun subdividedAngleKeepsTwoUpcomingNotes() {
+        val split = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.SourcePitch("태", 1))
+        val song = columnsSong(listOf(pitches(2) + split, pitches(3), pitches(3)))
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        assertEquals(2, fingerPreviewCount(cells.filter { it.column == 0 }))
+        assertEquals(5, fingerPreviewCount(cells.filter { it.column == 1 }))
+    }
+
+    @Test fun previewStopsAtTheEndOfTheScore() {
+        val song = columnsSong(listOf(pitches(3), pitches(2)))
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        assertEquals(2, nextFingerCells(song, cells, 2, FingerPreviewCountSingleBeat).size)
+    }
+
     @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {
         val song = fingerSong(List(8) { listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold)) }.flatten(), Jangdan("검사", listOf(1, 1), 2, 1))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))

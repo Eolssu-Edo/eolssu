@@ -140,9 +140,10 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentUnit?.column ?: 0) }
     val angleIndex = if (live && state.follow) currentUnit?.column ?: browsed else browsed
     val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
-    val preview = remember(song, cells, angleIndex) {
+    val previewCount = remember(angle) { fingerPreviewCount(angle) }
+    val preview = remember(song, cells, angleIndex, previewCount) {
         val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
-        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
+        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent, previewCount)
     }
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
@@ -194,7 +195,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             Text(stringResource(Res.string.practice_finger_upcoming),
                 style = MaterialTheme.typography.labelSmall, color = colors.accentText)
             // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
-            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * 2)
+            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * previewCount)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
                 FingerHead(instrumentName)
                 if (preview.isEmpty()) {

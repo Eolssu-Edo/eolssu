@@ -2,6 +2,6 @@
     <string name="practice_finger_page">%1$d / %2$d 페이지</string>
     <string name="practice_finger_previous_page">이전 페이지</string>
     <string name="practice_finger_next_page">다음 페이지</string>
-    <string name="practice_finger_upcoming">다음에 부를 두 음</string>
+    <string name="practice_finger_upcoming">다음에 부를 음</string>
     <string name="practice_finger_end">마지막 음이에요</string>
 </resources>

@@ -64,14 +64,24 @@ private fun FingerCell.onPage(start: Double, end: Double): FingerCell? {
 /** 같은 이벤트가 이어지는 동안에도 절대 표시 위치로 전환하고 역방향 탐색도 같은 규칙을 쓴다. */
 fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= position }.coerceAtLeast(0)
 
-/** 이음·빈 자리·쉼을 제외한 다음 발음 둘. 같은 높이의 반복 음은 별개 이벤트로 남긴다. */
-fun nextFingerUnits(song: Song, afterEventIndex: Int): List<ScoreDisplayUnit> = song.displayUnits.asSequence()
+/** 다음 발음 미리보기 수. 기본은 둘이다. */
+internal const val FingerPreviewCount = 2
+
+/** 소박 없이 한 정간이 한 박인 각의 미리보기 수. 다음 페이지에서도 새 운지를 여럿 볼 수 있게 셋을 더 보여 준다. */
+internal const val FingerPreviewCountSingleBeat = 5
+
+/** 각의 모든 정간에 표시 자리가 하나뿐이면(소박 분할 없음) 미리보기를 늘린다. */
+internal fun fingerPreviewCount(angle: List<FingerCell>): Int =
+    if (angle.isNotEmpty() && angle.all { it.units.size <= 1 }) FingerPreviewCountSingleBeat else FingerPreviewCount
+
+/** 이음·빈 자리·쉼을 제외한 다음 발음 [count]개. 같은 높이의 반복 음은 별개 이벤트로 남긴다. */
+fun nextFingerUnits(song: Song, afterEventIndex: Int, count: Int = FingerPreviewCount): List<ScoreDisplayUnit> = song.displayUnits.asSequence()
     .filter { it.event.index > afterEventIndex && (it.note is ScoreNote.Pitch || it.note is ScoreNote.SourcePitch) }
-    .distinctBy { it.event.id }.take(2).toList()
+    .distinctBy { it.event.id }.take(count).toList()
 
 /** 다음 발음만 한 행씩 만들되, 운지와 가사는 원본 표시 슬롯에서 함께 가져온다. */
-internal fun nextFingerCells(song: Song, cells: List<FingerCell>, afterEventIndex: Int): List<FingerCell> =
-    nextFingerUnits(song, afterEventIndex).map { unit ->
+internal fun nextFingerCells(song: Song, cells: List<FingerCell>, afterEventIndex: Int, count: Int = FingerPreviewCount): List<FingerCell> =
+    nextFingerUnits(song, afterEventIndex, count).map { unit ->
         val cell = cells.first { source -> source.units.any { it.key == unit.key } }
         val slot = cell.units.indexOfFirst { it.key == unit.key }
         cell.copy(units = listOf(unit), entries = listOf(cell.entries[slot]), lyricSlots = listOf(cell.lyricSlots[slot]))
