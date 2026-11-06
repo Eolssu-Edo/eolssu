@@ -64,38 +64,52 @@ private fun FingerCell.onPage(start: Double, end: Double): FingerCell? {
 /** 같은 이벤트가 이어지는 동안에도 절대 표시 위치로 전환하고 역방향 탐색도 같은 규칙을 쓴다. */
 fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= position }.coerceAtLeast(0)
 
-/** 소박 없는 각을 묶을 때 한 페이지에 보일 최소 정간 수. 3정간 각이면 두 각(6정간)이 한 페이지다. */
-internal const val FingerPageMinCells = 5
+/** 한 페이지에 보일 운지 수. 쉼·장음·빈 자리는 세지 않는다. 다음에 부를 두 음은 따로다. */
+internal const val FingerPageFingerings = 5
 
 /**
- * 운지 페이지. 소박으로 나뉜 정간이 있는 각은 한 각이 한 페이지다.
- * 정간마다 한 음뿐인 각은 다음 대강·각을 이어 붙여 [FingerPageMinCells] 정간 이상을 한 페이지에 보여 준다.
- * 다음 페이지에 미리보기 두 음만 겹치고 새 운지를 여럿 볼 수 있게 하려는 것이다.
+ * 운지 페이지. 원본 순서대로 표시 자리를 담고, 운지(음이 있는 자리)가 [FingerPageFingerings]개 찬 뒤 다음 음이 오면 넘긴다.
+ * 운지 뒤에 붙는 쉼·장음은 같은 페이지에 남는다. 정확히 다섯 개를 맞추려고 한 정간을 두 페이지에 나눌 수 있으며,
+ * 뒤쪽 조각은 [FingerCell.continued]로 표시한다. 원본 정간·이벤트·식별자는 바꾸지 않는다.
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun fingerAnglePages(song: Song, cells: List<FingerCell>): List<List<FingerCell>> {
-    if (cells.isEmpty()) return emptyList()
-    val boundaries = fingerBoundaries(song)
-    val offsets = song.score.columns.runningFold(0) { sum, rows -> sum + rows.size }
-    fun singleBeat(group: List<FingerCell>) = group.all { it.units.size <= 1 }
-    val segments = cells.groupBy { it.column }.values.flatMap { column ->
-        if (!singleBeat(column)) listOf(column) else {
-            val start = offsets[column.first().column].toDouble()
-            val cuts = boundaries.filter { it > start + 0.000001 && it < start + column.size - 0.000001 }
-            column.groupBy { cell -> cuts.count { it <= start + cell.row + 0.000001 } }.values.toList()
+    val pages = mutableListOf<List<Pair<FingerCell, Int>>>()
+    var current = mutableListOf<Pair<FingerCell, Int>>()
+    var count = 0
+    for (cell in cells) {
+        if (cell.units.isEmpty()) {
+            current += cell to -1
+            continue
+        }
+        cell.units.indices.forEach { slot ->
+            val fingering = cell.entries[slot].note != null
+            if (fingering && count >= FingerPageFingerings) {
+                pages += current
+                current = mutableListOf()
+                count = 0
+            }
+            current += cell to slot
+            if (fingering) count++
         }
     }
-    val pages = mutableListOf<List<FingerCell>>()
-    var pending = mutableListOf<FingerCell>()
-    for (segment in segments) {
-        // 소박 없는 정간으로 시작한 페이지만 다음 대강·각(소박이 있어도)을 이어 붙인다.
-        if (pending.isNotEmpty() && (pending.size >= FingerPageMinCells || !singleBeat(pending))) {
-            pages += pending
-            pending = mutableListOf()
+    if (current.isNotEmpty()) pages += current
+    return pages.map { page ->
+        val slices = mutableListOf<Pair<FingerCell, MutableList<Int>>>()
+        page.forEach { (cell, slot) ->
+            val last = slices.lastOrNull()
+            if (last != null && last.first.index == cell.index && slot >= 0) last.second += slot else slices += cell to mutableListOf(slot)
         }
-        pending += segment
+        slices.map { (cell, slots) ->
+            if (slots == listOf(-1) || slots.size == cell.units.size) cell
+            else cell.copy(
+                units = slots.map { cell.units[it] },
+                entries = slots.map { cell.entries[it] },
+                lyricSlots = slots.map { cell.lyricSlots[it] },
+                continued = slots.first() > 0,
+            )
+        }
     }
-    if (pending.isNotEmpty()) pages += pending
-    return pages
 }
 
 /** 이음·빈 자리·쉼을 제외한 다음 발음 둘. 같은 높이의 반복 음은 별개 이벤트로 남긴다. */
