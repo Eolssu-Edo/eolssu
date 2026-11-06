@@ -16,7 +16,9 @@ fun ResultErrorsRoute(
     sourceId: String,
     onBack: () -> Unit,
     onSelectSection: () -> Unit,
-    viewModel: ResultErrorsViewModel = koinViewModel(key = "result-errors-$sourceId") { parametersOf(sourceId) },
+    historical: Boolean = false,
+    onOpenRecording: (() -> Unit)? = null,
+    viewModel: ResultErrorsViewModel = koinViewModel(key = "result-errors-$historical-$sourceId") { parametersOf(sourceId, historical) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     ResultErrorsScreen(
@@ -25,5 +27,8 @@ fun ResultErrorsRoute(
         onSelectFilter = viewModel::selectFilter,
         onSelectCell = viewModel::selectCell,
         onSelectSection = onSelectSection,
+        onRetry = viewModel::retry,
+        historical = historical,
+        onOpenRecording = onOpenRecording,
     )
 }

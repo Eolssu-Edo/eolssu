@@ -118,4 +118,9 @@
     <!-- RECORD-02 2차: 기록 상세의 비교 진입 -->
     <string name="weak_record_compare">지난 연주와 비교</string>
     <string name="weak_record_compare_with">%1$s %2$d점</string>
+    <string name="record_result_title">이전 연주 결과</string>
+    <string name="record_result_practice">취약 구간 연습</string>
+    <string name="record_result_recording">녹음·기록 보기</string>
+    <string name="record_result_info">%1$s %2$s · %3$d BPM · %4$d초</string>
+    <string name="record_result_failed">연주 결과를 불러오지 못했어요. 다시 시도해 주세요.</string>
 </resources>
