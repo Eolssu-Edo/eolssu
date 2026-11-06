@@ -339,3 +339,5 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
 
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
+
+- [이전 연주 기록의 단독 평가·악기명 연결 (530)](plans/S15P31E102-530.md)
