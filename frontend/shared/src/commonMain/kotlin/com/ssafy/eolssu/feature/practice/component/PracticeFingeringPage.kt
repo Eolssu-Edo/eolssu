@@ -83,6 +83,8 @@ data class FingerCell(
     val entries: List<FingerEntry>,
     val lyric: String? = null,
     val lyricSlots: List<String> = scoreLyricSlots(lyric, units.size),
+    /** 한 정간을 두 페이지에 나눴을 때 뒤쪽 조각이면 true. 각·대강 시작선을 다시 긋지 않는다. */
+    val continued: Boolean = false,
 ) {
     val rest: Boolean get() = units.isNotEmpty() && units.all { it.note == ScoreNote.Rest }
     val parts: Int get() = units.size.coerceAtLeast(1)
@@ -139,8 +141,8 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
         else song.displayUnits.firstOrNull { it.event.index == state.selected }
     // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
-    fun pageOf(column: Int, row: Int): Int? = angles.indexOfFirst { page -> page.any { it.column == column && it.row == row } }.takeIf { it >= 0 }
-    val currentPage = currentUnit?.let { pageOf(it.column, it.row) }
+    // 한 정간이 두 페이지에 나뉠 수 있어 지금 음(표시 자리)이 든 페이지를 찾는다.
+    val currentPage = currentUnit?.let { unit -> angles.indexOfFirst { page -> page.any { cell -> cell.units.any { it.key == unit.key } } }.takeIf { it >= 0 } }
     var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentPage ?: 0) }
     val angleIndex = if (live && state.follow) currentPage ?: browsed else browsed
     val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
@@ -194,8 +196,8 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                                 isSelected = !live && cell.units.any { it.event.index == state.selected },
                                 playingKey = if (live) currentUnit?.key else null,
                                 showHangul = state.settings.showHangul,
-                                gakStart = cell.row == 0,
-                                daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 },
+                                gakStart = cell.row == 0 && !cell.continued,
+                                daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 && !cell.continued },
                                 imageHeight = imageHeight,
                                 onSelectEvent = onSelectEvent.takeIf { state.mode == PracticeMode.Ready },
                             )
