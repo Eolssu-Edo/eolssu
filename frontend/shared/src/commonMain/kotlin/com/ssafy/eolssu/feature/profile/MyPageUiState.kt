@@ -9,7 +9,14 @@ data class MyLearningProgress(val completedStages: Set<Int>) {
     val totalStages: Int get() = LearnProgressRepository.STAGE_COUNT
     val completedCount: Int get() = (1..totalStages).count { it in completedStages }
     val nextStage: Int? get() = (1..totalStages).firstOrNull { it !in completedStages }
+    val mascot: LearningMascot get() = when (nextStage ?: totalStages) {
+        in 1..3 -> LearningMascot.Study
+        in 4..6 -> LearningMascot.Point
+        else -> LearningMascot.Rhythm
+    }
 }
+
+enum class LearningMascot { Study, Point, Rhythm }
 
 /** 연습 악기의 학습 진도(서버). 받지 못하면 null. */
 internal suspend fun myLearningProgress(instrument: Instrument, repository: LearnProgressRepository): MyLearningProgress? =

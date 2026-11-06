@@ -149,8 +149,9 @@ fun LearnStageRoute(
     LearnSaveErrorEffect(state.saveError, snackbarHostState, viewModel::clearSaveError)
     LaunchedEffect(state.instrument, stage) { stage?.let { viewModel.loadDetail(it.number) } }
 
-    LaunchedEffect(twoPane) {
-        if (twoPane) {
+    // 마이페이지·주소로 바로 들어오면 트랙이 아직 없다. 선택을 보존할 수 있을 때 목록으로 옮긴다.
+    LaunchedEffect(twoPane, stage != null) {
+        if (twoPane && stage != null) {
             viewModel.selectStage(stageNumber)
             onShowInList()
         }
