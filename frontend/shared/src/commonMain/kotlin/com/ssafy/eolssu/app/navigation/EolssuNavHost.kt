@@ -372,11 +372,7 @@ fun EolssuNavHost(
                 }
             }
             composable(EolssuDestination.GROWTH) { entry ->
-                GrowthRoute(
-                    onBack = { navController.popBackStackFrom(entry) },
-                    onOpenRecords = { navController.popBackStackFrom(entry) },
-                    onOpenSteps = { navController.navigate(EolssuDestination.LEARN) },
-                )
+                GrowthRoute(onBack = { navController.popBackStackFrom(entry) })
             }
 
             // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기 (S15P31E102-150)
