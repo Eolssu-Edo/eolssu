@@ -49,12 +49,11 @@ sealed interface SheetImportResult {
 /** SHT-02가 행을 지우기 전에 원본 객체를 지운다. 악보가 없으면 false, 저장소 실패는 [SheetSourceStorageException]. */
 fun interface SheetSourceCleaner {
     fun deleteSources(userId: Long, sheetId: Long): Boolean
-    fun pageUrl(key: String): String = throw UnsupportedOperationException("No imported pages")
 }
 
 /**
  * SHT-07 접수·SHT-10 조회·SHT-02 원본 삭제(S15P31E102-471). 변환 자체는 작업자(S15P31E102-472)가 한다.
- * 원본은 DB에 행을 쓰기 전에 저장소에 올리고, 행을 쓰지 못하면 올린 객체를 지운다.
+ * 원본은 DB에 행을 쓰기 전에 임시 저장소에 복사한다. 행을 쓰지 못하면 임시 파일을 지운다.
  */
 class SheetImports(
     private val files: SheetImportFiles,
@@ -62,8 +61,8 @@ class SheetImports(
     private val storage: SheetSourceStorage,
     private val clock: Clock,
     private val workerAvailable: ()->Boolean = { true },
+    private val legacyStorage: SheetSourceStorage = storage,
 ) : SheetSourceCleaner {
-    override fun pageUrl(key: String)=storage.readUrl(key,java.time.Duration.ofMinutes(15))
     fun accept(command: SheetImportCommand): SheetImportResult {
         val inspected = when (val result = files.inspect(command.uploads)) {
             is SheetImportFilesResult.Rejected -> return reject(result.reason.failure())
@@ -77,7 +76,7 @@ class SheetImports(
         val jangdan = metadata.jangdanId?.let { repository.jangdan(it) ?: return reject(SheetImportFailure.NOT_FOUND) }
         repository.blocker(command.userId)?.let { return reject(it.failure()) }
 
-        val folder = "$SHEET_SOURCE_PREFIX${command.userId}/${UUID.randomUUID()}"
+        val folder = "${com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX}${command.userId}/${UUID.randomUUID()}"
         val stored = mutableListOf<StoredSheetFile>()
         try {
             inspected.files.forEachIndexed { index, file ->
@@ -139,7 +138,9 @@ class SheetImports(
         repository.sourceKeys(sheetId, userId) ?: return false
         repository.stopConversion(sheetId,userId)
         val keys = repository.sourceKeys(sheetId, userId) ?: return false
-        keys.forEach(storage::delete)
+        keys.forEach { key ->
+            if(key.startsWith(com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX)) storage.delete(key) else legacyStorage.delete(key)
+        }
         return true
     }
 
@@ -155,7 +156,7 @@ class SheetImports(
             try {
                 storage.delete(file.objectKey)
             } catch (e: SheetSourceStorageException) {
-                // 키는 남기지 않는다. 고아 객체는 버킷 목록과 sheet_source_files를 대조해 정리한다.
+                // 임시 저장소는 실패한 삭제를 표시해 다음 정리 주기에 다시 지운다.
                 log.warn("Sheet import cleanup failed ({})", e.cause?.javaClass?.simpleName ?: e.javaClass.simpleName)
             }
         }

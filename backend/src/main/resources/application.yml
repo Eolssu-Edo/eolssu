@@ -81,6 +81,8 @@ eolssu:
     base-url: ${SHEET_AUDIO_BASE_URL:}
     # Renderer deadline 90s + transport allowance 10s (481 measured on 1 CPU).
     timeout-seconds: ${SHEET_AUDIO_TIMEOUT_SECONDS:100}
+  sheet-import:
+    read-base-url: ${SHEET_IMPORT_READ_BASE_URL:http://backend:8080/api/internal/sheet-imports}
   sheet-storage:
     type: ${SHEET_STORAGE_TYPE:s3}
     local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}

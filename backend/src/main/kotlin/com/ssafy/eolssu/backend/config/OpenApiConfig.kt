@@ -179,6 +179,18 @@ class OpenApiConfig {
                 .addApiResponse("503", ApiResponse().description("공개 준비 중").content(Content().addMediaType("text/html",MediaType().schema(StringSchema()))))
                 .addApiResponse("500", ApiResponse().description("서버 오류").content(jsonContent(schemaRef("ApiError"))))
         }
+        val temporary=api.paths["/api/internal/sheet-imports/{token}"]?.get
+        if(temporary!=null) {
+        temporary.operationId="readTemporarySheetSource"
+        temporary.summary="내부 인식기 전용 임시 원본 읽기"
+        temporary.description="외부 Nginx는 이 경로를 404로 차단합니다. 내부망에서도 추측 불가능한 만료 토큰이 필요하며 앱에는 URL을 반환하지 않습니다. 원본은 처리 종료 또는 접수 후 최대 30분에 삭제합니다."
+        temporary.security=emptyList()
+        temporary.tags=listOf("내부")
+        temporary.responses=ApiResponses().addApiResponse("200",ApiResponse().description("임시 원본; no-store")
+            .content(Content().addMediaType("application/octet-stream",MediaType().schema(StringSchema().format("binary")))))
+            .addApiResponse("404",ApiResponse().description("알 수 없거나 만료·삭제된 원본; 본문 없음"))
+            .addApiResponse("500",ApiResponse().description("임시 파일 읽기 중 서버 오류"))
+        }
         val recording = api.paths["/api/recordings/read"]?.get ?: error("Recording read mapping is missing")
         recording.operationId = "readLocalRecording"
         recording.summary = "서명된 로컬 녹음 읽기"

@@ -1,5 +1,7 @@
 # AI: 연주 채점
 
+악보 인식의 임시 원본은 S15P31E102-534부터 요청 종료 시 삭제하며 별도 watchdog이 30분에 다운로드·쪽 그림 디렉터리를 삭제합니다. 삭제 실패는 1초 뒤 재시도합니다. 운영 OMR의 `/tmp` tmpfs를 유지하고 백업·영구 볼륨에 넣지 않습니다. `uv run pytest tests/unit/test_temporary_sources.py tests/unit/test_omr_api.py`로 파일 수명·API 회귀를 검사하며 모델 인식 품질과 구분합니다.
+
 녹음의 음높이를 추정해 정답 음표와 DTW로 맞추고, 음표마다 음정·박자·길이를 판정합니다. 작업 지침은 [AGENTS.md](AGENTS.md)를 따릅니다.
 
 ## 설치와 검사

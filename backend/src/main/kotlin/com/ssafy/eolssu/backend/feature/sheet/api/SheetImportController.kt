@@ -15,7 +15,6 @@ import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportStatus
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetNotation
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetUpload
 import jakarta.validation.constraints.Pattern
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
 import org.springframework.context.annotation.Profile
@@ -46,7 +45,9 @@ private const val POLL_AFTER_MS = 2_000
 @RestController
 @RequestMapping("/api/users/me/sheets")
 @Profile("db | ops")
-class SheetImportController(private val imports: SheetImports, private val json: JsonMapper) {
+class SheetImportController(private val imports: SheetImports, private val json: JsonMapper,
+    @org.springframework.beans.factory.annotation.Qualifier("temporarySheetSourceStorage")
+    private val temporaryStorage: com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage) {
     /** SHT-07. 파일 파트 `files`(PDF 1개 또는 PNG·JPEG 1~10장)와 JSON 파트 `metadata`. */
     @PostMapping("/imports", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun import(
@@ -60,13 +61,15 @@ class SheetImportController(private val imports: SheetImports, private val json:
         val temporary = mutableListOf<Path>()
         val result = try {
             val uploads = files.map { part ->
-                val path = Files.createTempFile("sheet-import-", ".bin").also(temporary::add)
+                val path = temporaryStorage.createUpload().also(temporary::add)
                 part.transferTo(path)
                 SheetUpload(path, part.size, part.originalFilename.orEmpty())
             }
             imports.accept(SheetImportCommand(requireNotNull(jwt.subject).toLong(), idempotencyKey, uploads, parsed))
+        } catch(_: com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException) {
+            return error(ErrorCode.CONVERSION_UNAVAILABLE)
         } finally {
-            temporary.forEach(Files::deleteIfExists)
+            temporary.forEach(temporaryStorage::releaseUpload)
         }
         return when (result) {
             is SheetImportResult.Accepted -> ResponseEntity.status(HttpStatus.ACCEPTED)

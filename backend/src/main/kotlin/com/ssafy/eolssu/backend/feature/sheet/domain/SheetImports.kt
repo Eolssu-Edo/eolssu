@@ -14,6 +14,7 @@ const val SHEET_IMPORT_MAX_PAGES = 10
 
 /** 악보 전용 버킷 안에서 원본을 두는 앞부분. 탈퇴 일괄 삭제가 이 앞부분으로 저장소를 고른다. */
 const val SHEET_SOURCE_PREFIX = "sheet-sources/"
+const val TEMP_SHEET_SOURCE_PREFIX = "sheet-import-temp/"
 
 /** 회원당 내 악보 수(SHT-07 규칙 11). 변환 중·실패한 악보도 센다. */
 const val SHEET_LIMIT_PER_MEMBER = 10
