@@ -16,6 +16,8 @@ data class PitchReading(
     val capturedEndNanos: Long,
     val normalizedDifference: Double? = null,
     val analysisAvailable: Boolean = true,
+    /** 2회 확인 전 원시 분석값. frequencyHz가 미확정이어도 보존한다. */
+    val rawFrequencyHz: Double? = frequencyHz,
 )
 
 /** 녹음 중단과 재개 시 파일 위치와 입력 시각의 대응점. */

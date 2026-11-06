@@ -7,6 +7,7 @@ import android.media.AudioTimestamp
 import android.media.MediaRecorder
 import com.ssafy.eolssu.core.audio.AudioRecorder
 import com.ssafy.eolssu.core.audio.CaptureBoundary
+import com.ssafy.eolssu.core.audio.PitchConfirmation
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.YinPitchEstimator
@@ -219,13 +220,15 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
 
         private fun analyze() {
             var gap = false
+            val confirmation = PitchConfirmation()
             try {
                 while (analyzing && !cancelled) {
                     val window = windows.poll(50, TimeUnit.MILLISECONDS) ?: continue
                     val estimate = if (window.reading.analysisAvailable) YinPitchEstimator.estimate(window.samples, RATE) else null
-                    val value = window.reading.copy(frequencyHz = estimate?.frequencyHz,
+                    val value = confirmation.apply(window.reading.copy(frequencyHz = estimate?.frequencyHz,
+                        rawFrequencyHz = estimate?.frequencyHz,
                         normalizedDifference = estimate?.normalizedDifference,
-                        analysisAvailable = window.reading.analysisAvailable && !gap)
+                        analysisAvailable = window.reading.analysisAvailable && !gap))
                     gap = !readings.tryEmit(value)
                 }
             } catch (_: Exception) {
