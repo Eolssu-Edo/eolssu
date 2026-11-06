@@ -1,14 +1,16 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.KoreanDateTime
+import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.practice.DailyPractice
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.GrowthSummary
 import com.ssafy.eolssu.data.practice.MetricGrowth
 import com.ssafy.eolssu.data.practice.ScoreTrend
 import com.ssafy.eolssu.data.practice.SongBestScore
-import com.ssafy.eolssu.data.practice.TrendScope
 import com.ssafy.eolssu.data.practice.TrendSong
+import com.ssafy.eolssu.data.song.CatalogInstrument
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -137,14 +139,12 @@ sealed interface GrowthLoad {
  * GROWTH-01 상태. 주·월 통계를 서버(GRO-01·02)에서 받아 기간마다 따로 들고 있어, 탭을 바꿔도 받은 값을 다시 받지 않는다.
  *
  * @property today 화면을 연 때의 KST 날짜. 기간은 이 날을 기준으로 정한다.
- * @property completedSteps 연습 악기로 기초부터 배우기에서 완료한 단계 수. 기간과 관계없이 기기의 학습 완료 기록으로 센다.
- * @property scoreTrend ‘점수 변화 · 최근 5회’ 카드(GRO-03). 주·월 기간과 관계없이 곡의 최근 연주로 그린다.
+ * @property scoreTrend ‘점수 변화 · 최근 5회’ 카드(GRO-03). 주·월 기간과 관계없이 곡의 최근 기본 평가로 그린다.
  */
 data class GrowthUiState(
     val today: KoreanDateTime,
     val range: GrowthRange = GrowthRange.Week,
     val loads: Map<GrowthRange, GrowthLoad> = emptyMap(),
-    val completedSteps: Int? = null,
     val scoreTrend: ScoreTrendState = ScoreTrendState(),
 ) {
     val period: GrowthPeriod get() = GrowthPeriod.of(range, today)
@@ -161,75 +161,134 @@ suspend fun loadGrowth(repository: GrowthRepository, period: GrowthPeriod): Grow
     if (s == null || d == null) GrowthLoad.Failed else GrowthLoad.Loaded(GrowthStats.of(period, s, d))
 }
 
-/** 점수 변화 그래프의 점 하나(오래된 순). [section]이면 날짜 뒤에 ‘구간’을 붙인다. */
-data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime, val section: Boolean)
+/** 점수 변화 그래프의 점 하나(오래된 순). */
+data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime)
+
+/** 점수 변화 곡의 악기. [instrument]는 앱 악기와 code가 맞을 때만 있고, 없으면 화면은 [name]을 보인다. */
+data class TrendInstrument(val instrumentId: String, val name: String, val instrument: Instrument?)
 
 /**
- * ‘점수 변화’ 카드 상태. 곡·범위를 바꿔 다시 받는 동안에도 앞서 받은 [view]를 두어 곡 고르기·범위 칩이 사라지지 않는다.
+ * 악기 고르기에 쓰는 곡 → 악기 대응(CAT-01 악기 목록·CAT-02 곡 목록). GRO-03 응답에 악기가 없어 앱이 곡 ID로 맞춘다.
+ * 곡 목록은 게시 중인 곡만 주므로, 지우거나 비공개로 바꾼 곡은 여기에 없다.
+ *
+ * @property instruments 악기 목록 순서.
+ * @property songInstrument 곡 ID → 악기 ID.
+ */
+data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrument: Map<String, String>) {
+    /** [songId] 곡의 악기. 곡 목록에 없거나 악기 목록에 없는 악기면 null. */
+    fun instrumentOf(songId: String): TrendInstrument? = songInstrument[songId]?.let { id -> instruments.firstOrNull { it.instrumentId == id } }
+
+    companion object {
+        fun of(instruments: List<CatalogInstrument>, songs: List<SongSummary>) = TrendCatalog(
+            instruments = instruments.map { c -> TrendInstrument(c.instrumentId, c.name, Instrument.entries.firstOrNull { it.serverCode == c.code }) },
+            songInstrument = songs.mapNotNull { s -> s.instrumentId?.let { s.id to it } }.toMap(),
+        )
+    }
+}
+
+/**
+ * ‘점수 변화’ 카드 상태. 곡을 바꿔 다시 받는 동안에도 앞서 받은 [view]를 두어 악기·곡 고르기가 사라지지 않는다.
+ * 늘 기본 평가(GRO-03 `FULL`, 곡 전체를 연주한 평가)만 받는다. 취약 구간 재평가는 구간 세션이라 들어오지 않는다.
  *
  * @property songId 요청할 곡. null이면 서버가 가장 최근에 연주한 곡을 고른다. 받은 뒤에는 서버가 고른 곡이다.
  * @property loading 받는 중. [view]가 없으면 카드에 진행 표시만 보인다.
  * @property failed 마지막 요청이 실패했다. 카드에 안내와 '다시 시도'가 보인다.
+ * @property catalog 악기 고르기용 곡 → 악기 대응. 받지 못하면 null이고, 그때는 악기 없이 곡만 고른다.
  */
 data class ScoreTrendState(
     val songId: String? = null,
-    val scope: TrendScope = TrendScope.Full,
     val loading: Boolean = true,
     val failed: Boolean = false,
     val view: ScoreTrendView? = null,
+    val catalog: TrendCatalog? = null,
 ) {
     /** 요청을 보낼 때의 상태. 앞서 받은 [view]는 그대로 둔다. */
-    fun requesting(songId: String?, scope: TrendScope) = copy(songId = songId, scope = scope, loading = true, failed = false)
+    fun requesting(songId: String?) = copy(songId = songId, loading = true, failed = false)
 
     /** 받은 결과. [trend]가 null이면 실패다. */
     fun received(trend: ScoreTrend?): ScoreTrendState =
         if (trend == null) copy(loading = false, failed = true)
-        else ScoreTrendState(trend.songId, trend.scope, loading = false, failed = false, view = ScoreTrendView.of(trend))
+        else copy(songId = trend.songId, loading = false, failed = false, view = ScoreTrendView.of(trend))
+
+    /**
+     * 고를 수 있는 곡(최근 연주 순): 기본 평가가 하나라도 있고 악기를 아는 곡.
+     * 재평가만 있는 곡은 기본 평가가 없는 곡으로 보고 뺀다. 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 악기를 몰라 뺀다.
+     * 대응을 받지 못했으면 악기와 관계없이 기본 평가 곡을 모두 둔다.
+     */
+    val basicSongs: List<TrendSong>
+        get() {
+            val songs = view?.songs.orEmpty().filter { it.fullPlayCount > 0 }
+            val catalog = catalog ?: return songs
+            return songs.filter { catalog.instrumentOf(it.songId) != null }
+        }
+
+    /** 고를 수 있는 곡의 악기(악기 목록 순). 기록이 없는 악기는 없다. 대응을 받지 못했으면 비어 있다. */
+    val instruments: List<TrendInstrument>
+        get() {
+            val catalog = catalog ?: return emptyList()
+            val ids = basicSongs.mapNotNull { catalog.instrumentOf(it.songId)?.instrumentId }.toSet()
+            return catalog.instruments.filter { it.instrumentId in ids }
+        }
+
+    /** 지금 고른 곡의 악기. 대응이 없으면 null. */
+    val selectedInstrument: TrendInstrument? get() = songId?.let { catalog?.instrumentOf(it) }
+
+    /** 곡 고르기에 보일 곡: 고른 악기의 곡. 악기를 모르면 고를 수 있는 곡 전부다. */
+    val instrumentSongs: List<TrendSong>
+        get() {
+            val catalog = catalog ?: return basicSongs
+            val instrument = selectedInstrument ?: return basicSongs
+            return basicSongs.filter { catalog.instrumentOf(it.songId) == instrument }
+        }
+
+    /** [instrumentId] 악기에서 볼 곡: 그 악기에서 가장 최근에 연주한 기본 평가 곡. */
+    fun songFor(instrumentId: String): TrendSong? {
+        val catalog = catalog ?: return null
+        return basicSongs.firstOrNull { catalog.instrumentOf(it.songId)?.instrumentId == instrumentId }
+    }
+
+    /**
+     * 지금 곡을 고를 수 없을 때(기본 평가가 없거나 곡 목록에 없는 곡) 대신 볼 곡: 고를 수 있는 곡 중 가장 최근에 연주한 곡.
+     * 지금 곡을 고를 수 있거나 고를 곡이 하나도 없으면 null.
+     */
+    val fallbackSongId: String?
+        get() {
+            val songs = basicSongs
+            if (songs.isEmpty() || songs.any { it.songId == songId }) return null
+            return songs.first().songId
+        }
 }
 
 /**
  * 받은 점수 변화를 카드에 그릴 값.
  *
  * @property song 보여 준 곡. 연주 기록이 하나도 없으면 null.
- * @property songs 고를 수 있는 곡(최근 연주 순). 비어 있으면 아직 평가한 연주가 없다.
- * @property mixedConditions 점이 2개 이상인데 속도·악보 판본·채점 모델(구간이면 범위까지)이 섞였다(`comparable=false`).
+ * @property songs 연주 기록이 있는 곡(최근 연주 순, 재평가만 있는 곡 포함). 고르기에는 [ScoreTrendState.basicSongs]를 쓴다.
+ * @property points 고른 곡의 최근 기본 평가(서버가 기본 평가만 골라 최근 5개를 오래된 순으로 준다).
+ * @property mixedConditions 점이 2개 이상인데 속도·악보 판본·채점 모델이 섞였다(`comparable=false`).
  */
 data class ScoreTrendView(
-    val scope: TrendScope,
     val song: TrendSong?,
     val songs: List<TrendSong>,
     val points: List<ScoreTrendPoint>,
     val mixedConditions: Boolean,
 ) {
-    /** 이 범위에는 연주가 없지만 다른 범위(전체 곡·구간)에는 있다. 카드가 다른 범위를 고르도록 안내한다. */
-    val onlyOtherScope: Boolean
-        get() = points.isEmpty() && song != null && song.playCount(scope) == 0 && song.playCount(scope.other) > 0
-
     companion object {
         fun of(trend: ScoreTrend) = ScoreTrendView(
-            scope = trend.scope,
             song = trend.songs.firstOrNull { it.songId == trend.songId },
             songs = trend.songs,
-            points = trend.plays.map { ScoreTrendPoint(it.totalScore, KoreanDateTime.fromEpochMillis(it.startedAtMillis), trend.scope == TrendScope.Section) },
+            points = trend.plays.map { ScoreTrendPoint(it.totalScore, KoreanDateTime.fromEpochMillis(it.startedAtMillis)) },
             mixedConditions = trend.plays.size >= 2 && !trend.comparable,
         )
     }
 }
 
-/** ‘점수 변화’ 카드의 곡 고르기·범위 칩·다시 시도. */
-data class ScoreTrendActions(val onSong: (String) -> Unit, val onScope: (TrendScope) -> Unit, val onRetry: () -> Unit) {
+/** ‘점수 변화’ 카드의 악기 고르기·곡 고르기·다시 시도. */
+data class ScoreTrendActions(val onInstrument: (String) -> Unit, val onSong: (String) -> Unit, val onRetry: () -> Unit) {
     companion object {
         val None = ScoreTrendActions({}, {}, {})
     }
 }
-
-/** [song]으로 바꿀 때 볼 범위: 지금 범위에 연주가 없고 다른 범위에만 있으면 다른 범위로 바꾼다. */
-fun trendScopeFor(song: TrendSong, current: TrendScope): TrendScope =
-    if (song.playCount(current) == 0 && song.playCount(current.other) > 0) current.other else current
-
-fun TrendSong.playCount(scope: TrendScope): Int = if (scope == TrendScope.Section) sectionPlayCount else fullPlayCount
-
-private val TrendScope.other: TrendScope get() = if (this == TrendScope.Full) TrendScope.Section else TrendScope.Full
 
 /** 보드 그래프 좌표계(viewBox 310×104)와 가로선(y 18 · 48 · 78). */
 const val TrendWidth: Float = 310f

@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.history.GrowthRange
 import com.ssafy.eolssu.feature.history.GrowthStats
 import com.ssafy.eolssu.feature.history.component.BarChartCard
-import com.ssafy.eolssu.feature.history.component.GrowthLinks
 import com.ssafy.eolssu.feature.history.component.GrowthSpacing
 import com.ssafy.eolssu.feature.history.component.GrowthTiles
 import com.ssafy.eolssu.feature.history.component.HistoryFrame
@@ -33,17 +32,14 @@ private val GrowthTwoColumnMinHeight = 560.dp
 
 /**
  * 태블릿 가로 연습 기록지(`Tab-Growth` land): 같은 너비의 두 칸(사이 24dp).
- * 왼쪽 연습 시간 카드가 남은 높이를 채우고, 오른쪽에 항목별 성장과 바로 가기를 둔다.
+ * 왼쪽 연습 시간 카드가 남은 높이를 채우고, 오른쪽에 점수 변화와 항목별 성장을 둔다.
  */
 @Composable
 internal fun GrowthExpandedLayout(
     stats: GrowthStats,
-    completedSteps: Int?,
     frame: HistoryFrame,
     spacing: GrowthSpacing,
     onRange: (GrowthRange) -> Unit,
-    onOpenSteps: () -> Unit,
-    onOpenRecords: () -> Unit,
     scoreTrend: ScoreTrendState = ScoreTrendState(),
     today: KoreanDateTime? = null,
     trendActions: ScoreTrendActions = ScoreTrendActions.None,
@@ -63,7 +59,6 @@ internal fun GrowthExpandedLayout(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.gap)) {
                     if (today != null) ScoreTrendCard(scoreTrend, today, spacing, trendActions)
                     stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
-                    GrowthLinks(stats, completedSteps, spacing, onOpenSteps, onOpenRecords)
                 }
             }
         }

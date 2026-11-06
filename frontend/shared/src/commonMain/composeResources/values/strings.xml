@@ -347,24 +347,18 @@
     <string name="growth_score_trend">점수 변화 · 최근 %1$d회</string>
     <string name="growth_score_trend_range">%1$d → %2$d점</string>
     <string name="growth_score_trend_today">오늘</string>
-    <string name="growth_score_trend_section">%1$s 구간</string>
     <string name="growth_score_trend_desc">최근 %1$d회 점수 %2$s점</string>
-    <string name="growth_trend_full">전체 곡</string>
-    <string name="growth_trend_section">구간</string>
     <string name="growth_trend_song">점수 변화를 볼 곡 고르기</string>
+    <string name="growth_trend_instrument">악기</string>
+    <string name="growth_trend_song_label">곡</string>
+    <string name="growth_trend_basic_only">곡 전체를 연주한 기본 평가만 보여요. 취약 구간 재평가는 빠져요.</string>
+    <string name="growth_trend_no_basic">이 곡은 아직 기본 평가 기록이 없어요.</string>
     <string name="growth_trend_empty">AI 연주 평가를 하면 점수 변화가 보여요.</string>
-    <string name="growth_trend_only_section">이 곡은 구간 연습 기록만 있어요. ‘구간’을 눌러 보세요.</string>
-    <string name="growth_trend_only_full">이 곡은 전체 곡 연주 기록만 있어요. ‘전체 곡’을 눌러 보세요.</string>
     <string name="growth_trend_mixed">속도·악보 판본·채점 기준이 다른 연주가 섞여 있어 참고용이에요.</string>
     <string name="growth_trend_failed">점수 변화를 불러오지 못했어요.</string>
     <string name="growth_items">항목별 성장 · 첫 기록 → 최근</string>
-    <string name="growth_best_none">아직 없어요</string>
     <string name="growth_load_failed">연습 기록을 불러오지 못했어요.</string>
     <string name="growth_retry">다시 시도</string>
-    <string name="growth_steps">완료한 단계</string>
-    <string name="growth_steps_value">%1$d개</string>
-    <string name="growth_steps_total">/ %1$d</string>
-    <string name="growth_best_by_song">곡별 최고 점수</string>
 
     <!-- GUIDE-01·02, LEARN-02 (S15P31E102-150). **굵게** 표시는 화면에서 굵은 글자로 바꾼다. -->
     <string name="guide_instrument_label">악기</string>
