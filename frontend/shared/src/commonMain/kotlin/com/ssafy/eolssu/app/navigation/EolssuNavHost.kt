@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +104,7 @@ object EolssuDestination {
     const val GUIDE_READING = "guide/reading?page={page}"
     const val LEARN = "learn"
     const val LEARN_LIST = "learn/stages"
-    const val LEARN_STAGE = "learn/stages/{stage}"
+    const val LEARN_STAGE = "learn/stages/{stage}?instrument={instrument}"
     const val LEARN_PRACTICE = "learn/stages/{stage}/practice"
 
     fun guideFingering(instrument: GuideInstrument? = null, blow: Blow? = null) =
@@ -110,7 +112,8 @@ object EolssuDestination {
 
     fun guideReading(page: ReadingPage? = null) = "guide/reading?page=${page?.id.orEmpty()}"
 
-    fun learnStage(stage: Int) = "learn/stages/$stage"
+    fun learnStage(stage: Int, instrument: GuideInstrument? = null) =
+        "learn/stages/$stage" + (instrument?.let { "?instrument=${it.id}" } ?: "")
 
     fun learnPractice(stage: Int) = "learn/stages/$stage/practice"
 
@@ -401,26 +404,40 @@ fun EolssuNavHost(
                 }
                 composable(
                     EolssuDestination.LEARN_STAGE,
-                    arguments = listOf(navArgument("stage") { type = NavType.IntType }),
+                    arguments = listOf(
+                        navArgument("stage") { type = NavType.IntType },
+                        navArgument("instrument") { type = NavType.StringType; defaultValue = "" },
+                    ),
                 ) { entry ->
-                    LearnStageRoute(
-                        stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
-                        viewModel = learnViewModel(navController, entry),
-                        onBack = { navController.popBackStackFrom(entry) },
-                        // 이전·다음 단계는 단계 상세를 바꿔 끼워, 뒤로 가기가 항상 단계 목록으로 간다.
-                        onOpenStage = { stage ->
-                            navController.navigate(EolssuDestination.learnStage(stage)) { popUpTo(EolssuDestination.LEARN_LIST) }
-                        },
-                        // 태블릿 가로가 되면 단계 목록(목록 + 상세 한 화면)으로 돌아간다. 주소로 바로 들어와 목록이 없으면 바꿔 끼운다.
-                        onShowInList = {
-                            if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
-                                navController.navigate(EolssuDestination.LEARN_LIST) {
+                    val viewModel = learnViewModel(navController, entry)
+                    val initialInstrument = GuideInstrument.fromId(entry.savedStateHandle.get<String>("instrument"))
+                    var initialized by remember(entry) { mutableStateOf(initialInstrument == null) }
+                    LaunchedEffect(entry) {
+                        initialInstrument?.let(viewModel::selectInstrument)
+                        initialized = true
+                    }
+                    if (initialized) {
+                        LearnStageRoute(
+                            stageNumber = entry.savedStateHandle.get<Int>("stage") ?: 1,
+                            viewModel = viewModel,
+                            onBack = { navController.popBackStackFrom(entry) },
+                            // 이전·다음 상세는 바꿔 끼워 뒤로 가면 들어온 목록 또는 마이페이지로 돌아간다.
+                            onOpenStage = { stage ->
+                                navController.navigate(EolssuDestination.learnStage(stage)) {
                                     popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
                                 }
-                            }
-                        },
-                        navigation = learnNavigation,
-                    )
+                            },
+                            // 태블릿 가로가 되면 단계 목록(목록 + 상세 한 화면)으로 돌아간다. 주소로 바로 들어와 목록이 없으면 바꿔 끼운다.
+                            onShowInList = {
+                                if (!navController.popBackStack(EolssuDestination.LEARN_LIST, inclusive = false)) {
+                                    navController.navigate(EolssuDestination.LEARN_LIST) {
+                                        popUpTo(EolssuDestination.LEARN_STAGE) { inclusive = true }
+                                    }
+                                }
+                            },
+                            navigation = learnNavigation,
+                        )
+                    }
                 }
                 composable(
                     EolssuDestination.LEARN_PRACTICE,

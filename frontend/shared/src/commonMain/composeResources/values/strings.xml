@@ -740,6 +740,10 @@
     <string name="home_my_page">마이페이지</string>
     <string name="my_title">마이페이지</string>
     <string name="my_learning_title">기초부터 배우기</string>
+    <string name="my_learning_open_stage">%1$d단계 배우기</string>
+    <string name="my_learning_stage_done">학습 완료</string>
+    <string name="my_learning_stage_next">다음 학습</string>
+    <string name="my_learning_stage_not_done">아직 학습하지 않음</string>
     <string name="my_learning_count">%1$d / %2$d단계 완료</string>
     <string name="my_learning_instrument">%1$s 학습 진도</string>
     <string name="my_learning_next">다음 학습 · %1$d단계</string>

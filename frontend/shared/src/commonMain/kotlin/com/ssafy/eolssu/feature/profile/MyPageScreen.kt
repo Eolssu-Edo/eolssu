@@ -97,10 +97,11 @@ fun MyPageScreen(
     onOpenLegal: (PublishedLegalDocument) -> Unit,
     onOpenFeedback: () -> Unit,
     onOpenInquiry: () -> Unit,
+    onOpenLearningStage: (Int) -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
         ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
-        MyLearningCard(instrument, learningProgress, loadingProfile)
+        MyLearningCard(instrument, learningProgress, loadingProfile, onOpenLearningStage)
         Section(stringResource(Res.string.my_social)) {
             Column {
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)

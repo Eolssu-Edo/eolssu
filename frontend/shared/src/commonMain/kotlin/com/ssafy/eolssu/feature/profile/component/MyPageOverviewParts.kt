@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -27,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -37,13 +39,14 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.MyLearningProgress
+import com.ssafy.eolssu.feature.profile.LearningMascot
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** 학습 화면과 같은 기기 저장 기록. 순서를 건너뛴 완료도 각 칸에 그대로 표시한다. */
+/** 학습 화면과 같은 서버 진도. 완료한 단계도 숫자를 눌러 다시 열 수 있다. */
 @Composable
-internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgress?, loading: Boolean) {
+internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgress?, loading: Boolean, onOpenStage: (Int) -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -52,11 +55,8 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(40.dp).background(colors.accentTintStrong, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.accentText)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(stringResource(Res.string.my_learning_title), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.text)
                     if (instrument != null) Text(
                         stringResource(Res.string.my_learning_instrument, stringResource(instrument.label)),
@@ -64,6 +64,7 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                         color = colors.textMuted,
                     )
                 }
+                LearningMascotImage(progress?.mascot ?: LearningMascot.Study, Modifier.size(96.dp))
             }
             if (progress == null) {
                 Text(
@@ -77,18 +78,27 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
                     color = colors.accentText,
                 )
-                Row(Modifier.fillMaxWidth().clearAndSetSemantics {}, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     (1..progress.totalStages).forEach { stage ->
                         val done = stage in progress.completedStages
                         val next = stage == progress.nextStage
+                        val label = stringResource(Res.string.my_learning_open_stage, stage)
+                        val status = stringResource(when {
+                            done -> Res.string.my_learning_stage_done
+                            next -> Res.string.my_learning_stage_next
+                            else -> Res.string.my_learning_stage_not_done
+                        })
                         Box(
-                            Modifier.weight(1f).aspectRatio(1f)
+                            Modifier.size(48.dp)
+                                .clickable(enabled = instrument != null, role = Role.Button, onClickLabel = label) { onOpenStage(stage) }
+                                .semantics { contentDescription = label; stateDescription = status }
+                                .padding(5.dp)
                                 .background(if (done) colors.primary else colors.surface, CircleShape)
                                 .border(if (next) 2.dp else 1.dp, if (next) colors.play else colors.accentTintLine, CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPrimary)
-                            else Text(stage.toString(), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = if (next) colors.play else colors.textMuted)
+                            Text(stage.toString(), modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = if (done || next) FontWeight.Bold else FontWeight.Normal), color = if (done) colors.onPrimary else if (next) colors.play else colors.textMuted)
+                            if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(12.dp), tint = colors.onPrimary)
                         }
                     }
                 }
