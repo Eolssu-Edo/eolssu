@@ -321,7 +321,7 @@ ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_R
 
 수동 배포 설정을 운영에 반영한 뒤에는 백엔드의 develop 자동 흐름에서 웹 잡을 예약하지 않습니다. 백엔드 배포 도구, 인증서 초기화, Nginx health 라우팅과 HTTPS 리다이렉트 검사는 백엔드 잡에서 실행합니다. 공통 앱 로직은 Android QA의 `:shared:testAndroidHostTest`에서도 검증합니다.
 
-웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 `eolssu-frontend`의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다.
+웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend-web-manual`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 전용 잡의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다. `eolssu-frontend`는 과거 빌드 링크와 실행 이력을 보존하기 위해 비활성화합니다.
 
 프론트 잡은 다음 명령을 Jenkins 사용자로 실행합니다. JDK 21·Docker·Google Chrome이 필요하며 Node·Yarn·Wasm tooling은 Gradle이 관리합니다. Linux 서버에서 웹 타깃만 빌드·테스트합니다. Android·iOS 패키지 배포는 포함하지 않습니다.
 
@@ -355,7 +355,7 @@ curl -fsS https://k15e102.p.ssafy.io/__eolssu_release.json
 python3 -B -m unittest discover -s infra/jenkins/tests -v
 ```
 
-수동 전환을 운영에 반영할 때는 운영 두 잡의 XML과 `/opt/eolssu/config/{backend,frontend}.Jenkinsfile`을 먼저 백업합니다. 실제 운영 백엔드 정의에서 Android QA 예약과 iOS 변경 감지를 보존하고, 두 후보를 Jenkins linter로 검사한 뒤 백엔드와 프론트 정의 및 관리 파일을 차례로 갱신합니다. 저장 후 정의와 관리 파일을 다시 대조합니다. 자동 예약 복구가 필요하면 백업한 프론트 정의를 먼저 복원한 뒤 백엔드를 복원합니다. [전환 범위와 검증](../../docs/plans/S15P31E102-520.md)
+전용 잡을 만들 때는 기존 웹 잡의 XML을 백업하고 실행·예약이 비었는지 확인합니다. 저장된 웹 Pipeline을 관리 파일과 대조하고 Jenkins linter를 통과한 정의를 새 잡에 등록합니다. 기존 잡을 비활성화한 뒤 새 잡을 활성화합니다. 두 잡의 트리거가 비어 있는지, 기존 이력 URL이 열리는지, 새 잡에서만 `REVISION`으로 실행되는지 확인합니다. 전용 잡을 되돌리려면 실행과 예약이 없는 상태에서 전용 잡부터 비활성화하고 백업한 기존 잡 XML을 복원합니다. [자동 예약 제거](../../docs/plans/S15P31E102-520.md) · [전용 잡 분리](../../docs/plans/S15P31E102-527.md)
 
 웹 릴리스를 복구할 때는 실행 중인 배포가 없는지 확인합니다. journal의 `previous_web`를 확인해 `sudoedit /opt/eolssu/.env`에서 `WEB_DIST_DIR`만 복구하고 위의 두 Compose를 사용하는 프론트 재생성 명령을 실행합니다. 이전 릴리스·journal·설정 백업은 보존하고 DB·볼륨을 내리지 않습니다.
 
