@@ -27,6 +27,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,6 +139,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         }
         val song = comparison.song
         val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
+        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RecordPair(state.previous, comparison.current, actions.onOpenPicker)
             val previous = state.previous
@@ -139,7 +150,11 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                 CompareCheckNote(state.check)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ScoreDeltaSeal(compareDeltaLabel(delta))
+                    Text(
+                        compareDeltaLabel(delta),
+                        style = EolssuTheme.serif.brand.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+                        color = if (delta > 0) colors.rec else colors.text,
+                    )
                     if (previous.bpm != comparison.current.bpm) {
                         Text(
                             stringResource(Res.string.weak_compare_speed_only, previous.bpm, comparison.current.bpm),
@@ -159,6 +174,13 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                 onUnitClick = { actions.onSelect(ScorePosition(it.column, it.row)) },
                 decorations = compareDecorations(state.marks),
             )
+        }
+        // 같은 곡에서 점수가 올랐으면 오른쪽 위에 도장을 '탕' 찍었다가 지운다(점수 자리에는 글자가 남는다).
+        val rose = state.delta?.takeIf { it > 0 && state.previous != null }
+        if (rose != null) {
+            ScoreStampBurst(compareDeltaLabel(rose), key = state.previous?.id to comparison.current.id,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 16.dp))
+        }
         }
     }
     if (state.sheetOpen && comparison != null) {
@@ -324,5 +346,24 @@ private fun ScoreDeltaSeal(label: String) {
             color = ink.copy(alpha = 0.92f),
             maxLines = 1,
         )
+    }
+}
+
+/** 도장을 크게 띄웠다가 '탕' 내려찍고(0.25초) 잠시 보인 뒤(1.2초) 서서히 지운다. 비교 대상이 바뀌면 다시 찍는다. */
+@Composable
+private fun ScoreStampBurst(label: String, key: Any?, modifier: Modifier = Modifier) {
+    val scale = remember(key) { Animatable(2.2f) }
+    val alpha = remember(key) { Animatable(0f) }
+    var done by remember(key) { mutableStateOf(false) }
+    LaunchedEffect(key) {
+        launch { alpha.animateTo(1f, tween(120)) }
+        scale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 900f))
+        delay(1200)
+        alpha.animateTo(0f, tween(450))
+        done = true
+    }
+    if (done) return
+    Box(modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value; this.alpha = alpha.value }) {
+        ScoreDeltaSeal(label)
     }
 }
