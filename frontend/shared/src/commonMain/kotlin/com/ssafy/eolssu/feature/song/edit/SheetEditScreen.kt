@@ -116,7 +116,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                 subtitle = if (staff) {
                     stringResource(Res.string.sheetedit_subtitle_staff, state.hwang.label)
                 } else {
-                    stringResource(Res.string.sheetedit_subtitle_editing, jangdanLabel(draft.jangdan), draft.bpm)
+                    stringResource(Res.string.sheetedit_subtitle_editing, jangdanLabel(draft.jangdanName), draft.bpm)
                 },
                 closeLabel = stringResource(Res.string.sheetedit_close),
                 onClose = actions.onClose,
@@ -153,7 +153,7 @@ fun SheetEditScreen(state: SheetEditUiState, snackbarHostState: SnackbarHostStat
                     SquareIconButton(SheetEditIcons.Redo, stringResource(Res.string.sheetedit_redo), actions.onRedo, enabled = state.canRedo)
                     Box(Modifier.weight(1f))
                 }
-                SegmentTabs(
+                if (state.draft.original == null) SegmentTabs(
                     labels = listOf(stringResource(Res.string.sheetedit_view_jeongganbo), stringResource(Res.string.sheetedit_view_staff)),
                     selected = state.view.ordinal,
                     onSelect = { actions.onSelectView(EditView.entries[it]) },
@@ -353,6 +353,7 @@ private fun staffNoteLabel(note: StaffNote, order: Int, hwang: HwangPitch): Stri
 internal fun SheetEditMessage.shownInEditor(): Boolean = this in EditorMessages
 
 private val EditorMessages = setOf(
+    SheetEditMessage.SaveFailed, SheetEditMessage.SaveConflict, SheetEditMessage.SaveTooLarge,
     SheetEditMessage.ComingSoon,
     SheetEditMessage.AudioReady,
     SheetEditMessage.AudioFailed,
