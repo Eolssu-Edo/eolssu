@@ -27,7 +27,7 @@ class SheetConversionSchedulerTests {
         override fun getZone(): ZoneId=ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock=this
     }
-    @Test fun `startup recovery leaves requests already in flight alone`() {
+    @Test fun `startup recovery does not delete in-flight bytes`() {
         val multipart=root.resolve("multipart")
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
             val upload=store.createUpload();Files.writeString(upload,"raw")

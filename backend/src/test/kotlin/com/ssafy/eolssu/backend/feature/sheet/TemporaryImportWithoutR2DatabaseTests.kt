@@ -131,6 +131,7 @@ class TemporaryImportWithoutR2DatabaseTests {
         assertEquals(202,accepted.statusCode(),accepted.body())
         val id=json.readTree(accepted.body()).path("result").path("sheetId").asString()
         val objectKey=jdbc.queryForObject("SELECT object_key FROM sheet_source_files WHERE sheet_id=?",String::class.java,id)!!
+        temporary.delete(objectKey)
         val time=MutableClock()
         val base=Files.createTempDirectory("expiry")
         TemporarySheetSourceStorage(base.resolve("spool"),"http://backend/x",time,base.resolve("multipart")).use { store ->

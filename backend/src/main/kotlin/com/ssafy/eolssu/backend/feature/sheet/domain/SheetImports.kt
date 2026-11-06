@@ -97,7 +97,7 @@ interface SheetSourceStorage {
 
     fun readUrl(key: String, ttl: Duration): String
 
-    /** 기한이 지나 지운 임시 원본만 true다. 파일 소실이나 그 밖의 저장소 실패는 만료가 아니다. */
+    /** 임시 원본의 기한이 지났으면 true다. 파일 소실이나 그 밖의 저장소 실패는 만료가 아니다. */
     fun expired(key: String): Boolean = false
 
     fun downloadUrl(key: String, ttl: Duration, fileName: String): String = readUrl(key,ttl)

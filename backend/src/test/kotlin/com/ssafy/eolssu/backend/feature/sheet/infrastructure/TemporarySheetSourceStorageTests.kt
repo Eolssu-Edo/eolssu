@@ -17,7 +17,8 @@ import org.springframework.boot.test.system.OutputCaptureExtension
 
 @ExtendWith(OutputCaptureExtension::class)
 class TemporarySheetSourceStorageTests {
-    private val WARNING="Temporary source cleanup failed and will be retried"
+    private val WARNING="Temporary multipart cleanup failed and will be retried"
+    private val SOURCE_WARNING="Temporary source cleanup failed and will be retried"
     @TempDir lateinit var root: Path
     private class Time : Clock() {
         var now=Instant.parse("2026-11-06T00:00:00Z")
@@ -103,7 +104,7 @@ class TemporarySheetSourceStorageTests {
             assertFalse(Files.exists(abandoned))
         }
     }
-    @Test fun `deleted multipart spool comes back so uploads keep working`() {
+    @Test fun `deleted multipart spool directory is recreated`() {
         val multipart=root.resolve("multipart")
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
             Files.delete(multipart)
@@ -125,6 +126,20 @@ class TemporarySheetSourceStorageTests {
             assertTrue(store.expired("expiring"))
             assertFailsWith<SheetSourceStorageException> { store.readUrl("expiring",Duration.ofMinutes(15)) }
             store.delete("expiring");assertFalse(store.expired("expiring"))
+        }
+    }
+    @Test fun `undeletable copies are logged and a lasting source failure does not hide a multipart one`(output: CapturedOutput) {
+        val time=Time();val multipart=root.resolve("multipart")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time,multipart).use { store ->
+            val upload=store.createUpload()
+            Files.delete(upload);Files.createDirectories(upload.resolve("child"))
+            store.releaseUpload(upload)
+            assertEquals(1,output.out.split(SOURCE_WARNING).size-1)
+            Files.delete(multipart);Files.writeString(multipart,"not a directory")
+            store.purgeExpired()
+            assertEquals(1,output.out.split(SOURCE_WARNING).size-1)
+            assertEquals(1,output.out.split(WARNING).size-1)
+            Files.delete(upload.resolve("child"))
         }
     }
     @Test fun `blocked multipart spool warns once a minute and does not stop source cleanup`(output: CapturedOutput) {

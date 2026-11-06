@@ -22,7 +22,7 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     private val tickets=mutableMapOf<String,Ticket>()
     private val uploads=mutableMapOf<Path,Instant>()
     private val multipartSeen=mutableMapOf<Path,Instant>()
-    private var lastWarning: Instant?=null
+    private val lastWarnings=mutableMapOf<String,Instant>()
     override val available = true
     // Bean creation precedes the web server, so startup cleanup can never delete a request in flight.
     init {
@@ -55,7 +55,7 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     @Synchronized fun releaseUpload(path: Path) {
         if(path !in uploads) return
         try { Files.deleteIfExists(path); uploads.remove(path) }
-        catch(_: Exception) { uploads[path]=clock.instant() }
+        catch(e: Exception) { uploads[path]=clock.instant();warnSource(e) }
     }
     @Synchronized override fun delete(key: String) {
         tickets.entries.removeIf { it.value.key==key }
@@ -85,11 +85,11 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         uploads.filterValues { now>=it }.keys.toList().forEach(::releaseUpload)
         // Expired entries keep their record until delete() so the worker can tell expiry from a lost file.
         entries.values.filter { !it.deleting && now>=it.expires }.forEach { entry ->
-            runCatching { Files.deleteIfExists(entry.path) }.onFailure(::warnCleanup)
+            runCatching { Files.deleteIfExists(entry.path) }.onFailure(::warnSource)
         }
-        entries.filterValues { it.deleting }.keys.toList().forEach { key -> runCatching { delete(key) }.onFailure(::warnCleanup) }
+        entries.filterValues { it.deleting }.keys.toList().forEach { key -> runCatching { delete(key) }.onFailure(::warnSource) }
         tickets.entries.removeIf { now>=it.value.expires }
-        runCatching { purgeMultipart(now) }.onFailure(::warnCleanup)
+        runCatching { purgeMultipart(now) }.onFailure(::warnMultipart)
     }
     @Synchronized override fun expired(key: String)=entries[key]?.let { clock.instant()>=it.expires } ?: false
     /** The container names these files, so their age counts from the first sweep that sees them. */
@@ -99,19 +99,21 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         multipartSeen.keys.retainAll(present.toSet())
         present.forEach { path ->
             if(now<multipartSeen.getOrPut(path) { now.plus(RETENTION) }) return@forEach
-            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }.onFailure(::warnCleanup)
+            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }.onFailure(::warnMultipart)
         }
     }
     private fun deleteAbandonedMultipart() {
-        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) }.onFailure(::warnCleanup) } }
-            .onFailure(::warnCleanup)
+        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) }.onFailure(::warnMultipart) } }
+            .onFailure(::warnMultipart)
     }
-    /** The sweep repeats every second, so a lasting failure logs once per interval. */
-    private fun warnCleanup(cause: Throwable) {
+    private fun warnSource(cause: Throwable)=warnCleanup("source",cause)
+    private fun warnMultipart(cause: Throwable)=warnCleanup("multipart",cause)
+    /** The sweep repeats every second, so a lasting failure logs once per interval for each area. */
+    private fun warnCleanup(area: String,cause: Throwable) {
         val now=clock.instant()
-        if(lastWarning?.let { now<it.plus(WARNING_INTERVAL) }==true) return
-        lastWarning=now
-        log.warn("Temporary source cleanup failed and will be retried",cause)
+        if(lastWarnings[area]?.let { now<it.plus(WARNING_INTERVAL) }==true) return
+        lastWarnings[area]=now
+        log.warn("Temporary {} cleanup failed and will be retried",area,cause)
     }
     private fun multipartFiles(): List<Path> =
         Files.list(multipartDirectory).use { paths -> paths.filter { Files.isRegularFile(it,NOFOLLOW_LINKS) }.toList() }

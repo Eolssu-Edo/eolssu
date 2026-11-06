@@ -7,6 +7,7 @@ import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.Convers
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionFile
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.time.temporal.ChronoUnit
 import org.slf4j.LoggerFactory
 import tools.jackson.databind.JsonNode
@@ -17,6 +18,7 @@ class ConversionWorker(
     private val queue: ConversionQueue,private val storage: SheetSourceStorage,private val client: RecognitionClient,
     private val builder: RecognitionResultBuilder,private val clock: Clock,private val json: JsonMapper,
 ) {
+    @Volatile private var lastWarning: Instant?=null
     fun runOne() {
         if(!client.available || !storage.available) return
         val job=queue.claim(now()) ?: return
@@ -52,7 +54,7 @@ class ConversionWorker(
         } finally {
             files.forEach { file ->
                 try { storage.delete(file.objectKey); queue.forgetSource(file.objectKey) }
-                catch(_: Exception) { log.warn("Temporary sheet source cleanup will be retried") }
+                catch(e: Exception) { warnCleanup(e) }
             }
         }
     }
@@ -65,8 +67,15 @@ class ConversionWorker(
         queue.expire(now())
         queue.finishedSources().forEach { file ->
             try { storage.delete(file.objectKey); queue.forgetSource(file.objectKey) }
-            catch(_: Exception) { log.warn("Temporary sheet source cleanup will be retried") }
+            catch(e: Exception) { warnCleanup(e) }
         }
+    }
+    /** 정리는 1초마다 다시 돌므로 실패가 이어져도 1분에 한 번만 남긴다. */
+    private fun warnCleanup(cause: Exception) {
+        val now=clock.instant()
+        if(lastWarning?.let { now<it.plus(Duration.ofMinutes(1)) }==true) return
+        lastWarning=now
+        log.warn("Temporary sheet source cleanup will be retried",cause)
     }
     private fun now()=clock.instant().truncatedTo(ChronoUnit.MICROS)
     private fun midi(note: String): Int {
