@@ -1,5 +1,9 @@
 # 프로젝트 문서
 
+- [앱 실시간 등급 판정 규칙과 KMP 구조 초안 (362)](knowledge/ai/realtime-grade-rules-and-kmp.md)
+
+- [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
+
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
