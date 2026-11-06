@@ -46,7 +46,7 @@ import org.koin.core.parameter.parametersOf
 
 /**
  * RECORD-01 연결. [justSavedId]는 결과 화면에서 방금 저장한 기록.
- * 태블릿 가로·넓은 웹 창에서는 같은 화면 오른쪽에 기록 상세를 두고, 녹음을 누르면 화면 이동 없이 오른쪽만 바꾼다.
+ * 태블릿 가로·넓은 웹 창에서는 오른쪽에 녹음 상세를 미리 보고, 기록을 누르면 단독 평가로 이동한다.
  * [initialRecordId]는 가로 창에서 기록 상세 경로로 들어왔을 때 처음 고를 기록이다.
  */
 @Composable
@@ -71,7 +71,7 @@ fun RecordListRoute(
     }
     val widthClass = currentWindowLayout().widthClass
     if (widthClass == WindowWidthClass.Expanded) {
-        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onWeakSection)
+        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onWeakSection, onOpenRecord)
     } else {
         RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
     }
@@ -90,6 +90,7 @@ private fun RecordsTwoPaneRoute(
     viewModel: RecordListViewModel,
     onCompare: (recordId: String) -> Unit,
     onWeakSection: ((recordId: String) -> Unit)?,
+    onOpenRecord: (String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf(selectedId.orEmpty()) }
@@ -110,7 +111,11 @@ private fun RecordsTwoPaneRoute(
         onOpenGrowth = onOpenGrowth,
         onToggle = viewModel::toggle,
         onSort = viewModel::changeSort,
-        onOpenRecord = viewModel::select,
+        onOpenRecord = { recordId ->
+            detailViewModel.pause()
+            viewModel.select(recordId)
+            onOpenRecord(recordId)
+        },
         onRetry = viewModel::retry,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, snackbarHostState, onBack, onCompare, onWeakSection),
