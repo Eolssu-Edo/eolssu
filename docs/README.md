@@ -2,7 +2,7 @@
 
 - [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
 - [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
-
+- [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
 
@@ -146,6 +146,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
 
 - [연습 조작과 설정 화면 검증](knowledge/frontend/practice-controls-verification.md)

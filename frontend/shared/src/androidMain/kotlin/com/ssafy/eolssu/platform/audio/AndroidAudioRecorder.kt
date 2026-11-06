@@ -1,102 +1,258 @@
 package com.ssafy.eolssu.platform.audio
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.util.Log
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.AudioTimestamp
 import android.media.MediaRecorder
-import android.os.Build
 import com.ssafy.eolssu.core.audio.AudioRecorder
+import com.ssafy.eolssu.core.audio.CaptureBoundary
+import com.ssafy.eolssu.core.audio.PitchConfirmation
+import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.audio.RecordedAudio
+import com.ssafy.eolssu.core.audio.YinPitchEstimator
 import java.io.File
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 import kotlin.math.log10
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
-/**
- * `MediaRecorder`로 모노·AAC 128kbps·44.1kHz m4a를 앱 캐시의 `recordings/`에 녹음한다.
- * 업로드가 붙기 전이라 마지막으로 마친 녹음 하나만 남기고, 새 녹음을 시작할 때 지운다.
- */
+/** 마이크 입력 하나를 m4a 저장과 별도 작업의 음높이 분석에 전달한다. */
 class AndroidAudioRecorder(context: Context) : AudioRecorder {
-    private val context = context.applicationContext
-    private val directory = File(this.context.cacheDir, DIRECTORY)
-    private var recorder: MediaRecorder? = null
-    private var output: File? = null
+    private val debugBuild = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    private val directory = File(context.applicationContext.cacheDir, "recordings")
+    private val readings = MutableSharedFlow<PitchReading>(extraBufferCapacity = 16)
+    private val ids = AtomicLong()
+    private val stateLock = Any()
+    @Volatile private var session: Session? = null
+    private var completed: File? = null
 
-    override val measuresLevel: Boolean = true
+    override val pitchReadings = readings.asSharedFlow()
+    override val captureBoundary: CaptureBoundary?
+        get() = session?.let { it.boundary.copy(observedNanos = System.nanoTime(), analysisAvailable = it.analysisAvailable) }
+    override val measuresLevel = true
+    override val interrupted: Boolean get() = session?.failed == true
 
     override fun start() {
-        cancel()
-        directory.mkdirs()
-        directory.listFiles()?.forEach { it.delete() }
-        val file = File(directory, "practice-${System.currentTimeMillis()}.m4a")
-        val mediaRecorder = newMediaRecorder()
-        try {
-            mediaRecorder.apply {
-                // MIC는 기기에 따라 잡음 제거가 켜져 길게 부는 소리를 줄일 수 있다.
-                // VOICE_RECOGNITION은 Android 호환성 정의상 잡음 제거·자동 음량 조절을 끄도록 되어 있다.
-                setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioChannels(1)
-                setAudioSamplingRate(SAMPLE_RATE)
-                setAudioEncodingBitRate(BIT_RATE)
-                setOutputFile(file.absolutePath)
-                prepare()
-                start()
-            }
-        } catch (e: Exception) {
-            mediaRecorder.release()
-            file.delete()
-            throw e
+        val next = synchronized(stateLock) {
+            val previous = session
+            previous?.cancelled = true
+            Session(ids.incrementAndGet(), previous).also { session = it }
         }
-        recorder = mediaRecorder
-        output = file
+        next.worker.start()
+        next.await(next.ready)
     }
 
-    override fun pause() {
-        recorder?.pause()
-    }
-
-    override fun resume() {
-        recorder?.resume()
-    }
-
+    override fun pause() { session?.command(Action.Pause) }
+    override fun resume() { session?.command(Action.Resume) }
     override fun stop(): RecordedAudio? {
-        val mediaRecorder = recorder ?: return null
-        val file = output
-        recorder = null
-        output = null
-        // 소리 데이터가 하나도 없으면 stop()이 RuntimeException을 던진다.
-        val stopped = runCatching { mediaRecorder.stop() }.isSuccess
-        mediaRecorder.release()
-        if (!stopped || file == null || !file.exists()) {
-            file?.delete()
-            return null
+        val current = session ?: return null
+        return runCatching {
+            current.command(Action.Stop)
+            current.await(current.result)?.also { completed = current.file }
+        }.getOrNull()
+    }
+    override fun cancel() { synchronized(stateLock) { session?.cancelled = true } }
+    override fun level(): Float = session?.level ?: 0f
+
+    private enum class Action { Pause, Resume, Stop }
+    private data class Command(val action: Action, val result: CompletableFuture<Unit>)
+    private data class Window(val samples: FloatArray, val reading: PitchReading)
+
+    private inner class Session(val id: Long, private val previous: Session?) {
+        val file = File(directory, "practice-$id-${System.currentTimeMillis()}.m4a")
+        val ready = CompletableFuture<Unit>()
+        val result = CompletableFuture<RecordedAudio?>()
+        val done = CountDownLatch(1)
+        @Volatile var cancelled = false
+        @Volatile var failed = false
+        @Volatile var level = 0f
+        @Volatile var boundary = CaptureBoundary(id, 0, 0, RATE, System.nanoTime(), false)
+        private val commands = ArrayBlockingQueue<Command>(4)
+        private val windows = ArrayBlockingQueue<Window>(4)
+        @Volatile private var analyzing = true
+        @Volatile var analysisAvailable = true
+            private set
+        private var sequence = 0L
+        private var segment = 0L
+        private var fileSamples = 0L
+        private var segmentStart = 0L
+        private var segmentNanos = 0L
+        private var timestampValid = false
+        private var fill = 0
+        private val rolling = FloatArray(WINDOW + HOP)
+        val worker = Thread({ capture() }, "practice-recording-$id")
+        private val analysis = Thread({ analyze() }, "practice-pitch-$id")
+
+        fun <T> await(future: CompletableFuture<T>): T = try {
+            future.get(4, TimeUnit.SECONDS)
+        } catch (e: Exception) { cancelled = true; throw e }
+
+        fun command(action: Action) {
+            check(!cancelled && !result.isDone) { "Recording is closed" }
+            val response = CompletableFuture<Unit>()
+            check(commands.offer(Command(action, response)))
+            await(response)
         }
-        return RecordedAudio(file.absolutePath, file.length())
-    }
 
-    override fun cancel() {
-        val mediaRecorder = recorder ?: return
-        recorder = null
-        runCatching { mediaRecorder.stop() }
-        mediaRecorder.release()
-        output?.delete()
-        output = null
-    }
+        private fun newSegment(input: AudioRecord) {
+            segment++
+            segmentStart = fileSamples
+            fill = 0
+            timestampValid = false
+            segmentNanos = System.nanoTime()
+            boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, false)
+            windows.clear()
+            input.startRecording()
+            check(input.recordingState == AudioRecord.RECORDSTATE_RECORDING)
+        }
 
-    /** `maxAmplitude`(0~32767)를 dBFS로 바꿔 -50dB → 0, 0dB → 1로 옮긴다. */
-    override fun level(): Float {
-        val amplitude = recorder?.let { runCatching { it.maxAmplitude }.getOrNull() } ?: return 0f
-        if (amplitude <= 0) return 0f
-        val dbfs = 20 * log10(amplitude / MAX_AMPLITUDE)
-        return ((dbfs - SILENCE_DBFS) / -SILENCE_DBFS).toFloat().coerceIn(0f, 1f)
-    }
+        private fun capture() {
+            var input: AudioRecord? = null
+            var writer: AndroidAacWriter? = null
+            var keep = false
+            try {
+                check(previous == null || previous.done.await(3, TimeUnit.SECONDS)) { "Previous microphone still active" }
+                check(!cancelled)
+                check(directory.isDirectory || directory.mkdirs())
+                completed?.delete()
+                completed = null
+                val minimum = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+                check(minimum > 0)
+                input = AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                    .setAudioFormat(AudioFormat.Builder().setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
+                    .setBufferSizeInBytes(maxOf(minimum, HOP * 8)).build()
+                check(input.state == AudioRecord.STATE_INITIALIZED && input.sampleRate == RATE)
+                writer = AndroidAacWriter(file, RATE)
+                check(!cancelled)
+                newSegment(input)
+                analysis.start()
+                ready.complete(Unit)
+                var paused = false
+                var stopping = false
+                val pcm = ShortArray(HOP)
+                val timestamp = AudioTimestamp()
+                while (!cancelled && !stopping) {
+                    val command = if (paused) commands.poll(20, TimeUnit.MILLISECONDS) else commands.poll()
+                    if (command != null) {
+                        try {
+                            when (command.action) {
+                                Action.Pause -> if (!paused) {
+                                    input.stop()
+                                    paused = true
+                                    fill = 0
+                                    windows.clear()
+                                    level = 0f
+                                    boundary = CaptureBoundary(id, segment, fileSamples, RATE,
+                                        segmentNanos + (fileSamples - segmentStart) * 1_000_000_000 / RATE, timestampValid)
+                                }
+                                Action.Resume -> if (paused) { newSegment(input); paused = false }
+                                Action.Stop -> stopping = true
+                            }
+                            command.result.complete(Unit)
+                        } catch (e: Exception) { command.result.completeExceptionally(e); throw e }
+                        continue
+                    }
+                    if (paused) continue
+                    val count = input.read(pcm, 0, pcm.size, AudioRecord.READ_BLOCKING)
+                    check(count > 0) { "Microphone read failed: $count" }
+                    if (cancelled) break
+                    if (input.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
+                        check(timestamp.framePosition <= fileSamples - segmentStart + count + input.bufferSizeInFrames) {
+                            "Microphone input overrun"
+                        }
+                        segmentNanos = timestamp.nanoTime - timestamp.framePosition * 1_000_000_000 / RATE
+                        timestampValid = true
+                        boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, true)
+                    }
+                    writer.write(pcm, count)
+                    var peak = 0
+                    repeat(count) { i ->
+                        peak = maxOf(peak, abs(pcm[i].toInt()))
+                        rolling[fill + i] = pcm[i] / 32768f
+                    }
+                    level = if (peak == 0) 0f else ((20 * log10(peak / 32768.0) + 50) / 50).toFloat().coerceIn(0f, 1f)
+                    fileSamples += count
+                    fill += count
+                    while (fill >= WINDOW) {
+                        val end = fileSamples - (fill - WINDOW)
+                        val reading = PitchReading(id, segment, sequence++, end - WINDOW, end, RATE, null,
+                            segmentNanos + (end - segmentStart) * 1_000_000_000 / RATE,
+                            analysisAvailable = timestampValid)
+                        if (analyzing && !windows.offer(Window(rolling.copyOfRange(0, WINDOW), reading))) {
+                            windows.clear()
+                            windows.offer(Window(FloatArray(0), reading.copy(analysisAvailable = false)))
+                        }
+                        rolling.copyInto(rolling, 0, HOP, fill)
+                        fill -= HOP
+                    }
+                }
+                if (!cancelled) {
+                    if (!paused) input.stop()
+                    writer.finish()
+                    keep = !cancelled
+                }
+            } catch (e: Exception) {
+                failed = !cancelled
+                ready.completeExceptionally(e)
+            } finally {
+                analyzing = false
+                windows.clear()
+                runCatching { input?.stop() }
+                runCatching { input?.release() }
+                writer?.close()
+                level = 0f
+                if (!keep || cancelled) file.delete()
+                while (true) {
+                    val pending = commands.poll() ?: break
+                    pending.result.completeExceptionally(IllegalStateException("Recording closed"))
+                }
+                ready.completeExceptionally(IllegalStateException("Recording cancelled"))
+                result.complete(if (keep && !cancelled && file.length() > 0) RecordedAudio(file.absolutePath, file.length()) else null)
+                done.countDown()
+            }
+        }
 
-    private fun newMediaRecorder(): MediaRecorder =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
+        private fun analyze() {
+            var gap = false
+            val confirmation = PitchConfirmation()
+            try {
+                while (analyzing && !cancelled) {
+                    val window = windows.poll(50, TimeUnit.MILLISECONDS) ?: continue
+                    val estimate = if (window.reading.analysisAvailable) YinPitchEstimator.estimate(window.samples, RATE) else null
+                    val value = confirmation.apply(window.reading.copy(frequencyHz = estimate?.frequencyHz,
+                        rawFrequencyHz = estimate?.frequencyHz,
+                        normalizedDifference = estimate?.normalizedDifference,
+                        analysisAvailable = window.reading.analysisAvailable && !gap))
+                    gap = !readings.tryEmit(value)
+                    if (debugBuild && Log.isLoggable("EolssuPitch", Log.DEBUG)) {
+                        Log.d("EolssuPitch", "recording=${value.recordingId} segment=${value.segmentId} " +
+                            "sequence=${value.sequence} start=${value.startSample} end=${value.endSample} rate=${value.sampleRate} " +
+                            "raw=${value.rawFrequencyHz} confirmed=${value.frequencyHz} available=${value.analysisAvailable} " +
+                            "difference=${value.normalizedDifference} captured=${value.capturedEndNanos} " +
+                            "observed=${System.nanoTime()} emitted=${!gap}")
+                    }
+                }
+            } catch (_: Exception) {
+                analyzing = false
+                analysisAvailable = false
+                readings.tryEmit(PitchReading(id, segment, sequence, fileSamples, fileSamples, RATE, null,
+                    System.nanoTime(), analysisAvailable = false))
+            }
+        }
+    }
 
     private companion object {
-        const val DIRECTORY = "recordings"
-        const val SAMPLE_RATE = 44_100
-        const val BIT_RATE = 128_000
-        const val MAX_AMPLITUDE = 32767.0
-        const val SILENCE_DBFS = -50.0
+        const val RATE = 44_100
+        const val WINDOW = 2048
+        const val HOP = 882
     }
 }
