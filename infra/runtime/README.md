@@ -74,6 +74,16 @@ sudo docker exec eolssu-runtime-backend-1 \
 
 마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). 연결 거부·이름 풀이 실패는 `ai`가 없거나 내부망이 다른 것입니다.
 
+### playback 내 악보 음원 생성기
+
+[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. Jenkins 배포는 이 이미지를 만들지 않으므로 `omr`처럼 사람이 빌드·생성합니다(운영 미반영).
+
+- 이미지: 저장소 루트를 맥락으로 `data/playback.Dockerfile`을 빌드해 `eolssu-playback:runtime`으로 태그합니다.
+- 자산: `PLAYBACK_ASSETS_DIRECTORY`에 악기별 CAT v1.3 ZIP과 `assets.json`(악기 code → ZIP 파일 이름), `PLAYBACK_JANGGU_DIRECTORY`에 `deong`·`gi`·`kung`·`deok`·`da`·`deo`.wav를 둡니다. 없으면 서비스가 시작을 거부합니다.
+- 자원: `mem_limit: 1g`, `memswap_limit: 1g`, `cpus: 1`로 스왑 없이 고정합니다. 실측은 스펙에 있습니다.
+- 연결: `SHEET_AUDIO_BASE_URL=http://playback:8000`을 지정해야 생성 요청을 받습니다. 비어 있으면 503입니다.
+- 점검: 로그는 syslog 태그 `eolssu-playback`으로 남습니다. 요청 처리 로그는 오류 코드와 생성기 종료 상태만 담고, 시작 실패는 예외 전체를 남깁니다. 상태는 `/health` healthcheck로 봅니다.
+
 Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4).
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).
@@ -321,7 +331,7 @@ ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_R
 
 수동 배포 설정을 운영에 반영한 뒤에는 백엔드의 develop 자동 흐름에서 웹 잡을 예약하지 않습니다. 백엔드 배포 도구, 인증서 초기화, Nginx health 라우팅과 HTTPS 리다이렉트 검사는 백엔드 잡에서 실행합니다. 공통 앱 로직은 Android QA의 `:shared:testAndroidHostTest`에서도 검증합니다.
 
-웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 `eolssu-frontend`의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다.
+웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend-web-manual`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 전용 잡의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다. `eolssu-frontend`는 과거 빌드 링크와 실행 이력을 보존하기 위해 비활성화합니다.
 
 프론트 잡은 다음 명령을 Jenkins 사용자로 실행합니다. JDK 21·Docker·Google Chrome이 필요하며 Node·Yarn·Wasm tooling은 Gradle이 관리합니다. Linux 서버에서 웹 타깃만 빌드·테스트합니다. Android·iOS 패키지 배포는 포함하지 않습니다.
 
@@ -355,7 +365,7 @@ curl -fsS https://k15e102.p.ssafy.io/__eolssu_release.json
 python3 -B -m unittest discover -s infra/jenkins/tests -v
 ```
 
-수동 전환을 운영에 반영할 때는 운영 두 잡의 XML과 `/opt/eolssu/config/{backend,frontend}.Jenkinsfile`을 먼저 백업합니다. 실제 운영 백엔드 정의에서 Android QA 예약과 iOS 변경 감지를 보존하고, 두 후보를 Jenkins linter로 검사한 뒤 백엔드와 프론트 정의 및 관리 파일을 차례로 갱신합니다. 저장 후 정의와 관리 파일을 다시 대조합니다. 자동 예약 복구가 필요하면 백업한 프론트 정의를 먼저 복원한 뒤 백엔드를 복원합니다. [전환 범위와 검증](../../docs/plans/S15P31E102-520.md)
+전용 잡을 만들 때는 기존 웹 잡의 XML을 백업하고 실행·예약이 비었는지 확인합니다. 저장된 웹 Pipeline을 관리 파일과 대조하고 Jenkins linter를 통과한 정의를 새 잡에 등록합니다. 기존 잡을 비활성화한 뒤 새 잡을 활성화합니다. 두 잡의 트리거가 비어 있는지, 기존 이력 URL이 열리는지, 새 잡에서만 `REVISION`으로 실행되는지 확인합니다. 전용 잡을 되돌리려면 실행과 예약이 없는 상태에서 전용 잡부터 비활성화하고 백업한 기존 잡 XML을 복원합니다. [자동 예약 제거](../../docs/plans/S15P31E102-520.md) · [전용 잡 분리](../../docs/plans/S15P31E102-527.md)
 
 웹 릴리스를 복구할 때는 실행 중인 배포가 없는지 확인합니다. journal의 `previous_web`를 확인해 `sudoedit /opt/eolssu/.env`에서 `WEB_DIST_DIR`만 복구하고 위의 두 Compose를 사용하는 프론트 재생성 명령을 실행합니다. 이전 릴리스·journal·설정 백업은 보존하고 DB·볼륨을 내리지 않습니다.
 

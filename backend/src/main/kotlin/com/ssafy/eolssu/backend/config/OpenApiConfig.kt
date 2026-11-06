@@ -67,6 +67,12 @@ class OpenApiConfig {
                     .description("본문 생략·{}·memo 생략은 메모를 유지하고 null은 지웁니다. 문자열은 앞뒤 공백을 자르고 비면 지우며, 자른 뒤 500자를 넘으면 400입니다.")
                     .content(jsonContent(ObjectSchema().addProperty("memo", StringSchema().nullable(true).maxLength(500))))
             }
+            if(doc.id=="createSheetAudio") {
+                operation.requestBody=RequestBody().required(false).content(jsonContent(ObjectSchema()
+                    .addProperty("instrumentId",StringSchema().pattern("[1-9][0-9]{0,17}").description("생략하면 단소"))
+                    .addProperty("withJangdan",BooleanSchema()._default(false))
+                    .addProperty("bpm",IntegerSchema().minimum(java.math.BigDecimal(30)).maximum(java.math.BigDecimal(160)).description("생략하면 악보 BPM"))))
+            }
             // 본문 없는 POST도 기존 보안 필터가 application/json을 요구한다.
             // 선택적인 {}를 제공해 UI의 Try it out이 Content-Type을 설정하도록 한다. 서버는 이 본문을 읽지 않는다.
             if (doc.method == PathItem.HttpMethod.POST && operation.requestBody == null) {
@@ -113,6 +119,9 @@ class OpenApiConfig {
                 if (doc.id == "getJangdanAudio" || doc.id == "getJangdanSample") {
                     response.addHeaderObject("Location", Header().schema(StringSchema()).description("비공개 R2의 음원 서명 URL"))
                     response.addHeaderObject("Cache-Control", Header().schema(StringSchema()._enum(listOf("no-store"))))
+                }
+                if(doc.id in setOf("createSheetAudio","getSheetAudio")) {
+                    response.addHeaderObject("Cache-Control",Header().schema(StringSchema()._enum(listOf("no-store"))))
                 }
                 if (doc.id == "getModelAudioPerformance") {
                     response.content = jsonContent(ObjectSchema().description("생성기가 보존한 공통 악보 수행 시간표 원문"))

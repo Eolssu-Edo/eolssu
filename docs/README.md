@@ -40,6 +40,7 @@
 
 ## 기능 스펙
 
+- [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
@@ -114,6 +115,7 @@
 
 - [Jenkins 전체 시간·executor 대기와 Wasm 최적화 지연 (510)](knowledge/infra/jenkins-latency.md) · [조사 계획·결과](plans/S15P31E102-510.md)
 - [프론트 웹 운영 배포 수동 전환 (520)](plans/S15P31E102-520.md) · [스펙](specs/jenkins-deploy-order.md#프론트-웹-수동-배포-s15p31e102-520)
+- [Jenkins 웹 수동 배포 전용 잡 분리 (527)](plans/S15P31E102-527.md)
 - [Jenkins 검증 JAR·Gradle JVM 재사용 구현](specs/jenkins-build-reuse.md) · [격리 실제 실행 결과](knowledge/infra/jenkins-latency.md#후속-구현과-실제-검증)
 
 - [정간보 기호 사전 연결 계약](specs/notation-symbol-catalog.md) · [자료 대조와 검증 기록](knowledge/backend/notation-symbol-catalog.md)

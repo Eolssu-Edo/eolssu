@@ -16,6 +16,11 @@ AAC_BIT_RATE = 192_000
 AAC_FRAME_SAMPLES = 1024
 
 
+def peak_level(pcm):
+    """Same value as max(abs(pcm)) without a full-length float64 temporary."""
+    return max(float(pcm.max()), -float(pcm.min()))
+
+
 def command(args, payload=None, timeout=180):
     try:
         result = subprocess.run(
@@ -84,13 +89,13 @@ def validate_m4a(path, frames, encoder):
     }
 
 
-def write_audio(audio, path, encoder=None):
+def write_audio(audio, path, encoder=None, *, credit=None):
     """Validate the staged artifact before the caller publishes any outputs."""
     path = Path(path)
     kind = path.suffix.removeprefix(".")
     require(kind in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     require(audio.ndim == 1 and len(audio) > 0 and np.isfinite(audio).all()
-            and np.max(np.abs(audio)) < .99, "합성 PCM 유한값·채널·피크 검증 실패")
+            and peak_level(audio) < .99, "합성 PCM 유한값·채널·피크 검증 실패")
     frames = len(audio)
     if kind == "m4a":
         require(encoder is not None, "M4A 생성에는 FFmpeg·ffprobe가 필요합니다")
@@ -98,6 +103,7 @@ def write_audio(audio, path, encoder=None):
             encoder["ffmpeg"], "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
             "-f", "f32le", "-ar", str(FS), "-ac", "1", "-i", "pipe:0",
             "-map", "0:a:0", "-map_metadata", "-1", "-c:a", "aac",
+            *(["-metadata", f"comment={credit}"] if credit else []),
             "-profile:a", "aac_low", "-b:a", str(AAC_BIT_RATE), "-threads", "1",
             "-movflags", "+faststart", "-movie_timescale", str(FS), "-f", "ipod", path,
         ], np.asarray(audio, dtype="<f4").tobytes())
@@ -106,12 +112,15 @@ def write_audio(audio, path, encoder=None):
         sf.write(path, audio, FS, subtype="PCM_16")
         decoded, rate = sf.read(path, dtype="float64")
         require(rate == FS and decoded.ndim == 1 and len(decoded) == frames
-                and np.isfinite(decoded).all() and np.max(np.abs(decoded)) < .99,
+                and np.isfinite(decoded).all() and peak_level(decoded) < .99,
                 "WAV validation failed")
+        peak = peak_level(decoded)
+        # Square in place: a 600s render has no room for another float64 copy.
+        decoded *= decoded
         details = {"codec": "pcm_s16le", "decoded_frames": frames,
                    "container_seconds": frames / FS, "end_padding_frames": 0,
-                   "peak": float(np.max(np.abs(decoded))),
-                   "rms": float(np.sqrt(np.mean(decoded ** 2)))}
+                   "peak": peak,
+                   "rms": float(np.sqrt(np.mean(decoded)))}
     return {
         "file": path.name, "format": kind, "sha256": sha(path),
         "bytes": path.stat().st_size, "sample_rate": FS, "channels": 1,
