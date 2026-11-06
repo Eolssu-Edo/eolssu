@@ -23,6 +23,40 @@ class PracticeFingeringPagingTest {
         assertTrue(nextFingerCells(song, cells, preview.last().firstEvent!!.index).isEmpty())
     }
 
+    private fun columnsSong(columns: List<List<ScoreCell>>): Song =
+        fingerSong(columns.first(), semachi).let { it.copy(score = it.score.copy(columns = columns)) }
+
+    private fun List<List<FingerCell>>.positions() = map { page -> page.map { it.column to it.row } }
+
+    @Test fun singleBeatThreeCellAnglesShareAPageAndPreviewStaysTwo() {
+        // 도라지타령처럼 3정간 각에 정간마다 한 음: 한 페이지에 두 각(6정간), 다음 음은 두 개.
+        val song = columnsSong(List(4) { pitches(3) })
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        val pages = fingerAnglePages(song, cells)
+        assertEquals(2, pages.size)
+        assertEquals(listOf((0..2).map { 0 to it } + (0..2).map { 1 to it }, (0..2).map { 2 to it } + (0..2).map { 3 to it }), pages.positions())
+        val last = pages.first().flatMap { it.units }.maxOf { it.event.index }
+        assertEquals(listOf(6, 7), nextFingerCells(song, cells, last).map { it.firstEvent!!.index })
+    }
+
+    @Test fun subdividedAngleIsNotExtendedButSingleBeatAngleTakesTheNextOne() {
+        val split = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.SourcePitch("태", 1))
+        // 소박 있는 1각은 혼자, 소박 없는 2각은 3각과 함께, 4각은 남은 각이다.
+        val first = columnsSong(listOf(pitches(2) + split, pitches(3), pitches(3), pitches(3)))
+        assertEquals(listOf(listOf(0), listOf(1, 2), listOf(3)), fingerAnglePages(first, fingerCells(first, GuideInstrument.Sogeum)).map { page -> page.map { it.column }.distinct() })
+        // 단소 도라지타령: 소박 없는 1각 뒤 2각에 소박이 있어도 이어 붙인다.
+        val second = columnsSong(listOf(pitches(3), pitches(2) + split, pitches(3)))
+        assertEquals(listOf(listOf(0, 1), listOf(2)), fingerAnglePages(second, fingerCells(second, GuideInstrument.Sogeum)).map { page -> page.map { it.column }.distinct() })
+    }
+
+    @Test fun longSingleBeatAnglesJoinAtDaegangBoundaries() {
+        // 대강 3·3·3 한 각(9정간)은 대강 둘(6정간)씩 묶고, 다음 각과도 대강 단위로 잇는다.
+        val song = columnsSong(List(2) { pitches(9) })
+        val pages = fingerAnglePages(song, fingerCells(song, GuideInstrument.Sogeum))
+        assertEquals(listOf(6, 6, 6), pages.map { it.size })
+        assertEquals((0 until 18).toList(), pages.flatten().map { it.index })
+    }
+
     @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {
         val song = fingerSong(List(8) { listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold)) }.flatten(), Jangdan("검사", listOf(1, 1), 2, 1))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))

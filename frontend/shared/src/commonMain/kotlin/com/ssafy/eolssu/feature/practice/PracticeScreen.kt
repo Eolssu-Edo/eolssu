@@ -186,7 +186,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                     if (state.stepUi) {
                         PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
                     } else {
-                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 8.dp), compact = true)
                     }
                     PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
                 }

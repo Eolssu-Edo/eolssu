@@ -3,6 +3,7 @@
 - [휴대폰 연습 악보 각 묶음 (542)](plans/S15P31E102-542.md)
 - [기록 정간보 가독성](specs/record-score-readability.md) · [535 계획·검증](plans/S15P31E102-535.md)
 - [앱 실시간 등급 판정 규칙과 KMP 구조 초안 (362)](knowledge/ai/realtime-grade-rules-and-kmp.md)
+- [운지법 함께 보기 현재 율명·운지 늘리기 (543)](plans/S15P31E102-543.md)
 
 - [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
 
