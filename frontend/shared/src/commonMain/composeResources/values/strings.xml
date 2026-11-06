@@ -748,7 +748,6 @@
     <string name="my_learning_instrument">%1$s 학습 진도</string>
     <string name="my_learning_next">다음 학습 · %1$d단계</string>
     <string name="my_learning_complete">모든 단계를 마쳤어요!</string>
-    <string name="my_learning_local">이 기기에 저장된 학습 기록이에요.</string>
     <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
     <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
     <string name="my_inquiry">문의하기</string>

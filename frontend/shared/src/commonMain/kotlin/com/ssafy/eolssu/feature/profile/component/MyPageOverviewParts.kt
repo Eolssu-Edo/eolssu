@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -64,7 +65,7 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                         color = colors.textMuted,
                     )
                 }
-                LearningMascotImage(progress?.mascot ?: LearningMascot.Study, Modifier.size(96.dp))
+                LearningMascotImage(progress?.mascot ?: LearningMascot.Study, Modifier.size(112.dp))
             }
             if (progress == null) {
                 Text(
@@ -78,27 +79,38 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
                     color = colors.accentText,
                 )
-                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    (1..progress.totalStages).forEach { stage ->
-                        val done = stage in progress.completedStages
-                        val next = stage == progress.nextStage
-                        val label = stringResource(Res.string.my_learning_open_stage, stage)
-                        val status = stringResource(when {
-                            done -> Res.string.my_learning_stage_done
-                            next -> Res.string.my_learning_stage_next
-                            else -> Res.string.my_learning_stage_not_done
-                        })
-                        Box(
-                            Modifier.size(48.dp)
-                                .clickable(enabled = instrument != null, role = Role.Button, onClickLabel = label) { onOpenStage(stage) }
-                                .semantics { contentDescription = label; stateDescription = status }
-                                .padding(5.dp)
-                                .background(if (done) colors.primary else colors.surface, CircleShape)
-                                .border(if (next) 2.dp else 1.dp, if (next) colors.play else colors.accentTintLine, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(stage.toString(), modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = if (done || next) FontWeight.Bold else FontWeight.Normal), color = if (done) colors.onPrimary else if (next) colors.play else colors.textMuted)
-                            if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(12.dp), tint = colors.onPrimary)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    // 아래 줄의 중심을 위 줄 각 숫자의 중간에 맞춘다(위 5개·아래 4개).
+                    val staggerInset = (maxWidth - 48.dp) / 8
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(1..5, 6..9).forEachIndexed { row, stages ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = if (row == 0) 0.dp else staggerInset),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                stages.forEach { stage ->
+                                    val done = stage in progress.completedStages
+                                    val next = stage == progress.nextStage
+                                    val label = stringResource(Res.string.my_learning_open_stage, stage)
+                                    val status = stringResource(when {
+                                        done -> Res.string.my_learning_stage_done
+                                        next -> Res.string.my_learning_stage_next
+                                        else -> Res.string.my_learning_stage_not_done
+                                    })
+                                    Box(
+                                        Modifier.size(48.dp)
+                                            .clickable(enabled = instrument != null, role = Role.Button, onClickLabel = label) { onOpenStage(stage) }
+                                            .semantics { contentDescription = label; stateDescription = status }
+                                            .padding(5.dp)
+                                            .background(if (done) colors.primary else colors.surface, CircleShape)
+                                            .border(if (next) 2.dp else 1.dp, if (next) colors.play else colors.accentTintLine, CircleShape),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(stage.toString(), modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = if (done || next) FontWeight.Bold else FontWeight.Normal), color = if (done) colors.onPrimary else if (next) colors.play else colors.textMuted)
+                                        if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(12.dp), tint = colors.onPrimary)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -107,7 +119,6 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.accentText,
                 )
-                Text(stringResource(Res.string.my_learning_local), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = colors.textMuted)
             }
         }
     }
