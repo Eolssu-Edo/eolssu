@@ -133,7 +133,14 @@ fun errorKindIcon(kind: ScoreErrorKind): ImageVector? = when (kind) {
  * [describe]이면 화면 읽기 프로그램이 종류 이름을 읽는다.
  */
 @Composable
-fun ErrorKindTag(kind: ScoreErrorKind, modifier: Modifier = Modifier, size: Dp = 14.dp, corner: Dp = 3.dp, describe: Boolean = false) {
+fun ErrorKindTag(
+    kind: ScoreErrorKind,
+    modifier: Modifier = Modifier,
+    size: Dp = 14.dp,
+    corner: Dp = 3.dp,
+    describe: Boolean = false,
+    iconSize: Dp = 10.dp,
+) {
     val style = errorStyle(kind)
     val label = errorKindLabel(kind)
     val icon = errorKindIcon(kind)
@@ -145,7 +152,7 @@ fun ErrorKindTag(kind: ScoreErrorKind, modifier: Modifier = Modifier, size: Dp =
         contentAlignment = Alignment.Center,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(10.dp), tint = Color.White)
+            Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = Color.White)
         } else {
             Text(
                 errorTag(kind),

@@ -54,8 +54,7 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.feature.result.layout.ResultExpandedLayout
-import com.ssafy.eolssu.feature.result.layout.ResultMediumLayout
+import com.ssafy.eolssu.feature.result.layout.ResultTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
@@ -109,15 +108,13 @@ class ResultActions(
     val onMemoChange: (String) -> Unit,
     val onCloseSheet: () -> Unit,
     val onGoRecords: () -> Unit,
-    val onSelectFilter: (ErrorFilter) -> Unit,
-    val onSelectCell: (ScoreCellPosition) -> Unit,
     val onRetrySong: () -> Unit = {},
     val onRetryResult: () -> Unit = {},
 )
 
 /**
- * RESULT-02 평가 결과. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact]), 태블릿 세로([WindowWidthClass.Medium]),
- * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 태블릿은 오류 위치 정간보를 같은 화면에 함께 둔다.
+ * RESULT-02 평가 결과. 같은 상태를 창 너비에 따라 휴대폰([WindowWidthClass.Compact])과 태블릿·넓은 웹 창 배치로 보여준다.
+ * 점수 중심 화면이라 오류는 틀린 정간 수만 적고, 정간보와 종류별 오류는 ‘오류 위치 상세 보기’(RESULT-03)에서 보여준다.
  */
 @Composable
 fun ResultScreen(
@@ -138,8 +135,8 @@ fun ResultScreen(
     }
     when (widthClass) {
         WindowWidthClass.Compact -> ResultCompactLayout(state, snackbarHostState, actions)
-        WindowWidthClass.Medium -> ResultMediumLayout(state, snackbarHostState, actions)
-        WindowWidthClass.Expanded -> ResultExpandedLayout(state, snackbarHostState, actions)
+        // 태블릿 가로도 세로와 같은 가운데 배치다. 오류 정간보는 상세 화면에서 본다.
+        WindowWidthClass.Medium, WindowWidthClass.Expanded -> ResultTabletLayout(state, snackbarHostState, actions)
     }
     val result = state.result
     val song = state.song
@@ -169,7 +166,7 @@ internal fun ResultTopBar(
 }
 
 /**
- * 휴대폰 배치(연두 보드 RESULT-02). 위에서부터 총점 카드 · 항목 세 칸 · 오류 위치 카드 · ‘홈으로 가기’와 ‘다른 곡 고르기’,
+ * 휴대폰 배치(연두 보드 RESULT-02). 위에서부터 총점 카드 · 항목 세 칸 · 오류 위치 요약 카드 · ‘홈으로 가기’와 ‘다른 곡 고르기’,
  * 아래 고정 바에 ‘연습 기록 저장’ · ‘취약 구간 연습’을 같은 너비로 둔다. 상단 바에는 뒤로 가기·저장 아이콘이 없다.
  */
 @Composable

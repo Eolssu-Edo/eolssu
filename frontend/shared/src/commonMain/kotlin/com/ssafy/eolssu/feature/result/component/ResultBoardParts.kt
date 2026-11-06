@@ -65,18 +65,15 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ErrorKindLegend
 import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.metricLabel
-import com.ssafy.eolssu.feature.result.visibleErrors
+import com.ssafy.eolssu.feature.result.errorCount
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.enso_ring
 import eolssu.shared.generated.resources.enso_spin
 import eolssu.shared.generated.resources.enso_track
-import eolssu.shared.generated.resources.result_errors_cluster
 import eolssu.shared.generated.resources.result_errors_count
 import eolssu.shared.generated.resources.result_errors_none
-import eolssu.shared.generated.resources.result_errors_preview
 import eolssu.shared.generated.resources.result_errors_title
 import eolssu.shared.generated.resources.result_metric_weak
 import eolssu.shared.generated.resources.result_score_of
@@ -87,6 +84,13 @@ import eolssu.shared.generated.resources.tiger_play
 import eolssu.shared.generated.resources.tiger_retry
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.runtime.remember
+import com.ssafy.eolssu.feature.result.visibleErrors
+import com.ssafy.eolssu.feature.result.visibleErrorKinds
+import com.ssafy.eolssu.feature.result.visibleUnitErrors
+import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
+import eolssu.shared.generated.resources.result_errors_preview
 
 /*
  * 연두 보드 ANALYSIS-01 · RESULT-02 부품. 크기·색은 보드 CSS(`.topbar` · `.badge.lite` · `.card.tint` · `.ring` ·
@@ -244,16 +248,24 @@ fun SmallPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = M
 
 /** 보드 `.btn.ghost.sm`: 바탕 없는 40dp 버튼(14sp `#5C564F`), 글자 뒤 화살표 16dp. */
 @Composable
-fun SmallGhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, trailing: ImageVector? = EolssuIcons.Chevron) {
+fun SmallGhostButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailing: ImageVector? = EolssuIcons.Chevron,
+    fontSize: TextUnit = 14.sp,
+    minHeight: Dp = 40.dp,
+) {
     val colors = EolssuTheme.colors
-    Surface(onClick = onClick, modifier = modifier.heightIn(min = 40.dp), shape = RoundedCornerShape(12.dp), color = Color.Transparent) {
+    val small = fontSize < 14.sp
+    Surface(onClick = onClick, modifier = modifier.heightIn(min = minHeight), shape = RoundedCornerShape(12.dp), color = Color.Transparent) {
         Row(
-            Modifier.heightIn(min = 40.dp).padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.heightIn(min = minHeight).padding(horizontal = if (small) 4.dp else 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (small) 2.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Normal), color = colors.textSub, maxLines = 1)
-            if (trailing != null) Icon(trailing, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textSub)
+            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = fontSize, lineHeight = fontSize * 1.3f, fontWeight = FontWeight.Normal), color = colors.textSub, maxLines = 1)
+            if (trailing != null) Icon(trailing, contentDescription = null, modifier = Modifier.size(if (small) 12.dp else 16.dp), tint = colors.textSub)
         }
     }
 }
@@ -360,12 +372,14 @@ private fun WeakBadge() {
 }
 
 /**
- * 보드 오류 위치 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 · 가로 범례 · 몰린 각 문장 ·
- * 붙은 4각 정간보(틀린 정간은 종류별 바탕·테두리와 아이콘, 2차 결합본) · ‘악보 전체에서 보기 ›’.
+ * 점수 화면의 오류 위치 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 ·
+ * 틀린 정간이 가장 몰린 곳의 4각 정간보(스크롤 없음, 틀린 정간은 종류별 바탕·테두리와 아이콘) · 오른쪽 아래 작은 ‘오류 위치 상세 보기 ›’.
+ * 범례·종류 필터·고른 정간 설명은 상세 화면(RESULT-03)에서만 보여준다.
  */
 @Composable
-fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewAll: () -> Unit, modifier: Modifier = Modifier) {
+fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
+    val count = result.errorCount(ErrorFilter.All)
     val cluster = result.densestColumnPair()
     val columnCount = song.score.columns.size
     val last = (cluster?.let { maxOf(3, it.first + 1) } ?: 3).coerceAtMost(columnCount - 1)
@@ -382,47 +396,32 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewAll: () -> Uni
                 color = colors.text,
             )
             Text(
-                if (result.errors.isEmpty()) stringResource(Res.string.result_errors_none) else stringResource(Res.string.result_errors_count, result.errors.size),
+                if (count == 0) stringResource(Res.string.result_errors_none) else stringResource(Res.string.result_errors_count, count),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
                 color = colors.textMuted,
-            )
-        }
-        if (result.errors.isNotEmpty()) {
-            // 2차 결합본: 칸 색 견본 · 종류 아이콘 · 이름.
-            ErrorKindLegend(showMissed = result.errors.any { it.kind == ScoreErrorKind.Missed })
-        }
-        if (cluster != null) {
-            val range = "${cluster.first + 1}–${cluster.first + 2}각"
-            val sentence = stringResource(Res.string.result_errors_cluster, result.errors.size, cluster.second, cluster.first + 1, cluster.first + 2)
-            Text(
-                buildAnnotatedString {
-                    val at = sentence.indexOf(range)
-                    if (at < 0) {
-                        append(sentence)
-                    } else {
-                        append(sentence.substring(0, at))
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(range) }
-                        append(sentence.substring(at + range.length))
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, lineHeight = 19.sp),
-                color = colors.text,
             )
         }
         if (columnCount > 0) {
             val description = stringResource(Res.string.result_errors_preview, first + 1, last + 1)
             BoxWithConstraints(Modifier.fillMaxWidth().semantics { contentDescription = description }) {
                 val shown = last - first + 1
+                val metrics = JeongganboMetrics.resultBoard((maxWidth - 2.dp) / shown)
                 JeongganboView(
                     song = song,
-                    metrics = JeongganboMetrics.resultBoard((maxWidth - 2.dp) / shown),
+                    metrics = metrics,
                     scrollState = null,
                     errors = result.visibleErrors(ErrorFilter.All),
+                    errorKinds = result.visibleErrorKinds(ErrorFilter.All),
+                    unitErrors = result.visibleUnitErrors(song, ErrorFilter.All),
                     columns = first..last,
                     look = JeongganboLook.Result,
+                    cellHeights = remember(song, metrics) { errorScoreCellHeights(song, metrics) },
                 )
             }
         }
-        SmallGhostButton(stringResource(Res.string.result_view_all_errors), onViewAll, Modifier.align(Alignment.End))
+        SmallGhostButton(
+            stringResource(Res.string.result_view_all_errors), onViewDetail, Modifier.align(Alignment.End),
+            fontSize = 11.sp, minHeight = 32.dp,
+        )
     }
 }

@@ -98,6 +98,7 @@ class ApiEvaluationRepository(
                 MetricScore(EvaluationMetric.Length, durationScore),
             ),
             errors = timeline?.let { noteErrors(it) }.orEmpty(),
+            eventErrors = timeline?.let { eventErrors(it) }.orEmpty(),
             bpm = bpm,
             recordedSeconds = recordingDurationMs?.let { (it / 1000.0).roundToInt() }
                 ?: endedMillis?.let { ((it - startedMillis) / 1000.0).roundToInt() } ?: 0,
@@ -119,6 +120,16 @@ class ApiEvaluationRepository(
             val kind = ScoreErrorKind.fromVerdict(note.verdict) ?: return@mapNotNull null
             ScoreError(column = event.column, row = event.row, kind = kind)
         }.distinct()
+    }
+
+    /** 틀린 음표를 연주 순서([ScoreEvent.index])에 놓는다. 정간을 나눈 소박마다 어떤 판정인지 보여줄 때 쓴다. */
+    private fun Evaluation.eventErrors(timeline: List<ScoreEvent>): Map<Int, List<ScoreErrorKind>> {
+        val pitches = timeline.filter { it.noteIndex != null }.associateBy { it.noteIndex }
+        return notes.mapNotNull { note ->
+            val event = pitches[note.noteIdx] ?: return@mapNotNull null
+            val kind = ScoreErrorKind.fromVerdict(note.verdict) ?: return@mapNotNull null
+            event.index to kind
+        }.groupBy({ it.first }, { it.second }).mapValues { (_, kinds) -> kinds.distinct().sorted() }
     }
 
     private companion object {

@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
  * @property joined 각 사이를 띄우지 않고 붙여 바깥 테두리 하나로 감싼다(보드 결과 `.ms`: 바깥 `#8E887D`, 각 경계 `#B9B3A6`).
  * @property headStartPill 첫 각 머리에 연두 ‘시작’ 알약을 번호 앞에 둔다(보드 결과 `.ms-lab`).
  * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
+ * @property softDaegang 보드의 대강 선(2dp)을 먹색 대신 회갈색([com.ssafy.eolssu.core.theme.EolssuColors.lineStrong])으로 긋는다.
+ *   틀린 종류 색이 함께 보이는 평가 결과·오류 위치 악보에서 경계가 오류 표시보다 튀지 않게 한다.
  * @property errorMarks `errors`로 넘긴 틀린 정간을 그리는 방식. 기본은 종류별 색·아이콘(2차 결합본), 기록 상세는 붉은 바탕·테두리만.
  */
 @Immutable
@@ -32,6 +34,7 @@ data class JeongganboLook(
     val headStartPill: Boolean = false,
     val soft: Boolean = false,
     val errorMarks: ErrorMarkStyle = ErrorMarkStyle.Kind,
+    val softDaegang: Boolean = false,
 ) {
     enum class Style { Classic, Board }
 
@@ -46,7 +49,7 @@ data class JeongganboLook(
         )
 
         /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 정간은 종류별 색·아이콘(2차 결합본). */
-        val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true)
+        val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true, softDaegang = true)
         /** 기록 상세 RECORD-02: 평가와 같은 보드, 곁줄 생략. 기존 단순 오류 바탕·테두리는 유지한다. */
         val Record = practice(big = false).copy(lyricLane = null, upcomingMark = false, errorMarks = ErrorMarkStyle.Plain)
     }
