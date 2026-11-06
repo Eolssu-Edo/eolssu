@@ -20,6 +20,8 @@ data class MySongsUiState(
     val deleting: MySheet? = null,
     val instrumentId: String? = null,
     val filter: SongLevelFilter = SongLevelFilter.All,
+    val sheetLoadState: SongLoadState = SongLoadState.Loading,
+    val deleteFailed: Boolean = false,
 ) {
     val sheetCount: Int get() = sheets?.size ?: 0
 

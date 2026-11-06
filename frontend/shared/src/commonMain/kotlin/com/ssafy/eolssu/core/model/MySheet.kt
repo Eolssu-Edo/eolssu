@@ -25,4 +25,7 @@ data class MySheet(
     val suiteName: String? = null,
     val updatedAt: KoreanDateTime,
     val songId: String? = null,
+    val status: String? = null,
+    val conversionStatus: String? = null,
+    val hasDraft: Boolean = false,
 )

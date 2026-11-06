@@ -91,6 +91,8 @@ data class CompareUiState(
     val marks: Map<ScorePosition, CompareMark>
         get() {
             val comparison = comparison ?: return emptyMap()
+            val loaded = loadedPrevious?.check as? CheckLoad.Loaded ?: return emptyMap()
+            if (!loaded.check.comparable) return emptyMap()
             val before = loadedPrevious?.record?.errors ?: return emptyMap()
             return compareMarks(before, comparison.current.errors)
         }
@@ -106,7 +108,7 @@ data class CompareUiState(
             ?: ScorePosition(0, 0)
 
     /** 이전 → 이번 점수 차이. 이전 기록이 없으면 null. */
-    val delta: Int? get() = previous?.let { p -> comparison?.current?.score?.minus(p.score) }
+    val delta: Int? get() = (check as? CheckLoad.Loaded)?.check?.totalScoreDelta
 
     val calendar: List<CompareDay> get() = comparison?.let { compareCalendar(it.today, it.previous) }.orEmpty()
 
