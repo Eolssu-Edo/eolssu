@@ -27,6 +27,8 @@ import java.nio.file.Path
 import java.time.Clock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.web.servlet.FilterRegistrationBean
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -51,7 +53,14 @@ class UserSheetConfig {
     @Bean
     fun editUserSheet(repository: UserSheetRepository, scores: SheetScores, clock: Clock) = EditUserSheet(repository, scores, clock)
 
-    // 연결값(SHEET_STORAGE_*)이 하나라도 비면 불러오기를 503으로 답한다. 기동은 막지 않는다(녹음 저장소와 같다).
+    // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
+    @Bean(defaultCandidate=false)
+    fun temporarySheetSourceStorage(clock: Clock,
+        @Value("\${eolssu.sheet-import.read-base-url:http://backend:8080/api/internal/sheet-imports}") baseUrl: String,
+        @Value("\${eolssu.sheet-import.multipart-directory}") multipartDirectory: String) =
+        com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage(
+            Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),baseUrl,clock,Path.of(multipartDirectory))
+
     @Bean
     fun sheetSourceStorage(properties: SheetStorageProperties): SheetSourceStorage = when {
         properties.type == "local" -> {
@@ -61,7 +70,7 @@ class UserSheetConfig {
         properties.type == "s3" && properties.isConfigured -> S3SheetSourceStorage.create(properties)
         else -> {
             require(properties.type == "s3") { "Unknown sheet storage type" }
-            log.warn("Sheet storage is not configured; sheet imports answer 503")
+            log.warn("Sheet audio storage is not configured; audio generation requests answer 503")
             UnavailableSheetSourceStorage()
         }
     }
@@ -71,8 +80,9 @@ class UserSheetConfig {
         MyBatisSheetImportRepository(mapper, TransactionTemplate(transactionManager))
 
     @Bean
-    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage, clock: Clock,client: com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionClient) =
-        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, storage, clock) { client.available }
+    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage,
+        @Qualifier("temporarySheetSourceStorage") temporary: com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage, clock: Clock,client: com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionClient) =
+        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, temporary, clock, { client.available }, storage)
 
     // 기본 순서(가장 늦음)라 Spring Security 뒤에서 돈다. 로그인하지 않은 요청은 본문을 읽기 전에 401이다.
     @Bean

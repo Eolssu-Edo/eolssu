@@ -15,7 +15,7 @@
 
 제외:
 
-- 업로드·원본 보관·상태(QUEUED/RUNNING/DONE/FAILED)·검수 화면·저장(382, 347)
+- 업로드·임시 원본 수명·상태(QUEUED/RUNNING/DONE/FAILED)·검수 화면·저장(382, 347)
 - 사용자가 올리는 MusicXML·MIDI 파일 가져오기([S15P31E102-349](https://ssafy.atlassian.net/browse/S15P31E102-349), 2차 보류)
 - 정간보 → 오선보 파일 내보내기(앱이 공통 악보로 그린다, 382)
 
@@ -45,7 +45,7 @@ POST /v1/recognitions
 | --- | --- |
 | `conversionId` | backend 변환 식별자. 응답에 그대로 돌려주고 로그에 남긴다. 같은 값으로 다시 와도 서비스는 상태를 저장하지 않고 새로 인식한다(중복 처리는 backend 책임) |
 | `notation` | `JEONGGANBO` 또는 `STAFF` |
-| `files` | 서명 URL 목록. PDF 1개 또는 PNG·JPEG 1~10장(382). 파일·합계 20MiB, PDF 10쪽 |
+| `files` | HTTP 읽기 URL 목록. 534부터 backend의 내부 임시 원본 URL(만료 토큰, 외부 공개 없음)을 사용한다. 요청·응답 구조는 유지하며 기존 URL 계약도 엔진에서 처리한다. PDF 1개 또는 PNG·JPEG 1~10장(382). 파일·합계 20MiB, PDF 10쪽 |
 | `instrument` | `instruments.code`. 율명 표 적합과 음역 검사에 쓴다 |
 | `jangdan` | 장단 이름. 정간보는 필수(382). 오선보는 생략 가능(아래 기본값) |
 | `hwangPitch` | 오선보에서 황으로 둘 음(MIDI 번호). 생략하면 자동 조 맞춤 |

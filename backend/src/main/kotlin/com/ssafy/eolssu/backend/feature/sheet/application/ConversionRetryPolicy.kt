@@ -1,11 +1,7 @@
 package com.ssafy.eolssu.backend.feature.sheet.application
 
-/** SHT-14: TIMEOUT은 한 번, 서버 장애는 합계 세 번, 인식 엔진·입력 오류는 재시도하지 않는다. */
+/** 원본은 처리 종료 후 폐기한다. 실패한 변환은 파일을 새로 업로드해야 한다(S15P31E102-534). */
 object ConversionRetryPolicy {
-    fun allowed(status: String, cause: String?, attempt: Int, timeoutCount: Int): Boolean =
-        status == "FAILED" && attempt in 1..3 && when (cause) {
-            "TIMEOUT" -> timeoutCount == 1
-            "SERVER_ERROR" -> true
-            else -> false
-        }
+    @Suppress("UNUSED_PARAMETER")
+    fun allowed(status: String, cause: String?, attempt: Int, timeoutCount: Int): Boolean = false
 }
