@@ -370,6 +370,30 @@ class SamplerTests(unittest.TestCase):
 
 
 class RenderMemoryTests(unittest.TestCase):
+    def test_note_slices_preserve_pcm_and_trace_across_envelopes_and_loop_seams(self):
+        for sample_seconds, note_seconds in ((2., 1.), (1.5, 4.)):
+            _, midi=wire(score([{'id':'a','pitch':69,'duration':note_seconds,'slur':'s'},
+                               {'id':'b','pitch':69,'duration':.3,'slur':'s'},
+                               {'id':'c','pitch':71,'duration':.4}]))
+            with patch('data.src.playback.sampler.NOTE_CHUNK', 1 << 30):
+                expected, expected_trace=synthetic_sampler(sample_seconds).render(midi)
+            with patch('data.src.playback.sampler.NOTE_CHUNK', 997):
+                actual, actual_trace=synthetic_sampler(sample_seconds).render(midi)
+            np.testing.assert_array_equal(actual, expected)
+            self.assertEqual(actual_trace, expected_trace)
+
+    def test_single_sustained_note_has_bounded_render_scratch(self):
+        midi={'seconds':60.1,'notes':[{'pitch':69,'start':0.,'end':60.,'velocity':100,
+              'legato':False,'release_seconds':.05}], 'cc11':[(0.,.5)],'bends':[(0.,10.)]}
+        sampler=synthetic_sampler(length=2)
+        tracemalloc.start()
+        try:
+            audio,_=sampler.render(midi)
+            peak=tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        self.assertLess(peak,3.5*audio.nbytes)
+
     def test_full_length_render_keeps_only_output_and_pitch_integral(self):
         notes=[{'pitch':69,'start':float(i),'end':i+1.,'velocity':100,'legato':False,'release_seconds':.05} for i in range(60)]
         midi={'seconds':60.1,'notes':notes,'cc11':[(0.,.5)],'bends':[(0.,10.)]}

@@ -14,6 +14,7 @@ from .score import PROFILES, require
 FS = 44100
 # Sample-rate control curves are built in slices: a 600s render must fit 1GB.
 CONTROL_CHUNK = 1 << 20
+NOTE_CHUNK = 1 << 16
 CREDIT = "이 2차 저작물은 서울예술과학센터에서 개발한 국악 가상악기 음원 라이브러리를 사용하였습니다. (서울예술과학센터: catsnu.com, 문의: catantsnu@gmail.com)"
 
 # Rendering choices, not an assertion about an acoustic player's breathing.
@@ -348,7 +349,6 @@ class CatSampler:
             stop = end+release
             require(0 <= at < end and stop <= size, "MIDI render bounds invalid")
             base_ratio = rate/FS * 2**((note["pitch"]-zone["root"]+zone["detune"]/100)/12)
-            positions = cursor + base_ratio*(integral[at:stop]-integral[at])
             if not same:
                 # A tied/legato same-pitch run must decide together, including
                 # release tails, so splitting one long sound cannot reset phase
@@ -375,16 +375,27 @@ class CatSampler:
                     if hasattr(self, "manifest"):
                         self.manifest["sustain_extension"] = {"policy": dict(SUSTAIN_POLICY),
                                                              "loops": [loop for loop in cache.values() if loop]}
-            if selected_loop is None:
-                require(positions[-1] < len(samples)-1,
-                        f"{self.instrument} pitch {note['pitch']}: sample exhausted")
-                sound = np.interp(positions, np.arange(len(samples)), samples)
-            else:
-                sound = looped_samples(samples, positions, selected_loop)
-            sound[:attack] *= np.linspace(0, 1, attack)
-            sound[end-at:] *= np.linspace(1, 0, release)
-            sound *= self.gain*zone["volume"]*note["velocity"]/127
-            output[at:stop] += sound
+            # Slice sustained notes too: one permitted note can span 600s.
+            # Absolute integral/envelope indices preserve phase and boundaries.
+            attack_curve = np.linspace(0, 1, attack)
+            release_curve = np.linspace(1, 0, release)
+            for left in range(at, stop, NOTE_CHUNK):
+                right = min(stop, left + NOTE_CHUNK)
+                positions = cursor + base_ratio*(integral[left:right]-integral[at])
+                if selected_loop is None:
+                    require(positions[-1] < len(samples)-1,
+                            f"{self.instrument} pitch {note['pitch']}: sample exhausted")
+                    sound = np.interp(positions, np.arange(len(samples)), samples)
+                else:
+                    sound = looped_samples(samples, positions, selected_loop)
+                attack_stop = min(right, at + attack)
+                if left < attack_stop:
+                    sound[:attack_stop-left] *= attack_curve[left-at:attack_stop-at]
+                release_start = max(left, end)
+                if release_start < right:
+                    sound[release_start-left:] *= release_curve[release_start-end:right-end]
+                sound *= self.gain*zone["volume"]*note["velocity"]/127
+                output[left:right] += sound
             previous_cursor = cursor + base_ratio*(integral[end]-integral[at])
             trace.append({**note, "sample": zone["file"], "sample_sha256": digest,
                           "sample_zone_origin": zone.get("origin", "preset"),
