@@ -10,6 +10,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import org.slf4j.LoggerFactory
 
 /** One backend instance owns the spool. Never used for generated audio or exposed to app clients. */
 class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: String, private val clock: Clock,
@@ -22,7 +23,8 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     private val uploads=mutableMapOf<Path,Instant>()
     private val multipartSeen=mutableMapOf<Path,Instant>()
     override val available = true
-    init { listOf(directory,multipartDirectory).forEach(::preparePrivate) }
+    // Bean creation precedes the web server, so this cannot delete a request in flight the way reset() could.
+    init { listOf(directory,multipartDirectory).forEach(::preparePrivate);deleteAbandonedMultipart() }
     private fun preparePrivate(path: Path) {
         require(!Files.isSymbolicLink(path)) { "Temporary source directory must not be a symbolic link" }
         Files.createDirectories(path)
@@ -79,7 +81,7 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         uploads.filterValues { now>=it }.keys.toList().forEach(::releaseUpload)
         entries.filterValues { it.deleting || now>=it.expires }.keys.toList().forEach { runCatching { delete(it) } }
         tickets.entries.removeIf { now>=it.value.expires }
-        runCatching { purgeMultipart(now) }
+        runCatching { purgeMultipart(now) }.onFailure { warnMultipartCleanup() }
     }
     /** The container names these files, so their age counts from the first sweep that sees them. */
     private fun purgeMultipart(now: Instant) {
@@ -87,9 +89,14 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         multipartSeen.keys.retainAll(present.toSet())
         present.forEach { path ->
             if(now<multipartSeen.getOrPut(path) { now.plus(RETENTION) }) return@forEach
-            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }
+            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }.onFailure { warnMultipartCleanup() }
         }
     }
+    private fun deleteAbandonedMultipart() {
+        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) }.onFailure { warnMultipartCleanup() } } }
+            .onFailure { warnMultipartCleanup() }
+    }
+    private fun warnMultipartCleanup()=log.warn("Temporary multipart cleanup will be retried")
     private fun multipartFiles(): List<Path> =
         Files.list(multipartDirectory).use { paths -> paths.filter { Files.isRegularFile(it,NOFOLLOW_LINKS) }.toList() }
     /** Called before enabling conversion workers on startup. Does not follow symlinks. */
@@ -98,12 +105,14 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
             require(!Files.isDirectory(path,NOFOLLOW_LINKS)) { "Unexpected directory in temporary source spool" }
             Files.deleteIfExists(path)
         } }
-        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) } } }
-        entries.clear();tickets.clear();uploads.clear();multipartSeen.clear()
+        entries.clear();tickets.clear();uploads.clear()
     }
     @Synchronized override fun close() {
         entries.keys.toList().forEach { runCatching { delete(it) } }
         uploads.keys.toList().forEach(::releaseUpload)
     }
-    companion object { val RETENTION: Duration=Duration.ofMinutes(30) }
+    companion object {
+        val RETENTION: Duration=Duration.ofMinutes(30)
+        private val log=LoggerFactory.getLogger(TemporarySheetSourceStorage::class.java)
+    }
 }

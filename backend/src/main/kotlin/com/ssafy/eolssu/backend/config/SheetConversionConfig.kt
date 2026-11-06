@@ -37,4 +37,7 @@ class SheetConversionScheduler(private val queue: ConversionQueue,private val wo
     fun run() { if(ready) worker.runOne() }
     @Scheduled(fixedDelay=1000)
     fun cleanup() { if(ready) worker.cleanup() }
+    /** DB가 막혀도 원본 기한을 지키려고 cleanup과 따로 돈다. */
+    @Scheduled(fixedDelay=1000)
+    fun purge() { storage.purgeExpired() }
 }

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionQueue
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionJob
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionFile
@@ -27,7 +28,7 @@ class ConversionWorker(
                 .put("notation",job.notation).put("instrument",job.instrument).put("jangdan",job.jangdan)
             if(job.hwangPitch==null) request.putNull("hwangPitch") else request.put("hwangPitch",midi(job.hwangPitch))
             val urls=request.putArray("files")
-            files.forEach { urls.addObject().put("url",storage.readUrl(it.objectKey,Duration.ofMinutes(15))).put("contentType",it.contentType) }
+            files.forEach { urls.addObject().put("url",sourceUrl(it)).put("contentType",it.contentType) }
             val response=client.recognize(request)
             if(response.path("status").asString()=="FAILED") {
                 val cause=when(response.path("failReason").asString()) {
@@ -54,6 +55,10 @@ class ConversionWorker(
             }
         }
     }
+    /** 파일 기한은 복사본을 만든 때부터여서 DB 기한보다 먼저 끝날 수 있다. 그 사이의 작업도 TIMEOUT이다. */
+    private fun sourceUrl(file: ConversionFile): String =
+        try { storage.readUrl(file.objectKey,Duration.ofMinutes(15)) }
+        catch(_: SheetSourceStorageException) { throw RecognitionFailure("TIMEOUT") }
     fun cleanup() {
         (storage as? TemporarySheetSourceStorage)?.purgeExpired()
         queue.expire(now())

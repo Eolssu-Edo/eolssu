@@ -9,8 +9,12 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.*
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.io.TempDir
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 
+@ExtendWith(OutputCaptureExtension::class)
 class TemporarySheetSourceStorageTests {
     @TempDir lateinit var root: Path
     private class Time : Clock() {
@@ -93,17 +97,26 @@ class TemporarySheetSourceStorageTests {
             assertFalse(Files.exists(stalled));assertTrue(Files.exists(younger))
         }
     }
-    @Test fun `startup reset removes abandoned multipart bytes and missing spool does not stop source cleanup`() {
+    @Test fun `abandoned multipart bytes go before the server starts and reset leaves requests in flight alone`() {
+        val multipart=Files.createDirectories(root.resolve("multipart"))
+        val abandoned=multipart.resolve("upload_abandoned.tmp");Files.writeString(abandoned,"raw")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
+            assertFalse(Files.exists(abandoned))
+            val inFlight=multipart.resolve("upload_in_flight.tmp");Files.writeString(inFlight,"raw")
+            store.reset()
+            assertTrue(Files.exists(inFlight))
+        }
+    }
+    @Test fun `missing multipart spool is logged and does not stop source cleanup`(output: CapturedOutput) {
         val time=Time();val multipart=root.resolve("multipart")
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time,multipart).use { store ->
-            val abandoned=multipart.resolve("upload_abandoned.tmp");Files.writeString(abandoned,"raw")
-            store.reset();assertFalse(Files.exists(abandoned))
             val input=root.resolve("input");Files.writeString(input,"raw")
             store.put("key",input,"image/png")
             val path=assertNotNull(store.readable(store.readUrl("key",Duration.ofMinutes(15)).substringAfterLast('/'))).path
             Files.delete(multipart)
             time.now=time.now.plusSeconds(1800);store.purgeExpired()
             assertFalse(Files.exists(path))
+            assertTrue(output.out.contains("Temporary multipart cleanup will be retried"))
         }
     }
     @Test fun `queued copy keeps the deadline of its request upload`() {

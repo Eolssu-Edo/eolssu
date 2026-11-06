@@ -4,6 +4,7 @@ import com.nimbusds.jose.*
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.*
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.*
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionQueue
 import com.sun.net.httpserver.HttpServer
@@ -80,8 +81,12 @@ class TemporaryImportWithoutR2DatabaseTests {
             val worker=ConversionWorker(queue,source,HttpRecognitionClient("http://127.0.0.1:${server.address.port}",json,Duration.ofSeconds(10)),builder,Clock.systemUTC(),json)
             for(expected in listOf("DONE","FAILED")) {
                 outcome=expected
-                val accepted=client.send(importRequest(expected).build(),HttpResponse.BodyHandlers.ofString())
+                val pending=stalledImport(expected)
+                assertTrue(spool().isNotEmpty(),"multipart bytes must exist while the request runs")
+                HoldUpload.release.countDown()
+                val accepted=pending.get(10,TimeUnit.SECONDS)
                 assertEquals(202,accepted.statusCode(),accepted.body())
+                awaitEmptySpool()
                 val id=json.readTree(accepted.body()).path("result").path("sheetId").asString()
                 val key=jdbc.queryForObject("SELECT object_key FROM sheet_source_files WHERE sheet_id=?",String::class.java,id)!!
                 val token=temporary.readUrl(key,Duration.ofMinutes(15)).substringAfterLast('/')
@@ -96,9 +101,6 @@ class TemporaryImportWithoutR2DatabaseTests {
         } finally { server.stop(0) }
     }
     @Test fun `stalled multipart upload stays in the managed spool and fails after thirty minutes`() {
-        val pending=stalledImport("stalled")
-        val spooled=Files.list(temporary.multipartDirectory).use { it.toList() }
-        assertTrue(spooled.isNotEmpty(),"multipart bytes must be written to the managed spool")
         val time=object: Clock() {
             var now=Instant.parse("2026-11-06T00:00:00Z")
             override fun instant()=now
@@ -106,17 +108,39 @@ class TemporaryImportWithoutR2DatabaseTests {
             override fun withZone(zone: ZoneId): Clock=this
         }
         TemporarySheetSourceStorage(Files.createTempDirectory("sweeper"),"http://backend/x",time,temporary.multipartDirectory).use { sweeper ->
+            val pending=stalledImport("stalled")
+            val spooled=spool()
+            assertTrue(spooled.isNotEmpty(),"multipart bytes must be written to the managed spool")
             sweeper.purgeExpired()
             time.now=time.now.plusSeconds(1800);sweeper.purgeExpired()
+            spooled.forEach { assertFalse(Files.exists(it)) }
+            assertUnavailable(pending)
         }
-        spooled.forEach { assertFalse(Files.exists(it)) }
-        assertUnavailable(pending)
     }
     @Test fun `stalled upload that loses only the file part fails as unavailable`() {
         val pending=stalledImport("lost-file")
-        val filePart=Files.list(temporary.multipartDirectory).use { it.toList() }.single { Files.readAllBytes(it).contentEquals(png) }
-        Files.delete(filePart)
+        Files.delete(spool().single { Files.readAllBytes(it).contentEquals(png) })
+        assertTrue(spool().isNotEmpty(),"metadata part must remain until the request ends")
         assertUnavailable(pending)
+        awaitEmptySpool()
+    }
+    @Test fun `queued source that expired before its database deadline ends as timeout`() {
+        val accepted=client.send(importRequest("expired-source").build(),HttpResponse.BodyHandlers.ofString())
+        assertEquals(202,accepted.statusCode(),accepted.body())
+        val id=json.readTree(accepted.body()).path("result").path("sheetId").asString()
+        val expired=object: SheetSourceStorage by temporary {
+            override fun readUrl(key: String,ttl: Duration): String=throw SheetSourceStorageException("Temporary source no longer exists")
+        }
+        ConversionWorker(queue,expired,HttpRecognitionClient("http://127.0.0.1:1",json,Duration.ofSeconds(1)),builder,Clock.systemUTC(),json).runOne()
+        assertEquals("FAILED",jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=?",String::class.java,id))
+        assertEquals("TIMEOUT",jdbc.queryForObject("SELECT failure_code FROM sheet_conversions WHERE sheet_id=?",String::class.java,id))
+    }
+    private fun spool()=Files.list(temporary.multipartDirectory).use { it.toList() }
+    /** The container may finish deleting parts just after the response is sent. */
+    private fun awaitEmptySpool() {
+        val deadline=System.nanoTime()+TimeUnit.SECONDS.toNanos(5)
+        while(spool().isNotEmpty() && System.nanoTime()<deadline) Thread.sleep(20)
+        assertEquals(emptyList(),spool())
     }
     private fun stalledImport(key: String): CompletableFuture<HttpResponse<String>> {
         HoldUpload.reset()
