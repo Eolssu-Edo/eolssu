@@ -19,6 +19,7 @@ class WithdrawalPurgeService(
     private val deleteRecording: (String) -> Unit,
     private val clock: Clock,
     private val batchSize: Int = 100,
+    private val beforeDelete: (Long) -> Unit = {},
 ) {
     fun purgeDue(): PurgeSummary {
         val now = clock.instant().truncatedTo(ChronoUnit.MICROS)
@@ -65,6 +66,7 @@ class WithdrawalPurgeService(
     }
 
     private fun deleteRecordings(userId: Long, keys: List<String>): Boolean = try {
+        beforeDelete(userId)
         keys.forEach(deleteRecording)
         true
     } catch (e: Exception) {

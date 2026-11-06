@@ -21,6 +21,8 @@ class S3SheetSourceStorage(private val store: S3ObjectStore) : SheetSourceStorag
 
     override fun readUrl(key: String, ttl: Duration): String = store.readUrl(key, ttl)
 
+    override fun downloadUrl(key: String, ttl: Duration, fileName: String): String = store.readUrl(key,ttl,fileName)
+
     override fun close() = store.close()
 
     private fun call(operation: String, block: () -> Unit) {

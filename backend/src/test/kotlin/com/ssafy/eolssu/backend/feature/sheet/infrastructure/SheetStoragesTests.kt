@@ -43,6 +43,21 @@ class SheetStoragesTests {
     fun stop() = server.stop(0)
 
     @Test
+    fun `download signature includes a safe UTF8 title and fifteen minute expiry`() {
+        val url=java.net.URI(storage.downloadUrl("sheet-audio/1/test/audio.m4a",java.time.Duration.ofMinutes(15),"아리랑 (내 편곡).m4a"))
+        val query=url.rawQuery.split('&').associate { part ->
+            val (key,value)=part.split('=',limit=2)
+            java.net.URLDecoder.decode(key,Charsets.UTF_8) to java.net.URLDecoder.decode(value,Charsets.UTF_8)
+        }
+        assertEquals("900",query["X-Amz-Expires"])
+        val disposition=query["response-content-disposition"]!!
+        assertTrue(disposition.startsWith("attachment;"))
+        assertTrue(disposition.contains("filename*=UTF-8''"))
+        assertTrue(java.net.URLDecoder.decode(disposition.substringAfter("filename*=UTF-8''"),Charsets.UTF_8).contains("아리랑 (내 편곡).m4a"))
+        assertFailsWith<IllegalArgumentException> { storage.downloadUrl("k",java.time.Duration.ofMinutes(15),"bad\r\nname") }
+    }
+
+    @Test
     fun `puts each file with its own content type and deletes by key`() {
         val file = Files.write(dir.resolve("a"), byteArrayOf(1, 2))
         storage.put("sheet-sources/7/x/0.png", file, "image/png")

@@ -74,6 +74,16 @@ sudo docker exec eolssu-runtime-backend-1 \
 
 마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). 연결 거부·이름 풀이 실패는 `ai`가 없거나 내부망이 다른 것입니다.
 
+### playback 내 악보 음원 생성기
+
+[내 악보 음원 스펙](../../docs/specs/sheet-audio.md)의 생성기는 `playback` 프로필로 따로 띄웁니다(S15P31E102-481). 인증이 없으므로 호스트 포트를 열지 않고, backend만 내부망 `http://playback:8000`으로 부릅니다. Jenkins 배포는 이 이미지를 만들지 않으므로 `omr`처럼 사람이 빌드·생성합니다(운영 미반영).
+
+- 이미지: 저장소 루트를 맥락으로 `data/playback.Dockerfile`을 빌드해 `eolssu-playback:runtime`으로 태그합니다.
+- 자산: `PLAYBACK_ASSETS_DIRECTORY`에 악기별 CAT v1.3 ZIP과 `assets.json`(악기 code → ZIP 파일 이름), `PLAYBACK_JANGGU_DIRECTORY`에 `deong`·`gi`·`kung`·`deok`·`da`·`deo`.wav를 둡니다. 없으면 서비스가 시작을 거부합니다.
+- 자원: `mem_limit: 1g`, `memswap_limit: 1g`, `cpus: 1`로 스왑 없이 고정합니다. 실측은 스펙에 있습니다.
+- 연결: `SHEET_AUDIO_BASE_URL=http://playback:8000`을 지정해야 생성 요청을 받습니다. 비어 있으면 503입니다.
+- 점검: 로그는 syslog 태그 `eolssu-playback`으로 남습니다. 요청 처리 로그는 오류 코드와 생성기 종료 상태만 담고, 시작 실패는 예외 전체를 남깁니다. 상태는 `/health` healthcheck로 봅니다.
+
 Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 tar가 깨지므로 `git archive -o ai.tar "$REV" ai`로 파일을 만든 뒤 `scp`로 보내 서버에서 `tar -x -C $D -f $D/ai.tar`로 풉니다. ssh 설정에 포트 연결(LocalForward)이 있으면 열린 터널과 겹치므로 `-o ClearAllForwardings=yes`를 붙입니다. 되돌릴 때는 `sudo docker tag eolssu-ai:runtime-<이전 커밋> eolssu-ai:runtime` 뒤 같은 명령으로 `ai`만 재생성합니다. 빌드 기록: [S15P31E102-228](../../docs/plans/S15P31E102-228.md)(`88a1b05`), [S15P31E102-361](../../docs/plans/S15P31E102-361.md)(`c701c32`, pyin-4).
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 512MiB tmpfs로 씁니다(녹음 임시 파일, numba 캐시).

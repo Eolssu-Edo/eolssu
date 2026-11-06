@@ -26,6 +26,7 @@ class SheetBodyLimitFilter(private val maxBytes: Int, private val errorWriter: E
         listOf(
             paths.matcher(HttpMethod.PUT, "/api/users/me/sheets/{sheetId}/score"),
             paths.matcher(HttpMethod.PUT, "/api/users/me/sheets/{sheetId}/score/draft"),
+            paths.matcher(HttpMethod.POST, "/api/users/me/sheets/{sheetId}/audio"),
         )
     }
 

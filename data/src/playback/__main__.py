@@ -59,7 +59,7 @@ def publish(stage, out, outputs):
 
 def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format="m4a",
         ffmpeg=None, ffprobe=None, encoder=None, max_duration_seconds=600,
-        common_bpm=None, notation_policy=None, common_expressions=None):
+        common_bpm=None, notation_policy=None, common_expressions=None, synthesis_extension=False):
     require(audio_format in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     input_bytes = Path(score_path).read_bytes()
     input_hash = hashlib.sha256(input_bytes).hexdigest()
@@ -104,7 +104,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
     with tempfile.TemporaryDirectory(prefix=f".{out.name}-playback-", dir=out.parent) as tmp:
         stage = Path(tmp)
         for key in instruments:
-            perf = compile_score(score, key, transpose, max_duration_seconds=max_duration_seconds)
+            perf = compile_score(score, key, transpose, max_duration_seconds=max_duration_seconds,synthesis_extension=synthesis_extension)
             source_map["midi_score_seconds"] = perf["end_tick"] * perf["tempo_us"] / 1e6 / perf["ppqn"]
             if notation_policy is not None:
                 require(abs(source_map['performanceTimeline']['durationMs'] / 1000 - source_map['midi_score_seconds']) < 1e-6,
@@ -113,7 +113,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
             archive = Path(assets[key])
             if not archive.is_absolute():
                 archive = Path(assets_path).resolve().parent / archive
-            sampler = CatSampler(archive, key)
+            sampler = CatSampler(archive, key,**({'synthesis_extension':True} if synthesis_extension else {}))
             try:
                 mid = stage/f"{key}.mid"
                 write_midi(perf, mid)
@@ -135,7 +135,8 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
         for report, audio in zip(reports, renders):
             key = report["instrument"]
             audio_path = stage/f"{key}.{audio_format}"
-            report["audio"] = {**write_audio(audio*gain, audio_path, encoder), "shared_gain":gain,
+            audio *= gain  # In place: this is the render's last use of the array.
+            report["audio"] = {**write_audio(audio, audio_path, encoder), "shared_gain":gain,
                                "midi_sha256":sha(stage/f"{key}.mid"),
                                f"{audio_format}_sha256":sha(audio_path)}
             dump(stage/f"{key}.json", report)

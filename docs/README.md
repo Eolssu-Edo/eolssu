@@ -38,6 +38,7 @@
 
 ## 기능 스펙
 
+- [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
 
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
