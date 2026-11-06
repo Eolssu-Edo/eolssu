@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.platform.audio
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
+import android.util.Log
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTimestamp
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 /** 마이크 입력 하나를 m4a 저장과 별도 작업의 음높이 분석에 전달한다. */
 class AndroidAudioRecorder(context: Context) : AudioRecorder {
+    private val debugBuild = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
     private val directory = File(context.applicationContext.cacheDir, "recordings")
     private val readings = MutableSharedFlow<PitchReading>(extraBufferCapacity = 16)
     private val ids = AtomicLong()
@@ -230,6 +233,13 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                         normalizedDifference = estimate?.normalizedDifference,
                         analysisAvailable = window.reading.analysisAvailable && !gap))
                     gap = !readings.tryEmit(value)
+                    if (debugBuild && Log.isLoggable("EolssuPitch", Log.DEBUG)) {
+                        Log.d("EolssuPitch", "recording=${value.recordingId} segment=${value.segmentId} " +
+                            "sequence=${value.sequence} start=${value.startSample} end=${value.endSample} rate=${value.sampleRate} " +
+                            "raw=${value.rawFrequencyHz} confirmed=${value.frequencyHz} available=${value.analysisAvailable} " +
+                            "difference=${value.normalizedDifference} captured=${value.capturedEndNanos} " +
+                            "observed=${System.nanoTime()} emitted=${!gap}")
+                    }
                 }
             } catch (_: Exception) {
                 analyzing = false
