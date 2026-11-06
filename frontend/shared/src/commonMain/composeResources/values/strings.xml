@@ -352,7 +352,6 @@
     <string name="growth_trend_song">점수 변화를 볼 곡 고르기</string>
     <string name="growth_trend_instrument">악기</string>
     <string name="growth_trend_song_label">곡</string>
-    <string name="growth_trend_other_instrument">기타</string>
     <string name="growth_trend_basic_only">곡 전체를 연주한 기본 평가만 보여요. 취약 구간 재평가는 빠져요.</string>
     <string name="growth_trend_no_basic">이 곡은 아직 기본 평가 기록이 없어요.</string>
     <string name="growth_trend_empty">AI 연주 평가를 하면 점수 변화가 보여요.</string>

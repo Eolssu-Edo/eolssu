@@ -33,7 +33,6 @@ import eolssu.shared.generated.resources.growth_trend_basic_only
 import eolssu.shared.generated.resources.growth_trend_empty
 import eolssu.shared.generated.resources.growth_trend_instrument
 import eolssu.shared.generated.resources.growth_trend_no_basic
-import eolssu.shared.generated.resources.growth_trend_other_instrument
 import eolssu.shared.generated.resources.growth_trend_song_label
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -412,7 +411,7 @@ internal fun ScoreTrendCard(
 }
 
 /**
- * 악기 칩(기본 평가가 있는 악기만, 많으면 가로로 밀어 본다)과 그 악기 곡의 고르기(드롭다운). 받는 중·실패해도 방금 고른 악기·곡을 보인다.
+ * 악기 칩(고를 수 있는 곡이 있는 악기만, 많으면 가로로 밀어 본다)과 그 악기 곡의 고르기(드롭다운). 받는 중·실패해도 방금 고른 악기·곡을 보인다.
  * 악기 대응을 받지 못했으면 악기 줄 없이 곡만 고른다. 받는 중이면 곡 고르기 옆에 작은 진행 표시가 보인다.
  */
 @Composable
@@ -430,8 +429,7 @@ private fun ScoreTrendControls(trend: ScoreTrendState, actions: ScoreTrendAction
             Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 instruments.forEach { instrument ->
                     EolssuChip(
-                        instrument.instrument?.let { stringResource(it.label) }
-                            ?: instrument.name.ifBlank { stringResource(Res.string.growth_trend_other_instrument) },
+                        instrument.instrument?.let { stringResource(it.label) } ?: instrument.name,
                         selected = trend.selectedInstrument?.instrumentId == instrument.instrumentId,
                         onClick = { actions.onInstrument(instrument.instrumentId) },
                         small = true,

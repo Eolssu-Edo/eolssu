@@ -60,6 +60,19 @@ class GrowthViewModelTrendTest {
     }
 
     @Test
+    fun serverSongMissingFromCatalogIsNeverShown() {
+        val deleted = TrendSong("4", "지운 곡", fullPlayCount = 2, sectionPlayCount = 0)
+        val growth = FakeGrowth(serverSong = "4", songs = listOf(deleted, sogeum, danso))
+        val vm = GrowthViewModel(growth, FakeSongs(), now = { 0L })
+
+        val trend = vm.uiState.value.scoreTrend
+        assertEquals(listOf<String?>(null, "3"), growth.asked.map { it.first })
+        assertEquals("3", trend.songId)
+        assertEquals(listOf(sogeum, danso), trend.basicSongs)
+        assertEquals(listOf("10", "20"), trend.instruments.map { it.instrumentId })
+    }
+
+    @Test
     fun reEvaluationOnlySongCannotBePicked() {
         val growth = FakeGrowth(serverSong = "1", songs = listOf(danso, reEvalOnly))
         val vm = GrowthViewModel(growth, FakeSongs(), now = { 0L })
@@ -104,7 +117,7 @@ class GrowthViewModelTrendTest {
         override suspend fun scoreTrend(songId: String?, scope: TrendScope, limit: Int): ScoreTrend {
             asked += songId to scope
             val id = songId ?: serverSong
-            val score = mapOf("1" to 80, "3" to 70)[id]
+            val score = mapOf("1" to 80, "3" to 70, "4" to 99)[id]
             val plays = listOfNotNull(score?.let { TrendPlay("s$id", 0L, 60, 0, 3, it) })
             return ScoreTrend(id, scope, plays, comparable = false, songs = songs)
         }

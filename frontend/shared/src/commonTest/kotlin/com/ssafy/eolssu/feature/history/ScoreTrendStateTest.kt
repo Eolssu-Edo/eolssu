@@ -142,12 +142,29 @@ class ScoreTrendStateTest {
     }
 
     @Test
-    fun songsMissingFromCatalogGoUnderOther() {
+    fun songsMissingFromCatalogAreHiddenAndReplaced() {
         val state = ScoreTrendState(catalog = catalog).received(trend(listOf(play(80)), songId = "4", songs = listOf(deletedSong, arirang)))
 
-        assertEquals(listOf("10", OtherInstrumentId), state.instruments.map { it.instrumentId })
-        assertEquals(OtherInstrumentId, state.selectedInstrument?.instrumentId)
-        assertEquals(listOf(deletedSong), state.instrumentSongs)
+        assertEquals(listOf(arirang), state.basicSongs)
+        assertEquals(listOf("10"), state.instruments.map { it.instrumentId })
+        assertNull(state.selectedInstrument)
+        assertEquals("1", state.fallbackSongId)
+    }
+
+    @Test
+    fun onlyMissingSongsMeansNothingToPick() {
+        val state = ScoreTrendState(catalog = catalog).received(trend(listOf(play(80)), songId = "4", songs = listOf(deletedSong)))
+
+        assertEquals(emptyList(), state.basicSongs)
+        assertEquals(emptyList(), state.instruments)
+        assertNull(state.fallbackSongId)
+    }
+
+    @Test
+    fun instrumentsWithoutRecordsAreNotShown() {
+        val state = ScoreTrendState(catalog = catalog).received(trend(listOf(play(80)), songs = listOf(arirang)))
+
+        assertEquals(listOf("10"), state.instruments.map { it.instrumentId })
     }
 
     @Test

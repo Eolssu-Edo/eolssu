@@ -28,7 +28,9 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.TrendScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
@@ -37,7 +39,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -222,7 +223,7 @@ private fun rememberRecordDetailActions(
 /**
  * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
  * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 기본 평가를 받고, 악기·곡을 고를 때마다 다시 받는다.
- * 악기 고르기용 곡 → 악기 대응은 곡 목록(CAT-01·02)에서 한 번 받는다.
+ * 악기 고르기용 곡 → 악기 대응은 곡 목록(CAT-01·02)에서 한 번 받고, 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 고르지 않는다.
  */
 class GrowthViewModel(
     private val repository: GrowthRepository,
@@ -239,10 +240,20 @@ class GrowthViewModel(
 
     private var trendJob: Job? = null
 
+    /** 악기 고르기용 곡 → 악기 대응. 한 번만 받고, 받지 못하면 null이라 악기 없이 곡만 고른다. */
+    private val trendCatalog: Deferred<TrendCatalog?> = accountScope.async {
+        try {
+            TrendCatalog.of(songs.getInstruments(), songs.getSongs())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     init {
         load(GrowthRange.Week)
         loadTrend(songId = null)
-        loadTrendCatalog()
     }
 
     fun changeRange(range: GrowthRange) {
@@ -273,7 +284,8 @@ class GrowthViewModel(
 
     /**
      * 늘 기본 평가(`FULL`)만 받는다. 서버가 기본 평가만 골라 최근 5개를 오래된 순으로 주므로 재평가가 5개 안에 끼지 않는다.
-     * 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). 서버가 고른 곡에 기본 평가가 없으면 가장 최근 기본 평가 곡을 다시 받는다.
+     * 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). 곡 → 악기 대응을 받은 뒤에 결과를 보여,
+     * 서버가 고른 곡을 고를 수 없으면(기본 평가가 없거나 곡 목록에 없는 곡) 그 곡을 그리지 않고 가장 최근에 연주한 고를 수 있는 곡을 다시 받는다.
      */
     private fun loadTrend(songId: String?) {
         if (!accountScope.isActive) return
@@ -281,23 +293,16 @@ class GrowthViewModel(
         _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId)) }
         trendJob = accountScope.launch {
             val trend = repository.scoreTrend(songId, TrendScope.Full)
-            val received = _uiState.updateAndGet { it.copy(scoreTrend = it.scoreTrend.received(trend)) }.scoreTrend
-            if (trend != null && songId == null) received.fallbackSongId?.let { loadTrend(it) }
-        }
-    }
-
-    /** 받지 못하면 악기 고르기 없이 곡만 고른다. */
-    private fun loadTrendCatalog() {
-        if (!accountScope.isActive) return
-        accountScope.launch {
-            val catalog = try {
-                TrendCatalog.of(songs.getInstruments(), songs.getSongs())
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                null
+            val catalog = trendCatalog.await()
+            val received = { state: ScoreTrendState -> state.copy(catalog = catalog).received(trend) }
+            val next = received(_uiState.value.scoreTrend)
+            val fallback = next.fallbackSongId?.takeIf { trend != null && it != songId }
+            if (fallback != null) {
+                _uiState.update { it.copy(scoreTrend = it.scoreTrend.copy(catalog = catalog)) }
+                loadTrend(fallback)
+            } else {
+                _uiState.update { it.copy(scoreTrend = received(it.scoreTrend)) }
             }
-            _uiState.update { it.copy(scoreTrend = it.scoreTrend.copy(catalog = catalog)) }
         }
     }
 

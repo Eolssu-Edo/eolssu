@@ -164,21 +164,20 @@ suspend fun loadGrowth(repository: GrowthRepository, period: GrowthPeriod): Grow
 /** 점수 변화 그래프의 점 하나(오래된 순). */
 data class ScoreTrendPoint(val total: Int, val playedAt: KoreanDateTime)
 
-/**
- * 점수 변화 곡의 악기. [instrument]는 앱 악기와 code가 맞을 때만 있고, 없으면 화면은 [name]을 보인다.
- * 곡 목록에 없는 곡(지운 곡 등)은 [instrumentId]가 [OtherInstrumentId]인 '기타'로 묶는다.
- */
+/** 점수 변화 곡의 악기. [instrument]는 앱 악기와 code가 맞을 때만 있고, 없으면 화면은 [name]을 보인다. */
 data class TrendInstrument(val instrumentId: String, val name: String, val instrument: Instrument?)
-
-const val OtherInstrumentId: String = ""
 
 /**
  * 악기 고르기에 쓰는 곡 → 악기 대응(CAT-01 악기 목록·CAT-02 곡 목록). GRO-03 응답에 악기가 없어 앱이 곡 ID로 맞춘다.
+ * 곡 목록은 게시 중인 곡만 주므로, 지우거나 비공개로 바꾼 곡은 여기에 없다.
  *
  * @property instruments 악기 목록 순서.
  * @property songInstrument 곡 ID → 악기 ID.
  */
 data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrument: Map<String, String>) {
+    /** [songId] 곡의 악기. 곡 목록에 없거나 악기 목록에 없는 악기면 null. */
+    fun instrumentOf(songId: String): TrendInstrument? = songInstrument[songId]?.let { id -> instruments.firstOrNull { it.instrumentId == id } }
+
     companion object {
         fun of(instruments: List<CatalogInstrument>, songs: List<SongSummary>) = TrendCatalog(
             instruments = instruments.map { c -> TrendInstrument(c.instrumentId, c.name, Instrument.entries.firstOrNull { it.serverCode == c.code }) },
@@ -194,7 +193,7 @@ data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrume
  * @property songId 요청할 곡. null이면 서버가 가장 최근에 연주한 곡을 고른다. 받은 뒤에는 서버가 고른 곡이다.
  * @property loading 받는 중. [view]가 없으면 카드에 진행 표시만 보인다.
  * @property failed 마지막 요청이 실패했다. 카드에 안내와 '다시 시도'가 보인다.
- * @property catalog 악기 고르기용 곡 → 악기 대응. 받는 중이거나 받지 못하면 null이고, 그때는 악기 없이 곡만 고른다.
+ * @property catalog 악기 고르기용 곡 → 악기 대응. 받지 못하면 null이고, 그때는 악기 없이 곡만 고른다.
  */
 data class ScoreTrendState(
     val songId: String? = null,
@@ -211,43 +210,46 @@ data class ScoreTrendState(
         if (trend == null) copy(loading = false, failed = true)
         else copy(songId = trend.songId, loading = false, failed = false, view = ScoreTrendView.of(trend))
 
-    /** 기본 평가가 하나라도 있는 곡(최근 연주 순). 재평가만 있는 곡은 기본 평가가 없는 곡으로 보고 뺀다. */
-    val basicSongs: List<TrendSong> get() = view?.songs.orEmpty().filter { it.fullPlayCount > 0 }
+    /**
+     * 고를 수 있는 곡(최근 연주 순): 기본 평가가 하나라도 있고 악기를 아는 곡.
+     * 재평가만 있는 곡은 기본 평가가 없는 곡으로 보고 뺀다. 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 악기를 몰라 뺀다.
+     * 대응을 받지 못했으면 악기와 관계없이 기본 평가 곡을 모두 둔다.
+     */
+    val basicSongs: List<TrendSong>
+        get() {
+            val songs = view?.songs.orEmpty().filter { it.fullPlayCount > 0 }
+            val catalog = catalog ?: return songs
+            return songs.filter { catalog.instrumentOf(it.songId) != null }
+        }
 
-    /** 기본 평가가 있는 곡의 악기(악기 목록 순, 목록에 없는 곡은 맨 뒤 '기타'). 대응을 받지 못했으면 비어 있다. */
+    /** 고를 수 있는 곡의 악기(악기 목록 순). 기록이 없는 악기는 없다. 대응을 받지 못했으면 비어 있다. */
     val instruments: List<TrendInstrument>
         get() {
             val catalog = catalog ?: return emptyList()
-            val ids = basicSongs.map { instrumentIdOf(it.songId, catalog) }.toSet()
-            val known = catalog.instruments.filter { it.instrumentId in ids }
-            return if (OtherInstrumentId in ids) known + TrendInstrument(OtherInstrumentId, "", null) else known
+            val ids = basicSongs.mapNotNull { catalog.instrumentOf(it.songId)?.instrumentId }.toSet()
+            return catalog.instruments.filter { it.instrumentId in ids }
         }
 
     /** 지금 고른 곡의 악기. 대응이 없으면 null. */
-    val selectedInstrument: TrendInstrument?
-        get() {
-            val catalog = catalog ?: return null
-            val id = songId?.let { instrumentIdOf(it, catalog) } ?: return null
-            return instruments.firstOrNull { it.instrumentId == id }
-        }
+    val selectedInstrument: TrendInstrument? get() = songId?.let { catalog?.instrumentOf(it) }
 
-    /** 곡 고르기에 보일 곡: 고른 악기의 기본 평가 곡. 악기를 모르면 기본 평가 곡 전부다. */
+    /** 곡 고르기에 보일 곡: 고른 악기의 곡. 악기를 모르면 고를 수 있는 곡 전부다. */
     val instrumentSongs: List<TrendSong>
         get() {
             val catalog = catalog ?: return basicSongs
             val instrument = selectedInstrument ?: return basicSongs
-            return basicSongs.filter { instrumentIdOf(it.songId, catalog) == instrument.instrumentId }
+            return basicSongs.filter { catalog.instrumentOf(it.songId) == instrument }
         }
 
     /** [instrumentId] 악기에서 볼 곡: 그 악기에서 가장 최근에 연주한 기본 평가 곡. */
     fun songFor(instrumentId: String): TrendSong? {
         val catalog = catalog ?: return null
-        return basicSongs.firstOrNull { instrumentIdOf(it.songId, catalog) == instrumentId }
+        return basicSongs.firstOrNull { catalog.instrumentOf(it.songId)?.instrumentId == instrumentId }
     }
 
     /**
-     * 서버가 고른 곡에 기본 평가가 없을 때(가장 최근 연주가 재평가뿐인 곡) 대신 볼 곡: 가장 최근에 연주한 기본 평가 곡.
-     * 고른 곡에 기본 평가가 있거나 기본 평가 곡이 하나도 없으면 null.
+     * 지금 곡을 고를 수 없을 때(기본 평가가 없거나 곡 목록에 없는 곡) 대신 볼 곡: 고를 수 있는 곡 중 가장 최근에 연주한 곡.
+     * 지금 곡을 고를 수 있거나 고를 곡이 하나도 없으면 null.
      */
     val fallbackSongId: String?
         get() {
@@ -255,8 +257,6 @@ data class ScoreTrendState(
             if (songs.isEmpty() || songs.any { it.songId == songId }) return null
             return songs.first().songId
         }
-
-    private fun instrumentIdOf(songId: String, catalog: TrendCatalog): String = catalog.songInstrument[songId] ?: OtherInstrumentId
 }
 
 /**
