@@ -343,10 +343,10 @@ private fun CellTools(draft: SheetDraft, actions: EditInputActions) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.jangdan)),
+                    stringResource(Res.string.sheetedit_cell_jangdan, jangdanLabel(draft.jangdanName)),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
                 )
-                Text(
+                if (draft.jangdan != null) Text(
                     stringResource(Res.string.sheetedit_cell_jangdan_desc, draft.jangdan.beats, draft.jangdan.subdivision, draft.bpm),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                     color = colors.textMuted,

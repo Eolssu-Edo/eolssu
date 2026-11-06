@@ -93,6 +93,7 @@ class PracticeViewModel(
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
+        pitchSession.stop()
         take = null
         takeKey = ""
         screenShown = false
@@ -100,6 +101,10 @@ class PracticeViewModel(
         _uiState.value = PracticeUiState()
         viewModelScope.launch { stopAll() }
     }
+    private val pitchSession = PracticePitchSession(recorder, accountScope) { _uiState.value.position }
+    /** 현재·직전 음높이 안내. 화면에서는 이 흐름만 구독하며 녹음 제어와 독립적이다. */
+    val pitchFeedback: StateFlow<PracticePitchFeedback> = pitchSession.state
+
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
@@ -284,6 +289,9 @@ class PracticeViewModel(
 
 
     init {
+        accountScope.launch {
+            _uiState.map { it.position }.distinctUntilChanged().collect { pitchSession.refresh() }
+        }
         retryLoadSong()
         accountScope.launch {
             modelAudio.state.collect { playback ->
@@ -780,6 +788,8 @@ class PracticeViewModel(
             }
             _uiState.update { if (resume) it.resumeRecording() else it.beginRecording() }
             startStepping(if (resume) carry else 0.0)
+            val state = _uiState.value
+            state.song?.let { pitchSession.start(it, state.bpm, state.elapsedMs) }
         }
     }
 
@@ -888,6 +898,7 @@ class PracticeViewModel(
     }
 
     private fun pauseRecorder() {
+        pitchSession.stop()
         val recorder = recorder ?: return
         levelJob?.cancel()
         recordingClock.pause()
@@ -896,6 +907,7 @@ class PracticeViewModel(
     }
 
     private fun cancelRecorder() {
+        pitchSession.stop()
         levelJob?.cancel()
         recordingClock.reset()
         recorder?.cancel()
@@ -903,6 +915,7 @@ class PracticeViewModel(
 
     /** 곡 끝이나 최대 길이에서 녹음을 마치고 저장된 파일을 확인한다. */
     private fun finishRecorder() {
+        pitchSession.stop()
         levelJob?.cancel()
         recordingClock.reset()
         val audio = recorder?.stop()

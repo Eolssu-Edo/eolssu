@@ -126,8 +126,8 @@ fun EditPreviewScreen(
             PlayerRow(state, song.durationSeconds(draft.bpm), onTogglePlay, onToggleJangdan, audio)
             SheetAudioRow(state.audio, playback, audio)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true)
-                EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true)
+                EolssuButton(stringResource(Res.string.sheetedit_preview_draft), onSaveDraft, Modifier.weight(1f), style = EolssuButtonStyle.Secondary, compact = true, enabled = !state.saving && !state.saveConflict)
+                EolssuButton(stringResource(Res.string.sheetedit_preview_save), onSave, Modifier.weight(1.4f), compact = true, enabled = !state.saving && !state.saveConflict)
             }
         },
     ) {
@@ -139,11 +139,11 @@ fun EditPreviewScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(Res.string.sheetedit_preview_beat, jangdanLabel(draft.jangdan), draft.bpm),
+                    stringResource(Res.string.sheetedit_preview_beat, jangdanLabel(draft.jangdanName), draft.bpm),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
                     maxLines = 1,
                 )
-                Text(
+                if (draft.jangdan != null) Text(
                     stringResource(Res.string.sheetedit_preview_beat_sub, draft.gak, draft.jangdan.beats, draft.columnCount),
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
                     color = colors.textMuted,
@@ -288,7 +288,7 @@ private fun failureLabel(code: SheetAudioFailure?): String = stringResource(
 /** 빈 정간이 있어 저장할 수 없다는 경고 창: '빈 정간 채우기'(편집으로) · '임시저장'. 닫기 버튼 없이 가림막·뒤로 가기로 닫는다. */
 @Composable
 private fun EmptyWarningDialog(draft: SheetDraft, onFill: () -> Unit, onSaveDraft: () -> Unit, onClose: () -> Unit) {
-    val empties = draft.emptyCells
+    val empties = draft.unfilledCells
     val listed = empties.take(WARN_LISTED).map { stringResource(Res.string.sheetedit_where_cell, draft.columnOf(it) + 1, draft.rowOf(it) + 1) }.joinToString(", ")
     val where = if (empties.size > WARN_LISTED) stringResource(Res.string.sheetedit_warn_more, listed, empties.size - WARN_LISTED) else listed
     EolssuDialog(

@@ -29,22 +29,32 @@ import eolssu.shared.generated.resources.sheetedit_msg_audio_too_long
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
 import eolssu.shared.generated.resources.sheetedit_msg_draft
 import eolssu.shared.generated.resources.sheetedit_msg_saved
+import eolssu.shared.generated.resources.sheet_save_failed
+import eolssu.shared.generated.resources.sheet_save_conflict
+import eolssu.shared.generated.resources.sheet_save_too_large
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * EDIT-04 연결. 편집기와 같은 [viewModel]을 받는다. 뒤로 가기와 경고 창의 '빈 정간 채우기'는 [onBack]으로 편집기에 돌아간다.
- * 저장·임시저장은 저장 API를 붙이기 전이라 안내만 띄운다. 음원(SHT-12·13)은 이 화면의 플레이어로 재생하고, 저장은 서명 URL을 기기 브라우저로 연다.
+ * 저장·임시저장은 서버 응답을 확인한 뒤 알린다. 음원(SHT-12·13)은 이 화면의 플레이어로 재생하고, 파일 저장은 서명 URL을 기기 브라우저로 연다.
  */
 @Composable
 fun EditPreviewRoute(viewModel: SheetEditViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    if (state.documentLoading || state.documentFailed) {
+        SheetDocumentNotice(state.documentLoading, onBack, viewModel::loadDocument)
+        return
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     val messages = mapOf(
+        SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
+        SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
+        SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
         SheetEditMessage.Draft to stringResource(Res.string.sheetedit_msg_draft),
         SheetEditMessage.Saved to stringResource(Res.string.sheetedit_msg_saved),
         SheetEditMessage.AudioNeedsSave to stringResource(Res.string.sheetedit_msg_audio_needs_save),

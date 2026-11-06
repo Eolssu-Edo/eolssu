@@ -11,6 +11,7 @@ enum class EditView { Jeongganbo, Staff }
 
 /** 화면 아래에 잠깐 띄우는 안내. */
 enum class SheetEditMessage {
+    SaveFailed, SaveConflict, SaveTooLarge,
     /** 임시저장(SHT-11 초안). 빈 정간이 있어도 된다. */
     Draft,
 
@@ -58,7 +59,7 @@ enum class SheetEditMessage {
 }
 
 /**
- * 악보 편집(EDIT-02 · 03)과 미리보기·저장(EDIT-04)이 함께 쓰는 상태. 저장 API를 붙이기 전이라 저장·임시저장은 안내만 띄우고,
+ * 악보 편집(EDIT-02 · 03)과 미리보기·저장(EDIT-04)이 함께 쓰는 상태. 서버 문서의 로드·저장 결과는 ViewModel이 반영하며,
  * 음원은 서버에 저장된 내 악보([serverSheetId])가 있을 때만 SHT-12·13으로 만든다.
  *
  * @property selected 고른 정간 번호(연주 순서).
@@ -86,6 +87,11 @@ data class SheetEditUiState(
     val savedOnce: Boolean = false,
     val audio: SheetAudioUi = SheetAudioUi.None,
     val message: SheetEditMessage? = null,
+    val documentLoading: Boolean = false,
+    val documentFailed: Boolean = false,
+    val saving: Boolean = false,
+    val saveConflict: Boolean = false,
+    val closeWarning: Boolean = false,
 ) {
     val canUndo: Boolean get() = past.isNotEmpty()
     val canRedo: Boolean get() = future.isNotEmpty()
@@ -128,7 +134,7 @@ data class SheetEditUiState(
     fun addColumn(): SheetEditUiState {
         val column = draft.columnOf(selected)
         val next = draft.addColumnAfter(column)
-        return commit(next, (column + 1) * next.gak)
+        return commit(next, next.indexOf(column + 1, 0))
     }
 
     /** 고른 정간의 각을 지운다. 선택은 같은 자리(마지막 각이었으면 새 마지막 각)로 둔다. */
@@ -136,7 +142,7 @@ data class SheetEditUiState(
         val column = draft.columnOf(selected)
         val next = draft.deleteColumn(column)
         if (next == draft) return this
-        return commit(next, minOf(column, next.columnCount - 1) * next.gak)
+        return commit(next, next.indexOf(minOf(column, next.columnCount - 1), 0))
     }
 
     fun undo(): SheetEditUiState {
@@ -185,7 +191,7 @@ data class SheetEditUiState(
 
     /** 경고 창의 '빈 정간 채우기': 첫 빈 정간을 고르고 정간보 율명 입력으로 돌아간다. */
     fun fillEmpty(): SheetEditUiState {
-        val first = draft.emptyCells.firstOrNull() ?: selected
+        val first = draft.unfilledCells.firstOrNull() ?: selected
         return copy(emptyWarning = false, selected = first, view = EditView.Jeongganbo, tab = EditTab.Yul)
     }
 
