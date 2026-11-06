@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -139,11 +140,12 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
         }
         val song = comparison.song
         val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
-        Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RecordPair(state.previous, comparison.current, actions.onOpenPicker)
             val previous = state.previous
             val delta = state.delta
+            Box(Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (previous == null) {
                 Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
             } else if (delta == null) {
@@ -166,6 +168,17 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                 CompareCheckNote(state.check)
             }
             CompareLegend(state.counts)
+            }
+            // 같은 곡에서 점수가 올랐으면 '이번' 카드 아래 · 정간보 위 오른쪽 빈 자리에 도장을 찍었다가 천천히 지운다.
+            // 배치 크기에 들어가지 않게 겹쳐 그려 도장이 나타나고 사라져도 정간보가 움직이지 않는다.
+            val rose = delta?.takeIf { it > 0 && previous != null }
+            if (rose != null) {
+                Box(Modifier.matchParentSize(), contentAlignment = Alignment.CenterEnd) {
+                    ScoreStampBurst(compareDeltaLabel(rose), key = previous?.id to comparison.current.id,
+                        modifier = Modifier.wrapContentSize(unbounded = true).padding(end = 8.dp))
+                }
+            }
+            }
             JeongganboView(
                 song = song,
                 modifier = Modifier.weight(1f).padding(top = 6.dp).verticalScroll(rememberScrollState()),
@@ -174,13 +187,6 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
                 onUnitClick = { actions.onSelect(ScorePosition(it.column, it.row)) },
                 decorations = compareDecorations(state.marks),
             )
-        }
-        // 같은 곡에서 점수가 올랐으면 오른쪽 위에 도장을 '탕' 찍었다가 지운다(점수 자리에는 글자가 남는다).
-        val rose = state.delta?.takeIf { it > 0 && state.previous != null }
-        if (rose != null) {
-            ScoreStampBurst(compareDeltaLabel(rose), key = state.previous?.id to comparison.current.id,
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 16.dp))
-        }
         }
     }
     if (state.sheetOpen && comparison != null) {
@@ -336,7 +342,7 @@ private fun ScoreDeltaSeal(label: String) {
             .border(2.dp, ink.copy(alpha = 0.9f), shape)
             .padding(3.dp)
             .border(1.dp, ink.copy(alpha = 0.75f), RoundedCornerShape(2.dp))
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 17.dp, vertical = 9.dp)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
@@ -349,7 +355,7 @@ private fun ScoreDeltaSeal(label: String) {
     }
 }
 
-/** 도장을 크게 띄웠다가 '탕' 내려찍고(0.25초) 잠시 보인 뒤(1.2초) 서서히 지운다. 비교 대상이 바뀌면 다시 찍는다. */
+/** 도장을 크게 띄웠다가 '꽝' 내려찍고 1.5초 보인 뒤 1.4초에 걸쳐 천천히 지운다. 비교 대상이 바뀌면 다시 찍는다. */
 @Composable
 private fun ScoreStampBurst(label: String, key: Any?, modifier: Modifier = Modifier) {
     val scale = remember(key) { Animatable(2.2f) }
@@ -358,8 +364,8 @@ private fun ScoreStampBurst(label: String, key: Any?, modifier: Modifier = Modif
     LaunchedEffect(key) {
         launch { alpha.animateTo(1f, tween(120)) }
         scale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 900f))
-        delay(1200)
-        alpha.animateTo(0f, tween(450))
+        delay(1500)
+        alpha.animateTo(0f, tween(1400))
         done = true
     }
     if (done) return
