@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -748,8 +749,14 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, units:
         }
         Column(Modifier.fillMaxSize()) {
             lines.forEach { line ->
-                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.labelSmall, color = colors.text)
+                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    if (line.isNotEmpty()) {
+                        // 줄인 연습 악보처럼 칸이 글자보다 낮을 때만 칸 높이에 맞춰 줄인다.
+                        val base = MaterialTheme.typography.labelSmall
+                        val fitted = with(LocalDensity.current) { (maxHeight * 0.8f).toSp() }
+                        val size = if (fitted.value < base.fontSize.value) fitted else base.fontSize
+                        Text(line, style = base.copy(fontSize = size, lineHeight = size), color = colors.text, maxLines = 1)
+                    }
                 }
             }
         }

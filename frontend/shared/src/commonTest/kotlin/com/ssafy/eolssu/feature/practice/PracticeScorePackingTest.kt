@@ -44,13 +44,14 @@ class PracticeScorePackingTest {
     fun stretchPreservesThreePartRatioAndWorksWithOneAnglePerStack() {
         val triple = ScoreCell(note, note, note)
         val score = Score(listOf(listOf(cell, triple), List(4) { cell }))
-        val packing = practiceScorePacking(score, metrics, 200.dp)
+        // 두 각을 쌓으면 정간이 14dp보다 작아지는 높이: 한 줄에 한 각을 두고 정간을 줄인다.
+        val packing = practiceScorePacking(score, metrics, 150.dp)
         assertEquals(1, packing.columnsPerStack)
         val normal = assertNotNull(packing.cellHeights[0 to 0])
         val expanded = assertNotNull(packing.cellHeights[0 to 1])
         assertEquals(normal * 1.5f, expanded)
         assertEquals(packing.stackRowHeights[0] - 2.dp, metrics.headHeight + normal + expanded)
-        assertTrue(packing.height <= 200.dp)
+        assertTrue(packing.height <= 150.dp)
     }
 
     @Test
@@ -129,16 +130,7 @@ class PracticeScorePackingTest {
 
     @Test
     fun dorajiCatalogFixtureFitsThreeColumnsInRecordingSpace() {
-        val columns = Json.parseToJsonElement(Song2Json).jsonObject.getValue("score").jsonObject.getValue("columns").jsonArray
-        val score = Score(columns.map { column ->
-            column.jsonObject.getValue("cells").jsonArray.map { cell ->
-                val units = cell.jsonObject.getValue("units").jsonArray.mapIndexed { index, unit ->
-                    val fields = unit.jsonObject
-                    ScoreUnit(fields.getValue("row").jsonPrimitive.int, fields.getValue("col").jsonPrimitive.int, "黃", "event$index")
-                }
-                ScoreCell(listOf(note), units = units)
-            }
-        })
+        val score = dorajiCatalogScore()
         val packing = practiceScorePacking(score, metrics, 500.dp)
         assertEquals(3, packing.columnsPerStack)
         assertEquals(28, packing.columnGroups.flatten().size)
@@ -153,15 +145,79 @@ class PracticeScorePackingTest {
     }
 
     @Test
-    fun limitedHeightAndLargeFontsReduceStackCountWithoutShrinkingLargeScore() {
+    fun limitedHeightAndLargeFontsKeepStackingWithinTheHeight() {
         val score = Score(List(7) { List(3) { cell } })
         assertEquals(2, practiceScorePacking(score, metrics, 300.dp).columnsPerStack)
         val large = JeongganboMetrics.practiceBoard(true, 3)
         val packing = practiceScorePacking(score, large, 500.dp, fontScale = 1.5f)
-        assertEquals(1, packing.columnsPerStack)
-        assertEquals(60.dp, packing.metrics.cellHeight)
+        assertEquals(2, packing.columnsPerStack)
+        assertTrue(packing.metrics.cellHeight >= 44.dp)
+        assertTrue(packing.height <= 500.dp)
         assertEquals((0..6).toList(), packing.columnGroups.flatten())
     }
+
+    @Test
+    fun enlargedSystemFontStillStacksShortColumnsWithoutVerticalScroll() {
+        // 글꼴 1.15배 휴대폰(악보 영역 약 420dp)에서 3정간 각: 1각 아래 2각, 왼쪽에 3·4각.
+        val score = Score(List(28) { List(3) { cell } })
+        for (scale in listOf(1.15f, 1.3f)) {
+            val packing = practiceScorePacking(score, metrics, 420.dp, fontScale = scale)
+            assertTrue(packing.columnsPerStack >= 2, "글꼴 ${scale}배 묶음 수")
+            assertEquals(listOf(0, 1), packing.columnGroups[0].take(2))
+            assertTrue(packing.metrics.cellHeight >= 32.dp)
+            assertTrue(renderedHeight(packing, scale) <= 420.dp, "글꼴 ${scale}배 높이")
+        }
+    }
+
+    @Test
+    fun catalogDorajiStacksTwoPerColumnOnLowPhoneAreaWithSmallerText() {
+        // SM-S936N 글꼴 1.15배 도라지타령 연습 화면의 악보 영역(약 226dp).
+        val score = dorajiCatalogScore()
+        val packing = practiceScorePacking(score, metrics, 226.dp, fontScale = 1.15f)
+        assertEquals(2, packing.columnsPerStack)
+        assertEquals(listOf(0, 1), packing.columnGroups[0])
+        assertEquals(listOf(2, 3), packing.columnGroups[1])
+        assertTrue(packing.metrics.cellHeight >= 14.dp)
+        assertTrue(packing.metrics.yulSize < metrics.yulSize)
+        assertTrue(renderedHeight(packing, 1.15f) <= 226.dp)
+    }
+
+    @Test
+    fun longColumnsDoNotShrinkToStackTwo() {
+        val packing = practiceScorePacking(Score(List(6) { List(8) { cell } }), metrics, 330.dp)
+        assertEquals(1, packing.columnsPerStack)
+        assertTrue(packing.metrics.cellHeight >= 32.dp)
+    }
+
+    @Test
+    fun tooLowAreaShrinksCellsAndTextTogetherInsteadOfScrolling() {
+        val score = Score(List(6) { List(8) { cell } })
+        val packing = practiceScorePacking(score, metrics, 260.dp, fontScale = 1.3f)
+        assertEquals(1, packing.columnsPerStack)
+        assertTrue(packing.metrics.cellHeight < 32.dp)
+        assertTrue(renderedHeight(packing, 1.3f) <= 260.dp)
+        val ratio = packing.metrics.cellHeight / 32.dp
+        assertEquals(metrics.yulSize.value * ratio, packing.metrics.yulSize.value, 0.01f)
+        assertEquals(metrics.auxSize.value * ratio, packing.metrics.auxSize.value, 0.01f)
+    }
+
+    private fun dorajiCatalogScore(): Score {
+        val columns = Json.parseToJsonElement(Song2Json).jsonObject.getValue("score").jsonObject.getValue("columns").jsonArray
+        return Score(columns.map { column ->
+            column.jsonObject.getValue("cells").jsonArray.map { cell ->
+                val units = cell.jsonObject.getValue("units").jsonArray.mapIndexed { index, unit ->
+                    val fields = unit.jsonObject
+                    ScoreUnit(fields.getValue("row").jsonPrimitive.int, fields.getValue("col").jsonPrimitive.int, "黃", "event$index")
+                }
+                ScoreCell(listOf(note), units = units)
+            }
+        })
+    }
+
+    /** JeongganboView가 글꼴 배율을 적용해 실제로 차지하는 세로 높이. */
+    private fun renderedHeight(packing: com.ssafy.eolssu.feature.practice.component.PracticeScorePacking, scale: Float) =
+        packing.stackRowHeights.fold(0.dp) { total, row -> total + row } * scale +
+            com.ssafy.eolssu.feature.practice.component.PracticeStackGap * (packing.stackRowHeights.size - 1)
 
     @Test
     fun columnsSplitByTheRendererKeepTheirExistingLayout() {
