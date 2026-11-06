@@ -25,10 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -48,12 +44,11 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.sheetedit_import_result_title
 import eolssu.shared.generated.resources.sheetedit_result_all_done
 import eolssu.shared.generated.resources.sheetedit_result_edit_jg
-import eolssu.shared.generated.resources.sheetedit_result_edit_staff
 import eolssu.shared.generated.resources.sheetedit_result_file_staff
 import eolssu.shared.generated.resources.sheetedit_result_listen
 import eolssu.shared.generated.resources.sheetedit_result_listen_desc
-import eolssu.shared.generated.resources.sheetedit_result_original
-import eolssu.shared.generated.resources.sheetedit_result_original_label
+import eolssu.shared.generated.resources.sheetedit_result_cell
+import eolssu.shared.generated.resources.sheetedit_result_source_discarded
 import eolssu.shared.generated.resources.sheetedit_result_pause
 import eolssu.shared.generated.resources.sheetedit_result_play
 import eolssu.shared.generated.resources.sheetedit_result_setting_jg
@@ -65,7 +60,7 @@ import eolssu.shared.generated.resources.sheetedit_where_cell
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * EDIT-06 인식 결과 확인: 확인할 정간 요약 · 연습 화면과 같은 정간보(확인할 정간 '?') · 고른 정간의 원본 조각과 후보 · 들어보며 확인 · 편집 시작.
+ * EDIT-06 인식 결과 확인: 확인할 정간 요약 · 연습 화면과 같은 정간보(확인할 정간 '?') · 고른 정간의 인식 결과와 후보 · 들어보며 확인 · 편집 시작.
  * 장단은 인식한 값('세마치(인식)')으로 보인다. 곁줄(가사 칸)에는 표시를 칠하지 않는다.
  */
 @Composable
@@ -93,7 +88,7 @@ fun ImportResultScreen(
         },
         bottomBar = {
             ListenRow(state.playing, onTogglePlay)
-            EolssuButton(stringResource(if (staff) Res.string.sheetedit_result_edit_staff else Res.string.sheetedit_result_edit_jg), onEdit)
+            EolssuButton(stringResource(Res.string.sheetedit_result_edit_jg), onEdit)
         },
     ) {
         Column(Modifier.fillMaxSize().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -118,9 +113,9 @@ fun ImportResultScreen(
                 )
                 Text(
                     if (staff) {
-                        stringResource(Res.string.sheetedit_result_setting_staff, state.hwang.label, draft.jangdan.name, draft.columnCount)
+                        stringResource(Res.string.sheetedit_result_setting_staff, state.hwang.label, draft.jangdanName, draft.columnCount)
                     } else {
-                        stringResource(Res.string.sheetedit_result_setting_jg, draft.jangdan.name, draft.columnCount, draft.bpm)
+                        stringResource(Res.string.sheetedit_result_setting_jg, draft.jangdanName, draft.columnCount, draft.bpm)
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                     color = colors.textMuted,
@@ -162,27 +157,9 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
             return@Column
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            val cropLabel = stringResource(Res.string.sheetedit_result_original_label)
-            Box(
-                Modifier
-                    .size(64.dp)
-                    .background(colors.background, RoundedCornerShape(8.dp))
-                    .border(1.dp, colors.line, RoundedCornerShape(8.dp))
-                    .semantics { contentDescription = cropLabel },
-                contentAlignment = Alignment.Center,
-            ) {
-                // 원본 사진 조각 흉내: 흐리고 조금 기운 글자.
-                Text(
-                    check.crop,
-                    modifier = Modifier.rotate(-4f).blur(1.dp).alpha(0.9f),
-                    style = EolssuTheme.serif.yul.copy(fontSize = 22.sp, lineHeight = 22.sp),
-                    color = colors.textSub,
-                    maxLines = 1,
-                )
-            }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    stringResource(Res.string.sheetedit_result_original, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1)),
+                    stringResource(Res.string.sheetedit_result_cell, stringResource(Res.string.sheetedit_where_cell, draft.columnOf(check.index) + 1, draft.rowOf(check.index) + 1)),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = colors.textMuted,
                 )
@@ -190,6 +167,7 @@ private fun CheckCard(state: ImportResultUiState, draft: SheetDraft, onChoose: (
                 Text(check.description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp), color = colors.textMuted)
             }
         }
+        Text(stringResource(Res.string.sheetedit_result_source_discarded), style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val current = state.currentCandidate(check)
             check.candidates.forEach { candidate ->

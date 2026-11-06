@@ -14,6 +14,7 @@ const val SHEET_IMPORT_MAX_PAGES = 10
 
 /** 악보 전용 버킷 안에서 원본을 두는 앞부분. 탈퇴 일괄 삭제가 이 앞부분으로 저장소를 고른다. */
 const val SHEET_SOURCE_PREFIX = "sheet-sources/"
+const val TEMP_SHEET_SOURCE_PREFIX = "sheet-import-temp/"
 
 /** 회원당 내 악보 수(SHT-07 규칙 11). 변환 중·실패한 악보도 센다. */
 const val SHEET_LIMIT_PER_MEMBER = 10
@@ -95,6 +96,9 @@ interface SheetSourceStorage {
     fun delete(key: String)
 
     fun readUrl(key: String, ttl: Duration): String
+
+    /** 임시 원본의 기한이 지났으면 true다. 파일 소실이나 그 밖의 저장소 실패는 만료가 아니다. */
+    fun expired(key: String): Boolean = false
 
     fun downloadUrl(key: String, ttl: Duration, fileName: String): String = readUrl(key,ttl)
 

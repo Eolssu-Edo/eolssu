@@ -142,6 +142,8 @@ class SecurityConfig(
             "/api/jangdans", "/api/jangdans/{jangdanId}", "/api/jangdans/{jangdanId}/audio", "/api/jangdan-samples/{sample}/{sha256}",
             "/api/notation-symbols", "/api/notation-symbols/{symbolId}/image",
             "/api/note-practice/criteria",
+            // Internal capability-protected fetch; external Nginx rejects this entire namespace.
+            "/api/internal/sheet-imports/{token}",
         ) + LegalDocumentPageController.PUBLIC_PATHS
     }
 }

@@ -110,19 +110,17 @@ ssh edo1 "sudo DOCKER_BUILDKIT=1 docker build --label org.opencontainers.image.r
 scp infra/runtime/compose.yml edo1:/tmp/eolssu-compose.yml
 # edo1에서: 서버 Compose와 다른 곳이 omr 서비스뿐인지 본 뒤 백업하고 바꾼다. 검사를 통과해야 omr만 생성한다.
 sudo diff /opt/eolssu/config/compose.yml /tmp/eolssu-compose.yml
-sudo cp -p /opt/eolssu/config/compose.yml /opt/eolssu/config/compose.yml.before-omr
-sudo cp /tmp/eolssu-compose.yml /opt/eolssu/config/compose.yml && rm /tmp/eolssu-compose.yml  # 덮어써 기존 소유자·권한 유지
-sudo docker compose --env-file /opt/eolssu/.env \
-  -f /opt/eolssu/config/compose.yml config --quiet
-sudo docker compose --env-file /opt/eolssu/.env \
-  -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never omr
+sudo /opt/eolssu/bin/install-runtime-compose /tmp/eolssu-compose.yml &&
+  rm /tmp/eolssu-compose.yml &&
+  sudo docker compose --env-file /opt/eolssu/.env \
+    -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never omr
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml ps omr
 sudo docker exec eolssu-runtime-backend-1 \
   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://omr:8000/v1/recognitions
 ```
 
-마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). `diff`에 omr 밖의 차이가 보이면 서버 파일을 먼저 저장소에 반영하고 멈춥니다. Windows PowerShell에서는 `ai` 절과 같이 `git archive -o omr.tar "$REV" ai data/src/scores data/reference`로 파일을 만들어 `scp`로 보낸 뒤 서버에서 풉니다. 되돌릴 때는 `sudo docker tag eolssu-omr:runtime-<이전 커밋> eolssu-omr:runtime` 뒤 같은 `up` 명령으로 `omr`만 재생성합니다. 아직 backend가 부르지 않으므로 문제가 생기면 `sudo docker compose ... stop omr`로 멈추고, Compose까지 되돌릴 때는 `compose.yml.before-omr`을 다시 놓습니다.
+마지막 명령은 422가 정상입니다(빈 요청을 계약 위반으로 거절). `diff`에 omr 밖의 차이가 보이면 서버 파일을 먼저 저장소에 반영하고 멈춥니다. Windows PowerShell에서는 `ai` 절과 같이 `git archive -o omr.tar "$REV" ai data/src/scores data/reference`로 파일을 만들어 `scp`로 보낸 뒤 서버에서 풉니다. 되돌릴 때는 `sudo docker tag eolssu-omr:runtime-<이전 커밋> eolssu-omr:runtime` 뒤 같은 `up` 명령으로 `omr`만 재생성합니다. 아직 backend가 부르지 않으므로 문제가 생기면 `sudo docker compose ... stop omr`로 멈추고, Compose까지 되돌릴 때는 설치 도구가 출력한 백업 경로를 같은 도구에 전달합니다.
 
 - 컨테이너 파일 시스템은 읽기 전용이고 `/tmp`만 1GiB tmpfs로 씁니다(원본·쪽 그림·Audiveris 작업 폴더와 홈 `/tmp/home`). 로컬 실측에서 요청 사이 `/tmp`는 14MB였습니다.
 - 메모리 한도 2GiB, CPU 2개입니다. Audiveris는 한 번에 하나만 돌고(동시 요청은 남은 시간 안에서 기다림), 로컬 실측 최대 1.31GiB(tmpfs 포함)였습니다. Audiveris가 도는 동안 다른 요청이 큰 PDF 쪽을 그림으로 바꾸는 경우는 재지 않았습니다. 정간보 그림 경로([S15P31E102-458](https://ssafy.atlassian.net/browse/S15P31E102-458), torch)를 붙이면 다시 잽니다.
@@ -164,9 +162,15 @@ Compose는 값이 없는 변수를 빈 문자열로 넘기므로 백엔드는 �
 openssl rand -base64 48
 ```
 
-운영 설정을 바꿀 때는 기존 Compose를 root 전용으로 백업하고 `config --quiet`를 통과한 뒤 backend만 재생성합니다. Jenkins는 관리 파일 `/opt/eolssu/config/compose.yml`을 사용하므로 저장소 변경만으로 서버 파일이 바뀌지는 않습니다. 배포 후 readiness HTTP 200·UP, Docker healthy, 프론트·MySQL ID와 물리 볼륨 보존을 확인합니다.
+운영 Compose는 edo1의 `/opt/eolssu/bin/install-runtime-compose`로 교체합니다. 설치 원본은 [install-runtime-compose.py](../scripts/install-runtime-compose.py)이며, edo1에서 root 소유 `0755`로 설치합니다. 서버의 현재 Compose를 바탕으로 후보를 만들고, 변경 범위를 확인한 뒤 후보 경로를 전달합니다.
 
-운영 `compose.yml`을 교체할 때는 소유자와 권한을 `root:jenkins` `0640`으로 유지합니다. Jenkins는 `Validate runtime Compose`에서 이 파일과 `ci.env.example`을 읽습니다. 운영 비밀값은 `root:root` `0600`의 `/opt/eolssu/.env`에 둡니다. 교체 후 edo1에서 Jenkins 계정으로 다음 명령을 실행합니다.
+```sh
+sudo /opt/eolssu/bin/install-runtime-compose /path/to/reviewed-compose.yml
+```
+
+설치 도구는 운영 배포 잠금을 잡고 후보를 먼저 운영 환경으로 검사합니다. 이후 `root:jenkins 0640`을 적용하고 Jenkins 계정과 `ci.env.example`로 검사한 뒤 교체합니다. 직전 파일은 출력된 root 전용 백업 경로에 있습니다. 복원할 때는 그 경로를 같은 도구에 전달합니다. 운영 비밀값은 `root:root 0600`의 `/opt/eolssu/.env`에 둡니다.
+
+실행 설정을 반영할 때는 변경 대상 서비스만 별도로 재생성합니다. 백엔드 배포 후 readiness HTTP 200·UP, Docker healthy, 프론트·MySQL ID와 물리 볼륨을 확인합니다. Jenkins 계정으로 설치 결과를 다시 검사할 수 있습니다.
 
 ```sh
 sudo -u jenkins docker compose --env-file /opt/eolssu/config/ci.env.example \
@@ -174,6 +178,8 @@ sudo -u jenkins docker compose --env-file /opt/eolssu/config/ci.env.example \
 ```
 
 2026-11-06 백엔드 #279는 `compose.yml`이 `root:root` `0600`으로 바뀌어 이 검사에서 실패했습니다. 파일 내용이 같은 상태에서 소유 그룹과 읽기 권한을 복구했습니다. 같은 `develop` SHA `2c69ce33`을 사용한 Replay #280은 Compose 검사와 운영 배포에 성공했습니다. 운영 컨테이너의 JAR 경로와 API readiness `UP`을 확인했고 웹 수동 잡의 자동 실행과 예약은 모두 0건이었습니다. [Jira S15P31E102-528](https://ssafy.atlassian.net/browse/S15P31E102-528) · [백엔드 #279](http://127.0.0.1:18080/job/eolssu-backend/279/) · [백엔드 #280](http://127.0.0.1:18080/job/eolssu-backend/280/)
+
+#285~#288에서도 같은 오류가 재발했습니다. 내 악보 R2 설정을 반영하면서 새 파일이 `root:root 0600`으로 들어갔습니다. 권한 복구 후 #289가 배포에 성공했습니다. 교체 경로를 바꾼 근거와 검증은 [S15P31E102-541 기록](../../docs/plans/S15P31E102-541.md)에 있습니다.
 
 이름 전환 전 설정·릴리스와 SQL 전체 백업은 서버의 `/opt/backups/eolssu-S15P31E102-65-20261022T072645Z/`에 root 전용으로 보관했습니다. `receipt.json`에는 아티팩트 SHA-256·DB 서버 UUID·물리 볼륨·검증 결과가 있습니다. SQL과 실제 `.env`는 저장소나 로그로 복사하지 않습니다. `/opt/eolsu`도 변경 전 복귀 경로로 보존합니다.
 
@@ -470,3 +476,9 @@ ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}
 6. V25 성공 이력·컬럼 삭제·세션 생성/조회·health·사후 백업을 확인합니다. V25 이후 정상 재배포할 복구 JAR은 컬럼을 읽지 않는 코드와 원본 V25를 함께 포함해야 합니다. A JAR은 V25 누락 검사로 정상 재배포가 거부됩니다. 구 운영 e335ac 버전은 삭제된 컬럼을 읽으므로 복구 대상으로 쓰지 않습니다.
 
 검증용 로컬 `bootRun`/`db`는 V25를 적용합니다. 운영 호환성 점검에는 실행 JAR을 사용합니다. 1차·2차를 한 번에 배포하면 선배포 목적을 달성하지 못합니다.
+
+### 업로드 원본 임시 처리 (S15P31E102-534)
+
+534 브랜치의 원본 비보관 전환은 [정책](../../docs/specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)을 따릅니다. 원본은 backend `/tmp/eolssu-sheet-imports`와 요청 처리 중의 `/tmp/eolssu-multipart`에 있는 비공개 임시 파일이며 최대 30분·종료 즉시 정리합니다. 두 디렉터리를 영구 볼륨·백업에 넣지 않습니다. Nginx가 본문을 받는 동안의 임시 파일은 승인된 예외이며 요청이 끝나면 지워집니다. 한 backend 인스턴스에서 운영합니다.
+
+`SHEET_IMPORT_READ_BASE_URL`의 기본값은 `http://backend:8080/api/internal/sheet-imports`입니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정이 없더라도 원본 불러오기는 동작하고, 생성 M4A·MIDI에는 계속 `SHEET_STORAGE_*`가 필요합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.

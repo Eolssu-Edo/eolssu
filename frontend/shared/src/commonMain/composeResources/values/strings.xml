@@ -1,4 +1,14 @@
 <resources>
+    <string name="sheet_close_unsaved">저장하지 못한 변경이 있어요.</string>
+    <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
+    <string name="sheet_discard_close">변경을 버리고 닫기</string>
+    <string name="sheet_keep_editing">계속 편집하기</string>
+    <string name="sheet_document_title">내 악보 편집</string>
+    <string name="sheet_document_loading">악보를 불러오고 있어요.</string>
+    <string name="sheet_document_failed">악보를 불러오지 못했어요. 변환이 완료됐는지와 연결 상태를 확인해 주세요.</string>
+    <string name="sheet_save_failed">저장하지 못했어요. 현재 편집은 유지돼요. 다시 시도해 주세요.</string>
+    <string name="sheet_save_conflict">다른 곳에서 악보가 변경됐어요. 현재 편집은 유지했어요. 다시 열어 최신 악보를 확인해 주세요.</string>
+    <string name="sheet_save_too_large">악보가 저장할 수 있는 크기를 넘었어요. 현재 편집은 유지돼요.</string>
     <string name="sheet_delete_failed">악보를 삭제하지 못했어요. 다시 시도해 주세요.</string>
     <string name="comparison_score_unavailable">두 연주의 점수는 비교할 수 없어요.</string>
     <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>

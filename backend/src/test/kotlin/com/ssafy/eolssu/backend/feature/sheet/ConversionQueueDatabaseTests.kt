@@ -59,23 +59,33 @@ class ConversionQueueDatabaseTests {
         queue.fail(992472,1,"TIMEOUT",now)
         assertEquals(992473L,assertNotNull(queue.claim(now)).sheetId)
     }
-    @Test fun `retry is owned idempotent and remembers timeouts`() {
-        queue.claim(now)
-        queue.fail(992472,1,"TIMEOUT",now)
-        assertEquals("NOT_FOUND", queue.retry(992473,992472,now).status)
-        val retry = queue.retry(992472,992472,now)
-        assertEquals("QUEUED",retry.status)
-        assertEquals(2,retry.attempt)
-        assertEquals(2,queue.retry(992472,992472,now).attempt)
-        // 다른 회원 작업을 끝내고 재시도 작업을 선택한다.
-        val first=assertNotNull(queue.claim(now)); queue.fail(first.sheetId,first.attempt,"ENGINE_ERROR",now)
-        val second=assertNotNull(queue.claim(now)); queue.fail(second.sheetId,second.attempt,"TIMEOUT",now)
-        assertEquals("STATE_CONFLICT",queue.retry(992472,992472,now).status)
+    @Test fun `retry never reuses discarded source and preserves ownership`() {
+        assertEquals("NOT_FOUND",queue.retry(992473,992472).status)
+        assertEquals("STATE_CONFLICT",queue.retry(992472,992472).status)
+        queue.claim(now);queue.fail(992472,1,"TIMEOUT",now)
+        assertEquals("STATE_CONFLICT",queue.retry(992472,992472).status)
+        assertEquals(1,jdbc.queryForObject("SELECT attempt FROM sheet_conversions WHERE sheet_id=992472",Int::class.java))
     }
-    @Test fun `restart recovery makes running work retryable server failure`() {
+    @Test fun `restart recovery fails queued and running work without retry`() {
+        queue.claim(now);queue.recover(now)
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_conversions WHERE status='FAILED' AND sheet_id IN (992472,992473)",Int::class.java))
+        assertEquals("STATE_CONFLICT",queue.retry(992472,992472).status)
+    }
+    @Test fun `cleanup fails expired queued and running jobs and deletes temporary bytes`() {
+        val json=JsonMapper.builder().build()
+        val storage=LocalSheetSourceStorage(directory.resolve("expired"))
+        val file=directory.resolve("raw");java.nio.file.Files.writeString(file,"raw")
+        for(id in listOf(992472L,992473L)) {
+            val key="sheet-import-temp/$id/raw"
+            storage.put(key,file,"image/png")
+            jdbc.update("INSERT INTO sheet_source_files(sheet_id,file_idx,object_key,content_type,byte_size,file_name) VALUES(?,0,?,'image/png',3,'raw')",id,key)
+        }
         queue.claim(now)
-        queue.recover(now)
-        assertEquals("QUEUED",queue.retry(992472,992472,now).status)
+        val worker=ConversionWorker(queue,storage,RecognitionClient { error("expired jobs must not invoke recognition") },RecognitionResultBuilder(json,scores),Clock.fixed(now.plusSeconds(1800),ZoneOffset.UTC),json)
+        worker.cleanup()
+        assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_conversions WHERE failure_code='TIMEOUT' AND sheet_id IN (992472,992473)",Int::class.java))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_files WHERE sheet_id IN (992472,992473)",Int::class.java))
+        for(id in listOf(992472L,992473L)) kotlin.test.assertFalse(java.nio.file.Files.exists(directory.resolve("expired/sheet-import-temp/$id/raw")))
     }
 
     @Test fun `saving a converted score does not hold the sheet while waiting for its conversion`() {
@@ -132,23 +142,25 @@ class ConversionQueueDatabaseTests {
         }
         val source=directory.resolve("original.png")
         javax.imageio.ImageIO.write(java.awt.image.BufferedImage(3,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"PNG",source.toFile())
-        val key="sheet-sources/992472/original.png"
+        val key="sheet-import-temp/992472/original.png"
         local.put(key,source,"image/png")
         jdbc.update("INSERT INTO sheet_source_files(sheet_id,file_idx,object_key,content_type,byte_size,file_name) VALUES(992472,0,?,'image/png',?,'original.png')",key,java.nio.file.Files.size(source))
         server.start()
         try {
             val client=HttpRecognitionClient("http://127.0.0.1:${server.address.port}",json)
-            val worker=ConversionWorker(queue,storage,client,RecognitionResultBuilder(json,scores),SourcePageRenderer(storage),Clock.fixed(now,ZoneOffset.UTC),json)
+            val worker=ConversionWorker(queue,storage,client,RecognitionResultBuilder(json,scores),Clock.fixed(now,ZoneOffset.UTC),json)
             worker.runOne()
         } finally { server.stop(0) }
         assertEquals(1,calls)
         assertEquals("DONE",jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=992472",String::class.java))
         assertEquals("NEEDS_REVIEW",jdbc.queryForObject("SELECT status FROM user_sheets WHERE id=992472",String::class.java))
         assertNotNull(jdbc.queryForObject("SELECT score_json FROM user_sheets WHERE id=992472",String::class.java))
-        assertEquals(1,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_pages WHERE sheet_id=992472",Int::class.java))
-        val failed=ConversionWorker(queue,storage,RecognitionClient { json.readTree("""{"status":"FAILED","failReason":"ENGINE_ERROR"}""") },RecognitionResultBuilder(json,scores),ConversionPageRenderer { _,_,_ -> emptyList() },Clock.fixed(now,ZoneOffset.UTC),json)
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_pages WHERE sheet_id=992472",Int::class.java))
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_source_files WHERE sheet_id=992472",Int::class.java))
+        kotlin.test.assertFalse(java.nio.file.Files.exists(directory.resolve("objects").resolve(key)))
+        val failed=ConversionWorker(queue,storage,RecognitionClient { json.readTree("""{"status":"FAILED","failReason":"ENGINE_ERROR"}""") },RecognitionResultBuilder(json,scores),Clock.fixed(now,ZoneOffset.UTC),json)
         failed.runOne()
-        assertEquals("STATE_CONFLICT",queue.retry(992473,992473,now).status)
+        assertEquals("STATE_CONFLICT",queue.retry(992473,992473).status)
     }
     companion object {
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {

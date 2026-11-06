@@ -2,6 +2,36 @@ package com.ssafy.eolssu.core.audio
 
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.flow.Flow
+
+/** 녹음 파일의 샘플 위치로 표현한 음높이 관측값. */
+data class PitchReading(
+    val recordingId: Long,
+    val segmentId: Long,
+    val sequence: Long,
+    val startSample: Long,
+    val endSample: Long,
+    val sampleRate: Int,
+    val frequencyHz: Double?,
+    val capturedEndNanos: Long,
+    val normalizedDifference: Double? = null,
+    val analysisAvailable: Boolean = true,
+    /** 2회 확인 전 원시 분석값. frequencyHz가 미확정이어도 보존한다. */
+    val rawFrequencyHz: Double? = frequencyHz,
+)
+
+/** 녹음 중단과 재개 시 파일 위치와 입력 시각의 대응점. */
+data class CaptureBoundary(
+    val recordingId: Long,
+    val segmentId: Long,
+    val samplePosition: Long,
+    val sampleRate: Int,
+    val monotonicNanos: Long,
+    val timestampValid: Boolean,
+    /** 경계를 읽은 시각. 플랫폼 단조 시각 사이의 경과만 계산한다. */
+    val observedNanos: Long = monotonicNanos,
+    val analysisAvailable: Boolean = true,
+)
 
 /** 녹음 파일 규격(PRA-02, `docs/specs/recording-file.md`)에서 앱이 지키는 값. */
 object RecordingSpec {
@@ -32,6 +62,12 @@ data class RecordedAudio(val path: String, val bytes: Long) {
  * 플랫폼 구현은 `platform/audio`에 두고, 구현이 없는 플랫폼(현재 Web)은 등록하지 않는다.
  */
 interface AudioRecorder {
+    /** 실시간 음높이 관측을 지원하지 않는 플랫폼은 null이다. */
+    val pitchReadings: Flow<PitchReading>? get() = null
+
+    /** 현재 녹음 구간의 입력 경계. */
+    val captureBoundary: CaptureBoundary? get() = null
+
     /** 새 녹음을 시작한다. 전에 [stop]으로 남긴 파일은 지운다. 시작하지 못하면 예외를 던진다. */
     fun start()
 

@@ -90,7 +90,7 @@ class SheetImportsTests {
         assertEquals(null, record.requestedBpm)
         assertEquals(listOf("쪽0.png", "쪽1.png"), record.files.map { it.fileName })
         assertEquals(record.files.map { it.objectKey }.toSet(), storage.objects)
-        assertTrue(record.files.all { it.objectKey.startsWith("sheet-sources/7/") && it.objectKey.endsWith(".png") })
+        assertTrue(record.files.all { it.objectKey.startsWith("sheet-import-temp/7/") && it.objectKey.endsWith(".png") })
     }
 
     @Test

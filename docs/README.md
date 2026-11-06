@@ -1,6 +1,13 @@
 # 프로젝트 문서
 
 - [기록 정간보 가독성](specs/record-score-readability.md) · [535 계획·검증](plans/S15P31E102-535.md)
+- [앱 실시간 등급 판정 규칙과 KMP 구조 초안 (362)](knowledge/ai/realtime-grade-rules-and-kmp.md)
+
+- [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
+
+- [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
+- [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
+- [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
 
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
@@ -21,6 +28,7 @@
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
 | Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
+| 운영 Compose 교체·권한 유지 | [스펙](specs/runtime-compose-install.md) · [541 원인·검증](plans/S15P31E102-541.md) |
 | Jenkins 컨테이너·호스트 에이전트·복구 | [Jenkins 컨트롤러 운영 문서](../infra/jenkins/controller/README.md) |
 | Jenkins 실패 Mattermost 알림·짧은 로그·복구 | [운영 문서](../infra/jenkins/notifications/README.md) · [스펙](specs/jenkins-failure-notifications.md) · [진단 근거](knowledge/infra/jenkins-failure-notifications.md) · [509 실행 기록](plans/S15P31E102-509.md) |
 | edo1 운영 MySQL 웹 조회 | [운영 문서](../infra/mysql-admin/README.md) · [스펙](specs/edo1-mysql-web-read.md) · [514 계획·검증](plans/S15P31E102-514.md) |
@@ -42,6 +50,8 @@
 - [S15P31E102-257 평가 결과 조회](plans/S15P31E102-257.md)
 
 ## 기능 스펙
+
+- [업로드 원본 임시 처리·비보관 전환 (534)](plans/S15P31E102-534.md) · [수명주기·검증 경계](knowledge/backend/temporary-sheet-source-lifecycle.md) · [현행 정책](specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
@@ -142,6 +152,7 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android 채점모드 실시간 음높이 표시 설계](knowledge/frontend/realtime-pitch-prototype-design.md)
 - [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
 
 - [연습 조작과 설정 화면 검증](knowledge/frontend/practice-controls-verification.md)
