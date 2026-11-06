@@ -8,6 +8,9 @@ import com.ssafy.eolssu.backend.feature.practice.domain.RecordingStorage
 import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_SOURCE_PREFIX
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
 import java.time.Clock
+import org.springframework.beans.factory.annotation.Qualifier
+import com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
@@ -23,11 +26,16 @@ class WithdrawalPurgeConfig {
 
     @Bean
     fun withdrawalPurgeService(repository: WithdrawalPurgeRepository, storage: RecordingStorage, sheets: SheetSourceStorage,
-        audio: com.ssafy.eolssu.backend.feature.sheet.application.SheetAudios) =
-        // 내 악보 원본은 따로 둔 악보 전용 버킷에 있다(S15P31E102-471). 키 앞부분으로 저장소를 고른다.
+        audio: com.ssafy.eolssu.backend.feature.sheet.application.SheetAudios,
+        @Qualifier("temporarySheetSourceStorage") temporary: TemporarySheetSourceStorage) =
+        // 신규 임시 원본·과거 R2 원본·녹음의 소유 저장소를 키 앞부분으로 고른다.
         WithdrawalPurgeService(
             repository,
-            { key -> if (key.startsWith(SHEET_SOURCE_PREFIX)) sheets.delete(key) else storage.delete(key) },
+            { key -> when {
+                key.startsWith(TEMP_SHEET_SOURCE_PREFIX) -> temporary.delete(key)
+                key.startsWith(SHEET_SOURCE_PREFIX) -> sheets.delete(key)
+                else -> storage.delete(key)
+            } },
             Clock.systemUTC(),
             beforeDelete = audio::deleteUser,
         )

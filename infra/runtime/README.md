@@ -476,3 +476,9 @@ ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}
 6. V25 성공 이력·컬럼 삭제·세션 생성/조회·health·사후 백업을 확인합니다. V25 이후 정상 재배포할 복구 JAR은 컬럼을 읽지 않는 코드와 원본 V25를 함께 포함해야 합니다. A JAR은 V25 누락 검사로 정상 재배포가 거부됩니다. 구 운영 e335ac 버전은 삭제된 컬럼을 읽으므로 복구 대상으로 쓰지 않습니다.
 
 검증용 로컬 `bootRun`/`db`는 V25를 적용합니다. 운영 호환성 점검에는 실행 JAR을 사용합니다. 1차·2차를 한 번에 배포하면 선배포 목적을 달성하지 못합니다.
+
+### 업로드 원본 임시 처리 (S15P31E102-534)
+
+534 브랜치의 원본 비보관 전환은 [정책](../../docs/specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)을 따릅니다. 원본은 backend `/tmp/eolssu-sheet-imports`와 요청 처리 중의 `/tmp/eolssu-multipart`에 있는 비공개 임시 파일이며 최대 30분·종료 즉시 정리합니다. 두 디렉터리를 영구 볼륨·백업에 넣지 않습니다. Nginx가 본문을 받는 동안의 임시 파일은 승인된 예외이며 요청이 끝나면 지워집니다. 한 backend 인스턴스에서 운영합니다.
+
+`SHEET_IMPORT_READ_BASE_URL`의 기본값은 `http://backend:8080/api/internal/sheet-imports`입니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정이 없더라도 원본 불러오기는 동작하고, 생성 M4A·MIDI에는 계속 `SHEET_STORAGE_*`가 필요합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.

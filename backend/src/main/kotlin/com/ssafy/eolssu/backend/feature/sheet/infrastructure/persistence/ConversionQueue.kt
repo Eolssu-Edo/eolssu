@@ -1,8 +1,6 @@
 package com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence
 
-import com.ssafy.eolssu.backend.feature.sheet.application.ConversionRetryPolicy
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.BuiltRecognition
-import com.ssafy.eolssu.backend.feature.sheet.infrastructure.StoredConversionPage
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -22,7 +20,7 @@ data class ConversionJob(
     val acceptedAt: LocalDateTime,
 )
 data class ConversionFile(val objectKey: String, val contentType: String)
-data class ConversionRetry(val status: String, val attempt: Int = 0, val acceptedAt: Instant? = null)
+data class ConversionRetry(val status: String)
 data class ConversionJangdan(val id: Long,val defaultBpm: Int)
 
 private const val JOB_SELECT = """SELECT c.sheet_id,c.user_id,s.title,c.notation,i.code AS instrument,j.name AS jangdan,c.bpm,c.hwang_pitch,
@@ -47,10 +45,7 @@ interface ConversionWorkerMapper {
         WHERE sheet_id=#{sheetId} AND attempt=#{attempt} AND status='RUNNING'""")
     fun fail(@Param("sheetId") sheetId: Long,@Param("attempt") attempt: Int,@Param("code") code: String,@Param("cause") cause: String,@Param("now") now: LocalDateTime): Int
     @Update("""UPDATE sheet_conversions SET status='FAILED',stage=NULL,failure_code='SERVER_ERROR',failure_cause='SERVER_ERROR',
-        finished_at=#{now} WHERE status='RUNNING'""") fun recover(now: LocalDateTime): Int
-    @Update("""UPDATE sheet_conversions SET status='QUEUED',stage=NULL,processed_page_count=0,failure_code=NULL,failure_cause=NULL,
-        started_at=NULL,finished_at=NULL,accepted_at=#{now},attempt=attempt+1 WHERE sheet_id=#{sheetId} AND status='FAILED'""")
-    fun retry(@Param("sheetId") sheetId: Long,@Param("now") now: LocalDateTime): Int
+        finished_at=#{now} WHERE status IN ('QUEUED','RUNNING')""") fun recover(now: LocalDateTime): Int
     @Select("SELECT object_key,content_type FROM sheet_source_files WHERE sheet_id=#{sheetId} ORDER BY file_idx")
     fun files(sheetId: Long): List<ConversionFile>
     @Select("SELECT id,default_bpm FROM jangdans WHERE name=#{name} LIMIT 1") fun jangdan(name: String): ConversionJangdan?
@@ -64,8 +59,11 @@ interface ConversionWorkerMapper {
         WHERE id=#{sheetId}""")
     fun saveScore(@Param("sheetId") sheetId: Long,@Param("result") result: BuiltRecognition,@Param("jangdanId") jangdanId: Long?,
         @Param("revision") revision: Int,@Param("baseVersion") baseVersion: Int?,@Param("draftAt") draftAt: LocalDateTime?,@Param("now") now: LocalDateTime): Int
-    @Insert("INSERT INTO sheet_source_pages(sheet_id,page_idx,object_key,width,height) VALUES(#{sheetId},#{page.pageIdx},#{page.objectKey},#{page.width},#{page.height})")
-    fun page(@Param("sheetId") sheetId: Long,@Param("page") page: StoredConversionPage): Int
+    @Delete("DELETE FROM sheet_source_files WHERE object_key=#{key}") fun forgetSource(key: String): Int
+    @Select("SELECT f.object_key,f.content_type FROM sheet_source_files f JOIN sheet_conversions c ON c.sheet_id=f.sheet_id WHERE c.status IN ('DONE','FAILED') AND f.object_key LIKE 'sheet-import-temp/%'")
+    fun finishedSources(): List<ConversionFile>
+    @Update("UPDATE sheet_conversions SET status='FAILED',stage=NULL,failure_code='TIMEOUT',failure_cause='TIMEOUT',finished_at=#{now} WHERE status IN ('QUEUED','RUNNING') AND accepted_at<=#{before}")
+    fun expire(@Param("now") now: LocalDateTime,@Param("before") before: LocalDateTime): Int
     @Update("UPDATE sheet_conversions SET status='DONE',stage=NULL,result_json=#{resultJson},finished_at=#{now} WHERE sheet_id=#{sheetId}")
     fun finish(@Param("sheetId") sheetId: Long,@Param("resultJson") resultJson: String,@Param("now") now: LocalDateTime): Int
 }
@@ -86,7 +84,7 @@ class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: Platf
     fun files(sheetId: Long)=mapper.files(sheetId)
     fun jangdan(name: String)=mapper.jangdan(name)
     fun building(job: ConversionJob)=mapper.building(job.sheetId,job.attempt)==1
-    fun complete(job: ConversionJob,result: BuiltRecognition,pages: List<StoredConversionPage>,now: Instant): Boolean = transaction.execute {
+    fun complete(job: ConversionJob,result: BuiltRecognition,now: Instant): Boolean = transaction.execute {
         if(mapper.lockRunning(job.sheetId,job.attempt)==null) return@execute false
         val draft=result.draftJson!=null
         val jangdanId=mapper.jangdan(result.jangdanName)?.id
@@ -96,10 +94,8 @@ class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: Platf
             json.writeValueAsString(node)
         }
         mapper.saveScore(job.sheetId,result.copy(draftJson=draftJson),jangdanId,if(draft) 1 else 0,if(draft) 1 else null,now.utc().takeIf { draft },now.utc())
-        pages.forEach { mapper.page(job.sheetId,it) }
         val details=json.readTree(result.resultJson) as ObjectNode
-        val storedPages=details.putArray("pages")
-        pages.forEach { storedPages.addPOJO(it) }
+        details.putArray("pages")
         mapper.finish(job.sheetId,json.writeValueAsString(details),now.utc())
         true
     }==true
@@ -108,15 +104,13 @@ class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: Platf
         mapper.fail(sheetId,attempt,code,cause,now.utc())
     }
     fun recover(now: Instant)=mapper.recover(now.utc())
-    fun retry(userId: Long,sheetId: Long,now: Instant,available: Boolean=true): ConversionRetry = checkNotNull(transaction.execute {
+    fun forgetSource(key: String)=mapper.forgetSource(key)
+    fun finishedSources()=mapper.finishedSources()
+    fun expire(now: Instant)=mapper.expire(now.utc(),now.minus(com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage.RETENTION).utc())
+    fun retry(userId: Long,sheetId: Long): ConversionRetry = checkNotNull(transaction.execute {
         if(mapper.lockUser(userId)==null) return@execute ConversionRetry("NOT_FOUND")
         val job=mapper.owned(userId,sheetId) ?: return@execute ConversionRetry("NOT_FOUND")
-        if(job.status in listOf("QUEUED","RUNNING")) return@execute ConversionRetry(job.status,job.attempt,job.acceptedAt.toInstant(ZoneOffset.UTC))
-        if(!ConversionRetryPolicy.allowed(job.status,job.failureCause,job.attempt,job.timeoutCount)) return@execute ConversionRetry("STATE_CONFLICT")
-        if(!available) return@execute ConversionRetry("UNAVAILABLE")
-        if(mapper.otherActive(userId,sheetId)>0) return@execute ConversionRetry("CONVERSION_IN_PROGRESS")
-        check(mapper.retry(sheetId,now.utc())==1)
-        ConversionRetry("QUEUED",job.attempt+1,now)
+        ConversionRetry("STATE_CONFLICT")
     })
     private fun Instant.utc()=LocalDateTime.ofInstant(this,ZoneOffset.UTC)
 }

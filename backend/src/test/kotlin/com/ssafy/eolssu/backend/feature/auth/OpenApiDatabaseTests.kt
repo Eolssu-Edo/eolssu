@@ -88,7 +88,7 @@ open class OpenApiDatabaseTests {
             for (child in node) checkReferences(child)
         }
         checkReferences(doc)
-        assertEquals(76,expected.size)
+        assertEquals(77,expected.size)
         assertTrue(expected.containsAll(setOf("get /api/users/me/sheets", "get /api/users/me/sheets/{sheetId}/score",
             "put /api/users/me/sheets/{sheetId}/score", "put /api/users/me/sheets/{sheetId}/score/draft", "delete /api/users/me/sheets/{sheetId}",
             "post /api/users/me/sheets/imports", "get /api/users/me/sheets/{sheetId}/conversion", "post /api/users/me/sheets/{sheetId}/conversion/retry",

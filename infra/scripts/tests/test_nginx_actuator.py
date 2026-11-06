@@ -26,7 +26,8 @@ FAKE_BACKEND = '''server {
 }
 '''
 PASSED = ['/api/actuator/health/readiness', '/api/infra-smoke']
-BLOCKED = ['/api/actuator', '/api/actuator/', '/api/actuator/health', '/api/actuator/health/liveness',
+BLOCKED = ['/api/internal/sheet-imports/opaque-token', '/api//internal/sheet-imports/opaque-token',
+           '/api/%69nternal/sheet-imports/opaque-token', '/api/actuator', '/api/actuator/', '/api/actuator/health', '/api/actuator/health/liveness',
            '/api/actuator/prometheus', '/api/actuator/env',
            # 우회 시도: Nginx가 경로를 정규화한 뒤 고르므로 모두 막혀야 한다
            '/api//actuator/prometheus', '/api/%61ctuator/prometheus',
