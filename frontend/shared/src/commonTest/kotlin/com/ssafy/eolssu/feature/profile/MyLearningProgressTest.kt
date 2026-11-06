@@ -11,6 +11,17 @@ import kotlin.test.assertNull
 
 class MyLearningProgressTest {
     @Test
+    fun mascotFollowsNextUnfinishedStageIncludingGroupBoundaries() {
+        assertEquals(LearningMascot.Study, MyLearningProgress(emptySet()).mascot)
+        assertEquals(LearningMascot.Study, MyLearningProgress(setOf(1, 2)).mascot)
+        assertEquals(LearningMascot.Point, MyLearningProgress(setOf(1, 2, 3)).mascot)
+        assertEquals(LearningMascot.Point, MyLearningProgress((1..5).toSet()).mascot)
+        assertEquals(LearningMascot.Rhythm, MyLearningProgress((1..6).toSet()).mascot)
+        assertEquals(LearningMascot.Rhythm, MyLearningProgress((1..9).toSet()).mascot)
+        assertEquals(LearningMascot.Study, MyLearningProgress(setOf(1, 3, 7, 8, 9)).mascot)
+    }
+
+    @Test
     fun unstartedLearningShowsFirstStageAndNoCompletions() {
         val progress = MyLearningProgress(emptySet())
         assertEquals(0, progress.completedCount)

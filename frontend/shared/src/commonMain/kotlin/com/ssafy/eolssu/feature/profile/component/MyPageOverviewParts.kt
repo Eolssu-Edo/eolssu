@@ -7,13 +7,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -37,13 +41,14 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.MyLearningProgress
+import com.ssafy.eolssu.feature.profile.LearningMascot
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** 학습 화면과 같은 기기 저장 기록. 순서를 건너뛴 완료도 각 칸에 그대로 표시한다. */
+/** 학습 화면과 같은 서버 진도. 완료한 단계도 숫자를 눌러 다시 열 수 있다. */
 @Composable
-internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgress?, loading: Boolean) {
+internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgress?, loading: Boolean, onOpenStage: (Int) -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -51,17 +56,21 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
         border = BorderStroke(1.dp, colors.accentTintLine),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.size(40.dp).background(colors.accentTintStrong, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(EolssuIcons.Book, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.accentText)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(stringResource(Res.string.my_learning_title), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.text)
                     if (instrument != null) Text(
                         stringResource(Res.string.my_learning_instrument, stringResource(instrument.label)),
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textMuted,
+                    )
+                }
+                // 원본 프레임의 빈 가장자리 대신 캐릭터의 실제 높이를 기준으로 제목 옆에 배치한다.
+                Box(Modifier.size(width = 112.dp, height = 72.dp)) {
+                    LearningMascotImage(
+                        progress?.mascot ?: LearningMascot.Study,
+                        Modifier.requiredSize(112.dp),
                     )
                 }
             }
@@ -77,18 +86,38 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
                     color = colors.accentText,
                 )
-                Row(Modifier.fillMaxWidth().clearAndSetSemantics {}, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    (1..progress.totalStages).forEach { stage ->
-                        val done = stage in progress.completedStages
-                        val next = stage == progress.nextStage
-                        Box(
-                            Modifier.weight(1f).aspectRatio(1f)
-                                .background(if (done) colors.primary else colors.surface, CircleShape)
-                                .border(if (next) 2.dp else 1.dp, if (next) colors.play else colors.accentTintLine, CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.size(14.dp), tint = colors.onPrimary)
-                            else Text(stage.toString(), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = if (next) colors.play else colors.textMuted)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    // 아래 줄의 중심을 위 줄 각 숫자의 중간에 맞춘다(위 5개·아래 4개).
+                    val staggerInset = (maxWidth - 48.dp) / 8
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(1..5, 6..9).forEachIndexed { row, stages ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = if (row == 0) 0.dp else staggerInset),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                stages.forEach { stage ->
+                                    val done = stage in progress.completedStages
+                                    val next = stage == progress.nextStage
+                                    val label = stringResource(Res.string.my_learning_open_stage, stage)
+                                    val status = stringResource(when {
+                                        done -> Res.string.my_learning_stage_done
+                                        next -> Res.string.my_learning_stage_next
+                                        else -> Res.string.my_learning_stage_not_done
+                                    })
+                                    Box(
+                                        Modifier.size(48.dp)
+                                            .clickable(enabled = instrument != null, role = Role.Button, onClickLabel = label) { onOpenStage(stage) }
+                                            .semantics { contentDescription = label; stateDescription = status }
+                                            .padding(5.dp)
+                                            .background(if (done) colors.primary else colors.surface, CircleShape)
+                                            .border(if (next) 2.dp else 1.dp, if (next) colors.play else colors.accentTintLine, CircleShape),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(stage.toString(), modifier = Modifier.clearAndSetSemantics {}, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = if (done || next) FontWeight.Bold else FontWeight.Normal), color = if (done) colors.onPrimary else if (next) colors.play else colors.textMuted)
+                                        if (done) Icon(EolssuIcons.Check, contentDescription = null, modifier = Modifier.align(Alignment.TopEnd).size(12.dp), tint = colors.onPrimary)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -97,7 +126,6 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = colors.accentText,
                 )
-                Text(stringResource(Res.string.my_learning_local), style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = colors.textMuted)
             }
         }
     }
