@@ -17,7 +17,7 @@ import com.ssafy.eolssu.feature.song.edit.EditView
 import com.ssafy.eolssu.feature.song.edit.HwangPitch
 import com.ssafy.eolssu.feature.song.edit.ImportKind
 import com.ssafy.eolssu.feature.song.edit.ImportResultRoute
-import com.ssafy.eolssu.feature.song.edit.ImportScreen
+import com.ssafy.eolssu.feature.song.edit.SheetImportRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditRoute
 import com.ssafy.eolssu.feature.song.edit.SheetEditViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -52,7 +52,8 @@ object SheetEditDestination {
 
 /**
  * 악보 추가·편집 화면 이동. 내 악보 '악보 추가' → 악보 추가(EDIT-01) →
- * 정간보·오선보: 기기 선택 창 → 인식 중(EDIT-05) → 인식 결과(EDIT-06) → 편집(EDIT-02 · 03) / 불러오기: 목록 → 복사본 편집.
+ * 정간보·오선보: 파일·악기·장단 선택 → 실제 업로드 접수 → 내 악보 목록. 상태 조회·인식 결과 연결은 후속 작업이다.
+ * 기존 예시 결과·복사 편집 경로는 이 접수 흐름에서 사용하지 않는다.
  * 편집기의 '미리보기'(EDIT-04)는 편집 경로에 묶인 같은 ViewModel을 쓴다. 편집 닫기는 내 악보(SONG-03)로 돌아간다.
  */
 fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
@@ -81,11 +82,18 @@ fun NavGraphBuilder.sheetEditGraph(navController: NavController) {
     ) { entry ->
         val kind = entry.importKind()
         val hwang = entry.hwang()
-        ImportScreen(
+        SheetImportRoute(
             kind = kind,
             hwang = hwang,
             onBack = { navController.popBackStackFrom(entry) },
-            onResult = { navController.navigate(SheetEditDestination.importResult(kind, hwang)) },
+            onList = {
+                if (navController.currentBackStackEntry?.id == entry.id) {
+                    if (!navController.popBackStack(EolssuDestination.MY_SONGS, inclusive = false)) navController.navigate(EolssuDestination.mySongs(sheets = true)) {
+                        popUpTo(SheetEditDestination.NEW) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            },
         )
     }
     composable(

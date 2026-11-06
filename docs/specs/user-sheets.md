@@ -69,6 +69,8 @@
 
 ## 불러오기 접수·변환 상태 (S15P31E102-471)
 
+FE 접수 흐름(S15P31E102-539, 사용자 2026-11-06 결정): 정간보의 장단 선택을 **업로드 전**에 한다. 이전 화면의 인식 후 선택은 이 결정으로 대체한다. SHT-07은 실제 파일·카탈로그 ID로 접수하고 202 뒤 접수 완료와 목록 이동까지만 연결한다. SHT-10 상태 조회·인식 결과 연결과 SHT-14는 후속이다. [539 계획](../plans/S15P31E102-539.md)·[파일 선택·접수 경계](../knowledge/frontend/sheet-import-submission.md).
+
 - 저장: V26 `sheet_conversions`(악보당 변환 한 건, 이 표가 큐다. 회원당 `QUEUED`·`RUNNING`은 생성 칸 `active_user_id` UNIQUE로 1건), `sheet_source_files`(원본 객체 키·형식·크기·파일 이름). 둘 다 `user_sheets` 삭제에 따라 지워진다. `user_sheets.source`에 `JEONGGANBO_OMR`·`STAFF_OMR`.
 - 원본은 악보 전용 비공개 버킷(`eolssu.sheet-storage.*`, 환경변수 `SHEET_STORAGE_*`)의 `sheet-sources/{userId}/{무작위}/{순서}.{확장자}`에 둔다. 연결값이 하나라도 비면 SHT-07은 503 `CONVERSION_UNAVAILABLE`이고 기동은 막지 않는다. `local`은 개발·테스트용 디렉터리 저장소다.
 - SHT-07 `POST /api/users/me/sheets/imports`(multipart `files`·`metadata`, `Idempotency-Key` 필수): 개수 → 크기 → 형식(파일 앞부분) → PDF·이미지 구성 → PDF 쪽 수·암호(PDFBox) → metadata 범위 → 같은 키 → 저장소 → 악기·장단 → 상한 순으로 본다. 원본을 올린 뒤 회원 행을 잠근 한 트랜잭션에서 키·상한·진행 중을 다시 보고 행을 만든다. 거절되면 올린 객체를 지운다. 202 `result`는 `sheetId`·`notation`·`source`·`conversionStatus`·`pageCount`·`acceptedAt`.
