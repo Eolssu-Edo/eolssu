@@ -199,7 +199,8 @@ val appModule = module {
         val catalog = get<InstrumentCatalog>()
         val records = get<PracticeRecordRepository>()
         ResultErrorsViewModel(sourceId, get(), loadInstruments = catalog::load, member = get(),
-            onOpened = { if (historical) records.detail(it) })
+            onOpened = { if (historical) records.detail(it) },
+            deleteRecord = if (historical) records::delete else null)
     }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->

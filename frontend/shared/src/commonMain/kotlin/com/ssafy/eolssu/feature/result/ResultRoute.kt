@@ -21,7 +21,7 @@ import org.koin.core.parameter.parametersOf
  * RESULT-02 연결.
  *
  * @param onGoRecords 저장 뒤 '기록 보러 가기'. null이면 기록 화면이 아직 없어 '준비 중' 안내를 띄운다.
- * @param onViewAllErrors ‘악보 전체에서 보기’ → RESULT-03 오류 위치(2차). null이면 '준비 중' 안내를 띄운다.
+ * @param onViewAllErrors ‘오류 위치 상세 보기’ → RESULT-03 오류 위치. null이면 '준비 중' 안내를 띄운다.
  * @param onWeakSection ‘취약 구간 연습’ → PRACTICE-02 취약 구간 선택(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
@@ -82,8 +82,6 @@ fun ResultRoute(
                     showComingSoon()
                 }
             },
-            onSelectFilter = viewModel::selectErrorFilter,
-            onSelectCell = viewModel::selectCell,
             onRetrySong = viewModel::retrySong,
             onRetryResult = viewModel::retryResult,
         ),

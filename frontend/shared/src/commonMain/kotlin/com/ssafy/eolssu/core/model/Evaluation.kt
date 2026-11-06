@@ -38,6 +38,8 @@ data class ScoreError(val column: Int, val row: Int, val kind: ScoreErrorKind) {
  *
  * @property feedback 총평 한 줄(서버가 준다).
  * @property sample 예시 결과인지. 실제 분석이 붙기 전에는 true로 화면에 '예시 결과'를 표시한다.
+ * @property eventErrors 악보 연주 순서([ScoreEvent.index]) → 그 음의 틀린 종류. 한 정간을 나눈 소박마다 오류를 보여줄 때 쓴다.
+ *   서버 판정에서만 채우고, 예시 결과는 비어 있어 정간 단위 [errors]로 대신한다.
  */
 data class EvaluationResult(
     val id: String,
@@ -52,6 +54,7 @@ data class EvaluationResult(
     val sample: Boolean,
     /** 서버 결과의 악보 버전. 예시 fixture에서만 null을 허용한다. */
     val scoreVersion: Int? = null,
+    val eventErrors: Map<Int, List<ScoreErrorKind>> = emptyMap(),
 ) {
     /**
      * 틀린 칸이 가장 많이 몰린 이웃한 두 각(0부터)과 그 수. 틀린 칸이 없으면 null.

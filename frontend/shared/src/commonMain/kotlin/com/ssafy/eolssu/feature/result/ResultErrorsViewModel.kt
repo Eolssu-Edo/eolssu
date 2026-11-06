@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.data.practice.RecordDeleteOutcome
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
  * @property loading 데이터를 받는 중. 끝났는데 [song]·[result]가 없으면 찾지 못한 것이다.
  * @property section 서버가 추천한 취약 구간(각 전체). 추천할 구간이 없거나 받지 못하면 null.
  * @property selectedCell 눌러 고른 정간. null이면 [shownCell]이 취약 구간의 첫 오류를 고른다.
+ * @property delete 이전 연주 결과의 '기록 삭제' 진행 상태.
  */
 data class ResultErrorsUiState(
     val loading: Boolean = true,
@@ -35,13 +37,14 @@ data class ResultErrorsUiState(
     val filter: ErrorFilter = ErrorFilter.All,
     val selectedCell: ScoreCellPosition? = null,
     val section: ScoreSection? = null,
+    val delete: RecordDeleteState = RecordDeleteState.Idle,
 ) {
     val songTitle: String? get() = song?.title?.let { title ->
         instrumentName?.let { "$title · $it" } ?: title
     }
 
     /** 취약 구간 안의 틀린 정간 수. */
-    val sectionErrorCount: Int get() = section?.let { sec -> result?.errors?.count { sec.contains(it.column, it.row) } } ?: 0
+    val sectionErrorCount: Int get() = section?.let { sec -> result?.errors?.filter { sec.contains(it.column, it.row) }?.distinctBy { it.column to it.row }?.size } ?: 0
 
     /** 고른 정간. 고르지 않았으면 추천 취약 구간의 첫 오류, 추천이 없으면 틀린 정간이 가장 몰린 곳의 첫 오류다. */
     val shownCell: ScoreCellPosition?
@@ -51,13 +54,20 @@ data class ResultErrorsUiState(
             ?: result?.defaultSelectedCell()
 }
 
+/** '기록 삭제' 진행 상태. [Busy]·[Failed]는 안내를 띄운 뒤 [Idle]로 돌아간다. */
+enum class RecordDeleteState { Idle, Confirm, Deleting, Deleted, Busy, Failed }
+
 class ResultErrorsViewModel(
     private val sourceId: String,
     private val repository: WeakSectionRepository,
     private val loadInstruments: suspend () -> List<CatalogInstrument> = { emptyList() },
     member: SignedInMember? = null,
     private val onOpened: suspend (String) -> Unit = {},
+    /** 이전 연주 결과에서만 넘긴다. null이면 '기록 삭제'를 보이지 않는다. */
+    private val deleteRecord: (suspend (String) -> RecordDeleteOutcome)? = null,
 ) : ViewModel() {
+    val canDelete: Boolean get() = deleteRecord != null
+
     private val _uiState = MutableStateFlow(ResultErrorsUiState())
     val uiState: StateFlow<ResultErrorsUiState> = _uiState.asStateFlow()
 
@@ -116,4 +126,38 @@ class ResultErrorsViewModel(
     fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }
 
     fun selectCell(cell: ScoreCellPosition) = _uiState.update { it.copy(selectedCell = cell) }
+
+    fun askDelete() = _uiState.update { if (it.delete == RecordDeleteState.Idle) it.copy(delete = RecordDeleteState.Confirm) else it }
+
+    fun cancelDelete() = _uiState.update { if (it.delete == RecordDeleteState.Confirm) it.copy(delete = RecordDeleteState.Idle) else it }
+
+    /** 확인 창에서 '삭제'를 누르면 기록과 녹음을 지운다(REC-04). 이미 지운 기록도 삭제됨으로 본다. */
+    fun confirmDelete() {
+        val delete = deleteRecord ?: return
+        if (_uiState.value.delete != RecordDeleteState.Confirm) return
+        _uiState.update { it.copy(delete = RecordDeleteState.Deleting) }
+        accountScope.launch {
+            val outcome = try {
+                delete(sourceId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                RecordDeleteOutcome.Failed
+            }
+            _uiState.update {
+                it.copy(
+                    delete = when (outcome) {
+                        RecordDeleteOutcome.Deleted -> RecordDeleteState.Deleted
+                        RecordDeleteOutcome.Busy -> RecordDeleteState.Busy
+                        RecordDeleteOutcome.Failed -> RecordDeleteState.Failed
+                    },
+                )
+            }
+        }
+    }
+
+    /** 삭제 실패 안내를 띄운 뒤 부른다. */
+    fun dismissDeleteError() = _uiState.update {
+        if (it.delete == RecordDeleteState.Busy || it.delete == RecordDeleteState.Failed) it.copy(delete = RecordDeleteState.Idle) else it
+    }
 }
