@@ -164,7 +164,13 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 낮은 창·확대 글꼴에서는 고정 컨트롤 때문에 악보가 사라지지 않도록 페이지 스크롤을 유지한다.
-            val fitScore = (packScore || fingering) && maxHeight >= (if (recordingBar) 280.dp else 480.dp) && fontScale <= 1f
+            // 묶음 악보는 글꼴을 키워도 한 화면에 맞춘다. 플레이어·버튼도 커지므로 필요한 창 높이를 같은 배율로 늘린다.
+            val fitHeight = if (recordingBar) 280.dp else 480.dp
+            val fitScore = when {
+                packScore -> maxHeight >= fitHeight * fontScale.coerceAtLeast(1f)
+                fingering -> maxHeight >= fitHeight && fontScale <= 1f
+                else -> false
+            }
             Column(
                 Modifier
                     .fillMaxSize()
