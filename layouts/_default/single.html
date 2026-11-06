@@ -11,6 +11,9 @@
         {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
         {{ partial "post-meta.html" . }}
       </header>
+      {{- with .Params.thumbnail }}
+      <div class="article-cover article-cover-mobile"><img src="{{ . | relURL }}" alt="" decoding="async"></div>
+      {{- end }}
       <div class="article-body">{{ .Content }}</div>
       {{- with .GetTerms "tags" }}<footer class="article-tags">{{ range . }}<a href="{{ .RelPermalink }}">#{{ .Title }}</a>{{ end }}</footer>{{ end }}
       {{- if or .PrevInSection .NextInSection }}
@@ -21,8 +24,15 @@
       {{- end }}
       {{ partial "comments.html" . }}
     </article>
-    {{- if .Fragments.Headings }}
-    <aside class="article-toc" aria-labelledby="toc-title"><h2 id="toc-title">이 글의 목차</h2>{{ .TableOfContents }}</aside>
+    {{- if or .Params.thumbnail .Fragments.Headings }}
+    <div class="article-sidebar">
+      {{- with .Params.thumbnail }}
+      <div class="article-cover"><img src="{{ . | relURL }}" alt="" decoding="async"></div>
+      {{- end }}
+      {{- if .Fragments.Headings }}
+      <aside class="article-toc" aria-labelledby="toc-title"><h2 id="toc-title">이 글의 목차</h2>{{ .TableOfContents }}</aside>
+      {{- end }}
+    </div>
     {{- end }}
   </div>
 </div>
