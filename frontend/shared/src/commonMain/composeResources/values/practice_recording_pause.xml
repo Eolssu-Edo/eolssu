@@ -1,0 +1,4 @@
+<resources>
+    <string name="practice_settings_paused_title">연주 일시정지</string>
+    <string name="practice_resume_recording">연주 재개</string>
+</resources>

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -216,15 +217,16 @@ private fun NoInputBanner() {
     Row(
         Modifier
             .fillMaxWidth()
-            .background(colors.recSoft, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(colors.recSoft, RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.recText)
+        Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.recText)
         Text(
             stringResource(Res.string.practice_no_input_hint),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+            modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
             color = colors.recText,
         )
     }
