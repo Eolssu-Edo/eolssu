@@ -166,6 +166,7 @@ internal fun MySongsBody(
             MySongsTab.Sheets -> {
                 AddSheetButton(actions.onAddSheet)
                 val sheets = state.sheets.orEmpty()
+                if (state.sheetLoadState != SongLoadState.Ready) SongLoadNotice(state.sheetLoadState, actions.onRetry)
                 if (sheets.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         ListNote(stringResource(Res.string.mysongs_sheet_count, sheets.size))

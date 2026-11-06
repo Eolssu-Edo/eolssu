@@ -19,7 +19,7 @@ import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
-import com.ssafy.eolssu.data.song.SampleMySheetRepository
+import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
 import com.ssafy.eolssu.data.song.SheetAudioRepository
 import com.ssafy.eolssu.data.song.ApiSongRepository
@@ -187,7 +187,7 @@ val appModule = module {
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
     // 내 악보. 서버 API가 없어 앱이 켜져 있는 동안만 예시 악보를 들고 있다.
-    single<MySheetRepository> { SampleMySheetRepository(member = get()) }
+    single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
     viewModelOf(::MySongsViewModel)
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
