@@ -207,6 +207,7 @@
     <string name="practice_finger_head_yul">율명</string>
     <string name="practice_finger_head_lyric">가사</string>
     <string name="practice_finger_gak">%1$d각</string>
+    <string name="practice_finger_gak_range">%1$d–%2$d각</string>
     <string name="practice_finger_rest">쉼</string>
     <string name="practice_finger_missing">운지 자료 없음</string>
     <string name="practice_upcoming">← 다음</string>

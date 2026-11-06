@@ -63,6 +63,7 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_finger_upcoming
 import eolssu.shared.generated.resources.practice_finger_end
 import eolssu.shared.generated.resources.practice_finger_gak
+import eolssu.shared.generated.resources.practice_finger_gak_range
 import eolssu.shared.generated.resources.practice_finger_head_fingering
 import eolssu.shared.generated.resources.practice_finger_head_lyric
 import eolssu.shared.generated.resources.practice_finger_head_yul
@@ -131,19 +132,21 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val instrument = state.instrument
     val cells = remember(song, instrument) { fingerCells(song, instrument) }
     if (cells.isEmpty()) return
-    val angles = remember(cells) { cells.groupBy { it.column }.values.toList() }
+    val angles = remember(song, cells) { fingerAnglePages(song, cells) }
     val playback = state.scorePlayback()
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
     val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
         else song.displayUnits.firstOrNull { it.event.index == state.selected }
-    var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentUnit?.column ?: 0) }
-    val angleIndex = if (live && state.follow) currentUnit?.column ?: browsed else browsed
+    // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
+    fun pageOf(column: Int, row: Int): Int? = angles.indexOfFirst { page -> page.any { it.column == column && it.row == row } }.takeIf { it >= 0 }
+    val currentPage = currentUnit?.let { pageOf(it.column, it.row) }
+    var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentPage ?: 0) }
+    val angleIndex = if (live && state.follow) currentPage ?: browsed else browsed
     val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
-    val previewCount = remember(angle) { fingerPreviewCount(angle) }
-    val preview = remember(song, cells, angleIndex, previewCount) {
+    val preview = remember(song, cells, angleIndex) {
         val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
-        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent, previewCount)
+        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
     }
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
@@ -161,9 +164,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                     val imageHeight = ((maxHeight - 4.dp * angle.size) / weight).coerceAtLeast(28.dp * fontScale)
                     val scroll = remember(angleIndex) { ScrollState(0) }
                     val density = LocalDensity.current
-                    androidx.compose.runtime.LaunchedEffect(currentUnit?.row, angleIndex, state.follow, scroll.maxValue) {
+                    androidx.compose.runtime.LaunchedEffect(currentUnit?.column, currentUnit?.row, angleIndex, state.follow, scroll.maxValue) {
                         if (live && state.follow && scroll.maxValue > 0) {
-                            val before = angle.takeWhile { it.row != currentUnit?.row }
+                            val before = angle.takeWhile { it.column != currentUnit?.column || it.row != currentUnit?.row }
                             val top = before.fold(0.dp) { acc, cell ->
                                 acc + imageHeight * cell.units.sumOf { fingerSlotWeight(it).toDouble() }.toFloat() + 4.dp
                             }
@@ -195,7 +198,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             Text(stringResource(Res.string.practice_finger_upcoming),
                 style = MaterialTheme.typography.labelSmall, color = colors.accentText)
             // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
-            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * previewCount)
+            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * 2)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
                 FingerHead(instrumentName)
                 if (preview.isEmpty()) {
@@ -212,7 +215,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_finger_previous_page), { browsed = (browsed - 1).coerceAtLeast(0) }, bordered = false, enabled = !live && browsed > 0)
-                Text(stringResource(Res.string.practice_finger_gak, angleIndex + 1), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+                val firstGak = angle.first().column + 1
+                val lastGak = angle.last().column + 1
+                Text(if (firstGak == lastGak) stringResource(Res.string.practice_finger_gak, firstGak) else stringResource(Res.string.practice_finger_gak_range, firstGak, lastGak), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
                 EolssuIconButton(EolssuIcons.Next, stringResource(Res.string.practice_finger_next_page), { browsed = (browsed + 1).coerceAtMost(angles.lastIndex) }, bordered = false, enabled = !live && browsed < angles.lastIndex)
             }
         }
