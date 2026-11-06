@@ -12,25 +12,28 @@ import java.time.Instant
 import java.util.UUID
 
 /** One backend instance owns the spool. Never used for generated audio or exposed to app clients. */
-class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: String, private val clock: Clock) : SheetSourceStorage, AutoCloseable {
+class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: String, private val clock: Clock,
+    val multipartDirectory: Path=directory.resolveSibling("${directory.fileName}-multipart")) : SheetSourceStorage, AutoCloseable {
     data class Readable(val path: Path, val contentType: String)
     private data class Entry(val path: Path, val contentType: String, val expires: Instant, var deleting: Boolean=false)
     private data class Ticket(val key: String, val expires: Instant)
     private val entries=mutableMapOf<String,Entry>()
     private val tickets=mutableMapOf<String,Ticket>()
     private val uploads=mutableMapOf<Path,Instant>()
+    private val multipartSeen=mutableMapOf<Path,Instant>()
     override val available = true
-    init {
-        require(!Files.isSymbolicLink(directory)) { "Temporary source directory must not be a symbolic link" }
-        Files.createDirectories(directory)
-        if(Files.getFileStore(directory).supportsFileAttributeView("posix"))
-            Files.setPosixFilePermissions(directory,PosixFilePermissions.fromString("rwx------"))
+    init { listOf(directory,multipartDirectory).forEach(::preparePrivate) }
+    private fun preparePrivate(path: Path) {
+        require(!Files.isSymbolicLink(path)) { "Temporary source directory must not be a symbolic link" }
+        Files.createDirectories(path)
+        if(Files.getFileStore(path).supportsFileAttributeView("posix"))
+            Files.setPosixFilePermissions(path,PosixFilePermissions.fromString("rwx------"))
     }
     @Synchronized override fun put(key: String, file: Path, contentType: String) {
         check(key !in entries)
         val path=try { Files.createTempFile(directory,"source-",".tmp") }
             catch(e: Exception) { throw SheetSourceStorageException("Temporary source creation failed",e) }
-        val entry=Entry(path,contentType,clock.instant().plus(RETENTION))
+        val entry=Entry(path,contentType,uploads[file] ?: clock.instant().plus(RETENTION))
         entries[key]=entry
         try { Files.copy(file,path,java.nio.file.StandardCopyOption.REPLACE_EXISTING) }
         catch(e: Exception) {
@@ -76,14 +79,27 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         uploads.filterValues { now>=it }.keys.toList().forEach(::releaseUpload)
         entries.filterValues { it.deleting || now>=it.expires }.keys.toList().forEach { runCatching { delete(it) } }
         tickets.entries.removeIf { now>=it.value.expires }
+        runCatching { purgeMultipart(now) }
     }
+    /** The container names these files, so their age counts from the first sweep that sees them. */
+    private fun purgeMultipart(now: Instant) {
+        val present=multipartFiles()
+        multipartSeen.keys.retainAll(present.toSet())
+        present.forEach { path ->
+            if(now<multipartSeen.getOrPut(path) { now.plus(RETENTION) }) return@forEach
+            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }
+        }
+    }
+    private fun multipartFiles(): List<Path> =
+        Files.list(multipartDirectory).use { paths -> paths.filter { Files.isRegularFile(it,NOFOLLOW_LINKS) }.toList() }
     /** Called before enabling conversion workers on startup. Does not follow symlinks. */
     @Synchronized fun reset() {
         Files.list(directory).use { paths -> paths.forEach { path ->
             require(!Files.isDirectory(path,NOFOLLOW_LINKS)) { "Unexpected directory in temporary source spool" }
             Files.deleteIfExists(path)
         } }
-        entries.clear();tickets.clear();uploads.clear()
+        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) } } }
+        entries.clear();tickets.clear();uploads.clear();multipartSeen.clear()
     }
     @Synchronized override fun close() {
         entries.keys.toList().forEach { runCatching { delete(it) } }

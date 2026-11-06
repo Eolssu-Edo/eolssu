@@ -56,9 +56,10 @@ class UserSheetConfig {
     // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
     @Bean(defaultCandidate=false)
     fun temporarySheetSourceStorage(clock: Clock,
-        @Value("\${eolssu.sheet-import.read-base-url:http://backend:8080/api/internal/sheet-imports}") baseUrl: String) =
+        @Value("\${eolssu.sheet-import.read-base-url:http://backend:8080/api/internal/sheet-imports}") baseUrl: String,
+        @Value("\${eolssu.sheet-import.multipart-directory}") multipartDirectory: String) =
         com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage(
-            Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),baseUrl,clock)
+            Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),baseUrl,clock,Path.of(multipartDirectory))
 
     @Bean
     fun sheetSourceStorage(properties: SheetStorageProperties): SheetSourceStorage = when {

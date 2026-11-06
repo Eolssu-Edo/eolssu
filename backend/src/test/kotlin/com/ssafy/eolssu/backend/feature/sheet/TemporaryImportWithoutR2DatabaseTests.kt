@@ -12,6 +12,12 @@ import java.net.http.*
 import java.nio.file.Files
 import java.time.*
 import java.util.Date
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import jakarta.servlet.FilterChain
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.servlet.http.HttpServletResponse
 import kotlin.test.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.BeforeEach
@@ -19,8 +25,12 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
 import org.springframework.beans.factory.annotation.*
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.web.servlet.FilterRegistrationBean
+import org.springframework.context.annotation.Bean
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.*
+import org.springframework.web.filter.OncePerRequestFilter
 import tools.jackson.databind.json.JsonMapper
 
 @Tag("database")
@@ -70,15 +80,7 @@ class TemporaryImportWithoutR2DatabaseTests {
             val worker=ConversionWorker(queue,source,HttpRecognitionClient("http://127.0.0.1:${server.address.port}",json,Duration.ofSeconds(10)),builder,Clock.systemUTC(),json)
             for(expected in listOf("DONE","FAILED")) {
                 outcome=expected
-                val boundary="temporary534"
-                val body=("--$boundary\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n"+
-                    "{\"title\":\"temporary\",\"notation\":\"STAFF\",\"instrumentId\":\"1\",\"bpm\":60}\r\n"+
-                    "--$boundary\r\nContent-Disposition: form-data; name=\"files\"; filename=\"score.png\"\r\nContent-Type: image/png\r\n\r\n").toByteArray()+png+"\r\n--$boundary--\r\n".toByteArray()
-                val jwt=SignedJWT(JWSHeader(JWSAlgorithm.HS256),JWTClaimsSet.Builder().subject("993534").expirationTime(Date.from(Instant.now().plusSeconds(60))).build())
-                jwt.sign(MACSigner(SECRET.toByteArray()))
-                val accepted=client.send(HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/users/me/sheets/imports"))
-                    .header("Cookie","access_token=${jwt.serialize()}").header("Idempotency-Key",expected)
-                    .header("Content-Type","multipart/form-data; boundary=$boundary").POST(HttpRequest.BodyPublishers.ofByteArray(body)).build(),HttpResponse.BodyHandlers.ofString())
+                val accepted=client.send(importRequest(expected).build(),HttpResponse.BodyHandlers.ofString())
                 assertEquals(202,accepted.statusCode(),accepted.body())
                 val id=json.readTree(accepted.body()).path("result").path("sheetId").asString()
                 val key=jdbc.queryForObject("SELECT object_key FROM sheet_source_files WHERE sheet_id=?",String::class.java,id)!!
@@ -93,7 +95,67 @@ class TemporaryImportWithoutR2DatabaseTests {
             assertEquals(2,downloads)
         } finally { server.stop(0) }
     }
+    @Test fun `stalled multipart upload stays in the managed spool and fails after thirty minutes`() {
+        val pending=stalledImport("stalled")
+        val spooled=Files.list(temporary.multipartDirectory).use { it.toList() }
+        assertTrue(spooled.isNotEmpty(),"multipart bytes must be written to the managed spool")
+        val time=object: Clock() {
+            var now=Instant.parse("2026-11-06T00:00:00Z")
+            override fun instant()=now
+            override fun getZone(): ZoneId=ZoneOffset.UTC
+            override fun withZone(zone: ZoneId): Clock=this
+        }
+        TemporarySheetSourceStorage(Files.createTempDirectory("sweeper"),"http://backend/x",time,temporary.multipartDirectory).use { sweeper ->
+            sweeper.purgeExpired()
+            time.now=time.now.plusSeconds(1800);sweeper.purgeExpired()
+        }
+        spooled.forEach { assertFalse(Files.exists(it)) }
+        assertUnavailable(pending)
+    }
+    @Test fun `stalled upload that loses only the file part fails as unavailable`() {
+        val pending=stalledImport("lost-file")
+        val filePart=Files.list(temporary.multipartDirectory).use { it.toList() }.single { Files.readAllBytes(it).contentEquals(png) }
+        Files.delete(filePart)
+        assertUnavailable(pending)
+    }
+    private fun stalledImport(key: String): CompletableFuture<HttpResponse<String>> {
+        HoldUpload.reset()
+        val pending=client.sendAsync(importRequest(key).header(HOLD_HEADER,"1").build(),HttpResponse.BodyHandlers.ofString())
+        assertTrue(HoldUpload.entered.await(10,TimeUnit.SECONDS))
+        return pending
+    }
+    private fun assertUnavailable(pending: CompletableFuture<HttpResponse<String>>) {
+        HoldUpload.release.countDown()
+        val response=pending.get(10,TimeUnit.SECONDS)
+        assertEquals(503,response.statusCode(),response.body())
+        assertEquals("CONVERSION_UNAVAILABLE",json.readTree(response.body()).path("result").path("errorCode").asString())
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM user_sheets WHERE user_id=993534",Int::class.java))
+    }
+    private fun importRequest(key: String): HttpRequest.Builder {
+        val boundary="temporary534"
+        val body=("--$boundary\r\nContent-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n"+
+            "{\"title\":\"temporary\",\"notation\":\"STAFF\",\"instrumentId\":\"1\",\"bpm\":60}\r\n"+
+            "--$boundary\r\nContent-Disposition: form-data; name=\"files\"; filename=\"score.png\"\r\nContent-Type: image/png\r\n\r\n").toByteArray()+png+"\r\n--$boundary--\r\n".toByteArray()
+        val jwt=SignedJWT(JWSHeader(JWSAlgorithm.HS256),JWTClaimsSet.Builder().subject("993534").expirationTime(Date.from(Instant.now().plusSeconds(60))).build())
+        jwt.sign(MACSigner(SECRET.toByteArray()))
+        return HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/users/me/sheets/imports"))
+            .header("Cookie","access_token=${jwt.serialize()}").header("Idempotency-Key",key)
+            .header("Content-Type","multipart/form-data; boundary=$boundary").POST(HttpRequest.BodyPublishers.ofByteArray(body))
+    }
+    /** Parses the body like the dispatcher does, then holds the request so the spool can be observed mid-flight. */
+    object HoldUpload: OncePerRequestFilter() {
+        @Volatile var entered=CountDownLatch(1)
+        @Volatile var release=CountDownLatch(1)
+        fun reset() { entered=CountDownLatch(1);release=CountDownLatch(1) }
+        override fun doFilterInternal(request: HttpServletRequest,response: HttpServletResponse,chain: FilterChain) {
+            if(request.getHeader(HOLD_HEADER)!=null) { request.parts;entered.countDown();release.await(30,TimeUnit.SECONDS) }
+            chain.doFilter(request,response)
+        }
+    }
+    @TestConfiguration(proxyBeanMethods=false)
+    class HoldUploadConfig { @Bean fun holdUpload()=FilterRegistrationBean(HoldUpload).apply { addUrlPatterns("/api/users/me/sheets/imports") } }
     companion object {
+        private const val HOLD_HEADER="X-Test-Hold-Upload"
         private const val SECRET="temporary-source-534-test-signing-key"
         @JvmStatic @DynamicPropertySource fun properties(registry: DynamicPropertyRegistry) {
             registry.add("eolssu.scheduling.enabled") { "false" }

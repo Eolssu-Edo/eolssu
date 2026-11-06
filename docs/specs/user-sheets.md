@@ -123,6 +123,7 @@
 
 - 업로드 이미지·PDF는 backend의 비공개 임시 디렉터리에만 두며 R2에 올리지 않는다. 인식기만 추측할 수 없는 단기 URL로 내부망에서 읽는다. 외부 Nginx는 이 내부 경로를 거절한다.
 - 성공·실패·사용자 삭제 시 즉시 지운다. 사용자 확정대로 최대 30분이며, 대기 중·진행 중이어도 기한 초과 시 파일 삭제와 FAILED(TIMEOUT) 처리 후 재업로드한다. 정리 주기는 최대 1초이며 잠금·DB 장애 시 정리는 재시도한다.
+- Spring multipart 임시 파일도 같은 30분 수명 안에 둔다. 정체한 요청의 파일이 정리되면 SHT-07은 503 `CONVERSION_UNAVAILABLE`이다.
 - backend 재시작 시 남은 임시 파일을 지우고 QUEUED·RUNNING을 FAILED(SERVER_ERROR)로 끝낸다. 인식기 종료·요청 실패 때도 원본을 재사용하지 않는다.
 - SHT-10 retryable은 항상 false다. 기존 SHT-14 경로는 인증·소유권·ID 검증을 유지하고 본인 변환에 409 STATE_CONFLICT를 돌려준다. 새 파일은 SHT-07과 새 Idempotency-Key로 다시 올린다. 같은 키·같은 파일의 멱등 재전송은 기존 상태를 돌려주며 인식을 다시 시작하지 않는다.
 - SHT-08 source.pages는 항상 [], pagesExpireAt은 항상 null이다. 과거 result_json의 원본 페이지도 서명하거나 노출하지 않는다. 확인 필요 칸의 eventId·cellId와 DB 정간보·초안은 유지한다.

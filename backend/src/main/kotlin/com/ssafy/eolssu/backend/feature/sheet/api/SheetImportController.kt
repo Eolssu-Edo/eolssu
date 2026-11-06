@@ -62,7 +62,11 @@ class SheetImportController(private val imports: SheetImports, private val json:
         val result = try {
             val uploads = files.map { part ->
                 val path = temporaryStorage.createUpload().also(temporary::add)
-                part.transferTo(path)
+                // 정체한 요청의 multipart 파일이 30분 정리로 사라졌으면 저장소 장애와 같이 503으로 끝낸다.
+                try { part.transferTo(path) }
+                catch(e: java.io.IOException) {
+                    throw com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException("Multipart upload is no longer readable",e)
+                }
                 SheetUpload(path, part.size, part.originalFilename.orEmpty())
             }
             imports.accept(SheetImportCommand(requireNotNull(jwt.subject).toLong(), idempotencyKey, uploads, parsed))
@@ -86,6 +90,11 @@ class SheetImportController(private val imports: SheetImports, private val json:
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
             .body(SuccessResponse.of(HttpStatus.OK, "악보 변환 상태 조회 성공", SheetConversionView.of(conversion)))
     }
+
+    /** metadata 파트도 디스크 파일이다. 30분 정리로 사라져 못 읽은 경우만 요청 오류가 아니라 503이다. */
+    @org.springframework.web.bind.annotation.ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException::class)
+    fun unreadablePart(e: org.springframework.http.converter.HttpMessageNotReadableException): ResponseEntity<*> =
+        error(if(e.cause is java.io.IOException) ErrorCode.CONVERSION_UNAVAILABLE else ErrorCode.INVALID_REQUEST)
 
     /** JSON 타입이 명세와 다르거나 필수값이 없으면 null(400). 범위는 응용 계층이 본다. */
     private fun parse(metadata: String): SheetImportMetadata? {

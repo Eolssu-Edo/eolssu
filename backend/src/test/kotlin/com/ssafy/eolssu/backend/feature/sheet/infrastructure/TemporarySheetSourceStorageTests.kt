@@ -80,4 +80,42 @@ class TemporarySheetSourceStorageTests {
             store.reset();assertFalse(Files.exists(abandoned))
         }
     }
+    @Test fun `stalled multipart file is removed thirty minutes after it is first seen`() {
+        val time=Time();val multipart=root.resolve("multipart")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time,multipart).use { store ->
+            val stalled=multipart.resolve("upload_stalled.tmp");Files.writeString(stalled,"raw")
+            store.purgeExpired()
+            time.now=time.now.plusSeconds(1799);store.purgeExpired()
+            assertTrue(Files.exists(stalled))
+            val younger=multipart.resolve("upload_younger.tmp");Files.writeString(younger,"raw")
+            store.purgeExpired()
+            time.now=time.now.plusSeconds(1);store.purgeExpired()
+            assertFalse(Files.exists(stalled));assertTrue(Files.exists(younger))
+        }
+    }
+    @Test fun `startup reset removes abandoned multipart bytes and missing spool does not stop source cleanup`() {
+        val time=Time();val multipart=root.resolve("multipart")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time,multipart).use { store ->
+            val abandoned=multipart.resolve("upload_abandoned.tmp");Files.writeString(abandoned,"raw")
+            store.reset();assertFalse(Files.exists(abandoned))
+            val input=root.resolve("input");Files.writeString(input,"raw")
+            store.put("key",input,"image/png")
+            val path=assertNotNull(store.readable(store.readUrl("key",Duration.ofMinutes(15)).substringAfterLast('/'))).path
+            Files.delete(multipart)
+            time.now=time.now.plusSeconds(1800);store.purgeExpired()
+            assertFalse(Files.exists(path))
+        }
+    }
+    @Test fun `queued copy keeps the deadline of its request upload`() {
+        val time=Time()
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time).use { store ->
+            val upload=store.createUpload();Files.writeString(upload,"raw")
+            time.now=time.now.plusSeconds(1200)
+            store.put("key",upload,"image/png")
+            val path=assertNotNull(store.readable(store.readUrl("key",Duration.ofMinutes(15)).substringAfterLast('/'))).path
+            store.releaseUpload(upload)
+            time.now=time.now.plusSeconds(600);store.purgeExpired()
+            assertFalse(Files.exists(path))
+        }
+    }
 }
