@@ -17,5 +17,5 @@
 
 ## 웹 수동 배포 전용 잡 (S15P31E102-527)
 
-- `eolssu-frontend-web-manual`이 기존 웹 Pipeline을 실행한다. 트리거는 비워 두고 운영자가 `REVISION`을 직접 입력한다.
-- `eolssu-frontend`는 비활성화해 기존 빌드 URL과 실행 이력을 보존한다. 배포를 복구할 때도 두 잡을 동시에 활성화하지 않는다. [작업 계획](../plans/S15P31E102-527.md)
+- `eolssu-frontend-web-수동배포용`이 기존 웹 Pipeline을 실행한다. 트리거는 비워 두고 운영자가 `REVISION`을 직접 입력한다.
+- 기존 빌드 이력은 비활성화된 `eolssu-frontend-이력보관용`에서 조회한다. 배포를 복구할 때도 두 잡을 동시에 활성화하지 않는다. [작업 계획](../plans/S15P31E102-527.md)
