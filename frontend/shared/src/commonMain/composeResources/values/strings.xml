@@ -1,4 +1,6 @@
 <resources>
+    <string name="sheet_delete_failed">악보를 삭제하지 못했어요. 다시 시도해 주세요.</string>
+    <string name="comparison_score_unavailable">두 연주의 점수는 비교할 수 없어요.</string>
     <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>
     <string name="jangdan_unassigned">장단 미지정</string>
     <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>

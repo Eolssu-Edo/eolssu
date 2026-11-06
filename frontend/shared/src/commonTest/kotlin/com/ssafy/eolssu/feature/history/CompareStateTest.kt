@@ -46,16 +46,21 @@ class CompareStateTest {
     fun comparisonStartsWithLatestPreviousAndWaitsForItsErrors() {
         val state = CompareUiState(loading = false, comparison = comparison)
         assertEquals("prev-1", state.previous?.id)
-        assertEquals(16, state.delta)
+        assertNull(state.delta, "서버가 비교 가능 여부와 구간 점수 차이를 주기 전에는 전체 점수를 빼지 않는다")
         // 이전 기록의 틀린 정간을 받기 전에는 표시하지 않는다.
         assertTrue(state.marks.isEmpty())
         assertNull(state.check)
 
-        val check = SessionCheck(false, "속도가 달라요.", null, 6, null, 0, null, null)
+        val check = SessionCheck(true, null, 12, 6, -6, 8, null, null,
+            scoreComparable = true, totalScoreDelta = 9, bpmChanged = true)
         val loaded = state.copy(previousDetail = PreviousRecord(latest.copy(errors = errors(3, 11, 20, 22, 24, 25, 29, 30, 31, 33, 40, 47)), CheckLoad.Loaded(check)))
         assertEquals(CompareCounts(previous = 12, current = 6, still = 4), loaded.counts)
         assertEquals(2, loaded.marks.values.count { it == CompareMark.New })
         assertEquals(CheckLoad.Loaded(check), loaded.check)
+        assertEquals(9, loaded.delta, "화면 기록의 84-68이 아니라 서버의 비교 구간 점수 차이를 쓴다")
+        val incompatible = loaded.copy(previousDetail = loaded.previousDetail?.copy(check = CheckLoad.Loaded(check.copy(comparable = false, scoreComparable = false, totalScoreDelta = null))))
+        assertTrue(incompatible.marks.isEmpty())
+        assertNull(incompatible.delta)
         assertEquals(ScorePosition(2, 2), loaded.listenFrom)
 
         // 다른 이전 기록을 고르면 받은 상세는 쓰지 않는다.

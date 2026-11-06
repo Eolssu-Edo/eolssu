@@ -45,9 +45,9 @@ data class WeakSectionSource(val song: Song, val evaluation: EvaluationResult)
 data class WeakSectionPick(val startColumn: Int, val endColumn: Int, val errorCount: Int)
 
 /**
- * EVA-04 비교 결과. 점수는 비교하지 않는다(서버 계약, 점수 비교는 2차 계약 미구현).
+ * EVA-04 비교 결과. 오류 수와 점수의 비교 가능 여부는 서로 독립적이며 점수 차이는 서버 값이다.
  *
- * @property comparable 악보 판본·채점 모델·속도가 같아 오류 수를 견줄 수 있는지. false면 [reason]이 있다.
+ * @property comparable 악보 판본이 같아 오류 수를 견줄 수 있는지(errorComparable). 모델·BPM 차이는 오류 비교를 막지 않는다.
  * @property beforeErrors 비교 구간의 이전 틀린 음표 수. 이전 결과의 악보 판본이 다르면 null.
  * @property afterErrors 이번 틀린 음표 수.
  * @property deltaErrors 이번 − 이전. 견줄 수 없으면 null.
@@ -63,6 +63,10 @@ data class SessionCheck(
     val correctedCount: Int,
     val startColumn: Int?,
     val endColumn: Int?,
+    val scoreComparable: Boolean = false,
+    val totalScoreDelta: Int? = null,
+    val notComparableReasons: List<String> = emptyList(),
+    val bpmChanged: Boolean = false,
 )
 
 /** 비교 불러오기 결과. */
@@ -181,6 +185,10 @@ class ApiWeakSectionRepository(
     private class ComparisonDto(
         val comparable: Boolean = false,
         val reason: String? = null,
+        val errorComparable: Boolean? = null,
+        val scoreComparable: Boolean = false,
+        val notComparableReasons: List<String> = emptyList(),
+        val bpmChanged: Boolean = false,
         val startColumnIdx: Int? = null,
         val endColumnIdx: Int? = null,
         val before: CountDto? = null,
@@ -188,18 +196,25 @@ class ApiWeakSectionRepository(
         val delta: CountDto? = null,
         val correctedNoteIndices: List<Int> = emptyList(),
     ) {
-        fun toModel() = SessionCheck(
-            comparable = comparable,
-            reason = reason,
+        fun toModel(): SessionCheck? {
+            if (after.errorCount == null || after.errorCount < 0) return null
+            return SessionCheck(
+            comparable = errorComparable ?: comparable,
+            reason = reason ?: notComparableReasons.takeIf { errorComparable == false }?.joinToString(),
             beforeErrors = before?.errorCount,
-            afterErrors = after.errorCount ?: 0,
+            afterErrors = after.errorCount,
             deltaErrors = delta?.errorCount,
             correctedCount = correctedNoteIndices.size,
             startColumn = startColumnIdx,
             endColumn = endColumnIdx,
+            scoreComparable = scoreComparable,
+            totalScoreDelta = delta?.totalScore.takeIf { scoreComparable },
+            notComparableReasons = notComparableReasons,
+            bpmChanged = bpmChanged,
         )
+        }
     }
 
     @Serializable
-    private class CountDto(val errorCount: Int? = null)
+    private class CountDto(val errorCount: Int? = null, val totalScore: Int? = null)
 }

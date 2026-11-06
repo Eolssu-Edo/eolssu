@@ -7,10 +7,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.sheet_delete_failed
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -45,6 +47,17 @@ fun MySongsRoute(
     LaunchedEffect(Unit) {
         if (startOnSheets) viewModel.showSheetsFirst()
     }
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshSheets()
+        onPauseOrDispose { }
+    }
+    val deleteFailure = stringResource(Res.string.sheet_delete_failed)
+    LaunchedEffect(state.deleteFailed) {
+        if (state.deleteFailed) {
+            viewModel.consumeDeleteFailure()
+            snackbarHostState.showSnackbar(deleteFailure)
+        }
+    }
 
     MySongsScreen(
         state = state,
@@ -52,7 +65,7 @@ fun MySongsRoute(
         snackbarHostState = snackbarHostState,
         actions = MySongsActions(
             onBack = onBack,
-            onRetry = viewModel::retry,
+            onRetry = { if (state.tab == MySongsTab.Sheets) viewModel.refreshSheets() else viewModel.retry() },
             onSelectTab = viewModel::selectTab,
             onSelectFilter = viewModel::selectFilter,
             onOpenSong = onPractice,

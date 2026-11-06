@@ -76,7 +76,7 @@ class ApiWeakSectionRepositoryTest {
 
     private val comparison = ok(
         """
-        {"baselineSessionId":"30","comparable":true,"reason":null,"startNoteIdx":12,"endNoteIdx":27,"startColumnIdx":2,"endColumnIdx":3,
+        {"baselineSessionId":"30","errorComparable":true,"scoreComparable":true,"bpmChanged":true,"notComparableReasons":[],"startNoteIdx":12,"endNoteIdx":27,"startColumnIdx":2,"endColumnIdx":3,
          "before":{"errorCount":9},"after":{"totalScore":81,"pitchScore":85,"timingScore":78,"durationScore":80,"errorCount":4,"bpm":48,"bpmUnit":"QUARTER"},
          "delta":{"errorCount":-5},"correctedNoteIndices":[12,14,15,20,21,22],"remainingErrors":[{"noteIdx":13,"verdict":"PITCH"}]}
         """.trimIndent(),
@@ -105,7 +105,7 @@ class ApiWeakSectionRepositoryTest {
         assertEquals(48, result.bpm)
         assertEquals(3, result.metrics.size)
         val check = assertIs<CheckLoad.Loaded>(result.check).check
-        assertEquals(SessionCheck(true, null, 9, 4, -5, 6, 2, 3), check)
+        assertEquals(SessionCheck(true, null, 9, 4, -5, 6, 2, 3, scoreComparable = true, bpmChanged = true), check)
         val request = requests.single()
         assertEquals("/api/practice-sessions/50/comparison", request.url.encodedPath)
         assertNull(request.url.parameters["baselineSessionId"], "기준 세션은 서버가 세션을 만들 때 받은 parentSessionId를 쓴다")
@@ -138,6 +138,18 @@ class ApiWeakSectionRepositoryTest {
         assertNull(repository.source("50"))
         evaluations.resultFailure = IllegalStateException("offline")
         assertNull(repository.source("50"))
+    }
+
+    @Test
+    fun modelChangeKeepsErrorComparisonButDoesNotInventScoreDelta() = runTest {
+        reply = { ok("""{"baselineSessionId":"30","errorComparable":true,"scoreComparable":false,"notComparableReasons":["MODEL_CHANGED"],"before":{"errorCount":9},"after":{"errorCount":4},"delta":{"errorCount":-5,"totalScore":null},"correctedNoteIndices":[12]}""") }
+        val check = assertIs<CheckLoad.Loaded>(checkNotNull(repository.sectionResult("50")).check).check
+        assertEquals(true, check.comparable)
+        assertEquals(false, check.scoreComparable)
+        assertEquals(-5, check.deltaErrors)
+        assertNull(check.totalScoreDelta)
+        reply = { ok("""{"errorComparable":true,"after":{}}""") }
+        assertEquals(CheckLoad.Failed, checkNotNull(repository.sectionResult("50")).check)
     }
 
     @Test
