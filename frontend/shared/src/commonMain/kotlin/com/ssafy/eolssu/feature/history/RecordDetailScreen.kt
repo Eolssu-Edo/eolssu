@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
 import androidx.compose.foundation.border
+import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
+import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.feature.history.component.HistoryBoardTopBar
 import eolssu.shared.generated.resources.records_section
@@ -137,7 +139,10 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = colors.textMuted,
             )
+            val scoreMetrics = recordScoreMetrics(song)
             JeongganboView(
+                metrics = scoreMetrics,
+                cellHeights = recordScoreCellHeights(song, scoreMetrics),
                 song = song,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
                 notation = ScoreNotation(showHangul = true),
