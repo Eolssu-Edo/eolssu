@@ -342,13 +342,13 @@ private fun ScoreDeltaSeal(label: String) {
             .border(2.dp, ink.copy(alpha = 0.9f), shape)
             .padding(3.dp)
             .border(1.dp, ink.copy(alpha = 0.75f), RoundedCornerShape(2.dp))
-            .padding(horizontal = 17.dp, vertical = 9.dp)
+            .padding(horizontal = 20.dp, vertical = 11.dp)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            style = EolssuTheme.serif.brand.copy(fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+            style = EolssuTheme.serif.brand.copy(fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
             color = ink.copy(alpha = 0.92f),
             maxLines = 1,
         )
