@@ -135,6 +135,8 @@
 
 ## 프론트엔드 조사·검증 기록
 
+- [Android 런처 아이콘 크기·잘림 보정 (522)](plans/S15P31E102-522.md)
+
 - [연습 조작과 설정 화면 검증](knowledge/frontend/practice-controls-verification.md)
 
 - [정간보 쉽게 읽기의 박·음높이 듣기 (439)](plans/S15P31E102-439.md)

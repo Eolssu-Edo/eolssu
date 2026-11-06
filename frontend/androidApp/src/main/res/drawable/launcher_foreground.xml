@@ -6,7 +6,7 @@
             <solid android:color="@android:color/transparent" />
         </shape>
     </item>
-    <item android:width="46dp" android:height="43dp" android:gravity="center">
+    <item android:width="60dp" android:height="55.375dp" android:gravity="center">
         <bitmap android:src="@drawable/launcher_logo" android:gravity="fill" android:filter="true" />
     </item>
 </layer-list>
