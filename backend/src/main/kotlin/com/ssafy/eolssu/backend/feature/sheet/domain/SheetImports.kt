@@ -96,6 +96,8 @@ interface SheetSourceStorage {
 
     fun readUrl(key: String, ttl: Duration): String
 
+    fun downloadUrl(key: String, ttl: Duration, fileName: String): String = readUrl(key,ttl)
+
     /** 작업자가 보관된 원본을 읽는다. URL은 이 저장소가 서명한 값만 사용한다. */
     fun download(key: String, target: Path) = download(key,target,Duration.ofSeconds(40))
 

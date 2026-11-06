@@ -82,6 +82,8 @@ services:
       SHEET_STORAGE_SECRET_ACCESS_KEY: ${SHEET_STORAGE_SECRET_ACCESS_KEY:-}
       SHEET_STORAGE_REGION: ${SHEET_STORAGE_REGION:-auto}
       SHEET_CONVERSION_OMR_BASE_URL: ${SHEET_CONVERSION_OMR_BASE_URL:-http://omr:8000}
+      SHEET_AUDIO_BASE_URL: ${SHEET_AUDIO_BASE_URL:-}
+      SHEET_AUDIO_TIMEOUT_SECONDS: ${SHEET_AUDIO_TIMEOUT_SECONDS:-100}
       REFERENCE_AUDIO_STORAGE_ENDPOINT: ${REFERENCE_AUDIO_STORAGE_ENDPOINT:-}
       REFERENCE_AUDIO_STORAGE_BUCKET: ${REFERENCE_AUDIO_STORAGE_BUCKET:-}
       REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID: ${REFERENCE_AUDIO_STORAGE_ACCESS_KEY_ID:-}
@@ -97,6 +99,37 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "test \"$$(curl --fail --silent --max-time 3 http://127.0.0.1:8080/api/actuator/health/readiness)\" = '{\"status\":\"UP\"}'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # 481: explicitly enable only after local resource/asset verification.
+  playback:
+    profiles: ["playback"]
+    logging:
+      driver: syslog
+      options:
+        <<: *private-log-options
+        tag: eolssu-playback
+    image: eolssu-playback:runtime
+    read_only: true
+    tmpfs:
+      - /tmp:rw,size=512m
+    mem_limit: 1g
+    # 481 measured the 600s render on 1g with no swap; keep that the real limit.
+    memswap_limit: 1g
+    cpus: 1
+    environment:
+      PLAYBACK_TIMEOUT_SECONDS: ${PLAYBACK_TIMEOUT_SECONDS:-90}
+      PLAYBACK_ASSETS_JSON: /assets/assets.json
+      PLAYBACK_JANGGU_SAMPLES: /janggu
+    volumes:
+      - ${PLAYBACK_ASSETS_DIRECTORY:-/opt/eolssu/playback-assets}:/assets:ro
+      - ${PLAYBACK_JANGGU_DIRECTORY:-/opt/eolssu/janggu}:/janggu:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
       interval: 30s
       timeout: 5s
       start_period: 30s
