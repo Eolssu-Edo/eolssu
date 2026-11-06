@@ -29,7 +29,7 @@ import com.ssafy.eolssu.feature.history.RecordDetailUiState
 import com.ssafy.eolssu.feature.history.component.HistoryFrame
 import com.ssafy.eolssu.feature.history.component.HistoryTopBar
 import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
-import com.ssafy.eolssu.feature.history.component.RecordScorePortrait
+import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
 import com.ssafy.eolssu.feature.history.component.CompareEntry
 import com.ssafy.eolssu.feature.history.component.RecordScoreText
 import com.ssafy.eolssu.feature.history.component.SwitchBox
@@ -92,7 +92,7 @@ internal fun RecordDetailTabletLayout(
             )
             WrappedJeongganbo(
                 song = song,
-                metrics = RecordScorePortrait,
+                metrics = recordScoreMetrics(song),
                 currentIndex = state.position,
                 follow = state.follow,
                 errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),

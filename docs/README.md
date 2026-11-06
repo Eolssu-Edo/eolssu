@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [기록 정간보 가독성](specs/record-score-readability.md) · [535 계획·검증](plans/S15P31E102-535.md)
+
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
 
