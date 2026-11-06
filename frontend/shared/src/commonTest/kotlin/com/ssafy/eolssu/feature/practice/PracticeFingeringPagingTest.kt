@@ -28,32 +28,33 @@ class PracticeFingeringPagingTest {
 
     private fun List<List<FingerCell>>.positions() = map { page -> page.map { it.column to it.row } }
 
-    @Test fun singleBeatCellsFillAtMostSixPerPageAndPreviewStaysTwo() {
-        // 아리랑·도라지타령처럼 3정간 각에 정간마다 한 음: 한 페이지에 두 각(6정간), 다음 음은 두 개.
+    @Test fun singleBeatCellsFillFiveFingeringsPerPageAndPreviewStaysTwo() {
+        // 3정간 각에 정간마다 한 음: 한 페이지에 운지 5개, 다음 음은 두 개.
         val song = columnsSong(List(4) { pitches(3) })
         val cells = fingerCells(song, GuideInstrument.Sogeum)
         val pages = fingerAnglePages(song, cells)
-        assertEquals(listOf((0..2).map { 0 to it } + (0..2).map { 1 to it }, (0..2).map { 2 to it } + (0..2).map { 3 to it }), pages.positions())
+        assertEquals(listOf(5, 5, 2), pages.map { it.size })
+        assertEquals(listOf(0 to 0, 0 to 1, 0 to 2, 1 to 0, 1 to 1), pages.positions().first())
         val last = pages.first().flatMap { it.units }.maxOf { it.event.index }
-        assertEquals(listOf(6, 7), nextFingerCells(song, cells, last).map { it.firstEvent!!.index })
+        assertEquals(listOf(5, 6), nextFingerCells(song, cells, last).map { it.firstEvent!!.index })
     }
 
-    @Test fun threePartCellsShowAtMostTwoPerPage() {
-        val triple = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.SourcePitch("태", 1), ScoreNote.SourcePitch("황", 1))
-        val song = columnsSong(listOf(List(5) { triple }))
+    @Test fun restAndHoldCountAsOneFingeringEach() {
+        val song = columnsSong(listOf(listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Rest), ScoreCell(ScoreNote.Hold, ScoreNote.SourcePitch("태", 1)), ScoreCell(ScoreNote.SourcePitch("황", 1)), ScoreCell(ScoreNote.SourcePitch("고", 1)))))
         val pages = fingerAnglePages(song, fingerCells(song, GuideInstrument.Sogeum))
-        assertEquals(listOf(2, 2, 1), pages.map { it.size })
-        assertTrue(pages.all { page -> page.sumOf { it.parts } <= FingerPageMaxSlots })
+        // 고 1 + 쉼 1 + (장음·태) 2 + 황 1 = 5칸, 남은 고는 다음 페이지.
+        assertEquals(listOf(4, 1), pages.map { it.size })
     }
 
-    @Test fun mixedCellsNeverExceedSixSlotsAndKeepOrder() {
+    @Test fun mixedCellsNeverExceedFiveFingeringsAndKeepOrder() {
         val split = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.SourcePitch("태", 1))
-        val song = columnsSong(listOf(pitches(2) + split, pitches(3), List(9) { ScoreCell(ScoreNote.SourcePitch("고", 1)) }))
+        val triple = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.SourcePitch("태", 1), ScoreNote.SourcePitch("황", 1))
+        val song = columnsSong(listOf(pitches(2) + split, pitches(3), List(9) { ScoreCell(ScoreNote.SourcePitch("고", 1)) }, List(3) { triple }))
         val cells = fingerCells(song, GuideInstrument.Sogeum)
         val pages = fingerAnglePages(song, cells)
         assertTrue(pages.all { page -> page.sumOf { it.parts } <= FingerPageMaxSlots })
         assertEquals(cells.map { it.index }, pages.flatten().map { it.index })
-        assertEquals(listOf(5, 6, 4), pages.map { it.size })
+        assertEquals(listOf(4, 5, 5, 2, 1, 1), pages.map { it.size })
     }
 
     @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {

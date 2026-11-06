@@ -64,12 +64,12 @@ private fun FingerCell.onPage(start: Double, end: Double): FingerCell? {
 /** 같은 이벤트가 이어지는 동안에도 절대 표시 위치로 전환하고 역방향 탐색도 같은 규칙을 쓴다. */
 fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= position }.coerceAtLeast(0)
 
-/** 한 페이지에 보일 최대 표시 자리(박) 수. 한 박 정간은 6정간, 3소박 정간은 2정간까지다. */
-internal const val FingerPageMaxSlots = 6
+/** 한 페이지에 보일 최대 운지 칸 수. 쉼·장음·빈 자리도 한 칸으로 센다. 다음에 부를 두 음은 따로다. */
+internal const val FingerPageMaxSlots = 5
 
 /**
- * 운지 페이지. 원본 순서대로 정간을 담되 표시 자리(한 정간 안 소박 수)의 합이 [FingerPageMaxSlots]를 넘지 않게 끊는다.
- * 한 정간이 혼자 6자리를 넘으면 그 정간만 한 페이지가 된다. 각 경계와 관계없이 이어 담는다.
+ * 운지 페이지. 원본 순서대로 정간을 담되 운지 칸(한 정간 안 표시 자리 수)의 합이 [FingerPageMaxSlots]를 넘지 않게 끊는다.
+ * 정간은 쪼개지 않으며, 한 정간이 혼자 5칸을 넘으면 그 정간만 한 페이지가 된다. 각 경계와 관계없이 이어 담는다.
  */
 @Suppress("UNUSED_PARAMETER")
 internal fun fingerAnglePages(song: Song, cells: List<FingerCell>): List<List<FingerCell>> {
