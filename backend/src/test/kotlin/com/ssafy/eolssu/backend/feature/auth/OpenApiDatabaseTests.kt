@@ -55,6 +55,14 @@ open class OpenApiDatabaseTests {
         assertTrue(schema.path("required").any { it.asString() == "hasPassword" })
         assertFalse(properties.has("passwordHash"))
     }
+    @Test fun `comparison documents the second contract field names and nullable fields`() {
+        val schemas = json.readTree(get("/api/v3/api-docs").body()).path("components").path("schemas")
+        val properties = schemas.path("SectionComparisonApiResult").path("properties")
+        assertTrue(properties.has("isFullSong"))
+        assertFalse(properties.has("fullSong"))
+        assertFalse(properties.has("comparable"))
+        assertTrue(schemas.path("BeforeResult").path("properties").path("totalScore").path("nullable").asBoolean())
+    }
     @Test fun `authenticated user can fetch the full business API definition`() {
         val response=get("/api/v3/api-docs")
         assertEquals(200,response.statusCode(),response.body())

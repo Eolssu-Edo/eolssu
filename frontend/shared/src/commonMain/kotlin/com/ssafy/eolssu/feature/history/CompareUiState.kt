@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.data.practice.PreviousRecord
+import com.ssafy.eolssu.data.practice.CheckLoad
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.model.ScoreError
@@ -47,7 +49,7 @@ fun compareCalendar(today: KoreanDateTime, previous: List<PracticeRecord>, days:
     return (last - days + 1..last).map { day ->
         CompareDay(
             date = KoreanDateTime.ofEpochDay(day),
-            records = previous.filter { it.recordedAt.epochDay == day }.sortedByDescending { it.recordedAt.hour * 60 + it.recordedAt.minute },
+            records = previous.filter { it.recordedAt.epochDay == day }.sortedByDescending { it.recordedAtMillis },
             today = day == last,
         )
     }
@@ -57,10 +59,8 @@ fun compareCalendar(today: KoreanDateTime, previous: List<PracticeRecord>, days:
  * [records] 중 이 기록 바로 전에 같은 곡을 처음부터 끝까지 연주한 기록(기록 상세 ‘지난 연주와 비교’). 없으면 null.
  */
 fun PracticeRecord.previousIn(records: List<PracticeRecord>): PracticeRecord? = records
-    .filter { it.id != id && it.songId == songId && it.section == null && it.recordedAt.sortKey < recordedAt.sortKey }
-    .maxByOrNull { it.recordedAt.sortKey }
-
-private val KoreanDateTime.sortKey: Long get() = epochDay * 1440 + hour * 60 + minute
+    .filter { it.id != id && it.songId == songId && it.section == null && it.recordedAtMillis < recordedAtMillis }
+    .maxByOrNull { it.recordedAtMillis }
 
 /**
  * COMPARE-01 이전 연주와 비교 상태.
@@ -69,6 +69,7 @@ private val KoreanDateTime.sortKey: Long get() = epochDay * 1440 + hour * 60 + m
  * @property selected 듣기를 시작할 정간. 정간보에 따로 표시하지 않고 아래 안내 문구에만 나온다.
  * @property pickDay 기록 고르기 시트에서 고른 날(1970-01-01부터의 날 수). null이면 비교 중인 기록의 날.
  * @property playing 고른 정간부터 이전 → 이번을 차례로 듣는 중. 지금은 소리 없이 버튼 상태만 바뀐다.
+ * @property previousDetail 비교 중인 이전 기록의 틀린 정간과 서버 비교 결과(EVA-04). 고른 기록을 받는 동안·받지 못하면 null.
  */
 data class CompareUiState(
     val loading: Boolean = true,
@@ -78,12 +79,24 @@ data class CompareUiState(
     val playing: Boolean = false,
     val sheetOpen: Boolean = false,
     val pickDay: Long? = null,
+    val previousDetail: PreviousRecord? = null,
 ) {
     val previous: PracticeRecord?
-        get() = comparison?.previous?.let { list -> list.firstOrNull { it.id == previousId } ?: list.maxByOrNull { it.recordedAt.sortKey } }
+        get() = comparison?.previous?.let { list -> list.firstOrNull { it.id == previousId } ?: list.maxByOrNull { it.recordedAtMillis } }
 
+    /** 지금 고른 이전 기록의 상세. 다른 기록을 받는 중이면 null. */
+    private val loadedPrevious: PreviousRecord? get() = previousDetail?.takeIf { it.record.id == previous?.id }
+
+    /** 이전 기록의 틀린 정간을 받기 전에는 이번 틀린 정간만 표시하지 않도록 비워 둔다. */
     val marks: Map<ScorePosition, CompareMark>
-        get() = comparison?.let { compareMarks(previous?.errors.orEmpty(), it.current.errors) }.orEmpty()
+        get() {
+            val comparison = comparison ?: return emptyMap()
+            val before = loadedPrevious?.record?.errors ?: return emptyMap()
+            return compareMarks(before, comparison.current.errors)
+        }
+
+    /** 서버 비교 결과(악보 판본·채점 모델·속도가 같아 견줄 수 있는지). 받기 전이면 null. */
+    val check: CheckLoad? get() = loadedPrevious?.check
 
     val counts: CompareCounts get() = CompareCounts.of(marks)
 

@@ -130,8 +130,6 @@ fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {
             state.mode == PracticeMode.Recording && state.noInputHint -> Res.string.practice_mode_no_input
             state.mode == PracticeMode.Recording || state.resuming -> Res.string.practice_mode_recording
             state.mode == PracticeMode.Countdown -> Res.string.practice_mode_countdown
-            state.mode == PracticeMode.Rhythm -> Res.string.jangdan_practice_label
-            state.mode == PracticeMode.Model && state.playing -> Res.string.practice_mode_model
             else -> Res.string.practice_mode_ready
         },
     )

@@ -93,5 +93,5 @@ def test_default_matches_real_score_at_half_point_rounding_boundary():
     f0 = np.concatenate([np.full(13, HWANG_HZ * 2 ** ((n.semitone + cents / 100) / 12))
                          for n, cents in zip(notes, shifts)])
     expected = score(f0, notes, 120, HWANG_HZ)
-    assert expected.pitch == 77
+    assert expected.pitch == 78  # 정확히 77.5다. 짝수 쪽으로 간다
     assert asdict(score_experiment(f0, notes, 120, HWANG_HZ, Experiment())['result']) == asdict(expected)

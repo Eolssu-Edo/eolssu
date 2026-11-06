@@ -22,6 +22,7 @@ class EvaluationDetailControllerTests {
     private var scoreVersion = 3
     // 세션 구간 1~4. 각 0: 음표 0·1, 각 1: 음표 2·3, 각 2: 음표 4.
     private val repository = object : PracticeEvaluations {
+        override fun findPreviousSessionId(userId: Long, current: PracticeEvaluationSnapshot): Long? = null
         override fun findOwned(sessionId: Long, userId: Long) = if (sessionId == 11L && userId == 2L)
             PracticeEvaluationSnapshot(11,1,3,96,"DOTTED_QUARTER",state,time,time,5,70,60,80,70,time,2876,1,4) else null
         override fun notes(evaluationId: Long) = listOf(

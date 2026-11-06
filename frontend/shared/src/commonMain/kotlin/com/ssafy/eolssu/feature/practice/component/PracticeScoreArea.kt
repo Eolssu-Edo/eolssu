@@ -23,6 +23,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -301,14 +303,14 @@ fun PracticeBoardScore(
                     stackRowHeights = packing.stackRowHeights,
                 )
             }
-            if (state.mode == PracticeMode.Ready) {
-                Text(
-                    stringResource(Res.string.practice_score_hint),
-                    modifier = Modifier.padding(top = 8.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
-                    color = colors.textMuted,
-                )
-            }
+            // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
+            Text(
+                stringResource(Res.string.practice_score_hint),
+                modifier = Modifier.padding(top = 8.dp).alpha(if (state.mode == PracticeMode.Ready) 1f else 0f)
+                    .then(if (state.mode == PracticeMode.Ready) Modifier else Modifier.clearAndSetSemantics {}),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
+                color = colors.textMuted,
+            )
             if (state.live && !state.follow) {
                 // 보드 `.score-follow`: 오른쪽 정렬 작은 버튼.
                 val shape = RoundedCornerShape(8.dp)

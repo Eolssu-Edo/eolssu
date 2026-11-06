@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.practice
 
+import eolssu.shared.generated.resources.weak_loop_stop_recording
+import eolssu.shared.generated.resources.weak_loop_record_progress
+import eolssu.shared.generated.resources.weak_loop_record_hint
+import eolssu.shared.generated.resources.weak_loop_count_record
+import eolssu.shared.generated.resources.weak_loop_badge_recording
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -73,13 +79,20 @@ import org.jetbrains.compose.resources.stringResource
  * 멈췄다가 ‘반복 계속’을 누르면 3·2·1(1초마다)을 센 뒤 이어 간다.
  */
 @Composable
-fun SectionLoopScreen(state: SectionLoopUiState, onBack: () -> Unit, onTogglePause: () -> Unit, onEvaluate: () -> Unit) {
+fun SectionLoopScreen(
+    state: SectionLoopUiState,
+    onBack: () -> Unit,
+    onTogglePause: () -> Unit,
+    onEvaluate: () -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+) {
     val colors = EolssuTheme.colors
     val song = state.song
     val section = state.section
     Box(Modifier.fillMaxSize()) {
         EolssuScaffold(
             containerColor = colors.surface,
+            snackbarHostState = snackbarHostState,
             topBar = {
                 EolssuTopBar(
                     title = song?.title.orEmpty(),
@@ -137,7 +150,11 @@ fun SectionLoopScreen(state: SectionLoopUiState, onBack: () -> Unit, onTogglePau
             BeatCountdownOverlay(
                 count = count,
                 message = stringResource(
-                    if (state.resumed) Res.string.weak_loop_count_resume else Res.string.weak_loop_count_start,
+                    when {
+                        state.recording -> Res.string.weak_loop_count_record
+                        state.resumed -> Res.string.weak_loop_count_resume
+                        else -> Res.string.weak_loop_count_start
+                    },
                     CountdownBeats, start.column + 1, start.row + 1,
                 ),
             )
@@ -149,6 +166,10 @@ fun SectionLoopScreen(state: SectionLoopUiState, onBack: () -> Unit, onTogglePau
 @Composable
 private fun LoopBadge(state: SectionLoopUiState) {
     val colors = EolssuTheme.colors
+    if (state.recording) {
+        RecordingBadge()
+        return
+    }
     val running = state.running || state.countdown != null
     val total = state.repeats
     val text = when {
@@ -169,10 +190,32 @@ private fun LoopBadge(state: SectionLoopUiState) {
     }
 }
 
-/** 아래 고정 영역: 회차·시간 · 회차 막대 · ‘반복 멈춤/계속’ · 붉은 ‘이 구간 재평가’. */
+/** 재평가 녹음 중 알약: 옅은 붉은 바탕에 붉은 점과 글자(연습 화면 ‘녹음 중’과 같은 색). */
+@Composable
+private fun RecordingBadge() {
+    val colors = EolssuTheme.colors
+    Row(
+        Modifier.heightIn(min = 22.dp).background(colors.recSoft, CircleShape).padding(horizontal = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(Modifier.size(7.dp).background(colors.rec, CircleShape))
+        Text(
+            stringResource(Res.string.weak_loop_badge_recording),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.recText,
+        )
+    }
+}
+
+/** 아래 고정 영역: 회차·시간 · 회차 막대 · ‘반복 멈춤/계속’ · 붉은 ‘이 구간 재평가’. 재평가 녹음 중에는 진행과 ‘녹음 그만하기’만 둔다. */
 @Composable
 private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, onEvaluate: () -> Unit) {
     val colors = EolssuTheme.colors
+    if (state.recording) {
+        RecordingControls(state, onTogglePause)
+        return
+    }
     // 시안: 왼쪽 굵은 회차·시간, 오른쪽 흐린 안내(space-between). 가운데 빈칸이 남는 폭을 채우고, 좁으면 안내가 아랫줄 오른쪽으로 내려간다.
     FlowRow(
         Modifier.fillMaxWidth(),
@@ -215,6 +258,28 @@ private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, o
             style = EolssuButtonStyle.Danger, icon = EolssuIcons.Mic, compact = true,
         )
     }
+}
+
+@Composable
+private fun RecordingControls(state: SectionLoopUiState, onStop: () -> Unit) {
+    val colors = EolssuTheme.colors
+    FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            stringResource(Res.string.weak_loop_record_progress, formatClock(state.elapsedSeconds), formatClock(state.roundSeconds)),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+        )
+        Spacer(Modifier.weight(1f))
+        Text(stringResource(Res.string.weak_loop_record_hint), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+    }
+    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.surfaceStrong)) {
+        Box(Modifier.fillMaxWidth(state.roundProgress.firstOrNull()?.coerceIn(0f, 1f) ?: 0f).fillMaxHeight().background(colors.rec))
+    }
+    EolssuButton(stringResource(Res.string.weak_loop_stop_recording), onStop, style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Stop, compact = true)
 }
 
 /** 구간 각 안이지만 구간 밖인 정간 불투명도(시안 `opacity: .5`). */

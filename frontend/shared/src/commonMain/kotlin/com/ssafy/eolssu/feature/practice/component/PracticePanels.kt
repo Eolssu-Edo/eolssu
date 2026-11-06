@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.practice.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,26 +10,30 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,6 +43,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,13 +53,11 @@ import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HoleState
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuBottomSheet
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
-import com.ssafy.eolssu.core.ui.component.SheetHeader
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.score.FingeringFigure
 import com.ssafy.eolssu.core.ui.score.HoleLegend
@@ -67,7 +73,7 @@ import com.ssafy.eolssu.feature.practice.TempoStep
 import eolssu.shared.generated.resources.jangdan_source
 import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.practice_apply
+import eolssu.shared.generated.resources.common_back
 import eolssu.shared.generated.resources.practice_fingering_desc
 import eolssu.shared.generated.resources.practice_fingering_instrument
 import eolssu.shared.generated.resources.practice_fingering_missing
@@ -85,7 +91,6 @@ import eolssu.shared.generated.resources.practice_jangdan_beat_desc
 import eolssu.shared.generated.resources.practice_jangdan_gueum_note
 import eolssu.shared.generated.resources.practice_jangdan_meta
 import eolssu.shared.generated.resources.practice_jangdan_pattern_meta
-import eolssu.shared.generated.resources.practice_jangdan_mic_notice
 import eolssu.shared.generated.resources.practice_jangdan_no_gueum
 import eolssu.shared.generated.resources.practice_jangdan_preview_start
 import eolssu.shared.generated.resources.practice_jangdan_preview_stop
@@ -95,7 +100,6 @@ import eolssu.shared.generated.resources.practice_jangdan_sound_off
 import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_jangdan_sub
 import eolssu.shared.generated.resources.practice_jangdan_title
-import eolssu.shared.generated.resources.practice_jangdan_unavailable
 import eolssu.shared.generated.resources.practice_listen_note
 import eolssu.shared.generated.resources.practice_listening
 import eolssu.shared.generated.resources.practice_menu_jangdan
@@ -120,11 +124,9 @@ import org.jetbrains.compose.resources.stringResource
 /** 보조 패널에서 부르는 동작. */
 class PracticePanelActions(
     val onClose: () -> Unit,
+    val onDismiss: () -> Unit,
     val onOpen: (PracticePanel) -> Unit,
     val onDraft: ((PracticeDraft) -> PracticeDraft) -> Unit,
-    val onApplyNotation: () -> Unit,
-    val onApplyJangdan: () -> Unit,
-    val onApplyTempo: () -> Unit,
     val onToggleBigScore: () -> Unit,
     val onMoveFingering: (Int) -> Unit,
     val onListen: () -> Unit,
@@ -148,67 +150,55 @@ fun PracticePanelSheet(
 ) {
     val panel = state.panel ?: return
     val song = state.song ?: return
-    val apply = panelApply(panel, actions)
     val settings = panel == PracticePanel.Settings
-    // 표기·장단·속도 패널을 닫으면 연습 설정 시트로 돌아온다(보드 `close`). 시트는 패널마다 새로 만들어 닫힘 애니메이션 뒤에도 다시 올라온다.
-    key(panel) {
-        EolssuBottomSheet(
-            onDismiss = actions.onClose,
-            modifier = modifier,
-            maxHeightFraction = when {
+    // 배경 누르기와 상위로 뒤로가기를 분리한다. 모달 전체 배경이 닫기 입력을 받는다.
+    Dialog(onDismissRequest = actions.onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            val maxSheetHeight = maxHeight * when {
                 tablet -> if (settings) 0.45f else 0.6f
                 settings -> 0.62f
                 else -> 0.82f
-            },
-            header = { PanelHeader(panel, state, actions.onClose) },
-            footer = apply?.let { { EolssuButton(stringResource(Res.string.practice_apply), it) } },
-        ) {
-            PanelBody(panel, state, song, actions)
+            }
+            Box(Modifier.fillMaxSize().clickable(onClick = actions.onDismiss))
+            Surface(
+                modifier = modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth()
+                    .heightIn(max = maxSheetHeight),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = EolssuTheme.colors.surface,
+            ) {
+                Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 24.dp)) {
+                    PanelHeader(panel, state, actions.onClose)
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PanelBody(panel, state, song, actions)
+                    }
+                }
+            }
         }
     }
 }
 
-/**
- * 태블릿 가로에서는 화면을 덮지 않고 오른쪽 상태 패널 자리에 연다. 머리·적용 버튼은 고정하고 본문만 스크롤한다.
- */
-@Composable
-fun PracticePanelInline(state: PracticeUiState, actions: PracticePanelActions, modifier: Modifier = Modifier) {
-    val panel = state.panel ?: return
-    val song = state.song ?: return
-    val apply = panelApply(panel, actions)
-    Column(modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp)) {
-        PanelHeader(panel, state, actions.onClose)
-        Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            PanelBody(panel, state, song, actions)
-        }
-        if (apply != null) {
-            EolssuButton(stringResource(Res.string.practice_apply), apply, Modifier.padding(top = 14.dp))
-        }
-    }
-}
-
-/** 고친 값을 반영하는 '적용' 동작. 바로 바뀌는 패널(설정 메뉴·운지법)은 없다. */
-private fun panelApply(panel: PracticePanel, actions: PracticePanelActions): (() -> Unit)? = when (panel) {
-    PracticePanel.Notation -> actions.onApplyNotation
-    PracticePanel.Jangdan -> actions.onApplyJangdan
-    PracticePanel.Tempo -> actions.onApplyTempo
-    else -> null
-}
-
+/** X 대신 하위 설정의 뒤로가기만 둔다. 배경 닫기는 시트의 onDismiss가 처리한다. */
 @Composable
 fun PanelHeader(panel: PracticePanel, state: PracticeUiState, onClose: () -> Unit) {
-    when (panel) {
-        PracticePanel.Settings -> SheetHeader(stringResource(Res.string.practice_settings), onClose)
-        PracticePanel.Notation -> SheetHeader(stringResource(Res.string.practice_notation_title), onClose)
-        PracticePanel.Fingering -> SheetHeader(
-            stringResource(Res.string.practice_fingering_title), onClose,
-            subtitle = stringResource(Res.string.practice_fingering_instrument, stringResource(state.instrument.label)),
-        )
-        PracticePanel.Jangdan -> SheetHeader(stringResource(Res.string.practice_jangdan_title), onClose)
-        PracticePanel.Tempo -> SheetHeader(stringResource(Res.string.practice_tempo_title), onClose)
+    val title = stringResource(when (panel) {
+        PracticePanel.Settings -> Res.string.practice_settings
+        PracticePanel.Notation -> Res.string.practice_notation_title
+        PracticePanel.Fingering -> Res.string.practice_fingering_title
+        PracticePanel.Jangdan -> Res.string.practice_jangdan_title
+        PracticePanel.Tempo -> Res.string.practice_tempo_title
+    })
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (panel != PracticePanel.Settings) {
+            EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.common_back), onClose, bordered = false)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp))
+            if (panel == PracticePanel.Fingering) Text(
+                stringResource(Res.string.practice_fingering_instrument, stringResource(state.instrument.label)),
+                style = MaterialTheme.typography.bodySmall, color = EolssuTheme.colors.textMuted,
+            )
+        }
     }
 }
 
@@ -232,7 +222,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val notationOn = settings.showHangul || settings.showSolfege
     val step = TempoStep.nearest(song.baseBpm, state.bpm)
     val instrumentName = stringResource(state.instrument.label)
-    // 평가 연주 중에는 채점 속도와 녹음에 닿는 장단·속도만 잠근다.
+    // 평가 중에는 속도만 고정하고 장단 소리는 바꿀 수 있다.
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
@@ -244,11 +234,9 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         MenuRow(
             EolssuIcons.JangdanMark, stringResource(Res.string.practice_menu_jangdan),
             when {
-                locked -> lockedStatus
                 state.jangdanProblem -> jangdanHint(state)
                 else -> stringResource(if (settings.jangdanSound) Res.string.practice_jangdan_sound_on else Res.string.practice_jangdan_sound_off, song.jangdanName)
             },
-            enabled = !locked,
         ) { actions.onOpen(PracticePanel.Jangdan) }
         MenuRow(EolssuIcons.TempoMark, stringResource(Res.string.practice_menu_tempo), if (locked) lockedStatus else tempoLabel(step), enabled = !locked) {
             actions.onOpen(PracticePanel.Tempo)
@@ -544,20 +532,14 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
     Column {
         SettingRow(
             stringResource(Res.string.practice_jangdan_sound), stringResource(Res.string.practice_jangdan_sound_desc),
-            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported && !state.playbackSettingsLocked, vertical = 10.dp,
+            draft.jangdanSound && state.jangdanSupported, { actions.onDraft { it.copy(jangdanSound = !it.jangdanSound) } }, enabled = state.jangdanSupported, vertical = 10.dp,
         )
         SettingRow(
             stringResource(Res.string.practice_jangdan_beat), stringResource(Res.string.practice_jangdan_beat_desc),
             draft.beatVisual, { actions.onDraft { it.copy(beatVisual = !it.beatVisual) } }, vertical = 10.dp,
         )
     }
-    Row(
-        Modifier.fillMaxWidth().background(colors.accentTint, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Icon(EolssuIcons.Headphone, contentDescription = null, modifier = Modifier.padding(top = 1.dp).size(18.dp), tint = colors.text)
-        Text(stringResource(Res.string.practice_jangdan_mic_notice), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp), color = colors.text)
-    }
+
 }
 
 /** PANEL-05 연습 속도: Song Myung 30sp 단계 이름, ‘N BPM · 기준 N BPM’, 다섯 단계 슬라이더, 안내. */

@@ -265,8 +265,7 @@ fun JeongganboView(
     } else {
         Modifier.wrapContentWidth(align = Alignment.End, unbounded = true)
     }
-    @Composable
-    fun DrawStrip(readingIndex: Int, strip: ScoreStrip) {
+    val drawStrip: @Composable (Int, ScoreStrip) -> Unit = { readingIndex, strip ->
         val starts = daegangStarts(strip.column)
         ScoreStripColumn(
             strip, renderMetrics, readingIndex, look,
@@ -318,7 +317,7 @@ fun JeongganboView(
             verticalAlignment = Alignment.Top,
         ) {
             if (stackSize == 1) {
-                for ((readingIndex, strip) in strips.withIndex().reversed()) DrawStrip(readingIndex, strip)
+                for ((readingIndex, strip) in strips.withIndex().reversed()) drawStrip(readingIndex, strip)
             } else {
                 for ((groupIndex, group) in strips.withIndex().toList().chunked(stackSize).withIndex().reversed()) {
                     Column(
@@ -328,7 +327,7 @@ fun JeongganboView(
                         for ((row, indexedStrip) in group.withIndex()) {
                             val rowHeight = stackRowHeights.getOrNull(row)
                             Box(if (rowHeight == null) Modifier else Modifier.height(rowHeight * fontScale)) {
-                                DrawStrip(indexedStrip.index, indexedStrip.value)
+                                drawStrip(indexedStrip.index, indexedStrip.value)
                             }
                         }
                     }

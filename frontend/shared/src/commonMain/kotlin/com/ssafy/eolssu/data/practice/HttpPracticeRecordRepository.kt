@@ -157,37 +157,45 @@ class HttpPracticeRecordRepository(
         }
     }
 
-    private fun RecordItem.toRecord() = PracticeRecord(
-        id = sessionId,
-        songId = songId,
-        songTitle = title,
-        section = section(isFullSong, startColumnIdx, endColumnIdx),
-        repeats = null,
-        recordedAt = KoreanDateTime.fromEpochMillis(Instant.parse(startedAt).toEpochMilliseconds()),
-        recordedSeconds = recordingDurationMs?.let { (it / 1000.0).roundToInt() } ?: 0,
-        bpm = bpm,
-        score = totalScore,
-        metrics = emptyList(),
-        memo = memo.orEmpty(),
-        errors = emptyList(),
-        recordingAvailable = recordingAvailable,
-        isNew = isNew,
-    )
+    private fun RecordItem.toRecord(): PracticeRecord {
+        val recordedAtMillis = Instant.parse(startedAt).toEpochMilliseconds()
+        return PracticeRecord(
+            id = sessionId,
+            songId = songId,
+            songTitle = title,
+            section = section(isFullSong, startColumnIdx, endColumnIdx),
+            repeats = null,
+            recordedAt = KoreanDateTime.fromEpochMillis(recordedAtMillis),
+            recordedAtMillis = recordedAtMillis,
+            recordedSeconds = recordingDurationMs?.let { (it / 1000.0).roundToInt() } ?: 0,
+            bpm = bpm,
+            score = totalScore,
+            metrics = emptyList(),
+            memo = memo.orEmpty(),
+            errors = emptyList(),
+            recordingAvailable = recordingAvailable,
+            isNew = isNew,
+        )
+    }
 
-    private fun SavedRecord.toRecord(fallbackTitle: String) = PracticeRecord(
-        id = sessionId,
-        songId = songId,
-        songTitle = songTitle ?: fallbackTitle,
-        section = section(isFullSong, startColumnIdx, endColumnIdx),
-        repeats = null,
-        recordedAt = KoreanDateTime.fromEpochMillis(Instant.parse(startedAt).toEpochMilliseconds()),
-        recordedSeconds = 0,
-        bpm = bpm,
-        score = totalScore,
-        metrics = emptyList(),
-        memo = memo.orEmpty(),
-        errors = emptyList(),
-    )
+    private fun SavedRecord.toRecord(fallbackTitle: String): PracticeRecord {
+        val recordedAtMillis = Instant.parse(startedAt).toEpochMilliseconds()
+        return PracticeRecord(
+            id = sessionId,
+            songId = songId,
+            songTitle = songTitle ?: fallbackTitle,
+            section = section(isFullSong, startColumnIdx, endColumnIdx),
+            repeats = null,
+            recordedAt = KoreanDateTime.fromEpochMillis(recordedAtMillis),
+            recordedAtMillis = recordedAtMillis,
+            recordedSeconds = 0,
+            bpm = bpm,
+            score = totalScore,
+            metrics = emptyList(),
+            memo = memo.orEmpty(),
+            errors = emptyList(),
+        )
+    }
 
     private companion object {
         const val PAGE_SIZE = 100
