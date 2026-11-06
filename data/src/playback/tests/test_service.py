@@ -73,6 +73,26 @@ time.sleep(.4)
         self.assertEqual(caught.exception.code, 'SERVER_ERROR')
         self.assertNotIn('private', str(caught.exception))
 
+    def test_render_answers_busy_while_another_render_holds_the_slot(self):
+        service = PlaybackService([sys.executable, '-c', 'raise SystemExit(0)'], timeout_seconds=10)
+        server = ThreadingHTTPServer(('127.0.0.1', 0), handler(service))
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.assertTrue(service.slot.acquire(blocking=False))
+        try:
+            body = json.dumps({'score': {}, 'instrument': 'danso', 'bpm': 60, 'withJangdan': False})
+            connection = http.client.HTTPConnection('127.0.0.1', server.server_address[1], timeout=10)
+            with self.assertLogs('playback', 'WARNING'):
+                connection.request('POST', '/v1/render', body, {'Content-Type': 'application/json'})
+                response = connection.getresponse()
+                self.assertEqual(response.status, 409)
+                self.assertEqual(json.loads(response.read()), {'errorCode': 'AUDIO_IN_PROGRESS'})
+            connection.close()
+        finally:
+            service.slot.release()
+            server.shutdown()
+            server.server_close()
+
     def test_failed_renderer_logs_only_its_status_and_public_code(self):
         service = PlaybackService([sys.executable, '-c', 'raise SystemExit(7)'], timeout_seconds=10)
         server = ThreadingHTTPServer(('127.0.0.1', 0), handler(service))

@@ -30,9 +30,11 @@ class SchedulingConfigTest {
 
     @Test
     fun `long audio and conversion jobs get their own threads beside the short periodic work`() {
-        runner.withInitializer(ConfigDataApplicationContextInitializer())
-            .withConfiguration(AutoConfigurations.of(TaskSchedulingAutoConfiguration::class.java))
-            .withPropertyValues("spring.profiles.active=db")
-            .run { assertEquals(4, it.getBean(ThreadPoolTaskScheduler::class.java).scheduledThreadPoolExecutor.corePoolSize) }
+        for (profile in listOf("db", "ops")) {
+            runner.withInitializer(ConfigDataApplicationContextInitializer())
+                .withConfiguration(AutoConfigurations.of(TaskSchedulingAutoConfiguration::class.java))
+                .withPropertyValues("spring.profiles.active=$profile")
+                .run { assertEquals(4, it.getBean(ThreadPoolTaskScheduler::class.java).scheduledThreadPoolExecutor.corePoolSize, profile) }
+        }
     }
 }

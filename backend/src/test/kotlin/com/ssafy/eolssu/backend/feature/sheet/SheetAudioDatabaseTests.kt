@@ -42,10 +42,11 @@ class SheetAudioDatabaseTests {
     private var failPut=false
     private var failGeneration=false
     private var failDelete: (String)->Boolean={ false }
+    private var deleteCrash=false
     private val storage=object: SheetSourceStorage {
         override val available=true
-        override fun put(key: String,file: Path,contentType: String) { objects.add(key); if(failPut && key.endsWith(".mid")) throw SheetSourceStorageException("fixture partial write") }
-        override fun delete(key: String) { if(failDelete(key)) throw SheetSourceStorageException("fixture delete failure"); objects.remove(key) }
+        override fun put(key: String,file: Path,contentType: String) { objects.add(key); if(failPut && key.endsWith(".mid")) throw SheetSourceStorageException("fixture partial write $key") }
+        override fun delete(key: String) { if(deleteCrash) throw IllegalStateException("fixture crash"); if(failDelete(key)) throw SheetSourceStorageException("fixture delete failure"); objects.remove(key) }
         override fun readUrl(key: String,ttl: Duration)="https://fixture.invalid/$key"
     }
     private lateinit var audio: SheetAudios
@@ -56,7 +57,7 @@ class SheetAudioDatabaseTests {
 
     @BeforeEach fun setup() {
         cleanup()
-        failPut=false; failGeneration=false; failDelete={ false }; objects.clear(); routed=storage
+        failPut=false; failGeneration=false; failDelete={ false }; deleteCrash=false; objects.clear(); routed=storage
         jdbc.update("INSERT INTO users(id,nickname,status,instrument_id) VALUES(994481,'음원 검사','ACTIVE',1),(994482,'다른 회원','ACTIVE',1)")
         jdbc.update("""INSERT INTO user_sheets(id,user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_version,score_json,note_count,idempotency_key,request_hash)
             SELECT 994481,994481,'음원 검사','JEONGGANBO','MANUAL','EVALUABLE',s.jangdan_id,s.default_bpm,
@@ -68,7 +69,7 @@ class SheetAudioDatabaseTests {
         },json,Clock.fixed(Instant.parse("2026-11-05T00:00:00Z"),ZoneOffset.UTC),manager)
     }
     @AfterEach fun cleanup() {
-        jdbc.update("DELETE FROM sheet_audio_objects WHERE sheet_id=994481")
+        jdbc.update("DELETE FROM sheet_audio_objects WHERE sheet_id IN(994481,994482)")
         jdbc.update("DELETE FROM user_sheets WHERE user_id IN(994481,994482)")
         jdbc.update("DELETE FROM users WHERE id IN(994481,994482)")
     }
@@ -270,10 +271,139 @@ class SheetAudioDatabaseTests {
         assertEquals("DONE",audio.get(994481,994481).status)
     }
     @Test fun `a running job within its deadline is left alone and still holds the slot`() {
+        jdbc.update("""INSERT INTO user_sheets(id,user_id,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_version,score_json,note_count,idempotency_key,request_hash)
+            SELECT 994482,994482,title,kind,source,status,jangdan_id,bpm,bpm_unit,column_count,score_version,score_json,note_count,'audio-fixture-2',request_hash FROM user_sheets WHERE id=994481""")
         audio.request(994481,994481,null,false,null)
+        audio.request(994482,994482,null,false,null)
         jdbc.update("UPDATE sheet_audios SET status='RUNNING',started_at='2026-11-04 23:55:00' WHERE sheet_id=994481")
         audio.runOne()
         assertEquals("RUNNING",audio.get(994481,994481).status)
+        assertEquals("QUEUED",audio.get(994482,994482).status)
+    }
+    @Test fun `a generator that stays busy past the deadline fails the job instead of holding the member forever`() {
+        val clock=MovingClock(Instant.parse("2026-11-05T00:00:00Z"))
+        val worker=audioWith(fakeClient { throw PlaybackFailure("BUSY") },clock)
+        worker.request(994481,994481,null,false,null)
+        worker.runOne()
+        clock.now=clock.now.plus(Duration.ofMinutes(9))
+        worker.runOne()
+        assertEquals("QUEUED",worker.get(994481,994481).status)
+        clock.now=clock.now.plus(Duration.ofMinutes(1))
+        worker.runOne()
+        assertEquals("FAILED",worker.get(994481,994481).status)
+        assertEquals("SERVER_ERROR",worker.get(994481,994481).failureCode)
+    }
+    @Test fun `deleting during a busy answer does not put the cancelled job back in the queue`() {
+        val worker=audioWith(fakeClient { audio.delete(994481,994481); throw PlaybackFailure("BUSY") })
+        worker.request(994481,994481,null,false,null)
+        worker.runOne()
+        assertEquals("FAILED",worker.get(994481,994481).status)
+    }
+    @Test fun `a job finishing after a failed deletion cannot replace the request made since`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        val worker=audioWith(fakeClient {
+            failDelete={ true }
+            assertEquals(503,deleteSheet().statusCode())
+            failDelete={ false }
+            audio.request(994481,994481,null,false,91)
+            made()
+        })
+        worker.request(994481,994481,null,false,90)
+        worker.runOne()
+        val waiting=audio.get(994481,994481)
+        assertEquals("QUEUED",waiting.status)
+        assertEquals(91,waiting.bpm)
+        assertEquals(0,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_audio_objects WHERE state='CURRENT' AND sheet_id=994481",Int::class.java))
+        audio.runOne(); audio.runOne()
+        assertEquals("DONE",audio.get(994481,994481).status)
+        assertEquals(2,objects.size)
+    }
+    @Test fun `an unexpected deletion failure also leaves the sheet usable`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        deleteCrash=true
+        assertEquals(500,deleteSheet().statusCode())
+        deleteCrash=false
+        assertEquals(1,sheetCount())
+        assertEquals(false,deleting())
+        assertFalse(remoteStatus().path("audio").isObject)
+    }
+    @Test fun `a second deletion cannot release the first deletion while it owns the sheet`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        val entered=java.util.concurrent.CountDownLatch(1)
+        val release=java.util.concurrent.CountDownLatch(1)
+        val calls=java.util.concurrent.atomic.AtomicInteger()
+        failDelete={
+            if(calls.incrementAndGet()==1) {
+                entered.countDown()
+                check(release.await(10,java.util.concurrent.TimeUnit.SECONDS))
+                true
+            } else false
+        }
+        val executor=java.util.concurrent.Executors.newSingleThreadExecutor()
+        val first=executor.submit<java.net.http.HttpResponse<String>> { deleteSheet() }
+        try {
+            assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(503,deleteSheet().statusCode())
+            assertEquals(true,deleting())
+            val response=send(994481,"""{"bpm":91}""")
+            assertEquals(409,response.statusCode(),response.body())
+            assertEquals("STATE_CONFLICT",json.readTree(response.body()).path("result").path("errorCode").asString())
+        } finally {
+            release.countDown()
+            first.get(10,java.util.concurrent.TimeUnit.SECONDS)
+            executor.shutdownNow()
+        }
+        failDelete={ false }
+        assertEquals(1,sheetCount())
+        assertEquals(false,deleting())
+        assertEquals(202,send(994481,"""{"bpm":91}""").statusCode())
+    }
+    @Test fun `deleting a sheet without an audio row still blocks its first generation`() {
+        val source="sheet-sources/994481/deleting.png"
+        objects.add(source)
+        jdbc.update("INSERT INTO sheet_source_files(sheet_id,file_idx,object_key,content_type,byte_size,file_name) VALUES(994481,0,?,'image/png',1,'deleting.png')",source)
+        val entered=java.util.concurrent.CountDownLatch(1)
+        val release=java.util.concurrent.CountDownLatch(1)
+        failDelete={ key ->
+            if(key==source) { entered.countDown(); check(release.await(10,java.util.concurrent.TimeUnit.SECONDS)) }
+            false
+        }
+        val executor=java.util.concurrent.Executors.newSingleThreadExecutor()
+        val deletion=executor.submit<java.net.http.HttpResponse<String>> { deleteSheet() }
+        try {
+            assertTrue(entered.await(10,java.util.concurrent.TimeUnit.SECONDS))
+            val response=send(994481,"{}")
+            assertEquals(409,response.statusCode(),response.body())
+            assertEquals("STATE_CONFLICT",json.readTree(response.body()).path("result").path("errorCode").asString())
+        } finally {
+            release.countDown()
+            deletion.get(10,java.util.concurrent.TimeUnit.SECONDS)
+            executor.shutdownNow()
+        }
+        assertEquals(0,sheetCount())
+        assertTrue(objects.isEmpty())
+    }
+    @Test fun `restart releases a deletion that never finished`() {
+        audio.request(994481,994481,null,false,null); audio.runOne()
+        audio.delete(994481,994481)
+        assertEquals(true,deleting())
+        audio.recover()
+        assertEquals(false,deleting())
+        assertNull(audio.get(994481,994481).audio)
+        assertEquals("QUEUED",audio.request(994481,994481,null,false,null).body.status)
+    }
+    @Test fun `unexpected generation failures log the error type without its message`() {
+        val logger=org.slf4j.LoggerFactory.getLogger(SheetAudios::class.java) as ch.qos.logback.classic.Logger
+        val appender=ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        try {
+            failPut=true
+            audio.request(994481,994481,null,false,null); audio.runOne()
+        } finally { logger.detachAppender(appender) }
+        val event=appender.list.single()
+        assertContains(event.formattedMessage,"SheetSourceStorageException")
+        assertFalse(event.formattedMessage.contains("sheet-audio/"))
+        assertNull(event.throwableProxy)
     }
     @Test fun `generation failures record the reason without score content`() {
         val logger=org.slf4j.LoggerFactory.getLogger(SheetAudios::class.java) as ch.qos.logback.classic.Logger
@@ -337,8 +467,13 @@ class SheetAudioDatabaseTests {
         assertEquals("QUEUED",json.readTree(status.body()).path("result").path("status").asString())
         assertTrue(status.headers().firstValue("Cache-Control").orElse("").contains("no-store"))
     }
-    private fun audioWith(client: PlaybackClient)=SheetAudios(mapper,sheets,scores,SheetAudioJangdanResolver { null },storage,client,json,
-        Clock.fixed(Instant.parse("2026-11-05T00:00:00Z"),ZoneOffset.UTC),manager)
+    private fun audioWith(client: PlaybackClient,clock: Clock=Clock.fixed(Instant.parse("2026-11-05T00:00:00Z"),ZoneOffset.UTC))=
+        SheetAudios(mapper,sheets,scores,SheetAudioJangdanResolver { null },storage,client,json,clock,manager)
+    private class MovingClock(var now: Instant): Clock() {
+        override fun getZone()=ZoneOffset.UTC
+        override fun withZone(zone: java.time.ZoneId)=this
+        override fun instant()=now
+    }
     @Test fun `playback HTTP calls run outside the member and sheet locks`() {
         val inTransaction=mutableListOf<Boolean>()
         fun record()=inTransaction.add(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive())
@@ -391,6 +526,11 @@ class SheetAudioDatabaseTests {
     }
     @org.springframework.boot.test.context.TestConfiguration(proxyBeanMethods=false)
     class RoutedStorageConfig {
+        @org.springframework.context.annotation.Bean @org.springframework.context.annotation.Primary
+        fun routedPlaybackClient()=object: PlaybackClient {
+            override fun estimate(requestJson: String)=1000L
+            override fun generate(requestJson: String)=GeneratedSheetAudio(ByteArray(20),ByteArray(14),1234)
+        }
         @org.springframework.context.annotation.Bean @org.springframework.context.annotation.Primary
         fun routedStorage()=object: SheetSourceStorage {
             override val available=true

@@ -37,7 +37,7 @@
 
 ## 기능 스펙
 
-- [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md)
+- [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습 운지 고정 페이지·가사 표시](specs/practice-fingering-pages.md) · [500 계획·검증](plans/S15P31E102-500.md) · [운지·가사 위치 근거](knowledge/frontend/practice-fingering-pages.md)
 - [한 음씩 연습 판정 기준 조회 (493)](specs/note-practice-criteria.md) · [계획](plans/S15P31E102-493.md)
 - [V25 삭제 전 호환 백엔드 릴리스](specs/mission-migration-compat.md) · [499 계획·검증](plans/S15P31E102-499.md) · [배포 순서와 제약](knowledge/infra/mission-migration-compat.md)

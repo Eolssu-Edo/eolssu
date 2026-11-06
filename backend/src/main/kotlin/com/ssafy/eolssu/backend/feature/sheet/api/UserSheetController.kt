@@ -144,14 +144,23 @@ class UserSheetController(
         val id = sheetId.takeIf(ID::matches)?.toLong() ?: return error(ErrorCode.INVALID_REQUEST)
         val userId = requireNotNull(jwt.subject).toLong()
         // 원본 객체를 먼저 지운다. 저장소가 실패하면 행을 남겨 다시 지울 수 있게 한다(SHT-02 규칙 5).
-        val found = try {
+        var ownsDeletion=false
+        val deleted = try {
+            if(audio!=null) {
+                if(!audio.beginDeletion(userId,id)) return error(ErrorCode.RESOURCE_NOT_FOUND)
+                ownsDeletion=true
+            }
             audio?.delete(userId,id)
-            sources.deleteSources(userId, id)
-        } catch (_: SheetSourceStorageException) {
-            audio?.release(userId, id)
-            return error(ErrorCode.SERVICE_UNAVAILABLE)
+            sources.deleteSources(userId, id) && editUserSheet.delete(userId, id)
+        } catch (e: Exception) {
+            // 악보가 남으면 음원을 다시 만들 수 있어야 한다. 풀지 못해도 원래 응답을 지키고 재시작 때 푼다.
+            if(ownsDeletion) runCatching { audio?.release(userId, id) }
+            if (e is SheetSourceStorageException) return error(ErrorCode.SERVICE_UNAVAILABLE)
+            throw e
+        } finally {
+            if(ownsDeletion) audio?.endDeletion(id)
         }
-        if (!found || !editUserSheet.delete(userId, id)) return error(ErrorCode.RESOURCE_NOT_FOUND)
+        if (!deleted) return error(ErrorCode.RESOURCE_NOT_FOUND)
         return ResponseEntity.noContent().build<Unit>()
     }
 

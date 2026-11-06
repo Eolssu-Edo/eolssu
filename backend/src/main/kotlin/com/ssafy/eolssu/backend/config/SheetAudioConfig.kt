@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.PlatformTransactionManager
 import tools.jackson.databind.json.JsonMapper
 
+/** Longer than one whole attempt, which also has to upload both files after the render. */
+internal fun staleRunningAfter(generationTimeout: Duration): Duration=generationTimeout.plusMinutes(5)
+
 @Configuration(proxyBeanMethods=false)
 @Profile("db | ops")
 class SheetAudioConfig {
@@ -33,7 +36,7 @@ class SheetAudioConfig {
         client: PlaybackClient,json: JsonMapper,clock: Clock,manager: PlatformTransactionManager,
         @Value("\${eolssu.sheet-audio.timeout-seconds:100}") seconds: Long)=
         // The worker is sequential, so a RUNNING row older than a whole attempt has no live owner.
-        SheetAudios(mapper,sheets,scores,jangdans,storage,client,json,clock,manager,Duration.ofSeconds(seconds).plusMinutes(5))
+        SheetAudios(mapper,sheets,scores,jangdans,storage,client,json,clock,manager,staleRunningAfter(Duration.ofSeconds(seconds)))
 }
 
 @Component

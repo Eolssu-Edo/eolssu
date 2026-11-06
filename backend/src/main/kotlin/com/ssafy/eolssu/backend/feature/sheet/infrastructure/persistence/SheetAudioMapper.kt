@@ -58,6 +58,7 @@ interface SheetAudioMapper {
     fun cancel(id: Long): Int
     @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL WHERE sheet_id=#{sheetId} AND user_id=#{userId} AND deleting=TRUE")
     fun release(@Param("sheetId") sheetId: Long,@Param("userId") userId: Long): Int
+    @Update("UPDATE sheet_audios SET deleting=FALSE,result_json=NULL WHERE deleting=TRUE") fun releaseAll(): Int
     @Insert("INSERT INTO sheet_audio_objects(object_key,sheet_id,generation,state) VALUES(#{key},#{sheetId},#{generation},'PENDING')")
     fun objectPending(@Param("key") key: String,@Param("sheetId") sheetId: Long,@Param("generation") generation: String): Int
     @Update("UPDATE sheet_audio_objects SET state='RETIRED' WHERE sheet_id=#{sheetId} AND state='CURRENT'")

@@ -29,6 +29,10 @@ class SheetAudios(
     private val staleRunningAfter: Duration=Duration.ofMinutes(10),
 ) {
     private val transaction=TransactionTemplate(manager)
+    /** Touched only by the sequential worker. A restart simply starts the wait again. */
+    private var busy: Pair<String,java.time.Instant>?=null
+    /** Covers the whole API deletion, including sheets that have never requested audio. One backend instance owns the worker. */
+    private val deletions=java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
     fun request(userId: Long,sheetId: Long,instrumentId: Long?,withJangdan: Boolean,bpm: Int?): AcceptedSheetAudio {
         // Keep the rate receipt even when the later request is rejected (e.g. already running).
         transaction.executeWithoutResult {
@@ -64,6 +68,7 @@ class SheetAudios(
     /** Validates under the member and sheet locks. Must run in a transaction and do no external IO. */
     private fun prepare(userId: Long,sheetId: Long,instrumentId: Long?,withJangdan: Boolean,bpm: Int?): AudioSnapshot {
         if(mapper.lockUser(userId)==null || mapper.lockSheet(sheetId,userId)==null) reject(ErrorCode.RESOURCE_NOT_FOUND)
+        if(sheetId in deletions) reject(ErrorCode.STATE_CONFLICT)
         val sheet=sheets.find(sheetId,userId) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         val instrument=mapper.instrument(instrumentId ?: 1) ?: reject(ErrorCode.RESOURCE_NOT_FOUND)
         if(instrument.code !in setOf("DANSO","SOGEUM","JEONGAK_DAEGEUM","SANJO_DAEGEUM")) reject(ErrorCode.RESOURCE_NOT_FOUND)
@@ -107,7 +112,11 @@ class SheetAudios(
             row.instrumentId.toString(),row.withJangdan,row.bpm,row.failureCode,3000.takeIf { row.status in setOf("QUEUED","RUNNING") },file("audio"),file("midi"))
     }
 
-    fun recover() { transaction.executeWithoutResult { mapper.recover(clock.instant().utc()); mapper.recoverObjects() }; cleanup() }
+    fun recover() {
+        // A row can only outlive its sheet's deletion if that deletion stopped; nothing is deleting after a restart.
+        transaction.executeWithoutResult { mapper.recover(clock.instant().utc()); mapper.recoverObjects(); mapper.releaseAll() }
+        cleanup()
+    }
 
     fun runOne() {
         failStale()
@@ -151,13 +160,13 @@ class SheetAudios(
             }==true
         } catch(e: PlaybackFailure) {
             // Only an earlier render still running (e.g. across a restart) answers busy; it ends within its time limit.
-            if(e.reason=="BUSY") mapper.requeue(job.sheetId,job.generation)
-            else {
-                log.warn("Sheet audio generation failed: sheet={} generation={} reason={}",job.sheetId,job.generation,e.reason)
-                mapper.fail(job.sheetId,job.generation,e.reason,clock.instant().utc())
-            }
+            if(e.reason=="BUSY" && waitForGenerator(job)) { mapper.requeue(job.sheetId,job.generation); return }
+            val reason=if(e.reason=="BUSY") "SERVER_ERROR" else e.reason
+            log.warn("Sheet audio generation failed: sheet={} generation={} reason={} cause={}",job.sheetId,job.generation,reason,e.reason)
+            mapper.fail(job.sheetId,job.generation,reason,clock.instant().utc())
         } catch(e: Exception) {
-            log.error("Sheet audio generation failed: sheet={} generation={} reason=SERVER_ERROR",job.sheetId,job.generation,e)
+            // Type only: storage errors can carry object keys.
+            log.error("Sheet audio generation failed: sheet={} generation={} reason=SERVER_ERROR cause={}",job.sheetId,job.generation,e.javaClass.simpleName)
             mapper.fail(job.sheetId,job.generation,"SERVER_ERROR",clock.instant().utc())
         } finally {
             if(!published) mapper.resolveObjects(job.generation,"RETIRED")
@@ -166,6 +175,14 @@ class SheetAudios(
     }
 
     /** Mark deletion before external IO so an in-flight result can never become current. */
+    fun beginDeletion(userId: Long,sheetId: Long): Boolean {
+        if(sheets.find(sheetId,userId)==null) return false
+        if(!deletions.add(sheetId)) throw SheetSourceStorageException("Sheet deletion is already in progress")
+        return true
+    }
+
+    fun endDeletion(sheetId: Long) { deletions.remove(sheetId) }
+
     fun delete(userId: Long,sheetId: Long) {
         val found=transaction.execute {
             if(mapper.lockSheet(sheetId,userId)==null) return@execute false
@@ -185,6 +202,15 @@ class SheetAudios(
     fun cleanup() {
         for(key in mapper.retired()) try { storage.delete(key); mapper.forget(key) } catch(_: Exception) { break /* durable retry next tick */ }
     }
+    private fun waitForGenerator(job: SheetAudioRow): Boolean {
+        val now=clock.instant()
+        val since=busy?.takeIf { it.first==job.generation }?.second ?: now.also {
+            busy=job.generation to now
+            log.warn("Sheet audio generator busy, waiting: sheet={} generation={}",job.sheetId,job.generation)
+        }
+        return Duration.between(since,now)<staleRunningAfter
+    }
+
     /** Recovers a job whose failure could not be recorded, which would otherwise hold the only slot until restart. */
     private fun failStale() {
         val now=clock.instant()
