@@ -94,13 +94,9 @@
     <string name="weak_compare_change_label">비교할 이전 기록 바꾸기</string>
     <string name="weak_compare_now">이번</string>
     <string name="weak_compare_score_bpm">%1$d점 · %2$d BPM</string>
-    <string name="weak_compare_delta">%1$s점</string>
-    <string name="weak_compare_up">올랐어요</string>
-    <string name="weak_compare_down">내려갔어요</string>
-    <string name="weak_compare_speed">%1$s · 속도 %2$d→%3$d BPM</string>
+    <string name="weak_compare_speed_only">속도 %1$d→%2$d BPM</string>
     <string name="weak_compare_legend_prev">이전 연주에서 틀림 %1$d</string>
     <string name="weak_compare_legend_now">이번 연주에서 틀림 %1$d</string>
-    <string name="weak_compare_legend_both">두 번 다 %1$d</string>
     <string name="weak_compare_listen">%1$s부터 이전 연주 → 이번 연주를 차례로 들어요</string>
     <string name="weak_compare_play">고른 정간부터 이전 → 이번 차례로 듣기</string>
     <string name="weak_compare_practice">틀린 구간 연습하기</string>
