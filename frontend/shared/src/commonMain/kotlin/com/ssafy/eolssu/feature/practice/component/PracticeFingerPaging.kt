@@ -64,35 +64,27 @@ private fun FingerCell.onPage(start: Double, end: Double): FingerCell? {
 /** 같은 이벤트가 이어지는 동안에도 절대 표시 위치로 전환하고 역방향 탐색도 같은 규칙을 쓴다. */
 fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= position }.coerceAtLeast(0)
 
-/** 소박 없는 각을 묶을 때 한 페이지에 보일 최소 정간 수. 3정간 각이면 두 각(6정간)이 한 페이지다. */
-internal const val FingerPageMinCells = 5
+/** 한 페이지에 보일 최대 표시 자리(박) 수. 한 박 정간은 6정간, 3소박 정간은 2정간까지다. */
+internal const val FingerPageMaxSlots = 6
 
 /**
- * 운지 페이지. 소박으로 나뉜 정간이 있는 각은 한 각이 한 페이지다.
- * 정간마다 한 음뿐인 각은 다음 대강·각을 이어 붙여 [FingerPageMinCells] 정간 이상을 한 페이지에 보여 준다.
- * 다음 페이지에 미리보기 두 음만 겹치고 새 운지를 여럿 볼 수 있게 하려는 것이다.
+ * 운지 페이지. 원본 순서대로 정간을 담되 표시 자리(한 정간 안 소박 수)의 합이 [FingerPageMaxSlots]를 넘지 않게 끊는다.
+ * 한 정간이 혼자 6자리를 넘으면 그 정간만 한 페이지가 된다. 각 경계와 관계없이 이어 담는다.
  */
+@Suppress("UNUSED_PARAMETER")
 internal fun fingerAnglePages(song: Song, cells: List<FingerCell>): List<List<FingerCell>> {
-    if (cells.isEmpty()) return emptyList()
-    val boundaries = fingerBoundaries(song)
-    val offsets = song.score.columns.runningFold(0) { sum, rows -> sum + rows.size }
-    fun singleBeat(group: List<FingerCell>) = group.all { it.units.size <= 1 }
-    val segments = cells.groupBy { it.column }.values.flatMap { column ->
-        if (!singleBeat(column)) listOf(column) else {
-            val start = offsets[column.first().column].toDouble()
-            val cuts = boundaries.filter { it > start + 0.000001 && it < start + column.size - 0.000001 }
-            column.groupBy { cell -> cuts.count { it <= start + cell.row + 0.000001 } }.values.toList()
-        }
-    }
     val pages = mutableListOf<List<FingerCell>>()
     var pending = mutableListOf<FingerCell>()
-    for (segment in segments) {
-        // 소박 없는 정간으로 시작한 페이지만 다음 대강·각(소박이 있어도)을 이어 붙인다.
-        if (pending.isNotEmpty() && (pending.size >= FingerPageMinCells || !singleBeat(pending))) {
+    var slots = 0
+    for (cell in cells) {
+        val size = cell.parts
+        if (pending.isNotEmpty() && slots + size > FingerPageMaxSlots) {
             pages += pending
             pending = mutableListOf()
+            slots = 0
         }
-        pending += segment
+        pending += cell
+        slots += size
     }
     if (pending.isNotEmpty()) pages += pending
     return pages
