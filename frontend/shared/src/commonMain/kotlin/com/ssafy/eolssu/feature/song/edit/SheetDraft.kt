@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.data.song.CommonScoreData
 
 /** EDIT-01에서 고르는 가져오기 종류. [routeId]는 화면 이동 경로에 쓴다. */
 enum class ImportKind(val routeId: String) {
@@ -62,37 +63,57 @@ sealed interface EditSource {
 }
 
 /**
- * 편집 중인 정간보. `cells[i]`는 연주 순서 i번째 정간이고, 각 번호는 `i / gak`, 그 각 안의 정간 번호는 `i % gak`다.
+ * 편집 중인 정간보. `cells[i]`는 연주 순서 i번째 정간이고 원본의 가변 각 길이는 [columnSizes]로 보존한다.
  * 빈 목록은 빈 정간, 둘 이상이면 한 정간을 위→아래로 나눈 음이며 나눈 정간의 아직 비어 있는 자리는 [ScoreNote.Blank]다.
  *
  * @property sigimsae 정간 번호 → 그 정간 첫 음에 붙인 시김새. 율명이 있는 정간에만 붙는다.
  */
 data class SheetDraft(
     val title: String,
-    val jangdan: Jangdan,
+    val jangdan: Jangdan?,
     val bpm: Int,
     val cells: List<List<ScoreNote>>,
     val sigimsae: Map<Int, Sigimsae> = emptyMap(),
+    val columnSizes: List<Int>? = null,
+    val sourceCellIds: List<String?>? = null,
+    val original: CommonScoreData? = null,
 ) {
     init {
-        require(cells.isNotEmpty() && cells.size % jangdan.gak == 0) { "정간 수는 한 각 정간 수의 배수여야 한다: ${cells.size}" }
+        require(cells.isNotEmpty() && (columnSizes?.let { it.all { n -> n > 0 } && it.sum() == cells.size } ?: (cells.size % requireNotNull(jangdan).gak == 0)))
+        require(sourceCellIds == null || sourceCellIds.size == cells.size)
     }
 
     /** 한 각의 정간 수. */
-    val gak: Int get() = jangdan.gak
+    val gak: Int get() = columnSizes?.maxOrNull() ?: requireNotNull(jangdan).gak
 
-    val columnCount: Int get() = cells.size / gak
+    val sizes: List<Int> get() = columnSizes ?: List(cells.size / gak) { gak }
+
+    val jangdanName: String get() = original?.music?.jangdan ?: jangdan?.name.orEmpty()
+
+    internal val originalCells: Map<String, CommonScoreData.Cell> by lazy {
+        original?.columns?.flatMap { it.cells }?.associateBy { it.id }.orEmpty()
+    }
+
+    val columnCount: Int get() = sizes.size
 
     /** 빈 정간 번호(연주 순서). 나눈 정간은 모든 자리가 비었을 때만 빈 정간이다. */
-    val emptyCells: List<Int> get() = cells.indices.filter { isEmptyCell(it) }
+    val emptyCells: List<Int> get() = cells.indices.filter { isEmptyCell(it) && !originalCellIsComplete(it) }
+
+    /** 부분 입력 중인 분할도 확정 저장 전에는 채워야 한다. 원본의 빈 이음 표기와 구별한다. */
+    val unfilledCells: List<Int> get() = cells.indices.filter { cells[it].isEmpty() ||
+        (ScoreNote.Blank in cells[it] && !originalCellIsComplete(it)) }
+
+    private fun originalCellIsComplete(index: Int): Boolean = originalCell(index)?.let { cell ->
+        cell.units.isNotEmpty() && cell.units.all { it.symbol.isNotEmpty() || it.eventId.isNotEmpty() } && cell.editingNotes() == cells[index]
+    } == true
 
     fun isEmptyCell(index: Int): Boolean = cells[index].all { it == ScoreNote.Blank }
 
-    fun columnOf(index: Int): Int = index / gak
+    fun columnOf(index: Int): Int = sizes.runningFold(0, Int::plus).dropLast(1).indexOfLast { index >= it }.coerceAtLeast(0)
 
-    fun rowOf(index: Int): Int = index % gak
+    fun rowOf(index: Int): Int = index - sizes.take(columnOf(index)).sum()
 
-    fun indexOf(column: Int, row: Int): Int = column * gak + row
+    fun indexOf(column: Int, row: Int): Int = sizes.take(column).sum() + row
 
     /** 공통 정간보 렌더러에 넘길 곡. 빈 정간은 [ScoreNote.Blank] 한 자리로 그린다. */
     fun toSong(): Song = Song(
@@ -104,13 +125,25 @@ data class SheetDraft(
         description = "",
         evaluable = false,
         solfege = null,
-        score = Score(cells.chunked(gak).map { column -> column.map { ScoreCell(it.ifEmpty { listOf(ScoreNote.Blank) }) } }),
+        score = if (original != null) renderEditingScore() else Score(cells.chunked(gak).map { column -> column.map { ScoreCell(it.ifEmpty { listOf(ScoreNote.Blank) }) } }),
     )
 
-    /** 렌더러의 시김새 표시. 정간 첫 음 자리(줄 0 · 칸 0)에 붙인다. */
-    fun annotations(): Map<ScoreUnitKey, List<String>> =
-        sigimsae.mapKeys { (index, _) -> ScoreUnitKey("c${columnOf(index)}-j${rowOf(index)}", 0, 0) }
+    /** 원본 시김새는 모든 시작 음 자리(row/col)에 보존하고, 예시 악보만 정간 첫 음에 붙인다. */
+    fun annotations(): Map<ScoreUnitKey, List<String>> {
+        if (original != null) runCatching {
+            val document = toCommonScore()
+            val events = document.events.associateBy { it.id }
+            buildMap {
+                document.columns.forEach { column -> column.cells.forEach { cell -> cell.units.forEach { unit ->
+                    val id = "${cell.id}-r${unit.row}-u${unit.col}"
+                    val signs = events[id]?.sigimsae.orEmpty()
+                    if (unit.eventId == id && signs.isNotEmpty()) put(ScoreUnitKey(cell.id, unit.row, unit.col), signs)
+                } } }
+            }
+        }.getOrNull()?.let { return it }
+        return sigimsae.mapKeys { (index, _) -> ScoreUnitKey("c${columnOf(index)}-j${rowOf(index)}", 0, 0) }
             .mapValues { (_, value) -> listOf(value.scoreName) }
+    }
 
     /**
      * [index] 정간에 [note]를 적는다. 나눈 정간에 빈 자리가 있으면 위에서부터 채우고, 아니면 정간을 [note] 하나로 바꾼다.
@@ -156,19 +189,25 @@ data class SheetDraft(
 
     /** [column] 각 왼쪽(다음 순서)에 빈 각을 하나 넣는다. 뒤 정간의 시김새 번호도 함께 민다. */
     fun addColumnAfter(column: Int): SheetDraft {
-        val at = (column + 1) * gak
-        val inserted = cells.subList(0, at) + List(gak) { emptyList() } + cells.subList(at, cells.size)
-        return copy(cells = inserted, sigimsae = sigimsae.mapKeys { (index, _) -> if (index >= at) index + gak else index })
+        val count = sizes[column]
+        val at = indexOf(column, 0) + count
+        val inserted = cells.subList(0, at) + List(count) { emptyList() } + cells.subList(at, cells.size)
+        return copy(cells = inserted,
+            columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
+            sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
+            sigimsae = sigimsae.mapKeys { (index, _) -> if (index >= at) index + count else index })
     }
 
     /** [column] 각을 지운다. 각이 하나뿐이면 지우지 않는다. */
     fun deleteColumn(column: Int): SheetDraft {
         if (columnCount <= 1) return this
-        val from = column * gak
-        val to = from + gak
+        val from = indexOf(column, 0)
+        val to = from + sizes[column]
         return copy(
             cells = cells.subList(0, from) + cells.subList(to, cells.size),
-            sigimsae = sigimsae.filterKeys { it !in from until to }.mapKeys { (index, _) -> if (index >= to) index - gak else index },
+            columnSizes = columnSizes?.filterIndexed { i, _ -> i != column },
+            sourceCellIds = sourceCellIds?.let { it.take(from) + it.drop(to) },
+            sigimsae = sigimsae.filterKeys { it !in from until to }.mapKeys { (index, _) -> if (index >= to) index - (to - from) else index },
         )
     }
 

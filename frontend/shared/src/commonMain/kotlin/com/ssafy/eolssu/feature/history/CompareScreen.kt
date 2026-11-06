@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
 import eolssu.shared.generated.resources.weak_compare_not_comparable
+import eolssu.shared.generated.resources.comparison_score_unavailable
 import eolssu.shared.generated.resources.weak_compare_check_failed
 import eolssu.shared.generated.resources.weak_compare_rejected
 import com.ssafy.eolssu.data.practice.CheckLoad
@@ -136,8 +137,10 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
             RecordPair(state.previous, comparison.current, actions.onOpenPicker)
             val previous = state.previous
             val delta = state.delta
-            if (previous == null || delta == null) {
+            if (previous == null) {
                 Text(stringResource(Res.string.weak_compare_none), style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textSub)
+            } else if (delta == null) {
+                CompareCheckNote(state.check)
             } else {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -198,7 +201,7 @@ private fun CompareCheckNote(check: CheckLoad?) {
         null -> return
         CheckLoad.Rejected -> stringResource(Res.string.weak_compare_rejected)
         CheckLoad.Failed -> stringResource(Res.string.weak_compare_check_failed)
-        is CheckLoad.Loaded -> check.check.takeIf { !it.comparable }?.reason?.let { stringResource(Res.string.weak_compare_not_comparable, it) } ?: return
+        is CheckLoad.Loaded -> if (!check.check.scoreComparable) stringResource(Res.string.comparison_score_unavailable) else return
     }
     Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp), color = EolssuTheme.colors.textMuted)
 }

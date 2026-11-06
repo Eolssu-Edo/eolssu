@@ -166,6 +166,15 @@ openssl rand -base64 48
 
 운영 설정을 바꿀 때는 기존 Compose를 root 전용으로 백업하고 `config --quiet`를 통과한 뒤 backend만 재생성합니다. Jenkins는 관리 파일 `/opt/eolssu/config/compose.yml`을 사용하므로 저장소 변경만으로 서버 파일이 바뀌지는 않습니다. 배포 후 readiness HTTP 200·UP, Docker healthy, 프론트·MySQL ID와 물리 볼륨 보존을 확인합니다.
 
+운영 `compose.yml`을 교체할 때는 소유자와 권한을 `root:jenkins` `0640`으로 유지합니다. Jenkins는 `Validate runtime Compose`에서 이 파일과 `ci.env.example`을 읽습니다. 운영 비밀값은 `root:root` `0600`의 `/opt/eolssu/.env`에 둡니다. 교체 후 edo1에서 Jenkins 계정으로 다음 명령을 실행합니다.
+
+```sh
+sudo -u jenkins docker compose --env-file /opt/eolssu/config/ci.env.example \
+  -f /opt/eolssu/config/compose.yml config --quiet
+```
+
+2026-11-06 백엔드 #279는 `compose.yml`이 `root:root` `0600`으로 바뀌어 이 검사에서 실패했습니다. 파일 내용이 같은 상태에서 소유 그룹과 읽기 권한을 복구했습니다. 같은 `develop` SHA `2c69ce33`을 사용한 Replay #280은 Compose 검사와 운영 배포에 성공했습니다. 운영 컨테이너의 JAR 경로와 API readiness `UP`을 확인했고 웹 수동 잡의 자동 실행과 예약은 모두 0건이었습니다. [Jira S15P31E102-528](https://ssafy.atlassian.net/browse/S15P31E102-528) · [백엔드 #279](http://127.0.0.1:18080/job/eolssu-backend/279/) · [백엔드 #280](http://127.0.0.1:18080/job/eolssu-backend/280/)
+
 이름 전환 전 설정·릴리스와 SQL 전체 백업은 서버의 `/opt/backups/eolssu-S15P31E102-65-20261022T072645Z/`에 root 전용으로 보관했습니다. `receipt.json`에는 아티팩트 SHA-256·DB 서버 UUID·물리 볼륨·검증 결과가 있습니다. SQL과 실제 `.env`는 저장소나 로그로 복사하지 않습니다. `/opt/eolsu`도 변경 전 복귀 경로로 보존합니다.
 
 전체 이름 전환을 되돌려야 하면 배포 담당자가 현재 작업·접속을 확인하고 새 프로젝트를 중지한 뒤 기존 프로젝트를 실행합니다. 볼륨을 삭제하지 않습니다.
@@ -331,7 +340,9 @@ ssh edo1 'sudo docker exec eolssu-runtime-mysql-1 sh -c '"'"'MYSQL_PWD="$MYSQL_R
 
 수동 배포 설정을 운영에 반영한 뒤에는 백엔드의 develop 자동 흐름에서 웹 잡을 예약하지 않습니다. 백엔드 배포 도구, 인증서 초기화, Nginx health 라우팅과 HTTPS 리다이렉트 검사는 백엔드 잡에서 실행합니다. 공통 앱 로직은 Android QA의 `:shared:testAndroidHostTest`에서도 검증합니다.
 
-웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend-web-manual`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 프론트 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 전용 잡의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다. `eolssu-frontend`는 과거 빌드 링크와 실행 이력을 보존하기 위해 비활성화합니다.
+웹을 배포하려면 성공한 `eolssu-backend` 빌드에서 검증한 develop 전체 커밋 SHA를 확인합니다. `eolssu-frontend-web-수동배포용`의 **Build with Parameters**에서 그 SHA를 `REVISION`에 입력합니다. 전용 잡은 체크아웃 SHA와 develop 이력 포함 여부를 먼저 검증합니다. 완료 기준은 전용 잡의 SUCCESS와 `/opt/eolssu/frontend-deployment.json`, 운영의 `/__eolssu_release.json`에서 확인한 SHA 일치입니다. [웹 수동 배포 잡](http://127.0.0.1:18080/job/eolssu-frontend-web-%EC%88%98%EB%8F%99%EB%B0%B0%ED%8F%AC%EC%9A%A9/)
+
+이전 웹 빌드는 비활성화된 `eolssu-frontend-이력보관용`에서 조회합니다. [웹 빌드 이력](http://127.0.0.1:18080/job/eolssu-frontend-%EC%9D%B4%EB%A0%A5%EB%B3%B4%EA%B4%80%EC%9A%A9/)
 
 프론트 잡은 다음 명령을 Jenkins 사용자로 실행합니다. JDK 21·Docker·Google Chrome이 필요하며 Node·Yarn·Wasm tooling은 Gradle이 관리합니다. Linux 서버에서 웹 타깃만 빌드·테스트합니다. Android·iOS 패키지 배포는 포함하지 않습니다.
 

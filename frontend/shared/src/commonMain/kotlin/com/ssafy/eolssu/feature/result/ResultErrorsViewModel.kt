@@ -1,7 +1,12 @@
 package com.ssafy.eolssu.feature.result
 
 import com.ssafy.eolssu.feature.practice.toSection
-import kotlinx.coroutines.async
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
+import com.ssafy.eolssu.data.song.CatalogInstrument
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.isActive
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -23,12 +28,18 @@ import kotlinx.coroutines.launch
  */
 data class ResultErrorsUiState(
     val loading: Boolean = true,
+    val failed: Boolean = false,
+    val instrumentName: String? = null,
     val song: Song? = null,
     val result: EvaluationResult? = null,
     val filter: ErrorFilter = ErrorFilter.All,
     val selectedCell: ScoreCellPosition? = null,
     val section: ScoreSection? = null,
 ) {
+    val songTitle: String? get() = song?.title?.let { title ->
+        instrumentName?.let { "$title · $it" } ?: title
+    }
+
     /** 취약 구간 안의 틀린 정간 수. */
     val sectionErrorCount: Int get() = section?.let { sec -> result?.errors?.count { sec.contains(it.column, it.row) } } ?: 0
 
@@ -43,17 +54,63 @@ data class ResultErrorsUiState(
 class ResultErrorsViewModel(
     private val sourceId: String,
     private val repository: WeakSectionRepository,
+    private val loadInstruments: suspend () -> List<CatalogInstrument> = { emptyList() },
+    member: SignedInMember? = null,
+    private val onOpened: suspend (String) -> Unit = {},
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ResultErrorsUiState())
     val uiState: StateFlow<ResultErrorsUiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            val picks = async { repository.weakSections(sourceId) }
-            val source = repository.source(sourceId)
-            val section = source?.let { picks.await()?.firstOrNull()?.toSection(it.song.score) }
-            _uiState.update { it.copy(loading = false, song = source?.song, result = source?.evaluation, section = section) }
+    private var loadJob: Job? = null
+    private val accountScope = member.screenScope(viewModelScope) {
+        _uiState.value = ResultErrorsUiState()
+    }
+
+    init { retry() }
+
+    fun retry() {
+        if (!accountScope.isActive || loadJob?.isActive == true) return
+        _uiState.value = ResultErrorsUiState()
+        loadJob = accountScope.launch {
+            val source = try {
+                repository.source(sourceId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                _uiState.value = ResultErrorsUiState(loading = false, failed = true)
+                return@launch
+            }
+            // 같은 곡이어도 다른 세션의 점수·오류를 표시하지 않는다.
+            if (source == null || source.evaluation.id != sourceId ||
+                source.evaluation.songId != source.song.id ||
+                (source.evaluation.scoreVersion != null && source.evaluation.scoreVersion != source.song.scoreVersion)
+            ) {
+                _uiState.value = ResultErrorsUiState(loading = false)
+                return@launch
+            }
+            _uiState.value = ResultErrorsUiState(loading = false, song = source.song, result = source.evaluation)
+            // 저장한 기록의 읽음 처리는 PRA-03을 유지한다. 실패해도 단독 평가를 숨기지 않는다.
+            launch { optional { onOpened(sourceId) } }
+            // 선택한 단독 평가를 먼저 표시하고, 보조 정보 실패와 분리한다.
+            launch {
+                val picks = optional { repository.weakSections(sourceId) }
+                _uiState.update { it.copy(section = picks?.firstOrNull()?.toSection(source.song.score)) }
+            }
+            launch {
+                val name = source.song.instrumentId?.let { id ->
+                    optional { loadInstruments() }?.firstOrNull { it.instrumentId == id }?.name?.takeIf { it.isNotBlank() }
+                }
+                _uiState.update { it.copy(instrumentName = name) }
+            }
         }
+    }
+
+    private suspend fun <T> optional(block: suspend () -> T): T? = try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
     }
 
     fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }

@@ -27,6 +27,7 @@ class MySongsViewModel(
     val uiState: StateFlow<MySongsUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
     private var loadGeneration = 0
+    private var sheetJob: Job? = null
 
     private val accountScope = member.screenScope(viewModelScope) {
         _uiState.value = MySongsUiState()
@@ -80,6 +81,7 @@ class MySongsViewModel(
         if (!accountScope.isActive) return
         tabChosen = true
         _uiState.update { it.copy(tab = tab) }
+        if (tab == MySongsTab.Sheets) refreshSheets()
     }
 
     /** 홈 '악보 추가·편집하기'로 들어오면 내 악보 탭부터 보인다. 화면을 다시 그릴 때 사용자가 고른 탭을 되돌리지 않는다. */
@@ -98,7 +100,22 @@ class MySongsViewModel(
     /** 창의 '삭제': 묻던 악보를 지운다. 목록은 [MySheetRepository.sheets]로 다시 받는다. */
     fun confirmDelete() {
         val sheet = _uiState.value.deleting ?: return
-        _uiState.update { it.copy(deleting = null) }
-        viewModelScope.launch { mySheetRepository.delete(sheet.id) }
+        _uiState.update { it.copy(deleting = null, deleteFailed = false) }
+        accountScope.launch {
+            try { mySheetRepository.delete(sheet.id) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { _uiState.update { it.copy(deleteFailed = true) } }
+        }
     }
+
+    fun refreshSheets() {
+        if (!accountScope.isActive || sheetJob?.isActive == true) return
+        sheetJob = accountScope.launch {
+            _uiState.update { it.copy(sheetLoadState = SongLoadState.Loading) }
+            val ok = mySheetRepository.refresh()
+            _uiState.update { it.copy(sheetLoadState = if (ok) SongLoadState.Ready else SongLoadState.Failed) }
+        }
+    }
+
+    fun consumeDeleteFailure() = _uiState.update { it.copy(deleteFailed = false) }
 }

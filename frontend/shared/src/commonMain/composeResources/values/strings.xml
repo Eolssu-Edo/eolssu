@@ -1,4 +1,16 @@
 <resources>
+    <string name="sheet_close_unsaved">저장하지 못한 변경이 있어요.</string>
+    <string name="sheet_close_message">계속 편집하거나, 저장되지 않은 변경을 버리고 닫을 수 있어요.</string>
+    <string name="sheet_discard_close">변경을 버리고 닫기</string>
+    <string name="sheet_keep_editing">계속 편집하기</string>
+    <string name="sheet_document_title">내 악보 편집</string>
+    <string name="sheet_document_loading">악보를 불러오고 있어요.</string>
+    <string name="sheet_document_failed">악보를 불러오지 못했어요. 변환이 완료됐는지와 연결 상태를 확인해 주세요.</string>
+    <string name="sheet_save_failed">저장하지 못했어요. 현재 편집은 유지돼요. 다시 시도해 주세요.</string>
+    <string name="sheet_save_conflict">다른 곳에서 악보가 변경됐어요. 현재 편집은 유지했어요. 다시 열어 최신 악보를 확인해 주세요.</string>
+    <string name="sheet_save_too_large">악보가 저장할 수 있는 크기를 넘었어요. 현재 편집은 유지돼요.</string>
+    <string name="sheet_delete_failed">악보를 삭제하지 못했어요. 다시 시도해 주세요.</string>
+    <string name="comparison_score_unavailable">두 연주의 점수는 비교할 수 없어요.</string>
     <string name="home_scroll_to_features">학습·연습하기로 내려가기</string>
     <string name="jangdan_unassigned">장단 미지정</string>
     <string name="practice_jangdan_unavailable">등록된 장단 패턴이 없어 장단 미리듣기와 박 표시를 사용할 수 없어요. 악보와 모범 연주는 그대로 볼 수 있어요.</string>
@@ -740,11 +752,14 @@
     <string name="home_my_page">마이페이지</string>
     <string name="my_title">마이페이지</string>
     <string name="my_learning_title">기초부터 배우기</string>
+    <string name="my_learning_open_stage">%1$d단계 배우기</string>
+    <string name="my_learning_stage_done">학습 완료</string>
+    <string name="my_learning_stage_next">다음 학습</string>
+    <string name="my_learning_stage_not_done">아직 학습하지 않음</string>
     <string name="my_learning_count">%1$d / %2$d단계 완료</string>
     <string name="my_learning_instrument">%1$s 학습 진도</string>
     <string name="my_learning_next">다음 학습 · %1$d단계</string>
     <string name="my_learning_complete">모든 단계를 마쳤어요!</string>
-    <string name="my_learning_local">이 기기에 저장된 학습 기록이에요.</string>
     <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
     <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
     <string name="my_inquiry">문의하기</string>

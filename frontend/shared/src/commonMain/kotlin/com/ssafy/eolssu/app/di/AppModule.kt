@@ -19,7 +19,9 @@ import com.ssafy.eolssu.data.practice.RecordingUploads
 import com.ssafy.eolssu.data.practice.ScoreViewApi
 import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
-import com.ssafy.eolssu.data.song.SampleMySheetRepository
+import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
+import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
 import com.ssafy.eolssu.data.song.SheetAudioRepository
 import com.ssafy.eolssu.data.song.ApiSongRepository
@@ -186,13 +188,19 @@ val appModule = module {
     viewModel { WithdrawViewModel(get(), get(), get(), getOrNull(), getOrNull(), get()) }
     viewModel { (provider: SocialProvider) -> SocialLinkViewModel(provider, get(), get(), getOrNull(), getOrNull(), get()) }
 
-    // 내 악보. 서버 API가 없어 앱이 켜져 있는 동안만 예시 악보를 들고 있다.
-    single<MySheetRepository> { SampleMySheetRepository(member = get()) }
+    // 내 악보 목록과 편집 문서는 같은 인증 HTTP 클라이언트를 쓴다.
+    single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
+    single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
     viewModelOf(::MySongsViewModel)
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
-    viewModel { (sourceId: String) -> ResultErrorsViewModel(sourceId, get()) }
+    viewModel { (sourceId: String, historical: Boolean) ->
+        val catalog = get<InstrumentCatalog>()
+        val records = get<PracticeRecordRepository>()
+        ResultErrorsViewModel(sourceId, get(), loadInstruments = catalog::load, member = get(),
+            onOpened = { if (historical) records.detail(it) })
+    }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
         SectionLoopViewModel(sourceId, section, bpm, repeats.takeIf { it > 0 }, get(), getOrNull(), getOrNull())
@@ -205,5 +213,5 @@ val appModule = module {
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
     single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get()) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get()) }
 }

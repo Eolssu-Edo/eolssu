@@ -11,12 +11,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * 내 악보. 와이어프레임 API 정리의 `GET /me/sheets`, `DELETE /me/sheets/{id}`에 대응한다.
- * 지금은 [SampleMySheetRepository]가 앱이 켜져 있는 동안만 악보를 들고 있다.
+ * 내 악보. SHT-01·02(`GET /users/me/sheets`, `DELETE /users/me/sheets/{id}`)에 대응한다.
+ * 앱에서는 [ApiMySheetRepository]를 쓰고 예시 저장소는 테스트·미연결 화면 검증에만 쓴다.
  */
 interface MySheetRepository {
     /** 최근에 고친 순. */
     val sheets: StateFlow<List<MySheet>>
+
+    /** 서버 목록을 다시 읽는다. 실패 시 기존 목록을 보존한다. */
+    suspend fun refresh(): Boolean = true
 
     /** 내 악보를 지운다. 없는 악보면 아무것도 하지 않는다. */
     suspend fun delete(sheetId: String)
