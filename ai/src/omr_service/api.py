@@ -6,7 +6,6 @@
 """
 
 import logging
-import tempfile
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from omr_service import jeongganbo_text, staff_engine
+from omr_service.temporary_sources import temporary_sources
 
 MAX_TOTAL_BYTES = 20 * 1024 * 1024  # 파일·합계 20MiB(382)
 MAX_PDF_PAGES = 10
@@ -185,7 +185,7 @@ def recognize(
     began = monotonic()
     outcome, pages = "ENGINE_ERROR", []
     try:
-        with tempfile.TemporaryDirectory(prefix="recognition-", ignore_cleanup_errors=True) as work:
+        with temporary_sources() as work:
             try:
                 kind = "PDF" if request.files[0].content_type == "application/pdf" else "IMAGE"
                 # 이미지는 장 수가 곧 쪽 수라 처음부터 예산을 안다. PDF는 열어 볼 때까지 최대 10쪽으로 본다.

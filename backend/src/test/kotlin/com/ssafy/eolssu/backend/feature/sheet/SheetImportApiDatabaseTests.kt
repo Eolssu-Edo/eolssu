@@ -44,6 +44,9 @@ private const val OTHER = 991472L
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class SheetImportApiDatabaseTests {
     @Autowired private lateinit var jdbc: JdbcTemplate
+    @Autowired @org.springframework.beans.factory.annotation.Qualifier("temporarySheetSourceStorage")
+    private lateinit var temporary: com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage
+    private fun temporaryPath(key: String): Path = checkNotNull(temporary.readable(temporary.readUrl(key,java.time.Duration.ofMinutes(15)).substringAfterLast('/'))).path
     @Value("\${local.server.port}") private var port = 0
     private val client = HttpClient.newHttpClient()
     private val json = JsonMapper.builder().build()
@@ -80,7 +83,7 @@ class SheetImportApiDatabaseTests {
 
         val keys = jdbc.queryForList("SELECT object_key FROM sheet_source_files WHERE sheet_id=? ORDER BY file_idx", String::class.java, sheetId)
         assertEquals(2, keys.size)
-        assertTrue(keys.all { it!!.startsWith("sheet-sources/$OWNER/") && storageDir.resolve(it).exists() })
+        assertTrue(keys.all { it!!.startsWith("sheet-import-temp/$OWNER/") && temporaryPath(it).exists() })
 
         val status = get(OWNER, "/api/users/me/sheets/$sheetId/conversion")
         assertEquals(200, status.statusCode(), status.body())
@@ -165,38 +168,41 @@ class SheetImportApiDatabaseTests {
         jdbc.update("INSERT INTO sheet_source_pages(sheet_id,page_idx,object_key,width,height) VALUES(?,0,?,200,100)",sheetId,pageKey)
 
         assertEquals(404, send(OTHER, "DELETE", "/api/users/me/sheets/$sheetId").statusCode())
-        assertTrue(keys.all { storageDir.resolve(it).exists() })
+        val paths=keys.map { temporaryPath(checkNotNull(it)) }
+        assertTrue(paths.all { it.exists() })
         assertEquals(204, send(OWNER, "DELETE", "/api/users/me/sheets/$sheetId").statusCode())
-        assertTrue(keys.none { storageDir.resolve(it).exists() })
+        assertTrue(paths.none { it.exists() })
         assertFalse(storageDir.resolve(pageKey).exists())
         assertEquals(0, count("SELECT COUNT(*) FROM sheet_conversions WHERE sheet_id=$sheetId"))
         assertEquals(0, count("SELECT COUNT(*) FROM sheet_source_files WHERE sheet_id=$sheetId"))
     }
 
     @Test
-    fun `retry API exposes eligibility and accepts the same retry once`() {
+    fun `retry API requires reupload and preserves ownership`() {
         val id=sheetId(import(OWNER,"k-retry",staff(),listOf("a.png" to png)))
         jdbc.update("UPDATE sheet_conversions SET status='FAILED',failure_code='SERVER_ERROR',failure_cause='SERVER_ERROR',finished_at=accepted_at WHERE sheet_id=?",id)
         val status=json.readTree(get(OWNER,"/api/users/me/sheets/$id/conversion").body()).path("result")
-        assertTrue(status.path("retryable").booleanValue())
+        assertFalse(status.path("retryable").booleanValue())
         assertEquals(404,send(OTHER,"POST","/api/users/me/sheets/$id/conversion/retry").statusCode())
         repeat(2) {
             val response=send(OWNER,"POST","/api/users/me/sheets/$id/conversion/retry")
-            assertEquals(202,response.statusCode(),response.body())
-            assertEquals(2,json.readTree(response.body()).path("result").path("attempt").intValue())
+            assertEquals(409,response.statusCode(),response.body())
+            assertEquals("STATE_CONFLICT",errorCode(response))
         }
     }
 
     @Test
     fun `score API returns conversion issues and notices without caching`() {
         val id=sheetId(import(OWNER,"k-details",staff(),listOf("a.png" to png)))
-        jdbc.update("""UPDATE sheet_conversions SET status='DONE',result_json='{"issues":[{"issueId":"i1","type":"LOW_CONFIDENCE","cellId":"c1-j0","eventId":null,"candidates":[]}],"notices":[{"type":"TRANSPOSED"}],"pages":[]}',finished_at=accepted_at WHERE sheet_id=?""",id)
+        jdbc.update("""UPDATE sheet_conversions SET status='DONE',result_json='{"issues":[{"issueId":"i1","type":"LOW_CONFIDENCE","cellId":"c1-j0","eventId":null,"candidates":[]}],"notices":[{"type":"TRANSPOSED"}],"pages":[{"pageIdx":0,"objectKey":"legacy/private.png","width":20,"height":20}]}',finished_at=accepted_at WHERE sheet_id=?""",id)
         jdbc.update("UPDATE user_sheets SET pending_cell_count=1 WHERE id=?",id)
         val response=get(OWNER,"/api/users/me/sheets/$id/score")
         assertEquals("no-store",response.headers().firstValue("Cache-Control").orElse(""))
         val details=json.readTree(response.body()).path("result")
         assertEquals("i1",details.path("issues").get(0).path("issueId").asString())
         assertEquals("TRANSPOSED",details.path("notices").get(0).path("type").asString())
+        assertEquals(0,details.path("source").path("pages").size())
+        assertTrue(details.path("source").path("pagesExpireAt").isNull)
     }
 
     @Test
@@ -278,6 +284,25 @@ class SheetImportApiDatabaseTests {
             request.header("Cookie", "access_token=${jwt.serialize()}")
         }
         return request
+    }
+
+    @Test fun `internal original reads require a live capability and stop after deletion`() {
+        val id=sheetId(import(OWNER,"internal-capability",staff(),listOf("a.png" to png)))
+        val key=jdbc.queryForObject("SELECT object_key FROM sheet_source_files WHERE sheet_id=?",String::class.java,id)!!
+        val token=temporary.readUrl(key,java.time.Duration.ofMinutes(15)).substringAfterLast('/')
+        val uri="http://127.0.0.1:$port/api/internal/sheet-imports/$token"
+        val response=client.send(HttpRequest.newBuilder(URI(uri)).GET().build(),HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(200,response.statusCode())
+        kotlin.test.assertContentEquals(png,response.body())
+        assertEquals("no-store",response.headers().firstValue("Cache-Control").orElse(""))
+        val partial=client.send(HttpRequest.newBuilder(URI(uri)).header("Range","bytes=0-3").GET().build(),HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(206,partial.statusCode())
+        kotlin.test.assertContentEquals(png.copyOfRange(0,4),partial.body())
+        val invalid=client.send(HttpRequest.newBuilder(URI(uri)).header("Range","bytes=999999-").GET().build(),HttpResponse.BodyHandlers.ofByteArray())
+        assertEquals(416,invalid.statusCode())
+        assertEquals(404,get(null,"/api/internal/sheet-imports/guessed").statusCode())
+        temporary.delete(key)
+        assertEquals(404,get(null,"/api/internal/sheet-imports/$token").statusCode())
     }
 
     companion object {

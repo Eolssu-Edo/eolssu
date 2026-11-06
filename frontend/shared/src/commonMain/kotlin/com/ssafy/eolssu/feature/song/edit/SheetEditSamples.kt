@@ -9,10 +9,9 @@ import com.ssafy.eolssu.data.song.SampleSongs
  * 인식 결과에서 확인이 필요한 정간 하나(EDIT-06).
  *
  * @property index 정간 번호(연주 순서).
- * @property crop 원본 사진에서 이 정간 부분을 흉내 낸 글자.
  * @property candidates 고를 수 있는 율명. '太·黃'처럼 가운뎃점으로 나눈 것은 한 정간을 나눈 음이다.
  */
-data class ImportCheck(val index: Int, val title: String, val description: String, val crop: String, val candidates: List<String>)
+data class ImportCheck(val index: Int, val title: String, val description: String, val candidates: List<String>)
 
 /**
  * 악보 추가·편집(2차) 화면의 예시 데이터. 정간보 인식·오선보 변환·저장 API를 붙이기 전까지 화면 흐름만 확인한다.
@@ -46,13 +45,13 @@ internal object SheetEditSamples {
      */
     fun checks(kind: ImportKind): List<ImportCheck> = when (kind) {
         ImportKind.Jeongganbo -> listOf(
-            ImportCheck(22, "太·黃 으로 읽었어요", "한 정간에 두 음이 있는데 아래 글자가 흐려요.", "太黃", listOf("太·黃", "太·仲", "仲·黃")),
-            ImportCheck(30, "南 으로 읽었어요", "글자 일부가 접힌 자국에 가려졌어요.", "南", listOf("南", "林", "潢")),
-            ImportCheck(41, "黃 으로 읽었어요", "곁줄 시김새가 붙어 있는지 확실하지 않아요.", "黃", listOf("黃", "太", "潢")),
+            ImportCheck(22, "太·黃 으로 읽었어요", "한 정간에 두 음이 있는데 아래 글자가 흐려요.", listOf("太·黃", "太·仲", "仲·黃")),
+            ImportCheck(30, "南 으로 읽었어요", "글자 일부가 접힌 자국에 가려졌어요.", listOf("南", "林", "潢")),
+            ImportCheck(41, "黃 으로 읽었어요", "곁줄 시김새가 붙어 있는지 확실하지 않아요.", listOf("黃", "太", "潢")),
         )
         ImportKind.Staff -> listOf(
-            ImportCheck(2, "오선보의 G4를 太(태)로 바꿨어요", "황 = E♭4 기준으로 국악 음계에 없는 음이라 가까운 율명을 골랐어요.", "♮♩", listOf("太", "仲")),
-            ImportCheck(20, "오선보의 B4를 林(임)으로 바꿨어요", "林(B♭4)과 南(C5) 사이 음이에요. 원래 곡에 맞는 쪽을 골라요.", "♮♩", listOf("林", "南")),
+            ImportCheck(2, "오선보의 G4를 太(태)로 바꿨어요", "황 = E♭4 기준으로 국악 음계에 없는 음이라 가까운 율명을 골랐어요.", listOf("太", "仲")),
+            ImportCheck(20, "오선보의 B4를 林(임)으로 바꿨어요", "林(B♭4)과 南(C5) 사이 음이에요. 원래 곡에 맞는 쪽을 골라요.", listOf("林", "南")),
         )
     }
 
