@@ -151,7 +151,7 @@ val appModule = module {
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get()) }
-    viewModel { GrowthViewModel(get(), get(), get(), get(), get()) }
+    viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }

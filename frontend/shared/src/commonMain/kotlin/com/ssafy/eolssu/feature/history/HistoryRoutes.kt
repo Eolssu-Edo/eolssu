@@ -29,16 +29,15 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.TrendScope
 import kotlinx.coroutines.Job
-import com.ssafy.eolssu.data.user.InstrumentRepository
-import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.song.SongRepository
+import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -222,13 +221,12 @@ private fun rememberRecordDetailActions(
 
 /**
  * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
- * '완료한 단계'는 연습 악기가 바뀌거나 학습 화면에서 완료 표시를 바꾸면 다시 센다.
- * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 전체 곡 연주를 받고, 곡·범위를 고를 때마다 다시 받는다.
+ * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 기본 평가를 받고, 악기·곡을 고를 때마다 다시 받는다.
+ * 악기 고르기용 곡 → 악기 대응은 곡 목록(CAT-01·02)에서 한 번 받는다.
  */
 class GrowthViewModel(
     private val repository: GrowthRepository,
-    private val learnProgress: LearnProgressRepository,
-    instruments: InstrumentRepository,
+    private val songs: SongRepository,
     now: () -> Long,
     member: SignedInMember? = null,
 ) : ViewModel() {
@@ -243,15 +241,8 @@ class GrowthViewModel(
 
     init {
         load(GrowthRange.Week)
-        loadTrend(songId = null, scope = TrendScope.Full)
-        accountScope.launch {
-            // 완료한 단계는 서버 학습 진도로 센다(받지 못하면 비워 둔다).
-            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument }
-                .collectLatest { instrument ->
-                    val count = instrument?.let { learnProgress.doneStages(it)?.size }
-                    _uiState.update { it.copy(completedSteps = count) }
-                }
-        }
+        loadTrend(songId = null)
+        loadTrendCatalog()
     }
 
     fun changeRange(range: GrowthRange) {
@@ -262,31 +253,51 @@ class GrowthViewModel(
 
     fun retry() = load(_uiState.value.range)
 
-    /** 점수 변화 곡을 바꾼다. 지금 범위에 그 곡의 연주가 없고 다른 범위에만 있으면 범위도 바꾼다. */
+    /** 점수 변화 악기를 바꾼다. 그 악기에서 가장 최근에 연주한 기본 평가 곡을 보인다. */
+    fun selectTrendInstrument(instrumentId: String) {
+        val trend = _uiState.value.scoreTrend
+        if (trend.selectedInstrument?.instrumentId == instrumentId && !trend.failed) return
+        val song = trend.songFor(instrumentId) ?: return
+        loadTrend(song.songId)
+    }
+
+    /** 점수 변화 곡을 바꾼다. 기본 평가가 없는 곡은 고를 수 없다. */
     fun selectTrendSong(songId: String) {
         val trend = _uiState.value.scoreTrend
-        val song = trend.view?.songs?.firstOrNull { it.songId == songId } ?: return
+        if (trend.basicSongs.none { it.songId == songId }) return
         if (songId == trend.songId && !trend.failed) return
-        loadTrend(songId, trendScopeFor(song, trend.scope))
+        loadTrend(songId)
     }
 
-    /** 점수 변화 범위(전체 곡·구간)를 바꾼다. */
-    fun selectTrendScope(scope: TrendScope) {
-        val trend = _uiState.value.scoreTrend
-        if (scope == trend.scope && !trend.failed) return
-        loadTrend(trend.songId, scope)
-    }
+    fun retryTrend() = loadTrend(_uiState.value.scoreTrend.songId)
 
-    fun retryTrend() = _uiState.value.scoreTrend.let { loadTrend(it.songId, it.scope) }
-
-    /** 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). */
-    private fun loadTrend(songId: String?, scope: TrendScope) {
+    /**
+     * 늘 기본 평가(`FULL`)만 받는다. 서버가 기본 평가만 골라 최근 5개를 오래된 순으로 주므로 재평가가 5개 안에 끼지 않는다.
+     * 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). 서버가 고른 곡에 기본 평가가 없으면 가장 최근 기본 평가 곡을 다시 받는다.
+     */
+    private fun loadTrend(songId: String?) {
         if (!accountScope.isActive) return
         trendJob?.cancel()
-        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId, scope)) }
+        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId)) }
         trendJob = accountScope.launch {
-            val trend = repository.scoreTrend(songId, scope)
-            _uiState.update { it.copy(scoreTrend = it.scoreTrend.received(trend)) }
+            val trend = repository.scoreTrend(songId, TrendScope.Full)
+            val received = _uiState.updateAndGet { it.copy(scoreTrend = it.scoreTrend.received(trend)) }.scoreTrend
+            if (trend != null && songId == null) received.fallbackSongId?.let { loadTrend(it) }
+        }
+    }
+
+    /** 받지 못하면 악기 고르기 없이 곡만 고른다. */
+    private fun loadTrendCatalog() {
+        if (!accountScope.isActive) return
+        accountScope.launch {
+            val catalog = try {
+                TrendCatalog.of(songs.getInstruments(), songs.getSongs())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            _uiState.update { it.copy(scoreTrend = it.scoreTrend.copy(catalog = catalog)) }
         }
     }
 
@@ -301,12 +312,10 @@ class GrowthViewModel(
     }
 }
 
-/** GROWTH-01 연결. [onOpenSteps]는 '완료한 단계'(기초부터 배우기) 이동. */
+/** GROWTH-01 연결. */
 @Composable
 fun GrowthRoute(
     onBack: () -> Unit,
-    onOpenRecords: () -> Unit,
-    onOpenSteps: () -> Unit,
     viewModel: GrowthViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -316,8 +325,6 @@ fun GrowthRoute(
         onBack = onBack,
         onRange = viewModel::changeRange,
         onRetry = viewModel::retry,
-        onOpenSteps = onOpenSteps,
-        onOpenRecords = onOpenRecords,
-        trendActions = ScoreTrendActions(viewModel::selectTrendSong, viewModel::selectTrendScope, viewModel::retryTrend),
+        trendActions = ScoreTrendActions(viewModel::selectTrendInstrument, viewModel::selectTrendSong, viewModel::retryTrend),
     )
 }
