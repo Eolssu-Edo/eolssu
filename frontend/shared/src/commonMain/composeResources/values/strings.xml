@@ -82,7 +82,7 @@
     <string name="practice_mic_on">입력 감지</string>
     <string name="practice_mic_off">입력 없음</string>
     <string name="practice_no_input_hint">소리가 잘 들리지 않아요. 마이크를 확인해주세요.</string>
-    <string name="practice_restart">처음부터 다시</string>
+    <string name="practice_restart">처음부터</string>
     <string name="practice_abort">연주 중단</string>
     <string name="practice_countdown_soon">숨을 고르고 준비해 주세요.</string>
     <string name="practice_countdown_cancel">시작 취소</string>
@@ -121,14 +121,14 @@
     <string name="practice_jangdan_preview_start">장단 듣기</string>
     <string name="practice_jangdan_preview_stop">미리듣기 정지</string>
     <string name="practice_jangdan_sound">연습 중 장단 소리</string>
-    <string name="practice_jangdan_sound_desc">모범 연주와 장단 연습에서 소리를 들려줘요</string>
+    <string name="practice_jangdan_sound_desc">모범 연주·장단 연습·평가 연주에서 소리를 들려줘요</string>
     <string name="practice_jangdan_beat">현재 박 시각 표시</string>
     <string name="practice_jangdan_beat_desc">연주 중 하단에 현재 박을 표시해요</string>
     <string name="practice_jangdan_mic_notice">평가 녹음 중에는 장단 소리가 꺼져요.</string>
 
     <string name="practice_tempo_title">연습 속도</string>
     <string name="practice_tempo_sub">%1$d BPM · 기준 %2$d BPM</string>
-    <string name="practice_tempo_note">적용하면 모범 연주, 악보 진행, 장단, 평가 기준에 같은 속도가 쓰여요.</string>
+    <string name="practice_tempo_note">모범 연주, 악보 진행, 장단, 평가 기준에 같은 속도가 바로 쓰여요.</string>
     <string name="practice_tempo_slowest">느리게</string>
     <string name="practice_tempo_slow">약간 느리게</string>
     <string name="practice_tempo_normal">보통</string>

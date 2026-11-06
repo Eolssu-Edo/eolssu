@@ -101,7 +101,7 @@ def resolve_pitch(value, context):
     return pitch
 
 
-def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
+def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600, synthesis_extension=False):
     """Resolve pitch once, expand authored decorations, preserve source IDs.
 
     Transposition is an explicit audition choice; no automatic octave folding.
@@ -236,7 +236,9 @@ def compile_score(score, instrument, transpose=0, *, max_duration_seconds=600):
         for p, a, b, role in steps:
             require(0 <= p <= 127, f"{nid}: ornament outside MIDI")
             limits = profile["technical_range"]
-            require(limits is None or limits[0] <= p <= limits[1], f"{nid}: {p} outside {instrument} guide range; choose explicit arrangement")
+            require(synthesis_extension or limits is None or limits[0] <= p <= limits[1], f"{nid}: {p} outside {instrument} guide range; choose explicit arrangement")
+            if synthesis_extension and limits and not limits[0] <= p <= limits[1]:
+                warnings.append(f"{nid}: MIDI {p}는 원음 유지 합성 확장입니다. 실제 악기 연주 가능 음역을 뜻하지 않습니다.")
             typical = profile["style_range"]
             if typical and not typical[0] <= p <= typical[1]:
                 warnings.append(f"{nid}: MIDI {p}는 {profile['label']} 전통 관행 음역 밖입니다. 실제 편곡 검토가 필요합니다.")

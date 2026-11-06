@@ -1,4 +1,5 @@
 """One monophonic channel, ordered RPN, expression and pitch bend."""
+from fractions import Fraction
 import math
 import mido
 import numpy as np
@@ -31,6 +32,15 @@ def pitch_bend_range(performance, sec_tick):
     semitones = max(2, math.ceil(maximum / 100))
     require(semitones <= 12, "Combined pitch controls exceed the supported +/-12 semitone range")
     return semitones
+
+
+def export_seconds(performance):
+    """Exact write_midi length, without building its 200 Hz control stream."""
+    tempo = performance["tempo_us"]
+    sec_tick = tempo / 1_000_000 / PPQN
+    pitch_bend_range(performance, sec_tick)
+    ticks = performance["end_tick"] + round(.05/sec_tick) + round(.5/sec_tick)
+    return Fraction(ticks * tempo, 1_000_000 * PPQN)
 
 
 def write_midi(performance, path):
@@ -176,11 +186,14 @@ def read_midi(path):
             "pitch_bend_range_cents": bend_range_cents}
 
 
-def controls_at(messages, grid, default, linear=False):
+def control_table(messages, default):
+    """Sorted held-control steps, built once for repeated chunk lookups."""
     values = {0.: default}
     values.update(messages)
     times = np.array(sorted(values))
-    data = np.array([values[t] for t in times])
-    if linear:
-        return np.interp(grid, times, data)
+    return times, np.array([values[t] for t in times])
+
+
+def controls_at(table, grid):
+    times, data = table
     return data[np.maximum(0, np.searchsorted(times, grid, side="right")-1)]

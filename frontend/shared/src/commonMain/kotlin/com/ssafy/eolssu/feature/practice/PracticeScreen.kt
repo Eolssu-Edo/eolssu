@@ -107,12 +107,12 @@ fun PracticeScreen(
         // 한 음씩 다시 시작의 3·2·1은 배치와 관계없이 화면 전체를 옅게 덮는다(누름은 막지 않는다).
         PracticeStepCountdownOverlay(state)
     }
-    // 태블릿 가로는 보조 패널을 오른쪽 상태 패널 자리에 연다(PracticeExpandedLayout).
-    if (state.panel != null && widthClass != WindowWidthClass.Expanded) {
+    // 모든 화면 크기에서 배경을 눌러 닫을 수 있는 설정 시트를 사용한다.
+    if (state.panel != null) {
         PracticePanelSheet(
             state,
             actions.panel,
-            tablet = widthClass == WindowWidthClass.Medium,
+            tablet = widthClass != WindowWidthClass.Compact,
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
         )
     }
@@ -164,7 +164,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 낮은 창·확대 글꼴에서는 고정 컨트롤 때문에 악보가 사라지지 않도록 페이지 스크롤을 유지한다.
-            val fitScore = packScore && maxHeight >= 560.dp && fontScale <= 1f
+            val fitScore = (packScore || fingering) && maxHeight >= (if (recordingBar) 280.dp else 480.dp) && fontScale <= 1f
             Column(
                 Modifier
                     .fillMaxSize()
@@ -174,7 +174,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                 PracticeTitleRow(state, statusAtEnd = true)
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
-                    PracticeFingeringPage(state, actions.onSelectEvent)
+                    PracticeFingeringPage(state, actions.onSelectEvent, modifier = if (fitScore) Modifier.weight(1f) else Modifier)
                 } else {
                     PracticeBoardScore(
                         state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,

@@ -27,8 +27,15 @@ class S3ObjectStore(private val client: S3Client, private val presigner: S3Presi
     }
 
     // 서명은 로컬 계산이라 네트워크를 쓰지 않는다. R2의 서명 URL은 S3 API 도메인에서만 동작한다.
-    fun readUrl(key: String, ttl: Duration): String =
-        presigner.presignGetObject { it.signatureDuration(ttl).getObjectRequest { request -> request.bucket(bucket).key(key) } }
+    fun readUrl(key: String, ttl: Duration, fileName: String? = null): String =
+        presigner.presignGetObject { it.signatureDuration(ttl).getObjectRequest { request ->
+            request.bucket(bucket).key(key)
+            if(fileName!=null) {
+                require(fileName.isNotBlank() && fileName.none { it.code < 32 || it in "\\/\"\r\n" })
+                val encoded=java.net.URLEncoder.encode(fileName,Charsets.UTF_8).replace("+","%20")
+                request.responseContentDisposition("attachment; filename=\"download\"; filename*=UTF-8''$encoded")
+            }
+        } }
             .url().toString()
 
     // Spring이 빈을 내릴 때 부른다. 연결 풀 스레드를 정리한다.

@@ -21,7 +21,17 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic.alias_generators import to_camel
 
 from ai_service.pipelines.audio import SAMPLE_RATE, DecodeError, decode_recording
-from ai_service.pipelines.scoring import HOP_S, HWANG_HZ, Note, ScoreResult, frame_rms, pyin_f0, score
+from ai_service.pipelines.scoring import (
+    HOP_S,
+    HWANG_HZ,
+    SCORE_WEIGHTS,
+    SCORING_VERSION,
+    Note,
+    ScoreResult,
+    frame_rms,
+    pyin_f0,
+    score,
+)
 
 # evaluations.model_version(30자 이하). 음높이 추정·채점 방식을 바꾸면 올린다. 2: 쉼(startBeat)·곡별 조율 보정 상한
 MODEL_VERSION = "pyin-5"
@@ -102,11 +112,23 @@ class NoteOut(_Camel):
     recording_offset_ms: int | None = Field(
         description="업로드한 녹음 파일 0ms 기준으로 이 음의 소리가 실제로 시작된 시각(ms, 10ms 단위). 녹음 앞 여백을 포함한다. MISSED면 null"
     )
+    pitch_score: float | None = Field(description="음정 부분 점수 0~100. 시김새 음은 null(음정 합산 제외)")
+    timing_score: float = Field(description="박자 부분 점수 0~100. MISSED·PITCH는 0")
+    duration_score: float = Field(description="길이 부분 점수 0~100. MISSED·PITCH는 0")
+    weight: float = Field(description="합산 가중치. 항목 점수 = round(Σ(부분 점수 × weight) / Σ weight), null인 음은 뺀다. 현재 모두 1")
+
+
+class ScoreWeights(_Camel):
+    pitch: float
+    timing: float
+    duration: float
 
 
 class AnalysisDone(_Camel):
     status: Literal["DONE"]
     model_version: str = Field(description="evaluations.model_version(30자 이하)")
+    scoring_version: str = Field(description="evaluations.scoring_version(30자 이하). 합산 규칙이 바뀌면 올린다")
+    score_weights: ScoreWeights = Field(description="총점 = round(Σ 항목 점수 × 가중치). 합 1")
     total: int = Field(description="종합 점수 0~100")
     pitch: int = Field(description="음높이 점수 0~100")
     timing: int = Field(description="박자 점수 0~100")
@@ -231,6 +253,8 @@ def _response(result: ScoreResult) -> dict:
     return {
         "status": "DONE",
         "modelVersion": MODEL_VERSION,
+        "scoringVersion": SCORING_VERSION,
+        "scoreWeights": SCORE_WEIGHTS,
         "total": result.total,
         "pitch": result.pitch,
         "timing": result.timing,
@@ -246,6 +270,10 @@ def _response(result: ScoreResult) -> dict:
                 "durationErrorMs": n.duration_error_ms,
                 "detectedSemitone": n.detected_semitone,
                 "recordingOffsetMs": n.recording_offset_ms,
+                "pitchScore": n.pitch_score,
+                "timingScore": n.timing_score,
+                "durationScore": n.duration_score,
+                "weight": n.weight,
             }
             for n in result.notes
         ],

@@ -4,12 +4,14 @@ import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisResult
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisRetryRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.AnalysisState
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteJudgement
+import com.ssafy.eolssu.backend.feature.analysis.domain.NoteScore
 import com.ssafy.eolssu.backend.feature.analysis.domain.NoteVerdict
 import com.ssafy.eolssu.backend.feature.analysis.domain.PendingAnalysis
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeAnalysisRepository
 import com.ssafy.eolssu.backend.feature.analysis.domain.PracticeScoreNotes
 import com.ssafy.eolssu.backend.feature.analysis.domain.RecordingReadUrls
 import com.ssafy.eolssu.backend.feature.analysis.domain.ScoreNote
+import com.ssafy.eolssu.backend.feature.analysis.domain.ScoringRule
 import com.ssafy.eolssu.backend.feature.analysis.infrastructure.persistence.ScoreNotesException
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.EmailVerificationRow
@@ -18,6 +20,7 @@ import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.RefreshT
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.UserSocialAccountMapper
 import com.ssafy.eolssu.backend.feature.auth.infrastructure.persistence.UserSocialAccountRow
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationMapper
+import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationReadMapper
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.EvaluationRow
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultMapper
 import com.ssafy.eolssu.backend.feature.evaluation.infrastructure.persistence.NoteResultRow
@@ -118,7 +121,7 @@ class DatabaseIntegrationTests {
     @Test
     fun `applies every migration on MySQL 8_4 and does not apply them again`() {
         assertEquals("8.4", jdbc.queryForObject("SELECT SUBSTRING_INDEX(VERSION(), '.', 2)", String::class.java))
-        assertEquals("27", assertNotNull(flyway.info().current()).version.toString())
+        assertEquals("30", assertNotNull(flyway.info().current()).version.toString())
         val tables = jdbc.queryForList(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
             String::class.java,
@@ -131,6 +134,7 @@ class DatabaseIntegrationTests {
                 "user_song_settings", "score_views", "oauth_proofs", "song_model_audios", "reference_audio_assets", "flyway_schema_history",
                 "kakao_unlink_subjects", "kakao_event_receipts", "reference_audio_pitch_relations", "user_sheets",
                 "sheet_conversions", "sheet_source_files", "sheet_source_pages",
+                "sheet_audios", "sheet_audio_objects", "sheet_audio_requests",
             ),
             tables,
         )
@@ -207,7 +211,7 @@ class DatabaseIntegrationTests {
             mapper<EvaluationMapper>().findById(1),
         )
         assertEquals(
-            NoteResultRow(1, 1, 0, 2, null, null, -16, null, "MISSED", null),
+            NoteResultRow(1, 1, 0, 2, null, null, -16, null, "MISSED", null, null, null, null, null),
             mapper<NoteResultMapper>().findById(1),
         )
         val lesson = assertNotNull(mapper<LessonMapper>().findById(1))
@@ -859,10 +863,10 @@ class DatabaseIntegrationTests {
             "pyin-1", 87, 90, 85, 86,
             // 반음 10은 V5의 무(id 3)다. 99는 pitches에 없는 음이라 인식 음을 저장하지 않는다.
             listOf(
-                NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15, if (outOfRange) 99 else 10, 1520),
-                NoteJudgement(4, NoteVerdict.MISSED, null, null, null),
+                NoteJudgement(3, NoteVerdict.PITCH, -61.6, 20, -15, if (outOfRange) 99 else 10, 1520, NoteScore(76.54321987654321, 12.25, 33.5, 1.0)),
+                NoteJudgement(4, NoteVerdict.MISSED, null, null, null, score = NoteScore(null, 0.0, 0.0, 2.5)),
             ),
-            if (outOfRange) 137.25 else -12.5, outOfRange,
+            if (outOfRange) 137.25 else -12.5, outOfRange, ScoringRule("note-mean-1", 0.4, 1.0 / 3, 1 - 0.4 - 1.0 / 3),
         )
         assertFalse(repository.saveDone(pending.copy(attempt = 1), done, notes, inTime)) // 이전 시도의 늦은 결과
         assertFalse(repository.saveDone(pending, done, notes, overdue)) // 마감 뒤에 온 결과
@@ -876,6 +880,15 @@ class DatabaseIntegrationTests {
         val stored = assertNotNull(mapper<EvaluationMapper>().findById(evaluationId))
         assertEquals(done.tuningOffsetCent, stored.tuningOffsetCent)
         assertEquals(outOfRange, stored.tuningOutOfRange)
+        // 구간 합산이 AI와 소수점 끝까지 같으려면 저장 뒤 읽은 값이 받은 값과 정확히 같아야 한다.
+        val owner = assertNotNull(jdbc.queryForObject("SELECT user_id FROM practice_sessions WHERE id = 21", Long::class.java))
+        val snapshot = assertNotNull(mapper<EvaluationReadMapper>().findOwned(21, owner))
+        assertEquals("note-mean-1", snapshot.scoringVersion)
+        assertEquals(listOf(0.4, 1.0 / 3, 1 - 0.4 - 1.0 / 3), listOf(snapshot.pitchWeight, snapshot.timingWeight, snapshot.durationWeight))
+        assertEquals(
+            listOf(listOf(76.54321987654321, 12.25, 33.5, 1.0), listOf(null, 0.0, 0.0, 2.5)),
+            mapper<EvaluationReadMapper>().notes(evaluationId).map { listOf(it.pitchScore, it.timingScore, it.durationScore, it.weight) },
+        )
         assertEquals(
             listOf(87, 90, 85, 86, "pyin-1"),
             jdbc.queryForList("SELECT total_score, pitch_score, timing_score, duration_score, model_version FROM evaluations WHERE session_id = 21")

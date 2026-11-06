@@ -22,11 +22,13 @@ class WithdrawalPurgeConfig {
         MyBatisWithdrawalPurgeRepository(mapper, manager)
 
     @Bean
-    fun withdrawalPurgeService(repository: WithdrawalPurgeRepository, storage: RecordingStorage, sheets: SheetSourceStorage) =
+    fun withdrawalPurgeService(repository: WithdrawalPurgeRepository, storage: RecordingStorage, sheets: SheetSourceStorage,
+        audio: com.ssafy.eolssu.backend.feature.sheet.application.SheetAudios) =
         // 내 악보 원본은 따로 둔 악보 전용 버킷에 있다(S15P31E102-471). 키 앞부분으로 저장소를 고른다.
         WithdrawalPurgeService(
             repository,
             { key -> if (key.startsWith(SHEET_SOURCE_PREFIX)) sheets.delete(key) else storage.delete(key) },
             Clock.systemUTC(),
+            beforeDelete = audio::deleteUser,
         )
 }

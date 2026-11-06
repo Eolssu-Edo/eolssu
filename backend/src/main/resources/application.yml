@@ -4,6 +4,11 @@ spring:
   autoconfigure:
     exclude:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+  task:
+    scheduling:
+      pool:
+        # 음원·악보 변환 작업자는 한 번에 몇 분까지 걸리므로 짧은 주기 작업과 스레드를 나눈다.
+        size: 4
   servlet:
     multipart:
       # 녹음 업로드(PRA-02)의 20MiB 경계는 RecordingFileValidator가 413으로 판정한다.
@@ -72,6 +77,10 @@ eolssu:
   # 값이 하나라도 비면 불러오기(SHT-07)는 503 CONVERSION_UNAVAILABLE이다. local은 개발·테스트용 디렉터리 저장소다.
   sheet-conversion:
     omr-base-url: ${SHEET_CONVERSION_OMR_BASE_URL:}
+  sheet-audio:
+    base-url: ${SHEET_AUDIO_BASE_URL:}
+    # Renderer deadline 90s + transport allowance 10s (481 measured on 1 CPU).
+    timeout-seconds: ${SHEET_AUDIO_TIMEOUT_SECONDS:100}
   sheet-storage:
     type: ${SHEET_STORAGE_TYPE:s3}
     local-directory: ${SHEET_STORAGE_LOCAL_DIRECTORY:}

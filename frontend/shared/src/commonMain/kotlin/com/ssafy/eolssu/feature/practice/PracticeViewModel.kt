@@ -105,7 +105,7 @@ class PracticeViewModel(
         val plan = if (settingsStore.settings.value.jangdanSound && jangdanPlayer.available) song.jangdanPlanAt(bpm) else null
         plan == null || jangdanAudio.prepareAccompaniment(plan)
     }
-    private enum class SoundPurpose { Preview, Model, Rhythm }
+    private enum class SoundPurpose { Preview, Model, Rhythm, Recording }
     private var soundPurpose: SoundPurpose? = null
     private var modelSoundBpm: Int? = null
     private var rhythmStartsAtAttack = true
@@ -172,6 +172,51 @@ class PracticeViewModel(
         })
     }
 
+    /** 녹음 시계에 장단을 맞춘다. 소리 설정은 녹음 자체를 중단하지 않는다. */
+    private fun syncRecordingJangdan() {
+        val state = _uiState.value
+        val enabled = state.mode == PracticeMode.Recording && !state.finished && state.popup == null && state.settings.jangdanSound
+        if (!enabled) {
+            if (soundPurpose == SoundPurpose.Recording) stopJangdan()
+            return
+        }
+        if (soundPurpose == SoundPurpose.Recording) return
+        val plan = currentPlan() ?: return
+        soundPurpose = SoundPurpose.Recording
+        val start = state.elapsedMs / plan.msPerTick
+        jangdanAudio.start(plan, accompanyingModel = true, startAtTick = start, tick = {
+            val now = _uiState.value
+            if (now.mode != PracticeMode.Recording || now.finished || now.popup != null || !now.settings.jangdanSound) null
+            else (stepClock?.sample()?.elapsedMs ?: now.elapsedMs) / plan.msPerTick
+        })
+    }
+
+    fun selectModel() = selectPlaybackMode(PracticeMode.Model)
+    fun selectRhythm() = selectPlaybackMode(PracticeMode.Rhythm)
+
+    private fun selectPlaybackMode(target: PracticeMode) {
+        val before = _uiState.value
+        if (!accountScope.isActive || before.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) || before.mode == target) return
+        if (before.mode == PracticeMode.Model) {
+            modelAudio.suspendAndRelease()
+            _uiState.update { it.withModelAudio(modelAudio.state.value) }
+        }
+        pauseRhythm()
+        stopPreview()
+        stopJangdan()
+        pauseStep()
+        stepJob?.cancel()
+        stepClock = null
+        _uiState.update { state ->
+            val selected = state.selectPlaybackMode(target)
+            val tick = selected.currentTick ?: 0.0
+            val timing = selected.song?.score?.timing
+            selected.copy(elapsedMs = if (timing == null) selected.elapsedMs else tick * 60_000.0 / selected.bpm / timing.ticksPerBeat)
+        }
+        rhythmStartsAtAttack = true
+        modelStartsAtAttack = true
+    }
+
     /** Non-recorded continuous practice uses the same absolute timeline clock as the score. */
     fun startRhythm() {
         if (!accountScope.isActive || _uiState.value.playbackSettingsLocked) return
@@ -196,6 +241,7 @@ class PracticeViewModel(
             _uiState.update { it.restartModel() }
         }
         settingsStore.update { it.copy(jangdanSound = true) }
+        _uiState.update { it.copy(follow = true) }
         soundPurpose = SoundPurpose.Rhythm
         val resumeAfter = if (rhythmStartsAtAttack) null else _uiState.value.elapsedMs / plan.msPerTick
         jangdanAudio.start(plan, accompanyingModel = false, resumeAfterTick = resumeAfter, tick = {
@@ -249,7 +295,12 @@ class PracticeViewModel(
             _uiState.update { it.copy(settings = s) }
             _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
             syncModelJangdan()
+            syncRecordingJangdan()
         } }
+        accountScope.launch {
+            _uiState.map { it.mode == PracticeMode.Recording && !it.finished && it.popup == null && it.settings.jangdanSound }
+                .distinctUntilChanged().collect { syncRecordingJangdan() }
+        }
         accountScope.launch { jangdanAudio.status.collect { status ->
             _uiState.update { it.copy(jangdanStatus = status) }
             if (status in setOf(JangdanStatus.Failed, JangdanStatus.Unsupported, JangdanStatus.Interrupted)) {
@@ -371,7 +422,27 @@ class PracticeViewModel(
         _uiState.update { it.closePanel() }
     }
 
-    fun updateDraft(transform: (PracticeDraft) -> PracticeDraft) = _uiState.update { it.copy(draft = transform(it.draft)) }
+    fun dismissPanels() {
+        stopPreview()
+        listenJob?.cancel()
+        _uiState.update { it.copy(panel = null, listening = null) }
+    }
+
+    fun updateDraft(transform: (PracticeDraft) -> PracticeDraft) {
+        _uiState.update { it.copy(draft = transform(it.draft)) }
+        val state = _uiState.value
+        val song = state.song ?: return
+        when (state.panel) {
+            PracticePanel.Notation -> settingsStore.update { it.applyNotation(state.draft, song) }
+            PracticePanel.Jangdan -> {
+                settingsStore.update { it.applyJangdan(state.draft) }
+                if (!state.draft.jangdanSound) pauseRhythm()
+            }
+            PracticePanel.Tempo -> if (!state.playbackSettingsLocked) applyTempo(close = false)
+            else -> Unit
+        }
+        _uiState.update { it.copy(settings = settingsStore.settings.value) }
+    }
 
     fun moveFingering(delta: Int) = _uiState.update { it.moveFingering(delta) }
 
@@ -386,28 +457,15 @@ class PracticeViewModel(
         }
     }
 
-    fun applyNotation() {
-        val state = _uiState.value
-        val song = state.song ?: return
-        settingsStore.update { it.applyNotation(state.draft, song) }
-        closePanel()
-    }
-
-    fun applyJangdan() {
-        settingsStore.update { it.applyJangdan(_uiState.value.draft) }
-        if (!_uiState.value.draft.jangdanSound) pauseRhythm()
-        closePanel()
-    }
-
     /** 모범 연주 중에 속도를 바꾸면 현재 음의 남은 몫부터 새 속도로 이어 간다. */
-    fun applyTempo() {
+    fun applyTempo(close: Boolean = true) {
         if (_uiState.value.mode == PracticeMode.Model) {
             modelResumeAfterTick = modelTickAtReportedPosition()
             val song = _uiState.value.song ?: return
             settingsStore.update { it.applyTempo(_uiState.value.draft, song) }
             _uiState.update { it.copy(settings = settingsStore.settings.value).withModelAudio(modelAudio.state.value) }
             modelAudio.setBpm(_uiState.value.bpm)
-            closePanel()
+            if (close) closePanel()
             return
         }
         captureStepProgress()
@@ -422,7 +480,7 @@ class PracticeViewModel(
             val updated = it.copy(settings = settingsStore.settings.value)
             updated.copy(eventElapsedMs = updated.eventDurationMs() * carry, pausedFraction = carry.toFloat())
         }
-        closePanel()
+        if (close) closePanel()
         if (state.mode == PracticeMode.Rhythm) {
             val msPerTick = 60_000.0 / _uiState.value.bpm / song.score.timing!!.ticksPerBeat
             _uiState.update { it.copy(elapsedMs = (it.currentTick ?: 0.0) * msPerTick) }
@@ -451,6 +509,38 @@ class PracticeViewModel(
             PracticeMode.Ready -> _uiState.update { it.seekSelection(deltaMs) }
             else -> Unit
         }
+    }
+
+    /** 타임라인은 음원/악보의 전체 길이에 대한 비율로 이동한다. 녹음에는 적용하지 않는다. */
+    fun seekToFraction(fraction: Float) {
+        if (!accountScope.isActive || !fraction.isFinite()) return
+        val state = _uiState.value
+        val song = state.song ?: return
+        if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) ||
+            song.timeline.isEmpty() || state.playerNotice == PracticePlayerNotice.Loading) return
+        val progress = fraction.coerceIn(0f, 1f)
+        if (state.mode == PracticeMode.Model && modelAudio.state.value.audio != null) {
+            modelStartsAtAttack = true
+            modelResumeAfterTick = null
+            stopJangdan()
+            modelAudio.seekToFraction(progress)
+            return
+        }
+        val wasPlaying = state.mode == PracticeMode.Rhythm && state.playing
+        pauseRhythm()
+        val timing = song.score.timing ?: return
+        val last = song.timeline.last()
+        val endTick = (last.startTick!! + last.durationTick!!).toDouble()
+        val target = endTick * progress
+        val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
+        val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
+        _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
+            position = position, selected = position, playing = false, follow = true,
+            eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
+            elapsedMs = target * msPerTick, eventStartedAt = null, modelClock = null) }
+        modelStartsAtAttack = true
+        rhythmStartsAtAttack = true
+        if (wasPlaying && progress < 1f) startRhythm()
     }
 
     /** Preview uses the reviewed score tick scale and the selected practice BPM. */
@@ -499,6 +589,11 @@ class PracticeViewModel(
         val state = _uiState.value
         val song = state.song ?: return
         if (state.mode !in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)) return
+        if (state.mode == PracticeMode.Model && (state.modelAudioStatus == ModelAudioStatus.Completed ||
+                state.position == state.eventCount - 1 && state.currentEventFraction >= 1.0)) {
+            restartModel()
+            return
+        }
         modelResumeAfterTick = if (!modelStartsAtAttack && state.mode == PracticeMode.Model &&
             state.modelAudioStatus in setOf(ModelAudioStatus.Paused, ModelAudioStatus.Interrupted)) modelTickAtReportedPosition() else null
         modelStartsAtAttack = false
@@ -510,7 +605,7 @@ class PracticeViewModel(
         stepJob?.cancel()
         stepClock = null
         _uiState.update { it.startModel().copy(playing = false, eventStartedAt = null) }
-        modelAudio.play(song, state.bpm)
+        modelAudio.play(song, state.bpm, _uiState.value.currentTick)
     }
 
     fun toggleModel() {
@@ -538,6 +633,15 @@ class PracticeViewModel(
     }
 
     // 평가 연주
+
+    private var entryEvaluationStarted = false
+
+    /** 일반 연습에서 평가로 이동한 경우, 곡 로딩 후 한 번만 권한 확인·카운트다운을 시작한다. */
+    fun startEvaluationOnEntry() {
+        if (entryEvaluationStarted || _uiState.value.song == null || !_uiState.value.recordingSupported) return
+        entryEvaluationStarted = true
+        requestEvaluation()
+    }
 
     fun requestEvaluation() {
         if (!accountScope.isActive) return

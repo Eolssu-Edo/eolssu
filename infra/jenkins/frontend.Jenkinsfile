@@ -9,7 +9,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'REVISION', defaultValue: '', description: '상위 develop 잡에서 검증한 전체 SHA')
+        string(name: 'REVISION', defaultValue: '', description: '성공한 백엔드 잡에서 검증한 develop 전체 커밋 SHA')
     }
 
     environment {
@@ -48,17 +48,10 @@ pipeline {
                             refspec: '+refs/heads/develop:refs/remotes/origin/develop']])
                     env.GIT_COMMIT = revision.GIT_COMMIT
                     if (env.GIT_COMMIT != params.REVISION) {
-                        error('Frontend checkout does not match the verified backend revision')
+                        error('Frontend checkout revision mismatch')
                     }
+                    sh 'git merge-base --is-ancestor "$GIT_COMMIT" origin/develop'
                 }
-            }
-        }
-
-        stage('Backend deploy tool tests') {
-            steps {
-                sh '''
-                python3 -B -m unittest discover -s infra/jenkins/tests -p test_deploy_backend.py -v
-                '''
             }
         }
 
@@ -66,30 +59,6 @@ pipeline {
             steps {
                 sh '''
                 python3 -B -m unittest discover -s infra/jenkins/tests -p test_deploy_frontend.py -v
-                '''
-            }
-        }
-
-        stage('Certificate initialization tests') {
-            steps {
-                sh '''
-                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_init_letsencrypt.py -v
-                '''
-            }
-        }
-
-        stage('Nginx health routing tests') {
-            steps {
-                sh '''
-                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_actuator.py -v
-                '''
-            }
-        }
-
-        stage('HTTPS redirect tests') {
-            steps {
-                sh '''
-                RUN_NGINX_TESTS=1 python3 -B -m unittest discover -s infra/scripts/tests -p test_nginx_redirect.py -v
                 '''
             }
         }
