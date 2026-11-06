@@ -47,8 +47,8 @@ data class JeongganboLook(
 
         /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 정간은 종류별 색·아이콘(2차 결합본). */
         val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true)
-        /** 기록 상세 RECORD-02의 악보: 옛 크기(각 46 · 정간 38)에 흰 각 · 옅은 선 · 연두 현재 칸. 틀린 정간은 옅은 붉은 바탕 + 붉은 테두리(2차, 점 없음). */
-        val Record = JeongganboLook(soft = true, errorMarks = ErrorMarkStyle.Plain)
+        /** 기록 상세 RECORD-02: 평가와 같은 보드, 곁줄 생략. 기존 단순 오류 바탕·테두리는 유지한다. */
+        val Record = practice(big = false).copy(lyricLane = null, upcomingMark = false, errorMarks = ErrorMarkStyle.Plain)
     }
 }
 

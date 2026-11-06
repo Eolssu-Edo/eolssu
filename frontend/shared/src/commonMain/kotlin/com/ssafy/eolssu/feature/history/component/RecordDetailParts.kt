@@ -38,7 +38,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.feature.history.RecordDetailActions
 import com.ssafy.eolssu.feature.history.RecordDetailUiState
 import eolssu.shared.generated.resources.Res
@@ -57,11 +56,6 @@ import eolssu.shared.generated.resources.weak_record_compare
 import eolssu.shared.generated.resources.weak_record_compare_with
 import org.jetbrains.compose.resources.stringResource
 
-/** 태블릿 세로 기록 상세의 정간보 크기(`Tab-RecordDetail-Port`: 각 82 · 정간 42). */
-internal val RecordScorePortrait = JeongganboMetrics(columnWidth = 82.dp, cellHeight = 42.dp, yulSize = 18.sp, auxSize = 10.sp)
-
-/** 태블릿 가로 두 칸 배치의 정간보 크기(`Tab-Records-Land`: 각 58 · 정간 40). */
-internal val RecordScoreLandscape = JeongganboMetrics(columnWidth = 58.dp, cellHeight = 40.dp, yulSize = 17.sp, auxSize = 9.sp)
 
 /** 큰 점수(Noto Serif 굵게) + 작은 '점'. */
 @Composable

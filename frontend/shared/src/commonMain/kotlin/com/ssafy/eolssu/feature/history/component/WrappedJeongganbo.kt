@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -60,6 +61,7 @@ internal fun WrappedJeongganbo(
     onEventClick: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cellHeights = remember(song, metrics) { recordScoreCellHeights(song, metrics) }
     BoxWithConstraints(modifier) {
         val slots = stripSlots(maxWidth, metrics.forFontScale(LocalDensity.current.fontScale))
         val rows = remember(song, slots) {
@@ -82,6 +84,7 @@ internal fun WrappedJeongganbo(
                     song = song,
                     look = JeongganboLook.Record,
                     metrics = metrics,
+                    cellHeights = cellHeights,
                     notation = ScoreNotation(showHangul = true),
                     currentIndex = currentIndex,
                     errors = errors,
