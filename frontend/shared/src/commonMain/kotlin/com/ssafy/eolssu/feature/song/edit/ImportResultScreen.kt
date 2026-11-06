@@ -118,9 +118,9 @@ fun ImportResultScreen(
                 )
                 Text(
                     if (staff) {
-                        stringResource(Res.string.sheetedit_result_setting_staff, state.hwang.label, draft.jangdan.name, draft.columnCount)
+                        stringResource(Res.string.sheetedit_result_setting_staff, state.hwang.label, draft.jangdanName, draft.columnCount)
                     } else {
-                        stringResource(Res.string.sheetedit_result_setting_jg, draft.jangdan.name, draft.columnCount, draft.bpm)
+                        stringResource(Res.string.sheetedit_result_setting_jg, draft.jangdanName, draft.columnCount, draft.bpm)
                     },
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                     color = colors.textMuted,

@@ -5,6 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.backhandler.BackHandler
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.ui.component.EolssuButton
+import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import eolssu.shared.generated.resources.Res
@@ -12,12 +16,20 @@ import eolssu.shared.generated.resources.common_coming_soon
 import eolssu.shared.generated.resources.sheetedit_msg_audio_failed
 import eolssu.shared.generated.resources.sheetedit_msg_audio_ready
 import eolssu.shared.generated.resources.sheetedit_msg_audio_unknown
+import eolssu.shared.generated.resources.sheet_save_failed
+import eolssu.shared.generated.resources.sheet_save_conflict
+import eolssu.shared.generated.resources.sheet_save_too_large
+import eolssu.shared.generated.resources.sheet_close_unsaved
+import eolssu.shared.generated.resources.sheet_close_message
+import eolssu.shared.generated.resources.sheet_discard_close
+import eolssu.shared.generated.resources.sheet_keep_editing
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * EDIT-02 · 03 연결. [viewModel]은 편집 화면 경로에 묶인 것을 받아 미리보기(EDIT-04)와 같은 악보를 쓴다.
  * 닫기는 [onClose]로 내 악보에, '미리보기'는 [onPreview]로, 인식 결과에서 왔으면 '확인 정간 보기'가 [onOpenChecks]로 인식 결과(EDIT-06)에 간다.
  */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun SheetEditRoute(
     viewModel: SheetEditViewModel,
@@ -26,8 +38,16 @@ fun SheetEditRoute(
     onOpenChecks: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    BackHandler(enabled = state.draft.original != null && !state.closeWarning) { viewModel.closeEditor(onClose) }
+    if (state.documentLoading || state.documentFailed) {
+        SheetDocumentNotice(state.documentLoading, onClose, viewModel::loadDocument)
+        return
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = mapOf(
+        SheetEditMessage.SaveFailed to stringResource(Res.string.sheet_save_failed),
+        SheetEditMessage.SaveConflict to stringResource(Res.string.sheet_save_conflict),
+        SheetEditMessage.SaveTooLarge to stringResource(Res.string.sheet_save_too_large),
         SheetEditMessage.ComingSoon to stringResource(Res.string.common_coming_soon),
         SheetEditMessage.AudioReady to stringResource(Res.string.sheetedit_msg_audio_ready),
         SheetEditMessage.AudioFailed to stringResource(Res.string.sheetedit_msg_audio_failed),
@@ -44,7 +64,7 @@ fun SheetEditRoute(
         state = state,
         snackbarHostState = snackbarHostState,
         actions = SheetEditActions(
-            onClose = onClose,
+            onClose = { viewModel.closeEditor(onClose) },
             onPreview = onPreview,
             onOpenChecks = onOpenChecks,
             onSelectView = viewModel::selectView,
@@ -70,4 +90,12 @@ fun SheetEditRoute(
             ),
         ),
     )
+    if (state.closeWarning) EolssuDialog(
+        title = stringResource(Res.string.sheet_close_unsaved),
+        message = stringResource(Res.string.sheet_close_message),
+        onDismissRequest = viewModel::continueEditing,
+    ) {
+        EolssuButton(stringResource(Res.string.sheet_keep_editing), viewModel::continueEditing)
+        EolssuButton(stringResource(Res.string.sheet_discard_close), { viewModel.discardChangesAndClose(onClose) }, style = EolssuButtonStyle.Secondary)
+    }
 }

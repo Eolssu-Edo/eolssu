@@ -1,5 +1,8 @@
 # 프로젝트 문서
 
+- [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
+- [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
+
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
 
