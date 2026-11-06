@@ -153,6 +153,12 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val shape = RoundedCornerShape(3.dp)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val bounded = constraints.hasBoundedHeight
+        // 화면 맞춤에서는 현재 각과 다음 두 음이 같은 줄 높이를 나눠 쓴다(다음 음이 현재 각보다 크게 보이지 않게).
+        val mainWeight = angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat().coerceAtLeast(1f)
+        val previewRow = if (!bounded) 28.dp * fontScale else {
+            val fixed = 29.dp + 4.dp * (angle.size + PreviewRows) + FingerLabelHeight * fontScale + FingerNavHeight + 4.dp * 3 + 4.dp
+            ((maxHeight - fixed) / (mainWeight + PreviewRows)).coerceIn(FingerMinImageHeight, 28.dp * fontScale)
+        }
         Column(if (bounded) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Column(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f) else Modifier)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
@@ -161,7 +167,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                     (FingerImageHeight * angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat() + 4.dp * angle.size) * fontScale,
                 ))) {
                     val weight = angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat().coerceAtLeast(1f)
-                    val imageHeight = ((maxHeight - 4.dp * angle.size) / weight).coerceAtLeast(28.dp * fontScale)
+                    // 화면 맞춤이면 페이지의 모든 줄이 스크롤 없이 들어가게 줄인다(글자는 줄 높이에 맞춰 함께 줄어든다).
+                    val fitted = (maxHeight - 4.dp * angle.size) / weight
+                    val imageHeight = if (bounded) fitted.coerceAtLeast(FingerMinImageHeight) else fitted.coerceAtLeast(28.dp * fontScale)
                     val scroll = remember(angleIndex) { ScrollState(0) }
                     val density = LocalDensity.current
                     androidx.compose.runtime.LaunchedEffect(currentUnit?.column, currentUnit?.row, angleIndex, state.follow, scroll.maxValue) {
@@ -198,9 +206,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
             Text(stringResource(Res.string.practice_finger_upcoming),
                 style = MaterialTheme.typography.labelSmall, color = colors.accentText)
             // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
-            Column(Modifier.fillMaxWidth().height(29.dp + (28.dp * fontScale + 4.dp) * 2)
+            // 표 머리는 위 칸과 같아 생략한다.
+            Column(Modifier.fillMaxWidth().height((previewRow + 4.dp) * PreviewRows)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
-                FingerHead(instrumentName)
                 if (preview.isEmpty()) {
                     Text(stringResource(Res.string.practice_finger_end), modifier = Modifier.padding(8.dp),
                         style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
@@ -209,7 +217,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                         cell = cell, instrument = instrument, fill = null, isSelected = false,
                         playingKey = null, showHangul = state.settings.showHangul,
                         gakStart = false, daegangStarts = emptyList(),
-                        imageHeight = 28.dp * fontScale, onSelectEvent = null,
+                        imageHeight = previewRow, onSelectEvent = null,
                     )
                 }
             }
@@ -225,6 +233,15 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
 }
 
 private val FingerImageHeight = 40.dp
+
+private const val PreviewRows = 2
+
+/** 다음 음 제목 한 줄과 아래 페이지 이동 줄의 높이(화면 맞춤 계산용). */
+private val FingerLabelHeight = 18.dp
+private val FingerNavHeight = 48.dp
+
+/** 화면 맞춤에서 운지 줄 한 자리의 최소 높이. 이보다 낮은 창에서만 칸 안 스크롤이 생긴다. */
+private val FingerMinImageHeight = 12.dp
 private val FingerNoteWidth = 76.dp
 private val FingerLyricWidth = 30.dp
 
@@ -328,7 +345,10 @@ private fun FingerRow(
         ) {
             cell.lyricSlots.forEachIndexed { index, text ->
                 Box(Modifier.fillMaxWidth().height(imageHeight * fingerSlotWeight(cell.units[index])), contentAlignment = Alignment.Center) {
-                    if (text.isNotEmpty()) Text(text, style = MaterialTheme.typography.labelSmall, color = colors.text)
+                    if (text.isNotEmpty()) {
+                        val size = fitText(MaterialTheme.typography.labelSmall.fontSize, imageHeight * fingerSlotWeight(cell.units[index]))
+                        Text(text, style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = size), color = colors.text, maxLines = 1)
+                    }
                 }
             }
         }
@@ -374,13 +394,21 @@ private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, 
     }
     Row(Modifier.fillMaxWidth().height(height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
         if (isPitch) {
-            ScoreNoteGlyph(note, size = if (big) 25.sp else 19.sp, color = if (playing) colors.rec else colors.text)
+            ScoreNoteGlyph(note, size = fitText(if (big) 25.sp else 19.sp, height), color = if (playing) colors.rec else colors.text)
         } else {
             val sustained = note == ScoreNote.Hold || note == ScoreNote.Blank
-            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = if (sustained) 12.sp else if (big) 21.sp else 18.sp, lineHeight = if (sustained) 14.sp else 24.sp, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
+            val symbolSize = fitText(if (sustained) 12.sp else if (big) 21.sp else 18.sp, height)
+            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = symbolSize, lineHeight = symbolSize, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
         }
         if (hangul != null) {
-            Text(hangul, style = MaterialTheme.typography.labelSmall.copy(fontSize = if (big) 10.sp else 8.sp, lineHeight = 11.sp), color = if (playing) colors.rec else colors.textMuted)
+            Text(hangul, style = MaterialTheme.typography.labelSmall.copy(fontSize = fitText(if (big) 10.sp else 8.sp, height), lineHeight = fitText(11.sp, height)), color = if (playing) colors.rec else colors.textMuted)
         }
     }
+}
+
+/** 줄 높이가 글자보다 낮을 때만 글자를 줄 높이의 80%로 줄인다. */
+@Composable
+private fun fitText(base: androidx.compose.ui.unit.TextUnit, height: Dp): androidx.compose.ui.unit.TextUnit {
+    val fitted = with(LocalDensity.current) { (height * 0.8f).toSp() }
+    return if (fitted.value < base.value) fitted else base
 }
