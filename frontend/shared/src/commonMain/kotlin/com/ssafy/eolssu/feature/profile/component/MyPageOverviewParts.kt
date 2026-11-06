@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -59,7 +58,7 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
     ) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Column(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(stringResource(Res.string.my_learning_title), style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = colors.text)
                     if (instrument != null) Text(
                         stringResource(Res.string.my_learning_instrument, stringResource(instrument.label)),
@@ -71,7 +70,7 @@ internal fun MyLearningCard(instrument: Instrument?, progress: MyLearningProgres
                 Box(Modifier.size(width = 112.dp, height = 72.dp)) {
                     LearningMascotImage(
                         progress?.mascot ?: LearningMascot.Study,
-                        Modifier.requiredSize(112.dp).offset(x = (-12).dp),
+                        Modifier.requiredSize(112.dp),
                     )
                 }
             }
