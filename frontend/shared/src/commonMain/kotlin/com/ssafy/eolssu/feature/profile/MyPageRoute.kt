@@ -13,6 +13,7 @@ import eolssu.shared.generated.resources.legal_open_failed
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.model.SocialProvider
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
@@ -39,6 +40,7 @@ fun MyPageRoute(
     onLink: (SocialProvider) -> Unit,
     onLoggedOut: () -> Unit,
     onSessionExpired: () -> Unit,
+    onOpenLearningStage: (Instrument, Int) -> Unit,
     startMessage: StartMessage? = null,
     onStartMessageShown: () -> Unit = {},
     providers: List<SocialProvider> = SocialProvider.entries - SocialProvider.Apple,
@@ -83,6 +85,7 @@ fun MyPageRoute(
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
         onBack = onBack,
+        onOpenLearningStage = { stage -> instrument?.let { onOpenLearningStage(it, stage) } },
         onOpen = { target ->
             if (target == MyPageTarget.Password && !viewModel.canChangePassword()) show { getString(Res.string.my_password_none) } else onOpen(target)
         },
