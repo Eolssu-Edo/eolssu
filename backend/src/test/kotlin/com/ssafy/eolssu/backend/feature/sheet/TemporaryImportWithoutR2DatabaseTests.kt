@@ -4,13 +4,13 @@ import com.nimbusds.jose.*
 import com.nimbusds.jose.crypto.MACSigner
 import com.nimbusds.jwt.*
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
-import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.*
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionQueue
 import com.sun.net.httpserver.HttpServer
 import java.net.*
 import java.net.http.*
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.*
 import java.util.Date
 import java.util.concurrent.CompletableFuture
@@ -101,12 +101,7 @@ class TemporaryImportWithoutR2DatabaseTests {
         } finally { server.stop(0) }
     }
     @Test fun `stalled multipart upload stays in the managed spool and fails after thirty minutes`() {
-        val time=object: Clock() {
-            var now=Instant.parse("2026-11-06T00:00:00Z")
-            override fun instant()=now
-            override fun getZone(): ZoneId=ZoneOffset.UTC
-            override fun withZone(zone: ZoneId): Clock=this
-        }
+        val time=MutableClock()
         TemporarySheetSourceStorage(Files.createTempDirectory("sweeper"),"http://backend/x",time,temporary.multipartDirectory).use { sweeper ->
             val pending=stalledImport("stalled")
             val spooled=spool()
@@ -124,16 +119,32 @@ class TemporaryImportWithoutR2DatabaseTests {
         assertUnavailable(pending)
         awaitEmptySpool()
     }
-    @Test fun `queued source that expired before its database deadline ends as timeout`() {
-        val accepted=client.send(importRequest("expired-source").build(),HttpResponse.BodyHandlers.ofString())
+    @Test fun `only an expired source ends as timeout`() {
+        assertEquals("TIMEOUT",failure("expired") { store,time,_ -> time.now=time.now.plusSeconds(1800);store.purgeExpired() })
+        assertEquals("SERVER_ERROR",failure("lost") { _,_,path -> Files.delete(path) })
+        assertEquals("TIMEOUT",failure("expired-during-download",expireDuringCall=true))
+        assertEquals("UNSUPPORTED_FILE",failure("unsupported"))
+    }
+    /** Runs a real temporary store under a fake clock. The recognizer always answers with an unreadable file. */
+    private fun failure(key: String,expireDuringCall: Boolean=false,prepare: (TemporarySheetSourceStorage,MutableClock,Path)->Unit={ _,_,_ -> }): String {
+        val accepted=client.send(importRequest(key).build(),HttpResponse.BodyHandlers.ofString())
         assertEquals(202,accepted.statusCode(),accepted.body())
         val id=json.readTree(accepted.body()).path("result").path("sheetId").asString()
-        val expired=object: SheetSourceStorage by temporary {
-            override fun readUrl(key: String,ttl: Duration): String=throw SheetSourceStorageException("Temporary source no longer exists")
+        val objectKey=jdbc.queryForObject("SELECT object_key FROM sheet_source_files WHERE sheet_id=?",String::class.java,id)!!
+        val time=MutableClock()
+        val base=Files.createTempDirectory("expiry")
+        TemporarySheetSourceStorage(base.resolve("spool"),"http://backend/x",time,base.resolve("multipart")).use { store ->
+            val input=base.resolve("input");Files.write(input,png)
+            store.put(objectKey,input,"image/png")
+            prepare(store,time,assertNotNull(store.readable(store.readUrl(objectKey,Duration.ofMinutes(15)).substringAfterLast('/'))).path)
+            val recognizer=RecognitionClient {
+                if(expireDuringCall) { time.now=time.now.plusSeconds(1800);store.purgeExpired() }
+                json.createObjectNode().put("status","FAILED").put("failReason","UNSUPPORTED_FILE")
+            }
+            ConversionWorker(queue,store,recognizer,builder,Clock.systemUTC(),json).runOne()
         }
-        ConversionWorker(queue,expired,HttpRecognitionClient("http://127.0.0.1:1",json,Duration.ofSeconds(1)),builder,Clock.systemUTC(),json).runOne()
         assertEquals("FAILED",jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=?",String::class.java,id))
-        assertEquals("TIMEOUT",jdbc.queryForObject("SELECT failure_code FROM sheet_conversions WHERE sheet_id=?",String::class.java,id))
+        return jdbc.queryForObject("SELECT failure_code FROM sheet_conversions WHERE sheet_id=?",String::class.java,id)!!
     }
     private fun spool()=Files.list(temporary.multipartDirectory).use { it.toList() }
     /** The container may finish deleting parts just after the response is sent. */
@@ -165,6 +176,12 @@ class TemporaryImportWithoutR2DatabaseTests {
         return HttpRequest.newBuilder(URI("http://127.0.0.1:$port/api/users/me/sheets/imports"))
             .header("Cookie","access_token=${jwt.serialize()}").header("Idempotency-Key",key)
             .header("Content-Type","multipart/form-data; boundary=$boundary").POST(HttpRequest.BodyPublishers.ofByteArray(body))
+    }
+    class MutableClock: Clock() {
+        var now: Instant=Instant.parse("2026-11-06T00:00:00Z")
+        override fun instant()=now
+        override fun getZone(): ZoneId=ZoneOffset.UTC
+        override fun withZone(zone: ZoneId): Clock=this
     }
     /** Parses the body like the dispatcher does, then holds the request so the spool can be observed mid-flight. */
     object HoldUpload: OncePerRequestFilter() {

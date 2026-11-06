@@ -22,9 +22,13 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     private val tickets=mutableMapOf<String,Ticket>()
     private val uploads=mutableMapOf<Path,Instant>()
     private val multipartSeen=mutableMapOf<Path,Instant>()
+    private var lastWarning: Instant?=null
     override val available = true
-    // Bean creation precedes the web server, so this cannot delete a request in flight the way reset() could.
-    init { listOf(directory,multipartDirectory).forEach(::preparePrivate);deleteAbandonedMultipart() }
+    // Bean creation precedes the web server, so startup cleanup can never delete a request in flight.
+    init {
+        listOf(directory,multipartDirectory).forEach(::preparePrivate)
+        deleteAbandonedSources();deleteAbandonedMultipart()
+    }
     private fun preparePrivate(path: Path) {
         require(!Files.isSymbolicLink(path)) { "Temporary source directory must not be a symbolic link" }
         Files.createDirectories(path)
@@ -79,33 +83,44 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     @Synchronized fun purgeExpired() {
         val now=clock.instant()
         uploads.filterValues { now>=it }.keys.toList().forEach(::releaseUpload)
-        entries.filterValues { it.deleting || now>=it.expires }.keys.toList().forEach { runCatching { delete(it) } }
+        // Expired entries keep their record until delete() so the worker can tell expiry from a lost file.
+        entries.values.filter { !it.deleting && now>=it.expires }.forEach { entry ->
+            runCatching { Files.deleteIfExists(entry.path) }.onFailure(::warnCleanup)
+        }
+        entries.filterValues { it.deleting }.keys.toList().forEach { key -> runCatching { delete(key) }.onFailure(::warnCleanup) }
         tickets.entries.removeIf { now>=it.value.expires }
-        runCatching { purgeMultipart(now) }.onFailure { warnMultipartCleanup() }
+        runCatching { purgeMultipart(now) }.onFailure(::warnCleanup)
     }
+    @Synchronized override fun expired(key: String)=entries[key]?.let { clock.instant()>=it.expires } ?: false
     /** The container names these files, so their age counts from the first sweep that sees them. */
     private fun purgeMultipart(now: Instant) {
+        if(!Files.isDirectory(multipartDirectory,NOFOLLOW_LINKS)) preparePrivate(multipartDirectory) // Tomcat cannot recreate it.
         val present=multipartFiles()
         multipartSeen.keys.retainAll(present.toSet())
         present.forEach { path ->
             if(now<multipartSeen.getOrPut(path) { now.plus(RETENTION) }) return@forEach
-            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }.onFailure { warnMultipartCleanup() }
+            runCatching { Files.deleteIfExists(path);multipartSeen.remove(path) }.onFailure(::warnCleanup)
         }
     }
     private fun deleteAbandonedMultipart() {
-        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) }.onFailure { warnMultipartCleanup() } } }
-            .onFailure { warnMultipartCleanup() }
+        runCatching { multipartFiles().forEach { path -> runCatching { Files.deleteIfExists(path) }.onFailure(::warnCleanup) } }
+            .onFailure(::warnCleanup)
     }
-    private fun warnMultipartCleanup()=log.warn("Temporary multipart cleanup will be retried")
+    /** The sweep repeats every second, so a lasting failure logs once per interval. */
+    private fun warnCleanup(cause: Throwable) {
+        val now=clock.instant()
+        if(lastWarning?.let { now<it.plus(WARNING_INTERVAL) }==true) return
+        lastWarning=now
+        log.warn("Temporary source cleanup failed and will be retried",cause)
+    }
     private fun multipartFiles(): List<Path> =
         Files.list(multipartDirectory).use { paths -> paths.filter { Files.isRegularFile(it,NOFOLLOW_LINKS) }.toList() }
-    /** Called before enabling conversion workers on startup. Does not follow symlinks. */
-    @Synchronized fun reset() {
+    /** Does not follow symlinks. */
+    private fun deleteAbandonedSources() {
         Files.list(directory).use { paths -> paths.forEach { path ->
             require(!Files.isDirectory(path,NOFOLLOW_LINKS)) { "Unexpected directory in temporary source spool" }
             Files.deleteIfExists(path)
         } }
-        entries.clear();tickets.clear();uploads.clear()
     }
     @Synchronized override fun close() {
         entries.keys.toList().forEach { runCatching { delete(it) } }
@@ -113,6 +128,7 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     }
     companion object {
         val RETENTION: Duration=Duration.ofMinutes(30)
+        private val WARNING_INTERVAL: Duration=Duration.ofMinutes(1)
         private val log=LoggerFactory.getLogger(TemporarySheetSourceStorage::class.java)
     }
 }

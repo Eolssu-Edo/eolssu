@@ -12,6 +12,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.mockito.Mockito.mock
@@ -26,7 +27,16 @@ class SheetConversionSchedulerTests {
         override fun getZone(): ZoneId=ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock=this
     }
-    @Test fun `source expiry sweep has its own schedule and never waits on the database`() {
+    @Test fun `startup recovery leaves requests already in flight alone`() {
+        val multipart=root.resolve("multipart")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
+            val upload=store.createUpload();Files.writeString(upload,"raw")
+            val part=multipart.resolve("upload_in_flight.tmp");Files.writeString(part,"raw")
+            SheetConversionScheduler(mock(ConversionQueue::class.java),mock(ConversionWorker::class.java),Time(),store).recover()
+            assertTrue(Files.exists(upload));assertTrue(Files.exists(part))
+        }
+    }
+    @Test fun `source expiry sweep has its own schedule and makes no database call`() {
         val time=Time()
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time).use { store ->
             val input=root.resolve("input");Files.writeString(input,"raw")

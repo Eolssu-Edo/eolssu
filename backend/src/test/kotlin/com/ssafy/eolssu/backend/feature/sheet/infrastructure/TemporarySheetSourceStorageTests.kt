@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
+import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
@@ -16,6 +17,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension
 
 @ExtendWith(OutputCaptureExtension::class)
 class TemporarySheetSourceStorageTests {
+    private val WARNING="Temporary source cleanup failed and will be retried"
     @TempDir lateinit var root: Path
     private class Time : Clock() {
         var now=Instant.parse("2026-11-06T00:00:00Z")
@@ -55,11 +57,10 @@ class TemporarySheetSourceStorageTests {
             assertFalse(Files.exists(path))
         }
     }
-    @Test fun `startup reset removes abandoned bytes`() {
+    @Test fun `new storage removes abandoned bytes before the server starts`() {
         val directory=root.resolve("spool");Files.createDirectories(directory)
         Files.writeString(directory.resolve("abandoned"),"raw")
-        TemporarySheetSourceStorage(directory,"http://backend:8080/api/internal/sheet-imports",Time()).use { store ->
-            store.reset()
+        TemporarySheetSourceStorage(directory,"http://backend:8080/api/internal/sheet-imports",Time()).use {
             Files.list(directory).use { assertEquals(0,it.count()) }
         }
     }
@@ -73,15 +74,13 @@ class TemporarySheetSourceStorageTests {
             }
         }
     }
-    @Test fun `inspection copies are removed on release expiry and startup`() {
+    @Test fun `inspection copies are removed on release and expiry`() {
         val time=Time()
         TemporarySheetSourceStorage(root.resolve("staging"),"http://backend:8080/api/internal/sheet-imports",time).use { store ->
             val released=store.createUpload();Files.writeString(released,"private")
             store.releaseUpload(released);assertFalse(Files.exists(released))
             val expired=store.createUpload();Files.writeString(expired,"private")
             time.now=time.now.plusSeconds(1800);store.purgeExpired();assertFalse(Files.exists(expired))
-            val abandoned=store.createUpload();Files.writeString(abandoned,"private")
-            store.reset();assertFalse(Files.exists(abandoned))
         }
     }
     @Test fun `stalled multipart file is removed thirty minutes after it is first seen`() {
@@ -97,26 +96,49 @@ class TemporarySheetSourceStorageTests {
             assertFalse(Files.exists(stalled));assertTrue(Files.exists(younger))
         }
     }
-    @Test fun `abandoned multipart bytes go before the server starts and reset leaves requests in flight alone`() {
+    @Test fun `abandoned multipart bytes go before the server starts`() {
         val multipart=Files.createDirectories(root.resolve("multipart"))
         val abandoned=multipart.resolve("upload_abandoned.tmp");Files.writeString(abandoned,"raw")
-        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use {
             assertFalse(Files.exists(abandoned))
-            val inFlight=multipart.resolve("upload_in_flight.tmp");Files.writeString(inFlight,"raw")
-            store.reset()
-            assertTrue(Files.exists(inFlight))
         }
     }
-    @Test fun `missing multipart spool is logged and does not stop source cleanup`(output: CapturedOutput) {
+    @Test fun `deleted multipart spool comes back so uploads keep working`() {
+        val multipart=root.resolve("multipart")
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",Time(),multipart).use { store ->
+            Files.delete(multipart)
+            store.purgeExpired()
+            assertTrue(Files.isDirectory(multipart))
+        }
+    }
+    @Test fun `expiry stays known after the sweep and a lost file is not expiry`() {
+        val time=Time()
+        TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time).use { store ->
+            val input=root.resolve("input");Files.writeString(input,"raw")
+            store.put("expiring",input,"image/png")
+            store.put("lost",input,"image/png")
+            val path=assertNotNull(store.readable(store.readUrl("expiring",Duration.ofMinutes(15)).substringAfterLast('/'))).path
+            Files.delete(assertNotNull(store.readable(store.readUrl("lost",Duration.ofMinutes(15)).substringAfterLast('/'))).path)
+            assertFalse(store.expired("expiring"));assertFalse(store.expired("lost"))
+            time.now=time.now.plusSeconds(1800);store.purgeExpired()
+            assertFalse(Files.exists(path))
+            assertTrue(store.expired("expiring"))
+            assertFailsWith<SheetSourceStorageException> { store.readUrl("expiring",Duration.ofMinutes(15)) }
+            store.delete("expiring");assertFalse(store.expired("expiring"))
+        }
+    }
+    @Test fun `blocked multipart spool warns once a minute and does not stop source cleanup`(output: CapturedOutput) {
         val time=Time();val multipart=root.resolve("multipart")
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time,multipart).use { store ->
             val input=root.resolve("input");Files.writeString(input,"raw")
             store.put("key",input,"image/png")
             val path=assertNotNull(store.readable(store.readUrl("key",Duration.ofMinutes(15)).substringAfterLast('/'))).path
-            Files.delete(multipart)
-            time.now=time.now.plusSeconds(1800);store.purgeExpired()
+            Files.delete(multipart);Files.writeString(multipart,"not a directory")
+            time.now=time.now.plusSeconds(1800);store.purgeExpired();store.purgeExpired()
             assertFalse(Files.exists(path))
-            assertTrue(output.out.contains("Temporary multipart cleanup will be retried"))
+            assertEquals(1,output.out.split(WARNING).size-1)
+            time.now=time.now.plusSeconds(60);store.purgeExpired()
+            assertEquals(2,output.out.split(WARNING).size-1)
         }
     }
     @Test fun `queued copy keeps the deadline of its request upload`() {

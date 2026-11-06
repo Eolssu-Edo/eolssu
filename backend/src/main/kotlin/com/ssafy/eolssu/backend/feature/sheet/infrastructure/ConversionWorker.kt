@@ -33,7 +33,8 @@ class ConversionWorker(
             if(response.path("status").asString()=="FAILED") {
                 val cause=when(response.path("failReason").asString()) {
                     "NO_GRID_FOUND","NO_STAFF_FOUND" -> "NO_SCORE_FOUND"
-                    "UNSUPPORTED_FILE" -> "UNSUPPORTED_FILE"
+                    // 인식기는 만료로 받지 못한 원본도 이렇게 답한다.
+                    "UNSUPPORTED_FILE" -> if(files.any { storage.expired(it.objectKey) }) "TIMEOUT" else "UNSUPPORTED_FILE"
                     "TIMEOUT" -> "TIMEOUT"
                     "ENGINE_ERROR" -> "ENGINE_ERROR"
                     else -> "SERVER_ERROR"
@@ -58,7 +59,7 @@ class ConversionWorker(
     /** 파일 기한은 복사본을 만든 때부터여서 DB 기한보다 먼저 끝날 수 있다. 그 사이의 작업도 TIMEOUT이다. */
     private fun sourceUrl(file: ConversionFile): String =
         try { storage.readUrl(file.objectKey,Duration.ofMinutes(15)) }
-        catch(_: SheetSourceStorageException) { throw RecognitionFailure("TIMEOUT") }
+        catch(e: SheetSourceStorageException) { throw if(storage.expired(file.objectKey)) RecognitionFailure("TIMEOUT") else e }
     fun cleanup() {
         (storage as? TemporarySheetSourceStorage)?.purgeExpired()
         queue.expire(now())

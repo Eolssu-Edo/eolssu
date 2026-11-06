@@ -24,7 +24,7 @@ class SheetConversionConfig {
         clock: Clock,json: JsonMapper)=ConversionWorker(queue,storage,client,builder,clock,json)
 }
 
-/** 한 backend 인스턴스에서 실행한다. 잔여 원본과 QUEUED·RUNNING을 정리한 다음 큐를 읽는다. */
+/** 한 backend 인스턴스에서 실행한다. 잔여 원본은 저장소가 생성될 때 지우고, 여기서는 QUEUED·RUNNING을 정리한 다음 큐를 읽는다. */
 @Component
 @Profile("db | ops")
 @ConditionalOnProperty(name=["eolssu.scheduling.enabled"],havingValue="true",matchIfMissing=true)
@@ -32,7 +32,7 @@ class SheetConversionScheduler(private val queue: ConversionQueue,private val wo
     @Qualifier("temporarySheetSourceStorage") private val storage: TemporarySheetSourceStorage) {
     @Volatile private var ready=false
     @EventListener(ApplicationReadyEvent::class)
-    fun recover() { storage.reset(); queue.recover(clock.instant()); worker.cleanup(); ready=true }
+    fun recover() { queue.recover(clock.instant()); worker.cleanup(); ready=true }
     @Scheduled(fixedDelay=1000)
     fun run() { if(ready) worker.runOne() }
     @Scheduled(fixedDelay=1000)
