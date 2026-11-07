@@ -49,10 +49,16 @@ import kotlin.math.sin
  * 단계 자리마다 점을 찍은 속도 슬라이더. 손잡이는 삼태극 북([DrumThumb])이다.
  * 끄는 동안 손잡이는 손가락을 따라가고 위의 단계 이름은 가장 가까운 단계로 바뀌며, 놓으면 그 단계 자리에 붙는다.
  * 길을 눌러도 그 자리에서 가까운 단계로 간다. 단계 사이 간격은 배율과 관계없이 같다.
+ *
+ * @param interaction 누르기·끌기 상태를 밖에서도 읽을 때 넘긴다(취약 구간 선택의 BPM 잠깐 보이기).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun TempoSlider(step: TempoStep, onStep: (TempoStep) -> Unit) {
+internal fun TempoSlider(
+    step: TempoStep,
+    onStep: (TempoStep) -> Unit,
+    interaction: MutableInteractionSource = remember { MutableInteractionSource() },
+) {
     val steps = TempoStep.entries
     val position = remember { Animatable(step.ordinal.toFloat()) }
     val scope = rememberCoroutineScope()
@@ -62,7 +68,6 @@ internal fun TempoSlider(step: TempoStep, onStep: (TempoStep) -> Unit) {
     LaunchedEffect(step) {
         if (!dragging && position.targetValue.roundToInt() != step.ordinal) position.snapTo(step.ordinal.toFloat())
     }
-    val interaction = remember { MutableInteractionSource() }
     val held = interaction.collectIsDraggedAsState().value || interaction.collectIsPressedAsState().value
     val label = tempoLabel(step)
     Slider(
