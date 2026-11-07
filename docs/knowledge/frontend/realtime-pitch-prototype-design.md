@@ -213,7 +213,7 @@ viewModel.pitchFeedback.collect { feedback ->
 | `eventId` | 원본 악보 이벤트 식별자다. 화면 위치나 순번을 새로 추측하지 않는다. |
 | `targetName` | 목표 음 이름 또는 쉼 기호다. |
 | `heardHz` | 2회 확인을 통과한 음높이다. 없으면 null이다. |
-| `direction` | `Low` 낮음, `Match` 목표 ±50센트 범위 안, `High` 높음이다. null이면 판단 보류다. |
+| `direction` | `Low` 낮음, `Match` 목표 ±50센트 범위 안, `High` 높음이다. null이면 판단 보류다. 목표와 600센트(반 옥타브) 넘게 떨어진 값도 보류다. 음 경계에서 기본음의 1/3·1/5로 잡힌 값과 말소리를 낮음으로 안내하지 않기 위해서이며, 한 옥타브 틀리게 분 음도 보류가 된다(S15P31E102-555). |
 | `rest` | 쉼 구간이면 true다. 쉼과 꾸밈음은 Match로 판정하지 않는다. |
 | `capturedEndNanos` | 입력 창 종료 시각이다. 다른 시계나 서버 시각과 직접 빼지 않는다. |
 

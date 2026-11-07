@@ -4,6 +4,7 @@ import com.ssafy.eolssu.core.audio.CaptureBoundary
 import com.ssafy.eolssu.core.audio.PitchReading
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreNote
+import kotlin.math.pow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -69,9 +70,25 @@ class PracticePitchFeedbackTest {
     @Test fun comparesPitchWithoutFoldingOctaves() {
         val note = ScoreNote.SourcePitch("황", 0)
         assertEquals(PitchDirection.Match, comparePitch(note, 440.0, 440.0))
-        assertEquals(PitchDirection.High, comparePitch(note, 440.0, 880.0))
-        assertEquals(PitchDirection.Low, comparePitch(note, 440.0, 220.0))
+        assertNull(comparePitch(note, 440.0, 880.0))
+        assertNull(comparePitch(note, 440.0, 220.0))
         assertNull(comparePitch(note, 440.0, null))
         assertNull(comparePitch(ScoreNote.Rest, 440.0, 440.0))
+    }
+
+    @Test fun holdsReadingsMoreThanHalfAnOctaveFromTarget() {
+        // 515 실기기 로그: 단소 중(415Hz) 안에서 기본음 1/3·1/5로 잡힌 값이 2회 확인을 통과했다.
+        val note = ScoreNote.SourcePitch("중", 0)
+        val hwang = 311.13
+        assertEquals(PitchDirection.Match, comparePitch(note, hwang, 415.0))
+        assertEquals(PitchDirection.High, comparePitch(note, hwang, 438.0))
+        assertEquals(PitchDirection.Low, comparePitch(note, hwang, 393.0))
+        assertNull(comparePitch(note, hwang, 140.0))
+        assertNull(comparePitch(note, hwang, 84.0))
+        val target = hwang * 2.0.pow(5 / 12.0)
+        assertEquals(PitchDirection.High, comparePitch(note, hwang, target * 2.0.pow(599 / 1200.0)))
+        assertNull(comparePitch(note, hwang, target * 2.0.pow(601 / 1200.0)))
+        assertEquals(PitchDirection.Low, comparePitch(note, hwang, target / 2.0.pow(599 / 1200.0)))
+        assertNull(comparePitch(note, hwang, target / 2.0.pow(601 / 1200.0)))
     }
 }

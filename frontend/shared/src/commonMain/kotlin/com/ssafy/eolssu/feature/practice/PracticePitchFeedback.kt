@@ -16,7 +16,10 @@ internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?): P
     val semitones = names.indexOf(note.yul) + 12 * note.octave
     val target = hwangHz * 2.0.pow(semitones / 12.0)
     val cents = 1200 * log2(heardHz / target)
+    // 반 옥타브 넘게 떨어진 값은 판단을 보류한다. YIN이 음 경계에서 기본음의 1/3·1/5로 잡는 값과 말소리를
+    // 낮음·높음으로 안내하지 않기 위해서다. 한 옥타브 틀리게 분 음도 보류된다(S15P31E102-555).
     return when {
+        cents < -600 || cents > 600 -> null
         cents < -50 -> PitchDirection.Low
         cents > 50 -> PitchDirection.High
         else -> PitchDirection.Match
