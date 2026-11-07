@@ -50,6 +50,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -59,7 +60,9 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.coerceIn
 import com.ssafy.eolssu.core.model.scoreLyricSlots
 import androidx.compose.ui.unit.dp
@@ -694,6 +697,22 @@ private fun ScoreCellBox(
         }
     }
 
+    // 오른쪽 위 종류 아이콘(정간 하나에 하나 또는 세로로 쌓은 여러 개)이 차지하는 높이. 율명은 이 자리를 피해 놓는다.
+    val cellTag = mark?.tag
+    val cellTags = when {
+        unitMarks -> emptyList()
+        decoration == null && errorKinds.size > 1 -> errorKinds
+        else -> listOfNotNull(cellTag)
+    }
+    val tagGap = 1.dp
+    val tagSize = if (cellTags.size > 1) ((metrics.cellHeight - 2.dp - tagGap * (cellTags.size - 1)) / cellTags.size).coerceIn(9.dp, 14.dp) else 14.dp
+    val tagBottom = if (cellTags.isEmpty()) 0.dp else 1.dp + tagSize * cellTags.size + tagGap * (cellTags.size - 1)
+    // 왼쪽 아래 구간 ‘처음’·‘끝’ 알약(9sp 글자 · 줄 11sp · 안쪽 가로 5 세로 1 · 바깥 2)이 차지하는 대략의 크기. 한글은 한 글자가 1em이다.
+    val edgeLabel = mark?.edgeLabel
+    val edgeReserve = edgeLabel?.let {
+        with(LocalDensity.current) { DpSize(9.sp.toDp() * it.length + 10.dp + 1.dp, 11.sp.toDp() + 2.dp + 3.dp) }
+    }
+
     val notes: @Composable (Modifier) -> Unit = { m ->
         Box(m) {
             Column(Modifier.fillMaxSize()) {
@@ -740,8 +759,18 @@ private fun ScoreCellBox(
                                         style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
                                     )
                                 }
+                            // 이 소박 오른쪽 위를 덮는 아이콘 자리: 정간 아이콘은 맨 오른쪽 소박 가운데 아이콘 높이에 걸친 줄만, 소박 아이콘은 그 소박.
+                            val unitTop = metrics.cellHeight * r / rows.size
+                            val subTagSize = (metrics.cellHeight / rows.size - 3.dp).coerceIn(9.dp, 14.dp)
+                            val reserve = when {
+                                subKinds.isNotEmpty() -> DpSize(subTagSize * subKinds.size + 1.dp * (subKinds.size - 1), subTagSize + 2.dp)
+                                c == row.lastIndex && tagBottom > unitTop -> DpSize(tagSize, tagBottom - unitTop + 1.dp)
+                                else -> null
+                            }
                             Box(Modifier.weight(1f).fillMaxSize().then(subModifier).then(pickModifier)) {
                             ScoreNoteBox(
+                                reserveTopEnd = reserve,
+                                reserveBottomStart = edgeReserve?.takeIf { r == rows.lastIndex && c == 0 },
                                 unit = unit,
                                 splitCount = maxOf(rows.size, row.size),
                                 metrics = metrics,
@@ -772,32 +801,23 @@ private fun ScoreCellBox(
                     }
                 }
             }
-            val tag = mark?.tag
             // 넘겨받은 꾸밈이 없을 때만 복합 오류 종류를 쓴다(이전 연주 비교 등은 꾸밈 하나를 그대로 그린다).
-            val tags = when {
-                unitMarks -> emptyList()
-                decoration == null && errorKinds.size > 1 -> errorKinds
-                else -> listOfNotNull(tag)
-            }
-            if (tags.size == 1) {
+            if (cellTags.size == 1) {
                 // `.ms-cell .tag`: 오른쪽 위 1dp 안쪽에 14dp 종류 색 상자와 흰 아이콘.
-                ErrorKindTag(tags.single(), Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp))
-            } else if (tags.size > 1) {
+                ErrorKindTag(cellTags.single(), Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp))
+            } else if (cellTags.size > 1) {
                 // 한 정간의 여러 종류: 오른쪽 끝에 세로로 쌓아 율명을 가리지 않게 한다. 정간 높이에 들어가도록 상자를 줄인다(최대 14dp, 최소 9dp).
-                val gap = 1.dp
-                val size = ((metrics.cellHeight - 2.dp - gap * (tags.size - 1)) / tags.size).coerceIn(9.dp, 14.dp)
                 Column(
                     Modifier.align(Alignment.TopEnd).padding(top = 1.dp, end = 1.dp),
-                    verticalArrangement = Arrangement.spacedBy(gap),
+                    verticalArrangement = Arrangement.spacedBy(tagGap),
                 ) {
-                    tags.forEach { ErrorKindTag(it, size = size, iconSize = size * 0.7f) }
+                    cellTags.forEach { ErrorKindTag(it, size = tagSize, iconSize = tagSize * 0.7f) }
                 }
             }
-            val edge = mark?.edgeLabel
-            if (edge != null) {
+            if (edgeLabel != null) {
                 // 구간 처음·끝: 왼쪽 아래 2dp 안쪽 연두 알약, 9sp 굵은 글자.
                 Text(
-                    edge,
+                    edgeLabel,
                     modifier = Modifier.align(Alignment.BottomStart).padding(start = 2.dp, bottom = 2.dp)
                         .background(colors.accent, RoundedCornerShape(50)).padding(horizontal = 5.dp, vertical = 1.dp).clearAndSetSemantics {},
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 11.sp, fontWeight = FontWeight.Bold),
@@ -929,6 +949,8 @@ private fun ScoreNoteBox(
     modifier: Modifier = Modifier,
     sigimsae: List<String> = emptyList(),
     playing: Boolean = false,
+    reserveTopEnd: DpSize? = null,
+    reserveBottomStart: DpSize? = null,
 ) {
     val colors = EolssuTheme.colors
     val note = unit.note
@@ -985,11 +1007,8 @@ private fun ScoreNoteBox(
         look.board -> colors.textSub
         else -> colors.textMuted
     }
-    Column(
-        noteModifier.padding(horizontal = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
+    FitInCell(noteModifier.padding(horizontal = 2.dp), reserveTopEnd, reserveBottomStart) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
       Row(horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
           verticalAlignment = Alignment.CenterVertically) {
         if (look.board && !isPitch) {
@@ -1033,7 +1052,83 @@ private fun ScoreNoteBox(
               fontSize = auxSize, lineHeight = auxSize * 1.1f, color = colors.textMuted)
       }
     }
+    }
 }
+
+/**
+ * 율명 묶음(율명 · 시김새 · 한글 · 계이름)을 자리 가운데에 놓는다. 자리에 들어가면 크기를 그대로 두고,
+ * 가로로 나뉜 소박처럼 자리보다 크면 잘리지 않도록 가로세로 비율을 지켜 자리에 맞게 줄인다.
+ * [reserveTopEnd](오른쪽 위 틀린 종류 아이콘) · [reserveBottomStart](왼쪽 아래 구간 ‘처음’·‘끝’ 알약)와 겹칠 때만
+ * 그 자리를 피해 왼쪽·아래(또는 오른쪽·위)로 가장 조금 비키고, 비킬 자리가 모자라면 남은 자리에 맞게 줄인다.
+ * 겹치지 않으면 위치와 크기를 바꾸지 않는다.
+ */
+@Composable
+private fun FitInCell(modifier: Modifier, reserveTopEnd: DpSize?, reserveBottomStart: DpSize?, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val placeable = measurables.single().measure(Constraints())
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeable.width
+        val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height
+        val fit = fitGlyphInCell(
+            box = Size(width.toFloat(), height.toFloat()),
+            content = Size(placeable.width.toFloat(), placeable.height.toFloat()),
+            topEnd = reserveTopEnd?.let { Size(it.width.toPx(), it.height.toPx()) },
+            bottomStart = reserveBottomStart?.let { Size(it.width.toPx(), it.height.toPx()) },
+        )
+        layout(width, height) {
+            // 층의 축소 기준은 가운데이므로 줄어든 만큼 반을 빼서 왼쪽 위를 맞춘다.
+            val shrinkX = placeable.width * (1 - fit.scale) / 2
+            val shrinkY = placeable.height * (1 - fit.scale) / 2
+            placeable.placeWithLayer((fit.topLeft.x - shrinkX).roundToInt(), (fit.topLeft.y - shrinkY).roundToInt()) {
+                scaleX = fit.scale
+                scaleY = fit.scale
+            }
+        }
+    }
+}
+
+/** [fitGlyphInCell] 결과: 줄임 배율(1 이하)과 줄인 내용의 왼쪽 위(px). */
+internal data class GlyphFit(val scale: Float, val topLeft: Offset)
+
+/**
+ * 크기 [box]인 자리에 [content]를 놓을 배율과 위치. 들어가면 배율 1로 가운데에 두고, 크면 비율을 지켜 줄인다.
+ * [topEnd] · [bottomStart]는 오른쪽 위·왼쪽 아래에 비워 둘 크기다. 가운데 자리가 그와 겹칠 때만
+ * 각 자리를 옆 또는 위아래로 피한 영역들 가운데 내용을 가장 크게, 같으면 가장 조금 옮겨 둘 수 있는 곳을 고른다.
+ */
+internal fun fitGlyphInCell(box: Size, content: Size, topEnd: Size? = null, bottomStart: Size? = null): GlyphFit {
+    val contentW = content.width.coerceAtLeast(1f)
+    val contentH = content.height.coerceAtLeast(1f)
+    val full = Area(0f, 0f, box.width, box.height)
+    fun scaleIn(a: Area) = minOf(1f, (a.right - a.left) / contentW, (a.bottom - a.top) / contentH).coerceAtLeast(0f)
+    // 가운데 자리에서 그 영역 안으로 가장 가깝게 옮긴 왼쪽 위.
+    fun placeIn(a: Area, scale: Float): Offset {
+        val w = contentW * scale
+        val h = contentH * scale
+        val x = ((box.width - w) / 2).coerceIn(a.left, maxOf(a.left, a.right - w))
+        val y = ((box.height - h) / 2).coerceIn(a.top, maxOf(a.top, a.bottom - h))
+        return Offset(x, y)
+    }
+    fun overlaps(at: Offset, scale: Float): Boolean {
+        val right = at.x + contentW * scale
+        val bottom = at.y + contentH * scale
+        val hitTopEnd = topEnd != null && right > box.width - topEnd.width && at.y < topEnd.height
+        val hitBottomStart = bottomStart != null && at.x < bottomStart.width && bottom > box.height - bottomStart.height
+        return hitTopEnd || hitBottomStart
+    }
+
+    val scale = scaleIn(full)
+    val center = placeIn(full, scale)
+    if (!overlaps(center, scale)) return GlyphFit(scale, center)
+    // 각 표시마다 옆으로 비키거나 위아래로 비키는 두 가지 영역이 있다.
+    val topEndAreas = topEnd?.let { listOf(full.copy(right = box.width - it.width), full.copy(top = it.height)) } ?: listOf(full)
+    val bottomStartAreas = bottomStart?.let { listOf(full.copy(left = it.width), full.copy(bottom = box.height - it.height)) } ?: listOf(full)
+    return topEndAreas
+        .flatMap { a -> bottomStartAreas.map { b -> Area(maxOf(a.left, b.left), maxOf(a.top, b.top), minOf(a.right, b.right), minOf(a.bottom, b.bottom)) } }
+        .map { area -> scaleIn(area).let { s -> GlyphFit(s, placeIn(area, s)) } }
+        .maxWith(compareBy<GlyphFit> { it.scale }.thenByDescending { (it.topLeft - center).getDistance() })
+}
+
+/** [fitGlyphInCell]에서 내용을 놓을 수 있는 영역(왼·위·오른·아래 경계, px). */
+private data class Area(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
 /** 구간 반복에서 앞뒤 각을 흐리게 하는 불투명도(시안 `opacity: .35`). */
 private const val FadedColumnAlpha = 0.35f
