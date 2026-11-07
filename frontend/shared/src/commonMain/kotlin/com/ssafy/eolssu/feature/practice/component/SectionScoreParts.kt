@@ -3,7 +3,6 @@ package com.ssafy.eolssu.feature.practice.component
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -12,12 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Score
@@ -73,27 +69,6 @@ internal fun sectionDecorations(
         }
     }
     return out
-}
-
-/** 시안의 34dp 알약 칩(`border-radius: 999px`): 고르면 연두 바탕. 누르는 영역은 48dp를 유지한다. */
-@Composable
-internal fun PillChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 34.dp) {
-    val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = height).semantics {
-            this.selected = selected
-            role = Role.Tab
-        },
-        shape = CircleShape,
-        color = if (selected) colors.primary else colors.surface,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
-    ) {
-        Box(Modifier.padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-        }
-    }
 }
 
 /** 시안의 반복 횟수 버튼(28dp, 반지름 8): 고르면 연두 바탕. */

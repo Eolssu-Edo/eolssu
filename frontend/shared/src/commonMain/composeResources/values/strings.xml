@@ -317,7 +317,6 @@
     <string name="record_detail_fwd5">+5초</string>
     <string name="record_detail_back5_label">5초 뒤로</string>
     <string name="record_detail_fwd5_label">5초 앞으로</string>
-    <string name="record_detail_weak">취약 구간 연습하기</string>
     <string name="record_detail_seek">재생 위치</string>
     <string name="record_play_unavailable">이 기록은 녹음을 다시 들을 수 없어요.</string>
     <string name="record_play_busy">지금은 녹음을 들을 수 없어요. 잠시 후 다시 시도해 주세요.</string>

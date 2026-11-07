@@ -25,7 +25,6 @@ fun SectionSelectRoute(
         actions = SectionSelectActions(
             onBack = onBack,
             onTap = viewModel::tap,
-            onRecommended = viewModel::pickRecommended,
             onToggleLoop = viewModel::toggleLoop,
             onRepeat = viewModel::selectRepeat,
             onSpeed = viewModel::selectSpeed,

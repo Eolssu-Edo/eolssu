@@ -50,7 +50,6 @@ import eolssu.shared.generated.resources.record_detail_fwd5_label
 import eolssu.shared.generated.resources.record_detail_metrics
 import eolssu.shared.generated.resources.record_detail_position
 import eolssu.shared.generated.resources.record_detail_seek
-import eolssu.shared.generated.resources.record_detail_weak
 import eolssu.shared.generated.resources.records_score_unit
 import eolssu.shared.generated.resources.weak_record_compare
 import eolssu.shared.generated.resources.weak_record_compare_with
@@ -197,28 +196,6 @@ internal fun CompareEntry(previous: PracticeRecord?, onClick: () -> Unit, modifi
     }
 }
 
-/** '취약 구간 연습하기' 버튼. 44dp 이상 큰 버튼이라 반지름 14 둥근 사각이다(시안 `border-radius: 14px`). */
-@Composable
-internal fun WeakSectionButton(onClick: () -> Unit, modifier: Modifier = Modifier, height: Dp = 48.dp, paddingH: Dp = 12.dp) {
-    val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(height),
-        shape = RoundedCornerShape(14.dp),
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.lineSoft),
-    ) {
-        Box(Modifier.padding(horizontal = paddingH), contentAlignment = Alignment.Center) {
-            Text(
-                stringResource(Res.string.record_detail_weak),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 16.sp),
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-            )
-        }
-    }
-}
-
 /**
  * 하단 재생 영역 내용(시간 · 막대 · 버튼 줄). 휴대폰과 태블릿 세로가 같은 구성이고 버튼 사이만 다르다([gap]).
  */
@@ -226,9 +203,8 @@ internal fun WeakSectionButton(onClick: () -> Unit, modifier: Modifier = Modifie
 internal fun PlaybackBarContent(state: RecordDetailUiState, actions: RecordDetailActions, gap: Dp) {
     PlaybackTimeRow(state)
     PlaybackSlider(state, actions)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(gap)) {
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         PlaybackButtons(state, actions, skipSize = 48.dp, playSize = 64.dp, gap = gap)
-        WeakSectionButton(actions.onWeakSection, Modifier.weight(1f))
     }
 }
 

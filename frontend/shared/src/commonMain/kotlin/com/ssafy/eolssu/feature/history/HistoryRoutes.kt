@@ -13,7 +13,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,7 +33,6 @@ import kotlinx.coroutines.async
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +55,6 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,7 +68,7 @@ fun RecordListRoute(
     }
     val widthClass = currentWindowLayout().widthClass
     if (widthClass == WindowWidthClass.Expanded) {
-        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onWeakSection, onOpenRecord)
+        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onOpenRecord)
     } else {
         RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
     }
@@ -89,7 +86,6 @@ private fun RecordsTwoPaneRoute(
     onOpenGrowth: () -> Unit,
     viewModel: RecordListViewModel,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
     onOpenRecord: (String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
@@ -118,7 +114,7 @@ private fun RecordsTwoPaneRoute(
         },
         onRetry = viewModel::retry,
         detail = detail,
-        detailActions = rememberRecordDetailActions(detailViewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare),
         snackbarHostState = snackbarHostState,
     )
 }
@@ -127,14 +123,12 @@ private fun RecordsTwoPaneRoute(
  * RECORD-02 연결.
  *
  * @param onCompare ‘지난 연주와 비교’ → COMPARE-01(2차).
- * @param onWeakSection ‘취약 구간 연습하기’ → PRACTICE-02(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
 fun RecordDetailRoute(
     recordId: String,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -146,7 +140,7 @@ fun RecordDetailRoute(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
-        actions = rememberRecordDetailActions(viewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        actions = rememberRecordDetailActions(viewModel, onBack, onCompare),
     )
 }
 
@@ -171,24 +165,16 @@ private fun RecordNoticeEffect(notice: RecordNotice?, snackbarHostState: Snackba
     }
 }
 
-/**
- * 기록 상세 동작. 뒤로 가기·비교·취약 구간으로 가기 전에 재생을 멈춘다. 취약 구간 연결이 없으면 '준비 중' 안내를 띄운다.
- * 비교·취약 구간은 지금 보이는 기록 ID로 연다.
- */
+/** 기록 상세 동작. 뒤로 가기·비교로 가기 전에 재생을 멈추고, 비교는 지금 보이는 기록 ID로 연다. */
 @Composable
 private fun rememberRecordDetailActions(
     viewModel: RecordDetailViewModel,
-    snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
 ): RecordDetailActions {
-    val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.common_coming_soon)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestOnCompare by rememberUpdatedState(onCompare)
-    val latestOnWeakSection by rememberUpdatedState(onWeakSection)
-    return remember(viewModel, snackbarHostState, scope, comingSoon) {
+    return remember(viewModel) {
         RecordDetailActions(
             onBack = {
                 viewModel.pause()
@@ -199,16 +185,6 @@ private fun rememberRecordDetailActions(
             onSkip = viewModel::skipSeconds,
             onToggleErrors = viewModel::toggleErrors,
             onToggleFollow = viewModel::toggleFollow,
-            onWeakSection = {
-                val open = latestOnWeakSection
-                val recordId = viewModel.uiState.value.record?.id
-                if (open != null && recordId != null) {
-                    viewModel.pause()
-                    open(recordId)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                }
-            },
             onRetrySong = viewModel::retrySong,
             onCompare = {
                 viewModel.uiState.value.record?.id?.let { recordId ->

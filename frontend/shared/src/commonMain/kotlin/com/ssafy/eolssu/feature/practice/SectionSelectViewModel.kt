@@ -32,8 +32,6 @@ class SectionSelectViewModel(
 
     fun tap(position: ScorePosition) = _uiState.update { it.tap(position) }
 
-    fun pickRecommended() = _uiState.update { it.pickRecommended() }
-
     fun toggleLoop() = _uiState.update { it.copy(loop = !it.loop) }
 
     fun selectRepeat(repeat: SectionRepeat) = _uiState.update { it.copy(repeat = repeat) }

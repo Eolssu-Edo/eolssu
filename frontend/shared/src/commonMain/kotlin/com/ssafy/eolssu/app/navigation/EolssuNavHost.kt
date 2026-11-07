@@ -333,7 +333,6 @@ fun EolssuNavHost(
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                     onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                    onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                 )
             }
             composable(
@@ -363,14 +362,12 @@ fun EolssuNavHost(
                         onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                         initialRecordId = recordId,
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 }
             }
