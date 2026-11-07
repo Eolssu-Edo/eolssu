@@ -35,6 +35,8 @@ data class JeongganboLook(
     val soft: Boolean = false,
     val errorMarks: ErrorMarkStyle = ErrorMarkStyle.Kind,
     val softDaegang: Boolean = false,
+    /** 율명 오른쪽 시김새 그림의 높이(율명 글자 크기 대비). 편집기는 율명이 주가 되도록 조금 더 작게 쓴다. */
+    val sigimsaeScale: Float = 0.7f,
 ) {
     enum class Style { Classic, Board }
 

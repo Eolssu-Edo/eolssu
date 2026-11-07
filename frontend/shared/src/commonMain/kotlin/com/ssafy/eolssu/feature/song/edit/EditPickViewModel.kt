@@ -2,8 +2,13 @@ package com.ssafy.eolssu.feature.song.edit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
-import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.data.song.SheetDocumentRepository
+import com.ssafy.eolssu.data.song.SongRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,18 +16,69 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 불러올 악보 고르기. 내 악보는 [MySheetRepository]의 악보(모두 정간보)를, 제공 곡은 API를 붙이기 전까지 예시 곡([SampleSongs])을 보인다.
+ * 불러올 악보 고르기. 악기를 고르면 그 악기의 제공 곡(CAT-01 `instrumentId`)과 내 악보를 받는다.
+ * 내 악보 목록(SHT-01)에는 악기가 없어서, 각 악보의 공통 악보(SHT-08) `score.instrument`로 고른 악기의 것만 남긴다.
+ * 악보를 읽지 못한 내 악보는 어느 악기 목록에도 넣지 않고 수만 알린다.
  */
-class EditPickViewModel(mySheetRepository: MySheetRepository) : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        EditPickUiState(songs = SampleSongs.map { EditPickSong(it.id, it.title, it.level, it.jangdanName) }),
-    )
+class EditPickViewModel(
+    private val mySheetRepository: MySheetRepository,
+    private val songRepository: SongRepository,
+    private val documents: SheetDocumentRepository? = null,
+) : ViewModel() {
+    private val _uiState = MutableStateFlow(EditPickUiState())
     val uiState: StateFlow<EditPickUiState> = _uiState.asStateFlow()
 
-    init {
-        viewModelScope.launch {
-            mySheetRepository.sheets.collect { sheets -> _uiState.update { it.copy(sheets = sheets) } }
+    private var loadJob: Job? = null
+
+    /** 내 악보 ID·수정 시각 → 공통 악보의 악기 code. 읽지 못했으면 null. 같은 화면에서 악기를 바꿔도 다시 받지 않는다. */
+    private val sheetInstruments = mutableMapOf<Pair<String, Any>, String?>()
+
+    fun selectInstrument(instrument: Instrument) {
+        val state = _uiState.value
+        if (state.instrument == instrument && state.load != EditPickLoad.Failed) return
+        _uiState.update { it.chooseInstrument(instrument) }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { load(instrument) }
+    }
+
+    fun retry() {
+        val instrument = _uiState.value.instrument ?: return
+        selectInstrument(instrument)
+    }
+
+    private suspend fun load(instrument: Instrument) {
+        try {
+            val instrumentId = songRepository.getInstruments().firstOrNull { it.code == instrument.serverCode }?.instrumentId
+            val songs = if (instrumentId == null) emptyList() else songRepository.getSongs(instrumentId).mapNotNull { song ->
+                song.level?.let { EditPickSong(song.id, song.title, it, song.jangdanName) }
+            }
+            mySheetRepository.refresh()
+            val all = mySheetRepository.sheets.value
+            val codes = all.associate { it.id to instrumentCodeOf(it) }
+            _uiState.update {
+                if (it.instrument != instrument) it else it.copy(
+                    load = EditPickLoad.Ready,
+                    songs = songs,
+                    sheets = all.filter { sheet -> codes[sheet.id] == instrument.serverCode },
+                    uncheckedSheets = codes.values.count { code -> code == null },
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            _uiState.update { if (it.instrument != instrument) it else it.copy(load = EditPickLoad.Failed) }
         }
+    }
+
+    /** 초안이 있으면 초안, 없으면 확정 악보의 `score.instrument`. 변환 전이거나 읽지 못하면 null. */
+    private suspend fun instrumentCodeOf(sheet: MySheet): String? {
+        val repository = documents ?: return null
+        val key = sheet.id to sheet.updatedAt
+        if (key in sheetInstruments) return sheetInstruments[key]
+        val document = try { repository.get(sheet.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+        val code = (document?.draft?.score ?: document?.score)?.score?.instrument?.takeIf { it.isNotBlank() }
+        if (document != null) sheetInstruments[key] = code
+        return code
     }
 
     fun selectTab(tab: EditPickTab) = _uiState.update { it.copy(tab = tab) }

@@ -221,6 +221,8 @@ fun JeongganboView(
     sectionColumns: IntRange? = null,
     fadedColumns: Set<Int> = emptySet(),
     cellMarks: Map<Pair<Int, Int>, ScoreCellMark> = emptyMap(),
+    /** 나눈 정간의 소박 하나만 칠하는 표시(편집기에서 고른 소박). 정간 전체 표시([cellMarks]) 위에 그린다. */
+    unitMarks: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
 ) {
     // sp만 커져 분할 음·각 머리글이 잘리지 않도록 해당 악보의 기하도 함께 늘린다.
     // 화면 전체를 확대하지 않으며 기존 가로/세로 스크롤과 원본 줄바꿈을 유지한다.
@@ -326,6 +328,7 @@ fun JeongganboView(
                 onUnitClick = onUnitClick,
                 annotations = annotations,
                 cellMark = cellMarks[strip.column to row],
+                pickedUnits = unitMarks,
                 playingKey = playingKey,
             )
         }
@@ -578,6 +581,7 @@ private fun ScoreCellBox(
     dimmed: Boolean = false,
     annotations: Map<ScoreUnitKey, List<String>> = emptyMap(),
     cellMark: ScoreCellMark? = null,
+    pickedUnits: Map<ScoreUnitKey, ScoreCellMark> = emptyMap(),
     playingKey: ScoreUnitKey? = null,
 ) {
     val colors = EolssuTheme.colors
@@ -722,7 +726,21 @@ private fun ScoreCellBox(
                                     }
                                 }
                             }
-                            Box(Modifier.weight(1f).fillMaxSize().then(subModifier)) {
+                            val pick = pickedUnits[unit.key]
+                            val pickModifier = if (pick == null) Modifier else Modifier
+                                .background(pick.fill ?: Color.Transparent)
+                                .drawWithContent {
+                                    drawContent()
+                                    val ring = pick.ring ?: return@drawWithContent
+                                    val stroke = pick.ringWidth.toPx()
+                                    drawRect(
+                                        ring,
+                                        topLeft = Offset(stroke / 2, stroke / 2),
+                                        size = Size(size.width - stroke, size.height - stroke),
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke),
+                                    )
+                                }
+                            Box(Modifier.weight(1f).fillMaxSize().then(subModifier).then(pickModifier)) {
                             ScoreNoteBox(
                                 unit = unit,
                                 splitCount = maxOf(rows.size, row.size),
@@ -994,7 +1012,7 @@ private fun ScoreNoteBox(
         val glyphs = sigimsae.filter { scoreSigimsaeImage(it) != null }
         if (glyphs.isNotEmpty()) {
             Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
-                glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * 0.7f) }
+                glyphs.forEach { ScoreSigimsaeGlyph(it, yulSize * look.sigimsaeScale) }
             }
         }
         if (hangul != null || solfegeText != null) {

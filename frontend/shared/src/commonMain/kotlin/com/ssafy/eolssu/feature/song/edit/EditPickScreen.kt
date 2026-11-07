@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
@@ -36,6 +39,7 @@ import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.component.SongSearchField
 import com.ssafy.eolssu.feature.song.edit.component.HintText
+import com.ssafy.eolssu.feature.song.edit.component.PillChip
 import com.ssafy.eolssu.feature.song.edit.component.PillButton
 import com.ssafy.eolssu.feature.song.edit.component.RadioDot
 import com.ssafy.eolssu.feature.song.edit.component.SegmentTabs
@@ -44,6 +48,15 @@ import eolssu.shared.generated.resources.mysongs_tab_sheets
 import eolssu.shared.generated.resources.mysongs_tab_songs
 import eolssu.shared.generated.resources.sheetedit_pick_confirm
 import eolssu.shared.generated.resources.sheetedit_pick_empty
+import eolssu.shared.generated.resources.sheetedit_pick_empty_mine
+import eolssu.shared.generated.resources.sheetedit_pick_empty_songs
+import eolssu.shared.generated.resources.sheetedit_pick_failed
+import eolssu.shared.generated.resources.sheetedit_pick_loading
+import eolssu.shared.generated.resources.sheetedit_pick_need_instrument
+import eolssu.shared.generated.resources.sheetedit_pick_retry
+import eolssu.shared.generated.resources.sheetedit_pick_step_instrument
+import eolssu.shared.generated.resources.sheetedit_pick_step_sheet
+import eolssu.shared.generated.resources.sheetedit_pick_unchecked
 import eolssu.shared.generated.resources.sheetedit_pick_hint_mine
 import eolssu.shared.generated.resources.sheetedit_pick_hint_picked
 import eolssu.shared.generated.resources.sheetedit_pick_hint_songs
@@ -55,13 +68,15 @@ import eolssu.shared.generated.resources.sheetedit_pick_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * 불러올 악보 고르기(EditPick): 내 악보 / 제공 곡 탭, 제공 곡 검색, 고를 수 있는 줄 목록. 줄을 누르면 고르기만 하고
- * 오른쪽 위 '선택'으로 편집에 간다(고르기 전에는 흐린 '선택').
+ * 불러올 악보 고르기(EditPick): 1) 편집할 악기 → 2) 그 악기의 내 악보 / 제공 곡 탭, 제공 곡 검색, 고를 수 있는 줄 목록.
+ * 악기를 고르기 전에는 악보를 보이지 않는다. 줄을 누르면 고르기만 하고 오른쪽 위 '선택'으로 편집에 간다(고르기 전에는 흐린 '선택').
  */
 @Composable
 fun EditPickScreen(
     state: EditPickUiState,
     onBack: () -> Unit,
+    onSelectInstrument: (Instrument) -> Unit,
+    onRetry: () -> Unit,
     onSelectTab: (EditPickTab) -> Unit,
     onSearch: (String) -> Unit,
     onToggle: (EditPickTarget) -> Unit,
@@ -81,72 +96,129 @@ fun EditPickScreen(
     ) {
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SegmentTabs(
-                    labels = listOf(stringResource(Res.string.mysongs_tab_sheets), stringResource(Res.string.mysongs_tab_songs)),
-                    selected = state.tab.ordinal,
-                    onSelect = { onSelectTab(EditPickTab.entries[it]) },
-                    large = true,
-                    counts = listOf(state.sheets.size, state.songs.size),
-                )
-                if (state.tab == EditPickTab.Songs) SongSearchField(state.query, onSearch, onClear = { onSearch("") })
-                val picked = state.pickedTitle
-                HintText(
-                    when {
-                        picked != null -> stringResource(Res.string.sheetedit_pick_hint_picked, picked)
-                        state.tab == EditPickTab.Mine -> stringResource(Res.string.sheetedit_pick_hint_mine)
-                        else -> stringResource(Res.string.sheetedit_pick_hint_songs)
-                    },
-                    size = 12,
-                )
-            }
-            LazyColumn(
-                Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                when (state.tab) {
-                    EditPickTab.Mine -> items(state.sheets, key = { it.id }) { sheet ->
-                        val target = EditPickTarget.Sheet(sheet.id)
-                        val meta = listOfNotNull(
-                            sheet.jangdanName?.let { jangdanLabel(it) },
-                            stringResource(Res.string.sheetedit_pick_meta_updated, monthDayLabel(sheet.updatedAt)),
-                        ).joinToString(" · ")
-                        PickRow(
-                            tile = stringResource(Res.string.sheetedit_pick_kind_jeongganbo),
-                            tileStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
-                            title = sheet.title,
-                            meta = meta,
-                            selected = state.picked == target,
-                            onClick = { onToggle(target) },
-                        )
+                StepLabel(stringResource(Res.string.sheetedit_pick_step_instrument))
+                // 악기 이름이 길어도 잘리지 않게 가로로 민다. 연습 악기 설정은 바꾸지 않는다.
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Instrument.entries.forEach { instrument ->
+                        PillChip(stringResource(instrument.label), selected = instrument == state.instrument, onClick = { onSelectInstrument(instrument) })
                     }
-                    EditPickTab.Songs -> {
-                        items(state.visibleSongs, key = { it.id }) { song ->
-                            val target = EditPickTarget.Song(song.id)
-                            PickRow(
-                                tile = song.title.take(1),
-                                tileStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
-                                title = song.title,
-                                meta = stringResource(Res.string.sheetedit_pick_meta, jangdanLabel(song.jangdanName), songLevelLabel(song.level)),
-                                selected = state.picked == target,
-                                onClick = { onToggle(target) },
-                            )
-                        }
-                        if (state.visibleSongs.isEmpty()) {
-                            item {
-                                Text(
-                                    stringResource(Res.string.sheetedit_pick_empty, state.query.trim()),
-                                    modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    color = EolssuTheme.colors.textMuted,
-                                    textAlign = TextAlign.Center,
+                }
+                StepLabel(stringResource(Res.string.sheetedit_pick_step_sheet))
+            }
+            if (state.load != EditPickLoad.Ready) {
+                PickStatus(state.load, onRetry, Modifier.weight(1f))
+            } else {
+                Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SegmentTabs(
+                        labels = listOf(stringResource(Res.string.mysongs_tab_sheets), stringResource(Res.string.mysongs_tab_songs)),
+                        selected = state.tab.ordinal,
+                        onSelect = { onSelectTab(EditPickTab.entries[it]) },
+                        large = true,
+                        counts = listOf(state.sheets.size, state.songs.size),
+                    )
+                    if (state.tab == EditPickTab.Songs) SongSearchField(state.query, onSearch, onClear = { onSearch("") })
+                    val picked = state.pickedTitle
+                    HintText(
+                        when {
+                            picked != null -> stringResource(Res.string.sheetedit_pick_hint_picked, picked)
+                            state.tab == EditPickTab.Mine -> stringResource(Res.string.sheetedit_pick_hint_mine)
+                            else -> stringResource(Res.string.sheetedit_pick_hint_songs)
+                        },
+                        size = 12,
+                    )
+                }
+                LazyColumn(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    when (state.tab) {
+                        EditPickTab.Mine -> {
+                            if (state.uncheckedSheets > 0) item { HintText(stringResource(Res.string.sheetedit_pick_unchecked, state.uncheckedSheets), size = 12) }
+                            if (state.sheets.isEmpty()) item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty_mine)) }
+                            items(state.sheets, key = { it.id }) { sheet ->
+                                val target = EditPickTarget.Sheet(sheet.id)
+                                val meta = listOfNotNull(
+                                    sheet.jangdanName?.let { jangdanLabel(it) },
+                                    stringResource(Res.string.sheetedit_pick_meta_updated, monthDayLabel(sheet.updatedAt)),
+                                ).joinToString(" · ")
+                                PickRow(
+                                    tile = stringResource(Res.string.sheetedit_pick_kind_jeongganbo),
+                                    tileStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold),
+                                    title = sheet.title,
+                                    meta = meta,
+                                    selected = state.picked == target,
+                                    onClick = { onToggle(target) },
                                 )
+                            }
+                        }
+                        EditPickTab.Songs -> {
+                            items(state.visibleSongs, key = { it.id }) { song ->
+                                val target = EditPickTarget.Song(song.id)
+                                PickRow(
+                                    tile = song.title.take(1),
+                                    tileStyle = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp),
+                                    title = song.title,
+                                    meta = stringResource(Res.string.sheetedit_pick_meta, jangdanLabel(song.jangdanName), songLevelLabel(song.level)),
+                                    selected = state.picked == target,
+                                    onClick = { onToggle(target) },
+                                )
+                            }
+                            if (state.songs.isEmpty()) {
+                                item { EmptyRow(stringResource(Res.string.sheetedit_pick_empty_songs)) }
+                            } else if (state.visibleSongs.isEmpty()) {
+                                item {
+                                    Text(
+                                        stringResource(Res.string.sheetedit_pick_empty, state.query.trim()),
+                                        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                                        color = EolssuTheme.colors.textMuted,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StepLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = EolssuTheme.colors.text)
+}
+
+@Composable
+private fun EmptyRow(text: String) {
+    Text(
+        text,
+        modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
+        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+        color = EolssuTheme.colors.textMuted,
+        textAlign = TextAlign.Center,
+    )
+}
+
+/** 악기를 고르기 전·불러오는 중·실패 안내. 실패하면 '다시 시도'를 둔다. 예시 악보로 대신하지 않는다. */
+@Composable
+private fun PickStatus(load: EditPickLoad, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        EmptyRow(
+            stringResource(
+                when (load) {
+                    EditPickLoad.Loading -> Res.string.sheetedit_pick_loading
+                    EditPickLoad.Failed -> Res.string.sheetedit_pick_failed
+                    else -> Res.string.sheetedit_pick_need_instrument
+                },
+            ),
+        )
+        if (load == EditPickLoad.Failed) PillChip(stringResource(Res.string.sheetedit_pick_retry), selected = false, onClick = onRetry)
     }
 }
 
