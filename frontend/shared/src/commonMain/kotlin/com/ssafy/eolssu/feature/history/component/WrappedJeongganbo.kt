@@ -19,7 +19,6 @@ import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 
 /**
@@ -85,7 +84,6 @@ internal fun WrappedJeongganbo(
                     look = JeongganboLook.Record,
                     metrics = metrics,
                     cellHeights = cellHeights,
-                    notation = ScoreNotation(showHangul = true),
                     currentIndex = currentIndex,
                     errors = errors,
                     onEventClick = { onEventClick(it.index) },
