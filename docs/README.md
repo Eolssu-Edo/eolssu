@@ -1,5 +1,7 @@
 # 프로젝트 문서
 
+- [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
+- [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
 - [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
 - [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
 - [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)

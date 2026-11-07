@@ -1,0 +1,30 @@
+<resources>
+    <string name="sheet_upload_prepare">업로드 준비</string>
+    <string name="sheet_upload_title">악보 올리기</string>
+    <string name="sheet_upload_name">악보 제목 (1~50자)</string>
+    <string name="sheet_upload_instrument">연주할 악기</string>
+    <string name="sheet_upload_jangdan">악보의 장단 (필수)</string>
+    <string name="sheet_upload_jangdan_help">정간보 인식에 사용할 장단을 먼저 골라 주세요.</string>
+    <string name="sheet_upload_pick">PDF·이미지 선택</string>
+    <string name="sheet_upload_reading">파일 읽는 중</string>
+    <string name="sheet_upload_limits">PDF 1개(최대 10쪽) 또는 PNG·JPEG 1~10장 · 합계 20MiB 이하. 이미지는 표시된 순서로 인식합니다.</string>
+    <string name="sheet_upload_send">악보 업로드</string>
+    <string name="sheet_upload_sending">업로드 중입니다. 접수 결과를 기다려 주세요.</string>
+    <string name="sheet_upload_accepted">악보 변환 요청을 접수했어요</string>
+    <string name="sheet_upload_accepted_help">인식 완료 전에는 악보를 편집할 수 없어요. 내 악보 목록으로 돌아가 주세요.</string>
+    <string name="sheet_upload_list">내 악보 목록으로</string>
+    <string name="sheet_upload_catalog_failed">악기·장단 목록을 불러오지 못했어요.</string>
+    <string name="sheet_upload_reload">목록 다시 불러오기</string>
+    <string name="sheet_upload_input_required">파일·제목·악기를 확인하고, 정간보라면 장단을 골라 주세요.</string>
+    <string name="sheet_upload_pick_failed">파일을 읽지 못했어요. PDF 또는 PNG·JPEG 파일을 다시 골라 주세요.</string>
+    <string name="sheet_upload_too_large">파일 합계가 20MiB를 넘어요. 더 작은 파일을 골라 주세요.</string>
+    <string name="sheet_upload_format">PDF 1개 또는 PNG·JPEG 1~10장만 선택할 수 있어요. PDF와 이미지를 함께 올릴 수 없어요.</string>
+    <string name="sheet_upload_pages">PDF는 최대 10쪽까지 올릴 수 있어요.</string>
+    <string name="sheet_upload_unreadable">파일을 해석할 수 없어요. 암호 없는 PDF 또는 다른 이미지를 골라 주세요.</string>
+    <string name="sheet_upload_in_progress">이미 변환 중인 악보가 있어요. 내 악보 목록을 확인해 주세요.</string>
+    <string name="sheet_upload_limit">내 악보는 최대 10개까지 보관할 수 있어요. 목록에서 정리한 뒤 다시 올려 주세요.</string>
+    <string name="sheet_upload_unavailable">지금은 악보 변환을 접수할 수 없어요. 잠시 후 다시 시도해 주세요.</string>
+    <string name="sheet_upload_conflict">접수 정보가 달라졌어요. 내 악보 목록을 먼저 확인해 주세요.</string>
+    <string name="sheet_upload_failed">접수를 확인하지 못했어요. 같은 파일로 다시 누르면 중복 접수를 방지해요.</string>
+    <string name="sheet_upload_expired">로그인 정보가 바뀌었어요. 화면을 닫고 다시 시작해 주세요.</string>
+</resources>
