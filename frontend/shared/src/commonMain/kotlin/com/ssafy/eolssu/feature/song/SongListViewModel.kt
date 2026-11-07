@@ -3,7 +3,10 @@ package com.ssafy.eolssu.feature.song
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.data.song.SongRepository
+import com.ssafy.eolssu.core.network.SignedInMember
+import com.ssafy.eolssu.core.network.screenScope
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,9 +15,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 
-class SongListViewModel(private val songRepository: SongRepository, private val instrumentRepository: InstrumentRepository) : ViewModel() {
+class SongListViewModel(
+    private val songRepository: SongRepository,
+    private val instrumentRepository: InstrumentRepository,
+    userRepository: UserRepository,
+    member: SignedInMember? = null,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(SongListUiState())
     val uiState: StateFlow<SongListUiState> = _uiState.asStateFlow()
+
+    private val accountScope = member.screenScope(viewModelScope) { instrumentSelection.clear() }
+
+    /** 상단 바 연습 악기 드롭다운. 고른 악기가 바뀌면 아래 [reloadForInstrument]로 곡 목록을 다시 받는다. */
+    internal val instrumentSelection: SongInstrumentSelection = SongInstrumentSelection(instrumentRepository, userRepository, accountScope)
 
     private var loadJob: Job? = null
     private var loadGeneration = 0

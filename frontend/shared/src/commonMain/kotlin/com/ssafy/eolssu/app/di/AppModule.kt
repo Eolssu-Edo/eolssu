@@ -69,7 +69,6 @@ import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
-import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
@@ -135,7 +134,6 @@ val appModule = module {
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get(), get()) }
 
-    viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).

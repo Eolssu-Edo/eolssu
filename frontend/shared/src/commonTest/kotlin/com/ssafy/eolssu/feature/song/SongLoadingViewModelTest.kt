@@ -24,7 +24,7 @@ class SongLoadingViewModelTest {
         try {
             val repo = CatalogStub()
             repo.offline = true
-            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()))
+            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), com.ssafy.eolssu.data.user.SampleUserRepository())
             advanceUntilIdle()
             assertEquals(SongLoadState.Failed, vm.uiState.value.loadState)
             vm.changeQuery("아리")
@@ -45,7 +45,7 @@ class SongLoadingViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val repo = CatalogStub().apply { songs = emptyList() }
-            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()))
+            val vm = SongListViewModel(repo, com.ssafy.eolssu.data.user.InstrumentRepository(com.ssafy.eolssu.core.storage.FakeKeyValueStore()), com.ssafy.eolssu.data.user.SampleUserRepository())
             advanceUntilIdle()
             assertEquals(SongLoadState.Ready, vm.uiState.value.loadState)
             assertEquals(emptyList(), vm.uiState.value.visibleSongs)
