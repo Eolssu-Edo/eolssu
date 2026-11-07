@@ -13,9 +13,13 @@ internal fun CommonScoreData.editingDraft(title: String, bpm: Int, jangdan: Jang
     columns.forEachIndexed { c, column -> column.cells.forEachIndexed { j, cell -> require(cell.id == "c$c-j$j" && cell.index == j) } }
     require(flat.all { cell -> cell.units.map { it.row to it.col } == cell.units.map { it.row to it.col }.distinct().sortedWith(compareBy({ it.first }, { it.second })) })
     return SheetDraft(title, jangdan, bpm, flat.map { it.editingNotes() },
-        flat.mapIndexedNotNull { i, cell ->
-            val event = byId[cell.units.firstOrNull()?.eventId]?.takeIf { it.cellId == cell.id }
-            Sigimsae.entries.firstOrNull { it.scoreName in event?.sigimsae.orEmpty() }?.let { i to it }
+        flat.flatMapIndexed { i, cell ->
+            // 이 정간에서 시작하는 이벤트만, 그 이벤트가 처음 나오는 소박 자리에 둔다(이음 자리는 앞 이벤트를 가리킨다).
+            val seen = mutableSetOf<String>()
+            cell.units.mapIndexedNotNull { sub, unit ->
+                val event = byId[unit.eventId]?.takeIf { it.cellId == cell.id && seen.add(unit.eventId) }
+                event?.sigimsae?.takeIf { it.isNotEmpty() }?.let { signs -> NoteSlot(i, sub) to signs.map(::Sigimsae) }
+            }
         }.toMap(), columns.map { it.cells.size }, flat.map { it.id }, this)
 }
 
@@ -37,7 +41,8 @@ private fun parseSourcePitch(symbol: String): ScoreNote.SourcePitch {
 internal fun SheetDraft.originalCell(index: Int): CommonScoreData.Cell? =
     sourceCellIds?.getOrNull(index)?.let(originalCells::get)
 
-private fun SheetDraft.layout(index: Int): List<CommonScoreData.Unit> {
+/** [index] 정간의 표시 자리(row/col) 목록. 순서는 [SheetDraft.cells]의 음 순서와 같다. */
+internal fun SheetDraft.layout(index: Int): List<CommonScoreData.Unit> {
     val cell = originalCell(index)
     if (cell != null && cell.editingNotes() == cells[index]) return cell.units
     return cells[index].mapIndexed { row, note ->
@@ -58,7 +63,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
     val initial = source.editingDraft(title, bpm, jangdan)
     if (cells == initial.cells && sizes == initial.sizes && sourceCellIds == initial.sourceCellIds && sigimsae == initial.sigimsae) return source.copy(score = source.score.copy(title = title))
     val byId = source.events.associateBy { it.id }
-    val initialSigns = initial.sigimsae.mapKeys { (index, _) -> initial.sourceCellIds?.get(index) }
+    val initialSigns = initial.sigimsae.mapKeys { (slot, _) -> initial.sourceCellIds?.get(slot.cell) to slot.sub }
     val layouts = cells.indices.map(::layout)
     var ticks = source.music.ticksPerJeonggan.toLong()
     fun gcd(a: Long, b: Long): Long = if (b == 0L) a else gcd(b, a % b)
@@ -80,7 +85,7 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
             val old = originalCell(index)
             val units = layouts[index]
             val rowGroups = units.groupBy { it.row }
-            val result = units.map { unit ->
+            val result = units.mapIndexed { sub, unit ->
                 val cellId = "c$c-j$j"
                 val id = "$cellId-r${unit.row}-u${unit.col}"
                 val start = index * ticks + ticks * unit.row / rowGroups.size + ticks * unit.col / rowGroups.size / rowGroups.getValue(unit.row).size
@@ -96,8 +101,9 @@ internal fun SheetDraft.toCommonScore(): CommonScoreData {
                 } else {
                     val note = if (unit.symbol == "쉼") null else parseSourcePitch(unit.symbol)
                     val prior = byId[unit.eventId] ?: old?.units?.firstOrNull { it.row == unit.row && it.col == unit.col }?.let { byId[it.eventId] }
-                    val first = unit == units.first()
-                    val signs = if (first && sigimsae[index] != initialSigns[old?.id]) prior?.sigimsae.orEmpty().filterNot { sign -> Sigimsae.entries.any { it.scoreName == sign } } + listOfNotNull(sigimsae[index]?.scoreName) else prior?.sigimsae.orEmpty()
+                    // 편집 상태는 소박마다 원본 시김새를 모두 담으므로, 바뀐 소박은 그 목록으로 통째로 바꾼다.
+                    val slot = NoteSlot(index, sub)
+                    val signs = if (sigimsae[slot] != initialSigns[old?.id to sub]) sigimsae[slot].orEmpty().map { it.scoreName } else prior?.sigimsae.orEmpty()
                     events += CommonScoreData.Event(id, if (note == null) "REST" else "NOTE", note?.yul, note?.octave,
                         start, length, cellId, prior?.breathAfter ?: false, signs)
                     CommonScoreData.Unit(unit.row, unit.col, unit.symbol, id)

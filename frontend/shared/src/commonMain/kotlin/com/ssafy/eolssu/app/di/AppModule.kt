@@ -206,9 +206,10 @@ val appModule = module {
     viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)
-    viewModelOf(::EditPickViewModel)
+    viewModel { EditPickViewModel(get(), get(), documents = get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
     single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get()) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get(),
+        songs = get(), pitchCatalog = get()) }
 }

@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.song.edit
 
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.data.song.validCatalogId
 
 /** EDIT-02 아래 입력판의 탭. */
@@ -63,9 +64,11 @@ enum class SheetEditMessage {
  * 음원은 서버에 저장된 내 악보([serverSheetId])가 있을 때만 SHT-12·13으로 만든다.
  *
  * @property selected 고른 정간 번호(연주 순서).
+ * @property selectedSub 나눈 정간에서 고른 소박 순서(위→아래, 같은 줄은 왼→오른쪽). null이면 정간 전체를 고쳤다.
  * @property past 실행 취소로 돌아갈 악보(최근 [HISTORY_LIMIT]개). [future]는 다시 실행할 악보.
  * @property staffKey 오선보에서 고른 음표. null이면 첫 음표.
- * @property showSigimsae 시김새를 정간 오른쪽에 작게 보인다.
+ * @property yulRegister 다음에 누를 율명에 붙일 음역 단계. 율명을 적으면 기본으로 돌아간다.
+ * @property availablePitches 서버에 등록된 (율명, 옥타브). 내 악보 저장은 이 음만 받는다. null이면 목록을 받지 못했다.
  * @property emptyWarning 빈 정간이 있어 저장할 수 없다는 경고 창이 열려 있다.
  * @property savedOnce 저장한 악보가 있다. 음원은 마지막으로 저장한 악보로 만든다.
  * @property audio 내 악보 음원 칸의 상태(없음·요청 중·만드는 중·준비됨·실패·확인 못 함).
@@ -75,12 +78,14 @@ data class SheetEditUiState(
     val draft: SheetDraft,
     val hwang: HwangPitch = HwangPitch.Default,
     val selected: Int = 0,
+    val selectedSub: Int? = null,
     val tab: EditTab = EditTab.Yul,
     val view: EditView = EditView.Jeongganbo,
     val past: List<SheetDraft> = emptyList(),
     val future: List<SheetDraft> = emptyList(),
     val staffKey: StaffNoteKey? = null,
-    val showSigimsae: Boolean = true,
+    val yulRegister: YulRegister = YulRegister.Base,
+    val availablePitches: Set<Pair<String, Int>>? = null,
     val previewPlaying: Boolean = false,
     val withJangdan: Boolean = true,
     val emptyWarning: Boolean = false,
@@ -100,33 +105,76 @@ data class SheetEditUiState(
     val pendingChecks: Int get() = (source as? EditSource.Import)?.pendingChecks ?: 0
 
     /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. */
-    private fun commit(next: SheetDraft, selected: Int = this.selected): SheetEditUiState {
-        if (next == draft) return copy(selected = selected)
+    /** 악보를 바꾼다. 바뀌지 않았으면 기록을 남기지 않는다. 고른 소박은 그 정간이 여전히 나뉘어 있을 때만 남긴다. */
+    private fun commit(next: SheetDraft, selected: Int = this.selected, sub: Int? = if (selected == this.selected) selectedSub else null): SheetEditUiState {
+        val index = selected.coerceIn(0, next.cells.lastIndex)
+        val keptSub = sub?.takeIf { next.cells[index].size > 1 && it in next.cells[index].indices }
+        if (next == draft) return copy(selected = index, selectedSub = keptSub)
         return copy(
             draft = next,
             past = (past + draft).takeLast(HISTORY_LIMIT),
             future = emptyList(),
-            selected = selected.coerceIn(0, next.cells.lastIndex),
+            selected = index,
+            selectedSub = keptSub,
         )
     }
 
-    fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex))
+    fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex), selectedSub = null)
 
-    /** 자판의 율명·기호를 고른 정간에 적고, 정간이 다 차면 다음 정간으로 넘어간다. */
-    fun put(note: ScoreNote): SheetEditUiState {
-        val (next, advance) = draft.put(selected, note)
-        return commit(next, if (advance) (selected + 1).coerceAtMost(next.cells.lastIndex) else selected)
+    /** 악보에서 소박 하나를 눌렀다. 나눈 정간이면 그 소박만 고르고, 아니면 정간 전체를 고른다. */
+    fun selectUnit(index: Int, sub: Int): SheetEditUiState {
+        val cell = index.coerceIn(0, draft.cells.lastIndex)
+        val notes = draft.cells[cell]
+        return copy(selected = cell, selectedSub = sub.takeIf { notes.size > 1 && it in notes.indices })
     }
 
-    fun erase(): SheetEditUiState = commit(draft.erase(selected))
+    /**
+     * 자판의 율명·기호를 적는다. 소박을 골랐으면 그 소박만 바꾸고 같은 정간의 다음 소박으로(마지막이면 다음 정간으로) 간다.
+     * 아니면 정간에 적고, 정간이 다 차면 다음 정간으로 넘어간다.
+     */
+    fun put(note: ScoreNote): SheetEditUiState {
+        val sub = selectedSub
+        if (sub != null && draft.cells[selected].size > 1) {
+            val next = draft.putAt(selected, sub, note)
+            return if (sub + 1 < next.cells[selected].size) commit(next, selected, sub + 1)
+            else commit(next, (selected + 1).coerceAtMost(next.cells.lastIndex), null)
+        }
+        val (next, advance) = draft.put(selected, note)
+        return commit(next, if (advance) (selected + 1).coerceAtMost(next.cells.lastIndex) else selected, null)
+    }
 
-    fun putSigimsae(value: Sigimsae): SheetEditUiState = commit(draft.withSigimsae(selected, value))
+    /** '청': 청성 → 중청성 → 기본. 탁 쪽에서 누르면 바로 청성이다. */
+    fun raiseRegister(): SheetEditUiState = copy(yulRegister = yulRegister.higher())
 
-    fun clearSigimsae(): SheetEditUiState = commit(draft.withSigimsae(selected, null))
+    /** '탁': 탁성 → 배탁성 → 기본. 청 쪽에서 누르면 바로 탁성이다. */
+    fun lowerRegister(): SheetEditUiState = copy(yulRegister = yulRegister.lower())
 
-    fun split(): SheetEditUiState = commit(draft.split(selected))
+    fun resetRegister(): SheetEditUiState = copy(yulRegister = YulRegister.Base)
 
-    fun merge(): SheetEditUiState = commit(draft.merge(selected))
+    /** 지금 음역 단계를 붙여 [base]를 적는다. 서버에 등록되지 않은 음은 적지 않는다. 적고 나면 음역은 기본으로 돌아간다. */
+    fun putYul(base: Yul): SheetEditUiState = putYul(base, yulRegister.octave)
+
+    /** 버튼과 직접 입력이 함께 쓰는 율명 입력. 같은 음 데이터([SheetDraft.pitchNote])로 적는다. */
+    fun putYul(base: Yul, octave: Int): SheetEditUiState {
+        if (!isAvailablePitch(availablePitches, base, octave)) return this
+        return put(draft.pitchNote(base, octave)).copy(yulRegister = YulRegister.Base)
+    }
+
+    /** 고른 소박만, 소박을 고르지 않았으면 정간 전체를 지운다. */
+    fun erase(): SheetEditUiState = selectedSub?.let { commit(draft.eraseAt(selected, it)) } ?: commit(draft.erase(selected), sub = null)
+
+    /** 시김새를 붙일 소박. 고른 소박이 있으면 그 소박, 아니면 정간의 첫 율명 소박이다. */
+    val sigimsaeSub: Int get() = draft.sigimsaeSub(selected, selectedSub)
+
+    /** 고른 소박에 시김새를 붙이거나(끝에 추가) 이미 있으면 뗀다. */
+    fun toggleSigimsae(value: Sigimsae): SheetEditUiState = commit(draft.toggleSigimsae(selected, value, sigimsaeSub))
+
+    fun removeSigimsae(position: Int): SheetEditUiState = commit(draft.removeSigimsae(selected, position, sigimsaeSub))
+
+
+    fun split(): SheetEditUiState = commit(draft.split(selected), sub = null)
+
+    fun merge(): SheetEditUiState = commit(draft.merge(selected), sub = null)
 
     /** 고른 정간의 각 왼쪽에 빈 각을 넣고 새 각의 첫 정간을 고른다. */
     fun addColumn(): SheetEditUiState {
@@ -145,19 +193,19 @@ data class SheetEditUiState(
 
     fun undo(): SheetEditUiState {
         val previous = past.lastOrNull() ?: return this
-        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future, selected = selected.coerceIn(0, previous.cells.lastIndex))
+        return copy(draft = previous, past = past.dropLast(1), future = listOf(draft) + future, selected = selected.coerceIn(0, previous.cells.lastIndex), selectedSub = null)
     }
 
     fun redo(): SheetEditUiState {
         val next = future.firstOrNull() ?: return this
-        return copy(draft = next, past = past + draft, future = future.drop(1), selected = selected.coerceIn(0, next.cells.lastIndex))
+        return copy(draft = next, past = past + draft, future = future.drop(1), selected = selected.coerceIn(0, next.cells.lastIndex), selectedSub = null)
     }
 
     /** 오선보에서 고른 음표. */
     fun staffNote(notes: List<StaffNote> = staffNotes(draft)): StaffNote? = notes.pick(staffKey)
 
     /** 오선보에서 음표를 고르면 정간보의 선택도 그 음표가 시작하는 정간으로 옮긴다. */
-    fun selectStaffNote(key: StaffNoteKey): SheetEditUiState = copy(staffKey = key, selected = key.start)
+    fun selectStaffNote(key: StaffNoteKey): SheetEditUiState = copy(staffKey = key, selected = key.start, selectedSub = null)
 
     /** 오선보에서 고른 음표의 높이를 [steps]만큼 바꾼다. 쉼표는 바꾸지 않는다. */
     fun shiftStaffNote(steps: Int): SheetEditUiState {
@@ -190,7 +238,7 @@ data class SheetEditUiState(
     /** 경고 창의 '빈 정간 채우기': 첫 빈 정간을 고르고 정간보 율명 입력으로 돌아간다. */
     fun fillEmpty(): SheetEditUiState {
         val first = draft.unfilledCells.firstOrNull() ?: selected
-        return copy(emptyWarning = false, selected = first, view = EditView.Jeongganbo, tab = EditTab.Yul)
+        return copy(emptyWarning = false, selected = first, selectedSub = null, view = EditView.Jeongganbo, tab = EditTab.Yul)
     }
 
     companion object {

@@ -3,6 +3,9 @@ package com.ssafy.eolssu.feature.song.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Yul
+import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
+import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocument
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
@@ -38,6 +41,8 @@ import kotlinx.coroutines.launch
  *
  * @param instruments 음원 악기로 보낼 회원 선택 악기. 없으면 서버 기본(단소).
  * @param now 서명 URL 만료 판단에 쓰는 현재 시각(epoch ms).
+ * @param songs 제공 곡 복사본(Edit-Copy)의 원본 악보(CAT-04). 없으면 예시 곡으로 연다.
+ * @param pitchCatalog 서버에 등록된 율명·옥타브(CAT-06). 율명 입력판은 이 음만 적는다.
  */
 class SheetEditViewModel(
     source: EditSource,
@@ -48,13 +53,20 @@ class SheetEditViewModel(
     private val now: () -> Long = { 0L },
     private val documents: SheetDocumentRepository? = null,
     member: SignedInMember? = null,
+    private val songs: SongRepository? = null,
+    private val pitchCatalog: ReferenceCatalogRepository? = null,
 ) : ViewModel() {
+    /** 서버 문서나 제공 곡 원본을 읽어 와야 여는 경로. 읽기 전에는 예시 악보를 보이지 않는다. */
+    private val loadsRemote = (documents != null && source is EditSource.Mine) || (songs != null && source is EditSource.CopySong)
     private val _uiState = MutableStateFlow(
         SheetEditUiState.initial(source,
-            if (documents != null && source is EditSource.Mine) SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1))
+            if (loadsRemote) SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1))
             else SheetEditSamples.draftFor(source, mySheetRepository.sheets.value), startView)
-            .copy(documentLoading = documents != null && source is EditSource.Mine),
+            .copy(documentLoading = loadsRemote),
     )
+
+    /** 서버에 저장할 수 없는 악보(예시·제공 곡 복사본)의 처음 상태. 고친 뒤 닫으면 버릴지 묻는다. */
+    private var baseline: SheetDraft? = if (loadsRemote) null else _uiState.value.draft
     val uiState: StateFlow<SheetEditUiState> = _uiState.asStateFlow()
 
     /** 음원 요청·상태 조회 작업. 한 번에 하나만 돈다. */
@@ -69,6 +81,7 @@ class SheetEditViewModel(
     private var revision = 0
     private val accountScope = member.screenScope(viewModelScope) {
         loaded = null
+        baseline = null
         persistedDraft = null
         version = ""
         _uiState.update { it.copy(draft = SheetDraft("", null, 60, listOf(emptyList()), columnSizes = listOf(1)),
@@ -77,8 +90,18 @@ class SheetEditViewModel(
     }
 
     init {
-        if (documents != null && source is EditSource.Mine) loadDocument()
+        if (loadsRemote) loadDocument()
         else if (_uiState.value.serverSheetId != null) refreshAudio(announce = false)
+        loadPitches()
+    }
+
+    /** 등록 음 목록. 받지 못하면 null로 두고 저장 때 서버가 확인한다. */
+    private fun loadPitches() {
+        val catalog = pitchCatalog ?: return
+        viewModelScope.launch {
+            val pitches = try { catalog.allPitches() } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { return@launch }
+            _uiState.update { it.copy(availablePitches = pitches.map { pitch -> pitch.yul to pitch.octave }.toSet()) }
+        }
     }
 
     private fun change(transform: (SheetEditUiState) -> SheetEditUiState) {
@@ -92,6 +115,7 @@ class SheetEditViewModel(
     }
 
     fun loadDocument() {
+        if ((_uiState.value.source as? EditSource.CopySong) != null) { loadSongCopy(); return }
         val repository = documents ?: return
         val id = _uiState.value.serverSheetId ?: return
         if (!accountScope.isActive || loadJob?.isActive == true || loaded != null) return
@@ -111,6 +135,25 @@ class SheetEditViewModel(
                     documentLoading = false, documentFailed = false, savedOnce = document.score != null,
                     withJangdan = document.jangdanId != null, saveConflict = false, view = EditView.Jeongganbo) }
                 refreshAudio(announce = false)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { _uiState.update { it.copy(documentLoading = false, documentFailed = true) } }
+        }
+    }
+
+    /** 제공 곡 복사본: CAT-04 원본의 각·정간 배치와 시김새를 그대로 편집 상태로 옮긴다. 원본 곡은 바꾸지 않는다. */
+    private fun loadSongCopy() {
+        val repository = songs ?: return
+        val songId = (_uiState.value.source as? EditSource.CopySong)?.songId ?: return
+        if (!accountScope.isActive || loadJob?.isActive == true || baseline != null) return
+        _uiState.update { it.copy(documentLoading = true, documentFailed = false) }
+        loadJob = accountScope.launch {
+            try {
+                val editable = repository.getEditableSong(songId) ?: error("곡 조회 실패")
+                val song = editable.song
+                val draft = editable.score.editingDraft(SheetEditSamples.copyTitle(song.title), song.baseBpm, song.jangdan)
+                baseline = draft
+                _uiState.update { it.copy(draft = draft, selected = 0, past = emptyList(), future = emptyList(),
+                    documentLoading = false, documentFailed = false, view = EditView.Jeongganbo) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { _uiState.update { it.copy(documentLoading = false, documentFailed = true) } }
         }
@@ -159,7 +202,14 @@ class SheetEditViewModel(
     /** 자동 저장 대기 중 닫아도 현재 편집을 먼저 저장하고, 실패하면 화면을 유지한다. */
     fun closeEditor(onClose: () -> Unit) {
         if (!accountScope.isActive || closeJob?.isActive == true) return
-        if (loaded == null || (persistedDraft == _uiState.value.draft && !_uiState.value.saving && !_uiState.value.saveConflict)) { onClose(); return }
+        if (loaded == null) {
+            // 서버에 저장할 수 없는 악보는 고친 내용이 닫으면 사라지므로 먼저 묻는다.
+            val start = baseline
+            if (start != null && _uiState.value.draft != start && !_uiState.value.documentFailed) _uiState.update { it.copy(closeWarning = true) }
+            else onClose()
+            return
+        }
+        if ((persistedDraft == _uiState.value.draft && !_uiState.value.saving && !_uiState.value.saveConflict)) { onClose(); return }
         autoSaveJob?.cancel()
         val write = persist(draft = true, announce = false)
         closeJob = accountScope.launch {
@@ -179,11 +229,16 @@ class SheetEditViewModel(
     }
 
     fun selectCell(index: Int) = change { it.select(index) }
+    fun selectUnit(index: Int, sub: Int) = change { it.selectUnit(index, sub) }
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
-    fun putSigimsae(value: Sigimsae) = change { it.putSigimsae(value) }
-    fun clearSigimsae() = change { it.clearSigimsae() }
-    fun toggleSigimsae() = change { it.copy(showSigimsae = !it.showSigimsae) }
+    fun putYul(base: Yul) = change { it.putYul(base) }
+    fun putYul(base: Yul, octave: Int) = change { it.putYul(base, octave) }
+    fun raiseRegister() = change { it.raiseRegister() }
+    fun lowerRegister() = change { it.lowerRegister() }
+    fun resetRegister() = change { it.resetRegister() }
+    fun toggleSigimsae(value: Sigimsae) = change { it.toggleSigimsae(value) }
+    fun removeSigimsae(position: Int) = change { it.removeSigimsae(position) }
     fun split() = change { it.split() }
     fun merge() = change { it.merge() }
     fun addColumn() = change { it.addColumn() }

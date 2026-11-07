@@ -32,7 +32,12 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
         return songs
     }
 
-    override suspend fun getSong(songId: String): Song? {
+    override suspend fun getSong(songId: String): Song? = load(songId)?.song
+
+    override suspend fun getEditableSong(songId: String): EditableSong? = load(songId)
+
+    /** CAT-01·04를 함께 검증한다. 편집기는 화면 모델과 함께 원본 공통 악보도 받는다. */
+    private suspend fun load(songId: String): EditableSong? {
         if (!validCatalogId(songId)) return null
         val response = client.sendOrNull { get("/api/songs/$songId") } ?: throw CatalogUnavailable()
         if (response.status.value == 404) return null
@@ -68,7 +73,7 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
             (jangdan != null && (timing.jangdan != jangdan.name || timing.bpmUnit.name != jangdan.bpmUnit)) ||
             score.timeline(songId).count { it.noteIndex != null } != item.noteCount
         ) throw CatalogUnavailable()
-        return Song(
+        return EditableSong(Song(
             id = songId,
             title = item.title,
             level = level,
@@ -89,7 +94,7 @@ class ApiSongRepository(private val client: HttpClient) : SongRepository {
                 if (playback.name != expectedName || playback.startTick >= timeline.last().let { requireNotNull(it.startTick) + requireNotNull(it.durationTick) }) throw CatalogUnavailable()
                 runCatching { playback.model() }.getOrElse { throw CatalogUnavailable() }
             },
-        )
+        ), common)
     }
 }
 

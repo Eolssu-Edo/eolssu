@@ -81,7 +81,7 @@
 
     <!-- EditPick 불러올 악보 고르기 -->
     <string name="sheetedit_pick_title">불러올 악보 고르기</string>
-    <string name="sheetedit_pick_subtitle">원본은 그대로 두고 고쳐요</string>
+    <string name="sheetedit_pick_subtitle">악기를 고른 뒤 그 악기의 악보를 골라요</string>
     <string name="sheetedit_pick_confirm">선택</string>
     <string name="sheetedit_pick_hint_mine">고르고 ‘선택’을 누르면 바로 편집해요</string>
     <string name="sheetedit_pick_hint_songs">제공 곡은 복사본으로 고쳐요</string>
@@ -114,16 +114,9 @@
     <string name="sheetedit_key_input">%1$s 입력</string>
     <string name="sheetedit_erase">선택한 정간 지우기</string>
     <string name="sheetedit_sig_yoseong">요성</string>
-    <string name="sheetedit_sig_yoseong_desc">음을 떨어 주는 소리</string>
     <string name="sheetedit_sig_toeseong">퇴성</string>
-    <string name="sheetedit_sig_toeseong_desc">음 끝을 흘려 내리는 소리</string>
     <string name="sheetedit_sig_chuseong">추성</string>
-    <string name="sheetedit_sig_chuseong_desc">음 끝을 밀어 올리는 소리</string>
     <string name="sheetedit_sig_jeonseong">전성</string>
-    <string name="sheetedit_sig_jeonseong_desc">음을 굴려 꺾는 소리</string>
-    <string name="sheetedit_sig_show">시김새 작게 표시</string>
-    <string name="sheetedit_sig_show_desc">율명 오른쪽에 작게 적어요</string>
-    <string name="sheetedit_sig_clear">선택한 정간의 시김새 지우기</string>
     <string name="sheetedit_cell_split">한 정간 나누기</string>
     <string name="sheetedit_cell_merge">정간 합치기</string>
     <string name="sheetedit_cell_add_column">왼쪽에 각 추가</string>
@@ -200,4 +193,40 @@
     <string name="sheetedit_msg_audio_busy">음원 서버에 연결하지 못했어요 · 잠시 후 다시 해 주세요</string>
     <string name="sheetedit_msg_audio_unknown">음원 상태를 확인하지 못했어요 · 미리보기에서 다시 확인해 주세요</string>
     <string name="sheetedit_msg_audio_link_failed">파일 주소를 열지 못했어요</string>
+    <string name="sheetedit_pick_step_instrument">1. 편집할 악기</string>
+    <string name="sheetedit_pick_step_sheet">2. 편집할 악보</string>
+    <string name="sheetedit_pick_need_instrument">악기를 고르면 그 악기의 악보만 보여요</string>
+    <string name="sheetedit_pick_loading">악보 목록을 불러오는 중이에요</string>
+    <string name="sheetedit_pick_failed">악보 목록을 불러오지 못했어요</string>
+    <string name="sheetedit_pick_retry">다시 시도</string>
+    <string name="sheetedit_pick_empty_mine">이 악기로 만든 내 악보가 없어요</string>
+    <string name="sheetedit_pick_empty_songs">이 악기의 제공 곡이 없어요</string>
+    <string name="sheetedit_pick_unchecked">악기를 확인하지 못한 내 악보 %1$d개는 목록에서 뺐어요</string>
+    <string name="sheetedit_register_tak">탁</string>
+    <string name="sheetedit_register_cheong">청</string>
+    <string name="sheetedit_register_reset">기본</string>
+    <string name="sheetedit_register_baetak">배탁성</string>
+    <string name="sheetedit_register_tak_name">탁성</string>
+    <string name="sheetedit_register_base">기본음</string>
+    <string name="sheetedit_register_cheong_name">청성</string>
+    <string name="sheetedit_register_jungcheong">중청성</string>
+    <string name="sheetedit_register_baetak_short">배탁</string>
+    <string name="sheetedit_register_jungcheong_short">중청</string>
+    <string name="sheetedit_selected_sub">소박 %1$d/%2$d</string>
+    <string name="sheetedit_register_now">음역 · %1$s</string>
+    <string name="sheetedit_register_hint">한 번 더 누르면 배탁·중청, 율명을 적으면 기본으로 돌아가요</string>
+    <string name="sheetedit_yul_scroll_hint">좌우로 밀어 12율을 모두 볼 수 있어요</string>
+    <string name="sheetedit_key_unavailable">%1$s · 등록되지 않은 음</string>
+    <string name="sheetedit_text_label">한글로 입력</string>
+    <string name="sheetedit_text_placeholder">예: 태 · 청태 · 중청태 · 탁태</string>
+    <string name="sheetedit_text_submit">완료</string>
+    <string name="sheetedit_text_preview">%1$s(으)로 적어요</string>
+    <string name="sheetedit_text_unknown">‘%1$s’은(는) 율명으로 읽을 수 없어요</string>
+    <string name="sheetedit_text_incomplete">음역 뒤에 율명을 이어서 써 주세요</string>
+    <string name="sheetedit_text_unavailable">%1$s은(는) 등록된 음이 아니라 적을 수 없어요</string>
+    <string name="sheetedit_sig_none">이 정간에 붙인 시김새가 없어요</string>
+    <string name="sheetedit_sig_need_pitch">율명에만 시김새를 붙일 수 있어요</string>
+    <string name="sheetedit_sig_limit">한 정간에 %1$d개까지 붙일 수 있어요</string>
+    <string name="sheetedit_sig_scroll_hint">좌우로 밀어 시김새 %1$d가지를 모두 볼 수 있어요</string>
+    <string name="sheetedit_sig_remove">%1$s 떼기</string>
 </resources>
