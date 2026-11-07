@@ -1,12 +1,13 @@
 ---
 title: "Jenkins 대기와 Wasm 최적화 시간을 따로 잰 이유"
-date: 2026-11-06T00:00:00+09:00
+date: 2026-11-04T00:00:00+09:00
 slug: "jenkins-wasm-build-bottleneck"
 author: "우동균"
 categories: ["infra"]
 tags: ["Jenkins", "Gradle", "Kotlin/Wasm", "CI"]
 description: "Jenkins의 단계별 시간으로 실행기 대기와 Wasm 최적화 병목을 구분하고, 같은 입력에서 최적화 시간과 파일 크기를 비교했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-jenkins-wasm-build-bottleneck.webp"
 ---
 
 얼쑤의 Jenkins 빌드가 길어졌을 때, 저는 완료 화면의 전체 시간부터 단계별로 쪼개 봤습니다. 백엔드 빌드에서는 시작 기록이 남은 뒤 첫 단계까지 14분 넘게 걸렸고, 별도의 웹 빌드에서는 실제로 실행기에 올라간 뒤 Wasm 최적화 도중 시간 제한에 걸렸습니다. 두 경우 모두 빌드가 오래 걸렸지만, 손봐야 할 곳은 달랐습니다.

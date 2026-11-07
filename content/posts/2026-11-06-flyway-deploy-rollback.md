@@ -7,6 +7,7 @@ categories: ["infra"]
 tags: ["Flyway", "MySQL", "배포", "롤백"]
 description: "Flyway를 앱 교체 직전에 실행하도록 배포를 바꾸고, 이전 앱이 새 스키마에서도 동작하도록 적용 범위와 실패 처리를 정한 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-flyway-deploy-rollback.webp"
 ---
 
 새 버전이 배포된 뒤 readiness는 `UP`이었는데, 모범 음원 조회는 HTTP 500을 반환했습니다. 새 앱은 음원의 저장소 객체 키를 읽으려 했고, 운영 DB에는 그 컬럼이 아직 없었습니다. 실행 중인 앱을 그대로 두고 밀린 마이그레이션을 적용하자 같은 요청은 게시된 음원이 없을 때의 응답인 404로 바뀌었습니다. DB 연결이 정상이어도 새 쿼리에 필요한 컬럼이 준비됐는지는 별도로 확인해야 했습니다.

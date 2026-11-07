@@ -1,12 +1,13 @@
 ---
 title: "같은 녹음을 다시 분석할 때 늦게 온 결과를 버리는 법"
-date: 2026-11-06T00:00:00+09:00
+date: 2026-11-07T00:00:00+09:00
 slug: "recording-analysis-retry"
 author: "우동균"
 categories: ["backend"]
 tags: ["비동기 처리", "재시도", "MySQL"]
 description: "얼쑤에서 같은 녹음으로 분석을 재시도하고, 시도 번호와 마감 조건으로 늦은 결과가 새 시도를 덮지 않게 한 과정을 소개합니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-recording-analysis-retry.webp"
 ---
 
 얼쑤에서 사용자가 연주 녹음을 보내면 앱은 분석 접수를 확인하고 결과를 기다립니다. 분석 서버에 일시적으로 연결하지 못해도 원본 파일은 서버에 남습니다. 저는 사용자가 그 녹음으로 분석을 다시 요청할 수 있게 했습니다.
