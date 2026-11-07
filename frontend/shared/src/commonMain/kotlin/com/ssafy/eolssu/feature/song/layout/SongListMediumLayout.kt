@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.layout
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -18,12 +19,19 @@ import org.jetbrains.compose.resources.stringResource
  * 720dp 내용 너비로 그대로 쓴다(보드 공통 CSS의 태블릿 `.page-body` 좌우 40px). 곡을 누르면 곡 상세로 간다.
  */
 @Composable
-internal fun SongListMediumLayout(state: SongListUiState, actions: SongListActions) {
+internal fun SongListMediumLayout(
+    state: SongListUiState,
+    actions: SongListActions,
+    snackbarHostState: SnackbarHostState,
+    instrumentPicker: @Composable () -> Unit,
+) {
     SongTabletScaffold(
         expanded = false,
         title = stringResource(Res.string.song_list_title),
         onBack = actions.onBack,
         pageTopBar = true,
+        snackbarHostState = snackbarHostState,
+        topBarRight = { instrumentPicker() },
     ) { gutter ->
         LazyColumn(
             Modifier.fillMaxSize(),

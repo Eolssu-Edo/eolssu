@@ -1,4 +1,4 @@
-package com.ssafy.eolssu.feature.home
+package com.ssafy.eolssu.feature.song
 
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.network.ServerAddress
@@ -9,6 +9,7 @@ import com.ssafy.eolssu.data.user.ApiUserRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.MemberResult
 import com.ssafy.eolssu.data.user.SampleUserRepository
+import com.ssafy.eolssu.data.user.UserRepository
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -16,27 +17,32 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-/** HOME-01은 현재 악기를 보여 주고, 상단 드롭다운의 선택을 마이페이지와 같은 절차로 서버에 반영한다. */
-class HomeViewModelTest {
+/** 곡 고르기 화면(SONG-01 · SONG-03) 상단 바의 연습 악기 드롭다운은 마이페이지와 같은 절차로 서버에 반영하고, 고른 악기를 함께 나눈다. */
+class SongInstrumentSelectionTest {
+    private fun selection(instruments: InstrumentRepository, users: UserRepository = SampleUserRepository()) =
+        SongInstrumentSelection(instruments, users, CoroutineScope(SupervisorJob()))
+
     @Test
     fun startsWithDanso() {
-        assertEquals(Instrument.Danso, HomeViewModel(InstrumentRepository(FakeKeyValueStore()), SampleUserRepository()).instrument.value)
+        assertEquals(Instrument.Danso, selection(InstrumentRepository(FakeKeyValueStore())).instrument.value)
     }
 
     @Test
     fun showsInstrumentChosenElsewhere() {
         val repository = InstrumentRepository(FakeKeyValueStore())
-        val viewModel = HomeViewModel(repository, SampleUserRepository())
+        val model = selection(repository)
 
         repository.select(Instrument.Sogeum)
 
-        assertEquals(Instrument.Sogeum, viewModel.instrument.value)
+        assertEquals(Instrument.Sogeum, model.instrument.value)
     }
 
     @Test
@@ -59,15 +65,15 @@ class HomeViewModelTest {
             val instruments = InstrumentRepository(FakeKeyValueStore(), InstrumentCatalog(client))
             val users = ApiUserRepository(client, null, instruments)
             assertEquals(MemberResult.Done, users.refresh())
-            val model = HomeViewModel(instruments, users)
+            val model = selection(instruments, users)
             assertEquals(Instrument.Danso, model.instrument.value)
 
-            assertEquals(MemberResult.Done, model.selectInstrument(Instrument.DaegeumSanjo))
+            assertEquals(MemberResult.Done, model.select(Instrument.DaegeumSanjo))
 
             assertEquals(Instrument.DaegeumSanjo, model.instrument.value)
             assertEquals("92", users.profile.value.instrumentId)
-            assertFalse(model.savingInstrument.value)
-            assertNull(model.selectInstrument(Instrument.DaegeumSanjo))
+            assertFalse(model.saving.value)
+            assertNull(model.select(Instrument.DaegeumSanjo))
             assertEquals(1, patches)
         } finally { client.close() }
     }
@@ -85,12 +91,12 @@ class HomeViewModelTest {
             val instruments = InstrumentRepository(FakeKeyValueStore(), InstrumentCatalog(client))
             val users = ApiUserRepository(client, null, instruments)
             assertEquals(MemberResult.Done, users.refresh())
-            val model = HomeViewModel(instruments, users)
+            val model = selection(instruments, users)
 
-            assertEquals(MemberResult.RateLimited, model.selectInstrument(Instrument.DaegeumSanjo))
+            assertEquals(MemberResult.RateLimited, model.select(Instrument.DaegeumSanjo))
 
             assertEquals(Instrument.Danso, model.instrument.value)
-            assertFalse(model.savingInstrument.value)
+            assertFalse(model.saving.value)
         } finally { client.close() }
     }
 

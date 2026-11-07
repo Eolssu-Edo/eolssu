@@ -4,3 +4,6 @@ import androidx.compose.runtime.Composable
 
 @Composable
 internal actual fun rememberHomeEnvironment() = HomeEnvironment()
+
+@Composable
+internal actual fun rememberHomeAppExit(): (() -> Unit)? = null
