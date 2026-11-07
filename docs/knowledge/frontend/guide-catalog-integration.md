@@ -190,3 +190,7 @@ MR 링크뿐이다. BE·DATA는 이전 검증본 `229bf1fd`와 코드·설정·�
 결과를 재사용했다. DB 검사와 실기기 청음을 이번 분리에서 새로 수행하지는 않았다.
 검증 요약과 실행 로그는 로컬 통합 worktree의 Git 제외 경로
 `data/processed/jangdan-fe-be-split-verification/summary.json`에 기록했다.
+
+## 이후 변경
+
+2026-11-07 S15P31E102-550에서 정간보 쉽게 읽기의 `장단·기호 자료` 창과 `ReadingCatalogViewModel`을 지웠다. 서버 조회 Repository는 남겼다. [출처 통합 기록](data-source-consolidation.md)을 따른다.

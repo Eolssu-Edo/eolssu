@@ -4,10 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -22,8 +18,6 @@ class ReferenceAudioController(
     val playback: AudioPlaybackState,
     val play: (ReferenceAudioSelection, ReferenceAudioKind) -> Unit,
     val retry: () -> Unit,
-    val openSource: () -> Unit,
-    val sourceLinkFailed: Boolean,
 )
 
 @Composable
@@ -35,8 +29,6 @@ fun rememberReferenceAudioController(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val player = rememberReferenceAudioPlayer()
     val playback by player.state.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
-    var sourceLinkFailed by remember(instrument) { mutableStateOf(false) }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.stop() }
     LaunchedEffect(instrument, resetKey) {
         player.stop()
@@ -48,12 +40,5 @@ fun rememberReferenceAudioController(
         playback = playback,
         play = { selection, kind -> viewModel.uiState.value.clipFor(selection, kind)?.let { toggleReferenceAudio(player, it) } },
         retry = { player.stop(); viewModel.retry() },
-        openSource = {
-            player.stop()
-            sourceLinkFailed = false
-            try { uriHandler.openUri("https://www.gugak.go.kr/digitaleum/front/monotone/list.do") }
-            catch (_: Exception) { sourceLinkFailed = true }
-        },
-        sourceLinkFailed = sourceLinkFailed,
     )
 }

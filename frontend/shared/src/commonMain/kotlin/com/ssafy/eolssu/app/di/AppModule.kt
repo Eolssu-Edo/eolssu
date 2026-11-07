@@ -31,7 +31,6 @@ import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
 import com.ssafy.eolssu.data.song.ReferenceAudioRepository
 import com.ssafy.eolssu.data.song.ApiReferenceAudioRepository
 import com.ssafy.eolssu.feature.guide.ReferenceAudioViewModel
-import com.ssafy.eolssu.feature.guide.ReadingCatalogViewModel
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import com.ssafy.eolssu.data.song.ApiModelAudioRepository
@@ -153,7 +152,6 @@ val appModule = module {
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
-    viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
     viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }

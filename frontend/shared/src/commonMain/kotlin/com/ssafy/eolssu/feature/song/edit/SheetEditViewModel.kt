@@ -179,8 +179,6 @@ class SheetEditViewModel(
     }
 
     fun selectCell(index: Int) = change { it.select(index) }
-    fun previousCell() = change { it.moveSelection(-1) }
-    fun nextCell() = change { it.moveSelection(1) }
     fun put(note: ScoreNote) = change { it.put(note) }
     fun erase() = change { it.erase() }
     fun putSigimsae(value: Sigimsae) = change { it.putSigimsae(value) }

@@ -112,8 +112,6 @@ data class SheetEditUiState(
 
     fun select(index: Int): SheetEditUiState = copy(selected = index.coerceIn(0, draft.cells.lastIndex))
 
-    fun moveSelection(delta: Int): SheetEditUiState = select(selected + delta)
-
     /** 자판의 율명·기호를 고른 정간에 적고, 정간이 다 차면 다음 정간으로 넘어간다. */
     fun put(note: ScoreNote): SheetEditUiState {
         val (next, advance) = draft.put(selected, note)
