@@ -34,7 +34,6 @@ import com.ssafy.eolssu.data.song.ReferenceCatalogRepository
 import com.ssafy.eolssu.data.song.ReferenceAudioRepository
 import com.ssafy.eolssu.data.song.ApiReferenceAudioRepository
 import com.ssafy.eolssu.feature.guide.ReferenceAudioViewModel
-import com.ssafy.eolssu.feature.guide.ReadingCatalogViewModel
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.song.ModelAudioRepository
 import com.ssafy.eolssu.data.song.ApiModelAudioRepository
@@ -73,7 +72,6 @@ import com.ssafy.eolssu.feature.auth.EmailVerificationViewModel
 import com.ssafy.eolssu.feature.auth.LoginViewModel
 import com.ssafy.eolssu.feature.auth.PasswordSetupViewModel
 import com.ssafy.eolssu.feature.auth.ProfileSetupViewModel
-import com.ssafy.eolssu.feature.home.HomeViewModel
 import com.ssafy.eolssu.feature.profile.MyPageViewModel
 import com.ssafy.eolssu.feature.profile.NicknameEditViewModel
 import com.ssafy.eolssu.feature.profile.PasswordChangeViewModel
@@ -139,7 +137,6 @@ val appModule = module {
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get(), get()) }
 
-    viewModelOf(::HomeViewModel)
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
@@ -154,11 +151,10 @@ val appModule = module {
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get()) }
-    viewModel { GrowthViewModel(get(), get(), get(), get(), get()) }
+    viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
-    viewModelOf(::ReadingCatalogViewModel)
     viewModelOf(::LearnViewModel)
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
     viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }
@@ -207,7 +203,8 @@ val appModule = module {
         val catalog = get<InstrumentCatalog>()
         val records = get<PracticeRecordRepository>()
         ResultErrorsViewModel(sourceId, get(), loadInstruments = catalog::load, member = get(),
-            onOpened = { if (historical) records.detail(it) })
+            onOpened = { if (historical) records.detail(it) },
+            deleteRecord = if (historical) records::delete else null)
     }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->
@@ -217,9 +214,10 @@ val appModule = module {
     viewModel { (recordId: String) -> CompareViewModel(recordId, get()) }
     // 악보 추가·편집(2차). 인식·저장 API를 붙이기 전이라 예시 악보로 화면 흐름만 다룬다.
     viewModelOf(::EditNewViewModel)
-    viewModelOf(::EditPickViewModel)
+    viewModel { EditPickViewModel(get(), get(), documents = get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) -> ImportResultViewModel(kind, hwang) }
     // 내 악보 음원(SHT-12·13)은 서버 계약대로 부른다. 서버 ID가 없는 예시 악보는 저장소가 서버에 묻지 않는다.
     single<SheetAudioRepository> { ApiSheetAudioRepository(get(), member = get()) }
-    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get()) }
+    viewModel { (source: EditSource, startView: EditView) -> SheetEditViewModel(source, startView, get(), get(), get(), get(), documents = get(), member = get(),
+        songs = get(), pitchCatalog = get()) }
 }

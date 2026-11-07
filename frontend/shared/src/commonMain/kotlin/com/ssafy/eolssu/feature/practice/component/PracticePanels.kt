@@ -70,7 +70,6 @@ import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.TempoStep
-import eolssu.shared.generated.resources.jangdan_source
 import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_back
@@ -409,7 +408,7 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
 }
 
 /**
- * PANEL-03 운지법: 이전·다음 음(악보의 앞뒤 정간) 사이 36sp 율명과 읽는 법, 악기 사진 위 구멍 표시와 범례, ‘음 듣기’, 막는 구멍·출처.
+ * PANEL-03 운지법: 이전·다음 음(악보의 앞뒤 정간) 사이 36sp 율명과 읽는 법, 악기 사진 위 구멍 표시와 범례, ‘음 듣기’, 막는 구멍.
  */
 @Composable
 private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions) {
@@ -456,7 +455,7 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
         TinyNote(
             if (note != null) {
                 val closed = note.holes.mapIndexedNotNull { i, h -> if (h == HoleState.Closed) holeName(instrument, i) else null }
-                stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) }, instrument.source)
+                stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) })
             } else {
                 stringResource(Res.string.practice_fingering_missing, yul.fullName)
             },
@@ -494,7 +493,6 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         )
     }
     TinyNote(jangdanHint(state))
-    TinyNote(stringResource(Res.string.jangdan_source))
     val perRow = minOf(jangdan.gak, 12)
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->

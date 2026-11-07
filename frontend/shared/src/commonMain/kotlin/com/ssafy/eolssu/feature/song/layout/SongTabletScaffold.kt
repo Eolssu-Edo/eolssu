@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.layout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,7 +50,7 @@ internal fun tabletGutter(windowWidth: Dp, expanded: Boolean): Dp {
  * 곡·내 악보·PDF 올리기 태블릿 화면 틀. 상단 바는 세로에서 창 양옆 32dp, 가로에서 내용 가장자리에 맞추고,
  * 하단 고정 버튼(세로만)은 640dp로 가운데에 둔다. [content]는 내용 양옆 여백(gutter)을 받아 스크롤 영역 안쪽에 쓴다.
  * 휴대폰 화면 틀([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 색·여백 처리를 따른다.
- * [pageTopBar]이면 가운데 제목 대신 페이지형 상단 바(`.page-head`, SONG-01 · SONG-02)를 쓰고, 뒤로 가기 원을 내용 가장자리에 맞추며 구분선은 창 너비로 긋는다.
+ * [topBarRight]는 상단 바 오른쪽 자리(곡 고르기 화면의 연습 악기 드롭다운)다. [pageTopBar]이면 가운데 제목 대신 페이지형 상단 바(`.page-head`, SONG-01 · SONG-02)를 쓰고, 뒤로 가기 원을 내용 가장자리에 맞추며 구분선은 창 너비로 긋는다.
  */
 @Composable
 internal fun SongTabletScaffold(
@@ -59,6 +60,7 @@ internal fun SongTabletScaffold(
     subtitle: String? = null,
     pageTopBar: Boolean = false,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    topBarRight: @Composable RowScope.() -> Unit = {},
     bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable (gutter: Dp) -> Unit,
 ) {
@@ -72,7 +74,7 @@ internal fun SongTabletScaffold(
                 Box(Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
                     if (pageTopBar) {
                         // 휴대폰처럼 원이 내용 가장자리(gutter)에서 시작하도록, 줄 너비를 내용 너비 + 양옆 20dp로 둔다.
-                        EolssuPageTopBar(title = title, onBack = onBack, maxWidth = windowWidth - (gutter - 20.dp) * 2)
+                        EolssuPageTopBar(title = title, onBack = onBack, maxWidth = windowWidth - (gutter - 20.dp) * 2, right = topBarRight)
                         return@Box
                     }
                     // 상단 바 안쪽 여백 20dp에 더해, 세로는 창 가장자리에서 32dp, 가로는 내용 가장자리에 맞춘다.
@@ -82,6 +84,7 @@ internal fun SongTabletScaffold(
                         modifier = Modifier.padding(horizontal = if (expanded) gutter - 20.dp else 12.dp),
                         subtitle = subtitle,
                         maxWidth = Dp.Infinity,
+                        right = topBarRight,
                     )
                 }
             },

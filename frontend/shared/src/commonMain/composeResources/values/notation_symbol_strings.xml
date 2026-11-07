@@ -1,5 +1,0 @@
-<resources>
-    <string name="guide_catalog_symbol_inferred">추정 설명 · 공식 정의는 아직 확인하지 못했어요.</string>
-    <string name="guide_catalog_symbol_educational">교육용 설명 · 전공자 검수 전이에요.</string>
-    <string name="guide_catalog_symbol_license">그림 이용 조건: %1$s</string>
-</resources>

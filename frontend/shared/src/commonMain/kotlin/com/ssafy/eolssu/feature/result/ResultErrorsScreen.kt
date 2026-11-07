@@ -19,6 +19,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.graphics.Color
+import com.ssafy.eolssu.core.ui.component.EolssuDialog
+import com.ssafy.eolssu.core.model.key
+import eolssu.shared.generated.resources.common_cancel
+import eolssu.shared.generated.resources.record_delete
+import eolssu.shared.generated.resources.record_delete_confirm
+import eolssu.shared.generated.resources.record_delete_message
+import eolssu.shared.generated.resources.record_delete_title
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +51,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
+import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
+import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
@@ -75,12 +86,16 @@ fun ResultErrorsScreen(
     onRetry: () -> Unit = {},
     historical: Boolean = false,
     onOpenRecording: (() -> Unit)? = null,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    deleteActions: RecordDeleteActions? = null,
 ) {
     val colors = EolssuTheme.colors
+    if (deleteActions != null && state.delete == RecordDeleteState.Confirm) RecordDeleteDialog(deleteActions)
     val song = state.song
     val result = state.result
     EolssuScaffold(
         containerColor = colors.surface,
+        snackbarHostState = snackbarHostState,
         topBar = {
             EolssuTopBar(
                 stringResource(if (historical) Res.string.record_result_title else Res.string.weak_errors_title),
@@ -89,6 +104,11 @@ fun ResultErrorsScreen(
                     stringResource(if (result.sample) Res.string.weak_errors_subtitle_sample else Res.string.weak_errors_subtitle, state.songTitle.orEmpty(), result.total)
                 } else {
                     null
+                },
+                right = {
+                    if (deleteActions != null) {
+                        RecordDeleteButton(busy = state.delete == RecordDeleteState.Deleting, onClick = deleteActions.onAsk)
+                    }
                 },
             )
         },
@@ -128,6 +148,11 @@ fun ResultErrorsScreen(
         }
         val section = state.section
         val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
+        val scoreMetrics = remember(song, historical) {
+            if (historical) recordScoreMetrics(song) else JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip)
+        }
+        // 소박으로 나뉜 정간은 늘려 율명이 잘리지 않게 하고, 정간 수가 같은 각끼리 위아래 끝을 맞춘다.
+        val cellHeights = remember(song, scoreMetrics) { errorScoreCellHeights(song, scoreMetrics) }
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 짧은 창에서는 요약 때문에 악보가 0 높이가 되지 않도록 본문 전체를 스크롤한다.
             // 악보의 각·정간 크기와 오류 꾸밈은 그대로 사용한다.
@@ -144,7 +169,7 @@ fun ResultErrorsScreen(
                     )
                     MetricCards(result, weak = emptySet(), modifier = Modifier.padding(vertical = 8.dp))
                 }
-                ErrorFilterChips(result, state.filter, onSelectFilter, Modifier.padding(top = 4.dp, bottom = 10.dp), hideEmptyMissed = true)
+                ErrorFilterChips(result, state.filter, onSelectFilter, Modifier.padding(top = 4.dp, bottom = 10.dp), hideEmptyMissed = true, singleLine = historical)
                 if (!historical && section != null) {
                     Column(Modifier.fillMaxWidth().background(colors.accentTint, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Text(stringResource(Res.string.weak_errors_section_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
@@ -154,7 +179,7 @@ fun ResultErrorsScreen(
                             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
                         )
                         Text(
-                            stringResource(Res.string.weak_errors_section_body, result.errors.size, state.sectionErrorCount),
+                            stringResource(Res.string.weak_errors_section_body, result.errorCount(ErrorFilter.All), state.sectionErrorCount),
                             modifier = Modifier.padding(top = 2.dp),
                             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
                         )
@@ -164,11 +189,14 @@ fun ResultErrorsScreen(
                 JeongganboView(
                     song = song,
                     modifier = (if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(scoreScroll)).padding(top = 10.dp),
-                    metrics = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip),
-                    look = JeongganboLook.practice(big = false),
+                    metrics = scoreMetrics,
+                    look = JeongganboLook.practice(big = false).copy(softDaegang = true).let { if (historical) it.copy(lyricLane = null) else it },
+                    cellHeights = cellHeights,
                     errors = result.visibleErrors(state.filter),
+                    errorKinds = result.visibleErrorKinds(state.filter),
+                    unitErrors = result.visibleUnitErrors(song, state.filter),
                     selectedCell = shown?.let { it.column to it.row },
-                    onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row)) },
+                    onUnitClick = { onSelectCell(ScoreCellPosition(it.column, it.row, it.key)) },
                     sectionColumns = section?.fullColumns(song.score),
                 )
                 if (!historical && shown != null) {
@@ -215,5 +243,41 @@ private fun RecordResultActions(canPractice: Boolean, onPractice: () -> Unit, on
                 Text(stringResource(Res.string.record_result_recording), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
             }
         }
+    }
+}
+
+/** 이전 연주 결과의 '기록 삭제' 동작. */
+class RecordDeleteActions(val onAsk: () -> Unit, val onConfirm: () -> Unit, val onCancel: () -> Unit)
+
+/** 상단 바 오른쪽 끝 '기록 삭제'(붉은 글자). 지우는 중에는 누를 수 없다. */
+@Composable
+private fun RecordDeleteButton(busy: Boolean, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    Surface(onClick = onClick, enabled = !busy, shape = RoundedCornerShape(10.dp), color = Color.Transparent) {
+        Box(Modifier.heightIn(min = 44.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(Res.string.record_delete),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                color = if (busy) colors.textDisabled else colors.recText,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/** 삭제 확인 창. 기록과 녹음이 함께 지워지고 되돌릴 수 없음을 알린다. */
+@Composable
+private fun RecordDeleteDialog(actions: RecordDeleteActions) {
+    val colors = EolssuTheme.colors
+    EolssuDialog(
+        title = stringResource(Res.string.record_delete_title),
+        message = stringResource(Res.string.record_delete_message),
+        icon = EolssuIcons.Trash,
+        iconBackground = colors.recSoft,
+        iconTint = colors.recText,
+        onDismissRequest = actions.onCancel,
+    ) {
+        EolssuButton(stringResource(Res.string.record_delete_confirm), actions.onConfirm, style = EolssuButtonStyle.Danger)
+        EolssuButton(stringResource(Res.string.common_cancel), actions.onCancel, style = EolssuButtonStyle.Secondary)
     }
 }

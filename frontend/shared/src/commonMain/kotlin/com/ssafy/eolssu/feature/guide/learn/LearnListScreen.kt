@@ -46,7 +46,7 @@ import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_list_source
+import eolssu.shared.generated.resources.learn_list_note
 import eolssu.shared.generated.resources.learn_progress_all_done
 import eolssu.shared.generated.resources.learn_progress_done
 import eolssu.shared.generated.resources.learn_progress_label
@@ -110,7 +110,7 @@ fun LearnListScreen(
 private val TabletDropdownMaxWidth = 400.dp
 
 /**
- * 단계 목록 본문(악기 · 진행 카드 · 단계 카드 넘기기 · 출처). 세로로 스크롤한다.
+ * 단계 목록 본문(악기 · 진행 카드 · 단계 카드 넘기기 · 단계 판정 안내). 세로로 스크롤한다. 단계 구성 출처는 마이페이지 '자료 및 데이터 출처'에 둔다.
  *
  * @param currentStage 펼칠 단계 카드. 태블릿 가로 배치에서는 오른쪽 칸에 보이는 단계다.
  */
@@ -170,7 +170,7 @@ internal fun LearnListContent(
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
         Text(
-            stringResource(Res.string.learn_list_source),
+            stringResource(Res.string.learn_list_note),
             Modifier.padding(top = 14.dp),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
             color = EolssuTheme.colors.textMuted,

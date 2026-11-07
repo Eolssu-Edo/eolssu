@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
@@ -100,13 +101,13 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     )
     val canPlay = if (rhythm) state.jangdanSupported && state.jangdanStatus != JangdanStatus.Loading
         else state.modelAudioStatus != ModelAudioStatus.Loading && state.modelAudioStatus != ModelAudioStatus.Unsupported
-    val controls: @Composable () -> Unit = {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-            SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc)) { actions.onSeek(-PRACTICE_SEEK_MS) }
+    val controls: @Composable (Modifier) -> Unit = { rowModifier ->
+        Row(rowModifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+            SeekButton(stringResource(Res.string.practice_seek_back), stringResource(Res.string.practice_seek_back_desc), small = compact) { actions.onSeek(-PRACTICE_SEEK_MS) }
             Surface(
                 onClick = { if (rhythm) actions.onToggleRhythm() else if (playing) actions.onToggleModel() else actions.onStartModel() },
                 enabled = canPlay,
-                modifier = Modifier.size(48.dp).semantics { contentDescription = playLabel },
+                modifier = Modifier.size(if (compact) 40.dp else 48.dp).semantics { contentDescription = playLabel },
                 shape = CircleShape,
                 color = colors.primary,
                 contentColor = colors.onPrimary,
@@ -115,12 +116,32 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
                     Icon(if (playing) EolssuIcons.Pause else EolssuIcons.Play, contentDescription = null, modifier = Modifier.size(22.dp))
                 }
             }
-            SeekButton(stringResource(Res.string.practice_seek_forward), stringResource(Res.string.practice_seek_forward_desc)) { actions.onSeek(PRACTICE_SEEK_MS) }
+            SeekButton(stringResource(Res.string.practice_seek_forward), stringResource(Res.string.practice_seek_forward_desc), small = compact) { actions.onSeek(PRACTICE_SEEK_MS) }
         }
+    }
+    if (compact) {
+        // 휴대폰 연습 화면: 시간·조작을 한 줄에 두고 막대·안내 칸을 낮춰 악보·운지 공간을 넓힌다.
+        Column(
+            modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(formatClock(state.elapsedMs / 1000), modifier = Modifier.semantics { contentDescription = time },
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                    color = colors.text)
+                controls(Modifier.weight(1f))
+                Text(formatClock(state.totalSeconds.toDouble()),
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
+            }
+            SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
+                enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading, height = 24.dp)
+            PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp), mascot = 20.dp)
+        }
+        return
     }
     Column(
         modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.lineSoft, shape)
-            .padding(horizontal = 16.dp, vertical = if (compact) 10.dp else 14.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
     ) {
         Row(Modifier.fillMaxWidth().semantics { contentDescription = time },
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -132,14 +153,14 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
         }
         SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
             enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading)
-        controls()
+        controls(Modifier.fillMaxWidth())
         PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(40.dp))
     }
 }
 
 /** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. */
 @Composable
-private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = Modifier) {
+private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = Modifier, mascot: Dp = 40.dp) {
     val message = when (notice) {
         PracticePlayerNotice.None -> ""
         PracticePlayerNotice.Loading -> stringResource(Res.string.practice_player_loading)
@@ -151,7 +172,7 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
     Box(modifier, contentAlignment = Alignment.Center) {
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(40.dp))
+            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(mascot))
             if (message.isNotEmpty()) Text(
                 message, modifier = Modifier.semantics { contentDescription = message },
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -164,11 +185,11 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
 
 /** ‘−5초’·‘+5초’ 글자 버튼(`.player-controls button`: 12sp 500, 여백 8). */
 @Composable
-private fun SeekButton(text: String, description: String, onClick: () -> Unit) {
+private fun SeekButton(text: String, description: String, small: Boolean = false, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(44.dp).semantics { contentDescription = description },
+        modifier = Modifier.size(if (small) 40.dp else 44.dp).semantics { contentDescription = description },
         shape = CircleShape,
         color = colors.surfaceStrong,
         contentColor = colors.text,
@@ -182,7 +203,7 @@ private fun SeekButton(text: String, description: String, onClick: () -> Unit) {
 /** 6dp 트랙(`.player .track`): 연두 채움과 흰 손잡이(16dp, 2dp 먹색 테두리). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SeekablePlayerTrack(fraction: Float, onSeek: (Float) -> Unit, enabled: Boolean) {
+private fun SeekablePlayerTrack(fraction: Float, onSeek: (Float) -> Unit, enabled: Boolean, height: Dp = 40.dp) {
     var draggedFraction by remember { mutableStateOf<Float?>(null) }
     // 끄는 동안에는 재생 위치 보고와 분리하고, 놓을 때 한 번만 음원을 이동한다.
     Slider(
@@ -190,7 +211,7 @@ private fun SeekablePlayerTrack(fraction: Float, onSeek: (Float) -> Unit, enable
         onValueChange = { draggedFraction = it },
         onValueChangeFinished = { draggedFraction?.let(onSeek); draggedFraction = null },
         enabled = enabled,
-        modifier = Modifier.fillMaxWidth().height(40.dp),
+        modifier = Modifier.fillMaxWidth().height(height),
         thumb = {},
         track = { PlayerTrack(draggedFraction ?: fraction) },
     )

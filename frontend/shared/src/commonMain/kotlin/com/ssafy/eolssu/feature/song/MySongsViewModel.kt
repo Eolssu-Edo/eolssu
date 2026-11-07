@@ -9,6 +9,7 @@ import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +22,7 @@ class MySongsViewModel(
     private val songRepository: SongRepository,
     private val mySheetRepository: MySheetRepository,
     private val instrumentRepository: InstrumentRepository,
+    userRepository: UserRepository,
     member: SignedInMember? = null,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MySongsUiState())
@@ -31,7 +33,11 @@ class MySongsViewModel(
 
     private val accountScope = member.screenScope(viewModelScope) {
         _uiState.value = MySongsUiState()
+        instrumentSelection.clear()
     }
+
+    /** 상단 바 연습 악기 드롭다운. 고른 악기가 바뀌면 제공 곡 목록을 다시 받는다. */
+    internal val instrumentSelection: SongInstrumentSelection = SongInstrumentSelection(instrumentRepository, userRepository, accountScope)
 
     private fun reloadForInstrument() {
         if (!accountScope.isActive) return

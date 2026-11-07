@@ -38,6 +38,8 @@ import com.ssafy.eolssu.feature.song.edit.component.CompactEditScoreMetrics
 import com.ssafy.eolssu.feature.song.edit.component.EditInputActions
 import com.ssafy.eolssu.feature.song.edit.component.EditInputPanel
 import com.ssafy.eolssu.feature.song.edit.component.EditScoreBoard
+import com.ssafy.eolssu.feature.song.edit.component.EditScoreLook
+import com.ssafy.eolssu.feature.song.edit.component.editorUnitMarks
 import com.ssafy.eolssu.feature.song.edit.component.EditorTopBar
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.PillButton
@@ -91,6 +93,8 @@ class SheetEditActions(
     val onOpenChecks: () -> Unit,
     val onSelectView: (EditView) -> Unit,
     val onSelectCell: (Int) -> Unit,
+    /** 악보에서 누른 정간과 그 안의 소박 순서. */
+    val onSelectUnit: (Int, Int) -> Unit,
     val onUndo: () -> Unit,
     val onRedo: () -> Unit,
     val onSelectStaffNote: (StaffNoteKey) -> Unit,
@@ -179,13 +183,17 @@ private fun JeongganboContent(state: SheetEditUiState, actions: SheetEditActions
             EditScoreBoard(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                marks = editorMarks(draft, state.selected),
-                annotations = if (state.showSigimsae) remember(draft) { draft.annotations() } else emptyMap(),
+                marks = editorMarks(draft, state.selected, state.selectedSub),
+                unitMarks = editorUnitMarks(draft, state.selected, state.selectedSub),
+                annotations = remember(draft) { draft.annotations() },
                 focusColumn = draft.columnOf(state.selected),
-                onCellClick = { column, row -> actions.onSelectCell(draft.indexOf(column, row)) },
+                onUnitClick = { column, row, unitRow, unitCol ->
+                    val index = draft.indexOf(column, row)
+                    actions.onSelectUnit(index, draft.subIndexOf(index, unitRow, unitCol))
+                },
             )
         }
-        EditInputPanel(draft, state.selected, state.tab, state.showSigimsae, actions.input)
+        EditInputPanel(draft, state.selected, state.selectedSub, state.tab, state.yulRegister, state.availablePitches, actions.input)
     }
 }
 
@@ -267,9 +275,9 @@ private fun StaffContent(state: SheetEditUiState, actions: SheetEditActions, mod
             song = song,
             modifier = Modifier.fillMaxWidth(),
             marks = staffMarks(draft, selected),
-            annotations = if (state.showSigimsae) remember(draft) { draft.annotations() } else emptyMap(),
+            annotations = remember(draft) { draft.annotations() },
             metrics = CompactEditScoreMetrics,
-            look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true),
+            look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true, sigimsaeScale = EditScoreLook.sigimsaeScale),
             focusColumn = selected?.let { draft.columnOf(it.key.start) },
             scrollVertically = false,
             onCellClick = { column, row -> actions.onSelectStaffNote(StaffNoteKey(draft.indexOf(column, row), 0)) },

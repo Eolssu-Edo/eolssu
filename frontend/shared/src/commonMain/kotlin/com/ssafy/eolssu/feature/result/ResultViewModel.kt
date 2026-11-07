@@ -26,8 +26,6 @@ import kotlinx.coroutines.launch
  * RESULT-02 상태.
  *
  * @property savedRecord '연습 기록 저장'으로 저장한 기록. 있으면 저장 확인 시트를 띄운다.
- * @property errorFilter 태블릿 배치의 정간보에 표시할 오류 종류.
- * @property selectedCell 태블릿 배치에서 눌러 고른 칸. null이면 [ResultUiState.shownCell]이 처음 고를 칸을 정한다.
  */
 data class ResultUiState(
     val result: EvaluationResult? = null,
@@ -37,14 +35,9 @@ data class ResultUiState(
     val savingRecord: Boolean = false,
     val recordSaveError: RecordSaveError? = null,
     val memo: String = "",
-    val errorFilter: ErrorFilter = ErrorFilter.All,
-    val selectedCell: ScoreCellPosition? = null,
     val songLookup: SongLookup = SongLookup.Loading,
     val resultLookup: SongLookup = SongLookup.Loading,
-) {
-    /** 설명을 보여 줄 칸. 고른 칸이 없으면 틀린 칸이 몰린 곳의 첫 오류. */
-    val shownCell: ScoreCellPosition? get() = selectedCell ?: result?.defaultSelectedCell()
-}
+)
 
 enum class RecordSaveError { Unavailable, Failed }
 
@@ -140,10 +133,6 @@ class ResultViewModel(
     }
 
     fun dismissRecordSaveError() = _uiState.update { it.copy(recordSaveError = null) }
-
-    fun selectErrorFilter(filter: ErrorFilter) = _uiState.update { it.copy(errorFilter = filter) }
-
-    fun selectCell(cell: ScoreCellPosition) = _uiState.update { it.copy(selectedCell = cell) }
 
     fun changeMemo(memo: String) = _uiState.update { it.copy(memo = memo) }
 

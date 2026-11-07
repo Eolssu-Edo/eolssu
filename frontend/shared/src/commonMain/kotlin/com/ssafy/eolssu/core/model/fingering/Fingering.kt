@@ -58,8 +58,7 @@ data class HolePoint(val x: Int, val y: Int)
  * @property id 화면 이동 인자로 쓰는 식별자(와이어프레임 `INST.id`).
  * @property hwang 황종의 높이(C에서 반음 수). 정악대금·소금·단소는 E♭(3), 산조대금은 F(5).
  * @property imageWidth 악기 그림 원본 크기. [holes]·[holeRadius]가 이 크기 기준이다.
- * @property note 운지 화면 위쪽의 악기 설명.
- * @property source 운지표 출처.
+ * @property note 운지 화면 위쪽의 악기 설명. 운지표 출처는 마이페이지 '자료 및 데이터 출처'(`feature/profile/DataSources.kt`)에 모아 둔다.
  */
 enum class GuideInstrument(
     val id: String,
@@ -71,35 +70,30 @@ enum class GuideInstrument(
     val holeRadius: Int,
     val holes: List<HolePoint>,
     val note: String,
-    val source: String,
 ) {
     Danso(
         id = "danso", hwang = 3, blows = listOf(Blow.Mid, Blow.High), table = DansoTable,
         imageWidth = 2000, imageHeight = 683, holeRadius = 30,
         holes = points(935 to 209, 934 to 354, 1114 to 354, 1368 to 354, 1619 to 354),
         note = "뒷구멍은 왼손 엄지로 막아요. 역취는 입김을 세게 불어요. 높은 태(청태)는 낮은 태와 운지가 달라요.",
-        source = "출처: 국립국악원 e국악아카데미 「단소 안공법」. 높은 태는 제1공(뒷구멍)과 제3공을 막아요.",
     ),
     Sogeum(
         id = "sogeum", hwang = 3, blows = listOf(Blow.Mid, Blow.High), table = SogeumTable,
         imageWidth = 2000, imageHeight = 668, holeRadius = 26,
         holes = points(921 to 329, 1051 to 328, 1186 to 329, 1318 to 329, 1448 to 329, 1579 to 330),
         note = "소금은 대금보다 한 옥타브 높게 소리 나요. 향악계곡 안공법 기준이에요.",
-        source = "출처: 국립국악원 『창작을 위한 국악기 이해와 활용1』 3장 소금 61쪽 [표 1] 향악계곡 안공법.",
     ),
     DaegeumJeongak(
         id = "daegeum-jeongak", hwang = 3, blows = Blow.entries, table = DaegeumTable,
         imageWidth = 2000, imageHeight = 668, holeRadius = 25,
         holes = points(883 to 323, 1006 to 323, 1124 to 323, 1245 to 323, 1368 to 323, 1492 to 323),
         note = "같은 운지에서 입김 세기로 저취·평취·역취 옥타브를 나눠요. 서양 음이름은 황종=미♭(E♭) 기준이에요.",
-        source = "출처: 국립국악원 『2021 대금정악보』 9쪽 대금 안공표(공공누리 4유형).",
     ),
     DaegeumSanjo(
         id = "daegeum-sanjo", hwang = 5, blows = Blow.entries, table = DaegeumTable,
         imageWidth = 2000, imageHeight = 667, holeRadius = 25,
         holes = points(848 to 332, 981 to 332, 1115 to 332, 1244 to 332, 1374 to 332, 1510 to 331),
         note = "기본 운지틀은 정악대금과 같아요. 서양 음이름은 황종=F(정악대금보다 장2도 높음) 기준이고, 유파마다 조율·세부 운지가 조금 다를 수 있어요.",
-        source = "출처: 정악대금 안공표의 기본 운지틀. 유파별 차이는 선생님께 확인하세요.",
     ),
     ;
 

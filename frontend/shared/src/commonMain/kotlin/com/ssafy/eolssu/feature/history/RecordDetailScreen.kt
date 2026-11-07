@@ -1,6 +1,8 @@
 package com.ssafy.eolssu.feature.history
 
 import androidx.compose.foundation.border
+import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
+import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.feature.history.component.HistoryBoardTopBar
 import eolssu.shared.generated.resources.records_section
@@ -29,7 +31,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.feature.history.component.CompareEntry
 import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
 import com.ssafy.eolssu.feature.history.component.RecordScoreText
@@ -56,7 +57,6 @@ class RecordDetailActions(
     val onSkip: (Int) -> Unit,
     val onToggleErrors: () -> Unit,
     val onToggleFollow: () -> Unit,
-    val onWeakSection: () -> Unit,
     val onRetrySong: () -> Unit = {},
     /** ‘지난 연주와 비교’(2차 COMPARE-01). */
     val onCompare: () -> Unit = {},
@@ -137,10 +137,12 @@ private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: S
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = colors.textMuted,
             )
+            val scoreMetrics = recordScoreMetrics(song)
             JeongganboView(
+                metrics = scoreMetrics,
+                cellHeights = recordScoreCellHeights(song, scoreMetrics),
                 song = song,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                notation = ScoreNotation(showHangul = true),
                 currentIndex = state.position,
                 follow = state.follow,
                 errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),

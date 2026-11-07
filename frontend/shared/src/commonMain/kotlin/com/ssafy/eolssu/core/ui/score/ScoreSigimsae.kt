@@ -158,6 +158,9 @@ private val ScoreSigimsaeImages: Map<String, DrawableResource> = buildMap {
     put("repeat", Res.drawable.sig_repeat)
 }
 
+/** 그림이 등록된 시김새의 한글 이름(등록 순서). 같은 그림의 영문 별칭은 뺀다. */
+internal val RegisteredSigimsaeNames: List<String> = ScoreSigimsaeImages.keys.filter { name -> name.any { it in '가'..'힣' } }
+
 internal fun scoreSigimsaeName(raw: String): String = raw.substringBefore('@')
 internal fun scoreSigimsaeImage(raw: String): DrawableResource? = ScoreSigimsaeImages[scoreSigimsaeName(raw)]
 

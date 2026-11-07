@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
+import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
+import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,7 +39,6 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.feature.history.RecordDetailActions
 import com.ssafy.eolssu.feature.history.RecordDetailUiState
 import eolssu.shared.generated.resources.Res
@@ -93,12 +94,13 @@ internal fun RecordDetailPane(state: RecordDetailUiState, actions: RecordDetailA
                 Spacer(Modifier.weight(1f))
                 return@Column
             }
+            val scoreMetrics = recordScoreMetrics(song)
             JeongganboView(
+                cellHeights = recordScoreCellHeights(song, scoreMetrics),
                 song = song,
                 look = JeongganboLook.Record,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                metrics = RecordScoreLandscape,
-                notation = ScoreNotation(showHangul = true),
+                metrics = scoreMetrics,
                 currentIndex = state.position,
                 follow = state.follow,
                 errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
@@ -170,8 +172,8 @@ private fun PaneSummary(record: PracticeRecord, modifier: Modifier) {
 }
 
 /**
- * 재생 줄. 넓으면 −5초 · 재생 · +5초 · (시간 · 막대) · 취약 구간 버튼을 한 줄에 놓고,
- * 좁으면 시간 · 막대를 위 줄로 올린다.
+ * 재생 줄. 넓으면 −5초 · 재생 · +5초 · (시간 · 막대)를 한 줄에 놓고,
+ * 좁으면 시간 · 막대를 위 줄로 올리고 재생 버튼을 가운데에 둔다.
  */
 @Composable
 private fun PaneControls(state: RecordDetailUiState, actions: RecordDetailActions, wide: Boolean, modifier: Modifier) {
@@ -182,15 +184,13 @@ private fun PaneControls(state: RecordDetailUiState, actions: RecordDetailAction
                 PlaybackTimeRow(state)
                 PlaybackSlider(state, actions)
             }
-            WeakSectionButton(actions.onWeakSection, height = 44.dp, paddingH = 16.dp)
         }
     } else {
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             PlaybackTimeRow(state)
             PlaybackSlider(state, actions)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 PlaybackButtons(state, actions, skipSize = 44.dp, playSize = 56.dp, gap = 12.dp)
-                Box(Modifier.weight(1f)) { WeakSectionButton(actions.onWeakSection, Modifier.fillMaxWidth(), height = 44.dp) }
             }
         }
     }

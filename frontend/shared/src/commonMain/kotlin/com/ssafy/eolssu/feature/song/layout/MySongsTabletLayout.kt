@@ -26,6 +26,7 @@ internal fun MySongsTabletLayout(
     expanded: Boolean,
     snackbarHostState: SnackbarHostState,
     actions: MySongsActions,
+    instrumentPicker: @Composable () -> Unit,
 ) {
     SongTabletScaffold(
         expanded = expanded,
@@ -33,6 +34,7 @@ internal fun MySongsTabletLayout(
         onBack = actions.onBack,
         subtitle = stringResource(Res.string.mysongs_subtitle),
         snackbarHostState = snackbarHostState,
+        topBarRight = { instrumentPicker() },
     ) { gutter ->
         MySongsBody(
             state,

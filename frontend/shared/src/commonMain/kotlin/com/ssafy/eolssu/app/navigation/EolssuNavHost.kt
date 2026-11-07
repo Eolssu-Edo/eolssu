@@ -165,6 +165,8 @@ fun EolssuNavHost(
     Box(Modifier.fillMaxSize()) {
         NavHost(navController = navController, startDestination = start) {
             composable(EolssuDestination.HOME) { entry ->
+                // 홈 아래에 쌓인 화면이 없을 때만 Android 뒤로 가기 두 번으로 앱을 닫는다. 홈으로 가는 이동은 모두 쌓인 화면을 비운다.
+                val homeIsRoot = remember(entry) { navController.previousBackStackEntry == null }
                 HomeRoute(
                     onStartEvaluation = { navController.navigate(EolssuDestination.SONG_LIST) },
                     onOpenFeature = { feature ->
@@ -180,13 +182,9 @@ fun EolssuNavHost(
                         route != null
                     },
                     onOpenMyPage = { navController.navigate(ProfileDestination.MY_PAGE) },
-                    onSessionExpired = {
-                        navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
-                            popUpTo(navController.graph.id) { inclusive = true }
-                        }
-                    },
                     startMessage = entry.startNotice(),
                     onStartMessageShown = entry::clearStartNotice,
+                    exitOnDoubleBack = homeIsRoot,
                 )
             }
             composable(EolssuDestination.SONG_LIST) { entry ->
@@ -197,6 +195,11 @@ fun EolssuNavHost(
                     onStartPractice = { navController.navigate(EolssuDestination.practice(it)) },
                     pickSongId = pickSongId,
                     onPickTaken = { entry.savedStateHandle[PICK_SONG_KEY] = null },
+                    onSessionExpired = {
+                        navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    },
                 )
             }
             composable(
@@ -330,7 +333,6 @@ fun EolssuNavHost(
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                     onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                    onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                 )
             }
             composable(
@@ -360,23 +362,17 @@ fun EolssuNavHost(
                         onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                         initialRecordId = recordId,
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
-                        onWeakSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 }
             }
             composable(EolssuDestination.GROWTH) { entry ->
-                GrowthRoute(
-                    onBack = { navController.popBackStackFrom(entry) },
-                    onOpenRecords = { navController.popBackStackFrom(entry) },
-                    onOpenSteps = { navController.navigate(EolssuDestination.LEARN) },
-                )
+                GrowthRoute(onBack = { navController.popBackStackFrom(entry) })
             }
 
             // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기 (S15P31E102-150)
@@ -499,6 +495,11 @@ fun EolssuNavHost(
                     onPracticeSheet = { songId, title -> navController.navigate(EolssuDestination.practice(songId, mine = true, title = title)) },
                     onAddSheet = { navController.navigate(SheetEditDestination.NEW) },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
+                    onSessionExpired = {
+                        navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    },
                 )
             }
         }

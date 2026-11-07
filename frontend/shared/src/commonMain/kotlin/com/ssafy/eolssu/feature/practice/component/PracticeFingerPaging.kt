@@ -64,6 +64,54 @@ private fun FingerCell.onPage(start: Double, end: Double): FingerCell? {
 /** 같은 이벤트가 이어지는 동안에도 절대 표시 위치로 전환하고 역방향 탐색도 같은 규칙을 쓴다. */
 fun List<FingerPage>.pageAt(position: Double): Int = indexOfLast { it.start <= position }.coerceAtLeast(0)
 
+/** 한 페이지에 보일 운지 수. 쉼·장음·빈 자리는 세지 않는다. 다음에 부를 두 음은 따로다. */
+internal const val FingerPageFingerings = 5
+
+/**
+ * 운지 페이지. 원본 순서대로 표시 자리를 담고, 운지(음이 있는 자리)가 [FingerPageFingerings]개 찬 뒤 다음 음이 오면 넘긴다.
+ * 운지 뒤에 붙는 쉼·장음은 같은 페이지에 남는다. 정확히 다섯 개를 맞추려고 한 정간을 두 페이지에 나눌 수 있으며,
+ * 뒤쪽 조각은 [FingerCell.continued]로 표시한다. 원본 정간·이벤트·식별자는 바꾸지 않는다.
+ */
+@Suppress("UNUSED_PARAMETER")
+internal fun fingerAnglePages(song: Song, cells: List<FingerCell>): List<List<FingerCell>> {
+    val pages = mutableListOf<List<Pair<FingerCell, Int>>>()
+    var current = mutableListOf<Pair<FingerCell, Int>>()
+    var count = 0
+    for (cell in cells) {
+        if (cell.units.isEmpty()) {
+            current += cell to -1
+            continue
+        }
+        cell.units.indices.forEach { slot ->
+            val fingering = cell.entries[slot].note != null
+            if (fingering && count >= FingerPageFingerings) {
+                pages += current
+                current = mutableListOf()
+                count = 0
+            }
+            current += cell to slot
+            if (fingering) count++
+        }
+    }
+    if (current.isNotEmpty()) pages += current
+    return pages.map { page ->
+        val slices = mutableListOf<Pair<FingerCell, MutableList<Int>>>()
+        page.forEach { (cell, slot) ->
+            val last = slices.lastOrNull()
+            if (last != null && last.first.index == cell.index && slot >= 0) last.second += slot else slices += cell to mutableListOf(slot)
+        }
+        slices.map { (cell, slots) ->
+            if (slots == listOf(-1) || slots.size == cell.units.size) cell
+            else cell.copy(
+                units = slots.map { cell.units[it] },
+                entries = slots.map { cell.entries[it] },
+                lyricSlots = slots.map { cell.lyricSlots[it] },
+                continued = slots.first() > 0,
+            )
+        }
+    }
+}
+
 /** 이음·빈 자리·쉼을 제외한 다음 발음 둘. 같은 높이의 반복 음은 별개 이벤트로 남긴다. */
 fun nextFingerUnits(song: Song, afterEventIndex: Int): List<ScoreDisplayUnit> = song.displayUnits.asSequence()
     .filter { it.event.index > afterEventIndex && (it.note is ScoreNote.Pitch || it.note is ScoreNote.SourcePitch) }

@@ -53,6 +53,40 @@ internal class ResultErrorsLoadingTest : CatalogViewModelTest() {
         assertNull(wrongVersion.uiState.value.result)
     }
 
+    @Test fun deleteAsksFirstThenReportsDeletedOrFailure() = runTest {
+        val outcomes = ArrayDeque(listOf(RecordDeleteOutcome.Busy, RecordDeleteOutcome.Deleted))
+        val deleted = mutableListOf<String>()
+        val model = keep(ResultErrorsViewModel("41", Sources { source("41") }, deleteRecord = { deleted += it; outcomes.removeFirst() }))
+        runCurrent()
+        assertTrue(model.canDelete)
+
+        // 확인 없이는 지우지 않는다.
+        model.confirmDelete()
+        runCurrent()
+        assertEquals(emptyList(), deleted)
+
+        model.askDelete()
+        model.cancelDelete()
+        assertEquals(RecordDeleteState.Idle, model.uiState.value.delete)
+
+        model.askDelete()
+        model.confirmDelete()
+        runCurrent()
+        assertEquals(RecordDeleteState.Busy, model.uiState.value.delete)
+        model.dismissDeleteError()
+        assertEquals(RecordDeleteState.Idle, model.uiState.value.delete)
+
+        model.askDelete()
+        model.confirmDelete()
+        runCurrent()
+        assertEquals(RecordDeleteState.Deleted, model.uiState.value.delete)
+        assertEquals(listOf("41", "41"), deleted)
+    }
+
+    @Test fun latestResultHasNoDelete() = runTest {
+        assertFalse(keep(ResultErrorsViewModel("41", Sources { source("41") })).canDelete)
+    }
+
     @Test fun missingRecordNeverFallsBackToSample() = runTest {
         val model = keep(ResultErrorsViewModel("404", Sources { null }))
         runCurrent()

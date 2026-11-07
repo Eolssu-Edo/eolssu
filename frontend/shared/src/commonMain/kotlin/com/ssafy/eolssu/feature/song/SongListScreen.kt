@@ -3,7 +3,9 @@ package com.ssafy.eolssu.feature.song
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -31,6 +33,7 @@ class SongListActions(
 
 /**
  * SONG-01 곡 목록(보드 `Song-List` · `-Filter` · `-Search` · `-Empty`): 페이지 머리, 검색·난이도 필터, 곡 줄, 결과가 없으면 '찾는 곡이 없어요.'.
+ * 상단 바 오른쪽에는 연습 악기 드롭다운([instrumentPicker])을 두고, 악기를 바꾸면 그 악기의 곡으로 목록이 바뀐다.
  * 태블릿 세로([WindowWidthClass.Medium])는 같은 순서를 720dp 너비로, 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded])은
  * 왼쪽 목록과 오른쪽 곡 정보([detail], 고른 곡이 없으면 null) 두 칸을 한 화면에 보인다.
  */
@@ -40,17 +43,22 @@ fun SongListScreen(
     widthClass: WindowWidthClass,
     detail: SongDetailUiState?,
     actions: SongListActions,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    instrumentPicker: @Composable () -> Unit = {},
 ) {
     when (widthClass) {
-        WindowWidthClass.Compact -> SongListCompact(state, actions)
-        WindowWidthClass.Medium -> SongListMediumLayout(state, actions)
-        WindowWidthClass.Expanded -> SongListExpandedLayout(state, detail, actions)
+        WindowWidthClass.Compact -> SongListCompact(state, actions, snackbarHostState, instrumentPicker)
+        WindowWidthClass.Medium -> SongListMediumLayout(state, actions, snackbarHostState, instrumentPicker)
+        WindowWidthClass.Expanded -> SongListExpandedLayout(state, detail, actions, snackbarHostState, instrumentPicker)
     }
 }
 
 @Composable
-private fun SongListCompact(state: SongListUiState, actions: SongListActions) {
-    EolssuScaffold(topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack) }) {
+private fun SongListCompact(state: SongListUiState, actions: SongListActions, snackbarHostState: SnackbarHostState, instrumentPicker: @Composable () -> Unit) {
+    EolssuScaffold(
+        snackbarHostState = snackbarHostState,
+        topBar = { EolssuPageTopBar(stringResource(Res.string.song_list_title), onBack = actions.onBack, right = { instrumentPicker() }) },
+    ) {
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 24.dp),

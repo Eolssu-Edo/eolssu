@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.feature.history.component.BarChartCard
-import com.ssafy.eolssu.feature.history.component.GrowthLinks
 import com.ssafy.eolssu.feature.history.component.GrowthSpacing
 import com.ssafy.eolssu.feature.history.component.GrowthStatus
 import com.ssafy.eolssu.feature.history.component.GrowthTiles
@@ -31,7 +30,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * GROWTH-01 연습 기록지·성취도. 휴대폰·태블릿 세로는 한 칸으로 쌓고(태블릿은 여백·글자·그래프를 키운다),
- * 태블릿 가로·넓은 웹 창은 왼쪽(기간 · 요약 · 연습 시간)과 오른쪽(항목 성장 · 바로 가기) 두 칸이다.
+ * 태블릿 가로·넓은 웹 창은 왼쪽(기간 · 요약 · 연습 시간)과 오른쪽(점수 변화 · 항목 성장) 두 칸이다.
  * 고른 기간의 통계를 받는 중이거나 받지 못했으면 기간 탭 아래에 그 상태만 보인다.
  */
 @Composable
@@ -41,8 +40,6 @@ fun GrowthScreen(
     onBack: () -> Unit,
     onRange: (GrowthRange) -> Unit,
     onRetry: () -> Unit,
-    onOpenSteps: () -> Unit,
-    onOpenRecords: () -> Unit,
     trendActions: ScoreTrendActions = ScoreTrendActions.None,
 ) {
     val frame = historyFrame(widthClass)
@@ -59,7 +56,7 @@ fun GrowthScreen(
         topBar = { HistoryTopBar(frame, stringResource(Res.string.growth_title), periodLabel, onBack, bottom = 10.dp) },
     ) {
         if (stats != null && widthClass == WindowWidthClass.Expanded) {
-            GrowthExpandedLayout(stats, state.completedSteps, frame, spacing, onRange, onOpenSteps, onOpenRecords, state.scoreTrend, state.today, trendActions)
+            GrowthExpandedLayout(stats, frame, spacing, onRange, state.scoreTrend, state.today, trendActions)
             return@EolssuScaffold
         }
         Column(
@@ -78,7 +75,6 @@ fun GrowthScreen(
             BarChartCard(stats, spacing)
             ScoreTrendCard(state.scoreTrend, state.today, spacing, trendActions)
             stats.metricGrowth?.let { MetricGrowthCard(it, spacing) }
-            GrowthLinks(stats, state.completedSteps, spacing, onOpenSteps, onOpenRecords)
         }
     }
 }

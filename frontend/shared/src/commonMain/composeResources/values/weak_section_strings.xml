@@ -22,14 +22,15 @@
 
     <!-- PRACTICE-02 취약 구간 선택 -->
     <string name="weak_select_title">취약 구간 선택</string>
-    <string name="weak_select_preset">추천 %1$s</string>
     <string name="weak_select_hint">처음 정간과 끝 정간을 차례로 눌러 구간을 골라요.</string>
     <string name="weak_select_hint_end">끝 정간을 눌러 구간을 마무리하세요.</string>
     <string name="weak_select_loop">구간 반복</string>
     <string name="weak_select_times">%1$d회</string>
     <string name="weak_select_endless">계속</string>
     <string name="weak_select_speed">연습 속도</string>
-    <string name="weak_select_bpm">%1$d BPM · 기준 %2$d의 %3$d%%</string>
+    <string name="weak_select_bpm">%1$d BPM · 기준 %2$d BPM의 %3$d%</string>
+    <string name="weak_select_bpm_short">%1$d BPM</string>
+    <string name="weak_select_bpm_show">BPM 보기</string>
     <string name="weak_select_start">구간 연습 시작</string>
     <string name="weak_cell_in_section">%1$s, 선택한 구간</string>
 
@@ -94,13 +95,9 @@
     <string name="weak_compare_change_label">비교할 이전 기록 바꾸기</string>
     <string name="weak_compare_now">이번</string>
     <string name="weak_compare_score_bpm">%1$d점 · %2$d BPM</string>
-    <string name="weak_compare_delta">%1$s점</string>
-    <string name="weak_compare_up">올랐어요</string>
-    <string name="weak_compare_down">내려갔어요</string>
-    <string name="weak_compare_speed">%1$s · 속도 %2$d→%3$d BPM</string>
+    <string name="weak_compare_speed_only">속도 %1$d→%2$d BPM</string>
     <string name="weak_compare_legend_prev">이전 연주에서 틀림 %1$d</string>
     <string name="weak_compare_legend_now">이번 연주에서 틀림 %1$d</string>
-    <string name="weak_compare_legend_both">두 번 다 %1$d</string>
     <string name="weak_compare_listen">%1$s부터 이전 연주 → 이번 연주를 차례로 들어요</string>
     <string name="weak_compare_play">고른 정간부터 이전 → 이번 차례로 듣기</string>
     <string name="weak_compare_practice">틀린 구간 연습하기</string>

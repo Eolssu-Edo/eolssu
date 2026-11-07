@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.MySheetOrigin
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.SongLevel
 import com.ssafy.eolssu.core.model.Yul
@@ -107,8 +108,8 @@ class SheetEditStateTest {
     @Test
     fun selectionStaysInsideScore() {
         val state = importState()
-        assertEquals(0, state.select(0).moveSelection(-1).selected)
-        assertEquals(53, state.select(53).moveSelection(1).selected)
+        assertEquals(0, state.select(-1).selected)
+        assertEquals(53, state.select(54).selected)
         assertEquals(53, state.select(53).put(ScoreNote.Rest).selected)
     }
 
@@ -152,12 +153,26 @@ class SheetEditStateTest {
     @Test
     fun editPickSearchesSongsAndTogglesSelection() {
         val songs = listOf(EditPickSong("arirang", "아리랑", SongLevel.Intro, "세마치"), EditPickSong("doraji", "도라지타령", SongLevel.Intro, "세마치"))
-        val state = EditPickUiState(tab = EditPickTab.Songs, songs = songs)
+        val state = EditPickUiState(instrument = Instrument.Danso, load = EditPickLoad.Ready, tab = EditPickTab.Songs, songs = songs)
         assertEquals(listOf("도라지타령"), state.copy(query = " 도라지 ").visibleSongs.map { it.title })
         assertFalse(state.canSelect)
         val picked = state.toggle(EditPickTarget.Song("arirang"))
         assertEquals("아리랑", picked.pickedTitle)
         assertTrue(picked.canSelect)
         assertNull(picked.toggle(EditPickTarget.Song("arirang")).picked, "같은 줄을 다시 누르면 고름을 푼다")
+    }
+
+    @Test
+    fun editPickShowsNoSheetUntilInstrumentAndClearsOnInstrumentChange() {
+        val start = EditPickUiState()
+        assertEquals(EditPickLoad.NeedsInstrument, start.load, "악기를 고르기 전에는 악보 목록을 보이지 않는다")
+        assertFalse(start.toggle(EditPickTarget.Song("1")).canSelect)
+        val loaded = start.chooseInstrument(Instrument.Danso).copy(load = EditPickLoad.Ready,
+            songs = listOf(EditPickSong("1", "아리랑", SongLevel.Intro, "세마치"))).toggle(EditPickTarget.Song("1"))
+        assertTrue(loaded.canSelect)
+        val changed = loaded.chooseInstrument(Instrument.Sogeum)
+        assertEquals(EditPickLoad.Loading, changed.load)
+        assertNull(changed.picked, "악기를 바꾸면 고른 악보를 푼다")
+        assertTrue(changed.songs.isEmpty() && changed.sheets.isEmpty(), "다른 악기의 악보를 남기지 않는다")
     }
 }

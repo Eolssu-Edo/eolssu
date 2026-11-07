@@ -7,7 +7,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
@@ -31,27 +30,27 @@ enum class HomeFeature(val label: StringResource, val icon: ImageVector) {
     EditSheets(Res.string.home_feature_edit_sheets, EolssuIcons.Text),
 }
 
-/** 카드 격자의 순서. 휴대폰·넓은 창은 2열(2×3), 태블릿 세로는 3열(3×2)로 나뉜다. */
+/**
+ * 2열 카드 격자의 순서(왼쪽 · 오른쪽 한 줄씩). 왼쪽 열은 학습(기초부터 배우기 · 운지법 보기 · 정간보 쉽게 읽기),
+ * 오른쪽 열은 연습·관리(연습곡 선택하기 · 연습 기록 보기 · 악보 추가·편집하기)다. 휴대폰·태블릿·넓은 창 모두 2열(2×3)로 놓는다.
+ */
 internal val HomeFeatureGrid = listOf(
     HomeFeature.Learn, HomeFeature.SongSelect,
-    HomeFeature.Fingering, HomeFeature.Reading,
-    HomeFeature.EditSheets, HomeFeature.Records,
+    HomeFeature.Fingering, HomeFeature.Records,
+    HomeFeature.Reading, HomeFeature.EditSheets,
 )
 
-/** 상단 '현재 악기' 드롭다운의 순서. 악기를 아직 확인하지 못했을 때의 기본 표시도 첫 항목(단소)이다. */
-internal val HomeInstruments = listOf(Instrument.Danso, Instrument.Sogeum, Instrument.DaegeumSanjo, Instrument.DaegeumJeongak)
+/** 카드 격자의 열 수. 왼쪽 학습 · 오른쪽 연습·관리 구분을 지키려고 창 크기와 관계없이 2열이다. */
+internal const val HomeFeatureColumns = 2
 
 /**
- * HOME-01. 전체 그림에서 스크롤하면 상단 판과 학습·연습 카드가 나타난다.
- * 현재 악기 판은 드롭다운으로 연습 악기를 바꾸고, 오른쪽 위 아이콘으로 마이페이지에 간다.
+ * HOME-01. 전체 그림에서 스크롤하면 상단 판과 학습·연습 카드가 나타난다. 오른쪽 위 아이콘으로 마이페이지에 간다.
+ * 연습 악기는 홈이 아닌 평가할 곡 고르기 · 연습곡 고르기의 상단 바에서 바꾼다.
  */
 @Composable
 fun HomeScreen(
-    instrument: Instrument?,
-    instrumentBusy: Boolean,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
-    onSelectInstrument: (Instrument) -> Unit,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -61,6 +60,6 @@ fun HomeScreen(
         containerColor = EolssuTheme.colors.background,
     ) { innerPadding ->
         val modifier = Modifier.padding(innerPadding)
-        HomeScrollLayout(instrument, instrumentBusy, widthClass, onSelectInstrument, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
+        HomeScrollLayout(widthClass, onOpenMyPage, onStartEvaluation, onFeatureClick, modifier)
     }
 }

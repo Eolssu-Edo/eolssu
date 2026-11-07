@@ -2,9 +2,22 @@
 
 - [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
 - [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
+- [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
+- [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
+- [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)
+- [이전 연주와 비교 점수 도장·문구 (545)](plans/S15P31E102-545.md)
+- [휴대폰 연습 악보 각 묶음 (542)](plans/S15P31E102-542.md)
+- [기록 정간보 가독성](specs/record-score-readability.md) · [535 계획·검증](plans/S15P31E102-535.md)
+- [앱 실시간 등급 판정 규칙과 KMP 구조 초안 (362)](knowledge/ai/realtime-grade-rules-and-kmp.md)
+- [운지법 페이지 최대 6박 (546)](plans/S15P31E102-546.md)
+- [운지법 함께 보기 현재 율명·운지 늘리기 (543)](plans/S15P31E102-543.md)
+
+- [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
+
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
+- [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
 
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
@@ -25,6 +38,7 @@
 | 데이터 담당 범위·파일 관리 | [data/README.md](../data/README.md) |
 | Docker·Compose·Nginx·백엔드 Jenkins 실행 | [infra/README.md](../infra/README.md) |
 | edo1 운영 서버·eolssu 이름·Jenkins 접속 | [infra/runtime/README.md](../infra/runtime/README.md) |
+| 운영 Compose 교체·권한 유지 | [스펙](specs/runtime-compose-install.md) · [541 원인·검증](plans/S15P31E102-541.md) |
 | Jenkins 컨테이너·호스트 에이전트·복구 | [Jenkins 컨트롤러 운영 문서](../infra/jenkins/controller/README.md) |
 | Jenkins 실패 Mattermost 알림·짧은 로그·복구 | [운영 문서](../infra/jenkins/notifications/README.md) · [스펙](specs/jenkins-failure-notifications.md) · [진단 근거](knowledge/infra/jenkins-failure-notifications.md) · [509 실행 기록](plans/S15P31E102-509.md) |
 | edo1 운영 MySQL 웹 조회 | [운영 문서](../infra/mysql-admin/README.md) · [스펙](specs/edo1-mysql-web-read.md) · [514 계획·검증](plans/S15P31E102-514.md) |
@@ -46,6 +60,8 @@
 - [S15P31E102-257 평가 결과 조회](plans/S15P31E102-257.md)
 
 ## 기능 스펙
+
+- [업로드 원본 임시 처리·비보관 전환 (534)](plans/S15P31E102-534.md) · [수명주기·검증 경계](knowledge/backend/temporary-sheet-source-lifecycle.md) · [현행 정책](specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)
 
 - [내 악보 음원 생성·보관 API](specs/sheet-audio.md) · [481 계획·검증](plans/S15P31E102-481.md) · [삭제·재시작 복구 근거](knowledge/backend/sheet-audio-recovery.md)
 - [연습·평가 조작과 악보 공간](specs/practice-controls.md)
@@ -159,6 +175,7 @@
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
+- [화면별 자료 출처를 마이페이지로 통합 (550)](knowledge/frontend/data-source-consolidation.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
 - [회원 악기 선택·인증 실패 복구와 곡 목록 자동 연결](knowledge/frontend/member-instrument-selection.md)
 - [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)

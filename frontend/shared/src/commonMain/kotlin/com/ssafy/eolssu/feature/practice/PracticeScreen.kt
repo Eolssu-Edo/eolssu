@@ -163,8 +163,9 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            // 낮은 창·확대 글꼴에서는 고정 컨트롤 때문에 악보가 사라지지 않도록 페이지 스크롤을 유지한다.
-            val fitScore = (packScore || fingering) && maxHeight >= (if (recordingBar) 280.dp else 480.dp) && fontScale <= 1f
+            // 묶음 악보와 운지법 함께 보기는 글꼴을 키워도 한 화면에 맞춘다. 플레이어·버튼도 커지므로 필요한 창 높이를 같은 배율로 늘린다.
+            val fitHeight = if (recordingBar) 280.dp else 480.dp
+            val fitScore = (packScore || fingering) && maxHeight >= fitHeight * fontScale.coerceAtLeast(1f)
             Column(
                 Modifier
                     .fillMaxSize()
@@ -185,7 +186,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                     if (state.stepUi) {
                         PracticeStepPanels(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 14.dp))
                     } else {
-                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = if (fingering) 10.dp else 18.dp, bottom = if (fingering) 8.dp else 18.dp), compact = fingering)
+                        PracticePlayerCard(state, actions.bottom, Modifier.padding(top = 8.dp, bottom = 8.dp), compact = true)
                     }
                     PracticeCallToAction(state, actions.bottom, hideNotice = fingering)
                 }

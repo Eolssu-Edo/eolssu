@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -157,11 +158,30 @@ internal fun ProfileTextLink(text: String, onClick: () -> Unit, modifier: Modifi
     }
 }
 
+/**
+ * 마이페이지 맨 아래 푸터: 본문과 구분선으로 나누고, '자료 및 데이터 출처'와 법적 문서 링크를 작은 글씨 · 차분한 색으로 둔다.
+ */
 @Composable
-internal fun MyPageFooter(onOpenLegal: (PublishedLegalDocument) -> Unit) {
-    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        ProfileTextLink(stringResource(Res.string.legal_service), { onOpenLegal(PublishedLegalDocument.Service) })
-        ProfileTextLink(stringResource(Res.string.legal_privacy), { onOpenLegal(PublishedLegalDocument.Privacy) })
-        ProfileTextLink(stringResource(Res.string.legal_deletion), { onOpenLegal(PublishedLegalDocument.Deletion) })
+internal fun MyPageFooter(onOpenSources: () -> Unit, onOpenLegal: (PublishedLegalDocument) -> Unit) {
+    val colors = EolssuTheme.colors
+    Column(Modifier.fillMaxWidth()) {
+        HorizontalDivider(color = colors.lineSoft)
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onOpenSources),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(Res.string.my_sources),
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+                color = colors.textMuted,
+            )
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
+        }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            ProfileTextLink(stringResource(Res.string.legal_service), { onOpenLegal(PublishedLegalDocument.Service) })
+            ProfileTextLink(stringResource(Res.string.legal_privacy), { onOpenLegal(PublishedLegalDocument.Privacy) })
+            ProfileTextLink(stringResource(Res.string.legal_deletion), { onOpenLegal(PublishedLegalDocument.Deletion) })
+        }
     }
 }

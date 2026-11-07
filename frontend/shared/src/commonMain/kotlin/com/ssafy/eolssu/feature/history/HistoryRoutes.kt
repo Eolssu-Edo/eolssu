@@ -13,7 +13,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -28,16 +27,15 @@ import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.TrendScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
-import com.ssafy.eolssu.data.user.InstrumentRepository
-import com.ssafy.eolssu.data.user.LearnProgressRepository
+import kotlinx.coroutines.async
+import com.ssafy.eolssu.data.song.SongRepository
+import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -57,7 +55,6 @@ fun RecordListRoute(
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,7 +68,7 @@ fun RecordListRoute(
     }
     val widthClass = currentWindowLayout().widthClass
     if (widthClass == WindowWidthClass.Expanded) {
-        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onWeakSection, onOpenRecord)
+        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onOpenRecord)
     } else {
         RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
     }
@@ -89,7 +86,6 @@ private fun RecordsTwoPaneRoute(
     onOpenGrowth: () -> Unit,
     viewModel: RecordListViewModel,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
     onOpenRecord: (String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
@@ -118,7 +114,7 @@ private fun RecordsTwoPaneRoute(
         },
         onRetry = viewModel::retry,
         detail = detail,
-        detailActions = rememberRecordDetailActions(detailViewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare),
         snackbarHostState = snackbarHostState,
     )
 }
@@ -127,14 +123,12 @@ private fun RecordsTwoPaneRoute(
  * RECORD-02 연결.
  *
  * @param onCompare ‘지난 연주와 비교’ → COMPARE-01(2차).
- * @param onWeakSection ‘취약 구간 연습하기’ → PRACTICE-02(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
 fun RecordDetailRoute(
     recordId: String,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -146,7 +140,7 @@ fun RecordDetailRoute(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
-        actions = rememberRecordDetailActions(viewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        actions = rememberRecordDetailActions(viewModel, onBack, onCompare),
     )
 }
 
@@ -171,24 +165,16 @@ private fun RecordNoticeEffect(notice: RecordNotice?, snackbarHostState: Snackba
     }
 }
 
-/**
- * 기록 상세 동작. 뒤로 가기·비교·취약 구간으로 가기 전에 재생을 멈춘다. 취약 구간 연결이 없으면 '준비 중' 안내를 띄운다.
- * 비교·취약 구간은 지금 보이는 기록 ID로 연다.
- */
+/** 기록 상세 동작. 뒤로 가기·비교로 가기 전에 재생을 멈추고, 비교는 지금 보이는 기록 ID로 연다. */
 @Composable
 private fun rememberRecordDetailActions(
     viewModel: RecordDetailViewModel,
-    snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
 ): RecordDetailActions {
-    val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.common_coming_soon)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestOnCompare by rememberUpdatedState(onCompare)
-    val latestOnWeakSection by rememberUpdatedState(onWeakSection)
-    return remember(viewModel, snackbarHostState, scope, comingSoon) {
+    return remember(viewModel) {
         RecordDetailActions(
             onBack = {
                 viewModel.pause()
@@ -199,16 +185,6 @@ private fun rememberRecordDetailActions(
             onSkip = viewModel::skipSeconds,
             onToggleErrors = viewModel::toggleErrors,
             onToggleFollow = viewModel::toggleFollow,
-            onWeakSection = {
-                val open = latestOnWeakSection
-                val recordId = viewModel.uiState.value.record?.id
-                if (open != null && recordId != null) {
-                    viewModel.pause()
-                    open(recordId)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
-                }
-            },
             onRetrySong = viewModel::retrySong,
             onCompare = {
                 viewModel.uiState.value.record?.id?.let { recordId ->
@@ -222,13 +198,12 @@ private fun rememberRecordDetailActions(
 
 /**
  * GROWTH-01 상태. 처음에 이번 주를 받고, 다른 기간은 탭을 처음 고를 때 받는다. 받지 못한 기간은 탭을 다시 고르거나 '다시 시도'로 받는다.
- * '완료한 단계'는 연습 악기가 바뀌거나 학습 화면에서 완료 표시를 바꾸면 다시 센다.
- * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 전체 곡 연주를 받고, 곡·범위를 고를 때마다 다시 받는다.
+ * '점수 변화'(GRO-03)는 기간과 따로 처음에 가장 최근에 연주한 곡의 기본 평가를 받고, 악기·곡을 고를 때마다 다시 받는다.
+ * 악기 고르기용 곡 → 악기 대응은 곡 목록(CAT-01·02)에서 한 번 받고, 곡 목록에 없는 곡(지우거나 비공개로 바꾼 곡)은 고르지 않는다.
  */
 class GrowthViewModel(
     private val repository: GrowthRepository,
-    private val learnProgress: LearnProgressRepository,
-    instruments: InstrumentRepository,
+    private val songs: SongRepository,
     now: () -> Long,
     member: SignedInMember? = null,
 ) : ViewModel() {
@@ -241,17 +216,20 @@ class GrowthViewModel(
 
     private var trendJob: Job? = null
 
+    /** 악기 고르기용 곡 → 악기 대응. 한 번만 받고, 받지 못하면 null이라 악기 없이 곡만 고른다. */
+    private val trendCatalog: Deferred<TrendCatalog?> = accountScope.async {
+        try {
+            TrendCatalog.of(songs.getInstruments(), songs.getSongs())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     init {
         load(GrowthRange.Week)
-        loadTrend(songId = null, scope = TrendScope.Full)
-        accountScope.launch {
-            // 완료한 단계는 서버 학습 진도로 센다(받지 못하면 비워 둔다).
-            combine(instruments.instrument, learnProgress.saves) { instrument, _ -> instrument }
-                .collectLatest { instrument ->
-                    val count = instrument?.let { learnProgress.doneStages(it)?.size }
-                    _uiState.update { it.copy(completedSteps = count) }
-                }
-        }
+        loadTrend(songId = null)
     }
 
     fun changeRange(range: GrowthRange) {
@@ -262,31 +240,45 @@ class GrowthViewModel(
 
     fun retry() = load(_uiState.value.range)
 
-    /** 점수 변화 곡을 바꾼다. 지금 범위에 그 곡의 연주가 없고 다른 범위에만 있으면 범위도 바꾼다. */
+    /** 점수 변화 악기를 바꾼다. 그 악기에서 가장 최근에 연주한 기본 평가 곡을 보인다. */
+    fun selectTrendInstrument(instrumentId: String) {
+        val trend = _uiState.value.scoreTrend
+        if (trend.selectedInstrument?.instrumentId == instrumentId && !trend.failed) return
+        val song = trend.songFor(instrumentId) ?: return
+        loadTrend(song.songId)
+    }
+
+    /** 점수 변화 곡을 바꾼다. 기본 평가가 없는 곡은 고를 수 없다. */
     fun selectTrendSong(songId: String) {
         val trend = _uiState.value.scoreTrend
-        val song = trend.view?.songs?.firstOrNull { it.songId == songId } ?: return
+        if (trend.basicSongs.none { it.songId == songId }) return
         if (songId == trend.songId && !trend.failed) return
-        loadTrend(songId, trendScopeFor(song, trend.scope))
+        loadTrend(songId)
     }
 
-    /** 점수 변화 범위(전체 곡·구간)를 바꾼다. */
-    fun selectTrendScope(scope: TrendScope) {
-        val trend = _uiState.value.scoreTrend
-        if (scope == trend.scope && !trend.failed) return
-        loadTrend(trend.songId, scope)
-    }
+    fun retryTrend() = loadTrend(_uiState.value.scoreTrend.songId)
 
-    fun retryTrend() = _uiState.value.scoreTrend.let { loadTrend(it.songId, it.scope) }
-
-    /** 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). */
-    private fun loadTrend(songId: String?, scope: TrendScope) {
+    /**
+     * 늘 기본 평가(`FULL`)만 받는다. 서버가 기본 평가만 골라 최근 5개를 오래된 순으로 주므로 재평가가 5개 안에 끼지 않는다.
+     * 앞선 요청은 취소한다(빠르게 곡을 바꾸면 마지막에 고른 곡만 보인다). 곡 → 악기 대응을 받은 뒤에 결과를 보여,
+     * 서버가 고른 곡을 고를 수 없으면(기본 평가가 없거나 곡 목록에 없는 곡) 그 곡을 그리지 않고 가장 최근에 연주한 고를 수 있는 곡을 다시 받는다.
+     */
+    private fun loadTrend(songId: String?) {
         if (!accountScope.isActive) return
         trendJob?.cancel()
-        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId, scope)) }
+        _uiState.update { it.copy(scoreTrend = it.scoreTrend.requesting(songId)) }
         trendJob = accountScope.launch {
-            val trend = repository.scoreTrend(songId, scope)
-            _uiState.update { it.copy(scoreTrend = it.scoreTrend.received(trend)) }
+            val trend = repository.scoreTrend(songId, TrendScope.Full)
+            val catalog = trendCatalog.await()
+            val received = { state: ScoreTrendState -> state.copy(catalog = catalog).received(trend) }
+            val next = received(_uiState.value.scoreTrend)
+            val fallback = next.fallbackSongId?.takeIf { trend != null && it != songId }
+            if (fallback != null) {
+                _uiState.update { it.copy(scoreTrend = it.scoreTrend.copy(catalog = catalog)) }
+                loadTrend(fallback)
+            } else {
+                _uiState.update { it.copy(scoreTrend = received(it.scoreTrend)) }
+            }
         }
     }
 
@@ -301,12 +293,10 @@ class GrowthViewModel(
     }
 }
 
-/** GROWTH-01 연결. [onOpenSteps]는 '완료한 단계'(기초부터 배우기) 이동. */
+/** GROWTH-01 연결. */
 @Composable
 fun GrowthRoute(
     onBack: () -> Unit,
-    onOpenRecords: () -> Unit,
-    onOpenSteps: () -> Unit,
     viewModel: GrowthViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -316,8 +306,6 @@ fun GrowthRoute(
         onBack = onBack,
         onRange = viewModel::changeRange,
         onRetry = viewModel::retry,
-        onOpenSteps = onOpenSteps,
-        onOpenRecords = onOpenRecords,
-        trendActions = ScoreTrendActions(viewModel::selectTrendSong, viewModel::selectTrendScope, viewModel::retryTrend),
+        trendActions = ScoreTrendActions(viewModel::selectTrendInstrument, viewModel::selectTrendSong, viewModel::retryTrend),
     )
 }

@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.feature.profile.DataSourcesRoute
 import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
 import com.ssafy.eolssu.feature.profile.NicknameEditRoute
@@ -22,6 +23,7 @@ object ProfileDestination {
     const val NICKNAME = "my/nickname"
     const val PASSWORD = "my/password"
     const val WITHDRAW = "my/withdraw"
+    const val SOURCES = "my/sources"
     const val LINK = "my/link/{provider}"
 
     fun link(provider: SocialProvider) = "my/link/${provider.name}"
@@ -58,6 +60,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
                         MyPageTarget.Nickname -> ProfileDestination.NICKNAME
                         MyPageTarget.Password -> ProfileDestination.PASSWORD
                         MyPageTarget.Withdraw -> ProfileDestination.WITHDRAW
+                        MyPageTarget.Sources -> ProfileDestination.SOURCES
                     },
                 )
             },
@@ -80,6 +83,9 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
             onBack = { navController.popBackStackFrom(entry) },
             onChanged = { navController.popWithNotice(StartNotice.MyPasswordChanged) },
         )
+    }
+    composable(ProfileDestination.SOURCES) { entry ->
+        DataSourcesRoute(onBack = { navController.popBackStackFrom(entry) })
     }
     composable(ProfileDestination.WITHDRAW) { entry ->
         WithdrawRoute(

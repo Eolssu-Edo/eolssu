@@ -65,7 +65,7 @@ class UserSheetController(
         return when (val found = getUserSheets.get(requireNotNull(jwt.subject).toLong(), id)) {
             is SheetScoreLookup.Found ->
                 ResponseEntity.ok().cacheControl(org.springframework.http.CacheControl.noStore()).body(
-                    SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json,sources::pageUrl)))
+                    SuccessResponse.of(HttpStatus.OK, "공통 악보 조회 성공", SheetScore.of(found.sheet, found.events, json)))
             SheetScoreLookup.NotFound -> error(ErrorCode.RESOURCE_NOT_FOUND)
             SheetScoreLookup.Broken -> error(ErrorCode.STATE_CONFLICT)
         }
@@ -258,24 +258,21 @@ data class SheetScore(
     val updatedAt: Instant,
 ) {
     companion object {
-        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper,signPage: (String)->String): SheetScore {
+        fun of(sheet: UserSheet, events: List<ScoreTimelineEvent>, json: JsonMapper): SheetScore {
             val details=sheet.imported?.resultJson?.let(json::readTree)
-            val pages=details?.path("pages")?.toList()?.map { page ->
-                SheetSourcePage(page.path("pageIdx").intValue(),signPage(page.path("objectKey").asString()),page.path("width").intValue(),page.path("height").intValue())
-            } ?: emptyList()
             return SheetScore(
             sheet.id.toString(), sheet.title, sheet.kind, sheet.jangdanId?.toString(), sheet.bpm, sheet.bpmUnit,
             // 변환이 끝나기 전 각 수는 없다(행에는 CHECK 때문에 1을 둔다).
             if (sheet.imported != null && sheet.imported.conversionStatus != SheetImportStatus.DONE) 0 else sheet.columnCount,
             sheet.scoreVersion.toString(), sheet.status.name, sheet.scoreJson?.let(json::readTree), events,
-            sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,pages,Instant.now().plusSeconds(900).takeIf { pages.isNotEmpty() }) }, sheet.imported?.conversionStatus?.name,
+            sheet.imported?.let { SheetSourceView(sheet.source, it.fileName, it.hwangPitch,emptyList(),null) }, sheet.imported?.conversionStatus?.name,
             details?.path("issues")?.toList() ?: emptyList(), details?.path("notices")?.toList() ?: emptyList(), sheet.draft?.let { SheetDraftView.of(it, sheet.draftRevision, json) }, sheet.updatedAt,
         )
         }
     }
 }
 
-/** SHT-08 source. 쪽 이미지(pages)는 변환 작업자(S15P31E102-472)가 원본 쪽 PNG를 만든 뒤 채운다. */
+/** SHT-08: 원본은 보관하지 않으므로 pages=[]와 pagesExpireAt=null을 유지한다(534). */
 data class SheetSourceView(
     val type: String,
     val fileName: String?,
