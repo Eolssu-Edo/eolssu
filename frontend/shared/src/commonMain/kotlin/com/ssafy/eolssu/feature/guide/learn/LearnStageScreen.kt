@@ -126,7 +126,6 @@ import eolssu.shared.generated.resources.learn_section_sigimsae
 import eolssu.shared.generated.resources.learn_section_songs
 import eolssu.shared.generated.resources.learn_section_tasks
 import eolssu.shared.generated.resources.learn_songs_note
-import eolssu.shared.generated.resources.learn_source
 import eolssu.shared.generated.resources.learn_stage_subtitle_optional
 import eolssu.shared.generated.resources.learn_stage_title
 import eolssu.shared.generated.resources.learn_start_practice
@@ -248,12 +247,6 @@ internal fun LearnStageContent(
                 GoalCard(stage, detail)
                 StageBody(state, stage, detail, actions, columns, noteAudioContent)
                 detail.pass?.let { PassSection(stage, it) }
-                // 바로 위 묶음의 아래 여백(16dp)이 와이어프레임의 위 여백(14dp)과 겹쳐 따로 띄우지 않는다.
-                Text(
-                    stringResource(Res.string.learn_source, detail.source),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
-                    color = EolssuTheme.colors.textMuted,
-                )
             }
             else -> LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,

@@ -22,8 +22,6 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,13 +49,9 @@ import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.EolssuButton
-import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.component.GuideCard
 import com.ssafy.eolssu.feature.guide.component.GuideTopBar
 import com.ssafy.eolssu.feature.guide.component.LengthRow
@@ -73,10 +67,8 @@ import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.title
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.guide_catalog_title
 import eolssu.shared.generated.resources.guide_reading_sigimsae_small
 import eolssu.shared.generated.resources.guide_reading_title
-import eolssu.shared.generated.resources.guide_sigimsae_credit
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -96,7 +88,6 @@ internal fun ReadingScreen(
     audio: ReadingAudioState,
     onPlayAudio: (ReadingAudioClip) -> Unit,
     onStopAudio: () -> Unit,
-    onOpenCatalog: () -> Unit,
     initialPage: ReadingPage = ReadingPage.Intro,
     widthClass: WindowWidthClass = currentWindowLayout().widthClass,
 ) {
@@ -106,19 +97,10 @@ internal fun ReadingScreen(
         topBar = { GuideTopBar(stringResource(Res.string.guide_reading_title), onBack = onBack, widthClass = widthClass) },
         contentMaxWidth = widthClass.guidePageMaxWidth,
     ) {
-        Column(Modifier.fillMaxSize()) {
-            EolssuButton(
-                stringResource(Res.string.guide_catalog_title), onOpenCatalog,
-                Modifier.align(Alignment.End).padding(end = widthClass.guideSidePadding),
-                style = EolssuButtonStyle.Text, small = true,
-            )
-            Box(Modifier.weight(1f)) {
-                if (widthClass == WindowWidthClass.Compact) {
-                    ReadingBook(initialPage, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
-                } else {
-                    ReadingTabletGrid(widthClass, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
-                }
-            }
+        if (widthClass == WindowWidthClass.Compact) {
+            ReadingBook(initialPage, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
+        } else {
+            ReadingTabletGrid(widthClass, moreTip, { moreTip = it }, audio, onPlayAudio, onStopAudio)
         }
     }
 }
@@ -187,6 +169,7 @@ private fun ReadingBook(
                                 moreTip = moreTip,
                                 onMoreTip = onMoreTip,
                                 interactive = visible,
+                                showTitle = false,
                                 audio = audio,
                                 onPlayAudio = onPlayAudio,
                                 onStopAudio = onStopAudio,
@@ -285,7 +268,10 @@ private fun ReadingTabletGrid(
     }
 }
 
-/** 쪽 하나의 카드. 휴대폰 쪽과 태블릿 격자가 함께 쓴다. */
+/**
+ * 쪽 하나의 카드. 휴대폰 쪽과 태블릿 격자가 함께 쓴다.
+ * 휴대폰은 위쪽 목차 단추가 이미 쪽 표시·이름을 보여 주므로 카드 머리([showTitle])를 빼고, 목차가 없는 태블릿 격자만 카드마다 머리를 단다.
+ */
 @Composable
 private fun ReadingPageCard(
     page: ReadingPage,
@@ -299,30 +285,19 @@ private fun ReadingPageCard(
     onPlayAudio: (ReadingAudioClip) -> Unit,
     onStopAudio: () -> Unit,
     interactive: Boolean = true,
+    showTitle: Boolean = true,
 ) {
+    val title = if (showTitle) page.title() else null
     when (page) {
-        ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadIntro() }
-        ReadingPage.Order -> GuideCard(modifier, mark = page.mark, title = page.title()) { ReadOrderBoard(animate = animate) }
-        ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = page.title()) { LengthRow(audio = audio, onPlayAudio = onPlayAudio, enabled = interactive) }
-        ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = page.title()) { PitchSteps(audio, onPlayAudio, enabled = interactive) }
-        ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = page.title(), small = stringResource(Res.string.guide_reading_sigimsae_small)) {
+        ReadingPage.Intro -> GuideCard(modifier, mark = page.mark, title = title) { ReadIntro() }
+        ReadingPage.Order -> GuideCard(modifier, mark = page.mark, title = title) { ReadOrderBoard(animate = animate) }
+        ReadingPage.Length -> GuideCard(modifier, mark = page.mark, title = title) { LengthRow(audio = audio, onPlayAudio = onPlayAudio, enabled = interactive) }
+        ReadingPage.Pitch -> GuideCard(modifier, mark = page.mark, title = title) { PitchSteps(audio, onPlayAudio, enabled = interactive) }
+        ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = title, small = stringResource(Res.string.guide_reading_sigimsae_small)) {
             SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive, onOpen = onStopAudio)
-            SigimsaeCredit()
         }
-        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = page.title(), small = "$MoreSigimsaeCount", subMark = true) {
+        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = title, small = "$MoreSigimsaeCount", subMark = true) {
             SigimsaeMorePage(moreTip, onMoreTip, columns = moreColumns, enabled = interactive)
-            SigimsaeCredit()
         }
     }
-}
-
-/** 기호 그림 출처(`.sig-credit`). */
-@Composable
-private fun SigimsaeCredit() {
-    Text(
-        stringResource(Res.string.guide_sigimsae_credit),
-        Modifier.padding(top = 16.dp),
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-        color = EolssuTheme.colors.textMuted,
-    )
 }

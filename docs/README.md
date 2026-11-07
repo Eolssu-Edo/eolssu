@@ -173,6 +173,7 @@
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
+- [화면별 자료 출처를 마이페이지로 통합 (550)](knowledge/frontend/data-source-consolidation.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
 - [회원 악기 선택·인증 실패 복구와 곡 목록 자동 연결](knowledge/frontend/member-instrument-selection.md)
 - [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)

@@ -123,3 +123,7 @@ $env:ANDROID_HOME='C:/Users/SSAFY/AppData/Local/Android/Sdk'
 - 독립 코드 리뷰의 짧은 음원 표시 지적을 수정했고 재검토에서 추가 차단 결함은 없었다. Windows에서는 iOS 컴파일과 모바일 실기기 탐색/청취를 확인하지 못했다. IAB의 방향키 입력으로 Slider 위치가 바뀌는 것은 관찰하지 못해 전체 키보드 접근성 통과로 보고하지 않는다. 터치에 해당하는 클릭과 드래그는 실제 UI로 확인했다.
 
 레이아웃 연결378b466d, 플랫폼 탐색228db865와 후속 상태·컨트롤 변경이 검증 대상이다. 화면 증거는 Git 제외 `data/processed/reference-audio-fe367/inline-mobile.png`, `inline-learn.png`, `inline-expanded.png`, 최종 `inline-final.png`에 둔다. 이전 모달 스크린샷은 과거 검증 자료이며 최종 UI 증거로 사용하지 않는다.
+
+## 이후 변경
+
+2026-11-07 S15P31E102-550에서 카드 안 `출처·가공 정보` 펼침을 지우고 출처·가공 내역을 마이페이지 `자료 및 데이터 출처`로 옮겼다. [출처 통합 기록](data-source-consolidation.md)을 따른다.

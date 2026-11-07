@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.feature.guide.FingeringActions
 import com.ssafy.eolssu.feature.guide.FingeringInstrumentNote
-import com.ssafy.eolssu.feature.guide.FingeringSource
 import com.ssafy.eolssu.feature.guide.FingeringUiState
 import com.ssafy.eolssu.feature.guide.component.BlowTabs
 import com.ssafy.eolssu.feature.guide.component.FingeringCard
@@ -69,7 +68,6 @@ internal fun FingeringMediumLayout(
             FingeringCard(instrument, note, audioContent = { noteAudioContent(note) })
         }
         item(key = "source", span = { GridItemSpan(maxLineSpan) }) {
-            FingeringSource(instrument, Modifier.padding(top = 4.dp))
         }
     }
 }

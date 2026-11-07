@@ -98,14 +98,3 @@ internal fun FingeringInstrumentNote(instrument: GuideInstrument, modifier: Modi
         color = EolssuTheme.colors.textMuted,
     )
 }
-
-/** 운지표 출처(`.fg-source`). */
-@Composable
-internal fun FingeringSource(instrument: GuideInstrument, modifier: Modifier = Modifier) {
-    GuideText(
-        instrument.source,
-        modifier,
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 16.5.sp),
-        color = EolssuTheme.colors.textMuted,
-    )
-}

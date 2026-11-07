@@ -179,30 +179,6 @@ class GuideCatalogViewModelTest {
         } finally { client.close(); Dispatchers.resetMain() }
     }
 
-    @Test fun readingCatalogLoadsIndependentlyAndRetriesMissingOrFailedDetail() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        try {
-            val references = StubReferences().apply { failSymbols = true }
-            val vm = ReadingCatalogViewModel(references)
-            advanceUntilIdle()
-            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.jangdansState)
-            assertEquals(ReferenceLoadState.Failed, vm.uiState.value.symbolsState)
-            vm.selectJangdan("7")
-            advanceUntilIdle()
-            assertEquals(ReferenceLoadState.NotRegistered, vm.uiState.value.detailState)
-            references.detail = CatalogJangdanDetail("7", "장단", 60, "QUARTER", CatalogJangdanPattern(listOf("덩"), listOf(1)))
-            references.failSymbols = false
-            vm.retryDetail(); vm.retrySymbols()
-            advanceUntilIdle()
-            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.detailState)
-            assertEquals("7", vm.uiState.value.detail?.jangdanId)
-            assertEquals(ReferenceLoadState.Ready, vm.uiState.value.symbolsState)
-            assertTrue(vm.uiState.value.symbols.isEmpty())
-            vm.selectJangdan("999")
-            assertEquals("7", vm.uiState.value.selectedJangdanId)
-        } finally { Dispatchers.resetMain() }
-    }
-
     private fun instrumentsClient() = createHttpClient(MockEngine {
         respond("""{"isSuccess":true,"result":{"items":[{"instrumentId":"42","code":"DANSO","name":"단소"},{"instrumentId":"57","code":"SOGEUM","name":"소금"},{"instrumentId":"88","code":"DAEGEUM","name":"대금"}]}}""",
             headers = headersOf(HttpHeaders.ContentType, "application/json"))
@@ -211,10 +187,8 @@ class GuideCatalogViewModelTest {
 
 private class StubReferences : ReferenceCatalogRepository {
     var failPitches = false
-    var failSymbols = false
     var firstPitches: CompletableDeferred<Unit>? = null
     val firstPitchesStarted = CompletableDeferred<Unit>()
-    var detail: CatalogJangdanDetail? = null
     val pitchRequests = mutableListOf<String>()
     val fingeringRequests = mutableListOf<String>()
     override suspend fun pitches(instrumentId: String): List<CatalogPitch> {
@@ -228,9 +202,6 @@ private class StubReferences : ReferenceCatalogRepository {
         return CatalogFingerings(emptyList())
     }
     override suspend fun jangdans() = listOf(CatalogJangdanSummary("7", "장단", 60, "QUARTER", 1, 1))
-    override suspend fun jangdan(jangdanId: String) = detail
-    override suspend fun symbols(): List<CatalogNotationSymbol> {
-        if (failSymbols) throw CatalogUnavailable()
-        return emptyList()
-    }
+    override suspend fun jangdan(jangdanId: String): CatalogJangdanDetail? = null
+    override suspend fun symbols(): List<CatalogNotationSymbol> = emptyList()
 }
