@@ -3,6 +3,7 @@ package com.ssafy.eolssu.feature.song
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.model.toSummary
 import com.ssafy.eolssu.data.song.*
@@ -19,8 +20,8 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun unresolvedOrClearedInstrumentNeverRequestsAllSongs() = runTest {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore()).apply { clear() }
-        val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
+        val evaluation = keep(SongListViewModel(repo, selected, SampleUserRepository()))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected, SampleUserRepository()))
         advanceUntilIdle()
         assertTrue(repo.requests.isEmpty())
         selected.select(Instrument.DaegeumSanjo)
@@ -42,8 +43,8 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun unavailableInstrumentCanRetryWithoutUnfilteredFallback() = runTest {
         val repo = FilterSongs().apply { missingInstrument = true }
         val selected = InstrumentRepository(FakeKeyValueStore())
-        val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
+        val evaluation = keep(SongListViewModel(repo, selected, SampleUserRepository()))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected, SampleUserRepository()))
         advanceUntilIdle()
         assertTrue(repo.requests.isEmpty())
         assertEquals(SongLoadState.Failed, evaluation.uiState.value.loadState)
@@ -58,7 +59,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun evaluationListChangesServerFilterClearsSelectionAndRetainsSearch() = runTest {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore())
-        val model = keep(SongListViewModel(repo, selected))
+        val model = keep(SongListViewModel(repo, selected, SampleUserRepository()))
         advanceUntilIdle()
         assertEquals(listOf<String?>("51"), repo.requests)
         model.changeQuery("필터")
@@ -93,7 +94,7 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun practiceListRetainsNonScorableSongsAndRetryKeepsInstrument() = runTest {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore())
-        val model = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
+        val model = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected, SampleUserRepository()))
         advanceUntilIdle()
         assertEquals(listOf<String?>("51"), repo.requests)
         model.selectFilter(SongLevelFilter.Intro)
@@ -138,8 +139,8 @@ internal class SongInstrumentFilterTest : CatalogViewModelTest() {
     @Test fun cancelledResponseCannotReplaceNewInstrumentInEitherList() = runTest {
         val repo = FilterSongs()
         val selected = InstrumentRepository(FakeKeyValueStore())
-        val evaluation = keep(SongListViewModel(repo, selected))
-        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected))
+        val evaluation = keep(SongListViewModel(repo, selected, SampleUserRepository()))
+        val practice = keep(MySongsViewModel(repo, SampleMySheetRepository(), selected, SampleUserRepository()))
         advanceUntilIdle()
         val gate = CompletableDeferred<Unit>()
         repo.gate = gate

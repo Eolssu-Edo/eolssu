@@ -22,3 +22,6 @@ internal actual fun rememberHomeEnvironment(): HomeEnvironment {
     }
     return environment
 }
+
+@Composable
+internal actual fun rememberHomeAppExit(): (() -> Unit)? = null

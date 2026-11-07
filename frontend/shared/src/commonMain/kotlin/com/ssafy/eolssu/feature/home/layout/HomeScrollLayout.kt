@@ -55,11 +55,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.home.HomeFeature
-import com.ssafy.eolssu.feature.home.HomeInstruments
+import com.ssafy.eolssu.feature.home.HomeFeatureColumns
 import com.ssafy.eolssu.feature.home.HomeScrollRange
 import com.ssafy.eolssu.feature.home.homeScrollFrame
 import com.ssafy.eolssu.feature.home.homeSnapTarget
@@ -67,7 +66,6 @@ import com.ssafy.eolssu.feature.home.mix
 import com.ssafy.eolssu.feature.home.rememberHomeEnvironment
 import com.ssafy.eolssu.feature.home.component.FeatureSection
 import com.ssafy.eolssu.feature.home.component.HomeInkButton
-import com.ssafy.eolssu.feature.home.component.InstrumentPlate
 import com.ssafy.eolssu.feature.home.component.MyPagePlate
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_hero_brush_lettering
@@ -84,10 +82,7 @@ import org.jetbrains.compose.resources.stringResource
 /** 고정된 그림·본문 무대를 400dp 스크롤로 펼친 뒤, 낮은 창에서는 카드 끝까지 계속 스크롤한다. */
 @Composable
 internal fun HomeScrollLayout(
-    instrument: Instrument?,
-    instrumentBusy: Boolean,
     widthClass: WindowWidthClass,
-    onSelectInstrument: (Instrument) -> Unit,
     onOpenMyPage: () -> Unit,
     onStartEvaluation: () -> Unit,
     onFeatureClick: (HomeFeature) -> Unit,
@@ -140,7 +135,7 @@ internal fun HomeScrollLayout(
         val buttonW = (if (expanded) finalHeroW else contentW).coerceAtMost(360f)
         var buttonH by remember { mutableFloatStateOf(56.5f) }
         var headlineH by remember { mutableFloatStateOf(100f) }
-        var featureH by remember(widthClass) { mutableFloatStateOf(if (medium) 350f else 520f) }
+        var featureH by remember(widthClass) { mutableFloatStateOf(480f) }
         val s = scroll.value / density.density
         val frame = homeScrollFrame(w, h, s, buttonH)
         val featureTop = if (expanded) mix(h + 32f, 140f, frame.eased)
@@ -209,7 +204,7 @@ internal fun HomeScrollLayout(
                     )
                     if (openFeatures) {
                         FeatureSection(onFeatureClick,
-                            columns = if (medium) 3 else 2, cardMinHeight = 150.dp,
+                            columns = HomeFeatureColumns, cardMinHeight = 132.dp,
                             large = medium || expanded,
                             modifier = Modifier.offset(
                                 x = (if (expanded) contentLeft + finalHeroW + 40f else contentLeft).dp,
@@ -233,20 +228,14 @@ internal fun HomeScrollLayout(
                 }
             }
         }
-        // 상단 판은 스크롤 상자 밖에 두어 첫 화면에서는 숨기고, 펼친 뒤 추가 스크롤에도 위 12dp에 고정한다. 왼쪽 위 로고 판은 두지 않는다.
+        // 마이페이지 판은 스크롤 상자 밖에 두어 첫 화면에서는 숨기고, 펼친 뒤 추가 스크롤에도 위 12dp · 내용 오른쪽 끝에 고정한다.
+        // 연습 악기 판은 곡 고르기 화면 상단 바로 옮겼다. 왼쪽 위 로고 판은 두지 않는다.
         if (frame.headerAlpha > 0f) {
             Row(
                 Modifier.offset(x = contentLeft.dp, y = HomeHeaderTop).width(contentW.dp).graphicsLayer { alpha = frame.headerAlpha },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End,
             ) {
-                InstrumentPlate(
-                    instrument = instrument ?: HomeInstruments.first(),
-                    instruments = HomeInstruments,
-                    enabled = !instrumentBusy,
-                    onSelect = onSelectInstrument,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
                 MyPagePlate(onOpenMyPage)
             }
         }

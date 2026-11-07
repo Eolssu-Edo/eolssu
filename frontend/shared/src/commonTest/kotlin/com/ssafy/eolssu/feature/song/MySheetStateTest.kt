@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.model.MySheetOrigin
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.song.SampleMySheetRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
+import com.ssafy.eolssu.data.user.SampleUserRepository
 import com.ssafy.eolssu.testing.CatalogSongs
 import com.ssafy.eolssu.testing.CatalogViewModelTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,7 +42,7 @@ internal class MySheetStateTest : CatalogViewModelTest() {
     @Test
     fun deleteAsksFirstThenRemovesSheetFromList() = runTest {
         val repository = SampleMySheetRepository()
-        val model = keep(MySongsViewModel(CatalogSongs(), repository, InstrumentRepository(FakeKeyValueStore()).apply { clear() }))
+        val model = keep(MySongsViewModel(CatalogSongs(), repository, InstrumentRepository(FakeKeyValueStore()).apply { clear() }, SampleUserRepository()))
         advanceUntilIdle()
         val arirang = model.uiState.value.sheets.orEmpty().first()
 

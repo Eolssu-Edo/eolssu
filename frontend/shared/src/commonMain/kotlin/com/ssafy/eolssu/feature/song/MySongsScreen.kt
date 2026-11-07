@@ -66,15 +66,21 @@ class MySongsActions(
 )
 
 /**
- * SONG-03 연습곡 고르기: 제공 곡 · 내 악보 탭, 내 악보 삭제 확인 창.
+ * SONG-03 연습곡 고르기: 제공 곡 · 내 악보 탭, 내 악보 삭제 확인 창. 상단 바 오른쪽에 연습 악기 드롭다운([instrumentPicker])을 둔다.
  * 휴대폰·태블릿 모두 같은 본문([MySongsBody])을 쓰고, 태블릿 가로([WindowWidthClass.Expanded])만 줄을 두 열로 놓는다.
  */
 @Composable
-fun MySongsScreen(state: MySongsUiState, widthClass: WindowWidthClass, snackbarHostState: SnackbarHostState, actions: MySongsActions) {
+fun MySongsScreen(
+    state: MySongsUiState,
+    widthClass: WindowWidthClass,
+    snackbarHostState: SnackbarHostState,
+    actions: MySongsActions,
+    instrumentPicker: @Composable () -> Unit = {},
+) {
     if (widthClass == WindowWidthClass.Compact) {
-        MySongsCompact(state, snackbarHostState, actions)
+        MySongsCompact(state, snackbarHostState, actions, instrumentPicker)
     } else {
-        MySongsTabletLayout(state, expanded = widthClass == WindowWidthClass.Expanded, snackbarHostState, actions)
+        MySongsTabletLayout(state, expanded = widthClass == WindowWidthClass.Expanded, snackbarHostState, actions, instrumentPicker)
     }
     state.deleting?.let { DeleteSheetDialog(it, actions) }
 }
@@ -107,7 +113,7 @@ internal fun providedSongMeta(song: SongSummary): String {
 }
 
 @Composable
-private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHostState, actions: MySongsActions) {
+private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHostState, actions: MySongsActions, instrumentPicker: @Composable () -> Unit) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         topBar = {
@@ -115,6 +121,7 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
                 stringResource(Res.string.mysongs_title),
                 onBack = actions.onBack,
                 subtitle = stringResource(Res.string.mysongs_subtitle),
+                right = { instrumentPicker() },
             )
         },
     ) {

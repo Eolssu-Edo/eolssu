@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_ink_brush
 import eolssu.shared.generated.resources.home_start_evaluation
@@ -92,7 +95,8 @@ private fun InkLabel(label: String, color: Color, fontFamily: FontFamily?) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, color = color, style = MaterialTheme.typography.labelLarge.copy(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSynthesis = FontSynthesis.None, fontSize = 20.sp, lineHeight = 28.sp))
-        Text("→", color = color, fontSize = 24.sp, modifier = Modifier.clearAndSetSemantics {})
+        // 글꼴마다 '→' 글자의 높이가 달라 붓글씨와 어긋나므로, 같은 가운데 선에 놓이는 선 아이콘을 쓴다.
+        Icon(EolssuIcons.ArrowRight, contentDescription = null, modifier = Modifier.size(24.dp), tint = color)
     }
 }
 
