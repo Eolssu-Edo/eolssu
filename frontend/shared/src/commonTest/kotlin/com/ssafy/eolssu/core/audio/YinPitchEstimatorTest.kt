@@ -55,6 +55,11 @@ class YinPitchEstimatorTest {
         assertNear(415.0, YinPitchEstimator.correctHarmonic(danso, 44100, 415.0))
     }
 
+    @Test fun movesToTheLowestSoundingMultipleNotTheLoudest() {
+        // 2배음(830Hz)이 기본음(415Hz)보다 세도, 207Hz 후보는 소리가 있는 가장 낮은 배수인 415Hz로 고친다.
+        assertNear(415.0, YinPitchEstimator.correctHarmonic(tone(415.0, 0.1, 0.3, 0.1), 44100, 415.0 / 2))
+    }
+
     @Test fun keepsOverblownOctaveAsPlayed() {
         // 역취(한 옥타브 위로 분 음)는 830Hz 자리에 소리가 있으므로 고치지 않는다.
         assertNear(830.0, YinPitchEstimator.correctHarmonic(tone(830.0, 0.3, 0.1), 44100, 830.0))

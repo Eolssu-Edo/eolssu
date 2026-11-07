@@ -54,28 +54,42 @@ object YinPitchEstimator {
      * 실제 단소는 0.82배 이상이고, 내려 고치면 진짜 역취를 숨길 수 있다(D-3 철회).
      */
     internal fun correctHarmonic(samples: FloatArray, sampleRate: Int, hz: Double): Double {
-        val strength = { f: Double -> amplitudeNear(samples, sampleRate, f) }
+        val windowed = hannWindowed(samples)
+        val strength = { f: Double -> amplitudeNear(windowed, sampleRate, f) }
         val multiples = (2..5).filter { hz * it < sampleRate / 2.0 }.associateWith { strength(hz * it) }
         val loudest = multiples.values.maxOrNull() ?: return hz
         // 서버 S15P31E102-251과 같은 0.1배. 실제 단소 단음의 A(f)/A(2f) 하위 1%는 0.82였다.
         if (strength(hz) >= 0.1 * loudest) return hz
-        return hz * multiples.entries.first { it.value >= 0.1 * loudest }.key
+        // 가장 센 배수가 아니라 소리가 있는 가장 낮은 배수다. NaN 같은 예외 입력은 고치지 않는다.
+        return hz * (multiples.entries.firstOrNull { it.value >= 0.1 * loudest }?.key ?: return hz)
     }
 
-    /** Hann 창을 씌운 주파수 세기. 서버 `near()`처럼 가장 가까운 칸과 양옆 한 칸 중 최댓값이다. */
-    private fun amplitudeNear(samples: FloatArray, sampleRate: Int, hz: Double): Double {
+    private var hann = DoubleArray(0)
+
+    private fun hannWindowed(samples: FloatArray): DoubleArray {
         val n = samples.size
+        val window = hann.takeIf { it.size == n }
+            ?: DoubleArray(n) { 0.5 - 0.5 * kotlin.math.cos(2 * kotlin.math.PI * it / (n - 1)) }.also { hann = it }
+        return DoubleArray(n) { samples[it] * window[it] }
+    }
+
+    /**
+     * Hann 창을 씌운 주파수 세기. 서버 `near()`처럼 가장 가까운 칸과 양옆 한 칸 중 최댓값이다.
+     * 칸 하나의 크기를 Goertzel 점화식으로 구해 샘플마다 삼각함수를 부르지 않는다(창당 최대 15칸 × 2,048번 곱셈·덧셈).
+     */
+    private fun amplitudeNear(windowed: DoubleArray, sampleRate: Int, hz: Double): Double {
+        val n = windowed.size
         val center = kotlin.math.round(hz * n / sampleRate).toInt()
         return (center - 1..center + 1).filter { it in 1 until n / 2 }.maxOfOrNull { bin ->
-            var re = 0.0
-            var im = 0.0
-            for (i in 0 until n) {
-                val x = samples[i] * (0.5 - 0.5 * kotlin.math.cos(2 * kotlin.math.PI * i / (n - 1)))
-                val phase = 2 * kotlin.math.PI * bin * i / n
-                re += x * kotlin.math.cos(phase)
-                im -= x * kotlin.math.sin(phase)
+            val coefficient = 2 * kotlin.math.cos(2 * kotlin.math.PI * bin / n)
+            var previous = 0.0
+            var beforePrevious = 0.0
+            for (x in windowed) {
+                val current = x + coefficient * previous - beforePrevious
+                beforePrevious = previous
+                previous = current
             }
-            sqrt(re * re + im * im)
+            sqrt(maxOf(0.0, previous * previous + beforePrevious * beforePrevious - coefficient * previous * beforePrevious))
         } ?: 0.0
     }
 }
