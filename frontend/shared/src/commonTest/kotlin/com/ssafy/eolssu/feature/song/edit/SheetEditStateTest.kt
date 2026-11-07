@@ -107,8 +107,8 @@ class SheetEditStateTest {
     @Test
     fun selectionStaysInsideScore() {
         val state = importState()
-        assertEquals(0, state.select(0).moveSelection(-1).selected)
-        assertEquals(53, state.select(53).moveSelection(1).selected)
+        assertEquals(0, state.select(-1).selected)
+        assertEquals(53, state.select(54).selected)
         assertEquals(53, state.select(53).put(ScoreNote.Rest).selected)
     }
 

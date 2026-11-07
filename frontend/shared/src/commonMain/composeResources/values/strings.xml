@@ -193,7 +193,7 @@
     <string name="practice_fingering_view">운지법과 함께 보기</string>
     <string name="practice_fingering_view_desc">각 정간마다 가로 %1$s 그림과 율명을 함께 봐요</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
-    <string name="practice_fingering_desc">막는 구멍 %1$s · %2$s</string>
+    <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>
     <string name="practice_fingering_missing">이 악기의 %1$s 운지 자료는 아직 없어요.</string>
     <string name="practice_popup_denied_title">마이크 권한이 허용되지 않았어요</string>
@@ -435,7 +435,6 @@
     <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
     <string name="guide_sigimsae_tip_open">설명 펼침</string>
     <string name="guide_sigimsae_tip_closed">설명 접힘</string>
-    <string name="guide_sigimsae_credit">기호 그림: 우물사이(umulsai.com) · MIT 라이선스</string>
 
     <string name="learn_title">기초부터 배우기</string>
     <string name="learn_subtitle">순서대로 연습하고 통과를 확인해요</string>
@@ -462,7 +461,7 @@
     <string name="learn_card_open">%1$d단계 %2$s 열기</string>
     <string name="learn_card_open_done">%1$d단계 %2$s, 완료 열기</string>
     <string name="learn_card_dot">%1$d단계 %2$s로 넘기기</string>
-    <string name="learn_list_source">단계 순서는 국립국악원 e국악아카데미 단소 지도서와 대금·소금·단소 강좌 차시 구성을 따른 초안이에요(팀 확정 전). 1·2단계는 설명 중심, 3~8단계는 음높이·길이·박으로 판정, 9단계는 듣고 따라 하기예요.</string>
+    <string name="learn_list_note">1·2단계는 설명 중심, 3~8단계는 음높이·길이·박으로 판정, 9단계는 듣고 따라 하기예요.</string>
     <string name="learn_judge_read">설명·확인</string>
     <string name="learn_judge_pitch">음높이 판정</string>
     <string name="learn_judge_beat">음높이·박 판정</string>
@@ -512,7 +511,6 @@
     <string name="learn_listen_note">요성·퇴성은 아직 앱이 채점하지 않아요. 모범 연주를 듣고 비슷하게 흉내 내는 것으로 충분해요.</string>
     <string name="learn_section_pass">통과 기준</string>
     <string name="learn_pass_example">예시 기준 · 팀 확정 전 · 판정 방식: %1$s</string>
-    <string name="learn_source">근거: %1$s</string>
     <string name="learn_more_fingering">운지법 보기</string>
     <string name="learn_more_fingering_detail">운지법 보기에서 더 보기</string>
     <string name="learn_more_fingering_blow">운지법 보기 · %1$s</string>
@@ -765,7 +763,6 @@
     <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
     <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
     <string name="my_inquiry">문의하기</string>
-    <string name="my_inquiry_preparing">문의 폼을 준비하고 있어요.</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
@@ -799,9 +796,8 @@
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인으로 가입한 계정은 비밀번호가 없어요.</string>
     <string name="my_feedback_section">의견·문의</string>
-    <string name="my_feedback">의견 보내기</string>
     <string name="my_feedback_help">써 보면서 좋았던 점이나 불편했던 점을 구글 폼으로 알려 주세요.</string>
-    <string name="my_feedback_open_failed">의견 폼을 열지 못했어요. 다시 시도해 주세요.</string>
+    <string name="my_feedback_open_failed">문의 폼을 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>

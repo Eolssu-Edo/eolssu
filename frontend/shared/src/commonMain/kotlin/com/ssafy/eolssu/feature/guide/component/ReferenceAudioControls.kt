@@ -31,7 +31,6 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
     val playback = controller.playback.takeIf {
         it.status == AudioPlaybackStatus.Unavailable || it.sourceId in setOfNotNull(basic?.assetId, yoseong?.assetId)
     } ?: AudioPlaybackState()
-    var sourceOpen by remember(selection) { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth().padding(top = 6.dp)) {
         if (state.loadState != ReferenceLoadState.Ready || (basic == null && yoseong == null)) {
@@ -63,11 +62,6 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
                 )
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { sourceOpen = !sourceOpen }) {
-                Text(stringResource(Res.string.reference_audio_source_info), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-            }
-        }
         val message = when (playback.status) {
             AudioPlaybackStatus.Loading -> Res.string.reference_audio_loading_sound
             AudioPlaybackStatus.Failed -> Res.string.reference_audio_failed_sound
@@ -75,18 +69,8 @@ fun ReferenceAudioControls(selection: ReferenceAudioSelection, controller: Refer
             AudioPlaybackStatus.Unavailable -> Res.string.reference_audio_unavailable
             else -> null
         }
-        if (message != null) Text(stringResource(message), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        if (message != null) Text(stringResource(message), Modifier.padding(top = 6.dp).semantics { liveRegion = LiveRegionMode.Polite },
             style = MaterialTheme.typography.bodySmall, color = colors.textMuted)
-        if (sourceOpen) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(stringResource(Res.string.reference_audio_source), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                Text(stringResource(Res.string.reference_audio_processing), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                Text(stringResource(Res.string.reference_audio_explanation), style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
-                TextButton(onClick = controller.openSource) { Text(stringResource(Res.string.reference_audio_source_open), style = MaterialTheme.typography.labelSmall, color = colors.accentText) }
-                if (controller.sourceLinkFailed) Text(stringResource(Res.string.reference_audio_source_failed),
-                    Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodySmall)
-            }
-        }
     }
 }
 

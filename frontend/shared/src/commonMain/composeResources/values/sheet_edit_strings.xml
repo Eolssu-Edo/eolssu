@@ -112,8 +112,6 @@
     <string name="sheetedit_key_hold">지속</string>
     <string name="sheetedit_key_rest">쉼</string>
     <string name="sheetedit_key_input">%1$s 입력</string>
-    <string name="sheetedit_prev_cell">↑ 이전 정간</string>
-    <string name="sheetedit_next_cell">다음 정간 ↓</string>
     <string name="sheetedit_erase">선택한 정간 지우기</string>
     <string name="sheetedit_sig_yoseong">요성</string>
     <string name="sheetedit_sig_yoseong_desc">음을 떨어 주는 소리</string>

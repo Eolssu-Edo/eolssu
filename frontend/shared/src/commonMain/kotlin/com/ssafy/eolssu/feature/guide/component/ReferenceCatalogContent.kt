@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -18,13 +17,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.audio.AudioPlaybackState
-import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.feature.guide.FingeringUiState
-import com.ssafy.eolssu.feature.guide.ReadingCatalogUiState
 import com.ssafy.eolssu.feature.guide.ReferenceLoadState
 import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
@@ -75,77 +71,6 @@ internal fun FingeringCatalogDialog(state: FingeringUiState, onRetry: () -> Unit
                         }
                     }
                     if (state.catalogFingerings.items.isEmpty()) Text(stringResource(Res.string.guide_catalog_no_fingerings), color = EolssuTheme.colors.textMuted)
-                }
-            }
-        },
-        confirmButton = { EolssuButton(stringResource(Res.string.guide_catalog_close), onClose, style = EolssuButtonStyle.Text, small = true) },
-    )
-}
-
-@Composable
-internal fun ReadingCatalogDialog(
-    state: ReadingCatalogUiState,
-    playback: AudioPlaybackState,
-    playbackAvailable: Boolean,
-    onPlayJangdan: (String) -> Unit,
-    onJangdansRetry: () -> Unit,
-    onSymbolsRetry: () -> Unit,
-    onSelectJangdan: (String) -> Unit,
-    onDetailRetry: () -> Unit,
-    onClose: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(Res.string.guide_catalog_title)) },
-        text = {
-            Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.string.guide_catalog_jangdans), style = MaterialTheme.typography.titleMedium)
-                CatalogStatus(state.jangdansState, empty = state.jangdans.isEmpty(), onRetry = onJangdansRetry)
-                state.jangdans.forEach { jangdan ->
-                    EolssuButton(jangdan.name, { onSelectJangdan(jangdan.jangdanId) }, style = EolssuButtonStyle.Secondary)
-                    if (state.selectedJangdanId != jangdan.jangdanId) return@forEach
-                    CatalogStatus(state.detailState, onRetry = onDetailRetry)
-                    state.detail?.let { detail ->
-                        Text(detail.name, style = MaterialTheme.typography.titleMedium)
-                        val unit = if (detail.bpmUnit == "DOTTED_QUARTER") Res.string.guide_catalog_dotted_quarter else Res.string.guide_catalog_quarter
-                        Text(stringResource(Res.string.guide_catalog_bpm, detail.defaultBpm, stringResource(unit)))
-                        GuideText(detail.pattern.beats.joinToString(" · "))
-                        Text(stringResource(Res.string.guide_catalog_groups, detail.pattern.group.joinToString(" + ")))
-                        detail.source?.takeIf { it.isNotBlank() }?.let { GuideText(it, style = MaterialTheme.typography.bodySmall) }
-                        when {
-                            detail.soundUrl == null -> GuideText(stringResource(Res.string.guide_catalog_no_jangdan_sound))
-                            !playbackAvailable -> GuideText(stringResource(Res.string.reference_audio_unavailable))
-                            else -> {
-                                val status = playback.status.takeIf { playback.sourceId == detail.jangdanId }
-                                val label = when (status) {
-                                    AudioPlaybackStatus.Loading -> Res.string.guide_catalog_cancel_sound
-                                    AudioPlaybackStatus.Playing -> Res.string.guide_catalog_stop_sound
-                                    AudioPlaybackStatus.Completed -> Res.string.guide_catalog_replay_sound
-                                    else -> Res.string.guide_catalog_play_sound
-                                }
-                                EolssuButton(stringResource(label), { onPlayJangdan(detail.jangdanId) }, style = EolssuButtonStyle.Secondary)
-                                when (status) {
-                                    AudioPlaybackStatus.Loading -> GuideText(stringResource(Res.string.reference_audio_loading_sound))
-                                    AudioPlaybackStatus.Failed -> GuideText(stringResource(Res.string.reference_audio_failed_sound))
-                                    AudioPlaybackStatus.Interrupted -> GuideText(stringResource(Res.string.reference_audio_interrupted))
-                                    else -> Unit
-                                }
-                            }
-                        }
-                    }
-                }
-                Text(stringResource(Res.string.guide_catalog_symbols), Modifier.padding(top = 8.dp), style = MaterialTheme.typography.titleMedium)
-                CatalogStatus(state.symbolsState, empty = state.symbols.isEmpty(), onRetry = onSymbolsRetry)
-                state.symbols.forEach { symbol ->
-                    GuideText("${symbol.symbol} · ${symbol.name}", style = MaterialTheme.typography.titleMedium)
-                    GuideText(symbol.description)
-                    when (symbol.descriptionStatus) {
-                        "INFERRED" -> GuideText(stringResource(Res.string.guide_catalog_symbol_inferred))
-                        "EDUCATIONAL" -> GuideText(stringResource(Res.string.guide_catalog_symbol_educational))
-                    }
-                    symbol.source?.let { GuideText(it, style = MaterialTheme.typography.bodySmall) }
-                    symbol.imageLicense?.let { Text(stringResource(Res.string.guide_catalog_symbol_license, it), style = MaterialTheme.typography.bodySmall) }
-                    CatalogLink(symbol.imageUrl, stringResource(Res.string.guide_catalog_symbol_image))
                 }
             }
         },

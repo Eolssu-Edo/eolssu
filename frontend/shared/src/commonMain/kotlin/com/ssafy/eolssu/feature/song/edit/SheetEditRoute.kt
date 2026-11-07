@@ -76,8 +76,6 @@ fun SheetEditRoute(
             input = EditInputActions(
                 onSelectTab = viewModel::selectTab,
                 onPut = viewModel::put,
-                onPrevious = viewModel::previousCell,
-                onNext = viewModel::nextCell,
                 onErase = viewModel::erase,
                 onSigimsae = viewModel::putSigimsae,
                 onToggleSigimsae = viewModel::toggleSigimsae,

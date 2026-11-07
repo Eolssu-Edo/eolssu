@@ -60,8 +60,6 @@ import eolssu.shared.generated.resources.sheetedit_erase
 import eolssu.shared.generated.resources.sheetedit_key_hold
 import eolssu.shared.generated.resources.sheetedit_key_input
 import eolssu.shared.generated.resources.sheetedit_key_rest
-import eolssu.shared.generated.resources.sheetedit_next_cell
-import eolssu.shared.generated.resources.sheetedit_prev_cell
 import eolssu.shared.generated.resources.sheetedit_selected
 import eolssu.shared.generated.resources.sheetedit_selected_sigimsae
 import eolssu.shared.generated.resources.sheetedit_sig_chuseong
@@ -86,8 +84,6 @@ import org.jetbrains.compose.resources.stringResource
 class EditInputActions(
     val onSelectTab: (EditTab) -> Unit,
     val onPut: (ScoreNote) -> Unit,
-    val onPrevious: () -> Unit,
-    val onNext: () -> Unit,
     val onErase: () -> Unit,
     val onSigimsae: (Sigimsae) -> Unit,
     val onToggleSigimsae: () -> Unit,
@@ -186,7 +182,7 @@ private fun sigimsaeDescription(value: Sigimsae): StringResource = when (value) 
     Sigimsae.Jeonseong -> Res.string.sheetedit_sig_jeonseong_desc
 }
 
-/** 율명 8개와 지속(ㅡ)·쉼(△) 자판(5열), 이전·다음 정간, 지우기. */
+/** 율명 8개와 지속(ㅡ)·쉼(△) 자판(5열)과 고른 정간 지우기. 다른 정간은 악보에서 직접 눌러 고른다. */
 @Composable
 private fun YulKeys(actions: EditInputActions) {
     val keys: List<Pair<ScoreNote, String>> = StaffPitchOrder.map { ScoreNote.Pitch(it) to it.hangul } +
@@ -197,18 +193,21 @@ private fun YulKeys(actions: EditInputActions) {
                 row.forEach { (note, label) -> YulKey(note, label, { actions.onPut(note) }) }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ToolButton(stringResource(Res.string.sheetedit_prev_cell), actions.onPrevious, Modifier.weight(2f))
-            ToolButton(stringResource(Res.string.sheetedit_next_cell), actions.onNext, Modifier.weight(2f))
-            val eraseLabel = stringResource(Res.string.sheetedit_erase)
-            Surface(
-                onClick = actions.onErase,
-                modifier = Modifier.weight(1f).heightIn(min = 44.dp).semantics { contentDescription = eraseLabel },
-                shape = RoundedCornerShape(10.dp),
-                color = EolssuTheme.colors.primary,
-                contentColor = EolssuTheme.colors.onPrimary,
+        // 지우기는 자판 아래 한 줄을 다 쓴다. 넓어진 만큼 아이콘 옆에 글자를 함께 둔다.
+        Surface(
+            onClick = actions.onErase,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = EolssuTheme.colors.primary,
+            contentColor = EolssuTheme.colors.onPrimary,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(contentAlignment = Alignment.Center) { Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(20.dp)) }
+                Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(20.dp))
+                Text(stringResource(Res.string.sheetedit_erase), style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
             }
         }
     }
