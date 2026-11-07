@@ -64,7 +64,8 @@ class PracticePitchConnectionTest {
 
     @Test fun exposesLowAndHighAndIgnoresReadingsFromPreviousRecording() = exercise { vm, recorder ->
         vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
-        recorder.send(20, 66, 250.0); runCurrent()
+        // 황(311Hz)이 곡의 최저음이라 그보다 200센트 넘게 낮은 값은 보류된다(S15P31E102-556 D-5). 290Hz는 122센트 낮음.
+        recorder.send(20, 66, 290.0); runCurrent()
         assertEquals(PitchDirection.Low, vm.pitchFeedback.value.current?.direction)
         advanceTimeBy(20)
         recorder.send(40, 86, 400.0); runCurrent()

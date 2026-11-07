@@ -4,25 +4,35 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.audio.CaptureBoundary
 import com.ssafy.eolssu.core.audio.PitchReading
+import kotlin.math.abs
 import kotlin.math.log2
 import kotlin.math.pow
 
 enum class PitchDirection { Low, Match, High }
 
-internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?): PitchDirection? {
-    if (note !is ScoreNote.SourcePitch || !hwangHz.isFinite() || hwangHz <= 0 ||
-        heardHz == null || !heardHz.isFinite() || heardHz <= 0) return null
-    val names = listOf("황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응")
-    val semitones = names.indexOf(note.yul) + 12 * note.octave
-    val target = hwangHz * 2.0.pow(semitones / 12.0)
+private val yulNames = listOf("황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응")
+
+private fun targetHz(note: ScoreNote, hwangHz: Double): Double? =
+    (note as? ScoreNote.SourcePitch)?.let { hwangHz * 2.0.pow((yulNames.indexOf(it.yul) + 12 * it.octave) / 12.0) }
+
+/** 곡에서 가장 낮은 목표 음(Hz). 음이 없으면 0이라 아래 보류(D-5)가 꺼진다. */
+internal fun lowestTargetHz(events: List<ScoreEvent>, hwangHz: Double): Double =
+    events.mapNotNull { targetHz(it.note, hwangHz) }.minOrNull() ?: 0.0
+
+/**
+ * [lowestHz]는 곡의 가장 낮은 목표 음이다. 그보다 200센트 넘게 낮으면 악기가 낼 수 없는 높이라 보류한다(S15P31E102-556 D-5).
+ * 목표와 600센트 넘게 떨어진 값은 보류한다(555). 다만 높이 추정이 주기 배수 오인식을 먼저 고치므로
+ * 1,200센트 ±100 안의 차이는 역취·평취 같은 실제 실수로 보고 낮음·높음으로 안내한다(556 D-4).
+ */
+internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?, lowestHz: Double = 0.0): PitchDirection? {
+    if (!hwangHz.isFinite() || hwangHz <= 0 || heardHz == null || !heardHz.isFinite() || heardHz <= 0) return null
+    val target = targetHz(note, hwangHz) ?: return null
+    if (lowestHz > 0 && 1200 * log2(heardHz / lowestHz) < -200) return null
     val cents = 1200 * log2(heardHz / target)
-    // 반 옥타브 넘게 떨어진 값은 판단을 보류한다. YIN이 음 경계에서 기본음의 1/3·1/5로 잡는 값과 말소리를
-    // 낮음·높음으로 안내하지 않기 위해서다. 한 옥타브 틀리게 분 음도 보류된다(S15P31E102-555).
     return when {
-        cents < -600 || cents > 600 -> null
-        cents < -50 -> PitchDirection.Low
-        cents > 50 -> PitchDirection.High
-        else -> PitchDirection.Match
+        cents in -50.0..50.0 -> PitchDirection.Match
+        cents in -600.0..600.0 || abs(abs(cents) - 1200) <= 100 -> if (cents < 0) PitchDirection.Low else PitchDirection.High
+        else -> null
     }
 }
 
@@ -47,6 +57,7 @@ internal class PracticePitchTracker(
     private var scoreStartMs = 0.0
     private var lastSequence = -1L
     private var latest = PracticePitchFeedback()
+    private val lowestHz = lowestTargetHz(events, hwangHz)
 
     fun anchor(value: CaptureBoundary, scoreMs: Double) {
         if (boundary?.recordingId != value.recordingId || boundary?.segmentId != value.segmentId) {
@@ -81,7 +92,7 @@ internal class PracticePitchTracker(
         if (end > eventEnd + 0.000001 || index !in (currentIndex - 1)..currentIndex) return latest
         val pitch = event.note as? ScoreNote.SourcePitch
         val feedback = PitchFeedback(event.id, pitch?.hangul ?: event.note.symbol, reading.frequencyHz.takeUnless { event.note == ScoreNote.Rest },
-            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, reading.frequencyHz) else null,
+            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, reading.frequencyHz, lowestHz) else null,
             reading.capturedEndNanos, event.note == ScoreNote.Rest)
         latest = if (index == currentIndex) latest.copy(current = feedback) else latest.copy(previous = feedback)
         return latest
