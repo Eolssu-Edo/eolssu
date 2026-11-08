@@ -16,3 +16,4 @@ Thumbs.db
 /.til-import.lock
 /.til-imports.json.tmp
 __pycache__/
+/editor/.author-emails.local.json
