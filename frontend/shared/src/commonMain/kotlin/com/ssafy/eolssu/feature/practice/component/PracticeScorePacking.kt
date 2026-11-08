@@ -10,8 +10,11 @@ import com.ssafy.eolssu.core.ui.score.scoreStrips
 internal val PracticeStackGap = 6.dp
 private val PracticeStackRowPadding = 2.dp
 
-/** 한 각만 놓을 때 줄인 글자도 읽을 수 있는 정간 하한. 이보다 낮은 화면에서만 세로 스크롤이 생긴다. */
-private val PracticeMinFallbackCell = 20.dp
+/**
+ * 한 각도 제 크기로 들어가지 않을 때 정간과 글자를 함께 줄이는 하한. 연주 중 세로 스크롤을 두지 않고 악보가 잘려서도 안 되므로
+ * (사용자 결정) 글자가 작아지더라도 남은 높이에 끝까지 맞춘다. 0 이하의 크기만 막는다.
+ */
+private val PracticeMinFallbackCell = 1.dp
 
 /** 두 각을 위아래로 쌓기 위해 허용하는 정간 하한(사용자 결정: 글자를 줄여서라도 쌓는다). */
 private val PracticeMinStackCell = 14.dp
@@ -88,6 +91,16 @@ internal fun practiceScorePacking(
             // 한 각도 최소 크기로 들어가지 않는 낮은 화면: 세로 스크롤 대신 정간과 글자를 같은 비율로 줄인다.
             fitted = allowedFor(1).coerceIn(PracticeMinFallbackCell, minimum)
             textRatio = fitted / minimum
+        }
+    } else if (availableHeight.value.isFinite()) {
+        // 원본 장단에 따라 한 각을 여러 세로줄로 나눈 악보: 줄 배치는 그대로 두고 가장 긴 줄이 남은 높이에 들어가도록 정간과 글자를 줄인다.
+        val longest = scoreStrips(score, jangdan).maxOfOrNull { strip ->
+            strip.rows.sumOf { row -> if ((strip.column to row) in expanded) 1.5 else 1.0 }.toFloat()
+        } ?: 1f
+        val allowed = (availableHeight - 14.dp - (metrics.headHeight + PracticeStackRowPadding) * scale) / (longest * scale)
+        if (allowed < metrics.cellHeight) {
+            fitted = allowed.coerceAtLeast(PracticeMinFallbackCell)
+            textRatio = fitted / metrics.cellHeight
         }
     }
     val groups = score.columns.indices.toList().chunked(count)

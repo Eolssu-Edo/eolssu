@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,12 +17,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreEvent
@@ -50,7 +46,6 @@ import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.component.reportUserActivity
-import com.ssafy.eolssu.feature.practice.component.supportsPracticeColumnPacking
 import com.ssafy.eolssu.feature.practice.layout.PracticeExpandedLayout
 import com.ssafy.eolssu.feature.practice.layout.PracticeMediumLayout
 import eolssu.shared.generated.resources.Res
@@ -144,42 +139,34 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
 
 /**
  * 휴대폰 배치(보드 PRACTICE-01): 페이지 머리 ‘연습’ → 본문(곡 제목·오른쪽 상태 문구, 악보 또는 운지법과 함께 보기, 플레이어 카드,
- * 행동 버튼·안내)이 세로로 스크롤되고, 연주 중에만 하단 바가 고정된다.
+ * 행동 버튼·안내)을 세로 스크롤 없이 한 화면에 두고, 연주 중에만 하단 바가 고정된다.
+ * 연주 중에는 손으로 스크롤하기 어려우므로 악보는 플레이어·버튼을 뺀 남은 높이를 쓴다. 운지법을 끈 악보는 좌우로만 넘기고,
+ * 운지법과 함께 보기는 남은 높이에 들어가는 운지만 한 페이지에 담아 넘긴다.
  */
 @Composable
 private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
     val showPlayer = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
-    val packScore = remember(state.song, fingering) {
-        !fingering && state.song?.let { it.score.supportsPracticeColumnPacking(it.jangdan) } == true
-    }
-    val fontScale = LocalDensity.current.fontScale
-    val scroll = rememberScrollState()
-    LaunchedEffect(recordingBar) { if (recordingBar) scroll.animateScrollTo(0) }
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         topBar = { PracticeTopBar(state, actions.onBack, actions.onOpenSettings, onToggleStep = actions.bottom.onToggleStep) },
         bottomBar = if (recordingBar) { { PracticeRecordingBar(state, actions.bottom) } } else null,
     ) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            // 묶음 악보와 운지법 함께 보기는 글꼴을 키워도 한 화면에 맞춘다. 플레이어·버튼도 커지므로 필요한 창 높이를 같은 배율로 늘린다.
-            val fitHeight = if (recordingBar) 280.dp else 480.dp
-            val fitScore = (packScore || fingering) && maxHeight >= fitHeight * fontScale.coerceAtLeast(1f)
+        Box(Modifier.fillMaxSize()) {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .then(if (fitScore) Modifier else Modifier.verticalScroll(scroll))
                     .padding(start = 20.dp, end = 20.dp, top = if (fingering || recordingBar) 8.dp else 18.dp, bottom = 12.dp),
             ) {
                 PracticeTitleRow(state, statusAtEnd = true)
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
-                    PracticeFingeringPage(state, actions.onSelectEvent, modifier = if (fitScore) Modifier.weight(1f) else Modifier)
+                    PracticeFingeringPage(state, actions.onSelectEvent, modifier = Modifier.weight(1f))
                 } else {
                     PracticeBoardScore(
                         state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
-                        modifier = if (fitScore) Modifier.weight(1f) else Modifier,
+                        modifier = Modifier.weight(1f),
                     )
                 }
                 if (showPlayer) {
