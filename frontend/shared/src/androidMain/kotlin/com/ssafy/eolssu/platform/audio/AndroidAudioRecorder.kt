@@ -166,12 +166,15 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
                     check(count > 0) { "Microphone read failed: $count" }
                     if (cancelled) break
                     if (input.getTimestamp(timestamp, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
-                        check(timestamp.framePosition <= fileSamples - segmentStart + count + input.bufferSizeInFrames) {
-                            "Microphone input overrun"
+                        if (captureTimestampAligned(timestamp.framePosition, fileSamples - segmentStart + count, input.bufferSizeInFrames)) {
+                            segmentNanos = timestamp.nanoTime - timestamp.framePosition * 1_000_000_000 / RATE
+                            timestampValid = true
+                            boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, true)
+                        } else if (timestampValid) {
+                            // 녹음은 계속하고, 위치가 다시 맞을 때까지 실시간 음높이의 시각 기준으로 쓰지 않는다.
+                            timestampValid = false
+                            boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, false)
                         }
-                        segmentNanos = timestamp.nanoTime - timestamp.framePosition * 1_000_000_000 / RATE
-                        timestampValid = true
-                        boundary = CaptureBoundary(id, segment, segmentStart, RATE, segmentNanos, true)
                     }
                     writer.write(pcm, count)
                     var peak = 0
@@ -256,3 +259,11 @@ class AndroidAudioRecorder(context: Context) : AudioRecorder {
         const val HOP = 882
     }
 }
+
+/**
+ * 입력 장치가 잡은 위치([framePosition])가 앱이 읽은 양([readFrames])과 클라이언트 버퍼 안에서 맞아 시각 기준으로 쓸 수 있는지.
+ * 녹음을 막 시작하면 장치가 먼저 잡아 둔 프레임이 버퍼보다 많을 수 있다(API 37 에뮬레이터 약 0.33초).
+ * 이 프레임도 이어서 모두 읽히므로 맞지 않는다고 녹음을 끊지 않는다.
+ */
+internal fun captureTimestampAligned(framePosition: Long, readFrames: Long, bufferFrames: Int): Boolean =
+    framePosition <= readFrames + bufferFrames
