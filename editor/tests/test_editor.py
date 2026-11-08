@@ -1,5 +1,6 @@
 import base64
 import unittest
+from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -36,6 +37,42 @@ class EditorTests(unittest.TestCase):
         upstream = patch("editor.app.upstream_json", side_effect=self.upstream)
         self.calls = upstream.start()
         self.addCleanup(upstream.stop)
+
+    def test_views_sum_seven_korean_dates_and_persist_across_app_restarts(self):
+        origin = {"Origin": ORIGIN}
+        first, second = "/posts/2026/10/first/", "/posts/2026/10/second/"
+        with TemporaryDirectory() as directory, patch("editor.app.datetime") as clock:
+            config = dict(self.app.config, VIEWS_DB=str(Path(directory) / "views.sqlite3"))
+            client = create_app(config).test_client()
+
+            def view(path):
+                return client.post("/views", headers=origin, data=path, content_type="text/plain")
+
+            clock.now.return_value = datetime(2026, 11, 1, 23, 59)
+            self.assertEqual(client.get("/views", headers=origin).json, {})
+            self.assertEqual(view(first).status_code, 204)
+            clock.now.return_value = datetime(2026, 11, 2, 0, 0)
+            self.assertEqual(view(second).status_code, 204)
+            clock.now.return_value = datetime(2026, 11, 8, 23, 59)
+            self.assertEqual(view(second).status_code, 204)
+            self.assertEqual(view(second).status_code, 204)
+            client = create_app(config).test_client()
+            weekly = client.get("/views", headers=origin)
+            self.assertEqual(weekly.json, {second: 3})
+            self.assertEqual(weekly.headers["Access-Control-Allow-Origin"], ORIGIN)
+            self.assertEqual(weekly.headers["Cache-Control"], "no-store")
+
+    def test_views_validate_the_origin_and_body_and_are_disabled_without_storage(self):
+        origin = {"Origin": ORIGIN}
+        self.assertEqual(self.client.get("/views", headers=origin).status_code, 404)
+        with TemporaryDirectory() as directory:
+            config = dict(self.app.config, VIEWS_DB=str(Path(directory) / "views.sqlite3"))
+            client = create_app(config).test_client()
+            self.assertEqual(client.get("/views").status_code, 403)
+            for path, expected in [("/edit/", 400), ("a" * 257, 413)]:
+                response = client.post("/views", headers=origin, data=path, content_type="text/plain")
+                self.assertEqual(response.status_code, expected)
+            self.assertEqual(client.get("/views", headers=origin).json, {})
 
     def upstream(self, path, *, headers=None, form=None, update=None, expected_type=dict):
         if path == GITHUB + "/login/oauth/access_token":

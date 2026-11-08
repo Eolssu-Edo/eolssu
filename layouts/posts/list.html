@@ -1,7 +1,7 @@
 {{ define "main" }}
-{{- $posts := .RegularPages.ByDate.Reverse -}}
+{{- $posts := sort (sort .RegularPages "Title" "asc") "Date" "desc" -}}
 <div class="editorial wrap">
   <header class="page-intro"><h1>{{ .Title }}</h1>{{ with .Description }}<p>{{ . }}</p>{{ end }}</header>
-  {{ partial "journal.html" (dict "posts" $posts "reading" (first 3 (where $posts "Params.featured" true))) }}
+  {{ partial "journal.html" (dict "posts" $posts "latest" (first 3 $posts)) }}
 </div>
 {{ end }}

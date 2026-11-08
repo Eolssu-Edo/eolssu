@@ -1,19 +1,16 @@
 {{ define "main" }}
-{{- $posts := (where site.RegularPages "Section" "posts").ByDate.Reverse -}}
-{{- $featured := where $posts "Params.featured" true -}}
-{{- if $featured }}{{ $featured = first 3 $featured }}{{ else }}{{ $featured = first 3 $posts }}{{ end -}}
-{{- $reading := first 3 (complement $featured $posts) -}}
-{{- if not $reading }}{{ $reading = first 3 $posts }}{{ end -}}
+{{- $posts := sort (sort (where site.RegularPages "Section" "posts") "Title" "asc") "Date" "desc" -}}
+{{- $latest := first 3 $posts -}}
 <div class="editorial wrap">
   <h1 class="sr-only">{{ site.Data.project.name }} 개발 블로그</h1>
-  {{- with $featured }}
-  <section class="spotlight" data-spotlight aria-roledescription="캐러셀" aria-label="추천 글">
+  {{- with $latest }}
+  <section class="spotlight" data-spotlight{{ with site.Params.pageviewsapi }} data-weekly-views="{{ . }}"{{ end }} aria-roledescription="캐러셀" aria-label="추천 글">
     <div class="spot-left">
       <div class="spot-slides">
       {{- range $i, $p := . }}
       {{- $cats := partial "categories.html" $p }}
-      <article class="spot-copy{{ if $i }} is-hidden{{ end }}" data-slide{{ if $i }} aria-hidden="true" inert{{ end }} aria-roledescription="슬라이드" aria-label="{{ add $i 1 }} / {{ len $featured }}">
-        <div class="meta">{{ with $cats }}<span class="category">{{ range $j, $c := . }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</span>{{ end }}<span>추천 글</span></div>
+      <article class="spot-copy{{ if $i }} is-hidden{{ end }}" data-slide{{ if $i }} aria-hidden="true" inert{{ end }} aria-roledescription="슬라이드" aria-label="{{ add $i 1 }} / {{ len $latest }}">
+        <div class="meta"><span class="category"{{ if not $cats }} hidden{{ end }}>{{ range $j, $c := $cats }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</span><span>추천 글</span></div>
         <h2><a href="{{ $p.RelPermalink }}">{{ $p.Title }}</a></h2>
         <p>{{ with $p.Description }}{{ . }}{{ else }}{{ $p.Summary | plainify | truncate 120 }}{{ end }}</p>
       </article>
@@ -34,6 +31,6 @@
     </div>
   </section>
   {{- end }}
-  {{ partial "journal.html" (dict "posts" $posts "reading" $reading) }}
+  {{ partial "journal.html" (dict "posts" $posts "latest" $latest) }}
 </div>
 {{ end }}
