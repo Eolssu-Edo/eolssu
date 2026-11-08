@@ -6,7 +6,7 @@ author: "우동균"
 categories: [ai-native]
 tags: ["Skill", 기술블로그, 썸네일]
 description: "coco-blog에 썸네일 후보 선택과 데스크톱·모바일 미리 보기를 넣고, 이미지 업로드를 별도 단계로 뒀습니다."
-thumbnail: "https://team-edo.github.io/blog-images/2026-11-coco-1-4-1-blog-cover-preview.webp"
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-coco-1-4-1-blog-cover-preview-v2.webp"
 draft: false
 ---
 
