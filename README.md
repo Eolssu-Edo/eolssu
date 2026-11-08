@@ -37,7 +37,7 @@ title: "글 제목"
 date: 2026-10-26
 slug: "english-slug"      # 주소에 쓸 영어 이름 → /posts/2026/10/english-slug/
 author: "이름"
-categories: ["ai"]        # backend, frontend, ai, data, infra, 회고
+categories: ["ai"]        # backend, frontend, ai, ai-native, data, infra, 회고
 tags: ["단소", "음높이"]
 description: "목록에 보일 한 줄 요약"
 draft: false              # true면 배포되지 않아요
