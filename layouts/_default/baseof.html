@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
+  {{- if eq .Layout "editor" }}
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  {{- end }}
   <title>{{ if .IsHome }}{{ site.Title }}{{ else if eq .Kind "taxonomy" }}{{ if eq .Data.Plural "tags" }}태그{{ else }}분류{{ end }} · {{ site.Title }}{{ else }}{{ .Title }} · {{ site.Title }}{{ end }}</title>
   <meta name="description" content="{{ with .Description }}{{ . }}{{ else }}{{ with .Summary }}{{ . | plainify | truncate 120 }}{{ else }}{{ site.Params.description }}{{ end }}{{ end }}">
   <link rel="icon" href="{{ site.Data.brand.mascot | relURL }}" type="image/webp">
