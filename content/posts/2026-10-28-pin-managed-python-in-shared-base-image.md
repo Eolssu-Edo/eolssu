@@ -24,4 +24,4 @@ draft: false
 
 ## 이미지 버전과 분석 API 확인 {#완성된-이미지-안에서-버전을-읽었다}
 
-Apple Silicon 개발 노트북에서 Linux arm64 이미지를 빌드했습니다. 이미지 안에서 **Python 3.12.16**과 **FFmpeg 8.0.1**을 확인했습니다. 기본 실행 계정으로 분석 API를 띄워 저장소 대역의 합성 녹음 한 건을 요청했을 때는 HTTP 200과 `DONE`을 받았습니다. 이 검증은 개발 노트북에서 빌드한 이미지가 정해 둔 Python을 사용해 분석 요청을 처리하는 범위였습니다. 운영 amd64 이미지의 빌드와 실행은 별도의 확인 범위입니다.
+Apple Silicon 개발 노트북에서 Linux arm64 이미지를 빌드하고, 이미지 안에서 **Python 3.12.16**과 **FFmpeg 8.0.1**을 확인했습니다. 같은 이미지에서 기본 계정으로 실행한 첫 분석 요청의 결과는 Numba 캐시 글에 정리했습니다. [컨테이너 기동 후 첫 분석 요청이 500인 이유](https://team-edo.github.io/posts/2026/10/numba-cache-nonroot-first-request/)
