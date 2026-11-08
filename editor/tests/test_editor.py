@@ -92,6 +92,27 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(self.start(path=None).status_code, 403)
         self.assertEqual(self.calls.call_count, 4)
 
+    def test_writable_server_can_still_verify_an_author_without_a_post(self):
+        self.assertEqual(self.start(path=None).json, {"status": "verified"})
+        self.assertEqual(self.calls.call_count, 2)
+
+    def test_writable_server_uses_mounted_credentials(self):
+        config = dict(self.app.config)
+        token = config.pop("WRITE_TOKEN")
+        secret = config.pop("SESSION_SECRET")
+        with TemporaryDirectory() as directory:
+            token_file = Path(directory) / "token"
+            token_file.write_text(token + "\n")
+            secret_file = Path(directory) / "secret"
+            secret_file.write_text(secret + "\n")
+            with patch.dict("os.environ", {
+                "EDITOR_GITLAB_WRITE_TOKEN_FILE": str(token_file),
+                "EDITOR_SESSION_SECRET_FILE": str(secret_file),
+            }, clear=True):
+                self.client = create_app(config).test_client()
+        session = self.start().json["session"]
+        self.assertEqual(self.save(session).json, {"status": "saved"})
+
     def test_another_author_cannot_open_editor(self):
         self.emails = [{"email": "other@example.org", "verified": True}]
         self.assertEqual(self.start().status_code, 403)

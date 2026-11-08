@@ -141,17 +141,19 @@ def parse_post(file):
     return Post(source, front_matter, fields["title"], author, string_field("slug"), version)
 
 
+def read_secret(name):
+    filename = os.environ.get(name + "_FILE")
+    return Path(filename).read_text(encoding="utf-8").strip() if filename else os.environ.get(name, "")
+
+
 def create_app(config=None):
     app = Flask(__name__)
-    client_secret_file = os.environ.get("EDITOR_GITHUB_CLIENT_SECRET_FILE")
-    client_secret = (Path(client_secret_file).read_text(encoding="utf-8").strip()
-                     if client_secret_file else os.environ.get("EDITOR_GITHUB_CLIENT_SECRET", ""))
     app.config.from_mapping(
         BLOG_ORIGIN=os.environ.get("BLOG_ORIGIN", ""),
         CLIENT_ID=os.environ.get("EDITOR_GITHUB_CLIENT_ID", ""),
-        CLIENT_SECRET=client_secret,
-        WRITE_TOKEN=os.environ.get("EDITOR_GITLAB_WRITE_TOKEN", ""),
-        SESSION_SECRET=os.environ.get("EDITOR_SESSION_SECRET", ""),
+        CLIENT_SECRET=read_secret("EDITOR_GITHUB_CLIENT_SECRET"),
+        WRITE_TOKEN=read_secret("EDITOR_GITLAB_WRITE_TOKEN"),
+        SESSION_SECRET=read_secret("EDITOR_SESSION_SECRET"),
         AUTHOR_EMAILS_FILE=os.environ.get("EDITOR_GITHUB_AUTHOR_EMAILS_FILE", ""),
         MAX_CONTENT_LENGTH=MAX_SOURCE + 20_000,
     )
@@ -276,7 +278,8 @@ def create_app(config=None):
     def start_session():
         data = json_body()
         path = data.get("post")
-        if writes_enabled:
+        edit_post = writes_enabled and path is not None
+        if edit_post:
             file_endpoint(path)
         code = data.get("code")
         verifier = data.get("verifier")
@@ -302,7 +305,7 @@ def create_app(config=None):
             if error.status in (400, 401, 403):
                 abort(401, description="GitHub로 다시 로그인해 주세요.")
             raise
-        if not writes_enabled:
+        if not edit_post:
             return jsonify(status="verified")
         post = read_owned_post(path, author)
         return jsonify(session=serializer.dumps({"author": author, "post": path}),
