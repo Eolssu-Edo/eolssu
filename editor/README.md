@@ -21,3 +21,25 @@ gunicorn --bind 127.0.0.1:8120 --timeout 45 'editor.app:create_app()'
 `EDITOR_GITLAB_WRITE_TOKEN_FILE`은 `blog` 브랜치에 직접 커밋할 수 있는 GitLab 프로젝트 토큰 파일입니다. `EDITOR_SESSION_SECRET_FILE`은 32자 이상 무작위 세션 키 파일입니다. 두 파일은 `edo1`에서 기존 OAuth 자격 증명과 같은 권한으로 읽기 전용 마운트합니다. 개발 환경에서는 각각 `_FILE`을 뺀 환경변수에 값을 직접 설정할 수 있습니다.
 
 편집 세션은 GitHub가 인증한 이메일과 원본 글의 `author`가 일치할 때만 발급됩니다. 세션은 글 하나에 한정되고 15분 뒤 만료됩니다. 서버는 저장 직전 작성자와 원본 버전을 다시 확인합니다. 제목과 일반 Markdown 본문만 갱신합니다. 수정 커밋은 `blog`에 직접 반영되며, Jenkins가 공개 사이트를 다시 빌드합니다. 이미 저장한 수정은 Git 이력에서 해당 커밋을 되돌릴 수 있습니다.
+
+## 주간 조회수
+
+추천 글은 한국 날짜로 오늘과 이전 6일의 글별 조회수를 합산합니다. 조회수가 같거나 집계가 없는 자리에는 최신 글을 우선합니다. 홈은 집계 서버가 비어 있거나 응답할 수 없어도 Hugo가 생성한 최신 글 3편을 추천 영역에 표시합니다.
+
+공개 글 상세를 브라우저에서 열면 표준 글 경로 하나를 `POST /views`로 전송합니다. `GET /views`는 글 경로별 합계를 반환합니다. 집계에는 날짜·글 경로·조회 횟수만 저장하며, 새 조회를 저장할 때 기간 밖의 데이터를 지웁니다.
+
+운영에서는 기존 편집 서버 이미지를 이 변경으로 다시 빌드합니다. 컨테이너 UID/GID `65532`가 쓸 수 있는 영속 디렉터리를 `/var/lib/blog-views`에 마운트하고 `BLOG_VIEWS_DB=/var/lib/blog-views/views.sqlite3`를 설정합니다. 이 설정이 없으면 조회수 API가 비활성화됩니다. 기존 편집 자격 증명과 라우트 설정은 그대로 사용합니다.
+
+TLS 프록시의 `http` 블록에 `limit_req_zone $binary_remote_addr zone=blog_views:1m rate=30r/m;`을 추가합니다. 기존 블로그 편집 경로와 별도로 공개 주소를 연결합니다.
+
+```nginx
+location = /blog-editor/views {
+    client_max_body_size 256;
+    limit_req zone=blog_views burst=10 nodelay;
+    limit_req_status 429;
+    access_log off;
+    proxy_pass http://172.18.0.1:18121/views;
+}
+```
+
+설정 검사와 재적용 후 공개 블로그에서 글 하나를 열고, 홈에서 `GET /blog-editor/views` 응답에 해당 경로의 조회수가 포함되는지 확인합니다. 신규 프록시 경로는 Hugo Pages 자동 배포에 포함되지 않습니다.

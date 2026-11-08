@@ -1,6 +1,4 @@
-{{- /* 전체 글과 직무별 버튼(오른쪽), 함께 읽을 이야기와 프로젝트 안내(왼쪽). 인자: posts, reading, title */ -}}
-{{- /* 같은 날짜의 글도 순서가 바뀌지 않도록 날짜·제목 순으로 고정하고, 최신 글을 맨 위에 둡니다. */ -}}
-{{- $posts := sort (sort .posts "Title" "asc") "Date" "desc" -}}
+{{- $posts := .posts -}}
 {{- $known := slice -}}
 {{- range site.Data.blog.categories }}{{ $known = $known | append .key }}{{ end -}}
 {{- $extra := dict -}}
@@ -36,16 +34,7 @@
     </div>
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
-    {{- with .reading }}
-    <section class="side-block reading" aria-labelledby="reading-title">
-      <h2 id="reading-title">함께 읽을 이야기</h2>
-      <ol>
-        {{- range $i, $p := . }}
-        <li><a href="{{ $p.RelPermalink }}"><b>{{ printf "%02d" (add $i 1) }}</b><span><strong>{{ $p.Title }}</strong><small>{{ range $j, $c := partial "categories.html" $p }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}{{ with partial "categories.html" $p }} · {{ end }}{{ $p.Date.Format "2006.01.02" }}</small></span></a></li>
-        {{- end }}
-      </ol>
-    </section>
-    {{- end }}
+    {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title") }}
     <div class="mini-project">
       <img src="{{ site.Data.brand.mascot | relURL }}" alt="" width="384" height="313" loading="lazy" decoding="async">
       <div class="kicker">OUR PROJECT</div>

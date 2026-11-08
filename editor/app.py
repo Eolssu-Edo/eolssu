@@ -1,4 +1,4 @@
-"""Author-only write API for the static Team Edo blog."""
+"""Editor and page-view API for the static Team Edo blog."""
 
 import base64
 import binascii
@@ -6,7 +6,10 @@ import hashlib
 import json
 import os
 import re
+import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
@@ -25,6 +28,8 @@ GITHUB_API = "https://api.github.com"
 PROJECT = "s15-final/S15P31E102"
 BRANCH = "blog"
 POST_PATH = re.compile(r"posts/\d{4}-\d{2}-\d{2}-[a-z0-9][a-z0-9-]{0,175}\.md")
+PUBLIC_POST_PATH = re.compile(r"/posts/[0-9]{4}/(?:0[1-9]|1[0-2])/[a-z0-9][a-z0-9-]{0,175}/")
+KOREA_TIME = timezone(timedelta(hours=9))
 COMMIT = re.compile(r"[a-f0-9]{40}")
 VERIFIER = re.compile(r"[A-Za-z0-9._~-]{43,128}")
 EMAIL = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
@@ -156,6 +161,7 @@ def create_app(config=None):
         SESSION_SECRET=read_secret("EDITOR_SESSION_SECRET"),
         AUTHOR_EMAILS_FILE=os.environ.get("EDITOR_GITHUB_AUTHOR_EMAILS_FILE", ""),
         MAX_CONTENT_LENGTH=MAX_SOURCE + 20_000,
+        VIEWS_DB=os.environ.get("BLOG_VIEWS_DB", ""),
     )
     if config:
         app.config.update(config)
@@ -268,6 +274,43 @@ def create_app(config=None):
                     abort(403, description="등록된 블로그 작성자 계정을 확인할 수 없습니다.")
                 return matches.pop()
         raise UpstreamError(502)
+
+    views_db = app.config["VIEWS_DB"]
+    if views_db:
+        with closing(sqlite3.connect(views_db)) as db, db:
+            db.execute("""
+                CREATE TABLE IF NOT EXISTS post_views (
+                    day TEXT NOT NULL,
+                    path TEXT NOT NULL,
+                    views INTEGER NOT NULL,
+                    PRIMARY KEY (day, path)
+                )
+            """)
+
+        @app.route("/views", methods=["GET", "POST"])
+        def post_views():
+            today = datetime.now(KOREA_TIME).date()
+            first_day = today - timedelta(days=6)
+            if request.method == "POST":
+                request.max_content_length = 256
+                path = request.get_data(as_text=True)
+                if request.mimetype != "text/plain" or not PUBLIC_POST_PATH.fullmatch(path):
+                    abort(400, description="글 주소를 확인해 주세요.")
+                with closing(sqlite3.connect(views_db)) as db, db:
+                    db.execute("DELETE FROM post_views WHERE day < ?", (first_day.isoformat(),))
+                    db.execute("""
+                        INSERT INTO post_views (day, path, views) VALUES (?, ?, 1)
+                        ON CONFLICT (day, path) DO UPDATE SET views = views + 1
+                    """, (today.isoformat(), path))
+                return "", 204
+
+            with closing(sqlite3.connect(views_db)) as db:
+                rows = db.execute("""
+                    SELECT path, SUM(views) FROM post_views
+                    WHERE day BETWEEN ? AND ?
+                    GROUP BY path
+                """, (first_day.isoformat(), today.isoformat()))
+                return jsonify(dict(rows))
 
     @app.get("/config")
     def login_config():

@@ -11,6 +11,7 @@ summaryLength = 60
   team = "Team Edo"
   editorAPI = "https://k15e102.p.ssafy.io/blog-editor/"
   editorWrites = true
+  pageViewsAPI = "https://k15e102.p.ssafy.io/blog-editor/views"
 
   # 글 상세의 댓글·좋아요(giscus, GitHub Discussions에 저장).
   # repoId·categoryId가 비어 있으면 댓글 영역을 표시하지 않음. 값은 https://giscus.app 에서 확인 (README 참고, 2026-11-03 설정)
@@ -19,6 +20,17 @@ summaryLength = 60
     repoId = "R_kgDOVX3GyQ"
     category = "Comments"
     categoryId = "DIC_kwDOVX3Gyc4DKS5M"
+
+[related]
+  includeNewer = true
+  threshold = 0
+  toLower = true
+  [[related.indices]]
+    name = "tags"
+    weight = 100
+  [[related.indices]]
+    name = "categories"
+    weight = 20
 
 [taxonomies]
   tag = "tags"
