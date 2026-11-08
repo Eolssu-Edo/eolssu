@@ -84,6 +84,7 @@ import eolssu.shared.generated.resources.learn_borrow_sigimsae
 import eolssu.shared.generated.resources.learn_confirm_next
 import eolssu.shared.generated.resources.learn_detail_failed
 import eolssu.shared.generated.resources.learn_first_sound_note
+import eolssu.shared.generated.resources.learn_first_step_guide
 import eolssu.shared.generated.resources.learn_goal
 import eolssu.shared.generated.resources.learn_hint_listen
 import eolssu.shared.generated.resources.learn_hint_practice
@@ -249,11 +250,13 @@ internal fun LearnStageContent(
                 StageBody(state, stage, detail, actions, columns, noteAudioContent)
                 detail.pass?.let { PassSection(stage, it) }
                 // 바로 위 묶음의 아래 여백(16dp)이 와이어프레임의 위 여백(14dp)과 겹쳐 따로 띄우지 않는다.
-                Text(
-                    stringResource(Res.string.learn_source, detail.source),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
-                    color = EolssuTheme.colors.textMuted,
-                )
+                if (stage.number != 1) {
+                    Text(
+                        stringResource(Res.string.learn_source, detail.source),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
+                        color = EolssuTheme.colors.textMuted,
+                    )
+                }
             }
             else -> LearnLoadStatus(
                 failed = load == LearnDetailLoad.Failed,
@@ -282,12 +285,14 @@ private fun GoalCard(stage: LearnStage, detail: LearnStageDetail) {
         }
         // `.lp-goal p`: 본문 글꼴 굵게 16(제목 글꼴 아님)
         Text(detail.goal, style = MaterialTheme.typography.titleSmall.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold))
-        Text(
-            detail.why,
-            Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
-            color = colors.textMuted,
-        )
+        if (stage.number != 1) {
+            Text(
+                detail.why,
+                Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+                color = colors.textMuted,
+            )
+        }
     }
 }
 
@@ -311,10 +316,11 @@ private fun StageBody(
 
     when (stage.number) {
         1 -> {
+            LearnNote(stringResource(Res.string.learn_first_step_guide), Modifier.padding(bottom = 14.dp))
             LearnSection(stringResource(Res.string.learn_section_inspect), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
                 InstrumentFigure(instrument, detail.parts, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
             }
-            LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
+            LearnSection(tasksTitle) { LearnTaskList(detail.tasks.take(1), grid) }
         }
         // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다.
         2 -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks, grid) }
@@ -612,8 +618,10 @@ private fun NavButton(text: String, enabled: Boolean, onClick: () -> Unit, modif
 internal fun LearnStageBottomBar(stage: LearnStage, done: Boolean, actions: LearnStageActions) {
     val colors = EolssuTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
-        val primary = Modifier.weight(1f)
+        if (stage.primaryAction != LearnStageAction.Confirm) {
+            DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
+        }
+        val primary = if (stage.primaryAction == LearnStageAction.Confirm) Modifier.fillMaxWidth() else Modifier.weight(1f)
         when (stage.primaryAction) {
             LearnStageAction.Confirm -> EolssuButton(stringResource(Res.string.learn_confirm_next), { actions.onConfirm(stage.number) }, primary)
             LearnStageAction.ListenModel -> EolssuButton(stringResource(Res.string.learn_listen_model), actions.onListenModel, primary, icon = GuideIcons.Speaker)
@@ -625,15 +633,17 @@ internal fun LearnStageBottomBar(stage: LearnStage, done: Boolean, actions: Lear
         LearnStageHint.Read -> stringResource(Res.string.learn_hint_read)
         LearnStageHint.Listen -> stringResource(Res.string.learn_hint_listen)
         LearnStageHint.Song -> stringResource(Res.string.learn_hint_song)
-        LearnStageHint.Practice -> stringResource(Res.string.learn_hint_practice, stringResource(stage.judge.label))
+        LearnStageHint.Practice -> stringResource(Res.string.learn_hint_practice)
     }
-    Text(
-        hint,
-        Modifier.fillMaxWidth(),
-        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-        color = colors.textMuted,
-        textAlign = TextAlign.Center,
-    )
+    if (stage.number != 1) {
+        Text(
+            hint,
+            Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = colors.textMuted,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 /**

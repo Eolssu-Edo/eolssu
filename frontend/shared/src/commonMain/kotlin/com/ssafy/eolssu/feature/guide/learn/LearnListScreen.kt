@@ -46,7 +46,9 @@ import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_list_source
+import eolssu.shared.generated.resources.learn_overview
+import eolssu.shared.generated.resources.learn_overview_done
+import eolssu.shared.generated.resources.learn_overview_optional
 import eolssu.shared.generated.resources.learn_progress_all_done
 import eolssu.shared.generated.resources.learn_progress_done
 import eolssu.shared.generated.resources.learn_progress_label
@@ -142,6 +144,7 @@ internal fun LearnListContent(
             return@Column
         }
         ProgressCard(state)
+        LearnOverview(state, actions.onOpenStage)
         // `.lp-head`: '단계' 옆에 지금 카드 번호(`.lc-count`, 옅은 회색 고정폭 숫자)
         Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -169,12 +172,40 @@ internal fun LearnListContent(
             onOpen = actions.onOpenStage,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
-        Text(
-            stringResource(Res.string.learn_list_source),
-            Modifier.padding(top = 14.dp),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 17.sp),
-            color = EolssuTheme.colors.textMuted,
-        )
+    }
+}
+
+/** 전체 단계와 완료 여부를 한눈에 보고 원하는 단계로 바로 이동한다. */
+@Composable
+private fun LearnOverview(state: LearnUiState, onOpenStage: (Int) -> Unit) {
+    val colors = EolssuTheme.colors
+    Text(
+        stringResource(Res.string.learn_overview),
+        Modifier.padding(bottom = 8.dp),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    Column(
+        Modifier.fillMaxWidth().padding(bottom = 16.dp)
+            .background(colors.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.lineSoft, RoundedCornerShape(18.dp))
+            .padding(8.dp),
+    ) {
+        state.stages.forEach { stage ->
+            Row(
+                Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpenStage(stage.number) }
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${stage.number}.", Modifier.widthIn(min = 30.dp), color = colors.textMuted)
+                Text(stage.title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                val status = when {
+                    state.isDone(stage.number) -> stringResource(Res.string.learn_overview_done)
+                    stage.optional -> stringResource(Res.string.learn_overview_optional)
+                    else -> ""
+                }
+                if (status.isNotEmpty()) Text(status, style = MaterialTheme.typography.labelSmall, color = colors.textMuted)
+            }
+        }
     }
 }
 
