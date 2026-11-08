@@ -8,6 +8,8 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreUnit
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.component.PracticeSplitLineFill
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.data.song.Song2Json
 import kotlinx.serialization.json.Json
@@ -170,16 +172,65 @@ class PracticeScorePackingTest {
     }
 
     @Test
-    fun catalogDorajiStacksTwoPerColumnOnLowPhoneAreaWithSmallerText() {
-        // SM-S936N 글꼴 1.15배 도라지타령 연습 화면의 악보 영역(약 226dp).
+    fun catalogDorajiShowsOneColumnPerStackWhenStackingWouldMakeCellsTooSmall() {
+        // SM-S936N 글꼴 1.15배 도라지타령 연습 화면의 악보 영역(약 226dp). 두 각을 쌓으면 정간이 24dp보다 작아진다.
         val score = dorajiCatalogScore()
         val packing = practiceScorePacking(score, metrics, 226.dp, fontScale = 1.15f)
-        assertEquals(2, packing.columnsPerStack)
-        assertEquals(listOf(0, 1), packing.columnGroups[0])
-        assertEquals(listOf(2, 3), packing.columnGroups[1])
-        assertTrue(packing.metrics.cellHeight >= 14.dp)
-        assertTrue(packing.metrics.yulSize < metrics.yulSize)
+        assertEquals(1, packing.columnsPerStack)
+        assertEquals(listOf(0), packing.columnGroups[0])
+        assertTrue(packing.metrics.cellHeight >= 24.dp)
         assertTrue(renderedHeight(packing, 1.15f) <= 226.dp)
+    }
+
+    @Test
+    fun shortColumnsStackTwoOnlyWhileCellsStayAtLeastTheStackMinimum() {
+        // 3정간 각: 두 각을 쌓은 정간 = (높이 − 68dp) ÷ 6. 212dp면 24dp로 쌓고, 211dp면 한 각씩 둔다.
+        val score = Score(List(6) { List(3) { cell } })
+        val stacked = practiceScorePacking(score, metrics, 212.dp)
+        assertEquals(2, stacked.columnsPerStack)
+        assertEquals(24.dp, stacked.metrics.cellHeight)
+        assertTrue(stacked.height <= 212.dp)
+
+        val single = practiceScorePacking(score, metrics, 211.dp)
+        assertEquals(1, single.columnsPerStack)
+        assertEquals(metrics.cellHeight, single.metrics.cellHeight)
+        assertEquals(metrics.yulSize, single.metrics.yulSize)
+        assertTrue(single.height <= 211.dp)
+    }
+
+    @Test
+    fun splitCellsStackOnlyWhenTheirGrownGlyphReachesSixteenSp() {
+        // 휴대폰 연습 악보: 나뉜 정간의 율명 = 한 줄(정간 ÷ 2) × 0.8. 16sp가 되려면 정간 40dp가 필요하다.
+        val practice = metrics.copy(splitLineFill = PracticeSplitLineFill)
+        // 2줄 정간: 두 각을 쌓은 정간 = (높이 − 68dp) ÷ 6. 300dp는 약 38.7dp라 일반 기준(32dp)은 넘지만 한 각씩 둔다.
+        val double = Score(List(6) { List(3) { ScoreCell(note, note) } })
+        val single = practiceScorePacking(double, practice, 300.dp)
+        assertEquals(1, single.columnsPerStack)
+        assertEquals(metrics.cellHeight, single.metrics.cellHeight)
+        val stacked = practiceScorePacking(double, practice, 308.dp)
+        assertEquals(2, stacked.columnsPerStack)
+        assertEquals(40.dp, stacked.metrics.cellHeight)
+
+        // 3줄 정간은 정간을 1.5배로 키워 한 줄이 역시 정간 ÷ 2다. 두 각을 쌓은 정간 = (높이 − 68dp) ÷ 9.
+        val triple = Score(List(6) { List(3) { ScoreCell(note, note, note) } })
+        assertEquals(1, practiceScorePacking(triple, practice, 420.dp).columnsPerStack)
+        assertEquals(2, practiceScorePacking(triple, practice, 428.dp).columnsPerStack)
+
+        // 글자를 키우지 않는 화면(결과·비교 등과 같은 기본 메트릭)은 기존 기준대로 32dp에서 쌓는다.
+        assertEquals(2, practiceScorePacking(triple, metrics, 420.dp).columnsPerStack)
+    }
+
+    @Test
+    fun splitGlyphGrowsWithLineHeightOnlyWhenEnabled() {
+        val practice = metrics.copy(splitLineFill = PracticeSplitLineFill)
+        // 3줄 고정 크기 21 × 0.625 = 13.125sp. 한 줄 22dp × 0.8 = 17.6sp까지 키우고, 21sp보다 크게 하지 않는다.
+        assertEquals(13.125f, metrics.splitYulSize(3, 22.dp, 1f).value, 0.001f)
+        assertEquals(17.6f, practice.splitYulSize(3, 22.dp, 1f).value, 0.001f)
+        assertEquals(13.125f, practice.splitYulSize(3, 16.dp, 1f).value, 0.001f)
+        assertEquals(21f, practice.splitYulSize(2, 40.dp, 1f).value, 0.001f)
+        // 글꼴 1.3배에서는 줄도 1.3배라 같은 sp가 된다.
+        assertEquals(17.6f, practice.splitYulSize(3, 22.dp * 1.3f, 1.3f).value, 0.001f)
+        assertEquals(21f, practice.splitYulSize(1, 22.dp, 1f).value, 0.001f)
     }
 
     @Test
@@ -199,6 +250,20 @@ class PracticeScorePackingTest {
         val ratio = packing.metrics.cellHeight / 32.dp
         assertEquals(metrics.yulSize.value * ratio, packing.metrics.yulSize.value, 0.01f)
         assertEquals(metrics.auxSize.value * ratio, packing.metrics.auxSize.value, 0.01f)
+    }
+
+    @Test
+    fun veryLowAreaNeverClipsAColumnEvenWithTinyText() {
+        // 360×640dp 휴대폰에서 아리랑 각(12정간 중 8개가 3소박)의 악보 영역은 약 183dp다. 정간 하한 때문에 아래가 잘리면 안 된다.
+        val triple = ScoreCell(note, note, note)
+        val column = listOf(cell, triple, triple, cell, triple, triple, cell, triple, triple, cell, triple, triple)
+        val score = Score(List(4) { column })
+        for (scale in listOf(1f, 1.3f)) {
+            val packing = practiceScorePacking(score, metrics, 183.dp, fontScale = scale)
+            assertTrue(renderedHeight(packing, scale) <= 183.dp, "글꼴 ${scale}배 높이 ${renderedHeight(packing, scale)}")
+            assertTrue(packing.metrics.cellHeight > 0.dp)
+            assertTrue(packing.metrics.yulSize < metrics.yulSize)
+        }
     }
 
     private fun dorajiCatalogScore(): Score {
@@ -223,6 +288,22 @@ class PracticeScorePackingTest {
     fun columnsSplitByTheRendererKeepTheirExistingLayout() {
         val packing = practiceScorePacking(Score(List(4) { List(16) { cell } }), metrics, 1000.dp)
         assertEquals(1, packing.columnsPerStack)
+    }
+
+    @Test
+    fun columnsSplitIntoStripsShrinkToFitLowAreaWithoutVerticalScroll() {
+        val score = Score(List(4) { List(16) { cell } })
+        val longest = scoreStrips(score, null).maxOf { it.rows.count() }
+        for (scale in listOf(1f, 1.3f, 2f)) {
+            val packing = practiceScorePacking(score, metrics, 300.dp, fontScale = scale)
+            assertEquals(1, packing.columnsPerStack)
+            assertTrue(packing.metrics.cellHeight < metrics.cellHeight, "글꼴 ${scale}배 정간")
+            assertTrue(packing.metrics.yulSize < metrics.yulSize)
+            val rendered = (metrics.headHeight + packing.metrics.cellHeight * longest) * scale + 12.dp
+            assertTrue(rendered <= 300.dp, "글꼴 ${scale}배 높이 $rendered")
+        }
+        // 공간이 넉넉하면 원래 정간 크기를 유지한다.
+        assertEquals(metrics.cellHeight, practiceScorePacking(score, metrics, 1000.dp).metrics.cellHeight)
     }
 
     @Test

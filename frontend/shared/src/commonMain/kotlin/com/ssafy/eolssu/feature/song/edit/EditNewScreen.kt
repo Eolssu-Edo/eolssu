@@ -29,7 +29,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.song.edit.component.ChoiceCard
-import com.ssafy.eolssu.feature.song.edit.component.DevicePickSheet
 import com.ssafy.eolssu.feature.song.edit.component.HintText
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
 import eolssu.shared.generated.resources.Res
@@ -41,17 +40,17 @@ import eolssu.shared.generated.resources.sheetedit_new_hwang_desc
 import eolssu.shared.generated.resources.sheetedit_new_hwang_title
 import eolssu.shared.generated.resources.sheetedit_new_jg_desc
 import eolssu.shared.generated.resources.sheetedit_new_jg_title
-import eolssu.shared.generated.resources.sheetedit_new_pick_file
 import eolssu.shared.generated.resources.sheetedit_new_question
 import eolssu.shared.generated.resources.sheetedit_new_staff_desc
 import eolssu.shared.generated.resources.sheetedit_new_staff_title
 import eolssu.shared.generated.resources.sheetedit_new_subtitle
 import eolssu.shared.generated.resources.sheetedit_new_title
+import eolssu.shared.generated.resources.sheet_upload_prepare
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * EDIT-01 악보 추가: 정간보 가져오기 · 오선보 가져오기(함께 묶음)와 조금 떨어진 '내 악보·제공 곡 불러오기' 카드.
- * 오선보만 황으로 읽을 음 칩을 보인다. 장단은 인식한 뒤 정하므로 고르지 않는다.
+ * 오선보만 황으로 읽을 음 칩을 보인다. 다음 화면에서 파일·악기와 정간보 장단을 선택한다.
  * 넓은 창에서는 [EolssuScaffold]가 휴대폰 너비로 가운데에 둔다.
  */
 @Composable
@@ -62,15 +61,13 @@ fun EditNewScreen(
     onSelectHwang: (HwangPitch) -> Unit,
     onLoadExisting: () -> Unit,
     onOpenDevicePick: () -> Unit,
-    onCloseDevicePick: () -> Unit,
-    onDevicePicked: () -> Unit,
 ) {
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         topBar = {
             EolssuTopBar(stringResource(Res.string.sheetedit_new_title), onBack = onBack, subtitle = stringResource(Res.string.sheetedit_new_subtitle))
         },
-        bottomBar = { EolssuButton(stringResource(Res.string.sheetedit_new_pick_file), onOpenDevicePick) },
+        bottomBar = { EolssuButton(stringResource(Res.string.sheet_upload_prepare), onOpenDevicePick) },
     ) {
         Column(
             Modifier
@@ -107,9 +104,6 @@ fun EditNewScreen(
                 radio = false,
             )
         }
-    }
-    if (state.devicePickOpen) {
-        DevicePickSheet(kind = state.kind, onPick = onDevicePicked, onDismiss = onCloseDevicePick)
     }
 }
 

@@ -21,6 +21,9 @@ import com.ssafy.eolssu.data.practice.HttpPracticeRecordRepository
 import com.ssafy.eolssu.data.song.MySheetRepository
 import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
+import com.ssafy.eolssu.data.song.SheetImportRepository
+import com.ssafy.eolssu.data.song.ApiSheetImportRepository
+import com.ssafy.eolssu.feature.song.edit.SheetImportViewModel
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
 import com.ssafy.eolssu.data.song.SheetAudioRepository
@@ -187,6 +190,11 @@ val appModule = module {
     // 내 악보 목록과 편집 문서는 같은 인증 HTTP 클라이언트를 쓴다.
     single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
     single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
+    single<SheetImportRepository> { ApiSheetImportRepository(get(), get()) }
+    viewModel { (kind: ImportKind, hwang: HwangPitch) ->
+        SheetImportViewModel(kind, hwang, get(),
+            get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get())
+    }
     viewModelOf(::MySongsViewModel)
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.

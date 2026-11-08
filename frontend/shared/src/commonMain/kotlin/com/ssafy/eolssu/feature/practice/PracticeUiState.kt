@@ -81,6 +81,8 @@ data class PracticeDraft(
  * @property hadInput 이번 연주에서 입력이 한 번이라도 있었는지.
  * @property noInputMs 마지막 입력 뒤로 입력 없이 녹음한 시간(ms). 일시정지한 동안은 세지 않는다.
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
+ * @property followHeldGak 평가 연주 중 사용자가 악보를 끌어 따라가기를 멈춘 각. 현재 위치가 다른 각으로 넘어가면
+ *   다시 따라간다([resumeFollowOnNextGak]). 연주 중에는 손이 악기에 있어 '현재 위치로'를 누르기 어렵기 때문이다.
  * @property idleReminder 마지막 활동 뒤 9분 30초가 지나 "계속 연습 중인가요?"를 묻는 중.
  * @property mine 내 악보 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
@@ -115,6 +117,7 @@ data class PracticeUiState(
     val noInputMs: Double = 0.0,
     val finished: Boolean = false,
     val follow: Boolean = true,
+    val followHeldGak: Int? = null,
     val listening: Yul? = null,
     val idleReminder: Boolean = false,
     val isSongLoading: Boolean = false,
@@ -286,10 +289,10 @@ fun PracticeUiState.beginCountdown(resume: Boolean = false): PracticeUiState = c
 
 fun PracticeUiState.beginRecording(): PracticeUiState = copy(
     mode = PracticeMode.Recording, position = 0, elapsedMs = 0.0, micLevel = 0f, finished = false, popup = null, follow = true,
-    resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
+    followHeldGak = null, resume = false, pausedFraction = 0f, eventElapsedMs = 0.0, hadInput = false, noInputMs = 0.0,
 )
 
-fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true)
+fun PracticeUiState.resumeRecording(): PracticeUiState = copy(mode = PracticeMode.Recording, popup = null, resume = false, follow = true, followHeldGak = null)
 
 /** 카운트다운 취소. 이어서 연주하려던 중이면 '연주 중단' 창으로 되돌린다. */
 fun PracticeUiState.cancelCountdown(): PracticeUiState =
@@ -299,6 +302,21 @@ fun PracticeUiState.toReady(): PracticeUiState = copy(
     mode = PracticeMode.Ready, position = 0, elapsedMs = 0.0, popup = null, playing = false, finished = false, micLevel = 0f,
     eventStartedAt = null, pausedFraction = 0f, eventElapsedMs = 0.0, resume = false, hadInput = false, noInputMs = 0.0,
 )
+
+/** 사용자가 악보를 끌어 따라가기를 멈춘다. 평가 연주 중이면 지금 각을 기억해 다음 각부터 다시 따라가게 한다. */
+fun PracticeUiState.stopFollowing(): PracticeUiState =
+    copy(follow = false, followHeldGak = if (mode == PracticeMode.Recording) currentScoreUnit?.column else null)
+
+/** '현재 위치로': 바로 다시 따라간다. */
+fun PracticeUiState.followNow(): PracticeUiState = copy(follow = true, followHeldGak = null)
+
+/** 평가 연주 중 따라가기를 멈춘 뒤 현재 위치가 다른 각으로 넘어가면 다시 따라간다. 그 밖에는 그대로다. */
+fun PracticeUiState.resumeFollowOnNextGak(): PracticeUiState {
+    val held = followHeldGak ?: return this
+    if (follow || mode != PracticeMode.Recording) return this
+    val column = currentScoreUnit?.column ?: return this
+    return if (column != held) followNow() else this
+}
 
 /**
  * 현재 음을 마치고 다음 음으로. 곡 끝이면 모범 연주는 멈추고, 연주는 '연주를 마쳤어요' 창을 띄운다.

@@ -778,6 +778,7 @@ private fun ScoreCellBox(
                                 reserveBottomStart = edgeReserve?.takeIf { r == rows.lastIndex && c == 0 },
                                 unit = unit,
                                 splitCount = maxOf(rows.size, row.size),
+                                lineHeight = if (rows.size > 1) metrics.cellHeight / rows.size else null,
                                 metrics = metrics,
                                 look = look,
                                 showDivider = r > 0,
@@ -942,6 +943,8 @@ private fun LyricLane(width: androidx.compose.ui.unit.Dp, lyric: String?, units:
 private fun ScoreNoteBox(
     unit: ScoreDisplayUnit,
     splitCount: Int,
+    /** 위아래로 나뉜 정간의 한 줄 높이. 나뉘지 않았으면 null. */
+    lineHeight: Dp?,
     metrics: JeongganboMetrics,
     look: JeongganboLook,
     showDivider: Boolean,
@@ -1003,7 +1006,7 @@ private fun ScoreNoteBox(
         if (onClick != null) selected = isSelected
     }
 
-    val yulSize = metrics.yulSizeFor(splitCount)
+    val yulSize = if (lineHeight == null) metrics.yulSizeFor(splitCount) else metrics.splitYulSize(splitCount, lineHeight, LocalDensity.current.fontScale)
     val auxSize = metrics.auxSizeFor(splitCount)
     val glyphColor = when {
         playing -> colors.rec

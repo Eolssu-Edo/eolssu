@@ -126,7 +126,11 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
     return cells
 }
 
-/** 한 각을 화면의 남은 높이에 맞추고 재생 위치가 다음 각에 들어가면 함께 넘긴다. */
+/**
+ * 현재 부를 음들과 다음에 부를 두 음을 화면의 남은 높이에 세로 스크롤 없이 맞춘다. 한 페이지의 운지 수는 최대 [FingerPageFingerings]개이고,
+ * 화면이 낮거나 글꼴이 크면 자리 높이가 [FingerReadableSlotHeight] 아래로 내려가지 않도록 그보다 적게 담는다.
+ * 재생 위치가 다음 페이지에 들어가면 함께 넘긴다.
+ */
 @Composable
 fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) -> Unit, modifier: Modifier = Modifier) {
     val song = state.song ?: return
@@ -134,34 +138,35 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val instrument = state.instrument
     val cells = remember(song, instrument) { fingerCells(song, instrument) }
     if (cells.isEmpty()) return
-    val angles = remember(song, cells) { fingerAnglePages(song, cells) }
     val playback = state.scorePlayback()
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
     val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
         else song.displayUnits.firstOrNull { it.event.index == state.selected }
-    // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
-    // 한 정간이 두 페이지에 나뉠 수 있어 지금 음(표시 자리)이 든 페이지를 찾는다.
-    val currentPage = currentUnit?.let { unit -> angles.indexOfFirst { page -> page.any { cell -> cell.units.any { it.key == unit.key } } }.takeIf { it >= 0 } }
-    var browsed by remember(song, state.selected, live) { mutableIntStateOf(currentPage ?: 0) }
-    val angleIndex = if (live && state.follow) currentPage ?: browsed else browsed
-    val angle = angles[angleIndex.coerceIn(0, angles.lastIndex)]
-    val preview = remember(song, cells, angleIndex) {
-        val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
-        if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
-    }
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
     val shape = RoundedCornerShape(3.dp)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val bounded = constraints.hasBoundedHeight
-        // 화면 맞춤에서는 현재 각과 다음 두 음이 같은 줄 높이를 나눠 쓴다(다음 음이 현재 각보다 크게 보이지 않게).
-        val mainWeight = angle.sumOf { cell -> cell.units.sumOf { fingerSlotWeight(it).toDouble() } }.toFloat().coerceAtLeast(1f)
-        val previewRow = if (!bounded) 28.dp * fontScale else {
-            val fixed = 29.dp + 4.dp * (angle.size + PreviewRows) + FingerLabelHeight * fontScale + FingerNavHeight + 4.dp * 3 + 4.dp
-            ((maxHeight - fixed) / (mainWeight + PreviewRows)).coerceIn(FingerMinImageHeight, 28.dp * fontScale)
+        // 다음 두 음은 읽을 수 있는 최소 자리 높이로 고정하고, 남은 높이에 들어가는 만큼만 현재 페이지에 담는다.
+        // 현재 음 하나와 다음 두 음조차 그 높이로 들어가지 않는 낮은 창에서는 셋을 같은 높이로 줄여 잘리지 않게 한다.
+        val slotHeight = FingerReadableSlotHeight * fontScale.coerceAtLeast(1f)
+        val rowsHeight = maxHeight - FingerHeadHeight - FingerLabelHeight * fontScale - FingerNavHeight - FingerSectionGap * 3
+        val previewRow = minOf(slotHeight, ((rowsHeight - FingerRowGap * (PreviewRows + 1)) / (PreviewRows + 1)).coerceAtLeast(FingerMinImageHeight))
+        val listHeight = rowsHeight - (previewRow + FingerRowGap) * PreviewRows
+        val budget = if (bounded) FingerPageBudget(listHeight.value, previewRow.value, FingerRowGap.value) else null
+        val angles = remember(song, cells, budget) { fingerAnglePages(song, cells, budget) }
+        // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
+        // 한 정간이 두 페이지에 나뉠 수 있어 지금 음(표시 자리)이 든 페이지를 찾는다.
+        val currentPage = currentUnit?.let { unit -> angles.indexOfFirst { page -> page.any { cell -> cell.units.any { it.key == unit.key } } }.takeIf { it >= 0 } }
+        var browsed by remember(song, state.selected, live, angles) { mutableIntStateOf(currentPage ?: 0) }
+        val angleIndex = (if (live && state.follow) currentPage ?: browsed else browsed).coerceIn(0, angles.lastIndex)
+        val angle = angles[angleIndex]
+        val preview = remember(song, cells, angle) {
+            val lastEvent = angle.flatMap { it.units }.maxOfOrNull { it.event.index }
+            if (lastEvent == null) emptyList() else nextFingerCells(song, cells, lastEvent)
         }
-        Column(if (bounded) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(if (bounded) Modifier.fillMaxHeight() else Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FingerSectionGap)) {
             Column(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f) else Modifier)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
                 FingerHead(instrumentName)
@@ -209,7 +214,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                 style = MaterialTheme.typography.labelSmall, color = colors.accentText)
             // 마지막 각에서 미리보기가 줄어도 현재 악보의 공간은 늘어나지 않는다.
             // 표 머리는 위 칸과 같아 생략한다.
-            Column(Modifier.fillMaxWidth().height((previewRow + 4.dp) * PreviewRows)
+            Column(Modifier.fillMaxWidth().height((previewRow + FingerRowGap) * PreviewRows)
                 .clip(shape).background(colors.surface).border(1.dp, colors.lineStrong, shape)) {
                 if (preview.isEmpty()) {
                     Text(stringResource(Res.string.practice_finger_end), modifier = Modifier.padding(8.dp),
@@ -238,24 +243,35 @@ private val FingerImageHeight = 40.dp
 
 private const val PreviewRows = 2
 
-/** 다음 음 제목 한 줄과 아래 페이지 이동 줄의 높이(화면 맞춤 계산용). */
+/** 표 머리, 다음 음 제목 한 줄과 아래 페이지 이동 줄의 높이(화면 맞춤 계산용). */
+private val FingerHeadHeight = 29.dp
 private val FingerLabelHeight = 18.dp
 private val FingerNavHeight = 48.dp
 
-/** 화면 맞춤에서 운지 줄 한 자리의 최소 높이. 이보다 낮은 창에서만 칸 안 스크롤이 생긴다. */
-private val FingerMinImageHeight = 12.dp
+/** 표·제목·다음 음·페이지 이동 사이 간격과, 운지 줄마다 더하는 여백. */
+private val FingerSectionGap = 4.dp
+private val FingerRowGap = 4.dp
+
+/**
+ * 운지 그림·율명을 읽을 수 있는 자리(율명 하나) 높이의 하한(글꼴 배율 전). 다음 두 음도 이 높이로 그린다.
+ * 현재 페이지는 이보다 작아지지 않도록 담는 운지 수를 줄인다.
+ */
+private val FingerReadableSlotHeight = 28.dp
+
+/**
+ * 한 자리도 [FingerReadableSlotHeight]로 들어가지 않는 아주 낮은 창에서 자리 높이의 하한. 악보가 잘리지 않아야 하므로(사용자 결정)
+ * 글자·그림이 작아지더라도 끝까지 줄이고, 0 이하의 크기만 막는다.
+ */
+private val FingerMinImageHeight = 1.dp
 private val FingerNoteWidth = 76.dp
 private val FingerLyricWidth = 30.dp
-
-private fun fingerSlotWeight(unit: ScoreDisplayUnit): Float =
-    if (unit.note == ScoreNote.Hold || unit.note == ScoreNote.Blank) 0.5f else 1f
 
 /** 표 머리(29dp): ‘{악기} 운지 | 율명 | 가사’, 10sp 500 회색, 칸 사이 선. */
 @Composable
 private fun FingerHead(instrumentName: String) {
     val colors = EolssuTheme.colors
     val style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium)
-    Row(Modifier.fillMaxWidth().height(29.dp)) {
+    Row(Modifier.fillMaxWidth().height(FingerHeadHeight)) {
         Text(stringResource(Res.string.practice_finger_head_fingering, instrumentName), Modifier.weight(1f).fillMaxHeight().padding(horizontal = 2.dp, vertical = 5.dp), style = style, color = colors.textMuted, textAlign = TextAlign.Center)
         HeadCell(stringResource(Res.string.practice_finger_head_yul), FingerNoteWidth, style)
         HeadCell(stringResource(Res.string.practice_finger_head_lyric), FingerLyricWidth, style)

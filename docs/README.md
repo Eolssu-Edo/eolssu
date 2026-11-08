@@ -4,6 +4,8 @@
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
 - [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
 
+- [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
+- [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
 - [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
 - [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
 - [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)
@@ -17,6 +19,7 @@
 - [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
 
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
+- [Android 녹음 시작 직후 밀린 입력과 시각 기준 (559)](knowledge/frontend/android-recorder-startup-backlog.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
 - [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
