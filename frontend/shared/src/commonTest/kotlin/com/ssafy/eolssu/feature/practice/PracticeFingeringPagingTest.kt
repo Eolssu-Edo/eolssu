@@ -61,6 +61,39 @@ class PracticeFingeringPagingTest {
         assertEquals(cells.flatMap { it.units }.map { it.key }, pages.flatten().flatMap { it.units }.map { it.key })
     }
 
+    @Test fun lowScreenBudgetShowsFewerFingeringsPerPageInOriginalOrder() {
+        val song = columnsSong(List(4) { pitches(3) })
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        // 자리 28 + 줄 여백 4 = 32씩, 100 높이에는 세 줄만 들어간다.
+        val pages = fingerAnglePages(song, cells, FingerPageBudget(height = 100f, slotHeight = 28f, rowGap = 4f))
+        assertEquals(listOf(3, 3, 3, 3), pages.map { it.fingerings() })
+        assertTrue(pages.all { page -> page.sumOf { 28.0 * it.units.size + 4.0 } <= 100.0 })
+        assertEquals(cells.map { it.column to it.row }, pages.flatten().map { it.column to it.row })
+    }
+
+    @Test fun tallScreenBudgetKeepsFiveFingeringCap() {
+        val song = columnsSong(List(4) { pitches(3) })
+        val pages = fingerAnglePages(song, fingerCells(song, GuideInstrument.Sogeum), FingerPageBudget(1000f, 28f, 4f))
+        assertEquals(listOf(5, 5, 2), pages.map { it.fingerings() })
+    }
+
+    @Test fun budgetSmallerThanOneSlotStillShowsOneSlotPerPage() {
+        val song = columnsSong(listOf(pitches(3)))
+        val pages = fingerAnglePages(song, fingerCells(song, GuideInstrument.Sogeum), FingerPageBudget(10f, 28f, 4f))
+        assertEquals(listOf(1, 1, 1), pages.map { it.fingerings() })
+    }
+
+    @Test fun holdsThatOverflowTheBudgetMoveToTheNextPageAsContinuation() {
+        val held = ScoreCell(ScoreNote.SourcePitch("고", 1), ScoreNote.Hold, ScoreNote.Hold, ScoreNote.Hold)
+        val song = columnsSong(listOf(listOf(held, ScoreCell(ScoreNote.SourcePitch("태", 1)))))
+        val cells = fingerCells(song, GuideInstrument.Sogeum)
+        // 첫 정간: 율명 28 + 장음 14×3 + 여백 4 = 74. 60 높이에서는 장음 일부가 다음 페이지로 넘어간다.
+        val pages = fingerAnglePages(song, cells, FingerPageBudget(60f, 28f, 4f))
+        assertTrue(pages.size >= 2)
+        assertTrue(pages[1].first().continued)
+        assertEquals(cells.flatMap { it.units }.map { it.key }, pages.flatten().flatMap { it.units }.map { it.key })
+    }
+
     @Test fun sparseDaegangPagesContainSixPitchesPlusTwoSeparatePreviewNotes() {
         val song = fingerSong(List(8) { listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)), ScoreCell(ScoreNote.Hold)) }.flatten(), Jangdan("검사", listOf(1, 1), 2, 1))
         val pages = fingerPages(song, fingerCells(song, GuideInstrument.Sogeum))

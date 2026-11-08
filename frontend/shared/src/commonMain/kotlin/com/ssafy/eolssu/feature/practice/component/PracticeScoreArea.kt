@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -256,7 +257,7 @@ private fun rememberBandScroll(
 
 /**
  * 휴대폰 보드의 악보 영역. 각의 실제 높이로 위→아래 들어가는 수를 정하고 다음 묶음은 왼쪽에 둔다.
- * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족한 경우 스크롤로 모든 음에 접근할 수 있다.
+ * 3줄 이상의 소박 표기 정간은 높이를 늘린다. 공간이 부족하면 정간과 글자를 함께 줄여 세로 스크롤 없이 좌우로만 넘긴다.
  * 아래에는 준비 상태 안내(‘율명을 누르면 운지법을 볼 수 있어요 · 오른쪽 각부터 읽어요’)와, 따라가기를 끈 뒤의 ‘현재 위치로’ 버튼이 온다.
  */
 @Composable
@@ -284,7 +285,8 @@ fun PracticeBoardScore(
                 }
                 JeongganboView(
                     song = song,
-                    modifier = Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().verticalScroll(rememberScrollState()) else Modifier),
+                    // 연주 중 손으로 스크롤하기 어려우므로 휴대폰 악보는 좌우로만 넘긴다. 묶음 배치가 정간을 남은 높이에 맞춘다.
+                    modifier = Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight().clipToBounds() else Modifier),
                     metrics = packing.metrics,
                     notation = ScoreNotation(state.settings.showHangul, state.settings.showSolfege),
                     scrollState = rememberHorizontalScoreScroll(state),

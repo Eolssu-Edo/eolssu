@@ -8,6 +8,7 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreUnit
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.component.practiceScorePacking
 import com.ssafy.eolssu.data.song.Song2Json
 import kotlinx.serialization.json.Json
@@ -201,6 +202,20 @@ class PracticeScorePackingTest {
         assertEquals(metrics.auxSize.value * ratio, packing.metrics.auxSize.value, 0.01f)
     }
 
+    @Test
+    fun veryLowAreaNeverClipsAColumnEvenWithTinyText() {
+        // 360×640dp 휴대폰에서 아리랑 각(12정간 중 8개가 3소박)의 악보 영역은 약 183dp다. 정간 하한 때문에 아래가 잘리면 안 된다.
+        val triple = ScoreCell(note, note, note)
+        val column = listOf(cell, triple, triple, cell, triple, triple, cell, triple, triple, cell, triple, triple)
+        val score = Score(List(4) { column })
+        for (scale in listOf(1f, 1.3f)) {
+            val packing = practiceScorePacking(score, metrics, 183.dp, fontScale = scale)
+            assertTrue(renderedHeight(packing, scale) <= 183.dp, "글꼴 ${scale}배 높이 ${renderedHeight(packing, scale)}")
+            assertTrue(packing.metrics.cellHeight > 0.dp)
+            assertTrue(packing.metrics.yulSize < metrics.yulSize)
+        }
+    }
+
     private fun dorajiCatalogScore(): Score {
         val columns = Json.parseToJsonElement(Song2Json).jsonObject.getValue("score").jsonObject.getValue("columns").jsonArray
         return Score(columns.map { column ->
@@ -223,6 +238,22 @@ class PracticeScorePackingTest {
     fun columnsSplitByTheRendererKeepTheirExistingLayout() {
         val packing = practiceScorePacking(Score(List(4) { List(16) { cell } }), metrics, 1000.dp)
         assertEquals(1, packing.columnsPerStack)
+    }
+
+    @Test
+    fun columnsSplitIntoStripsShrinkToFitLowAreaWithoutVerticalScroll() {
+        val score = Score(List(4) { List(16) { cell } })
+        val longest = scoreStrips(score, null).maxOf { it.rows.count() }
+        for (scale in listOf(1f, 1.3f, 2f)) {
+            val packing = practiceScorePacking(score, metrics, 300.dp, fontScale = scale)
+            assertEquals(1, packing.columnsPerStack)
+            assertTrue(packing.metrics.cellHeight < metrics.cellHeight, "글꼴 ${scale}배 정간")
+            assertTrue(packing.metrics.yulSize < metrics.yulSize)
+            val rendered = (metrics.headHeight + packing.metrics.cellHeight * longest) * scale + 12.dp
+            assertTrue(rendered <= 300.dp, "글꼴 ${scale}배 높이 $rendered")
+        }
+        // 공간이 넉넉하면 원래 정간 크기를 유지한다.
+        assertEquals(metrics.cellHeight, practiceScorePacking(score, metrics, 1000.dp).metrics.cellHeight)
     }
 
     @Test
