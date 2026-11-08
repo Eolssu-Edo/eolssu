@@ -37,11 +37,9 @@ import com.ssafy.eolssu.core.ui.score.ErrorKindTag
 import com.ssafy.eolssu.core.ui.score.errorKindLabel
 import com.ssafy.eolssu.core.ui.score.ErrorMarkBox
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
-import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.ScoreCellPosition
 import com.ssafy.eolssu.feature.result.errorKindsAt
 import com.ssafy.eolssu.feature.result.shownUnit
-import com.ssafy.eolssu.feature.result.errorCount
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_cell_error
 import eolssu.shared.generated.resources.result_cell_missed_body
@@ -63,117 +61,6 @@ import eolssu.shared.generated.resources.result_filter_rhythm
 import eolssu.shared.generated.resources.score_hold
 import eolssu.shared.generated.resources.score_rest
 import org.jetbrains.compose.resources.stringResource
-
-/**
- * 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 정간만 정간보에 색칠한다.
- * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 오류 위치 RESULT-03은 네 칩).
- * [singleLine]이면 작은 칩(28dp)을 한 줄에 나눠 놓고, 좁으면 글자를 9sp까지 줄여 줄이 넘어가지 않게 한다(이전 연주 결과).
- */
-@Composable
-fun ErrorFilterChips(
-    result: EvaluationResult,
-    selected: ErrorFilter,
-    onSelect: (ErrorFilter) -> Unit,
-    modifier: Modifier = Modifier,
-    hideEmptyMissed: Boolean = false,
-    singleLine: Boolean = false,
-) {
-    val filters = ErrorFilter.entries.filterNot { hideEmptyMissed && it == ErrorFilter.Missed && result.errorCount(it) == 0 }
-    if (singleLine) {
-        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            filters.forEach { filter ->
-                val count = result.errorCount(filter)
-                val label = filterLabel(filter, count)
-                // 글자 수(견본·여백 몫 2자 포함)만큼 나눠, 좁아질 때 모든 칩의 글자가 비슷한 크기로 줄게 한다.
-                CompactFilterChip(filter, label, on = filter == selected, Modifier.weight(label.length + 2f)) { onSelect(filter) }
-            }
-        }
-        return
-    }
-    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        filters.forEach { filter ->
-            FilterChip(filter, result.errorCount(filter), on = filter == selected) { onSelect(filter) }
-        }
-    }
-}
-
-/** 한 줄 필터의 작은 칩: 28dp 높이 · 8dp 견본 · 12sp(좁으면 9sp까지 줄임). */
-@Composable
-private fun CompactFilterChip(filter: ErrorFilter, label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(28.dp).semantics { selected = on },
-        shape = CircleShape,
-        color = if (on) colors.primary else colors.background,
-        contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-        ) {
-            FilterSwatch(filter, on, 8.dp)
-            BasicText(
-                label,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = 12.sp, fontWeight = FontWeight.Medium, color = if (on) colors.onPrimary else colors.text,
-                ),
-                maxLines = 1,
-                softWrap = false,
-                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 12.sp, stepSize = 0.5.sp),
-            )
-        }
-    }
-}
-
-/** 칩 앞의 색 견본. 전체는 연두 상자, 종류는 그 종류의 칸 색이다. */
-@Composable
-private fun FilterSwatch(filter: ErrorFilter, on: Boolean, size: Dp) {
-    val colors = EolssuTheme.colors
-    val kind = filter.kind
-    if (kind == null) {
-        Box(Modifier.size(size).background(if (on) colors.onPrimary else colors.primary, RoundedCornerShape(3.dp)))
-    } else {
-        ErrorMarkBox(kind, Modifier.size(size))
-    }
-}
-
-@Composable
-private fun filterLabel(filter: ErrorFilter, count: Int): String = stringResource(
-    when (filter) {
-        ErrorFilter.All -> Res.string.result_filter_all
-        ErrorFilter.Pitch -> Res.string.result_filter_pitch
-        ErrorFilter.Rhythm -> Res.string.result_filter_rhythm
-        ErrorFilter.Length -> Res.string.result_filter_length
-        ErrorFilter.Missed -> Res.string.result_filter_missed
-    },
-    count,
-)
-
-@Composable
-private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val label = filterLabel(filter, count)
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.height(34.dp).semantics { selected = on },
-        shape = CircleShape,
-        color = if (on) colors.primary else colors.background,
-        contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            FilterSwatch(filter, on, 10.dp)
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-        }
-    }
-}
 
 /**
  * 고른 칸 설명: 칸의 글자 · 위치와 음 이름 · 오류 종류. 틀리지 않은 칸이면 그렇다고 알린다.

@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.score.errorCount
+import com.ssafy.eolssu.core.ui.score.visibleErrors
+import com.ssafy.eolssu.core.ui.score.visibleErrorKinds
+import com.ssafy.eolssu.core.ui.score.visibleUnitErrors
+
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.model.EvaluationMetric
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime

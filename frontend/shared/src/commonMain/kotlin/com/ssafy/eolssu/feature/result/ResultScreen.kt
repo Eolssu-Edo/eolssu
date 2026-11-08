@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.component.metricLabel
+import com.ssafy.eolssu.core.ui.component.MetricCards
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -84,7 +86,6 @@ import androidx.compose.ui.semantics.semantics
 import com.ssafy.eolssu.feature.result.component.BoardTopBar
 import com.ssafy.eolssu.feature.result.component.ErrorLocationCard
 import com.ssafy.eolssu.feature.result.component.LiteBadge
-import com.ssafy.eolssu.feature.result.component.MetricCards
 import com.ssafy.eolssu.feature.result.component.TotalScoreCard
 import eolssu.shared.generated.resources.result_feedback_even_good
 import eolssu.shared.generated.resources.result_feedback_even_low
@@ -311,15 +312,6 @@ internal fun MetricGrid(result: EvaluationResult, modifier: Modifier = Modifier,
         }
     }
 }
-
-@Composable
-internal fun metricLabel(metric: EvaluationMetric): String = stringResource(
-    when (metric) {
-        EvaluationMetric.Pitch -> Res.string.result_metric_pitch
-        EvaluationMetric.Rhythm -> Res.string.result_metric_rhythm
-        EvaluationMetric.Length -> Res.string.result_metric_length
-    },
-)
 
 /** 테두리만 있는 알약 버튼(44dp). [filled]이면 회색 바탕, [icon]이 있으면 글자 앞에 둔다. */
 @Composable

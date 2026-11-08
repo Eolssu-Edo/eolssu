@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.feature.practice.toSection
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.network.screenScope
@@ -12,7 +13,6 @@ import androidx.lifecycle.viewModelScope
 import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
-import com.ssafy.eolssu.data.practice.RecordDeleteOutcome
 import com.ssafy.eolssu.data.practice.WeakSectionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
  * @property loading 데이터를 받는 중. 끝났는데 [song]·[result]가 없으면 찾지 못한 것이다.
  * @property section 서버가 추천한 취약 구간(각 전체). 추천할 구간이 없거나 받지 못하면 null.
  * @property selectedCell 눌러 고른 정간. null이면 [shownCell]이 취약 구간의 첫 오류를 고른다.
- * @property delete 이전 연주 결과의 '기록 삭제' 진행 상태.
  */
 data class ResultErrorsUiState(
     val loading: Boolean = true,
@@ -37,7 +36,6 @@ data class ResultErrorsUiState(
     val filter: ErrorFilter = ErrorFilter.All,
     val selectedCell: ScoreCellPosition? = null,
     val section: ScoreSection? = null,
-    val delete: RecordDeleteState = RecordDeleteState.Idle,
 ) {
     val songTitle: String? get() = song?.title?.let { title ->
         instrumentName?.let { "$title · $it" } ?: title
@@ -54,20 +52,12 @@ data class ResultErrorsUiState(
             ?: result?.defaultSelectedCell()
 }
 
-/** '기록 삭제' 진행 상태. [Busy]·[Failed]는 안내를 띄운 뒤 [Idle]로 돌아간다. */
-enum class RecordDeleteState { Idle, Confirm, Deleting, Deleted, Busy, Failed }
-
 class ResultErrorsViewModel(
     private val sourceId: String,
     private val repository: WeakSectionRepository,
     private val loadInstruments: suspend () -> List<CatalogInstrument> = { emptyList() },
     member: SignedInMember? = null,
-    private val onOpened: suspend (String) -> Unit = {},
-    /** 이전 연주 결과에서만 넘긴다. null이면 '기록 삭제'를 보이지 않는다. */
-    private val deleteRecord: (suspend (String) -> RecordDeleteOutcome)? = null,
 ) : ViewModel() {
-    val canDelete: Boolean get() = deleteRecord != null
-
     private val _uiState = MutableStateFlow(ResultErrorsUiState())
     val uiState: StateFlow<ResultErrorsUiState> = _uiState.asStateFlow()
 
@@ -99,8 +89,6 @@ class ResultErrorsViewModel(
                 return@launch
             }
             _uiState.value = ResultErrorsUiState(loading = false, song = source.song, result = source.evaluation)
-            // 저장한 기록의 읽음 처리는 PRA-03을 유지한다. 실패해도 단독 평가를 숨기지 않는다.
-            launch { optional { onOpened(sourceId) } }
             // 선택한 단독 평가를 먼저 표시하고, 보조 정보 실패와 분리한다.
             launch {
                 val picks = optional { repository.weakSections(sourceId) }
@@ -127,37 +115,4 @@ class ResultErrorsViewModel(
 
     fun selectCell(cell: ScoreCellPosition) = _uiState.update { it.copy(selectedCell = cell) }
 
-    fun askDelete() = _uiState.update { if (it.delete == RecordDeleteState.Idle) it.copy(delete = RecordDeleteState.Confirm) else it }
-
-    fun cancelDelete() = _uiState.update { if (it.delete == RecordDeleteState.Confirm) it.copy(delete = RecordDeleteState.Idle) else it }
-
-    /** 확인 창에서 '삭제'를 누르면 기록과 녹음을 지운다(REC-04). 이미 지운 기록도 삭제됨으로 본다. */
-    fun confirmDelete() {
-        val delete = deleteRecord ?: return
-        if (_uiState.value.delete != RecordDeleteState.Confirm) return
-        _uiState.update { it.copy(delete = RecordDeleteState.Deleting) }
-        accountScope.launch {
-            val outcome = try {
-                delete(sourceId)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                RecordDeleteOutcome.Failed
-            }
-            _uiState.update {
-                it.copy(
-                    delete = when (outcome) {
-                        RecordDeleteOutcome.Deleted -> RecordDeleteState.Deleted
-                        RecordDeleteOutcome.Busy -> RecordDeleteState.Busy
-                        RecordDeleteOutcome.Failed -> RecordDeleteState.Failed
-                    },
-                )
-            }
-        }
-    }
-
-    /** 삭제 실패 안내를 띄운 뒤 부른다. */
-    fun dismissDeleteError() = _uiState.update {
-        if (it.delete == RecordDeleteState.Busy || it.delete == RecordDeleteState.Failed) it.copy(delete = RecordDeleteState.Idle) else it
-    }
 }
