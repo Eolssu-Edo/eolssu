@@ -1,0 +1,31 @@
+---
+title: "Push 직전에 기준 브랜치의 새 커밋 77개를 다시 합친 이유"
+date: 2026-10-28T00:00:00+09:00
+slug: "recheck-integration-base-before-push"
+author: "우동균"
+categories: ["infra"]
+tags: ["Git", "브랜치 통합", "테스트"]
+description: "기준 브랜치에 들어온 녹음 업로드 코드와의 충돌을 해결하고, Push 직전 변경 범위를 다시 확인해 검증을 나눴습니다."
+thumbnail: "https://team-edo.github.io/blog-images/2026-10-recheck-integration-base-before-push.webp"
+draft: false
+---
+
+얼쑤의 연습 세션 생성 API에서 리뷰 지적을 고친 뒤 Push를 준비했습니다. 기준 브랜치를 다시 가져와 작업 브랜치에 아직 들어오지 않은 커밋을 세니 77개였습니다. 그사이 녹음 업로드 코드가 합쳐졌고, 세션 생성과 업로드가 함께 쓰는 매퍼와 설정에서 충돌이 났습니다.
+
+## 충돌한 파일의 역할을 확인하고 통합했다
+
+업로드 쪽에서는 녹음 상태 갱신과 분석 시작 이벤트를 같은 트랜잭션에서 연결하는 변경이 들어와 있었습니다. 세션 생성에 필요한 매퍼와 함께 업로드 쪽 매퍼를 살리고, 분석 제한 시간 설정을 맞췄습니다. 공통 오류 코드에 같은 이름으로 들어온 값은 기준 브랜치의 정의를 사용했습니다.
+
+이렇게 합친 상태에서 새 빈 MySQL 데이터베이스로 `clean build databaseTest`를 다시 실행했습니다. 당시 작업 기록에는 일반 테스트 251개와 DB 통합 테스트 55개가 통과한 것으로 남아 있습니다. 앞서 통과한 결과와 새 통합 상태의 결과를 구분해 기록했습니다.
+
+## 마지막 두 커밋은 바뀐 파일을 보고 판단했다
+
+Push 직전에 다시 확인하니 기준 브랜치에 커밋이 두 개 더 있었습니다. 원격 변경 수와 변경 파일 목록을 함께 확인했습니다.
+
+```sh
+git fetch origin
+git rev-list --count HEAD..origin/develop
+git diff --name-status HEAD...origin/develop
+```
+
+두 커밋의 변경은 분석 명세 Markdown 한 파일에만 있었습니다. 그 변경을 통합하면서 명세의 diff를 검토하는 것으로 마지막 검증 범위를 잡았습니다.
