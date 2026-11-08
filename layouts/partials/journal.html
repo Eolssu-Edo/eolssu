@@ -12,7 +12,10 @@
 <div class="journal-layout" data-journal>
   <section class="journal-main" aria-labelledby="all-title">
     <div class="article-header">
-      <h2 id="all-title">{{ .title | default "전체 글" }}</h2>
+      <div class="journal-heading" aria-live="polite" aria-atomic="true">
+        <h2 id="all-title">{{ .title | default "전체 글" }}</h2>
+        {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
+      </div>
       {{- with $posts }}
       <div class="filters" role="group" aria-label="직무별 읽기" data-filter-group hidden>
         <button type="button" data-value="all" aria-pressed="true">전체</button>
@@ -26,7 +29,6 @@
       <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
       {{- end }}
     </div>
-    {{- with $posts }}<p class="filter-result" data-filter-result aria-live="polite">전체 글 {{ len . }}편</p>{{ end }}
     <div class="post-list">
       {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
