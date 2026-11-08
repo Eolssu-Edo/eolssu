@@ -2,7 +2,7 @@
 <div class="article-shell wrap">
   <section class="article prose-page" aria-labelledby="editor-title">
     <a class="back-link" href="{{ "/" | relURL }}" data-editor-back>← 블로그로 돌아가기</a>
-    <header class="article-heading"><h1 id="editor-title">{{ if site.Params.editorwrites }}글 수정{{ else }}{{ .Title }}{{ end }}</h1></header>
+    <header class="article-heading"><h1 id="editor-title">{{ .Title }}</h1></header>
     {{- with site.Params.editorapi }}
     <div data-editor-api="{{ . }}" data-editor-writes="{{ site.Params.editorwrites }}">
       <p role="status" data-editor-status>작성자 확인을 위해 GitHub로 로그인해 주세요.</p>
