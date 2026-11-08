@@ -71,6 +71,11 @@ data class JeongganboMetrics(
     val columnGap: Dp = 6.dp,
     /** 한 정간을 두 음으로 나눴을 때 율명 크기 비율. 옛 와이어프레임 0.75, 연두 보드 `.n2` 14/21 ≈ 0.667. */
     val splitScaleTwo: Float = 0.75f,
+    /**
+     * 0보다 크면 위아래로 나뉜 정간의 율명을 한 줄 높이의 이 비율까지 키운다([splitYulSize]). [yulSize]보다 크게 하지 않는다.
+     * 기본 0은 나뉜 수로 정한 고정 크기([yulSizeFor])만 쓴다. 휴대폰 연습 악보만 켠다(S15P31E102-560).
+     */
+    val splitLineFill: Float = 0f,
 ) {
     /** sp 글꼴 확대와 같은 기하. 부모의 줄 나누기와 실제 렌더가 함께 사용한다. */
     fun forFontScale(scale: Float): JeongganboMetrics {
@@ -80,6 +85,17 @@ data class JeongganboMetrics(
 
     /** 한 정간에 든 음 수에 맞춘 율명 크기. 와이어프레임의 16 → 12 → 10 비율을 따른다. */
     fun yulSizeFor(noteCount: Int): TextUnit = yulSize * splitScale(noteCount, splitScaleTwo)
+
+    /**
+     * 위아래로 나뉜 정간에서 한 줄 높이가 [lineHeight]일 때의 율명 크기. [splitLineFill]이 꺼져 있으면 [yulSizeFor]와 같다.
+     * 켜져 있으면 줄 높이 × [splitLineFill]을 글꼴 배율로 나눈 sp까지 키우되 [yulSizeFor]보다 작게, [yulSize]보다 크게 하지 않는다.
+     */
+    fun splitYulSize(noteCount: Int, lineHeight: Dp, fontScale: Float): TextUnit {
+        val base = yulSizeFor(noteCount)
+        if (splitLineFill <= 0f || noteCount <= 1 || fontScale <= 0f) return base
+        val grown = lineHeight.value * splitLineFill / fontScale
+        return grown.coerceIn(base.value, maxOf(base.value, yulSize.value)).sp
+    }
 
     fun auxSizeFor(noteCount: Int): TextUnit = if (noteCount > 1) auxSize * 0.88f else auxSize
 
