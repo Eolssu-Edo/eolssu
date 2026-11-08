@@ -143,10 +143,13 @@ def parse_post(file):
 
 def create_app(config=None):
     app = Flask(__name__)
+    client_secret_file = os.environ.get("EDITOR_GITHUB_CLIENT_SECRET_FILE")
+    client_secret = (Path(client_secret_file).read_text(encoding="utf-8").strip()
+                     if client_secret_file else os.environ.get("EDITOR_GITHUB_CLIENT_SECRET", ""))
     app.config.from_mapping(
         BLOG_ORIGIN=os.environ.get("BLOG_ORIGIN", ""),
         CLIENT_ID=os.environ.get("EDITOR_GITHUB_CLIENT_ID", ""),
-        CLIENT_SECRET=os.environ.get("EDITOR_GITHUB_CLIENT_SECRET", ""),
+        CLIENT_SECRET=client_secret,
         WRITE_TOKEN=os.environ.get("EDITOR_GITLAB_WRITE_TOKEN", ""),
         SESSION_SECRET=os.environ.get("EDITOR_SESSION_SECRET", ""),
         AUTHOR_EMAILS_FILE=os.environ.get("EDITOR_GITHUB_AUTHOR_EMAILS_FILE", ""),
@@ -164,10 +167,11 @@ def create_app(config=None):
         or origin != f"{parsed.scheme}://{parsed.netloc}"
     ):
         raise ValueError("BLOG_ORIGIN must be the exact HTTPS blog origin (HTTP is allowed on loopback).")
-    for setting in ("CLIENT_ID", "CLIENT_SECRET", "WRITE_TOKEN", "AUTHOR_EMAILS_FILE"):
+    for setting in ("CLIENT_ID", "CLIENT_SECRET", "AUTHOR_EMAILS_FILE"):
         if not app.config[setting]:
             raise ValueError(f"Missing editor configuration: {setting}")
-    if len(app.config["SESSION_SECRET"]) < 32:
+    writes_enabled = bool(app.config["WRITE_TOKEN"])
+    if writes_enabled and len(app.config["SESSION_SECRET"]) < 32:
         raise ValueError("EDITOR_SESSION_SECRET must contain at least 32 characters.")
     owners = json.loads(Path(app.config["AUTHOR_EMAILS_FILE"]).read_text(encoding="utf-8"))
     if (
@@ -184,7 +188,7 @@ def create_app(config=None):
     serializer = URLSafeTimedSerializer(
         app.config["SESSION_SECRET"], salt="team-edo-blog-editor-" + mapping_version,
         signer_kwargs={"digest_method": hashlib.sha256},
-    )
+    ) if writes_enabled else None
     redirect_uri = origin + "/edit/"
     project_files = GITLAB + "/api/v4/projects/" + quote(PROJECT, safe="") + "/repository/files/"
     write_headers = {"PRIVATE-TOKEN": app.config["WRITE_TOKEN"]}
@@ -200,7 +204,7 @@ def create_app(config=None):
         if request.headers.get("Origin") == origin:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, OPTIONS" if writes_enabled else "GET, POST, OPTIONS"
         response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         return response
@@ -259,7 +263,7 @@ def create_app(config=None):
                     matches.add(authors_by_email[email.casefold()])
             if len(emails) < 100:
                 if len(matches) != 1:
-                    abort(403, description="이 글은 등록된 작성자만 수정할 수 있습니다.")
+                    abort(403, description="등록된 블로그 작성자 계정을 확인할 수 없습니다.")
                 return matches.pop()
         raise UpstreamError(502)
 
@@ -272,7 +276,8 @@ def create_app(config=None):
     def start_session():
         data = json_body()
         path = data.get("post")
-        file_endpoint(path)
+        if writes_enabled:
+            file_endpoint(path)
         code = data.get("code")
         verifier = data.get("verifier")
         if not isinstance(code, str) or not 1 <= len(code) <= 512 or not isinstance(verifier, str) or not VERIFIER.fullmatch(verifier):
@@ -297,12 +302,16 @@ def create_app(config=None):
             if error.status in (400, 401, 403):
                 abort(401, description="GitHub로 다시 로그인해 주세요.")
             raise
+        if not writes_enabled:
+            return jsonify(status="verified")
         post = read_owned_post(path, author)
         return jsonify(session=serializer.dumps({"author": author, "post": path}),
                        title=post.title.value, markdown=post.markdown, version=post.version)
 
     @app.put("/post")
     def save_post():
+        if not writes_enabled:
+            abort(403, description="현재는 작성자 확인만 할 수 있습니다.")
         session = editor_session()
         data = json_body()
         title = data.get("title")

@@ -81,6 +81,17 @@ class EditorTests(unittest.TestCase):
         self.assertEqual(self.save(session).json, {"status": "unchanged"})
         self.assertEqual(len(self.updates), 1)
 
+    def test_without_write_token_only_github_identity_is_verified(self):
+        config = dict(self.app.config, WRITE_TOKEN="", SESSION_SECRET="")
+        self.client = create_app(config).test_client()
+        self.assertEqual(self.start(path=None).json, {"status": "verified"})
+        self.assertEqual(self.save("forged").status_code, 403)
+        self.assertEqual(self.calls.call_count, 2)
+        self.assertEqual(self.updates, [])
+        self.emails = [{"email": "outsider@example.org", "verified": True}]
+        self.assertEqual(self.start(path=None).status_code, 403)
+        self.assertEqual(self.calls.call_count, 4)
+
     def test_another_author_cannot_open_editor(self):
         self.emails = [{"email": "other@example.org", "verified": True}]
         self.assertEqual(self.start().status_code, 403)

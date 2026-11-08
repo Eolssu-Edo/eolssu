@@ -2,11 +2,12 @@
 <div class="article-shell wrap">
   <section class="article prose-page" aria-labelledby="editor-title">
     <a class="back-link" href="{{ "/" | relURL }}" data-editor-back>← 블로그로 돌아가기</a>
-    <header class="article-heading"><h1 id="editor-title">{{ .Title }}</h1></header>
+    <header class="article-heading"><h1 id="editor-title">{{ if site.Params.editorwrites }}글 수정{{ else }}{{ .Title }}{{ end }}</h1></header>
     {{- with site.Params.editorapi }}
-    <div data-editor-api="{{ . }}">
+    <div data-editor-api="{{ . }}" data-editor-writes="{{ site.Params.editorwrites }}">
       <p role="status" data-editor-status>작성자 확인을 위해 GitHub로 로그인해 주세요.</p>
       <button class="button-primary" type="button" data-editor-login hidden>GitHub로 로그인</button>
+      {{- if site.Params.editorwrites }}
       <form class="post-editor" data-editor-form hidden>
         <label for="post-title">제목</label>
         <input id="post-title" name="title" type="text" maxlength="160" required>
@@ -14,7 +15,8 @@
         <textarea id="post-markdown" name="markdown" rows="20" required></textarea>
         <button class="button-primary" type="submit">저장</button>
       </form>
-      <noscript><p>글을 편집하려면 JavaScript를 켜 주세요.</p></noscript>
+      {{- end }}
+      <noscript><p>GitHub로 로그인하려면 JavaScript를 켜 주세요.</p></noscript>
     </div>
     {{- $version := substr (sha256 (readFile "static/js/editor.js")) 0 12 }}
     <script src="{{ "js/editor.js" | relURL }}?v={{ $version }}" defer></script>

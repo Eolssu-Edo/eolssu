@@ -4,9 +4,10 @@
   const editor = document.querySelector("[data-editor-api]");
   if (!editor) return;
   const api = new URL(editor.dataset.editorApi.replace(/\/?$/, "/"));
+  const needsPost = editor.dataset.editorWrites === "true";
   const login = editor.querySelector("[data-editor-login]");
   const form = editor.querySelector("[data-editor-form]");
-  const save = form.querySelector('button[type="submit"]');
+  const save = form?.querySelector('button[type="submit"]');
   const status = editor.querySelector("[data-editor-status]");
   const back = document.querySelector("[data-editor-back]");
   const query = new URLSearchParams(location.search);
@@ -73,7 +74,7 @@
     }
   });
 
-  form.addEventListener("submit", async (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!session || save.disabled) return;
     save.disabled = true;
@@ -112,13 +113,18 @@
       history.replaceState(null, "", cleanUrl);
       setBackLink(returnPath);
       if (!callbackMatches || !query.get("code")) {
-        setStatus("로그인을 완료하지 못했습니다. 글 상세에서 편집을 다시 열어 주세요.");
-        login.hidden = !post;
+        setStatus("로그인을 완료하지 못했습니다. GitHub로 다시 로그인해 주세요.");
+        login.hidden = needsPost && !post;
         return;
       }
-      setStatus("글의 작성자를 확인하고 있습니다.");
+      setStatus("작성자 계정을 확인하고 있습니다.");
       try {
         const result = await call("session", "POST", {post, code: query.get("code"), verifier: pending.verifier});
+        if (result.status === "verified") {
+          setStatus("GitHub 작성자 확인이 완료됐습니다. 현재는 계정 확인만 할 수 있습니다.");
+          return;
+        }
+        if (!form || !result.session) throw new Error("작성자 확인 결과를 확인할 수 없습니다.");
         session = result.session;
         version = result.version;
         form.elements.title.value = result.title;
@@ -133,8 +139,8 @@
       return;
     }
     setBackLink(returnPath);
-    login.hidden = !post;
-    if (!post) setStatus("글 상세에서 글 수정 버튼을 눌러 주세요.");
+    login.hidden = needsPost && !post;
+    if (login.hidden) setStatus("글 상세에서 글 수정 버튼을 눌러 주세요.");
   }
 
   void openEditor();

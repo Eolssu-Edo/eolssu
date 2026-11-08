@@ -10,7 +10,7 @@
         <h1>{{ .Title }}</h1>
         {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
         {{ partial "post-meta.html" . }}
-        {{- if and site.Params.editorapi .Params.author (ne .Params.author site.Params.team) .File }}
+        {{- if and site.Params.editorapi site.Params.editorwrites .Params.author (ne .Params.author site.Params.team) .File }}
         <a class="quiet" href="{{ printf "%s?post=%s&return=%s" ("edit/" | relURL) (.File.Path | urlquery) (.RelPermalink | urlquery) }}">글 수정</a>
         {{- end }}
       </header>
