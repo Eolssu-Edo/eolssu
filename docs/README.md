@@ -1,8 +1,8 @@
 # 프로젝트 문서
 
-- [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
 - [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
 - [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
+- [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
 - [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
 
 - [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
