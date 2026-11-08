@@ -107,6 +107,43 @@ class PracticeStateTest {
     }
 
     @Test
+    fun draggingScoreDuringRecordingFollowsAgainAtNextGak() {
+        var state = ready.beginCountdown().beginRecording()
+        val firstGak = state.currentScoreUnit!!.column
+        state = state.stopFollowing()
+        assertFalse(state.follow)
+        assertEquals(firstGak, state.followHeldGak)
+
+        // 같은 각 안에서는 사용자가 끌어 둔 자리를 유지한다.
+        while (state.currentScoreUnit?.column == firstGak) {
+            assertFalse(state.resumeFollowOnNextGak().follow)
+            state = state.advance(doneMs = 100.0, micLevel = 0.5f)
+        }
+        val followed = state.resumeFollowOnNextGak()
+        assertTrue(followed.follow)
+        assertNull(followed.followHeldGak)
+    }
+
+    @Test
+    fun draggingScoreOutsideRecordingWaitsForFollowNow() {
+        var state = ready.startModel().stopFollowing()
+        assertNull(state.followHeldGak)
+        repeat(state.eventCount - 1) { state = state.advance(doneMs = 100.0, micLevel = 0f).resumeFollowOnNextGak() }
+        assertFalse(state.follow)
+        assertTrue(state.followNow().follow)
+    }
+
+    @Test
+    fun followNowAndNewTakeClearHeldGak() {
+        val held = ready.beginCountdown().beginRecording().stopFollowing()
+        assertEquals(true, held.followNow().follow)
+        assertNull(held.followNow().followHeldGak)
+        val again = held.askAbort(fraction = 0f).beginCountdown(resume = true).resumeRecording()
+        assertTrue(again.follow)
+        assertNull(again.followHeldGak)
+    }
+
+    @Test
     fun cancellingResumeCountdownReturnsToAbortPopup() {
         val cancelled = ready.beginRecording().askAbort(0f).beginCountdown(resume = true).cancelCountdown()
         assertEquals(PracticeMode.Recording, cancelled.mode)
