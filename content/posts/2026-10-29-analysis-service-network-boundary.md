@@ -18,6 +18,8 @@ draft: false
 
 저는 분석 서버를 기존 백엔드와 같은 Docker Compose 네트워크에 두었습니다. 백엔드는 Compose의 서비스 이름을 DNS로 조회하고 분석 컨테이너의 포트로 요청을 보냅니다. 분석 서비스에는 `ports`를 두지 않아 호스트에 포트 매핑이 생기지 않도록 했습니다. 백엔드가 컨테이너에 바로 연결하므로 공개 프록시에도 분석 경로를 추가할 필요가 없었습니다.
 
+호스트 포트 게시와 Nginx의 HTTP 프록시는 서로 다른 진입점입니다. Docker 브리지의 기본 NAT 구성에서 포트를 게시하면 호스트로 들어온 패킷의 목적지 주소와 포트를 컨테이너 쪽으로 바꿉니다. Nginx는 공개 HTTP 요청을 받고, `proxy_pass`에 지정된 서비스로 별도의 연결을 통해 요청을 보냅니다. 그래서 호스트 포트 매핑이 없어도 Nginx가 그 컨테이너로 요청을 보내도록 설정하면 외부에서 호출할 수 있습니다. [Docker 포트 게시](https://docs.docker.com/engine/network/port-publishing/) · [Nginx `proxy_pass`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_pass)
+
 ## 내부에서는 422, 외부에서는 연결 실패
 
 배포 때는 분석 컨테이너를 먼저 띄운 뒤, 새 주소를 읽도록 백엔드 컨테이너만 다시 만들었습니다. 백엔드 재생성에는 **약 21초**가 걸렸습니다. 교체 뒤 readiness는 HTTP 200이었고, 프론트엔드와 MySQL은 컨테이너 ID가 그대로였습니다. 21초는 컨테이너 재생성에 걸린 시간으로 기록했습니다.
