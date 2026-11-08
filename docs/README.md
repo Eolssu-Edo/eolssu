@@ -1,5 +1,9 @@
 # 프로젝트 문서
 
+- [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
+- [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
+- [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
+
 - [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
 - [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
 - [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)

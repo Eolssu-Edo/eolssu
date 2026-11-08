@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -48,10 +49,10 @@ import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import com.ssafy.eolssu.core.ui.score.ErrorKindLegend
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
+import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.scoreSectionLabel
-import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.component.sectionLoopScoreMetrics
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.weak_legend_last
@@ -121,7 +122,8 @@ fun SectionLoopScreen(
                 }
                 return@EolssuScaffold
             }
-            val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
+            val scoreMetrics = remember(song) { sectionLoopScoreMetrics(song) }
+            val cellHeights = remember(song, scoreMetrics) { errorScoreCellHeights(song, scoreMetrics, minSplitRowHeight = 26.dp) }
             val current = state.current
             Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ErrorKindLegend(Modifier.fillMaxWidth(), title = stringResource(Res.string.weak_legend_last), boxed = true, dense = true)
@@ -130,7 +132,8 @@ fun SectionLoopScreen(
                 JeongganboView(
                     song = song,
                     modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    metrics = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip),
+                    metrics = scoreMetrics,
+                    cellHeights = cellHeights,
                     look = JeongganboLook.practice(big = false),
                     currentIndex = current?.let { c -> song.timeline.firstOrNull { it.column == c.column && it.row == c.row }?.index },
                     follow = true,
@@ -208,7 +211,7 @@ private fun RecordingBadge() {
     }
 }
 
-/** 아래 고정 영역: 회차·시간 · 회차 막대 · ‘반복 멈춤/계속’ · 붉은 ‘이 구간 재평가’. 재평가 녹음 중에는 진행과 ‘녹음 그만하기’만 둔다. */
+/** 아래 고정 영역: 회차·시간 · 회차 막대 · ‘반복 멈춤/계속/다시 연습’ · 붉은 ‘구간 재평가’. 재평가 녹음 중에는 진행과 ‘녹음 그만하기’만 둔다. */
 @Composable
 private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, onEvaluate: () -> Unit) {
     val colors = EolssuTheme.colors
@@ -237,7 +240,7 @@ private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, o
             }
         }
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         val running = state.running || state.countdown != null
         EolssuButton(
             stringResource(
@@ -248,13 +251,13 @@ private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, o
                 },
             ),
             onTogglePause,
-            Modifier.weight(1f),
+            Modifier.weight(1f).fillMaxHeight(),
             style = EolssuButtonStyle.Secondary,
             icon = if (running) EolssuIcons.Pause else EolssuIcons.Play,
             compact = true,
         )
         EolssuButton(
-            stringResource(Res.string.weak_loop_evaluate), onEvaluate, Modifier.weight(1.4f),
+            stringResource(Res.string.weak_loop_evaluate), onEvaluate, Modifier.weight(1.4f).fillMaxHeight(),
             style = EolssuButtonStyle.Danger, icon = EolssuIcons.Mic, compact = true,
         )
     }

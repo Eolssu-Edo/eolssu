@@ -1,5 +1,11 @@
 package com.ssafy.eolssu.feature.result.component
 
+import com.ssafy.eolssu.core.ui.score.errorCount
+import com.ssafy.eolssu.core.ui.score.visibleErrors
+import com.ssafy.eolssu.core.ui.score.visibleErrorKinds
+import com.ssafy.eolssu.core.ui.score.visibleUnitErrors
+
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -65,9 +71,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.feature.result.ErrorFilter
-import com.ssafy.eolssu.feature.result.metricLabel
-import com.ssafy.eolssu.feature.result.errorCount
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.enso_ring
 import eolssu.shared.generated.resources.enso_spin
@@ -86,9 +89,6 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.remember
-import com.ssafy.eolssu.feature.result.visibleErrors
-import com.ssafy.eolssu.feature.result.visibleErrorKinds
-import com.ssafy.eolssu.feature.result.visibleUnitErrors
 import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
 import eolssu.shared.generated.resources.result_errors_preview
 
@@ -306,67 +306,6 @@ fun TotalScoreCard(
             contentDescription = null,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 8.dp).offset(y = 4.dp).width(64.dp),
             contentScale = ContentScale.FillWidth,
-        )
-    }
-}
-
-/** 보드 항목 세 칸(`.card` × 3, 사이 10): 이름(13sp) · ‘더 연습’ · 점수(22sp + ‘점’ 12sp) · 5dp 막대. */
-@Composable
-fun MetricCards(result: EvaluationResult, weak: Set<EvaluationMetric>, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        result.metrics.forEach { metric ->
-            Column(
-                Modifier.weight(1f).fillMaxHeight().background(colors.surface, CardShape).border(1.dp, colors.lineSoft, CardShape).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        metricLabel(metric.metric),
-                        modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp),
-                        color = colors.textMuted,
-                        maxLines = 1,
-                    )
-                    if (metric.metric in weak) WeakBadge()
-                }
-                Text(
-                    buildAnnotatedString {
-                        append("${metric.score}")
-                        withStyle(SpanStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal, color = colors.textMuted)) {
-                            append(stringResource(Res.string.result_score_unit))
-                        }
-                    },
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
-                        fontSize = 22.sp,
-                        lineHeight = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    color = colors.text,
-                )
-                Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)).background(colors.surfaceStrong)) {
-                    Box(Modifier.fillMaxWidth(metric.score.coerceIn(0, 100) / 100f).fillMaxHeight().background(colors.primary))
-                }
-            }
-        }
-    }
-}
-
-/** 보드 `.lv.l2`(20dp): ‘더 연습’. */
-@Composable
-private fun WeakBadge() {
-    val colors = EolssuTheme.colors
-    val shape = RoundedCornerShape(10.dp)
-    Box(
-        Modifier.height(20.dp).background(colors.accentTintStrong, shape).border(1.dp, colors.accentTintLine, shape).padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            stringResource(Res.string.result_metric_weak),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.text,
-            maxLines = 1,
         )
     }
 }

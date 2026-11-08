@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -32,7 +32,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 
 /**
  * 멈췄다가 다시 시작할 때 박을 세어 주는 3·2·1 막(2차 결합본 `COUNT_OVERLAY`, 리듬 게임식). 숫자는 한 박마다 하나씩 줄어든다.
- * 바탕색 74% 막 위 가운데에 흰 원(150dp, 안쪽 6dp 연두 테두리) · 숫자(Song Myung 86sp) · 센 박 점(12dp) · 안내 문구(14sp).
+ * 바탕색 74% 막 위 가운데에 단청 북(150dp, 삼태극은 아주 옅게) · 숫자(Song Myung 86sp) · 센 박 점(12dp) · 안내 문구(14sp).
  * 연습 화면의 평가 시작 카운트다운과 구간 반복이 함께 쓰는 모양이다. 막 아래는 누를 수 없다.
  *
  * @param count 지금 보일 숫자(3 → 1).
@@ -73,7 +73,7 @@ fun BeatCountdownOverlay(count: Int, message: String, modifier: Modifier = Modif
 }
 
 /**
- * 3·2·1 원: 150dp 흰 원(안쪽 6dp 연두 테두리)에 Song Myung 86sp 숫자, 아래에 센 박만큼 먹색으로 칠하는 12dp 점.
+ * 3·2·1 원: 150dp 단청 북(크림 가죽, 삼태극은 숫자를 가리지 않게 아주 옅게)에 Song Myung 86sp 숫자, 아래에 센 박만큼 먹색으로 칠하는 12dp 점.
  * [BeatCountdownOverlay]와 연습 화면의 평가 시작 카운트다운·한 음씩 다시 시작이 함께 쓴다.
  */
 @Composable
@@ -84,8 +84,8 @@ fun BeatCountRing(count: Int, modifier: Modifier = Modifier, beats: Int = 3) {
             Modifier
                 .size(150.dp)
                 .shadow(14.dp, CircleShape, ambientColor = colors.text.copy(alpha = 0.14f), spotColor = colors.text.copy(alpha = 0.14f))
-                .background(colors.surface, CircleShape)
-                .border(6.dp, colors.accent, CircleShape)
+                // 단청 북 테두리. 숫자를 가리지 않도록 가운데 삼태극은 아주 옅게 둔다.
+                .drawBehind { drawDrum(bandRatio = 0.16f, taegeukAlpha = 0.07f) }
                 .clearAndSetSemantics {},
             contentAlignment = Alignment.Center,
         ) {

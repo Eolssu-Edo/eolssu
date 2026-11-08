@@ -89,15 +89,10 @@ data class ScoreCellDecoration(
     val edgeLabel: String? = null,
 )
 
-/** 틀린 정간을 그리는 방식. [Kind]는 종류별 색·아이콘, [Plain]은 종류 없이 옅은 붉은 바탕 + 붉은 테두리(기록 상세 2차). */
-enum class ErrorMarkStyle { Kind, Plain }
-
-/** 틀린 정간 꾸밈. [Kind]는 2dp 안쪽 테두리(음 길이 점선)와 아이콘, [Plain]은 1.5dp 붉은 테두리만. */
+/** 틀린 정간 꾸밈: 종류별 바탕, 2dp 안쪽 테두리(음 길이 점선)와 아이콘. */
 @Composable
-fun errorDecoration(kind: ScoreErrorKind, style: ErrorMarkStyle = ErrorMarkStyle.Kind): ScoreCellDecoration = when (style) {
-    ErrorMarkStyle.Kind -> errorStyle(kind).let { ScoreCellDecoration(fill = it.fill, ring = it.ring, dashed = it.dashed, tag = kind) }
-    ErrorMarkStyle.Plain -> ScoreCellDecoration(fill = EolssuTheme.colors.recFaint, ring = EolssuTheme.colors.rec, ringWidth = 1.5.dp)
-}
+fun errorDecoration(kind: ScoreErrorKind): ScoreCellDecoration =
+    errorStyle(kind).let { ScoreCellDecoration(fill = it.fill, ring = it.ring, dashed = it.dashed, tag = kind) }
 
 @Composable
 fun errorTag(kind: ScoreErrorKind): String = stringResource(

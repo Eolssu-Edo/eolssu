@@ -11,6 +11,10 @@ import com.ssafy.eolssu.core.audio.AudioPlayer
 import com.ssafy.eolssu.core.audio.AudioSource
 import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.model.PracticeRecord
+import com.ssafy.eolssu.core.model.EvaluationResult
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
+import com.ssafy.eolssu.data.practice.RecordDeleteOutcome
+import com.ssafy.eolssu.data.song.CatalogInstrument
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.data.practice.PracticeRecordRepository
 import com.ssafy.eolssu.data.practice.RecordPlayback
@@ -36,8 +40,13 @@ data class RecordDetailUiState(
     val record: PracticeRecord? = null,
     val song: Song? = null,
     val position: Int = 0,
+    val playbackPositionMs: Long = 0L,
+    val audioDurationMs: Long? = null,
     val playing: Boolean = false,
-    val showErrors: Boolean = true,
+    val filter: ErrorFilter = ErrorFilter.All,
+    val detailLoaded: Boolean = false,
+    val instrumentName: String? = null,
+    val delete: RecordDeleteState = RecordDeleteState.Idle,
     val follow: Boolean = true,
     val songLookup: RecordSongLookup = RecordSongLookup.Ready,
     val notice: RecordNotice? = null,
@@ -46,7 +55,22 @@ data class RecordDetailUiState(
     val eventCount: Int get() = song?.timeline?.size ?: 0
 
     /** 녹음을 다시 들을 수 있을 때만 재생 버튼을 쓴다(S15P31E102-369: `recordingAvailable`이 false면 재생을 숨긴다). */
-    val canPlay: Boolean get() = record?.recordingAvailable == true && eventCount > 0
+    val canPlay: Boolean get() = record?.recordingAvailable == true && eventCount > 0 && delete != RecordDeleteState.Deleted
+
+    val canPractice: Boolean get() = song != null && detailLoaded && delete != RecordDeleteState.Deleted
+
+    val songTitle: String? get() = (song?.title ?: record?.songTitle)?.let { title ->
+        instrumentName?.let { "$title · $it" } ?: title
+    }
+
+    /** 목록의 부분 데이터는 평가로 표시하지 않고, PRA-03 상세로 채운 결과만 공용 표시에 넘긴다. */
+    val evaluation: EvaluationResult? get() = record?.takeIf { detailLoaded }?.let {
+        EvaluationResult(
+            id = it.id, songId = it.songId, total = it.score, feedback = "", metrics = it.metrics,
+            errors = it.errors, bpm = it.bpm, recordedSeconds = it.recordedSeconds, recordedAt = it.recordedAt,
+            sample = false, eventErrors = it.eventErrors,
+        )
+    }
 
     /** 정간 하나의 길이(ms). 기록할 때의 속도를 쓴다. */
     private val cellMillis: Double get() = song?.let { it.cellDurationMs(record?.bpm ?: it.baseBpm) } ?: 0.0
@@ -57,7 +81,10 @@ data class RecordDetailUiState(
     fun startMillis(index: Int = position): Long = ((song?.timeline?.getOrNull(index)?.unitStart ?: 0.0) * cellMillis).toLong()
 
     /** 지금 위치까지 흐른 시간(초). */
-    val elapsedSeconds: Double get() = startMillis() / 1000.0
+    val elapsedSeconds: Double get() = playbackPositionMs / 1000.0
+
+    val durationMillis: Long get() = audioDurationMs?.takeIf { it > 0 }
+        ?: ((record?.recordedSeconds ?: 0) * 1000L).coerceAtLeast(0L)
 
     /** [seconds] 시점에 소리 나는 음의 연주 순서. */
     fun indexAt(seconds: Double): Int {
@@ -69,6 +96,8 @@ data class RecordDetailUiState(
 }
 
 enum class RecordSongLookup { Loading, Ready, Missing, Failed }
+
+enum class RecordDeleteState { Idle, Confirm, Deleting, Deleted, Busy, Failed }
 
 /** 기록 상세의 한 번짜리 안내. */
 enum class RecordNotice {
@@ -97,16 +126,19 @@ class RecordDetailViewModel(
     private val player: AudioPlayer = UnavailableAudioPlayer(),
     private val now: () -> Long = { 0L },
     member: SignedInMember? = null,
+    private val loadInstruments: suspend () -> List<CatalogInstrument> = { emptyList() },
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(RecordDetailUiState())
     val uiState: StateFlow<RecordDetailUiState> = _uiState.asStateFlow()
     private var songJob: Job? = null
     private var detailJob: Job? = null
     private var playJob: Job? = null
+    private var instrumentJob: Job? = null
     private var songRequest = 0L
     private var source: Pair<AudioSource, Long>? = null
     private var sourceRequest = 0
     private var currentId = ""
+    private var selection = 0L
 
     private val accountScope = member.screenScope(viewModelScope) {
         source = null
@@ -122,27 +154,32 @@ class RecordDetailViewModel(
 
     /**
      * [recordId] 기록을 보여준다. 다른 기록으로 바꾸면 재생을 멈추고 처음 위치로 돌린다.
-     * 오류 표시·악보 따라가기 설정은 그대로 둔다(와이어프레임 `Tab-Records-Land`).
+     * 오류 종류 필터·악보 따라가기 설정은 그대로 둔다.
      */
     fun show(recordId: String) {
         if (!accountScope.isActive) return
         if (recordId.isEmpty() || _uiState.value.record?.id == recordId) return
         currentId = recordId
+        selection++
         stopPlayback()
         source = null
         songJob?.cancel()
         detailJob?.cancel()
+        instrumentJob?.cancel()
         songRequest++
         val record = recordRepository.records.value.firstOrNull { it.id == recordId }
         _uiState.update { state ->
             state.copy(
                 record = record, song = state.song?.takeIf { it.id == record?.songId }, position = 0, playing = false,
+                playbackPositionMs = 0L, audioDurationMs = null,
                 previous = record?.previousIn(recordRepository.records.value),
+                detailLoaded = false, instrumentName = null, delete = RecordDeleteState.Idle, notice = null,
                 songLookup = if (record == null) RecordSongLookup.Loading else RecordSongLookup.Ready,
             )
         }
         loadDetail(recordId)
         if (record != null && _uiState.value.song == null) retrySong()
+        else _uiState.value.song?.let(::loadInstrumentName)
     }
 
     private fun loadDetail(recordId: String) {
@@ -167,7 +204,7 @@ class RecordDetailViewModel(
                 return@launch
             }
             val hadRecord = _uiState.value.record != null
-            _uiState.update { it.copy(record = detail, previous = detail.previousIn(recordRepository.records.value)) }
+            _uiState.update { it.copy(record = detail, detailLoaded = true, previous = detail.previousIn(recordRepository.records.value)) }
             if (!hadRecord || _uiState.value.song == null) retrySong()
         }
     }
@@ -204,6 +241,23 @@ class RecordDetailViewModel(
                     it.copy(song = song, songLookup = if (song == null) RecordSongLookup.Missing else RecordSongLookup.Ready)
                 } else it
             }
+            if (request == songRequest && song != null) loadInstrumentName(song)
+        }
+    }
+
+    private fun loadInstrumentName(song: Song) {
+        val id = song.instrumentId ?: return
+        instrumentJob?.cancel()
+        instrumentJob = accountScope.launch {
+            val name = try {
+                loadInstruments().firstOrNull { it.instrumentId == id }?.name?.takeIf { it.isNotBlank() }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            currentCoroutineContext().ensureActive()
+            _uiState.update { if (it.song?.id == song.id) it.copy(instrumentName = name) else it }
         }
     }
 
@@ -216,8 +270,10 @@ class RecordDetailViewModel(
             pause()
             return
         }
-        if (state.position >= state.eventCount - 1) _uiState.update { it.copy(position = 0) }
-        playFrom(_uiState.value.startMillis())
+        if (state.durationMillis > 0L && state.playbackPositionMs >= state.durationMillis) {
+            _uiState.update { it.copy(position = 0, playbackPositionMs = 0L) }
+        }
+        playFrom(_uiState.value.playbackPositionMs)
     }
 
     /** 녹음 주소를 (필요하면 다시) 받아 [positionMs]부터 재생한다. */
@@ -230,7 +286,10 @@ class RecordDetailViewModel(
             val cached = source?.takeIf { (s, expires) -> s.id.startsWith(record.id) && now() < expires - URL_MARGIN_MS }?.first
             val audio = cached ?: when (val playback = recordRepository.playback(record.id)) {
                 is RecordPlayback.Ready -> AudioSource("${record.id}#${++sourceRequest}", playback.url)
-                    .also { source = it to playback.expiresAtMillis }
+                    .also {
+                        source = it to playback.expiresAtMillis
+                        _uiState.update { state -> state.copy(audioDurationMs = playback.durationMs?.takeIf { duration -> duration > 0L }) }
+                    }
                 RecordPlayback.Unavailable -> {
                     _uiState.update {
                         it.copy(playing = false, notice = RecordNotice.PlaybackUnavailable, record = it.record?.copy(recordingAvailable = false))
@@ -255,12 +314,18 @@ class RecordDetailViewModel(
         if (!accountScope.isActive) return
         val current = source?.first ?: return
         if (playback.sourceId != current.id) return
+        if (playback.durationMs > 0L) _uiState.update { it.copy(audioDurationMs = playback.durationMs) }
         when (playback.status) {
             AudioPlaybackStatus.Playing -> _uiState.update {
-                it.copy(playing = true, position = it.indexAt(playback.positionMs / 1000.0))
+                it.copy(playing = true, playbackPositionMs = playback.positionMs.coerceAtLeast(0L), position = it.indexAt(playback.positionMs / 1000.0))
             }
-            AudioPlaybackStatus.Completed -> _uiState.update { it.copy(playing = false, position = (it.eventCount - 1).coerceAtLeast(0)) }
-            AudioPlaybackStatus.Paused, AudioPlaybackStatus.Interrupted, AudioPlaybackStatus.Idle -> _uiState.update { it.copy(playing = false) }
+            AudioPlaybackStatus.Completed -> _uiState.update {
+                it.copy(playing = false, playbackPositionMs = it.durationMillis, position = (it.eventCount - 1).coerceAtLeast(0))
+            }
+            AudioPlaybackStatus.Paused, AudioPlaybackStatus.Interrupted -> _uiState.update {
+                it.copy(playing = false, playbackPositionMs = playback.positionMs.coerceAtLeast(0L), position = it.indexAt(playback.positionMs / 1000.0))
+            }
+            AudioPlaybackStatus.Idle -> _uiState.update { it.copy(playing = false) }
             AudioPlaybackStatus.Failed, AudioPlaybackStatus.Unavailable -> _uiState.update {
                 it.copy(playing = false, notice = if (it.playing) RecordNotice.PlaybackFailed else it.notice)
             }
@@ -284,14 +349,81 @@ class RecordDetailViewModel(
 
     /** 칸을 누르거나 재생 위치를 옮기면 그 음부터 듣는다. 재생 중이면 그 자리부터 이어 재생한다. */
     fun seek(index: Int) {
-        if (!accountScope.isActive) return
-        _uiState.update { it.copy(position = index.coerceIn(0, (it.eventCount - 1).coerceAtLeast(0))) }
-        if (_uiState.value.playing) playFrom(_uiState.value.startMillis())
+        if (!accountScope.isActive || !_uiState.value.canPlay) return
+        val state = _uiState.value
+        seekToMillis(state.startMillis(index.coerceIn(0, (state.eventCount - 1).coerceAtLeast(0))))
     }
 
-    fun skipSeconds(delta: Int) = seek(_uiState.value.let { it.indexAt(it.elapsedSeconds + delta) })
+    /** 슬라이더와 초 단위 이동은 음의 시작점으로 반올림하지 않는다. */
+    fun seekToMillis(positionMs: Long) {
+        if (!accountScope.isActive || !_uiState.value.canPlay) return
+        _uiState.update {
+            val bounded = if (it.durationMillis > 0L) positionMs.coerceIn(0L, it.durationMillis) else positionMs.coerceAtLeast(0L)
+            it.copy(playbackPositionMs = bounded, position = it.indexAt(bounded / 1000.0))
+        }
+        val state = _uiState.value
+        if (state.playing) {
+            if (state.durationMillis > 0L && state.playbackPositionMs >= state.durationMillis) {
+                // MediaPlayer는 파일 길이와 같은 위치의 load를 거부한다. 끝에서는 멈춘다.
+                source = null
+                pause()
+            } else playFrom(state.playbackPositionMs)
+        }
+    }
 
-    fun toggleErrors() = _uiState.update { it.copy(showErrors = !it.showErrors) }
+    fun skipSeconds(delta: Int) = seekToMillis(_uiState.value.playbackPositionMs + delta * 1000L)
+
+    /** 정간을 누르면 일시정지 상태에서도 그 음부터 재생한다. 슬라이더는 위치만 옮긴다. */
+    fun playAt(index: Int) {
+        if (!accountScope.isActive || !_uiState.value.canPlay) return
+        val wasPlaying = _uiState.value.playing
+        seek(index)
+        if (!wasPlaying) playFrom(_uiState.value.playbackPositionMs)
+    }
+
+    fun selectFilter(filter: ErrorFilter) = _uiState.update { it.copy(filter = filter) }
+
+    fun askDelete() {
+        if (!accountScope.isActive || _uiState.value.record == null) return
+        _uiState.update { if (it.delete == RecordDeleteState.Idle) it.copy(delete = RecordDeleteState.Confirm) else it }
+    }
+
+    fun cancelDelete() = _uiState.update {
+        if (it.delete == RecordDeleteState.Confirm) it.copy(delete = RecordDeleteState.Idle) else it
+    }
+
+    fun confirmDelete() {
+        if (!accountScope.isActive || _uiState.value.delete != RecordDeleteState.Confirm) return
+        val id = _uiState.value.record?.id ?: return
+        val request = selection
+        _uiState.update { it.copy(delete = RecordDeleteState.Deleting) }
+        accountScope.launch {
+            val outcome = try {
+                recordRepository.delete(id)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                RecordDeleteOutcome.Failed
+            }
+            currentCoroutineContext().ensureActive()
+            if (currentId != id || request != selection) return@launch
+            if (outcome == RecordDeleteOutcome.Deleted) {
+                stopPlayback()
+                source = null
+            }
+            _uiState.update {
+                it.copy(delete = when (outcome) {
+                    RecordDeleteOutcome.Deleted -> RecordDeleteState.Deleted
+                    RecordDeleteOutcome.Busy -> RecordDeleteState.Busy
+                    RecordDeleteOutcome.Failed -> RecordDeleteState.Failed
+                })
+            }
+        }
+    }
+
+    fun dismissDeleteError() = _uiState.update {
+        if (it.delete == RecordDeleteState.Busy || it.delete == RecordDeleteState.Failed) it.copy(delete = RecordDeleteState.Idle) else it
+    }
 
     fun toggleFollow() = _uiState.update { it.copy(follow = !it.follow) }
 
@@ -301,6 +433,7 @@ class RecordDetailViewModel(
         playJob?.cancel()
         songJob?.cancel()
         detailJob?.cancel()
+        instrumentJob?.cancel()
         player.release()
     }
 

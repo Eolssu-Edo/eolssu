@@ -168,7 +168,7 @@ data class ScoreCellMark(
  * @param currentIndex 현재 위치의 연주 순서([ScoreEvent.index]). 그 정간을 강조하고 앞의 정간을 흐리게 한다.
  * @param playback 재생·연주 중이면 진행 모습([ScorePlayback])으로 그린다. 이때 현재 음은 [currentIndex] 대신 진행 위치에서 읽는다.
  * @param follow 현재 위치가 화면 밖으로 나가면 가로로 따라간다. 사용자가 악보를 끌면 [onUserScroll]을 부른다.
- * @param errors 틀린 정간(각, 정간) → 틀린 항목. [JeongganboLook.errorMarks]에 따라 종류별 색·아이콘(또는 붉은 바탕·테두리)으로 칠한다.
+ * @param errors 틀린 정간(각, 정간) → 틀린 항목. 종류별 색·아이콘으로 칠한다.
  * @param errorKinds 틀린 정간(각, 정간) → 그 정간의 틀린 종류 전부. 있으면 종류마다 아이콘 상자를 오른쪽 끝에 세로로 쌓는다(한 정간의 복합 오류).
  *   바탕·테두리는 [errors]의 대표 종류로 칠한다.
  * @param unitErrors 소박(표시 자리)마다의 틀린 종류. 비어 있지 않으면 나뉜 정간은 정간 전체 대신 틀린 소박만 칠한다.
@@ -274,7 +274,12 @@ fun JeongganboView(
     if (scrollState != null) {
         FollowPlayhead(
             scrollState = scrollState,
-            playheadStrip = { cursor.index?.takeIf { live }?.let { playheadStrip(song, strips, unitsByCell, it, cursor.fraction, stackSize) } },
+            // 녹음 기록은 live playback 없이 currentIndex로 위치를 받는다. 이 위치도 따라간다.
+            playheadStrip = {
+                (if (live) cursor.index else currentIndex)?.let {
+                    playheadStrip(song, strips, unitsByCell, it, if (live) cursor.fraction else 0f, stackSize)
+                }
+            },
             follow = follow,
             metrics = renderMetrics,
             onUserScroll = onUserScroll,
@@ -589,10 +594,10 @@ private fun ScoreCellBox(
 ) {
     val colors = EolssuTheme.colors
     val board = look.board
-    // 넘겨받은 꾸밈이 먼저이고, 없으면 틀린 종류를 모양([JeongganboLook.errorMarks])에 맞춰 칠한다.
+    // 넘겨받은 꾸밈이 먼저이고, 없으면 틀린 종류의 색·아이콘으로 칠한다.
     // 소박마다 판정이 있으면([unitErrors]) 정간 전체는 칠하지 않고 틀린 소박만 칠한다.
     val unitMarks = decoration == null && unitErrors.isNotEmpty()
-    val mark = decoration ?: error?.takeUnless { unitMarks }?.let { errorDecoration(it, look.errorMarks) }
+    val mark = decoration ?: error?.takeUnless { unitMarks }?.let { errorDecoration(it) }
     val cellStart = units.minOfOrNull { it.unitStart } ?: 0.0
     val currentFraction by rememberUpdatedState(fraction)
     val progress by remember(units, currentEvent, live) {
@@ -720,7 +725,7 @@ private fun ScoreCellBox(
                     Row(Modifier.fillMaxWidth().weight(1f)) {
                         row.forEachIndexed { c, unit ->
                             val subKinds = if (unitMarks) unitErrors[unit.key].orEmpty() else emptyList()
-                            val subMark = subKinds.firstOrNull()?.let { errorDecoration(it, look.errorMarks) }
+                            val subMark = subKinds.firstOrNull()?.let { errorDecoration(it) }
                             val subModifier = if (subMark == null) Modifier else {
                                 fun marked(u: ScoreDisplayUnit?) = u != null && !unitErrors[u.key].isNullOrEmpty()
                                 val subEdges = RingEdges(

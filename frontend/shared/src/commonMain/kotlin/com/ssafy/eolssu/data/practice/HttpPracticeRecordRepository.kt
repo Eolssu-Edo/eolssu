@@ -81,6 +81,7 @@ class HttpPracticeRecordRepository(
         val record = saved.toRecord(songTitle).copy(
             metrics = result.metrics,
             errors = result.errors,
+            eventErrors = result.eventErrors,
             recordedSeconds = saved.recordingDurationMs?.let { (it / 1000.0).roundToInt() } ?: result.recordedSeconds,
             recordingAvailable = saved.recordingDurationMs != null,
             isNew = true,
@@ -122,6 +123,7 @@ class HttpPracticeRecordRepository(
         val record = base.copy(
             metrics = evaluation?.metrics ?: base.metrics,
             errors = evaluation?.errors ?: base.errors,
+            eventErrors = evaluation?.eventErrors ?: base.eventErrors,
             memo = session.memo.orEmpty(),
             recordingAvailable = session.recordingAvailable,
             isNew = false,

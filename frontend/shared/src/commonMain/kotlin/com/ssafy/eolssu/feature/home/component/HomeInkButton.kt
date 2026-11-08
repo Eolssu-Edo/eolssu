@@ -11,15 +11,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,7 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.home_ink_brush
 import eolssu.shared.generated.resources.home_start_evaluation
@@ -89,14 +84,11 @@ internal fun HomeInkButton(
 
 @Composable
 private fun InkLabel(label: String, color: Color, fontFamily: FontFamily?) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, top = 10.dp, bottom = 10.dp, end = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(label, color = color, style = MaterialTheme.typography.labelLarge.copy(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSynthesis = FontSynthesis.None, fontSize = 20.sp, lineHeight = 28.sp))
-        // 글꼴마다 '→' 글자의 높이가 달라 붓글씨와 어긋나므로, 같은 가운데 선에 놓이는 선 아이콘을 쓴다.
-        Icon(EolssuIcons.ArrowRight, contentDescription = null, modifier = Modifier.size(24.dp), tint = color)
     }
 }
 

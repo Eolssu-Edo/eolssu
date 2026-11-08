@@ -1,7 +1,7 @@
 <!-- Decorative empty score-grid motif derived from Main; real score content uses the shared renderer. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="144dp" android:height="88dp" android:viewportWidth="144" android:viewportHeight="88">
-    <!-- 옅은 원은 악보 판 뒤에 두어 판의 왼쪽 테두리를 가리지 않는다. -->
-    <path android:fillColor="#F0F2EF" android:pathData="M45,29 A11,11 0,1 1,23,29 A11,11 0,1 1,45,29" />
+    <!-- 기록 카드처럼 종이 한 장을 겹치되 기존 원보다 아주 조금만 진하게 둔다. -->
+    <path android:fillColor="#EDF0EC" android:pathData="M37,18 H95 Q98,18 98,21 V82 Q98,85 95,85 H37 Q34,85 34,82 V21 Q34,18 37,18Z" />
     <path android:fillColor="#FFFFFF" android:strokeColor="#A2AAA4" android:strokeWidth="1" android:pathData="M47,10 H105 Q108,10 108,13 V76 Q108,79 105,79 H47 Q44,79 44,76 V13 Q44,10 47,10Z" />
     <path android:fillColor="#E7EEE8" android:pathData="M88,11H107V32H88Z" />
     <path android:strokeColor="#C6CEC7" android:strokeWidth="1" android:pathData="M65,10V79 M87,10V79 M44,33H108 M44,56H108" />
