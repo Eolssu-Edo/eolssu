@@ -52,7 +52,6 @@ import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
 import com.ssafy.eolssu.feature.result.AnalysisRoute
-import com.ssafy.eolssu.feature.result.ResultErrorsRoute
 import com.ssafy.eolssu.feature.result.ResultRoute
 import com.ssafy.eolssu.feature.song.MySongsRoute
 import com.ssafy.eolssu.feature.song.SongDetailRoute
@@ -82,7 +81,6 @@ object EolssuDestination {
 
     const val RECORDS = "records?saved={saved}"
     const val RECORD_RESULT = "records/{recordId}/evaluation"
-    const val RECORD_DETAIL = "records/{recordId}"
     const val GROWTH = "growth"
 
     fun songDetail(songId: String) = "songs/$songId"
@@ -90,8 +88,6 @@ object EolssuDestination {
     fun records(savedId: String? = null) = if (savedId == null) "records" else "records?saved=$savedId"
 
     fun recordResult(recordId: String) = "records/$recordId/evaluation"
-
-    fun recordDetail(recordId: String) = "records/$recordId"
 
     fun analysis(songId: String, bpm: Int, take: RecordedTake? = null, pendingSessionId: String? = null, section: SessionSection? = null) =
         "analysis/$songId/$bpm?recording=${take?.path.orEmpty().encodeURLParameter()}&key=${take?.key.orEmpty()}" +
@@ -333,23 +329,11 @@ fun EolssuNavHost(
                     onOpenGrowth = { navController.navigate(EolssuDestination.GROWTH) },
                     onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                     onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                    onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                 )
             }
             composable(
                 EolssuDestination.RECORD_RESULT,
-                arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
-            ) { entry ->
-                val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
-                ResultErrorsRoute(
-                    sourceId = recordId,
-                    onBack = { navController.popBackStackFrom(entry) },
-                    onSelectSection = { navController.navigate(WeakSectionDestination.select(recordId)) },
-                    historical = true,
-                    onOpenRecording = { navController.navigate(EolssuDestination.recordDetail(recordId)) },
-                )
-            }
-            composable(
-                EolssuDestination.RECORD_DETAIL,
                 arguments = listOf(navArgument("recordId") { type = NavType.StringType }),
             ) { entry ->
                 val recordId = entry.savedStateHandle.get<String>("recordId").orEmpty()
@@ -362,12 +346,15 @@ fun EolssuNavHost(
                         onOpenRecord = { navController.navigate(EolssuDestination.recordResult(it)) },
                         initialRecordId = recordId,
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 } else {
                     RecordDetailRoute(
                         recordId = recordId,
+                        onDeleted = { navController.popBackStackFrom(entry) },
                         onBack = { navController.popBackStackFrom(entry) },
                         onCompare = { navController.navigate(WeakSectionDestination.compare(it)) },
+                        onSelectSection = { navController.navigate(WeakSectionDestination.select(it)) },
                     )
                 }
             }

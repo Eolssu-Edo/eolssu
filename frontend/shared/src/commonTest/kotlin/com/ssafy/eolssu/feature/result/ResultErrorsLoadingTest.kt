@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.score.ErrorFilter
 import com.ssafy.eolssu.core.model.*
 import com.ssafy.eolssu.data.practice.*
 import com.ssafy.eolssu.data.song.SampleSongs
@@ -51,40 +52,6 @@ internal class ResultErrorsLoadingTest : CatalogViewModelTest() {
         runCurrent()
         assertNull(wrongSong.uiState.value.result)
         assertNull(wrongVersion.uiState.value.result)
-    }
-
-    @Test fun deleteAsksFirstThenReportsDeletedOrFailure() = runTest {
-        val outcomes = ArrayDeque(listOf(RecordDeleteOutcome.Busy, RecordDeleteOutcome.Deleted))
-        val deleted = mutableListOf<String>()
-        val model = keep(ResultErrorsViewModel("41", Sources { source("41") }, deleteRecord = { deleted += it; outcomes.removeFirst() }))
-        runCurrent()
-        assertTrue(model.canDelete)
-
-        // 확인 없이는 지우지 않는다.
-        model.confirmDelete()
-        runCurrent()
-        assertEquals(emptyList(), deleted)
-
-        model.askDelete()
-        model.cancelDelete()
-        assertEquals(RecordDeleteState.Idle, model.uiState.value.delete)
-
-        model.askDelete()
-        model.confirmDelete()
-        runCurrent()
-        assertEquals(RecordDeleteState.Busy, model.uiState.value.delete)
-        model.dismissDeleteError()
-        assertEquals(RecordDeleteState.Idle, model.uiState.value.delete)
-
-        model.askDelete()
-        model.confirmDelete()
-        runCurrent()
-        assertEquals(RecordDeleteState.Deleted, model.uiState.value.delete)
-        assertEquals(listOf("41", "41"), deleted)
-    }
-
-    @Test fun latestResultHasNoDelete() = runTest {
-        assertFalse(keep(ResultErrorsViewModel("41", Sources { source("41") })).canDelete)
     }
 
     @Test fun missingRecordNeverFallsBackToSample() = runTest {
@@ -152,7 +119,7 @@ internal class ResultErrorsLoadingTest : CatalogViewModelTest() {
         assertNull(model.uiState.value.instrumentName)
     }
 
-    @Test fun accountChangeClearsHistoricalResultAndCancelsPendingMetadata() = runTest {
+    @Test fun accountChangeClearsResultAndCancelsPendingMetadata() = runTest {
         val member = com.ssafy.eolssu.core.network.SignedInMember(com.ssafy.eolssu.core.storage.FakeKeyValueStore()).apply { set("A") }
         val name = kotlinx.coroutines.CompletableDeferred<List<com.ssafy.eolssu.data.song.CatalogInstrument>>()
         val model = keep(ResultErrorsViewModel("41", Sources { source("41").copy(song = song.copy(instrumentId = "8")) }, { name.await() }, member))
@@ -165,23 +132,6 @@ internal class ResultErrorsLoadingTest : CatalogViewModelTest() {
         assertNull(model.uiState.value.result)
         assertNull(model.uiState.value.song)
         assertNull(model.uiState.value.instrumentName)
-    }
-
-    @Test fun validHistoricalResultMarksOnlySelectedRecordOpened() = runTest {
-        val opened = mutableListOf<String>()
-        val model = keep(ResultErrorsViewModel("41", Sources { source(it) }, onOpened = { opened += it }))
-        val mismatch = keep(ResultErrorsViewModel("42", Sources { source("wrong") }, onOpened = { opened += it }))
-        runCurrent()
-        assertEquals(listOf("41"), opened)
-        assertEquals("41", model.uiState.value.result?.id)
-        assertNull(mismatch.uiState.value.result)
-    }
-
-    @Test fun recordReadMarkerFailureDoesNotHideEvaluation() = runTest {
-        val model = keep(ResultErrorsViewModel("41", Sources { source(it) }, onOpened = { error("read marker unavailable") }))
-        runCurrent()
-        assertEquals("41", model.uiState.value.result?.id)
-        assertFalse(model.uiState.value.failed)
     }
 
 }

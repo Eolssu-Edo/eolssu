@@ -22,7 +22,7 @@ import kotlin.uuid.Uuid
 
 /**
  * PRACTICE-03. 들어오면 3·2·1을 센 뒤 구간을 반복해 따라간다. 멈췄다가 ‘반복 계속’을 누르면 다시 3·2·1(1초마다)을 센다.
- * 반복에는 녹음·소리가 없다. ‘이 구간 재평가’는 마이크를 확인하고 3·2·1 뒤 구간을 한 번 따라가며 [recorder]로 녹음하며,
+ * 반복에는 녹음·소리가 없다. ‘구간 재평가’는 마이크를 확인하고 3·2·1 뒤 구간을 한 번 따라가며 [recorder]로 녹음하며,
  * 마치면 [SectionLoopUiState.take]로 분석에 넘긴다(바탕 세션 [sourceId]와 구간 음 번호를 함께). 화면을 떠나면 녹음을 버린다.
  *
  * @param recorder 녹음기. 없는 플랫폼(웹)에서는 재평가를 시작하지 못한다고 알린다.
@@ -58,7 +58,7 @@ class SectionLoopViewModel(
         }
     }
 
-    /** ‘반복 멈춤’ · ‘반복 계속’(마친 뒤에는 ‘처음부터 다시’). 재평가 녹음 중에는 녹음을 그만둔다. */
+    /** ‘반복 멈춤’ · ‘반복 계속’(마친 뒤에는 ‘다시 연습’). 재평가 녹음 중에는 녹음을 그만둔다. */
     fun togglePause() {
         val state = _uiState.value
         when {
@@ -81,7 +81,7 @@ class SectionLoopViewModel(
         }
     }
 
-    /** ‘이 구간 재평가’: 마이크를 확인하고 구간을 한 번 녹음한다. */
+    /** ‘구간 재평가’: 마이크를 확인하고 구간을 한 번 녹음한다. */
     fun startEvaluation() {
         val state = _uiState.value
         val song = state.song ?: return

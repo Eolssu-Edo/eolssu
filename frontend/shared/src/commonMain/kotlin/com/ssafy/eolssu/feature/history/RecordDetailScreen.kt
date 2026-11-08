@@ -1,20 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
-import androidx.compose.foundation.border
-import com.ssafy.eolssu.core.ui.score.recordScoreMetrics
-import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.feature.history.component.HistoryBoardTopBar
-import eolssu.shared.generated.resources.records_section
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
@@ -24,49 +11,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.PracticeRecord
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
-import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.core.ui.component.monthDayLabel
-import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.feature.history.component.CompareEntry
-import com.ssafy.eolssu.feature.history.component.PlaybackBarContent
-import com.ssafy.eolssu.feature.history.component.RecordScoreText
-import com.ssafy.eolssu.feature.history.component.RecordSongLookupContent
-import com.ssafy.eolssu.feature.history.component.SwitchBox
-import com.ssafy.eolssu.feature.history.component.historyFrame
-import com.ssafy.eolssu.feature.history.component.recordMetricsLabel
-import com.ssafy.eolssu.feature.history.layout.RecordDetailTabletLayout
-import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.record_detail_follow
-import eolssu.shared.generated.resources.record_detail_hint
-import eolssu.shared.generated.resources.record_detail_show_errors
-import eolssu.shared.generated.resources.record_detail_subtitle
-import eolssu.shared.generated.resources.record_detail_title
-import eolssu.shared.generated.resources.record_detail_whole
-import eolssu.shared.generated.resources.records_memo
+import com.ssafy.eolssu.core.ui.component.*
+import com.ssafy.eolssu.core.ui.score.*
+import com.ssafy.eolssu.feature.history.component.*
+import eolssu.shared.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** 기록 상세에서 부르는 동작. */
+/** 기록 결과와 녹음 재생이 공유하는 동작. 화면 이동은 Route에서 연결한다. */
 class RecordDetailActions(
     val onBack: () -> Unit,
     val onTogglePlay: () -> Unit,
     val onSeek: (Int) -> Unit,
+    val onSeekMillis: (Long) -> Unit,
     val onSkip: (Int) -> Unit,
-    val onToggleErrors: () -> Unit,
     val onToggleFollow: () -> Unit,
     val onRetrySong: () -> Unit = {},
-    /** ‘지난 연주와 비교’(2차 COMPARE-01). */
     val onCompare: () -> Unit = {},
+    val onSelectFilter: (ErrorFilter) -> Unit = {},
+    val onPractice: () -> Unit = {},
+    val onAskDelete: () -> Unit = {},
+    val onConfirmDelete: () -> Unit = {},
+    val onCancelDelete: () -> Unit = {},
+    val onPlayAt: (Int) -> Unit = onSeek,
 )
 
-/**
- * RECORD-02 기록 상세: 점수 요약, 오류 위치를 표시한 정간보, 녹음 재생 위치.
- * 태블릿([WindowWidthClass.Medium] 이상)은 정간보를 여러 줄로 접는 세로 배치를 쓴다. 태블릿 가로에서는 보통
- * 기록 목록 오른쪽 칸([com.ssafy.eolssu.feature.history.component.RecordDetailPane])으로 보고, 이 화면은 세로에서 연 상세를 돌렸을 때 보인다.
- */
 @Composable
 fun RecordDetailScreen(
     state: RecordDetailUiState,
@@ -74,81 +44,101 @@ fun RecordDetailScreen(
     snackbarHostState: SnackbarHostState,
     actions: RecordDetailActions,
 ) {
-    if (state.record == null || state.song == null) {
-        EolssuScaffold(containerColor = EolssuTheme.colors.surface, topBar = { HistoryBoardTopBar(stringResource(Res.string.record_detail_title), null, actions.onBack, bottom = 8.dp) }) {
-            RecordSongLookupContent(state, actions)
-        }
-        return
-    }
-    if (widthClass == WindowWidthClass.Compact) {
-        RecordDetailCompact(state, snackbarHostState, actions)
-    } else {
-        RecordDetailTabletLayout(state, historyFrame(widthClass), snackbarHostState, actions)
-    }
-}
-
-/** 상단 바 보조 문구: '10월 20일 오후 3:20 · 아리랑 전체'. */
-@Composable
-internal fun recordDetailSubtitle(record: PracticeRecord?): String? = record?.let {
-    stringResource(
-        Res.string.record_detail_subtitle,
-        "${monthDayLabel(it.recordedAt)} ${timeLabel(it.recordedAt)}",
-        it.songTitle,
-        it.section?.let { s -> stringResource(Res.string.records_section, s) } ?: stringResource(Res.string.record_detail_whole),
-    )
-}
-
-@Composable
-private fun RecordDetailCompact(state: RecordDetailUiState, snackbarHostState: SnackbarHostState, actions: RecordDetailActions) {
-    val record = state.record
-    val song = state.song
-    val colors = EolssuTheme.colors
+    val frame = historyFrame(widthClass)
+    RecordDeleteConfirmation(state, actions)
     EolssuScaffold(
         containerColor = EolssuTheme.colors.surface,
         snackbarHostState = snackbarHostState,
-        topBar = { HistoryBoardTopBar(stringResource(Res.string.record_detail_title), recordDetailSubtitle(record), actions.onBack, bottom = 8.dp) },
-        bottomBar = { if (song != null && record != null) PlaybackBarContent(state, actions, gap = 12.dp) },
+        contentMaxWidth = frame.contentMaxWidth,
+        topBar = {
+            EolssuTopBar(
+                title = stringResource(Res.string.record_result_title),
+                subtitle = recordResultSubtitle(state),
+                onBack = actions.onBack,
+                maxWidth = frame.contentMaxWidth,
+                right = { if (state.record != null) RecordDeleteButton(state.delete == RecordDeleteState.Deleting, actions.onAskDelete) },
+            )
+        },
+        bottomBar = if (state.record != null && state.song != null) {
+            { PlaybackBarContent(state, actions, gap = 8.dp) }
+        } else null,
     ) {
-        if (record == null || song == null) return@EolssuScaffold
-        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-            Column(
-                Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(14.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    RecordScoreText(record, 32.sp)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(recordMetricsLabel(record), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-                        if (record.memo.isNotEmpty()) {
-                            Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
-                        }
-                    }
-                }
-                // 2차 RECORD-02: 같은 곡 전체 연주 기록만 비교한다.
-                if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(top = 10.dp))
-            }
-            Row(Modifier.padding(top = 10.dp, bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SwitchBox(stringResource(Res.string.record_detail_show_errors), state.showErrors, actions.onToggleErrors, Modifier.weight(1f))
-                SwitchBox(stringResource(Res.string.record_detail_follow), state.follow, actions.onToggleFollow, Modifier.weight(1f))
-            }
+        RecordResultContent(state, actions, wrapped = frame.isTablet,
+            modifier = Modifier.fillMaxSize().padding(horizontal = frame.gutter))
+    }
+}
+
+@Composable
+internal fun recordResultSubtitle(state: RecordDetailUiState): String? = state.record?.let {
+    stringResource(Res.string.weak_errors_subtitle, state.songTitle.orEmpty(), it.score)
+}
+
+/** 세 배치에서 같은 요약·필터·악보를 쓴다. 짧은 창은 본문 전체를 스크롤한다. */
+@Composable
+internal fun RecordResultContent(
+    state: RecordDetailUiState,
+    actions: RecordDetailActions,
+    wrapped: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val record = state.record
+    val song = state.song
+    if (record == null) {
+        RecordSongLookupContent(state, actions)
+        return
+    }
+    BoxWithConstraints(modifier) {
+        val scrollPage = maxHeight < 360.dp
+        Column(Modifier.fillMaxSize().then(if (scrollPage) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
             Text(
-                stringResource(Res.string.record_detail_hint),
-                modifier = Modifier.padding(bottom = 6.dp),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
-                color = colors.textMuted,
+                stringResource(Res.string.record_result_info, monthDayLabel(record.recordedAt), timeLabel(record.recordedAt), record.bpm, record.recordedSeconds),
+                style = MaterialTheme.typography.bodySmall, color = EolssuTheme.colors.textMuted,
             )
-            val scoreMetrics = recordScoreMetrics(song)
-            JeongganboView(
-                metrics = scoreMetrics,
-                cellHeights = recordScoreCellHeights(song, scoreMetrics),
-                song = song,
-                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                currentIndex = state.position,
-                follow = state.follow,
-                errors = if (state.showErrors) record.errors.associate { (it.column to it.row) to it.kind } else emptyMap(),
-                onEventClick = { actions.onSeek(it.index) },
-                look = JeongganboLook.Record,
-            )
+            val evaluation = state.evaluation
+            if (evaluation != null) {
+                MetricCards(evaluation, weak = emptySet(), modifier = Modifier.padding(vertical = 8.dp))
+            } else {
+                RecordScoreText(record, 32.sp)
+            }
+            if (record.memo.isNotEmpty()) {
+                Text(stringResource(Res.string.records_memo, record.memo), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(bottom = 8.dp))
+            }
+            if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(bottom = 8.dp))
+            if (evaluation != null) {
+                ErrorFilterChips(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp), hideEmptyMissed = true, singleLine = true)
+            }
+            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(stringResource(if (state.canPlay) Res.string.record_result_seek_hint else Res.string.record_play_unavailable),
+                    modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = EolssuTheme.colors.textMuted)
+                if (state.canPlay) {
+                    val label = stringResource(Res.string.record_detail_follow)
+                    Text(label, style = MaterialTheme.typography.labelSmall)
+                    EolssuSwitch(state.follow, actions.onToggleFollow, label, width = 32.dp, height = 20.dp)
+                }
+            }
+            if (song == null) {
+                Box(if (scrollPage) Modifier.height(240.dp) else Modifier.weight(1f)) { RecordSongLookupContent(state, actions) }
+                return@Column
+            }
+            val metrics = recordScoreMetrics(song)
+            val errors = evaluation?.visibleErrors(state.filter).orEmpty()
+            val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
+            val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()
+            val current = state.position.takeIf { state.canPlay }
+            val onEventClick: ((Int) -> Unit)? = actions.onPlayAt.takeIf { state.canPlay }
+            if (wrapped && !scrollPage) {
+                WrappedJeongganbo(song, metrics, current, state.canPlay && state.follow, errors, onEventClick,
+                    Modifier.weight(1f).fillMaxWidth(), errorKinds = kinds, unitErrors = units)
+            } else {
+                JeongganboView(
+                    song = song, look = JeongganboLook.Record, metrics = metrics,
+                    cellHeights = errorScoreCellHeights(song, metrics),
+                    modifier = (if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState())).padding(top = 4.dp),
+                    errors = errors, errorKinds = kinds, unitErrors = units,
+                    currentIndex = current, follow = state.canPlay && state.follow,
+                    onEventClick = onEventClick?.let { seek -> { event -> seek(event.index) } },
+                )
+            }
         }
     }
 }

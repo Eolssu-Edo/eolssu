@@ -29,9 +29,13 @@ private val ErrorScoreSplitRowHeight = 22.dp
  * 정간 수가 같은 줄(세로 줄 하나)끼리는 가장 긴 줄에 맞춰 정간을 고르게 늘려 위아래 끝을 맞춘다.
  * 원본 좌표·음표·시간은 바꾸지 않으며, 글꼴 배율은 JeongganboView에서 한 번 적용한다.
  */
-internal fun errorScoreCellHeights(song: Song, metrics: JeongganboMetrics): Map<Pair<Int, Int>, Dp> {
+internal fun errorScoreCellHeights(
+    song: Song,
+    metrics: JeongganboMetrics,
+    minSplitRowHeight: Dp = ErrorScoreSplitRowHeight,
+): Map<Pair<Int, Int>, Dp> {
     val splitRows = song.displayUnits.groupBy { it.column to it.row }.mapValues { (_, units) -> units.map { it.unitRow }.distinct().size }
-    fun natural(cell: Pair<Int, Int>): Dp = maxOf(metrics.cellHeight, ErrorScoreSplitRowHeight * (splitRows[cell] ?: 1))
+    fun natural(cell: Pair<Int, Int>): Dp = maxOf(metrics.cellHeight, minSplitRowHeight * (splitRows[cell] ?: 1))
     val strips = scoreStrips(song.score, song.jangdan)
     val totals = strips.associateWith { strip -> strip.rows.fold(0.dp) { sum, row -> sum + natural(strip.column to row) } }
     val longest = strips.groupBy { it.rows.count() }.mapValues { (_, same) -> same.maxOf { totals.getValue(it) } }

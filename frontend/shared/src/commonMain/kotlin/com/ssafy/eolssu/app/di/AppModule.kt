@@ -150,7 +150,7 @@ val appModule = module {
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
-    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get()) }
+    viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
@@ -199,12 +199,8 @@ val appModule = module {
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
-    viewModel { (sourceId: String, historical: Boolean) ->
-        val catalog = get<InstrumentCatalog>()
-        val records = get<PracticeRecordRepository>()
-        ResultErrorsViewModel(sourceId, get(), loadInstruments = catalog::load, member = get(),
-            onOpened = { if (historical) records.detail(it) },
-            deleteRecord = if (historical) records::delete else null)
+    viewModel { (sourceId: String) ->
+        ResultErrorsViewModel(sourceId, get(), loadInstruments = get<InstrumentCatalog>()::load, member = get())
     }
     viewModel { (sourceId: String) -> SectionSelectViewModel(sourceId, get()) }
     viewModel { (sourceId: String, section: ScoreSection, bpm: Int, repeats: Int) ->

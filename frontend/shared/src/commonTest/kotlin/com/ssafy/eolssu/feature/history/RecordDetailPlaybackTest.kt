@@ -85,6 +85,31 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
     }
 
     @Test
+    fun unavailableRecordingIgnoresSeekingAndSkipping() = runTest {
+        val repo = Records(record(available = false), record(available = false))
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
+        runCurrent()
+        model.seek(3)
+        model.skipSeconds(5)
+        assertEquals(0, model.uiState.value.position)
+        assertEquals(0, repo.asked)
+    }
+
+    @Test
+    fun tappingLastEventStartsPausedRecordingAtThatEvent() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, null)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
+        runCurrent()
+        val last = model.uiState.value.eventCount - 1
+        model.playAt(last)
+        runCurrent()
+        assertEquals(model.uiState.value.startMillis(last), player.requestedPosition)
+        assertEquals(1, player.loads)
+    }
+
+    @Test
     fun playLoadsSignedUrlAndFollowsPlayerPosition() = runTest {
         val repo = Records(record(available = true), record(available = true))
         repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", expiresAtMillis = 900_000, durationMs = 48_000)
@@ -109,6 +134,115 @@ internal class RecordDetailPlaybackTest : CatalogViewModelTest() {
         // 아직 만료 전이라 주소를 다시 받지 않고 지금 위치부터 잇는다.
         assertEquals(1, repo.asked)
         assertEquals(third, player.requestedPosition)
+    }
+
+    @Test
+    fun playbackTimeMovesWithinOneNoteInsteadOfWaitingForNextNote() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 125L)
+        runCurrent()
+        assertEquals(0, model.uiState.value.position)
+        assertEquals(0.125, model.uiState.value.elapsedSeconds, 0.000001)
+        player.emit(AudioPlaybackStatus.Playing, 175L)
+        runCurrent()
+        assertEquals(0, model.uiState.value.position)
+        assertEquals(0.175, model.uiState.value.elapsedSeconds, 0.000001)
+    }
+
+    @Test
+    fun pauseAndResumeKeepTheExactAudioPosition() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        player.emit(AudioPlaybackStatus.Playing, 125L)
+        runCurrent()
+        model.pause()
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        assertEquals(125L, player.requestedPosition)
+    }
+
+    @Test
+    fun sliderSeeksToExactMillisecondsAndSkipKeepsTheFractionalSecond() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository()))
+        runCurrent()
+        model.seekToMillis(1_125L)
+        assertEquals(1.125, model.uiState.value.elapsedSeconds, 0.000001)
+        model.skipSeconds(5)
+        assertEquals(6.125, model.uiState.value.elapsedSeconds, 0.000001)
+        model.skipSeconds(-5)
+        assertEquals(1.125, model.uiState.value.elapsedSeconds, 0.000001)
+        model.seekToMillis(-1L)
+        assertEquals(0.0, model.uiState.value.elapsedSeconds)
+        model.seekToMillis(99_999L)
+        assertEquals(48.0, model.uiState.value.elapsedSeconds)
+        assertFalse(model.uiState.value.playing)
+        assertEquals(0, repo.asked)
+    }
+
+    @Test
+    fun seekingDuringPlaybackLoadsOnceAtTheExactPositionAndStopsAtTheEnd() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        player.state.value = player.state.value.copy(durationMs = 48_000L)
+        player.emit(AudioPlaybackStatus.Playing, 125L)
+        runCurrent()
+        model.seekToMillis(6_125L)
+        runCurrent()
+        assertEquals(6_125L, player.requestedPosition)
+        assertEquals(2, player.loads)
+        player.state.value = player.state.value.copy(durationMs = 48_000L)
+        runCurrent()
+        model.seekToMillis(48_000L)
+        runCurrent()
+        assertEquals(2, player.loads, "파일 끝을 잘못된 load 위치로 넘기지 않는다")
+        assertEquals(48.0, model.uiState.value.elapsedSeconds)
+        assertFalse(model.uiState.value.playing)
+    }
+
+    @Test
+    fun resumingInsideTheLastNoteDoesNotRestartButCompletedPlaybackDoes() = runTest {
+        val repo = Records(record(available = true), record(available = true))
+        repo.playbacks += RecordPlayback.Ready("https://r2.example/a.m4a", 900_000, 48_000)
+        val player = FakeAudioPlayer()
+        val model = keep(RecordDetailViewModel("41", repo, SampleSongRepository(), player))
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        val lastNote = model.uiState.value.startMillis(model.uiState.value.eventCount - 1) + 125L
+        val duration = lastNote + 1_000L
+        player.state.value = player.state.value.copy(durationMs = duration)
+        player.emit(AudioPlaybackStatus.Playing, lastNote)
+        runCurrent()
+        model.pause()
+        runCurrent()
+        model.togglePlay()
+        runCurrent()
+        assertEquals(lastNote, player.requestedPosition)
+        player.state.value = player.state.value.copy(durationMs = duration)
+        player.emit(AudioPlaybackStatus.Completed, duration)
+        runCurrent()
+        assertEquals(duration, model.uiState.value.playbackPositionMs)
+        model.togglePlay()
+        runCurrent()
+        assertEquals(0L, player.requestedPosition)
     }
 
     @Test
