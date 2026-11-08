@@ -31,10 +31,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -397,7 +399,10 @@ private fun FingerDiagram(instrument: GuideInstrument, entry: FingerEntry, heigh
     }
 }
 
-/** 율명 한 줄(`.note-line`): 글자와 오른쪽 작은 한글 읽는 법. 지금 연주하는 율명([playing])은 붉게 쓴다. */
+/**
+ * 율명 한 줄(`.note-line`): 글자와 오른쪽 작은 한글 읽는 법. 지금 연주하는 율명([playing])은 붉게 쓴다.
+ * 중청황(氵氵黃 중청황)처럼 글자와 한글이 칸 너비보다 길면 한글을 줄바꿈하지 않고 한 줄 전체를 비율대로 줄인다(S15P31E102-561).
+ */
 @Composable
 private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, playing: Boolean = false, height: Dp = FingerImageHeight, onClick: (() -> Unit)? = null) {
     val colors = EolssuTheme.colors
@@ -410,16 +415,42 @@ private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, 
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    Row(Modifier.fillMaxWidth().height(height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally)) {
-        if (isPitch) {
-            ScoreNoteGlyph(note, size = fitText(if (big) 25.sp else 19.sp, height), color = if (playing) colors.rec else colors.text)
-        } else {
-            val sustained = note == ScoreNote.Hold || note == ScoreNote.Blank
-            val symbolSize = fitText(if (sustained) 12.sp else if (big) 21.sp else 18.sp, height)
-            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = symbolSize, lineHeight = symbolSize, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
+    ShrinkToWidth(Modifier.fillMaxWidth().height(height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (isPitch) {
+                ScoreNoteGlyph(note, size = fitText(if (big) 25.sp else 19.sp, height), color = if (playing) colors.rec else colors.text)
+            } else {
+                val sustained = note == ScoreNote.Hold || note == ScoreNote.Blank
+                val symbolSize = fitText(if (sustained) 12.sp else if (big) 21.sp else 18.sp, height)
+                Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = symbolSize, lineHeight = symbolSize, fontWeight = FontWeight.Normal), color = if (playing) colors.rec else colors.textSub)
+            }
+            if (hangul != null) {
+                Text(
+                    hangul,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = fitText(if (big) 10.sp else 8.sp, height), lineHeight = fitText(11.sp, height)),
+                    color = if (playing) colors.rec else colors.textMuted,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
         }
-        if (hangul != null) {
-            Text(hangul, style = MaterialTheme.typography.labelSmall.copy(fontSize = fitText(if (big) 10.sp else 8.sp, height), lineHeight = fitText(11.sp, height)), color = if (playing) colors.rec else colors.textMuted)
+    }
+}
+
+/** 내용을 너비 제한 없이 한 줄로 잰 뒤, 자리보다 넓으면 비율을 지켜 줄여 가운데에 둔다. 좁아도 줄을 바꾸지 않는다. */
+@Composable
+private fun ShrinkToWidth(modifier: Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        val placeable = measurables.single().measure(Constraints(maxHeight = constraints.maxHeight))
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else placeable.width
+        val height = if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height
+        val scale = if (placeable.width > width) width.toFloat() / placeable.width else 1f
+        layout(width, height) {
+            // 층은 가운데를 기준으로 줄어든다. 줄이기 전 크기로 가운데에 두면 줄어든 내용도 가운데에 온다.
+            placeable.placeWithLayer((width - placeable.width) / 2, (height - placeable.height) / 2) {
+                scaleX = scale
+                scaleY = scale
+            }
         }
     }
 }

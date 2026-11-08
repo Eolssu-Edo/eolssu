@@ -214,6 +214,7 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 
 /**
  * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 쉬운 표기 · 장단 · 속도 메뉴 줄(`.menu-row`) → ‘운지법과 함께 보기’ 스위치(`.trow`).
+ * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
  */
 @Composable
 private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
@@ -225,7 +226,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
-        InstrumentSelect(state.instrument, actions.onSetInstrument)
+        if (state.solo) InstrumentSelect(state.instrument, actions.onSetInstrument)
         MenuRow(
             EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
             stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
