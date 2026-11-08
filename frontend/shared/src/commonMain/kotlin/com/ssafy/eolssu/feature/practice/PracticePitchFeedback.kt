@@ -8,40 +8,45 @@ import kotlin.math.abs
 import kotlin.math.log2
 import kotlin.math.pow
 
-enum class PitchDirection { Low, Match, High }
-
 private val yulNames = listOf("황", "대", "태", "협", "고", "중", "유", "임", "이", "남", "무", "응")
 
 private fun targetHz(note: ScoreNote, hwangHz: Double): Double? =
     (note as? ScoreNote.SourcePitch)?.let { hwangHz * 2.0.pow((yulNames.indexOf(it.yul) + 12 * it.octave) / 12.0) }
 
-/** 곡에서 가장 낮은 목표 음(Hz). 음이 없으면 0이라 아래 보류(D-5)가 꺼진다. */
-internal fun lowestTargetHz(events: List<ScoreEvent>, hwangHz: Double): Double =
-    events.mapNotNull { targetHz(it.note, hwangHz) }.minOrNull() ?: 0.0
+/** 곡에 나오는 서로 다른 목표 음(Hz)을 낮은 순으로. */
+internal fun songTargetHz(events: List<ScoreEvent>, hwangHz: Double): List<Double> =
+    events.mapNotNull { targetHz(it.note, hwangHz) }.distinct().sorted()
+
+private fun cents(from: Double, to: Double) = 1200 * log2(to / from)
 
 /**
- * [lowestHz]는 곡의 가장 낮은 목표 음이다. 그보다 200센트 넘게 낮으면 악기가 낼 수 없는 높이라 보류한다(S15P31E102-556 D-5).
- * 목표와 600센트 넘게 떨어진 값은 보류한다(555). 다만 높이 추정이 주기 배수 오인식을 먼저 고치므로
- * 1,200센트 ±100 안의 차이는 역취·평취 같은 실제 실수로 보고 낮음·높음으로 안내한다(556 D-4).
+ * 맞는 음을 불었는지 본다(S15P31E102-566). true 맞음, false 틀림, null 보류다. 음정이 몇 센트 어긋났는지가 아니라
+ * 다른 음을 불었는지를 묻는다. 조율 보정이 없으므로 서버(조율을 뺀 뒤 ±50센트)와 어긋날 수 있다(D-0).
+ *
+ * - 맞음: 곡에서 목표 바로 위·아래 음까지 거리의 절반 안이다. 각 쪽은 100센트를 넘지 않고, 이웃이 없으면 100센트다(D-1·D-2).
+ * - 보류: 곡의 가장 낮은 음보다 200센트 넘게 낮으면 악기가 낼 수 없는 높이다(556 D-5). 600센트를 넘고 1,200센트 ±100 밖이면
+ *   주기 배수 오인식·말소리일 수 있다(555).
+ * - 틀림: 그 밖. 옥타브 띠는 높이 추정이 배수 오인식을 먼저 고치므로 실제 실수로 본다(D-3).
  */
-internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?, lowestHz: Double = 0.0): PitchDirection? {
+internal fun comparePitch(note: ScoreNote, hwangHz: Double, heardHz: Double?, songHz: List<Double> = emptyList()): Boolean? {
     if (!hwangHz.isFinite() || hwangHz <= 0 || heardHz == null || !heardHz.isFinite() || heardHz <= 0) return null
     val target = targetHz(note, hwangHz) ?: return null
-    if (lowestHz > 0 && 1200 * log2(heardHz / lowestHz) < -200) return null
-    val cents = 1200 * log2(heardHz / target)
-    return when {
-        cents in -50.0..50.0 -> PitchDirection.Match
-        cents in -600.0..600.0 || abs(abs(cents) - 1200) <= 100 -> if (cents < 0) PitchDirection.Low else PitchDirection.High
-        else -> null
-    }
+    if (songHz.isNotEmpty() && cents(songHz.first(), heardHz) < -200) return null
+    val off = cents(target, heardHz)
+    if (abs(off) > 600 && abs(abs(off) - 1200) > 100) return null
+    // 같은 음이 부동소수 오차로 목록에 남아도 이웃으로 치지 않게 1센트 여유를 둔다. 상한 100센트는 곡에 없는 음을
+    // 불었을 때 넓은 범위에 들어가 맞음이 되는 것을 막는다(D-1 상한, 2026-11-08).
+    val up = minOf(100.0, songHz.firstOrNull { cents(target, it) > 1 }?.let { cents(target, it) / 2 } ?: 100.0)
+    val down = minOf(100.0, songHz.lastOrNull { cents(target, it) < -1 }?.let { -cents(target, it) / 2 } ?: 100.0)
+    return off in -down..up
 }
 
-/** 안내는 원본 이벤트 ID와 입력 시각을 끝까지 유지한다. */
+/** 안내는 원본 이벤트 ID와 입력 시각을 끝까지 유지한다. [correct]는 [comparePitch]의 결과로 null이면 보류다. */
 data class PitchFeedback(
     val eventId: String,
     val targetName: String,
     val heardHz: Double?,
-    val direction: PitchDirection?,
+    val correct: Boolean?,
     val capturedEndNanos: Long,
     val rest: Boolean = false,
 )
@@ -57,7 +62,7 @@ internal class PracticePitchTracker(
     private var scoreStartMs = 0.0
     private var lastSequence = -1L
     private var latest = PracticePitchFeedback()
-    private val lowestHz = lowestTargetHz(events, hwangHz)
+    private val songHz = songTargetHz(events, hwangHz)
 
     fun anchor(value: CaptureBoundary, scoreMs: Double) {
         if (boundary?.recordingId != value.recordingId || boundary?.segmentId != value.segmentId) {
@@ -92,7 +97,7 @@ internal class PracticePitchTracker(
         if (end > eventEnd + 0.000001 || index !in (currentIndex - 1)..currentIndex) return latest
         val pitch = event.note as? ScoreNote.SourcePitch
         val feedback = PitchFeedback(event.id, pitch?.hangul ?: event.note.symbol, reading.frequencyHz.takeUnless { event.note == ScoreNote.Rest },
-            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, reading.frequencyHz, lowestHz) else null,
+            if (event.sigimsae.isEmpty()) comparePitch(event.note, hwangHz, reading.frequencyHz, songHz) else null,
             reading.capturedEndNanos, event.note == ScoreNote.Rest)
         latest = if (index == currentIndex) latest.copy(current = feedback) else latest.copy(previous = feedback)
         return latest
