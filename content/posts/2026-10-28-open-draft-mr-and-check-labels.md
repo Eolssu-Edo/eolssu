@@ -1,5 +1,5 @@
 ---
-title: "초안 MR을 열고 저장된 라벨을 확인하는 법"
+title: "초안 MR의 라벨 확인하기"
 date: 2026-10-28T00:00:00+09:00
 slug: "open-draft-mr-and-check-labels"
 author: "우동균"
@@ -22,7 +22,7 @@ git push -u origin HEAD \
 
 `HEAD`는 현재 작업 브랜치를 가리킵니다. `merge_request.create`로 MR을 열고 `target`과 `draft`로 대상과 초안 여부를 지정합니다. 생성 뒤 받은 링크를 열면 브랜치와 초안 표시를 직접 대조할 수 있습니다. [GitLab의 MR Push 옵션](https://docs.gitlab.com/topics/git/commit/#push-options-for-merge-requests)
 
-## 라벨 두 개를 붙이고 다시 읽었다
+## 라벨 두 개를 붙이고 재조회 {#라벨-두-개를-붙이고-다시-읽었다}
 
 별도로 작업한 MR에서는 프로젝트에 이미 있는 라벨 두 개를 붙이기 위해 설명의 마지막 줄에 `/label`을 적었습니다. 다음 예시처럼 빠른 동작을 한 줄에 두고, 공백이 들어간 라벨 이름은 큰따옴표로 감쌉니다. [GitLab의 라벨 빠른 동작](https://docs.gitlab.com/user/project/quick_actions/#label)
 
