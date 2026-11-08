@@ -23,6 +23,8 @@ thumbnail: "https://team-edo.github.io/blog-images/2026-11-flyway-deploy-rollbac
 3. 적용할 파일이 있으면 같은 JAR을 웹 서버와 스케줄러를 끈 일회성 컨테이너로 실행합니다. 적용 뒤 이력을 다시 조회합니다.
 4. 앱을 교체하고 health를 확인합니다. 스키마가 바뀐 배포는 변경 후 DB도 백업합니다.
 
+앞서 율명 시드를 수동으로 적용할 때는 영향 범위가 분명했습니다. 변경하는 율명 테이블과 Flyway 이력만 `mysqldump --single-transaction`으로 덤프했습니다. 운영 기록에는 덤프의 접근 권한을 `0600`으로 제한하고 SHA-256을 남긴 사실이 있습니다. 그 덤프를 복원하는 시험 결과는 기록에 없습니다.
+
 파일 이름이 다르면 두 브랜치가 같은 Flyway 버전 번호를 사용해도 Git에서 충돌 없이 병합될 수 있습니다. 그래서 일반 빌드의 단위 테스트에서 버전 중복을 검사하고 배포 도구도 후보 JAR을 다시 검사합니다. 운영 이력에 있는 파일이 후보에서 빠졌거나 이미 적용한 SQL의 체크섬이 달라져도 교체 전에 멈춥니다. 대기 중인 마이그레이션이 없는 배포도 이 대조를 거칩니다.
 
 ## 이전 앱이 읽을 데이터까지 생각하기
@@ -33,7 +35,7 @@ thumbnail: "https://team-edo.github.io/blog-images/2026-11-flyway-deploy-rollbac
 
 ## 기존 데이터는 첫 ALTER 전에 검사하기
 
-새 제약을 적용할 때는 기존 행이 조건을 만족하는지 먼저 검사했습니다. 아래는 `status`가 필수인 연습 기록에서 실패 상태와 실패 사유의 유무가 일치하는지 확인하는 예입니다. 새 제약과 같은 조건식을 임시 테이블에 삽입합니다. 검사에 실패하면 업무 테이블을 변경하는 `ALTER TABLE`에 도달하기 전에 Flyway가 멈춥니다.
+새 제약을 적용할 때는 기존 행이 조건을 만족하는지 먼저 검사했습니다. 아래는 `status`가 필수인 연습 기록에서 실패 상태와 실패 사유의 유무가 일치하는지만 보여 주는 예입니다. 새 제약과 같은 조건식을 임시 테이블에 삽입합니다. 검사에 실패하면 업무 테이블을 변경하는 `ALTER TABLE`에 도달하기 전에 Flyway가 멈춥니다.
 
 ```sql
 CREATE TEMPORARY TABLE migration_precheck (
@@ -50,6 +52,8 @@ ALTER TABLE practice_sessions
   ADD CONSTRAINT chk_failure_reason
   CHECK ((status = 'FAILED') = (failure_reason IS NOT NULL));
 ```
+
+실제 마이그레이션은 사전 검사와 최종 제약 양쪽에서 실패 코드가 허용 목록에 있는지도 확인합니다. 대소문자를 구분하지 않는 정렬 규칙에서는 소문자 `no_sound`도 `NO_SOUND`와 같다고 판단할 수 있습니다. 그래서 실패 코드 비교에는 `COLLATE utf8mb4_bin`을 지정했습니다. DB 통합 테스트는 허용 코드 **6개**가 저장되고, 소문자 코드·목록에 없는 코드·실패 사유 누락은 모두 제약 위반 **3819**로 거절되는지 확인했습니다. [MySQL 정렬 규칙 이름의 의미](https://dev.mysql.com/doc/refman/8.4/en/charset-collation-names.html)
 
 MySQL에서 `ALTER TABLE`은 암묵적 커밋을 일으킵니다. 여러 DDL 문장 중 뒤쪽 문장이 실패해도 앞서 성공한 변경은 남을 수 있습니다. 재시도하기 전에는 Flyway 이력과 실제 테이블 정의를 모두 읽고 배포 전 백업과 대조해야 합니다. [MySQL 8.4의 암묵적 커밋 문서](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html)
 
