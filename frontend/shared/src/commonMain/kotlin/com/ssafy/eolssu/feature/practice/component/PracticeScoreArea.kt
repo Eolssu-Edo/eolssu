@@ -281,7 +281,9 @@ fun PracticeBoardScore(
         Column(if (bounded) Modifier.fillMaxSize() else Modifier.fillMaxWidth()) {
             BoxWithConstraints(if (bounded) Modifier.weight(1f).fillMaxWidth() else Modifier.fillMaxWidth()) {
                 val packing = remember(song, big, maxHeight, fontScale) {
-                    practiceScorePacking(song.score, JeongganboMetrics.practiceBoard(big, longestStrip), maxHeight, fontScale, song.jangdan)
+                    // 휴대폰 연습 악보만 나뉜 정간의 율명을 줄 높이에 맞춰 키운다. 결과·비교·편집 화면의 같은 메트릭은 그대로다.
+                    val metrics = JeongganboMetrics.practiceBoard(big, longestStrip).copy(splitLineFill = PracticeSplitLineFill)
+                    practiceScorePacking(song.score, metrics, maxHeight, fontScale, song.jangdan)
                 }
                 JeongganboView(
                     song = song,
