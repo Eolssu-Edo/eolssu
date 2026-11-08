@@ -1,5 +1,5 @@
 {{- $cats := partial "categories.html" . -}}
-<article class="post-item" data-post data-category="{{ range $i, $c := $cats }}{{ if $i }} {{ end }}{{ $c.key }}{{ end }}" data-author="{{ .Params.author | default site.Params.team }}">
+<article class="post-item" data-post data-category="{{ range $i, $c := $cats }}{{ if $i }} {{ end }}{{ $c.key }}{{ end }}">
   <a class="post-link" href="{{ .RelPermalink }}">
     <div class="post-copy">
       {{- if or $cats .Params.tags }}

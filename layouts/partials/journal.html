@@ -1,57 +1,39 @@
-{{- /* 직무·작성자 필터·함께 읽을 이야기·프로젝트 안내(왼쪽)와 전체 글 목록(오른쪽). 인자: posts, reading, title */ -}}
+{{- /* 전체 글과 직무별 버튼(오른쪽), 함께 읽을 이야기와 프로젝트 안내(왼쪽). 인자: posts, reading, title */ -}}
 {{- /* 같은 날짜의 글도 순서가 바뀌지 않도록 날짜·제목 순으로 고정하고, 최신 글을 맨 위에 둡니다. */ -}}
 {{- $posts := sort (sort .posts "Title" "asc") "Date" "desc" -}}
-{{- $counts := dict -}}
-{{- $authorCounts := dict -}}
-{{- range $posts }}
-  {{- range partial "categories.html" . }}{{ $counts = merge $counts (dict .key (add (index $counts .key | default 0) 1)) }}{{ end }}
-  {{- $a := .Params.author | default site.Params.team }}{{ $authorCounts = merge $authorCounts (dict $a (add (index $authorCounts $a | default 0) 1)) }}
-{{- end -}}
 {{- $known := slice -}}
 {{- range site.Data.blog.categories }}{{ $known = $known | append .key }}{{ end -}}
-{{- $members := slice -}}
-{{- range site.Data.team.members }}{{ $members = $members | append .name }}{{ end -}}
+{{- $extra := dict -}}
+{{- range $posts -}}
+  {{- range partial "categories.html" . -}}
+    {{- if not (in $known .key) }}{{ $extra = merge $extra (dict .key true) }}{{ end -}}
+  {{- end -}}
+{{- end -}}
 <div class="journal-layout" data-journal>
   <section class="journal-main" aria-labelledby="all-title">
-    <div class="article-header"><h2 id="all-title">{{ .title | default "전체 글" }}</h2></div>
+    <div class="article-header">
+      <h2 id="all-title">{{ .title | default "전체 글" }}</h2>
+      {{- with $posts }}
+      <div class="filters" role="group" aria-label="직무별 읽기" data-filter-group hidden>
+        <button type="button" data-value="all" aria-pressed="true">전체</button>
+        {{- range site.Data.blog.categories }}
+        <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
+        {{- end }}
+        {{- range $key, $present := $extra }}
+        <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }}</button>
+        {{- end }}
+      </div>
+      <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
+      {{- end }}
+    </div>
+    {{- with $posts }}<p class="filter-result" data-filter-result aria-live="polite">전체 글 {{ len . }}편</p>{{ end }}
     <div class="post-list">
       {{- range $posts }}{{ partial "post-item.html" . }}{{ end }}
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
-      <div class="empty" data-empty hidden><p>선택한 조건의 글은 아직 준비 중이에요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
+      <div class="empty" data-empty hidden><p>이 분야의 글을 준비하고 있어요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
     </div>
-    {{- with $posts }}<p class="filter-result" data-filter-result aria-live="polite">전체 글 {{ len . }}편</p>{{ end }}
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
-    {{- with $posts }}
-    <section class="side-block fields" aria-label="글 골라 보기">
-      {{- /* 목록을 가리지 않도록 처음에는 접어 두고, 접힌 상태에서도 고른 항목을 제목 옆에 보여 줍니다. */}}
-      <details class="filter-toggle">
-      <summary><h2 id="fields-title">직무별로 읽기</h2><span class="filter-current" data-filter-current>전체</span></summary>
-      <div class="filters" role="group" aria-labelledby="fields-title" data-filter-group="category">
-        <button type="button" data-value="all" aria-pressed="true">전체 직무 <span>{{ len $posts }}</span></button>
-        {{- range $c := site.Data.blog.categories }}
-        <button type="button" data-value="{{ $c.key }}" aria-pressed="false">{{ $c.short }} <span>{{ index $counts $c.key | default 0 }}</span></button>
-        {{- end }}
-        {{- range $key, $count := $counts }}{{ if not (in $known $key) }}
-        <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }} <span>{{ $count }}</span></button>
-        {{- end }}{{ end }}
-      </div>
-      </details>
-      <details class="filter-toggle">
-      <summary><h2 id="authors-title">작성자별로 읽기</h2><span class="filter-current" data-filter-current>전체</span></summary>
-      <div class="filters" role="group" aria-labelledby="authors-title" data-filter-group="author">
-        <button type="button" data-value="all" aria-pressed="true">전체 작성자 <span>{{ len $posts }}</span></button>
-        {{- range $members }}
-        <button type="button" data-value="{{ . }}" aria-pressed="false">{{ . }} <span>{{ index $authorCounts . | default 0 }}</span></button>
-        {{- end }}
-        {{- range $name, $count := $authorCounts }}{{ if not (in $members $name) }}
-        <button type="button" data-value="{{ $name }}" aria-pressed="false">{{ $name }} <span>{{ $count }}</span></button>
-        {{- end }}{{ end }}
-      </div>
-      </details>
-      <noscript><p class="noscript-note"><a href="{{ "categories/" | relURL }}">분류별 글 보기</a></p></noscript>
-    </section>
-    {{- end }}
     {{- with .reading }}
     <section class="side-block reading" aria-labelledby="reading-title">
       <h2 id="reading-title">함께 읽을 이야기</h2>
