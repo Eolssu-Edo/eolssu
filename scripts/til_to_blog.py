@@ -22,7 +22,7 @@ except ImportError:
 
 KST = timezone(timedelta(hours=9))
 STATE = ".til-imports.json"
-CATEGORIES = {"backend", "frontend", "ai", "data", "infra", "회고"}
+CATEGORIES = {"backend", "frontend", "ai", "ai-native", "data", "infra", "회고"}
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
 
 
@@ -211,7 +211,7 @@ def validate_metadata(meta):
         if not isinstance(values, list) or not all(isinstance(x, str) and x.strip() for x in values):
             raise ImportError_(f"{key}는 문자열 목록이어야 합니다")
     if not meta.get("categories") or not set(meta["categories"]) <= CATEGORIES:
-        raise ImportError_("categories는 backend, frontend, ai, data, infra, 회고 중에서 선택하세요")
+        raise ImportError_("categories는 backend, frontend, ai, ai-native, data, infra, 회고 중에서 선택하세요")
 
 
 def render(candidate, day):

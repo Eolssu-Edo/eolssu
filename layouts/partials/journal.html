@@ -15,7 +15,7 @@
         {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
       </div>
       {{- with $posts }}
-      <div class="filters" role="group" aria-label="직무별 읽기" data-filter-group hidden>
+      <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group hidden>
         <button type="button" data-value="all" aria-pressed="true">전체</button>
         {{- range site.Data.blog.categories }}
         <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
