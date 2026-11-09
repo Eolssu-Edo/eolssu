@@ -62,22 +62,16 @@ import eolssu.shared.generated.resources.mysongs_conversion_retry
 import eolssu.shared.generated.resources.jangdan_label
 import eolssu.shared.generated.resources.mysongs_delete_label
 import eolssu.shared.generated.resources.mysongs_edit
-import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.mysongs_kind_jeongganbo
 import eolssu.shared.generated.resources.mysongs_meta_updated
 import eolssu.shared.generated.resources.mysongs_origin_copied
 import eolssu.shared.generated.resources.mysongs_origin_imported
-import eolssu.shared.generated.resources.mysongs_practice_only_badge
 import eolssu.shared.generated.resources.mysongs_status_practice
 import eolssu.shared.generated.resources.song_difficulty_number
 import org.jetbrains.compose.resources.stringResource
 
 /** 제공 곡 줄 왼쪽 칸 글자: 제목의 첫 글자(앞 공백은 건너뜀). 제목이 비면 빈 문자열. */
 internal fun songTileLetter(title: String): String = title.trimStart().firstOrNull()?.toString().orEmpty()
-
-/** 제공 곡 배지: 평가 곡은 'AI 평가'(`.badge.play`), 아니면 '연습 전용'(`.badge.lite`). */
-internal fun providedSongBadgeStyle(evaluable: Boolean): EolssuBadgeStyle =
-    if (evaluable) EolssuBadgeStyle.Play else EolssuBadgeStyle.Outline
 
 /** SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다. */
 @Composable
@@ -105,23 +99,29 @@ private fun RowTile(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** 제목 16sp · 보조 13sp(`.srow .t`). */
+/** 제목 16sp · 보조 13sp(`.srow .t`). 제목이 길면 [songTitleMarquee]로 흘려 보인다. */
 @Composable
 private fun RowScope.RowText(title: String, meta: String) {
     Column(Modifier.weight(1f)) {
         Text(
             title,
+            modifier = Modifier.songTitleMarquee(),
             style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
             color = EolssuTheme.colors.text,
             maxLines = 1,
+        )
+        Text(
+            meta,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
+            color = EolssuTheme.colors.textMuted,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Text(meta, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = EolssuTheme.colors.textMuted)
     }
 }
 
 /**
- * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(연습 전용이면 '· 연습 전용') · 'AI 평가'/'연습 전용'과 난이도 배지 · 화살표.
+ * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(없으면 '장단 없음', 연습 전용이면 '· 연습 전용') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
  * 누르면 [onClick]으로 평가 없는 연습 모드에 간다.
  */
 @Composable
@@ -135,12 +135,7 @@ internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Uni
         ) {
             RowTile { Text(songTileLetter(song.title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), color = colors.text) }
             RowText(song.title, meta)
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                EolssuBadge(
-                    stringResource(if (song.evaluable) Res.string.mysongs_evaluable_badge else Res.string.mysongs_practice_only_badge),
-                    style = providedSongBadgeStyle(song.evaluable),
-                    small = true,
-                )
+            Box(Modifier.align(Alignment.Bottom)) {
                 val level = song.level
                 if (level != null) EolssuLevelBadge(level, small = true)
                 else EolssuBadge(stringResource(Res.string.song_difficulty_number, song.difficulty), small = true)

@@ -1,24 +1,14 @@
 package com.ssafy.eolssu.feature.history.component
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -26,10 +16,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_back
-import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -38,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
+import com.ssafy.eolssu.core.ui.component.EolssuBackButton
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 
 /**
@@ -89,30 +76,18 @@ internal fun HistoryTopBar(frame: HistoryFrame, title: String, subtitle: String?
 }
 
 /**
- * 보드 기록·성장 화면의 상단 바: 40dp 흰 원 뒤로 가기(테두리 `#E8E4DA`) · 가운데 제목(16sp 굵게)과 보조 문구(12sp) · 오른쪽 빈 칸.
+ * 보드 기록·성장 화면의 상단 바: 40dp 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(16sp 굵게)과 보조 문구(12sp) · 오른쪽 빈 칸.
  * 아래 여백은 화면마다 다르다(목록 12 · 상세 8 · 기록지 10).
  */
 @Composable
 internal fun HistoryBoardTopBar(title: String, subtitle: String?, onBack: () -> Unit, bottom: Dp = 12.dp) {
     val colors = EolssuTheme.colors
-    val back = stringResource(Res.string.common_back)
     Row(
         Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = bottom),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Box(
-            Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(colors.surface)
-                .border(1.dp, colors.lineSoft, CircleShape)
-                .clickable(role = Role.Button, onClickLabel = back, onClick = onBack)
-                .semantics { contentDescription = back },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(EolssuIcons.Back, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.text)
-        }
+        EolssuBackButton(onBack, size = 40.dp)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 title,

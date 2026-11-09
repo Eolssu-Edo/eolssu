@@ -3,6 +3,8 @@ package com.ssafy.eolssu.feature.song.edit
 import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.core.model.MySheet
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.feature.song.SongSortOrder
+import com.ssafy.eolssu.feature.song.sortedByTitle
 
 /** 불러올 악보 목록의 탭. */
 enum class EditPickTab { Mine, Songs }
@@ -32,14 +34,17 @@ data class EditPickUiState(
     val load: EditPickLoad = EditPickLoad.NeedsInstrument,
     val tab: EditPickTab = EditPickTab.Mine,
     val query: String = "",
+    val sort: SongSortOrder = SongSortOrder.Ascending,
     val picked: EditPickTarget? = null,
     val sheets: List<MySheet> = emptyList(),
     val songs: List<EditPickSong> = emptyList(),
     val uncheckedSheets: Int = 0,
 ) {
-    /** 검색어가 이름에 든 제공 곡. 검색어 앞뒤 공백은 무시한다. */
+    /** 검색어가 이름에 든 제공 곡을 [sort] 순서로. 검색어 앞뒤 공백은 무시한다. */
     val visibleSongs: List<EditPickSong>
-        get() = query.trim().let { q -> if (q.isEmpty()) songs else songs.filter { it.title.contains(q, ignoreCase = true) } }
+        get() = query.trim()
+            .let { q -> if (q.isEmpty()) songs else songs.filter { it.title.contains(q, ignoreCase = true) } }
+            .sortedByTitle(sort) { it.title }
 
     /** 고른 악보의 이름. 고르지 않았으면 null. */
     val pickedTitle: String?

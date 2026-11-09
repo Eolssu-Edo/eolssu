@@ -34,14 +34,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_back
-import org.jetbrains.compose.resources.stringResource
 
 /**
- * 페이지형 상단 바(`.page-head`, SONG-01 · SONG-02 · PRACTICE-01): 왼쪽 원형 뒤로 가기 · 왼쪽 정렬 15sp 제목 · 오른쪽 버튼 자리 · 아래 구분선.
+ * 페이지형 상단 바(`.page-head`, SONG-01 · SONG-02 · PRACTICE-01): 왼쪽 뒤로 가기 꺽쇠([EolssuBackButton]) · 왼쪽 정렬 15sp 제목 · 오른쪽 버튼 자리 · 아래 구분선.
  * 가운데 제목형 [EolssuTopBar]와 달리 보조 문구가 없고, 큰 제목은 본문의 [PageHeading]이 맡는다.
- * 원형 버튼은 보이는 크기 36dp, 누르는 영역 48dp라 버튼 바깥 여백(6dp)만큼 줄 양옆 여백을 줄여 원이 화면 끝에서 20dp에 오게 한다.
+ * 버튼은 보이는 자리 36dp, 누르는 영역 48dp라 버튼 바깥 여백(6dp)만큼 줄 양옆 여백을 줄여 그 자리가 화면 끝에서 20dp에 오게 한다.
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
 @Composable
@@ -63,7 +60,7 @@ fun EolssuPageTopBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (onBack != null) {
-                    EolssuPageIconButton(EolssuIcons.Back, stringResource(Res.string.common_back), onBack)
+                    EolssuBackButton(onBack)
                     Spacer(Modifier.width(12.dp - PageButtonInset))
                 } else {
                     Spacer(Modifier.width(20.dp - PageButtonInset))

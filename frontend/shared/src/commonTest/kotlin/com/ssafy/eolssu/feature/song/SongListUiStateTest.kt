@@ -24,13 +24,13 @@ class SongListUiStateTest {
     @Test
     fun filtersByLevel() {
         val titles = base.copy(filter = SongLevelFilter.Elementary).visibleSongs.map { it.title }
-        assertEquals(listOf("밀양아리랑", "늴리리야"), titles)
+        assertEquals(listOf("늴리리야", "밀양아리랑"), titles, "곡 이름 오름차순")
     }
 
     @Test
     fun searchesByTitlePartAndTrimsQuery() {
         val titles = base.copy(query = " 아리 ").visibleSongs.map { it.title }
-        assertEquals(listOf("아리랑", "밀양아리랑"), titles)
+        assertEquals(listOf("밀양아리랑", "아리랑"), titles, "곡 이름 오름차순")
     }
 
     @Test
