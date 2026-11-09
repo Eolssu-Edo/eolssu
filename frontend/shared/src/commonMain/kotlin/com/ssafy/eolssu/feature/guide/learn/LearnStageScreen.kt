@@ -1,7 +1,6 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -70,7 +67,6 @@ import com.ssafy.eolssu.feature.guide.component.SigimsaeBasicBlock
 import com.ssafy.eolssu.feature.guide.component.blowShortLabel
 import com.ssafy.eolssu.feature.guide.component.guidePageMaxWidth
 import com.ssafy.eolssu.feature.guide.component.guideSidePadding
-import com.ssafy.eolssu.core.model.fingering.image
 import com.ssafy.eolssu.feature.guide.component.label
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.catalog_consumer_loading
@@ -121,7 +117,6 @@ import eolssu.shared.generated.resources.learn_task_rest
 import eolssu.shared.generated.resources.learn_task_rest_detail
 import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import com.ssafy.eolssu.core.model.fingering.label
 
@@ -170,13 +165,14 @@ fun LearnStageScreen(
     noteAudioContent: @Composable (FingeringNote) -> Unit,
 ) {
     val tablet = widthClass != WindowWidthClass.Compact
+    val tour = rememberLearnTour(stage.number)
     EolssuScaffold(
         topBar = {
             GuideTopBar(learnStageTitle(stage), onBack = actions.onBack, widthClass = widthClass, subtitle = learnStageSubtitle(state, stage))
         },
         bottomBar = {
-            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(stage, state.isDone(stage.number), actions) }
-            else LearnStageBottomBar(stage, state.isDone(stage.number), actions)
+            if (tablet) GuideTabletBottomContent { LearnStageBottomBar(state, stage, actions, tour) }
+            else LearnStageBottomBar(state, stage, actions, tour)
         },
         snackbarHostState = snackbarHostState,
         contentMaxWidth = widthClass.guidePageMaxWidth,
@@ -190,6 +186,7 @@ fun LearnStageScreen(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = side, end = side, bottom = 24.dp),
             columns = if (tablet) LearnStageColumns.Portrait else LearnStageColumns.Compact,
+            tour = tour,
         )
     }
 }
@@ -216,7 +213,10 @@ internal fun LearnStageContent(
     contentPadding: PaddingValues = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
     columns: LearnStageColumns = LearnStageColumns.Compact,
     scrollState: ScrollState = rememberScrollState(),
+    tour: LearnTour = rememberLearnTour(stage.number),
 ) {
+    // 1단계 따라 배우기를 다 마치면 '완료했어요!'를 띄우고, '다음 단계로'는 '확인하고 다음 단계'와 같이 완료 표시 뒤 2단계로 간다.
+    if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
     Column(
         modifier
             .verticalScroll(scrollState)
@@ -226,7 +226,7 @@ internal fun LearnStageContent(
             is LearnDetailLoad.Loaded -> {
                 val detail = load.detail
                 StageHero(stage, detail)
-                StageBody(state, stage, detail, actions, columns, noteAudioContent)
+                StageBody(state, stage, detail, actions, columns, noteAudioContent, tour)
                 detail.pass?.let { PassSection(it) }
             }
             else -> LearnLoadStatus(
@@ -270,6 +270,7 @@ private fun StageBody(
     actions: LearnStageActions,
     columns: LearnStageColumns,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
+    tour: LearnTour,
 ) {
     val instrument = state.instrument
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
@@ -283,7 +284,7 @@ private fun StageBody(
     when (stage.number) {
         1 -> {
             LearnSection(stringResource(Res.string.learn_section_inspect), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
-                InstrumentFigure(instrument, detail.parts, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
+                LearnFirstTourFigure(instrument, tour, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
             }
         }
         // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다.
@@ -423,45 +424,6 @@ private fun PatternName(name: String) {
     Text(name, style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 18.sp))
 }
 
-/** 1단계 악기 그림과 부분 이름(`.lp-inst-fig`). 태블릿은 그림을 [imageMaxWidth]로 가운데에 둔다. */
-@Composable
-private fun InstrumentFigure(instrument: GuideInstrument, parts: List<String>, imageMaxWidth: Dp = Dp.Unspecified) {
-    val colors = EolssuTheme.colors
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(14.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(14.dp))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Image(
-            painterResource(instrument.image),
-            contentDescription = stringResource(instrument.label),
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .widthIn(max = imageMaxWidth)
-                .fillMaxWidth()
-                .aspectRatio(instrument.imageWidth.toFloat() / instrument.imageHeight),
-            contentScale = ContentScale.Fit,
-        )
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            parts.forEach { part ->
-                Box(
-                    Modifier
-                        .height(26.dp)
-                        .background(colors.surface, RoundedCornerShape(13.dp))
-                        .border(1.dp, colors.lineSoft, RoundedCornerShape(13.dp))
-                        .padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(part, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp))
-                }
-            }
-        }
-    }
-}
-
 /** 8단계 연습할 곡(`.lp-song`): 곡 이름만 둔 작은 칩. 누르면 곡 상세로 간다. */
 @Composable
 private fun SongChip(song: LearnSong, onClick: () -> Unit) {
@@ -553,10 +515,14 @@ private fun NavButton(text: String, enabled: Boolean, onClick: () -> Unit, modif
     }
 }
 
-/** 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. */
+/** 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. 1단계는 따라 배우기 버튼(학습 시작 · 이전/다음)이다. */
 @Composable
-internal fun LearnStageBottomBar(stage: LearnStage, done: Boolean, actions: LearnStageActions) {
-    val colors = EolssuTheme.colors
+internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour) {
+    if (stage.number == 1) {
+        LearnFirstTourBar(state.instrument, tour)
+        return
+    }
+    val done = state.isDone(stage.number)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (stage.primaryAction != LearnStageAction.Confirm) {
             DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
