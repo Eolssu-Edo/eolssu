@@ -11,7 +11,7 @@
   <section class="journal-main" aria-labelledby="all-title">
     <div class="article-header">
       <div class="journal-heading" aria-live="polite" aria-atomic="true">
-        <h2 id="all-title">{{ .title | default "전체 글" }}</h2>
+        <h2 id="all-title" tabindex="-1">{{ .title | default "전체 글" }}</h2>
         {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
       </div>
       {{- with $posts }}
@@ -19,14 +19,25 @@
         <input type="search" aria-label="글 검색" placeholder="제목 또는 태그">
         <button class="button-primary" type="submit">검색</button>
       </form>
-      <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group hidden>
-        <button type="button" data-value="all" aria-pressed="true">전체</button>
-        {{- range site.Data.blog.categories }}
-        <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
-        {{- end }}
-        {{- range $key, $present := $extra }}
-        <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }}</button>
-        {{- end }}
+      <div class="journal-refine" data-journal-refine hidden>
+        <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group>
+          <button type="button" data-value="all" aria-pressed="true">전체</button>
+          {{- range site.Data.blog.categories }}
+          <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
+          {{- end }}
+          {{- range $key, $present := $extra }}
+          <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }}</button>
+          {{- end }}
+        </div>
+        <label class="journal-page-size">
+          표시 개수
+          <select data-page-size>
+            <option value="5">5개</option>
+            <option value="10" selected>10개</option>
+            <option value="30">30개</option>
+            <option value="all">전체</option>
+          </select>
+        </label>
       </div>
       <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
       {{- end }}
@@ -36,6 +47,13 @@
       {{- if not $posts }}<p class="empty">첫 번째 개발 기록을 준비하고 있어요.</p>{{ end }}
       <div class="empty" data-empty hidden><p data-empty-message>이 분야의 글을 준비하고 있어요.</p><button class="button-primary" type="button" data-reset-filter>전체 글 보기 <span aria-hidden="true">→</span></button></div>
     </div>
+    {{- with $posts }}
+    <nav class="journal-pagination" aria-label="글 목록 페이지" data-pagination hidden>
+      <button type="button" data-page-prev>이전</button>
+      <span role="status" data-page-status></span>
+      <button type="button" data-page-next>다음</button>
+    </nav>
+    {{- end }}
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
     {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title" "titleOnly" true) }}
