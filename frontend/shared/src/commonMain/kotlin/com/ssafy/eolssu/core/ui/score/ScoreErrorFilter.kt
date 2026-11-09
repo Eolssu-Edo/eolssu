@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,7 +15,6 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,8 +85,8 @@ fun EvaluationResult.visibleErrors(filter: ErrorFilter): Map<Pair<Int, Int>, Sco
 
 /**
  * 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 정간만 정간보에 색칠한다.
- * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 오류 위치 RESULT-03은 네 칩).
- * [singleLine]이면 작은 칩(28dp)을 한 줄에 나눠 놓고, 좁으면 글자를 9sp까지 줄여 줄이 넘어가지 않게 한다(이전 연주 결과).
+ * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 틀린 부분 RESULT-03은 네 칩).
+ * 작은 칩(28dp)을 한 줄에 나눠 놓고, 좁으면 글자를 9sp까지 줄여 줄이 넘어가지 않게 한다(이전 연주 결과·틀린 부분).
  */
 @Composable
 fun ErrorFilterChips(
@@ -97,23 +95,14 @@ fun ErrorFilterChips(
     onSelect: (ErrorFilter) -> Unit,
     modifier: Modifier = Modifier,
     hideEmptyMissed: Boolean = false,
-    singleLine: Boolean = false,
 ) {
     val filters = ErrorFilter.entries.filterNot { hideEmptyMissed && it == ErrorFilter.Missed && result.errorCount(it) == 0 }
-    if (singleLine) {
-        Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            filters.forEach { filter ->
-                val count = result.errorCount(filter)
-                val label = filterLabel(filter, count)
-                // 글자 수(견본·여백 몫 2자 포함)만큼 나눠, 좁아질 때 모든 칩의 글자가 비슷한 크기로 줄게 한다.
-                CompactFilterChip(filter, label, on = filter == selected, Modifier.weight(label.length + 2f)) { onSelect(filter) }
-            }
-        }
-        return
-    }
-    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         filters.forEach { filter ->
-            FilterChip(filter, result.errorCount(filter), on = filter == selected) { onSelect(filter) }
+            val count = result.errorCount(filter)
+            val label = filterLabel(filter, count)
+            // 글자 수(견본·여백 몫 2자 포함)만큼 나눠, 좁아질 때 모든 칩의 글자가 비슷한 크기로 줄게 한다.
+            CompactFilterChip(filter, label, on = filter == selected, Modifier.weight(label.length + 2f)) { onSelect(filter) }
         }
     }
 }
@@ -172,26 +161,3 @@ private fun filterLabel(filter: ErrorFilter, count: Int): String = stringResourc
     },
     count,
 )
-
-@Composable
-private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val label = filterLabel(filter, count)
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.height(34.dp).semantics { selected = on },
-        shape = CircleShape,
-        color = if (on) colors.primary else colors.background,
-        contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            FilterSwatch(filter, on, 10.dp)
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-        }
-    }
-}

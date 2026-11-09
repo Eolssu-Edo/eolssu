@@ -63,6 +63,10 @@ class MySongsActions(
     val onConfirmDelete: () -> Unit,
     val onCancelDelete: () -> Unit,
     val onRetry: () -> Unit,
+    /** 변환에 실패한 악보의 '다시 시도'(서버가 다시 시도할 수 있다고 한 악보만 보인다). */
+    val onRetryConversion: (MySheet) -> Unit = {},
+    /** 변환에 실패한 악보의 '다시 불러오기'. 실패 원인을 알리며 악보 추가로 간다. */
+    val onReimportSheet: (MySheet) -> Unit = { onAddSheet() },
 )
 
 /**
@@ -184,6 +188,10 @@ internal fun MySongsBody(
                                 onEdit = { actions.onEditSheet(sheet) },
                                 onDelete = { actions.onDeleteSheet(sheet) },
                                 modifier = rowModifier,
+                                conversion = state.conversionOf(sheet),
+                                retrying = sheet.id in state.retrying,
+                                onRetryConversion = { actions.onRetryConversion(sheet) },
+                                onReimport = { actions.onReimportSheet(sheet) },
                             )
                         }
                     }

@@ -17,6 +17,8 @@ import com.ssafy.eolssu.core.audio.RecordingSpec
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingeringYul
+import com.ssafy.eolssu.data.practice.NotePracticeCriteriaLoad
+import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.practice.PracticeTimeQueue
 import com.ssafy.eolssu.data.song.SongRepository
@@ -51,7 +53,9 @@ import kotlin.uuid.Uuid
  * 입력·화면 보임은 Route가 알린다. 열린 구간은 30초마다, 닫힌 구간은 닫을 때 [timeQueue]에 남긴다.
  *
  * 혼자 연습의 '한 음씩 따라 불기'는 [stepJudge]가 기다리는 음을 맞게 불었다고 알리면([onStepNoteMatched]) 다음 음으로 넘어간다.
- * 판정은 기기 안에서만 하고 녹음을 보내거나 분석하지 않는다. [mine]은 내 악보 연습(평가 버튼 없음)이다.
+ * 판정은 기기 안에서만 하고 녹음을 보내거나 분석하지 않는다. 곡을 불러오면 [notePractice]로 그 악기의 판정 기준을 받아
+ * 마이크로 듣는 판정기([PitchStepNoteJudge])로 바꾼다. 혼자 연습 화면은 평가 녹음을 하지 않으므로 마이크 권한·녹음 실패 안내는
+ * 한 음씩 것이다. [mine]은 내 악보 연습(평가 버튼 없음)이다.
  */
 class PracticeViewModel(
     private val songId: String,
@@ -67,10 +71,13 @@ class PracticeViewModel(
     modelAudioRepository: ModelAudioRepository? = null,
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
     mine: Boolean = false,
-    private val stepJudge: StepNoteJudge = ManualStepNoteJudge(),
+    stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
+    private val notePractice: NotePracticeCriteriaRepository? = null,
 ) : ViewModel() {
+    private var stepJudge: StepNoteJudge = stepJudge
+
     private val _uiState = MutableStateFlow(
         PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
@@ -94,6 +101,7 @@ class PracticeViewModel(
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
     private fun clearAccount() {
         pitchSession.stop()
+        pitchTally.value = LivePitchTally()
         take = null
         takeKey = ""
         screenShown = false
@@ -101,9 +109,18 @@ class PracticeViewModel(
         _uiState.value = PracticeUiState()
         viewModelScope.launch { stopAll() }
     }
-    private val pitchSession = PracticePitchSession(recorder, accountScope) { _uiState.value.position }
+    private val pitchTally = MutableStateFlow(LivePitchTally())
+    private val pitchSession = PracticePitchSession(recorder, accountScope, { feedback -> pitchTally.update { it.add(feedback) } }) {
+        _uiState.value.position
+    }
     /** 현재·직전 음높이 안내. 화면에서는 이 흐름만 구독하며 녹음 제어와 독립적이다. */
     val pitchFeedback: StateFlow<PracticePitchFeedback> = pitchSession.state
+
+    /**
+     * 이번 평가 연주에서 음마다 모은 실시간 판정(S15P31E102-597). 지나간 음은 색을 고정한다. 멈춤·이어 연주·연주 완료 동안 남고,
+     * 새 연주를 시작하거나(처음부터 다시 포함) 준비로 돌아가거나 연주 중 화면을 벗어나면 비운다.
+     */
+    val livePitch: StateFlow<LivePitchTally> = pitchTally.asStateFlow()
 
     private val jangdanAudio = JangdanSession(jangdanPlayer, accountScope)
     private val modelAudio = ModelAudioSession(modelAudioRepository, audioPlayer, accountScope, playbackTimeSource) { song, bpm ->
@@ -290,7 +307,16 @@ class PracticeViewModel(
 
     init {
         accountScope.launch {
-            _uiState.map { it.position }.distinctUntilChanged().collect { pitchSession.refresh() }
+            _uiState.map { it.position }.distinctUntilChanged().collect { position ->
+                pitchSession.refresh()
+                // 두 음 앞까지 지나간 음은 색을 고정한다. 직전 음은 늦게 도착하는 결과를 더 받는다.
+                _uiState.value.song?.let { song -> pitchTally.update { it.freezeBefore(song, position - 1) } }
+            }
+        }
+        accountScope.launch {
+            _uiState.map { it.mode == PracticeMode.Ready || (it.mode == PracticeMode.Countdown && !it.resume) }
+                .distinctUntilChanged()
+                .collect { newTake -> if (newTake) pitchTally.value = LivePitchTally() }
         }
         retryLoadSong()
         accountScope.launch {
@@ -344,6 +370,7 @@ class PracticeViewModel(
                         _uiState.update { it.copy(song = song) }
                         _uiState.update { it.copy(jangdanSupported = jangdanPlayer.available && currentPlan() != null) }
                         if (screenShown) startTimeTracking()
+                        prepareStepJudge(song)
                     }
                 }
             } catch (e: CancellationException) {
@@ -659,18 +686,25 @@ class PracticeViewModel(
         stopJangdan()
         modelAudio.stop()
         stepJob?.cancel()
-        val granted = settingsStore.micGranted.value && micPermission?.isGranted() != false
-        _uiState.update { it.requestEvaluation(granted) }
+        _uiState.update { it.requestEvaluation(micGranted()) }
         if (_uiState.value.mode == PracticeMode.Countdown) runCountdown()
     }
 
     /** 마이크 안내에서 '계속'을 누르면 OS 권한을 묻는다. 허용하면 true. */
     suspend fun requestMicPermission(): Boolean = recorder != null && (micPermission?.request() ?: true)
 
-    /** OS 권한까지 허용된 뒤 연주를 시작한다. */
+    private fun micGranted(): Boolean = settingsStore.micGranted.value && micPermission?.isGranted() != false
+
+    /** OS 권한까지 허용된 뒤 연주를 시작한다. 혼자 연습이면 한 음씩 듣기를 시작한다. */
     fun grantMicAndStart() {
         if (!accountScope.isActive) return
         if (recorder == null) return
+        if (_uiState.value.solo) {
+            settingsStore.grantMic()
+            closePopup()
+            tapStepPlaying()
+            return
+        }
         pauseRhythm()
         stopPreview()
         stopJangdan()
@@ -682,6 +716,11 @@ class PracticeViewModel(
 
     /** OS 권한 창에서 허용하지 않음. 화면에 머물며 거부 안내(다시 묻지 못하면 설정 안내)를 띄운다. */
     fun micDenied() {
+        if (_uiState.value.solo) {
+            // 한 음씩은 아직 시작하지 않았다. 악보·진행 위치는 그대로 두고 안내만 띄운다.
+            _uiState.update { it.copy(popup = if (micPermission?.isPermanentlyDenied() == true) PracticePopup.PermBlocked else PracticePopup.PermDenied) }
+            return
+        }
         stopAll()
         _uiState.update { it.denyMic(blocked = micPermission?.isPermanentlyDenied() == true) }
     }
@@ -748,6 +787,7 @@ class PracticeViewModel(
         when (state.mode) {
             PracticeMode.Recording, PracticeMode.Countdown -> {
                 stopAll()
+                pitchTally.value = LivePitchTally()
                 _uiState.update { it.interrupt() }
             }
             PracticeMode.Model -> modelAudio.suspendAndRelease()
@@ -804,8 +844,17 @@ class PracticeViewModel(
         syncStep()
     }
 
-    /** 오른쪽 '내 연주' 칸: 듣는 중이면 멈추고, 멈춰 있으면 1초마다 3·2·1을 센 뒤 이어 간다. */
+    /**
+     * 오른쪽 '내 연주' 칸: 듣는 중이면 멈추고, 멈춰 있으면 1초마다 3·2·1을 센 뒤 이어 간다.
+     * 마이크로 듣는 판정기인데 마이크 권한이 없으면 시작하지 않고 권한 안내를 띄운다.
+     */
     fun tapStepPlaying() {
+        val state = _uiState.value
+        val starting = state.stepUi && state.mode == PracticeMode.Ready && state.step.phase != StepPhase.Listening && state.step.phase != StepPhase.Countdown
+        if (starting && stepJudge is PitchStepNoteJudge && !micGranted()) {
+            _uiState.update { it.copy(panel = null, popup = PracticePopup.Permission) }
+            return
+        }
         _uiState.update { it.tapStepPlaying() }
         syncStep()
     }
@@ -838,6 +887,39 @@ class PracticeViewModel(
         syncStep()
     }
 
+    /**
+     * 곡 악기의 한 음씩 판정 기준을 받아 마이크로 듣는 판정기로 바꾼다. 서버에 기준이 없는 악기(404)면 한 음씩을 숨기고,
+     * 기준을 받지 못했거나 이 기기·악보에서 판정할 수 없으면 임시 버튼 대역을 그대로 둔다.
+     */
+    private fun prepareStepJudge(song: Song) {
+        val repository = notePractice ?: return
+        if (!_uiState.value.solo) return
+        val instrumentId = song.instrumentId ?: return
+        accountScope.launch {
+            when (val load = repository.criteria(instrumentId)) {
+                is NotePracticeCriteriaLoad.Found -> {
+                    val judge = pitchStepJudgeFor(song, load.criteria, recorder, accountScope, ::onStepJudgeFailed) ?: return@launch
+                    pauseStep()
+                    stepJudge.stop()
+                    stepJudge = judge
+                    _uiState.update { it.copy(step = it.step.copy(manualConfirm = false)) }
+                }
+                NotePracticeCriteriaLoad.Unsupported -> {
+                    pauseStep()
+                    stepJudge.stop()
+                    _uiState.update { it.copy(step = PracticeStep(available = false, manualConfirm = it.step.manualConfirm)) }
+                }
+                NotePracticeCriteriaLoad.Failed -> Unit
+            }
+        }
+    }
+
+    /** 판정기가 마이크를 켜지 못함. 그 자리에서 멈추고 녹음 실패 안내를 띄운다. */
+    private fun onStepJudgeFailed() {
+        _uiState.update { it.pauseStep().copy(popup = PracticePopup.RecordFailed) }
+        syncStep()
+    }
+
     /** 상태에 맞춰 판정기와 3·2·1 타이머를 켜고 끈다. 듣는 중이 아니면 마이크 자원을 놓는다. */
     private fun syncStep() {
         val state = _uiState.value
@@ -847,7 +929,7 @@ class PracticeViewModel(
         }
         val event = state.song?.timeline?.getOrNull(state.step.target)
         if (state.stepUi && state.step.phase == StepPhase.Listening && event != null) {
-            stepJudge.listen(StepTarget(event.index, event.note)) { index -> viewModelScope.launch { onStepNoteMatched(index) } }
+            stepJudge.listen(StepTarget(event.index, event.note, event.sigimsae.isNotEmpty())) { index -> viewModelScope.launch { onStepNoteMatched(index) } }
         } else {
             stepJudge.stop()
         }

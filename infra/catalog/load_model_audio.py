@@ -260,7 +260,12 @@ def build_sql(model):
 
 def mysql(sql):
     # Same deployed-container discovery as infra/terms/publish.py. No password enters host arguments or output.
-    inspected = subprocess.run(["docker", "inspect", "eolssu-runtime-backend-1"], capture_output=True, timeout=15, check=True)
+    deployer = Path('/opt/eolssu/bin/deploy-backend')
+    container = 'eolssu-runtime-backend-1'
+    if deployer.is_file():
+        container = subprocess.run([str(deployer), '--active-container'], capture_output=True, text=True,
+                                   timeout=15, check=True).stdout.strip()
+    inspected = subprocess.run(["docker", "inspect", container], capture_output=True, timeout=15, check=True)
     environment = dict(item.split("=", 1) for item in json.loads(inspected.stdout)[0]["Config"]["Env"] if "=" in item)
     matched = re.fullmatch(r"jdbc:mysql://[^/]+/([A-Za-z0-9_]+)(?:\?.*)?", environment.get("DB_URL", ""))
     require(matched is not None, "Active backend database could not be resolved")

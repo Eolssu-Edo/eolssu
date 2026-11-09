@@ -108,11 +108,8 @@
 
     <string name="practice_notation_title">악보 표시 설정</string>
     <string name="practice_notation_hangul">한글 읽는 법 표시</string>
-    <string name="practice_notation_hangul_desc">한자 오른쪽에 ‘황·태·중…’을 함께 보여줘요</string>
     <string name="practice_notation_solfege">계이름 표시</string>
-    <string name="practice_notation_solfege_desc">이 곡의 기준에 맞는 계이름을 보여줘요</string>
     <string name="practice_notation_solfege_none">이 곡은 계이름 데이터가 아직 없어요</string>
-    <string name="practice_notation_example">선택한 설정이 악보 정간에 이렇게 보여요. 율명은 항상 가장 크게, 한글 읽는 법·계이름은 한자 오른쪽 옆에 작게 붙어요. 세로 읽기 구조는 그대로 유지돼요.</string>
 
     <string name="practice_fingering_title">운지법</string>
     <string name="practice_fingering_instrument">현재 악기: %1$s</string>
@@ -255,7 +252,7 @@
     <string name="result_feedback_low_length">음 길이부터 차근차근 맞춰볼까요?</string>
     <string name="result_feedback_even_good">고르게 잘 연주했어요!</string>
     <string name="result_feedback_even_low">한 번 더 연주해 볼까요?</string>
-    <string name="result_errors_title">오류 위치</string>
+    <string name="result_errors_title">틀린 부분</string>
     <string name="result_errors_count">틀린 정간 %1$d개</string>
     <string name="result_errors_none">틀린 정간이 없어요.</string>
     <string name="result_legend_missed_short">미검출</string>
@@ -264,7 +261,7 @@
     <string name="result_tag_length">길</string>
     <string name="result_tag_missed">미</string>
     <string name="result_errors_preview">정간보 %1$d–%2$d각 미리보기</string>
-    <string name="result_view_all_errors">오류 위치 상세 보기</string>
+    <string name="result_view_all_errors">틀린 부분 상세 보기</string>
     <string name="result_weak_section">취약 구간 연습</string>
     <string name="result_practice_again">같은 곡 다시 연습</string>
     <string name="result_other_song">다른 곡 고르기</string>
@@ -694,6 +691,20 @@
     <string name="mysongs_delete_title">‘%1$s’ 악보를 삭제할까요?</string>
     <string name="mysongs_delete_message">삭제하면 되돌릴 수 없어요.</string>
     <string name="mysongs_delete">삭제</string>
+    <string name="mysongs_conversion_queued">변환 대기 중</string>
+    <string name="mysongs_conversion_reading">악보 읽는 중</string>
+    <string name="mysongs_conversion_reading_pages">악보 읽는 중 %1$d/%2$d쪽</string>
+    <string name="mysongs_conversion_building">악보 만드는 중</string>
+    <string name="mysongs_conversion_issues">확인할 칸 %1$d개</string>
+    <string name="mysongs_conversion_failed">변환 실패</string>
+    <string name="mysongs_conversion_failed_no_score">정간이나 오선을 찾지 못했어요</string>
+    <string name="mysongs_conversion_failed_file">읽을 수 없는 파일이에요</string>
+    <string name="mysongs_conversion_failed_timeout">시간이 너무 오래 걸렸어요</string>
+    <string name="mysongs_conversion_failed_server">서버에서 변환하지 못했어요</string>
+    <string name="mysongs_conversion_retry">다시 시도</string>
+    <string name="mysongs_conversion_reimport">다시 불러오기</string>
+    <string name="mysongs_conversion_reimport_needed">원본을 보관하지 않아 다시 시도할 수 없어요. 파일을 다시 불러와 주세요</string>
+    <string name="mysongs_conversion_retry_failed">다시 시도하지 못했어요. 잠시 후 다시 해 주세요</string>
 
     <!-- 연습 기록·기록 상세 태블릿 배치 (S15P31E102-163) -->
     <string name="records_pane_empty">왼쪽에서 녹음을 고르면 여기에서 다시 들을 수 있어요</string>
@@ -738,17 +749,15 @@
     <string name="home_my_page">마이페이지</string>
     <string name="home_exit_notice">뒤로 가기를 한 번 더 누르면 앱이 종료됩니다.</string>
     <string name="my_title">마이페이지</string>
-    <string name="my_learning_title">기초부터 배우기</string>
-    <string name="my_learning_open_stage">%1$d단계 배우기</string>
-    <string name="my_learning_stage_done">학습 완료</string>
-    <string name="my_learning_stage_next">다음 학습</string>
-    <string name="my_learning_stage_not_done">아직 학습하지 않음</string>
-    <string name="my_learning_count">%1$d / %2$d단계 완료</string>
-    <string name="my_learning_instrument">%1$s 학습 진도</string>
-    <string name="my_learning_next">다음 학습 · %1$d단계</string>
-    <string name="my_learning_complete">모든 단계를 마쳤어요!</string>
-    <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
-    <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
+    <string name="my_learning_badge">기초 %1$d단계</string>
+    <string name="my_learning_badge_done">기초 완료</string>
+    <string name="my_learning_badge_label">기초부터 배우기 진도: %1$s</string>
+    <string name="my_recent_title">최근 연주 돌아보기</string>
+    <string name="my_recent_score">%1$d점</string>
+    <string name="my_recent_score_unit">점</string>
+    <string name="my_recent_meta">이번 주 %1$d회 연습</string>
+    <string name="my_recent_loading">연습 기록을 불러오고 있어요.</string>
+    <string name="my_recent_empty">아직 저장한 연주가 없어요. 곡을 연주하고 저장하면 여기에서 돌아볼 수 있어요.</string>
     <string name="my_inquiry">문의하기</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
@@ -759,9 +768,6 @@
     <string name="my_instrument_help">홈과 연습·평가 화면이 고른 악기로 바뀌어요.</string>
     <string name="my_instrument_changed">연습 악기를 %1$s(으)로 바꿨어요.</string>
     <string name="my_social">간편 로그인</string>
-    <string name="my_social_help">이메일·비밀번호 로그인은 항상 남아 있어서 연결을 해제해도 로그인할 수 있어요.</string>
-    <string name="my_social_help_social">간편 로그인으로 가입한 계정이라 마지막 남은 간편 로그인은 해제할 수 없어요.</string>
-    <string name="my_email_none">이메일 없이 간편 로그인으로 가입했어요</string>
     <string name="my_linked">연결됨</string>
     <string name="my_not_linked">연결 안 됨</string>
     <string name="my_link">연결</string>
@@ -783,7 +789,6 @@
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인으로 가입한 계정은 비밀번호가 없어요.</string>
     <string name="my_feedback_section">의견·문의</string>
-    <string name="my_feedback_help">써 보면서 좋았던 점이나 불편했던 점을 구글 폼으로 알려 주세요.</string>
     <string name="my_feedback_open_failed">문의 폼을 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>

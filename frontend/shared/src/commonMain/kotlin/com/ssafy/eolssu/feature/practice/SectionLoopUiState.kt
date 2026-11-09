@@ -2,7 +2,6 @@ package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.data.practice.SessionSection
-import com.ssafy.eolssu.core.model.ScoreError
 import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreSection
 import com.ssafy.eolssu.core.model.Song
@@ -12,7 +11,6 @@ import com.ssafy.eolssu.core.model.Song
  * 반복에는 소리·녹음이 없다. ‘이 구간 재평가’를 누르면 3·2·1 뒤 구간을 한 번만 따라가며 녹음하고([recording]),
  * 마치면 녹음([take])을 분석에 넘긴다.
  *
- * @property errors 지난번 틀린 정간. 구간 안만 종류별로 표시한다.
  * @property cells 구간의 정간(연주 순서).
  * @property round 지금 반복 회차(1부터).
  * @property step 지금 정간의 [cells] 안 순서.
@@ -25,7 +23,6 @@ import com.ssafy.eolssu.core.model.Song
 data class SectionLoopUiState(
     val loading: Boolean = true,
     val song: Song? = null,
-    val errors: List<ScoreError> = emptyList(),
     val section: ScoreSection? = null,
     val cells: List<ScorePosition> = emptyList(),
     val bpm: Int = 60,

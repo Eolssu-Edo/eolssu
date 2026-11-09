@@ -42,8 +42,8 @@ class SheetAudioConfig {
 @Component
 @Profile("db | ops")
 @ConditionalOnProperty(name=["eolssu.scheduling.enabled"],havingValue="true",matchIfMissing=true)
-class SheetAudioScheduler(private val audio: SheetAudios) {
+class SheetAudioScheduler(private val audio: SheetAudios, private val slot: DeploymentSlot) {
     @Volatile private var ready=false
-    @EventListener(ApplicationReadyEvent::class) fun recover() { audio.recover(); ready=true }
-    @Scheduled(fixedDelay=1000) fun run() { if(ready) audio.runOne() }
+    @EventListener(ApplicationReadyEvent::class) fun recover() { slot.recoverIfAlone(audio::recover); ready=true }
+    @Scheduled(fixedDelay=1000) fun run() { if(ready && slot.selected()) audio.runOne() }
 }

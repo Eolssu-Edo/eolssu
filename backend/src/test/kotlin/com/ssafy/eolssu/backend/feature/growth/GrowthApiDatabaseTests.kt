@@ -128,6 +128,39 @@ class GrowthApiDatabaseTests {
     }
 
     @Test
+    fun `accepts 366 inclusive days at the lowest year and rejects 367 days`() {
+        // 시작일은 KST 1001-01-01, 직전 366일의 조회 하한은 UTC 0999-12-30 15:00:00이다.
+        jdbc.update(
+            "INSERT INTO score_views (user_id, song_id, idempotency_key, started_at, ended_at, visible_seconds, counted_seconds) VALUES " +
+                "(951, 951, 'boundary-previous', '1000-01-01 00:00:00', '1000-01-01 00:01:00', 60, 20), " +
+                "(951, 951, 'boundary-before', '1000-12-31 14:59:59', '1000-12-31 15:00:59', 60, 10), " +
+                "(951, 951, 'boundary-start', '1000-12-31 15:00:00', '1000-12-31 15:01:00', 60, 60), " +
+                "(951, 951, 'boundary-after', '1002-01-01 15:00:00', '1002-01-01 15:01:00', 60, 40)",
+        )
+
+        val growthPath = "/api/users/me/growth"
+        val acceptedRange = "from=1001-01-01&to=1002-01-01"
+        val summary = get("$growthPath/summary?$acceptedRange", subject = "951")
+        assertEquals(200, summary.statusCode(), summary.body())
+        val totals = json.readTree(summary.body()).path("result")
+        assertEquals(60, totals.path("practiceSeconds").asInt(-1))
+        assertEquals(30, totals.path("previousPeriod").path("practiceSeconds").asInt(-1))
+
+        val calendar = get("$growthPath/calendar?$acceptedRange", subject = "951")
+        assertEquals(200, calendar.statusCode(), calendar.body())
+        val days = json.readTree(calendar.body()).path("result").path("items")
+        assertEquals(366, days.size())
+        assertEquals(json.readTree("""{"date":"1001-01-01","practiceSeconds":60,"practiceCount":0}"""), days.get(0))
+        assertEquals(json.readTree("""{"date":"1002-01-01","practiceSeconds":0,"practiceCount":0}"""), days.get(365))
+
+        for (endpoint in listOf("summary", "calendar")) {
+            val rejected = get("$growthPath/$endpoint?from=1001-01-01&to=1002-01-02", subject = "951")
+            assertEquals(400, rejected.statusCode(), "$endpoint: ${rejected.body()}")
+            assertEquals("INVALID_REQUEST", json.readTree(rejected.body()).path("result").path("errorCode").asString(), endpoint)
+        }
+    }
+
+    @Test
     fun `reports best scores and metric growth from full song plays of all time`() {
         // 곡 951은 음표 4개(0~3), 곡 952는 2개(0~1). 전체 곡 연주는 첫 음부터 끝 음까지다.
         jdbc.update(

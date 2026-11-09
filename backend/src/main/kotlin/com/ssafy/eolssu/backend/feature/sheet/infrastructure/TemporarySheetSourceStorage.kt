@@ -2,10 +2,14 @@ package com.ssafy.eolssu.backend.feature.sheet.infrastructure
 
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorageException
+import com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX
 import java.nio.file.Files
 import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import java.nio.file.Path
+import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermissions
+import java.security.MessageDigest
+import java.util.HexFormat
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -14,7 +18,9 @@ import org.slf4j.LoggerFactory
 
 /** One backend instance owns the spool. Never used for generated audio or exposed to app clients. */
 class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: String, private val clock: Clock,
-    val multipartDirectory: Path=directory.resolveSibling("${directory.fileName}-multipart")) : SheetSourceStorage, AutoCloseable {
+    val multipartDirectory: Path=directory.resolveSibling("${directory.fileName}-multipart"),
+    private val sharedDirectory: Path? = null,
+) : SheetSourceStorage, AutoCloseable {
     data class Readable(val path: Path, val contentType: String)
     private data class Entry(val path: Path, val contentType: String, val expires: Instant, var deleting: Boolean=false)
     private data class Ticket(val key: String, val expires: Instant)
@@ -37,11 +43,17 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     }
     @Synchronized override fun put(key: String, file: Path, contentType: String) {
         check(key !in entries)
-        val path=try { Files.createTempFile(directory,"source-",".tmp") }
+        val path=try {
+            sharedPath(key)?.also { require(it.parent == directory); Files.createFile(it) }
+                ?: Files.createTempFile(directory,"source-",".tmp")
+        }
             catch(e: Exception) { throw SheetSourceStorageException("Temporary source creation failed",e) }
         val entry=Entry(path,contentType,uploads[file] ?: clock.instant().plus(RETENTION))
         entries[key]=entry
-        try { Files.copy(file,path,java.nio.file.StandardCopyOption.REPLACE_EXISTING) }
+        try {
+            Files.copy(file,path,java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            if (sharedDirectory != null) Files.setLastModifiedTime(path, FileTime.from(entry.expires.minus(RETENTION)))
+        }
         catch(e: Exception) {
             entry.deleting=true
             runCatching { delete(key) }
@@ -59,10 +71,22 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     }
     @Synchronized override fun delete(key: String) {
         tickets.entries.removeIf { it.value.key==key }
-        val entry=entries[key] ?: return // Legacy R2 keys are never treated as local paths.
+        val entry=entries[key]
+        if (entry == null) {
+            try { sharedPath(key)?.let(Files::deleteIfExists) }
+            catch (e: Exception) { throw SheetSourceStorageException("Temporary source cleanup failed", e) }
+            return
+        }
         entry.deleting=true
         try { Files.deleteIfExists(entry.path); entries.remove(key) }
         catch(e: Exception) { throw SheetSourceStorageException("Temporary source cleanup failed",e) }
+    }
+    private fun sharedPath(key: String): Path? {
+        val root = sharedDirectory ?: return null
+        val slot = key.removePrefix(TEMP_SHEET_SOURCE_PREFIX).substringBefore('/')
+        if (!key.startsWith("$TEMP_SHEET_SOURCE_PREFIX$slot/") || slot !in SLOTS) return null
+        val name = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(key.toByteArray()))
+        return root.resolve(slot).resolve("source-$name.tmp")
     }
     @Synchronized override fun readUrl(key: String, ttl: Duration): String {
         val now=clock.instant()
@@ -90,6 +114,24 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
         entries.filterValues { it.deleting }.keys.toList().forEach { key -> runCatching { delete(key) }.onFailure(::warnSource) }
         tickets.entries.removeIf { now>=it.value.expires }
         runCatching { purgeMultipart(now) }.onFailure(::warnMultipart)
+        runCatching { purgePeerSources(now) }.onFailure(::warnSource)
+    }
+    // A force-stopped peer can leave unindexed bytes behind. The active slot still enforces their deadline.
+    private fun purgePeerSources(now: Instant) {
+        val root = sharedDirectory ?: return
+        val peer = root.resolve(SLOTS.single { it != directory.fileName.toString() })
+        if (!Files.isDirectory(peer, NOFOLLOW_LINKS)) return
+        Files.list(peer).use { paths ->
+            paths.filter { it.fileName.toString().startsWith("source-") && Files.isRegularFile(it, NOFOLLOW_LINKS) }
+                .forEach { path ->
+                    try {
+                        if (Files.getLastModifiedTime(path, NOFOLLOW_LINKS).toInstant().plus(RETENTION) <= now)
+                            Files.deleteIfExists(path)
+                    } catch (_: java.nio.file.NoSuchFileException) {
+                        // The owning slot already removed the source.
+                    }
+                }
+        }
     }
     @Synchronized override fun expired(key: String)=entries[key]?.let { clock.instant()>=it.expires } ?: false
     /** The container names these files, so their age counts from the first sweep that sees them. */
@@ -130,6 +172,7 @@ class TemporarySheetSourceStorage(val directory: Path, private val baseUrl: Stri
     }
     companion object {
         val RETENTION: Duration=Duration.ofMinutes(30)
+        private val SLOTS = setOf("backend", "backend-green")
         private val WARNING_INTERVAL: Duration=Duration.ofMinutes(1)
         private val log=LoggerFactory.getLogger(TemporarySheetSourceStorage::class.java)
     }

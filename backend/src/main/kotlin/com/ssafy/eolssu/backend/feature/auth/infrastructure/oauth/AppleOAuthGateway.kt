@@ -30,6 +30,7 @@ import tools.jackson.databind.json.JsonMapper
 /**
  * iOS 기본 Apple 로그인(`docs/specs/social-auth.md` Sign in with Apple).
  * 앱은 [authorizationUrl]을 열지 않고 `state`·`nonce`만 꺼내 기본 로그인 창에 넘긴다. 받은 authorizationCode를 서버가 교환하고,
+ * 개발 앱(얼쑤 개발)은 전용 redirectUri로 구분해 그 번들 ID로 교환한다([AppleSettings.devClientId]).
  * id_token의 서명·발급자·대상(번들 ID)·만료와 nonce(= state의 SHA-256)를 확인한다. Apple 이메일은 확인된 이메일로 보지 않는다.
  * [decoder]는 Apple 공개키(`/auth/keys`)로 서명과 시각을 확인하는 고정 decoder다.
  */
@@ -46,24 +47,25 @@ class AppleOAuthGateway(
         settings.redirectUris.any(String::isNotBlank) && privateKey != null
 
     override fun allows(provider: SocialProvider, redirectUri: String): Boolean {
-        if (provider != SocialProvider.APPLE || redirectUri !in settings.redirectUris) return false
+        if (provider != SocialProvider.APPLE || (redirectUri !in settings.redirectUris && !isDevRedirect(redirectUri))) return false
         val uri = runCatching { URI(redirectUri) }.getOrNull() ?: return false
         return uri.scheme == "https" && uri.host != null && uri.userInfo == null && uri.fragment == null
     }
 
     override fun authorizationUrl(provider: SocialProvider, redirectUri: String, state: String, verifier: String): String {
         checkSettings(provider, redirectUri)
-        val parameters = linkedMapOf("response_type" to "code", "client_id" to settings.clientId, "redirect_uri" to redirectUri,
+        val parameters = linkedMapOf("response_type" to "code", "client_id" to clientIdFor(redirectUri), "redirect_uri" to redirectUri,
             "scope" to "email", "state" to state, "nonce" to nonceFor(state))
         return AUTHORIZE + "?" + parameters.entries.joinToString("&") { (key, value) -> "${URLEncoder.encode(key, UTF_8)}=${URLEncoder.encode(value, UTF_8)}" }
     }
 
     override fun identify(provider: SocialProvider, redirectUri: String, code: String, state: String, verifier: String): OAuthIdentity {
         checkSettings(provider, redirectUri)
-        // 기본 로그인의 코드는 redirect_uri 없이 교환한다.
+        // 코드는 그 코드를 받은 앱의 번들 ID로만 교환된다. 기본 로그인의 코드는 redirect_uri 없이 교환한다.
+        val clientId = clientIdFor(redirectUri)
         val form = LinkedMultiValueMap<String, String>().apply {
-            add("grant_type", "authorization_code"); add("client_id", settings.clientId)
-            add("client_secret", clientSecret()); add("code", code)
+            add("grant_type", "authorization_code"); add("client_id", clientId)
+            add("client_secret", clientSecret(clientId)); add("code", code)
         }
         val tokens = try {
             client.post().uri(TOKEN).contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form).retrieve().body(String::class.java)
@@ -80,7 +82,7 @@ class AppleOAuthGateway(
                 throw OAuthRemoteUnavailable()
             throw OAuthProfileRejected()
         }
-        if (jwt.getClaimAsString("iss") != ISSUER || settings.clientId !in jwt.audience.orEmpty()) throw OAuthProfileRejected()
+        if (jwt.getClaimAsString("iss") != ISSUER || clientId !in jwt.audience.orEmpty()) throw OAuthProfileRejected()
         // nonce는 이 state로 시작한 기본 로그인에서 받은 코드임을 묶는다. 없으면 받지 않는다.
         if (jwt.getClaimAsString("nonce") != nonceFor(state)) throw OAuthProfileRejected()
         val subject = jwt.subject?.takeIf { it.isNotBlank() && it.length <= 255 } ?: throw OAuthProfileRejected()
@@ -89,20 +91,40 @@ class AppleOAuthGateway(
         return OAuthIdentity(subject, email, false, providerToken = refreshToken)
     }
 
+    /**
+     * 토큰을 어느 앱이 받았는지 저장하지 않으므로 출시 앱 번들 ID로 먼저 철회하고,
+     * Apple이 4xx(다른 앱의 토큰)로 거절하면 개발 앱 번들 ID로 한 번 더 시도한다.
+     */
     override fun revoke(provider: SocialProvider, token: String) {
         if (provider != SocialProvider.APPLE) return
         if (!ready(provider)) throw OAuthRemoteUnavailable()
+        try {
+            revokeAs(settings.clientId, token)
+        } catch (failure: RestClientResponseException) {
+            if (!devReady() || !failure.statusCode.is4xxClientError) throw failure
+            revokeAs(settings.devClientId, token)
+        }
+    }
+
+    private fun revokeAs(clientId: String, token: String) {
         val form = LinkedMultiValueMap<String, String>().apply {
-            add("client_id", settings.clientId); add("client_secret", clientSecret())
+            add("client_id", clientId); add("client_secret", clientSecret(clientId))
             add("token", token); add("token_type_hint", "refresh_token")
         }
         client.post().uri(REVOKE).contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form).retrieve().toBodilessEntity()
     }
 
-    /** Apple이 요구하는 ES256 client_secret. 요청마다 5분짜리로 새로 만든다. */
-    private fun clientSecret(): String {
+    private fun devReady() = settings.devClientId.isNotBlank() && settings.devRedirectUris.any(String::isNotBlank)
+
+    private fun isDevRedirect(redirectUri: String) = devReady() && redirectUri in settings.devRedirectUris
+
+    /** 개발 앱 복귀 주소면 개발 앱 번들 ID, 아니면 출시 앱 번들 ID. */
+    private fun clientIdFor(redirectUri: String) = if (isDevRedirect(redirectUri)) settings.devClientId else settings.clientId
+
+    /** Apple이 요구하는 ES256 client_secret. sub는 교환·철회하는 앱의 번들 ID다. 요청마다 5분짜리로 새로 만든다. */
+    private fun clientSecret(clientId: String): String {
         val now = clock.instant()
-        val claims = JWTClaimsSet.Builder().issuer(settings.teamId).subject(settings.clientId).audience(ISSUER)
+        val claims = JWTClaimsSet.Builder().issuer(settings.teamId).subject(clientId).audience(ISSUER)
             .issueTime(Date.from(now)).expirationTime(Date.from(now.plusSeconds(300))).build()
         return SignedJWT(JWSHeader.Builder(JWSAlgorithm.ES256).keyID(settings.keyId).build(), claims)
             .apply { sign(ECDSASigner(checkNotNull(privateKey))) }.serialize()

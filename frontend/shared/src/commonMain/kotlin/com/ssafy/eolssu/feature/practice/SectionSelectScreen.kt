@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.practice
 
+import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
@@ -49,11 +50,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.core.ui.score.ErrorKindLegend
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.scoreSectionCellsLabel
-import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.practice.component.SegmentButton
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
@@ -116,7 +114,7 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
             }
             return@EolssuScaffold
         }
-        val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
+        val format = rememberReadingScoreFormat(song)
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
             ErrorKindLegend(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), title = stringResource(Res.string.weak_legend_wrong), boxed = true)
             // 추천 구간은 처음 고른 구간(연두 테두리)으로만 보이고 따로 알약을 두지 않는다.
@@ -130,8 +128,9 @@ fun SectionSelectScreen(state: SectionSelectUiState, actions: SectionSelectActio
             JeongganboView(
                 song = song,
                 modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                metrics = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip),
-                look = JeongganboLook.practice(big = false),
+                metrics = format.metrics,
+                look = format.look,
+                cellHeights = format.cellHeights,
                 onUnitClick = { actions.onTap(ScorePosition(it.column, it.row)) },
                 decorations = sectionDecorations(song.score, result.errors, section, outsideAlpha = OutsideAlpha, edgeRing = true),
                 sectionColumns = section?.fullColumns(song.score),

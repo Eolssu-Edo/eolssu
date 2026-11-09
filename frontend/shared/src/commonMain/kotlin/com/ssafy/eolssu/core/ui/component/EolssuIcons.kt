@@ -90,6 +90,10 @@ object EolssuIcons {
     val Plus = lineIcon("Plus", "M12 5v14M5 12h14")
     val Pencil = lineIcon("Pencil", "M4 20h4L19 9l-4 -4L4 16z")
     /** 내 악보 삭제(`Song-Practice` 휴지통). */
+    /** 마이페이지 문의하기(말풍선). */
+    val Chat = lineIcon("Chat", "M4 5h16v11H10l-5 4v-4H4z")
+    /** 마이페이지 로그아웃(문 밖으로 나가는 화살표). */
+    val LogOut = lineIcon("LogOut", "M10 4H5v16h5", "M14 8l4 4 -4 4M18 12H9")
     val Trash = lineIcon("Trash", "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1 -13M9 7V4h6v3")
 
     private fun dot(cx: Float, cy: Float) = circle(cx, cy, 0.9f)

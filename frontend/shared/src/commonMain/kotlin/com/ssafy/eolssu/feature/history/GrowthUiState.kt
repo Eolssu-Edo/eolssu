@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.history
 
 import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.instrumentDisplayRank
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.data.practice.DailyPractice
@@ -171,7 +172,7 @@ data class TrendInstrument(val instrumentId: String, val name: String, val instr
  * 악기 고르기에 쓰는 곡 → 악기 대응(CAT-01 악기 목록·CAT-02 곡 목록). GRO-03 응답에 악기가 없어 앱이 곡 ID로 맞춘다.
  * 곡 목록은 게시 중인 곡만 주므로, 지우거나 비공개로 바꾼 곡은 여기에 없다.
  *
- * @property instruments 악기 목록 순서.
+ * @property instruments 악기 목록. 화면 표시 순서(단소 · 소금 · 산조대금 · 정악대금)로 둔다.
  * @property songInstrument 곡 ID → 악기 ID.
  */
 data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrument: Map<String, String>) {
@@ -180,7 +181,7 @@ data class TrendCatalog(val instruments: List<TrendInstrument>, val songInstrume
 
     companion object {
         fun of(instruments: List<CatalogInstrument>, songs: List<SongSummary>) = TrendCatalog(
-            instruments = instruments.map { c -> TrendInstrument(c.instrumentId, c.name, Instrument.entries.firstOrNull { it.serverCode == c.code }) },
+            instruments = instruments.sortedBy { instrumentDisplayRank(it.code) }.map { c -> TrendInstrument(c.instrumentId, c.name, Instrument.entries.firstOrNull { it.serverCode == c.code }) },
             songInstrument = songs.mapNotNull { s -> s.instrumentId?.let { s.id to it } }.toMap(),
         )
     }

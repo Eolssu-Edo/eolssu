@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -79,6 +80,7 @@ class PracticeScreenActions(
  * 태블릿 가로·넓은 웹 창([WindowWidthClass.Expanded]) 배치로 보여준다. 확인 창은 배치와 관계없이 같다.
  * 평가 시작 카운트다운은 배치와 관계없이 정간보 화면 위에 겹쳐 띄운다([CountdownOverlay]).
  * 화면과 보조 패널 시트의 입력은 연습 시간의 활동으로 알린다.
+ * [livePitch]는 평가 연주에서 음마다 모은 실시간 음높이 안내([livePitchMarks])로, 정간보 악보의 그 음 자리에 칠한다.
  */
 @Composable
 fun PracticeScreen(
@@ -86,6 +88,7 @@ fun PracticeScreen(
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
     actions: PracticeScreenActions,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
 ) {
     if (state.song == null) {
         PracticeSongLoadScreen(state, actions, snackbarHostState)
@@ -93,9 +96,9 @@ fun PracticeScreen(
     }
     Box(Modifier.fillMaxSize().reportUserActivity(actions.onUserActivity)) {
         when (widthClass) {
-            WindowWidthClass.Compact -> PracticeCompactLayout(state, snackbarHostState, actions)
-            WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions)
-            WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions)
+            WindowWidthClass.Compact -> PracticeCompactLayout(state, snackbarHostState, actions, livePitch)
+            WindowWidthClass.Medium -> PracticeMediumLayout(state, snackbarHostState, actions, livePitch)
+            WindowWidthClass.Expanded -> PracticeExpandedLayout(state, snackbarHostState, actions, livePitch)
         }
         // 평가 시작 3·2·1은 리듬 게임처럼 정간보 화면 위에 겹쳐 띄운다(배치와 관계없이, 아래 악보가 비쳐 보인다).
         if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
@@ -111,7 +114,7 @@ fun PracticeScreen(
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
         )
     }
-    state.popup?.let { PracticeDialog(it, actions.dialog) }
+    state.popup?.let { PracticeDialog(it, actions.dialog, forStep = state.solo) }
     if (state.idleReminder) IdleReminderDialog(actions.onKeepPracticing)
 }
 
@@ -144,7 +147,12 @@ private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScre
  * 운지법과 함께 보기는 남은 높이에 들어가는 운지만 한 페이지에 담아 넘긴다.
  */
 @Composable
-private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
+private fun PracticeCompactLayout(
+    state: PracticeUiState,
+    snackbarHostState: SnackbarHostState,
+    actions: PracticeScreenActions,
+    livePitch: Map<ScoreUnitKey, LivePitchMark>,
+) {
     val recordingBar = state.mode == PracticeMode.Recording || state.mode == PracticeMode.Interrupted || state.resuming
     val showPlayer = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm)
     val fingering = state.fingeringView
@@ -166,7 +174,7 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                 } else {
                     PracticeBoardScore(
                         state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f), livePitch = livePitch,
                     )
                 }
                 if (showPlayer) {

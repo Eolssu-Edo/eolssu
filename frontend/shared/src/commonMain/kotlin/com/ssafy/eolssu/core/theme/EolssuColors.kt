@@ -69,6 +69,12 @@ data class EolssuColors(
     val radical: Color,
     /** 지금 자리의 빛(연두). 정간보 읽는 순서 그림에서 지나는 칸 글자의 번짐에만 쓰고 글자색으로 쓰지 않는다. */
     val glow: Color,
+    /** 홈 카드 격자·마이페이지 카드의 옅은 초록빛 테두리. 글자에 쓰지 않는다. */
+    val cardLine: Color,
+    /** 홈 카드 격자 위 구분선처럼 카드 묶음을 나누는 가는 선. 글자에 쓰지 않는다. */
+    val sectionLine: Color,
+    /** 홈·마이페이지 흰 카드의 제목 글자(초록빛 먹색). */
+    val cardInk: Color,
 )
 
 val LightEolssuColors = EolssuColors(
@@ -112,4 +118,7 @@ val LightEolssuColors = EolssuColors(
     green = Color(0xFFADBE31),
     radical = Color(0xFF7E8C1C),
     glow = Color(0xFFADBE31),
+    cardLine = Color(0xFFE3E9E3),
+    sectionLine = Color(0xFFE5EAE5),
+    cardInk = Color(0xFF2E3E32),
 )

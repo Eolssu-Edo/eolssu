@@ -34,6 +34,8 @@ Data 작업 지침은 [AGENTS.md](AGENTS.md), 코드 없는 조사·학습 결�
 
 [공통 악보 MIDI·CAT 음원 생성기](src/playback/README.md)는 서비스 공통 악보 v1을 직접 해석해 MIDI와 AAC-LC M4A를 만듭니다. WAV는 검증용 선택 출력입니다. 기존 JGB는 별도 가져오기 명령으로 공통 악보를 만든 뒤 사용합니다. 설치·CAT 파일·FFmpeg 준비·생성 명령과 지원하는 기호 범위는 해당 README를 따릅니다.
 
+[운지 패널 역취 예시음](../docs/knowledge/data/fingering-reference-audio.md)은 CAT 로컬 미리듣기와 국립국악원 원음 가공본을 만드는 절차를 기록합니다.
+
 의존성 설치 후 저장소 루트에서 빠른 검사를 실행합니다.
 
 ```powershell
