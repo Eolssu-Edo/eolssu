@@ -3,16 +3,14 @@
 <div class="team-page">
   <section class="edo-intro" aria-labelledby="team-title">
     <div>
-      <div class="kicker">{{ $team.intro.kicker }}</div>
       <h1 id="team-title">{{ delimit $team.intro.title "<br>" | safeHTML }}</h1>
       <p>{{ $team.intro.lead }}</p>
-      <p class="edo-origin">{{ $team.intro.origin }}</p>
+      <p>{{ $team.intro.origin }}</p>
     </div>
     <img src="{{ site.Data.brand.mascot | relURL }}" alt="인사하는 얼쑤 백호 캐릭터" width="384" height="313" decoding="async">
   </section>
   <section class="edo-members" aria-labelledby="members-title">
     <div class="edo-section-heading">
-      <div class="kicker">{{ $team.people.kicker }}</div>
       <h2 id="members-title">{{ $team.people.title }}</h2>
       <p>{{ $team.people.description }}</p>
     </div>
