@@ -167,6 +167,7 @@ fun PracticeRoute(
                     viewModel.stopAll()
                     onBack()
                 },
+                onKeepPlayingAfterExit = viewModel::keepPlayingAfterExit,
                 onToReady = viewModel::toReady,
                 onOpenMicSettings = {
                     val opened = viewModel.openMicSettings()
