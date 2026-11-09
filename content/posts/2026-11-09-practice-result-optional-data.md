@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Kotlin", "Coroutines", "상태 관리"]
 description: "선택한 연주의 평가가 맞는지 확인하고, 추천 구간이나 악기명 조회가 실패해도 점수와 오류를 보여준 프론트엔드 설계입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-practice-result-optional-data.webp"
 ---
 
 같은 곡을 두 번 연주한 뒤 첫 번째 기록을 열었다고 해봅시다. 화면에 곡명이 맞게 표시돼도 점수와 틀린 위치가 두 번째 연주의 것이라면, 사용자는 첫 번째 연주에서 무엇을 고쳐야 할지 판단할 수 없습니다. 반대로 악기 이름만 늦게 도착한 경우라면, 점수와 악보부터 확인할 수 있습니다.

@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "Kotlin/Wasm", "IME"]
 description: "Compose 웹의 정간보 편집기에서 한글 조합과 Enter 등록을 다루고, 미리보기와 오류 안내가 나타나는 시점을 분리했습니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-web-korean-ime-enter.webp"
 ---
 
 정간보 편집기에서 칸을 고르고 `청태`를 입력한 뒤 Enter를 눌렀습니다. 입력칸에 글자는 보였지만 악보에 음이 적히지 않았습니다. 미리보기까지 사라져 있었으니, 처음 쓰는 사람이라면 입력이 아직 진행 중인지, 이 음을 쓸 수 없는지, Enter가 동작하지 않은 건지 구별하기 어렵습니다.
