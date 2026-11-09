@@ -70,6 +70,16 @@ open class OpenApiDatabaseTests {
         assertTrue(document.path("openapi").asString().startsWith("3."))
         assertTrue(document.path("paths").has("/api/auth/password-reset"))
     }
+    @Test fun `growth date ranges document the allowed years and inclusive day limit`() {
+        val response = get("/api/v3/api-docs")
+        assertEquals(200, response.statusCode(), response.body())
+        val paths = json.readTree(response.body()).path("paths")
+        for (endpoint in listOf("summary", "calendar")) {
+            val description = paths.path("/api/users/me/growth/$endpoint").path("get").path("description").asString()
+            assertTrue("1001~9998" in description, "$endpoint: $description")
+            assertTrue("양 끝 포함, 최대 366일" in description, "$endpoint: $description")
+        }
+    }
     @Autowired @org.springframework.beans.factory.annotation.Qualifier("requestMappingHandlerMapping") private lateinit var mappings: org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping
     @Test fun `definition covers every implemented method with schemas errors and cookie security`() {
         val response=get("/api/v3/api-docs")
