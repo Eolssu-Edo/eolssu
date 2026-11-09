@@ -460,6 +460,11 @@
     <string name="learn_tour_done_title">완료했어요!</string>
     <string name="learn_tour_done_body">악기의 생김새를 모두 익혔어요.</string>
     <string name="learn_tour_done_next">다음 단계로</string>
+    <string name="learn_tour_done_body_posture">바른 자세와 숨쉬기를 익혔어요.</string>
+    <string name="learn_tour_left_hand">왼손</string>
+    <string name="learn_tour_right_hand">오른손</string>
+    <string name="learn_tour_breath_in">들이쉬기</string>
+    <string name="learn_tour_breath_out">내쉬기</string>
     <string name="learn_card_start">시작하기</string>
     <string name="learn_card_again">다시 하기</string>
     <string name="learn_card_dot">%1$d단계 %2$s로 넘기기</string>
