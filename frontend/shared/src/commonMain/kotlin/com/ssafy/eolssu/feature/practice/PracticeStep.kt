@@ -7,6 +7,7 @@ import com.ssafy.eolssu.core.model.ScoreNote
  * 2차 PRACTICE-01 '한 음씩 따라 불기'(와이어프레임 Practice-Ext의 STEP_JS·STEP_UI).
  * 혼자 연습에서만 켤 수 있고, 켜면 악보가 시간대로 흐르지 않고 맞는 음을 불어야 다음 음으로 넘어간다.
  * 판정은 기기 안에서만 하며 녹음을 서버에 보내거나 분석하지 않는다. 점수도 매기지 않는다.
+ * 판정 기준은 서버의 한 음씩 연습 기준(PRA-06)이고, 실제 판정기는 `PracticeStepPitch.kt`에 있다.
  */
 
 /**
@@ -23,8 +24,10 @@ enum class StepPhase { Idle, Listening, Paused, Countdown, Finished }
  * @property target 지금 기다리는 음의 연주 순서([ScoreEvent.index]). 이음(ㅡ)·쉼(△)·빈 자리는 고르지 않는다.
  * @property count [StepPhase.Countdown]에서 남은 박(3·2·1).
  * @property manualConfirm 판정기가 스스로 판정하지 못해 화면에 임시 '맞게 분 것으로 넘기기' 버튼을 보이는지([StepNoteJudge.manualConfirm]).
+ * @property available 한 음씩을 내놓는지. 서버에 이 악기의 판정 기준이 없으면(404) false라 토글을 숨긴다.
  */
 data class PracticeStep(
+    val available: Boolean = true,
     val on: Boolean = false,
     val phase: StepPhase = StepPhase.Idle,
     val target: Int = 0,
@@ -32,13 +35,12 @@ data class PracticeStep(
     val manualConfirm: Boolean = true,
 )
 
-/** 한 음씩 따라 불기에서 기다리는 음. [index]는 연주 순서, [note]는 그 자리의 율명이다. */
-data class StepTarget(val index: Int, val note: ScoreNote)
+/** 한 음씩 따라 불기에서 기다리는 음. [index]는 연주 순서, [note]는 그 자리의 율명, [sigimsae]는 시김새가 붙었는지다. */
+data class StepTarget(val index: Int, val note: ScoreNote, val sigimsae: Boolean = false)
 
 /**
  * 한 음씩 따라 불기의 '맞는 음을 불었다' 판정 자리. 판정은 기기 안에서만 하고 서버에 보내지 않는다.
- * 실제 기기 안 음높이 판정(S15P31E102-341)이 이 인터페이스를 구현해 [PracticeViewModel]에 넘긴다.
- * 맞다고 볼 음높이 기준은 그 구현이 정하며, 이 화면은 기준값을 갖지 않는다.
+ * 실제 기기 안 음높이 판정은 [PitchStepNoteJudge]이고, 그 기준값은 서버가 준다. 이 화면은 기준값을 갖지 않는다.
  */
 interface StepNoteJudge {
     /** true면 스스로 판정하지 못하는 대역이라 화면이 임시 '맞게 분 것으로 넘기기' 버튼을 보인다. */
@@ -54,7 +56,10 @@ interface StepNoteJudge {
     fun stop()
 }
 
-/** 실제 판정을 붙이기 전의 대역. 아무것도 듣지 않고, 화면의 임시 버튼으로만 다음 음으로 넘긴다. */
+/**
+ * 기기에서 판정할 수 없을 때의 대역. 아무것도 듣지 않고, 화면의 임시 버튼으로만 다음 음으로 넘긴다.
+ * 음높이 관측이 없는 플랫폼(현재 iOS·Web), 판정 기준을 받지 못했을 때, 높이를 셀 수 없는 악보에서 쓴다.
+ */
 class ManualStepNoteJudge : StepNoteJudge {
     override val manualConfirm: Boolean = true
     override fun listen(target: StepTarget, onMatched: (index: Int) -> Unit) = Unit
@@ -111,7 +116,7 @@ const val StepCountdownTickMs = 1_000L
  * 모범 연주 음원 정지는 ViewModel이 한다.
  */
 fun PracticeUiState.toggleStep(): PracticeUiState {
-    if (!solo || (mode != PracticeMode.Ready && mode != PracticeMode.Model)) return this
+    if (!solo || !step.available || (mode != PracticeMode.Ready && mode != PracticeMode.Model)) return this
     if (step.on) {
         val phase = if (step.phase == StepPhase.Listening || step.phase == StepPhase.Countdown) StepPhase.Paused else step.phase
         return copy(step = step.copy(on = false, phase = phase, count = 3))

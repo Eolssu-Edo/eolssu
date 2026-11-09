@@ -45,6 +45,10 @@ import eolssu.shared.generated.resources.practice_popup_start_again
 import eolssu.shared.generated.resources.practice_popup_to_ready
 import eolssu.shared.generated.resources.practice_popup_too_large_body
 import eolssu.shared.generated.resources.practice_popup_too_large_title
+import eolssu.shared.generated.resources.practice_step_blocked_body
+import eolssu.shared.generated.resources.practice_step_denied_body
+import eolssu.shared.generated.resources.practice_step_permission_body
+import eolssu.shared.generated.resources.practice_step_record_failed_body
 import eolssu.shared.generated.resources.practice_restart
 import org.jetbrains.compose.resources.stringResource
 
@@ -65,14 +69,15 @@ class PracticeDialogActions(
 
 /**
  * PRACTICE-01 확인 창(보드 Dialog-*). 아이콘 고리는 권한·완료·경고 셋이고, 제목만 있는 창(재시작·나가기·중단 확인)은 고리가 없다.
+ * [forStep]이면(혼자 연습) 마이크 권한·녹음 실패 안내를 평가 대신 한 음씩 따라 불기 문구로 보이고, 녹음 실패는 확인만 둔다.
  */
 @Composable
-fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
+fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep: Boolean = false) {
     val colors = EolssuTheme.colors
     when (popup) {
         PracticePopup.Permission -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_permission_title),
-            message = stringResource(Res.string.practice_popup_permission_body),
+            message = stringResource(if (forStep) Res.string.practice_step_permission_body else Res.string.practice_popup_permission_body),
             icon = EolssuIcons.Mic,
         ) {
             EolssuButton(stringResource(Res.string.practice_popup_continue), actions.onGrantMic)
@@ -106,7 +111,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         }
         PracticePopup.PermDenied -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_denied_title),
-            message = stringResource(Res.string.practice_popup_denied_body),
+            message = stringResource(if (forStep) Res.string.practice_step_denied_body else Res.string.practice_popup_denied_body),
             icon = EolssuIcons.Alert,
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
@@ -115,7 +120,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         }
         PracticePopup.PermBlocked -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_blocked_title),
-            message = stringResource(Res.string.practice_popup_blocked_body),
+            message = stringResource(if (forStep) Res.string.practice_step_blocked_body else Res.string.practice_popup_blocked_body),
             icon = EolssuIcons.Alert,
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
@@ -143,13 +148,17 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions) {
         }
         PracticePopup.RecordFailed -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_record_failed_title),
-            message = stringResource(Res.string.practice_popup_record_failed_body),
+            message = stringResource(if (forStep) Res.string.practice_step_record_failed_body else Res.string.practice_popup_record_failed_body),
             icon = EolssuIcons.Alert,
             iconBackground = colors.recSoft,
             iconTint = colors.recText,
         ) {
-            EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
-            EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
+            if (forStep) {
+                EolssuButton(stringResource(Res.string.common_confirm), actions.onClose)
+            } else {
+                EolssuButton(stringResource(Res.string.practice_popup_start_again), actions.onRestartNow)
+                EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
+            }
         }
         PracticePopup.TooLarge -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_too_large_title),
