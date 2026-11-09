@@ -145,7 +145,12 @@ def build_sql(pending):
 
 def mysql(sql):
     # infra/terms/publish.py와 같은 컨테이너 찾기. 비밀번호는 MySQL 컨테이너 환경에만 있다.
-    inspected = subprocess.run(['docker', 'inspect', 'eolssu-runtime-backend-1'], capture_output=True, timeout=15, check=True)
+    deployer = Path('/opt/eolssu/bin/deploy-backend')
+    container = 'eolssu-runtime-backend-1'
+    if deployer.is_file():
+        container = subprocess.run([str(deployer), '--active-container'], capture_output=True, text=True,
+                                   timeout=15, check=True).stdout.strip()
+    inspected = subprocess.run(['docker', 'inspect', container], capture_output=True, timeout=15, check=True)
     environment = dict(item.split('=', 1) for item in json.loads(inspected.stdout)[0]['Config']['Env'] if '=' in item)
     matched = re.fullmatch(r'jdbc:mysql://[^/]+/([A-Za-z0-9_]+)(?:\?.*)?', environment.get('DB_URL', ''))
     if not matched:

@@ -42,6 +42,12 @@ class AppleOAuthGatewayTests {
     private val server = MockRestServiceServer.bindTo(builder).build()
     private val gateway = AppleOAuthGateway(settings, builder.build(), NimbusJwtDecoder.withPublicKey(appleKeys.public as RSAPublicKey).build(), clock)
     private val state = "s".repeat(43)
+    private val devRedirect = "https://example.test/api/auth/ios-dev/oauth/apple/callback"
+    private val devGateway = AppleOAuthGateway(
+        AppleSettings("com.ssafy.eolssu", "TEAM123456", "KEY1234567", pem, listOf(redirect), "com.ssafy.eolssu.dev", listOf(devRedirect)),
+        builder.build(), NimbusJwtDecoder.withPublicKey(appleKeys.public as RSAPublicKey).build(), clock)
+
+    private fun formOf(body: String) = body.split('&').associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), Charsets.UTF_8) }
 
     private fun nonce(value: String) = Base64.getUrlEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(value.toByteArray()))
 
@@ -121,6 +127,59 @@ class AppleOAuthGatewayTests {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("token_type_hint=refresh_token")))
             .andRespond(withSuccess())
         gateway.revoke(SocialProvider.APPLE, "apple-refresh")
+        server.verify()
+    }
+
+    @Test fun `development app redirect exchanges and verifies with the development bundle id`() {
+        var form = ""
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+            .andExpect { form = (it as org.springframework.mock.http.client.MockClientHttpRequest).bodyAsString }
+            .andRespond(withSuccess("""{"refresh_token":"dev-refresh","id_token":"${idToken(audience = "com.ssafy.eolssu.dev")}"}""", MediaType.APPLICATION_JSON))
+        val identity = devGateway.identify(SocialProvider.APPLE, devRedirect, "dev-code", state, "binding")
+        server.verify()
+        assertEquals("001234.apple-user", identity.subject)
+        val fields = formOf(form)
+        assertEquals("com.ssafy.eolssu.dev", fields["client_id"])
+        assertEquals("com.ssafy.eolssu.dev", SignedJWT.parse(fields["client_secret"]).jwtClaimsSet.subject)
+        val query = formOf(URI(devGateway.authorizationUrl(SocialProvider.APPLE, devRedirect, state, "binding")).rawQuery)
+        assertEquals("com.ssafy.eolssu.dev", query["client_id"])
+    }
+
+    @Test fun `release and development tokens are not accepted for the other app`() {
+        expectToken(idToken(audience = "com.ssafy.eolssu"))
+        assertFailsWith<OAuthProfileRejected> { devGateway.identify(SocialProvider.APPLE, devRedirect, "dev-code", state, "binding") }
+        server.verify(); server.reset()
+        var form = ""
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+            .andExpect { form = (it as org.springframework.mock.http.client.MockClientHttpRequest).bodyAsString }
+            .andRespond(withSuccess("""{"id_token":"${idToken(audience = "com.ssafy.eolssu.dev")}"}""", MediaType.APPLICATION_JSON))
+        assertFailsWith<OAuthProfileRejected> { devGateway.identify(SocialProvider.APPLE, redirect, "apple-code", state, "binding") }
+        assertEquals("com.ssafy.eolssu", formOf(form)["client_id"])
+    }
+
+    @Test fun `development redirect is refused unless the development bundle id is configured`() {
+        assertTrue(devGateway.allows(SocialProvider.APPLE, devRedirect))
+        assertFalse(gateway.allows(SocialProvider.APPLE, devRedirect))
+        val noBundle = AppleOAuthGateway(AppleSettings("com.ssafy.eolssu", "TEAM123456", "KEY1234567", pem, listOf(redirect), "", listOf(devRedirect)),
+            builder.build(), NimbusJwtDecoder.withPublicKey(appleKeys.public as RSAPublicKey).build(), clock)
+        assertFalse(noBundle.allows(SocialProvider.APPLE, devRedirect))
+    }
+
+    @Test fun `revoke retries with the development bundle id when apple refuses the release one`() {
+        val clients = mutableListOf<String?>()
+        repeat(2) { attempt ->
+            server.expect(requestTo("https://appleid.apple.com/auth/revoke"))
+                .andExpect { clients += formOf((it as org.springframework.mock.http.client.MockClientHttpRequest).bodyAsString)["client_id"] }
+                .andRespond(if (attempt == 0) withBadRequest().body("""{"error":"invalid_client"}""") else withSuccess())
+        }
+        devGateway.revoke(SocialProvider.APPLE, "dev-refresh")
+        server.verify()
+        assertEquals(listOf<String?>("com.ssafy.eolssu", "com.ssafy.eolssu.dev"), clients)
+    }
+
+    @Test fun `revoke failure without a development app is not retried`() {
+        server.expect(requestTo("https://appleid.apple.com/auth/revoke")).andRespond(withBadRequest())
+        assertFailsWith<org.springframework.web.client.HttpClientErrorException> { gateway.revoke(SocialProvider.APPLE, "apple-refresh") }
         server.verify()
     }
 }

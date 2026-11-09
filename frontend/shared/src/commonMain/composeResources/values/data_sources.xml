@@ -20,20 +20,22 @@
 
     <string name="source_gugak_audio_name">국립국악원 국악기 디지털 음원</string>
     <string name="source_gugak_audio_usage">운지법 보기·기초부터 배우기의 음 듣기(기본음·요성 예시), 연습 화면의 장단 소리</string>
-    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 음 듣기 예시는 구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A)로 인코딩했고, 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
+    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 음 듣기 예시는 구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A)로 인코딩했어요. 일부 가공 예시는 음높이를 바꾸고 요성에 음높이 흔들림을 더했어요. 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
 
     <string name="source_generator_name">우물사이(umulsai.com) jeongganbo-generator</string>
     <string name="source_generator_usage">정간보 쉽게 읽기·악보의 시김새 기호 그림, 예시 곡의 정간 수·대강 분절</string>
     <string name="source_generator_note">기호 그림은 MIT 라이선스(Copyright (c) 2026 Danbinaerin Han)를 따라요.</string>
 
     <string name="source_eacademy_name">국립국악원 e국악아카데미</string>
-    <string name="source_eacademy_usage">단소 운지표(「단소 안공법」), 기초부터 배우기 단계 구성(단소 지도서, 대금·소금·단소 강좌 차시)</string>
+    <string name="source_eacademy_usage">단소 운지표(「단소 안공법」과 「단소 운지표」), 기초부터 배우기 단계 구성(단소 지도서, 대금·소금·단소 강좌 차시)</string>
     <string name="source_eacademy_note">기초부터 배우기의 단계 순서는 이 자료를 따른 초안이에요(팀 확정 전).</string>
 
-    <string name="source_sogeum_book_name">국립국악원 『창작을 위한 국악기 이해와 활용1』</string>
+    <string name="source_sogeum_book_name">국립국악원 『창작을 위한 국악기 이해와 활용 2』</string>
     <string name="source_sogeum_book_usage">소금 운지표(3장 소금 61쪽 [표 1] 향악계곡 안공법)</string>
 
     <string name="source_daegeum_book_name">국립국악원 『2021 대금정악보』</string>
     <string name="source_daegeum_book_usage">정악대금 운지표(9쪽 대금 안공표), 산조대금 기본 운지틀</string>
     <string name="source_daegeum_book_note">공공누리 제4유형. 산조대금은 정악대금 안공표의 기본 운지틀을 따르며 유파별 차이는 선생님께 확인하세요.</string>
+    <string name="source_sanjo_chart_name">피리사 「산조대금 안공표」</string>
+    <string name="source_sanjo_chart_usage">산조대금 역취 중청태의 가요·창작곡용 참고 운지</string>
 </resources>

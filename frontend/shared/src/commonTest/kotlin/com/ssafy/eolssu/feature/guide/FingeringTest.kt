@@ -25,12 +25,25 @@ class FingeringTest {
     }
 
     @Test
-    fun tableSizesMatchWireframe() {
+    fun tableSizesMatchCatalog() {
         fun sizes(instrument: GuideInstrument) = instrument.blows.map { instrument.notesByPitch(it).size }
-        assertEquals(listOf(7, 5), sizes(GuideInstrument.Danso))
+        assertEquals(listOf(7, 10), sizes(GuideInstrument.Danso))
         assertEquals(listOf(9, 11), sizes(GuideInstrument.Sogeum))
         assertEquals(listOf(12, 12, 6), sizes(GuideInstrument.DaegeumJeongak))
-        assertEquals(listOf(12, 12, 6), sizes(GuideInstrument.DaegeumSanjo))
+        assertEquals(listOf(12, 12, 7), sizes(GuideInstrument.DaegeumSanjo))
+    }
+
+    @Test
+    fun revisedHighFingeringsMatchTheirReferenceCharts() {
+        fun high(instrument: GuideInstrument, yul: String) =
+            instrument.notesByPitch(Blow.High).single { it.reading == yul }.holes
+
+        val danso = GuideInstrument.Danso
+        mapOf("청협" to "11111", "청고" to "1111h", "청남" to "11h00", "중청협" to "01100", "중청중" to "11010")
+            .forEach { (yul, holes) -> assertEquals(holes.map(HoleState::parse), high(danso, yul), yul) }
+        assertEquals("110000".map(HoleState::parse), high(GuideInstrument.Sogeum, "중청태"))
+        assertEquals("110111".map(HoleState::parse), high(GuideInstrument.DaegeumSanjo, "중청태"))
+        assertNull(GuideInstrument.DaegeumJeongak.noteOf("㶃"))
     }
 
     @Test

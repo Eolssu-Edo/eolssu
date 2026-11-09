@@ -138,4 +138,16 @@ class IosOAuthRelayTest {
             sent,
         )
     }
+
+    @Test
+    fun developmentAppSendsItsOwnAppleAddressAndKeepsEverythingElse() {
+        val dev = IosDevOAuthRelay.forBundle("com.ssafy.eolssu.dev")
+        assertEquals("https://k15e102.p.ssafy.io/api/auth/ios-dev/oauth/apple/callback", dev.uriFor(SocialProvider.Apple))
+        assertEquals(IosOAuthRelay.uriFor(SocialProvider.Kakao), dev.uriFor(SocialProvider.Kakao))
+        assertEquals(IosOAuthRelay.providers, dev.providers)
+        assertEquals(SocialProvider.Apple, dev.providerOf(io.ktor.http.Url(appReturn("apple"))))
+        for (bundle in listOf("com.ssafy.eolssu", "com.ssafy.eolssu.eunseo", null)) {
+            assertEquals("https://k15e102.p.ssafy.io/api/auth/ios/oauth/apple/callback", IosDevOAuthRelay.forBundle(bundle).uriFor(SocialProvider.Apple))
+        }
+    }
 }
