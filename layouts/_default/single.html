@@ -23,7 +23,10 @@
       </nav>
       {{- end }}
       {{- $posts := where site.RegularPages "Section" "posts" }}
-      {{- $related := $posts.Related . | first 3 }}
+      {{- $excluded := slice .RelPermalink }}
+      {{- with .PrevInSection }}{{ $excluded = $excluded | append .RelPermalink }}{{ end }}
+      {{- with .NextInSection }}{{ $excluded = $excluded | append .RelPermalink }}{{ end }}
+      {{- $related := where ($posts.Related .) "RelPermalink" "not in" $excluded | first 3 }}
       {{ partial "reading-list.html" (dict "posts" $related "title" "함께 읽으면 좋은 글" "id" "related-posts-title") }}
       {{ partial "comments.html" . }}
       {{- if and site.Params.editorapi site.Params.editorwrites .Params.author (ne .Params.author site.Params.team) .File }}
