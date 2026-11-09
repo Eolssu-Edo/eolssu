@@ -13,21 +13,13 @@ enum class ReadingPage(val id: String) {
     SigimsaeMore("sig-more"),
     ;
 
-    /** 쪽 머리의 표시. 정간보란은 井, 나머지는 번호이고 딸린 쪽은 앞 쪽 번호를 쓴다. */
-    val mark: String
-        get() = when (this) {
-            Intro -> "井"
-            SigimsaeMore -> Sigimsae.mark
-            else -> "$ordinal"
-        }
+    /** 쪽 머리의 표시. 정간보란은 井, 나머지는 1부터 차례대로 번호를 쓴다(더 많은 시김새도 5로 따로 센다). */
+    val mark: String get() = if (this == Intro) "井" else "$ordinal"
 
-    /** 앞 쪽에 딸린 쪽인지(더 많은 시김새). 쪽 표시를 흰 원으로 그린다. */
-    val sub: Boolean get() = this == SigimsaeMore
-
-    /** 이전 쪽. 첫 쪽이면 없어서 '이전'을 끈다. */
+    /** 이전 쪽. 첫 쪽이면 없어서 '이전'을 감춘다. */
     val previous: ReadingPage? get() = entries.getOrNull(ordinal - 1)
 
-    /** 다음 쪽. 마지막 쪽이면 없어서 '다음'을 끈다. */
+    /** 다음 쪽. 마지막 쪽이면 없어서 '다음'을 감춘다. */
     val next: ReadingPage? get() = entries.getOrNull(ordinal + 1)
 
     companion object {

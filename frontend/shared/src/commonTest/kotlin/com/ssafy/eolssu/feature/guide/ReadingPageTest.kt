@@ -23,13 +23,12 @@ class ReadingPageTest {
     }
 
     @Test
-    fun marksAreJeongThenNumbersAndMoreSigimsaeSharesFour() {
-        assertEquals(listOf("井", "1", "2", "3", "4", "4"), ReadingPage.entries.map { it.mark })
-        assertEquals(listOf(SigimsaeMore), ReadingPage.entries.filter { it.sub })
+    fun marksAreJeongThenNumbersOneToFive() {
+        assertEquals(listOf("井", "1", "2", "3", "4", "5"), ReadingPage.entries.map { it.mark })
     }
 
     @Test
-    fun prevIsOffOnFirstPageAndNextIsOffOnLastPage() {
+    fun prevIsHiddenOnFirstPageAndNextIsHiddenOnLastPage() {
         assertEquals(null, Intro.previous)
         assertEquals(Order, Intro.next)
         assertEquals(Sigimsae, SigimsaeMore.previous)
