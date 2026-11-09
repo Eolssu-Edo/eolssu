@@ -24,7 +24,7 @@ internal enum class ReadingAudioClip(val file: String, val durationMs: Long) {
     HighHwang("pitch-high", 1_500),
     ;
 
-    val path: String get() = "files/reading/$file.wav"
+    val path: String get() = "files/reading/$file.m4a"
 }
 
 internal val ReadingLengthCells = listOf(
