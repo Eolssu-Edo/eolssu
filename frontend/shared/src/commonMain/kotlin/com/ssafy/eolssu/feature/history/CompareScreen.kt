@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.history
 
+import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import eolssu.shared.generated.resources.weak_compare_not_comparable
 import eolssu.shared.generated.resources.comparison_score_unavailable
 import eolssu.shared.generated.resources.weak_compare_check_failed
@@ -68,12 +69,9 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
 import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
 import com.ssafy.eolssu.core.ui.component.timeLabel
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreCellDecoration
 import com.ssafy.eolssu.core.ui.score.scorePositionLabel
-import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.history.component.ComparePickSheet
 import com.ssafy.eolssu.feature.history.component.HistoryBoardTopBar
 import eolssu.shared.generated.resources.Res
@@ -139,7 +137,7 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
             return@EolssuScaffold
         }
         val song = comparison.song
-        val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
+        val format = rememberReadingScoreFormat(song)
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RecordPair(state.previous, comparison.current, actions.onOpenPicker)
             val previous = state.previous
@@ -182,8 +180,9 @@ fun CompareScreen(state: CompareUiState, actions: CompareActions) {
             JeongganboView(
                 song = song,
                 modifier = Modifier.weight(1f).padding(top = 6.dp).verticalScroll(rememberScrollState()),
-                metrics = JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip),
-                look = JeongganboLook.practice(big = false),
+                metrics = format.metrics,
+                look = format.look,
+                cellHeights = format.cellHeights,
                 onUnitClick = { actions.onSelect(ScorePosition(it.column, it.row)) },
                 decorations = compareDecorations(state.marks),
             )

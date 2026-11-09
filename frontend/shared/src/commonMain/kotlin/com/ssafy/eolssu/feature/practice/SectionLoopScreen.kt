@@ -47,9 +47,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.formatClock
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
+import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.feature.practice.component.sectionLoopScoreMetrics
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.weak_load_missing
@@ -110,16 +109,16 @@ fun SectionLoopScreen(
                 }
                 return@EolssuScaffold
             }
-            val scoreMetrics = remember(song) { sectionLoopScoreMetrics(song) }
-            val cellHeights = remember(song, scoreMetrics) { errorScoreCellHeights(song, scoreMetrics, minSplitRowHeight = 26.dp) }
+            // 칸 크기는 다른 화면과 같은 공통 형식을 쓰고, 연주 중 표시(‘← 다음’)가 있는 연습 모양은 그대로 둔다.
+            val format = rememberReadingScoreFormat(song)
             val current = state.current
             Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val shown = state.shownColumns
                 JeongganboView(
                     song = song,
                     modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                    metrics = scoreMetrics,
-                    cellHeights = cellHeights,
+                    metrics = format.metrics,
+                    cellHeights = format.cellHeights,
                     look = JeongganboLook.practice(big = false),
                     currentIndex = current?.let { c -> song.timeline.firstOrNull { it.column == c.column && it.row == c.row }?.index },
                     follow = true,

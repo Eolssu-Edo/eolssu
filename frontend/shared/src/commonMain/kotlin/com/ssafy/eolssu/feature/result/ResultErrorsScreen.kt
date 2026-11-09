@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.result
 
+import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
 import com.ssafy.eolssu.core.ui.score.errorCount
 import com.ssafy.eolssu.core.ui.score.visibleErrors
 import com.ssafy.eolssu.core.ui.score.visibleErrorKinds
@@ -24,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.ssafy.eolssu.core.model.key
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -37,12 +37,8 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
-import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.scoreSectionLabel
-import com.ssafy.eolssu.core.ui.score.scoreStrips
 import com.ssafy.eolssu.feature.result.component.SelectedCellCard
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.weak_errors_go_select
@@ -100,12 +96,8 @@ fun ResultErrorsScreen(
             return@EolssuScaffold
         }
         val section = state.section
-        val longestStrip = remember(song) { scoreStrips(song.score, song.jangdan).maxOfOrNull { it.rows.count() } ?: 1 }
-        val scoreMetrics = remember(song) {
-            JeongganboMetrics.practiceBoard(big = false, longestStrip = longestStrip)
-        }
-        // 소박으로 나뉜 정간은 늘려 율명이 잘리지 않게 하고, 정간 수가 같은 각끼리 위아래 끝을 맞춘다.
-        val cellHeights = remember(song, scoreMetrics) { errorScoreCellHeights(song, scoreMetrics) }
+        // 연습 화면을 뺀 모든 화면과 같은 공통 정간보 형식(나뉜 소박 여유 · 각 끝 맞춤 · 가사 있을 때만 곁줄).
+        val format = rememberReadingScoreFormat(song)
         BoxWithConstraints(Modifier.fillMaxSize()) {
             // 짧은 창에서는 요약 때문에 악보가 0 높이가 되지 않도록 본문 전체를 스크롤한다.
             // 악보의 각·정간 크기와 오류 꾸밈은 그대로 사용한다.
@@ -134,9 +126,9 @@ fun ResultErrorsScreen(
                 JeongganboView(
                     song = song,
                     modifier = (if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(scoreScroll)).padding(top = 10.dp),
-                    metrics = scoreMetrics,
-                    look = JeongganboLook.practice(big = false).copy(softDaegang = true),
-                    cellHeights = cellHeights,
+                    metrics = format.metrics,
+                    look = format.look,
+                    cellHeights = format.cellHeights,
                     errors = result.visibleErrors(state.filter),
                     errorKinds = result.visibleErrorKinds(state.filter),
                     unitErrors = result.visibleUnitErrors(song, state.filter),
