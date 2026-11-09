@@ -226,6 +226,75 @@ class SongInstrumentApiDatabaseTests {
         }
     }
 
+    @Test fun `jeongak catalog distinguishes textbook editions and preserves model audio`() {
+        val editions = listOf(
+            Triple(54L, "004", "뱃노래(기본)"),
+            Triple(55L, "005", "뱃노래(장식음)"),
+            Triple(58L, "008", "아리랑(역취)"),
+            Triple(59L, "009", "아리랑(저취)"),
+            Triple(63L, "013", "세령산 1장(장식음 기호)"),
+            Triple(64L, "014", "세령산 1장(풀어 쓴 악보)"),
+            Triple(65L, "015", "타령 1장(장식음 기호)"),
+            Triple(66L, "016", "타령 1장(풀어 쓴 악보)"),
+            Triple(72L, "022", "학교종(평취)"),
+            Triple(73L, "023", "학교종(저취)"),
+            Triple(75L, "025", "“황응남임” 연습곡(평취)"),
+            Triple(76L, "026", "“황응남임” 연습곡(저취)"),
+        )
+        val instrumentId = jdbc.queryForObject("SELECT id FROM instruments WHERE code='JEONGAK_DAEGEUM'", Long::class.java)
+        val ids = editions.joinToString { it.first.toString() }
+        val audioFolder = "model-audio/drafts/${"c".repeat(64)}/cases/jeongak-daegeum-013-p1"
+        try {
+            for ((id, sourceNumber, newTitle) in editions) {
+                val oldTitle = newTitle.substringBefore("(")
+                jdbc.update("""INSERT INTO songs
+                    (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                    SELECT ?,?,jangdan_id,?,difficulty,default_bpm,JSON_SET(score_json,'$.score.title',?,'$.score.sourceId',?),
+                        score_version,note_count,FALSE,'PUBLISHED' FROM songs WHERE id=1""",
+                    id, instrumentId, oldTitle, oldTitle, "mr203-fixed-jeongak-daegeum-$sourceNumber-p1")
+            }
+            jdbc.update("""INSERT INTO song_model_audios
+                (song_id,score_version,object_key,performance_object_key,source_common_sha256,bpm,bpm_unit,duration_ms,
+                    start_offset_ms,content_type,sha256,status)
+                SELECT 63,score_version,?,?,?,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status
+                FROM song_model_audios WHERE song_id=?""",
+                "$audioFolder/jeongak-daegeum.m4a", "$audioFolder/performance.common.json", "d".repeat(64), songIds.first())
+
+            fun result(path: String): JsonNode {
+                val response = get(path)
+                assertEquals(200, response.statusCode(), response.body())
+                return json.readTree(response.body()).path("result")
+            }
+            fun payloads() = jdbc.queryForList("""SELECT id,score_version,is_scorable,
+                JSON_REMOVE(score_json,'$.score.title') AS score_without_title FROM songs WHERE id IN ($ids) ORDER BY id""")
+            val before = payloads()
+            val audioBefore = result("/api/songs/63/model-audio")
+            assertEquals("/api/songs/63/model-audio/performance", audioBefore.path("performanceUrl").asString())
+            val migration = ResourceDatabasePopulator(
+                ClassPathResource("db/migration/V34__resolve_remaining_public_score_duplicates.sql"),
+            )
+            val dataSource = requireNotNull(jdbc.dataSource)
+            migration.execute(dataSource)
+            migration.execute(dataSource)
+
+            assertEquals(before, payloads())
+            val listed = result("/api/songs?instrumentId=$instrumentId").path("items")
+                .associate { it.path("songId").asLong() to it.path("title").asString() }
+            for ((id, _, title) in editions) {
+                assertEquals(title, listed[id])
+                val detail = result("/api/songs/$id")
+                assertEquals(title, detail.path("title").asString())
+                val score = result("/api/songs/$id/score").path("score")
+                assertEquals(title, score.path("score").path("title").asString())
+                assertEquals(detail.path("score"), score)
+            }
+            assertEquals(audioBefore, result("/api/songs/63/model-audio"))
+        } finally {
+            jdbc.update("DELETE FROM song_model_audios WHERE song_id=63")
+            jdbc.update("DELETE FROM songs WHERE id IN ($ids)")
+        }
+    }
+
     private fun get(path: String) = client.send(HttpRequest.newBuilder(URI("http://localhost:$port$path"))
         .header("Cookie", "access_token=expired-public-cookie").GET().build(), HttpResponse.BodyHandlers.ofString())
 
