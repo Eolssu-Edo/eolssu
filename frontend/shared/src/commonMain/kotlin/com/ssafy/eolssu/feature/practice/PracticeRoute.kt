@@ -104,7 +104,6 @@ fun PracticeRoute(
             onFollowNow = viewModel::followNow,
             onCancelCountdown = viewModel::cancelCountdown,
             onUserActivity = viewModel::onUserActivity,
-            onKeepPracticing = viewModel::keepPracticing,
             onRetrySong = viewModel::retryLoadSong,
             bottom = PracticeBottomActions(
                 onStartModel = viewModel::startModel,

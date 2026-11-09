@@ -129,6 +129,20 @@ class RecordingSupportTest {
         }
     }
 
+    @Test fun idleScoreDoesNotShowANotice() = recordingTest(FakePracticeRecorder()) { vm, _ ->
+        vm.onScreenShown()
+        runCurrent()
+        val ready = vm.uiState.value
+
+        advanceTimeBy(570_000)
+        runCurrent()
+        assertEquals(ready, vm.uiState.value)
+
+        advanceTimeBy(30_000)
+        runCurrent()
+        assertEquals(ready, vm.uiState.value)
+    }
+
     @Test fun oversizedRecordingCannotBeSubmittedForAnalysis() =
         recordingTest(FakePracticeRecorder(output = RecordedAudio("large.m4a", RecordingSpec.MAX_BYTES + 1))) { vm, _ ->
             vm.grantMicAndStart()
@@ -194,7 +208,7 @@ class RecordingSupportTest {
             val songs = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String) = song
             }
-            val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }),
+            val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder, permission,
                 playbackTimeSource = testScheduler.timeSource, newKey = { "take-key" })
             models.put("practice", vm)

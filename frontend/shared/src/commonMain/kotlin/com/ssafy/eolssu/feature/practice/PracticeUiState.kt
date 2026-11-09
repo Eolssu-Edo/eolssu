@@ -78,7 +78,6 @@ data class PracticeDraft(
  * @property follow 재생·연주 중 악보가 현재 위치를 따라가는지. 사용자가 악보를 끌면 꺼진다.
  * @property followHeldGak 평가 연주 중 사용자가 악보를 끌어 따라가기를 멈춘 각. 현재 위치가 다른 각으로 넘어가면
  *   다시 따라간다([resumeFollowOnNextGak]). 연주 중에는 손이 악기에 있어 '현재 위치로'를 누르기 어렵기 때문이다.
- * @property idleReminder 마지막 활동 뒤 9분 30초가 지나 "계속 연습 중인가요?"를 묻는 중.
  * @property mine 내 악보 연습(Practice-Mine). 혼자 연습과 같되 평가로 넘어가는 버튼이 없다.
  * @property sheetTitle 내 악보 제목(예: ‘아리랑 (내 편곡)’). 있으면 곡 제목 대신 보인다.
  * @property step 2차 '한 음씩 따라 불기' 상태(`PracticeStep.kt`).
@@ -116,7 +115,6 @@ data class PracticeUiState(
     val followHeldGak: Int? = null,
     val listening: Yul? = null,
     val fingeringAudioPlaying: Boolean = false,
-    val idleReminder: Boolean = false,
     val isSongLoading: Boolean = false,
     val songError: PracticeSongError? = null,
     /** 현재 원본 이벤트 안에서 지난 시간. 긴 음/이음 중에도 표시 시계가 갱신한다. */
