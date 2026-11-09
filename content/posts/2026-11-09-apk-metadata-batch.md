@@ -6,6 +6,7 @@ author: "우동균"
 categories: ["infra"]
 tags: ["Android", "QA", "GitLab", "동기화"]
 description: "얼쑤의 Android QA 목록에서 제목과 작성자가 비어 있는 문제를 추적하고, 조회를 작은 묶음으로 나눠 운영에서 복구한 과정을 소개합니다."
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-apk-metadata-batch.webp"
 draft: false
 ---
 

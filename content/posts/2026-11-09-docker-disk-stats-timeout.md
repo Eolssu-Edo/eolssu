@@ -6,6 +6,7 @@ author: "우동균"
 categories: ["infra"]
 tags: ["Docker", "운영 점검", "장애 분석"]
 description: "Docker의 마지막 용량 조회만 실패시켜 기존 점검표와 앞선 값을 보존하는 개선안을 비교했습니다."
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-docker-disk-stats-timeout.webp"
 draft: false
 ---
 
