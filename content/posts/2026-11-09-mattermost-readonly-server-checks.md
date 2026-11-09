@@ -6,6 +6,7 @@ author: "우동균"
 categories: ["infra"]
 tags: ["Mattermost", "SSH", "운영 점검"]
 description: "Mattermost의 슬래시 명령을 서버별 읽기 전용 점검으로 제한하고, 응답이 실제로 확인한 범위를 표시한 과정을 소개합니다."
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-mattermost-readonly-server-checks.webp"
 draft: false
 ---
 
