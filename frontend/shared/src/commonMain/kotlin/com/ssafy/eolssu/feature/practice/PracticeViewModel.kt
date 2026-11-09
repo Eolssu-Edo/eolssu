@@ -36,7 +36,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 
@@ -91,11 +90,10 @@ class PracticeViewModel(
     private var previewJob: Job? = null
     private var listenJob: Job? = null
     private var levelJob: Job? = null
-    private var idleJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
     private var screenShown = false
-    private val recordingClock = RecordingClock()
+    private val recordingClock = RecordingClock(playbackTimeSource)
     private var takeKey = ""
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
@@ -385,7 +383,7 @@ class PracticeViewModel(
 
     // 연습 시간
 
-    /** 화면이 앞에 보임(들어옴·앱으로 돌아옴·탭이 다시 보임). 새 구간을 열고 알림 때를 기다린다. */
+    /** 화면이 앞에 보임(들어옴·앱으로 돌아옴·탭이 다시 보임). 연습 시간 측정을 시작한다. */
     fun onScreenShown() {
         if (!accountScope.isActive) return
         screenShown = true
@@ -396,7 +394,6 @@ class PracticeViewModel(
     private fun startTimeTracking() {
         if (!accountScope.isActive) return
         timeMeter.show(songId)
-        watchIdle()
         snapshotJob?.cancel()
         snapshotJob = accountScope.launch {
             while (true) {
@@ -406,7 +403,7 @@ class PracticeViewModel(
         }
     }
 
-    /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보내고 떠 있던 알림을 내린다. */
+    /** 화면이 가려짐(떠남·백그라운드·화면 잠금·탭 숨김). 구간을 닫아 보낸다. */
     fun onScreenHidden() {
         screenShown = false
         pauseRhythm()
@@ -415,32 +412,13 @@ class PracticeViewModel(
         jangdanAudio.release()
         modelAudio.suspendAndRelease()
         pauseStep()
-        idleJob?.cancel()
         snapshotJob?.cancel()
         val segment = timeMeter.hide()
         if (accountScope.isActive) timeQueue.close(segment)
-        _uiState.update { it.copy(idleReminder = false) }
     }
 
     /** 터치·스크롤·키 입력. */
     fun onUserActivity() = timeMeter.onActivity()
-
-    /** "계속 연습 중인가요?"에 응답. 활동으로 보고 자리 비움 시간을 다시 센다. */
-    fun keepPracticing() {
-        timeMeter.onActivity()
-        _uiState.update { it.copy(idleReminder = false) }
-    }
-
-    /** 알림 때까지 기다렸다가 띄운다. 그사이 활동이 있었으면 남은 시간이 늘어 있으므로 다시 기다린다. */
-    private fun watchIdle() {
-        idleJob?.cancel()
-        idleJob = accountScope.launch {
-            while (true) {
-                delay(timeMeter.untilReminder() ?: IDLE_RECHECK)
-                if (timeMeter.takeReminder()) _uiState.update { it.copy(idleReminder = true) }
-            }
-        }
-    }
 
     // 악보·패널
 
@@ -966,11 +944,11 @@ class PracticeViewModel(
 
     // 녹음
 
-    /** 정상 종료한 연주에서만 분석으로 넘긴다. 저장된 녹음이 없으면 화면에 실패를 알린다. */
+    /** 곡 끝이나 녹음 한도에서 마친 연주를 분석으로 넘긴다. 저장된 녹음이 없으면 화면에 실패를 알린다. */
     fun takeForEvaluation(): RecordedTake? {
         if (!accountScope.isActive) return null
         val state = _uiState.value
-        if (!state.finished || state.popup != PracticePopup.End) return null
+        if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
         if (take == null) _uiState.update { it.failRecording() }
         return take
     }
@@ -1033,7 +1011,7 @@ class PracticeViewModel(
                 if (elapsed >= RecordingSpec.MaxDuration) {
                     captureStepProgress()
                     stepJob?.cancel()
-                    _uiState.update { it.endRecording() }
+                    _uiState.update { it.endRecording(atLimit = true) }
                     finishRecorder()
                     break
                 }
@@ -1108,8 +1086,5 @@ class PracticeViewModel(
 
     private companion object {
         const val LEVEL_INTERVAL_MS = 100L
-
-        /** 알림을 기다리지 않는 동안(재생 중·이미 알림을 냄) 다시 확인하는 간격. */
-        val IDLE_RECHECK = 30.seconds
     }
 }

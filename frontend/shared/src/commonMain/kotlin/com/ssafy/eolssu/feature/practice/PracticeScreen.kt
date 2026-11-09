@@ -30,7 +30,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuPageTopBar
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
-import com.ssafy.eolssu.feature.practice.component.IdleReminderDialog
 import com.ssafy.eolssu.feature.practice.component.PracticeBoardScore
 import com.ssafy.eolssu.feature.practice.component.PracticeBottomActions
 import com.ssafy.eolssu.feature.practice.component.PracticeCallToAction
@@ -67,7 +66,6 @@ class PracticeScreenActions(
     val onFollowNow: () -> Unit,
     val onCancelCountdown: () -> Unit,
     val onUserActivity: () -> Unit,
-    val onKeepPracticing: () -> Unit,
     val bottom: PracticeBottomActions,
     val panel: PracticePanelActions,
     val dialog: PracticeDialogActions,
@@ -113,7 +111,6 @@ fun PracticeScreen(
     }
     state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
         ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo) }
-    if (state.idleReminder) IdleReminderDialog(actions.onKeepPracticing)
 }
 
 /** 곡 상세를 거치지 않고 연습으로 들어와도 로딩·404·통신 실패에서 빠져나오고 재시도할 수 있다. */

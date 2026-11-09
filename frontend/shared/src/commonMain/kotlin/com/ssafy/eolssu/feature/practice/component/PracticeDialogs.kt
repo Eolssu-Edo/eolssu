@@ -10,9 +10,6 @@ import com.ssafy.eolssu.feature.practice.PracticePopup
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_close
 import eolssu.shared.generated.resources.common_confirm
-import eolssu.shared.generated.resources.practice_idle_body
-import eolssu.shared.generated.resources.practice_idle_continue
-import eolssu.shared.generated.resources.practice_idle_title
 import eolssu.shared.generated.resources.practice_popup_abort_body
 import eolssu.shared.generated.resources.practice_popup_abort_title
 import eolssu.shared.generated.resources.practice_popup_blocked_body
@@ -21,6 +18,8 @@ import eolssu.shared.generated.resources.practice_popup_continue
 import eolssu.shared.generated.resources.practice_popup_denied_body
 import eolssu.shared.generated.resources.practice_popup_denied_title
 import eolssu.shared.generated.resources.practice_popup_end_body
+import eolssu.shared.generated.resources.practice_popup_end_limit_body
+import eolssu.shared.generated.resources.practice_popup_end_limit_title
 import eolssu.shared.generated.resources.practice_popup_end_title
 import eolssu.shared.generated.resources.practice_popup_evaluate
 import eolssu.shared.generated.resources.practice_popup_exit_confirm
@@ -99,9 +98,9 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
             EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
         }
-        PracticePopup.End -> EolssuDialog(
-            title = stringResource(Res.string.practice_popup_end_title),
-            message = stringResource(Res.string.practice_popup_end_body),
+        PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
+            title = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_title else Res.string.practice_popup_end_title),
+            message = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_body else Res.string.practice_popup_end_body),
             icon = EolssuIcons.Check,
             iconBackground = colors.accentTintStrong,
         ) {
@@ -179,16 +178,5 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             EolssuButton(stringResource(Res.string.practice_restart), actions.onRestartNow)
             EolssuButton(stringResource(Res.string.practice_popup_to_ready), actions.onToReady, style = EolssuButtonStyle.Secondary)
         }
-    }
-}
-
-/** 마지막 활동 뒤 9분 30초. 응답하면 연습 시간을 이어서 센다. 문구는 기획 확정 전 초안이다. */
-@Composable
-fun IdleReminderDialog(onKeepPracticing: () -> Unit) {
-    EolssuDialog(
-        title = stringResource(Res.string.practice_idle_title),
-        message = stringResource(Res.string.practice_idle_body),
-    ) {
-        EolssuButton(stringResource(Res.string.practice_idle_continue), onKeepPracticing)
     }
 }
