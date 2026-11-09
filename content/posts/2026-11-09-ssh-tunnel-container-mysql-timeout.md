@@ -5,7 +5,7 @@ slug: "ssh-tunnel-container-mysql-timeout"
 author: "우동균"
 categories: ["infra"]
 tags: ["Docker", "SSH", "MySQL", "UFW"]
-description: "호스트에서는 응답하던 SSH DB 터널이 복제 컨테이너에서만 시간 초과될 때 연결을 구간별로 확인한 기록이다."
+description: "호스트에서는 응답하던 SSH DB 터널이 복제 컨테이너에서만 시간 초과될 때 연결을 구간별로 확인한 기록입니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-ssh-tunnel-container-mysql-timeout.webp"
 draft: false
 ---
