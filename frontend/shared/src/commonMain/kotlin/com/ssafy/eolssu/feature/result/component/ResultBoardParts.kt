@@ -75,14 +75,23 @@ import eolssu.shared.generated.resources.result_metric_weak
 import eolssu.shared.generated.resources.result_score_of
 import eolssu.shared.generated.resources.result_score_unit
 import eolssu.shared.generated.resources.result_view_all_errors
-import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_clap
 import eolssu.shared.generated.resources.tiger_complete
 import eolssu.shared.generated.resources.tiger_encourage
 import eolssu.shared.generated.resources.tiger_play
 import eolssu.shared.generated.resources.tiger_retry
 import eolssu.shared.generated.resources.tiger_zero_score
+import eolssu.shared.generated.resources.tiger_confused_atlas
+import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.roundToInt
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.remember
@@ -154,14 +163,30 @@ fun AnalyzingFigure(modifier: Modifier = Modifier) {
     }
 }
 
+// 사용자 제공 ‘머리 긁는 호랑이’ GIF의 9프레임(각 160ms)을 배경만 투명하게 뺀 240px 세로 atlas.
+private const val ConfusedFrameSize = 240
+private const val ConfusedFrameCount = 9
+private const val ConfusedFrameMillis = 160L
+
+/** 분석 실패 그림(160dp): 물음표를 띄우고 머리를 긁는 호랑이 움짤. 경고 표시는 두지 않는다. */
 @Composable
 fun AnalysisFailedFigure() {
-    Image(
-        painterResource(Res.drawable.tiger_analysis_failed),
-        contentDescription = null,
-        modifier = Modifier.size(132.dp),
-        contentScale = ContentScale.Fit,
-    )
+    val bitmap = imageResource(Res.drawable.tiger_confused_atlas)
+    var frame by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(ConfusedFrameMillis)
+            frame = (frame + 1) % ConfusedFrameCount
+        }
+    }
+    Canvas(Modifier.size(160.dp).clearAndSetSemantics {}) {
+        if (bitmap.height >= ConfusedFrameSize * ConfusedFrameCount) drawImage(
+            image = bitmap,
+            srcOffset = IntOffset(0, frame * ConfusedFrameSize),
+            srcSize = IntSize(ConfusedFrameSize, ConfusedFrameSize),
+            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+        )
+    }
 }
 
 /** 보드 `.badge.lite`: 흰 바탕 · 옅은 테두리 알약(26dp)에 12sp 회색 글자. 곡 이름 등에 쓴다. */

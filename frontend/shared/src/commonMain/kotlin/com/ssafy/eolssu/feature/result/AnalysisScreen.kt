@@ -9,11 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +38,6 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
-import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.result.component.AnalysisFailedFigure
@@ -108,7 +105,7 @@ fun AnalysisRoute(
  * 버튼 최대 너비가 360dp다.
  *
  * - 대기: 도는 붓 일원상과 호랑이 · ‘연주를 확인하고 있어요.’(Song Myung 22sp) · 곡 이름 배지 · 안내.
- * - 실패: 상단에 곡 이름을 두고 본문에 호랑이 · 경고 아이콘과 제목 · 실패 사유 · 다음 행동을 표시한다.
+ * - 실패: 상단에 곡 이름을 두고 본문에 머리 긁는 호랑이 움짤 · 제목 · 실패 사유 · 다음 행동을 표시한다(경고 표시 없음).
  *   다시 분석할 수 있는 실패(서버·시간 초과)는 사유 다음에 녹음이 남아 있다고 안내한다.
  * - 같은 녹음으로 다시 분석할 수 있으면 ‘분석 다시 시도’, 아니면 ‘다시 연주하기’. 녹음을 보내지 못했으면 기기에 남은 녹음을
  *   ‘녹음 다시 보내기’로 보내게 하고, 보낼 수 없는 파일이면 ‘다시 연주하기’만 준다.
@@ -171,14 +168,6 @@ fun AnalysisScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (stopped) {
-                            Icon(
-                                EolssuIcons.Alert,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = colors.recText,
-                            )
-                        }
                         Text(
                             stringResource(
                                 when {
