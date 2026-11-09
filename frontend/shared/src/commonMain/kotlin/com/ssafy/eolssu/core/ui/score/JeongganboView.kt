@@ -179,8 +179,8 @@ data class ScoreCellMark(
  * @param columns 이 범위의 각만 그린다. 악보를 여러 단으로 나눠 그릴 때 쓴다.
  * @param dimUnmarked [errors]에 없는 정간을 흐리게 해 틀린 정간을 돋보이게 한다.
  * @param highlightColumns 이 범위의 각을 노란 테두리로 강조한다(틀린 칸이 몰린 각).
- * @param selectedCell 결과에서 선택한 표시 정간. 같은 이벤트를 잇는 다른 정간까지 선택하지 않는다.
- * @param onUnitClick 표시 자리를 선택할 때 쓴다. 연습의 [onEventClick]은 원본 이벤트를 그대로 전달한다.
+ * @param selectedCell 선택한 표시 정간. 같은 이벤트를 잇는 다른 정간까지 선택하지 않는다.
+ * @param onUnitClick 표시 자리를 선택할 때 쓴다. 이음과 빈 자리가 원본 이벤트를 공유해도 표시 좌표는 다르다.
  * @param look 모양([JeongganboLook]). 기본은 옛 와이어프레임, 연습 화면은 연두 보드 `.ms`.
  * @param decorations 정간(각, 정간)마다의 꾸밈([ScoreCellDecoration]). 같은 정간의 [errors] 표시보다 먼저 쓴다(이전 연주 비교·구간 처음/끝 등).
  * @param sectionColumns 이 범위의 각을 취약 구간으로 표시한다(2차): 연두 테두리 · 옅은 바깥 띠(`#EFF2D6` 3dp) · 크림 머리.

@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.Song
+import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HoleState
 import com.ssafy.eolssu.core.model.fingering.label
@@ -65,7 +67,7 @@ import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
-import com.ssafy.eolssu.core.ui.score.YulGlyph
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -100,7 +102,6 @@ import eolssu.shared.generated.resources.practice_jangdan_sound_on
 import eolssu.shared.generated.resources.practice_jangdan_sub
 import eolssu.shared.generated.resources.practice_jangdan_title
 import eolssu.shared.generated.resources.practice_listen_note
-import eolssu.shared.generated.resources.practice_listening
 import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_menu_tempo
@@ -125,7 +126,7 @@ class PracticePanelActions(
     val onDraft: ((PracticeDraft) -> PracticeDraft) -> Unit,
     val onToggleBigScore: () -> Unit,
     val onMoveFingering: (Int) -> Unit,
-    val onListen: () -> Unit,
+    val fingeringAudio: @Composable (GuideInstrument, FingeringNote) -> Unit,
     val onTogglePreview: () -> Unit,
     /** 연습 설정의 ‘연습 악기’(`GuideInstrument.id`). */
     val onSetInstrument: (String) -> Unit = {},
@@ -408,21 +409,26 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
 @Composable
 private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions) {
     val colors = EolssuTheme.colors
-    val yul = state.draft.note
-    val rest = state.draft.noteRest
+    val pitch = state.draft.note
     val instrument = state.instrument
-    val note = if (rest) null else instrument.noteOf(yul.symbol)
-    val holes = note?.holes ?: emptyList()
+    val note = instrument.fingeringFor(pitch)
+    val name = when (pitch) {
+        is ScoreNote.Pitch -> pitch.yul.fullName
+        is ScoreNote.SourcePitch -> pitch.fullName
+        else -> ""
+    }
+    val reading = note?.reading ?: when (pitch) {
+        is ScoreNote.Pitch -> pitch.yul.hangul
+        is ScoreNote.SourcePitch -> pitch.hangul
+        else -> ""
+    }
+    val rest = pitch == ScoreNote.Rest
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.practice_fingering_prev), { actions.onMoveFingering(-1) }, bordered = false, enabled = state.selected > 0)
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (rest) {
-                Text("△", style = EolssuTheme.serif.yul.copy(fontSize = 36.sp, lineHeight = 40.sp), color = colors.textSub)
-            } else {
-                YulGlyph(yul, 36.sp, fontWeight = FontWeight.SemiBold)
-            }
+            ScoreNoteGlyph(pitch, 36.sp, color = if (rest) colors.textSub else colors.text)
             Text(
-                if (rest) stringResource(Res.string.practice_fingering_rest) else stringResource(Res.string.practice_fingering_name, yul.fullName, yul.hangul),
+                if (rest) stringResource(Res.string.practice_fingering_rest) else stringResource(Res.string.practice_fingering_name, name, reading),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
                 color = colors.textMuted,
             )
@@ -433,26 +439,24 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
         )
     }
     PanelCard(padding = 10.dp) {
-        FingeringFigure(instrument, holes, Modifier.fillMaxWidth(), description = stringResource(instrument.label))
+        FingeringFigure(instrument, note?.holes.orEmpty(), Modifier.fillMaxWidth(), description = stringResource(instrument.label))
         HoleLegend(Modifier.fillMaxWidth().padding(top = 8.dp))
     }
-    val listening = state.listening == yul && !rest
-    EolssuButton(
-        stringResource(if (listening) Res.string.practice_listening else Res.string.practice_listen_note),
-        actions.onListen,
-        style = EolssuButtonStyle.Secondary,
-        icon = if (listening) EolssuIcons.Pause else EolssuIcons.Speaker,
-        enabled = !rest,
-        contentColor = if (listening) colors.play else null,
-        borderColor = if (listening) colors.play else null,
-    )
+    if (note != null) {
+        actions.fingeringAudio(instrument, note)
+    } else {
+        EolssuButton(
+            stringResource(Res.string.practice_listen_note), onClick = {}, enabled = false,
+            style = EolssuButtonStyle.Secondary, icon = EolssuIcons.Speaker,
+        )
+    }
     if (!rest) {
         TinyNote(
             if (note != null) {
                 val closed = note.holes.mapIndexedNotNull { i, h -> if (h == HoleState.Closed) holeName(instrument, i) else null }
                 stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) })
             } else {
-                stringResource(Res.string.practice_fingering_missing, yul.fullName)
+                stringResource(Res.string.practice_fingering_missing, name)
             },
         )
     }

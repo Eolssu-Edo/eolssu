@@ -50,7 +50,7 @@ internal fun PracticeExpandedLayout(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             PracticeScoreArea(
-                state, PracticeScoreStyle.TabletLandscape, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
+                state, PracticeScoreStyle.TabletLandscape, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
                 Modifier.weight(1f), livePitch = livePitch,
             )
             PracticeSideDock(state, actions.panel, actions.bottom, Modifier.width(DockWidth).fillMaxHeight())
