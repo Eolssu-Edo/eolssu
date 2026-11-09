@@ -10,13 +10,26 @@
 <div class="journal-layout" data-journal>
   <section class="journal-main" aria-labelledby="all-title">
     <div class="article-header">
-      <div class="journal-summary">
-        <div class="journal-heading" aria-live="polite" aria-atomic="true">
-          <h2 id="all-title" tabindex="-1">{{ .title | default "전체 글" }}</h2>
-          {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
+      <div class="journal-heading" aria-live="polite" aria-atomic="true">
+        <h2 id="all-title" tabindex="-1">{{ .title | default "전체 글" }}</h2>
+        {{- with $posts }}<span class="filter-count" data-filter-result>{{ len . }}편</span>{{ end }}
+      </div>
+      {{- with $posts }}
+      <form class="journal-search" role="search" data-post-search hidden>
+        <input type="search" aria-label="글 검색" placeholder="제목 또는 태그">
+        <button class="button-primary" type="submit">검색</button>
+      </form>
+      <div class="journal-controls" data-journal-controls hidden>
+        <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group>
+          <button type="button" data-value="all" aria-pressed="true">전체</button>
+          {{- range site.Data.blog.categories }}
+          <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
+          {{- end }}
+          {{- range $key, $present := $extra }}
+          <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }}</button>
+          {{- end }}
         </div>
-        {{- with $posts }}
-        <label class="journal-page-size" hidden>
+        <label class="journal-select journal-page-size">
           <span class="sr-only">페이지당 글 수</span>
           <select data-page-size>
             <option value="5" selected>5개씩</option>
@@ -24,25 +37,7 @@
             <option value="30">30개씩</option>
             <option value="all">전체</option>
           </select>
-          <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="m2.5 4.5 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
         </label>
-        {{- end }}
-      </div>
-      {{- with $posts }}
-      <form class="journal-search" role="search" data-post-search hidden>
-        <input type="search" aria-label="글 검색" placeholder="제목 또는 태그">
-        <button class="button-primary" type="submit">검색</button>
-      </form>
-      <div class="filters" role="group" aria-label="분야별 읽기" data-filter-group hidden>
-        <button type="button" data-value="all" aria-pressed="true">전체</button>
-        {{- range site.Data.blog.categories }}
-        <button type="button" data-value="{{ .key }}" aria-pressed="false">{{ .short }}</button>
-        {{- end }}
-        {{- range $key, $present := $extra }}
-        <button type="button" data-value="{{ $key }}" aria-pressed="false">{{ $key | upper }}</button>
-        {{- end }}
       </div>
       <noscript><a class="quiet noscript-note" href="{{ "categories/" | relURL }}">분류별 글 보기</a></noscript>
       {{- end }}
@@ -54,9 +49,15 @@
     </div>
     {{- with $posts }}
     <nav class="journal-pagination" aria-label="글 목록 페이지" data-pagination hidden>
-      <button type="button" data-page-prev>이전</button>
-      <span role="status" data-page-status></span>
-      <button type="button" data-page-next>다음</button>
+      <button type="button" aria-label="이전 페이지" data-page-prev>‹</button>
+      <div class="journal-page-numbers" data-page-numbers>
+        <label class="journal-select journal-page-jump">
+          <span class="sr-only">페이지 바로 이동</span>
+          <select data-page-jump></select>
+        </label>
+      </div>
+      <button type="button" aria-label="다음 페이지" data-page-next>›</button>
+      <span class="sr-only" role="status" data-page-status></span>
     </nav>
     {{- end }}
   </section>
