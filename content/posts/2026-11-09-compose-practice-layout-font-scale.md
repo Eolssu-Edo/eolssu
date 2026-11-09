@@ -7,6 +7,7 @@ categories: ["frontend"]
 tags: ["Compose Multiplatform", "접근성", "반응형 레이아웃"]
 description: "큰 글씨 설정에서 악보와 운지를 읽을 수 있도록 Compose 연습 화면의 가용 높이와 글자 크기를 함께 계산한 과정입니다."
 draft: false
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-compose-practice-layout-font-scale.webp"
 ---
 
 휴대폰으로 단소를 연습할 때는 현재 음의 운지를 보고, 다음에 짚을 손가락을 미리 확인합니다. 악보에서 음을 찾고 재생 버튼도 눌러야 합니다. 시스템 글씨를 키웠더니 정간 아래의 가사가 잘리고, 운지 화면에서는 지금 짚을 그림보다 다음 두 음의 그림이 더 크게 보였습니다. 두 문제 모두 글자가 들어가는 칸과 실제 화면에 남은 높이를 따로 다루면서 생겼습니다.
