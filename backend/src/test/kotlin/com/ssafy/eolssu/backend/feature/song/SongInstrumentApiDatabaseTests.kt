@@ -12,10 +12,13 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.core.io.ClassPathResource
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
 @Tag("database")
@@ -88,6 +91,71 @@ class SongInstrumentApiDatabaseTests {
             val missing = get("/api/songs?instrumentId=$id")
             assertEquals(404, missing.statusCode(), missing.body())
             assertEquals("RESOURCE_NOT_FOUND", json.readTree(missing.body()).path("result").path("errorCode").asString())
+        }
+    }
+
+    @Test fun `danso catalog distinguishes duet parts and hides the reference edition`() {
+        val inserted = jdbc.update("""INSERT INTO songs
+            (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+            SELECT parts.song_id,instrument_id,jangdan_id,parts.song_title,difficulty,default_bpm,
+                JSON_SET(score_json,'$.score.title',parts.song_title,'$.score.sourceId',parts.source_id),
+                score_version,note_count,parts.song_id <> 16,'PUBLISHED'
+            FROM songs
+            CROSS JOIN (
+                SELECT 15 AS song_id, '늴리리야' AS song_title, 'mr203-fixed-danso-011-p1' AS source_id
+                UNION ALL SELECT 16, '늴리리야', 'mr203-fixed-danso-012-p1'
+                UNION ALL SELECT 30, '어이 얼어자리', 'mr203-fixed-danso-026-p1'
+                UNION ALL SELECT 31, '어이 얼어자리', 'mr203-fixed-danso-027-p1'
+            ) AS parts
+            WHERE songs.id=1""")
+        try {
+            assertEquals(4, inserted)
+            jdbc.update("""INSERT INTO song_model_audios
+                (song_id,score_version,object_key,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status)
+                SELECT 16,score_version,?,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status
+                FROM song_model_audios WHERE song_id=?""",
+                "model-audio/drafts/${"c".repeat(64)}/cases/danso-016-p1/danso.m4a", songIds.first())
+
+            fun result(path: String): JsonNode {
+                val response = get(path)
+                assertEquals(200, response.statusCode(), response.body())
+                return json.readTree(response.body()).path("result")
+            }
+            val titles = mapOf(30L to "어이 얼어자리 · 단소2", 31L to "어이 얼어자리 · 단소1")
+            val before = (titles.keys + 16L).associateWith { result("/api/songs/$it") }
+            assertEquals(200, get("/api/songs/16/model-audio").statusCode())
+
+            ResourceDatabasePopulator(
+                ClassPathResource("db/migration/V31__resolve_danso_catalog_duplicates.sql"),
+            ).execute(requireNotNull(jdbc.dataSource))
+
+            val listed = result("/api/songs?instrumentId=1").path("items")
+                .associate { it.path("songId").asLong() to it.path("title").asString() }
+            assertEquals("늴리리야", listed[15])
+            assertTrue(result("/api/songs/15").path("isScorable").asBoolean())
+            assertFalse(16L in listed)
+            for (path in listOf("/api/songs/16", "/api/songs/16/score", "/api/songs/16/model-audio")) {
+                assertEquals(404, get(path).statusCode(), path)
+            }
+            assertEquals("HIDDEN", jdbc.queryForObject("SELECT status FROM songs WHERE id=16", String::class.java))
+            assertEquals("DRAFT", jdbc.queryForObject("SELECT status FROM song_model_audios WHERE song_id=16", String::class.java))
+            assertEquals(before.getValue(16).path("score"),
+                json.readTree(jdbc.queryForObject("SELECT score_json FROM songs WHERE id=16", String::class.java)))
+
+            for ((id, title) in titles) {
+                val detail = result("/api/songs/$id")
+                val score = result("/api/songs/$id/score").path("score")
+                assertEquals(title, listed[id])
+                assertEquals(title, detail.path("title").asString())
+                assertEquals(title, score.path("score").path("title").asString())
+                assertEquals(detail.path("score"), score)
+                assertEquals(before.getValue(id).path("score").path("events"), score.path("events"))
+                assertEquals(before.getValue(id).path("scoreVersion"), detail.path("scoreVersion"))
+                assertTrue(detail.path("isScorable").asBoolean())
+            }
+        } finally {
+            jdbc.update("DELETE FROM song_model_audios WHERE song_id=16")
+            jdbc.update("DELETE FROM songs WHERE id IN (15, 16, 30, 31)")
         }
     }
 
