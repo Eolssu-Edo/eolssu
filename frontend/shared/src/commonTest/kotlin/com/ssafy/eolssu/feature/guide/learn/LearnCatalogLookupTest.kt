@@ -1,7 +1,10 @@
 package com.ssafy.eolssu.feature.guide.learn
 
+import com.ssafy.eolssu.core.model.SongSummary
+import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.song.SampleSongs
+import com.ssafy.eolssu.data.song.SongRepository
 import com.ssafy.eolssu.data.user.LearnProgressRepository
 import com.ssafy.eolssu.testing.CatalogSongs
 import com.ssafy.eolssu.testing.CatalogViewModelTest
@@ -58,5 +61,25 @@ internal class LearnCatalogLookupTest : CatalogViewModelTest() {
         response.complete(Unit)
         runCurrent()
         assertFalse(model.uiState.value.songsLoading)
+    }
+
+    /** 같은 제목의 단소·소금 악보가 있으면 배우는 악기의 악보를 고른다(S15P31E102-626). */
+    @Test fun songStageUsesScoreOfLearningInstrument() = runTest {
+        fun song(id: String, instrumentId: String?) = SongSummary(id, "아리랑", 1, "세마치", 60, evaluable = true, instrumentId = instrumentId)
+        val summaries = listOf(song("arirang-danso", "i-danso"), song("arirang-sogeum", "i-sogeum"), song("unknown", null).copy(title = "새야새야"))
+        val songs = object : SongRepository by CatalogSongs() {
+            override suspend fun getSongs(instrumentId: String?) = summaries
+        }
+        val model = keep(LearnViewModel(songs, progress(), instrumentCodes = { mapOf("i-danso" to "DANSO", "i-sogeum" to "SOGEUM") }))
+        runCurrent()
+        assertEquals(GuideInstrument.Danso, model.uiState.value.instrument)
+        assertEquals("arirang-danso", model.uiState.value.songIds["아리랑"])
+        assertEquals("unknown", model.uiState.value.songIds["새야새야"])
+        model.selectInstrument(GuideInstrument.Sogeum)
+        runCurrent()
+        assertEquals("arirang-sogeum", model.uiState.value.songIds["아리랑"])
+        model.selectInstrument(GuideInstrument.DaegeumJeongak)
+        runCurrent()
+        assertEquals(null, model.uiState.value.songIds["아리랑"])
     }
 }

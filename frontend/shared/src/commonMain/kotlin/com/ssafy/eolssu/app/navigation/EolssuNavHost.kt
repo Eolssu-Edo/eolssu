@@ -51,6 +51,7 @@ import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.feature.home.HomeFeature
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
 import com.ssafy.eolssu.data.user.FirstRunRepository
+import com.ssafy.eolssu.data.user.LEARN_SONG_STAGE
 import com.ssafy.eolssu.feature.home.HomeRoute
 import com.ssafy.eolssu.feature.practice.PracticeRoute
 import com.ssafy.eolssu.feature.result.AnalysisExit
@@ -73,7 +74,7 @@ object EolssuDestination {
     const val SONG_DETAIL = "songs/{songId}"
 
     /** [title]은 내 악보 연습에서 곡 제목 대신 보일 악보 제목(비우면 곡 제목). */
-    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&title={title}"
+    const val PRACTICE = "practice/{songId}?solo={solo}&switched={switched}&mine={mine}&learn={learn}&title={title}"
 
     /**
      * [recording]·[key]는 연습 화면에서 마친 녹음, [session]은 앱을 다시 켜고 보내는 기기에 남은 녹음의 세션이다.
@@ -99,9 +100,12 @@ object EolssuDestination {
 
     fun result(evaluationId: String) = "result/$evaluationId"
 
-    /** [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. [mine]: 내 악보 연습(평가 버튼 없음, solo와 함께). */
-    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null) =
-        "practice/$songId?solo=${solo || mine}&switched=$switched&mine=$mine&title=${title.orEmpty().encodeURLParameter()}"
+    /**
+     * [solo]: 평가 없이 혼자 연습. [switched]: 연습 모드에서 평가로 바꿔 들어옴. [mine]: 내 악보 연습(평가 버튼 없음, solo와 함께).
+     * [learn]: 기초부터 배우기 8단계의 곡 연습(평가 버튼 없음, 운지법과 함께 보기로 시작, solo와 함께).
+     */
+    fun practice(songId: String, solo: Boolean = false, switched: Boolean = false, mine: Boolean = false, title: String? = null, learn: Boolean = false) =
+        "practice/$songId?solo=${solo || mine || learn}&switched=$switched&mine=$mine&learn=$learn&title=${title.orEmpty().encodeURLParameter()}"
     // 운지법 보기·정간보 쉽게 읽기·기초부터 배우기. 운지법 보기는 기초부터 배우기에서 악기·취법을, 정간보 쉽게 읽기는 펼칠 쪽을 넘겨받는다.
     const val GUIDE_FINGERING = "guide/fingering?instrument={instrument}&blow={blow}"
     const val GUIDE_READING = "guide/reading?page={page}"
@@ -240,6 +244,7 @@ fun EolssuNavHost(
                         defaultValue = false
                     },
                     navArgument("mine") { type = NavType.BoolType; defaultValue = false },
+                    navArgument("learn") { type = NavType.BoolType; defaultValue = false },
                     navArgument("title") { type = NavType.StringType; defaultValue = "" },
                 ),
             ) { entry ->
@@ -261,6 +266,7 @@ fun EolssuNavHost(
                     onConfirmBackChange = { browserBackGuard?.onBack = it },
                     // 마이크 거부는 연습 화면 안에서 안내한다(보드 Dialog-PermDenied·PermBlocked, S15P31E102-357).
                     mine = entry.savedStateHandle.get<Boolean>("mine") ?: false,
+                    learn = entry.savedStateHandle.get<Boolean>("learn") ?: false,
                     sheetTitle = entry.savedStateHandle.get<String>("title"),
                 )
             }
@@ -326,6 +332,7 @@ fun EolssuNavHost(
                     onGoRecords = { navController.navigate(EolssuDestination.records(it)) },
                     onViewAllErrors = { navController.navigate(WeakSectionDestination.errors(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
                     onWeakSection = { navController.navigate(WeakSectionDestination.select(entry.savedStateHandle.get<String>("evaluationId").orEmpty())) },
+                    onLearnNextStage = { track -> navController.navigate(EolssuDestination.learnStage(LEARN_SONG_STAGE + 1, GuideInstrument.fromId(track))) },
                 )
             }
             composable(
@@ -405,7 +412,8 @@ fun EolssuNavHost(
                 val learnNavigation = LearnNavigation(
                     onOpenFingering = { instrument, blow -> navController.navigate(EolssuDestination.guideFingering(instrument, blow)) },
                     onOpenReading = { page -> navController.navigate(EolssuDestination.guideReading(page)) },
-                    onOpenSong = { navController.navigate(EolssuDestination.songDetail(it)) },
+                    // 8단계 곡은 평가 없이 운지법과 함께 보며 연습한다.
+                    onOpenSong = { navController.navigate(EolssuDestination.practice(it, learn = true)) },
                     onOpenSongList = { navController.navigate(EolssuDestination.SONG_LIST) },
                     onOpenPractice = { navController.navigate(EolssuDestination.learnPractice(it)) },
                 )

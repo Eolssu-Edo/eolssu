@@ -147,9 +147,9 @@ val appModule = module {
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
-    viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
+    viewModel { (songId: String, solo: Boolean, mine: Boolean, learn: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, learn = learn, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
             notePractice = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
@@ -161,14 +161,15 @@ val appModule = module {
         val catalog = get<InstrumentCatalog>()
         LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
     }
-    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge) }
+    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge, learnTrackOf = get<LearnSongStage>()::trackOf) }
     viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
     // 운지법 보기·기초부터 배우기
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
-    viewModelOf(::LearnViewModel)
+    // 8단계 곡은 배우는 악기의 악보로 고른다. 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
+    viewModel { LearnViewModel(get(), get(), get(), instrumentCodes = { get<InstrumentCatalog>().load().associate { it.instrumentId to it.code } }) }
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
     viewModel { (stage: Int) ->
         val catalog = get<InstrumentCatalog>()

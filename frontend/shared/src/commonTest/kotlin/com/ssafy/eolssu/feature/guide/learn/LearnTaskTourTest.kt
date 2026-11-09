@@ -8,10 +8,10 @@ import kotlin.test.assertTrue
 
 class LearnTaskTourTest {
 
-    /** 2·3단계만 할 일 따라 배우기가 있고, 1단계(악기 짚기)와 4단계 이후는 없다. */
+    /** 2~8단계에 할 일 따라 배우기가 있고, 1단계(악기 짚기)와 선택 단계 9단계는 없다. */
     @Test
-    fun onlyStageTwoAndThreeHaveTaskTour() {
-        assertEquals(listOf(2, 3), (1..9).filter(::hasTaskTour))
+    fun stagesTwoToEightHaveTaskTour() {
+        assertEquals((2..8).toList(), (1..9).filter(::hasTaskTour))
     }
 
     /** 서버 할 일 순서와 짝: 2단계 앉은 자세·악기 잡기·복식호흡, 3단계 취구에 입술 대기·입김·한 소리 길게 내기. */

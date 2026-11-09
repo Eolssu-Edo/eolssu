@@ -1,13 +1,11 @@
 package com.ssafy.eolssu.feature.guide.learn
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,13 +26,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -48,19 +44,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.core.model.fingering.HolePoint
 import com.ssafy.eolssu.core.model.fingering.image
@@ -68,9 +60,9 @@ import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuDoneDialog
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.home_tiger
 import eolssu.shared.generated.resources.learn_tour_back
 import eolssu.shared.generated.resources.learn_tour_cheong
 import eolssu.shared.generated.resources.learn_tour_cheong_body
@@ -88,7 +80,6 @@ import eolssu.shared.generated.resources.learn_tour_next
 import eolssu.shared.generated.resources.learn_tour_prev
 import eolssu.shared.generated.resources.learn_tour_right_body
 import eolssu.shared.generated.resources.learn_tour_start
-import eolssu.shared.generated.resources.learn_tour_step
 import eolssu.shared.generated.resources.learn_tour_thumb_body
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -200,7 +191,7 @@ internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, 
         }
         if (step == null) return@Column
         AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "tourCaption") { s ->
-            TourCaption(s, spots.size, spotTitle(spots[s]), stringResource(spots[s].body))
+            TourCaption(spotTitle(spots[s]), stringResource(spots[s].body))
         }
     }
 }
@@ -231,7 +222,7 @@ internal fun TourInstrumentImage(
 
 /** 따라 배우기 한 칸 설명: 'n / 전체', 이름, 한 줄 설명. 화면 읽기는 바뀔 때마다 읽어 준다. */
 @Composable
-internal fun TourCaption(index: Int, count: Int, title: String, body: String?) {
+internal fun TourCaption(title: String, body: String?) {
     val colors = EolssuTheme.colors
     Column(
         Modifier
@@ -241,11 +232,6 @@ internal fun TourCaption(index: Int, count: Int, title: String, body: String?) {
             .semantics { liveRegion = LiveRegionMode.Polite },
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(
-            stringResource(Res.string.learn_tour_step, index + 1, count),
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.accentText,
-        )
         Text(title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
         if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp))
     }
@@ -374,55 +360,17 @@ internal fun LearnTourBar(last: Int, tour: LearnTour, finish: @Composable (Modif
 @Composable
 internal fun LearnTourDoneDialog(tour: LearnTour, body: StringResource = Res.string.learn_tour_done_body, onNext: () -> Unit) {
     if (!tour.celebrating) return
-    val colors = EolssuTheme.colors
-    val jump = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        jump.animateTo(1f, spring(dampingRatio = 0.35f, stiffness = 250f))
-    }
-    Dialog(onDismissRequest = tour::dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            Modifier
-                .padding(horizontal = 32.dp)
-                .widthIn(max = 360.dp)
-                .fillMaxWidth()
-                .background(colors.surface, RoundedCornerShape(24.dp))
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Box(Modifier.size(132.dp).background(colors.accentSoft, CircleShape))
-                Image(
-                    painterResource(Res.drawable.home_tiger),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(132.dp, 108.dp)
-                        .graphicsLayer {
-                            scaleX = 0.6f + 0.4f * jump.value
-                            scaleY = 0.6f + 0.4f * jump.value
-                            translationY = (1f - jump.value) * 24.dp.toPx()
-                        },
-                )
-            }
-            Text(
-                stringResource(Res.string.learn_tour_done_title),
-                style = EolssuTheme.serif.yul.copy(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                stringResource(body),
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                color = colors.textMuted,
-                textAlign = TextAlign.Center,
-            )
-            EolssuButton(
-                stringResource(Res.string.learn_tour_done_next),
-                onClick = {
-                    tour.dismiss()
-                    onNext()
-                },
-                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
-            )
-        }
-    }
+    LearnDoneDialog(body, onDismiss = tour::dismiss, onNext = onNext)
+}
+
+/** 따라 배우기 밖(단계 연습 통과 등)에서 띄우는 같은 '완료했어요!' 창. */
+@Composable
+internal fun LearnDoneDialog(body: StringResource, onDismiss: () -> Unit, onNext: () -> Unit) {
+    EolssuDoneDialog(
+        title = stringResource(Res.string.learn_tour_done_title),
+        body = stringResource(body),
+        action = stringResource(Res.string.learn_tour_done_next),
+        onDismiss = onDismiss,
+        onAction = onNext,
+    )
 }

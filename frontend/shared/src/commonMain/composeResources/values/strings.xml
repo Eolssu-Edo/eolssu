@@ -445,7 +445,6 @@
     <string name="learn_tour_prev">이전</string>
     <string name="learn_tour_next">다음</string>
     <string name="learn_tour_finish">다 익혔어요</string>
-    <string name="learn_tour_step">%1$d / %2$d</string>
     <string name="learn_tour_mouth">취구</string>
     <string name="learn_tour_mouth_body">여기에 입술을 대고 입김을 불어 넣어요.</string>
     <string name="learn_tour_back">뒷구멍</string>
@@ -461,6 +460,21 @@
     <string name="learn_tour_done_body">악기의 생김새를 모두 익혔어요.</string>
     <string name="learn_tour_done_next">다음 단계로</string>
     <string name="learn_tour_done_body_posture">바른 자세와 숨쉬기를 익혔어요.</string>
+    <string name="learn_tour_done_body_notes">기본음의 율명과 운지를 익혔어요.</string>
+    <string name="learn_tour_done_body_patterns">음을 이어 부는 법을 익혔어요.</string>
+    <string name="learn_tour_done_body_range">새 음역을 익혔어요.</string>
+    <string name="learn_tour_done_body_beat">혀치기와 박 나누기를 익혔어요.</string>
+    <string name="learn_tour_done_body_song">곡 하나를 끝까지 불었어요.</string>
+    <string name="learn_pattern_ascending_detail">낮은 음부터 한 음씩 차례로 올라가요.</string>
+    <string name="learn_pattern_descending_detail">높은 음부터 한 음씩 차례로 내려와요.</string>
+    <string name="learn_pattern_skip_one_detail">한 음씩 건너뛰며 오르내려요.</string>
+    <string name="learn_pattern_skip_two_detail">두 음씩 건너뛰어 멀리 옮겨 가요.</string>
+    <string name="learn_pattern_three_note_song_detail">세 음으로 된 짧은 노래처럼 불어요.</string>
+    <string name="learn_stage_position">%1$d / %2$d</string>
+    <string name="learn_stage_position_description">전체 %1$d단계 중 %2$d단계</string>
+    <string name="learn_tour_tongue">투</string>
+    <string name="learn_tour_tongue_figure">같은 음을 투·투·투·투 네 번 끊어 내요</string>
+    <string name="learn_tour_split_figure">한 정간을 %1$d개로 고르게 나눠요</string>
     <string name="learn_tour_left_hand">왼손</string>
     <string name="learn_tour_right_hand">오른손</string>
     <string name="learn_tour_breath_in">들이쉬기</string>
@@ -476,8 +490,6 @@
     <string name="learn_stage_subtitle_optional">%1$s · 선택 단계</string>
     <string name="learn_section_inspect">악기 살펴보기</string>
     <string name="learn_section_tasks">이 단계에서 할 일</string>
-    <string name="learn_section_first_sound">소리가 나면</string>
-    <string name="learn_first_sound_note">첫 소리가 어느 율명이든 괜찮아요. 다음 단계에서 **%1$s(%2$s)**부터 운지를 익혀요.</string>
     <string name="learn_section_new_notes">이번에 익힐 음</string>
     <string name="learn_section_order">배우는 순서</string>
     <string name="learn_task_first">%1$s 2초 이상 내기</string>
@@ -508,10 +520,6 @@
     <string name="learn_more_fingering_detail">운지법 보기에서 더 보기</string>
     <string name="learn_more_fingering_blow">운지법 보기 · %1$s</string>
     <string name="learn_more_reading">정간보 쉽게 읽기</string>
-    <string name="learn_nav_prev">‹ %1$d단계 %2$s</string>
-    <string name="learn_nav_first">‹ 처음</string>
-    <string name="learn_nav_next">%1$d단계 %2$s ›</string>
-    <string name="learn_nav_last">마지막 ›</string>
     <string name="learn_mark_done">완료로 표시</string>
     <string name="learn_unmark_done">완료 취소</string>
     <string name="learn_confirm_next">확인하고 다음 단계</string>
@@ -533,13 +541,11 @@
     <string name="learn_practice_cue_too_short">2초가 되기 전에 끊겼어요. 한 번 더 길게 불어 봐요.</string>
     <string name="learn_practice_passed_title">통과했어요!</string>
     <string name="learn_practice_passed_body">한 소리를 2초 넘게 세 번 냈어요. 완료로 표시하고 다음 단계로 가요.</string>
-    <string name="learn_practice_self_note">마이크는 소리 크기만 보여 줘요. 위의 통과 기준대로 연습한 뒤 스스로 확인하고 완료해 주세요. 음높이·박은 자동 판정하지 않아요.</string>
     <string name="learn_practice_unsupported">이 기기에서는 마이크로 소리를 들을 수 없어요. 연습한 뒤 스스로 완료로 표시해요.</string>
     <string name="learn_practice_denied">마이크 권한이 없어 소리를 들을 수 없어요. ‘듣기 시작’을 누르면 다시 물어요.</string>
     <string name="learn_practice_blocked">마이크 권한이 꺼져 있어요. 기기 설정에서 마이크를 허용해 주세요.</string>
     <string name="learn_practice_failed">마이크를 켜지 못했어요. 다른 앱이 마이크를 쓰고 있는지 확인하고 다시 시도해 주세요.</string>
     <string name="learn_practice_settings_failed">설정을 열 수 없어요. 기기 설정에서 마이크를 허용해 주세요.</string>
-    <string name="learn_practice_privacy">소리 크기만 재고 녹음은 저장하지 않아요.</string>
     <string name="learn_practice_section_notes">연습할 음</string>
     <string name="learn_practice_section_how">이렇게 불어요</string>
     <string name="learn_practice_start">듣기 시작</string>
@@ -554,14 +560,11 @@
     <string name="learn_practice_pitch_hit">좋아요! 맞는 음이에요. 숨을 고르고 다음 음을 내요.</string>
     <string name="learn_practice_pitch_miss">다른 음이 들렸어요. 다음 음으로 넘어가요.</string>
     <string name="learn_practice_pitch_not_passed">%1$d음 이상 맞혀야 통과예요. ‘듣기 시작’을 눌러 처음부터 다시 해 봐요.</string>
-    <string name="learn_practice_pitch_note">앱이 음높이를 듣고 통과를 판정해요. 같은 음이 이어지면 숨이나 혀로 한 번 끊고 불어요.</string>
     <string name="learn_practice_pitch_passed_body">기준대로 음을 냈어요. 완료로 표시하고 다음 단계로 가요.</string>
-    <string name="learn_practice_pitch_privacy">소리 크기와 음높이만 재고 녹음은 저장하지 않아요.</string>
     <string name="learn_practice_pitch_note_hit">%1$s 맞음</string>
     <string name="learn_practice_pitch_note_miss">%1$s 틀림</string>
     <string name="learn_practice_pitch_note_current">%1$s 지금 낼 음</string>
     <string name="learn_practice_pitch_note_waiting">%1$s 기다리는 음</string>
-    <string name="learn_song_stage_passed">기초부터 배우기 8단계를 통과했어요. 완료로 표시했어요.</string>
 
     <!-- 첫 실행·로그인·회원가입 (S15P31E102-151) -->
     <string name="common_confirm">확인</string>

@@ -240,7 +240,7 @@ private fun PlayerTrack(fraction: Float, modifier: Modifier = Modifier) {
  * - 평가 준비: ‘연주 평가 시작’.
  * - 일반 연습·평가 가능 곡: ‘연주 평가 시작’으로 평가를 바로 시작한다.
  * - 연습 모드·평가 불가 곡: 안내만 ‘이 곡은 AI 평가 데이터가 없어 연습만 할 수 있어요. …’
- * - 내 악보 연습: 평가 버튼도 안내도 없다(Practice-Mine).
+ * - 내 악보 연습·기초부터 배우기 곡 연습: 평가 버튼도 안내도 없다(Practice-Mine).
  * 녹음을 지원하지 않는 환경은 안내 카드에 그 사실을 적고 버튼을 끈다.
  */
 @Composable
@@ -250,7 +250,7 @@ fun PracticeCallToAction(state: PracticeUiState, actions: PracticeBottomActions,
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         PracticeModeSwitch(state, actions)
         when {
-            state.mine -> Unit
+            state.mine || state.learn -> Unit
             !state.solo -> {
                 EolssuButton(stringResource(Res.string.practice_start_eval), actions.onStartEval, icon = EolssuIcons.Mic, enabled = state.recordingSupported)
                 // 운지법과 함께 보기에서는 평가 안내를 숨긴다(보드 `.paged-fingering .practice-demo-notice`).

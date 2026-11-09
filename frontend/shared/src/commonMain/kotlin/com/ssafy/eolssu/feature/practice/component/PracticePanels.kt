@@ -224,7 +224,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
-        if (state.solo) InstrumentSelect(state.instrument, actions.onSetInstrument)
+        if (state.solo && !state.learn) InstrumentSelect(state.instrument, actions.onSetInstrument)
         MenuRow(
             EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
             stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
@@ -242,7 +242,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
         SettingRow(
             stringResource(Res.string.practice_fingering_view),
             stringResource(Res.string.practice_fingering_view_desc, instrumentName),
-            checked = settings.fingeringView,
+            checked = state.fingeringView,
             onToggle = actions.onToggleFingeringView,
         )
     }

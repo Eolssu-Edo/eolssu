@@ -65,6 +65,15 @@ class LearnSongStage(
             LearnSongPass.Failed
         }
     }
+
+    /** [song]의 기초부터 배우기 트랙(`GuideInstrument.id`). 통과 뒤 '다음 단계로'가 그 악기의 다음 단계를 열 때 쓴다. 모르면 null. */
+    suspend fun trackOf(song: Song): String? = try {
+        song.instrumentId?.let { instrumentCode(it) }?.let(::learnTrackOf)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        null
+    }
 }
 
 /** 음정·박자 점수가 모두 [LEARN_SONG_PASS_SCORE] 이상인지. 점수가 없는 항목이 있으면 통과가 아니다. */

@@ -48,6 +48,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -130,6 +132,8 @@ private val CarouselMaxWidth = 480.dp
  * @param current 펼칠 단계. 휴대폰·태블릿 세로는 [LearnUiState.cardStage], 가로 배치는 오른쪽 칸의 [LearnUiState.shownStage]다.
  * @param onShow 넘겨서 다른 단계 카드가 자리 잡으면 그 단계를 알린다.
  * @param onOpen 카드를 누르면 그 단계 상세를 연다.
+ * @param cardMaxSize 카드 한 변의 최대 크기. 낮은 화면에서 시작 버튼까지 보이도록 줄일 때 쓴다.
+ * @param onCardHeight 그려진 카드 높이(px)를 알린다.
  */
 @Composable
 internal fun LearnStageCarousel(
@@ -138,6 +142,8 @@ internal fun LearnStageCarousel(
     onShow: (Int) -> Unit,
     onOpen: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    cardMaxSize: Dp = Dp.Unspecified,
+    onCardHeight: (Int) -> Unit = {},
 ) {
     val stages = state.stages
     val count = stages.size
@@ -181,7 +187,9 @@ internal fun LearnStageCarousel(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CarouselArrow(next = false, enabled = shownPage > 1) { go(shownPage - 1) }
             HorizontalPager(pager, Modifier.weight(1f), pageSpacing = 16.dp) { page ->
-                StageCard(stages[page], state.isDone(stages[page].number), onOpen)
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    StageCard(stages[page], state.isDone(stages[page].number), onOpen, cardMaxSize, onCardHeight)
+                }
             }
             CarouselArrow(next = true, enabled = shownPage < count) { go(shownPage + 1) }
         }
@@ -238,7 +246,7 @@ private fun CarouselArrow(next: Boolean, enabled: Boolean, onClick: () -> Unit) 
  * 정사각형 단계 카드(`.lc-card`). 완료는 연두 굵은 테두리와 '✓ 완료', 선택 단계는 회색 점선 테두리와 '선택'.
  */
 @Composable
-private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit) {
+private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit, maxSize: Dp, onHeight: (Int) -> Unit) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(20.dp)
     val description = stringResource(
@@ -248,8 +256,10 @@ private fun StageCard(stage: LearnStage, done: Boolean, onOpen: (Int) -> Unit) {
     )
     Box(
         Modifier
+            .widthIn(max = maxSize)
             .fillMaxWidth()
             .aspectRatio(1f)
+            .onSizeChanged { onHeight(it.height) }
             .clip(shape)
             .background(colors.surface)
             .clickable(role = Role.Button) { onOpen(stage.number) }

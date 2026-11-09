@@ -39,6 +39,16 @@ class ResultLearnSongTest {
         }
     }
 
+    /** 통과하면 '다음 단계로'가 열 트랙을 함께 둔다. 트랙을 모르면 null이다. */
+    @Test fun passedResultKeepsTheLearnTrack() {
+        withJudge({ _, _ -> LearnSongPass.Passed }, trackOf = { "sogeum" }) { model ->
+            assertTrue(model.uiState.value.learnSongPassed)
+            assertEquals("sogeum", model.uiState.value.learnSongTrack)
+        }
+        withJudge({ _, _ -> LearnSongPass.Passed }) { model -> assertEquals(null, model.uiState.value.learnSongTrack) }
+        withJudge({ _, _ -> LearnSongPass.BelowScore }, trackOf = { "sogeum" }) { model -> assertEquals(null, model.uiState.value.learnSongTrack) }
+    }
+
     @Test fun otherOutcomesAreNotAnnounced() {
         for (outcome in LearnSongPass.entries - LearnSongPass.Passed) {
             withJudge({ _, _ -> outcome }) { model -> assertFalse(model.uiState.value.learnSongPassed, outcome.name) }
@@ -52,6 +62,7 @@ class ResultLearnSongTest {
 
     private fun withJudge(
         judge: suspend (EvaluationResult, Song) -> LearnSongPass,
+        trackOf: (suspend (Song) -> String?)? = null,
         block: suspend TestScope.(ResultViewModel) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -62,7 +73,7 @@ class ResultLearnSongTest {
             val evaluations = SampleEvaluationRepository(now = { 0L }, analysisMillis = 0)
             val analysisId = evaluations.requestAnalysis(songId, bpm = 60, recordedSeconds = 20)
             val evaluationId = (evaluations.analysisStatus(analysisId) as AnalysisStatus.Done).evaluationId
-            val model = ResultViewModel(evaluationId, evaluations, songs, UnavailablePracticeRecordRepository(), judgeLearnSong = judge)
+            val model = ResultViewModel(evaluationId, evaluations, songs, UnavailablePracticeRecordRepository(), judgeLearnSong = judge, learnTrackOf = trackOf)
             store.put("result", model)
             runCurrent()
             block(model)

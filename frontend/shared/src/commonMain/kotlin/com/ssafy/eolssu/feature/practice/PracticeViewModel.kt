@@ -72,6 +72,7 @@ class PracticeViewModel(
     modelAudioRepository: ModelAudioRepository? = null,
     audioPlayer: AudioPlayer = UnavailableAudioPlayer(),
     mine: Boolean = false,
+    learn: Boolean = false,
     stepJudge: StepNoteJudge = ManualStepNoteJudge(),
     member: SignedInMember? = null,
     private val jangdanPlayer: JangdanSamplePlayer = UnavailableJangdanSamplePlayer(),
@@ -80,7 +81,7 @@ class PracticeViewModel(
     private var stepJudge: StepNoteJudge = stepJudge
 
     private val _uiState = MutableStateFlow(
-        PracticeUiState(solo = solo, mine = mine, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
+        PracticeUiState(solo = solo, mine = mine, learn = learn, fingeringOverride = if (learn) true else null, step = PracticeStep(manualConfirm = stepJudge.manualConfirm), settings = settingsStore.settings.value, recordingSupported = recorder != null,
             inputMeasured = recorder?.measuresLevel == true, isSongLoading = true),
     )
     val uiState: StateFlow<PracticeUiState> = _uiState.asStateFlow()
@@ -531,7 +532,11 @@ class PracticeViewModel(
     fun toggleBigScore() = settingsStore.update { it.copy(bigScore = !it.bigScore) }
 
     /** 연습 설정의 ‘운지법과 함께 보기’. 바로 반영된다(적용 버튼 없음). */
-    fun toggleFingeringView() = settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
+    /** 기초부터 배우기 곡 연습은 저장한 설정을 바꾸지 않고 이 화면에서만 켜고 끈다. */
+    fun toggleFingeringView() {
+        if (_uiState.value.fingeringOverride != null) _uiState.update { it.copy(fingeringOverride = !it.fingeringView) }
+        else settingsStore.update { it.copy(fingeringView = !it.fingeringView) }
+    }
 
     /** 연습 설정의 ‘연습 악기’. 운지 그림과 제목 옆 표시에만 쓰고 프로필 악기는 바꾸지 않는다. */
     fun setInstrument(id: String) = settingsStore.update { it.copy(instrumentId = id) }
