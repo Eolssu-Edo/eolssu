@@ -159,6 +159,73 @@ class SongInstrumentApiDatabaseTests {
         }
     }
 
+    @Test fun `sogeum catalog distinguishes the original editions and duet parts`() {
+        val titles = mapOf(
+            104L to "북천이 맑다커늘 · 소금1",
+            105L to "북천이 맑다커늘 · 소금2",
+            109L to "취타 중 초장(고급)",
+            110L to "취타 중 초장(중급)",
+            111L to "취타 중 초장(초급)",
+        )
+        val sogeumId = jdbc.queryForObject("SELECT id FROM instruments WHERE code='SOGEUM'", Long::class.java)
+        val wrongSourceId = "unrelated-score"
+        val ids = "104, 105, 109, 110, 111"
+        try {
+            val inserted = jdbc.update("""INSERT INTO songs
+                (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                SELECT parts.song_id,?,jangdan_id,parts.title,difficulty,default_bpm,
+                    JSON_SET(score_json,'$.score.title',parts.title,'$.score.sourceId',parts.source_id),
+                    score_version,note_count,parts.song_id IN (105,110,111),'PUBLISHED'
+                FROM songs
+                CROSS JOIN (
+                    SELECT 104 AS song_id, '북천이 맑다커늘' AS title, 'mr203-fixed-sogeum-016-p1' AS source_id
+                    UNION ALL SELECT 105, '북천이 맑다커늘', 'mr203-fixed-sogeum-016-p2'
+                    UNION ALL SELECT 109, '취타 중 초장', ?
+                    UNION ALL SELECT 110, '취타 중 초장', 'mr203-fixed-sogeum-021-p1'
+                    UNION ALL SELECT 111, '취타 중 초장', 'mr203-fixed-sogeum-022-p1'
+                ) AS parts
+                WHERE songs.id=1""", sogeumId, wrongSourceId)
+            assertEquals(titles.size, inserted)
+            val migration = ResourceDatabasePopulator(
+                ClassPathResource("db/migration/V33__distinguish_sogeum_score_titles.sql"),
+            )
+            val dataSource = requireNotNull(jdbc.dataSource)
+            fun payloads() = jdbc.queryForList("""SELECT id,score_version,is_scorable,default_bpm,note_count,
+                JSON_REMOVE(score_json,'$.score.title') AS score_without_title
+                FROM songs WHERE id IN ($ids) ORDER BY id""")
+
+            val beforeFirstRun = payloads()
+            migration.execute(dataSource)
+            assertEquals(beforeFirstRun, payloads())
+            assertEquals("취타 중 초장", jdbc.queryForObject("SELECT title FROM songs WHERE id=109", String::class.java))
+            jdbc.update("""UPDATE songs
+                SET score_json=JSON_SET(score_json,'$.score.sourceId','mr203-fixed-sogeum-020-p1') WHERE id=109""")
+
+            val before = payloads()
+            migration.execute(dataSource)
+            migration.execute(dataSource)
+            assertEquals(before, payloads())
+
+            val list = get("/api/songs?instrumentId=$sogeumId")
+            assertEquals(200, list.statusCode(), list.body())
+            val listed = json.readTree(list.body()).path("result").path("items")
+                .associate { it.path("songId").asLong() to it.path("title").asString() }
+            for ((id, title) in titles) {
+                assertEquals(title, listed[id], "song $id")
+                val response = get("/api/songs/$id")
+                assertEquals(200, response.statusCode(), response.body())
+                val detail = json.readTree(response.body()).path("result")
+                assertEquals(title, detail.path("title").asString())
+                assertEquals(title, detail.path("score").path("score").path("title").asString())
+                val score = get("/api/songs/$id/score")
+                assertEquals(200, score.statusCode(), score.body())
+                assertEquals(detail.path("score"), json.readTree(score.body()).path("result").path("score"))
+            }
+        } finally {
+            jdbc.update("DELETE FROM songs WHERE id IN ($ids)")
+        }
+    }
+
     private fun get(path: String) = client.send(HttpRequest.newBuilder(URI("http://localhost:$port$path"))
         .header("Cookie", "access_token=expired-public-cookie").GET().build(), HttpResponse.BodyHandlers.ofString())
 
