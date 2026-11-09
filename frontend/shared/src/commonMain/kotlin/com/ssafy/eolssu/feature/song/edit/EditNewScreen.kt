@@ -6,10 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +36,8 @@ import com.ssafy.eolssu.feature.song.edit.component.LinkCard
 import com.ssafy.eolssu.feature.song.edit.component.PillChip
 import com.ssafy.eolssu.feature.song.edit.component.SheetFileProblemDialog
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.sheet_add_jeongganbo_art
+import eolssu.shared.generated.resources.sheet_add_staff_art
 import eolssu.shared.generated.resources.sheetedit_new_copy_title
 import eolssu.shared.generated.resources.sheetedit_new_hwang_default
 import eolssu.shared.generated.resources.sheetedit_new_hwang_desc
@@ -84,20 +85,22 @@ fun EditNewScreen(
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
             )
             Row(
-                Modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(),
+                Modifier.fillMaxWidth().selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 KindCard(
                     stringResource(Res.string.sheetedit_new_jg_title),
+                    Res.drawable.sheet_add_jeongganbo_art,
                     selected = state.kind == ImportKind.Jeongganbo,
                     onClick = { onSelectKind(ImportKind.Jeongganbo) },
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier.weight(1f).aspectRatio(KindCardAspect),
                 )
                 KindCard(
                     stringResource(Res.string.sheetedit_new_staff_title),
+                    Res.drawable.sheet_add_staff_art,
                     selected = state.kind == ImportKind.Staff,
                     onClick = { onSelectKind(ImportKind.Staff) },
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier.weight(1f).aspectRatio(KindCardAspect),
                 )
             }
             if (state.kind == ImportKind.Staff) HwangPicker(state.hwang, onSelectHwang)
@@ -117,6 +120,9 @@ fun EditNewScreen(
         )
     }
 }
+
+/** 가져오기 종류 카드의 너비:높이. 두 장을 나란히 둔 세로형 카드라 좁은 휴대폰에서도 그림과 이름이 함께 들어간다. */
+private const val KindCardAspect = 0.72f
 
 /** 오선보 가져오기의 '황(黃)으로 읽을 음' 칩. 단소 기본값 E♭4에 '단소 기본'을 붙인다. */
 @OptIn(ExperimentalLayoutApi::class)

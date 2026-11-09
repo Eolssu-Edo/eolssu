@@ -1,6 +1,9 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -95,11 +98,12 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 가져오기 종류 카드(모서리 14 · 테두리 2). 두 장을 같은 줄에 같은 크기로 놓고 이름만 가운데에 둔다.
+ * EDIT-01 가져오기 종류 카드(모서리 14 · 테두리 2). 두 장을 같은 줄에 같은 크기의 세로형으로 놓고,
+ * 홈 기능 카드처럼 위에 그림([art]), 아래 가운데에 이름을 둔다.
  * 고르면 연두 바탕·연두 테두리, 아니면 흰 바탕·옅은 테두리라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
  */
 @Composable
-internal fun KindCard(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun KindCard(title: String, art: DrawableResource, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
         selected = selected,
@@ -110,11 +114,18 @@ internal fun KindCard(title: String, selected: Boolean, onClick: () -> Unit, mod
         contentColor = colors.text,
         border = BorderStroke(2.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
-        Box(Modifier.padding(horizontal = 10.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.padding(horizontal = 10.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+        ) {
+            Image(painterResource(art), contentDescription = null, modifier = Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 110.dp))
             Text(
                 title,
+                modifier = Modifier.fillMaxWidth(),
                 style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
                 textAlign = TextAlign.Center,
+                maxLines = 2,
             )
         }
     }

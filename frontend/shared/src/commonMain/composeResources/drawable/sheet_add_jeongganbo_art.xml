@@ -1,0 +1,11 @@
+<!-- 악보 추가 '정간보 가져오기' 카드 그림. 홈 카드 그림(home_score_art)처럼 종이 두 장 위에 정간 칸과 율명 자리 획을 둔다. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="144dp" android:height="88dp" android:viewportWidth="144" android:viewportHeight="88">
+    <path android:fillColor="#EDF0EC" android:pathData="M37,18 H95 Q98,18 98,21 V82 Q98,85 95,85 H37 Q34,85 34,82 V21 Q34,18 37,18Z" />
+    <path android:fillColor="#FFFFFF" android:strokeColor="#A2AAA4" android:strokeWidth="1" android:pathData="M47,6 H105 Q108,6 108,9 V76 Q108,79 105,79 H47 Q44,79 44,76 V9 Q44,6 47,6Z" />
+    <!-- 오른쪽 각 첫 정간을 옅게 칠해 읽는 시작점을 보인다. -->
+    <path android:fillColor="#E7EEE8" android:pathData="M87,7H107V18H87Z" />
+    <path android:strokeColor="#C6CEC7" android:strokeWidth="1" android:pathData="M65.3,6V79 M86.6,6V79 M44,18.2H108 M44,30.3H108 M44,42.5H108 M44,54.7H108 M44,66.8H108" />
+    <!-- 율명 자리 획: 오른쪽 각부터 위→아래. -->
+    <path android:strokeColor="#4F5B53" android:strokeWidth="1.4" android:strokeLineCap="round" android:pathData="M93,12.5 H101 M97,9.5 V15.5 M93,24.5 H101 M96,21.5 V27.5 M99,21.5 V27.5 M93,48.5 H101 M97,45.5 V51.5 M72,12.5 H80 M76,9.5 V15.5 M71.5,36.5 H80.5 M74,33.5 V39.5 M78,33.5 V39.5 M72,60.5 H80 M76,57.5 V63.5" />
+    <path android:strokeColor="#9AA79D" android:strokeWidth="1.4" android:strokeLineCap="round" android:pathData="M97,58 V64 M76,22 V28 M55,12.5 H58" />
+</vector>
