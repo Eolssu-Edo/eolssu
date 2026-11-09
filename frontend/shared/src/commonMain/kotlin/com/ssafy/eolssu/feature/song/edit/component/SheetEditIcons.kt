@@ -22,6 +22,15 @@ internal object SheetEditIcons {
     val Folder = lineIcon("Folder", "M3 7a2 2 0 0 1 2 -2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2H5a2 2 0 0 1 -2 -2z")
     val Erase = lineIcon("Erase", "M21 5H9l-6 7 6 7h12z", "M17 9l-6 6M11 9l6 6")
     val Download = lineIcon("Download", "M12 4v11M7 10l5 5 5 -5", "M5 19h14")
+    /** 정간보: 세로 두 각을 정간으로 나눈 칸. */
+    val Jeongganbo = lineIcon("Jeongganbo", "M6 3.5h12v17H6z", "M12 3.5v17", "M6 9.2h12M6 14.8h12")
+
+    /** 오선보: 묶은 두 음표. */
+    val StaffNotes = lineIcon("StaffNotes", "M10 17V6l9.5 -2v11", "M5 17a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0z", "M14.5 15a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0 -5 0z")
+
+    /** 내 악보: 글줄이 있는 종이. */
+    val MySheet = lineIcon("MySheet", "M7 3h7l4 4v14H7z", "M14 3v4h4", "M10 12h5M10 16h5")
+
     val ChevronUp = lineIcon("ChevronUp", "M6 15l6 -6 6 6")
 
     private fun lineIcon(name: String, vararg strokes: String): ImageVector {

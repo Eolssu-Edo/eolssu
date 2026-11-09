@@ -29,5 +29,5 @@ class RetiredAndroidTests(unittest.TestCase):
                 patch.object(collector, 'edo2_host_health', return_value=[]), \
                 patch.object(collector, 'backup_health', return_value=[]), \
                 patch.object(collector.http.client, 'HTTPConnection', return_value=connection):
-            _, rows, _ = collector.health_report('edo2')
+            _, rows, _, _ = collector.health_report('edo2')
         self.assertEqual(next(row for row in rows if row[0] == 'eolssu-android-remote')[2], '실패')

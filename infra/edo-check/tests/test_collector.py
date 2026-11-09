@@ -49,10 +49,41 @@ class MetricTests(unittest.TestCase):
         with patch.object(collector, 'snapshot', return_value=({}, [data], {}, [])), \
                 patch.object(collector, 'edo1_host_health', return_value=[]), \
                 patch.object(collector, 'prometheus_health', return_value=[]):
-            _, rows, _ = collector.health_report()
+            _, rows, _, _ = collector.health_report()
         row = next(row for row in rows if row[0] == 'demo')
         self.assertNotEqual(row[2], '정상')
         self.assertIn('중지', row[3])
+
+    def test_health_reports_only_the_selected_backend_as_required(self):
+        blue = 'eolssu-runtime-backend-1'
+        green = 'eolssu-runtime-backend-green-1'
+        healthy = {'item': {'Names': ['/' + green], 'State': 'running'},
+                   'detail': {'State': {'Running': True, 'Status': 'running', 'Health': {'Status': 'healthy'}}}}
+        with tempfile.TemporaryDirectory() as folder:
+            route = Path(folder) / 'active.conf'
+            route.write_text('set $backend http://backend-green:8080;\n')
+            with patch.object(collector, 'Path', return_value=route), \
+                    patch.object(collector, 'edo1_host_health', return_value=[]), \
+                    patch.object(collector, 'prometheus_health', return_value=[]), \
+                    patch.object(collector, 'snapshot', side_effect=[({}, [healthy], {}, []), ({}, [], {}, [])]):
+                _, running, _, facts = collector.health_report()
+                _, missing, _, _ = collector.health_report()
+        self.assertEqual(facts['backend_slot'], 'backend-green')
+        self.assertEqual([(row[0], row[2]) for row in running if row[0] in (blue, green)], [(green, '정상')])
+        self.assertEqual([(row[0], row[2]) for row in missing if row[0] in (blue, green)], [(green, '실패')])
+
+    def test_invalid_route_reports_unknown_without_guessing_the_required_slot(self):
+        with tempfile.TemporaryDirectory() as folder:
+            route = Path(folder) / 'active.conf'
+            route.write_text('invalid route')
+            with patch.object(collector, 'Path', return_value=route), \
+                    patch.object(collector, 'edo1_host_health', return_value=[]), \
+                    patch.object(collector, 'prometheus_health', return_value=[]), \
+                    patch.object(collector, 'snapshot', return_value=({}, [], {}, [])):
+                _, rows, issues, facts = collector.health_report()
+        self.assertIsNone(facts['backend_slot'])
+        self.assertIn('활성 백엔드 슬롯 확인 불가', issues)
+        self.assertFalse(any(row[0].startswith('eolssu-runtime-backend') for row in rows))
 
     def test_stats_timeout_preserves_inspect_state_and_reports_partial_measurement(self):
         detail = {'Name': '/demo', 'State': {'Status': 'running', 'Running': True}}
