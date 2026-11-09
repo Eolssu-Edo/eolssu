@@ -40,4 +40,25 @@ class LearnFirstTourTest {
         tour.finish()
         assertTrue(tour.celebrating)
     }
+
+    /** 휴대폰처럼 그림이 작으면 최소 크기 때문에 붙은 구멍의 동그라미가 겹치므로, 구멍 사이 절반 안으로 줄인다. */
+    @Test
+    fun spotRingsNeverOverlapNeighbourHoles() {
+        val minRadius = 36f
+        val gap = 5f
+        GuideInstrument.entries.forEach { instrument ->
+            instrument.tourSpots.filter { !it.grouped && it.points.size > 1 }.forEach { spot ->
+                listOf(0.3f, 0.46f, 1f).forEach { scale ->
+                    val r = spotRingRadius(spot.points, instrument.holeRadius, scale, minRadius, gap)
+                    spot.points.zipWithNext().forEach { (a, b) ->
+                        val distance = kotlin.math.abs(a.x - b.x) * scale
+                        assertTrue(2 * r + 2 * gap <= distance + 0.01f, "${instrument.id} ${spot.titleArg} scale=$scale 겹침")
+                    }
+                    assertTrue(r > instrument.holeRadius * scale, "${instrument.id} ${spot.titleArg} scale=$scale 구멍보다 작음")
+                }
+            }
+        }
+        // 혼자 짚는 곳은 최소 크기를 지킨다.
+        assertEquals(minRadius, spotRingRadius(listOf(GuideInstrument.Danso.holes[0]), 30, 0.3f, minRadius, gap))
+    }
 }

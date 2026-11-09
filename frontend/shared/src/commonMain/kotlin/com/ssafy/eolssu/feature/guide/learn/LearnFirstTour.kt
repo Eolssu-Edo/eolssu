@@ -43,7 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -90,6 +92,7 @@ import eolssu.shared.generated.resources.learn_tour_thumb_body
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.hypot
 
 /*
  * 1단계 '악기 알기' 따라 배우기. '학습 시작'을 누르면 악기 그림에서 취구 → 구멍을 하나씩 동그라미로 짚으며 한 줄씩 알려 주고,
@@ -101,8 +104,15 @@ import org.jetbrains.compose.resources.stringResource
  *
  * @param title 이름(예: 취구). [titleArg]가 있으면 `%1$s` 자리에 넣는다(예: 1·2공).
  * @param points 동그라미를 그릴 곳(악기 그림 원본 픽셀).
+ * @param grouped 붙어 있는 구멍을 하나로 감싸 짚는다(정악대금 칠성공).
  */
-internal class TourSpot(val title: StringResource, val body: StringResource, val points: List<HolePoint>, val titleArg: String? = null)
+internal class TourSpot(
+    val title: StringResource,
+    val body: StringResource,
+    val points: List<HolePoint>,
+    val titleArg: String? = null,
+    val grouped: Boolean = false,
+)
 
 /** 악기마다 짚어 줄 곳. 순서대로 취구 → (청공) → 구멍 → (칠성공). */
 internal val GuideInstrument.tourSpots: List<TourSpot>
@@ -126,7 +136,7 @@ internal val GuideInstrument.tourSpots: List<TourSpot>
                 TourSpot(Res.string.learn_tour_cheong, Res.string.learn_tour_cheong_body, listOf(HolePoint(610, 323))),
                 TourSpot(Res.string.learn_tour_holes, Res.string.learn_tour_left_body, h.take(3), "1·2·3"),
                 TourSpot(Res.string.learn_tour_holes, Res.string.learn_tour_right_body, h.drop(3), "4·5·6"),
-                TourSpot(Res.string.learn_tour_chilseong, Res.string.learn_tour_chilseong_body, listOf(HolePoint(1795, 323), HolePoint(1875, 323))),
+                TourSpot(Res.string.learn_tour_chilseong, Res.string.learn_tour_chilseong_body, listOf(HolePoint(1795, 323), HolePoint(1875, 323)), grouped = true),
             )
             GuideInstrument.DaegeumSanjo -> listOf(
                 TourSpot(Res.string.learn_tour_mouth, Res.string.learn_tour_mouth_body, listOf(HolePoint(184, 332))),
@@ -191,7 +201,7 @@ internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, 
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
             )
-            if (step != null) SpotRings(instrument, spots[step].points)
+            if (step != null) SpotRings(instrument, spots[step])
         }
         // 시작 전에는 부분 이름만, 시작하면 지나온 곳은 체크, 지금 곳은 연두 테두리, 남은 곳은 옅게.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -225,9 +235,24 @@ internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, 
 @Composable
 private fun spotTitle(spot: TourSpot): String = if (spot.titleArg != null) stringResource(spot.title, spot.titleArg) else stringResource(spot.title)
 
-/** 짚는 곳의 깜빡이며 퍼지는 동그라미. 그림이 Fit으로 들어가 칸과 비율이 같으므로 칸 크기에 바로 맞춘다. */
+/**
+ * 짚는 곳 동그라미의 반지름(px). 구멍보다 넉넉히 크게 하되 작은 화면에서도 [minRadius]보다 작아지지 않고,
+ * 한 번에 짚는 구멍끼리는 서로 겹치지 않도록 가장 가까운 두 구멍 사이의 절반에서 [gap]을 뺀 만큼으로 줄인다.
+ *
+ * @param scale 그림 원본 픽셀 → 화면 픽셀 비율.
+ */
+internal fun spotRingRadius(points: List<HolePoint>, holeRadius: Int, scale: Float, minRadius: Float, gap: Float): Float {
+    val base = maxOf(holeRadius * 1.9f * scale, minRadius)
+    val spacing = points.zipWithNext { a, b -> hypot((a.x - b.x).toFloat(), (a.y - b.y).toFloat()) }.minOrNull() ?: return base
+    return minOf(base, spacing * scale / 2 - gap)
+}
+
+/**
+ * 짚는 곳의 깜빡이며 퍼지는 동그라미. 그림이 Fit으로 들어가 칸과 비율이 같으므로 칸 크기에 바로 맞춘다.
+ * [TourSpot.grouped]이면(붙어 있는 정악대금 칠성공 두 구멍) 동그라미 대신 둘을 함께 감싸는 둥근 띠 하나를 그린다.
+ */
 @Composable
-private fun SpotRings(instrument: GuideInstrument, points: List<HolePoint>) {
+private fun SpotRings(instrument: GuideInstrument, spot: TourSpot) {
     val colors = EolssuTheme.colors
     val pulse by rememberInfiniteTransition(label = "spotPulse").animateFloat(
         initialValue = 0f,
@@ -237,11 +262,24 @@ private fun SpotRings(instrument: GuideInstrument, points: List<HolePoint>) {
     )
     Canvas(Modifier.fillMaxSize().clearAndSetSemantics {}) {
         val k = size.width / instrument.imageWidth
-        val base = (instrument.holeRadius * 1.9f * k).coerceAtLeast(14.dp.toPx())
-        points.forEach { p ->
+        val stroke = 3.dp.toPx()
+        val minRadius = 14.dp.toPx()
+        val halo = colors.rec.copy(alpha = 0.35f * (1f - pulse))
+        if (spot.grouped) {
+            val r = maxOf(instrument.holeRadius * 1.9f * k, minRadius)
+            val left = spot.points.minOf { it.x } * k - r
+            val right = spot.points.maxOf { it.x } * k + r
+            val cy = spot.points.map { it.y }.average().toFloat() * k
+            val grow = 0.7f * r * pulse
+            drawRoundRect(halo, Offset(left - grow, cy - r - grow), Size(right - left + 2 * grow, 2 * (r + grow)), CornerRadius(r + grow))
+            drawRoundRect(colors.rec, Offset(left, cy - r), Size(right - left, 2 * r), CornerRadius(r), style = Stroke(stroke))
+            return@Canvas
+        }
+        val r = spotRingRadius(spot.points, instrument.holeRadius, k, minRadius, gap = stroke / 2 + 1.dp.toPx())
+        spot.points.forEach { p ->
             val c = Offset(p.x * k, p.y * k)
-            drawCircle(colors.rec.copy(alpha = 0.35f * (1f - pulse)), radius = base * (1f + 0.7f * pulse), center = c)
-            drawCircle(colors.rec, radius = base, center = c, style = Stroke(3.dp.toPx()))
+            drawCircle(halo, radius = r * (1f + 0.7f * pulse), center = c)
+            drawCircle(colors.rec, radius = r, center = c, style = Stroke(stroke))
         }
     }
 }
