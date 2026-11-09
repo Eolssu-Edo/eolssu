@@ -9,7 +9,7 @@
     <string name="practice_step_mine">내 연주</string>
     <string name="practice_step_recording">녹음 중</string>
     <string name="practice_step_rec_desc_on">녹음 중 · 누르면 멈춤</string>
-    <string name="practice_step_rec_desc_resume">녹음 이어서 시작 · 3박 센 뒤</string>
+    <string name="practice_step_rec_desc_resume">녹음 이어서 시작</string>
     <string name="practice_step_rec_desc_start">녹음 시작</string>
     <string name="practice_step_progress">%1$d / %2$d음 · 맞는 음을 불어야 다음 정간으로 넘어가요 · 판정은 이 기기 안에서만 해요</string>
     <string name="practice_step_manual_confirm">맞게 분 것으로 넘기기 · 이 기기에서는 음을 판정하지 못해요</string>
@@ -22,9 +22,7 @@
     <string name="practice_step_particle_eul">을</string>
     <string name="practice_step_particle_reul">를</string>
     <string name="practice_step_status_paused">멈춤</string>
-    <string name="practice_step_status_countdown">곧 이어서 시작해요</string>
     <string name="practice_step_status_finished">한 음씩 · 끝까지 따라 불었어요</string>
-    <string name="practice_step_count_message">3박 센 뒤 %1$s(%2$s)부터 이어서 시작해요</string>
     <!-- 내 악보 연습(Practice-Mine) -->
     <string name="practice_subtitle_mine">%1$s · 내 악보</string>
 </resources>

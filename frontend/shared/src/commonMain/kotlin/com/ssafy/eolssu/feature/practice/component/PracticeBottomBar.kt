@@ -78,7 +78,7 @@ class PracticeBottomActions(
     val onSeekToFraction: (Float) -> Unit = {},
     /** 설정 옆 ‘한 음씩’ 토글(혼자 연습). */
     val onToggleStep: () -> Unit = {},
-    /** 한 음씩의 오른쪽 ‘내 연주’ 칸: 시작·멈춤·3·2·1 뒤 이어서. */
+    /** 한 음씩의 오른쪽 ‘내 연주’ 칸: 시작·멈춤·멈춘 자리부터 이어서. */
     val onTapStepPlaying: () -> Unit = {},
     /** 한 음씩의 왼쪽 ‘지금 음’ 칸: 지금 정간의 음 듣기. */
     val onListenStepNote: () -> Unit = {},
