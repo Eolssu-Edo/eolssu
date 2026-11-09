@@ -109,7 +109,7 @@
     controls.hidden = false;
   });
 
-  // 제목·태그와 분야에 맞는 결과만 페이지로 나눕니다.
+  // 검색어와 분야에 맞는 결과만 페이지로 나눕니다.
   document.querySelectorAll("[data-journal]").forEach((journal) => {
     const controls = journal.querySelector("[data-journal-controls]");
     if (!controls) return;
@@ -128,6 +128,7 @@
     const normalize = (text) => text.normalize("NFC").toLowerCase();
     const posts = Array.from(journal.querySelectorAll("[data-post]"), (post) => ({
       post, categories: post.dataset.category.split(" "), keywords: normalize(post.dataset.search),
+      path: post.querySelector(".post-link").getAttribute("href"),
     }));
     const empty = journal.querySelector("[data-empty]");
     const emptyMessage = empty.querySelector("[data-empty-message]");
@@ -137,6 +138,7 @@
     const all = group.querySelector('[data-value="all"]');
     let selected = all;
     let page = 1;
+    let bodyIndexState = "idle";
     const renderPageNumbers = (pages) => {
       // 양끝과 현재 페이지 주변 세 페이지를 번호로 표시합니다.
       const start = Math.max(1, Math.min(page - 1, pages - 2));
@@ -179,8 +181,13 @@
         if (matches) count += 1;
       });
       empty.hidden = count > 0;
-      emptyMessage.textContent = terms.length ? "검색 조건에 맞는 글이 없어요." : "이 분야의 글을 준비하고 있어요.";
-      const label = `${count}편`;
+      const loadingBodies = terms.length && bodyIndexState === "loading";
+      const bodySearchFailed = terms.length && bodyIndexState === "error";
+      emptyMessage.textContent = !terms.length ? "이 분야의 글을 준비하고 있어요."
+        : loadingBodies ? "본문을 검색하고 있어요."
+        : bodySearchFailed ? "본문을 불러오지 못했어요. 검색을 다시 시도해 주세요."
+        : "검색 조건에 맞는 글이 없어요.";
+      const label = loadingBodies ? "본문 검색 중" : `${count}편${bodySearchFailed ? " · 본문 검색 실패" : ""}`;
       if (countLabel.textContent !== label) countLabel.textContent = label;
       const pages = Math.ceil(count / size);
       pagination.hidden = pages <= 1;
@@ -196,7 +203,25 @@
         pageStatus.textContent = status;
       }
     };
+    const loadPostBodies = async () => {
+      if (!input.value.trim() || bodyIndexState === "loading" || bodyIndexState === "ready") return;
+      bodyIndexState = "loading";
+      try {
+        const response = await fetch(journal.dataset.postSearchIndex, { signal: AbortSignal.timeout?.(8000) });
+        if (!response.ok) throw new Error("Post search index unavailable");
+        const bodies = await response.json();
+        posts.forEach((item) => {
+          item.keywords += ` ${normalize(bodies[item.path] ?? "")}`;
+        });
+        bodyIndexState = "ready";
+        page = 1;
+      } catch {
+        bodyIndexState = "error";
+      }
+      showResults();
+    };
     const resetPage = () => {
+      loadPostBodies();
       page = 1;
       showResults();
     };
@@ -235,6 +260,6 @@
     });
     controls.hidden = false;
     search.hidden = false;
-    showResults();
+    resetPage();
   });
 })();
