@@ -295,6 +295,72 @@ class SongInstrumentApiDatabaseTests {
         }
     }
 
+    @Test fun `sogeum catalog hides only the selected unscored duplicates`() {
+        val hidden = setOf(92L, 97L, 107L)
+        val retained = setOf(93L, 96L, 104L, 109L)
+        val ids = (hidden + retained).joinToString()
+        val sogeumId = jdbc.queryForObject("SELECT id FROM instruments WHERE code='SOGEUM'", Long::class.java)
+        try {
+            val inserted = jdbc.update("""INSERT INTO songs
+                (id,instrument_id,jangdan_id,title,difficulty,default_bpm,score_json,score_version,note_count,is_scorable,status)
+                SELECT editions.song_id,?,jangdan_id,editions.title,difficulty,default_bpm,
+                    JSON_SET(score_json,'$.score.title',editions.title,'$.score.sourceId',
+                        CONCAT('mr203-fixed-sogeum-',editions.source_number,'-p1')),
+                    score_version,note_count,editions.song_id IN (93,96,107),'PUBLISHED'
+                FROM songs CROSS JOIN (
+                    SELECT 92 AS song_id, '도라지타령' AS title, '004' AS source_number
+                    UNION ALL SELECT 93, '도라지타령', '005'
+                    UNION ALL SELECT 96, '아리랑', '008'
+                    UNION ALL SELECT 97, '아리랑', '009'
+                    UNION ALL SELECT 104, '북천이 맑다커늘 · 소금1', '016'
+                    UNION ALL SELECT 107, '아리랑', '018'
+                    UNION ALL SELECT 109, '취타 중 초장(고급)', '020'
+                ) AS editions WHERE songs.id=1""", sogeumId)
+            assertEquals(7, inserted)
+            for ((id, case) in listOf(92L to "004", 93L to "005")) {
+                jdbc.update("""INSERT INTO song_model_audios
+                    (song_id,score_version,object_key,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status)
+                    SELECT ?,score_version,?,bpm,bpm_unit,duration_ms,start_offset_ms,content_type,sha256,status
+                    FROM song_model_audios WHERE song_id=?""",
+                    id, "model-audio/drafts/${"c".repeat(64)}/cases/sogeum-$case-p1/sogeum.m4a", songIds.first())
+            }
+
+            val migration = ResourceDatabasePopulator(
+                ClassPathResource("db/migration/V35__hide_unscored_sogeum_duplicate_editions.sql"),
+            )
+            val dataSource = requireNotNull(jdbc.dataSource)
+            fun payloads() = jdbc.queryForList("""SELECT id,score_version,is_scorable,score_json,deleted_at
+                FROM songs WHERE id IN ($ids) ORDER BY id""")
+            val beforeFirstRun = payloads()
+            migration.execute(dataSource)
+            assertEquals(beforeFirstRun, payloads())
+            // A score enabled before the migration remains public.
+            assertEquals(200, get("/api/songs/107").statusCode())
+            jdbc.update("UPDATE songs SET is_scorable=FALSE WHERE id=107")
+            val before = payloads()
+            migration.execute(dataSource)
+            migration.execute(dataSource)
+            assertEquals(before, payloads())
+
+            val list = get("/api/songs?instrumentId=$sogeumId")
+            assertEquals(200, list.statusCode(), list.body())
+            val listed = json.readTree(list.body()).path("result").path("items").toList()
+                .map { it.path("songId").asLong() }.toSet()
+            assertEquals(retained, listed.intersect(hidden + retained))
+            for (id in hidden) {
+                for (suffix in listOf("", "/score", "/model-audio")) {
+                    assertEquals(404, get("/api/songs/$id$suffix").statusCode(), "song $id$suffix")
+                }
+                assertEquals("HIDDEN", jdbc.queryForObject("SELECT status FROM songs WHERE id=?", String::class.java, id))
+            }
+            assertEquals("DRAFT", jdbc.queryForObject("SELECT status FROM song_model_audios WHERE song_id=92", String::class.java))
+            assertEquals(200, get("/api/songs/93/model-audio").statusCode())
+        } finally {
+            jdbc.update("DELETE FROM song_model_audios WHERE song_id IN (92,93)")
+            jdbc.update("DELETE FROM songs WHERE id IN ($ids)")
+        }
+    }
+
     private fun get(path: String) = client.send(HttpRequest.newBuilder(URI("http://localhost:$port$path"))
         .header("Cookie", "access_token=expired-public-cookie").GET().build(), HttpResponse.BodyHandlers.ofString())
 
