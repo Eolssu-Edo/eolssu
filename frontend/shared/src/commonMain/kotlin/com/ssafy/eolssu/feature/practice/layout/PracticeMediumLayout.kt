@@ -44,7 +44,7 @@ internal fun PracticeMediumLayout(state: PracticeUiState, snackbarHostState: Sna
         },
     ) {
         if (state.song != null) {
-            PracticeScoreArea(state, PracticeScoreStyle.TabletPortrait, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow)
+            PracticeScoreArea(state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow)
         }
     }
 }

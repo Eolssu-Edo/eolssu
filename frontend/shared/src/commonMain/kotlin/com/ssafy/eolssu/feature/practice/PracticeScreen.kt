@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -62,7 +62,7 @@ import org.jetbrains.compose.resources.stringResource
 class PracticeScreenActions(
     val onBack: () -> Unit,
     val onOpenSettings: () -> Unit,
-    val onSelectEvent: (ScoreEvent) -> Unit,
+    val onSelectUnit: (ScoreDisplayUnit) -> Unit,
     val onUserScroll: () -> Unit,
     val onFollowNow: () -> Unit,
     val onCancelCountdown: () -> Unit,
@@ -162,10 +162,10 @@ private fun PracticeCompactLayout(state: PracticeUiState, snackbarHostState: Sna
                 PracticeTitleRow(state, statusAtEnd = true)
                 Spacer(Modifier.height(if (fingering || recordingBar) 8.dp else 12.dp))
                 if (fingering) {
-                    PracticeFingeringPage(state, actions.onSelectEvent, modifier = Modifier.weight(1f))
+                    PracticeFingeringPage(state, actions.onSelectUnit, modifier = Modifier.weight(1f))
                 } else {
                     PracticeBoardScore(
-                        state, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
+                        state, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
                         modifier = Modifier.weight(1f),
                     )
                 }

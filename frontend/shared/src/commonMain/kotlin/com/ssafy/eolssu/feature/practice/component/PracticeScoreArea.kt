@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.ssafy.eolssu.core.model.ScoreEvent
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
@@ -83,7 +83,7 @@ enum class PracticeScoreStyle {
 fun PracticeScoreArea(
     state: PracticeUiState,
     style: PracticeScoreStyle,
-    onSelectEvent: (ScoreEvent) -> Unit,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
@@ -120,8 +120,8 @@ fun PracticeScoreArea(
         // 한 음씩 따라 불기는 진행 모습(playback) 없이 지금 음의 정간에만 연두 테두리를 둔다(곁줄에는 표시하지 않는다).
         val currentIndex = if (state.live) state.position.coerceAtMost(state.eventCount - 1) else state.stepCurrentIndex
         val highlight = if (recording) ScoreHighlight.Recording else ScoreHighlight.Position
-        val selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null
-        val onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null
+        val selectedCell = state.scoreSelection?.let { it.column to it.row }
+        val onUnitClick = onSelectUnit.takeIf { state.canSelectUnit }
         val annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap()
         if (bandColumns == null) {
             val scrollState = rememberHorizontalScoreScroll(state)
@@ -136,8 +136,8 @@ fun PracticeScoreArea(
                 playback = playback,
                 follow = state.follow,
                 onUserScroll = onUserScroll,
-                selectedIndex = selectedIndex,
-                onEventClick = onEventClick,
+                selectedCell = selectedCell,
+                onUnitClick = onUnitClick,
                 annotations = annotations,
             )
         } else {
@@ -156,8 +156,8 @@ fun PracticeScoreArea(
                         currentIndex = currentIndex,
                         highlight = highlight,
                         playback = playback,
-                        selectedIndex = selectedIndex,
-                        onEventClick = onEventClick,
+                        selectedCell = selectedCell,
+                        onUnitClick = onUnitClick,
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
                     )
@@ -263,7 +263,7 @@ private fun rememberBandScroll(
 @Composable
 fun PracticeBoardScore(
     state: PracticeUiState,
-    onSelectEvent: (ScoreEvent) -> Unit,
+    onSelectUnit: (ScoreDisplayUnit) -> Unit,
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
@@ -297,8 +297,8 @@ fun PracticeBoardScore(
                     playback = playback,
                     follow = state.follow,
                     onUserScroll = onUserScroll,
-                    selectedIndex = if (state.mode == PracticeMode.Ready && state.stepCurrentIndex == null) state.selected else null,
-                    onEventClick = if (state.mode == PracticeMode.Ready) onSelectEvent else null,
+                    selectedCell = state.scoreSelection?.let { it.column to it.row },
+                    onUnitClick = onSelectUnit.takeIf { state.canSelectUnit },
                     look = JeongganboLook.practice(big),
                     annotations = if (state.mode == PracticeMode.Model) state.modelPerformance?.annotations.orEmpty() else emptyMap(),
                     columnsPerStack = packing.columnsPerStack,

@@ -43,12 +43,14 @@ import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.ScoreEvent
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.displayUnitAt
 import com.ssafy.eolssu.core.model.key
 import com.ssafy.eolssu.core.model.scoreLyricSlots
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.HoleState
 import com.ssafy.eolssu.core.model.fingering.label
 import com.ssafy.eolssu.core.model.fingering.baseYulOf
@@ -97,7 +99,7 @@ data class FingerCell(
 data class FingerEntry(val note: ScoreNote?, val holes: List<HoleState>?)
 
 /** 내장표의 이체자를 포함해 정확히 같은 율명·옥타브만 연결한다. */
-internal fun GuideInstrument.fingeringFor(note: ScoreNote): List<HoleState>? {
+internal fun GuideInstrument.fingeringFor(note: ScoreNote): FingeringNote? {
     val base = when (note) {
         is ScoreNote.SourcePitch -> note.baseYul.symbol
         is ScoreNote.Pitch -> baseYulOf(note.symbol)
@@ -105,7 +107,7 @@ internal fun GuideInstrument.fingeringFor(note: ScoreNote): List<HoleState>? {
     }
     val octave = if (note is ScoreNote.SourcePitch) note.octave else octaveOf(note.symbol)
     return blows.firstNotNullOfOrNull { blow ->
-        notesByPitch(blow).firstOrNull { baseYulOf(it.hanja) == base && octaveOf(it.hanja) == octave }?.holes
+        notesByPitch(blow).firstOrNull { baseYulOf(it.hanja) == base && octaveOf(it.hanja) == octave }
     }
 }
 
@@ -119,7 +121,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
             val entries = units.map { unit ->
                 when (val note = unit.note) {
                     ScoreNote.Rest, ScoreNote.Hold, ScoreNote.Blank -> FingerEntry(null, null)
-                    else -> FingerEntry(note, instrument.fingeringFor(note))
+                    else -> FingerEntry(note, instrument.fingeringFor(note)?.holes)
                 }
             }
             cells += FingerCell(cells.size, column, row, units, entries, rows[row].lyric)
@@ -134,7 +136,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
  * 재생 위치가 다음 페이지에 들어가면 함께 넘긴다.
  */
 @Composable
-fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) -> Unit, modifier: Modifier = Modifier) {
+fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUnit) -> Unit, modifier: Modifier = Modifier) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
     val instrument = state.instrument
@@ -144,7 +146,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
     val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
-        else song.displayUnits.firstOrNull { it.event.index == state.selected }
+        else state.scoreSelection?.let { cell ->
+            song.displayUnits.firstOrNull { it.column == cell.column && it.row == cell.row && it.event.index == state.selected }
+        }
     val instrumentName = stringResource(instrument.label)
     val fontScale = LocalDensity.current.fontScale
     val shape = RoundedCornerShape(3.dp)
@@ -161,7 +165,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
         // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
         // 한 정간이 두 페이지에 나뉠 수 있어 지금 음(표시 자리)이 든 페이지를 찾는다.
         val currentPage = currentUnit?.let { unit -> angles.indexOfFirst { page -> page.any { cell -> cell.units.any { it.key == unit.key } } }.takeIf { it >= 0 } }
-        var browsed by remember(song, state.selected, live, angles) { mutableIntStateOf(currentPage ?: 0) }
+        var browsed by remember(song, state.scoreSelection, live, angles) { mutableIntStateOf(currentPage ?: 0) }
         val angleIndex = (if (live && state.follow) currentPage ?: browsed else browsed).coerceIn(0, angles.lastIndex)
         val angle = angles[angleIndex]
         val preview = remember(song, cells, angle) {
@@ -200,13 +204,13 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                                     val end = cell.units.lastOrNull()?.let { it.unitStart + it.unitDuration } ?: start + 1
                                     ((position - start) / (end - start)).toFloat().coerceIn(0f, 1f)
                                 } },
-                                isSelected = !live && cell.units.any { it.event.index == state.selected },
+                                isSelected = state.scoreSelection == ScorePosition(cell.column, cell.row),
                                 playingKey = if (live) currentUnit?.key else null,
                                 showHangul = state.settings.showHangul,
                                 gakStart = cell.row == 0 && !cell.continued,
                                 daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 && !cell.continued },
                                 imageHeight = imageHeight,
-                                onSelectEvent = onSelectEvent.takeIf { state.mode == PracticeMode.Ready },
+                                onSelectUnit = onSelectUnit.takeIf { state.canSelectUnit },
                             )
                         }
                     }
@@ -226,7 +230,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectEvent: (ScoreEvent) ->
                         cell = cell, instrument = instrument, fill = null, isSelected = false,
                         playingKey = null, showHangul = state.settings.showHangul,
                         gakStart = false, daegangStarts = emptyList(),
-                        imageHeight = previewRow, onSelectEvent = null,
+                        imageHeight = previewRow, onSelectUnit = null,
                     )
                 }
             }
@@ -305,7 +309,7 @@ private fun FingerRow(
     gakStart: Boolean,
     daegangStarts: List<Int>,
     imageHeight: Dp = FingerImageHeight,
-    onSelectEvent: ((ScoreEvent) -> Unit)?,
+    onSelectUnit: ((ScoreDisplayUnit) -> Unit)?,
 ) {
     val colors = EolssuTheme.colors
     var rowModifier = Modifier
@@ -355,7 +359,7 @@ private fun FingerRow(
         ) {
             cell.units.forEach { unit ->
                 NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey, height = imageHeight * fingerSlotWeight(unit),
-                    onClick = onSelectEvent?.let { select -> { select(unit.event) } })
+                    onClick = onSelectUnit?.let { select -> { select(unit) } })
             }
         }
         Column(
