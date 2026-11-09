@@ -34,6 +34,8 @@ fun LearnPracticeRoute(
     val stage = learnState.stageOf(stageNumber) ?: return
     LaunchedEffect(learnState.instrument, stage) { learnViewModel.loadDetail(stage.number) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val loadedDetail = (learnState.detail(stage.number) as? LearnDetailLoad.Loaded)?.detail
+    LaunchedEffect(learnState.instrument, loadedDetail) { loadedDetail?.let { viewModel.prepare(learnState.instrument, it) } }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
