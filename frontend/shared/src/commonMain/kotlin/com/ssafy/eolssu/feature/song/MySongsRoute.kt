@@ -13,6 +13,8 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.feature.song.component.SongInstrumentPicker
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.mysongs_conversion_reimport_needed
+import eolssu.shared.generated.resources.mysongs_conversion_retry_failed
 import eolssu.shared.generated.resources.sheet_delete_failed
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -50,9 +52,18 @@ fun MySongsRoute(
     LaunchedEffect(Unit) {
         if (startOnSheets) viewModel.showSheetsFirst()
     }
+    // 화면이 보이는 동안에만 변환 중인 악보의 상태를 묻는다.
     LifecycleResumeEffect(Unit) {
         viewModel.refreshSheets()
-        onPauseOrDispose { }
+        viewModel.watchConversions()
+        onPauseOrDispose { viewModel.stopWatchingConversions() }
+    }
+    val reimportNeeded = stringResource(Res.string.mysongs_conversion_reimport_needed)
+    val retryFailed = stringResource(Res.string.mysongs_conversion_retry_failed)
+    LaunchedEffect(state.conversionNotice) {
+        val notice = state.conversionNotice ?: return@LaunchedEffect
+        viewModel.consumeConversionNotice()
+        snackbarHostState.showSnackbar(if (notice == ConversionNotice.Reimport) reimportNeeded else retryFailed)
     }
     val deleteFailure = stringResource(Res.string.sheet_delete_failed)
     LaunchedEffect(state.deleteFailed) {
@@ -81,6 +92,7 @@ fun MySongsRoute(
             onDeleteSheet = viewModel::askDelete,
             onConfirmDelete = viewModel::confirmDelete,
             onCancelDelete = viewModel::cancelDelete,
+            onRetryConversion = viewModel::retryConversion,
         ),
         instrumentPicker = { SongInstrumentPicker(viewModel.instrumentSelection, snackbarHostState, onSessionExpired) },
     )
