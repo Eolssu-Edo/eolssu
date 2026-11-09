@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
@@ -92,7 +91,7 @@ internal fun ReadingTocButton(page: ReadingPage, open: Boolean, onClick: () -> U
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        PageMark(page.mark, sub = page.sub)
+        PageMark(page.mark)
         Text(
             page.title(),
             Modifier.weight(1f),
@@ -131,14 +130,14 @@ internal fun ReadingTocMenu(current: ReadingPage, onSelect: (ReadingPage) -> Uni
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                PageMark(page.mark, sub = page.sub)
+                PageMark(page.mark)
                 Text(page.title(), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, fontWeight = if (on) FontWeight.Bold else FontWeight.Normal))
             }
         }
     }
 }
 
-/** 아래 이전 · 점 · 다음. 첫 쪽에서는 이전, 마지막 쪽에서는 다음을 끈다. 다음은 녹색. */
+/** 아래 이전 · 점 · 다음. 첫 쪽에는 이전, 마지막 쪽에는 다음이 없고, 빈자리를 남겨 점은 가운데에 그대로 둔다. 다음은 녹색. */
 @Composable
 internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
@@ -147,31 +146,30 @@ internal fun ReadingBookNav(current: ReadingPage, onGo: (ReadingPage) -> Unit, m
         HorizontalDivider(color = colors.lineSoft)
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                PageButton(stringResource(Res.string.guide_reading_prev), next = false, enabled = current.previous != null) { current.previous?.let(onGo) }
+                current.previous?.let { prev -> PageButton(stringResource(Res.string.guide_reading_prev), next = false) { onGo(prev) } }
             }
             Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 pages.forEach { page -> PageDot(page, on = page == current) { onGo(page) } }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                PageButton(stringResource(Res.string.guide_reading_next), next = true, enabled = current.next != null) { current.next?.let(onGo) }
+                current.next?.let { next -> PageButton(stringResource(Res.string.guide_reading_next), next = true) { onGo(next) } }
             }
         }
     }
 }
 
 @Composable
-private fun PageButton(label: String, next: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun PageButton(label: String, next: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(22.dp)
     val fg = if (next) colors.onPrimary else colors.text
     Row(
         Modifier
-            .alpha(if (enabled) 1f else 0.35f)
             .height(44.dp)
             .clip(shape)
             .background(if (next) colors.green else colors.surface)
             .border(1.dp, if (next) colors.green else colors.lineSoft, shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
