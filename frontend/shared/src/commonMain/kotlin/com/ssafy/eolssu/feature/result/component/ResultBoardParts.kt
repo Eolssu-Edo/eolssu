@@ -24,14 +24,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -77,13 +75,13 @@ import eolssu.shared.generated.resources.result_metric_weak
 import eolssu.shared.generated.resources.result_score_of
 import eolssu.shared.generated.resources.result_score_unit
 import eolssu.shared.generated.resources.result_view_all_errors
+import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_clap
 import eolssu.shared.generated.resources.tiger_complete
 import eolssu.shared.generated.resources.tiger_encourage
 import eolssu.shared.generated.resources.tiger_play
 import eolssu.shared.generated.resources.tiger_retry
 import eolssu.shared.generated.resources.tiger_zero_score
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
@@ -156,29 +154,14 @@ fun AnalyzingFigure(modifier: Modifier = Modifier) {
     }
 }
 
-/** 실패 사유에 맞는 호랑이 오른쪽 아래에 경고 배지를 붙인다. */
 @Composable
-fun AnalysisFailedFigure(mascot: DrawableResource, modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Box(modifier.size(width = 152.dp, height = 122.dp).clearAndSetSemantics {}) {
-        Image(
-            painterResource(mascot),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.TopCenter).width(144.dp),
-            contentScale = ContentScale.FillWidth,
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .size(40.dp)
-                .background(colors.background, CircleShape)
-                .padding(3.dp)
-                .background(colors.recSoft, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.recText)
-        }
-    }
+fun AnalysisFailedFigure() {
+    Image(
+        painterResource(Res.drawable.tiger_analysis_failed),
+        contentDescription = null,
+        modifier = Modifier.size(132.dp),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 /** 보드 `.badge.lite`: 흰 바탕 · 옅은 테두리 알약(26dp)에 12sp 회색 글자. 곡 이름 등에 쓴다. */

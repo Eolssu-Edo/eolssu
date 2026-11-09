@@ -213,7 +213,7 @@
     <string name="analysis_running_title">연주를 확인하고 있어요.</string>
     <string name="analysis_running_body">음정, 박자, 음 길이를 살펴보고 있어요.</string>
     <string name="analysis_failed_title">분석을 완료하지 못했어요.</string>
-    <string name="analysis_failed_board">네트워크나 서버 문제로 결과를 받지 못했어요.\n녹음한 연주는 그대로 있어요.</string>
+    <string name="analysis_failed_recording_kept">녹음한 연주는 그대로 있어요.</string>
     <!-- 분석 실패 사유별 안내(PRA-03 스펙 문구 초안). 사용자 잘못이 아닌 실패는 연주를 탓하지 않는다. -->
     <string name="analysis_failed_no_sound">소리가 들리지 않았어요. 마이크 가까이에서 다시 불어 주세요.</string>
     <string name="analysis_failed_too_short">녹음이 끝까지 저장되지 않았어요. 다시 연주해 주세요.</string>
