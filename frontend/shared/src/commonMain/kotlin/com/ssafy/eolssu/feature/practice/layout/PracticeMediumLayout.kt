@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ssafy.eolssu.core.ui.adaptive.WindowBreakpoints
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeScreenActions
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
 import com.ssafy.eolssu.feature.practice.PracticeUiState
@@ -24,7 +26,12 @@ import com.ssafy.eolssu.feature.practice.component.PracticeScoreStyle
  * 상태별 버튼은 휴대폰처럼 아래에 고정하되 가운데 640dp 너비로 모은다. 보조 패널은 640dp 너비 하단 시트로 연다.
  */
 @Composable
-internal fun PracticeMediumLayout(state: PracticeUiState, snackbarHostState: SnackbarHostState, actions: PracticeScreenActions) {
+internal fun PracticeMediumLayout(
+    state: PracticeUiState,
+    snackbarHostState: SnackbarHostState,
+    actions: PracticeScreenActions,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
+) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
         contentMaxWidth = WindowBreakpoints.ContentMaxWidth,
@@ -44,7 +51,10 @@ internal fun PracticeMediumLayout(state: PracticeUiState, snackbarHostState: Sna
         },
     ) {
         if (state.song != null) {
-            PracticeScoreArea(state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow)
+            PracticeScoreArea(
+                state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
+                livePitch = livePitch,
+            )
         }
     }
 }

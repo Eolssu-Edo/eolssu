@@ -33,16 +33,17 @@ import com.ssafy.eolssu.feature.guide.component.GuideTabletBottomContent
 import com.ssafy.eolssu.feature.guide.component.GuideTabletSidePadding
 import com.ssafy.eolssu.feature.guide.learn.LearnListActions
 import com.ssafy.eolssu.feature.guide.learn.LearnListContent
+import com.ssafy.eolssu.feature.guide.learn.LearnTitleFontSize
 import com.ssafy.eolssu.feature.guide.learn.LearnStage
 import com.ssafy.eolssu.feature.guide.learn.LearnStageActions
 import com.ssafy.eolssu.feature.guide.learn.LearnStageBottomBar
 import com.ssafy.eolssu.feature.guide.learn.LearnStageColumns
 import com.ssafy.eolssu.feature.guide.learn.LearnStageContent
+import com.ssafy.eolssu.feature.guide.learn.rememberLearnTour
 import com.ssafy.eolssu.feature.guide.learn.LearnUiState
 import com.ssafy.eolssu.feature.guide.learn.learnStageSubtitle
 import com.ssafy.eolssu.feature.guide.learn.learnStageTitle
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.learn_subtitle
 import eolssu.shared.generated.resources.learn_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -85,8 +86,8 @@ internal fun LearnExpandedLayout(
                         stringResource(Res.string.learn_title),
                         onBack = onBack,
                         modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = outer - 20.dp, end = 4.dp),
-                        subtitle = stringResource(Res.string.learn_subtitle),
                         maxWidth = Dp.Infinity,
+                        titleFontSize = LearnTitleFontSize,
                     )
                     LearnListContent(
                         state,
@@ -99,6 +100,7 @@ internal fun LearnExpandedLayout(
                 VerticalDivider(color = colors.line)
                 // 단계 목록을 받기 전·받지 못했으면 오른쪽 칸을 비운다(왼쪽 칸이 상태와 '다시 시도'를 보인다).
                 if (stage == null) return@Row
+                val tour = rememberLearnTour(stage.number)
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     EolssuTopBar(
                         learnStageTitle(stage),
@@ -119,6 +121,7 @@ internal fun LearnExpandedLayout(
                                 Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(start = GuideTabletSidePadding, end = outer, bottom = 24.dp),
                                 columns = if (wide) LearnStageColumns.Landscape else LearnStageColumns.Compact,
+                                tour = tour,
                             )
                         }
                     }
@@ -129,7 +132,7 @@ internal fun LearnExpandedLayout(
                             .windowInsetsPadding(WindowInsets.navigationBars)
                             .padding(start = GuideTabletSidePadding, end = outer, top = 14.dp, bottom = 24.dp),
                     ) {
-                        GuideTabletBottomContent { LearnStageBottomBar(stage, state.isDone(stage.number), stageActions) }
+                        GuideTabletBottomContent { LearnStageBottomBar(state, stage, stageActions, tour) }
                     }
                 }
             }

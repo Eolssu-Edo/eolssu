@@ -100,6 +100,27 @@ class PracticePitchConnectionTest {
         assertEquals(PracticePitchFeedback(), vm.pitchFeedback.value)
     }
 
+    @Test fun keepsNoteColoursThroughPauseAndFinishButClearsThemForANewTake() = exercise { vm, recorder ->
+        vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
+        val first = vm.uiState.value.song!!.timeline[0].id
+        recorder.send(20, 66, 311.13); runCurrent()
+        assertEquals(mapOf(first to LivePitchMark.Correct), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        vm.askAbort(); runCurrent()
+        assertEquals(mapOf(first to LivePitchMark.Correct), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        vm.resumeRecording(); advanceTimeBy(3080); runCurrent()
+        assertEquals(mapOf(first to LivePitchMark.Correct), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        advanceTimeBy(4000); runCurrent()
+        assertTrue(vm.uiState.value.finished)
+        assertEquals(mapOf(first to LivePitchMark.Correct), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        vm.restartNow(); runCurrent()
+        assertEquals(emptyMap(), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        advanceTimeBy(3080); runCurrent()
+        recorder.send(20, 66, 290.0); runCurrent()
+        assertEquals(mapOf(first to LivePitchMark.Wrong), vm.livePitch.value.marks(vm.uiState.value.song!!))
+        vm.onLeaveScreen(); runCurrent()
+        assertEquals(emptyMap(), vm.livePitch.value.marks(vm.uiState.value.song!!))
+    }
+
     private fun exercise(block: suspend TestScope.(PracticeViewModel, PitchRecorder) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val models = ViewModelStore()

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +32,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,42 +96,59 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 선택 카드(모서리 14 · 테두리 2). [selected]면 연두 바탕. [radio]면 왼쪽에 고름 표시, 아니면 오른쪽에 넘어가는 화살표를 둔다.
+ * EDIT-01 가져오기 종류 카드(모서리 16 · 테두리 2). 두 장을 같은 줄에 같은 크기로 놓고,
+ * 왼쪽 위에 아이콘 원, 아래 왼쪽에 이름과 한 줄 설명([caption])을 둔다.
+ * 고르면 연두 바탕·연두 테두리, 아니면 흰 바탕·옅은 테두리라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
  */
 @Composable
-internal fun ChoiceCard(
-    title: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    radio: Boolean = true,
-) {
+internal fun KindCard(title: String, caption: String, icon: ImageVector, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
+        selected = selected,
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().semantics { if (radio) this.selected = selected },
-        shape = RoundedCornerShape(14.dp),
+        modifier = modifier.semantics { role = Role.RadioButton },
+        shape = RoundedCornerShape(16.dp),
         color = if (selected) colors.primary else colors.surface,
         contentColor = colors.text,
         border = BorderStroke(2.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
+        Column(Modifier.padding(16.dp)) {
+            Box(
+                Modifier.size(42.dp).background(if (selected) colors.surface.copy(alpha = 0.55f) else colors.accentTint, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
+            }
+            Spacer(Modifier.weight(1f).heightIn(min = 12.dp))
+            Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), maxLines = 2)
+            Text(
+                caption,
+                modifier = Modifier.padding(top = 2.dp),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = if (selected) colors.text.copy(alpha = 0.7f) else colors.textMuted,
+                maxLines = 2,
+            )
+        }
+    }
+}
+
+/**
+ * EDIT-01 '내 악보·제공 곡 불러오기' 줄: 왼쪽 둥근 네모 아이콘, 이름, 오른쪽 화살표. 줄 전체를 누르면 다른 화면으로 넘어간다.
+ */
+@Composable
+internal fun LinkRow(icon: ImageVector, title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Surface(onClick = onClick, modifier = modifier.fillMaxWidth().heightIn(min = 64.dp), color = colors.surface, contentColor = colors.text) {
         Row(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = if (radio) Alignment.Top else Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (radio) RadioDot(selected, Modifier.padding(top = 1.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                Text(
-                    description,
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                    color = colors.textMuted,
-                )
+            Box(Modifier.size(40.dp).background(colors.accentTint, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = colors.text)
             }
-            if (!radio) Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold))
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
         }
     }
 }
@@ -148,7 +167,7 @@ internal fun RadioDot(selected: Boolean, modifier: Modifier = Modifier, size: Dp
 
 /** 알약 칩(34dp · 13sp 600): 고르면 연두, 아니면 흰 바탕에 옅은 테두리. */
 @Composable
-internal fun PillChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PillChip(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, compact: Boolean = false) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
@@ -158,8 +177,14 @@ internal fun PillChip(label: String, selected: Boolean, onClick: () -> Unit, mod
         contentColor = colors.text,
         border = BorderStroke(1.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
-        Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        // [compact]: 한 줄에 여러 칩을 나눠 넣을 때 좌우 여백·글자를 줄이고 줄바꿈 없이 가운데에 둔다.
+        Box(Modifier.padding(horizontal = if (compact) 8.dp else 12.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (compact) 12.sp else 13.sp, fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                softWrap = !compact,
+            )
         }
     }
 }

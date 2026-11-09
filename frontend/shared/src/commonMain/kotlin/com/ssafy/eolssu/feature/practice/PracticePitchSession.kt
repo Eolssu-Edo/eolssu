@@ -12,10 +12,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.nanoseconds
 
-/** 화면과 녹음 제어를 바꾸지 않고, 현재 연주의 음높이 결과 구독과 만료만 관리한다. */
+/**
+ * 화면과 녹음 제어를 바꾸지 않고, 현재 연주의 음높이 결과 구독과 만료만 관리한다.
+ * [onPublish]는 내보내는 결과를 빠짐없이 받는다. 상태 흐름은 빠르게 바뀐 값을 건너뛸 수 있어 음별 집계는 이쪽을 쓴다.
+ */
 internal class PracticePitchSession(
     private val recorder: AudioRecorder?,
     private val scope: CoroutineScope,
+    private val onPublish: (PracticePitchFeedback) -> Unit = {},
     private val currentIndex: () -> Int,
 ) {
     private val output = MutableStateFlow(PracticePitchFeedback())
@@ -67,6 +71,7 @@ internal class PracticePitchSession(
 
     private fun publish(value: PracticePitchFeedback) {
         output.value = value
+        onPublish(value)
         expiry?.cancel()
         val expiresAt = listOfNotNull(value.current, value.previous).minOfOrNull { it.capturedEndNanos + 300_000_000L } ?: return
         val now = recorder?.captureBoundary?.observedNanos ?: return

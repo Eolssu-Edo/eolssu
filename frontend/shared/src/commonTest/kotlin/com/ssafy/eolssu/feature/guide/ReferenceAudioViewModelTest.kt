@@ -21,7 +21,7 @@ import kotlin.test.*
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReferenceAudioViewModelTest {
     @Test fun fourInstrumentIdsAndRegisterLabelsAreExplicit() {
-        val expected = listOf("danso", "sogeum", "jeongak-daegeum", "sanjo-daegeum")
+        val expected = listOf("danso", "sogeum", "sanjo-daegeum", "jeongak-daegeum")
         assertEquals(expected, GuideInstrument.entries.map { ReferenceAudioSelection(it, null, "중").datasetId })
         val jeongak = GuideInstrument.DaegeumJeongak
         assertEquals(listOf("저취", "평취", "역취"), Blow.entries.map {

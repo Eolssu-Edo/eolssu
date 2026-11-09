@@ -172,7 +172,7 @@ fun EolssuNavHost(
                             HomeFeature.Reading -> EolssuDestination.guideReading()
                             HomeFeature.Learn -> EolssuDestination.LEARN
                             HomeFeature.SongSelect -> EolssuDestination.mySongs()
-                            HomeFeature.EditSheets -> SheetEditDestination.NEW
+                            HomeFeature.EditSheets -> SheetEditDestination.new()
                             HomeFeature.Records -> EolssuDestination.records()
                         }
                         route?.let(navController::navigate)
@@ -482,7 +482,8 @@ fun EolssuNavHost(
                     onBack = { navController.popBackStackFrom(entry) },
                     onPractice = { navController.navigate(EolssuDestination.practice(it, solo = true)) },
                     onPracticeSheet = { songId, title -> navController.navigate(EolssuDestination.practice(songId, mine = true, title = title)) },
-                    onAddSheet = { navController.navigate(SheetEditDestination.NEW) },
+                    onAddSheet = { navController.navigate(SheetEditDestination.new()) },
+                    onReimportSheet = { failure -> navController.navigate(SheetEditDestination.new(failure)) },
                     onEditSheet = { navController.navigate(SheetEditDestination.editMine(it.id)) },
                     onSessionExpired = {
                         navController.navigateWithNotice(AuthDestination.LOGIN, StartNotice.SessionExpired) {

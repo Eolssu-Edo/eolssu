@@ -38,6 +38,8 @@ import com.ssafy.eolssu.core.ui.score.BandGap
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.core.model.ScoreUnitKey
+import com.ssafy.eolssu.core.ui.score.ScoreCellMark
 import com.ssafy.eolssu.core.ui.score.ScoreCursor
 import com.ssafy.eolssu.core.ui.score.ScoreHighlight
 import com.ssafy.eolssu.core.ui.score.ScoreNotation
@@ -45,6 +47,7 @@ import com.ssafy.eolssu.core.ui.score.ScorePlayback
 import com.ssafy.eolssu.core.ui.score.rememberScoreCursor
 import com.ssafy.eolssu.core.ui.score.twoBandColumnCount
 import com.ssafy.eolssu.core.ui.score.scoreStrips
+import com.ssafy.eolssu.feature.practice.LivePitchMark
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.stepCurrentIndex
@@ -87,8 +90,10 @@ fun PracticeScoreArea(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
 ) {
     val song = state.song ?: return
+    val pitchMarks = livePitchCellMarks(livePitch)
     val padding = when (style) {
         PracticeScoreStyle.Phone -> PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 8.dp)
         PracticeScoreStyle.TabletPortrait -> PaddingValues(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 12.dp)
@@ -139,6 +144,7 @@ fun PracticeScoreArea(
                 selectedCell = selectedCell,
                 onUnitClick = onUnitClick,
                 annotations = annotations,
+                unitMarks = pitchMarks,
             )
         } else {
             val bandHeight = (maxHeight - BandGap) / 2
@@ -160,6 +166,7 @@ fun PracticeScoreArea(
                         onUnitClick = onUnitClick,
                         columns = first until minOf(first + bandColumns, columnCount),
                         annotations = annotations,
+                        unitMarks = pitchMarks,
                     )
                 }
             }
@@ -267,9 +274,11 @@ fun PracticeBoardScore(
     onUserScroll: () -> Unit,
     onFollowNow: () -> Unit,
     modifier: Modifier = Modifier,
+    livePitch: Map<ScoreUnitKey, LivePitchMark> = emptyMap(),
 ) {
     val song = state.song ?: return
     val colors = EolssuTheme.colors
+    val pitchMarks = livePitchCellMarks(livePitch)
     val big = state.settings.bigScore
     val strips = remember(song) { scoreStrips(song.score, song.jangdan) }
     val longestStrip = strips.maxOf { it.rows.count() }
@@ -305,6 +314,7 @@ fun PracticeBoardScore(
                     stackGap = PracticeStackGap,
                     cellHeights = packing.cellHeights,
                     stackRowHeights = packing.stackRowHeights,
+                    unitMarks = pitchMarks,
                 )
             }
             // 준비 안내의 공간을 재생 중에도 유지해 악보 높이/묶음 수가 변하지 않게 한다.
@@ -331,6 +341,23 @@ fun PracticeBoardScore(
                     color = colors.accentText,
                 )
             }
+        }
+    }
+}
+
+/**
+ * 평가 연주에서 음마다 모은 실시간 음높이 안내를 그 음의 표시 자리에 칠한다(S15P31E102-597).
+ * 맞음은 연두, 다른 음은 주황, 판단 보류는 회색 테두리만 둔다. 연주 후 채점의 틀린 칸 표시와 달리 아이콘·문구는 없다.
+ */
+@Composable
+private fun livePitchCellMarks(marks: Map<ScoreUnitKey, LivePitchMark>): Map<ScoreUnitKey, ScoreCellMark> {
+    if (marks.isEmpty()) return emptyMap()
+    val colors = EolssuTheme.colors
+    return marks.mapValues { (_, mark) ->
+        when (mark) {
+            LivePitchMark.Correct -> ScoreCellMark(fill = colors.accentTintStrong, ring = colors.green, ringWidth = 1.5.dp)
+            LivePitchMark.Wrong -> ScoreCellMark(fill = colors.pitchErrorSoft, ring = colors.pitchError, ringWidth = 1.5.dp)
+            LivePitchMark.Listening -> ScoreCellMark(ring = colors.textDisabled, ringWidth = 1.5.dp)
         }
     }
 }

@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [616 계획·검증](plans/S15P31E102-616.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
@@ -15,6 +16,7 @@
 - [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
 - [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
 - [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
+- [기초부터 배우기 단계 개요·안내 개선 (565)](plans/S15P31E102-565.md)
 - [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)
 - [이전 연주와 비교 점수 도장·문구 (545)](plans/S15P31E102-545.md)
 - [휴대폰 연습 악보 각 묶음 (542)](plans/S15P31E102-542.md)
