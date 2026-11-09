@@ -96,7 +96,7 @@ class PracticeViewModel(
     private var songJob: Job? = null
     private var stepCountdownJob: Job? = null
     private var screenShown = false
-    private val recordingClock = RecordingClock()
+    private val recordingClock = RecordingClock(playbackTimeSource)
     private var takeKey = ""
     private var take: RecordedTake? = null
     private val accountScope = member.screenScope(viewModelScope) { clearAccount() }
@@ -959,11 +959,11 @@ class PracticeViewModel(
 
     // 녹음
 
-    /** 정상 종료한 연주에서만 분석으로 넘긴다. 저장된 녹음이 없으면 화면에 실패를 알린다. */
+    /** 곡 끝이나 녹음 한도에서 마친 연주를 분석으로 넘긴다. 저장된 녹음이 없으면 화면에 실패를 알린다. */
     fun takeForEvaluation(): RecordedTake? {
         if (!accountScope.isActive) return null
         val state = _uiState.value
-        if (!state.finished || state.popup != PracticePopup.End) return null
+        if (!state.finished || (state.popup != PracticePopup.End && state.popup != PracticePopup.EndAtLimit)) return null
         if (take == null) _uiState.update { it.failRecording() }
         return take
     }
@@ -1026,7 +1026,7 @@ class PracticeViewModel(
                 if (elapsed >= RecordingSpec.MaxDuration) {
                     captureStepProgress()
                     stepJob?.cancel()
-                    _uiState.update { it.endRecording() }
+                    _uiState.update { it.endRecording(atLimit = true) }
                     finishRecorder()
                     break
                 }

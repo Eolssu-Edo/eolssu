@@ -21,6 +21,8 @@ import eolssu.shared.generated.resources.practice_popup_continue
 import eolssu.shared.generated.resources.practice_popup_denied_body
 import eolssu.shared.generated.resources.practice_popup_denied_title
 import eolssu.shared.generated.resources.practice_popup_end_body
+import eolssu.shared.generated.resources.practice_popup_end_limit_body
+import eolssu.shared.generated.resources.practice_popup_end_limit_title
 import eolssu.shared.generated.resources.practice_popup_end_title
 import eolssu.shared.generated.resources.practice_popup_evaluate
 import eolssu.shared.generated.resources.practice_popup_exit_confirm
@@ -97,9 +99,9 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
             EolssuButton(stringResource(Res.string.practice_popup_go_home), actions.onGoHome)
             EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onResume, style = EolssuButtonStyle.Secondary)
         }
-        PracticePopup.End -> EolssuDialog(
-            title = stringResource(Res.string.practice_popup_end_title),
-            message = stringResource(Res.string.practice_popup_end_body),
+        PracticePopup.End, PracticePopup.EndAtLimit -> EolssuDialog(
+            title = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_title else Res.string.practice_popup_end_title),
+            message = stringResource(if (popup == PracticePopup.EndAtLimit) Res.string.practice_popup_end_limit_body else Res.string.practice_popup_end_body),
             icon = EolssuIcons.Check,
             iconBackground = colors.accentTintStrong,
         ) {

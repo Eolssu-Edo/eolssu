@@ -25,11 +25,11 @@ enum class PracticePanel { Settings, Notation, Fingering, Jangdan, Tempo }
 
 /**
  * 연습 화면 위에 뜨는 확인 창.
- * [EndNoInput]은 끝까지 마이크 입력이 없어 평가하지 않음,
+ * [EndAtLimit]은 10분 한도로 멈춘 녹음을 평가할 수 있음을 안내하고, [EndNoInput]은 마이크 입력이 없어 평가하지 않음,
  * [RecordFailed]는 녹음을 시작·저장하지 못함, [TooLarge]는 녹음 파일이 보낼 수 있는 크기(20MiB)를 넘음.
  * [PermDenied]는 OS 권한 창에서 허용하지 않음, [PermBlocked]는 ‘다시 묻지 않음’이라 기기 설정에서만 허용할 수 있음(보드 Dialog-PermDenied·PermBlocked).
  */
-enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked }
+enum class PracticePopup { Permission, Abort, SettingsPaused, End, EndAtLimit, EndNoInput, Restart, Exit, Interrupted, RecordFailed, TooLarge, PermDenied, PermBlocked }
 
 /** 연주 중 입력이 이 시간(ms)보다 오래 없으면 마이크를 확인하라고 안내한다(와이어프레임 `noInputMs > 1500`). */
 const val NO_INPUT_HINT_MS = 1500.0
@@ -355,11 +355,15 @@ fun PracticeUiState.recordLevel(level: Float, sinceMs: Double): PracticeUiState 
 }
 
 /**
- * 연주를 마침: 곡 끝에 닿았거나 녹음이 최대 길이(10분)에 닿음. '연주를 마쳤어요' 창을 띄운다.
+ * 곡을 마치면 완료 창을 띄우고, [atLimit]이면 10분 한도로 종료했음을 안내한다.
  * 입력 크기를 재는 플랫폼에서 끝까지 입력이 없었으면 평가하지 않고 '소리가 입력되지 않았어요' 창을 띄운다.
  */
-fun PracticeUiState.endRecording(): PracticeUiState {
-    val popup = if (inputMeasured && !hadInput) PracticePopup.EndNoInput else PracticePopup.End
+fun PracticeUiState.endRecording(atLimit: Boolean = false): PracticeUiState {
+    val popup = when {
+        inputMeasured && !hadInput -> PracticePopup.EndNoInput
+        atLimit -> PracticePopup.EndAtLimit
+        else -> PracticePopup.End
+    }
     return copy(finished = true, micLevel = 0f, popup = popup, eventStartedAt = null)
 }
 
