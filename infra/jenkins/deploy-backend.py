@@ -89,10 +89,10 @@ def check_release_order(sha, deployed_sha, repository=Path('/opt/app'), git_pref
         raise DeployError('candidate and deployed release histories have diverged')
 
 
-def atomic(path, text):
+def atomic(path, text, mode=0o600):
     temp = path.with_name(path.name + '.new')
     with open(temp, 'w', encoding='utf-8', opener=lambda p, f: os.open(p, f, 0o600)) as out:
-        os.fchmod(out.fileno(), 0o600)
+        os.fchmod(out.fileno(), mode)
         out.write(text)
         out.flush()
         os.fsync(out.fileno())
@@ -188,6 +188,28 @@ def candidate_migrations(jar):
 # 공개 health 경로로 검사한다. 등록 안 된 /api 경로의 404는 인증이 생기면 401이 되어 쓸 수 없다.
 RUNTIME_READINESS = 'http://127.0.0.1/api/actuator/health/readiness'
 UP = {'status': 'UP'}
+SLOTS = ('backend', 'backend-green')
+FRONTEND = 'eolssu-runtime-frontend-1'
+SLOT_CLASS = 'BOOT-INF/classes/com/ssafy/eolssu/backend/config/DeploymentSlot.class'
+READINESS_PATH = '/api/actuator/health/readiness'
+TLS_DOMAIN = 'k15e102.p.ssafy.io'
+
+
+def slot_name(slot):
+    if slot not in SLOTS:
+        raise DeployError('invalid backend slot')
+    return f'eolssu-runtime-{slot}-1'
+
+
+def slot_url(slot):
+    slot_name(slot)
+    return f'http://{slot}:8080'
+
+
+def require_slot_release(jar):
+    with zipfile.ZipFile(jar) as release:
+        if SLOT_CLASS not in release.namelist():
+            raise DeployError('release lacks the backend slot compatibility contract')
 
 
 def candidate_health_url(address):
@@ -221,6 +243,7 @@ class Deployer:
         self.env = root / '.env'
         self.state = root / 'deployment.json'
         self.compose = root / 'config/compose.yml'
+        self.route = root / 'config/backend-route/active.conf'
         self.migrated = False
 
     def save(self, data):
@@ -237,23 +260,147 @@ class Deployer:
             raise DeployError('release JAR missing or outside managed releases')
         return jar
 
-    def select(self, jar):
+    def current_slot(self):
+        entries = re.findall(r'^BACKEND_SLOT=(.*)$', self.env.read_text(), re.M)
+        if len(entries) > 1:
+            raise DeployError('BACKEND_SLOT must occur at most once')
+        slot = entries[0] if entries else 'backend'
+        slot_name(slot)
+        return slot
+
+    def select(self, slot, jar):
+        slot_name(slot)
         text, count = re.subn(r'^BACKEND_JAR=.+$', lambda _: 'BACKEND_JAR=' + str(jar), self.env.read_text(), flags=re.M)
         if count != 1:
             raise DeployError('BACKEND_JAR must occur exactly once')
+        text, slots = re.subn(r'^BACKEND_SLOT=.*$', lambda _: 'BACKEND_SLOT=' + slot, text, flags=re.M)
+        if slots > 1:
+            raise DeployError('BACKEND_SLOT must occur at most once')
+        if not slots:
+            text = text.rstrip('\n') + '\nBACKEND_SLOT=' + slot + '\n'
         atomic(self.env, text)
 
-    def activate(self):
-        run('docker', 'compose', '--env-file', str(self.env), '-f', str(self.compose),
-            'up', '-d', '--no-deps', '--force-recreate', '--pull', 'never', 'backend', timeout=90)
+    def compose_command(self, *args, env=None, timeout=90):
+        return run('docker', 'compose', '--env-file', str(self.env), '-f', str(self.compose),
+                   *args, env=env, timeout=timeout)
 
-    def healthy(self):
-        probe(RUNTIME_READINESS, 200, UP)
-        probe('http://127.0.0.1/', 200, seconds=10)
-        details = json.loads(run('docker', 'inspect', 'eolssu-runtime-backend-1'))[0]
+    def start_slot(self, slot, jar):
+        self.compose_command('up', '-d', '--no-deps', '--force-recreate', '--pull', 'never', slot,
+                             env={**os.environ, 'BACKEND_JAR': str(jar)})
+        self.await_ready(lambda: self.slot_ready(slot, jar), 'candidate backend readiness failed')
+        if self.database(slot)['env']['DB_URL'] != self.database()['env']['DB_URL']:
+            raise DeployError('candidate backend uses a different database target')
+
+    def slot_ready(self, slot, jar):
+        details = json.loads(run('docker', 'inspect', slot_name(slot)))[0]
         mounts = [m['Source'] for m in details['Mounts'] if m['Destination'] == '/app/app.jar']
-        if mounts != [str(self.current_jar())] or not details['State']['Running']:
-            raise DeployError('running backend does not match selected JAR')
+        if (mounts != [str(jar)] or not details['State']['Running']
+                or 'EOLSSU_DEPLOYMENT_SLOT=' + slot not in details['Config']['Env']):
+            raise DeployError('running backend does not match selected slot and JAR')
+        body = run('docker', 'exec', slot_name(slot), 'curl', '--fail', '--silent', '--max-time', '3',
+                   'http://127.0.0.1:8080' + READINESS_PATH, timeout=5)
+        return json.loads(body) == UP
+
+    def await_ready(self, check, error, seconds=90):
+        deadline = time.monotonic() + seconds
+        while True:
+            try:
+                if check():
+                    return
+            except (DeployError, ValueError):
+                pass
+            if time.monotonic() >= deadline:
+                raise DeployError(error)
+            time.sleep(0.5)
+
+    def loaded_route(self):
+        return run('docker', 'exec', FRONTEND, 'wget', '-qO-', '-T', '2',
+                   'http://127.0.0.1:8082/', timeout=4)
+
+    def configured_slot(self):
+        try:
+            route = self.route.read_text().strip()
+        except FileNotFoundError:
+            return 'backend'
+        for slot in SLOTS:
+            if route == f'set $backend {slot_url(slot)};':
+                return slot
+        raise DeployError('invalid configured backend route')
+
+    def route_matches(self, slot):
+        return self.configured_slot() == slot and self.loaded_route() == slot_url(slot)
+
+    def switch_route(self, slot):
+        atomic(self.route, f'set $backend {slot_url(slot)};\n', 0o644)
+        run('docker', 'exec', FRONTEND, 'nginx', '-t', timeout=10)
+        run('docker', 'exec', FRONTEND, 'nginx', '-s', 'reload', timeout=10)
+        self.await_ready(lambda: self.loaded_route() == slot_url(slot), 'Nginx did not load selected route', seconds=15)
+
+    def healthy(self, slot=None, jar=None):
+        slot = slot or self.current_slot()
+        jar = jar or self.current_jar()
+        if not self.route_matches(slot) or not self.slot_ready(slot, jar):
+            raise DeployError('runtime backend and Nginx route do not match the selected release')
+        probe(RUNTIME_READINESS, 200, UP, seconds=10)
+        probe('http://127.0.0.1/', 200, seconds=10)
+        probe('http://127.0.0.1/api/terms', 200, {'isSuccess': True}, seconds=10)
+        response = run('docker', 'exec', FRONTEND, 'sh', '-c',
+                       'wget -S -O- -T 3 --no-check-certificate --header="Host: $1" "$2" 2>&1',
+                       'probe', TLS_DOMAIN, 'https://127.0.0.1' + READINESS_PATH, timeout=6)
+        if not any(line.strip().lower() == f'x-eolssu-backend-probe: {slot_url(slot)}' for line in response.splitlines()):
+            raise DeployError('TLS vhost is not serving the selected backend')
+        run('curl', '--fail', '--silent', '--show-error', '--max-time', '10',
+            '--resolve', f'{TLS_DOMAIN}:443:127.0.0.1', '--output', '/dev/null',
+            'https://' + TLS_DOMAIN + READINESS_PATH, timeout=12)
+
+    def verify_setup(self):
+        if not self.route.is_file():
+            raise DeployError('install the backend slot runtime and initialize its route before deploying')
+        require_slot_release(self.current_jar())
+        self.healthy()
+
+    def worker_pids(self, *, draining=False):
+        processes = run('docker', 'exec', FRONTEND, 'ps', '-o', 'pid,args', timeout=6).splitlines()
+        workers = {int(match[1]): 'is shutting down' in line for line in processes
+                   if (match := re.match(r'^\s*(\d+)\s+nginx: worker process', line))}
+        if not workers:
+            raise DeployError('cannot identify running Nginx workers')
+        return {pid for pid, shutting_down in workers.items() if not draining or shutting_down}
+
+    def drain_complete(self, saved, slot):
+        return (not self.worker_pids().intersection(saved['draining_workers'])
+                and not self.worker_pids(draining=True) and self.jobs_done(slot))
+
+    def jobs_done(self, slot):
+        slot_name(slot)
+        name = self.database()['name']
+        query = f"""SELECT
+            (SELECT COUNT(*) FROM sheet_conversions c WHERE c.status IN ('QUEUED','RUNNING')
+             AND EXISTS (SELECT 1 FROM sheet_source_files f WHERE f.sheet_id=c.sheet_id
+             AND f.object_key LIKE 'sheet-import-temp/{slot}/%'))
+            + (SELECT COUNT(*) FROM sheet_audios WHERE status='RUNNING')"""
+        return self.query_database(name, query) == '0'
+
+    def retire(self, saved):
+        slot = saved.get('retire_slot')
+        if not slot:
+            return True
+        active = self.current_slot()
+        if slot == active or not self.route_matches(active):
+            raise DeployError('cannot retire a slot while the active route is uncertain')
+        try:
+            self.await_ready(lambda: self.drain_complete(saved, slot),
+                             'previous requests or conversion jobs are still running', seconds=15)
+        except DeployError:
+            print(json.dumps({'status': 'retirement_pending', 'slot': slot}), flush=True)
+            return False
+        if not self.slot_ready(active, self.current_jar()):
+            raise DeployError('active backend is not ready; previous slot preserved')
+        self.compose_command('stop', slot, timeout=270)
+        self.compose_command('rm', '-f', slot)
+        saved.pop('retire_slot')
+        self.save(saved)
+        return True
 
     def protected(self):
         values = json.loads(run('docker', 'inspect', 'eolssu-runtime-frontend-1', 'eolssu-runtime-mysql-1'))
@@ -263,13 +410,15 @@ class Deployer:
         return {'frontend': values[0]['Id'], 'mysql': mysql['Id'],
                 'volumes': [m['Name'] for m in mysql['Mounts'] if m['Type'] == 'volume']}
 
-    def unchanged(self, before):
-        if self.protected() != before:
-            raise DeployError('frontend/MySQL identity changed during deployment')
+    def unchanged(self, before, *, during_rollback=False):
+        current = self.protected()
+        keys = ('mysql', 'volumes') if during_rollback else ('frontend', 'mysql', 'volumes')
+        if any(current[key] != before[key] for key in keys):
+            raise DeployError('protected service identity changed during deployment')
 
-    def database(self):
+    def database(self, slot=None):
         """실행 중 백엔드의 DB 연결값. 값은 명령줄·로그에 남기지 않고 환경변수로만 넘긴다."""
-        backend = json.loads(run('docker', 'inspect', 'eolssu-runtime-backend-1'))[0]
+        backend = json.loads(run('docker', 'inspect', slot_name(slot or self.current_slot())))[0]
         env = dict(item.split('=', 1) for item in backend['Config']['Env'] if '=' in item)
         match = re.fullmatch(r'(jdbc:mysql://[^/?]+/([A-Za-z0-9_]+))(?:\?.*)?', env.get('DB_URL', ''))
         if not match or not env.get('DB_USERNAME') or not env.get('DB_PASSWORD'):
@@ -281,11 +430,14 @@ class Deployer:
         return {'image': backend['Config']['Image'], 'name': match.group(2),
                 'env': {'DB_URL': url, 'DB_USERNAME': env['DB_USERNAME'], 'DB_PASSWORD': env['DB_PASSWORD']}}
 
-    def history(self, name):
-        rows = run('docker', 'exec', 'eolssu-runtime-mysql-1', 'sh', '-c',
+    def query_database(self, name, query):
+        return run('docker', 'exec', 'eolssu-runtime-mysql-1', 'sh', '-c',
                    'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --batch --skip-column-names -D "$1" -e "$2"',
-                   'deploy', name, 'SELECT version, script, checksum, success FROM flyway_schema_history '
-                   'WHERE version IS NOT NULL ORDER BY installed_rank')
+                   'deploy', name, query)
+
+    def history(self, name):
+        rows = self.query_database(name, 'SELECT version, script, checksum, success FROM flyway_schema_history '
+                                   'WHERE version IS NOT NULL ORDER BY installed_rank')
         applied = {}
         for row in rows.splitlines():
             version, script, checksum, success = row.split('\t')
@@ -345,25 +497,34 @@ class Deployer:
 
     def recover(self):
         if not self.state.exists():
-            return
+            return True
         saved = json.loads(self.state.read_text())
-        if saved['status'] not in ('deploying', 'rollback_failed'):
-            return
-        try:
-            old = Path(saved['previous_jar'])
-            if not old.is_file() or not old.resolve().is_relative_to((self.root / 'releases').resolve()):
-                raise DeployError('rollback release missing')
-            self.select(old)
-            self.activate()
-            self.healthy()
-            if 'protected' in saved:
-                self.unchanged(saved['protected'])
-            saved['status'] = 'rolled_back'
-            self.save(saved)
-        except Exception:
-            saved['status'] = 'rollback_failed'
-            self.save(saved)
-            raise DeployError('rollback failed; restore the previous release before retrying') from None
+        if saved['status'] in ('preparing', 'deploying', 'rollback_failed'):
+            old_slot = saved.get('previous_slot')
+            if old_slot is None:
+                raise DeployError('finish recovery of the earlier single-slot deployment before enabling blue-green')
+            try:
+                old = Path(saved['previous_jar'])
+                if not old.is_file() or not old.resolve().is_relative_to((self.root / 'releases').resolve()):
+                    raise DeployError('rollback release missing')
+                if not self.slot_ready(old_slot, old):
+                    raise DeployError('previous backend is not ready')
+                if saved['status'] != 'preparing' or not self.route_matches(old_slot):
+                    saved['status'] = 'rollback_failed'
+                    saved['draining_workers'] = sorted(self.worker_pids())
+                    self.save(saved)
+                    self.switch_route(old_slot)
+                self.healthy(old_slot, old)
+                self.select(old_slot, old)
+                self.unchanged(saved['protected'], during_rollback=True)
+                saved['status'] = 'rolled_back'
+                saved['retire_slot'] = saved['slot']
+                self.save(saved)
+            except Exception:
+                saved['status'] = 'rollback_failed'
+                self.save(saved)
+                raise DeployError('rollback failed; restore the previous route before retrying') from None
+        return self.retire(saved)
 
     def already_deployed(self, sha, image_id):
         if not self.state.exists():
@@ -378,24 +539,33 @@ class Deployer:
         return False
 
     def promote(self, sha, jar, image_id, protected):
-        self.save({'status': 'deploying', 'sha': sha, 'previous_jar': str(self.current_jar()),
-                   'jar': str(jar), 'jar_sha256': digest(jar), 'image_id': image_id, 'protected': protected})
+        old_slot = self.current_slot()
+        slot = SLOTS[1] if old_slot == SLOTS[0] else SLOTS[0]
+        saved = {'status': 'preparing', 'draining_workers': [], 'sha': sha, 'previous_jar': str(self.current_jar()),
+                 'previous_slot': old_slot, 'slot': slot, 'jar': str(jar),
+                 'jar_sha256': digest(jar), 'image_id': image_id, 'protected': protected}
+        self.save(saved)
         try:
-            with phase('Select release'):
-                self.select(jar)
-            with phase('Recreate runtime service'):
-                self.activate()
-            with phase('Verify runtime health and mounted release'):
-                self.healthy()
-            with phase('Verify protected services unchanged'):
+            with phase('Start inactive backend and verify readiness'):
+                self.start_slot(slot, jar)
+            saved['status'] = 'deploying'
+            saved['draining_workers'] = sorted(self.worker_pids())
+            self.save(saved)
+            with phase('Reload Nginx and verify active release'):
+                self.switch_route(slot)
+                self.healthy(slot, jar)
                 self.unchanged(protected)
+                self.select(slot, jar)
         except Exception:
             with phase('Rollback previous release'):
                 self.recover()
-            raise DeployError('deployment failed; previous release restored') from None
-        saved = json.loads(self.state.read_text())
+            raise DeployError('deployment failed; previous route restored') from None
+        # The previous slot may stop only after the durable commit.
         saved['status'] = 'deployed'
+        saved['retire_slot'] = old_slot
         self.save(saved)
+        with phase('Drain and retire previous backend'):
+            self.retire(saved)
 
     def check_order(self, sha):
         check_release_order(sha, self.current_jar().parent.name)
@@ -403,7 +573,10 @@ class Deployer:
     def deploy(self, sha):
         validate_sha(sha)
         with phase('Recover interrupted deployment'):
-            self.recover()
+            if not self.recover():
+                raise DeployError('previous backend is still draining; retry after it is idle')
+        with phase('Verify backend slot setup'):
+            self.verify_setup()
         with phase('Check deployment order'):
             self.check_order(sha)
         with phase('Validate candidate image'):
@@ -436,36 +609,42 @@ class Deployer:
                 run('docker', 'cp', name + ':/app/app.jar', str(candidate))
                 candidate.chmod(0o644)
                 jar = release / 'app.jar'
+                require_slot_release(candidate)
                 if jar.exists() and digest(jar) != digest(candidate):
                     candidate.unlink()
                     raise DeployError('immutable release already exists with different content')
                 os.replace(candidate, jar)
-            with phase('Recheck protected services and order'):
-                self.unchanged(protected)
-                self.check_order(sha)
-            # 교체 직전, 시작 시 prechange 백업을 받은 같은 lock 안에서 적용한다. 실패하면 기존 앱이 그대로 돈다.
-            with phase('Check database migrations'):
-                database = self.database()
-                pending = self.migration_plan(jar, database['name'])
-            if pending:
-                with phase('Apply database migrations'):
-                    self.migrate(sha, jar, database, pending)
-                    self.migrated = True
-            self.promote(sha, jar, image['Id'], protected)
         finally:
             # Cleanup failure is a failed build; the deployment journal remains authoritative.
             with phase('Clean candidate resources'):
                 run('docker', 'rm', '-f', name)
                 run('docker', 'network', 'rm', name)
+        with phase('Recheck protected services and order'):
+            self.unchanged(protected)
+            self.check_order(sha)
+        # 교체 직전, 시작 시 prechange 백업을 받은 같은 lock 안에서 적용한다. 실패하면 기존 앱이 그대로 돈다.
+        with phase('Check database migrations'):
+            database = self.database()
+            pending = self.migration_plan(jar, database['name'])
+        if pending:
+            with phase('Apply database migrations'):
+                self.migrate(sha, jar, database, pending)
+                self.migrated = True
+        self.promote(sha, jar, image['Id'], protected)
+
 
 
 def main():
+    if sys.argv[1:] == ['--active-container']:
+        print(slot_name(Deployer().configured_slot()))
+        return
     os.environ.clear()
     os.environ.update({'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'HOME': '/root', 'LANG': 'C.UTF-8'})
     os.umask(0o077)
     if os.geteuid() != 0 or len(sys.argv) != 2:
         raise DeployError('run as root with one commit SHA argument')
-    validate_sha(sys.argv[1])
+    if sys.argv[1] != '--recover':
+        validate_sha(sys.argv[1])
     with open('/run/lock/eolssu-backend-deploy.lock', 'w') as lock:
         with phase('Wait for shared deployment lock'):
             acquire_lock(lock)
@@ -473,6 +652,10 @@ def main():
             raise DeployError('deployment interrupted')
         signal.signal(signal.SIGTERM, interrupted)
         signal.signal(signal.SIGINT, interrupted)
+        if sys.argv[1] == '--recover':
+            if not Deployer().recover():
+                raise DeployError('previous backend is still draining')
+            return
         with phase('Pre-deployment backup'):
             run('/opt/eolssu-backup/backup.py', 'send', 'prechange', timeout=600)
         deployer = Deployer()

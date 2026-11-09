@@ -8,9 +8,9 @@
 | Prometheus | 127.0.0.1:3001 | prom/prometheus:v3.5.0 |
 | node exporter | 포트 없음(Docker 내부 `node-exporter:9100`) | prom/node-exporter:v1.9.1 |
 
-서비스는 서버 밖에 열지 않고 SSH 터널로만 접속합니다. 운영 스택(`eolssu-runtime`)의 Compose·Nginx 설정은 바꾸지 않고, 그 스택의 내부 네트워크 `eolssu-runtime_default`에 붙어 MySQL을 `mysql:3306`, 백엔드를 `backend:8080`으로 찾습니다.
+서비스는 서버 밖에 열지 않고 SSH 터널로만 접속합니다. 운영 스택(`eolssu-runtime`)의 내부 네트워크 `eolssu-runtime_default`에 붙어 MySQL을 `mysql:3306`, 활성 백엔드의 수치는 `frontend:8081`로 읽습니다.
 
-Prometheus는 15초마다 `backend:8080/api/actuator/prometheus`와 서버 수집기 `node-exporter:9100`을 읽고 15일 보관합니다([prometheus.yml](prometheus.yml)). 백엔드 수치 주소 `/api/actuator/prometheus`는 인터넷 쪽에서 Nginx가 404로 막습니다([infra/runtime](../runtime/README.md)).
+Prometheus는 15초마다 `frontend:8081/api/actuator/prometheus`와 서버 수집기 `node-exporter:9100`을 읽고 15일 보관합니다([prometheus.yml](prometheus.yml)). 백엔드 수치 주소 `/api/actuator/prometheus`는 인터넷 쪽에서 Nginx가 404로 막습니다([infra/runtime](../runtime/README.md)).
 
 서버 수집기는 서버 루트를 읽기 전용으로만 보고 포트를 열지 않습니다(`/:/host:ro,rslave`). `rslave`는 서버 루트가 shared 마운트여야 하며 edo1은 shared입니다. Docker Desktop에서는 이 옵션으로 뜨지 않습니다.
 
@@ -169,7 +169,7 @@ MySQL은 **Save & test**에서 `Database Connection OK`, Prometheus는 `Successf
 | 증상 | 원인 |
 | --- | --- |
 | `network eolssu-runtime_default not found` | 운영 스택이 꺼져 있거나 이름이 바뀌었습니다. `docker network ls`로 확인합니다. |
-| Prometheus 대상이 `down` | 백엔드가 수치 주소가 없는 이전 버전이거나 운영 스택이 꺼져 있습니다. 서버에서 `docker exec eolssu-monitoring-prometheus-1 wget -qO- http://backend:8080/api/actuator/prometheus`로 확인합니다. |
+| Prometheus 대상이 `down` | 백엔드가 수치 주소가 없는 이전 버전이거나 운영 스택이 꺼져 있습니다. 서버에서 `docker exec eolssu-monitoring-prometheus-1 wget -qO- http://frontend:8081/api/actuator/prometheus`로 확인합니다. |
 | 테이블이 안 보임 | 백엔드가 Flyway 마이그레이션을 아직 적용하지 않았을 수 있습니다. 연결 성공까지만 확인합니다. |
 
 ## 끄기와 데이터

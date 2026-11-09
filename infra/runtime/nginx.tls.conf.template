@@ -1,4 +1,9 @@
 log_format eolssu_safe_tls '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
+# A container-local check can verify the TLS vhost's selected upstream.
+map $remote_addr $eolssu_tls_probe_backend {
+    default "";
+    127.0.0.1 $backend;
+}
 server {
     access_log /dev/stdout eolssu_safe_tls;
     listen 80;
@@ -34,6 +39,7 @@ server {
     # Android App Links는 HTTPS에서도 SPA가 아닌 서버의 원시 JSON을 제공한다.
     location = /.well-known/assetlinks.json {
         set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
         proxy_pass $backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -41,14 +47,16 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # 점검 주소(actuator)는 readiness만 밖에 연다. 수치(prometheus) 등은 서버 안에서 backend:8080으로만 읽는다.
+    # 점검 주소(actuator)는 readiness만 밖에 연다. 수치(prometheus)는 내부 8081 경로에서만 읽는다.
     location = /api/actuator/health/readiness {
         set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
         proxy_pass $backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        add_header X-Eolssu-Backend-Probe $eolssu_tls_probe_backend;
     }
 
     location ^~ /api/actuator {
@@ -60,6 +68,7 @@ server {
         access_log off;
         error_log /dev/null;
         set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
         proxy_pass $backend;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -82,6 +91,7 @@ server {
         gzip_min_length 1024;
         gzip_types application/json;
         set $backend http://backend:8080;
+        include /etc/nginx/backend-route/*.conf;
         proxy_pass $backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

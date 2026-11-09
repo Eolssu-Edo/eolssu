@@ -38,6 +38,12 @@ class FrontendTransactionTests(unittest.TestCase):
     def promote(self):
         self.d.promote('a' * 40, self.new, 'sha256:image', {})
 
+    def test_pending_backend_drain_prevents_frontend_recreation(self):
+        (self.root / 'deployment.json').write_text(json.dumps({'status': 'deployed', 'retire_slot': 'backend'}))
+        with self.assertRaisesRegex(deploy.DeployError, 'drain the backend deployment'):
+            self.d.deploy('a' * 40)
+        self.assertEqual(self.activations, [])
+
     def test_success_preserves_other_env_and_same_release_does_not_restart(self):
         self.promote()
         self.assertEqual(self.d.current_web(), self.new)
