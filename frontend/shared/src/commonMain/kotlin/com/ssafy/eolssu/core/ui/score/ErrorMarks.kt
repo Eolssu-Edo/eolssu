@@ -50,22 +50,23 @@ import org.jetbrains.compose.resources.stringResource
 
 /*
  * 틀린 종류 표시(2차 결합본 `screens.py`의 CELL_FILL · ICON_P/R/L · legend_chip). 1차 결과 RESULT-02도 같은 방식으로 바꿨다.
- * 음정 = 바탕 #F6E7D2 · 테두리 #BB7B43 · 음표, 박자 = #E3E9F9 · #6475C5 · 시계, 음 길이 = #ECECEA · #2C2C2C 점선 · 양쪽 화살표.
+ * 음정 = 음표, 박자 = 시계, 음 길이 = 점선 테두리 · 양쪽 화살표. 정간 바탕·테두리는 시안보다 연한 색(`…Faint`·`…Line`)으로 칠하고,
+ * 아이콘 상자만 흰 아이콘이 보이게 시안의 진한 색(#BB7B43 · #6475C5 · #2C2C2C)을 쓴다.
  * 곁줄(가사 칸)은 어떤 표시도 칠하지 않는다.
  */
 
-/** 오류 종류의 테두리(아이콘 상자 바탕)·정간 바탕 색과 점선 여부. */
-internal data class ErrorStyle(val ring: Color, val fill: Color, val dashed: Boolean)
+/** 오류 종류의 정간 테두리·바탕 색, 아이콘 상자 바탕([tag])과 점선 여부. */
+internal data class ErrorStyle(val ring: Color, val fill: Color, val tag: Color, val dashed: Boolean)
 
 @Composable
 internal fun errorStyle(kind: ScoreErrorKind): ErrorStyle {
     val c = EolssuTheme.colors
     return when (kind) {
-        ScoreErrorKind.Pitch -> ErrorStyle(c.pitchError, c.pitchErrorSoft, dashed = false)
-        ScoreErrorKind.Rhythm -> ErrorStyle(c.rhythmError, c.rhythmErrorSoft, dashed = false)
-        ScoreErrorKind.Length -> ErrorStyle(c.lengthError, c.lengthErrorSoft, dashed = true)
+        ScoreErrorKind.Pitch -> ErrorStyle(c.pitchErrorLine, c.pitchErrorFaint, c.pitchError, dashed = false)
+        ScoreErrorKind.Rhythm -> ErrorStyle(c.rhythmErrorLine, c.rhythmErrorFaint, c.rhythmError, dashed = false)
+        ScoreErrorKind.Length -> ErrorStyle(c.lengthErrorLine, c.lengthErrorFaint, c.lengthError, dashed = true)
         // 음 미검출은 2차 시안에 없다. 다른 종류와 섞이지 않게 회색으로 둔다.
-        ScoreErrorKind.Missed -> ErrorStyle(c.textMuted, c.surfaceStrong, dashed = false)
+        ScoreErrorKind.Missed -> ErrorStyle(c.missedErrorLine, c.missedErrorFaint, c.textMuted, dashed = false)
     }
 }
 
@@ -142,7 +143,7 @@ fun ErrorKindTag(
     Box(
         modifier
             .size(size)
-            .background(style.ring, RoundedCornerShape(corner))
+            .background(style.tag, RoundedCornerShape(corner))
             .then(if (describe) Modifier.semantics { contentDescription = label } else Modifier.clearAndSetSemantics {}),
         contentAlignment = Alignment.Center,
     ) {

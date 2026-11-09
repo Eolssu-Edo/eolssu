@@ -57,6 +57,26 @@ class EolssuColorsContrastTest {
     }
 
     /**
+     * 틀린 정간 표시는 연하게 두되 흰 정간에서 테두리가 보여야 한다(1.5:1).
+     * 아이콘 상자는 흰 아이콘이 그래픽 기준(3:1)을 넘어야 한다.
+     */
+    @Test
+    fun softErrorMarksStayVisible() {
+        listOf(
+            "pitch" to colors.pitchErrorLine,
+            "rhythm" to colors.rhythmErrorLine,
+            "length" to colors.lengthErrorLine,
+            "missed" to colors.missedErrorLine,
+        ).forEach { (name, line) -> assertReadable("$name line / surface", line, colors.surface, minimum = 1.5f) }
+        listOf(
+            "pitch" to colors.pitchError,
+            "rhythm" to colors.rhythmError,
+            "length" to colors.lengthError,
+            "missed" to colors.textMuted,
+        ).forEach { (name, tag) -> assertReadable("white icon / $name tag", Color.White, tag, minimum = 3f) }
+    }
+
+    /**
      * 비활성 칩·버튼 글자는 WCAG 1.4.3 예외(비활성 UI)라 4.5:1을 요구하지 않는다.
      * 대신 바탕과 아예 구분되지 않을 만큼 흐려지지 않았는지(2:1)만 본다.
      */

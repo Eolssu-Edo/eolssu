@@ -17,6 +17,18 @@ class MetadataTest(unittest.TestCase):
    self.assertEqual(len(result['builds']),2);self.assertEqual(result['mergeRequests']['b'*40],329)
    self.assertEqual(result['mergeRequestDetails']['328'],{'authorName':'실제 작성자','title':'새 MR 제목'})
    self.assertEqual(result['mergeRequestDetails']['12'],original['mergeRequestDetails']['12'])
+ def test_mr_metadata_is_requested_in_batches_of_at_most_ten(self):
+  with tempfile.TemporaryDirectory(prefix='qa624-mr-batch-') as temp:
+   root=pathlib.Path(temp);value=self.index(root)
+   value['mergeRequests']={f'{iid:040x}':iid for iid in range(1,24)}
+   (root/'index.json').write_text(json.dumps(value),encoding='utf-8')
+   calls=[]
+   def fetch(ids,token):
+    calls.append(ids)
+    return [{'iid':iid,'title':f'MR {iid}','author':{'name':'QA'}} for iid in ids]
+   self.assertEqual(syncer.sync(root,'fixture',fetch),23)
+   self.assertEqual(calls,[list(range(1,11)),list(range(11,21)),list(range(21,24))])
+   self.assertEqual(len(json.loads((root/'index.json').read_text())['mergeRequestDetails']),23)
  def test_invalid_missing_and_failed_responses_leave_index_untouched(self):
   for response in [[],[{'iid':329,'title':'wrong MR','author':{'name':'a'}}],[{'iid':328,'title':'x','author':{'name':'a\nb'}}]]:
    with self.subTest(response=response),tempfile.TemporaryDirectory(prefix='qa498-mr-bad-') as temp:
@@ -43,7 +55,7 @@ class MetadataTest(unittest.TestCase):
    try:
     base='http://127.0.0.1:'+str(server.server_port)
     self.assertEqual(syncer.fetch_batch([328],'fixture-secret',base+'/mrs'),[])
-    self.assertEqual(seen[0][1],'fixture-secret');self.assertNotIn('fixture-secret',seen[0][0]);self.assertIn('iids%5B%5D=328',seen[0][0])
+    self.assertEqual(seen[0][1],'fixture-secret');self.assertNotIn('fixture-secret',seen[0][0]);self.assertIn('iids%5B%5D=328',seen[0][0]);self.assertIn('per_page=1',seen[0][0])
     with self.assertRaises(urllib.error.HTTPError):syncer.fetch_batch([328],'fixture-secret',base+'/redirect')
     self.assertEqual(len(seen),2)
    finally:server.shutdown();thread.join()

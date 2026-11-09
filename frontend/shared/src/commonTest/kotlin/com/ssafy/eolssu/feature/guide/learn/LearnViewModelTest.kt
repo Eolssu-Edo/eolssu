@@ -158,4 +158,32 @@ internal class LearnViewModelTest : CatalogViewModelTest() {
         assertTrue(api.completionCalls.isEmpty())
         assertEquals(LearnDetailLoad.Loading, model.uiState.value.detail(42))
     }
+
+    /** 연주 결과 화면이 8단계를 완료로 남기면(S15P31E102-611) 뒤에 남아 있던 학습 화면도 로딩 표시 없이 완료를 보인다. */
+    @Test
+    fun completionSavedElsewhereIsShownWithoutReloadingUi() = runTest {
+        val repository = LearnProgressRepository(api, store)
+        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        runCurrent()
+        assertFalse(8 in model.uiState.value.doneStages)
+
+        repository.setCompleted(api.id("danso", 8), true)
+        assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
+        runCurrent()
+
+        assertTrue(8 in model.uiState.value.doneStages)
+        assertIs<LearnTrackLoad.Loaded>(model.uiState.value.track)
+    }
+
+    /** 이 화면의 완료 표시는 저장 뒤 다시 받아도 그대로다. */
+    @Test
+    fun ownMarkStaysAfterRefresh() = runTest {
+        val repository = LearnProgressRepository(api, store)
+        val model = keep(LearnViewModel(CatalogSongs(), repository))
+        runCurrent()
+        model.toggleDone(3)
+        runCurrent()
+        assertTrue(3 in model.uiState.value.doneStages)
+        assertEquals(setOf(3), api.doneSeqs("danso"))
+    }
 }

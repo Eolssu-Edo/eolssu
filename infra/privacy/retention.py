@@ -12,7 +12,7 @@ import uuid
 
 LOGS = Path('/var/log/eolssu/ordinary')
 STATE = Path('/var/lib/eolssu-privacy')
-LOG_NAME = re.compile(r'eolssu-(frontend|backend|ai|mysql)\.(\d{4}-\d{2}-\d{2})\.log')
+LOG_NAME = re.compile(r'eolssu-(frontend|backend|ai|mysql|playback|omr)\.(\d{4}-\d{2}-\d{2})\.log')
 AUDIT_NAME = re.compile(r'access\.(\d{4}-\d{2}-\d{2})\.jsonl')
 
 
