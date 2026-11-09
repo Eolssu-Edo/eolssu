@@ -81,6 +81,7 @@ import eolssu.shared.generated.resources.tiger_encourage
 import eolssu.shared.generated.resources.tiger_play
 import eolssu.shared.generated.resources.tiger_retry
 import eolssu.shared.generated.resources.tiger_zero_score
+import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_confused_atlas
 import org.jetbrains.compose.resources.imageResource
 import org.jetbrains.compose.resources.painterResource
@@ -168,9 +169,21 @@ private const val ConfusedFrameSize = 240
 private const val ConfusedFrameCount = 9
 private const val ConfusedFrameMillis = 160L
 
-/** 분석 실패 그림(160dp): 물음표를 띄우고 머리를 긁는 호랑이 움짤. 경고 표시는 두지 않는다. */
+/**
+ * 분석 실패 그림. 녹음 문제로 다시 연주해야 하면([recordingProblem]) 물음표를 띄우고 머리를 긁는 호랑이 움짤(160dp),
+ * 서버·전송 문제면 실패 전용 호랑이 그림(132dp)이다.
+ */
 @Composable
-fun AnalysisFailedFigure() {
+fun AnalysisFailedFigure(recordingProblem: Boolean) {
+    if (!recordingProblem) {
+        Image(
+            painterResource(Res.drawable.tiger_analysis_failed),
+            contentDescription = null,
+            modifier = Modifier.size(132.dp),
+            contentScale = ContentScale.Fit,
+        )
+        return
+    }
     val bitmap = imageResource(Res.drawable.tiger_confused_atlas)
     var frame by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {

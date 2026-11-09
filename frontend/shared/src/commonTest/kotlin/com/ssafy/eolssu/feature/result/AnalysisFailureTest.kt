@@ -40,6 +40,14 @@ class AnalysisFailureTest {
     }
 
     @Test
+    fun onlySoundAndFileFailuresAreRecordingProblems() {
+        listOf(AnalysisFailure.NoSound, AnalysisFailure.TooShort, AnalysisFailure.DecodeError)
+            .forEach { assertTrue(it.isRecordingProblem(), "$it") }
+        listOf(AnalysisFailure.UploadTimeout, AnalysisFailure.Timeout, AnalysisFailure.ServerError)
+            .forEach { assertFalse(it.isRecordingProblem(), "$it") }
+    }
+
+    @Test
     fun eachFailureShowsItsOwnMessage() {
         assertEquals(Res.string.analysis_failed_no_sound, AnalysisFailure.NoSound.messageRes())
         assertEquals(Res.string.analysis_failed_too_short, AnalysisFailure.TooShort.messageRes())
