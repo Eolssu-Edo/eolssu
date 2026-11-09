@@ -51,10 +51,14 @@
     <nav class="journal-pagination" aria-label="글 목록 페이지" data-pagination hidden>
       <button type="button" aria-label="이전 페이지" data-page-prev>‹</button>
       <div class="journal-page-numbers" data-page-numbers>
-        <label class="journal-select journal-page-jump">
-          <span class="sr-only">페이지 바로 이동</span>
-          <select data-page-jump></select>
-        </label>
+        <form class="journal-page-jump" data-page-jump-form>
+          <label>
+            <span class="sr-only">이동할 페이지 번호</span>
+            <input type="number" min="1" step="1" inputmode="numeric" enterkeyhint="go" required>
+          </label>
+          <span data-page-total aria-hidden="true"></span>
+          <button type="submit">이동</button>
+        </form>
       </div>
       <button type="button" aria-label="다음 페이지" data-page-next>›</button>
       <span class="sr-only" role="status" data-page-status></span>
