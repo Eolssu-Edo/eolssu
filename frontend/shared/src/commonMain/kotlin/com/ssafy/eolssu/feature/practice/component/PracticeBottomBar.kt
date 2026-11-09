@@ -89,14 +89,15 @@ class PracticeBottomActions(
 )
 
 /**
- * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48 · 42%’ · 마이크 뱃지 · 6dp 붉은 진행 막대 ·
- * 현재 박 점 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
+ * 연주 중 하단(`.bottombar`, 상태 D·소리 입력 없음·중단): 경과 시간 ‘0:20 / 0:48 · 42%’ · 마이크 뱃지 · 현재 박 장구 ·
+ * 6dp 붉은 진행 막대 · 입력 없음 안내 · ‘처음부터 다시’ + ‘연주 중단’. 중단됨·이어 연주 카운트다운에서는 두 버튼이 회색으로 잠긴다.
+ * 박 표시는 진행 막대 위에 두고, 시간·마이크 줄과 박 표시가 진행 막대에 붙지 않게 사이를 띄운다.
  * [stacked]이면 두 버튼을 위아래로 쌓는다(태블릿 가로 상태 패널).
  */
 @Composable
 fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBottomActions, stacked: Boolean = false) {
     val song = state.song ?: return
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         val colors = EolssuTheme.colors
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
@@ -112,10 +113,10 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
             )
             MicBadge(state.micLevel)
         }
+        if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
             Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
         }
-        if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording
         if (locked) {
