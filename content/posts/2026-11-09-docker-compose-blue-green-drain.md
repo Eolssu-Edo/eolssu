@@ -1,5 +1,5 @@
 ---
-title: 얼쑤는 Docker Compose에서 백엔드를 어떻게 무중단으로 교체할까
+title: "백엔드 무중단 배포"
 date: 2026-11-09
 slug: docker-compose-blue-green-drain
 author: 우동균
