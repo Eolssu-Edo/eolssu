@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.core.ui.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -34,9 +36,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -95,7 +101,7 @@ private val TabletPortraitTopBarTop: Dp = 40.dp
 private val TabletLandscapeTopBarTop: Dp = 28.dp
 
 /**
- * 상단 바(`.topbar`): 왼쪽 뒤로 가기 원형 버튼 · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리. [titleFontSize]를 주면 제목만 그 크기로 바꾼다.
+ * 상단 바(`.topbar`): 왼쪽 뒤로 가기 꺽쇠([EolssuBackButton]) · 가운데 제목(보조 문구, 그 아래 [below]) · 오른쪽 자리. [titleFontSize]를 주면 제목만 그 크기로 바꾼다.
  * 휴대폰은 상태 표시줄 아래 12dp, 태블릿은 와이어프레임처럼 화면 맨 위에서 세로 40dp · 가로 28dp에 두고 제목을 17sp로 키운다.
  * 상태 표시줄 영역은 감싸는 쪽(`EolssuScaffold` 등)이 비켜 간다.
  */
@@ -128,7 +134,7 @@ fun EolssuTopBar(
         ) {
             Box(Modifier.size(48.dp)) {
                 if (onBack != null) {
-                    EolssuIconButton(EolssuIcons.Back, stringResource(Res.string.common_back), onBack)
+                    EolssuBackButton(onBack)
                 }
             }
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -152,6 +158,27 @@ fun EolssuTopBar(
             }
             Row(Modifier.widthIn(min = 48.dp), horizontalArrangement = Arrangement.End, content = right)
         }
+    }
+}
+
+/**
+ * 상단 바의 뒤로 가기: 원·테두리 없이 옅은 회색(`lineStrong`) 꺽쇠만 그린다(S15P31E102-635).
+ * 누르는 영역은 [size](기본 48dp) 원이다.
+ */
+@Composable
+fun EolssuBackButton(onClick: () -> Unit, modifier: Modifier = Modifier, size: Dp = 48.dp) {
+    val back = stringResource(Res.string.common_back)
+    Box(
+        modifier
+            // 원이 없어 꺽쇠가 안쪽으로 들어가 보이므로 누른 표시와 함께 왼쪽으로 4dp 옮긴다. 주변 배치는 그대로다.
+            .offset(x = (-4).dp)
+            .size(size)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = back, onClick = onClick)
+            .semantics { contentDescription = back },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(EolssuIcons.Back, contentDescription = null, modifier = Modifier.size(20.dp), tint = EolssuTheme.colors.lineStrong)
     }
 }
 

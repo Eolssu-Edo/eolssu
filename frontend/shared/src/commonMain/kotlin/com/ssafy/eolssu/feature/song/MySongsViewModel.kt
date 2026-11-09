@@ -197,6 +197,9 @@ class MySongsViewModel(
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 
+    /** 제공 곡 이름 오름차순·내림차순을 바꾼다. */
+    fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }
+
     /** 휴지통: 삭제를 묻는 창을 연다. */
     fun askDelete(sheet: MySheet) = _uiState.update { it.copy(deleting = sheet) }
 

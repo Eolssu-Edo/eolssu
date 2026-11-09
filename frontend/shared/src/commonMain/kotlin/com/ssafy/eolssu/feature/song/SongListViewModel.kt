@@ -73,6 +73,9 @@ class SongListViewModel(
 
     fun selectFilter(filter: SongLevelFilter) = _uiState.update { it.copy(filter = filter) }
 
+    /** 곡 이름 오름차순·내림차순을 바꾼다. */
+    fun toggleSort() = _uiState.update { it.copy(sort = it.sort.toggled()) }
+
     /** 세로 목록에서 곡 상세로 가는 곡을 고른다. 가로로 바뀌면 오른쪽에 보인다. */
     fun selectSong(songId: String) = _uiState.update { it.selectSong(songId) }
 

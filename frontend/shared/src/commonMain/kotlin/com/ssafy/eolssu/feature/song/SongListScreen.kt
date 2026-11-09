@@ -24,6 +24,7 @@ class SongListActions(
     val onQueryChange: (String) -> Unit,
     val onClearQuery: () -> Unit,
     val onSelectFilter: (SongLevelFilter) -> Unit,
+    val onToggleSort: () -> Unit,
     val onResetFilters: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onStartPractice: () -> Unit,

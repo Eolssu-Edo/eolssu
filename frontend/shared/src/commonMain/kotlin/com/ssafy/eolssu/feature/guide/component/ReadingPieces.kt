@@ -143,7 +143,7 @@ import kotlin.math.roundToInt
 internal val GuideFaint = Color(0xFFB9B3A6)
 
 /**
- * 설명 카드(`.gcard`): 흰 바탕에 옅은 테두리. [mark]가 있으면 연두 원 표시(딸린 쪽이면 [subMark]로 흰 원)와 [title]을,
+ * 설명 카드(`.gcard`): 흰 바탕에 옅은 테두리. [mark]가 있으면 연두 원 표시와 [title]을,
  * [small]이 있으면 그 옆에 작은 회색 글을 단다.
  */
 @Composable
@@ -152,7 +152,6 @@ internal fun GuideCard(
     mark: String? = null,
     title: String? = null,
     small: String? = null,
-    subMark: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = EolssuTheme.colors
@@ -167,7 +166,7 @@ internal fun GuideCard(
     ) {
         if (title != null) {
             Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (mark != null) PageMark(mark, sub = subMark)
+                if (mark != null) PageMark(mark)
                 Text(
                     buildAnnotatedString {
                         append(title)
@@ -185,17 +184,12 @@ internal fun GuideCard(
     }
 }
 
-/** 쪽 표시(`.rb-mark`): 연두 원 안의 번호. 정간보란의 井은 세리프로 쓴다. 앞 쪽에 딸린 쪽([sub])은 검은 테두리의 흰 원이다. */
+/** 쪽 표시(`.rb-mark`): 연두 원 안의 번호. 정간보란의 井은 세리프로 쓴다. */
 @Composable
-internal fun PageMark(mark: String, modifier: Modifier = Modifier, sub: Boolean = false) {
+internal fun PageMark(mark: String, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     val han = mark.firstOrNull()?.isDigit() == false
-    val circle = if (sub) {
-        modifier.size(24.dp).background(colors.surface, CircleShape).border(1.5.dp, colors.text, CircleShape)
-    } else {
-        modifier.size(24.dp).background(colors.primary, CircleShape)
-    }
-    Box(circle, contentAlignment = Alignment.Center) {
+    Box(modifier.size(24.dp).background(colors.primary, CircleShape), contentAlignment = Alignment.Center) {
         Text(
             mark,
             style = if (han) {
@@ -203,7 +197,7 @@ internal fun PageMark(mark: String, modifier: Modifier = Modifier, sub: Boolean 
             } else {
                 MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp, lineHeight = 13.sp, fontWeight = FontWeight.Bold)
             },
-            color = if (sub) colors.text else colors.onPrimary,
+            color = colors.onPrimary,
         )
     }
 }

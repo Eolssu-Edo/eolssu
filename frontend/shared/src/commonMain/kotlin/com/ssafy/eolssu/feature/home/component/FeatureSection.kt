@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -94,7 +95,11 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
             Modifier.padding(start = 15.dp, end = 15.dp, top = 12.dp, bottom = 14.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Image(painterResource(feature.illustration), contentDescription = null, modifier = Modifier.padding(bottom = 8.dp).fillMaxWidth().height(80.dp))
+            Image(
+                painterResource(feature.illustration),
+                contentDescription = null,
+                modifier = Modifier.padding(bottom = 8.dp).fillMaxWidth().height(80.dp).offset(x = feature.illustrationNudge),
+            )
             Text(
                 stringResource(feature.label),
                 modifier = Modifier.fillMaxWidth(),
@@ -120,3 +125,7 @@ private val HomeFeature.illustration: DrawableResource
         HomeFeature.Learn -> Res.drawable.home_tiger
         HomeFeature.EditSheets -> Res.drawable.home_edit_art
     }
+
+/** 그림 가로 보정. 호랑이 그림은 원본 여백 때문에 왼쪽으로 치우쳐 보여 오른쪽으로 3dp 민다. */
+private val HomeFeature.illustrationNudge: Dp
+    get() = if (this == HomeFeature.Learn) 3.dp else 0.dp

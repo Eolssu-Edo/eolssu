@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.feature.song.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
@@ -55,6 +57,7 @@ import com.ssafy.eolssu.feature.song.SongLevelFilter
 import com.ssafy.eolssu.feature.song.SongListActions
 import com.ssafy.eolssu.feature.song.SongListUiState
 import com.ssafy.eolssu.feature.song.SongLoadState
+import com.ssafy.eolssu.feature.song.SongSortOrder
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_count
@@ -68,6 +71,8 @@ import eolssu.shared.generated.resources.song_list_intro
 import eolssu.shared.generated.resources.song_reset_filters
 import eolssu.shared.generated.resources.song_row_meta
 import eolssu.shared.generated.resources.song_search_label
+import eolssu.shared.generated.resources.song_sort_ascending
+import eolssu.shared.generated.resources.song_sort_descending
 import eolssu.shared.generated.resources.song_search_placeholder
 import org.jetbrains.compose.resources.stringResource
 
@@ -100,7 +105,12 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
             item(key = "notice") { SongLoadNotice(state.loadState, actions.onRetry) }
         songs.isEmpty() -> item(key = "empty") { SongEmptyResult(actions.onResetFilters) }
         else -> {
-            item(key = "count") { SongCountHelper(songs.size, state) }
+            item(key = "count") {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SongCountHelper(songs.size, state, Modifier.weight(1f))
+                    SongSortButton(state.sort, actions.onToggleSort, small = true)
+                }
+            }
             itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
                 SongListRow(
                     song,
@@ -125,7 +135,7 @@ private fun songRowMeta(song: SongSummary): String {
 
 /** 곡 수 안내(`.helper`) '9곡 · 대금'. 악기를 하나로 정할 수 없으면 곡 수만 적는다. */
 @Composable
-private fun SongCountHelper(count: Int, state: SongListUiState) {
+private fun SongCountHelper(count: Int, state: SongListUiState, modifier: Modifier = Modifier) {
     val instrument = state.instrument
     val instrumentName = state.instruments.firstOrNull { it.instrumentId == state.instrumentId }?.name
     Text(
@@ -136,6 +146,7 @@ private fun SongCountHelper(count: Int, state: SongListUiState) {
         } else {
             stringResource(Res.string.song_count, count)
         },
+        modifier = modifier,
         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 18.7.sp),
         color = EolssuTheme.colors.textMuted,
     )
@@ -216,6 +227,36 @@ internal fun SongLevelChips(
         ) { chips() }
     } else {
         ChipRow(modifier) { chips() }
+    }
+}
+
+/**
+ * 곡 이름 정렬 버튼: 정렬 아이콘과 지금 순서('가나다순'·'가나다 역순')를 보이고, 누르면 반대 순서로 바꾼다.
+ * 고르기 칩과 같은 36dp(14sp) 흰 알약이고, [small]이면 목록 위 안내 줄에 맞춘 28dp(12sp)다.
+ */
+@Composable
+internal fun SongSortButton(order: SongSortOrder, onToggle: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onToggle,
+        modifier = modifier.heightIn(min = if (small) 28.dp else 36.dp),
+        shape = CircleShape,
+        color = colors.surface,
+        contentColor = colors.textSub,
+        border = BorderStroke(1.dp, colors.lineSoft),
+    ) {
+        Row(
+            Modifier.padding(horizontal = if (small) 10.dp else 12.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(EolssuIcons.Sort, contentDescription = null, modifier = Modifier.size(if (small) 14.dp else 16.dp))
+            Text(
+                stringResource(if (order == SongSortOrder.Ascending) Res.string.song_sort_ascending else Res.string.song_sort_descending),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = if (small) 12.sp else 14.sp, fontWeight = FontWeight.Medium),
+                maxLines = 1,
+            )
+        }
     }
 }
 

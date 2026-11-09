@@ -26,6 +26,8 @@ import com.ssafy.eolssu.feature.history.component.RecordDetailPane
 import com.ssafy.eolssu.feature.history.component.RecordGroups
 import com.ssafy.eolssu.feature.history.component.RecordListSpacing
 import com.ssafy.eolssu.feature.history.component.RecordListToolbar
+import com.ssafy.eolssu.feature.history.component.RecordsInstrumentEmpty
+import com.ssafy.eolssu.core.model.Instrument
 import com.ssafy.eolssu.feature.history.component.RecordsEmpty
 import com.ssafy.eolssu.feature.history.component.WeekCard
 
@@ -43,6 +45,7 @@ internal fun RecordsExpandedLayout(
     onOpenGrowth: () -> Unit,
     onToggle: (String) -> Unit,
     onSort: (RecordSort) -> Unit,
+    onInstrument: (Instrument?) -> Unit,
     onSelect: (String) -> Unit,
     detail: RecordDetailUiState,
     detailActions: RecordDetailActions,
@@ -60,12 +63,13 @@ internal fun RecordsExpandedLayout(
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                 Column(Modifier.width(listWidth).fillMaxHeight()) {
                     if (state.recordsAvailable) WeekCard(state, spacing, onOpenGrowth)
-                    if (!state.recordsAvailable || state.groups.isEmpty()) {
+                    if (!state.recordsAvailable || state.records.isEmpty()) {
                         RecordsEmpty(available = state.recordsAvailable)
                     } else {
-                        RecordListToolbar(state.groups.size, state.sort, spacing, onSort)
+                        RecordListToolbar(state.instrument, state.sort, spacing, onInstrument, onSort)
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                            RecordGroups(state, spacing, onToggle, onSelect, selectedId = state.selectedRecordId)
+                            if (state.groups.isEmpty()) RecordsInstrumentEmpty()
+                            else RecordGroups(state, spacing, onToggle, onSelect, selectedId = state.selectedRecordId)
                         }
                     }
                 }

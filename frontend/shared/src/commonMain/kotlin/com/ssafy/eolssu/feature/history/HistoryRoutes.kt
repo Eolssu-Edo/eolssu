@@ -73,7 +73,7 @@ fun RecordListRoute(
     if (widthClass == WindowWidthClass.Expanded) {
         RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
     } else {
-        RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
+        RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry, onInstrument = viewModel::changeInstrument)
     }
 }
 
@@ -113,6 +113,7 @@ private fun RecordsTwoPaneRoute(
         onSort = viewModel::changeSort,
         onOpenRecord = viewModel::select,
         onRetry = viewModel::retry,
+        onInstrument = viewModel::changeInstrument,
         detail = detail,
         detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection),
         snackbarHostState = snackbarHostState,
