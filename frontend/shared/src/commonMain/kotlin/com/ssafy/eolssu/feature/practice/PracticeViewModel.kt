@@ -782,15 +782,39 @@ class PracticeViewModel(
         _uiState.update { it.toReady() }
     }
 
-    /** 뒤로 가기. 연주·카운트다운 중이면 나갈지 묻고 false를 돌려준다. */
+    /**
+     * 뒤로 가기. 연주·카운트다운 중이면 나갈지 묻고 false를 돌려준다.
+     * 묻는 동안은 설정을 열 때처럼 녹음·진행을 멈추고, 3·2·1은 세지 않는다. '계속 연주'는 [keepPlayingAfterExit].
+     */
     fun onBack(): Boolean {
-        val mode = _uiState.value.mode
-        if (mode == PracticeMode.Recording || mode == PracticeMode.Countdown) {
-            _uiState.update { it.copy(popup = PracticePopup.Exit) }
-            return false
+        val state = _uiState.value
+        when {
+            state.mode == PracticeMode.Countdown -> {
+                countdownJob?.cancel()
+                _uiState.update { it.copy(popup = PracticePopup.Exit) }
+            }
+            state.mode == PracticeMode.Recording && !state.finished && state.popup == null -> pauseRecordingFor(PracticePopup.Exit)
+            state.mode == PracticeMode.Recording -> _uiState.update { it.copy(popup = PracticePopup.Exit) }
+            else -> {
+                stopAll()
+                return true
+            }
         }
-        stopAll()
-        return true
+        return false
+    }
+
+    /** 나가기 확인 창의 '계속 연주': 멈춘 연주는 3·2·1 뒤 멈춘 자리부터, 멈춘 카운트다운은 3부터 다시 센다. */
+    fun keepPlayingAfterExit() {
+        val state = _uiState.value
+        when {
+            state.mode == PracticeMode.Countdown -> {
+                if (!accountScope.isActive || recorder == null) return closePopup()
+                _uiState.update { it.beginCountdown(resume = state.resume) }
+                runCountdown()
+            }
+            state.mode == PracticeMode.Recording && !state.finished && state.eventStartedAt == null -> resumeRecording()
+            else -> closePopup()
+        }
     }
 
     /** 화면을 벗어남(앱 전환·전화 등). 연주 중이면 끊긴 것으로 처리하고, 모범 연주는 일시정지한다. */
