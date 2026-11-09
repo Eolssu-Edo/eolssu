@@ -45,8 +45,6 @@ import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
-import eolssu.shared.generated.resources.mysongs_songs_hint
-import eolssu.shared.generated.resources.mysongs_subtitle
 import eolssu.shared.generated.resources.mysongs_title
 import org.jetbrains.compose.resources.stringResource
 
@@ -124,7 +122,6 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
             EolssuTopBar(
                 stringResource(Res.string.mysongs_title),
                 onBack = actions.onBack,
-                subtitle = stringResource(Res.string.mysongs_subtitle),
                 right = { instrumentPicker() },
             )
         },
@@ -141,8 +138,8 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 안내 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
- * 안내·개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
+ * 개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
  */
 @Composable
 internal fun MySongsBody(
@@ -167,7 +164,6 @@ internal fun MySongsBody(
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ListNote(stringResource(Res.string.mysongs_songs_hint))
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
                             ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier)
                         }
