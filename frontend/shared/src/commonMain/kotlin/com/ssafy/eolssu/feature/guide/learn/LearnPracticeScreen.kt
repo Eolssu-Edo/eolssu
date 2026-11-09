@@ -149,9 +149,12 @@ fun LearnPracticeScreen(
             // 듣기 판은 단계 내용 없이도 쓸 수 있어, 내용을 받는 중·실패여도 그대로 둔다.
             val loaded = (detail as? LearnDetailLoad.Loaded)?.detail
             loaded?.pass?.let { PassCard(stage, it) }
+            if (!state.judgesBySound) {
+                LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 14.dp))
+            }
             ListenPanel(state)
             if (loaded != null) {
-                PracticeMaterial(stage, loaded, instrument, judgesBySound = state.judgesBySound, micUsable = state.mic != LearnMicStatus.Unsupported)
+                PracticeMaterial(stage, loaded, instrument, micUsable = state.mic != LearnMicStatus.Unsupported)
             } else {
                 LearnLoadStatus(failed = detail == LearnDetailLoad.Failed, failedMessage = Res.string.learn_detail_failed, onRetry = actions.onRetryDetail)
             }
@@ -394,7 +397,7 @@ private fun PassedMessage() {
  * 마이크를 쓸 수 없는 기기([micUsable]이 false)는 듣기 판이 이미 스스로 확인하라고 알려 판정·녹음 안내를 되풀이하지 않는다.
  */
 @Composable
-private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instrument: GuideInstrument, judgesBySound: Boolean, micUsable: Boolean) {
+private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instrument: GuideInstrument, micUsable: Boolean) {
     val noteOf = { hanja: String -> instrument.noteOf(hanja) }
     when (stage.number) {
         3 -> {
@@ -436,7 +439,6 @@ private fun PracticeMaterial(stage: LearnStage, detail: LearnStageDetail, instru
         else -> LearnSection(stringResource(Res.string.learn_section_tasks)) { LearnTaskList(detail.tasks) }
     }
     if (!micUsable) return
-    if (!judgesBySound) LearnNote(stringResource(Res.string.learn_practice_self_note), Modifier.padding(bottom = 16.dp))
     LearnSmallNote(stringResource(Res.string.learn_practice_privacy))
 }
 

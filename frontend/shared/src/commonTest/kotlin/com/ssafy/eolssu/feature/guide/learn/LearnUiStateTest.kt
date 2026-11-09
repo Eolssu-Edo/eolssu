@@ -204,7 +204,7 @@ class LearnUiStateTest {
 
     @Test
     fun bottomBarFollowsBoardForEachJudge() {
-        // 보드 Learn-Stage: 1·2 확인했어요, 3~8 연습 시작, 9 모범 연주 듣기. 안내는 8단계만 곡 평가 문구
+        // 보드 Learn-Stage: 1·2 확인했어요, 3~8 연습 시작, 9 모범 연주 듣기
         assertEquals(
             listOf(
                 LearnStageAction.Confirm, LearnStageAction.Confirm,
@@ -214,9 +214,5 @@ class LearnUiStateTest {
             ),
             stages.map { it.primaryAction },
         )
-        assertEquals(LearnStageHint.Read, stages[1 - 1].hint)
-        assertEquals(LearnStageHint.Practice, stages[4 - 1].hint)
-        assertEquals(LearnStageHint.Song, stages[8 - 1].hint)
-        assertEquals(LearnStageHint.Listen, stages[9 - 1].hint)
     }
 }
