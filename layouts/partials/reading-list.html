@@ -4,7 +4,16 @@
   <ol>
     {{- range $i, $p := . }}
     {{- $cats := partial "categories.html" $p }}
-    <li><a href="{{ $p.RelPermalink }}"><b>{{ printf "%02d" (add $i 1) }}</b><span><strong>{{ $p.Title }}</strong><small>{{ range $j, $c := $cats }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}{{ with $cats }} · {{ end }}{{ $p.Date.Format "2006.01.02" }}</small></span></a></li>
+    <li>
+      <a href="{{ $p.RelPermalink }}">
+        <b>{{ printf "%02d" (add $i 1) }}</b>
+        <strong>{{ $p.Title }}</strong>
+        <div class="reading-meta">
+          {{- with $cats }}<small>{{ range $j, $c := . }}{{ if $j }} · {{ end }}{{ $c.short }}{{ end }}</small>{{ end }}
+          {{ partial "post-meta.html" $p }}
+        </div>
+      </a>
+    </li>
     {{- end }}
   </ol>
 </section>
