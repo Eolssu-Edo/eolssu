@@ -3,7 +3,7 @@ title: "Docker 내부망으로 연결한 분석 서버"
 date: 2026-10-29T00:00:00+09:00
 slug: "analysis-service-network-boundary"
 author: "우동균"
-categories: ["infra"]
+categories: ["security"]
 tags: ["Docker Compose", "내부 네트워크", "SSRF", "배포"]
 description: "분석 서버의 포트를 호스트에 게시하지 않고, 백엔드에서 보낸 빈 요청과 외부 연결 검사로 접근 범위를 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-analysis-service-network-boundary.webp"

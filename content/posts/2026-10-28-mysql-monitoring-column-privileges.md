@@ -4,7 +4,7 @@ date: 2026-10-28T00:00:00+09:00
 slug: "mysql-monitoring-column-privileges"
 author: "우동균"
 description: "DB 전체 조회 권한을 회수하고 회원 테이블의 필요한 열 9개만 허용했습니다. 읽혀야 할 집계와 거부돼야 할 조회를 같은 계정으로 확인했습니다."
-categories: ["infra"]
+categories: ["security"]
 tags: ["MySQL", "Grafana", "접근 제어"]
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-mysql-monitoring-column-privileges.webp"
 draft: false

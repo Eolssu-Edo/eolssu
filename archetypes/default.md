@@ -3,7 +3,7 @@ title: "{{ replace .File.ContentBaseName "-" " " | title }}"
 date: {{ .Date }}
 slug: ""         # 주소에 쓸 영어 이름 (예: pitch-detection). 비우면 제목이 주소가 돼요
 author: ""
-categories: []   # backend, frontend, ai, data, infra, 회고 중 선택
+categories: []   # backend, frontend, ai, ai-native, data, infra, security, 회고 중 선택
 tags: []
 description: ""
 draft: true

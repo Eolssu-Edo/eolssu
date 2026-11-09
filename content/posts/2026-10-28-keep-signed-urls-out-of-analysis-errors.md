@@ -3,7 +3,7 @@ title: "분석 오류 응답과 로그에서 서명 URL 숨기기"
 date: 2026-10-28T00:00:00+09:00
 slug: "keep-signed-urls-out-of-analysis-errors"
 author: "우동균"
-categories: ["ai"]
+categories: ["security"]
 tags: ["FastAPI", "HTTPX", "서명 URL", "오류 처리"]
 description: "필수 필드가 빠졌을 때 요청 전체가 오류 응답에 들어가는 문제와 HTTP 클라이언트의 URL 로그를 막고, 실제 HTTP 요청과 회귀 테스트로 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-keep-signed-urls-out-of-analysis-errors.webp"
