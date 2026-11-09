@@ -36,7 +36,7 @@ class ReferenceAudioViewModelTest {
         assertEquals("역취", selection.register)
         assertEquals("중청임", selection.yulmyeong)
         val danso = GuideInstrument.Danso
-        val highDanso = ReferenceAudioSelection.forNote(danso, danso.notesByPitch(Blow.High).first())
+        val highDanso = ReferenceAudioSelection.forNote(danso, danso.notesByPitch(Blow.High).single { it.reading == "청중" })
         assertEquals("중", highDanso.yulmyeong)
         assertEquals("청중", highDanso.displayYulmyeong)
     }

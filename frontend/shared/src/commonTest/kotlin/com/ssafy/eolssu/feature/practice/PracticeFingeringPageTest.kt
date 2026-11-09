@@ -6,6 +6,13 @@ import com.ssafy.eolssu.feature.practice.component.fingerCells
 import kotlin.test.*
 
 class PracticeFingeringPageTest {
+    @Test fun dansoCheongNamInScoreHasHalfHoleFingering() {
+        val note = ScoreNote.SourcePitch("남", 1)
+        val cell = fingerCells(fingerSong(listOf(ScoreCell(note))), GuideInstrument.Danso).single()
+        assertEquals(note, cell.entries.single().note)
+        assertEquals("11h00".map(HoleState::parse), cell.entries.single().holes)
+    }
+
     @Test fun sourceCheongGoUsesSogeumFingeringInsteadOfRest() {
         val cell = fingerCells(fingerSong(listOf(ScoreCell(ScoreNote.SourcePitch("고", 1)))), GuideInstrument.Sogeum).single()
         assertFalse(cell.rest)
