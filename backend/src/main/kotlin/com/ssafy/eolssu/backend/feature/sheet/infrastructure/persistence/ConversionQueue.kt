@@ -1,5 +1,6 @@
 package com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence
 
+import com.ssafy.eolssu.backend.config.DeploymentSlot
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.BuiltRecognition
 import java.time.Instant
 import java.time.LocalDateTime
@@ -28,10 +29,14 @@ private const val JOB_SELECT = """SELECT c.sheet_id,c.user_id,s.title,c.notation
     FROM sheet_conversions c JOIN user_sheets s ON s.id=c.sheet_id JOIN instruments i ON i.id=c.instrument_id
     LEFT JOIN jangdans j ON j.id=c.jangdan_id"""
 
+private const val OWNED_SOURCE = """(#{prefix,jdbcType=VARCHAR} IS NULL OR EXISTS (
+    SELECT 1 FROM sheet_source_files src WHERE src.sheet_id=c.sheet_id AND src.object_key LIKE CONCAT(#{prefix,jdbcType=VARCHAR},'%')
+))"""
+
 @Mapper
 interface ConversionWorkerMapper {
-    @Select("$JOB_SELECT WHERE c.status='QUEUED' ORDER BY c.accepted_at,c.sheet_id LIMIT 1 FOR UPDATE SKIP LOCKED")
-    fun next(): ConversionJob?
+    @Select("$JOB_SELECT WHERE c.status='QUEUED' AND $OWNED_SOURCE ORDER BY c.accepted_at,c.sheet_id LIMIT 1 FOR UPDATE SKIP LOCKED")
+    fun next(@Param("prefix") prefix: String?): ConversionJob?
     @Select("SELECT COUNT(*) FROM sheet_conversions WHERE status='RUNNING'") fun running(): Int
     @Select("$JOB_SELECT WHERE c.sheet_id=#{sheetId} AND c.user_id=#{userId} FOR UPDATE")
     fun owned(@Param("userId") userId: Long,@Param("sheetId") sheetId: Long): ConversionJob?
@@ -44,8 +49,9 @@ interface ConversionWorkerMapper {
         timeout_count=timeout_count+CASE WHEN #{cause}='TIMEOUT' THEN 1 ELSE 0 END,finished_at=#{now}
         WHERE sheet_id=#{sheetId} AND attempt=#{attempt} AND status='RUNNING'""")
     fun fail(@Param("sheetId") sheetId: Long,@Param("attempt") attempt: Int,@Param("code") code: String,@Param("cause") cause: String,@Param("now") now: LocalDateTime): Int
-    @Update("""UPDATE sheet_conversions SET status='FAILED',stage=NULL,failure_code='SERVER_ERROR',failure_cause='SERVER_ERROR',
-        finished_at=#{now} WHERE status IN ('QUEUED','RUNNING')""") fun recover(now: LocalDateTime): Int
+    @Update("""UPDATE sheet_conversions c SET status='FAILED',stage=NULL,failure_code='SERVER_ERROR',failure_cause='SERVER_ERROR',
+        finished_at=#{now} WHERE status IN ('QUEUED','RUNNING') AND $OWNED_SOURCE""")
+    fun recover(@Param("now") now: LocalDateTime, @Param("prefix") prefix: String?): Int
     @Select("SELECT object_key,content_type FROM sheet_source_files WHERE sheet_id=#{sheetId} ORDER BY file_idx")
     fun files(sheetId: Long): List<ConversionFile>
     @Select("SELECT id,default_bpm FROM jangdans WHERE name=#{name} LIMIT 1") fun jangdan(name: String): ConversionJangdan?
@@ -60,10 +66,11 @@ interface ConversionWorkerMapper {
     fun saveScore(@Param("sheetId") sheetId: Long,@Param("result") result: BuiltRecognition,@Param("jangdanId") jangdanId: Long?,
         @Param("revision") revision: Int,@Param("baseVersion") baseVersion: Int?,@Param("draftAt") draftAt: LocalDateTime?,@Param("now") now: LocalDateTime): Int
     @Delete("DELETE FROM sheet_source_files WHERE object_key=#{key}") fun forgetSource(key: String): Int
-    @Select("SELECT f.object_key,f.content_type FROM sheet_source_files f JOIN sheet_conversions c ON c.sheet_id=f.sheet_id WHERE c.status IN ('DONE','FAILED') AND f.object_key LIKE 'sheet-import-temp/%'")
-    fun finishedSources(): List<ConversionFile>
-    @Update("UPDATE sheet_conversions SET status='FAILED',stage=NULL,failure_code='TIMEOUT',failure_cause='TIMEOUT',finished_at=#{now} WHERE status IN ('QUEUED','RUNNING') AND accepted_at<=#{before}")
-    fun expire(@Param("now") now: LocalDateTime,@Param("before") before: LocalDateTime): Int
+    @Select("SELECT f.object_key,f.content_type FROM sheet_source_files f JOIN sheet_conversions c ON c.sheet_id=f.sheet_id WHERE c.status IN ('DONE','FAILED') AND f.object_key LIKE CONCAT(#{prefix},'%')")
+    fun finishedSources(@Param("prefix") prefix: String): List<ConversionFile>
+    @Update("UPDATE sheet_conversions c SET status='FAILED',stage=NULL,failure_code='TIMEOUT',failure_cause='TIMEOUT',finished_at=#{now} WHERE status IN ('QUEUED','RUNNING') AND accepted_at<=#{before} AND $OWNED_SOURCE")
+    fun expire(@Param("now") now: LocalDateTime,@Param("before") before: LocalDateTime,
+        @Param("prefix") prefix: String?): Int
     @Update("UPDATE sheet_conversions SET status='DONE',stage=NULL,result_json=#{resultJson},finished_at=#{now} WHERE sheet_id=#{sheetId}")
     fun finish(@Param("sheetId") sheetId: Long,@Param("resultJson") resultJson: String,@Param("now") now: LocalDateTime): Int
 }
@@ -71,12 +78,12 @@ interface ConversionWorkerMapper {
 /** 큐 선점과 상태 갱신만 짧은 트랜잭션으로 묶는다. 외부 인식 호출은 이 클래스 밖에서 수행한다. */
 @Component
 @Profile("db | ops")
-class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: PlatformTransactionManager,private val json: JsonMapper) {
+class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: PlatformTransactionManager,private val json: JsonMapper, private val slot: DeploymentSlot) {
     private val transaction=TransactionTemplate(manager)
     fun claim(now: Instant): ConversionJob? = try {
         transaction.execute {
             if(mapper.running()!=0) return@execute null
-            val job=mapper.next() ?: return@execute null
+            val job=mapper.next(slot.sourcePrefix) ?: return@execute null
             if(mapper.start(job.sheetId,now.utc())!=1) return@execute null
             job
         }
@@ -103,10 +110,10 @@ class ConversionQueue(private val mapper: ConversionWorkerMapper, manager: Platf
         val code=when(cause){ "ENGINE_ERROR" -> "SERVER_ERROR"; else -> cause }
         mapper.fail(sheetId,attempt,code,cause,now.utc())
     }
-    fun recover(now: Instant)=mapper.recover(now.utc())
+    fun recover(now: Instant)=mapper.recover(now.utc(), slot.sourcePrefix)
     fun forgetSource(key: String)=mapper.forgetSource(key)
-    fun finishedSources()=mapper.finishedSources()
-    fun expire(now: Instant)=mapper.expire(now.utc(),now.minus(com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage.RETENTION).utc())
+    fun finishedSources()=mapper.finishedSources(slot.sourcePrefix ?: com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX)
+    fun expire(now: Instant)=mapper.expire(now.utc(),now.minus(com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage.RETENTION).utc(), slot.sourcePrefix)
     fun retry(userId: Long,sheetId: Long): ConversionRetry = checkNotNull(transaction.execute {
         if(mapper.lockUser(userId)==null) return@execute ConversionRetry("NOT_FOUND")
         val job=mapper.owned(userId,sheetId) ?: return@execute ConversionRetry("NOT_FOUND")

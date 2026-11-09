@@ -1,6 +1,6 @@
 package com.ssafy.eolssu.backend.feature.sheet.application
 
-import com.ssafy.eolssu.backend.feature.sheet.domain.SHEET_SOURCE_PREFIX
+import com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetConversion
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportRecord
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportRepository
@@ -62,6 +62,7 @@ class SheetImports(
     private val clock: Clock,
     private val workerAvailable: ()->Boolean = { true },
     private val legacyStorage: SheetSourceStorage = storage,
+    private val sourcePrefix: String = TEMP_SHEET_SOURCE_PREFIX,
 ) : SheetSourceCleaner {
     fun accept(command: SheetImportCommand): SheetImportResult {
         val inspected = when (val result = files.inspect(command.uploads)) {
@@ -76,7 +77,7 @@ class SheetImports(
         val jangdan = metadata.jangdanId?.let { repository.jangdan(it) ?: return reject(SheetImportFailure.NOT_FOUND) }
         repository.blocker(command.userId)?.let { return reject(it.failure()) }
 
-        val folder = "${com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX}${command.userId}/${UUID.randomUUID()}"
+        val folder = "${sourcePrefix}${command.userId}/${UUID.randomUUID()}"
         val stored = mutableListOf<StoredSheetFile>()
         try {
             inspected.files.forEachIndexed { index, file ->
@@ -139,7 +140,7 @@ class SheetImports(
         repository.stopConversion(sheetId,userId)
         val keys = repository.sourceKeys(sheetId, userId) ?: return false
         keys.forEach { key ->
-            if(key.startsWith(com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX)) storage.delete(key) else legacyStorage.delete(key)
+            if(key.startsWith(TEMP_SHEET_SOURCE_PREFIX)) storage.delete(key) else legacyStorage.delete(key)
         }
         return true
     }

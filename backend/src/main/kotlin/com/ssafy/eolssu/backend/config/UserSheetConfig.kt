@@ -9,6 +9,7 @@ import com.ssafy.eolssu.backend.feature.sheet.application.SheetImports
 import com.ssafy.eolssu.backend.feature.sheet.application.SheetScores
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetImportRepository
 import com.ssafy.eolssu.backend.feature.sheet.domain.SheetSourceStorage
+import com.ssafy.eolssu.backend.feature.sheet.domain.TEMP_SHEET_SOURCE_PREFIX
 import com.ssafy.eolssu.backend.feature.sheet.domain.UserSheetRepository
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.CommonSheetScores
 import com.ssafy.eolssu.backend.feature.sheet.infrastructure.LocalSheetSourceStorage
@@ -55,11 +56,13 @@ class UserSheetConfig {
 
     // R2는 생성 음원과 명시적 과거 원본 삭제용이다. 새 업로드의 임시 저장소와 분리한다.
     @Bean(defaultCandidate=false)
-    fun temporarySheetSourceStorage(clock: Clock,
+    fun temporarySheetSourceStorage(clock: Clock, slot: DeploymentSlot,
         @Value("\${eolssu.sheet-import.read-base-url:http://backend:8080/api/internal/sheet-imports}") baseUrl: String,
         @Value("\${eolssu.sheet-import.multipart-directory}") multipartDirectory: String) =
         com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage(
-            Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),baseUrl,clock,Path.of(multipartDirectory))
+            slot.sourceSpool
+                ?: Path.of(System.getProperty("java.io.tmpdir"),"eolssu-sheet-imports"),
+            slot.sourceReadUrl ?: baseUrl, clock, Path.of(multipartDirectory), slot.sourceDirectory)
 
     @Bean
     fun sheetSourceStorage(properties: SheetStorageProperties): SheetSourceStorage = when {
@@ -80,9 +83,9 @@ class UserSheetConfig {
         MyBatisSheetImportRepository(mapper, TransactionTemplate(transactionManager))
 
     @Bean
-    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage,
+    fun sheetImports(repository: SheetImportRepository, storage: SheetSourceStorage, slot: DeploymentSlot,
         @Qualifier("temporarySheetSourceStorage") temporary: com.ssafy.eolssu.backend.feature.sheet.infrastructure.TemporarySheetSourceStorage, clock: Clock,client: com.ssafy.eolssu.backend.feature.sheet.infrastructure.RecognitionClient) =
-        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, temporary, clock, { client.available }, storage)
+        SheetImports(SheetImportFiles(PdfBoxPageCounter()), repository, temporary, clock, { client.available }, storage, slot.sourcePrefix ?: TEMP_SHEET_SOURCE_PREFIX)
 
     // 기본 순서(가장 늦음)라 Spring Security 뒤에서 돈다. 로그인하지 않은 요청은 본문을 읽기 전에 401이다.
     @Bean

@@ -26,6 +26,38 @@ class TemporarySheetSourceStorageTests {
         override fun getZone(): ZoneId=ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock=this
     }
+    @Test fun `peer can delete source bytes without inheriting its read tickets`() {
+        val shared = root.resolve("shared")
+        val key = "sheet-import-temp/backend/7/request/0.png"
+        val input = Files.writeString(root.resolve("input"), "source")
+        TemporarySheetSourceStorage(shared.resolve("backend"), "http://backend:8080", Time(), sharedDirectory = shared).use { blue ->
+            blue.put(key, input, "image/png")
+            val token = blue.readUrl(key, Duration.ofMinutes(1)).substringAfterLast('/')
+            TemporarySheetSourceStorage(shared.resolve("backend-green"), "http://backend-green:8080", Time(), sharedDirectory = shared).use { green ->
+                assertNull(green.readable(token))
+                assertNotNull(blue.readable(token))
+                green.delete(key)
+                assertNull(blue.readable(token))
+            }
+        }
+    }
+
+    @Test fun `running slot sweeps expired sources left by its peer`() {
+        val clock = Time()
+        val shared = root.resolve("shared")
+        val orphan = Files.createDirectories(shared.resolve("backend")).resolve("source-abandoned.tmp")
+        Files.writeString(orphan, "source")
+        Files.setLastModifiedTime(orphan, java.nio.file.attribute.FileTime.from(clock.now))
+        TemporarySheetSourceStorage(shared.resolve("backend-green"), "http://backend-green:8080", clock, sharedDirectory = shared).use { green ->
+            clock.now = clock.now.plusSeconds(1799)
+            green.purgeExpired()
+            assertTrue(Files.exists(orphan))
+            clock.now = clock.now.plusSeconds(1)
+            green.purgeExpired()
+            assertFalse(Files.exists(orphan))
+        }
+    }
+
     @Test fun `temporary copy is private and read capability stops working after deletion`() {
         val time=Time()
         TemporarySheetSourceStorage(root.resolve("spool"),"http://backend:8080/api/internal/sheet-imports",time).use { store ->
