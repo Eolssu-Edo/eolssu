@@ -14,6 +14,7 @@ import com.ssafy.eolssu.core.audio.UnavailableAudioPlayer
 import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.model.ScoreDisplayUnit
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.model.fingeringYul
@@ -444,7 +445,11 @@ class PracticeViewModel(
 
     // 악보·패널
 
-    fun selectEvent(index: Int) = _uiState.update { it.selectEvent(index) }
+    fun selectUnit(unit: ScoreDisplayUnit) = _uiState.update { it.selectUnit(unit) }
+
+    fun reportFingeringAudio(playing: Boolean) {
+        _uiState.update { it.copy(fingeringAudioPlaying = playing && it.panel == PracticePanel.Fingering) }
+    }
 
     fun openPanel(panel: PracticePanel) {
         stopPreview()
@@ -481,8 +486,8 @@ class PracticeViewModel(
 
     fun moveFingering(delta: Int) = _uiState.update { it.moveFingering(delta) }
 
-    /** 음 듣기: 소리는 아직 없고 1.2초 동안 재생 중으로 보인다. */
-    fun listen(yul: Yul) {
+    /** 한 음씩 따라 불기에서 재생 연결 전까지 유지하는 표시다. */
+    private fun listen(yul: Yul) {
         if (!accountScope.isActive) return
         listenJob?.cancel()
         _uiState.update { it.copy(listening = yul) }
@@ -570,7 +575,7 @@ class PracticeViewModel(
         val position = song.timeline.indexOfLast { it.startTick!! <= target }.coerceAtLeast(0)
         val msPerTick = 60_000.0 / state.bpm / timing.ticksPerBeat
         _uiState.update { it.copy(mode = if (it.mode == PracticeMode.Ready) PracticeMode.Model else it.mode,
-            position = position, selected = position, playing = false, follow = true,
+            position = position, selected = position, selectedCell = state.cellForEvent(position), playing = false, follow = true,
             eventElapsedMs = (target - song.timeline[position].startTick!!) * msPerTick,
             elapsedMs = target * msPerTick, eventStartedAt = null, modelClock = null) }
         modelStartsAtAttack = true
@@ -859,7 +864,7 @@ class PracticeViewModel(
         syncStep()
     }
 
-    /** 왼쪽 '지금 음' 칸: 지금 기다리는 음을 들려준다. 음 하나를 내는 재생 API가 없어 운지법의 '음 듣기'와 같이 소리 없이 재생 중으로만 보인다. */
+    /** 왼쪽 '지금 음' 칸: 지금 기다리는 음을 들려준다. 이 버튼에는 아직 예시음을 연결하지 않았다. */
     fun listenStepNote() {
         val state = _uiState.value
         val yul = state.stepShownIndex?.let { state.song?.timeline?.getOrNull(it) }?.note?.fingeringYul ?: return

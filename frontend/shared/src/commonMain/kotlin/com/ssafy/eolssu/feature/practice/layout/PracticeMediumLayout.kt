@@ -52,7 +52,7 @@ internal fun PracticeMediumLayout(
     ) {
         if (state.song != null) {
             PracticeScoreArea(
-                state, PracticeScoreStyle.TabletPortrait, actions.onSelectEvent, actions.onUserScroll, actions.onFollowNow,
+                state, PracticeScoreStyle.TabletPortrait, actions.onSelectUnit, actions.onUserScroll, actions.onFollowNow,
                 livePitch = livePitch,
             )
         }

@@ -4,13 +4,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.audio.AudioPlaybackState
+import com.ssafy.eolssu.core.audio.AudioPlaybackStatus
 import com.ssafy.eolssu.core.audio.rememberReferenceAudioPlayer
+import com.ssafy.eolssu.core.model.fingering.FingeringNote
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
+import com.ssafy.eolssu.feature.guide.component.ReferenceAudioControls
 import org.koin.compose.viewmodel.koinViewModel
+
+/** 연습 운지 팝업에서도 운지 가이드와 같은 기본 예시음을 재생한다. */
+@Composable
+fun FingeringBasicAudio(instrument: GuideInstrument, note: FingeringNote, onPlaying: (Boolean) -> Unit) {
+    val selection = ReferenceAudioSelection.forNote(instrument, note)
+    val audio = rememberReferenceAudioController(instrument, resetKey = selection)
+    val clip = audio.state.clipFor(selection, ReferenceAudioKind.Basic)
+    val playing = clip != null && audio.playback.sourceId == clip.assetId &&
+        audio.playback.status == AudioPlaybackStatus.Playing
+    val reportPlaying by rememberUpdatedState(onPlaying)
+    LaunchedEffect(playing) { reportPlaying(playing) }
+    DisposableEffect(Unit) { onDispose { reportPlaying(false) } }
+    ReferenceAudioControls(selection, audio, basicOnly = true)
+}
 
 /** 목록과 플레이어는 화면이 소유하고, Lazy 카드에는 값과 동작만 전달한다. */
 class ReferenceAudioController(
