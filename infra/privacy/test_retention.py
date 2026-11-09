@@ -26,6 +26,19 @@ class RetentionTests(unittest.TestCase):
             self.assertTrue((logs / 'other-project.2020-01-01.log').exists())
             self.assertTrue((audit / 'access.2025-10-30.jsonl').exists())
 
+    def test_playback_and_omr_logs_follow_the_ordinary_log_boundary(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            logs = root / 'logs'
+            logs.mkdir()
+            for tag in ('playback', 'omr'):
+                for day in ('2026-10-17', '2026-10-18'):
+                    (logs / f'eolssu-{tag}.{day}.log').write_text('synthetic')
+            result = retention.cleanup(logs, root / 'state', datetime(2026, 10, 30, tzinfo=timezone.utc))
+            self.assertEqual(result['logs'], 2)
+            self.assertEqual(sorted(p.name for p in logs.iterdir()),
+                             ['eolssu-omr.2026-10-18.log', 'eolssu-playback.2026-10-18.log'])
+
     def test_completed_requests_expire_but_pending_requests_and_unrelated_files_stay(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); state = root / 'state'; requests = state / 'requests'; requests.mkdir(parents=True)
