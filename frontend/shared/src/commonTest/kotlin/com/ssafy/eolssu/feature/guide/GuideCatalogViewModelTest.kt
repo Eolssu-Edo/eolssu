@@ -36,8 +36,8 @@ class GuideCatalogViewModelTest {
             val vm = FingeringViewModel(instruments = InstrumentCatalog(client), references = references)
             assertFalse(vm.uiState.value.hasSelectedInstrument)
             vm.uiState.first { it.catalogState != ReferenceLoadState.Loading }
-            assertEquals(listOf("서버 산조대금", "서버 단소"), vm.uiState.value.instrumentOptions.map { it.name })
-            assertEquals(listOf("94", "42"), vm.uiState.value.instrumentOptions.map { it.instrumentId })
+            assertEquals(listOf("서버 단소", "서버 산조대금"), vm.uiState.value.instrumentOptions.map { it.name })
+            assertEquals(listOf("42", "94"), vm.uiState.value.instrumentOptions.map { it.instrumentId })
             assertEquals(GuideInstrument.Danso, vm.uiState.value.instrument)
             assertTrue(vm.uiState.value.hasSelectedInstrument)
             vm.selectInstrument(GuideInstrument.DaegeumSanjo)
