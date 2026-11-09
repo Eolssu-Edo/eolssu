@@ -48,6 +48,7 @@ import com.ssafy.eolssu.core.model.fingering.Blow
 import com.ssafy.eolssu.feature.guide.FingeringViewModel
 import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.guide.learn.LearnPracticeViewModel
+import com.ssafy.eolssu.feature.guide.learn.loadLearnCriteria
 import com.ssafy.eolssu.feature.guide.learn.LearnViewModel
 import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.SignedInMember
@@ -58,6 +59,7 @@ import com.ssafy.eolssu.data.user.FirstRunRepository
 import com.ssafy.eolssu.data.user.InstrumentRepository
 import com.ssafy.eolssu.data.user.HttpLessonApi
 import com.ssafy.eolssu.data.user.LearnProgressRepository
+import com.ssafy.eolssu.data.user.LearnSongStage
 import com.ssafy.eolssu.data.user.LessonApi
 import com.ssafy.eolssu.data.user.OAuthAttempts
 import com.ssafy.eolssu.data.user.OAuthRedirect
@@ -154,8 +156,13 @@ val appModule = module {
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
         AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section)
     }
-    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
-    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
+    // 곡 전체 결과로 기초부터 배우기 8단계 통과를 판정한다(S15P31E102-611). 곡의 서버 악기 ID는 악기 목록에서 code로 바꾼다.
+    single {
+        val catalog = get<InstrumentCatalog>()
+        LearnSongStage(get()) { id -> catalog.load().firstOrNull { it.instrumentId == id }?.code }
+    }
+    viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get(), judgeLearnSong = get<LearnSongStage>()::judge) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
@@ -163,7 +170,11 @@ val appModule = module {
     viewModel { (instrument: GuideInstrument, blow: Blow) -> FingeringViewModel(instrument, blow, get(), get()) }
     viewModelOf(::LearnViewModel)
     // 단계 연습은 녹음기로 소리 크기만 잰다. 녹음기·마이크 권한이 없는 플랫폼은 스스로 확인만 한다.
-    viewModel { (stage: Int) -> LearnPracticeViewModel(stage, getOrNull(), getOrNull()) }
+    viewModel { (stage: Int) ->
+        val catalog = get<InstrumentCatalog>()
+        val criteria = get<NotePracticeCriteriaRepository>()
+        LearnPracticeViewModel(stage, getOrNull(), getOrNull(), loadCriteria = { loadLearnCriteria(it, catalog::load, criteria) })
+    }
 
     // 첫 실행·로그인·회원가입·비밀번호 찾기는 실제 회원 API를 사용한다.
     single { FirstRunRepository(get()) }

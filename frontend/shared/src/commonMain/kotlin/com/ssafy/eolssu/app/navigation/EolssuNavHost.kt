@@ -1,5 +1,7 @@
 package com.ssafy.eolssu.app.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -160,7 +162,18 @@ fun EolssuNavHost(
     val appSnackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     Box(Modifier.fillMaxSize()) {
-        NavHost(navController = navController, startDestination = start) {
+        // 화면 전환 모션을 쓰지 않는다. 기본 전환(0.7초 페이드)이 도는 동안 나가는 화면이 남아 그 위의 확인 창도 늦게 사라졌고,
+        // Android 제스처 뒤로 가기(predictive)는 따로 정한 줌아웃(scaleOut 0.7)을 써서 그것도 함께 끈다.
+        NavHost(
+            navController = navController,
+            startDestination = start,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
+            predictivePopEnterTransition = { EnterTransition.None },
+            predictivePopExitTransition = { ExitTransition.None },
+        ) {
             composable(EolssuDestination.HOME) { entry ->
                 // 홈 아래에 쌓인 화면이 없을 때만 Android 뒤로 가기 두 번으로 앱을 닫는다. 홈으로 가는 이동은 모두 쌓인 화면을 비운다.
                 val homeIsRoot = remember(entry) { navController.previousBackStackEntry == null }

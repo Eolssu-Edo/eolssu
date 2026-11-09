@@ -15,6 +15,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -36,6 +37,7 @@ class LearnViewModel(
     private val trackJobs = mutableMapOf<GuideInstrument, Job>()
     private val detailJobs = mutableMapOf<Pair<GuideInstrument, Int>, Job>()
     private val saveLock = Mutex()
+    private var pendingSaves = 0
 
     private val accountScope = member.screenScope(viewModelScope) {
         _uiState.value = LearnUiState()
@@ -44,6 +46,21 @@ class LearnViewModel(
     init {
         loadTrack(_uiState.value.instrument)
         retrySongs()
+        accountScope.launch { progressRepository.saves.drop(1).collect { refreshDone() } }
+    }
+
+    /**
+     * 다른 화면이 완료 표시를 바꾸면(연주 결과의 8단계 자동 통과, S15P31E102-611) 받아 둔 트랙을 로딩 표시 없이 다시 받는다.
+     * 이 화면의 저장이 진행 중이면 먼저 보인 표시가 되돌아가지 않도록 건너뛴다.
+     */
+    private suspend fun refreshDone() {
+        for ((instrument, load) in _uiState.value.tracks) {
+            if (pendingSaves > 0) return
+            if (load !is LearnTrackLoad.Loaded || trackJobs[instrument]?.isActive == true) continue
+            val track = progressRepository.track(instrument.id) ?: continue
+            if (pendingSaves > 0) return
+            _uiState.update { it.trackLoaded(instrument, track.items.map { item -> item.toStage() }, track.items.filter { item -> item.completed }.map { item -> item.seq }.toSet()) }
+        }
     }
 
     fun retrySongs() {
@@ -147,8 +164,13 @@ class LearnViewModel(
 
     /** 빠르게 여러 번 눌러도 누른 순서대로 남도록 한 번에 하나씩 보낸다. */
     private fun save(instrument: GuideInstrument, stage: LearnStage, completed: Boolean, error: LearnSaveError) {
+        pendingSaves++
         accountScope.launch {
-            val saved = saveLock.withLock { progressRepository.setCompleted(stage.lessonId, completed) }
+            val saved = try {
+                saveLock.withLock { progressRepository.setCompleted(stage.lessonId, completed) }
+            } finally {
+                pendingSaves--
+            }
             if (!saved) {
                 _uiState.update { it.revertDone(instrument, stage.number, !completed, error) }
             }
