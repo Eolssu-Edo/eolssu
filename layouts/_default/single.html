@@ -8,11 +8,10 @@
       <header class="article-heading">
         {{- with $cats }}<div class="meta">{{ range . }}<a class="category" href="{{ .url }}">{{ .label }}</a>{{ end }}</div>{{ end }}
         <h1>{{ .Title }}</h1>
-        {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
-        {{ partial "post-meta.html" . }}
-        {{- if and site.Params.editorapi site.Params.editorwrites .Params.author (ne .Params.author site.Params.team) .File }}
-        <a class="quiet" href="{{ printf "%s?post=%s&return=%s" ("edit/" | relURL) (.File.Path | urlquery) (.RelPermalink | urlquery) }}">글 수정</a>
-        {{- end }}
+        <div class="article-intro">
+          {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
+          {{ partial "post-meta.html" . }}
+        </div>
       </header>
       <div class="article-cover article-cover-mobile">{{ partial "post-thumb.html" (dict "page" . "loading" "eager") }}</div>
       <div class="article-body">{{ .Content }}</div>
@@ -27,6 +26,11 @@
       {{- $related := $posts.Related . | first 3 }}
       {{ partial "reading-list.html" (dict "posts" $related "title" "함께 읽으면 좋은 글" "id" "related-posts-title") }}
       {{ partial "comments.html" . }}
+      {{- if and site.Params.editorapi site.Params.editorwrites .Params.author (ne .Params.author site.Params.team) .File }}
+      <div class="article-actions">
+        <a class="quiet" href="{{ printf "%s?post=%s&return=%s" ("edit/" | relURL) (.File.Path | urlquery) (.RelPermalink | urlquery) }}">글 수정</a>
+      </div>
+      {{- end }}
     </article>
     <div class="article-sidebar">
       <div class="article-cover">{{ partial "post-thumb.html" (dict "page" . "loading" "eager") }}</div>
