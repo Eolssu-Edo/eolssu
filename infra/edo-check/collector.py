@@ -80,7 +80,16 @@ def snapshot(with_storage=False, collect_stats=True, target='edo1'):
     if len(containers) > 100:
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
     names = {name.lstrip('/') for item in containers for name in item.get('Names', [])}
-    issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(REQUIRED_BY_TARGET[target] - names))
+    required = REQUIRED_BY_TARGET[target]
+    if target == 'edo1' and Path('/opt/eolssu/config/backend-route/active.conf').is_file():
+        try:
+            route = Path('/opt/eolssu/config/backend-route/active.conf').read_text().strip()
+            slot = {'set $backend http://backend:8080;': 'backend',
+                    'set $backend http://backend-green:8080;': 'backend-green'}[route]
+            required = (required - {'eolssu-runtime-backend-1'}) | {f'eolssu-runtime-{slot}-1'}
+        except (OSError, KeyError):
+            issues.append('활성 백엔드 슬롯을 확인할 수 없음')
+    issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(required - names))
     def one(item):
         try:
             detail = docker('/containers/' + item['Id'] + '/json', timeout=5)

@@ -100,7 +100,8 @@ def display_status(value):
 
 
 NAMES = {
-    'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버',
+    'eolssu-runtime-frontend-1': '웹', 'eolssu-runtime-backend-1': 'API 서버(블루)',
+    'eolssu-runtime-backend-green-1': 'API 서버(그린)',
     'eolssu-runtime-mysql-1': '서비스 DB(MySQL)',
     'eolssu-monitoring-grafana-1': '모니터링(Grafana)',
     'eolssu-monitoring-prometheus-1': '수치 수집(Prometheus)',

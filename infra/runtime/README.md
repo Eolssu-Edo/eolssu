@@ -35,7 +35,7 @@ curl -i http://127.0.0.1/api/terms
 
 프론트 `/`는 200, readiness는 200과 `{"status":"UP"}`, 공개 업무 API `/api/terms`는 200 JSON이 정상입니다. Nginx HTML 404나 502와 구분합니다. 등록 안 된 `/api/...` 경로는 인증 때문에 401이라 확인 기준으로 쓰지 않습니다. 배포 변경 후에는 이 응답, Nginx 설정 검사, MySQL health·물리 볼륨을 함께 확인합니다.
 
-API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. 단, 점검 주소(`/api/actuator`)는 readiness만 백엔드로 넘기고 나머지는 Nginx가 404로 막습니다. Prometheus 수치(`/api/actuator/prometheus`)는 서버 안에서 `backend:8080`으로만 읽습니다. `/api/` 응답 중 1KiB 이상의 JSON만 `Accept-Encoding: gzip`을 보낸 클라이언트에게 gzip으로 압축합니다. 녹음·음원 같은 미디어는 압축하지 않습니다. 저장소의 Nginx 설정 3개(`nginx.conf`, `nginx.tls.conf.template`, `infra/nginx/default.conf`)를 바꿔도 서버의 `/opt/eolssu/config/` 파일은 따로 고쳐야 하므로, 이 규칙은 백엔드 배포보다 먼저 서버에 반영합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호로 업무 API를 제공하고, 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 스키마·물리 볼륨을 변경하지 않습니다. 스키마 변경은 마이그레이션 Task에서 따로 적용합니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
+API의 실제 준비 상태는 `/api/actuator/health/readiness`로 검사합니다. Nginx는 `/api/` 경로를 보존해 전달합니다. 단, 점검 주소(`/api/actuator`)는 readiness만 백엔드로 넘기고 나머지는 Nginx가 404로 막습니다. Prometheus 수치(`/api/actuator/prometheus`)는 서버 안에서 `frontend:8081`로 읽습니다. `/api/` 응답 중 1KiB 이상의 JSON만 `Accept-Encoding: gzip`을 보낸 클라이언트에게 gzip으로 압축합니다. 녹음·음원 같은 미디어는 압축하지 않습니다. 저장소의 Nginx 설정 3개(`nginx.conf`, `nginx.tls.conf.template`, `infra/nginx/default.conf`)를 바꿔도 서버의 `/opt/eolssu/config/` 파일은 따로 고쳐야 하므로, 이 규칙은 백엔드 배포보다 먼저 서버에 반영합니다. backend는 `ops` 프로필에서 기존 `.env`의 MySQL DB·사용자·비밀번호로 업무 API를 제공하고, 애플리케이션 준비 상태와 DB 연결을 함께 확인합니다. Flyway·SQL 초기화는 비활성화하며 스키마·물리 볼륨을 변경하지 않습니다. 스키마 변경은 마이그레이션 Task에서 따로 적용합니다. Docker healthcheck도 같은 경로의 HTTP 성공과 정확한 `{"status":"UP"}`를 확인합니다. 주기는 30초, 요청 제한 3초, healthcheck 제한 5초, 초기 유예 30초, 실패 허용 3회입니다. 운영 JRE 이미지 안의 curl을 확인해 사용합니다.
 
 ### backend 실행 이미지
 
@@ -44,7 +44,7 @@ backend는 `eclipse-temurin:21-jre`에 녹음 검사용 `ffmpeg=7:8.0.1-3ubuntu2
 ```sh
 D=$(mktemp -d) && cp /opt/eolssu/config/backend-runtime.Dockerfile "$D/Dockerfile"
 sudo docker build --tag eolssu-backend-runtime:21-jre-ffmpeg8.0.1 "$D" && rm -rf "$D"
-sudo docker exec eolssu-runtime-backend-1 ffprobe -version
+sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" ffprobe -version
 ```
 
 원본은 저장소 `infra/runtime/backend-runtime.Dockerfile`이며 서버 `/opt/eolssu/config/backend-runtime.Dockerfile`과 같게 유지합니다. 베이스 JRE 보안 업데이트를 반영하려면 같은 태그로 다시 빌드한 뒤 backend만 재생성하고 readiness·ffprobe를 확인합니다. 베이스의 Ubuntu가 바뀌어 고정 ffmpeg 버전 설치가 실패하면 `backend/Dockerfile`과 함께 버전을 갱신합니다.
@@ -68,7 +68,7 @@ sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never ai
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml ps ai
-sudo docker exec eolssu-runtime-backend-1 \
+sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://ai:8000/v1/analyses
 ```
 
@@ -90,7 +90,7 @@ Windows PowerShell 5.1에서는 파이프가 바이너리를 글자로 바꿔 ta
 - 메모리 한도는 6GiB입니다. AI는 채점 DTW 예상 메모리가 4GiB(120초 × 120초)를 넘는 요청을 먼저 거절하고, 120초 녹음 채점에 약 3GiB가 듭니다([측정 기록](../../docs/knowledge/ai/analysis-latency.md)). backend는 분석을 기본 2개까지 동시에 보내므로, 긴 녹음 두 개가 겹치면 한도를 넘어 `ai`가 재시작되고 두 세션이 `SERVER_ERROR`가 될 수 있습니다.
 - 요청 본문의 녹음 서명 URL은 uvicorn 접근 로그(경로만 남김)와 분석 로그(`analysis session=… attempt=… result=… ms=…`)에 남지 않습니다. 배포 뒤 `sudo docker logs eolssu-runtime-ai-1`에서 `X-Amz`·`audioUrl`이 없는지 확인합니다.
 
-backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs eolssu-runtime-backend-1 2>&1 | grep -i wiring`이 비어 있어야 합니다.
+backend가 분석을 시작하지 못하면 업로드마다 경고 로그가 남습니다. 배포 뒤 `sudo docker logs "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" 2>&1 | grep -i wiring`이 비어 있어야 합니다.
 
 ### omr 악보 인식 서비스
 
@@ -116,7 +116,7 @@ sudo /opt/eolssu/bin/install-runtime-compose /tmp/eolssu-compose.yml &&
     -f /opt/eolssu/config/compose.yml up -d --no-deps --pull never omr
 sudo docker compose --env-file /opt/eolssu/.env \
   -f /opt/eolssu/config/compose.yml ps omr
-sudo docker exec eolssu-runtime-backend-1 \
+sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" \
   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' http://omr:8000/v1/recognitions
 ```
 
@@ -133,7 +133,7 @@ sudo docker exec eolssu-runtime-backend-1 \
 mkdir -p /tmp/omr-probe && chmod 755 /tmp/omr-probe   # 그림도 다른 사용자가 읽을 수 있어야 한다(컨테이너 사용자 10001)
 sudo docker run --rm -d --name omr-probe --network eolssu-runtime_default \
   -v /tmp/omr-probe:/srv:ro eolssu-omr:runtime python -m http.server -d /srv 8080
-sudo docker exec eolssu-runtime-backend-1 curl -s -w '\n%{time_total}s\n' -X POST -H 'Content-Type: application/json' \
+sudo docker exec "$(sudo /opt/eolssu/bin/deploy-backend --active-container)" curl -s -w '\n%{time_total}s\n' -X POST -H 'Content-Type: application/json' \
   -d '{"conversionId":"probe-1","notation":"STAFF","instrument":"DANSO","files":[{"url":"http://omr-probe:8080/onara.png","contentType":"image/png"}]}' \
   http://omr:8000/v1/recognitions | grep -o '"status":"[A-Z_]*"\|"failReason":"[A-Z_]*"\|[0-9.]*s$'
 sudo docker exec eolssu-runtime-omr-1 cat /sys/fs/cgroup/memory.peak   # 바이트. cgroup v2·커널 5.19 이상에만 있다
@@ -289,9 +289,9 @@ ssh -N -L 18080:127.0.0.1:8080 edo1
 
 잡은 `develop`을 1분마다 SCM polling으로 확인합니다. 변경이 있을 때만 실행하며 직접 Push로 develop이 바뀌는 경우도 감지합니다. 별도 GitLab webhook이나 Jenkins 공개 포트는 필요하지 않습니다. 정확한 ref `refs/heads/develop`만 checkout하고, 동시 실행을 막으며 20분 제한을 둡니다. 경로 필터는 없습니다.
 
-실행 순서는 Gradle `clean build`·`mediaTest`(edo1 호스트 ffmpeg로 실제 녹음 파일 검사)·JUnit 수집 → Compose/Nginx 검사 → 커밋 revision label을 포함한 이미지 빌드 → JAR 보관 → 후보 실행·백엔드 배포입니다. 이미지에서 추출한 JAR을 `/opt/eolssu/releases/<40자리 SHA>/app.jar`에 보관하고, 실제 `.env`의 `BACKEND_JAR`만 원자적으로 교체합니다. 기존 JRE+읽기 전용 bind mount 구성을 유지합니다. 프론트와 MySQL은 재생성하지 않고 컨테이너 ID·물리 볼륨이 같은지 검사합니다.
+실행 순서는 Gradle 빌드·테스트 → Compose/Nginx 검사 → 이미지 빌드·JAR 보관 → 후보 배포입니다. 격리 후보는 운영 DB 없이 liveness를 확인하고 JAR을 추출한 뒤 정리합니다. 이후 운영 DB 마이그레이션을 확인하고 비활성 슬롯을 실제 운영 설정으로 기동합니다.
 
-후보 이미지는 포트를 공개하지 않는 임시 internal network에서 실행합니다. 운영 DB 비밀값은 전달하지 않습니다. 호스트가 후보 IP의 `/api/actuator/health/liveness`에서 200과 `{"status":"UP"}`를 확인해야 배포합니다(후보는 DB 없이 뜨므로 readiness가 아니라 liveness). 운영 교체 뒤에는 Nginx를 거친 `/api/actuator/health/readiness`가 `UP`이어야 합니다. 예전 기준이던 `/api/infra-smoke`의 404는 인증(`/api/**` 로그인 필요)이 생긴 뒤 401이 되어 배포가 모두 실패했습니다(S15P31E102-229).
+블루그린이 활성화되면 두 슬롯은 같은 Compose 네트워크·MySQL을 사용합니다. 새 슬롯의 readiness가 UP이면 Nginx 설정을 검사하고 리로드합니다. 실제 HTTPS에서 선택된 슬롯과 준비 상태를 확인한 뒤 활성 슬롯·JAR을 기록합니다. 전환 전에 접수된 요청·악보 변환이 남아 있는 동안 이전 슬롯이 계속 실행됩니다.
 
 배포 도구 원본은 [deploy-backend.py](../jenkins/deploy-backend.py), 서버 설치 위치는 `/opt/eolssu/bin/deploy-backend`입니다. root 소유 0755로 설치하고 Jenkins에는 아래 도구의 sudo 실행만 허용합니다. 운영 `.env`는 root 전용 0600을 유지합니다. Jenkins의 기존 Docker 접근도 서버 수준 권한이므로 잡 설정·실행은 승인된 관리자만 사용합니다.
 
@@ -395,25 +395,47 @@ sudo certbot renew --cert-name k15e102.p.ssafy.io --dry-run \
 
 실제 설치·활성화·자동 실행·복구 검증과 백업 위치는 [Task 73 작업 기록](../../docs/plans/S15P31E102-73.md)을 따릅니다.
 
-`/run/lock/eolssu-backend-deploy.lock`은 중복 배포를 막고 `/opt/eolssu/deployment.json`에 배포 전 이전 JAR·후보·해시·상태를 원자적으로 기록합니다. 재실행한 동일 이미지가 이미 실행 중이면 재시작하지 않습니다. 교체 또는 HTTP 검증이 실패하면 이전 JAR로 복구합니다. 강제 종료로 상태가 `deploying`에 남거나 `rollback_failed`라면 다음 실행은 복구부터 수행합니다. 실패 후 자동으로 무한 재시도하지 않으며 원인을 수정한 뒤 같은 잡을 수동 실행할 수 있습니다. 임시 후보 컨테이너·네트워크는 정리하고 강제 종료 잔여물은 다음 실행에서 회수합니다.
+### 블루그린 최초 설치와 복구
 
-잡은 `deployment.jsonl`을 보관합니다. 최종 활성화 여부와 실제 자동 실행 번호·배포 SHA는 [작업 기록](../../docs/plans/S15P31E102-65.md)을 따릅니다. root 상태 파일에서 선택된 JAR과 이전 릴리스를 조회할 수 있습니다. 아티팩트·기존 백업은 자동 삭제하지 않습니다.
+[스펙](../../docs/specs/backend-blue-green.md) · [검증 기록](../../docs/plans/S15P31E102-604.md)
+
+최초 설치는 유지보수 시간에 진행합니다. 새 마운트를 적용하려면 Nginx와 블루 슬롯을 한 번 재생성해야 합니다. 이후의 백엔드 릴리스에서는 Nginx를 리로드해 전환합니다.
+
+1. 기존 Jenkins 자동 배포를 일시 정지하고 실행 중인 배포와 신규 악보 업로드를 정리합니다. `DeploymentSlot.class`를 포함한 호환 JAR을 기존 배포 도구로 먼저 설치합니다. `deploying`·`rollback_failed` 상태와 진행 중인 악보 인식·음원 작업을 해소합니다. 활성 JAR·Compose·Nginx·배포 도구·Jenkins 정의를 백업합니다. 운영 부하와 함께 JVM 하나를 더 실행할 CPU·메모리·DB 연결 여유를 확인합니다.
+2. root로 라우팅 디렉터리와 임시 원본·락 전용 디렉터리를 준비합니다. 임시 원본은 기존 config·녹음 백업 대상 밖에 두고 웹 경로에서 분리합니다.
+
+   ```sh
+   sudo install -d -o root -g root -m 0755 /opt/eolssu/config/backend-route
+   sudo install -d -o 10001 -g 10001 -m 0700 /opt/eolssu/backend-shared
+   printf '%s\n' 'set $backend http://backend:8080;' |
+     sudo tee /opt/eolssu/config/backend-route/active.conf >/dev/null
+   sudo chmod 0644 /opt/eolssu/config/backend-route/active.conf
+   ```
+
+3. `sudoedit /opt/eolssu/.env`에서 `BACKEND_SLOT=backend`를 추가합니다. `BACKEND_JAR`는 호환 JAR을 가리켜야 합니다. 로컬 녹음 읽기 URL이 과거 기본값으로 명시돼 있으면 `http://frontend:8081/api/recordings/read`로 바꿉니다. 운영 슬롯은 OMR 콜백을 자기 슬롯으로 고정합니다.
+4. [Compose 설치 도구](../scripts/install-runtime-compose.py)로 새 `compose.yml`을 검증해 설치합니다. 관리 중인 `nginx.conf`와 운영 도메인으로 치환한 `nginx.tls.conf`도 함께 설치합니다. 기존 TLS·ACME 경로를 확인하고 아래처럼 대상만 재생성합니다. MySQL과 볼륨은 계속 사용합니다.
+
+   ```sh
+   sudo docker compose --env-file /opt/eolssu/.env -f /opt/eolssu/config/compose.yml \
+     up -d --no-deps --force-recreate --pull never --wait backend
+   sudo docker compose --env-file /opt/eolssu/.env -f /opt/eolssu/config/compose.yml \
+     -f /opt/eolssu/config/compose.tls.yml up -d --no-deps --force-recreate --pull never --wait frontend
+   curl -fsS https://k15e102.p.ssafy.io/api/actuator/health/readiness
+   curl -fsS https://k15e102.p.ssafy.io/api/terms
+   ```
+
+5. root가 관리하는 `deploy-backend`·`deploy-frontend`·Jenkins 정의와 운영 점검 도구를 같은 릴리스로 설치합니다. [Prometheus 대상](../monitoring/prometheus.yml)을 `frontend:8081`로 반영한 뒤 수집을 확인합니다. 공개 HTTPS의 `/api/internal/`·`/api/actuator/prometheus` 차단과 Docker의 8081·8082 비공개 설정을 확인하고 Jenkins를 재개합니다. 최초 설치 실패 시 자동 배포를 정지한 채 백업한 설정·도구·호환 JAR로 단일 슬롯을 복구합니다.
+
+정기 배포는 기존 공유 lock과 `/opt/eolssu/deployment.json`을 사용합니다. `preparing` 또는 `deploying` 도중 끊기면 다음 실행이 이전 슬롯을 먼저 복구합니다. `retire_slot`이 남아 있으면 요청·변환을 처리 중인 슬롯을 유지하고, 다음 배포 또는 `--recover`가 종료 조건을 다시 확인합니다. 이 상태에서 웹 배포는 백엔드 복구·종료가 완료될 때까지 대기합니다. 유지보수나 백업 복원으로 직접 기동할 때도 활성 슬롯 하나만 지정합니다.
 
 ```sh
-# 비밀값 없는 배포 영수증
-ssh edo1 'sudo cat /opt/eolssu/deployment.json'
-# 로컬 회귀 검사
-python3 -B -m unittest discover -s infra/jenkins/tests -v
+sudo /opt/eolssu/bin/deploy-backend --active-container
+sudo /opt/eolssu/bin/deploy-backend --recover
+sudo cat /opt/eolssu/deployment.json
 ```
 
-운영에서 수동으로 이전 릴리스로 돌아가야 하면 polling을 잠시 끄고 Jenkins 실행이 없는지 먼저 확인합니다. 배포 lock을 잡은 상태에서 `deployment.json`의 `previous_jar`로 `.env`의 `BACKEND_JAR`만 바꾸고 아래 명령으로 백엔드만 재생성합니다. 실제 환경 파일 전체를 로그에 출력하지 않습니다. 자동 복구가 실패한 경우에도 같은 절차를 사용하며 프론트·DB 또는 볼륨을 내리지 않습니다.
+자동 원복이 실패하면 Jenkins를 정지한 채 두 슬롯·라우팅 파일·journal을 확인합니다. 이전 슬롯이 기동할 수 있도록 보관된 JAR과 설정을 복구한 뒤 `--recover`를 실행합니다. 이미 확정된 배포 이후에는 호환되는 이전 변경을 새 커밋으로 되돌려 정기 배포 경로를 사용합니다. 적용된 Flyway 변경은 앱 전환과 별개로 취급합니다.
 
-```sh
-sudo docker compose --env-file /opt/eolssu/.env \
-  -f /opt/eolssu/config/compose.yml up -d --no-deps --force-recreate --pull never backend
-curl -i http://127.0.0.1/api/actuator/health/readiness
-curl -i http://127.0.0.1/api/terms
-```
 
 서버의 관리된 Pipeline·Dockerfile·배포 도구는 MR 병합만으로 자동 덮어쓰지 않습니다. 이 파일 자체를 바꿀 때는 서버 복사본을 별도 검토·설치하고 linter와 배포 검사 후 잡 정의도 갱신합니다. 앱 소스는 매 실행 develop에서 새로 checkout합니다.
 
@@ -468,7 +490,7 @@ S15P31E102-499의 1차 호환 릴리스 A는 임시 `bootJar` 블록으로 실�
 3. 실제 운영 컨테이너의 연결 JAR이 A의 SHA이고 healthy인지 확인합니다. 연습 세션 생성·조회와 멱등 재전송이 정상인지 확인하고 증거를 남깁니다. 확인 전에는 후속 변경을 합치지 않습니다.
 
 ```sh
-ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}{{range .Mounts}}{{println .Source}}{{end}}" eolssu-runtime-backend-1'
+ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}{{range .Mounts}}{{println .Source}}{{end}}" "$(sudo -n /opt/eolssu/bin/deploy-backend --active-container)"'
 ```
 
 4. A 반영 후 `backend/build.gradle.kts`의 S15P31E102-499 임시 `bootJar` 블록 전체를 제거하는 후속 릴리스 B를 준비합니다. 원본 V25를 변경하거나 새 번호로 복제하지 않습니다. B JAR에 원본 V25가 바이트 그대로 포함되는지 확인합니다.
@@ -481,4 +503,4 @@ ssh edo1 'sudo -n docker inspect --format "{{.State.Status}} {{if .State.Health}
 
 534 브랜치의 원본 비보관 전환은 [정책](../../docs/specs/user-sheets.md#업로드-원본-비보관-정책-2026-11-06-확정-s15p31e102-534)을 따릅니다. 원본은 backend `/tmp/eolssu-sheet-imports`와 요청 처리 중의 `/tmp/eolssu-multipart`에 있는 비공개 임시 파일이며 최대 30분·종료 즉시 정리합니다. 두 디렉터리를 영구 볼륨·백업에 넣지 않습니다. Nginx가 본문을 받는 동안의 임시 파일은 승인된 예외이며 요청이 끝나면 지워집니다. 한 backend 인스턴스에서 운영합니다.
 
-`SHEET_IMPORT_READ_BASE_URL`의 기본값은 `http://backend:8080/api/internal/sheet-imports`입니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정이 없더라도 원본 불러오기는 동작하고, 생성 M4A·MIDI에는 계속 `SHEET_STORAGE_*`가 필요합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.
+`SHEET_IMPORT_READ_BASE_URL`은 단일 앱에서 사용합니다. 운영 블루그린에서는 접수 슬롯이 OMR 원본 읽기 주소를 자기 내부 이름으로 고정합니다. OMR만 내부망에서 만료 토큰으로 읽으며 Nginx의 `/api/internal/` 차단을 함께 배포해야 합니다. 모든 외부 프록시도 같은 경로를 차단해야 합니다. R2 설정이 없더라도 원본 불러오기는 동작하고, 생성 M4A·MIDI에는 계속 `SHEET_STORAGE_*`가 필요합니다. 기존 R2 원본 일괄 정리는 별도 승인·실행 범위입니다.

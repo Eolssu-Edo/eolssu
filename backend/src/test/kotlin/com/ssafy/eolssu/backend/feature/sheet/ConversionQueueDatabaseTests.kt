@@ -34,6 +34,7 @@ class ConversionQueueDatabaseTests {
     @org.junit.jupiter.api.io.TempDir lateinit var directory: Path
     @Autowired lateinit var jdbc: JdbcTemplate
     @Autowired lateinit var queue: ConversionQueue
+    @Autowired lateinit var mapper: com.ssafy.eolssu.backend.feature.sheet.infrastructure.persistence.ConversionWorkerMapper
     @Autowired lateinit var scores: SheetScores
     @Autowired lateinit var sheets: UserSheetRepository
     @Autowired lateinit var dataSource: javax.sql.DataSource
@@ -71,6 +72,29 @@ class ConversionQueueDatabaseTests {
         assertEquals(2,jdbc.queryForObject("SELECT COUNT(*) FROM sheet_conversions WHERE status='FAILED' AND sheet_id IN (992472,992473)",Int::class.java))
         assertEquals("STATE_CONFLICT",queue.retry(992472,992472).status)
     }
+    @Test fun `two slots recover and claim only their own conversion rows`() {
+        for ((id, slot) in listOf(992472L to "backend", 992473L to "backend-green")) {
+            jdbc.update("INSERT INTO sheet_source_files(sheet_id,file_idx,object_key,content_type,byte_size,file_name) VALUES(?,0,?,'image/png',3,'raw')",
+                id, "sheet-import-temp/$slot/$id/raw")
+        }
+        val json = JsonMapper.builder().build()
+        val manager = org.springframework.jdbc.datasource.DataSourceTransactionManager(dataSource)
+        com.ssafy.eolssu.backend.config.DeploymentSlot("backend", directory).use { blue ->
+            com.ssafy.eolssu.backend.config.DeploymentSlot("backend-green", directory).use { green ->
+                val old = ConversionQueue(mapper, manager, json, blue)
+                val next = ConversionQueue(mapper, manager, json, green)
+                assertEquals(992472L, assertNotNull(old.claim(now)).sheetId)
+                next.recover(now)
+                assertEquals("RUNNING", jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=992472", String::class.java))
+                assertEquals("FAILED", jdbc.queryForObject("SELECT status FROM sheet_conversions WHERE sheet_id=992473", String::class.java))
+                old.fail(992472L, 1, "TIMEOUT", now)
+                jdbc.update("UPDATE sheet_conversions SET status='QUEUED',failure_code=NULL,failure_cause=NULL,finished_at=NULL WHERE sheet_id=992473")
+                assertNull(old.claim(now))
+                assertEquals(992473L, assertNotNull(next.claim(now)).sheetId)
+            }
+        }
+    }
+
     @Test fun `cleanup fails expired queued and running jobs and deletes temporary bytes`() {
         val json=JsonMapper.builder().build()
         val storage=LocalSheetSourceStorage(directory.resolve("expired"))

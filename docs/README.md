@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
 - [연습 화면 외 정간보 공통 형식 (591)](knowledge/frontend/reading-score-format.md)
 - [원격 Mac Ad Hoc 배포 구성·제약](knowledge/infra/ios-ad-hoc-mac-migration.md)

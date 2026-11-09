@@ -115,7 +115,10 @@ class FrontendDeployer:
         support.probe(support.RUNTIME_READINESS, 200, support.UP, seconds=10)
 
     def protected(self):
-        values = json.loads(run('docker', 'inspect', 'eolssu-runtime-backend-1', 'eolssu-runtime-mysql-1'))
+        backend = support.Deployer(self.root)
+        if backend.route.is_file() and not backend.route_matches(backend.current_slot()):
+            raise DeployError('recover the backend deployment before changing frontend')
+        values = json.loads(run('docker', 'inspect', support.slot_name(backend.current_slot()), 'eolssu-runtime-mysql-1'))
         if values[1]['State'].get('Health', {}).get('Status') != 'healthy':
             raise DeployError('MySQL is not healthy')
         return {'backend': values[0]['Id'], 'mysql': values[1]['Id'],
@@ -185,6 +188,11 @@ class FrontendDeployer:
 
     def deploy(self, sha):
         support.validate_sha(sha)
+        backend = support.Deployer(self.root)
+        if backend.state.exists():
+            journal = json.loads(backend.state.read_text())
+            if journal['status'] in ('preparing', 'deploying', 'rollback_failed') or journal.get('retire_slot'):
+                raise DeployError('recover or drain the backend deployment before changing frontend')
         with phase('Recover interrupted deployment'):
             self.recover()
         with phase('Check deployment order'):

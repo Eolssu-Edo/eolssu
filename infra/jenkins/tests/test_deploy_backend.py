@@ -135,15 +135,12 @@ class ProbeTests(unittest.TestCase):
                 deploy.probe(self.serve(status, body), 200, {'status': 'UP'}, seconds=1)
 
     def test_runtime_check_uses_public_readiness_not_an_unregistered_api_path(self):
-        urls = []
-        original = deploy.probe
-        deploy.probe = lambda url, *args, **kwargs: urls.append(url)
-        self.addCleanup(setattr, deploy, 'probe', original)
-        d = deploy.Deployer(Path('/nonexistent'))
-        with self.assertRaises(Exception):
-            d.healthy()  # docker inspect는 이 환경에 없다. 그 전에 부른 검사 주소만 본다.
-        self.assertIn('http://127.0.0.1/api/actuator/health/readiness', urls)
-        self.assertFalse([u for u in urls if 'infra-smoke' in u])
+        d = deploy.Deployer()
+        with patch.object(d, 'route_matches', return_value=True), patch.object(d, 'slot_ready', return_value=True), \
+             patch.object(deploy, 'probe') as probe, patch.object(deploy, 'run', return_value='  X-Eolssu-Backend-Probe: http://backend-green:8080') as run:
+            d.healthy('backend-green', Path('/candidate.jar'))
+        self.assertIn('http://127.0.0.1/api/actuator/health/readiness', [c.args[0] for c in probe.call_args_list])
+        self.assertTrue(run.call_args.args[-1].endswith('/api/actuator/health/readiness'))
 
     def test_candidate_check_uses_liveness(self):
         self.assertEqual('http://10.0.0.2:8080/api/actuator/health/liveness', deploy.candidate_health_url('10.0.0.2'))
@@ -183,50 +180,110 @@ class TransactionTests(unittest.TestCase):
             path.parent.mkdir(parents=True)
             path.write_bytes(content)
         self.env = self.root / '.env'
-        self.original = f'BACKEND_JAR={self.old}\nMYSQL_PASSWORD=preserve-this-value\n# keep comment\n'
+        self.original = f'BACKEND_SLOT=backend\nBACKEND_JAR={self.old}\nMYSQL_PASSWORD=preserve-this-value\n# keep comment\n'
         self.env.write_text(self.original)
-        self.env.chmod(0o600)
         self.d = deploy.Deployer(self.root)
-        self.activations = []
-        self.d.activate = lambda: self.activations.append(self.d.current_jar())
-        self.d.healthy = lambda: None
-        self.d.unchanged = lambda before: None
+        self.events = []
+        self.loaded = 'backend'
+        self.generation = 100
+        self.d.start_slot = lambda slot, jar: self.events.append(('start', slot, self.loaded))
+        self.d.slot_ready = lambda slot, jar: (slot, jar) in [('backend', self.old), ('backend-green', self.new)]
+        self.d.route_matches = lambda slot: self.loaded == slot
+        self.d.switch_route = self.switch
+        self.d.healthy = lambda *args: None
+        self.d.unchanged = lambda before, **kwargs: None
+        self.d.worker_pids = lambda draining=False: set() if draining else {self.generation}
+        self.d.jobs_done = lambda slot: True
+        self.d.compose_command = lambda *args, **kwargs: self.events.append(args)
+
+    def switch(self, slot):
+        self.events.append(('switch', slot))
+        self.loaded = slot
+        self.generation += 100
+
+    def promote(self):
+        self.d.promote('a' * 40, self.new, 'sha256:image', {})
 
     def test_success_and_same_release_do_not_restart_twice(self):
-        self.d.promote('a' * 40, self.new, 'sha256:image', {})
+        self.promote()
         self.assertEqual(self.d.current_jar(), self.new)
         self.assertTrue(self.d.already_deployed('a' * 40, 'sha256:image'))
-        self.assertEqual(self.activations, [self.new])
+        self.assertEqual(self.events, [('start', 'backend-green', 'backend'), ('switch', 'backend-green'),
+                                       ('stop', 'backend'), ('rm', '-f', 'backend')])
         self.assertIn('MYSQL_PASSWORD=preserve-this-value\n# keep comment\n', self.env.read_text())
         self.assertEqual(self.env.stat().st_mode & 0o777, 0o600)
 
-    def test_failed_activation_restores_previous_jar(self):
-        def activate():
-            self.activations.append(self.d.current_jar())
-            if self.d.current_jar() == self.new:
-                raise deploy.DeployError('candidate failed')
-        self.d.activate = activate
-        with self.assertRaises(deploy.DeployError):
-            self.d.promote('a' * 40, self.new, 'sha256:image', {})
+    def test_candidate_cannot_switch_to_a_different_database(self):
+        self.d.start_slot = deploy.Deployer.start_slot.__get__(self.d)
+        self.d.database = lambda slot=None: {'env': {'DB_URL': 'other' if slot else 'current'}}
+        with self.assertRaisesRegex(deploy.DeployError, 'previous route restored'):
+            self.promote()
+        self.assertEqual(self.loaded, 'backend')
         self.assertEqual(self.env.read_text(), self.original)
-        self.assertEqual(self.activations, [self.new, self.old])
+        self.assertNotIn(('switch', 'backend-green'), self.events)
+
+    def test_candidate_not_ready_keeps_previous_route(self):
+        def failed(slot, jar):
+            raise deploy.DeployError('candidate not ready')
+        self.d.start_slot = failed
+        with self.assertRaisesRegex(deploy.DeployError, 'previous route restored'):
+            self.promote()
+        self.assertEqual(self.env.read_text(), self.original)
+        self.assertEqual(self.events, [('stop', 'backend-green'), ('rm', '-f', 'backend-green')])
         self.assertEqual(json.loads(self.d.state.read_text())['status'], 'rolled_back')
 
-    def test_crash_after_env_switch_recovers_before_next_deploy(self):
-        self.d.save({'status': 'deploying', 'previous_jar': str(self.old), 'sha': 'a' * 40})
-        self.d.select(self.new)
-        self.d.recover()
+    def test_failed_external_check_switches_back_without_stopping_old(self):
+        def verify(slot, jar):
+            if slot == 'backend-green':
+                raise deploy.DeployError('public check failed')
+        self.d.healthy = verify
+        with self.assertRaisesRegex(deploy.DeployError, 'previous route restored'):
+            self.promote()
         self.assertEqual(self.env.read_text(), self.original)
-        self.assertEqual(self.activations, [self.old])
+        self.assertEqual(self.events, [('start', 'backend-green', 'backend'), ('switch', 'backend-green'),
+                                       ('switch', 'backend'), ('stop', 'backend-green'), ('rm', '-f', 'backend-green')])
+
+    def test_crash_after_switch_recovers_before_next_deploy(self):
+        self.d.save({'status': 'deploying', 'previous_jar': str(self.old), 'previous_slot': 'backend',
+                     'slot': 'backend-green', 'protected': {}, 'sha': 'a' * 40})
+        self.d.select('backend-green', self.new)
+        self.loaded = 'backend-green'
+        self.assertTrue(self.d.recover())
+        self.assertEqual(self.env.read_text(), self.original)
+        self.assertEqual(self.events[0], ('switch', 'backend'))
 
     def test_failed_rollback_remains_recoverable(self):
-        self.d.activate = lambda: (_ for _ in ()).throw(deploy.DeployError('unavailable'))
-        with self.assertRaises(deploy.DeployError):
-            self.d.promote('a' * 40, self.new, 'sha256:image', {})
+        self.d.start_slot = lambda *args: (_ for _ in ()).throw(deploy.DeployError('unavailable'))
+        self.d.slot_ready = lambda *args: False
+        with self.assertRaisesRegex(deploy.DeployError, 'rollback failed'):
+            self.promote()
         self.assertEqual(json.loads(self.d.state.read_text())['status'], 'rollback_failed')
-        self.d.activate = lambda: None
-        self.d.recover()
+        self.d.slot_ready = lambda *args: True
+        self.assertTrue(self.d.recover())
         self.assertEqual(json.loads(self.d.state.read_text())['status'], 'rolled_back')
+
+    def test_old_worker_or_conversion_keeps_previous_slot_alive(self):
+        def once(check, error, seconds=90):
+            if not check():
+                raise deploy.DeployError(error)
+        self.d.await_ready = once
+        self.d.worker_pids = lambda draining=False: set() if draining else ({100} if self.loaded == 'backend' else {100, 200})
+        self.promote()
+        self.assertEqual(json.loads(self.d.state.read_text())['retire_slot'], 'backend')
+        self.assertNotIn(('stop', 'backend'), self.events)
+        self.d.worker_pids = lambda draining=False: set() if draining else {200}
+        self.d.jobs_done = lambda slot: False
+        self.assertFalse(self.d.recover())
+        self.d.jobs_done = lambda slot: True
+        self.assertTrue(self.d.recover())
+        self.assertIn(('stop', 'backend'), self.events)
+
+    def test_unready_active_backend_prevents_retirement(self):
+        self.d.slot_ready = lambda slot, jar: slot == 'backend'
+        with self.assertRaisesRegex(deploy.DeployError, 'previous slot preserved'):
+            self.promote()
+        self.assertEqual(json.loads(self.d.state.read_text())['retire_slot'], 'backend')
+        self.assertNotIn(('stop', 'backend'), self.events)
 
     def test_malformed_sha_rejected(self):
         for value in ['main', '../etc/passwd', 'a' * 39, 'a' * 40 + ';id']:
@@ -349,6 +406,7 @@ class MigrationFixture(unittest.TestCase):
         self.release = self.root / 'releases' / ('a' * 40)
         self.release.mkdir(parents=True)
         self.d = deploy.Deployer(self.root)
+        self.d.env.write_text('BACKEND_SLOT=backend\n')
 
     def jar(self, extra=None):
         return jar_with(self.release / 'app.jar', {**self.files, **(extra or {})})
@@ -451,7 +509,8 @@ class DeployMigrationOrderTests(unittest.TestCase):
             if args[:2] == ('docker', 'inspect'):
                 return json.dumps([{'NetworkSettings': {'Networks': {args[2]: {'IPAddress': '10.0.0.2'}}}}])
             if args[:2] == ('docker', 'cp'):
-                Path(args[3]).write_bytes(b'jar')
+                with zipfile.ZipFile(args[3], 'w') as jar:
+                    jar.writestr(deploy.SLOT_CLASS, b'fixture')
             return ''
 
         def planned(jar, name):
@@ -461,7 +520,8 @@ class DeployMigrationOrderTests(unittest.TestCase):
             return plan
 
         with patch.object(deploy, 'run', run), patch.object(deploy, 'probe', lambda *a, **k: None), \
-             patch.object(d, 'recover', lambda: None), patch.object(d, 'check_order', lambda sha: events.append('order')), \
+             patch.object(d, 'recover', lambda: True), patch.object(d, 'verify_setup', lambda: None), \
+             patch.object(d, 'check_order', lambda sha: events.append('order')), \
              patch.object(d, 'already_deployed', lambda *a: False), patch.object(d, 'protected', lambda: {}), \
              patch.object(d, 'unchanged', lambda before: None), patch.object(d, 'database', lambda: {'name': 'eolssu'}), \
              patch.object(d, 'migration_plan', planned), \
