@@ -47,14 +47,12 @@
 
     <string name="song_list_title">평가할 곡 고르기</string>
     <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
-    <string name="song_list_intro">한 각씩 익히고, 한 곡을 완성해 보세요.</string>
     <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
     <string name="song_sort_ascending">가나다순</string>
     <string name="song_sort_descending">가나다 역순</string>
     <string name="song_search_label">곡 제목 검색</string>
     <string name="song_count">%1$d곡</string>
     <string name="song_count_instrument">%1$d곡 · %2$s</string>
-    <string name="song_row_meta">%1$s · %2$s</string>
     <string name="song_empty">찾는 곡이 없어요.</string>
     <string name="song_empty_body">다른 제목이나 난이도로 찾아보세요.</string>
     <string name="song_reset_filters">검색 조건 초기화</string>
@@ -696,7 +694,6 @@
     <string name="mysongs_tab_songs">제공 곡</string>
     <string name="mysongs_tab_sheets">내 악보</string>
     <string name="mysongs_no_jangdan">장단 없음</string>
-    <string name="mysongs_practice_only">%1$s · 연습 전용</string>
     <string name="mysongs_empty_body">다른 단계를 선택하거나 전체 곡을 확인해 보세요.</string>
     <string name="mysongs_reset_filter">전체 곡 보기</string>
     <string name="mysongs_add">악보 추가</string>
