@@ -6,7 +6,7 @@ author: "우동균"
 categories: ["infra"]
 tags: ["Gunicorn", "Docker", "트러블슈팅"]
 description: "HTTP 요청은 정상이었지만 기동 때마다 오류가 남던 블로그 편집 API에서 Gunicorn 제어 소켓을 원인으로 좁히고, 읽기 전용 설정을 유지한 채 해결한 과정을 정리했습니다."
-thumbnail: "https://team-edo.github.io/blog-images/2026-11-gunicorn-control-socket-read-only-rootfs.webp"
+thumbnail: "https://team-edo.github.io/blog-images/2026-11-gunicorn-control-socket-log.webp"
 draft: false
 ---
 
