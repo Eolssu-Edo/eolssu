@@ -22,6 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import eolssu.shared.generated.resources.mysongs_no_jangdan
+import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.Role
@@ -73,9 +76,17 @@ import org.jetbrains.compose.resources.stringResource
 /** 제공 곡 줄 왼쪽 칸 글자: 제목의 첫 글자(앞 공백은 건너뜀). 제목이 비면 빈 문자열. */
 internal fun songTileLetter(title: String): String = title.trimStart().firstOrNull()?.toString().orEmpty()
 
-/** SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다. */
+/** 제공 곡 제목 밑 문구: 장단 이름. 목록 응답에 없으면 '장단 없음'이고, 줄에서 붉게 강조한다([ProvidedSongRow]). */
 @Composable
-private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
+internal fun providedSongMeta(song: SongSummary): String =
+    if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
+
+/**
+ * SONG-03 줄 틀(`.srow`): 흰 바탕, 옅은 테두리, 모서리 14dp, 최소 64dp. [onClick]이 있으면 줄 전체를 누른다.
+ * [selected]면 옅은 연두 바탕·연두 테두리다(평가할 곡 고르기 태블릿 가로에서 오른쪽에 정보를 보이는 곡).
+ */
+@Composable
+private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, selected: Boolean = false, content: @Composable () -> Unit) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(14.dp)
     Box(
@@ -83,8 +94,9 @@ private fun PracticeRowFrame(modifier: Modifier, onClick: (() -> Unit)? = null, 
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .clip(shape)
-            .background(colors.surface)
-            .border(1.dp, colors.lineSoft, shape)
+            .background(if (selected) colors.accentSoft else colors.surface)
+            .border(1.dp, if (selected) colors.accent else colors.lineSoft, shape)
+            .then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         contentAlignment = Alignment.CenterStart,
     ) { content() }
@@ -99,9 +111,12 @@ private fun RowTile(content: @Composable () -> Unit) {
     ) { content() }
 }
 
-/** 제목 16sp · 보조 13sp(`.srow .t`). 제목이 길면 [songTitleMarquee]로 흘려 보인다. */
+/**
+ * 제목 16sp · 보조 13sp(`.srow .t`). 제목이 길면 [songTitleMarquee]로 흘려 보인다.
+ * [metaWarning]이면 보조 문구를 붉은 굵은 글자로 보인다('장단 없음').
+ */
 @Composable
-private fun RowScope.RowText(title: String, meta: String) {
+private fun RowScope.RowText(title: String, meta: String, metaWarning: Boolean = false) {
     Column(Modifier.weight(1f)) {
         Text(
             title,
@@ -112,8 +127,8 @@ private fun RowScope.RowText(title: String, meta: String) {
         )
         Text(
             meta,
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-            color = EolssuTheme.colors.textMuted,
+            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = if (metaWarning) FontWeight.SemiBold else null),
+            color = if (metaWarning) EolssuTheme.colors.recText else EolssuTheme.colors.textMuted,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -121,20 +136,20 @@ private fun RowScope.RowText(title: String, meta: String) {
 }
 
 /**
- * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(없으면 '장단 없음', 연습 전용이면 '· 연습 전용') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
- * 누르면 [onClick]으로 평가 없는 연습 모드에 간다.
+ * SONG-03 제공 곡 줄: 첫 글자 칸 · 제목 · 장단(없으면 붉은 '장단 없음') · 줄 아래쪽에 맞춘 난이도 배지 · 화살표.
+ * 연습곡 고르기에서는 누르면 평가 없는 연습 모드에, 평가할 곡 고르기에서는 곡 상세(태블릿 가로는 오른쪽 칸)로 간다.
  */
 @Composable
-internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
     val colors = EolssuTheme.colors
-    PracticeRowFrame(modifier, onClick) {
+    PracticeRowFrame(modifier, onClick, selected) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             RowTile { Text(songTileLetter(song.title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 20.sp), color = colors.text) }
-            RowText(song.title, meta)
+            RowText(song.title, meta, metaWarning = song.jangdanName.isBlank())
             Box(Modifier.align(Alignment.Bottom)) {
                 val level = song.level
                 if (level != null) EolssuLevelBadge(level, small = true)

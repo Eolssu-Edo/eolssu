@@ -31,6 +31,7 @@ import com.ssafy.eolssu.feature.song.component.CardGrid
 import com.ssafy.eolssu.feature.song.component.MySheetRow
 import com.ssafy.eolssu.feature.song.component.MySongsTabSwitch
 import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
+import com.ssafy.eolssu.feature.song.component.providedSongMeta
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
@@ -41,8 +42,6 @@ import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.mysongs_delete
 import eolssu.shared.generated.resources.mysongs_delete_message
 import eolssu.shared.generated.resources.mysongs_delete_title
-import eolssu.shared.generated.resources.mysongs_no_jangdan
-import eolssu.shared.generated.resources.mysongs_practice_only
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
@@ -104,13 +103,6 @@ private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
         EolssuButton(stringResource(Res.string.mysongs_delete), actions.onConfirmDelete, style = EolssuButtonStyle.Danger)
         EolssuButton(stringResource(Res.string.common_cancel), actions.onCancelDelete, style = EolssuButtonStyle.Secondary)
     }
-}
-
-/** 제공 곡 제목 밑 문구: 장단 이름(목록 응답에 없으면 '장단 없음'), 평가할 수 없는 곡이면 뒤에 '· 연습 전용'. */
-@Composable
-internal fun providedSongMeta(song: SongSummary): String {
-    val jangdan = if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
-    return if (song.evaluable) jangdan else stringResource(Res.string.mysongs_practice_only, jangdan)
 }
 
 @Composable

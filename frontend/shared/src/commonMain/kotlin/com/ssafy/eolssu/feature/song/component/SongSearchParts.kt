@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -43,7 +43,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.SongSummary
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.ChipRow
 import com.ssafy.eolssu.core.ui.component.EolssuButton
@@ -51,7 +50,6 @@ import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
 import com.ssafy.eolssu.core.ui.component.EolssuChip
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.PageHeading
-import com.ssafy.eolssu.core.ui.component.jangdanLabel
 import com.ssafy.eolssu.core.ui.component.songLevelLabel
 import com.ssafy.eolssu.feature.song.SongLevelFilter
 import com.ssafy.eolssu.feature.song.SongListActions
@@ -62,14 +60,11 @@ import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_clear
 import eolssu.shared.generated.resources.song_count
 import eolssu.shared.generated.resources.song_count_instrument
-import eolssu.shared.generated.resources.song_difficulty_number
 import eolssu.shared.generated.resources.song_empty
 import eolssu.shared.generated.resources.song_empty_body
 import eolssu.shared.generated.resources.song_level_all
 import eolssu.shared.generated.resources.song_list_heading
-import eolssu.shared.generated.resources.song_list_intro
 import eolssu.shared.generated.resources.song_reset_filters
-import eolssu.shared.generated.resources.song_row_meta
 import eolssu.shared.generated.resources.song_search_label
 import eolssu.shared.generated.resources.song_sort_ascending
 import eolssu.shared.generated.resources.song_sort_descending
@@ -81,15 +76,14 @@ private val EmptySymbolColor = Color(0xFFB9B3A6)
 
 /**
  * SONG-01 본문을 목록에 채운다(휴대폰·태블릿 공통, 보드 `Song-List` 순서):
- * 페이지 머리 · 검색칸 · 난이도 칩 · 곡 수 · 곡 줄, 결과가 없으면 '찾는 곡이 없어요.', 목록을 받지 못했으면 [SongLoadNotice].
- * [twoPane]은 태블릿 가로 두 칸 배치로, 오른쪽에 보이는 곡 줄을 표시한다.
+ * 페이지 머리 · 검색칸 · 난이도 칩 · 곡 수 · 연습곡 고르기와 같은 곡 줄([ProvidedSongRow]), 결과가 없으면 '찾는 곡이 없어요.', 목록을 받지 못했으면 [SongLoadNotice].
+ * [twoPane]은 태블릿 가로 두 칸 배치로, 오른쪽에 정보를 보이는 곡 줄을 연두로 표시한다.
  */
 internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongListActions, twoPane: Boolean = false) {
     val selectedId = if (twoPane) state.selectedSong?.id else null
     item(key = "heading") {
         PageHeading(
             title = stringResource(Res.string.song_list_heading),
-            intro = stringResource(Res.string.song_list_intro),
             modifier = Modifier.padding(bottom = 22.dp),
         )
     }
@@ -111,26 +105,18 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
                     SongSortButton(state.sort, actions.onToggleSort, small = true)
                 }
             }
-            itemsIndexed(songs, key = { _, song -> song.id }) { index, song ->
-                SongListRow(
+            // 연습곡 고르기와 같은 곡 줄(첫 글자 칸 · 제목 · 장단 · 난이도 배지)을 8dp 간격으로 쌓는다.
+            items(songs, key = { it.id }) { song ->
+                ProvidedSongRow(
                     song,
-                    symbol = songRowSymbol(index),
-                    meta = songRowMeta(song),
+                    providedSongMeta(song),
                     onClick = { actions.onOpenSong(song.id) },
+                    modifier = Modifier.padding(bottom = 8.dp),
                     selected = song.id == selectedId,
-                    inset = if (twoPane) 8.dp else 0.dp,
                 )
             }
         }
     }
-}
-
-/** 곡 줄 보조 문구 '입문 · 세마치장단'. 난이도가 1~3 밖이면 숫자 난이도를 그대로 적는다. */
-@Composable
-private fun songRowMeta(song: SongSummary): String {
-    val level = song.level?.let { songLevelLabel(it) } ?: stringResource(Res.string.song_difficulty_number, song.difficulty)
-    if (song.jangdanName.isBlank()) return level
-    return stringResource(Res.string.song_row_meta, level, jangdanLabel(song.jangdanName))
 }
 
 /** 곡 수 안내(`.helper`) '9곡 · 대금'. 악기를 하나로 정할 수 없으면 곡 수만 적는다. */
