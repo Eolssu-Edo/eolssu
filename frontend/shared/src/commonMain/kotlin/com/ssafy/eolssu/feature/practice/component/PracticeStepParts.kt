@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -33,11 +32,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -46,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.fingeringYul
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.BeatCountRing
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.YulGlyph
 import com.ssafy.eolssu.feature.practice.PracticeMode
@@ -57,7 +53,6 @@ import com.ssafy.eolssu.feature.practice.stepProgress
 import com.ssafy.eolssu.feature.practice.stepShownIndex
 import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.practice_step_count_message
 import eolssu.shared.generated.resources.practice_step_listen_desc
 import eolssu.shared.generated.resources.practice_step_manual_confirm
 import eolssu.shared.generated.resources.practice_step_mine
@@ -72,7 +67,6 @@ import eolssu.shared.generated.resources.practice_step_rec_desc_resume
 import eolssu.shared.generated.resources.practice_step_rec_desc_start
 import eolssu.shared.generated.resources.practice_step_recording
 import eolssu.shared.generated.resources.practice_step_status
-import eolssu.shared.generated.resources.practice_step_status_countdown
 import eolssu.shared.generated.resources.practice_step_status_finished
 import eolssu.shared.generated.resources.practice_step_status_paused
 import eolssu.shared.generated.resources.practice_step_toggle
@@ -127,7 +121,7 @@ fun PracticeStepToggle(state: PracticeUiState, onToggle: () -> Unit, modifier: M
 
 /**
  * 한 음씩이 켜지면 플레이어 카드 대신 놓는 두 칸(와이어프레임 STEP_PANELS)과 진행 안내.
- * 왼쪽 ‘지금 음’은 누르면 지금 정간의 음을 들려주고, 오른쪽 ‘내 연주’는 누를 때마다 시작·멈춤(다시 시작은 3·2·1 뒤)을 오간다.
+ * 왼쪽 ‘지금 음’은 누르면 지금 정간의 음을 들려주고, 오른쪽 ‘내 연주’는 누를 때마다 시작·멈춤(다시 누르면 멈춘 자리부터 바로 이어서)을 오간다.
  * ‘녹음 중’ 표시는 듣는 중에만 보인다. 판정기가 스스로 판정하지 못하면(대역) 임시 넘기기 버튼을 아래에 둔다.
  */
 @Composable
@@ -164,7 +158,7 @@ fun PracticeStepPanels(state: PracticeUiState, actions: PracticeBottomActions, m
                 description = stringResource(
                     when (state.step.phase) {
                         StepPhase.Listening -> Res.string.practice_step_rec_desc_on
-                        StepPhase.Paused, StepPhase.Countdown -> Res.string.practice_step_rec_desc_resume
+                        StepPhase.Paused -> Res.string.practice_step_rec_desc_resume
                         else -> Res.string.practice_step_rec_desc_start
                     },
                 ),
@@ -258,31 +252,6 @@ private fun StepIcon(icon: ImageVector, background: Color, tint: Color) {
     }
 }
 
-/**
- * 한 음씩 다시 시작의 3·2·1 막: 화면 전체를 옅게 덮고 가운데에 [BeatCountRing]과
- * ‘3박 센 뒤 {음}({읽기})부터 이어서 시작해요’를 둔다. 누름은 막지 않는다(와이어프레임 `pointer-events: none`).
- */
-@Composable
-fun PracticeStepCountdownOverlay(state: PracticeUiState, modifier: Modifier = Modifier) {
-    if (!state.stepUi || state.step.phase != StepPhase.Countdown) return
-    val colors = EolssuTheme.colors
-    val note = state.song?.timeline?.getOrNull(state.step.target)?.note
-    Column(
-        modifier.fillMaxSize().background(colors.background.copy(alpha = 0.74f)).semantics { liveRegion = LiveRegionMode.Assertive },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-    ) {
-        BeatCountRing(state.step.count)
-        Text(
-            stringResource(Res.string.practice_step_count_message, note?.symbol.orEmpty(), note?.reading.orEmpty()),
-            modifier = Modifier.padding(horizontal = 24.dp),
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-            color = colors.text,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
 /** 한 음씩 상태 문구. 한 음씩이 아니거나 시작 전이면 null(기존 상태 문구를 쓴다). */
 @Composable
 fun practiceStepStatus(state: PracticeUiState): String? {
@@ -290,7 +259,6 @@ fun practiceStepStatus(state: PracticeUiState): String? {
     return when (state.step.phase) {
         StepPhase.Idle -> null
         StepPhase.Paused -> stringResource(Res.string.practice_step_status_paused)
-        StepPhase.Countdown -> stringResource(Res.string.practice_step_status_countdown)
         StepPhase.Finished -> stringResource(Res.string.practice_step_status_finished)
         StepPhase.Listening -> {
             val note = state.song?.timeline?.getOrNull(state.step.target)?.note ?: return null

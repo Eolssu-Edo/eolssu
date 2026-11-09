@@ -191,7 +191,7 @@ data class PracticeUiState(
             if (mode == PracticeMode.Countdown || (mode == PracticeMode.Recording && !finished && popup == null)) {
                 add(ContinuousActivity.RECORDING)
             }
-            // 한 음씩 따라 불기에서 '내 연주'를 듣는 중·다시 시작 3·2·1도 연주로 센다.
+            // 한 음씩 따라 불기에서 '내 연주'를 듣는 중도 연주로 센다.
             if (stepBusy) add(ContinuousActivity.RECORDING)
             if (draft.previewing) add(ContinuousActivity.METRONOME)
         }

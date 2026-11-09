@@ -124,7 +124,7 @@ fun PracticePill(text: String, modifier: Modifier = Modifier) {
 /**
  * 상태 문구(`.status-label`): 7dp 점과 12sp 글자. 연주 중 계열은 붉은 점·붉은 글자 600.
  * 연습 준비 / 모범 연주 중 / 준비해 주세요 / 연주 중 / 연주 중 · 소리 입력 없음 / 연주 완료 / 연주 중단.
- * 한 음씩 따라 불기 중이면 ‘한 음씩 · 黃(황)을 불어 보세요’ / 멈춤 / 곧 이어서 시작해요 / 끝까지 따라 불었어요([practiceStepStatus]).
+ * 한 음씩 따라 불기 중이면 ‘한 음씩 · 黃(황)을 불어 보세요’ / 멈춤 / 끝까지 따라 불었어요([practiceStepStatus]).
  */
 @Composable
 fun PracticeStatusLabel(state: PracticeUiState, modifier: Modifier = Modifier) {

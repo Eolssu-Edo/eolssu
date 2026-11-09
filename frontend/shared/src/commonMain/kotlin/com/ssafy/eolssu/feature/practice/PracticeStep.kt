@@ -12,17 +12,16 @@ import com.ssafy.eolssu.core.model.ScoreNote
 
 /**
  * 한 음씩 따라 불기의 진행 단계.
- * [Idle]은 아직 시작하지 않음, [Listening]은 '내 연주'를 듣는 중(녹음 중), [Paused]는 멈춤,
- * [Countdown]은 멈춘 자리부터 다시 시작하기 전 3·2·1(1초마다), [Finished]는 마지막 음까지 따라 붊.
+ * [Idle]은 아직 시작하지 않음, [Listening]은 '내 연주'를 듣는 중(녹음 중), [Paused]는 멈춤, [Finished]는 마지막 음까지 따라 붊.
+ * 멈춘 자리에서 다시 누르면 카운트다운 없이 바로 듣는다(S15P31E102-645).
  */
-enum class StepPhase { Idle, Listening, Paused, Countdown, Finished }
+enum class StepPhase { Idle, Listening, Paused, Finished }
 
 /**
  * 한 음씩 따라 불기 상태.
  *
  * @property on 설정 옆 '한 음씩' 토글이 켜졌는지.
  * @property target 지금 기다리는 음의 연주 순서([ScoreEvent.index]). 이음(ㅡ)·쉼(△)·빈 자리는 고르지 않는다.
- * @property count [StepPhase.Countdown]에서 남은 박(3·2·1).
  * @property manualConfirm 판정기가 스스로 판정하지 못해 화면에 임시 '맞게 분 것으로 넘기기' 버튼을 보이는지([StepNoteJudge.manualConfirm]).
  * @property available 한 음씩을 내놓는지. 서버에 이 악기의 판정 기준이 없으면(404) false라 토글을 숨긴다.
  */
@@ -31,7 +30,6 @@ data class PracticeStep(
     val on: Boolean = false,
     val phase: StepPhase = StepPhase.Idle,
     val target: Int = 0,
-    val count: Int = 3,
     val manualConfirm: Boolean = true,
 )
 
@@ -83,12 +81,15 @@ val ScoreNote.reading: String?
 /** 토글이 켜져 진행 바 대신 두 칸(지금 음·내 연주)을 보이는 상태. 혼자 연습에서만. */
 val PracticeUiState.stepUi: Boolean get() = solo && step.on
 
-/** 한 음씩이 진행 중이라 악보 고르기·운지법 열기를 막는 단계(듣는 중·3·2·1). */
-val PracticeUiState.stepBusy: Boolean get() = stepUi && (step.phase == StepPhase.Listening || step.phase == StepPhase.Countdown)
+/** 한 음씩이 진행 중이라 악보 고르기·운지법 열기를 막는 단계(듣는 중). */
+val PracticeUiState.stepBusy: Boolean get() = stepUi && step.phase == StepPhase.Listening
 
-/** 악보에 연두 테두리로 보일 지금 음. 시작 전·끝난 뒤에는 없다. 테두리는 정간에만 두고 곁줄에는 두지 않는다. */
+/**
+ * 악보에 연두 테두리로 보일 지금 음. 시작 전·끝난 뒤에는 없다. 테두리는 정간에만 두고 곁줄에는 두지 않는다.
+ * 운지법과 함께 보기도 이 음이 든 줄에 같은 테두리를 두고 그 페이지로 넘긴다.
+ */
 val PracticeUiState.stepCurrentIndex: Int?
-    get() = if (stepUi && step.phase in setOf(StepPhase.Listening, StepPhase.Paused, StepPhase.Countdown)) step.target else null
+    get() = if (stepUi && (step.phase == StepPhase.Listening || step.phase == StepPhase.Paused)) step.target else null
 
 /** '지금 음' 칸에 보일 음. 시작 전이면 첫 음. */
 val PracticeUiState.stepShownIndex: Int?
@@ -107,30 +108,27 @@ val PracticeUiState.stepProgress: Pair<Int, Int>
         return (k + 1) to targets.size
     }
 
-/** 3·2·1에서 숫자 하나의 길이(ms). 연습 속도와 상관없이 1초씩 센다. */
-const val StepCountdownTickMs = 1_000L
-
 /**
  * '한 음씩' 토글. 혼자 연습의 준비·모범 연주 상태에서만 바뀐다.
- * 끄면 진행을 멈춘 채 두고(다시 켜면 3·2·1 뒤 이어서), 모범 연주 중에 켜면 모범 연주를 멈추고 듣던 자리의 음부터 이어서 시작하도록 멈춤으로 둔다.
+ * 끄면 진행을 멈춘 채 두고(다시 켜고 ‘내 연주’를 누르면 그 자리부터 이어서), 모범 연주 중에 켜면 모범 연주를 멈추고 듣던 자리의 음부터 이어서 시작하도록 멈춤으로 둔다.
  * 모범 연주 음원 정지는 ViewModel이 한다.
  */
 fun PracticeUiState.toggleStep(): PracticeUiState {
     if (!solo || !step.available || (mode != PracticeMode.Ready && mode != PracticeMode.Model)) return this
     if (step.on) {
-        val phase = if (step.phase == StepPhase.Listening || step.phase == StepPhase.Countdown) StepPhase.Paused else step.phase
-        return copy(step = step.copy(on = false, phase = phase, count = 3))
+        val phase = if (step.phase == StepPhase.Listening) StepPhase.Paused else step.phase
+        return copy(step = step.copy(on = false, phase = phase))
     }
     if (mode == PracticeMode.Model) {
         val targets = stepTargets(song?.timeline.orEmpty())
         val target = targets.firstOrNull { it >= position } ?: targets.lastOrNull() ?: 0
-        return stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle, step = step.copy(on = true, phase = StepPhase.Paused, target = target, count = 3))
+        return stopModel().copy(modelAudioStatus = ModelAudioStatus.Idle, step = step.copy(on = true, phase = StepPhase.Paused, target = target))
     }
     return copy(step = step.copy(on = true))
 }
 
 /**
- * 오른쪽 '내 연주' 칸을 누름. 듣는 중이면 멈추고, 멈춰 있으면 3·2·1을 센 뒤 그 자리부터 이어 가며,
+ * 오른쪽 '내 연주' 칸을 누름. 듣는 중이면 멈추고, 멈춰 있으면 카운트다운 없이 그 자리부터 바로 이어 가며,
  * 시작 전·끝난 뒤면 첫 음부터 바로 듣는다(와이어프레임 `recToggle`).
  */
 fun PracticeUiState.tapStepPlaying(): PracticeUiState {
@@ -139,18 +137,10 @@ fun PracticeUiState.tapStepPlaying(): PracticeUiState {
     if (targets.isEmpty()) return this
     return when (step.phase) {
         StepPhase.Listening -> copy(step = step.copy(phase = StepPhase.Paused))
-        StepPhase.Paused -> copy(panel = null, listening = null, step = step.copy(phase = StepPhase.Countdown, count = 3))
-        StepPhase.Countdown -> this
+        StepPhase.Paused -> copy(panel = null, listening = null, follow = true, step = step.copy(phase = StepPhase.Listening))
         StepPhase.Idle, StepPhase.Finished ->
-            copy(panel = null, listening = null, follow = true, step = step.copy(phase = StepPhase.Listening, target = targets.first(), count = 3))
+            copy(panel = null, listening = null, follow = true, step = step.copy(phase = StepPhase.Listening, target = targets.first()))
     }
-}
-
-/** 3·2·1의 한 숫자(1초)가 지남. 다 세면 멈춘 음부터 다시 듣는다. */
-fun PracticeUiState.tickStepCountdown(): PracticeUiState = when {
-    step.phase != StepPhase.Countdown -> this
-    step.count > 1 -> copy(step = step.copy(count = step.count - 1))
-    else -> copy(follow = true, step = step.copy(phase = StepPhase.Listening, count = 3))
 }
 
 /**
@@ -164,6 +154,6 @@ fun PracticeUiState.matchStepNote(index: Int): PracticeUiState {
     return copy(follow = true, step = step.copy(target = next))
 }
 
-/** 화면을 벗어나거나 다른 동작으로 멈춤. 듣는 중·3·2·1이면 그 자리에서 멈춘다. */
+/** 화면을 벗어나거나 다른 동작으로 멈춤. 듣는 중이면 그 자리에서 멈춘다. */
 fun PracticeUiState.pauseStep(): PracticeUiState =
-    if (step.phase == StepPhase.Listening || step.phase == StepPhase.Countdown) copy(step = step.copy(phase = StepPhase.Paused, count = 3)) else this
+    if (step.phase == StepPhase.Listening) copy(step = step.copy(phase = StepPhase.Paused)) else this

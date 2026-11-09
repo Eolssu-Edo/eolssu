@@ -18,7 +18,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -95,7 +94,7 @@ class PracticeStepTest {
         assertEquals(0, s.step.target)
     }
 
-    @Test fun pauseThenResumeCountsThreeBeatsAndContinuesFromSameNote() {
+    @Test fun pauseThenResumeContinuesFromSameNoteWithoutCountdown() {
         val listening = solo.toggleStep().tapStepPlaying().matchStepNote(0)
         val paused = listening.tapStepPlaying()
         assertEquals(StepPhase.Paused, paused.step.phase)
@@ -103,19 +102,12 @@ class PracticeStepTest {
         // 멈춘 동안 들어온 판정은 무시한다.
         assertEquals(paused, paused.matchStepNote(3))
 
-        var s = paused.tapStepPlaying()
-        assertEquals(StepPhase.Countdown, s.step.phase)
-        assertEquals(3, s.step.count)
-        assertTrue(s.stepBusy)
-        assertEquals(s, s.tapStepPlaying()) // 3·2·1 중에는 다시 눌러도 그대로
-        s = s.tickStepCountdown()
-        assertEquals(2, s.step.count)
-        s = s.tickStepCountdown()
-        assertEquals(1, s.step.count)
-        s = s.tickStepCountdown()
-        assertEquals(StepPhase.Listening, s.step.phase)
-        assertEquals(3, s.step.target)
-        assertEquals(s, s.tickStepCountdown())
+        // 녹음 버튼을 다시 누르면 3·2·1 없이 멈춘 음부터 바로 듣는다(S15P31E102-645).
+        val resumed = paused.tapStepPlaying()
+        assertEquals(StepPhase.Listening, resumed.step.phase)
+        assertEquals(3, resumed.step.target)
+        assertEquals(3, resumed.stepCurrentIndex)
+        assertTrue(resumed.stepBusy)
     }
 
     @Test fun busyStepBlocksScoreSelectionAndCountsAsPracticeActivity() {
@@ -135,7 +127,7 @@ class PracticeStepTest {
         assertEquals(StepPhase.Paused, off.step.phase)
         val on = off.toggleStep()
         assertEquals(3, on.stepCurrentIndex)
-        assertEquals(StepPhase.Countdown, on.tapStepPlaying().step.phase)
+        assertEquals(StepPhase.Listening, on.tapStepPlaying().step.phase)
     }
 
     @Test fun turningOnDuringModelStopsModelAndPausesAtHeardNote() {
@@ -153,10 +145,9 @@ class PracticeStepTest {
         assertFalse(com.ssafy.eolssu.feature.practice.component.hasFinalConsonant(""))
     }
 
-    @Test fun viewModelDrivesJudgeAndResumesAfterOneSecondPerCount() {
+    @Test fun viewModelDrivesJudgeAndResumesImmediately() {
         val judge = FakeStepNoteJudge()
-        // 3·2·1은 연습 속도와 상관없이 1초씩 센다(120 BPM이어도 한 숫자 1초).
-        stepTest(judge, testSong = song.copy(baseBpm = 120)) { vm ->
+        stepTest(judge) { vm ->
             vm.toggleStep()
             vm.tapStepPlaying()
             assertEquals(StepTarget(0, pitch(Yul.Hwangjong)), judge.listening)
@@ -171,19 +162,13 @@ class PracticeStepTest {
             runCurrent()
             assertEquals(StepPhase.Paused, vm.uiState.value.step.phase)
 
-            vm.tapStepPlaying() // 3·2·1 (1초씩)
-            assertEquals(3, vm.uiState.value.step.count)
-            advanceTimeBy(999)
-            assertEquals(3, vm.uiState.value.step.count)
-            advanceTimeBy(2)
-            assertEquals(2, vm.uiState.value.step.count)
-            advanceTimeBy(1000)
-            assertEquals(1, vm.uiState.value.step.count)
-            assertNull(judge.listening)
-            advanceTimeBy(1000)
-            runCurrent()
+            vm.tapStepPlaying() // 카운트다운 없이 바로 멈춘 음부터 듣는다.
             assertEquals(StepPhase.Listening, vm.uiState.value.step.phase)
             assertEquals(3, judge.listening?.index)
+            judge.match(3)
+            runCurrent()
+            assertEquals(5, vm.uiState.value.step.target)
+            assertEquals(5, judge.listening?.index)
 
             // 화면을 벗어나면 멈추고 판정기를 끈다.
             vm.onLeaveScreen()

@@ -94,7 +94,6 @@ class PracticeViewModel(
     private var idleJob: Job? = null
     private var snapshotJob: Job? = null
     private var songJob: Job? = null
-    private var stepCountdownJob: Job? = null
     private var screenShown = false
     private val recordingClock = RecordingClock()
     private var takeKey = ""
@@ -879,12 +878,12 @@ class PracticeViewModel(
     }
 
     /**
-     * 오른쪽 '내 연주' 칸: 듣는 중이면 멈추고, 멈춰 있으면 1초마다 3·2·1을 센 뒤 이어 간다.
+     * 오른쪽 '내 연주' 칸: 듣는 중이면 멈추고, 멈춰 있으면 카운트다운 없이 그 자리부터 바로 이어 간다.
      * 마이크로 듣는 판정기인데 마이크 권한이 없으면 시작하지 않고 권한 안내를 띄운다.
      */
     fun tapStepPlaying() {
         val state = _uiState.value
-        val starting = state.stepUi && state.mode == PracticeMode.Ready && state.step.phase != StepPhase.Listening && state.step.phase != StepPhase.Countdown
+        val starting = state.stepUi && state.mode == PracticeMode.Ready && state.step.phase != StepPhase.Listening
         if (starting && stepJudge is PitchStepNoteJudge && !micGranted()) {
             _uiState.update { it.copy(panel = null, popup = PracticePopup.Permission) }
             return
@@ -954,30 +953,14 @@ class PracticeViewModel(
         syncStep()
     }
 
-    /** 상태에 맞춰 판정기와 3·2·1 타이머를 켜고 끈다. 듣는 중이 아니면 마이크 자원을 놓는다. */
+    /** 상태에 맞춰 판정기를 켜고 끈다. 듣는 중이 아니면 마이크 자원을 놓는다. */
     private fun syncStep() {
         val state = _uiState.value
-        if (state.step.phase != StepPhase.Countdown || !state.stepUi) {
-            stepCountdownJob?.cancel()
-            stepCountdownJob = null
-        }
         val event = state.song?.timeline?.getOrNull(state.step.target)
         if (state.stepUi && state.step.phase == StepPhase.Listening && event != null) {
             stepJudge.listen(StepTarget(event.index, event.note, event.sigimsae.isNotEmpty())) { index -> viewModelScope.launch { onStepNoteMatched(index) } }
         } else {
             stepJudge.stop()
-        }
-        if (state.stepUi && state.step.phase == StepPhase.Countdown && stepCountdownJob?.isActive != true) runStepCountdown()
-    }
-
-    private fun runStepCountdown() {
-        stepCountdownJob = viewModelScope.launch {
-            while (_uiState.value.step.phase == StepPhase.Countdown) {
-                delay(StepCountdownTickMs)
-                _uiState.update { it.tickStepCountdown() }
-            }
-            stepCountdownJob = null
-            syncStep()
         }
     }
 

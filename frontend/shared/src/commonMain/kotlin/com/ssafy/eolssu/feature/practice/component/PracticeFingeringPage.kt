@@ -63,6 +63,7 @@ import com.ssafy.eolssu.core.ui.component.EolssuIconButton
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
+import com.ssafy.eolssu.feature.practice.stepCurrentIndex
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.practice_finger_upcoming
 import eolssu.shared.generated.resources.practice_finger_end
@@ -134,6 +135,7 @@ fun fingerCells(song: Song, instrument: GuideInstrument): List<FingerCell> {
  * 현재 부를 음들과 다음에 부를 두 음을 화면의 남은 높이에 세로 스크롤 없이 맞춘다. 한 페이지의 운지 수는 최대 [FingerPageFingerings]개이고,
  * 화면이 낮거나 글꼴이 크면 자리 높이가 [FingerReadableSlotHeight] 아래로 내려가지 않도록 그보다 적게 담는다.
  * 재생 위치가 다음 페이지에 들어가면 함께 넘긴다.
+ * 한 음씩 따라 불기 중이면 지금 불 음이 든 페이지로 넘기고, 그 줄에 운지법을 끈 악보의 지금 정간과 같은 2dp 연두 테두리를 둔다(S15P31E102-645).
  */
 @Composable
 fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUnit) -> Unit, modifier: Modifier = Modifier) {
@@ -145,8 +147,9 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
     val playback = state.scorePlayback()
     val live = playback != null
     val cursor = rememberScoreCursor(playback)
+    val stepUnit = state.stepCurrentIndex?.let { song.displayUnitAt(it) }
     val currentUnit = if (live) cursor.index?.let { song.displayUnitAt(it, cursor.fraction) }
-        else state.scoreSelection?.let { cell ->
+        else stepUnit ?: state.scoreSelection?.let { cell ->
             song.displayUnits.firstOrNull { it.column == cell.column && it.row == cell.row && it.event.index == state.selected }
         }
     val instrumentName = stringResource(instrument.label)
@@ -165,7 +168,8 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
         // 소박 없는 짧은 각은 여러 각이 한 페이지라 각 번호 대신 페이지 번호로 찾는다.
         // 한 정간이 두 페이지에 나뉠 수 있어 지금 음(표시 자리)이 든 페이지를 찾는다.
         val currentPage = currentUnit?.let { unit -> angles.indexOfFirst { page -> page.any { cell -> cell.units.any { it.key == unit.key } } }.takeIf { it >= 0 } }
-        var browsed by remember(song, state.scoreSelection, live, angles) { mutableIntStateOf(currentPage ?: 0) }
+        // 한 음씩에서 다음 음으로 넘어가면 그 음이 든 페이지로 다시 맞춘다.
+        var browsed by remember(song, state.scoreSelection, live, angles, stepUnit?.key) { mutableIntStateOf(currentPage ?: 0) }
         val angleIndex = (if (live && state.follow) currentPage ?: browsed else browsed).coerceIn(0, angles.lastIndex)
         val angle = angles[angleIndex]
         val preview = remember(song, cells, angle) {
@@ -186,7 +190,7 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
                     val scroll = remember(angleIndex) { ScrollState(0) }
                     val density = LocalDensity.current
                     androidx.compose.runtime.LaunchedEffect(currentUnit?.column, currentUnit?.row, angleIndex, state.follow, scroll.maxValue) {
-                        if (live && state.follow && scroll.maxValue > 0) {
+                        if ((live && state.follow || stepUnit != null) && scroll.maxValue > 0) {
                             val before = angle.takeWhile { it.column != currentUnit?.column || it.row != currentUnit?.row }
                             val top = before.fold(0.dp) { acc, cell ->
                                 acc + imageHeight * cell.units.sumOf { fingerSlotWeight(it).toDouble() }.toFloat() + 4.dp
@@ -204,8 +208,10 @@ fun PracticeFingeringPage(state: PracticeUiState, onSelectUnit: (ScoreDisplayUni
                                     val end = cell.units.lastOrNull()?.let { it.unitStart + it.unitDuration } ?: start + 1
                                     ((position - start) / (end - start)).toFloat().coerceIn(0f, 1f)
                                 } },
-                                isSelected = state.scoreSelection == ScorePosition(cell.column, cell.row),
+                                isSelected = state.scoreSelection == ScorePosition(cell.column, cell.row) ||
+                                    (stepUnit != null && cell.units.any { it.key == stepUnit.key }),
                                 playingKey = if (live) currentUnit?.key else null,
+                                stepKey = stepUnit?.key,
                                 showHangul = state.settings.showHangul,
                                 gakStart = cell.row == 0 && !cell.continued,
                                 daegangStarts = cell.units.indices.filter { slot -> song.jangdan?.let { jangdan -> cell.row in jangdan.daegang.runningFold(0) { acc, n -> acc + n }.dropLast(1) } == true && slot == 0 && !cell.continued },
@@ -297,6 +303,7 @@ private fun HeadCell(text: String, width: Dp, style: androidx.compose.ui.text.Te
  * 운지 줄 하나: 페이지에서 배정한 자리 높이 × 표시 자리 수 + 여백. 왼쪽 운지·가운데 율명·오른쪽 가사는 같은 자리를 쓴다.
  * 각 첫 줄은 2dp 먹색 윗선과 ‘N각’, 대강 첫 줄은 2dp 회색 윗선, 그 밖은 점선. 고른 줄은 2dp 안쪽 테두리.
  * 재생·연주 중에는 악보처럼 노래방 방식으로 [fill]만큼 위에서부터 회색으로 채우고, 지금 연주하는 율명([playingKey])을 붉게 한다.
+ * 한 음씩 따라 불기의 지금 음([stepKey])이 여러 음이 든 줄에 있으면 악보의 나뉜 정간처럼 그 율명 자리만 옅게 칠해 구분한다.
  */
 @Composable
 private fun FingerRow(
@@ -306,6 +313,7 @@ private fun FingerRow(
     isSelected: Boolean,
     playingKey: ScoreUnitKey?,
     showHangul: Boolean,
+    stepKey: ScoreUnitKey? = null,
     gakStart: Boolean,
     daegangStarts: List<Int>,
     imageHeight: Dp = FingerImageHeight,
@@ -359,6 +367,7 @@ private fun FingerRow(
         ) {
             cell.units.forEach { unit ->
                 NoteLine(unit, showHangul, big = cell.parts == 1, playing = playingKey != null && unit.key == playingKey, height = imageHeight * fingerSlotWeight(unit),
+                    current = cell.units.size > 1 && stepKey != null && unit.key == stepKey,
                     onClick = onSelectUnit?.let { select -> { select(unit) } })
             }
         }
@@ -404,11 +413,12 @@ private fun FingerDiagram(instrument: GuideInstrument, entry: FingerEntry, heigh
 }
 
 /**
- * 율명 한 줄(`.note-line`): 글자와 오른쪽 작은 한글 읽는 법. 지금 연주하는 율명([playing])은 붉게 쓴다.
+ * 율명 한 줄(`.note-line`): 글자와 오른쪽 작은 한글 읽는 법. 지금 연주하는 율명([playing])은 붉게 쓰고,
+ * 한 음씩의 지금 음([current])은 연두 바탕으로 칠한다.
  * 중청황(氵氵黃 중청황)처럼 글자와 한글이 칸 너비보다 길면 한글을 줄바꿈하지 않고 한 줄 전체를 비율대로 줄인다(S15P31E102-561).
  */
 @Composable
-private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, playing: Boolean = false, height: Dp = FingerImageHeight, onClick: (() -> Unit)? = null) {
+private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, playing: Boolean = false, height: Dp = FingerImageHeight, current: Boolean = false, onClick: (() -> Unit)? = null) {
     val colors = EolssuTheme.colors
     val note = unit.note
     val isPitch = note is ScoreNote.Pitch || note is ScoreNote.SourcePitch
@@ -419,7 +429,7 @@ private fun NoteLine(unit: ScoreDisplayUnit, showHangul: Boolean, big: Boolean, 
         note == ScoreNote.Rest -> stringResource(Res.string.score_rest_hangul)
         else -> null
     }
-    ShrinkToWidth(Modifier.fillMaxWidth().height(height).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)) {
+    ShrinkToWidth(Modifier.fillMaxWidth().height(height).then(if (current) Modifier.background(colors.accentTint) else Modifier).then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (isPitch) {
                 ScoreNoteGlyph(note, size = fitText(if (big) 25.sp else 19.sp, height), color = if (playing) colors.rec else colors.text)
