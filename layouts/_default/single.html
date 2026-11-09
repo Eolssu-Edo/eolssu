@@ -1,6 +1,7 @@
 {{ define "main" }}
 {{ if eq .Section "posts" }}
 {{- $cats := partial "categories.html" . -}}
+{{- $toc := .TableOfContents -}}
 <div class="article-shell wrap">
   <a class="back-link" href="{{ "/" | relURL }}"><span aria-hidden="true">←</span> 블로그로 돌아가기</a>
   <div class="reader-grid">
@@ -14,6 +15,12 @@
         </div>
       </header>
       <div class="article-cover article-cover-mobile">{{ partial "post-thumb.html" (dict "page" . "loading" "eager") }}</div>
+      {{- if eq (len (findRE `<a href="#` $toc 2)) 2 }}
+      <details class="article-toc article-toc-mobile">
+        <summary>이 글의 목차</summary>
+        {{ replace $toc `id="TableOfContents"` `aria-label="이 글의 목차"` | safeHTML }}
+      </details>
+      {{- end }}
       <div class="article-body">{{ .Content }}</div>
       {{- with .GetTerms "tags" }}<footer class="article-tags">{{ range . }}<a href="{{ .RelPermalink }}">#{{ .Title }}</a>{{ end }}</footer>{{ end }}
       {{- if or .PrevInSection .NextInSection }}
@@ -35,7 +42,7 @@
     <div class="article-sidebar">
       <div class="article-cover">{{ partial "post-thumb.html" (dict "page" . "loading" "eager") }}</div>
       {{- if .Fragments.Headings }}
-      <aside class="article-toc" aria-labelledby="toc-title"><h2 id="toc-title">이 글의 목차</h2>{{ .TableOfContents }}</aside>
+      <aside class="article-toc" aria-labelledby="toc-title"><h2 id="toc-title">이 글의 목차</h2>{{ $toc }}</aside>
       {{- end }}
     </div>
   </div>
