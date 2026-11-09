@@ -1,16 +1,18 @@
-"""Build the reading lesson's offline, educational tones with Python's standard library.
+"""Build the reading lesson's offline examples.
 
-Run from any directory: python frontend/tools/reading-sound/build_reading_sounds.py [--check]
-Durations, cell splits, holds and rests come from ReadingAudio.kt, not a second score.
-These are comparison tones, not recordings or an instrument's tuning reference.
+Without --danso-source, only the four beat examples are generated or checked.
+Pass the original Danso_2.wav and FFmpeg with librubberband for the three pitch examples.
+Durations and the beat examples' score come from ReadingAudio.kt.
 """
 
 from array import array
+from hashlib import sha256
 from io import BytesIO
 from pathlib import Path
 import argparse
 import math
 import re
+import subprocess
 import sys
 import wave
 
@@ -18,9 +20,14 @@ FRONTEND = Path(__file__).resolve().parents[2]
 MODEL = FRONTEND / "shared/src/commonMain/kotlin/com/ssafy/eolssu/feature/guide/ReadingAudio.kt"
 OUTPUT = FRONTEND / "shared/src/commonMain/composeResources/files/reading"
 RATE = 24_000
-# A neutral E-flat Huang example: same timbre, exact 1:2:4 octave ratio.
+# Keep the lesson's E-flat octave comparison, independent of the instrument's playable range.
 PITCHES = {"LowHwang": 51, "Hwang": 63, "HighHwang": 75}
 NOTES = {"林": 70, "南": 72, "太": 65}
+# 국립국악원 국악기 디지털 음원 > 단소 > 평취 중 (KOGL-1)
+# https://www.gugak.go.kr/digitaleum/front/monotone/list.do
+# data/catalog/danso/sources.json: ngc-danso-2339; 황종: ngc-danso-2339.tone-004
+DANSO_SHA256 = "ca706f981e54dbfeb72089b6f72b6494dea1fb39193f9f31c0048cfce3883d9c"
+DANSO_HZ = 622.493
 
 
 def frequency(midi):
@@ -60,7 +67,36 @@ def wav(samples):
     return output.getvalue()
 
 
-def build():
+def danso_tone(source, ffmpeg, seconds, midi):
+    pitch_ratio = frequency(midi) / DANSO_HZ
+    filters = (
+        "atrim=start=19.45:end=21.20,asetpts=PTS-STARTPTS,"
+        f"pan=mono|c0=0.5*c0+0.5*c1,aresample={RATE},"
+        f"rubberband=pitch={pitch_ratio:.9f}:pitchq=quality"
+    )
+    raw = subprocess.run(
+        [ffmpeg, "-v", "error", "-nostdin", "-i", str(source), "-af", filters, "-f", "f32le", "-"],
+        stdout=subprocess.PIPE,
+        check=True,
+    ).stdout
+    samples = array("f")
+    samples.frombytes(raw)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    count = round(seconds * RATE)
+    if len(samples) < count:
+        raise ValueError(f"단소 음원이 너무 짧습니다: {len(samples)} < {count} samples")
+    samples = samples[:count]
+    gain = 0.55 / max(abs(sample) for sample in samples)
+    return [
+        sample * gain * min(1, i / (0.03 * RATE), (count - 1 - i) / (0.09 * RATE))
+        for i, sample in enumerate(samples)
+    ]
+
+
+def build(danso_source=None, ffmpeg="ffmpeg"):
+    if danso_source and sha256(danso_source.read_bytes()).hexdigest() != DANSO_SHA256:
+        raise ValueError("국립국악원 단소 「평취 중」 원본(Danso_2.wav)과 SHA-256이 일치하지 않습니다.")
     model = MODEL.read_text(encoding="utf-8")
     beat_ms = int(re.search(r"ReadingBeatMs = ([\d_]+)L", model)[1].replace("_", ""))
     beat = beat_ms / 1000
@@ -73,8 +109,8 @@ def build():
     result = {}
     for name, file, duration in clips:
         seconds = beat * 2 if duration == "ReadingBeatMs * 2" else int(duration.replace("_", "")) / 1000
-        samples = [0.0] * round(seconds * RATE)
         if name in names:
+            samples = [0.0] * round(seconds * RATE)
             timeline = []
             t = 0
             for cell in cells[names.index(name)]:
@@ -90,18 +126,22 @@ def build():
                 tone(samples, start, length, midi)
             for i in range(2):
                 click(samples, i * beat)
+        elif danso_source:
+            samples = danso_tone(danso_source, ffmpeg, seconds, PITCHES[name])
         else:
-            tone(samples, 0, seconds, PITCHES[name])
+            continue
         result[file + ".wav"] = wav(samples)
-    assert len(result) == 7
+    assert len(result) == len(names) + (len(PITCHES) if danso_source else 0)
     return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify committed assets without changing files")
+    parser.add_argument("--danso-source", type=Path, help="Original 국립국악원 Danso_2.wav")
+    parser.add_argument("--ffmpeg", default="ffmpeg", help="FFmpeg executable with librubberband")
     args = parser.parse_args()
-    generated = build()
+    generated = build(args.danso_source, args.ffmpeg)
     if not args.check:
         OUTPUT.mkdir(parents=True, exist_ok=True)
     for name, data in generated.items():
