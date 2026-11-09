@@ -114,7 +114,8 @@ fun PracticeScreen(
             modifier = Modifier.reportUserActivity(actions.onUserActivity),
         )
     }
-    state.popup?.let { PracticeDialog(it, actions.dialog, forStep = state.solo) }
+    state.popup?.takeUnless { it == PracticePopup.SettingsPaused && state.panel != null }
+        ?.let { PracticeDialog(it, actions.dialog, forStep = state.solo) }
     if (state.idleReminder) IdleReminderDialog(actions.onKeepPracticing)
 }
 

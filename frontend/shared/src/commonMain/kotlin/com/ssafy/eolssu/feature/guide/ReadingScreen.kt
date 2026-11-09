@@ -296,7 +296,7 @@ private fun ReadingPageCard(
         ReadingPage.Sigimsae -> GuideCard(modifier, mark = page.mark, title = title, small = stringResource(Res.string.guide_reading_sigimsae_small)) {
             SigimsaeBasicBlock(columns = sigimsaeColumns, enabled = interactive, onOpen = onStopAudio)
         }
-        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = title, small = "$MoreSigimsaeCount", subMark = true) {
+        ReadingPage.SigimsaeMore -> GuideCard(modifier, mark = page.mark, title = title, small = "$MoreSigimsaeCount") {
             SigimsaeMorePage(moreTip, onMoreTip, columns = moreColumns, enabled = interactive)
         }
     }
