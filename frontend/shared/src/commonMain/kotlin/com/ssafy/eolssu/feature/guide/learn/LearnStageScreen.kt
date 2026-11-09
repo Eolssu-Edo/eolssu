@@ -115,6 +115,7 @@ import eolssu.shared.generated.resources.learn_task_range_scale
 import eolssu.shared.generated.resources.learn_task_range_scale_detail
 import eolssu.shared.generated.resources.learn_task_rest
 import eolssu.shared.generated.resources.learn_task_rest_detail
+import eolssu.shared.generated.resources.learn_tour_done_body_posture
 import eolssu.shared.generated.resources.learn_unmark_done
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -217,6 +218,8 @@ internal fun LearnStageContent(
 ) {
     // 1단계 따라 배우기를 다 마치면 '완료했어요!'를 띄우고, '다음 단계로'는 '확인하고 다음 단계'와 같이 완료 표시 뒤 2단계로 간다.
     if (stage.number == 1) LearnTourDoneDialog(tour) { actions.onConfirm(stage.number) }
+    // 2단계 따라 배우기도 같은 창을 띄우고 완료 표시 뒤 3단계로 간다(3단계는 마지막 칸에서 바로 '연습 시작').
+    if (stage.number == 2) LearnTourDoneDialog(tour, Res.string.learn_tour_done_body_posture) { actions.onConfirm(stage.number) }
     Column(
         modifier
             .verticalScroll(scrollState)
@@ -280,6 +283,7 @@ private fun StageBody(
     }
     val readingMore: (ReadingPage) -> @Composable () -> Unit = { page -> { MoreLink(stringResource(Res.string.learn_more_reading), onClick = { actions.onOpenReading(page) }) } }
     val grid = columns.grid
+    val taskImageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified
 
     when (stage.number) {
         1 -> {
@@ -287,13 +291,17 @@ private fun StageBody(
                 LearnFirstTourFigure(instrument, tour, imageMaxWidth = if (columns.wide) 560.dp else Dp.Unspecified)
             }
         }
-        // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다.
-        2 -> LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
+        // 2단계 '악기 잡기' 설명은 서버가 악기별로 채워 준다. 2·3단계 할 일은 '학습 시작' 뒤 한 칸씩 따라 배운다.
+        2 -> LearnSection(tasksTitle) {
+            LearnTaskTour(instrument, 2, detail.tasks.plain(), tour, grid, firstNote = null, noteAudioContent, imageMaxWidth = taskImageMaxWidth)
+        }
         3 -> {
-            LearnSection(tasksTitle) { LearnTaskList(detail.tasks.plain(), grid, collapsible = true) }
-            // 처음 낼 음은 글 대신 운지 그림으로 보인다.
             val first = detail.pitchNames.firstOrNull()?.let(noteOf)
-            if (first != null) {
+            LearnSection(tasksTitle) {
+                LearnTaskTour(instrument, 3, detail.tasks.plain(), tour, grid, first, noteAudioContent, imageMaxWidth = taskImageMaxWidth)
+            }
+            // 처음 낼 음은 글 대신 운지 그림으로 보인다. 따라 배우는 동안은 마지막 칸에 같은 카드가 나오므로 숨긴다.
+            if (first != null && !tour.started) {
                 LearnSection(stringResource(Res.string.learn_section_first_sound), more = { fingeringMore(Res.string.learn_more_fingering, Blow.Mid) }) {
                     NoteCard(instrument, first, noteAudioContent, Modifier.widthIn(max = if (columns.wide) 360.dp else Dp.Unspecified))
                 }
@@ -409,7 +417,7 @@ internal val LearnPattern.label: StringResource
     }
 
 @Composable
-private fun NoteCard(
+internal fun NoteCard(
     instrument: GuideInstrument,
     note: FingeringNote,
     noteAudioContent: @Composable (FingeringNote) -> Unit,
@@ -515,7 +523,10 @@ private fun NavButton(text: String, enabled: Boolean, onClick: () -> Unit, modif
     }
 }
 
-/** 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. 1단계는 따라 배우기 버튼(학습 시작 · 이전/다음)이다. */
+/**
+ * 하단 고정 영역: 완료 표시 토글과 판정 방식별 주 버튼. 1~3단계는 따라 배우기 버튼(학습 시작 · 이전/다음)이다.
+ * 2단계는 마지막 칸에서 '다 익혔어요', 3단계는 시작 전 '완료로 표시'를 두고 마지막 칸에서 '연습 시작'으로 이어진다.
+ */
 @Composable
 internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions: LearnStageActions, tour: LearnTour) {
     if (stage.number == 1) {
@@ -523,6 +534,25 @@ internal fun LearnStageBottomBar(state: LearnUiState, stage: LearnStage, actions
         return
     }
     val done = state.isDone(stage.number)
+    val taskCount = (state.detail(stage.number) as? LearnDetailLoad.Loaded)?.detail?.tasks?.size ?: 0
+    if (hasTaskTour(stage.number) && taskCount > 0) {
+        val practice = stage.primaryAction == LearnStageAction.Practice
+        when {
+            tour.step != null -> LearnTourBar(taskCount - 1, tour) { modifier ->
+                if (practice) {
+                    EolssuButton(stringResource(Res.string.learn_start_practice), { actions.onStartPractice(stage.number) }, modifier, icon = EolssuIcons.Mic)
+                } else {
+                    LearnTourFinishButton(tour, modifier)
+                }
+            }
+            practice -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
+                LearnTourStartButton(tour, Modifier.weight(1f))
+            }
+            else -> LearnTourStartButton(tour, Modifier.fillMaxWidth())
+        }
+        return
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (stage.primaryAction != LearnStageAction.Confirm) {
             DoneToggleButton(done, onClick = { actions.onToggleDone(stage.number) }, modifier = Modifier.weight(1f))
