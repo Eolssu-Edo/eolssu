@@ -54,6 +54,23 @@ class MetricTests(unittest.TestCase):
         self.assertNotEqual(row[2], '정상')
         self.assertIn('중지', row[3])
 
+    def test_health_reports_only_the_selected_backend_as_required(self):
+        blue = 'eolssu-runtime-backend-1'
+        green = 'eolssu-runtime-backend-green-1'
+        healthy = {'item': {'Names': ['/' + green], 'State': 'running'},
+                   'detail': {'State': {'Running': True, 'Status': 'running', 'Health': {'Status': 'healthy'}}}}
+        with tempfile.TemporaryDirectory() as folder:
+            route = Path(folder) / 'active.conf'
+            route.write_text('set $backend http://backend-green:8080;\n')
+            with patch.object(collector, 'Path', return_value=route), \
+                    patch.object(collector, 'edo1_host_health', return_value=[]), \
+                    patch.object(collector, 'prometheus_health', return_value=[]), \
+                    patch.object(collector, 'snapshot', side_effect=[({}, [healthy], {}, []), ({}, [], {}, [])]):
+                _, running, _ = collector.health_report()
+                _, missing, _ = collector.health_report()
+        self.assertEqual([(row[0], row[2]) for row in running if row[0] in (blue, green)], [(green, '정상')])
+        self.assertEqual([(row[0], row[2]) for row in missing if row[0] in (blue, green)], [(green, '실패')])
+
     def test_stats_timeout_preserves_inspect_state_and_reports_partial_measurement(self):
         detail = {'Name': '/demo', 'State': {'Status': 'running', 'Running': True}}
         def docker(path, **kwargs):
