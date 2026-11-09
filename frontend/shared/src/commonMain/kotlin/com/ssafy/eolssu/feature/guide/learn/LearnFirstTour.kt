@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -188,19 +189,7 @@ internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, 
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(
-            Modifier
-                .align(Alignment.CenterHorizontally)
-                .widthIn(max = imageMaxWidth)
-                .fillMaxWidth()
-                .aspectRatio(instrument.imageWidth.toFloat() / instrument.imageHeight),
-        ) {
-            Image(
-                painterResource(instrument.image),
-                contentDescription = stringResource(instrument.label),
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-            )
+        TourInstrumentImage(instrument, Modifier.align(Alignment.CenterHorizontally), imageMaxWidth) {
             if (step != null) SpotRings(instrument, spots[step])
         }
         // 시작 전에는 부분 이름만, 시작하면 지나온 곳은 체크, 지금 곳은 연두 테두리, 남은 곳은 옅게.
@@ -211,24 +200,54 @@ internal fun LearnFirstTourFigure(instrument: GuideInstrument, tour: LearnTour, 
         }
         if (step == null) return@Column
         AnimatedContent(step, transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(120)) }, label = "tourCaption") { s ->
-            val spot = spots[s]
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(colors.accentSoft, RoundedCornerShape(12.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    stringResource(Res.string.learn_tour_step, s + 1, spots.size),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                    color = colors.accentText,
-                )
-                Text(spotTitle(spot), style = MaterialTheme.typography.titleSmall.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
-                Text(stringResource(spot.body), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp))
-            }
+            TourCaption(s, spots.size, spotTitle(spots[s]), stringResource(spots[s].body))
         }
+    }
+}
+
+/** 악기 그림. 그림이 Fit으로 들어가 칸과 비율이 같으므로 [overlay]는 칸 크기에 바로 맞춰 그린다. */
+@Composable
+internal fun TourInstrumentImage(
+    instrument: GuideInstrument,
+    modifier: Modifier = Modifier,
+    imageMaxWidth: Dp = Dp.Unspecified,
+    overlay: @Composable () -> Unit = {},
+) {
+    Box(
+        modifier
+            .widthIn(max = imageMaxWidth)
+            .fillMaxWidth()
+            .aspectRatio(instrument.imageWidth.toFloat() / instrument.imageHeight),
+    ) {
+        Image(
+            painterResource(instrument.image),
+            contentDescription = stringResource(instrument.label),
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+        )
+        overlay()
+    }
+}
+
+/** 따라 배우기 한 칸 설명: 'n / 전체', 이름, 한 줄 설명. 화면 읽기는 바뀔 때마다 읽어 준다. */
+@Composable
+internal fun TourCaption(index: Int, count: Int, title: String, body: String?) {
+    val colors = EolssuTheme.colors
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(colors.accentSoft, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            stringResource(Res.string.learn_tour_step, index + 1, count),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = colors.accentText,
+        )
+        Text(title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold))
+        if (body != null) Text(body, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp))
     }
 }
 
@@ -252,8 +271,7 @@ internal fun spotRingRadius(points: List<HolePoint>, holeRadius: Int, scale: Flo
  * [TourSpot.grouped]이면(붙어 있는 정악대금 칠성공 두 구멍) 동그라미 대신 둘을 함께 감싸는 둥근 띠 하나를 그린다.
  */
 @Composable
-private fun SpotRings(instrument: GuideInstrument, spot: TourSpot) {
-    val colors = EolssuTheme.colors
+internal fun SpotRings(instrument: GuideInstrument, spot: TourSpot, color: Color = EolssuTheme.colors.rec) {
     val pulse by rememberInfiniteTransition(label = "spotPulse").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -264,7 +282,7 @@ private fun SpotRings(instrument: GuideInstrument, spot: TourSpot) {
         val k = size.width / instrument.imageWidth
         val stroke = 3.dp.toPx()
         val minRadius = 14.dp.toPx()
-        val halo = colors.rec.copy(alpha = 0.35f * (1f - pulse))
+        val halo = color.copy(alpha = 0.35f * (1f - pulse))
         if (spot.grouped) {
             val r = maxOf(instrument.holeRadius * 1.9f * k, minRadius)
             val left = spot.points.minOf { it.x } * k - r
@@ -272,20 +290,20 @@ private fun SpotRings(instrument: GuideInstrument, spot: TourSpot) {
             val cy = spot.points.map { it.y }.average().toFloat() * k
             val grow = 0.7f * r * pulse
             drawRoundRect(halo, Offset(left - grow, cy - r - grow), Size(right - left + 2 * grow, 2 * (r + grow)), CornerRadius(r + grow))
-            drawRoundRect(colors.rec, Offset(left, cy - r), Size(right - left, 2 * r), CornerRadius(r), style = Stroke(stroke))
+            drawRoundRect(color, Offset(left, cy - r), Size(right - left, 2 * r), CornerRadius(r), style = Stroke(stroke))
             return@Canvas
         }
         val r = spotRingRadius(spot.points, instrument.holeRadius, k, minRadius, gap = stroke / 2 + 1.dp.toPx())
         spot.points.forEach { p ->
             val c = Offset(p.x * k, p.y * k)
             drawCircle(halo, radius = r * (1f + 0.7f * pulse), center = c)
-            drawCircle(colors.rec, radius = r, center = c, style = Stroke(stroke))
+            drawCircle(color, radius = r, center = c, style = Stroke(stroke))
         }
     }
 }
 
 @Composable
-private fun SpotChip(text: String, done: Boolean, current: Boolean, muted: Boolean) {
+internal fun SpotChip(text: String, done: Boolean, current: Boolean, muted: Boolean) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(13.dp)
     Row(
@@ -313,12 +331,29 @@ private fun SpotChip(text: String, done: Boolean, current: Boolean, muted: Boole
 /** 1단계 아래 버튼: 시작 전 '학습 시작', 진행 중 '이전 · 다음', 마지막 곳에서 '다 익혔어요'. */
 @Composable
 internal fun LearnFirstTourBar(instrument: GuideInstrument, tour: LearnTour) {
-    val last = instrument.tourSpots.lastIndex
-    val step = tour.step
-    if (step == null) {
-        EolssuButton(stringResource(Res.string.learn_tour_start), tour::start, Modifier.fillMaxWidth(), icon = EolssuIcons.Play)
+    if (tour.step == null) {
+        LearnTourStartButton(tour, Modifier.fillMaxWidth())
         return
     }
+    LearnTourBar(instrument.tourSpots.lastIndex, tour) { modifier -> LearnTourFinishButton(tour, modifier) }
+}
+
+/** '학습 시작'. */
+@Composable
+internal fun LearnTourStartButton(tour: LearnTour, modifier: Modifier = Modifier) {
+    EolssuButton(stringResource(Res.string.learn_tour_start), tour::start, modifier, icon = EolssuIcons.Play)
+}
+
+/** '다 익혔어요': '완료했어요!'를 띄운다. */
+@Composable
+internal fun LearnTourFinishButton(tour: LearnTour, modifier: Modifier = Modifier) {
+    EolssuButton(stringResource(Res.string.learn_tour_finish), tour::finish, modifier, icon = EolssuIcons.Check)
+}
+
+/** 따라 배우기 진행 중 아래 버튼: '이전 · 다음', 마지막 칸([last])에서는 '다음' 자리에 [finish]를 둔다. */
+@Composable
+internal fun LearnTourBar(last: Int, tour: LearnTour, finish: @Composable (Modifier) -> Unit) {
+    val step = tour.step ?: return
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         EolssuButton(
             stringResource(Res.string.learn_tour_prev),
@@ -330,14 +365,14 @@ internal fun LearnFirstTourBar(instrument: GuideInstrument, tour: LearnTour) {
         if (step < last) {
             EolssuButton(stringResource(Res.string.learn_tour_next), { tour.next(last) }, Modifier.weight(1f))
         } else {
-            EolssuButton(stringResource(Res.string.learn_tour_finish), tour::finish, Modifier.weight(1f), icon = EolssuIcons.Check)
+            finish(Modifier.weight(1f))
         }
     }
 }
 
-/** '완료했어요!': 호랑이가 통통 튀어 오르고, '다음 단계로'를 누르면 1단계를 완료로 표시하고 2단계로 간다. */
+/** '완료했어요!': 호랑이가 통통 튀어 오르고 [body]로 익힌 것을 알린다. '다음 단계로'를 누르면 [onNext](완료 표시 뒤 다음 단계)를 부른다. */
 @Composable
-internal fun LearnTourDoneDialog(tour: LearnTour, onNext: () -> Unit) {
+internal fun LearnTourDoneDialog(tour: LearnTour, body: StringResource = Res.string.learn_tour_done_body, onNext: () -> Unit) {
     if (!tour.celebrating) return
     val colors = EolssuTheme.colors
     val jump = remember { Animatable(0f) }
@@ -375,7 +410,7 @@ internal fun LearnTourDoneDialog(tour: LearnTour, onNext: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             Text(
-                stringResource(Res.string.learn_tour_done_body),
+                stringResource(body),
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
                 color = colors.textMuted,
                 textAlign = TextAlign.Center,
