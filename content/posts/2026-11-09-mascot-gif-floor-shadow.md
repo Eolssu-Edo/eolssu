@@ -7,7 +7,7 @@ categories: ["frontend"]
 tags: ["HyperFrames", "GSAP", "CSS", "애니메이션"]
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-mascot-gif-floor-shadow.webp"
 description: "그림자까지 함께 그려진 마스코트 일러스트로 움짤을 만들며, 그림자를 바닥 레이어로 떼어 내고 발을 축으로 흔들리게 만든 과정입니다."
-draft: true
+draft: false
 ---
 
 얼쑤의 팀 캐릭터 절쑤는 갓을 쓰고 한복을 입은 백호입니다. 캐릭터가 확정된 뒤 앱 곳곳에 쓸 수 있도록 포즈 시트의 일러스트를 2초짜리 움짤로 만들었습니다. 감정 표현 12종과 정면·옆면·뒷면 같은 기본 포즈 7종입니다. 시트에서 포즈를 하나씩 잘라 낸 그림에 HTML과 GSAP로 점프, 흔들기, 숨쉬기 같은 움직임을 붙였습니다. 그 장면을 HTML을 영상으로 렌더링하는 오픈소스 도구 [HyperFrames](https://hyperframes.heygen.com)로 480×480, 15fps GIF로 뽑았습니다. 구현은 AI 코딩 에이전트에게 맡기고, 저는 결과 프레임을 보며 방향을 정했습니다.
