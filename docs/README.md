@@ -1,5 +1,6 @@
 # 프로젝트 문서
 
+- [기초부터 배우기 2·3단계 할 일별 따라 배우기 (619)](plans/S15P31E102-619.md)
 - [Mattermost 점검 메시지 구성](specs/mattermost-inspection-messages.md) · [616 계획·검증](plans/S15P31E102-616.md)
 - [백엔드 블루그린 배포](specs/backend-blue-green.md) · [604 계획·검증](plans/S15P31E102-604.md)
 - [운지 패널 역취 예시음과 출처 (603)](knowledge/data/fingering-reference-audio.md)
@@ -361,6 +362,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [녹음 저장 이관(국내 디스크·R2 복귀)·Naver 메일 준비](../infra/storage/README.md)
 - [약관 본문 공개와 버전 등록](../infra/terms/README.md)
 - [개인정보 로그·문의·감사 보유기간 운영](../infra/privacy/README.md)
+- [음원 재생·OMR 로그 보존 (625)](plans/S15P31E102-625.md)
 
 - [S15P31E102-314 네이버 간편 로그인 연동 준비](plans/S15P31E102-314.md)
 
@@ -378,6 +380,7 @@ COCO 스킬이 만드는 문서도 위 위치를 따릅니다.
 - [Android16 QA 밝기·한글 도구 호환성](knowledge/infra/qa-tablet-native-tools.md)
 
 - [QA APK MR 자동 반영과 기기별 최신 설치](knowledge/infra/qa-apk-mr-metadata.md)
+- [QA MR 동기화 10개 단위 조회 (624)](plans/S15P31E102-624.md)
 
 - [Eolssu Updates의 COCO 갱신 알림·QA·서버 연결](specs/tool-update-notifier.md) · [508 계획·검증](plans/S15P31E102-508.md) · [사용·패키징](../infra/tool-updates/README.md)
 
