@@ -25,6 +25,8 @@ import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.SheetImportRepository
 import com.ssafy.eolssu.data.song.ApiSheetImportRepository
+import com.ssafy.eolssu.data.song.ApiSheetConversionRepository
+import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.feature.song.edit.SheetImportViewModel
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
@@ -195,11 +197,12 @@ val appModule = module {
     single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
     single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
     single<SheetImportRepository> { ApiSheetImportRepository(get(), get()) }
+    single<SheetConversionRepository> { ApiSheetConversionRepository(get(), get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) ->
         SheetImportViewModel(kind, hwang, get(),
             get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get())
     }
-    viewModelOf(::MySongsViewModel)
+    viewModel { MySongsViewModel(get(), get(), get(), get(), get(), get()) }
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }
