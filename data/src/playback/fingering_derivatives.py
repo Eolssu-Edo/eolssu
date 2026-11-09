@@ -49,8 +49,8 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def load_source(source_dir, label_id, encoder):
-    asset_id, expected = SOURCES[label_id]
+def load_source(source_dir, label_id, encoder, *, identity=None):
+    asset_id, expected = identity if identity is not None else SOURCES[label_id]
     m4a = source_dir / f"{label_id}.m4a"
     detail_path = source_dir / f"{label_id}.json"
     detail = json.loads(detail_path.read_text(encoding="utf-8"))["result"]

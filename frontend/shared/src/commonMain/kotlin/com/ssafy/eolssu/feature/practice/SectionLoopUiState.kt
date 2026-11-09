@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.practice
 
 import com.ssafy.eolssu.core.audio.RecordedTake
+import com.ssafy.eolssu.data.practice.PracticeSettings
 import com.ssafy.eolssu.data.practice.SessionSection
 import com.ssafy.eolssu.core.model.ScorePosition
 import com.ssafy.eolssu.core.model.ScoreSection
@@ -19,6 +20,7 @@ import com.ssafy.eolssu.core.model.Song
  * @property recording 재평가 녹음 중(카운트다운 포함). 한 번만 따라가고 반복하지 않는다.
  * @property take 마친 재평가 녹음. 화면이 분석으로 넘긴 뒤 지운다.
  * @property notice 재평가를 시작하지 못했거나 녹음을 버린 이유. 화면이 안내한 뒤 지운다.
+ * @property settings 연습 화면과 함께 쓰는 악보 설정(크게 보기·한글·계이름). 구간 반복 악보도 같은 모양으로 그린다.
  */
 data class SectionLoopUiState(
     val loading: Boolean = true,
@@ -36,6 +38,7 @@ data class SectionLoopUiState(
     val recording: Boolean = false,
     val take: SectionTake? = null,
     val notice: SectionLoopNotice? = null,
+    val settings: PracticeSettings = PracticeSettings(),
 ) {
     val current: ScorePosition? get() = cells.getOrNull(step)
 
@@ -45,6 +48,14 @@ data class SectionLoopUiState(
     /** 이번 회차에서 흐른 시간과 한 회차 길이(초). */
     val elapsedSeconds: Double get() = step * cellMillis / 1000
     val roundSeconds: Double get() = cells.size * cellMillis / 1000
+
+    /** 이번 회차 진행률(0~100). 마친 뒤에는 100. 기본 평가 화면의 ‘0:20 / 0:48 · 42%’와 같은 자리에 쓴다. */
+    val roundPercent: Int
+        get() = when {
+            cells.isEmpty() -> 0
+            finished -> 100
+            else -> step * 100 / cells.size
+        }
 
     /** 회차마다의 진행 막대 비율(0~1). ‘계속’이면 이번 회차 하나만 보인다. */
     val roundProgress: List<Float>

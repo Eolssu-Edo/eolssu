@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -33,15 +34,15 @@ import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
+import com.ssafy.eolssu.feature.song.component.SongSortButton
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.mysongs_delete
 import eolssu.shared.generated.resources.mysongs_delete_message
 import eolssu.shared.generated.resources.mysongs_delete_title
+import eolssu.shared.generated.resources.mysongs_no_jangdan
 import eolssu.shared.generated.resources.mysongs_practice_only
-import eolssu.shared.generated.resources.mysongs_practice_only_badge
-import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
@@ -53,6 +54,7 @@ class MySongsActions(
     val onBack: () -> Unit,
     val onSelectTab: (MySongsTab) -> Unit,
     val onSelectFilter: (SongLevelFilter) -> Unit,
+    val onToggleSort: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
     val onEditSheet: (MySheet) -> Unit,
@@ -104,13 +106,10 @@ private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
     }
 }
 
-/** 목록 응답에 장단 이름이 없으면 평가 가능 여부만 표시한다. */
+/** 제공 곡 제목 밑 문구: 장단 이름(목록 응답에 없으면 '장단 없음'), 평가할 수 없는 곡이면 뒤에 '· 연습 전용'. */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String {
-    if (song.jangdanName.isBlank()) {
-        return stringResource(if (song.evaluable) Res.string.mysongs_evaluable_badge else Res.string.mysongs_practice_only_badge)
-    }
-    val jangdan = jangdanLabel(song.jangdanName)
+    val jangdan = if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
     return if (song.evaluable) jangdan else stringResource(Res.string.mysongs_practice_only, jangdan)
 }
 
@@ -138,7 +137,7 @@ private fun MySongsCompact(state: MySongsUiState, snackbarHostState: SnackbarHos
 }
 
 /**
- * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
+ * SONG-03 본문(`.body`, 간격 12dp): 탭 · 제공 곡(단계 필터 · 오른쪽 정렬 버튼 · 곡 줄) 또는 내 악보(악보 추가 · 'n개' · 악보 줄).
  * 개수 문구는 왼쪽 4dp 들이고 목록과 8dp 떨어진다. [columns]가 2 이상이면 줄을 격자로 놓는다.
  */
 @Composable
@@ -164,6 +163,7 @@ internal fun MySongsBody(
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SongSortButton(state.sort, actions.onToggleSort, Modifier.align(Alignment.End), small = true)
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
                             ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier)
                         }
