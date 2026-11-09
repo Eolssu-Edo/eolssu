@@ -41,7 +41,8 @@
     {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title" "titleOnly" true) }}
     <div class="sidebar-note">
       <p>우리 소리에<br>가까워지는 시간.</p>
-      <img src="{{ "images/tiger-daegeum.png" | relURL }}" alt="" width="336" height="224" loading="lazy" decoding="async">
+      {{- $mascotVersion := substr (sha256 (readFile "static/images/tiger-daegeum.png")) 0 12 }}
+      <img src="{{ "images/tiger-daegeum.png" | relURL }}?v={{ $mascotVersion }}" alt="" width="336" height="224" loading="lazy" decoding="async">
     </div>
   </aside>
 </div>
