@@ -41,6 +41,24 @@ internal class SheetImportViewModelTest : CatalogViewModelTest() {
         model.submit(); runCurrent(); assertEquals(2, keys.size)
     }
 
+    @Test fun unknownFormatAndInvalidFileSetGetSeparateErrorsAndDismissKeepsFiles() = runTest {
+        val repository = object : SheetImportRepository {
+            override suspend fun upload(input: SheetImportInput, key: String): SheetImportResult = SheetImportResult.Failed()
+        }
+        val model = keep(SheetImportViewModel(ImportKind.Jeongganbo, HwangPitch.Default, repository, { instruments }, { jangdans }))
+        runCurrent()
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf)))
+        model.selectFiles(SheetFileSelection.Selected(listOf(SheetFile("메모.txt", "악보".encodeToByteArray()))))
+        assertEquals("UNSUPPORTED_FILE_TYPE", model.uiState.value.error)
+        model.dismissError()
+        assertNull(model.uiState.value.error)
+        assertEquals(listOf(pdf), model.uiState.value.files)
+        model.selectFiles(SheetFileSelection.Selected(listOf(pdf, pdf)))
+        assertEquals("INVALID_FILE_SET", model.uiState.value.error)
+        model.selectFiles(SheetFileSelection.Failed)
+        assertEquals("PICK_FAILED", model.uiState.value.error)
+    }
+
     @Test fun cancelledPickerPreservesFilesAndAccountSwitchClearsPrivateInput() = runTest {
         val member = SignedInMember(FakeKeyValueStore().apply { putString("auth.member_id", "1") })
         val response = CompletableDeferred<SheetImportResult>()

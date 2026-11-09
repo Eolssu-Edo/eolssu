@@ -66,12 +66,17 @@ class SheetImportViewModel(
             SheetFileSelection.Failed -> state.value = state.value.copy(error = "PICK_FAILED")
             SheetFileSelection.TooLarge -> state.value = state.value.copy(error = "FILE_TOO_LARGE")
             is SheetFileSelection.Selected -> {
-                if (!validSheetFiles(result.files)) state.value = state.value.copy(error = "UNSUPPORTED_FILE_TYPE")
+                // 형식을 모르는 파일이 섞였으면 형식 안내 창, 형식은 맞지만 개수·조합이 틀리면 화면 안 문구로 알린다.
+                if (result.files.any { it.contentType == null }) state.value = state.value.copy(error = "UNSUPPORTED_FILE_TYPE")
+                else if (!validSheetFiles(result.files)) state.value = state.value.copy(error = "INVALID_FILE_SET")
                 else edit(state.value.copy(files = result.files,
                     title = state.value.title.ifBlank { result.files.first().name.substringBeforeLast('.').take(50) }))
             }
         }
     }
+
+    /** 안내 창으로 보인 오류를 닫는다. 고른 파일·입력은 그대로 둔다. */
+    fun dismissError() { if (state.value.error != null) state.value = state.value.copy(error = null) }
 
     @OptIn(ExperimentalUuidApi::class)
     fun submit() {

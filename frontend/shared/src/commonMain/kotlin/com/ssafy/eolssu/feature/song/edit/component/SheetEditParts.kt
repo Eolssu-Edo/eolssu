@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -94,42 +95,50 @@ internal fun SegmentTabs(
 }
 
 /**
- * EDIT-01 선택 카드(모서리 14 · 테두리 2). [selected]면 연두 바탕. [radio]면 왼쪽에 고름 표시, 아니면 오른쪽에 넘어가는 화살표를 둔다.
+ * EDIT-01 가져오기 종류 카드(모서리 14 · 테두리 2). 두 장을 같은 줄에 같은 크기로 놓고 이름만 가운데에 둔다.
+ * 고르면 연두 바탕·연두 테두리, 아니면 흰 바탕·옅은 테두리라 고름 표시 없이 카드 색으로 고른 상태를 보인다.
  */
 @Composable
-internal fun ChoiceCard(
-    title: String,
-    description: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    radio: Boolean = true,
-) {
+internal fun KindCard(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
     Surface(
+        selected = selected,
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().semantics { if (radio) this.selected = selected },
+        modifier = modifier.semantics { role = Role.RadioButton },
         shape = RoundedCornerShape(14.dp),
         color = if (selected) colors.primary else colors.surface,
         contentColor = colors.text,
         border = BorderStroke(2.dp, if (selected) colors.primary else colors.lineSoft),
     ) {
+        Box(Modifier.padding(horizontal = 10.dp, vertical = 16.dp), contentAlignment = Alignment.Center) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** EDIT-01 '내 악보·제공 곡 불러오기'처럼 다른 화면으로 넘어가는 카드. 제목과 오른쪽 화살표만 두고 카드 전체를 누른다. */
+@Composable
+internal fun LinkCard(title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(2.dp, colors.lineSoft),
+    ) {
         Row(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = if (radio) Alignment.Top else Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (radio) RadioDot(selected, Modifier.padding(top = 1.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
-                Text(
-                    description,
-                    modifier = Modifier.padding(top = 2.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                    color = colors.textMuted,
-                )
-            }
-            if (!radio) Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold))
+            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(20.dp), tint = colors.textDisabled)
         }
     }
 }
