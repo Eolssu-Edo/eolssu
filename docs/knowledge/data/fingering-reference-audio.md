@@ -36,6 +36,20 @@ CAT 공식 안내는 개인 비상업 이용과 2차 저작물의 지정 문구 
 
 공개 전 S15P31E102-601의 운지와 이 작업의 출처 표시가 실제 앱 버전에 반영돼야 한다. 공개 시 12개 고정 assetId·objectKey·SHA-256·DRAFT 상태를 대조한 뒤 그 행의 상태만 변경한다. 공개 목록과 상세 metadata, 서명 재생과 실제 파일 해시를 확인하고 문제가 생기면 해당 12개만 DRAFT로 되돌린다.
 
+## 운지 카드의 나머지 음원 (622)
+
+Android 내장 운지의 악기·취법·율명으로 운영 카탈로그를 대조했다. 빈 기본음 34개와 요성 30개만 제작했다. 악기별 파일은 단소 2개, 소금 9개, 산조대금 29개, 정악대금 24개다. 같은 악기의 국립국악원 실연 30개를 원본으로 사용했다. 각 파일은 3초 AAC-LC M4A이며 목표 음고 대비 중앙 오차는 최대 4.0센트였다.
+
+상세 API의 `metadata.origin.kind`는 `GENERATED`, `method`는 `PITCH_SHIFTED_RECORDING`이다. `sourceAssetId`로 실연 원본을 찾을 수 있고, `syntheticYoseong`은 요성 흔들림을 합성한 파일에만 true다. 목표 음고·가공·검증값은 `metadata.derivative`에 둔다. 기존 603·620 가공 음원에는 `derivative`가 있으며, 원음에는 이 필드를 두지 않는다. 가공 음원은 채점 대상에서 제외한다.
+
+생성 대상과 원본 해시는 [제작 입력](../../../data/src/playback/plans/fingering-gaps-622.json)에 고정했다. 아래 명령은 새 폴더에 이 64개만 만든다. 원본 파일은 기존 절차와 같이 카탈로그의 상세 JSON과 M4A를 원본 labelId 파일명으로 보관한다.
+
+```powershell
+python -m data.src.playback.fingering_gap_audio --plan data/src/playback/plans/fingering-gaps-622.json --sources data/processed/playback/622-inputs --out data/processed/playback/622-m4a
+```
+
+2026-11-09 운영에 게시했다. 신규 64개는 R2 전체 파일 해시와 공개 재생 응답을 확인했다. Android 내장 운지 98개를 다시 대조해 기본음과 요성 196개 모두의 조회·범위 응답을 확인했다. 기존 실연과 가공 음원 행을 보존했다. 배포 자료의 manifest SHA-256은 `1580be138439fd009a643fa4cbdb02381c6ee38a78d0159f5133989eb068955f`다.
+
 ## 재현
 
 기존 재생 도구의 [격리 Python 환경과 FFmpeg](../../../data/src/playback/README.md#설치와-빠른-검사)를 준비하고 저장소 루트에서 실행한다.
