@@ -105,7 +105,7 @@ internal fun RecordResultContent(
             }
             if (record.section == null) CompareEntry(state.previous, actions.onCompare, Modifier.padding(bottom = 8.dp))
             if (evaluation != null) {
-                ErrorFilterChips(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp), hideEmptyMissed = true, singleLine = true)
+                ErrorFilterChips(evaluation, state.filter, actions.onSelectFilter, Modifier.padding(bottom = 8.dp), hideEmptyMissed = true)
             }
             Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(if (state.canPlay) Res.string.record_result_seek_hint else Res.string.record_play_unavailable),
