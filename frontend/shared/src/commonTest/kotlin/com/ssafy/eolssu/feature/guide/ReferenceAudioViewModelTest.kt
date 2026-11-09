@@ -94,6 +94,21 @@ class ReferenceAudioViewModelTest {
         assertNull(state.clipFor(selection.copy(instrument = GuideInstrument.Sogeum, register = "역취"), ReferenceAudioKind.Basic))
     }
 
+    @Test fun pitchEditedExamplesFillOnlyGapsInRecordingsForTheSameNoteAndKind() {
+        val selection = ReferenceAudioSelection(GuideInstrument.Danso, "역취", "청남")
+        val recording = clip("danso").copy(labelId = "ngc-danso-sample", register = "역취", yulmyeong = "청남")
+        val editedBasic = recording.copy(labelId = "eolssu-603-danso-cheong-nam-basic", technique = "기본음 강 음높이 가공")
+        val editedYoseong = recording.copy(labelId = "eolssu-603-danso-cheong-nam-yoseong", technique = "요성 음높이 가공")
+        val examples = ReferenceAudioUiState(clips = listOf(editedBasic, editedYoseong))
+        assertEquals(editedBasic, examples.clipFor(selection, ReferenceAudioKind.Basic))
+        assertEquals(editedYoseong, examples.clipFor(selection, ReferenceAudioKind.Yoseong))
+        assertTrue(editedYoseong.isPitchEdited)
+        assertFalse(recording.isPitchEdited)
+        val combined = examples.copy(clips = examples.clips + recording.copy(technique = "기본음 약"))
+        assertEquals(recording.labelId, combined.clipFor(selection, ReferenceAudioKind.Basic)?.labelId)
+        assertEquals(editedYoseong, combined.clipFor(selection, ReferenceAudioKind.Yoseong))
+    }
+
     @Test fun reopeningTheSameInstrumentReusesItsList() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         var requests = 0

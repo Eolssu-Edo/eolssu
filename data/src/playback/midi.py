@@ -16,13 +16,13 @@ def automatic_vibrato(event, sec_tick, instrument):
             and not (y and y["mode"] in ("pitch", "mixed")))
 
 
-def pitch_bend_range(performance, sec_tick):
+def pitch_bend_range(performance, sec_tick, *, add_automatic_vibrato=True):
     """Reserve enough RPN range for all simultaneous authored pitch controls."""
     maximum = 0
     for e in performance["events"]:
         y, curve = e["yoseong"], e.get("pitch_curve")
         motion = y["cents"] if y and y["mode"] in ("pitch", "mixed") else 0
-        if automatic_vibrato(e, sec_tick, performance["instrument"]):
+        if add_automatic_vibrato and automatic_vibrato(e, sec_tick, performance["instrument"]):
             motion += PLAYBACK_VIBRATO["cents"]
         values = [0]
         if curve:
@@ -43,11 +43,11 @@ def export_seconds(performance):
     return Fraction(ticks * tempo, 1_000_000 * PPQN)
 
 
-def write_midi(performance, path):
+def write_midi(performance, path, *, add_automatic_vibrato=True):
     tempo = performance["tempo_us"]
     sec_tick = tempo / 1_000_000 / PPQN
     entries = []
-    bend_range = pitch_bend_range(performance, sec_tick)
+    bend_range = pitch_bend_range(performance, sec_tick, add_automatic_vibrato=add_automatic_vibrato)
 
     def add(t, priority, kind, **kwargs):
         entries.append((t, priority, len(entries), mido.Message(kind, channel=0, **kwargs)))
@@ -62,7 +62,9 @@ def write_midi(performance, path):
             add(a, 1, "control_change", control=72, value=value)
             release_value = value
         y = e["yoseong"]
-        vibrato = PLAYBACK_VIBRATO if automatic_vibrato(e, sec_tick, performance["instrument"]) else None
+        vibrato = None
+        if add_automatic_vibrato and automatic_vibrato(e, sec_tick, performance["instrument"]):
+            vibrato = PLAYBACK_VIBRATO
         add(a, 1, "control_change", control=68, value=127 if e["legato"] else 0)
         add(a, 3, "note_on", note=e["pitch"], velocity=e["velocity"])
         add(b, 0, "note_off", note=e["pitch"], velocity=0)
