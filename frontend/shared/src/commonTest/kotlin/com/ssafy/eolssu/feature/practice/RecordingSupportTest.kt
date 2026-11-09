@@ -6,6 +6,7 @@ import com.ssafy.eolssu.core.audio.MicPermission
 import com.ssafy.eolssu.core.audio.RecordedAudio
 import com.ssafy.eolssu.core.audio.RecordedTake
 import com.ssafy.eolssu.core.audio.RecordingSpec
+import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.network.SignedInMember
 import com.ssafy.eolssu.core.storage.FakeKeyValueStore
 import com.ssafy.eolssu.data.practice.PracticeSettingsStore
@@ -16,6 +17,7 @@ import com.ssafy.eolssu.data.song.smallScoreSong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
@@ -107,6 +109,40 @@ class RecordingSupportTest {
         assertNull(vm.takeForEvaluation())
     }
 
+    @Test fun recordingLimitShowsItsOwnNoticeAndKeepsTheTakeForEvaluation(): TestResult {
+        val song = smallScoreSong()
+        val slowSong = song.copy(baseBpm = 1, score = song.score.copy(
+            timing = requireNotNull(song.score.timing).copy(ticksPerBeat = 1),
+        ))
+        return recordingTest(FakePracticeRecorder(), song = slowSong) { vm, _ ->
+            vm.grantMicAndStart()
+            advanceTimeBy(3_000 + 599_999)
+            runCurrent()
+            assertFalse(vm.uiState.value.finished)
+            assertNull(vm.takeForEvaluation())
+
+            advanceTimeBy(1)
+            runCurrent()
+            assertTrue(vm.uiState.value.finished)
+            assertEquals(PracticePopup.EndAtLimit, vm.uiState.value.popup)
+            assertEquals(RecordedTake("take.m4a", "take-key"), vm.takeForEvaluation())
+        }
+    }
+
+    @Test fun idleScoreDoesNotShowANotice() = recordingTest(FakePracticeRecorder()) { vm, _ ->
+        vm.onScreenShown()
+        runCurrent()
+        val ready = vm.uiState.value
+
+        advanceTimeBy(570_000)
+        runCurrent()
+        assertEquals(ready, vm.uiState.value)
+
+        advanceTimeBy(30_000)
+        runCurrent()
+        assertEquals(ready, vm.uiState.value)
+    }
+
     @Test fun oversizedRecordingCannotBeSubmittedForAnalysis() =
         recordingTest(FakePracticeRecorder(output = RecordedAudio("large.m4a", RecordingSpec.MAX_BYTES + 1))) { vm, _ ->
             vm.grantMicAndStart()
@@ -161,6 +197,7 @@ class RecordingSupportTest {
         recorder: AudioRecorder? = null,
         permission: MicPermission? = null,
         solo: Boolean = false,
+        song: Song = smallScoreSong(),
         block: suspend TestScope.(PracticeViewModel, PracticeSettingsStore) -> Unit,
     ) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -168,11 +205,10 @@ class RecordingSupportTest {
         try {
             val storage = FakeKeyValueStore()
             val settings = PracticeSettingsStore(storage)
-            val song = smallScoreSong()
             val songs = object : SongRepository by SampleSongRepository() {
                 override suspend fun getSong(songId: String) = song
             }
-            val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }),
+            val vm = PracticeViewModel(song.id, solo, songs, settings, PracticeTimeMeter({ 0L }, testScheduler.timeSource),
                 PracticeTimeQueue(storage, null, SignedInMember(storage), backgroundScope), recorder, permission,
                 playbackTimeSource = testScheduler.timeSource, newKey = { "take-key" })
             models.put("practice", vm)
