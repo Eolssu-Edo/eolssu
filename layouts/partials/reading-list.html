@@ -1,5 +1,5 @@
 {{- with .posts }}
-<section class="side-block reading" aria-labelledby="{{ $.id }}">
+<section class="side-block reading{{ if $.titleOnly }} reading--latest{{ end }}" aria-labelledby="{{ $.id }}">
   <h2 id="{{ $.id }}">{{ $.title }}</h2>
   <ol>
     {{- range $i, $p := . }}
