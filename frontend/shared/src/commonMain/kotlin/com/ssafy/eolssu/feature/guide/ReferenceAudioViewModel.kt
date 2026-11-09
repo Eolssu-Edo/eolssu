@@ -73,6 +73,10 @@ enum class ReferenceAudioKind {
     }
 }
 
+/** 이 접두사는 국립국악원 원음의 음높이를 가공한 예시용 라벨에만 쓴다. */
+internal val ReferenceAudioClip.isPitchEdited: Boolean
+    get() = labelId.startsWith("eolssu-603-")
+
 data class ReferenceAudioUiState(
     val instrument: GuideInstrument? = null,
     val loadState: ReferenceLoadState = ReferenceLoadState.Loading,
@@ -82,10 +86,11 @@ data class ReferenceAudioUiState(
         it.datasetId == selection.datasetId && it.register == selection.register && it.yulmyeong == selection.yulmyeong
     }
 
-    /** 기본음계 녹음에서 고른다. 강·중·약이 함께 있으면 강을 쓴다. */
+    /** 같은 음·주법의 실연 녹음을 우선한다. 강·중·약이 함께 있으면 강을 쓴다. */
     fun clipFor(selection: ReferenceAudioSelection, kind: ReferenceAudioKind): ReferenceAudioClip? {
-        val options = clipsFor(selection).filter { it.category == "기본음계" && kind.matches(it.technique) }
-        return options.firstOrNull { "강" in it.technique.split(' ') } ?: options.firstOrNull()
+        return clipsFor(selection).filter { it.category == "기본음계" && kind.matches(it.technique) }
+            .minWithOrNull(compareBy<ReferenceAudioClip> { it.isPitchEdited }
+                .thenByDescending { "강" in it.technique.split(' ') })
     }
 }
 
