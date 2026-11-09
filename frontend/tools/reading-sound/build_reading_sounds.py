@@ -1,7 +1,7 @@
 """Build the reading lesson's offline examples.
 
 Pass the original Danso_2.wav and FFmpeg with librubberband to generate or check
-the seven WAV files. Durations and the beat examples' score come from ReadingAudio.kt.
+the seven AAC-LC M4A files. Durations and the beat examples' score come from ReadingAudio.kt.
 """
 
 from array import array
@@ -13,6 +13,7 @@ import math
 import re
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import wave
 
 FRONTEND = Path(__file__).resolve().parents[2]
@@ -58,6 +59,19 @@ def wav(samples):
         media.setframerate(RATE)
         media.writeframes(pcm.tobytes())
     return output.getvalue()
+
+
+def encode_m4a(samples, ffmpeg):
+    with TemporaryDirectory() as directory:
+        output = Path(directory) / "example.m4a"
+        subprocess.run(
+            [ffmpeg, "-v", "error", "-nostdin", "-i", "pipe:0", "-map_metadata", "-1",
+             "-c:a", "aac", "-b:a", "96k", "-fflags", "+bitexact", "-flags:a", "+bitexact",
+             "-movflags", "+faststart", str(output)],
+            input=wav(samples),
+            check=True,
+        )
+        return output.read_bytes()
 
 
 def read_danso(source, ffmpeg, midi, sample):
@@ -140,7 +154,7 @@ def build(danso_source, ffmpeg="ffmpeg"):
                 recording, seconds, peak=0.55, attack=0.03,
                 release=0.09, gain_seconds=seconds,
             )
-        result[file + ".wav"] = wav(samples)
+        result[file + ".m4a"] = encode_m4a(samples, ffmpeg)
     assert len(result) == len(names) + len(PITCHES)
     return result
 
@@ -161,4 +175,4 @@ if __name__ == "__main__":
                 raise SystemExit(f"Out of date: {path}")
         else:
             path.write_bytes(data)
-    print(f"{'Verified' if args.check else 'Built'} {len(generated)} WAV files, {sum(map(len, generated.values())):,} bytes")
+    print(f"{'Verified' if args.check else 'Built'} {len(generated)} M4A files, {sum(map(len, generated.values())):,} bytes")
