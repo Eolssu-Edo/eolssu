@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_coming_soon
+import eolssu.shared.generated.resources.learn_song_stage_passed
 import eolssu.shared.generated.resources.record_save_failed
 import eolssu.shared.generated.resources.record_save_unavailable
 import kotlinx.coroutines.launch
@@ -49,6 +50,15 @@ fun ResultRoute(
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(saveErrorMessage)
             viewModel.dismissRecordSaveError()
+        }
+    }
+    // 곡 전체 결과로 기초부터 배우기 8단계를 통과했으면 한 번 알린다(S15P31E102-611).
+    val learnPassed = stringResource(Res.string.learn_song_stage_passed)
+    LaunchedEffect(state.learnSongPassed) {
+        if (state.learnSongPassed) {
+            viewModel.dismissLearnSongPassed()
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(learnPassed)
         }
     }
     val comingSoon = stringResource(Res.string.common_coming_soon)

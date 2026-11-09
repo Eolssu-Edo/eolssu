@@ -2,8 +2,8 @@ package com.ssafy.eolssu.feature.guide.learn
 
 /*
  * 기초부터 배우기 3~7단계의 단계 연습(S15P31E102-391). 와이어프레임·연두 시안에 보드가 없어 단계 상세와 같은 조각으로 그린다.
- * 앱에는 실시간 음높이가 없어(녹음기는 소리 크기만 준다) 음높이를 묻지 않는 3단계 '첫 소리'만 소리 크기로 판정한다.
- * 4~7단계는 소리 크기만 보여 주고 스스로 확인해 완료로 표시한다. 음높이 판정은 S15P31E102-341이 생기면 잇는다.
+ * 3단계 '첫 소리'는 소리 크기로, 4~6단계는 기기 음높이 관측으로 판정한다(S15P31E102-611, [LearnPitchTracker]).
+ * 음높이 관측이 없는 기기(iOS·Web)·판정 기준을 받지 못했을 때와 7단계는 소리 크기만 보여 주고 스스로 확인해 완료로 표시한다.
  * 판정 수치는 단계 상세의 통과 기준과 같은 예시이며 팀 확정 사항이 아니다.
  */
 
@@ -31,8 +31,36 @@ enum class LearnPracticePhase { Ready, Listening, Passed }
  */
 enum class LearnMicStatus { Available, Unsupported, Denied, Blocked, Failed }
 
-/** 듣는 동안 한 줄 안내. [Counted]는 한 번을 셌음, [TooShort]는 2초가 되기 전에 끊김. */
-enum class LearnPracticeCue { Counted, TooShort }
+/**
+ * 듣는 동안 한 줄 안내. [Counted]는 한 번을 셌음, [TooShort]는 2초가 되기 전에 끊김.
+ * 음높이 판정: [NoteHit] 맞는 음, [NoteMiss] 다른 음을 세고 넘어감, [NotPassed] 모든 음을 냈지만(또는 더 맞혀도) 통과 수에 못 미침.
+ */
+enum class LearnPracticeCue { Counted, TooShort, NoteHit, NoteMiss, NotPassed }
+
+/**
+ * 4~6단계 음높이 판정 진행. [notes]를 차례로 내고 [required]개 맞히면 통과한다.
+ *
+ * @property holdTargetMs 한 음을 이어 내야 하는 시간.
+ * @property holdMs 지금 음을 맞게 이어 낸 시간(100ms 단위로 내림).
+ * @property results 지금까지 낸 음의 판정(앞에서부터).
+ */
+data class LearnPitchProgress(
+    val notes: List<String>,
+    val required: Int,
+    val holdTargetMs: Int,
+    val index: Int = 0,
+    val hits: Int = 0,
+    val holdMs: Double = 0.0,
+    val results: List<LearnNoteResult> = emptyList(),
+    val finished: Boolean = false,
+) {
+    val holdProgress: Float get() = (holdMs / holdTargetMs).toFloat().coerceIn(0f, 1f)
+
+    /** 지금 낼 음. 끝났으면 null. */
+    val current: String? get() = notes.getOrNull(index).takeUnless { finished }
+
+    internal fun restart() = copy(index = 0, hits = 0, holdMs = 0.0, results = emptyList(), finished = false)
+}
 
 /**
  * 단계 연습 상태.
@@ -54,9 +82,16 @@ data class LearnPracticeUiState(
     val successes: Int = 0,
     val listenedMs: Double = 0.0,
     val cue: LearnPracticeCue? = null,
+    val pitch: LearnPitchProgress? = null,
 ) {
-    /** 소리 크기로 통과를 판정하는 단계(3단계). 나머지는 스스로 확인한다. */
+    /** 소리 크기로 통과를 판정하는 단계(3단계). */
     val judgesBySound: Boolean get() = stage == 3
+
+    /** 음높이로 통과를 판정하는지(4~6단계, 음높이 관측과 판정 기준이 있을 때). */
+    val judgesByPitch: Boolean get() = pitch != null
+
+    /** 앱이 통과를 판정해 '스스로 확인했어요'가 필요 없는지. */
+    val autoJudged: Boolean get() = judgesBySound || judgesByPitch
 
     val listening: Boolean get() = phase == LearnPracticePhase.Listening
 
@@ -70,8 +105,9 @@ data class LearnPracticeUiState(
     val holdProgress: Float get() = if (counted) 1f else (holdMs / FIRST_SOUND_HOLD_MS).toFloat().coerceIn(0f, 1f)
 }
 
-/** 듣기 시작: 횟수는 이어 가고 지금 소리만 새로 잰다. 통과한 뒤 다시 하면 처음부터 센다. */
+/** 듣기 시작: 횟수는 이어 가고 지금 소리만 새로 잰다. 통과한 뒤나 음높이 판정이 끝난 뒤 다시 하면 처음부터 센다. */
 internal fun LearnPracticeUiState.startListening(): LearnPracticeUiState = copy(
+    pitch = pitch?.let { if (phase == LearnPracticePhase.Passed || it.finished) it.restart() else it.copy(holdMs = 0.0) },
     mic = LearnMicStatus.Available,
     phase = LearnPracticePhase.Listening,
     level = 0f,
@@ -85,11 +121,12 @@ internal fun LearnPracticeUiState.startListening(): LearnPracticeUiState = copy(
 
 /** 듣기를 멈춤. 센 횟수는 남긴다. */
 internal fun LearnPracticeUiState.stopListening(): LearnPracticeUiState =
-    if (!listening) this else copy(phase = LearnPracticePhase.Ready, level = 0f, holdMs = 0.0, gapMs = 0.0, counted = false)
+    if (!listening) this else copy(phase = LearnPracticePhase.Ready, level = 0f, holdMs = 0.0, gapMs = 0.0, counted = false,
+        pitch = pitch?.copy(holdMs = 0.0))
 
 /** 처음부터 다시: 센 횟수까지 지운다. */
 internal fun LearnPracticeUiState.reset(): LearnPracticeUiState =
-    stopListening().copy(phase = LearnPracticePhase.Ready, successes = 0, cue = null)
+    stopListening().copy(phase = LearnPracticePhase.Ready, successes = 0, cue = null, pitch = pitch?.restart())
 
 internal fun LearnPracticeUiState.micUnavailable(status: LearnMicStatus): LearnPracticeUiState =
     stopListening().copy(mic = status)
@@ -129,4 +166,42 @@ internal fun LearnPracticeUiState.recordLevel(level: Float, sinceMs: Double): Le
         listenedMs = listened,
         cue = if (tooShort) LearnPracticeCue.TooShort else cue,
     )
+}
+
+/** 음높이 판정을 켠다. 듣는 중이 아닐 때만 바꾼다(듣는 도중 판정 방식이 바뀌지 않게). */
+internal fun LearnPracticeUiState.withPitchPlan(plan: LearnPitchPlan): LearnPracticeUiState =
+    if (listening || phase == LearnPracticePhase.Passed) this
+    else copy(pitch = LearnPitchProgress(plan.notes, plan.required, plan.rule.holdMs))
+
+/**
+ * 음높이 판정기([LearnPitchTracker])의 진행을 반영한다. [result]는 이번 관측에서 난 판정이다.
+ * 통과하면 [LearnPracticePhase.Passed], 통과하지 못한 채 끝나면 듣기를 멈추고 [LearnPracticeCue.NotPassed]를 둔다. 듣는 중이 아니면 그대로다.
+ */
+internal fun LearnPracticeUiState.recordPitch(
+    index: Int,
+    hits: Int,
+    holdMs: Double,
+    result: LearnNoteResult?,
+    passed: Boolean,
+    finished: Boolean,
+): LearnPracticeUiState {
+    val progress = pitch ?: return this
+    if (!listening) return this
+    val next = progress.copy(
+        index = index,
+        hits = hits,
+        holdMs = kotlin.math.floor(holdMs / 100) * 100,
+        results = if (result == null) progress.results else progress.results + result,
+        finished = finished,
+    )
+    val cue = when (result) {
+        LearnNoteResult.Hit -> LearnPracticeCue.NoteHit
+        LearnNoteResult.Miss -> LearnPracticeCue.NoteMiss
+        null -> cue
+    }
+    return when {
+        passed -> copy(pitch = next.copy(holdMs = 0.0), phase = LearnPracticePhase.Passed, level = 0f, cue = cue)
+        finished -> copy(pitch = next, cue = LearnPracticeCue.NotPassed).stopListening()
+        else -> copy(pitch = next, cue = cue)
+    }
 }
