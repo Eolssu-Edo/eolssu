@@ -7,8 +7,6 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.ssafy.eolssu.core.model.SocialProvider
-import com.ssafy.eolssu.core.model.Instrument
-import com.ssafy.eolssu.core.model.fingering.GuideInstrument
 import com.ssafy.eolssu.feature.profile.DataSourcesRoute
 import com.ssafy.eolssu.feature.profile.MyPageRoute
 import com.ssafy.eolssu.feature.profile.MyPageTarget
@@ -43,17 +41,6 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
     composable(ProfileDestination.MY_PAGE) { entry ->
         MyPageRoute(
             onBack = { navController.popBackStackFrom(entry) },
-            onOpenLearningStage = { instrument, stage ->
-                val guideInstrument = when (instrument) {
-                    Instrument.Danso -> GuideInstrument.Danso
-                    Instrument.Sogeum -> GuideInstrument.Sogeum
-                    Instrument.DaegeumJeongak -> GuideInstrument.DaegeumJeongak
-                    Instrument.DaegeumSanjo -> GuideInstrument.DaegeumSanjo
-                }
-                if (navController.currentBackStackEntry?.id == entry.id) {
-                    navController.navigate(EolssuDestination.learnStage(stage, guideInstrument))
-                }
-            },
             onOpen = { target ->
                 navController.navigate(
                     when (target) {
@@ -61,6 +48,7 @@ fun NavGraphBuilder.profileGraph(navController: NavController) {
                         MyPageTarget.Password -> ProfileDestination.PASSWORD
                         MyPageTarget.Withdraw -> ProfileDestination.WITHDRAW
                         MyPageTarget.Sources -> ProfileDestination.SOURCES
+                        MyPageTarget.Records -> EolssuDestination.records()
                     },
                 )
             },
