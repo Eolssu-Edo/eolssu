@@ -18,6 +18,8 @@ from .verify_common import decode_audio, fundamental
 
 # Previously published reference-audio IDs and exact content hashes.
 SOURCES = {
+    "ngc-danso-2338.tone-001": ("c4bdaed9f7cea8c859ef257d698cfdc6d96623b1473aff48236b809e8e2d600c",
+                              "0546ff6ca62fb552c3c1f6361f106405faeb85d3215d86103d1e122f7b25e853"),
     "ngc-danso-2338.tone-005": ("fa12c5e492fd28e6209b02356c75dcd1b4ae8cfccbbe4ffe1e8c715a71d0f451",
                               "431b1a4f01c011696cc3e3524c27252b603b8c0c4dbf6823f8c911f240c568cc"),
     "ngc-danso-2341.tone-001": ("ac3dff4aec32b8b9fa8ff852a9ef733a8c00e3f1fcb6e200ce4d39e939fbefcf",
@@ -30,6 +32,7 @@ SOURCES = {
                          "8df0ff782b8344f6dcfd84cddfa7db38d6a9c469e53ccde6e3143e3dffab991a"),
 }
 SOURCE_BY_TARGET = {
+    66: "ngc-danso-2338.tone-001",
     78: "ngc-danso-2338.tone-005", 79: "ngc-danso-2341.tone-001", 84: "ngc-danso-2341.tone-003",
     90: "ngc-danso-2341.tone-005", 92: "ngc-danso-2341.tone-005", 91: "sanjo.yeokchwi.mu",
 }
@@ -99,7 +102,7 @@ def measure(audio, rate, target):
             "fourHzCents": float(np.linalg.norm(coefficients[-2:])), "validWindows": int(good.sum())}
 
 
-def build(source_dir, out):
+def build(source_dir, out, *, danso_hyeop=False):
     encoder = resolve_encoder()
     require(not out.exists() and not out.is_symlink(), "Use a new derivative output directory")
     clips = out / "m4a"
@@ -107,7 +110,10 @@ def build(source_dir, out):
     wavs = out / "wav"
     wavs.mkdir()
     assets, verification = [], {}
-    for instrument, suffix, yul, hwang_midi, midi in NOTES:
+    notes = (("danso", "hyeop", "협", 63, 66),) if danso_hyeop else NOTES
+    register = "평취" if danso_hyeop else "역취"
+    task = "620" if danso_hyeop else "603"
+    for instrument, suffix, yul, hwang_midi, midi in notes:
         if instrument == "sogeum":
             continue  # The catalog has both real recordings for 역취 태.
         original_label_id = SOURCE_BY_TARGET[midi]
@@ -120,7 +126,7 @@ def build(source_dir, out):
         center = measure(preview, rate, hz(midi))["medianCents"]
         ratio = initial_ratio / 2 ** (center / 1200)
         for variant, yoseong in (("basic", False), ("yoseong", True)):
-            label_id = f"eolssu-603-{instrument}-{suffix}-{variant}"
+            label_id = f"eolssu-{task}-{instrument}-{suffix}-{variant}"
             processing = f"{PROCESSING}. {YOSEONG_PROCESSING}" if yoseong else PROCESSING
             credit = f"{original['attribution']}. 가공: {processing}. 원본: {ORIGINAL_PAGE}"
             wav = wavs / f"{label_id}.wav"
@@ -140,7 +146,7 @@ def build(source_dir, out):
                 baseline = amplitude
             verification[label_id] = metrics
             classification = {"category": "기본음계", "technique": f"{'요성' if yoseong else '기본음'} · 음높이 가공",
-                              "register": "역취", "yulmyeong": yul, "displayLabel": f"역취 {yul} (음높이 가공)",
+                              "register": register, "yulmyeong": yul, "displayLabel": f"{register} {yul} (음높이 가공)",
                               "review": "inferred", "eligibleForNoteScoring": False}
             pcm_info = {"sha256": wav_meta["sha256"], "bytes": wav_meta["bytes"], "frames": wav_meta["frames"],
                         "sampleRateHz": rate, "channels": 1}
@@ -175,8 +181,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sources", type=Path, required=True, help="Pinned audio and API detail JSON files")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--danso-hyeop", action="store_true", help="Build the Danso mid-register Hyeop pair only")
     args = parser.parse_args()
-    build(args.sources, args.out)
+    build(args.sources, args.out, danso_hyeop=args.danso_hyeop)
 
 
 if __name__ == "__main__":

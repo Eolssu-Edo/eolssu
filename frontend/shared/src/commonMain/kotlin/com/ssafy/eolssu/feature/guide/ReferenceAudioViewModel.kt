@@ -75,7 +75,7 @@ enum class ReferenceAudioKind {
 
 /** 이 접두사는 국립국악원 원음의 음높이를 가공한 예시용 라벨에만 쓴다. */
 internal val ReferenceAudioClip.isPitchEdited: Boolean
-    get() = labelId.startsWith("eolssu-603-")
+    get() = labelId.startsWith("eolssu-603-") || labelId.startsWith("eolssu-620-")
 
 data class ReferenceAudioUiState(
     val instrument: GuideInstrument? = null,
