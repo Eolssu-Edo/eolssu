@@ -3,7 +3,7 @@ title: "빈 로그에서도 통과하는 비밀값 검사"
 date: 2026-10-28T00:00:00+09:00
 slug: "capture-isolated-python-logs"
 author: "우동균"
-categories: ["ai"]
+categories: ["security"]
 tags: ["Python", "pytest", "로깅", "회귀 테스트"]
 description: "루트에 전달되지 않는 모듈 로그를 caplog로 직접 받아, 필요한 이벤트가 기록되면서 민감한 값은 빠졌는지 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-capture-isolated-python-logs.webp"

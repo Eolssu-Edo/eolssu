@@ -3,7 +3,7 @@ title: "206 응답 뒤에 숨은 CORS 오류"
 date: 2026-11-03T00:00:00+09:00
 slug: "cors-after-audio-redirect"
 author: "우동균"
-categories: ["infra"]
+categories: ["security"]
 tags: ["CORS", "Cloudflare R2", "HTTP", "서명 URL"]
 description: "음원 API의 302를 따라간 브라우저 요청이 실패한 지점을 찾고, R2의 CORS 정책을 바꾼 뒤 실제 Range 응답으로 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-cors-after-audio-redirect.webp"

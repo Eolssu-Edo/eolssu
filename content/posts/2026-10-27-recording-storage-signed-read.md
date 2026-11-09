@@ -3,7 +3,7 @@ title: "녹음 저장소를 바꿔도 지킨 15분 읽기 권한"
 date: 2026-10-27T00:00:00+09:00
 slug: "recording-storage-signed-read"
 author: "우동균"
-categories: ["backend"]
+categories: ["security"]
 tags: ["객체 저장소", "서명 URL", "Cloudflare R2", "녹음"]
 description: "구현 전에 녹음 저장소를 GCS에서 R2로 다시 골랐습니다. 분석 서버에 주는 15분 읽기 권한은 그대로 두고 실제 만료와 삭제를 확인했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-recording-storage-signed-read.webp"

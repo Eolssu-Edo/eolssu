@@ -4,7 +4,7 @@ date: 2026-10-29T00:00:00+09:00
 slug: "layer-cookie-csrf-request-checks"
 author: "우동균"
 description: "앱에서 쓰는 쿠키 인증에 출처 검사와 본문 규칙을 적용하고, HTTP 403과 415가 각각 무엇을 검증했는지 살펴봅니다."
-categories: ["backend"]
+categories: ["security"]
 tags: ["CSRF","쿠키","HTTP 테스트"]
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-layer-cookie-csrf-request-checks.webp"
 draft: false

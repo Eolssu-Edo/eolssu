@@ -4,7 +4,7 @@ date: 2026-10-28T00:00:00+09:00
 slug: "hide-input-from-process-error-chain"
 author: "우동균"
 description: "디코더 오류에는 stderr와 실행 인자가 남을 수 있습니다. 메시지를 정리하고 시간 초과의 원래 예외가 연결에도 남지 않는지 확인했습니다."
-categories: ["ai"]
+categories: ["security"]
 tags: ["Python", "FFmpeg", "오류 처리"]
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-hide-input-from-process-error-chain.webp"
 draft: false

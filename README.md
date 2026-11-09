@@ -37,7 +37,7 @@ title: "글 제목"
 date: 2026-10-26
 slug: "english-slug"      # 주소에 쓸 영어 이름 → /posts/2026/10/english-slug/
 author: "이름"
-categories: ["ai"]        # backend, frontend, ai, ai-native, data, infra, 회고
+categories: ["ai"]        # backend, frontend, ai, ai-native, data, infra, security, 회고
 tags: ["단소", "음높이"]
 description: "목록에 보일 한 줄 요약"
 draft: false              # true면 배포되지 않아요
@@ -187,7 +187,7 @@ hugo server -D
 ### 내용 바꾸기
 
 - `data/brand.yaml`: 상단 로고·캐릭터 이미지(`static/` 기준 경로).
-- `data/blog.yaml`: 직무 필터의 순서와 표기. 키는 글 머리말 `categories` 값과 같다. 글이 없는 직무도 버튼으로 표시한다.
+- `data/blog.yaml`: 분야 필터의 순서와 표기. 키는 글 머리말 `categories` 값과 같다. 글이 없는 분야도 버튼으로 표시한다.
 - 직무 버튼을 고르면 해당 분야의 글만 표시하고, `전체`를 누르면 전체 목록으로 돌아간다. 글 목록은 최신 글이 위에 오고, 같은 날짜의 글은 제목 순으로 고정한다. 글 머리말의 `author`는 카드의 작성자 표기에 쓰인다.
 - `data/project.yaml`: 프로젝트 소개 문구와 학습 4단계. 제목과 정간보 칸은 `layouts/_default/project.html`에 있다.
 - `data/team.yaml`: 팀 소개 문구와 팀원 카드(`name`, `role`, `headline`, `description`, 카드 색 `accent`·`tint`). 공개에 동의한 팀원 정보만 넣는다.

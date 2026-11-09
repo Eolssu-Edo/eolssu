@@ -59,7 +59,7 @@ blog:
 공개 구간 표시가 없으면 **머리말을 제외한 본문 전체**를 가져옵니다. 표시를 쓴다면 순서가 올바른 한 쌍만 허용합니다. 후보 표시는 자동 게시 승인이 아닙니다.
 
 - `blog` 안에 쓴 값이 원래 머리말보다 우선합니다. `title`, `slug`, `author`, `description`, `categories`는 필수이고 `tags`는 선택입니다.
-- `categories`는 `backend`, `frontend`, `ai`, `ai-native`, `data`, `infra`, `회고` 중에서 선택합니다.
+- `categories`는 `backend`, `frontend`, `ai`, `ai-native`, `data`, `infra`, `security`, `회고` 중에서 선택합니다.
 - TIL 작성일은 게시일로 복사하지 않습니다. 게시일은 가져온 한국 날짜가 기본이며 `blog.date` 또는 `import --date YYYY-MM-DD`로 지정할 수 있습니다. 갱신할 때는 처음 게시일을 유지합니다.
 - 생성한 게시일은 `YYYY-MM-DDT00:00:00+09:00`으로 기록해 Jenkins가 UTC로 실행돼도 한국 날짜 기준 당일 글을 미래 글로 건너뛰지 않도록 합니다. 미래 게시일은 거부합니다.
 - `thumbnail`과 본문 이미지는 `https://team-edo.github.io/blog-images/`의 영문 소문자 파일명 URL만 허용합니다. 이미지 업로드는 기존 README 절차를 따릅니다.
