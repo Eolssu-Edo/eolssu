@@ -155,7 +155,7 @@ val appModule = module {
         AnalysisViewModel(songId, bpm, take, pendingSessionId, get(), get(), uploads, get(), get(), section)
     }
     viewModel { (evaluationId: String) -> ResultViewModel(evaluationId, get(), get(), get(), get()) }
-    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get()) }
+    viewModel { (justSavedId: String?) -> RecordListViewModel(justSavedId, get(), get(), get(), songs = get()) }
     viewModel { (recordId: String) -> RecordDetailViewModel(recordId, get(), get(), player = get(), now = get(), member = get(), loadInstruments = get<InstrumentCatalog>()::load) }
     viewModel { GrowthViewModel(get(), get(), get(), get()) }
 
