@@ -55,7 +55,7 @@ import eolssu.shared.generated.resources.practice_score_failed
 import eolssu.shared.generated.resources.practice_score_loading
 import eolssu.shared.generated.resources.practice_score_missing
 import eolssu.shared.generated.resources.practice_score_retry
-import eolssu.shared.generated.resources.practice_title
+import com.ssafy.eolssu.feature.practice.component.practicePageTitle
 import org.jetbrains.compose.resources.stringResource
 
 /** PRACTICE-01 화면에서 부르는 동작. */
@@ -121,7 +121,7 @@ fun PracticeScreen(
 private fun PracticeSongLoadScreen(state: PracticeUiState, actions: PracticeScreenActions, snackbarHostState: SnackbarHostState) {
     EolssuScaffold(
         snackbarHostState = snackbarHostState,
-        topBar = { EolssuPageTopBar(title = stringResource(Res.string.practice_title), onBack = actions.onBack) },
+        topBar = { EolssuPageTopBar(title = practicePageTitle(state), onBack = actions.onBack) },
     ) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)) {

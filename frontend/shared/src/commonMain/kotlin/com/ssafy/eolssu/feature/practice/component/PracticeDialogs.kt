@@ -63,6 +63,8 @@ class PracticeDialogActions(
     val onEvaluate: () -> Unit,
     val onRestartNow: () -> Unit,
     val onExit: () -> Unit,
+    /** 나가기 확인 창의 ‘계속 연주’: 멈춘 연주·카운트다운을 3·2·1 뒤 이어 간다. */
+    val onKeepPlayingAfterExit: () -> Unit,
     val onToReady: () -> Unit,
     /** ‘설정에서 허용하기’: 기기 앱 설정으로 보낸다. */
     val onOpenMicSettings: () -> Unit = {},
@@ -140,7 +142,7 @@ fun PracticeDialog(popup: PracticePopup, actions: PracticeDialogActions, forStep
         }
         PracticePopup.Exit -> EolssuDialog(title = stringResource(Res.string.practice_popup_exit_title)) {
             EolssuButton(stringResource(Res.string.practice_popup_exit_confirm), actions.onExit)
-            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onClose, style = EolssuButtonStyle.Secondary)
+            EolssuButton(stringResource(Res.string.practice_popup_keep_playing), actions.onKeepPlayingAfterExit, style = EolssuButtonStyle.Secondary)
         }
         PracticePopup.Interrupted -> EolssuDialog(
             title = stringResource(Res.string.practice_popup_interrupted_title),

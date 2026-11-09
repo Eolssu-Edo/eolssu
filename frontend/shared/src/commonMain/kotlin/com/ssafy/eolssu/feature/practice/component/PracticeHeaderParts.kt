@@ -36,6 +36,7 @@ import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import eolssu.shared.generated.resources.jangdan_practice_label
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.practice_eval_title
 import eolssu.shared.generated.resources.practice_mode_countdown
 import eolssu.shared.generated.resources.practice_mode_finished
 import eolssu.shared.generated.resources.practice_mode_interrupted
@@ -50,8 +51,13 @@ import eolssu.shared.generated.resources.practice_subtitle_solo
 import eolssu.shared.generated.resources.practice_title
 import org.jetbrains.compose.resources.stringResource
 
+/** 상단 제목: 혼자 연습·내 악보 연습은 ‘연습’, 평가 연습은 ‘연주 평가’. */
+@Composable
+fun practicePageTitle(state: PracticeUiState): String =
+    stringResource(if (state.solo || state.mine) Res.string.practice_title else Res.string.practice_eval_title)
+
 /**
- * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · ‘연습’ · 오른쪽 연습 설정 톱니. 평가 연주 중에도 열린다(속도·장단만 설정 안에서 잠긴다).
+ * PRACTICE-01 상단(`.page-head`): 원형 뒤로 가기 · 제목([practicePageTitle]) · 오른쪽 연습 설정 톱니. 평가 연주 중에도 열린다(속도·장단만 설정 안에서 잠긴다).
  * [showSettings]가 아니면 오른쪽을 비운다(태블릿 가로는 상태 패널에 바로가기가 있다).
  * 혼자 연습이면 톱니 왼쪽에 작은 ‘한 음씩’ 토글([PracticeStepToggle])을 둔다(2차 Practice-Ext).
  */
@@ -66,7 +72,7 @@ fun PracticeTopBar(
     onToggleStep: () -> Unit = {},
 ) {
     EolssuPageTopBar(
-        title = stringResource(Res.string.practice_title),
+        title = practicePageTitle(state),
         onBack = onBack,
         modifier = modifier,
         maxWidth = maxWidth,

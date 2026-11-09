@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
@@ -54,9 +55,9 @@ class ResultRecordSaveTest {
         assertFalse(model.uiState.value.sheetOpen)
     }
 
-    @Test fun failedSaveCanBeRetriedWithoutClaimingEarlierSuccess() {
+    @Test fun failedSaveCanBeRetriedWithoutClaimingEarlierSuccess(): TestResult {
         val records = ControlledRecords().apply { saveFailure = IllegalStateException("transport failure") }
-        withResult(records) { model, _ ->
+        return withResult(records) { model, _ ->
             model.save()
             runCurrent()
             assertEquals(RecordSaveError.Failed, model.uiState.value.recordSaveError)
@@ -73,9 +74,9 @@ class ResultRecordSaveTest {
         }
     }
 
-    @Test fun repeatedTapsDoNotWriteTheSameResultConcurrently() {
+    @Test fun repeatedTapsDoNotWriteTheSameResultConcurrently(): TestResult {
         val records = ControlledRecords().apply { saveGate = CompletableDeferred() }
-        withResult(records) { model, _ ->
+        return withResult(records) { model, _ ->
             model.save()
             model.save()
             runCurrent()
@@ -94,9 +95,9 @@ class ResultRecordSaveTest {
         }
     }
 
-    @Test fun cancellationIsNotShownAsAStorageFailureOrSuccess() {
+    @Test fun cancellationIsNotShownAsAStorageFailureOrSuccess(): TestResult {
         val records = ControlledRecords().apply { saveFailure = CancellationException("screen removed") }
-        withResult(records) { model, _ ->
+        return withResult(records) { model, _ ->
             model.save()
             runCurrent()
             assertNull(model.uiState.value.recordSaveError)
@@ -106,9 +107,9 @@ class ResultRecordSaveTest {
         }
     }
 
-    @Test fun failedMemoUpdateKeepsTheConfirmedMemoUnchanged() {
+    @Test fun failedMemoUpdateKeepsTheConfirmedMemoUnchanged(): TestResult {
         val records = ControlledRecords().apply { memoFailure = PracticeRecordUnavailable() }
-        withResult(records) { model, _ ->
+        return withResult(records) { model, _ ->
             model.save()
             runCurrent()
             model.changeMemo("저장되지 않은 초안")
