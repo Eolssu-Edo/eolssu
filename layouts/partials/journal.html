@@ -49,18 +49,18 @@
     </div>
     {{- with $posts }}
     <nav class="journal-pagination" aria-label="글 목록 페이지" data-pagination hidden>
-      <button type="button" aria-label="이전 페이지" data-page-prev>‹</button>
-      <div class="journal-page-numbers" data-page-numbers>
-        <form class="journal-page-jump" data-page-jump-form>
-          <label>
-            <span class="sr-only">이동할 페이지 번호</span>
-            <input type="number" min="1" step="1" inputmode="numeric" enterkeyhint="go" required>
-          </label>
-          <span data-page-total aria-hidden="true"></span>
-          <button type="submit">이동</button>
-        </form>
+      <div class="journal-page-links">
+        <button type="button" aria-label="이전 페이지" data-page-prev>‹</button>
+        <div class="journal-page-numbers" data-page-numbers></div>
+        <button type="button" aria-label="다음 페이지" data-page-next>›</button>
       </div>
-      <button type="button" aria-label="다음 페이지" data-page-next>›</button>
+      <form class="journal-page-jump" data-page-jump-form>
+        <label>
+          <span class="sr-only">이동할 페이지 번호</span>
+          <input type="number" min="1" step="1" inputmode="numeric" enterkeyhint="go" required>
+        </label>
+        <button type="submit">이동</button>
+      </form>
       <span class="sr-only" role="status" data-page-status></span>
     </nav>
     {{- end }}
