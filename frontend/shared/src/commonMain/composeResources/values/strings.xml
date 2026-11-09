@@ -108,11 +108,8 @@
 
     <string name="practice_notation_title">악보 표시 설정</string>
     <string name="practice_notation_hangul">한글 읽는 법 표시</string>
-    <string name="practice_notation_hangul_desc">한자 오른쪽에 ‘황·태·중…’을 함께 보여줘요</string>
     <string name="practice_notation_solfege">계이름 표시</string>
-    <string name="practice_notation_solfege_desc">이 곡의 기준에 맞는 계이름을 보여줘요</string>
     <string name="practice_notation_solfege_none">이 곡은 계이름 데이터가 아직 없어요</string>
-    <string name="practice_notation_example">선택한 설정이 악보 정간에 이렇게 보여요. 율명은 항상 가장 크게, 한글 읽는 법·계이름은 한자 오른쪽 옆에 작게 붙어요. 세로 읽기 구조는 그대로 유지돼요.</string>
 
     <string name="practice_fingering_title">운지법</string>
     <string name="practice_fingering_instrument">현재 악기: %1$s</string>
