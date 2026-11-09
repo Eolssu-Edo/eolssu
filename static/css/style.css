@@ -317,7 +317,8 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline
 .edo-together { margin: 12px 0 54px; padding: 26px 30px 30px; border-left: 4px solid var(--lime); border-radius: 0 12px 12px 0; background: #fafbf5; }
 .edo-together h2 { font-size: 25px; }
 .edo-together p { max-width: 780px; margin: 12px 0 0; color: var(--soft); font-size: 16px; line-height: 1.95; text-wrap: pretty; }
-.edo-together .quiet { display: inline-block; margin-top: 18px; font-size: 15px; }
+.edo-together-links { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 18px; }
+.edo-together-links a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 15px; }
 
 @media (min-width: 900px) {
   .article-header:has(.journal-search:not([hidden])) { display: grid; grid-template-columns: auto minmax(0, 1fr); }
