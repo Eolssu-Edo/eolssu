@@ -5,7 +5,7 @@ slug: "mysql-replication-write-policy"
 author: "우동균"
 categories: ["infra"]
 tags: ["MySQL", "GTID", "장애 복구"]
-description: "5초간 MySQL 복제를 끊어 쓰기 차단의 효과를 비교하고, 운영에서는 저장을 유지하기로 한 이유를 정리했다."
+description: "5초간 MySQL 복제를 끊어 쓰기 차단의 효과를 비교하고, 운영에서는 저장을 유지하기로 한 이유를 정리했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-11-mysql-replication-write-policy.webp"
 draft: false
 ---

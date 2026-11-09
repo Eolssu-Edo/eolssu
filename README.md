@@ -39,7 +39,7 @@ slug: "english-slug"      # 주소에 쓸 영어 이름 → /posts/2026/10/engli
 author: "이름"
 categories: ["ai"]        # backend, frontend, ai, ai-native, data, infra, security, 회고
 tags: ["단소", "음높이"]
-description: "목록에 보일 한 줄 요약"
+description: "문제를 확인한 과정과 해결 방법을 소개합니다."
 draft: false              # true면 배포되지 않아요
 ---
 
