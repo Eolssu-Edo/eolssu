@@ -1,9 +1,12 @@
 package com.ssafy.eolssu.feature.practice.component
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -20,8 +23,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +54,9 @@ import eolssu.shared.generated.resources.practice_mic_on
 import eolssu.shared.generated.resources.practice_no_input_hint
 import eolssu.shared.generated.resources.practice_rec_time_detail
 import eolssu.shared.generated.resources.practice_restart
+import eolssu.shared.generated.resources.practice_beat_janggu
+import eolssu.shared.generated.resources.practice_jangdan_beat
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToInt
 
@@ -101,7 +114,7 @@ fun ColumnScope.PracticeRecordingBar(state: PracticeUiState, actions: PracticeBo
         Box(Modifier.fillMaxWidth().height(6.dp).background(colors.surfaceStrong, RoundedCornerShape(3.dp))) {
             Box(Modifier.fillMaxWidth((state.progressPercent / 100f).coerceIn(0f, 1f)).fillMaxHeight().background(colors.rec, RoundedCornerShape(3.dp)))
         }
-        if (state.settings.beatVisual) song.displayJangdan?.let { BeatDots(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
+        if (state.settings.beatVisual) song.displayJangdan?.let { JangguBeats(it.daegang.size, if (state.finished) -1 else state.beatIndex) }
         if (state.noInputHint) NoInputBanner()
         val locked = state.mode != PracticeMode.Recording
         if (locked) {
@@ -217,18 +230,37 @@ private fun NoInputBanner() {
     }
 }
 
-/** 현재 박 점(12dp): 지난 박은 먹색, 현재 박은 붉은색에 연한 붉은 고리, 다음 박은 옅은 선 색. */
+/** 사진 기반 장구. 고정된 칸 안에서 현재 박만 강조해 박이 바뀌어도 배치가 움직이지 않는다. */
 @Composable
-private fun BeatDots(count: Int, current: Int) {
+private fun JangguBeats(count: Int, current: Int) {
+    if (count <= 0) return
     val colors = EolssuTheme.colors
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)) {
-        repeat(count) { i ->
-            val dot = when {
-                i == current -> Modifier.border(3.dp, colors.recSoft, CircleShape).padding(3.dp).background(colors.rec, CircleShape)
-                current >= 0 && i < current -> Modifier.background(colors.text, CircleShape)
-                else -> Modifier.background(colors.line, CircleShape)
+    val description = stringResource(Res.string.practice_jangdan_beat)
+    val janggu = painterResource(Res.drawable.practice_beat_janggu)
+    BoxWithConstraints(Modifier.fillMaxWidth().height(36.dp).semantics {
+        contentDescription = description
+        progressBarRangeInfo = ProgressBarRangeInfo((current + 1).coerceIn(0, count).toFloat(), 0f..count.toFloat())
+    }, contentAlignment = Alignment.Center) {
+        val slotWidth = minOf(44.dp, maxWidth / count)
+        Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            repeat(count) { i ->
+                val active = i == current
+                val scale by animateFloatAsState(if (active) 1f else 0.82f)
+                val opacity by animateFloatAsState(when {
+                    active -> 1f
+                    current >= 0 && i < current -> 0.65f
+                    else -> 0.3f
+                })
+                val shape = RoundedCornerShape(8.dp)
+                Box(Modifier.width(slotWidth).height(36.dp)
+                    .background(if (active) colors.recSoft else Color.Transparent, shape)
+                    .border(1.dp, if (active) colors.rec else Color.Transparent, shape),
+                    contentAlignment = Alignment.Center) {
+                    Image(janggu, contentDescription = null, alpha = opacity,
+                        modifier = Modifier.padding(3.dp).fillMaxWidth().height(28.dp)
+                            .graphicsLayer { scaleX = scale; scaleY = scale })
+                }
             }
-            Box(Modifier.size(if (i == current) 18.dp else 12.dp).then(dot))
         }
     }
 }
