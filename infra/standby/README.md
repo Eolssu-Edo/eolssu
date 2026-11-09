@@ -28,3 +28,21 @@ ssh -N -o ExitOnForwardFailure=yes -L 18443:127.0.0.1:18443 edo2
 ```
 
 다른 터미널에서 `curl --fail --cacert standby-579.crt https://localhost:18443/api/actuator/health/readiness`를 실행하면 준비 상태를 확인할 수 있다. 서비스를 정지할 때는 edo2 전용 디렉터리에서 `sudo docker compose stop`을 사용한다. 이 명령은 격리 DB와 테스트 결과를 보존한다.
+
+## 운영 읽기 전용 복제본
+
+edo2의 운영 복제본은 `/opt/eolssu-replication-579`의 `replica.compose.yml`과 `eolssu-replica-579_db` 볼륨을 사용한다. 위 격리 앱과 DB는 별도다. edo1의 `eolssu-replication-proxy-579`는 127.0.0.1의 13306에서만 듣고 기존 Docker 네트워크의 MySQL로 전달한다. edo2의 systemd SSH 터널은 내부 브리지에만 바인딩한다. 방화벽은 복제 DB의 IPv4에서 터널 주소로 들어오는 연결 하나를 허용한다. edo1의 전용 키는 edo2 고정 IP와 단일 대상 전달로 제한한다. SSH 개인 키, 로컬 MySQL 비밀번호, 초기화 비밀번호는 각각 호스트의 보호 경로에서만 다룬다.
+
+edo2에서 상태를 점검한다.
+
+```sh
+sudo systemctl status eolssu-replication-tunnel.service eolssu-replication-watch.timer --no-pager
+sudo /usr/bin/python3 -B /opt/eolssu-replication-579/check-replication.py
+sudo journalctl -u eolssu-replication-watch.service -n 20 --no-pager
+```
+
+상태 검사는 20초마다 실행한다. 수신·적용 스레드 오류, 10초 초과 또는 알 수 없는 적용 지연이 있으면 실패로 기록한다. 실패는 systemd와 기존 edo2 건강 점검에서 확인한다. 복제가 끊겨도 edo1이 계속 쓰기를 받는 정책이다. 마지막 복제 이후의 쓰기는 복제본이 원본을 따라잡기 전에 원본이 사라지면 유실될 수 있다.
+
+초기 사본 생성은 사용자 데이터가 없는 복제본에만 `seed-replica.py`를 사용한다. edo1 기존 배포 잠금을 잡고 임시 초기화 권한을 발급한 뒤 실행하며, 대상 DB가 이미 있는 경우에는 데이터 보존과 별도 복구 판단을 우선한다. 사본 해시를 대조하고 쓰기 금지 상태에서 복제를 시작한다. 수신·적용 상태와 원본 GTID를 따라잡은 결과를 확인한 뒤 임시 초기화 계정을 제거한다.
+
+복제 연결을 운영에서 빼야 하면 edo2 복제본에서 `STOP REPLICA`를 실행하고 터널과 상태 검사 타이머를 중지한다. 이렇게 하면 edo1의 앱과 쓰기 DB는 계속 요청을 받는다. 복제 볼륨과 마지막 GTID를 보존한다. GTID 설정의 원복이 별도로 필요한 경우 모든 복제 채널을 먼저 중지하고 원본을 확인한 뒤 격리 검증을 거친 역순 절차를 적용한다. 승격은 기존 쓰기 원본을 차단하고 받은 거래를 모두 적용한 뒤 운영자가 수행한다.
