@@ -20,7 +20,7 @@
 
     <string name="source_gugak_audio_name">국립국악원 국악기 디지털 음원</string>
     <string name="source_gugak_audio_usage">운지법 보기·기초부터 배우기의 음 듣기(기본음·요성 예시), 연습 화면의 장단 소리</string>
-    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 음 듣기 예시는 구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A)로 인코딩했고, 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
+    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 음 듣기 예시는 구간 절단·채널 평균·PCM16 변환 후 AAC-LC(M4A)로 인코딩했어요. 일부 가공 예시는 음높이를 바꾸고 요성에 음높이 흔들림을 더했어요. 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
 
     <string name="source_generator_name">우물사이(umulsai.com) jeongganbo-generator</string>
     <string name="source_generator_usage">정간보 쉽게 읽기·악보의 시김새 기호 그림, 예시 곡의 정간 수·대강 분절</string>

@@ -59,7 +59,8 @@ def publish(stage, out, outputs):
 
 def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format="m4a",
         ffmpeg=None, ffprobe=None, encoder=None, max_duration_seconds=600,
-        common_bpm=None, notation_policy=None, common_expressions=None, synthesis_extension=False):
+        common_bpm=None, notation_policy=None, common_expressions=None, synthesis_extension=False,
+        add_automatic_vibrato=True, audio_credit=None):
     require(audio_format in FORMATS, "오디오 출력 형식은 m4a 또는 wav여야 합니다")
     input_bytes = Path(score_path).read_bytes()
     input_hash = hashlib.sha256(input_bytes).hexdigest()
@@ -105,6 +106,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
         stage = Path(tmp)
         for key in instruments:
             perf = compile_score(score, key, transpose, max_duration_seconds=max_duration_seconds,synthesis_extension=synthesis_extension)
+            audition_vibrato = playback_vibrato(key) if add_automatic_vibrato else None
             source_map["midi_score_seconds"] = perf["end_tick"] * perf["tempo_us"] / 1e6 / perf["ppqn"]
             if notation_policy is not None:
                 require(abs(source_map['performanceTimeline']['durationMs'] / 1000 - source_map['midi_score_seconds']) < 1e-6,
@@ -116,14 +118,14 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
             sampler = CatSampler(archive, key,**({'synthesis_extension':True} if synthesis_extension else {}))
             try:
                 mid = stage/f"{key}.mid"
-                write_midi(perf, mid)
+                write_midi(perf, mid, add_automatic_vibrato=add_automatic_vibrato)
                 playback = read_midi(mid)
                 require(len(playback["notes"]) == len(perf["events"]), "MIDI event count changed")
                 for n, e in zip(playback["notes"], perf["events"]):
                     require(n["pitch"] == e["pitch"] and n["velocity"] == e["velocity"], "MIDI event changed")
                     require(abs(n["start"]-e["start_tick"]*perf["tempo_us"]/1e6/perf["ppqn"]) < 1e-8, "MIDI onset changed")
                 audio, trace = sampler.render(playback)
-                reports.append({**perf, "playback_vibrato":playback_vibrato(key),
+                reports.append({**perf, "playback_vibrato":audition_vibrato,
                                 "notes":len(trace), "seconds":len(audio)/FS,
                                 "sampler":sampler.manifest, "render_trace":trace})
                 renders.append(audio)
@@ -136,7 +138,7 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
             key = report["instrument"]
             audio_path = stage/f"{key}.{audio_format}"
             audio *= gain  # In place: this is the render's last use of the array.
-            report["audio"] = {**write_audio(audio, audio_path, encoder), "shared_gain":gain,
+            report["audio"] = {**write_audio(audio, audio_path, encoder, credit=audio_credit), "shared_gain":gain,
                                "midi_sha256":sha(stage/f"{key}.mid"),
                                f"{audio_format}_sha256":sha(audio_path)}
             dump(stage/f"{key}.json", report)
@@ -147,8 +149,8 @@ def run(score_path, assets_path, out, instruments, transpose=0, *, audio_format=
                                     "requested_bit_rate":AAC_BIT_RATE if encoder else None,
                                     "encoder":{k:v for k,v in encoder.items() if k.endswith("_version")} if encoder else None},
                     "python":platform.python_version(), "numpy":np.__version__, "soundfile":sf.__version__,
-                    "playback_vibrato":playback_vibrato(instruments[0]) if len(instruments) == 1 else None,
-                    "playback_vibrato_by_instrument":{key:playback_vibrato(key) for key in instruments},
+                    "playback_vibrato":reports[0]["playback_vibrato"] if len(reports) == 1 else None,
+                    "playback_vibrato_by_instrument":{r["instrument"]:r["playback_vibrato"] for r in reports},
                     "source_sha256":{name:sha(Path(__file__).parent/name) for name in ["score.py","midi.py","sampler.py","audio.py","__main__.py","common_score.py","common_preview.py","common_compile.py","import_slots.py","expressions.py","preview.py","tempo_repeat.py"]},
                     "profile_sha256":{path.name:sha(path) for path in sorted(Path(__file__).with_name("profiles").glob("*.json"))},
                     "results":[{"instrument":r["instrument"],"notes":r["notes"],"seconds":r["seconds"],"audio":r["audio"]} for r in reports],

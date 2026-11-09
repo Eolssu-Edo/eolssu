@@ -8,6 +8,9 @@
     <string name="reference_audio_failed_sound">소리를 재생하지 못했어요. 다시 시도해 주세요.</string>
     <string name="reference_audio_basic">기본음</string>
     <string name="reference_audio_yoseong">요성</string>
+    <string name="reference_audio_pitch_edited">%1$s(가공)</string>
+    <string name="reference_audio_pitch_edited_basic_note">국립국악원 국악기 디지털 음원(공공누리 제1유형)의 음높이를 바꾼 예시예요.</string>
+    <string name="reference_audio_pitch_edited_yoseong_note">국립국악원 국악기 디지털 음원(공공누리 제1유형)의 음높이를 바꿨어요. 가공 요성에는 음높이 흔들림을 추가했어요.</string>
     <string name="reference_audio_listen">%1$s 듣기</string>
     <string name="reference_audio_stop">%1$s 멈추기</string>
 </resources>
