@@ -41,6 +41,7 @@ import com.ssafy.eolssu.feature.practice.component.PracticePanelActions
 import com.ssafy.eolssu.feature.practice.component.PracticePanelSheet
 import com.ssafy.eolssu.feature.practice.component.PracticePlayerCard
 import com.ssafy.eolssu.feature.practice.component.PracticeRecordingBar
+import com.ssafy.eolssu.feature.practice.component.PracticePlaybackLoadingOverlay
 import com.ssafy.eolssu.feature.practice.component.PracticeStepPanels
 import com.ssafy.eolssu.feature.practice.component.PracticeTitleRow
 import com.ssafy.eolssu.feature.practice.component.PracticeTopBar
@@ -99,6 +100,8 @@ fun PracticeScreen(
         }
         // 평가 시작 3·2·1은 리듬 게임처럼 정간보 화면 위에 겹쳐 띄운다(배치와 관계없이, 아래 악보가 비쳐 보인다).
         if (state.mode == PracticeMode.Countdown) CountdownOverlay(state, actions.onCancelCountdown)
+        // 장단·모범 연주를 불러오는 동안에는 연주 재개 3·2·1과 같은 자리·크기로 화면 가운데에 띄운다.
+        PracticePlaybackLoadingOverlay(state)
     }
     // 모든 화면 크기에서 배경을 눌러 닫을 수 있는 설정 시트를 사용한다.
     if (state.panel != null) {
