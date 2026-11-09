@@ -6,11 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -32,7 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +55,7 @@ import com.ssafy.eolssu.feature.practice.PracticeMode
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.PracticePlayerNotice
 import com.ssafy.eolssu.feature.practice.playerNotice
+import com.ssafy.eolssu.feature.practice.stepUi
 import eolssu.shared.generated.resources.*
 import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
@@ -78,8 +84,8 @@ const val PRACTICE_SEEK_MS = 5_000L
 
 /**
  * 연습 플레이어: 경과·전체 시간을 좌우에 배치하고 타임라인 아래 중앙에 재생 조작을 둔다.
- * 시간 표시 사이 고정 칸에 로딩을 중앙 정렬하고 트랙 아래에 ‘−5초 · 재생 · +5초’를 둔다.
- * 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보인다.
+ * 트랙 아래에 ‘−5초 · 재생 · +5초’를 둔다. 음원을 불러오지 못하는 상태는 안내 자리에 그 사유를 보이고,
+ * 불러오는 중은 카드 대신 화면 가운데에 띄운다([PracticePlaybackLoadingOverlay]).
  *
  * @param compact 운지 악보에서 여백과 재생 버튼을 조금 줄이며 같은 배치를 유지한다.
  */
@@ -135,7 +141,8 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
             }
             SeekablePlayerTrack(state.progressPercent / 100f, actions.onSeekToFraction,
                 enabled = state.eventCount > 0 && state.playerNotice != PracticePlayerNotice.Loading, height = 24.dp)
-            PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp), mascot = 20.dp)
+            // 로딩은 화면 가운데에 띄우므로 트랙 아래 칸은 실패·중단 사유가 있을 때만 둔다.
+            if (state.playerNotice.inCard) PlayerNoticeArea(state.playerNotice, Modifier.fillMaxWidth().height(20.dp))
         }
         return
     }
@@ -148,7 +155,7 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
             Text(formatClock(state.elapsedMs / 1000),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
                 color = colors.text)
-            PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(40.dp))
+            PlayerNoticeArea(state.playerNotice, Modifier.weight(1f).height(32.dp))
             Text(formatClock(state.totalSeconds.toDouble()),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
@@ -158,12 +165,60 @@ fun PracticePlayerCard(state: PracticeUiState, actions: PracticeBottomActions, m
     }
 }
 
-/** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. */
+/** 카드 안 안내 칸에 보일 상태. 불러오는 중은 화면 가운데 막([PracticePlaybackLoadingOverlay])이 맡는다. */
+private val PracticePlayerNotice.inCard: Boolean
+    get() = this != PracticePlayerNotice.None && this != PracticePlayerNotice.Loading
+
+/**
+ * 장단·모범 연주를 불러오는 동안 화면 가운데에 띄우는 표시. 연주 재개 3·2·1([BeatCountdownOverlay])과 같은 바탕 막·위치에
+ * 같은 크기(150dp)의 장단 타기 그림과 ‘로딩 중’을 둔다. 누름은 막지 않아 뒤로 가기·모드 전환을 그대로 쓸 수 있다.
+ * 플레이어 카드가 보이는 상태(시작 전·모범 연주·장단 연습, 한 음씩 제외)에서만 띄운다.
+ */
 @Composable
-private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = Modifier, mascot: Dp = 40.dp) {
+fun PracticePlaybackLoadingOverlay(state: PracticeUiState, modifier: Modifier = Modifier) {
+    val visible = state.mode in setOf(PracticeMode.Ready, PracticeMode.Model, PracticeMode.Rhythm) &&
+        !state.stepUi && state.playerNotice == PracticePlayerNotice.Loading
+    if (!visible) return
+    val colors = EolssuTheme.colors
+    val message = stringResource(Res.string.practice_player_loading)
+    Column(
+        modifier.fillMaxSize().background(colors.background.copy(alpha = 0.74f)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    ) {
+        Column(
+            Modifier.semantics(mergeDescendants = true) {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = message
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // 3·2·1 북과 같은 150dp 원·그림자 안에 그림을 둔다(그림의 흰 바탕이 네모로 보이지 않게).
+            Box(
+                Modifier.size(150.dp)
+                    .shadow(14.dp, CircleShape, ambientColor = colors.text.copy(alpha = 0.14f), spotColor = colors.text.copy(alpha = 0.14f))
+                    .background(colors.surface, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                PracticeLoadingMascot(Modifier.size(124.dp))
+            }
+            Text(
+                message,
+                modifier = Modifier.padding(horizontal = 24.dp).clearAndSetSemantics {},
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.text,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/** 상태가 바뀌어도 이 칸의 너비·높이는 바뀌지 않는다. 불러오는 중은 비워 둔다. */
+@Composable
+private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = Modifier) {
     val message = when (notice) {
-        PracticePlayerNotice.None -> ""
-        PracticePlayerNotice.Loading -> stringResource(Res.string.practice_player_loading)
+        PracticePlayerNotice.None, PracticePlayerNotice.Loading -> ""
         PracticePlayerNotice.Failed -> stringResource(Res.string.practice_player_failed)
         PracticePlayerNotice.Unavailable -> stringResource(Res.string.practice_player_unavailable)
         PracticePlayerNotice.Unsupported -> stringResource(Res.string.practice_player_unsupported)
@@ -172,7 +227,6 @@ private fun PlayerNoticeArea(notice: PracticePlayerNotice, modifier: Modifier = 
     Box(modifier, contentAlignment = Alignment.Center) {
         Row(verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (notice == PracticePlayerNotice.Loading) PracticeLoadingMascot(Modifier.size(mascot))
             if (message.isNotEmpty()) Text(
                 message, modifier = Modifier.semantics { contentDescription = message },
                 maxLines = 2, overflow = TextOverflow.Ellipsis,
