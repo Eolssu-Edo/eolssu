@@ -20,7 +20,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -57,7 +56,7 @@ internal fun FeatureSection(
 ) {
     val gap = 12.dp
     Column(modifier) {
-        Box(Modifier.padding(bottom = 16.dp).fillMaxWidth().height(1.dp).background(SectionLine))
+        Box(Modifier.padding(bottom = 16.dp).fillMaxWidth().height(1.dp).background(EolssuTheme.colors.sectionLine))
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             HomeFeatureGrid.chunked(columns).forEach { row ->
                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -89,7 +88,7 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
         modifier = modifier.heightIn(min = minHeight),
         shape = RoundedCornerShape(13.dp),
         color = EolssuTheme.colors.surface,
-        border = BorderStroke(1.dp, CardLine),
+        border = BorderStroke(1.dp, EolssuTheme.colors.cardLine),
     ) {
         Column(
             Modifier.padding(start = 15.dp, end = 15.dp, top = 12.dp, bottom = 14.dp),
@@ -105,7 +104,7 @@ private fun FeatureCard(feature: HomeFeature, onClick: () -> Unit, minHeight: Dp
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = (-0.4).sp,
                 ),
-                color = CardInk,
+                color = EolssuTheme.colors.cardInk,
                 maxLines = 2,
             )
         }
@@ -121,8 +120,3 @@ private val HomeFeature.illustration: DrawableResource
         HomeFeature.Learn -> Res.drawable.home_tiger
         HomeFeature.EditSheets -> Res.drawable.home_edit_art
     }
-
-// 홈 보드만 쓰는 옅은 초록빛 먹색들(테마에 없음).
-private val SectionLine = Color(0xFFE5EAE5)
-private val CardLine = Color(0xFFE3E9E3)
-private val CardInk = Color(0xFF2E3E32)

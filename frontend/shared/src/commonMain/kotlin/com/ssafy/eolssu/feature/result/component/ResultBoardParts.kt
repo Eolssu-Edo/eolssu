@@ -65,8 +65,6 @@ import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
-import com.ssafy.eolssu.core.ui.score.JeongganboLook
-import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.enso_ring
@@ -85,7 +83,11 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.runtime.remember
-import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
+import androidx.compose.ui.platform.LocalDensity
+import com.ssafy.eolssu.core.ui.score.ReadingScoreFormat
+import com.ssafy.eolssu.core.ui.score.ScoreHorizontalPadding
+import com.ssafy.eolssu.core.ui.score.rememberReadingScoreFormat
+import com.ssafy.eolssu.core.ui.score.scoreStrips
 import eolssu.shared.generated.resources.result_errors_preview
 
 /*
@@ -294,9 +296,9 @@ fun TotalScoreCard(
 }
 
 /**
- * 점수 화면의 오류 위치 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 ·
- * 틀린 정간이 가장 몰린 곳의 4각 정간보(스크롤 없음, 틀린 정간은 종류별 바탕·테두리와 아이콘) · 오른쪽 아래 작은 ‘오류 위치 상세 보기 ›’.
- * 범례·종류 필터·고른 정간 설명은 상세 화면(RESULT-03)에서만 보여준다.
+ * 점수 화면의 틀린 부분 카드(`.card`, 안쪽 14 · 사이 10): 제목(Song Myung 17sp)과 틀린 정간 수 ·
+ * 틀린 정간이 가장 몰린 곳의 정간보(공통 형식 [ReadingScoreFormat], 카드 폭에 들어가는 각만, 스크롤 없음) ·
+ * 오른쪽 아래 작은 ‘틀린 부분 상세 보기 ›’. 범례·종류 필터·고른 정간 설명은 상세 화면(RESULT-03)에서만 보여준다.
  */
 @Composable
 fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> Unit, modifier: Modifier = Modifier) {
@@ -304,8 +306,11 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
     val count = result.errorCount(ErrorFilter.All)
     val cluster = result.densestColumnPair()
     val columnCount = song.score.columns.size
-    val last = (cluster?.let { maxOf(3, it.first + 1) } ?: 3).coerceAtMost(columnCount - 1)
-    val first = maxOf(0, last - 3)
+    val format = rememberReadingScoreFormat(song)
+    val stripsPerColumn = remember(song) {
+        val counts = scoreStrips(song.score, song.jangdan).groupingBy { it.column }.eachCount()
+        List(columnCount) { counts[it] ?: 1 }
+    }
     Column(
         modifier.fillMaxWidth().background(colors.surface, CardShape).border(1.dp, colors.lineSoft, CardShape).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -324,20 +329,26 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
             )
         }
         if (columnCount > 0) {
-            val description = stringResource(Res.string.result_errors_preview, first + 1, last + 1)
-            BoxWithConstraints(Modifier.fillMaxWidth().semantics { contentDescription = description }) {
-                val shown = last - first + 1
-                val metrics = JeongganboMetrics.resultBoard((maxWidth - 2.dp) / shown)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val rendered = format.metrics.forFontScale(LocalDensity.current.fontScale)
+                val slots = ((maxWidth - ScoreHorizontalPadding + rendered.columnGap) / (rendered.columnWidth + rendered.columnGap))
+                    .toInt().coerceAtLeast(1)
+                val shown = previewColumns(cluster?.first, stripsPerColumn, slots)
+                val description = stringResource(Res.string.result_errors_preview, shown.first + 1, shown.last + 1)
+                // 보이는 줄만큼의 폭으로 카드 가운데에 둔다(각이 적은 곡도 한쪽에 붙지 않게).
+                val used = shown.sumOf { stripsPerColumn[it] }
+                val width = rendered.columnWidth * used + rendered.columnGap * (used - 1) + ScoreHorizontalPadding
                 JeongganboView(
                     song = song,
-                    metrics = metrics,
+                    modifier = Modifier.align(Alignment.Center).width(width).semantics { contentDescription = description },
+                    metrics = format.metrics,
                     scrollState = null,
                     errors = result.visibleErrors(ErrorFilter.All),
                     errorKinds = result.visibleErrorKinds(ErrorFilter.All),
                     unitErrors = result.visibleUnitErrors(song, ErrorFilter.All),
-                    columns = first..last,
-                    look = JeongganboLook.Result,
-                    cellHeights = remember(song, metrics) { errorScoreCellHeights(song, metrics) },
+                    columns = shown,
+                    look = format.look,
+                    cellHeights = format.cellHeights,
                 )
             }
         }
@@ -346,4 +357,21 @@ fun ErrorLocationCard(result: EvaluationResult, song: Song, onViewDetail: () -> 
             fontSize = 11.sp, minHeight = 32.dp,
         )
     }
+}
+
+/**
+ * 카드에 보여 줄 각 범위. 틀린 칸이 가장 몰린 두 각([clusterStart], [clusterStart]+1)부터 앞 각으로 넓히고,
+ * 자리가 남으면 뒤 각으로 넓힌다. 각마다 세로 줄 수([stripsPerColumn])를 더해 [slots]를 넘지 않는다.
+ * 틀린 칸이 없으면 첫 각부터 보여 준다. 첫 각은 자리가 모자라도 하나는 보여 준다.
+ */
+internal fun previewColumns(clusterStart: Int?, stripsPerColumn: List<Int>, slots: Int): IntRange {
+    val last = stripsPerColumn.lastIndex
+    if (last < 0) return IntRange.EMPTY
+    val anchor = (clusterStart?.plus(1) ?: 0).coerceIn(0, last)
+    var first = anchor
+    var end = anchor
+    var used = stripsPerColumn[anchor]
+    while (first > 0 && used + stripsPerColumn[first - 1] <= slots) used += stripsPerColumn[--first]
+    while (end < last && used + stripsPerColumn[end + 1] <= slots) used += stripsPerColumn[++end]
+    return first..end
 }

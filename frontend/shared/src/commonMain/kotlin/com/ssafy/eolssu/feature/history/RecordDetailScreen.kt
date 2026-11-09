@@ -120,19 +120,20 @@ internal fun RecordResultContent(
                 Box(if (scrollPage) Modifier.height(240.dp) else Modifier.weight(1f)) { RecordSongLookupContent(state, actions) }
                 return@Column
             }
-            val metrics = recordScoreMetrics(song)
+            // 다른 화면과 같은 공통 정간보 형식. 좁은 기록 화면이라 곁줄(가사 칸)만 두지 않는다.
+            val format = rememberReadingScoreFormat(song, lyrics = false)
             val errors = evaluation?.visibleErrors(state.filter).orEmpty()
             val kinds = evaluation?.visibleErrorKinds(state.filter).orEmpty()
             val units = evaluation?.visibleUnitErrors(song, state.filter).orEmpty()
             val current = state.position.takeIf { state.canPlay }
             val onEventClick: ((Int) -> Unit)? = actions.onPlayAt.takeIf { state.canPlay }
             if (wrapped && !scrollPage) {
-                WrappedJeongganbo(song, metrics, current, state.canPlay && state.follow, errors, onEventClick,
+                WrappedJeongganbo(song, format, current, state.canPlay && state.follow, errors, onEventClick,
                     Modifier.weight(1f).fillMaxWidth(), errorKinds = kinds, unitErrors = units)
             } else {
                 JeongganboView(
-                    song = song, look = JeongganboLook.Record, metrics = metrics,
-                    cellHeights = errorScoreCellHeights(song, metrics),
+                    song = song, look = format.look, metrics = format.metrics,
+                    cellHeights = format.cellHeights,
                     modifier = (if (scrollPage) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState())).padding(top = 4.dp),
                     errors = errors, errorKinds = kinds, unitErrors = units,
                     currentIndex = current, follow = state.canPlay && state.follow,

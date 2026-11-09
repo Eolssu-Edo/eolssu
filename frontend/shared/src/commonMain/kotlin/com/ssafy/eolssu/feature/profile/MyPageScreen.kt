@@ -2,7 +2,6 @@ package com.ssafy.eolssu.feature.profile
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,11 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.eolssu.core.model.Instrument
+import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.SocialProvider
 import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.adaptive.WindowWidthClass
@@ -39,7 +40,12 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.data.user.UserProfile
 import com.ssafy.eolssu.data.user.PublishedLegalDocument
 import com.ssafy.eolssu.feature.profile.component.ProfileScaffold
-import com.ssafy.eolssu.feature.profile.component.MyLearningCard
+import com.ssafy.eolssu.feature.profile.component.LearningBadge
+import com.ssafy.eolssu.feature.profile.component.MyPageAvatar
+import com.ssafy.eolssu.feature.profile.component.MyPageCard
+import com.ssafy.eolssu.feature.profile.component.MyPageIconTile
+import com.ssafy.eolssu.feature.profile.component.MyPageCardInset
+import com.ssafy.eolssu.feature.profile.component.MyRecentPracticeCard
 import com.ssafy.eolssu.feature.profile.component.MyPageFooter
 import com.ssafy.eolssu.feature.profile.component.ProfileProviderLogo
 import com.ssafy.eolssu.feature.profile.component.ProfileTextLink
@@ -54,11 +60,7 @@ import eolssu.shared.generated.resources.my_logout_confirm_title
 import eolssu.shared.generated.resources.my_nickname_edit
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
-import eolssu.shared.generated.resources.my_email_none
-import eolssu.shared.generated.resources.my_feedback_help
 import eolssu.shared.generated.resources.my_feedback_section
-import eolssu.shared.generated.resources.my_social_help
-import eolssu.shared.generated.resources.my_social_help_social
 import eolssu.shared.generated.resources.my_title
 import eolssu.shared.generated.resources.my_unlink
 import eolssu.shared.generated.resources.my_unlink_confirm
@@ -70,18 +72,20 @@ import eolssu.shared.generated.resources.my_withdraw
 import org.jetbrains.compose.resources.stringResource
 
 /** MY-01에서 여는 화면. */
-enum class MyPageTarget { Nickname, Password, Withdraw, Sources }
+enum class MyPageTarget { Nickname, Password, Withdraw, Sources, Records }
 
 /**
- * MY-01 마이페이지. 프로필 · 학습 진도 · 간편 로그인 · 의견/문의 · 계정 · 푸터(자료 및 데이터 출처 · 법적 문서).
+ * MY-01 마이페이지. 프로필(닉네임 · 기초부터 배우기 진도 뱃지) · 최근 연주 돌아보기 · 간편 로그인 · 의견/문의 · 계정 ·
+ * 푸터(자료 및 데이터 출처 · 법적 문서). 카드·구분선 색은 홈 카드 격자와 같은 초록빛 톤을 쓴다.
  */
 @Composable
 fun MyPageScreen(
     profile: UserProfile,
     providers: List<SocialProvider>,
-    instrument: Instrument?,
     learningProgress: MyLearningProgress?,
-    loadingProfile: Boolean,
+    recentPractice: MyRecentPractice,
+    recentStatus: MyRecentPracticeStatus,
+    today: KoreanDateTime,
     dialog: MyPageDialog?,
     widthClass: WindowWidthClass,
     snackbarHostState: SnackbarHostState,
@@ -95,36 +99,27 @@ fun MyPageScreen(
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
     onOpenFeedback: () -> Unit,
-    onOpenLearningStage: (Int) -> Unit,
 ) {
-    ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
-        ProfileCard(profile, onEdit = { onOpen(MyPageTarget.Nickname) })
-        MyLearningCard(instrument, learningProgress, loadingProfile, onOpenLearningStage)
+    ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 24.dp, topPadding = 8.dp) {
+        ProfileCard(profile, learningProgress, onEdit = { onOpen(MyPageTarget.Nickname) })
+        MyRecentPracticeCard(recentPractice, recentStatus, today, onOpenRecords = { onOpen(MyPageTarget.Records) })
+        // 이 플랫폼에서 연결할 수 있는 제공자와, 다른 기기에서 연결해 둔 제공자(해제만 가능)를 함께 보여 준다.
+        val shownProviders = providers + profile.linkedProviders.filter { it !in providers }
         Section(stringResource(Res.string.my_social)) {
-            Column {
-                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                // 이 플랫폼에서 연결할 수 있는 제공자와, 다른 기기에서 연결해 둔 제공자(해제만 가능)를 함께 보여 준다.
-                (providers + profile.linkedProviders.filter { it !in providers }).forEach { provider ->
-                    val linked = provider in profile.linkedProviders
-                    ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
-                }
+            shownProviders.forEachIndexed { index, provider ->
+                if (index > 0) RowDivider()
+                val linked = provider in profile.linkedProviders
+                ProviderRow(provider, linked, onClick = { if (linked) onUnlink(provider) else onLink(provider) })
             }
-            HelpText(stringResource(if (profile.signsInWithPassword) Res.string.my_social_help else Res.string.my_social_help_social))
         }
+        // 의견 폼(구글 폼) 하나로 문의와 의견을 함께 받는다.
         Section(stringResource(Res.string.my_feedback_section)) {
-            Column {
-                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                // 의견 폼(구글 폼) 하나로 문의와 의견을 함께 받는다.
-                AccountRow(stringResource(Res.string.my_inquiry), onClick = onOpenFeedback)
-            }
-            HelpText(stringResource(Res.string.my_feedback_help))
+            AccountRow(EolssuIcons.Chat, stringResource(Res.string.my_inquiry), onClick = onOpenFeedback)
         }
         Section(stringResource(Res.string.my_account)) {
-            Column {
-                HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                AccountRow(stringResource(Res.string.my_password_change), onClick = { onOpen(MyPageTarget.Password) })
-                AccountRow(stringResource(Res.string.my_logout), onClick = onLogOut)
-            }
+            AccountRow(EolssuIcons.Lock, stringResource(Res.string.my_password_change), onClick = { onOpen(MyPageTarget.Password) })
+            RowDivider()
+            AccountRow(EolssuIcons.LogOut, stringResource(Res.string.my_logout), onClick = onLogOut)
         }
         MyPageFooter(onOpenSources = { onOpen(MyPageTarget.Sources) }, onOpenLegal = onOpenLegal)
     }
@@ -158,92 +153,108 @@ fun MyPageScreen(
     }
 }
 
-/** 프로필 칸(`.my-profile`): 흰 바탕 · 옅은 테두리에 얼굴 자리 · 닉네임·이메일 · 닉네임 수정. */
+/**
+ * 프로필 칸([MyPageCard]): 얼굴 자리 · 닉네임과 기초부터 배우기 진도 뱃지 · 닉네임 수정. 세 요소를 한 줄 가운데에 맞춘다.
+ * 이메일은 보이지 않는다. 진도를 받지 못하면 뱃지를 비워 둔다.
+ */
 @Composable
-private fun ProfileCard(profile: UserProfile, onEdit: () -> Unit) {
+private fun ProfileCard(profile: UserProfile, progress: MyLearningProgress?, onEdit: () -> Unit) {
     val colors = EolssuTheme.colors
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp))
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Box(Modifier.size(52.dp).background(colors.surface, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(EolssuIcons.User, contentDescription = null, modifier = Modifier.size(26.dp), tint = colors.text)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(profile.nickname, style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp, fontWeight = FontWeight.Bold), color = colors.text)
-            // 이메일이 없는 소셜 가입 회원은 빈 칸 대신 가입 방식을 적는다. 닉네임이 비면(아직 못 읽음) 아무것도 적지 않는다.
-            val email = profile.email.ifBlank { if (profile.nickname.isNotBlank()) stringResource(Res.string.my_email_none) else "" }
-            if (email.isNotBlank()) Text(email, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp), color = colors.textMuted)
-        }
-        IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
-            Icon(EolssuIcons.Pencil, contentDescription = stringResource(Res.string.my_nickname_edit), modifier = Modifier.size(22.dp), tint = colors.textMuted)
+    MyPageCard {
+        Row(
+            Modifier.fillMaxWidth().padding(start = MyPageCardInset, end = 4.dp, top = 16.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            MyPageAvatar()
+            Row(
+                Modifier.weight(1f).padding(start = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    profile.nickname,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    color = colors.cardInk,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (progress != null) LearningBadge(progress)
+            }
+            IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
+                Icon(EolssuIcons.Pencil, contentDescription = stringResource(Res.string.my_nickname_edit), modifier = Modifier.size(20.dp), tint = colors.textMuted)
+            }
         }
     }
 }
 
+/** 제목과 카드 한 장에 묶은 줄들. 제목은 카드 안 글자와 같은 [MyPageCardInset]에서 시작한다. */
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold), color = EolssuTheme.colors.text)
-        content()
+private fun Section(title: String, rows: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            title,
+            modifier = Modifier.padding(horizontal = MyPageCardInset),
+            style = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.textMuted,
+        )
+        MyPageCard { Column { rows() } }
     }
 }
 
+/** 카드 안 줄 사이 구분선: 카드 글자와 같은 안쪽 여백에서 시작하고 끝난다. */
 @Composable
-private fun HelpText(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = EolssuTheme.colors.textMuted)
+private fun RowDivider() {
+    HorizontalDivider(Modifier.padding(horizontal = MyPageCardInset), color = EolssuTheme.colors.sectionLine)
 }
 
 /** 간편 로그인 한 줄: 공식 로고 · 이름 · 해제/연결 버튼. 연결 상태 문구는 반복하지 않는다. */
 @Composable
 private fun ProviderRow(provider: SocialProvider, linked: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    Column {
-        Row(Modifier.fillMaxWidth().heightIn(min = 60.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ProfileProviderLogo(provider)
-            Text(stringResource(provider.displayName), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-            SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), onClick)
-        }
-        HorizontalDivider(color = colors.lineSoft)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = MyPageCardInset),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ProfileProviderLogo(provider)
+        Text(
+            stringResource(provider.displayName),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+            color = EolssuTheme.colors.cardInk,
+        )
+        SmallButton(stringResource(if (linked) Res.string.my_unlink else Res.string.my_link), onClick)
     }
 }
 
-/** 계정 한 줄: 글자와 오른쪽 화살표. */
+/** 계정 한 줄: 아이콘 타일 · 글자 · 오른쪽 화살표. 줄 전체가 누르는 영역이다. */
 @Composable
-private fun AccountRow(text: String, onClick: () -> Unit) {
+private fun AccountRow(icon: ImageVector, text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    Column {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.text)
-            Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.textMuted)
-        }
-        HorizontalDivider(color = colors.lineSoft)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 60.dp).clickable(role = Role.Button, onClick = onClick).padding(horizontal = MyPageCardInset),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        MyPageIconTile(icon, size = 32.dp)
+        Text(text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp), color = colors.cardInk)
+        Icon(EolssuIcons.Chevron, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
     }
 }
 
-/** 작은 테두리 버튼(`.btn.secondary.sm`): 흰 바탕, 높이 40dp, 모서리 12dp. */
+/** 작은 테두리 버튼: 흰 바탕 · 초록빛 테두리 · 높이 36dp 알약 모양. 누르는 영역은 Compose 최소 터치 영역(48dp)으로 넓어진다. */
 @Composable
 private fun SmallButton(text: String, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(50),
         color = colors.surface,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.line),
+        contentColor = colors.cardInk,
+        border = BorderStroke(1.dp, colors.cardLine),
     ) {
-        Text(
-            text,
-            modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 14.dp, vertical = 10.dp),
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-        )
+        Box(Modifier.heightIn(min = 36.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+        }
     }
 }
