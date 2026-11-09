@@ -8,9 +8,17 @@ tags: ["Skill", TIL, Git]
 description: "세션에서 배운 내용을 개념별로 기록하고, linked worktree의 수명과 TIL의 저장 위치를 분리했습니다."
 thumbnail: "https://team-edo.github.io/blog-images/2026-10-coco-1-3-0-til-primary-checkout.webp"
 draft: false
+aliases:
+  - "/posts/2026/10/git-worktree-ignored-files/"
 ---
 
 기존 `coco-learn`은 실행한 worktree 아래에 노트를 저장했습니다. 작업이 끝난 worktree를 정리하면 Git이 추적하지 않는 개인 TIL도 함께 사라질 수 있는 구조였습니다. 1.3.0에서는 작업 폴더의 수명과 학습 기록의 수명을 분리했습니다. 어느 worktree에서 `coco-til`을 실행하든 기본 체크아웃에서 기록을 다시 찾을 수 있게 했습니다.
+
+## 워크트리에 있던 가상 환경이 사라졌습니다 {#작업-트리의-상태와-폴더에-남은-파일을-각각-본다}
+
+병합을 끝낸 워크트리를 `git worktree remove`로 제거한 뒤, 그 아래에 만든 Python 가상 환경 `.venv`가 함께 사라진 것을 확인했습니다. 브랜치 참조는 별도로 남았지만, Git이 무시하던 파일의 내용은 커밋에 없었습니다. 기본 `git status`가 깨끗해도 삭제할 폴더에 이런 파일은 남아 있을 수 있습니다. 제거 전에는 `git status --short --ignored`로 확인합니다. 가상 환경처럼 잠금 파일로 다시 만들 수 있는 산출물과 사본이 없는 작업 기록을 여기서 구분할 수 있습니다.
+
+이때 직접 사라진 것은 워크트리 한 곳의 가상 환경입니다. 아래 릴리스 검증에서는 노트를 기본 체크아웃에 둔 뒤 작업용 워크트리를 제거해 두 종류의 파일을 다른 수명으로 관리할 수 있는지 확인했습니다.
 
 ## 대화에서 개념 고르기 {#대화에서-다시-쓸-개념을-고른다}
 
