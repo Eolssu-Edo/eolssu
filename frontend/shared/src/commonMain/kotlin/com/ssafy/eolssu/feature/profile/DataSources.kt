@@ -21,6 +21,8 @@ import eolssu.shared.generated.resources.source_kind_score_book
 import eolssu.shared.generated.resources.source_link_kogl
 import eolssu.shared.generated.resources.source_link_original
 import eolssu.shared.generated.resources.source_link_repository
+import eolssu.shared.generated.resources.source_sanjo_chart_name
+import eolssu.shared.generated.resources.source_sanjo_chart_usage
 import eolssu.shared.generated.resources.source_sogeum_book_name
 import eolssu.shared.generated.resources.source_sogeum_book_usage
 import org.jetbrains.compose.resources.StringResource
@@ -84,5 +86,12 @@ val DataSources: List<DataSource> = listOf(
         kind = Res.string.source_kind_score_book,
         usage = Res.string.source_daegeum_book_usage,
         note = Res.string.source_daegeum_book_note,
+    ),
+    DataSource(
+        id = "pirisa-sanjo-chart",
+        name = Res.string.source_sanjo_chart_name,
+        kind = Res.string.source_kind_education,
+        usage = Res.string.source_sanjo_chart_usage,
+        links = listOf(DataSourceLink(Res.string.source_link_original, "https://kukaksa.co.kr/web/myimg/daekum%20use.jpg")),
     ),
 )

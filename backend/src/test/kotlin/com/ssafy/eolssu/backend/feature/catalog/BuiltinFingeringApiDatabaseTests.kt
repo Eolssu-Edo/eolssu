@@ -44,7 +44,7 @@ class BuiltinFingeringApiDatabaseTests {
         }
     }
 
-    @Test fun `all 92 builtin rows and pitch filters match the FE tables including variant glyphs`() {
+    @Test fun `all 98 builtin rows and pitch filters match the FE tables including variant glyphs`() {
         val source = BuiltinFingeringSource()
         HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build().use { client ->
             for (instrument in source.instruments) {
@@ -70,7 +70,11 @@ class BuiltinFingeringApiDatabaseTests {
                     assertEquals(row.reading, pattern.path("reading").asString())
                     assertEquals(row.holes.map { source.holes.getValue(it) }, pattern.path("holes").toList().map { it.asString() })
                     assertEquals(row.basic, pattern.path("basic").asBoolean())
-                    assertEquals(instrument.source, pattern.path("source").asString())
+                    val reference = pattern.path("source").asString()
+                    assertTrue(reference.isNotBlank())
+                    if (instrument.code == "SANJO_DAEGEUM" && row.hanja == "㶃") {
+                        assertTrue("피리사" in reference)
+                    }
                     assertEquals(instrument.note, pattern.path("instrumentNote").asString())
                     assertEquals(instrument.hwang, pattern.path("nominalHwangPitchClass").asInt())
                     assertEquals("BUILTIN_REFERENCE", pattern.path("verificationStatus").asString())
@@ -116,28 +120,33 @@ internal class BuiltinFingeringSource {
     fun identity(hanja: String) = bases.getValue(aliases[hanja] ?: hanja) to (octaves[hanja] ?: 0)
 
     val instruments = listOf(
-        instrument("Danso", "DANSO", "Danso", 12),
+        instrument("Danso", "DANSO", "Danso", 17),
         instrument("Sogeum", "SOGEUM", "Sogeum", 20),
         instrument("DaegeumJeongak", "JEONGAK_DAEGEUM", "Daegeum", 30),
-        instrument("DaegeumSanjo", "SANJO_DAEGEUM", "Daegeum", 30),
+        instrument("DaegeumSanjo", "SANJO_DAEGEUM", "Daegeum", 31),
     )
+
+    private fun parseRows(blow: String, body: String) =
+        Regex("""n\("([^"]+)", "([^"]+)", "([^"]+)", "([10h?]+)", ([01])\)""").findAll(body).map {
+            SourceRow(blow.uppercase(), it.groupValues[1], it.groupValues[2], it.groupValues[3],
+                it.groupValues[4], it.groupValues[5] == "1")
+        }.toList()
 
     private fun instrument(name: String, code: String, table: String, count: Int): SourceInstrument {
         val definition = Regex("""(?s)\b$name\((.*?)\n    \),""").find(definitions)!!.groupValues[1]
         fun text(field: String) = Regex("""$field = "([^"]+)"""").find(definition)!!.groupValues[1]
         val body = tables.substringAfter("internal val ${table}Table:").substringBefore("\n)\n")
         val rows = Regex("""(?s)Blow\.(Low|Mid|High) to listOf\((.*?)\n    \),""").findAll(body).flatMap { group ->
-            Regex("""n\("([^"]+)", "([^"]+)", "([^"]+)", "([10h?]+)", ([01])\)""").findAll(group.groupValues[2]).map {
-                SourceRow(group.groupValues[1].uppercase(), it.groupValues[1], it.groupValues[2], it.groupValues[3],
-                    it.groupValues[4], it.groupValues[5] == "1")
-            }
-        }.toList()
+            parseRows(group.groupValues[1], group.groupValues[2])
+        }.toList() + if (code == "SANJO_DAEGEUM") {
+            parseRows("High", tables.substringAfter("internal val SanjoDaegeumTable =", "").substringBefore("\n\n"))
+        } else emptyList()
         assertEquals(count, rows.size, "$name parser must read the entire source")
         assertEquals(count, rows.map { identity(it.hanja) }.distinct().size)
         assertTrue(rows.all { it.holes.length == if (code == "DANSO") 5 else 6 })
-        return SourceInstrument(code, text("source"), text("note"), Regex("""hwang = (\d+)""").find(definition)!!.groupValues[1].toInt(), rows)
+        return SourceInstrument(code, text("note"), Regex("""hwang = (\d+)""").find(definition)!!.groupValues[1].toInt(), rows)
     }
 }
 
-internal data class SourceInstrument(val code: String, val source: String, val note: String, val hwang: Int, val rows: List<SourceRow>)
+internal data class SourceInstrument(val code: String, val note: String, val hwang: Int, val rows: List<SourceRow>)
 internal data class SourceRow(val blow: String, val hanja: String, val name: String, val reading: String, val holes: String, val basic: Boolean)

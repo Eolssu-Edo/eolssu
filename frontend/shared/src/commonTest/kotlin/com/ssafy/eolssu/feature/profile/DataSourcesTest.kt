@@ -21,13 +21,14 @@ class DataSourcesTest {
     }
 
     @Test
-    fun keepsTheOriginalAddressesFromTheRemovedScreenNotices() {
+    fun keepsOriginalAddressesAndLinksTheSanjoChart() {
         val urls = DataSources.flatMap { source -> source.links.map { it.url } }.toSet()
         assertEquals(
             setOf(
                 "https://www.gugak.go.kr/digitaleum/front/monotone/list.do",
                 "https://www.kogl.or.kr/info/license.do",
                 "https://github.com/danbinaerinHan/jeongganbo-generator",
+                "https://kukaksa.co.kr/web/myimg/daekum%20use.jpg",
             ),
             urls,
         )

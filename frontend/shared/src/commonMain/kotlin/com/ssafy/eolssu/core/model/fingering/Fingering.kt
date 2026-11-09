@@ -90,7 +90,7 @@ enum class GuideInstrument(
         note = "같은 운지에서 입김 세기로 저취·평취·역취 옥타브를 나눠요. 서양 음이름은 황종=미♭(E♭) 기준이에요.",
     ),
     DaegeumSanjo(
-        id = "daegeum-sanjo", hwang = 5, blows = Blow.entries, table = DaegeumTable,
+        id = "daegeum-sanjo", hwang = 5, blows = Blow.entries, table = SanjoDaegeumTable,
         imageWidth = 2000, imageHeight = 667, holeRadius = 25,
         holes = points(848 to 332, 981 to 332, 1115 to 332, 1244 to 332, 1374 to 332, 1510 to 331),
         note = "기본 운지틀은 정악대금과 같아요. 서양 음이름은 황종=F(정악대금보다 장2도 높음) 기준이고, 유파마다 조율·세부 운지가 조금 다를 수 있어요.",
