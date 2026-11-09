@@ -39,11 +39,9 @@
   </section>
   <aside class="journal-sidebar" aria-label="블로그 둘러보기">
     {{ partial "reading-list.html" (dict "posts" .latest "title" "최신 글" "id" "latest-posts-title" "titleOnly" true) }}
-    <div class="mini-project">
-      <img src="{{ site.Data.brand.mascot | relURL }}" alt="" width="384" height="313" loading="lazy" decoding="async">
-      <div class="kicker">OUR PROJECT</div>
+    <div class="sidebar-note">
       <p>우리 소리에<br>가까워지는 시간.</p>
-      <a href="{{ "project/" | relURL }}">{{ site.Data.project.name }} 살펴보기 <span aria-hidden="true">↗</span></a>
+      <img src="{{ "images/tiger-daegeum.png" | relURL }}" alt="" width="336" height="224" loading="lazy" decoding="async">
     </div>
   </aside>
 </div>

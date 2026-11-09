@@ -23,6 +23,12 @@
     });
   }
 
+  const backToTop = document.querySelector("[data-back-to-top]");
+  if (backToTop) {
+    const top = document.getElementById("page-top");
+    new IntersectionObserver(([entry]) => { backToTop.hidden = entry.isIntersecting; }).observe(top);
+  }
+
   const viewedPost = document.querySelector("[data-view-api]");
   if (viewedPost) {
     fetch(viewedPost.dataset.viewApi, {

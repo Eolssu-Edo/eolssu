@@ -2,13 +2,15 @@
 <article class="post-item" data-post data-search="{{ .Title }}{{ with .Params.tags }} {{ delimit . " " }}{{ end }}" data-spot-category="{{ range $i, $c := $cats }}{{ if $i }} · {{ end }}{{ $c.short }}{{ end }}" data-category="{{ range $i, $c := $cats }}{{ if $i }} {{ end }}{{ $c.key }}{{ end }}">
   <a class="post-link" href="{{ .RelPermalink }}">
     <div class="post-copy">
-      {{- if or $cats .Params.tags }}
-      <div class="meta">{{ with $cats }}<span class="category">{{ range $i, $c := . }}{{ if $i }} · {{ end }}{{ $c.label }}{{ end }}</span>{{ end }}{{ with .Params.tags }}{{ if $cats }}<span class="sep" aria-hidden="true"></span>{{ end }}<span>{{ index . 0 }}</span>{{ end }}</div>
-      {{- end }}
+      <div class="post-card-meta">
+        {{- if or $cats .Params.tags }}
+        <div class="meta">{{ with $cats }}<span class="category">{{ range $i, $c := . }}{{ if $i }} · {{ end }}{{ $c.label }}{{ end }}</span>{{ end }}{{ with .Params.tags }}{{ if $cats }}<span class="sep" aria-hidden="true"></span>{{ end }}<span>{{ index . 0 }}</span>{{ end }}</div>
+        {{- end }}
+        {{ partial "post-meta.html" . }}
+      </div>
       <h3>{{ .Title }}</h3>
       <p>{{ with .Description }}{{ . }}{{ else }}{{ .Summary | plainify | truncate 120 }}{{ end }}</p>
     </div>
     {{ partial "post-thumb.html" (dict "page" .) }}
-    {{ partial "post-meta.html" . }}
   </a>
 </article>
