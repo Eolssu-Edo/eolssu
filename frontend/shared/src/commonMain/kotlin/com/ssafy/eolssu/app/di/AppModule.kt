@@ -7,6 +7,8 @@ import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.HttpGrowthRepository
+import com.ssafy.eolssu.data.practice.HttpNotePracticeCriteriaRepository
+import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.HttpPracticeSessionRepository
 import com.ssafy.eolssu.data.practice.HttpRecordingUploader
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
@@ -136,13 +138,15 @@ val appModule = module {
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get(), get()) }
+    single<NotePracticeCriteriaRepository> { HttpNotePracticeCriteriaRepository(get()) }
 
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer())
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
+            notePractice = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
