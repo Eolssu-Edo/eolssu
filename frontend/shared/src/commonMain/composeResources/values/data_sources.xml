@@ -19,8 +19,8 @@
     <string name="source_link_repository">원본 저장소</string>
 
     <string name="source_gugak_audio_name">국립국악원 국악기 디지털 음원</string>
-    <string name="source_gugak_audio_usage">운지법 보기·기초부터 배우기의 기본음·요성 예시, 정간보 쉽게 읽기의 음의 높낮이, 연습 화면의 장단 소리</string>
-    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 기본음·요성 예시는 필요한 구간을 잘라 모노 M4A로 만들었어요. 일부는 음높이를 바꾸거나 요성에 음높이 흔들림을 더했어요. 정간보 음높이 예시는 단소 「평취 중」의 황종을 잘라 음높이를 바꾸고 모노 WAV로 만들었어요. 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
+    <string name="source_gugak_audio_usage">운지법 보기·기초부터 배우기의 기본음·요성 예시, 정간보 쉽게 읽기의 음의 길이·높낮이, 연습 화면의 장단 소리</string>
+    <string name="source_gugak_audio_note">공공누리 제1유형(KOGL-1, 출처표시). 기본음·요성 예시는 필요한 구간을 잘라 모노 M4A로 만들었어요. 일부는 음높이를 바꾸거나 요성에 음높이 흔들림을 더했어요. 정간보 예시는 단소 「평취 중」의 음을 잘라 예시에 맞는 음높이와 길이로 조정했어요. 음의 길이 예시에는 박 소리도 더했어요. 장단 소리는 단타 추출 및 굿거리 굴림 5속도로 가공했어요.</string>
 
     <string name="source_generator_name">우물사이(umulsai.com) jeongganbo-generator</string>
     <string name="source_generator_usage">정간보 쉽게 읽기·악보의 시김새 기호 그림, 예시 곡의 정간 수·대강 분절</string>
