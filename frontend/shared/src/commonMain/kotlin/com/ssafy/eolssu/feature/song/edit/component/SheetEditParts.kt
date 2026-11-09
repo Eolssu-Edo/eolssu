@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.ssafy.eolssu.core.ui.component.CenteredTitleRow
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -215,7 +216,7 @@ internal fun NoticeBox(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * 편집기 상단 바(EDIT-02·03): 왼쪽 닫기 원형 버튼 · 왼쪽 정렬 제목과 보조 문구 · 오른쪽 연두 알약 버튼.
+ * 편집기 상단 바(EDIT-02·03): 왼쪽 닫기 원형 버튼 · 가운데 제목과 보조 문구([CenteredTitleRow]) · 오른쪽 연두 알약 버튼.
  */
 @Composable
 internal fun EditorTopBar(
@@ -228,16 +229,16 @@ internal fun EditorTopBar(
 ) {
     // 넓은 창에서도 본문([com.ssafy.eolssu.core.ui.component.EolssuScaffold])과 같은 휴대폰 너비로 가운데에 둔다.
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Row(
+        CenteredTitleRow(
             modifier.widthIn(max = CompactContentMaxWidth).fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            start = { EolssuIconButton(EolssuIcons.Close, closeLabel, onClose) },
+            end = { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) { right() } },
         ) {
-            EolssuIconButton(EolssuIcons.Close, closeLabel, onClose)
-            Column(Modifier.weight(1f)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp),
+                    textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -246,11 +247,11 @@ internal fun EditorTopBar(
                     modifier = Modifier.padding(top = 2.dp),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     color = EolssuTheme.colors.textMuted,
+                    textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            right()
         }
     }
 }
