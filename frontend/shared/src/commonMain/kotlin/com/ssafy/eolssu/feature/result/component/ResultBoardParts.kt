@@ -24,14 +24,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +64,7 @@ import com.ssafy.eolssu.core.theme.EolssuTheme
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.score.JeongganboView
+import com.ssafy.eolssu.feature.result.ResultSummary
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.enso_ring
 import eolssu.shared.generated.resources.enso_spin
@@ -76,9 +75,13 @@ import eolssu.shared.generated.resources.result_metric_weak
 import eolssu.shared.generated.resources.result_score_of
 import eolssu.shared.generated.resources.result_score_unit
 import eolssu.shared.generated.resources.result_view_all_errors
+import eolssu.shared.generated.resources.tiger_analysis_failed
 import eolssu.shared.generated.resources.tiger_clap
+import eolssu.shared.generated.resources.tiger_complete
+import eolssu.shared.generated.resources.tiger_encourage
 import eolssu.shared.generated.resources.tiger_play
 import eolssu.shared.generated.resources.tiger_retry
+import eolssu.shared.generated.resources.tiger_zero_score
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.TextUnit
@@ -151,30 +154,14 @@ fun AnalyzingFigure(modifier: Modifier = Modifier) {
     }
 }
 
-/** 보드 분석 실패 그림(200×190): 다시 해 보는 호랑이(150dp) 오른쪽 아래에 붉은 경고 원(48dp, 바탕색 4dp 테두리). */
 @Composable
-fun AnalysisFailedFigure(modifier: Modifier = Modifier) {
-    val colors = EolssuTheme.colors
-    Box(modifier.width(200.dp).height(190.dp).clearAndSetSemantics {}) {
-        Image(
-            painterResource(Res.drawable.tiger_retry),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.TopCenter).width(150.dp),
-            contentScale = ContentScale.FillWidth,
-        )
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 6.dp, bottom = 4.dp)
-                .size(56.dp)
-                .background(colors.background, CircleShape)
-                .padding(4.dp)
-                .background(colors.recSoft, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(EolssuIcons.Alert, contentDescription = null, modifier = Modifier.size(24.dp), tint = colors.recText)
-        }
-    }
+fun AnalysisFailedFigure() {
+    Image(
+        painterResource(Res.drawable.tiger_analysis_failed),
+        contentDescription = null,
+        modifier = Modifier.size(132.dp),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 /** 보드 `.badge.lite`: 흰 바탕 · 옅은 테두리 알약(26dp)에 12sp 회색 글자. 곡 이름 등에 쓴다. */
@@ -226,7 +213,11 @@ fun SmallPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = M
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.onPrimary)
-            Text(text, style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold), color = colors.onPrimary, maxLines = 1)
+            Text(
+                text,
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                color = colors.onPrimary,
+            )
         }
     }
 }
@@ -257,7 +248,7 @@ fun SmallGhostButton(
 
 /**
  * 보드 총점 카드(`.card.tint`, 반지름 16 · 안쪽 14): 점수 고리 · 총평(16sp 굵게)과 ‘같은 곡 다시 연습’ 작은 버튼,
- * 오른쪽 아래에 손뼉 치는 호랑이(64dp)가 카드 아래로 4dp 걸친다. [extra]는 총평 아래(예시 결과 표시 등)에 둔다.
+ * 오른쪽 아래에는 총점에 맞는 호랑이를 표시한다. [extra]는 총평 아래(예시 결과 표시 등)에 둔다.
  */
 @Composable
 fun TotalScoreCard(
@@ -269,14 +260,26 @@ fun TotalScoreCard(
     extra: (@Composable () -> Unit)? = null,
 ) {
     val colors = EolssuTheme.colors
-    Box(modifier.fillMaxWidth()) {
+    val mascot = when {
+        total == 0 -> Res.drawable.tiger_zero_score
+        total >= 90 -> Res.drawable.tiger_complete
+        total >= ResultSummary.GoodScore -> Res.drawable.tiger_clap
+        total >= 50 -> Res.drawable.tiger_encourage
+        else -> Res.drawable.tiger_retry
+    }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val reserveMascotSpace = maxWidth < 350.dp || LocalDensity.current.fontScale > 1f
         Row(
             Modifier.fillMaxWidth().background(colors.accentSoft, CardShape).border(1.dp, colors.accentTintStrong, CardShape).padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ScoreRing(total)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                // 버튼이 두 줄이 될 수 있는 폭이나 글자 크기에서는 그림을 버튼 아래에 둔다.
+                Modifier.weight(1f).padding(bottom = if (reserveMascotSpace) 48.dp else 0.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(
                     feedback,
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp, lineHeight = 21.6.sp, fontWeight = FontWeight.Bold),
@@ -287,7 +290,7 @@ fun TotalScoreCard(
             }
         }
         Image(
-            painterResource(Res.drawable.tiger_clap),
+            painterResource(mascot),
             contentDescription = null,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 8.dp).offset(y = 4.dp).width(64.dp),
             contentScale = ContentScale.FillWidth,

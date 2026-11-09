@@ -4,13 +4,16 @@ import com.ssafy.eolssu.data.practice.SessionSection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +40,7 @@ import com.ssafy.eolssu.core.ui.adaptive.currentWindowLayout
 import com.ssafy.eolssu.core.ui.component.CompactContentMaxWidth
 import com.ssafy.eolssu.core.ui.component.EolssuButton
 import com.ssafy.eolssu.core.ui.component.EolssuButtonStyle
+import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.feature.result.component.AnalysisFailedFigure
@@ -45,9 +49,9 @@ import com.ssafy.eolssu.feature.result.component.BoardTopBar
 import com.ssafy.eolssu.feature.result.component.LiteBadge
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.analysis_back_to_practice
-import eolssu.shared.generated.resources.analysis_failed_board
 import eolssu.shared.generated.resources.analysis_failed_decode_error
 import eolssu.shared.generated.resources.analysis_failed_no_sound
+import eolssu.shared.generated.resources.analysis_failed_recording_kept
 import eolssu.shared.generated.resources.analysis_failed_server_error
 import eolssu.shared.generated.resources.analysis_failed_timeout
 import eolssu.shared.generated.resources.analysis_failed_too_short
@@ -104,8 +108,8 @@ fun AnalysisRoute(
  * 버튼 최대 너비가 360dp다.
  *
  * - 대기: 도는 붓 일원상과 호랑이 · ‘연주를 확인하고 있어요.’(Song Myung 22sp) · 곡 이름 배지 · 안내.
- * - 실패: 다시 해 보는 호랑이와 붉은 경고 원 · 제목 · 곡 이름 배지 · 안내. 다시 분석할 수 있는 실패(서버·시간 초과)는
- *   보드 문장(‘네트워크나 서버 문제로…’) 아래에 사유 한 줄을 덧붙이고, 녹음 자체의 문제는 보드 문장이 사실과 달라 사유만 보인다.
+ * - 실패: 상단에 곡 이름을 두고 본문에 호랑이 · 경고 아이콘과 제목 · 실패 사유 · 다음 행동을 표시한다.
+ *   다시 분석할 수 있는 실패(서버·시간 초과)는 사유 다음에 녹음이 남아 있다고 안내한다.
  * - 같은 녹음으로 다시 분석할 수 있으면 ‘분석 다시 시도’, 아니면 ‘다시 연주하기’. 녹음을 보내지 못했으면 기기에 남은 녹음을
  *   ‘녹음 다시 보내기’로 보내게 하고, 보낼 수 없는 파일이면 ‘다시 연주하기’만 준다.
  */
@@ -132,72 +136,104 @@ fun AnalysisScreen(
     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, lineHeight = 20.3.sp)
     EolssuScaffold(
         contentMaxWidth = maxWidth,
-        topBar = { BoardTopBar(stringResource(Res.string.analysis_title), maxWidth = maxWidth) },
-    ) {
-        // 보드 `.body`는 가운데 정렬(아래 80)이다. 글꼴을 키워 넘치면 세로로 스크롤한다.
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = maxHeight)
-                .padding(start = 20.dp, end = 20.dp, bottom = 80.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
-        ) {
-            if (stopped) AnalysisFailedFigure() else AnalyzingFigure()
-            Text(
-                stringResource(
-                    when {
-                        upload != null -> Res.string.analysis_upload_failed_title
-                        failure != null -> Res.string.analysis_failed_title
-                        else -> Res.string.analysis_running_title
-                    },
-                ),
-                modifier = Modifier
-                    .padding(top = if (stopped) 0.dp else 8.dp)
-                    .semantics {
-                        heading()
-                        liveRegion = LiveRegionMode.Polite
-                    },
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = 22.sp, lineHeight = 28.6.sp),
-                color = colors.text,
-                textAlign = TextAlign.Center,
+        topBar = {
+            BoardTopBar(
+                stringResource(Res.string.analysis_title),
+                subtitle = state.song?.title?.takeIf { stopped },
+                maxWidth = maxWidth,
             )
-            state.song?.let { LiteBadge(it.title) }
-            val lines = when {
-                upload != null -> listOf(stringResource(upload.messageRes()))
-                failure != null && failure.retryable -> listOf(stringResource(Res.string.analysis_failed_board), stringResource(failure.messageRes()))
-                failure != null -> listOf(stringResource(failure.messageRes()))
-                else -> listOf(stringResource(Res.string.analysis_running_body))
-            }
-            Text(lines.joinToString("\n"), style = bodyStyle, color = colors.textSub, textAlign = TextAlign.Center)
-            if (failure != null && state.retryBusy) {
-                Text(stringResource(Res.string.analysis_retry_busy), style = bodyStyle, color = colors.recText, textAlign = TextAlign.Center)
-            }
-            if (stopped) {
+        },
+    ) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            Column(
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = if (stopped) 400.dp else maxWidth)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .heightIn(min = maxHeight)
+                    .padding(
+                        start = 20.dp,
+                        end = 20.dp,
+                        top = if (stopped) 24.dp else 0.dp,
+                        bottom = if (stopped) 24.dp else 80.dp,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically),
+            ) {
+                if (stopped) AnalysisFailedFigure() else AnalyzingFigure()
                 Column(
-                    Modifier.padding(top = 10.dp).widthIn(max = if (wide) 360.dp else maxWidth).fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(if (stopped) 8.dp else 14.dp),
                 ) {
-                    if (upload == UploadProblem.CanResend) {
-                        EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending)
-                        EolssuButton(
-                            stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
-                            style = EolssuButtonStyle.Secondary, enabled = !state.resending,
+                    Row(
+                        Modifier.padding(top = if (stopped) 0.dp else 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (stopped) {
+                            Icon(
+                                EolssuIcons.Alert,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = colors.recText,
+                            )
+                        }
+                        Text(
+                            stringResource(
+                                when {
+                                    upload != null -> Res.string.analysis_upload_failed_title
+                                    failure != null -> Res.string.analysis_failed_title
+                                    else -> Res.string.analysis_running_title
+                                },
+                            ),
+                            modifier = Modifier.semantics {
+                                heading()
+                                liveRegion = LiveRegionMode.Polite
+                            },
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 22.sp, lineHeight = 28.6.sp),
+                            color = colors.text,
+                            textAlign = TextAlign.Center,
                         )
-                    } else if (upload == null && failure?.retryable == true) {
-                        EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
-                        EolssuButton(
-                            stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
-                            style = EolssuButtonStyle.Secondary, enabled = !state.retrying,
+                    }
+                    if (!stopped) state.song?.let { LiteBadge(it.title) }
+                    val lines = when {
+                        upload != null -> listOf(stringResource(upload.messageRes()))
+                        failure != null && failure.retryable -> listOf(
+                            stringResource(failure.messageRes()),
+                            stringResource(Res.string.analysis_failed_recording_kept),
                         )
-                    } else {
-                        EolssuButton(stringResource(Res.string.analysis_play_again), onBackToPractice)
+                        failure != null -> listOf(stringResource(failure.messageRes()))
+                        else -> listOf(stringResource(Res.string.analysis_running_body))
+                    }
+                    Text(lines.joinToString("\n"), style = bodyStyle, color = colors.textSub, textAlign = TextAlign.Center)
+                }
+                if (failure != null && state.retryBusy) {
+                    Text(stringResource(Res.string.analysis_retry_busy), style = bodyStyle, color = colors.recText, textAlign = TextAlign.Center)
+                }
+                if (stopped) {
+                    Column(
+                        Modifier.padding(top = 6.dp).fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        if (upload == UploadProblem.CanResend) {
+                            EolssuButton(stringResource(Res.string.analysis_resend), onResend, busy = state.resending)
+                            EolssuButton(
+                                stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
+                                style = EolssuButtonStyle.Secondary, enabled = !state.resending,
+                            )
+                        } else if (upload == null && failure?.retryable == true) {
+                            EolssuButton(stringResource(Res.string.analysis_retry), onRetry, busy = state.retrying)
+                            EolssuButton(
+                                stringResource(Res.string.analysis_back_to_practice), onBackToPractice,
+                                style = EolssuButtonStyle.Secondary, enabled = !state.retrying,
+                            )
+                        } else {
+                            EolssuButton(stringResource(Res.string.analysis_play_again), onBackToPractice)
+                        }
                     }
                 }
             }
-        }
         }
     }
 }
