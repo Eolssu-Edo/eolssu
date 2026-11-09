@@ -6,13 +6,11 @@
   <a class="back-link" href="{{ "/" | relURL }}"><span aria-hidden="true">←</span> 블로그로 돌아가기</a>
   <div class="reader-grid">
     <article class="article"{{ with site.Params.pageviewsapi }} data-view-api="{{ . }}" data-view-path="{{ $.RelPermalink }}"{{ end }}>
-      <header class="article-heading">
+      <header class="article-heading post-heading">
         {{- with $cats }}<div class="meta">{{ range . }}<a class="category" href="{{ .url }}">{{ .label }}</a>{{ end }}</div>{{ end }}
         <h1>{{ .Title }}</h1>
-        <div class="article-intro">
-          {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
-          {{ partial "post-meta.html" . }}
-        </div>
+        {{- with .Description }}<p class="article-deck">{{ . }}</p>{{ end }}
+        {{ partial "post-meta.html" . }}
       </header>
       <div class="article-cover article-cover-mobile">{{ partial "post-thumb.html" (dict "page" . "loading" "eager") }}</div>
       {{- if eq (len (findRE `<a href="#` $toc 2)) 2 }}
