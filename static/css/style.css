@@ -319,6 +319,12 @@ a:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline
 .edo-together p { max-width: 780px; margin: 12px 0 0; color: var(--soft); font-size: 16px; line-height: 1.95; text-wrap: pretty; }
 .edo-together .quiet { display: inline-block; margin-top: 18px; font-size: 15px; }
 
+@media (min-width: 900px) {
+  .article-header:has(.journal-search:not([hidden])) { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .journal-heading { grid-row: span 2; }
+  .journal-search { width: 100%; }
+}
+
 /* ≤1050px */
 @media (max-width: 1050px) {
   .journal-layout { grid-template-columns: 220px minmax(0, 1fr); gap: 38px; }
