@@ -2,6 +2,7 @@ package com.ssafy.eolssu.feature.song
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -33,15 +35,15 @@ import com.ssafy.eolssu.feature.song.component.ProvidedSongRow
 import com.ssafy.eolssu.feature.song.component.SongLoadNotice
 import com.ssafy.eolssu.feature.song.component.SongEmptyResult
 import com.ssafy.eolssu.feature.song.component.SongLevelChips
+import com.ssafy.eolssu.feature.song.component.SongSortButton
 import com.ssafy.eolssu.feature.song.layout.MySongsTabletLayout
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_cancel
 import eolssu.shared.generated.resources.mysongs_delete
 import eolssu.shared.generated.resources.mysongs_delete_message
 import eolssu.shared.generated.resources.mysongs_delete_title
+import eolssu.shared.generated.resources.mysongs_no_jangdan
 import eolssu.shared.generated.resources.mysongs_practice_only
-import eolssu.shared.generated.resources.mysongs_practice_only_badge
-import eolssu.shared.generated.resources.mysongs_evaluable_badge
 import eolssu.shared.generated.resources.mysongs_empty_body
 import eolssu.shared.generated.resources.mysongs_reset_filter
 import eolssu.shared.generated.resources.mysongs_sheet_count
@@ -55,6 +57,7 @@ class MySongsActions(
     val onBack: () -> Unit,
     val onSelectTab: (MySongsTab) -> Unit,
     val onSelectFilter: (SongLevelFilter) -> Unit,
+    val onToggleSort: () -> Unit,
     val onOpenSong: (songId: String) -> Unit,
     val onOpenSheet: (MySheet) -> Unit,
     val onEditSheet: (MySheet) -> Unit,
@@ -106,13 +109,10 @@ private fun DeleteSheetDialog(sheet: MySheet, actions: MySongsActions) {
     }
 }
 
-/** 목록 응답에 장단 이름이 없으면 평가 가능 여부만 표시한다. */
+/** 제공 곡 제목 밑 문구: 장단 이름(목록 응답에 없으면 '장단 없음'), 평가할 수 없는 곡이면 뒤에 '· 연습 전용'. */
 @Composable
 internal fun providedSongMeta(song: SongSummary): String {
-    if (song.jangdanName.isBlank()) {
-        return stringResource(if (song.evaluable) Res.string.mysongs_evaluable_badge else Res.string.mysongs_practice_only_badge)
-    }
-    val jangdan = jangdanLabel(song.jangdanName)
+    val jangdan = if (song.jangdanName.isBlank()) stringResource(Res.string.mysongs_no_jangdan) else jangdanLabel(song.jangdanName)
     return if (song.evaluable) jangdan else stringResource(Res.string.mysongs_practice_only, jangdan)
 }
 
@@ -167,7 +167,10 @@ internal fun MySongsBody(
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ListNote(stringResource(Res.string.mysongs_songs_hint))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ListNote(stringResource(Res.string.mysongs_songs_hint), Modifier.weight(1f))
+                            SongSortButton(state.sort, actions.onToggleSort, small = true)
+                        }
                         CardGrid(state.visibleSongs, columns, itemKey = { it.id }, spacing = rowGap) { song, rowModifier ->
                             ProvidedSongRow(song, providedSongMeta(song), onClick = { actions.onOpenSong(song.id) }, modifier = rowModifier)
                         }
@@ -203,10 +206,10 @@ internal fun MySongsBody(
 
 /** 목록 위 작은 회색 문구(`.tiny.muted`, 왼쪽 4dp). */
 @Composable
-private fun ListNote(text: String) {
+private fun ListNote(text: String, modifier: Modifier = Modifier) {
     Text(
         text,
-        modifier = Modifier.padding(start = 4.dp),
+        modifier = modifier.padding(start = 4.dp),
         style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
         color = EolssuTheme.colors.textMuted,
     )

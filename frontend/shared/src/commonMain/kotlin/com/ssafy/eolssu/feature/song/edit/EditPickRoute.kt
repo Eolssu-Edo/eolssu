@@ -20,6 +20,7 @@ fun EditPickRoute(
         onRetry = viewModel::retry,
         onSelectTab = viewModel::selectTab,
         onSearch = viewModel::search,
+        onToggleSort = viewModel::toggleSort,
         onToggle = viewModel::toggle,
         onConfirm = { state.picked?.takeIf { state.canSelect }?.let(onSelected) },
     )

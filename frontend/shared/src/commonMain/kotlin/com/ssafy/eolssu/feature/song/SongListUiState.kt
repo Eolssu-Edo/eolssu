@@ -26,6 +26,7 @@ data class SongListUiState(
     val songs: List<SongSummary> = emptyList(),
     val query: String = "",
     val filter: SongLevelFilter = SongLevelFilter.All,
+    val sort: SongSortOrder = SongSortOrder.Ascending,
     val selectedSongId: String? = null,
     val songPicked: Boolean = false,
     val instruments: List<CatalogInstrument> = emptyList(),
@@ -38,7 +39,7 @@ data class SongListUiState(
                 song.evaluable &&
                     (filter.level == null || song.level == filter.level) &&
                     (q.isEmpty() || song.title.contains(q))
-            }
+            }.sortedByTitle(sort) { it.title }
         }
 
     /**
