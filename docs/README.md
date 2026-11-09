@@ -86,6 +86,7 @@
 - [화면 개선 적용 범위·담당 API 제외 목록](knowledge/frontend/screen-improvement-scope.md)
 
 - [4악기 내장 운지 카탈로그 연결 (409)](specs/builtin-fingering-catalog.md) · [구현·검증 기록](knowledge/backend/builtin-fingering-catalog.md)
+- [단소·소금·산조대금 운지 그림 7종 (602)](knowledge/frontend/fingering-images/README.md)
 - [운지법 화면 음원 목록 로딩 개선 (423)](specs/guide-audio-loading.md) · [원인·검증 기록](knowledge/frontend/guide-audio-loading.md)
 - [HOME 전체 그림·스크롤·먹 버튼](specs/home-scroll-ink.md) · [412 계획·검증](plans/S15P31E102-412.md) · [428 카드 배치 개편](plans/S15P31E102-428.md) · [437 상단 바·2x3 카드](plans/S15P31E102-437.md)
 
