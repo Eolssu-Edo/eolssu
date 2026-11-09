@@ -73,22 +73,30 @@ def docker(path, timeout=15):
         connection.close()
 
 
-def snapshot(with_storage=False, collect_stats=True, target='edo1'):
+def required_containers(target, issues):
+    required = REQUIRED_BY_TARGET[target]
+    if target == 'edo1':
+        try:
+            route = Path('/opt/eolssu/config/backend-route/active.conf').read_text().strip()
+            slot = {'set $backend http://backend:8080;': 'backend',
+                    'set $backend http://backend-green:8080;': 'backend-green'}[route]
+            return (required - {'eolssu-runtime-backend-1'}) | {f'eolssu-runtime-{slot}-1'}
+        except FileNotFoundError:
+            pass  # Legacy single-slot runtime.
+        except (OSError, KeyError):
+            issues.append('활성 백엔드 슬롯을 확인할 수 없음')
+    return required
+
+
+def snapshot(with_storage=False, collect_stats=True, target='edo1', *, required=None):
     info = docker('/info')
     containers = docker('/containers/json?all=1&size=1')
     issues = []
     if len(containers) > 100:
         issues.append(f'컨테이너 {len(containers)}개 중 100개만 수집')
     names = {name.lstrip('/') for item in containers for name in item.get('Names', [])}
-    required = REQUIRED_BY_TARGET[target]
-    if target == 'edo1' and Path('/opt/eolssu/config/backend-route/active.conf').is_file():
-        try:
-            route = Path('/opt/eolssu/config/backend-route/active.conf').read_text().strip()
-            slot = {'set $backend http://backend:8080;': 'backend',
-                    'set $backend http://backend-green:8080;': 'backend-green'}[route]
-            required = (required - {'eolssu-runtime-backend-1'}) | {f'eolssu-runtime-{slot}-1'}
-        except (OSError, KeyError):
-            issues.append('활성 백엔드 슬롯을 확인할 수 없음')
+    if required is None:
+        required = required_containers(target, issues)
     issues.extend(name + ' 필수 컨테이너 누락' for name in sorted(required - names))
     def one(item):
         try:
@@ -505,17 +513,20 @@ def edo1_host_health():
 
 def health_report(target='edo1'):
     rows = edo2_host_health() + backup_health() if target == 'edo2' else edo1_host_health() + prometheus_health()
+    issues = []
+    required = required_containers(target, issues)
     try:
-        info, containers, _, issues = snapshot(collect_stats=False, target=target)
+        info, containers, _, docker_issues = snapshot(collect_stats=False, target=target, required=required)
+        issues.extend(docker_issues)
         if target == 'edo2':
             rows.append(['Docker 조회', 'edo2 Docker', '정상', f"엔진 응답 · 등록 {len(containers)}개 · {info.get('ServerVersion', '?')}", '—', '현재 조치 없음'])
     except Exception:
         if target == 'edo1':
             raise
-        containers, issues = [], []
+        containers = []
         rows.append(['Docker 조회', 'edo2 Docker', '확인 불가', '기대한 Docker 엔진에 연결하지 못함', '—', 'docker.service와 Docker socket 조회 권한 확인'])
     names = {name.lstrip('/') for value in containers for name in value['item'].get('Names', [])}
-    rows.extend([name, target + ' Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(REQUIRED_BY_TARGET[target] - names))
+    rows.extend([name, target + ' Docker', '실패', '필수 컨테이너 누락', '—', '실행 구성 확인 필요'] for name in sorted(required - names))
     for value in containers:
         item, state = value['item'], value['detail'].get('State', {})
         name = (item.get('Names') or ['?'])[0].lstrip('/')
