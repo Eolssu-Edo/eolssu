@@ -127,7 +127,7 @@
 ### 5.1 보드 구조 요약(Analysis · Result, `.ph` 바탕 `#F9FAF9`)
 - ANALYSIS-01(`status`: analyzing/failed): `.topbar`(56px, 뒤로 없음) ‘연주 분석’(Song Myung 19px) → 본문 가운데 정렬(gap 14, 아래 80).
   - 대기: 220×220 영역에 붓 일원상 SVG(210px, `#27221E` 90%, 3.2초 회전) + 가운데 호랑이 `tiger-play.webp`(128px) → ‘연주를 확인하고 있어요.’(Song Myung 22px) → `.badge.lite` 곡명 → ‘음정, 박자, 음 길이를 살펴보고 있어요.’(14px `#5C564F`).
-  - 실패: 200×190 영역에 `tiger-retry.webp`(150px) + 우하단 붉은 `.ico-ring`(48px, 4px `#F9FAF9` 테두리) → ‘분석을 완료하지 못했어요.’ → 곡명 배지 → ‘네트워크나 서버 문제로 결과를 받지 못했어요.\n녹음한 연주는 그대로 있어요.’ → 전체 너비 ‘분석 다시 시도’(primary) + ‘연습으로 돌아가기’(secondary, 흰 바탕).
+  - 실패: 호랑이(소리·녹음 파일 문제는 머리 긁는 호랑이 움짤 160dp `tiger_confused_atlas.webp` 9프레임 · 160ms, 서버·전송 문제는 `tiger_analysis_failed.webp` 132dp와 제목 앞 경고 아이콘) → ‘분석을 완료하지 못했어요.’ → 곡명 배지 → ‘네트워크나 서버 문제로 결과를 받지 못했어요.\n녹음한 연주는 그대로 있어요.’ → 전체 너비 ‘분석 다시 시도’(primary) + ‘연습으로 돌아가기’(secondary, 흰 바탕).
 - RESULT-02(`sheet`: none/saved): `.topbar` ‘연주 결과’ + ‘아리랑 · 대금 · 입문’(뒤로·저장 아이콘 없음) → 본문(gap 14):
   - 총점 `.card.tint`(`#F6F8E3`, 테두리 `#DEE5AD`): 112px 일원상 링(트랙 `#27221E` 12%, 진행 `#ADBE31`) 안 ‘84’(Song Myung 38px) + ‘/ 100점’(11px) · 오른쪽 총평 16px 700 ‘좋아요! 박자를 조금 더 맞춰볼까요?’ + `.btn.primary.sm`(40px) ‘같은 곡 다시 연습’ · 우하단 `tiger-clap.webp` 64px.
   - 항목 3칸 `.card`(테두리 `#E8E4DA`, padding 12, gap 6): 이름 13px `#6B655D` + 약한 항목에 `.lv.l2` ‘더 연습’(20px) · 점수 22px + ‘점’ 12px · 5px 막대(`#EEEBE3`/`#ADBE31`).

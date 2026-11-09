@@ -215,7 +215,7 @@
     <string name="analysis_failed_title">분석을 완료하지 못했어요.</string>
     <string name="analysis_failed_recording_kept">녹음한 연주는 그대로 있어요.</string>
     <!-- 분석 실패 사유별 안내(PRA-03 스펙 문구 초안). 사용자 잘못이 아닌 실패는 연주를 탓하지 않는다. -->
-    <string name="analysis_failed_no_sound">소리가 들리지 않았어요. 마이크 가까이에서 다시 불어 주세요.</string>
+    <string name="analysis_failed_no_sound">소리가 들리지 않았어요.\n마이크 가까이에서 다시 불어 주세요.</string>
     <string name="analysis_failed_too_short">녹음이 끝까지 저장되지 않았어요. 다시 연주해 주세요.</string>
     <string name="analysis_failed_decode_error">녹음 파일을 읽지 못했어요. 다시 연주해 주세요.</string>
     <string name="analysis_failed_upload_timeout">시간이 지나 이 녹음을 보낼 수 없게 됐어요. 불편을 드려 죄송해요.</string>
