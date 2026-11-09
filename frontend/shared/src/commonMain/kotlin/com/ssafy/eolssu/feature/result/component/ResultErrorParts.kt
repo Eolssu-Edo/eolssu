@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.EvaluationResult
@@ -34,11 +37,9 @@ import com.ssafy.eolssu.core.ui.score.ErrorKindTag
 import com.ssafy.eolssu.core.ui.score.errorKindLabel
 import com.ssafy.eolssu.core.ui.score.ErrorMarkBox
 import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
-import com.ssafy.eolssu.feature.result.ErrorFilter
 import com.ssafy.eolssu.feature.result.ScoreCellPosition
 import com.ssafy.eolssu.feature.result.errorKindsAt
 import com.ssafy.eolssu.feature.result.shownUnit
-import com.ssafy.eolssu.feature.result.errorCount
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.result_cell_error
 import eolssu.shared.generated.resources.result_cell_missed_body
@@ -60,62 +61,6 @@ import eolssu.shared.generated.resources.result_filter_rhythm
 import eolssu.shared.generated.resources.score_hold
 import eolssu.shared.generated.resources.score_rest
 import org.jetbrains.compose.resources.stringResource
-
-/**
- * 오류 종류 필터(전체·음정·박자·길이·미검출). 고른 종류의 틀린 정간만 정간보에 색칠한다.
- * [hideEmptyMissed]이면 미검출이 없을 때 그 칩을 뺀다(2차 오류 위치 RESULT-03은 네 칩).
- */
-@Composable
-fun ErrorFilterChips(
-    result: EvaluationResult,
-    selected: ErrorFilter,
-    onSelect: (ErrorFilter) -> Unit,
-    modifier: Modifier = Modifier,
-    hideEmptyMissed: Boolean = false,
-) {
-    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        ErrorFilter.entries.filterNot { hideEmptyMissed && it == ErrorFilter.Missed && result.errorCount(it) == 0 }.forEach { filter ->
-            FilterChip(filter, result.errorCount(filter), on = filter == selected) { onSelect(filter) }
-        }
-    }
-}
-
-@Composable
-private fun FilterChip(filter: ErrorFilter, count: Int, on: Boolean, onClick: () -> Unit) {
-    val colors = EolssuTheme.colors
-    val label = stringResource(
-        when (filter) {
-            ErrorFilter.All -> Res.string.result_filter_all
-            ErrorFilter.Pitch -> Res.string.result_filter_pitch
-            ErrorFilter.Rhythm -> Res.string.result_filter_rhythm
-            ErrorFilter.Length -> Res.string.result_filter_length
-            ErrorFilter.Missed -> Res.string.result_filter_missed
-        },
-        count,
-    )
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.height(34.dp).semantics { selected = on },
-        shape = CircleShape,
-        color = if (on) colors.primary else colors.background,
-        contentColor = if (on) colors.onPrimary else colors.text,
-        border = BorderStroke(1.dp, if (on) colors.accentText else colors.line),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            val kind = filter.kind
-            if (kind == null) {
-                Box(Modifier.size(10.dp).background(if (on) colors.onPrimary else colors.primary, RoundedCornerShape(3.dp)))
-            } else {
-                ErrorMarkBox(kind, Modifier.size(10.dp))
-            }
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), maxLines = 1)
-        }
-    }
-}
 
 /**
  * 고른 칸 설명: 칸의 글자 · 위치와 음 이름 · 오류 종류. 틀리지 않은 칸이면 그렇다고 알린다.

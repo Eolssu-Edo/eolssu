@@ -1,48 +1,102 @@
 package com.ssafy.eolssu.feature.song.edit.component
 
 import androidx.compose.foundation.BorderStroke
+import eolssu.shared.generated.resources.sheetedit_register_jungcheong_short
+import eolssu.shared.generated.resources.sheetedit_register_baetak_short
+import eolssu.shared.generated.resources.sheetedit_selected_sub
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ssafy.eolssu.core.model.ScoreNote
+import com.ssafy.eolssu.core.model.Yul
 import com.ssafy.eolssu.core.theme.EolssuTheme
-import com.ssafy.eolssu.core.ui.component.EolssuSwitch
 import com.ssafy.eolssu.core.ui.component.jangdanLabel
+import com.ssafy.eolssu.core.ui.score.ScoreNoteGlyph
 import com.ssafy.eolssu.core.ui.score.ScoreSigimsaeGlyph
+import com.ssafy.eolssu.core.ui.score.scoreSigimsaeImage
+import com.ssafy.eolssu.feature.song.edit.BaseYuls
 import com.ssafy.eolssu.feature.song.edit.EditTab
 import com.ssafy.eolssu.feature.song.edit.SheetDraft
 import com.ssafy.eolssu.feature.song.edit.Sigimsae
-import com.ssafy.eolssu.feature.song.edit.StaffPitchOrder
+import com.ssafy.eolssu.feature.song.edit.YulRegister
+import com.ssafy.eolssu.feature.song.edit.YulTextOutcome
+import com.ssafy.eolssu.feature.song.edit.isAvailablePitch
+import com.ssafy.eolssu.feature.song.edit.isPitch
+import com.ssafy.eolssu.feature.song.edit.pitchKey
+import com.ssafy.eolssu.feature.song.edit.pitchNote
+import com.ssafy.eolssu.feature.song.edit.resolveYulText
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.score_blank
 import eolssu.shared.generated.resources.score_hold
@@ -60,38 +114,55 @@ import eolssu.shared.generated.resources.sheetedit_erase
 import eolssu.shared.generated.resources.sheetedit_key_hold
 import eolssu.shared.generated.resources.sheetedit_key_input
 import eolssu.shared.generated.resources.sheetedit_key_rest
-import eolssu.shared.generated.resources.sheetedit_next_cell
-import eolssu.shared.generated.resources.sheetedit_prev_cell
+import eolssu.shared.generated.resources.sheetedit_key_unavailable
+import eolssu.shared.generated.resources.sheetedit_register_base
+import eolssu.shared.generated.resources.sheetedit_register_baetak
+import eolssu.shared.generated.resources.sheetedit_register_cheong
+import eolssu.shared.generated.resources.sheetedit_register_cheong_name
+import eolssu.shared.generated.resources.sheetedit_register_hint
+import eolssu.shared.generated.resources.sheetedit_register_jungcheong
+import eolssu.shared.generated.resources.sheetedit_register_now
+import eolssu.shared.generated.resources.sheetedit_register_reset
+import eolssu.shared.generated.resources.sheetedit_register_tak
+import eolssu.shared.generated.resources.sheetedit_register_tak_name
 import eolssu.shared.generated.resources.sheetedit_selected
 import eolssu.shared.generated.resources.sheetedit_selected_sigimsae
 import eolssu.shared.generated.resources.sheetedit_sig_chuseong
-import eolssu.shared.generated.resources.sheetedit_sig_chuseong_desc
-import eolssu.shared.generated.resources.sheetedit_sig_clear
 import eolssu.shared.generated.resources.sheetedit_sig_jeonseong
-import eolssu.shared.generated.resources.sheetedit_sig_jeonseong_desc
-import eolssu.shared.generated.resources.sheetedit_sig_show
-import eolssu.shared.generated.resources.sheetedit_sig_show_desc
+import eolssu.shared.generated.resources.sheetedit_sig_limit
+import eolssu.shared.generated.resources.sheetedit_sig_need_pitch
+import eolssu.shared.generated.resources.sheetedit_sig_none
+import eolssu.shared.generated.resources.sheetedit_sig_remove
+import eolssu.shared.generated.resources.sheetedit_sig_scroll_hint
 import eolssu.shared.generated.resources.sheetedit_sig_toeseong
-import eolssu.shared.generated.resources.sheetedit_sig_toeseong_desc
 import eolssu.shared.generated.resources.sheetedit_sig_yoseong
-import eolssu.shared.generated.resources.sheetedit_sig_yoseong_desc
 import eolssu.shared.generated.resources.sheetedit_tab_cell
 import eolssu.shared.generated.resources.sheetedit_tab_sigimsae
 import eolssu.shared.generated.resources.sheetedit_tab_yul
+import eolssu.shared.generated.resources.sheetedit_text_incomplete
+import eolssu.shared.generated.resources.sheetedit_text_label
+import eolssu.shared.generated.resources.sheetedit_text_placeholder
+import eolssu.shared.generated.resources.sheetedit_text_preview
+import eolssu.shared.generated.resources.sheetedit_text_submit
+import eolssu.shared.generated.resources.sheetedit_text_unavailable
+import eolssu.shared.generated.resources.sheetedit_text_unknown
 import eolssu.shared.generated.resources.sheetedit_where_short
+import eolssu.shared.generated.resources.sheetedit_yul_scroll_hint
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-/** 편집 입력판이 부르는 동작. */
+/** 편집 입력판이 부르는 동작. 율명 버튼과 한글 직접 입력은 같은 [onPutYulAt]으로 같은 음 데이터를 적는다. */
 class EditInputActions(
     val onSelectTab: (EditTab) -> Unit,
     val onPut: (ScoreNote) -> Unit,
-    val onPrevious: () -> Unit,
-    val onNext: () -> Unit,
+    val onPutYul: (Yul) -> Unit,
+    val onPutYulAt: (Yul, Int) -> Unit,
+    val onRaiseRegister: () -> Unit,
+    val onLowerRegister: () -> Unit,
+    val onResetRegister: () -> Unit,
     val onErase: () -> Unit,
-    val onSigimsae: (Sigimsae) -> Unit,
-    val onToggleSigimsae: () -> Unit,
-    val onClearSigimsae: () -> Unit,
+    val onToggleSigimsae: (Sigimsae) -> Unit,
+    val onRemoveSigimsae: (Int) -> Unit,
     val onSplit: () -> Unit,
     val onMerge: () -> Unit,
     val onAddColumn: () -> Unit,
@@ -101,18 +172,37 @@ class EditInputActions(
 
 /**
  * EDIT-02 아래 입력판(위 모서리 20): 고른 정간 정보 · '자동 임시저장됨', 탭 율명·기호 / 시김새 / 정간·장단.
+ *
+ * @param register 다음 율명에 붙일 음역 단계.
+ * @param availablePitches 서버에 등록된 (율명, 옥타브). null이면 모두 누를 수 있고 서버 저장 때 확인한다.
  */
 @Composable
 internal fun EditInputPanel(
     draft: SheetDraft,
     selected: Int,
+    selectedSub: Int?,
     tab: EditTab,
-    showSigimsae: Boolean,
+    register: YulRegister,
+    availablePitches: Set<Pair<String, Int>>?,
     actions: EditInputActions,
     modifier: Modifier = Modifier,
 ) {
     val colors = EolssuTheme.colors
     val shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    // 한글 입력칸을 눌러 키보드가 올라오면 입력 줄만 남겨 악보가 가려지지 않게 한다. 키보드를 내리면 원래 입력판으로 돌아간다.
+    var typingFocused by remember { mutableStateOf(false) }
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val focusManager = LocalFocusManager.current
+    var keyboardSeen by remember { mutableStateOf(false) }
+    LaunchedEffect(keyboardOpen, typingFocused) {
+        if (typingFocused && keyboardOpen) keyboardSeen = true
+        if (typingFocused && keyboardSeen && !keyboardOpen) {
+            focusManager.clearFocus()
+            keyboardSeen = false
+        }
+        if (!typingFocused) keyboardSeen = false
+    }
+    val typing = typingFocused && keyboardOpen && tab == EditTab.Yul
     Column(
         modifier
             .fillMaxWidth()
@@ -121,20 +211,21 @@ internal fun EditInputPanel(
             .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (!typing) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(stringResource(Res.string.sheetedit_selected)) }
                     append(" · ")
-                    append(selectedCellInfo(draft, selected))
+                    append(selectedCellInfo(draft, selected, selectedSub))
                 },
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(stringResource(Res.string.sheetedit_autosaved), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
         }
-        SegmentTabs(
+        if (!typing) SegmentTabs(
             labels = listOf(stringResource(Res.string.sheetedit_tab_yul), stringResource(Res.string.sheetedit_tab_sigimsae), stringResource(Res.string.sheetedit_tab_cell)),
             selected = tab.ordinal,
             onSelect = { actions.onSelectTab(EditTab.entries[it]) },
@@ -142,24 +233,26 @@ internal fun EditInputPanel(
             frameColor = colors.surfaceStrong,
         )
         when (tab) {
-            EditTab.Yul -> YulKeys(actions)
-            EditTab.Sigimsae -> SigimsaeKeys(draft.sigimsae[selected], showSigimsae, actions)
+            EditTab.Yul -> YulKeys(draft, selected, selectedSub, register, availablePitches, typing, { typingFocused = it }, actions)
+            EditTab.Sigimsae -> SigimsaeKeys(draft, selected, draft.sigimsaeSub(selected, selectedSub), actions)
             EditTab.Cell -> CellTools(draft, actions)
         }
     }
 }
 
-/** '5각 5정간 · 南 남려 · 시김새 요성'. 빈 정간은 '빈 정간'. */
+/** '5각 5정간 · 南 남려 · 시김새 요성·추성'. 소박을 골랐으면 '5각 5정간 소박 2/3'. 빈 정간은 '빈 정간'. */
 @Composable
-private fun selectedCellInfo(draft: SheetDraft, index: Int): String {
-    val where = stringResource(Res.string.sheetedit_where_short, draft.columnOf(index) + 1, draft.rowOf(index) + 1)
+private fun selectedCellInfo(draft: SheetDraft, index: Int, sub: Int?): String {
+    val cell = stringResource(Res.string.sheetedit_where_short, draft.columnOf(index) + 1, draft.rowOf(index) + 1)
+    val where = if (sub == null) cell else cell + " " + stringResource(Res.string.sheetedit_selected_sub, sub + 1, draft.cells[index].size)
     val notes = draft.cells[index].filter { it != ScoreNote.Blank }
     val content = if (notes.isEmpty()) {
         stringResource(Res.string.score_blank)
     } else {
         notes.joinToString("") { it.symbol } + " " + notes.map { noteName(it) }.joinToString("·")
     }
-    val sigimsae = draft.sigimsae[index]?.let { stringResource(Res.string.sheetedit_selected_sigimsae, stringResource(sigimsaeName(it))) }
+    val signs = draft.sigimsaeAt(index, draft.sigimsaeSub(index, sub)).map { sigimsaeLabel(it) }
+    val sigimsae = if (signs.isEmpty()) null else stringResource(Res.string.sheetedit_selected_sigimsae, signs.joinToString("·"))
     return listOfNotNull(where, content, sigimsae).joinToString(" · ")
 }
 
@@ -172,144 +265,438 @@ private fun noteName(note: ScoreNote): String = when (note) {
     ScoreNote.Blank -> stringResource(Res.string.score_blank)
 }
 
-internal fun sigimsaeName(value: Sigimsae): StringResource = when (value) {
-    Sigimsae.Yoseong -> Res.string.sheetedit_sig_yoseong
-    Sigimsae.Toeseong -> Res.string.sheetedit_sig_toeseong
-    Sigimsae.Chuseong -> Res.string.sheetedit_sig_chuseong
-    Sigimsae.Jeonseong -> Res.string.sheetedit_sig_jeonseong
-}
-
-private fun sigimsaeDescription(value: Sigimsae): StringResource = when (value) {
-    Sigimsae.Yoseong -> Res.string.sheetedit_sig_yoseong_desc
-    Sigimsae.Toeseong -> Res.string.sheetedit_sig_toeseong_desc
-    Sigimsae.Chuseong -> Res.string.sheetedit_sig_chuseong_desc
-    Sigimsae.Jeonseong -> Res.string.sheetedit_sig_jeonseong_desc
-}
-
-/** 율명 8개와 지속(ㅡ)·쉼(△) 자판(5열), 이전·다음 정간, 지우기. */
+/** 처음부터 있던 네 시김새는 앱 문구로, 나머지는 공통 렌더러에 등록된 이름 그대로 적는다. */
 @Composable
-private fun YulKeys(actions: EditInputActions) {
-    val keys: List<Pair<ScoreNote, String>> = StaffPitchOrder.map { ScoreNote.Pitch(it) to it.hangul } +
-        listOf(ScoreNote.Hold to stringResource(Res.string.sheetedit_key_hold), ScoreNote.Rest to stringResource(Res.string.sheetedit_key_rest))
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        keys.chunked(5).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { (note, label) -> YulKey(note, label, { actions.onPut(note) }) }
-            }
+internal fun sigimsaeLabel(value: Sigimsae): String = legacySigimsaeName(value)?.let { stringResource(it) } ?: value.name
+
+private fun legacySigimsaeName(value: Sigimsae): StringResource? = when (value.name) {
+    Sigimsae.Yoseong.name -> Res.string.sheetedit_sig_yoseong
+    Sigimsae.Toeseong.name -> Res.string.sheetedit_sig_toeseong
+    Sigimsae.Chuseong.name -> Res.string.sheetedit_sig_chuseong
+    Sigimsae.Jeonseong.name -> Res.string.sheetedit_sig_jeonseong
+    else -> null
+}
+
+private fun registerName(register: YulRegister): StringResource = when (register) {
+    YulRegister.BaeTak -> Res.string.sheetedit_register_baetak
+    YulRegister.Tak -> Res.string.sheetedit_register_tak_name
+    YulRegister.Base -> Res.string.sheetedit_register_base
+    YulRegister.Cheong -> Res.string.sheetedit_register_cheong_name
+    YulRegister.JungCheong -> Res.string.sheetedit_register_jungcheong
+}
+
+/**
+ * 율명·기호 탭: `[탁] [청] [기본] 음역 · 청성` 줄, 12율 가로 스크롤 자판, 지속(ㅡ)·쉼(△)과 한글 직접 입력, 고른 정간 지우기.
+ * 자판 글자는 지금 음역 단계를 붙인 모양(청성이면 汰)으로 바뀌고, 서버에 등록되지 않은 음은 흐리게 막는다.
+ */
+@Composable
+private fun YulKeys(
+    draft: SheetDraft,
+    selected: Int,
+    selectedSub: Int?,
+    register: YulRegister,
+    available: Set<Pair<String, Int>>?,
+    typing: Boolean,
+    onTypingFocus: (Boolean) -> Unit,
+    actions: EditInputActions,
+) {
+    val colors = EolssuTheme.colors
+    // 소박을 골랐으면 그 소박의 음만, 아니면 정간의 모든 음을 자판에 표시한다.
+    val notes = selectedSub?.let { listOfNotNull(draft.cells[selected].getOrNull(it)) } ?: draft.cells[selected]
+    val current = notes.mapNotNull { it.pitchKey() }.toSet()
+    val entryRow: @Composable () -> Unit = {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
+            SymbolKey(ScoreNote.Hold, stringResource(Res.string.sheetedit_key_hold), ScoreNote.Hold in notes) { actions.onPut(ScoreNote.Hold) }
+            SymbolKey(ScoreNote.Rest, stringResource(Res.string.sheetedit_key_rest), ScoreNote.Rest in notes) { actions.onPut(ScoreNote.Rest) }
+            YulTextEntry(available, actions, onTypingFocus, Modifier.weight(1f))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ToolButton(stringResource(Res.string.sheetedit_prev_cell), actions.onPrevious, Modifier.weight(2f))
-            ToolButton(stringResource(Res.string.sheetedit_next_cell), actions.onNext, Modifier.weight(2f))
-            val eraseLabel = stringResource(Res.string.sheetedit_erase)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (!typing) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                RegisterButton("亻", registerShortName(if (register.octave == -2) YulRegister.BaeTak else YulRegister.Tak), on = register.octave < 0, onClick = actions.onLowerRegister)
+                RegisterButton("氵", registerShortName(if (register.octave == 2) YulRegister.JungCheong else YulRegister.Cheong), on = register.octave > 0, onClick = actions.onRaiseRegister)
+                PillChip(stringResource(Res.string.sheetedit_register_reset), selected = register == YulRegister.Base, onClick = actions.onResetRegister)
+                Text(
+                    stringResource(Res.string.sheetedit_register_now, stringResource(registerName(register))),
+                    modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                    color = if (register == YulRegister.Base) colors.textMuted else colors.text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            val listState = rememberLazyListState()
+            Box {
+                LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
+                    items(BaseYuls, key = { it.name }) { base ->
+                        val note = draft.pitchNote(base, register.octave)
+                        YulKey(
+                            note = note,
+                            enabled = isAvailablePitch(available, base, register.octave),
+                            selected = (base to register.octave) in current,
+                            onClick = { actions.onPutYul(base) },
+                        )
+                    }
+                }
+                ScrollFades(listState)
+            }
+            HintText(
+                if (register == YulRegister.Base) stringResource(Res.string.sheetedit_yul_scroll_hint) else stringResource(Res.string.sheetedit_register_hint),
+            )
+        }
+        entryRow()
+        // 다른 정간은 악보에서 직접 눌러 고른다(S15P31E102-550). 지우기는 한 줄을 다 쓰고 아이콘 옆에 글자를 둔다.
+        if (!typing) {
             Surface(
                 onClick = actions.onErase,
-                modifier = Modifier.weight(1f).heightIn(min = 44.dp).semantics { contentDescription = eraseLabel },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
                 shape = RoundedCornerShape(10.dp),
-                color = EolssuTheme.colors.primary,
-                contentColor = EolssuTheme.colors.onPrimary,
+                color = colors.primary,
+                contentColor = colors.onPrimary,
             ) {
-                Box(contentAlignment = Alignment.Center) { Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(20.dp)) }
+                Row(
+                    Modifier.padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(SheetEditIcons.Erase, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(stringResource(Res.string.sheetedit_erase), style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+                }
             }
         }
     }
 }
 
+/** 버튼 아래에 적는 음역 이름(탁·배탁·청·중청). */
 @Composable
-private fun RowScope.YulKey(note: ScoreNote, label: String, onClick: () -> Unit) {
+private fun registerShortName(register: YulRegister): String = stringResource(
+    when (register) {
+        YulRegister.BaeTak -> Res.string.sheetedit_register_baetak_short
+        YulRegister.Tak, YulRegister.Base -> Res.string.sheetedit_register_tak
+        YulRegister.Cheong -> Res.string.sheetedit_register_cheong
+        YulRegister.JungCheong -> Res.string.sheetedit_register_jungcheong_short
+    },
+)
+
+/**
+ * 음역 버튼: 위에 정간보의 변(탁 亻 · 청 氵), 아래에 율명 자판처럼 작고 옅은 한글 이름(두 번 누르면 배탁·중청).
+ * 음역이 걸려 있으면 연두 바탕에 먹색 테두리다.
+ */
+@Composable
+private fun RegisterButton(radical: String, name: String, on: Boolean, onClick: () -> Unit) {
     val colors = EolssuTheme.colors
-    val description = stringResource(Res.string.sheetedit_key_input, (note as? ScoreNote.Pitch)?.yul?.fullName ?: label)
     Surface(
         onClick = onClick,
-        modifier = Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = description },
+        modifier = Modifier.width(48.dp).heightIn(min = 48.dp).semantics {
+            selected = on
+            contentDescription = name
+        },
         shape = RoundedCornerShape(10.dp),
-        color = colors.surface,
-        contentColor = colors.text,
-        border = BorderStroke(1.dp, colors.lineSoft),
+        color = if (on) colors.primary else colors.surface,
+        contentColor = if (on) colors.onPrimary else colors.text,
+        border = BorderStroke(if (on) 2.dp else 1.dp, if (on) colors.text else colors.lineSoft),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
-            val symbolStyle = if (note is ScoreNote.Pitch) {
-                EolssuTheme.serif.yul.copy(fontSize = 19.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold)
-            } else {
-                MaterialTheme.typography.bodyLarge.copy(fontSize = 19.sp, lineHeight = 21.sp)
+            Text(radical, style = EolssuTheme.serif.yul.copy(fontSize = 19.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold))
+            Text(name, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = if (on) colors.text else colors.textMuted, maxLines = 1)
+        }
+    }
+}
+
+/** 율명 자판 한 칸(52dp): 지금 음역의 정간보 글자와 한글 이름. 고른 정간에 이미 있는 음이면 먹색 테두리다. */
+@Composable
+private fun YulKey(note: ScoreNote, enabled: Boolean, selected: Boolean, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val source = note as? ScoreNote.SourcePitch
+    val hangul = source?.hangul ?: (note as? ScoreNote.Pitch)?.yul?.hangul.orEmpty()
+    val fullName = source?.fullName ?: (note as? ScoreNote.Pitch)?.yul?.fullName.orEmpty()
+    val description = if (enabled) stringResource(Res.string.sheetedit_key_input, fullName) else stringResource(Res.string.sheetedit_key_unavailable, fullName)
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.width(52.dp).height(58.dp).alpha(if (enabled) 1f else 0.35f).semantics {
+            contentDescription = description
+            this.selected = selected
+            if (!enabled) disabled()
+        },
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) colors.accentTint else colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.text else colors.lineSoft),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.padding(vertical = 4.dp)) {
+            Box(Modifier.height(24.dp), contentAlignment = Alignment.Center) {
+                // 정간보 한자가 없는 음(중청대 등)은 렌더러처럼 한글로 적되, 자판 칸에 들어가게 작게 쓴다.
+                if (source != null && source.symbol == source.hangul) {
+                    Text(hangul, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+                } else {
+                    ScoreNoteGlyph(note, 19.sp)
+                }
             }
-            Text(note.symbol, style = symbolStyle)
+            Text(hangul, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textMuted, maxLines = 1)
+        }
+    }
+}
+
+/** 지속(ㅡ)·쉼(△) 자판. 음역과 상관없이 같은 기호를 적는다. */
+@Composable
+private fun SymbolKey(note: ScoreNote, label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val description = stringResource(Res.string.sheetedit_key_input, label)
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.width(52.dp).height(48.dp).semantics { contentDescription = description; this.selected = selected },
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) colors.accentTint else colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) colors.text else colors.lineSoft),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(note.symbol, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 19.sp))
             Text(label, style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 12.sp), color = colors.textMuted)
         }
     }
 }
 
+/**
+ * 한글 직접 입력: '청태'처럼 쓰고 '적기'(또는 키보드 완료)를 누르면 버튼과 같은 율명으로 적는다.
+ * 입력 중(IME 조합 중)에는 오류를 보이지 않고, 읽을 수 있으면 적힐 율명을 미리 보인다. 읽지 못하면 바꾸지 않고 알린다.
+ */
+@Composable
+private fun YulTextEntry(available: Set<Pair<String, Int>>?, actions: EditInputActions, onFocus: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val colors = EolssuTheme.colors
+    var value by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
+    var failed by rememberSaveable { mutableStateOf<String?>(null) }
+    // 미리보기는 읽을 수 있을 때만 보이고, 오류는 '적기'를 누른 뒤에만 보인다. 그래서 조합 중인 글자를 오류로 다루지 않는다.
+    val outcome = if (value.text.isBlank()) null else resolveYulText(value.text, available)
+    fun submit() {
+        val text = value.text
+        if (text.isBlank()) return // 하드웨어 Enter에서 키보드 '완료'와 Enter가 함께 와도 한 번만 적는다.
+        when (val result = resolveYulText(text, available)) {
+            is YulTextOutcome.PutPitch -> actions.onPutYulAt(result.base, result.octave)
+            is YulTextOutcome.PutSymbol -> actions.onPut(result.note)
+            else -> {
+                failed = text
+                return
+            }
+        }
+        failed = null
+        value = TextFieldValue("", TextRange.Zero)
+    }
+    val label = stringResource(Res.string.sheetedit_text_label)
+    val message: Pair<String, Boolean>? = when {
+        failed != null && failed == value.text -> when (val result = resolveYulText(failed.orEmpty(), available)) {
+            YulTextOutcome.Incomplete -> stringResource(Res.string.sheetedit_text_incomplete) to true
+            is YulTextOutcome.Unavailable -> stringResource(Res.string.sheetedit_text_unavailable,
+                ScoreNote.SourcePitch(result.base.hangul, result.octave).hangul) to true
+            else -> stringResource(Res.string.sheetedit_text_unknown, failed.orEmpty().trim()) to true
+        }
+        outcome is YulTextOutcome.PutPitch -> stringResource(Res.string.sheetedit_text_preview,
+            ScoreNote.SourcePitch(outcome.base.hangul, outcome.octave).let { "${it.symbol} ${it.hangul}" }) to false
+        outcome is YulTextOutcome.PutSymbol -> stringResource(Res.string.sheetedit_text_preview, outcome.note.symbol) to false
+        else -> null
+    }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            val shape = RoundedCornerShape(10.dp)
+            val textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, color = colors.text)
+            BasicTextField(
+                value = value,
+                onValueChange = { value = it },
+                singleLine = true,
+                textStyle = textStyle,
+                cursorBrush = SolidColor(colors.text),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
+                // 웹은 한글 조합이 끝나지 않은 채로 Enter가 와서 키보드 '완료'가 불리지 않는다. Enter를 놓을 때도 적는다.
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = label }
+                    .onFocusChanged { onFocus(it.isFocused) }
+                    .onPreviewKeyEvent { event ->
+                        if (event.key == Key.Enter && event.type == KeyEventType.KeyUp) { submit(); true } else false
+                    },
+                decorationBox = { inner ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .background(colors.surface, shape)
+                            .border(if (message?.second == true) 1.5.dp else 1.dp, if (message?.second == true) colors.rec else colors.lineSoft, shape)
+                            .padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (value.text.isEmpty()) Text(
+                            stringResource(Res.string.sheetedit_text_placeholder),
+                            style = textStyle.copy(fontSize = 12.sp),
+                            color = colors.textMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        inner()
+                    }
+                },
+            )
+            ToolButton(stringResource(Res.string.sheetedit_text_submit), ::submit, enabled = value.text.isNotBlank())
+        }
+        if (message != null) Text(
+            message.first,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 14.sp),
+            color = if (message.second) colors.rec else colors.textMuted,
+            maxLines = 2,
+        )
+    }
+}
+
+/** 가로로 밀 수 있는 목록 양 끝을 입력판 바탕색으로 흐리게 해 더 있다는 것을 알린다. */
+@Composable
+private fun BoxScope.ScrollFades(state: LazyListState) {
+    val surface = EolssuTheme.colors.surface
+    // matchParentSize: 흐림 상자가 목록 높이를 키우지 않고 목록 크기에 맞춘다.
+    Box(Modifier.matchParentSize()) {
+        if (state.canScrollBackward) Box(
+            Modifier.align(Alignment.CenterStart).width(20.dp).fillMaxHeight()
+                .background(Brush.horizontalGradient(listOf(surface, Color.Transparent))),
+        )
+        if (state.canScrollForward) Box(
+            Modifier.align(Alignment.CenterEnd).width(28.dp).fillMaxHeight()
+                .background(Brush.horizontalGradient(listOf(Color.Transparent, surface))),
+        )
+    }
+}
+
 /** 흰 바탕 테두리 도구 버튼(44dp · 13sp 600). */
 @Composable
-private fun ToolButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ToolButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 44.dp),
+        enabled = enabled,
+        modifier = modifier.heightIn(min = 44.dp).alpha(if (enabled) 1f else 0.5f),
         shape = RoundedCornerShape(10.dp),
         color = colors.surface,
         contentColor = colors.text,
         border = BorderStroke(1.dp, colors.lineSoft),
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold))
+            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
         }
     }
 }
 
-/** 시김새 네 가지(2열 카드) · '시김새 작게 표시' 스위치 · 고른 정간의 시김새 지우기. */
+/**
+ * 시김새 탭: 고른 정간에 붙인 시김새 알약(붙인 순서, ×를 누르면 뗌)과 등록된 시김새 전체의 가로 스크롤 목록(누르면 붙이거나 뗌).
+ * 나눈 정간은 고른 소박([sub])에 붙인다. 율명이 아닌 소박이나 [SheetDraft.MAX_SIGIMSAE]개를 채운 소박에는 더 붙이지 않는다.
+ */
 @Composable
-private fun SigimsaeKeys(current: Sigimsae?, show: Boolean, actions: EditInputActions) {
+private fun SigimsaeKeys(draft: SheetDraft, selected: Int, sub: Int, actions: EditInputActions) {
     val colors = EolssuTheme.colors
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Sigimsae.entries.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { value ->
-                    val on = value == current
-                    Surface(
-                        onClick = { actions.onSigimsae(value) },
-                        modifier = Modifier.weight(1f).semantics { selected = on },
-                        shape = RoundedCornerShape(10.dp),
-                        color = colors.surface,
-                        contentColor = colors.text,
-                        border = BorderStroke(2.dp, if (on) colors.text else colors.lineSoft),
-                    ) {
-                        Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            SigimsaeTile(value)
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(sigimsaeName(value)), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
-                                Text(
-                                    stringResource(sigimsaeDescription(value)),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, lineHeight = 13.sp),
-                                    color = colors.textMuted,
-                                )
-                            }
-                        }
-                    }
+    val added = draft.sigimsaeAt(selected, sub)
+    val hasPitch = draft.cells[selected].getOrNull(sub)?.isPitch() == true
+    val full = added.size >= SheetDraft.MAX_SIGIMSAE
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 36.dp).background(colors.background, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (added.isEmpty()) {
+                Text(
+                    stringResource(if (hasPitch) Res.string.sheetedit_sig_none else Res.string.sheetedit_sig_need_pitch),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                    color = colors.textMuted,
+                )
+            } else {
+                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    added.forEachIndexed { position, value -> AddedSigimsae(value) { actions.onRemoveSigimsae(position) } }
                 }
             }
         }
-        Row(
-            Modifier.fillMaxWidth().background(colors.background, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(Res.string.sheetedit_sig_show), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
-                Text(stringResource(Res.string.sheetedit_sig_show_desc), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
+        val listState = rememberLazyListState()
+        Box {
+            LazyRow(state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(end = 4.dp)) {
+                itemsIndexed(Sigimsae.entries, key = { _, value -> value.name }) { _, value ->
+                    val order = added.indexOfFirst { it.name == value.name }
+                    SigimsaeCard(value, order, enabled = hasPitch && (order >= 0 || !full)) { actions.onToggleSigimsae(value) }
+                }
             }
-            EolssuSwitch(show, actions.onToggleSigimsae, stringResource(Res.string.sheetedit_sig_show), width = 40.dp, height = 24.dp, offColor = colors.surfaceStrong)
+            ScrollFades(listState)
         }
-        ToolButton(stringResource(Res.string.sheetedit_sig_clear), actions.onClearSigimsae, Modifier.fillMaxWidth())
+        HintText(
+            if (full) stringResource(Res.string.sheetedit_sig_limit, SheetDraft.MAX_SIGIMSAE)
+            else stringResource(Res.string.sheetedit_sig_scroll_hint, Sigimsae.entries.size),
+        )
     }
 }
 
-/** 시김새 기호 견본(30dp 점선 상자). 공통 렌더러의 기호 그림을 쓰고, 그림이 없는 시김새는 이름을 적는다. */
+/** 붙인 시김새 한 개(기호 · 이름 · ×). 붙인 순서대로 놓이고, 누르면 그 시김새만 뗀다. */
+@Composable
+private fun AddedSigimsae(value: Sigimsae, onRemove: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val name = sigimsaeLabel(value)
+    val description = stringResource(Res.string.sheetedit_sig_remove, name)
+    Surface(
+        onClick = onRemove,
+        modifier = Modifier.heightIn(min = 32.dp).semantics { contentDescription = description },
+        shape = CircleShape,
+        color = colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(1.dp, colors.text),
+    ) {
+        Row(Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // 그림이 없으면 이름이 바로 옆에 있으니 대신 적는 글자를 두 번 쓰지 않는다.
+            if (scoreSigimsaeImage(value.scoreName) != null) ScoreSigimsaeGlyph(value.scoreName, 12.sp)
+            Text(name, style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1)
+            Text("×", style = MaterialTheme.typography.labelSmall.copy(fontSize = 13.sp), color = colors.textMuted)
+        }
+    }
+}
+
+/** 시김새 목록 한 칸(76 × 66dp): 기호와 이름만 가운데 정렬한다. 붙어 있으면 먹색 테두리와 순서 번호. */
+@Composable
+private fun SigimsaeCard(value: Sigimsae, order: Int, enabled: Boolean, onClick: () -> Unit) {
+    val colors = EolssuTheme.colors
+    val on = order >= 0
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.width(76.dp).height(66.dp).alpha(if (enabled) 1f else 0.4f).semantics { selected = on },
+        shape = RoundedCornerShape(10.dp),
+        color = if (on) colors.accentTint else colors.surface,
+        contentColor = colors.text,
+        border = BorderStroke(2.dp, if (on) colors.text else colors.lineSoft),
+    ) {
+        Box {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
+            ) {
+                SigimsaeTile(value)
+                Text(
+                    sigimsaeLabel(value),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (on) Box(
+                Modifier.align(Alignment.TopEnd).padding(4.dp).size(16.dp).background(colors.text, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("${order + 1}", style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold), color = colors.surface)
+            }
+        }
+    }
+}
+
+/** 시김새 기호 견본(26dp 점선 상자). 공통 렌더러의 기호 그림을 쓰고, 그림이 없는 시김새는 이름을 적는다. */
 @Composable
 private fun SigimsaeTile(value: Sigimsae) {
     val colors = EolssuTheme.colors
     Box(
         Modifier
-            .size(30.dp)
+            .size(26.dp)
             .drawBehind {
                 drawRoundRect(
                     colors.textDisabled,
@@ -319,7 +706,18 @@ private fun SigimsaeTile(value: Sigimsae) {
             },
         contentAlignment = Alignment.Center,
     ) {
-        ScoreSigimsaeGlyph(value.scoreName, 14.sp)
+        if (scoreSigimsaeImage(value.scoreName) != null) {
+            ScoreSigimsaeGlyph(value.scoreName, 13.sp)
+        } else {
+            // 그림이 없는 시김새(전성)는 이름을 상자 안에 들어가게 작게 한 줄로 적는다.
+            Text(
+                value.name,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 10.sp, letterSpacing = 0.sp),
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
+            )
+        }
     }
 }
 

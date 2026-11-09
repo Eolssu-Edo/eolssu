@@ -11,9 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -86,13 +84,11 @@ internal fun HomeInkButton(
 
 @Composable
 private fun InkLabel(label: String, color: Color, fontFamily: FontFamily?) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, top = 10.dp, bottom = 10.dp, end = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center,
     ) {
         Text(label, color = color, style = MaterialTheme.typography.labelLarge.copy(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSynthesis = FontSynthesis.None, fontSize = 20.sp, lineHeight = 28.sp))
-        Text("→", color = color, fontSize = 24.sp, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 

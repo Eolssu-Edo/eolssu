@@ -70,7 +70,6 @@ import com.ssafy.eolssu.feature.practice.PracticeDraft
 import com.ssafy.eolssu.feature.practice.PracticePanel
 import com.ssafy.eolssu.feature.practice.PracticeUiState
 import com.ssafy.eolssu.feature.practice.TempoStep
-import eolssu.shared.generated.resources.jangdan_source
 import com.ssafy.eolssu.feature.practice.JangdanStatus
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.common_back
@@ -215,6 +214,7 @@ fun ColumnScope.PanelBody(panel: PracticePanel, state: PracticeUiState, song: So
 
 /**
  * PANEL-00 연습 설정: ‘연습 악기’ 고르기 → 쉬운 표기 · 장단 · 속도 메뉴 줄(`.menu-row`) → ‘운지법과 함께 보기’ 스위치(`.trow`).
+ * AI 연주 평가로 들어온 연습([PracticeUiState.solo]가 아님)은 고른 곡의 악기로 평가하므로 ‘연습 악기’를 두지 않는다(S15P31E102-561).
  */
 @Composable
 private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePanelActions) {
@@ -226,7 +226,7 @@ private fun SettingsMenu(state: PracticeUiState, song: Song, actions: PracticePa
     val locked = state.playbackSettingsLocked
     val lockedStatus = stringResource(Res.string.practice_settings_locked)
     Column {
-        InstrumentSelect(state.instrument, actions.onSetInstrument)
+        if (state.solo) InstrumentSelect(state.instrument, actions.onSetInstrument)
         MenuRow(
             EolssuIcons.NotationMark, stringResource(Res.string.practice_menu_notation),
             stringResource(if (notationOn) Res.string.practice_on else Res.string.practice_off),
@@ -409,7 +409,7 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
 }
 
 /**
- * PANEL-03 운지법: 이전·다음 음(악보의 앞뒤 정간) 사이 36sp 율명과 읽는 법, 악기 사진 위 구멍 표시와 범례, ‘음 듣기’, 막는 구멍·출처.
+ * PANEL-03 운지법: 이전·다음 음(악보의 앞뒤 정간) 사이 36sp 율명과 읽는 법, 악기 사진 위 구멍 표시와 범례, ‘음 듣기’, 막는 구멍.
  */
 @Composable
 private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions) {
@@ -456,7 +456,7 @@ private fun FingeringPanel(state: PracticeUiState, actions: PracticePanelActions
         TinyNote(
             if (note != null) {
                 val closed = note.holes.mapIndexedNotNull { i, h -> if (h == HoleState.Closed) holeName(instrument, i) else null }
-                stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) }, instrument.source)
+                stringResource(Res.string.practice_fingering_desc, closed.joinToString("·").ifEmpty { stringResource(Res.string.practice_fingering_none) })
             } else {
                 stringResource(Res.string.practice_fingering_missing, yul.fullName)
             },
@@ -494,7 +494,6 @@ private fun JangdanPanel(state: PracticeUiState, song: Song, actions: PracticePa
         )
     }
     TinyNote(jangdanHint(state))
-    TinyNote(stringResource(Res.string.jangdan_source))
     val perRow = minOf(jangdan.gak, 12)
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         (0 until jangdan.gak).chunked(perRow).forEach { rowCells ->

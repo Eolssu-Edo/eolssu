@@ -63,7 +63,6 @@ import eolssu.shared.generated.resources.song_difficulty_number
 import eolssu.shared.generated.resources.song_empty
 import eolssu.shared.generated.resources.song_empty_body
 import eolssu.shared.generated.resources.song_level_all
-import eolssu.shared.generated.resources.song_list_eyebrow
 import eolssu.shared.generated.resources.song_list_heading
 import eolssu.shared.generated.resources.song_list_intro
 import eolssu.shared.generated.resources.song_reset_filters
@@ -85,7 +84,6 @@ internal fun LazyListScope.songListItems(state: SongListUiState, actions: SongLi
     item(key = "heading") {
         PageHeading(
             title = stringResource(Res.string.song_list_heading),
-            eyebrow = stringResource(Res.string.song_list_eyebrow),
             intro = stringResource(Res.string.song_list_intro),
             modifier = Modifier.padding(bottom = 22.dp),
         )

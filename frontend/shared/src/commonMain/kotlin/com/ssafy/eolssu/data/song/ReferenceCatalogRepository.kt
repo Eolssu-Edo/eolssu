@@ -13,6 +13,9 @@ import kotlinx.serialization.Serializable
 /** CAT-06~10. 서버의 등록 자료만 반환한다. 학습 순서·운지 구멍 위치를 추정하지 않는다. */
 interface ReferenceCatalogRepository {
     suspend fun pitches(instrumentId: String): List<CatalogPitch>
+
+    /** 악기를 가리지 않은 등록 음 전체(CAT-06 `instrumentId` 생략). 내 악보 저장은 이 목록의 율명·옥타브만 받는다. */
+    suspend fun allPitches(): List<CatalogPitch> = throw CatalogUnavailable()
     suspend fun fingerings(instrumentId: String, pitchId: String? = null): CatalogFingerings
     suspend fun jangdans(): List<CatalogJangdanSummary>
     suspend fun jangdan(jangdanId: String): CatalogJangdanDetail?
@@ -22,7 +25,13 @@ interface ReferenceCatalogRepository {
 class ApiReferenceCatalogRepository(private val client: HttpClient) : ReferenceCatalogRepository {
     override suspend fun pitches(instrumentId: String): List<CatalogPitch> {
         requireCatalogId(instrumentId)
-        val response = client.sendOrNull { get("/api/pitches") { parameter("instrumentId", instrumentId) } }
+        return loadPitches(instrumentId)
+    }
+
+    override suspend fun allPitches(): List<CatalogPitch> = loadPitches(null)
+
+    private suspend fun loadPitches(instrumentId: String?): List<CatalogPitch> {
+        val response = client.sendOrNull { get("/api/pitches") { instrumentId?.let { parameter("instrumentId", it) } } }
             ?: throw CatalogUnavailable()
         val items = response.takeIf { it.status.value == 200 }?.apiResponse<PitchList>()
             ?.takeIf { it.isSuccess }?.result?.items ?: throw CatalogUnavailable()

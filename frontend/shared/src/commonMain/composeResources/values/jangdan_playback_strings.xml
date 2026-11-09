@@ -10,5 +10,4 @@
     <string name="jangdan_unsupported">이 환경 또는 속도에서는 장단 소리를 지원하지 않아요.</string>
     <string name="jangdan_failed">장단 소리를 재생하지 못했어요. 다시 재생해 주세요.</string>
     <string name="jangdan_interrupted">다른 소리나 기기 연결 변경으로 장단을 멈췄어요.</string>
-    <string name="jangdan_source">소리: 국립국악원 · 공공누리 제1유형(출처표시). 단타 추출 및 굿거리 굴림 5속도 가공.</string>
 </resources>

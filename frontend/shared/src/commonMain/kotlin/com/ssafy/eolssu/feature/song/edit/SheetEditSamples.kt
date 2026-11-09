@@ -30,7 +30,7 @@ internal object SheetEditSamples {
     const val IMPORT_FIRST_SELECTED = 40
 
     /** 와이어프레임의 예시 시김새: 3각 4정간 퇴성, 4각 4정간 요성. */
-    private val SampleSigimsae = mapOf(21 to Sigimsae.Toeseong, 30 to Sigimsae.Yoseong)
+    private val SampleSigimsae = mapOf(NoteSlot(21) to listOf(Sigimsae.Toeseong), NoteSlot(30) to listOf(Sigimsae.Yoseong))
 
     fun importFileName(kind: ImportKind): String = when (kind) {
         ImportKind.Jeongganbo -> "아리랑_정간보.jpg"
@@ -88,7 +88,7 @@ internal object SheetEditSamples {
         jangdan = requireNotNull(arirang.jangdan),
         bpm = arirang.baseBpm,
         cells = cells,
-        sigimsae = SampleSigimsae.filterKeys { cells[it].any(ScoreNote::isPitch) },
+        sigimsae = SampleSigimsae.filterKeys { cells[it.cell].getOrNull(it.sub)?.isPitch() == true },
     )
 
     private fun sheetDraft(sheet: MySheet?): SheetDraft {

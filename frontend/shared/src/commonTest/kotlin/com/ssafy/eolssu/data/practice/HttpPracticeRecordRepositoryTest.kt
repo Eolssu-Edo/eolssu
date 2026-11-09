@@ -5,6 +5,7 @@ import com.ssafy.eolssu.core.model.EvaluationResult
 import com.ssafy.eolssu.core.model.KoreanDateTime
 import com.ssafy.eolssu.core.model.MetricScore
 import com.ssafy.eolssu.core.model.ScoreError
+import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.network.createHttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -133,7 +134,8 @@ class HttpPracticeRecordRepositoryTest {
 
     @Test
     fun detailFillsScoresAndMemoAndClearsNew() = runTest {
-        val repo = repository(evaluation = result) { call ->
+        val withUnitErrors = result.copy(eventErrors = mapOf(2 to listOf(ScoreErrorKind.Pitch, ScoreErrorKind.Rhythm)))
+        val repo = repository(evaluation = withUnitErrors) { call ->
             when (call.path) {
                 "/api/users/me/practice-records" -> ok("""{"songs":[{"songId":"1"}],"songId":"1",
                     |"items":[${item("41", "1", "아리랑", "2026-10-20T06:20:00Z", isNew = true)}],"totalPages":1}""".trimMargin())
@@ -147,6 +149,7 @@ class HttpPracticeRecordRepositoryTest {
 
         assertEquals(result.metrics, detail.metrics)
         assertEquals(result.errors, detail.errors)
+        assertEquals(mapOf(2 to listOf(ScoreErrorKind.Pitch, ScoreErrorKind.Rhythm)), detail.eventErrors)
         assertEquals("다시 듣기", detail.memo)
         assertFalse(detail.recordingAvailable)
         assertFalse(repo.records.value.single().isNew)

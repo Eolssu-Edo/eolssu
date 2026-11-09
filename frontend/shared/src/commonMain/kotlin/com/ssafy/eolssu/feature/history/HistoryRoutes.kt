@@ -6,6 +6,8 @@ import eolssu.shared.generated.resources.record_play_unavailable
 import eolssu.shared.generated.resources.record_play_busy
 import eolssu.shared.generated.resources.record_play_failed
 import eolssu.shared.generated.resources.record_detail_failed
+import eolssu.shared.generated.resources.record_delete_busy
+import eolssu.shared.generated.resources.record_delete_failed
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -13,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,7 +35,6 @@ import kotlinx.coroutines.async
 import com.ssafy.eolssu.data.song.SongRepository
 import kotlinx.coroutines.CancellationException
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.common_coming_soon
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +46,7 @@ import org.koin.core.parameter.parametersOf
 
 /**
  * RECORD-01 연결. [justSavedId]는 결과 화면에서 방금 저장한 기록.
- * 태블릿 가로·넓은 웹 창에서는 오른쪽에 녹음 상세를 미리 보고, 기록을 누르면 단독 평가로 이동한다.
+ * 태블릿 가로·넓은 웹 창에서는 오른쪽에서 고른 기록의 결과와 녹음을 함께 보여준다.
  * [initialRecordId]는 가로 창에서 기록 상세 경로로 들어왔을 때 처음 고를 기록이다.
  */
 @Composable
@@ -56,8 +56,8 @@ fun RecordListRoute(
     onOpenGrowth: () -> Unit,
     onOpenRecord: (String) -> Unit,
     initialRecordId: String? = null,
+    onSelectSection: (recordId: String) -> Unit = {},
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
     viewModel: RecordListViewModel = koinViewModel(key = "records-$justSavedId") { parametersOf(justSavedId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,7 +71,7 @@ fun RecordListRoute(
     }
     val widthClass = currentWindowLayout().widthClass
     if (widthClass == WindowWidthClass.Expanded) {
-        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onWeakSection, onOpenRecord)
+        RecordsTwoPaneRoute(state, justSavedId, onBack, onOpenGrowth, viewModel, onCompare, onSelectSection)
     } else {
         RecordListScreen(state, widthClass, onBack, onOpenGrowth, viewModel::toggle, viewModel::changeSort, onOpenRecord, onRetry = viewModel::retry)
     }
@@ -89,8 +89,7 @@ private fun RecordsTwoPaneRoute(
     onOpenGrowth: () -> Unit,
     viewModel: RecordListViewModel,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
-    onOpenRecord: (String) -> Unit,
+    onSelectSection: (String) -> Unit,
 ) {
     val selectedId = state.selectedRecordId
     val detailViewModel: RecordDetailViewModel = koinViewModel(key = "records-pane-$justSavedId") { parametersOf(selectedId.orEmpty()) }
@@ -104,6 +103,7 @@ private fun RecordsTwoPaneRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     RecordNoticeEffect(detail.notice, snackbarHostState, detailViewModel::consumeNotice)
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { detailViewModel.pause() }
+    RecordDeleteEffect(detail.delete, snackbarHostState, detailViewModel::dismissDeleteError)
     RecordListScreen(
         state = state,
         widthClass = WindowWidthClass.Expanded,
@@ -111,14 +111,10 @@ private fun RecordsTwoPaneRoute(
         onOpenGrowth = onOpenGrowth,
         onToggle = viewModel::toggle,
         onSort = viewModel::changeSort,
-        onOpenRecord = { recordId ->
-            detailViewModel.pause()
-            viewModel.select(recordId)
-            onOpenRecord(recordId)
-        },
+        onOpenRecord = viewModel::select,
         onRetry = viewModel::retry,
         detail = detail,
-        detailActions = rememberRecordDetailActions(detailViewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        detailActions = rememberRecordDetailActions(detailViewModel, onBack, onCompare, onSelectSection),
         snackbarHostState = snackbarHostState,
     )
 }
@@ -127,27 +123,53 @@ private fun RecordsTwoPaneRoute(
  * RECORD-02 연결.
  *
  * @param onCompare ‘지난 연주와 비교’ → COMPARE-01(2차).
- * @param onWeakSection ‘취약 구간 연습하기’ → PRACTICE-02(2차). null이면 '준비 중' 안내를 띄운다.
  */
 @Composable
 fun RecordDetailRoute(
     recordId: String,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit = {},
-    onWeakSection: ((recordId: String) -> Unit)? = null,
+    onSelectSection: (recordId: String) -> Unit = {},
+    onDeleted: () -> Unit = onBack,
     viewModel: RecordDetailViewModel = koinViewModel(key = recordId) { parametersOf(recordId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     RecordNoticeEffect(state.notice, snackbarHostState, viewModel::consumeNotice)
+    DisposableEffect(viewModel) { onDispose { viewModel.pause() } }
+    RecordDeleteEffect(state.delete, snackbarHostState, viewModel::dismissDeleteError, onDeleted)
     // 앱을 벗어나면(홈 화면·전화) 녹음 재생을 멈춘다.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pause() }
     RecordDetailScreen(
         state = state,
         widthClass = currentWindowLayout().widthClass,
         snackbarHostState = snackbarHostState,
-        actions = rememberRecordDetailActions(viewModel, snackbarHostState, onBack, onCompare, onWeakSection),
+        actions = rememberRecordDetailActions(viewModel, onBack, onCompare, onSelectSection),
     )
+}
+
+/** 삭제 성공은 화면별로 처리하고, 실패는 현재 화면의 스낵바로 알린다. */
+@Composable
+private fun RecordDeleteEffect(
+    delete: RecordDeleteState,
+    snackbarHostState: SnackbarHostState,
+    dismissError: () -> Unit,
+    onDeleted: () -> Unit = {},
+) {
+    val message = when (delete) {
+        RecordDeleteState.Busy -> stringResource(Res.string.record_delete_busy)
+        RecordDeleteState.Failed -> stringResource(Res.string.record_delete_failed)
+        else -> null
+    }
+    val latestOnDeleted by rememberUpdatedState(onDeleted)
+    LaunchedEffect(delete) {
+        if (delete == RecordDeleteState.Deleted) latestOnDeleted()
+        else if (message != null) {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+            dismissError()
+        }
+    }
 }
 
 /** 기록 상세의 한 번짜리 안내를 스낵바로 보이고 지운다. */
@@ -171,24 +193,18 @@ private fun RecordNoticeEffect(notice: RecordNotice?, snackbarHostState: Snackba
     }
 }
 
-/**
- * 기록 상세 동작. 뒤로 가기·비교·취약 구간으로 가기 전에 재생을 멈춘다. 취약 구간 연결이 없으면 '준비 중' 안내를 띄운다.
- * 비교·취약 구간은 지금 보이는 기록 ID로 연다.
- */
+/** 기록 상세 동작. 뒤로 가기·비교로 가기 전에 재생을 멈추고, 비교는 지금 보이는 기록 ID로 연다. */
 @Composable
 private fun rememberRecordDetailActions(
     viewModel: RecordDetailViewModel,
-    snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onCompare: (recordId: String) -> Unit,
-    onWeakSection: ((recordId: String) -> Unit)?,
+    onSelectSection: (recordId: String) -> Unit,
 ): RecordDetailActions {
-    val scope = rememberCoroutineScope()
-    val comingSoon = stringResource(Res.string.common_coming_soon)
     val latestOnBack by rememberUpdatedState(onBack)
     val latestOnCompare by rememberUpdatedState(onCompare)
-    val latestOnWeakSection by rememberUpdatedState(onWeakSection)
-    return remember(viewModel, snackbarHostState, scope, comingSoon) {
+    val latestOnSelectSection by rememberUpdatedState(onSelectSection)
+    return remember(viewModel) {
         RecordDetailActions(
             onBack = {
                 viewModel.pause()
@@ -196,19 +212,20 @@ private fun rememberRecordDetailActions(
             },
             onTogglePlay = viewModel::togglePlay,
             onSeek = viewModel::seek,
+            onSeekMillis = viewModel::seekToMillis,
+            onPlayAt = viewModel::playAt,
             onSkip = viewModel::skipSeconds,
-            onToggleErrors = viewModel::toggleErrors,
-            onToggleFollow = viewModel::toggleFollow,
-            onWeakSection = {
-                val open = latestOnWeakSection
-                val recordId = viewModel.uiState.value.record?.id
-                if (open != null && recordId != null) {
+            onSelectFilter = viewModel::selectFilter,
+            onAskDelete = viewModel::askDelete,
+            onConfirmDelete = viewModel::confirmDelete,
+            onCancelDelete = viewModel::cancelDelete,
+            onPractice = {
+                viewModel.uiState.value.takeIf { it.canPractice }?.record?.id?.let { id ->
                     viewModel.pause()
-                    open(recordId)
-                } else {
-                    scope.launch { snackbarHostState.showSnackbar(comingSoon) }
+                    latestOnSelectSection(id)
                 }
             },
+            onToggleFollow = viewModel::toggleFollow,
             onRetrySong = viewModel::retrySong,
             onCompare = {
                 viewModel.uiState.value.record?.id?.let { recordId ->

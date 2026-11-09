@@ -55,7 +55,6 @@ import eolssu.shared.generated.resources.my_nickname_edit
 import eolssu.shared.generated.resources.my_password_change
 import eolssu.shared.generated.resources.my_social
 import eolssu.shared.generated.resources.my_email_none
-import eolssu.shared.generated.resources.my_feedback
 import eolssu.shared.generated.resources.my_feedback_help
 import eolssu.shared.generated.resources.my_feedback_section
 import eolssu.shared.generated.resources.my_social_help
@@ -71,10 +70,10 @@ import eolssu.shared.generated.resources.my_withdraw
 import org.jetbrains.compose.resources.stringResource
 
 /** MY-01에서 여는 화면. */
-enum class MyPageTarget { Nickname, Password, Withdraw }
+enum class MyPageTarget { Nickname, Password, Withdraw, Sources }
 
 /**
- * MY-01 마이페이지. 프로필 · 학습 진도 · 간편 로그인 · 의견/문의 · 계정 · 법적 문서 푸터.
+ * MY-01 마이페이지. 프로필 · 학습 진도 · 간편 로그인 · 의견/문의 · 계정 · 푸터(자료 및 데이터 출처 · 법적 문서).
  */
 @Composable
 fun MyPageScreen(
@@ -96,7 +95,6 @@ fun MyPageScreen(
     onDismissDialog: () -> Unit,
     onOpenLegal: (PublishedLegalDocument) -> Unit,
     onOpenFeedback: () -> Unit,
-    onOpenInquiry: () -> Unit,
     onOpenLearningStage: (Int) -> Unit,
 ) {
     ProfileScaffold(widthClass, stringResource(Res.string.my_title), onBack, snackbarHostState, gap = 28.dp, topPadding = 8.dp) {
@@ -116,8 +114,8 @@ fun MyPageScreen(
         Section(stringResource(Res.string.my_feedback_section)) {
             Column {
                 HorizontalDivider(color = EolssuTheme.colors.lineSoft)
-                AccountRow(stringResource(Res.string.my_inquiry), onClick = onOpenInquiry)
-                AccountRow(stringResource(Res.string.my_feedback), onClick = onOpenFeedback)
+                // 의견 폼(구글 폼) 하나로 문의와 의견을 함께 받는다.
+                AccountRow(stringResource(Res.string.my_inquiry), onClick = onOpenFeedback)
             }
             HelpText(stringResource(Res.string.my_feedback_help))
         }
@@ -128,7 +126,7 @@ fun MyPageScreen(
                 AccountRow(stringResource(Res.string.my_logout), onClick = onLogOut)
             }
         }
-        MyPageFooter(onOpenLegal)
+        MyPageFooter(onOpenSources = { onOpen(MyPageTarget.Sources) }, onOpenLegal = onOpenLegal)
     }
     when (dialog) {
         is MyPageDialog.Unlink -> {

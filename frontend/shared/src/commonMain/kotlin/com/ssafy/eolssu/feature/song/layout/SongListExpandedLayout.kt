@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,12 +44,20 @@ import org.jetbrains.compose.resources.stringResource
  * 고른 곡이 검색·필터로 목록에서 빠지면 오른쪽에 '곡을 골라주세요'를 보인다.
  */
 @Composable
-internal fun SongListExpandedLayout(state: SongListUiState, detail: SongDetailUiState?, actions: SongListActions) {
+internal fun SongListExpandedLayout(
+    state: SongListUiState,
+    detail: SongDetailUiState?,
+    actions: SongListActions,
+    snackbarHostState: SnackbarHostState,
+    instrumentPicker: @Composable () -> Unit,
+) {
     SongTabletScaffold(
         expanded = true,
         title = stringResource(Res.string.song_list_title),
         onBack = actions.onBack,
         pageTopBar = true,
+        snackbarHostState = snackbarHostState,
+        topBarRight = { instrumentPicker() },
     ) { gutter ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = gutter)) {
             // 1120dp 너비에서 목록 400dp. 좁은 가로 창에서는 오른쪽 정보 칸이 들어가도록 목록을 줄인다.

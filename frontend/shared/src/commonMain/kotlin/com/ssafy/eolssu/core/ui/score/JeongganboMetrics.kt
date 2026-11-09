@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
  * @property soft 옛 모양에서 각 바탕을 흰색, 각·정간 선을 옅은 `#E8E4DA`, 현재 칸 바탕을 `#EFF2D6`로 그린다(보드 RECORD-02).
  * @property softDaegang 보드의 대강 선(2dp)을 먹색 대신 회갈색([com.ssafy.eolssu.core.theme.EolssuColors.lineStrong])으로 긋는다.
  *   틀린 종류 색이 함께 보이는 평가 결과·오류 위치 악보에서 경계가 오류 표시보다 튀지 않게 한다.
- * @property errorMarks `errors`로 넘긴 틀린 정간을 그리는 방식. 기본은 종류별 색·아이콘(2차 결합본), 기록 상세는 붉은 바탕·테두리만.
  */
 @Immutable
 data class JeongganboLook(
@@ -33,8 +32,9 @@ data class JeongganboLook(
     val joined: Boolean = false,
     val headStartPill: Boolean = false,
     val soft: Boolean = false,
-    val errorMarks: ErrorMarkStyle = ErrorMarkStyle.Kind,
     val softDaegang: Boolean = false,
+    /** 율명 오른쪽 시김새 그림의 높이(율명 글자 크기 대비). 편집기는 율명이 주가 되도록 조금 더 작게 쓴다. */
+    val sigimsaeScale: Float = 0.7f,
 ) {
     enum class Style { Classic, Board }
 
@@ -50,8 +50,8 @@ data class JeongganboLook(
 
         /** 평가 결과 RESULT-02의 오류 위치 악보(`.ms`): 붙은 각 · 곁줄 25dp · ‘시작’ 알약 머리 · 틀린 정간은 종류별 색·아이콘(2차 결합본). */
         val Result = JeongganboLook(style = Style.Board, lyricLane = 25.dp, daegangWhenFits = true, joined = true, headStartPill = true, softDaegang = true)
-        /** 기록 상세 RECORD-02: 평가와 같은 보드, 곁줄 생략. 기존 단순 오류 바탕·테두리는 유지한다. */
-        val Record = practice(big = false).copy(lyricLane = null, upcomingMark = false, errorMarks = ErrorMarkStyle.Plain)
+        /** 이전 연주 결과(기록 보기): 연습과 같은 보드, 곁줄 생략. 틀린 정간은 다른 화면과 같은 종류별 색·아이콘이다. */
+        val Record = practice(big = false).copy(lyricLane = null, upcomingMark = false, softDaegang = true)
     }
 }
 
@@ -69,6 +69,13 @@ data class JeongganboMetrics(
     val columnGap: Dp = 6.dp,
     /** 한 정간을 두 음으로 나눴을 때 율명 크기 비율. 옛 와이어프레임 0.75, 연두 보드 `.n2` 14/21 ≈ 0.667. */
     val splitScaleTwo: Float = 0.75f,
+    /** 세 소박 이상으로 나눈 율명 크기 비율. 화면별로 글자·행 높이를 함께 조정할 때 쓴다. */
+    val splitScaleMany: Float = 0.625f,
+    /**
+     * 0보다 크면 위아래로 나뉜 정간의 율명을 한 줄 높이의 이 비율까지 키운다([splitYulSize]). [yulSize]보다 크게 하지 않는다.
+     * 기본 0은 나뉜 수로 정한 고정 크기([yulSizeFor])만 쓴다. 휴대폰 연습 악보만 켠다(S15P31E102-560).
+     */
+    val splitLineFill: Float = 0f,
 ) {
     /** sp 글꼴 확대와 같은 기하. 부모의 줄 나누기와 실제 렌더가 함께 사용한다. */
     fun forFontScale(scale: Float): JeongganboMetrics {
@@ -77,7 +84,18 @@ data class JeongganboMetrics(
     }
 
     /** 한 정간에 든 음 수에 맞춘 율명 크기. 와이어프레임의 16 → 12 → 10 비율을 따른다. */
-    fun yulSizeFor(noteCount: Int): TextUnit = yulSize * splitScale(noteCount, splitScaleTwo)
+    fun yulSizeFor(noteCount: Int): TextUnit = yulSize * splitScale(noteCount, splitScaleTwo, splitScaleMany)
+
+    /**
+     * 위아래로 나뉜 정간에서 한 줄 높이가 [lineHeight]일 때의 율명 크기. [splitLineFill]이 꺼져 있으면 [yulSizeFor]와 같다.
+     * 켜져 있으면 줄 높이 × [splitLineFill]을 글꼴 배율로 나눈 sp까지 키우되 [yulSizeFor]보다 작게, [yulSize]보다 크게 하지 않는다.
+     */
+    fun splitYulSize(noteCount: Int, lineHeight: Dp, fontScale: Float): TextUnit {
+        val base = yulSizeFor(noteCount)
+        if (splitLineFill <= 0f || noteCount <= 1 || fontScale <= 0f) return base
+        val grown = lineHeight.value * splitLineFill / fontScale
+        return grown.coerceIn(base.value, maxOf(base.value, yulSize.value)).sp
+    }
 
     fun auxSizeFor(noteCount: Int): TextUnit = if (noteCount > 1) auxSize * 0.88f else auxSize
 
@@ -149,10 +167,10 @@ data class JeongganboMetrics(
             )
         }
 
-        private fun splitScale(noteCount: Int, two: Float): Float = when {
+        private fun splitScale(noteCount: Int, two: Float, many: Float): Float = when {
             noteCount <= 1 -> 1f
             noteCount == 2 -> two
-            else -> 0.625f
+            else -> many
         }
     }
 }

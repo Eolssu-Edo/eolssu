@@ -16,7 +16,13 @@ interface SongRepository {
     suspend fun getSongs(instrumentId: String? = null): List<SongSummary>
 
     suspend fun getSong(songId: String): Song?
+
+    /** 편집기로 복사할 제공 곡과 공통 악보 원본(CAT-04). 원본을 주지 않는 저장소는 null이다. */
+    suspend fun getEditableSong(songId: String): EditableSong? = null
 }
+
+/** 제공 곡 화면 모델과 그 곡의 공통 악보 원본. 편집기는 원본의 각·정간 배치와 시김새를 그대로 이어 받는다. */
+data class EditableSong(val song: Song, val score: CommonScoreData)
 
 /** 와이어프레임 예시 곡을 그대로 돌려준다. */
 class SampleSongRepository : SongRepository {

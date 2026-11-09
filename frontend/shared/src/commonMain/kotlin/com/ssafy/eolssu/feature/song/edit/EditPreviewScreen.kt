@@ -155,7 +155,7 @@ fun EditPreviewScreen(
                 song = song,
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 marks = previewMarks(draft),
-                annotations = if (state.showSigimsae) remember(draft) { draft.annotations() } else emptyMap(),
+                annotations = remember(draft) { draft.annotations() },
                 notation = ScoreNotation(showHangul = true),
             )
         }

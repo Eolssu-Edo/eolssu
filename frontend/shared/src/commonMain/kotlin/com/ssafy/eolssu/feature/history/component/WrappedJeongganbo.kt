@@ -1,6 +1,7 @@
 package com.ssafy.eolssu.feature.history.component
 
-import com.ssafy.eolssu.core.ui.score.recordScoreCellHeights
+import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
+import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,7 +20,6 @@ import com.ssafy.eolssu.core.model.ScoreErrorKind
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.ui.score.JeongganboMetrics
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.ScoreNotation
 import com.ssafy.eolssu.core.ui.score.scoreStrips
 
 /**
@@ -55,13 +55,15 @@ internal fun stripSlots(width: Dp, metrics: JeongganboMetrics): Int =
 internal fun WrappedJeongganbo(
     song: Song,
     metrics: JeongganboMetrics,
-    currentIndex: Int,
+    currentIndex: Int?,
     follow: Boolean,
     errors: Map<Pair<Int, Int>, ScoreErrorKind>,
-    onEventClick: (Int) -> Unit,
+    onEventClick: ((Int) -> Unit)?,
     modifier: Modifier = Modifier,
+    errorKinds: Map<Pair<Int, Int>, List<ScoreErrorKind>> = emptyMap(),
+    unitErrors: Map<ScoreUnitKey, List<ScoreErrorKind>> = emptyMap(),
 ) {
-    val cellHeights = remember(song, metrics) { recordScoreCellHeights(song, metrics) }
+    val cellHeights = remember(song, metrics) { errorScoreCellHeights(song, metrics) }
     BoxWithConstraints(modifier) {
         val slots = stripSlots(maxWidth, metrics.forFontScale(LocalDensity.current.fontScale))
         val rows = remember(song, slots) {
@@ -69,7 +71,7 @@ internal fun WrappedJeongganbo(
             wrapColumns(song.score.columns.indices.map { strips[it] ?: 1 }, slots)
         }
         val listState = rememberLazyListState()
-        val column = song.timeline.getOrNull(currentIndex)?.column
+        val column = currentIndex?.let { song.timeline.getOrNull(it)?.column }
         val currentRow = column?.let { c -> rows.indexOfFirst { c in it } } ?: -1
         LaunchedEffect(currentRow, follow, rows) {
             if (!follow || currentRow < 0) return@LaunchedEffect
@@ -85,10 +87,11 @@ internal fun WrappedJeongganbo(
                     look = JeongganboLook.Record,
                     metrics = metrics,
                     cellHeights = cellHeights,
-                    notation = ScoreNotation(showHangul = true),
                     currentIndex = currentIndex,
                     errors = errors,
-                    onEventClick = { onEventClick(it.index) },
+                    errorKinds = errorKinds,
+                    unitErrors = unitErrors,
+                    onEventClick = onEventClick?.let { seek -> { event -> seek(event.index) } },
                     columns = range,
                 )
             }

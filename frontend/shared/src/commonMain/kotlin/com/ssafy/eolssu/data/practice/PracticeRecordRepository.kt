@@ -86,6 +86,7 @@ class SamplePracticeRecordRepository : PracticeRecordRepository {
             metrics = result.metrics,
             memo = "",
             errors = result.errors,
+            eventErrors = result.eventErrors,
         )
         _records.update { listOf(record) + it }
         return record

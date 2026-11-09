@@ -22,10 +22,8 @@
     <string name="instrument_danso">단소</string>
 
     <string name="home_brand">얼쑤</string>
-    <string name="home_current_instrument">현재 악기</string>
     <string name="home_hero_title">얼쑤! 나도 이제 국악인</string>
     <string name="home_start_evaluation">AI 연주 평가 시작</string>
-    <string name="home_section_practice">학습·연습하기</string>
     <string name="home_feature_song_select">연습곡 선택하기</string>
     <string name="home_feature_fingering">운지법 보기</string>
     <string name="home_feature_reading">정간보 쉽게 읽기</string>
@@ -48,7 +46,6 @@
     <string name="jangdan_label">%1$s장단</string>
 
     <string name="song_list_title">평가할 곡 고르기</string>
-    <string name="song_list_eyebrow">PLAY &amp; DISCOVER</string>
     <string name="song_list_heading">당신의 소리로\n완성할 한 곡.</string>
     <string name="song_list_intro">한 각씩 익히고, 한 곡을 완성해 보세요.</string>
     <string name="song_search_placeholder">곡 제목으로 찾아보세요</string>
@@ -193,7 +190,7 @@
     <string name="practice_fingering_view">운지법과 함께 보기</string>
     <string name="practice_fingering_view_desc">각 정간마다 가로 %1$s 그림과 율명을 함께 봐요</string>
     <string name="practice_fingering_rest">쉼 · 숨을 고르세요</string>
-    <string name="practice_fingering_desc">막는 구멍 %1$s · %2$s</string>
+    <string name="practice_fingering_desc">막는 구멍 %1$s</string>
     <string name="practice_fingering_none">없음</string>
     <string name="practice_fingering_missing">이 악기의 %1$s 운지 자료는 아직 없어요.</string>
     <string name="practice_popup_denied_title">마이크 권한이 허용되지 않았어요</string>
@@ -307,19 +304,12 @@
     <string name="records_empty">아직 저장한 연주가 없어요.</string>
     <string name="records_load_failed">연습 기록을 불러오지 못했어요.</string>
 
-    <string name="record_detail_title">기록 상세</string>
-    <string name="record_detail_subtitle">%1$s · %2$s %3$s</string>
-    <string name="record_detail_whole">전체</string>
-    <string name="record_detail_metrics">음정 %1$d · 박자 %2$d · 음 길이 %3$d · %4$d BPM</string>
-    <string name="record_detail_show_errors">오류 표시</string>
     <string name="record_detail_follow">악보 따라가기</string>
-    <string name="record_detail_hint">오른쪽 각부터 위→아래로 읽어요 · 정간을 누르면 그 위치부터 들어요</string>
     <string name="record_detail_position">%1$d각 %2$d정간</string>
     <string name="record_detail_back5">−5초</string>
     <string name="record_detail_fwd5">+5초</string>
     <string name="record_detail_back5_label">5초 뒤로</string>
     <string name="record_detail_fwd5_label">5초 앞으로</string>
-    <string name="record_detail_weak">취약 구간 연습하기</string>
     <string name="record_detail_seek">재생 위치</string>
     <string name="record_play_unavailable">이 기록은 녹음을 다시 들을 수 없어요.</string>
     <string name="record_play_busy">지금은 녹음을 들을 수 없어요. 잠시 후 다시 시도해 주세요.</string>
@@ -435,7 +425,6 @@
     <string name="guide_sigimsae_tap_more">누르면 한 줄 설명이 나와요</string>
     <string name="guide_sigimsae_tip_open">설명 펼침</string>
     <string name="guide_sigimsae_tip_closed">설명 접힘</string>
-    <string name="guide_sigimsae_credit">기호 그림: 우물사이(umulsai.com) · MIT 라이선스</string>
 
     <string name="learn_title">기초부터 배우기</string>
     <string name="learn_subtitle">순서대로 연습하고 통과를 확인해요</string>
@@ -515,7 +504,6 @@
     <string name="learn_listen_note">요성·퇴성은 아직 앱이 채점하지 않아요. 모범 연주를 듣고 비슷하게 흉내 내는 것으로 충분해요.</string>
     <string name="learn_section_pass">통과 기준</string>
     <string name="learn_pass_example">예시 기준 · 팀 확정 전 · 판정 방식: %1$s</string>
-    <string name="learn_source">근거: %1$s</string>
     <string name="learn_more_fingering">운지법 보기</string>
     <string name="learn_more_fingering_detail">운지법 보기에서 더 보기</string>
     <string name="learn_more_fingering_blow">운지법 보기 · %1$s</string>
@@ -714,7 +702,6 @@
     <string name="mysongs_delete">삭제</string>
 
     <!-- 연습 기록·기록 상세 태블릿 배치 (S15P31E102-163) -->
-    <string name="record_detail_hint_wrapped">오른쪽 각부터 위→아래로 읽고, 줄이 바뀌면 아래 줄 오른쪽부터 이어요 · 정간을 누르면 그 위치부터 들어요</string>
     <string name="records_pane_empty">왼쪽에서 녹음을 고르면 여기에서 다시 들을 수 있어요</string>
     <!-- 곡 목록·내 악보 태블릿 배치 (S15P31E102-163) -->
     <string name="tab_song_meta_bpm">%1$s · %2$d BPM</string>
@@ -755,6 +742,7 @@
     <!-- 마이페이지(MY-01~05) -->
     <string name="common_cancel">취소</string>
     <string name="home_my_page">마이페이지</string>
+    <string name="home_exit_notice">뒤로 가기를 한 번 더 누르면 앱이 종료됩니다.</string>
     <string name="my_title">마이페이지</string>
     <string name="my_learning_title">기초부터 배우기</string>
     <string name="my_learning_open_stage">%1$d단계 배우기</string>
@@ -768,7 +756,6 @@
     <string name="my_learning_loading">학습 기록을 확인하고 있어요.</string>
     <string name="my_learning_unavailable">학습 진도를 확인할 수 없어요. 잠시 후 다시 확인해 주세요.</string>
     <string name="my_inquiry">문의하기</string>
-    <string name="my_inquiry_preparing">문의 폼을 준비하고 있어요.</string>
     <string name="my_nickname_edit">닉네임 수정</string>
     <string name="my_nickname">닉네임</string>
     <string name="my_nickname_help">[닉네임 규칙 안내]</string>
@@ -802,9 +789,8 @@
     <string name="my_password_changed">비밀번호를 바꿨어요.</string>
     <string name="my_password_none">간편 로그인으로 가입한 계정은 비밀번호가 없어요.</string>
     <string name="my_feedback_section">의견·문의</string>
-    <string name="my_feedback">의견 보내기</string>
     <string name="my_feedback_help">써 보면서 좋았던 점이나 불편했던 점을 구글 폼으로 알려 주세요.</string>
-    <string name="my_feedback_open_failed">의견 폼을 열지 못했어요. 다시 시도해 주세요.</string>
+    <string name="my_feedback_open_failed">문의 폼을 열지 못했어요. 다시 시도해 주세요.</string>
     <string name="my_logout">로그아웃</string>
     <string name="my_logout_confirm_title">로그아웃할까요?</string>
     <string name="my_logout_confirm_message">다시 들어오려면 이메일이나 연결한 간편 로그인으로 로그인해요.</string>
@@ -836,10 +822,4 @@
     <string name="my_error_current_password_wrong">현재 비밀번호가 맞지 않아요.</string>
     <string name="my_error_password_rule">영문·숫자·특수문자를 모두 넣어 8~128자로 정해 주세요.</string>
     <string name="my_error_password_mismatch">새 비밀번호가 서로 달라요.</string>
-    <string name="home_feature_song_desc">나에게 맞는 곡을 찾아요</string>
-    <string name="home_feature_fingering_desc">손끝으로 익히는 우리 소리</string>
-    <string name="home_feature_reading_desc">한 칸씩, 차근차근 읽어요</string>
-    <string name="home_feature_learn_desc">첫 소리부터 함께 시작해요</string>
-    <string name="home_feature_records_desc">지난 연주를 돌아봐요</string>
-    <string name="home_feature_edit_sheets_desc">내 악보를 만들고 고쳐요</string>
 </resources>

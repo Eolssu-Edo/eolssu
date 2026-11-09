@@ -17,6 +17,48 @@ class SheetDocumentEditingTest {
         assertEquals(listOf("니레", "요성표", "퇴성"), annotations[ScoreUnitKey("c0-j0", 0, 0)])
         assertEquals(listOf("니레"), annotations[ScoreUnitKey("c0-j0", 0, 1)])
     }
+    @Test fun octaveNoteAndSeveralSigimsaeSaveAsCommonScoreAndRestoreTheSame() {
+        val original = smallScoreData()
+        val draft = original.editingDraft(original.score.title, 60, null)
+        val note = draft.pitchNote(Yul.Taeju, 2)
+        assertEquals(ScoreNote.SourcePitch("태", 2), note, "서버 문서에는 공통 악보 음(기본 율명 + 옥타브)으로 적는다")
+        val edited = draft.put(2, note).first.toggleSigimsae(2, Sigimsae.Chuseong).toggleSigimsae(2, Sigimsae("농음표"))
+        val saved = edited.toCommonScore()
+        val event = saved.events.last()
+        assertEquals("태" to 2, event.yul to event.octave)
+        assertEquals("중청태", saved.columns[1].cells[0].units.single().symbol)
+        assertEquals(listOf("추성", "농음표"), event.sigimsae)
+        val restored = saved.editingDraft(original.score.title, 60, null)
+        assertEquals(edited.cells, restored.cells)
+        assertEquals(edited.sigimsae, restored.sigimsae)
+    }
+
+    @Test fun sigimsaeOnALaterSubNoteSavesOnThatNotesEventAndRestores() {
+        val original = smallScoreData()
+        val draft = original.editingDraft(original.score.title, 60, null).split(2)
+        val filled = draft.putAt(2, 0, ScoreNote.Pitch(Yul.Hwangjong)).putAt(2, 1, ScoreNote.Pitch(Yul.Taeju))
+        val edited = filled.toggleSigimsae(2, Sigimsae.Yoseong, sub = 1)
+        val saved = edited.toCommonScore()
+        val units = saved.columns[1].cells[0].units
+        val events = saved.events.associateBy { it.id }
+        assertEquals(emptyList(), events.getValue(units[0].eventId).sigimsae, "첫 소박 이벤트에는 붙지 않는다")
+        assertEquals(listOf("요성표"), events.getValue(units[1].eventId).sigimsae, "고른 소박의 이벤트에 저장한다")
+        val restored = saved.editingDraft(original.score.title, 60, null)
+        assertEquals(listOf(Sigimsae.Yoseong), restored.sigimsaeAt(2, 1))
+        assertEquals(edited.sigimsae, restored.sigimsae)
+    }
+
+    @Test fun lowOctaveAndHoldRestKeepTheirOwnSymbols() {
+        val original = smallScoreData()
+        val draft = original.editingDraft(original.score.title, 60, null)
+        val saved = draft.put(2, draft.pitchNote(Yul.Imjong, -1)).first.toCommonScore()
+        assertEquals("배임", saved.columns[1].cells[0].units.single().symbol)
+        assertEquals("임" to -1, saved.events.last().let { it.yul to it.octave })
+        val rest = draft.put(2, ScoreNote.Rest).first.toCommonScore()
+        assertEquals("쉼", rest.columns[1].cells[0].units.single().symbol)
+        assertEquals("REST", rest.events.last().kind)
+    }
+
     @Test fun uneditedDocumentPreservesIrregularColumnsAndEveryOriginalField() {
         val original = smallScoreData()
         val draft = original.editingDraft(original.score.title, 60, jangdan = null)

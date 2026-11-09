@@ -7,6 +7,8 @@ import com.ssafy.eolssu.core.model.ScoreNote
 import com.ssafy.eolssu.core.model.ScoreUnitKey
 import com.ssafy.eolssu.core.model.Song
 import com.ssafy.eolssu.core.model.SongLevel
+import com.ssafy.eolssu.core.ui.score.RegisteredSigimsaeNames
+import com.ssafy.eolssu.core.ui.score.scoreSigimsaeName
 import com.ssafy.eolssu.data.song.CommonScoreData
 
 /** EDIT-01에서 고르는 가져오기 종류. [routeId]는 화면 이동 경로에 쓴다. */
@@ -38,14 +40,26 @@ enum class HwangPitch(val midi: Int, val label: String) {
 }
 
 /**
- * 편집 화면에서 정간 오른쪽에 작게 적는 시김새. [scoreName]은 공통 정간보 렌더러가 기호 그림을 찾는 이름이다.
+ * 편집 화면에서 율명 오른쪽에 작게 적는 시김새. [scoreName]은 공통 악보 `events[].sigimsae`의 글자 그대로이고,
+ * 공통 정간보 렌더러가 이 이름([name])으로 기호 그림을 찾는다.
  */
-enum class Sigimsae(val scoreName: String) {
-    Yoseong("요성표"),
-    Toeseong("퇴성"),
-    Chuseong("추성"),
-    Jeonseong("전성"),
+data class Sigimsae(val scoreName: String) {
+    /** 렌더러 표기 이름. 원본의 `이름@변형` 꼴은 앞부분만 본다. */
+    val name: String get() = scoreSigimsaeName(scoreName)
+
+    companion object {
+        val Yoseong = Sigimsae("요성표")
+        val Toeseong = Sigimsae("퇴성")
+        val Chuseong = Sigimsae("추성")
+        val Jeonseong = Sigimsae("전성")
+
+        /** 입력판 목록: 처음부터 있던 네 가지 뒤에 공통 렌더러에 그림이 등록된 나머지 시김새를 등록 순서대로 둔다. */
+        val entries: List<Sigimsae> = (listOf(Yoseong, Toeseong, Chuseong, Jeonseong) + RegisteredSigimsaeNames.map(::Sigimsae)).distinct()
+    }
 }
+
+/** 정간 [cell]의 [sub]번째 소박(위→아래, 같은 줄은 왼→오른쪽). 나누지 않은 정간은 0이다. */
+data class NoteSlot(val cell: Int, val sub: Int = 0)
 
 /** 편집기로 들어온 경로. 가져오기(EDIT-05·06)를 거쳤는지, 어떤 악보를 복사했는지에 따라 첫 악보와 안내가 다르다. */
 sealed interface EditSource {
@@ -66,14 +80,14 @@ sealed interface EditSource {
  * 편집 중인 정간보. `cells[i]`는 연주 순서 i번째 정간이고 원본의 가변 각 길이는 [columnSizes]로 보존한다.
  * 빈 목록은 빈 정간, 둘 이상이면 한 정간을 위→아래로 나눈 음이며 나눈 정간의 아직 비어 있는 자리는 [ScoreNote.Blank]다.
  *
- * @property sigimsae 정간 번호 → 그 정간 첫 음에 붙인 시김새. 율명이 있는 정간에만 붙는다.
+ * @property sigimsae 소박 자리 → 그 소박에 붙인 시김새(붙인 순서, 최대 [MAX_SIGIMSAE]개). 율명이 있는 소박에만 붙는다.
  */
 data class SheetDraft(
     val title: String,
     val jangdan: Jangdan?,
     val bpm: Int,
     val cells: List<List<ScoreNote>>,
-    val sigimsae: Map<Int, Sigimsae> = emptyMap(),
+    val sigimsae: Map<NoteSlot, List<Sigimsae>> = emptyMap(),
     val columnSizes: List<Int>? = null,
     val sourceCellIds: List<String?>? = null,
     val original: CommonScoreData? = null,
@@ -128,7 +142,7 @@ data class SheetDraft(
         score = if (original != null) renderEditingScore() else Score(cells.chunked(gak).map { column -> column.map { ScoreCell(it.ifEmpty { listOf(ScoreNote.Blank) }) } }),
     )
 
-    /** 원본 시김새는 모든 시작 음 자리(row/col)에 보존하고, 예시 악보만 정간 첫 음에 붙인다. */
+    /** 원본 시김새는 모든 시작 음 자리(row/col)에 보존하고, 예시 악보는 소박 자리마다 붙인다. */
     fun annotations(): Map<ScoreUnitKey, List<String>> {
         if (original != null) runCatching {
             val document = toCommonScore()
@@ -141,8 +155,7 @@ data class SheetDraft(
                 } } }
             }
         }.getOrNull()?.let { return it }
-        return sigimsae.mapKeys { (index, _) -> ScoreUnitKey("c${columnOf(index)}-j${rowOf(index)}", 0, 0) }
-            .mapValues { (_, value) -> listOf(value.scoreName) }
+        return sigimsae.entries.mapNotNull { (slot, value) -> unitKeyOf(slot.cell, slot.sub)?.let { it to value.map(Sigimsae::scoreName) } }.toMap()
     }
 
     /**
@@ -153,22 +166,77 @@ data class SheetDraft(
         val current = cells[index]
         val blank = current.indexOf(ScoreNote.Blank)
         val updated = if (current.size > 1 && blank >= 0) current.toMutableList().also { it[blank] = note } else listOf(note)
-        val keepSigimsae = updated.any { it.isPitch() }
-        val next = copy(
-            cells = cells.replace(index, updated),
-            sigimsae = if (keepSigimsae) sigimsae else sigimsae - index,
-        )
-        return next to (ScoreNote.Blank !in updated)
+        return withCell(index, updated) to (ScoreNote.Blank !in updated)
+    }
+
+    /**
+     * 나눈 정간 [index]의 [sub]번째 소박만 [note]로 바꾼다. 다른 소박과 나눔은 그대로다.
+     * 율명이 아니게 된 소박의 시김새는 지운다. 나누지 않은 정간이나 범위 밖이면 [put]과 같다.
+     */
+    fun putAt(index: Int, sub: Int, note: ScoreNote): SheetDraft {
+        val current = cells[index]
+        if (current.size <= 1 || sub !in current.indices) return put(index, note).first
+        return withCell(index, current.toMutableList().also { it[sub] = note })
+    }
+
+    /** 나눈 정간의 [sub]번째 소박만 비운다(빈 자리로 남겨 나눔을 유지). 나누지 않은 정간이면 [erase]와 같다. */
+    fun eraseAt(index: Int, sub: Int): SheetDraft {
+        val current = cells[index]
+        if (current.size <= 1 || sub !in current.indices) return erase(index)
+        return withCell(index, current.toMutableList().also { it[sub] = ScoreNote.Blank })
+    }
+
+    /** [index] 정간을 [notes]로 바꾸고, 없어졌거나 율명이 아니게 된 소박의 시김새를 지운다. */
+    private fun withCell(index: Int, notes: List<ScoreNote>): SheetDraft = copy(
+        cells = cells.replace(index, notes),
+        sigimsae = sigimsae.filterKeys { it.cell != index || notes.getOrNull(it.sub)?.isPitch() == true },
+    )
+
+    /** [index] 정간 [sub]번째 소박에 붙인 시김새. */
+    fun sigimsaeAt(index: Int, sub: Int = 0): List<Sigimsae> = sigimsae[NoteSlot(index, sub)].orEmpty()
+
+    /**
+     * 시김새를 붙일 소박. 소박을 골랐으면 그 소박, 아니면 정간의 첫 율명 소박(없으면 0)이다.
+     * 나누지 않은 정간은 항상 0이다.
+     */
+    fun sigimsaeSub(index: Int, selectedSub: Int?): Int =
+        selectedSub?.takeIf { it in cells[index].indices } ?: cells[index].indexOfFirst { it.isPitch() }.coerceAtLeast(0)
+
+    /** 악보에서 누른 표시 자리(row/col)가 [index] 정간의 몇 번째 소박인지. 찾지 못하면 0. */
+    fun subIndexOf(index: Int, row: Int, col: Int): Int =
+        layout(index).indexOfFirst { it.row == row && it.col == col }.coerceAtLeast(0)
+
+    /** [index] 정간 [sub]번째 소박의 렌더러 표시 키. */
+    fun unitKeyOf(index: Int, sub: Int): ScoreUnitKey? = layout(index).getOrNull(sub)?.let {
+        ScoreUnitKey("c${columnOf(index)}-j${rowOf(index)}", it.row, it.col)
     }
 
     /** [index] 정간을 비우고 시김새도 지운다. */
-    fun erase(index: Int): SheetDraft = copy(cells = cells.replace(index, emptyList()), sigimsae = sigimsae - index)
+    fun erase(index: Int): SheetDraft = copy(cells = cells.replace(index, emptyList()), sigimsae = sigimsae.filterKeys { it.cell != index })
 
-    /** 율명이 있는 정간에만 시김새를 붙인다. [value]가 null이면 지운다. 바뀌지 않으면 그대로 돌려준다. */
-    fun withSigimsae(index: Int, value: Sigimsae?): SheetDraft = when {
-        value == null -> if (index in sigimsae) copy(sigimsae = sigimsae - index) else this
-        cells[index].none { it.isPitch() } || sigimsae[index] == value -> this
-        else -> copy(sigimsae = sigimsae + (index to value))
+    /** 율명이 있는 소박에만 시김새를 붙인다. [values]가 비면 지운다. 바뀌지 않으면 그대로 돌려준다. */
+    fun withSigimsae(index: Int, values: List<Sigimsae>, sub: Int = 0): SheetDraft {
+        val slot = NoteSlot(index, sub)
+        return when {
+            values.isEmpty() -> if (slot in sigimsae) copy(sigimsae = sigimsae - slot) else this
+            cells[index].getOrNull(sub)?.isPitch() != true || sigimsae[slot] == values -> this
+            else -> copy(sigimsae = sigimsae + (slot to values.take(MAX_SIGIMSAE)))
+        }
+    }
+
+    /** 고른 소박에 [value]가 없으면 끝에 붙이고(최대 [MAX_SIGIMSAE]개), 있으면 뗀다. 율명이 아닌 소박은 그대로다. */
+    fun toggleSigimsae(index: Int, value: Sigimsae, sub: Int = 0): SheetDraft {
+        val current = sigimsaeAt(index, sub)
+        val next = if (current.any { it.name == value.name }) current.filterNot { it.name == value.name }
+            else if (current.size >= MAX_SIGIMSAE) return this else current + value
+        return withSigimsae(index, next, sub)
+    }
+
+    /** 고른 소박의 [position]번째 시김새만 뗀다. */
+    fun removeSigimsae(index: Int, position: Int, sub: Int = 0): SheetDraft {
+        val current = sigimsaeAt(index, sub)
+        if (position !in current.indices) return this
+        return withSigimsae(index, current.filterIndexed { i, _ -> i != position }, sub)
     }
 
     /** 한 정간을 하나 더 나눈다(최대 [MAX_SPLIT]). 새 자리는 비워 두고 위에서부터 채운다. */
@@ -176,7 +244,7 @@ data class SheetDraft(
         val current = cells[index]
         if (current.size >= MAX_SPLIT) return this
         val updated = if (current.isEmpty()) listOf(ScoreNote.Blank, ScoreNote.Blank) else current + ScoreNote.Blank
-        return copy(cells = cells.replace(index, updated))
+        return withCell(index, updated)
     }
 
     /** 나눈 정간을 첫 음 하나로 합친다. 첫 음이 비어 있으면 빈 정간이 된다. */
@@ -184,7 +252,7 @@ data class SheetDraft(
         val current = cells[index]
         if (current.size <= 1) return this
         val first = current.first().takeIf { it != ScoreNote.Blank }
-        return copy(cells = cells.replace(index, listOfNotNull(first)))
+        return withCell(index, listOfNotNull(first))
     }
 
     /** [column] 각 왼쪽(다음 순서)에 빈 각을 하나 넣는다. 뒤 정간의 시김새 번호도 함께 민다. */
@@ -195,7 +263,7 @@ data class SheetDraft(
         return copy(cells = inserted,
             columnSizes = columnSizes?.toMutableList()?.also { it.add(column + 1, count) },
             sourceCellIds = sourceCellIds?.let { it.take(at) + List(count) { null } + it.drop(at) },
-            sigimsae = sigimsae.mapKeys { (index, _) -> if (index >= at) index + count else index })
+            sigimsae = sigimsae.mapKeys { (slot, _) -> if (slot.cell >= at) slot.copy(cell = slot.cell + count) else slot })
     }
 
     /** [column] 각을 지운다. 각이 하나뿐이면 지우지 않는다. */
@@ -207,7 +275,8 @@ data class SheetDraft(
             cells = cells.subList(0, from) + cells.subList(to, cells.size),
             columnSizes = columnSizes?.filterIndexed { i, _ -> i != column },
             sourceCellIds = sourceCellIds?.let { it.take(from) + it.drop(to) },
-            sigimsae = sigimsae.filterKeys { it !in from until to }.mapKeys { (index, _) -> if (index >= to) index - (to - from) else index },
+            sigimsae = sigimsae.filterKeys { it.cell !in from until to }
+                .mapKeys { (slot, _) -> if (slot.cell >= to) slot.copy(cell = slot.cell - (to - from)) else slot },
         )
     }
 
@@ -225,6 +294,9 @@ data class SheetDraft(
     companion object {
         /** 한 정간을 나눌 수 있는 최대 음 수. */
         const val MAX_SPLIT = 3
+
+        /** 한 정간 첫 음에 붙일 수 있는 시김새 수. 율명 오른쪽에 세로로 쌓아도 정간 높이 안에 들어가는 만큼이다. */
+        const val MAX_SIGIMSAE = 3
         internal const val DRAFT_SONG_ID = "sheet-draft"
     }
 }

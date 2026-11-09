@@ -52,9 +52,6 @@ fun SectionSelectUiState.tap(position: ScorePosition): SectionSelectUiState {
     }
 }
 
-/** 추천 구간으로 되돌린다. */
-fun SectionSelectUiState.pickRecommended(): SectionSelectUiState = copy(section = recommended ?: section, picking = false)
-
 /** 서버 추천 구간(각 번호)을 이 악보의 구간으로 바꾼다. 악보에 없는 각이면 null. */
 fun WeakSectionPick.toSection(score: Score): ScoreSection? {
     val last = score.columns.lastIndex

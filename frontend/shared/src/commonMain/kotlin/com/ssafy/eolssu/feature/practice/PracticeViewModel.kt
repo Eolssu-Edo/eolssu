@@ -583,12 +583,12 @@ class PracticeViewModel(
         _uiState.update { it.copy(draft = it.draft.copy(previewing = false, previewBeat = 0)) }
     }
 
-    fun stopFollowing() = _uiState.update { it.copy(follow = false) }
+    fun stopFollowing() = _uiState.update { it.stopFollowing() }
 
     /** 내 악보 제목을 곡 제목 대신 보인다. 비어 있으면 곡 제목으로 돌아간다. */
     fun showSheetTitle(title: String?) = _uiState.update { it.copy(sheetTitle = title?.takeIf(String::isNotBlank)) }
 
-    fun followNow() = _uiState.update { it.copy(follow = true) }
+    fun followNow() = _uiState.update { it.followNow() }
 
     // 모범 연주
 
@@ -981,6 +981,7 @@ class PracticeViewModel(
                         _uiState.update {
                             it.copy(eventElapsedMs = duration, elapsedMs = endElapsedMs)
                                 .advance(0.0, micLevel = it.micLevel)
+                                .resumeFollowOnNextGak()
                         }
                         clock.completeEvent(duration)
                         val next = _uiState.value
@@ -989,7 +990,7 @@ class PracticeViewModel(
                         if (!running) { if (next.mode == PracticeMode.Rhythm) stopJangdan(); break }
                     } else {
                         _uiState.update { it.copy(eventElapsedMs = sample.eventElapsedMs.coerceAtLeast(0.0),
-                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt) }
+                            elapsedMs = sample.elapsedMs, eventStartedAt = clock.eventStartedAt).resumeFollowOnNextGak() }
                         delay(_uiState.value.nextTimelineSampleMs().milliseconds)
                     }
                 }

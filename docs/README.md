@@ -1,5 +1,14 @@
 # 프로젝트 문서
 
+- [운영 iOS 간편 로그인 복귀 주소와 Apple 로그인 설정 (563)](plans/S15P31E102-563.md)
+- [이전 연주 결과·녹음 기록 통합 (553)](plans/S15P31E102-553.md)
+- [홈 평가 시작 화살표·정간보 카드 배경 정리 (554)](plans/S15P31E102-554.md)
+- [iOS App Store Connect 등록과 첫 심사 제출 준비 (564)](plans/S15P31E102-564.md)
+- [기록 평가 변환·오류 표시·녹음 재생의 경계와 실행 관찰](knowledge/frontend/history-result-playback.md)
+
+- [악보 PDF·이미지 선택과 업로드 API 연결 (539)](plans/S15P31E102-539.md)
+- [악보 파일 선택·접수 경계와 미확인 사항](knowledge/frontend/sheet-import-submission.md)
+- [홈 카드 배치·상단 정리와 Android 뒤로 가기 두 번 종료 (549)](plans/S15P31E102-549.md) · [홈 스펙](specs/home-scroll-ink.md)
 - [오류 위치 상세 복합 오류·점수 화면 오류 요약 (548)](plans/S15P31E102-548.md)
 - [기초부터 배우기 단계 개요·안내 개선 (565)](plans/S15P31E102-565.md)
 - [연습 기록지 요약 카드 정리·점수 변화 악기·곡 필터 (547)](plans/S15P31E102-547.md)
@@ -13,8 +22,10 @@
 - [앱 실시간 등급 판정 규칙과 KMP 구조 기록 계획 (362)](plans/S15P31E102-362.md)
 
 - [Android 채점모드 실시간 음높이 표시 시제품 계획](plans/S15P31E102-515.md)
+- [Android 녹음 시작 직후 밀린 입력과 시각 기준 (559)](knowledge/frontend/android-recorder-startup-backlog.md)
 - [내 악보 조회·초안 복원과 편집 저장 API 연결 (532)](plans/S15P31E102-532.md)
 - [서버 악보 편집의 표기·시간·저장 순서 보존 근거 (532)](knowledge/frontend/user-sheet-document-editing.md)
+- [정간보 편집의 악기별 악보 선택·율명 음역·시김새 입력 근거 (551)](knowledge/frontend/jeongganbo-editor-yul-register-sigimsae.md)
 
 - [내 악보 목록·삭제와 연주 비교 API 연결·보류 항목 (525)](plans/S15P31E102-525.md)
 - [마이페이지 학습 단계 이동·마스코트](specs/profile-learning-card.md) · [S15P31E102-524 계획·검증](plans/S15P31E102-524.md)
@@ -172,6 +183,7 @@
 
 - [CAT03~10·녹음/평가 앱 통합과 MR 검증](knowledge/frontend/app-catalog-api-integration.md)
 - [율명·운지·장단·기호 카탈로그 앱 연결](knowledge/frontend/guide-catalog-integration.md)
+- [화면별 자료 출처를 마이페이지로 통합 (550)](knowledge/frontend/data-source-consolidation.md)
 - [공개 곡·악기 조회와 공통 악보 앱 변환·검증](knowledge/frontend/song-catalog-adapter.md)
 - [회원 악기 선택·인증 실패 복구와 곡 목록 자동 연결](knowledge/frontend/member-instrument-selection.md)
 - [모범 연주 API와 Android 실제 재생·중단·위치 연결](knowledge/frontend/model-audio-playback.md)

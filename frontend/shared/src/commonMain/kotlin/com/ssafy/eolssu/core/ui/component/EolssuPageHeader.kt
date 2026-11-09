@@ -119,30 +119,20 @@ fun EolssuPageIconButton(
 }
 
 /**
- * 본문 맨 위 페이지 머리(SONG-01 · SONG-02 · PRACTICE-01): 영문 작은 제목(`.eyebrow`) · Song Myung 25sp 큰 제목(`.page-title`) · 설명(`.page-intro`).
+ * 본문 맨 위 페이지 머리(SONG-01 · SONG-02 · PRACTICE-01): Song Myung 25sp 큰 제목(`.page-title`) · 설명(`.page-intro`).
  * 줄바꿈이 필요한 제목은 문구에 `\n`을 넣는다. 아래 여백은 부르는 쪽이 정한다.
- * [eyebrowGap]은 작은 제목과 큰 제목 사이(SONG-01 10dp, PRACTICE-01 4dp)다.
+ * 보드의 영문 작은 제목(`.eyebrow`, 예: PLAY & DISCOVER)은 쓰지 않는다(S15P31E102-561).
  */
 @Composable
 fun PageHeading(
     title: String,
     modifier: Modifier = Modifier,
-    eyebrow: String? = null,
     intro: String? = null,
-    eyebrowGap: Dp = 10.dp,
     /** 연습 화면의 ‘운지법과 함께 보기’처럼 자리를 아끼는 22sp 제목(보드 `.paged-fingering .page-title`). */
     compact: Boolean = false,
 ) {
     val colors = EolssuTheme.colors
     Column(modifier) {
-        if (eyebrow != null) {
-            Text(
-                eyebrow,
-                modifier = Modifier.padding(bottom = eyebrowGap),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp),
-                color = colors.textMuted,
-            )
-        }
         Text(
             title,
             modifier = Modifier.semantics { heading() },

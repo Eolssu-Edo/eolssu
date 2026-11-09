@@ -23,7 +23,7 @@ class PracticePitchConnectionTest {
         val screen = vm.uiState.value
         recorder.send(20, 66, 311.13)
         runCurrent()
-        assertEquals(PitchDirection.Match, vm.pitchFeedback.value.current?.direction)
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
         assertEquals(screen.song!!.timeline[0].id, vm.pitchFeedback.value.current?.eventId)
         assertEquals(screen, vm.uiState.value)
         advanceTimeBy(170); runCurrent()
@@ -42,7 +42,7 @@ class PracticePitchConnectionTest {
         assertEquals(PracticePitchFeedback(), vm.pitchFeedback.value)
         vm.resumeRecording(); advanceTimeBy(3080); runCurrent()
         recorder.send(20, 66, 311.13); runCurrent()
-        assertEquals(PitchDirection.Match, vm.pitchFeedback.value.current?.direction)
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
         assertEquals(vm.uiState.value.song!!.timeline[0].id, vm.pitchFeedback.value.current?.eventId)
         vm.onLeaveScreen(); runCurrent()
         assertEquals(PracticePitchFeedback(), vm.pitchFeedback.value)
@@ -51,10 +51,10 @@ class PracticePitchConnectionTest {
     @Test fun unconfirmedSilenceUnavailableAndFinishedRecordingCannotLeaveMatchingFeedback() = exercise { vm, recorder ->
         vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
         recorder.send(20, 66, 311.13); runCurrent()
-        assertEquals(PitchDirection.Match, vm.pitchFeedback.value.current?.direction)
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
         advanceTimeBy(20)
         recorder.send(40, 86, null); runCurrent()
-        assertNull(vm.pitchFeedback.value.current?.direction)
+        assertNull(vm.pitchFeedback.value.current?.correct)
         recorder.send(40, 86, 311.13, available = false); runCurrent()
         assertEquals(PracticePitchFeedback(), vm.pitchFeedback.value)
         advanceTimeBy(4000); runCurrent()
@@ -64,17 +64,18 @@ class PracticePitchConnectionTest {
 
     @Test fun exposesLowAndHighAndIgnoresReadingsFromPreviousRecording() = exercise { vm, recorder ->
         vm.grantMicAndStart(); advanceTimeBy(3080); runCurrent()
-        recorder.send(20, 66, 250.0); runCurrent()
-        assertEquals(PitchDirection.Low, vm.pitchFeedback.value.current?.direction)
+        // 황(311Hz)이 곡의 최저음이라 그보다 200센트 넘게 낮은 값은 보류된다(S15P31E102-556 D-5). 290Hz는 122센트 낮음.
+        recorder.send(20, 66, 290.0); runCurrent()
+        assertEquals(false, vm.pitchFeedback.value.current?.correct)
         advanceTimeBy(20)
         recorder.send(40, 86, 400.0); runCurrent()
-        assertEquals(PitchDirection.High, vm.pitchFeedback.value.current?.direction)
+        assertEquals(false, vm.pitchFeedback.value.current?.correct)
         vm.restartNow(); advanceTimeBy(3080); runCurrent()
         recorder.pitchReadings.emit(PitchReading(1, 1, 99, 20, 66, 1000, 311.13, recorder.now() - 10_000_000))
         runCurrent()
         assertEquals(PracticePitchFeedback(), vm.pitchFeedback.value)
         recorder.send(20, 66, 311.13); runCurrent()
-        assertEquals(PitchDirection.Match, vm.pitchFeedback.value.current?.direction)
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
     }
 
     @Test fun waitsForValidInputTimestampWithoutMovingScoreAnchor() = exercise { vm, recorder ->
@@ -86,7 +87,7 @@ class PracticePitchConnectionTest {
         advanceTimeBy(20)
         recorder.send(40, 86, 311.13); runCurrent()
         assertEquals(vm.uiState.value.song!!.timeline[0].id, vm.pitchFeedback.value.current?.eventId)
-        assertEquals(PitchDirection.Match, vm.pitchFeedback.value.current?.direction)
+        assertEquals(true, vm.pitchFeedback.value.current?.correct)
     }
 
     @Test fun accountChangeClearsResultsImmediatelyAndCannotReviveOldCollector() = exercise { vm, recorder ->

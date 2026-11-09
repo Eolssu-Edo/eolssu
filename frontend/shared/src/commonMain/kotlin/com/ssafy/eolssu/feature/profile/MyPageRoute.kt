@@ -19,7 +19,6 @@ import com.ssafy.eolssu.core.ui.component.StartMessage
 import com.ssafy.eolssu.core.ui.component.StartMessageEffect
 import eolssu.shared.generated.resources.Res
 import com.ssafy.eolssu.data.user.LearnProgressRepository
-import eolssu.shared.generated.resources.my_inquiry_preparing
 import eolssu.shared.generated.resources.my_feedback_open_failed
 import eolssu.shared.generated.resources.my_password_none
 import eolssu.shared.generated.resources.my_unlink_last
@@ -120,6 +119,5 @@ fun MyPageRoute(
                 show { getString(Res.string.my_feedback_open_failed) }
             }
         },
-        onOpenInquiry = { show { getString(Res.string.my_inquiry_preparing) } },
     )
 }
