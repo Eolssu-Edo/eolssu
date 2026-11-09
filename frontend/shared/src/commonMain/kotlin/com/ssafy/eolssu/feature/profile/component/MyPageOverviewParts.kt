@@ -82,11 +82,11 @@ internal fun MyPageAvatar() {
         Modifier.size(56.dp).clip(CircleShape).background(EolssuTheme.colors.accentSoft).border(1.dp, EolssuTheme.colors.accentTintLine, CircleShape),
         contentAlignment = Alignment.TopCenter,
     ) {
-        // 전신 그림을 키워 얼굴과 갓이 원을 채우게 한다.
+        // 홈과 공유하는 전신 그림에서 얼굴과 갓이 원형 테두리 안에 들어오게 배치한다.
         Image(
             painterResource(Res.drawable.home_tiger),
             contentDescription = null,
-            modifier = Modifier.requiredSize(96.dp).offset(x = (-8).dp, y = 22.dp),
+            modifier = Modifier.requiredSize(74.dp).offset(x = 5.dp, y = 13.dp),
             alignment = Alignment.TopCenter,
         )
     }
