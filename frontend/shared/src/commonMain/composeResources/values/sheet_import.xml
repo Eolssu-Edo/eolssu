@@ -1,5 +1,4 @@
 <resources>
-    <string name="sheet_upload_prepare">업로드 준비</string>
     <string name="sheet_upload_title">악보 올리기</string>
     <string name="sheet_upload_name">악보 제목 (1~50자)</string>
     <string name="sheet_upload_instrument">연주할 악기</string>
@@ -27,4 +26,12 @@
     <string name="sheet_upload_conflict">접수 정보가 달라졌어요. 내 악보 목록을 먼저 확인해 주세요.</string>
     <string name="sheet_upload_failed">접수를 확인하지 못했어요. 같은 파일로 다시 누르면 중복 접수를 방지해요.</string>
     <string name="sheet_upload_expired">로그인 정보가 바뀌었어요. 화면을 닫고 다시 시작해 주세요.</string>
+    <!-- 파일 선택·인식 실패 안내 창 -->
+    <string name="sheet_upload_dialog_format_title">지원하지 않는 파일 형식이에요</string>
+    <string name="sheet_upload_dialog_format_body">JPG, PNG 또는 PDF 파일을 선택해 주세요.</string>
+    <string name="sheet_upload_dialog_unreadable_title">악보를 읽을 수 없어요</string>
+    <string name="sheet_upload_dialog_unreadable_body">악보가 선명하게 보이는 사진이나 PDF를 다시 선택해 주세요.</string>
+    <string name="sheet_upload_dialog_unrecognized_title">악보를 정확하게 인식하지 못했어요</string>
+    <string name="sheet_upload_dialog_unrecognized_body">악보 전체가 보이도록 기울지 않게 촬영한 사진을 사용해 주세요.</string>
+    <string name="sheet_upload_dialog_repick">다시 선택하기</string>
 </resources>
