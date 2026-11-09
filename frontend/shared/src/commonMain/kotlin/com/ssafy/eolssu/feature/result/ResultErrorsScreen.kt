@@ -114,7 +114,7 @@ fun ResultErrorsScreen(
             val scoreScroll = rememberScrollState()
             Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)
                 .then(if (scrollPage) Modifier.verticalScroll(pageScroll) else Modifier)) {
-                ErrorFilterChips(result, state.filter, onSelectFilter, Modifier.padding(top = 4.dp, bottom = 10.dp), hideEmptyMissed = true, singleLine = false)
+                ErrorFilterChips(result, state.filter, onSelectFilter, Modifier.padding(top = 4.dp, bottom = 10.dp), hideEmptyMissed = true)
                 if (section != null) {
                     Column(Modifier.fillMaxWidth().background(colors.accentTint, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Text(stringResource(Res.string.weak_errors_section_label), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)

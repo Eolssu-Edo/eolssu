@@ -252,7 +252,7 @@
     <string name="result_feedback_low_length">음 길이부터 차근차근 맞춰볼까요?</string>
     <string name="result_feedback_even_good">고르게 잘 연주했어요!</string>
     <string name="result_feedback_even_low">한 번 더 연주해 볼까요?</string>
-    <string name="result_errors_title">오류 위치</string>
+    <string name="result_errors_title">틀린 부분</string>
     <string name="result_errors_count">틀린 정간 %1$d개</string>
     <string name="result_errors_none">틀린 정간이 없어요.</string>
     <string name="result_legend_missed_short">미검출</string>
@@ -261,7 +261,7 @@
     <string name="result_tag_length">길</string>
     <string name="result_tag_missed">미</string>
     <string name="result_errors_preview">정간보 %1$d–%2$d각 미리보기</string>
-    <string name="result_view_all_errors">오류 위치 상세 보기</string>
+    <string name="result_view_all_errors">틀린 부분 상세 보기</string>
     <string name="result_weak_section">취약 구간 연습</string>
     <string name="result_practice_again">같은 곡 다시 연습</string>
     <string name="result_other_song">다른 곡 고르기</string>

@@ -11,8 +11,8 @@
     <string name="weak_legend_wrong">틀린 곳</string>
     <string name="weak_load_missing">연주 결과를 찾지 못했어요. 이전 화면으로 돌아가 주세요.</string>
 
-    <!-- RESULT-03 오류 위치 -->
-    <string name="weak_errors_title">오류 위치</string>
+    <!-- RESULT-03 틀린 부분 -->
+    <string name="weak_errors_title">틀린 부분</string>
     <string name="weak_errors_subtitle">%1$s · %2$d점</string>
     <string name="weak_errors_subtitle_sample">%1$s · %2$d점 · 예시 결과</string>
     <string name="weak_errors_section_label">취약 구간</string>

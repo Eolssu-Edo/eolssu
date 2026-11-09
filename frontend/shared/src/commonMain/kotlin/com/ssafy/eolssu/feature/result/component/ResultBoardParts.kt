@@ -42,10 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -74,7 +71,6 @@ import com.ssafy.eolssu.core.ui.score.JeongganboView
 import eolssu.shared.generated.resources.Res
 import eolssu.shared.generated.resources.enso_ring
 import eolssu.shared.generated.resources.enso_spin
-import eolssu.shared.generated.resources.enso_track
 import eolssu.shared.generated.resources.result_errors_count
 import eolssu.shared.generated.resources.result_errors_none
 import eolssu.shared.generated.resources.result_errors_title
@@ -193,31 +189,18 @@ fun LiteBadge(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * 보드 `.ring`(112dp): 먹색 12% 일원상 위에 총점 비율만큼 연두 일원상을 12시 방향부터 시계 방향으로 잘라 그리고,
+ * 보드 `.ring`(112dp): 연두 붓 일원상을 점수와 관계없이 그림 전체로 그리고,
  * 가운데에 점수(Song Myung 38sp)와 ‘/ 100점’(11sp)을 둔다.
+ * 붓 획은 8시 방향에서 시작해 한 바퀴 돌아 7시 근처에서 꼬리가 끝나며, 꼬리까지 모두 연두로 칠한다.
  */
 @Composable
 fun ScoreRing(score: Int, modifier: Modifier = Modifier) {
     val colors = EolssuTheme.colors
-    val track = painterResource(Res.drawable.enso_track)
     val ring = painterResource(Res.drawable.enso_ring)
     val total = score.coerceIn(0, 100)
     val unit = stringResource(Res.string.result_score_of)
     Box(modifier.size(112.dp).semantics(mergeDescendants = true) { contentDescription = "$total$unit" }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            with(track) { draw(size) }
-            when {
-                total >= 100 -> with(ring) { draw(size) }
-                total > 0 -> {
-                    val wedge = Path().apply {
-                        moveTo(center.x, center.y)
-                        arcTo(Rect(center, size.minDimension), -90f, 360f * total / 100f, forceMoveTo = false)
-                        close()
-                    }
-                    clipPath(wedge) { with(ring) { draw(size) } }
-                }
-            }
-        }
+        Canvas(Modifier.fillMaxSize()) { with(ring) { draw(size) } }
         Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally) {
             Text("$total", style = MaterialTheme.typography.titleMedium.copy(fontSize = 38.sp, lineHeight = 38.sp), color = colors.text)
             Text(
