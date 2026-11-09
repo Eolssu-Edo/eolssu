@@ -11,7 +11,7 @@ import com.ssafy.eolssu.core.network.SecureCookiesStorage
 import com.ssafy.eolssu.core.network.ServerAddress
 import com.ssafy.eolssu.core.storage.KeyValueStore
 import com.ssafy.eolssu.core.storage.SecureStore
-import com.ssafy.eolssu.data.user.IosOAuthRelay
+import com.ssafy.eolssu.data.user.IosDevOAuthRelay
 import com.ssafy.eolssu.data.user.OAuthRoute
 import com.ssafy.eolssu.platform.audio.IosAudioPlayer
 import com.ssafy.eolssu.platform.audio.IosAudioRecorder
@@ -25,15 +25,16 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.darwin.Darwin
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import platform.Foundation.NSBundle
 
 /**
  * iOS 구현 등록. `MainViewController`가 `App`에 넘긴다.
- * 간편 로그인은 시스템 인증 창과 서버 중계 복귀(`IosOAuthRelay`)를 쓴다. 복귀 주소는 인증 창이 [IncomingLinks]로 넘긴다.
+ * 간편 로그인은 시스템 인증 창과 서버 중계 복귀(`IosOAuthRelay`, 개발 앱은 `IosDevOAuthRelay`)를 쓴다. 복귀 주소는 인증 창이 [IncomingLinks]로 넘긴다.
  */
 internal fun iosPlatformModule(): Module = module {
     single { IncomingLinks() }
     single<ExternalBrowser> { IosExternalBrowser(get()) }
-    single<OAuthRoute> { IosOAuthRelay }
+    single<OAuthRoute> { IosDevOAuthRelay.forBundle(NSBundle.mainBundle.bundleIdentifier) }
     single<KeyValueStore> { IosKeyValueStore() }
     single<HttpClientEngine> { Darwin.create() }
     single { ServerAddress.Production }
