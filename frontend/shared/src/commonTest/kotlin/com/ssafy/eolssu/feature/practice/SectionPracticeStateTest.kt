@@ -60,6 +60,18 @@ class SectionPracticeStateTest {
     }
 
     @Test
+    fun roundPercentFollowsStepAndFillsWhenFinished() {
+        var state = SectionLoopUiState(loading = false, cells = cells, repeats = 1, running = true)
+        assertEquals(0, state.roundPercent)
+        state = state.advance()
+        assertEquals(33, state.roundPercent)
+        repeat(2) { state = state.advance() }
+        assertTrue(state.finished)
+        assertEquals(100, state.roundPercent)
+        assertEquals(0, SectionLoopUiState().roundPercent)
+    }
+
+    @Test
     fun endlessLoopNeverFinishes() {
         var state = SectionLoopUiState(loading = false, cells = cells, repeats = null, running = true)
         repeat(30) { state = state.advance() }
