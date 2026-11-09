@@ -93,6 +93,51 @@ class RequestTests(unittest.TestCase):
         self.assertIn('**실행 세부 정보**', text)
         self.assertNotIn('<br>', text)
 
+    def test_mode_summaries_cover_both_targets_and_keep_details(self):
+        server = {'mode': 'server', 'columns': [str(i) for i in range(10)],
+                  'rows': [[f'value{i}' for i in range(10)]]}
+        containers = {'mode': 'containers', 'columns': [str(i) for i in range(11)], 'rows': []}
+        health = {'mode': 'health', 'columns': ['대상', '방식', '판정', '측정'],
+                  'rows': [['eolssu-runtime-backend-1', 'Docker', '정상', 'healthy'],
+                           ['API health', 'edo2 외부 HTTPS', '정상', 'HTTP 200'],
+                           ['중계 HTTPS', 'edo2 자체 HTTPS', '정상', 'HTTP 200'],
+                           ['실제 복구 검증 결과', 'edo2 백업 메타데이터', '주의', '복구 검증 통과'],
+                           ['eolssu-replica-579-mysql-1', 'Docker healthcheck', '정상', 'healthy']],
+                  'facts': {'backend_slot': 'backend'}}
+        for target in ('edo1', 'edo2'):
+            for report, label, detail in ((server, '서버 점검', '서버 현재 자원'),
+                                           (containers, '컨테이너 점검', '컨테이너 현황'),
+                                           (health, '상태 점검', '서비스 검사 결과')):
+                with self.subTest(target=target, mode=report['mode']):
+                    text = relay.build_report(dict(report, target=target), 'req')
+                    self.assertIn(f'{target} {label}', text)
+                    self.assertLess(text.index('핵심 요약'), text.index(detail))
+                    if report is health:
+                        summary = text.split('**핵심 요약**')[1].split('**')[0]
+                        self.assertIn('라우팅 설정 블루' if target == 'edo1' else '복구 검증 주의', summary)
+                        self.assertIn('API 정상' if target == 'edo1' else '중계 HTTPS 정상', summary)
+                        if target == 'edo2':
+                            self.assertIn('Docker 검사 · MySQL 복제본 정상', summary)
+                            self.assertIn('복제 지연과 장애 조치 가능 여부', text)
+
+    def test_health_prioritizes_outages_and_preserves_later_details(self):
+        rows = [[f'대기{i}', 'Docker', '미검증', '대기 중'] for i in range(7)]
+        rows.append(['DB', 'Docker', '실패', '응답 실패'])
+        result = {'mode': 'health', 'columns': ['대상', '방식', '판정', '근거'], 'rows': rows}
+        text = relay.build_report(result, 'req')
+        priority, detail = text.split('**먼저 확인할 항목**')[1].split('**서비스 검사 결과**')
+        self.assertLess(priority.index('DB'), priority.index('대기0'))
+        self.assertNotIn('대기6', priority)
+        self.assertIn('대기6', detail)
+
+    def test_long_report_keeps_summary_and_explicit_omission_within_limit(self):
+        report = {'mode': 'health', 'columns': ['대상', '방식', '판정', '근거'],
+                  'rows': [[f'검사{i}', 'Docker', '정상', '상세' * 1000] for i in range(100)]}
+        text = relay.build_report(report, 'req')
+        self.assertIn('핵심 요약', text)
+        self.assertIn('출력 제한', text)
+        self.assertLessEqual(len(text), 14000)
+
     def test_capture_time_is_inline_code_to_prevent_emoji_conversion(self):
         for stamp in ('2026-10-23 16:17:18 KST', '2026-10-23 16:17:18 `KST`'):
             result = {'mode': 'server', 'columns': ['대상', '상태'],
