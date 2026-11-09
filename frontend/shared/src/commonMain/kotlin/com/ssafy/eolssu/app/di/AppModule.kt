@@ -7,6 +7,8 @@ import com.ssafy.eolssu.data.practice.ApiEvaluationRepository
 import com.ssafy.eolssu.data.practice.EvaluationRepository
 import com.ssafy.eolssu.data.practice.GrowthRepository
 import com.ssafy.eolssu.data.practice.HttpGrowthRepository
+import com.ssafy.eolssu.data.practice.HttpNotePracticeCriteriaRepository
+import com.ssafy.eolssu.data.practice.NotePracticeCriteriaRepository
 import com.ssafy.eolssu.data.practice.HttpPracticeSessionRepository
 import com.ssafy.eolssu.data.practice.HttpRecordingUploader
 import com.ssafy.eolssu.data.practice.PracticeSessionRepository
@@ -23,6 +25,8 @@ import com.ssafy.eolssu.data.song.SheetDocumentRepository
 import com.ssafy.eolssu.data.song.ApiSheetDocumentRepository
 import com.ssafy.eolssu.data.song.SheetImportRepository
 import com.ssafy.eolssu.data.song.ApiSheetImportRepository
+import com.ssafy.eolssu.data.song.ApiSheetConversionRepository
+import com.ssafy.eolssu.data.song.SheetConversionRepository
 import com.ssafy.eolssu.feature.song.edit.SheetImportViewModel
 import com.ssafy.eolssu.data.song.ApiMySheetRepository
 import com.ssafy.eolssu.data.song.ApiSheetAudioRepository
@@ -136,13 +140,15 @@ val appModule = module {
     single<ScoreViewApi> { HttpScoreViewApi(get()) }
     single { PracticeTimeQueue(get(), get<ScoreViewApi>(), get(), get()) }
     single<GrowthRepository> { HttpGrowthRepository(get(), get()) }
+    single<NotePracticeCriteriaRepository> { HttpNotePracticeCriteriaRepository(get()) }
 
     viewModelOf(::SongListViewModel)
     viewModel { (songId: String) -> SongDetailViewModel(songId, get()) }
     // 녹음·마이크 권한은 플랫폼 모듈에 구현이 있을 때만 쓴다(현재 Android·iOS).
     viewModel { (songId: String, solo: Boolean, mine: Boolean) ->
         PracticeViewModel(songId, solo, get(), get(), PracticeTimeMeter(now = get()), get(), getOrNull(), getOrNull(),
-            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer())
+            modelAudioRepository = get(), audioPlayer = get(), mine = mine, member = get(), jangdanPlayer = getOrNull() ?: com.ssafy.eolssu.core.audio.UnavailableJangdanSamplePlayer(),
+            notePractice = get())
     }
     viewModel { (songId: String, bpm: Int, take: RecordedTake?, pendingSessionId: String?, section: SessionSection?) ->
         val uploads = getOrNull<RecordingFiles>()?.let { get<RecordingUploads>() }
@@ -191,11 +197,12 @@ val appModule = module {
     single<MySheetRepository> { ApiMySheetRepository(get(), member = get()) }
     single<SheetDocumentRepository> { ApiSheetDocumentRepository(get(), member = get()) }
     single<SheetImportRepository> { ApiSheetImportRepository(get(), get()) }
+    single<SheetConversionRepository> { ApiSheetConversionRepository(get(), get()) }
     viewModel { (kind: ImportKind, hwang: HwangPitch) ->
         SheetImportViewModel(kind, hwang, get(),
             get<InstrumentCatalog>()::load, get<ReferenceCatalogRepository>()::jangdans, get())
     }
-    viewModelOf(::MySongsViewModel)
+    viewModel { MySongsViewModel(get(), get(), get(), get(), get(), get()) }
 
     // 2차 취약 구간 연습 · 이전 연주 비교(S15P31E102-455). 서버 API가 없어 예시 데이터만 쓴다.
     single<WeakSectionRepository> { ApiWeakSectionRepository(get(), get(), get(), get(), get()) }

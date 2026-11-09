@@ -42,7 +42,23 @@ import com.ssafy.eolssu.core.ui.component.EolssuBadgeStyle
 import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuLevelBadge
 import com.ssafy.eolssu.core.ui.component.monthDayLabel
+import com.ssafy.eolssu.data.song.SheetConversion
+import com.ssafy.eolssu.data.song.SheetConversionFailure
+import com.ssafy.eolssu.data.song.SheetConversionStage
+import com.ssafy.eolssu.data.song.SheetConversionStatus
 import eolssu.shared.generated.resources.Res
+import eolssu.shared.generated.resources.mysongs_conversion_building
+import eolssu.shared.generated.resources.mysongs_conversion_failed
+import eolssu.shared.generated.resources.mysongs_conversion_failed_file
+import eolssu.shared.generated.resources.mysongs_conversion_failed_no_score
+import eolssu.shared.generated.resources.mysongs_conversion_failed_server
+import eolssu.shared.generated.resources.mysongs_conversion_failed_timeout
+import eolssu.shared.generated.resources.mysongs_conversion_issues
+import eolssu.shared.generated.resources.mysongs_conversion_queued
+import eolssu.shared.generated.resources.mysongs_conversion_reading
+import eolssu.shared.generated.resources.mysongs_conversion_reading_pages
+import eolssu.shared.generated.resources.mysongs_conversion_reimport
+import eolssu.shared.generated.resources.mysongs_conversion_retry
 import eolssu.shared.generated.resources.jangdan_label
 import eolssu.shared.generated.resources.mysongs_delete_label
 import eolssu.shared.generated.resources.mysongs_edit
@@ -136,15 +152,30 @@ internal fun ProvidedSongRow(song: SongSummary, meta: String, onClick: () -> Uni
 
 /**
  * SONG-03 내 악보 줄: 윗줄은 '정간보' 칸 · 제목 · 보조 문구(누르면 [onOpen])와 '편집' 칩([onEdit]),
- * 아랫줄은 글자 줄에 맞춘 '연습 가능' 배지와 오른쪽 끝 휴지통([onDelete])이다.
+ * 아랫줄은 글자 줄에 맞춘 상태 배지와 오른쪽 끝 휴지통([onDelete])이다.
+ *
+ * 불러오기로 만든 악보는 [conversion] 상태를 따른다. 변환 중이면 '변환 중' 배지만 두고 열기·편집을 막으며,
+ * 실패하면 원인과 함께 '다시 시도'([onRetryConversion], 서버가 다시 시도할 수 있다고 할 때만) 또는 '다시 불러오기'([onReimport])를 둔다.
  */
 @Composable
-internal fun MySheetRow(sheet: MySheet, onOpen: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+internal fun MySheetRow(
+    sheet: MySheet,
+    onOpen: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    conversion: SheetConversion? = null,
+    retrying: Boolean = false,
+    onRetryConversion: () -> Unit = {},
+    onReimport: () -> Unit = {},
+) {
+    val status = conversion?.status
+    val usable = status == null || status == SheetConversionStatus.Done
     PracticeRowFrame(modifier) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
-                    Modifier.weight(1f).clickable(role = Role.Button, onClick = onOpen),
+                    Modifier.weight(1f).clickable(enabled = usable, role = Role.Button, onClick = onOpen),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -157,19 +188,62 @@ internal fun MySheetRow(sheet: MySheet, onOpen: () -> Unit, onEdit: () -> Unit, 
                     }
                     RowText(sheet.title, sheetMeta(sheet))
                 }
-                EditChip(stringResource(Res.string.mysongs_edit), onEdit)
+                when {
+                    usable -> EditChip(stringResource(Res.string.mysongs_edit), onEdit)
+                    status == SheetConversionStatus.Failed && conversion?.retryable == true ->
+                        EditChip(stringResource(Res.string.mysongs_conversion_retry), onRetryConversion, enabled = !retrying)
+                    status == SheetConversionStatus.Failed -> EditChip(stringResource(Res.string.mysongs_conversion_reimport), onReimport)
+                }
             }
             Row(
                 Modifier.fillMaxWidth().padding(start = 56.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    when {
+                        conversion == null || usable -> {
+                            EolssuBadge(stringResource(Res.string.mysongs_status_practice), style = EolssuBadgeStyle.Play, small = true)
+                            val issues = conversion?.issueCount ?: 0
+                            if (issues > 0) EolssuBadge(stringResource(Res.string.mysongs_conversion_issues, issues), small = true)
+                        }
+                        status == SheetConversionStatus.Failed -> {
+                            EolssuBadge(stringResource(Res.string.mysongs_conversion_failed), small = true)
+                            Text(
+                                conversionFailureText(conversion?.failure),
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                color = EolssuTheme.colors.textMuted,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        else -> EolssuBadge(conversionProgressText(conversion ?: SheetConversion(sheet.id, SheetConversionStatus.Queued)), style = EolssuBadgeStyle.Soft, small = true)
+                    }
+                }
                 DeleteButton(stringResource(Res.string.mysongs_delete_label, sheet.title), onDelete)
             }
         }
     }
 }
+
+/** '변환 대기 중' · '악보 읽는 중 1/3쪽' · '악보 만드는 중'. 쪽 수를 모르면 쪽 수 없이 쓴다. */
+@Composable
+private fun conversionProgressText(conversion: SheetConversion): String = when {
+    conversion.status == SheetConversionStatus.Queued -> stringResource(Res.string.mysongs_conversion_queued)
+    conversion.stage == SheetConversionStage.BuildingScore -> stringResource(Res.string.mysongs_conversion_building)
+    conversion.pageCount > 0 -> stringResource(Res.string.mysongs_conversion_reading_pages, conversion.processedPageCount, conversion.pageCount)
+    else -> stringResource(Res.string.mysongs_conversion_reading)
+}
+
+@Composable
+private fun conversionFailureText(failure: SheetConversionFailure?): String = stringResource(
+    when (failure) {
+        SheetConversionFailure.NoScoreFound -> Res.string.mysongs_conversion_failed_no_score
+        SheetConversionFailure.UnsupportedFile -> Res.string.mysongs_conversion_failed_file
+        SheetConversionFailure.Timeout -> Res.string.mysongs_conversion_failed_timeout
+        SheetConversionFailure.ServerError, null -> Res.string.mysongs_conversion_failed_server
+    },
+)
 
 /**
  * 휴지통(`.ibtn` 40dp, 아이콘 20dp). 와이어프레임처럼 위아래 9dp · 오른쪽 8dp를 줄 밖으로 내밀어
@@ -197,10 +271,11 @@ private fun DeleteButton(label: String, onClick: () -> Unit) {
 
 /** 편집 칩(`.chip.sm`): 28dp, 12sp, 흰 바탕에 옅은 테두리. */
 @Composable
-private fun EditChip(text: String, onClick: () -> Unit) {
+private fun EditChip(text: String, onClick: () -> Unit, enabled: Boolean = true) {
     val colors = EolssuTheme.colors
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.heightIn(min = 28.dp),
         shape = CircleShape,
         color = colors.surface,

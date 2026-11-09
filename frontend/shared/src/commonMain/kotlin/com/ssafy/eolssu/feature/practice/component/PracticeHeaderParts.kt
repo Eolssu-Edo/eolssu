@@ -71,7 +71,8 @@ fun PracticeTopBar(
         modifier = modifier,
         maxWidth = maxWidth,
         right = {
-            if (state.solo) {
+            // 서버에 이 악기의 한 음씩 판정 기준이 없으면 토글을 숨긴다(PRA-06 404).
+            if (state.solo && state.step.available) {
                 PracticeStepToggle(state, onToggleStep)
                 if (showSettings) Spacer(Modifier.width(2.dp))
             }

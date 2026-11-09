@@ -12,7 +12,12 @@
     <string name="practice_step_rec_desc_resume">녹음 이어서 시작 · 3박 센 뒤</string>
     <string name="practice_step_rec_desc_start">녹음 시작</string>
     <string name="practice_step_progress">%1$d / %2$d음 · 맞는 음을 불어야 다음 정간으로 넘어가요 · 판정은 이 기기 안에서만 해요</string>
-    <string name="practice_step_manual_confirm">맞게 분 것으로 넘기기 (음 판정 연결 전 임시)</string>
+    <string name="practice_step_manual_confirm">맞게 분 것으로 넘기기 · 이 기기에서는 음을 판정하지 못해요</string>
+    <!-- 한 음씩 마이크 권한·녹음 실패 안내(혼자 연습 화면) -->
+    <string name="practice_step_permission_body">마이크로 들어온 소리로 지금 음을 맞게 불었는지 이 기기 안에서 확인해요. 녹음은 저장하거나 보내지 않아요. ‘계속’을 누르면 기기 권한 창이 열려요.</string>
+    <string name="practice_step_denied_body">모범 연주, 운지법, 악보는 계속 볼 수 있어요. 한 음씩 따라 불기를 시작할 때 다시 안내해드릴게요.</string>
+    <string name="practice_step_blocked_body">앱에서 다시 요청할 수 없는 상태예요. 기기 설정에서 얼쑤의 마이크 권한을 허용하면 한 음씩 따라 불 수 있어요.</string>
+    <string name="practice_step_record_failed_body">다른 앱이 마이크를 쓰고 있을 수 있어요. ‘내 연주’를 다시 눌러 주세요.</string>
     <string name="practice_step_status">한 음씩 · %1$s(%2$s)%3$s 불어 보세요</string>
     <string name="practice_step_particle_eul">을</string>
     <string name="practice_step_particle_reul">를</string>

@@ -50,7 +50,6 @@ class SectionLoopViewModel(
                 it.copy(
                     loading = false,
                     song = source?.song,
-                    errors = source?.evaluation?.errors.orEmpty(),
                     cells = source?.let { s -> section.positions(s.song.score) }.orEmpty(),
                 )
             }
