@@ -104,11 +104,8 @@ import eolssu.shared.generated.resources.practice_listening
 import eolssu.shared.generated.resources.practice_menu_jangdan
 import eolssu.shared.generated.resources.practice_menu_notation
 import eolssu.shared.generated.resources.practice_menu_tempo
-import eolssu.shared.generated.resources.practice_notation_example
 import eolssu.shared.generated.resources.practice_notation_hangul
-import eolssu.shared.generated.resources.practice_notation_hangul_desc
 import eolssu.shared.generated.resources.practice_notation_solfege
-import eolssu.shared.generated.resources.practice_notation_solfege_desc
 import eolssu.shared.generated.resources.practice_notation_solfege_none
 import eolssu.shared.generated.resources.practice_notation_title
 import eolssu.shared.generated.resources.practice_off
@@ -329,7 +326,7 @@ private fun MenuRow(icon: ImageVector, label: String, status: String, enabled: B
 @Composable
 private fun SettingRow(
     label: String,
-    description: String,
+    description: String?,
     checked: Boolean,
     onToggle: () -> Unit,
     enabled: Boolean = true,
@@ -348,7 +345,9 @@ private fun SettingRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
-            Text(description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp), color = colors.textMuted)
+            if (description != null) {
+                Text(description, style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp), color = colors.textMuted)
+            }
         }
         EolssuSwitch(checked, onToggle, label, enabled = enabled)
     }
@@ -370,24 +369,25 @@ private fun PanelCard(modifier: Modifier = Modifier, padding: Dp = 16.dp, conten
 
 /**
  * PANEL-01 악보 표시 설정: 한글 읽는 법 · 계이름 스위치 줄과, 고른 설정을 보여 주는 미니 정간보 카드.
+ * 스위치 설명과 예시 설명 문장은 두지 않는다. 계이름 데이터가 없는 곡에서만 스위치가 꺼진 이유를 적는다.
  */
 @Composable
 private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePanelActions) {
     val hasSolfege = song.solfege != null
     val colors = EolssuTheme.colors
     SettingRow(
-        stringResource(Res.string.practice_notation_hangul), stringResource(Res.string.practice_notation_hangul_desc),
+        stringResource(Res.string.practice_notation_hangul), null,
         draft.showHangul, { actions.onDraft { it.copy(showHangul = !it.showHangul) } }, topLine = false,
     )
     SettingRow(
         stringResource(Res.string.practice_notation_solfege),
-        stringResource(if (hasSolfege) Res.string.practice_notation_solfege_desc else Res.string.practice_notation_solfege_none),
+        if (hasSolfege) null else stringResource(Res.string.practice_notation_solfege_none),
         hasSolfege && draft.showSolfege, { actions.onDraft { it.copy(showSolfege = !it.showSolfege) } }, enabled = hasSolfege,
     )
     Row(
         Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(16.dp)).border(1.dp, colors.lineSoft, RoundedCornerShape(16.dp)).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.Center,
     ) {
         JeongganboView(
             song = song,
@@ -398,12 +398,6 @@ private fun NotationPanel(draft: PracticeDraft, song: Song, actions: PracticePan
             maxColumns = 1,
             maxRows = 3,
             look = JeongganboLook(style = JeongganboLook.Style.Board, lyricLane = 19.dp, headCompact = true, daegangWhenFits = true),
-        )
-        Text(
-            stringResource(Res.string.practice_notation_example),
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 19.sp),
-            color = colors.textMuted,
         )
     }
 }
