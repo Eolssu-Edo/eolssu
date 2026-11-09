@@ -10,7 +10,7 @@ thumbnail: "https://team-edo.github.io/blog-images/2026-11-console-error-origin-
 draft: false
 ---
 
-얼쑤의 곡 목록 API를 점검할 때 Chrome 콘솔에 `Cannot read properties of undefined` 오류가 **아홉 건** 찍혔습니다. 곡 목록을 요청하는 동안 보인 오류라 처음에는 응답을 처리하는 코드부터 봐야 할지 판단하기 어려웠습니다. 같은 요청의 응답은 **HTTP 200**이었고 본문에는 `isSuccess: true`가 들어 있었습니다.
+얼쑤의 곡 목록 API를 점검할 때 Chrome 콘솔에 `Cannot read properties of undefined (reading 'sentence')` 오류가 **아홉 건** 찍혔습니다. 곡 목록을 요청하는 동안 보인 오류라 처음에는 응답을 처리하는 코드부터 봐야 할지 판단하기 어려웠습니다. 같은 요청의 응답은 **HTTP 200**이었고 본문에는 `isSuccess: true`가 들어 있었습니다.
 
 ## 스택에서 파일 출처 확인 {#콘솔에서는-스택의-파일-출처를-봤습니다}
 
@@ -20,6 +20,6 @@ draft: false
 
 API 응답을 확인할 때는 문서 UI에 보이는 결과와 별도로 같은 요청의 상태 코드와 본문을 읽었습니다. 그 요청에서 확인한 200과 성공 표시는 서버가 곡 목록을 정상 응답으로 보냈다는 근거였습니다. 확장 스크립트와 문서 UI가 왜 그 뒤에 각각 오류를 냈는지는 이 두 값으로 알 수 없었습니다. 상태와 본문을 먼저 확보하면 어느 쪽을 재현할지 범위를 좁힐 수 있습니다. [Chrome DevTools 네트워크 문서](https://developer.chrome.com/docs/devtools/network/reference)
 
-확장 쪽에서 확인한 것은 오류 아홉 건의 스크립트 출처와 같은 요청의 HTTP 응답입니다. 확장을 끈 상태에서 같은 요청의 스택과 응답을 비교하는 단계는 당시 실행 기록에 남아 있지 않습니다.
+당시 기록에는 확장 ID의 앞부분만 남았고 확장 버전, Chrome 버전, 확장을 끈 뒤의 결과는 확인할 수 없었습니다. 재현할 때는 전용 테스트 프로필에서 확장을 켠 상태로 같은 요청을 보내고, 해당 확장만 끈 뒤 다시 요청합니다. 두 실행에서 상태 코드와 `isSuccess`를 비교하고, 확장 스크립트와 Swagger UI 번들의 오류 수를 각각 셉니다. 다시 켰을 때 같은 확장 스택이 돌아오면 확장 활성화 여부와 오류의 관계를 그 환경에서 확인할 수 있습니다.
 
 Swagger UI에서 응답을 표시하다 생긴 오류는 별도로 목록 구조를 추적했습니다. 후속 작업에서 응답 크기의 대부분을 차지하던 악보를 목록에서 분리한 뒤, 실제 HTTP와 MySQL을 사용해 목록에서 본문이 빠지고 곡별 조회에서 원본을 받을 수 있음을 확인했습니다. [1.76MB 곡 목록에서 악보 덜어내기](https://team-edo.github.io/posts/2026/11/song-list-payload-and-gzip/)
