@@ -46,16 +46,12 @@ import com.ssafy.eolssu.core.ui.component.EolssuIcons
 import com.ssafy.eolssu.core.ui.component.EolssuScaffold
 import com.ssafy.eolssu.core.ui.component.EolssuTopBar
 import com.ssafy.eolssu.core.ui.component.formatClock
-import com.ssafy.eolssu.core.ui.component.songInstrumentLabel
-import com.ssafy.eolssu.core.ui.score.ErrorKindLegend
 import com.ssafy.eolssu.core.ui.score.JeongganboLook
 import com.ssafy.eolssu.core.ui.score.errorScoreCellHeights
 import com.ssafy.eolssu.core.ui.score.JeongganboView
-import com.ssafy.eolssu.core.ui.score.scoreSectionLabel
 import com.ssafy.eolssu.feature.practice.component.sectionLoopScoreMetrics
 import com.ssafy.eolssu.feature.practice.component.sectionDecorations
 import eolssu.shared.generated.resources.Res
-import eolssu.shared.generated.resources.weak_legend_last
 import eolssu.shared.generated.resources.weak_load_missing
 import eolssu.shared.generated.resources.weak_loop_badge_done
 import eolssu.shared.generated.resources.weak_loop_badge_paused
@@ -65,18 +61,15 @@ import eolssu.shared.generated.resources.weak_loop_badge_running_endless
 import eolssu.shared.generated.resources.weak_loop_count_resume
 import eolssu.shared.generated.resources.weak_loop_count_start
 import eolssu.shared.generated.resources.weak_loop_evaluate
-import eolssu.shared.generated.resources.weak_loop_hint
-import eolssu.shared.generated.resources.weak_loop_no_score
 import eolssu.shared.generated.resources.weak_loop_pause
 import eolssu.shared.generated.resources.weak_loop_progress
 import eolssu.shared.generated.resources.weak_loop_restart
 import eolssu.shared.generated.resources.weak_loop_resume
-import eolssu.shared.generated.resources.weak_loop_subtitle
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * PRACTICE-03 구간 반복(2차 `SectionLoop` · `SectionLoop-Resume`). 정간보는 연습 화면과 같은 부품(정간 44dp · 율명 21sp · 각 78dp, 곁줄=가사 칸)이고,
- * 구간 각만 연두 테두리·크림 머리, 앞뒤 한 각은 흐리게 한다(처음·끝 표시는 없다). 지난번 틀린 정간은 종류별 색·아이콘이다.
+ * 구간 각만 연두 테두리·크림 머리, 앞뒤 한 각은 흐리게 한다(처음·끝 표시는 없다). 지난번 틀린 정간은 표시하지 않는다.
  * 멈췄다가 ‘반복 계속’을 누르면 3·2·1(1초마다)을 센 뒤 이어 간다.
  */
 @Composable
@@ -98,11 +91,6 @@ fun SectionLoopScreen(
                 EolssuTopBar(
                     title = song?.title.orEmpty(),
                     onBack = onBack,
-                    subtitle = if (song != null && section != null) {
-                        stringResource(Res.string.weak_loop_subtitle, songInstrumentLabel(song), scoreSectionLabel(section, song.score))
-                    } else {
-                        null
-                    },
                     below = if (song != null) {
                         { LoopBadge(state) }
                     } else {
@@ -126,8 +114,6 @@ fun SectionLoopScreen(
             val cellHeights = remember(song, scoreMetrics) { errorScoreCellHeights(song, scoreMetrics, minSplitRowHeight = 26.dp) }
             val current = state.current
             Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ErrorKindLegend(Modifier.fillMaxWidth(), title = stringResource(Res.string.weak_legend_last), boxed = true, dense = true)
-                Text(stringResource(Res.string.weak_loop_hint), style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp), color = colors.textMuted)
                 val shown = state.shownColumns
                 JeongganboView(
                     song = song,
@@ -139,7 +125,7 @@ fun SectionLoopScreen(
                     follow = true,
                     columns = shown,
                     decorations = sectionDecorations(
-                        song.score, state.errors, section, outsideAlpha = OutsideAlpha, edgeRing = false, edgeLabels = false,
+                        song.score, emptyList(), section, outsideAlpha = OutsideAlpha, edgeRing = false, edgeLabels = false,
                         columns = shown ?: section.columns, markColumns = section.columns, current = current,
                     ),
                     sectionColumns = section.fullColumns(song.score),
@@ -219,20 +205,10 @@ private fun LoopControls(state: SectionLoopUiState, onTogglePause: () -> Unit, o
         RecordingControls(state, onTogglePause)
         return
     }
-    // 시안: 왼쪽 굵은 회차·시간, 오른쪽 흐린 안내(space-between). 가운데 빈칸이 남는 폭을 채우고, 좁으면 안내가 아랫줄 오른쪽으로 내려간다.
-    FlowRow(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.End),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        itemVerticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(Res.string.weak_loop_progress, state.round, formatClock(state.elapsedSeconds), formatClock(state.roundSeconds)),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
-        )
-        Spacer(Modifier.weight(1f))
-        Text(stringResource(Res.string.weak_loop_no_score), style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = colors.textMuted)
-    }
+    Text(
+        stringResource(Res.string.weak_loop_progress, state.round, formatClock(state.elapsedSeconds), formatClock(state.roundSeconds)),
+        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+    )
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         state.roundProgress.forEach { fraction ->
             Box(Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(colors.surfaceStrong)) {
